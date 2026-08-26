@@ -30,6 +30,14 @@ namespace HexMap
         public NativeList<float4> Colors;
         public NativeList<float3> CellIndices;
 
+        /// <summary>
+        /// 逐顶点 UV 坡面补偿向量（世界单位）：uv = 世界xz + 补偿。
+        /// 顶视投影在陡壁上沿落差拉伸，连接带/角部把「低于坡顶的高度 × k·下坡方向」
+        /// 烘进该通道；平地恒 0。片元只插值不现算——相邻三角形共享顶点取同一值，
+        /// 不会像按片元法线计算那样逐面错位。
+        /// </summary>
+        public NativeList<float2> UvCorr;
+
         // splat 权重基向量
         private static readonly float4 W100 = new float4(1f, 0f, 0f, 1f);
         private static readonly float4 W010 = new float4(0f, 1f, 0f, 1f);
@@ -53,7 +61,7 @@ namespace HexMap
                 TriangulateDirection((HexDirection)d, cell, ref metrics, ref blob);
             }
             // 底面不再逐 cell 生成：整张地图共用一个矩形底面（HexMapBaseSystem），
-            // 由外圈 cell 的竖直侧面与之闭合。
+            // 由外圈 cell 的边界连接区（下探到底面边缘）与之闭合。
         }
 
         /// <summary>
@@ -75,28 +83,14 @@ namespace HexMap
             var neighbor = GetNeighbor(cell, direction);
             bool hasNeighbor = neighbor.Elevation != int.MinValue;
 
-            // 边界 cell 判定（此处只需判断本 cell，不关心邻居是否也是边界）
-            bool isBoundary = HexBoundary.IsBoundary(in cell, blob.CellCount);
-
             var e = new EdgeVertices(
                 center + (hasNeighbor ? metrics.GetFirstSolidCorner(direction) : metrics.GetFirstCorner(direction)),
                 center + (hasNeighbor ? metrics.GetSecondSolidCorner(direction) : metrics.GetSecondCorner(direction)));
 
-            // 只裁剪朝外（无邻居）的边：朝内的边要与邻居用 e1+bridge 推出的
-            // 同一条边逐点重合，裁剪它就会让连接区错位。
-            if (isBoundary && !hasNeighbor)
-            {
-                float4 rect = HexBoundary.GetMapRect(metrics.OuterRadius, metrics.InnerRadius, blob.CellCount);
-                e.v1 = HexBoundary.ClampToRect(e.v1, rect);
-                e.v2 = HexBoundary.ClampToRect(e.v2, rect);
-                e.v3 = HexBoundary.ClampToRect(e.v3, rect);
-                e.v4 = HexBoundary.ClampToRect(e.v4, rect);
-                e.v5 = HexBoundary.ClampToRect(e.v5, rect);
-            }
-
-            // 只有朝外（无邻居）的边不扰动，让它与侧面顶边严格重合。
-            // 朝内的边照常扰动，才能和内侧邻居的连接区顶点对齐。
-            TriangulateEdgeFan(center, e, cell.TerrainIndex, perturbEdge: hasNeighbor);
+            // 全扰动：Perturb 是世界坐标的纯函数，扇形/连接区/边界裙边在共享顶点处
+            // 算出同一结果。扰动与不扰动混用反而会在两者的交界处错开裂缝。
+            // 地图边缘的振幅由 Perturb 内部按位置衰减到 0（边缘完全不扰动）。
+            TriangulateEdgeFan(center, e, cell.TerrainIndex);
 
             if (hasNeighbor)
             {
@@ -108,62 +102,44 @@ namespace HexMap
             }
             else
             {
-                // 地图边界：生成竖直侧面连接到统一底面（bottomY = -ElevationStep）
-                TriangulateBoundarySide(e, cell, ref metrics);
+                // 无邻居分两种情况：
+                // 1. 邻居在地图外（永久缺失）→ 地图边界：连接区直接下探到底面边缘
+                // 2. 邻居尚未流式加载（暂时缺失）→ 临时竖直侧面，邻居加载后自动替换
+                var cellOffset = cell.Coordinates.ToOffsetCoordinates();
+                var neighborOffset = HexBoundary.NeighborOffset(cellOffset, direction);
+                if (HexBoundary.IsOutsideMap(neighborOffset, blob.CellCount))
+                {
+                    TriangulateBoundaryConnection(e, cell, ref metrics, ref blob);
+                }
+                else
+                {
+                    TriangulateBoundarySide(e, cell, ref metrics);
+                }
+
+                // 本方向扇形铺到完整角、相邻方向（若有邻居）桥接只从 solid 角起，
+                // 两者之间的角部区域是空洞，必须补面（地图边界与流式边缘同样需要）
+                TriangulateMixedCorner(direction, cell, ref metrics);
             }
         }
 
         /// <summary>
-        /// 中心扇形三角化（4 个三角形，单一地形）。
-        /// perturbEdge = false 时边缘顶点不扰动（地图边界边），使顶面边界与
-        /// 同样未扰动的侧面顶边、底面轮廓严格重合；中心点始终扰动，保持形状自然。
+        /// 中心扇形三角化（4 个三角形，单一地形），顶点全部扰动。
         /// </summary>
-        private void TriangulateEdgeFan(float3 center, EdgeVertices edge, int terrainIdx, bool perturbEdge = true)
+        private void TriangulateEdgeFan(float3 center, EdgeVertices edge, int terrainIdx)
         {
             float3 indices = new float3(terrainIdx, terrainIdx, terrainIdx);
 
-            if (perturbEdge)
-            {
-                AddTriangle(center, edge.v1, edge.v2);
-                AddTriangleCellData(indices, W100);
+            AddTriangle(center, edge.v1, edge.v2);
+            AddTriangleCellData(indices, W100);
 
-                AddTriangle(center, edge.v2, edge.v3);
-                AddTriangleCellData(indices, W100);
+            AddTriangle(center, edge.v2, edge.v3);
+            AddTriangleCellData(indices, W100);
 
-                AddTriangle(center, edge.v3, edge.v4);
-                AddTriangleCellData(indices, W100);
+            AddTriangle(center, edge.v3, edge.v4);
+            AddTriangleCellData(indices, W100);
 
-                AddTriangle(center, edge.v4, edge.v5);
-                AddTriangleCellData(indices, W100);
-            }
-            else
-            {
-                AddTriangleCenterPerturbed(center, edge.v1, edge.v2);
-                AddTriangleCellData(indices, W100);
-
-                AddTriangleCenterPerturbed(center, edge.v2, edge.v3);
-                AddTriangleCellData(indices, W100);
-
-                AddTriangleCenterPerturbed(center, edge.v3, edge.v4);
-                AddTriangleCellData(indices, W100);
-
-                AddTriangleCenterPerturbed(center, edge.v4, edge.v5);
-                AddTriangleCellData(indices, W100);
-            }
-        }
-
-        /// <summary>
-        /// 只扰动第一个顶点（扇形中心），另外两个（边界边缘）保持原位
-        /// </summary>
-        private void AddTriangleCenterPerturbed(float3 center, float3 v2, float3 v3)
-        {
-            int vertexIndex = Positions.Length;
-            Positions.Add(Perturb(center));
-            Positions.Add(v2);
-            Positions.Add(v3);
-            Triangles.Add(vertexIndex);
-            Triangles.Add(vertexIndex + 1);
-            Triangles.Add(vertexIndex + 2);
+            AddTriangle(center, edge.v4, edge.v5);
+            AddTriangleCellData(indices, W100);
         }
 
         /// <summary>
@@ -175,6 +151,9 @@ namespace HexMap
             Positions.Add(Perturb(v1));
             Positions.Add(Perturb(v2));
             Positions.Add(Perturb(v3));
+            UvCorr.Add(float2.zero);
+            UvCorr.Add(float2.zero);
+            UvCorr.Add(float2.zero);
             Triangles.Add(vertexIndex);
             Triangles.Add(vertexIndex + 1);
             Triangles.Add(vertexIndex + 2);
@@ -189,53 +168,36 @@ namespace HexMap
             Positions.Add(v1);
             Positions.Add(v2);
             Positions.Add(v3);
+            UvCorr.Add(float2.zero);
+            UvCorr.Add(float2.zero);
+            UvCorr.Add(float2.zero);
             Triangles.Add(vertexIndex);
             Triangles.Add(vertexIndex + 1);
             Triangles.Add(vertexIndex + 2);
         }
 
-        /// <summary>
-        /// 按需扰动：边界 cell 的边缘顶点已经是最终坐标（裁剪到地图矩形），
-        /// 任何再次扰动都会让它与侧面/邻居的同一顶点错开，也就是肉眼可见的裂缝。
-        /// </summary>
-        private float3 MaybePerturb(float3 v, bool perturb) => perturb ? Perturb(v) : v;
-
-        /// <summary>
-        /// 添加四边形，两条边各自决定是否扰动。
-        /// (v1,v2) 属于 e1 边，(v3,v4) 属于 e2 边。
-        /// </summary>
-        private void AddQuad(float3 v1, float3 v2, float3 v3, float3 v4, bool perturbE1, bool perturbE2)
+        /// <summary>回填刚发射的 3 个顶点的 UV 补偿（Add* 默认填 0，坡面几何按需覆盖）</summary>
+        private void PatchLast3(float2 a, float2 b, float2 c)
         {
-            int vertexIndex = Positions.Length;
-            Positions.Add(MaybePerturb(v1, perturbE1));
-            Positions.Add(MaybePerturb(v2, perturbE1));
-            Positions.Add(MaybePerturb(v3, perturbE2));
-            Positions.Add(MaybePerturb(v4, perturbE2));
-            Triangles.Add(vertexIndex);
-            Triangles.Add(vertexIndex + 2);
-            Triangles.Add(vertexIndex + 1);
-            Triangles.Add(vertexIndex + 1);
-            Triangles.Add(vertexIndex + 2);
-            Triangles.Add(vertexIndex + 3);
+            int i = UvCorr.Length - 3;
+            UvCorr[i] = a;
+            UvCorr[i + 1] = b;
+            UvCorr[i + 2] = c;
         }
 
-        /// <summary>
-        /// 添加三角形，逐顶点决定是否扰动
-        /// </summary>
-        private void AddTriangle(float3 v1, float3 v2, float3 v3, bool p1, bool p2, bool p3)
+        /// <summary>回填刚发射的 4 个顶点的 UV 补偿</summary>
+        private void PatchLast4(float2 a, float2 b, float2 c, float2 d)
         {
-            int vertexIndex = Positions.Length;
-            Positions.Add(MaybePerturb(v1, p1));
-            Positions.Add(MaybePerturb(v2, p2));
-            Positions.Add(MaybePerturb(v3, p3));
-            Triangles.Add(vertexIndex);
-            Triangles.Add(vertexIndex + 1);
-            Triangles.Add(vertexIndex + 2);
+            int i = UvCorr.Length - 4;
+            UvCorr[i] = a;
+            UvCorr[i + 1] = b;
+            UvCorr[i + 2] = c;
+            UvCorr[i + 3] = d;
         }
 
         /// <summary>
-        /// 添加四边形（2 个三角形，不扰动）。用于边界侧面：顶边已被裁剪到地图矩形、
-        /// 底边直接复制顶边的 x/z，再扰动就会让两者错开并重新开缝。
+        /// 添加四边形（2 个三角形，不扰动）。用于边界连接区/流式侧面：顶点已在上游
+        /// 手动扰动过（与扇形共用同一批点），这里再扰动会让同一点出现两个位置。
         /// </summary>
         private void AddQuadUnperturbed(float3 v1, float3 v2, float3 v3, float3 v4)
         {
@@ -244,6 +206,10 @@ namespace HexMap
             Positions.Add(v2);
             Positions.Add(v3);
             Positions.Add(v4);
+            UvCorr.Add(float2.zero);
+            UvCorr.Add(float2.zero);
+            UvCorr.Add(float2.zero);
+            UvCorr.Add(float2.zero);
             Triangles.Add(vertexIndex);
             Triangles.Add(vertexIndex + 2);
             Triangles.Add(vertexIndex + 1);
@@ -262,6 +228,10 @@ namespace HexMap
             Positions.Add(Perturb(v2));
             Positions.Add(Perturb(v3));
             Positions.Add(Perturb(v4));
+            UvCorr.Add(float2.zero);
+            UvCorr.Add(float2.zero);
+            UvCorr.Add(float2.zero);
+            UvCorr.Add(float2.zero);
             Triangles.Add(vertexIndex);
             Triangles.Add(vertexIndex + 2);
             Triangles.Add(vertexIndex + 1);
@@ -334,11 +304,13 @@ namespace HexMap
         /// 必须是「世界坐标的纯函数」：相邻 cell 在连接区共享同一顶点位置，
         /// 只有两边算出完全相同的结果，网格才不会裂开。因此这里不能按 cell 中心做相对缩放，
         /// 而是用 CellPerturbRange 换算出一个以六边形半径为 1 的有界位移量。
+        /// 振幅随位置到地图边缘的距离衰减到 0（边缘完全不扰动），同样是纯函数，
+        /// 边界与内部交界的共享顶点两侧依然逐点一致。
         /// </summary>
         private float3 Perturb(float3 position)
         {
             ref var blob = ref Blob.Value;
-            float amplitude = HexMetrics.CellPerturbAmplitude(ref blob);
+            float amplitude = HexMetrics.CellPerturbAmplitude(ref blob, position);
             if (amplitude <= 0f)
                 return position;
 

@@ -73,6 +73,7 @@ namespace HexMap
             var triangles = new NativeList<int>(256, Allocator.TempJob);
             var colors = new NativeList<float4>(128, Allocator.TempJob);
             var cellIndices = new NativeList<float3>(128, Allocator.TempJob);
+            var uvCorr = new NativeList<float2>(128, Allocator.TempJob);
 
             var job = new HexMeshJob
             {
@@ -85,6 +86,7 @@ namespace HexMap
                 Triangles = triangles,
                 Colors = colors,
                 CellIndices = cellIndices,
+                UvCorr = uvCorr,
             };
 
             job.Execute();
@@ -96,6 +98,7 @@ namespace HexMap
                 triangles.Dispose();
                 colors.Dispose();
                 cellIndices.Dispose();
+                uvCorr.Dispose();
                 return;
             }
 
@@ -122,14 +125,16 @@ namespace HexMap
                 {
                     Position = positions[i],
                     Color = colors[i],
+                    UV0 = uvCorr[i],
                     UV1 = cellIndices[i],
                 };
             }
 
-            // 上传顶点数据（单条交错流：Position + Color + TexCoord1）
+            // 上传顶点数据（单条交错流：Position + Color + TexCoord0 + TexCoord1）
             mesh.SetVertexBufferParams(vertices.Length,
                 new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
                 new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float32, 4),
+                new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 3));
 
             mesh.SetVertexBufferData(vertices, 0, 0, vertices.Length);
@@ -203,17 +208,20 @@ namespace HexMap
             triangles.Dispose();
             colors.Dispose();
             cellIndices.Dispose();
+            uvCorr.Dispose();
         }
     }
 
     /// <summary>
     /// 地形 mesh 的交错顶点布局：字段顺序/偏移与 RebuildCellMesh 中
-    /// VertexAttributeDescriptor 的声明一致（Position offset 0 / Color offset 12 / UV1 offset 28）
+    /// VertexAttributeDescriptor 的声明一致（Position offset 0 / Color offset 12 / UV0 offset 28 / UV1 offset 36）
     /// </summary>
     public struct TerrainVertex
     {
         public float3 Position;
         public float4 Color;
+        /// <summary>UV0：坡面 UV 补偿向量（世界单位，陡壁防拉伸）</summary>
+        public float2 UV0;
         /// <summary>UV1：splat 地形索引三元组</summary>
         public float3 UV1;
     }

@@ -103,6 +103,34 @@ namespace HexMap
         }
 
         /// <summary>
+        /// 顶点形状扰动的最大位移（世界单位），随位置到地图边缘的距离衰减：
+        /// 地图边缘处恒为 0（边界完全不扰动，等效于该处 CellPerturbRange = (1,1)），
+        /// 向内经过 falloff 距离（2×外半径，覆盖整个外圈 cell 的几何）线性恢复到全值。
+        ///
+        /// 必须按「位置」而非「所属 cell」计算：相邻 cell 的共享顶点（尤其边界与内部
+        /// 之间的桥接顶点）在两侧的 Job 里要用同一振幅算出同一结果——
+        /// 按 cell 判定会让桥接两侧振幅不同，交界处必然开缝。
+        /// </summary>
+        public static float CellPerturbAmplitude(ref HexMapConfigBlob cfg, float3 position)
+        {
+            float amplitude = CellPerturbAmplitude(ref cfg);
+            if (amplitude <= 0f)
+                return 0f;
+
+            float4 rect = HexBoundary.GetMapRect(cfg.OuterRadius, cfg.InnerRadius, cfg.CellCount);
+            float dist = math.min(
+                math.min(position.x - rect.x, rect.z - position.x),
+                math.min(position.z - rect.y, rect.w - position.z));
+
+            float falloff = 2f * cfg.OuterRadius;
+            if (dist >= falloff)
+                return amplitude;
+            if (dist <= 0f)
+                return 0f;
+            return amplitude * (dist / falloff);
+        }
+
+        /// <summary>
         /// 将整数 elevation 和噪声值映射到世界空间 Y 坐标（含高度扰动）。
         /// noiseSample: SampleNoise 返回的 float4，取 .y 作为高度扰动随机源。
         /// ElevationPerturbRange [min, max] 以台阶高度为单位，如 [0.8, 1.2] 表示

@@ -9,7 +9,8 @@ namespace HexMap
 {
     /// <summary>
     /// 地图统一底面系统：在整张地图下方生成一个矩形底面（-ElevationStep 高度），
-    /// 配合边界 cell 的竖直侧面构成封闭长方体，消除漏光。
+    /// 矩形覆盖整个六边形交错排列区域，边界 cell 的连接区直接下探到底面边缘，
+    /// 与之闭合构成封闭体，消除漏光。
     ///
     /// 在第一次有 cell 被加载后执行一次，生成底面实体并注册渲染。
     /// </summary>
@@ -72,6 +73,7 @@ namespace HexMap
             mesh.SetVertexBufferParams(vertices.Length,
                 new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
                 new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float32, 4),
+                new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 3));
             mesh.SetVertexBufferData(vertices, 0, 0, vertices.Length);
             mesh.SetIndexBufferParams(triangles.Length, IndexFormat.UInt32);
@@ -125,6 +127,7 @@ namespace HexMap
             {
                 Position = position,
                 Color = new float4(1f, 0f, 0f, 1f), // splat 权重 (1,0,0)
+                UV0 = float2.zero,                  // 底面平置，无坡面补偿
                 UV1 = new float3(0f, 0f, 0f)        // 地形索引 (0,0,0)
             };
         }

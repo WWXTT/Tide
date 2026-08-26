@@ -16,7 +16,7 @@ Shader "Custom/HexTerrain"
         _HeightBlendOffset("Height blend Offset", Range(0.0, 1.0)) = 0.5
 
         [Header(PBR)]
-        _Metallic("Metallic", Range(0.0, 1.0)) = 1.0
+        _Metallic("Metallic", Range(0.0, 1.0)) = 0.0
         _Smoothness("Smoothness", Range(0.0, 1.0)) = 1.0
         _NormalScale("Normal Scale", Range(0.0, 2.0)) = 1.0
         _OcclusionStrength("Occlusion Strength", Range(0.0, 1.0)) = 1.0
@@ -413,6 +413,7 @@ Shader "Custom/HexTerrain"
                 float4 positionOS : POSITION;
                 float3 normalOS   : NORMAL;
                 float4 color      : COLOR;            // splat 权重
+                float2 uvCorrection : TEXCOORD0;      // 坡面 UV 补偿向量（mesh 逐顶点烘焙）
                 float3 terrainIndices : TEXCOORD1;    // splat 3 个地形索引
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -428,7 +429,7 @@ Shader "Custom/HexTerrain"
                 #ifdef USE_APV_PROBE_OCCLUSION
                 float4 probeOcclusion : TEXCOORD6;
                 #endif
-                float3 terrainIndices : TEXCOORD7;    // splat 3 个地形索引
+                float4 terrainIndices : TEXCOORD7;    // xyz：splat 索引；w：uvCorrection.y
                 float4 positionCS   : SV_POSITION;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
@@ -447,8 +448,9 @@ Shader "Custom/HexTerrain"
                 output.positionWS = vertexInput.positionWS;
                 output.positionCS = vertexInput.positionCS;
                 output.normalWS = normalInput.normalWS;
-                output.terrainData = input.color;
-                output.terrainIndices = input.terrainIndices;
+                // alpha 槽位搭 uvCorrection.x（TEXCOORD 插值器已满，借道传递）
+                output.terrainData = float4(input.color.rgb, input.uvCorrection.x);
+                output.terrainIndices = float4(input.terrainIndices, input.uvCorrection.y);
 
                 half fogFactor = 0;
                 #if !defined(_FOG_FRAGMENT)
@@ -477,7 +479,10 @@ Shader "Custom/HexTerrain"
                 weights /= (weights.x + weights.y + weights.z + 1e-4);
 
                 float3 normalWS = SafeNormalize(input.normalWS);
-                float2 uv = ChunkUV(input.positionWS.xz);
+
+                // 坡面补偿 UV（逐顶点烘焙，防陡壁拉伸）：插值连续不逐面错位，平地恒 0
+                float2 uvCorrection = float2(input.terrainData.a, input.terrainIndices.w);
+                float2 uv = ChunkUV(input.positionWS.xz + uvCorrection);
 
                 half3 finalAlbedo, finalNormalTS;
                 half finalMetallic, finalSmoothness, finalOcclusion;

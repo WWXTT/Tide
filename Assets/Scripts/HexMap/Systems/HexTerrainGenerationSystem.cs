@@ -94,9 +94,10 @@ namespace HexMap
                 int elevation;
                 if (isBoundary)
                 {
-                    // 边界 cell 固定 elevation = 0（配合统一底面和侧面构成封闭长方体）
+                    // 边界 cell 固定 elevation = 0 且不做高度扰动：
+                    // 相邻边界的连接区在共享角点两侧必须等高，高度差会在裙边角点处错层开缝
                     elevation = 0;
-                    position.y = 0f; // 无高度扰动
+                    position.y = 0f;
                 }
                 else
                 {

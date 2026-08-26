@@ -89,6 +89,7 @@
     <Compile Include="Assets\Editor\DanbaidongGUI\ShaderScanEngine.cs" />
     <Compile Include="Assets\Editor\EntityHierarchy\EntitySceneGizmos.cs" />
     <Compile Include="Assets\Editor\MeshCreator.cs" />
+    <Compile Include="Assets\Editor\HexTerrainShaderGUI.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Editor\DanbaidongGUI\GUIExample\DanbaidongGUIShader.shader" />
