@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="../Common.uss" />
+    <ui:VisualElement name="root" class="screen" style="align-items: center; justify-content: center;">
+        <ui:Label text="SYNERGY" class="screen__title" style="font-size: 48px;" />
+        <ui:Label text="标准化 UI 测试台" class="screen__subtitle" />
+        <ui:VisualElement name="menu" style="margin-top: 24px; align-items: center;">
+            <ui:Button name="btn-effect" text="效果合成" class="btn btn--block" />
+            <ui:Button name="btn-card" text="卡牌合成" class="btn btn--block" />
+            <ui:Button name="btn-deck" text="卡组构筑" class="btn btn--block btn--primary" />
+            <ui:Button name="btn-battle" text="对战" class="btn btn--block" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

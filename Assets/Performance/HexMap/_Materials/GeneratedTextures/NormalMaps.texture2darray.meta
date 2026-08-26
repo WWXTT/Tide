@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: c4b04b0ebbe850141847673f796c6ff9
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: fff0fc64c42275f4191b5fbb23975176, type: 3}
+  wrapMode: 0
+  filterMode: 1
+  anisoLevel: 1
+  isReadable: 0
+  textures:
+  - {fileID: 2800000, guid: a59f2f1eeb496bf4eb175767fc7e9013, type: 3}
+  - {fileID: 2800000, guid: 32dafb85a7064ce4a92f8ead01c1ebf3, type: 3}
+  - {fileID: 2800000, guid: 4f06e7c089a2bd344a677950da1b3996, type: 3}

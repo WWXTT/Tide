@@ -1,0 +1,156 @@
+Danbaidong RP 管线说明 2026.8.20
+
+一、版本与定位
+--------------------------------------------------------------------------------
+Danbaidong RP 是在 Unity 通用渲染管线 URP 17 基础上二次开发的定制 SRP（Scriptable
+Render Pipeline），包名 com.unity.render-pipelines.danbaidong。
+  · 本地主包 DanbaidongRP-urp17 版本 17.3.0（对应 Unity 6000.3），已升级适配 Unity 6.5。
+  · core 包（官方 com.unity.render-pipelines.core）实际解析到 17.5.0。
+
+二、包结构（4 个包）
+--------------------------------------------------------------------------------
+  1. DanbaidongRP-urp17                   主包：Runtime + ShaderLibrary + Shaders + Editor
+  2. DanbaidongRPConfig-urp17             配置包（17.0.3）：仅 Runtime/ShaderConfig.cs(.hlsl)，
+                                          提供管线 shader 常量（光数上限等）
+  3. SmoothNormal-main                    描边法线平滑包（1.0.2）：为描边生成平滑法线
+
+  注意：core 包使用官方 com.unity.render-pipelines.core，并非 fork 修改版。
+  依赖项 core Color.hlsl / BSDF.hlsl 已迁入主包自己的 ShaderLibrary（见第三节）。
+
+三、Unity 6.5 迁移适配（已全部修复）
+--------------------------------------------------------------------------------
+升到 Unity 6.5（6000.5）后，官方 core 删改了一批函数/API，本管线做了以下适配：
+
+  1. AcesFilm → AcesTonemap 重命名
+       旧 core 的 AcesFilm 被删除，ACES 色调映射改用官方 AcesTonemap；
+       但 Danbaidong 自研的 "Genshin 移动端风格" AcesFilm 仍保留为自定义函数，
+       移入 ShaderLibrary/Core.hlsl 与 Shaders/PostProcessing/Common.hlsl（_TONEMAP_ACES_SAMPLE_VER 变体）。
+
+  2. SigmoidSharp（逻辑斯蒂锐化 sigmoid）
+       从被替换掉的旧 core Color.hlsl 迁入 ShaderLibrary/Core.hlsl，
+       供 PBRToon/Character shader 与光追光照把 NdotL / 阴影衰减锐化成卡通明暗边缘。
+
+  3. GGX VNDF 采样函数
+       旧 HDRP BSDF.hlsl 里的 SampleGGXVisibleNormalSphericalCaps / VisibleGGXPDF 在
+       core 6000.5 中不复存在，改在 ShaderLibrary/GlobalIllumination.hlsl 内补齐：
+         · SampleGGXVisibleNormalSphericalCaps → 委托到官方 SampleGGXVisibleNormal
+         · VisibleGGXPDF → 按 Heitz 2018 VNDF PDF = D·G1·VdotH/NdotV 重建
+       供 RayTracingReflections.raytrace 与 ScreenSpaceReflections.compute 使用。
+
+  4. MSAA 关键字声明改用 #include_with_pragmas
+       统一 6.5 对 include 文件内多编译关键字（multi_compile）的声明方式。
+
+四、Danbaidong RP vs Unity 默认 URP 对比
+--------------------------------------------------------------------------------
+  ┌───────────────────┬──────────────────────────────────┬────────────────────────────────────────────────────┐
+  │ 特性              │ Unity 默认 URP 17.3              │ Danbaidong RP                                      │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ 基础渲染          │ Forward / Deferred / Forward+    │ Forward / Deferred / Forward+（相同）              │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ 标准 Lit Shader   │ Lit / SimpleLit / BakedLit /     │ 相同 + 自定义 Ray Tracing SubShader                │
+  │                   │ ComplexLit                       │                                                    │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ 卡通渲染 Shader   │ 无                               │ PBRToon 系列 8 个：Base / Eye / EyeBlend / Face /   │
+  │                   │                                  │ Face_AllDirSDF / Hair / Stockings / Trans           │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ 角色辅助 Shader   │ 无                               │ CharacterEyelashOutter / Fringe / Outline（描边）   │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ 自定义 Shader GUI │ 无                               │ Editor/DanbaidongGUI（Ramp 绘制、Foldout 折叠面板） │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ Bloom 后处理      │ LQ / HQ / Dirt 变体              │ 额外增加 _BLOOM_DANBAIDONG 卡通 Bloom 变体          │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ 阴影              │ 全局主阴影 + 附加光阴影          │ + PerObjectShadow（逐对象独立阴影）                 │
+  │                   │                                  │ + ScreenSpaceDirectionalShadows（屏幕空间方向光阴影）│
+  │                   │                                  │ + PCSS/PCF 软阴影（ShadowsPCSS.hlsl）              │
+  │                   │                                  │ + Shadow Scattering（屏幕空间阴影散射）            │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ Screen Space AO   │ 标准 SSAO                        │ XeGTAO（ScreenSpaceXeGTAO.compute + 降噪器）        │
+  │                   │                                  │ + 可选 RayTraced AO（RayTracingAmbientOcclusion.raytrace）│
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ Screen Space      │ 标准 SSR                         │ 自定义版本，支持 RayTraced Reflection               │
+  │ Reflection        │                                  │ （RayTracingReflections.raytrace）                  │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ Ray Tracing       │ 无（仅 HDRP 有）                 │ 自建 RT 系统，实装 3 项：                           │
+  │                   │                                  │   Shadow / Reflection / AmbientOcclusion           │
+  │                   │                                  │ （GI、PathTracing 仅枚举占位，无 ray 生成 shader）  │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ SSGI              │ 烘焙 GI（lightmap / 探针）       │ 屏幕空间辐照度采样：SAMPLE_GI 覆盖为               │
+  │                   │                                  │ SampleScreenSpaceIrradiance（_ScreenSpaceIrradiance）│
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ 描边              │ 无                               │ SmoothNormal 包 + CharacterOutline shader           │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ 自定义 Lighting   │ 无                               │ CharacterForwardLighting（角色专属前向光照）        │
+  │                   │                                  │ + Cluster Deferred（DeferredLighting.cs）           │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ 天空              │ 标准 Skybox                      │ 视觉天空：ProceduralToonSky / GradientSky / HDRISky │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ Core 包           │ 官方 core                        │ 官方 core（相同，非 fork）                          │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ 包结构            │ 单 URP 包                        │ 主包 + Config + SmoothNormal + light-transport stub  │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ GPU Driven        │ EntityId / BatchRendererGroup     │ 已迁移到 Unity 6.5 的 EntityId API                  │
+  ├───────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ Wizard            │ 无                               │ DanbaidongWizard 管线创建向导                       │
+  └───────────────────┴──────────────────────────────────┴────────────────────────────────────────────────────┘
+
+五、14 项路线图特性实现清单（按实际文件核对）
+--------------------------------------------------------------------------------
+  [x] 1.  PBR Toon Shader         Shaders/Material/PBRToon/（8 个 shader + PBRToon.hlsl）
+  [x] 2.  Danbaidong Shader GUI   Editor/DanbaidongGUI/（已移植，含 Ramp 绘制抽屉）
+  [x] 3.  PerObjectShadow          ShaderLibrary/PerObjectShadows.hlsl + PerObjectShadowProjector.shader
+  [x] 4.  PCSS/PCF Soft Shadows    ShaderLibrary/ShadowsPCSS.hlsl（+ Shadows.hlsl）
+  [x] 5.  Shadow Scattering        ScreenSpaceShadowScatter.shader / .compute + ScreenSpaceShadowScatterPass.cs
+  [x] 6.  Ray Tracing Shadow       Shaders/RayTracing/RayGeneration/RayTracingShadows.raytrace
+  [x] 7.  Toon Tonemapping         自定义 AcesFilm（Genshin 移动端风格）保留于 Core.hlsl / Common.hlsl
+  [x] 8.  Toon Bloom               _BLOOM_DANBAIDONG 卡通 Bloom 变体
+  [x] 9.  Visual Sky               ProceduralToonSky / GradientSky / HDRISky（Sky/）
+  [x] 10. High Quality SSR (RT)    ScreenSpaceReflections.compute + RayTracingReflections.raytrace
+  [x] 11. High Quality SSAO (XeGTAO) ScreenSpaceXeGTAO.compute + AmbientOcclusionDenoiser + AmbientOcclusion.cs override
+  [x] 12. High Quality SSGI        GlobalIllumination.hlsl 内 SAMPLE_GI 覆盖为屏幕空间辐照度采样
+  [x] 13. Cluster Deferred lighting  Runtime/Lighting/DeferredLighting.cs（Cluster 延迟光照）
+  [x] 14. Character Forward lighting  Runtime/Lighting/CharacterForwardLighting.cs
+
+六、整体渲染流程
+--------------------------------------------------------------------------------
+半延迟 Deferred + Forward 混合架构。
+
+按 UniversalRendererRenderGraph.cs 的执行顺序：
+  1. GBuffer Pass       → 只写 深度 + 法线 到 GBuffer（不做光照计算）
+  2. DeferredLighting   → 对 GBuffer 做延迟光照（场景静态物体等，Cluster 延迟）
+  3. CharacterForward   → 角色前向着色（利用 GBuffer 已有的深度做 ZTest Equal）
+  4. OpaqueForwardOnly  → 其他需要前向渲染的物体
+  5. Skybox / 视觉天空
+  6. Transparents       → 透明物体前向渲染
+
+角色不透明物体：GBuffer 只当 Depth Prepass 用
+  关键：角色前向 pass 设置 ZWrite Off, ZTest Equal。因为 GBuffer pass 已经写入了正确的
+  深度，CharacterForward pass 只需在相同像素位置做前向着色，不会产生深度冲突，也不会被
+  延迟光照的结果覆盖。
+
+透明物体：纯前向渲染
+  PBRToonTrans.shader 完全不走 GBuffer：
+  Queue = Transparent，两个 pass：
+    · TransparentBackface（LightMode="TransparentBackface"）— Cull Front，先渲染背面
+    · UniversalForward（LightMode="UniversalForward"）— 正常渲染正面
+  标准透明排序，Danbaidong RP 在 UniversalRenderer.cs 的透明 pass shader tags 中额外注册了
+  TransparentBackface。
+
+各向异性（头发高光）：在前向 pass 中计算
+  PBRToonHair.shader 的各向异性高光不是 Kajiya-Kay 或 d'Eon 等基于切线的方法，而是一种
+  基于视空间 Y 分量的纹理查找 + Blinn-Phong 混合方案：
+    · _AnisotropicSlide 控制视角 Y 方向对纹理采样位置的偏移量（模拟各向异性的方向性）
+    · _AnisotropicOffset 整体偏移
+    · _HairSpecTex 是一张各向异性高光遮罩纹理
+    · 最终与标准 GGX 高光叠加：specular = GGX spec + hairSpecTerm
+  完全在 CharacterForward pass 中完成，不需要 GBuffer 存储额外数据。
+
+  卡通风光照无法走标准延迟 │ GBuffer pass 只写深度/法线，真正的着色在 CharacterForward pass 中完成
+  描边                     │ 自研 CharacterOutline LightMode，在 CharacterForward pass 中一并渲染
+  阴影增强                 │ PerObjectShadow（逐对象）+ 屏幕空间方向光阴影 + PCSS/PCF + 阴影散射
+  光追                     │ 自建 RT 系统（Shadow / Reflection / AO），GI/PathTracing 仅占位
+  卡通后处理               │ 自定义 AcesFilm（Genshin 移动端风格）+ _BLOOM_DANBAIDONG 卡通 Bloom
+
+结语：
+  PBRToon 系列虽然最终走前向着色，但 GBuffer pass 仍然在写深度和法线。如果是写实风格
+  PBR，写完整的 GBuffer pass 就能享受延迟渲染的好处；如果是卡通风或需要特殊光照模型，
+  就参照 PBRToonBase 的模式：GBuffer 只写深度+法线，着色放在 CharacterForward 里做。

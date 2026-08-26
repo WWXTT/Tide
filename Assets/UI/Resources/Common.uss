@@ -1,0 +1,466 @@
+/* Synergy 通用样式 —— 深色实用主题。集中管理颜色/间距/控件外观，各界面共用。 */
+
+/* ---------- 布局根 ---------- */
+.screen {
+    flex-grow: 1;
+    background-color: rgb(24, 27, 33);
+    padding: 16px;
+}
+
+.screen__title {
+    font-size: 28px;
+    color: rgb(238, 240, 245);
+    -unity-font-style: bold;
+    margin-bottom: 4px;
+}
+
+.screen__subtitle {
+    font-size: 14px;
+    color: rgb(150, 156, 168);
+    margin-bottom: 16px;
+}
+
+/* ---------- 工具栏 ---------- */
+.toolbar {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.spacer {
+    flex-grow: 1;
+}
+
+/* ---------- 面板 ---------- */
+.panel {
+    background-color: rgb(33, 37, 45);
+    border-radius: 8px;
+    padding: 12px;
+    border-width: 1px;
+    border-color: rgb(46, 51, 61);
+}
+
+.panel__header {
+    font-size: 16px;
+    color: rgb(210, 215, 224);
+    -unity-font-style: bold;
+    margin-bottom: 8px;
+}
+
+/* ---------- 按钮 ---------- */
+.btn {
+    height: 36px;
+    min-width: 96px;
+    padding-left: 16px;
+    padding-right: 16px;
+    margin: 4px;
+    border-radius: 6px;
+    border-width: 0;
+    background-color: rgb(54, 60, 72);
+    color: rgb(225, 229, 236);
+    font-size: 14px;
+    -unity-font-style: bold;
+    transition-property: background-color;
+    transition-duration: 0.12s;
+}
+
+.btn:hover {
+    background-color: rgb(68, 76, 90);
+}
+
+.btn:active {
+    background-color: rgb(44, 49, 59);
+}
+
+.btn--primary {
+    background-color: rgb(64, 132, 240);
+    color: rgb(255, 255, 255);
+}
+
+.btn--primary:hover {
+    background-color: rgb(86, 150, 250);
+}
+
+.btn--block {
+    width: 280px;
+    height: 48px;
+    font-size: 16px;
+}
+
+.btn--danger {
+    background-color: rgb(196, 72, 72);
+    color: rgb(255, 255, 255);
+}
+
+/* ---------- 列表行 / 卡片 ---------- */
+.list {
+    flex-grow: 1;
+    background-color: rgb(28, 31, 38);
+    border-radius: 6px;
+    padding: 4px;
+}
+
+.list-row {
+    flex-direction: row;
+    align-items: center;
+    height: 40px;
+    padding-left: 10px;
+    padding-right: 6px;
+    margin-bottom: 4px;
+    border-radius: 5px;
+    background-color: rgb(40, 45, 55);
+}
+
+.list-row:hover {
+    background-color: rgb(50, 56, 68);
+}
+
+.list-row__name {
+    flex-grow: 1;
+    color: rgb(225, 229, 236);
+    font-size: 14px;
+}
+
+.list-row__meta {
+    color: rgb(150, 156, 168);
+    font-size: 12px;
+    margin-right: 8px;
+}
+
+.cost-badge {
+    min-width: 26px;
+    height: 24px;
+    border-radius: 12px;
+    background-color: rgb(64, 132, 240);
+    color: rgb(255, 255, 255);
+    font-size: 12px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-right: 8px;
+}
+
+/* ---------- 表单字段 ---------- */
+.field-label {
+    color: rgb(180, 186, 198);
+    font-size: 13px;
+    margin-right: 8px;
+}
+
+.text-input {
+    min-width: 200px;
+    margin-right: 8px;
+}
+
+/* ---------- 提示条 ---------- */
+.toast {
+    color: rgb(120, 210, 140);
+    font-size: 13px;
+    margin-left: 8px;
+}
+
+/* ---------- 两栏布局 ---------- */
+.columns {
+    flex-direction: row;
+    flex-grow: 1;
+}
+
+.column {
+    flex-grow: 1;
+    flex-basis: 0;
+    margin-right: 12px;
+}
+
+.column:last-child {
+    margin-right: 0;
+}
+
+/* ---------- 效果合成：步骤卡 / 子序列 / 小数值输入 ---------- */
+.step-card {
+    margin-bottom: 8px;
+}
+
+.sub-list {
+    background-color: rgb(28, 31, 38);
+    border-radius: 6px;
+    padding: 6px;
+    margin-bottom: 8px;
+}
+
+.int-input {
+    min-width: 90px;
+    margin-right: 8px;
+}
+
+/* ---------- 精修：60/40 两栏 + 选中态 ---------- */
+.column--left {
+    flex-grow: 6;
+}
+
+.column--right {
+    flex-grow: 4;
+}
+
+.list-row--selected {
+    background-color: rgb(46, 78, 132);
+    border-width: 1px;
+    border-color: rgb(86, 150, 250);
+}
+
+.btn--mini {
+    height: 26px;
+    min-width: 30px;
+    padding-left: 8px;
+    padding-right: 8px;
+    font-size: 12px;
+    margin: 2px;
+}
+
+.sub-item {
+    margin-bottom: 6px;
+    padding: 8px;
+}
+
+.hint {
+    color: rgb(140, 146, 158);
+    font-size: 11px;
+    white-space: normal;
+    margin-bottom: 6px;
+}
+
+/* ---------- 颜色过滤 chip + 色点 ---------- */
+.filter-bar {
+    flex-wrap: wrap;
+}
+
+.chip {
+    height: 28px;
+    min-width: 44px;
+    padding-left: 12px;
+    padding-right: 12px;
+    margin: 3px;
+    border-radius: 14px;
+    border-width: 1px;
+    border-color: rgb(60, 66, 78);
+    background-color: rgb(40, 45, 55);
+    color: rgb(210, 215, 224);
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+.chip--active {
+    border-width: 2px;
+    border-color: rgb(238, 240, 245);
+}
+
+.chip--red {
+    background-color: rgb(150, 56, 56);
+    color: rgb(255, 235, 235);
+}
+
+.chip--blue {
+    background-color: rgb(52, 84, 150);
+    color: rgb(232, 240, 255);
+}
+
+.chip--green {
+    background-color: rgb(52, 120, 72);
+    color: rgb(232, 255, 240);
+}
+
+.chip--gray {
+    background-color: rgb(80, 86, 98);
+    color: rgb(232, 235, 240);
+}
+
+.chip--all {
+    background-color: rgb(54, 60, 72);
+    color: rgb(225, 229, 236);
+}
+
+.color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 6px;
+    margin-right: 8px;
+    background-color: rgb(80, 86, 98);
+}
+
+/* ---------- 链接箭头网格（2 行 x 3 列，对应六边形 6 向） ---------- */
+.arrow-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 156px;
+    margin-bottom: 8px;
+}
+
+.arrow-cell {
+    width: 44px;
+    height: 36px;
+    margin: 3px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgb(60, 66, 78);
+    background-color: rgb(40, 45, 55);
+    color: rgb(180, 186, 198);
+    font-size: 18px;
+    -unity-font-style: bold;
+}
+
+.arrow-cell--on {
+    background-color: rgb(64, 132, 240);
+    color: rgb(255, 255, 255);
+    border-color: rgb(86, 150, 250);
+}
+
+/* ---------- 对战界面 ---------- */
+.battle {
+    flex-direction: column;
+}
+
+.battle-zone {
+    background-color: rgb(33, 37, 45);
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgb(46, 51, 61);
+    padding: 8px;
+    margin-bottom: 8px;
+}
+
+.battle-zone--opponent {
+    border-color: rgb(120, 70, 70);
+}
+
+.battle-zone--self {
+    border-color: rgb(64, 100, 160);
+}
+
+.battle-zone__bar {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.battle-side__name {
+    font-size: 15px;
+    color: rgb(210, 215, 224);
+    -unity-font-style: bold;
+    margin-right: 12px;
+}
+
+.battle-meta {
+    color: rgb(180, 186, 198);
+    font-size: 13px;
+    margin-right: 12px;
+}
+
+.life-badge {
+    min-width: 64px;
+    height: 26px;
+    border-radius: 13px;
+    background-color: rgb(196, 72, 72);
+    color: rgb(255, 255, 255);
+    font-size: 13px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-right: 12px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.battle-row__label {
+    color: rgb(140, 146, 158);
+    font-size: 11px;
+    margin-bottom: 2px;
+}
+
+.card-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-height: 84px;
+    background-color: rgb(28, 31, 38);
+    border-radius: 6px;
+    padding: 4px;
+    margin-bottom: 6px;
+}
+
+.battle-card {
+    width: 96px;
+    height: 74px;
+    margin: 3px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgb(60, 66, 78);
+    background-color: rgb(44, 49, 59);
+    padding: 4px;
+    align-items: flex-start;
+}
+
+.battle-card:hover {
+    border-color: rgb(86, 150, 250);
+    background-color: rgb(52, 58, 70);
+}
+
+.battle-card--back {
+    background-color: rgb(40, 38, 50);
+    border-color: rgb(70, 64, 90);
+    align-items: center;
+    justify-content: center;
+}
+
+.battle-card--tapped {
+    background-color: rgb(36, 40, 48);
+    border-color: rgb(50, 54, 64);
+}
+
+.battle-card__name {
+    color: rgb(225, 229, 236);
+    font-size: 11px;
+    white-space: normal;
+    -unity-font-style: bold;
+}
+
+.battle-card__stats {
+    color: rgb(150, 156, 168);
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+.battle-center {
+    background-color: rgb(28, 31, 38);
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 8px;
+}
+
+.phase-bar {
+    font-size: 15px;
+    color: rgb(238, 240, 245);
+    -unity-font-style: bold;
+    margin-bottom: 4px;
+}
+
+.battle-actions {
+    margin-bottom: 0;
+}
+
+.overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(10, 12, 16, 0.72);
+    align-items: center;
+    justify-content: center;
+}
+
+.overlay__panel {
+    width: 420px;
+    background-color: rgb(33, 37, 45);
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: rgb(64, 70, 84);
+    padding: 16px;
+}
+
+

@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="../Common.uss" />
+    <ui:VisualElement name="root" class="screen">
+        <ui:VisualElement class="toolbar">
+            <ui:Button name="btn-back" text="返回" class="btn" />
+            <ui:Label name="lbl-title" text="界面" class="screen__title" style="margin-bottom: 0; margin-left: 8px;" />
+        </ui:VisualElement>
+        <ui:VisualElement style="flex-grow: 1; align-items: center; justify-content: center;">
+            <ui:Label name="lbl-note" text="该界面将在后续阶段实现。" class="screen__subtitle" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

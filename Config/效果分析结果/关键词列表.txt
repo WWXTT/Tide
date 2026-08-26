@@ -1,0 +1,91 @@
+================================================================================
+炉石传说 & 万智牌 关键词列表
+================================================================================
+
+【炉石传说关键词】
+----------------------------------------
+关键词                                  出现次数
+----------------------------------------
+战吼 (Battlecry)                       2292
+嘲讽 (Taunt)                           1023
+亡语 (Deathrattle)                      911
+突袭 (Rush)                             636
+发现 (Discover)                         477
+吸血 (Lifesteal)                        267
+圣盾 (Divine Shield)                    253
+潜行 (Stealth)                          210
+冻结 (Freeze)                           150
+抉择 (Choose One)                       138
+过载 (Overload)                         111
+连击 (Combo)                             98
+剧毒 (Poisonous)                         71
+复生 (Reborn)                            69
+扰魔 (Spellproof)                        68
+休眠 (Dormant)                           67
+可交易 (Tradeable)                        61
+风怒 (Windfury)                          61
+冲锋 (Charge)                            61
+荣誉消灭 (Honorable Kill)                  56
+法术迸发 (Spellburst)                      56
+免疫 (Immune)                            55
+沉默 (Silence)                           54
+流放 (Outcast)                           47
+腐蚀 (Corrupt)                           47
+压轴 (Finale)                            35
+注能 (Infuse)                            35
+巨型 (Colossal)                          31
+磁力 (Magnetic)                          30
+锻造 (Forge)                             30
+暴怒 (Frenzy)                            25
+激励 (Inspire)                           24
+微缩 (Miniaturize)                       23
+超杀 (Overkill)                          22
+泰坦 (Titan)                             19
+回响 (Echo)                              17
+双生法术 (Twin Spell)                      16
+过量治疗 (Overheal)                        14
+
+
+【万智牌关键词】
+----------------------------------------
+关键词                                  出现次数
+----------------------------------------
+飞行 (Flying)                          3656
+践踏 (Trample)                         1592
+敏捷 (Haste)                           1436
+警戒 (Vigilance)                       1094
+系命 (Lifelink)                         733
+威慑 (Menace)                           720
+不灭 (Indestructible)                   610
+死触 (Deathtouch)                       581
+先攻 (First Strike)                     571
+闪现 (Flash)                            495
+延势 (Reach)                            494
+磨 (Mill)                              403
+占卜 (Scry)                             386
+转化 (Transform)                        384
+辟邪 (Hexproof/Ward)                    337
+守护 (Ward)                             326
+连击 (Double Strike)                    296
+刺探 (Surveil)                          190
+守军 (Defender)                         186
+地落 (Landfall)                         155
+增幅 (Kicker)                           143
+献力 (Devotion)                          78
+灵技 (Prowess)                           73
+躁狂 (Delirium)                          65
+逸脱 (Escape)                            58
+奇袭 (Ravenous)                          49
+合变 (Mutate)                            36
+倾曳 (Cascade)                           35
+跃离 (Phase Out)                         33
+忍术 (Ninjutsu)                          22
+星彩 (Constellation)                     22
+奇迹 (Miracle)                           20
+潜匿 (Hexproof)                          20
+融合 (Fuse)                              18
+掩袭 (Dash)                              14
+追溯 (Flashback)                         13
+多重增幅 (Multikicker)                      6
+指挥官忍术 (Commander Ninjutsu)              1
+蜕变 (Mutate)                             1

@@ -1,0 +1,84 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="../Common.uss" />
+    <ui:VisualElement name="root" class="screen battle">
+        <!-- 顶部工具栏 -->
+        <ui:VisualElement class="toolbar">
+            <ui:Button name="btn-back" text="返回" class="btn" />
+            <ui:Label text="对战" class="screen__title" style="margin-bottom: 0; margin-left: 8px;" />
+            <ui:VisualElement class="spacer" />
+            <ui:Label name="lbl-toast" text="" class="toast" />
+        </ui:VisualElement>
+
+        <!-- ===== 对手区（上） ===== -->
+        <ui:VisualElement name="zone-opponent" class="battle-zone battle-zone--opponent">
+            <ui:VisualElement class="battle-zone__bar">
+                <ui:Label text="对手" class="battle-side__name" />
+                <ui:Label name="lbl-opp-life" text="生命 20" class="life-badge" />
+                <ui:Label name="lbl-opp-hand-count" text="手牌 0" class="battle-meta" />
+                <ui:Label name="lbl-opp-grave" text="墓地 0" class="battle-meta" />
+                <ui:VisualElement class="spacer" />
+                <ui:Label name="lbl-opp-pool" text="元素池：—" class="battle-meta" />
+            </ui:VisualElement>
+            <ui:Label name="lbl-opp-lands" text="地牌：—" class="battle-row__label" />
+            <ui:Label text="对手战场" class="battle-row__label" />
+            <ui:VisualElement name="opp-battlefield" class="card-row" />
+        </ui:VisualElement>
+
+        <!-- ===== 中区（栈 + 阶段 + 操作） ===== -->
+        <ui:VisualElement name="zone-center" class="battle-center">
+            <ui:Label name="lbl-phase" text="回合 — / 阶段 —" class="phase-bar" />
+            <ui:Label name="lbl-stack" text="栈：空" class="battle-meta" />
+            <ui:VisualElement class="toolbar battle-actions">
+                <ui:Button name="btn-skip-standby" text="跳过(入主阶段)" class="btn" />
+                <ui:Button name="btn-begin-combat" text="进入战斗" class="btn" />
+                <ui:Button name="btn-resolve-combat" text="结束战斗" class="btn" />
+                <ui:VisualElement class="spacer" />
+                <ui:Button name="btn-end-turn" text="结束回合" class="btn btn--primary" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- ===== 我方区（下） ===== -->
+        <ui:VisualElement name="zone-self" class="battle-zone battle-zone--self">
+            <ui:VisualElement class="battle-zone__bar">
+                <ui:Label text="我方" class="battle-side__name" />
+                <ui:Label name="lbl-self-life" text="生命 20" class="life-badge" />
+                <ui:Label name="lbl-self-grave" text="墓地 0" class="battle-meta" />
+                <ui:VisualElement class="spacer" />
+                <ui:Label name="lbl-self-pool" text="元素池：—" class="battle-meta" />
+            </ui:VisualElement>
+            <ui:Label name="lbl-self-lands" text="地牌：—" class="battle-row__label" />
+            <ui:Label text="我方战场（点击发起攻击）" class="battle-row__label" />
+            <ui:VisualElement name="self-battlefield" class="card-row" />
+            <ui:Label text="我方手牌" class="battle-row__label" />
+            <ui:VisualElement name="self-hand" class="card-row" />
+        </ui:VisualElement>
+
+        <!-- ===== 弹窗遮罩（目标选择 / 攻击目标 / 胜负） ===== -->
+        <ui:VisualElement name="overlay" class="overlay" style="display: none;">
+            <ui:VisualElement class="overlay__panel">
+                <ui:Label name="overlay-title" text="" class="panel__header" />
+                <ui:Label name="overlay-hint" text="" class="hint" />
+                <ui:ScrollView name="overlay-list" class="list" style="max-height: 260px;" />
+                <ui:VisualElement class="toolbar">
+                    <ui:VisualElement class="spacer" />
+                    <ui:Button name="overlay-cancel" text="取消" class="btn" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- ===== 通用目标选择器遮罩（多选 + 倒计时 + 自动确定） ===== -->
+        <ui:VisualElement name="selector-overlay" class="overlay" style="display: none;">
+            <ui:VisualElement class="overlay__panel">
+                <ui:Label name="selector-title" text="" class="panel__header" />
+                <ui:Label name="selector-hint" text="" class="hint" />
+                <ui:ScrollView name="selector-list" class="list" style="max-height: 260px;" />
+                <ui:VisualElement class="toolbar">
+                    <ui:Label name="selector-countdown" text="" class="battle-meta" />
+                    <ui:VisualElement class="spacer" />
+                    <ui:Button name="selector-cancel" text="取消" class="btn" />
+                    <ui:Button name="selector-confirm" text="确定" class="btn btn--primary" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
