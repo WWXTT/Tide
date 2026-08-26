@@ -1,0 +1,43 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="../Common.uss" />
+    <ui:VisualElement name="root" class="screen">
+        <!-- 顶部工具栏 -->
+        <ui:VisualElement class="toolbar">
+            <ui:Button name="btn-back" text="返回" class="btn" />
+            <ui:Label text="效果合成" class="screen__title" style="margin-bottom: 0; margin-left: 8px;" />
+            <ui:VisualElement class="spacer" />
+            <ui:Label name="lbl-toast" text="" class="toast" />
+        </ui:VisualElement>
+
+        <!-- 效果元信息 -->
+        <ui:VisualElement class="toolbar">
+            <ui:Label text="效果名" class="field-label" />
+            <ui:TextField name="field-effect-name" class="text-input" value="新效果" />
+            <ui:Label text="触发时机" class="field-label" style="margin-left: 12px;" />
+            <ui:DropdownField name="dropdown-timing" class="text-input" />
+            <ui:Label text="发动方式" class="field-label" style="margin-left: 12px;" />
+            <ui:DropdownField name="dropdown-activation" class="text-input" />
+            <ui:Button name="btn-save" text="保存" class="btn btn--primary" />
+            <ui:Label text="读取" class="field-label" style="margin-left: 12px;" />
+            <ui:DropdownField name="dropdown-graphs" class="text-input" />
+            <ui:Button name="btn-load" text="载入" class="btn" />
+        </ui:VisualElement>
+
+        <!-- 两栏：左 60% 效果序列，右 40% 上下文面板 -->
+        <ui:VisualElement class="columns">
+            <ui:VisualElement class="column column--left panel">
+                <ui:VisualElement class="toolbar">
+                    <ui:Label text="效果序列" class="panel__header" style="margin-bottom: 0;" />
+                    <ui:VisualElement class="spacer" />
+                    <ui:Button name="btn-add-atomic" text="+ 原子" class="btn" />
+                    <ui:Button name="btn-add-branch" text="+ 分支" class="btn" />
+                </ui:VisualElement>
+                <ui:ScrollView name="list-steps" class="list" />
+            </ui:VisualElement>
+            <ui:VisualElement class="column column--right panel">
+                <ui:Label name="lbl-context-title" text="可添加内容" class="panel__header" />
+                <ui:ScrollView name="context-pane" class="list" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

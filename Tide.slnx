@@ -1,0 +1,20 @@
+﻿<Solution>
+  <Project Path="UniTask.csproj" />
+  <Project Path="Unity.RenderPipelines.Universal.Editor.csproj" />
+  <Project Path="Unity.RenderPipelines.Universal.Runtime.csproj" />
+  <Project Path="Unity.RenderPipelines.Universal.2D.Runtime.csproj" />
+  <Project Path="UniTask.Linq.csproj" />
+  <Project Path="HexMap.ECS.csproj" />
+  <Project Path="Assembly-CSharp.csproj" />
+  <Project Path="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
+  <Project Path="UniTask.Addressables.csproj" />
+  <Project Path="Assembly-CSharp-Editor.csproj" />
+  <Project Path="PPv2URPConverters.csproj" />
+  <Project Path="Unity.SmoothNormalTool.Editor.csproj" />
+  <Project Path="UniTask.TextMeshPro.csproj" />
+  <Project Path="Unity.SmoothNormalTool.Runtime.csproj" />
+  <Project Path="Unity.RenderPipelines.Universal.Config.Runtime.csproj" />
+  <Project Path="Unity.RenderPipelines.Universal.Shaders.csproj" />
+  <Project Path="UniTask.Editor.csproj" />
+  <Project Path="UniTask.DOTween.csproj" />
+</Solution>

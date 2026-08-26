@@ -1,0 +1,952 @@
+// Definitions
+//--------------------------------------------------------------------------------------------------
+
+// #pragma enable_d3d11_debug_symbols
+#pragma kernel ShadowAccumulate                 SHADOW_ACCUMULATE           ACCUMULATE=ShadowAccumulate
+#pragma kernel ShadowAccumulateFinal            SHADOW_ACCUMULATE           ACCUMULATE=ShadowAccumulateFinal        FINAL_PASS
+#pragma kernel BilateralFilterH                 SHADOW_BILATERAL_FILTER     BILATERAL_FILTER=BilateralFilterH
+#pragma kernel BilateralFilterV                 SHADOW_BILATERAL_FILTER     BILATERAL_FILTER=BilateralFilterV       FINAL_PASS
+#pragma kernel EdgeAvoidATrousWavelet           SHADOW_EAW_FILTER
+
+//--------------------------------------------------------------------------------------------------
+// Included headers
+//--------------------------------------------------------------------------------------------------
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Utils/Deferred.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+
+#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareDepthTexture.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/GPUCulledLights.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/Runtime/Lighting/ShadingModels.cs.hlsl"
+
+#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/ScreenSpaceLighting/ScreenSpaceLighting.hlsl"
+
+//--------------------------------------------------------------------------------------------------
+// Inputs & outputs
+//--------------------------------------------------------------------------------------------------
+
+RWStructuredBuffer<uint> g_TileList;
+
+#if defined(SHADOW_ACCUMULATE)
+TEXTURE2D_X(_GBuffer0); // for receive shadow flag.
+TEXTURE2D_X(_GBuffer2); // for normal dot light.
+TYPED_TEXTURE2D(uint2, _StencilTexture); // ndotl need exclude character
+TEXTURE2D_X_FLOAT(_PrevCameraDepthTexture);
+TEXTURE2D_X(_PrevTracedShadowTexture);
+
+RW_TEXTURE2D(float, _TracedShadowTexture);
+RW_TEXTURE2D(float3, _ShadowMomentstexture);
+RW_TEXTURE2D(float3, _PrevShadowMomentstexture);
+RW_TEXTURE2D(float2, _MeanVarianceTexture);
+RW_TEXTURE2D(float, _SSDirShadowmapTexture);
+
+
+
+#elif defined(SHADOW_BILATERAL_FILTER)
+TEXTURE2D_X(_GBuffer2);
+
+RW_TEXTURE2D(float, _BilateralTexture);
+
+#elif defined(SHADOW_EAW_FILTER)
+TEXTURE2D_X(_GBuffer2);
+
+RW_TEXTURE2D(float2, _MeanVarianceTexture);
+RW_TEXTURE2D(float, _SSDirShadowmapTexture);
+#endif
+
+//--------------------------------------------------------------------------------------------------
+// Helpers
+//--------------------------------------------------------------------------------------------------
+
+#define SCREENSPACE_SHADOWS_TILE_SIZE   (16)
+#define SCREENSPACE_SHADOWS_GROUP_SIZE  (SCREENSPACE_SHADOWS_TILE_SIZE / 2)
+#define SCREENSPACE_SHADOWS_THREADS     (64)
+
+uint2 DecodeTileIndex(uint encoded)
+{
+    return uint2((encoded >> TILE_INDEX_SHIFT_X) & TILE_INDEX_MASK, (encoded >> TILE_INDEX_SHIFT_Y) & TILE_INDEX_MASK);
+}
+
+uint EncodeTileIndex(uint2 tileID)
+{
+    return (unity_StereoEyeIndex << TILE_INDEX_SHIFT_EYE) | (tileID.y << TILE_INDEX_SHIFT_Y) | (tileID.x << TILE_INDEX_SHIFT_X);
+}
+
+void InitializeDispatchThreadIdFromTileList(uint groupId, uint2 gThreadId, out uint2 tileCoord, out uint2 dThreadId)
+{
+    uint encodedTileIndex = g_TileList[groupId / 4];
+
+    tileCoord = DecodeTileIndex(encodedTileIndex);
+    dThreadId = tileCoord * SCREENSPACE_SHADOWS_TILE_SIZE
+              + uint2(groupId & 1, (groupId >> 1) & 1) * SCREENSPACE_SHADOWS_GROUP_SIZE
+              + gThreadId;
+}
+
+
+//--------------------------------------------------------------------------------------------------
+// Implementation Classify Tiles
+//--------------------------------------------------------------------------------------------------
+
+#if defined(SHADOW_ACCUMULATE)
+
+#define SHARED_WIDTH  (24)
+#define KERNEL_RADIUS (8)
+
+float4x4 _ClipToPrevClipMatrix;
+
+groupshared float   groupSharedColor[SHARED_WIDTH * SHARED_WIDTH];
+groupshared float4  groupSharedNormalDepth[SHARED_WIDTH * SHARED_WIDTH];
+groupshared uint    groupAllInLight;
+groupshared uint    groupAllInShadow;
+
+struct CoordData {
+    float   color;
+    float3  normal;
+    float   depth;
+};
+
+CoordData LoadFromGroupSharedMemory(uint2 coordGroup)
+{
+    uint idx = coordGroup.x + coordGroup.y * SHARED_WIDTH;
+
+    CoordData c = (CoordData)0;
+    c.color  = groupSharedColor[idx];
+    float4 nd = groupSharedNormalDepth[idx];
+    c.normal = nd.xyz;
+    c.depth  = nd.w;
+    return c;
+}
+
+void StoreInGroupSharedMemory(uint2 coordGroup, CoordData inData)
+{
+    uint idx = coordGroup.x + coordGroup.y * SHARED_WIDTH;
+    groupSharedColor[idx] = inData.color;
+    groupSharedNormalDepth[idx] = float4(inData.normal, inData.depth);
+}
+
+float LoadColorFromGroupSharedMemory(uint2 coordGroup)
+{
+    uint idx = coordGroup.x + coordGroup.y * SHARED_WIDTH;
+    return groupSharedColor[idx];
+}
+
+void StoreColorInGroupSharedMemory(uint2 coordGroup, float color)
+{
+    uint idx = coordGroup.x + coordGroup.y * SHARED_WIDTH;
+    groupSharedColor[idx] = color;
+}
+
+void InitializeGroupSharedMemory(int2 coordSS, int2 coordGroup)
+{
+    const uint2 offset[9] = {
+    uint2(0, 0),  uint2(8, 0),  uint2(16, 0),
+    uint2(0, 8),  uint2(8, 8),  uint2(16, 8),
+    uint2(0, 16), uint2(8, 16), uint2(16, 16)};
+
+    coordSS -= 8;
+
+    for (int i = 0; i < 9; i++)
+    {
+        int2 offsetCoordSS = coordSS + offset[i];
+        offsetCoordSS = clamp(offsetCoordSS, 0, _ScreenSize.xy - 1);
+
+        // color (shadow trace result)
+        float data = _TracedShadowTexture[offsetCoordSS];
+
+        // normal & depth
+        float4 gbuffer2 = LOAD_TEXTURE2D_X(_GBuffer2, offsetCoordSS);
+        float3 normalWS = normalize(UnpackNormal(gbuffer2.xyz));
+        float  depth    = LoadSceneDepth(offsetCoordSS);
+        
+        CoordData coordData;
+        coordData.color  = data;
+        coordData.normal = normalWS;
+        coordData.depth  = depth;
+
+        StoreInGroupSharedMemory(coordGroup + offset[i], coordData);
+    }
+}
+
+float GetEdgeStoppingNormalWeight(float3 normal1, float3 normal2)
+{
+    float d = dot(normal1, normal2);
+    return saturate((d - 0.5) * 2.0);
+    // return pow(max(dot(normal1, normal2), 0.0f), 32.0f);
+}
+
+float GetEdgeStoppingDepthWeight(float centerDepth, float neighDepth)
+{
+    return saturate(1.0 - abs(centerDepth - neighDepth) * 4.0);
+    // return exp(-abs(centerDepth - neighDepth) * 4.0);
+}
+
+float ComputeEdgeStoppingWeight(CoordData center, CoordData neigh)
+{
+    // Depth
+    float depthWeight = GetEdgeStoppingDepthWeight(center.depth, neigh.depth);
+
+    // Normal
+    float normalWeight = GetEdgeStoppingNormalWeight(center.normal, neigh.normal);
+
+    return depthWeight * normalWeight;
+}
+
+float KernelWeight(int i)
+{
+    float sigma = (KERNEL_RADIUS + 1);
+    return exp(-3.0 * float(i * i) / (sigma * sigma));
+}
+
+
+static const float kernel[KERNEL_RADIUS + 1] = {
+    KernelWeight(0),
+    KernelWeight(1),
+    KernelWeight(2),
+    KernelWeight(3),
+    KernelWeight(4),
+    KernelWeight(5),
+    KernelWeight(6),
+    KernelWeight(7),
+    KernelWeight(8)
+};
+
+// 17 x 17 gaussian weight, reuse groupSharedlocalColor for horizontal results.
+float ComputeLocalNeighborhood(uint2 coordGroup)
+{
+    // Horizontal convolution
+    int ix = int(coordGroup.x);
+    int iy = int(coordGroup.y);
+
+    int sy_u = iy - KERNEL_RADIUS; // top block row
+    int sy_c = iy;                 // center row
+    int sy_l = iy + KERNEL_RADIUS; // bottom block row
+
+    CoordData upperMidData   = LoadFromGroupSharedMemory(uint2(ix, sy_u));
+    CoordData centerHMidData = LoadFromGroupSharedMemory(uint2(ix, sy_c));
+    CoordData lowerMidData   = LoadFromGroupSharedMemory(uint2(ix, sy_l));
+
+    float upper = upperMidData.color;
+    float center = centerHMidData.color;
+    float lower = lowerMidData.color;
+
+    float upperWeight  = kernel[0];
+    float centerWeight = kernel[0];
+    float lowerWeight  = kernel[0];
+
+    CoordData centerData = LoadFromGroupSharedMemory(coordGroup);
+
+    UNITY_UNROLL
+    for (int dx = -KERNEL_RADIUS; dx <= KERNEL_RADIUS; ++dx)
+    {
+        if (dx == 0)
+            continue;
+        int ax = dx < 0 ? -dx : dx;
+        float kx = kernel[ax];
+
+        int sx = ix + dx;
+
+        CoordData upperData   = LoadFromGroupSharedMemory(uint2(sx, sy_u));
+        CoordData centerHData = LoadFromGroupSharedMemory(uint2(sx, sy_c));
+        CoordData lowerData   = LoadFromGroupSharedMemory(uint2(sx, sy_l));
+
+        float wUpper  = kx * ComputeEdgeStoppingWeight(upperMidData, upperData);
+        float wCenter = kx * ComputeEdgeStoppingWeight(centerHMidData, centerHData);
+        float wLower  = kx * ComputeEdgeStoppingWeight(lowerMidData, lowerData);
+
+        upper  += upperData.color  * wUpper;
+        center += centerHData.color * wCenter;
+        lower  += lowerData.color  * wLower;
+
+        upperWeight  += wUpper;
+        centerWeight += wCenter;
+        lowerWeight  += wLower;
+    }
+
+    // normalize horizontal results
+    upper  = upper  / upperWeight;
+    center = center / centerWeight;
+    lower  = lower  / lowerWeight;
+
+    // write to groupSharedlocalColor (reuse color buffer)
+    StoreColorInGroupSharedMemory(uint2(ix, iy - KERNEL_RADIUS), upper);
+    StoreColorInGroupSharedMemory(uint2(ix, iy), center);
+    StoreColorInGroupSharedMemory(uint2(ix, iy + KERNEL_RADIUS), lower);
+
+    GroupMemoryBarrierWithGroupSync();
+
+    // Vertical convolution
+    float localNeighborhood = LoadColorFromGroupSharedMemory(coordGroup);
+    float weightAccum = kernel[0];
+
+    UNITY_UNROLL
+    for (int i = 1; i <= KERNEL_RADIUS; ++i)
+    {
+        float w = kernel[i];
+
+        CoordData topData = LoadFromGroupSharedMemory(uint2(coordGroup.x, coordGroup.y - i));
+        CoordData btmData = LoadFromGroupSharedMemory(uint2(coordGroup.x, coordGroup.y + i));
+
+        float topWeight = w * ComputeEdgeStoppingWeight(centerData, topData);
+        float btmWeight = w * ComputeEdgeStoppingWeight(centerData, btmData);
+
+        localNeighborhood += topWeight * topData.color;
+        localNeighborhood += btmWeight * btmData.color;
+
+        weightAccum += topWeight;
+        weightAccum += btmWeight;
+    }
+
+    localNeighborhood = localNeighborhood / weightAccum;
+    return localNeighborhood;
+}
+
+
+void SearchSpatialRegion(int2 coordGroup)
+{
+    uint2 offset[4] = { 
+        uint2(-4, -4), uint2(4, -4), 
+        uint2(-4,  4), uint2(4,  4) };
+
+    uint allInLight  = 1u;
+    uint allInShadow = 1u;
+
+    UNITY_UNROLL
+    for (int i = 0; i < 4; i++)
+    {
+        int2 offsetedCoordGroup = coordGroup + offset[i];
+
+        float c = LoadColorFromGroupSharedMemory(offsetedCoordGroup);
+
+        if (c > 0.99)
+            allInShadow = 0u;
+        if (c < 0.02)
+            allInLight = 0u;
+    }
+
+    InterlockedAnd(groupAllInLight,  allInLight);
+    InterlockedAnd(groupAllInShadow, allInShadow);
+}
+
+void SearchSpatialRegion24x24(int2 coordGroup)
+{
+    const uint2 offset[9] = {
+        uint2(0, 0),  uint2(8, 0),  uint2(16, 0),
+        uint2(0, 8),  uint2(8, 8),  uint2(16, 8),
+        uint2(0, 16), uint2(8, 16), uint2(16, 16)};
+
+    uint allInLight  = 1u;
+    uint allInShadow = 1u;
+
+    coordGroup -= 8;
+
+    UNITY_UNROLL
+    for (int i = 0; i < 9; i++)
+    {
+        int2 offsetedCoordGroup = coordGroup + offset[i];
+
+        float c = LoadColorFromGroupSharedMemory(offsetedCoordGroup);
+
+        if (c > 0.99)
+            allInShadow = 0u;
+        if (c < 0.02)
+            allInLight = 0u;
+    }
+
+    InterlockedAnd(groupAllInLight,  allInLight);
+    InterlockedAnd(groupAllInShadow, allInShadow);
+}
+
+bool IsDisoccluded(uint2 coordSS, float deviceDepth, float2 motionVector, float3 normalWS, float4x4 clipToPrevClipMatrix)
+{
+    float2 screenUV = TransformCoordSSToScreenUV(coordSS, _ScreenSize);
+    float2 prevScreenUV = screenUV - motionVector;
+    uint2 prevCoordSS = TransformScreenUVToCoordSS(prevScreenUV, _ScreenSize);
+
+    float4 currReProjPosCS = float4(screenUV * 2.0 - 1.0, deviceDepth, 1.0);
+
+    bool isDisoccluded = true;
+
+    if (all(prevScreenUV > float2(0.0, 0.0)) && all(prevScreenUV < float2(1.0, 1.0)))
+    {
+        float4 prevReProjPosCS = mul(clipToPrevClipMatrix, currReProjPosCS); // clipToPrevClipMatrix doesn't contain AA offsets
+        prevReProjPosCS *= rcp(prevReProjPosCS.w);
+
+        // How aligned with the view vector? (the more Z aligned, the higher the depth errors)
+        float3 positionWS = ComputeWorldSpacePosition(screenUV, deviceDepth, UNITY_MATRIX_I_VP);
+        float3 viewDirWS = GetWorldSpaceNormalizeViewDir(positionWS);
+        float zAlignment = 1.0f - dot(normalWS, viewDirWS);
+        zAlignment = pow(zAlignment, 8);
+
+        // Previous depth
+        float prevDeviceDepth = LOAD_TEXTURE2D_X(_PrevCameraDepthTexture, prevCoordSS).r;
+
+        float linearDepth = LinearEyeDepth(prevReProjPosCS.z, _ZBufferParams);
+        float prevLinearDepth = LinearEyeDepth(prevDeviceDepth, _ZBufferParams);
+
+        float depthDifference = abs(prevLinearDepth - linearDepth) / linearDepth;
+
+        float depthTolerance = lerp(5e-2f, 1e-1f, zAlignment);
+        isDisoccluded = depthDifference >= depthTolerance;
+    }
+
+    return isDisoccluded;
+}
+
+[numthreads(SCREENSPACE_SHADOWS_GROUP_SIZE, SCREENSPACE_SHADOWS_GROUP_SIZE, 1)]
+void ACCUMULATE(uint3 dispatchThreadId : SV_DispatchThreadID, uint2 groupThreadId : SV_GroupThreadID, uint groupId : SV_GroupID)
+{
+    uint2 coordSS;
+    uint2 tileCoord;
+
+    InitializeDispatchThreadIdFromTileList(groupId, groupThreadId, tileCoord, coordSS);
+    uint2 coordGroup = groupThreadId.xy;
+
+    if ((groupThreadId.x == 0) && (groupThreadId.y == 0))
+    {
+        groupAllInShadow = 1u;
+        groupAllInLight = 1u;
+    }
+    
+    InitializeGroupSharedMemory(coordSS, coordGroup);
+    GroupMemoryBarrierWithGroupSync();
+    coordGroup += 8;
+
+    CoordData curCoordData = LoadFromGroupSharedMemory(coordGroup);
+    float currentData = curCoordData.color;
+    #if FINAL_PASS
+    _SSDirShadowmapTexture[coordSS] = currentData;
+    #else
+    _MeanVarianceTexture[coordSS] = float2(currentData, 0);
+    #endif
+
+    // Compute groupAllInLight 
+    SearchSpatialRegion24x24(coordGroup);
+    GroupMemoryBarrierWithGroupSync();
+    // Skip all neighbor in light/shadow
+    if (groupAllInLight == 1u || groupAllInShadow == 1u)
+    {
+        _ShadowMomentstexture[coordSS] = float3(currentData, 0, 1);
+        // return;
+    }
+
+    float localNeighborhood = ComputeLocalNeighborhood(coordGroup);
+
+    // Reject the sky/background groupAllInShadow
+    float depth = curCoordData.depth;
+    if (depth == UNITY_RAW_FAR_CLIP_VALUE)
+    {
+        _ShadowMomentstexture[coordSS] = float3(currentData, 0, 0);
+        return;
+    }
+
+
+    // Reject non shadow reciver
+    float4 gbuffer0 = LOAD_TEXTURE2D_X(_GBuffer0, coordSS);
+    uint materialFlags = UnpackMaterialFlags(gbuffer0.a);
+    bool materialReceiveShadowsOff = (materialFlags & kMaterialFlagReceiveShadowsOff) != 0;
+    if (materialReceiveShadowsOff)
+    {
+        _ShadowMomentstexture[coordSS] = float3(currentData, 0, 0);
+        return;
+    }
+
+
+    // Reject scene NdotL < 0
+    float3 normalWS = curCoordData.normal;
+    DirectionalLightData dirLight = g_DirectionalLightDatas[0]; // TODO: current only main light.
+    float3 lightDirWS = dirLight.lightDirection;
+    float NdotL = dot(normalWS, lightDirWS);
+    uint stencilVal = GetStencilValue(LOAD_TEXTURE2D_X(_StencilTexture, coordSS)); // ndotl condition not character
+    if ((NdotL < 0) && (stencilVal != SHADINGMODELS_CHARACTER))
+    {
+        _ShadowMomentstexture[coordSS] = float3(currentData, 0, 1);
+        return;
+    }
+
+
+
+    // Calculate history position
+    float2 motionVector = LoadMotionVectorOffset(coordSS);
+    float deviceDepth = curCoordData.depth;
+    float2 screenUV = TransformCoordSSToScreenUV(coordSS, _ScreenSize);
+    float2 prevScreenUV = screenUV - motionVector;
+    uint2 prevCoordSS = TransformScreenUVToCoordSS(prevScreenUV, _ScreenSize);
+
+    bool isDisoccluded = IsDisoccluded(coordSS, deviceDepth, motionVector, normalWS, _ClipToPrevClipMatrix);
+
+
+    // Moments & Variance
+    float maxSamplesNum = 32.0f;
+    float3 previousMoments = isDisoccluded ? float3(0, 0, 0) : _PrevShadowMomentstexture[prevCoordSS];
+    previousMoments.z *= maxSamplesNum;
+
+    float oldMom = previousMoments.x;
+    float oldStd = previousMoments.y;
+    float sampleCount = min(previousMoments.z + 1.0f, maxSamplesNum);;
+    float newMom = oldMom + (currentData - oldMom) / sampleCount;
+    float newStd = oldStd + (currentData - oldMom) * (currentData - newMom);
+
+    float variance = sampleCount > 1.0f ? newStd / (sampleCount - 1.0f) : 1.0f;
+    float3 currentMoments = float3(newMom, newStd, sampleCount);
+
+
+    // Reproject
+    float mean = localNeighborhood;
+    float spatialVariance = localNeighborhood;
+    spatialVariance = max(spatialVariance - mean * mean, 0.002f); // Non-zero to avoid all zero/light block pixels
+
+    // clamping bounding box
+    float stdDev = sqrt(spatialVariance);
+    float nmin = mean - 0.5f * stdDev;
+    float nmax = mean + 0.5f * stdDev;
+
+    // previous must use sample, avoid one-pixel bias error.
+    float previousData = SAMPLE_TEXTURE2D_X_LOD(_PrevTracedShadowTexture, sampler_LinearClamp, prevScreenUV, 0).x;
+    float clampedData = clamp(previousData, nmin, nmax);
+
+    // Temporal Accumulate
+    float sigma = 20.f;
+    float temproalDiscontinuity = (previousData - mean) / max(0.5f * stdDev, 0.001f);
+    float sampleCounterDamper = exp(-temproalDiscontinuity * temproalDiscontinuity / sigma);
+    currentMoments.z *= sampleCounterDamper;
+    if (currentMoments.z < 16.0f)
+    {
+        float varianceBoost = max(16 - currentMoments.z, 1.0f);
+        variance = max(variance, spatialVariance);
+        variance *= varianceBoost;
+    }
+
+    float historyWeight = max(8.0f - currentMoments.z, 0.0f) / 8.0f;
+    historyWeight = sqrt(historyWeight);
+    historyWeight = lerp(0.05f, 1.0f, historyWeight);
+
+    historyWeight = lerp(historyWeight, 0.001f, pow(saturate((currentMoments.z - 8.0f) / maxSamplesNum), 2));
+
+    clampedData = lerp(clampedData, currentData, historyWeight);
+
+
+    // Write texture
+    currentMoments.z /= maxSamplesNum;
+    _TracedShadowTexture[coordSS] = clampedData;
+    _ShadowMomentstexture[coordSS] = currentMoments;
+
+    #if FINAL_PASS
+    _SSDirShadowmapTexture[coordSS] = clampedData;
+    #else
+    _MeanVarianceTexture[coordSS] = float2(clampedData, variance);
+    #endif
+}
+
+
+#elif defined(SHADOW_BILATERAL_FILTER)
+//--------------------------------------------------------------------------------------------------
+// Implementation Bilateral Filter
+//--------------------------------------------------------------------------------------------------
+
+groupshared float4 localNormalDepth[256];
+groupshared float localColor[256];
+
+struct CoordData {
+    float3  normal;
+    float   depth;
+    float   color;
+};
+
+
+#define GAUSSIAN_WEIGHT_COUNT (9)
+static const float gaussianWeight[GAUSSIAN_WEIGHT_COUNT] = {0.02763055, 0.06628224, 0.1238315, 0.1801738, 0.2041637, 0.1801738, 0.1238315, 0.06628224, 0.02763055};
+
+struct BilateralData
+{
+    float3 position;
+    float depth;
+    float3 normal;
+};
+
+float GetEdegStoppingNormalWeight(float3 normal1, float3 normal2)
+{
+    return pow(max(dot(normal1, normal2), 0.0f), 32.0f);
+}
+
+float GetEdgeStoppingDepthWeight(float centerDepth, float neighDepth)
+{
+    return exp(-abs(centerDepth - neighDepth) * 4.0);
+}
+
+// TODO: Actually we should use plane base depth weight like SVGF.
+float ComputeBilateralWeight(BilateralData center, BilateralData neigh)
+{
+    // Depth
+    float depthWeight = GetEdgeStoppingDepthWeight(center.depth, neigh.depth);
+
+    // Normal
+    float normalWeight = GetEdegStoppingNormalWeight(center.normal, neigh.normal);
+
+    return depthWeight * normalWeight;
+}
+
+CoordData LoadFromGroupSharedMemory(uint2 gThreadId)
+{
+    #if FINAL_PASS
+    gThreadId.y += 4;
+    #else
+    gThreadId.x += 4;
+    #endif
+
+    uint localID = gThreadId.x + 16 * gThreadId.y;
+    float4 encodedNormalDepth = localNormalDepth[localID];
+
+    CoordData neighborSample;
+    ZERO_INITIALIZE(CoordData, neighborSample);
+    neighborSample.normal = encodedNormalDepth.xyz;
+    neighborSample.depth = encodedNormalDepth.w;
+    neighborSample.color = localColor[localID];
+    
+    return neighborSample;
+}
+
+void StoreInGroupSharedMemory(uint2 gThreadId, CoordData inData)
+{
+    #if FINAL_PASS
+    gThreadId.y += 4;
+    #else
+    gThreadId.x += 4;
+    #endif
+
+    uint localID = gThreadId.x + 16 * gThreadId.y;
+    localNormalDepth[localID] = float4(inData.normal.xyz, inData.depth);
+    localColor[localID] = inData.color;
+}
+
+void LoadCoordData(int2 coordSS, out CoordData outData)
+{
+    ZERO_INITIALIZE(CoordData, outData);
+    if (coordSS.x >= _ScreenSize.x || coordSS.y >= _ScreenSize.y || coordSS.x < 0.0 || coordSS.y < 0.0)
+    {
+        outData.depth = UNITY_RAW_FAR_CLIP_VALUE;
+        return;
+    }
+
+    float deviceDepth = LoadSceneDepth(coordSS);
+    if (deviceDepth == UNITY_RAW_FAR_CLIP_VALUE)
+    {
+        outData.depth = UNITY_RAW_FAR_CLIP_VALUE;
+        return;
+    }
+
+    float4 normalGBuffer = LOAD_TEXTURE2D_X(_GBuffer2, coordSS);
+    float3 normalWS = normalize(UnpackNormal(normalGBuffer.xyz));
+
+    outData.normal = normalWS;
+    outData.depth = LinearEyeDepth(deviceDepth, _ZBufferParams);
+    outData.color = _BilateralTexture[coordSS];
+}
+
+void InitializeGroupSharedMemory(int2 dThreadId, uint2 gThreadId)
+{
+    #if FINAL_PASS
+    uint2 offset[2] = {uint2(0, -4), uint2(0, 4)};
+    #else
+    uint2 offset[2] = {uint2(-4, 0), uint2(4, 0)};
+    #endif
+
+    CoordData coordData[2];
+    for (int i = 0; i < 2; i++)
+    {
+        LoadCoordData(dThreadId + offset[i], coordData[i]);
+    }
+
+    for (int j = 0; j < 2; j++)
+    {
+        StoreInGroupSharedMemory(gThreadId + offset[j], coordData[j]);
+    }
+}
+
+
+[numthreads(SCREENSPACE_SHADOWS_GROUP_SIZE, SCREENSPACE_SHADOWS_GROUP_SIZE, 1)]
+void BILATERAL_FILTER(uint3 dispatchThreadId : SV_DispatchThreadID, uint2 groupThreadId : SV_GroupThreadID, uint groupId : SV_GroupID)
+{
+    uint2 coordSS;
+    uint2 tileCoord;
+    InitializeDispatchThreadIdFromTileList(groupId, groupThreadId, tileCoord, coordSS);
+
+    uint2 coordGroup = groupThreadId.xy;
+    InitializeGroupSharedMemory(coordSS, coordGroup);
+
+    GroupMemoryBarrierWithGroupSync();
+
+    CoordData center = LoadFromGroupSharedMemory(coordGroup);
+    float2 screenUV = coordSS * _ScreenSize.zw + (0.5 * _ScreenSize.zw);
+
+    if (center.depth == UNITY_RAW_FAR_CLIP_VALUE)
+        return;
+
+    // Position
+    PositionInputs posInput = GetPositionInput(coordSS.xy, _ScreenSize.zw, center.depth, UNITY_MATRIX_I_VP, UNITY_MATRIX_V, uint2(0, 0));
+
+    BilateralData centerData;
+    ZERO_INITIALIZE(BilateralData, centerData);
+    {
+        centerData.normal = center.normal;
+        centerData.depth = center.depth;
+    }
+
+
+    float colorSum = center.color * gaussianWeight[4];
+    float weightSum = gaussianWeight[4];
+
+    // TODO: Actually far distance pixels should have smaller radius.
+    int radius = 4;
+
+    #if FINAL_PASS
+        const int2 passIncr = int2(0, 1);
+    #else
+        const int2 passIncr = int2(1, 0);
+    #endif
+
+    int2 neighCoordGroup = coordGroup - radius * passIncr;
+    for (int r = -radius; r <= radius; r++, neighCoordGroup += passIncr)
+    {
+        if (r == 0)
+            continue;
+        CoordData neigh = LoadFromGroupSharedMemory(neighCoordGroup);
+        if (neigh.depth == UNITY_RAW_FAR_CLIP_VALUE)
+            continue;
+
+        BilateralData neighData;
+        ZERO_INITIALIZE(BilateralData, neighData);
+        {
+            neighData.normal = neigh.normal;
+            neighData.depth = neigh.depth;
+        }
+
+        float bilateralWeight = ComputeBilateralWeight(centerData, neighData);
+        float weight = gaussianWeight[r + 4] * bilateralWeight;
+
+        colorSum += weight * neigh.color;
+        weightSum += weight;
+    }
+
+    _BilateralTexture[coordSS] = colorSum / weightSum;
+}
+
+
+
+#elif defined(SHADOW_EAW_FILTER)
+//--------------------------------------------------------------------------------------------------
+// Implementation Edge-Avoiding À-Trous Wavelet (EAW) Filter
+//--------------------------------------------------------------------------------------------------
+
+groupshared float4 localNormalDepth[256];
+groupshared float2 localMeanVariance[256];
+
+struct CoordData {
+    float3  normal;
+    float   depth;
+    float   color;
+    float   variance;
+};
+
+float GetEdgeStoppingNormalWeight(float3 normal1, float3 normal2)
+{
+    return pow(max(dot(normal1, normal2), 0.0f), 32.0f);
+}
+
+float GetEdgeStoppingDepthWeight(float centerDepth, float neighDepth)
+{
+    return exp(-abs(centerDepth - neighDepth) * 4.0);
+}
+
+float GetVarianceBasedShadowWeight(float centerColor, float neighColor, float centerStdDeviation)
+{
+    return exp(-abs(centerColor - neighColor) / centerStdDeviation);
+}
+
+// TODO: Actually we should use plane base depth weight like SVGF.
+float ComputeEdgeStoppingWeight(CoordData center, CoordData neigh, float centerStdDeviation)
+{
+    // Depth
+    float depthWeight = GetEdgeStoppingDepthWeight(center.depth, neigh.depth);
+
+    // Normal
+    float normalWeight = GetEdgeStoppingNormalWeight(center.normal, neigh.normal);
+
+    // Shadow variance
+    float shadowWeight = GetVarianceBasedShadowWeight(center.color, neigh.color, centerStdDeviation);
+
+
+    return depthWeight * normalWeight * shadowWeight;
+}
+
+CoordData LoadFromGroupSharedMemory(uint2 gThreadId)
+{
+    uint localID = gThreadId.x + 16 * gThreadId.y;
+    float4 encodedNormalDepth = localNormalDepth[localID];
+    float2 encodedMeanVariance = localMeanVariance[localID];
+
+    CoordData neighborSample;
+    ZERO_INITIALIZE(CoordData, neighborSample);
+    neighborSample.normal = encodedNormalDepth.xyz;
+    neighborSample.depth = encodedNormalDepth.w;
+    neighborSample.color = encodedMeanVariance.x;
+    neighborSample.variance = encodedMeanVariance.y;
+    
+    return neighborSample;
+}
+
+void StoreMeanInGroupSharedMemory(uint2 gThreadId, float mean)
+{
+    uint localID = gThreadId.x + 16 * gThreadId.y;
+    localMeanVariance[localID].x = mean;
+}
+
+void StoreInGroupSharedMemory(uint2 gThreadId, CoordData inData)
+{
+    uint localID = gThreadId.x + 16 * gThreadId.y;
+    localNormalDepth[localID] = float4(inData.normal.xyz, inData.depth);
+    localMeanVariance[localID] = float2(inData.color, inData.variance);
+}
+
+void LoadCoordData(int2 coordSS, out CoordData outData)
+{
+    ZERO_INITIALIZE(CoordData, outData);
+    if (coordSS.x >= _ScreenSize.x || coordSS.y >= _ScreenSize.y || coordSS.x < 0.0 || coordSS.y < 0.0)
+    {
+        outData.depth = UNITY_RAW_FAR_CLIP_VALUE;
+        return;
+    }
+
+    float deviceDepth = LoadSceneDepth(coordSS);
+    if (deviceDepth == UNITY_RAW_FAR_CLIP_VALUE)
+    {
+        outData.depth = UNITY_RAW_FAR_CLIP_VALUE;
+        return;
+    }
+
+    float4 normalGBuffer = LOAD_TEXTURE2D_X(_GBuffer2, coordSS);
+    float3 normalWS = normalize(UnpackNormal(normalGBuffer.xyz));
+
+    float2 meanVariance = _MeanVarianceTexture[coordSS].xy;
+
+    outData.normal = normalWS;
+    outData.depth = LinearEyeDepth(deviceDepth, _ZBufferParams);
+    outData.color = meanVariance.x;
+    outData.variance = meanVariance.y;
+}
+
+void InitializeGroupSharedMemory(int2 dThreadId, uint2 gThreadId)
+{
+    uint2 offset[4] = {uint2(0, 0), uint2(8, 0), uint2(0, 8), uint2(8, 8)};
+
+    dThreadId -= 4;
+
+    CoordData coordData[4];
+    for (int i = 0; i < 4; i++)
+    {
+        LoadCoordData(dThreadId + offset[i], coordData[i]);
+    }
+
+    for (int j = 0; j < 4; j++)
+    {
+        StoreInGroupSharedMemory(gThreadId + offset[j], coordData[j]);
+    }
+}
+
+float GetVarianceFromGroupSharedMemory(int2 coordGroup)
+{
+    float variance = 0.0f;
+    float kernel[2][2] =
+    {
+        { 1.0f / 4.0f, 1.0f / 8.0f  },
+        { 1.0f / 8.0f, 1.0f / 16.0f }
+    };
+
+    for (int y = -1; y <= 1; y++)
+    {
+        for (int x = -1; x <= 1; x++)
+        {
+            CoordData data = LoadFromGroupSharedMemory(coordGroup + int2(x, y));
+
+            float weight = kernel[abs(x)][abs(y)];
+            variance += data.variance * weight;
+        }
+    }
+
+    return variance;
+}
+
+void ApplyEdgeAvoidAtrousStep(uint2 coordGroup, int stepSize, CoordData centerData, float centerMean, float centerStdDeviation, out float curMean)
+{
+    const float kernel[3] = { 1.0f, 2.0f / 3.0f, 1.0f / 6.0f };
+
+    float weightSum = 1.0f;
+    float meanSum = centerMean;
+    for (int y = -1; y <= 1; y++)
+    {
+        for (int x = -1; x <= 1; x++)
+        {
+            int2 step = int2(x, y) * stepSize;
+            int2 coordGroupOffseted = coordGroup + step;
+            
+            CoordData neighData = LoadFromGroupSharedMemory(coordGroupOffseted);
+
+            float weight = ComputeEdgeStoppingWeight(centerData, neighData, centerStdDeviation);
+            weight *= kernel[abs(x)] * kernel[abs(y)];
+
+            meanSum += weight * neighData.color;
+            weightSum += weight;
+        }
+    }
+
+    curMean = meanSum.x / weightSum;
+}
+
+[numthreads(SCREENSPACE_SHADOWS_GROUP_SIZE, SCREENSPACE_SHADOWS_GROUP_SIZE, 1)]
+void EdgeAvoidATrousWavelet(uint3 dispatchThreadId : SV_DispatchThreadID, uint2 groupThreadId : SV_GroupThreadID, uint groupId : SV_GroupID)
+{
+    uint2 coordSS;
+    uint2 tileCoord;
+    InitializeDispatchThreadIdFromTileList(groupId, groupThreadId, tileCoord, coordSS);
+
+    uint2 coordGroup = groupThreadId.xy;
+    InitializeGroupSharedMemory(coordSS, coordGroup);
+    GroupMemoryBarrierWithGroupSync();
+
+    coordGroup += 4;
+    CoordData centerData = LoadFromGroupSharedMemory(coordGroup);
+
+    // All clear
+
+
+    // Reject sky
+
+
+
+    // Begin filter
+    float variance = GetVarianceFromGroupSharedMemory(coordGroup);
+    float centerStdDeviation = sqrt(max(variance + 1e-9f, 0.0f));
+
+    float curMean = centerData.color.x;
+    float meanResult = curMean;
+    ApplyEdgeAvoidAtrousStep(coordGroup, 1, centerData, curMean, centerStdDeviation, meanResult);
+
+    GroupMemoryBarrierWithGroupSync();
+    StoreMeanInGroupSharedMemory(coordGroup, meanResult);
+
+    curMean = meanResult;
+    ApplyEdgeAvoidAtrousStep(coordGroup, 2, centerData, curMean, centerStdDeviation, meanResult);
+
+    GroupMemoryBarrierWithGroupSync();
+    StoreMeanInGroupSharedMemory(coordGroup, meanResult);
+
+    curMean = meanResult;
+    ApplyEdgeAvoidAtrousStep(coordGroup, 4, centerData, curMean, centerStdDeviation, meanResult);
+
+
+    _SSDirShadowmapTexture[coordSS] = meanResult;
+}
+
+
+
+#endif

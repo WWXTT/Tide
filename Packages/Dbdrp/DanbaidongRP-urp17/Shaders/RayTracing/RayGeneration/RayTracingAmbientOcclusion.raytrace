@@ -1,0 +1,148 @@
+// Definitions
+//--------------------------------------------------------------------------------------------------
+
+// Uncomment this pragma for debugging the HLSL code in PIX. GPU performance will be impacted.
+//#pragma enable_ray_tracing_shader_debug_symbols
+
+/*
+ *  1. max_recursion_depth must positive > 0
+ *  2. If TraceRay() inside a closest hit shader, must > 1
+ */
+#pragma max_recursion_depth 1
+
+// Always use this in DX12 RayTrace
+#define SHADER_TARGET 50
+
+//--------------------------------------------------------------------------------------------------
+// Included headers
+//--------------------------------------------------------------------------------------------------
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/Runtime/Lights/GPULights.cs.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/GPUCulledLights.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareDepthTexture.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/UnityGBuffer.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/Runtime/Lighting/ShadingModels.cs.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/BlueNoise.hlsl"
+
+#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/ShaderVariablesRaytracing.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/RayTracingCommon.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/RaytracingIntersection.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/Runtime/Raytracing/RayTracingFallbackHierarchy.cs.hlsl"
+
+#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Material/PBRToon/PBRToon.hlsl"
+//--------------------------------------------------------------------------------------------------
+// Inputs & outputs
+//--------------------------------------------------------------------------------------------------
+
+// Input
+TEXTURE2D_X(_GBuffer0);
+TEXTURE2D_X(_GBuffer2);
+StructuredBuffer<uint> _RayCoordBuffer;
+
+// Output
+RW_TEXTURE2D(float2, _AmbientOcclusionTextureRW);
+
+//--------------------------------------------------------------------------------------------------
+// Helpers
+//--------------------------------------------------------------------------------------------------
+
+void GetNormalAndPerceptualRoughness(uint2 coordSS, out float3 normalWS, out float perceptualRoughness)
+{
+    // Load normal and perceptualRoughness.
+    float4 normalGBuffer = LOAD_TEXTURE2D_X(_GBuffer2, coordSS);
+    
+    normalWS = normalize(UnpackNormal(normalGBuffer.xyz)); // normalize() is required because terrain shaders use additive blending for normals (not unit-length anymore)
+    perceptualRoughness = PerceptualSmoothnessToPerceptualRoughness(normalGBuffer.a);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Implementation
+//--------------------------------------------------------------------------------------------------
+
+// Miss intersection
+[shader("miss")]
+void MissShaderAmbientOcclusion(inout RayIntersectionVisibility rayIntersection : SV_RayPayload)
+{
+    rayIntersection.color = float3(1.0, 1.0, 1.0);
+
+    rayIntersection.t = _RaytracingRayMaxLength;
+}
+
+[shader("raygeneration")]
+void SingleRayGen()
+{
+    // InDirect Dispatch Rays
+    // uint launchIndex = DispatchRaysIndex().x;
+    // float2 coordSS = DecodeRayCoord(_RayCoordBuffer[launchIndex]);
+    // coordSS += 0.5f;
+    float2 coordSS = float2(DispatchRaysIndex().x, DispatchRaysIndex().y);
+
+    // InitColor
+    _AmbientOcclusionTextureRW[coordSS] = 1.0;
+
+    // Load depth
+    float rawDepth = LoadSceneDepth(coordSS);
+    if (rawDepth == UNITY_RAW_FAR_CLIP_VALUE)
+	    return;
+
+    PositionInputs posInput = GetPositionInput(floor(coordSS), _ScreenSize.zw, rawDepth, UNITY_MATRIX_I_VP, GetWorldToViewMatrix(), 0);
+    float3 V = GetWorldSpaceNormalizeViewDir(posInput.positionWS);
+
+    float3 normalWS;
+    float perceptualRoughness;
+    GetNormalAndPerceptualRoughness(coordSS, normalWS, perceptualRoughness);
+
+    // Evaluate the ray bias
+    float rayBias = EvaluateRayTracingBias(posInput.positionWS);
+
+
+    // Generate the new sample (follwing values of the sequence)
+    float3x3 localToWorld = GetLocalFrame(normalWS);
+
+    // float2 blueNoiseRandom = 0;
+    // blueNoiseRandom.xy = GetSpatiotemporalBlueNoiseVec2(coordSS);
+    // float3 randomRayDirLocal = SampleHemisphereCosine(blueNoiseRandom.x, blueNoiseRandom.y); // cosine weighting baked in for implicit lambertian
+
+
+    float finalColor = 0.0;
+
+    // Ray
+    int numSamples = max(_RaytracingNumSamples, 1);
+    for (int i = 0; i < numSamples; i++)
+    {
+        float3 randomRayDirLocal = GetSpatiotemporalBlueNoiseUnitVec3Cosine(coordSS, i * 10);
+        float3 rayDirWS = normalize(mul(randomRayDirLocal, localToWorld));
+
+        // Create the ray descriptor for this pixel
+        RayDesc rayDescriptor;
+        rayDescriptor.Origin = posInput.positionWS + normalWS * rayBias;
+        rayDescriptor.Direction = rayDirWS;
+        rayDescriptor.TMin = 0.0;
+        rayDescriptor.TMax = _RaytracingRayMaxLength;
+
+        // Create and init the RayIntersectionVisibility structure for this
+        RayIntersectionVisibility rayIntersection;
+        rayIntersection.color = float3(1.0, 1.0, 1.0);
+        rayIntersection.t = -1.0;
+        rayIntersection.pixelCoord = coordSS;
+
+        TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, RAYTRACINGRENDERERFLAG_AMBIENT_OCCLUSION, 0, 1, 0, rayDescriptor, rayIntersection);
+
+        // // Contribute to the pixel
+        finalColor += rayIntersection.color.x;
+
+        // Use distance to attenuate the contribution.
+        // finalColor += saturate(rayIntersection.t / _RaytracingRayMaxLength);
+
+    }
+
+    finalColor = finalColor / (float)numSamples;
+
+
+
+    _AmbientOcclusionTextureRW[coordSS] = saturate(finalColor);
+}
+
+

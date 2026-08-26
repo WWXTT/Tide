@@ -1,0 +1,176 @@
+// Definitions
+//--------------------------------------------------------------------------------------------------
+
+// Uncomment this pragma for debugging the HLSL code in PIX. GPU performance will be impacted.
+//#pragma enable_ray_tracing_shader_debug_symbols
+
+/*
+ *  1. max_recursion_depth must positive > 0
+ *  2. If TraceRay() inside a closest hit shader, must > 1
+ */
+#pragma max_recursion_depth 1
+
+// Always use this in DX12 RayTrace
+#define SHADER_TARGET 50
+
+//--------------------------------------------------------------------------------------------------
+// Included headers
+//--------------------------------------------------------------------------------------------------
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/Runtime/Lights/GPULights.cs.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/GPUCulledLights.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareDepthTexture.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/UnityGBuffer.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/Runtime/Lighting/ShadingModels.cs.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/BlueNoise.hlsl"
+
+#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/ShaderVariablesRaytracing.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/RayTracingCommon.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/RaytracingIntersection.hlsl"
+#include "Packages/com.unity.render-pipelines.danbaidong/Runtime/Raytracing/RayTracingFallbackHierarchy.cs.hlsl"
+
+#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Material/PBRToon/PBRToon.hlsl"
+//--------------------------------------------------------------------------------------------------
+// Inputs & outputs
+//--------------------------------------------------------------------------------------------------
+
+// Input
+TEXTURE2D_X(_GBuffer0);
+TEXTURE2D_X(_GBuffer2);
+TYPED_TEXTURE2D(uint2, _StencilTexture);
+StructuredBuffer<uint> _ShadowRayCoordBuffer;
+
+float _RayTracingDirShadowPenumbraCOS;
+float _RayTracingDirShadowCharacterNormalOffset;
+float _RayTracingDirShadowCharacterHalfDirScale;
+
+// Output structure of the shadows raytrace shader
+RW_TEXTURE2D(float2, _RayTracingShadowsTextureRW);
+
+//--------------------------------------------------------------------------------------------------
+// Helpers
+//--------------------------------------------------------------------------------------------------
+
+
+void GetNormalAndPerceptualRoughness(uint2 coordSS, out float3 normalWS, out float perceptualRoughness)
+{
+    // Load normal and perceptualRoughness.
+    float4 normalGBuffer = LOAD_TEXTURE2D_X(_GBuffer2, coordSS);
+    
+    normalWS = normalize(UnpackNormal(normalGBuffer.xyz)); // normalize() is required because terrain shaders use additive blending for normals (not unit-length anymore)
+    perceptualRoughness = PerceptualSmoothnessToPerceptualRoughness(normalGBuffer.a);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Implementation
+//--------------------------------------------------------------------------------------------------
+
+// Miss intersection
+[shader("miss")]
+void MissShaderShadows(inout RayIntersectionVisibility rayIntersection : SV_RayPayload)
+{
+    rayIntersection.color = float3(1.0, 1.0, 1.0);
+
+    rayIntersection.t = _RaytracingRayMaxLength;
+}
+
+[shader("raygeneration")]
+void SingleRayGen()
+{
+    // InDirect Dispatch Rays
+    uint launchIndex = DispatchRaysIndex().x;
+    float2 coordSS = DecodeRayCoord(_ShadowRayCoordBuffer[launchIndex]);
+    coordSS += 0.5f;
+
+    // Load depth
+    float rawDepth = LoadSceneDepth(coordSS);
+
+    // TODO: check stencil?
+    uint stencilVal = GetStencilValue(LOAD_TEXTURE2D_X(_StencilTexture, coordSS));
+
+    PositionInputs posInput = GetPositionInput(floor(coordSS), _ScreenSize.zw, rawDepth, UNITY_MATRIX_I_VP, GetWorldToViewMatrix(), 0);
+    float3 V = GetWorldSpaceNormalizeViewDir(posInput.positionWS);
+
+    float3 normalWS;
+    float perceptualRoughness;
+    GetNormalAndPerceptualRoughness(coordSS, normalWS, perceptualRoughness);
+
+    // Evaluate the ray bias
+    float rayBias = EvaluateRayTracingBias(posInput.positionWS);
+
+    // TODO: Check this to different directional light.
+    DirectionalLightData dirLight = g_DirectionalLightDatas[0];
+
+    float3 lightDirWS = dirLight.lightDirection;
+
+    // SoftShadow bias cone
+    if (_RayTracingDirShadowPenumbraCOS != 1)
+    {
+        float2 blueNoiseRandom = 0;
+        blueNoiseRandom.xy = GetSpatiotemporalBlueNoiseVec2(coordSS);
+        float3 lightDirLocalSpace = SampleConeUniform(blueNoiseRandom.x, blueNoiseRandom.y, _RayTracingDirShadowPenumbraCOS);
+        float3x3 localToWorld = GetLocalFrame(dirLight.lightDirection);
+        lightDirWS = mul(lightDirLocalSpace, localToWorld);
+    }
+
+
+    // r: scene shadow, g: character selfshadow
+    float3 finalColor = float3(0.0, 0.0, 0.0);
+    float rayDepth = 0.0;
+
+    // Ray
+    {
+        // Create the ray descriptor for this pixel
+        RayDesc rayDescriptor;
+        rayDescriptor.Origin = posInput.positionWS + normalWS * rayBias;
+        rayDescriptor.Direction = lightDirWS;
+        rayDescriptor.TMin = 0.0;
+        rayDescriptor.TMax = _RaytracingRayMaxLength;
+
+        // Create and init the RayIntersectionVisibility structure for this
+        RayIntersectionVisibility rayIntersection;
+        rayIntersection.color = float3(1.0, 1.0, 1.0);
+        rayIntersection.t = -1.0;
+        rayIntersection.pixelCoord = coordSS;
+        // rayIntersection.fromCharacter = stencilVal == SHADINGMODELS_CHARACTER;
+
+        // Shadow need "Cull Front"
+        float3 shadowColor = rayIntersection.color;
+        if (stencilVal != SHADINGMODELS_CHARACTER)
+        {
+            // Trace scene shadow (from scene and character).
+            TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_CULL_FRONT_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, RAYTRACINGRENDERERFLAG_CAST_SHADOW | RAYTRACINGRENDERERFLAG_CAST_SHADOW_CHARACTER, 0, 1, 0, rayDescriptor, rayIntersection);
+            shadowColor = rayIntersection.color;
+        }
+        else
+        {
+            // Trace character shadow (from scene).
+            TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_CULL_FRONT_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, RAYTRACINGRENDERERFLAG_CAST_SHADOW, 0, 1, 0, rayDescriptor, rayIntersection);
+            shadowColor = rayIntersection.color;
+
+            // Trace character shadow (from character).
+            float4 gbuffer0 = LOAD_TEXTURE2D_X(_GBuffer0, coordSS);
+            uint toonFlags = DecodeToonFlags(gbuffer0.a);
+            float isCharFace = (toonFlags & kToonFlagFace) != 0 ? 1.0 : 0.0;
+            if ((isCharFace > 0) || (toonFlags & kToonFlagEyelash) != 0 || (toonFlags & kToonFlagHairMask) != 0)
+            {
+                float3 cameraForwardWS = -GetViewForwardDir();
+                rayDescriptor.Direction = lerp(lightDirWS, normalize(lightDirWS + cameraForwardWS), _RayTracingDirShadowCharacterHalfDirScale);
+                rayDescriptor.Origin += (isCharFace > 0) ? _RayTracingDirShadowCharacterNormalOffset * normalWS : 0.0;
+            }
+
+            TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_CULL_FRONT_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, RAYTRACINGRENDERERFLAG_CAST_SHADOW_CHARACTER, 0, 1, 0, rayDescriptor, rayIntersection);
+            shadowColor = min(shadowColor, rayIntersection.color);
+        }
+
+        // Contribute to the pixel
+        finalColor = shadowColor;
+        rayDepth = rayIntersection.t;
+    }
+
+    _RayTracingShadowsTextureRW[coordSS] = finalColor.xy;
+}
+
+

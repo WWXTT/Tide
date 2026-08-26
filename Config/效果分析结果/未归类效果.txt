@@ -1,0 +1,816 @@
+================================================================================
+炉石传说 & 万智牌 未归类效果
+================================================================================
+
+【炉石传说未归类效果】
+----------------------------------------
+共 2160 张卡牌未归类
+
+1. 女巫森林灰熊
+   费用: 5
+   效果: 嘲讽。战吼：你的对手每有一张手牌，本随从便失去1点生命值。...
+
+2. 林地生态学者
+   费用: 1
+   效果: 亡语：获取一张法力值消耗为（1）的神圣法术牌，该牌可以使一个随从获得+2或-2生命值。...
+
+3. 殊死一搏
+   费用: 2
+   效果: 使一个随从获得“亡语：回到战场，并具有1点生命值。”...
+
+4. 永时收割者哈斯克
+   费用: 4
+   效果: 战吼：使你的英雄获得“亡语：消耗最多20份残骸，复活你的英雄并使其具有等量生命值。”...
+
+5. 复活的奥妮克希亚
+   费用: 9
+   效果: 巨型+2当你的英雄在你的回合即将失去生命值时，改为获得等量的生命值上限。...
+
+6. 禁忌仪式
+   费用: 0
+   效果: 消耗你所有的法力值，召唤相同数量的1/1的触须。...
+
+7. 海洋咒符
+   费用: 1
+   效果: 在你的下个回合开始时，召唤一个3/3并具有嘲讽的纳迦。...
+
+8. 跳虫
+   费用: 1
+   效果: 战吼：召唤一个1/1的跳虫。...
+
+9. 当日渔获
+   费用: 1
+   效果: 突袭。战吼：为你的对手召唤一只2/1的鱼虫。...
+
+10. 潜踪群蛇
+   费用: 1
+   效果: 召唤两条1/1并具有潜行的蛇。...
+
+11. 青玉游荡者
+   费用: 1
+   效果: 潜行，亡语：召唤一个1/1的青玉魔像。...
+
+12. 林木幼苗
+   费用: 1
+   效果: 召唤两个1/1的树苗。（2回合后长成）...
+
+13. 旗标骷髅
+   费用: 1
+   效果: 在你的英雄攻击后，召唤一个1/1的亡灵海盗。...
+
+14. 骨鸡蛋
+   费用: 1
+   效果: 亡语：召唤一只3/3的亡灵小鸡。...
+
+15. 盘桓僵尸
+   费用: 1
+   效果: 亡语：召唤一个1/1并具有“亡语：召唤一个1/1的僵尸”的徒手僵尸。...
+
+16. 图腾物证
+   费用: 1
+   效果: 选择一个基础图腾并召唤它。注能（3个图腾）：改为召唤全部4个。...
+
+17. 狂蝠来宾
+   费用: 1
+   效果: 亡语：召唤一只2/1的蝙蝠。...
+
+18. 岩石海底
+   费用: 1
+   效果: 召唤一个1/1的鱼人，然后探底。如果选中的是鱼人牌，则再召唤一个。...
+
+19. 深铁穴居人
+   费用: 1
+   效果: 在你的对手施放一个法术后，召唤另一个深铁穴居人。...
+
+20. 孵化池觅食者
+   费用: 1
+   效果: 亡语：召唤一个1/1的鱼人宝宝。...
+
+21. 恶魔伙伴
+   费用: 1
+   效果: 随机召唤一个恶魔伙伴。...
+
+22. 被禁锢的阳鳃鱼人
+   费用: 1
+   效果: 休眠2回合。唤醒时，召唤两个1/1的鱼人。...
+
+23. 魔古信徒
+   费用: 1
+   效果: 战吼：如果你的场上满是魔古信徒，则将其全部献祭，并召唤“莱，至高守护者”。...
+
+24. 萨隆铁矿监工
+   费用: 1
+   效果: 亡语：为你的对手召唤一个0/3并具有嘲讽的自由的矿工。...
+
+25. 犀牛之灵
+   费用: 1
+   效果: 潜行一回合。你的具有突袭的随从在它被召唤的回合免疫。...
+
+26. 机械袋鼠
+   费用: 1
+   效果: 亡语：召唤一个1/1的机械袋鼠宝宝。...
+
+27. 迷失丛林
+   费用: 1
+   效果: 召唤两个1/1的白银之手新兵。...
+
+28. 雄斑虎
+   费用: 1
+   效果: 战吼：召唤一个1/1的雌斑虎。...
+
+29. 着魔村民
+   费用: 1
+   效果: 亡语：召唤一个1/1的暗影兽。...
+
+30. 龙蛋
+   费用: 1
+   效果: 每当本随从受到伤害，召唤一条2/1的雏龙。...
+
+31. 迪菲亚头目
+   费用: 2
+   效果: 连击：召唤一个2/1的迪菲亚强盗。...
+
+32. 鱼人猎潮者
+   费用: 2
+   效果: 战吼：召唤一个1/1的鱼人斥候。...
+
+33. 待哺群雏
+   费用: 2
+   效果: 在你的下个回合开始时，召唤三只2/1的啸天龙宝宝。...
+
+34. 烬鳍鱼人
+   费用: 2
+   效果: 亡语：召唤一个2/1的炽烈烬火。...
+
+35. 远古迅猛龙
+   费用: 2
+   效果: 战吼：从+3攻击力，圣盾或“亡语：召唤两个1/1的植物”中选择一项并获得。...
+
+36. 星港
+   费用: 2
+   效果: 召唤一个2/1并具有一项发射时效果的星舰组件。...
+
+37. 异星虫卵
+   费用: 2
+   效果: 亡语：召唤一只3/5的野兽并使其攻击生命值最低的敌人。...
+
+38. 恐惧猎犬训练师
+   费用: 2
+   效果: 突袭。亡语：召唤一只1/1并具有复生的恐惧猎犬。...
+
+39. 伞降咒符
+   费用: 2
+   效果: 在你的下个回合开始时，召唤两个1/1并具有冲锋的海盗。...
+
+40. 遥控器
+   费用: 2
+   效果: 在你的英雄攻击后，召唤一只1/1的猎犬。...
+
+41. 采矿事故
+   费用: 2
+   效果: 召唤两个1/1并具有“亡语：召唤一个1/1的脆弱的食尸鬼”的白银之手新兵。...
+
+42. 决战！
+   费用: 2
+   效果: 双方玩家各召唤三个3/3的歹徒，使你召唤的获得突袭。...
+
+43. 海象人图腾师
+   费用: 2
+   效果: 战吼：随机召唤一个基础图腾。...
+
+44. 直播事故
+   费用: 2
+   效果: 消灭你的亡灵。再次召唤它们。...
+
+45. 点唱机图腾
+   费用: 2
+   效果: 在你的回合结束时，召唤一个1/1的白银之手新兵。...
+
+46. 一桶欢猢
+   费用: 2
+   效果: 召唤一只1/4并具有嘲讽的猴子。（还剩3只猴子！）...
+
+47. 保安！！
+   费用: 2
+   效果: 召唤两个1/1并具有突袭的伊利达雷。流放：再召唤一个。...
+
+48. 星界键盘
+   费用: 2
+   效果: 在你施放一个法术后，召唤一个属性值等同于其法力值消耗的元素。失去1点耐久度。...
+
+49. 鳍形鬼状
+   费用: 2
+   效果: 使所有友方恶魔和鱼人获得“亡语：召唤一个2/2的小鬼鱼人。”...
+
+50. 蛛魔飞虫
+   费用: 2
+   效果: 战吼：如果在你的上回合之后有友方亡灵死亡，召唤一个2/2的蛛魔。...
+
+51. 被感染的农夫
+   费用: 2
+   效果: 亡语：召唤一个2/2的亡灵农夫。...
+
+52. 维库通灵师
+   费用: 2
+   效果: 战吼：使一个友方随从获得“亡语：召唤一个2/2并具有突袭的僵尸。”...
+
+53. 灵体偷猎者
+   费用: 2
+   效果: 战吼：随机召唤一个休眠的灵种。...
+
+54. 石雕凿刀
+   费用: 2
+   效果: 在你的英雄攻击后，随机召唤一个基础图腾。...
+
+55. 墨晕伏击者
+   费用: 2
+   效果: 潜行。攻击时拥有+3攻击力和免疫。K9-0型机械狗K9-0tron潮汐王座(38/98)猎人-随从-机械 野兽战吼：探底。如果选中的是法力值消耗为（1）的随从牌，则召唤它。...
+
+56. 历战先锋
+   费用: 2
+   效果: 在你的英雄攻击后，召唤两只1/1的邪翼蝠。...
+
+57. 召唤咒符
+   费用: 2
+   效果: 在你的下个回合开始时，召唤两个2/2并具有嘲讽的恶魔。...
+
+58. 科卡尔驯犬者
+   费用: 2
+   效果: 在你施放一个法术后，召唤一只1/1并具有突袭的土狼。驯服野兽（等级1）Tame Beast (Rank 1)贫瘠之地的锤炼(58/218)猎人-法术召唤一只2/2并具有突袭的野兽。（当你有5点法力值时...
+
+59. 荆棘护卫
+   费用: 2
+   效果: 召唤两只1/2并具有嘲讽的龟。...
+
+60. 士兵车队
+   费用: 2
+   效果: 在你的回合开始时，召唤两个1/1的白银之手新兵。...
+
+61. 死斗场帐篷
+   费用: 2
+   效果: 召唤一个3/2的决斗者。在本回合中，如果你的英雄进行过攻击，则再召唤一个。...
+
+62. 聒噪怪
+   费用: 2
+   效果: 法术迸发：召唤一个聒噪怪。...
+
+63. 棕红之翼
+   费用: 2
+   效果: 战吼：召唤两只1/1的邪翼蝠。...
+
+64. 空中团战
+   费用: 2
+   效果: 双生法术召唤两个1/1并具有嘲讽的白银之手新兵。...
+
+65. 盆栽投手
+   费用: 2
+   效果: 战吼：召唤一个2/2的树人。...
+
+66. 海蛇蛋
+   费用: 2
+   效果: 亡语：召唤一条3/4的海蛇。...
+
+67. 昆虫收藏家
+   费用: 2
+   效果: 战吼：召唤一只1/1并具有突袭的蝗虫。...
+
+68. 荆棘帮斗猪
+   费用: 2
+   效果: 突袭，亡语：召唤一个1/1的鱼人。...
+
+69. 守卫梦境之路
+   费用: 2
+   效果: 召唤两个1/2并具有吸血的树妖。...
+
+70. 鱼人之魂
+   费用: 2
+   效果: 使你的所有随从获得“亡语：召唤一个1/1的鱼人。”...
+
+71. 鲨鳍后援
+   费用: 2
+   效果: 在你的英雄攻击后，召唤一个1/1的海盗。...
+
+72. 荒野的复仇
+   费用: 2
+   效果: 召唤在本回合中死亡的友方野兽。...
+
+73. 甲虫卵
+   费用: 2
+   效果: 亡语：召唤三只1/1的甲虫。...
+
+74. 旋翼滑翔者
+   费用: 2
+   效果: 战吼：召唤一个0/2的地精炸弹。...
+
+75. 狗头人隐士
+   费用: 2
+   效果: 战吼：选择一个基础图腾并召唤它。...
+
+76. 蛮鱼图腾
+   费用: 2
+   效果: 在你的回合结束时，召唤一个1/1的鱼人。...
+
+77. 身陷绝境的哨卫
+   费用: 2
+   效果: 嘲讽，战吼：为你的对手召唤三只1/1的迅猛龙。...
+
+78. 慈祥的外婆
+   费用: 2
+   效果: 亡语：召唤一只3/2的大灰狼。...
+
+79. 怒鳍猎潮者
+   费用: 2
+   效果: 战吼：召唤一个1/1并具有嘲讽的软泥怪。...
+
+80. 独眼欺诈者
+   费用: 2
+   效果: 每当你召唤一个海盗，便获得潜行。...
+
+81. 蛛魔之卵
+   费用: 2
+   效果: 亡语：召唤一个4/4的蛛魔。...
+
+82. 鬼灵爬行者
+   费用: 2
+   效果: 亡语：召唤两只1/1的鬼灵蜘蛛。...
+
+83. 天降蛛群
+   费用: 3
+   效果: 召唤三只1/1并具有“亡语：随机获取一张野兽牌”的结网蛛。...
+
+84. 虫洞
+   费用: 3
+   效果: 回溯。随机召唤一只法力值消耗为（3）的野兽并使其攻击随机敌人。...
+
+85. 悖论活体
+   费用: 3
+   效果: 扰魔。战吼：召唤两个2/1并具有扰魔的悖论活体。...
+
+86. 凯洛斯的蛋
+   费用: 3
+   效果: 亡语：召唤一枚轻微开裂的蛋。（破壳5次即可孵化为一只20/20的野兽！）...
+
+87. 啸天龙蛋
+   费用: 3
+   效果: 亡语：召唤四只2/1的啸天龙宝宝。...
+
+88. 不情愿的饲养员
+   费用: 3
+   效果: 复生。亡语：召唤一只2/2并具有嘲讽的亡灵野兽。...
+
+89. 昆虫利爪
+   费用: 3
+   效果: 在你的英雄攻击后，召唤一只2/1并具有突袭的异种虫幼体。...
+
+90. 潜踪掠食
+   费用: 3
+   效果: 召唤一只1/1并具有潜行和剧毒的喷毒龙。延系：重复一次。...
+
+91. 屈从疯狂
+   费用: 3
+   效果: 发现一条在本局对战中死亡的友方的龙，并再次召唤它。...
+
+92. 牧人之杖
+   费用: 3
+   效果: 在你的英雄攻击后，召唤一只3/3并休眠2回合的羊。...
+
+93. 升空
+   费用: 3
+   效果: 抽两张人族牌。召唤一个2/1并具有一项发射时效果的星舰组件。...
+
+94. 回收地堡
+   费用: 3
+   效果: 召唤两个2/2并具有嘲讽的陆战队员。你的下一次星舰发射的法力值消耗减少（2）点。...
+
+95. 劳作老马
+   费用: 3
+   效果: 亡语：召唤两匹2/1的小马。...
+
+96. 可怕的主厨
+   费用: 3
+   效果: 战吼：召唤一个0/2的蛛魔之卵。亡语：消灭它。...
+
+97. 玩具兵盒
+   费用: 3
+   效果: 亡语：召唤五个1/1并具有随机额外效果的士兵。...
+
+98. 元素伙伴
+   费用: 3
+   效果: 随机召唤一个元素伙伴。...
+
+99. 列车难题
+   费用: 3
+   效果: 弃掉你法力值最低的法术牌。召唤两节3/3并具有突袭的矿车。快枪：无需弃牌。...
+
+100. 耕地轮作
+   费用: 3
+   效果: 召唤四个1/1并具有突袭且会在回合结束时死亡的亡灵。...
+
+... 还有 2060 张卡牌未归类
+
+
+【万智牌未归类效果】
+----------------------------------------
+共 5631 张卡牌未归类
+
+1. 炼狱之攫
+   费用: -
+   效果: Destroy target creature. You lose 2 life....
+
+2. Grand Marshal Macie
+   费用: -
+   效果: You may choose not to untap Grand Marshal Macie during your untap step. If you do, put a pause count...
+
+3. 奥莉薇亚沃达连
+   费用: -
+   效果: Flying: Olivia Voldaren deals 1 damage to another target creature. That creature becomes a Vampire i...
+
+4. 陨星
+   费用: -
+   效果: When this artifact enters, it deals 2 damage to any target.: Add one mana of any color....
+
+5. 辉星无畏舰曙君号
+   费用: -
+   效果: StationSTATION 10+Whenever you attack, Dawnsire deals 100 damage to up to one target creature or pla...
+
+6. 雷喉残虐者
+   费用: -
+   效果: FlyingHasteWhen this creature enters, it deals 1 damage to each creature with flying your opponents ...
+
+7. 炼狱泰坦
+   费用: -
+   效果: : Inferno Titan gets +1/+0 until end of turn.Whenever Inferno Titan enters the battlefield or attack...
+
+8. 龙背突袭
+   费用: -
+   效果: When this enchantment enters, it deals 3 damage to each creature and each planeswalker.Landfall — Wh...
+
+9. 沸角霸主
+   费用: -
+   效果: Impending 4—Whenever Overlord of the Boilerbilges enters or attacks, it deals 4 damage to any target...
+
+10. 龙王安塔卡
+   费用: -
+   效果: Flying, trampleWhen Dragonlord Atarka enters, it deals 5 damage divided as you choose among any numb...
+
+11. 洁斯凯启示
+   费用: -
+   效果: Return target spell or permanent to its owner's hand. Jeskai Revelation deals 4 damage to any target...
+
+12. 不洁热火
+   费用: -
+   效果: Unholy Heat deals 2 damage to target creature or planeswalker.Delirium — Unholy Heat deals 6 damage ...
+
+13. 逃墓灵俑
+   费用: -
+   效果: , , Discard a card: Create a 2/2 black Zombie creature token.Tap three untapped Zombies you control:...
+
+14. Boltfire
+   费用: -
+   效果: Boltfire deals 2 damage to any target.FlashforwardPyromancy 101Pyromancy 101神秘补充包2(566/387)Pyromancy...
+
+15. 恼人魔鬼
+   费用: -
+   效果: When Vexing Devil enters, any opponent may have it deal 4 damage to them. If a player does, sacrific...
+
+16. 连锁闪电
+   费用: -
+   效果: Chain Lightning deals 3 damage to any target. Then that player or that permanent's controller may pa...
+
+17. 朋克蜘蛛侠
+   费用: -
+   效果: 起事由你操控的其他蜘蛛具有起事异能。咒语和异能不能被反击。伤害不能被防止。蜘蛛侠2099Spider-Man 2099漫威蜘蛛侠(216/0)来自未来～本盘游戏中，你在你的第一，第二或第三回合都不能施...
+
+18. 武器洪流
+   费用: -
+   效果: Whenever a nontoken artifact you control enters, create a colorless artifact token named Munitions w...
+
+19. 生质科技专家
+   费用: -
+   效果: When this creature enters, create a Lander token.Whenever you sacrifice an artifact, this creature d...
+
+20. 灵巧美食家拉戈斯
+   费用: -
+   效果: Artifacts you control are Foods in addition to their other types and have ", , Sacrifice this artifa...
+
+21. 地坑勘探员
+   费用: -
+   效果: FlyingWhenever this creature attacks, you lose 1 life and this creature endures 1....
+
+22. 闪电螺旋
+   费用: -
+   效果: Lightning Helix deals 3 damage to any target and you gain 3 life....
+
+23. Cleaver Blow
+   费用: -
+   效果: MulticleaveDestroy target [nonblack] creature [with mana value 3 or less] [an opponent controls]. Yo...
+
+24. 安魂巨石
+   费用: -
+   效果: : Until end of turn, target creature gains "Whenever this creature is dealt damage, you draw that ma...
+
+25. 团结雷鸣
+   费用: -
+   效果: I — You draw two cards and you lose 2 life.II, III — Whenever a creature you control enters this tur...
+
+26. You Compleat Me
+   费用: -
+   效果: If your life total is greater than 10, it becomes 10. For the rest of the game, your maximum life to...
+
+27. 携手反抗
+   费用: -
+   效果: EscalateChoose one or more —• Target player discards all the cards in their hand, then draws that ma...
+
+28. 挽歌侍僧
+   费用: -
+   效果: LifelinkWhenever one or more creatures you control deal combat damage to a player, you draw a card a...
+
+29. 熵能战巡舰
+   费用: -
+   效果: StationSTATION 1+Whenever an opponent discards a card, they lose 3 life.STATION 8+Flying, deathtouch...
+
+30. 亡者相迎
+   费用: -
+   效果: Draw two cards, then discard a card and you lose 2 life. Create X tapped 2/2 black Zombie Druid crea...
+
+31. 阿布赞之志
+   费用: -
+   效果: Choose one. If you control a commander as you cast this spell, you may choose both instead.• Any num...
+
+32. 胸墙破击龙
+   费用: -
+   效果: FlyingWhenever one or more Dragons you control deal combat damage to an opponent, choose one that ha...
+
+33. 风暴之怒
+   费用: -
+   效果: Storm's Wrath deals 4 damage to each creature and each planeswalker....
+
+34. 血厅僧侣
+   费用: -
+   效果: Whenever Bloodhall Priest enters or attacks, if you have no cards in hand, Bloodhall Priest deals 2 ...
+
+35. 新星残虐者
+   费用: -
+   效果: Flying, hasteWhen this creature enters, it deals 1 damage to target creature an opponent controls.Wa...
+
+36. 剁成碎片
+   费用: -
+   效果: Slice and Dice deals 4 damage to each creature.CyclingWhen you cycle Slice and Dice, you may have it...
+
+37. 雪仇龙王欧若
+   费用: -
+   效果: FlyingWhenever Oros, the Avenger deals combat damage to a player, you may pay . If you do, Oros deal...
+
+38. 锤拳巨人
+   费用: -
+   效果: : This creature deals 4 damage to each creature without flying and each player....
+
+39. 阿库姆残虐者
+   费用: -
+   效果: FlyingLandfall — Whenever a land you control enters, this creature deals 1 damage to any target. If ...
+
+40. 匕首雨
+   费用: -
+   效果: Destroy all creatures target opponent controls. You lose 2 life for each creature destroyed this way...
+
+41. Vuzzle Spaceship
+   费用: -
+   效果: Spaceship 6Thrusters [6] → FlyingLasers [3] → Whenever Vuzzle Spaceship attacks, it deals 1 damage t...
+
+42. 夺命索塔兽
+   费用: -
+   效果: Whenever another creature dies, you may put a +1/+1 counter on Deathbringer Thoctar.Remove a +1/+1 c...
+
+43. 远古残虐者
+   费用: -
+   效果: Flying: This creature deals 1 damage to target creature defending player controls. Activate only if ...
+
+44. 陆龙卷元素
+   费用: -
+   效果: When this creature enters, it deals 6 damage to each creature with flying.You may have this creature...
+
+45. 三节兽
+   费用: -
+   效果: FlyingTriskelavus enters the battlefield with three +1/+1 counters on it., Remove a +1/+1 counter fr...
+
+46. Zone of Flame
+   费用: -
+   效果: Enchant zoneWhenever one or more cards enter or leave enchanted zone, Zone of Flame deals 1 damage t...
+
+47. 灭绝战舰
+   费用: -
+   效果: When this Spacecraft enters, destroy target noncreature permanent. Then this Spacecraft deals 4 dama...
+
+48. 恶毒元气兽
+   费用: -
+   效果: At the beginning of each upkeep, you draw a card and you lose 1 life....
+
+49. 通贯龙炎
+   费用: -
+   效果: Channeled Dragonfire deals 2 damage to any target.Harmonize...
+
+50. 闪电斧
+   费用: -
+   效果: As an additional cost to cast this spell, discard a card or pay .Lightning Axe deals 5 damage to tar...
+
+51. 明亮火把
+   费用: -
+   效果: Equipped creature can't be blocked by Vampires or Zombies.Equipped creature has ", Sacrifice Blazing...
+
+52. 阶层饰符
+   费用: -
+   效果: : Add .: Add or . This artifact deals 1 damage to you....
+
+53. 风化侵蚀
+   费用: -
+   效果: Choose one —• Abrade deals 3 damage to target creature.• Destroy target artifact....
+
+54. 鞭扫火光
+   费用: -
+   效果: Whipflare deals 2 damage to each nonartifact creature....
+
+55. 热力炼金术士
+   费用: -
+   效果: Defender: Thermo-Alchemist deals 1 damage to each opponent.Whenever you cast an instant or sorcery s...
+
+56. 棘刺法杖
+   费用: -
+   效果: Equipped creature has ", : This creature deals 1 damage to any target" and "Whenever a creature dies...
+
+57. 避难所来客
+   费用: -
+   效果: At the beginning of each player's upkeep, if that player has no cards in hand, you draw a card and y...
+
+58. 烈火断层
+   费用: -
+   效果: Pyroclasm deals 2 damage to each creature....
+
+59. 狮族刀坑
+   费用: -
+   效果: Flash, Sacrifice Leonin Bladetrap: Leonin Bladetrap deals 2 damage to each attacking creature withou...
+
+60. 陨石冲击
+   费用: -
+   效果: Meteor Blast deals 4 damage to each of X targets....
+
+61. 火热复仇
+   费用: -
+   效果: Whenever you cast a spell from your graveyard, Burning Vengeance deals 2 damage to any target....
+
+62. 火爆
+   费用: -
+   效果: Fiery Temper deals 3 damage to any target.Madness...
+
+63. 蛮野协作
+   费用: -
+   效果: EscalateChoose one or more —• Creatures target player controls gain trample until end of turn.• Sava...
+
+64. 鲜血烈焰
+   费用: -
+   效果: At the beginning of the end step, if no creatures are on the battlefield, sacrifice this enchantment...
+
+65. Discourtesy Clerk
+   费用: -
+   效果: When Discourtesy Clerk enters the battlefield, open an Attraction.At the beginning of your end step,...
+
+66. Goblin Girder Gang
+   费用: -
+   效果: ReachWhenever you roll a result not stored on Goblin Girder Gang, you may store that result on it. W...
+
+67. 雷电波
+   费用: -
+   效果: 掷一颗d20。1～9...
+
+68. 暴烈喷发
+   费用: -
+   效果: Violent Eruption deals 4 damage divided as you choose among any number of target creatures and/or pl...
+
+69. 净化光束
+   费用: -
+   效果: Radiance — Cleansing Beam deals 2 damage to target creature and each other creature that shares a co...
+
+70. 音波尖啸者
+   费用: -
+   效果: FlyingWhen this creature enters, it deals 2 damage to any target and you gain 2 life. If a player is...
+
+71. 沥青冲击
+   费用: -
+   效果: CascadeBituminous Blast deals 4 damage to target creature....
+
+72. 鬼怪突击兵
+   费用: -
+   效果: When Goblin Commando enters the battlefield, it deals 2 damage to target creature....
+
+73. 饥荒
+   费用: -
+   效果: Famine deals 3 damage to each creature and each player....
+
+74. 鲜血仪式
+   费用: -
+   效果: , Sacrifice a creature: Blood Rites deals 2 damage to target creature or player....
+
+75. 怨吼灵
+   费用: -
+   效果: When Spitebellows leaves the battlefield, it deals 6 damage to target creature.Evoke...
+
+76. 游魂捕捉械
+   费用: -
+   效果: When Geistcatcher's Rig enters, you may have it deal 4 damage to target creature with flying....
+
+77. 非瑞克西亚巨罡兽
+   费用: -
+   效果: When Phyrexian Gargantua enters the battlefield, you draw two cards and you lose 2 life....
+
+78. 黄铁咒击弹
+   费用: -
+   效果: , Sacrifice this artifact: It deals 2 damage to any target., Sacrifice this artifact: Draw a card....
+
+79. 银弩矢
+   费用: -
+   效果: , , Sacrifice this artifact: It deals 3 damage to target creature. If a Werewolf is dealt damage thi...
+
+80. 沃达连品血客
+   费用: -
+   效果: When Voldaren Epicure enters, it deals 1 damage to each opponent. Create a Blood token....
+
+81. 火绒墙
+   费用: -
+   效果: DefenderSacrifice Tinder Wall: Add ., Sacrifice Tinder Wall: It deals 2 damage to target creature it...
+
+82. 夜空细语
+   费用: -
+   效果: You draw two cards and you lose 2 life....
+
+83. 闪电炼击
+   费用: -
+   效果: Lightning Strike deals 3 damage to any target....
+
+84. Eelectrocute
+   费用: -
+   效果: Eelectrocute deals 2 damage to any target.You may cast Eelectrocute from your graveyard as long as y...
+
+85. Slight Malfunction
+   费用: -
+   效果: Choose one —• Destroy target 神器.• Roll a six-side die. When you do, Slight Malfunction deals 1 damag...
+
+86. 稚儿血欲
+   费用: -
+   效果: This spell costs less to cast if you control a Vampire.Neonate's Rush deals 1 damage to target creat...
+
+87. 巨龙来袭
+   费用: -
+   效果: Dragon's Approach deals 3 damage to each opponent. You may exile Dragon's Approach and four cards na...
+
+88. Six-Sided Die
+   费用: -
+   效果: Choose target creature. Roll a six-sided die.1 — It has base toughness 1 until end of turn.2 — Put t...
+
+89. Well Done
+   费用: -
+   效果: Well Done deals 5 damage to target creature. If that creature is rare or mythic rare, Well Done deal...
+
+90. 炼金术士的招呼
+   费用: -
+   效果: Alchemist's Greeting deals 4 damage to target creature.Madness...
+
+91. 暴落
+   费用: -
+   效果: Fiery Fall deals 5 damage to target creature.Basic landcycling...
+
+92. 化剑为犁
+   费用: -
+   效果: Exile target creature. Its controller gains life equal to its power....
+
+93. 肉钩大屠杀
+   费用: -
+   效果: When The Meathook Massacre enters, each creature gets -X/-X until end of turn.Whenever a creature yo...
+
+94. 冲击犀牛
+   费用: -
+   效果: TrampleWhen this creature enters, each opponent loses 2 life and you gain 2 life....
+
+95. 天怒泰坦乌洛
+   费用: -
+   效果: When Uro enters, sacrifice it unless it escaped.Whenever Uro enters or attacks, you gain 3 life and ...
+
+96. 华辉天使
+   费用: -
+   效果: 飞行在每个结束步骤开始时，若你本回合中获得过5点或更多生命，则派出一个4/4白色，具飞行与警戒异能的天使衍生生物。：直到回合结束，华辉天使得+2/+2且获得系命异能。...
+
+97. 崇文后裔威尔
+   费用: -
+   效果: 警戒：你本回合中施放的白色和／或蓝色咒语减少来施放，X为你本回合中获得过的生命数量。只能于法术时机起动。...
+
+98. Exit Through the Grift Shop
+   费用: -
+   效果: Yell "Who wants a souvenir?" and announce the name of a nonland card in your graveyard. Each player ...
+
+99. 猎魔人马瑟斯
+   费用: -
+   效果: Menace\nAt the beginning of your end step, put a bounty counter on target creature an opponent contr...
+
+100. 风华之魂
+   费用: -
+   效果: Whenever Soul of Windgrace enters or attacks, you may put a land card from a graveyard onto the batt...
+
+... 还有 5531 张卡牌未归类

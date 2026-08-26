@@ -1,0 +1,61 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="../Common.uss" />
+    <ui:VisualElement name="root" class="screen">
+        <!-- 顶部工具栏 -->
+        <ui:VisualElement class="toolbar">
+            <ui:Button name="btn-back" text="返回" class="btn" />
+            <ui:Label text="卡牌合成" class="screen__title" style="margin-bottom: 0; margin-left: 8px;" />
+            <ui:VisualElement class="spacer" />
+            <ui:Label name="lbl-toast" text="" class="toast" />
+        </ui:VisualElement>
+
+        <!-- 两栏：左=卡牌表单+算费，右=效果挂载 -->
+        <ui:VisualElement class="columns">
+            <ui:VisualElement class="column panel">
+                <ui:Label text="卡牌属性" class="panel__header" />
+
+                <ui:VisualElement class="toolbar">
+                    <ui:Label text="名称" class="field-label" />
+                    <ui:TextField name="field-card-name" class="text-input" value="新卡牌" />
+                    <ui:Label text="类型" class="field-label" style="margin-left: 12px;" />
+                    <ui:DropdownField name="dropdown-cardtype" class="text-input" />
+                </ui:VisualElement>
+
+                <!-- 动态表单区：按业务类型切换（攻血/等级/阶级/链接值/箭头/Tuner） -->
+                <ui:VisualElement name="dynamic-form" />
+
+                <ui:VisualElement class="toolbar">
+                    <ui:Label text="标签" class="field-label" />
+                    <ui:TextField name="field-tags" class="text-input" />
+                    <ui:Label text="关键词" class="field-label" style="margin-left: 12px;" />
+                    <ui:TextField name="field-keywords" class="text-input" />
+                </ui:VisualElement>
+
+                <ui:Label text="算费明细" class="panel__header" style="margin-top: 8px;" />
+                <ui:ScrollView name="list-breakdown" class="list" style="max-height: 200px;" />
+
+                <ui:VisualElement class="toolbar">
+                    <ui:Label name="lbl-suggested" text="建议费用 0" class="field-label" />
+                    <ui:Label text="主色" class="field-label" style="margin-left: 12px;" />
+                    <ui:DropdownField name="dropdown-mana" class="text-input" />
+                    <ui:Button name="btn-adopt" text="采纳费用" class="btn" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="toolbar">
+                    <ui:Label name="lbl-cost" text="当前费用 (无)" class="field-label" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="toolbar">
+                    <ui:Button name="btn-save" text="保存到卡表" class="btn btn--primary" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement class="column panel">
+                <ui:Label text="效果库（点击挂载到卡牌）" class="panel__header" />
+                <ui:ScrollView name="list-library" class="list" />
+                <ui:Label text="已挂载效果" class="panel__header" style="margin-top: 8px;" />
+                <ui:ScrollView name="list-attached" class="list" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
