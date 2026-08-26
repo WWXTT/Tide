@@ -177,7 +177,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\UI\Resources\UXML\DeckBuilder.uxml" />
-    <None Include="Assets\Performance\HexMap\Shaders\HexTerrainDebug.shader" />
     <None Include="Assets\Performance\HexMap\Shaders\HexTerrainForwardPass.hlsl" />
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\LICENSE.TXT" />
     <None Include="Assets\Performance\HexMap\Shaders\HexTerrainDebugCommon.hlsl" />

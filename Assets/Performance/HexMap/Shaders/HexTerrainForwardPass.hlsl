@@ -11,6 +11,7 @@ struct Attributes
     float4 positionOS   : POSITION;
     float3 normalOS     : NORMAL;
     float4 color        : COLOR;          // splat 权重 (RGB)
+    float2 uvCorrection : TEXCOORD0;      // 坡面 UV 补偿向量（mesh 逐顶点烘焙）
     float3 terrainIndices : TEXCOORD1;    // splat 3 个地形索引 (UV1)
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
@@ -36,95 +37,12 @@ struct Varyings
     float4 probeOcclusion           : TEXCOORD6;
 #endif
 
-    float3 terrainIndices           : TEXCOORD7;   // splat 3 个地形索引（同三角形恒定）
+    float4 terrainIndices           : TEXCOORD7;   // xyz：splat 索引；w：uvCorrection.y（搭便车传递）
 
     float4 positionCS               : SV_POSITION;
     UNITY_VERTEX_INPUT_INSTANCE_ID
     UNITY_VERTEX_OUTPUT_STEREO
 };
-
-// ---------- Helpers (forward-only) ----------
-
-// Biplanar mapping: only the two dominant projection planes are sampled
-// (top + dominant side) instead of all three, cutting slope sampling by ~1/3.
-// For terrain the top (XZ) plane is almost always dominant, so we pair it with
-// whichever side plane (YZ or XY) the normal leans into.
-struct BiplanarUV
-{
-    float2 uvTop;
-    float2 uvSide;
-    half   wTop;
-    half   wSide;
-};
-
-BiplanarUV ComputeBiplanarUV(float3 positionWS, float3 normalWS, float2 invSize)
-{
-    BiplanarUV bp;
-    const float sharpness = 4.0;
-    float3 an = abs(normalWS);
-    float3 w = pow(an, sharpness);
-
-    bool sideIsX = an.x > an.z;
-    bp.uvTop  = positionWS.xz * invSize;
-    bp.uvSide = sideIsX ? positionWS.yz * invSize : positionWS.xy * invSize;
-
-    half wTop  = w.y;
-    half wSide = sideIsX ? w.x : w.z;
-    half inv = 1.0h / (wTop + wSide + 1e-4h);
-    bp.wTop  = wTop  * inv;
-    bp.wSide = wSide * inv;
-    return bp;
-}
-
-// Biplanar surface sample (no height) for ONE terrain: 2 surface fetch-sets.
-void SampleTerrainBiplanarSurface(
-    BiplanarUV bp, uint idx,
-    out half3 albedo, out half3 normalWS_out,
-    out half metallic, out half smoothness, out half occlusion)
-{
-    half3 aT, nT;  half mT, sT, oT;
-    half3 aS, nS;  half mS, sS, oS;
-
-    SampleTerrainSurface(bp.uvTop,  idx, aT, nT, mT, sT, oT);
-    SampleTerrainSurface(bp.uvSide, idx, aS, nS, mS, sS, oS);
-
-    albedo     = aT * bp.wTop + aS * bp.wSide;
-    metallic   = mT * bp.wTop + mS * bp.wSide;
-    smoothness = sT * bp.wTop + sS * bp.wSide;
-    occlusion  = oT * bp.wTop + oS * bp.wSide;
-    normalWS_out = normalize(nT * bp.wTop + nS * bp.wSide);
-}
-
-// Splat biplanar surface: blend up to 3 terrains via height-aware weights.
-// Height uses a cheap single-axis (top plane) sample per terrain.
-void SampleSplatBiplanar(
-    BiplanarUV bp, uint3 idx, float3 weights,
-    out half3 albedo, out half3 normalWS_out,
-    out half metallic, out half smoothness, out half occlusion)
-{
-    half3 a0, n0; half m0, s0, o0;
-    half3 a1, n1; half m1, s1, o1;
-    half3 a2, n2; half m2, s2, o2;
-    SampleTerrainBiplanarSurface(bp, idx.x, a0, n0, m0, s0, o0);
-    SampleTerrainBiplanarSurface(bp, idx.y, a1, n1, m1, s1, o1);
-    SampleTerrainBiplanarSurface(bp, idx.z, a2, n2, m2, s2, o2);
-
-#ifdef _TERRAIN_HEIGHT_MAP
-    half h0 = SampleTerrainHeight(bp.uvTop, idx.x);
-    half h1 = SampleTerrainHeight(bp.uvTop, idx.y);
-    half h2 = SampleTerrainHeight(bp.uvTop, idx.z);
-    float3 w = HeightBlend3(h0, h1, h2, weights, _HeightBlendStrength, _HeightBlendOffset);
-#else
-    // 无高度数组：高度混合退化为线性归一化权重
-    float3 w = weights / (weights.x + weights.y + weights.z + 1e-4);
-#endif
-
-    albedo     = a0 * w.x + a1 * w.y + a2 * w.z;
-    metallic   = m0 * w.x + m1 * w.y + m2 * w.z;
-    smoothness = s0 * w.x + s1 * w.y + s2 * w.z;
-    occlusion  = o0 * w.x + o1 * w.y + o2 * w.z;
-    normalWS_out = SafeNormalize(n0 * w.x + n1 * w.y + n2 * w.z);
-}
 
 // ---------- Vertex / Fragment ----------
 
@@ -171,8 +89,9 @@ Varyings HexTerrainVert(Attributes input)
     output.positionWS = vertexInput.positionWS;
     output.positionCS = vertexInput.positionCS;
     output.normalWS = normalInput.normalWS;
-    output.terrainData = input.color;
-    output.terrainIndices = input.terrainIndices;
+    // splat 权重走 RGB；alpha 槽位搭 uvCorrection.x（TEXCOORD 插值器已满，借道传递）
+    output.terrainData = float4(input.color.rgb, input.uvCorrection.x);
+    output.terrainIndices = float4(input.terrainIndices, input.uvCorrection.y);
 
     half3 vertexLight = VertexLighting(vertexInput.positionWS, normalInput.normalWS);
     half fogFactor = 0;
@@ -215,33 +134,27 @@ void HexTerrainFrag(
     float3 weights = input.terrainData.rgb;
     weights /= (weights.x + weights.y + weights.z + 1e-4);
 
-    bool isFlat = abs(input.normalWS.y) > 0.7;
-
     half3 finalNormalWS;
     half3 finalAlbedo;
     half  finalMetallic, finalSmoothness, finalOcclusion;
 
     float3 normalWS = SafeNormalize(input.normalWS);
 
-    if (isFlat)
-    {
-        float2 uv = ChunkUV(input.positionWS.xz);
-        half3 albedo, normalTS; half metal, smth, occ;
-        SampleSplatSurface(uv, idx, weights, albedo, normalTS, metal, smth, occ);
+    // 坡面补偿 UV（逐顶点烘焙）：顶视投影只用 XZ，陡壁沿落差严重拉伸；mesh 按坡度
+    // 把「低于坡顶的高度」烘成补偿向量（terrainData.a + terrainIndices.w 两处插值）。
+    // 插值连续——相邻三角形共享顶点取同一值，不会像按片元法线现算那样逐面错位；
+    // 平地补偿恒 0，退化为纯顶视投影
+    float2 uvCorrection = float2(input.terrainData.a, input.terrainIndices.w);
+    float2 uv = ChunkUV(input.positionWS.xz + uvCorrection);
+    half3 albedo, normalTS; half metal, smth, occ;
+    SampleSplatSurface(uv, idx, weights, albedo, normalTS, metal, smth, occ);
 
-        float3x3 TBN = CreateTangentFrame(normalWS);
-        finalNormalWS = SafeNormalize(TransformTangentToWorld(normalTS, TBN));
-        finalAlbedo = albedo;
-        finalMetallic = metal;
-        finalSmoothness = smth;
-        finalOcclusion = occ;
-    }
-    else
-    {
-        BiplanarUV bp = ComputeBiplanarUV(input.positionWS, normalWS, 1.0 / _ChunkWorldSize.xy);
-        SampleSplatBiplanar(bp, idx, weights, finalAlbedo, finalNormalWS, finalMetallic, finalSmoothness, finalOcclusion);
-        finalNormalWS = SafeNormalize(finalNormalWS);
-    }
+    float3x3 TBN = CreateTangentFrame(normalWS);
+    finalNormalWS = SafeNormalize(TransformTangentToWorld(normalTS, TBN));
+    finalAlbedo = albedo;
+    finalMetallic = metal;
+    finalSmoothness = smth;
+    finalOcclusion = occ;
 
     SurfaceData surfaceData = (SurfaceData)0;
     surfaceData.albedo = finalAlbedo;

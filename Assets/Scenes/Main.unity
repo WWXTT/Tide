@@ -451,7 +451,7 @@ MonoBehaviour:
   cellCountX: 10
   cellCountZ: 20
   maxElevation: 10
-  cellPerturbRange: {x: 0.5, y: 1.5}
+  cellPerturbRange: {x: 0.8, y: 1.2}
   elevationPerturbRange: {x: 0.8, y: 1.2}
   terrainMaterial: {fileID: 2100000, guid: c0ac3ce1f15f74768acd4c2e5c885301, type: 2}
   loadRadius: 20
@@ -695,7 +695,7 @@ MonoBehaviour:
   minZoomHeight: 140
   maxZoomHeight: 50
   minZoomPitch: 75
-  maxZoomPitch: 45
+  maxZoomPitch: 40
   zoomSensitivity: 2
   moveSpeedMinZoom: 300
   moveSpeedMaxZoom: 60

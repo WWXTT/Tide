@@ -152,7 +152,7 @@ namespace HexMap
             var em = EntityManager;
             var cell = em.GetComponentData<HexCellData>(cellEntity);
 
-            // 禁止编辑边界 cell
+            // 禁止编辑边界 cell：外圈恒为 0 高度是边界连接区不开缝的前提
             if (HexBoundary.IsBoundary(in cell, blob.CellCount))
                 return;
 
@@ -169,7 +169,7 @@ namespace HexMap
             var em = EntityManager;
             var cell = em.GetComponentData<HexCellData>(cellEntity);
 
-            // 禁止编辑边界 cell
+            // 禁止编辑边界 cell：外圈恒为 0 高度是边界连接区不开缝的前提
             if (HexBoundary.IsBoundary(in cell, blob.CellCount))
                 return;
 

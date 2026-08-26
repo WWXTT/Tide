@@ -79,6 +79,7 @@ float3 HeightBlend3(float h0, float h1, float h2, float3 w, float strength, floa
 
 // 世界 XZ → chunk UV：整图铺满一个 chunk。MirrorTileUV 在 chunk 边界折叠，
 // 实现“以 chunk 为单位镜像”，且每个六边形只采样它在 chunk 内的 1/25。
+// 陡壁防拉伸的坡面补偿由 mesh 逐顶点烘焙（TEXCOORD0），调用方在传入前加上。
 float2 ChunkUV(float2 worldXZ)
 {
     return worldXZ / _ChunkWorldSize.xy;
@@ -142,8 +143,10 @@ void SampleTerrainSurface(
     metallic   = ms.r;
     smoothness = ms.a;
 #else
-    metallic   = 0.0;
-    smoothness = 1.0;   // 回退为 1，最终光滑度完全由 _Smoothness 滑条决定
+    // 无 MS 数组时两者都回退 1：最终值完全由 _Metallic/_Smoothness 滑条直接决定
+    // （metallic 若回退 0，滑条恒等于 0×x，永远无效）
+    metallic   = 1.0;
+    smoothness = 1.0;
 #endif
 
 #ifdef _TERRAIN_OCCLUSION_MAP
