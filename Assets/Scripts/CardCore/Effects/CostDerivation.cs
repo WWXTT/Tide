@@ -81,8 +81,14 @@ namespace CardCore
 
         /// <summary>
         /// 单个原子的元素费用：
-        /// 检索＝筛选维度系数；其余＝round(BaseCost×CostMultiplier×max(1,Value))，
+        /// 检索＝筛选维度系数；其余＝round(BaseCost×CostMultiplier×max(1,Value)×持续折扣)，
         /// 固定数量再 ×N；抽牌按所挂减费缺陷累减（下限 0）。
+        ///
+        /// 持续时间计价（时间换费用）：折扣取「相对折扣」＝ D(实际持续)/D(表内默认持续)。
+        /// 实际持续 = 实例显式指定（Duration≠Once）？实例 : 表默认。
+        /// 伤害等瞬发原子（表默认 Once、实例也 Once）系数恒为 1，锚点（1 伤害=1 元素）不漂移；
+        /// 把本可永续的效果改短（如 buff 配 UntilEndOfTurn）即打折，拉长（永续化）即加价。
+        /// 系数表见 ValueSystemRuntimeConfig.AttributeValueConfig（凹函数，P3 可调）。
         /// </summary>
         private static int ComputeAtomCost(AtomicEffectInstance atom, AtomicEffectConfig cfg)
         {
@@ -96,7 +102,15 @@ namespace CardCore
             // CostMultiplier 在表加载时默认 1.0；目标范围等可在配置中放大费用。
             float multiplier = cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f;
             int magnitude = Math.Max(1, atom.Value);
-            int amount = (int)Math.Round(cfg.BaseCost * multiplier * magnitude, MidpointRounding.AwayFromZero);
+
+            // 持续折扣（相对）：实例 Once(0) 视为未指定 → 取表默认，此时分子分母相同 → 1。
+            var attrCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().AttributeValueConfig;
+            DurationType tableDefault = cfg.DurationType;
+            DurationType actual = atom.Duration != DurationType.Once ? atom.Duration : tableDefault;
+            float durationFactor = attrCfg.GetDurationDiscount(actual, atom.DurationValue)
+                                   / attrCfg.GetDurationDiscount(tableDefault);
+
+            int amount = (int)Math.Round(cfg.BaseCost * multiplier * magnitude * durationFactor, MidpointRounding.AwayFromZero);
 
             // 固定数量：费用 ×N（N=有效目标数；全部/任意语义无法在构建期确定，按 1）。
             int n = EffectiveTargetCountForCost(atom, cfg);

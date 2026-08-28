@@ -220,13 +220,7 @@ namespace SynergyUI
         {
             if (!IsPlayerTurn || _gameEnded) return;
 
-            if (CurrentPhase == PhaseType.Standby)
-            {
-                GameActions.AddToElementPool(Core, P1, card);
-                RefreshAll();
-                return;
-            }
-
+            // 准备阶段为纯自动阶段（放元素池已移至主阶段），点手牌无操作
             if (CurrentPhase == PhaseType.Main)
             {
                 var targetAtomic = FindTargetingAtomic(card);

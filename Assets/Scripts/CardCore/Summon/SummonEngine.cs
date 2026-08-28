@@ -44,6 +44,8 @@ namespace CardCore
         {
             foreach (var mat in materials)
             {
+                // 素材"用掉了"：牺牲入墓不再是正式召唤状态，不可被复活（WasFormallySummoned 语义见设计文稿）
+                mat.WasFormallySummoned = false;
                 _gameCore.ZoneManager.MoveCard(mat, player, Zone.Battlefield, Zone.Graveyard);
             }
         }

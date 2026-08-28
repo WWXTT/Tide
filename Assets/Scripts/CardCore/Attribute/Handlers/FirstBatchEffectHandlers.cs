@@ -293,7 +293,7 @@ namespace CardCore.Attribute.Handlers
             if (context.ZoneManager == null || context.Controller == null) return;
 
             int count = effect.Value > 0 ? context.GetValueAfterModifiers(effect.Value) : 1;
-            // 仅「正式召唤过」的随从可被复活；被弃/磨/送墓的不可复活。
+            // 仅「正式召唤过」的随从可被复活；被弃/送墓的不可复活。
             var revivable = context.ZoneManager.GetCards(context.Controller, Zone.Graveyard)
                 .Where(c => c.WasFormallySummoned)
                 .ToList();

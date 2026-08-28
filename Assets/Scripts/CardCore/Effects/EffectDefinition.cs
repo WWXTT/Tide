@@ -435,6 +435,7 @@ namespace CardCore
         public ManaType ManaTypeParam;
         public Zone ZoneParam;
         public DurationType Duration;
+        public int DurationValue;      // Duration==ForTurns 时的回合数 N（0 视为 1）
 
         // 每实例目标覆盖 —— 哨兵值表示沿用 AtomicEffectTable 的配置级目标。
         public int TargetTypeOverride = -1;        // EffectTargetType 枚举值，-1 = 用配置

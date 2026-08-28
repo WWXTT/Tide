@@ -61,7 +61,7 @@ namespace CardCore.Attribute.Handlers
 
     // ---------------- 牌库 / 移动 ----------------
 
-    /// <summary>磨牌（控制者牌库顶 N 张 → 坟墓场）</summary>
+    /// <summary>送墓（控制者牌库顶 N 张 → 坟墓场）</summary>
     public class MillCardHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.MillCard;
@@ -83,7 +83,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"磨掉牌库顶 {effect.Value} 张牌";
+        public override string GetDescription(AtomicEffectInstance effect) => $"送墓：牌库顶 {effect.Value} 张入墓地";
     }
 
     /// <summary>放置牌库底（各目标 → 拥有者牌库底）</summary>

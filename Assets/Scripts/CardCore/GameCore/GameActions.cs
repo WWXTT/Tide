@@ -60,7 +60,7 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 准备阶段：跳过放元素池
+        /// 准备阶段：结束准备阶段进入主阶段
         /// </summary>
         public static bool SkipElementPool(GameCore core, Player player)
         {

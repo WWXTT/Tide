@@ -384,6 +384,10 @@ namespace CardCore.Serialization
         [MemoryPackOrder(TagTable.AEI_Drawbacks)]
         public string[] Drawbacks;
 
+        // TODO(network): DurationValue（ForTurns 的回合数 N）暂不映射 —— 接传输时需在
+        // RefreshMemoryPackOrder.GetTagDefinitions() 登记 "AtomicEffectEntry.DurationValue"
+        // 并刷新 TagTable（MurmurHash32，seed 0x53796E67），两处 round-trip 同步补齐。
+
         public static SerializableAtomicEffectEntry FromEntry(AtomicEffectEntry entry)
         {
             return new SerializableAtomicEffectEntry

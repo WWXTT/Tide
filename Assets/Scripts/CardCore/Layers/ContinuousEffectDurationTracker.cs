@@ -16,6 +16,7 @@ namespace CardCore
         public DateTime StartTime { get; set; }
         public DateTime? EndTime { get; set; }
         public object EndCondition { get; set; } // 条件结束时失效
+        public int? ExpiryTurn { get; set; } // UntilNextTurn/ForTurns 的到期全局回合戳（该回合 TurnEnd 时失效）
         public List<Entity> AffectedTargets { get; set; } = new List<Entity>();
         public uint SequenceNumber { get; set; }
         public bool IsActive { get; set; } = true;
@@ -108,7 +109,8 @@ namespace CardCore
             Entity sourceEntity,
             Entity targetEntity,
             DurationType duration,
-            object endCondition = null)
+            object endCondition = null,
+            int durationTurns = 0)
         {
             var entry = new ContinuousEffectEntry
             {
@@ -119,6 +121,7 @@ namespace CardCore
                 StartTime = DateTime.Now,
                 EndTime = CalculateEndTime(duration),
                 EndCondition = endCondition,
+                ExpiryTurn = ComputeExpiryTurn(duration, durationTurns),
                 SequenceNumber = TimestampSystem.NextSequence,
                 IsActive = true
             };
@@ -144,7 +147,8 @@ namespace CardCore
             Entity sourceEntity,
             List<Entity> targets,
             DurationType duration,
-            object endCondition = null)
+            object endCondition = null,
+            int durationTurns = 0)
         {
             var entry = new ContinuousEffectEntry
             {
@@ -155,6 +159,7 @@ namespace CardCore
                 StartTime = DateTime.Now,
                 EndTime = CalculateEndTime(duration),
                 EndCondition = endCondition,
+                ExpiryTurn = ComputeExpiryTurn(duration, durationTurns),
                 SequenceNumber = TimestampSystem.NextSequence,
                 IsActive = true,
                 AffectedTargets = targets ?? new List<Entity>()
@@ -285,13 +290,47 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 回合开始：推进全局回合计数（GameCore.OnTurnStarted 推送）。
+        /// UntilNextTurn / ForTurns 的到期戳以创建时刻的当前全局回合数为基准。
+        /// </summary>
+        public void OnTurnStart(int globalTurn)
+        {
+            if (globalTurn > _currentGlobalTurn)
+                _currentGlobalTurn = globalTurn;
+        }
+
+        private int _currentGlobalTurn;
+
+        /// <summary>
+        /// 计算到期全局回合戳（回合单位＝玩家回合，与全局回合数同源）：
+        /// UntilNextTurn 于创建回合 +1（对手回合）结束失效；
+        /// ForTurns(N) 创建回合记第 1 回合，于第 N 个回合结束失效（N=1 同 UntilEndOfTurn、N=2 同 UntilNextTurn）。
+        /// 其余档位返回 null（事件/条件/离场驱动）。
+        /// </summary>
+        private int? ComputeExpiryTurn(DurationType duration, int turns)
+        {
+            switch (duration)
+            {
+                case DurationType.UntilNextTurn:
+                    return _currentGlobalTurn + 1;
+                case DurationType.ForTurns:
+                    return _currentGlobalTurn + Math.Max(1, turns) - 1;
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
         /// 回合结束时清理对应效果
         /// </summary>
-        public void OnTurnEnd(Player player)
+        public void OnTurnEnd(Player player, int globalTurn = 0)
         {
             foreach (var effect in _effects)
             {
-                if (effect.Duration == DurationType.UntilEndOfTurn && effect.IsActive)
+                if (!effect.IsActive)
+                    continue;
+
+                if (effect.Duration == DurationType.UntilEndOfTurn)
                 {
                     // 仅结束归属于该回合玩家的「直到回合结束」效果
                     var controller = GetEffectController(effect.SourceEffect)
@@ -299,16 +338,29 @@ namespace CardCore
                     if (player != null && controller != null && controller != player)
                         continue;
 
-                    effect.IsActive = false;
-
-                    // 触发效果结束事件
-                    PublishEvent(new EffectResolveEvent
-                    {
-                        ResolvedEffect = effect.SourceEffect,
-                        Context = new EffectResolutionContext()
-                    });
+                    Expire(effect);
+                }
+                else if ((effect.Duration == DurationType.UntilNextTurn || effect.Duration == DurationType.ForTurns)
+                         && effect.ExpiryTurn.HasValue
+                         && globalTurn > 0
+                         && globalTurn >= effect.ExpiryTurn.Value)
+                {
+                    // 到期戳失效：跨回合持续档在 stamped 回合的 TurnEnd 统一失效（不区分归属玩家）
+                    Expire(effect);
                 }
             }
+        }
+
+        private void Expire(ContinuousEffectEntry effect)
+        {
+            effect.IsActive = false;
+
+            // 触发效果结束事件
+            PublishEvent(new EffectResolveEvent
+            {
+                ResolvedEffect = effect.SourceEffect,
+                Context = new EffectResolutionContext()
+            });
         }
 
         /// <summary>

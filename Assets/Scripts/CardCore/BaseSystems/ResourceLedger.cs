@@ -18,7 +18,7 @@ namespace CardCore
         public int TapsTaken { get; set; }
         /// <summary>支付元素总量</summary>
         public int ElementsPaid { get; set; }
-        /// <summary>抵消使用量（流失/弃牌/磨组/送组四类之和，本回合增量）</summary>
+        /// <summary>抵消使用量（流失/弃牌/送墓/送额外组四类之和，本回合增量）</summary>
         public int OffsetsUsed { get; set; }
         /// <summary>回合开始时 bank 存量</summary>
         public int BankStart { get; set; }
