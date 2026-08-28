@@ -41,8 +41,9 @@ namespace CardCore.Attribute
         /// <summary>作用范围</summary>
         public EffectTargetScope TargetScope;
 
-        /// <summary>持续时间</summary>
-        public EffectDurationType DurationType;
+        /// <summary>持续时间（运行时唯一枚举 DurationType；表内 DurationType 列同名列，
+        /// 旧表侧枚举 EffectDurationType 已并入本枚举，别名见 AtomicEffectTable.ParseDurationType）</summary>
+        public DurationType DurationType;
 
         /// <summary>默认触发时机（仅对触发式效果有效）</summary>
         public string DefaultTriggerTiming;
@@ -199,26 +200,11 @@ namespace CardCore.Attribute
         Global
     }
 
-    /// <summary>
-    /// 效果持续时间类型
-    /// </summary>
-    public enum EffectDurationType
-    {
-        /// <summary>瞬间（一次性）</summary>
-        Instant,
-        /// <summary>到回合结束</summary>
-        UntilEndOfTurn,
-        /// <summary>到下一回合</summary>
-        UntilNextTurn,
-        /// <summary>到阶段结束</summary>
-        UntilEndOfPhase,
-        /// <summary>永久</summary>
-        Permanent,
-        /// <summary>直到条件满足</summary>
-        UntilCondition,
-        /// <summary>指定回合数</summary>
-        ForTurns
-    }
+    // 效果持续时间类型 EffectDurationType 已删除：
+    // 与运行时 DurationType（Enums/Zones.cs）合并为单一真相源，
+    // 消除 CardEffectConverter 曾以 int 强转跨枚举导致的错位映射
+    // （旧表侧 Permanent=4 会被误转为运行时 WhileCondition=4）。
+    // 旧 JSON 里的表侧枚举名经 AtomicEffectTable.ParseDurationType 别名归一。
 
     #endregion
 }

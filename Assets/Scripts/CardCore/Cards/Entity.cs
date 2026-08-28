@@ -89,18 +89,23 @@ namespace CardCore
         public int OffsetDrainUsed { get; set; }
         /// <summary>弃手牌已抵消的费数。</summary>
         public int OffsetDiscardUsed { get; set; }
-        /// <summary>磨本组已抵消的费数。</summary>
+        /// <summary>送墓（本组）已抵消的费数。</summary>
         public int OffsetMillUsed { get; set; }
         /// <summary>送额外组已抵消的费数。</summary>
         public int OffsetSendExtraUsed { get; set; }
 
-        /// <summary>重置本局抵消计数（新对局开始时调用）。</summary>
+        /// <summary>疲劳计数：空卡组抽牌次数，第 N 次疲劳造成 N 点递增伤害（炉石式）。</summary>
+        // TODO(network): FatigueCount 暂不进 PlayerState DTO —— 接传输时在 GetTagDefinitions() 登记。
+        public int FatigueCount { get; set; }
+
+        /// <summary>重置本局抵消计数与疲劳计数（新对局开始时调用）。</summary>
         public void ResetOffsetUsage()
         {
             OffsetDrainUsed = 0;
             OffsetDiscardUsed = 0;
             OffsetMillUsed = 0;
             OffsetSendExtraUsed = 0;
+            FatigueCount = 0;
         }
 
 

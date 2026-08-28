@@ -39,7 +39,7 @@ namespace CardCore.Attribute
         public Entity Source { get; set; }
     }
 
-    /// <summary>磨牌事件</summary>
+    /// <summary>送墓事件</summary>
     public class CardMillEvent : GameEventBase
     {
         public Player Player { get; set; }

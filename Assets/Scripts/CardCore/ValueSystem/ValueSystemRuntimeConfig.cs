@@ -205,6 +205,20 @@ namespace CardCore
         public float LifeValue = 0.4f;
         public float PermanentBonus = 1.2f;
 
+        // ==== 持续时间折扣（时间换费用：持续越短越便宜，曲线为凹函数——每多 1 回合的增量递减）====
+        // 用法为「相对折扣」：CostDerivation 按 D(实际持续)/D(表内默认) 计价，
+        // 保证既有锚点（1 伤害 = 1 元素，伤害原子表默认 Once）不因接入而漂移。
+        public float OnceDiscount = 0.5f;                  // 瞬发（本回合内即时结算）
+        public float UntilEndOfTurnDiscount = 0.6f;        // 到自己回合结束（快攻攻击 buff 标准档）
+        public float UntilNextTurnDiscount = 0.7f;         // 到对手回合结束（防御档：活过对手回合）
+        public float WhileConditionDiscount = 0.75f;       // 条件满足期间
+        public float UntilLeaveBattlefieldDiscount = 0.8f; // 到离场（挂在实体上，实体亡即失效）
+        public float PermanentDiscount = 1.0f;             // 本局有效（永续档，复利载体）
+        // ForTurns(N)：N≤1 对齐 UntilEndOfTurn；N=2 起按 Base + Step×(N-2)，Cap 封顶（< Permanent）
+        public float ForTurnsBase = 0.7f;                  // N=2 基准（与 UntilNextTurn 对齐）
+        public float ForTurnsStep = 0.04f;                 // 每多 1 回合的增量（< 相邻锚点差 → 凹）
+        public float ForTurnsCap = 0.9f;                   // 渐近上限
+
         public float CalculateStatValue(int power, int life, bool isPermanent = false)
         {
             float value = power * PowerValue + life * LifeValue;
@@ -215,15 +229,24 @@ namespace CardCore
             return value;
         }
 
-        public float GetDurationDiscount(DurationType duration)
+        /// <summary>
+        /// 持续时间折扣（绝对系数）。
+        /// turns 仅在 duration==ForTurns 时有意义（回合数 N，≤0 按 1 计）。
+        /// 费用侧请用相对折扣：D(实际)/D(表内默认)，见 CostDerivationService.ComputeAtomCost。
+        /// </summary>
+        public float GetDurationDiscount(DurationType duration, int turns = 1)
         {
             return duration switch
             {
-                DurationType.Once => 0.5f,
-                DurationType.Permanent => 1.0f,
-                DurationType.UntilEndOfTurn => 0.6f,
-                DurationType.UntilLeaveBattlefield => 0.8f,
-                DurationType.WhileCondition => 0.75f,
+                DurationType.Once => OnceDiscount,
+                DurationType.Permanent => PermanentDiscount,
+                DurationType.UntilEndOfTurn => UntilEndOfTurnDiscount,
+                DurationType.UntilNextTurn => UntilNextTurnDiscount,
+                DurationType.UntilLeaveBattlefield => UntilLeaveBattlefieldDiscount,
+                DurationType.WhileCondition => WhileConditionDiscount,
+                DurationType.ForTurns => turns <= 1
+                    ? UntilEndOfTurnDiscount
+                    : Mathf.Min(ForTurnsBase + ForTurnsStep * (turns - 2), ForTurnsCap),
                 _ => 0.8f
             };
         }

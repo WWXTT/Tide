@@ -64,8 +64,9 @@ namespace CardCore
         private void Initialize()
         {
             // 初始化玩家
-            _player1 = new Player("Player 1", 20);
-            _player2 = new Player("Player 2", 20);
+            // 初始生命 30：使流失抵消触顶可达（14 费 × 2 命 = 28 ≤ 30），四类抵消上限 14+6+6+5=31 构成单局额外资源预算
+            _player1 = new Player("Player 1", 30);
+            _player2 = new Player("Player 2", 30);
             _player1.Opponent = _player2;
             _player2.Opponent = _player1;
 
@@ -188,8 +189,8 @@ namespace CardCore
             // 结束阶段：未横置地牌自动横置，产 1 灰色元素入 bank（先于台账封行）
             ElementPool.OnTurnEnd(e.TurnPlayer, ZoneManager);
 
-            DurationTracker.OnTurnEnd(e.TurnPlayer);
-            TextChangeLayer.OnTurnEnd(e.TurnPlayer);
+            DurationTracker.OnTurnEnd(e.TurnPlayer, e.TurnNumber);
+            TextChangeLayer.OnTurnEnd(e.TurnPlayer, e.TurnNumber);
             // 延迟效果解决含异步原子效果（await UI）→ 事件回调为 void，故 fire-and-forget
             DelayedEffectScheduler.OnTurnEnd(e.TurnPlayer).Forget();
             // 手牌上限：超出部分由玩家选弃（AI/超时自动弃先头）
@@ -252,6 +253,10 @@ namespace CardCore
         {
             StackEngine.OnTurnStart(e.TurnPlayer);
             StackEngine.GetExecutor().OnNewTurn(e.TurnNumber);
+
+            // 持续效果时长追踪：推进全局回合计数（UntilNextTurn/ForTurns 到期戳的创建基准）
+            DurationTracker.OnTurnStart(e.TurnNumber);
+            TextChangeLayer.OnTurnStart(e.TurnNumber);
 
             var player = e.TurnPlayer;
             if (player == null)

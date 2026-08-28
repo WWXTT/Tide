@@ -113,11 +113,13 @@ namespace SynergyUI
                             ? cfg.TargetModifierConfig.GetMultiTargetModifier(atomicCfg.TargetCount)
                             : 1.0f;
 
-                        float durMod = 1.0f;
-                        if (atomic.Duration > 0)
-                        {
-                            durMod = cfg.AttributeValueConfig.GetDurationDiscount((DurationType)atomic.Duration);
-                        }
+                        // 持续折扣：相对折扣 ＝ D(实际)/D(表默认)，与运行时 ComputeAtomCost 一致。
+                        // 未显式指定（Duration==0）时取表默认 → 分子分母相同 → 1，不改变既有估值。
+                        var attrCfg = cfg.AttributeValueConfig;
+                        var tableDefaultDur = atomicCfg != null ? atomicCfg.DurationType : DurationType.Once;
+                        var actualDur = atomic.Duration > 0 ? (DurationType)atomic.Duration : tableDefaultDur;
+                        float durMod = attrCfg.GetDurationDiscount(actualDur, atomic.DurationValue)
+                                       / attrCfg.GetDurationDiscount(tableDefaultDur);
 
                         float atomicValue = baseValue * targetMod * multiMod * timingMod * condMod * durMod;
 

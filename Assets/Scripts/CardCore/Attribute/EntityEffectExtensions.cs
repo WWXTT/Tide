@@ -403,7 +403,7 @@ namespace CardCore
         /// <summary>
         /// 召唤来源标记：是否经「正式召唤」入场（普通召唤 / 特殊召唤 / 从额外组召唤）。
         /// 仅正式召唤过的随从死亡后才可被 ReturnFromGraveyard 复活；
-        /// 被弃牌 / 磨本组 / 送额外组等「非正式入墓」的随从该标记为 false，不可复活。
+        /// 被弃牌 / 送墓（本组）/ 送额外组等「非正式入墓」的随从该标记为 false，不可复活。
         /// </summary>
         public bool WasFormallySummoned { get; set; } = false;
 

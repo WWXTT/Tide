@@ -65,7 +65,7 @@ namespace CardCore
     public enum PhaseType
     {
         /// <summary>
-        /// 准备阶段（含抽牌、可选放元素池）
+        /// 准备阶段（纯自动：横置恢复、抽牌；放元素池已移至主阶段）
         /// </summary>
         Standby,
 
@@ -208,7 +208,19 @@ namespace CardCore
         /// <summary>
         /// 只要（条件满足时）
         /// </summary>
-        WhileCondition
+        WhileCondition,
+
+        /// <summary>
+        /// 到对手回合结束（回合单位＝玩家回合，与全局回合数同源：
+        /// 自己回合内施加，活过对手整个回合，于对手回合结束时失效——防御性持续档）
+        /// </summary>
+        UntilNextTurn,
+
+        /// <summary>
+        /// 指定回合数 N（N 存 DurationValue；施加当回合记第 1 回合，于第 N 个玩家回合结束时失效）。
+        /// N=1 等价 UntilEndOfTurn，N=2 等价 UntilNextTurn。
+        /// </summary>
+        ForTurns
     }
 
     /// <summary>
@@ -450,7 +462,7 @@ namespace CardCore
         public Player Owner { get; }
 
         // 区域使用「有序」列表存储：牌库/坟墓/放逐等区域的顺序具有规则意义
-        // （抽牌/磨牌/检索/牌库顶操作均依赖 index 0 = 牌库顶的约定）。
+        // （抽牌/送墓/检索/牌库顶操作均依赖 index 0 = 牌库顶的约定）。
         private Dictionary<Zone, List<Card>> zones = new Dictionary<Zone, List<Card>>();
 
         private static readonly System.Random _rng = new System.Random();
@@ -612,7 +624,7 @@ namespace CardCore
             container.Move(card, fromZone, toZone);
         }
 
-        /// <summary>从牌库抽一张牌</summary>
+        /// <summary>从牌库抽一张牌。牌库为空时不抽牌，改为疲劳（第 N 次疲劳造成 N 点递增伤害）。</summary>
         public static Card DrawCard(this ZoneManager zm, Player player)
         {
             if (zm == null || player == null) return null;
@@ -621,14 +633,51 @@ namespace CardCore
             if (container == null) return null;
 
             var deck = container.GetCards(Zone.Deck);
-            if (deck.Count == 0) return null;
+            if (deck.Count == 0)
+            {
+                ApplyFatigue(player);
+                return null;
+            }
 
             var card = deck[0];
             container.Move(card, Zone.Deck, Zone.Hand);
             return card;
         }
 
-        /// <summary>从牌库顶磨一张牌（放入坟墓场）</summary>
+        /// <summary>
+        /// 疲劳结算（炉石式）：空卡组抽牌时，第 N 次疲劳对玩家造成 N 点递增伤害。
+        /// 经 GameCore 统一路由发布 FatigueEvent / LifeChangeEvent；生命归 0 立即发 GameOverEvent（LifeZero）。
+        /// </summary>
+        private static void ApplyFatigue(Player player)
+        {
+            player.FatigueCount++;
+            int damage = player.FatigueCount;
+            int oldLife = player.Life;
+            int newLife = oldLife - damage;
+            if (newLife < 0) newLife = 0;
+            player.Life = newLife;
+
+            void Publish<T>(T e) where T : IGameEvent
+            {
+                if (GameCore.Instance != null) GameCore.Instance.PublishEvent(e);
+                else EventManager.Instance.Publish(e);
+            }
+
+            Publish(new CardCore.Attribute.FatigueEvent { Player = player, Damage = damage });
+            Publish(new LifeChangeEvent { Player = player, OldLife = oldLife, NewLife = newLife });
+
+            if (newLife <= 0)
+            {
+                Publish(new GameOverEvent
+                {
+                    Winner = player.Opponent,
+                    Loser = player,
+                    Reason = GameOverReason.LifeZero,
+                });
+            }
+        }
+
+        /// <summary>送墓：从牌库顶送一张牌入墓地</summary>
         public static Card MillCard(this ZoneManager zm, Player player)
         {
             if (zm == null || player == null) return null;

@@ -18,6 +18,7 @@ namespace CardCore
         public int SequenceNumber { get; set; }
         public bool IsActive { get; set; }
         public object EndCondition { get; set; } // 条件结束时失效
+        public int? ExpiryTurn { get; set; } // UntilNextTurn/ForTurns 的到期全局回合戳（该回合 TurnEnd 时失效）
     }
 
     /// <summary>
@@ -67,9 +68,9 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 修改卡牌文本
+        /// 修改卡牌文本。durationTurns 仅在 duration==ForTurns 时有意义（回合数 N）。
         /// </summary>
-        public bool ModifyText(Card card, string newText, Effect source, DurationType duration = DurationType.Permanent, object endCondition = null)
+        public bool ModifyText(Card card, string newText, Effect source, DurationType duration = DurationType.Permanent, object endCondition = null, int durationTurns = 0)
         {
             if (card == null)
                 return false;
@@ -89,7 +90,8 @@ namespace CardCore
                 ModificationTime = DateTime.Now,
                 SequenceNumber = (int)TimestampSystem.NextSequence,
                 IsActive = true,
-                EndCondition = endCondition
+                EndCondition = endCondition,
+                ExpiryTurn = ComputeExpiryTurn(duration, durationTurns)
             };
 
             _cardTextChanges[card].Add(modification);
@@ -275,11 +277,69 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 回合结束：失效本回合玩家的「直到回合结束」文本修改
+        /// 回合开始：推进全局回合计数（GameCore.OnTurnStarted 推送），
+        /// UntilNextTurn / ForTurns 的到期戳基准。
         /// </summary>
-        public void OnTurnEnd(Player player)
+        public void OnTurnStart(int globalTurn)
+        {
+            if (globalTurn > _currentGlobalTurn)
+                _currentGlobalTurn = globalTurn;
+        }
+
+        private int _currentGlobalTurn;
+
+        /// <summary>
+        /// 到期全局回合戳：UntilNextTurn＝创建回合+1（对手回合）末失效；
+        /// ForTurns(N)＝创建回合记第 1 回合，第 N 回合末失效。其余档位 null。
+        /// </summary>
+        private int? ComputeExpiryTurn(DurationType duration, int turns)
+        {
+            switch (duration)
+            {
+                case DurationType.UntilNextTurn:
+                    return _currentGlobalTurn + 1;
+                case DurationType.ForTurns:
+                    return _currentGlobalTurn + Math.Max(1, turns) - 1;
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// 回合结束：失效本回合玩家的「直到回合结束」文本修改；
+        /// UntilNextTurn/ForTurns 按到期全局回合戳失效（不区分归属玩家）。
+        /// </summary>
+        public void OnTurnEnd(Player player, int globalTurn = 0)
         {
             ExpireByDuration(DurationType.UntilEndOfTurn, player);
+
+            if (globalTurn <= 0) return;
+            foreach (var kvp in _cardTextChanges)
+            {
+                foreach (var mod in kvp.Value)
+                {
+                    if (!mod.IsActive || !mod.ExpiryTurn.HasValue)
+                        continue;
+                    if ((mod.Duration == DurationType.UntilNextTurn || mod.Duration == DurationType.ForTurns)
+                        && globalTurn >= mod.ExpiryTurn.Value)
+                    {
+                        DeactivateModification(mod);
+                    }
+                }
+            }
+        }
+
+        private void DeactivateModification(TextModification mod)
+        {
+            mod.IsActive = false;
+            var card = mod.TargetCard;
+            PublishEvent(new StateChangeEvent
+            {
+                Type = StateChangeType.Text,
+                Target = card,
+                OldValue = mod.ModifiedText,
+                NewValue = GetCurrentText(card)
+            });
         }
 
         /// <summary>

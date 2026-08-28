@@ -23,7 +23,7 @@ namespace CardCore
         Sleep,
         /// <summary>召唤素材（额外卡组条件）</summary>
         SummonMaterial,
-        /// <summary>磨本组：将牌库顶 N 张送墓（代价抵消用）</summary>
+        /// <summary>送墓（本组）：将牌库顶 N 张送入墓地（代价抵消用）</summary>
         MillDeck,
         /// <summary>送额外组：将额外卡组 N 张送墓（代价抵消用）</summary>
         SendExtraDeck,
@@ -363,7 +363,7 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 磨本组代价处理器：将牌库顶 N 张送入墓地（代价抵消机制之一）。
+    /// 送墓（本组）代价处理器：将牌库顶 N 张送入墓地（代价抵消机制之一）。
     /// </summary>
     public class MillDeckCostHandler : ICostHandler
     {
@@ -380,11 +380,15 @@ namespace CardCore
         {
             var deck = context.ZoneManager.GetCards(context.Payer, Zone.Deck);
             var milled = new List<Card>();
+            // 牌库顶 = index 0（与抽牌/送墓/GetTopCards 同约定，见 Zones.cs 牌库顶注释）。
+            // 先快照再移动，规避 GetCards 返回活列表时边移边取的错位；曾误从列表末端（牌库底）取牌。
             for (int i = 0; i < cost.Value && i < deck.Count; i++)
             {
-                var card = deck[deck.Count - 1 - i]; // 牌库顶（列表末端）开始磨
+                milled.Add(deck[i]);
+            }
+            foreach (var card in milled)
+            {
                 context.ZoneManager.MoveCard(card, context.Payer, Zone.Deck, Zone.Graveyard);
-                milled.Add(card);
             }
 
             EventManager.Instance.Publish(new MillDeckCostEvent
@@ -395,7 +399,7 @@ namespace CardCore
             });
         }
 
-        public string GetDescription(CostInstance cost) => $"磨 {cost.Value} 张本组卡";
+        public string GetDescription(CostInstance cost) => $"送墓（本组）{cost.Value} 张";
     }
 
     /// <summary>
@@ -438,7 +442,7 @@ namespace CardCore
     // 代价相关事件
     // ================================================================
 
-    /// <summary>磨本组代价事件</summary>
+    /// <summary>送墓（本组）代价事件</summary>
     public class MillDeckCostEvent : GameEventBase
     {
         public Player Player { get; set; }

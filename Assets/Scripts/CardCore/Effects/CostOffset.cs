@@ -20,7 +20,7 @@ namespace CardCore
     {
         Drain,      // 流失（无源失命）
         Discard,    // 弃手牌
-        Mill,       // 磨本组
+        Mill,       // 送墓（本组）
         SendExtra,  // 送额外组
     }
 

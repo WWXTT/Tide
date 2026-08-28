@@ -123,10 +123,12 @@ namespace CardCore
             }
 
             // 从 AtomicEffectTable 获取默认 Duration
+            // （表侧 DurationType 已统一为运行时 DurationType，直接赋值即可；
+            //  旧实现按 int 跨枚举强转，Permanent(4) 会被错映射成 WhileCondition(4)，已修复）
             DurationType duration = DurationType.Once;
             var config = CardCore.Attribute.AtomicEffectTable.GetByType(type);
             if (config != null)
-                duration = (DurationType)config.DurationType;
+                duration = config.DurationType;
 
             // 如果条目显式指定了 Duration，覆盖默认值
             if (entry.Duration > 0)
@@ -141,6 +143,7 @@ namespace CardCore
                 ManaTypeParam = (ManaType)entry.ManaTypeParam,
                 ZoneParam = (Zone)entry.ZoneParam,
                 Duration = duration,
+                DurationValue = entry.DurationValue,
                 TargetTypeOverride = entry.TargetTypeOverride,
                 TargetFilterOverride = entry.TargetFilterOverride ?? "",
                 TargetCountOverride = entry.TargetCountOverride,

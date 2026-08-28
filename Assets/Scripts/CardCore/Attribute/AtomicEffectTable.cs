@@ -90,7 +90,7 @@ namespace CardCore.Attribute
                 TargetFilter = "Creature",
                 TargetCount = 1,
                 TargetScope = EffectTargetScope.Single,
-                DurationType = EffectDurationType.Instant,
+                DurationType = DurationType.Once,
                 ActivationType = EffectActivationType.Voluntary,
             };
 
@@ -110,7 +110,7 @@ namespace CardCore.Attribute
                 else if (entry.TargetType == "None") config.TargetFilter = "";
                 config.TargetCount = entry.TargetCount;
                 if (Enum.TryParse<EffectTargetScope>(entry.TargetScope, out var ts)) config.TargetScope = ts;
-                if (Enum.TryParse<EffectDurationType>(entry.DurationType, out var dt)) config.DurationType = dt;
+                if (ParseDurationType(entry.DurationType, out var dt)) config.DurationType = dt;
                 if (Enum.TryParse<EffectActivationType>(entry.ActivationType, out var at)) config.ActivationType = at;
             }
             else
@@ -150,6 +150,26 @@ namespace CardCore.Attribute
             return _typeMap.TryGetValue(type, out var config) ? config : null;
         }
 
+        /// <summary>
+        /// 解析 JSON 的 DurationType 列。
+        /// 新名直接匹配运行时 DurationType；旧表侧枚举（EffectDurationType）名按别名归一：
+        /// Instant→Once、UntilCondition→WhileCondition、UntilEndOfPhase→UntilEndOfTurn
+        /// （阶段粒度的失效暂未实现，先近似为回合末，与三阶段结构下 Main 内施放的语义一致）。
+        /// </summary>
+        private static bool ParseDurationType(string name, out DurationType duration)
+        {
+            if (Enum.TryParse<DurationType>(name, out duration))
+                return true;
+
+            switch (name)
+            {
+                case "Instant": duration = DurationType.Once; return true;
+                case "UntilCondition": duration = DurationType.WhileCondition; return true;
+                case "UntilEndOfPhase": duration = DurationType.UntilEndOfTurn; return true;
+                default: duration = DurationType.Once; return false;
+            }
+        }
+
         /// <summary>通过英文枚举名获取配置</summary>
         public static AtomicEffectConfig GetByEnumName(string enumName)
         {
@@ -176,7 +196,7 @@ namespace CardCore.Attribute
             public string TargetFilter;   // 逗号分隔筛选条件
             public int TargetCount;       // 0=全部, -1=任意, >0=指定
             public string TargetScope;    // EffectTargetScope 枚举名
-            public string DurationType;   // EffectDurationType 枚举名
+            public string DurationType;   // DurationType 枚举名（旧表侧枚举名经 ParseDurationType 别名归一）
             public string ActivationType; // EffectActivationType 枚举名
         }
 

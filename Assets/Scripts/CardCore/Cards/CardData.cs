@@ -337,6 +337,7 @@ namespace CardCore
         public int ManaTypeParam;      // ManaType 枚举值
         public int ZoneParam;          // Zone 枚举值
         public int Duration;           // DurationType 枚举值，0 = 使用表默认
+        public int DurationValue;      // Duration==ForTurns 时的回合数 N（0 视为 1）
 
         // 每实例目标覆盖 —— 默认哨兵值表示沿用 AtomicEffectConfig 的配置级目标。
         // 由效果合成界面按需设置；执行引擎接入留 Phase 4。
