@@ -177,19 +177,19 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\UI\Resources\UXML\DeckBuilder.uxml" />
-    <None Include="Assets\Performance\HexMap\Shaders\HexTerrainForwardPass.hlsl" />
+    <None Include="Assets\UI\HexMap\Shaders\HexTerrainForwardPass.hlsl" />
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\LICENSE.TXT" />
-    <None Include="Assets\Performance\HexMap\Shaders\HexTerrainDebugCommon.hlsl" />
+    <None Include="Assets\UI\HexMap\Shaders\HexTerrainDebugCommon.hlsl" />
     <None Include="Assets\Packages\MemoryPack.Generator.1.21.4\analyzers\dotnet\cs\MemoryPack.Generator.dll" />
     <None Include="Assets\UI\Resources\UXML\CardComposer.uxml" />
-    <None Include="Assets\Performance\HexMap\Shaders\HexTerrainInput.hlsl" />
+    <None Include="Assets\UI\HexMap\Shaders\HexTerrainInput.hlsl" />
     <None Include="Assets\UI\Resources\UXML\Battle.uxml" />
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\useSharedDesignerContext.txt" />
     <None Include="Assets\UI\Resources\UXML\MainMenu.uxml" />
     <None Include="Assets\UI\Resources\UXML\EffectComposer.uxml" />
     <None Include="Assets\UI\Resources\UXML\Placeholder.uxml" />
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\THIRD-PARTY-NOTICES.TXT" />
-    <None Include="Assets\Performance\HexMap\Shaders\HexTerrain.shader" />
+    <None Include="Assets\UI\HexMap\Shaders\HexTerrain.shader" />
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\lib\netstandard2.0\System.Collections.Immutable.xml" />
     <None Include="Assets\Packages\MemoryPack.Core.1.21.4\lib\netstandard2.1\MemoryPack.Core.dll" />
     <None Include="Assets\UI\Resources\Common.uss" />

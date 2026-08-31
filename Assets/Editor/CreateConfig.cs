@@ -13,7 +13,7 @@ namespace CardCore.Editor
         [MenuItem("Tools/一键刷新配置")]
         public static void RefreshConfig()
         {
-            string batpath = "C:\\Users\\Administrator\\Desktop\\Synergy\\Config";
+            string batpath = "E:\\UnityProject\\Tide\\Config";
             string genBatPath = Path.Combine(batpath, "export_attribute.bat");
 
             if (!File.Exists(genBatPath))

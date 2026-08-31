@@ -341,8 +341,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "UnityEditor.MainToolbarWindow\u200B"
   m_Pos:
     serializedVersion: 2
-    x: -1920
-    y: 49
+    x: 0
+    y: 0
     width: 1920
     height: 36
   m_SerializedDataModeController:
@@ -716,8 +716,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Hierarchy\u200B"
   m_Pos:
     serializedVersion: 2
-    x: -1920
-    y: 85
+    x: 0
+    y: 24
     width: 380
     height: 633
   m_SerializedDataModeController:
@@ -791,8 +791,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Scene\u200B"
   m_Pos:
     serializedVersion: 2
-    x: -1539
-    y: 85
+    x: 382
+    y: 24
     width: 1073
     height: 633
   m_SerializedDataModeController:
@@ -1460,7 +1460,7 @@ MonoBehaviour:
   m_Rotation:
     m_Target: {x: 0.32273585, y: -0.1021059, z: 0.034112707, w: 0.94100463}
     speed: 2
-    m_Value: {x: 0.32253638, y: -0.102042794, z: 0.03409162, w: 0.940423}
+    m_Value: {x: 0, y: 0, z: 0, w: 1}
   m_Size:
     m_Target: 71.7711
     speed: 2
@@ -1468,7 +1468,7 @@ MonoBehaviour:
   m_Ortho:
     m_Target: 0
     speed: 2
-    m_Value: 0
+    m_Value: 1
   m_CameraSettings:
     m_Speed: 0.7006501
     m_SpeedNormalized: 0.35000005
@@ -1522,8 +1522,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Project\u200B"
   m_Pos:
     serializedVersion: 2
-    x: -1920
-    y: 744
+    x: 0
+    y: 683
     width: 1455
     height: 256
   m_SerializedDataModeController:
@@ -1575,14 +1575,13 @@ MonoBehaviour:
     m_LastClickedID:
       m_rawData: 568105584918838734
     m_ExpandedIDs:
-    - m_rawData: 568105589213755330
     - m_rawData: 0
+    - m_rawData: 568105584918838404
+    - m_rawData: 568105584918838406
+    - m_rawData: 568105584918838408
     - m_rawData: 568105584918838410
     - m_rawData: 568105584918838412
     - m_rawData: 568105584918838414
-    - m_rawData: 568105584918838416
-    - m_rawData: 568105584918838418
-    - m_rawData: 568105584918838750
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -1616,11 +1615,12 @@ MonoBehaviour:
       m_rawData: 0
     m_ExpandedIDs:
     - m_rawData: 0
+    - m_rawData: 568105584918838404
+    - m_rawData: 568105584918838406
+    - m_rawData: 568105584918838408
     - m_rawData: 568105584918838410
     - m_rawData: 568105584918838412
     - m_rawData: 568105584918838414
-    - m_rawData: 568105584918838416
-    - m_rawData: 568105584918838418
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -1751,8 +1751,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Inspector\u200B"
   m_Pos:
     serializedVersion: 2
-    x: -464
-    y: 85
+    x: 1457
+    y: 24
     width: 463
     height: 915
   m_SerializedDataModeController:
