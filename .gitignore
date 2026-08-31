@@ -16,7 +16,6 @@ Thumbs.db          # Windows 缩略图缓存
 /.vs/
 /.idea/
 /.aider.tags.cache.v4/
-Assets/Configs
 Assets/Plugins
 Assets/Packages
 Assets/Synty

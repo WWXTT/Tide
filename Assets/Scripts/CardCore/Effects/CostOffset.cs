@@ -79,7 +79,7 @@ namespace CardCore
                     Debug.LogWarning($"[CostOffsetService] 配置文件不存在: {path}，抵消功能将不可用");
                     return;
                 }
-                var parsed = JsonUtility.FromJson<CostOffsetConfig>(File.ReadAllText(path));
+                var parsed = JsonUtility.FromJson<CostOffsetConfig>(WrapBareArray(File.ReadAllText(path)));
                 if (parsed?.mechanisms == null) return;
                 foreach (var m in parsed.mechanisms)
                 {
@@ -92,6 +92,19 @@ namespace CardCore
             {
                 Debug.LogWarning($"[CostOffsetService] 加载 {ConfigRelativePath} 失败: {e.Message}");
             }
+        }
+
+        /// <summary>
+        /// 导出器（Config/export_to_json.py）每个 sheet 产出顶层裸数组，
+        /// 而 CostOffsetConfig DTO 需要 {"mechanisms":[...]} 包装——裸数组在此包一层
+        /// （同 AtomicEffectTable.ParseEntries 的惯例）。已是对象则原样返回。
+        /// </summary>
+        private static string WrapBareArray(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return raw;
+            return raw.TrimStart().StartsWith("[")
+                ? "{\"mechanisms\":" + raw + "}"
+                : raw;
         }
 
         // ======================================== 对外入口 ========================================

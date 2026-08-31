@@ -4,6 +4,13 @@
 Excel to JSON Exporter
 将 Attribute.xlsm 的数据导出为 JSON 文件
 
+表结构约定（无标记列版式）：
+    第 1 行 = 列名（##var 语义，同时是 JSON 字段名 / 枚举组名）
+    第 2 行 = 类型（string / int / float / enum；enum 列由 refresh_dropdowns.py 套下拉）
+    第 3 行起 = 数据
+
+每个符合约定的 sheet 导出为同名 JSON（裸数组）。
+
 用法:
     python export_to_json.py
     python export_to_json.py --input Attribute.xlsm --output ../Assets/Configs
@@ -16,6 +23,9 @@ import os
 import sys
 from pathlib import Path
 
+ROW_VAR, ROW_TYPE, ROW_DATA_START = 1, 2, 3
+KNOWN_TYPES = {"string", "int", "float", "enum"}
+
 
 def parse_excel_to_json(xlsm_path: str) -> dict:
     """解析 Excel 文件并转换为 JSON 结构"""
@@ -26,37 +36,30 @@ def parse_excel_to_json(xlsm_path: str) -> dict:
     for sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
 
-        # 查找 ##var 和 ##type 行
-        var_row = None
-        type_row = None
-        data_start_row = 3  # 默认数据从第3行开始
-
-        for row in range(1, min(10, ws.max_row + 1)):
-            cell_a = ws.cell(row=row, column=1).value
-            if cell_a == "##var":
-                var_row = row
-            elif cell_a == "##type":
-                type_row = row
-
-        if var_row is None or type_row is None:
-            print(f"Sheet '{sheet_name}' 缺少 ##var 或 ##type 行，跳过")
+        # 第 2 行必须含有已知类型标记，才认定为配置表
+        type_tokens = {
+            str(ws.cell(row=ROW_TYPE, column=c).value or "").strip().lower()
+            for c in range(1, ws.max_column + 1)
+        }
+        if not (type_tokens & KNOWN_TYPES):
+            print(f"Sheet '{sheet_name}' 第 2 行无类型标记（string/int/float/enum），跳过")
             continue
 
-        # 读取列定义
+        # 读取列定义：第 1 行列名 + 第 2 行类型
         columns = []
         for col in range(1, ws.max_column + 1):
-            var_name = ws.cell(row=var_row, column=col).value
-            var_type = ws.cell(row=type_row, column=col).value
-            if var_name and var_name != "##var":
+            var_name = ws.cell(row=ROW_VAR, column=col).value
+            var_type = ws.cell(row=ROW_TYPE, column=col).value
+            if var_name and str(var_name).strip():
                 columns.append({
                     "index": col,
-                    "name": var_name,
-                    "type": var_type or "string"
+                    "name": str(var_name).strip(),
+                    "type": str(var_type or "string").strip().lower()
                 })
 
         # 读取数据行
         data = []
-        for row in range(data_start_row, ws.max_row + 1):
+        for row in range(ROW_DATA_START, ws.max_row + 1):
             row_data = {}
             has_data = False
 
@@ -116,7 +119,7 @@ def main():
     # 默认路径
     script_dir = Path(__file__).parent.resolve()
     default_input = script_dir / "Attribute.xlsm"
-    default_output = script_dir.parent / "Assets" / "Configs"
+    default_output = script_dir.parent / "Assets" / "Configs"  # C# 读取位置（Application.dataPath/Configs）
 
     parser = argparse.ArgumentParser(description='Excel to JSON Exporter')
     parser.add_argument('--input', '-i',

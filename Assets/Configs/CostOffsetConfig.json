@@ -1,0 +1,26 @@
+[
+  {
+    "Mechanism": "Drain",
+    "DisplayName": "流失（无源失命）",
+    "ResourcePerOffset": 2,
+    "MaxOffsetPerGame": 14
+  },
+  {
+    "Mechanism": "Discard",
+    "DisplayName": "弃手牌",
+    "ResourcePerOffset": 1,
+    "MaxOffsetPerGame": 6
+  },
+  {
+    "Mechanism": "Mill",
+    "DisplayName": "送墓（本组顶部）",
+    "ResourcePerOffset": 5,
+    "MaxOffsetPerGame": 6
+  },
+  {
+    "Mechanism": "SendExtra",
+    "DisplayName": "送额外组",
+    "ResourcePerOffset": 3,
+    "MaxOffsetPerGame": 5
+  }
+]
