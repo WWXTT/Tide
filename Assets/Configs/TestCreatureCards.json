@@ -1,0 +1,605 @@
+{
+  "cards": [
+    {
+      "id": "TEST_SPELL_RED_001",
+      "cardName": "火球术",
+      "supertype": "Spell",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 4
+        },
+        {
+          "manaType": 2,
+          "amount": 1
+        }
+      ],
+      "effects": [
+        {
+          "Id": "FIREBALL_MAIN",
+          "DisplayName": "火球",
+          "Description": "对目标造成4点伤害并抽一张牌",
+          "TriggerTiming": 0,
+          "AtomicEffects": [
+            {
+              "EffectType": "DealDamage",
+              "Value": 4
+            },
+            {
+              "EffectType": "DrawCard",
+              "Value": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "TEST_GREEN_003",
+      "cardName": "古树守卫",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 5,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 4
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": []
+    },
+    {
+      "id": "TEST_BLUE_002",
+      "cardName": "深水哨兵",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 3
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": []
+    },
+    {
+      "id": "TEST_GRAY_001",
+      "cardName": "灰色哨兵",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 1,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 1
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": []
+    },
+    {
+      "id": "TEST_SPELL_DECLARE_001",
+      "cardName": "读心预言",
+      "supertype": "Spell",
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 2
+        }
+      ],
+      "effects": [
+        {
+          "Id": "DECLARE_BRANCH_MAIN",
+          "DisplayName": "读心",
+          "Description": "宣言一个卡牌类型并确认对手手牌，命中则抽一张牌",
+          "TriggerTiming": 0,
+          "Steps": [
+            {
+              "kind": 0,
+              "atomic": {
+                "EffectType": "DeclareHand",
+                "StringValue": "Type:Creature"
+              }
+            },
+            {
+              "kind": 1,
+              "conditionId": "DeclareHit",
+              "thenSteps": [
+                {
+                  "EffectType": "DrawCard",
+                  "Value": 1
+                }
+              ],
+              "elseSteps": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "TEST_KW_TAUNT",
+      "cardName": "嘲讽哨卫",
+      "supertype": "Creature",
+      "power": 0,
+      "life": 1,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 2
+        }
+      ],
+      "keywords": [
+        "Taunt"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_CHARGE",
+      "cardName": "冲锋突击兵",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 3
+        },
+        {
+          "manaType": 1,
+          "amount": 1
+        }
+      ],
+      "keywords": [
+        "Charge"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_RUSH",
+      "cardName": "突袭急先锋",
+      "supertype": "Creature",
+      "power": 6,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 5
+        }
+      ],
+      "keywords": [
+        "Rush"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_DOUBLESTRIKE",
+      "cardName": "连击双刃客",
+      "supertype": "Creature",
+      "power": 9,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 7
+        }
+      ],
+      "keywords": [
+        "DoubleStrike"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_TRAMPLE",
+      "cardName": "穿透重蹄兽",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 5,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 4
+        },
+        {
+          "manaType": 3,
+          "amount": 1
+        }
+      ],
+      "keywords": [
+        "Trample"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_POISONOUS",
+      "cardName": "剧毒毒沼虫",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 6,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 6
+        }
+      ],
+      "keywords": [
+        "Poisonous"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_LIFESTEAL",
+      "cardName": "吸血噬血蝠",
+      "supertype": "Creature",
+      "power": 8,
+      "life": 7,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 8
+        }
+      ],
+      "keywords": [
+        "Lifesteal"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_LIFELINK",
+      "cardName": "系命祝祷僧",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 8,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 5
+        }
+      ],
+      "keywords": [
+        "Lifelink"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_STEALTH",
+      "cardName": "潜行影匿者",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 9,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 7
+        }
+      ],
+      "keywords": [
+        "Stealth"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_DIVINESHIELD",
+      "cardName": "圣盾圣辉骑",
+      "supertype": "Creature",
+      "power": 7,
+      "life": 1,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 5
+        }
+      ],
+      "keywords": [
+        "DivineShield"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_OVERWHELM",
+      "cardName": "碾压攻城槌",
+      "supertype": "Creature",
+      "power": 0,
+      "life": 2,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 1
+        },
+        {
+          "manaType": 1,
+          "amount": 1
+        }
+      ],
+      "keywords": [
+        "Overwhelm"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_ARMOR",
+      "cardName": "坚韧老树皮",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 4
+        }
+      ],
+      "keywords": [
+        "Armor"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_GUARD",
+      "cardName": "守卫护卫士",
+      "supertype": "Creature",
+      "power": 6,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 5
+        }
+      ],
+      "keywords": [
+        "Guard"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_VIGILANCE",
+      "cardName": "警戒巡夜人",
+      "supertype": "Creature",
+      "power": 9,
+      "life": 5,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 7
+        }
+      ],
+      "keywords": [
+        "Vigilance"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_FIRSTSTRIKE",
+      "cardName": "先攻迅击剑士",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 6,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 4
+        },
+        {
+          "manaType": 1,
+          "amount": 1
+        }
+      ],
+      "keywords": [
+        "FirstStrike"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_WINDFURY",
+      "cardName": "风怒狂风狼",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 7,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 6
+        }
+      ],
+      "keywords": [
+        "Windfury"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_SPELLSHIELD",
+      "cardName": "法术护盾秘纹像",
+      "supertype": "Creature",
+      "power": 8,
+      "life": 8,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 8
+        }
+      ],
+      "keywords": [
+        "SpellShield"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_UNTARGETABLE",
+      "cardName": "辟邪避世僧",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 9,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 5
+        }
+      ],
+      "keywords": [
+        "Untargetable"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_REBORN",
+      "cardName": "复生不灭烬",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 1,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 3
+        },
+        {
+          "manaType": 3,
+          "amount": 1
+        }
+      ],
+      "keywords": [
+        "Reborn"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_INDESTRUCTIBLE",
+      "cardName": "不灭磐岩像",
+      "supertype": "Creature",
+      "power": 7,
+      "life": 2,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 5
+        }
+      ],
+      "keywords": [
+        "Indestructible"
+      ],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "TEST_KW_ARMOR_ATOM",
+      "cardName": "装甲工匠",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 0,
+          "amount": 3
+        },
+        {
+          "manaType": 3,
+          "amount": 2
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "keyword-test"
+      ],
+      "effects": [
+        {
+          "Id": "ARMOR_ATOM_ONPLAY",
+          "DisplayName": "装甲成型",
+          "Description": "入场时为自身添加3点护甲",
+          "TriggerTiming": 0,
+          "AtomicEffects": [
+            {
+              "EffectType": "AddArmor",
+              "Value": 3,
+              "TargetTypeOverride": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "RITUAL_TRINITY_001",
+      "cardName": "三相仪典",
+      "supertype": "Enchantment",
+      "subtype": "Ritual",
+      "keywords": [],
+      "tags": [
+        "ritual-test"
+      ],
+      "effects": []
+    },
+    {
+      "id": "RITUAL_BLOOD_002",
+      "cardName": "血偿仪典",
+      "supertype": "Enchantment",
+      "subtype": "Ritual",
+      "keywords": [],
+      "tags": [
+        "ritual-test"
+      ],
+      "effects": []
+    }
+  ],
+  "deckConfig": {
+    "copiesPerCard": 3
+  }
+}

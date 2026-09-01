@@ -47,51 +47,77 @@ namespace CardCore.Attribute.Handlers
 
     /// <summary>
     /// Grant 关键词处理器工厂
-    /// 统一创建所有关键词授予处理器
+    /// Specs 是 Grant 原子 → 运行时关键词 id / 中文描述的唯一真相源：
+    /// 处理器注册（EffectExecutionEngine）与关键词目录（CardLoader.LoadKeywords）都从这里取值，
+    /// 保证目录 id 与写入 IHasKeywords 的字符串一致。
     /// </summary>
     public static class GrantKeywordHandlerFactory
     {
+        // (原子效果类型, 运行时关键词 id, 中文描述)
+        private static readonly (AtomicEffectType type, string keywordId, string description)[] Specs =
+        {
+            // 红色 - 攻击性
+            (AtomicEffectType.GrantHaste, "Charge", "获得冲锋"),
+            (AtomicEffectType.GrantRush, "Rush", "获得突袭"),
+            (AtomicEffectType.GrantDoubleStrike, "DoubleStrike", "获得连击"),
+            (AtomicEffectType.GrantFirstStrike, "FirstStrike", "获得先攻"),
+            (AtomicEffectType.GrantTrample, "Trample", "获得穿透"),
+            (AtomicEffectType.GrantWindfury, "Windfury", "获得风怒"),
+            (AtomicEffectType.GrantOverwhelm, "Overwhelm", "获得碾压"),
+            (AtomicEffectType.GrantMultiAttack, "MultiAttack", "获得多次攻击"),
+
+            // 蓝色 - 规避/控制
+            (AtomicEffectType.GrantFlying, "Flying", "获得飞行"),
+            (AtomicEffectType.GrantVigilance, "Vigilance", "获得警戒"),
+            (AtomicEffectType.GrantStealth, "Stealth", "获得潜行"),
+            (AtomicEffectType.GrantSpellShield, "SpellShield", "获得法术护盾"),
+            (AtomicEffectType.GrantGuard, "Guard", "获得守卫"),
+            (AtomicEffectType.GrantReach, "Reach", "获得阻断飞行"),
+            (AtomicEffectType.GrantWard, "Ward", "获得守卫"),
+            (AtomicEffectType.GrantCannotBeTargeted, "Untargetable", "获得不可被指定"),
+            (AtomicEffectType.GrantImmunity, "Immunity", "获得免疫"),
+            (AtomicEffectType.GrantUnaffected, "Unaffected", "获得不受影响"),
+
+            // 绿色 - 续航/成长
+            (AtomicEffectType.GrantLifesteal, "Lifesteal", "获得吸血"),
+            (AtomicEffectType.GrantLifelink, "Lifelink", "获得系命"),
+            (AtomicEffectType.GrantRegeneration, "Regeneration", "获得再生"),
+            (AtomicEffectType.GrantGrowth, "Growth", "获得成长"),
+            (AtomicEffectType.GrantArmor, "Armor", "获得坚韧"),
+            (AtomicEffectType.GrantDivineShield, "DivineShield", "获得圣盾"),
+            (AtomicEffectType.GrantTaunt, "Taunt", "获得嘲讽"),
+            (AtomicEffectType.GrantPoisonous, "Poisonous", "获得剧毒"),
+            (AtomicEffectType.GrantReborn, "Reborn", "获得复生"),
+            (AtomicEffectType.GrantIndestructible, "Indestructible", "获得不灭"),
+
+            // 通用
+            (AtomicEffectType.RemoveDebuffs, "RemoveDebuffs", "移除减益"),
+        };
+
         /// <summary>
         /// 创建所有关键词授予处理器
         /// </summary>
         public static IAtomicEffectHandler[] CreateAll()
         {
-            return new IAtomicEffectHandler[]
+            var handlers = new IAtomicEffectHandler[Specs.Length];
+            for (int i = 0; i < Specs.Length; i++)
+                handlers[i] = new GrantKeywordHandler(Specs[i].type, Specs[i].keywordId, Specs[i].description);
+            return handlers;
+        }
+
+        /// <summary>Grant 原子 → 运行时关键词 id（写入 IHasKeywords 的字符串）。未登记返回 false。</summary>
+        public static bool TryGetKeywordId(AtomicEffectType type, out string keywordId)
+        {
+            foreach (var spec in Specs)
             {
-                // 红色 - 攻击性
-                new GrantKeywordHandler(AtomicEffectType.GrantHaste, "Charge", "获得冲锋"),
-                new GrantKeywordHandler(AtomicEffectType.GrantRush, "Rush", "获得突袭"),
-                new GrantKeywordHandler(AtomicEffectType.GrantDoubleStrike, "DoubleStrike", "获得连击"),
-                new GrantKeywordHandler(AtomicEffectType.GrantFirstStrike, "FirstStrike", "获得先攻"),
-                new GrantKeywordHandler(AtomicEffectType.GrantTrample, "Trample", "获得穿透"),
-                new GrantKeywordHandler(AtomicEffectType.GrantWindfury, "Windfury", "获得风怒"),
-                new GrantKeywordHandler(AtomicEffectType.GrantOverwhelm, "Overwhelm", "获得碾压"),
-                new GrantKeywordHandler(AtomicEffectType.GrantMultiAttack, "MultiAttack", "获得多次攻击"),
-
-                // 蓝色 - 规避/控制
-                new GrantKeywordHandler(AtomicEffectType.GrantFlying, "Flying", "获得飞行"),
-                new GrantKeywordHandler(AtomicEffectType.GrantVigilance, "Vigilance", "获得警戒"),
-                new GrantKeywordHandler(AtomicEffectType.GrantStealth, "Stealth", "获得潜行"),
-                new GrantKeywordHandler(AtomicEffectType.GrantSpellShield, "SpellShield", "获得法术护盾"),
-                new GrantKeywordHandler(AtomicEffectType.GrantGuard, "Guard", "获得守卫"),
-                new GrantKeywordHandler(AtomicEffectType.GrantReach, "Reach", "获得阻断飞行"),
-                new GrantKeywordHandler(AtomicEffectType.GrantWard, "Ward", "获得守卫"),
-                new GrantKeywordHandler(AtomicEffectType.GrantCannotBeTargeted, "Untargetable", "获得不可被指定"),
-                new GrantKeywordHandler(AtomicEffectType.GrantImmunity, "Immunity", "获得免疫"),
-                new GrantKeywordHandler(AtomicEffectType.GrantUnaffected, "Unaffected", "获得不受影响"),
-
-                // 绿色 - 续航/成长
-                new GrantKeywordHandler(AtomicEffectType.GrantLifesteal, "Lifesteal", "获得吸血"),
-                new GrantKeywordHandler(AtomicEffectType.GrantRegeneration, "Regeneration", "获得再生"),
-                new GrantKeywordHandler(AtomicEffectType.GrantGrowth, "Growth", "获得成长"),
-                new GrantKeywordHandler(AtomicEffectType.GrantArmor, "Armor", "获得坚韧"),
-                new GrantKeywordHandler(AtomicEffectType.GrantDivineShield, "DivineShield", "获得圣盾"),
-                new GrantKeywordHandler(AtomicEffectType.GrantTaunt, "Taunt", "获得嘲讽"),
-                new GrantKeywordHandler(AtomicEffectType.GrantPoisonous, "Poisonous", "获得剧毒"),
-
-                // 通用
-                new GrantKeywordHandler(AtomicEffectType.RemoveDebuffs, "RemoveDebuffs", "移除减益"),
-            };
+                if (spec.type == type)
+                {
+                    keywordId = spec.keywordId;
+                    return true;
+                }
+            }
+            keywordId = null;
+            return false;
         }
     }
 }

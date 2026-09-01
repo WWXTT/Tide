@@ -262,9 +262,28 @@ namespace CardCore
             if (player == null)
                 return;
 
-            // 重置步：横置恢复回合玩家的战场卡牌
+            // 重置步：回合玩家战场卡的战斗状态与关键词维护
             foreach (var card in ZoneManager.GetCards(player, Zone.Battlefield))
             {
+                // 召唤失调 / 攻击次数 / 警戒额度：回合开始重置
+                card.SummonedThisTurn = false;
+                card.AttacksThisTurn = 0;
+                card._vigilanceUsedThisTurn = false;
+
+                // 再生：回合开始自动回复 2 点生命（固定值，不消耗）
+                if (card.IsAlive && card.HasKeyword(KeywordRules.Regeneration) && card.GetLife() < card.GetMaxLife())
+                {
+                    card.Heal(2);
+                    PublishEvent(new Attribute.HealEvent { Target = card, Amount = 2 });
+                }
+
+                // 成长：回合开始 +1/+1 指示物（固定值）
+                if (card.IsAlive && card.HasKeyword(KeywordRules.Growth))
+                {
+                    card.AddCounters("+1/+1", 1);
+                    Attribute.Handlers.HandlerHelpers.ApplyCounterStat(card, "+1/+1", 1);
+                }
+
                 if (card.IsTapped())
                 {
                     card.Untap();
@@ -319,6 +338,10 @@ namespace CardCore
             ZoneManagerExtensions.ShuffleDeck(ZoneManager, _player1);
             ZoneManagerExtensions.ShuffleDeck(ZoneManager, _player2);
 
+            // 仪式卡开局固定入手（不占起手数：先于起手抽牌直接入手；每玩家仅 1 张，多副本留牌库正常抽）
+            MoveFirstRitualToOpeningHand(_player1);
+            MoveFirstRitualToOpeningHand(_player2);
+
             // 起手抽5张
             for (int i = 0; i < 5; i++)
             {
@@ -328,6 +351,14 @@ namespace CardCore
 
             // 开始游戏
             StartGame();
+        }
+
+        /// <summary>仪式卡开局固定入手：从牌库取第一张仪式卡直接入手（额外加入，不占起手抽牌数）。</summary>
+        private void MoveFirstRitualToOpeningHand(Player player)
+        {
+            var ritual = ZoneManager.GetCards(player, Zone.Deck).FirstOrDefault(c => RitualSystem.IsRitual(c));
+            if (ritual != null)
+                ZoneManager.MoveCard(ritual, player, Zone.Deck, Zone.Hand);
         }
 
         /// <summary>
@@ -427,6 +458,8 @@ namespace CardCore
             TextChangeLayer.ClearAll();
             CopyEffectsEngine.ClearAll();
             DurationTracker.ClearAll();
+            ProphecySystem.Reset(); // 待验证预言跨局不残留
+            RitualSystem.Reset();   // 仪式任务与光环跨局不残留
         }
 
         #endregion

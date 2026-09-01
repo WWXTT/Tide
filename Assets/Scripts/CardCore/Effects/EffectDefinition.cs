@@ -71,6 +71,13 @@ namespace CardCore
         public List<CostInstance> Costs = new List<CostInstance>();
         public List<string> Tags = new List<string>();
         public string SourceCardId;
+
+        /// <summary>
+        /// 卡内效果标记：元素费已随卡牌费用收讫（打出按档位+构筑期代价抵扣，见 CardCostService），
+        /// 执行器跳过元素费支付以防双计。由 CardEffectConverter / KeywordEffectMapper 在卡效果转换时置位；
+        /// 游戏中途授予的动态效果不置位，照常支付。（衍生物 CreateToken 直接入场的卡内效果同样免付——设计内，强度由生成器定价。）
+        /// </summary>
+        public bool ElementCostPrepaid = false;
         public EffectTargetType TargetType;
 
         /// <summary>

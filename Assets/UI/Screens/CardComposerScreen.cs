@@ -52,7 +52,7 @@ namespace SynergyUI
         private DropdownField _manaDropdown;
 
         private List<ManaType> _manaTypes;
-        private int _lastSuggestedMana;
+        private Dictionary<int, float> _lastSuggestedCost;
 
         public override void OnEnter()
         {
@@ -409,7 +409,7 @@ namespace SynergyUI
         private void Recalculate()
         {
             var result = CardCostCalculator.Calculate(_card);
-            _lastSuggestedMana = result.ManaCost;
+            _lastSuggestedCost = result.CostDict;
 
             _breakdownList.Clear();
             foreach (var line in result.Breakdown)
@@ -433,12 +433,15 @@ namespace SynergyUI
             }
             else
             {
-                _suggested.text = $"建议费用 {result.ManaCost}（合计 {result.Total:0.0}）";
+                var balance = result.OffsetProvided >= result.OffsetRequirement
+                    ? "符合规则一"
+                    : $"抵扣不足（差 {result.OffsetRequirement - result.OffsetProvided:0.#}）";
+                _suggested.text = $"建议档位 {result.ManaCost}（D={result.Total:0}）｜代价抵扣 需求 {result.OffsetRequirement} / 已提供 {result.OffsetProvided:0.#}｜{balance}";
             }
             RefreshCostLabel();
         }
 
-        // 采纳：把建议费用落到所选主色（超量不输入费用）。
+        // 采纳：整字典写入建议费用分布（多色；超量不输入费用）。
         private void OnAdoptCost()
         {
             if (_kind == CardKind.Xyz)
@@ -446,15 +449,15 @@ namespace SynergyUI
                 ShowToast("超量卡费用由素材决定，无需采纳");
                 return;
             }
-            int manaIdx = _manaDropdown.index;
-            if (manaIdx < 0 || manaIdx >= _manaTypes.Count)
+            if (_lastSuggestedCost == null || _lastSuggestedCost.Count == 0)
             {
-                manaIdx = 0;
+                ShowToast("无建议费用可采纳（D=0 保持空，打出按默认灰 1 计）");
+                return;
             }
-            int manaKey = (int)_manaTypes[manaIdx];
-            _card.Cost[manaKey] = _lastSuggestedMana;
+            _card.Cost = new Dictionary<int, float>(_lastSuggestedCost);
+            _card.ResetCache();
             RefreshCostLabel();
-            ShowToast($"已采纳：{_manaTypes[manaIdx]} {_lastSuggestedMana}");
+            ShowToast("已采纳建议分布：" + string.Join(" ", _lastSuggestedCost.Select(kv => $"{(ManaType)kv.Key}:{(int)kv.Value}")));
         }
 
         private void RefreshCostLabel()
@@ -472,8 +475,26 @@ namespace SynergyUI
         private void OnSave()
         {
             ApplyTextLists();
+
+            // 构筑期规则一校验（提示级，不阻止保存）：代价抵扣不足 → 警告
+            string warn = null;
+            if (_kind != CardKind.Xyz)
+            {
+                var check = CardCostService.Derive(_card);
+                if (check.DeclaredTier > 0 && !check.Conformant)
+                {
+                    warn = $"代价抵扣不足 需{check.OffsetRequirement}/有{check.OffsetProvided:0.#}";
+                    UnityEngine.Debug.LogWarning($"[CardCost] {_card.CardName} {warn}，不符规则一");
+                }
+            }
+
             var path = CardConfigSerializer.Save(_card);
-            ShowToast(path == null ? "保存失败" : $"已保存到卡表：{System.IO.Path.GetFileName(path)}");
+            if (path == null)
+                ShowToast("保存失败");
+            else
+                ShowToast(warn != null
+                    ? $"已保存（警告：{warn}）：{System.IO.Path.GetFileName(path)}"
+                    : $"已保存到卡表：{System.IO.Path.GetFileName(path)}");
         }
 
         private void ApplyTextLists()

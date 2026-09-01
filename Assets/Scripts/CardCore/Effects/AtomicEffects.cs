@@ -142,6 +142,19 @@ namespace CardCore
         // ============ 特殊补充 ============
         RepeatEffect,
         DelayedEffect,
+
+        // ============ 信息族（宣言/预言——有限域押注，产出命中与否） ============
+        DeclareHand,
+        DeclareHandSampled,
+        DeclareDeckTop,
+        DeclareArrow,
+        ProphecyNextCard,
+
+        // ============ 关键词补充 + 护甲原子 ============
+        GrantReborn,
+        GrantIndestructible,
+        GrantLifelink,
+        AddArmor,
     }
 
     #region 效果分类扩展方法
@@ -232,6 +245,12 @@ namespace CardCore
         /// <summary>受影响目标中是否存在存活者</summary>
         public bool AnySurvived;
 
+        /// <summary>信息族：宣言/预言是否命中（宣言族即时写入；预言族由 ProphecySystem 在验证时刻另行结算）</summary>
+        public bool DeclareHit;
+
+        /// <summary>信息族：本步的宣言原文（"维度:值"编码，见 ProphecyDimension）——延迟验证的押注凭据</summary>
+        public string Declaration;
+
         /// <summary>本步是否有目标死亡</summary>
         public bool AnyKilled => KilledTargets.Count > 0;
 
@@ -242,6 +261,8 @@ namespace CardCore
             HealApplied = 0;
             OverhealAmount = 0;
             AnySurvived = false;
+            DeclareHit = false;
+            Declaration = null;
             AffectedTargets.Clear();
             KilledTargets.Clear();
         }

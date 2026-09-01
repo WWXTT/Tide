@@ -344,7 +344,7 @@ namespace CardCore
             return candidates;
         }
 
-        /// <summary>从筛选串中解析候选分区 token（Battlefield/Hand/Graveyard/Deck/Exile），缺省战场。</summary>
+        /// <summary>从筛选串中解析候选分区 token（Battlefield/Hand/Graveyard/Deck/Exile/Activation），缺省战场。</summary>
         private static Zone ExtractZone(string filterString)
         {
             if (string.IsNullOrEmpty(filterString)) return Zone.Battlefield;
@@ -357,6 +357,7 @@ namespace CardCore
                     case "Deck": return Zone.Deck;
                     case "Exile": return Zone.Exile;
                     case "Battlefield": return Zone.Battlefield;
+                    case "Activation": return Zone.Activation; // 发动中的卡（反制指向发动区）
                 }
             }
             return Zone.Battlefield;
@@ -398,6 +399,7 @@ namespace CardCore
                     case "Deck":
                     case "Exile":
                     case "Battlefield":
+                    case "Activation":
                         // 分区 token：候选池已按分区取（见 GetCandidates.ExtractZone），此处不再过滤
                         break;
                     case "Untapped":

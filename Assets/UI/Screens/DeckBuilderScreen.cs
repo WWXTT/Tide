@@ -128,6 +128,20 @@ namespace SynergyUI
         private void OnSave()
         {
             var name = string.IsNullOrWhiteSpace(_nameField.value) ? "新卡组" : _nameField.value.Trim();
+
+            // 构筑期规则一校验（提示级）：汇总代价抵扣不足的卡
+            var offenders = new List<string>();
+            foreach (var id in _deckCardIds.Distinct())
+            {
+                var card = CardCatalog.GetById(id);
+                if (card == null) continue;
+                var r = CardCostService.Derive(card);
+                if (r.DeclaredTier > 0 && !r.Conformant)
+                    offenders.Add($"{card.CardName}(需{r.OffsetRequirement}/有{r.OffsetProvided:0.#})");
+            }
+            if (offenders.Count > 0)
+                UnityEngine.Debug.LogWarning($"[CardCost] 卡组「{name}」含代价抵扣不足的卡：{string.Join("、", offenders)}");
+
             var deck = new DeckData(name) { cardIds = new List<string>(_deckCardIds) };
             var path = DeckSerializer.Save(deck);
             ShowToast(path == null ? "保存失败" : $"已保存：{name}");

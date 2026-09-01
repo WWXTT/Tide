@@ -1,0 +1,127 @@
+{
+  "effects": [
+    {
+      "effectType": "DealDamage",
+      "displayName": "造成伤害",
+      "maxChainedEffects": 2,
+      "allowNesting": false,
+      "conditions": [
+        { "id": "DmgKillsTarget", "kind": "OutcomeGate", "displayName": "目标死亡", "description": "本步对当前目标造成的伤害使其死亡（多目标时每个死亡目标各触发一次奖励）", "param": 0, "stringParam": "", "costReduction": 0 },
+        { "id": "TargetSurvived", "kind": "OutcomeGate", "displayName": "目标存活", "description": "本步结算后当前目标仍然存活", "param": 0, "stringParam": "", "costReduction": 0 },
+        { "id": "Overkill", "kind": "OutcomeGate", "displayName": "溢杀", "description": "本步伤害超过目标受击前的生命值", "param": 0, "stringParam": "", "costReduction": 0 }
+      ]
+    },
+    {
+      "effectType": "DamageCannotBePrevented",
+      "displayName": "不可防止伤害",
+      "maxChainedEffects": 2,
+      "allowNesting": false,
+      "conditions": [
+        { "id": "DmgKillsTarget", "kind": "OutcomeGate", "displayName": "目标死亡", "description": "本步对当前目标造成的伤害使其死亡", "param": 0, "stringParam": "", "costReduction": 0 },
+        { "id": "TargetSurvived", "kind": "OutcomeGate", "displayName": "目标存活", "description": "本步结算后当前目标仍然存活", "param": 0, "stringParam": "", "costReduction": 0 },
+        { "id": "Overkill", "kind": "OutcomeGate", "displayName": "溢杀", "description": "本步伤害超过目标受击前的生命值", "param": 0, "stringParam": "", "costReduction": 0 }
+      ]
+    },
+    {
+      "effectType": "DrainLife",
+      "displayName": "吸取生命",
+      "maxChainedEffects": 2,
+      "allowNesting": false,
+      "conditions": [
+        { "id": "DmgKillsTarget", "kind": "OutcomeGate", "displayName": "目标死亡", "description": "本步对当前目标造成的伤害使其死亡", "param": 0, "stringParam": "", "costReduction": 0 },
+        { "id": "TargetSurvived", "kind": "OutcomeGate", "displayName": "目标存活", "description": "本步结算后当前目标仍然存活", "param": 0, "stringParam": "", "costReduction": 0 },
+        { "id": "Overkill", "kind": "OutcomeGate", "displayName": "溢杀", "description": "本步伤害超过目标受击前的生命值", "param": 0, "stringParam": "", "costReduction": 0 }
+      ]
+    },
+    {
+      "effectType": "PoisonousDamage",
+      "displayName": "剧毒伤害",
+      "maxChainedEffects": 2,
+      "allowNesting": false,
+      "conditions": [
+        { "id": "DmgKillsTarget", "kind": "OutcomeGate", "displayName": "目标死亡", "description": "本步对当前目标造成的伤害使其死亡", "param": 0, "stringParam": "", "costReduction": 0 },
+        { "id": "TargetSurvived", "kind": "OutcomeGate", "displayName": "目标存活", "description": "本步结算后当前目标仍然存活", "param": 0, "stringParam": "", "costReduction": 0 },
+        { "id": "Overkill", "kind": "OutcomeGate", "displayName": "溢杀", "description": "本步伤害超过目标受击前的生命值", "param": 0, "stringParam": "", "costReduction": 0 }
+      ]
+    },
+    {
+      "effectType": "Heal",
+      "displayName": "回复生命",
+      "maxChainedEffects": 2,
+      "allowNesting": false,
+      "conditions": [
+        { "id": "Overheal", "kind": "OutcomeGate", "displayName": "溢出治疗", "description": "申请治疗超过目标缺失生命（溢出量 > 0）", "param": 0, "stringParam": "", "costReduction": 0 },
+        { "id": "TargetStillWounded", "kind": "OutcomeGate", "displayName": "仍未满血", "description": "本步结算后当前目标生命仍低于上限", "param": 0, "stringParam": "", "costReduction": 0 }
+      ]
+    },
+    {
+      "effectType": "RestoreToFullLife",
+      "displayName": "恢复满生命",
+      "maxChainedEffects": 2,
+      "allowNesting": false,
+      "conditions": [
+        { "id": "Overheal", "kind": "OutcomeGate", "displayName": "溢出治疗", "description": "目标已满血时回复量溢出", "param": 0, "stringParam": "", "costReduction": 0 },
+        { "id": "TargetStillWounded", "kind": "OutcomeGate", "displayName": "仍未满血", "description": "本步结算后当前目标生命仍低于上限", "param": 0, "stringParam": "", "costReduction": 0 }
+      ]
+    },
+    {
+      "effectType": "DeclareHand",
+      "displayName": "宣言确认手牌",
+      "maxChainedEffects": 2,
+      "allowNesting": false,
+      "conditions": [
+        { "id": "DeclareHit", "kind": "OutcomeGate", "displayName": "宣言命中", "description": "对手手牌中存在命中宣言维度的卡（即时验证）", "param": 0, "stringParam": "", "costReduction": 0 },
+        { "id": "DeclareMiss", "kind": "OutcomeGate", "displayName": "宣言落空", "description": "对手手牌中不存在命中宣言维度的卡", "param": 0, "stringParam": "", "costReduction": 0 }
+      ]
+    },
+    {
+      "effectType": "DeclareHandSampled",
+      "displayName": "宣言探查手牌",
+      "maxChainedEffects": 2,
+      "allowNesting": false,
+      "conditions": [
+        { "id": "DeclareHit", "kind": "OutcomeGate", "displayName": "宣言命中", "description": "对手手牌随机 3 张样本中存在命中宣言维度的卡", "param": 0, "stringParam": "", "costReduction": 0 },
+        { "id": "DeclareMiss", "kind": "OutcomeGate", "displayName": "宣言落空", "description": "样本内无命中宣言维度的卡", "param": 0, "stringParam": "", "costReduction": 0 }
+      ]
+    },
+    {
+      "effectType": "DeclareDeckTop",
+      "displayName": "宣言验牌库顶",
+      "maxChainedEffects": 2,
+      "allowNesting": false,
+      "conditions": [
+        { "id": "DeclareHit", "kind": "OutcomeGate", "displayName": "宣言命中", "description": "己方牌库顶牌命中宣言维度（即时展示验证）", "param": 0, "stringParam": "", "costReduction": 0 },
+        { "id": "DeclareMiss", "kind": "OutcomeGate", "displayName": "宣言落空", "description": "牌库顶牌未命中宣言维度（牌库为空亦为落空）", "param": 0, "stringParam": "", "costReduction": 0 }
+      ]
+    },
+    {
+      "effectType": "DeclareArrow",
+      "displayName": "宣言箭头",
+      "maxChainedEffects": 2,
+      "allowNesting": false,
+      "conditions": [
+        { "id": "DeclareHit", "kind": "OutcomeGate", "displayName": "宣言命中", "description": "对手额外卡组中存在带宣言方向箭头的连接卡（私密确认）", "param": 0, "stringParam": "", "costReduction": 0 },
+        { "id": "DeclareMiss", "kind": "OutcomeGate", "displayName": "宣言落空", "description": "对手额外卡组中无带该方向箭头的卡", "param": 0, "stringParam": "", "costReduction": 0 }
+      ]
+    },
+    {
+      "effectType": "ProphecyNextCard",
+      "displayName": "预言下回合首张",
+      "maxChainedEffects": 2,
+      "allowNesting": false,
+      "conditions": [
+        { "id": "ProphecyHit", "kind": "OutcomeGate", "displayName": "预言命中", "description": "对手下回合首张打出的卡命中宣言维度（延迟验证，押注隐藏）", "param": 0, "stringParam": "", "costReduction": 0 },
+        { "id": "ProphecyMiss", "kind": "OutcomeGate", "displayName": "预言落空", "description": "对手下回合首张卡未命中，或整回合未出牌（作未命中）", "param": 0, "stringParam": "", "costReduction": 0 }
+      ]
+    }
+  ],
+  "drawbacks": [
+    { "id": "UnusableThisTurn", "displayName": "本回合不可用", "description": "抽到的牌本回合内不可使用", "costReduction": 1 },
+    { "id": "DiscardAtEndOfTurnIfInHand", "displayName": "回合末未打出则弃", "description": "回合结束时该牌仍在手牌则弃置", "costReduction": 1 }
+  ],
+  "filterPrecisionTiers": [
+    { "id": "ExactCard", "displayName": "确切单卡/按名称", "cost": 3 },
+    { "id": "TypePlusRace", "displayName": "类型+种族", "cost": 2 },
+    { "id": "SingleDimension", "displayName": "单一维度", "cost": 1 }
+  ]
+}

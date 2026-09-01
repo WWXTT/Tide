@@ -77,6 +77,7 @@
     <Compile Include="Assets\Scripts\CardCore\Layers\CopyEffects.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\CardEffectConverter.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\ThirdBatchEffectHandlers.cs" />
+    <Compile Include="Assets\Scripts\Board\BoardState.cs" />
     <Compile Include="Assets\Scripts\CardCore\Cards\CardData.cs" />
     <Compile Include="Assets\Scripts\CardCore\Cards\CardExtensions.cs" />
     <Compile Include="Assets\UI\Screens\EffectComposerScreen.cs" />
@@ -97,6 +98,7 @@
     <Compile Include="Assets\Scripts\CardCore\Attribute\AtomicEffectTable.cs" />
     <Compile Include="Assets\UI\Screens\PlaceholderScreens.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\AttributeEvents.cs" />
+    <Compile Include="Assets\Scripts\Board\HalfFieldData.cs" />
     <Compile Include="Assets\UI\Screens\DeckBuilderScreen.cs" />
     <Compile Include="Assets\UI\Data\CardCostCalculator.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\AtomicEffectConfig.cs" />
@@ -105,11 +107,15 @@
     <Compile Include="Assets\UI\Screens\CardComposerScreen.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\ReplacementEngine.cs" />
     <Compile Include="Assets\UI\Data\EffectLibrarySerializer.cs" />
+    <Compile Include="Assets\Scripts\CardCore\Effects\RitualSystem.cs" />
     <Compile Include="Assets\Scripts\CardCore\Layers\ContinuousEffectDurationTracker.cs" />
+    <Compile Include="Assets\Scripts\CardCore\Effects\CardCostService.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\KeywordEffectMapper.cs" />
+    <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\ArmorHandler.cs" />
     <Compile Include="Assets\Scripts\CardCore\Layers\CharacteristicDefiningAbilities.cs" />
     <Compile Include="Assets\UI\Screens\UiTargetSelector.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\IAtomicEffectHandler.cs" />
+    <Compile Include="Assets\Scripts\CardCore\Attribute\KeywordRules.cs" />
     <Compile Include="Assets\Scripts\CardCore\GameCore\GameStateManager.cs" />
     <Compile Include="Assets\Scripts\CardCore\BaseSystems\StateBasedActions\SBACheckers.cs" />
     <Compile Include="Assets\Scripts\CardCore\Serialization\RuntimeCardStateDTO.cs" />
@@ -125,6 +131,7 @@
     <Compile Include="Assets\Scripts\CardCore\Effects\EffectResolutionContext.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\Effect.cs" />
     <Compile Include="Assets\UI\Framework\UIBootstrap.cs" />
+    <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\ProphecyHandlers.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\EffectDefinition.cs" />
     <Compile Include="Assets\Scripts\CardCore\Network\NetworkSerializer.cs" />
     <Compile Include="Assets\Scripts\CardCore\Events\EventManager.cs" />
@@ -137,6 +144,7 @@
     <Compile Include="Assets\Scripts\CardCore\Effects\AtomicEffects.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\EntityEffectExtensions.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\EffectTemplateTable.cs" />
+    <Compile Include="Assets\Scripts\Board\BoardMath.cs" />
     <Compile Include="Assets\Scripts\CardCore\Serialization\TagTable.cs" />
     <Compile Include="Assets\Scripts\CardCore\GameCore\GameLoopController.cs" />
     <Compile Include="Assets\UI\Framework\UIScreen.cs" />
@@ -152,13 +160,14 @@
     <Compile Include="Assets\Scripts\CardCore\Effects\BranchConfigTable.cs" />
     <Compile Include="Assets\Scripts\CardCore\ValueSystem\ResourceCurveModel.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\ElementAffinity.cs" />
-    <Compile Include="Assets\Scripts\CardCore\ValueSystem\SynergyConfig.cs" />
+    <Compile Include="Assets\Scripts\Board\BoardLayout.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\FirstBatchEffectHandlers.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\AdvancedEffectHandlers.cs" />
     <Compile Include="Assets\UI\Screens\SimpleAI.cs" />
     <Compile Include="Assets\Scripts\CardCore\Layers\TextChangeLayer.cs" />
     <Compile Include="Assets\UI\Screens\BattleScreen.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\GrantKeywordHandlers.cs" />
+    <Compile Include="Assets\Scripts\CardCore\Effects\RitualEffects.cs" />
     <Compile Include="Assets\UI\Data\KeywordCatalog.cs" />
     <Compile Include="Assets\UI\Screens\BattleController.cs" />
     <Compile Include="Assets\Scripts\CardCore\GameCore\GameExceptions.cs" />
@@ -166,6 +175,7 @@
     <Compile Include="Assets\Scripts\CardCore\BaseSystems\ResourceLedger.cs" />
     <Compile Include="Assets\Scripts\CardCore\GameCore\SubSystemRegistry.cs" />
     <Compile Include="Assets\UI\Data\CardConfigSerializer.cs" />
+    <Compile Include="Assets\Scripts\CardCore\Effects\ProphecySystem.cs" />
     <Compile Include="Assets\Scripts\CardCore\Utility\MurmurHash3.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\MetaEffectHandlers.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\CostSystem.cs" />
@@ -183,6 +193,7 @@
     <None Include="Assets\Packages\MemoryPack.Generator.1.21.4\analyzers\dotnet\cs\MemoryPack.Generator.dll" />
     <None Include="Assets\UI\Resources\UXML\CardComposer.uxml" />
     <None Include="Assets\UI\HexMap\Shaders\HexTerrainInput.hlsl" />
+    <None Include="Assets\Configs\仪式效果.txt" />
     <None Include="Assets\UI\Resources\UXML\Battle.uxml" />
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\useSharedDesignerContext.txt" />
     <None Include="Assets\UI\Resources\UXML\MainMenu.uxml" />

@@ -29,6 +29,15 @@ namespace CardCore.Attribute
         public Entity Source { get; set; }
     }
 
+    /// <summary>指示物增减事件（护甲吸收池、成长 +1/+1 等）</summary>
+    public class CounterChangedEvent : GameEventBase
+    {
+        public Entity Target { get; set; }
+        public string CounterType { get; set; }
+        public int Amount { get; set; }
+        public Entity Source { get; set; }
+    }
+
     // ==================== 卡牌操作事件 ====================
 
     /// <summary>弃牌事件</summary>

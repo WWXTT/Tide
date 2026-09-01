@@ -44,6 +44,7 @@ namespace CardCore
                 IsOptional = data.IsOptional,
                 Duration = data.Duration > 0 ? (DurationType)data.Duration : DurationType.Permanent,
                 SourceCardId = sourceCardId,
+                ElementCostPrepaid = true, // 卡内效果：元素费已随卡牌档位费收讫，执行器跳过防双计
             };
 
             // 转换原子效果列表

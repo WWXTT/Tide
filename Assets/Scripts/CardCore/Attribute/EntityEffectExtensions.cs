@@ -59,6 +59,22 @@ namespace CardCore
             }
         }
 
+        /// <summary>
+        /// 受到伤害（关键词管线）：经 KeywordRules 结算——圣盾挡一次、护甲指示物逐点吸收、
+        /// 坚韧 −持有次数、剧毒致死、吸血（恢复自身）/系命（回复角色）。
+        /// 事件（DamageEvent 等）由调用方按路径发布。
+        /// </summary>
+        public static void TakeDamage(this Entity entity, int amount, Entity source, bool isCombat = false)
+        {
+            Attribute.KeywordRules.ApplyDamage(source, entity, amount, isCombat);
+        }
+
+        /// <summary>关键词持有次数（List 计数——融合叠加：重复坚韧计 2）</summary>
+        public static int GetKeywordCount(this Entity entity, string keyword)
+        {
+            return entity is Card card ? card._keywords.Count(k => k == keyword) : 0;
+        }
+
         /// <summary>治疗</summary>
         public static void Heal(this Entity entity, int amount)
         {
@@ -396,9 +412,22 @@ namespace CardCore
         // 效果标记
         internal EffectTargetFlags _targetFlags = EffectTargetFlags.CanBeTargetedByAll;
 
-        // 关键词和指示物
-        internal HashSet<string> _keywords = new HashSet<string>();
+        // 关键词和指示物。
+        // _keywords 用 List 而非 HashSet：融合继承允许重复关键词叠加（双坚韧 = −2），
+        // 普通授予路径的「唯一性」由 AddKeyword 的 Contains 检查保证（非融合不可重复添加）。
+        internal List<string> _keywords = new List<string>();
         internal Dictionary<string, int> _counters = new Dictionary<string, int>();
+
+        // ===== 战斗状态（关键词行为；核心规则字段，非棋盘坐标） =====
+
+        /// <summary>召唤失调：入场当回合不可攻击（冲锋/突袭豁免；己方回合开始清除）</summary>
+        public bool SummonedThisTurn { get; set; } = false;
+
+        /// <summary>本回合已攻击次数（上限 1，风怒 = 2；己方回合开始清零）</summary>
+        public int AttacksThisTurn { get; set; } = 0;
+
+        /// <summary>警戒：本回合横置抵消额度已消耗（一回合只生效一次）</summary>
+        internal bool _vigilanceUsedThisTurn = false;
 
         /// <summary>
         /// 召唤来源标记：是否经「正式召唤」入场（普通召唤 / 特殊召唤 / 从额外组召唤）。

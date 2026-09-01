@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using CardCore.Attribute;
 
 namespace CardCore
 {
@@ -39,14 +40,34 @@ namespace CardCore
         public Entity BlockedTarget { get; set; }
         public Entity BlockedBy { get; set; }
         public int AssignedDamage { get; set; }
+
+        /// <summary>直接指定模型下宣言的攻击目标（随从或玩家）。阻挡流程的 BlockedBy 优先于此。</summary>
+        public Entity DeclaredTarget { get; set; }
     }
 
     /// <summary>
     /// 战斗系统
-    /// 处理攻击宣言、阻挡宣言、伤害计算和结算
+    /// 处理攻击宣言、阻挡宣言、伤害计算和结算。
+    ///
+    /// 关键词行为（定案）：
+    /// - 召唤失调：随从入场当回合不可攻击（冲锋豁免；突袭豁免但只能攻随从）
+    /// - 风怒：每回合可攻击 2 次；守卫：友方单位被选为攻击目标时横置并强制转移目标
+    /// - 警戒：横置可被取消（攻击/代价横置，一回合一次，经 KeywordRules.ShouldTap）
+    /// - 嘲讽：防守方有存活嘲讽随从时不能指定玩家为攻击目标（碾压无视）
+    /// - 潜行：不可被指定为攻击目标；攻击后移除（发动效果后的移除在效果执行器）
+    /// - 先攻/连击：先攻步先行结算（死者不反击）；连击两步均结算
+    /// - 穿透：攻击随从的溢出伤害给其控制者；碾压：对目标相邻 1 格随从各结算一次攻击
+    /// - 剧毒/吸血/系命/圣盾/护甲/坚韧：伤害经 KeywordRules.ApplyDamage 统一结算
     /// </summary>
     public class CombatSystem
     {
+        /// <summary>
+        /// 邻接解析扩展点（碾压）：目标随从 → 其相邻 1 格内的随从。
+        /// 默认 null = 碾压只打主目标；棋盘层接线时注入 BoardState 邻接查询
+        /// （保持核心 ↔ 棋盘单向依赖：核心定义扩展点，表现层注入实现）。
+        /// </summary>
+        public static Func<Card, IEnumerable<Card>> AdjacentResolver;
+
         private CombatPhase _currentPhase = CombatPhase.None;
         private List<CombatParticipant> _attackers = new List<CombatParticipant>();
         private List<CombatParticipant> _blockers = new List<CombatParticipant>();
@@ -55,34 +76,11 @@ namespace CardCore
         private ZoneManager _zoneManager;
         private LayerEngine _layerEngine;
 
-        /// <summary>
-        /// 当前战斗阶段
-        /// </summary>
         public CombatPhase CurrentPhase => _currentPhase;
-
-        /// <summary>
-        /// 攻击者列表
-        /// </summary>
         public List<CombatParticipant> Attackers => _attackers;
-
-        /// <summary>
-        /// 阻挡者列表
-        /// </summary>
         public List<CombatParticipant> Blockers => _blockers;
-
-        /// <summary>
-        /// 是否在战斗中
-        /// </summary>
         public bool InCombat => _currentPhase != CombatPhase.None;
-
-        /// <summary>
-        /// 攻击玩家
-        /// </summary>
         public Player AttackingPlayer => _attackingPlayer;
-
-        /// <summary>
-        /// 防守玩家
-        /// </summary>
         public Player DefendingPlayer => _defendingPlayer;
 
         public CombatSystem(ZoneManager zoneManager)
@@ -99,9 +97,7 @@ namespace CardCore
             _layerEngine = layerEngine;
         }
 
-        /// <summary>
-        /// 开始战斗阶段
-        /// </summary>
+        /// <summary>开始战斗阶段</summary>
         public void StartCombat(Player attackingPlayer, Player defendingPlayer)
         {
             _attackingPlayer = attackingPlayer;
@@ -117,9 +113,13 @@ namespace CardCore
             });
         }
 
-        /// <summary>
-        /// 检查是否可以攻击
-        /// </summary>
+        /// <summary>每回合攻击次数上限（1；风怒 = 2）</summary>
+        public static int MaxAttacksPerTurn(Card card)
+        {
+            return card != null && card.HasKeyword(KeywordRules.Windfury) ? 2 : 1;
+        }
+
+        /// <summary>检查是否可以攻击（攻击者侧资格）</summary>
         public bool CanDeclareAttack(Entity attacker, Player controller)
         {
             if (_currentPhase != CombatPhase.SelectAttacker &&
@@ -134,6 +134,16 @@ namespace CardCore
             {
                 if (!_zoneManager.IsCardInZone(card, controller, Zone.Battlefield))
                     return false;
+
+                // 召唤失调：入场当回合不可攻击（冲锋/突袭豁免——突袭的目标限制见 CanAttackTarget）
+                if (card.SummonedThisTurn
+                    && !card.HasKeyword(KeywordRules.Charge)
+                    && !card.HasKeyword(KeywordRules.Rush))
+                    return false;
+
+                // 攻击次数上限（风怒 = 2）
+                if (card.AttacksThisTurn >= MaxAttacksPerTurn(card))
+                    return false;
             }
 
             // 检查是否已横置
@@ -144,32 +154,92 @@ namespace CardCore
             if (attacker is IHasPower && GetPower(attacker) <= 0)
                 return false;
 
-            // 检查是否已经攻击
+            // 检查是否已经攻击（本战斗会话内）
             if (_attackers.Any(a => a.Entity == attacker))
                 return false;
 
             return true;
         }
 
-        /// <summary>
-        /// 宣告攻击
-        /// </summary>
+        /// <summary>检查攻击者能否指定该目标（目标侧资格：突袭限制/嘲讽/潜行）</summary>
+        public bool CanAttackTarget(Entity attacker, Entity target)
+        {
+            if (target == null || !target.IsAlive || target == attacker) return false;
+
+            // 只能攻击防守方（对方随从或对方玩家）
+            var targetController = target is Card tc ? tc.GetController() : target as Player;
+            if (targetController != _defendingPlayer) return false;
+
+            // 突袭：失调回合只能攻随从，不能攻玩家
+            if (attacker is Card ac && ac.SummonedThisTurn
+                && ac.HasKeyword(KeywordRules.Rush) && !ac.HasKeyword(KeywordRules.Charge)
+                && target is Player)
+                return false;
+
+            // 潜行：不可被指定为攻击目标
+            if (target is Card sc && sc.HasKeyword(KeywordRules.Stealth))
+                return false;
+
+            // 嘲讽：防守方战场有存活嘲讽随从时，不能指定玩家（碾压无视嘲讽）
+            if (target is Player && !attacker.HasKeyword(KeywordRules.Overwhelm)
+                && DefendersWithTaunt().Any())
+                return false;
+
+            return true;
+        }
+
+        /// <summary>防守方战场上存活的嘲讽随从</summary>
+        private IEnumerable<Card> DefendersWithTaunt()
+        {
+            return _zoneManager.GetCards(_defendingPlayer, Zone.Battlefield)
+                .Where(c => c.IsAlive && c.HasKeyword(KeywordRules.Taunt));
+        }
+
+        /// <summary>宣告攻击</summary>
         public void DeclareAttack(Entity attacker, Entity target)
         {
             if (!CanDeclareAttack(attacker, _attackingPlayer))
                 return;
+            if (!CanAttackTarget(attacker, target))
+                return;
+
+            // 守卫：友方单位被选为攻击目标时，横置并强制转移攻击目标为自己
+            if (target is Card targetCard)
+            {
+                var guard = _zoneManager.GetCards(_defendingPlayer, Zone.Battlefield)
+                    .FirstOrDefault(c => c != targetCard && c.IsAlive && !c.IsTapped()
+                                         && c.HasKeyword(KeywordRules.Guard));
+                if (guard != null)
+                {
+                    if (KeywordRules.ShouldTap(guard))
+                        guard.Tap();
+                    target = guard;
+                }
+            }
 
             var participant = new CombatParticipant
             {
                 Entity = attacker,
                 Controller = _attackingPlayer,
-                IsAttacking = true
+                IsAttacking = true,
+                DeclaredTarget = target,
             };
             _attackers.Add(participant);
 
-            // 横置攻击者
-            if (attacker is ITappable tappable)
-                tappable.IsTapped = true;
+            // 潜行：攻击后移除（发动效果后的移除见 EffectExecutor）
+            if (attacker is Card attackerCard && attackerCard.HasKeyword(KeywordRules.Stealth))
+                attackerCard.RemoveKeyword(KeywordRules.Stealth);
+
+            // 攻击次数 +1（每回合上限见 CanDeclareAttack）
+            if (attacker is Card counted)
+                counted.AttacksThisTurn++;
+
+            // 横置攻击者（警戒：一回合一次抵消横置）
+            if (KeywordRules.ShouldTap(attacker))
+            {
+                if (attacker is ITappable tappable)
+                    tappable.IsTapped = true;
+            }
 
             _currentPhase = CombatPhase.DeclareAttack;
 
@@ -181,9 +251,7 @@ namespace CardCore
             });
         }
 
-        /// <summary>
-        /// 结束攻击宣言阶段，进入阻挡阶段
-        /// </summary>
+        /// <summary>结束攻击宣言阶段，进入阻挡阶段</summary>
         public void EndAttackDeclaration()
         {
             if (_attackers.Count == 0)
@@ -194,9 +262,7 @@ namespace CardCore
             _currentPhase = CombatPhase.SelectBlocker;
         }
 
-        /// <summary>
-        /// 检查是否可以阻挡
-        /// </summary>
+        /// <summary>检查是否可以阻挡</summary>
         public bool CanBlock(Entity blocker, Entity attacker, Player controller)
         {
             if (_currentPhase != CombatPhase.SelectBlocker &&
@@ -206,31 +272,25 @@ namespace CardCore
             if (controller != _defendingPlayer)
                 return false;
 
-            // 检查是否在战场
             if (blocker is Card card)
             {
                 if (!_zoneManager.IsCardInZone(card, controller, Zone.Battlefield))
                     return false;
             }
 
-            // 检查是否已横置
             if (blocker is ITappable tappable && tappable.IsTapped)
                 return false;
 
-            // 检查攻击者是否存在
             if (!_attackers.Any(a => a.Entity == attacker))
                 return false;
 
-            // 检查是否已经阻挡
             if (_blockers.Any(b => b.Entity == blocker))
                 return false;
 
             return true;
         }
 
-        /// <summary>
-        /// 宣告阻挡
-        /// </summary>
+        /// <summary>宣告阻挡</summary>
         public void DeclareBlock(Entity blocker, Entity attacker)
         {
             if (!CanBlock(blocker, attacker, _defendingPlayer))
@@ -259,85 +319,89 @@ namespace CardCore
             });
         }
 
-        /// <summary>
-        /// 结束阻挡宣言，进入伤害计算
-        /// </summary>
+        /// <summary>结束阻挡宣言，进入伤害结算</summary>
         public void EndBlockDeclaration()
         {
             _currentPhase = CombatPhase.DamageCalculation;
-            CalculateDamage();
+            ExecuteDamage();
         }
 
-        /// <summary>
-        /// 计算战斗伤害
-        /// </summary>
+        /// <summary>计算战斗伤害（保留阶段流转入口；实际结算在 ExecuteDamage 按关键词规则进行）</summary>
         public void CalculateDamage()
         {
-            foreach (var attacker in _attackers)
-            {
-                int attackerPower = GetPower(attacker.Entity);
-
-                if (attacker.BlockedBy != null)
-                {
-                    // 被阻挡：与阻挡者互相造成伤害
-                    int blockerPower = GetPower(attacker.BlockedBy);
-
-                    attacker.AssignedDamage = blockerPower;
-
-                    var blockerParticipant = _blockers.First(b => b.Entity == attacker.BlockedBy);
-                    blockerParticipant.AssignedDamage = attackerPower;
-                }
-                else
-                {
-                    // 未被阻挡：对玩家造成伤害
-                    attacker.AssignedDamage = 0;
-                }
-            }
-
             _currentPhase = CombatPhase.DamageDealing;
             ExecuteDamage();
         }
 
         /// <summary>
-        /// 执行战斗伤害
+        /// 执行战斗伤害：逐攻击者按配对结算。
+        /// 配对目标 = BlockedBy（阻挡流程）优先，否则 DeclaredTarget（直接指定），否则防守玩家。
+        /// 先攻/连击分两步：先攻步（先攻/连击者结算，死者不进普通步）；普通步（存活者结算，连击者再结算一次）。
         /// </summary>
         public void ExecuteDamage()
         {
             foreach (var attacker in _attackers)
             {
-                if (attacker.BlockedBy != null)
-                {
-                    // 对阻挡者造成伤害
-                    DealCombatDamage(attacker.Entity, attacker.BlockedBy, GetPower(attacker.Entity));
-                }
-                else
-                {
-                    // 对玩家造成伤害
-                    DealDamageToPlayer(attacker.Entity, _defendingPlayer, GetPower(attacker.Entity));
-                }
+                var target = attacker.BlockedBy ?? attacker.DeclaredTarget ?? (Entity)_defendingPlayer;
+                if (target == null || !target.IsAlive) continue; // 目标已倒（前序攻击击杀）→ 落空
 
-                // 攻击者受到伤害
-                if (attacker.AssignedDamage > 0)
-                {
-                    DealCombatDamage(attacker.BlockedBy, attacker.Entity, attacker.AssignedDamage);
-                }
-            }
-
-            foreach (var blocker in _blockers)
-            {
-                if (blocker.AssignedDamage > 0 && !_attackers.Any(a => a.BlockedBy == blocker.Entity))
-                {
-                    // 阻挡者受到伤害（如果还没处理过）
-                    DealCombatDamage(blocker.BlockedTarget, blocker.Entity, blocker.AssignedDamage);
-                }
+                ResolvePair(attacker.Entity, target);
             }
 
             EndCombat();
         }
 
-        /// <summary>
-        /// 获取实体的攻击力
-        /// </summary>
+        /// <summary>结算一次攻击配对（含先攻/连击/穿透/碾压；剧毒吸血圣盾护甲坚韧在 KeywordRules 内）</summary>
+        private void ResolvePair(Entity attacker, Entity target)
+        {
+            int attackerPower = GetPower(attacker);
+            int targetPower = target is Card ? GetPower(target) : 0;
+
+            bool attackerFirst = attacker.HasKeyword(KeywordRules.FirstStrike)
+                                 || attacker.HasKeyword(KeywordRules.DoubleStrike);
+            bool targetFirst = target.HasKeyword(KeywordRules.FirstStrike)
+                               || target.HasKeyword(KeywordRules.DoubleStrike);
+            bool attackerDouble = attacker.HasKeyword(KeywordRules.DoubleStrike);
+            bool targetDouble = target.HasKeyword(KeywordRules.DoubleStrike);
+
+            int targetLifeBefore = target.GetLife();
+
+            // ---- 先攻步 ----
+            if (attackerFirst)
+                DealCombatDamage(attacker, target, attackerPower);
+            if (targetFirst)
+                DealCombatDamage(target, attacker, targetPower);
+
+            // ---- 普通步（存活者；连击者在两步各结算一次） ----
+            if (attacker.IsAlive && (!attackerFirst || attackerDouble))
+                DealCombatDamage(attacker, target, attackerPower);
+            if (target != attacker && target.IsAlive && (!targetFirst || targetDouble))
+                DealCombatDamage(target, attacker, targetPower);
+
+            // ---- 穿透：攻击随从的溢出伤害给其控制者 ----
+            if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Trample) && target is Card)
+            {
+                int overflow = attackerPower - targetLifeBefore;
+                if (overflow > 0 && target.GetController() is Player owner)
+                    DealCombatDamage(attacker, owner, overflow);
+            }
+
+            // ---- 碾压：对目标相邻 1 格随从各视为一次攻击（额外受击不反击） ----
+            if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Overwhelm)
+                && target is Card pivot && AdjacentResolver != null)
+            {
+                foreach (var adjacent in AdjacentResolver(pivot))
+                {
+                    if (adjacent == null || adjacent == attacker || adjacent == target || !adjacent.IsAlive)
+                        continue;
+                    if (adjacent.GetController() != pivot.GetController())
+                        continue; // 只打目标同侧（防守方）的相邻随从
+                    DealCombatDamage(attacker, adjacent, attackerPower);
+                }
+            }
+        }
+
+        /// <summary>获取实体的攻击力</summary>
         private int GetPower(Entity entity)
         {
             if (_layerEngine != null)
@@ -348,61 +412,43 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 造成战斗伤害（对实体）
+        /// 造成战斗伤害（对实体/玩家统一）：经 KeywordRules 关键词管线结算
+        /// （圣盾/护甲指示物/坚韧/剧毒/吸血/系命），实际造成 > 0 才发事件。
         /// </summary>
         private void DealCombatDamage(Entity source, Entity target, int amount)
         {
-            if (amount <= 0) return;
+            if (amount <= 0 || target == null || !target.IsAlive) return;
 
-            if (target is IHasLife hasLife)
-            {
-                hasLife.Life -= amount;
-            }
+            int actual = KeywordRules.ApplyDamage(source, target, amount, true);
+            if (actual <= 0) return; // 被圣盾/护甲/坚韧完全吸收
 
             EventManager.Instance.Publish(new CombatDamageEvent
             {
                 Attacker = source,
                 Defender = target,
-                Damage = amount
+                Damage = actual
             });
 
             EventManager.Instance.Publish(new DamageEvent
             {
                 Source = source,
                 Target = target,
-                Amount = amount
+                Amount = actual
             });
+
+            if (target is Player player)
+            {
+                EventManager.Instance.Publish(new LifeChangeEvent
+                {
+                    Player = player,
+                    OldLife = player.Life + actual,
+                    NewLife = player.Life,
+                    Source = source
+                });
+            }
         }
 
-        /// <summary>
-        /// 对玩家造成伤害
-        /// </summary>
-        private void DealDamageToPlayer(Entity source, Player target, int amount)
-        {
-            if (amount <= 0) return;
-
-            int oldLife = target.Life;
-            target.Life -= amount;
-
-            EventManager.Instance.Publish(new DamageEvent
-            {
-                Source = source,
-                Target = target,
-                Amount = amount
-            });
-
-            EventManager.Instance.Publish(new LifeChangeEvent
-            {
-                Player = target,
-                OldLife = oldLife,
-                NewLife = target.Life,
-                Source = source
-            });
-        }
-
-        /// <summary>
-        /// 结束战斗
-        /// </summary>
+        /// <summary>结束战斗</summary>
         public void EndCombat()
         {
             _currentPhase = CombatPhase.EndCombat;
@@ -418,9 +464,7 @@ namespace CardCore
             _blockers.Clear();
         }
 
-        /// <summary>
-        /// 取消战斗
-        /// </summary>
+        /// <summary>取消战斗</summary>
         public void CancelCombat()
         {
             _currentPhase = CombatPhase.None;

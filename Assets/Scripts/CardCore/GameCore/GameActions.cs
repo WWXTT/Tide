@@ -75,9 +75,12 @@ namespace CardCore
         // ======================================== 主阶段操作 ========================================
 
         /// <summary>
-        /// 主阶段：打出一张牌
-        /// 生物 → 进战场并把触发式效果注册到本核心的 TriggerEngine；
-        /// 法术 → 经本核心的 StackEngine/executor 立即结算后移入墓地。
+        /// 主阶段：打出一张牌。
+        /// 流程（发动区流转，Phase A 暂态 = 本方法内完成进出）：
+        /// 手牌 → 发动区（公开、可被指向；严格描述上还不算进入战场）→ 结算 →
+        /// 永久物入战场（满场预检在付费前拒绝——MD 式，卡留手牌不付费）；
+        /// 法术入墓（终态与改造前一致）。
+        /// 场上卡发动效果不经发动区（原地发动），那是 StackEngine 路径的事（后续接）。
         /// targets：可选的预选目标（如指向性法术）；为空时由各原子效果按配置自动解析。
         /// </summary>
         public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets = null)
@@ -89,6 +92,13 @@ namespace CardCore
             // 检查卡牌在手中
             var hand = core.ZoneManager.GetCards(player, Zone.Hand);
             if (!hand.Contains(card)) return false;
+
+            bool isSpell = card is IHasSupertype hasType && hasType.Supertype == Cardtype.Spell;
+
+            // 永久物：战场容量预检（付费前——满场不允许发动，SimpleAI 依赖 false 跳过；
+            // 「结算时入场满则失败入墓」由 TryMoveToBattlefield 承担）
+            if (!isSpell && !core.ZoneManager.HasBattlefieldSpace(player))
+                return false;
 
             // 读取费用并检查
             var cost = GetCardCost(card);
@@ -103,27 +113,32 @@ namespace CardCore
             // 设置控制者
             card.SetController(player);
 
-            bool isSpell = card is IHasSupertype hasType && hasType.Supertype == Cardtype.Spell;
+            // 发动开始：手牌 → 发动区（反制指向发动区而非手牌）
+            core.ZoneManager.MoveCard(card, player, Zone.Hand, Zone.Activation);
+            core.PublishEvent(new CardEnterActivationEvent
+            {
+                Card = card,
+                Controller = player,
+                FromZone = Zone.Hand
+            });
 
             if (isSpell)
             {
-                // 法术：从手牌移除，结算其效果，然后进墓地（不留在战场）
-                core.ZoneManager.MoveCard(card, player, Zone.Hand, Zone.Graveyard);
-
+                // 法术：发动 → 结算 → 入墓。
+                // 结算含异步原子（交互选目标等），完成前卡停留在发动区（严格描述：结算中的
+                // 法术位于发动区，可被指向）；结算完成后才离区入墓。PlayCard 保持同步 bool 契约，
+                // 结算链 fire-and-forget（先例：PassPriority）。
                 core.PublishEvent(new CardPlayEvent
                 {
                     Player = player,
                     PlayedCard = card
                 });
 
-                ResolveSpellEffects(core, player, card, targets);
+                ResolveSpellEffectsAsync(core, player, card, targets).Forget();
             }
             else
             {
-                // 永久物（生物等）：进战场，注册触发式效果到本核心的触发引擎
-                core.ZoneManager.MoveCard(card, player, Zone.Hand, Zone.Battlefield);
-                card.WasFormallySummoned = true; // 普通召唤正式入场
-
+                // 永久物（生物等）：注册触发式效果到本核心的触发引擎，经发动区入场
                 var cardEffects = new List<EffectDefinition>();
                 var cardDataEffects = GetCardEffectDefinitions(card);
                 if (cardDataEffects != null)
@@ -142,47 +157,57 @@ namespace CardCore
                     PlayedCard = card
                 });
 
-                core.PublishEvent(new CardPutToBattlefieldEvent
+                // 发动通过 → 入场（预检已过，此处必成功；满则入墓的兜底在 helper 内）
+                if (core.ZoneManager.TryMoveToBattlefield(card, player, Zone.Activation))
                 {
-                    Card = card,
-                    Controller = player,
-                    Tapped = false
-                });
+                    card.WasFormallySummoned = true; // 普通召唤正式入场
+
+                    // 仪式：入场即激活竞速任务（0 费说明书卡；全局唯一任务槽，后发顶先发）
+                    RitualSystem.OnPlayed(card, player);
+                }
             }
 
             return true;
         }
 
         /// <summary>
-        /// 立即结算法术的施放效果（经本核心的 EffectExecutor）。
+        /// 结算法术的施放效果（经本核心的 EffectExecutor），完成后离开发动区入墓。
         /// 法术一次性结算：OnPlay 等触发时点在此即是「施放即生效」，直接执行；
         /// 仅手动激活式能力（Activate_*）不随施放自动结算。
         /// 通过 EffectInstance 走与栈结算一致的执行路径，保证目标解析/事件一致。
+        /// 元素费已在 PlayCard 支付（skipElementCost 防双计）；特殊代价仍由执行器结算。
         /// </summary>
-        private static void ResolveSpellEffects(GameCore core, Player player, Card card, List<Entity> targets)
+        private static async Cysharp.Threading.Tasks.UniTask ResolveSpellEffectsAsync(
+            GameCore core, Player player, Card card, List<Entity> targets)
         {
             var defs = GetCardEffectDefinitions(card);
-            if (defs == null) return;
-
-            var executor = core.StackEngine.GetExecutor();
-
-            foreach (var def in defs)
+            if (defs != null)
             {
-                // 法术施放即结算：其全部效果（含 OnPlay 施放效果）立即执行后入墓地。
-                // 仅手动激活式能力（Activate_*）不随施放自动结算。
-                if (def.IsActivatedEffect)
-                    continue;
+                var executor = core.StackEngine.GetExecutor();
 
-                var instance = new EffectInstance
+                foreach (var def in defs)
                 {
-                    Definition = def,
-                    Source = card,
-                    Controller = player,
-                    Targets = targets != null ? new List<Entity>(targets) : new List<Entity>(),
-                };
+                    if (def.IsActivatedEffect)
+                        continue;
 
-                //executor.Execute(instance);
+                    await executor.ExecuteAsync(new EffectInstance
+                    {
+                        Definition = def,
+                        Source = card,
+                        Controller = player,
+                        Targets = targets != null ? new List<Entity>(targets) : new List<Entity>(),
+                    }, skipElementCost: true);
+                }
             }
+
+            // 结算完成 → 离开发动区入墓（终态与历史行为一致）
+            core.ZoneManager.MoveCard(card, player, Zone.Activation, Zone.Graveyard);
+            core.PublishEvent(new CardLeaveActivationEvent
+            {
+                Card = card,
+                Controller = player,
+                ToZone = Zone.Graveyard
+            });
         }
 
         /// <summary>

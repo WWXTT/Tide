@@ -94,8 +94,10 @@ namespace CardCore
         /// 异步执行效果。
         /// 原子效果通过 EffectHandlerRegistry.ExecuteEffectAsync 解析，交互 handler 可 await UI；
         /// 非交互 handler 即时完成，整体行为与原同步路径一致。
+        /// skipElementCost：调用方已付过元素费时跳过执行器的元素支付（防双计费）——
+        /// PlayCard 打出法术即此情形（卡费已在打出时支付）；特殊代价仍由执行器支付。
         /// </summary>
-        public async UniTask ExecuteAsync(EffectInstance instance)
+        public async UniTask ExecuteAsync(EffectInstance instance, bool skipElementCost = false)
         {
             if (instance == null)
                 throw new ArgumentNullException(nameof(instance));
@@ -103,6 +105,10 @@ namespace CardCore
                 throw new EffectResolutionException(instance.SourceEffect, "Effect instance has no definition");
 
             var effect = instance.Definition;
+
+            // 潜行：发动效果后移除（攻击后的移除在 CombatSystem.DeclareAttack）
+            if (instance.Source is Card sourceCard && sourceCard.HasKeyword(KeywordRules.Stealth))
+                sourceCard.RemoveKeyword(KeywordRules.Stealth);
 
             // 解析上下文：承载无效化(Negate)/逻辑替换(ReplaceLogic)/撤销(Undo) 状态，
             // 贯穿本次结算并随结算事件发布。
@@ -121,6 +127,7 @@ namespace CardCore
             };
 
             // 代价支付：元素代价由配置表自动推导（费用唯一权威），经「抵消+元素」异步路径支付；
+            // 卡内效果（ElementCostPrepaid）的元素费已随卡牌档位费收讫，跳过以防双计；游戏中途授予的动态效果照付。
             // 卡牌的 effect.Costs 仅保留非元素的特殊代价（Sleep/SummonMaterial/弃牌 等），走原子同步支付。
             var elementCosts = CostDerivationService.DeriveElementCosts(effect);
             var specialCosts = effect.Costs != null
@@ -142,7 +149,7 @@ namespace CardCore
                     throw new EffectResolutionException(instance.SourceEffect, $"Cost payment failed for effect {effect.Id}.");
                 }
 
-                if (elementCosts.Count > 0 &&
+                if (!skipElementCost && !effect.ElementCostPrepaid && elementCosts.Count > 0 &&
                     !await CostOffsetService.PayElementWithOffsetAsync(elementCosts, costContext))
                 {
                     throw new EffectResolutionException(instance.SourceEffect, $"Element cost payment failed for effect {effect.Id}.");
@@ -258,9 +265,29 @@ namespace CardCore
         /// <summary>
         /// 评估 OutcomeGate 条件并执行对应的 then/else 奖励（免费、各自解析目标）。
         /// 评估读取的是「当前目标」刚写入的 LastOutcome。
+        /// 预言族条件（延迟验证）在此拦截：不即时评估，把分支打包成 PendingProphecy
+        /// 注册到 ProphecySystem——对手下回合首张出牌时验证，到期未验证作未命中走 else。
         /// </summary>
         private async UniTask ApplyGateRewardsAsync(RuntimeEffectStep gate, EffectExecutionContext context)
         {
+            if (BranchConditionEvaluator.IsDelayedCondition(gate.ConditionId))
+            {
+                ProphecySystem.Register(new PendingProphecy
+                {
+                    Declarer = context.Controller,
+                    Source = context.Source,
+                    Declaration = context.LastOutcome.Declaration ?? gate.ConditionStringParam,
+                    ConditionId = gate.ConditionId,
+                    ConditionParam = gate.ConditionParam,
+                    ConditionStringParam = gate.ConditionStringParam,
+                    Then = gate.Then,
+                    Else = gate.Else,
+                    ZoneManager = context.ZoneManager,
+                    ElementPool = context.ElementPool,
+                });
+                return;
+            }
+
             bool pass = BranchConditionEvaluator.Evaluate(
                 gate.ConditionId, context.LastOutcome, gate.ConditionParam, gate.ConditionStringParam, context);
             if (gate.Negate) pass = !pass;
@@ -862,7 +889,6 @@ namespace CardCore
             {
                 new DealDamageHandler(),
                 new DestroyHandler(),
-                new GrantHasteHandler(),
                 new DrawCardHandler(),
                 new ReturnToHandHandler(),
                 new FreezePermanentHandler(),
@@ -893,6 +919,16 @@ namespace CardCore
                 new SetPowerHandler(),
                 new SetLifeHandler(),
                 new ModifyCostHandler(),
+
+                // 信息族 — 宣言（即时验证）/ 预言（隐藏押注，延迟验证）
+                new DeclareHandHandler(),
+                new DeclareHandSampledHandler(),
+                new DeclareDeckTopHandler(),
+                new DeclareArrowHandler(),
+                new ProphecyNextCardHandler(),
+
+                // 护甲原子（指示物形式，可作用自身/他人——与固定 −1 的坚韧关键词互补）
+                new AddArmorHandler(),
             };
             foreach (var handler in handlers)
                 EffectHandlerRegistry.Register(handler);
@@ -919,6 +955,9 @@ namespace CardCore
 
             // 注册内置代价处理器
             BuiltinCostHandlers.RegisterAll();
+
+            // 仪式光环装饰器（血偿仪典：生命代价改由对手支付；内部查询状态，无完成者时行为不变）
+            RitualEffects.RegisterBloodPact();
 
             // 注册网罗自检：除「暂不实现」2 种外，所有原子效果类型都应有处理器
             VerifyHandlerCoverage();

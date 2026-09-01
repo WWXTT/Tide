@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace CardCore
@@ -57,6 +57,14 @@ namespace CardCore
         /// 灵摆区（灵摆刻度）
         /// </summary>
         PendulumZone,
+
+        /// <summary>
+        /// 发动区（万能结算位）：隐蔽区（手牌/卡组等）来源的发动先移入此区结算，
+        /// 公开且可被指向（反制指向发动区而非来源区）；结算后按去向离区
+        /// （入场型进战场、满则失败入墓；非入场型回原位）。场上卡原地发动，不经此区。
+        /// 注意：新值只能追加在枚举末尾——RuntimeCardStateDTO 按 int 序列化，插中间会错位旧档。
+        /// </summary>
+        Activation,
     }
 
     /// <summary>
@@ -394,6 +402,12 @@ namespace CardCore
     /// </summary>
     public class ZoneManager
     {
+        /// <summary>
+        /// 每玩家战场容量上限（= 单位区 2×9；设计稿「战场宽度 2×9=18」）。
+        /// 计数语义，与棋盘格子无关——棋盘只是核心状态的派生表现层。
+        /// </summary>
+        public const int BattlefieldCapacityPerPlayer = 18;
+
         private Dictionary<Player, ZoneContainer> playerZones = new Dictionary<Player, ZoneContainer>();
 
         public ZoneManager()
@@ -406,6 +420,13 @@ namespace CardCore
             {
                 playerZones[player] = new ZoneContainer(player);
             }
+        }
+
+        /// <summary>战场是否还有空位（手动出牌预检与结算时入场的容量闸门）</summary>
+        public bool HasBattlefieldSpace(Player player)
+        {
+            return playerZones.TryGetValue(player, out var container)
+                   && container.GetCount(Zone.Battlefield) < BattlefieldCapacityPerPlayer;
         }
 
         /// <summary>
@@ -484,6 +505,7 @@ namespace CardCore
             zones[from].Remove(card);
             if (!zones[to].Contains(card))
                 zones[to].Add(card);
+            card._zone = to; // 区域真源维护：_zone 随容器移动同步（见类尾注释）
         }
 
         /// <summary>
@@ -493,6 +515,7 @@ namespace CardCore
         {
             zones[from].Remove(card);
             InsertByPosition(zones[to], card, position);
+            card._zone = to;
         }
 
         /// <summary>
@@ -502,6 +525,7 @@ namespace CardCore
         {
             if (!zones[zone].Contains(card))
                 zones[zone].Add(card);
+            card._zone = zone;
         }
 
         /// <summary>
@@ -510,6 +534,7 @@ namespace CardCore
         public void Add(Card card, Zone zone, DeckPosition position)
         {
             InsertByPosition(zones[zone], card, position);
+            card._zone = zone;
         }
 
         /// <summary>
@@ -518,6 +543,7 @@ namespace CardCore
         public void Remove(Card card, Zone zone)
         {
             zones[zone].Remove(card);
+            card._zone = Zone.None;
         }
 
         /// <summary>
@@ -549,8 +575,15 @@ namespace CardCore
         /// </summary>
         public void Clear(Zone zone)
         {
+            foreach (var card in zones[zone])
+                card._zone = Zone.None;
             zones[zone].Clear();
         }
+
+        // 【区域真源约定】Card._zone 由本容器的 Move/Add/Remove/Clear 统一维护，
+        // 调用方不再手动 SetZone（历史上仅部分 handler 手动同步，导致 _zone 与容器
+        // 真实位置脱节、卡双挂在旧区域列表）。例外：RuntimeCardStateDTO.ApplyToCard
+        // 直写 _zone 重建快照——快照恢复=状态重建，不发区域事件，保持现状。
 
         /// <summary>
         /// 就地洗乱指定区域顺序（Fisher-Yates）。
@@ -721,6 +754,94 @@ namespace CardCore
 
             // 必须洗乱区域内部列表本身：GetCards 返回的是副本，洗它不会影响牌库
             container.Shuffle(Zone.Deck);
+        }
+
+        // ======================= 入场容量闸门 =======================
+        // 手动出牌（PlayCard）满场 = 预检拒绝（MD 式，卡留手牌不付费）；
+        // 结算时入场（发动区通过/检索/复活/召唤/衍生物/副本）满场 = 失败入墓。
+
+        /// <summary>
+        /// 尝试让已有卡牌入场（结算时入场的统一容量闸门，PlayCard 发动区流转的共用出口）：
+        /// 己方战场有空位 → 移入战场并发布 CardPutToBattlefieldEvent（来自发动区时先发离区事件）；
+        /// 战场已满 → 入场失败：卡入墓（来源即墓地则原地不动）并发 CardActivationFailedEvent。
+        /// 设计规则：发动通过后要进战场时失败 → 进墓地。
+        /// </summary>
+        /// <returns>true = 成功入场</returns>
+        public static bool TryMoveToBattlefield(this ZoneManager zm, Card card, Player controller, Zone fromZone, bool tapped = false)
+        {
+            if (zm == null || card == null || controller == null) return false;
+            var container = zm.GetZoneContainer(controller);
+            if (container == null) return false;
+
+            if (!zm.HasBattlefieldSpace(controller))
+            {
+                if (fromZone != Zone.Graveyard)
+                    container.Move(card, fromZone, Zone.Graveyard);
+                PublishEntryEvent(new CardActivationFailedEvent
+                {
+                    Card = card,
+                    Controller = controller,
+                    FromZone = fromZone,
+                    Reason = "BattlefieldFull",
+                });
+                return false;
+            }
+
+            container.Move(card, fromZone, Zone.Battlefield);
+            card.SummonedThisTurn = true; // 召唤失调：入场当回合不可攻击（冲锋/突袭豁免）
+
+            if (fromZone == Zone.Activation)
+                PublishEntryEvent(new CardLeaveActivationEvent
+                {
+                    Card = card,
+                    Controller = controller,
+                    ToZone = Zone.Battlefield,
+                });
+
+            PublishEntryEvent(new CardPutToBattlefieldEvent
+            {
+                Card = card,
+                Controller = controller,
+                Tapped = tapped,
+            });
+            return true;
+        }
+
+        /// <summary>
+        /// 尝试把新建卡牌（衍生物/副本——尚未在任何区域）加入战场：
+        /// 满则进墓地并发失败事件（保持与在场卡同一"满则入墓"规则）。
+        /// 成功路径不额外发 CardPutToBattlefieldEvent——沿用现状（token/副本入场原本不发），
+        /// 事件覆盖统一留给呈现层接线时处理。
+        /// </summary>
+        public static bool TryAddToBattlefield(this ZoneManager zm, Card card, Player controller)
+        {
+            if (zm == null || card == null || controller == null) return false;
+            var container = zm.GetZoneContainer(controller);
+            if (container == null) return false;
+
+            if (!zm.HasBattlefieldSpace(controller))
+            {
+                container.Add(card, Zone.Graveyard);
+                PublishEntryEvent(new CardActivationFailedEvent
+                {
+                    Card = card,
+                    Controller = controller,
+                    FromZone = Zone.None,
+                    Reason = "BattlefieldFull",
+                });
+                return false;
+            }
+
+            container.Add(card, Zone.Battlefield);
+            card.SummonedThisTurn = true; // 召唤失调：入场当回合不可攻击（冲锋/突袭豁免）
+            return true;
+        }
+
+        /// <summary>入场/发动区事件统一经 GameCore 路由（Replacement→Event→Trigger→Layer），未接线时退化为事件总线</summary>
+        private static void PublishEntryEvent<T>(T e) where T : IGameEvent
+        {
+            if (GameCore.Instance != null) GameCore.Instance.PublishEvent(e);
+            else EventManager.Instance.Publish(e);
         }
     }
 }

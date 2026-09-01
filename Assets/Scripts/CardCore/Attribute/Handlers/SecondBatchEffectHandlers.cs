@@ -40,7 +40,11 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        /// <summary>变更控制者：跨玩家迁移战场容器 + 改写控制者 + 发布事件</summary>
+        /// <summary>
+        /// 变更控制者：跨玩家迁移战场容器 + 改写控制者 + 发布事件。
+        /// 定案：控制权变更 = 场内迁移，不产生新占用——不经入场容量闸门
+        /// （满场偷取仍生效，卡从旧控制者半场迁入新控制者名下；棋盘层按列表顺序派生呈现）。
+        /// </summary>
         internal static void ChangeControl(EffectExecutionContext context, Card card, Player newController, bool permanent)
         {
             if (card == null || newController == null) return;
@@ -473,7 +477,7 @@ namespace CardCore.Attribute.Handlers
             int dmg = context.GetValueAfterModifiers(effect.Value);
             foreach (var target in context.Targets)
             {
-                target.TakeDamage(dmg);
+                target.TakeDamage(dmg, context.Source, isCombat: true);
                 PublishEvent(new AtomicDamageEvent
                 {
                     Source = context.Source, Target = target, Damage = dmg,
@@ -525,8 +529,8 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 int tgtPow = HandlerHelpers.CurrentPower(target);
-                target.TakeDamage(srcPow);
-                src.TakeDamage(tgtPow);
+                target.TakeDamage(srcPow, src, isCombat: true);
+                src.TakeDamage(tgtPow, target, isCombat: true);
                 PublishEvent(new FightEvent
                 {
                     Attacker = src, Defender = target,
@@ -553,7 +557,7 @@ namespace CardCore.Attribute.Handlers
             var target = context.PrimaryTarget ?? (Entity)context.Controller?.Opponent;
             if (target == null) return;
 
-            target.TakeDamage(dmg);
+            target.TakeDamage(dmg, context.Source);
             PublishEvent(new AtomicDamageEvent
             {
                 Source = context.Source, Target = target, Damage = dmg,
@@ -585,9 +589,11 @@ namespace CardCore.Attribute.Handlers
                 copy._baseCost = orig._baseCost;
                 foreach (var kw in orig._keywords) copy._keywords.Add(kw);
                 copy.SetController(context.Controller);
-                copy.SetZone(Zone.Battlefield);
 
-                context.ZoneManager?.GetZoneContainer(context.Controller)?.Add(copy, Zone.Battlefield);
+                // 入场容量闸门：满则副本入墓并发失败事件
+                if (context.ZoneManager == null ||
+                    !context.ZoneManager.TryAddToBattlefield(copy, context.Controller))
+                    continue;
 
                 PublishEvent(new CardCopiedEvent
                 {

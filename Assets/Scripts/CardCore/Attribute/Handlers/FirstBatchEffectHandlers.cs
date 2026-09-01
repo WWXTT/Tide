@@ -46,11 +46,14 @@ namespace CardCore.Attribute.Handlers
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             int dmg = context.GetValueAfterModifiers(effect.Value);
+            int drained = 0;
             foreach (var target in context.Targets)
             {
                 int lifeBefore = target.GetLife();
-                target.TakeDamage(dmg);
-                context.LastOutcome.RecordDamage(target, lifeBefore, dmg);
+                target.TakeDamage(dmg, context.Source); // 关键词管线
+                int actual = System.Math.Max(0, lifeBefore - target.GetLife());
+                drained += actual;
+                context.LastOutcome.RecordDamage(target, lifeBefore, actual);
                 PublishEvent(new AtomicDamageEvent
                 {
                     Source = context.Source,
@@ -61,10 +64,10 @@ namespace CardCore.Attribute.Handlers
                 });
             }
 
-            if (context.Controller != null)
+            if (context.Controller != null && drained > 0)
             {
-                context.Controller.Heal(dmg);
-                PublishEvent(new HealEvent { Target = context.Controller, Amount = dmg, Source = context.Source });
+                context.Controller.Heal(drained);
+                PublishEvent(new HealEvent { Target = context.Controller, Amount = drained, Source = context.Source });
             }
         }
 
@@ -300,17 +303,11 @@ namespace CardCore.Attribute.Handlers
             for (int i = 0; i < count && i < revivable.Count; i++)
             {
                 var card = revivable[i];
-                context.ZoneManager.GetZoneContainer(context.Controller).Move(card, Zone.Graveyard, Zone.Battlefield);
+                // 经入场容量闸门：满则失败——卡留在墓地（来源即墓地，无移动），发失败事件
+                if (!context.ZoneManager.TryMoveToBattlefield(card, context.Controller, Zone.Graveyard))
+                    continue;
                 card.SetController(context.Controller);
-                card.SetZone(Zone.Battlefield);
                 card.WasFormallySummoned = true; // 复活也是一次正式入场
-
-                PublishEvent(new CardPutToBattlefieldEvent
-                {
-                    Card = card,
-                    Controller = context.Controller,
-                    Tapped = false
-                });
             }
         }
 

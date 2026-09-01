@@ -17,7 +17,12 @@ namespace CardCore.Attribute.Handlers
         internal static void DestroyToGraveyard(Card card, EffectExecutionContext context)
         {
             if (card == null) return;
+            // 不灭：不受摧毁/消灭效果影响
+            if (card.HasKeyword(KeywordRules.Indestructible)) return;
             card.IsAlive = false;
+
+            // 复生：死亡时以 1 血回场（消耗关键词，留在战场）
+            if (KeywordRules.TryReborn(card)) return;
 
             var controller = card.GetController();
             if (context.ZoneManager != null && controller != null)
@@ -219,11 +224,11 @@ namespace CardCore.Attribute.Handlers
             if (top.Count == 0) return;
 
             var card = top[0];
-            context.ZoneManager.GetZoneContainer(context.Controller).Move(card, Zone.Deck, Zone.Battlefield);
+            // 经入场容量闸门：满则失败入墓（牌库顶 → 墓地）并发失败事件
+            if (!context.ZoneManager.TryMoveToBattlefield(card, context.Controller, Zone.Deck))
+                return;
             card.SetController(context.Controller);
-            card.SetZone(Zone.Battlefield);
             card.WasFormallySummoned = true; // 检索直接上场＝正式入场
-            PublishEvent(new CardPutToBattlefieldEvent { Card = card, Controller = context.Controller, Tapped = false });
         }
 
         public override string GetDescription(AtomicEffectInstance effect) => "检索并使用牌库顶卡";
@@ -329,7 +334,7 @@ namespace CardCore.Attribute.Handlers
 
             foreach (var target in context.Targets)
             {
-                target.TakeDamage(dmg);
+                target.TakeDamage(dmg, context.Source);
                 PublishEvent(new AtomicDamageEvent
                 {
                     Source = context.Source, Target = target, Damage = dmg,
@@ -423,9 +428,12 @@ namespace CardCore.Attribute.Handlers
                 foreach (var kw in orig._keywords) copy._keywords.Add(kw);
                 foreach (var kv in orig._counters) copy._counters[kv.Key] = kv.Value;
                 copy.SetController(context.Controller);
-                copy.SetZone(Zone.Battlefield);
 
-                context.ZoneManager?.GetZoneContainer(context.Controller)?.Add(copy, Zone.Battlefield);
+                // 入场容量闸门：满则副本入墓并发失败事件
+                if (context.ZoneManager == null ||
+                    !context.ZoneManager.TryAddToBattlefield(copy, context.Controller))
+                    continue;
+
                 PublishEvent(new CardCopiedEvent
                 {
                     OriginalCard = orig, Controller = context.Controller, Source = context.Source

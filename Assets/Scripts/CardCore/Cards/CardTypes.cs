@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -117,7 +117,7 @@ namespace CardCore
     /// </summary>
     public interface IHasKeywords
     {
-        HashSet<string> Keywords { get; set; }
+        List<string> Keywords { get; set; }
 
         void AddKeyword(string keywordId);
         void RemoveKeyword(string keywordId);

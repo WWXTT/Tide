@@ -6,7 +6,8 @@ namespace CardCore
     /// <summary>
     /// 关键词效果映射器
     /// 将关键词 ID 转换为可执行的运行时效果。
-    /// 数据唯一真相源：Assets/Configs/KeywordsConfig.json（经 CardLoader.LoadKeywords 加载）。
+    /// 数据唯一真相源：原子效果表（AttributeValueConfig.json，经 CardLoader.LoadKeywords
+    /// 从 Grant* 条目合成关键词定义；关键词不单独开表）。
     ///
     /// 关键词分两类：
     /// 1. 被动标记型（Passive）- 写入 IHasKeywords，由游戏系统查询
@@ -66,6 +67,7 @@ namespace CardCore
                 IsOptional = false,
                 Duration = DurationType.Permanent,
                 SourceCardId = sourceCardId,
+                ElementCostPrepaid = true, // 关键词费在 CardCostService 的 K 项内收讫，执行器跳过防双计
                 Effects = new List<AtomicEffectInstance>
                 {
                     new AtomicEffectInstance
