@@ -1,5 +1,6 @@
 [
   {
+    "ID": "a4b823fc",
     "EnumName": "造成伤害",
     "DisplayName": "对{target}造成{value}点伤害",
     "EffectFunction": "Damage",
@@ -14,11 +15,12 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "599fcc9a",
     "EnumName": "回复生命",
     "DisplayName": "为{target}回复{value}点生命",
     "EffectFunction": "Heal",
     "EffectColor": "Green",
-    "BaseCost": 1.0,
+    "BaseCost": 0.5,
     "EffectType": "Heal",
     "TargetType": "Target",
     "TargetFilter": "Creature,Player",
@@ -28,34 +30,7 @@
     "ActivationType": "Voluntary"
   },
   {
-    "EnumName": "范围伤害",
-    "DisplayName": "对所有{target}造成{value}点伤害",
-    "EffectFunction": "Damage",
-    "EffectColor": "Red",
-    "BaseCost": 1.0,
-    "EffectType": "AoEDamage",
-    "TargetType": "AllEnemies",
-    "TargetFilter": "Creature",
-    "TargetCount": 0,
-    "TargetScope": "AoE",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
-  },
-  {
-    "EnumName": "分配伤害",
-    "DisplayName": "对{target}随机分配{value}点伤害",
-    "EffectFunction": "Damage",
-    "EffectColor": "Red",
-    "BaseCost": 1.0,
-    "EffectType": "SplitDamage",
-    "TargetType": "AllEnemies",
-    "TargetFilter": "Creature",
-    "TargetCount": 0,
-    "TargetScope": "Spread",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
-  },
-  {
+    "ID": "af632f07",
     "EnumName": "不可防止伤害",
     "DisplayName": "造成{value}点不可防止的伤害",
     "EffectFunction": "Damage",
@@ -70,6 +45,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "a95334f7",
     "EnumName": "恢复满生命",
     "DisplayName": "恢复{target}满生命",
     "EffectFunction": "Damage",
@@ -84,6 +60,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "81ea17f3",
     "EnumName": "吸取生命",
     "DisplayName": "吸取{target}{value}点生命",
     "EffectFunction": "Damage",
@@ -98,6 +75,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "635ee226",
     "EnumName": "剧毒伤害",
     "DisplayName": "对{target}造成剧毒伤害",
     "EffectFunction": "Damage",
@@ -112,6 +90,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "03c85bc4",
     "EnumName": "抽卡",
     "DisplayName": "抽{value}张卡",
     "EffectFunction": "Movement",
@@ -126,6 +105,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "faa680e5",
     "EnumName": "弃牌",
     "DisplayName": "弃掉{value}张牌",
     "EffectFunction": "Movement",
@@ -140,6 +120,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "07160bd5",
     "EnumName": "返回手牌",
     "DisplayName": "将{target}返回手牌",
     "EffectFunction": "Movement",
@@ -154,6 +135,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "7ce43160",
     "EnumName": "除外",
     "DisplayName": "将{target}除外",
     "EffectFunction": "Movement",
@@ -168,6 +150,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "979b9562",
     "EnumName": "洗入牌库",
     "DisplayName": "将{target}洗入牌库",
     "EffectFunction": "Movement",
@@ -182,6 +165,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "abd10ac7",
     "EnumName": "检索牌库",
     "DisplayName": "从牌库检索{value}张牌",
     "EffectFunction": "Movement",
@@ -196,6 +180,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "09a3f33f",
     "EnumName": "弹回牌库顶",
     "DisplayName": "将{target}放回牌库顶",
     "EffectFunction": "Movement",
@@ -210,6 +195,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "3813c80e",
     "EnumName": "弹回牌库底",
     "DisplayName": "将{target}放回牌库底",
     "EffectFunction": "Movement",
@@ -224,6 +210,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "36b85358",
     "EnumName": "墓地返回",
     "DisplayName": "从墓地返回{target}到战场",
     "EffectFunction": "Movement",
@@ -238,6 +225,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "84e47f42",
     "EnumName": "查看牌库顶",
     "DisplayName": "查看牌库顶{value}张牌",
     "EffectFunction": "Movement",
@@ -252,6 +240,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "e3746544",
     "EnumName": "展示手牌",
     "DisplayName": "展示{target}玩家的手牌",
     "EffectFunction": "Movement",
@@ -266,6 +255,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "8ba7a744",
     "EnumName": "修改攻击力",
     "DisplayName": "{target}攻击力+{value}",
     "EffectFunction": "Status",
@@ -280,6 +270,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "70fb31a5",
     "EnumName": "修改生命值",
     "DisplayName": "{target}生命值+{value}",
     "EffectFunction": "Status",
@@ -294,6 +285,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "70034aee",
     "EnumName": "设置攻击力",
     "DisplayName": "将{target}攻击力设为{value}",
     "EffectFunction": "Status",
@@ -308,6 +300,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "38a43580",
     "EnumName": "设置生命值",
     "DisplayName": "将{target}生命值设为{value}",
     "EffectFunction": "Status",
@@ -322,6 +315,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "06a388e0",
     "EnumName": "修改费用",
     "DisplayName": "修改{target}的费用{value}",
     "EffectFunction": "Status",
@@ -336,8 +330,9 @@
     "ActivationType": "Voluntary"
   },
   {
-    "EnumName": "敏捷",
-    "DisplayName": "{target}获得敏捷",
+    "ID": "ca29e92c",
+    "EnumName": "冲锋",
+    "DisplayName": "{target}获得冲锋",
     "EffectFunction": "Protection",
     "EffectColor": "Red",
     "BaseCost": 1.0,
@@ -350,6 +345,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "961cd459",
     "EnumName": "突袭",
     "DisplayName": "{target}获得突袭",
     "EffectFunction": "Protection",
@@ -364,8 +360,9 @@
     "ActivationType": "Voluntary"
   },
   {
-    "EnumName": "双击",
-    "DisplayName": "{target}获得双击",
+    "ID": "974b5090",
+    "EnumName": "连击",
+    "DisplayName": "{target}获得连击",
     "EffectFunction": "Protection",
     "EffectColor": "Red",
     "BaseCost": 1.0,
@@ -378,8 +375,9 @@
     "ActivationType": "Voluntary"
   },
   {
-    "EnumName": "践踏",
-    "DisplayName": "{target}获得践踏",
+    "ID": "fa805f21",
+    "EnumName": "穿透",
+    "DisplayName": "{target}获得穿透",
     "EffectFunction": "Protection",
     "EffectColor": "Green",
     "BaseCost": 1.0,
@@ -392,6 +390,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "700b6582",
     "EnumName": "剧毒",
     "DisplayName": "{target}获得剧毒",
     "EffectFunction": "Protection",
@@ -406,6 +405,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "3d875f73",
     "EnumName": "吸血",
     "DisplayName": "{target}获得吸血",
     "EffectFunction": "Protection",
@@ -420,6 +420,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "b9224676",
     "EnumName": "潜行",
     "DisplayName": "{target}获得潜行",
     "EffectFunction": "Protection",
@@ -434,6 +435,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "299b3e64",
     "EnumName": "嘲讽",
     "DisplayName": "{target}获得嘲讽",
     "EffectFunction": "Protection",
@@ -448,6 +450,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "9f7acbb1",
     "EnumName": "圣盾",
     "DisplayName": "{target}获得圣盾",
     "EffectFunction": "Protection",
@@ -462,6 +465,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "641967eb",
     "EnumName": "碾压",
     "DisplayName": "{target}获得碾压",
     "EffectFunction": "Protection",
@@ -476,8 +480,9 @@
     "ActivationType": "Voluntary"
   },
   {
-    "EnumName": "获得护甲",
-    "DisplayName": "{target}获得{value}点护甲",
+    "ID": "ebd9e140",
+    "EnumName": "坚韧",
+    "DisplayName": "{target}获得{value}点坚韧",
     "EffectFunction": "Protection",
     "EffectColor": "White",
     "BaseCost": 1.0,
@@ -490,6 +495,7 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "f315c1cd",
     "EnumName": "守卫",
     "DisplayName": "{target}获得守卫",
     "EffectFunction": "Protection",
@@ -501,6 +507,216 @@
     "TargetCount": 1,
     "TargetScope": "Single",
     "DurationType": "Permanent",
+    "ActivationType": "Voluntary"
+  },
+  {
+    "ID": "59e89e84",
+    "EnumName": "宣言确认手牌",
+    "DisplayName": "宣言{stringvalue}并确认对手全手牌",
+    "EffectFunction": "Information",
+    "EffectColor": "Blue",
+    "BaseCost": 2.0,
+    "EffectType": "DeclareHand",
+    "TargetType": "None",
+    "TargetFilter": null,
+    "TargetCount": 0,
+    "TargetScope": "Single",
+    "DurationType": "Instant",
+    "ActivationType": "Voluntary"
+  },
+  {
+    "ID": "96fdc8d5",
+    "EnumName": "宣言探查手牌",
+    "DisplayName": "宣言{stringvalue}并探查对手3张手牌",
+    "EffectFunction": "Information",
+    "EffectColor": "Blue",
+    "BaseCost": 1.0,
+    "EffectType": "DeclareHandSampled",
+    "TargetType": "None",
+    "TargetFilter": null,
+    "TargetCount": 0,
+    "TargetScope": "Single",
+    "DurationType": "Instant",
+    "ActivationType": "Voluntary"
+  },
+  {
+    "ID": "60d780ed",
+    "EnumName": "宣言验牌库顶",
+    "DisplayName": "宣言{stringvalue}并展示己方牌库顶",
+    "EffectFunction": "Information",
+    "EffectColor": "Blue",
+    "BaseCost": 1.0,
+    "EffectType": "DeclareDeckTop",
+    "TargetType": "None",
+    "TargetFilter": null,
+    "TargetCount": 0,
+    "TargetScope": "Single",
+    "DurationType": "Instant",
+    "ActivationType": "Voluntary"
+  },
+  {
+    "ID": "c320f89a",
+    "EnumName": "宣言箭头",
+    "DisplayName": "宣言{stringvalue}箭头并确认对手额外卡组",
+    "EffectFunction": "Information",
+    "EffectColor": "Blue",
+    "BaseCost": 1.0,
+    "EffectType": "DeclareArrow",
+    "TargetType": "None",
+    "TargetFilter": null,
+    "TargetCount": 0,
+    "TargetScope": "Single",
+    "DurationType": "Instant",
+    "ActivationType": "Voluntary"
+  },
+  {
+    "ID": "55a771de",
+    "EnumName": "预言下回合首张",
+    "DisplayName": "预言对手下回合首张卡为{stringvalue}",
+    "EffectFunction": "Information",
+    "EffectColor": "Blue",
+    "BaseCost": 1.0,
+    "EffectType": "ProphecyNextCard",
+    "TargetType": "None",
+    "TargetFilter": null,
+    "TargetCount": 0,
+    "TargetScope": "Single",
+    "DurationType": "Instant",
+    "ActivationType": "Voluntary"
+  },
+  {
+    "ID": "429b6976",
+    "EnumName": "警戒",
+    "DisplayName": "{target}获得警戒",
+    "EffectFunction": "Protection",
+    "EffectColor": "Blue",
+    "BaseCost": 1.0,
+    "EffectType": "GrantVigilance",
+    "TargetType": "Target",
+    "TargetFilter": "Creature",
+    "TargetCount": 1,
+    "TargetScope": "Single",
+    "DurationType": "Permanent",
+    "ActivationType": "Voluntary"
+  },
+  {
+    "ID": "8a78229d",
+    "EnumName": "先攻",
+    "DisplayName": "{target}获得先攻",
+    "EffectFunction": "Protection",
+    "EffectColor": "Red",
+    "BaseCost": 1.0,
+    "EffectType": "GrantFirstStrike",
+    "TargetType": "Target",
+    "TargetFilter": "Creature",
+    "TargetCount": 1,
+    "TargetScope": "Single",
+    "DurationType": "Permanent",
+    "ActivationType": "Voluntary"
+  },
+  {
+    "ID": "05b7d568",
+    "EnumName": "风怒",
+    "DisplayName": "{target}获得风怒",
+    "EffectFunction": "Protection",
+    "EffectColor": "Red",
+    "BaseCost": 1.0,
+    "EffectType": "GrantWindfury",
+    "TargetType": "Target",
+    "TargetFilter": "Creature",
+    "TargetCount": 1,
+    "TargetScope": "Single",
+    "DurationType": "Permanent",
+    "ActivationType": "Voluntary"
+  },
+  {
+    "ID": "2e6955f0",
+    "EnumName": "法术护盾",
+    "DisplayName": "{target}获得法术护盾",
+    "EffectFunction": "Protection",
+    "EffectColor": "Blue",
+    "BaseCost": 1.0,
+    "EffectType": "GrantSpellShield",
+    "TargetType": "Target",
+    "TargetFilter": "Creature",
+    "TargetCount": 1,
+    "TargetScope": "Single",
+    "DurationType": "Permanent",
+    "ActivationType": "Voluntary"
+  },
+  {
+    "ID": "7d8363dc",
+    "EnumName": "辟邪",
+    "DisplayName": "{target}获得辟邪",
+    "EffectFunction": "Protection",
+    "EffectColor": "Blue",
+    "BaseCost": 1.0,
+    "EffectType": "GrantCannotBeTargeted",
+    "TargetType": "Target",
+    "TargetFilter": "Creature",
+    "TargetCount": 1,
+    "TargetScope": "Single",
+    "DurationType": "Permanent",
+    "ActivationType": "Voluntary"
+  },
+  {
+    "ID": "4715ddea",
+    "EnumName": "复生",
+    "DisplayName": "{target}获得复生",
+    "EffectFunction": "Protection",
+    "EffectColor": "Green",
+    "BaseCost": 1.0,
+    "EffectType": "GrantReborn",
+    "TargetType": "Target",
+    "TargetFilter": "Creature",
+    "TargetCount": 1,
+    "TargetScope": "Single",
+    "DurationType": "Permanent",
+    "ActivationType": "Voluntary"
+  },
+  {
+    "ID": "e25e376d",
+    "EnumName": "不灭",
+    "DisplayName": "{target}获得不灭",
+    "EffectFunction": "Protection",
+    "EffectColor": "Green",
+    "BaseCost": 1.0,
+    "EffectType": "GrantIndestructible",
+    "TargetType": "Target",
+    "TargetFilter": "Creature",
+    "TargetCount": 1,
+    "TargetScope": "Single",
+    "DurationType": "Permanent",
+    "ActivationType": "Voluntary"
+  },
+  {
+    "ID": "97d5536e",
+    "EnumName": "系命",
+    "DisplayName": "{target}获得系命",
+    "EffectFunction": "Protection",
+    "EffectColor": "Green",
+    "BaseCost": 1.0,
+    "EffectType": "GrantLifelink",
+    "TargetType": "Target",
+    "TargetFilter": "Creature",
+    "TargetCount": 1,
+    "TargetScope": "Single",
+    "DurationType": "Permanent",
+    "ActivationType": "Voluntary"
+  },
+  {
+    "ID": "2a7d3092",
+    "EnumName": "护甲",
+    "DisplayName": "为{target}添加{value}点护甲",
+    "EffectFunction": "Protection",
+    "EffectColor": "Green",
+    "BaseCost": 1.0,
+    "EffectType": "AddArmor",
+    "TargetType": "Target",
+    "TargetFilter": "Creature,Player",
+    "TargetCount": 1,
+    "TargetScope": "Single",
+    "DurationType": "Instant",
     "ActivationType": "Voluntary"
   }
 ]

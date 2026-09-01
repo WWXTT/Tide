@@ -198,7 +198,10 @@ namespace CardCore
                     case "Red": return ElementAffinity.Single(ManaType.Red);
                     case "Blue": return ElementAffinity.Single(ManaType.Blue);
                     case "Green": return ElementAffinity.Single(ManaType.Green);
-                    case "Gray": return ElementAffinity.Generic;
+                    // 预留色黑白正式归一为灰（定案：效果颜色只落红蓝绿灰；表内 White/Black 行照旧，计价/支付按灰）
+                    case "Gray":
+                    case "White":
+                    case "Black": return ElementAffinity.Generic;
                 }
             }
             return Generic;

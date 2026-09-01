@@ -18,7 +18,8 @@ namespace SynergyUI
     /// 颜色分类助手 —— 把原子效果 / 关键词归到红蓝绿灰，供三个界面的颜色过滤条使用。
     ///
     /// 原子效果颜色由配置表驱动（复用 ElementAffinities.GetAffinityForEffect，读
-    /// AttributeValueConfig.json 的 EffectColor）；关键词颜色读 KeywordsConfig 的 color 字段。
+    /// AttributeValueConfig.json 的 EffectColor）；关键词颜色读合成定义的 color 字段
+    /// （同样源自原子表 EffectColor，关键词不单独开表）。
     /// </summary>
     public static class ColorFilter
     {
@@ -29,7 +30,7 @@ namespace SynergyUI
             return FromManaType(affinity.PrimaryColor);
         }
 
-        /// <summary>关键词 id → UIColor（读 KeywordsConfig.color；缺省灰）。</summary>
+        /// <summary>关键词 id → UIColor（读合成定义的 color，源自原子表 EffectColor；缺省灰）。</summary>
         public static UIColor OfKeyword(string keywordId)
         {
             var def = CardLoader.GetKeywordDefinition(keywordId);

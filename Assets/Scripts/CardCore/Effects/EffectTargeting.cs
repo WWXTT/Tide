@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using CardCore.Attribute;
 
 
 namespace CardCore
@@ -135,6 +136,17 @@ namespace CardCore
         {
             if (target == null) return false;
             if (!target.IsAlive) return false;
+
+            // 关键词指定限制：辟邪/潜行——对手的效果不可指定（非消耗，可反复查询；
+            // 法术护盾在效果执行时消耗并移除目标，见 EffectHandlerRegistry）
+            if (source != null && target is Card shielded)
+            {
+                var sc = source.GetController();
+                var tc = shielded.GetController();
+                if (sc != null && tc != null && sc != tc
+                    && (shielded.HasKeyword(KeywordRules.Untargetable) || shielded.HasKeyword(KeywordRules.Stealth)))
+                    return false;
+            }
 
             if (target is IHasEffectImmunity immunity)
             {

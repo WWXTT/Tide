@@ -1,14 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
+using CardCore.Attribute;
+using CardCore.Attribute.Handlers;
 
 namespace CardCore
 {
     // ======================================== JSON 数据结构 ========================================
 
     /// <summary>
-    /// 关键词定义
+    /// 关键词定义（运行时由原子效果表的 Grant* 条目合成，见 CardLoader.LoadKeywords）
     /// </summary>
     [Serializable]
     public class KeywordDefinition
@@ -25,15 +26,6 @@ namespace CardCore
         public int value;               // 触发效果数值
         public int value2;              // 触发效果第二数值
         public string duration;         // DurationType 枚举名
-    }
-
-    /// <summary>
-    /// 关键词配置包装（JsonUtility 需要顶层对象）
-    /// </summary>
-    [Serializable]
-    public class KeywordsConfigWrapper
-    {
-        public List<KeywordDefinition> keywords;
     }
 
     /// <summary>
@@ -98,31 +90,39 @@ namespace CardCore
     {
         private static Dictionary<string, KeywordDefinition> _keywordCache;
 
-        // 相对 Application.dataPath 的关键词配置路径（非 Resources 目录，需用 System.IO 读取）
-        private const string KeywordConfigRelativePath = "Configs/KeywordsConfig.json";
-
         /// <summary>
-        /// 加载关键词配置（从 Assets/Configs/KeywordsConfig.json）
+        /// 加载关键词定义 —— 关键词本身即原子效果（GrantXxx，作用默认指向自身），不单独开表：
+        /// 直接从原子效果表（AtomicEffectTable ← AttributeValueConfig.json）的 Grant* 条目合成。
+        /// 中文名/描述/颜色取自表内字段；id 取 GrantKeywordHandlerFactory 登记的运行时关键词 id
+        /// （与写入 IHasKeywords 的字符串同源，如 GrantHaste → Charge），未登记退化为去 Grant 前缀。
+        /// 触发式关键词（triggerTiming）表内暂无来源，统一按被动处理。
         /// </summary>
         public static Dictionary<string, KeywordDefinition> LoadKeywords()
         {
             if (_keywordCache != null) return _keywordCache;
 
             _keywordCache = new Dictionary<string, KeywordDefinition>();
-            string path = Path.Combine(Application.dataPath, KeywordConfigRelativePath);
-            if (!File.Exists(path))
+            foreach (var atom in AtomicEffectTable.GetAll())
             {
-                Debug.LogWarning($"[CardLoader] 关键词配置未找到: {path}");
-                return _keywordCache;
-            }
+                // EnumName = 英文枚举名（GrantXxx）；Grant 前缀 = 可作为关键词授予的原子
+                if (atom == null || string.IsNullOrEmpty(atom.EnumName) || !atom.EnumName.StartsWith("Grant"))
+                    continue;
+                if (!Enum.TryParse<AtomicEffectType>(atom.EnumName, out var type))
+                    continue;
 
-            var wrapper = JsonUtility.FromJson<KeywordsConfigWrapper>(File.ReadAllText(path));
-            if (wrapper?.keywords == null) return _keywordCache;
+                if (!GrantKeywordHandlerFactory.TryGetKeywordId(type, out var keywordId))
+                    keywordId = atom.EnumName.Substring("Grant".Length);
 
-            foreach (var kw in wrapper.keywords)
-            {
-                if (kw != null && !string.IsNullOrEmpty(kw.id))
-                    _keywordCache[kw.id] = kw;
+                _keywordCache[keywordId] = new KeywordDefinition
+                {
+                    id = keywordId,
+                    nameZh = atom.DisplayName,      // 中文短名（冲锋/突袭…）
+                    nameEn = atom.EnumName,
+                    color = ElementAffinities.GetAffinityForEffect(type).PrimaryColor.ToString(), // 源自表 EffectColor
+                    description = atom.Description, // 展示模板（{target}获得冲锋）
+                    isPassive = true,
+                    atomicEffect = atom.EnumName,   // 被动授予的原子效果（GrantXxx）
+                };
             }
             return _keywordCache;
         }
@@ -158,6 +158,8 @@ namespace CardCore
                 result.Add(cardData);
             }
 
+            WarnCostNonConformance(result);
+
             return result;
         }
 
@@ -174,6 +176,8 @@ namespace CardCore
                 var cardData = CreateCardData(entry);
                 result.Add(cardData);
             }
+
+            WarnCostNonConformance(result);
 
             return result;
         }
@@ -251,7 +255,24 @@ namespace CardCore
             if (entry.rank >= 0) cardData.Rank = entry.rank;
             if (entry.linkRating >= 0) cardData.LinkRating = entry.linkRating;
 
+            // 统一计价兜底：costList 缺省 → 写入建议档位分布（幂等，非空不动）
+            CardCostService.EnsureCost(cardData);
+
             return cardData;
+        }
+
+        /// <summary>
+        /// 装载期构筑校验（提示级）：声明档位的卡若代价抵扣不足（O &lt; Req）打警告，不阻止加载。
+        /// </summary>
+        private static void WarnCostNonConformance(List<CardData> cards)
+        {
+            foreach (var card in cards)
+            {
+                if (card?.Cost == null || card.Cost.Count == 0) continue;
+                var r = CardCostService.Derive(card);
+                if (!r.Conformant)
+                    Debug.LogWarning($"[CardCost] {card.ID}({card.CardName}) 代价抵扣不足：需求 Req={r.OffsetRequirement}，已提供 O={r.OffsetProvided}，不符规则一");
+            }
         }
 
         /// <summary>

@@ -1,0 +1,28 @@
+[
+  {
+    "id": "RITUAL_TRINITY_001",
+    "nameZh": "三相仪典",
+    "description": "竞速：连续3个回合，本回合自己使用的卡所含纯色（红/蓝/绿）与前两个回合使用的卡颜色不重复（回合结束时结算，断言失败清零重数）。先完成者独享奖励：每消耗3点相同纯色元素，获得红/蓝/绿元素各1。",
+    "task": {
+      "kind": "ColorStreak",
+      "target": 3,
+      "window": 2
+    },
+    "aura": {
+      "effectId": "ElementConversion"
+    }
+  },
+  {
+    "id": "RITUAL_BLOOD_002",
+    "nameZh": "血偿仪典",
+    "description": "竞速：累计通过代价支付30点生命值（双方各自计数）。先完成者独享奖励：支付消耗生命值的代价时，改为使用对手的生命值支付。",
+    "task": {
+      "kind": "LifePaidAccum",
+      "target": 30,
+      "window": 0
+    },
+    "aura": {
+      "effectId": "BloodPact"
+    }
+  }
+]

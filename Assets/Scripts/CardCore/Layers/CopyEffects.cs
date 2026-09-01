@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -115,7 +115,7 @@ namespace CardCore
             if (source.CopyText || source.CopyEffects)
             {
                 // 能力关键词属于可复制特征
-                copy._keywords = new HashSet<string>(original._keywords);
+                copy._keywords = new List<string>(original._keywords);
             }
 
             return copy;

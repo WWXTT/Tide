@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore.Attribute;
@@ -211,6 +211,10 @@ namespace CardCore
             if (card == null) return;
 
             card.IsAlive = false;
+
+            // 复生：死亡时以 1 血回场（横置+带失调，视为重新入场），消耗关键词
+            if (Attribute.KeywordRules.TryReborn(card))
+                return;
 
             // 移动到坟墓场
             _gameCore?.ZoneManager.MoveCard(card, _gameCore.GetCurrentTurnPlayer(), Zone.Battlefield, Zone.Graveyard);

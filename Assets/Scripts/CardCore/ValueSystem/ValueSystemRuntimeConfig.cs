@@ -1,80 +1,52 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using CardCore.Attribute; // For EffectTargetType
 
 namespace CardCore
 {
     /// <summary>
-    /// 价值系统运行时配置 - 临时实现
-    /// 用于卡牌和效果价值计算
+    /// 价值系统运行时配置
+    /// 用于卡牌和效果价值计算。
+    /// 各子配置的字段名 = ValueSystemConfig.json 的 Key（Category+\"Config\" 对应同类字段），
+    /// 表值由 ValueSystemConfigManager 按名反射灌入；字段初始化器仅为表缺失时的代码兜底。
     /// </summary>
     [Serializable]
     public class ValueSystemRuntimeConfig
     {
-        public TargetModifierConfig TargetModifierConfig = new TargetModifierConfig();
         public TimingModifierConfig TimingModifierConfig = new TimingModifierConfig();
         public CostValueConfig CostValueConfig = new CostValueConfig();
         public EffectValueConfig EffectValueConfig = new EffectValueConfig();
         public TriggerValueConfig TriggerValueConfig = new TriggerValueConfig();
-        public SynergyConfig SynergyConfig = new SynergyConfig();
         public AttributeValueConfig AttributeValueConfig = new AttributeValueConfig();
         public CardTypeValueConfig CardTypeValueConfig = new CardTypeValueConfig();
+        public CardCostConfig CardCostConfig = new CardCostConfig();
+        public DelayDiscountConfig DelayDiscountConfig = new DelayDiscountConfig();
     }
 
-    /// <summary>
-    /// 目标修正配置
-    /// </summary>
-    [Serializable]
-    public class TargetModifierConfig
-    {
-        public float SelfModifier = 0.8f;
-        public float SingleTargetModifier = 1.0f;
-        public float AllEnemiesModifier = 1.5f;
-        public float AllAlliesModifier = 1.3f;
-        public float AllModifier = 1.8f;
-        public float RandomModifier = 0.9f;
-
-        public float GetTargetModifier(EffectTargetType targetType)
-        {
-            return targetType switch
-            {
-                EffectTargetType.Self => SelfModifier,
-                EffectTargetType.Target => SingleTargetModifier,
-                EffectTargetType.AllEnemies => AllEnemiesModifier,
-                EffectTargetType.AllAllies => AllAlliesModifier,
-                EffectTargetType.All => AllModifier,
-                EffectTargetType.Random => RandomModifier,
-                _ => 1.0f
-            };
-        }
-
-        public float GetMultiTargetModifier(int targetCount)
-        {
-            if (targetCount <= 1) return 1.0f;
-            // 多目标线性递增，但有上限
-            return Mathf.Min(1.0f + (targetCount - 1) * 0.1f, 2.0f);
-        }
-    }
+    // 注：TargetModifier（按目标范围/AOE 的计价乘数）已删除——计价只看目标数量（固定 N ×N，见
+    // CostDerivationService.EffectiveTargetCountForCost）；范围/Scope 仅是目标选取元数据，不参与计价。
+    // 注：Synergy（同类递减罚重复/多样协同奖多样）已删除——单卡计价由规则一（CardCostService）完整承担。
 
     /// <summary>
-    /// 时机修正配置
+    /// 时机修正配置（表 Category=TimingModifier）
     /// </summary>
     [Serializable]
     public class TimingModifierConfig
     {
-        public float InstantModifier = 1.0f;
-        public float SorcerySpeedModifier = 0.9f;
-        public float TriggeredModifier = 0.8f;
-        public float PassiveModifier = 0.7f;
+        public float Instant = 1.0f;
+        public float SorcerySpeed = 0.9f;
+        public float Triggered = 0.8f;
+        public float Passive = 0.7f;
 
         public float GetTimingModifier(TriggerTiming timing)
         {
             return timing switch
             {
-                TriggerTiming.Activate_Instant => InstantModifier,
-                TriggerTiming.Activate_Active => SorcerySpeedModifier,
-                _ => TriggeredModifier
+                TriggerTiming.Activate_Instant => Instant,
+                TriggerTiming.Activate_Active => SorcerySpeed,
+                _ => Triggered
             };
         }
 
@@ -92,29 +64,31 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 代价价值配置
+    /// 代价价值配置（表 Category=CostValue）
     /// </summary>
     [Serializable]
     public class CostValueConfig
     {
-        public float ManaValueCoefficient = 1.0f;
-        public float LifeValueCoefficient = 2.0f;
-        public float TapValueCoefficient = 0.3f;
-        public float SacrificeValueCoefficient = 1.5f;
-        public float DiscardValueCoefficient = 1.2f;
+        public float Mana = 1.0f;
+        public float Life = 2.0f;
+        public float Tap = 0.3f;
+        public float Sacrifice = 1.5f;
+        public float Discard = 1.2f;
 
     }
 
     /// <summary>
-    /// 效果价值配置
+    /// 效果价值配置（表 Category=EffectValue）。
+    /// 注意：这几项是占位——原子基础价值实际委托原子表 BaseCost（见 GetAtomicEffectBaseValue），
+    /// 保留字段仅为对齐表结构与后续非委托场景。
     /// </summary>
     [Serializable]
     public class EffectValueConfig
     {
-        public float BaseDamageValue = 1.0f;
-        public float BaseHealValue = 0.8f;
-        public float BaseDrawValue = 1.5f;
-        public float BaseDestroyValue = 2.0f;
+        public float BaseDamage = 1.0f;
+        public float BaseHeal = 0.8f;
+        public float BaseDraw = 1.5f;
+        public float BaseDestroy = 2.0f;
 
         public float GetAtomicEffectBaseValue(AtomicEffectType type, int value = 1, bool applyValue = true)
         {
@@ -132,66 +106,41 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 触发价值配置
+    /// 触发价值配置（表 Category=TriggerValue）
     /// </summary>
     [Serializable]
     public class TriggerValueConfig
     {
-        public float UnlimitedFrequency = 1.0f;
-        public float OncePerTurnFrequency = 0.8f;
-        public float OncePerGameFrequency = 0.6f;
+        public float FrequencyUnlimited = 1.0f;
+        public float FrequencyOncePerTurn = 0.8f;
+        public float FrequencyOncePerGame = 0.6f;
+
+        // 时机系数（原为 switch 内硬编码，现已接表，代码值兜底）
+        public float TimingOnAttackDeclare = 0.9f;
+        public float TimingOnDeath = 0.7f;
+        public float TimingOnTurnStart = 0.8f;
+        public float TimingOnTurnEnd = 0.7f;
 
         public float GetTriggerValue(TriggerTiming timing, TriggerFrequency frequency)
         {
             float timingValue = timing switch
             {
-                TriggerTiming.On_AttackDeclare => 0.9f,
-                TriggerTiming.On_Death => 0.7f,
-                TriggerTiming.On_TurnStart => 0.8f,
-                TriggerTiming.On_TurnEnd => 0.7f,
+                TriggerTiming.On_AttackDeclare => TimingOnAttackDeclare,
+                TriggerTiming.On_Death => TimingOnDeath,
+                TriggerTiming.On_TurnStart => TimingOnTurnStart,
+                TriggerTiming.On_TurnEnd => TimingOnTurnEnd,
                 _ => 0.8f
             };
 
             float frequencyValue = frequency switch
             {
-                TriggerFrequency.Unlimited => UnlimitedFrequency,
-                TriggerFrequency.OncePerTurn => OncePerTurnFrequency,
-                TriggerFrequency.OncePerGame => OncePerGameFrequency,
-                _ => UnlimitedFrequency
+                TriggerFrequency.Unlimited => FrequencyUnlimited,
+                TriggerFrequency.OncePerTurn => FrequencyOncePerTurn,
+                TriggerFrequency.OncePerGame => FrequencyOncePerGame,
+                _ => FrequencyUnlimited
             };
 
             return timingValue * frequencyValue;
-        }
-    }
-
-    /// <summary>
-    /// 协同效应配置
-    /// </summary>
-    [Serializable]
-    public class SynergyConfig
-    {
-        public int DiscountStartsAt = 3;
-        public float SameTypeDiscountRate = 0.1f;
-        public float MaxDiscount = 0.5f;
-
-        public float CalculateSameTypeDiscount(int count, float totalValue)
-        {
-            if (count < DiscountStartsAt) return totalValue;
-
-            int discountCount = count - DiscountStartsAt + 1;
-            float discount = Mathf.Min(discountCount * SameTypeDiscountRate, MaxDiscount);
-            return totalValue * (1 - discount);
-        }
-
-        public float CalculateSynergyBonus(HashSet<AtomicEffectType> effectTypes, float currentValue)
-        {
-            // 不同类型效果的协同加成
-            int typeCount = effectTypes.Count;
-            if (typeCount < 2) return currentValue;
-
-            // 每多一种类型，加成5%
-            float bonus = 1.0f + (typeCount - 1) * 0.05f;
-            return currentValue * bonus;
         }
     }
 
@@ -297,10 +246,62 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 价值系统配置管理器 - 单例
+    /// 卡牌计价配置（表 Category=CardCost）——规则一·平衡的统一推导参数。
+    /// </summary>
+    [Serializable]
+    public class CardCostConfig
+    {
+        public float StatUnit = 2f;                     // 1费=StatUnit点属性（攻血各 1/StatUnit 元素，灰）
+        public bool KeywordsShareDelayDiscount = true;  // 关键词是否同享挂载折扣（关键词=Grant原子=挂载效果）
+        public int MaxTier = 9;                         // 档位上限（=地牌槽曲线上限）
+
+        // ==== 卡上代价条目 → 元素当量（构筑期抵扣换算；默认与 CostOffsetConfig 锚定同源：弃1张/费、2命/费）====
+        public float DiscardCardValue = 1.0f;           // 弃 1 张 = 1 元素
+        public float LifeValuePerPoint = 0.5f;          // 1 点生命 = 0.5 元素（2命/费）
+        public float SleepValuePerTurn = 1.0f;          // 沉睡 1 回合 = 1 元素
+        public float SummonMaterialValue = 1.0f;        // 1 个召唤素材 = 1 元素
+    }
+
+    /// <summary>
+    /// 挂载延迟折扣配置（表 Category=DelayDiscount）。
+    /// d(C)：费用 C=最早第 C 回合落地（地牌曲线 [1..9] 锁定），挂载效果延迟 C−1 回合生效 → 按延迟贬值。
+    /// 落地时间与存活期望（ExtraActivationSlope）两个来源；法术不折（打出即生效）。
+    /// </summary>
+    [Serializable]
+    public class DelayDiscountConfig
+    {
+        public float C1 = 1.000f;   // d(1)=全价（几乎即时）
+        public float C2 = 0.875f;
+        public float C3 = 0.750f;
+        public float C4 = 0.625f;
+        public float C5 = 0.500f;   // d(5)=半价
+        public float C6 = 0.375f;
+        public float C7 = 0.250f;
+        public float C8 = 0.125f;
+        public float C9 = 0.000f;   // d(9)=0（锚点：9费挂3费效果全免）
+        public float ExtraActivationSlope = 0.125f;    // 选发每多 1 回合发动的额外折（与 d 斜率同源）
+
+        public float At(int tier)
+        {
+            return tier switch
+            {
+                1 => C1, 2 => C2, 3 => C3, 4 => C4, 5 => C5,
+                6 => C6, 7 => C7, 8 => C8, 9 => C9,
+                _ => 0f
+            };
+        }
+    }
+
+    /// <summary>
+    /// 价值系统配置管理器 - 单例。
+    /// 首次取用时从 Assets/Configs/ValueSystemConfig.json（ValueSystem.xlsm 导出）灌入配置，
+    /// 文件缺失/解析失败则退回 ValueSystemRuntimeConfig 字段初始化器的代码默认值。
     /// </summary>
     public class ValueSystemConfigManager
     {
+        // 相对 Application.dataPath 的配置路径（该目录不是 Resources，必须用 System.IO 读取）
+        private const string ConfigRelativePath = "Configs/ValueSystemConfig.json";
+
         private static ValueSystemConfigManager _instance;
         public static ValueSystemConfigManager Instance
         {
@@ -323,7 +324,7 @@ namespace CardCore
         {
             if (_config == null)
             {
-                _config = new ValueSystemRuntimeConfig();
+                _config = LoadFromJson() ?? new ValueSystemRuntimeConfig();
             }
             return _config;
         }
@@ -337,6 +338,91 @@ namespace CardCore
         public void InvalidateConfig()
         {
             _configVersion++;
+        }
+
+        // ======================================== 表装载 ========================================
+
+        /// <summary>
+        /// 读表并灌入配置，返回 null 表示放弃（调用方退回代码默认值）。
+        /// 映射纯按名：Category+"Config" → ValueSystemRuntimeConfig 同名字段，Key → 子配置同名字段——
+        /// 表里加行、代码加同名字段即自动接通，不维护第二份映射。未知 Category/Key 告警跳过（暴露表结构漂移）。
+        /// </summary>
+        private static ValueSystemRuntimeConfig LoadFromJson()
+        {
+            string path = Path.Combine(Application.dataPath, ConfigRelativePath);
+            if (!File.Exists(path))
+            {
+                Debug.LogWarning($"[ValueSystemConfigManager] 配置文件不存在: {path}，使用代码默认值");
+                return null;
+            }
+
+            List<ValueSystemConfigEntry> entries;
+            try
+            {
+                entries = ParseEntries(File.ReadAllText(path));
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[ValueSystemConfigManager] 加载 {ConfigRelativePath} 失败: {e.Message}，使用代码默认值");
+                return null;
+            }
+            if (entries == null) return null;
+
+            var config = new ValueSystemRuntimeConfig(); // 字段初始化器 = 兜底默认值，表值逐条覆盖
+            int applied = 0;
+            foreach (var entry in entries)
+            {
+                if (entry == null || string.IsNullOrEmpty(entry.Category) || string.IsNullOrEmpty(entry.Key)) continue;
+
+                var section = typeof(ValueSystemRuntimeConfig).GetField(entry.Category + "Config");
+                if (section == null)
+                {
+                    Debug.LogWarning($"[ValueSystemConfigManager] 未知 Category='{entry.Category}'（Key={entry.Key}），已跳过");
+                    continue;
+                }
+
+                var field = section.FieldType.GetField(entry.Key);
+                if (field == null)
+                {
+                    Debug.LogWarning($"[ValueSystemConfigManager] {entry.Category} 无同名字段 '{entry.Key}'，已跳过");
+                    continue;
+                }
+
+                field.SetValue(section.GetValue(config), Convert.ChangeType(entry.Value, field.FieldType));
+                applied++;
+            }
+
+            if (applied == 0)
+                Debug.LogWarning($"[ValueSystemConfigManager] 未从 {ConfigRelativePath} 灌入任何条目");
+            return config;
+        }
+
+        /// <summary>解析 JSON（导出器每个 sheet 产出顶层裸数组，JsonUtility 需包一层；同 AtomicEffectTable.ParseEntries 惯例）</summary>
+        private static List<ValueSystemConfigEntry> ParseEntries(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return null;
+            string trimmed = raw.TrimStart();
+            string wrapped = trimmed.StartsWith("[")
+                ? "{\"items\":" + raw + "}"
+                : raw; // 已是对象（含 items）则直接用
+            var wrapper = JsonUtility.FromJson<ValueSystemConfigWrapper>(wrapped);
+            return wrapper?.items;
+        }
+
+        // ======================================== JSON DTO ========================================
+
+        [Serializable]
+        private class ValueSystemConfigEntry
+        {
+            public string Category; // TargetModifier / TimingModifier / CostValue / ...（+Config = 同名字段）
+            public string Key;      // 子配置同名字段名
+            public float Value;     // 灌入值（int 字段自动转换）
+        }
+
+        [Serializable]
+        private class ValueSystemConfigWrapper
+        {
+            public List<ValueSystemConfigEntry> items;
         }
     }
 }

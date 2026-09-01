@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -381,8 +381,10 @@ namespace CardCore
     /// 效果步骤条目 —— 把效果序列扩展为「原子效果」或「条件分支」两种步骤。
     /// 由效果合成界面（UI）编排，JsonUtility 可序列化（判别字段 + 有界一层 then/else）。
     ///
-    /// 注：执行引擎当前仍按扁平 AtomicEffects 线性结算，不读 Steps；
-    /// Steps 仅持久化分支结构，待对战阶段接入递归执行后启用。
+    /// 执行：EffectExecutor.ExecuteAsync 读 Steps 做 per-target 遍历（EffectsExecutionEngine
+    /// 的 ExecuteStepsAsync）；分支必须紧邻其原子之后，评估读 LastOutcome。
+    /// 预言族条件（ProphecyHit/Miss）被引擎拦截为延迟验证，由 ProphecySystem 在
+    /// 对手下回合首张出牌时结算 then/else。Steps 为空时退化为扁平 AtomicEffects。
     /// </summary>
     [Serializable]
     public class EffectStepData
@@ -424,7 +426,7 @@ namespace CardCore
         public List<string> Tags;
 
         // 可选：分支化的效果步骤（含 then/else）。为空时退化为扁平 AtomicEffects（向后兼容）。
-        // 执行引擎暂不读取，详见 EffectStepData 注释。
+        // 执行引擎按 Steps 遍历（见 EffectStepData 注释）。
         public List<EffectStepData> Steps;
     }
 
@@ -475,15 +477,14 @@ namespace CardCore
         }
 
         // IHasKeywords - 直接使用 Card._keywords，与 EntityEffectExtensions 统一
-        HashSet<string> IHasKeywords.Keywords
+        List<string> IHasKeywords.Keywords
         {
             get => _keywords;
             set
             {
                 _keywords.Clear();
                 if (value != null)
-                    foreach (var kw in value)
-                        _keywords.Add(kw);
+                    _keywords.AddRange(value);
             }
         }
 
@@ -527,7 +528,8 @@ namespace CardCore
             else
                 (this as IHasPower).Power = 0;
 
-            // 设置费用
+            // 设置费用（前先做统一计价兜底：直构 CardData（验证器/合成卡）无 costList 时补建议档位）
+            CardCostService.EnsureCost(data);
             (this as IHasCost).Cost = data.Cost;
 
             // 同步内部战斗字段 — EntityEffectExtensions/handler 全部读 _power/_life/_maxLife/_baseCost，

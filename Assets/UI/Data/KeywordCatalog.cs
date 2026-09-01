@@ -14,7 +14,8 @@ namespace SynergyUI
     }
 
     /// <summary>
-    /// 关键词目录 —— 把 KeywordsConfig 暴露成"可作为原子追加到效果序列"的条目。
+    /// 关键词目录 —— 把原子效果表的 Grant* 条目（经 CardLoader.LoadKeywords 合成）
+    /// 暴露成"可作为原子追加到效果序列"的条目。关键词不单独开表。
     ///
     /// 关键词本身既是一个原子（atomicEffect=GrantXxx），也是一个完整效果，
     /// 作用对象默认是生物自己（Self）。效果合成界面把它和原子效果并列展示。

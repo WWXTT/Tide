@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 
 namespace CardCore
@@ -162,6 +163,75 @@ namespace CardCore
         public Card Card { get; set; }
         public Player Controller { get; set; }
         public Zone Destination { get; set; }
+    }
+
+    // ==================== 发动区事件 ====================
+    // 发动区 = 万能结算位：隐蔽区（手牌/卡组等）来源的发动先入此区，公开可被指向
+    // （反制指向发动区而非来源区）。Phase A 暂态 = 一次 PlayCard 调用内完成进出。
+
+    /// <summary>
+    /// 卡牌进入发动区事件（发动开始，公开并成为可指向目标）
+    /// </summary>
+    public class CardEnterActivationEvent : GameEventBase
+    {
+        public Card Card { get; set; }
+        public Player Controller { get; set; }
+        public Zone FromZone { get; set; } // 来源区（手牌/卡组等）
+    }
+
+    /// <summary>
+    /// 卡牌离开发动区事件（结算完成，去向见 ToZone）
+    /// </summary>
+    public class CardLeaveActivationEvent : GameEventBase
+    {
+        public Card Card { get; set; }
+        public Player Controller { get; set; }
+        public Zone ToZone { get; set; } // 战场（入场成功）/ 墓地（法术）/ 原位（非入场型）
+    }
+
+    /// <summary>
+    /// 入场失败事件（发动通过但要进战场时己方战场已满 → 失败入墓）
+    /// </summary>
+    public class CardActivationFailedEvent : GameEventBase
+    {
+        public Card Card { get; set; }
+        public Player Controller { get; set; }
+        public Zone FromZone { get; set; } // 尝试入场的来源区
+        public string Reason { get; set; }
+    }
+
+    // ==================== 信息族事件（宣言/预言） ====================
+
+    /// <summary>
+    /// 宣言结算事件（即时验证）：Hit + 揭示面（全手牌/样本/牌库顶；私密确认时 RevealedCards 为 null）。
+    /// </summary>
+    public class DeclareResolvedEvent : GameEventBase
+    {
+        public string Declaration { get; set; } // "维度:值" 编码
+        public bool Hit { get; set; }
+        public Player Controller { get; set; }  // 宣言者
+        public List<Card> RevealedCards { get; set; }
+        public bool Sampled { get; set; }       // true = 样本揭示（非全量）
+    }
+
+    /// <summary>
+    /// 预言已登记事件（隐藏押注）：不含宣言内容——对手只知道"预言已立"。
+    /// </summary>
+    public class ProphecyRegisteredEvent : GameEventBase
+    {
+        public Player Declarer { get; set; }
+        public Entity Source { get; set; }
+    }
+
+    /// <summary>
+    /// 预言验证事件（延迟验证时刻公开）：验证时机 = 对手下回合首张出牌；整回合未出牌 = 未命中。
+    /// </summary>
+    public class ProphecyResolvedEvent : GameEventBase
+    {
+        public Player Declarer { get; set; }
+        public string Declaration { get; set; } // 验证时刻公开押注
+        public bool Hit { get; set; }
+        public Entity VerifiedCard { get; set; } // 命中/未命中所针对的卡（到期未验证为 null）
     }
 
     // ==================== 战斗事件 ====================
@@ -514,5 +584,15 @@ namespace CardCore
         public Entity Target { get; set; }
         public NullifyType NullifyType { get; set; }
         public Entity Source { get; set; }
+    }
+
+    /// <summary>
+    /// 仪式完成事件：竞速先达标者完成，独享光环（对手进度作废）。
+    /// </summary>
+    public class RitualCompletedEvent : GameEventBase
+    {
+        public Card Card { get; set; }
+        public Player Completer { get; set; }
+        public string RitualId { get; set; }
     }
 }

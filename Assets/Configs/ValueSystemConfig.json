@@ -1,41 +1,5 @@
 [
   {
-    "Category": "TargetModifier",
-    "Key": "Self",
-    "Value": 0.8,
-    "Des": "目标=自身"
-  },
-  {
-    "Category": "TargetModifier",
-    "Key": "SingleTarget",
-    "Value": 1.0,
-    "Des": "目标=单指定（基准 1.0）"
-  },
-  {
-    "Category": "TargetModifier",
-    "Key": "AllEnemies",
-    "Value": 1.5,
-    "Des": "目标=所有敌方"
-  },
-  {
-    "Category": "TargetModifier",
-    "Key": "AllAllies",
-    "Value": 1.3,
-    "Des": "目标=所有友方"
-  },
-  {
-    "Category": "TargetModifier",
-    "Key": "All",
-    "Value": 1.8,
-    "Des": "目标=全体"
-  },
-  {
-    "Category": "TargetModifier",
-    "Key": "Random",
-    "Value": 0.9,
-    "Des": "目标=随机"
-  },
-  {
     "Category": "TimingModifier",
     "Key": "Instant",
     "Value": 1.0,
@@ -156,24 +120,6 @@
     "Des": "时机=回合结束（现为代码内硬编码，接配置需补字段）"
   },
   {
-    "Category": "Synergy",
-    "Key": "DiscountStartsAt",
-    "Value": 3.0,
-    "Des": "同类效果第 N 张起开始打折"
-  },
-  {
-    "Category": "Synergy",
-    "Key": "SameTypeDiscountRate",
-    "Value": 0.1,
-    "Des": "每多 1 张同类效果的折扣率"
-  },
-  {
-    "Category": "Synergy",
-    "Key": "MaxDiscount",
-    "Value": 0.5,
-    "Des": "折扣上限"
-  },
-  {
     "Category": "AttributeValue",
     "Key": "PowerValue",
     "Value": 0.5,
@@ -292,5 +238,107 @@
     "Key": "FusionSummonDiscount",
     "Value": 0.75,
     "Des": "融合召唤折扣"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "StatUnit",
+    "Value": 2.0,
+    "Des": "1费=2点属性（攻血各0.5元素，灰）"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "KeywordsShareDelayDiscount",
+    "Value": 1.0,
+    "Des": "关键词同享挂载折扣（1=是）"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "MaxTier",
+    "Value": 9.0,
+    "Des": "档位上限（=地牌槽曲线上限）"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "DiscardCardValue",
+    "Value": 1.0,
+    "Des": "代价当量：弃1张=1元素（与抵消表同源）"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "LifeValuePerPoint",
+    "Value": 0.5,
+    "Des": "代价当量：1点生命=0.5元素（2命/费同源）"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "SleepValuePerTurn",
+    "Value": 1.0,
+    "Des": "代价当量：沉睡1回合=1元素"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "SummonMaterialValue",
+    "Value": 1.0,
+    "Des": "代价当量：1个召唤素材=1元素"
+  },
+  {
+    "Category": "DelayDiscount",
+    "Key": "C1",
+    "Value": 1.0,
+    "Des": "d(1)=全价（几乎即时）"
+  },
+  {
+    "Category": "DelayDiscount",
+    "Key": "C2",
+    "Value": 0.875,
+    "Des": "挂载延迟折扣，默认线性 (9−C)/8"
+  },
+  {
+    "Category": "DelayDiscount",
+    "Key": "C3",
+    "Value": 0.75,
+    "Des": ""
+  },
+  {
+    "Category": "DelayDiscount",
+    "Key": "C4",
+    "Value": 0.625,
+    "Des": ""
+  },
+  {
+    "Category": "DelayDiscount",
+    "Key": "C5",
+    "Value": 0.5,
+    "Des": "d(5)=半价"
+  },
+  {
+    "Category": "DelayDiscount",
+    "Key": "C6",
+    "Value": 0.375,
+    "Des": ""
+  },
+  {
+    "Category": "DelayDiscount",
+    "Key": "C7",
+    "Value": 0.25,
+    "Des": ""
+  },
+  {
+    "Category": "DelayDiscount",
+    "Key": "C8",
+    "Value": 0.125,
+    "Des": ""
+  },
+  {
+    "Category": "DelayDiscount",
+    "Key": "C9",
+    "Value": 0.0,
+    "Des": "d(9)=0（锚点：9费挂3费效果全免）"
+  },
+  {
+    "Category": "DelayDiscount",
+    "Key": "ExtraActivationSlope",
+    "Value": 0.125,
+    "Des": "选发每多1回合发动的额外折（与d斜率同源）"
   }
 ]

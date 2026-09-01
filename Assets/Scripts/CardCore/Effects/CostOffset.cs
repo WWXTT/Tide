@@ -11,9 +11,9 @@ namespace CardCore
     // 代价抵消（无色抵扣）配置 + 服务
     // ----------------------------------------------------------------
     // 元素消耗是最基本代价；更高层「代价抵消」用其它资源换取减免：
-    // 每次抵消 = 减 1 费（少付 1 个所需元素），消耗对应机制的资源，
-    // 且必须满足「每种本色至少保留 1 点元素」（不能把某色完全抵掉）。
-    // 4 机制 / 单局上限合计 14+6+6+5 = 31 = 玩家初始资源。
+    // 每次抵消 = 减 1 费（少付 1 个所需元素），消耗对应机制的资源。
+    // 可抵至 0（定案：不设"每色保留 1 点"保底；护栏为纯色可支付量 ≤ 地牌槽上限
+    // 与单局抵消预算上限）。4 机制 / 单局上限合计 14+6+6+5 = 31 = 玩家初始资源。
     // ================================================================
 
     public enum OffsetMechanism
@@ -171,11 +171,11 @@ namespace CardCore
             // 估算最大可抵消费数（受 Reducible、单局上限、资源量三者约束）
             int maxOffset = Math.Min(Reducible(need), MaxAffordableOffsets(ctx));
 
-            // 贪心从最高需求颜色削减 maxOffset 次（副本上模拟）
+            // 贪心从最高需求颜色削减 maxOffset 次（副本上模拟；可抵至 0）
             var needCopy = new Dictionary<ManaType, int>(need);
             for (int i = 0; i < maxOffset; i++)
             {
-                var color = needCopy.Where(kv => kv.Value > 1)
+                var color = needCopy.Where(kv => kv.Value > 0)
                                     .OrderByDescending(kv => kv.Value)
                                     .Select(kv => (ManaType?)kv.Key)
                                     .FirstOrDefault();
@@ -271,8 +271,8 @@ namespace CardCore
             var resourceCost = new CostInstance { Type = ToCostType(mech), Value = cfg.ResourcePerOffset };
             if (!CostHandlerRegistry.CanPay(resourceCost, ctx)) return false;
 
-            // 选一个需求 > 1 的颜色削减（保留 ≥1 本色）
-            var color = need.Where(kv => kv.Value > 1)
+            // 选一个需求 > 0 的颜色削减（可抵至 0，不设每色保底）
+            var color = need.Where(kv => kv.Value > 0)
                             .OrderByDescending(kv => kv.Value)
                             .Select(kv => (ManaType?)kv.Key)
                             .FirstOrDefault();
@@ -294,9 +294,9 @@ namespace CardCore
 
         // ======================================== 约束/工具 ========================================
 
-        /// <summary>可抵消总量 = Σ max(0, need-1)（每色至少保留 1 点本色）。</summary>
+        /// <summary>可抵消总量 = Σ need（可抵至 0，无每色保底）。</summary>
         private static int Reducible(Dictionary<ManaType, int> need)
-            => need.Values.Sum(v => Math.Max(0, v - 1));
+            => need.Values.Sum(v => v);
 
         /// <summary>当前可用（未达上限 + 资源足够抵 1 次）的机制，按 config 顺序。</summary>
         private static List<OffsetMechanism> UsableMechanisms(CostContext ctx)

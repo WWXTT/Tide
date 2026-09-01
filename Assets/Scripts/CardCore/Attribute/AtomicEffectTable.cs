@@ -176,6 +176,12 @@ namespace CardCore.Attribute
             return _enumNameMap.TryGetValue(enumName, out var config) ? config : null;
         }
 
+        /// <summary>遍历所有已加载配置（EnumName 为英文枚举名；供关键词目录等派生用）</summary>
+        public static IEnumerable<AtomicEffectConfig> GetAll()
+        {
+            return _typeMap.Values;
+        }
+
         /// <summary>已加载的配置总数（供诊断/验证用）</summary>
         public static int Count => _typeMap?.Count ?? 0;
 

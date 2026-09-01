@@ -18,8 +18,9 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 int lifeBefore = target.GetLife();
-                target.TakeDamage(dmg);
-                context.LastOutcome.RecordDamage(target, lifeBefore, dmg);
+                target.TakeDamage(dmg, context.Source); // 关键词管线：圣盾/护甲/坚韧/剧毒/吸血
+                int actual = System.Math.Max(0, lifeBefore - target.GetLife());
+                context.LastOutcome.RecordDamage(target, lifeBefore, actual);
                 PublishEvent(new AtomicDamageEvent
                 {
                     Source = context.Source,
@@ -47,7 +48,23 @@ namespace CardCore.Attribute.Handlers
             {
                 if (target is Card card)
                 {
+                    // 不灭：不受摧毁/消灭效果影响（伤害致死照死——SBA 路径不拦）
+                    if (card.HasKeyword(KeywordRules.Indestructible))
+                        continue;
+
+                    // 进行中仪式：被破坏 → 回手牌（手牌满则入墓），任务进度作废（完成态已被不灭挡住）
+                    if (RitualSystem.IsActiveRitual(card))
+                    {
+                        RitualSystem.OnDestroyed(card, context.ZoneManager);
+                        continue;
+                    }
+
                     target.IsAlive = false;
+
+                    // 复生：死亡时以 1 血回场（消耗关键词，留在战场）
+                    if (KeywordRules.TryReborn(card))
+                        continue;
+
                     if (context.ZoneManager != null)
                     {
                         var controller = card.GetController();
@@ -67,33 +84,6 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect)
         {
             return "消灭目标";
-        }
-    }
-
-    /// <summary>获得敏捷</summary>
-    public class GrantHasteHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GrantHaste;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            foreach (var target in context.Targets)
-            {
-                target.AddKeyword("Haste", DurationType.Permanent);
-                PublishEvent(new KeywordEvent
-                {
-                    Target = target,
-                    Keyword = "Haste",
-                    IsAdd = true,
-                    Duration = DurationType.Permanent,
-                    Source = context.Source
-                });
-            }
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect)
-        {
-            return "获得敏捷";
         }
     }
 
@@ -271,11 +261,10 @@ namespace CardCore.Attribute.Handlers
             {
                 var token = new Card { ID = templateId ?? "Token_Generic" };
 
-                if (context.ZoneManager != null && context.Controller != null)
-                {
-                    var container = context.ZoneManager.GetZoneContainer(context.Controller);
-                    container?.Add(token, Zone.Battlefield);
-                }
+                // 入场容量闸门：满则衍生物直接入墓并发失败事件（不再视为生成成功）
+                if (context.ZoneManager == null || context.Controller == null ||
+                    !context.ZoneManager.TryAddToBattlefield(token, context.Controller))
+                    continue;
 
                 PublishEvent(new TokenCreatedEvent
                 {

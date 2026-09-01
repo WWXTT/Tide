@@ -102,6 +102,9 @@ namespace CardCore.Attribute
                 context.Targets = ResolveTargets(effect, context);
             }
 
+            // 法术护盾：首次成为对手效果目标时该效果对其无效（移出目标 + 消耗护盾）
+            KeywordRules.ConsumeSpellShields(context.Targets, context.Source);
+
             if (!handler.CanExecute(effect, context))
             {
                 UnityEngine.Debug.LogWarning($"效果无法执行: {effect.Type}");

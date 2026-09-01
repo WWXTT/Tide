@@ -23,7 +23,10 @@ namespace SynergyUI
             return MurmurHash3.Hash32(sb.ToString()).ToString("X8");
         }
 
-        /// <summary>卡牌功能哈希（排除 CardName/Tags；Keywords 影响功能，纳入）。</summary>
+        /// <summary>
+        /// 卡牌功能哈希（排除 CardName/Tags/Cost；Keywords 影响功能，纳入）。
+        /// 费用不参与哈希——配置改费不改 ID（费用为运行时推导口径，见 CardCostService）。
+        /// </summary>
         public static string HashCard(CardData card)
         {
             var sb = new StringBuilder();
@@ -35,16 +38,6 @@ namespace SynergyUI
             sb.Append("RK:").Append(card.Rank ?? -1).Append('|');
             sb.Append("LR:").Append(card.LinkRating ?? -1).Append('|');
             sb.Append("AR:").Append((int)card.ArrowDirections).Append('|');
-
-            sb.Append("COST:");
-            if (card.Cost != null)
-            {
-                foreach (var kv in card.Cost.OrderBy(k => k.Key))
-                {
-                    sb.Append(kv.Key).Append('=').Append(kv.Value).Append(',');
-                }
-            }
-            sb.Append('|');
 
             sb.Append("KW:");
             foreach (var kw in (card.Keywords ?? new List<string>()).OrderBy(k => k))

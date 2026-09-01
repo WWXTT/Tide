@@ -44,29 +44,20 @@ namespace CardCore
         {
             foreach (var mat in materials)
             {
-                // 素材"用掉了"：牺牲入墓不再是正式召唤状态，不可被复活（WasFormallySummoned 语义见设计文稿）
-                mat.WasFormallySummoned = false;
+                // 素材牺牲 = 正常解放进墓地（无额外规则；WasFormallySummoned 保持原值，可按正常规则复活）
                 _gameCore.ZoneManager.MoveCard(mat, player, Zone.Battlefield, Zone.Graveyard);
             }
         }
 
         /// <summary>
-        /// 从额外卡组创建卡牌实例并召唤到战场
+        /// 从额外卡组创建卡牌实例并召唤到战场（经入场容量闸门：满则失败入墓）
         /// </summary>
         private Card SummonFromExtraDeck(Player player, CardData cardData)
         {
             // TODO: 实现从 CardData 创建 Card 实例的逻辑
             var card = new Card { ID = cardData.ID };
-            _gameCore.ZoneManager.MoveCard(card, player, Zone.ExtraDeck, Zone.Battlefield);
-            card.WasFormallySummoned = true; // 从额外组正式召唤
-
-            // 发布召唤事件
-            EventManager.Instance.Publish(new CardPutToBattlefieldEvent
-            {
-                Card = card,
-                Controller = player,
-                Tapped = false
-            });
+            bool entered = _gameCore.ZoneManager.TryMoveToBattlefield(card, player, Zone.ExtraDeck);
+            card.WasFormallySummoned = entered; // 从额外组正式召唤（失败入墓则不算正式入场）
 
             return card;
         }
@@ -220,13 +211,8 @@ namespace CardCore
             // 5. 速度继承：同步怪兽的发动速度 = max(基础速度, 调整生物速度)
             // TODO: 将调整生物速度赋予同步怪兽（需要在 Card 上添加速度属性）
 
-            // 6. 发布事件
-            EventManager.Instance.Publish(new CardPutToBattlefieldEvent
-            {
-                Card = synchroCreature,
-                Controller = player,
-                Tapped = false
-            });
+            // 6. 入场事件已由 SummonFromExtraDeck → TryMoveToBattlefield 统一发布
+            //（原此处二次发布 CardPutToBattlefieldEvent 属重复，已移除）
 
             return synchroCreature;
         }
