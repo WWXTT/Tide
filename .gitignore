@@ -1,13 +1,6 @@
 # ============== 忽略特定文件 ==============
 *.tmp              # 忽略所有目录的 .tmp 文件
 
-# ============== 忽略特定类型文件 ==============
-*.class            # Java 编译文件
-*.exe              # Windows 可执行文件
-*.log              # 日志文件
-*.DS_Store         # macOS 系统文件
-Thumbs.db          # Windows 缩略图缓存
-
 # ============== 系统/IDE 文件 ==============
 /Library/
 /Logs/
@@ -15,8 +8,3 @@ Thumbs.db          # Windows 缩略图缓存
 /Temp/
 /.vs/
 /.idea/
-/.aider.tags.cache.v4/
-Assets/Plugins
-Assets/Packages
-Assets/Synty
-.aider*
