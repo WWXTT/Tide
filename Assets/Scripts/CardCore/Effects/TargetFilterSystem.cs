@@ -341,6 +341,20 @@ namespace CardCore
                     break;
             }
 
+            // 关键词指定限制（运行时强制，与 EffectTargetValidator.CanTarget 同口径）：
+            // 指向型（Target）候选不含对手的辟邪/潜行随从；AoE（AllEnemies/All）不在此列——
+            // 不可被"指定"≠不可被范围波及。法术护盾在效果执行时消耗（EffectHandlerRegistry），此处不滤。
+            if (targetType == EffectTargetType.Target)
+            {
+                candidates.RemoveAll(c =>
+                {
+                    if (!(c is Card card) || context.Controller == null) return false;
+                    var tc = card.GetController();
+                    return tc != null && tc != context.Controller
+                        && (card.HasKeyword(KeywordRules.Untargetable) || card.HasKeyword(KeywordRules.Stealth));
+                });
+            }
+
             return candidates;
         }
 

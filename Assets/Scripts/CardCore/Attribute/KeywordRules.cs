@@ -36,7 +36,6 @@ namespace CardCore.Attribute
         public const string Windfury = "Windfury";
         public const string FirstStrike = "FirstStrike";
         public const string DoubleStrike = "DoubleStrike";
-        public const string Trample = "Trample";
         public const string Overwhelm = "Overwhelm";
         public const string Reborn = "Reborn";
         public const string Indestructible = "Indestructible";
@@ -74,6 +73,13 @@ namespace CardCore.Attribute
             if (target.HasKeyword(DivineShield))
             {
                 target.RemoveKeyword(DivineShield);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = target,
+                    Keyword = DivineShield,
+                    Detail = $"圣盾抵挡 {amount} 点伤害",
+                    Source = source
+                });
                 return 0;
             }
 
@@ -86,6 +92,13 @@ namespace CardCore.Attribute
                     int absorbed = Math.Min(armor, amount);
                     armored.AddCounters(ArmorCounter, -absorbed);
                     amount -= absorbed;
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    {
+                        Target = target,
+                        Keyword = ArmorCounter,
+                        Detail = $"护甲指示物吸收 {absorbed} 点",
+                        Source = source
+                    });
                     if (amount <= 0) return 0;
                 }
             }
@@ -93,17 +106,28 @@ namespace CardCore.Attribute
             // 3. 坚韧：每次受到的最终伤害 −1 × 持有次数（叠加 = 融合专属强化）
             int toughness = KeywordCount(target, Armor);
             if (toughness > 0)
+            {
                 amount = Math.Max(0, amount - toughness);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = target,
+                    Keyword = Armor,
+                    Detail = $"坚韧减免 {toughness} 点",
+                    Source = source
+                });
+            }
             if (amount <= 0) return 0;
 
-            // 4. 落血（Card 到 0 标记死亡；Player 直接扣）
+            // 4. 落血（Card 到 0 标记死亡；Player 直接扣）。
+            //    死亡决策走决策表（当前无护盾拦 DamageLethal；复生/落墓由 SBA 泵自发连锁处理）
             if (target is Card card)
             {
                 card._life -= amount;
                 if (card._life <= 0)
                 {
                     card._life = 0;
-                    card.IsAlive = false;
+                    if (!DeathRules.IsShielded(card, DeathCause.DamageLethal))
+                        card.IsAlive = false;
                 }
             }
             else if (target is Player player)
@@ -111,25 +135,65 @@ namespace CardCore.Attribute
                 player.Life -= amount;
             }
 
-            // 5. 剧毒：任意来源伤害即致死（仅随从目标）
-            if (source != null && source.HasKeyword(Poisonous) && target is Card poisoned && poisoned.IsAlive)
+            // 5. 剧毒：任意来源伤害即致死（效果死亡，来源=剧毒效果来源——术语定案）。
+            //    世界观定案：角色（玩家化身）是普通生物单位，剧毒同样致死——
+            //    其免疫来自默认持有的神佑状态（决策表裁决，可被移除），不再硬编码"仅随从"。
+            if (source != null && source.HasKeyword(Poisonous) && target.IsAlive
+                && !DeathRules.IsShielded(target, DeathCause.Poison))
             {
-                poisoned._life = 0;
-                poisoned.IsAlive = false;
+                if (target is Card poisoned)
+                {
+                    poisoned._life = 0;
+                    poisoned.IsAlive = false;
+                }
+                else if (target is Player victim)
+                {
+                    victim.Life = 0; // 生命归零；胜负由连锁结算完成时的判定收尾
+                }
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = target,
+                    Keyword = Poisonous,
+                    Detail = "剧毒致死",
+                    Source = source
+                });
             }
 
             // 6. 吸血（恢复随从自身）/ 系命（回复角色）——按实际造成的伤害结算
             if (source != null && source.IsAlive)
             {
                 if (source.HasKeyword(Lifesteal) && source is Card stealer)
+                {
                     stealer.Heal(amount);
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    {
+                        Target = stealer,
+                        Keyword = Lifesteal,
+                        Detail = $"吸血回复 {amount} 生命",
+                        Source = target
+                    });
+                }
                 if (source.HasKeyword(Lifelink) && source.GetController() is Player owner)
+                {
                     owner.Life += amount;
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    {
+                        Target = owner,
+                        Keyword = Lifelink,
+                        Detail = $"系命回复 {amount} 生命",
+                        Source = source
+                    });
+                }
             }
 
             // 结算后发布最终伤害事件（替代已在管线前消费，此处发实际值供触发器观察）。
             // 统一由本方法发布，调用方不再事后补发（历史上仅 CombatSystem 补发，已删）。
-            EventManager.Instance.Publish(new DamageEvent { Source = source, Target = target, Amount = amount });
+            // 经 GameCore 路由但跳过替代检查（防二次套用）——On_DamageDealt/Taken 触发时点可见。
+            var damageEvent = new DamageEvent { Source = source, Target = target, Amount = amount };
+            if (GameCore.Instance != null)
+                GameCore.Instance.PublishEventRouted(damageEvent, replacementsApplied: true);
+            else
+                EventManager.Instance.Publish(damageEvent);
 
             return amount;
         }
@@ -144,6 +208,12 @@ namespace CardCore.Attribute
             if (entity is Card card && card.HasKeyword(Vigilance) && !card._vigilanceUsedThisTurn)
             {
                 card._vigilanceUsedThisTurn = true; // 一回合只生效一次
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = card,
+                    Keyword = Vigilance,
+                    Detail = "警戒抵消横置"
+                });
                 return false;
             }
             return true;
@@ -163,6 +233,12 @@ namespace CardCore.Attribute
             card.IsAlive = true;
             card._isTapped = true;          // 横置
             card.SummonedThisTurn = true;  // 带召唤失调（视为重新入场）
+            EventManager.Instance.Publish(new KeywordAppliedEvent
+            {
+                Target = card,
+                Keyword = Reborn,
+                Detail = "复生：以 1 血回场（横置并失调）"
+            });
             return true;
         }
 
@@ -185,6 +261,13 @@ namespace CardCore.Attribute
 
                 shielded.RemoveKeyword(SpellShield);
                 targets.RemoveAt(i);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = shielded,
+                    Keyword = SpellShield,
+                    Detail = "法术护盾使效果对其无效",
+                    Source = source
+                });
             }
         }
     }

@@ -361,35 +361,6 @@
             "arrows": ""
         },
         {
-            "id": "TEST_KW_TRAMPLE",
-            "cardName": "穿透重蹄兽",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 4.0
-                }
-            ],
-            "keywords": [
-                "Trample"
-            ],
-            "tags": [
-                "keyword-test"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": ""
-        },
-        {
             "id": "TEST_KW_POISONOUS",
             "cardName": "剧毒毒沼虫",
             "supertype": "Creature",
@@ -765,6 +736,64 @@
             ],
             "keywords": [
                 "Indestructible"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_REGENERATION",
+            "cardName": "再生愈体藤",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "Regeneration"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_GROWTH",
+            "cardName": "成长萌芽兽",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Growth"
             ],
             "tags": [
                 "keyword-test"

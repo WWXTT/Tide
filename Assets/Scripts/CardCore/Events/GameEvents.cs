@@ -550,6 +550,28 @@ namespace CardCore
         public Entity Source { get; set; }
     }
 
+    /// <summary>
+    /// 关键词生效事件：规则关键词产生实际作用的统一观察点
+    /// （圣盾抵挡、护甲吸收、坚韧减免、剧毒致死、吸血/系命回复、守卫转移、
+    ///   潜行失效、警戒抵消横置、复生回场、法术护盾挡效果、成长等）。
+    /// 由 KeywordRules / CombatSystem / GameCore 的关键词结算点发布，
+    /// 表现层（战报播报/UI 特效）据此呈现"关键词为什么改变了这次结算"。
+    /// </summary>
+    public class KeywordAppliedEvent : GameEventBase
+    {
+        /// <summary>生效对象（受方：被抵挡/被转移/回复者等）</summary>
+        public Entity Target { get; set; }
+
+        /// <summary>关键词 id（KeywordRules 常量；护甲指示物等机制用机制名）</summary>
+        public string Keyword { get; set; }
+
+        /// <summary>生效描述（自含中文短语，如"圣盾抵挡 4 点伤害"）</summary>
+        public string Detail { get; set; }
+
+        /// <summary>交互对方（伤害来源/攻击者等），可空</summary>
+        public Entity Source { get; set; }
+    }
+
     // ==================== 效果反制事件 ====================
 
     /// <summary>

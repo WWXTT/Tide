@@ -5,12 +5,17 @@ using System.Linq;
 namespace CardCore
 {
     /// <summary>
-    /// 卡牌效果可作用对象
+    /// 卡牌效果可作用对象。
+    /// 世界观定案：角色（玩家化身）就是普通生物单位——关键词存储放在 Entity 层，
+    /// Player 与 Card 同构持有（角色默认带神佑状态，见 DeathRules.DivineProtection）。
     /// </summary>
     public abstract class Entity : ITimestamped
     {
         private TimestampInfo _timestamp;
         private bool _isAlive = true;
+
+        // 关键词存储（List 而非 HashSet：融合继承允许重复叠加；唯一性由 AddKeyword 的 Contains 保证）
+        internal List<string> _keywords = new List<string>();
 
         public TimestampInfo TimestampInfo => _timestamp;
         public DateTime CreationTime => _timestamp.DateTime;
@@ -114,6 +119,9 @@ namespace CardCore
             _name = name;
             _maxHealth = maxHealth;
             _life = maxHealth;
+            // 世界观定案：角色=普通生物单位，默认持有神佑（可被效果移除的真实状态，非硬编码）。
+            // 神佑使其免疫一切效果死亡（剧毒/消灭/湮灭…），只接受生命值归零的死亡。
+            _keywords.Add(Attribute.DeathRules.DivineProtection);
         }
 
         public void AddToDeck(Card card)

@@ -193,39 +193,26 @@ namespace CardCore
             var player = action.AffectedEntity as Player;
             if (player == null) return;
 
-            // 触发游戏结束事件
-            PublishEvent(new GameOverEvent
-            {
-                Winner = player.Opponent,
-                Loser = player,
-                Reason = GameOverReason.LifeZero
-            });
+            // 触发游戏结束事件（经 GameCore 统一发布口：只发一次 + TotalTurns 补全）
+            if (_gameCore != null)
+                _gameCore.PublishGameOverOnce(player.Opponent, GameOverReason.LifeZero);
+            else
+                PublishEvent(new GameOverEvent
+                {
+                    Winner = player.Opponent,
+                    Loser = player,
+                    Reason = GameOverReason.LifeZero
+                });
         }
 
         /// <summary>
-        /// 执行防御力归零动作（单位死亡）
+        /// 执行防御力归零动作（单位死亡：含战场尸体清理）——经死亡决策表统一裁决
         /// </summary>
         private void ExecuteZeroToughness(SBAActionRecord action)
         {
             var card = action.AffectedEntity as Card;
             if (card == null) return;
-
-            card.IsAlive = false;
-
-            // 复生：死亡时以 1 血回场（横置+带失调，视为重新入场），消耗关键词
-            if (Attribute.KeywordRules.TryReborn(card))
-                return;
-
-            // 移动到坟墓场
-            _gameCore?.ZoneManager.MoveCard(card, _gameCore.GetCurrentTurnPlayer(), Zone.Battlefield, Zone.Graveyard);
-
-            // 触发单位死亡事件
-            PublishEvent(new CardDestroyEvent
-            {
-                DestroyedCard = card,
-                Reason = DestroyReason.Combat,
-                Source = null
-            });
+            Attribute.DeathRules.TryKill(card, Attribute.DeathCause.ZeroToughness, null, _gameCore?.ZoneManager);
         }
 
         /// <summary>

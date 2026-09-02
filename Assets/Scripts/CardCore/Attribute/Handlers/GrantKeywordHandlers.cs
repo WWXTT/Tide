@@ -61,7 +61,6 @@ namespace CardCore.Attribute.Handlers
             (AtomicEffectType.GrantRush, "Rush", "获得突袭"),
             (AtomicEffectType.GrantDoubleStrike, "DoubleStrike", "获得连击"),
             (AtomicEffectType.GrantFirstStrike, "FirstStrike", "获得先攻"),
-            (AtomicEffectType.GrantTrample, "Trample", "获得穿透"),
             (AtomicEffectType.GrantWindfury, "Windfury", "获得风怒"),
             (AtomicEffectType.GrantOverwhelm, "Overwhelm", "获得碾压"),
             (AtomicEffectType.GrantMultiAttack, "MultiAttack", "获得多次攻击"),

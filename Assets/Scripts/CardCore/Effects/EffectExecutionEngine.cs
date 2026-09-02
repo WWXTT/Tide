@@ -108,7 +108,16 @@ namespace CardCore
 
             // 潜行：发动效果后移除（攻击后的移除在 CombatSystem.DeclareAttack）
             if (instance.Source is Card sourceCard && sourceCard.HasKeyword(KeywordRules.Stealth))
+            {
                 sourceCard.RemoveKeyword(KeywordRules.Stealth);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = sourceCard,
+                    Keyword = KeywordRules.Stealth,
+                    Detail = "发动效果后潜行失效",
+                    Source = instance.Source
+                });
+            }
 
             // 解析上下文：承载无效化(Negate)/逻辑替换(ReplaceLogic)/撤销(Undo) 状态，
             // 贯穿本次结算并随结算事件发布。
@@ -532,15 +541,23 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 玩家选择发动速度效果
+        /// 玩家选择发动速度效果。
+        /// PlayerChooseEffect 的实现是从待发队列移除——若调用方（如 GameActions.ActivateEffect）
+        /// 传入的是直构的 PendingEffect（从未入队），移除恒失败；此处先入队再选，统一走「出队→入栈」。
+        /// 已在队中的调用不受影响（首次移除即成功）。
         /// </summary>
         public bool PlayerActivateVoluntary(PendingEffect effect)
         {
-            if (effect.ActivationType != EffectActivationType.Voluntary)
+            if (effect == null || effect.ActivationType != EffectActivationType.Voluntary)
                 return false;
 
             var chosen = _pendingQueue.PlayerChooseEffect(effect);
-            if (chosen == null) return false;
+            if (chosen == null)
+            {
+                _pendingQueue.AddPendingEffect(effect);
+                chosen = _pendingQueue.PlayerChooseEffect(effect);
+                if (chosen == null) return false;
+            }
 
             if (TryActivateEffect(chosen))
             {
@@ -548,6 +565,8 @@ namespace CardCore
                 return true;
             }
 
+            // 速度计数拒绝时不丢弃，回插待发队列
+            _pendingQueue.AddPendingEffect(chosen);
             return false;
         }
 
@@ -607,7 +626,10 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 结算完成 — 检查延迟触发，可能开始新一轮
+        /// 结算完成 — 自发连锁处理（用户定案模型）：
+        /// 单次连锁结算完成后，① 结算期间累积的条件触发先上栈（开新一轮连锁）；
+        /// ② SBA 状态动作自发执行（战场尸体送墓 / 防御归零 / 判负）；③ SBA 产生的事件
+        /// （死亡/送墓/抽卡…）经路由喂触发引擎 → 若有待发效果再开新一轮。循环直到稳定。
         /// </summary>
         private void FinishResolution()
         {
@@ -619,16 +641,26 @@ namespace CardCore
                 LastPriorityHolder = _priorityHolder
             });
 
-            // 结算期间产生的条件触发效果 → 新一轮
-            if (_pendingQueue.HasAutoEffects)
+            for (int guard = 0; guard < 16; guard++)
             {
-                ProcessTriggeredEffects();
-                if (_stack.Count > 0)
+                if (_pendingQueue.HasAutoEffects)
                 {
-                    _waitingForPlayer = true;
-                    _consecutivePassCount = 0;
-                    return;
+                    ProcessTriggeredEffects();
+                    if (_stack.Count > 0)
+                    {
+                        _waitingForPlayer = true;
+                        _consecutivePassCount = 0;
+                        return; // 新一轮连锁：双 Pass → BeginResolution → 结算完再回到这里
+                    }
                 }
+
+                var core = GameCore.Instance;
+                if (core == null) break;
+                core.SBAEngine.ExecuteAll();   // 自发状态动作：尸体送墓等（事件经路由喂触发引擎）
+                core.CheckLifeGameOver();      // 死亡引发的判负（幂等）
+                if (core.IsGameOver) return;
+
+                if (!_pendingQueue.HasAutoEffects) break; // 稳定：无新动作、无新触发
             }
         }
 
@@ -895,6 +927,7 @@ namespace CardCore
                 new HealHandler(),
                 new ModifyPowerHandler(),
                 new CreateTokenHandler(),
+                new MorphHandler(),
 
                 // 第一批补齐 — 伤害类
                 new DamageCannotBePreventedHandler(),
