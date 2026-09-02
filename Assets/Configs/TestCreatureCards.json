@@ -991,6 +991,88 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": ""
+        },
+        {
+            "id": "TEST_INSPIRE_001",
+            "cardName": "激励战歌",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [
+                {
+                    "Id": "INSPIRE_MAIN",
+                    "DisplayName": "激励",
+                    "Description": "以一个已横置的友方单位为目标，重置其横置状态（可解冻横置，不移除冻结指示物）",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_DISARM",
+            "cardName": "缴械断刃客",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "Disarm"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
         }
     ],
     "deckConfig": {

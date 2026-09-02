@@ -27,15 +27,9 @@ namespace CardCore.Editor.Tests
             Debug.Log($"{Tag} 菜单入口结果：{(result.Completed ? $"完成（胜者 {Name(result.Winner)}，{result.Reason}，共 {result.TotalTurns} 回合）" : result.TurnLimitReached ? "到达回合上限" : "异常中止")}\n错误 {result.Errors.Count} 条，播报 {result.AnnouncedLines} 行");
         }
 
-        /// <summary>标准卡组：非仪式卡 + 单张三相仪典（同 CardPipelineVerifier 主卡组口径）。</summary>
+        /// <summary>标准卡组：纯非仪式卡（仪式验证走全仪式压力口径；AI 对战当前测不到仪式，移出）。</summary>
         public static List<CardData> LoadStandardDeck()
-        {
-            var cards = LoadTestCards();
-            var deck = cards.Where(c => !RitualSystem.IsRitual(new CardWrapper(c))).ToList();
-            var trinity = cards.FirstOrDefault(c => c.ID == "RITUAL_TRINITY_001");
-            if (trinity != null) deck.Add(trinity);
-            return deck;
-        }
+            => LoadTestCards().Where(c => !RitualSystem.IsRitual(new CardWrapper(c))).ToList();
 
         /// <summary>全仪式卡组（压力口径）：开局仪式占满手牌、连环顶替、小卡组疲劳收尾。</summary>
         public static List<CardData> LoadRitualHeavyDeck()
@@ -151,7 +145,9 @@ namespace CardCore.Editor.Tests
             => Say($"{AiBattleE2E.Name(e.Player)} 打出 {AiBattleE2E.Name(e.PlayedCard)}");
 
         private void OnCardZoneChange(CardZoneChangeEvent e)
-            => Say($"{AiBattleE2E.Name(e.Card)}：{e.OldZone} → {e.NewZone}");
+        {
+            // 订阅以保持与 BattleScreen 相同的事件面；区域流转已由入场/离场/打牌等专门行呈现，不播（去重）
+        }
 
         private void OnCardEnterBattlefield(CardPutToBattlefieldEvent e)
             => Say($"{AiBattleE2E.Name(e.Card)} 入场（战场，{(e.Tapped ? "横置" : "可用")}）");
@@ -322,6 +318,14 @@ namespace CardCore.Editor.Tests
                 core.InitGame(CardLoader.BuildDeck(deckSpec, 1), CardLoader.BuildDeck(deckSpec, 1));
                 core.Player1.IsAI = true; // 选择全自动
                 core.Player2.IsAI = true;
+
+                // 测试口径：双方开局元素池预置 5 点灰色元素——加速中高费随从（关键词卡多为 5-8 费）
+                // 出场互殴，让关键词行为在对局内真正得到触发（费用门槛仍受地牌槽上限约束）
+                foreach (var p in new[] { core.Player1, core.Player2 })
+                {
+                    var bank = core.ElementPool.GetPool(p).AvailableMana;
+                    bank[ManaType.Gray] = (bank.TryGetValue(ManaType.Gray, out var g) ? g : 0) + 5;
+                }
 
                 // 棋盘占用层（派生，单向读核心）：为碾压关键词注入邻接解析（核心不绑棋盘，宿主接线）
                 board = new GameBoard.BoardState(core, core.Player1, core.Player2,

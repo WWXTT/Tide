@@ -193,6 +193,11 @@ namespace CardCore
             TextChangeLayer.OnTurnEnd(e.TurnPlayer, e.TurnNumber);
             // 延迟效果解决含异步原子效果（await UI）→ 事件回调为 void，故 fire-and-forget
             DelayedEffectScheduler.OnTurnEnd(e.TurnPlayer).Forget();
+
+            // 持续指示物消退（定案：正面/负面统一登记于 CounterRules）：
+            // UntilEndOfTurn 类（冻结/突袭紊乱）在归属玩家回合结束清零——突袭的"不能以玩家为目标"限制随之解除
+            Attribute.CounterRules.OnTurnEnd(e.TurnPlayer, ZoneManager);
+
             // 手牌上限：超出部分由玩家选弃（AI/超时自动弃先头）
             EnforceHandLimitAsync(e.TurnPlayer).Forget();
         }
@@ -248,7 +253,7 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 回合开始（准备阶段）：重置栈优先权与每回合使用计数 → 横置恢复 → 重置元素池 → 抽1张
+        /// 回合开始（准备阶段）：重置栈优先权与每回合使用计数 → 重置元素池（地牌重置）→ 随从横置恢复（定案：地牌之后）→ 抽1张
         /// </summary>
         private void OnTurnStarted(TurnStartEvent e)
         {
@@ -272,11 +277,13 @@ namespace CardCore
                 return;
             }
 
-            // 重置步：回合玩家战场卡的战斗状态与关键词维护
+            // 重置元素池：地牌槽曲线按全局回合数推进 + 回合玩家地牌解除横置（准备阶段）
+            ElementPool.OnTurnStart(player, e.TurnNumber);
+
+            // 随从重置（定案：在地牌重置之后跟着重置）——战斗状态/关键词维护/横置恢复
             foreach (var card in ZoneManager.GetCards(player, Zone.Battlefield))
             {
-                // 召唤失调 / 攻击次数 / 警戒额度：回合开始重置
-                card.SummonedThisTurn = false;
+                // 攻击次数 / 警戒额度：回合开始重置
                 card.AttacksThisTurn = 0;
                 card._vigilanceUsedThisTurn = false;
 
@@ -300,15 +307,14 @@ namespace CardCore
                     });
                 }
 
+                // 横置恢复（定案）：回合规则照常——冻结/紊乱等负面指示物不修改重置
+                // （其持续与消退走 CounterRules 统一管理，回合结束清理）
                 if (card.IsTapped())
                 {
                     card.Untap();
                     PublishEvent(new UntapEvent { UntappedEntity = card });
                 }
             }
-
-            // 重置元素池：地牌槽曲线按全局回合数推进 + 回合玩家地牌解除横置（准备阶段）
-            ElementPool.OnTurnStart(player, e.TurnNumber);
 
             // 抽一张牌（回合抽 = 本回合首次抽牌，抽卡时点对触发可见）
             ZoneManagerExtensions.DrawCard(ZoneManager, player, firstDrawOfTurn: true);

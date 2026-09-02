@@ -121,13 +121,23 @@ namespace CardCore.Editor
 
             var hand1 = new List<Card>(core.ZoneManager.GetCards(p1, Zone.Hand));
             Assert(hand1.Count > 0, "p1 有手牌可放地牌");
-            Assert(GameActions.AddToElementPool(core, p1, hand1[0]), "主阶段放地牌成功");
+
+            // 地牌资格（定案）：只有卡组正式生物可作地牌——魔法/仪式等非生物、衍生物/副本临时卡拒绝
+            var creatures = hand1.Where(CardCore.ElementPoolSystem.CanServeAsLand).ToList();
+            Assert(creatures.Count > 0, "p1 手牌有生物可放地牌");
+            var nonCreature = hand1.FirstOrDefault(c => !CardCore.ElementPoolSystem.CanServeAsLand(c));
+            var token = new Card { ID = "VERIFY_TOKEN" }; // 裸 Card = 效果生成的临时卡
+            Assert(!core.ElementPool.AddCardToPool(token, p1), "地牌资格：衍生物/副本临时卡（裸 Card）拒绝");
+            if (nonCreature != null)
+                Assert(!GameActions.AddToElementPool(core, p1, nonCreature), "地牌资格：魔法/仪式等非生物超类拒绝");
+
+            Assert(GameActions.AddToElementPool(core, p1, creatures[0]), "主阶段放地牌成功");
 
             var pooled1 = core.ElementPool.GetPooledCards(p1);
             Assert(pooled1.Count == 1 && !pooled1[0].IsTapped, "地牌以可用（未横置）状态入场");
 
-            if (hand1.Count > 1)
-                Assert(!GameActions.AddToElementPool(core, p1, hand1[1]), "超过地牌槽上限拒绝（T1 上限 1）");
+            if (creatures.Count > 1)
+                Assert(!GameActions.AddToElementPool(core, p1, creatures[1]), "超过地牌槽上限拒绝（T1 上限 1）");
 
             // 手动横置：颜色限于地牌自身构成
             var colors = pooled1[0].GetAvailableColors();
@@ -796,7 +806,7 @@ namespace CardCore.Editor
         // ======================================== 关键词行为（合成随从） ========================================
 
         /// <summary>
-        /// 关键词行为验证（合成随从，不依赖卡表）：失调/冲锋/突袭/嘲讽/守卫/潜行/警戒/风怒/
+        /// 关键词行为验证（合成随从，不依赖卡表）：横置可用性/冲锋/突袭/嘲讽/守卫/潜行/警戒/风怒/
         /// 先攻/连击/碾压/剧毒/吸血/系命/圣盾/坚韧/护甲/不灭/复生/再生/成长/辟邪/法术护盾。
         /// 死亡交互（剧毒×不灭×复生）另见 DeathRules 决策表。
         /// </summary>
@@ -816,6 +826,7 @@ namespace CardCore.Editor
                 var card = new CardWrapper(data);
                 card.SetController(owner);
                 core.ZoneManager.TryAddToBattlefield(card, owner);
+                card.Untap(); // 新规则横置入场；本段测试前提 = 已过回合重置的竖直随从（横置行为单独断言）
                 used.Add(card);
                 return card;
             }
@@ -835,27 +846,55 @@ namespace CardCore.Editor
             Assert(CardCore.Attribute.Handlers.GrantKeywordHandlerFactory.TryGetKeywordId(AtomicEffectType.GrantReborn, out var rebornId) && rebornId == "Reborn",
                    "工厂登记复生关键词 id");
 
-            // ---- 2. 召唤失调 / 冲锋 / 突袭 ----
+            // ---- 2. 横置可用性 / 冲锋 / 突袭（定案：横置=唯一可用性指标；冲锋/突袭一次性，生效=解除横置+消耗） ----
             combat.StartCombat(p1, p2);
-            var sick = Make(p1, 3, 3);
-            Assert(!combat.CanDeclareAttack(sick, p1), "召唤失调：入场当回合不可攻击");
-            var charger = Make(p1, 3, 3, "Charge");
+            var tappedUnit = Make(p1, 3, 3);
+            tappedUnit.Tap(); // 模拟横置在场（未过回合重置）
+            Assert(!combat.CanDeclareAttack(tappedUnit, p1), "横置随从不可攻击（可用性统一走横置）");
+            var readyUnit = Make(p1, 3, 3);
+            Assert(combat.CanDeclareAttack(readyUnit, p1), "未横置随从可攻击");
+
+            // 入场生效（直接观察 TryAddToBattlefield 行为，不经 Make 的竖置前提）
+            CardWrapper MakeEntry(string kw)
+            {
+                var data = new CardData { ID = "VERIFY_KW_ENTRY_" + used.Count, CardName = "入场" + used.Count };
+                data.Supertype = Cardtype.Creature;
+                data.Power = 3; data.Life = 3;
+                if (kw != null) data.Keywords.Add(kw);
+                var card = new CardWrapper(data);
+                card.SetController(p1);
+                core.ZoneManager.TryAddToBattlefield(card, p1);
+                used.Add(card);
+                return card;
+            }
+            var plain = MakeEntry(null);
+            Assert(plain.IsTapped(), "普通随从：一律横置入场");
+            var charger = MakeEntry("Charge");
+            Assert(!charger.IsTapped() && !charger.HasKeyword("Charge"),
+                   "冲锋：入场生效解除横置并消耗关键词");
             Assert(combat.CanDeclareAttack(charger, p1) && combat.CanAttackTarget(charger, p2),
-                   "冲锋：失调豁免，可立即攻击玩家");
-            var rusher = Make(p1, 3, 3, "Rush");
+                   "冲锋：无目标限制，可攻击玩家");
+            var rusher = MakeEntry("Rush");
             var enemy = Make(p2, 1, 9);
+            Assert(!rusher.IsTapped() && !rusher.HasKeyword("Rush")
+                   && rusher.GetCounterCount(CardCore.Attribute.KeywordRules.RushSicknessCounter) == 1,
+                   "突袭：入场生效解除横置、消耗关键词、残留一个紊乱指示物");
             Assert(combat.CanAttackTarget(rusher, enemy) && !combat.CanAttackTarget(rusher, p2),
-                   "突袭：失调回合只能攻随从不能攻玩家");
+                   "突袭：紊乱期间只能攻随从，不准攻击玩家（效果发动同口径）");
+            CardCore.Attribute.CounterRules.OnTurnEnd(p1, core.ZoneManager); // 回合结束持续指示物清理
+            Assert(rusher.GetCounterCount(CardCore.Attribute.KeywordRules.RushSicknessCounter) == 0
+                   && combat.CanAttackTarget(rusher, p2),
+                   "突袭：紊乱消退（持续到回合结束）后目标限制解除");
+            CardCore.Attribute.KeywordRules.RefreshOneShotKeywords(rusher); // 重新进入战场刷新
+            Assert(rusher.HasKeyword("Rush"), "突袭：一次性关键词重新入场刷新");
             combat.EndCombat();
 
             // ---- 3. 嘲讽 / 碾压无视嘲讽 ----
             combat.StartCombat(p1, p2);
             var attacker = Make(p1, 3, 3);
-            attacker.SummonedThisTurn = false;
             var taunter = Make(p2, 0, 9, "Taunt");
             Assert(!combat.CanAttackTarget(attacker, p2), "嘲讽：防守方有嘲讽随从时不能指定玩家");
             var overwhelmer = Make(p1, 3, 3, "Overwhelm");
-            overwhelmer.SummonedThisTurn = false;
             Assert(combat.CanAttackTarget(overwhelmer, p2), "碾压：无视嘲讽");
             taunter.IsAlive = false; // 移除嘲讽者
             Assert(combat.CanAttackTarget(attacker, p2), "嘲讽随从清除后可指定玩家");
@@ -864,7 +903,6 @@ namespace CardCore.Editor
             // ---- 4. 守卫：强制转移攻击目标 ----
             combat.StartCombat(p1, p2);
             var striker = Make(p1, 3, 3);
-            striker.SummonedThisTurn = false;
             var victim = Make(p2, 2, 5);
             var guard = Make(p2, 1, 8, "Guard");
             combat.DeclareAttack(striker, victim);
@@ -879,10 +917,8 @@ namespace CardCore.Editor
             combat.StartCombat(p1, p2);
             var lurker = Make(p2, 2, 2, "Stealth");
             var hunter = Make(p1, 3, 3);
-            hunter.SummonedThisTurn = false;
             Assert(!combat.CanAttackTarget(hunter, lurker), "潜行：不可被指定为攻击目标");
             var spy = Make(p1, 2, 2, "Stealth");
-            spy.SummonedThisTurn = false;
             combat.DeclareAttack(spy, p2);
             Assert(!spy.HasKeyword("Stealth"), "潜行：攻击后移除");
             combat.ExecuteDamage();
@@ -891,41 +927,59 @@ namespace CardCore.Editor
             // ---- 6. 警戒：攻击不横置（一回合一次） ----
             combat.StartCombat(p1, p2);
             var vigilant = Make(p1, 3, 3, "Vigilance");
-            vigilant.SummonedThisTurn = false;
             combat.DeclareAttack(vigilant, p2);
             Assert(!vigilant.IsTapped(), "警戒：攻击不横置");
             Assert(CardCore.Attribute.KeywordRules.ShouldTap(vigilant), "警戒：一回合只生效一次（额度已耗）");
             combat.ExecuteDamage();
             combat.EndCombat();
 
-            // ---- 7. 风怒：每回合两次 ----
+            // ---- 7. 风怒：每回合两次；攻击后重置自己（一回合一次） ----
             combat.StartCombat(p1, p2);
             var windfury = Make(p1, 1, 9, "Windfury");
-            windfury.SummonedThisTurn = false;
             combat.DeclareAttack(windfury, p2);
+            Assert(windfury.IsTapped(), "风怒：攻击照常支付横置");
             combat.ExecuteDamage();
-            windfury.Untap();
-            combat.StartCombat(p1, p2);
+            Assert(!windfury.IsTapped(), "风怒：首次攻击后重置自己");
             Assert(combat.CanDeclareAttack(windfury, p1), "风怒：第二次攻击可用");
             combat.DeclareAttack(windfury, p2);
             combat.ExecuteDamage();
-            Assert(windfury.AttacksThisTurn == 2 && !combat.CanDeclareAttack(windfury, p1), "风怒：两次后不可再攻");
+            Assert(windfury.IsTapped() && windfury.AttacksThisTurn == 2 && !combat.CanDeclareAttack(windfury, p1),
+                   "风怒：第二次攻击后不再重置（保持横置）、次数用尽不可再攻");
             combat.EndCombat();
 
             // ---- 8. 先攻：目标死亡不反击 ----
             combat.StartCombat(p1, p2);
             var first = Make(p1, 5, 3, "FirstStrike");
-            first.SummonedThisTurn = false;
             var bulky = Make(p2, 4, 3);
             combat.DeclareAttack(first, bulky);
             combat.ExecuteDamage();
             Assert(!bulky.IsAlive && first.GetLife() == 3, "先攻：目标死于先攻步，不反击");
+
+            // ---- 8b. 缴械：被攻击的目标无法反击 ----
+            combat.StartCombat(p1, p2);
+            var disarmer = Make(p1, 3, 5, "Disarm");
+            var bigGuard = Make(p2, 4, 9);
+            combat.DeclareAttack(disarmer, bigGuard);
+            combat.ExecuteDamage();
+            Assert(disarmer.GetLife() == 5 && bigGuard.GetLife() == 6,
+                   "缴械：目标（4 攻）无法反击，攻击者无伤（单向伤害）");
+            combat.EndCombat();
+
+            // ---- 8c. 反击资格：已横置的随从只能挨打（不反击、无消耗） ----
+            combat.StartCombat(p1, p2);
+            var aggressor = Make(p1, 3, 5);
+            var tired = Make(p2, 4, 9);
+            tired.Tap(); // 模拟已横置（刚攻击过/被冻结）
+            combat.DeclareAttack(aggressor, tired);
+            combat.ExecuteDamage();
+            Assert(aggressor.GetLife() == 5 && tired.GetLife() == 6,
+                   "反击资格：已横置目标（4 攻）不反击，攻击者无伤");
+            combat.EndCombat();
             combat.EndCombat();
 
             // ---- 9. 连击：两步各结算一次 ----
             combat.StartCombat(p1, p2);
             var doubleS = Make(p1, 2, 9, "DoubleStrike");
-            doubleS.SummonedThisTurn = false;
             var tank = Make(p2, 1, 5);
             combat.DeclareAttack(doubleS, tank);
             combat.ExecuteDamage();
@@ -935,7 +989,6 @@ namespace CardCore.Editor
             // ---- 11. 碾压：邻接受击（注入邻接扩展点） ----
             combat.StartCombat(p1, p2);
             var hammer = Make(p1, 4, 9, "Overwhelm");
-            hammer.SummonedThisTurn = false;
             var pivot = Make(p2, 1, 9);
             var neighbor = Make(p2, 1, 9);
             CardCore.CombatSystem.AdjacentResolver = c => c == pivot ? new[] { neighbor } : System.Array.Empty<Card>();
@@ -948,7 +1001,6 @@ namespace CardCore.Editor
             // ---- 12. 剧毒：任意伤害致死 ----
             combat.StartCombat(p1, p2);
             var viper = Make(p1, 1, 9, "Poisonous");
-            viper.SummonedThisTurn = false;
             var giant = Make(p2, 3, 10);
             combat.DeclareAttack(viper, giant);
             combat.ExecuteDamage();
@@ -958,7 +1010,6 @@ namespace CardCore.Editor
             // ---- 13. 吸血（恢复自身）/ 系命（回复角色） ----
             combat.StartCombat(p1, p2);
             var bat = Make(p1, 2, 3, "Lifesteal");
-            bat.SummonedThisTurn = false;
             CardCore.Attribute.KeywordRules.ApplyDamage(p2, bat, 2, false); // 受伤状态
             var prey = Make(p2, 0, 9);
             combat.DeclareAttack(bat, prey);
@@ -969,7 +1020,6 @@ namespace CardCore.Editor
             combat.StartCombat(p1, p2);
             p1.Life = 20;
             var monk = Make(p1, 3, 3, "Lifelink");
-            monk.SummonedThisTurn = false;
             combat.DeclareAttack(monk, p2);
             combat.ExecuteDamage();
             Assert(p1.Life == 23, "系命：造成 3 伤害回复角色");
@@ -979,7 +1029,6 @@ namespace CardCore.Editor
             combat.StartCombat(p1, p2);
             var shielded = Make(p2, 1, 5, "DivineShield");
             var breaker = Make(p1, 4, 9);
-            breaker.SummonedThisTurn = false;
             combat.DeclareAttack(breaker, shielded);
             combat.ExecuteDamage();
             Assert(shielded.IsAlive && shielded.GetLife() == 5 && !shielded.HasKeyword("DivineShield"),
@@ -994,7 +1043,6 @@ namespace CardCore.Editor
             combat.StartCombat(p1, p2);
             var tough = Make(p2, 1, 9, "Armor"); // 坚韧 −1
             var hitter = Make(p1, 4, 9);
-            hitter.SummonedThisTurn = false;
             combat.DeclareAttack(hitter, tough);
             combat.ExecuteDamage();
             Assert(tough.GetLife() == 6, "坚韧：最终伤害 −1（9 −3 = 6）");
@@ -1031,9 +1079,9 @@ namespace CardCore.Editor
             var phoenix = Make(p1, 2, 5, "Reborn");
             phoenix.IsAlive = false;
             Assert(CardCore.Attribute.KeywordRules.TryReborn(phoenix)
-                   && phoenix.IsAlive && phoenix.GetLife() == 1 && phoenix.IsTapped() && phoenix.SummonedThisTurn
+                   && phoenix.IsAlive && phoenix.GetLife() == 1 && phoenix.IsTapped()
                    && !phoenix.HasKeyword("Reborn"),
-                   "复生：1 血回场、横置带失调、关键词消耗");
+                   "复生：1 血回场、横置（本回合不可用）、关键词消耗");
 
             // ---- 15b. 死亡决策表（DeathRules）：死因×护盾 定案断言 ----
             var venomLord = Make(p2, 2, 9, "Indestructible");

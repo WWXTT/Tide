@@ -161,6 +161,16 @@ namespace CardCore
         // ======================================== 放卡进元素池 ========================================
 
         /// <summary>
+        /// 地牌资格（定案）：只有卡组正式生物（CardWrapper + Creature 超类）可作地牌——
+        /// 魔法/仪式等非生物超类、效果生成的衍生物/副本（裸 Card 临时卡）一律不可。
+        /// UI/AI 预检与 AddCardToPool 权威校验共用此判据。
+        /// </summary>
+        public static bool CanServeAsLand(Card card)
+            => card is CardWrapper
+               && card is IHasSupertype ht
+               && ht.Supertype == Cardtype.Creature;
+
+        /// <summary>
         /// 将手牌作为地牌放入元素池（主阶段调用，可用/未横置状态入场，不限张数/次数）。
         /// 张数受地牌槽上限约束（min(全局回合数, 9)）；指示物基于卡牌费用构成。
         /// 状态跟随卡：耗尽过的卡（WasDepletedAsLand）永久拒绝；
@@ -169,6 +179,10 @@ namespace CardCore
         public bool AddCardToPool(Card card, Player owner)
         {
             if (card == null || owner == null) return false;
+
+            // 地牌资格：只有卡组正式生物（非生物超类/衍生物/副本临时卡不可）
+            if (!CanServeAsLand(card))
+                return false;
 
             // 资源枯竭不可逆：耗尽进过墓地的卡不可再次作为地牌
             if (card.WasDepletedAsLand)

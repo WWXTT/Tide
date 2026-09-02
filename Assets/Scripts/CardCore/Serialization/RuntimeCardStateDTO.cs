@@ -35,9 +35,6 @@ namespace CardCore.Serialization
         [MemoryPackOrder(TagTable.RCS_IsTapped)]
         public bool IsTapped;
 
-        [MemoryPackOrder(TagTable.RCS_IsFrozen)]
-        public bool IsFrozen;
-
         [MemoryPackOrder(TagTable.RCS_IsNegated)]
         public bool IsNegated;
 
@@ -75,7 +72,6 @@ namespace CardCore.Serialization
                 Armor = card._armor,
                 DamagePrevention = card._damagePrevention,
                 IsTapped = card._isTapped,
-                IsFrozen = card._isFrozen,
                 IsNegated = card._isNegated,
                 IsNullified = card._isNullified,
                 Zone = (int)card._zone,
@@ -105,7 +101,6 @@ namespace CardCore.Serialization
             card._armor = Armor;
             card._damagePrevention = DamagePrevention;
             card._isTapped = IsTapped;
-            card._isFrozen = IsFrozen;
             card._isNegated = IsNegated;
             card._isNullified = IsNullified;
             card._zone = (Zone)Zone;

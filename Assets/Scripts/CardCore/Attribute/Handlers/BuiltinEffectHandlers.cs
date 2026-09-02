@@ -137,8 +137,8 @@ namespace CardCore.Attribute.Handlers
 
             foreach (var target in context.Targets)
             {
+                // Freeze 定案：强制横置 + 一个冻结指示物（回合开始移除指示物而不重置）
                 target.Freeze(duration);
-                target.Tap();
                 PublishEvent(new FreezeEvent
                 {
                     Target = target,

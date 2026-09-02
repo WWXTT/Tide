@@ -285,6 +285,18 @@ namespace CardCore
     }
 
     /// <summary>
+    /// 攻击取消事件（宣言后重检失败）：
+    /// 宣言时点触发的效果抢先横置/消灭了攻击者（横置代价支付不出），或目标丢失——
+    /// 宣言回滚（不支付、不计数、不入队），上层应让玩家重新确认攻击目标。
+    /// </summary>
+    public class CombatCancelledEvent : GameEventBase
+    {
+        public Entity Attacker { get; set; }
+        public Entity OriginalTarget { get; set; }
+        public Player AttackingPlayer { get; set; }
+    }
+
+    /// <summary>
     /// 阻拦宣言事件
     /// </summary>
     public class BlockDeclarationEvent : GameEventBase

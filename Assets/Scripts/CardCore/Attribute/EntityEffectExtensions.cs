@@ -62,7 +62,7 @@ namespace CardCore
         /// <summary>
         /// 受到伤害（关键词管线）：经 KeywordRules 结算——圣盾挡一次、护甲指示物逐点吸收、
         /// 坚韧 −持有次数、剧毒致死、吸血（恢复自身）/系命（回复角色）。
-        /// 事件（DamageEvent 等）由调用方按路径发布。
+        /// 事件链（DamageEvent/CombatDamageEvent/LifeChangeEvent/吸血系命）由管线统一按时序发布。
         /// </summary>
         public static void TakeDamage(this Entity entity, int amount, Entity source, bool isCombat = false)
         {
@@ -277,17 +277,23 @@ namespace CardCore
 
         #region 特殊状态
 
-        /// <summary>冻结</summary>
+        /// <summary>
+        /// 冻结（定案）：强制横置（一次性动作）+ 放置一个负面冻结指示物（持续到回合结束，
+        /// 经 CounterRules 统一消退）。不修改回合规则——回合开始横置重置照常。
+        /// </summary>
         public static void Freeze(this Entity entity, DurationType duration)
         {
-            if (entity is Card card) card._isFrozen = true;
+            if (entity is Card card)
+            {
+                card._isTapped = true;
+                card.AddCounters(Attribute.KeywordRules.FreezeCounter, 1);
+            }
         }
 
-        /// <summary>是否冻结</summary>
+        /// <summary>是否冻结（冻结指示物 &gt; 0）</summary>
         public static bool IsFrozen(this Entity entity)
         {
-            if (entity is Card card) return card._isFrozen;
-            return false;
+            return entity is Card card && card.GetCounterCount(Attribute.KeywordRules.FreezeCounter) > 0;
         }
 
         /// <summary>添加护甲</summary>
@@ -302,12 +308,12 @@ namespace CardCore
             if (entity is Card card) card._damagePrevention += amount;
         }
 
-        /// <summary>移除所有减益</summary>
+        /// <summary>移除所有减益：清空全部负面指示物（CounterRules 极性口径；横置不在此恢复）+ 减益关键词。</summary>
         public static void RemoveAllDebuffs(this Entity entity)
         {
             if (entity is Card card)
             {
-                card._isFrozen = false;
+                Attribute.CounterRules.ClearNegative(card);
                 // 移除其他减益关键词
                 card._keywords.Remove("Silenced");
                 card._keywords.Remove("Weakened");
@@ -395,7 +401,6 @@ namespace CardCore
 
         // 状态
         internal bool _isTapped = false;
-        internal bool _isFrozen = false;
         internal bool _isNegated = false;
         internal bool _isNullified = false;
         internal Zone _zone = Zone.None;
@@ -413,8 +418,8 @@ namespace CardCore
 
         // ===== 战斗状态（关键词行为；核心规则字段，非棋盘坐标） =====
 
-        /// <summary>召唤失调：入场当回合不可攻击（冲锋/突袭豁免；己方回合开始清除）</summary>
-        public bool SummonedThisTurn { get; set; } = false;
+        // 【定案】随从可用性唯一指标 = 横置（_isTapped）：默认横置入场（冲锋/突袭豁免），
+        // 攻击与发动效果各消耗一次横置，己方回合开始（地牌重置后）重置——不另设召唤失调标记。
 
         /// <summary>本回合已攻击次数（上限 1，风怒 = 2；己方回合开始清零）</summary>
         public int AttacksThisTurn { get; set; } = 0;

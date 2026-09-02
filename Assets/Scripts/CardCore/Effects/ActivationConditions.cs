@@ -628,14 +628,11 @@ namespace CardCore
                     return false;
 
                 case ConditionType.CardIsTapped:
-                    if (context.Source is Card c0 && c0 is ITappable tappable)
-                        return tappable.IsTapped;
-                    return false;
+                    // 横置状态经扩展方法读取（Card 不实现 ITappable——该接口仅地牌池卡实现）
+                    return context.Source is Card c0 && c0.IsTapped();
 
                 case ConditionType.CardIsUntapped:
-                    if (context.Source is Card c1 && c1 is ITappable tappable2)
-                        return !tappable2.IsTapped;
-                    return true;
+                    return !(context.Source is Card c1 && c1.IsTapped());
 
                 case ConditionType.CardHasPower:
                     if (context.Source is Card c2 && c2 is IHasPower hasPower)

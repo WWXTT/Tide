@@ -63,6 +63,7 @@ namespace CardCore.Attribute.Handlers
             (AtomicEffectType.GrantFirstStrike, "FirstStrike", "获得先攻"),
             (AtomicEffectType.GrantWindfury, "Windfury", "获得风怒"),
             (AtomicEffectType.GrantOverwhelm, "Overwhelm", "获得碾压"),
+            (AtomicEffectType.GrantDisarm, "Disarm", "获得缴械"),
             (AtomicEffectType.GrantMultiAttack, "MultiAttack", "获得多次攻击"),
 
             // 蓝色 - 规避/控制
@@ -72,7 +73,6 @@ namespace CardCore.Attribute.Handlers
             (AtomicEffectType.GrantSpellShield, "SpellShield", "获得法术护盾"),
             (AtomicEffectType.GrantGuard, "Guard", "获得守卫"),
             (AtomicEffectType.GrantReach, "Reach", "获得阻断飞行"),
-            (AtomicEffectType.GrantWard, "Ward", "获得守卫"),
             (AtomicEffectType.GrantCannotBeTargeted, "Untargetable", "获得不可被指定"),
             (AtomicEffectType.GrantImmunity, "Immunity", "获得免疫"),
             (AtomicEffectType.GrantUnaffected, "Unaffected", "获得不受影响"),
