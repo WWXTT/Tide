@@ -94,6 +94,26 @@ namespace CardCore
     }
 
     /// <summary>
+    /// 卡牌加入手牌事件（ZoneContainer 层统一发布）。
+    /// IsDraw = 抽牌路径（回合抽牌/抽牌原子，由 ZoneManagerExtensions.DrawCard 置位），
+    /// 供「非抽牌形式入手」类计数区分来源。
+    /// </summary>
+    public class CardEnterHandEvent : GameEventBase
+    {
+        public Player Player { get; set; }
+        public Card Card { get; set; }
+        public Zone FromZone { get; set; }
+        public bool IsDraw { get; set; }
+    }
+
+    /// <summary>跳过准备阶段事件：回合玩家宣告跳过自己本回合的准备阶段自动化（节奏轴仪式行为）。</summary>
+    public class StandbySkippedEvent : GameEventBase
+    {
+        public Player Player { get; set; }
+        public int TurnNumber { get; set; }
+    }
+
+    /// <summary>
     /// 使用卡牌事件
     /// </summary>
     public class CardPlayEvent : GameEventBase

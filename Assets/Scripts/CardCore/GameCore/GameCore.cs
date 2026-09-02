@@ -197,8 +197,8 @@ namespace CardCore
             EnforceHandLimitAsync(e.TurnPlayer).Forget();
         }
 
-        /// <summary>手牌上限（7）。回合结束时超出张数由 turnPlayer 选择弃牌。</summary>
-        private const int HandLimit = 7;
+        /// <summary>初始手牌总量（含仪式：仪式先占位，再抽牌补满至此数；超出的仪式留牌库正常抽）。</summary>
+        private const int OpeningHandSize = 6;
 
         private async UniTask EnforceHandLimitAsync(Player player)
         {
@@ -207,7 +207,8 @@ namespace CardCore
             var hand = ZoneManager.GetCards(player, Zone.Hand);
             if (hand == null) return;
 
-            int over = hand.Count - HandLimit;
+            // 手牌上限：规则扩展点（OCP）修改链（基值 7，如纳川仪典提升到 15）
+            int over = hand.Count - RuleHooks.GetHandLimit(player);
             if (over <= 0) return;
 
             var chosen = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
@@ -261,6 +262,15 @@ namespace CardCore
             var player = e.TurnPlayer;
             if (player == null)
                 return;
+
+            // 规则扩展点（OCP）：回合开始自动化拦截（如节奏轴仪式跳过准备阶段——
+            // 抽牌、地牌槽（元素浓度上限）推进、横置重置、场上卡准备阶段结算全跳；
+            // 引擎簿记（栈优先权/全局回合计数/每回合一次计数）不在跳过范围——那是时钟不是结算）。
+            if (RuleHooks.ShouldSkipTurnStartAutomation(player))
+            {
+                PublishEvent(new StandbySkippedEvent { Player = player, TurnNumber = e.TurnNumber });
+                return;
+            }
 
             // 重置步：回合玩家战场卡的战斗状态与关键词维护
             foreach (var card in ZoneManager.GetCards(player, Zone.Battlefield))
@@ -338,14 +348,17 @@ namespace CardCore
             ZoneManagerExtensions.ShuffleDeck(ZoneManager, _player1);
             ZoneManagerExtensions.ShuffleDeck(ZoneManager, _player2);
 
-            // 仪式卡开局固定入手（不占起手数：先于起手抽牌直接入手；每玩家仅 1 张，多副本留牌库正常抽）
-            MoveFirstRitualToOpeningHand(_player1);
-            MoveFirstRitualToOpeningHand(_player2);
+            // 仪式占初始手牌位：仪式先占位（总量不超过初始手牌数），再抽牌补满；超出的仪式留牌库正常抽
+            MoveRitualsToOpeningHand(_player1);
+            MoveRitualsToOpeningHand(_player2);
 
-            // 起手抽5张
-            for (int i = 0; i < 5; i++)
+            // 起手抽牌补满至初始手牌总量（仪式占位后剩余的空位）
+            for (int i = ZoneManager.GetCards(_player1, Zone.Hand).Count; i < OpeningHandSize; i++)
             {
                 ZoneManagerExtensions.DrawCard(ZoneManager, _player1);
+            }
+            for (int i = ZoneManager.GetCards(_player2, Zone.Hand).Count; i < OpeningHandSize; i++)
+            {
                 ZoneManagerExtensions.DrawCard(ZoneManager, _player2);
             }
 
@@ -353,18 +366,30 @@ namespace CardCore
             StartGame();
         }
 
-        /// <summary>仪式卡开局固定入手：从牌库取第一张仪式卡直接入手（额外加入，不占起手抽牌数）。</summary>
-        private void MoveFirstRitualToOpeningHand(Player player)
+        /// <summary>
+        /// 仪式卡占初始手牌位：将牌库中的仪式卡逐一移入手牌，直至初始手牌总量上限；超出的仪式留牌库正常抽。
+        /// （规则定案：初始手牌 6 张含仪式——携带多张仪式时也挤占抽牌位，不以任何形式突破总量。）
+        /// </summary>
+        private void MoveRitualsToOpeningHand(Player player)
         {
-            var ritual = ZoneManager.GetCards(player, Zone.Deck).FirstOrDefault(c => RitualSystem.IsRitual(c));
-            if (ritual != null)
+            int slots = OpeningHandSize - ZoneManager.GetCards(player, Zone.Hand).Count;
+            if (slots <= 0) return;
+
+            var rituals = ZoneManager.GetCards(player, Zone.Deck)
+                .Where(c => RitualSystem.IsRitual(c))
+                .ToList();
+            foreach (var ritual in rituals)
+            {
+                if (slots <= 0) break;
                 ZoneManager.MoveCard(ritual, player, Zone.Deck, Zone.Hand);
+                slots--;
+            }
         }
 
         /// <summary>
         /// 从CardData列表初始化游戏
         /// </summary>
-        public void InitGame(List<CardData> deck1Data, List<CardData> deck2Data, int copiesPerCard = 3)
+        public void InitGame(List<CardData> deck1Data, List<CardData> deck2Data, int copiesPerCard = 1)
         {
             var deck1 = CardLoader.BuildDeck(deck1Data, copiesPerCard);
             var deck2 = CardLoader.BuildDeck(deck2Data, copiesPerCard);
@@ -445,6 +470,21 @@ namespace CardCore
         {
             _stateManager.Reset();
 
+            // 跨局不残留（曾缺失，AI 对战/验证器同域连开多局时暴露）：
+            // 1) 清空双方全部区域容器——上一局的卡牌不得带入新局
+            // 2) 玩家状态回满——生命/疲劳/抵消计数恢复初始
+            foreach (var player in new[] { _player1, _player2 })
+            {
+                var container = ZoneManager.GetZoneContainer(player);
+                if (container == null) continue;
+                foreach (Zone zone in Enum.GetValues(typeof(Zone)))
+                    container.Clear(zone);
+
+                player.Life = player.MaxHealth;
+                player.ResetOffsetUsage();
+                player.IsAI = false;
+            }
+
             TurnEngine.Initialize(_player1);
             StackEngine.Initialize(_player1);
 
@@ -460,6 +500,7 @@ namespace CardCore
             DurationTracker.ClearAll();
             ProphecySystem.Reset(); // 待验证预言跨局不残留
             RitualSystem.Reset();   // 仪式任务与光环跨局不残留
+            RitualSystem.EnsureRuntime();  // 仪式运行时订阅（任务计数+奖励驱动），开局即挂载（展示记录等不漏采）
         }
 
         #endregion

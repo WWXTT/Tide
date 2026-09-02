@@ -127,6 +127,7 @@
     <Compile Include="Assets\Scripts\CardCore\GameCore\GameActions.cs" />
     <Compile Include="Assets\Scripts\CardCore\Serialization\EffectDefinitionDTO.cs" />
     <Compile Include="Assets\UI\Data\ContentHasher.cs" />
+    <Compile Include="Assets\Scripts\CardCore\Effects\RuleHooks.cs" />
     <Compile Include="Assets\Scripts\CardCore\Serialization\TagRegistry.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\EffectResolutionContext.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\Effect.cs" />
@@ -167,7 +168,7 @@
     <Compile Include="Assets\Scripts\CardCore\Layers\TextChangeLayer.cs" />
     <Compile Include="Assets\UI\Screens\BattleScreen.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\GrantKeywordHandlers.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\RitualEffects.cs" />
+    <Compile Include="Assets\Scripts\CardCore\Effects\RitualAuras.cs" />
     <Compile Include="Assets\UI\Data\KeywordCatalog.cs" />
     <Compile Include="Assets\UI\Screens\BattleController.cs" />
     <Compile Include="Assets\Scripts\CardCore\GameCore\GameExceptions.cs" />
@@ -180,6 +181,7 @@
     <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\MetaEffectHandlers.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\CostSystem.cs" />
     <Compile Include="Assets\UI\Data\DeckData.cs" />
+    <Compile Include="Assets\Scripts\CardCore\Effects\RitualTrackers.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\SecondBatchEffectHandlers.cs" />
     <Compile Include="Assets\UI\Data\EffectGraphData.cs" />
     <Compile Include="Assets\Scripts\CardCore\GameCore\GameState.cs" />
@@ -197,7 +199,6 @@
     <None Include="Assets\UI\Resources\UXML\CardComposer.uxml" />
     <None Include="Assets\UI\HexMap\Shaders\HexTerrainInput.hlsl" />
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\lib\netstandard2.0\System.Collections.Immutable.xml" />
-    <None Include="Assets\Configs\仪式效果.txt" />
     <None Include="Assets\UI\Resources\UXML\Battle.uxml" />
     <None Include="Assets\UI\Resources\UXML\MainMenu.uxml" />
     <None Include="Assets\UI\Resources\UXML\EffectComposer.uxml" />
@@ -800,6 +801,10 @@
       <HintPath>Library\PackageCache\com.unity.collections@ec2c217e4cb2\Unity.Collections.LowLevel.ILSupport\Unity.Collections.LowLevel.ILSupport.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="MemoryPack.Core">
+      <HintPath>Assets\Packages\MemoryPack.Core.1.21.4\lib\netstandard2.1\MemoryPack.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="nunit.framework">
       <HintPath>Library\PackageCache\com.unity.ext.nunit@44f7d31723bd\net472\unity-custom\nunit.framework.dll</HintPath>
       <Private>False</Private>
@@ -810,10 +815,6 @@
     </Reference>
     <Reference Include="Mono.Cecil">
       <HintPath>Library\PackageCache\com.unity.nuget.mono-cecil@ecb9724e46ff\Mono.Cecil.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="MemoryPack.Core">
-      <HintPath>Assets\Packages\MemoryPack.Core.1.21.4\lib\netstandard2.1\MemoryPack.Core.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.Android.Types">
@@ -1352,10 +1353,6 @@
       <HintPath>C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\BCLExtensions\TargetingPacks\netstandard2.1\ref\System.Text.Json.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="UniTask.Addressables">
-      <HintPath>Library\ScriptAssemblies\UniTask.Addressables.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="Unity.Transforms">
       <HintPath>Library\ScriptAssemblies\Unity.Transforms.dll</HintPath>
       <Private>False</Private>
@@ -1382,10 +1379,6 @@
     </Reference>
     <Reference Include="Unity.Texture2DArrayImportPipeline.Editor">
       <HintPath>Library\ScriptAssemblies\Unity.Texture2DArrayImportPipeline.Editor.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UniTask.Linq">
-      <HintPath>Library\ScriptAssemblies\UniTask.Linq.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.Rendering.LightTransport.Editor">
@@ -1596,8 +1589,16 @@
       <HintPath>Library\ScriptAssemblies\Unity.ShaderGraph.Editor.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UniTask.Addressables">
+      <HintPath>Library\ScriptAssemblies\UniTask.Addressables.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Unity.RenderPipelines.Core.Editor.Shared">
       <HintPath>Library\ScriptAssemblies\Unity.RenderPipelines.Core.Editor.Shared.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UniTask.Linq">
+      <HintPath>Library\ScriptAssemblies\UniTask.Linq.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.Settings.Editor">

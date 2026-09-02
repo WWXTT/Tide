@@ -141,7 +141,7 @@ namespace CardCore
             GreedyOffset(need, avail, ctx);
 
             // 4. 最终元素支付（原子：先确认可付，再扣）
-            if (!CanPayNeed(need, avail))
+            if (!CanPayNeed(need, avail, ctx))
                 return false;
             PayNeed(need, avail, ctx);
             return true;
@@ -183,7 +183,7 @@ namespace CardCore
                 needCopy[color.Value]--;
             }
 
-            return CanPayNeed(needCopy, avail);
+            return CanPayNeed(needCopy, avail, ctx);
         }
 
         /// <summary>各机制（受单局上限 + 当前资源）可抵消的费数之和。</summary>
@@ -250,7 +250,7 @@ namespace CardCore
         private static void GreedyOffset(Dictionary<ManaType, int> need, Dictionary<ManaType, int> avail, CostContext ctx)
         {
             // 按 config 顺序优先，逐次抵消，直到可支付或无法再抵消
-            while (!CanPayNeed(need, avail) && Reducible(need) > 0)
+            while (!CanPayNeed(need, avail, ctx) && Reducible(need) > 0)
             {
                 var usable = UsableMechanisms(ctx);
                 if (usable.Count == 0) break;
@@ -313,30 +313,39 @@ namespace CardCore
             return list;
         }
 
-        private static bool CanPayNeed(Dictionary<ManaType, int> need, Dictionary<ManaType, int> avail)
+        private static bool CanPayNeed(Dictionary<ManaType, int> need, Dictionary<ManaType, int> avail, CostContext ctx)
         {
+            // 纯色浓度上限：每种纯色单次支付量 ≤ 当场地牌槽上限（灰不受限）
+            int? cap = GetPureColorCap(ctx);
             foreach (var kv in need)
             {
                 if (kv.Value <= 0) continue;
                 var affinity = kv.Key == ManaType.Gray
                     ? ElementAffinity.Generic
                     : ElementAffinity.Single(kv.Key);
-                if (!ElementPaymentValidator.CanPay(affinity, avail, kv.Value))
+                if (!ElementPaymentValidator.CanPay(affinity, avail, kv.Value, cap))
                     return false;
             }
             return true;
         }
 
+        /// <summary>当前纯色浓度上限（= 支付者地牌槽上限）；上下文不全时退化为不限制。</summary>
+        private static int? GetPureColorCap(CostContext ctx)
+            => ctx?.ElementPool != null && ctx.Payer != null
+                ? ctx.ElementPool.GetLandCap(ctx.Payer)
+                : (int?)null;
+
         private static void PayNeed(Dictionary<ManaType, int> need, Dictionary<ManaType, int> avail, CostContext ctx)
         {
             var paid = new Dictionary<int, float>();
+            int? cap = GetPureColorCap(ctx);
             foreach (var kv in need)
             {
                 if (kv.Value <= 0) continue;
                 var affinity = kv.Key == ManaType.Gray
                     ? ElementAffinity.Generic
                     : ElementAffinity.Single(kv.Key);
-                var plan = ElementPaymentValidator.GetPaymentPlan(affinity, avail, kv.Value);
+                var plan = ElementPaymentValidator.GetPaymentPlan(affinity, avail, kv.Value, cap);
                 if (plan == null) continue;
                 foreach (var p in plan)
                 {

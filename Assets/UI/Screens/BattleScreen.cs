@@ -46,6 +46,7 @@ namespace SynergyUI
             UIBinder.BindButton(Root, "btn-skip-standby", OnSkipStandby);
             UIBinder.BindButton(Root, "btn-begin-combat", OnBeginCombat);
             UIBinder.BindButton(Root, "btn-resolve-combat", OnResolveCombat);
+            UIBinder.BindButton(Root, "btn-grave-play", OnGraveyardPlay);
             UIBinder.BindButton(Root, "btn-end-turn", OnEndTurn);
             UIBinder.BindButton(Root, "overlay-cancel", OnOverlayCancel);
 
@@ -114,6 +115,7 @@ namespace SynergyUI
             SetEnabled("btn-skip-standby", myStandby);
             SetEnabled("btn-begin-combat", myMain && !_ctrl.InCombat);
             SetEnabled("btn-resolve-combat", myMain && _ctrl.InCombat);
+            SetEnabled("btn-grave-play", myMain && GraveyardPlayAura.CanUse(P1) && Count(P1, Zone.Graveyard) > 0);
             SetEnabled("btn-end-turn", IsPlayerTurn && !_gameEnded);
         }
 
@@ -229,9 +231,27 @@ namespace SynergyUI
                     PromptTargetThenPlay(card, targetAtomic);
                     return;
                 }
-                GameActions.PlayCard(Core, P1, card, null);
+                if (!GameActions.PlayCard(Core, P1, card, null) && LockRevealedAura.IsLockedThisTurn(card))
+                    ShowToast("该卡本回合被锁定，不可使用");
                 RefreshAll();
             }
+        }
+
+        /// <summary>归土仪典奖励：从墓地使用一张牌，视为手牌中使用（每回合主要阶段一次）。</summary>
+        private void OnGraveyardPlay()
+        {
+            if (!IsPlayerTurn || CurrentPhase != PhaseType.Main || _gameEnded) return;
+
+            var grave = Core.ZoneManager.GetCards(P1, Zone.Graveyard);
+            if (grave == null || grave.Count == 0) { ShowToast("墓地为空"); return; }
+
+            ShowOverlay("墓地使用", "选一张牌，视为手牌中使用（每回合一次）：", grave.Cast<Entity>().ToList(), picked =>
+            {
+                CloseOverlay();
+                if (picked is Card c && !GameActions.PlayCardFromGraveyard(Core, P1, c))
+                    ShowToast("无法使用（配额已用或不可支付）");
+                RefreshAll();
+            });
         }
 
         private void OnSkipStandby()

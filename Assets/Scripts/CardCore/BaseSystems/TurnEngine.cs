@@ -86,7 +86,9 @@ namespace CardCore
         public void Initialize(Player startingPlayer)
         {
             _turnPlayer = startingPlayer;
-            _turnNumber = 1;
+            // 从 0 起：StartNewTurn 先自增再发事件 → 首个 TurnStartEvent 携带 1（先手首回合=1，
+            // 与地牌槽曲线「先手首回合上限 1」对齐；曾误置 1 导致全局回合数整体 off-by-one）
+            _turnNumber = 0;
             _currentPhase = null;
         }
 

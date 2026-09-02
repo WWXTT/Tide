@@ -196,25 +196,27 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 构建测试卡组（每张卡 copiesPerCard 份）
+        /// 构建测试卡组（每张卡 copiesPerCard 份）。
+        /// 构筑规则（定案）：玩家卡组内卡牌不重复——每张卡是效果 ID 的唯一索引，
+        /// 仅效果产生的衍生物可重复。copiesPerCard 默认 1；>1 仅测试脚手架用。
         /// </summary>
-        public static List<Card> BuildTestDeck(string jsonPath, int copiesPerCard = 3)
+        public static List<Card> BuildTestDeck(string jsonPath, int copiesPerCard = 1)
         {
             var cardsData = LoadCards(jsonPath);
             return BuildDeck(cardsData, copiesPerCard);
         }
 
         /// <summary>
-        /// 从文本构建测试卡组（用于测试）
+        /// 从文本构建测试卡组（用于测试；copiesPerCard 默认 1，见构筑规则定案）
         /// </summary>
-        public static List<Card> BuildTestDeckFromText(string jsonText, int copiesPerCard = 3)
+        public static List<Card> BuildTestDeckFromText(string jsonText, int copiesPerCard = 1)
         {
             var cardsData = LoadCardsFromText(jsonText);
             return BuildDeck(cardsData, copiesPerCard);
         }
 
         /// <summary>
-        /// 从 CardData 列表构建卡组
+        /// 从 CardData 列表构建卡组（卡组不重复：copiesPerCard=1 为规则默认）
         /// </summary>
         public static List<Card> BuildDeck(List<CardData> cardsData, int copiesPerCard)
         {

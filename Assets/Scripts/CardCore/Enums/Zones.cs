@@ -506,6 +506,9 @@ namespace CardCore
             if (!zones[to].Contains(card))
                 zones[to].Add(card);
             card._zone = to; // 区域真源维护：_zone 随容器移动同步（见类尾注释）
+
+            if (to == Zone.Hand && from != Zone.Hand)
+                PublishCardEnterHand(card, from);
         }
 
         /// <summary>
@@ -516,6 +519,26 @@ namespace CardCore
             zones[from].Remove(card);
             InsertByPosition(zones[to], card, position);
             card._zone = to;
+
+            if (to == Zone.Hand && from != Zone.Hand)
+                PublishCardEnterHand(card, from);
+        }
+
+        /// <summary>
+        /// 卡牌加入手牌事件（容器层统一发布；经 GameCore 路由，触发/层引擎可见）。
+        /// IsDraw 由 ZoneManagerExtensions.DrawCard 的静态标记位提供（抽牌路径）。
+        /// </summary>
+        private void PublishCardEnterHand(Card card, Zone from)
+        {
+            var e = new CardEnterHandEvent
+            {
+                Player = card.GetController(),
+                Card = card,
+                FromZone = from,
+                IsDraw = ZoneManagerExtensions.IsDrawMove
+            };
+            if (GameCore.Instance != null) GameCore.Instance.PublishEvent(e);
+            else EventManager.Instance.Publish(e);
         }
 
         /// <summary>
@@ -657,6 +680,12 @@ namespace CardCore
             container.Move(card, fromZone, toZone);
         }
 
+        /// <summary>
+        /// 当前 Move 是否处于抽牌路径（ZoneContainer 发布 CardEnterHandEvent 时读取）。
+        /// 仅 DrawCard 扩展在移动期间置位；「非抽牌形式入手」类计数以此区分来源。
+        /// </summary>
+        internal static bool IsDrawMove;
+
         /// <summary>从牌库抽一张牌。牌库为空时不抽牌，改为疲劳（第 N 次疲劳造成 N 点递增伤害）。</summary>
         public static Card DrawCard(this ZoneManager zm, Player player)
         {
@@ -673,7 +702,16 @@ namespace CardCore
             }
 
             var card = deck[0];
-            container.Move(card, Zone.Deck, Zone.Hand);
+            bool prev = IsDrawMove;
+            IsDrawMove = true;
+            try
+            {
+                container.Move(card, Zone.Deck, Zone.Hand);
+            }
+            finally
+            {
+                IsDrawMove = prev;
+            }
             return card;
         }
 
@@ -683,8 +721,17 @@ namespace CardCore
         /// </summary>
         private static void ApplyFatigue(Player player)
         {
+            // 规则修改类效果（OCP）：疲劳先经替代引擎（免疫 = 替代为 Damage 0 → 不计数、不结算）
+            var routedEvent = new CardCore.Attribute.FatigueEvent { Player = player, Damage = player.FatigueCount + 1 };
+            if (GameCore.Instance?.ReplacementEngine != null)
+            {
+                routedEvent = GameCore.Instance.ReplacementEngine
+                    .CheckReplacements(routedEvent).GetFinalEvent() as CardCore.Attribute.FatigueEvent ?? routedEvent;
+            }
+            if (routedEvent.Damage <= 0) return;
+
             player.FatigueCount++;
-            int damage = player.FatigueCount;
+            int damage = routedEvent.Damage;
             int oldLife = player.Life;
             int newLife = oldLife - damage;
             if (newLife < 0) newLife = 0;

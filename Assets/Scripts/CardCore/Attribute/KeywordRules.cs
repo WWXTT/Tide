@@ -59,6 +59,17 @@ namespace CardCore.Attribute
         {
             if (amount <= 0 || target == null || !target.IsAlive) return 0;
 
+            // 规则修改类效果（OCP）：伤害实例先经替代引擎取最终值（如伤害封顶），再走关键词管线。
+            // 替代效果经 GameCore.ReplacementEngine 注册（状态无关、实时查询光环），本管线不点名任何具体系统。
+            var routedEvent = new DamageEvent { Source = source, Target = target, Amount = amount };
+            var engine = CardCore.GameCore.Instance?.ReplacementEngine;
+            if (engine != null)
+            {
+                if (engine.CheckReplacements(routedEvent).GetFinalEvent() is DamageEvent final)
+                    amount = final.Amount;
+                if (amount <= 0) return 0;
+            }
+
             // 1. 圣盾：挡下一次任意伤害（战斗+效果），消耗
             if (target.HasKeyword(DivineShield))
             {
@@ -115,6 +126,10 @@ namespace CardCore.Attribute
                 if (source.HasKeyword(Lifelink) && source.GetController() is Player owner)
                     owner.Life += amount;
             }
+
+            // 结算后发布最终伤害事件（替代已在管线前消费，此处发实际值供触发器观察）。
+            // 统一由本方法发布，调用方不再事后补发（历史上仅 CombatSystem 补发，已删）。
+            EventManager.Instance.Publish(new DamageEvent { Source = source, Target = target, Amount = amount });
 
             return amount;
         }

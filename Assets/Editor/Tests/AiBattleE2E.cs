@@ -1,0 +1,241 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using CardCore;
+using SynergyUI;
+using UnityEditor;
+using UnityEngine;
+
+namespace CardCore.Editor.Tests
+{
+    /// <summary>
+    /// AI 自动对战端到端验证（Unity 测试框架 + 菜单双入口）：
+    /// 双 SimpleAI 打完整局，控制台播报全程，跑到出错或游戏结束。
+    /// 同时验证表现层契约——播报器订阅与 BattleScreen（真实表现层）完全相同的事件集合，
+    /// 若事件面不足以还原一局对局，这里就会暴露缺口。
+    /// </summary>
+    public static class AiBattleE2E
+    {
+        private const string Tag = "[对局]";
+
+        [MenuItem("Tools/卡牌核心/AI 自动对战验证")]
+        public static void RunFromMenu()
+        {
+            var result = new AiBattleDriver().RunFullGame(LoadStandardDeck(), maxTurns: 100);
+            Debug.Log($"{Tag} 菜单入口结果：{(result.Completed ? $"完成（胜者 {Name(result.Winner)}，{result.Reason}，共 {result.TotalTurns} 回合）" : result.TurnLimitReached ? "到达回合上限" : "异常中止")}\n错误 {result.Errors.Count} 条，播报 {result.AnnouncedLines} 行");
+        }
+
+        /// <summary>标准卡组：非仪式卡 + 单张三相仪典（同 CardPipelineVerifier 主卡组口径）。</summary>
+        public static List<CardData> LoadStandardDeck()
+        {
+            var cards = LoadTestCards();
+            var deck = cards.Where(c => !RitualSystem.IsRitual(new CardWrapper(c))).ToList();
+            var trinity = cards.FirstOrDefault(c => c.ID == "RITUAL_TRINITY_001");
+            if (trinity != null) deck.Add(trinity);
+            return deck;
+        }
+
+        /// <summary>全仪式卡组（压力口径）：开局仪式占满手牌、连环顶替、小卡组疲劳收尾。</summary>
+        public static List<CardData> LoadRitualHeavyDeck()
+            => LoadTestCards().Where(c => RitualSystem.IsRitual(new CardWrapper(c))).ToList();
+
+        private static List<CardData> LoadTestCards()
+        {
+            string path = Path.Combine(Application.dataPath, "Configs/TestCreatureCards.json");
+            return File.Exists(path) ? CardLoader.LoadCardsFromText(File.ReadAllText(path)) : new List<CardData>();
+        }
+
+        internal static string Name(Entity e) => e == null ? "∅"
+            : e is Player p ? p.Name
+            : e is IHasName n && !string.IsNullOrEmpty(n.CardName) ? n.CardName
+            : e is Card c ? c.ID
+            : e.ToString();
+    }
+
+    /// <summary>一局自动对战的结果。</summary>
+    public class BattleRunResult
+    {
+        public bool Completed;
+        public bool TurnLimitReached;
+        public Player Winner;
+        public string Reason;
+        public int TotalTurns;
+        public readonly List<string> Errors = new List<string>();
+        public int AnnouncedLines;
+    }
+
+    /// <summary>
+    /// 控制台播报器：与 BattleScreen.OnEnter 订阅完全相同的事件集合（表现层契约），
+    /// 把对局过程输出为控制台文本。StackEmpty 高频低信息，订阅但不播（保持契约一致性）。
+    /// </summary>
+    public sealed class ConsoleAnnouncer
+    {
+        private int _lines;
+
+        public int LineCount => _lines;
+
+        public void Attach()
+        {
+            var bus = EventManager.Instance;
+            bus.Subscribe<TurnStartEvent>(OnTurnStart);
+            bus.Subscribe<PhaseStartEvent>(OnPhaseStart);
+            bus.Subscribe<CardPlayEvent>(OnCardPlay);
+            bus.Subscribe<CardZoneChangeEvent>(OnCardZoneChange);
+            bus.Subscribe<CardPutToBattlefieldEvent>(OnCardEnterBattlefield);
+            bus.Subscribe<CardLeaveBattlefieldEvent>(OnCardLeaveBattlefield);
+            bus.Subscribe<LifeChangeEvent>(OnLifeChange);
+            bus.Subscribe<CombatDamageEvent>(OnCombatDamage);
+            bus.Subscribe<ElementPoolAddEvent>(OnElementPoolAdd);
+            bus.Subscribe<ElementPoolPayEvent>(OnElementPoolPay);
+            bus.Subscribe<StackEmptyEvent>(OnStackEmpty);
+            bus.Subscribe<GameOverEvent>(OnGameOver);
+        }
+
+        public void Detach()
+        {
+            var bus = EventManager.Instance;
+            bus.Unsubscribe<TurnStartEvent>(OnTurnStart);
+            bus.Unsubscribe<PhaseStartEvent>(OnPhaseStart);
+            bus.Unsubscribe<CardPlayEvent>(OnCardPlay);
+            bus.Unsubscribe<CardZoneChangeEvent>(OnCardZoneChange);
+            bus.Unsubscribe<CardPutToBattlefieldEvent>(OnCardEnterBattlefield);
+            bus.Unsubscribe<CardLeaveBattlefieldEvent>(OnCardLeaveBattlefield);
+            bus.Unsubscribe<LifeChangeEvent>(OnLifeChange);
+            bus.Unsubscribe<CombatDamageEvent>(OnCombatDamage);
+            bus.Unsubscribe<ElementPoolAddEvent>(OnElementPoolAdd);
+            bus.Unsubscribe<ElementPoolPayEvent>(OnElementPoolPay);
+            bus.Unsubscribe<StackEmptyEvent>(OnStackEmpty);
+            bus.Unsubscribe<GameOverEvent>(OnGameOver);
+        }
+
+        private void Say(string message)
+        {
+            _lines++;
+            Debug.Log($"[对局] {message}");
+        }
+
+        private void OnTurnStart(TurnStartEvent e)
+            => Say($"════ 回合 {e.TurnNumber} · {AiBattleE2E.Name(e.TurnPlayer)} ════");
+
+        private void OnPhaseStart(PhaseStartEvent e)
+            => Say($"〔阶段〕{AiBattleE2E.Name(e.ActivePlayer)} 进入 {e.Phase}");
+
+        private void OnCardPlay(CardPlayEvent e)
+            => Say($"{AiBattleE2E.Name(e.Player)} 打出 {AiBattleE2E.Name(e.PlayedCard)}");
+
+        private void OnCardZoneChange(CardZoneChangeEvent e)
+            => Say($"{AiBattleE2E.Name(e.Card)}：{e.OldZone} → {e.NewZone}");
+
+        private void OnCardEnterBattlefield(CardPutToBattlefieldEvent e)
+            => Say($"{AiBattleE2E.Name(e.Card)} 入场（战场，{(e.Tapped ? "横置" : "可用")}）");
+
+        private void OnCardLeaveBattlefield(CardLeaveBattlefieldEvent e)
+            => Say($"{AiBattleE2E.Name(e.Card)} 离场");
+
+        private void OnLifeChange(LifeChangeEvent e)
+            => Say($"{AiBattleE2E.Name(e.Player)} 生命 {e.OldLife} → {e.NewLife}");
+
+        private void OnCombatDamage(CombatDamageEvent e)
+            => Say($"⚔ {AiBattleE2E.Name(e.Attacker)} → {AiBattleE2E.Name(e.Defender)}，造成 {e.Damage} 伤害");
+
+        private void OnElementPoolAdd(ElementPoolAddEvent e)
+            => Say($"{AiBattleE2E.Name(e.Player)} 放地牌 {AiBattleE2E.Name(e.AddedCard)}（{DescribeTokens(e.Tokens)}）");
+
+        private void OnElementPoolPay(ElementPoolPayEvent e)
+            => Say($"{AiBattleE2E.Name(e.Player)} 支付 {DescribeCost(e.PaidCost)}");
+
+        private void OnStackEmpty(StackEmptyEvent _)
+        {
+            // 订阅以保持与 BattleScreen 相同的事件面；栈空高频低信息，不播报
+        }
+
+        private void OnGameOver(GameOverEvent e)
+            => Say($"★ 游戏结束：胜者 {AiBattleE2E.Name(e.Winner)}（{e.Reason}，共 {e.TotalTurns} 回合）");
+
+        private static string DescribeTokens(Dictionary<ManaType, int> tokens)
+        {
+            if (tokens == null || tokens.Count == 0) return "无指示物";
+            return string.Join("", tokens.Where(kv => kv.Value > 0).Select(kv => $"{kv.Key}×{kv.Value}"));
+        }
+
+        private static string DescribeCost(Dictionary<int, float> cost)
+        {
+            if (cost == null || cost.Count == 0) return "∅";
+            return string.Join(" ", cost.Where(kv => kv.Value > 0).Select(kv => $"{(ManaType)kv.Key}×{kv.Value}"));
+        }
+    }
+
+    /// <summary>
+    /// 双 AI 自动对战驱动器：双方 SimpleAI 轮流打完整局，跑到出错或游戏结束。
+    /// 所有范围/目标选择自动应答（双方 IsAI=true 走 TargetSelectionService 的自动路径）。
+    /// 编辑器上下文无帧泵：SimpleAI 末尾的 EndTurn 只推进到结束阶段，此处补一次
+    /// CheckPhaseTransition 完成 End→Standby 折返（同 CardPipelineVerifier.EndTurnPumped 惯例）。
+    /// </summary>
+    public sealed class AiBattleDriver
+    {
+        public BattleRunResult RunFullGame(List<CardData> deckSpec, int maxTurns = 100)
+        {
+            var result = new BattleRunResult();
+            var announcer = new ConsoleAnnouncer();
+            var gameOver = false;
+
+            void OnGameOver(GameOverEvent e)
+            {
+                gameOver = true;
+                result.Completed = true;
+                result.Winner = e.Winner;
+                result.Reason = e.Reason.ToString();
+                result.TotalTurns = e.TotalTurns;
+            }
+
+            EventManager.Instance.Subscribe<GameOverEvent>(OnGameOver);
+            announcer.Attach();
+            try
+            {
+                if (deckSpec == null || deckSpec.Count == 0)
+                {
+                    result.Errors.Add("卡组为空（缺 TestCreatureCards.json？）");
+                    return result;
+                }
+
+                var core = GameCore.Instance;
+                var ctrl = new BattleController();
+                var ai = new SimpleAI();
+                core.InitGame(CardLoader.BuildDeck(deckSpec, 1), CardLoader.BuildDeck(deckSpec, 1));
+                core.Player1.IsAI = true; // 选择全自动
+                core.Player2.IsAI = true;
+
+                for (int turn = 0; turn < maxTurns && !gameOver; turn++)
+                {
+                    try
+                    {
+                        ai.TakeTurn(ctrl);                          // 内部已 EndTurn（不折返）
+                        core.TurnEngine.CheckPhaseTransition();    // 补 End→Standby 折返
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Errors.Add($"回合 {core.TurnEngine.TurnNumber}（{AiBattleE2E.Name(core.TurnEngine.TurnPlayer)}）：{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+                        break;
+                    }
+                }
+
+                if (!gameOver && result.Errors.Count == 0)
+                {
+                    result.TurnLimitReached = true;
+                    result.TotalTurns = core.TurnEngine.TurnNumber;
+                }
+
+                return result;
+            }
+            finally
+            {
+                announcer.Detach();
+                EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
+                result.AnnouncedLines = announcer.LineCount;
+                Debug.Log($"[对局] 战报：{(result.Completed ? $"游戏结束（胜者 {AiBattleE2E.Name(result.Winner)}，{result.Reason}，{result.TotalTurns} 回合）" : result.TurnLimitReached ? $"到达回合上限 {maxTurns}" : "异常中止")}；播报 {result.AnnouncedLines} 行；错误 {result.Errors.Count} 条");
+            }
+        }
+    }
+}

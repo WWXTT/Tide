@@ -66,8 +66,10 @@ namespace CardCore.Attribute.Handlers
 
             if (context.Controller != null && drained > 0)
             {
+                int lifeBefore = context.Controller.GetLife();
                 context.Controller.Heal(drained);
-                PublishEvent(new HealEvent { Target = context.Controller, Amount = drained, Source = context.Source });
+                int overfill = System.Math.Max(0, drained - (context.Controller.GetLife() - lifeBefore));
+                PublishEvent(new HealEvent { Target = context.Controller, Amount = drained, Overfill = overfill, Source = context.Source });
             }
         }
 

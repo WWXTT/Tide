@@ -75,10 +75,12 @@
     <Compile Include="Assets\Editor\MissingReferenceChecker.cs" />
     <Compile Include="Assets\Editor\DanbaidongGUI\DanbaidongGUIShaderDrawer.cs" />
     <Compile Include="Assets\Editor\DanbaidongGUI\ShaderConversionReport.cs" />
+    <Compile Include="Assets\Editor\Tests\AiBattleE2ETests.cs" />
     <Compile Include="Assets\Editor\DanbaidongGUI\DanbaidongGUI.cs" />
     <Compile Include="Assets\Editor\DanbaidongGUI\GradientsRampEditorWindow.cs" />
     <Compile Include="Assets\Editor\DanbaidongGUI\GradientsRamp.cs" />
     <Compile Include="Assets\Editor\NoiseMapGenerator.cs" />
+    <Compile Include="Assets\Editor\Tests\AiBattleE2E.cs" />
     <Compile Include="Assets\Editor\DanbaidongGUI\DanbaidongShaderConverterWindow.cs" />
     <Compile Include="Assets\Editor\EntityHierarchy\AuthoringHierarchyWindow.cs" />
     <Compile Include="Assets\Editor\EntityHierarchy\EntityScenePicking.cs" />
@@ -708,6 +710,10 @@
       <HintPath>Library\PackageCache\com.unity.collections@ec2c217e4cb2\Unity.Collections.LowLevel.ILSupport\Unity.Collections.LowLevel.ILSupport.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="MemoryPack.Core">
+      <HintPath>Assets\Packages\MemoryPack.Core.1.21.4\lib\netstandard2.1\MemoryPack.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="nunit.framework">
       <HintPath>Library\PackageCache\com.unity.ext.nunit@44f7d31723bd\net472\unity-custom\nunit.framework.dll</HintPath>
       <Private>False</Private>
@@ -722,10 +728,6 @@
     </Reference>
     <Reference Include="Mono.Cecil">
       <HintPath>Library\PackageCache\com.unity.nuget.mono-cecil@ecb9724e46ff\Mono.Cecil.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="MemoryPack.Core">
-      <HintPath>Assets\Packages\MemoryPack.Core.1.21.4\lib\netstandard2.1\MemoryPack.Core.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.Android.Types">
@@ -1284,10 +1286,6 @@
       <HintPath>Library\ScriptAssemblies\UnityEngine.TestRunner.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="UniTask.Addressables">
-      <HintPath>Library\ScriptAssemblies\UniTask.Addressables.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="Unity.Transforms">
       <HintPath>Library\ScriptAssemblies\Unity.Transforms.dll</HintPath>
       <Private>False</Private>
@@ -1314,10 +1312,6 @@
     </Reference>
     <Reference Include="Unity.Texture2DArrayImportPipeline.Editor">
       <HintPath>Library\ScriptAssemblies\Unity.Texture2DArrayImportPipeline.Editor.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UniTask.Linq">
-      <HintPath>Library\ScriptAssemblies\UniTask.Linq.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.Rendering.LightTransport.Editor">
@@ -1528,8 +1522,16 @@
       <HintPath>Library\ScriptAssemblies\Unity.ShaderGraph.Editor.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UniTask.Addressables">
+      <HintPath>Library\ScriptAssemblies\UniTask.Addressables.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Unity.RenderPipelines.Core.Editor.Shared">
       <HintPath>Library\ScriptAssemblies\Unity.RenderPipelines.Core.Editor.Shared.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UniTask.Linq">
+      <HintPath>Library\ScriptAssemblies\UniTask.Linq.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.Settings.Editor">
