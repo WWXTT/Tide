@@ -41,6 +41,12 @@ namespace CardCore
             PhaseType currentPhase,
             int turnNumber)
         {
+            // 0. 横置代价预检（定案）：战场随从发动效果 = 一次行为的固定代价（与攻击同价）；
+            //    已横置不可发动（警戒抵扣在发动成功时经 KeywordRules.ShouldTap 结算）
+            if (source is Card activateCard && activateCard.IsTapped()
+                && _zoneManager.IsCardInZone(activateCard, activateCard.GetController(), Zone.Battlefield))
+                return false;
+
             // 1. 速度检查（由 SpeedCounter 处理，这里不重复）
 
             // 2. 时点检查

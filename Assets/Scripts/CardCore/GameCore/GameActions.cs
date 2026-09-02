@@ -246,8 +246,8 @@ namespace CardCore
             if (!combat.CanDeclareAttack(attacker, player))
                 return false;
 
-            combat.DeclareAttack(attacker, target);
-            return true;
+            // 宣言可能被时点效果取消（重检失败：代价支付不出/目标丢失）——透传结果供上层重选目标
+            return combat.DeclareAttack(attacker, target);
         }
 
         // ======================================== 回合控制 ========================================
@@ -267,13 +267,20 @@ namespace CardCore
         // ======================================== 栈操作 ========================================
 
         /// <summary>
-        /// 速度发动：玩家主动发动一个效果
+        /// 速度发动：玩家主动发动一个效果。
+        /// 横置代价（定案）：战场随从的激活式能力发动即横置（一次行为的固定代价，与攻击同价）；
+        /// 警戒自动抵扣一次（一回合一次，经 KeywordRules.ShouldTap）；预检在 EffectExecutionEngine.CanActivate。
         /// </summary>
         public static bool ActivateEffect(GameCore core, Player player, EffectDefinition effect, Card source, int paidBoost = 0)
         {
             if (core == null || player == null || effect == null) return false;
             if (core.TurnEngine.TurnPlayer != player) return false;
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
+
+            // 横置代价权威校验：战场上的源卡已横置 → 不可发动（手牌/墓地施放不适用）
+            if (source != null && source.IsTapped()
+                && core.ZoneManager.IsCardInZone(source, source.GetController(), Zone.Battlefield))
+                return false;
 
             var pending = PendingEffect.Create(
                 effect,
@@ -283,7 +290,13 @@ namespace CardCore
                 core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Standby,
                 paidBoost: paidBoost);
 
-            return core.StackEngine.PlayerActivateVoluntary(pending);
+            var activated = core.StackEngine.PlayerActivateVoluntary(pending);
+
+            // 发动成功 → 消耗横置（警戒：一回合一次自动抵扣，不发不扣）
+            if (activated && source != null && Attribute.KeywordRules.ShouldTap(source))
+                source.Tap();
+
+            return activated;
         }
 
         /// <summary>

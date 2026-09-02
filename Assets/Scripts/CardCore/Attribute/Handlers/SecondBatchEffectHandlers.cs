@@ -113,6 +113,43 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => "重置目标";
     }
 
+    /// <summary>
+    /// 蓄能（Recharging，定案）：横置目标单位（经警戒抵扣；已横置 = 代价不可支付，不产元素），
+    /// 控制者获得 {value} 点灰色元素（默认 1）。可重复的产元素引擎——
+    /// 代价 = 该单位本回合不可攻/不可发动效果。
+    /// </summary>
+    public class RechargingHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Recharging;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            if (context.Controller == null) return;
+            int amount = context.GetValueAfterModifiers(effect.Value > 0 ? effect.Value : 1);
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card unit) || !unit.IsAlive) continue;
+                if (unit.IsTapped()) continue; // 已横置：代价不可支付，也不可被警戒抵消
+                if (KeywordRules.ShouldTap(unit))
+                    unit.Tap();
+
+                var pool = context.ElementPool?.GetPool(context.Controller);
+                if (pool == null) continue;
+                pool.AvailableMana[ManaType.Gray] =
+                    pool.AvailableMana.TryGetValue(ManaType.Gray, out var gray) ? gray + amount : amount;
+                PublishEvent(new ElementPoolGainEvent
+                {
+                    Player = context.Controller,
+                    FromCard = unit,
+                    GainedType = ManaType.Gray,
+                });
+            }
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect)
+            => $"蓄能：横置自身获得 {(effect.Value > 0 ? effect.Value : 1)} 点灰色元素";
+    }
+
     /// <summary>全体重置（解除控制者战场上所有卡牌的横置）</summary>
     public class UntapAllHandler : AtomicEffectHandlerBase
     {
@@ -652,6 +689,7 @@ namespace CardCore.Attribute.Handlers
                 new TapHandler(),
                 new UntapHandler(),
                 new UntapAllHandler(),
+                new RechargingHandler(),
                 new AddCountersHandler(),
                 new DoubleCountersHandler(),
                 new ModifyAllStatsHandler(),

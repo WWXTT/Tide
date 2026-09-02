@@ -10,8 +10,8 @@ namespace SynergyUI
     /// 通用脚本 AI（卡组无关，一期：动作耗尽）。
     /// 每回合穷举可用动作并执行，直到无进展——费用花完、手牌打空、无可攻击单位、无可发动效果。
     /// 所有动作都走 GameActions / BattleController 既有入口；可行性由引擎校验（失败即静默跳过，卡留手不付费）。
-    /// 削减对手血量作为通用目标偏好（非针对特定卡组）：攻击能打脸就打脸（被嘲讽挡则拆嘲讽）；
-    /// 有害类原子的目标优先对方玩家、有益类优先己方；无偏好回落引擎自动解析（targets=null）。
+    /// 清理对手场面作为通用目标偏好（非针对特定卡组）：攻击优先击杀对方随从（优换 > 换子），
+    /// 无击杀机会才打脸（被嘲讽挡则拆嘲讽）；有害类原子的目标优先对方玩家、有益类优先己方；无偏好回落引擎自动解析（targets=null）。
     /// 当前回合玩家即可驱动（AI 对 AI 验证用；BattleScreen 仍只对 P2 调用）。
     /// </summary>
     public sealed class SimpleAI
@@ -58,8 +58,9 @@ namespace SynergyUI
             AtomicEffectType.GrantUnaffected, AtomicEffectType.GrantPoisonous, AtomicEffectType.GrantLifesteal,
             AtomicEffectType.GrantStealth, AtomicEffectType.GrantWindfury, AtomicEffectType.GrantTaunt,
             AtomicEffectType.GrantDivineShield, AtomicEffectType.GrantOverwhelm, AtomicEffectType.GrantArmor,
-            AtomicEffectType.GrantWard, AtomicEffectType.GrantFirstStrike, AtomicEffectType.GrantFlying,
+            AtomicEffectType.GrantFirstStrike, AtomicEffectType.GrantFlying,
             AtomicEffectType.GrantVigilance, AtomicEffectType.GrantGuard, AtomicEffectType.GrantRegeneration,
+            AtomicEffectType.Recharging,
             AtomicEffectType.GrantGrowth, AtomicEffectType.GrantReborn, AtomicEffectType.GrantIndestructible,
             AtomicEffectType.GrantLifelink,
             // 展开族
@@ -76,7 +77,7 @@ namespace SynergyUI
             // 0. 准备阶段：跳过产元素阶段进入主阶段
             GameActions.SkipElementPool(core, me);
 
-            // 1. 资源准备：补地到槽上限 → 横置全部（产色匹配手牌费用需求）
+            // 1. 资源准备：补地到槽上限（费用最高的生物优先——打不出的当地产元素）→ 横置全部（产色匹配手牌费用需求）
             PlayLands(core, me);
             TapAllLands(core, me);
 
@@ -94,7 +95,7 @@ namespace SynergyUI
             // 3. 战前排干栈：让本回合发动/触发的效果先落地（增益类才影响攻击结算）
             SettleStack(core);
 
-            // 4. 战斗：能打脸打脸 → 被嘲讽挡则拆嘲讽 → 兜底任意合法目标。
+            // 4. 战斗：清场优先（能击杀的随从先清）→ 无击杀机会才打脸 → 嘲讽挡则拆嘲讽 → 兜底。
             //    连锁结算完成即判胜负（CombatSystem.EndCombat），判负后不再继续动作
             if (!core.IsGameOver)
                 DoCombat(ctrl, core, me);
@@ -108,12 +109,24 @@ namespace SynergyUI
 
         // ======================================== 资源准备 ========================================
 
-        /// <summary>补地：手牌逐张放入元素池，至地牌槽上限（可用状态入场，本回合即可横置）。</summary>
+        /// <summary>
+        /// 补地（定案策略）：只放"暂时打不出来"的生物（能付起的留手打出）——
+        /// 付不起的里挑总费用最高的先放：作为地牌产元素不闲置，耗尽进墓后可经墓地回收再打出。
+        /// 全部付得起时不放（保护手里的关键词/高费随从上场面）。
+        /// 地牌资格（正式生物，非魔法/衍生物）由引擎权威校验，此处预检跳过无效尝试。
+        /// </summary>
         private static void PlayLands(GameCore core, Player me)
         {
-            var hand = new List<Card>(core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>());
+            var lands = (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
+                .Where(ElementPoolSystem.CanServeAsLand)
+                .ToList();
+            var unaffordable = lands.Where(c => !CanPlayCard(core, me, c, Zone.Hand))
+                                    .OrderByDescending(TotalCost)
+                                    .ToList();
+            // 兜底：手牌有生物但全部付得起——不放（留手打出，最大化场面交互）
+            if (unaffordable.Count == 0) return;
             int cap = core.ElementPool.GetLandCap(me);
-            foreach (var card in hand)
+            foreach (var card in unaffordable)
             {
                 if (core.ElementPool.GetPooledCards(me).Count >= cap) break;
                 GameActions.AddToElementPool(core, me, card);
@@ -347,7 +360,7 @@ namespace SynergyUI
 
         // ======================================== 战斗 ========================================
 
-        /// <summary>开战斗 → 每个可攻击单位按 削血优先 选目标宣言 → 结算。</summary>
+        /// <summary>开战斗 → 每个可攻击单位按 清场优先 选目标宣言 → 结算。</summary>
         private static void DoCombat(BattleController ctrl, GameCore core, Player me)
         {
             ctrl.BeginCombat();
@@ -365,21 +378,52 @@ namespace SynergyUI
             ctrl.ResolveCombat();
         }
 
-        /// <summary>攻击目标决策：能打脸打脸 → 被嘲讽挡则拆嘲讽 → 兜底任意可指定目标。</summary>
+        /// <summary>
+        /// 攻击目标决策（清场优先）：能击杀的对方随从先清——"自己也存活"的优换严格优先于换子，
+        /// 同档内挑攻击力最高的（拆最大威胁）；无击杀机会才打脸（不蹭随从白送血）；
+        /// 打脸被嘲讽挡则拆嘲讽（无论能否击杀，清路优先）；兜底任意可指定目标。
+        /// 力量按 LayerEngine 实时值（光环/增益在场时击杀判定不失真），权威结算仍在引擎。
+        /// </summary>
         private static Entity PickAttackTarget(GameCore core, Card unit, Player opp)
         {
             var combat = core.CombatSystem;
+            var oppField = core.ZoneManager.GetCards(opp, Zone.Battlefield) ?? new List<Card>();
 
+            // ---- 清场档：打得死的对方随从（合法性经 CanAttackTarget：潜行/守卫等由引擎滤） ----
+            int myPower = core.LayerEngine.CalculatePower(unit);
+            int myLife = unit.GetLife();
+            Card pick = null;
+            bool pickSurvives = false;
+            int pickThreat = int.MinValue;
+            foreach (var enemy in oppField)
+            {
+                if (!enemy.IsAlive || !combat.CanAttackTarget(unit, enemy)) continue;
+                if (myPower < enemy.GetLife()) continue; // 打不死——不白送，交还打脸
+
+                int threat = core.LayerEngine.CalculatePower(enemy);
+                // 反击资格（定案）：已横置的目标只能挨打不反击 → 恒优换；未横置按反击力量判断
+                bool iSurvive = enemy.IsTapped() || threat < myLife;
+                if (pick == null || (iSurvive && !pickSurvives)
+                    || (iSurvive == pickSurvives && threat > pickThreat))
+                {
+                    pick = enemy;
+                    pickSurvives = iSurvive;
+                    pickThreat = threat;
+                }
+            }
+            if (pick != null) return pick;
+
+            // ---- 无击杀机会 → 打脸 ----
             if (combat.CanAttackTarget(unit, opp)) return opp;
 
-            var oppField = core.ZoneManager.GetCards(opp, Zone.Battlefield) ?? new List<Card>();
-            foreach (var taunter in oppField) // CombatSystem.DefendersWithTaunt 的等价自查
+            // ---- 打脸被嘲讽挡 → 拆嘲讽（CombatSystem.DefendersWithTaunt 的等价自查） ----
+            foreach (var taunter in oppField)
             {
                 if (taunter.IsAlive && taunter.HasKeyword(KeywordRules.Taunt) && combat.CanAttackTarget(unit, taunter))
                     return taunter;
             }
 
-            foreach (var enemy in oppField) // 突袭失调回合等受限情形的兜底
+            foreach (var enemy in oppField) // 突袭（无冲锋）不能攻玩家等受限情形的兜底：只打随从
             {
                 if (combat.CanAttackTarget(unit, enemy)) return enemy;
             }

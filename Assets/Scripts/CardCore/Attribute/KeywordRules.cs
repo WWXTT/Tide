@@ -14,12 +14,20 @@ namespace CardCore.Attribute
     /// 伤害管线（效果 TakeDamage 与战斗 CombatSystem 两条路径都经 ApplyDamage）：
     /// 圣盾（挡一次任意伤害，消耗）→ 护甲指示物（逐点吸收）→ 坚韧（−持有次数）→ 落血；
     /// 剧毒（任意来源伤害即致死，仅随从）；吸血（恢复随从自身）/系命（回复角色）。
+    /// 事件链统一在管线尾部按时序发布：DamageEvent（触发器）→ CombatDamageEvent（战斗）→
+    /// LifeChangeEvent（角色）→ 吸血/系命（伤害的后果）。
     /// 生命流失（LifeLoss 类）不经此管线——圣盾/护甲不挡流失。
     /// </summary>
     public static class KeywordRules
     {
         /// <summary>护甲指示物名（AddArmor 原子写入，伤害先扣）</summary>
         public const string ArmorCounter = "Armor";
+
+        /// <summary>
+        /// 冻结指示物名（定案）：冻结 = 强制横置（一次性动作）+ 负面指示物（持续到回合结束）。
+        /// 不修改回合规则（回合开始横置重置照常）；消退走 CounterRules 统一清理。
+        /// </summary>
+        public const string FreezeCounter = "Freeze";
 
         // ---- 关键词 id（与 GrantKeywordHandlerFactory.Specs 的运行时字符串同源） ----
         public const string DivineShield = "DivineShield";
@@ -36,6 +44,7 @@ namespace CardCore.Attribute
         public const string Windfury = "Windfury";
         public const string FirstStrike = "FirstStrike";
         public const string DoubleStrike = "DoubleStrike";
+        public const string Disarm = "Disarm";
         public const string Overwhelm = "Overwhelm";
         public const string Reborn = "Reborn";
         public const string Indestructible = "Indestructible";
@@ -43,6 +52,74 @@ namespace CardCore.Attribute
         public const string Growth = "Growth";
         public const string SpellShield = "SpellShield";
         public const string Untargetable = "Untargetable";
+
+        // ---- 一次性关键词（定案）：生效即消耗，重新进入战场时从卡牌固有定义刷新 ----
+
+        /// <summary>入场型一次性关键词（冲锋/突袭）：入场生效时消耗。</summary>
+        public static readonly string[] OneShotEntryKeywords = { Charge, Rush };
+
+        /// <summary>死亡触发型一次性关键词（复生）：死亡送墓被替代时消耗。</summary>
+        public static readonly string[] OneShotDeathKeywords = { Reborn };
+
+        /// <summary>
+        /// 突袭紊乱指示物名（负面，持续到回合结束）：突袭生效消耗后残留在随从身上——
+        /// 期间不能以玩家为目标（攻击与效果发动同口径）；消退走 CounterRules 统一清理。
+        /// </summary>
+        public const string RushSicknessCounter = "RushSickness";
+
+        /// <summary>
+        /// 入场型一次性关键词生效（定案）：随从一律横置入场；冲锋/突袭生效 = 解除横置 + 消耗关键词，
+        /// 突袭另放一个紊乱指示物（负面，持续一回合）。
+        /// 由入场路径（TryMoveToBattlefield / TryAddToBattlefield）调用；返回 true = 已解除横置。
+        /// </summary>
+        public static bool ApplyEntryKeywords(Card card)
+        {
+            if (card == null) return false;
+            if (card.HasKeyword(Charge))
+            {
+                card.RemoveKeyword(Charge);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = card,
+                    Keyword = Charge,
+                    Detail = "冲锋生效：解除横置（一次性，已消耗）"
+                });
+                return true;
+            }
+            if (card.HasKeyword(Rush))
+            {
+                card.RemoveKeyword(Rush);
+                card.AddCounters(RushSicknessCounter, 1);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = card,
+                    Keyword = Rush,
+                    Detail = "突袭生效：解除横置（一次性，已消耗；紊乱一回合——期间不能以玩家为目标）"
+                });
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>是否处于突袭紊乱（负面指示物存在期间不能以玩家为目标；消退走 CounterRules）。</summary>
+        public static bool HasRushSickness(Entity entity)
+            => entity is Card c && c.GetCounterCount(RushSicknessCounter) > 0;
+
+        /// <summary>
+        /// 一次性关键词刷新（重新进入战场时）：从卡牌固有定义补回已消耗的冲锋/突袭/复生。
+        /// 仅刷一次性类——持续型关键词的效果移除不被入场重置。
+        /// </summary>
+        public static void RefreshOneShotKeywords(Card card)
+        {
+            if (!(card is CardWrapper wrapper)) return;
+            var data = wrapper.GetData();
+            if (data?.Keywords == null) return;
+            var oneShot = new List<string>(OneShotEntryKeywords);
+            oneShot.AddRange(OneShotDeathKeywords);
+            foreach (var kw in oneShot)
+                if (data.Keywords.Contains(kw) && !card.HasKeyword(kw))
+                    card.AddKeyword(kw);
+        }
 
         /// <summary>持有某关键词的次数（融合叠加：重复坚韧计 2）</summary>
         public static int KeywordCount(Entity entity, string keyword)
@@ -120,6 +197,7 @@ namespace CardCore.Attribute
 
             // 4. 落血（Card 到 0 标记死亡；Player 直接扣）。
             //    死亡决策走决策表（当前无护盾拦 DamageLethal；复生/落墓由 SBA 泵自发连锁处理）
+            int oldLife = (target as Player)?.Life ?? 0; // 生命变化播报用（剧毒归零前快照）
             if (target is Card card)
             {
                 card._life -= amount;
@@ -159,7 +237,38 @@ namespace CardCore.Attribute
                 });
             }
 
-            // 6. 吸血（恢复随从自身）/ 系命（回复角色）——按实际造成的伤害结算
+            // 结算后发布伤害事件链（实际值；替代已在管线前消费）。
+            // 时序定案：DamageEvent（触发器时点，On_DamageDealt/Taken 此刻可见）
+            // → CombatDamageEvent（战斗路径表现）→ LifeChangeEvent（角色生命变化）
+            // → 吸血/系命（伤害的后果最后结算——观察伤害事件的触发器不应看到回复已发生）。
+            // 统一由本方法发布，调用方不再事后补发（战斗/效果两条路径同口径）。
+            var damageEvent = new DamageEvent { Source = source, Target = target, Amount = amount };
+            if (GameCore.Instance != null)
+                GameCore.Instance.PublishEventRouted(damageEvent, replacementsApplied: true);
+            else
+                EventManager.Instance.Publish(damageEvent);
+
+            if (isCombat)
+            {
+                EventManager.Instance.Publish(new CombatDamageEvent
+                {
+                    Attacker = source,
+                    Defender = target,
+                    Damage = amount
+                });
+            }
+            if (target is Player hurt)
+            {
+                EventManager.Instance.Publish(new LifeChangeEvent
+                {
+                    Player = hurt,
+                    OldLife = oldLife,
+                    NewLife = hurt.Life,
+                    Source = source
+                });
+            }
+
+            // 6. 吸血（恢复随从自身）/ 系命（回复角色）——伤害事件的后果，按实际造成的伤害结算
             if (source != null && source.IsAlive)
             {
                 if (source.HasKeyword(Lifesteal) && source is Card stealer)
@@ -186,25 +295,19 @@ namespace CardCore.Attribute
                 }
             }
 
-            // 结算后发布最终伤害事件（替代已在管线前消费，此处发实际值供触发器观察）。
-            // 统一由本方法发布，调用方不再事后补发（历史上仅 CombatSystem 补发，已删）。
-            // 经 GameCore 路由但跳过替代检查（防二次套用）——On_DamageDealt/Taken 触发时点可见。
-            var damageEvent = new DamageEvent { Source = source, Target = target, Amount = amount };
-            if (GameCore.Instance != null)
-                GameCore.Instance.PublishEventRouted(damageEvent, replacementsApplied: true);
-            else
-                EventManager.Instance.Publish(damageEvent);
-
             return amount;
         }
 
         /// <summary>
         /// 是否应横置该实体：警戒可取消一次横置（攻击横置/发动代价横置），每回合一次。
         /// 返回 true = 应横置；false = 警戒抵消（消耗本回合额度）。
+        /// 【定案】警戒抵扣仅在未横置时有效：已横置 = 代价不可支付（不可被警戒抵消），
+        /// 不消耗警戒额度——返回 true（调用方的前置校验应拦截横置中实体，此为兜底）。
         /// </summary>
         public static bool ShouldTap(Entity entity)
         {
             if (entity == null) return false;
+            if (entity.IsTapped()) return true; // 已横置：支付不出，不消耗警戒额度
             if (entity is Card card && card.HasKeyword(Vigilance) && !card._vigilanceUsedThisTurn)
             {
                 card._vigilanceUsedThisTurn = true; // 一回合只生效一次
@@ -220,8 +323,9 @@ namespace CardCore.Attribute
         }
 
         /// <summary>
-        /// 复生结算：死亡时以 1 血回场——横置 + 带召唤失调（视为重新入场），消耗关键词。
-        /// 由死亡路径（SBA 零防御 / 摧毁效果）在移墓前调用；true = 已复生（留在战场）。
+        /// 复生结算（死亡替代定案）：死亡时的送墓效果被替代——不进墓地、不离场，
+        /// 生命值变成 1、横置（本回合不可用），消耗一次性关键词。
+        /// 由死亡路径（SBA 零防御 / 摧毁效果）在送墓前调用；true = 已复生（留在战场）。
         /// </summary>
         public static bool TryReborn(Card card)
         {
@@ -231,13 +335,12 @@ namespace CardCore.Attribute
             card._life = 1;
             if (card._maxLife < 1) card._maxLife = 1;
             card.IsAlive = true;
-            card._isTapped = true;          // 横置
-            card.SummonedThisTurn = true;  // 带召唤失调（视为重新入场）
+            card._isTapped = true;          // 横置（可用性统一指标：视为重新入场，本回合不可用）
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
                 Target = card,
                 Keyword = Reborn,
-                Detail = "复生：以 1 血回场（横置并失调）"
+                Detail = "复生：死亡替代——生命变 1 留场（横置，不进墓）"
             });
             return true;
         }

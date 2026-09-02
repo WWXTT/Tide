@@ -355,6 +355,10 @@ namespace CardCore
                 });
             }
 
+            // 突袭紊乱限制（定案，与攻击同口径）：紊乱指示物存在期间，其发动的效果不准以玩家为目标
+            if (KeywordRules.HasRushSickness(context.Source))
+                candidates.RemoveAll(c => c is Player);
+
             return candidates;
         }
 

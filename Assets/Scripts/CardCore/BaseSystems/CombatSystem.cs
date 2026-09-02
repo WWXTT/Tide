@@ -49,13 +49,18 @@ namespace CardCore
     /// 战斗系统
     /// 处理攻击宣言、阻挡宣言、伤害计算和结算。
     ///
+    /// 战斗为双向结算（定案）：随从互殴双方同时互致伤害；角色（玩家）被攻击同样有反伤——
+    /// 反伤力量与耐久消耗走武器系统扩展点（见 PlayerCounterattackPower，系统未实现前角色反伤为 0）。
+    ///
     /// 关键词行为（定案）：
-    /// - 召唤失调：随从入场当回合不可攻击（冲锋豁免；突袭豁免但只能攻随从）
+    /// - 可用性统一走横置：随从一律横置入场；冲锋/突袭一次性生效 = 解除横置 + 消耗关键词
+    ///   （突袭残留紊乱指示物一回合，期间不能以玩家为目标）；攻击需未横置
     /// - 风怒：每回合可攻击 2 次；守卫：友方单位被选为攻击目标时横置并强制转移目标
     /// - 警戒：横置可被取消（攻击/代价横置，一回合一次，经 KeywordRules.ShouldTap）
     /// - 嘲讽：防守方有存活嘲讽随从时不能指定玩家为攻击目标（碾压无视）
     /// - 潜行：不可被指定为攻击目标；攻击后移除（发动效果后的移除在效果执行器）
     /// - 先攻/连击：先攻步先行结算（死者不反击）；连击两步均结算
+    /// - 缴械：攻击结算时被攻击的目标无法反击（对角色目标同样生效——压制武器反伤）
     /// - 碾压：对目标相邻 1 格随从各结算一次攻击
     /// - 剧毒/吸血/系命/圣盾/护甲/坚韧：伤害经 KeywordRules.ApplyDamage 统一结算
     /// </summary>
@@ -67,6 +72,20 @@ namespace CardCore
         /// （保持核心 ↔ 棋盘单向依赖：核心定义扩展点，表现层注入实现）。
         /// </summary>
         public static Func<Card, IEnumerable<Card>> AdjacentResolver;
+
+        // ======================= 武器系统扩展点（定案预留，系统未实现） =======================
+        // 【武器系统 TODO】战斗为双向结算：角色（玩家）被攻击时同样有反伤——
+        //   反伤力量 = 当前装备武器的攻击力；每次反伤结算消耗 1 点武器耐久，耐久归零武器销毁。
+        // 接线方式（同 AdjacentResolver 惯例：核心定义扩展点，武器系统注入实现）：
+        //   PlayerCounterattackPower —— 查询玩家反伤力量（无武器/扩展点未接线 = 0，不反伤）；
+        //   OnPlayerCounterattackResolved —— 反伤结算完成回调（武器系统在此扣 1 耐久）。
+        // 在武器系统落地前，角色反伤为 0（当前对局播报中打脸为单方面伤害即此原因）。
+
+        /// <summary>角色反伤力量查询（武器系统注入：返回装备武器攻击力；null = 无武器不反伤）。</summary>
+        public static Func<Player, int> PlayerCounterattackPower;
+
+        /// <summary>角色反伤结算完成回调（武器系统注入：消耗 1 点武器耐久）。</summary>
+        public static Action<Player> OnPlayerCounterattackResolved;
 
         private CombatPhase _currentPhase = CombatPhase.None;
         private List<CombatParticipant> _attackers = new List<CombatParticipant>();
@@ -135,19 +154,13 @@ namespace CardCore
                 if (!_zoneManager.IsCardInZone(card, controller, Zone.Battlefield))
                     return false;
 
-                // 召唤失调：入场当回合不可攻击（冲锋/突袭豁免——突袭的目标限制见 CanAttackTarget）
-                if (card.SummonedThisTurn
-                    && !card.HasKeyword(KeywordRules.Charge)
-                    && !card.HasKeyword(KeywordRules.Rush))
-                    return false;
-
                 // 攻击次数上限（风怒 = 2）
                 if (card.AttacksThisTurn >= MaxAttacksPerTurn(card))
                     return false;
             }
 
-            // 检查是否已横置
-            if (attacker is ITappable tappable && tappable.IsTapped)
+            // 检查是否已横置（横置状态经扩展方法读取——Card 不实现 ITappable，该接口仅地牌池卡实现）
+            if (attacker.IsTapped())
                 return false;
 
             // 检查是否有攻击力（按层引擎计算的当前力量）
@@ -161,7 +174,8 @@ namespace CardCore
             return true;
         }
 
-        /// <summary>检查攻击者能否指定该目标（目标侧资格：突袭限制/嘲讽/潜行）</summary>
+        /// <summary>检查攻击者能否指定该目标（目标侧资格：突袭紊乱限制/嘲讽/潜行）。
+        /// 突袭定案：生效即消耗（解除横置），负面=紊乱指示物（一回合内不能以玩家为目标，攻击与效果同口径）。</summary>
         public bool CanAttackTarget(Entity attacker, Entity target)
         {
             if (target == null || !target.IsAlive || target == attacker) return false;
@@ -170,14 +184,12 @@ namespace CardCore
             var targetController = target is Card tc ? tc.GetController() : target as Player;
             if (targetController != _defendingPlayer) return false;
 
-            // 突袭：失调回合只能攻随从，不能攻玩家
-            if (attacker is Card ac && ac.SummonedThisTurn
-                && ac.HasKeyword(KeywordRules.Rush) && !ac.HasKeyword(KeywordRules.Charge)
-                && target is Player)
-                return false;
-
             // 潜行：不可被指定为攻击目标
             if (target is Card sc && sc.HasKeyword(KeywordRules.Stealth))
+                return false;
+
+            // 突袭紊乱（负面指示物，持续一回合）：期间不准以玩家为目标——只能攻随从
+            if (target is Player && KeywordRules.HasRushSickness(attacker))
                 return false;
 
             // 嘲讽：防守方战场有存活嘲讽随从时，不能指定玩家（碾压无视嘲讽）
@@ -195,13 +207,20 @@ namespace CardCore
                 .Where(c => c.IsAlive && c.HasKeyword(KeywordRules.Taunt));
         }
 
-        /// <summary>宣告攻击</summary>
-        public void DeclareAttack(Entity attacker, Entity target)
+        /// <summary>
+        /// 宣告攻击（时点定案）：
+        /// 1. 资格预检 → 守卫转移（目标确认）→ 发布攻击宣言时点（触发器可响应，如连锁冻结攻击者）；
+        /// 2. 宣言后重检：攻击者已横置（代价被连锁抢先支付不出）/死亡、目标丢失（死亡/不可指定）
+        ///    → 攻击取消回滚（不支付、不计数、不入队），返回 false 交上层重新确认目标；
+        /// 3. 重检通过 → 支付横置（警戒抵扣，一回合一次）→ 入队 + 潜行失效 + 次数 +1。
+        /// 战斗效果结算与生命结算在 ExecuteDamage / EndCombat（第 2、3 段）。
+        /// </summary>
+        public bool DeclareAttack(Entity attacker, Entity target)
         {
             if (!CanDeclareAttack(attacker, _attackingPlayer))
-                return;
+                return false;
             if (!CanAttackTarget(attacker, target))
-                return;
+                return false;
 
             // 守卫：友方单位被选为攻击目标时，横置并强制转移攻击目标为自己
             if (target is Card targetCard)
@@ -223,6 +242,37 @@ namespace CardCore
                     });
                 }
             }
+
+            _currentPhase = CombatPhase.DeclareAttack;
+
+            // 攻击宣言时点（经 GameCore 统一路由发布，On_AttackDeclare 触发可见）——
+            // 先于横置支付：宣言触发的效果（如冻结攻击者）在此同步生效
+            var declaration = new AttackDeclarationEvent
+            {
+                Attacker = attacker,
+                Target = target,
+                AttackingPlayer = _attackingPlayer
+            };
+            if (GameCore.Instance != null) GameCore.Instance.PublishEvent(declaration);
+            else EventManager.Instance.Publish(declaration);
+
+            // ---- 宣言后重检（连锁响应已生效）：支付不出 / 丢失目标 → 攻击取消回滚 ----
+            // 横置代价不可被支付（宣言期间被冻结等抢先横置）——也不可被警戒抵消；
+            // 目标丢失（死亡/不可指定）→ 回滚，交上层重新确认攻击目标
+            if (!attacker.IsAlive || attacker.IsTapped() || !CanAttackTarget(attacker, target))
+            {
+                EventManager.Instance.Publish(new CombatCancelledEvent
+                {
+                    Attacker = attacker,
+                    OriginalTarget = target,
+                    AttackingPlayer = _attackingPlayer
+                });
+                return false;
+            }
+
+            // ---- 支付横置（固定代价；警戒一回合一次抵扣）→ 入队 ----
+            if (KeywordRules.ShouldTap(attacker))
+                attacker.Tap();
 
             var participant = new CombatParticipant
             {
@@ -246,28 +296,11 @@ namespace CardCore
                 });
             }
 
-            // 攻击次数 +1（每回合上限见 CanDeclareAttack）
+            // 攻击次数 +1（每回合上限见 CanDeclareAttack；取消的宣言不计数）
             if (attacker is Card counted)
                 counted.AttacksThisTurn++;
 
-            // 横置攻击者（警戒：一回合一次抵消横置）
-            if (KeywordRules.ShouldTap(attacker))
-            {
-                if (attacker is ITappable tappable)
-                    tappable.IsTapped = true;
-            }
-
-            _currentPhase = CombatPhase.DeclareAttack;
-
-            // 经 GameCore 统一路由发布（On_AttackDeclare 触发时点可见）
-            var declaration = new AttackDeclarationEvent
-            {
-                Attacker = attacker,
-                Target = target,
-                AttackingPlayer = _attackingPlayer
-            };
-            if (GameCore.Instance != null) GameCore.Instance.PublishEvent(declaration);
-            else EventManager.Instance.Publish(declaration);
+            return true;
         }
 
         /// <summary>结束攻击宣言阶段，进入阻挡阶段</summary>
@@ -297,7 +330,7 @@ namespace CardCore
                     return false;
             }
 
-            if (blocker is ITappable tappable && tappable.IsTapped)
+            if (blocker.IsTapped())
                 return false;
 
             if (!_attackers.Any(a => a.Entity == attacker))
@@ -366,6 +399,7 @@ namespace CardCore
 
                 var target = attacker.BlockedBy ?? attacker.DeclaredTarget ?? (Entity)_defendingPlayer;
                 if (target == null || !target.IsAlive) continue; // 目标已倒（前序攻击击杀）→ 落空
+                if (!attacker.Entity.IsAlive) continue; // 攻击者已倒（宣言后效果致死）→ 落空（横置代价已付不退）
 
                 ResolvePair(attacker.Entity, target);
             }
@@ -377,7 +411,11 @@ namespace CardCore
         private void ResolvePair(Entity attacker, Entity target)
         {
             int attackerPower = GetPower(attacker);
-            int targetPower = target is Card ? GetPower(target) : 0;
+            // 双向结算：随从目标按层引擎力量反击；角色（玩家）目标反伤走武器扩展点
+            //（无武器/未接线 = 0，不反伤——见类头武器系统 TODO 注释）
+            int targetPower = target is Card ? GetPower(target)
+                            : target is Player defender ? PlayerCounterattackPower?.Invoke(defender) ?? 0
+                            : 0;
 
             bool attackerFirst = attacker.HasKeyword(KeywordRules.FirstStrike)
                                  || attacker.HasKeyword(KeywordRules.DoubleStrike);
@@ -386,17 +424,41 @@ namespace CardCore
             bool attackerDouble = attacker.HasKeyword(KeywordRules.DoubleStrike);
             bool targetDouble = target.HasKeyword(KeywordRules.DoubleStrike);
 
+            // 缴械（定案）：攻击结算时，被攻击的目标无法反击（先攻步/普通步的目标伤害均不结算；
+            // 对角色目标同样生效——武器反伤也被缴械压制）。目标无反击力量时不播报。
+            bool disarmed = attacker.HasKeyword(KeywordRules.Disarm);
+            if (disarmed && targetPower > 0)
+            {
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = target,
+                    Keyword = KeywordRules.Disarm,
+                    Detail = "缴械：目标无法反击",
+                    Source = attacker
+                });
+            }
+
+            // 反击资格（定案）：只有未横置的随从才能反击——反击不消耗横置（横置是攻击/发动的代价），
+            // 已横置的随从只能挨打。角色目标无横置概念（恒视为未横置）——武器反伤照常。
+            bool targetCanCounter = !target.IsTapped();
+
             // ---- 先攻步 ----
             if (attackerFirst)
                 DealCombatDamage(attacker, target, attackerPower);
-            if (targetFirst)
+            if (targetFirst && !disarmed && targetCanCounter)
                 DealCombatDamage(target, attacker, targetPower);
 
             // ---- 普通步（存活者；连击者在两步各结算一次） ----
             if (attacker.IsAlive && (!attackerFirst || attackerDouble))
                 DealCombatDamage(attacker, target, attackerPower);
-            if (target != attacker && target.IsAlive && (!targetFirst || targetDouble))
+            if (!disarmed && targetCanCounter && target != attacker && target.IsAlive && (!targetFirst || targetDouble))
+            {
                 DealCombatDamage(target, attacker, targetPower);
+                // 角色（玩家）反伤结算完成 → 武器耐久回调（武器系统落地后在此扣 1 耐久；
+                // 力量为 0 时无反伤不消耗）。攻击已锁力量，被圣盾/护甲抵挡不退还耐久。
+                if (targetPower > 0 && target is Player counterattacking)
+                    OnPlayerCounterattackResolved?.Invoke(counterattacking);
+            }
 
             // ---- 碾压：对目标相邻 1 格随从各视为一次攻击（额外受击不反击） ----
             if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Overwhelm)
@@ -410,6 +472,21 @@ namespace CardCore
                         continue; // 只打目标同侧（防守方）的相邻随从
                     DealCombatDamage(attacker, adjacent, attackerPower);
                 }
+            }
+
+            // ---- 风怒（定案）：攻击后重置自己（把支付的横置代价还回来），一回合仅生效一次 ----
+            //（首次攻击后；第二次攻击后保持横置）；先攻/连击为单次攻击内的分步结算，与此不冲突
+            if (attacker is Card windfuryCard && windfuryCard.IsAlive
+                && windfuryCard.HasKeyword(KeywordRules.Windfury)
+                && windfuryCard.AttacksThisTurn == 1)
+            {
+                windfuryCard.Untap();
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = windfuryCard,
+                    Keyword = KeywordRules.Windfury,
+                    Detail = "风怒：攻击后重置自己（一回合一次）"
+                });
             }
         }
 
@@ -425,33 +502,14 @@ namespace CardCore
 
         /// <summary>
         /// 造成战斗伤害（对实体/玩家统一）：经 KeywordRules 关键词管线结算
-        /// （圣盾/护甲指示物/坚韧/剧毒/吸血/系命），实际造成 > 0 才发事件。
+        /// （圣盾/护甲指示物/坚韧/剧毒/吸血/系命）。事件链（DamageEvent/CombatDamageEvent/
+        /// LifeChangeEvent/吸血系命）由 ApplyDamage 按统一时序发布，此处不补发。
         /// </summary>
         private void DealCombatDamage(Entity source, Entity target, int amount)
         {
             if (amount <= 0 || target == null || !target.IsAlive) return;
 
-            int actual = KeywordRules.ApplyDamage(source, target, amount, true);
-            if (actual <= 0) return; // 被圣盾/护甲/坚韧完全吸收
-
-            EventManager.Instance.Publish(new CombatDamageEvent
-            {
-                Attacker = source,
-                Defender = target,
-                Damage = actual
-            });
-            // DamageEvent 由 KeywordRules.ApplyDamage 统一发布（结算前已过替代引擎，此处不补发）
-
-            if (target is Player player)
-            {
-                EventManager.Instance.Publish(new LifeChangeEvent
-                {
-                    Player = player,
-                    OldLife = player.Life + actual,
-                    NewLife = player.Life,
-                    Source = source
-                });
-            }
+            KeywordRules.ApplyDamage(source, target, amount, true);
         }
 
         /// <summary>结束战斗</summary>

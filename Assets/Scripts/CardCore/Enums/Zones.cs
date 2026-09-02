@@ -879,7 +879,14 @@ namespace CardCore
             }
 
             container.Move(card, fromZone, Zone.Battlefield);
-            card.SummonedThisTurn = true; // 召唤失调：入场当回合不可攻击（冲锋/突袭豁免）
+
+            // 一次性关键词刷新（定案）：冲锋/突袭/复生重新进入战场时从卡牌固有定义补回（上次生效已消耗）
+            Attribute.KeywordRules.RefreshOneShotKeywords(card);
+
+            // 入场可用性统一走横置（定案）：随从一律横置入场；冲锋/突袭生效 = 解除横置 + 消耗关键词
+            // （突袭另带紊乱指示物）；显式 tapped=true（效果强制横置入场）优先于关键词生效。
+            bool ready = Attribute.KeywordRules.ApplyEntryKeywords(card);
+            card._isTapped = tapped || !ready;
 
             if (fromZone == Zone.Activation)
                 PublishEntryEvent(new CardLeaveActivationEvent
@@ -893,7 +900,7 @@ namespace CardCore
             {
                 Card = card,
                 Controller = controller,
-                Tapped = tapped,
+                Tapped = card._isTapped,
             });
             return true;
         }
@@ -924,7 +931,10 @@ namespace CardCore
             }
 
             container.Add(card, Zone.Battlefield);
-            card.SummonedThisTurn = true; // 召唤失调：入场当回合不可攻击（冲锋/突袭豁免）
+            // 一次性关键词刷新 + 入场可用性统一走横置（定案）：衍生物/副本同样一律横置；
+            // 冲锋/突袭生效 = 解除横置 + 消耗关键词（突袭另带紊乱指示物）
+            Attribute.KeywordRules.RefreshOneShotKeywords(card);
+            card._isTapped = !Attribute.KeywordRules.ApplyEntryKeywords(card);
             return true;
         }
 
