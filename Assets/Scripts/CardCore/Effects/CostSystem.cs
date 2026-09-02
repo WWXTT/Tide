@@ -279,7 +279,9 @@ namespace CardCore
             var target = context.Source;
             int duration = cost.TurnDuration > 0 ? cost.TurnDuration : cost.Value;
 
-            target.Tap();
+            // 沉睡横置走 ShouldTap：警戒可抵消一次横置（对齐 KeywordRules.ShouldTap 的文档承诺）
+            if (Attribute.KeywordRules.ShouldTap(target))
+                target.Tap();
             target.AddKeyword("Sleeping", DurationType.Permanent);
             target.AddCounters("Awakening", duration);
 

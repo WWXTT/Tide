@@ -56,7 +56,7 @@ namespace CardCore
     /// - 嘲讽：防守方有存活嘲讽随从时不能指定玩家为攻击目标（碾压无视）
     /// - 潜行：不可被指定为攻击目标；攻击后移除（发动效果后的移除在效果执行器）
     /// - 先攻/连击：先攻步先行结算（死者不反击）；连击两步均结算
-    /// - 穿透：攻击随从的溢出伤害给其控制者；碾压：对目标相邻 1 格随从各结算一次攻击
+    /// - 碾压：对目标相邻 1 格随从各结算一次攻击
     /// - 剧毒/吸血/系命/圣盾/护甲/坚韧：伤害经 KeywordRules.ApplyDamage 统一结算
     /// </summary>
     public class CombatSystem
@@ -214,6 +214,13 @@ namespace CardCore
                     if (KeywordRules.ShouldTap(guard))
                         guard.Tap();
                     target = guard;
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    {
+                        Target = guard,
+                        Keyword = KeywordRules.Guard,
+                        Detail = "守卫转移：友方受到的攻击改由守卫承受",
+                        Source = attacker
+                    });
                 }
             }
 
@@ -228,7 +235,16 @@ namespace CardCore
 
             // 潜行：攻击后移除（发动效果后的移除见 EffectExecutor）
             if (attacker is Card attackerCard && attackerCard.HasKeyword(KeywordRules.Stealth))
+            {
                 attackerCard.RemoveKeyword(KeywordRules.Stealth);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = attackerCard,
+                    Keyword = KeywordRules.Stealth,
+                    Detail = "攻击后潜行失效",
+                    Source = attacker
+                });
+            }
 
             // 攻击次数 +1（每回合上限见 CanDeclareAttack）
             if (attacker is Card counted)
@@ -243,12 +259,15 @@ namespace CardCore
 
             _currentPhase = CombatPhase.DeclareAttack;
 
-            EventManager.Instance.Publish(new AttackDeclarationEvent
+            // 经 GameCore 统一路由发布（On_AttackDeclare 触发时点可见）
+            var declaration = new AttackDeclarationEvent
             {
                 Attacker = attacker,
                 Target = target,
                 AttackingPlayer = _attackingPlayer
-            });
+            };
+            if (GameCore.Instance != null) GameCore.Instance.PublishEvent(declaration);
+            else EventManager.Instance.Publish(declaration);
         }
 
         /// <summary>结束攻击宣言阶段，进入阻挡阶段</summary>
@@ -342,6 +361,9 @@ namespace CardCore
         {
             foreach (var attacker in _attackers)
             {
+                // 防守方玩家已判负（前序攻击致生命归零）→ 后续攻击不再结算，交由 EndCombat 判定胜负
+                if (_defendingPlayer != null && _defendingPlayer.Life <= 0) break;
+
                 var target = attacker.BlockedBy ?? attacker.DeclaredTarget ?? (Entity)_defendingPlayer;
                 if (target == null || !target.IsAlive) continue; // 目标已倒（前序攻击击杀）→ 落空
 
@@ -351,7 +373,7 @@ namespace CardCore
             EndCombat();
         }
 
-        /// <summary>结算一次攻击配对（含先攻/连击/穿透/碾压；剧毒吸血圣盾护甲坚韧在 KeywordRules 内）</summary>
+        /// <summary>结算一次攻击配对（含先攻/连击/碾压；剧毒吸血圣盾护甲坚韧在 KeywordRules 内）</summary>
         private void ResolvePair(Entity attacker, Entity target)
         {
             int attackerPower = GetPower(attacker);
@@ -364,8 +386,6 @@ namespace CardCore
             bool attackerDouble = attacker.HasKeyword(KeywordRules.DoubleStrike);
             bool targetDouble = target.HasKeyword(KeywordRules.DoubleStrike);
 
-            int targetLifeBefore = target.GetLife();
-
             // ---- 先攻步 ----
             if (attackerFirst)
                 DealCombatDamage(attacker, target, attackerPower);
@@ -377,14 +397,6 @@ namespace CardCore
                 DealCombatDamage(attacker, target, attackerPower);
             if (target != attacker && target.IsAlive && (!targetFirst || targetDouble))
                 DealCombatDamage(target, attacker, targetPower);
-
-            // ---- 穿透：攻击随从的溢出伤害给其控制者 ----
-            if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Trample) && target is Card)
-            {
-                int overflow = attackerPower - targetLifeBefore;
-                if (overflow > 0 && target.GetController() is Player owner)
-                    DealCombatDamage(attacker, owner, overflow);
-            }
 
             // ---- 碾压：对目标相邻 1 格随从各视为一次攻击（额外受击不反击） ----
             if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Overwhelm)
@@ -456,6 +468,12 @@ namespace CardCore
             _currentPhase = CombatPhase.None;
             _attackers.Clear();
             _blockers.Clear();
+
+            // 泵一次状态动作：战斗死亡的移墓/复生/触发不等下一次栈结算（编辑器直攻路径无人泵 SBA）
+            GameCore.Instance?.SBAEngine.ExecuteAll();
+
+            // 战斗连锁结算完成后：生命判负即时判定（每连锁一次；幂等只发一次）
+            GameCore.Instance?.CheckLifeGameOver();
         }
 
         /// <summary>取消战斗</summary>

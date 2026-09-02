@@ -75,7 +75,6 @@ namespace CardCore
         GrantRush,
         GrantDoubleStrike,
         GrantMultiAttack,
-        GrantTrample,
         GrantReach,
         GrantCannotBeTargeted,
         GrantSpellShield,
@@ -91,6 +90,7 @@ namespace CardCore
         CopyCard,
         CopyExact,
         FightTarget,
+        Morph,
 
         // ============ 反规则效果 ============
         ModifyGameRule,

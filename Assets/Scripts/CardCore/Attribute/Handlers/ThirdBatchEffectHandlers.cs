@@ -13,32 +13,11 @@ namespace CardCore.Attribute.Handlers
     /// <summary>本批 handler 共享的辅助方法</summary>
     internal static class ThirdBatchHelpers
     {
-        /// <summary>破坏：标记死亡 + 移入坟墓场 + 发布 CardDestroyEvent</summary>
+        /// <summary>破坏：经死亡决策表统一裁决（不灭/仪式回手/复生/落墓/事件全在 DeathRules 内定案）</summary>
         internal static void DestroyToGraveyard(Card card, EffectExecutionContext context)
         {
             if (card == null) return;
-            // 不灭：不受摧毁/消灭效果影响
-            if (card.HasKeyword(KeywordRules.Indestructible)) return;
-            card.IsAlive = false;
-
-            // 复生：死亡时以 1 血回场（消耗关键词，留在战场）
-            if (KeywordRules.TryReborn(card)) return;
-
-            var controller = card.GetController();
-            if (context.ZoneManager != null && controller != null)
-            {
-                var from = card.GetZone();
-                if (from != Zone.Graveyard)
-                    context.ZoneManager.GetZoneContainer(controller).Move(card, from, Zone.Graveyard);
-                card.SetZone(Zone.Graveyard);
-            }
-
-            EventManager.Instance.Publish(new CardDestroyEvent
-            {
-                DestroyedCard = card,
-                Reason = DestroyReason.Destroyed,
-                Source = context.Source
-            });
+            DeathRules.TryKill(card, DeathCause.DestroyEffect, context.Source, context.ZoneManager);
         }
 
         /// <summary>将各 target 迁入指定区域（经各自控制者容器），发布 CardMoveEvent</summary>

@@ -67,22 +67,26 @@ namespace CardCore.Editor.Tests
     }
 
     /// <summary>
-    /// 控制台播报器：与 BattleScreen.OnEnter 订阅完全相同的事件集合（表现层契约），
-    /// 把对局过程输出为控制台文本。StackEmpty 高频低信息，订阅但不播（保持契约一致性）。
+    /// 控制台播报器：前 12 个订阅与 BattleScreen.OnEnter 完全相同的事件集合（表现层契约，
+    /// 双向差集为空——若事件面不足以还原一局对局，这里就会暴露缺口）；
+    /// 另有 6 个播报专用扩展订阅（开局/效果目标与结算/攻击宣言/入手/疲劳/产出），不参与契约对齐。
+    /// StackEmpty 高频低信息，订阅但不播（保持契约一致性）。
     /// </summary>
     public sealed class ConsoleAnnouncer
     {
         private int _lines;
+        private bool _seenGameStart; // 起手逐张静默开关：起手由开局汇总行呈现
 
         public int LineCount => _lines;
 
         public void Attach()
         {
             var bus = EventManager.Instance;
+            // ---- 表现层契约面（12 个，与 BattleScreen.OnEnter 一致，双向差集为空）----
             bus.Subscribe<TurnStartEvent>(OnTurnStart);
             bus.Subscribe<PhaseStartEvent>(OnPhaseStart);
             bus.Subscribe<CardPlayEvent>(OnCardPlay);
-            bus.Subscribe<CardZoneChangeEvent>(OnCardZoneChange);
+            bus.Subscribe<CardZoneChangeEvent>(OnCardZoneChange); // SBA 泵驱动的流程才会发；契约保留
             bus.Subscribe<CardPutToBattlefieldEvent>(OnCardEnterBattlefield);
             bus.Subscribe<CardLeaveBattlefieldEvent>(OnCardLeaveBattlefield);
             bus.Subscribe<LifeChangeEvent>(OnLifeChange);
@@ -91,11 +95,22 @@ namespace CardCore.Editor.Tests
             bus.Subscribe<ElementPoolPayEvent>(OnElementPoolPay);
             bus.Subscribe<StackEmptyEvent>(OnStackEmpty);
             bus.Subscribe<GameOverEvent>(OnGameOver);
+
+            // ---- 播报专用扩展（不参与表现层契约对齐）----
+            bus.Subscribe<GameStartEvent>(OnGameStart);               // 开局牌库/起手（起手抽完后发布）
+            bus.Subscribe<CardEnterHandEvent>(OnCardEnterHand);       // 逐张入手（含起手，_seenGameStart 抑制）
+            bus.Subscribe<AtomicEffectPhaseEvent>(OnAtomicEffectPhase); // 效果目标选择 + 结算产出
+            bus.Subscribe<AttackDeclarationEvent>(OnAttackDeclaration);  // 攻击宣言目标
+            bus.Subscribe<CardCore.Attribute.FatigueEvent>(OnFatigue);
+            bus.Subscribe<CardCore.Attribute.HealEvent>(OnHeal);       // 引擎直驱治疗（如再生），原子治疗由〔结算〕行呈现
+            bus.Subscribe<ElementPoolGainEvent>(OnElementPoolGain);   // 横置产出（呈现"费用花完"）
+            bus.Subscribe<KeywordAppliedEvent>(OnKeywordApplied);     // 关键词生效（圣盾/守卫/复生/成长等统一观察点）
         }
 
         public void Detach()
         {
             var bus = EventManager.Instance;
+            // ---- 表现层契约面 ----
             bus.Unsubscribe<TurnStartEvent>(OnTurnStart);
             bus.Unsubscribe<PhaseStartEvent>(OnPhaseStart);
             bus.Unsubscribe<CardPlayEvent>(OnCardPlay);
@@ -108,6 +123,16 @@ namespace CardCore.Editor.Tests
             bus.Unsubscribe<ElementPoolPayEvent>(OnElementPoolPay);
             bus.Unsubscribe<StackEmptyEvent>(OnStackEmpty);
             bus.Unsubscribe<GameOverEvent>(OnGameOver);
+
+            // ---- 播报专用扩展 ----
+            bus.Unsubscribe<GameStartEvent>(OnGameStart);
+            bus.Unsubscribe<CardEnterHandEvent>(OnCardEnterHand);
+            bus.Unsubscribe<AtomicEffectPhaseEvent>(OnAtomicEffectPhase);
+            bus.Unsubscribe<AttackDeclarationEvent>(OnAttackDeclaration);
+            bus.Unsubscribe<CardCore.Attribute.FatigueEvent>(OnFatigue);
+            bus.Unsubscribe<CardCore.Attribute.HealEvent>(OnHeal);
+            bus.Unsubscribe<ElementPoolGainEvent>(OnElementPoolGain);
+            bus.Unsubscribe<KeywordAppliedEvent>(OnKeywordApplied);
         }
 
         private void Say(string message)
@@ -154,6 +179,94 @@ namespace CardCore.Editor.Tests
         private void OnGameOver(GameOverEvent e)
             => Say($"★ 游戏结束：胜者 {AiBattleE2E.Name(e.Winner)}（{e.Reason}，共 {e.TotalTurns} 回合）");
 
+        // ---- 播报专用扩展回调 ----
+
+        /// <summary>开局块：双方牌库 + 起手（GameStartEvent 在起手抽完后发布，此处快照即终局起手）。</summary>
+        private void OnGameStart(GameStartEvent e)
+        {
+            _seenGameStart = true;
+            Say("━━━━ 开局 ━━━━");
+            var core = GameCore.Instance;
+            foreach (var p in new[] { e.FirstPlayer, e.SecondPlayer })
+            {
+                if (p == null) continue;
+                var deck = core.ZoneManager.GetCards(p, Zone.Deck);
+                var hand = core.ZoneManager.GetCards(p, Zone.Hand);
+                Say($"{AiBattleE2E.Name(p)} 牌库（{deck?.Count ?? 0}）：{DescribeCards(deck)}");
+                Say($"{AiBattleE2E.Name(p)} 起手（{hand?.Count ?? 0}）：{DescribeCards(hand)}");
+            }
+        }
+
+        private void OnCardEnterHand(CardEnterHandEvent e)
+        {
+            if (!_seenGameStart) return; // 起手逐张静默（由开局汇总行呈现）
+            if (e.IsDraw) Say($"{AiBattleE2E.Name(e.Player)} 抽到 {AiBattleE2E.Name(e.Card)}");
+            else Say($"{AiBattleE2E.Name(e.Player)} 获得 {AiBattleE2E.Name(e.Card)}（来自 {e.FromZone}）");
+        }
+
+        /// <summary>
+        /// 效果目标选择 + 结算产出：
+        /// StartApplying 播目标行（仅 Targets 非空），ResolutionComplete 播结算行（仅 LastOutcome 可读）；
+        /// Activation 与 StartApplying 紧邻发布，静默。
+        /// </summary>
+        private void OnAtomicEffectPhase(AtomicEffectPhaseEvent e)
+        {
+            switch (e.Phase)
+            {
+                case AtomicEffectPhase.StartApplying:
+                    if (e.Targets != null && e.Targets.Count > 0)
+                        Say($"〔效果〕{AiBattleE2E.Name(e.Source)} 的 {e.EffectType} → {DescribeEntities(e.Targets)}");
+                    break;
+
+                case AtomicEffectPhase.ResolutionComplete:
+                    var o = e.Context?.LastOutcome;
+                    if (!HasReadableOutcome(o)) break;
+                    if (o.DamageDealt > 0)
+                        Say($"〔结算〕{e.EffectType}：{DescribeEntities(o.AffectedTargets)} 共受 {o.DamageDealt} 伤害"
+                            + (o.KilledTargets.Count > 0 ? $"，{DescribeEntities(o.KilledTargets)} 死亡" : ""));
+                    else if (o.HealApplied > 0)
+                        Say($"〔结算〕{e.EffectType}：{DescribeEntities(o.AffectedTargets)} 回复 {o.HealApplied} 生命");
+                    else if (o.Declaration != null)
+                        Say($"〔结算〕{e.EffectType}：宣言「{o.Declaration}」{(o.DeclareHit ? "命中" : "未命中")}");
+                    else
+                        Say($"〔结算〕{e.EffectType}：作用于 {DescribeEntities(o.AffectedTargets)}");
+                    break;
+            }
+        }
+
+        private void OnAttackDeclaration(AttackDeclarationEvent e)
+            => Say($"〔攻击〕{AiBattleE2E.Name(e.Attacker)} → {AiBattleE2E.Name(e.Target)}");
+
+        private void OnFatigue(CardCore.Attribute.FatigueEvent e)
+            => Say($"〔疲劳〕{AiBattleE2E.Name(e.Player)} 受到 {e.Damage} 伤害（空牌库抽牌）");
+
+        /// <summary>引擎直驱治疗（Source 为空，如再生关键词）；原子效果治疗已有〔结算〕行，不重复播。</summary>
+        private void OnHeal(CardCore.Attribute.HealEvent e)
+        {
+            if (e.Source != null) return;
+            Say($"〔回复〕{AiBattleE2E.Name(e.Target)} 回复 {e.Amount} 生命");
+        }
+
+        private void OnElementPoolGain(ElementPoolGainEvent e)
+            => Say($"{AiBattleE2E.Name(e.Player)} 横置 {AiBattleE2E.Name(e.FromCard)} 产出 {e.GainedType}");
+
+        private void OnKeywordApplied(KeywordAppliedEvent e)
+            => Say($"〔关键词〕{AiBattleE2E.Name(e.Target)}：{e.Detail}");
+
+        private static bool HasReadableOutcome(EffectOutcome o)
+            => o != null && (o.DamageDealt > 0 || o.HealApplied > 0
+                          || o.KilledTargets.Count > 0 || o.AffectedTargets.Count > 0
+                          || o.Declaration != null);
+
+        /// <summary>同名聚合的紧凑卡牌清单（"火球、嘲讽守卫×2、…"）。</summary>
+        private static string DescribeCards(List<Card> cards)
+            => cards == null || cards.Count == 0 ? "∅"
+               : string.Join("、", cards.GroupBy(AiBattleE2E.Name)
+                                        .Select(g => g.Count() > 1 ? $"{g.Key}×{g.Count()}" : g.Key));
+
+        private static string DescribeEntities(List<Entity> list)
+            => list == null || list.Count == 0 ? "∅" : string.Join("、", list.Select(AiBattleE2E.Name));
+
         private static string DescribeTokens(Dictionary<ManaType, int> tokens)
         {
             if (tokens == null || tokens.Count == 0) return "无指示物";
@@ -180,6 +293,7 @@ namespace CardCore.Editor.Tests
             var result = new BattleRunResult();
             var announcer = new ConsoleAnnouncer();
             var gameOver = false;
+            GameBoard.BoardState board = null;
 
             void OnGameOver(GameOverEvent e)
             {
@@ -203,16 +317,25 @@ namespace CardCore.Editor.Tests
                 var core = GameCore.Instance;
                 var ctrl = new BattleController();
                 var ai = new SimpleAI();
+                // 变形目标形态解析器：组合根注入（编辑器无头路径独立注入）
+                CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
                 core.InitGame(CardLoader.BuildDeck(deckSpec, 1), CardLoader.BuildDeck(deckSpec, 1));
                 core.Player1.IsAI = true; // 选择全自动
                 core.Player2.IsAI = true;
+
+                // 棋盘占用层（派生，单向读核心）：为碾压关键词注入邻接解析（核心不绑棋盘，宿主接线）
+                board = new GameBoard.BoardState(core, core.Player1, core.Player2,
+                    GameBoard.HalfFieldData.Flat(), GameBoard.HalfFieldData.Flat());
+                board.EnableAutoResync();
+                CombatSystem.AdjacentResolver = board.Neighbors;
 
                 for (int turn = 0; turn < maxTurns && !gameOver; turn++)
                 {
                     try
                     {
                         ai.TakeTurn(ctrl);                          // 内部已 EndTurn（不折返）
-                        core.TurnEngine.CheckPhaseTransition();    // 补 End→Standby 折返
+                        if (!gameOver)
+                            core.TurnEngine.CheckPhaseTransition(); // 补 End→Standby 折返；游戏已结束则不开新回合
                     }
                     catch (Exception ex)
                     {
@@ -233,6 +356,8 @@ namespace CardCore.Editor.Tests
             {
                 announcer.Detach();
                 EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
+                CombatSystem.AdjacentResolver = null; // 撤销本局的棋盘接线（静态扩展点归零）
+                board?.Dispose();
                 result.AnnouncedLines = announcer.LineCount;
                 Debug.Log($"[对局] 战报：{(result.Completed ? $"游戏结束（胜者 {AiBattleE2E.Name(result.Winner)}，{result.Reason}，{result.TotalTurns} 回合）" : result.TurnLimitReached ? $"到达回合上限 {maxTurns}" : "异常中止")}；播报 {result.AnnouncedLines} 行；错误 {result.Errors.Count} 条");
             }

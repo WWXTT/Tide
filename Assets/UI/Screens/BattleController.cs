@@ -11,6 +11,9 @@ namespace SynergyUI
     {
         private readonly SimpleAI _ai = new SimpleAI();
 
+        // 棋盘占用层（派生，单向读核心区域）：为碾压关键词提供邻接解析
+        private GameBoard.BoardState _board;
+
         public GameCore Core => GameCore.Instance;
         public Player P1 => Core?.Player1;
         public Player P2 => Core?.Player2;
@@ -22,11 +25,26 @@ namespace SynergyUI
         public void StartNewGame()
         {
             var catalog = CardCatalog.LoadAll();
+            // 变形目标形态解析器：组合根注入（CardCore 不依赖 UI 层）
+            CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
             // 同一张卡表给双方各建一副（卡组不重复，每种 1 张——构筑规则定案），P2 由极简 AI 操作。
             GameCore.Instance.InitGame(catalog, catalog);
             // 标记 P2 为 AI：目标选择器对 AI 跳过弹窗、即时自动选择。
             if (GameCore.Instance.Player2 != null)
                 GameCore.Instance.Player2.IsAI = true;
+            AttachBoard();
+        }
+
+        /// <summary>棋盘占用层接线：注入碾压 AdjacentResolver（核心不绑棋盘，由宿主组装）。</summary>
+        private void AttachBoard()
+        {
+            _board?.Dispose();
+            var core = GameCore.Instance;
+            if (core?.Player1 == null || core.Player2 == null) return;
+            _board = new GameBoard.BoardState(core, core.Player1, core.Player2,
+                GameBoard.HalfFieldData.Flat(), GameBoard.HalfFieldData.Flat());
+            _board.EnableAutoResync();
+            CombatSystem.AdjacentResolver = _board.Neighbors;
         }
 
         // ======================================== 战斗结算链（补缺口） ========================================

@@ -109,6 +109,11 @@ namespace CardCore
         Sacrificed,
 
         /// <summary>
+        /// 湮灭（彻底移除，直送除外区，不可复活）
+        /// </summary>
+        Annihilated,
+
+        /// <summary>
         /// 传说规则（同名卡）
         /// </summary>
         LegendaryRule
@@ -509,6 +514,10 @@ namespace CardCore
 
             if (to == Zone.Hand && from != Zone.Hand)
                 PublishCardEnterHand(card, from);
+            if (from == Zone.Battlefield && to != Zone.Battlefield)
+                PublishCardLeaveBattlefield(card, to);
+            if (from == Zone.Battlefield && to != Zone.Battlefield)
+                CardCore.Attribute.MorphSystem.TryEndMorph(card); // 变形：离开战场解除（进墓变回原随从）
         }
 
         /// <summary>
@@ -522,6 +531,10 @@ namespace CardCore
 
             if (to == Zone.Hand && from != Zone.Hand)
                 PublishCardEnterHand(card, from);
+            if (from == Zone.Battlefield && to != Zone.Battlefield)
+                PublishCardLeaveBattlefield(card, to);
+            if (from == Zone.Battlefield && to != Zone.Battlefield)
+                CardCore.Attribute.MorphSystem.TryEndMorph(card); // 变形：离开战场解除（进墓变回原随从）
         }
 
         /// <summary>
@@ -536,6 +549,21 @@ namespace CardCore
                 Card = card,
                 FromZone = from,
                 IsDraw = ZoneManagerExtensions.IsDrawMove
+            };
+            if (GameCore.Instance != null) GameCore.Instance.PublishEvent(e);
+            else EventManager.Instance.Publish(e);
+        }
+
+        /// <summary>
+        /// 卡牌离场事件（战场 → 任何非战场区；经 GameCore 路由，On_LeaveBattlefield 触发时点可见）。
+        /// </summary>
+        private void PublishCardLeaveBattlefield(Card card, Zone to)
+        {
+            var e = new CardLeaveBattlefieldEvent
+            {
+                Card = card,
+                Controller = card.GetController(),
+                Destination = to
             };
             if (GameCore.Instance != null) GameCore.Instance.PublishEvent(e);
             else EventManager.Instance.Publish(e);
@@ -686,8 +714,9 @@ namespace CardCore
         /// </summary>
         internal static bool IsDrawMove;
 
-        /// <summary>从牌库抽一张牌。牌库为空时不抽牌，改为疲劳（第 N 次疲劳造成 N 点递增伤害）。</summary>
-        public static Card DrawCard(this ZoneManager zm, Player player)
+        /// <summary>从牌库抽一张牌。牌库为空时不抽牌，改为疲劳（第 N 次疲劳造成 N 点递增伤害）。
+        /// 抽卡后经统一路由发布 CardDrawEvent——抽卡时点（On_CardDraw）对所有触发可见。</summary>
+        public static Card DrawCard(this ZoneManager zm, Player player, bool firstDrawOfTurn = false)
         {
             if (zm == null || player == null) return null;
 
@@ -712,6 +741,17 @@ namespace CardCore
             {
                 IsDrawMove = prev;
             }
+
+            // 抽卡时点：经统一路由（触发/层引擎可见）；原子抽牌 handler 各自发布
+            var drawEvent = new CardDrawEvent
+            {
+                Player = player,
+                DrawnCard = card,
+                DrawCount = 1,
+                FirstDrawOfTurn = firstDrawOfTurn
+            };
+            if (GameCore.Instance != null) GameCore.Instance.PublishEvent(drawEvent);
+            else EventManager.Instance.Publish(drawEvent);
             return card;
         }
 
@@ -748,12 +788,16 @@ namespace CardCore
 
             if (newLife <= 0)
             {
-                Publish(new GameOverEvent
-                {
-                    Winner = player.Opponent,
-                    Loser = player,
-                    Reason = GameOverReason.LifeZero,
-                });
+                // 统一发布口：只发一次守卫 + TotalTurns 补全（未接线 GameCore 时退化直发）
+                if (GameCore.Instance != null)
+                    GameCore.Instance.PublishGameOverOnce(player.Opponent, GameOverReason.LifeZero);
+                else
+                    Publish(new GameOverEvent
+                    {
+                        Winner = player.Opponent,
+                        Loser = player,
+                        Reason = GameOverReason.LifeZero,
+                    });
             }
         }
 

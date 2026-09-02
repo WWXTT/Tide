@@ -87,34 +87,29 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 int lifeBefore = target.GetLife();
+                int actual = 0;
                 if (dmg > 0)
                 {
-                    target.TakeDamage(dmg);
-                    PublishEvent(new AtomicDamageEvent
+                    // 走关键词统一伤害管线（圣盾/护甲/坚韧与战斗伤害同口径），返回实际造成量
+                    actual = KeywordRules.ApplyDamage(context.Source, target, dmg, false);
+                    if (actual > 0)
                     {
-                        Source = context.Source,
-                        Target = target,
-                        Damage = dmg,
-                        IsCombatDamage = false,
-                        DamageType = DamageType.Poison
-                    });
+                        PublishEvent(new AtomicDamageEvent
+                        {
+                            Source = context.Source,
+                            Target = target,
+                            Damage = actual,
+                            IsCombatDamage = false,
+                            DamageType = DamageType.Poison
+                        });
+                    }
                 }
-                // 任何受到剧毒伤害的生物直接死亡（炉石/万智的剧毒语义）
+                // 任何受到剧毒伤害的生物直接死亡（炉石/万智的剧毒语义）。
+                // 死因统一为 Poison（与关键词剧毒同因同裁决：不灭不拦剧毒——决策表定案）
                 if (target is Card card && card.IsAlive)
-                {
-                    target.IsAlive = false;
-                    var controller = card.GetController();
-                    if (context.ZoneManager != null && controller != null)
-                        context.ZoneManager.MoveCard(card, controller, Zone.Battlefield, Zone.Graveyard);
-                    PublishEvent(new CardDestroyEvent
-                    {
-                        DestroyedCard = card,
-                        Reason = DestroyReason.Destroyed,
-                        Source = context.Source
-                    });
-                }
+                    DeathRules.TryKill(card, DeathCause.Poison, context.Source, context.ZoneManager);
                 // 死亡检测在强制致死后进行，剧毒目标计入 KilledTargets
-                context.LastOutcome.RecordDamage(target, lifeBefore, dmg);
+                context.LastOutcome.RecordDamage(target, lifeBefore, actual);
             }
         }
 

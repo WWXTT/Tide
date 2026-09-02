@@ -353,10 +353,20 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 检查游戏是否结束
+        /// 检查游戏是否结束（经 GameCore 统一发布口：只发一次；双亡先到先得）
         /// </summary>
         private void CheckGameOver()
         {
+            if (_gameCore != null)
+            {
+                if (_turnPlayer != null && _turnPlayer.Life <= 0)
+                    _gameCore.PublishGameOverOnce(_turnPlayer.Opponent, GameOverReason.LifeZero);
+                else if (_turnPlayer?.Opponent != null && _turnPlayer.Opponent.Life <= 0)
+                    _gameCore.PublishGameOverOnce(_turnPlayer, GameOverReason.LifeZero);
+                return;
+            }
+
+            // 未接线（独立测试）退化路径：维持原直发行为
             if (_turnPlayer != null && _turnPlayer.Life <= 0)
             {
                 PublishEvent(new GameOverEvent

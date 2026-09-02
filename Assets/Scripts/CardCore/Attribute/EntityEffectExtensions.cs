@@ -220,32 +220,25 @@ namespace CardCore
 
         #region 关键词
 
-        /// <summary>添加关键词</summary>
+        /// <summary>添加关键词（Entity 级：角色/卡牌同构；duration 当前未实现过期）</summary>
         public static void AddKeyword(this Entity entity, string keyword, DurationType duration = DurationType.Permanent)
         {
-            if (entity is Card card)
+            if (entity != null && !entity._keywords.Contains(keyword))
             {
-                if (!card._keywords.Contains(keyword))
-                {
-                    card._keywords.Add(keyword);
-                }
+                entity._keywords.Add(keyword);
             }
         }
 
         /// <summary>移除关键词</summary>
         public static void RemoveKeyword(this Entity entity, string keyword)
         {
-            if (entity is Card card)
-            {
-                card._keywords.Remove(keyword);
-            }
+            entity?._keywords.Remove(keyword);
         }
 
-        /// <summary>检查是否有关键词</summary>
+        /// <summary>检查是否有关键词（角色默认带神佑 DivineProtection）</summary>
         public static bool HasKeyword(this Entity entity, string keyword)
         {
-            if (entity is Card card) return card._keywords.Contains(keyword);
-            return false;
+            return entity != null && entity._keywords.Contains(keyword);
         }
 
         #endregion
@@ -413,9 +406,9 @@ namespace CardCore
         internal EffectTargetFlags _targetFlags = EffectTargetFlags.CanBeTargetedByAll;
 
         // 关键词和指示物。
-        // _keywords 用 List 而非 HashSet：融合继承允许重复关键词叠加（双坚韧 = −2），
+        // _keywords 已上移至 Entity 基类（角色=普通生物单位的世界观定案：Player 同构持有，
+        // 角色默认带神佑）。List 而非 HashSet：融合继承允许重复叠加（双坚韧 = −2），
         // 普通授予路径的「唯一性」由 AddKeyword 的 Contains 检查保证（非融合不可重复添加）。
-        internal List<string> _keywords = new List<string>();
         internal Dictionary<string, int> _counters = new Dictionary<string, int>();
 
         // ===== 战斗状态（关键词行为；核心规则字段，非棋盘坐标） =====

@@ -81,7 +81,7 @@ namespace CardCore
             elementPool.InitializePlayer(_player1);
             elementPool.InitializePlayer(_player2);
             // 曲线事件（CurveShiftEvent）经 GameCore 统一路由，保证 Trigger/Layer 可见
-            elementPool.AttachEventRouter(PublishEventRouted);
+            elementPool.AttachEventRouter(e => PublishEventRouted(e));
             _subSystems.Register(elementPool);
 
             // 初始化效果执行器和栈引擎
@@ -292,6 +292,12 @@ namespace CardCore
                 {
                     card.AddCounters("+1/+1", 1);
                     Attribute.Handlers.HandlerHelpers.ApplyCounterStat(card, "+1/+1", 1);
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    {
+                        Target = card,
+                        Keyword = KeywordRules.Growth,
+                        Detail = "成长：+1/+1"
+                    });
                 }
 
                 if (card.IsTapped())
@@ -304,8 +310,8 @@ namespace CardCore
             // 重置元素池：地牌槽曲线按全局回合数推进 + 回合玩家地牌解除横置（准备阶段）
             ElementPool.OnTurnStart(player, e.TurnNumber);
 
-            // 抽一张牌
-            ZoneManagerExtensions.DrawCard(ZoneManager, player);
+            // 抽一张牌（回合抽 = 本回合首次抽牌，抽卡时点对触发可见）
+            ZoneManagerExtensions.DrawCard(ZoneManager, player, firstDrawOfTurn: true);
         }
 
         #region 游戏生命周期
@@ -423,11 +429,32 @@ namespace CardCore
         /// </summary>
         public void Resume() => _stateManager.Resume();
 
+        /// <summary>游戏是否已结束（Ended 状态）。AI / 驱动器 / UI 可据此短路。</summary>
+        public bool IsGameOver => _stateManager.CurrentState == GameState.Ended;
+
         /// <summary>
-        /// 结束游戏
+        /// 生命判负检查（LifeZero）：在每次连锁（栈 / 战斗）结算完成后调用一次。
+        /// PublishGameOverOnce 内含 Ended 守卫，全局只发一次，多点调用安全；
+        /// 结束阶段 TurnEngine.CheckGameOver 保留为最终兜底。
         /// </summary>
-        public void EndGame(Player winner, GameOverReason reason)
+        internal void CheckLifeGameOver()
         {
+            if (IsGameOver) return;
+            if (Player2 != null && Player2.Life <= 0)
+                PublishGameOverOnce(Player1, GameOverReason.LifeZero);
+            else if (Player1 != null && Player1.Life <= 0)
+                PublishGameOverOnce(Player2, GameOverReason.LifeZero);
+        }
+
+        /// <summary>
+        /// 游戏结束统一发布口：全局只发一次（GameStateManager.Ended 状态守卫），
+        /// TotalTurns 在此统一补全（疲劳 / SBA 路径原先漏赋值）。
+        /// 所有 GameOverEvent 发布点（疲劳 / 回合引擎 / SBA / EndGame）必须经此，
+        /// 禁止再直发 PublishEvent(new GameOverEvent…)。
+        /// </summary>
+        internal void PublishGameOverOnce(Player winner, GameOverReason reason)
+        {
+            if (winner == null) return;
             if (!_stateManager.EndGame())
                 return;
 
@@ -439,6 +466,12 @@ namespace CardCore
                 TotalTurns = TurnEngine.TurnNumber
             });
         }
+
+        /// <summary>
+        /// 结束游戏
+        /// </summary>
+        public void EndGame(Player winner, GameOverReason reason)
+            => PublishGameOverOnce(winner, reason);
 
         /// <summary>
         /// 游戏主循环
@@ -526,23 +559,28 @@ namespace CardCore
         /// 统一发布路径（按运行时类型分发）：替代检查 → EventManager → Trigger/Layer。
         /// 泛型入口与 ElementPool 等子系统的事件路由（Action&lt;IGameEvent&gt;）共用，
         /// 路由层拿不到静态类型，必须以 e.GetType() 为键（PublishDynamic）分发。
+        /// replacementsApplied=true 时跳过替代检查（调用方已在管线前消费过替代，如伤害管线），
+        /// 只走总线 + Trigger/Layer——防替代二次套用。
         /// </summary>
-        internal void PublishEventRouted(IGameEvent e)
+        internal void PublishEventRouted(IGameEvent e, bool replacementsApplied = false)
         {
             // 替代效果（Replacement）在事件「发生前」拦截：若存在可替代当前事件类型的效果，
             // 用替代后的最终事件继续派发。替代可能产出不同的具体类型（如 CardDestroyEvent → CardBanishEvent），
             // 此时必须按运行时类型分发（PublishDynamic），否则以静态类型 T 为键会漏掉真实订阅者。
-            var repl = ReplacementEngine;
-            if (repl != null && repl.HasReplacementEffect(e.GetType()))
+            if (!replacementsApplied)
             {
-                var ctx = repl.CheckReplacements(e);
-                var finalEvent = ctx.GetFinalEvent();
-                if (!ReferenceEquals(finalEvent, e))
+                var repl = ReplacementEngine;
+                if (repl != null && repl.HasReplacementEffect(e.GetType()))
                 {
-                    EventManager.Instance.PublishDynamic(finalEvent);
-                    TriggerEngine.OnEvent(finalEvent);
-                    LayerEngine?.OnEvent(finalEvent);
-                    return;
+                    var ctx = repl.CheckReplacements(e);
+                    var finalEvent = ctx.GetFinalEvent();
+                    if (!ReferenceEquals(finalEvent, e))
+                    {
+                        EventManager.Instance.PublishDynamic(finalEvent);
+                        TriggerEngine.OnEvent(finalEvent);
+                        LayerEngine?.OnEvent(finalEvent);
+                        return;
+                    }
                 }
             }
 

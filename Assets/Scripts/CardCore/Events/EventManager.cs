@@ -28,104 +28,107 @@ namespace CardCore
         private static EventManager _instance;
         public static EventManager Instance => _instance ??= new EventManager();
 
+        /// <summary>
+        /// 订阅条目：Wrapped 为类型安全转发闭包（发布时执行）；
+        /// Original 为订阅方传入的原始委托（退订匹配 key，按 Delegate 相等比较 Method+Target）。
+        /// 不存原始引用的话，包装闭包的 Target 是编译器显示类实例，退订永远匹配不上。
+        /// </summary>
+        private readonly struct SubscriptionEntry
+        {
+            public readonly Func<IEventData, bool> Wrapped;
+            public readonly Delegate Original;
+
+            public SubscriptionEntry(Func<IEventData, bool> wrapped, Delegate original)
+            {
+                Wrapped = wrapped;
+                Original = original;
+            }
+        }
+
         // 广播事件处理程序
-        private readonly Dictionary<Type, List<Func<IEventData, bool>>> _broadcastHandlers =
-             new Dictionary<Type, List<Func<IEventData, bool>>>(64);
+        private readonly Dictionary<Type, List<SubscriptionEntry>> _broadcastHandlers =
+             new Dictionary<Type, List<SubscriptionEntry>>(64);
 
         // 定向事件处理程序（指定接收者ID）
-        private readonly Dictionary<Type, Dictionary<int, List<Func<IEventData, bool>>>> _targetedHandlers =
-            new Dictionary<Type, Dictionary<int, List<Func<IEventData, bool>>>>(64);
+        private readonly Dictionary<Type, Dictionary<int, List<SubscriptionEntry>>> _targetedHandlers =
+            new Dictionary<Type, Dictionary<int, List<SubscriptionEntry>>>(64);
 
         // 对象池
-        private readonly Stack<List<Func<IEventData, bool>>> _listPool = new Stack<List<Func<IEventData, bool>>>();
+        private readonly Stack<List<SubscriptionEntry>> _listPool = new Stack<List<SubscriptionEntry>>();
 
         #region 订阅
 
         /// <summary>订阅广播事件（Func 版，返回是否执行成功）</summary>
         public void Subscribe<T>(Func<T, bool> handler, int receiverId = -1) where T : IEventData
         {
-            var eventType = typeof(T);
-
-            if (receiverId == -1)
-            {
-                if (!_broadcastHandlers.TryGetValue(eventType, out var handlers))
-                {
-                    handlers = new List<Func<IEventData, bool>>(4);
-                    _broadcastHandlers[eventType] = handlers;
-                }
-                handlers.Add(evt => handler((T)evt));
-            }
-            else
-            {
-                if (!_targetedHandlers.TryGetValue(eventType, out var idToHandlers))
-                {
-                    idToHandlers = new Dictionary<int, List<Func<IEventData, bool>>>();
-                    _targetedHandlers[eventType] = idToHandlers;
-                }
-                if (!idToHandlers.TryGetValue(receiverId, out var handlers))
-                {
-                    handlers = new List<Func<IEventData, bool>>(4);
-                    idToHandlers[receiverId] = handlers;
-                }
-                handlers.Add(evt => handler((T)evt));
-            }
+            if (handler == null) return;
+            SubscribeCore(typeof(T), receiverId, evt => handler((T)evt), handler);
         }
 
         /// <summary>订阅广播事件（Action 版，无需返回值）</summary>
         public void Subscribe<T>(Action<T> handler) where T : IEventData
         {
-            Subscribe<T>(e => { handler(e); return true; }, -1);
+            if (handler == null) return;
+            SubscribeCore(typeof(T), -1, evt => { handler((T)evt); return true; }, handler);
         }
 
-        /// <summary>取消订阅</summary>
+        /// <summary>取消订阅（删除全部匹配条目——同一委托重复订阅会被一并移除）</summary>
         public void Unsubscribe<T>(Func<T, bool> handler, int receiverId = -1) where T : IEventData
-        {
-            var eventType = typeof(T);
-
-            if (receiverId == -1)
-            {
-                if (_broadcastHandlers.TryGetValue(eventType, out var handlers))
-                {
-                    for (int i = handlers.Count - 1; i >= 0; i--)
-                    {
-                        if (handlers[i].Target == handler.Target)
-                        {
-                            handlers.RemoveAt(i);
-                            break;
-                        }
-                    }
-                    if (handlers.Count == 0) _broadcastHandlers.Remove(eventType);
-                }
-            }
-            else
-            {
-                if (_targetedHandlers.TryGetValue(eventType, out var idToHandlers))
-                {
-                    if (idToHandlers.TryGetValue(receiverId, out var handlers))
-                    {
-                        for (int i = handlers.Count - 1; i >= 0; i--)
-                        {
-                            if (handlers[i].Target == handler.Target)
-                            {
-                                handlers.RemoveAt(i);
-                                break;
-                            }
-                        }
-                        if (handlers.Count == 0)
-                        {
-                            idToHandlers.Remove(receiverId);
-                            if (idToHandlers.Count == 0)
-                                _targetedHandlers.Remove(eventType);
-                        }
-                    }
-                }
-            }
-        }
+            => UnsubscribeCore(typeof(T), receiverId, handler);
 
         /// <summary>取消订阅（Action 版）</summary>
         public void Unsubscribe<T>(Action<T> handler) where T : IEventData
+            => UnsubscribeCore(typeof(T), -1, handler);
+
+        private void SubscribeCore(Type eventType, int receiverId, Func<IEventData, bool> wrapped, Delegate original)
         {
-            Unsubscribe<T>(e => { handler(e); return true; }, -1);
+            var entry = new SubscriptionEntry(wrapped, original);
+            if (receiverId == -1)
+            {
+                if (!_broadcastHandlers.TryGetValue(eventType, out var handlers))
+                {
+                    handlers = new List<SubscriptionEntry>(4);
+                    _broadcastHandlers[eventType] = handlers;
+                }
+                handlers.Add(entry);
+            }
+            else
+            {
+                if (!_targetedHandlers.TryGetValue(eventType, out var idToHandlers))
+                {
+                    idToHandlers = new Dictionary<int, List<SubscriptionEntry>>();
+                    _targetedHandlers[eventType] = idToHandlers;
+                }
+                if (!idToHandlers.TryGetValue(receiverId, out var handlers))
+                {
+                    handlers = new List<SubscriptionEntry>(4);
+                    idToHandlers[receiverId] = handlers;
+                }
+                handlers.Add(entry);
+            }
+        }
+
+        private void UnsubscribeCore(Type eventType, int receiverId, Delegate original)
+        {
+            if (original == null) return;
+            if (receiverId == -1)
+            {
+                if (!_broadcastHandlers.TryGetValue(eventType, out var handlers)) return;
+                handlers.RemoveAll(e => e.Original == original);
+                if (handlers.Count == 0) _broadcastHandlers.Remove(eventType);
+            }
+            else
+            {
+                if (!_targetedHandlers.TryGetValue(eventType, out var idToHandlers)) return;
+                if (!idToHandlers.TryGetValue(receiverId, out var handlers)) return;
+                handlers.RemoveAll(e => e.Original == original);
+                if (handlers.Count == 0)
+                {
+                    idToHandlers.Remove(receiverId);
+                    if (idToHandlers.Count == 0)
+                        _targetedHandlers.Remove(eventType);
+                }
+            }
         }
 
         #endregion
@@ -142,7 +145,7 @@ namespace CardCore
         public bool Publish<T>(T eventData, int targetId) where T : IEventData
         {
             var eventType = typeof(T);
-            List<Func<IEventData, bool>> handlersToInvoke = GetHandlerListFromPool();
+            List<SubscriptionEntry> handlersToInvoke = GetHandlerListFromPool();
             bool allSuccess = true;
 
             try
@@ -161,7 +164,7 @@ namespace CardCore
                         try
                         {
                             if (!IsHandlerValid(handler)) continue;
-                            if (!handler(eventData))
+                            if (!handler.Wrapped(eventData))
                             {
                                 allSuccess = false;
                             }
@@ -189,7 +192,7 @@ namespace CardCore
                         try
                         {
                             if (!IsHandlerValid(handler)) continue;
-                            if (!handler(eventData))
+                            if (!handler.Wrapped(eventData))
                             {
                                 return false;
                             }
@@ -223,7 +226,7 @@ namespace CardCore
             if (eventData == null) return false;
 
             var eventType = eventData.GetType();
-            List<Func<IEventData, bool>> handlersToInvoke = GetHandlerListFromPool();
+            List<SubscriptionEntry> handlersToInvoke = GetHandlerListFromPool();
             bool allSuccess = true;
 
             try
@@ -240,7 +243,7 @@ namespace CardCore
                     try
                     {
                         if (!IsHandlerValid(handler)) continue;
-                        if (!handler(eventData))
+                        if (!handler.Wrapped(eventData))
                         {
                             allSuccess = false;
                         }
@@ -289,14 +292,18 @@ namespace CardCore
 
         #region 内部方法
 
-        private bool IsHandlerValid(Func<IEventData, bool> handler)
+        /// <summary>
+        /// 检查订阅条目是否有效：已销毁的 UnityEngine.Object 订阅者跳过。
+        /// 按 Original.Target 判断（Wrapped 闭包的 Target 是编译器显示类，永非 UO，旧写法从未生效过）。
+        /// </summary>
+        private bool IsHandlerValid(SubscriptionEntry entry)
         {
-            return !(handler.Target is UnityEngine.Object obj) || obj;
+            return !(entry.Original?.Target is UnityEngine.Object obj) || obj;
         }
 
-        private List<Func<IEventData, bool>> GetHandlerListFromPool()
+        private List<SubscriptionEntry> GetHandlerListFromPool()
         {
-            return _listPool.Count > 0 ? _listPool.Pop() : new List<Func<IEventData, bool>>(16);
+            return _listPool.Count > 0 ? _listPool.Pop() : new List<SubscriptionEntry>(16);
         }
 
         private void CleanupBroadcastHandlers()

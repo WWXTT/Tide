@@ -797,7 +797,8 @@ namespace CardCore.Editor
 
         /// <summary>
         /// 关键词行为验证（合成随从，不依赖卡表）：失调/冲锋/突袭/嘲讽/守卫/潜行/警戒/风怒/
-        /// 先攻/连击/穿透/碾压/剧毒/吸血/系命/圣盾/坚韧/护甲/不灭/复生/再生/成长/辟邪/法术护盾。
+        /// 先攻/连击/碾压/剧毒/吸血/系命/圣盾/坚韧/护甲/不灭/复生/再生/成长/辟邪/法术护盾。
+        /// 死亡交互（剧毒×不灭×复生）另见 DeathRules 决策表。
         /// </summary>
         private static void TestKeywords(GameCore core, Player p1, Player p2)
         {
@@ -931,17 +932,6 @@ namespace CardCore.Editor
             Assert(tank.GetLife() == 1 && doubleS.IsAlive, "连击：伤害结算两次（5命 −2×2 = 1）");
             combat.EndCombat();
 
-            // ---- 10. 穿透：溢出给控制者 ----
-            combat.StartCombat(p1, p2);
-            int p2LifeBefore = p2.Life;
-            var trampler = Make(p1, 5, 9, "Trample");
-            trampler.SummonedThisTurn = false;
-            var small = Make(p2, 1, 3);
-            combat.DeclareAttack(trampler, small);
-            combat.ExecuteDamage();
-            Assert(!small.IsAlive && p2.Life == p2LifeBefore - 2, "穿透：溢出 2 点伤害给防守玩家");
-            combat.EndCombat();
-
             // ---- 11. 碾压：邻接受击（注入邻接扩展点） ----
             combat.StartCombat(p1, p2);
             var hammer = Make(p1, 4, 9, "Overwhelm");
@@ -1044,6 +1034,34 @@ namespace CardCore.Editor
                    && phoenix.IsAlive && phoenix.GetLife() == 1 && phoenix.IsTapped() && phoenix.SummonedThisTurn
                    && !phoenix.HasKeyword("Reborn"),
                    "复生：1 血回场、横置带失调、关键词消耗");
+
+            // ---- 15b. 死亡决策表（DeathRules）：死因×护盾 定案断言 ----
+            var venomLord = Make(p2, 2, 9, "Indestructible");
+            Assert(CardCore.Attribute.DeathRules.TryKill(venomLord, CardCore.Attribute.DeathCause.Poison, p1, core.ZoneManager)
+                   && !venomLord.IsAlive,
+                   "决策表：剧毒死因不被不灭拦截（伤害族照死——关键词与原子同裁决）");
+            var stoneGiant = Make(p2, 2, 9, "Indestructible");
+            Assert(!CardCore.Attribute.DeathRules.TryKill(stoneGiant, CardCore.Attribute.DeathCause.DestroyEffect, p1, core.ZoneManager)
+                   && stoneGiant.IsAlive,
+                   "决策表：不灭拦截摧毁效果死因");
+            var ironReborn = Make(p2, 2, 9, "Reborn");
+            Assert(!CardCore.Attribute.DeathRules.TryKill(ironReborn, CardCore.Attribute.DeathCause.DestroyEffect, p1, core.ZoneManager)
+                   && ironReborn.IsAlive && ironReborn.GetLife() == 1,
+                   "决策表：复生对摧毁效果死因生效（消耗回场，TryKill 返回未死）");
+
+            // ---- 15c. 神佑（世界观定案：角色=普通生物单位，免疫来自状态而非硬编码） ----
+            Assert(p1.HasKeyword(CardCore.Attribute.DeathRules.DivineProtection)
+                   && p2.HasKeyword(CardCore.Attribute.DeathRules.DivineProtection),
+                   "神佑：角色默认持有神佑状态");
+            p2.Life = 30;
+            var fang = Make(p1, 1, 9, "Poisonous");
+            CardCore.Attribute.KeywordRules.ApplyDamage(fang, p2, 2, true);
+            Assert(p2.Life == 28 && p2.IsAlive, "神佑：剧毒对角色无效（伤害本身照常生效）");
+            p2.RemoveKeyword(CardCore.Attribute.DeathRules.DivineProtection);
+            CardCore.Attribute.KeywordRules.ApplyDamage(fang, p2, 2, true);
+            Assert(p2.Life == 0, "神佑移除后：剧毒对角色致死（同一代码路径，免疫只来自状态）");
+            p2.Life = 30;
+            p2.AddKeyword(CardCore.Attribute.DeathRules.DivineProtection);
 
             // ---- 16. 再生 / 成长（回合开始维护） ----
             for (int i = 0; i < 3; i++) core.ZoneManager.GetZoneContainer(p1).Add(new Card { ID = "VERIFY_KW_DECK" }, Zone.Deck);

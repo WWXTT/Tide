@@ -46,38 +46,9 @@ namespace CardCore.Attribute.Handlers
         {
             foreach (var target in context.Targets)
             {
+                // 死亡决策表统一裁决（不灭/仪式回手/复生/落墓/事件全在 DeathRules 内定案）
                 if (target is Card card)
-                {
-                    // 不灭：不受摧毁/消灭效果影响（伤害致死照死——SBA 路径不拦）
-                    if (card.HasKeyword(KeywordRules.Indestructible))
-                        continue;
-
-                    // 进行中仪式：被破坏 → 回手牌（手牌满则入墓），任务进度作废（完成态已被不灭挡住）
-                    if (RitualSystem.IsActiveRitual(card))
-                    {
-                        RitualSystem.OnDestroyed(card, context.ZoneManager);
-                        continue;
-                    }
-
-                    target.IsAlive = false;
-
-                    // 复生：死亡时以 1 血回场（消耗关键词，留在战场）
-                    if (KeywordRules.TryReborn(card))
-                        continue;
-
-                    if (context.ZoneManager != null)
-                    {
-                        var controller = card.GetController();
-                        if (controller != null)
-                            context.ZoneManager.MoveCard(card, controller, Zone.Battlefield, Zone.Graveyard);
-                    }
-                    PublishEvent(new CardDestroyEvent
-                    {
-                        DestroyedCard = card,
-                        Reason = DestroyReason.Destroyed,
-                        Source = context.Source
-                    });
-                }
+                    DeathRules.TryKill(card, DeathCause.DestroyEffect, context.Source, context.ZoneManager);
             }
         }
 
@@ -281,5 +252,39 @@ namespace CardCore.Attribute.Handlers
         {
             return $"创建 {effect.Value} 个衍生物";
         }
+    }
+
+    // ================================================================
+    // 灰色效果 - 通用与变化
+    // ================================================================
+
+    /// <summary>变形：变成另一张卡（StringValue=目标卡 ID），不触发死亡；离开战场时解除变回原随从</summary>
+    public class MorphHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Morph;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            // 目标形态经组合根注入的解析器查 CardData（StringValue = 目标卡 ID）
+            var targetData = MorphSystem.ResolveMorphTarget?.Invoke(effect.StringValue);
+            if (targetData == null) return;
+
+            foreach (var t in context.Targets)
+            {
+                if (!(t is Card card)) continue;
+                if (card.MorphInto(targetData))
+                {
+                    PublishEvent(new KeywordAppliedEvent
+                    {
+                        Target = card,
+                        Keyword = "Morph",
+                        Detail = $"变形为 {targetData.CardName}",
+                        Source = context.Source
+                    });
+                }
+            }
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect) => "变形为另一张卡";
     }
 }

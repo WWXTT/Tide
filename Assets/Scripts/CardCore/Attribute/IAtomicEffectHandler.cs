@@ -168,11 +168,13 @@ namespace CardCore.Attribute
         }
 
         /// <summary>
-        /// 发布游戏事件
+        /// 发布游戏事件——经 GameCore 统一路由（替代检查 → 总线 → Trigger/Layer 引擎）。
+        /// 修复：原直发总线使触发式收不到 handler 事件（抽卡/伤害/死亡…时点全哑）。
         /// </summary>
         protected void PublishEvent<T>(T gameEvent) where T : IGameEvent
         {
-            EventManager.Instance.Publish(gameEvent);
+            if (GameCore.Instance != null) GameCore.Instance.PublishEvent(gameEvent);
+            else EventManager.Instance.Publish(gameEvent);
         }
     }
 }

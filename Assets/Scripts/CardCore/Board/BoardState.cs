@@ -176,6 +176,19 @@ namespace GameBoard
             return AttackDistance(ax, az, bx, bz) <= range;
         }
 
+        /// <summary>卡所在格的 6 邻格占用卡（碾压 AdjacentResolver 接线用；未落格 = 空枚举）</summary>
+        public IEnumerable<Card> Neighbors(Card card)
+        {
+            if (!TryGetCell(card, out int x, out int z)) yield break;
+            foreach (BoardDirection dir in Enum.GetValues(typeof(BoardDirection)))
+            {
+                var (nx, nz) = BoardMath.Neighbor(x, z, dir);
+                var neighbor = CardAt(nx, nz);
+                if (neighbor != null && neighbor != card)
+                    yield return neighbor;
+            }
+        }
+
         // ======================================== 一致性自检（验证器用） ========================================
 
         /// <summary>占用双向索引是否成对一致、无悬挂（TestBoard 的核心断言之一）</summary>
