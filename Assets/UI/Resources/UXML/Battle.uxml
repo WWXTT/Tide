@@ -32,6 +32,7 @@
                 <ui:Button name="btn-skip-standby" text="跳过(入主阶段)" class="btn" />
                 <ui:Button name="btn-begin-combat" text="进入战斗" class="btn" />
                 <ui:Button name="btn-resolve-combat" text="结束战斗" class="btn" />
+                <ui:Button name="btn-grave-play" text="墓地使用" class="btn" />
                 <ui:VisualElement class="spacer" />
                 <ui:Button name="btn-end-turn" text="结束回合" class="btn btn--primary" />
             </ui:VisualElement>

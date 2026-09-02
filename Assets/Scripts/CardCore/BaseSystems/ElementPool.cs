@@ -354,17 +354,26 @@ namespace CardCore
         public bool CanPayCost(Dictionary<int, float> cost, Player player)
         {
             var pool = GetPool(player);
+            int landCap = GetLandCap(player);
 
             foreach (var kvp in cost)
             {
                 ManaType type = (ManaType)kvp.Key;
                 int amount = (int)kvp.Value;
+                // 纯色浓度上限：每种纯色（红/蓝/绿）单次支付量 ≤ 当场地牌槽上限；灰（及预留黑白）不受限。
+                // bank 跨回合无上限积累，但支付受此约束（费用天花板 = 3色×9 + 无限灰 的执行件）。
+                if (IsPurePaymentColor(type) && amount > landCap)
+                    return false;
                 if (!pool.AvailableMana.ContainsKey(type) || pool.AvailableMana[type] < amount)
                     return false;
             }
 
             return true;
         }
+
+        /// <summary>纯色（受浓度上限约束的颜色）：红/蓝/绿。灰与预留黑白支付不受限。</summary>
+        private static bool IsPurePaymentColor(ManaType type)
+            => type == ManaType.Red || type == ManaType.Blue || type == ManaType.Green;
 
         /// <summary>
         /// 支付费用（出牌时调用）

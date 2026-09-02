@@ -49,28 +49,43 @@ namespace CardCore
     /// </summary>
     public static class ElementPaymentValidator
     {
+        /// <summary>纯色（受浓度上限约束）：红/蓝/绿。灰与预留黑白支付不受限。</summary>
+        private static readonly ManaType[] PureColors = { ManaType.Red, ManaType.Blue, ManaType.Green };
+
+        private static bool IsPureColor(ManaType type)
+            => type == ManaType.Red || type == ManaType.Blue || type == ManaType.Green;
+
         /// <summary>
         /// 验证是否可以支付指定倾向的代价
         /// </summary>
         /// <param name="affinity">元素倾向</param>
         /// <param name="availableMana">可用元素（按颜色分类）</param>
         /// <param name="amount">需要支付的数量</param>
+        /// <param name="pureColorCap">纯色浓度上限（每种纯色单次可支付量 ≤ 此值；null = 不限制）</param>
         /// <returns>是否可以支付</returns>
-        public static bool CanPay(ElementAffinity affinity, Dictionary<ManaType, int> availableMana, int amount)
+        public static bool CanPay(ElementAffinity affinity, Dictionary<ManaType, int> availableMana, int amount, int? pureColorCap = null)
         {
             if (amount <= 0) return true;
 
             // 特殊颜色暂不支持
             if (affinity.IsSpecialColor) return false;
 
-            // 灰色效果：可用任意颜色支付
+            // 灰色效果：可用任意颜色支付；纯色贡献各受浓度上限约束，灰（及预留黑白）不受限
             if (affinity.IsGeneric)
             {
-                int total = availableMana.Values.Sum();
+                int total = 0;
+                foreach (var kv in availableMana)
+                {
+                    total += IsPureColor(kv.Key) && pureColorCap.HasValue
+                        ? Math.Min(kv.Value, pureColorCap.Value)
+                        : kv.Value;
+                }
                 return total >= amount;
             }
 
-            // 指定颜色：必须用该颜色支付
+            // 指定颜色：必须用该颜色支付；纯色另受浓度上限约束
+            if (pureColorCap.HasValue && IsPureColor(affinity.PrimaryColor) && amount > pureColorCap.Value)
+                return false;
             return availableMana.TryGetValue(affinity.PrimaryColor, out int count) && count >= amount;
         }
 
@@ -80,10 +95,11 @@ namespace CardCore
         /// <param name="affinity">元素倾向</param>
         /// <param name="availableMana">可用元素（会被修改）</param>
         /// <param name="amount">需要支付的数量</param>
+        /// <param name="pureColorCap">纯色浓度上限（每种纯色单次可支付量 ≤ 此值；null = 不限制）</param>
         /// <returns>是否支付成功</returns>
-        public static bool TryPay(ElementAffinity affinity, Dictionary<ManaType, int> availableMana, int amount)
+        public static bool TryPay(ElementAffinity affinity, Dictionary<ManaType, int> availableMana, int amount, int? pureColorCap = null)
         {
-            if (!CanPay(affinity, availableMana, amount))
+            if (!CanPay(affinity, availableMana, amount, pureColorCap))
                 return false;
 
             if (amount <= 0) return true;
@@ -93,7 +109,7 @@ namespace CardCore
                 // 灰色效果：从任意颜色扣除，优先使用非主要颜色
                 int remaining = amount;
 
-                // 优先使用灰色
+                // 优先使用灰色（不受浓度上限约束）
                 if (availableMana.TryGetValue(ManaType.Gray, out int grayCount) && grayCount > 0)
                 {
                     int toUse = Math.Min(grayCount, remaining);
@@ -101,14 +117,14 @@ namespace CardCore
                     remaining -= toUse;
                 }
 
-                // 然后按顺序使用其他颜色
-                var colors = new[] { ManaType.Red, ManaType.Blue, ManaType.Green };
-                foreach (var color in colors)
+                // 然后按顺序使用纯色：每种纯色本次贡献 ≤ 浓度上限
+                foreach (var color in PureColors)
                 {
                     if (remaining <= 0) break;
                     if (availableMana.TryGetValue(color, out int count) && count > 0)
                     {
                         int toUse = Math.Min(count, remaining);
+                        if (pureColorCap.HasValue) toUse = Math.Min(toUse, pureColorCap.Value);
                         availableMana[color] -= toUse;
                         remaining -= toUse;
                     }
@@ -130,10 +146,11 @@ namespace CardCore
         /// <param name="affinity">元素倾向</param>
         /// <param name="availableMana">可用元素</param>
         /// <param name="amount">需要支付的数量</param>
+        /// <param name="pureColorCap">纯色浓度上限（每种纯色单次可支付量 ≤ 此值；null = 不限制）</param>
         /// <returns>支付方案（颜色到数量的映射），null表示无法支付</returns>
-        public static Dictionary<ManaType, int> GetPaymentPlan(ElementAffinity affinity, Dictionary<ManaType, int> availableMana, int amount)
+        public static Dictionary<ManaType, int> GetPaymentPlan(ElementAffinity affinity, Dictionary<ManaType, int> availableMana, int amount, int? pureColorCap = null)
         {
-            if (!CanPay(affinity, availableMana, amount))
+            if (!CanPay(affinity, availableMana, amount, pureColorCap))
                 return null;
 
             var plan = new Dictionary<ManaType, int>();
@@ -144,7 +161,7 @@ namespace CardCore
             {
                 int remaining = amount;
 
-                // 优先使用灰色
+                // 优先使用灰色（不受浓度上限约束）
                 if (availableMana.TryGetValue(ManaType.Gray, out int grayCount) && grayCount > 0)
                 {
                     int toUse = Math.Min(grayCount, remaining);
@@ -152,14 +169,14 @@ namespace CardCore
                     remaining -= toUse;
                 }
 
-                // 然后按顺序使用其他颜色
-                var colors = new[] { ManaType.Red, ManaType.Blue, ManaType.Green };
-                foreach (var color in colors)
+                // 然后按顺序使用纯色：每种纯色本次贡献 ≤ 浓度上限
+                foreach (var color in PureColors)
                 {
                     if (remaining <= 0) break;
                     if (availableMana.TryGetValue(color, out int count) && count > 0)
                     {
                         int toUse = Math.Min(count, remaining);
+                        if (pureColorCap.HasValue) toUse = Math.Min(toUse, pureColorCap.Value);
                         plan[color] = toUse;
                         remaining -= toUse;
                     }

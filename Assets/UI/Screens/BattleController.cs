@@ -18,12 +18,12 @@ namespace SynergyUI
         public bool IsPlayerTurn => TurnPlayer != null && TurnPlayer == P1;
         public bool InCombat => Core != null && Core.CombatSystem.InCombat;
 
-        /// <summary>组双方卡组并初始化对局（起手抽 5、StartGame 发 GameStartEvent + 开 P1 回合）。</summary>
+        /// <summary>组双方卡组并初始化对局（卡组不重复：每种 1 张；起手含仪式占位、StartGame 发 GameStartEvent + 开 P1 回合）。</summary>
         public void StartNewGame()
         {
             var catalog = CardCatalog.LoadAll();
-            // 同一张卡表给双方各建一副（每种 3 张），P2 由极简 AI 操作。
-            GameCore.Instance.InitGame(catalog, catalog, copiesPerCard: 3);
+            // 同一张卡表给双方各建一副（卡组不重复，每种 1 张——构筑规则定案），P2 由极简 AI 操作。
+            GameCore.Instance.InitGame(catalog, catalog);
             // 标记 P2 为 AI：目标选择器对 AI 跳过弹窗、即时自动选择。
             if (GameCore.Instance.Player2 != null)
                 GameCore.Instance.Player2.IsAI = true;

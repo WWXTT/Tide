@@ -82,16 +82,27 @@ namespace CardCore
         /// 法术入墓（终态与改造前一致）。
         /// 场上卡发动效果不经发动区（原地发动），那是 StackEngine 路径的事（后续接）。
         /// targets：可选的预选目标（如指向性法术）；为空时由各原子效果按配置自动解析。
+        /// fromZone：出牌来源区（默认手牌；Graveyard = 归土仪典「墓地视手牌中使用」路径）。
         /// </summary>
-        public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets = null)
+        public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets = null, Zone fromZone = Zone.Hand)
         {
             if (core == null || player == null || card == null) return false;
             if (core.TurnEngine.TurnPlayer != player) return false;
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
 
-            // 检查卡牌在手中
-            var hand = core.ZoneManager.GetCards(player, Zone.Hand);
-            if (!hand.Contains(card)) return false;
+            // 检查卡牌在来源区
+            var sourceZone = core.ZoneManager.GetCards(player, fromZone);
+            if (!sourceZone.Contains(card)) return false;
+
+            // 规则扩展点（OCP）：出牌限制（如信息轴锁定）经注册表询问
+            if (!RuleHooks.CanPlay(core, player, card, fromZone)) return false;
+
+            // 规则扩展点（OCP）：非手牌来源（如墓地视手牌使用）经注册表取得并占用配额
+            if (fromZone != Zone.Hand)
+            {
+                var playSource = RuleHooks.GetPlaySource(fromZone);
+                if (playSource == null || !playSource.TryBeginUse(player)) return false;
+            }
 
             bool isSpell = card is IHasSupertype hasType && hasType.Supertype == Cardtype.Spell;
 
@@ -113,13 +124,13 @@ namespace CardCore
             // 设置控制者
             card.SetController(player);
 
-            // 发动开始：手牌 → 发动区（反制指向发动区而非手牌）
-            core.ZoneManager.MoveCard(card, player, Zone.Hand, Zone.Activation);
+            // 发动开始：来源区 → 发动区（反制指向发动区而非手牌）
+            core.ZoneManager.MoveCard(card, player, fromZone, Zone.Activation);
             core.PublishEvent(new CardEnterActivationEvent
             {
                 Card = card,
                 Controller = player,
-                FromZone = Zone.Hand
+                FromZone = fromZone
             });
 
             if (isSpell)
@@ -161,14 +172,19 @@ namespace CardCore
                 if (core.ZoneManager.TryMoveToBattlefield(card, player, Zone.Activation))
                 {
                     card.WasFormallySummoned = true; // 普通召唤正式入场
-
-                    // 仪式：入场即激活竞速任务（0 费说明书卡；全局唯一任务槽，后发顶先发）
-                    RitualSystem.OnPlayed(card, player);
+                    // 仪式入场激活经 CardPutToBattlefieldEvent 事件驱动（RitualSystem 自订阅）
                 }
             }
 
             return true;
         }
+
+        /// <summary>
+        /// 主阶段：从墓地使用一张牌，视为手牌中使用（归土仪典奖励）。
+        /// 每回合主要阶段一次（RitualEffects 配额）；法术结算后照常入墓、永久物入场。
+        /// </summary>
+        public static bool PlayCardFromGraveyard(GameCore core, Player player, Card card, List<Entity> targets = null)
+            => PlayCard(core, player, card, targets, Zone.Graveyard);
 
         /// <summary>
         /// 结算法术的施放效果（经本核心的 EffectExecutor），完成后离开发动区入墓。

@@ -199,11 +199,13 @@ namespace CardCore.Attribute.Handlers
             {
                 int lifeBefore = target.GetLife();
                 target.Heal(amount);
+                int overfill = System.Math.Max(0, amount - (target.GetLife() - lifeBefore)); // 超上限截断部分
                 context.LastOutcome.RecordHeal(target, lifeBefore, amount);
                 PublishEvent(new HealEvent
                 {
                     Target = target,
                     Amount = amount,
+                    Overfill = overfill,
                     Source = context.Source
                 });
             }

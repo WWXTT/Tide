@@ -14,7 +14,8 @@ namespace SynergyUI
         {
             var core = ctrl.Core;
             var me = ctrl.TurnPlayer;
-            if (core == null || me == null || me != ctrl.P2) return;
+            // 当前回合玩家即可驱动（AI 对 AI 验证用；BattleScreen 仍只对 P2 调用）
+            if (core == null || me == null || me != core.TurnEngine.TurnPlayer) return;
 
             DoStandby(core, me);
             DoMain(core, me);

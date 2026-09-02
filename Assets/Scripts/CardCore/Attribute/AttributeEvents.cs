@@ -26,6 +26,8 @@ namespace CardCore.Attribute
     {
         public Entity Target { get; set; }
         public int Amount { get; set; }
+        /// <summary>溢出量：治疗超出上限被截断的部分（发布方计算；治疗溢出仪式计数用）。</summary>
+        public int Overfill { get; set; }
         public Entity Source { get; set; }
     }
 

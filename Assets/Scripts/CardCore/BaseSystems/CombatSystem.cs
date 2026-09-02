@@ -428,13 +428,7 @@ namespace CardCore
                 Defender = target,
                 Damage = actual
             });
-
-            EventManager.Instance.Publish(new DamageEvent
-            {
-                Source = source,
-                Target = target,
-                Amount = actual
-            });
+            // DamageEvent 由 KeywordRules.ApplyDamage 统一发布（结算前已过替代引擎，此处不补发）
 
             if (target is Player player)
             {
