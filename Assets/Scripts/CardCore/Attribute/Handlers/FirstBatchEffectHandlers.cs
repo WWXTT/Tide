@@ -11,10 +11,13 @@ namespace CardCore.Attribute.Handlers
 
     // ---------------- 伤害类 ----------------
 
-    /// <summary>不可防止伤害（无视护甲/防止，直接扣血）</summary>
-    public class DamageCannotBePreventedHandler : AtomicEffectHandlerBase
+    /// <summary>
+    /// 穿透伤害（定案，原"不可防止伤害"改名）：越过关键词和指示物计算伤害——
+    /// 跳过圣盾/护甲指示物/坚韧，但受光环限制（替代引擎/层效果照走），事件链/吸血照常。
+    /// </summary>
+    public class PierceDamageHandler : AtomicEffectHandlerBase
     {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DamageCannotBePrevented;
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.PierceDamage;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
@@ -22,20 +25,20 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 int lifeBefore = target.GetLife();
-                target.TakeDamage(dmg);
-                context.LastOutcome.RecordDamage(target, lifeBefore, dmg);
+                int actual = KeywordRules.ApplyDamage(context.Source, target, dmg, false, pierce: true);
+                context.LastOutcome.RecordDamage(target, lifeBefore, actual);
                 PublishEvent(new AtomicDamageEvent
                 {
                     Source = context.Source,
                     Target = target,
-                    Damage = dmg,
+                    Damage = actual,
                     IsCombatDamage = false,
                     DamageType = DamageType.Normal
                 });
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"造成 {effect.Value} 点不可防止的伤害";
+        public override string GetDescription(AtomicEffectInstance effect) => $"造成 {effect.Value} 点穿透伤害（无视关键词与指示物）";
     }
 
     /// <summary>吸取生命（对目标造成伤害，控制者回复等量生命）</summary>
@@ -76,73 +79,40 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => $"吸取 {effect.Value} 点生命";
     }
 
-    /// <summary>剧毒伤害（造成伤害并附加剧毒关键词）</summary>
-    public class PoisonousDamageHandler : AtomicEffectHandlerBase
+    /// <summary>
+    /// 剧毒指示物（定案，原"剧毒伤害"改语义）：对目标附加剧毒指示物——
+    /// 持续 1 回合，回合结束时持有者死亡（效果死亡、无伤害来源，CounterRules 统一裁决；
+    /// 神佑经决策表拦截，指示物照常到期消失）。不再造成即时伤害。
+    /// </summary>
+    public class PoisonHandler : AtomicEffectHandlerBase
     {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.PoisonousDamage;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            int dmg = context.GetValueAfterModifiers(effect.Value);
-            foreach (var target in context.Targets)
-            {
-                int lifeBefore = target.GetLife();
-                int actual = 0;
-                if (dmg > 0)
-                {
-                    // 走关键词统一伤害管线（圣盾/护甲/坚韧与战斗伤害同口径），返回实际造成量
-                    actual = KeywordRules.ApplyDamage(context.Source, target, dmg, false);
-                    if (actual > 0)
-                    {
-                        PublishEvent(new AtomicDamageEvent
-                        {
-                            Source = context.Source,
-                            Target = target,
-                            Damage = actual,
-                            IsCombatDamage = false,
-                            DamageType = DamageType.Poison
-                        });
-                    }
-                }
-                // 任何受到剧毒伤害的生物直接死亡（炉石/万智的剧毒语义）。
-                // 死因统一为 Poison（与关键词剧毒同因同裁决：不灭不拦剧毒——决策表定案）
-                if (target is Card card && card.IsAlive)
-                    DeathRules.TryKill(card, DeathCause.Poison, context.Source, context.ZoneManager);
-                // 死亡检测在强制致死后进行，剧毒目标计入 KilledTargets
-                context.LastOutcome.RecordDamage(target, lifeBefore, actual);
-            }
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect) => "造成剧毒伤害";
-    }
-
-    /// <summary>恢复满生命</summary>
-    public class RestoreToFullLifeHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.RestoreToFullLife;
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Poison;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             foreach (var target in context.Targets)
             {
-                int lifeBefore = target.GetLife();
-                int missing = target.GetMaxLife() - lifeBefore;
-                if (missing > 0)
+                if (target == null || !target.IsAlive) continue;
+                target.AddCounters(CounterRules.PoisonCounter, 1);
+                PublishEvent(new CounterChangedEvent
                 {
-                    target.Heal(missing);
-                    PublishEvent(new HealEvent { Target = target, Amount = missing, Source = context.Source });
-                }
-                // 恢复满生命必回满 → 申请量取 missing，溢出恒为 0；仍记录 HealApplied / AffectedTargets
-                context.LastOutcome.RecordHeal(target, lifeBefore, missing > 0 ? missing : 0);
+                    Target = target,
+                    CounterType = CounterRules.PoisonCounter,
+                    Amount = 1,
+                    Source = context.Source
+                });
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "恢复满生命";
+        public override string GetDescription(AtomicEffectInstance effect) => "附加剧毒指示物（回合结束时死亡）";
     }
 
     // ---------------- 卡牌移动 / 牌库操作 ----------------
 
-    /// <summary>弃牌（从控制者手牌弃 N 张到坟墓场）</summary>
+    /// <summary>
+    /// 弃牌（定案改语义）：对手从手牌中自选弃掉 {value} 张牌。
+    /// 选择器 = 被弃方（对手）；P1 以可插拔启发式代选（AI=按价值升序弃最差，人类 UI 后续接入）。
+    /// </summary>
     public class DiscardCardHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DiscardCard;
@@ -152,16 +122,22 @@ namespace CardCore.Attribute.Handlers
             int count = context.GetValueAfterModifiers(effect.Value);
             if (context.ZoneManager == null || context.Controller == null) return;
 
-            var hand = context.ZoneManager.GetCards(context.Controller, Zone.Hand);
-            for (int i = 0; i < count && i < hand.Count; i++)
+            // 目标 = 对手（表 TargetType=Opponent；无解析目标时退化取控制者对手）
+            var victim = context.Targets.OfType<Player>().FirstOrDefault()
+                ?? context.Controller.Opponent;
+            if (victim == null) return;
+
+            var hand = context.ZoneManager.GetCards(victim, Zone.Hand).ToList();
+            // 自选启发式（代弃方视角）：价值升序弃最差——费用低→攻击低 优先
+            var picks = hand.OrderBy(c => c.GetCost()).ThenBy(c => c.GetPower()).Take(count);
+            foreach (var card in picks)
             {
-                var card = hand[i];
-                context.ZoneManager.GetZoneContainer(context.Controller).Move(card, Zone.Hand, Zone.Graveyard);
-                PublishEvent(new CardDiscardEvent { Player = context.Controller, Card = card, Source = context.Source });
+                context.ZoneManager.GetZoneContainer(victim).Move(card, Zone.Hand, Zone.Graveyard);
+                PublishEvent(new CardDiscardEvent { Player = victim, Card = card, Source = context.Source });
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"弃掉 {effect.Value} 张牌";
+        public override string GetDescription(AtomicEffectInstance effect) => $"对手从手牌中自选弃掉 {effect.Value} 张牌";
     }
 
     /// <summary>除外（将目标移入流放区）</summary>
@@ -213,28 +189,51 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => "将目标洗入牌库";
     }
 
-    /// <summary>检索牌库（查看牌库顶 N 张并洗牌；UI 选择后续实现）</summary>
+    /// <summary>
+    /// 检索牌库（定案改语义）：宣言一个卡名（StringValue 构筑期预置），从牌库检索对应的卡入手。
+    /// 命中 = 卡名或卡 ID 匹配宣言文本；未命中 = 空手而归（宣言分支可挂 DeclareHit/Miss——
+    /// 命中写 LastOutcome.DeclareHit 供紧邻分支判定）。
+    /// </summary>
     public class SearchDeckHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SearchDeck;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int count = context.GetValueAfterModifiers(effect.Value);
             if (context.ZoneManager == null || context.Controller == null) return;
 
-            var seen = context.ZoneManager.GetTopCards(context.Controller, count);
-            // 暂以抽到手牌作为检索的占位结算（实际选择交互后续接入 UI）
-            for (int i = 0; i < count; i++)
+            string declared = effect.StringValue;
+            if (string.IsNullOrEmpty(declared)) return; // 未预置宣言名：不检索
+
+            var deck = context.ZoneManager.GetCards(context.Controller, Zone.Deck).ToList();
+            var found = deck.FirstOrDefault(c => MatchesDeclaration(c, declared));
+            if (found == null)
             {
-                var drawn = context.ZoneManager.DrawCard(context.Controller);
-                if (drawn == null) break;
-                PublishEvent(new CardDrawEvent { Player = context.Controller, DrawnCard = drawn, DrawCount = 1 });
+                context.LastOutcome.DeclareHit = false;
+                context.LastOutcome.Declaration = declared;
+                return;
             }
-            PublishEvent(new RevealCardsEvent { Player = context.Controller, Cards = seen, Source = context.Source });
+
+            context.ZoneManager.MoveCard(found, context.Controller, Zone.Deck, Zone.Hand);
+            PublishEvent(new RevealCardsEvent
+            {
+                Player = context.Controller,
+                Cards = new List<Card> { found },
+                Source = context.Source
+            });
+            context.LastOutcome.DeclareHit = true;
+            context.LastOutcome.Declaration = declared;
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"从牌库检索 {effect.Value} 张牌";
+        /// <summary>宣言匹配：卡名（CardData.CardName）或卡 ID 等值（构筑期预置的宣言文本）。</summary>
+        private static bool MatchesDeclaration(Card card, string declared)
+        {
+            if (card.ID == declared) return true;
+            if (card is CardWrapper wrapper && wrapper.GetData()?.CardName == declared) return true;
+            return false;
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect) => $"宣言「{effect.StringValue}」并从牌库检索对应的卡";
     }
 
     /// <summary>弹回牌库顶</summary>
@@ -283,7 +282,7 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => "将目标放回牌库底";
     }
 
-    /// <summary>墓地返回（将目标从坟墓场放回战场）</summary>
+    /// <summary>苏生（原名"墓地返回"，2026-09-03 改名）：将目标从坟墓场放回战场</summary>
     public class ReturnFromGraveyardHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.ReturnFromGraveyard;
@@ -354,28 +353,15 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => $"查看牌库顶 {effect.Value} 张牌";
     }
 
-    /// <summary>展示手牌（展示对手手牌）</summary>
-    public class RevealHandHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.RevealHand;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            // 目标解析为对手玩家；若无目标则退化为控制者对手
-            var targetPlayer = context.Targets.OfType<Player>().FirstOrDefault()
-                ?? context.Controller?.Opponent;
-            if (context.ZoneManager == null || targetPlayer == null) return;
-
-            var hand = context.ZoneManager.GetCards(targetPlayer, Zone.Hand);
-            PublishEvent(new RevealHandEvent { Player = targetPlayer, Cards = hand, Source = context.Source });
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect) => "展示对手手牌";
-    }
+    // 展示手牌原子已删除（2026-09-03 原子表整体修正）——
+    // 手牌可见性收敛为宣言确认手牌的单张验证（ProphecyHandlers.DeclareHandHandler，按张发 RevealHandEvent）。
 
     // ---------------- 状态变更 ----------------
 
-    /// <summary>修改生命值</summary>
+    /// <summary>
+    /// 修改生命值（指示物形式定案）：正值加"生命值增加"层（上限与当前同加）、
+    /// 负值加"生命值减少"层（减上限、归零标死交 SBA）；仅场上存在，离场消失（反向回写）。
+    /// </summary>
     public class ModifyLifeHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.ModifyLife;
@@ -385,9 +371,10 @@ namespace CardCore.Attribute.Handlers
             int amount = context.GetValueAfterModifiers(effect.Value);
             foreach (var target in context.Targets)
             {
+                if (!(target is Card card) || !card.IsAlive) continue;
                 int oldLife = target.GetLife();
-                target.ModifyLife(amount);
-                if (target is Card card && amount > 0) card._maxLife += amount;
+                if (amount >= 0) CounterRules.AddStatCounter(card, CounterRules.LifeUpCounter, amount);
+                else CounterRules.AddStatCounter(card, CounterRules.LifeDownCounter, -amount);
                 PublishEvent(new StatModifyEvent
                 {
                     Target = target,
@@ -404,7 +391,7 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect)
         {
             string sign = effect.Value >= 0 ? "+" : "";
-            return $"生命值 {sign}{effect.Value}";
+            return $"生命值 {sign}{effect.Value}（指示物）";
         }
     }
 
@@ -461,7 +448,41 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => $"将生命值设为 {effect.Value}";
     }
 
-    /// <summary>修改费用</summary>
+    /// <summary>
+    /// 设置费用（新增原子）：直接改卡的基本费用（_baseCost），持续到游戏结束——
+    /// 与设置攻击力/生命值同族（直改基本属性、跨区保留），区别于费用指示物（仅手牌、离手消失）。
+    /// 目标=手牌卡。
+    /// </summary>
+    public class SetCostHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SetCost;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            int value = context.GetValueAfterModifiers(effect.Value);
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card card)) continue;
+                int oldCost = target.GetCost();
+                target.SetCost(value);
+                PublishEvent(new CostModifyEvent
+                {
+                    Target = target,
+                    OldCost = oldCost,
+                    NewCost = target.GetCost(),
+                    Delta = value - oldCost,
+                    Source = context.Source
+                });
+            }
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect) => $"将费用设为 {effect.Value}";
+    }
+
+    /// <summary>
+    /// 修改费用（指示物形式定案）：正值加"费用增加"层、负值加"费用减少"层（单向粒度）——
+    /// 加时即回写 _costModifier（GetCost = _baseCost + _costModifier），仅手牌生效、离手消失。
+    /// </summary>
     public class ModifyCostHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.ModifyCost;
@@ -471,8 +492,10 @@ namespace CardCore.Attribute.Handlers
             int amount = context.GetValueAfterModifiers(effect.Value);
             foreach (var target in context.Targets)
             {
+                if (!(target is Card card) || card.GetZone() != Zone.Hand) continue; // 费用指示物仅存在手牌
                 int oldCost = target.GetCost();
-                target.ModifyCost(amount);
+                if (amount >= 0) CounterRules.AddStatCounter(card, CounterRules.CostUpCounter, amount);
+                else CounterRules.AddStatCounter(card, CounterRules.CostDownCounter, -amount);
                 PublishEvent(new CostModifyEvent
                 {
                     Target = target,
@@ -487,7 +510,7 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect)
         {
             string sign = effect.Value >= 0 ? "+" : "";
-            return $"费用 {sign}{effect.Value}";
+            return $"费用 {sign}{effect.Value}（指示物）";
         }
     }
 }

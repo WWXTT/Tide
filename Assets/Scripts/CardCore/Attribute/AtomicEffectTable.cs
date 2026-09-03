@@ -104,7 +104,7 @@ namespace CardCore.Attribute
                     ? entry.EffectColor
                     : (string.IsNullOrEmpty(entry.EffectColor) ? entry.EffectFunction : entry.EffectFunction + "," + entry.EffectColor);
 
-                // targeting / 持续 / 发动：配置驱动，解析失败保留上面的兜底
+                // targeting / 持续 / 发动 / 三分类：配置驱动，解析失败保留上面的兜底
                 if (Enum.TryParse<EffectTargetType>(entry.TargetType, out var tt)) config.TargetType = tt;
                 if (!string.IsNullOrEmpty(entry.TargetFilter)) config.TargetFilter = entry.TargetFilter;
                 else if (entry.TargetType == "None") config.TargetFilter = "";
@@ -112,6 +112,8 @@ namespace CardCore.Attribute
                 if (Enum.TryParse<EffectTargetScope>(entry.TargetScope, out var ts)) config.TargetScope = ts;
                 if (ParseDurationType(entry.DurationType, out var dt)) config.DurationType = dt;
                 if (Enum.TryParse<EffectActivationType>(entry.ActivationType, out var at)) config.ActivationType = at;
+                if (Enum.TryParse<EffectTier>(entry.EffectTier, out var tier)) config.EffectTier = tier;
+                config.Turns = entry.Turns;
             }
             else
             {
@@ -192,10 +194,11 @@ namespace CardCore.Attribute
         {
             public string EnumName;       // 中文短名（造成伤害）
             public string DisplayName;    // 展示模板（对{target}造成{value}点伤害）
-            public string EffectFunction; // Damage / Movement / Status / Protection
+            public string EffectFunction; // Damage / Movement / Status / Protection / Counter
             public string EffectColor;    // Red / Blue / Green ...
             public float BaseCost;
             public string EffectType;     // 英文枚举名（DealDamage）→ AtomicEffectType
+            public string EffectTier;     // Atom / Keyword / Counter（三分类，缺省 Atom）
 
             // ---- targeting / 持续 / 发动（全进 xlsm 后由配置驱动）----
             public string TargetType;     // EffectTargetType 枚举名
@@ -203,6 +206,7 @@ namespace CardCore.Attribute
             public int TargetCount;       // 0=全部, -1=任意, >0=指定
             public string TargetScope;    // EffectTargetScope 枚举名
             public string DurationType;   // DurationType 枚举名（旧表侧枚举名经 ParseDurationType 别名归一）
+            public int Turns;             // 回合数计时的持续值（配合 DurationType=ForTurns，如毒素=3）
             public string ActivationType; // EffectActivationType 枚举名
         }
 

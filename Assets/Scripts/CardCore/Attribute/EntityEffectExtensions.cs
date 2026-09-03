@@ -245,31 +245,47 @@ namespace CardCore
 
         #region 指示物
 
-        /// <summary>添加指示物</summary>
+        /// <summary>
+        /// 添加指示物（Entity 级：角色/卡牌同构）。amount 可为负（攻/血/费指示物带符号）。
+        /// </summary>
         public static void AddCounters(this Entity entity, string counterType, int amount)
+            => AddCounters(entity, counterType, amount, -1);
+
+        /// <summary>
+        /// 添加指示物并附带回合时钟（turns &gt; 0 时每层进 _counterClocks，
+        /// 由 CounterRules.OnTurnEnd 逐回合末递减，到期层回收并从计数扣除——毒素层=3）。
+        /// </summary>
+        public static void AddCounters(this Entity entity, string counterType, int amount, int turns)
         {
-            if (entity is Card card)
-            {
-                if (!card._counters.ContainsKey(counterType))
-                    card._counters[counterType] = 0;
-                card._counters[counterType] += amount;
-            }
+            if (entity == null) return;
+            if (!entity._counters.ContainsKey(counterType))
+                entity._counters[counterType] = 0;
+            entity._counters[counterType] += amount;
+
+            if (turns > 0 && amount > 0)
+                entity._counterClocks.Add(new CounterInstance { Id = counterType, Amount = amount, RemainingTurns = turns });
+
+            // 净量归零时丢弃该类指示物的全部时钟（已无对应层）
+            if (entity._counters[counterType] <= 0 && entity._counterClocks.Count > 0)
+                entity._counterClocks.RemoveAll(c => c.Id == counterType);
         }
 
-        /// <summary>获取指示物数量</summary>
+        /// <summary>获取指示物数量（净量；带符号指示物可为负）</summary>
         public static int GetCounterCount(this Entity entity, string counterType)
         {
-            if (entity is Card card && card._counters.TryGetValue(counterType, out var count))
+            if (entity != null && entity._counters.TryGetValue(counterType, out var count))
                 return count;
             return 0;
         }
 
-        /// <summary>移除指示物</summary>
+        /// <summary>移除指示物（计数下限 0）</summary>
         public static void RemoveCounters(this Entity entity, string counterType, int amount)
         {
-            if (entity is Card card && card._counters.TryGetValue(counterType, out var count))
+            if (entity != null && entity._counters.TryGetValue(counterType, out var count))
             {
-                card._counters[counterType] = Math.Max(0, count - amount);
+                entity._counters[counterType] = Math.Max(0, count - amount);
+                if (entity._counters[counterType] == 0 && entity._counterClocks.Count > 0)
+                    entity._counterClocks.RemoveAll(c => c.Id == counterType);
             }
         }
 
@@ -294,18 +310,6 @@ namespace CardCore
         public static bool IsFrozen(this Entity entity)
         {
             return entity is Card card && card.GetCounterCount(Attribute.KeywordRules.FreezeCounter) > 0;
-        }
-
-        /// <summary>添加护甲</summary>
-        public static void AddArmor(this Entity entity, int amount)
-        {
-            if (entity is Card card) card._armor += amount;
-        }
-
-        /// <summary>添加伤害防止</summary>
-        public static void AddDamagePrevention(this Entity entity, int amount, DurationType duration)
-        {
-            if (entity is Card card) card._damagePrevention += amount;
         }
 
         /// <summary>移除所有减益：清空全部负面指示物（CounterRules 极性口径；横置不在此恢复）+ 减益关键词。</summary>
@@ -396,8 +400,6 @@ namespace CardCore
         internal int _maxLife = 1;
         internal int _baseCost = 0;
         internal int _costModifier = 0;
-        internal int _armor = 0;
-        internal int _damagePrevention = 0;
 
         // 状态
         internal bool _isTapped = false;
@@ -407,14 +409,21 @@ namespace CardCore
         internal Player _controller;
         internal Player _owner;
 
+        // 宣言确认手牌的"已展示"标记：翻开过即公开，未展示卡不可被宣言确认重复指定；
+        // 回到手牌（任何来源）即重置为未展示。
+        internal bool _isRevealed = false;
+
+        /// <summary>是否已被宣言确认翻开（已展示；入手时重置）</summary>
+        public bool IsRevealed => _isRevealed;
+
         // 效果标记
         internal EffectTargetFlags _targetFlags = EffectTargetFlags.CanBeTargetedByAll;
 
         // 关键词和指示物。
-        // _keywords 已上移至 Entity 基类（角色=普通生物单位的世界观定案：Player 同构持有，
-        // 角色默认带神佑）。List 而非 HashSet：融合继承允许重复叠加（双坚韧 = −2），
+        // _keywords 与 _counters/_counterClocks 均已上移至 Entity 基类（角色=普通生物单位的
+        // 世界观定案：Player 同构持有，角色默认带神佑；剧毒/毒素指示物可指向玩家）。
+        // List 而非 HashSet：融合继承允许重复叠加（双坚韧 = −2），
         // 普通授予路径的「唯一性」由 AddKeyword 的 Contains 检查保证（非融合不可重复添加）。
-        internal Dictionary<string, int> _counters = new Dictionary<string, int>();
 
         // ===== 战斗状态（关键词行为；核心规则字段，非棋盘坐标） =====
 

@@ -155,6 +155,14 @@ namespace CardCore
         public bool IsResolved { get; set; }
 
         /// <summary>
+        /// 整卡施放标记：本实例代表「一张牌的使用」（打出的卡 = Source），
+        /// 由 StackEngine.PushCardCast 创建、GameActions.ResolveCardCastAsync 结算
+        /// （付费 → 无效裁决 → 效果 → 离区），不走普通 EffectDefinition 执行路径。
+        /// Type 报告为保留值 StackObjectType.Spell。
+        /// </summary>
+        public bool IsCardCast { get; set; }
+
+        /// <summary>
         /// 创建时间
         /// </summary>
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -188,6 +196,7 @@ namespace CardCore
         {
             get
             {
+                if (IsCardCast) return StackObjectType.Spell;
                 if (Definition != null)
                     return Definition.IsTriggeredEffect
                         ? StackObjectType.TriggeredAbility

@@ -67,37 +67,7 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => "重定向栈顶效果的目标";
     }
 
-    /// <summary>
-    /// 复制目标能力（PrimaryTarget(Card) の运行时效果を Source へコピー追加）。
-    /// </summary>
-    public class CopyTargetAbilityHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.CopyTargetAbility;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            if (!(context.PrimaryTarget is IHasRuntimeEffects targetEffects)) return;
-            if (!(context.Source is IHasRuntimeEffects sourceEffects)) return;
-            if (targetEffects.RuntimeEffects == null || targetEffects.RuntimeEffects.Count == 0) return;
-
-            if (sourceEffects.RuntimeEffects == null)
-                sourceEffects.RuntimeEffects = new List<IEffect>();
-
-            sourceEffects.RuntimeEffects.AddRange(targetEffects.RuntimeEffects);
-
-            if (context.PrimaryTarget is Card targetCard)
-            {
-                PublishEvent(new CardCopiedEvent
-                {
-                    OriginalCard = targetCard,
-                    Controller = context.Controller,
-                    Source = context.Source,
-                });
-            }
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect) => "复制目标的能力";
-    }
+    // CopyTargetAbility 已删除（2026-09-03 原子表整体修正——复制能力类占位行清除）
 
     /// <summary>高级 handler ファクトリ</summary>
     public static class AdvancedEffectHandlerFactory
@@ -107,7 +77,6 @@ namespace CardCore.Attribute.Handlers
             return new IAtomicEffectHandler[]
             {
                 new RedirectTargetHandler(),
-                new CopyTargetAbilityHandler(),
             };
         }
     }

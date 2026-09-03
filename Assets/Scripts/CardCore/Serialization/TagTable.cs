@@ -70,8 +70,6 @@ namespace CardCore.Serialization
         public const int RCS_MaxLife = 922071213;
         public const int RCS_BaseCost = 1630071019;
         public const int RCS_CostModifier = 1414743304;
-        public const int RCS_Armor = 683926072;
-        public const int RCS_DamagePrevention = 1221822787;
         public const int RCS_IsTapped = 1985384084;
         public const int RCS_IsFrozen = 1428218013;
         public const int RCS_IsNegated = 2118117958;

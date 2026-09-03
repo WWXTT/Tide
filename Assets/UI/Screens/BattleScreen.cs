@@ -231,7 +231,9 @@ namespace SynergyUI
                     PromptTargetThenPlay(card, targetAtomic);
                     return;
                 }
-                if (!GameActions.PlayCard(Core, P1, card, null) && LockRevealedAura.IsLockedThisTurn(card))
+                if (GameActions.PlayCard(Core, P1, card, null))
+                    GameActions.DrainStack(Core); // 出牌即上栈：无响应即排干结算（人类响应窗口 UI 留二期）
+                else if (LockRevealedAura.IsLockedThisTurn(card))
                     ShowToast("该卡本回合被锁定，不可使用");
                 RefreshAll();
             }
@@ -248,8 +250,13 @@ namespace SynergyUI
             ShowOverlay("墓地使用", "选一张牌，视为手牌中使用（每回合一次）：", grave.Cast<Entity>().ToList(), picked =>
             {
                 CloseOverlay();
-                if (picked is Card c && !GameActions.PlayCardFromGraveyard(Core, P1, c))
-                    ShowToast("无法使用（配额已用或不可支付）");
+                if (picked is Card c)
+                {
+                    if (GameActions.PlayCardFromGraveyard(Core, P1, c))
+                        GameActions.DrainStack(Core); // 出牌即上栈：无响应即排干结算
+                    else
+                        ShowToast("无法使用（配额已用或不可支付）");
+                }
                 RefreshAll();
             });
         }
@@ -346,7 +353,8 @@ namespace SynergyUI
             if (candidates.Count == 0)
             {
                 // 无候选：按无目标直接结算（引擎自动解析兜底）。
-                GameActions.PlayCard(Core, P1, card, null);
+                if (GameActions.PlayCard(Core, P1, card, null))
+                    GameActions.DrainStack(Core); // 出牌即上栈：无响应即排干结算
                 RefreshAll();
                 return;
             }
@@ -355,7 +363,8 @@ namespace SynergyUI
             ShowOverlay("选择目标", $"为 {CardName(card)} 选择 {need} 个目标：", candidates, picked =>
             {
                 CloseOverlay();
-                GameActions.PlayCard(Core, P1, card, new List<Entity> { picked });
+                if (GameActions.PlayCard(Core, P1, card, new List<Entity> { picked }))
+                    GameActions.DrainStack(Core); // 出牌即上栈：无响应即排干结算
                 RefreshAll();
             });
         }

@@ -132,10 +132,10 @@ namespace CardCore
             });
         }
 
-        /// <summary>每回合攻击次数上限（1；风怒 = 2）</summary>
+        /// <summary>每回合攻击次数上限（1；风怒关键词已删除，多次攻击留待将来机制）</summary>
         public static int MaxAttacksPerTurn(Card card)
         {
-            return card != null && card.HasKeyword(KeywordRules.Windfury) ? 2 : 1;
+            return 1;
         }
 
         /// <summary>检查是否可以攻击（攻击者侧资格）</summary>
@@ -222,26 +222,7 @@ namespace CardCore
             if (!CanAttackTarget(attacker, target))
                 return false;
 
-            // 守卫：友方单位被选为攻击目标时，横置并强制转移攻击目标为自己
-            if (target is Card targetCard)
-            {
-                var guard = _zoneManager.GetCards(_defendingPlayer, Zone.Battlefield)
-                    .FirstOrDefault(c => c != targetCard && c.IsAlive && !c.IsTapped()
-                                         && c.HasKeyword(KeywordRules.Guard));
-                if (guard != null)
-                {
-                    if (KeywordRules.ShouldTap(guard))
-                        guard.Tap();
-                    target = guard;
-                    EventManager.Instance.Publish(new KeywordAppliedEvent
-                    {
-                        Target = guard,
-                        Keyword = KeywordRules.Guard,
-                        Detail = "守卫转移：友方受到的攻击改由守卫承受",
-                        Source = attacker
-                    });
-                }
-            }
+            // 守卫关键词已删除（2026-09-03 原子表整体修正）——攻击目标确认不再有守卫转移
 
             _currentPhase = CombatPhase.DeclareAttack;
 
@@ -474,20 +455,7 @@ namespace CardCore
                 }
             }
 
-            // ---- 风怒（定案）：攻击后重置自己（把支付的横置代价还回来），一回合仅生效一次 ----
-            //（首次攻击后；第二次攻击后保持横置）；先攻/连击为单次攻击内的分步结算，与此不冲突
-            if (attacker is Card windfuryCard && windfuryCard.IsAlive
-                && windfuryCard.HasKeyword(KeywordRules.Windfury)
-                && windfuryCard.AttacksThisTurn == 1)
-            {
-                windfuryCard.Untap();
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = windfuryCard,
-                    Keyword = KeywordRules.Windfury,
-                    Detail = "风怒：攻击后重置自己（一回合一次）"
-                });
-            }
+            // 风怒关键词已删除（2026-09-03 原子表整体修正）——攻击后不再重置自己
         }
 
         /// <summary>获取实体的攻击力</summary>
@@ -502,14 +470,31 @@ namespace CardCore
 
         /// <summary>
         /// 造成战斗伤害（对实体/玩家统一）：经 KeywordRules 关键词管线结算
-        /// （圣盾/护甲指示物/坚韧/剧毒/吸血/系命）。事件链（DamageEvent/CombatDamageEvent/
+        /// （圣盾/护甲指示物/坚韧/吸血/系命）。事件链（DamageEvent/CombatDamageEvent/
         /// LifeChangeEvent/吸血系命）由 ApplyDamage 按统一时序发布，此处不补发。
+        /// 毒刺（定案）：攻击者持有毒刺且目标受击后存活 → 目标附着一个毒素指示物
+        /// （持续3回合，回合结束每层1伤——CounterRules 统一计时）。
         /// </summary>
         private void DealCombatDamage(Entity source, Entity target, int amount)
         {
             if (amount <= 0 || target == null || !target.IsAlive) return;
 
             KeywordRules.ApplyDamage(source, target, amount, true);
+
+            // 毒刺：对受到战斗伤害的目标附加一个毒素指示物
+            if (source != null && source.IsAlive && target.IsAlive
+                && source.HasKeyword(KeywordRules.PoisonSting))
+            {
+                target.AddCounters(Attribute.CounterRules.ToxinCounter, 1,
+                    turns: Attribute.CounterRules.Find(Attribute.CounterRules.ToxinCounter).Turns);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = target,
+                    Keyword = KeywordRules.PoisonSting,
+                    Detail = "毒刺：附加一个毒素指示物（回合结束1伤，持续3回合）",
+                    Source = source
+                });
+            }
         }
 
         /// <summary>结束战斗</summary>

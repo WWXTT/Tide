@@ -18,7 +18,7 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 int lifeBefore = target.GetLife();
-                target.TakeDamage(dmg, context.Source); // 关键词管线：圣盾/护甲/坚韧/剧毒/吸血
+                target.TakeDamage(dmg, context.Source); // 关键词管线：圣盾/护甲/坚韧/吸血
                 int actual = System.Math.Max(0, lifeBefore - target.GetLife());
                 context.LastOutcome.RecordDamage(target, lifeBefore, actual);
                 PublishEvent(new AtomicDamageEvent
@@ -34,27 +34,6 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect)
         {
             return $"造成 {effect.Value} 点伤害";
-        }
-    }
-
-    /// <summary>消灭</summary>
-    public class DestroyHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Destroy;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            foreach (var target in context.Targets)
-            {
-                // 死亡决策表统一裁决（不灭/仪式回手/复生/落墓/事件全在 DeathRules 内定案）
-                if (target is Card card)
-                    DeathRules.TryKill(card, DeathCause.DestroyEffect, context.Source, context.ZoneManager);
-            }
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect)
-        {
-            return "消灭目标";
         }
     }
 
@@ -188,7 +167,10 @@ namespace CardCore.Attribute.Handlers
         }
     }
 
-    /// <summary>增益攻击力</summary>
+    /// <summary>
+    /// 修改攻击力（指示物形式定案）：正值加"攻击力增加"层、负值加"攻击力减少"层（单向粒度指示物）——
+    /// 加时即回写 _power、换区/净化清除时反向回写（仅场上存在，离场消失）。
+    /// </summary>
     public class ModifyPowerHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.ModifyPower;
@@ -198,8 +180,10 @@ namespace CardCore.Attribute.Handlers
             int amount = context.GetValueAfterModifiers(effect.Value);
             foreach (var target in context.Targets)
             {
-                int oldPower = target.GetPower();
-                target.ModifyPower(amount);
+                if (!(target is Card card) || !card.IsAlive) continue;
+                int oldPower = card.GetPower();
+                if (amount >= 0) CounterRules.AddStatCounter(card, CounterRules.PowerUpCounter, amount);
+                else CounterRules.AddStatCounter(card, CounterRules.PowerDownCounter, -amount);
                 PublishEvent(new StatModifyEvent
                 {
                     Target = target,
@@ -216,41 +200,7 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect)
         {
             string sign = effect.Value >= 0 ? "+" : "";
-            return $"攻击力 {sign}{effect.Value}";
-        }
-    }
-
-    /// <summary>创建衍生物</summary>
-    public class CreateTokenHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.CreateToken;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            int count = context.GetValueAfterModifiers(effect.Value);
-            string templateId = effect.StringValue;
-
-            for (int i = 0; i < count; i++)
-            {
-                var token = new Card { ID = templateId ?? "Token_Generic" };
-
-                // 入场容量闸门：满则衍生物直接入墓并发失败事件（不再视为生成成功）
-                if (context.ZoneManager == null || context.Controller == null ||
-                    !context.ZoneManager.TryAddToBattlefield(token, context.Controller))
-                    continue;
-
-                PublishEvent(new TokenCreatedEvent
-                {
-                    TokenTemplateId = templateId,
-                    Controller = context.Controller,
-                    Source = context.Source
-                });
-            }
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect)
-        {
-            return $"创建 {effect.Value} 个衍生物";
+            return $"攻击力 {sign}{effect.Value}（指示物）";
         }
     }
 
@@ -272,6 +222,7 @@ namespace CardCore.Attribute.Handlers
             foreach (var t in context.Targets)
             {
                 if (!(t is Card card)) continue;
+                if (card.GetZone() != Zone.Battlefield) continue; // 定案：变形仅包含场上目标
                 if (card.MorphInto(targetData))
                 {
                     PublishEvent(new KeywordAppliedEvent

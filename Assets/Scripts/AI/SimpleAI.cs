@@ -22,49 +22,53 @@ namespace SynergyUI
         /// <summary>有害类原子：目标偏好对方玩家 &gt; 对方单位（削血优先的通用化，卡组无关）</summary>
         private static readonly HashSet<AtomicEffectType> HarmfulAtoms = new HashSet<AtomicEffectType>
         {
-            // 伤害族
+            // 伤害族（穿透伤害也偏好打脸——越过多层防护直击）
             AtomicEffectType.DealDamage, AtomicEffectType.DealCombatDamage, AtomicEffectType.LifeLoss,
-            AtomicEffectType.DrainLife, AtomicEffectType.DamageBasedOnStat, AtomicEffectType.TrampleDamage,
-            AtomicEffectType.PoisonousDamage, AtomicEffectType.DamageCannotBePrevented,
+            AtomicEffectType.DrainLife, AtomicEffectType.PierceDamage,
+            // 指示物妨害族（剧毒/毒素：回合结束发作的延迟威胁；易损：受伤+1/层）
+            AtomicEffectType.Poison, AtomicEffectType.AddToxin, AtomicEffectType.AddVulnerable,
+            // 单向属性削弱（攻击力/生命值/±1/费用增加——目标偏好对方）
+            AtomicEffectType.AddPowerDown, AtomicEffectType.AddLifeDown, AtomicEffectType.AddMinusOne,
+            AtomicEffectType.AddCostUp, AtomicEffectType.Weaken, AtomicEffectType.RushSickness,
             // 破坏/移除族
-            AtomicEffectType.Destroy, AtomicEffectType.DestroyRandom, AtomicEffectType.Exile,
-            AtomicEffectType.DiscardCard, AtomicEffectType.MillCard,
+            AtomicEffectType.Exile, AtomicEffectType.DiscardCard, AtomicEffectType.MillCard,
             AtomicEffectType.BounceToTop, AtomicEffectType.BounceToBottom,
+            AtomicEffectType.Smash, // 摧毁：打对方地牌（无生命值单位）
+            // 死亡原子族（牺牲目标己方友军，目标偏好对该原子无实际影响）
+            AtomicEffectType.Sacrifice, AtomicEffectType.Devour, AtomicEffectType.Annihilate,
             // 妨碍/压制族
-            AtomicEffectType.FightTarget, AtomicEffectType.Tap, AtomicEffectType.FreezePermanent,
-            AtomicEffectType.CounterSpell, AtomicEffectType.CounterTargetSpell,
-            AtomicEffectType.NegateActivation, AtomicEffectType.NegateEffect, AtomicEffectType.Nullify,
+            AtomicEffectType.Tap, AtomicEffectType.FreezePermanent, AtomicEffectType.Silence,
+            AtomicEffectType.Purify,
+            AtomicEffectType.NegateActivation, AtomicEffectType.KnockDown,
             // 夺取控制族
-            AtomicEffectType.GainControl, AtomicEffectType.StealControl, AtomicEffectType.SwapController,
+            AtomicEffectType.GainControl,
         };
 
         /// <summary>有益类原子：目标偏好己方单位 &gt; 己方玩家</summary>
         private static readonly HashSet<AtomicEffectType> BeneficialAtoms = new HashSet<AtomicEffectType>
         {
             // 治疗恢复族
-            AtomicEffectType.Heal, AtomicEffectType.RestoreToFullLife,
+            AtomicEffectType.Heal,
             AtomicEffectType.ReturnToHand, AtomicEffectType.PutToBattlefield,
             AtomicEffectType.ReturnFromGraveyard, AtomicEffectType.RecoverToHand,
             // 资源族
-            AtomicEffectType.Untap, AtomicEffectType.UntapAll, AtomicEffectType.AddMana,
-            AtomicEffectType.AddArmor, AtomicEffectType.RemoveDebuffs, AtomicEffectType.PreventDamage,
-            // 强化族（GrantX 关键词与数值强化）
+            AtomicEffectType.Untap, AtomicEffectType.AddArmor,
+            // 强化族（GrantX 关键词与数值强化；单向属性增益——攻击力/生命值/±1/费用减少）
             AtomicEffectType.ModifyPower, AtomicEffectType.ModifyLife,
-            AtomicEffectType.SetPower, AtomicEffectType.SetLife,
-            AtomicEffectType.AddCounters, AtomicEffectType.DoubleCounters, AtomicEffectType.AddKeyword,
+            AtomicEffectType.SetPower, AtomicEffectType.SetLife, AtomicEffectType.SetCost,
+            AtomicEffectType.AddPowerUp, AtomicEffectType.AddLifeUp, AtomicEffectType.AddPlusOne,
+            AtomicEffectType.AddCostDown, AtomicEffectType.Inspire,
             AtomicEffectType.GrantHaste, AtomicEffectType.GrantRush, AtomicEffectType.GrantDoubleStrike,
-            AtomicEffectType.GrantMultiAttack, AtomicEffectType.GrantReach,
-            AtomicEffectType.GrantCannotBeTargeted, AtomicEffectType.GrantSpellShield, AtomicEffectType.GrantImmunity,
-            AtomicEffectType.GrantUnaffected, AtomicEffectType.GrantPoisonous, AtomicEffectType.GrantLifesteal,
-            AtomicEffectType.GrantStealth, AtomicEffectType.GrantWindfury, AtomicEffectType.GrantTaunt,
+            AtomicEffectType.GrantCannotBeTargeted, AtomicEffectType.GrantSpellShield,
+            AtomicEffectType.GrantLifesteal,
+            AtomicEffectType.GrantStealth, AtomicEffectType.GrantTaunt,
             AtomicEffectType.GrantDivineShield, AtomicEffectType.GrantOverwhelm, AtomicEffectType.GrantArmor,
-            AtomicEffectType.GrantFirstStrike, AtomicEffectType.GrantFlying,
-            AtomicEffectType.GrantVigilance, AtomicEffectType.GrantGuard, AtomicEffectType.GrantRegeneration,
+            AtomicEffectType.GrantFirstStrike,
+            AtomicEffectType.GrantVigilance, AtomicEffectType.GrantRegeneration,
             AtomicEffectType.Recharging,
             AtomicEffectType.GrantGrowth, AtomicEffectType.GrantReborn, AtomicEffectType.GrantIndestructible,
             AtomicEffectType.GrantLifelink,
             // 展开族
-            AtomicEffectType.CreateToken, AtomicEffectType.CopyCard, AtomicEffectType.CopyExact,
             AtomicEffectType.TakeExtraTurn,
         };
 
@@ -226,7 +230,8 @@ namespace SynergyUI
             return any;
         }
 
-        /// <summary>出一张最优的牌：有害原子优先（削血优先的通用化）→ 总费用降序（大费先出，资源花光）。</summary>
+        /// <summary>出一张最优的牌：有害原子优先（削血优先的通用化）→ 总费用降序（大费先出，资源花光）。
+        /// 出牌即上栈（使用时点）：出完立刻排干——cast 结算付费后 bank 已更新，下一轮预检不失真。</summary>
         private static bool PlayBestAffordableCard(GameCore core, Player me)
         {
             var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
@@ -239,12 +244,15 @@ namespace SynergyUI
             {
                 // 失败静默重试下一张（引擎契约：不付费、卡留手）
                 if (GameActions.PlayCard(core, me, card, ChooseTargets(core, me, card)))
+                {
+                    SettleStack(core); // cast 已上栈：双 Pass 排干（AI 无响应 → 立即结算付费）
                     return true;
+                }
             }
             return false;
         }
 
-        /// <summary>墓地出牌（归土仪典配额内；预检后再调，避免 TryBeginUse 先烧配额）。</summary>
+        /// <summary>墓地出牌（归土仪典配额内；预检后再调，避免 TryBeginUse 先烧配额）。出完同样立刻排干。</summary>
         private static bool TryGraveyardPlay(GameCore core, Player me)
         {
             var graveyard = core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>();
@@ -252,7 +260,10 @@ namespace SynergyUI
             {
                 if (!CanPlayCard(core, me, card, Zone.Graveyard)) continue;
                 if (GameActions.PlayCardFromGraveyard(core, me, card, ChooseTargets(core, me, card)))
+                {
+                    SettleStack(core);
                     return true;
+                }
             }
             return false;
         }
@@ -432,15 +443,11 @@ namespace SynergyUI
 
         // ======================================== 收尾 ========================================
 
-        /// <summary>排干栈：双 Pass 触发结算（AI 自动目标为同步路径，通常即时排干）。带重试上限保险。</summary>
+        /// <summary>排干栈：双 Pass 触发结算（AI 自动目标为同步路径，通常即时排干）。带重试上限保险。
+        /// 引擎统一实现见 GameActions.DrainStack（验证器/UI 快进与 AI 共用）。</summary>
         private static void SettleStack(GameCore core)
         {
-            for (int i = 0; i < MaxSettleAttempts && !core.StackEngine.IsEmpty; i++)
-            {
-                var holder = core.StackEngine.CurrentPriorityHolder;
-                if (holder == null) break;
-                if (!GameActions.PassPriority(core, holder)) break;
-            }
+            GameActions.DrainStack(core, MaxSettleAttempts);
         }
     }
 }

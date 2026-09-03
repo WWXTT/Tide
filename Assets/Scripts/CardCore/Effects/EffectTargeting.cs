@@ -238,12 +238,7 @@ namespace CardCore
                 // 伤害相关
                 AtomicEffectType.DealDamage => EffectTargetFlags.ImmuneToDamage,
                 AtomicEffectType.DealCombatDamage => EffectTargetFlags.ImmuneToDamage,
-                AtomicEffectType.TrampleDamage => EffectTargetFlags.ImmuneToDamage,
-                AtomicEffectType.DamageCannotBePrevented => EffectTargetFlags.ImmuneToDamage,
-
-                // 破坏相关
-                AtomicEffectType.Destroy => EffectTargetFlags.ImmuneToDestruction,
-                AtomicEffectType.DestroyRandom => EffectTargetFlags.ImmuneToDestruction,
+                AtomicEffectType.PierceDamage => EffectTargetFlags.ImmuneToDamage,
 
                 // 横置相关
                 AtomicEffectType.Tap => EffectTargetFlags.ImmuneToTap,
@@ -264,15 +259,12 @@ namespace CardCore
 
                 // 控制权相关
                 AtomicEffectType.GainControl => EffectTargetFlags.ImmuneToControl,
-                AtomicEffectType.StealControl => EffectTargetFlags.ImmuneToControl,
-                AtomicEffectType.SwapController => EffectTargetFlags.ImmuneToControl,
 
                 // 减益相关
                 AtomicEffectType.ModifyPower => EffectTargetFlags.ImmuneToDebuff,
                 AtomicEffectType.ModifyLife => EffectTargetFlags.ImmuneToDebuff,
                 AtomicEffectType.SetPower => EffectTargetFlags.ImmuneToDebuff,
                 AtomicEffectType.SetLife => EffectTargetFlags.ImmuneToDebuff,
-                AtomicEffectType.RemoveKeyword => EffectTargetFlags.ImmuneToDebuff,
 
                 // 默认无特定免疫
                 _ => EffectTargetFlags.None

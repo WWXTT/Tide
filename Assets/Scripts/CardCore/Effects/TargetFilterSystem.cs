@@ -290,7 +290,20 @@ namespace CardCore
             Zone zone = ExtractZone(targetFilter);
             bool isBattlefield = zone == Zone.Battlefield;
 
-            switch (targetType)
+            // 摧毁域（NoLife=无生命值单位：地牌/结界）：跨分区候选——双方元素池地牌 +
+            // 双方战场非生物持久物。命中即接管候选构建（下方分区 switch 跳过；通用限制照走）。
+            if (HasFilterToken(targetFilter, "NoLife"))
+            {
+                foreach (var p in new[] { context.Controller, opponent })
+                {
+                    if (p == null) continue;
+                    candidates.AddRange(GetZoneCards(p, Zone.ElementPool));
+                    foreach (var c in GetZoneCards(p, Zone.Battlefield))
+                        if (c is IHasSupertype st && st.Supertype != Cardtype.Creature)
+                            candidates.Add(c);
+                }
+            }
+            else switch (targetType)
             {
                 case EffectTargetType.Self:
                     candidates.Add(context.Source);
@@ -362,7 +375,7 @@ namespace CardCore
             return candidates;
         }
 
-        /// <summary>从筛选串中解析候选分区 token（Battlefield/Hand/Graveyard/Deck/Exile/Activation），缺省战场。</summary>
+        /// <summary>从筛选串中解析候选分区 token（Battlefield/Hand/Graveyard/Deck/Exile/Activation/ElementPool），缺省战场。</summary>
         private static Zone ExtractZone(string filterString)
         {
             if (string.IsNullOrEmpty(filterString)) return Zone.Battlefield;
@@ -376,9 +389,19 @@ namespace CardCore
                     case "Exile": return Zone.Exile;
                     case "Battlefield": return Zone.Battlefield;
                     case "Activation": return Zone.Activation; // 发动中的卡（反制指向发动区）
+                    case "ElementPool": return Zone.ElementPool; // 地牌区（池内地牌）
                 }
             }
             return Zone.Battlefield;
+        }
+
+        /// <summary>筛选串是否含指定 token（如摧毁域 "NoLife"）。</summary>
+        private static bool HasFilterToken(string filterString, string token)
+        {
+            if (string.IsNullOrEmpty(filterString)) return false;
+            foreach (var t in filterString.Split(','))
+                if (t.Trim() == token) return true;
+            return false;
         }
 
         /// <summary>

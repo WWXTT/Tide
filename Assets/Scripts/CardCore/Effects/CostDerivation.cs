@@ -134,10 +134,11 @@ namespace CardCore
 
         private static int FilterPrecisionCost(AtomicEffectInstance atom)
         {
-            string tierId = string.IsNullOrEmpty(atom.StringValue) ? "SingleDimension" : atom.StringValue;
-            var tier = BranchConfigTable.GetFilterTier(tierId)
-                       ?? BranchConfigTable.GetFilterTier("SingleDimension");
-            return tier != null ? tier.Cost : 1;
+            // 检索改宣言卡名（2026-09-03 定案）：StringValue = 宣言的卡名（构筑期预置），
+            // 精度恒为按名称检索（ExactCard 单档=3）；未预置宣言名视为最低档 1。
+            if (string.IsNullOrEmpty(atom.StringValue)) return 1;
+            var tier = BranchConfigTable.GetFilterTier("ExactCard");
+            return tier != null ? tier.Cost : 3;
         }
 
         private static int EffectiveTargetCountForCost(AtomicEffectInstance atom, AtomicEffectConfig cfg)

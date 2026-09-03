@@ -132,7 +132,7 @@ namespace CardCore.Editor.Tests
         private void Say(string message)
         {
             _lines++;
-            Debug.Log($"[对局] {message}");
+            Debug.Log($"{message}");
         }
 
         private void OnTurnStart(TurnStartEvent e)
