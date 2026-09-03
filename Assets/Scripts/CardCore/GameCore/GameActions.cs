@@ -75,12 +75,12 @@ namespace CardCore
         // ======================================== 主阶段操作 ========================================
 
         /// <summary>
-        /// 主阶段：打出一张牌。
-        /// 流程（发动区流转，Phase A 暂态 = 本方法内完成进出）：
-        /// 手牌 → 发动区（公开、可被指向；严格描述上还不算进入战场）→ 结算 →
-        /// 永久物入战场（满场预检在付费前拒绝——MD 式，卡留手牌不付费）；
-        /// 法术入墓（终态与改造前一致）。
-        /// 场上卡发动效果不经发动区（原地发动），那是 StackEngine 路径的事（后续接）。
+        /// 主阶段：打出一张牌（使用时点 = 声明，Option Y 定案）。
+        /// 流程：校验（不付费，含永久物满场预检 / CanAfford 预检）→ 来源区 → 发动区
+        /// （公开、可被指向——反制指向发动区）→ CardPlayEvent（使用宣言）→
+        /// 「此卡被使用」作为整卡施放对象上 StackEngine（对手获得优先权 = 响应窗口）。
+        /// 付费与结算移交栈：双方 Pass 后 LIFO 结算，消费点 = ResolveCardCastAsync
+        /// （扣费在响应窗口之后；软打断=没付、硬反制=付了但被否定、费用不退、不回卷）。
         /// targets：可选的预选目标（如指向性法术）；为空时由各原子效果按配置自动解析。
         /// fromZone：出牌来源区（默认手牌；Graveyard = 归土仪典「墓地视手牌中使用」路径）。
         /// </summary>
@@ -106,25 +106,20 @@ namespace CardCore
 
             bool isSpell = card is IHasSupertype hasType && hasType.Supertype == Cardtype.Spell;
 
-            // 永久物：战场容量预检（付费前——满场不允许发动，SimpleAI 依赖 false 跳过；
+            // 永久物：战场容量预检（满场不允许发动，SimpleAI 依赖 false 跳过；
             // 「结算时入场满则失败入墓」由 TryMoveToBattlefield 承担）
             if (!isSpell && !core.ZoneManager.HasBattlefieldSpace(player))
                 return false;
 
-            // 读取费用并检查
+            // 费用预检（不支付——扣费在响应窗口之后的 cast 结算；
+            // 同玩家已声明的施放费用一并计入，防同笔 bank 超发——结算付不出只入墓、不回卷）
             var cost = GetCardCost(card);
-            var elementPool = core.ElementPool;
-
-            if (!CanAfford(elementPool, cost, player))
+            if (!CanAfford(core.ElementPool, cost, player, GetPendingCastCosts(core, player)))
                 return false;
 
-            // 支付费用
-            elementPool.PayCost(cost, player);
-
-            // 设置控制者
+            // ---- 声明（使用时点）：设控制者 → 进发动区 → cast 上栈 → 使用宣言（对手获得响应窗口） ----
             card.SetController(player);
 
-            // 发动开始：来源区 → 发动区（反制指向发动区而非手牌）
             core.ZoneManager.MoveCard(card, player, fromZone, Zone.Activation);
             core.PublishEvent(new CardEnterActivationEvent
             {
@@ -133,48 +128,71 @@ namespace CardCore
                 FromZone = fromZone
             });
 
-            if (isSpell)
+            if (!core.StackEngine.PushCardCast(card, player, targets))
             {
-                // 法术：发动 → 结算 → 入墓。
-                // 结算含异步原子（交互选目标等），完成前卡停留在发动区（严格描述：结算中的
-                // 法术位于发动区，可被指向）；结算完成后才离区入墓。PlayCard 保持同步 bool 契约，
-                // 结算链 fire-and-forget（先例：PassPriority）。
-                core.PublishEvent(new CardPlayEvent
-                {
-                    Player = player,
-                    PlayedCard = card
-                });
-
-                ResolveSpellEffectsAsync(core, player, card, targets).Forget();
+                // 理论不可达（声明预检已过）；保守回退：卡退回来源区，声明失败不付费
+                core.ZoneManager.MoveCard(card, player, Zone.Activation, fromZone);
+                return false;
             }
-            else
+
+            // 使用宣言（时点=声明）：On_CardPlay 触发 / 预言验证 / 播报都看这一点
+            core.PublishEvent(new CardPlayEvent
             {
-                // 永久物（生物等）：注册触发式效果到本核心的触发引擎，经发动区入场
-                var cardEffects = new List<EffectDefinition>();
-                var cardDataEffects = GetCardEffectDefinitions(card);
-                if (cardDataEffects != null)
-                    cardEffects.AddRange(cardDataEffects);
+                Player = player,
+                PlayedCard = card
+            });
 
-                var keywordEffects = KeywordEffectMapper.CreateAllTriggeredEffects(card);
-                if (keywordEffects != null)
-                    cardEffects.AddRange(keywordEffects);
+            return true;
+        }
 
-                foreach (var effect in cardEffects)
-                    core.TriggerEngine.RegisterEffect(effect, card, player);
+        /// <summary>
+        /// 响应时点出牌（自由时点）：非回合玩家在优先权响应窗口内打出一张牌
+        /// （打落/发动无效 等反制——目标指向发动区中被使用的卡）。
+        /// 与 PlayCard 同构（声明 → 发动区 → cast 上栈 → 付费延迟到 cast 结算），
+        /// 门禁差异：不要求回合玩家/主阶段，改为 持有优先权 + 栈上有待响应对象；来源限手牌。
+        /// </summary>
+        public static bool PlayCardInResponse(GameCore core, Player player, Card card, List<Entity> targets = null)
+        {
+            if (core == null || player == null || card == null) return false;
+            if (core.StackEngine.IsEmpty || core.StackEngine.IsResolving) return false; // 有可响应对象且非结算中
+            if (core.StackEngine.CurrentPriorityHolder != player) return false;         // 优先权在手
 
-                core.PublishEvent(new CardPlayEvent
-                {
-                    Player = player,
-                    PlayedCard = card
-                });
+            var hand = core.ZoneManager.GetCards(player, Zone.Hand);
+            if (!hand.Contains(card)) return false;
 
-                // 发动通过 → 入场（预检已过，此处必成功；满则入墓的兜底在 helper 内）
-                if (core.ZoneManager.TryMoveToBattlefield(card, player, Zone.Activation))
-                {
-                    card.WasFormallySummoned = true; // 普通召唤正式入场
-                    // 仪式入场激活经 CardPutToBattlefieldEvent 事件驱动（RitualSystem 自订阅）
-                }
+            // 规则扩展点（OCP）：出牌限制经注册表询问（响应出牌同样受限，如信息轴锁定）
+            if (!RuleHooks.CanPlay(core, player, card, Zone.Hand)) return false;
+
+            bool isSpell = card is IHasSupertype hasType && hasType.Supertype == Cardtype.Spell;
+            if (!isSpell && !core.ZoneManager.HasBattlefieldSpace(player))
+                return false;
+
+            // 费用预检（含本玩家已声明的施放承诺；不支付——cast 结算时才扣）
+            var cost = GetCardCost(card);
+            if (!CanAfford(core.ElementPool, cost, player, GetPendingCastCosts(core, player)))
+                return false;
+
+            card.SetController(player);
+
+            core.ZoneManager.MoveCard(card, player, Zone.Hand, Zone.Activation);
+            core.PublishEvent(new CardEnterActivationEvent
+            {
+                Card = card,
+                Controller = player,
+                FromZone = Zone.Hand
+            });
+
+            if (!core.StackEngine.PushCardCast(card, player, targets))
+            {
+                core.ZoneManager.MoveCard(card, player, Zone.Activation, Zone.Hand);
+                return false;
             }
+
+            core.PublishEvent(new CardPlayEvent
+            {
+                Player = player,
+                PlayedCard = card
+            });
 
             return true;
         }
@@ -186,12 +204,146 @@ namespace CardCore
         public static bool PlayCardFromGraveyard(GameCore core, Player player, Card card, List<Entity> targets = null)
             => PlayCard(core, player, card, targets, Zone.Graveyard);
 
+        // ======================================== 整卡施放结算（使用时点消费点） ========================================
+
+        /// <summary>
+        /// 整卡施放的栈结算——「此卡被使用」的消费点（Option Y 定案）：
+        /// 1. 卡已不在发动区（被「打落」送墓等）→ 中止：不付费、不结算（软打断达成）；
+        /// 2. 付费（扣费在响应窗口之后，从 bank 扣）；
+        /// 3. 卡 _isNegated（被「发动无效」置位）→ 移入墓地、跳过效果、费用不退（硬反制达成）；
+        /// 4. 否则结算卡效果并离开发动区（法术入墓 / 永久物入场）。
+        /// 支付失败（窗口内其他支付挤占 bank，不回卷）→ 发动失败入墓。
+        /// 由 StackEngine 结算整卡施放对象时调用（PlayCard / PlayCardInResponse 声明的消费端）。
+        /// </summary>
+        internal static async Cysharp.Threading.Tasks.UniTask ResolveCardCastAsync(EffectInstance cast)
+        {
+            var core = GameCore.Instance;
+            var card = cast?.Source as Card;
+            var player = cast?.Controller;
+            if (core == null || card == null || player == null) return;
+
+            // 1. 打落中止：卡已不在发动区 → 不付费、不结算
+            if (!core.ZoneManager.IsCardInZone(card, player, Zone.Activation))
+                return;
+
+            // 2. 付费（响应窗口之后）
+            var cost = GetCardCost(card);
+            if (!core.ElementPool.PayCost(cost, player))
+            {
+                CastAbortToGraveyard(core, card, player, "费用不足（响应窗口后支付失败，不回卷）");
+                return;
+            }
+
+            // 3. 发动无效：付了但被否定 → 入墓、跳过效果、费用不退
+            if (card._isNegated)
+            {
+                card._isNegated = false; // 消费即复位（同一否定标记只拦一次）
+                CastAbortToGraveyard(core, card, player, "发动无效");
+                return;
+            }
+
+            // 4. 结算：法术 → 效果全结算后离区入墓；永久物 → 登记触发式 + 入场
+            if (card is IHasSupertype hasType && hasType.Supertype == Cardtype.Spell)
+            {
+                await ResolveSpellEffectsAsync(core, player, card, cast.Targets);
+            }
+            else
+            {
+                ResolvePermanentEntry(core, player, card);
+            }
+        }
+
+        /// <summary>cast 结算中止（支付失败 / 发动无效）：离开发动区入墓 + 失败/离区事件。</summary>
+        private static void CastAbortToGraveyard(GameCore core, Card card, Player player, string reason)
+        {
+            core.ZoneManager.MoveCard(card, player, Zone.Activation, Zone.Graveyard);
+            core.PublishEvent(new CardActivationFailedEvent
+            {
+                Card = card,
+                Controller = player,
+                FromZone = Zone.Activation,
+                Reason = reason
+            });
+            core.PublishEvent(new CardLeaveActivationEvent
+            {
+                Card = card,
+                Controller = player,
+                ToZone = Zone.Graveyard
+            });
+        }
+
+        /// <summary>
+        /// 永久物（生物等）cast 结算：注册触发式效果到触发引擎 → 经发动区入场。
+        /// （从旧 PlayCard 同步路径原样迁移；仪式入场激活经 CardPutToBattlefieldEvent 事件驱动。）
+        /// </summary>
+        private static void ResolvePermanentEntry(GameCore core, Player player, Card card)
+        {
+            var cardEffects = new List<EffectDefinition>();
+            var cardDataEffects = GetCardEffectDefinitions(card);
+            if (cardDataEffects != null)
+                cardEffects.AddRange(cardDataEffects);
+
+            var keywordEffects = KeywordEffectMapper.CreateAllTriggeredEffects(card);
+            if (keywordEffects != null)
+                cardEffects.AddRange(keywordEffects);
+
+            foreach (var effect in cardEffects)
+                core.TriggerEngine.RegisterEffect(effect, card, player);
+
+            // 发动通过 → 入场（声明期预检已过；满则入墓的兜底在 helper 内）
+            if (core.ZoneManager.TryMoveToBattlefield(card, player, Zone.Activation))
+            {
+                card.WasFormallySummoned = true; // 普通召唤正式入场
+            }
+        }
+
+        /// <summary>
+        /// 玩家已声明、尚在栈上的整卡施放费用合计（cast 支付承诺）。
+        /// 声明期费用预检用它防同笔 bank 超发——出多张牌时按「已声明未结算」累计。
+        /// </summary>
+        public static Dictionary<int, float> GetPendingCastCosts(GameCore core, Player player)
+        {
+            var sum = new Dictionary<int, float>();
+            if (core?.StackEngine == null || player == null) return sum;
+
+            foreach (var obj in core.StackEngine.GetStackContents())
+            {
+                if (obj == null || !obj.IsCardCast || obj.Controller != player) continue;
+                if (!(obj.Source is Card castCard)) continue;
+
+                var cost = GetCardCost(castCard);
+                foreach (var kv in cost)
+                    sum[kv.Key] = sum.TryGetValue(kv.Key, out var v) ? v + kv.Value : kv.Value;
+            }
+            return sum;
+        }
+
+        /// <summary>
+        /// 排干栈：双 Pass 直到栈空（无头 / AI / UI 快进驱动用——对手无响应即自动结算）。
+        /// 结算含异步原子效果时，本方法返回后结算链可能仍在后台推进
+        /// （IsResolving 拦重入，先例：SimpleAI.SettleStack）。
+        /// </summary>
+        public static bool DrainStack(GameCore core, int maxAttempts = 32)
+        {
+            if (core == null) return false;
+
+            bool any = false;
+            for (int i = 0; i < maxAttempts && !core.StackEngine.IsEmpty; i++)
+            {
+                var holder = core.StackEngine.CurrentPriorityHolder;
+                if (holder == null) break;
+                if (!PassPriority(core, holder)) break;
+                any = true;
+            }
+            return any;
+        }
+
         /// <summary>
         /// 结算法术的施放效果（经本核心的 EffectExecutor），完成后离开发动区入墓。
         /// 法术一次性结算：OnPlay 等触发时点在此即是「施放即生效」，直接执行；
         /// 仅手动激活式能力（Activate_*）不随施放自动结算。
         /// 通过 EffectInstance 走与栈结算一致的执行路径，保证目标解析/事件一致。
-        /// 元素费已在 PlayCard 支付（skipElementCost 防双计）；特殊代价仍由执行器结算。
+        /// 元素费已在 cast 结算（ResolveCardCastAsync）支付（skipElementCost 防双计）；特殊代价仍由执行器结算。
         /// </summary>
         private static async Cysharp.Threading.Tasks.UniTask ResolveSpellEffectsAsync(
             GameCore core, Player player, Card card, List<Entity> targets)
@@ -316,23 +468,38 @@ namespace CardCore
         // ======================================== 内部方法 ========================================
 
         /// <summary>
-        /// 从卡牌读取费用
+        /// 从卡牌读取费用——出牌预检 / cast 付费 / pending 合计的唯一口径。
+        /// 费用指示物层在此接入（定案：层带颜色，P1 恒灰）：灰色分量 += 费用增加层 − 费用减少层（下限 0）。
+        /// 层在进入发动区时不清（ZoneContainer.OnCardMoved 发动区豁免——付费发生在发动区内），
+        /// 结算离开发动区（入墓/入场）与离手时按真实移动清除。
         /// </summary>
         private static Dictionary<int, float> GetCardCost(Card card)
         {
+            Dictionary<int, float> cost;
             if (card is IHasCost hasCost && hasCost.Cost != null)
-                return hasCost.Cost;
+                cost = new Dictionary<int, float>(hasCost.Cost);
+            else
+                cost = new Dictionary<int, float> { { (int)ManaType.Gray, 1 } }; // 默认费用：灰色1点
 
-            // 默认费用：灰色1点
-            return new Dictionary<int, float> { { (int)ManaType.Gray, 1 } };
+            // 费用指示物层（P1 恒灰）：灰 += CostUp − CostDown，下限 0
+            int costUp = card.GetCounterCount(Attribute.CounterRules.CostUpCounter);
+            int costDown = card.GetCounterCount(Attribute.CounterRules.CostDownCounter);
+            if (costUp != 0 || costDown != 0)
+            {
+                int gray = (cost.TryGetValue((int)ManaType.Gray, out var g) ? (int)g : 0) + costUp - costDown;
+                cost[(int)ManaType.Gray] = Math.Max(0, gray);
+            }
+            return cost;
         }
 
         /// <summary>
         /// 检查是否能支付费用：
-        /// 1. 门槛：卡总费用不得超过当前地牌槽上限（费用上限 9 由此隐含——上限最大 9）
-        /// 2. 余量：bank 中各颜色元素充足（bank 无上限，跨回合保留）
+        /// 1. 门槛：卡总费用不得超过当前地牌槽上限（费用上限 9 由此隐含——上限最大 9；按卡判定不累计）
+        /// 2. 余量：bank 各颜色元素充足（bank 无上限，跨回合保留）；
+        ///    pending = 同玩家已声明未结算的整卡施放费用（响应窗口内的支付承诺，一并占用）
         /// </summary>
-        private static bool CanAfford(ElementPoolSystem elementPool, Dictionary<int, float> cost, Player player)
+        private static bool CanAfford(ElementPoolSystem elementPool, Dictionary<int, float> cost, Player player,
+            Dictionary<int, float> pending = null)
         {
             if (cost.Values.Sum() > elementPool.GetLandCap(player))
                 return false;
@@ -341,6 +508,8 @@ namespace CardCore
             {
                 ManaType type = (ManaType)kvp.Key;
                 int amount = (int)kvp.Value;
+                if (pending != null && pending.TryGetValue(kvp.Key, out var committed))
+                    amount += (int)committed;
                 if (elementPool.GetAvailableManaCount(type, player) < amount)
                     return false;
             }

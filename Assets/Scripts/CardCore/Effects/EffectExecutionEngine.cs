@@ -47,6 +47,11 @@ namespace CardCore
                 && _zoneManager.IsCardInZone(activateCard, activateCard.GetController(), Zone.Battlefield))
                 return false;
 
+            // 0.5 沉默指示物（定案）：持有者不可发动主动效果（激活式能力路径；
+            //     PlayCard 出牌不受限——那是"打出"而非"发动"）。换区清除。
+            if (source != null && source.GetCounterCount(Attribute.CounterRules.SilenceCounter) > 0)
+                return false;
+
             // 1. 速度检查（由 SpeedCounter 处理，这里不重复）
 
             // 2. 时点检查
@@ -502,6 +507,43 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 整卡施放入栈（使用时点声明）：打出的卡已移入发动区，本对象代表「此卡被使用」，
+        /// 对手获得优先权——响应窗口内可经 GameActions.PlayCardInResponse 打出 打落/发动无效 等。
+        /// 速度 = 记速器 +1：出牌作为基础动作单位不受连锁深度限制
+        /// （深度照常计入记速器，激活式能力的速度门槛不受影响）。
+        /// 结算消费点见 GameActions.ResolveCardCastAsync（Option Y：扣费在响应窗口之后）。
+        /// </summary>
+        public bool PushCardCast(Card card, Player controller, List<Entity> targets)
+        {
+            if (card == null || controller == null) return false;
+            if (_isResolving) return false; // 结算中不可声明（与 SpeedCounter.CanActivate 同口径）
+
+            var instance = new EffectInstance
+            {
+                IsCardCast = true,
+                Source = card,
+                Controller = controller,
+                ActivationSpeed = _speedCounter.CurrentSpeed + 1,
+                Targets = targets != null ? new List<Entity>(targets) : new List<Entity>(),
+            };
+
+            _speedCounter.Increment(); // ★ 记速器 +1（与 TryActivateEffect 同规）
+
+            _stack.Push(instance);
+            _priorityHolder = controller.Opponent;
+            _consecutivePassCount = 0;
+            _waitingForPlayer = true;
+
+            EventManager.Instance.Publish(new StackAddEvent
+            {
+                AddedObject = instance,
+                AddingPlayer = controller
+            });
+
+            return true;
+        }
+
+        /// <summary>
         /// 添加待发效果到队列
         /// </summary>
         public void AddPendingEffect(PendingEffect effect)
@@ -614,7 +656,11 @@ namespace CardCore
                 while (_stack.Count > 0)
                 {
                     var top = _stack.Pop();
-                    await _executor.ExecuteAsync(top);
+                    // 整卡施放对象走 cast 结算（付费→无效裁决→效果→离区），普通对象走执行器
+                    if (top.IsCardCast)
+                        await GameActions.ResolveCardCastAsync(top);
+                    else
+                        await _executor.ExecuteAsync(top);
                     _speedCounter.Decrement();
 
                     EventManager.Instance.Publish(new StackResolutionEndEvent
@@ -705,7 +751,11 @@ namespace CardCore
                 try
                 {
                     var top = _stack.Pop();
-                    await _executor.ExecuteAsync(top);
+                    // 整卡施放对象走 cast 结算（与 ResolveStack 同一消费点）
+                    if (top.IsCardCast)
+                        await GameActions.ResolveCardCastAsync(top);
+                    else
+                        await _executor.ExecuteAsync(top);
                     _speedCounter.Decrement();
                 }
                 finally
@@ -926,20 +976,17 @@ namespace CardCore
             var handlers = new IAtomicEffectHandler[]
             {
                 new DealDamageHandler(),
-                new DestroyHandler(),
                 new DrawCardHandler(),
                 new ReturnToHandHandler(),
                 new FreezePermanentHandler(),
                 new HealHandler(),
                 new ModifyPowerHandler(),
-                new CreateTokenHandler(),
                 new MorphHandler(),
 
                 // 第一批补齐 — 伤害类
-                new DamageCannotBePreventedHandler(),
+                new PierceDamageHandler(),
                 new DrainLifeHandler(),
-                new PoisonousDamageHandler(),
-                new RestoreToFullLifeHandler(),
+                new PoisonHandler(),
 
                 // 第一批补齐 — 卡牌移动 / 牌库
                 new DiscardCardHandler(),
@@ -951,23 +998,39 @@ namespace CardCore
                 new ReturnFromGraveyardHandler(),
                 new RecoverToHandHandler(),
                 new LookAtTopCardsHandler(),
-                new RevealHandHandler(),
 
                 // 第一批补齐 — 状态变更
                 new ModifyLifeHandler(),
                 new SetPowerHandler(),
                 new SetLifeHandler(),
+                new SetCostHandler(),
                 new ModifyCostHandler(),
 
                 // 信息族 — 宣言（即时验证）/ 预言（隐藏押注，延迟验证）
                 new DeclareHandHandler(),
-                new DeclareHandSampledHandler(),
                 new DeclareDeckTopHandler(),
                 new DeclareArrowHandler(),
                 new ProphecyNextCardHandler(),
 
-                // 护甲原子（指示物形式，可作用自身/他人——与固定 −1 的坚韧关键词互补）
+                // 指示物原子（护甲/毒素——Entity 级，角色可持有）
                 new AddArmorHandler(),
+                new AddToxinHandler(),
+
+                // 状态原子（虚弱/鼓舞——施加 ±1/+1 属性指示物）
+                new WeakenHandler(),
+                new InspireHandler(),
+
+                // 指示物原子（紊乱/易损/单向属性指示物——攻击力·生命值·费用 ×增减、±1/+1）
+                new RushSicknessHandler(),
+                new AddVulnerableHandler(),
+                new AddPowerUpHandler(),
+                new AddPowerDownHandler(),
+                new AddLifeUpHandler(),
+                new AddLifeDownHandler(),
+                new AddPlusOneHandler(),
+                new AddMinusOneHandler(),
+                new AddCostUpHandler(),
+                new AddCostDownHandler(),
             };
             foreach (var handler in handlers)
                 EffectHandlerRegistry.Register(handler);
@@ -976,19 +1039,15 @@ namespace CardCore
             foreach (var handler in GrantKeywordHandlerFactory.CreateAll())
                 EffectHandlerRegistry.Register(handler);
 
-            // 注册第二批规则原语处理器（状态/控制/反制/战斗/特殊）
+            // 注册第二批规则原语处理器（状态/控制/净化/战斗/特殊）
             foreach (var handler in SecondBatchHandlerFactory.CreateAll())
                 EffectHandlerRegistry.Register(handler);
 
-            // 注册第三批长尾处理器（牌库/移动/资源/无效化/复制等）
+            // 注册第三批长尾处理器（牌库/死亡原子/反制/沉默）
             foreach (var handler in ThirdBatchHandlerFactory.CreateAll())
                 EffectHandlerRegistry.Register(handler);
 
-            // 注册元/合成效果处理器（重复/随机/选其一/延迟）
-            foreach (var handler in MetaEffectHandlerFactory.CreateAll())
-                EffectHandlerRegistry.Register(handler);
-
-            // 注册高级处理器（栈重定向/能力复制）
+            // 注册高级处理器（栈重定向）
             foreach (var handler in AdvancedEffectHandlerFactory.CreateAll())
                 EffectHandlerRegistry.Register(handler);
 

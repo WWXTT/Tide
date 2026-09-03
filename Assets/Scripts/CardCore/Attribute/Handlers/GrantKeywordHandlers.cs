@@ -54,6 +54,9 @@ namespace CardCore.Attribute.Handlers
     public static class GrantKeywordHandlerFactory
     {
         // (原子效果类型, 运行时关键词 id, 中文描述)
+        // 2026-09-03 原子表整体修正：删 Windfury/Guard/MultiAttack/Immunity/Unaffected/Reach/Flying/
+        // RemoveDebuffs 八条；GrantPoisonous→GrantPoisonSting（毒刺：对受战斗伤害目标附加毒素指示物）。
+        // 现役关键词 19 个 + 缴械。
         private static readonly (AtomicEffectType type, string keywordId, string description)[] Specs =
         {
             // 红色 - 攻击性
@@ -61,21 +64,14 @@ namespace CardCore.Attribute.Handlers
             (AtomicEffectType.GrantRush, "Rush", "获得突袭"),
             (AtomicEffectType.GrantDoubleStrike, "DoubleStrike", "获得连击"),
             (AtomicEffectType.GrantFirstStrike, "FirstStrike", "获得先攻"),
-            (AtomicEffectType.GrantWindfury, "Windfury", "获得风怒"),
             (AtomicEffectType.GrantOverwhelm, "Overwhelm", "获得碾压"),
             (AtomicEffectType.GrantDisarm, "Disarm", "获得缴械"),
-            (AtomicEffectType.GrantMultiAttack, "MultiAttack", "获得多次攻击"),
 
             // 蓝色 - 规避/控制
-            (AtomicEffectType.GrantFlying, "Flying", "获得飞行"),
             (AtomicEffectType.GrantVigilance, "Vigilance", "获得警戒"),
             (AtomicEffectType.GrantStealth, "Stealth", "获得潜行"),
             (AtomicEffectType.GrantSpellShield, "SpellShield", "获得法术护盾"),
-            (AtomicEffectType.GrantGuard, "Guard", "获得守卫"),
-            (AtomicEffectType.GrantReach, "Reach", "获得阻断飞行"),
             (AtomicEffectType.GrantCannotBeTargeted, "Untargetable", "获得不可被指定"),
-            (AtomicEffectType.GrantImmunity, "Immunity", "获得免疫"),
-            (AtomicEffectType.GrantUnaffected, "Unaffected", "获得不受影响"),
 
             // 绿色 - 续航/成长
             (AtomicEffectType.GrantLifesteal, "Lifesteal", "获得吸血"),
@@ -85,12 +81,9 @@ namespace CardCore.Attribute.Handlers
             (AtomicEffectType.GrantArmor, "Armor", "获得坚韧"),
             (AtomicEffectType.GrantDivineShield, "DivineShield", "获得圣盾"),
             (AtomicEffectType.GrantTaunt, "Taunt", "获得嘲讽"),
-            (AtomicEffectType.GrantPoisonous, "Poisonous", "获得剧毒"),
+            (AtomicEffectType.GrantPoisonSting, "PoisonSting", "获得毒刺"),
             (AtomicEffectType.GrantReborn, "Reborn", "获得复生"),
             (AtomicEffectType.GrantIndestructible, "Indestructible", "获得不灭"),
-
-            // 通用
-            (AtomicEffectType.RemoveDebuffs, "RemoveDebuffs", "移除减益"),
         };
 
         /// <summary>

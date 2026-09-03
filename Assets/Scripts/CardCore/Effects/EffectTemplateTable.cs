@@ -37,7 +37,7 @@ namespace CardCore
                         Description = "至少需要一个原子效果作为主要效果",
                         SuggestedEffectTypes = new List<string>
                         {
-                            "DealDamage", "Destroy", "DrawCard", "Heal"
+                            "DealDamage", "PierceDamage", "DrawCard", "Heal"
                         }
                     },
                     new EffectTemplateSlot
@@ -94,7 +94,7 @@ namespace CardCore
                         Description = "触发后执行的主要效果",
                         SuggestedEffectTypes = new List<string>
                         {
-                            "DealDamage", "DrawCard", "Heal", "ModifyPower", "CreateToken"
+                            "DealDamage", "DrawCard", "Heal", "ModifyPower", "AddToxin"
                         }
                     },
                     new EffectTemplateSlot
@@ -151,7 +151,7 @@ namespace CardCore
                         Description = "战斗中执行的主要效果",
                         SuggestedEffectTypes = new List<string>
                         {
-                            "DealDamage", "Destroy", "ModifyPower"
+                            "DealDamage", "DrainLife", "ModifyPower"
                         }
                     },
                     new EffectTemplateSlot

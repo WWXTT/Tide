@@ -7,6 +7,7 @@ namespace CardCore
     /// <summary>
     /// 原子效果类型（英文枚举作为 key）
     /// 实际顺序：代码中先实现一个原子效果，然后在表中记录该效果，填写基准费用和颜色
+    /// 表行三分类（EffectTier）：Atom=可编辑参数的原子效果 / Keyword=授关键词 / Counter=附指示物
     /// </summary>
     public enum AtomicEffectType
     {
@@ -15,9 +16,8 @@ namespace CardCore
         DealCombatDamage,
         LifeLoss,
         Heal,
-        TrampleDamage,
-        DamageCannotBePrevented,
-        RestoreToFullLife,
+        PierceDamage,
+        DrainLife,
 
         // ============ 卡牌移动 ============
         DrawCard,
@@ -25,17 +25,11 @@ namespace CardCore
         MillCard,
         ReturnToHand,
         PutToBattlefield,
-        Destroy,
         Exile,
         ShuffleIntoDeck,
         SearchDeck,
         BounceToTop,
         BounceToBottom,
-        MoveToAnyZone,
-        ExchangePosition,
-        SearchAndReveal,
-        SearchAndPlay,
-        MoveCard,
 
         // ============ 状态变更 ============
         Tap,
@@ -44,118 +38,93 @@ namespace CardCore
         ModifyLife,
         SetPower,
         SetLife,
-        SwapStats,
-        AddCounters,
-        DoubleCounters,
-        AddKeyword,
-        RemoveKeyword,
+        SetCost,
         FreezePermanent,
-
-        // ============ 资源相关 ============
-        AddMana,
-        ConsumeMana,
-        UntapAll,
+        Purify,
+        Weaken,
+        Inspire,
+        Smash,
 
         // ============ 控制相关 ============
         GainControl,
-        StealControl,
-        SwapController,
-        PreventDamage,
-        CounterSpell,
-        CounterTargetSpell,
         NegateActivation,
-        NegateEffect,
+        Silence,
         RedirectTarget,
-        Nullify,
-        DrawThenDiscard,
         ScryCards,
 
-        // ============ 保护相关 ============
+        // ============ 保护相关（关键词） ============
         GrantHaste,
         GrantRush,
         GrantDoubleStrike,
-        GrantMultiAttack,
-        GrantReach,
         GrantCannotBeTargeted,
         GrantSpellShield,
-        GrantImmunity,
-        GrantUnaffected,
-        RemoveDebuffs,
-
-        // ============ 破坏效果 ============
-        DestroyRandom,
 
         // ============ 特殊效果 ============
-        CreateToken,
-        CopyCard,
-        CopyExact,
-        FightTarget,
         Morph,
 
-        // ============ 反规则效果 ============
+        // ============ 反规则效果（暂不实现白名单，无表行） ============
         ModifyGameRule,
         OverrideRestriction,
-
-        // ============ 伤害补充 ============
-        DrainLife,
-        DamageBasedOnStat,
-        PoisonousDamage,
 
         // ============ 移动补充 ============
         ReturnFromGraveyard,
         RecoverToHand,
         LookAtTopCards,
-        PutOnBottomOfDeck,
-        RevealHand,
 
         // ============ 状态补充 ============
-        ModifyAllStats,
-        SetController,
         ChangeOwner,
         ModifyCost,
 
-        // ============ 保护补充 ============
-        GrantPoisonous,
+        // ============ 保护补充（关键词） ============
+        GrantPoisonSting,
         GrantLifesteal,
         GrantStealth,
-        GrantWindfury,
         GrantTaunt,
         GrantDivineShield,
         GrantOverwhelm,
         GrantArmor,
         GrantFirstStrike,
         GrantDisarm,
-        GrantFlying,
         Recharging,
         GrantVigilance,
-        GrantGuard,
         GrantRegeneration,
         GrantGrowth,
 
         // ============ 控制补充 ============
-        CopyTargetAbility,
         TakeExtraTurn,
         SkipTurn,
-        ChooseOneEffect,
-        RevealCards,
-        RandomEffect,
-
-        // ============ 特殊补充 ============
-        RepeatEffect,
-        DelayedEffect,
 
         // ============ 信息族（宣言/预言——有限域押注，产出命中与否） ============
         DeclareHand,
-        DeclareHandSampled,
         DeclareDeckTop,
         DeclareArrow,
         ProphecyNextCard,
 
-        // ============ 关键词补充 + 护甲原子 ============
+        // ============ 关键词补充 + 指示物原子 ============
         GrantReborn,
         GrantIndestructible,
         GrantLifelink,
         AddArmor,
+        AddToxin,
+        Poison,
+        RushSickness,
+        AddVulnerable,
+        AddPowerUp,
+        AddPowerDown,
+        AddLifeUp,
+        AddLifeDown,
+        AddPlusOne,
+        AddMinusOne,
+        AddCostUp,
+        AddCostDown,
+
+        // ============ 死亡原子（DeathRules 死因已有，补原子层） ============
+        Sacrifice,
+        Devour,
+        Annihilate,
+
+        // ============ 反制原子（使用时点/响应窗口——指向发动区） ============
+        KnockDown,
     }
 
     #region 效果分类扩展方法

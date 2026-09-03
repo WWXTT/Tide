@@ -361,8 +361,8 @@
             "arrows": ""
         },
         {
-            "id": "TEST_KW_POISONOUS",
-            "cardName": "剧毒毒沼虫",
+            "id": "TEST_KW_POISONSTING",
+            "cardName": "毒刺毒沼虫",
             "supertype": "Creature",
             "power": 5,
             "life": 6,
@@ -373,7 +373,7 @@
                 }
             ],
             "keywords": [
-                "Poisonous"
+                "PoisonSting"
             ],
             "tags": [
                 "keyword-test"
@@ -540,31 +540,6 @@
             "arrows": ""
         },
         {
-            "id": "TEST_KW_GUARD",
-            "cardName": "守卫护卫士",
-            "supertype": "Creature",
-            "power": 6,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 5.0
-                }
-            ],
-            "keywords": [
-                "Guard"
-            ],
-            "tags": [
-                "keyword-test"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": ""
-        },
-        {
             "id": "TEST_KW_VIGILANCE",
             "cardName": "警戒巡夜人",
             "supertype": "Creature",
@@ -607,31 +582,6 @@
             ],
             "keywords": [
                 "FirstStrike"
-            ],
-            "tags": [
-                "keyword-test"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": ""
-        },
-        {
-            "id": "TEST_KW_WINDFURY",
-            "cardName": "风怒狂风狼",
-            "supertype": "Creature",
-            "power": 5,
-            "life": 7,
-            "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 6.0
-                }
-            ],
-            "keywords": [
-                "Windfury"
             ],
             "tags": [
                 "keyword-test"

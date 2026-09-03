@@ -25,12 +25,14 @@ namespace CardCore
         /// </summary>
         public static readonly HashSet<string> OutcomeProducerTypes = new HashSet<string>
         {
-            // 伤害族
-            "DealDamage", "DamageCannotBePrevented", "DrainLife", "PoisonousDamage",
-            // 治疗族
-            "Heal", "RestoreToFullLife",
-            // 信息族：宣言（即时验证写 DeclareHit）
-            "DeclareHand", "DeclareHandSampled", "DeclareDeckTop", "DeclareArrow",
+            // 伤害族（2026-09-03 原子表整体修正：DamageCannotBePrevented→PierceDamage；
+            // PoisonousDamage 改剧毒指示物，不再是伤害产出族）
+            "DealDamage", "PierceDamage", "DrainLife",
+            // 治疗族（RestoreToFullLife 已删除——难以定价）
+            "Heal",
+            // 信息族：宣言（即时验证写 DeclareHit；DeclareHand 已重设计为单张验证，
+            // DeclareHandSampled 已删除——宣言手牌族只保留一档）
+            "DeclareHand", "DeclareDeckTop", "DeclareArrow",
             // 信息族：预言（延迟验证——产出在验证时刻由 ProphecySystem 结算）
             "ProphecyNextCard",
         };

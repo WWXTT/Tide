@@ -26,12 +26,6 @@ namespace CardCore.Serialization
         [MemoryPackOrder(TagTable.RCS_CostModifier)]
         public int CostModifier;
 
-        [MemoryPackOrder(TagTable.RCS_Armor)]
-        public int Armor;
-
-        [MemoryPackOrder(TagTable.RCS_DamagePrevention)]
-        public int DamagePrevention;
-
         [MemoryPackOrder(TagTable.RCS_IsTapped)]
         public bool IsTapped;
 
@@ -69,8 +63,6 @@ namespace CardCore.Serialization
                 MaxLife = card._maxLife,
                 BaseCost = card._baseCost,
                 CostModifier = card._costModifier,
-                Armor = card._armor,
-                DamagePrevention = card._damagePrevention,
                 IsTapped = card._isTapped,
                 IsNegated = card._isNegated,
                 IsNullified = card._isNullified,
@@ -98,8 +90,6 @@ namespace CardCore.Serialization
             card._maxLife = MaxLife;
             card._baseCost = BaseCost;
             card._costModifier = CostModifier;
-            card._armor = Armor;
-            card._damagePrevention = DamagePrevention;
             card._isTapped = IsTapped;
             card._isNegated = IsNegated;
             card._isNullified = IsNullified;

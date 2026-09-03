@@ -17,6 +17,13 @@ namespace CardCore
         // 关键词存储（List 而非 HashSet：融合继承允许重复叠加；唯一性由 AddKeyword 的 Contains 保证）
         internal List<string> _keywords = new List<string>();
 
+        // 指示物存储（上移 Entity：角色/卡牌同构——剧毒/毒素可指向玩家；对齐 _keywords 先例）。
+        // 计数模型：_counters 字典存净量（带符号——攻/血/费指示物可 ±）；
+        // 回合时钟：_counterClocks 只收 ForTurns 计时的层（毒素每层独立 3 回合时钟），
+        // 到期层由 CounterRules.OnTurnEnd 回收并从计数中扣除。
+        internal Dictionary<string, int> _counters = new Dictionary<string, int>();
+        internal List<CounterInstance> _counterClocks = new List<CounterInstance>();
+
         public TimestampInfo TimestampInfo => _timestamp;
         public DateTime CreationTime => _timestamp.DateTime;
         public uint SequenceNumber => _timestamp.Sequence;
@@ -49,6 +56,17 @@ namespace CardCore
         {
             _timestamp = newTimestamp;
         }
+    }
+
+    /// <summary>
+    /// 指示物层实例：一个带独立回合时钟的指示物"层"（ toxins 可叠加、每层各自倒计时）。
+    /// Amount=该层份数；RemainingTurns=剩余回合末次数（-1=无回合计时，靠换区/消耗移除）。
+    /// </summary>
+    public class CounterInstance
+    {
+        public string Id;
+        public int Amount;
+        public int RemainingTurns = -1;
     }
 
     /// <summary>

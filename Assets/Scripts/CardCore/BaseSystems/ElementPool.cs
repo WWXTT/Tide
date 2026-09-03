@@ -7,7 +7,7 @@ namespace CardCore
     /// <summary>
     /// 元素池中的卡牌（地牌，带指示物）
     /// 基于卡牌的费用构成放置对应数量的元素指示物
-    /// 主阶段可手动横置产 1 个自选颜色元素；回合结束未横置的自动横置产 1 个灰色元素
+    /// 主阶段可手动横置产 1 个自选颜色元素；回合结束未横置的自动横置产 1 个剩余最多色元素
     /// 每回合周期恰好消耗 1 个指示物；耗尽后卡牌进入墓地
     /// </summary>
     public class PooledCard
@@ -102,7 +102,7 @@ namespace CardCore
     /// 2. 准备阶段：己方横置地牌全部自动恢复（解除横置）
     /// 3. 主阶段：以可用（未横置）状态补充地牌，不限张数/次数（受槽上限）；手动横置地牌产 1 个自选颜色元素入 bank
     ///    —— 自选颜色范围 = 该地牌剩余指示物的颜色集合（由卡本身费用构成决定）
-    /// 4. 结束阶段：未横置的地牌自动横置，产 1 个灰色元素入 bank（消耗剩余最多颜色的 1 个指示物）
+    /// 4. 结束阶段：未横置的地牌自动横置，产 1 个剩余最多色元素入 bank（消耗剩余最多颜色的 1 个指示物）
     /// 5. bank（AvailableMana）跨回合保留、无上限；出牌时自动从 bank 支付
     /// 6. 出牌门槛：卡总费用不得超过当前地牌槽上限（费用上限 9 由此隐含）
     /// 7. 指示物耗尽 → 地牌进墓地 → 可用手牌补充到当前上限
@@ -309,7 +309,7 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 回合结束阶段：未横置的地牌自动横置，产 1 个灰色元素入 bank。
+        /// 回合结束阶段：未横置的地牌自动横置，产 1 个剩余最多色元素入 bank。
         /// 消耗「剩余最多颜色」的 1 个指示物（并列取枚举序靠前者，确定性）；
         /// 由此每张地牌每回合周期恰好消耗 1 个指示物（手动产色或结束产灰）。
         /// 耗尽地牌随后统一移入墓地。
@@ -326,14 +326,14 @@ namespace CardCore
                 if (type == null) continue;           // 无剩余指示物，交给耗尽清理
 
                 pc.RemoveToken(type.Value);
-                pool.AvailableMana[ManaType.Gray]++;
+                pool.AvailableMana[type.Value]++;
                 pool.TapsThisTurn++;
                 pc.IsTapped = true;
 
                 PublishEvent(new ElementPoolGainEvent
                 {
                     Player = turnPlayer,
-                    GainedType = ManaType.Gray,
+                    GainedType = type.Value,
                     FromCard = pc.SourceCard
                 });
             }

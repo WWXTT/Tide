@@ -12,8 +12,13 @@ namespace CardCore.Attribute
     /// 参数化效果走原子（AddArmor 护甲 N 点指示物）。
     ///
     /// 伤害管线（效果 TakeDamage 与战斗 CombatSystem 两条路径都经 ApplyDamage）：
-    /// 圣盾（挡一次任意伤害，消耗）→ 护甲指示物（逐点吸收）→ 坚韧（−持有次数）→ 落血；
-    /// 剧毒（任意来源伤害即致死，仅随从）；吸血（恢复随从自身）/系命（回复角色）。
+    /// 替代引擎（光环层——穿透伤害也受其限制）→ 圣盾（挡一次任意伤害，消耗）→
+    /// 护甲指示物（逐点吸收）→ 坚韧（−持有次数）→ 落血；
+    /// 吸血（恢复随从自身）/系命（回复角色）。
+    /// 【穿透伤害（pierce=true）】越过关键词和指示物计算伤害——跳过圣盾/护甲/坚韧三层，
+    /// 替代引擎与落血/事件链/吸血照走。
+    /// 【剧毒】已从关键词伤害改为指示物（CounterRules.PoisonCounter，回合结束时持有者死亡，
+    /// 无伤害来源）；毒刺关键词改为战斗伤害后附加毒素指示物（挂 CombatSystem）。
     /// 事件链统一在管线尾部按时序发布：DamageEvent（触发器）→ CombatDamageEvent（战斗）→
     /// LifeChangeEvent（角色）→ 吸血/系命（伤害的后果）。
     /// 生命流失（LifeLoss 类）不经此管线——圣盾/护甲不挡流失。
@@ -32,16 +37,14 @@ namespace CardCore.Attribute
         // ---- 关键词 id（与 GrantKeywordHandlerFactory.Specs 的运行时字符串同源） ----
         public const string DivineShield = "DivineShield";
         public const string Armor = "Armor";
-        public const string Poisonous = "Poisonous";
+        public const string PoisonSting = "PoisonSting";
         public const string Lifesteal = "Lifesteal";
         public const string Lifelink = "Lifelink";
         public const string Vigilance = "Vigilance";
-        public const string Guard = "Guard";
         public const string Stealth = "Stealth";
         public const string Taunt = "Taunt";
         public const string Charge = "Charge";
         public const string Rush = "Rush";
-        public const string Windfury = "Windfury";
         public const string FirstStrike = "FirstStrike";
         public const string DoubleStrike = "DoubleStrike";
         public const string Disarm = "Disarm";
@@ -130,13 +133,16 @@ namespace CardCore.Attribute
         /// <summary>
         /// 统一伤害结算：修正并施加伤害，返回实际造成的伤害量。
         /// 只改状态不发事件——DamageEvent/CombatDamageEvent 等由调用方按路径发布。
+        /// pierce=true 为穿透伤害：越过关键词和指示物（跳过圣盾/护甲/坚韧），
+        /// 但受光环限制——替代引擎/层效果照走，事件链与吸血照常。
         /// </summary>
-        public static int ApplyDamage(Entity source, Entity target, int amount, bool isCombat)
+        public static int ApplyDamage(Entity source, Entity target, int amount, bool isCombat, bool pierce = false)
         {
             if (amount <= 0 || target == null || !target.IsAlive) return 0;
 
             // 规则修改类效果（OCP）：伤害实例先经替代引擎取最终值（如伤害封顶），再走关键词管线。
             // 替代效果经 GameCore.ReplacementEngine 注册（状态无关、实时查询光环），本管线不点名任何具体系统。
+            // 穿透伤害同样经此层（"受光环限制"）。
             var routedEvent = new DamageEvent { Source = source, Target = target, Amount = amount };
             var engine = CardCore.GameCore.Instance?.ReplacementEngine;
             if (engine != null)
@@ -146,58 +152,21 @@ namespace CardCore.Attribute
                 if (amount <= 0) return 0;
             }
 
-            // 1. 圣盾：挡下一次任意伤害（战斗+效果），消耗
-            if (target.HasKeyword(DivineShield))
-            {
-                target.RemoveKeyword(DivineShield);
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = target,
-                    Keyword = DivineShield,
-                    Detail = $"圣盾抵挡 {amount} 点伤害",
-                    Source = source
-                });
-                return 0;
-            }
+            // 0. 易损指示物（定案）：受到伤害时每层使受到的伤害 +1——
+            //    替代结算后、防护层前生效（圣盾/护甲吸收的是放大后的量；穿透伤害同样被放大）
+            int vulnerable = target.GetCounterCount(CounterRules.VulnerableCounter);
+            if (vulnerable > 0)
+                amount += vulnerable;
 
-            // 2. 护甲指示物：逐点吸收（AddArmor 原子写入的 counter 池）
-            if (target is Card armored)
+            if (!pierce)
             {
-                int armor = armored.GetCounterCount(ArmorCounter);
-                if (armor > 0)
-                {
-                    int absorbed = Math.Min(armor, amount);
-                    armored.AddCounters(ArmorCounter, -absorbed);
-                    amount -= absorbed;
-                    EventManager.Instance.Publish(new KeywordAppliedEvent
-                    {
-                        Target = target,
-                        Keyword = ArmorCounter,
-                        Detail = $"护甲指示物吸收 {absorbed} 点",
-                        Source = source
-                    });
-                    if (amount <= 0) return 0;
-                }
+                ApplyPreventionLayers(source, target, ref amount);
+                if (amount <= 0) return 0;
             }
-
-            // 3. 坚韧：每次受到的最终伤害 −1 × 持有次数（叠加 = 融合专属强化）
-            int toughness = KeywordCount(target, Armor);
-            if (toughness > 0)
-            {
-                amount = Math.Max(0, amount - toughness);
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = target,
-                    Keyword = Armor,
-                    Detail = $"坚韧减免 {toughness} 点",
-                    Source = source
-                });
-            }
-            if (amount <= 0) return 0;
 
             // 4. 落血（Card 到 0 标记死亡；Player 直接扣）。
             //    死亡决策走决策表（当前无护盾拦 DamageLethal；复生/落墓由 SBA 泵自发连锁处理）
-            int oldLife = (target as Player)?.Life ?? 0; // 生命变化播报用（剧毒归零前快照）
+            int oldLife = (target as Player)?.Life ?? 0; // 生命变化播报用
             if (target is Card card)
             {
                 card._life -= amount;
@@ -211,30 +180,6 @@ namespace CardCore.Attribute
             else if (target is Player player)
             {
                 player.Life -= amount;
-            }
-
-            // 5. 剧毒：任意来源伤害即致死（效果死亡，来源=剧毒效果来源——术语定案）。
-            //    世界观定案：角色（玩家化身）是普通生物单位，剧毒同样致死——
-            //    其免疫来自默认持有的神佑状态（决策表裁决，可被移除），不再硬编码"仅随从"。
-            if (source != null && source.HasKeyword(Poisonous) && target.IsAlive
-                && !DeathRules.IsShielded(target, DeathCause.Poison))
-            {
-                if (target is Card poisoned)
-                {
-                    poisoned._life = 0;
-                    poisoned.IsAlive = false;
-                }
-                else if (target is Player victim)
-                {
-                    victim.Life = 0; // 生命归零；胜负由连锁结算完成时的判定收尾
-                }
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = target,
-                    Keyword = Poisonous,
-                    Detail = "剧毒致死",
-                    Source = source
-                });
             }
 
             // 结算后发布伤害事件链（实际值；替代已在管线前消费）。
@@ -296,6 +241,67 @@ namespace CardCore.Attribute
             }
 
             return amount;
+        }
+
+        /// <summary>
+        /// 防护层（非穿透伤害）：圣盾（挡一次任意伤害，消耗）→ 护甲指示物（逐点吸收）→ 坚韧（−持有次数）。
+        /// amount 按 ref 递减；归零即全部挡下。穿透伤害跳过本方法全部三层。
+        /// </summary>
+        private static void ApplyPreventionLayers(Entity source, Entity target, ref int amount)
+        {
+            // 1. 圣盾：挡下一次任意伤害（战斗+效果），消耗
+            if (target.HasKeyword(DivineShield))
+            {
+                target.RemoveKeyword(DivineShield);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = target,
+                    Keyword = DivineShield,
+                    Detail = $"圣盾抵挡 {amount} 点伤害",
+                    Source = source
+                });
+                amount = 0;
+                return;
+            }
+
+            // 2. 护甲指示物：逐点吸收（AddArmor 原子写入的 counter 池）
+            if (target is Card armored)
+            {
+                int armor = armored.GetCounterCount(ArmorCounter);
+                if (armor > 0)
+                {
+                    int absorbed = Math.Min(armor, amount);
+                    armored.AddCounters(ArmorCounter, -absorbed);
+                    amount -= absorbed;
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    {
+                        Target = target,
+                        Keyword = ArmorCounter,
+                        Detail = $"护甲指示物吸收 {absorbed} 点",
+                        Source = source
+                    });
+                    if (amount <= 0)
+                    {
+                        amount = 0;
+                        return;
+                    }
+                }
+            }
+
+            // 3. 坚韧：每次受到的最终伤害 −1 × 持有次数（叠加 = 融合专属强化）
+            int toughness = KeywordCount(target, Armor);
+            if (toughness > 0)
+            {
+                amount = Math.Max(0, amount - toughness);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = target,
+                    Keyword = Armor,
+                    Detail = $"坚韧减免 {toughness} 点",
+                    Source = source
+                });
+            }
+            if (amount <= 0) amount = 0;
         }
 
         /// <summary>

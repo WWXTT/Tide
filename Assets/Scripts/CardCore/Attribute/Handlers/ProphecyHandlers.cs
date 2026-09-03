@@ -114,7 +114,15 @@ namespace CardCore.Attribute.Handlers
         }
     }
 
-    /// <summary>宣言·确认对手全手牌（即时验证，揭示面 = 全手牌，YGO 确认手札式）</summary>
+    /// <summary>
+    /// 宣言·确认手牌（2026-09-03 重设计，替代旧的"确认对手全手牌"）：
+    /// 宣言一个类型（ProphecyDimension 有限域，StringValue 构筑期预置），宣言者**指定对手一张
+    /// 未展示的手牌卡位**翻开验证——符合宣言 = DeclareHit，不符合 = DeclareMiss（宣言分支照挂）。
+    /// 翻开的卡永久标记已展示（IsRevealed），未展示卡不可重复确认；已展示卡不可再被指定——
+    /// **不展示全部**，重复宣言逐张递进揭示。每确认一张发 RevealHandEvent（窥渊仪典按张计数）。
+    /// 卡位选择经静态委托 PositionPicker 由驱动层注入（同 MorphSystem.ResolveMorphTarget 惯例）；
+    /// 缺省 = 首个未展示卡位（AI/验证器可直接跑，人类 UI 后续接入）。
+    /// </summary>
     public class DeclareHandHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DeclareHand;
@@ -123,63 +131,46 @@ namespace CardCore.Attribute.Handlers
         {
             context.LastOutcome.Declaration = effect.StringValue;
             var hand = ProphecyHandlerUtil.OpponentHand(context);
-            bool hit = ProphecyHandlerUtil.MatchIn(effect.StringValue, hand, out _);
+            if (hand == null || hand.Count == 0)
+            {
+                context.LastOutcome.DeclareHit = false; // 无手牌可验 = 未命中
+                return;
+            }
 
+            // 宣言者指定一个未展示卡位（驱动层注入的选位器；缺省取首个未展示位）
+            var candidates = hand.Where(c => !c.IsRevealed).ToList();
+            if (candidates.Count == 0)
+            {
+                context.LastOutcome.DeclareHit = false; // 全部已展示 = 无可验证对象
+                return;
+            }
+            var picked = ProphecyHandlerUtil.PositionPicker != null
+                ? ProphecyHandlerUtil.PositionPicker(context.Controller, candidates)
+                : candidates[0];
+            if (picked == null || picked.IsRevealed) picked = candidates[0];
+
+            // 翻开：永久已展示 + 按张发布（窥渊仪典等订阅方按张计数）
+            picked._isRevealed = true;
+            EventManager.Instance.Publish(new RevealHandEvent
+            {
+                Player = context.Controller?.Opponent,
+                Cards = new List<Card> { picked },
+                Source = context.Source
+            });
+
+            bool hit = ProphecyHandlerUtil.MatchesDeclaration(effect.StringValue, picked);
             context.LastOutcome.DeclareHit = hit;
             PublishEvent(new DeclareResolvedEvent
             {
                 Declaration = effect.StringValue,
                 Hit = hit,
                 Controller = context.Controller,
-                RevealedCards = hand != null ? new List<Card>(hand) : new List<Card>(),
+                RevealedCards = new List<Card> { picked },
                 Sampled = false,
             });
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"宣言{effect.StringValue}并确认对手全手牌";
-    }
-
-    /// <summary>宣言·探查对手手牌（即时验证，揭示面 = 随机 3 张样本，炉石检视式；揭示面小故费用更低）</summary>
-    public class DeclareHandSampledHandler : AtomicEffectHandlerBase
-    {
-        private static readonly Random _rng = new Random();
-
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DeclareHandSampled;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            context.LastOutcome.Declaration = effect.StringValue;
-            var hand = ProphecyHandlerUtil.OpponentHand(context);
-            if (hand == null || hand.Count == 0)
-            {
-                context.LastOutcome.DeclareHit = false;
-                return;
-            }
-
-            // 随机取至多 3 张样本，仅在样本内验证
-            var pool = new List<Card>(hand);
-            int take = Math.Min(3, pool.Count);
-            var sample = new List<Card>();
-            while (sample.Count < take)
-            {
-                var pick = pool[_rng.Next(pool.Count)];
-                pool.Remove(pick);
-                sample.Add(pick);
-            }
-
-            bool hit = sample.Any(c => ProphecyHandlerUtil.MatchesDeclaration(effect.StringValue, c));
-            context.LastOutcome.DeclareHit = hit;
-            PublishEvent(new DeclareResolvedEvent
-            {
-                Declaration = effect.StringValue,
-                Hit = hit,
-                Controller = context.Controller,
-                RevealedCards = sample,
-                Sampled = true,
-            });
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect) => $"宣言{effect.StringValue}并探查对手3张手牌";
+        public override string GetDescription(AtomicEffectInstance effect) => $"宣言{effect.StringValue}并验证对手一张未展示的手牌";
     }
 
     /// <summary>宣言·验牌库顶（即时验证：展示己方牌库顶比对；展示 = 公开）</summary>
@@ -268,23 +259,21 @@ namespace CardCore.Attribute.Handlers
 
     // ---------------- 共用小工具 ----------------
 
-    internal static class ProphecyHandlerUtil
+    /// <summary>宣言族共用小工具（public：选位器供驱动层/验证器注入——组合根注入惯例）</summary>
+    public static class ProphecyHandlerUtil
     {
+        /// <summary>
+        /// 宣言确认手牌的选位器（宣言者视角：从对手未展示卡位中指定一张验证）。
+        /// 驱动层注入（AI 启发式 / 人类 UI 弹窗）；缺省 = 首个未展示卡位。
+        /// </summary>
+        public static Func<Player, List<Card>, Card> PositionPicker;
+
         internal static List<Card> OpponentHand(EffectExecutionContext context)
         {
             var opponent = context.Controller?.Opponent;
             if (opponent == null || context.ZoneManager == null) return null;
             try { return context.ZoneManager.GetCards(opponent, Zone.Hand); }
             catch (KeyNotFoundException) { return null; }
-        }
-
-        internal static bool MatchIn(string encoded, List<Card> cards, out List<Card> hits)
-        {
-            hits = new List<Card>();
-            if (cards == null || !ProphecyDimension.TryParse(encoded, out var dim, out var val)) return false;
-            foreach (var c in cards)
-                if (ProphecyDimension.Matches(c, dim, val)) hits.Add(c);
-            return hits.Count > 0;
         }
 
         internal static bool MatchesDeclaration(string encoded, Card card)

@@ -6,46 +6,17 @@ using CardCore.Attribute;
 namespace CardCore.Attribute.Handlers
 {
     // ================================================================
-    // 第三批 handler — 配置驱动长尾的即实装分（与设计整合，已剔除土地/装备/变身等不符设定项）
-    // 复用 EntityEffectExtensions / ZoneManager / ElementPoolSystem / HandlerHelpers 原语
+    // 第三批 handler（2026-09-03 原子表整体修正后存留）
+    // 已删除：PutOnBottomOfDeck/MoveCard/MoveToAnyZone/DrawThenDiscard/SearchAndReveal/
+    //         SearchAndPlay/RevealCards/AddMana/ConsumeMana/DamageBasedOnStat/DestroyRandom/
+    //         CopyExact/ExchangePosition（表行随枚举一并移除）
+    // NegateEffect → Silence（沉默指示物：持有者不可发动主动效果）
+    // MillCard 改名"送墓"（表 EnumName/DisplayName 已改，EffectType 不变）
     // ================================================================
 
-    /// <summary>本批 handler 共享的辅助方法</summary>
-    internal static class ThirdBatchHelpers
-    {
-        /// <summary>破坏：经死亡决策表统一裁决（不灭/仪式回手/复生/落墓/事件全在 DeathRules 内定案）</summary>
-        internal static void DestroyToGraveyard(Card card, EffectExecutionContext context)
-        {
-            if (card == null) return;
-            DeathRules.TryKill(card, DeathCause.DestroyEffect, context.Source, context.ZoneManager);
-        }
+    // ---------------- 牌库 ----------------
 
-        /// <summary>将各 target 迁入指定区域（经各自控制者容器），发布 CardMoveEvent</summary>
-        internal static void MoveTargetsToZone(EffectExecutionContext context, Zone toZone)
-        {
-            if (context.ZoneManager == null) return;
-            foreach (var target in context.Targets.ToList())
-            {
-                if (!(target is Card card)) continue;
-                var controller = card.GetController();
-                if (controller == null) continue;
-
-                var from = card.GetZone();
-                if (from == toZone) continue;
-
-                context.ZoneManager.GetZoneContainer(controller).Move(card, from, toZone);
-                card.SetZone(toZone);
-                EventManager.Instance.Publish(new CardMoveEvent
-                {
-                    MovedCard = card, From = from, To = toZone, Controller = controller
-                });
-            }
-        }
-    }
-
-    // ---------------- 牌库 / 移动 ----------------
-
-    /// <summary>送墓（控制者牌库顶 N 张 → 坟墓场）</summary>
+    /// <summary>送墓（原名"磨牌"；控制者牌库顶 N 张 → 坟墓场）</summary>
     public class MillCardHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.MillCard;
@@ -70,86 +41,6 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => $"送墓：牌库顶 {effect.Value} 张入墓地";
     }
 
-    /// <summary>放置牌库底（各目标 → 拥有者牌库底）</summary>
-    public class PutOnBottomOfDeckHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.PutOnBottomOfDeck;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            if (context.ZoneManager == null) return;
-            foreach (var target in context.Targets.ToList())
-            {
-                if (!(target is Card card)) continue;
-                var owner = card.GetOwner() ?? card.GetController();
-                if (owner == null) continue;
-
-                var from = card.GetZone();
-                context.ZoneManager.GetZoneContainer(owner).Move(card, from, Zone.Deck, DeckPosition.Bottom);
-                card.SetZone(Zone.Deck);
-                PublishEvent(new CardMoveEvent { MovedCard = card, From = from, To = Zone.Deck, Controller = owner });
-            }
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect) => "放置到牌库底";
-    }
-
-    /// <summary>移动卡牌（各目标 → effect.ZoneParam）</summary>
-    public class MoveCardHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.MoveCard;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-            => ThirdBatchHelpers.MoveTargetsToZone(context, effect.ZoneParam);
-
-        public override string GetDescription(AtomicEffectInstance effect) => $"移动到 {effect.ZoneParam}";
-    }
-
-    /// <summary>移动到任意区域（各目标 → effect.ZoneParam）</summary>
-    public class MoveToAnyZoneHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.MoveToAnyZone;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-            => ThirdBatchHelpers.MoveTargetsToZone(context, effect.ZoneParam);
-
-        public override string GetDescription(AtomicEffectInstance effect) => $"移动到 {effect.ZoneParam}";
-    }
-
-    /// <summary>抽牌后弃牌（抽 Value 张，再弃 Value2/Value 张）</summary>
-    public class DrawThenDiscardHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DrawThenDiscard;
-
-        public override bool CanExecute(AtomicEffectInstance effect, EffectExecutionContext context) => context != null;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            if (context.ZoneManager == null || context.Controller == null) return;
-
-            int draw = context.GetValueAfterModifiers(effect.Value);
-            int discard = effect.Value2 > 0 ? effect.Value2 : draw;
-
-            for (int i = 0; i < draw; i++)
-            {
-                var drawn = context.ZoneManager.DrawCard(context.Controller);
-                if (drawn == null) break;
-                PublishEvent(new CardDrawEvent { Player = context.Controller, DrawnCard = drawn, DrawCount = 1 });
-            }
-
-            var hand = context.ZoneManager.GetCards(context.Controller, Zone.Hand);
-            var container = context.ZoneManager.GetZoneContainer(context.Controller);
-            for (int i = 0; i < discard && i < hand.Count; i++)
-            {
-                var card = hand[i];
-                container.Move(card, Zone.Hand, Zone.Graveyard);
-                PublishEvent(new CardDiscardEvent { Player = context.Controller, Card = card, Source = context.Source });
-            }
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect) => $"抽 {effect.Value} 张后弃牌";
-    }
-
     /// <summary>占卜（查看牌库顶 N 张，仅展示，不移动）</summary>
     public class ScryCardsHandler : AtomicEffectHandlerBase
     {
@@ -169,69 +60,6 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => $"占卜 {effect.Value} 张";
     }
 
-    /// <summary>检索并展示（展示牌库顶 N 张，不抽取）</summary>
-    public class SearchAndRevealHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SearchAndReveal;
-
-        public override bool CanExecute(AtomicEffectInstance effect, EffectExecutionContext context) => context != null;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            int count = context.GetValueAfterModifiers(effect.Value);
-            if (context.ZoneManager == null || context.Controller == null) return;
-
-            var cards = context.ZoneManager.GetTopCards(context.Controller, count);
-            PublishEvent(new RevealCardsEvent { Player = context.Controller, Cards = cards, Source = context.Source });
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect) => $"检索并展示 {effect.Value} 张";
-    }
-
-    /// <summary>检索并使用（牌库顶 1 张 → 战场）</summary>
-    public class SearchAndPlayHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SearchAndPlay;
-
-        public override bool CanExecute(AtomicEffectInstance effect, EffectExecutionContext context) => context != null;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            if (context.ZoneManager == null || context.Controller == null) return;
-
-            var top = context.ZoneManager.GetTopCards(context.Controller, 1);
-            if (top.Count == 0) return;
-
-            var card = top[0];
-            // 经入场容量闸门：满则失败入墓（牌库顶 → 墓地）并发失败事件
-            if (!context.ZoneManager.TryMoveToBattlefield(card, context.Controller, Zone.Deck))
-                return;
-            card.SetController(context.Controller);
-            card.WasFormallySummoned = true; // 检索直接上场＝正式入场
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect) => "检索并使用牌库顶卡";
-    }
-
-    /// <summary>展示卡牌（指定 target，或退化为控制者手牌）</summary>
-    public class RevealCardsHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.RevealCards;
-
-        public override bool CanExecute(AtomicEffectInstance effect, EffectExecutionContext context) => context != null;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            var cards = context.Targets.OfType<Card>().ToList();
-            if (cards.Count == 0 && context.ZoneManager != null && context.Controller != null)
-                cards = context.ZoneManager.GetCards(context.Controller, Zone.Hand);
-
-            PublishEvent(new RevealCardsEvent { Player = context.Controller, Cards = cards, Source = context.Source });
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect) => "展示卡牌";
-    }
-
     /// <summary>变更拥有者（各目标的 owner 设为控制者）</summary>
     public class ChangeOwnerHandler : AtomicEffectHandlerBase
     {
@@ -248,108 +76,146 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => "变更卡牌拥有者";
     }
 
-    // ---------------- 资源（元素） ----------------
+    // ---------------- 死亡原子（牺牲 / 吞噬 / 湮灭） ----------------
 
-    /// <summary>添加元素（目标/控制者元素池对应颜色 += Value）</summary>
-    public class AddManaHandler : AtomicEffectHandlerBase
+    /// <summary>牺牲：控制者主动将己方生物置入坟墓场（来源=控制者）</summary>
+    public class SacrificeHandler : AtomicEffectHandlerBase
     {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddMana;
-
-        public override bool CanExecute(AtomicEffectInstance effect, EffectExecutionContext context) => context != null;
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Sacrifice;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int amount = context.GetValueAfterModifiers(effect.Value);
-            var player = (context.PrimaryTarget as Player) ?? context.Controller;
-            if (context.ElementPool == null || player == null || amount == 0) return;
-
-            var pool = context.ElementPool.GetPool(player);
-            var mt = effect.ManaTypeParam;
-            pool.AvailableMana.TryGetValue(mt, out var cur);
-            pool.AvailableMana[mt] = cur + amount;
-            PublishEvent(new AddManaEvent { Player = player, ManaType = mt, Amount = amount, Source = context.Source });
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect) => $"添加 {effect.Value} 点 {effect.ManaTypeParam} 元素";
-    }
-
-    /// <summary>消耗元素（目标/控制者元素池对应颜色 -= Value，下限 0）</summary>
-    public class ConsumeManaHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.ConsumeMana;
-
-        public override bool CanExecute(AtomicEffectInstance effect, EffectExecutionContext context) => context != null;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            int amount = context.GetValueAfterModifiers(effect.Value);
-            var player = (context.PrimaryTarget as Player) ?? context.Controller;
-            if (context.ElementPool == null || player == null || amount == 0) return;
-
-            var pool = context.ElementPool.GetPool(player);
-            var mt = effect.ManaTypeParam;
-            pool.AvailableMana.TryGetValue(mt, out var cur);
-            int consumed = Math.Min(cur, amount);
-            pool.AvailableMana[mt] = cur - consumed;
-            PublishEvent(new AddManaEvent { Player = player, ManaType = mt, Amount = -consumed, Source = context.Source });
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect) => $"消耗 {effect.Value} 点 {effect.ManaTypeParam} 元素";
-    }
-
-    // ---------------- 伤害 / 破坏 ----------------
-
-    /// <summary>基于属性的伤害（以来源当前攻击力对各目标造成伤害）</summary>
-    public class DamageBasedOnStatHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DamageBasedOnStat;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            int dmg = context.Source != null
-                ? HandlerHelpers.CurrentPower(context.Source)
-                : context.GetValueAfterModifiers(effect.Value);
-            if (dmg <= 0) return;
-
             foreach (var target in context.Targets)
             {
-                target.TakeDamage(dmg, context.Source);
-                PublishEvent(new AtomicDamageEvent
+                if (target is Card card)
+                    DeathRules.TryKill(card, DeathCause.Sacrifice, context.Controller, context.ZoneManager);
+            }
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect) => "牺牲目标生物";
+    }
+
+    /// <summary>吞噬：先消灭裁决（不灭/复生等替代在 DeathRules 定案，拦下即无吸收），成功才吸收——复制目标关键词 + 回复目标当前生命（来源=吞噬者）</summary>
+    public class DevourHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Devour;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var devourer = context.Source as Card;
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card victim) || victim == devourer) continue;
+
+                // 消灭裁决先行：被不灭拦下 / 复生替代 → 无吸收（护盾矩阵拦 Devour，DeathRules 内定案）
+                if (!DeathRules.TryKill(victim, DeathCause.Devour, context.Source, context.ZoneManager))
+                    continue;
+
+                // 吸收：复制目标全部关键词 + 回复目标当前生命（吞噬者 = context.Source）
+                if (devourer != null)
                 {
-                    Source = context.Source, Target = target, Damage = dmg,
-                    IsCombatDamage = false, DamageType = DamageType.Normal
+                    foreach (var kw in victim._keywords.ToList())
+                        devourer.AddKeyword(kw);
+                    devourer.Heal(victim.GetLife());
+                }
+            }
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect) => "吞噬目标生物";
+    }
+
+    /// <summary>湮灭：彻底移除，直送除外区，不可复生（DeathRules 内定案）</summary>
+    public class AnnihilateHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Annihilate;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            foreach (var target in context.Targets)
+            {
+                if (target is Card card)
+                    DeathRules.TryKill(card, DeathCause.Annihilate, context.Source, context.ZoneManager);
+            }
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect) => "湮灭目标生物";
+    }
+
+    /// <summary>
+    /// 摧毁（新增原子，红3）：与"消灭"的区别——作用于**无生命值单位**（地牌/结界）。
+    /// 地牌 = 双方元素池中的卡（Zone.ElementPool）：先出池（余量写回卡，不设耗尽标记——
+    /// 摧毁≠资源枯竭，回收后可再作地牌），再直送拥有者墓地；结界 = 战场非生物持久物。
+    /// 不经死亡决策表（无生命值者无"死亡"），发 CardDestroyEvent（Reason=Smashed）。
+    /// </summary>
+    public class SmashHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Smash;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card card)) continue;
+
+                // 出池：从双方元素池移除（余量写回卡上，由拥有者的池持有）
+                if (context.ElementPool != null)
+                {
+                    var owner = card.GetOwner() ?? card.GetController();
+                    if (owner == null) continue;
+                    context.ElementPool.RemoveCardFromPool(card, owner);
+                }
+
+                // 直送墓地（无生命值单位不走 DeathRules）
+                var cardOwner = card.GetOwner() ?? card.GetController();
+                if (context.ZoneManager != null && cardOwner != null)
+                {
+                    var from = card.GetZone();
+                    if (from != Zone.Graveyard)
+                        context.ZoneManager.MoveCard(card, cardOwner, from, Zone.Graveyard);
+                }
+
+                PublishEvent(new CardDestroyEvent
+                {
+                    DestroyedCard = card,
+                    Reason = DestroyReason.Smashed,
+                    Source = context.Source
                 });
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "造成等同来源攻击力的伤害";
+        public override string GetDescription(AtomicEffectInstance effect) => "摧毁目标（无生命值单位：地牌/结界）";
     }
 
-    /// <summary>随机破坏（从候选目标随机选 Value 个破坏）</summary>
-    public class DestroyRandomHandler : AtomicEffectHandlerBase
+    // ---------------- 反制 / 沉默 ----------------
+
+    /// <summary>
+    /// 打落（软打断）：把发动区中的卡直接送墓。该卡的 cast 结算时因「已不在发动区」中止——
+    /// 不付费、不结算（消费点在 GameActions.ResolveCardCastAsync，Option Y 定案）。
+    /// </summary>
+    public class KnockDownHandler : AtomicEffectHandlerBase
     {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DestroyRandom;
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.KnockDown;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            var candidates = context.Targets.OfType<Card>().ToList();
-            if (candidates.Count == 0) return;
-
-            int n = effect.Value > 0 ? context.GetValueAfterModifiers(effect.Value) : 1;
-            var rng = new Random();
-            for (int i = 0; i < n && candidates.Count > 0; i++)
+            foreach (var target in context.Targets)
             {
-                int idx = rng.Next(candidates.Count);
-                var card = candidates[idx];
-                candidates.RemoveAt(idx);
-                ThirdBatchHelpers.DestroyToGraveyard(card, context);
+                if (!(target is Card card)) continue;
+                var owner = card.GetController() ?? context.Controller;
+                if (!context.ZoneManager.IsCardInZone(card, owner, Zone.Activation)) continue;
+
+                context.ZoneManager.MoveCard(card, owner, Zone.Activation, Zone.Graveyard);
+                PublishEvent(new CardLeaveActivationEvent
+                {
+                    Card = card,
+                    Controller = owner,
+                    ToZone = Zone.Graveyard
+                });
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"随机破坏 {effect.Value} 个目标";
+        public override string GetDescription(AtomicEffectInstance effect) => "把发动中的卡打落入墓（不付费即中止）";
     }
-
-    // ---------------- 反制 / 无效 ----------------
 
     /// <summary>无效发动（标记目标无效，IsActivation）</summary>
     public class NegateActivationHandler : AtomicEffectHandlerBase
@@ -368,84 +234,39 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => "无效目标的发动";
     }
 
-    /// <summary>无效效果（无效化目标）</summary>
-    public class NegateEffectHandler : AtomicEffectHandlerBase
+    /// <summary>
+    /// 沉默指示物（定案，原"无效效果"改名改语义）：对目标附加沉默指示物——
+    /// 持有者不可发动主动效果（激活式能力，挂 EffectExecutionEngine.CanActivate 第 0 步）；
+    /// 未写持续时间 = 换区清除。
+    /// </summary>
+    public class SilenceHandler : AtomicEffectHandlerBase
     {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.NegateEffect;
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Silence;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             foreach (var target in context.Targets)
             {
-                target.Nullify();
-                PublishEvent(new NullifyEvent { Target = target, Source = context.Source });
-            }
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect) => "无效目标的效果";
-    }
-
-    // ---------------- 特殊 ----------------
-
-    /// <summary>完全复制（含指示物的属性副本衍生物）</summary>
-    public class CopyExactHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.CopyExact;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            if (context.Controller == null) return;
-            foreach (var target in context.Targets)
-            {
-                if (!(target is Card orig)) continue;
-
-                var copy = new Card { ID = orig.ID };
-                copy._power = orig._power;
-                copy._life = orig._life;
-                copy._maxLife = orig._maxLife;
-                copy._baseCost = orig._baseCost;
-                foreach (var kw in orig._keywords) copy._keywords.Add(kw);
-                foreach (var kv in orig._counters) copy._counters[kv.Key] = kv.Value;
-                copy.SetController(context.Controller);
-
-                // 入场容量闸门：满则副本入墓并发失败事件
-                if (context.ZoneManager == null ||
-                    !context.ZoneManager.TryAddToBattlefield(copy, context.Controller))
-                    continue;
-
-                PublishEvent(new CardCopiedEvent
+                if (target == null || !target.IsAlive) continue;
+                target.AddCounters(CounterRules.SilenceCounter, 1);
+                PublishEvent(new CounterChangedEvent
                 {
-                    OriginalCard = orig, Controller = context.Controller, Source = context.Source
+                    Target = target,
+                    CounterType = CounterRules.SilenceCounter,
+                    Amount = 1,
+                    Source = context.Source
+                });
+                PublishEvent(new KeywordAppliedEvent
+                {
+                    Target = target,
+                    Keyword = "沉默",
+                    Detail = "沉默：持有者不可发动主动效果",
+                    Source = context.Source
                 });
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "完全复制目标卡牌";
-    }
-
-    /// <summary>交换位置（两个目标的控制者互换）</summary>
-    public class ExchangePositionHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.ExchangePosition;
-
-        public override bool CanExecute(AtomicEffectInstance effect, EffectExecutionContext context)
-            => context?.Targets != null && context.Targets.Count >= 2;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            var a = context.Targets[0] as Card;
-            var b = context.Targets[1] as Card;
-            if (a == null || b == null) return;
-
-            var ca = a.GetController();
-            var cb = b.GetController();
-            HandlerHelpers.ChangeControl(context, a, cb, true);
-            HandlerHelpers.ChangeControl(context, b, ca, true);
-
-            PublishEvent(new SwapControllerEvent { Target1 = a, Target2 = b, Source = context.Source });
-        }
-
-        public override string GetDescription(AtomicEffectInstance effect) => "交换两个目标的位置";
+        public override string GetDescription(AtomicEffectInstance effect) => "附加沉默指示物（不可发动主动效果）";
     }
 
     /// <summary>第三批 handler 工厂</summary>
@@ -455,33 +276,23 @@ namespace CardCore.Attribute.Handlers
         {
             return new IAtomicEffectHandler[]
             {
-                // 牌库 / 移动
+                // 牌库
                 new MillCardHandler(),
-                new PutOnBottomOfDeckHandler(),
-                new MoveCardHandler(),
-                new MoveToAnyZoneHandler(),
-                new DrawThenDiscardHandler(),
                 new ScryCardsHandler(),
-                new SearchAndRevealHandler(),
-                new SearchAndPlayHandler(),
-                new RevealCardsHandler(),
                 new ChangeOwnerHandler(),
 
-                // 资源
-                new AddManaHandler(),
-                new ConsumeManaHandler(),
+                // 死亡原子
+                new SacrificeHandler(),
+                new DevourHandler(),
+                new AnnihilateHandler(),
 
-                // 伤害 / 破坏
-                new DamageBasedOnStatHandler(),
-                new DestroyRandomHandler(),
+                // 摧毁（无生命值单位：地牌/结界）
+                new SmashHandler(),
 
-                // 反制 / 无效
+                // 反制 / 沉默
+                new KnockDownHandler(),
                 new NegateActivationHandler(),
-                new NegateEffectHandler(),
-
-                // 特殊
-                new CopyExactHandler(),
-                new ExchangePositionHandler(),
+                new SilenceHandler(),
             };
         }
     }

@@ -45,6 +45,12 @@ namespace CardCore.Attribute
         /// 旧表侧枚举 EffectDurationType 已并入本枚举，别名见 AtomicEffectTable.ParseDurationType）</summary>
         public DurationType DurationType;
 
+        /// <summary>三分类（表 EffectTier 列：Atom=原子效果 / Keyword=关键词 / Counter=指示物）</summary>
+        public EffectTier EffectTier;
+
+        /// <summary>回合数计时的持续值（表 Turns 列，配合 DurationType=ForTurns 使用，如毒素=3）</summary>
+        public int Turns;
+
         /// <summary>默认触发时机（仅对触发式效果有效）</summary>
         public string DefaultTriggerTiming;
 
@@ -205,6 +211,21 @@ namespace CardCore.Attribute
     // 消除 CardEffectConverter 曾以 int 强转跨枚举导致的错位映射
     // （旧表侧 Permanent=4 会被误转为运行时 WhileCondition=4）。
     // 旧 JSON 里的表侧枚举名经 AtomicEffectTable.ParseDurationType 别名归一。
+
+    /// <summary>
+    /// 原子效果表三分类（表 EffectTier 列）：
+    /// Atom=可编辑参数项的原子效果；Keyword=授关键词（不可编辑、效果固定、无持续时间）；
+    /// Counter=附指示物（不可编辑、效果固定、有持续时间、自动移除，未写持续时间=换区清除）。
+    /// </summary>
+    public enum EffectTier
+    {
+        /// <summary>原子效果（有可编辑参数项）</summary>
+        Atom,
+        /// <summary>关键词（不可编辑，效果固定，无持续时间；一次性关键词参照突袭/冲锋）</summary>
+        Keyword,
+        /// <summary>指示物（不可编辑，效果固定，有持续时间，自动移除）</summary>
+        Counter
+    }
 
     #endregion
 }

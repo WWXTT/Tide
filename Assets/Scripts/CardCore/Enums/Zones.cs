@@ -114,6 +114,11 @@ namespace CardCore
         Annihilated,
 
         /// <summary>
+        /// 摧毁（作用于无生命值单位：地牌/结界——不经死亡决策表，直送墓地）
+        /// </summary>
+        Smashed,
+
+        /// <summary>
         /// 传说规则（同名卡）
         /// </summary>
         LegendaryRule
@@ -511,13 +516,7 @@ namespace CardCore
             if (!zones[to].Contains(card))
                 zones[to].Add(card);
             card._zone = to; // 区域真源维护：_zone 随容器移动同步（见类尾注释）
-
-            if (to == Zone.Hand && from != Zone.Hand)
-                PublishCardEnterHand(card, from);
-            if (from == Zone.Battlefield && to != Zone.Battlefield)
-                PublishCardLeaveBattlefield(card, to);
-            if (from == Zone.Battlefield && to != Zone.Battlefield)
-                CardCore.Attribute.MorphSystem.TryEndMorph(card); // 变形：离开战场解除（进墓变回原随从）
+            OnCardMoved(card, from, to);
         }
 
         /// <summary>
@@ -528,9 +527,29 @@ namespace CardCore
             zones[from].Remove(card);
             InsertByPosition(zones[to], card, position);
             card._zone = to;
+            OnCardMoved(card, from, to);
+        }
+
+        /// <summary>
+        /// 换区统一清理（定案默认持续：未写持续时间的指示物=持续到移动所属区域）：
+        /// 指示物属性先反向回写再清空；入手重置宣言"已展示"标记；离场发事件并解除变形。
+        /// 【发动区豁免（定案）】发动区=栈的物理呈现/暂存区，不是卡的真实归属——
+        /// 进发动区（隐蔽区来源声明）与声明失败回滚（退回来源区）不清指示物：
+        /// cast 付费发生在发动区内，费用指示物必须存活到结算；结算后的真实去向
+        /// （入场/入墓/打落/支付失败）才是换区清除点。
+        /// </summary>
+        private void OnCardMoved(Card card, Zone from, Zone to)
+        {
+            bool viaActivationStaging = to == Zone.Activation
+                                        || (from == Zone.Activation && to == Zone.Hand);
+            if (from != to && !viaActivationStaging)
+                CardCore.Attribute.CounterRules.ClearAll(card); // 攻/血指示物离场消失、费用指示物离手消失
 
             if (to == Zone.Hand && from != Zone.Hand)
+            {
+                card._isRevealed = false; // 入手重置：宣言确认手牌的"已展示"标记
                 PublishCardEnterHand(card, from);
+            }
             if (from == Zone.Battlefield && to != Zone.Battlefield)
                 PublishCardLeaveBattlefield(card, to);
             if (from == Zone.Battlefield && to != Zone.Battlefield)
