@@ -183,7 +183,7 @@ namespace CardCore.Attribute
             }
 
             // 结算后发布伤害事件链（实际值；替代已在管线前消费）。
-            // 时序定案：DamageEvent（触发器时点，On_DamageDealt/Taken 此刻可见）
+            // 时序定案：DamageEvent（触发器时点，OnDealDamage/OnTakeDamage 此刻可见）
             // → CombatDamageEvent（战斗路径表现）→ LifeChangeEvent（角色生命变化）
             // → 吸血/系命（伤害的后果最后结算——观察伤害事件的触发器不应看到回复已发生）。
             // 统一由本方法发布，调用方不再事后补发（战斗/效果两条路径同口径）。

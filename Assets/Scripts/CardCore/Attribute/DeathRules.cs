@@ -107,7 +107,7 @@ namespace CardCore.Attribute
         /// <summary>
         /// 死亡全流程（效果驱动路径的统一入口）：护盾判定 → 仪式回手（摧毁特例）→
         /// 复生替代（湮灭不可复活）→ 按控制者落墓（湮灭直送除外区）→ CardDestroyEvent
-        /// （Reason 按死因映射，经路由发布——On_Death 触发时点可见）。true = 已死亡落葬。
+        /// （Reason 按死因映射，经路由发布——OnDeath 触发时点可见）。true = 已死亡落葬。
         /// </summary>
         public static bool TryKill(Card card, DeathCause cause, Entity source, ZoneManager zoneManager = null)
         {

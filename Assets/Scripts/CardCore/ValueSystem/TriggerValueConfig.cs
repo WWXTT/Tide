@@ -61,19 +61,19 @@ namespace CardCore
             {
                 TriggerTiming.Activate_Active or
                 TriggerTiming.Activate_Instant or
-                TriggerTiming.On_TurnStart or
-                TriggerTiming.On_TurnEnd or
-                TriggerTiming.On_PhaseStart or
-                TriggerTiming.On_PhaseEnd or
-                TriggerTiming.On_AttackDeclare => TriggerControllability.PlayerControlled,
+                TriggerTiming.OnTurnStart or
+                TriggerTiming.OnTurnEnd or
+                TriggerTiming.OnPhaseStart or
+                TriggerTiming.OnPhaseEnd or
+                TriggerTiming.OnAttack => TriggerControllability.PlayerControlled,
 
-                TriggerTiming.On_EnterBattlefield or
-                TriggerTiming.On_LeaveBattlefield or
-                TriggerTiming.On_Death or
-                TriggerTiming.On_DamageDealt or
-                TriggerTiming.On_DamageTaken or
-                TriggerTiming.On_CardDraw or
-                TriggerTiming.On_CardPlay  => TriggerControllability.PartialControl,
+                TriggerTiming.OnSummon or
+                TriggerTiming.OnLeaveBattlefield or
+                TriggerTiming.OnDeath or
+                TriggerTiming.OnDealDamage or
+                TriggerTiming.OnTakeDamage or
+                TriggerTiming.OnDraw or
+                TriggerTiming.OnCardPlayed  => TriggerControllability.PartialControl,
 
                 _ => TriggerControllability.Uncontrolled
             };
@@ -87,9 +87,9 @@ namespace CardCore
             float baseValue = timing switch
             {
                 TriggerTiming.Activate_Active or TriggerTiming.Activate_Instant => 1.0f,
-                TriggerTiming.On_EnterBattlefield => EasyTrigger,
-                TriggerTiming.On_TurnStart or TriggerTiming.On_TurnEnd => EasyTrigger,
-                TriggerTiming.On_PhaseStart or TriggerTiming.On_PhaseEnd => NormalTrigger,
+                TriggerTiming.OnSummon => EasyTrigger,
+                TriggerTiming.OnTurnStart or TriggerTiming.OnTurnEnd => EasyTrigger,
+                TriggerTiming.OnPhaseStart or TriggerTiming.OnPhaseEnd => NormalTrigger,
                 _ => NormalTrigger
             };
 

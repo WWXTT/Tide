@@ -70,6 +70,7 @@ namespace CardCore
                 ActivationsThisTurn = _usageTracker.GetTurnUsage(effect.Id),
                 ActivationsThisGame = _usageTracker.GetGameUsage(effect.Id)
             };
+            context.FillDamageAggregates(); // P2a：伤害聚合死条件修复（服务取本回合口径）
 
             if (!_conditionChecker.CheckAll(effect.ActivationConditions, context))
                 return false;
@@ -331,7 +332,9 @@ namespace CardCore
 
         private static void PublishPhase(AtomicEffectInstance atomic, AtomicEffectPhase phase, EffectExecutionContext context)
         {
-            EventManager.Instance.Publish(new AtomicEffectPhaseEvent
+            // 时点接线定案：原子三阶段经 GameCore 统一路由（直发总线会让 TriggerEngine 永远收不到——
+            // 这是场上效果发动的可观察时点，双泳道交叉点；路由=总线一次+Trigger/Layer 推送，无双发）
+            var e = new AtomicEffectPhaseEvent
             {
                 EffectType = atomic.Type,
                 Phase = phase,
@@ -339,7 +342,9 @@ namespace CardCore
                 Targets = context.Targets,
                 EffectInstance = atomic,
                 Context = context
-            });
+            };
+            if (GameCore.Instance != null) GameCore.Instance.PublishEvent(e);
+            else EventManager.Instance.Publish(e);
         }
 
 
@@ -819,12 +824,22 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 注册效果
+        /// 注册效果（时点接线定案：统一出口在 TryMoveToBattlefield/TryAddToBattlefield，
+        /// 经 GameActions.RegisterCardTriggeredEffects 调入；幂等去重防回手重打/二次复活重复注册）
         /// </summary>
         public void RegisterEffect(EffectDefinition effect, Entity source, Player controller)
         {
             if (!effect.IsTriggeredEffect)
                 return;
+
+            // 幂等：同一来源实体 + 同一效果 Id 只注册一次
+            // （同模板两张不同实例 Source 不同、各自注册，正确；死亡期靠 Source.IsAlive 门禁兜底）
+            for (int i = 0; i < _registeredEffects.Count; i++)
+            {
+                var r = _registeredEffects[i];
+                if (ReferenceEquals(r.Source, source) && r.Effect != null && r.Effect.Id == effect.Id)
+                    return;
+            }
 
             _registeredEffects.Add(new RegisteredEffect
             {
@@ -835,7 +850,8 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 注销效果
+        /// 注销效果（预留 API：当前无调用方——注册后不注销，死卡由 Source.IsAlive 门禁挡住；
+        /// 复活语义将来若需要"注销+重注册"路径时启用）
         /// </summary>
         public void UnregisterEffect(EffectDefinition effect)
         {
@@ -843,7 +859,7 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 注销实体的所有效果
+        /// 注销实体的所有效果（预留 API，同 UnregisterEffect）
         /// </summary>
         public void UnregisterEntityEffects(Entity source)
         {
@@ -890,6 +906,10 @@ namespace CardCore
                 if (expectedType != eventType)
                     continue;
 
+                // 时点接线定案：类型匹配后做事件载荷级过滤（self/other、进场来源、施受区分）
+                if (!TriggerPayloadFilter.Matches(effect.TriggerTiming, gameEvent, registered))
+                    continue;
+
                 // 检查来源是否在场
                 if (registered.Source != null && !registered.Source.IsAlive)
                     continue;
@@ -907,6 +927,7 @@ namespace CardCore
                         Source = registered.Source,
                         ZoneManager = _zoneManager
                     };
+                    conditionContext.FillDamageAggregates(); // P2a：伤害聚合死条件修复
 
                     if (!_conditionChecker.CheckAll(effect.TriggerConditions, conditionContext))
                         continue;
@@ -1031,6 +1052,9 @@ namespace CardCore
                 new AddMinusOneHandler(),
                 new AddCostUpHandler(),
                 new AddCostDownHandler(),
+
+                // 衍生物生成（落区三档：战场/手牌/牌组，费用按落区系数计价）
+                new SummonTokenHandler(),
             };
             foreach (var handler in handlers)
                 EffectHandlerRegistry.Register(handler);

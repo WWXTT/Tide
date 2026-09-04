@@ -15,6 +15,13 @@ namespace CardCore.Attribute.Handlers
     /// <summary>本批 handler 共享的辅助方法</summary>
     internal static class HandlerHelpers
     {
+        /// <summary>发布游戏事件——经 GameCore 统一路由（静态辅助类版，与 handler 基类 PublishEvent 同口径）</summary>
+        internal static void PublishRouted<T>(T gameEvent) where T : IGameEvent
+        {
+            if (GameCore.Instance != null) GameCore.Instance.PublishEvent(gameEvent);
+            else EventManager.Instance.Publish(gameEvent);
+        }
+
         /// <summary>按层引擎计算当前攻击力（无层引擎时退化为基础值）</summary>
         internal static int CurrentPower(Entity e)
         {
@@ -61,7 +68,10 @@ namespace CardCore.Attribute.Handlers
             if (context.ZoneManager != null)
                 context.ZoneManager.GetZoneContainer(newController)?.Add(card, Zone.Battlefield);
 
-            EventManager.Instance.Publish(new AttrControlChangeEvent
+            // 时点接线定案：控制权变更事件改走统一路由（直发总线会让 TriggerEngine 收不到），
+            // 并补发入场事件（Source=ControlChange）——OnSummon/OnOtherCreatureEnter 观察者可见。
+            // 不重跑 RefreshOneShotKeywords/ApplyEntryKeywords：卡已在场，保持横置状态与一次性关键词现状。
+            PublishRouted(new AttrControlChangeEvent
             {
                 Target = card,
                 OldController = oldController,
@@ -69,11 +79,19 @@ namespace CardCore.Attribute.Handlers
                 IsPermanent = permanent,
                 Source = context.Source
             });
-            EventManager.Instance.Publish(new ControlChangeEvent
+            PublishRouted(new ControlChangeEvent
             {
                 ChangedEntity = card,
                 OldController = oldController,
                 NewController = newController
+            });
+            PublishRouted(new CardPutToBattlefieldEvent
+            {
+                Card = card,
+                Controller = newController,
+                Tapped = card._isTapped,
+                FromZone = Zone.Battlefield,
+                Source = EnterSource.ControlChange
             });
         }
     }

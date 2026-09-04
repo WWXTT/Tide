@@ -135,6 +135,21 @@ namespace CardCore
 
         #region 发布
 
+        /// <summary>
+        /// 发布入口统一旁路钩子（P2b 对局日志基础设施）：三入口（Publish×2/PublishDynamic）
+        /// 的每个发布动作各触发一次（Publish 无参重载委托给带参重载，不重复触发）。
+        /// 发布时点触发（先于 handler）——对局日志按发布顺序成行。
+        /// 基础设施级：不点名任何对局系统，OCP 安全；空委托快路径零成本。
+        /// </summary>
+        public event Action<IEventData> AnyPublished;
+
+        private void RaiseAnyPublished(IEventData eventData)
+        {
+            if (AnyPublished == null) return;
+            try { AnyPublished(eventData); }
+            catch (Exception e) { Debug.LogError($"AnyPublished hook error: {e}"); }
+        }
+
         /// <summary>广播发布事件（无 targetId）</summary>
         public bool Publish<T>(T eventData) where T : IEventData
         {
@@ -144,6 +159,8 @@ namespace CardCore
         /// <summary>发布事件（支持定向）</summary>
         public bool Publish<T>(T eventData, int targetId) where T : IEventData
         {
+            RaiseAnyPublished(eventData);
+
             var eventType = typeof(T);
             List<SubscriptionEntry> handlersToInvoke = GetHandlerListFromPool();
             bool allSuccess = true;
@@ -224,6 +241,8 @@ namespace CardCore
         public bool PublishDynamic(IEventData eventData)
         {
             if (eventData == null) return false;
+
+            RaiseAnyPublished(eventData);
 
             var eventType = eventData.GetType();
             List<SubscriptionEntry> handlersToInvoke = GetHandlerListFromPool();

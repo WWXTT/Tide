@@ -198,6 +198,9 @@ namespace CardCore
             foreach (var aura in _completed.ToList())
                 RemoveCompleted(aura);
             RitualComponents.OnGameReset();
+            // 订阅旗标复位：防 EventManager.ClearAll 清光订阅后幂等旗标仍为 true、
+            // 后续 EnsureRuntime 静默漏挂（GameCore.Reset 后必被调，重挂安全）
+            _subscribed = false;
         }
 
         /// <summary>

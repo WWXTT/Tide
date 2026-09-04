@@ -23,6 +23,30 @@ namespace CardCore
         public CardTypeValueConfig CardTypeValueConfig = new CardTypeValueConfig();
         public CardCostConfig CardCostConfig = new CardCostConfig();
         public DelayDiscountConfig DelayDiscountConfig = new DelayDiscountConfig();
+        public SummonDropConfig SummonDropConfig = new SummonDropConfig();
+    }
+
+    /// <summary>
+    /// 衍生物落区系数（表 Category=SummonDrop）——SummonToken 原子按落区分档计价：
+    /// 落手牌=即时弹性资源（溢价）；落牌组=检索稀释后延迟可得（微溢价）；落战场=基准。
+    /// 取值 = 实例级 atom.ZoneParam（注意 Zone.Hand==0：合成界面必须显式填落区）。
+    /// </summary>
+    [Serializable]
+    public class SummonDropConfig
+    {
+        public float BattlefieldFactor = 1.0f;
+        public float HandFactor = 1.2f;
+        public float DeckFactor = 1.1f;
+
+        public float GetFactor(Zone zone)
+        {
+            switch (zone)
+            {
+                case Zone.Hand: return HandFactor;
+                case Zone.Deck: return DeckFactor;
+                default: return BattlefieldFactor;
+            }
+        }
     }
 
     // 注：TargetModifier（按目标范围/AOE 的计价乘数）已删除——计价只看目标数量（固定 N ×N，见
@@ -125,10 +149,10 @@ namespace CardCore
         {
             float timingValue = timing switch
             {
-                TriggerTiming.On_AttackDeclare => TimingOnAttackDeclare,
-                TriggerTiming.On_Death => TimingOnDeath,
-                TriggerTiming.On_TurnStart => TimingOnTurnStart,
-                TriggerTiming.On_TurnEnd => TimingOnTurnEnd,
+                TriggerTiming.OnAttack => TimingOnAttackDeclare,
+                TriggerTiming.OnDeath => TimingOnDeath,
+                TriggerTiming.OnTurnStart => TimingOnTurnStart,
+                TriggerTiming.OnTurnEnd => TimingOnTurnEnd,
                 _ => 0.8f
             };
 

@@ -114,7 +114,7 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 使用卡牌事件
+    /// 使用卡牌事件（使用宣言时点，付费前——OnCardPlayed/OnSpellCast 锚点）
     /// </summary>
     public class CardPlayEvent : GameEventBase
     {
@@ -122,6 +122,8 @@ namespace CardCore
         public Card PlayedCard { get; set; }
         public PlayLocation Location { get; set; } // 场上/手牌使用
         public ManaType ChosenManaType { get; set; } // 多色卡选择
+        /// <summary>使用来源区：手牌打出（Zone.Hand）或隐蔽区域经 IPlaySource（如墓地视手牌 Zone.Graveyard）</summary>
+        public Zone FromZone { get; set; }
     }
 
     /// <summary>
@@ -166,13 +168,38 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 入场事件
+    /// 进场来源（时点接线定案）：EnterSource 区分的是"过没过发动区三关"
+    /// （①双方可见宣言→②反制窗口→③未被反制结算代价）
+    /// </summary>
+    public enum EnterSource
+    {
+        /// <summary>未指定（由发布点按 FromZone 派生兜底）</summary>
+        None = 0,
+        /// <summary>经发动区打出（PlayCard/PlayCardInResponse 结算入场）</summary>
+        CastPlayed = 1,
+        /// <summary>效果召唤/特招直入（额外卡组/牌组检索等，不走发动区）</summary>
+        SummonedByEffect = 2,
+        /// <summary>从墓地复活回到战场</summary>
+        Revived = 3,
+        /// <summary>衍生物生成（另发 TokenCreatedEvent）</summary>
+        TokenSpawned = 4,
+        /// <summary>控制权变更场内迁移（不占容量、不重跑入场关键词）</summary>
+        ControlChange = 5,
+    }
+
+    /// <summary>
+    /// 入场事件（已在战场容器——OnSummon 任意来源 / OnPlay=登场 仅 CastPlayed /
+    /// OnOtherCreatureEnter / OnReturnFromGraveyard 锚点，payload 区分见 TriggerPayloadFilter）
     /// </summary>
     public class CardPutToBattlefieldEvent : GameEventBase
     {
         public Card Card { get; set; }
         public Player Controller { get; set; }
-        public bool Tapped { get; set; } // 是否横置入场
+        public bool Tapped { get; set; } // 是否横置入场（状态记录，非触发代价）
+        /// <summary>来源区（发动区=打出结算、墓地=复活、额外卡组=特招、None=token 新生）</summary>
+        public Zone FromZone { get; set; }
+        /// <summary>进场来源（区分手牌打出/效果召唤/复活/token/控制权变更）</summary>
+        public EnterSource Source { get; set; }
     }
 
     /// <summary>
@@ -599,7 +626,7 @@ namespace CardCore
     // ==================== 衍生物事件 ====================
 
     /// <summary>
-    /// 衍生物创建事件
+    /// 衍生物创建事件（SummonToken 原子发布；落战场时与 CardPutToBattlefieldEvent(Source=TokenSpawned) 成对）
     /// </summary>
     public class TokenCreatedEvent : GameEventBase
     {
@@ -607,6 +634,10 @@ namespace CardCore
         public Player Controller { get; set; }
         public Entity Source { get; set; }
         public bool Tapped { get; set; }
+        /// <summary>生成的 token 实例（ID = 模板ID#序号，对局中临时赋值）</summary>
+        public Card Card { get; set; }
+        /// <summary>落区（战场/手牌/牌组）</summary>
+        public Zone DropZone { get; set; }
     }
 
     // ==================== 卡牌复制/转化事件 ====================

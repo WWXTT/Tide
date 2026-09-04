@@ -51,6 +51,9 @@ namespace CardCore
         public DelayedEffectScheduler DelayedEffectScheduler => _subSystems.Get<DelayedEffectScheduler>();
         public ResourceLedger ResourceLedger => _subSystems.Get<ResourceLedger>();
 
+        /// <summary>对局史计数服务（P2a）：三方共用查询（仪式差值化/卡条件 Custom/AI）</summary>
+        public MatchStatsService MatchStats => _subSystems.Get<MatchStatsService>();
+
         #endregion
 
         private GameCore()
@@ -179,6 +182,10 @@ namespace CardCore
             // 资源台账（P0c）：必须在 TurnStart/TurnEnd 订阅之后创建，
             // 保证开行时读到的回合数/地牌槽上限已是本回合新值、封行前已收到全部产出事件
             _subSystems.Register(new ResourceLedger(elementPool));
+
+            // 对局史计数服务（P2a）：须先于 RitualSystem.EnsureRuntime（Reset 内）订阅——
+            // 同一事件先过服务计数、后过仪式 tracker 差值判达标，顺序即正确性
+            _subSystems.Register(new MatchStatsService());
         }
 
         /// <summary>
@@ -533,6 +540,9 @@ namespace CardCore
             TriggerEngine.ClearAll();
             ElementPool.Reset();
             ResourceLedger.ClearAll();
+            if (MatchStats != null) MatchStats.ClearAll(); // 对局史计数跨局不残留（先清再挂仪式订阅）
+            MatchLogService.EnsureStarted();               // 对局日志全局钩子（幂等；AnyPublished 收口）
+            MatchLogService.ClearAll();                    // 战报缓冲跨局不残留
             ControlChangeLayer.ClearAll();
             TextChangeLayer.ClearAll();
             CopyEffectsEngine.ClearAll();

@@ -135,11 +135,12 @@ namespace CardCore
                 return false;
             }
 
-            // 使用宣言（时点=声明）：On_CardPlay 触发 / 预言验证 / 播报都看这一点
+            // 使用宣言（时点=声明，付费前）：OnCardPlayed/OnSpellCast 触发 / 预言验证 / 播报都看这一点
             core.PublishEvent(new CardPlayEvent
             {
                 Player = player,
-                PlayedCard = card
+                PlayedCard = card,
+                FromZone = fromZone
             });
 
             return true;
@@ -191,7 +192,8 @@ namespace CardCore
             core.PublishEvent(new CardPlayEvent
             {
                 Player = player,
-                PlayedCard = card
+                PlayedCard = card,
+                FromZone = Zone.Hand
             });
 
             return true;
@@ -273,11 +275,30 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 永久物（生物等）cast 结算：注册触发式效果到触发引擎 → 经发动区入场。
-        /// （从旧 PlayCard 同步路径原样迁移；仪式入场激活经 CardPutToBattlefieldEvent 事件驱动。）
+        /// 永久物（生物等）cast 结算：经发动区入场。
+        /// （触发式注册已收口到 TryMoveToBattlefield/TryAddToBattlefield 统一出口——
+        /// 时点接线定案：任何来源进场的卡都注册自身触发式，入场事件发布前完成，
+        /// 保证入场卡自己的 OnPlay/OnSummon 能吃到自己的入场事件；仪式入场激活经 CardPutToBattlefieldEvent 事件驱动。）
         /// </summary>
         private static void ResolvePermanentEntry(GameCore core, Player player, Card card)
         {
+            // 发动通过 → 入场（声明期预检已过；满则入墓的兜底在 helper 内）
+            if (core.ZoneManager.TryMoveToBattlefield(card, player, Zone.Activation))
+            {
+                card.WasFormallySummoned = true; // 普通召唤正式入场
+            }
+        }
+
+        /// <summary>
+        /// 注册一张卡的触发式效果（卡牌效果 + 关键词触发效果）到触发引擎——
+        /// 时点接线定案的统一注册出口，由 TryMoveToBattlefield/TryAddToBattlefield
+        /// 在入场成功后、入场事件发布前调用（RegisterEffect 自带幂等去重）。
+        /// Zones 层 helper 不直接摸 TriggerEngine，只经此窄接口。
+        /// </summary>
+        public static void RegisterCardTriggeredEffects(GameCore core, Card card, Player player)
+        {
+            if (core == null || card == null || player == null) return;
+
             var cardEffects = new List<EffectDefinition>();
             var cardDataEffects = GetCardEffectDefinitions(card);
             if (cardDataEffects != null)
@@ -289,12 +310,6 @@ namespace CardCore
 
             foreach (var effect in cardEffects)
                 core.TriggerEngine.RegisterEffect(effect, card, player);
-
-            // 发动通过 → 入场（声明期预检已过；满则入墓的兜底在 helper 内）
-            if (core.ZoneManager.TryMoveToBattlefield(card, player, Zone.Activation))
-            {
-                card.WasFormallySummoned = true; // 普通召唤正式入场
-            }
         }
 
         /// <summary>

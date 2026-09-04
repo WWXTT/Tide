@@ -94,11 +94,23 @@ namespace CardCore.Editor
             TestCounterWindow(core, p1, p2);
             TestDeathAtoms(core, p1, p2);
 
+            // 时点接线（P0）+ 衍生物（P1）+ 计数/日志（P2）（合成卡驱动，不依赖卡表）
+            TestEntrySources(core, p1, p2);
+            TestTriggerPayloadFilters(core, p1, p2);
+            TestDeadTimings(core, p1, p2);
+            TestAtomicPhaseRouting(core, p1, p2);
+            TestSummonToken(core, p1, p2);
+            TestMatchStats(core, p1, p2);
+
             if (cardsData.Count > 0)
             {
                 TestRituals(core, cardsData);
                 TestNewRituals(core, cardsData);
             }
+
+            // P2b：对局日志按需导出（内存缓冲 → markdown 战报落盘）
+            var verifyLog = MatchLogService.ExportMarkdown($"Logs/VerifyLog_{System.DateTime.Now:yyyyMMdd_HHmmss}.md");
+            Debug.Log($"[Verify] 对局日志导出：{verifyLog ?? "无条目未导出"}");
 
             Debug.Log($"[Verify] 完成 — PASS={_pass} FAIL={_fail}");
             if (_fail == 0)
@@ -1221,8 +1233,10 @@ namespace CardCore.Editor
             combat.StartCombat(p1, p2);
             var first = Make(p1, 5, 3, "FirstStrike");
             var bulky = Make(p2, 4, 3);
-            combat.DeclareAttack(first, bulky);
+            bool declared8 = combat.DeclareAttack(first, bulky);
+            UnityEngine.Debug.Log($"[CMBTDBG] declared={declared8} attackers={combat.Attackers.Count} first._power={first.GetPower()} layerPower={core.LayerEngine.CalculatePower(first)} firstTapped={first.IsTapped()} bulkyAlive={bulky.IsAlive} bulkyLife={bulky.GetLife()}");
             combat.ExecuteDamage();
+            UnityEngine.Debug.Log($"[CMBTDBG] after ExecuteDamage: bulkyAlive={bulky.IsAlive} bulkyLife={bulky.GetLife()} firstLife={first.GetLife()}");
             Assert(!bulky.IsAlive && first.GetLife() == 3, "先攻：目标死于先攻步，不反击");
 
             // ---- 8b. 缴械：被攻击的目标无法反击 ----
@@ -2068,6 +2082,488 @@ namespace CardCore.Editor
             Assert(nc.SuggestedTier == 6, $"计价锚：缺省档位 Ĉ=6（实际 {nc.SuggestedTier}）");
         }
 
+        // ======================================== 时点接线（P0）/ 衍生物（P1）/ 计数与日志（P2） ========================================
+
+        /// <summary>合成触发卡：生物 1/1 灰 1 费，指定时点的 DrawCard 触发式（触发次数=手牌增量，可观察）。</summary>
+        private static CardData TrigData(string id, params TriggerTiming[] timings)
+        {
+            var data = new CardData { ID = id, CardName = id, Supertype = Cardtype.Creature, Power = 1, Life = 1 };
+            data.Cost = new Dictionary<int, float> { { (int)ManaType.Gray, 1 } };
+            foreach (var t in timings)
+            {
+                data.Effects.Add(new CardEffectData
+                {
+                    Id = $"{id}_T{(int)t}",
+                    DisplayName = id,
+                    TriggerTiming = (int)t,
+                    AtomicEffects = new List<AtomicEffectEntry>
+                    {
+                        new AtomicEffectEntry { EffectType = "DrawCard", Value = 1 }
+                    },
+                });
+            }
+            return data;
+        }
+
+        /// <summary>灌满 bank/上限（快照返回，结束时恢复）——出牌段落的费用前置。</summary>
+        private static (Dictionary<ManaType, int> snap1, Dictionary<ManaType, int> snap2, int i1, int i2)
+            FillBanks(GameCore core, Player p1, Player p2)
+        {
+            var pool1 = core.ElementPool.GetPool(p1);
+            var pool2 = core.ElementPool.GetPool(p2);
+            var snap1 = new Dictionary<ManaType, int>(pool1.AvailableMana);
+            var snap2 = new Dictionary<ManaType, int>(pool2.AvailableMana);
+            int i1 = pool1.GlobalTurnIndex, i2 = pool2.GlobalTurnIndex;
+            pool1.GlobalTurnIndex = 9;
+            pool2.GlobalTurnIndex = 9;
+            foreach (var t in AllManaTypes()) { pool1.AvailableMana[t] = 99; pool2.AvailableMana[t] = 99; }
+            return (snap1, snap2, i1, i2);
+        }
+
+        private static void RestoreBanks(GameCore core, Player p1, Player p2,
+            (Dictionary<ManaType, int> snap1, Dictionary<ManaType, int> snap2, int i1, int i2) s)
+        {
+            var pool1 = core.ElementPool.GetPool(p1);
+            var pool2 = core.ElementPool.GetPool(p2);
+            pool1.GlobalTurnIndex = s.i1;
+            pool2.GlobalTurnIndex = s.i2;
+            pool1.AvailableMana.Clear();
+            foreach (var kv in s.snap1) pool1.AvailableMana[kv.Key] = kv.Value;
+            pool2.AvailableMana.Clear();
+            foreach (var kv in s.snap2) pool2.AvailableMana[kv.Key] = kv.Value;
+        }
+
+        /// <summary>段落收尾：本段合成卡撤场 + 注销触发式（防遗留观察者干扰后续段落）。</summary>
+        private static void RetireCards(GameCore core, Player owner, params Card[] cards)
+        {
+            foreach (var c in cards)
+            {
+                if (c == null) continue;
+                core.ZoneManager.GetZoneContainer(owner)?.Remove(c, c.GetZone());
+                core.TriggerEngine.UnregisterEntityEffects(c);
+            }
+        }
+
+        /// <summary>
+        /// 进场来源三通道（P0）：手牌打出 CastPlayed / 墓地复活 Revived / token 生成 TokenSpawned。
+        /// （墓地经 IPlaySource 打出的 FromZone=Graveyard 路径由仪式段（归土仪典）回归覆盖。）
+        /// </summary>
+        private static void TestEntrySources(GameCore core, Player p1, Player p2)
+        {
+            EnsureMainPhase(core, p1);
+            var banks = FillBanks(core, p1, p2);
+
+            CardPlayEvent playEvt = null;
+            var enterEvents = new List<CardPutToBattlefieldEvent>();
+            void OnPlay(CardPlayEvent e) => playEvt = e;
+            void OnEnter(CardPutToBattlefieldEvent e) => enterEvents.Add(e);
+            EventManager.Instance.Subscribe<CardPlayEvent>(OnPlay);
+            EventManager.Instance.Subscribe<CardPutToBattlefieldEvent>(OnEnter);
+            try
+            {
+                // ① 手牌打出：宣言 FromZone=Hand；入场 Source=CastPlayed、FromZone=Activation
+                var a = InjectCard(core, p1, TrigData("VERIFY_ES_PLAYED"));
+                enterEvents.Clear();
+                Assert(GameActions.PlayCard(core, p1, a), "来源①：手牌打出声明成功");
+                GameActions.DrainStack(core);
+                Assert(playEvt != null && playEvt.FromZone == Zone.Hand, "使用宣言 FromZone=Hand");
+                Assert(enterEvents.Count == 1 && enterEvents[0].Source == EnterSource.CastPlayed
+                       && enterEvents[0].FromZone == Zone.Activation,
+                       "打出入场 Source=CastPlayed、FromZone=Activation");
+                Assert(core.ZoneManager.IsCardInZone(a, p1, Zone.Battlefield), "打出后已入场");
+
+                // ② 墓地复活：Source=Revived
+                var b = InjectCard(core, p1, TrigData("VERIFY_ES_REVIVED"));
+                core.ZoneManager.GetZoneContainer(p1).Add(b, Zone.Graveyard);
+                enterEvents.Clear();
+                Assert(core.ZoneManager.TryMoveToBattlefield(b, p1, Zone.Graveyard), "来源②：复活入场成功");
+                Assert(enterEvents.Count == 1 && enterEvents[0].Source == EnterSource.Revived,
+                       "复活入场 Source=Revived");
+
+                // ③ token/新生：Source=TokenSpawned、FromZone=None
+                var c = new CardWrapper(new CardData { ID = "VERIFY_ES_TOKEN", CardName = "来源token", Supertype = Cardtype.Creature, Power = 1, Life = 1 });
+                enterEvents.Clear();
+                Assert(core.ZoneManager.TryAddToBattlefield(c, p1), "来源③：token 直接入场成功");
+                Assert(enterEvents.Count == 1 && enterEvents[0].Source == EnterSource.TokenSpawned
+                       && enterEvents[0].FromZone == Zone.None,
+                       "token 入场 Source=TokenSpawned、FromZone=None（TryAddToBattlefield 补发已接通）");
+
+                RetireCards(core, p1, a, b, c);
+            }
+            finally
+            {
+                EventManager.Instance.Unsubscribe<CardPlayEvent>(OnPlay);
+                EventManager.Instance.Unsubscribe<CardPutToBattlefieldEvent>(OnEnter);
+                RestoreBanks(core, p1, p2, banks);
+            }
+        }
+
+        /// <summary>
+        /// payload 过滤（P0.3）：同一入场事件下 OnPlay（登场）/ OnSummon（超集）/ OnOtherCreatureEnter（观察者）互不误触。
+        /// 手牌净变量 = 触发次数的计数器（打出 -1 / 每次触发 +1）。
+        /// </summary>
+        private static void TestTriggerPayloadFilters(GameCore core, Player p1, Player p2)
+        {
+            EnsureMainPhase(core, p1);
+            var banks = FillBanks(core, p1, p2);
+            int Hand() => core.ZoneManager.GetCards(p1, Zone.Hand).Count;
+
+            try
+            {
+                // 观察者 F：他人进场时抽 1（自己入场不触发）
+                var f = InjectCard(core, p1, TrigData("VERIFY_TPF_OBS", TriggerTiming.OnOtherCreatureEnter));
+                int h0 = Hand();
+                Assert(GameActions.PlayCard(core, p1, f), "观察者打出声明");
+                GameActions.DrainStack(core);
+                Assert(Hand() == h0 - 1, "OnOtherCreatureEnter 自己入场不触发（净 -1=打出无抽）");
+
+                // D：同卡挂 OnPlay + OnSummon 双效果——打出两触发（+2），观察者 +1
+                var d = InjectCard(core, p1, TrigData("VERIFY_TPF_BOTH", TriggerTiming.OnPlay, TriggerTiming.OnSummon));
+                int h1 = Hand();
+                Assert(GameActions.PlayCard(core, p1, d), "双时点卡打出声明");
+                GameActions.DrainStack(core);
+                Assert(Hand() == h1 - 1 + 2 + 1,
+                       "打出：登场+1、进场+1（超集语义）、观察者 +1（净 +2）");
+
+                // 复活 D：OnPlay 不触发（Source=Revived）、OnSummon 触发、观察者 +1
+                core.ZoneManager.MoveCard(d, p1, Zone.Battlefield, Zone.Graveyard);
+                int h2 = Hand();
+                Assert(core.ZoneManager.TryMoveToBattlefield(d, p1, Zone.Graveyard), "复活双时点卡");
+                GameActions.DrainStack(core);
+                Assert(Hand() == h2 + 1 + 1,
+                       "复活：登场不触发、进场 +1、观察者 +1（净 +2）");
+
+                // OnCardPlayed 观察者 G：使用宣言时点（含法术）——与 OnPlay 分工
+                var g = InjectCard(core, p1, TrigData("VERIFY_TPF_DECL", TriggerTiming.OnCardPlayed));
+                Assert(GameActions.PlayCard(core, p1, g), "宣言观察者打出声明");
+                GameActions.DrainStack(core);
+                // G 入场：G 自身无 OnPlay/OnSummon、观察者 F 对 G 入场 +1；打出的宣言触发 G 自己的 OnCardPlayed +1
+                int h3 = Hand(); // 稳态后再测法术宣言
+                var spell = InjectCard(core, p1, new CardData
+                {
+                    ID = "VERIFY_TPF_SPELL", CardName = "宣言测法术", Supertype = Cardtype.Spell,
+                    Cost = new Dictionary<int, float> { { (int)ManaType.Gray, 1 } },
+                });
+                Assert(GameActions.PlayCard(core, p1, spell), "打出无效果法术");
+                GameActions.DrainStack(core);
+                Assert(Hand() == h3 - 1 + 1, "OnCardPlayed 在法术使用宣言触发（净 0，与登场分工）");
+
+                RetireCards(core, p1, f, d, g);
+            }
+            finally
+            {
+                RestoreBanks(core, p1, p2, banks);
+            }
+        }
+
+        /// <summary>死时点激活（P0.3）：OnAttacked/OnExile/OnTargeted 映射补全后经真实事件触发。</summary>
+        private static void TestDeadTimings(GameCore core, Player p1, Player p2)
+        {
+            EnsureMainPhase(core, p1);
+            var banks = FillBanks(core, p1, p2);
+
+            // 映射存在性（原为 null 静默跳过）
+            Assert(TriggerTimingDefaults.GetEventType(TriggerTiming.OnAttacked) == typeof(AttackDeclarationEvent),
+                   "映射：OnAttacked → AttackDeclarationEvent");
+            Assert(TriggerTimingDefaults.GetEventType(TriggerTiming.OnExile) == typeof(CardCore.Attribute.CardExileEvent),
+                   "映射：OnExile → CardExileEvent");
+            Assert(TriggerTimingDefaults.GetEventType(TriggerTiming.OnReturnFromGraveyard) == typeof(CardPutToBattlefieldEvent),
+                   "映射：OnReturnFromGraveyard → CardPutToBattlefieldEvent");
+            Assert(TriggerTimingDefaults.GetEventType(TriggerTiming.OnTargeted) == typeof(AtomicEffectPhaseEvent),
+                   "映射：OnTargeted → AtomicEffectPhaseEvent");
+
+            int Hand() => core.ZoneManager.GetCards(p1, Zone.Hand).Count;
+            try
+            {
+                // OnExile：经 Exile 原子真实管线（handler 基类 PublishEvent → 统一路由）
+                var x = InjectCard(core, p1, TrigData("VERIFY_DT_EXILE", TriggerTiming.OnExile));
+                Assert(GameActions.PlayCard(core, p1, x), "除外观察者打出");
+                GameActions.DrainStack(core);
+                int h0 = Hand();
+                CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(
+                    new AtomicEffectInstance { Type = AtomicEffectType.Exile },
+                    new EffectExecutionContext
+                    {
+                        Source = p1, Controller = p1,
+                        Targets = new List<Entity> { x },
+                        ZoneManager = core.ZoneManager, ElementPool = core.ElementPool,
+                    });
+                GameActions.DrainStack(core);
+                Assert(Hand() == h0 + 1, "OnExile 经除外事件触发（净 +1）");
+                Assert(core.ZoneManager.IsCardInZone(x, p1, Zone.Exile) || x.GetZone() == Zone.Exile, "除外原子已把目标送入除外区");
+
+                // OnAttacked：payload 过滤单测（映射已断言；管线可达性由 OnExile 腿证明）
+                var y = InjectCard(core, p1, TrigData("VERIFY_DT_ATKED", TriggerTiming.OnAttacked));
+                Assert(GameActions.PlayCard(core, p1, y), "被攻击观察者打出");
+                GameActions.DrainStack(core);
+                var regY = new RegisteredEffect
+                {
+                    Effect = new EffectDefinition { Id = "VERIFY_DT_ATKED_F", TriggerTiming = TriggerTiming.OnAttacked },
+                    Source = y, Controller = p1,
+                };
+                Assert(TriggerPayloadFilter.Matches(TriggerTiming.OnAttacked,
+                           new AttackDeclarationEvent { Attacker = p2, Target = y, AttackingPlayer = p2 }, regY),
+                       "OnAttacked 过滤：被指方=自己 → 通过");
+                Assert(!TriggerPayloadFilter.Matches(TriggerTiming.OnAttacked,
+                           new AttackDeclarationEvent { Attacker = p2, Target = p1, AttackingPlayer = p2 }, regY),
+                       "OnAttacked 过滤：被指方=他人 → 拒绝");
+
+                // OnTargeted：原子 StartApplying 且目标含自己
+                var z = InjectCard(core, p1, TrigData("VERIFY_DT_TARGET", TriggerTiming.OnTargeted));
+                Assert(GameActions.PlayCard(core, p1, z), "被指向观察者打出");
+                GameActions.DrainStack(core);
+                int h2 = Hand();
+                var atom = new AtomicEffectInstance { Type = AtomicEffectType.DealDamage, Value = 0 };
+                CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(atom, new EffectExecutionContext
+                {
+                    Source = p2, Controller = p2,
+                    Targets = new List<Entity> { z },
+                    ZoneManager = core.ZoneManager, ElementPool = core.ElementPool,
+                });
+                GameActions.DrainStack(core);
+                Assert(Hand() == h2 + 1, "OnTargeted 经原子 StartApplying 触发（统一路由修复后可见）");
+
+                RetireCards(core, p1, x, y, z);
+            }
+            finally
+            {
+                RestoreBanks(core, p1, p2, banks);
+            }
+        }
+
+        /// <summary>原子三阶段统一路由（P0.2）：每阶段恰发布一次 + OnAtomicEffectResolution 触发式可达。</summary>
+        private static void TestAtomicPhaseRouting(GameCore core, Player p1, Player p2)
+        {
+            EnsureMainPhase(core, p1);
+            var banks = FillBanks(core, p1, p2);
+
+            var phaseCounts = new Dictionary<CardCore.AtomicEffectPhase, int>();
+            void OnPhase(AtomicEffectPhaseEvent e)
+            {
+                phaseCounts.TryGetValue(e.Phase, out var c);
+                phaseCounts[e.Phase] = c + 1;
+            }
+            EventManager.Instance.Subscribe<AtomicEffectPhaseEvent>(OnPhase);
+            try
+            {
+                var w = InjectCard(core, p1, TrigData("VERIFY_AR_RES", TriggerTiming.OnAtomicEffectResolution));
+                Assert(GameActions.PlayCard(core, p1, w), "原子结算观察者打出");
+                GameActions.DrainStack(core);
+                // w 入场本身会走 RefreshOneShotKeywords 等路径，但不发原子三阶段；清零后测一次原子执行
+                phaseCounts.Clear();
+                int Hand() => core.ZoneManager.GetCards(p1, Zone.Hand).Count;
+                int h0 = Hand();
+
+                CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(
+                    new AtomicEffectInstance { Type = AtomicEffectType.DealDamage, Value = 0 },
+                    new EffectExecutionContext
+                    {
+                        Source = p1, Controller = p1,
+                        Targets = new List<Entity> { p2 },
+                        ZoneManager = core.ZoneManager, ElementPool = core.ElementPool,
+                    });
+                GameActions.DrainStack(core);
+
+                Assert(phaseCounts.TryGetValue(CardCore.AtomicEffectPhase.Activation, out var a) && a == 1,
+                       "原子三阶段 Activation 恰一次（无路由双发）");
+                Assert(phaseCounts.TryGetValue(CardCore.AtomicEffectPhase.StartApplying, out var s) && s == 1,
+                       "原子三阶段 StartApplying 恰一次");
+                Assert(phaseCounts.TryGetValue(CardCore.AtomicEffectPhase.ResolutionComplete, out var r) && r == 1,
+                       "原子三阶段 ResolutionComplete 恰一次");
+                Assert(Hand() == h0 + 1, "OnAtomicEffectResolution 触发式经统一路由可达（净 +1）");
+
+                RetireCards(core, p1, w);
+            }
+            finally
+            {
+                EventManager.Instance.Unsubscribe<AtomicEffectPhaseEvent>(OnPhase);
+                RestoreBanks(core, p1, p2, banks);
+            }
+        }
+
+        /// <summary>SummonToken 原子（P1）：三落区 / 实例 ID / 事件 / 满场 / 落区费用三档。</summary>
+        private static void TestSummonToken(GameCore core, Player p1, Player p2)
+        {
+            EnsureMainPhase(core, p1);
+
+            var template = new CardData
+            {
+                ID = "VERIFY_TOKEN_TPL", CardName = "验证衍生物", Supertype = Cardtype.Creature, Power = 2, Life = 2,
+            };
+            CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = id => id == template.ID ? template : null;
+
+            var tokens = new List<TokenCreatedEvent>();
+            var enters = new List<CardPutToBattlefieldEvent>();
+            var hands = new List<CardEnterHandEvent>();
+            void OnToken(TokenCreatedEvent e) => tokens.Add(e);
+            void OnEnter(CardPutToBattlefieldEvent e) => enters.Add(e);
+            void OnHand(CardEnterHandEvent e) => hands.Add(e);
+            EventManager.Instance.Subscribe<TokenCreatedEvent>(OnToken);
+            EventManager.Instance.Subscribe<CardPutToBattlefieldEvent>(OnEnter);
+            EventManager.Instance.Subscribe<CardEnterHandEvent>(OnHand);
+            try
+            {
+                int Bf() => core.ZoneManager.GetCards(p1, Zone.Battlefield).Count;
+                int Hand() => core.ZoneManager.GetCards(p1, Zone.Hand).Count;
+                int Deck() => core.ZoneManager.GetCards(p1, Zone.Deck).Count;
+
+                // ① 落战场 ×2：进场事件 Source=TokenSpawned、实例 ID 唯一
+                int bf0 = Bf();
+                SummonTokenHandlerUtil.Run(core, p1, Zone.Battlefield, 2);
+                GameActions.DrainStack(core);
+                Assert(Bf() == bf0 + 2, "落战场：+2 个 token 占格");
+                Assert(tokens.Count == 2 && tokens.All(t => t.Card != null && t.DropZone == Zone.Battlefield),
+                       "TokenCreatedEvent ×2（带实例与落区）");
+                Assert(enters.Count >= 2 && enters.TakeLast(2).All(e => e.Source == EnterSource.TokenSpawned),
+                       "token 进场事件 Source=TokenSpawned");
+                var ids = tokens.Select(t => t.Card.ID).ToList();
+                Assert(ids.All(id => id.StartsWith("VERIFY_TOKEN_TPL#")) && ids.Distinct().Count() == 2,
+                       $"实例 ID = 模板#序号 且唯一（{string.Join(",", ids)}）");
+
+                // ② 落手牌 ×2：非抽牌入手事件（喂 NonDrawDrawAccum 语义）
+                int h0 = Hand();
+                hands.Clear();
+                SummonTokenHandlerUtil.Run(core, p1, Zone.Hand, 2);
+                GameActions.DrainStack(core);
+                Assert(Hand() == h0 + 2, "落手牌：+2 张");
+                Assert(hands.Count == 2 && hands.All(e => !e.IsDraw), "CardEnterHandEvent ×2 且 IsDraw=false");
+
+                // ③ 落牌组 ×1（洗入）
+                int d0 = Deck();
+                SummonTokenHandlerUtil.Run(core, p1, Zone.Deck, 1);
+                Assert(Deck() == d0 + 1, "落牌组：+1 张");
+
+                // ④ 满场：入墓 + 失败事件
+                var filler = new List<Card>();
+                while (core.ZoneManager.HasBattlefieldSpace(p1))
+                {
+                    var c = new CardWrapper(new CardData { ID = "VERIFY_TOKEN_FILL", CardName = "占位", Supertype = Cardtype.Creature, Power = 1, Life = 1 });
+                    core.ZoneManager.TryAddToBattlefield(c, p1, EnterSource.SummonedByEffect);
+                    filler.Add(c);
+                }
+                var failed = new List<CardActivationFailedEvent>();
+                void OnFail(CardActivationFailedEvent e) => failed.Add(e);
+                EventManager.Instance.Subscribe<CardActivationFailedEvent>(OnFail);
+                int gy0 = core.ZoneManager.GetCards(p1, Zone.Graveyard).Count;
+                SummonTokenHandlerUtil.Run(core, p1, Zone.Battlefield, 1);
+                EventManager.Instance.Unsubscribe<CardActivationFailedEvent>(OnFail);
+                Assert(failed.Count == 1 && failed[0].Reason == "BattlefieldFull", "满场：token 入墓 + 失败事件");
+                Assert(core.ZoneManager.GetCards(p1, Zone.Graveyard).Count == gy0 + 1, "满场 token 落墓");
+                RetireCards(core, p1, filler.ToArray());
+
+                // ⑤ 落区费用三档（Value=10：战场 10 / 手牌 round(10×1.2)=12 / 牌组 round(10×1.1)=11）
+                int CostOf(Zone zone)
+                {
+                    var def = new EffectDefinition
+                    {
+                        Id = "VERIFY_TOKEN_COST",
+                        Effects = new List<AtomicEffectInstance>
+                        {
+                            new AtomicEffectInstance { Type = AtomicEffectType.SummonToken, Value = 10, ZoneParam = zone }
+                        },
+                    };
+                    return CostDerivationService.DeriveElementCosts(def).Sum(c => c.Value);
+                }
+                int cBf = CostOf(Zone.Battlefield), cHand = CostOf(Zone.Hand), cDeck = CostOf(Zone.Deck);
+                Assert(cBf == 10 && cHand == 12 && cDeck == 11,
+                       $"落区费用三档：战场 {cBf} / 手牌 {cHand} / 牌组 {cDeck}（SummonDrop 系数生效）");
+            }
+            finally
+            {
+                EventManager.Instance.Unsubscribe<TokenCreatedEvent>(OnToken);
+                EventManager.Instance.Unsubscribe<CardPutToBattlefieldEvent>(OnEnter);
+                EventManager.Instance.Unsubscribe<CardEnterHandEvent>(OnHand);
+            }
+        }
+
+        /// <summary>SummonToken 直连执行辅助（验证段内使用）。</summary>
+        private static class SummonTokenHandlerUtil
+        {
+            public static void Run(GameCore core, Player caster, Zone dropZone, int count)
+            {
+                CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(
+                    new AtomicEffectInstance
+                    {
+                        Type = AtomicEffectType.SummonToken, Value = count,
+                        StringValue = "VERIFY_TOKEN_TPL", ZoneParam = dropZone,
+                    },
+                    new EffectExecutionContext
+                    {
+                        Source = caster, Controller = caster,
+                        Targets = new List<Entity>(),
+                        ZoneManager = core.ZoneManager, ElementPool = core.ElementPool,
+                    });
+            }
+        }
+
+        /// <summary>对局史计数服务（P2a）：CardsPlayed/Damage 双向统计、Custom 条件、回合/本局双 scope。</summary>
+        private static void TestMatchStats(GameCore core, Player p1, Player p2)
+        {
+            EnsureMainPhase(core, p1);
+            var stats = core.MatchStats;
+            Assert(stats != null, "MatchStatsService 已注册（组合根）");
+
+            var banks = FillBanks(core, p1, p2);
+            try
+            {
+                int played0 = stats.GetStat(p1, MatchStatsService.CardsPlayed);
+                var spell = InjectCard(core, p1, new CardData
+                {
+                    ID = "VERIFY_MS_SPELL", CardName = "计数法术", Supertype = Cardtype.Spell,
+                    Cost = new Dictionary<int, float> { { (int)ManaType.Gray, 1 } },
+                });
+                Assert(GameActions.PlayCard(core, p1, spell), "打出计数法术");
+                GameActions.DrainStack(core);
+                Assert(stats.GetStat(p1, MatchStatsService.CardsPlayed) == played0 + 1,
+                       "CardsPlayed 使用宣言计数 +1");
+                Assert(stats.GetStat(p1, MatchStatsService.CardsPlayed, StatScope.ThisTurn) >= 1,
+                       "ThisTurn scope 可查");
+
+                // DamageDealt / DamageTaken 双向
+                int dd0 = stats.GetStat(p1, MatchStatsService.DamageDealt);
+                int dt0 = stats.GetStat(p2, MatchStatsService.DamageTaken);
+                CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(
+                    new AtomicEffectInstance { Type = AtomicEffectType.DealDamage, Value = 3 },
+                    new EffectExecutionContext
+                    {
+                        Source = p1, Controller = p1, Targets = new List<Entity> { p2 },
+                        ZoneManager = core.ZoneManager, ElementPool = core.ElementPool,
+                    });
+                Assert(stats.GetStat(p1, MatchStatsService.DamageDealt) == dd0 + 3, "DamageDealt +3");
+                Assert(stats.GetStat(p2, MatchStatsService.DamageTaken) == dt0 + 3, "DamageTaken +3");
+
+                // Custom 条件：StringValue=statId、Value=阈值
+                var checker = new ConditionChecker(core.ZoneManager);
+                var ctx = new ConditionCheckContext { Activator = p1, ZoneManager = core.ZoneManager };
+                int playedNow = stats.GetStat(p1, MatchStatsService.CardsPlayed);
+                Assert(checker.Check(new ActivationCondition
+                {
+                    Type = ConditionType.Custom,
+                    StringValue = MatchStatsService.CardsPlayed,
+                    Value = playedNow,
+                }, ctx), "Custom 条件：CardsPlayed>=当前值 → 满足");
+                Assert(!checker.Check(new ActivationCondition
+                {
+                    Type = ConditionType.Custom,
+                    StringValue = MatchStatsService.CardsPlayed,
+                    Value = playedNow + 99,
+                }, ctx), "Custom 条件：阈值不可达 → 不满足");
+
+                // 回合 scope：跨回合 ThisTurn 清零、ThisGame 保留
+                int gamePlayed = stats.GetStat(p1, MatchStatsService.CardsPlayed, StatScope.ThisGame);
+                EndTurnPumped(core, p1);
+                EnsureMainPhase(core, core.TurnEngine.TurnPlayer);
+                Assert(stats.GetStat(p1, MatchStatsService.CardsPlayed, StatScope.ThisTurn) == 0,
+                       "跨回合 ThisTurn 清零");
+                Assert(stats.GetStat(p1, MatchStatsService.CardsPlayed, StatScope.ThisGame) == gamePlayed,
+                       "ThisGame 跨回合保留");
+            }
+            finally
+            {
+                RestoreBanks(core, p1, p2, banks);
+            }
+        }
+
         /// <summary>计价锚点合成卡（不入对局，只喂 Derive）。</summary>
         private static CardData MakeCostCard(Cardtype type, int? power, int? life, params CardEffectData[] effects)
         {
@@ -2089,19 +2585,35 @@ namespace CardCore.Editor
         // ======================================== 测试卡表费用重生成 ========================================
 
         /// <summary>
-        /// 重推导测试卡表费用：逐卡按统一计价换建议档位分布（声明价作废），
-        /// 逐卡输出 S/K/E/f/D/Ĉ 明细供人工过目，回写 TestCreatureCards.json（形状不变）。
+        /// 重推导测试卡组费用：逐卡按统一计价换建议档位分布（声明价作废），
+        /// 逐卡输出 S/K/E/f/D/Ĉ 明细供人工过目，回写 TestDecks 下每一套卡组 JSON（形状不变）。
         /// </summary>
         [MenuItem("Tools/卡牌核心/重推导测试卡表费用")]
         public static void RegenerateTestTableCosts()
         {
-            string path = Path.Combine(Application.dataPath, "Configs/TestCreatureCards.json");
-            if (!File.Exists(path))
+            string dir = Path.Combine(Application.dataPath, "Configs", "TestDecks");
+            if (!Directory.Exists(dir))
             {
-                Debug.LogError($"[Regen] 找不到 {path}");
+                Debug.LogError($"[Regen] 找不到目录 {dir}");
                 return;
             }
 
+            var files = Directory.GetFiles(dir, "*.json")
+                .Where(f => !f.EndsWith(".meta"))
+                .ToArray();
+            if (files.Length == 0)
+            {
+                Debug.LogError($"[Regen] {dir} 下没有卡组 JSON");
+                return;
+            }
+
+            foreach (var path in files)
+                RegenOneDeck(path);
+        }
+
+        /// <summary>对单套卡组重推导费用并回写。</summary>
+        private static void RegenOneDeck(string path)
+        {
             string raw = File.ReadAllText(path);
             var cards = CardLoader.LoadCardsFromText(raw);
             foreach (var card in cards)
