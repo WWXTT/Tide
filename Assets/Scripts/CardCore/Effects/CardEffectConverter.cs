@@ -23,10 +23,18 @@ namespace CardCore
         {
             if (data == null) return null;
 
-            // 解析 TriggerTiming
-            TriggerTiming timing = data.TriggerTiming >= 0
-                ? (TriggerTiming)data.TriggerTiming
-                : TriggerTiming.Activate_Active;
+            // 解析 TriggerTiming（防线：越界 int 强转会得到幽灵枚举值、触发式静默哑火——告警并回退登场）
+            TriggerTiming timing;
+            if (data.TriggerTiming >= 0 && Enum.IsDefined(typeof(TriggerTiming), data.TriggerTiming))
+            {
+                timing = (TriggerTiming)data.TriggerTiming;
+            }
+            else
+            {
+                if (data.TriggerTiming >= 0)
+                    Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 的 TriggerTiming={data.TriggerTiming} 越界（枚举收敛后重排），回退 OnPlay");
+                timing = data.TriggerTiming < 0 ? TriggerTiming.Activate_Active : TriggerTiming.OnPlay;
+            }
 
             // 确定 ActivationType：未指定(0) 时根据 TriggerTiming 取默认值
             EffectActivationType activationType = data.ActivationType > 0

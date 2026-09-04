@@ -517,6 +517,19 @@ namespace CardCore
 
         /// <summary>元素池系统</summary>
         public ElementPoolSystem ElementPool { get; set; }
+
+        /// <summary>
+        /// P2a 修复：从对局史计数服务填本回合伤害聚合——
+        /// DamageDealtThisTurn/DamageTakenThisTurn 原为死条件（字段从未被任何调用方填过）。
+        /// 服务订阅先于触发推送（组合根顺序），触发事件本身已计入聚合。
+        /// </summary>
+        public void FillDamageAggregates()
+        {
+            var stats = MatchStatsService.Instance;
+            if (stats == null || Activator == null) return;
+            DamageDealtThisTurn = stats.GetStat(Activator, MatchStatsService.DamageDealt, StatScope.ThisTurn);
+            DamageTakenThisTurn = stats.GetStat(Activator, MatchStatsService.DamageTaken, StatScope.ThisTurn);
+        }
     }
 
     /// <summary>
@@ -765,8 +778,16 @@ namespace CardCore
                 #endregion
 
                 case ConditionType.Custom:
-                    // TODO: 实现自定义条件检查
-                    return true;
+                    // P2a 定案：对局史计数条件——StringValue=statId（MatchStatsService 词汇表），
+                    // Value=阈值，Value2>0 时取本回合 scope（默认本局）；发起者视角。
+                    // 例：「CardsPlayed>=2 才可发动」「CreaturesDied>=5」。
+                    {
+                        var stats = MatchStatsService.Instance;
+                        if (stats == null || context.Activator == null) return false;
+                        if (string.IsNullOrEmpty(condition.StringValue)) return false;
+                        var scope = condition.Value2 > 0 ? StatScope.ThisTurn : StatScope.ThisGame;
+                        return stats.GetStat(context.Activator, condition.StringValue, scope) >= condition.Value;
+                    }
 
                 default:
                     return true;

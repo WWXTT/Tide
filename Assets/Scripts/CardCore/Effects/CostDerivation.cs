@@ -113,6 +113,14 @@ namespace CardCore
 
             int amount = (int)Math.Round(cfg.BaseCost * multiplier * magnitude * durationFactor, MidpointRounding.AwayFromZero);
 
+            // 衍生物落区系数（P1 定案）：按落区分档计价（战场基准/手牌溢价/牌组微溢价）。
+            // 落区取实例级 atom.ZoneParam（注意 Zone.Hand==0：合成界面必须显式填落区，计价不做默认猜测）。
+            if (atom.Type == AtomicEffectType.SummonToken)
+            {
+                var dropCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().SummonDropConfig;
+                amount = (int)Math.Round(amount * dropCfg.GetFactor(atom.ZoneParam), MidpointRounding.AwayFromZero);
+            }
+
             // 固定数量：费用 ×N（N=有效目标数；全部/任意语义无法在构建期确定，按 1）。
             int n = EffectiveTargetCountForCost(atom, cfg);
             if (n > 1) amount *= n;

@@ -1311,5 +1311,21 @@
     "TargetScope": "Single",
     "DurationType": "Instant",
     "ActivationType": "Voluntary"
+  },
+  {
+    "ID": "25b7f483",
+    "EnumName": "召唤衍生物",
+    "DisplayName": "生成{value}个衍生物（{stringvalue}模板）至指定区域",
+    "EffectFunction": "Movement",
+    "EffectColor": "White",
+    "BaseCost": 1.0,
+    "EffectType": "SummonToken",
+    "EffectTier": "Atom",
+    "TargetType": "None",
+    "TargetFilter": null,
+    "TargetCount": 0,
+    "TargetScope": "Single",
+    "DurationType": "Instant",
+    "ActivationType": "Voluntary"
   }
 ]

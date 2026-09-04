@@ -113,24 +113,37 @@ namespace CardCore
         {
             return TriggerTiming switch
             {
+                TriggerTiming.Activate_Active => "主要阶段发动",
                 TriggerTiming.Activate_Instant => "瞬间发动",
                 TriggerTiming.Activate_Response => "响应发动",
-                TriggerTiming.On_EnterBattlefield => "入场时",
-                TriggerTiming.On_LeaveBattlefield => "离场时",
-                TriggerTiming.On_Death => "死亡时",
-                TriggerTiming.On_TurnStart => "回合开始时",
-                TriggerTiming.On_TurnEnd => "回合结束时",
-                TriggerTiming.On_PhaseStart => "阶段开始时",
-                TriggerTiming.On_PhaseEnd => "阶段结束时",
-                TriggerTiming.On_AttackDeclare => "攻击宣言时",
-                TriggerTiming.On_BlockDeclare => "阻拦时",
-                TriggerTiming.On_DamageDealt => "造成伤害时",
-                TriggerTiming.On_DamageTaken => "受到伤害时",
-                TriggerTiming.On_CardDraw => "抽卡时",
-                TriggerTiming.On_CardPlay => "使用卡牌时",
-                TriggerTiming.On_AtomicEffectActivation => "原子效果发动时",
-                TriggerTiming.On_AtomicEffectStartApplying => "原子效果开始作用时",
-                TriggerTiming.On_AtomicEffectResolution => "原子效果结算完成时",
+                TriggerTiming.OnPlay => "登场",
+                TriggerTiming.OnSummon => "进场时",
+                TriggerTiming.OnOtherCreatureEnter => "其他生物进场时",
+                TriggerTiming.OnDeath => "死亡时",
+                TriggerTiming.OnDestroy => "破坏时",
+                TriggerTiming.OnExile => "除外时",
+                TriggerTiming.OnReturnFromGraveyard => "从墓地回到战场时",
+                TriggerTiming.OnLeaveBattlefield => "离场时",
+                TriggerTiming.OnDraw => "抽牌时",
+                TriggerTiming.OnDealDamage => "造成伤害时",
+                TriggerTiming.OnTakeDamage => "受到伤害时",
+                TriggerTiming.OnTurnStart => "回合开始时",
+                TriggerTiming.OnTurnEnd => "回合结束时",
+                TriggerTiming.OnPhaseStart => "阶段开始时",
+                TriggerTiming.OnPhaseEnd => "阶段结束时",
+                TriggerTiming.OnAttack => "攻击宣言时",
+                TriggerTiming.OnAttacked => "被攻击时",
+                TriggerTiming.OnBlockDeclare => "阻拦宣言时",
+                TriggerTiming.OnCardPlayed => "使用卡牌时",
+                TriggerTiming.OnSpellCast => "施放法术时",
+                TriggerTiming.OnTap => "横置时",
+                TriggerTiming.OnUntap => "重置时",
+                TriggerTiming.OnTargeted => "被指定为目标时",
+                TriggerTiming.OnGameStart => "游戏开始时",
+                TriggerTiming.OnMaterialDetach => "超量素材取除时",
+                TriggerTiming.OnAtomicEffectActivation => "原子效果发动时",
+                TriggerTiming.OnAtomicEffectStartApplying => "原子效果开始作用时",
+                TriggerTiming.OnAtomicEffectResolution => "原子效果结算完成时",
                 _ => TriggerTiming.ToString()
             };
         }
@@ -338,43 +351,67 @@ namespace CardCore
             };
         }
 
+        /// <summary>
+        /// 时点 → 锚定事件唯一映射表（时点接线定案）。
+        ///
+        /// 观察者语义对照（与 TriggerTiming 双泳道注释配套）：
+        /// - CardEnterActivationEvent = 发动开始（进发动区，反制窗口锚点，含 FromZone）
+        /// - CardPlayEvent = 使用宣言（付费前）：OnCardPlayed / OnSpellCast 锚点；FromZone 区分手牌/墓地（IPlaySource）打出
+        /// - CardPutToBattlefieldEvent = 入场（已在战场容器）：
+        ///     OnSummon 任意来源（超集：打出也触发）/ OnPlay=登场 仅 CastPlayed /
+        ///     OnOtherCreatureEnter 进场的不是自己 / OnReturnFromGraveyard 仅 Revived——EnterSource 区分
+        /// 三来源对号：①手牌=EnterActivation(Hand)→CardPlay(Hand)→PutToBattlefield(CastPlayed)；
+        /// ②效果召唤/复活/token=直接 PutToBattlefield(SummonedByEffect/Revived/TokenSpawned)，token 另发 TokenCreatedEvent；
+        /// ③墓地经 IPlaySource=EnterActivation(Graveyard)→CardPlay(Graveyard)→PutToBattlefield(CastPlayed)。
+        /// 类型匹配后的 self/来源/施受区分见 TriggerPayloadFilter。
+        /// </summary>
         public static Type GetEventType(TriggerTiming timing)
         {
             return timing switch
             {
-                // 旧式命名（0-18）映射到与下划线变体相同的事件类型，
-                // 否则这些时点的触发式会因 GetEventType 返回 null 而静默失效。
-                TriggerTiming.OnPlay => typeof(CardPlayEvent),
+                // 登场/进场族：锚 CardPutToBattlefieldEvent，payload 过滤区分 self/来源
+                TriggerTiming.OnPlay => typeof(CardPutToBattlefieldEvent),
+                TriggerTiming.OnSummon => typeof(CardPutToBattlefieldEvent),
+                TriggerTiming.OnOtherCreatureEnter => typeof(CardPutToBattlefieldEvent),
+                TriggerTiming.OnReturnFromGraveyard => typeof(CardPutToBattlefieldEvent),
+
+                // 死亡/离场/除外族
                 TriggerTiming.OnDeath => typeof(CardDestroyEvent),
+                TriggerTiming.OnDestroy => typeof(CardDestroyEvent),
+                TriggerTiming.OnExile => typeof(CardExileEvent),
+                TriggerTiming.OnLeaveBattlefield => typeof(CardLeaveBattlefieldEvent),
+
+                // 资源族
                 TriggerTiming.OnDraw => typeof(CardDrawEvent),
                 TriggerTiming.OnDealDamage => typeof(DamageEvent),
                 TriggerTiming.OnTakeDamage => typeof(DamageEvent),
+
+                // 回合/阶段族
                 TriggerTiming.OnTurnStart => typeof(TurnStartEvent),
                 TriggerTiming.OnTurnEnd => typeof(TurnEndEvent),
+                TriggerTiming.OnPhaseStart => typeof(PhaseStartEvent),
+                TriggerTiming.OnPhaseEnd => typeof(PhaseEndEvent),
+                TriggerTiming.OnGameStart => typeof(GameStartEvent),
+
+                // 战斗族
                 TriggerTiming.OnAttack => typeof(AttackDeclarationEvent),
-                TriggerTiming.OnSummon => typeof(CardPutToBattlefieldEvent),
-                TriggerTiming.OnOtherCreatureEnter => typeof(CardPutToBattlefieldEvent),
+                TriggerTiming.OnAttacked => typeof(AttackDeclarationEvent),
+                TriggerTiming.OnBlockDeclare => typeof(BlockDeclarationEvent),
+
+                // 使用宣言观察族（付费前）
+                TriggerTiming.OnCardPlayed => typeof(CardPlayEvent),
                 TriggerTiming.OnSpellCast => typeof(CardPlayEvent),
+
                 TriggerTiming.OnTap => typeof(TapEvent),
                 TriggerTiming.OnUntap => typeof(UntapEvent),
-                TriggerTiming.OnDestroy => typeof(CardDestroyEvent),
 
-                TriggerTiming.On_EnterBattlefield => typeof(CardPutToBattlefieldEvent),
-                TriggerTiming.On_LeaveBattlefield => typeof(CardLeaveBattlefieldEvent),
-                TriggerTiming.On_Death => typeof(CardDestroyEvent),
-                TriggerTiming.On_TurnStart => typeof(TurnStartEvent),
-                TriggerTiming.On_TurnEnd => typeof(TurnEndEvent),
-                TriggerTiming.On_PhaseStart => typeof(PhaseStartEvent),
-                TriggerTiming.On_PhaseEnd => typeof(PhaseEndEvent),
-                TriggerTiming.On_AttackDeclare => typeof(AttackDeclarationEvent),
-                TriggerTiming.On_DamageDealt => typeof(DamageEvent),
-                TriggerTiming.On_DamageTaken => typeof(DamageEvent),
-                TriggerTiming.On_CardDraw => typeof(CardDrawEvent),
-                TriggerTiming.On_CardPlay => typeof(CardPlayEvent),
-                TriggerTiming.On_GameStart => typeof(GameStartEvent),
-                TriggerTiming.On_AtomicEffectActivation => typeof(AtomicEffectPhaseEvent),
-                TriggerTiming.On_AtomicEffectStartApplying => typeof(AtomicEffectPhaseEvent),
-                TriggerTiming.On_AtomicEffectResolution => typeof(AtomicEffectPhaseEvent),
+                // 原子三阶段 + 被指定为目标（场上效果发动的可观察时点）
+                TriggerTiming.OnAtomicEffectActivation => typeof(AtomicEffectPhaseEvent),
+                TriggerTiming.OnAtomicEffectStartApplying => typeof(AtomicEffectPhaseEvent),
+                TriggerTiming.OnAtomicEffectResolution => typeof(AtomicEffectPhaseEvent),
+                TriggerTiming.OnTargeted => typeof(AtomicEffectPhaseEvent),
+
+                // OnMaterialDetach：待超量素材取除事件补齐，暂无映射（返回 null 静默跳过）
                 _ => null
             };
         }

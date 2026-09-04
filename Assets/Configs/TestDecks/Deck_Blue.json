@@ -1,0 +1,2083 @@
+{
+    "cards": [
+        {
+            "id": "DECK_BLUE_01",
+            "cardName": "湛涟漪",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 0.0
+                }
+            ],
+            "keywords": [
+                "Stealth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_01_ONPLAY",
+                    "DisplayName": "抽卡",
+                    "Description": "登场：抽卡",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DrawCard",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_02",
+            "cardName": "湛涟漪Ⅱ",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 0.0
+                }
+            ],
+            "keywords": [
+                "SpellShield"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_02_ONPLAY",
+                    "DisplayName": "返回手牌",
+                    "Description": "登场：返回手牌",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ReturnToHand",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_03",
+            "cardName": "湛涟漪Ⅲ",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 0.0
+                }
+            ],
+            "keywords": [
+                "Untargetable"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_03_ONPLAY",
+                    "DisplayName": "弹回牌库顶",
+                    "Description": "登场：弹回牌库顶",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "BounceToTop",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_04",
+            "cardName": "湛深潮",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Vigilance"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_04_ONPLAY",
+                    "DisplayName": "冻结",
+                    "Description": "登场：冻结",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "FreezePermanent",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_05",
+            "cardName": "湛深潮Ⅱ",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Taunt"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_05_ONPLAY",
+                    "DisplayName": "查看牌库顶",
+                    "Description": "登场：查看牌库顶",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "LookAtTopCards",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_06",
+            "cardName": "湛深潮Ⅲ",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Stealth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_06_ONPLAY",
+                    "DisplayName": "修改费用",
+                    "Description": "登场：修改费用",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyCost",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_07",
+            "cardName": "湛暗流",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "SpellShield"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_07_ONPLAY",
+                    "DisplayName": "设置费用",
+                    "Description": "登场：设置费用",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "SetCost",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_08",
+            "cardName": "湛暗流Ⅱ",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Untargetable"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_08_ONPLAY",
+                    "DisplayName": "沉默",
+                    "Description": "登场：沉默",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Silence",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_09",
+            "cardName": "湛暗流Ⅲ",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Vigilance"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_09_ONPLAY",
+                    "DisplayName": "抽卡",
+                    "Description": "登场：抽卡",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DrawCard",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_10",
+            "cardName": "湛激流",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Taunt"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_10_ONPLAY",
+                    "DisplayName": "返回手牌",
+                    "Description": "登场：返回手牌",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ReturnToHand",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_11",
+            "cardName": "湛激流Ⅱ",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Stealth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_11_ONPLAY",
+                    "DisplayName": "弹回牌库顶",
+                    "Description": "登场：弹回牌库顶",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "BounceToTop",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_12",
+            "cardName": "湛激流Ⅲ",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "SpellShield"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_12_ONPLAY",
+                    "DisplayName": "冻结",
+                    "Description": "登场：冻结",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "FreezePermanent",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_13",
+            "cardName": "湛寒潮",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Untargetable"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_13_ONPLAY",
+                    "DisplayName": "查看牌库顶",
+                    "Description": "登场：查看牌库顶",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "LookAtTopCards",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_14",
+            "cardName": "湛寒潮Ⅱ",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Vigilance"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_14_ONPLAY",
+                    "DisplayName": "修改费用",
+                    "Description": "登场：修改费用",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyCost",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_15",
+            "cardName": "湛寒潮Ⅲ",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Taunt"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_15_ONPLAY",
+                    "DisplayName": "设置费用",
+                    "Description": "登场：设置费用",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "SetCost",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_16",
+            "cardName": "湛潮汐",
+            "supertype": "Creature",
+            "power": 6,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "Stealth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_16_ONPLAY",
+                    "DisplayName": "沉默",
+                    "Description": "登场：沉默",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Silence",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_17",
+            "cardName": "湛潮汐Ⅱ",
+            "supertype": "Creature",
+            "power": 6,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "SpellShield"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_17_ONPLAY",
+                    "DisplayName": "抽卡",
+                    "Description": "登场：抽卡",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DrawCard",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_18",
+            "cardName": "湛潮汐Ⅲ",
+            "supertype": "Creature",
+            "power": 6,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "Untargetable"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_18_ONPLAY",
+                    "DisplayName": "返回手牌",
+                    "Description": "登场：返回手牌",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ReturnToHand",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_19",
+            "cardName": "湛漩涡",
+            "supertype": "Creature",
+            "power": 7,
+            "life": 7,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "Vigilance"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_19_ONPLAY",
+                    "DisplayName": "弹回牌库顶",
+                    "Description": "登场：弹回牌库顶",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "BounceToTop",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_20",
+            "cardName": "湛漩涡Ⅱ",
+            "supertype": "Creature",
+            "power": 7,
+            "life": 7,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "Taunt"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_20_ONPLAY",
+                    "DisplayName": "冻结",
+                    "Description": "登场：冻结",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "FreezePermanent",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_21",
+            "cardName": "湛漩涡Ⅲ",
+            "supertype": "Creature",
+            "power": 7,
+            "life": 7,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "Stealth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_21_ONPLAY",
+                    "DisplayName": "查看牌库顶",
+                    "Description": "登场：查看牌库顶",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "LookAtTopCards",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_22",
+            "cardName": "湛深渊",
+            "supertype": "Creature",
+            "power": 8,
+            "life": 8,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [
+                "SpellShield"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_22_ONPLAY",
+                    "DisplayName": "修改费用",
+                    "Description": "登场：修改费用",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyCost",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_23",
+            "cardName": "湛深渊Ⅱ",
+            "supertype": "Creature",
+            "power": 8,
+            "life": 8,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [
+                "Untargetable"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_23_ONPLAY",
+                    "DisplayName": "设置费用",
+                    "Description": "登场：设置费用",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "SetCost",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_24",
+            "cardName": "湛深渊Ⅲ",
+            "supertype": "Creature",
+            "power": 8,
+            "life": 8,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [
+                "Vigilance"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_24_ONPLAY",
+                    "DisplayName": "沉默",
+                    "Description": "登场：沉默",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Silence",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_25",
+            "cardName": "湛海啸",
+            "supertype": "Creature",
+            "power": 9,
+            "life": 9,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 6.0
+                }
+            ],
+            "keywords": [
+                "Taunt"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_25_ONPLAY",
+                    "DisplayName": "抽卡",
+                    "Description": "登场：抽卡",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DrawCard",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_26",
+            "cardName": "湛海啸Ⅱ",
+            "supertype": "Creature",
+            "power": 9,
+            "life": 9,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 6.0
+                }
+            ],
+            "keywords": [
+                "Stealth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_26_ONPLAY",
+                    "DisplayName": "返回手牌",
+                    "Description": "登场：返回手牌",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ReturnToHand",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_27",
+            "cardName": "湛海啸Ⅲ",
+            "supertype": "Creature",
+            "power": 9,
+            "life": 9,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 6.0
+                }
+            ],
+            "keywords": [
+                "SpellShield"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_27_ONPLAY",
+                    "DisplayName": "弹回牌库顶",
+                    "Description": "登场：弹回牌库顶",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "BounceToTop",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_28",
+            "cardName": "湛星海",
+            "supertype": "Creature",
+            "power": 10,
+            "life": 10,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 7.0
+                }
+            ],
+            "keywords": [
+                "Untargetable"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_28_ONPLAY",
+                    "DisplayName": "冻结",
+                    "Description": "登场：冻结",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "FreezePermanent",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_29",
+            "cardName": "湛星海Ⅱ",
+            "supertype": "Creature",
+            "power": 10,
+            "life": 10,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 7.0
+                }
+            ],
+            "keywords": [
+                "Vigilance"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_29_ONPLAY",
+                    "DisplayName": "查看牌库顶",
+                    "Description": "登场：查看牌库顶",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "LookAtTopCards",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_BLUE_30",
+            "cardName": "湛星海Ⅲ",
+            "supertype": "Creature",
+            "power": 10,
+            "life": 10,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 7.0
+                }
+            ],
+            "keywords": [
+                "Taunt"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_BLUE_30_ONPLAY",
+                    "DisplayName": "修改费用",
+                    "Description": "登场：修改费用",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyCost",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        }
+    ],
+    "deckConfig": {
+        "copiesPerCard": 1
+    }
+}

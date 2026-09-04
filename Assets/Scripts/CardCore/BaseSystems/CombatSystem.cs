@@ -226,7 +226,7 @@ namespace CardCore
 
             _currentPhase = CombatPhase.DeclareAttack;
 
-            // 攻击宣言时点（经 GameCore 统一路由发布，On_AttackDeclare 触发可见）——
+            // 攻击宣言时点（经 GameCore 统一路由发布，OnAttack/OnAttacked 触发可见）——
             // 先于横置支付：宣言触发的效果（如冻结攻击者）在此同步生效
             var declaration = new AttackDeclarationEvent
             {
@@ -373,14 +373,15 @@ namespace CardCore
         /// </summary>
         public void ExecuteDamage()
         {
+            UnityEngine.Debug.Log($"[CMBTDBG] ExecuteDamage entry attackers={_attackers.Count} defendingLife={_defendingPlayer?.Life} defendingAlive={_defendingPlayer?.IsAlive}");
             foreach (var attacker in _attackers)
             {
                 // 防守方玩家已判负（前序攻击致生命归零）→ 后续攻击不再结算，交由 EndCombat 判定胜负
-                if (_defendingPlayer != null && _defendingPlayer.Life <= 0) break;
+                if (_defendingPlayer != null && _defendingPlayer.Life <= 0) { UnityEngine.Debug.Log($"[CMBTDBG] ExecuteDamage BREAK defendingLife={_defendingPlayer.Life}"); break; }
 
                 var target = attacker.BlockedBy ?? attacker.DeclaredTarget ?? (Entity)_defendingPlayer;
-                if (target == null || !target.IsAlive) continue; // 目标已倒（前序攻击击杀）→ 落空
-                if (!attacker.Entity.IsAlive) continue; // 攻击者已倒（宣言后效果致死）→ 落空（横置代价已付不退）
+                if (target == null || !target.IsAlive) { UnityEngine.Debug.Log($"[CMBTDBG] ExecuteDamage CONTINUE target null/dead target={(target is Card tc ? tc.ID : "player")}"); continue; } // 目标已倒（前序攻击击杀）→ 落空
+                if (!attacker.Entity.IsAlive) { UnityEngine.Debug.Log($"[CMBTDBG] ExecuteDamage CONTINUE attacker dead attacker={(attacker.Entity is Card ac ? ac.ID : "player")}"); continue; } // 攻击者已倒（宣言后效果致死）→ 落空（横置代价已付不退）
 
                 ResolvePair(attacker.Entity, target);
             }
@@ -392,6 +393,7 @@ namespace CardCore
         private void ResolvePair(Entity attacker, Entity target)
         {
             int attackerPower = GetPower(attacker);
+            UnityEngine.Debug.Log($"[CMBTDBG] ResolvePair attacker={(attacker is Card ac ? ac.ID : "player")} attackerPower={attackerPower} target={(target is Card tc ? tc.ID : "player")} attackerFirst={attacker.HasKeyword(KeywordRules.FirstStrike) || attacker.HasKeyword(KeywordRules.DoubleStrike)}");
             // 双向结算：随从目标按层引擎力量反击；角色（玩家）目标反伤走武器扩展点
             //（无武器/未接线 = 0，不反伤——见类头武器系统 TODO 注释）
             int targetPower = target is Card ? GetPower(target)
@@ -477,6 +479,7 @@ namespace CardCore
         /// </summary>
         private void DealCombatDamage(Entity source, Entity target, int amount)
         {
+            UnityEngine.Debug.Log($"[CMBTDBG] DealCombatDamage source={(source is Card sc ? sc.ID : "player")} target={(target is Card tdc ? tdc.ID : "player")} amount={amount} targetAlive={target?.IsAlive}");
             if (amount <= 0 || target == null || !target.IsAlive) return;
 
             KeywordRules.ApplyDamage(source, target, amount, true);

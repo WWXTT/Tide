@@ -49,7 +49,7 @@ namespace SynergyUI
         {
             // 治疗恢复族
             AtomicEffectType.Heal,
-            AtomicEffectType.ReturnToHand, AtomicEffectType.PutToBattlefield,
+            AtomicEffectType.ReturnToHand, AtomicEffectType.SummonToken,
             AtomicEffectType.ReturnFromGraveyard, AtomicEffectType.RecoverToHand,
             // 资源族
             AtomicEffectType.Untap, AtomicEffectType.AddArmor,

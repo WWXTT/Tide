@@ -50,74 +50,125 @@ namespace CardCore
         public int GetCount(Player player) => player != null && Count.TryGetValue(player, out var v) ? v : 0;
     }
 
+    /// <summary>
+    /// 差值化累计基类（P2a 定案）：任务进度 = MatchStatsService 全局计数 − 任务开始基线。
+    /// 事件订阅保留（仅用于即时判达标），计数本身读服务——单一计数源，仪式/卡条件/AI 三方读同一份。
+    /// 依赖订阅顺序：服务先订阅（组合根注册先于 RitualComponents.EnsureRegistered），
+    /// 事件回调到本类时服务值已含本事件，达标判断不差一笔。
+    /// </summary>
+    public abstract class StatsRitualTrackerBase : IRitualTaskTracker
+    {
+        private readonly Dictionary<Player, int> _baseline = new Dictionary<Player, int>();
+
+        public abstract string Kind { get; }
+
+        /// <summary>对应的 MatchStatsService statId（词汇表同源）</summary>
+        protected abstract string StatId { get; }
+
+        public virtual void OnStarted(ActiveRitual ritual)
+        {
+            _baseline.Clear();
+            var svc = MatchStatsService.Instance;
+            if (svc == null || ritual?.Owner == null) return;
+            _baseline[ritual.Owner] = svc.GetStat(ritual.Owner, StatId);
+            if (ritual.Owner.Opponent != null)
+                _baseline[ritual.Owner.Opponent] = svc.GetStat(ritual.Owner.Opponent, StatId);
+        }
+
+        public virtual void OnEnded(ActiveRitual ritual) => _baseline.Clear();
+
+        /// <summary>事件回调：判达标（当前任务非本 kind 或无效入参时忽略）。</summary>
+        protected void TryComplete(Player player)
+        {
+            var active = RitualSystem.Active;
+            if (active?.Definition?.task?.kind != Kind || player == null) return;
+            if (GetCount(player) >= active.Definition.task.target)
+                RitualSystem.Complete(active, player);
+        }
+
+        /// <summary>玩家当前任务进度（全局计数 − 基线）。验证/UI 用。</summary>
+        public int GetCount(Player player)
+        {
+            var svc = MatchStatsService.Instance;
+            if (svc == null || player == null) return 0;
+            _baseline.TryGetValue(player, out var b);
+            return svc.GetStat(player, StatId) - b;
+        }
+    }
+
     /// <summary>LifePaidAccum：累计通过代价支付生命值（血偿仪典）。</summary>
-    public sealed class LifePaidAccumTracker : AccumRitualTrackerBase
+    public sealed class LifePaidAccumTracker : StatsRitualTrackerBase
     {
         public override string Kind => "LifePaidAccum";
+        protected override string StatId => MatchStatsService.LifePaid;
 
         public LifePaidAccumTracker()
         {
-            EventManager.Instance.Subscribe<LifePaymentCostEvent>(e => Accumulate(e?.Player, e?.Amount ?? 0));
+            EventManager.Instance.Subscribe<LifePaymentCostEvent>(e => TryComplete(e?.Player));
         }
     }
 
     /// <summary>HealOverflowAccum：角色治疗溢出累计（丰盈仪典；溢出=治疗超上限截断部分）。</summary>
-    public sealed class HealOverflowAccumTracker : AccumRitualTrackerBase
+    public sealed class HealOverflowAccumTracker : StatsRitualTrackerBase
     {
         public override string Kind => "HealOverflowAccum";
+        protected override string StatId => MatchStatsService.HealOverflow;
 
         public HealOverflowAccumTracker()
         {
             EventManager.Instance.Subscribe<HealEvent>(e =>
             {
                 if (e?.Target is Player player && e.Overfill > 0)
-                    Accumulate(player, e.Overfill);
+                    TryComplete(player);
             });
         }
     }
 
     /// <summary>RevealAccum：展示对手手牌张数累计（窥渊仪典；展示者视角，离开手牌/被使用不影响）。</summary>
-    public sealed class RevealAccumTracker : AccumRitualTrackerBase
+    public sealed class RevealAccumTracker : StatsRitualTrackerBase
     {
         public override string Kind => "RevealAccum";
+        protected override string StatId => MatchStatsService.CardsRevealed;
 
         public RevealAccumTracker()
         {
-            EventManager.Instance.Subscribe<RevealCardsEvent>(e => CountReveal(e?.Player, e?.Cards, e?.Source));
-            EventManager.Instance.Subscribe<RevealHandEvent>(e => CountReveal(e?.Player, e?.Cards, e?.Source));
+            EventManager.Instance.Subscribe<RevealCardsEvent>(e => CountReveal(e?.Player, e?.Source));
+            EventManager.Instance.Subscribe<RevealHandEvent>(e => CountReveal(e?.Player, e?.Source));
         }
 
-        private void CountReveal(Player revealedOwner, List<Card> cards, Entity source)
+        private void CountReveal(Player revealedOwner, Entity source)
         {
             var revealer = source?.GetController();
             if (revealer == null || revealedOwner == null || revealedOwner != revealer.Opponent) return;
-            Accumulate(revealer, cards?.Count ?? 0);
+            TryComplete(revealer);
         }
     }
 
     /// <summary>MillSelfAccum：自己卡组送墓张数累计（归土仪典；效果送墓每张一发 + 代价送墓一次 N 张）。</summary>
-    public sealed class MillSelfAccumTracker : AccumRitualTrackerBase
+    public sealed class MillSelfAccumTracker : StatsRitualTrackerBase
     {
         public override string Kind => "MillSelfAccum";
+        protected override string StatId => MatchStatsService.MilledSelf;
 
         public MillSelfAccumTracker()
         {
-            EventManager.Instance.Subscribe<CardMillEvent>(e => Accumulate(e?.Player, 1));
-            EventManager.Instance.Subscribe<MillDeckCostEvent>(e => Accumulate(e?.Player, e?.Cards?.Count ?? 0));
+            EventManager.Instance.Subscribe<CardMillEvent>(e => TryComplete(e?.Player));
+            EventManager.Instance.Subscribe<MillDeckCostEvent>(e => TryComplete(e?.Player));
         }
     }
 
     /// <summary>NonDrawDrawAccum：非抽牌形式加入手牌张数累计（纳川仪典；抽牌路径 IsDraw=true 不计）。</summary>
-    public sealed class NonDrawDrawAccumTracker : AccumRitualTrackerBase
+    public sealed class NonDrawDrawAccumTracker : StatsRitualTrackerBase
     {
         public override string Kind => "NonDrawDrawAccum";
+        protected override string StatId => MatchStatsService.NonDrawCardsGained;
 
         public NonDrawDrawAccumTracker()
         {
             EventManager.Instance.Subscribe<CardEnterHandEvent>(e =>
             {
                 if (e?.Player != null && e.Card != null && !e.IsDraw)
-                    Accumulate(e.Player, 1);
+                    TryComplete(e.Player);
             });
         }
     }

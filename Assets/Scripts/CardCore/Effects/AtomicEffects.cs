@@ -24,7 +24,6 @@ namespace CardCore
         DiscardCard,
         MillCard,
         ReturnToHand,
-        PutToBattlefield,
         Exile,
         ShuffleIntoDeck,
         SearchDeck,
@@ -125,6 +124,9 @@ namespace CardCore
 
         // ============ 反制原子（使用时点/响应窗口——指向发动区） ============
         KnockDown,
+
+        // ============ 衍生物生成（原 PutToBattlefield 枚举位已收编至此） ============
+        SummonToken,
     }
 
     #region 效果分类扩展方法

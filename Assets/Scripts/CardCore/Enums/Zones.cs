@@ -574,7 +574,7 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 卡牌离场事件（战场 → 任何非战场区；经 GameCore 路由，On_LeaveBattlefield 触发时点可见）。
+        /// 卡牌离场事件（战场 → 任何非战场区；经 GameCore 路由，OnLeaveBattlefield 触发时点可见）。
         /// </summary>
         private void PublishCardLeaveBattlefield(Card card, Zone to)
         {
@@ -734,7 +734,7 @@ namespace CardCore
         internal static bool IsDrawMove;
 
         /// <summary>从牌库抽一张牌。牌库为空时不抽牌，改为疲劳（第 N 次疲劳造成 N 点递增伤害）。
-        /// 抽卡后经统一路由发布 CardDrawEvent——抽卡时点（On_CardDraw）对所有触发可见。</summary>
+        /// 抽卡后经统一路由发布 CardDrawEvent——抽卡时点（OnDraw）对所有触发可见。</summary>
         public static Card DrawCard(this ZoneManager zm, Player player, bool firstDrawOfTurn = false)
         {
             if (zm == null || player == null) return null;
@@ -877,7 +877,7 @@ namespace CardCore
         /// 设计规则：发动通过后要进战场时失败 → 进墓地。
         /// </summary>
         /// <returns>true = 成功入场</returns>
-        public static bool TryMoveToBattlefield(this ZoneManager zm, Card card, Player controller, Zone fromZone, bool tapped = false)
+        public static bool TryMoveToBattlefield(this ZoneManager zm, Card card, Player controller, Zone fromZone, bool tapped = false, EnterSource enterSource = EnterSource.None)
         {
             if (zm == null || card == null || controller == null) return false;
             var container = zm.GetZoneContainer(controller);
@@ -915,22 +915,40 @@ namespace CardCore
                     ToZone = Zone.Battlefield,
                 });
 
+            // 触发式注册统一出口（时点接线定案）：入场事件发布前完成注册，
+            // 保证入场卡自己的 OnPlay/OnSummon 能吃到自己的入场事件（RegisterEffect 幂等）
+            GameActions.RegisterCardTriggeredEffects(GameCore.Instance, card, controller);
+
+            // 入场事件带来源（时点接线定案）：未显式指定时按 FromZone 派生
             PublishEntryEvent(new CardPutToBattlefieldEvent
             {
                 Card = card,
                 Controller = controller,
                 Tapped = card._isTapped,
+                FromZone = fromZone,
+                Source = enterSource != EnterSource.None ? enterSource : DeriveEnterSource(fromZone),
             });
             return true;
+        }
+
+        /// <summary>按来源区派生进场来源（TryMoveToBattlefield 未显式指定时的兜底）</summary>
+        private static EnterSource DeriveEnterSource(Zone fromZone)
+        {
+            switch (fromZone)
+            {
+                case Zone.Activation: return EnterSource.CastPlayed;   // 经发动区打出
+                case Zone.Graveyard: return EnterSource.Revived;       // 墓地复活
+                default: return EnterSource.SummonedByEffect;          // 额外卡组特招/牌组检索等效果直入
+            }
         }
 
         /// <summary>
         /// 尝试把新建卡牌（衍生物/副本——尚未在任何区域）加入战场：
         /// 满则进墓地并发失败事件（保持与在场卡同一"满则入墓"规则）。
-        /// 成功路径不额外发 CardPutToBattlefieldEvent——沿用现状（token/副本入场原本不发），
-        /// 事件覆盖统一留给呈现层接线时处理。
+        /// 成功路径发布 CardPutToBattlefieldEvent（时点接线定案：token 进场同样触发
+        /// OnSummon/OnOtherCreatureEnter——"入场事件留给呈现层"的旧注释已推翻）。
         /// </summary>
-        public static bool TryAddToBattlefield(this ZoneManager zm, Card card, Player controller)
+        public static bool TryAddToBattlefield(this ZoneManager zm, Card card, Player controller, EnterSource enterSource = EnterSource.TokenSpawned)
         {
             if (zm == null || card == null || controller == null) return false;
             var container = zm.GetZoneContainer(controller);
@@ -954,6 +972,18 @@ namespace CardCore
             // 冲锋/突袭生效 = 解除横置 + 消耗关键词（突袭另带紊乱指示物）
             Attribute.KeywordRules.RefreshOneShotKeywords(card);
             card._isTapped = !Attribute.KeywordRules.ApplyEntryKeywords(card);
+
+            // 触发式注册统一出口（时点接线定案）：token/副本入场同样注册自身触发式（幂等）
+            GameActions.RegisterCardTriggeredEffects(GameCore.Instance, card, controller);
+
+            PublishEntryEvent(new CardPutToBattlefieldEvent
+            {
+                Card = card,
+                Controller = controller,
+                Tapped = card._isTapped,
+                FromZone = Zone.None,
+                Source = enterSource,
+            });
             return true;
         }
 

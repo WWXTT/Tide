@@ -1,0 +1,2083 @@
+{
+    "cards": [
+        {
+            "id": "DECK_GREEN_01",
+            "cardName": "翠嫩芽",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 0.0
+                }
+            ],
+            "keywords": [
+                "Armor"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_01_ONPLAY",
+                    "DisplayName": "回复生命",
+                    "Description": "登场：回复生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Heal",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_02",
+            "cardName": "翠嫩芽Ⅱ",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 0.0
+                }
+            ],
+            "keywords": [
+                "Regeneration"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_02_ONPLAY",
+                    "DisplayName": "修改攻击力",
+                    "Description": "登场：修改攻击力",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyPower",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_03",
+            "cardName": "翠嫩芽Ⅲ",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 0.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_03_ONPLAY",
+                    "DisplayName": "修改生命值",
+                    "Description": "登场：修改生命值",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyLife",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_04",
+            "cardName": "翠藤蔓",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Reborn"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_04_ONPLAY",
+                    "DisplayName": "护甲",
+                    "Description": "登场：护甲",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "AddArmor",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_05",
+            "cardName": "翠藤蔓Ⅱ",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Indestructible"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_05_ONPLAY",
+                    "DisplayName": "生命值增加",
+                    "Description": "登场：生命值增加",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "AddLifeUp",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_06",
+            "cardName": "翠藤蔓Ⅲ",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Lifelink"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_06_ONPLAY",
+                    "DisplayName": "属性增加",
+                    "Description": "登场：属性增加",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "AddPlusOne",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_07",
+            "cardName": "翠树苗",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "DivineShield"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_07_ONPLAY",
+                    "DisplayName": "苏生",
+                    "Description": "登场：苏生",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ReturnFromGraveyard",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_08",
+            "cardName": "翠树苗Ⅱ",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Armor"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_08_ONPLAY",
+                    "DisplayName": "回收",
+                    "Description": "登场：回收",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "RecoverToHand",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_09",
+            "cardName": "翠树苗Ⅲ",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Regeneration"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_09_ONPLAY",
+                    "DisplayName": "回复生命",
+                    "Description": "登场：回复生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Heal",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_10",
+            "cardName": "翠古木",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_10_ONPLAY",
+                    "DisplayName": "修改攻击力",
+                    "Description": "登场：修改攻击力",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyPower",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_11",
+            "cardName": "翠古木Ⅱ",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Reborn"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_11_ONPLAY",
+                    "DisplayName": "修改生命值",
+                    "Description": "登场：修改生命值",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyLife",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_12",
+            "cardName": "翠古木Ⅲ",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Indestructible"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_12_ONPLAY",
+                    "DisplayName": "护甲",
+                    "Description": "登场：护甲",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "AddArmor",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_13",
+            "cardName": "翠森林",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Lifelink"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_13_ONPLAY",
+                    "DisplayName": "生命值增加",
+                    "Description": "登场：生命值增加",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "AddLifeUp",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_14",
+            "cardName": "翠森林Ⅱ",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "DivineShield"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_14_ONPLAY",
+                    "DisplayName": "属性增加",
+                    "Description": "登场：属性增加",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "AddPlusOne",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_15",
+            "cardName": "翠森林Ⅲ",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Armor"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_15_ONPLAY",
+                    "DisplayName": "苏生",
+                    "Description": "登场：苏生",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ReturnFromGraveyard",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_16",
+            "cardName": "翠巨树",
+            "supertype": "Creature",
+            "power": 6,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "Regeneration"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_16_ONPLAY",
+                    "DisplayName": "回收",
+                    "Description": "登场：回收",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "RecoverToHand",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_17",
+            "cardName": "翠巨树Ⅱ",
+            "supertype": "Creature",
+            "power": 6,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_17_ONPLAY",
+                    "DisplayName": "回复生命",
+                    "Description": "登场：回复生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Heal",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_18",
+            "cardName": "翠巨树Ⅲ",
+            "supertype": "Creature",
+            "power": 6,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "Reborn"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_18_ONPLAY",
+                    "DisplayName": "修改攻击力",
+                    "Description": "登场：修改攻击力",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyPower",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_19",
+            "cardName": "翠根须",
+            "supertype": "Creature",
+            "power": 7,
+            "life": 7,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "Indestructible"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_19_ONPLAY",
+                    "DisplayName": "修改生命值",
+                    "Description": "登场：修改生命值",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyLife",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_20",
+            "cardName": "翠根须Ⅱ",
+            "supertype": "Creature",
+            "power": 7,
+            "life": 7,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "Lifelink"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_20_ONPLAY",
+                    "DisplayName": "护甲",
+                    "Description": "登场：护甲",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "AddArmor",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_21",
+            "cardName": "翠根须Ⅲ",
+            "supertype": "Creature",
+            "power": 7,
+            "life": 7,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "DivineShield"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_21_ONPLAY",
+                    "DisplayName": "生命值增加",
+                    "Description": "登场：生命值增加",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "AddLifeUp",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_22",
+            "cardName": "翠翠叶",
+            "supertype": "Creature",
+            "power": 8,
+            "life": 8,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [
+                "Armor"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_22_ONPLAY",
+                    "DisplayName": "属性增加",
+                    "Description": "登场：属性增加",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "AddPlusOne",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_23",
+            "cardName": "翠翠叶Ⅱ",
+            "supertype": "Creature",
+            "power": 8,
+            "life": 8,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [
+                "Regeneration"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_23_ONPLAY",
+                    "DisplayName": "苏生",
+                    "Description": "登场：苏生",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ReturnFromGraveyard",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_24",
+            "cardName": "翠翠叶Ⅲ",
+            "supertype": "Creature",
+            "power": 8,
+            "life": 8,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_24_ONPLAY",
+                    "DisplayName": "回收",
+                    "Description": "登场：回收",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "RecoverToHand",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_25",
+            "cardName": "翠参天",
+            "supertype": "Creature",
+            "power": 9,
+            "life": 9,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 6.0
+                }
+            ],
+            "keywords": [
+                "Reborn"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_25_ONPLAY",
+                    "DisplayName": "回复生命",
+                    "Description": "登场：回复生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Heal",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_26",
+            "cardName": "翠参天Ⅱ",
+            "supertype": "Creature",
+            "power": 9,
+            "life": 9,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 6.0
+                }
+            ],
+            "keywords": [
+                "Indestructible"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_26_ONPLAY",
+                    "DisplayName": "修改攻击力",
+                    "Description": "登场：修改攻击力",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyPower",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_27",
+            "cardName": "翠参天Ⅲ",
+            "supertype": "Creature",
+            "power": 9,
+            "life": 9,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 6.0
+                }
+            ],
+            "keywords": [
+                "Lifelink"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_27_ONPLAY",
+                    "DisplayName": "修改生命值",
+                    "Description": "登场：修改生命值",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyLife",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_28",
+            "cardName": "翠青苍",
+            "supertype": "Creature",
+            "power": 10,
+            "life": 10,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 7.0
+                }
+            ],
+            "keywords": [
+                "DivineShield"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_28_ONPLAY",
+                    "DisplayName": "护甲",
+                    "Description": "登场：护甲",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "AddArmor",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 2,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_29",
+            "cardName": "翠青苍Ⅱ",
+            "supertype": "Creature",
+            "power": 10,
+            "life": 10,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 7.0
+                }
+            ],
+            "keywords": [
+                "Armor"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_29_ONPLAY",
+                    "DisplayName": "生命值增加",
+                    "Description": "登场：生命值增加",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "AddLifeUp",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 4,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "DECK_GREEN_30",
+            "cardName": "翠青苍Ⅲ",
+            "supertype": "Creature",
+            "power": 10,
+            "life": 10,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 7.0
+                }
+            ],
+            "keywords": [
+                "Regeneration"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_30_ONPLAY",
+                    "DisplayName": "属性增加",
+                    "Description": "登场：属性增加",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "AddPlusOne",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [
+                        {
+                            "CostType": 2,
+                            "Value": 6,
+                            "ManaType": 0,
+                            "TurnDuration": 0
+                        }
+                    ],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        }
+    ],
+    "deckConfig": {
+        "copiesPerCard": 1
+    }
+}

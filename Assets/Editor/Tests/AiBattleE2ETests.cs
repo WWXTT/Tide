@@ -21,6 +21,8 @@ namespace CardCore.Editor.Tests
             Assert.IsTrue(result.Completed || result.TurnLimitReached,
                 $"既未结束也未到回合上限（当前回合 {result.TotalTurns}）");
             Assert.Greater(result.AnnouncedLines, 0, "播报器应产出对战文本（表现层事件面生效）");
+            Assert.IsFalse(string.IsNullOrEmpty(result.LogPath), "对局日志应落盘导出（P2b）");
+            Assert.IsTrue(System.IO.File.Exists(result.LogPath), $"对局日志文件应存在：{result.LogPath}");
 
             Debug.Log($"[Test] 标准卡组：{(result.Completed ? $"完成，胜者 {AiBattleE2E.Name(result.Winner)}（{result.Reason}，{result.TotalTurns} 回合）" : $"到达回合上限（{result.TotalTurns} 回合）")}，播报 {result.AnnouncedLines} 行");
         }

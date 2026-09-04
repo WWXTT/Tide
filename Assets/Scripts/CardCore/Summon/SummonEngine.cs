@@ -50,12 +50,13 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 从额外卡组创建卡牌实例并召唤到战场（经入场容量闸门：满则失败入墓）
+        /// 从额外卡组创建卡牌实例并召唤到战场（经入场容量闸门：满则失败入墓）。
+        /// 全参数工厂（P1 定案）：CardWrapper(cardData) 携带效果/关键词/身材/费用——
+        /// 配合 TryMoveToBattlefield 统一注册出口，特招卡的触发式首场即活（原 TODO 认账项）。
         /// </summary>
         private Card SummonFromExtraDeck(Player player, CardData cardData)
         {
-            // TODO: 实现从 CardData 创建 Card 实例的逻辑
-            var card = new Card { ID = cardData.ID };
+            var card = new CardWrapper(cardData) { ID = cardData.ID }; // 额外组卡是唯一卡非 token，保留模板 ID
             bool entered = _gameCore.ZoneManager.TryMoveToBattlefield(card, player, Zone.ExtraDeck);
             card.WasFormallySummoned = entered; // 从额外组正式召唤（失败入墓则不算正式入场）
 

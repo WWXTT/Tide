@@ -20,7 +20,8 @@ namespace CardCore
     /// <summary>
     /// 原子效果阶段事件
     /// 统一的事件类，通过 EffectType + Phase 描述任意原子效果的三阶段
-    /// TriggerEngine 可通过此事件匹配 On_AtomicEffectActivation / StartApplying / Resolution 触发时机
+    /// TriggerEngine 可通过此事件匹配 OnAtomicEffectActivation / StartApplying / Resolution 触发时机
+    /// （场上效果发动的可观察时点——双泳道交叉点，必须经 GameCore 统一路由发布）
     /// </summary>
     public class AtomicEffectPhaseEvent : GameEventBase
     {
@@ -49,9 +50,9 @@ namespace CardCore
         {
             return Phase switch
             {
-                AtomicEffectPhase.Activation => TriggerTiming.On_AtomicEffectActivation,
-                AtomicEffectPhase.StartApplying => TriggerTiming.On_AtomicEffectStartApplying,
-                AtomicEffectPhase.ResolutionComplete => TriggerTiming.On_AtomicEffectResolution,
+                AtomicEffectPhase.Activation => TriggerTiming.OnAtomicEffectActivation,
+                AtomicEffectPhase.StartApplying => TriggerTiming.OnAtomicEffectStartApplying,
+                AtomicEffectPhase.ResolutionComplete => TriggerTiming.OnAtomicEffectResolution,
                 _ => TriggerTiming.OnPlay
             };
         }

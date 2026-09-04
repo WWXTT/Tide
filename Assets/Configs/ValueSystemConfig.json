@@ -340,5 +340,23 @@
     "Key": "ExtraActivationSlope",
     "Value": 0.125,
     "Des": "选发每多1回合发动的额外折（与d斜率同源）"
+  },
+  {
+    "Category": "SummonDrop",
+    "Key": "BattlefieldFactor",
+    "Value": 1.0,
+    "Des": "衍生物落战场=基准（即时场面）"
+  },
+  {
+    "Category": "SummonDrop",
+    "Key": "HandFactor",
+    "Value": 1.2,
+    "Des": "衍生物落手牌=即时弹性资源（溢价）"
+  },
+  {
+    "Category": "SummonDrop",
+    "Key": "DeckFactor",
+    "Value": 1.1,
+    "Des": "衍生物落牌组=检索稀释后延迟可得（微溢价）"
   }
 ]

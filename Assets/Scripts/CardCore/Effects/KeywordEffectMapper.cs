@@ -51,7 +51,11 @@ namespace CardCore
             if (string.IsNullOrEmpty(d.triggerTiming) || string.IsNullOrEmpty(d.triggeredEffect))
                 return null;
             if (!Enum.TryParse<TriggerTiming>(d.triggerTiming, out var timing))
+            {
+                // 防线：关键词表配了已收敛删除的旧时点名（如下划线变体）时告警，防静默丢效果
+                UnityEngine.Debug.LogWarning($"[KeywordEffectMapper] 关键词 {keywordId} 的 triggerTiming='{d.triggerTiming}' 无法解析为 TriggerTiming（检查是否用了已收敛的旧命名），该触发式被跳过");
                 return null;
+            }
             if (!Enum.TryParse<AtomicEffectType>(d.triggeredEffect, out var atomicType))
                 return null;
 
