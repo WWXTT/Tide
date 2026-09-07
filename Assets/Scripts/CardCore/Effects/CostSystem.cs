@@ -27,6 +27,10 @@ namespace CardCore
         MillDeck,
         /// <summary>送额外组：将额外卡组 N 张送墓（代价抵消用）</summary>
         SendExtraDeck,
+        /// <summary>对手抽牌：把资源送给对手的减益型代价（当量 1/张，2026-09-07 补）</summary>
+        OpponentDraw,
+        /// <summary>对手回复生命（当量 0.5/点——2点=1费，2026-09-07 补）</summary>
+        OpponentHeal,
     }
 
     /// <summary>
@@ -237,7 +241,9 @@ namespace CardCore
         public bool CanPay(CostInstance cost, CostContext context)
         {
             if (context.Payer == null) return false;
-            return context.Payer.Life > cost.Value;
+            // 定案（死亡术语表）：生命抵扣代价可付到恰好归零——归零视为正常死亡（死因=LifePayment，
+            // 死亡来源=自己；效果归因见 LifePaymentCostEvent.Source）。付不出（低于代价）才不可付。
+            return context.Payer.Life >= cost.Value;
         }
 
         public void Pay(CostInstance cost, CostContext context)
@@ -249,12 +255,90 @@ namespace CardCore
                 Amount = cost.Value,
                 Source = context.Source
             });
+            // 抵扣可归零（定案：归零=正常死亡，来源=自己），但此处只扣不发终局——
+            // 生命判负属连锁结算后的检查（EffectExecutionEngine.FinishResolution →
+            // CheckLifeGameOver，幂等），连锁中途归零不立即终局（效果照常结算完）。
         }
 
         public string GetDescription(CostInstance cost)
         {
             return $"支付 {cost.Value} 点生命";
         }
+    }
+
+    /// <summary>对手抽牌代价事件（把资源送给对手的减益型代价）</summary>
+    public class OpponentDrawCostEvent : GameEventBase
+    {
+        public Player Payer;
+        public Player Beneficiary;
+        public int DrawCount;
+        public Entity Source;
+    }
+
+    /// <summary>对手回复生命代价事件（溢出走 Heal 统一管线转上限）</summary>
+    public class OpponentHealCostEvent : GameEventBase
+    {
+        public Player Payer;
+        public Player Beneficiary;
+        public int Amount;
+        public Entity Source;
+    }
+
+    /// <summary>
+    /// 对手抽牌代价处理器：支付时对手抽 Value 张（构筑期当量 1/张——2026-09-07 补）。
+    /// 对手牌库见底照付：抽牌走疲劳管线（此时代价反而对对手有害，规则自洽）。
+    /// </summary>
+    public class OpponentDrawCostHandler : ICostHandler
+    {
+        public CostType CostType => CostType.OpponentDraw;
+
+        public bool CanPay(CostInstance cost, CostContext context)
+            => context != null && context.Payer != null && context.Payer.Opponent != null;
+
+        public void Pay(CostInstance cost, CostContext context)
+        {
+            var opponent = context.Payer.Opponent;
+            int count = Math.Max(1, cost.Value);
+            for (int i = 0; i < count && opponent.IsAlive; i++)
+                ZoneManagerExtensions.DrawCard(context.ZoneManager, opponent, firstDrawOfTurn: false);
+            EventManager.Instance.Publish(new OpponentDrawCostEvent
+            {
+                Payer = context.Payer,
+                Beneficiary = opponent,
+                DrawCount = count,
+                Source = context.Source
+            });
+        }
+
+        public string GetDescription(CostInstance cost) => $"对手抽 {Math.Max(1, cost.Value)} 张牌";
+    }
+
+    /// <summary>
+    /// 对手回复生命代价处理器：支付时对手回复 Value 点（构筑期当量 0.5/点——2点=1费，2026-09-07 补）。
+    /// 走 Heal 扩展统一管线：溢出部分经 LifeUp 指示物转临时生命上限。
+    /// </summary>
+    public class OpponentHealCostHandler : ICostHandler
+    {
+        public CostType CostType => CostType.OpponentHeal;
+
+        public bool CanPay(CostInstance cost, CostContext context)
+            => context != null && context.Payer != null && context.Payer.Opponent != null;
+
+        public void Pay(CostInstance cost, CostContext context)
+        {
+            var opponent = context.Payer.Opponent;
+            int amount = Math.Max(1, cost.Value);
+            opponent.Heal(amount);
+            EventManager.Instance.Publish(new OpponentHealCostEvent
+            {
+                Payer = context.Payer,
+                Beneficiary = opponent,
+                Amount = amount,
+                Source = context.Source
+            });
+        }
+
+        public string GetDescription(CostInstance cost) => $"对手回复 {Math.Max(1, cost.Value)} 点生命";
     }
 
     /// <summary>
@@ -507,6 +591,8 @@ namespace CardCore
             CostHandlerRegistry.Register(new SummonMaterialCostHandler());
             CostHandlerRegistry.Register(new MillDeckCostHandler());
             CostHandlerRegistry.Register(new SendExtraDeckCostHandler());
+            CostHandlerRegistry.Register(new OpponentDrawCostHandler());
+            CostHandlerRegistry.Register(new OpponentHealCostHandler());
         }
     }
 }

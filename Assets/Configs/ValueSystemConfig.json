@@ -282,64 +282,70 @@
     "Des": "代价当量：1个召唤素材=1元素"
   },
   {
+    "Category": "CardCost",
+    "Key": "OpponentDrawValue",
+    "Value": 1.0,
+    "Des": "代价当量：对手抽1张=1元素（减益型代价，2026-09-07 补）"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "OpponentHealValuePerPoint",
+    "Value": 0.5,
+    "Des": "代价当量：对手回1点=0.5元素（2点=1费，2026-09-07 补）"
+  },
+  {
     "Category": "DelayDiscount",
     "Key": "C1",
     "Value": 1.0,
-    "Des": "d(1)=全价（几乎即时）"
+    "Des": "d(1)=全价（几乎即时）；整卡最后折（S+E+K+卡层调整一起×d）"
   },
   {
     "Category": "DelayDiscount",
     "Key": "C2",
-    "Value": 0.875,
-    "Des": "挂载延迟折扣，默认线性 (9−C)/8"
+    "Value": 0.96875,
+    "Des": "整卡延迟折，线性 (1 − 0.25×(C−1)/8)"
   },
   {
     "Category": "DelayDiscount",
     "Key": "C3",
-    "Value": 0.75,
+    "Value": 0.9375,
     "Des": ""
   },
   {
     "Category": "DelayDiscount",
     "Key": "C4",
-    "Value": 0.625,
+    "Value": 0.90625,
     "Des": ""
   },
   {
     "Category": "DelayDiscount",
     "Key": "C5",
-    "Value": 0.5,
-    "Des": "d(5)=半价"
+    "Value": 0.875,
+    "Des": "d(5)=八七五折"
   },
   {
     "Category": "DelayDiscount",
     "Key": "C6",
-    "Value": 0.375,
+    "Value": 0.84375,
     "Des": ""
   },
   {
     "Category": "DelayDiscount",
     "Key": "C7",
-    "Value": 0.25,
+    "Value": 0.8125,
     "Des": ""
   },
   {
     "Category": "DelayDiscount",
     "Key": "C8",
-    "Value": 0.125,
+    "Value": 0.78125,
     "Des": ""
   },
   {
     "Category": "DelayDiscount",
     "Key": "C9",
-    "Value": 0.0,
-    "Des": "d(9)=0（锚点：9费挂3费效果全免）"
-  },
-  {
-    "Category": "DelayDiscount",
-    "Key": "ExtraActivationSlope",
-    "Value": 0.125,
-    "Des": "选发每多1回合发动的额外折（与d斜率同源）"
+    "Value": 0.75,
+    "Des": "d(9)=0.75（最大折25%；9费及以上钳此值——原 d(9)=0 全免已废，2026-09-07）"
   },
   {
     "Category": "SummonDrop",
@@ -358,5 +364,35 @@
     "Key": "DeckFactor",
     "Value": 1.1,
     "Des": "衍生物落牌组=检索稀释后延迟可得（微溢价）"
+  },
+  {
+    "Category": "CardComposition",
+    "Key": "ChoiceSpreadStep",
+    "Value": 3.0,
+    "Des": "抉择价差溢价步长：最高/最低模式费每差3费整体+1（相等+0）——卡层组合费用，防高费当地牌实战用低费套利"
+  },
+  {
+    "Category": "CardComposition",
+    "Key": "ChoiceSpreadCap",
+    "Value": 2.0,
+    "Des": "抉择价差溢价封顶：相差6费以上整体+2（卡层灵活税上限）"
+  },
+  {
+    "Category": "CardComposition",
+    "Key": "MountBaseline",
+    "Value": 2.0,
+    "Des": "效果挂载口基线：每卡默认2口（不满退费、超出加价）——原ExtraActivationSlope选发折已删（与本规则重复）"
+  },
+  {
+    "Category": "CardComposition",
+    "Key": "MountExtraRate",
+    "Value": 1.0,
+    "Des": "每超出1口挂载的加价（例：1-1挂三效果→原有基础+1费）"
+  },
+  {
+    "Category": "CardComposition",
+    "Key": "MountUnusedRate",
+    "Value": 1.0,
+    "Des": "每空置1口挂载的退费（例：2-2白板两口全空→−2，恰为0费）"
   }
 ]

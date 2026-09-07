@@ -24,6 +24,7 @@ namespace CardCore
         public CardCostConfig CardCostConfig = new CardCostConfig();
         public DelayDiscountConfig DelayDiscountConfig = new DelayDiscountConfig();
         public SummonDropConfig SummonDropConfig = new SummonDropConfig();
+        public CardCompositionConfig CardCompositionConfig = new CardCompositionConfig();
     }
 
     /// <summary>
@@ -52,6 +53,26 @@ namespace CardCore
     // 注：TargetModifier（按目标范围/AOE 的计价乘数）已删除——计价只看目标数量（固定 N ×N，见
     // CostDerivationService.EffectiveTargetCountForCost）；范围/Scope 仅是目标选取元数据，不参与计价。
     // 注：Synergy（同类递减罚重复/多样协同奖多样）已删除——单卡计价由规则一（CardCostService）完整承担。
+
+    /// <summary>
+    /// 卡层组合费用配置（表 Category=CardComposition）——「效果→卡」组合层的额外费用参数。
+    /// 与原子层（CostDerivation：原子→效果锚价）、规则一（CardCostService.Derive）正交：
+    /// 本层只对「卡的结构性弹性」收税，独立演进。
+    /// </summary>
+    [Serializable]
+    public class CardCompositionConfig
+    {
+        /// <summary>抉择价差溢价步长：可选模式最高/最低费用每差此值 → 整体 +1（相等 +0）。</summary>
+        public float ChoiceSpreadStep = 3f;
+        /// <summary>抉择价差溢价封顶（相差 Step×Cap 及以上 → 整体 +Cap 封顶）。</summary>
+        public float ChoiceSpreadCap = 2f;
+        /// <summary>效果挂载口基线：默认每卡含此数量的挂载口（不满退费、超出加价）。</summary>
+        public float MountBaseline = 2f;
+        /// <summary>每超出 1 口挂载的加价（例：1-1 挂三效果 → 原有基础 +1）。</summary>
+        public float MountExtraRate = 1f;
+        /// <summary>每空置 1 口挂载的退费（例：2-2 白板两口全空 → −2，恰为 0 费）。</summary>
+        public float MountUnusedRate = 1f;
+    }
 
     /// <summary>
     /// 时机修正配置（表 Category=TimingModifier）
@@ -284,34 +305,37 @@ namespace CardCore
         public float LifeValuePerPoint = 0.5f;          // 1 点生命 = 0.5 元素（2命/费）
         public float SleepValuePerTurn = 1.0f;          // 沉睡 1 回合 = 1 元素
         public float SummonMaterialValue = 1.0f;        // 1 个召唤素材 = 1 元素
+        public float OpponentDrawValue = 1.0f;          // 对手抽 1 张 = 1 元素（减益型代价，2026-09-07 补）
+        public float OpponentHealValuePerPoint = 0.5f;  // 对手回 1 点 = 0.5 元素（2点/费，2026-09-07 补）
     }
 
     /// <summary>
-    /// 挂载延迟折扣配置（表 Category=DelayDiscount）。
-    /// d(C)：费用 C=最早第 C 回合落地（地牌曲线 [1..9] 锁定），挂载效果延迟 C−1 回合生效 → 按延迟贬值。
-    /// 落地时间与存活期望（ExtraActivationSlope）两个来源；法术不折（打出即生效）。
+    /// 挂载延迟折扣配置（表 Category=DelayDiscount；2026-09-07 第三层重定案）。
+    /// d(C)：费用 C=最早第 C 回合落地（地牌曲线 [1..9] 锁定）→ 按落地延迟对**整卡**
+    /// （S+E+K+卡层调整）在组合完成后**最后一步**打折。d(1)=全价，线性降到 d(9)=0.75，
+    /// **9 费及以上钳在 0.75**（最大折 25%——原 d(9)=0「9费挂载全免」已废）。
+    /// 法术不折（打出即生效，f 恒 1）。
+    /// （原 ExtraActivationSlope「选发每多1回合发动的额外折」已删——与卡层挂载口计价重复。）
     /// </summary>
     [Serializable]
     public class DelayDiscountConfig
     {
-        public float C1 = 1.000f;   // d(1)=全价（几乎即时）
-        public float C2 = 0.875f;
-        public float C3 = 0.750f;
-        public float C4 = 0.625f;
-        public float C5 = 0.500f;   // d(5)=半价
-        public float C6 = 0.375f;
-        public float C7 = 0.250f;
-        public float C8 = 0.125f;
-        public float C9 = 0.000f;   // d(9)=0（锚点：9费挂3费效果全免）
-        public float ExtraActivationSlope = 0.125f;    // 选发每多 1 回合发动的额外折（与 d 斜率同源）
+        public float C1 = 1.00000f;   // d(1)=全价（几乎即时）
+        public float C2 = 0.96875f;
+        public float C3 = 0.93750f;
+        public float C4 = 0.90625f;
+        public float C5 = 0.87500f;   // d(5)=八七五折
+        public float C6 = 0.84375f;
+        public float C7 = 0.81250f;
+        public float C8 = 0.78125f;
+        public float C9 = 0.75000f;   // d(9)=0.75（最大折 25%；9费及以上钳此值）
 
         public float At(int tier)
         {
             return tier switch
             {
                 1 => C1, 2 => C2, 3 => C3, 4 => C4, 5 => C5,
-                6 => C6, 7 => C7, 8 => C8, 9 => C9,
-                _ => 0f
+                6 => C6, 7 => C7, 8 => C8, _ => C9 // 9 及以上钳 C9
             };
         }
     }

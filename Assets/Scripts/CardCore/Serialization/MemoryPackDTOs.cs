@@ -312,6 +312,9 @@ namespace CardCore.Serialization
         [MemoryPackOrder(TagTable.EffectStepData_ConditionStringParam)]
         public string ConditionStringParam;
 
+        [MemoryPackOrder(TagTable.EffectStepData_Choices)]
+        public SerializableEffectChoiceData[] Choices;
+
         public static SerializableEffectStepData FromData(EffectStepData data)
         {
             return new SerializableEffectStepData
@@ -326,6 +329,8 @@ namespace CardCore.Serialization
                 ConditionId = data.conditionId,
                 ConditionParam = data.conditionParam,
                 ConditionStringParam = data.conditionStringParam,
+                Choices = data.choices?.Select(SerializableEffectChoiceData.FromData).ToArray()
+                          ?? Array.Empty<SerializableEffectChoiceData>(),
             };
         }
 
@@ -341,6 +346,37 @@ namespace CardCore.Serialization
                 conditionId = ConditionId,
                 conditionParam = ConditionParam,
                 conditionStringParam = ConditionStringParam,
+                choices = Choices?.Select(c => c.ToData()).ToList()
+                          ?? new List<EffectChoiceData>(),
+            };
+        }
+    }
+
+    [MemoryPackable]
+    public partial class SerializableEffectChoiceData
+    {
+        [MemoryPackOrder(TagTable.EffectChoiceData_Label)]
+        public string Label;
+
+        [MemoryPackOrder(TagTable.EffectChoiceData_Steps)]
+        public SerializableEffectStepData[] Steps;
+
+        public static SerializableEffectChoiceData FromData(EffectChoiceData data)
+        {
+            return new SerializableEffectChoiceData
+            {
+                Label = data.label,
+                Steps = data.steps?.Select(SerializableEffectStepData.FromData).ToArray()
+                        ?? Array.Empty<SerializableEffectStepData>(),
+            };
+        }
+
+        public EffectChoiceData ToData()
+        {
+            return new EffectChoiceData
+            {
+                label = Label,
+                steps = Steps?.Select(s => s.ToData()).ToList() ?? new List<EffectStepData>(),
             };
         }
     }

@@ -19,7 +19,7 @@ MonoBehaviour:
     width: 1920
     height: 997
   m_ShowMode: 4
-  m_Title: Inspector
+  m_Title: Hierarchy
   m_RootView: {fileID: 2}
   m_MinSize: {x: 875, y: 300}
   m_MaxSize: {x: 10000, y: 10000}
@@ -1435,9 +1435,9 @@ MonoBehaviour:
     speed: 2
     m_Value: {x: 0, y: 0, z: 0, w: 1}
   m_Size:
-    m_Target: 10
+    m_Target: 9.95954
     speed: 2
-    m_Value: 10
+    m_Value: 9.95954
   m_Ortho:
     m_Target: 0
     speed: 2
@@ -1525,7 +1525,7 @@ MonoBehaviour:
     m_SkipHidden: 0
     m_SearchArea: 0
     m_Folders:
-    - Assets
+    - Assets/Editor
     m_Globs: []
     m_ProductIds: 
     m_AnyWithAssetOrigin: 0
@@ -1535,24 +1535,24 @@ MonoBehaviour:
   m_ViewMode: 1
   m_StartGridSize: 16
   m_LastFolders:
-  - Assets
+  - Assets/Editor
   m_LastFoldersGridSize: 16
   m_LastProjectPath: E:\UnityProject\Tide
   m_LockTracker:
     m_IsLocked: 0
   m_LastLocalAssetsSearchArea: 0
   m_FolderTreeState:
-    scrollPos: {x: 0, y: 8}
+    scrollPos: {x: 0, y: 0}
     m_SelectedIDs:
-    - m_rawData: 568105584918838466
+    - m_rawData: 568105584918838816
     m_LastClickedID:
-      m_rawData: 568105584918838466
+      m_rawData: 568105584918838816
     m_ExpandedIDs:
     - m_rawData: 0
-    - m_rawData: 568105584918838466
-    - m_rawData: 568105584918838468
-    - m_rawData: 568105584918838470
-    - m_rawData: 568105584918838472
+    - m_rawData: 568105584918838490
+    - m_rawData: 568105584918838492
+    - m_rawData: 568105584918838494
+    - m_rawData: 568105584918838496
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -1586,10 +1586,10 @@ MonoBehaviour:
       m_rawData: 0
     m_ExpandedIDs:
     - m_rawData: 0
-    - m_rawData: 568105584918838466
-    - m_rawData: 568105584918838468
-    - m_rawData: 568105584918838470
-    - m_rawData: 568105584918838472
+    - m_rawData: 568105584918838490
+    - m_rawData: 568105584918838492
+    - m_rawData: 568105584918838494
+    - m_rawData: 568105584918838496
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -1620,7 +1620,7 @@ MonoBehaviour:
     m_SelectedInstanceIDs: []
     m_LastClickedEntityId:
       m_rawData: 0
-    m_HadKeyboardFocusLastEvent: 0
+    m_HadKeyboardFocusLastEvent: 1
     m_ExpandedInstanceIDs:
     - m_rawData: 0
     - m_rawData: 0

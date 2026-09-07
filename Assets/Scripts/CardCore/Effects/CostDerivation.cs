@@ -16,8 +16,10 @@ namespace CardCore
         /// <summary>
         /// 推导一个效果定义的元素消耗代价（不含卡牌显式声明的特殊代价）。
         /// 同色多笔代价会按颜色合并为一笔，便于上层抵消按颜色聚合处理。
+        /// modeIndex：抉择（Choice）步骤只计所选模式的原子（per-mode 独立计价定案）；
+        /// 无抉择卡恒 0，既有调用点零改动。
         /// </summary>
-        public static List<CostInstance> DeriveElementCosts(EffectDefinition effect)
+        public static List<CostInstance> DeriveElementCosts(EffectDefinition effect, int modeIndex = 0)
         {
             var byColor = new Dictionary<ManaType, int>();
             if (effect == null)
@@ -33,6 +35,24 @@ namespace CardCore
                     if (step.Kind == RuntimeStepKind.Atomic && step.Atomic != null)
                         AccumulateElementCost(step.Atomic, byColor);
                     // Kind==Branch：OutcomeGate 奖励免费，不计费。
+                    else if (step.Kind == RuntimeStepKind.Choice)
+                    {
+                        // 抉择（2026-09-07 定案）：各模式独立计价——只计所选模式的原子；
+                        // choice 内紧邻分支奖励照旧免费；主序列固定部分（Choice 前后）自然并入每模式。
+                        var chosen = step.Choices != null && step.Choices.Count > 0
+                            ? step.Choices[Math.Max(0, Math.Min(modeIndex, step.Choices.Count - 1))]
+                            : null;
+                        if (chosen != null)
+                        {
+                            foreach (var s in chosen)
+                            {
+                                if (s == null) continue;
+                                if (s.Kind == RuntimeStepKind.Atomic && s.Atomic != null)
+                                    AccumulateElementCost(s.Atomic, byColor);
+                                // choice 内 Kind==Branch：奖励免费（converter 已拒嵌套 Choice）
+                            }
+                        }
+                    }
                 }
             }
             else if (effect.Effects != null)
@@ -168,7 +188,7 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 卡牌是否含「动态数量」原子（主序列或分支 then/else 任一）。
+        /// 卡牌是否含「动态数量」原子（主序列、分支 then/else 或抉择任一模式的子步骤）。
         /// 含动态数量原子的卡费用计 0 且不可作地牌产元素（灵活使用的代价）。
         /// </summary>
         public static bool HasDynamicTargetEffect(CardData card)
@@ -185,6 +205,7 @@ namespace CardCore
                         if (step.atomic != null && step.atomic.DynamicTargetCount) return true;
                         if (AnyDynamic(step.thenSteps)) return true;
                         if (AnyDynamic(step.elseSteps)) return true;
+                        if (AnyDynamicInChoices(step.choices)) return true; // 抉择模式内同样要拦
                     }
                 }
                 else if (AnyDynamic(eff.AtomicEffects))
@@ -193,6 +214,49 @@ namespace CardCore
                 }
             }
             return false;
+        }
+
+        private static bool AnyDynamicInChoices(List<EffectChoiceData> choices)
+        {
+            if (choices == null) return false;
+            foreach (var c in choices)
+            {
+                if (c?.steps == null) continue;
+                foreach (var s in c.steps)
+                {
+                    if (s == null) continue;
+                    if (s.atomic != null && s.atomic.DynamicTargetCount) return true;
+                    if (AnyDynamic(s.thenSteps)) return true;
+                    if (AnyDynamic(s.elseSteps)) return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>卡牌是否含抉择（Choice）步骤（任一效果的 Steps 含 kind==2 且 choices≥2）。</summary>
+        public static bool HasChoiceEffect(CardData card)
+        {
+            return GetModeCount(card) > 1;
+        }
+
+        /// <summary>
+        /// 抉择模式数（所有 Choice 步骤的最大 choices 数；无抉择返回 1）。
+        /// 同卡多个 Choice 步骤共享卡级 ModeIndex，数量不一致时各自 Clamp + 装载警告。
+        /// </summary>
+        public static int GetModeCount(CardData card)
+        {
+            int max = 1;
+            if (card?.Effects == null) return max;
+            foreach (var eff in card.Effects)
+            {
+                if (eff?.Steps == null) continue;
+                foreach (var step in eff.Steps)
+                {
+                    if (step?.choices != null && step.choices.Count > max)
+                        max = step.choices.Count;
+                }
+            }
+            return max;
         }
 
         private static bool AnyDynamic(List<AtomicEffectEntry> entries)

@@ -24,6 +24,11 @@ namespace CardCore
         internal Dictionary<string, int> _counters = new Dictionary<string, int>();
         internal List<CounterInstance> _counterClocks = new List<CounterInstance>();
 
+        // 指示物来源（2026-09-07 定案：增益/减益经指示物承载，指示物也带来源）：
+        // 与 _counters 同粒度——每类 id 记最后施加方，计数归零即丢弃（GetCounterSource 查询）。
+        // 消费方：剧毒死亡来源、减益致死归因；毒素回合末伤害保持 null（定案：毒素不是伤害来源实体）。
+        internal Dictionary<string, Entity> _counterSources = new Dictionary<string, Entity>();
+
         public TimestampInfo TimestampInfo => _timestamp;
         public DateTime CreationTime => _timestamp.DateTime;
         public uint SequenceNumber => _timestamp.Sequence;
@@ -99,6 +104,16 @@ namespace CardCore
         public bool IsAI { get; set; } = false;
         public string Name => _name;
         public int MaxHealth => _maxHealth;
+
+        /// <summary>
+        /// 提升生命值上限（溢出治疗经 LifeUp 指示物转化时调用——层效果，角色不换区→默认持续时间 max=整局）。
+        /// 不做负值钳制：调用方语义保证 amount&gt;0。
+        /// </summary>
+        public void IncreaseMaxHealth(int amount)
+        {
+            if (amount > 0) _maxHealth += amount;
+        }
+
         public int Life
         {
             get => _life;

@@ -120,6 +120,24 @@ namespace SynergyUI
             {
                 AppendAtomic(sb, step.atomic);
             }
+            else if (step.kind == 2)
+            {
+                // 抉择：逐模式递归哈希子步骤（顺序敏感）；label 是展示名，不参与——仅取影响功能的字段
+                sb.Append("choice{");
+                if (step.choices != null)
+                {
+                    foreach (var c in step.choices)
+                    {
+                        sb.Append("m{");
+                        if (c?.steps != null)
+                        {
+                            foreach (var s in c.steps) AppendStep(sb, s);
+                        }
+                        sb.Append('}');
+                    }
+                }
+                sb.Append('}');
+            }
             else
             {
                 AppendCondition(sb, step.condition);

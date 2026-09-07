@@ -84,7 +84,7 @@ namespace CardCore
         /// targets：可选的预选目标（如指向性法术）；为空时由各原子效果按配置自动解析。
         /// fromZone：出牌来源区（默认手牌；Graveyard = 归土仪典「墓地视手牌中使用」路径）。
         /// </summary>
-        public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets = null, Zone fromZone = Zone.Hand)
+        public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets = null, Zone fromZone = Zone.Hand, int modeIndex = 0)
         {
             if (core == null || player == null || card == null) return false;
             if (core.TurnEngine.TurnPlayer != player) return false;
@@ -111,9 +111,9 @@ namespace CardCore
             if (!isSpell && !core.ZoneManager.HasBattlefieldSpace(player))
                 return false;
 
-            // 费用预检（不支付——扣费在响应窗口之后的 cast 结算；
+            // 费用预检（不支付——扣费在响应窗口之后的 cast 结算；抉择卡按所选模式取费——先选择再定费用）；
             // 同玩家已声明的施放费用一并计入，防同笔 bank 超发——结算付不出只入墓、不回卷）
-            var cost = GetCardCost(card);
+            var cost = GetCardCost(card, modeIndex);
             if (!CanAfford(core.ElementPool, cost, player, GetPendingCastCosts(core, player)))
                 return false;
 
@@ -128,7 +128,7 @@ namespace CardCore
                 FromZone = fromZone
             });
 
-            if (!core.StackEngine.PushCardCast(card, player, targets))
+            if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex))
             {
                 // 理论不可达（声明预检已过）；保守回退：卡退回来源区，声明失败不付费
                 core.ZoneManager.MoveCard(card, player, Zone.Activation, fromZone);
@@ -140,7 +140,8 @@ namespace CardCore
             {
                 Player = player,
                 PlayedCard = card,
-                FromZone = fromZone
+                FromZone = fromZone,
+                ModeIndex = modeIndex // 抉择：宣言即公开所选模式（对手响应窗口可见）
             });
 
             return true;
@@ -152,7 +153,7 @@ namespace CardCore
         /// 与 PlayCard 同构（声明 → 发动区 → cast 上栈 → 付费延迟到 cast 结算），
         /// 门禁差异：不要求回合玩家/主阶段，改为 持有优先权 + 栈上有待响应对象；来源限手牌。
         /// </summary>
-        public static bool PlayCardInResponse(GameCore core, Player player, Card card, List<Entity> targets = null)
+        public static bool PlayCardInResponse(GameCore core, Player player, Card card, List<Entity> targets = null, int modeIndex = 0)
         {
             if (core == null || player == null || card == null) return false;
             if (core.StackEngine.IsEmpty || core.StackEngine.IsResolving) return false; // 有可响应对象且非结算中
@@ -168,8 +169,8 @@ namespace CardCore
             if (!isSpell && !core.ZoneManager.HasBattlefieldSpace(player))
                 return false;
 
-            // 费用预检（含本玩家已声明的施放承诺；不支付——cast 结算时才扣）
-            var cost = GetCardCost(card);
+            // 费用预检（含本玩家已声明的施放承诺；不支付——cast 结算时才扣；抉择按所选模式）
+            var cost = GetCardCost(card, modeIndex);
             if (!CanAfford(core.ElementPool, cost, player, GetPendingCastCosts(core, player)))
                 return false;
 
@@ -183,7 +184,7 @@ namespace CardCore
                 FromZone = Zone.Hand
             });
 
-            if (!core.StackEngine.PushCardCast(card, player, targets))
+            if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex))
             {
                 core.ZoneManager.MoveCard(card, player, Zone.Activation, Zone.Hand);
                 return false;
@@ -193,7 +194,8 @@ namespace CardCore
             {
                 Player = player,
                 PlayedCard = card,
-                FromZone = Zone.Hand
+                FromZone = Zone.Hand,
+                ModeIndex = modeIndex
             });
 
             return true;
@@ -203,8 +205,8 @@ namespace CardCore
         /// 主阶段：从墓地使用一张牌，视为手牌中使用（归土仪典奖励）。
         /// 每回合主要阶段一次（RitualEffects 配额）；法术结算后照常入墓、永久物入场。
         /// </summary>
-        public static bool PlayCardFromGraveyard(GameCore core, Player player, Card card, List<Entity> targets = null)
-            => PlayCard(core, player, card, targets, Zone.Graveyard);
+        public static bool PlayCardFromGraveyard(GameCore core, Player player, Card card, List<Entity> targets = null, int modeIndex = 0)
+            => PlayCard(core, player, card, targets, Zone.Graveyard, modeIndex);
 
         // ======================================== 整卡施放结算（使用时点消费点） ========================================
 
@@ -228,8 +230,8 @@ namespace CardCore
             if (!core.ZoneManager.IsCardInZone(card, player, Zone.Activation))
                 return;
 
-            // 2. 付费（响应窗口之后）
-            var cost = GetCardCost(card);
+            // 2. 付费（响应窗口之后）——抉择卡按声明期选定的模式付费（cast.ModeIndex）
+            var cost = GetCardCost(card, cast.ModeIndex);
             if (!core.ElementPool.PayCost(cost, player))
             {
                 CastAbortToGraveyard(core, card, player, "费用不足（响应窗口后支付失败，不回卷）");
@@ -247,7 +249,7 @@ namespace CardCore
             // 4. 结算：法术 → 效果全结算后离区入墓；永久物 → 登记触发式 + 入场
             if (card is IHasSupertype hasType && hasType.Supertype == Cardtype.Spell)
             {
-                await ResolveSpellEffectsAsync(core, player, card, cast.Targets);
+                await ResolveSpellEffectsAsync(core, player, card, cast.Targets, cast.ModeIndex);
             }
             else
             {
@@ -326,7 +328,7 @@ namespace CardCore
                 if (obj == null || !obj.IsCardCast || obj.Controller != player) continue;
                 if (!(obj.Source is Card castCard)) continue;
 
-                var cost = GetCardCost(castCard);
+                var cost = GetCardCost(castCard, obj.ModeIndex); // 抉择：按各自声明的模式计承诺
                 foreach (var kv in cost)
                     sum[kv.Key] = sum.TryGetValue(kv.Key, out var v) ? v + kv.Value : kv.Value;
             }
@@ -358,10 +360,11 @@ namespace CardCore
         /// 法术一次性结算：OnPlay 等触发时点在此即是「施放即生效」，直接执行；
         /// 仅手动激活式能力（Activate_*）不随施放自动结算。
         /// 通过 EffectInstance 走与栈结算一致的执行路径，保证目标解析/事件一致。
-        /// 元素费已在 cast 结算（ResolveCardCastAsync）支付（skipElementCost 防双计）；特殊代价仍由执行器结算。
+        /// 元素费已在 cast 结算（ResolveCardCastAsync）按所选模式支付（skipElementCost 防双计）；特殊代价仍由执行器结算。
+        /// modeIndex：抉择模式（声明期选定），执行引擎按此分派 Choices。
         /// </summary>
         private static async Cysharp.Threading.Tasks.UniTask ResolveSpellEffectsAsync(
-            GameCore core, Player player, Card card, List<Entity> targets)
+            GameCore core, Player player, Card card, List<Entity> targets, int modeIndex = 0)
         {
             var defs = GetCardEffectDefinitions(card);
             if (defs != null)
@@ -379,6 +382,7 @@ namespace CardCore
                         Source = card,
                         Controller = player,
                         Targets = targets != null ? new List<Entity>(targets) : new List<Entity>(),
+                        ModeIndex = modeIndex,
                     }, skipElementCost: true);
                 }
             }
@@ -483,15 +487,21 @@ namespace CardCore
         // ======================================== 内部方法 ========================================
 
         /// <summary>
-        /// 从卡牌读取费用——出牌预检 / cast 付费 / pending 合计的唯一口径。
-        /// 费用指示物层在此接入（定案：层带颜色，P1 恒灰）：灰色分量 += 费用增加层 − 费用减少层（下限 0）。
-        /// 层在进入发动区时不清（ZoneContainer.OnCardMoved 发动区豁免——付费发生在发动区内），
+        /// 从卡牌读取费用——出牌预检 / cast 付费 / pending 合计的唯一口径（public：UI/AI 声明期展示与预检同口径）。
+        /// 抉择卡（HasChoiceEffect）走 per-mode 推导缓存（CardCostService.GetModeCost——构筑期推导存储，
+        /// 发动时只读不重推导）；推导为空=该模式免费（不落 {Gray:1} 默认——那是「无费用数据」的兜底）。
+        /// 声明 costList 在装载期写为最大模式费，仅供地牌产元素/召唤素材/UI 消费，不用于支付。
+        /// 费用指示物层在此接入（定案：层带颜色，P1 恒灰）：灰色分量 += 费用增加层 − 费用减少层（下限 0），
+        /// 逐模式独立套用。层在进入发动区时不清（ZoneContainer.OnCardMoved 发动区豁免——付费发生在发动区内），
         /// 结算离开发动区（入墓/入场）与离手时按真实移动清除。
         /// </summary>
-        private static Dictionary<int, float> GetCardCost(Card card)
+        public static Dictionary<int, float> GetCardCost(Card card, int modeIndex = 0)
         {
             Dictionary<int, float> cost;
-            if (card is IHasCost hasCost && hasCost.Cost != null)
+            var data = card is CardCore.CardWrapper wrapper ? wrapper.GetData() : null;
+            if (data != null && CostDerivationService.HasChoiceEffect(data))
+                cost = CardCostService.GetModeCost(data, modeIndex); // 抉择：按所选模式（副本，指示物层叠加不污染缓存）
+            else if (card is IHasCost hasCost && hasCost.Cost != null)
                 cost = new Dictionary<int, float>(hasCost.Cost);
             else
                 cost = new Dictionary<int, float> { { (int)ManaType.Gray, 1 } }; // 默认费用：灰色1点

@@ -206,13 +206,19 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 执行防御力归零动作（单位死亡：含战场尸体清理）——经死亡决策表统一裁决
+        /// 执行防御力归零动作（单位死亡：含战场尸体清理）——经死亡决策表统一裁决。
+        /// 死亡归因（2026-09-07）：伤害/流失路径标死时在卡上留档（死因+死亡来源），此处消费——
+        /// 伤害致死→DamageLethal+伤害来源；减益致死（未标死、toughness≤0）无来源→ZeroToughness+null。
         /// </summary>
         private void ExecuteZeroToughness(SBAActionRecord action)
         {
             var card = action.AffectedEntity as Card;
             if (card == null) return;
-            Attribute.DeathRules.TryKill(card, Attribute.DeathCause.ZeroToughness, null, _gameCore?.ZoneManager);
+            Attribute.DeathRules.TryKill(
+                card,
+                card._pendingDeathCause ?? Attribute.DeathCause.ZeroToughness,
+                card._pendingDeathSource,
+                _gameCore?.ZoneManager);
         }
 
         /// <summary>

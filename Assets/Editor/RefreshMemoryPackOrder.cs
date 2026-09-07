@@ -77,7 +77,10 @@ namespace CardCore.Tools
                 ("EffectStepData", "Kind"), ("EffectStepData", "Atomic"), ("EffectStepData", "Condition"),
                 ("EffectStepData", "ThenSteps"), ("EffectStepData", "ElseSteps"),
                 ("EffectStepData", "ConditionId"), ("EffectStepData", "ConditionParam"),
-                ("EffectStepData", "ConditionStringParam"),
+                ("EffectStepData", "ConditionStringParam"), ("EffectStepData", "Choices"),
+
+                // ---- EffectChoiceData（抉择模式条目）----
+                ("EffectChoiceData", "Label"), ("EffectChoiceData", "Steps"),
 
                 // ---- CostEntryDTO ----
                 ("CostEntryDTO", "ManaType"), ("CostEntryDTO", "Value"),

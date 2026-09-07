@@ -154,10 +154,12 @@ namespace CardCore.Attribute
             _registry[spec.Id] = spec;
         }
 
-        /// <summary>查规格；未登记保守视为 正面/Permanent（不参与持续清理，不改现有行为）。</summary>
+        /// <summary>查规格；未登记保守视为 正面/换区清除（不参与回合末清理——与既有行为一致）。
+        /// **Permanent（永久类：换区不删，2026-09-07 定案）只属于显式登记的 id**——回退值不能用 Permanent，
+        /// 否则拼错的层 id 会永久残留。</summary>
         public static CounterSpec Find(string id)
             => _registry.TryGetValue(id, out var spec) ? spec
-               : new CounterSpec { Id = id, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = id };
+               : new CounterSpec { Id = id, Polarity = CounterPolarity.Positive, Duration = DurationType.UntilLeaveBattlefield, DisplayName = id };
 
         public static bool IsNegative(string id) => Find(id).Polarity == CounterPolarity.Negative;
         public static bool IsUntilEndOfTurn(string id) => Find(id).Duration == DurationType.UntilEndOfTurn;
@@ -168,25 +170,26 @@ namespace CardCore.Attribute
         /// 附加属性指示物并即时回写字段。攻/血为单向粒度（计数恒正、方向由类别承载——
         /// 正值走增加类、负值走减少类由调用方路由）；费用保持带符号净量。
         /// 加时即写、清除（换区/净化）时反向回写——数值=字段+指示物，战斗直读字段的路径零改动。
+        /// source = 施加方（指示物来源定案）：随计数登记，削减类归零标死时作为死亡来源归因。
         /// </summary>
-        public static void AddStatCounter(Card card, string id, int amount)
+        public static void AddStatCounter(Card card, string id, int amount, Entity source = null)
         {
             if (card == null || amount == 0) return;
             var spec = Find(id);
             if (spec.StatKind == StatCounterKind.None) return;
-            card.AddCounters(id, amount);
-            ApplyStatDelta(card, spec.StatKind, amount);
+            card.AddCounters(id, amount, source);
+            ApplyStatDelta(card, spec.StatKind, amount, source);
             EventManager.Instance.Publish(new CounterChangedEvent
             {
                 Target = card,
                 CounterType = id,
                 Amount = amount,
-                Source = null,
+                Source = source,
             });
         }
 
-        /// <summary>属性增量回写（每层效果固定 ±1；n=层数恒正。削减类归零标死，送墓交 SBA）。</summary>
-        private static void ApplyStatDelta(Card card, StatCounterKind kind, int n)
+        /// <summary>属性增量回写（每层效果固定 ±1；n=层数恒正。削减类归零标死，送墓交 SBA——来源=施加方）。</summary>
+        private static void ApplyStatDelta(Card card, StatCounterKind kind, int n, Entity source = null)
         {
             switch (kind)
             {
@@ -204,7 +207,12 @@ namespace CardCore.Attribute
                     card._maxLife -= n;
                     if (card._maxLife < 0) card._maxLife = 0;
                     if (card._life > card._maxLife) card._life = card._maxLife;
-                    if (card._life <= 0) card.IsAlive = false; // 削减归零：标死，送墓交 SBA
+                    if (card._life <= 0)
+                    {
+                        // 削减归零标死（送墓交 SBA）——死亡来源=减益施加方（指示物来源定案）
+                        card._pendingDeathSource = source;
+                        card.IsAlive = false;
+                    }
                     break;
                 case StatCounterKind.CostUp:
                     card._costModifier += n;
@@ -222,24 +230,16 @@ namespace CardCore.Attribute
                     card._maxLife -= n;
                     if (card._maxLife < 0) card._maxLife = 0;
                     if (card._life > card._maxLife) card._life = card._maxLife;
-                    if (card._life <= 0) card.IsAlive = false;
+                    if (card._life <= 0)
+                    {
+                        card._pendingDeathSource = source; // 同 LifeDown：减益施加方归因
+                        card.IsAlive = false;
+                    }
                     break;
             }
         }
 
-        /// <summary>按当前计数反向回写全部属性指示物（不清计数——供 ClearAll 与净化复用前的还原）。</summary>
-        private static void RevertStatCounters(Card card)
-        {
-            RevertStat(card, PowerUpCounter, StatCounterKind.PowerUp);
-            RevertStat(card, PowerDownCounter, StatCounterKind.PowerDown);
-            RevertStat(card, LifeUpCounter, StatCounterKind.LifeUp);
-            RevertStat(card, LifeDownCounter, StatCounterKind.LifeDown);
-            RevertStat(card, CostUpCounter, StatCounterKind.CostUp);
-            RevertStat(card, CostDownCounter, StatCounterKind.CostDown);
-            RevertStat(card, PlusOneCounter, StatCounterKind.PlusOnePlusOne);
-            RevertStat(card, MinusOneCounter, StatCounterKind.MinusOneMinusOne);
-        }
-
+        /// <summary>按当前计数反向回写属性指示物（不清计数——按规格 StatKind 驱动，含永久层 id）。</summary>
         private static void RevertStat(Card card, string id, StatCounterKind kind)
         {
             int n = card.GetCounterCount(id);
@@ -280,16 +280,37 @@ namespace CardCore.Attribute
         // ==================== 换区清除（定案默认持续） ====================
 
         /// <summary>
-        /// 换区清除：未写持续时间的指示物一律持续到移动所属区域——移动时属性指示物先反向回写，
-        /// 再清空全部计数与时钟（攻/血指示物离场消失、费用指示物离手消失皆走此处）。
-        /// 由 ZoneContainer.Move 调用。
+        /// 换区清除：未写具体持续时间的指示物（默认 max）一律持续到移动所属区域——移动时属性指示物
+        /// 先反向回写，再清空计数与时钟（攻/血指示物离场消失、费用指示物离手消失皆走此处）。
+        /// **永久类（Duration=Permanent，2026-09-07 定案：max 再分出的一类，增益长在实体身上）
+        /// 换区不删**——只有净化等效果级移除（PurgeAll）才清除。由 ZoneContainer.Move 调用。
         /// </summary>
-        public static void ClearAll(Card card)
+        public static void ClearAll(Card card) => ClearCounters(card, includePermanent: false);
+
+        /// <summary>
+        /// 清除核心（规格驱动）：逐 id 按 CounterSpec 判定——永久类在 includePermanent=false 时跳过
+        /// （保留计数与其属性效果）；被清的属性层先反向回写。includePermanent=true 为净化口径（全清）。
+        /// </summary>
+        private static void ClearCounters(Card card, bool includePermanent)
         {
             if (card == null || (card._counters.Count == 0 && card._counterClocks.Count == 0)) return;
-            RevertStatCounters(card);
-            card._counters.Clear();
-            card._counterClocks.Clear();
+
+            var removed = new List<string>();
+            foreach (var kv in card._counters)
+            {
+                var spec = Find(kv.Key);
+                if (!includePermanent && spec.Duration == DurationType.Permanent)
+                    continue; // 永久类：换区不删（净化路径 includePermanent=true 会走到清除）
+                RevertStat(card, kv.Key, spec.StatKind);
+                removed.Add(kv.Key);
+            }
+
+            if (removed.Count == 0) return;
+            foreach (var id in removed)
+            {
+                card._counters.Remove(id);
+                card._counterClocks.RemoveAll(c => c.Id == id); // 永久类无时钟；随层清除孤儿时钟
+            }
             EventManager.Instance.Publish(new CounterChangedEvent
             {
                 Target = card,
@@ -300,11 +321,12 @@ namespace CardCore.Attribute
         }
 
         /// <summary>
-        /// 净化口径：清除目标全部指示物（属性先反向回写）。与清空关键词（含神佑）配套，由 PurifyHandler 调用。
+        /// 净化口径：清除目标全部指示物（属性先反向回写，**含永久类**——效果级移除是永久层的唯一清除口，
+        /// 这正是统一指示物的交互点）。与清空关键词（含神佑）配套，由 PurifyHandler 调用。
         /// </summary>
         public static void PurgeAll(Entity entity)
         {
-            if (entity is Card card) ClearAll(card);
+            if (entity is Card card) ClearCounters(card, includePermanent: true);
             else if (entity != null)
             {
                 // Player：无属性回写，直接清计数与时钟（剧毒/毒素/护甲可指向玩家）
@@ -383,16 +405,18 @@ namespace CardCore.Attribute
         /// <summary>效果型指示物：剧毒=回合结束死亡（无伤害来源）；毒素=每层 1 伤（null 来源）。</summary>
         private static void ProcessTurnEndEffects(Entity entity, ZoneManager zoneManager)
         {
-            // 剧毒：持续 1 回合——先消计数（无论是否被拦下，本回合末即到期），再裁决死亡
+            // 剧毒：持续 1 回合——先消计数（无论是否被拦下，本回合末即到期），再裁决死亡。
+            // 死亡来源=施加方（消计数前取——净量归零会连同来源一起丢弃）。
             int poison = entity.GetCounterCount(PoisonCounter);
             if (poison > 0)
             {
+                var poisonSource = entity.GetCounterSource(PoisonCounter);
                 entity.AddCounters(PoisonCounter, -poison);
                 if (!DeathRules.IsShielded(entity, DeathCause.Poison))
                 {
                     if (entity is Card card)
                     {
-                        DeathRules.TryKill(card, DeathCause.Poison, null, zoneManager);
+                        DeathRules.TryKill(card, DeathCause.Poison, poisonSource, zoneManager);
                     }
                     else if (entity is Player player)
                     {

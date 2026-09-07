@@ -55,7 +55,7 @@ namespace SynergyUI
             AtomicEffectType.Untap, AtomicEffectType.AddArmor,
             // 强化族（GrantX 关键词与数值强化；单向属性增益——攻击力/生命值/±1/费用减少）
             AtomicEffectType.ModifyPower, AtomicEffectType.ModifyLife,
-            AtomicEffectType.SetPower, AtomicEffectType.SetLife, AtomicEffectType.SetCost,
+            // SetPower/SetLife/SetCost 已下线（2026-09-07 设置系归规则系），移出偏好表
             AtomicEffectType.AddPowerUp, AtomicEffectType.AddLifeUp, AtomicEffectType.AddPlusOne,
             AtomicEffectType.AddCostDown, AtomicEffectType.Inspire,
             AtomicEffectType.GrantHaste, AtomicEffectType.GrantRush, AtomicEffectType.GrantDoubleStrike,
@@ -231,6 +231,7 @@ namespace SynergyUI
         }
 
         /// <summary>出一张最优的牌：有害原子优先（削血优先的通用化）→ 总费用降序（大费先出，资源花光）。
+        /// 抉择卡先选模式（ChooseMode——机器版「满足才能使用」），全模式不可用换下一张。
         /// 出牌即上栈（使用时点）：出完立刻排干——cast 结算付费后 bank 已更新，下一轮预检不失真。</summary>
         private static bool PlayBestAffordableCard(GameCore core, Player me)
         {
@@ -242,8 +243,10 @@ namespace SynergyUI
                 .ToList();
             foreach (var card in ordered)
             {
+                int mode = ChooseMode(core, me, card);
+                if (mode < 0) continue; // 抉择卡全模式不可发动 → 换下一张
                 // 失败静默重试下一张（引擎契约：不付费、卡留手）
-                if (GameActions.PlayCard(core, me, card, ChooseTargets(core, me, card)))
+                if (GameActions.PlayCard(core, me, card, ChooseTargets(core, me, card, mode), Zone.Hand, mode))
                 {
                     SettleStack(core); // cast 已上栈：双 Pass 排干（AI 无响应 → 立即结算付费）
                     return true;
@@ -259,7 +262,9 @@ namespace SynergyUI
             foreach (var card in graveyard)
             {
                 if (!CanPlayCard(core, me, card, Zone.Graveyard)) continue;
-                if (GameActions.PlayCardFromGraveyard(core, me, card, ChooseTargets(core, me, card)))
+                int mode = ChooseMode(core, me, card);
+                if (mode < 0) continue;
+                if (GameActions.PlayCardFromGraveyard(core, me, card, ChooseTargets(core, me, card, mode), mode))
                 {
                     SettleStack(core);
                     return true;
@@ -270,22 +275,85 @@ namespace SynergyUI
 
         // ======================================== 出牌辅助 ========================================
 
-        /// <summary>出牌预检（引擎无公开 CanPlay，自行组合规则钩子 + 支付力）。</summary>
+        /// <summary>出牌预检（引擎无公开 CanPlay，自行组合规则钩子 + 支付力）。
+        /// 抉择卡按「任一模式可付」判（声明值=最大模式费，单值预检会漏掉便宜模式）。</summary>
         private static bool CanPlayCard(GameCore core, Player me, Card card, Zone fromZone)
         {
             if (!RuleHooks.CanPlay(core, me, card, fromZone)) return false;
+            if (card is CardWrapper modal && CostDerivationService.GetModeCount(modal.GetData()) >= 2)
+            {
+                int modes = CostDerivationService.GetModeCount(modal.GetData());
+                for (int i = 0; i < modes; i++)
+                    if (core.ElementPool.CanPayCost(GameActions.GetCardCost(card, i), me)) return true;
+                return false;
+            }
             if (card is IHasCost hc && hc.Cost != null && hc.Cost.Count > 0 &&
                 !core.ElementPool.CanPayCost(hc.Cost, me)) return false;
             return true;
         }
 
         /// <summary>
+        /// 抉择模式选择（机器版「满足才能使用」定案）：逐模式条件过滤（费用可付 + 目标可得），
+        /// 再按既有出牌偏好打分——有害原子优先 → 大费先出（per-mode 版排序语义）。
+        /// 返回 -1 = 全模式不可发动。非抉择卡恒 0。
+        /// </summary>
+        private static int ChooseMode(GameCore core, Player me, Card card)
+        {
+            if (!(card is CardWrapper wrapper)) return 0;
+            int modeCount = CostDerivationService.GetModeCount(wrapper.GetData());
+            if (modeCount <= 1) return 0;
+
+            int best = -1;
+            bool bestHarmful = false;
+            float bestCost = -1f;
+            for (int i = 0; i < modeCount; i++)
+            {
+                var cost = GameActions.GetCardCost(card, i);
+                if (!core.ElementPool.CanPayCost(cost, me)) continue;
+                if (!ModeHasValidTarget(core, me, card, i)) continue;
+
+                var atomic = FirstTargetingAtomic(card, i, out _);
+                bool harmful = atomic != null && HarmfulAtoms.Contains(atomic.Type);
+                float total = 0f;
+                foreach (var v in cost.Values) total += v;
+
+                if (best < 0 || (harmful && !bestHarmful) || (harmful == bestHarmful && total > bestCost))
+                {
+                    best = i;
+                    bestHarmful = harmful;
+                    bestCost = total;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>该模式是否有可选目标（无目标原子恒真；有目标原子看候选集非空）。</summary>
+        private static bool ModeHasValidTarget(GameCore core, Player me, Card card, int modeIndex)
+        {
+            var atomic = FirstTargetingAtomic(card, modeIndex, out var cfg);
+            if (atomic == null || cfg == null) return true;
+
+            var ctx = new EffectExecutionContext
+            {
+                Source = card,
+                Controller = me,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+            };
+            var resolver = new TargetResolver(core.ZoneManager);
+            var candidates = resolver.GetCandidates(cfg, ctx);
+            if (!string.IsNullOrEmpty(cfg.TargetFilter))
+                candidates = resolver.ApplyFilters(candidates, resolver.ParseFilters(cfg.TargetFilter), ctx);
+            return candidates != null && candidates.Count > 0;
+        }
+
+        /// <summary>
         /// 通用目标偏好选择：引擎候选集保合法（同 BattleScreen.PromptTargetThenPlay 惯例），
         /// 再按有害/有益偏好重排取前 N；无偏好返回 null 交引擎自动解析。
         /// </summary>
-        private static List<Entity> ChooseTargets(GameCore core, Player me, Card card)
+        private static List<Entity> ChooseTargets(GameCore core, Player me, Card card, int modeIndex = 0)
         {
-            var atomic = FirstTargetingAtomic(card, out var cfg);
+            var atomic = FirstTargetingAtomic(card, modeIndex, out var cfg);
             if (atomic == null || cfg == null) return null; // 无需选目标 → 引擎自动
 
             var ctx = new EffectExecutionContext
@@ -325,13 +393,29 @@ namespace SynergyUI
             return ordered.Take(need).ToList();
         }
 
-        /// <summary>该卡第一个需玩家选目标的原子（TargetType==Target，仅非激活式；仿 BattleScreen.FindTargetingAtomic）。</summary>
-        private static AtomicEffectInstance FirstTargetingAtomic(Card card, out AtomicEffectConfig cfg)
+        /// <summary>该卡第一个需玩家选目标的原子（TargetType==Target，仅非激活式；仿 BattleScreen.FindTargetingAtomic）。
+        /// modeIndex：抉择卡按所选模式扫描（主序列+所选 choice 内原子，跳过分支奖励）。</summary>
+        private static AtomicEffectInstance FirstTargetingAtomic(Card card, int modeIndex, out AtomicEffectConfig cfg)
         {
             cfg = null;
             foreach (var def in GetEffectDefinitions(card))
             {
                 if (def.IsActivatedEffect) continue; // 施放即结算的才会随出牌自动跑
+
+                if (def.Steps != null && def.Steps.Count > 0)
+                {
+                    foreach (var atomic in CardEffectConverter.EnumerateMainSequenceAtoms(def.Steps, modeIndex))
+                    {
+                        var c = AtomicEffectTable.GetByType(atomic.Type);
+                        if (c != null && c.TargetType == EffectTargetType.Target)
+                        {
+                            cfg = c;
+                            return atomic;
+                        }
+                    }
+                    continue;
+                }
+
                 foreach (var atomic in def.Effects)
                 {
                     var c = AtomicEffectTable.GetByType(atomic.Type);
@@ -354,7 +438,7 @@ namespace SynergyUI
             return CardEffectConverter.ConvertAll(data.Effects, data.ID);
         }
 
-        /// <summary>是否含非激活式的有害原子（出牌优先级依据）。</summary>
+        /// <summary>是否含非激活式的有害原子（出牌优先级依据）。Steps/抉择卡扫主序列与全部模式。</summary>
         private static bool ContainsHarmfulAtom(Card card)
         {
             foreach (var def in GetEffectDefinitions(card))
@@ -362,12 +446,44 @@ namespace SynergyUI
                 if (def.IsActivatedEffect) continue;
                 foreach (var atomic in def.Effects)
                     if (HarmfulAtoms.Contains(atomic.Type)) return true;
+                if (def.Steps == null) continue;
+                foreach (var step in def.Steps)
+                {
+                    if (step == null) continue;
+                    if (step.Kind == RuntimeStepKind.Atomic && step.Atomic != null
+                        && HarmfulAtoms.Contains(step.Atomic.Type)) return true;
+                    if (step.Kind == RuntimeStepKind.Choice && step.Choices != null)
+                    {
+                        foreach (var seq in step.Choices)
+                        {
+                            if (seq == null) continue;
+                            foreach (var s in seq)
+                                if (s != null && s.Kind == RuntimeStepKind.Atomic && s.Atomic != null
+                                    && HarmfulAtoms.Contains(s.Atomic.Type)) return true;
+                        }
+                    }
+                }
             }
             return false;
         }
 
+        /// <summary>总费用（排序键）：抉择卡取最大模式费（保持「大费先出」直觉）。</summary>
         private static float TotalCost(Card card)
-            => card is IHasCost hc && hc.Cost != null ? hc.Cost.Values.Sum() : 0f;
+        {
+            if (card is CardWrapper modal && CostDerivationService.HasChoiceEffect(modal.GetData()))
+            {
+                float max = 0f;
+                int modes = CostDerivationService.GetModeCount(modal.GetData());
+                for (int i = 0; i < modes; i++)
+                {
+                    float total = 0f;
+                    foreach (var v in GameActions.GetCardCost(card, i).Values) total += v;
+                    if (total > max) max = total;
+                }
+                return max;
+            }
+            return card is IHasCost hc && hc.Cost != null ? hc.Cost.Values.Sum() : 0f;
+        }
 
         // ======================================== 战斗 ========================================
 

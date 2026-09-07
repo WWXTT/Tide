@@ -58,6 +58,11 @@ namespace CardCore.Serialization
         public const int EffectStepData_ConditionId = 1271963687;
         public const int EffectStepData_ConditionParam = 1620806380;
         public const int EffectStepData_ConditionStringParam = 914519353;
+        public const int EffectStepData_Choices = 1595595327;
+
+        // ---- EffectChoiceData（抉择模式条目；2026-09-07 手算登记，下次跑 Tools/刷新属性排序 会同值重生成）----
+        public const int EffectChoiceData_Label = 2001727622;
+        public const int EffectChoiceData_Steps = 1201939277;
 
         // ---- CostEntryDTO ----
         public const int CostEntryDTO_ManaType = 724021260;

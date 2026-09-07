@@ -8,8 +8,8 @@
             "life": 1,
             "costList": [
                 {
-                    "manaType": 0,
-                    "amount": 0.0
+                    "manaType": 3,
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -74,8 +74,8 @@
             "life": 1,
             "costList": [
                 {
-                    "manaType": 0,
-                    "amount": 0.0
+                    "manaType": 3,
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -140,8 +140,8 @@
             "life": 1,
             "costList": [
                 {
-                    "manaType": 0,
-                    "amount": 0.0
+                    "manaType": 3,
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -207,6 +207,10 @@
             "costList": [
                 {
                     "manaType": 3,
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 0,
                     "amount": 1.0
                 }
             ],
@@ -273,6 +277,10 @@
             "costList": [
                 {
                     "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
                     "amount": 1.0
                 }
             ],
@@ -339,6 +347,10 @@
             "costList": [
                 {
                     "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
                     "amount": 1.0
                 }
             ],
@@ -404,11 +416,11 @@
             "life": 3,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
+                    "manaType": 0,
+                    "amount": 3.0
                 },
                 {
-                    "manaType": 0,
+                    "manaType": 3,
                     "amount": 1.0
                 }
             ],
@@ -474,11 +486,11 @@
             "life": 3,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
+                    "manaType": 0,
+                    "amount": 3.0
                 },
                 {
-                    "manaType": 0,
+                    "manaType": 3,
                     "amount": 1.0
                 }
             ],
@@ -545,11 +557,11 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 1.0
+                    "amount": 2.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -615,11 +627,11 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 1.0
+                    "amount": 2.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -685,11 +697,11 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 1.0
+                    "amount": 2.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -755,11 +767,11 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 1.0
+                    "amount": 2.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -825,7 +837,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 1.0
+                    "amount": 2.0
                 },
                 {
                     "manaType": 0,
@@ -895,7 +907,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 1.0
+                    "amount": 2.0
                 },
                 {
                     "manaType": 0,
@@ -964,12 +976,12 @@
             "life": 5,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
+                    "manaType": 0,
+                    "amount": 4.0
                 },
                 {
-                    "manaType": 0,
-                    "amount": 3.0
+                    "manaType": 3,
+                    "amount": 1.0
                 }
             ],
             "keywords": [
@@ -1034,12 +1046,12 @@
             "life": 6,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
+                    "manaType": 0,
+                    "amount": 5.0
                 },
                 {
-                    "manaType": 0,
-                    "amount": 4.0
+                    "manaType": 3,
+                    "amount": 1.0
                 }
             ],
             "keywords": [
@@ -1105,7 +1117,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 1.0
+                    "amount": 3.0
                 },
                 {
                     "manaType": 0,
@@ -1175,7 +1187,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 1.0
+                    "amount": 3.0
                 },
                 {
                     "manaType": 0,
@@ -1249,7 +1261,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 4.0
+                    "amount": 5.0
                 }
             ],
             "keywords": [
@@ -1319,7 +1331,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 4.0
+                    "amount": 5.0
                 }
             ],
             "keywords": [
@@ -1389,7 +1401,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 4.0
+                    "amount": 5.0
                 }
             ],
             "keywords": [
@@ -1455,11 +1467,11 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 2.0
+                    "amount": 1.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 5.0
+                    "amount": 6.0
                 }
             ],
             "keywords": [
@@ -1524,12 +1536,12 @@
             "life": 8,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 2.0
+                    "manaType": 0,
+                    "amount": 6.0
                 },
                 {
-                    "manaType": 0,
-                    "amount": 5.0
+                    "manaType": 3,
+                    "amount": 1.0
                 }
             ],
             "keywords": [
@@ -1594,12 +1606,12 @@
             "life": 8,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 2.0
+                    "manaType": 0,
+                    "amount": 6.0
                 },
                 {
-                    "manaType": 0,
-                    "amount": 5.0
+                    "manaType": 3,
+                    "amount": 1.0
                 }
             ],
             "keywords": [
@@ -1945,7 +1957,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 2.0
+                    "amount": 1.0
                 },
                 {
                     "manaType": 0,
@@ -2015,7 +2027,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 2.0
+                    "amount": 1.0
                 },
                 {
                     "manaType": 0,

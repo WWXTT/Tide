@@ -42,23 +42,6 @@ namespace CardCore
 
         #region 战斗操作
 
-        /// <summary>受到伤害</summary>
-        public static void TakeDamage(this Entity entity, int amount)
-        {
-            if (entity is Player player)
-            {
-                player.Life -= amount;
-            }
-            else if (entity is Card card)
-            {
-                card._life -= amount;
-                if (card._life <= 0)
-                {
-                    entity.IsAlive = false;
-                }
-            }
-        }
-
         /// <summary>
         /// 受到伤害（关键词管线）：经 KeywordRules 结算——圣盾挡一次、护甲指示物逐点吸收、
         /// 坚韧 −持有次数、剧毒致死、吸血（恢复自身）/系命（回复角色）。
@@ -75,16 +58,48 @@ namespace CardCore
             return entity is Card card ? card._keywords.Count(k => k == keyword) : 0;
         }
 
-        /// <summary>治疗</summary>
+        /// <summary>
+        /// 治疗（2026-09-07 定案：溢出转生命上限，走 LifeUp 指示物）：
+        /// 溢出 X → 加 ceil(X/2) 层「生命值增加」指示物（上限与当前同加——临时上限：
+        /// 生物换区清除、角色不换区按默认持续时间 max=整局），当前实得 +floor(X/2)。
+        /// 例：满血 30 回复 7 → LifeUp×4 → 上限 34、当前 33（奇数溢出偏向上限）。
+        /// 角色与生物同口径；指示物持续/清除规则见 CounterRules（默认 max，特殊标记才有具体时长）。
+        /// </summary>
         public static void Heal(this Entity entity, int amount)
         {
             if (entity is Player player)
             {
-                player.Life = Math.Min(player.Life + amount, player.MaxHealth);
+                int cap = player.MaxHealth;
+                int raw = player.Life + amount;
+                int over = raw - cap;
+                if (over > 0)
+                {
+                    int layers = (over + 1) / 2;
+                    player.AddCounters(Attribute.CounterRules.LifeUpCounter, layers); // 层记录（默认持续时间 max）
+                    player.IncreaseMaxHealth(layers);                                  // 层效果：上限+当前同加
+                    player.Life = raw - layers;                                        // 实得 = 溢出后原始值 − 层数
+                }
+                else
+                {
+                    player.Life = raw;
+                }
             }
             else if (entity is Card card)
             {
-                card._life = Math.Min(card._life + amount, card._maxLife > 0 ? card._maxLife : card._life + amount);
+                if (card._maxLife < card._life) card._maxLife = card._life; // 未初始化兜底：先对齐再判溢出
+                int cap = card._maxLife;
+                int raw = card._life + amount;
+                int over = raw - cap;
+                if (over > 0)
+                {
+                    int layers = (over + 1) / 2;
+                    Attribute.CounterRules.AddStatCounter(card, Attribute.CounterRules.LifeUpCounter, layers);
+                    card._life = raw - layers; // AddStatCounter 已把当前抬到上限，回写实得（floor 半入当前）
+                }
+                else
+                {
+                    card._life = raw;
+                }
             }
         }
 
@@ -247,20 +262,27 @@ namespace CardCore
 
         /// <summary>
         /// 添加指示物（Entity 级：角色/卡牌同构）。amount 可为负（攻/血/费指示物带符号）。
+        /// source = 施加方（指示物来源定案：正量登记，净量归零丢弃；GetCounterSource 查询）。
         /// </summary>
-        public static void AddCounters(this Entity entity, string counterType, int amount)
-            => AddCounters(entity, counterType, amount, -1);
+        public static void AddCounters(this Entity entity, string counterType, int amount, Entity source = null)
+            => AddCounters(entity, counterType, amount, -1, source);
 
         /// <summary>
         /// 添加指示物并附带回合时钟（turns &gt; 0 时每层进 _counterClocks，
         /// 由 CounterRules.OnTurnEnd 逐回合末递减，到期层回收并从计数扣除——毒素层=3）。
         /// </summary>
-        public static void AddCounters(this Entity entity, string counterType, int amount, int turns)
+        public static void AddCounters(this Entity entity, string counterType, int amount, int turns, Entity source = null)
         {
             if (entity == null) return;
             if (!entity._counters.ContainsKey(counterType))
                 entity._counters[counterType] = 0;
             entity._counters[counterType] += amount;
+
+            // 来源登记（与计数同生命周期：正量记施加方，净量归零丢弃）
+            if (amount > 0 && source != null)
+                entity._counterSources[counterType] = source;
+            else if (entity._counters[counterType] <= 0)
+                entity._counterSources.Remove(counterType);
 
             if (turns > 0 && amount > 0)
                 entity._counterClocks.Add(new CounterInstance { Id = counterType, Amount = amount, RemainingTurns = turns });
@@ -269,6 +291,10 @@ namespace CardCore
             if (entity._counters[counterType] <= 0 && entity._counterClocks.Count > 0)
                 entity._counterClocks.RemoveAll(c => c.Id == counterType);
         }
+
+        /// <summary>查询指示物施加方（最后施加的来源；无来源/未登记返回 null）</summary>
+        public static Entity GetCounterSource(this Entity entity, string counterType)
+            => entity != null && entity._counterSources.TryGetValue(counterType, out var src) ? src : null;
 
         /// <summary>获取指示物数量（净量；带符号指示物可为负）</summary>
         public static int GetCounterCount(this Entity entity, string counterType)
@@ -412,6 +438,12 @@ namespace CardCore
         // 宣言确认手牌的"已展示"标记：翻开过即公开，未展示卡不可被宣言确认重复指定；
         // 回到手牌（任何来源）即重置为未展示。
         internal bool _isRevealed = false;
+
+        // 死亡归因留档（2026-09-07 定案）：伤害/流失路径只标死不送墓（落墓由 SBA 泵处理），
+        // 死因与死亡来源随尸体留存，SBA/即时路径送墓时经 TryKill 消费并清档。
+        // DamageLethal→伤害来源；LifeLoss→效果来源；null=减益/状态动作（无来源）。
+        internal Attribute.DeathCause? _pendingDeathCause = null;
+        internal Entity _pendingDeathSource = null;
 
         /// <summary>是否已被宣言确认翻开（已展示；入手时重置）</summary>
         public bool IsRevealed => _isRevealed;

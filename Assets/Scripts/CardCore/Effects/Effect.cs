@@ -163,6 +163,13 @@ namespace CardCore
         public bool IsCardCast { get; set; }
 
         /// <summary>
+        /// 抉择模式索引（2026-09-07 定案）：整卡施放声明期选定（先选择再定费用），
+        /// 由 PushCardCast 写入、ResolveCardCastAsync 按此付费、执行引擎按此分派 Choices。
+        /// 普通效果实例恒 0；越界由消费方 Clamp（多 Choice 步骤共享卡级索引）。
+        /// </summary>
+        public int ModeIndex { get; set; }
+
+        /// <summary>
         /// 创建时间
         /// </summary>
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

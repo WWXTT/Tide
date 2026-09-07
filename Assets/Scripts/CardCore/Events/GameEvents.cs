@@ -124,6 +124,8 @@ namespace CardCore
         public ManaType ChosenManaType { get; set; } // 多色卡选择
         /// <summary>使用来源区：手牌打出（Zone.Hand）或隐蔽区域经 IPlaySource（如墓地视手牌 Zone.Graveyard）</summary>
         public Zone FromZone { get; set; }
+        /// <summary>抉择模式索引（2026-09-07 定案）：宣言即公开所选模式——响应窗口/预言验证/播报可见</summary>
+        public int ModeIndex { get; set; }
     }
 
     /// <summary>
@@ -154,6 +156,9 @@ namespace CardCore
     public class CardDestroyEvent : GameEventBase
     {
         public Card DestroyedCard { get; set; }
+        /// <summary>完整死因（决策表原值）：Reason 是粗分类（归零族→Combat），Cause 保留细分
+        /// （DamageLethal/LifeLoss/LifePayment/Poison/…）——未来死因相关触发/统计用。</summary>
+        public CardCore.Attribute.DeathCause Cause { get; set; }
         public DestroyReason Reason { get; set; }
         public Entity Source { get; set; }
     }
