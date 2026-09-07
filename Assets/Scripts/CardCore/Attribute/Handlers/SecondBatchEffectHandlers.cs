@@ -257,7 +257,33 @@ namespace CardCore.Attribute.Handlers
             int amount = context.GetValueAfterModifiers(effect.Value);
             foreach (var target in context.Targets)
             {
-                target.TakeDamage(amount);
+                // 生命流失（术语定案）：非伤害、不可防止——不走伤害管线（圣盾/护甲/坚韧不挡），
+                // 无伤害来源。死因=LifeLoss（归零族，神佑不拦），死亡来源=效果来源（归因到引发流失的效果卡）。
+                // 卡归零走即时决策表（效果驱动路径先例：牺牲/吞噬/湮灭/剧毒）；角色扣血补发 LifeChangeEvent
+                // （伤害管线同口径；游戏结束由既有终局链裁决）。
+                if (target is Card card)
+                {
+                    card._life -= amount;
+                    if (card._life <= 0)
+                    {
+                        card._life = 0;
+                        Attribute.DeathRules.TryKill(card, Attribute.DeathCause.LifeLoss,
+                            context.Source, context.ZoneManager);
+                    }
+                }
+                else if (target is Player player)
+                {
+                    int oldLife = player.Life;
+                    player.Life = oldLife - amount;
+                    PublishEvent(new LifeChangeEvent
+                    {
+                        Player = player,
+                        OldLife = oldLife,
+                        NewLife = player.Life,
+                        Source = context.Source
+                    });
+                }
+
                 PublishEvent(new AtomicDamageEvent
                 {
                     Source = context.Source, Target = target, Damage = amount,

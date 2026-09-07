@@ -268,6 +268,13 @@ namespace SynergyUI
 
         private string StepSummaryText(EffectStepData step, int index)
         {
+            if (step.kind == 2)
+            {
+                // 抉择：只读展示（本界面暂不支持编排 choice；创建入口在卡表 JSON，
+                // 转换层拒嵌套是权威防线）。顺序/增删仍可用——摘要展示模式数。
+                int modes = step.choices?.Count ?? 0;
+                return $"抉择（{modes} 个模式，本界面暂不支持编辑）";
+            }
             if (step.kind == 1)
             {
                 string condName = step.conditionId;

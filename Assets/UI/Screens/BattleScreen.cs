@@ -225,6 +225,13 @@ namespace SynergyUI
             // 准备阶段为纯自动阶段（放元素池已移至主阶段），点手牌无操作
             if (CurrentPhase == PhaseType.Main)
             {
+                // 抉择卡（2026-09-07 定案时序）：先弹模式选择，选定后才验发动条件（费用+目标），满足才能使用
+                if (card is CardWrapper modalWrapper && CostDerivationService.GetModeCount(modalWrapper.GetData()) >= 2)
+                {
+                    PromptModeThenPlay(card, Zone.Hand);
+                    return;
+                }
+
                 var targetAtomic = FindTargetingAtomic(card);
                 if (targetAtomic != null)
                 {
@@ -252,6 +259,12 @@ namespace SynergyUI
                 CloseOverlay();
                 if (picked is Card c)
                 {
+                    // 抉择卡同款时序：先选模式（墓地路径的目标走引擎自动解析）
+                    if (c is CardWrapper modalWrapper && CostDerivationService.GetModeCount(modalWrapper.GetData()) >= 2)
+                    {
+                        PromptModeThenPlay(c, Zone.Graveyard);
+                        return;
+                    }
                     if (GameActions.PlayCardFromGraveyard(Core, P1, c))
                         GameActions.DrainStack(Core); // 出牌即上栈：无响应即排干结算
                     else
@@ -318,14 +331,29 @@ namespace SynergyUI
 
         // ======================================== 目标选择弹窗（指向性法术） ========================================
 
-        /// <summary>返回该卡第一个需玩家选择目标（TargetType==Target）的原子配置；无则 null。</summary>
-        private AtomicEffectConfig FindTargetingAtomic(Card card)
+        /// <summary>返回该卡第一个需玩家选择目标（TargetType==Target）的原子配置；无则 null。
+        /// modeIndex：抉择卡按所选模式扫描（主序列原子 + 所选 choice 内原子；分支奖励原子不扫——
+        /// 主序列才在声明期选目标，奖励目标由结算期各自解析）。</summary>
+        private AtomicEffectConfig FindTargetingAtomic(Card card, int modeIndex = 0)
         {
             if (!(card is CardWrapper wrapper)) return null;
             var defs = CardEffectConverter.ConvertAll(wrapper.GetData().Effects, wrapper.GetData().ID);
             foreach (var def in defs)
             {
                 if (def.IsActivatedEffect) continue; // 施放即结算的才会自动跑
+
+                // Steps 卡（含抉择）：扫主序列 + 所选模式内的原子
+                if (def.Steps != null && def.Steps.Count > 0)
+                {
+                    foreach (var atomic in CardEffectConverter.EnumerateMainSequenceAtoms(def.Steps, modeIndex))
+                    {
+                        var cfg = AtomicEffectTable.GetByType(atomic.Type);
+                        if (cfg != null && cfg.TargetType == EffectTargetType.Target)
+                            return cfg;
+                    }
+                    continue;
+                }
+
                 foreach (var atomic in def.Effects)
                 {
                     var cfg = AtomicEffectTable.GetByType(atomic.Type);
@@ -336,7 +364,53 @@ namespace SynergyUI
             return null;
         }
 
-        private void PromptTargetThenPlay(Card card, AtomicEffectConfig cfg)
+        /// <summary>
+        /// 抉择模式选择（定案时序）：先弹模式窗（模式名+构筑期推导费用）→ 选定后才验发动条件
+        /// （费用可付 + 目标可得）→ 满足才出牌；不满足提示中止（可重点卡重选）。
+        /// </summary>
+        private void PromptModeThenPlay(Card card, Zone fromZone)
+        {
+            var data = ((CardWrapper)card).GetData();
+            int modeCount = CostDerivationService.GetModeCount(data);
+            var labels = FindChoiceLabels(data);
+
+            var options = new List<string>();
+            for (int i = 0; i < modeCount; i++)
+            {
+                string name = i < labels.Count && !string.IsNullOrEmpty(labels[i]) ? labels[i] : $"模式 {i + 1}";
+                options.Add($"{name}（费用 {CostText(GameActions.GetCardCost(card, i))}）");
+            }
+
+            ShowChoiceOverlay("选择模式", $"为 {CardName(card)} 选择要发动的分支：", options, idx =>
+            {
+                CloseOverlay();
+
+                // 发动条件检查（选定后）：费用可付（landCap 门槛由 PlayCard 内部复检）
+                if (!Core.ElementPool.CanPayCost(GameActions.GetCardCost(card, idx), P1))
+                {
+                    ShowToast("费用不足——该分支不可发动");
+                    RefreshAll();
+                    return;
+                }
+
+                var cfg = FindTargetingAtomic(card, idx);
+                if (cfg != null)
+                {
+                    PromptTargetThenPlay(card, cfg, idx, fromZone);
+                    return;
+                }
+                if (PlayFromZone(card, null, idx, fromZone))
+                    GameActions.DrainStack(Core);
+                RefreshAll();
+            });
+        }
+
+        private bool PlayFromZone(Card card, List<Entity> targets, int modeIndex, Zone fromZone)
+            => fromZone == Zone.Graveyard
+                ? GameActions.PlayCardFromGraveyard(Core, P1, card, targets, modeIndex)
+                : GameActions.PlayCard(Core, P1, card, targets, fromZone, modeIndex);
+
+        private void PromptTargetThenPlay(Card card, AtomicEffectConfig cfg, int modeIndex = 0, Zone fromZone = Zone.Hand)
         {
             var ctx = new EffectExecutionContext
             {
@@ -353,7 +427,7 @@ namespace SynergyUI
             if (candidates.Count == 0)
             {
                 // 无候选：按无目标直接结算（引擎自动解析兜底）。
-                if (GameActions.PlayCard(Core, P1, card, null))
+                if (PlayFromZone(card, null, modeIndex, fromZone))
                     GameActions.DrainStack(Core); // 出牌即上栈：无响应即排干结算
                 RefreshAll();
                 return;
@@ -363,10 +437,35 @@ namespace SynergyUI
             ShowOverlay("选择目标", $"为 {CardName(card)} 选择 {need} 个目标：", candidates, picked =>
             {
                 CloseOverlay();
-                if (GameActions.PlayCard(Core, P1, card, new List<Entity> { picked }))
+                if (PlayFromZone(card, new List<Entity> { picked }, modeIndex, fromZone))
                     GameActions.DrainStack(Core); // 出牌即上栈：无响应即排干结算
                 RefreshAll();
             });
+        }
+
+        /// <summary>抉择模式显示名（第一个 Choice 步骤的 label 列表；无则空表）。</summary>
+        private static List<string> FindChoiceLabels(CardData data)
+        {
+            var labels = new List<string>();
+            if (data?.Effects == null) return labels;
+            foreach (var eff in data.Effects)
+            {
+                if (eff?.Steps == null) continue;
+                foreach (var step in eff.Steps)
+                {
+                    if (step?.choices == null || step.choices.Count < 2) continue;
+                    foreach (var c in step.choices)
+                        labels.Add(c?.label);
+                    return labels;
+                }
+            }
+            return labels;
+        }
+
+        private static string CostText(Dictionary<int, float> cost)
+        {
+            if (cost == null || cost.Count == 0) return "0";
+            return string.Join(" ", cost.Select(kv => $"{(ManaType)kv.Key}×{kv.Value:0.#}"));
         }
 
         // ======================================== 弹窗通用 ========================================
@@ -394,6 +493,27 @@ namespace SynergyUI
         private void CloseOverlay()
         {
             Q<VisualElement>("overlay").style.display = DisplayStyle.None;
+        }
+
+        /// <summary>索引版选择弹窗（抉择模式等）：与 ShowOverlay 同 DOM，回调带选中下标。</summary>
+        private void ShowChoiceOverlay(string title, string hint, List<string> options, Action<int> onPick)
+        {
+            Q<Label>("overlay-title").text = title;
+            Q<Label>("overlay-hint").text = hint;
+            var list = Q<ScrollView>("overlay-list");
+            list.Clear();
+            for (int i = 0; i < options.Count; i++)
+            {
+                var idx = i;
+                var row = new VisualElement();
+                row.AddToClassList("list-row");
+                var label = new Label(options[idx]);
+                label.AddToClassList("list-row__name");
+                row.Add(label);
+                row.RegisterCallback<ClickEvent>(_ => onPick(idx));
+                list.Add(row);
+            }
+            Q<VisualElement>("overlay").style.display = DisplayStyle.Flex;
         }
 
         /// <summary>取消按钮：游戏结束时充当「返回主菜单」，否则仅关闭弹窗。</summary>

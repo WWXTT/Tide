@@ -20,7 +20,7 @@ namespace CardCore.Editor.Tests
         private string _p2Path = "";
         private int _maxTurns = 100;
 
-        [MenuItem("Tools/卡牌核心/AI 自动对战（选卡组）")]
+        [MenuItem("Tools/AI 自动对战（选卡组）")]
         public static void Open() => GetWindow<AiBattleDeckWindow>("AI 自动对战（选卡组）");
 
         private static string TestDecksDir

@@ -1,0 +1,1218 @@
+{
+    "cards": [
+        {
+            "id": "TEST_SPELL_RED_001",
+            "cardName": "火球术",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 4.0
+                },
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [
+                {
+                    "Id": "FIREBALL_MAIN",
+                    "DisplayName": "火球",
+                    "Description": "对目标造成4点伤害并抽一张牌",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DealDamage",
+                            "Value": 4,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        },
+                        {
+                            "EffectType": "DrawCard",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_GREEN_003",
+            "cardName": "古树守卫",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_BLUE_002",
+            "cardName": "深水哨兵",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_GRAY_001",
+            "cardName": "灰色哨兵",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_SPELL_DECLARE_001",
+            "cardName": "读心预言",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [
+                {
+                    "Id": "DECLARE_BRANCH_MAIN",
+                    "DisplayName": "读心",
+                    "Description": "宣言一个卡牌类型并确认对手手牌，命中则抽一张牌",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": [
+                        {
+                            "kind": 0,
+                            "atomic": {
+                                "EffectType": "DeclareHand",
+                                "Value": 0,
+                                "Value2": 0,
+                                "StringValue": "Type:Creature",
+                                "ManaTypeParam": 0,
+                                "ZoneParam": 0,
+                                "Duration": 0,
+                                "DurationValue": 0,
+                                "TargetTypeOverride": -1,
+                                "TargetFilterOverride": "",
+                                "TargetCountOverride": -2,
+                                "TargetScopeOverride": -1,
+                                "DynamicTargetCount": false,
+                                "Drawbacks": []
+                            },
+                            "condition": {
+                                "Type": 0,
+                                "Value": 0,
+                                "Value2": 0,
+                                "StringValue": "",
+                                "Negate": false
+                            },
+                            "thenSteps": [],
+                            "elseSteps": [],
+                            "conditionId": "",
+                            "conditionParam": 0,
+                            "conditionStringParam": "",
+                            "choices": []
+                        },
+                        {
+                            "kind": 1,
+                            "atomic": {
+                                "EffectType": "",
+                                "Value": 0,
+                                "Value2": 0,
+                                "StringValue": "",
+                                "ManaTypeParam": 0,
+                                "ZoneParam": 0,
+                                "Duration": 0,
+                                "DurationValue": 0,
+                                "TargetTypeOverride": -1,
+                                "TargetFilterOverride": "",
+                                "TargetCountOverride": -2,
+                                "TargetScopeOverride": -1,
+                                "DynamicTargetCount": false,
+                                "Drawbacks": []
+                            },
+                            "condition": {
+                                "Type": 0,
+                                "Value": 0,
+                                "Value2": 0,
+                                "StringValue": "",
+                                "Negate": false
+                            },
+                            "thenSteps": [
+                                {
+                                    "EffectType": "DrawCard",
+                                    "Value": 1,
+                                    "Value2": 0,
+                                    "StringValue": "",
+                                    "ManaTypeParam": 0,
+                                    "ZoneParam": 0,
+                                    "Duration": 0,
+                                    "DurationValue": 0,
+                                    "TargetTypeOverride": -1,
+                                    "TargetFilterOverride": "",
+                                    "TargetCountOverride": -2,
+                                    "TargetScopeOverride": -1,
+                                    "DynamicTargetCount": false,
+                                    "Drawbacks": []
+                                }
+                            ],
+                            "elseSteps": [],
+                            "conditionId": "DeclareHit",
+                            "conditionParam": 0,
+                            "conditionStringParam": "",
+                            "choices": []
+                        }
+                    ]
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_TAUNT",
+            "cardName": "嘲讽哨卫",
+            "supertype": "Creature",
+            "power": 0,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Taunt"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_CHARGE",
+            "cardName": "冲锋突击兵",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Charge"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_RUSH",
+            "cardName": "突袭急先锋",
+            "supertype": "Creature",
+            "power": 6,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Rush"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_DOUBLESTRIKE",
+            "cardName": "连击双刃客",
+            "supertype": "Creature",
+            "power": 9,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "DoubleStrike"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_POISONSTING",
+            "cardName": "毒刺毒沼虫",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "PoisonSting"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_LIFESTEAL",
+            "cardName": "吸血噬血蝠",
+            "supertype": "Creature",
+            "power": 8,
+            "life": 7,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [
+                "Lifesteal"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_LIFELINK",
+            "cardName": "系命祝祷僧",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 8,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Lifelink"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_STEALTH",
+            "cardName": "潜行影匿者",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 9,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "Stealth"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_DIVINESHIELD",
+            "cardName": "圣盾圣辉骑",
+            "supertype": "Creature",
+            "power": 7,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "DivineShield"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_OVERWHELM",
+            "cardName": "碾压攻城槌",
+            "supertype": "Creature",
+            "power": 0,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Overwhelm"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_ARMOR",
+            "cardName": "坚韧老树皮",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Armor"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_VIGILANCE",
+            "cardName": "警戒巡夜人",
+            "supertype": "Creature",
+            "power": 9,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [
+                "Vigilance"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_FIRSTSTRIKE",
+            "cardName": "先攻迅击剑士",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "FirstStrike"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_SPELLSHIELD",
+            "cardName": "法术护盾秘纹像",
+            "supertype": "Creature",
+            "power": 8,
+            "life": 8,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [
+                "SpellShield"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_UNTARGETABLE",
+            "cardName": "辟邪避世僧",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 9,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Untargetable"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_REBORN",
+            "cardName": "复生不灭烬",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Reborn"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_INDESTRUCTIBLE",
+            "cardName": "不灭磐岩像",
+            "supertype": "Creature",
+            "power": 7,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Indestructible"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_REGENERATION",
+            "cardName": "再生愈体藤",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Regeneration"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_GROWTH",
+            "cardName": "成长萌芽兽",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_ARMOR_ATOM",
+            "cardName": "装甲工匠",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [
+                {
+                    "Id": "ARMOR_ATOM_ONPLAY",
+                    "DisplayName": "装甲成型",
+                    "Description": "入场时为自身添加3点护甲",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "AddArmor",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "RITUAL_TRINITY_001",
+            "cardName": "三相仪典",
+            "supertype": "Enchantment",
+            "power": 0,
+            "life": 0,
+            "costList": [],
+            "keywords": [],
+            "tags": [
+                "ritual-test"
+            ],
+            "effects": [],
+            "subtype": "Ritual",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "RITUAL_BLOOD_002",
+            "cardName": "血偿仪典",
+            "supertype": "Enchantment",
+            "power": 0,
+            "life": 0,
+            "costList": [],
+            "keywords": [],
+            "tags": [
+                "ritual-test"
+            ],
+            "effects": [],
+            "subtype": "Ritual",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "RITUAL_SURVIVAL_003",
+            "cardName": "丰盈仪典",
+            "supertype": "Enchantment",
+            "power": 0,
+            "life": 0,
+            "costList": [],
+            "keywords": [],
+            "tags": [
+                "ritual-test"
+            ],
+            "effects": [],
+            "subtype": "Ritual",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "RITUAL_INFO_004",
+            "cardName": "窥渊仪典",
+            "supertype": "Enchantment",
+            "power": 0,
+            "life": 0,
+            "costList": [],
+            "keywords": [],
+            "tags": [
+                "ritual-test"
+            ],
+            "effects": [],
+            "subtype": "Ritual",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "RITUAL_RESOURCE_005",
+            "cardName": "归土仪典",
+            "supertype": "Enchantment",
+            "power": 0,
+            "life": 0,
+            "costList": [],
+            "keywords": [],
+            "tags": [
+                "ritual-test"
+            ],
+            "effects": [],
+            "subtype": "Ritual",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "RITUAL_TEMPO_006",
+            "cardName": "疾风仪典",
+            "supertype": "Enchantment",
+            "power": 0,
+            "life": 0,
+            "costList": [],
+            "keywords": [],
+            "tags": [
+                "ritual-test"
+            ],
+            "effects": [],
+            "subtype": "Ritual",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "RITUAL_HAND_007",
+            "cardName": "纳川仪典",
+            "supertype": "Enchantment",
+            "power": 0,
+            "life": 0,
+            "costList": [],
+            "keywords": [],
+            "tags": [
+                "ritual-test"
+            ],
+            "effects": [],
+            "subtype": "Ritual",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_INSPIRE_001",
+            "cardName": "激励战歌",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [
+                {
+                    "Id": "INSPIRE_MAIN",
+                    "DisplayName": "激励",
+                    "Description": "以一个已横置的友方单位为目标，重置其横置状态（可解冻横置，不移除冻结指示物）",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_KW_DISARM",
+            "cardName": "缴械断刃客",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Disarm"
+            ],
+            "tags": [
+                "keyword-test"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        },
+        {
+            "id": "TEST_SPELL_MODAL_001",
+            "cardName": "抉择试作",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [
+                {
+                    "Id": "MODAL_MAIN",
+                    "DisplayName": "二选一",
+                    "Description": "对目标造成4点伤害或抽一张牌（发动时先选分支，费用按所选分支计）",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": [
+                        {
+                            "kind": 2,
+                            "atomic": {
+                                "EffectType": "",
+                                "Value": 0,
+                                "Value2": 0,
+                                "StringValue": "",
+                                "ManaTypeParam": 0,
+                                "ZoneParam": 0,
+                                "Duration": 0,
+                                "DurationValue": 0,
+                                "TargetTypeOverride": -1,
+                                "TargetFilterOverride": "",
+                                "TargetCountOverride": -2,
+                                "TargetScopeOverride": -1,
+                                "DynamicTargetCount": false,
+                                "Drawbacks": []
+                            },
+                            "condition": {
+                                "Type": 0,
+                                "Value": 0,
+                                "Value2": 0,
+                                "StringValue": "",
+                                "Negate": false
+                            },
+                            "thenSteps": [],
+                            "elseSteps": [],
+                            "conditionId": "",
+                            "conditionParam": 0,
+                            "conditionStringParam": "",
+                            "choices": [
+                                {
+                                    "label": "烈焰",
+                                    "steps": [
+                                        {
+                                            "kind": 0,
+                                            "atomic": {
+                                                "EffectType": "DealDamage",
+                                                "Value": 4,
+                                                "Value2": 0,
+                                                "StringValue": "",
+                                                "ManaTypeParam": 0,
+                                                "ZoneParam": 0,
+                                                "Duration": 0,
+                                                "DurationValue": 0,
+                                                "TargetTypeOverride": -1,
+                                                "TargetFilterOverride": "",
+                                                "TargetCountOverride": -2,
+                                                "TargetScopeOverride": -1,
+                                                "DynamicTargetCount": false,
+                                                "Drawbacks": []
+                                            },
+                                            "condition": {
+                                                "Type": 0,
+                                                "Value": 0,
+                                                "Value2": 0,
+                                                "StringValue": "",
+                                                "Negate": false
+                                            },
+                                            "thenSteps": [],
+                                            "elseSteps": [],
+                                            "conditionId": "",
+                                            "conditionParam": 0,
+                                            "conditionStringParam": "",
+                                            "choices": []
+                                        }
+                                    ]
+                                },
+                                {
+                                    "label": "灵感",
+                                    "steps": [
+                                        {
+                                            "kind": 0,
+                                            "atomic": {
+                                                "EffectType": "DrawCard",
+                                                "Value": 1,
+                                                "Value2": 0,
+                                                "StringValue": "",
+                                                "ManaTypeParam": 0,
+                                                "ZoneParam": 0,
+                                                "Duration": 0,
+                                                "DurationValue": 0,
+                                                "TargetTypeOverride": -1,
+                                                "TargetFilterOverride": "",
+                                                "TargetCountOverride": -2,
+                                                "TargetScopeOverride": -1,
+                                                "DynamicTargetCount": false,
+                                                "Drawbacks": []
+                                            },
+                                            "condition": {
+                                                "Type": 0,
+                                                "Value": 0,
+                                                "Value2": 0,
+                                                "StringValue": "",
+                                                "Negate": false
+                                            },
+                                            "thenSteps": [],
+                                            "elseSteps": [],
+                                            "conditionId": "",
+                                            "conditionParam": 0,
+                                            "conditionStringParam": "",
+                                            "choices": []
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": ""
+        }
+    ],
+    "deckConfig": {
+        "copiesPerCard": 1
+    }
+}

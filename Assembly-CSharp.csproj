@@ -156,6 +156,7 @@
     <Compile Include="Assets\Scripts\CardCore\Summon\SummonEngine.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\BuiltinEffectHandlers.cs" />
     <Compile Include="Assets\Scripts\CardCore\Enums\CardEnums.cs" />
+    <Compile Include="Assets\Scripts\CardCore\Effects\CardCompositionCost.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\CounterRules.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\BranchConfig.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\CostDerivation.cs" />

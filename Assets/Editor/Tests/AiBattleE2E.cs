@@ -20,7 +20,7 @@ namespace CardCore.Editor.Tests
     {
         private const string Tag = "[对局]";
 
-        [MenuItem("Tools/卡牌核心/AI 自动对战验证")]
+        [MenuItem("Tools/AI 自动对战验证")]
         public static void RunFromMenu()
         {
             if (!TryLoadRandomTestDecks(out var deck1, out var deck2))

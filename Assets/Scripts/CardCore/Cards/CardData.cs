@@ -85,6 +85,11 @@ namespace CardCore
         private string _costJson;
         public Dictionary<int, float> Cost { get; set; } = new Dictionary<int, float>();
 
+        // 抉择（Choice）per-mode 费用缓存（2026-09-07 定案）：构筑/装载期由 CardCostService.DeriveModeCosts
+        // 推导写入（发动时只读取不重推导）；声明 Cost 为最大模式费（地牌/素材/UI 消费面口径）。
+        [NonSerialized]
+        internal List<Dictionary<int, float>> ModeCostCache;
+
         /// <summary>
         /// 效果列表
         /// </summary>
@@ -301,6 +306,7 @@ namespace CardCore
         {
             _totalCost = -1;
             _hasActiveEffect = null;
+            ModeCostCache = null; // 抉择 per-mode 费用随配置失效（下次构筑期重推导）
         }
 
         /// <summary>
@@ -378,18 +384,34 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 效果步骤条目 —— 把效果序列扩展为「原子效果」或「条件分支」两种步骤。
+    /// 抉择模式条目 —— EffectStepData.kind==2（Choice）的一个选发分支。
+    /// JsonUtility 不支持嵌套泛型集合（List&lt;List&lt;T&gt;&gt; 会静默丢字段），
+    /// 故用包装类承载每个模式的子步骤序列（原子+紧邻分支；不可再嵌 Choice）。
+    /// 费用定案（2026-09-07）：各模式构筑期独立推导存储；发动时先选模式再定费用。
+    /// </summary>
+    [Serializable]
+    public class EffectChoiceData
+    {
+        public string label;                      // 模式显示名（仅 UI 展示，不参与哈希）
+        public List<EffectStepData> steps;        // 该模式的子步骤序列
+    }
+
+    /// <summary>
+    /// 效果步骤条目 —— 把效果序列扩展为「原子效果」「条件分支」「抉择」三种步骤。
     /// 由效果合成界面（UI）编排，JsonUtility 可序列化（判别字段 + 有界一层 then/else）。
     ///
     /// 执行：EffectExecutor.ExecuteAsync 读 Steps 做 per-target 遍历（EffectsExecutionEngine
     /// 的 ExecuteStepsAsync）；分支必须紧邻其原子之后，评估读 LastOutcome。
     /// 预言族条件（ProphecyHit/Miss）被引擎拦截为延迟验证，由 ProphecySystem 在
     /// 对手下回合首张出牌时结算 then/else。Steps 为空时退化为扁平 AtomicEffects。
+    ///
+    /// 抉择（kind==2）：≥2 个选发模式，发动声明期选定 ModeIndex（随 cast 上栈），
+    /// 结算只执行所选模式；各模式费用独立推导（CostDerivation per-mode）。
     /// </summary>
     [Serializable]
     public class EffectStepData
     {
-        public int kind;                              // 0=原子效果, 1=条件分支
+        public int kind;                              // 0=原子效果, 1=条件分支, 2=抉择
         public AtomicEffectEntry atomic;              // kind==0 时有效
         public ActivationConditionData condition;     // kind==1 时有效（保留：发动前条件，旧字段）
         public List<AtomicEffectEntry> thenSteps;     // kind==1：条件成立时执行
@@ -400,6 +422,9 @@ namespace CardCore
         public string conditionId;                    // 条件 id，如 "DmgKillsTarget"
         public int conditionParam;                    // 数值参数（如门槛）
         public string conditionStringParam;           // 字符串参数（如预言类型）
+
+        // kind==2：选发模式列表（≥2）。包装类见 EffectChoiceData 注释。
+        public List<EffectChoiceData> choices;
     }
 
     /// <summary>

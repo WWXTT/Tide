@@ -126,6 +126,9 @@ namespace CardCore.Attribute
             }
 
             card.IsAlive = false;
+            // 归因消费：进入死亡流程即清档（含复生替代——回场后死亡需重新归因，不沿尸旧来源）
+            card._pendingDeathCause = null;
+            card._pendingDeathSource = null;
 
             // 复生：死亡替代（1 血回场 + 横置 + 失调，消耗关键词）——湮灭不可被复活
             if (cause != DeathCause.Annihilate && KeywordRules.TryReborn(card))
@@ -144,6 +147,7 @@ namespace CardCore.Attribute
             var e = new CardDestroyEvent
             {
                 DestroyedCard = card,
+                Cause = cause,
                 Reason = ToReason(cause),
                 Source = source
             };

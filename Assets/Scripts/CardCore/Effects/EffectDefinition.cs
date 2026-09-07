@@ -421,11 +421,12 @@ namespace CardCore
 
     #region 节点化效果步骤（运行时）
 
-    /// <summary>步骤种类：原子效果 / 条件分支。</summary>
+    /// <summary>步骤种类：原子效果 / 条件分支 / 抉择。</summary>
     public enum RuntimeStepKind
     {
         Atomic = 0,
         Branch = 1,
+        Choice = 2,
     }
 
     /// <summary>
@@ -445,7 +446,9 @@ namespace CardCore
     /// <summary>
     /// 运行时效果步骤。Kind==Atomic 时执行 Atomic；
     /// Kind==Branch 时为 OutcomeGate 分支：评估 ConditionId 对当前目标的产出，
-    /// 真走 Then、假走 Else（单层、扁平原子列表，奖励免费）。
+    /// 真走 Then、假走 Else（单层、扁平原子列表，奖励免费）；
+    /// Kind==Choice 时为抉择：按 EffectInstance.ModeIndex 只执行 Choices 中所选模式的
+    /// 子步骤序列（单层不可嵌套，converter 已拒；模式费用 per-mode 独立推导）。
     /// </summary>
     [Serializable]
     public class RuntimeEffectStep
@@ -463,6 +466,9 @@ namespace CardCore
 
         public List<AtomicEffectInstance> Then = new List<AtomicEffectInstance>();
         public List<AtomicEffectInstance> Else = new List<AtomicEffectInstance>();
+
+        /// <summary>Kind==Choice 时的选发模式列表（每模式=原子+紧邻分支的步骤序列）。</summary>
+        public List<List<RuntimeEffectStep>> Choices;
     }
 
     #endregion

@@ -489,7 +489,7 @@ namespace CardCore
                 && source.HasKeyword(KeywordRules.PoisonSting))
             {
                 target.AddCounters(Attribute.CounterRules.ToxinCounter, 1,
-                    turns: Attribute.CounterRules.Find(Attribute.CounterRules.ToxinCounter).Turns);
+                    Attribute.CounterRules.Find(Attribute.CounterRules.ToxinCounter).Turns, source);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = target,

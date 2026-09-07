@@ -182,8 +182,8 @@ namespace CardCore.Attribute.Handlers
             {
                 if (!(target is Card card) || !card.IsAlive) continue;
                 int oldPower = card.GetPower();
-                if (amount >= 0) CounterRules.AddStatCounter(card, CounterRules.PowerUpCounter, amount);
-                else CounterRules.AddStatCounter(card, CounterRules.PowerDownCounter, -amount);
+                if (amount >= 0) CounterRules.AddStatCounter(card, CounterRules.PowerUpCounter, amount, context.Source);
+                else CounterRules.AddStatCounter(card, CounterRules.PowerDownCounter, -amount, context.Source);
                 PublishEvent(new StatModifyEvent
                 {
                     Target = target,

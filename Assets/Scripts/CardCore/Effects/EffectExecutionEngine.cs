@@ -144,13 +144,15 @@ namespace CardCore
                 Targets = instance.Targets,
                 TriggeringEvent = instance.TriggeringEvent,
                 ZoneManager = _zoneManager,
-                ElementPool = _elementPool
+                ElementPool = _elementPool,
+                ModeIndex = instance.ModeIndex, // 抉择：执行引擎按声明期选定的模式分派
             };
 
             // 代价支付：元素代价由配置表自动推导（费用唯一权威），经「抵消+元素」异步路径支付；
             // 卡内效果（ElementCostPrepaid）的元素费已随卡牌档位费收讫，跳过以防双计；游戏中途授予的动态效果照付。
             // 卡牌的 effect.Costs 仅保留非元素的特殊代价（Sleep/SummonMaterial/弃牌 等），走原子同步支付。
-            var elementCosts = CostDerivationService.DeriveElementCosts(effect);
+            // 抉择卡按所选模式推导（per-mode 独立计价定案）。
+            var elementCosts = CostDerivationService.DeriveElementCosts(effect, instance.ModeIndex);
             var specialCosts = effect.Costs != null
                 ? effect.Costs.Where(c => c.Type != CostType.ElementConsume).ToList()
                 : new List<CostInstance>();
@@ -238,13 +240,34 @@ namespace CardCore
         /// 节点化 per-target 步骤遍历（单层）。
         /// 原子步骤先解析候选目标，对每个目标单独执行原子并写 LastOutcome；
         /// 若紧随其后是 OutcomeGate 分支步骤，则在同一目标循环体内立即评估并执行 then/else（奖励免费）。
+        /// 抉择（Choice）步骤：按 context.ModeIndex 只执行所选模式的子序列（converter 已保证不嵌套）。
         /// </summary>
         private async UniTask ExecuteStepsAsync(EffectDefinition effect, EffectExecutionContext context)
         {
-            var steps = effect.Steps;
+            await ExecuteStepSequenceAsync(effect.Steps, context);
+        }
+
+        /// <summary>
+        /// 步骤序列执行（主序列与抉择模式子序列共用）：原子 per-target 遍历 +
+        /// 紧邻 OutcomeGate 前瞻配对（奖励免费）；Choice 步骤按 ModeIndex 分派。
+        /// </summary>
+        private async UniTask ExecuteStepSequenceAsync(List<RuntimeEffectStep> steps, EffectExecutionContext context)
+        {
             for (int i = 0; i < steps.Count; i++)
             {
                 var step = steps[i];
+
+                // 抉择：只执行所选模式（越界 Clamp——多 Choice 步骤共享卡级 ModeIndex，数量不一致时各自钳制）
+                if (step.Kind == RuntimeStepKind.Choice)
+                {
+                    var chosen = step.Choices != null && step.Choices.Count > 0
+                        ? step.Choices[System.Math.Max(0, System.Math.Min(context.ModeIndex, step.Choices.Count - 1))]
+                        : null;
+                    if (chosen != null)
+                        await ExecuteStepSequenceAsync(chosen, context);
+                    continue;
+                }
+
                 if (step.Kind != RuntimeStepKind.Atomic || step.Atomic == null)
                     continue; // 落单分支步骤无前置原子，跳过（正常由原子步骤前瞻消费）
 
@@ -518,7 +541,7 @@ namespace CardCore
         /// （深度照常计入记速器，激活式能力的速度门槛不受影响）。
         /// 结算消费点见 GameActions.ResolveCardCastAsync（Option Y：扣费在响应窗口之后）。
         /// </summary>
-        public bool PushCardCast(Card card, Player controller, List<Entity> targets)
+        public bool PushCardCast(Card card, Player controller, List<Entity> targets, int modeIndex = 0)
         {
             if (card == null || controller == null) return false;
             if (_isResolving) return false; // 结算中不可声明（与 SpeedCounter.CanActivate 同口径）
@@ -530,6 +553,7 @@ namespace CardCore
                 Controller = controller,
                 ActivationSpeed = _speedCounter.CurrentSpeed + 1,
                 Targets = targets != null ? new List<Entity>(targets) : new List<Entity>(),
+                ModeIndex = modeIndex, // 抉择：声明期选定模式（随 cast 上栈，对手可见、结算按此付费）
             };
 
             _speedCounter.Increment(); // ★ 记速器 +1（与 TryActivateEffect 同规）
@@ -1022,9 +1046,9 @@ namespace CardCore
 
                 // 第一批补齐 — 状态变更
                 new ModifyLifeHandler(),
-                new SetPowerHandler(),
-                new SetLifeHandler(),
-                new SetCostHandler(),
+                // 设置系（SetPower/SetLife/SetCost）已下线（2026-09-07：归为规则系能力，
+                // 与指示物体系分离——直改原属性绕过「增益长在身上可被净化交互」的统一模型；
+                // 三轨制按来源分轨重建时恢复）。未注册 → 运行时警告跳过，枚举与表行保留。
                 new ModifyCostHandler(),
 
                 // 信息族 — 宣言（即时验证）/ 预言（隐藏押注，延迟验证）

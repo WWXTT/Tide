@@ -124,8 +124,8 @@ namespace CardCore
         public static bool IsCompleter(Player payer)
             => RitualAuraQueries.HasCompletedAura(payer, "BloodPact");
 
-        /// <summary>装饰器：完成者支付生命代价时 Payer 换为对手（CanPay 同样看对手——严格大于，不能付到 0）。
-        /// LifePaymentCostEvent.Player = 实际失去生命的一方（对手）。</summary>
+        /// <summary>装饰器：完成者支付生命代价时 Payer 换为对手（CanPay 同样看对手——可付到恰好归零，
+        /// 归零=正常死亡，与基础处理器同口径）。LifePaymentCostEvent.Player = 实际失去生命的一方（对手）。</summary>
         private class Decorator : ICostHandler
         {
             private readonly ICostHandler _fallback;
@@ -139,7 +139,7 @@ namespace CardCore
                 if (IsCompleter(context?.Payer))
                 {
                     var payer = context.Payer.Opponent;
-                    return payer != null && payer.Life > cost.Value;
+                    return payer != null && payer.Life >= cost.Value;
                 }
                 return _fallback != null && _fallback.CanPay(cost, context);
             }
@@ -156,6 +156,7 @@ namespace CardCore
                         Amount = cost.Value,
                         Source = context.Source
                     });
+                    // 转嫁同口径：可付到归零（=正常死亡），终局交连锁结束后统一检查（同基础处理器）
                     return;
                 }
                 _fallback?.Pay(cost, context);

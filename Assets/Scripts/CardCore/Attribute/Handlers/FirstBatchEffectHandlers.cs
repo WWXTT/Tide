@@ -396,6 +396,11 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>设置攻击力</summary>
+    // ==================== 设置系（2026-09-07 定案：归为规则系能力，暂时下线） ====================
+    // 同一文本描述的赋予将按【来源分轨】（大改动另行计划）：生物效果=临时指示物 / 魔法卡=设置类（永久直改）
+    // / 连接箭头=光环。统一指示物是为了让增益长在实体身上、可被净化等效果交互——直改原属性绕过该体系，
+    // 故设置系 handler 先下线（#if false），枚举与表行保留（数据兼容），待三轨制重建时恢复。
+#if false
     public class SetPowerHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SetPower;
@@ -478,6 +483,7 @@ namespace CardCore.Attribute.Handlers
 
         public override string GetDescription(AtomicEffectInstance effect) => $"将费用设为 {effect.Value}";
     }
+#endif // 设置系暂时下线（规则系能力，三轨制重建时恢复）
 
     /// <summary>
     /// 修改费用（指示物形式定案）：正值加"费用增加"层、负值加"费用减少"层（单向粒度）——

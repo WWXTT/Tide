@@ -161,11 +161,38 @@ namespace CardCore
             };
         }
 
+        /// <summary>
+        /// 主序列原子枚举（声明期目标扫描用，UI/AI 共用）：直行原子 + 抉择步骤所选模式内的原子。
+        /// 分支奖励原子不扫——主序列才在声明期选目标，奖励目标由结算期各自解析。
+        /// </summary>
+        public static IEnumerable<AtomicEffectInstance> EnumerateMainSequenceAtoms(
+            List<RuntimeEffectStep> steps, int modeIndex)
+        {
+            foreach (var step in steps)
+            {
+                if (step == null) continue;
+                if (step.Kind == RuntimeStepKind.Atomic && step.Atomic != null)
+                {
+                    yield return step.Atomic;
+                }
+                else if (step.Kind == RuntimeStepKind.Choice)
+                {
+                    var chosen = step.Choices != null && step.Choices.Count > 0
+                        ? step.Choices[Math.Max(0, Math.Min(modeIndex, step.Choices.Count - 1))]
+                        : null;
+                    if (chosen == null) continue;
+                    foreach (var s in chosen)
+                        if (s != null && s.Kind == RuntimeStepKind.Atomic && s.Atomic != null)
+                            yield return s.Atomic;
+                }
+            }
+        }
+
         private static RuntimeEffectStep ConvertStep(EffectStepData step)
         {
             if (step == null) return null;
 
-            // kind: 0=原子, 1=条件分支
+            // kind: 0=原子, 1=条件分支, 2=抉择
             if (step.kind == 0)
             {
                 var atomic = step.atomic != null ? ConvertAtomicEffect(step.atomic) : null;
@@ -175,6 +202,45 @@ namespace CardCore
                     Kind = RuntimeStepKind.Atomic,
                     Atomic = atomic,
                 };
+            }
+
+            // 抉择（Choice）：≥2 选发模式，每模式=原子+紧邻分支的子序列（不可嵌套）。
+            // 容错定案：choices 缺失/有效模式 <2 → 整步跳过（等价不存在），费用按无抉择推导。
+            if (step.kind == 2)
+            {
+                if (step.choices == null || step.choices.Count < 2)
+                {
+                    UnityEngine.Debug.LogWarning("[CardEffectConverter] 抉择步骤 choices 缺失或 <2，跳过该步骤");
+                    return null;
+                }
+
+                var choice = new RuntimeEffectStep { Kind = RuntimeStepKind.Choice };
+                choice.Choices = new List<List<RuntimeEffectStep>>();
+                foreach (var c in step.choices)
+                {
+                    var seq = new List<RuntimeEffectStep>();
+                    if (c?.steps != null)
+                    {
+                        foreach (var s in c.steps)
+                        {
+                            var rs = ConvertStep(s); // 复用：原子/紧邻分支照旧转换
+                            if (rs == null) continue;
+                            if (rs.Kind == RuntimeStepKind.Choice)
+                            {
+                                UnityEngine.Debug.LogWarning("[CardEffectConverter] 抉择不可嵌套，跳过内层抉择");
+                                continue;
+                            }
+                            seq.Add(rs);
+                        }
+                    }
+                    choice.Choices.Add(seq);
+                }
+                if (choice.Choices.Count < 2)
+                {
+                    UnityEngine.Debug.LogWarning("[CardEffectConverter] 抉择步骤有效模式 <2，跳过该步骤");
+                    return null;
+                }
+                return choice;
             }
 
             // 条件分支（OutcomeGate）：then/else 为扁平原子列表（单层）

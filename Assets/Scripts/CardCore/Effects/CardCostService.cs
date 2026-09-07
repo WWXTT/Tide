@@ -75,9 +75,10 @@ namespace CardCore
     ///   锚价（即时价，法术定价）= CostDerivationService.DeriveElementCosts（原样复用，含持续折扣）。
     ///   身材费 S(灰)  = (攻+血) / StatUnit（StatUnit=2：1费=2属性）。
     ///   关键词费 K    = Σ 关键词对应 Grant 原子的 BaseCost（固定费，颜色=原子亲和；White/Black 归灰）。
-    ///   挂载折扣 f    = 法术恒 1；随从 max(0, d(C) − ExtraActivationSlope×(N_active−1))。
-    ///                  ——落地时间（费用C=最早第C回合落地，延迟C−1）与存活期望（每多一回合发动再折）两个来源。
-    ///   D(C) = S灰 + 挂载包×f（减免发生在组合层：包总额一次取整，最大余数法分色）；D 只算一次，不迭代。
+    ///   挂载折扣 f    = 法术恒 1；随从 d(C)——落地时间（费用C=最早第C回合落地，延迟C−1）按延迟贬值。
+    ///                  （原 ExtraActivationSlope×(N_active−1) 存活期望折已删——与卡层挂载口计价重复。）
+    ///   卡层组合费用  = CardCompositionCost（第三层：抉择价差溢价 / 效果挂载口 ±灰，不参与 f）。
+    ///   D(C) = S灰 + 挂载包×f + 卡层调整（减免发生在组合层：包总额一次取整，最大余数法分色）；D 只算一次，不迭代。
     ///   档位 C = costList 总和，是推导的输入；支付/地牌指示物/UI/召唤门槛照读声明值，不受 D 影响。
     ///   抵扣需求 Req = max(0, D_total − C_total)，由卡上代价在构筑期抵消（O ≥ Req 即符合规则一）。
     /// </summary>
@@ -97,36 +98,11 @@ namespace CardCore
             bool isSpell = card.Supertype == Cardtype.Spell;
 
             // ---- 1) 身材费 S（灰桶；身材不是挂载效果，不参与 f）----
-            int statPoints = (card.Power ?? 0) + (card.Life ?? 0);
-            float statValue = statPoints / Mathf.Max(1f, cc.StatUnit);
-            result.Breakdown.Add(new CostBreakdownLine("S", $"身材费 (攻{card.Power ?? 0}/血{card.Life ?? 0})", statValue, ManaType.Gray));
+            float statValue = ComputeStatValue(card, cc, result.Breakdown);
 
             // ---- 2) 关键词费 K（Grant 原子固定费，无 value 缩放）----
-            float keywordTotal = 0f;
-            var kwBuckets = new Dictionary<ManaType, float>();
-            if (card.Keywords != null)
-            {
-                CardLoader.LoadKeywords(); // 惰性建目录（GetKeywordDefinition 不自动建）
-                foreach (var kwId in card.Keywords)
-                {
-                    if (string.IsNullOrEmpty(kwId)) continue;
-                    var def = CardLoader.GetKeywordDefinition(kwId);
-                    if (def == null || string.IsNullOrEmpty(def.atomicEffect)
-                        || !Enum.TryParse<AtomicEffectType>(def.atomicEffect, out var grantType))
-                    {
-                        result.Breakdown.Add(new CostBreakdownLine("K", $"关键词 {kwId}（未登记 Grant 原子，计 0）", 0f));
-                        continue;
-                    }
-
-                    var atomCfg = AtomicEffectTable.GetByType(grantType);
-                    float baseCost = atomCfg?.BaseCost ?? 0f;
-                    var color = ElementAffinities.GetAffinityForEffect(grantType).PrimaryColor;
-                    kwBuckets.TryGetValue(color, out var prev);
-                    kwBuckets[color] = prev + baseCost;
-                    keywordTotal += baseCost;
-                    result.Breakdown.Add(new CostBreakdownLine("K", $"关键词 {kwId} (Grant 固定费)", baseCost, color));
-                }
-            }
+            float keywordTotal;
+            var kwBuckets = ComputeKeywordBuckets(card, result.Breakdown, out keywordTotal);
 
             // ---- 3) 效果锚价 E（经 CardEffectConverter，与运行时执行同口径）----
             float effectTotal = 0f;
@@ -149,25 +125,28 @@ namespace CardCore
             }
 
             // ---- 4) 挂载折扣 f（法术不折；档位未声明时按上限档计，供建议档位推导用）----
-            int tierForFactor = result.DeclaredTier > 0
-                ? Mathf.Clamp(result.DeclaredTier, 1, cc.MaxTier)
-                : cc.MaxTier;
-            float d = isSpell ? 1f : dd.At(tierForFactor);
-            int extraActivations = Mathf.Max(0, result.ActiveEffectCount - 1);
-            float factor = isSpell ? 1f : Mathf.Max(0f, d - dd.ExtraActivationSlope * extraActivations);
-            result.Factor = factor;
-            result.Breakdown.Add(new CostBreakdownLine("f", $"挂载折扣 f（d({tierForFactor})={d:0.###}，N_active={result.ActiveEffectCount}）", factor));
+            float factor = ComputeMountFactor(card, cc, dd, result.DeclaredTier);
+            {
+                int tierForFactor = result.DeclaredTier > 0
+                    ? Mathf.Clamp(result.DeclaredTier, 1, cc.MaxTier)
+                    : cc.MaxTier;
+                float d = isSpell ? 1f : dd.At(tierForFactor);
+                result.Factor = factor;
+                result.Breakdown.Add(new CostBreakdownLine("f", $"挂载折扣 f（d({tierForFactor})={d:0.###}）", factor));
+            }
 
-            // ---- 5) 组合层计价：挂载包(E+K) 总额×f 一次性取整（减免发生在组合层，非逐效果），
-            //           最大余数法分摊回颜色桶；D = S灰 + 挂载实付 ----
+            // ---- 5) L2 组合完成 + L3 整卡延迟折（2026-09-07 定案：d(C) 对完成的卡最后一步打折）----
+            // L2：E/K 汇桶 + S/挂载口入灰桶（挂载口是 L2 最后一步）；
+            // L3：整卡（S+E+K+卡层调整）×f 一次取整，最大余数法分色（减免发生在组合层，非逐效果）。
             var kwMultiplier = cc.KeywordsShareDelayDiscount ? factor : 1f;
             int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
-            var mounted = ApportionMounted(effBuckets, kwBuckets, kwMultiplier, factor);
-            if (statGray > 0)
-            {
-                mounted.TryGetValue(ManaType.Gray, out var mountedGray);
-                mounted[ManaType.Gray] = statGray + mountedGray;
-            }
+            int mountAdj = CardCompositionCost.MountSlotAdjust(card);
+            if (mountAdj != 0)
+                result.Breakdown.Add(new CostBreakdownLine("M",
+                    $"挂载口调整（效果 {card.Effects?.Count ?? 0} 个 vs 基线）", mountAdj, ManaType.Gray));
+
+            var mounted = ApportionMounted(effBuckets, kwBuckets, kwMultiplier, factor, statGray + mountAdj);
+
             foreach (var kv in mounted)
             {
                 result.DerivedCost[kv.Key] = kv.Value;
@@ -185,9 +164,9 @@ namespace CardCore
             result.Breakdown.Add(new CostBreakdownLine("Req", $"抵扣需求 max(0, D{result.DerivedTotal} − C{result.DeclaredTier})", result.OffsetRequirement));
             result.Breakdown.Add(new CostBreakdownLine("O", $"代价当量合计（已提供）", result.OffsetProvided));
 
-            // ---- 7) 建议档位 Ĉ 与建议分布 ----
-            result.SuggestedTier = FindSuggestedTier(card, cc, dd, isSpell, statValue, kwBuckets, effBuckets, result.ActiveEffectCount);
-            result.SuggestedCost = BuildCostAtTier(result.SuggestedTier, cc, dd, isSpell, statValue, kwBuckets, effBuckets, result.ActiveEffectCount);
+            // ---- 7) 建议档位 Ĉ 与建议分布（含卡层挂载口调整——建议价与 D 同口径）----
+            result.SuggestedTier = FindSuggestedTier(card, cc, dd, isSpell, statValue, kwBuckets, effBuckets, mountAdj);
+            result.SuggestedCost = BuildCostAtTier(result.SuggestedTier, cc, dd, isSpell, statValue, kwBuckets, effBuckets, mountAdj);
             return result;
         }
 
@@ -201,10 +180,45 @@ namespace CardCore
         /// <summary>
         /// 幂等兜底：Cost 为空且非超量（费用由素材推导）→ 写入建议档位分布；非空一律不动。
         /// D=0（无身材无效果无关键词）保持空 —— PlayCard 的 {Gray:1} 默认兜底行为不变。
+        ///
+        /// 抉择卡（2026-09-07 定案）：①构筑期推导全部模式费写入 ModeCostCache（发动时只读不重推导）；
+        /// ②声明 costList 缺省时写**最大模式费**——「作为地牌取最大」，地牌产元素/召唤素材/UI 等
+        /// 声明值消费面零改动；支付仍按所选模式（GameActions.GetCardCost 走 GetModeCost）。
+        /// 声明值已存在则只填缓存不动声明（手写费用=地牌值，声明优先惯例延续）。
         /// </summary>
         public static void EnsureCost(CardData card)
         {
             if (card == null) return;
+
+            if (CostDerivationService.HasChoiceEffect(card))
+            {
+                var modes = DeriveModeCosts(card);
+                if (card.Cost != null && card.Cost.Count > 0)
+                {
+                    if (modes.Count > 0) card.ModeCostCache = modes; // 声明优先：只填缓存
+                    return;
+                }
+                if ((card.Subtype & CardSubtype.Xyz) != 0)
+                {
+                    if (modes.Count > 0) card.ModeCostCache = modes;
+                    return;
+                }
+                if ((card.Subtype & CardSubtype.Ritual) != 0)
+                {
+                    if (modes.Count > 0) card.ModeCostCache = modes; // 仪式保持空 Cost
+                    return;
+                }
+
+                var maxCost = MaxModeCost(modes);
+                if (maxCost.Count > 0)
+                {
+                    card.Cost = maxCost;
+                    card.ResetCache(); // 会清缓存，最后回填
+                }
+                if (modes.Count > 0) card.ModeCostCache = modes;
+                return;
+            }
+
             if (card.Cost != null && card.Cost.Count > 0) return;      // 严格非空即返：禁止覆盖声明费用
             if ((card.Subtype & CardSubtype.Xyz) != 0) return;
             if ((card.Subtype & CardSubtype.Ritual) != 0) return;      // 仪式：0 费说明书卡，保持空 Cost（打出免费）
@@ -216,7 +230,167 @@ namespace CardCore
             card.ResetCache();
         }
 
+        // ======================================== 抉择 per-mode 计价 ========================================
+
+        /// <summary>
+        /// 构筑期推导全部模式费用（与 Derive 同口径：L1 原子锚价 → L2 组合含挂载口 → L3 整卡延迟折）。
+        /// 两遍式：第一遍取各模式效果锚桶（未折未取整）——价差溢价与「模式0=最高消耗」契约都按原始锚价判；
+        /// 第二遍组装（S/挂载口/价差入灰桶，与效果同吃 d(C)——整卡最后折）。无抉择卡返回空表。
+        /// </summary>
+        public static List<Dictionary<int, float>> DeriveModeCosts(CardData card)
+        {
+            var result = new List<Dictionary<int, float>>();
+            int modeCount = CostDerivationService.GetModeCount(card);
+            if (card == null || modeCount <= 1) return result;
+
+            var cfg = ValueSystemConfigManager.Instance.GetOrCreateConfig();
+            var cc = cfg.CardCostConfig;
+            var dd = cfg.DelayDiscountConfig;
+            bool isSpell = card.Supertype == Cardtype.Spell;
+            int declaredTier = Mathf.RoundToInt(card.Cost?.Values.Sum() ?? 0f);
+
+            // 模式无关三块（与 Derive 共用助手，防口径漂移；无 breakdown 记录）
+            float statValue = ComputeStatValue(card, cc, null);
+            float keywordTotal;
+            var kwBuckets = ComputeKeywordBuckets(card, null, out keywordTotal);
+
+            var effectDefs = CardEffectConverter.ConvertAll(card.Effects, card.ID);
+            float factor = ComputeMountFactor(card, cc, dd, declaredTier);
+            int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
+            var kwMultiplier = cc.KeywordsShareDelayDiscount ? factor : 1f;
+            int mountAdj = CardCompositionCost.MountSlotAdjust(card);
+
+            // ---- 第一遍：各模式效果锚桶（DeriveElementCosts 的 modeIndex 分支，未折未取整）----
+            var modeBuckets = new List<Dictionary<ManaType, float>>();
+            var rawTotals = new List<float>();
+            for (int m = 0; m < modeCount; m++)
+            {
+                var effBuckets = new Dictionary<ManaType, float>();
+                foreach (var def in effectDefs)
+                {
+                    if (def == null) continue;
+                    foreach (var cost in CostDerivationService.DeriveElementCosts(def, m))
+                    {
+                        effBuckets.TryGetValue(cost.ManaType, out var prev);
+                        effBuckets[cost.ManaType] = prev + cost.Value;
+                    }
+                }
+                modeBuckets.Add(effBuckets);
+
+                float total = 0f;
+                foreach (var v in effBuckets.Values) total += v;
+                rawTotals.Add(total);
+            }
+
+            // 数据契约（2026-09-07 用户定案）：模式序号 0 = 最高消耗——编辑界面遵守；
+            // 规则一 Derive 按首模式推导即按最大模式，口径由此闭合。违约仅警告不纠正（计价按真实数据算）。
+            float tierMax = 0f;
+            foreach (var t in rawTotals) if (t > tierMax) tierMax = t;
+            if (rawTotals[0] < tierMax - 0.001f)
+                Debug.LogWarning($"[CardCostService] 抉择卡 {card.ID} 模式0非最高消耗（{rawTotals[0]} < {tierMax}）——违反数据契约（编辑界面应把最高消耗放在序号0）");
+
+            // 卡层组合费用：价差溢价按原始锚价差判定（S/挂载口/延迟折对模式均匀，不改变差值）
+            int spreadPremium = CardCompositionCost.ChoiceSpreadPremium(rawTotals);
+            float grayAdd = statGray + spreadPremium + mountAdj;
+
+            // ---- 第二遍：L2 组合 + L3 整卡折（与 Derive 的 ApportionMounted 同口径）----
+            for (int m = 0; m < modeCount; m++)
+            {
+                var mounted = ApportionMounted(modeBuckets[m], kwBuckets, kwMultiplier, factor, grayAdd);
+                result.Add(mounted.ToDictionary(kv => (int)kv.Key, kv => (float)kv.Value));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 读取某模式的支付费用（构筑期缓存；缓存缺失时兜底重推导——正常路径 EnsureCost 已填）。
+        /// 返回副本：调用方在其上叠加 CostUp/CostDown 指示物层，不污染缓存。
+        /// 空字典=该模式免费（推导为 0 是定价结果，不落 {Gray:1} 默认）。
+        /// </summary>
+        public static Dictionary<int, float> GetModeCost(CardData card, int modeIndex)
+        {
+            if (card == null) return new Dictionary<int, float>();
+            if (card.ModeCostCache == null || card.ModeCostCache.Count == 0)
+                card.ModeCostCache = DeriveModeCosts(card); // 兜底：手构卡未走装载链
+            if (card.ModeCostCache.Count == 0) return new Dictionary<int, float>();
+
+            int idx = Mathf.Clamp(modeIndex, 0, card.ModeCostCache.Count - 1);
+            return new Dictionary<int, float>(card.ModeCostCache[idx]);
+        }
+
+        /// <summary>最大模式费（总额最高的那套分布；全空返回空字典）。地牌值/排序键用。</summary>
+        public static Dictionary<int, float> MaxModeCost(List<Dictionary<int, float>> modes)
+        {
+            Dictionary<int, float> best = null;
+            float bestTotal = -1f;
+            foreach (var m in modes)
+            {
+                float total = 0f;
+                foreach (var v in m.Values) total += v;
+                if (total > bestTotal)
+                {
+                    bestTotal = total;
+                    best = m;
+                }
+            }
+            return best != null ? new Dictionary<int, float>(best) : new Dictionary<int, float>();
+        }
+
         // ======================================== 内部 ========================================
+
+        // —— 模式无关的三块（Derive 与 DeriveModeCosts 共用，防口径漂移；breakdown 传 null 则不记行）——
+
+        /// <summary>身材费 S：statPoints / StatUnit（灰桶，不参与 f）。</summary>
+        private static float ComputeStatValue(CardData card, CardCostConfig cc, List<CostBreakdownLine> breakdown)
+        {
+            int statPoints = (card.Power ?? 0) + (card.Life ?? 0);
+            float statValue = statPoints / Mathf.Max(1f, cc.StatUnit);
+            breakdown?.Add(new CostBreakdownLine("S", $"身材费 (攻{card.Power ?? 0}/血{card.Life ?? 0})", statValue, ManaType.Gray));
+            return statValue;
+        }
+
+        /// <summary>关键词费 K：Grant 原子固定费按颜色分桶（无 value 缩放）。</summary>
+        private static Dictionary<ManaType, float> ComputeKeywordBuckets(CardData card,
+            List<CostBreakdownLine> breakdown, out float keywordTotal)
+        {
+            keywordTotal = 0f;
+            var kwBuckets = new Dictionary<ManaType, float>();
+            if (card.Keywords != null)
+            {
+                CardLoader.LoadKeywords(); // 惰性建目录（GetKeywordDefinition 不自动建）
+                foreach (var kwId in card.Keywords)
+                {
+                    if (string.IsNullOrEmpty(kwId)) continue;
+                    var def = CardLoader.GetKeywordDefinition(kwId);
+                    if (def == null || string.IsNullOrEmpty(def.atomicEffect)
+                        || !Enum.TryParse<AtomicEffectType>(def.atomicEffect, out var grantType))
+                    {
+                        breakdown?.Add(new CostBreakdownLine("K", $"关键词 {kwId}（未登记 Grant 原子，计 0）", 0f));
+                        continue;
+                    }
+
+                    var atomCfg = AtomicEffectTable.GetByType(grantType);
+                    float baseCost = atomCfg?.BaseCost ?? 0f;
+                    var color = ElementAffinities.GetAffinityForEffect(grantType).PrimaryColor;
+                    kwBuckets.TryGetValue(color, out var prev);
+                    kwBuckets[color] = prev + baseCost;
+                    keywordTotal += baseCost;
+                    breakdown?.Add(new CostBreakdownLine("K", $"关键词 {kwId} (Grant 固定费)", baseCost, color));
+                }
+            }
+            return kwBuckets;
+        }
+
+        /// <summary>挂载折扣 f：法术恒 1；随从 d(C)。
+        /// （原 ExtraActivationSlope×(N_active−1) 已删——效果多→贵由卡层挂载口规则统一承担，不再经 f 重复折。）</summary>
+        private static float ComputeMountFactor(CardData card, CardCostConfig cc, DelayDiscountConfig dd,
+            int declaredTier)
+        {
+            bool isSpell = card.Supertype == Cardtype.Spell;
+            if (isSpell) return 1f;
+            int tierForFactor = declaredTier > 0 ? Mathf.Clamp(declaredTier, 1, cc.MaxTier) : cc.MaxTier;
+            return Mathf.Max(0f, dd.At(tierForFactor));
+        }
 
         /// <summary>卡上代价条目 → 元素当量（构筑期抵扣换算；ElementConsume/Mill/SendExtra 是费用/游戏内机制，不当量）。</summary>
         private static float OffsetProvided(CardData card, CardCostConfig cc)
@@ -235,6 +409,8 @@ namespace CardCore
                         case CostType.LifePayment: total += cc.LifeValuePerPoint * Mathf.Max(1, cost.Value); break;
                         case CostType.Sleep: total += cc.SleepValuePerTurn * Mathf.Max(1, cost.TurnDuration); break;
                         case CostType.SummonMaterial: total += cc.SummonMaterialValue * Mathf.Max(1, cost.Value); break;
+                        case CostType.OpponentDraw: total += cc.OpponentDrawValue * Mathf.Max(1, cost.Value); break;
+                        case CostType.OpponentHeal: total += cc.OpponentHealValuePerPoint * Mathf.Max(1, cost.Value); break;
                     }
                 }
             }
@@ -243,7 +419,7 @@ namespace CardCore
 
         /// <summary>Ĉ = min{C∈[1..MaxTier] : D(C) ≤ C}；D(C) 随 C 单调不增（d 递减），从 1 向上搜；无满足取 MaxTier。</summary>
         private static int FindSuggestedTier(CardData card, CardCostConfig cc, DelayDiscountConfig dd,
-            bool isSpell, float statValue, Dictionary<ManaType, float> kwBuckets, Dictionary<ManaType, float> effBuckets, int nActive)
+            bool isSpell, float statValue, Dictionary<ManaType, float> kwBuckets, Dictionary<ManaType, float> effBuckets, int mountAdj)
         {
             // 无身材无效果无关键词 → D=0，无需建议；返回 0，调用方按「保持空」处理。
             // （关键词存在但未登记 Grant 原子时 kwBuckets 为空 —— 仍参与搜索，D≈S。）
@@ -253,37 +429,32 @@ namespace CardCore
 
             for (int tier = 1; tier <= cc.MaxTier; tier++)
             {
-                var costAt = BuildCostAtTier(tier, cc, dd, isSpell, statValue, kwBuckets, effBuckets, nActive);
+                var costAt = BuildCostAtTier(tier, cc, dd, isSpell, statValue, kwBuckets, effBuckets, mountAdj);
                 if (costAt.Values.Sum() <= tier) return tier;
             }
             return cc.MaxTier;
         }
 
-        /// <summary>按指定档位构建 D(tier) 的逐色分布（组合层取整；供建议档位搜索与采纳写入）。</summary>
+        /// <summary>按指定档位构建 D(tier) 的逐色分布（L2 组合 + L3 整卡折 + 组合层取整；供建议档位搜索与采纳写入）。</summary>
         private static Dictionary<ManaType, int> BuildCostAtTier(int tier, CardCostConfig cc, DelayDiscountConfig dd,
-            bool isSpell, float statValue, Dictionary<ManaType, float> kwBuckets, Dictionary<ManaType, float> effBuckets, int nActive)
+            bool isSpell, float statValue, Dictionary<ManaType, float> kwBuckets, Dictionary<ManaType, float> effBuckets, int mountAdj)
         {
             float d = isSpell ? 1f : dd.At(Mathf.Clamp(tier, 1, cc.MaxTier));
-            float factor = isSpell ? 1f : Mathf.Max(0f, d - dd.ExtraActivationSlope * Mathf.Max(0, nActive - 1));
+            float factor = Mathf.Max(0f, d);
 
             var kwMultiplier = cc.KeywordsShareDelayDiscount ? factor : 1f;
             int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
-            var result = ApportionMounted(effBuckets, kwBuckets, kwMultiplier, factor);
-            if (statGray > 0)
-            {
-                result.TryGetValue(ManaType.Gray, out var mountedGray);
-                result[ManaType.Gray] = statGray + mountedGray;
-            }
-            return result;
+            return ApportionMounted(effBuckets, kwBuckets, kwMultiplier, factor, statGray + mountAdj);
         }
 
         /// <summary>
-        /// 挂载包组合层计价：效果桶×f + 关键词桶×kwMultiplier 汇总为包总额，乘法已含在桶内——
-        /// 包总额一次性 AwayFromZero 取整（减免发生在组合层，不做逐效果取整），
+        /// 组合层计价（L3 整卡折口径）：效果桶×f + 关键词桶×kwMultiplier + 灰桶（S+卡层调整）×f
+        /// 汇总为总额——一次 AwayFromZero 取整（减免发生在组合层，不做逐效果取整），
         /// 最大余数法把整数实付分摊回颜色（余数大者优先，并列取桶值大者，再并列按枚举序）。
+        /// grayAdd：身材费与卡层组合调整之和——整卡最后折定案下与效果同吃 d(C)。
         /// </summary>
         private static Dictionary<ManaType, int> ApportionMounted(Dictionary<ManaType, float> effBuckets,
-            Dictionary<ManaType, float> kwBuckets, float kwMultiplier, float factor)
+            Dictionary<ManaType, float> kwBuckets, float kwMultiplier, float factor, float grayAdd = 0f)
         {
             var mounted = new Dictionary<ManaType, float>();
             foreach (var kv in effBuckets)
@@ -295,6 +466,11 @@ namespace CardCore
             {
                 mounted.TryGetValue(kv.Key, out var prev);
                 mounted[kv.Key] = prev + kv.Value * kwMultiplier;
+            }
+            if (grayAdd != 0f)
+            {
+                mounted.TryGetValue(ManaType.Gray, out var prev);
+                mounted[ManaType.Gray] = prev + grayAdd * factor; // 整卡折：S/卡层调整同吃 d(C)
             }
 
             float total = 0f;

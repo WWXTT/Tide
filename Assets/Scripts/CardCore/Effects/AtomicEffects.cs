@@ -287,6 +287,9 @@ namespace CardCore
         /// <summary>区域管理器</summary>
         public ZoneManager ZoneManager { get; set; }
 
+        /// <summary>抉择模式索引（来自 EffectInstance.ModeIndex；执行引擎遇 Choice 步骤按此分派）</summary>
+        public int ModeIndex;
+
         /// <summary>元素池系统</summary>
         public ElementPoolSystem ElementPool { get; set; }
 

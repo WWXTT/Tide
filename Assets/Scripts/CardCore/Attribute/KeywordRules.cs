@@ -165,7 +165,8 @@ namespace CardCore.Attribute
             }
 
             // 4. 落血（Card 到 0 标记死亡；Player 直接扣）。
-            //    死亡决策走决策表（当前无护盾拦 DamageLethal；复生/落墓由 SBA 泵自发连锁处理）
+            //    死亡决策走决策表（当前无护盾拦 DamageLethal；复生/落墓由 SBA 泵自发连锁处理）。
+            //    死亡归因（2026-09-07）：伤害来源随尸体留档，SBA 送墓时经 TryKill 上 CardDestroyEvent。
             int oldLife = (target as Player)?.Life ?? 0; // 生命变化播报用
             if (target is Card card)
             {
@@ -174,7 +175,11 @@ namespace CardCore.Attribute
                 {
                     card._life = 0;
                     if (!DeathRules.IsShielded(card, DeathCause.DamageLethal))
+                    {
+                        card._pendingDeathCause = DeathCause.DamageLethal;
+                        card._pendingDeathSource = source;
                         card.IsAlive = false;
+                    }
                 }
             }
             else if (target is Player player)
