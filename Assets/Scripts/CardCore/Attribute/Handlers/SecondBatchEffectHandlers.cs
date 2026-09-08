@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore.Attribute;
@@ -70,7 +71,7 @@ namespace CardCore.Attribute.Handlers
 
             // 时点接线定案：控制权变更事件改走统一路由（直发总线会让 TriggerEngine 收不到），
             // 并补发入场事件（Source=ControlChange）——OnSummon/OnOtherCreatureEnter 观察者可见。
-            // 不重跑 RefreshOneShotKeywords/ApplyEntryKeywords：卡已在场，保持横置状态与一次性关键词现状。
+            // 不重置入场状态：卡已在场，保持横置状态与关键词现状。
             PublishRouted(new AttrControlChangeEvent
             {
                 Target = card,
@@ -132,14 +133,73 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => "重置目标";
     }
 
+    // ======================= 资源转化 =======================
+
     /// <summary>
-    /// 蓄能（Recharging，定案）：横置目标单位（经警戒抵扣；已横置 = 代价不可支付，不产元素），
-    /// 控制者获得 {value} 点灰色元素（默认 1）。可重复的产元素引擎——
-    /// 代价 = 该单位本回合不可攻/不可发动效果。
+    /// 采掘（2026-09-08 新增原子）：以一张己方地牌（元素池）为目标——
+    /// 去除 3 个同类型元素指示物，获得 1 点对应元素入 bank。
+    /// 净效果 = 牺牲该色 2 个指示物换 1 个即时元素：突破「每地牌每回合产出一次」的节流提前变现，
+    /// 代价是加速耗尽（指示物扣完即进墓）。目标资格由表行 TargetFilter=ElementPool 保证（兜底校验区域）。
+    /// 选色（同类型 ≥3 才可采）：剩余最多者，并列取枚举序靠前（与结束阶段自动产色同口径，确定性）。
     /// </summary>
-    public class RechargingHandler : AtomicEffectHandlerBase
+    public class MineHandler : AtomicEffectHandlerBase
     {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Recharging;
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Mine;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            if (context.ElementPool == null || context.ZoneManager == null) return;
+
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card land)) continue;
+                var owner = land.GetController() ?? context.Controller;
+                if (owner == null) continue;
+                if (!context.ZoneManager.IsCardInZone(land, owner, Zone.ElementPool)) continue; // 兜底：非地牌区不可采
+
+                var pooled = context.ElementPool.GetPooledCards(owner)
+                    .FirstOrDefault(pc => pc.SourceCard == land);
+                if (pooled == null) continue;
+
+                // 选色：指示物 ≥3 的颜色中取剩余最多（并列取枚举序靠前）
+                ManaType? pick = null;
+                int best = 2; // 阈值 3 个（> 2）
+                foreach (ManaType type in Enum.GetValues(typeof(ManaType)))
+                {
+                    if (pooled.Tokens.TryGetValue(type, out int n) && n > best)
+                    {
+                        best = n;
+                        pick = type;
+                    }
+                }
+                if (pick == null) continue; // 无同类型 3 个指示物：本目标不可采（目标层已过滤的兜底）
+
+                for (int i = 0; i < 3; i++) pooled.RemoveToken(pick.Value);
+                context.ElementPool.AddMana(owner, pick.Value, land);
+            }
+
+            // 采掘导致的耗尽统一移入墓地（与 GameActions.GainElementFromToken 同口径）
+            var owners = context.Targets
+                .OfType<Card>()
+                .Select(t => t.GetController() ?? context.Controller)
+                .Where(p => p != null)
+                .Distinct();
+            foreach (var owner in owners)
+                context.ElementPool.CheckDepletedCards(owner, context.ZoneManager);
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect)
+            => "采掘地牌：去除3个同类型元素指示物，获得1点对应元素";
+    }
+
+    /// <summary>
+    /// 光合作用（原蓄能，2026-09-08 更名改造，绿3）：横置自身（经警戒抵扣；已横置 = 代价不可支付，不产元素），
+    /// 控制者获得 {value} 点绿色元素（默认 1）。可重复的产元素引擎——
+    /// 代价 = 该单位本回合不可攻/不可发动启动式能力。
+    /// </summary>
+    public class PhotosynthesisHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Photosynthesis;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
@@ -154,19 +214,19 @@ namespace CardCore.Attribute.Handlers
 
                 var pool = context.ElementPool?.GetPool(context.Controller);
                 if (pool == null) continue;
-                pool.AvailableMana[ManaType.Gray] =
-                    pool.AvailableMana.TryGetValue(ManaType.Gray, out var gray) ? gray + amount : amount;
+                pool.AvailableMana[ManaType.Green] =
+                    pool.AvailableMana.TryGetValue(ManaType.Green, out var green) ? green + amount : amount;
                 PublishEvent(new ElementPoolGainEvent
                 {
                     Player = context.Controller,
                     FromCard = unit,
-                    GainedType = ManaType.Gray,
+                    GainedType = ManaType.Green,
                 });
             }
         }
 
         public override string GetDescription(AtomicEffectInstance effect)
-            => $"蓄能：横置自身获得 {(effect.Value > 0 ? effect.Value : 1)} 点灰色元素";
+            => $"光合作用：横置自身获得 {(effect.Value > 0 ? effect.Value : 1)} 点绿色元素";
     }
 
     // ======================= 控制相关 =======================
@@ -343,7 +403,7 @@ namespace CardCore.Attribute.Handlers
                 // 状态
                 new TapHandler(),
                 new UntapHandler(),
-                new RechargingHandler(),
+                new PhotosynthesisHandler(),
 
                 // 控制
                 new GainControlHandler(),

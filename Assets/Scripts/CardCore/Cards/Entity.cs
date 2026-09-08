@@ -129,6 +129,10 @@ namespace CardCore
         public int OffsetDiscardUsed { get; set; }
         /// <summary>送墓（本组）已抵消的费数。</summary>
         public int OffsetMillUsed { get; set; }
+        /// <summary>对手回复生命已抵消的费数（2026-09-08 补入表）。</summary>
+        public int OffsetOpponentHealUsed { get; set; }
+        /// <summary>对手抽牌已抵消的费数（2026-09-08 补入表）。</summary>
+        public int OffsetOpponentDrawUsed { get; set; }
         /// <summary>送额外组已抵消的费数。</summary>
         public int OffsetSendExtraUsed { get; set; }
 
@@ -143,6 +147,8 @@ namespace CardCore
             OffsetDiscardUsed = 0;
             OffsetMillUsed = 0;
             OffsetSendExtraUsed = 0;
+            OffsetOpponentHealUsed = 0;
+            OffsetOpponentDrawUsed = 0;
             FatigueCount = 0;
         }
 

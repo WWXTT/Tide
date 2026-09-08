@@ -307,6 +307,8 @@ namespace CardCore
         public float SummonMaterialValue = 1.0f;        // 1 个召唤素材 = 1 元素
         public float OpponentDrawValue = 1.0f;          // 对手抽 1 张 = 1 元素（减益型代价，2026-09-07 补）
         public float OpponentHealValuePerPoint = 0.5f;  // 对手回 1 点 = 0.5 元素（2点/费，2026-09-07 补）
+        public float SelfSicknessValue = 1.0f;          // 自身紊乱 1 条 = 1 元素（自身减益作代价，2026-09-08 拓展）
+        public float OpponentBuffValue = 1.0f;          // 对手 +1/+1 一层 = 1 元素（对手增益作代价，2026-09-08 拓展）
     }
 
     /// <summary>

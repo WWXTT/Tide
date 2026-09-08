@@ -94,8 +94,9 @@ namespace CardCore
         /// 加载关键词定义 —— 关键词本身即原子效果（GrantXxx，作用默认指向自身），不单独开表：
         /// 直接从原子效果表（AtomicEffectTable ← AttributeValueConfig.json）的 Grant* 条目合成。
         /// 中文名/描述/颜色取自表内字段；id 取 GrantKeywordHandlerFactory 登记的运行时关键词 id
-        /// （与写入 IHasKeywords 的字符串同源，如 GrantHaste → Charge），未登记退化为去 Grant 前缀。
+        /// （与写入 IHasKeywords 的字符串同源，如 GrantReborn → Reborn），未登记退化为去 Grant 前缀。
         /// 触发式关键词（triggerTiming）表内暂无来源，统一按被动处理。
+        /// （2026-09-08 冲锋/突袭已去关键词化：GrantHaste/GrantRush 删除，改由登场效果表达。）
         /// </summary>
         public static Dictionary<string, KeywordDefinition> LoadKeywords()
         {

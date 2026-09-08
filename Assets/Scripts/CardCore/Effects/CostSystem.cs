@@ -31,6 +31,10 @@ namespace CardCore
         OpponentDraw,
         /// <summary>对手回复生命（当量 0.5/点——2点=1费，2026-09-07 补）</summary>
         OpponentHeal,
+        /// <summary>自身减益（紊乱指示物，当量 1/条，2026-09-08 拓展）：Value=层数、TurnDuration=持续回合</summary>
+        SelfSickness,
+        /// <summary>对手增益（属性增加指示物 +1/+1，当量 1/层，2026-09-08 拓展）：Value=层数</summary>
+        OpponentBuff,
     }
 
     /// <summary>
@@ -580,6 +584,97 @@ namespace CardCore
     /// <summary>
     /// 注册内置代价处理器
     /// </summary>
+    /// <summary>自身紊乱代价事件（2026-09-08 代价拓展：自身减益作代价）。</summary>
+    public class SelfSicknessCostEvent : GameEventBase
+    {
+        public Player Payer;
+        public Card Target;
+        public int Stacks;
+        public int Turns;
+        public Entity Source;
+    }
+
+    /// <summary>
+    /// 自身紊乱代价处理器（2026-09-08 拓展：自身减益作代价）：支付时给源卡附加紊乱指示物
+    /// Value 层（默认 1）、持续 TurnDuration 回合（0 = 按指示物默认持续到回合结束）。
+    /// 构筑期当量 CardCostConfig.SelfSicknessValue（默认 1/条）。
+    /// </summary>
+    public class SelfSicknessCostHandler : ICostHandler
+    {
+        public CostType CostType => CostType.SelfSickness;
+
+        public bool CanPay(CostInstance cost, CostContext context)
+            => context != null && context.Source is Card c && c.IsAlive;
+
+        public void Pay(CostInstance cost, CostContext context)
+        {
+            if (!(context.Source is Card self) || !self.IsAlive) return;
+            int stacks = Math.Max(1, cost.Value);
+            int turns = cost.TurnDuration > 0 ? cost.TurnDuration : -1; // -1 = 无回合时钟（按指示物注册的默认持续）
+            self.AddCounters(Attribute.KeywordRules.RushSicknessCounter, stacks, turns, context.Source);
+            EventManager.Instance.Publish(new SelfSicknessCostEvent
+            {
+                Payer = context.Payer,
+                Target = self,
+                Stacks = stacks,
+                Turns = cost.TurnDuration,
+                Source = context.Source
+            });
+        }
+
+        public string GetDescription(CostInstance cost)
+            => $"自身紊乱 {Math.Max(1, cost.Value)} 层（持续 {(cost.TurnDuration > 0 ? cost.TurnDuration : 1)} 回合，期间不能以玩家为目标）";
+    }
+
+    /// <summary>对手增益代价事件（2026-09-08 代价拓展：给对方增加增益作代价）。</summary>
+    public class OpponentBuffCostEvent : GameEventBase
+    {
+        public Player Payer;
+        public Card Beneficiary;
+        public int Stacks;
+        public Entity Source;
+    }
+
+    /// <summary>
+    /// 对手增益代价处理器（2026-09-08 拓展）：支付时给对手战场首个存活生物加 Value 层
+    /// 属性增加指示物（+1/+1/层，默认 1 层）。构筑期当量 CardCostConfig.OpponentBuffValue（默认 1/层）。
+    /// CanPay 要求对手战场有存活生物（增益无处安放 = 代价不可支付）。
+    /// </summary>
+    public class OpponentBuffCostHandler : ICostHandler
+    {
+        public CostType CostType => CostType.OpponentBuff;
+
+        public bool CanPay(CostInstance cost, CostContext context)
+            => context != null && context.Payer != null && context.Payer.Opponent != null
+               && FirstAliveEnemyCreature(context) != null;
+
+        public void Pay(CostInstance cost, CostContext context)
+        {
+            var beneficiary = FirstAliveEnemyCreature(context);
+            if (beneficiary == null) return;
+            int stacks = Math.Max(1, cost.Value);
+            Attribute.CounterRules.AddStatCounter(beneficiary, Attribute.CounterRules.PlusOneCounter, stacks, context.Source);
+            EventManager.Instance.Publish(new OpponentBuffCostEvent
+            {
+                Payer = context.Payer,
+                Beneficiary = beneficiary,
+                Stacks = stacks,
+                Source = context.Source
+            });
+        }
+
+        private static Card FirstAliveEnemyCreature(CostContext context)
+        {
+            var cards = context.ZoneManager?.GetCards(context.Payer.Opponent, Zone.Battlefield);
+            if (cards == null) return null;
+            foreach (var c in cards)
+                if (c.IsAlive) return c;
+            return null;
+        }
+
+        public string GetDescription(CostInstance cost) => $"对手一个生物获得 +1/+1 ×{Math.Max(1, cost.Value)}";
+    }
+
     public static class BuiltinCostHandlers
     {
         public static void RegisterAll()
@@ -593,6 +688,8 @@ namespace CardCore
             CostHandlerRegistry.Register(new SendExtraDeckCostHandler());
             CostHandlerRegistry.Register(new OpponentDrawCostHandler());
             CostHandlerRegistry.Register(new OpponentHealCostHandler());
+            CostHandlerRegistry.Register(new SelfSicknessCostHandler());
+            CostHandlerRegistry.Register(new OpponentBuffCostHandler());
         }
     }
 }

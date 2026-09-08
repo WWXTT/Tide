@@ -439,8 +439,10 @@ namespace CardCore
 
         /// <summary>
         /// 速度发动：玩家主动发动一个效果。
-        /// 横置代价（定案）：战场随从的激活式能力发动即横置（一次行为的固定代价，与攻击同价）；
-        /// 警戒自动抵扣一次（一回合一次，经 KeywordRules.ShouldTap）；预检在 EffectExecutionEngine.CanActivate。
+        /// 启动式能力的发动代价（2026-09-08 定案）：只有启动式（Activate_*）= 横置源卡 + 现付元素锚价 +
+        /// 选定目标（元素费经 ElementCostPrepaid=false 由执行器结算路径扣除；CanActivate 预检可付性）；
+        /// 只能在自己的主要阶段以速度1使用（记速器须低于1，即栈空）。触发式效果不走本入口的横置与付费。
+        /// 警戒自动抵扣一次横置（一回合一次，经 KeywordRules.ShouldTap）；预检在 EffectExecutionEngine.CanActivate。
         /// </summary>
         public static bool ActivateEffect(GameCore core, Player player, EffectDefinition effect, Card source, int paidBoost = 0)
         {
@@ -448,8 +450,8 @@ namespace CardCore
             if (core.TurnEngine.TurnPlayer != player) return false;
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
 
-            // 横置代价权威校验：战场上的源卡已横置 → 不可发动（手牌/墓地施放不适用）
-            if (source != null && source.IsTapped()
+            // 横置代价权威校验（仅启动式）：战场上的源卡已横置 → 不可发动（手牌/墓地施放不适用）
+            if (effect.IsActivatedEffect && source != null && source.IsTapped()
                 && core.ZoneManager.IsCardInZone(source, source.GetController(), Zone.Battlefield))
                 return false;
 
@@ -463,8 +465,8 @@ namespace CardCore
 
             var activated = core.StackEngine.PlayerActivateVoluntary(pending);
 
-            // 发动成功 → 消耗横置（警戒：一回合一次自动抵扣，不发不扣）
-            if (activated && source != null && Attribute.KeywordRules.ShouldTap(source))
+            // 发动成功 → 消耗横置（仅启动式；警戒：一回合一次自动抵扣，不发不扣）
+            if (activated && effect.IsActivatedEffect && source != null && Attribute.KeywordRules.ShouldTap(source))
                 source.Tap();
 
             return activated;

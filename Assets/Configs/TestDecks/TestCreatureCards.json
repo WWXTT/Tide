@@ -294,13 +294,45 @@
                     "amount": 1.0
                 }
             ],
-            "keywords": [
-                "Charge"
-            ],
+            "keywords": [],
             "tags": [
                 "keyword-test"
             ],
-            "effects": [],
+            "effects": [
+                {
+                    "Id": "TEST_KW_CHARGE_ENTRY",
+                    "DisplayName": "冲锋",
+                    "Description": "登场：激励自身——解除横置，当回合即可行动",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
             "subtype": "",
             "level": -1,
             "rank": -1,
@@ -323,13 +355,61 @@
                     "amount": 3.0
                 }
             ],
-            "keywords": [
-                "Rush"
-            ],
+            "keywords": [],
             "tags": [
                 "keyword-test"
             ],
-            "effects": [],
+            "effects": [
+                {
+                    "Id": "TEST_KW_RUSH_ENTRY",
+                    "DisplayName": "突袭",
+                    "Description": "登场：激励自身——解除横置，当回合即可行动；自上紊乱指示物作代价减费（本回合不能以玩家为目标）",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        },
+                        {
+                            "EffectType": "RushSickness",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
             "subtype": "",
             "level": -1,
             "rank": -1,

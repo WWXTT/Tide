@@ -52,20 +52,20 @@ namespace SynergyUI
             AtomicEffectType.ReturnToHand, AtomicEffectType.SummonToken,
             AtomicEffectType.ReturnFromGraveyard, AtomicEffectType.RecoverToHand,
             // 资源族
-            AtomicEffectType.Untap, AtomicEffectType.AddArmor,
+            AtomicEffectType.Untap, AtomicEffectType.AddArmor, AtomicEffectType.Mine,
             // 强化族（GrantX 关键词与数值强化；单向属性增益——攻击力/生命值/±1/费用减少）
             AtomicEffectType.ModifyPower, AtomicEffectType.ModifyLife,
             // SetPower/SetLife/SetCost 已下线（2026-09-07 设置系归规则系），移出偏好表
             AtomicEffectType.AddPowerUp, AtomicEffectType.AddLifeUp, AtomicEffectType.AddPlusOne,
             AtomicEffectType.AddCostDown, AtomicEffectType.Inspire,
-            AtomicEffectType.GrantHaste, AtomicEffectType.GrantRush, AtomicEffectType.GrantDoubleStrike,
+            AtomicEffectType.GrantDoubleStrike,
             AtomicEffectType.GrantCannotBeTargeted, AtomicEffectType.GrantSpellShield,
             AtomicEffectType.GrantLifesteal,
             AtomicEffectType.GrantStealth, AtomicEffectType.GrantTaunt,
             AtomicEffectType.GrantDivineShield, AtomicEffectType.GrantOverwhelm, AtomicEffectType.GrantArmor,
             AtomicEffectType.GrantFirstStrike,
             AtomicEffectType.GrantVigilance, AtomicEffectType.GrantRegeneration,
-            AtomicEffectType.Recharging,
+            AtomicEffectType.Photosynthesis,
             AtomicEffectType.GrantGrowth, AtomicEffectType.GrantReborn, AtomicEffectType.GrantIndestructible,
             AtomicEffectType.GrantLifelink,
             // 展开族

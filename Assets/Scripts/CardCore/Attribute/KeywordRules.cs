@@ -43,8 +43,6 @@ namespace CardCore.Attribute
         public const string Vigilance = "Vigilance";
         public const string Stealth = "Stealth";
         public const string Taunt = "Taunt";
-        public const string Charge = "Charge";
-        public const string Rush = "Rush";
         public const string FirstStrike = "FirstStrike";
         public const string DoubleStrike = "DoubleStrike";
         public const string Disarm = "Disarm";
@@ -56,73 +54,22 @@ namespace CardCore.Attribute
         public const string SpellShield = "SpellShield";
         public const string Untargetable = "Untargetable";
 
-        // ---- 一次性关键词（定案）：生效即消耗，重新进入战场时从卡牌固有定义刷新 ----
-
-        /// <summary>入场型一次性关键词（冲锋/突袭）：入场生效时消耗。</summary>
-        public static readonly string[] OneShotEntryKeywords = { Charge, Rush };
-
-        /// <summary>死亡触发型一次性关键词（复生）：死亡送墓被替代时消耗。</summary>
-        public static readonly string[] OneShotDeathKeywords = { Reborn };
+        // ---- 一次性关键词概念已彻底删除（2026-09-08 定案：错误设计）----
+        // 关键词都是持续性特征，无「一次性生效后消失/重新入场刷新」的说法：
+        // · 冲锋/突袭：改由卡的登场效果表达（OnPlay+激励自己解除横置，突袭另自上紊乱指示物
+        //   作代价减费——见 CostDerivationService 的 Self 紊乱对冲）；
+        // · 复生：死亡替代结算时移除关键词（TryReborn 内的效果性移除），无自动刷新。
 
         /// <summary>
-        /// 突袭紊乱指示物名（负面，持续到回合结束）：突袭生效消耗后残留在随从身上——
-        /// 期间不能以玩家为目标（攻击与效果发动同口径）；消退走 CounterRules 统一清理。
+        /// 突袭紊乱指示物名（负面，持续到回合结束）：持有期间不能以玩家为目标
+        /// （攻击与效果发动同口径）；消退走 CounterRules 统一清理。
+        /// 来源：突袭的登场效果自上（代价减费），或紊乱原子直接施加给敌方。
         /// </summary>
         public const string RushSicknessCounter = "RushSickness";
-
-        /// <summary>
-        /// 入场型一次性关键词生效（定案）：随从一律横置入场；冲锋/突袭生效 = 解除横置 + 消耗关键词，
-        /// 突袭另放一个紊乱指示物（负面，持续一回合）。
-        /// 由入场路径（TryMoveToBattlefield / TryAddToBattlefield）调用；返回 true = 已解除横置。
-        /// </summary>
-        public static bool ApplyEntryKeywords(Card card)
-        {
-            if (card == null) return false;
-            if (card.HasKeyword(Charge))
-            {
-                card.RemoveKeyword(Charge);
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = card,
-                    Keyword = Charge,
-                    Detail = "冲锋生效：解除横置（一次性，已消耗）"
-                });
-                return true;
-            }
-            if (card.HasKeyword(Rush))
-            {
-                card.RemoveKeyword(Rush);
-                card.AddCounters(RushSicknessCounter, 1);
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = card,
-                    Keyword = Rush,
-                    Detail = "突袭生效：解除横置（一次性，已消耗；紊乱一回合——期间不能以玩家为目标）"
-                });
-                return true;
-            }
-            return false;
-        }
 
         /// <summary>是否处于突袭紊乱（负面指示物存在期间不能以玩家为目标；消退走 CounterRules）。</summary>
         public static bool HasRushSickness(Entity entity)
             => entity is Card c && c.GetCounterCount(RushSicknessCounter) > 0;
-
-        /// <summary>
-        /// 一次性关键词刷新（重新进入战场时）：从卡牌固有定义补回已消耗的冲锋/突袭/复生。
-        /// 仅刷一次性类——持续型关键词的效果移除不被入场重置。
-        /// </summary>
-        public static void RefreshOneShotKeywords(Card card)
-        {
-            if (!(card is CardWrapper wrapper)) return;
-            var data = wrapper.GetData();
-            if (data?.Keywords == null) return;
-            var oneShot = new List<string>(OneShotEntryKeywords);
-            oneShot.AddRange(OneShotDeathKeywords);
-            foreach (var kw in oneShot)
-                if (data.Keywords.Contains(kw) && !card.HasKeyword(kw))
-                    card.AddKeyword(kw);
-        }
 
         /// <summary>持有某关键词的次数（融合叠加：重复坚韧计 2）</summary>
         public static int KeywordCount(Entity entity, string keyword)
