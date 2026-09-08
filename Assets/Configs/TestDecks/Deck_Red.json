@@ -12,13 +12,44 @@
                     "amount": 4.0
                 }
             ],
-            "keywords": [
-                "Charge"
-            ],
+            "keywords": [],
             "tags": [
                 "test-deck"
             ],
             "effects": [
+                {
+                    "Id": "DECK_RED_01_ENTRY",
+                    "DisplayName": "冲锋",
+                    "Description": "登场：激励自身——解除横置，当回合即可行动",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                },
                 {
                     "Id": "DECK_RED_01_ONPLAY",
                     "DisplayName": "造成伤害",
@@ -78,13 +109,60 @@
                     "amount": 4.0
                 }
             ],
-            "keywords": [
-                "Rush"
-            ],
+            "keywords": [],
             "tags": [
                 "test-deck"
             ],
             "effects": [
+                {
+                    "Id": "DECK_RED_02_ENTRY",
+                    "DisplayName": "突袭",
+                    "Description": "登场：激励自身——解除横置，当回合即可行动；自上紊乱指示物作代价减费（本回合不能以玩家为目标）",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        },
+                        {
+                            "EffectType": "RushSickness",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                },
                 {
                     "Id": "DECK_RED_02_ONPLAY",
                     "DisplayName": "穿透伤害",
@@ -580,13 +658,44 @@
                     "amount": 2.0
                 }
             ],
-            "keywords": [
-                "Charge"
-            ],
+            "keywords": [],
             "tags": [
                 "test-deck"
             ],
             "effects": [
+                {
+                    "Id": "DECK_RED_09_ENTRY",
+                    "DisplayName": "冲锋",
+                    "Description": "登场：激励自身——解除横置，当回合即可行动",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                },
                 {
                     "Id": "DECK_RED_09_ONPLAY",
                     "DisplayName": "穿透伤害",
@@ -650,13 +759,60 @@
                     "amount": 1.0
                 }
             ],
-            "keywords": [
-                "Rush"
-            ],
+            "keywords": [],
             "tags": [
                 "test-deck"
             ],
             "effects": [
+                {
+                    "Id": "DECK_RED_10_ENTRY",
+                    "DisplayName": "突袭",
+                    "Description": "登场：激励自身——解除横置，当回合即可行动；自上紊乱指示物作代价减费（本回合不能以玩家为目标）",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        },
+                        {
+                            "EffectType": "RushSickness",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                },
                 {
                     "Id": "DECK_RED_10_ONPLAY",
                     "DisplayName": "吸取生命",
@@ -1156,13 +1312,44 @@
                     "amount": 1.0
                 }
             ],
-            "keywords": [
-                "Charge"
-            ],
+            "keywords": [],
             "tags": [
                 "test-deck"
             ],
             "effects": [
+                {
+                    "Id": "DECK_RED_17_ENTRY",
+                    "DisplayName": "冲锋",
+                    "Description": "登场：激励自身——解除横置，当回合即可行动",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                },
                 {
                     "Id": "DECK_RED_17_ONPLAY",
                     "DisplayName": "吸取生命",
@@ -1226,13 +1413,60 @@
                     "amount": 1.0
                 }
             ],
-            "keywords": [
-                "Rush"
-            ],
+            "keywords": [],
             "tags": [
                 "test-deck"
             ],
             "effects": [
+                {
+                    "Id": "DECK_RED_18_ENTRY",
+                    "DisplayName": "突袭",
+                    "Description": "登场：激励自身——解除横置，回合即可行动；自上紊乱指示物作代价减费（本回合不能以玩家为目标）",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        },
+                        {
+                            "EffectType": "RushSickness",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                },
                 {
                     "Id": "DECK_RED_18_ONPLAY",
                     "DisplayName": "生命流失",
@@ -1728,13 +1962,44 @@
                     "amount": 1.0
                 }
             ],
-            "keywords": [
-                "Charge"
-            ],
+            "keywords": [],
             "tags": [
                 "test-deck"
             ],
             "effects": [
+                {
+                    "Id": "DECK_RED_25_ENTRY",
+                    "DisplayName": "冲锋",
+                    "Description": "登场：激励自身——解除横置，当回合即可行动",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                },
                 {
                     "Id": "DECK_RED_25_ONPLAY",
                     "DisplayName": "生命流失",
@@ -1798,13 +2063,60 @@
                     "amount": 6.0
                 }
             ],
-            "keywords": [
-                "Rush"
-            ],
+            "keywords": [],
             "tags": [
                 "test-deck"
             ],
             "effects": [
+                {
+                    "Id": "DECK_RED_26_ENTRY",
+                    "DisplayName": "突袭",
+                    "Description": "登场：激励自身——解除横置，当回合即可行动；自上紊乱指示物作代价减费（本回合不能以玩家为目标）",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        },
+                        {
+                            "EffectType": "RushSickness",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                },
                 {
                     "Id": "DECK_RED_26_ONPLAY",
                     "DisplayName": "易损",

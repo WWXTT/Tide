@@ -56,12 +56,12 @@ namespace CardCore.Attribute.Handlers
         // (原子效果类型, 运行时关键词 id, 中文描述)
         // 2026-09-03 原子表整体修正：删 Windfury/Guard/MultiAttack/Immunity/Unaffected/Reach/Flying/
         // RemoveDebuffs 八条；GrantPoisonous→GrantPoisonSting（毒刺：对受战斗伤害目标附加毒素指示物）。
-        // 现役关键词 19 个 + 缴械。
+        // 2026-09-08 冲锋/突袭去关键词化：GrantHaste/GrantRush 删除——关键词都是持续性特征，
+        // 无「一次性生效后消失」的说法；冲锋/突袭改由登场效果表达（OnPlay+激励自己，突袭另自上紊乱指示物）。
+        // 现役关键词 17 个 + 缴械。
         private static readonly (AtomicEffectType type, string keywordId, string description)[] Specs =
         {
             // 红色 - 攻击性
-            (AtomicEffectType.GrantHaste, "Charge", "获得冲锋"),
-            (AtomicEffectType.GrantRush, "Rush", "获得突袭"),
             (AtomicEffectType.GrantDoubleStrike, "DoubleStrike", "获得连击"),
             (AtomicEffectType.GrantFirstStrike, "FirstStrike", "获得先攻"),
             (AtomicEffectType.GrantOverwhelm, "Overwhelm", "获得碾压"),

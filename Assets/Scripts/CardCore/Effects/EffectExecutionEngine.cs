@@ -41,9 +41,11 @@ namespace CardCore
             PhaseType currentPhase,
             int turnNumber)
         {
-            // 0. 横置代价预检（定案）：战场随从发动效果 = 一次行为的固定代价（与攻击同价）；
-            //    已横置不可发动（警戒抵扣在发动成功时经 KeywordRules.ShouldTap 结算）
-            if (source is Card activateCard && activateCard.IsTapped()
+            // 0. 横置代价预检（2026-09-08 定案）：只有启动式能力（Activate_*）以横置为发动代价
+            //    （与攻击同价、一回合一次；警戒抵扣在发动成功时经 KeywordRules.ShouldTap 结算）；
+            //    触发式（登场/死亡/离场/受攻击等）发动不横置，已横置的源也不受阻。
+            if (effect.IsActivatedEffect
+                && source is Card activateCard && activateCard.IsTapped()
                 && _zoneManager.IsCardInZone(activateCard, activateCard.GetController(), Zone.Battlefield))
                 return false;
 
@@ -1079,6 +1081,9 @@ namespace CardCore
 
                 // 衍生物生成（落区三档：战场/手牌/牌组，费用按落区系数计价）
                 new SummonTokenHandler(),
+
+                // 资源族 — 采掘（地牌指示物转化：去3同类型指示物换1点对应元素入 bank）
+                new MineHandler(),
             };
             foreach (var handler in handlers)
                 EffectHandlerRegistry.Register(handler);

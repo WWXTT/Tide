@@ -41,6 +41,23 @@ namespace CardCore
                 ? (EffectActivationType)data.ActivationType
                 : TriggerTimingDefaults.GetDefaultActivationType(timing);
 
+            // 启动式（Activate_*，2026-09-08 定案）：构筑期不占卡费（L2 只占挂载口），
+            // 元素锚价运行时现付——发动 = 横置 + 扣锚价元素 + 选定目标。
+            // 非启动式（触发式）照旧：元素费已随卡牌档位费收讫，执行器跳过防双计。
+            bool isActivated = timing == TriggerTiming.Activate_Active
+                            || timing == TriggerTiming.Activate_Instant
+                            || timing == TriggerTiming.Activate_Response;
+
+            // 时机/发动方式对称校验（2026-09-08）：非启动式必须设具体发动时机
+            // （登场/死亡/离场/受攻击等——越界 int 已在上面回退 OnPlay 并告警）；
+            // 启动式只能是主动发动（玩家轮询选择），声明为强制/自动属数据错误——告警并按主动处理。
+            if (isActivated && activationType != EffectActivationType.Voluntary)
+            {
+                Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 为启动式（{timing}）" +
+                                 $"但 ActivationType={activationType}（启动式只能主动发动），按主动处理");
+                activationType = EffectActivationType.Voluntary;
+            }
+
             var def = new EffectDefinition
             {
                 Id = string.IsNullOrEmpty(data.Id) ? $"EFF_{sourceCardId}" : data.Id,
@@ -52,7 +69,7 @@ namespace CardCore
                 IsOptional = data.IsOptional,
                 Duration = data.Duration > 0 ? (DurationType)data.Duration : DurationType.Permanent,
                 SourceCardId = sourceCardId,
-                ElementCostPrepaid = true, // 卡内效果：元素费已随卡牌档位费收讫，执行器跳过防双计
+                ElementCostPrepaid = !isActivated,
             };
 
             // 转换原子效果列表
@@ -88,6 +105,7 @@ namespace CardCore
                         Type = (CostType)costEntry.CostType,
                         Value = costEntry.Value,
                         ManaType = (ManaType)costEntry.ManaType,
+                        TurnDuration = costEntry.TurnDuration, // 沉睡/自身紊乱等按回合计持续的代价
                     });
                 }
             }

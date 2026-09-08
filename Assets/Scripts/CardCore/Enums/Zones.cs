@@ -899,13 +899,10 @@ namespace CardCore
 
             container.Move(card, fromZone, Zone.Battlefield);
 
-            // 一次性关键词刷新（定案）：冲锋/突袭/复生重新进入战场时从卡牌固有定义补回（上次生效已消耗）
-            Attribute.KeywordRules.RefreshOneShotKeywords(card);
-
-            // 入场可用性统一走横置（定案）：随从一律横置入场；冲锋/突袭生效 = 解除横置 + 消耗关键词
-            // （突袭另带紊乱指示物）；显式 tapped=true（效果强制横置入场）优先于关键词生效。
-            bool ready = Attribute.KeywordRules.ApplyEntryKeywords(card);
-            card._isTapped = tapped || !ready;
+            // 入场可用性统一走横置（定案）：随从一律横置入场（召唤失调）；
+            // 冲锋/突袭不再豁免——已改为卡的登场效果（OnPlay+激励自己解除横置，突袭另自上紊乱指示物）；
+            // 显式 tapped=true（效果强制横置入场）照常生效。
+            card._isTapped = tapped;
 
             if (fromZone == Zone.Activation)
                 PublishEntryEvent(new CardLeaveActivationEvent
@@ -968,10 +965,9 @@ namespace CardCore
             }
 
             container.Add(card, Zone.Battlefield);
-            // 一次性关键词刷新 + 入场可用性统一走横置（定案）：衍生物/副本同样一律横置；
-            // 冲锋/突袭生效 = 解除横置 + 消耗关键词（突袭另带紊乱指示物）
-            Attribute.KeywordRules.RefreshOneShotKeywords(card);
-            card._isTapped = !Attribute.KeywordRules.ApplyEntryKeywords(card);
+            // 入场可用性统一走横置（定案）：衍生物/副本同样一律横置；
+            // 冲锋/突袭已改为登场效果（OnPlay+激励自己，突袭另自上紊乱指示物），入场不豁免
+            card._isTapped = true;
 
             // 触发式注册统一出口（时点接线定案）：token/副本入场同样注册自身触发式（幂等）
             GameActions.RegisterCardTriggeredEffects(GameCore.Instance, card, controller);

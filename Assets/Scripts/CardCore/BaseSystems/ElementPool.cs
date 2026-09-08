@@ -344,6 +344,24 @@ namespace CardCore
                 CheckDepletedCards(turnPlayer);
         }
 
+        /// <summary>
+        /// 向 bank 添加元素并发布产出事件（采掘 MineHandler 调用；产出固定 1 点故事件无 Amount）。
+        /// 与横置产出共用 ElementPoolGainEvent（FromCard = 采掘目标地牌）；不动地牌横置状态——
+        /// 指示物的去除由调用方完成。
+        /// </summary>
+        public void AddMana(Player player, ManaType type, Card fromCard, int amount = 1)
+        {
+            if (player == null || amount <= 0) return;
+            var pool = GetPool(player);
+            pool.AvailableMana[type] += amount;
+            PublishEvent(new ElementPoolGainEvent
+            {
+                Player = player,
+                GainedType = type,
+                FromCard = fromCard
+            });
+        }
+
         /// <summary>自动消耗选色：剩余指示物最多的颜色（并列取枚举序靠前者）</summary>
         private static ManaType? PickProduceColor(PooledCard land)
         {

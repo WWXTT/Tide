@@ -720,11 +720,11 @@ namespace CardCore.Editor
                 Atom(AtomicEffectType.DealDamage, p1, p1, devourer, 4); // 先受伤留回复缺口
                 Assert(devourer.GetLife() == 2, "吞噬者先受伤至 2（留回复缺口）");
 
-                var prey = Make(p2, 1, 3, CardCore.Attribute.KeywordRules.Charge);
+                var prey = Make(p2, 1, 3, CardCore.Attribute.KeywordRules.Taunt);
                 Atom(AtomicEffectType.Devour, p1, devourer, prey);
                 Assert(!prey.IsAlive && core.ZoneManager.GetCards(p2, Zone.Graveyard).Contains(prey),
                        "吞噬：猎物经 Devour 死因入墓");
-                Assert(devourer.HasKeyword(CardCore.Attribute.KeywordRules.Charge), "吞噬：复制目标全部关键词（冲锋）");
+                Assert(devourer.HasKeyword(CardCore.Attribute.KeywordRules.Taunt), "吞噬：复制目标全部关键词（嘲讽）");
                 Assert(devourer.GetLife() == 5, "吞噬：回复目标当前生命（2+3=5）");
 
                 // 不灭拦 Devour（消灭类）：拦下即无吸收
@@ -1302,7 +1302,7 @@ namespace CardCore.Editor
             Assert(CardCore.Attribute.Handlers.GrantKeywordHandlerFactory.TryGetKeywordId(AtomicEffectType.GrantReborn, out var rebornId) && rebornId == "Reborn",
                    "工厂登记复生关键词 id");
 
-            // ---- 2. 横置可用性 / 冲锋 / 突袭（定案：横置=唯一可用性指标；冲锋/突袭一次性，生效=解除横置+消耗） ----
+            // ---- 2. 横置可用性 / 冲锋 / 突袭（2026-09-08 定案：一律横置入场；冲锋/突袭=登场效果，无入场豁免） ----
             combat.StartCombat(p1, p2);
             var tappedUnit = Make(p1, 3, 3);
             tappedUnit.Tap(); // 模拟横置在场（未过回合重置）
@@ -1310,39 +1310,74 @@ namespace CardCore.Editor
             var readyUnit = Make(p1, 3, 3);
             Assert(combat.CanDeclareAttack(readyUnit, p1), "未横置随从可攻击");
 
-            // 入场生效（直接观察 TryAddToBattlefield 行为，不经 Make 的竖置前提）
-            CardWrapper MakeEntry(string kw)
+            // 入场（直接观察 TryAddToBattlefield 行为，不经 Make 的竖置前提）
+            CardWrapper MakeEntry(params CardEffectData[] effects)
             {
                 var data = new CardData { ID = "VERIFY_KW_ENTRY_" + used.Count, CardName = "入场" + used.Count };
                 data.Supertype = Cardtype.Creature;
                 data.Power = 3; data.Life = 3;
-                if (kw != null) data.Keywords.Add(kw);
+                if (effects != null && effects.Length > 0)
+                {
+                    data.Effects ??= new List<CardEffectData>();
+                    data.Effects.AddRange(effects);
+                }
                 var card = new CardWrapper(data);
                 card.SetController(p1);
                 core.ZoneManager.TryAddToBattlefield(card, p1);
                 used.Add(card);
                 return card;
             }
-            var plain = MakeEntry(null);
+
+            // 冲锋/突袭的登场效果（2026-09-08）：OnPlay + 激励自己（Untap→Self）；
+            // 突袭另自上紊乱指示物作代价减费（费用经 CostDerivationService 的 Self 紊乱对冲）
+            CardEffectData EntryReadyEffect(bool withSickness)
+            {
+                var eff = new CardEffectData
+                {
+                    Id = "VERIFY_ENTRY_READY",
+                    DisplayName = withSickness ? "突袭" : "冲锋",
+                    Description = "登场：激励自身——解除横置",
+                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                };
+                eff.AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    new AtomicEffectEntry
+                    {
+                        EffectType = AtomicEffectType.Untap.ToString(),
+                        Value = 1,
+                        TargetTypeOverride = (int)CardCore.Attribute.EffectTargetType.Self,
+                    },
+                };
+                if (withSickness)
+                    eff.AtomicEffects.Add(new AtomicEffectEntry
+                    {
+                        EffectType = AtomicEffectType.RushSickness.ToString(),
+                        Value = 1,
+                        TargetTypeOverride = (int)CardCore.Attribute.EffectTargetType.Self,
+                    });
+                return eff;
+            }
+
+            var plain = MakeEntry();
             Assert(plain.IsTapped(), "普通随从：一律横置入场");
-            var charger = MakeEntry("Charge");
-            Assert(!charger.IsTapped() && !charger.HasKeyword("Charge"),
-                   "冲锋：入场生效解除横置并消耗关键词");
+            var charger = MakeEntry(EntryReadyEffect(false));
+            Assert(charger.IsTapped(), "冲锋（登场效果）：入场时仍横置（结算前无豁免）");
+            GameActions.DrainStack(core); // 排干栈：登场效果结算
+            Assert(!charger.IsTapped(), "冲锋（登场效果）：结算后解除横置（激励自己）");
             Assert(combat.CanDeclareAttack(charger, p1) && combat.CanAttackTarget(charger, p2),
                    "冲锋：无目标限制，可攻击玩家");
-            var rusher = MakeEntry("Rush");
+            var rusher = MakeEntry(EntryReadyEffect(true));
             var enemy = Make(p2, 1, 9);
-            Assert(!rusher.IsTapped() && !rusher.HasKeyword("Rush")
+            GameActions.DrainStack(core);
+            Assert(!rusher.IsTapped()
                    && rusher.GetCounterCount(CardCore.Attribute.KeywordRules.RushSicknessCounter) == 1,
-                   "突袭：入场生效解除横置、消耗关键词、残留一个紊乱指示物");
+                   "突袭（登场效果）：结算后解除横置、自上紊乱指示物");
             Assert(combat.CanAttackTarget(rusher, enemy) && !combat.CanAttackTarget(rusher, p2),
                    "突袭：紊乱期间只能攻随从，不准攻击玩家（效果发动同口径）");
             CardCore.Attribute.CounterRules.OnTurnEnd(p1, core.ZoneManager); // 回合结束持续指示物清理
             Assert(rusher.GetCounterCount(CardCore.Attribute.KeywordRules.RushSicknessCounter) == 0
                    && combat.CanAttackTarget(rusher, p2),
                    "突袭：紊乱消退（持续到回合结束）后目标限制解除");
-            CardCore.Attribute.KeywordRules.RefreshOneShotKeywords(rusher); // 重新进入战场刷新
-            Assert(rusher.HasKeyword("Rush"), "突袭：一次性关键词重新入场刷新");
             combat.EndCombat();
 
             // ---- 3. 嘲讽 / 碾压无视嘲讽 ----
@@ -2663,7 +2698,7 @@ namespace CardCore.Editor
                 var w = InjectCard(core, p1, TrigData("VERIFY_AR_RES", TriggerTiming.OnAtomicEffectResolution));
                 Assert(GameActions.PlayCard(core, p1, w), "原子结算观察者打出");
                 GameActions.DrainStack(core);
-                // w 入场本身会走 RefreshOneShotKeywords 等路径，但不发原子三阶段；清零后测一次原子执行
+                // w 入场本身不发原子三阶段；清零后测一次原子执行
                 phaseCounts.Clear();
                 int Hand() => core.ZoneManager.GetCards(p1, Zone.Hand).Count;
                 int h0 = Hand();

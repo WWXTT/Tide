@@ -52,8 +52,6 @@ namespace CardCore
         ScryCards,
 
         // ============ 保护相关（关键词） ============
-        GrantHaste,
-        GrantRush,
         GrantDoubleStrike,
         GrantCannotBeTargeted,
         GrantSpellShield,
@@ -84,7 +82,7 @@ namespace CardCore
         GrantArmor,
         GrantFirstStrike,
         GrantDisarm,
-        Recharging,
+        Photosynthesis,
         GrantVigilance,
         GrantRegeneration,
         GrantGrowth,
@@ -127,6 +125,9 @@ namespace CardCore
 
         // ============ 衍生物生成（原 PutToBattlefield 枚举位已收编至此） ============
         SummonToken,
+
+        // ============ 资源族（地牌指示物转化） ============
+        Mine,
     }
 
     #region 效果分类扩展方法

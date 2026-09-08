@@ -89,6 +89,20 @@ namespace CardCore
                 return;
             }
 
+            // 突袭的代价减费（2026-09-08 定案）：自上紊乱指示物（RushSickness 指向 Self）= 代价当量，
+            // 在同效果桶内记 −1 对冲激励的锚价（冲锋 1 → 突袭 0：用「本回合不能以玩家为目标」换整费）。
+            // 对冲色取激励（Untap）的表色保证同桶相消；孤立自紊乱同样记 −1——
+            // 桶级合计为负的色由 DeriveElementCosts 过滤（负面白送，不为负价）。
+            if (atom.Type == AtomicEffectType.RushSickness
+                && atom.TargetTypeOverride == (int)EffectTargetType.Self)
+            {
+                var offsetColor = ElementAffinities.GetAffinityForEffect(AtomicEffectType.Untap).PrimaryColor;
+                byColor.TryGetValue(offsetColor, out var prevOff);
+                byColor[offsetColor] = prevOff - 1;
+                AccumulateSubEffects(atom, byColor);
+                return;
+            }
+
             int amount = ComputeAtomCost(atom, cfg);
             if (amount > 0)
             {

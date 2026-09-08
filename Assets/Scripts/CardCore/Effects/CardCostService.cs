@@ -105,6 +105,9 @@ namespace CardCore
             var kwBuckets = ComputeKeywordBuckets(card, result.Breakdown, out keywordTotal);
 
             // ---- 3) 效果锚价 E（经 CardEffectConverter，与运行时执行同口径）----
+            // 启动式能力（Activate_*，2026-09-08 定案）：构筑期不占卡费——元素锚价运行时现付
+            // （发动 = 横置 + 扣锚价 + 选目标），不进 E 桶；但仍占技能挂载口（MountSlotAdjust
+            // 按 Effects 条数计，含启动式——「不占费用，占技能挂载」的定案两侧在此闭合）。
             float effectTotal = 0f;
             var effBuckets = new Dictionary<ManaType, float>();
             var effectDefs = CardEffectConverter.ConvertAll(card.Effects, card.ID);
@@ -112,6 +115,11 @@ namespace CardCore
             {
                 if (def == null) continue;
                 result.ActiveEffectCount++;
+                if (def.IsActivatedEffect)
+                {
+                    result.Breakdown.Add(new CostBreakdownLine("E", $"启动式 {def.DisplayName ?? def.Id}（构筑期不计锚价，运行时现付；占挂载口）", 0f));
+                    continue;
+                }
 
                 float defTotal = 0f;
                 foreach (var cost in CostDerivationService.DeriveElementCosts(def))
@@ -261,6 +269,7 @@ namespace CardCore
             int mountAdj = CardCompositionCost.MountSlotAdjust(card);
 
             // ---- 第一遍：各模式效果锚桶（DeriveElementCosts 的 modeIndex 分支，未折未取整）----
+            // 启动式能力与 Derive 同口径：构筑期不占卡费（运行时现付），各模式桶一律跳过。
             var modeBuckets = new List<Dictionary<ManaType, float>>();
             var rawTotals = new List<float>();
             for (int m = 0; m < modeCount; m++)
@@ -269,6 +278,7 @@ namespace CardCore
                 foreach (var def in effectDefs)
                 {
                     if (def == null) continue;
+                    if (def.IsActivatedEffect) continue;
                     foreach (var cost in CostDerivationService.DeriveElementCosts(def, m))
                     {
                         effBuckets.TryGetValue(cost.ManaType, out var prev);
@@ -411,6 +421,8 @@ namespace CardCore
                         case CostType.SummonMaterial: total += cc.SummonMaterialValue * Mathf.Max(1, cost.Value); break;
                         case CostType.OpponentDraw: total += cc.OpponentDrawValue * Mathf.Max(1, cost.Value); break;
                         case CostType.OpponentHeal: total += cc.OpponentHealValuePerPoint * Mathf.Max(1, cost.Value); break;
+                        case CostType.SelfSickness: total += cc.SelfSicknessValue * Mathf.Max(1, cost.Value); break;
+                        case CostType.OpponentBuff: total += cc.OpponentBuffValue * Mathf.Max(1, cost.Value); break;
                     }
                 }
             }

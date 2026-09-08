@@ -18,10 +18,12 @@ namespace CardCore
 
     public enum OffsetMechanism
     {
-        Drain,      // 流失（无源失命）
-        Discard,    // 弃手牌
-        Mill,       // 送墓（本组）
-        SendExtra,  // 送额外组
+        Drain,          // 流失（无源失命）
+        Discard,        // 弃手牌
+        Mill,           // 送墓（本组）
+        SendExtra,      // 送额外组
+        OpponentHeal,   // 对手回复生命（+N/费，2026-09-08 补入表）
+        OpponentDraw,   // 对手抽牌（1张/费，2026-09-08 补入表）
     }
 
     [Serializable]
@@ -216,6 +218,12 @@ namespace CardCore
                     return (ctx.ZoneManager?.GetCards(ctx.Payer, Zone.Deck)?.Count ?? 0) / per;
                 case OffsetMechanism.SendExtra:
                     return (ctx.ZoneManager?.GetCards(ctx.Payer, Zone.ExtraDeck)?.Count ?? 0) / per;
+                case OffsetMechanism.OpponentHeal:
+                    // 资源落在对手身上（+血无硬上限；牌库见底走疲劳管线）——真实约束只有单局上限
+                    return int.MaxValue / 4;
+                case OffsetMechanism.OpponentDraw:
+                    // 同上：对手抽牌无资源硬限制（牌库见底走疲劳，反而对对手有害）
+                    return int.MaxValue / 4;
                 default:
                     return 0;
             }
@@ -373,6 +381,8 @@ namespace CardCore
                 case OffsetMechanism.Discard: return CostType.DiscardCard;
                 case OffsetMechanism.Mill: return CostType.MillDeck;
                 case OffsetMechanism.SendExtra: return CostType.SendExtraDeck;
+                case OffsetMechanism.OpponentHeal: return CostType.OpponentHeal;
+                case OffsetMechanism.OpponentDraw: return CostType.OpponentDraw;
                 default: return CostType.LifePayment;
             }
         }
@@ -387,6 +397,8 @@ namespace CardCore
                 case OffsetMechanism.Discard: used = p.OffsetDiscardUsed; break;
                 case OffsetMechanism.Mill: used = p.OffsetMillUsed; break;
                 case OffsetMechanism.SendExtra: used = p.OffsetSendExtraUsed; break;
+                case OffsetMechanism.OpponentHeal: used = p.OffsetOpponentHealUsed; break;
+                case OffsetMechanism.OpponentDraw: used = p.OffsetOpponentDrawUsed; break;
                 default: used = 0; break;
             }
             return max - used;
@@ -400,6 +412,8 @@ namespace CardCore
                 case OffsetMechanism.Discard: p.OffsetDiscardUsed++; break;
                 case OffsetMechanism.Mill: p.OffsetMillUsed++; break;
                 case OffsetMechanism.SendExtra: p.OffsetSendExtraUsed++; break;
+                case OffsetMechanism.OpponentHeal: p.OffsetOpponentHealUsed++; break;
+                case OffsetMechanism.OpponentDraw: p.OffsetOpponentDrawUsed++; break;
             }
         }
     }

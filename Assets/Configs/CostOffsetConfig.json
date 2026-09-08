@@ -22,5 +22,17 @@
     "DisplayName": "送额外组",
     "ResourcePerOffset": 3,
     "MaxOffsetPerGame": 5
+  },
+  {
+    "Mechanism": "OpponentHeal",
+    "DisplayName": "对手回复生命",
+    "ResourcePerOffset": 2,
+    "MaxOffsetPerGame": 4
+  },
+  {
+    "Mechanism": "OpponentDraw",
+    "DisplayName": "对手抽牌",
+    "ResourcePerOffset": 1,
+    "MaxOffsetPerGame": 4
   }
 ]
