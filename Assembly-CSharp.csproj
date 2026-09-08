@@ -87,6 +87,7 @@
     <Compile Include="Assets\Scripts\CardCore\Effects\AtomicEffectPhaseEvents.cs" />
     <Compile Include="Assets\Scripts\CardCore\BaseSystems\StateBasedActions\StateBasedActions.cs" />
     <Compile Include="Assets\Scripts\CardCore\ValueSystem\ValueSystemRuntimeConfig.cs" />
+    <Compile Include="Assets\Scripts\AI\NeuralEnv\FieldValueReward.cs" />
     <Compile Include="Assets\Scripts\CardCore\Board\BoardLayout.cs" />
     <Compile Include="Assets\Scripts\CardCore\BaseSystems\MatchLogService.cs" />
     <Compile Include="Assets\Scripts\CardCore\Cards\CardTypes.cs" />
@@ -141,6 +142,7 @@
     <Compile Include="Assets\Scripts\CardCore\Network\NetworkSerializer.cs" />
     <Compile Include="Assets\Scripts\CardCore\Events\EventManager.cs" />
     <Compile Include="Assets\Scripts\CardCore\Serialization\CardDataSerializer.cs" />
+    <Compile Include="Assets\Scripts\AI\NeuralEnv\TideObservation.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\CostOffset.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\EffectTargeting.cs" />
     <Compile Include="Assets\UI\Framework\UIManager.cs" />
@@ -171,8 +173,10 @@
     <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\FirstBatchEffectHandlers.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\AdvancedEffectHandlers.cs" />
     <Compile Include="Assets\Scripts\CardCore\Layers\TextChangeLayer.cs" />
+    <Compile Include="Assets\Scripts\AI\NeuralEnv\TideHeadlessDriver.cs" />
     <Compile Include="Assets\UI\Screens\BattleScreen.cs" />
     <Compile Include="Assets\Scripts\CardCore\Board\BoardState.cs" />
+    <Compile Include="Assets\Scripts\AI\NeuralEnv\LegalActionEnumerator.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\GrantKeywordHandlers.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\IndicatorHandler.cs" />
     <Compile Include="Assets\Scripts\CardCore\Effects\RitualAuras.cs" />

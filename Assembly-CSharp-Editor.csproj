@@ -80,6 +80,7 @@
     <Compile Include="Assets\Editor\DanbaidongGUI\GradientsRampEditorWindow.cs" />
     <Compile Include="Assets\Editor\DanbaidongGUI\GradientsRamp.cs" />
     <Compile Include="Assets\Editor\NoiseMapGenerator.cs" />
+    <Compile Include="Assets\Editor\TideHeadless\TideHeadlessServer.cs" />
     <Compile Include="Assets\Editor\Tests\AiBattleE2E.cs" />
     <Compile Include="Assets\Editor\DanbaidongGUI\DanbaidongShaderConverterWindow.cs" />
     <Compile Include="Assets\Editor\EntityHierarchy\AuthoringHierarchyWindow.cs" />

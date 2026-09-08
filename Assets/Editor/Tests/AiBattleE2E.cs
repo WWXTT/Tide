@@ -42,7 +42,7 @@ namespace CardCore.Editor.Tests
 
         private static List<CardData> LoadTestCards()
         {
-            string path = Path.Combine(Application.dataPath, "Configs/TestCreatureCards.json");
+            string path = Path.Combine(Application.dataPath, "Configs/TestDecks/TestCreatureCards.json");
             return File.Exists(path) ? CardLoader.LoadCardsFromText(File.ReadAllText(path)) : new List<CardData>();
         }
 
