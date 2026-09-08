@@ -13,7 +13,7 @@ namespace SynergyUI
     public static class CardCatalog
     {
         // 相对 Application.dataPath 的卡表文件。Phase 1 先用测试卡表。
-        private const string CardsConfigRelative = "Configs/TestCreatureCards.json";
+        private const string CardsConfigRelative = "Configs/TestDecks/TestCreatureCards.json";
 
         private static List<CardData> _cache;
         private static Dictionary<string, CardData> _byId;
