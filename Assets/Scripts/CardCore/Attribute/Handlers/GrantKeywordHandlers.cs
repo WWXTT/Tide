@@ -25,9 +25,15 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
+            // 三轨判轨（2026-09-09 定案）：魔法卡来源（=角色）→ Setting（视同本体，净化/换区都不清）；
+            // 场上卡来源 → Duration=Permanent 走 GrantedPermanent（换区不清、净化清），否则 Temp（两清）。
+            var lane = context.Source is Player ? KeywordLane.Setting
+                     : effect.Duration == DurationType.Permanent ? KeywordLane.GrantedPermanent
+                     : KeywordLane.Temp;
+
             foreach (var target in context.Targets)
             {
-                target.AddKeyword(_keywordId);
+                target.AddKeyword(_keywordId, lane, context.Source);
                 PublishEvent(new KeywordEvent
                 {
                     Target = target,

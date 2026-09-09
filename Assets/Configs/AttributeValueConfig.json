@@ -881,6 +881,22 @@
     "ActivationType": "Voluntary"
   },
   {
+    "ID": "4eb623b3",
+    "EnumName": "无效",
+    "DisplayName": "对{target}附加无效指示物（非启动式能力无法发动）",
+    "EffectFunction": "Counter",
+    "EffectColor": "Blue",
+    "BaseCost": 3.0,
+    "EffectType": "AddNullify",
+    "EffectTier": "Counter",
+    "TargetType": "Target",
+    "TargetFilter": "Creature",
+    "TargetCount": 1,
+    "TargetScope": "Single",
+    "DurationType": "UntilLeaveBattlefield",
+    "ActivationType": "Voluntary"
+  },
+  {
     "ID": "e7c1a930",
     "EnumName": "激励",
     "DisplayName": "激励{target}：重置其横置状态",

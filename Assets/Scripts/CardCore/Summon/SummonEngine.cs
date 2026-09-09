@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using CardCore.Attribute;
 using Cysharp.Threading.Tasks;
 
 namespace CardCore
@@ -109,14 +110,15 @@ namespace CardCore
             // 4. 从额外卡组召唤
             var fusionCreature = SummonFromExtraDeck(player, fusionCard);
 
-            // 5. 继承叠加的关键词
-            if (fusionCreature is IHasKeywords hasKeywords)
+            // 5. 继承叠加的关键词（三轨制定案⑨：形态继承=Printed+Setting 轨，临时不随形态；
+            //    继承落 Setting 轨=视同本体；叠加不去重——双坚韧计 2）
+            if (fusionCreature is Card fusionCard2)
             {
                 foreach (var kvp in keywordStack)
                 {
                     for (int i = 0; i < kvp.Value; i++)
                     {
-                        hasKeywords.AddKeyword(kvp.Key);
+                        fusionCard2.AddKeywordStack(kvp.Key, KeywordLane.Setting);
                     }
                 }
             }
@@ -156,21 +158,26 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 收集素材的关键词并统计叠加数量
+        /// 收集素材的形态关键词（Printed+Setting 轨；台账缺失时保守按卡面列表）并统计叠加数量
         /// </summary>
         private Dictionary<string, int> CollectAndStackKeywords(List<Card> materials)
         {
             var keywordStack = new Dictionary<string, int>();
             foreach (var mat in materials)
             {
-                if (mat is IHasKeywords hasKeywords)
+                // 三轨制定案⑨：临时授予不随形态——只收集本体+设置轨
+                IEnumerable<string> kws = mat._keywordGrants.Count > 0
+                    ? mat._keywordGrants
+                        .Where(g => g.Lane == KeywordLane.Printed || g.Lane == KeywordLane.Setting)
+                        .Select(g => g.Keyword)
+                    : (mat as IHasKeywords)?.Keywords;
+
+                if (kws == null) continue;
+                foreach (var keyword in kws)
                 {
-                    foreach (var keyword in hasKeywords.Keywords)
-                    {
-                        if (!keywordStack.ContainsKey(keyword))
-                            keywordStack[keyword] = 0;
-                        keywordStack[keyword]++;
-                    }
+                    if (!keywordStack.ContainsKey(keyword))
+                        keywordStack[keyword] = 0;
+                    keywordStack[keyword]++;
                 }
             }
             return keywordStack;

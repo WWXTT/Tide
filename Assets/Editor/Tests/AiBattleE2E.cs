@@ -175,6 +175,7 @@ namespace CardCore.Editor.Tests
                     GameBoard.HalfFieldData.Flat(), GameBoard.HalfFieldData.Flat());
                 board.EnableAutoResync();
                 CombatSystem.AdjacentResolver = board.Neighbors;
+                GameBoard.LinkAuraSystem.Attach(board); // 连接光环（三轨制）——与碾压邻接同惯例接线
 
                 for (int turn = 0; turn < maxTurns && !gameOver; turn++)
                 {
@@ -204,6 +205,7 @@ namespace CardCore.Editor.Tests
                 announcer.Detach();
                 EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
                 CombatSystem.AdjacentResolver = null; // 撤销本局的棋盘接线（静态扩展点归零）
+                GameBoard.LinkAuraSystem.Detach();    // 连接光环接线同步归零
                 board?.Dispose();
                 result.AnnouncedLines = announcer.LineCount;
                 // P2b：对局日志按需导出（内存缓冲 → markdown 战报落盘）

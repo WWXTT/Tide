@@ -71,6 +71,118 @@ namespace CardCore.Attribute
         public static bool HasRushSickness(Entity entity)
             => entity is Card c && c.GetCounterCount(RushSicknessCounter) > 0;
 
+        // ==================== 关键词轨别台账（三轨制定案 2026-09-09） ====================
+
+        /// <summary>
+        /// 净化豁免名单（2026-09-09 定案：神佑对净化有抗性）。净化剥神佑+剧毒杀角色的组合
+        /// 价值过高、无法与作用在生物上的效果计价平衡——净化剥不掉神佑，移除留给未来专用效果。
+        /// </summary>
+        public static readonly HashSet<string> PurgeProtectedKeywords =
+            new HashSet<string> { DeathRules.DivineProtection };
+
+        /// <summary>
+        /// 换区清关键词（与 CounterRules.ClearAll 同口）：移除 Temp 轨授予。
+        /// 由 ZoneContainer.OnCardMoved 调用（同受发动区豁免约束），且须在 TryEndMorph 之后执行
+        /// （否则变形快照恢复会把已清的临时层复活）。
+        /// </summary>
+        public static void ClearZoneKeywords(Entity entity)
+            => RemoveGrants(entity, g => g.Lane == KeywordLane.Temp);
+
+        /// <summary>
+        /// 净化清关键词（净化语义重定义 2026-09-09：净化=变回生物原有状态）：
+        /// 保留 Printed（卡面本体）与 Setting（设置类视同本体——设置后即「原本属性效果」）；
+        /// 清除 Temp / GrantedPermanent / Status 轨（PurgeProtectedKeywords 豁免——神佑等抗净化状态保留）。
+        /// 与 CounterRules.PurgeAll（指示物全清）配套，由 PurifyHandler 调用。
+        /// </summary>
+        public static void PurifyKeywords(Entity entity)
+            => RemoveGrants(entity, g => g.Lane != KeywordLane.Printed
+                                      && g.Lane != KeywordLane.Setting
+                                      && !PurgeProtectedKeywords.Contains(g.Keyword));
+
+        /// <summary>
+        /// 形态复制（定案⑨：临时不随形态）——只复制 from 的 Printed+Setting 轨关键词，
+        /// 落到 to 按 toLane 记账（吞噬/融合继承=Setting：吸收后视同本体）。
+        /// 台账缺失（重连/旧档）时保守按 from._keywords 全量去重复制。
+        /// </summary>
+        public static void CopyFormKeywords(Card from, Card to, KeywordLane toLane = KeywordLane.Setting)
+        {
+            if (from == null || to == null) return;
+            var formGrants = from._keywordGrants
+                .Where(g => g.Lane == KeywordLane.Printed || g.Lane == KeywordLane.Setting)
+                .Select(g => g.Keyword)
+                .Distinct()
+                .ToList();
+            if (formGrants.Count == 0 && from._keywords.Count > 0)
+                formGrants = from._keywords.Distinct().ToList();
+            foreach (var kw in formGrants)
+                to.AddKeyword(kw, toLane);
+        }
+
+        /// <summary>
+        /// 入场刷新（2026-09-09 定案）：**真实入场**时对 Printed 轨做卡面差集补齐——
+        /// 卡面（CardData.Keywords）有而该实例 Printed 轨没有的关键词补回，恢复到卡面份数。
+        ///
+        /// 挂载红线：只挂在 TryMoveToBattlefield / TryAddToBattlefield 统一出口（真换区才算入场）——
+        /// · 复生（TryReborn）是死亡替代原地留场，不经出口 → 消耗掉的复生不会自我补回（无无限复生）；
+        /// · 控制权变更（ChangeControl）走容器直移 + 补发 CardPutToBattlefieldEvent——
+        ///   ⚠ 因此**绝不能**把刷新挂到 CardPutToBattlefieldEvent 事件上（偷取不刷新消耗项）。
+        ///
+        /// 差集安全性：Printed 轨目前只能被**消耗型移除**（圣盾/复生/潜行/法术护盾——移除即用掉）；
+        /// 净化保留本体、无任何效果可剥 Printed——差集补回的必然只是被消耗项。
+        /// </summary>
+        public static void RefreshPrintedKeywordsOnEntry(Card card)
+        {
+            if (card == null) return;
+            var face = (card as CardWrapper)?.GetData()?.Keywords;
+            if (face == null || face.Count == 0) return;
+
+            foreach (var kw in face.Distinct())
+            {
+                if (string.IsNullOrEmpty(kw)) continue;
+
+                int faceCount = 0;
+                foreach (var k in face)
+                    if (k == kw) faceCount++;
+
+                int printedCount = 0;
+                foreach (var g in card._keywordGrants)
+                    if (g.Keyword == kw && g.Lane == KeywordLane.Printed)
+                        printedCount++;
+
+                for (int i = printedCount; i < faceCount; i++)
+                {
+                    card.AddKeywordStack(kw, KeywordLane.Printed); // 叠加补齐（_keywords 与台账同补一份）
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    {
+                        Target = card,
+                        Keyword = kw,
+                        Detail = "入场刷新：补回卡面本体关键词（消耗项随真实入场恢复）"
+                    });
+                }
+            }
+        }
+
+        /// <summary>
+        /// 台账移除核心：按谓词撤掉授予条目，随后同步 _keywords——
+        /// 某关键词的授予条目被清空后（无任何轨再持有）才移除其本体占用。
+        /// 注意：无台账条目的关键词（重连还原/融合直加）不在清除面内——保守视同本体。
+        /// </summary>
+        private static void RemoveGrants(Entity entity, Func<KeywordGrant, bool> predicate)
+        {
+            if (entity == null || entity._keywordGrants.Count == 0) return;
+            var affected = entity._keywordGrants.Where(predicate).Select(g => g.Keyword).Distinct().ToList();
+            if (affected.Count == 0) return;
+            entity._keywordGrants.RemoveAll(g => predicate(g));
+            foreach (var kw in affected)
+            {
+                // 叠加语义：本体占用份数归一到台账剩余份数（无台账条目的关键词不在 affected，不受波及）
+                int remaining = entity._keywordGrants.Count(g => g.Keyword == kw);
+                int have = entity._keywords.RemoveAll(k => k == kw);
+                for (int i = 0; i < Math.Min(have, remaining); i++)
+                    entity._keywords.Add(kw);
+            }
+        }
+
         /// <summary>持有某关键词的次数（融合叠加：重复坚韧计 2）</summary>
         public static int KeywordCount(Entity entity, string keyword)
         {
@@ -114,11 +226,14 @@ namespace CardCore.Attribute
             // 4. 落血（Card 到 0 标记死亡；Player 直接扣）。
             //    死亡决策走决策表（当前无护盾拦 DamageLethal；复生/落墓由 SBA 泵自发连锁处理）。
             //    死亡归因（2026-09-07）：伤害来源随尸体留档，SBA 送墓时经 TryKill 上 CardDestroyEvent。
+            //    三轨制（2026-09-09）：归零判定按**有效生命**（_life + 连接光环加成）——
+            //    生命光环垫着的单位要先吃穿光环加成才死；断链回落由 SBA 收尾。
             int oldLife = (target as Player)?.Life ?? 0; // 生命变化播报用
             if (target is Card card)
             {
                 card._life -= amount;
-                if (card._life <= 0)
+                int auraLife = GameBoard.LinkAuraSystem.GetLifeBonus(card);
+                if (card._life + auraLife <= 0)
                 {
                     card._life = 0;
                     if (!DeathRules.IsShielded(card, DeathCause.DamageLethal))
@@ -126,6 +241,10 @@ namespace CardCore.Attribute
                         card._pendingDeathCause = DeathCause.DamageLethal;
                         card._pendingDeathSource = source;
                         card.IsAlive = false;
+                    }
+                    else if (auraLife > 0)
+                    {
+                        card._life = 1 - auraLife; // 护盾拦下：以有效生命 1 存活（无光环保持原样=0 存活）
                     }
                 }
             }

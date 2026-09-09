@@ -168,23 +168,5 @@ namespace CardCore.AI.NeuralEnv
 
             return value;
         }
-
-        // ======================================== 向后兼容（供 TideObservation 调用）========================================
-
-        /// <summary>【已废弃】战场上静态价值总和（仅战场卡基础价，不含指示物/状态/资源）。</summary>
-        [Obsolete("使用 BattlefieldValue 或 TotalValue 替代")]
-        public static float SumFieldValue(GameCore core, Player player)
-        {
-            if (core == null || player == null) return 0f;
-            var field = core.ZoneManager.GetCards(player, Zone.Battlefield);
-            if (field == null) return 0f;
-            float sum = 0f;
-            foreach (var c in field) sum += CardBaseValue(c);
-            return sum;
-        }
-
-        /// <summary>【已废弃】单卡静态期望价（不含动态指示物/状态）。</summary>
-        [Obsolete("使用 CardDynamicValue 替代")]
-        public static float ValueOf(Card card) => CardBaseValue(card);
     }
 }

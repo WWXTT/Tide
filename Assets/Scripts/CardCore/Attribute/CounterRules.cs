@@ -95,6 +95,12 @@ namespace CardCore.Attribute
         public const string ToxinCounter = "Toxin";
         /// <summary>沉默：持有者不可发动主动效果（未写持续时间=换区清除）</summary>
         public const string SilenceCounter = "Silence";
+        /// <summary>
+        /// 无效（2026-09-09 定案，蓝3）：目标的**非启动式**能力无法发动——拦全部触发式（含登场 OnPlay）
+        /// + 拦光环静态能力（连接箭头来源被无效压制，是唯一能压光环的口）；
+        /// 坚韧/圣盾等伤害管线被动与再生/成长等回合维护不是「能力发动」，不拦。换区清除。
+        /// </summary>
+        public const string NullifyCounter = "Nullify";
         /// <summary>易损：持续1回合，受到伤害时每层使受到的伤害+1（每个回合末到期）</summary>
         public const string VulnerableCounter = "Vulnerable";
         /// <summary>攻击力增加指示物（每层 +1 攻，仅场上）</summary>
@@ -113,6 +119,18 @@ namespace CardCore.Attribute
         public const string PlusOneCounter = "+1/+1";
         /// <summary>-1/-1（历史 id，SBA 对消）</summary>
         public const string MinusOneCounter = "-1/-1";
+
+        // ---- 三轨制·生物轨永久档（2026-09-09 定案）----
+        // 生物赋予的**永久**属性=Permanent 层（换区不清、净化清）；非永久走上方换区清层。
+        // 单属性粒度（区别于 ±1/±1 双属性层）——StatGrantRouter 按 Duration=Permanent 路由到此。
+        /// <summary>攻击力增加（永久，每层 +1 攻，换区不清）</summary>
+        public const string PowerUpPermanentCounter = "PowerUpPermanent";
+        /// <summary>攻击力减少（永久，每层 −1 攻，换区不清）</summary>
+        public const string PowerDownPermanentCounter = "PowerDownPermanent";
+        /// <summary>生命值增加（永久，每层 +1 上限与当前，换区不清）</summary>
+        public const string LifeUpPermanentCounter = "LifeUpPermanent";
+        /// <summary>生命值减少（永久，每层 −1 上限，换区不清）</summary>
+        public const string LifeDownPermanentCounter = "LifeDownPermanent";
 
         private static readonly Dictionary<string, CounterSpec> _registry =
             new Dictionary<string, CounterSpec>();
@@ -135,6 +153,7 @@ namespace CardCore.Attribute
             Register(new CounterSpec { Id = PoisonCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "剧毒", TurnEndEffect = CounterTurnEndEffect.PoisonDeath });
             Register(new CounterSpec { Id = ToxinCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.ForTurns, DisplayName = "毒素", TurnEndEffect = CounterTurnEndEffect.DamagePerStack, Turns = 3 });
             Register(new CounterSpec { Id = SilenceCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "沉默" });
+            Register(new CounterSpec { Id = NullifyCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "无效" });
             Register(new CounterSpec { Id = VulnerableCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "易损" });
             Register(new CounterSpec { Id = PowerUpCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "攻击力增加", StatKind = StatCounterKind.PowerUp });
             Register(new CounterSpec { Id = PowerDownCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "攻击力减少", StatKind = StatCounterKind.PowerDown });
@@ -145,6 +164,12 @@ namespace CardCore.Attribute
             // 进发动区不清（发动区豁免），结算离开发动区与离手时清除。
             Register(new CounterSpec { Id = CostUpCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "费用增加", StatKind = StatCounterKind.CostUp });
             Register(new CounterSpec { Id = CostDownCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "费用减少", StatKind = StatCounterKind.CostDown });
+
+            // ---- 三轨制·生物轨永久档（2026-09-09）----
+            Register(new CounterSpec { Id = PowerUpPermanentCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "攻击力增加（永久）", StatKind = StatCounterKind.PowerUp });
+            Register(new CounterSpec { Id = PowerDownPermanentCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "攻击力减少（永久）", StatKind = StatCounterKind.PowerDown });
+            Register(new CounterSpec { Id = LifeUpPermanentCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "生命值增加（永久）", StatKind = StatCounterKind.LifeUp });
+            Register(new CounterSpec { Id = LifeDownPermanentCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "生命值减少（永久）", StatKind = StatCounterKind.LifeDown });
         }
 
         /// <summary>登记指示物规格（新指示物=新登记，OCP）。</summary>
@@ -188,8 +213,9 @@ namespace CardCore.Attribute
             });
         }
 
-        /// <summary>属性增量回写（每层效果固定 ±1；n=层数恒正。削减类归零标死，送墓交 SBA——来源=施加方）。</summary>
-        private static void ApplyStatDelta(Card card, StatCounterKind kind, int n, Entity source = null)
+        /// <summary>属性增量回写（每层效果固定 ±1；n=层数恒正。削减类归零标死，送墓交 SBA——来源=施加方）。
+        /// internal（2026-09-09 三轨制）：设置轨（魔法卡=永久直改）复用此直写实现——不挂计数层。</summary>
+        internal static void ApplyStatDelta(Card card, StatCounterKind kind, int n, Entity source = null)
         {
             switch (kind)
             {
@@ -207,7 +233,7 @@ namespace CardCore.Attribute
                     card._maxLife -= n;
                     if (card._maxLife < 0) card._maxLife = 0;
                     if (card._life > card._maxLife) card._life = card._maxLife;
-                    if (card._life <= 0)
+                    if (card._life + GameBoard.LinkAuraSystem.GetLifeBonus(card) <= 0) // 有效生命归零（含光环）
                     {
                         // 削减归零标死（送墓交 SBA）——死亡来源=减益施加方（指示物来源定案）
                         card._pendingDeathSource = source;
@@ -230,7 +256,7 @@ namespace CardCore.Attribute
                     card._maxLife -= n;
                     if (card._maxLife < 0) card._maxLife = 0;
                     if (card._life > card._maxLife) card._life = card._maxLife;
-                    if (card._life <= 0)
+                    if (card._life + GameBoard.LinkAuraSystem.GetLifeBonus(card) <= 0) // 有效生命归零（含光环）
                     {
                         card._pendingDeathSource = source; // 同 LifeDown：减益施加方归因
                         card.IsAlive = false;

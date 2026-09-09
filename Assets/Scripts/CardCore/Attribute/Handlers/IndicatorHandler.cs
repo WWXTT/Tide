@@ -223,4 +223,42 @@ namespace CardCore.Attribute.Handlers
         protected override string CounterId => CounterRules.CostDownCounter;
         public override string GetDescription(AtomicEffectInstance effect) => $"添加{effect.Value}个费用减少指示物";
     }
+
+    /// <summary>
+    /// 无效指示物（2026-09-09 定案，蓝3）：目标的非启动式能力无法发动——
+    /// 拦全部触发式（含登场 OnPlay，挂 TriggerEngine.FindMatchingEffects）+ 拦光环静态能力
+    /// （连接箭头来源被无效压制，LinkAuraSystem 查询时跳过——唯一能压光环的指示物；
+    /// 净化/沉默不压箭头：箭头是卡面数据）。与沉默对称：沉默拦启动式、无效拦非启动式。
+    /// </summary>
+    public class AddNullifyHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddNullify;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            foreach (var target in context.Targets)
+            {
+                if (target == null || !target.IsAlive) continue;
+                int amount = context.GetValueAfterModifiers(effect.Value);
+                if (amount <= 0) amount = 1;
+                target.AddCounters(CounterRules.NullifyCounter, amount, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = target,
+                    CounterType = CounterRules.NullifyCounter,
+                    Amount = amount,
+                    Source = context.Source
+                });
+                PublishEvent(new KeywordAppliedEvent
+                {
+                    Target = target,
+                    Keyword = "无效",
+                    Detail = "无效：持有者的非启动式能力（触发式/光环）无法发动",
+                    Source = context.Source
+                });
+            }
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect) => "附加无效指示物（非启动式能力无法发动）";
+    }
 }

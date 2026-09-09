@@ -20,8 +20,8 @@ namespace GameBoard
     /// —— 与 HexMap 完全一致（cell 世界坐标 x = (offsetX + z*0.5 - z/2) × 内径×2，奇数行 +0.5；
     /// 邻居规则同 HexBoundary.NeighborOffset）。Phase B 渲染层若六邻接对不上，先查这里。
     ///
-    /// 方向换算：CardCore.HexDirection（链接箭头 Flags：Up/Down/UpperLeft/...）到本枚举的映射
-    /// 在链接系统落地时再定（Up≈NE 方向簇），现在不做。
+    /// 方向换算：CardCore.HexDirection（链接箭头 Flags）→ BoardDirection 已于 2026-09-09 定死
+    /// （MapArrow + Opposite，见下方链接箭头方向映射区；对手视角镜像=绝对方向取 Opposite）。
     /// </summary>
     public static class BoardMath
     {
@@ -46,6 +46,56 @@ namespace GameBoard
                 case BoardDirection.SE: return (x + odd, z - 1);
                 case BoardDirection.SW: return (x - 1 + odd, z - 1);
                 default: return (x, z);
+            }
+        }
+
+        // ==================== 链接箭头方向映射（三轨制定案 2026-09-09，本期定死） ====================
+        // 接管上方「方向换算落地时再定」的预留：CardCore.HexDirection（卡面箭头 Flags）
+        // → BoardDirection（棋盘绝对方向）六对六双射（俯视视角，顺时针一致）。
+        // 箭头方向随玩家视角镜像（双方棋盘 180° 对称）：对手半场的箭头按其视角解读 = 绝对方向取 Opposite。
+
+        /// <summary>卡面箭头方向 → 棋盘绝对方向（双射；组合值取首个命中位）</summary>
+        public static BoardDirection MapArrow(CardCore.HexDirection arrow)
+        {
+            switch (arrow)
+            {
+                case CardCore.HexDirection.Up:        return BoardDirection.NE;
+                case CardCore.HexDirection.UpperRight:return BoardDirection.E;
+                case CardCore.HexDirection.LowerRight:return BoardDirection.SE;
+                case CardCore.HexDirection.Down:      return BoardDirection.SW;
+                case CardCore.HexDirection.LowerLeft: return BoardDirection.W;
+                case CardCore.HexDirection.UpperLeft: return BoardDirection.NW;
+                default: return BoardDirection.NE;
+            }
+        }
+
+        /// <summary>MapArrow 的逆映射（棋盘绝对方向 → 卡面箭头 Flags 单值；测试/反推用）</summary>
+        public static CardCore.HexDirection ArrowOf(BoardDirection dir)
+        {
+            switch (dir)
+            {
+                case BoardDirection.NE: return CardCore.HexDirection.Up;
+                case BoardDirection.E:  return CardCore.HexDirection.UpperRight;
+                case BoardDirection.SE: return CardCore.HexDirection.LowerRight;
+                case BoardDirection.SW: return CardCore.HexDirection.Down;
+                case BoardDirection.W:  return CardCore.HexDirection.LowerLeft;
+                case BoardDirection.NW: return CardCore.HexDirection.UpperLeft;
+                default: return CardCore.HexDirection.None;
+            }
+        }
+
+        /// <summary>棋盘方向的 180° 对向（镜像：NE↔SW、E↔W、SE↔NW）</summary>
+        public static BoardDirection Opposite(BoardDirection dir)
+        {
+            switch (dir)
+            {
+                case BoardDirection.NE: return BoardDirection.SW;
+                case BoardDirection.E:  return BoardDirection.W;
+                case BoardDirection.SE: return BoardDirection.NW;
+                case BoardDirection.SW: return BoardDirection.NE;
+                case BoardDirection.W:  return BoardDirection.E;
+                case BoardDirection.NW: return BoardDirection.SE;
+                default: return dir;
             }
         }
 

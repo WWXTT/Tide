@@ -111,11 +111,11 @@ namespace CardCore.Attribute.Handlers
                 if (!DeathRules.TryKill(victim, DeathCause.Devour, context.Source, context.ZoneManager))
                     continue;
 
-                // 吸收：复制目标全部关键词 + 回复目标当前生命（吞噬者 = context.Source）
+                // 吸收：复制目标形态关键词（Printed+Setting 轨，临时不随形态——定案⑨；
+                // 继承落 Setting 轨=吸收后视同本体）+ 回复目标当前生命（吞噬者 = context.Source）
                 if (devourer != null)
                 {
-                    foreach (var kw in victim._keywords.ToList())
-                        devourer.AddKeyword(kw);
+                    KeywordRules.CopyFormKeywords(victim, devourer);
                     devourer.Heal(victim.GetLife());
                 }
             }

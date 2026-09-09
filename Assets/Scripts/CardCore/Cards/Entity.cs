@@ -29,6 +29,11 @@ namespace CardCore
         // 消费方：剧毒死亡来源、减益致死归因；毒素回合末伤害保持 null（定案：毒素不是伤害来源实体）。
         internal Dictionary<string, Entity> _counterSources = new Dictionary<string, Entity>();
 
+        // 关键词轨别台账（2026-09-09 三轨制定案）：_keywords 仍是运行时唯一真身（HasKeyword/GetKeywordCount
+        // 消费面零改动），台账只服务清除口径——换区清（ClearZoneKeywords：Temp）、净化清
+        // （PurifyKeywords：Temp+Status+GrantedPermanent，豁免 PurgeProtectedKeywords、保留 Printed+Setting）。
+        internal List<KeywordGrant> _keywordGrants = new List<KeywordGrant>();
+
         public TimestampInfo TimestampInfo => _timestamp;
         public DateTime CreationTime => _timestamp.DateTime;
         public uint SequenceNumber => _timestamp.Sequence;
@@ -72,6 +77,31 @@ namespace CardCore
         public string Id;
         public int Amount;
         public int RemainingTurns = -1;
+    }
+
+    /// <summary>
+    /// 关键词轨别（三轨制定案 2026-09-09）：同文本赋予按来源分轨后的清除口径。
+    /// </summary>
+    public enum KeywordLane
+    {
+        /// <summary>卡面本体（装载期注入；净化/换区都不清）</summary>
+        Printed,
+        /// <summary>设置类（魔法卡赋予，视同本体；净化/换区都不清）</summary>
+        Setting,
+        /// <summary>生物赋予的永久关键词（换区不清、净化清）</summary>
+        GrantedPermanent,
+        /// <summary>临时关键词（换区清、净化清）</summary>
+        Temp,
+        /// <summary>可移除状态（净化清；神佑另享净化豁免——PurgeProtectedKeywords）</summary>
+        Status,
+    }
+
+    /// <summary>关键词授予台账条目：_keywords 是真身，本台账只记轨别与来源供清除口径消费。</summary>
+    public class KeywordGrant
+    {
+        public string Keyword;
+        public KeywordLane Lane;
+        public Entity Source;
     }
 
     /// <summary>
@@ -160,7 +190,9 @@ namespace CardCore
             _life = maxHealth;
             // 世界观定案：角色=普通生物单位，默认持有神佑（可被效果移除的真实状态，非硬编码）。
             // 神佑使其免疫一切效果死亡（剧毒/消灭/湮灭…），只接受生命值归零的死亡。
-            _keywords.Add(Attribute.DeathRules.DivineProtection);
+            // 轨别=Status（可净化移除的状态）；但神佑对净化有抗性（2026-09-09 定案：
+            // 净化剥神佑+剧毒的组合无法计价平衡——PurgeProtectedKeywords 豁免，移除留给未来专用效果）。
+            EntityEffectExtensions.AddKeyword(this, Attribute.DeathRules.DivineProtection, KeywordLane.Status);
         }
 
         public void AddToDeck(Card card)

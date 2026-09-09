@@ -72,12 +72,14 @@ namespace CardCore.AI.NeuralEnv
             _core.Player1.IsAI = true; // 目标/范围选择自动应答（不弹窗，异步同步完成）
             _core.Player2.IsAI = true;
 
-            // 棋盘占用层（派生，单向读核心）：为碾压关键词注入邻接解析（核心不绑棋盘，宿主接线）
+            // 棋盘占用层（派生，单向读核心）：为碾压关键词注入邻接解析 + 连接光环接线（核心不绑棋盘，宿主接线）
             _board?.Dispose();
+            GameBoard.LinkAuraSystem.Detach(); // 上局接线归零（静态扩展点惯例）
             _board = new GameBoard.BoardState(_core, _core.Player1, _core.Player2,
                 GameBoard.HalfFieldData.Flat(), GameBoard.HalfFieldData.Flat());
             _board.EnableAutoResync();
             CombatSystem.AdjacentResolver = _board.Neighbors;
+            GameBoard.LinkAuraSystem.Attach(_board); // 连接光环（三轨制）：箭头指向格占据者享受 linkAuras
 
             _gameOver = false;
             _winner = null;
@@ -139,6 +141,7 @@ namespace CardCore.AI.NeuralEnv
         {
             EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
             CombatSystem.AdjacentResolver = null;
+            GameBoard.LinkAuraSystem.Detach(); // 连接光环接线同步归零
             _board?.Dispose();
             _board = null;
         }

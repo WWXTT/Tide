@@ -38,7 +38,7 @@ namespace SynergyUI
             AtomicEffectType.Sacrifice, AtomicEffectType.Devour, AtomicEffectType.Annihilate,
             // 妨碍/压制族
             AtomicEffectType.Tap, AtomicEffectType.FreezePermanent, AtomicEffectType.Silence,
-            AtomicEffectType.Purify,
+            AtomicEffectType.Purify, AtomicEffectType.AddNullify,
             AtomicEffectType.NegateActivation, AtomicEffectType.KnockDown,
             // 夺取控制族
             AtomicEffectType.GainControl,
@@ -55,7 +55,8 @@ namespace SynergyUI
             AtomicEffectType.Untap, AtomicEffectType.AddArmor, AtomicEffectType.Mine,
             // 强化族（GrantX 关键词与数值强化；单向属性增益——攻击力/生命值/±1/费用减少）
             AtomicEffectType.ModifyPower, AtomicEffectType.ModifyLife,
-            // SetPower/SetLife/SetCost 已下线（2026-09-07 设置系归规则系），移出偏好表
+            // 设置系复活（2026-09-09 三轨制重建）——有益直改
+            AtomicEffectType.SetPower, AtomicEffectType.SetLife, AtomicEffectType.SetCost,
             AtomicEffectType.AddPowerUp, AtomicEffectType.AddLifeUp, AtomicEffectType.AddPlusOne,
             AtomicEffectType.AddCostDown, AtomicEffectType.Inspire,
             AtomicEffectType.GrantDoubleStrike,
@@ -335,7 +336,9 @@ namespace SynergyUI
 
             var ctx = new EffectExecutionContext
             {
-                Source = card,
+                // 镜像引擎来源归因（2026-09-09 定案）：法术效果来源=角色、场上卡效果来源=该卡——
+                // 三轨判轨与目标过滤都按 Source 取义，模拟必须与真实执行同轨
+                Source = card.IsSpellCard() ? (Entity)me : card,
                 Controller = me,
                 ZoneManager = core.ZoneManager,
                 ElementPool = core.ElementPool,
@@ -358,7 +361,8 @@ namespace SynergyUI
 
             var ctx = new EffectExecutionContext
             {
-                Source = card,
+                // 同 ModeHasValidTarget：镜像引擎来源归因（法术=角色 / 场上卡=该卡）
+                Source = card.IsSpellCard() ? (Entity)me : card,
                 Controller = me,
                 ZoneManager = core.ZoneManager,
                 ElementPool = core.ElementPool,

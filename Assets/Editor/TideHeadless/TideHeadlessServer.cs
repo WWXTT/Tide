@@ -250,9 +250,41 @@ namespace CardCore.Editor.TideHeadless
 
         private static TideStepResult HandleReset(TideHeadlessDriver driver)
         {
-            // v1 双方用同一标准测试卡组（自对弈）；换卡组只需改这里，或扩展 reset 请求带 deck 参数。
-            var deck = AiBattleE2E.LoadStandardDeck();
-            return driver.Reset(deck, deck);
+            // v2 随机对局（TCP / batchmode 共用）：
+            //   双方各自从标准池（TestCreatureCards 非仪式）随机抽 30 张组卡组；
+            //   引擎 P1 恒先手 → 50% 换座即随机先后手。obs 恒为当前回合玩家视角，换座对协议透明。
+            var pool = AiBattleE2E.LoadStandardDeck();
+            if (pool == null || pool.Count == 0)
+            {
+                UnityEngine.Debug.LogError("[TideHeadless] 标准卡组加载失败（Configs/TestDecks/TestCreatureCards.json），退回整池空卡组不可用");
+                return driver.Reset(new List<CardData>(), new List<CardData>());
+            }
+
+            lock (DeckRngLock)
+            {
+                var deck1 = SampleRandomDeck(pool, RandomDeckSize);
+                var deck2 = SampleRandomDeck(pool, RandomDeckSize);
+                bool swap = DeckRng.Next(2) == 1; // 随机先后手：换座
+                if (swap) { var t = deck1; deck1 = deck2; deck2 = t; }
+                UnityEngine.Debug.Log($"[TideHeadless] 随机对局：双方各抽 {deck1.Count}/{deck2.Count} 张（池 {pool.Count}），先手 = {(swap ? "P2" : "P1")}");
+                return driver.Reset(deck1, deck2);
+            }
+        }
+
+        private const int RandomDeckSize = 30;
+        private static readonly System.Random DeckRng = new System.Random();
+        private static readonly object DeckRngLock = new object();
+
+        /// <summary>池洗牌（Fisher-Yates）后取前 size 张；池不足时整池上阵。</summary>
+        private static List<CardData> SampleRandomDeck(List<CardData> pool, int size)
+        {
+            var shuffled = new List<CardData>(pool);
+            for (int i = shuffled.Count - 1; i > 0; i--)
+            {
+                int j = DeckRng.Next(i + 1);
+                (shuffled[i], shuffled[j]) = (shuffled[j], shuffled[i]);
+            }
+            return shuffled.GetRange(0, Math.Min(size, shuffled.Count));
         }
 
         private static TideStepResult HandleStep(TideHeadlessDriver driver, int action)
