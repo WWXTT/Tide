@@ -44,13 +44,16 @@ class TideEnvTcp(gym.Env):
         port: int = 9999,
         max_steps: int = 500,
         reward_lambda: float = 0.02,
+        opponent: str = "selfplay",
     ):
         """
         Args:
             host: Unity TCP 服务器地址
             port: Unity TCP 服务器端口（默认 9999）
             max_steps: 单局最大步数
-            reward_lambda: 势能塑形 λ
+            reward_lambda: 兼容参数（塑形 λ 固定在 Unity 侧 TideHeadlessDriver.ShapingLambda）
+            opponent: 对手位——"selfplay" 自对弈（双方模型驱动）/
+                      "simpleai" 模型 vs SimpleAI（对手回合 Unity 侧自动打，obs/reward 恒为模型视角）
         """
         super().__init__()
 
@@ -58,12 +61,12 @@ class TideEnvTcp(gym.Env):
         self.port = port
         self.max_steps = max_steps
         self.reward_lambda = reward_lambda
+        self.opponent = opponent
 
         self.sock = None
         self.reader = None
         self.writer = None
         self.step_count = 0
-        self.last_potential = 0.0
 
         # Observation space
         self.observation_space = spaces.Dict(
@@ -154,8 +157,8 @@ class TideEnvTcp(gym.Env):
         # 连接（如果未连接）
         self._connect()
 
-        # 发送 reset
-        self._send_json({"op": "reset"})
+        # 发送 reset（opponent 决定对手位：selfplay / simpleai）
+        self._send_json({"op": "reset", "opponent": self.opponent})
 
         # 读取初始 obs
         response = self._read_json()
@@ -171,7 +174,6 @@ class TideEnvTcp(gym.Env):
 
         # 重置状态
         self.step_count = 0
-        self.last_potential = obs["global_"][28] - obs["global_"][29]  # Φ = me - opp
 
         return obs, info
 
@@ -189,21 +191,10 @@ class TideEnvTcp(gym.Env):
         done = response["done"]
         info = response.get("info", {})
 
-        # 计算奖励
-        reward = 0.0
-        if done:
-            winner = info.get("winner", "")
-            if winner == "0":  # P1 (我方)
-                reward = 1.0
-            elif winner == "1":  # P2 (对方)
-                reward = -1.0
-            # else: 平局/超时，reward=0
-        else:
-            # 塑形奖励
-            current_potential = obs["global_"][28] - obs["global_"][29]
-            shaping = self.reward_lambda * (current_potential - self.last_potential)
-            reward = shaping
-            self.last_potential = current_potential
+        # reward 采用 Unity 权威值（actor-centric）：终局 ±1 归属「刚行动的一方」，
+        # 非终局 λ·ΔΦ 势能塑形（λ 固定在 TideHeadlessDriver.ShapingLambda=0.05）。
+        # 注意不能按 info.winner 的座次判符号——obs 视角随行动方轮换，座次判会反号。
+        reward = float(response.get("reward", 0.0))
 
         self.step_count += 1
 

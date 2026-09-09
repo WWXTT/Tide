@@ -18,19 +18,22 @@ namespace CardCore.Editor.TideHeadless
     ///
     /// 入口：
     ///   - 编辑器菜单「Tools/AI/无头驱动自测」：随机策略跑完整一局，验证 reset/step 驱动环 + 终局收口。
-    ///   - batchmode（-executeMethod TideHeadlessServer.Main）：stdin 逐行读请求，stdout 逐行回响应。
+    ///   - batchmode（-executeMethod TideHeadlessServer.Main）：起 TCP 桥接（同编辑器菜单路径，端口经 -tidePort 传入）。
     ///
     /// 协议（每行一条 JSON）：
-    ///   请求  {"op":"reset"}             → 响应 {op, obs{cards,globals,actions,nActions}, reward, done, info{toPlay,winner,reason,turn}}
-    ///   请求  {"op":"step","action":N}   → 响应同上
-    ///   obs 恒为「当前回合玩家」视角（actor-centric 自对弈，reward 亦归属该视角玩家）。
+    ///   请求  {"op":"reset"}                          → 自对弈（双方都由模型驱动）
+    ///   请求  {"op":"reset","opponent":"simpleai"}    → 模型 vs SimpleAI（随机模型座次，对手回合 Unity 侧自动打）
+    ///   请求  {"op":"step","action":N}                → 响应同上
+    ///   响应 {op, obs{cards,globals,actions,nActions}, reward, done, info{toPlay,winner,reason,turn,modelSeat}}
+    ///   obs 恒为「当前回合玩家」视角（自对弈）/「模型」视角（vs SimpleAI），reward 归属同视角；
+    ///   info.modelSeat：模型座次（0=P1 / 1=P2），自对弈为 -1——vs 模式按它判胜负。
     ///
     /// batchmode 调用约定（关键）：
     ///   Unity.exe -batchmode -nographics -projectPath &lt;proj&gt; -executeMethod TideHeadlessServer.Main
-    ///             -logFile &lt;proj&gt;/Logs/headless.log -quit
-    ///   - 必须 -logFile &lt;文件&gt;（不是 "-"），否则 Unity 日志会污染 stdout 协议流；
-    ///   - Main 里再 Debug.unityLogger.logEnabled=false 双保险。
-    ///   若 stdout 仍被污染（Unity 版本差异），回退 TCP：把 Main 换成 TcpListener 端口收发，协议不变。
+    ///             -logFile &lt;proj&gt;/Logs/tide_headless.log -tidePort &lt;n&gt;
+    ///   - stdio 方案已废弃：实测 6000.5.8f1 batchmode 会把 stdout 并入 -logFile，管道侧收不到；
+    ///   - Main 起 TcpListener（loopback:-tidePort），只服务一个客户端，断开即退出；
+    ///   - 协议与编辑器 TCP 菜单路径完全一致（逐行 JSON）。
     /// </summary>
     public static class TideHeadlessServer
     {
@@ -53,6 +56,7 @@ namespace CardCore.Editor.TideHeadless
             }
 
             _isRunning = true;
+            _deckPool = null; // 服务器重启时重新加载卡池（编辑器内可能改了卡表配置）
             _tcpThread = new Thread(TcpServerLoop) { IsBackground = true };
             _tcpThread.Start();
             Debug.Log($"[TideHeadless] TCP 服务器启动在 localhost:{TcpPort}，等待 Python 连接...");
@@ -117,10 +121,10 @@ namespace CardCore.Editor.TideHeadless
             var writer = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = true };
 
             var driver = new TideHeadlessDriver();
-            int requestCount = 0;
 
             try
             {
+                // 热路径：训练期高频调用，除异常外不产生任何日志输出
                 string line;
                 while ((line = reader.ReadLine()) != null && _isRunning)
                 {
@@ -135,23 +139,13 @@ namespace CardCore.Editor.TideHeadless
                         continue;
                     }
 
-                    requestCount++;
-
-                    // 每 10 个请求输出一次日志
-                    if (requestCount % 10 == 1)
-                    {
-                        UnityEngine.Debug.Log($"[TideHeadless] 处理第 {requestCount} 个请求: {req.op}");
-                    }
-
                     TideStepResult result = req.op == "reset"
-                        ? HandleReset(driver)
+                        ? HandleReset(driver, req.opponent)
                         : HandleStep(driver, req.action);
 
                     string resp = Serialize(req.op, result);
                     writer.WriteLine(resp);
                 }
-
-                UnityEngine.Debug.Log($"[TideHeadless] 客户端断开，共处理 {requestCount} 个请求");
             }
             catch (Exception ex)
             {
@@ -175,6 +169,7 @@ namespace CardCore.Editor.TideHeadless
                 Debug.LogError("[无头驱动] 标准卡组加载失败（Configs/TestCreatureCards.json）");
                 return;
             }
+            TideCardIndex.Register(deck); // 自测路径同口径登记卡身份（与 DeckPool 同源同序）
 
             var driver = new TideHeadlessDriver();
             var rng = new System.Random(12345);
@@ -215,63 +210,74 @@ namespace CardCore.Editor.TideHeadless
 
         // ===================================================== batchmode 入口 =====================================================
 
-        /// <summary>batchmode 主循环：stdin 逐行读请求，stdout 逐行回响应，读到 EOF 结束。</summary>
+        /// <summary>
+        /// batchmode 入口：TCP 桥接（非 stdio）。
+        /// 实测（Unity 6000.5.8f1 -batchmode -logFile）：stdout 写入会被并入日志文件，
+        /// 管道侧收不到 → stdio 协议不可用，按预案回退 TCP。
+        /// 端口经命令行 -tidePort &lt;n&gt; 传入（Python 侧随机选空闲口）；缺省用 TcpPort。
+        /// 只服务一个客户端，客户端断开即返回 → batchmode 自然退出。
+        /// </summary>
         public static void Main()
         {
-            // 双保险防日志污染 stdout 协议流（配合 -logFile &lt;文件&gt; 启动参数）
             Debug.unityLogger.logEnabled = false;
 
-            var driver = new TideHeadlessDriver();
-            var stdin = new StreamReader(Console.OpenStandardInput(), Encoding.UTF8);
-            var stdout = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false)) { AutoFlush = true };
+            int port = TcpPort;
+            var argv = Environment.GetCommandLineArgs();
+            for (int i = 0; i < argv.Length - 1; i++)
+                if (argv[i] == "-tidePort" && int.TryParse(argv[i + 1], out var p) && p > 0)
+                {
+                    port = p;
+                    break;
+                }
+
+            var listener = new TcpListener(IPAddress.Loopback, port);
+            listener.Start(1);
+            // Python 侧靠端口轮询探活就绪，无需日志
             try
             {
-                string line;
-                while ((line = stdin.ReadLine()) != null)
-                {
-                    line = line.Trim();
-                    if (line.Length == 0) continue;
-
-                    HeadlessRequest req;
-                    try { req = JsonUtility.FromJson<HeadlessRequest>(line); }
-                    catch { continue; } // 无法解析的行丢弃
-
-                    string resp = req.op == "reset"
-                        ? Serialize("reset", HandleReset(driver))
-                        : Serialize("step", HandleStep(driver, req.action));
-                    stdout.WriteLine(resp);
-                }
+                TcpClient client = listener.AcceptTcpClient(); // 阻塞等唯一客户端
+                _isRunning = true; // HandleTcpClient 循环条件的开关（菜单路径由 StartTcpServer 置位）
+                try { HandleTcpClient(client); }
+                finally { _isRunning = false; }
             }
             finally
             {
-                driver.Dispose();
+                listener.Stop();
             }
         }
 
-        private static TideStepResult HandleReset(TideHeadlessDriver driver)
+        private static TideStepResult HandleReset(TideHeadlessDriver driver, string opponent)
         {
             // v2 随机对局（TCP / batchmode 共用）：
             //   双方各自从标准池（TestCreatureCards 非仪式）随机抽 30 张组卡组；
-            //   引擎 P1 恒先手 → 50% 换座即随机先后手。obs 恒为当前回合玩家视角，换座对协议透明。
-            var pool = AiBattleE2E.LoadStandardDeck();
+            //   引擎 P1 恒先手 → 随机先后手（自对弈 = 换座 / vs SimpleAI = 随机模型座次）。
+            //   opponent=="simpleai" 时另一座位整回合由 SimpleAI 自动打，obs/reward 恒为模型视角。
+            var pool = DeckPool;
             if (pool == null || pool.Count == 0)
             {
                 UnityEngine.Debug.LogError("[TideHeadless] 标准卡组加载失败（Configs/TestDecks/TestCreatureCards.json），退回整池空卡组不可用");
                 return driver.Reset(new List<CardData>(), new List<CardData>());
             }
 
+            TideCardIndex.Register(pool); // 卡身份下标（obs 第 15 维）：文件序确定性 → 跨局/跨进程稳定
+
             lock (DeckRngLock)
             {
                 var deck1 = SampleRandomDeck(pool, RandomDeckSize);
                 var deck2 = SampleRandomDeck(pool, RandomDeckSize);
-                bool swap = DeckRng.Next(2) == 1; // 随机先后手：换座
+                if (opponent == "simpleai")
+                    return driver.Reset(deck1, deck2, DeckRng.Next(2) == 0); // 随机模型座次（先后手各半）
+                bool swap = DeckRng.Next(2) == 1; // 自对弈：随机先后手换座
                 if (swap) { var t = deck1; deck1 = deck2; deck2 = t; }
-                UnityEngine.Debug.Log($"[TideHeadless] 随机对局：双方各抽 {deck1.Count}/{deck2.Count} 张（池 {pool.Count}），先手 = {(swap ? "P2" : "P1")}");
                 return driver.Reset(deck1, deck2);
             }
         }
 
         private const int RandomDeckSize = 30;
+
+        /// <summary>标准卡池缓存：JSON 只解析一次（每个 reset 复用；编辑器重启 TCP 服务器时置空重载）。</summary>
+        private static List<CardData> _deckPool;
+        private static List<CardData> DeckPool => _deckPool ??= AiBattleE2E.LoadStandardDeck();
         private static readonly System.Random DeckRng = new System.Random();
         private static readonly object DeckRngLock = new object();
 
@@ -311,6 +317,7 @@ namespace CardCore.Editor.TideHeadless
                     winner = r.Winner == null ? "" : (ReferenceEquals(r.Winner, GameCore.Instance.Player1) ? "0" : "1"),
                     reason = r.Reason ?? "",
                     turn = r.Turn,
+                    modelSeat = r.ModelSeat,
                 },
             };
             return JsonUtility.ToJson(resp);
@@ -325,9 +332,9 @@ namespace CardCore.Editor.TideHeadless
 
         // ===================================================== JSON DTO（JsonUtility 字段名即协议键） =====================================================
 
-        [Serializable] public class HeadlessRequest { public string op; public int action; }
+        [Serializable] public class HeadlessRequest { public string op; public int action; public string opponent; }
         [Serializable] public class HeadlessObs { public List<float> cards; public List<float> globals; public List<float> actions; public int nActions; }
-        [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; }
+        [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; public int modelSeat; }
         [Serializable] public class HeadlessResponse { public string op; public HeadlessObs obs; public float reward; public bool done; public HeadlessInfo info; }
     }
 }

@@ -10,17 +10,19 @@ namespace CardCore.AI.NeuralEnv
     {
         PlayCard = 0,            // 手牌打出（含抉择模式）
         PlayLand = 1,            // 手牌放入元素池（当地产元素）
-        PlayCardFromGraveyard = 2, // 墓地视手牌使用
-        Activate = 3,            // 发动战场卡的激活式能力
+        Activate = 3,            // 效果发动：战场卡的激活式（Activate_*）能力
         Attack = 4,              // 攻击宣言（attacker → 对方随从 / 对方玩家）
         EndTurn = 5,             // 结束回合
+        // 2 = 墓地出牌（已移除 2026-09-09）：依赖归土仪典仪式光环，RL 标准池不含仪式卡，
+        //     枚举出的动作引擎必拒（口径漂移白耗动作配额）。引擎侧 GameActions.PlayCardFromGraveyard
+        //     保留（仪式机制/UI 走它），只是不再进动作空间。
     }
 
     /// <summary>一个可执行动作：模型输出离散下标 → 桥接按此结构调用 GameActions.*。</summary>
     public struct TideAction
     {
         public TideActionType Type;
-        public Card Card;                 // 来源卡（PlayCard/PlayLand/PlayCardFromGraveyard/Activate 的来源；EndTurn 为 null）
+        public Card Card;                 // 来源卡（PlayCard/PlayLand/Activate 的来源；EndTurn 为 null）
         public Entity Target;             // 攻击目标（对方随从或对方玩家）；其余为 null
         public EffectDefinition Effect;   // Activate 的激活式效果定义
         public int ModeIndex;             // 抉择模式下标（非抉择卡恒 0）
@@ -34,6 +36,19 @@ namespace CardCore.AI.NeuralEnv
         {
             string t = Target is Card tc ? tc.ID : (Target is Player ? "(player)" : "-");
             return $"{Type}({Card?.ID ?? "-"} → {t}, mode={ModeIndex})";
+        }
+
+        /// <summary>
+        /// 动作签名（Type|来源卡|效果Id|目标|模式）：跨枚举稳定（EffectDefinition 每次枚举都是新对象，
+        /// 引用判等不可用；Id 是转换自卡表的稳定键）。供「本回合摘除无效动作」判重。
+        /// </summary>
+        public string Signature
+        {
+            get
+            {
+                string t = Target is Card tc ? tc.ID : (Target is Player ? "P" : "-");
+                return $"{(int)Type}|{Card?.ID ?? "-"}|{Effect?.Id ?? "-"}|{t}|{ModeIndex}";
+            }
         }
     }
 
@@ -74,8 +89,7 @@ namespace CardCore.AI.NeuralEnv
             var zm = core.ZoneManager;
 
             EnumeratePlayLand(core, me, zm);
-            EnumeratePlayCard(core, me, zm, Zone.Hand);
-            EnumeratePlayCard(core, me, zm, Zone.Graveyard);
+            EnumeratePlayCard(core, me, zm);
             EnumerateActivate(core, me, zm);
             EnumerateAttack(core, me, opp, zm);
             Actions.Add(EndTurnAction());
@@ -92,8 +106,6 @@ namespace CardCore.AI.NeuralEnv
                     return GameActions.PlayCard(core, me, a.Card, null, Zone.Hand, a.ModeIndex);
                 case TideActionType.PlayLand:
                     return GameActions.AddToElementPool(core, me, a.Card);
-                case TideActionType.PlayCardFromGraveyard:
-                    return GameActions.PlayCardFromGraveyard(core, me, a.Card, null, a.ModeIndex);
                 case TideActionType.Activate:
                     return GameActions.ActivateEffect(core, me, a.Effect, a.Card);
                 case TideActionType.Attack:
@@ -103,6 +115,17 @@ namespace CardCore.AI.NeuralEnv
                 default:
                     return false;
             }
+        }
+
+        /// <summary>
+        /// 按签名摘除动作（本回合内引擎已拒绝/无进展的动作不再出现在选项表里——「只给可以操作的选项」），
+        /// 特征张量同步重建。EndTurn 永远不会被摘除（driver 只对非 EndTurn 动作记签名）。
+        /// </summary>
+        public void RemoveAll(HashSet<string> banned)
+        {
+            if (banned == null || banned.Count == 0 || Actions.Count == 0) return;
+            Actions.RemoveAll(a => a.Type != TideActionType.EndTurn && banned.Contains(a.Signature));
+            BuildFeatures();
         }
 
         // =====================================================
@@ -128,13 +151,13 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
-        private void EnumeratePlayCard(GameCore core, Player me, ZoneManager zm, Zone fromZone)
+        private void EnumeratePlayCard(GameCore core, Player me, ZoneManager zm)
         {
-            var cards = zm.GetCards(me, fromZone);
-            for (int i = 0; i < cards.Count; i++)
+            var hand = zm.GetCards(me, Zone.Hand);
+            for (int i = 0; i < hand.Count; i++)
             {
-                var c = cards[i];
-                if (!RuleHooks.CanPlay(core, me, c, fromZone)) continue;
+                var c = hand[i];
+                if (!RuleHooks.CanPlay(core, me, c, Zone.Hand)) continue;
 
                 int modes = ModeCount(c);
                 for (int m = 0; m < modes; m++)
@@ -144,10 +167,10 @@ namespace CardCore.AI.NeuralEnv
 
                     Actions.Add(new TideAction
                     {
-                        Type = fromZone == Zone.Hand ? TideActionType.PlayCard : TideActionType.PlayCardFromGraveyard,
+                        Type = TideActionType.PlayCard,
                         Card = c,
                         ModeIndex = m,
-                        SourceIndex = TideObservation.CardIndex(me, me, fromZone, i),
+                        SourceIndex = TideObservation.CardIndex(me, me, Zone.Hand, i),
                         TargetIndex = -1,
                     });
                 }
@@ -244,7 +267,6 @@ namespace CardCore.AI.NeuralEnv
             switch (a.Type)
             {
                 case TideActionType.PlayCard:
-                case TideActionType.PlayCardFromGraveyard:
                     float s = 0f;
                     foreach (var v in GameActions.GetCardCost(a.Card, a.ModeIndex).Values) s += v;
                     return s;
