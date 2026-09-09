@@ -359,8 +359,10 @@ namespace CardCore.Attribute.Handlers
     // ---------------- 状态变更 ----------------
 
     /// <summary>
-    /// 修改生命值（指示物形式定案）：正值加"生命值增加"层（上限与当前同加）、
-    /// 负值加"生命值减少"层（减上限、归零标死交 SBA）；仅场上存在，离场消失（反向回写）。
+    /// 修改生命值（三轨制定案 2026-09-09）：按来源经 StatGrantRouter 分轨——
+    /// 生物来源=指示物（Permanent 层换区不清 / 换区清层：增=上限当前同加、减=减上限归零标死交 SBA）；
+    /// 魔法卡来源（=角色）=设置类永久直改（Card 走 ApplyStatDelta 直写、Player 走 IncreaseMaxHealth
+    /// /扣血+LifeChangeEvent——角色=生物单位世界观）。修正旧账：此前漏传 source（减益致死归因丢失）。
     /// </summary>
     public class ModifyLifeHandler : AtomicEffectHandlerBase
     {
@@ -371,10 +373,9 @@ namespace CardCore.Attribute.Handlers
             int amount = context.GetValueAfterModifiers(effect.Value);
             foreach (var target in context.Targets)
             {
-                if (!(target is Card card) || !card.IsAlive) continue;
+                if (target == null || !target.IsAlive) continue;
                 int oldLife = target.GetLife();
-                if (amount >= 0) CounterRules.AddStatCounter(card, CounterRules.LifeUpCounter, amount);
-                else CounterRules.AddStatCounter(card, CounterRules.LifeDownCounter, -amount);
+                StatGrantRouter.ModifyLife(target, amount, context.Source, effect.Duration);
                 PublishEvent(new StatModifyEvent
                 {
                     Target = target,
@@ -391,16 +392,15 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect)
         {
             string sign = effect.Value >= 0 ? "+" : "";
-            return $"生命值 {sign}{effect.Value}（指示物）";
+            return $"生命值 {sign}{effect.Value}";
         }
     }
 
     /// <summary>设置攻击力</summary>
-    // ==================== 设置系（2026-09-07 定案：归为规则系能力，暂时下线） ====================
-    // 同一文本描述的赋予将按【来源分轨】（大改动另行计划）：生物效果=临时指示物 / 魔法卡=设置类（永久直改）
-    // / 连接箭头=光环。统一指示物是为了让增益长在实体身上、可被净化等效果交互——直改原属性绕过该体系，
-    // 故设置系 handler 先下线（#if false），枚举与表行保留（数据兼容），待三轨制重建时恢复。
-#if false
+    // ==================== 设置系（2026-09-09 三轨制重建复活） ====================
+    // 定案落定：同文本赋予按来源分轨——生物=指示物（两档）/ 魔法卡=设置类（永久直改）/ 连接箭头=光环。
+    // Set 族是**显式设置原子**：天然=设置类（不参与来源路由，任何来源都直改）；
+    // 与 Modify 族的设置轨（StatGrantRouter 分流）同语义——跨区保留、净化不清（视同本体）。
     public class SetPowerHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SetPower;
@@ -437,14 +437,27 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 int oldLife = target.GetLife();
-                target.SetLife(value);
-                if (target is Card card && value > card._maxLife) card._maxLife = value;
+                if (target is Card card)
+                {
+                    card.SetLife(value);
+                    if (value > card._maxLife) card._maxLife = value;
+                    // 归零标死交 SBA——死亡来源=设置施加方（对齐 LifeDown 减益致死归因口径）
+                    if (card._life <= 0)
+                    {
+                        card._pendingDeathSource = context.Source;
+                        card.IsAlive = false;
+                    }
+                }
+                else if (target is Player player)
+                {
+                    player.Life = value; // 角色=生物单位世界观：设置生命直接改当前生命
+                }
                 PublishEvent(new StatSetEvent
                 {
                     Target = target,
                     StatType = StatType.Life,
                     OldValue = oldLife,
-                    NewValue = value,
+                    NewValue = target.GetLife(),
                     Source = context.Source
                 });
             }
@@ -483,11 +496,13 @@ namespace CardCore.Attribute.Handlers
 
         public override string GetDescription(AtomicEffectInstance effect) => $"将费用设为 {effect.Value}";
     }
-#endif // 设置系暂时下线（规则系能力，三轨制重建时恢复）
 
     /// <summary>
-    /// 修改费用（指示物形式定案）：正值加"费用增加"层、负值加"费用减少"层（单向粒度）——
-    /// 加时即回写 _costModifier（GetCost = _baseCost + _costModifier），仅手牌生效、离手消失。
+    /// 修改费用（三轨制定案 2026-09-09）：按来源经 StatGrantRouter 分轨——
+    /// 生物来源=指示物（CostUp/CostDown 换区清层：加时回写 _costModifier，
+    /// GetCost = _baseCost + _costModifier，仅手牌生效、离手消失）；
+    /// 魔法卡来源（=角色）=设置类直改 _baseCost（跨区保留——与「设置费用」同口径）。
+    /// 目标门禁=手牌（表过滤承担）。修正旧账：此前漏传 source。
     /// </summary>
     public class ModifyCostHandler : AtomicEffectHandlerBase
     {
@@ -498,10 +513,9 @@ namespace CardCore.Attribute.Handlers
             int amount = context.GetValueAfterModifiers(effect.Value);
             foreach (var target in context.Targets)
             {
-                if (!(target is Card card) || card.GetZone() != Zone.Hand) continue; // 费用指示物仅存在手牌
+                if (!(target is Card card) || card.GetZone() != Zone.Hand) continue; // 费用目标门禁=手牌
                 int oldCost = target.GetCost();
-                if (amount >= 0) CounterRules.AddStatCounter(card, CounterRules.CostUpCounter, amount);
-                else CounterRules.AddStatCounter(card, CounterRules.CostDownCounter, -amount);
+                StatGrantRouter.ModifyCost(card, amount, context.Source, effect.Duration);
                 PublishEvent(new CostModifyEvent
                 {
                     Target = target,
@@ -516,7 +530,7 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect)
         {
             string sign = effect.Value >= 0 ? "+" : "";
-            return $"费用 {sign}{effect.Value}（指示物）";
+            return $"费用 {sign}{effect.Value}";
         }
     }
 }

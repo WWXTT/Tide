@@ -64,7 +64,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_02",
@@ -130,7 +131,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_03",
@@ -196,7 +198,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_04",
@@ -266,7 +269,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_05",
@@ -340,7 +344,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_06",
@@ -410,7 +415,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_07",
@@ -480,7 +486,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_08",
@@ -550,7 +557,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_09",
@@ -620,7 +628,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_10",
@@ -694,7 +703,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_11",
@@ -764,7 +774,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_12",
@@ -834,7 +845,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_13",
@@ -904,7 +916,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_14",
@@ -974,7 +987,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_15",
@@ -1048,7 +1062,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_16",
@@ -1118,7 +1133,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_17",
@@ -1188,7 +1204,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_18",
@@ -1258,7 +1275,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_19",
@@ -1328,7 +1346,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_20",
@@ -1402,7 +1421,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_21",
@@ -1472,7 +1492,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_22",
@@ -1542,7 +1563,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_23",
@@ -1612,7 +1634,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_24",
@@ -1682,7 +1705,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_25",
@@ -1756,7 +1780,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_26",
@@ -1826,7 +1851,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_27",
@@ -1896,7 +1922,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_28",
@@ -1966,7 +1993,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_29",
@@ -2036,7 +2064,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_BLUE_30",
@@ -2106,7 +2135,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         }
     ],
     "deckConfig": {

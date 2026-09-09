@@ -168,8 +168,10 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 修改攻击力（指示物形式定案）：正值加"攻击力增加"层、负值加"攻击力减少"层（单向粒度指示物）——
-    /// 加时即回写 _power、换区/净化清除时反向回写（仅场上存在，离场消失）。
+    /// 修改攻击力（三轨制定案 2026-09-09）：按来源经 StatGrantRouter 分轨——
+    /// 生物来源=指示物（Duration=Permanent 走 Permanent 层换区不清，否则换区清层
+    /// 「攻击力增加/减少」加时回写、离场反向回写）；魔法卡来源（=角色）=设置类永久直改
+    /// （跨区保留、净化不清，视同本体）。
     /// </summary>
     public class ModifyPowerHandler : AtomicEffectHandlerBase
     {
@@ -182,8 +184,7 @@ namespace CardCore.Attribute.Handlers
             {
                 if (!(target is Card card) || !card.IsAlive) continue;
                 int oldPower = card.GetPower();
-                if (amount >= 0) CounterRules.AddStatCounter(card, CounterRules.PowerUpCounter, amount, context.Source);
-                else CounterRules.AddStatCounter(card, CounterRules.PowerDownCounter, -amount, context.Source);
+                StatGrantRouter.ModifyPower(card, amount, context.Source, effect.Duration);
                 PublishEvent(new StatModifyEvent
                 {
                     Target = target,
@@ -200,7 +201,7 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect)
         {
             string sign = effect.Value >= 0 ? "+" : "";
-            return $"攻击力 {sign}{effect.Value}（指示物）";
+            return $"攻击力 {sign}{effect.Value}";
         }
     }
 

@@ -255,6 +255,14 @@ namespace CardCore
         /// </summary>
         private async UniTask ExecuteStepSequenceAsync(List<RuntimeEffectStep> steps, EffectExecutionContext context)
         {
+            // 目标透传（2026-09-09 修正）：调用方（cast 声明期）预选的目标沿用给**首个目标型原子**
+            // ——与扁平 Effects 路径同口径。此前无条件清空重走交互解析：编辑器/无头场景交互解析回空，
+            // 目标型原子被静默跳过（抉择卡模式0「零伤害」的根因）。消费一次后恢复逐原子解析。
+            var preselected = context.Targets != null && context.Targets.Count > 0
+                ? new List<Entity>(context.Targets)
+                : null;
+            bool preselectedConsumed = false;
+
             for (int i = 0; i < steps.Count; i++)
             {
                 var step = steps[i];
@@ -266,7 +274,7 @@ namespace CardCore
                         ? step.Choices[System.Math.Max(0, System.Math.Min(context.ModeIndex, step.Choices.Count - 1))]
                         : null;
                     if (chosen != null)
-                        await ExecuteStepSequenceAsync(chosen, context);
+                        await ExecuteStepSequenceAsync(chosen, context); // 递归捕获同一份预选目标（未消费则透传）
                     continue;
                 }
 
@@ -282,8 +290,21 @@ namespace CardCore
                         : null;
 
                 // 解析主序列原子的目标（候选>需求时弹交互选择；动态数量允许 0..候选数）
-                context.Targets = new List<Entity>();
-                var targets = await EffectHandlerRegistry.ResolveTargetsInteractiveAsync(atomic, context);
+                List<Entity> targets;
+                bool needsTargets = atomic.TargetTypeOverride >= 0
+                    ? atomic.TargetTypeOverride == (int)CardCore.Attribute.EffectTargetType.Target
+                    : CardCore.Attribute.AtomicEffectTable.GetByType(atomic.Type)?.TargetType
+                        == CardCore.Attribute.EffectTargetType.Target;
+                if (preselected != null && !preselectedConsumed && needsTargets)
+                {
+                    targets = preselected; // 首个目标型原子消费预选（Self/None 原子不消费，各自解析）
+                    preselectedConsumed = true;
+                }
+                else
+                {
+                    context.Targets = new List<Entity>();
+                    targets = await EffectHandlerRegistry.ResolveTargetsInteractiveAsync(atomic, context);
+                }
                 // 无目标原子（抽牌/创建衍生物等）也执行一次
                 var iterTargets = targets.Count > 0
                     ? targets
@@ -581,6 +602,10 @@ namespace CardCore
         {
             _pendingQueue.AddPendingEffect(effect);
         }
+
+        /// <summary>待发队列是否有自动（触发式）效果——真实对局由 GameLoopController 帧循环泵上栈；
+        /// 空栈上的待发在无游戏循环场景（编辑器验证/headless）需由排干口处理。</summary>
+        public bool HasPendingEffects => _pendingQueue.HasAutoEffects;
 
         /// <summary>
         /// 处理待发效果（条件发动自动入栈）
@@ -940,6 +965,13 @@ namespace CardCore
                 if (registered.Source != null && !registered.Source.IsAlive)
                     continue;
 
+                // 无效指示物（2026-09-09 定案）：拦全部触发式（事件匹配后、上栈前）——
+                // 含登场 OnPlay 族触发；只拦「注册来源自身」的能力。与沉默（拦启动式，CanActivate）对称。
+                // 伤害管线被动（坚韧/圣盾）与回合维护（再生/成长，GameCore 直连）不经此，天然不拦。
+                if (registered.Source != null
+                    && registered.Source.GetCounterCount(CardCore.Attribute.CounterRules.NullifyCounter) > 0)
+                    continue;
+
                 // 检查触发条件（intervening "if" 条件）：仅在已注入区域系统时校验。
                 if (_conditionChecker != null &&
                     effect.TriggerConditions != null && effect.TriggerConditions.Count > 0)
@@ -1048,9 +1080,11 @@ namespace CardCore
 
                 // 第一批补齐 — 状态变更
                 new ModifyLifeHandler(),
-                // 设置系（SetPower/SetLife/SetCost）已下线（2026-09-07：归为规则系能力，
-                // 与指示物体系分离——直改原属性绕过「增益长在身上可被净化交互」的统一模型；
-                // 三轨制按来源分轨重建时恢复）。未注册 → 运行时警告跳过，枚举与表行保留。
+                // 设置系复活（2026-09-09 三轨制重建）：显式设置原子=天然设置类（不参与来源路由），
+                // 永久直改、跨区保留、净化不清（视同本体）；与 Modify 族的设置轨同语义。
+                new SetPowerHandler(),
+                new SetLifeHandler(),
+                new SetCostHandler(),
                 new ModifyCostHandler(),
 
                 // 信息族 — 宣言（即时验证）/ 预言（隐藏押注，延迟验证）
@@ -1078,6 +1112,9 @@ namespace CardCore
                 new AddMinusOneHandler(),
                 new AddCostUpHandler(),
                 new AddCostDownHandler(),
+
+                // 无效指示物（蓝3）：拦非启动式能力（触发式+光环）——与沉默（拦启动式）对称
+                new AddNullifyHandler(),
 
                 // 衍生物生成（落区三档：战场/手牌/牌组，费用按落区系数计价）
                 new SummonTokenHandler(),

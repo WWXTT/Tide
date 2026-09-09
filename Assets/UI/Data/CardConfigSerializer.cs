@@ -96,6 +96,9 @@ namespace SynergyUI
                 rank = card.Rank ?? -1,
                 linkRating = card.LinkRating ?? -1,
                 arrows = card.ArrowDirections.ToString(),
+                linkAuras = card.LinkAuras != null && card.LinkAuras.Count > 0
+                    ? new List<LinkAuraData>(card.LinkAuras)
+                    : null, // 空表不写列（向后兼容旧 JSON）
             };
 
             if (card.Cost != null)

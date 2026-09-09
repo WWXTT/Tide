@@ -126,5 +126,13 @@ namespace CardCore
             }
             return false;
         }
+
+        /// <summary>
+        /// 是否魔法卡（瞬间/巫术/法术/通常魔法）。
+        /// 来源归因定案（2026-09-09）：所有魔法卡的效果来源=角色（Player）——
+        /// 出牌分流（ResolveCardCastAsync）、三轨判轨（StatGrantRouter）、SimpleAI 模拟共用此口径。
+        /// </summary>
+        public static bool IsSpellCard(this Card card)
+            => card is IHasSupertype t && t.Supertype == Cardtype.Spell;
     }
 }

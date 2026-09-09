@@ -11,27 +11,32 @@ namespace CardCore
     {
         #region 战斗属性
 
-        /// <summary>获取攻击力</summary>
+        // 【三轨制·光环读数咽喉（2026-09-09）】连接光环（LinkAuraSystem live-query）的属性/关键词
+        // 贡献并入以下读数——战斗（LayerEngine 基值也读此处）、伤害管线、SBA、AI 全部经此同源。
+        // ⚠ 绕过本组方法直读 _power/_life/_maxLife 的新代码会让光环静默不可见。
+
+        /// <summary>获取攻击力（含连接光环加成）</summary>
         public static int GetPower(this Entity entity)
         {
             if (entity is Unit unit) return unit.BaseAttack;
-            if (entity is Card card) return card._power;
+            if (entity is Card card) return card._power + GameBoard.LinkAuraSystem.GetPowerBonus(card);
             return 0;
         }
 
-        /// <summary>获取生命值</summary>
+        /// <summary>获取生命值（含连接光环加成；伤害扣 _life 原值，断链自动回落）</summary>
         public static int GetLife(this Entity entity)
         {
             if (entity is Player player) return player.Life;
-            if (entity is Card card) return card._life;
+            if (entity is Card card) return card._life + GameBoard.LinkAuraSystem.GetLifeBonus(card);
             return 0;
         }
 
-        /// <summary>获取最大生命值</summary>
+        /// <summary>获取最大生命值（含连接光环加成——生命光环上限与当前同加）</summary>
         public static int GetMaxLife(this Entity entity)
         {
             if (entity is Player player) return player.MaxHealth;
-            if (entity is Card card) return card._maxLife > 0 ? card._maxLife : card._life;
+            if (entity is Card card)
+                return (card._maxLife > 0 ? card._maxLife : card._life) + GameBoard.LinkAuraSystem.GetMaxLifeBonus(card);
             return 0;
         }
 
@@ -235,25 +240,62 @@ namespace CardCore
 
         #region 关键词
 
-        /// <summary>添加关键词（Entity 级：角色/卡牌同构；duration 当前未实现过期）</summary>
+        /// <summary>
+        /// 添加关键词（兼容垫片：不带轨别=Temp——最接近现状的清除语义，换区/净化皆可清）。
+        /// duration 形参保留签名兼容；三轨制定案后持续时间由台账轨别承载，不再走 DurationType
+        /// （修复旧账：duration 形参自始被忽略，现由 KeywordLane 表达同类语义）。
+        /// </summary>
         public static void AddKeyword(this Entity entity, string keyword, DurationType duration = DurationType.Permanent)
+            => AddKeyword(entity, keyword, KeywordLane.Temp);
+
+        /// <summary>
+        /// 添加关键词（新咽喉，带轨别）：_keywords 仍是运行时唯一真身（Contains 去重、幂等），
+        /// 台账恒记录——轨别各自计数：同一关键词被多轨授予时清掉一条轨，其余轨仍在则 _keywords 保留。
+        /// </summary>
+        public static void AddKeyword(this Entity entity, string keyword, KeywordLane lane, Entity source = null)
         {
-            if (entity != null && !entity._keywords.Contains(keyword))
-            {
+            if (entity == null) return;
+            if (!entity._keywords.Contains(keyword))
                 entity._keywords.Add(keyword);
+            entity._keywordGrants.Add(new KeywordGrant { Keyword = keyword, Lane = lane, Source = source });
+        }
+
+        /// <summary>
+        /// 叠加式添加关键词（融合叠加通道，定案：强化只走融合叠加）：不去重——
+        /// 重复坚韧计 2（GetKeywordCount 按 List 计数），每份各记一条台账（清除按轨逐份撤）。
+        /// </summary>
+        public static void AddKeywordStack(this Entity entity, string keyword, KeywordLane lane, Entity source = null)
+        {
+            if (entity == null) return;
+            entity._keywords.Add(keyword);
+            entity._keywordGrants.Add(new KeywordGrant { Keyword = keyword, Lane = lane, Source = source });
+        }
+
+        /// <summary>
+        /// 移除关键词：_keywords 移除一次 + 台账同步移除一条同名条目（任意轨，倒序取最近授予——
+        /// 消耗型关键词不与多轨共存，计数偏差可忽略的已知近似）。
+        /// </summary>
+        public static void RemoveKeyword(this Entity entity, string keyword)
+        {
+            if (entity == null) return;
+            entity._keywords.Remove(keyword);
+            for (int i = entity._keywordGrants.Count - 1; i >= 0; i--)
+            {
+                if (entity._keywordGrants[i].Keyword == keyword)
+                {
+                    entity._keywordGrants.RemoveAt(i);
+                    break;
+                }
             }
         }
 
-        /// <summary>移除关键词</summary>
-        public static void RemoveKeyword(this Entity entity, string keyword)
-        {
-            entity?._keywords.Remove(keyword);
-        }
-
-        /// <summary>检查是否有关键词（角色默认带神佑 DivineProtection）</summary>
+        /// <summary>检查是否有关键词（角色默认带神佑 DivineProtection；连接光环关键词=光环期间视为持有，
+        /// 不进 _keywords、不参与 GetKeywordCount 融合叠加计数）</summary>
         public static bool HasKeyword(this Entity entity, string keyword)
         {
-            return entity != null && entity._keywords.Contains(keyword);
+            if (entity == null) return false;
+            if (entity._keywords.Contains(keyword)) return true;
+            return entity is Card card && GameBoard.LinkAuraSystem.HasAuraKeyword(card, keyword);
         }
 
         #endregion

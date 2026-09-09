@@ -18,8 +18,10 @@ namespace CardCore
         /// 同色多笔代价会按颜色合并为一笔，便于上层抵消按颜色聚合处理。
         /// modeIndex：抉择（Choice）步骤只计所选模式的原子（per-mode 独立计价定案）；
         /// 无抉择卡恒 0，既有调用点零改动。
+        /// priceAsPermanent（三轨制 2026-09-09）：法术宿主置 true——魔法卡赋予全是设置类
+        /// （永久直改），**计价按永久效果档估算**；运行时支付路径不传（默认 false，按实例持续）。
         /// </summary>
-        public static List<CostInstance> DeriveElementCosts(EffectDefinition effect, int modeIndex = 0)
+        public static List<CostInstance> DeriveElementCosts(EffectDefinition effect, int modeIndex = 0, bool priceAsPermanent = false)
         {
             var byColor = new Dictionary<ManaType, int>();
             if (effect == null)
@@ -33,7 +35,7 @@ namespace CardCore
                 {
                     if (step == null) continue;
                     if (step.Kind == RuntimeStepKind.Atomic && step.Atomic != null)
-                        AccumulateElementCost(step.Atomic, byColor);
+                        AccumulateElementCost(step.Atomic, byColor, priceAsPermanent);
                     // Kind==Branch：OutcomeGate 奖励免费，不计费。
                     else if (step.Kind == RuntimeStepKind.Choice)
                     {
@@ -48,7 +50,7 @@ namespace CardCore
                             {
                                 if (s == null) continue;
                                 if (s.Kind == RuntimeStepKind.Atomic && s.Atomic != null)
-                                    AccumulateElementCost(s.Atomic, byColor);
+                                    AccumulateElementCost(s.Atomic, byColor, priceAsPermanent);
                                 // choice 内 Kind==Branch：奖励免费（converter 已拒嵌套 Choice）
                             }
                         }
@@ -60,7 +62,7 @@ namespace CardCore
                 foreach (var atom in effect.Effects)
                 {
                     if (atom == null) continue;
-                    AccumulateElementCost(atom, byColor);
+                    AccumulateElementCost(atom, byColor, priceAsPermanent);
                 }
             }
 
@@ -78,14 +80,14 @@ namespace CardCore
             return list;
         }
 
-        private static void AccumulateElementCost(AtomicEffectInstance atom, Dictionary<ManaType, int> byColor)
+        private static void AccumulateElementCost(AtomicEffectInstance atom, Dictionary<ManaType, int> byColor, bool priceAsPermanent)
         {
             var cfg = AtomicEffectTable.GetByType(atom.Type);
 
             // 动态数量原子：费用计 0（代价 = 该卡不可作地牌产元素，见 ElementPool.AddCardToPool）。
             if (atom.DynamicTargetCount)
             {
-                AccumulateSubEffects(atom, byColor);
+                AccumulateSubEffects(atom, byColor, priceAsPermanent);
                 return;
             }
 
@@ -99,11 +101,11 @@ namespace CardCore
                 var offsetColor = ElementAffinities.GetAffinityForEffect(AtomicEffectType.Untap).PrimaryColor;
                 byColor.TryGetValue(offsetColor, out var prevOff);
                 byColor[offsetColor] = prevOff - 1;
-                AccumulateSubEffects(atom, byColor);
+                AccumulateSubEffects(atom, byColor, priceAsPermanent);
                 return;
             }
 
-            int amount = ComputeAtomCost(atom, cfg);
+            int amount = ComputeAtomCost(atom, cfg, priceAsPermanent);
             if (amount > 0)
             {
                 var color = ElementAffinities.GetAffinityForEffect(atom.Type).PrimaryColor;
@@ -111,7 +113,7 @@ namespace CardCore
                 byColor[color] = prev + amount;
             }
 
-            AccumulateSubEffects(atom, byColor);
+            AccumulateSubEffects(atom, byColor, priceAsPermanent);
         }
 
         /// <summary>
@@ -124,8 +126,10 @@ namespace CardCore
         /// 伤害等瞬发原子（表默认 Once、实例也 Once）系数恒为 1，锚点（1 伤害=1 元素）不漂移；
         /// 把本可永续的效果改短（如 buff 配 UntilEndOfTurn）即打折，拉长（永续化）即加价。
         /// 系数表见 ValueSystemRuntimeConfig.AttributeValueConfig（凹函数，P3 可调）。
+        /// priceAsPermanent（三轨制 2026-09-09）：法术宿主的赋予族按 Permanent 档计——
+        /// 魔法卡赋予全是设置类（永久直改），计价按永久效果档估算（定案）。
         /// </summary>
-        private static int ComputeAtomCost(AtomicEffectInstance atom, AtomicEffectConfig cfg)
+        private static int ComputeAtomCost(AtomicEffectInstance atom, AtomicEffectConfig cfg, bool priceAsPermanent = false)
         {
             // 检索：按筛选维度档计费，替代通用公式。维度档存于 atom.StringValue（默认单一维度）。
             if (atom.Type == AtomicEffectType.SearchDeck)
@@ -141,7 +145,12 @@ namespace CardCore
             // 持续折扣（相对）：实例 Once(0) 视为未指定 → 取表默认，此时分子分母相同 → 1。
             var attrCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().AttributeValueConfig;
             DurationType tableDefault = cfg.DurationType;
-            DurationType actual = atom.Duration != DurationType.Once ? atom.Duration : tableDefault;
+            // 法术宿主按永久档计（三轨制定案）——**只对赋予族**：表默认非 Once 的原子才有
+            // 持续维度可拉档；伤害/抽牌等瞬时原子（表默认 Once）无持续时间语义，恒按表默认=1，
+            // 不随宿主放大（修正：此前误把瞬时原子也拉到 Permanent 档，4 伤被 ×2 成 8 红）。
+            DurationType actual = priceAsPermanent && tableDefault != DurationType.Once
+                ? DurationType.Permanent
+                : (atom.Duration != DurationType.Once ? atom.Duration : tableDefault);
             float durationFactor = attrCfg.GetDurationDiscount(actual, atom.DurationValue)
                                    / attrCfg.GetDurationDiscount(tableDefault);
 
@@ -190,14 +199,14 @@ namespace CardCore
             return count;
         }
 
-        private static void AccumulateSubEffects(AtomicEffectInstance atom, Dictionary<ManaType, int> byColor)
+        private static void AccumulateSubEffects(AtomicEffectInstance atom, Dictionary<ManaType, int> byColor, bool priceAsPermanent)
         {
             // 元/复合效果的子效果同样计入费用。
             if (atom.SubEffects == null) return;
             foreach (var sub in atom.SubEffects)
             {
                 if (sub == null) continue;
-                AccumulateElementCost(sub, byColor);
+                AccumulateElementCost(sub, byColor, priceAsPermanent);
             }
         }
 

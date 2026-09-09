@@ -9,7 +9,11 @@
             "costList": [
                 {
                     "manaType": 1,
-                    "amount": 4.0
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -95,7 +99,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_02",
@@ -106,7 +111,11 @@
             "costList": [
                 {
                     "manaType": 1,
-                    "amount": 4.0
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -208,7 +217,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_03",
@@ -278,7 +288,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_04",
@@ -348,7 +359,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_05",
@@ -418,7 +430,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_06",
@@ -492,7 +505,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_07",
@@ -566,7 +580,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_08",
@@ -640,7 +655,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_09",
@@ -655,7 +671,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -741,7 +757,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_10",
@@ -752,11 +769,7 @@
             "costList": [
                 {
                     "manaType": 0,
-                    "amount": 4.0
-                },
-                {
-                    "manaType": 1,
-                    "amount": 1.0
+                    "amount": 5.0
                 }
             ],
             "keywords": [],
@@ -858,7 +871,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_11",
@@ -928,7 +942,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_12",
@@ -998,7 +1013,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_13",
@@ -1072,7 +1088,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_14",
@@ -1146,7 +1163,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_15",
@@ -1220,7 +1238,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_16",
@@ -1294,7 +1313,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_17",
@@ -1304,12 +1324,12 @@
             "life": 6,
             "costList": [
                 {
-                    "manaType": 0,
-                    "amount": 6.0
-                },
-                {
                     "manaType": 1,
                     "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 6.0
                 }
             ],
             "keywords": [],
@@ -1395,7 +1415,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_18",
@@ -1406,11 +1427,7 @@
             "costList": [
                 {
                     "manaType": 0,
-                    "amount": 6.0
-                },
-                {
-                    "manaType": 1,
-                    "amount": 1.0
+                    "amount": 7.0
                 }
             ],
             "keywords": [],
@@ -1512,7 +1529,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_19",
@@ -1582,7 +1600,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_20",
@@ -1656,7 +1675,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_21",
@@ -1730,7 +1750,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_22",
@@ -1800,7 +1821,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_23",
@@ -1874,7 +1896,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_24",
@@ -1944,7 +1967,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_25",
@@ -1954,12 +1978,12 @@
             "life": 9,
             "costList": [
                 {
-                    "manaType": 0,
-                    "amount": 8.0
-                },
-                {
                     "manaType": 1,
                     "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 9.0
                 }
             ],
             "keywords": [],
@@ -2045,7 +2069,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_26",
@@ -2056,11 +2081,11 @@
             "costList": [
                 {
                     "manaType": 1,
-                    "amount": 2.0
+                    "amount": 1.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 6.0
+                    "amount": 7.0
                 }
             ],
             "keywords": [],
@@ -2162,7 +2187,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_27",
@@ -2236,7 +2262,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_28",
@@ -2306,7 +2333,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_29",
@@ -2376,7 +2404,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_RED_30",
@@ -2446,7 +2475,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         }
     ],
     "deckConfig": {

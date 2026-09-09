@@ -35,16 +35,18 @@ namespace SynergyUI
             AttachBoard();
         }
 
-        /// <summary>棋盘占用层接线：注入碾压 AdjacentResolver（核心不绑棋盘，由宿主组装）。</summary>
+        /// <summary>棋盘占用层接线：注入碾压 AdjacentResolver + 连接光环 LinkAuraSystem（核心不绑棋盘，由宿主组装）。</summary>
         private void AttachBoard()
         {
             _board?.Dispose();
+            GameBoard.LinkAuraSystem.Detach(); // 上一局的接线归零（静态扩展点惯例）
             var core = GameCore.Instance;
             if (core?.Player1 == null || core.Player2 == null) return;
             _board = new GameBoard.BoardState(core, core.Player1, core.Player2,
                 GameBoard.HalfFieldData.Flat(), GameBoard.HalfFieldData.Flat());
             _board.EnableAutoResync();
             CombatSystem.AdjacentResolver = _board.Neighbors;
+            GameBoard.LinkAuraSystem.Attach(_board); // 连接光环（三轨制）：箭头指向格占据者享受 linkAuras
         }
 
         // ======================================== 战斗结算链（补缺口） ========================================

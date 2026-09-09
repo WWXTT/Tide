@@ -104,6 +104,17 @@ namespace CardCore
             float keywordTotal;
             var kwBuckets = ComputeKeywordBuckets(card, result.Breakdown, out keywordTotal);
 
+            // ---- 2b) 连接光环费 A（三轨制 2026-09-09）：linkAuras 按**单回合指示物档**计价
+            //（来源须持续在场——断链/离场即失效的折价定案），并入关键词桶同级参与挂载折扣与取整 ----
+            float auraTotal;
+            var auraBuckets = ComputeLinkAuraBuckets(card, result.Breakdown, out auraTotal);
+            foreach (var kv in auraBuckets)
+            {
+                kwBuckets.TryGetValue(kv.Key, out var prevKw);
+                kwBuckets[kv.Key] = prevKw + kv.Value;
+            }
+            keywordTotal += auraTotal;
+
             // ---- 3) 效果锚价 E（经 CardEffectConverter，与运行时执行同口径）----
             // 启动式能力（Activate_*，2026-09-08 定案）：构筑期不占卡费——元素锚价运行时现付
             // （发动 = 横置 + 扣锚价 + 选目标），不进 E 桶；但仍占技能挂载口（MountSlotAdjust
@@ -122,7 +133,7 @@ namespace CardCore
                 }
 
                 float defTotal = 0f;
-                foreach (var cost in CostDerivationService.DeriveElementCosts(def))
+                foreach (var cost in CostDerivationService.DeriveElementCosts(def, 0, isSpell)) // 法术宿主按永久档计（三轨制定案）
                 {
                     effBuckets.TryGetValue(cost.ManaType, out var prev);
                     effBuckets[cost.ManaType] = prev + cost.Value;
@@ -262,6 +273,15 @@ namespace CardCore
             float keywordTotal;
             var kwBuckets = ComputeKeywordBuckets(card, null, out keywordTotal);
 
+            // 连接光环费并入关键词桶（与 Derive 的 2b 同口径）
+            float auraTotal;
+            foreach (var kv in ComputeLinkAuraBuckets(card, null, out auraTotal))
+            {
+                kwBuckets.TryGetValue(kv.Key, out var prevKw);
+                kwBuckets[kv.Key] = prevKw + kv.Value;
+            }
+            keywordTotal += auraTotal;
+
             var effectDefs = CardEffectConverter.ConvertAll(card.Effects, card.ID);
             float factor = ComputeMountFactor(card, cc, dd, declaredTier);
             int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
@@ -279,7 +299,7 @@ namespace CardCore
                 {
                     if (def == null) continue;
                     if (def.IsActivatedEffect) continue;
-                    foreach (var cost in CostDerivationService.DeriveElementCosts(def, m))
+                    foreach (var cost in CostDerivationService.DeriveElementCosts(def, m, isSpell)) // 法术宿主按永久档计（三轨制定案）
                     {
                         effBuckets.TryGetValue(cost.ManaType, out var prev);
                         effBuckets[cost.ManaType] = prev + cost.Value;
@@ -389,6 +409,68 @@ namespace CardCore
                 }
             }
             return kwBuckets;
+        }
+
+        /// <summary>
+        /// 连接光环费 A（三轨制定案 2026-09-09）：卡面 linkAuras 声明按**单回合指示物档**计价——
+        /// 光环须来源持续在场（断链/离场即失效），按最便宜持续档折价（定案：来源存活条件折价）。
+        /// stat 行用 ModifyPower/ModifyLife 代表原子 ×max(1,|value|)×(0.6/该原子表默认)；
+        /// keyword 行经关键词目录反查 Grant 原子固定费 × 同一相对系数。
+        /// 返回桶并入关键词桶（Derive 2b / DeriveModeCosts），参与挂载折扣与 L2/L3 取整。
+        /// </summary>
+        private static Dictionary<ManaType, float> ComputeLinkAuraBuckets(CardData card,
+            List<CostBreakdownLine> breakdown, out float auraTotal)
+        {
+            auraTotal = 0f;
+            var buckets = new Dictionary<ManaType, float>();
+            if (card?.LinkAuras == null || card.LinkAuras.Count == 0) return buckets;
+
+            var attrCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().AttributeValueConfig;
+            float singleTurn = attrCfg.GetDurationDiscount(DurationType.UntilEndOfTurn);
+            CardLoader.LoadKeywords(); // 惰性建目录（keyword 行反查 Grant 原子）
+
+            foreach (var aura in card.LinkAuras)
+            {
+                if (aura == null) continue;
+
+                AtomicEffectType rep;
+                int magnitude = 1;
+                string label;
+                if (!string.IsNullOrEmpty(aura.stat))
+                {
+                    bool isLife = aura.stat.Equals("Life", System.StringComparison.OrdinalIgnoreCase);
+                    rep = isLife ? AtomicEffectType.ModifyLife : AtomicEffectType.ModifyPower;
+                    magnitude = System.Math.Max(1, System.Math.Abs(aura.value));
+                    label = $"{aura.stat}{(aura.value >= 0 ? "+" : "")}{aura.value}";
+                }
+                else if (!string.IsNullOrEmpty(aura.keyword))
+                {
+                    var def = CardLoader.GetKeywordDefinition(aura.keyword);
+                    if (def == null || string.IsNullOrEmpty(def.atomicEffect)
+                        || !System.Enum.TryParse<AtomicEffectType>(def.atomicEffect, out rep))
+                    {
+                        breakdown?.Add(new CostBreakdownLine("A", $"连接光环 {aura.keyword}（未登记 Grant 原子，计 0）", 0f));
+                        continue;
+                    }
+                    label = aura.keyword;
+                }
+                else continue;
+
+                var atomCfg = AtomicEffectTable.GetByType(rep);
+                if (atomCfg == null || atomCfg.BaseCost <= 0f) continue;
+
+                float factor = singleTurn / Mathf.Max(0.0001f, attrCfg.GetDurationDiscount(atomCfg.DurationType));
+                float amount = atomCfg.BaseCost
+                               * (atomCfg.CostMultiplier > 0f ? atomCfg.CostMultiplier : 1f)
+                               * magnitude * factor;
+                var color = ElementAffinities.GetAffinityForEffect(rep).PrimaryColor;
+                buckets.TryGetValue(color, out var prev);
+                buckets[color] = prev + amount;
+                auraTotal += amount;
+                breakdown?.Add(new CostBreakdownLine("A",
+                    $"连接光环 {label}（单回合档 ×{factor:0.###}）", amount, color));
+            }
+            return buckets;
         }
 
         /// <summary>挂载折扣 f：法术恒 1；随从 d(C)。

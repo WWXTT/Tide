@@ -554,6 +554,10 @@ namespace CardCore
                 PublishCardLeaveBattlefield(card, to);
             if (from == Zone.Battlefield && to != Zone.Battlefield)
                 CardCore.Attribute.MorphSystem.TryEndMorph(card); // 变形：离开战场解除（进墓变回原随从）
+            // 临时关键词换区清（三轨制定案）：置于 TryEndMorph 之后——变形快照会整表恢复 _keywords
+            // 与台账，先解除再清临时轨，防快照复活已清层；同受发动区豁免约束（cast 付费期间临时层存活）。
+            if (from != to && !viaActivationStaging)
+                CardCore.Attribute.KeywordRules.ClearZoneKeywords(card);
         }
 
         /// <summary>
@@ -877,7 +881,7 @@ namespace CardCore
         /// 设计规则：发动通过后要进战场时失败 → 进墓地。
         /// </summary>
         /// <returns>true = 成功入场</returns>
-        public static bool TryMoveToBattlefield(this ZoneManager zm, Card card, Player controller, Zone fromZone, bool tapped = false, EnterSource enterSource = EnterSource.None)
+        public static bool TryMoveToBattlefield(this ZoneManager zm, Card card, Player controller, Zone fromZone, bool tapped = true, EnterSource enterSource = EnterSource.None)
         {
             if (zm == null || card == null || controller == null) return false;
             var container = zm.GetZoneContainer(controller);
@@ -900,8 +904,9 @@ namespace CardCore
             container.Move(card, fromZone, Zone.Battlefield);
 
             // 入场可用性统一走横置（定案）：随从一律横置入场（召唤失调）；
-            // 冲锋/突袭不再豁免——已改为卡的登场效果（OnPlay+激励自己解除横置，突袭另自上紊乱指示物）；
-            // 显式 tapped=true（效果强制横置入场）照常生效。
+            // 冲锋/突袭不再豁免——已改为卡的登场效果（OnPlay+激励自己解除横置，突袭另自上紊乱指示物）。
+            // 默认 true（2026-09-09 修正）：此前默认 false 且无调用方显式传 true——cast 出牌/额外卡组特招/
+            // 复活全部不横置，09-08「一律横置」只落实在 TryAddToBattlefield；显式 tapped=false 可解横置入场。
             card._isTapped = tapped;
 
             if (fromZone == Zone.Activation)
@@ -911,6 +916,10 @@ namespace CardCore
                     Controller = controller,
                     ToZone = Zone.Battlefield,
                 });
+
+            // 入场刷新（2026-09-09 定案）：真实入场对 Printed 轨做卡面差集补齐（消耗项随入场恢复）——
+            // 只挂统一出口（真换区）：复生原地留场/控制权变更容器直移均不经此，天然不触发。
+            CardCore.Attribute.KeywordRules.RefreshPrintedKeywordsOnEntry(card);
 
             // 触发式注册统一出口（时点接线定案）：入场事件发布前完成注册，
             // 保证入场卡自己的 OnPlay/OnSummon 能吃到自己的入场事件（RegisterEffect 幂等）
@@ -968,6 +977,9 @@ namespace CardCore
             // 入场可用性统一走横置（定案）：衍生物/副本同样一律横置；
             // 冲锋/突袭已改为登场效果（OnPlay+激励自己，突袭另自上紊乱指示物），入场不豁免
             card._isTapped = true;
+
+            // 入场刷新（2026-09-09 定案）：与 TryMoveToBattlefield 同口径（统一出口，真入场才刷新）
+            CardCore.Attribute.KeywordRules.RefreshPrintedKeywordsOnEntry(card);
 
             // 触发式注册统一出口（时点接线定案）：token/副本入场同样注册自身触发式（幂等）
             GameActions.RegisterCardTriggeredEffects(GameCore.Instance, card, controller);

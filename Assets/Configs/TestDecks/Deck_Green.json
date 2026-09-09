@@ -64,7 +64,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_02",
@@ -130,7 +131,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_03",
@@ -196,7 +198,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_04",
@@ -266,7 +269,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_05",
@@ -336,7 +340,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_06",
@@ -406,7 +411,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_07",
@@ -476,7 +482,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_08",
@@ -546,7 +553,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_09",
@@ -616,7 +624,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_10",
@@ -686,7 +695,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_11",
@@ -756,7 +766,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_12",
@@ -826,7 +837,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_13",
@@ -896,7 +908,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_14",
@@ -966,7 +979,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_15",
@@ -1036,7 +1050,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_16",
@@ -1106,7 +1121,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_17",
@@ -1176,7 +1192,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_18",
@@ -1246,7 +1263,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_19",
@@ -1316,7 +1334,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_20",
@@ -1386,7 +1405,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_21",
@@ -1456,7 +1476,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_22",
@@ -1526,7 +1547,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_23",
@@ -1596,7 +1618,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_24",
@@ -1666,7 +1689,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_25",
@@ -1736,7 +1760,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_26",
@@ -1806,7 +1831,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_27",
@@ -1876,7 +1902,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_28",
@@ -1946,7 +1973,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_29",
@@ -2016,7 +2044,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         },
         {
             "id": "DECK_GREEN_30",
@@ -2086,7 +2115,8 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": ""
+            "arrows": "",
+            "linkAuras": []
         }
     ],
     "deckConfig": {

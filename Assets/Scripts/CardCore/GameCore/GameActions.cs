@@ -104,7 +104,7 @@ namespace CardCore
                 if (playSource == null || !playSource.TryBeginUse(player)) return false;
             }
 
-            bool isSpell = card is IHasSupertype hasType && hasType.Supertype == Cardtype.Spell;
+            bool isSpell = card.IsSpellCard();
 
             // 永久物：战场容量预检（满场不允许发动，SimpleAI 依赖 false 跳过；
             // 「结算时入场满则失败入墓」由 TryMoveToBattlefield 承担）
@@ -165,7 +165,7 @@ namespace CardCore
             // 规则扩展点（OCP）：出牌限制经注册表询问（响应出牌同样受限，如信息轴锁定）
             if (!RuleHooks.CanPlay(core, player, card, Zone.Hand)) return false;
 
-            bool isSpell = card is IHasSupertype hasType && hasType.Supertype == Cardtype.Spell;
+            bool isSpell = card.IsSpellCard();
             if (!isSpell && !core.ZoneManager.HasBattlefieldSpace(player))
                 return false;
 
@@ -247,7 +247,7 @@ namespace CardCore
             }
 
             // 4. 结算：法术 → 效果全结算后离区入墓；永久物 → 登记触发式 + 入场
-            if (card is IHasSupertype hasType && hasType.Supertype == Cardtype.Spell)
+            if (card.IsSpellCard())
             {
                 await ResolveSpellEffectsAsync(core, player, card, cast.Targets, cast.ModeIndex);
             }
@@ -337,6 +337,9 @@ namespace CardCore
 
         /// <summary>
         /// 排干栈：双 Pass 直到栈空（无头 / AI / UI 快进驱动用——对手无响应即自动结算）。
+        /// **空栈上的待发触发一并排**（2026-09-09 修正）：真实对局由 GameLoopController 帧循环
+        /// 泵 PutTriggersOnStack，无游戏循环场景（编辑器验证/headless）此前无人推——
+        /// 栈空即返回导致「结算外入场的触发式」（如直接落场的 OnPlay）永远不被结算。
         /// 结算含异步原子效果时，本方法返回后结算链可能仍在后台推进
         /// （IsResolving 拦重入，先例：SimpleAI.SettleStack）。
         /// </summary>
@@ -345,8 +348,10 @@ namespace CardCore
             if (core == null) return false;
 
             bool any = false;
-            for (int i = 0; i < maxAttempts && !core.StackEngine.IsEmpty; i++)
+            for (int i = 0; i < maxAttempts && (!core.StackEngine.IsEmpty || core.StackEngine.HasPendingEffects); i++)
             {
+                if (core.StackEngine.IsEmpty && core.StackEngine.HasPendingEffects)
+                    core.StackEngine.ProcessPendingEffects(); // 待发上栈（结算外排队的触发式）
                 var holder = core.StackEngine.CurrentPriorityHolder;
                 if (holder == null) break;
                 if (!PassPriority(core, holder)) break;
@@ -379,7 +384,10 @@ namespace CardCore
                     await executor.ExecuteAsync(new EffectInstance
                     {
                         Definition = def,
-                        Source = card,
+                        // 来源归因定案（2026-09-09 规则②）：所有魔法卡的效果来源=角色（Player）——
+                        // 伤害/死亡/指示物/三轨判轨的归因都指向施法者；cast 对象的 Source 仍是卡
+                        // （发动区付费/无效裁决/离区依赖它，见 ResolveCardCastAsync）。
+                        Source = player,
                         Controller = player,
                         Targets = targets != null ? new List<Entity>(targets) : new List<Entity>(),
                         ModeIndex = modeIndex,

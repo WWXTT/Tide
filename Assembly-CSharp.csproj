@@ -105,6 +105,7 @@
     <Compile Include="Assets\UI\Screens\DeckBuilderScreen.cs" />
     <Compile Include="Assets\UI\Data\CardCostCalculator.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\AtomicEffectConfig.cs" />
+    <Compile Include="Assets\Scripts\CardCore\Attribute\StatGrantRouter.cs" />
     <Compile Include="Assets\Scripts\CardCore\Enums\ColorIdentity.cs" />
     <Compile Include="Assets\UI\Data\ColorFilter.cs" />
     <Compile Include="Assets\UI\Screens\CardComposerScreen.cs" />
@@ -155,6 +156,7 @@
     <Compile Include="Assets\Scripts\CardCore\GameCore\GameLoopController.cs" />
     <Compile Include="Assets\UI\Framework\UIScreen.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\DeathRules.cs" />
+    <Compile Include="Assets\Scripts\CardCore\Board\LinkAuraSystem.cs" />
     <Compile Include="Assets\Scripts\CardCore\Summon\SummonEngine.cs" />
     <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\BuiltinEffectHandlers.cs" />
     <Compile Include="Assets\Scripts\CardCore\Enums\CardEnums.cs" />

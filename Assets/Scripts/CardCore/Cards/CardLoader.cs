@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using CardCore.Attribute;
 using CardCore.Attribute.Handlers;
+using System.Linq;
 
 namespace CardCore
 {
@@ -50,6 +51,9 @@ namespace CardCore
         public int rank = -1;      // 阶级，-1 = 无
         public int linkRating = -1;// 链接值，-1 = 无
         public string arrows;      // 逗号分隔的 HexDirection Flags 名，如 "Up,LowerRight"
+
+        // 连接光环声明（三轨制 2026-09-09）：箭头指向格占据者享受的持续效果（stat/keyword 二选一）
+        public List<LinkAuraData> linkAuras;
     }
 
     /// <summary>
@@ -257,6 +261,12 @@ namespace CardCore
             if (entry.level >= 0) cardData.Level = entry.level;
             if (entry.rank >= 0) cardData.Rank = entry.rank;
             if (entry.linkRating >= 0) cardData.LinkRating = entry.linkRating;
+
+            // 连接光环声明（三轨制）：无效条目（stat/keyword 双空）装载期即丢弃
+            if (entry.linkAuras != null)
+                cardData.LinkAuras = entry.linkAuras
+                    .Where(a => a != null && (!string.IsNullOrEmpty(a.stat) || !string.IsNullOrEmpty(a.keyword)))
+                    .ToList();
 
             // 统一计价兜底：costList 缺省 → 写入建议档位分布（幂等，非空不动）
             CardCostService.EnsureCost(cardData);

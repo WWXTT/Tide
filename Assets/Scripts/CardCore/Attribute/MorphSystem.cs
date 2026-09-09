@@ -18,6 +18,8 @@ namespace CardCore.Attribute
         public int MaxLife;
         public int BaseCost;
         public List<string> Keywords;
+        /// <summary>轨别台账快照（三轨制定案：与 _keywords 同快照同恢复，清除口径不丢轨别）</summary>
+        public List<KeywordGrant> Grants;
     }
 
     /// <summary>
@@ -45,7 +47,7 @@ namespace CardCore.Attribute
         {
             if (card == null || target == null || card._morphSnapshot.HasValue) return false;
 
-            // 快照原形态
+            // 快照原形态（含轨别台账——解除时按原轨别恢复）
             card._morphSnapshot = new MorphSnapshot
             {
                 Id = card.ID,
@@ -56,6 +58,12 @@ namespace CardCore.Attribute
                 MaxLife = card._maxLife,
                 BaseCost = card._baseCost,
                 Keywords = new List<string>(card._keywords),
+                Grants = card._keywordGrants.Select(g => new KeywordGrant
+                {
+                    Keyword = g.Keyword,
+                    Lane = g.Lane,
+                    Source = g.Source,
+                }).ToList(),
             };
 
             // 完全复制目标形态
@@ -70,8 +78,16 @@ namespace CardCore.Attribute
             card._baseCost = target.Cost != null ? (int)target.Cost.Values.Sum() : 0;
 
             card._keywords.Clear();
+            card._keywordGrants.Clear();
             if (target.Keywords != null)
-                card._keywords.AddRange(target.Keywords);
+            {
+                // 目标形态关键词落 Printed 轨（形态=本体；直加不去重，保持 AddRange 既有行为）
+                foreach (var kw in target.Keywords)
+                {
+                    card._keywords.Add(kw);
+                    card._keywordGrants.Add(new KeywordGrant { Keyword = kw, Lane = KeywordLane.Printed });
+                }
+            }
 
             return true;
         }
@@ -96,6 +112,14 @@ namespace CardCore.Attribute
             card._baseCost = snap.BaseCost;
             card._keywords.Clear();
             card._keywords.AddRange(snap.Keywords);
+            card._keywordGrants.Clear();
+            if (snap.Grants != null)
+                card._keywordGrants.AddRange(snap.Grants.Select(g => new KeywordGrant
+                {
+                    Keyword = g.Keyword,
+                    Lane = g.Lane,
+                    Source = g.Source,
+                }));
 
             return true;
         }

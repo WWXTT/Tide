@@ -714,23 +714,22 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 获取基础力量（印刷值 + 永久变更，连续效果不写入此处）
+        /// 获取基础力量（印刷值 + 永久变更，连续效果不写入此处）。
+        /// 三轨制接线（2026-09-09）：改读扩展方法（= _power + 连接光环 live-query 加成）——
+        /// 战斗 CalculatePower 与 SBA ZeroToughnessChecker 的基值同源于此，光环对战斗可见；
+        /// 同时修复旧账：IHasPower.Power 接口属性是构造期快照，指示物回写后不同步。
         /// </summary>
         private int GetBasePower(Entity entity)
         {
-            if (entity is IHasPower hasPower)
-                return hasPower.Power;
-            return 0;
+            return entity.GetPower();
         }
 
         /// <summary>
-        /// 获取基础防御/生命
+        /// 获取基础防御/生命（读扩展方法 = _life + 连接光环加成，与伤害管线同源）
         /// </summary>
         private int GetBaseToughness(Entity entity)
         {
-            if (entity is IHasLife hasLife)
-                return hasLife.Life;
-            return 0;
+            return entity.GetLife();
         }
 
         /// <summary>

@@ -250,9 +250,12 @@ namespace CardCore.Attribute.Handlers
     // ======================= 净化 =======================
 
     /// <summary>
-    /// 净化（定案，原"无效化"改名改语义）：去除目标全部关键词和指示物。
-    /// 指向玩家会剥掉神佑（神佑是可被效果移除的真实状态——效果死亡族对其生效的唯一通路）；
-    /// 属性指示物清除前反向回写（CounterRules.PurgeAll）。事件：CleanseEvent 首次起用。
+    /// 净化（2026-09-09 语义重定义：变回生物原有状态）：
+    /// 保留卡面本体关键词（Printed）与设置类（Setting——设置后即「原本属性效果」）；
+    /// 清除临时关键词（Temp）、生物赋的永久关键词（GrantedPermanent）、可移除状态（Status），
+    /// 以及全部指示物（CounterRules.PurgeAll 含永久层，属性先反向回写）。
+    /// 神佑对净化有抗性（PurgeProtectedKeywords 豁免）——净化剥神佑+剧毒的组合无法计价平衡，
+    /// 移除神佑留给未来专用效果。事件：CleanseEvent。
     /// </summary>
     public class PurifyHandler : AtomicEffectHandlerBase
     {
@@ -264,8 +267,8 @@ namespace CardCore.Attribute.Handlers
             {
                 if (target == null) continue;
 
-                target._keywords.Clear();
-                CounterRules.PurgeAll(target);
+                KeywordRules.PurifyKeywords(target); // 关键词按轨别清（保留 Printed/Setting，豁免神佑）
+                CounterRules.PurgeAll(target);       // 指示物全清（含永久类，属性层先反向回写）
 
                 // 净化总是播报（即使目标本就干净，也确认净化时点）
                 PublishEvent(new CleanseEvent
@@ -276,7 +279,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "净化目标：移除其全部关键词与指示物";
+        public override string GetDescription(AtomicEffectInstance effect) => "净化目标：变回原有状态（清临时赋予与指示物，保留本体与设置）";
     }
 
     // ======================= 战斗 / 伤害 =======================

@@ -86,6 +86,7 @@ namespace CardCore.Editor
                 TestSpellBranch(core, p1, p2, cardsData);
                 TestSpellModal(core, p1, p2, cardsData);
                 TestBoard(core, p1, p2, cardsData);
+                TestLinkAura(core, p1, p2, cardsData);
             }
 
             // 分支条件目录 + 信息族（宣言/预言）引擎流：不依赖卡表（合成卡驱动）
@@ -97,6 +98,9 @@ namespace CardCore.Editor
             // 使用时点/响应窗口 + 死亡原子（合成卡驱动，不依赖卡表）
             TestCounterWindow(core, p1, p2);
             TestDeathAtoms(core, p1, p2);
+
+            // 三轨制（2026-09-09）：来源归因（法术=角色）
+            TestAttribution(core, p1, p2);
 
             // 时点接线（P0）+ 衍生物（P1）+ 计数/日志（P2）（合成卡驱动，不依赖卡表）
             TestEntrySources(core, p1, p2);
@@ -225,7 +229,14 @@ namespace CardCore.Editor
 
                 var hand2b = new List<Card>(core.ZoneManager.GetCards(p2, Zone.Hand));
                 if (hand2b.Count > 0)
-                    Assert(GameActions.AddToElementPool(core, p2, hand2b[0]), "耗尽后槽位空出，可补充地牌");
+                {
+                    // 合格地牌=卡组正式生物且非零费（CanServeAsLand + 指示物来源非空）——
+                    // 夹具卡组成变动后手牌首位可能是法术/零费卡，取首张**合格**卡（对齐段 21 的检索惯例）
+                    bool refilled = false;
+                    foreach (var cand in hand2b)
+                        if (GameActions.AddToElementPool(core, p2, cand)) { refilled = true; break; }
+                    Assert(refilled, "耗尽后槽位空出，可补充地牌（手牌存在合格地牌卡）");
+                }
             }
             else
             {
@@ -259,7 +270,8 @@ namespace CardCore.Editor
             GameActions.SkipElementPool(core, p1);
             Assert(core.ElementPool.GetLandCap(p1) == 3, "T3 地牌槽上限 = 3");
             var landAfter = core.ElementPool.GetPooledCards(p1).FirstOrDefault();
-            Assert(landAfter != null && !landAfter.IsTapped, "己方回合开始地牌恢复（解除横置）");
+            Assert(landAfter != null && !landAfter.IsTapped,
+                   $"己方回合开始地牌恢复（解除横置）（p1 池 {core.ElementPool.GetPooledCards(p1).Count} 张：{string.Join(",", core.ElementPool.GetPooledCards(p1).Select(l => l.SourceCard.ID + (l.IsTapped ? "·横置" : "·直立")))}）");
 
             var records = core.ResourceLedger.GetRecords(p1);
             Assert(records.Count >= 2, "台账已有 p1 两行记录");
@@ -361,8 +373,12 @@ namespace CardCore.Editor
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBefore - 1, "奖励抽牌来自牌库顶");
             Assert(core.ZoneManager.GetCards(p1, Zone.Graveyard).Contains(declare), "分支法术结算后入墓地");
             Assert(core.ZoneManager.GetCards(p1, Zone.Activation).Count == 0, "结算完成后发动区清空");
-            Assert(pool1.AvailableMana[ManaType.Blue] == blueBefore - 2,
-                   "元素费只扣一次（skipElementCost 防执行器双计费）");
+            // 期望扣费从声明费用动态取值（卡表调价不再牵动断言）；skipElementCost=true 保证执行器
+            // 不再对派生元素费二次扣款——实际扣费恰为声明值即证明"只扣一次"
+            var declaredBlue = GameActions.GetCardCost(declare, 0).TryGetValue((int)ManaType.Blue, out var blueCost)
+                ? (int)blueCost : 0;
+            Assert(pool1.AvailableMana[ManaType.Blue] == blueBefore - declaredBlue,
+                   $"元素费只扣一次（skipElementCost 防执行器双计费；声明费蓝 {declaredBlue}，实际扣 {blueBefore - pool1.AvailableMana[ManaType.Blue]}）");
 
             core.ZoneManager.GetZoneContainer(p2).Remove(marker, Zone.Hand);
             CardCore.Attribute.Handlers.ProphecyHandlerUtil.PositionPicker = null; // 还原缺省选位器
@@ -449,9 +465,22 @@ namespace CardCore.Editor
                 int redBefore = pool1.AvailableMana[ManaType.Red];
                 var modal0 = InjectCard(core, p1, data);
 
-                Assert(PlayCardSync(core, p1, modal0, new List<Entity> { p2 }),
-                       "抉择卡模式0打出（缺省 mode=0）");
-                Assert(p2.Life == p2Life - 4, "模式0：对目标造成4伤");
+                // 伤害事件捕获（诊断）：观察模式0结算期间实际发生的每笔伤害（目标/来源/量）
+                var dmgSeen = new List<string>();
+                void OnModalDamage(DamageEvent e) =>
+                    dmgSeen.Add($"{(e.Target is Player pl ? pl.Name : (e.Target as Card)?.ID)}<-{e.Amount}(src={(e.Source is Card sc ? sc.ID : "Player")})");
+                EventManager.Instance.Subscribe<DamageEvent>(OnModalDamage);
+                try
+                {
+                    Assert(PlayCardSync(core, p1, modal0, new List<Entity> { p2 }),
+                           "抉择卡模式0打出（缺省 mode=0）");
+                }
+                finally
+                {
+                    EventManager.Instance.Unsubscribe<DamageEvent>(OnModalDamage);
+                }
+                Assert(p2.Life == p2Life - 4,
+                       $"模式0：对目标造成4伤（实际 {p2Life}→{p2.Life}；期间伤害事件 [{string.Join("; ", dmgSeen)}]；p2 护甲={p2.GetCounterCount(CardCore.Attribute.KeywordRules.ArmorCounter)} 易损={p2.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter)}）");
                 Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBefore, "模式0：不抽牌（只执行所选）");
                 Assert(pool1.AvailableMana[ManaType.Red] == redBefore - 4, "模式0实付红4（先选择再定费用）");
                 Assert(core.ZoneManager.GetCards(p1, Zone.Graveyard).Contains(modal0)
@@ -806,6 +835,218 @@ namespace CardCore.Editor
         /// （核心不与棋盘绑定，重连/传输只同步 CardCore，Resync 即重建占用）。
         /// 全程手动 Resync，不启用事件自动刷新。
         /// </summary>
+        /// <summary>
+        /// 来源归因（三轨制定案 2026-09-09 规则①②）：所有魔法卡的效果来源=角色（Player）——
+        /// 法术伤害致死归因到施法玩家（不再是法术卡）；法术伤害不触发吸血（来源非生物）。
+        /// 规则①（生物效果来源=该生物）由 TestKeywords 段 18f 指示物轨锚锁定。
+        /// </summary>
+        private static void TestAttribution(GameCore core, Player p1, Player p2)
+        {
+            EnsureMainPhase(core, p1);
+
+            // 归因靶：p2 场上 1/2 生物（受 3 伤必死）
+            var victimData = new CardData { ID = "VERIFY_ATTRIB_VICTIM", CardName = "归因靶" };
+            victimData.Supertype = Cardtype.Creature;
+            victimData.Power = 1;
+            victimData.Life = 2;
+            var victim = new CardWrapper(victimData);
+            victim.SetController(p2);
+            core.ZoneManager.TryAddToBattlefield(victim, p2);
+
+            // 法术：灰 0 费 DealDamage 3
+            var boltData = new CardData { ID = "VERIFY_ATTRIB_SPELL", CardName = "归因法术" };
+            boltData.Supertype = Cardtype.Spell;
+            boltData.Cost[(int)ManaType.Gray] = 0;
+            var boltEffect = new CardEffectData { Id = "VERIFY_ATTRIB_EFF", TriggerTiming = (int)TriggerTiming.OnPlay };
+            boltEffect.AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = "DealDamage", Value = 3 } };
+            boltData.Effects.Add(boltEffect);
+            var bolt = InjectCard(core, p1, boltData);
+
+            CardDestroyEvent killEvt = null;
+            void OnAttribKill(CardDestroyEvent e) { if (e.DestroyedCard == victim) killEvt = e; }
+            EventManager.Instance.Subscribe<CardDestroyEvent>(OnAttribKill);
+            int p1LifeBefore = p1.Life;
+            try
+            {
+                Assert(PlayCardSync(core, p1, bolt, new List<Entity> { victim }), "归因法术：成功施放并结算");
+                core.SBAEngine.CheckAndExecute();
+                Assert(killEvt != null && ReferenceEquals(killEvt.Source, p1) && !(killEvt.Source is Card),
+                       "来源归因②：法术伤害致死归因到施法玩家（Source=角色，非法术卡）");
+                Assert(!victim.IsAlive && core.ZoneManager.GetCards(p2, Zone.Graveyard).Contains(victim),
+                       "来源归因②：目标死亡入墓（伤害链完整）");
+                Assert(p1.Life == p1LifeBefore, "法术伤害不触发吸血/系命（来源非生物无从回复）");
+            }
+            finally
+            {
+                EventManager.Instance.Unsubscribe<CardDestroyEvent>(OnAttribKill);
+            }
+        }
+
+        /// <summary>
+        /// 连接光环运行时（三轨制·光环轨 2026-09-09）：方向映射双射 + 单向指向 + 受益者豁免干扰 +
+        /// 无效压制来源（唯一能压光环的口）+ 断链失效（live-query 无物化）+ 对手视角镜像 +
+        /// 生命光环（伤害先吃光环/断链回落 SBA 收尸）。自建 BoardState（合成卡）；结束归零。
+        /// </summary>
+        private static void TestLinkAura(GameCore core, Player p1, Player p2, List<CardData> cardsData)
+        {
+            // ---- 1. 方向映射定死：六对六双射（互逆）+ Opposite 180° 对向 ----
+            Assert(GameBoard.BoardMath.MapArrow(CardCore.HexDirection.Up) == GameBoard.BoardDirection.NE
+                   && GameBoard.BoardMath.MapArrow(CardCore.HexDirection.UpperRight) == GameBoard.BoardDirection.E
+                   && GameBoard.BoardMath.MapArrow(CardCore.HexDirection.LowerRight) == GameBoard.BoardDirection.SE
+                   && GameBoard.BoardMath.MapArrow(CardCore.HexDirection.Down) == GameBoard.BoardDirection.SW
+                   && GameBoard.BoardMath.MapArrow(CardCore.HexDirection.LowerLeft) == GameBoard.BoardDirection.W
+                   && GameBoard.BoardMath.MapArrow(CardCore.HexDirection.UpperLeft) == GameBoard.BoardDirection.NW
+                   && GameBoard.BoardMath.ArrowOf(GameBoard.BoardDirection.NE) == CardCore.HexDirection.Up,
+                   "链接箭头映射：六对六双射（MapArrow/ArrowOf 互逆）");
+            Assert(GameBoard.BoardMath.Opposite(GameBoard.BoardDirection.NE) == GameBoard.BoardDirection.SW
+                   && GameBoard.BoardMath.Opposite(GameBoard.BoardDirection.E) == GameBoard.BoardDirection.W
+                   && GameBoard.BoardMath.Opposite(GameBoard.BoardDirection.SE) == GameBoard.BoardDirection.NW,
+                   "Opposite：180° 对向（对手视角镜像基础）");
+
+            GameBoard.LinkAuraSystem.Detach(); // 隔离上局残留（静态扩展点惯例）
+            var board = new GameBoard.BoardState(core, p1, p2,
+                GameBoard.HalfFieldData.Flat(), GameBoard.HalfFieldData.Flat());
+            board.EnableAutoResync();
+            GameBoard.LinkAuraSystem.Attach(board);
+
+            // 清空双方战场残留（前面各段的测试卡已断言完毕；直删不发事件，随后手动 Resync）
+            foreach (var pl in new[] { p1, p2 })
+            {
+                var leftover = core.ZoneManager.GetCards(pl, Zone.Battlefield).ToList();
+                foreach (var c in leftover)
+                    core.ZoneManager.GetZoneContainer(pl).Remove(c, Zone.Battlefield);
+            }
+            board.Resync();
+
+            var used = new List<Card>();
+            Card MakePlain(Player owner, int power, int life)
+            {
+                var data = new CardData { ID = "VERIFY_LA_" + used.Count, CardName = "链" + used.Count };
+                data.Supertype = Cardtype.Creature;
+                data.Power = power;
+                data.Life = life;
+                var card = new CardWrapper(data);
+                card.SetController(owner);
+                core.ZoneManager.TryAddToBattlefield(card, owner);
+                used.Add(card);
+                return card;
+            }
+            CardData DataOf(Card c) => (c as CardWrapper).GetData();
+            BoardDirection DirBetween(Card from, Card to, out bool adjacent)
+            {
+                adjacent = false;
+                board.TryGetCell(from, out int fx, out int fz);
+                board.TryGetCell(to, out int tx, out int tz);
+                foreach (GameBoard.BoardDirection d in System.Enum.GetValues(typeof(GameBoard.BoardDirection)))
+                {
+                    var (nx, nz) = GameBoard.BoardMath.Neighbor(fx, fz, d);
+                    if (nx == tx && nz == tz) { adjacent = true; return d; }
+                }
+                return default;
+            }
+
+            try
+            {
+                // ---- 2. 单向指向：箭头指向格的占据者享受（攻/关键词）；来源自身不吃 ----
+                var ben = MakePlain(p1, 3, 5);
+                var src = MakePlain(p1, 2, 5);
+                var dirTo = DirBetween(src, ben, out bool adjacent);
+                Assert(adjacent, "光环：落位相邻前提（first-free 顺序相邻）");
+                DataOf(src).LinkAuras.Add(new LinkAuraData { stat = "Power", value = 2 });
+                DataOf(src).LinkAuras.Add(new LinkAuraData { keyword = "Taunt" });
+                DataOf(src).ArrowDirections = GameBoard.BoardMath.ArrowOf(dirTo);
+                GameBoard.LinkAuraSystem.InvalidateCache();
+                Assert(ben.GetPower() == 5 && ben.HasKeyword("Taunt"),
+                       "连接光环：箭头指向格的占据者攻+2 且视为有嘲讽（单向指向）");
+                Assert(ben.GetKeywordCount("Taunt") == 0,
+                       "光环关键词不物化：GetKeywordCount 仍 0（融合叠加计数只归真授予）");
+                Assert(src.GetPower() == 2 && !src.HasKeyword("Taunt"),
+                       "箭头不指向自己：来源自身无加成");
+                Assert(core.LayerEngine.CalculatePower(ben) == 5,
+                       "战斗读数可见：LayerEngine.CalculatePower 基值含光环（战斗/SBA 同源）");
+
+                // ---- 3. 受益者豁免：净化/沉默/无效打在受益者身上，光环不变 ----
+                CardCore.Attribute.KeywordRules.PurifyKeywords(ben);
+                ben.AddCounters(CardCore.Attribute.CounterRules.SilenceCounter, 1);
+                ben.AddCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1);
+                GameBoard.LinkAuraSystem.InvalidateCache();
+                Assert(ben.GetPower() == 5 && ben.HasKeyword("Taunt"),
+                       "受益者不可被干扰：净化/沉默/无效都不压光环（只有作用于来源才有效）");
+                ben.RemoveCounters(CardCore.Attribute.CounterRules.SilenceCounter, 1);
+                ben.RemoveCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1);
+
+                // ---- 4. 无效压制来源（唯一能压光环的口）；净化不压箭头（箭头=卡面数据）----
+                src.AddCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1, p1);
+                GameBoard.LinkAuraSystem.InvalidateCache();
+                Assert(ben.GetPower() == 3 && !ben.HasKeyword("Taunt"),
+                       "无效压制来源：光环熄灭（无效=唯一能压光环的指示物）");
+                CardCore.Attribute.CounterRules.PurgeAll(src); // 净化口径清掉无效（含全部指示物）
+                GameBoard.LinkAuraSystem.InvalidateCache();
+                Assert(ben.GetPower() == 5 && ben.HasKeyword("Taunt"),
+                       "净化来源不压箭头：无效被清后光环恢复（箭头是卡面数据，净化只清状态）");
+
+                // ---- 5. 断链失效：来源离场光环消失（live-query 无物化） ----
+                core.ZoneManager.MoveCard(src, p1, Zone.Battlefield, Zone.Graveyard);
+                Assert(ben.GetPower() == 3 && !ben.HasKeyword("Taunt"),
+                       "断链失效：来源离场光环消失");
+
+                // ---- 6. 对手视角镜像：p2（归属1）的箭头绝对方向取 Opposite ----
+                var ben2 = MakePlain(p2, 2, 4);
+                var src2 = MakePlain(p2, 2, 4);
+                var dir2 = DirBetween(src2, ben2, out bool adjacent2);
+                Assert(adjacent2, "光环镜像：落位相邻前提");
+                DataOf(src2).LinkAuras.Add(new LinkAuraData { stat = "Life", value = 2 });
+                DataOf(src2).ArrowDirections = GameBoard.BoardMath.ArrowOf(dir2); // 反例：按绝对方向写
+                GameBoard.LinkAuraSystem.InvalidateCache();
+                Assert(ben2.GetLife() == 4 && ben2.GetMaxLife() == 4,
+                       "镜像负例：对手箭头未按其视角写（直接绝对方向）不生效");
+                DataOf(src2).ArrowDirections = GameBoard.BoardMath.ArrowOf(GameBoard.BoardMath.Opposite(dir2)); // 正例
+                GameBoard.LinkAuraSystem.InvalidateCache();
+                Assert(ben2.GetLife() == 6 && ben2.GetMaxLife() == 6,
+                       "镜像正例：对手箭头按其视角写（绝对方向取 Opposite）生效——生命光环上限与当前同加");
+
+                // ---- 7. 生命光环：伤害先吃光环；断链回落经 SBA 收尸 ----
+                CardCore.Attribute.KeywordRules.ApplyDamage(p1, ben2, 5, false); // 有效 6 受 5 伤剩 1
+                Assert(ben2.IsAlive && ben2.GetLife() == 1,
+                       "生命光环：伤害先吃穿光环加成（有效生命 6 受 5 伤剩 1，不死）");
+                core.ZoneManager.MoveCard(src2, p2, Zone.Battlefield, Zone.Graveyard); // 断链
+                core.SBAEngine.CheckAndExecute();
+                Assert(!ben2.IsAlive,
+                       "断链回落：光环垫的生命随链消失，有效归零经 SBA 收尸");
+
+                // ---- 8. JSON 链路：夹具卡 linkAuras/arrows 装载 + 内容哈希分叉（LA: 条件段） ----
+                var fixture = cardsData.FirstOrDefault(c => c.ID == "TEST_LINK_AURA_001");
+                Assert(fixture != null
+                       && fixture.ArrowDirections == (CardCore.HexDirection.Up | CardCore.HexDirection.LowerRight)
+                       && fixture.LinkAuras.Count == 2
+                       && fixture.LinkAuras[0].stat == "Power" && fixture.LinkAuras[0].value == 2
+                       && fixture.LinkAuras[1].keyword == "Taunt",
+                       "光环 JSON 链路：arrows/linkAuras 装载还原（三轨测试夹具卡）");
+                var noAuraClone = MakePlain(p1, 2, 4);
+                var noAuraData = (noAuraClone as CardWrapper).GetData();
+                string hashNoAura = SynergyUI.ContentHasher.HashCard(noAuraData);
+                noAuraData.LinkAuras.Add(new LinkAuraData { stat = "Power", value = 2 });
+                string hashWithAura = SynergyUI.ContentHasher.HashCard(noAuraData);
+                Assert(hashNoAura != hashWithAura,
+                       "光环内容哈希：linkAuras 影响 ID（LA: 段）");
+                noAuraData.LinkAuras.Clear();
+                Assert(SynergyUI.ContentHasher.HashCard(noAuraData) == hashNoAura,
+                       "光环内容哈希：空表不追加 LA: 段（存量卡 ID 不漂移）");
+                used.Add(noAuraClone); // 交由 finally 统一清理
+            }
+            finally
+            {
+                foreach (var c in used)
+                {
+                    var owner = c.GetController() ?? p1;
+                    core.ZoneManager.GetZoneContainer(owner).Remove(c, Zone.Battlefield);
+                    core.ZoneManager.GetZoneContainer(owner).Remove(c, Zone.Graveyard);
+                }
+                GameBoard.LinkAuraSystem.Detach();
+                board.Dispose();
+            }
+        }
+
         private static void TestBoard(GameCore core, Player p1, Player p2, List<CardData> cardsData)
         {
             // ---- 1. 布局静态：计数 / 语义格坐标 / 180° 对称 ----
@@ -1080,13 +1321,21 @@ namespace CardCore.Editor
                    && CardCore.Attribute.AtomicEffectTable.GetByEnumName("PierceDamage") != null
                    && CardCore.Attribute.AtomicEffectTable.GetByEnumName("SetCost") != null,
                    "新语义六原子已入表（剧毒指示物/毒素/沉默/净化/穿透/设置费用）");
+            // 三轨制同期（2026-09-09）：无效指示物（蓝3）入表 + 设置系三原子 handler 已注册复活
+            Assert(CardCore.Attribute.AtomicEffectTable.GetByEnumName("AddNullify") != null,
+                   "无效指示物原子已入表（蓝3，非启动式能力无法发动）");
+            Assert(CardCore.Attribute.EffectHandlerRegistry.TryGetHandler(CardCore.AtomicEffectType.SetPower, out _)
+                   && CardCore.Attribute.EffectHandlerRegistry.TryGetHandler(CardCore.AtomicEffectType.SetLife, out _)
+                   && CardCore.Attribute.EffectHandlerRegistry.TryGetHandler(CardCore.AtomicEffectType.SetCost, out _)
+                   && CardCore.Attribute.EffectHandlerRegistry.TryGetHandler(CardCore.AtomicEffectType.AddNullify, out _),
+                   "设置系三原子复活注册 + 无效原子注册（三轨制重建）");
 
             // ---- 维度有限域（宣言对象必须是有限明确范围；卡名等开放集被排除） ----
             Assert(ProphecyDimension.IsValidValue("Type", "Creature") && !ProphecyDimension.IsValidValue("Type", "Bogus"), "维度 Type 域校验");
             Assert(ProphecyDimension.IsValidValue("Color", "Red") && !ProphecyDimension.IsValidValue("Color", "Pink"), "维度 Color 域校验");
             Assert(ProphecyDimension.IsValidValue("CostParity", "Odd") && !ProphecyDimension.IsValidValue("CostParity", "Maybe"), "维度 CostParity 域校验");
             Assert(ProphecyDimension.IsValidValue("CostExact", "9") && !ProphecyDimension.IsValidValue("CostExact", "10"), "维度 CostExact 域 0..9");
-            Assert(ProphecyDimension.IsValidValue("LinkArrow", "NE") && !ProphecyDimension.IsValidValue("LinkArrow", "All"), "维度 LinkArrow 限单方向");
+            Assert(ProphecyDimension.IsValidValue("LinkArrow", "Up") && !ProphecyDimension.IsValidValue("LinkArrow", "All"), "维度 LinkArrow 限单方向（CardCore.HexDirection 成员名）");
             Assert(ProphecyDimension.TryParse("Type:Creature", out var dim, out var val) && dim == "Type" && val == "Creature", "编码解析 维度:值");
         }
 
@@ -1323,7 +1572,11 @@ namespace CardCore.Editor
                 }
                 var card = new CardWrapper(data);
                 card.SetController(p1);
-                core.ZoneManager.TryAddToBattlefield(card, p1);
+                // 经发动区真入场（CastPlayed 派生）：OnPlay 载荷过滤只认 CastPlayed——
+                // 直接 TryAddToBattlefield 是 TokenSpawned，冲锋/突袭的登场效果（OnPlay）不会触发
+                // （锚在 f1eb82c 写下时即用错路径，存量修正）
+                core.ZoneManager.GetZoneContainer(p1).Add(card, Zone.Activation);
+                core.ZoneManager.TryMoveToBattlefield(card, p1, Zone.Activation);
                 used.Add(card);
                 return card;
             }
@@ -1617,7 +1870,8 @@ namespace CardCore.Editor
                    "决策表：复生对摧毁效果死因生效（消耗回场，TryKill 返回未死）");
 
             // ---- 15c. 神佑（世界观定案：角色=普通生物单位，免疫来自状态而非硬编码） ----
-            // 剧毒已改指示物：神佑拦截"回合结束剧毒死亡"，状态可被净化剥除（剥除后剧毒致死）
+            // 剧毒已改指示物：神佑拦截"回合结束剧毒死亡"；神佑对净化有抗性（2026-09-09 定案：
+            // 净化剥神佑+剧毒组合无法计价平衡——剥除通路关闭，移除留给未来专用效果；RemoveKeyword 手工剥仍可）
             Assert(p1.HasKeyword(CardCore.Attribute.DeathRules.DivineProtection)
                    && p2.HasKeyword(CardCore.Attribute.DeathRules.DivineProtection),
                    "神佑：角色默认持有神佑状态");
@@ -1632,7 +1886,18 @@ namespace CardCore.Editor
             CardCore.Attribute.CounterRules.OnTurnEnd(p1, core.ZoneManager);
             Assert(p2.Life == 0, "神佑移除后：剧毒指示物对角色致死（免疫只来自状态）");
             p2.Life = 30;
-            p2.AddKeyword(CardCore.Attribute.DeathRules.DivineProtection);
+            p2.AddKeyword(CardCore.Attribute.DeathRules.DivineProtection, CardCore.KeywordLane.Status);
+            // 神佑抗净化锚：净化打在角色上清指示物/临时状态，但神佑保留
+            new CardCore.Attribute.Handlers.PurifyHandler().Execute(
+                new CardCore.AtomicEffectInstance { Type = CardCore.AtomicEffectType.Purify },
+                new CardCore.EffectExecutionContext
+                {
+                    Source = p1, Controller = p1,
+                    Targets = new List<Entity> { p2 },
+                    ZoneManager = core.ZoneManager
+                });
+            Assert(p2.HasKeyword(CardCore.Attribute.DeathRules.DivineProtection),
+                   "神佑抗净化：净化后神佑仍在（剥神佑+剧毒组合已堵死，移除留给未来专用效果）");
 
             // ---- 15d. 死亡归因全链路（2026-09-07 定案：死因/死亡来源/伤害来源/效果来源） ----
             // ① 生命流失：即时决策表死亡（非伤害、不可防止），Cause=LifeLoss、死亡来源=效果来源
@@ -1758,8 +2023,101 @@ namespace CardCore.Editor
             Assert(dizzy.GetCounterCount(CardCore.Attribute.KeywordRules.RushSicknessCounter) == 0,
                    "紊乱：持续到回合结束消退");
 
-            // ---- 19. 净化：去除目标全部关键词和指示物（含玩家神佑） ----
-            var cursed = Make(p2, 3, 6, "Taunt");
+            // ---- 18f. 三轨路由·生物轨（非永久档）：Source=生物卡 → 换区清层（来源归因规则①锁定） ----
+            var trackA = Make(p2, 2, 5);
+            var trackDefF = new EffectDefinition
+            {
+                Id = "VERIFY_TRACK_F",
+                TriggerTiming = TriggerTiming.Activate_Active,
+                Effects = new List<AtomicEffectInstance> { new AtomicEffectInstance { Type = AtomicEffectType.ModifyPower, Value = 2 } },
+            };
+            core.StackEngine.GetExecutor().ExecuteAsync(new EffectInstance
+            {
+                Definition = trackDefF,
+                Source = trackA, // 生物来源（规则①：生物发动的效果来源=该生物）
+                Controller = p2,
+                Targets = new List<Entity> { trackA },
+            }, skipElementCost: true).Forget();
+            Assert(trackA.GetCounterCount(CardCore.Attribute.CounterRules.PowerUpCounter) == 2 && trackA.GetPower() == 4,
+                   "三轨·生物轨：生物来源攻+2 走换区清层（PowerUp×2 加时回写，非永久默认档）");
+
+            // ---- 18g. 三轨路由·法术轨（设置类）：Source=角色 → 永久直改、跨区保留、净化不清 ----
+            var trackB = Make(p2, 2, 5);
+            var trackDefG = new EffectDefinition
+            {
+                Id = "VERIFY_TRACK_G",
+                TriggerTiming = TriggerTiming.Activate_Active,
+                Effects = new List<AtomicEffectInstance> { new AtomicEffectInstance { Type = AtomicEffectType.ModifyPower, Value = 3 } },
+            };
+            core.StackEngine.GetExecutor().ExecuteAsync(new EffectInstance
+            {
+                Definition = trackDefG,
+                Source = p1, // 魔法卡来源（规则②：所有魔法卡的效果来源=角色）
+                Controller = p1,
+                Targets = new List<Entity> { trackB },
+            }, skipElementCost: true).Forget();
+            Assert(trackB.GetCounterCount(CardCore.Attribute.CounterRules.PowerUpCounter) == 0
+                   && trackB.GetCounterCount(CardCore.Attribute.CounterRules.PowerUpPermanentCounter) == 0
+                   && trackB.GetPower() == 5,
+                   "三轨·法术轨：角色来源攻+3 永久直改（无任何指示物层）");
+            core.ZoneManager.MoveCard(trackB, p2, Zone.Battlefield, Zone.Hand);
+            Assert(trackB.GetPower() == 5,
+                   "三轨·法术轨：设置类跨区保留（弹回手不清）");
+            CardCore.Attribute.CounterRules.PurgeAll(trackB); // 净化口径全清指示物
+            Assert(trackB.GetPower() == 5,
+                   "三轨·法术轨：净化清不掉设置类属性（直改无层可回滚，视同本体）");
+            var trackB2 = Make(p2, 2, 5);
+            var trackDefG2 = new EffectDefinition
+            {
+                Id = "VERIFY_TRACK_G2",
+                TriggerTiming = TriggerTiming.Activate_Active,
+                Effects = new List<AtomicEffectInstance> { new AtomicEffectInstance { Type = AtomicEffectType.ModifyLife, Value = -5 } },
+            };
+            core.StackEngine.GetExecutor().ExecuteAsync(new EffectInstance
+            {
+                Definition = trackDefG2,
+                Source = p1,
+                Controller = p1,
+                Targets = new List<Entity> { trackB2 },
+            }, skipElementCost: true).Forget();
+            Assert(!trackB2.IsAlive && trackB2.GetCounterCount(CardCore.Attribute.CounterRules.LifeDownCounter) == 0,
+                   "三轨·法术轨：设置类生命直减归零标死（无层，交 SBA）");
+
+            // ---- 18h. 三轨路由·生物轨永久档：Duration=Permanent → Permanent 层（换区不清、净化清） ----
+            var trackC = Make(p2, 2, 5);
+            var trackDefH = new EffectDefinition
+            {
+                Id = "VERIFY_TRACK_H",
+                TriggerTiming = TriggerTiming.Activate_Active,
+                Effects = new List<AtomicEffectInstance> { new AtomicEffectInstance { Type = AtomicEffectType.ModifyPower, Value = 2, Duration = DurationType.Permanent } },
+            };
+            core.StackEngine.GetExecutor().ExecuteAsync(new EffectInstance
+            {
+                Definition = trackDefH,
+                Source = trackC, // 生物来源 + 永久赋予
+                Controller = p2,
+                Targets = new List<Entity> { trackC },
+            }, skipElementCost: true).Forget();
+            Assert(trackC.GetCounterCount(CardCore.Attribute.CounterRules.PowerUpPermanentCounter) == 2
+                   && trackC.GetCounterCount(CardCore.Attribute.CounterRules.PowerUpCounter) == 0
+                   && trackC.GetPower() == 4,
+                   "三轨·生物轨永久档：Duration=Permanent 走 PowerUpPermanent 层（单属性，不带动生命）");
+            core.ZoneManager.MoveCard(trackC, p2, Zone.Battlefield, Zone.Hand);
+            Assert(trackC.GetCounterCount(CardCore.Attribute.CounterRules.PowerUpPermanentCounter) == 2
+                   && trackC.GetPower() == 4 && trackC.GetMaxLife() == 5,
+                   "三轨·生物轨永久档：换区不清（±1/±1 双属性层不同——单属性永久层随卡走）");
+            CardCore.Attribute.CounterRules.PurgeAll(trackC);
+            Assert(trackC.GetCounterCount(CardCore.Attribute.CounterRules.PowerUpPermanentCounter) == 0
+                   && trackC.GetPower() == 2,
+                   "三轨·生物轨永久档：净化清（反向回写）——区别于设置类");
+
+            // ---- 19. 净化（2026-09-09 语义重定义：变回生物原有状态）----
+            // 关键词四轨矩阵：Printed（卡面本体）保留 / Setting（魔法卡赋予视同本体）保留 /
+            // Temp（临时）清 / GrantedPermanent（生物赋的永久）清；指示物全清（含永久层）。
+            var cursed = Make(p2, 3, 6, "Taunt"); // Taunt=Printed（CardWrapper 构造注入）
+            cursed.AddKeyword("Stealth", CardCore.KeywordLane.Temp);                    // 临时轨
+            cursed.AddKeyword("Indestructible", CardCore.KeywordLane.GrantedPermanent); // 生物赋的永久
+            cursed.AddKeyword("Vigilance", CardCore.KeywordLane.Setting);               // 设置类（视同本体）
             cursed.AddCounters(CardCore.Attribute.CounterRules.ToxinCounter, 2,
                 turns: CardCore.Attribute.CounterRules.Find(CardCore.Attribute.CounterRules.ToxinCounter).Turns);
             cursed.AddCounters(CardCore.Attribute.KeywordRules.ArmorCounter, 3);
@@ -1776,10 +2134,68 @@ namespace CardCore.Editor
                 Controller = p1,
                 Targets = new List<Entity> { cursed },
             }, skipElementCost: true).Forget();
-            Assert(!cursed.HasKeyword("Taunt")
-                   && cursed.GetCounterCount(CardCore.Attribute.CounterRules.ToxinCounter) == 0
+            Assert(cursed.HasKeyword("Taunt") && cursed.HasKeyword("Vigilance")
+                   && !cursed.HasKeyword("Stealth") && !cursed.HasKeyword("Indestructible"),
+                   "净化四轨矩阵：本体与设置类保留，临时/生物永久赋予清除");
+            Assert(cursed.GetCounterCount(CardCore.Attribute.CounterRules.ToxinCounter) == 0
                    && cursed.GetCounterCount(CardCore.Attribute.KeywordRules.ArmorCounter) == 0,
-                   "净化：关键词与全部指示物清空");
+                   "净化：全部指示物清空（含永久类，属性层反向回写）");
+
+            // ---- 19b. 关键词换区清除（三轨制定案）：Temp 换区清、Printed 换区留 ----
+            var zoneKw = Make(p2, 2, 4, "Taunt");
+            zoneKw.AddKeyword("Stealth", CardCore.KeywordLane.Temp);
+            zoneKw.AddKeyword("FirstStrike", CardCore.KeywordLane.GrantedPermanent);
+            core.ZoneManager.MoveCard(zoneKw, p2, Zone.Battlefield, Zone.Hand);
+            Assert(!zoneKw.HasKeyword("Stealth")
+                   && zoneKw.HasKeyword("Taunt") && zoneKw.HasKeyword("FirstStrike"),
+                   "换区清关键词：Temp 轨清除；Printed 与 GrantedPermanent（换区不清档）保留");
+
+            // ---- 19c. 生物轨永久档属性层：Permanent 层换区不清、净化清 ----
+            var permBuff = Make(p2, 2, 4);
+            CardCore.Attribute.CounterRules.AddStatCounter(permBuff,
+                CardCore.Attribute.CounterRules.PowerUpPermanentCounter, 2, p1);
+            CardCore.Attribute.CounterRules.AddStatCounter(permBuff,
+                CardCore.Attribute.CounterRules.LifeUpPermanentCounter, 1, p1);
+            Assert(permBuff.GetPower() == 4 && permBuff.GetMaxLife() == 5,
+                   "永久档属性层：加时回写（与换区清层同粒度）");
+            core.ZoneManager.MoveCard(permBuff, p2, Zone.Battlefield, Zone.Hand);
+            Assert(permBuff.GetCounterCount(CardCore.Attribute.CounterRules.PowerUpPermanentCounter) == 2
+                   && permBuff.GetPower() == 4,
+                   "永久档属性层：换区不清（生物赋的永久属性随卡走）");
+            CardCore.Attribute.KeywordRules.PurifyKeywords(permBuff);
+            CardCore.Attribute.CounterRules.PurgeAll(permBuff);
+            Assert(permBuff.GetCounterCount(CardCore.Attribute.CounterRules.PowerUpPermanentCounter) == 0
+                   && permBuff.GetPower() == 2,
+                   "永久档属性层：净化清（反向回写）");
+
+            // ---- 19d. 入场刷新（2026-09-09 定案）：真实入场补回被消耗的卡面关键词（Printed 差集）；
+            //      复生（原地留场）与控制权变更（容器直移）不经统一出口，天然不触发 ----
+            var refreshShield = Make(p2, 2, 5, "DivineShield");
+            CardCore.Attribute.KeywordRules.ApplyDamage(p1, refreshShield, 1, false);
+            Assert(!refreshShield.HasKeyword("DivineShield") && refreshShield.GetLife() == 5,
+                   "入场刷新前置：圣盾挡一次伤害后消耗（关键词移除、伤害被完全挡下）");
+            core.ZoneManager.MoveCard(refreshShield, p2, Zone.Battlefield, Zone.Hand); // 弹回手
+            core.ZoneManager.TryAddToBattlefield(refreshShield, p2);                   // 真实入场（统一出口）
+            Assert(refreshShield.HasKeyword("DivineShield"),
+                   "入场刷新：弹回重打补回被消耗的卡面圣盾（Printed 轨差集补齐）");
+
+            var refreshReborn = Make(p2, 2, 5, "Reborn");
+            CardCore.Attribute.DeathRules.TryKill(refreshReborn, CardCore.Attribute.DeathCause.DamageLethal, p1, core.ZoneManager);
+            Assert(refreshReborn.IsAlive && refreshReborn.GetLife() == 1 && !refreshReborn.HasKeyword("Reborn"),
+                   "复生不触发刷新：死亡替代原地留场（不经入场口），消耗后不自我补回（无无限复生）");
+
+            var refreshStolen = Make(p1, 2, 5, "DivineShield");
+            CardCore.Attribute.KeywordRules.ApplyDamage(p2, refreshStolen, 1, false); // 消耗圣盾
+            new CardCore.Attribute.Handlers.GainControlHandler().Execute(
+                new CardCore.AtomicEffectInstance { Type = CardCore.AtomicEffectType.GainControl },
+                new CardCore.EffectExecutionContext
+                {
+                    Source = p2, Controller = p2,
+                    Targets = new List<Entity> { refreshStolen },
+                    ZoneManager = core.ZoneManager
+                });
+            Assert(!refreshStolen.HasKeyword("DivineShield"),
+                   "控制权变更不触发刷新：场内迁移（容器直移+补发事件）不补回消耗项（偷取不白得圣盾）");
 
             // ---- 20. 沉默指示物：持有者不可发动主动效果（激活式能力路径） ----
             var silenced = Make(p1, 2, 5);
@@ -1796,6 +2212,49 @@ namespace CardCore.Editor
             bool afterSilence = executor.CanActivate(activatable, silenced, p1, p1, PhaseType.Main, 1);
             Assert(beforeSilence && !afterSilence,
                    "沉默：持有者激活式能力被封锁（出牌不受限——PlayCard 不经此门）");
+
+            // ---- 20b. 无效指示物：拦全部触发式（事件匹配后、上栈前——含 OnTakeDamage 族） ----
+            var nullified = Make(p2, 2, 9);
+            var nullTrigDef = new EffectDefinition
+            {
+                Id = "VERIFY_NULLIFY_TRIG",
+                TriggerTiming = TriggerTiming.OnTakeDamage,
+                Effects = new List<AtomicEffectInstance> { new AtomicEffectInstance { Type = AtomicEffectType.DrawCard, Value = 1 } },
+            };
+            core.TriggerEngine.RegisterEffect(nullTrigDef, nullified, p2);
+            nullified.AddCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1, p1);
+            int p2HandAtNullify = core.ZoneManager.GetCards(p2, Zone.Hand).Count;
+            CardCore.Attribute.KeywordRules.ApplyDamage(p1, nullified, 1, false);
+            GameActions.DrainStack(core);
+            Assert(core.ZoneManager.GetCards(p2, Zone.Hand).Count == p2HandAtNullify,
+                   "无效：非启动式（触发式）被拦——受击触发不上栈");
+            // 对照：无效消退后同一触发照常上栈结算
+            nullified.RemoveCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1);
+            CardCore.Attribute.KeywordRules.ApplyDamage(p1, nullified, 1, false);
+            GameActions.DrainStack(core);
+            Assert(core.ZoneManager.GetCards(p2, Zone.Hand).Count == p2HandAtNullify + 1,
+                   "无效消退后：同一触发照常上栈（对照锚，证明 20b 拦截来自无效指示物本身）");
+
+            // ---- 20c. 无效不拦启动式（与沉默对照：沉默拦启动式、无效拦非启动式，互不重叠） ----
+            var nullActivated = Make(p1, 2, 5);
+            var nullActDef = new EffectDefinition
+            {
+                Id = "VERIFY_NULLIFY_ACT",
+                TriggerTiming = TriggerTiming.Activate_Active,
+                ActivationType = EffectActivationType.Voluntary,
+                Effects = new List<AtomicEffectInstance> { new AtomicEffectInstance { Type = AtomicEffectType.Tap } },
+            };
+            nullActivated.AddCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1);
+            bool canActUnderNullify = executor.CanActivate(nullActDef, nullActivated, p1, p1, PhaseType.Main, 1);
+            Assert(canActUnderNullify,
+                   "无效：启动式照常可发动（拦截面与沉默互补不重叠）");
+
+            // ---- 20d. 无效不拦伤害管线被动（坚韧/圣盾等非「能力发动」；回合维护再生/成长同口径） ----
+            var nullTough = Make(p2, 3, 8, "Armor"); // 坚韧：每次受伤 −1
+            nullTough.AddCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1);
+            CardCore.Attribute.KeywordRules.ApplyDamage(p1, nullTough, 3, false);
+            Assert(nullTough.GetLife() == 6,
+                   "无效：伤害管线被动照常（坚韧减伤不受无效影响）");
 
             // ---- 21. 摧毁：无生命值单位（地牌）出池直送墓地，不走死亡决策表 ----
             Card landTarget = null;
@@ -2282,8 +2741,8 @@ namespace CardCore.Editor
             // ---- 表值 ----
             Assert(CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.Heal)?.BaseCost == 0.5f,
                    "计价锚：Heal BaseCost=0.5（回2命=1费）");
-            Assert(ElementAffinities.GetAffinityForEffect(AtomicEffectType.GrantTaunt).PrimaryColor == ManaType.Gray,
-                   "计价锚：GrantTaunt(表 White) 归一为灰");
+            Assert(ElementAffinities.GetAffinityForEffect(AtomicEffectType.GrantTaunt).PrimaryColor == ManaType.Green,
+                   "计价锚：GrantTaunt 表 Green（2026-09-02 关键词纯三色迁移后；锚原按 White→灰 已过期）");
             var dd = ValueSystemConfigManager.Instance.GetOrCreateConfig().DelayDiscountConfig;
             Assert(System.Math.Abs(dd.At(1) - 1f) < 1e-4 && System.Math.Abs(dd.At(5) - 0.875f) < 1e-4
                    && System.Math.Abs(dd.At(9) - 0.75f) < 1e-4 && System.Math.Abs(dd.At(12) - 0.75f) < 1e-4,
@@ -2368,10 +2827,10 @@ namespace CardCore.Editor
             // ---- 关键词计价：Grant 固定费 + 随整卡同折（挂载口退费并存）----
             var kwCard = MakeCostCard(Cardtype.Creature, 1, 1);
             kwCard.Keywords.Add("Taunt");
-            kwCard.Cost[(int)ManaType.Gray] = 1;
+            kwCard.Cost[(int)ManaType.Green] = 1; // 嘲讽表色已迁 Green（09-02）——K 落绿桶
             var kw = CardCostService.Derive(kwCard);
-            Assert(kw.DerivedTotal == 0 && kw.OffsetRequirement == 0,
-                   "计价锚：嘲讽 K=1（White→灰）d(1)=1，两口空退2 → D=0");
+            Assert(kw.DerivedTotal == 1 && kw.OffsetRequirement == 0,
+                   "计价锚：嘲讽 K=1（表 Green→绿）d(1)=1，两口空退2（灰下限0）→ D=绿1=声明费");
             var kwBig = MakeCostCard(Cardtype.Creature, 9, 9);
             kwBig.Keywords.Add("Taunt");
             kwBig.Cost[(int)ManaType.Gray] = 9;
@@ -2408,7 +2867,7 @@ namespace CardCore.Editor
                    "溢出治疗：满血30回复4 → LifeUp×2 → 32/32（偶溢出均分仍满）");
             var partialHeal = new Player("VERIFY_OVERFLOW3", 30);
             partialHeal.Life = 28;
-            partialHeal.Heal(3);
+            partialHeal.Heal(2); // 恰好补满（28+2=30，无溢出）——原用 Heal(3) 实溢出1会按定案转层
             Assert(partialHeal.MaxHealth == 30 && partialHeal.Life == 30
                    && partialHeal.GetCounterCount(CardCore.Attribute.CounterRules.LifeUpCounter) == 0,
                    "常规治疗：未溢出照旧封顶（不触发层）");
@@ -2429,6 +2888,32 @@ namespace CardCore.Editor
             CardCore.Attribute.CounterRules.PurgeAll(permCard); // 净化口径
             Assert(permCard.GetCounterCount("Awakening") == 0,
                    "永久类：净化全清（效果级移除是永久层唯一清除口）");
+
+            // ---- 三轨计价（2026-09-09 定案）：法术宿主按永久档 / 生物按表默认档 / 光环按单回合档 ----
+            // ① 同文本「攻+2」：生物宿主 E=round(1×2×1)=2（表默认 UntilEndOfTurn）；
+            //    法术宿主 E=round(1×2×1.0/0.6)=3（设置类=永久，按永久档估算——×1.67 加价）
+            var pricingSpell = MakeCostCard(Cardtype.Spell, null, null, MakeEffect("ModifyPower", 2));
+            var pricingCreature = MakeCostCard(Cardtype.Creature, null, null, MakeEffect("ModifyPower", 2));
+            var psR = CardCostService.Derive(pricingSpell);
+            var pcR = CardCostService.Derive(pricingCreature);
+            Assert(pcR.EAnchor == 2 && psR.EAnchor == 3,
+                   $"三轨计价·轨别档位：同文本攻+2 生物宿主 E=2 / 法术宿主（永久档）E=3（实际 {pcR.EAnchor}/{psR.EAnchor}）");
+
+            // ② 连接光环费 A：linkAuras 按**单回合指示物档**计价（来源须持续在场的折价）——
+            //    stat 行=ModifyPower 代表原子 ×(0.6/0.6)=1；keyword 行=Grant 固定费 ×(0.6/1.0)=0.6
+            var auraCard = MakeCostCard(Cardtype.Creature, 2, 2);
+            var auraBase = CardCostService.Derive(auraCard);
+            auraCard.ArrowDirections = HexDirection.Up;
+            auraCard.LinkAuras.Add(new LinkAuraData { stat = "Power", value = 1 });
+            auraCard.LinkAuras.Add(new LinkAuraData { keyword = "Taunt" });
+            var auraR = CardCostService.Derive(auraCard);
+            var aLines = auraR.Breakdown.Where(l => l.Stage == "A").ToList();
+            Assert(aLines.Count == 2
+                   && System.Math.Abs(aLines[0].Value - 1f) < 1e-3       // Power1：1×(0.6/0.6)
+                   && System.Math.Abs(aLines[1].Value - 0.6f) < 1e-3,    // Taunt：1×(0.6/1.0)
+                   "三轨计价·光环档：linkAuras 单回合档计价（stat=代表原子相对系数 / keyword=Grant 固定费×0.6）");
+            Assert(auraR.DerivedTotal >= auraBase.DerivedTotal,
+                   "三轨计价·光环档：光环费并入推导费（不白送）");
         }
 
         // ======================================== 时点接线（P0）/ 衍生物（P1）/ 计数与日志（P2） ========================================

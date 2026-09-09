@@ -235,8 +235,9 @@ namespace CardCore
             _completed.Add(aura);
 
             // 完成态：不可摧毁 + 不受其他卡效果影响（destroy 路径与目标校验均检查这两个关键词）
-            ritual.Card.AddKeyword(KeywordRules.Indestructible);
-            ritual.Card.AddKeyword(KeywordRules.Untargetable);
+            // 轨别=Setting（完成态视同本体——净化/换区都不清，三轨制定案）
+            ritual.Card.AddKeyword(KeywordRules.Indestructible, KeywordLane.Setting);
+            ritual.Card.AddKeyword(KeywordRules.Untargetable, KeywordLane.Setting);
 
             if (_auras.TryGetValue(ritual.Definition?.aura?.effectId ?? "", out var component))
                 component.OnCompleted(aura);

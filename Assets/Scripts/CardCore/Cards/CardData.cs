@@ -183,6 +183,21 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 连接光环声明（三轨制定案 2026-09-09）：箭头指向格的当前占据者享受的持续效果——
+        /// 属性修正（stat="Power"|"Life" + value）或关键词（keyword=id），与 stat 二选一。
+        /// 光环=live-query（LinkAuraSystem 实时计算）：断链/来源离场/来源被无效即失效；
+        /// 受益者身上的净化/沉默/无效不能干扰光环（只有「无效」作用于来源能压制）。
+        /// 计价按单回合指示物档（来源须持续在场的折价）。
+        /// </summary>
+        [SerializeField]
+        private List<LinkAuraData> _linkAuras;
+        public List<LinkAuraData> LinkAuras
+        {
+            get => _linkAuras ?? (_linkAuras = new List<LinkAuraData>());
+            set => _linkAuras = value;
+        }
+
+        /// <summary>
         /// 总费用计算
         /// </summary>
         [NonSerialized]
@@ -428,6 +443,22 @@ namespace CardCore
     }
 
     /// <summary>
+    /// 连接光环声明条目（三轨制定案 2026-09-09）：箭头指向格的占据者享受的持续效果。
+    /// stat（"Power"|"Life"）+value 与 keyword 二选一；空 stat 且空 keyword = 无效条目（加载时忽略）。
+    /// 光环轨 live-query（LinkAuraSystem），断链/离场/来源被无效即失效。
+    /// </summary>
+    [Serializable]
+    public class LinkAuraData
+    {
+        /// <summary>属性名："Power" 或 "Life"（空 = 关键词条目）</summary>
+        public string stat;
+        /// <summary>数值幅度（stat 条目的 ±修正量）</summary>
+        public int value;
+        /// <summary>关键词 id（与 stat 二选一；光环期间 HasKeyword=true，不进 _keywords）</summary>
+        public string keyword;
+    }
+
+    /// <summary>
     /// 卡牌效果数据 —— 描述卡牌的一个完整效果
     /// 包含触发时点、条件、代价、以及有序的原子效果列表
     /// 转换后成为一个 EffectDefinition
@@ -515,12 +546,13 @@ namespace CardCore
 
         void IHasKeywords.AddKeyword(string keywordId)
         {
-            _keywords.Add(keywordId);
+            // 经扩展咽喉入账（轨别=Temp 兜底；台账同步——原直加绕过台账会被清除口径漏计）
+            EntityEffectExtensions.AddKeyword(this, keywordId, KeywordLane.Temp);
         }
 
         void IHasKeywords.RemoveKeyword(string keywordId)
         {
-            _keywords.Remove(keywordId);
+            EntityEffectExtensions.RemoveKeyword(this, keywordId);
         }
 
         bool IHasKeywords.HasKeyword(string keywordId)
@@ -570,10 +602,12 @@ namespace CardCore
             // 初始化运行时效果列表（由 CardEffectConverter 在 PlayCard 时填充）
             _runtimeEffects = new List<IEffect>();
 
-            // 注入关键词到 Card._keywords（与 EntityEffectExtensions 统一）
+            // 注入关键词到 Card._keywords（与 EntityEffectExtensions 统一）——
+            // 轨别=Printed（卡面本体：净化/换区都不清，三轨制定案）
             foreach (var kw in data.Keywords)
             {
                 _keywords.Add(kw);
+                _keywordGrants.Add(new KeywordGrant { Keyword = kw, Lane = KeywordLane.Printed });
             }
         }
 

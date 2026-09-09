@@ -46,6 +46,21 @@ namespace SynergyUI
             }
             sb.Append('|');
 
+            // 连接光环声明影响功能（三轨制 2026-09-09）——**条件追加**：空表不写 LA: 段，
+            // 保既有 125 张卡（无箭头/无光环）ID 不漂移（CardCatalog 存量去重依赖 ID 稳定）。
+            var auras = card.LinkAuras;
+            if (auras != null && auras.Count > 0)
+            {
+                sb.Append("LA:");
+                foreach (var aura in auras)
+                {
+                    if (aura == null) continue;
+                    sb.Append(aura.stat ?? "").Append('=').Append(aura.value)
+                      .Append('#').Append(aura.keyword ?? "").Append(',');
+                }
+                sb.Append('|');
+            }
+
             sb.Append("FX:");
             if (card.Effects != null)
             {
