@@ -199,6 +199,7 @@
     <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\SecondBatchEffectHandlers.cs" />
     <Compile Include="Assets\UI\Data\EffectGraphData.cs" />
     <Compile Include="Assets\Scripts\CardCore\GameCore\GameState.cs" />
+    <Compile Include="Assets\Scripts\CardCore\Effects\CardIdentityService.cs" />
     <Compile Include="Assets\Scripts\CardCore\Events\GameEvents.cs" />
   </ItemGroup>
   <ItemGroup>

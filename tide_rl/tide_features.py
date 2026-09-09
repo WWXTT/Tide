@@ -11,9 +11,21 @@ TideObservation 产出的扁平特征向量：
 import numpy as np
 
 # ---- 维度常量（与 TideObservation.cs 同步）----
-N_CARD_FEATURES = 20
+N_CARD_FEATURES = 24
+# 内容身份下标槽（原子级拆散，TideObservation [15..23]）：[15..20] 六个原子内容哈希下标
+# （跨效果按执行序展平，槽位即顺序）、[21] 组合结构哈希、[22] 关键词/tag/光环组合哈希、
+# [23] 预留（CardIdentityService 推导、TideCardIndex 注册）。0 = 无该成分/token/未登记。
+# 只用作 embedding 查表下标（encoder masked-sum + 槽位位置标记组合），不进 Dense——
+# 下标不是幅值。同原子（如 造成伤害4）跨卡共享 embedding 行——相近效果在原子层重叠。
+CARD_ID_START = 15
+N_ID_SLOTS = 9
+# 身份 embedding 表大小，与 C# TideCardIndex.Capacity 对齐（超出容量 C# 侧记 0）
+N_CARD_POOL = 256
 MAX_CARDS = 80
-MAX_ACTIONS = 24  # 初始值，实际由枚举器决定
+# 动作截断上限：攻击动作 = 攻击方 × (对方随从 + 玩家)，8v8 场面就 ~72 个，64 会截掉
+# 真实动作（含末位的 EndTurn——Unity 侧 MaxActionsPerTurn 强制收口兜底但不干净）；
+# 128 覆盖 10v10 以内（超出部分仅不可选，不影响正确性）。Unity 侧发全量无截断。
+MAX_ACTIONS = 128
 N_ACTION_FEATURES = 6
 N_GLOBAL_FEATURES = 32
 N_HISTORY_ACTIONS = 32

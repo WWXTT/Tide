@@ -463,7 +463,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 5.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -905,7 +905,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 4.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],

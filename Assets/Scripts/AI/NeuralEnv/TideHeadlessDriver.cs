@@ -18,6 +18,7 @@ namespace CardCore.AI.NeuralEnv
         public Player Winner;               // 终局胜者（未结束为 null）
         public string Reason;               // 终局原因（未结束为 null）
         public int Turn;                    // 当前全局回合数
+        public int ModelSeat;               // 模型座次（0=P1 先手 / 1=P2）；自对弈为 -1
     }
 
     /// <summary>
@@ -44,6 +45,8 @@ namespace CardCore.AI.NeuralEnv
         private const float ShapingLambda = 0.05f;   // 塑形系数（终端 ±1 恒为主导）
         private const int MaxSettleAttempts = 32;    // 排干栈重试上限（镜像 SimpleAI）
         private const int PhaseAdvanceGuard = 64;    // 阶段推进循环保险
+        private const float NoProgressPenalty = 0.05f; // 无进展动作扣分（即时信号：引导避开无效动作）
+        private const int MaxActionsPerTurn = 64;      // 单回合动作数上限（防换状态翻转死循环的保险）
 
         private GameCore _core;
         private GameBoard.BoardState _board;
@@ -52,8 +55,24 @@ namespace CardCore.AI.NeuralEnv
         private Player _winner;
         private string _reason;
 
+        // vs SimpleAI 对手位：_modelPlayer != null 时，非模型回合由 SimpleAI 整回合自动打
+        private Player _modelPlayer;
+        private BattleController _aiCtrl;
+        private readonly SimpleAI _simpleAI = new SimpleAI();
+
+        // 回合内无进展防护：引擎拒绝（枚举/引擎口径漂移）的动作按签名本回合摘除 + 小额扣分——
+        // 否则确定性策略会无限重选同一无效动作，回合冻结烧满步数上限、对局永不自然终局
+        private readonly HashSet<string> _bannedThisTurn = new HashSet<string>();
+        private int _banTurnStamp = -1;
+        private int _actionsThisTurn;
+
         public bool IsGameOver => _gameOver;
         public Player Winner => _winner;
+
+        /// <summary>模型座次（0=P1 先手 / 1=P2）；自对弈为 -1。协议 info.modelSeat 用。</summary>
+        public int ModelSeat
+            => _modelPlayer == null || _core == null ? -1
+             : (ReferenceEquals(_modelPlayer, _core.Player1) ? 0 : 1);
 
         public TideHeadlessDriver()
         {
@@ -61,8 +80,19 @@ namespace CardCore.AI.NeuralEnv
             EventManager.Instance.Subscribe<GameOverEvent>(OnGameOver);
         }
 
-        /// <summary>初始化一局（双方同卡组自对弈入口；deck 可为不同卡组）。返回首个决策点观测。</summary>
+        /// <summary>初始化一局（自对弈：双方座位都由模型驱动）。返回首个决策点观测。</summary>
         public TideStepResult Reset(List<CardData> deck1, List<CardData> deck2)
+            => ResetCore(deck1, deck2, null);
+
+        /// <summary>
+        /// 初始化一局 vs SimpleAI：modelIsP1 指定模型座次，另一座位整回合由 SimpleAI 自动打。
+        /// obs/合法动作/reward 恒为模型视角（对手回合在内部自动完成，Python 只见模型决策点）；
+        /// 非终局塑形的 ΔΦ 口径随之变为「模型行动 + 对手整回合响应」的弧长，终局 ±1 仍按模型胜负。
+        /// </summary>
+        public TideStepResult Reset(List<CardData> deck1, List<CardData> deck2, bool modelIsP1)
+            => ResetCore(deck1, deck2, modelIsP1);
+
+        private TideStepResult ResetCore(List<CardData> deck1, List<CardData> deck2, bool? modelIsP1)
         {
             // 变形目标形态解析器：组合根注入（镜像 AiBattleDriver / BattleController）
             CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
@@ -71,6 +101,8 @@ namespace CardCore.AI.NeuralEnv
             _core.InitGame(CardLoader.BuildDeck(deck1, 1), CardLoader.BuildDeck(deck2, 1));
             _core.Player1.IsAI = true; // 目标/范围选择自动应答（不弹窗，异步同步完成）
             _core.Player2.IsAI = true;
+            _modelPlayer = modelIsP1.HasValue ? (modelIsP1.Value ? _core.Player1 : _core.Player2) : null;
+            _aiCtrl = modelIsP1.HasValue ? new BattleController() : null;
 
             // 棋盘占用层（派生，单向读核心）：为碾压关键词注入邻接解析 + 连接光环接线（核心不绑棋盘，宿主接线）
             _board?.Dispose();
@@ -84,6 +116,8 @@ namespace CardCore.AI.NeuralEnv
             _gameOver = false;
             _winner = null;
             _reason = null;
+            _bannedThisTurn.Clear(); // 新对局：无进展防护状态归零（stamp 由 BuildResult 兜底重置）
+            _actionsThisTurn = 0;
 
             AdvanceToDecision();
             return BuildResult(0f);
@@ -102,7 +136,17 @@ namespace CardCore.AI.NeuralEnv
                 return BuildResult(0f);
 
             var a = _legal.Actions[actionIndex];
-            if (a.Type == TideActionType.EndTurn)
+            _actionsThisTurn++;
+
+            if (_actionsThisTurn > MaxActionsPerTurn)
+            {
+                // 保险：同回合动作数超限（如换状态翻转的死循环、EndTurn 被静默拒绝）→
+                // 视同 EndTurn 强制收口，保证回合流动（疲劳/战斗最终能终结对局）
+                ResolveCombat();
+                if (!_gameOver) GameActions.DrainStack(_core, 64);
+                if (!_gameOver) GameActions.EndTurn(_core, me);
+            }
+            else if (a.Type == TideActionType.EndTurn)
             {
                 // EndTurn（镜像 SimpleAI 收尾时序，全部落在 Main 相位内）：
                 //   先结算本回合已宣言的攻击（伤害落地）→ 排干死亡触发 → 才 EndTurn（Main→End）。
@@ -113,9 +157,17 @@ namespace CardCore.AI.NeuralEnv
             }
             else
             {
-                // 应用动作（引擎拒绝则静默——奖励 0 重观测，不推进）
-                LegalActionEnumerator.Apply(_core, me, a);
+                bool ok = LegalActionEnumerator.Apply(_core, me, a);
                 if (!_gameOver) GameActions.DrainStack(_core, MaxSettleAttempts);
+
+                if (!ok)
+                {
+                    // 引擎拒绝（枚举/引擎口径漂移）：本回合摘除该动作（重观测不再出现）+ 小额扣分，
+                    // 不推进。摘除保证最坏情况把无效动作各试一次后只剩 EndTurn → 回合必然流动。
+                    _bannedThisTurn.Add(a.Signature);
+                    _legal.RemoveAll(_bannedThisTurn);
+                    return BuildResult(NoProgressPenalty);
+                }
             }
 
             // 推进到下一决策点（End→Standby 折返 / Standby→Main / 回合初横置；可能触发疲劳判负）
@@ -160,12 +212,21 @@ namespace CardCore.AI.NeuralEnv
         ///   Standby → SkipElementPool → 回合初横置产费 → Main；
         ///   End → CheckPhaseTransition → 下一回合 Standby（循环折返）；
         ///   已在 Main → 直接返回。
+        /// vs SimpleAI 模式：非模型回合不逐相位推进，直接整回合交给 SimpleAI（镜像 AiBattleDriver）。
         /// </summary>
         private void AdvanceToDecision()
         {
             for (int i = 0; i < PhaseAdvanceGuard && !_gameOver; i++)
             {
                 var me = _core.TurnEngine.TurnPlayer;
+
+                // vs SimpleAI：对手回合整段自动打（TakeTurn 自带回合准备与 EndTurn，不折返）
+                if (_modelPlayer != null && me != _modelPlayer)
+                {
+                    RunSimpleAiTurn();
+                    continue;
+                }
+
                 var phase = _core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Standby;
                 if (phase == PhaseType.Main) return;
                 if (phase == PhaseType.Standby)
@@ -183,6 +244,28 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
+        /// <summary>
+        /// SimpleAI 整回合驱动（镜像 AiBattleDriver 时序）：TakeTurn 内部完成回合准备 →
+        /// 动作耗尽 → 战斗 → EndTurn（只推进到 End 相位），此处补一次 CheckPhaseTransition
+        /// 完成 End→Standby 折返。异常不炸训练服务：按异常中止收口（无胜者 → Python 记平局）。
+        /// </summary>
+        private void RunSimpleAiTurn()
+        {
+            try
+            {
+                _simpleAI.TakeTurn(_aiCtrl);
+                if (!_gameOver)
+                    _core.TurnEngine.CheckPhaseTransition();
+            }
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogError($"[TideHeadless] SimpleAI 回合异常: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+                _gameOver = true;
+                _winner = null;
+                _reason = "SimpleAIError";
+            }
+        }
+
         /// <summary>战斗结算（镜像 BattleController.ResolveCombat）：EndAttackDeclaration → EndBlockDeclaration 伤害落地。</summary>
         private void ResolveCombat()
         {
@@ -195,9 +278,19 @@ namespace CardCore.AI.NeuralEnv
 
         private TideStepResult BuildResult(float reward)
         {
+            // 回合切换：清空摘除表与动作计数（新回合同一动作可能重新合法——地牌重置/新抽牌等）
+            int turn = _core.TurnEngine.TurnNumber;
+            if (_banTurnStamp != turn)
+            {
+                _banTurnStamp = turn;
+                _bannedThisTurn.Clear();
+                _actionsThisTurn = 0;
+            }
+
             var obs = TideObservation.Build(_core);
             _legal = new LegalActionEnumerator();
             _legal.Enumerate(_core, _core.TurnEngine.TurnPlayer);
+            _legal.RemoveAll(_bannedThisTurn); // 本回合已判无效的动作不再出现在选项表
             return new TideStepResult
             {
                 Obs = obs,
@@ -207,6 +300,7 @@ namespace CardCore.AI.NeuralEnv
                 Winner = _winner,
                 Reason = _reason,
                 Turn = _core.TurnEngine.TurnNumber,
+                ModelSeat = ModelSeat,
             };
         }
 

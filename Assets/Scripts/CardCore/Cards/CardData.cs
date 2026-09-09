@@ -90,6 +90,29 @@ namespace CardCore
         [NonSerialized]
         internal List<Dictionary<int, float>> ModeCostCache;
 
+        // 内容身份（2026-09-09 定案，CardIdentityService 与 EnsureCost 同管线推导）：拆散到原子级——
+        // 原子哈希数组（跨效果按执行序展平）+ 组合结构哈希 + 关键词/tag/光环组合哈希，全部混入
+        // 原子表指纹。观测侧（TideObservation [15..22]）据此查 embedding，同原子跨卡共享行。
+        // 属性不进身份（obs 实时特征已有，不重复）。
+        // 不随 ResetCache 失效：身份只依赖效果数据与原子表，与费用缓存失效口径无关。
+        [NonSerialized]
+        internal ulong[] _atomContentHashes;
+        [NonSerialized]
+        internal ulong _structureContentHash;
+        [NonSerialized]
+        internal ulong _compositionContentHash;
+
+        public ulong[] AtomContentHashes => _atomContentHashes;
+        public ulong StructureContentHash => _structureContentHash;
+        public ulong CompositionContentHash => _compositionContentHash;
+
+        internal void SetIdentity(ulong[] atomHashes, ulong structureHash, ulong compositionHash)
+        {
+            _atomContentHashes = atomHashes;
+            _structureContentHash = structureHash;
+            _compositionContentHash = compositionHash;
+        }
+
         /// <summary>
         /// 效果列表
         /// </summary>

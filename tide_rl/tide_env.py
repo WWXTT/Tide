@@ -1,124 +1,191 @@
 """
-Tide Gymnasium 环境：通过 stdio 与 Unity batchmode 桥接。
+Tide Gymnasium 环境：自动拉起 Unity batchmode，经 TCP 桥接（TideEnvTcp 协议）。
 
-Protocol:
-- reset: {"op":"reset","deck1":[...],"deck2":[...]} → obs + info
+为什么是 TCP 而不是 stdio：实测（Unity 6000.5.8f1 -batchmode -logFile）Unity 会把
+stdout 并入日志文件，管道侧收不到任何响应 → stdio 协议不可用。batchmode 入口
+TideHeadlessServer.Main 起 TcpListener，端口经 -tidePort <n> 传入（本模块随机选）。
+
+Protocol（每行一条 JSON，与编辑器 TCP 路径完全一致）:
+- reset: {"op":"reset"} → obs + info（卡组与先后手由 Unity 侧随机化：
+        标准池抽 30 张 + 随机换座，见 TideHeadlessServer.HandleReset）
 - step:  {"op":"step","action":N} → obs, reward, done, info
 
-Obs dict 契约（对齐 ygo-agent）:
-{
-    "cards_": (80, 20),
-    "global_": (32,),
-    "actions_": (max_actions, 6),
-    "h_actions_": None or (32, 14)
-}
+reward 直接采用 Unity 响应的 reward 字段（actor-centric 权威口径：
+终局 ±1 归属「刚行动的一方」；非终局 λ·ΔΦ 势能塑形，λ 固定在 Unity 侧
+TideHeadlessDriver.ShapingLambda=0.05）。Python 侧只保留超时判负。
+
+进程生命周期：
+- 惰性启动：首次 reset 才拉起 Unity batchmode，之后跨局复用（协议 reset 本身
+  就是完整重开一局，进程重启一次要 30~60s，纯属浪费）；
+- 启动前清理上次残留：pidfile 记录 + 命令行匹配（本工程 + TideHeadlessServer
+  的孤儿 Unity 进程 taskkill），避免「二次运行卡死在工程锁」；
+- 连接重试带 deadline（Unity boot 需几十秒到几分钟）；断连/超时 → 杀进程 +
+  打印日志尾部 + 抛明确错误；
+- 同一工程同时只允许一个 TideEnv 持有进程（一进程一局，num_envs>1 请开多个
+  Unity 或改用编辑器 TCP）。
 """
 
-import json
+import os
+import socket
 import subprocess
-import numpy as np
-import gymnasium as gym
-from gymnasium import spaces
+import time
 from pathlib import Path
 
-from tide_features import (
-    N_CARD_FEATURES,
-    N_GLOBAL_FEATURES,
-    N_ACTION_FEATURES,
-    MAX_CARDS,
-    MAX_ACTIONS,
-    pad_or_truncate_actions,
-)
+from tide_env_tcp import TideEnvTcp
 
 
-class TideEnv(gym.Env):
-    """
-    Tide 桥接环境（stdio JSON 协议）。
+class TideEnv(TideEnvTcp):
+    """Tide 桥接环境：Unity batchmode 常驻进程 + TCP 协议（继承 TideEnvTcp）。"""
 
-    启动 Unity -batchmode -nographics -executeMethod TideHeadlessServer.Main，
-    通过 stdin/stdout 收发 JSON。
-    """
-
-    metadata = {"render_modes": []}
+    # 同工程活跃实例登记（project_path -> TideEnv）：一进程一局，防多实例抢工程锁
+    _active_by_project: dict = {}
 
     def __init__(
         self,
         unity_path: str = None,
         project_path: str = None,
-        deck1: list = None,
-        deck2: list = None,
         max_steps: int = 500,
-        reward_lambda: float = 0.02,  # 塑形强度（v2 全资源势能变化更大，降低 λ）
+        reward_lambda: float = 0.02,  # 兼容参数：塑形 λ 固定在 Unity 侧（见模块 docstring）
+        opponent: str = "selfplay",   # 对手位：selfplay 自对弈 / simpleai 模型 vs SimpleAI
+        startup_timeout: float = 300.0,
+        step_timeout: float = 120.0,
+        connect_retry_interval: float = 2.0,
     ):
         """
         Args:
-            unity_path: Unity.exe 路径（默认从环境变量 UNITY_PATH 读取）
+            unity_path: Unity.exe 路径（默认自动发现：UNITY_PATH 环境变量 →
+                        Hub 目录扫描并匹配 ProjectVersion.txt）
             project_path: Tide 工程路径（默认当前目录的父目录）
-            deck1: P1 卡组 ID 列表
-            deck2: P2 卡组 ID 列表
             max_steps: 单局最大步数（超时判负）
-            reward_lambda: 势能塑形 λ（建议 0.01~0.05）
+            reward_lambda: 兼容参数（Unity 侧已内置 λ=0.05，此处不生效）
+            opponent: 对手位——"selfplay" 自对弈 / "simpleai" 模型 vs SimpleAI
+                     （模型座次随机 = 先后手各半，obs/reward 恒为模型视角，info.modelSeat 判胜负）
+            startup_timeout: Unity batchmode 启动 + 建立连接的总超时
+            step_timeout: 单步 socket 读超时
         """
-        super().__init__()
-
-        self.unity_path = unity_path or self._find_unity()
-        self.project_path = project_path or str(Path(__file__).parent.parent.resolve())
-        self.deck1 = deck1 or self._default_deck()
-        self.deck2 = deck2 or self._default_deck()
-        self.max_steps = max_steps
-        self.reward_lambda = reward_lambda
-
+        # 先落本类属性再做可能抛异常的发现逻辑（__del__/close 依赖 self.process 存在）
         self.process = None
-        self.step_count = 0
-        self.last_potential = 0.0
+        self.startup_timeout = startup_timeout
+        self.step_timeout = step_timeout
+        self.connect_retry_interval = connect_retry_interval
+        self.project_path = str(project_path or Path(__file__).parent.parent.resolve())
+        self._log_file = Path(self.project_path) / "Logs" / "tide_headless.log"
+        self._pid_file = Path(self.project_path) / "Logs" / "tide_headless.pid"
+        self.unity_path = unity_path or self._find_unity()
 
-        # Observation space（符合 gymnasium 规范，但实际用 dict）
-        self.observation_space = spaces.Dict(
-            {
-                "cards_": spaces.Box(
-                    low=0, high=999, shape=(MAX_CARDS, N_CARD_FEATURES), dtype=np.float32
-                ),
-                "global_": spaces.Box(
-                    low=0, high=999, shape=(N_GLOBAL_FEATURES,), dtype=np.float32
-                ),
-                "actions_": spaces.Box(
-                    low=0, high=999, shape=(MAX_ACTIONS, N_ACTION_FEATURES), dtype=np.float32
-                ),
-            }
+        super().__init__(
+            host="127.0.0.1",
+            port=self._pick_free_port(),
+            max_steps=max_steps,
+            reward_lambda=reward_lambda,
+            opponent=opponent,
         )
 
-        # Action space（离散动作索引）
-        self.action_space = spaces.Discrete(MAX_ACTIONS)
+    # ===================================================== Unity 发现 =====================================================
 
     def _find_unity(self):
-        """从环境变量或默认路径查找 Unity.exe。"""
-        import os
+        """自动发现 Unity.exe：UNITY_PATH 环境变量 → Hub 目录扫描（优先匹配工程版本）。"""
+        env_path = os.environ.get("UNITY_PATH")
+        if env_path and Path(env_path).exists():
+            return env_path
 
-        unity_path = os.environ.get("UNITY_PATH")
-        if unity_path and Path(unity_path).exists():
-            return unity_path
+        hub = Path(os.environ.get("UNITY_HUB_PATH") or r"C:\Program Files\Unity\Hub\Editor")
+        candidates = []
+        if hub.is_dir():
+            for d in hub.iterdir():
+                exe = d / "Editor" / "Unity.exe"
+                if exe.is_file():
+                    candidates.append(exe)
 
-        # 默认路径（Windows）
-        default = r"C:\Program Files\Unity\Hub\Editor\2022.3.44f1c1\Editor\Unity.exe"
-        if Path(default).exists():
-            return default
+        if candidates:
+            want = self._project_version()
+            if want:
+                for exe in candidates:
+                    if exe.parent.parent.name == want:
+                        return str(exe)
+            # 工程版本读不到时取版本号最大的（目录名排序）
+            return str(sorted(candidates, key=lambda e: e.parent.parent.name)[-1])
 
+        found = "\n".join(f"  - {p}" for p in candidates) or "  （无）"
         raise FileNotFoundError(
-            "Unity.exe not found. Set UNITY_PATH env var or pass unity_path arg."
+            "Unity.exe not found. 请设置 UNITY_PATH 环境变量，或安装 Unity Hub 到默认目录。\n"
+            f"工程版本: {self._project_version() or '?'}\n"
+            f"Hub 候选:\n{found}"
         )
 
-    def _default_deck(self):
-        """默认测试卡组（占位符，实际应从 TestDecks 加载）。"""
-        # TODO: 从 Assets/Configs/TestDecks/ 读取卡组配置
-        return list(range(1, 41))  # 占位符：卡 ID 1~40
+    def _project_version(self):
+        """读 ProjectSettings/ProjectVersion.txt 的 m_EditorVersion（如 6000.5.8f1）。"""
+        f = Path(self.project_path) / "ProjectSettings" / "ProjectVersion.txt"
+        if not f.is_file():
+            return None
+        try:
+            for line in f.read_text(encoding="utf-8", errors="replace").splitlines():
+                if line.startswith("m_EditorVersion:"):
+                    return line.split(":", 1)[1].strip()
+        except OSError:
+            pass
+        return None
+
+    @staticmethod
+    def _pick_free_port() -> int:
+        """随机选一个空闲 TCP 端口（传给 Unity -tidePort；极小概率被抢占，连接重试兜底）。"""
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.bind(("127.0.0.1", 0))
+            return s.getsockname()[1]
+        finally:
+            s.close()
+
+    # ===================================================== 连接（重写基类） =====================================================
+
+    def _connect(self):
+        """基类 override：先确保 Unity 进程在跑，再带 deadline 重试连接。"""
+        if self.sock is not None:
+            return  # Already connected
+
+        if self.process is None or self.process.poll() is not None:
+            self._start_process()
+
+        deadline = time.time() + self.startup_timeout
+        last_err = None
+        while True:
+            try:
+                self.sock = socket.create_connection((self.host, self.port), timeout=10)
+                self.sock.settimeout(self.step_timeout)
+                self.reader = self.sock.makefile("r", encoding="utf-8")
+                self.writer = self.sock.makefile("w", encoding="utf-8")
+                print(f"[TideEnv] 已连接 Unity batchmode TCP 桥接 @ {self.host}:{self.port}")
+                return
+            except OSError as e:
+                last_err = e
+                if self.process.poll() is not None:
+                    self._fail(f"Unity 进程已退出（启动失败）")
+                if time.time() >= deadline:
+                    self._fail(f"连接 Unity TCP 桥接超时（{self.startup_timeout:.0f}s，最后错误: {last_err}）")
+                time.sleep(self.connect_retry_interval)
+
+    def _read_json(self):
+        """基类 override：读失败（超时/EOF）统一走 _fail（杀进程 + 日志尾部）。"""
+        try:
+            return super()._read_json()
+        except (EOFError, socket.timeout, OSError) as e:
+            self._fail(f"读取 Unity 响应失败: {e}")
+
+    # ===================================================== 进程管理 =====================================================
 
     def _start_process(self):
-        """启动 Unity batchmode 进程。"""
-        # Create logs directory
-        log_dir = Path(self.project_path) / "Logs"
-        log_dir.mkdir(exist_ok=True)
-        log_file = log_dir / "tide_headless.log"
+        """清理残留 → 启动 Unity batchmode（TCP 桥接模式）。"""
+        self._kill_stale_processes()
 
+        other = TideEnv._active_by_project.get(self.project_path)
+        if other is not None and other is not self and other.process is not None and other.process.poll() is None:
+            raise RuntimeError(
+                f"工程 {self.project_path} 已有另一个 TideEnv 持有 batchmode 进程"
+                f"（一个进程一次只跑一场对局）。请用 num_envs=1，评估复用同一 env 实例。"
+            )
+        TideEnv._active_by_project[self.project_path] = self
+
+        self._log_file.parent.mkdir(exist_ok=True)
         cmd = [
             self.unity_path,
             "-batchmode",
@@ -128,167 +195,125 @@ class TideEnv(gym.Env):
             "-executeMethod",
             "CardCore.Editor.TideHeadless.TideHeadlessServer.Main",
             "-logFile",
-            str(log_file),  # Log to file, NOT stdout (keeps stdout clean for JSON)
+            str(self._log_file),
+            "-tidePort",
+            str(self.port),
         ]
 
-        self.process = subprocess.Popen(
-            cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1,
+        try:
+            self.process = subprocess.Popen(
+                cmd,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,  # 协议走 TCP，std 流全部弃置（日志在 -logFile）
+                cwd=self.project_path,
+            )
+        except FileNotFoundError as e:
+            raise RuntimeError(f"Unity.exe 启动失败（路径 {self.unity_path}）: {e}") from e
+
+        try:
+            self._pid_file.write_text(str(self.process.pid), encoding="ascii")
+        except OSError:
+            pass
+
+    def _kill_stale_processes(self):
+        """杀掉上次运行残留的 Unity batchmode 进程（工程锁的元凶）。"""
+        # 1) pidfile 记录的上一个实例
+        if self._pid_file.is_file():
+            try:
+                pid = int(self._pid_file.read_text(encoding="ascii").strip())
+                if self._is_unity_pid(pid):
+                    self._taskkill(pid)
+            except (ValueError, OSError):
+                pass
+            try:
+                self._pid_file.unlink()
+            except OSError:
+                pass
+
+        # 2) 命令行匹配的孤儿（本工程 + TideHeadlessServer；编辑器实例不含 executeMethod，不会被误杀）
+        try:
+            script = (
+                "Get-CimInstance Win32_Process -Filter \"Name='Unity.exe'\" | "
+                "Where-Object { $_.CommandLine -like '*" + self.project_path + "*' -and "
+                "$_.CommandLine -like '*TideHeadlessServer*' } | "
+                "Select-Object -ExpandProperty ProcessId"
+            )
+            out = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", script],
+                capture_output=True, text=True, timeout=60,
+            )
+            for line in out.stdout.split():
+                if line.strip().isdigit():
+                    self._taskkill(int(line))
+        except (OSError, subprocess.TimeoutExpired):
+            pass  # 查询失败不阻塞启动（还有连接 deadline 兜底）
+
+    @staticmethod
+    def _is_unity_pid(pid: int) -> bool:
+        try:
+            out = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV"],
+                capture_output=True, text=True, timeout=30,
+            ).stdout
+            return "Unity.exe" in out
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+
+    @staticmethod
+    def _taskkill(pid: int):
+        try:
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)],
+                           capture_output=True, timeout=30)
+            print(f"[TideEnv] 已清理残留 Unity 进程 PID={pid}")
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+
+    # ===================================================== 错误收口 =====================================================
+
+    def _fail(self, reason: str):
+        """致命错误收口：杀进程 + 日志尾部 + 可操作的提示。"""
+        log_tail = self._log_tail()
+        if self.process is not None and self.process.poll() is None:
+            try:
+                self.process.kill()
+            except OSError:
+                pass
+        raise RuntimeError(
+            f"[TideEnv] {reason}。\n"
+            f"已终止 Unity 进程。日志尾部（{self._log_file}）：\n{log_tail}\n"
+            "常见原因：① 工程被打开中的 Unity 编辑器占用（先关编辑器）② 上次训练的 "
+            "batchmode 进程残留（已自动清理再试）③ 脚本编译错误（看上方日志）。"
         )
 
-    def _send_json(self, obj):
-        """发送 JSON 到 Unity stdin。"""
-        if self.process is None or self.process.stdin is None:
-            raise RuntimeError("Process not started")
-        line = json.dumps(obj, ensure_ascii=False)
-        self.process.stdin.write(line + "\n")
-        self.process.stdin.flush()
+    def _log_tail(self, n: int = 30) -> str:
+        try:
+            lines = self._log_file.read_text(encoding="utf-8", errors="replace").splitlines()
+            return "\n".join(lines[-n:])
+        except OSError:
+            return f"（无法读取 {self._log_file}）"
 
-    def _read_json(self, debug=False):
-        """从 Unity stdout 读取 JSON（跳过引擎横幅和日志行）。"""
-        if self.process is None or self.process.stdout is None:
-            raise RuntimeError("Process not started")
-
-        attempts = 0
-        max_attempts = 1000  # Prevent infinite loop
-
-        while attempts < max_attempts:
-            line = self.process.stdout.readline()
-            attempts += 1
-
-            if not line:
-                raise EOFError("Unity process stdout closed")
-
-            line = line.strip()
-            if not line:
-                continue
-
-            if debug:
-                print(f"[DEBUG] Read line {attempts}: {line[:100]}...")
-
-            try:
-                obj = json.loads(line)
-                if debug:
-                    print(f"[DEBUG] Successfully parsed JSON after {attempts} attempts")
-                return obj
-            except json.JSONDecodeError:
-                # 跳过非 JSON 行（Unity 引擎横幅、日志）
-                continue
-
-        raise TimeoutError(f"No valid JSON found after {max_attempts} lines")
-
-    def _parse_obs(self, data):
-        """解析 JSON obs → numpy dict。"""
-        # Debug: check data structure
-        if not isinstance(data, dict):
-            raise TypeError(f"Expected dict from Unity, got {type(data).__name__}: {data}")
-
-        if "cards" not in data or "global" not in data or "actions" not in data:
-            raise ValueError(f"Missing required keys in obs. Got keys: {list(data.keys())}")
-
-        cards = np.array(data["cards"], dtype=np.float32).reshape(MAX_CARDS, N_CARD_FEATURES)
-        global_ = np.array(data["global"], dtype=np.float32)
-        actions = np.array(data["actions"], dtype=np.float32)  # (n, 6)
-        actions = pad_or_truncate_actions(actions, MAX_ACTIONS)
-
-        return {
-            "cards_": cards,
-            "global_": global_,
-            "actions_": actions,
-            "h_actions_": None,  # v1 不实现历史动作
-            "c_mask": np.zeros(MAX_CARDS, dtype=bool),  # TODO: compute real mask
-            "a_mask": np.array([i >= len(data["actions"]) for i in range(MAX_ACTIONS)], dtype=bool),
-        }
-
-    def reset(self, seed=None, options=None):
-        """重置环境（开新局）。"""
-        super().reset(seed=seed)
-
-        # 关闭旧进程
-        if self.process is not None:
-            self.process.terminate()
-            self.process.wait(timeout=5)
-
-        # 启动新进程
-        self._start_process()
-
-        # 发送 reset
-        self._send_json({"op": "reset", "deck1": self.deck1, "deck2": self.deck2})
-
-        # 读取初始 obs
-        response = self._read_json(debug=True)
-
-        # Debug: check response structure
-        if not isinstance(response, dict):
-            raise TypeError(f"Expected dict response from Unity, got {type(response).__name__}: {response}")
-
-        if "obs" not in response:
-            raise ValueError(f"Missing 'obs' in Unity response. Got keys: {list(response.keys())}")
-
-        obs = self._parse_obs(response["obs"])
-        info = response.get("info", {})
-
-        # 重置状态
-        self.step_count = 0
-        self.last_potential = obs["global_"][28] - obs["global_"][29]  # Φ = me - opp
-
-        return obs, info
-
-    def step(self, action):
-        """执行动作。"""
-        if self.process is None:
-            raise RuntimeError("Environment not reset")
-
-        # 发送 step
-        self._send_json({"op": "step", "action": int(action)})
-
-        # 读取响应
-        response = self._read_json()
-        obs = self._parse_obs(response["obs"])
-        done = response["done"]
-        info = response.get("info", {})
-
-        # 计算奖励（终局 ±1 + 塑形 λ·ΔΦ）
-        reward = 0.0
-        if done:
-            winner = info.get("winner")
-            if winner == 1:
-                reward = 1.0
-            elif winner == 2:
-                reward = -1.0
-            # else: 平局或超时，reward=0
-        else:
-            # 塑形奖励 λ·(Φ' - Φ)
-            current_potential = obs["global_"][28] - obs["global_"][29]
-            shaping = self.reward_lambda * (current_potential - self.last_potential)
-            reward = shaping
-            self.last_potential = current_potential
-
-        self.step_count += 1
-
-        # 超时判负
-        if self.step_count >= self.max_steps and not done:
-            done = True
-            reward = -1.0
-            info["timeout"] = True
-
-        truncated = False  # Gymnasium 新协议：done=终局，truncated=超时
-
-        return obs, reward, done, truncated, info
+    # ===================================================== 清理 =====================================================
 
     def close(self):
-        """关闭环境。"""
+        """关闭环境（断开 TCP、杀 Unity 进程、清登记、删 pidfile）。"""
+        super().close()  # 断开 socket
         if self.process is not None:
-            self.process.terminate()
-            self.process.wait(timeout=5)
+            try:
+                self.process.terminate()
+                self.process.wait(timeout=10)
+            except (OSError, subprocess.TimeoutExpired):
+                try:
+                    self.process.kill()
+                except OSError:
+                    pass
             self.process = None
-
-    def __del__(self):
-        self.close()
+        if TideEnv._active_by_project.get(self.project_path) is self:
+            del TideEnv._active_by_project[self.project_path]
+        try:
+            self._pid_file.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def make_tide_env(**kwargs):

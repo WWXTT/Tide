@@ -209,6 +209,10 @@ namespace CardCore
         {
             if (card == null) return;
 
+            // 内容身份与费用同管线重推算（2026-09-09 定案）：拆散的效果内容哈希 + 组合哈希，
+            // 混入原子表指纹——表冻结则身份稳定；此处先于一切分支，保证所有装载/重生成路径都推导。
+            CardIdentityService.EnsureIdentity(card);
+
             if (CostDerivationService.HasChoiceEffect(card))
             {
                 var modes = DeriveModeCosts(card);

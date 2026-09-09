@@ -19,18 +19,13 @@ def test_bridge():
     print("=" * 60)
     print()
 
-    # Get Unity path
+    # Get Unity path（未设环境变量时 TideEnv 自动发现：Hub 扫描匹配工程版本）
     unity_path = os.environ.get("UNITY_PATH")
-    if not unity_path:
-        print("[ERROR] UNITY_PATH not set")
-        print("Set it with: $env:UNITY_PATH = \"C:\\...\\Unity.exe\"")
+    if unity_path and not Path(unity_path).exists():
+        print(f"[ERROR] UNITY_PATH 指向的 Unity 不存在: {unity_path}")
         return False
 
-    if not Path(unity_path).exists():
-        print(f"[ERROR] Unity not found at: {unity_path}")
-        return False
-
-    print(f"[OK] Unity found: {unity_path}")
+    print(f"[OK] Unity: {unity_path or 'auto-detect'}")
     print()
 
     # Create environment

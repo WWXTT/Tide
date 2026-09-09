@@ -169,15 +169,25 @@ class TideRNNAgent(nn.Module):
         encoder = TideEncoder(c, self.dtype, self.param_dtype)
         encoded = encoder(x)
 
-        # 2. Cards 池化作为 RNN 输入
+        # 2. GRU 输入：己方/对方分池均值 + global（旧版只吃 80 槽混合均值——
+        #    敌我搅在一个均值里，且全局量进不了记忆）
         cards = encoded["cards"]
         c_mask = encoded["c_mask"]
-        c_mask_expanded = c_mask[..., None]
-        cards_masked = jnp.where(c_mask_expanded, 0, cards)
-        cards_sum = cards_masked.sum(axis=1)
-        cards_count = (~c_mask).sum(axis=1, keepdims=True)
-        cards_count = jnp.maximum(cards_count, 1)
-        cards_pooled = cards_sum / cards_count  # (batch, channels)
+
+        def _masked_pool(enc, msk):
+            summed = jnp.where(msk[..., None], 0, enc).sum(axis=1)
+            count = jnp.maximum((~msk).sum(axis=1, keepdims=True), 1)
+            return summed / count
+
+        half = cards.shape[1] // 2
+        rnn_in = jnp.concatenate(
+            [
+                _masked_pool(cards[:, :half], c_mask[:, :half]),  # 己方 0..39
+                _masked_pool(cards[:, half:], c_mask[:, half:]),  # 对方 40..79
+                encoded["global"],                                 # 全局状态（生命/法力/回合…）
+            ],
+            axis=-1,
+        )  # (batch, 3*channels)
 
         # 3. RNN
         if self.rnn_type == "gru":
@@ -186,14 +196,14 @@ class TideRNNAgent(nn.Module):
                 dtype=self.dtype,
                 param_dtype=self.param_dtype,
             )
-            new_rstate, rnn_out = rnn_cell(rstate, cards_pooled)
+            new_rstate, rnn_out = rnn_cell(rstate, rnn_in)
         elif self.rnn_type == "lstm":
             rnn_cell = nn.LSTMCell(
                 features=self.rnn_channels,
                 dtype=self.dtype,
                 param_dtype=self.param_dtype,
             )
-            new_rstate, rnn_out = rnn_cell(rstate, cards_pooled)
+            new_rstate, rnn_out = rnn_cell(rstate, rnn_in)
         else:
             raise ValueError(f"Unknown rnn_type: {self.rnn_type}")
 
