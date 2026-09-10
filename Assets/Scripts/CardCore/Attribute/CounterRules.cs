@@ -387,9 +387,12 @@ namespace CardCore.Attribute
                 TickClocks(entity);
             }
 
-            // ── ② UntilEndOfTurn 整类清零（回合玩家战场；既有语义） ──
+            // ── ② UntilEndOfTurn 整类清零（双侧战场） ──
+            // 语义修正（2026-09-10 验证器对齐）：「持续到回合结束」按到期时点计，不区分持有者阵营——
+            // 跨侧施加的限时指示物（易损/紊乱）须在施加方回合末即消退，否则白送一整轮；
+            // 与 ① 的全实体结算域（AllEntities）同口径，快照化遍历双侧战场。
             if (zoneManager == null) return;
-            foreach (var card in zoneManager.GetCards(turnPlayer, Zone.Battlefield))
+            foreach (var card in AllEntities(turnPlayer, zoneManager).OfType<Card>())
             {
                 var expiring = card._counters
                     .Where(kv => kv.Value > 0 && IsUntilEndOfTurn(kv.Key))

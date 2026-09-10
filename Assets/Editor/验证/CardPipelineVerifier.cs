@@ -32,6 +32,8 @@ namespace CardCore.Editor
             string jsonPath = Path.Combine(Application.dataPath, "Configs/TestDecks/TestCreatureCards.json");
             if (File.Exists(jsonPath))
             {
+                // 夹具自 6d94d08（训练同步）起为全表导出：卡 ID 是内容哈希（随卡内容编辑漂移），
+                // 本验证器对测试卡一律按卡名定位（卡名=业务键，改名即断链可见）。
                 cardsData = CardLoader.LoadCardsFromText(File.ReadAllText(jsonPath));
                 Debug.Log($"[Verify] 加载卡牌数据 {cardsData.Count} 张");
             }
@@ -41,14 +43,15 @@ namespace CardCore.Editor
             }
 
             var core = GameCore.Instance;
-            // 构筑规则（定案）：卡组不重复（×1）；测试主卡组只带 1 张仪式（三相），
-            // 其余 6 张仪式卡仅供 TestRituals / TestNewRituals 注入驱动
+            // 构筑规则（定案）：卡组不重复（×1）。
+            // 仪式段屏蔽（2026-09-10）：仪式内容未就绪、夹具已去仪式——主卡组不再注入三相，
+            // 仪式相关段落暂不执行；恢复时取消本方法内三处注释即可。
             var deckData = new List<CardData>();
             if (cardsData.Count > 0)
             {
                 deckData.AddRange(cardsData.Where(c => !RitualSystem.IsRitual(new CardWrapper(c))));
-                var trinity = cardsData.FirstOrDefault(c => c.ID == "RITUAL_TRINITY_001");
-                if (trinity != null) deckData.Add(trinity);
+                // var trinity = cardsData.FirstOrDefault(c => c.CardName == "三相仪典");
+                // if (trinity != null) deckData.Add(trinity);
             }
             var deck1 = deckData.Count > 0 ? CardLoader.BuildDeck(deckData, 1) : new List<Card>();
             var deck2 = deckData.Count > 0 ? CardLoader.BuildDeck(deckData, 1) : new List<Card>();
@@ -59,8 +62,8 @@ namespace CardCore.Editor
 
             if (cardsData.Count > 0)
             {
-                // 仪式开局入手断言（须在 TestLandEconomy 消耗手牌之前）
-                TestRitualOpeningHand(core, cardsData);
+                // 仪式开局入手断言（须在 TestLandEconomy 消耗手牌之前）——仪式段屏蔽（2026-09-10）
+                // TestRitualOpeningHand(core, cardsData);
 
                 // 统一计价：全表规则一巡检（声明档位 + 代价抵扣足够）。
                 // 仪式豁免：0费说明书卡（保持空 Cost 打出免费），效果费不参抵扣校验。
@@ -111,11 +114,12 @@ namespace CardCore.Editor
             TestSummonToken(core, p1, p2);
             TestMatchStats(core, p1, p2);
 
-            if (cardsData.Count > 0)
-            {
-                TestRituals(core, cardsData);
-                TestNewRituals(core, cardsData);
-            }
+            // 仪式段屏蔽（2026-09-10）：内容未就绪
+            // if (cardsData.Count > 0)
+            // {
+            //     TestRituals(core, cardsData);
+            //     TestNewRituals(core, cardsData);
+            // }
 
             // P2b：对局日志按需导出（内存缓冲 → markdown 战报落盘）
             var verifyLog = MatchLogService.ExportMarkdown($"Logs/VerifyLog_{System.DateTime.Now:yyyyMMdd_HHmmss}.md");
@@ -208,7 +212,7 @@ namespace CardCore.Editor
             if (oneCost == null)
             {
                 // 卡表 3 份白板未必抽进手牌：注入 1 费白板保证用例确定性
-                var grayData = cardsData.FirstOrDefault(c => c.ID == "TEST_GRAY_001");
+                var grayData = cardsData.FirstOrDefault(c => c.CardName == "灰色哨兵");
                 if (grayData != null)
                 {
                     oneCost = new CardWrapper(grayData);
@@ -304,7 +308,7 @@ namespace CardCore.Editor
 
         private static void TestSpell(GameCore core, Player p1, Player p2, List<CardData> cardsData)
         {
-            var data = cardsData.FirstOrDefault(c => c.ID == "TEST_SPELL_RED_001");
+            var data = cardsData.FirstOrDefault(c => c.CardName == "火球术");
             Assert(data != null, "火球术配置存在");
             if (data == null) return;
             Assert(data.Effects != null && data.Effects.Count > 0
@@ -342,7 +346,7 @@ namespace CardCore.Editor
         /// </summary>
         private static void TestSpellBranch(GameCore core, Player p1, Player p2, List<CardData> cardsData)
         {
-            var data = cardsData.FirstOrDefault(c => c.ID == "TEST_SPELL_DECLARE_001");
+            var data = cardsData.FirstOrDefault(c => c.CardName == "读心预言");
             Assert(data != null, "宣言分支卡配置存在");
             if (data == null) return;
 
@@ -515,7 +519,7 @@ namespace CardCore.Editor
             EnsureMainPhase(core, p1);
 
             // ---- 0. 规则①并发取总 / ②条件奖励免费（既有卡锁死断言）----
-            var fireballData = cardsData.FirstOrDefault(c => c.ID == "TEST_SPELL_RED_001");
+            var fireballData = cardsData.FirstOrDefault(c => c.CardName == "火球术");
             if (fireballData != null)
             {
                 var fireDef = CardEffectConverter.ConvertAll(fireballData.Effects, fireballData.ID)[0];
@@ -529,7 +533,7 @@ namespace CardCore.Editor
                        "并发组合：抽1=抽牌表价并入总费（费用取总）");
             }
 
-            var declareData = cardsData.FirstOrDefault(c => c.ID == "TEST_SPELL_DECLARE_001");
+            var declareData = cardsData.FirstOrDefault(c => c.CardName == "读心预言");
             if (declareData != null)
             {
                 var def = CardEffectConverter.ConvertAll(declareData.Effects, declareData.ID)[0];
@@ -541,8 +545,8 @@ namespace CardCore.Editor
             }
 
             // ---- 1. 抉择卡数据/转换/判据 ----
-            var data = cardsData.FirstOrDefault(c => c.ID == "TEST_SPELL_MODAL_001");
-            Assert(data != null, "抉择卡配置存在（TEST_SPELL_MODAL_001）");
+            var data = cardsData.FirstOrDefault(c => c.CardName == "抉择试作");
+            Assert(data != null, "抉择卡配置存在（抉择试作）");
             if (data == null) return;
 
             Assert(CostDerivationService.HasChoiceEffect(data) && CostDerivationService.GetModeCount(data) == 2,
@@ -892,7 +896,7 @@ namespace CardCore.Editor
 
         private static void TestCreature(GameCore core, Player p1, List<CardData> cardsData)
         {
-            var data = cardsData.FirstOrDefault(c => c.ID == "TEST_GREEN_003");
+            var data = cardsData.FirstOrDefault(c => c.CardName == "古树守卫");
             Assert(data != null, "古树守卫配置存在");
             if (data == null) return;
 
@@ -1121,7 +1125,7 @@ namespace CardCore.Editor
                        "断链回落：光环垫的生命随链消失，有效归零经 SBA 收尸");
 
                 // ---- 8. JSON 链路：夹具卡 linkAuras/arrows 装载 + 内容哈希分叉（LA: 条件段） ----
-                var fixture = cardsData.FirstOrDefault(c => c.ID == "TEST_LINK_AURA_001");
+                var fixture = cardsData.FirstOrDefault(c => c.CardName == "链接光环测试");
                 Assert(fixture != null
                        && fixture.ArrowDirections == (CardCore.HexDirection.Up | CardCore.HexDirection.LowerRight)
                        && fixture.LinkAuras.Count == 2
@@ -1235,7 +1239,7 @@ namespace CardCore.Editor
             // ---- 5. 发动区流转：事件序 / 暂态不跨调用 / 终态 ----
             var pool1 = core.ElementPool.GetPool(p1);
             foreach (var t in AllManaTypes()) pool1.AvailableMana[t] = 99;
-            var creatureData = cardsData.FirstOrDefault(c => c.ID == "TEST_GREEN_003");
+            var creatureData = cardsData.FirstOrDefault(c => c.CardName == "古树守卫");
             if (creatureData != null)
             {
                 var creature = new CardWrapper(creatureData);
@@ -1272,7 +1276,7 @@ namespace CardCore.Editor
                        "Resync 后新入场卡获得单位格");
             }
 
-            var spellData = cardsData.FirstOrDefault(c => c.ID == "TEST_SPELL_RED_001");
+            var spellData = cardsData.FirstOrDefault(c => c.CardName == "火球术");
             if (spellData != null)
             {
                 var spell = new CardWrapper(spellData);
@@ -1636,7 +1640,9 @@ namespace CardCore.Editor
                 foreach (var kw in keywords) data.Keywords.Add(kw);
                 var card = new CardWrapper(data);
                 card.SetController(owner);
-                core.ZoneManager.TryAddToBattlefield(card, owner);
+                // 入场结果显式断言（2026-09-10）：战场容量 18，静默入不了场会把后续断言级联成假回归
+                Assert(core.ZoneManager.TryAddToBattlefield(card, owner),
+                       $"合成随从入场成功（{data.CardName}）");
                 card.Untap(); // 新规则横置入场；本段测试前提 = 已过回合重置的竖直随从（横置行为单独断言）
                 used.Add(card);
                 return card;
@@ -1647,6 +1653,20 @@ namespace CardCore.Editor
                 foreach (var c in used)
                     core.ZoneManager.GetZoneContainer(c.GetController() ?? p1).Remove(c, Zone.Battlefield);
             }
+
+            // 战场清场（2026-09-10）：本段合成量大（p1 侧 25+，战场容量 18）且前置段落可能遗留单位——
+            // 段界清场保证各段从净战场起步，避免「静默入不了场 → 断言级联」的假回归。
+            void ResetField()
+            {
+                foreach (var p in new[] { p1, p2 })
+                {
+                    var container = core.ZoneManager.GetZoneContainer(p);
+                    foreach (var c in core.ZoneManager.GetCards(p, Zone.Battlefield).ToList())
+                        container.Remove(c, Zone.Battlefield);
+                }
+                used.Clear();
+            }
+            ResetField();
 
             // ---- 1. 表与工厂 ----
             Assert(CardCore.Attribute.AtomicEffectTable.GetByEnumName("GrantReborn") != null
@@ -1682,7 +1702,9 @@ namespace CardCore.Editor
                 // 直接 TryAddToBattlefield 是 TokenSpawned，冲锋/突袭的登场效果（OnPlay）不会触发
                 // （锚在 f1eb82c 写下时即用错路径，存量修正）
                 core.ZoneManager.GetZoneContainer(p1).Add(card, Zone.Activation);
-                core.ZoneManager.TryMoveToBattlefield(card, p1, Zone.Activation);
+                // 入场结果显式断言：满场入墓会静默断链登场效果（OnPlay 依赖 CastPlayed 入场事件）
+                Assert(core.ZoneManager.TryMoveToBattlefield(card, p1, Zone.Activation),
+                       $"经发动区入场成功（{data.CardName}）");
                 used.Add(card);
                 return card;
             }
@@ -1719,10 +1741,38 @@ namespace CardCore.Editor
 
             var plain = MakeEntry();
             Assert(plain.IsTapped(), "普通随从：一律横置入场");
-            var charger = MakeEntry(EntryReadyEffect(false));
+            // A组诊断埋点 v2（2026-09-10）：计数改为按效果 Id 过滤（v1 无过滤，×1 可能是杂散效果）；
+            // 附转换 X 光（直接看 ConvertAll 产物的域/模式/激活类）+ 入场即入队探针。
+            CardWrapper charger = null;
+            int stackAdd = 0;
+            EffectInstance chargerInstance = null;
+            void OnStackAdd(StackAddEvent e)
+            {
+                if (e.AddedObject is EffectInstance ei && ei.Definition?.Id == "VERIFY_ENTRY_READY")
+                {
+                    stackAdd++;
+                    chargerInstance = ei; // 捕获实例引用，事后查 IsResolved
+                }
+            }
+            EventManager.Instance.Subscribe<StackAddEvent>(OnStackAdd);
+            charger = MakeEntry(EntryReadyEffect(false));
             Assert(charger.IsTapped(), "冲锋（登场效果）：入场时仍横置（结算前无豁免）");
+            bool queuedAtEntry = core.StackEngine.HasPendingEffects; // 入场事件应已把 OnPlay 排进待发队列
+            var conv = GameActions.GetCardEffectDefinitions(charger);
+            UnityEngine.Debug.Log("[KWDBG] charger 转换=" + string.Join(";", conv.Select(d =>
+                $"{d.Id}:触发式={d.IsTriggeredEffect},激活={d.ActivationType},域数={(d.TargetDomain == null ? -1 : d.TargetDomain.Count)}"
+                + $",模式={d.SelectionMode},filter={d.TargetFilter}"))
+                + $" | 入场即待发={queuedAtEntry}");
             GameActions.DrainStack(core); // 排干栈：登场效果结算
-            Assert(!charger.IsTapped(), "冲锋（登场效果）：结算后解除横置（激励自己）");
+            EventManager.Instance.Unsubscribe<StackAddEvent>(OnStackAdd);
+            UnityEngine.Debug.Log($"[KWDBG] charger 本体上栈×{stackAdd} 已结算标记={chargerInstance?.IsResolved}"
+                                + $" 目标数={chargerInstance?.Targets?.Count} tapped={charger.IsTapped()} "
+                                + $"栈深={core.StackEngine.StackSize} 待发={core.StackEngine.HasPendingEffects} "
+                                + $"结算中={core.StackEngine.IsResolving}");
+            Assert(!charger.IsTapped(),
+                   $"冲锋（登场效果）：结算后解除横置（激励自己）（诊断：入场即待发={queuedAtEntry} 上栈×{stackAdd} "
+                   + $"已结算={chargerInstance?.IsResolved} 目标数={chargerInstance?.Targets?.Count}——"
+                   + "上栈=0查触发注册/匹配；目标数=0查Self解析[Console搜TargetDomain警告]）");
             Assert(combat.CanDeclareAttack(charger, p1) && combat.CanAttackTarget(charger, p2),
                    "冲锋：无目标限制，可攻击玩家");
             var rusher = MakeEntry(EntryReadyEffect(true));
@@ -1886,6 +1936,7 @@ namespace CardCore.Editor
             Assert(!plagued.IsAlive, "剧毒指示物：回合结束时死亡（不再造成即时伤害）");
 
             // ---- 13. 吸血（恢复自身）/ 系命（回复角色） ----
+            ResetField(); // 段界清场：2-12 段已累计 17+ 单位，逼近容量 18
             combat.StartCombat(p1, p2);
             var bat = Make(p1, 2, 3, "Lifesteal");
             CardCore.Attribute.KeywordRules.ApplyDamage(p2, bat, 2, false); // 受伤状态
@@ -1912,6 +1963,7 @@ namespace CardCore.Editor
             Assert(shielded.IsAlive && shielded.GetLife() == 5 && !shielded.HasKeyword("DivineShield"),
                    "圣盾：挡下一次伤害并消耗");
             breaker.Untap();
+            breaker.AttacksThisTurn = 0; // 模拟过回合：每回合攻击上限 1（风怒删除定案），二段攻击须重置计数
             combat.StartCombat(p1, p2);
             combat.DeclareAttack(breaker, shielded);
             combat.ExecuteDamage();
@@ -1938,6 +1990,7 @@ namespace CardCore.Editor
                    "护甲指示物：吸收 2 点后剩余 1（生命未动）");
 
             // ---- 15. 不灭 / 复生（毁灭原子已删除——用吞噬路径验证不灭拦截） ----
+            ResetField(); // 段界清场
             var eternal = Make(p1, 2, 5, "Indestructible");
             var devourDef = new EffectDefinition
             {
@@ -2087,6 +2140,7 @@ namespace CardCore.Editor
                    "法术护盾：首次成为对手效果目标时移出目标并消耗");
 
             // ---- 18. 单向属性指示物：加时回写、换区清除时反向回写 ----
+            ResetField(); // 段界清场
             var buffed = Make(p2, 2, 5);
             CardCore.Attribute.CounterRules.AddStatCounter(buffed, CardCore.Attribute.CounterRules.PowerUpCounter, 3);
             CardCore.Attribute.CounterRules.AddStatCounter(buffed, CardCore.Attribute.CounterRules.LifeUpCounter, 2);
@@ -2637,7 +2691,7 @@ namespace CardCore.Editor
             var resource = RitualData("RITUAL_RESOURCE_005");
             var tempo = RitualData("RITUAL_TEMPO_006");
             var handRitual = RitualData("RITUAL_HAND_007");
-            var creature = cardsData.FirstOrDefault(c => c.ID == "TEST_GREEN_003");
+            var creature = cardsData.FirstOrDefault(c => c.CardName == "古树守卫");
             if (survival == null || info == null || resource == null || tempo == null || handRitual == null || creature == null)
             {
                 Debug.LogWarning("[Verify] 跳过六轴仪式段：卡表缺新仪式卡或生物载体");
