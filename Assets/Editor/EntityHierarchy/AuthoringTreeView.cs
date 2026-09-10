@@ -160,7 +160,8 @@ namespace EntityHierarchy
             return null;
         }
 
-        private string GetEntityDisplayName(EntityManager em, Entity entity)
+        /// <summary>实体显示名（层级树行文本；EntitySceneGizmos 场景标签同源复用）。</summary>
+        internal static string GetEntityDisplayName(EntityManager em, Entity entity)
         {
             // HexCellData 内含轴向坐标，直接显示 hex 坐标最直观
             if (em.HasComponent<HexCellData>(entity))

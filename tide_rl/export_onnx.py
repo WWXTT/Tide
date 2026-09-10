@@ -21,7 +21,7 @@ batch 已脱皮，Unity 侧无需再压 batch 维）：
 产出（tide_rl/exports/）：
   tide_policy.onnx           推理图（含 manifest 指纹等元数据）
   tide_policy_fixture.json   数值对拍样例（Unity 侧 Sentis vs JAX 参考输出）
-并复制到 Assets/StreamingAssets/（--no-unity-copy 关闭）。
+并复制到 Assets/Resources/（--no-unity-copy 关闭；Unity 导入 .onnx 生成 ModelAsset）。
 
 数值验证：onnxruntime 逐输出对拍 JAX，非法动作掩码抽检；容差 5e-3（f32 归约顺序差异）。
 """
@@ -52,7 +52,9 @@ from tide_features import (
 ROOT = Path(__file__).resolve().parent
 DEFAULT_RUN = ROOT / "logs" / "tide_ppo_selfplay__42__1788965027"
 MANIFEST = ROOT / "card_identity_manifest.json"
-UNITY_ASSETS = ROOT.parent / "Assets" / "StreamingAssets"
+# ONNX 必须放 Resources/：Sentis 运行时无 ONNX 文件解析器（ModelLoader.Load(path) 只认
+# .sentis 格式），编辑器 ScriptedImporter 会把 Resources 下的 .onnx 转成 ModelAsset 供加载
+UNITY_ASSETS = ROOT.parent / "Assets" / "Resources"
 
 INPUT_NAMES = ["rstate", "cards", "global", "actions"]
 OUTPUT_NAMES = ["rstate_next", "logits", "value"]

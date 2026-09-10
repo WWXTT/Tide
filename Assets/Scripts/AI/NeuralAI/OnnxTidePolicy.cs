@@ -13,6 +13,11 @@ namespace CardCore.AI.NeuralEnv
     /// 非法动作在图内已掩 -1e9（actions[:,0]==0），Select 直接 argmax；
     /// rstate 局内逐步传递，新对局 Reset() 归零（与训练 rollout 同口径）。
     ///
+    /// 模型加载：Sentis 运行时没有 ONNX 文件解析器（ModelLoader.Load(path) 只认
+    /// .sentis 自有序列化格式）——ONNX 必须放 Assets/Resources/ 由编辑器
+    /// ScriptedImporter 转成 ModelAsset，此处经 Resources.Load + ModelLoader.Load(asset)
+    /// 加载（export_onnx.py 默认复制到该目录）。
+    ///
     /// 前置条件：TideCardIndex 必须绑定与训练同一份 manifest
     /// （ConfigureManifest(tide_rl/card_identity_manifest.json) 后 Register 卡池），
     /// 否则卡身份 embedding 行串台——模型导出时的 manifest 指纹写在 onnx metadata 里。
@@ -32,16 +37,23 @@ namespace CardCore.AI.NeuralEnv
         public float LastValue { get; private set; }
         public float[] LastLogits { get; private set; } = new float[MaxActions];
 
-        public static string DefaultModelPath
-            => Path.Combine(UnityEngine.Application.streamingAssetsPath, "tide_policy.onnx");
+        /// <summary>默认模型资源名（Assets/Resources/tide_policy.onnx，省扩展名）。</summary>
+        public const string DefaultResourcePath = "tide_policy";
 
-        /// <summary>加载 ONNX 并建 CPU worker（小模型 CPU 快于 GPU，且输入输出都在 CPU）。</summary>
-        public OnnxTidePolicy(string onnxPath)
+        /// <summary>加载默认模型（Resources/tide_policy）并建 CPU worker。</summary>
+        public OnnxTidePolicy() : this(DefaultResourcePath) { }
+
+        /// <summary>从 Resources 加载 ONNX 导入的 ModelAsset 并建 CPU worker
+        /// （小模型 CPU 快于 GPU，且输入输出都在 CPU）。</summary>
+        public OnnxTidePolicy(string resourcePath)
         {
-            if (!File.Exists(onnxPath))
+            var asset = UnityEngine.Resources.Load<IE.ModelAsset>(resourcePath);
+            if (asset == null)
                 throw new FileNotFoundException(
-                    $"策略 ONNX 不存在: {onnxPath}\n先跑 tide_rl/export_onnx.py 导出并复制到 StreamingAssets", onnxPath);
-            _worker = new IE.Worker(IE.ModelLoader.Load(onnxPath), IE.BackendType.CPU);
+                    $"Resources 里找不到策略模型 {resourcePath}（ModelAsset）。\n" +
+                    "把 tide_policy.onnx 放到 Assets/Resources/ 并等 Unity 完成 ONNX 导入" +
+                    "（tide_rl/export_onnx.py 默认复制到该目录）");
+            _worker = new IE.Worker(IE.ModelLoader.Load(asset), IE.BackendType.CPU);
         }
 
         /// <summary>新对局：GRU 隐状态归零（镜像训练 env 的 episode 起点复位）。</summary>

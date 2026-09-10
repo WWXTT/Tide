@@ -78,7 +78,7 @@ public class TextureArrayGeneratorEditor : EditorWindow
         }
     }
 
-    [MenuItem("Tools/创建贴图数组")]
+    [MenuItem("Tools/美术/创建贴图数组")]
     public static void ShowWindow()
     {
         GetWindow<TextureArrayGeneratorEditor>("Texture Array Generator");

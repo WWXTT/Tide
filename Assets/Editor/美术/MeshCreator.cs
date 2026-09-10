@@ -9,7 +9,7 @@ using UnityEngine.AI;
 /// </summary>
 public class MeshCreator : MonoBehaviour
 {
-    [MenuItem("Tools/从mesh组件上复制网格")]
+    [MenuItem("Tools/美术/从mesh组件上复制网格")]
     public static void CreateMesh()
     {
         // 获取选中的游戏对象
@@ -52,7 +52,7 @@ public class MeshCreator : MonoBehaviour
         SaveMeshAsset(newMesh);
     }
 
-    [MenuItem("Tools/多选游戏物体合并网格")]
+    [MenuItem("Tools/美术/合并网格")]
     public static void MergeMeshes()
     {
         GameObject[] selectedObjects = Selection.gameObjects;
@@ -111,7 +111,7 @@ public class MeshCreator : MonoBehaviour
         Selection.activeGameObject = mergedObject;
     }
 
-    [MenuItem("Tools/合并材质（去重并列）")]
+    [MenuItem("Tools/美术/合并材质")]
     public static void MergeMaterial()
     {
         GameObject[] selectedObjects = Selection.gameObjects;

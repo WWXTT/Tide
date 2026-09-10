@@ -22,7 +22,7 @@ namespace UnityEditor.DanbaidongGUI
         public bool editWithTex = false;
 
         /// <summary> 打开渐变斜坡编辑器窗口（无预设纹理） </summary>
-        [MenuItem("Tools/创建渐变贴图")]
+        [MenuItem("Tools/美术/创建渐变贴图")]
         public static void ShowWindow()
         {
             var window = EditorWindow.GetWindow(typeof(GradientsRampEditorWindow));

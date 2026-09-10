@@ -18,7 +18,7 @@ namespace DanbaidongShaderConverter
         private bool isScanning = false;
         private List<ConversionResult> lastResults = new List<ConversionResult>();
 
-        [MenuItem("Tools/标准urpshader自动替换引用到Danbaidong格式")]
+        [MenuItem("Tools/美术/标准urpshader自动替换引用到Danbaidong格式")]
         public static void ShowWindow()
         {
             var window = GetWindow<DanbaidongShaderConverterWindow>("Danbaidong Shader Converter");

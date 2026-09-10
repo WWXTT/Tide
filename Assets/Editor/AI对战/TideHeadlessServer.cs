@@ -48,9 +48,8 @@ namespace CardCore.Editor.TideHeadless
         private static Thread _tcpThread;
         private static bool _isRunning;
 
-        // ===================================================== TCP 服务器（推荐开发/调试） =====================================================
+        // ===================================================== TCP 服务器（编辑器手动启停；batchmode 走 Main 独立入口） =====================================================
 
-        [MenuItem("Tools/AI/启动训练服务器 (TCP 9999)")]
         public static void StartTcpServer()
         {
             if (_isRunning)
@@ -70,7 +69,6 @@ namespace CardCore.Editor.TideHeadless
             Debug.Log($"[TideHeadless] TCP 服务器启动在 localhost:{TcpPort}，等待 Python 连接...");
         }
 
-        [MenuItem("Tools/AI/停止训练服务器")]
         public static void StopTcpServer()
         {
             if (!_isRunning)
@@ -166,9 +164,8 @@ namespace CardCore.Editor.TideHeadless
             }
         }
 
-        // ===================================================== 自测入口（编辑器菜单） =====================================================
+        // ===================================================== 自测（菜单入口已删，保留方法供测试/反射调用） =====================================================
 
-        [MenuItem("Tools/AI/无头驱动自测")]
         public static void RunSelfTest()
         {
             var deck = AiBattleE2E.LoadStandardDeck();
