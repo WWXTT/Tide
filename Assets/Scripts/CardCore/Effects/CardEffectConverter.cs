@@ -163,9 +163,10 @@ namespace CardCore
                 return null;
             }
 
-            // 目标域：条目显式收窄 ?? 表级默认（解析为有效域存实例，运行时零查表）
+            // 目标域：条目显式收窄 ?? 表级默认（解析为有效域存实例，运行时零查表）。
+            // 空列表 = 未收窄（迁移脚本写 []，语义同缺省）——只有表级默认为空才是真无目标原子
             var config = CardCore.Attribute.AtomicEffectTable.GetByType(type);
-            List<int> kinds = entry.TargetKinds != null
+            List<int> kinds = entry.TargetKinds != null && entry.TargetKinds.Count > 0
                 ? new List<int>(entry.TargetKinds)
                 : config?.GetTargetKindList() ?? new List<int>();
 

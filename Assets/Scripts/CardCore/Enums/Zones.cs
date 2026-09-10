@@ -496,7 +496,12 @@ namespace CardCore
         // （抽牌/送墓/检索/牌库顶操作均依赖 index 0 = 牌库顶的约定）。
         private Dictionary<Zone, List<Card>> zones = new Dictionary<Zone, List<Card>>();
 
-        private static readonly System.Random _rng = new System.Random();
+        // 可重定种子（2026-09-10）：验证器/无头对拍需要同种子复现（M3 联网里程碑同款要求）；
+        // 默认时间种子不变，Reseed 后同种子 → 同洗牌序列
+        private static System.Random _rng = new System.Random();
+
+        /// <summary>重定洗牌随机种子（验证器固定种子复现 / 对拍用）；影响全部 ZoneContainer。</summary>
+        public static void Reseed(int seed) => _rng = new System.Random(seed);
 
         public ZoneContainer(Player owner)
         {

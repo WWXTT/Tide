@@ -2,7 +2,7 @@
 Tide 特征维度常量与辅助函数（对应 ygo-agent 的 features.py）。
 
 TideObservation 产出的扁平特征向量：
-- cards_: (80, 71) — 每槽 71 维特征
+- cards_: (80, 65) — 每槽 65 维特征
 - global_: (32,) — 全局状态
 - actions_: (max_actions, 6) — 每动作 6 维特征
 - h_actions_: (32, 14) — 历史动作（暂未实现，传 None）
@@ -10,16 +10,16 @@ TideObservation 产出的扁平特征向量：
 
 import numpy as np
 
-# ---- 维度常量（与 TideObservation.cs 同步）----
-N_CARD_FEATURES = 71
+# ---- 维度常量（与 TideObservation.cs 同步；2026-09-10 目标域模型 71→65）----
+N_CARD_FEATURES = 65
 # 内容身份三通路（CardIdentityService 推导、TideCardIndex/原子表注册下标）：
 #   1) 精确哈希 [15..22]（8 槽）：[15..20] 六个原子内容哈希（跨效果按执行序展平，槽位即顺序，
 #      参数敏感——「造成4伤」是独立行）、[21] 组合结构哈希、[22] 关键词/tag/光环组合哈希。
 #      同单元跨卡共享 embedding 行——相近效果在原子层重叠，语义直接迁移。
 #   2) 类型下标 [23..28]（6 槽）：原子 EffectType 在冻结原子表内的排名，参数无关——
 #      「造成4伤」与「造成5伤」同一行，新参数值不再纯新 token。
-#   3) 参数块 [29..70]（6 槽 × 7 维浮点）：Value/Value2/ManaTypeParam/Duration/
-#      DurationValue/TargetCountOverride/DynamicTargetCount——数值插值通路。
+#   3) 参数块 [29..64]（6 槽 × 6 维浮点，2026-09-10 目标域模型重定义）：
+#      [0]Value / [1]Mana总量 / [2]Mana色数 / [3]kind数 / [4]最小kind / [5]最大kind——数值插值通路。
 # 下标槽只用作 embedding 查表（encoder masked-sum + 槽位位置标记），不进 Dense——下标不是幅值。
 # 0 = 无该成分/token/未登记。
 CARD_ID_START = 15
@@ -27,12 +27,12 @@ N_ID_SLOTS = 8          # [15..22] 精确身份（6 原子哈希 + 结构 + 组�
 TYPE_ID_START = 23
 N_TYPE_SLOTS = 6        # [23..28] 原子 EffectType 下标
 ATOM_PARAM_START = 29   # [29..] 参数块
-ATOM_PARAM_DIM = 7      # 与 C# CardIdentityService.AtomParamDim 对齐
+ATOM_PARAM_DIM = 6      # 与 C# CardIdentityService.AtomParamDim 对齐（2026-09-10: 7→6）
 # 精确身份 embedding 表大小，与 C# TideCardIndex.Capacity 对齐（超出容量 C# 侧记 0）。
 # TideCardIndex 为追加式分配 + manifest 持久化（tide_rl/card_identity_manifest.json）：
 # 新哈希只在末尾续排，训练/部署同一份清单 → 已训行永不串台。
 N_CARD_POOL = 256
-# EffectType embedding 表：C# 原子表 83 条按枚举名排序 1 基编号，128 = 余量。
+# EffectType embedding 表：C# 原子表 97 条（2026-09-10 攻/守效果化 +2）按枚举名排序 1 基编号，128 = 余量。
 # 表冻结（表指纹已混入所有哈希）；表一旦变更 → 全体身份换血，需重训。
 N_EFFECT_TYPES = 128
 MAX_CARDS = 80
@@ -59,7 +59,7 @@ def sample_input():
         for s in range(N_ID_SLOTS):
             cards.flat[b + CARD_ID_START + s] = 1 + (i + s) % (N_CARD_POOL - 1)
         for s in range(N_TYPE_SLOTS):
-            cards.flat[b + TYPE_ID_START + s] = 1 + (i + s) % 83
+            cards.flat[b + TYPE_ID_START + s] = 1 + (i + s) % 97
         for s in range(N_TYPE_SLOTS):
             for p in range(ATOM_PARAM_DIM):
                 cards.flat[b + ATOM_PARAM_START + s * ATOM_PARAM_DIM + p] = float(s + p)

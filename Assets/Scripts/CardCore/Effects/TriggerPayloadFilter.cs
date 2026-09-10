@@ -79,6 +79,15 @@ namespace CardCore
                            ph.Targets != null &&
                            ContainsEntity(ph.Targets, registered.Source);
 
+                // ---- 原子结算完成观察（排除自源：观察者的触发效果本身也是原子结算——
+                //      不过滤会自馈乒乓（触发→抽牌→抽牌又是原子结算→再触发……无限），
+                //      镜像 OnOtherCreatureEnter 的 self 排除语义）----
+                case TriggerTiming.OnAtomicEffectResolution:
+                    return gameEvent is AtomicEffectPhaseEvent ar &&
+                           ar.Phase == AtomicEffectPhase.ResolutionComplete &&
+                           ar.Source != null &&
+                           !ReferenceEquals(ar.Source, registered.Source);
+
                 // ---- 除外族 ----
                 case TriggerTiming.OnExile:
                     return gameEvent is CardExileEvent e &&

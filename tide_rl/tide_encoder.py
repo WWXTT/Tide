@@ -58,7 +58,7 @@ class TideCardEncoder(nn.Module):
     def __call__(self, x, mask=None):
         """
         Args:
-            x: (batch, 80, 71) 卡牌特征（[15..22] 精确身份 8 槽、[23..28] 类型 6 槽、[29..] 参数块）
+            x: (batch, 80, 65) 卡牌特征（[15..22] 精确身份 8 槽、[23..28] 类型 6 槽、[29..] 参数块）
             mask: (batch, 80) bool 掩码（True=有效卡，False=空槽）
 
         Returns:
@@ -214,7 +214,7 @@ class TideEncoder(nn.Module):
         """
         Args:
             x: obs_dict = {
-                "cards_": (batch, 80, 71),
+                "cards_": (batch, 80, 65),
                 "global_": (batch, 32),
                 "actions_": (batch, max_actions, 6),
                 "h_actions_": (batch, 32, 14) or None
@@ -223,7 +223,7 @@ class TideEncoder(nn.Module):
         Returns:
             encoded: dict with encoded features
         """
-        cards = x["cards_"]      # (batch, 80, 71)
+        cards = x["cards_"]      # (batch, 80, 65)
         global_ = x["global_"]   # (batch, 32)
         actions = x["actions_"]  # (batch, max_actions, 6)
 

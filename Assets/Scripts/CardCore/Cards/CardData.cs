@@ -231,6 +231,23 @@ namespace CardCore
             set => _linkAuras = value;
         }
 
+        // ---- 战斗底盘（2026-09-10 攻击/守卫效果化）----
+        // 攻/守 = 1速/2速主动效果（各 1 灰，不占槽位），生物默认自带；opt-out 退底盘额度。
+        // 计价见 CardCompositionCost.ChassisAdjust；资格见 CombatSystem（NoAttack 卡不能攻击）。
+        [SerializeField]
+        private bool _noAttack;
+        public bool NoAttack { get => _noAttack; set => _noAttack = value; }
+
+        [SerializeField]
+        private bool _noGuard;
+        public bool NoGuard { get => _noGuard; set => _noGuard = value; }
+
+        /// <summary>瞬间法术的底盘盈余（无攻无守省下的 2 灰）构筑时自由分配：
+        /// true = 转 BaseSpeed+1（不退费）；false（缺省）= 退费（灰不足落最高费用色）。</summary>
+        [SerializeField]
+        private bool _surplusToSpeed;
+        public bool SurplusToSpeed { get => _surplusToSpeed; set => _surplusToSpeed = value; }
+
         /// <summary>
         /// 总费用计算
         /// </summary>

@@ -239,4 +239,41 @@ namespace CardCore.Attribute.Handlers
 
         public override string GetDescription(AtomicEffectInstance effect) => "变形为另一张卡";
     }
+
+    // ============ 战斗底盘（2026-09-10 攻击/守卫效果化） ============
+
+    /// <summary>
+    /// 攻击原子（1 速主动效果，横置发动）：底盘能力的计价/组合锚。
+    /// 战斗流程由 CombatSystem 消费（宣言→响应窗口→结算），不走常规原子执行——
+    /// 本 handler 仅满足注册完整性（VerifyHandlerCoverage 契约），直调为防御性空转。
+    /// 附带「竖直参战至结算完成」由默认攻击能力的明文组合承载（Untap 自身，持续到攻击结算）。
+    /// </summary>
+    public class AttackHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Attack;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            UnityEngine.Debug.LogWarning("[Attack] 攻击原子不应经常规原子路径执行（战斗流程走 CombatSystem）");
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect) => "攻击（1速·横置发动）";
+    }
+
+    /// <summary>
+    /// 守卫原子（2 速响应拦截）：底盘能力的计价/组合锚。
+    /// 拦截流程由 CombatSystem 目标确认段消费（友方被指→横置自身→转移目标），
+    /// 本 handler 仅满足注册完整性，直调为防御性空转。
+    /// </summary>
+    public class GuardHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Guard;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            UnityEngine.Debug.LogWarning("[Guard] 守卫原子不应经常规原子路径执行（拦截走 CombatSystem）");
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect) => "守卫（2速·响应拦截）";
+    }
 }

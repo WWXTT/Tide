@@ -23,6 +23,20 @@ namespace CardCore
             return 0;
         }
 
+        // ---- 战斗底盘能力（2026-09-10 攻/守效果化）：opt-out 经卡数据声明，缺省自带 ----
+        // 扩展方法口径（与 IsTapped 同款）：CombatSystem/AI 拿到的是 Card 基类引用。
+        // 裸 Card（衍生物/临时卡，无卡数据）从严 = 无攻无守。
+
+        /// <summary>攻击能力（1 速主动效果）：生物默认自带；NoAttack 卡不能宣言攻击。</summary>
+        public static bool HasAttackAbility(this Card card)
+            => card is CardWrapper w && w.GetData() is CardData d
+               && d.Supertype == Cardtype.Creature && !d.NoAttack;
+
+        /// <summary>守卫能力（2 速响应拦截）：生物默认自带；守卫拦截入口按此过滤。</summary>
+        public static bool HasGuardAbility(this Card card)
+            => card is CardWrapper w && w.GetData() is CardData d
+               && d.Supertype == Cardtype.Creature && !d.NoGuard;
+
         /// <summary>获取生命值（含连接光环加成；伤害扣 _life 原值，断链自动回落）</summary>
         public static int GetLife(this Entity entity)
         {

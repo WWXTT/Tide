@@ -54,6 +54,11 @@ namespace CardCore
 
         // 连接光环声明（三轨制 2026-09-09）：箭头指向格占据者享受的持续效果（stat/keyword 二选一）
         public List<LinkAuraData> linkAuras;
+
+        // 战斗底盘（2026-09-10 攻/守效果化）：opt-out 缺省 false=自带攻守；瞬间富余转速度缺省 false=退费
+        public bool noAttack;
+        public bool noGuard;
+        public bool surplusToSpeed;
     }
 
     /// <summary>
@@ -172,6 +177,8 @@ namespace CardCore
         /// <summary>
         /// 构筑期目标域校验（2026-09-10 目标域模型）：每效果的主序列原子域交集为空 → LogError
         /// （仿 BranchConfigTable.ValidateAgainstCode 先例：可见不炸——坏卡点名，装载不中断）。
+        /// 同场校验组合上限：主序列原子 ≤ 2（2026-09-10 攻/守效果化定案——
+        /// 三种合法组合形式：抉择 / 条件奖励(门) / 并列；超限告警不拦截）。
         /// </summary>
         private static void ValidateComboDomains(List<CardData> cards)
         {
@@ -182,7 +189,18 @@ namespace CardCore
                 {
                     if (eff == null) continue;
                     var def = CardEffectConverter.ConvertOne(eff, card.ID);
-                    if (def?.TargetDomain == null || def.TargetDomain.Count > 0) continue;
+                    if (def == null) continue;
+
+                    // 组合上限：主序列（Steps 优先，扁平兜底）原子计数 ≤ 2
+                    var mainAtoms = def.Steps != null && def.Steps.Count > 0
+                        ? CardEffectConverter.EnumerateMainSequenceAtoms(def.Steps, 0).ToList()
+                        : def.Effects?.ToList() ?? new List<AtomicEffectInstance>();
+                    int atomCount = mainAtoms.Count(a => a != null);
+                    if (atomCount > 2)
+                        Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
+                                       + $"主序列原子 {atomCount} 个超组合上限 2（抉择/条件奖励/并列三形式）");
+
+                    if (def.TargetDomain == null || def.TargetDomain.Count > 0) continue;
                     // 域空且并非"全无目标原子"（存在带域原子但交集空）才是断链
                     var hasKindAtom = false;
                     foreach (var atom in CardEffectConverter.EnumerateMainSequenceAtoms(def.Steps, 0))
@@ -302,6 +320,11 @@ namespace CardCore
                 cardData.LinkAuras = entry.linkAuras
                     .Where(a => a != null && (!string.IsNullOrEmpty(a.stat) || !string.IsNullOrEmpty(a.keyword)))
                     .ToList();
+
+            // 战斗底盘（2026-09-10 攻/守效果化）：opt-out 与瞬间盈余分配，缺省全 false（自带攻守、退费）
+            cardData.NoAttack = entry.noAttack;
+            cardData.NoGuard = entry.noGuard;
+            cardData.SurplusToSpeed = entry.surplusToSpeed;
 
             // 统一计价兜底：costList 缺省 → 写入建议档位分布（幂等，非空不动）
             CardCostService.EnsureCost(cardData);

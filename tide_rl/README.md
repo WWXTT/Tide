@@ -20,7 +20,7 @@ tide_rl/
 
 对应 ygo-agent 的 `features.py`，定义 Tide 特征维度：
 
-- `N_CARD_FEATURES = 71`（不是 YGO 的 41；含内容身份三通路：精确哈希/EffectType/参数块）
+- `N_CARD_FEATURES = 65`（2026-09-10 目标域模型 71→65）（不是 YGO 的 41；含内容身份三通路：精确哈希/EffectType/参数块）
 - `N_GLOBAL_FEATURES = 32` （不是 YGO 的 23）
 - `N_ACTION_FEATURES = 6` （不是 YGO 的 12）
 - `MAX_CARDS = 80`
@@ -267,7 +267,7 @@ cd tide_rl
 ```
 
 产出（自动复制到 `Assets/StreamingAssets/`）：
-- `tide_policy.onnx` —— 推理图（batch 已脱皮：rstate 512 / cards 80×71 / global 32 /
+- `tide_policy.onnx` —— 推理图（batch 已脱皮：rstate 512 / cards 80×65 / global 32 /
   actions 128×6 → rstate_next / logits(非法已掩 -1e9) / value），manifest 指纹等元数据在
   model metadata；opset 23，全标准算子，3.3MB
 - `tide_policy_fixture.json` —— 数值对拍样例（JAX 参考输出）
@@ -298,7 +298,7 @@ cd tide_rl
 
 - **卡身份 manifest 必须同一份**：`TideCardIndex` 绑定 `tide_rl/card_identity_manifest.json`
   （追加式），embedding 行号才不串台。onnx metadata 里存了导出时的 manifest sha256。
-- 观测/动作布局（71/32/6 维、MAX_ACTIONS=128）改了 → 重导出；原子表（83 条 EffectType）
+- 观测/动作布局（65/32/6 维、MAX_ACTIONS=128）改了 → 重导出；原子表（97 条 EffectType）
   变更 → 全体身份换血，需重训。
 - 自对弈权重是「当前回合玩家」视角：部署喂模型自己回合的决策点即可（与训练评估口径一致）。
 

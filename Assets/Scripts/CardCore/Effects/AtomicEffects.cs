@@ -133,6 +133,14 @@ namespace CardCore
         /// <summary>无效指示物（蓝3）：目标非启动式能力无法发动（拦触发式+光环；换区清除）。
         /// 枚举只可尾部追加（AEI_Type 按 int 位序序列化）。</summary>
         AddNullify,
+
+        // ============ 战斗底盘（2026-09-10 攻击/守卫效果化：1速/2速主动效果，各 1 灰，不占槽） ============
+        /// <summary>攻击：1 速主动效果（横置发动）。附带竖直参战（结算按竖直，结算完恢复横置）。
+        /// 生物默认自带（CardData.NoAttack 可退除）。战斗流程由 CombatSystem 消费，不走常规原子执行。</summary>
+        Attack,
+        /// <summary>守卫：2 速响应拦截——友方被指为攻击目标时横置自身、转移目标；结算按横置（单向受伤）。
+        /// 生物默认自带（CardData.NoGuard 可退除）。</summary>
+        Guard,
     }
 
     #region 效果分类扩展方法

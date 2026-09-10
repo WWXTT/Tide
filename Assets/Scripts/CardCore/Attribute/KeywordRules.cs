@@ -376,27 +376,15 @@ namespace CardCore.Attribute
         }
 
         /// <summary>
-        /// 是否应横置该实体：警戒可取消一次横置（攻击横置/发动代价横置），每回合一次。
-        /// 返回 true = 应横置；false = 警戒抵消（消耗本回合额度）。
-        /// 【定案】警戒抵扣仅在未横置时有效：已横置 = 代价不可支付（不可被警戒抵消），
-        /// 不消耗警戒额度——返回 true（调用方的前置校验应拦截横置中实体，此为兜底）。
+        /// 是否应横置该实体：攻击/发动代价恒横置。
+        /// 【2026-09-10 警戒重定义】警戒不再是「代替横置扣除」（攻击照常横置）——
+        /// 新语义为「横置也能造成战斗伤害」（反击资格判定见 CombatSystem.ResolvePair：
+        /// 横置目标持警戒仍可反击）。被动无额度、无消耗。
         /// </summary>
         public static bool ShouldTap(Entity entity)
         {
             if (entity == null) return false;
-            if (entity.IsTapped()) return true; // 已横置：支付不出，不消耗警戒额度
-            if (entity is Card card && card.HasKeyword(Vigilance) && !card._vigilanceUsedThisTurn)
-            {
-                card._vigilanceUsedThisTurn = true; // 一回合只生效一次
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = card,
-                    Keyword = Vigilance,
-                    Detail = "警戒抵消横置"
-                });
-                return false;
-            }
-            return true;
+            return true; // 横置是固定代价（旧警戒抵扣已随重定义删除）
         }
 
         /// <summary>

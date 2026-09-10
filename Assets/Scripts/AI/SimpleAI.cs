@@ -491,7 +491,7 @@ namespace SynergyUI
 
         // ======================================== 战斗 ========================================
 
-        /// <summary>开战斗 → 每个可攻击单位按 清场优先 选目标宣言 → 结算。</summary>
+        /// <summary>开战斗 → 每个可攻击单位按 清场优先 选目标宣言 → 防守方守卫拦截 → 结算。</summary>
         private static void DoCombat(BattleController ctrl, GameCore core, Player me)
         {
             ctrl.BeginCombat();
@@ -500,13 +500,56 @@ namespace SynergyUI
             var battlefield = new List<Card>(core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>());
             foreach (var unit in battlefield)
             {
-                if (!core.CombatSystem.CanDeclareAttack(unit, me)) continue; // 失调/横置/零攻/超次数，引擎权威判定
+                if (!core.CombatSystem.CanDeclareAttack(unit, me)) continue; // 失调/横置/零攻/超次数/连锁中，引擎权威判定
                 var target = PickAttackTarget(core, unit, opp);
                 if (target != null)
                     ctrl.DeclareAttack(me, unit, target);
             }
 
-            ctrl.ResolveCombat();
+            // 防守方守卫拦截窗口（2026-09-10 守卫效果化）：宣言后、结算前——
+            // 拆开 ResolveCombat 以插入防守 AI 决策（玩家路径仍走 BattleController.ResolveCombat）
+            var combat = core.CombatSystem;
+            combat.EndAttackDeclaration();
+            if (combat.InCombat)
+            {
+                DoGuardBlocks(core, opp);
+                combat.EndBlockDeclaration();
+            }
+        }
+
+        /// <summary>
+        /// 防守 AI 守卫拦截（2026-09-10 守卫效果化）：只拦打脸的攻击——
+        /// 优先派能扛住的守卫（拦截即横置 → 单向挨打，扛得住 = 免费挡刀）；
+        /// 玩家将被击杀时任何守卫都上（牺牲保命）。随从指向的攻击不拦（交换交给结算）。
+        /// 拦截资格（守卫能力/未横置/在场）由 CanBlock 引擎权威判定。
+        /// </summary>
+        private static void DoGuardBlocks(GameCore core, Player defender)
+        {
+            var combat = core.CombatSystem;
+            foreach (var attacker in combat.Attackers)
+            {
+                if (attacker?.Entity == null || !attacker.Entity.IsAlive) continue;
+                var effectiveTarget = attacker.BlockedBy ?? attacker.DeclaredTarget ?? (Entity)defender;
+                if (!(effectiveTarget is Player)) continue; // 只拦打脸
+
+                // 击杀判定（LayerEngine 实时力量）
+                int incoming = core.LayerEngine != null ? core.LayerEngine.CalculatePower(attacker.Entity) : 0;
+                bool lethal = defender.Life - incoming <= 0;
+
+                Card chosen = null;   // 能扛住的守卫里挑血最厚的
+                Card anyGuard = null; // 兜底（仅致命时牺牲）
+                foreach (var g in core.ZoneManager.GetCards(defender, Zone.Battlefield) ?? new List<Card>())
+                {
+                    if (!g.IsAlive || !combat.CanBlock(g, attacker.Entity, defender)) continue;
+                    if (anyGuard == null) anyGuard = g;
+                    if (g.GetLife() > incoming && (chosen == null || g.GetLife() > chosen.GetLife()))
+                        chosen = g;
+                }
+                if (chosen == null && lethal) chosen = anyGuard; // 致命一击：任何守卫牺牲保命
+                if (chosen == null) continue;                     // 挡不住且不致命——不白送守卫
+
+                combat.DeclareBlock(chosen, attacker.Entity);
+            }
         }
 
         /// <summary>
