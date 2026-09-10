@@ -1,2598 +1,2635 @@
 {
-  "cards": [
-    {
-      "id": "40acd829947f2603",
-      "cardName": "翠嫩芽",
-      "supertype": "Creature",
-      "power": 1,
-      "life": 2,
-      "costList": [
+    "cards": [
         {
-          "manaType": 3,
-          "amount": 1.0
-        }
-      ],
-      "keywords": [
-        "Growth"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "32c46eb99bbe159a",
-      "cardName": "翠嫩芽·青",
-      "supertype": "Creature",
-      "power": 1,
-      "life": 3,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
-        }
-      ],
-      "keywords": [
-        "Growth"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "4c593bcfd99a9588",
-      "cardName": "翠藤苗",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 2,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
-        }
-      ],
-      "keywords": [
-        "Growth"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "2a1f6b34486ad749",
-      "cardName": "翠藤苗·伸",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 3,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "40acd829947f2603",
+            "cardName": "翠嫩芽",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 1.0
-        }
-      ],
-      "keywords": [
-        "Growth"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "c1b4d67a17043b86",
-      "cardName": "翠生长期",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "32c46eb99bbe159a",
+            "cardName": "翠嫩芽·青",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 1.0
-        }
-      ],
-      "keywords": [
-        "Growth"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "20c4c86150058dbc",
-      "cardName": "翠繁茂苗",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "4c593bcfd99a9588",
+            "cardName": "翠藤苗",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [
-        "Growth"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "45d9eff7342a80d1",
-      "cardName": "翠治愈者",
-      "supertype": "Creature",
-      "power": 1,
-      "life": 3,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "2a1f6b34486ad749",
+            "cardName": "翠藤苗·伸",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 1.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_07_00",
-          "DisplayName": "治愈",
-          "Description": "登场：回复己方英雄 2 点生命",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "Heal",
-              "Value": 2,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "5ef7336fb549b63d",
-      "cardName": "翠治愈者·泽",
-      "supertype": "Creature",
-      "power": 1,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "c1b4d67a17043b86",
+            "cardName": "翠生长期",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_08_00",
-          "DisplayName": "治愈",
-          "Description": "登场：回复己方英雄 2 点生命",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "Heal",
-              "Value": 2,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "0ce2c7cb491321a3",
-      "cardName": "翠甘霖祭司",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 3,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 2.0
+            "id": "20c4c86150058dbc",
+            "cardName": "翠繁茂苗",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_09_00",
-          "DisplayName": "治愈",
-          "Description": "登场：回复己方英雄 3 点生命",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "Heal",
-              "Value": 3,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "d65356ae4ba4b534",
-      "cardName": "翠甘霖祭司·霖",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 2.0
+            "id": "bf5a9ecf310efd68",
+            "cardName": "翠治愈者",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_07_00",
+                    "DisplayName": "治愈",
+                    "Description": "登场：回复己方英雄 2 点生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Heal",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_10_00",
-          "DisplayName": "治愈",
-          "Description": "登场：回复己方英雄 3 点生命",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "Heal",
-              "Value": 3,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "93afceb577b8ba52",
-      "cardName": "翠生命守望",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 2.0
+            "id": "85962722f1b1e984",
+            "cardName": "翠治愈者·泽",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_08_00",
+                    "DisplayName": "治愈",
+                    "Description": "登场：回复己方英雄 2 点生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Heal",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_11_00",
-          "DisplayName": "治愈",
-          "Description": "登场：回复己方英雄 4 点生命",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "Heal",
-              "Value": 4,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "0860050207b0648a",
-      "cardName": "翠增殖者",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 2,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "c266bef955653d72",
+            "cardName": "翠甘霖祭司",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_09_00",
+                    "DisplayName": "治愈",
+                    "Description": "登场：回复己方英雄 3 点生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Heal",
+                            "Value": 3,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 1.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_12_00",
-          "DisplayName": "增殖",
-          "Description": "登场：全体友方生物各获得一个 +1/+1 指示物",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 3,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddPlusOne",
-              "Value": 1,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "df005eebd6ef2fe0",
-      "cardName": "翠增殖者·衍",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 3,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "937628cedb5e5145",
+            "cardName": "翠甘霖祭司·霖",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_10_00",
+                    "DisplayName": "治愈",
+                    "Description": "登场：回复己方英雄 3 点生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Heal",
+                            "Value": 3,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_13_00",
-          "DisplayName": "增殖",
-          "Description": "登场：全体友方生物各获得一个 +1/+1 指示物",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 3,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddPlusOne",
-              "Value": 1,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "009e2b0a8e6b24c7",
-      "cardName": "翠播种人",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "87c1f4ce09048dab",
+            "cardName": "翠生命守望",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_11_00",
+                    "DisplayName": "治愈",
+                    "Description": "登场：回复己方英雄 4 点生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Heal",
+                            "Value": 4,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_14_00",
-          "DisplayName": "增殖",
-          "Description": "登场：全体友方生物各获得一个 +1/+1 指示物",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 3,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddPlusOne",
-              "Value": 1,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "2c49ec58cc13824f",
-      "cardName": "翠播种人·撒",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "7057e866a89ef8e6",
+            "cardName": "翠增殖者",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_12_00",
+                    "DisplayName": "增殖",
+                    "Description": "登场：全体友方生物各获得一个 +1/+1 指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 3,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddPlusOne",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 3.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_15_00",
-          "DisplayName": "增殖",
-          "Description": "登场：全体友方生物各获得一个 +1/+1 指示物",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 3,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddPlusOne",
-              "Value": 1,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "a796a4881edd8d21",
-      "cardName": "翠繁荣使者",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 3,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "91e1df54c307b1ec",
+            "cardName": "翠增殖者·衍",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_13_00",
+                    "DisplayName": "增殖",
+                    "Description": "登场：全体友方生物各获得一个 +1/+1 指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 3,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddPlusOne",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_16_00",
-          "DisplayName": "增殖",
-          "Description": "登场：全体友方生物各获得一个 +1/+1 指示物",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 3,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddPlusOne",
-              "Value": 1,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "35f1f5625a3f3d37",
-      "cardName": "翠古木壁",
-      "supertype": "Creature",
-      "power": 1,
-      "life": 5,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "f2bf1cf053c7306b",
+            "cardName": "翠播种人",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_14_00",
+                    "DisplayName": "增殖",
+                    "Description": "登场：全体友方生物各获得一个 +1/+1 指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 3,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddPlusOne",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 1.0
-        }
-      ],
-      "keywords": [
-        "Taunt"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "299f2d236b9f096f",
-      "cardName": "翠古木壁·厚",
-      "supertype": "Creature",
-      "power": 1,
-      "life": 6,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "530464b65eb9e84a",
+            "cardName": "翠播种人·撒",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_15_00",
+                    "DisplayName": "增殖",
+                    "Description": "登场：全体友方生物各获得一个 +1/+1 指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 3,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddPlusOne",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [
-        "Taunt"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "5eb83166d48a31af",
-      "cardName": "翠藤墙",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 5,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "94a9310e86c03f4d",
+            "cardName": "翠繁荣使者",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_16_00",
+                    "DisplayName": "增殖",
+                    "Description": "登场：全体友方生物各获得一个 +1/+1 指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 3,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddPlusOne",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [
-        "Taunt"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "a9bc3c9a55e8012c",
-      "cardName": "翠藤墙·密",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 6,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "35f1f5625a3f3d37",
+            "cardName": "翠古木壁",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Taunt"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [
-        "Taunt"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "b702ff340e799fd4",
-      "cardName": "翠巨石守",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 7,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "299f2d236b9f096f",
+            "cardName": "翠古木壁·厚",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Taunt"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 3.0
-        }
-      ],
-      "keywords": [
-        "Taunt"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "a760301d48c0bdef",
-      "cardName": "翠岩壳兽",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 2.0
+            "id": "5eb83166d48a31af",
+            "cardName": "翠藤墙",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Taunt"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_22_00",
-          "DisplayName": "岩壳",
-          "Description": "登场：己方英雄获得 2 点护甲",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddArmor",
-              "Value": 2,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "f9916e0f7dd069ce",
-      "cardName": "翠岩壳兽·坚",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 5,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 2.0
+            "id": "a9bc3c9a55e8012c",
+            "cardName": "翠藤墙·密",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Taunt"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_23_00",
-          "DisplayName": "岩壳",
-          "Description": "登场：己方英雄获得 2 点护甲",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddArmor",
-              "Value": 2,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "2fdc660c2586200e",
-      "cardName": "翠晶甲虫",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 2.0
+            "id": "b702ff340e799fd4",
+            "cardName": "翠巨石守",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 7,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Taunt"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_24_00",
-          "DisplayName": "岩壳",
-          "Description": "登场：己方英雄获得 2 点护甲",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddArmor",
-              "Value": 2,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "7abc911ba7c96716",
-      "cardName": "翠硬壳龟",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "7185ff1f47770e76",
+            "cardName": "翠岩壳兽",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_22_00",
+                    "DisplayName": "岩壳",
+                    "Description": "登场：己方英雄获得 2 点护甲",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddArmor",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [
-        "Armor"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "a0f019665f6ac737",
-      "cardName": "翠硬壳龟·固",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 5,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "7811fcc90bda6487",
+            "cardName": "翠岩壳兽·坚",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_23_00",
+                    "DisplayName": "岩壳",
+                    "Description": "登场：己方英雄获得 2 点护甲",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddArmor",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [
-        "Armor"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "42000935da7a19d1",
-      "cardName": "翠甲胄兽",
-      "supertype": "Creature",
-      "power": 4,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "25ad4525f37d13c7",
+            "cardName": "翠晶甲虫",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_24_00",
+                    "DisplayName": "岩壳",
+                    "Description": "登场：己方英雄获得 2 点护甲",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddArmor",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [
-        "Armor"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "3c64c6eba29823a0",
-      "cardName": "翠系命藤",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 3,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "7abc911ba7c96716",
+            "cardName": "翠硬壳龟",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Armor"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 1.0
-        }
-      ],
-      "keywords": [
-        "Lifesteal"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "a7eca67d8b37acdc",
-      "cardName": "翠系命藤·缠",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "a0f019665f6ac737",
+            "cardName": "翠硬壳龟·固",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Armor"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [
-        "Lifesteal"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "65af9a98704ed6cb",
-      "cardName": "翠生命相连",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "42000935da7a19d1",
+            "cardName": "翠甲胄兽",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Armor"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [
-        "Lifelink"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "d850d11b46f9e2e2",
-      "cardName": "翠生命相连·系",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 5,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "3c64c6eba29823a0",
+            "cardName": "翠系命藤",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Lifesteal"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [
-        "Lifelink"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "1bac8b956a84363c",
-      "cardName": "翠再生蜥",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "a7eca67d8b37acdc",
+            "cardName": "翠系命藤·缠",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Lifesteal"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [
-        "Regeneration"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "d977ffe589f9ee65",
-      "cardName": "翠再生蜥·活",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 5,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "65af9a98704ed6cb",
+            "cardName": "翠生命相连",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Lifelink"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [
-        "Regeneration"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "092eb3af4c325664",
-      "cardName": "翠轮回芽",
-      "supertype": "Creature",
-      "power": 4,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "d850d11b46f9e2e2",
+            "cardName": "翠生命相连·系",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Lifelink"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [
-        "Reborn"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "6b02ef6cb8ab4bfc",
-      "cardName": "翠轮回芽·归",
-      "supertype": "Creature",
-      "power": 4,
-      "life": 5,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "1bac8b956a84363c",
+            "cardName": "翠再生蜥",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Regeneration"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 3.0
-        }
-      ],
-      "keywords": [
-        "Reborn"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "28f36dd82c5c7325",
-      "cardName": "翠巨熊",
-      "supertype": "Creature",
-      "power": 5,
-      "life": 6,
-      "costList": [
-        {
-          "manaType": 0,
-          "amount": 4.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "930dfe3552ad0a0e",
-      "cardName": "翠巨蟒",
-      "supertype": "Creature",
-      "power": 6,
-      "life": 6,
-      "costList": [
-        {
-          "manaType": 0,
-          "amount": 4.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "e5437151f4997fb7",
-      "cardName": "翠古树灵",
-      "supertype": "Creature",
-      "power": 6,
-      "life": 7,
-      "costList": [
-        {
-          "manaType": 0,
-          "amount": 4.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "4fbee2915cb7ea4e",
-      "cardName": "翠山岳兽",
-      "supertype": "Creature",
-      "power": 7,
-      "life": 7,
-      "costList": [
-        {
-          "manaType": 0,
-          "amount": 4.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "8295e0c13e8bcb88",
-      "cardName": "翠太古巨木",
-      "supertype": "Creature",
-      "power": 7,
-      "life": 8,
-      "costList": [
-        {
-          "manaType": 0,
-          "amount": 5.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "bf02d61feaa892ab",
-      "cardName": "翠圣盾卫",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "d977ffe589f9ee65",
+            "cardName": "翠再生蜥·活",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Regeneration"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [
-        "DivineShield"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "8527be1adeebf302",
-      "cardName": "翠圣盾卫·辉",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 5,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
+            "id": "092eb3af4c325664",
+            "cardName": "翠轮回芽",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Reborn"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [
-        "DivineShield"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "d590f0a5a790278e",
-      "cardName": "翠苏生祭司",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 3,
-      "costList": [
-        {
-          "manaType": 0,
-          "amount": 3.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_43_00",
-          "DisplayName": "苏生",
-          "Description": "登场：从墓地复苏一个生物",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "ReturnFromGraveyard",
-              "Value": 1,
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "0d08719716884e46",
-      "cardName": "翠苏生祭司·唤",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 4,
-      "costList": [
-        {
-          "manaType": 0,
-          "amount": 4.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_44_00",
-          "DisplayName": "苏生",
-          "Description": "登场：从墓地复苏一个生物",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "ReturnFromGraveyard",
-              "Value": 1,
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "b75073fb86a87104",
-      "cardName": "翠碾压巨木",
-      "supertype": "Creature",
-      "power": 6,
-      "life": 6,
-      "costList": [
-        {
-          "manaType": 1,
-          "amount": 1.0
+            "id": "6b02ef6cb8ab4bfc",
+            "cardName": "翠轮回芽·归",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Reborn"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         },
         {
-          "manaType": 0,
-          "amount": 3.0
-        }
-      ],
-      "keywords": [
-        "Overwhelm"
-      ],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "77ec5cfa067825db",
-      "cardName": "翠治愈浪潮",
-      "supertype": "Spell",
-      "power": 0,
-      "life": 0,
-      "costList": [
+            "id": "28f36dd82c5c7325",
+            "cardName": "翠巨熊",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "manaType": 3,
-          "amount": 2.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
+            "id": "930dfe3552ad0a0e",
+            "cardName": "翠巨蟒",
+            "supertype": "Creature",
+            "power": 6,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "Id": "DECK_GREEN_46_00",
-          "DisplayName": "治愈",
-          "Description": "回复己方英雄 4 点生命",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "Heal",
-              "Value": 4,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "3196aa7b55475ef3",
-      "cardName": "翠治愈浪潮·沛",
-      "supertype": "Spell",
-      "power": 0,
-      "life": 0,
-      "costList": [
+            "id": "e5437151f4997fb7",
+            "cardName": "翠古树灵",
+            "supertype": "Creature",
+            "power": 6,
+            "life": 7,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "manaType": 3,
-          "amount": 3.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
+            "id": "4fbee2915cb7ea4e",
+            "cardName": "翠山岳兽",
+            "supertype": "Creature",
+            "power": 7,
+            "life": 7,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "Id": "DECK_GREEN_47_00",
-          "DisplayName": "治愈",
-          "Description": "回复己方英雄 5 点生命",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "Heal",
-              "Value": 5,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "cc833fb8b9194920",
-      "cardName": "翠生命之泉",
-      "supertype": "Spell",
-      "power": 0,
-      "life": 0,
-      "costList": [
+            "id": "8295e0c13e8bcb88",
+            "cardName": "翠太古巨木",
+            "supertype": "Creature",
+            "power": 7,
+            "life": 8,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "manaType": 3,
-          "amount": 3.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
+            "id": "bf02d61feaa892ab",
+            "cardName": "翠圣盾卫",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "DivineShield"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "Id": "DECK_GREEN_48_00",
-          "DisplayName": "治愈",
-          "Description": "回复己方英雄 6 点生命",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "Heal",
-              "Value": 6,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "63938e41b12c95af",
-      "cardName": "翠成长赐福",
-      "supertype": "Spell",
-      "power": 0,
-      "life": 0,
-      "costList": [
+            "id": "8527be1adeebf302",
+            "cardName": "翠圣盾卫·辉",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "DivineShield"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "manaType": 3,
-          "amount": 1.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
+            "id": "1655287aee1ae2bd",
+            "cardName": "翠苏生祭司",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_43_00",
+                    "DisplayName": "苏生",
+                    "Description": "登场：从墓地复苏一个生物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "ReturnFromGraveyard",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "Id": "DECK_GREEN_49_00",
-          "DisplayName": "赐福",
-          "Description": "全体友方生物各获得一个 +1/+1 指示物",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 3,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddPlusOne",
-              "Value": 1,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "f26dcbd7c5c1ccde",
-      "cardName": "翠成长赐福·沃",
-      "supertype": "Spell",
-      "power": 0,
-      "life": 0,
-      "costList": [
+            "id": "4ca9a925fa1b72d5",
+            "cardName": "翠苏生祭司·唤",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_44_00",
+                    "DisplayName": "苏生",
+                    "Description": "登场：从墓地复苏一个生物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "ReturnFromGraveyard",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "manaType": 3,
-          "amount": 3.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
+            "id": "b75073fb86a87104",
+            "cardName": "翠碾压巨木",
+            "supertype": "Creature",
+            "power": 6,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Overwhelm"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "Id": "DECK_GREEN_50_00",
-          "DisplayName": "赐福",
-          "Description": "全体友方生物各获得一个 +1/+1 指示物",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 3,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddPlusOne",
-              "Value": 2,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "9b1b36de602bbf90",
-      "cardName": "翠繁荣仪式",
-      "supertype": "Spell",
-      "power": 0,
-      "life": 0,
-      "costList": [
+            "id": "17eeb1736fbadf92",
+            "cardName": "翠治愈浪潮",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_46_00",
+                    "DisplayName": "治愈",
+                    "Description": "回复己方英雄 4 点生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Heal",
+                            "Value": 4,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "manaType": 3,
-          "amount": 4.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
+            "id": "64714f3a49075d12",
+            "cardName": "翠治愈浪潮·沛",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_47_00",
+                    "DisplayName": "治愈",
+                    "Description": "回复己方英雄 5 点生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Heal",
+                            "Value": 5,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "Id": "DECK_GREEN_51_00",
-          "DisplayName": "赐福",
-          "Description": "全体友方生物各获得一个 +1/+1 指示物",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 3,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddPlusOne",
-              "Value": 3,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "79eca6e06defdb9e",
-      "cardName": "翠巨力术",
-      "supertype": "Spell",
-      "power": 0,
-      "life": 0,
-      "costList": [
+            "id": "c0294afa611be889",
+            "cardName": "翠生命之泉",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_48_00",
+                    "DisplayName": "治愈",
+                    "Description": "回复己方英雄 6 点生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Heal",
+                            "Value": 6,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "manaType": 3,
-          "amount": 6.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
+            "id": "bcbec38c342dc543",
+            "cardName": "翠成长赐福",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_49_00",
+                    "DisplayName": "赐福",
+                    "Description": "全体友方生物各获得一个 +1/+1 指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 3,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddPlusOne",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "Id": "DECK_GREEN_52_00",
-          "DisplayName": "巨力",
-          "Description": "全体友方生物攻击力 +2、生命值 +2",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 3,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddPowerUp",
-              "Value": 2,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            },
-            {
-              "EffectType": "AddLifeUp",
-              "Value": 2,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "26d3418626b9b310",
-      "cardName": "翠巨力术·壮",
-      "supertype": "Spell",
-      "power": 0,
-      "life": 0,
-      "costList": [
+            "id": "ef80830fbf0655b1",
+            "cardName": "翠成长赐福·沃",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_50_00",
+                    "DisplayName": "赐福",
+                    "Description": "全体友方生物各获得一个 +1/+1 指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 3,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddPlusOne",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "manaType": 3,
-          "amount": 8.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
+            "id": "4d5cbaef2f0c6e3e",
+            "cardName": "翠繁荣仪式",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_51_00",
+                    "DisplayName": "赐福",
+                    "Description": "全体友方生物各获得一个 +1/+1 指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 3,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddPlusOne",
+                            "Value": 3,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "Id": "DECK_GREEN_53_00",
-          "DisplayName": "巨力",
-          "Description": "全体友方生物攻击力 +3、生命值 +3",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 3,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddPowerUp",
-              "Value": 3,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            },
-            {
-              "EffectType": "AddLifeUp",
-              "Value": 3,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "6c57113c47fa2e6f",
-      "cardName": "翠岩甲术",
-      "supertype": "Spell",
-      "power": 0,
-      "life": 0,
-      "costList": [
+            "id": "71ee193e42d0996c",
+            "cardName": "翠巨力术",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 6.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_52_00",
+                    "DisplayName": "巨力",
+                    "Description": "全体友方生物攻击力 +2、生命值 +2",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 3,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddPowerUp",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        },
+                        {
+                            "ID": "",
+                            "EffectType": "AddLifeUp",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "manaType": 3,
-          "amount": 3.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
+            "id": "5342609b272e30e3",
+            "cardName": "翠巨力术·壮",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 10.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_53_00",
+                    "DisplayName": "巨力",
+                    "Description": "全体友方生物攻击力 +3、生命值 +3",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 3,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddPowerUp",
+                            "Value": 3,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        },
+                        {
+                            "ID": "",
+                            "EffectType": "AddLifeUp",
+                            "Value": 3,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "Id": "DECK_GREEN_54_00",
-          "DisplayName": "岩甲",
-          "Description": "己方英雄获得 3 点护甲",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddArmor",
-              "Value": 3,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "520c6eb3a543f537",
-      "cardName": "翠岩甲术·厚",
-      "supertype": "Spell",
-      "power": 0,
-      "life": 0,
-      "costList": [
+            "id": "347f74818007f2ae",
+            "cardName": "翠岩甲术",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_54_00",
+                    "DisplayName": "岩甲",
+                    "Description": "己方英雄获得 3 点护甲",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddArmor",
+                            "Value": 3,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "manaType": 3,
-          "amount": 4.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
+            "id": "eec232a77ca8dabe",
+            "cardName": "翠岩甲术·厚",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_55_00",
+                    "DisplayName": "岩甲",
+                    "Description": "己方英雄获得 3 点护甲",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddArmor",
+                            "Value": 4,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "Id": "DECK_GREEN_55_00",
-          "DisplayName": "岩甲",
-          "Description": "己方英雄获得 3 点护甲",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddArmor",
-              "Value": 4,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "e361fc381e80e8fd",
-      "cardName": "翠光合",
-      "supertype": "Spell",
-      "power": 0,
-      "life": 0,
-      "costList": [
+            "id": "a97b1f0db54b3927",
+            "cardName": "翠光合",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_56_00",
+                    "DisplayName": "光合",
+                    "Description": "获得元素加速",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Photosynthesis",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "manaType": 3,
-          "amount": 3.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
+            "id": "ad1ab32c7cd99bf1",
+            "cardName": "翠光合·盛",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 6.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_57_00",
+                    "DisplayName": "光合",
+                    "Description": "获得元素加速",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Photosynthesis",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "Id": "DECK_GREEN_56_00",
-          "DisplayName": "光合",
-          "Description": "获得元素加速",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "Photosynthesis",
-              "Value": 1,
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 0,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "271b81ff18078473",
-      "cardName": "翠光合·盛",
-      "supertype": "Spell",
-      "power": 0,
-      "life": 0,
-      "costList": [
+            "id": "2a1452ec2667be9b",
+            "cardName": "翠采掘",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_58_00",
+                    "DisplayName": "采掘",
+                    "Description": "从元素池采掘元素",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Mine",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "manaType": 3,
-          "amount": 6.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
+            "id": "96637760d7536c9a",
+            "cardName": "翠成长赐福·泽",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 6.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_59_00",
+                    "DisplayName": "赐福",
+                    "Description": "全体友方生物各获得一个 +1/+1 指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 3,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddPlusOne",
+                            "Value": 4,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
         {
-          "Id": "DECK_GREEN_57_00",
-          "DisplayName": "光合",
-          "Description": "获得元素加速",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "Photosynthesis",
-              "Value": 2,
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 0,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
+            "id": "c90c58457d5f178e",
+            "cardName": "翠岩甲术·固",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_GREEN_60_00",
+                    "DisplayName": "岩甲",
+                    "Description": "己方英雄获得 3 点护甲",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddArmor",
+                            "Value": 5,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                0
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
         }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "f6ad8a011d9b4250",
-      "cardName": "翠采掘",
-      "supertype": "Spell",
-      "power": 0,
-      "life": 0,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 1.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_58_00",
-          "DisplayName": "采掘",
-          "Description": "从元素池采掘元素",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "Mine",
-              "Value": 1,
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "64edaa7ca288df4e",
-      "cardName": "翠成长赐福·泽",
-      "supertype": "Spell",
-      "power": 0,
-      "life": 0,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 5.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_59_00",
-          "DisplayName": "赐福",
-          "Description": "全体友方生物各获得一个 +1/+1 指示物",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 3,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddPlusOne",
-              "Value": 4,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
-    },
-    {
-      "id": "89fdcd4a6df04bdf",
-      "cardName": "翠岩甲术·固",
-      "supertype": "Spell",
-      "power": 0,
-      "life": 0,
-      "costList": [
-        {
-          "manaType": 3,
-          "amount": 5.0
-        }
-      ],
-      "keywords": [],
-      "tags": [
-        "test-deck"
-      ],
-      "effects": [
-        {
-          "Id": "DECK_GREEN_60_00",
-          "DisplayName": "岩甲",
-          "Description": "己方英雄获得 3 点护甲",
-          "TriggerTiming": 0,
-          "ActivationType": 0,
-          "BaseSpeed": 0,
-          "IsOptional": false,
-          "Duration": 0,
-          "ActivationConditions": [],
-          "TriggerConditions": [],
-          "AtomicEffects": [
-            {
-              "EffectType": "AddArmor",
-              "Value": 5,
-              "TargetKinds": [
-                0
-              ],
-              "ID": ""
-            }
-          ],
-          "Costs": [],
-          "Tags": [],
-          "Steps": [],
-          "DurationValue": 0,
-          "SummonDropZone": 1,
-          "SelectionMode": 1,
-          "TargetCount": 1,
-          "DynamicTargetCount": false,
-          "Drawbacks": []
-        }
-      ],
-      "subtype": "",
-      "level": -1,
-      "rank": -1,
-      "linkRating": -1,
-      "arrows": "",
-      "linkAuras": []
+    ],
+    "deckConfig": {
+        "copiesPerCard": 1
     }
-  ],
-  "deckConfig": {
-    "copiesPerCard": 1
-  }
 }
