@@ -77,9 +77,13 @@ class TideActor(nn.Module):
         context = mlp(c)(context)
         context = nn.relu(context)
 
-        # 逐动作打分：actions 与 context 点积
+        # 逐动作打分：actions 与 context 点积，÷√channels 温度缩放——
+        # 两侧均 LayerNorm（每维 ~N(0,1)），裸点积幅度 ≈ √c ≈ 11 → 初始化即近 argmax
+        # （实测初始熵 0.48 vs 10 合法动作均匀熵 2.3），7 个 update 内熵精确归零、探索死亡
+        # （2026-09-09 三轮复现）。÷√c 让初始 logit 离散度 ≈ 1，softmax 从近均匀起步；
+        # 策略变自信仍可通过 LayerNorm 增益正常长尖。
         context_expanded = context[:, None, :]  # (batch, 1, channels)
-        logits = (actions * context_expanded).sum(axis=-1)  # (batch, max_actions)
+        logits = (actions * context_expanded).sum(axis=-1) / jnp.sqrt(c)  # (batch, max_actions)
 
         # 屏蔽非法动作（-inf）
         logits = jnp.where(a_mask, -1e9, logits)

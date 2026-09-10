@@ -40,6 +40,10 @@ namespace CardCore.Editor.TideHeadless
         private const int SelfTestMaxSteps = 2000;
         private const int TcpPort = 9999;
 
+        /// <summary>卡身份清单（追加式分配的持久化）：训练/部署同一份 → 新哈希续排，已训 embedding 行永不串台。</summary>
+        private static string CardManifestPath
+            => Path.Combine(Application.dataPath, "..", "tide_rl", "card_identity_manifest.json");
+
         private static TcpListener _tcpListener;
         private static Thread _tcpThread;
         private static bool _isRunning;
@@ -57,6 +61,10 @@ namespace CardCore.Editor.TideHeadless
 
             _isRunning = true;
             _deckPool = null; // 服务器重启时重新加载卡池（编辑器内可能改了卡表配置）
+            int loaded = TideCardIndex.ConfigureManifest(CardManifestPath); // 追加式下标，重启不改写
+            Debug.Log(loaded >= 0
+                ? $"[TideHeadless] 卡身份清单载入 {loaded} 条（{CardManifestPath}）"
+                : $"[TideHeadless] 卡身份清单表指纹不符，旧清单作废从零续排（{CardManifestPath}）");
             _tcpThread = new Thread(TcpServerLoop) { IsBackground = true };
             _tcpThread.Start();
             Debug.Log($"[TideHeadless] TCP 服务器启动在 localhost:{TcpPort}，等待 Python 连接...");
@@ -169,7 +177,9 @@ namespace CardCore.Editor.TideHeadless
                 Debug.LogError("[无头驱动] 标准卡组加载失败（Configs/TestCreatureCards.json）");
                 return;
             }
-            TideCardIndex.Register(deck); // 自测路径同口径登记卡身份（与 DeckPool 同源同序）
+            TideCardIndex.ConfigureManifest(CardManifestPath); // 与训练路径同一份清单（追加式续排）
+            int added = TideCardIndex.Register(deck); // 自测路径同口径登记卡身份（与 DeckPool 同源同序）
+            Debug.Log($"[无头驱动] 卡身份登记 +{added}（总 {TideCardIndex.Count}）");
 
             var driver = new TideHeadlessDriver();
             var rng = new System.Random(12345);
@@ -220,6 +230,7 @@ namespace CardCore.Editor.TideHeadless
         public static void Main()
         {
             Debug.unityLogger.logEnabled = false;
+            TideCardIndex.ConfigureManifest(CardManifestPath); // batchmode 进程短命：跨进程稳定全靠清单
 
             int port = TcpPort;
             var argv = Environment.GetCommandLineArgs();
@@ -259,15 +270,32 @@ namespace CardCore.Editor.TideHeadless
                 return driver.Reset(new List<CardData>(), new List<CardData>());
             }
 
-            TideCardIndex.Register(pool); // 卡身份下标（obs 第 15 维）：文件序确定性 → 跨局/跨进程稳定
+            // 身份登记：标准池 + 三色主题池（追加式幂等，新组合哈希自动续排进 manifest）
+            int addedIds = TideCardIndex.Register(pool);
+            foreach (var cp in ColorPools)
+                addedIds += TideCardIndex.Register(cp);
+            if (addedIds > 0)
+                UnityEngine.Debug.Log($"[TideHeadless] 卡身份登记 +{addedIds}（总 {TideCardIndex.Count}）");
 
             lock (DeckRngLock)
             {
+                if (opponent == "simpleai")
+                {
+                    // 验证阶段对位口径：模型 = 三色随机一色抽 30；SimpleAI 恒红色抽 30（缺池退回标准池）
+                    var colors = ColorPools;
+                    var modelPool = colors[DeckRng.Next(colors.Length)];
+                    if (modelPool.Count == 0) modelPool = pool;
+                    var aiPool = colors[0].Count > 0 ? colors[0] : pool;
+                    return driver.Reset(
+                        SampleRandomDeck(modelPool, RandomDeckSize),
+                        SampleRandomDeck(aiPool, RandomDeckSize),
+                        DeckRng.Next(2) == 0); // 随机模型座次（先后手各半）
+                }
+
+                // 自对弈：双方标准池各抽 30（扩池后含主题导入卡）
                 var deck1 = SampleRandomDeck(pool, RandomDeckSize);
                 var deck2 = SampleRandomDeck(pool, RandomDeckSize);
-                if (opponent == "simpleai")
-                    return driver.Reset(deck1, deck2, DeckRng.Next(2) == 0); // 随机模型座次（先后手各半）
-                bool swap = DeckRng.Next(2) == 1; // 自对弈：随机先后手换座
+                bool swap = DeckRng.Next(2) == 1; // 随机先后手换座
                 if (swap) { var t = deck1; deck1 = deck2; deck2 = t; }
                 return driver.Reset(deck1, deck2);
             }
@@ -278,6 +306,29 @@ namespace CardCore.Editor.TideHeadless
         /// <summary>标准卡池缓存：JSON 只解析一次（每个 reset 复用；编辑器重启 TCP 服务器时置空重载）。</summary>
         private static List<CardData> _deckPool;
         private static List<CardData> DeckPool => _deckPool ??= AiBattleE2E.LoadStandardDeck();
+
+        /// <summary>主题色卡池缓存（[0]=Red [1]=Blue [2]=Green，Deck_*.json 由 tide_rl/generate_test_decks.py 生成）。
+        /// 验证阶段对位口径：SimpleAI 恒用红色；模型从三色随机抽一色再抽 30 张。缺失文件 = 空池，调用方退回标准池。</summary>
+        private static List<CardData>[] _colorPools;
+        private static List<CardData>[] ColorPools => _colorPools ??= LoadColorPools();
+        private static readonly string[] ColorDeckFiles = { "Deck_Red.json", "Deck_Blue.json", "Deck_Green.json" };
+
+        private static List<CardData>[] LoadColorPools()
+        {
+            var dir = Path.Combine(Application.dataPath, "Configs", "TestDecks");
+            var pools = new List<CardData>[ColorDeckFiles.Length];
+            for (int i = 0; i < pools.Length; i++)
+            {
+                var path = Path.Combine(dir, ColorDeckFiles[i]);
+                pools[i] = File.Exists(path)
+                    ? CardLoader.LoadCardsFromText(File.ReadAllText(path))
+                    : new List<CardData>();
+                if (pools[i].Count == 0)
+                    UnityEngine.Debug.LogError($"[TideHeadless] 主题卡池缺失或为空：{ColorDeckFiles[i]}（验证对位将退回标准池）");
+            }
+            return pools;
+        }
+
         private static readonly System.Random DeckRng = new System.Random();
         private static readonly object DeckRngLock = new object();
 

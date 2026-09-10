@@ -1,8 +1,13 @@
 """
 Tide 完整 PPO 训练脚本（stdio batchmode 桥接）。
 
-目标：beat SimpleAI——默认 vs SimpleAI 对手位训练 + 评估（模型座次随机 = 先后手各半，
-评估按 info.modelSeat 判模型胜负，是真实棋力指标；opponent="selfplay" 可切回自对弈）。
+目标：自对弈训练（默认 opponent="selfplay"——双方同一策略驱动，obs/reward 按
+「当前行动方」视角轮换，标准池随机卡组 + 随机换座）。
+评估双口径（自对弈模式每次评估都跑两组）：
+- 自对弈先手座次胜率：P1 恒先手，偏离 50% 的幅度 = 先后手失衡度量（非棋力）；
+- vs SimpleAI 模型胜率（座次随机、按 info.modelSeat 判）——真实棋力指标，
+  best 保存与早停均按此口径，与上一轮 vs-simpleai 训练（100k 步 75%）直接可比。
+opponent="simpleai" 可切回「打 SimpleAI」训练（评估只剩单一口径）。
 策略：
 1. 使用 ygo-agent 的 PPO 损失（jit + 整批前向，rollout 记录 rstate 保证更新期口径一致）
 2. 对局跨更新窗口延续（rollout_common），episode 统计真实完结
@@ -65,7 +70,7 @@ def stack_rstates(rstates):
 @dataclass
 class Args:
     """训练超参。"""
-    exp_name: str = "tide_ppo_beat_simpleai"
+    exp_name: str = "tide_ppo_selfplay"
     seed: int = 42
     learning_rate: float = 2.5e-4
     anneal_lr: bool = True  # 学习率线性衰减
@@ -78,7 +83,7 @@ class Args:
     gamma: float = 0.99
     gae_lambda: float = 0.95
     clip_coef: float = 0.2
-    ent_coef: float = 0.01
+    ent_coef: float = 0.05  # 熵系数（0.01 时点积 actor 熵 7 个 update 内塌零，已加温度修复后仍提到 0.05 保险）
     vf_coef: float = 0.5
     max_grad_norm: float = 0.5
 
@@ -89,9 +94,9 @@ class Args:
     log_interval: int = 2_560  # 每 2560 步打印（对齐 update 粒度）
 
     # Tide 特定
-    max_episode_steps: int = 500  # 单局步数上限（超时判负）
+    max_episode_steps: int = 1000  # 单局步数上限（超时判负；可选操作变多后 500 会提前截断对局）
     reward_lambda: float = 0.02  # 兼容参数（塑形 λ 固定在 Unity 侧）
-    opponent: str = "simpleai"   # 对手位：simpleai = 模型 vs SimpleAI（座次随机=先后手各半）；selfplay = 自对弈
+    opponent: str = "selfplay"   # 对手位：selfplay = 自对弈（双方同一策略）；simpleai = 模型 vs SimpleAI（座次随机=先后手各半）
     channels: int = 128
     rnn_channels: int = 512
     rnn_type: str = "gru"
@@ -109,15 +114,18 @@ class Args:
     step_timeout: float = 120.0
 
 
-def evaluate_greedy(agent_apply, params, env, args, num_episodes=20):
+def evaluate_greedy(agent_apply, params, env, args, num_episodes=20, opponent=None):
     """贪心策略评估（复用训练 env——stdio 桥接一进程一局，不能另开）。
+
+    opponent=None 时用 args.opponent（训练口径）；自对弈训练中途可传 "simpleai"
+    切换评估对手（reset 协议按次传 opponent，无需另开 env）。
 
     对手位口径：
     - simpleai：模型 vs SimpleAI，座次随机（先后手各半），按 info.modelSeat 判模型胜负
       ——这是真实棋力指标；
     - selfplay：双方同一策略按座次报告——P1 恒先手，即「先手座次胜率」（衡量先手优势）。
     """
-    vs_simpleai = args.opponent == "simpleai"
+    vs_simpleai = (opponent or args.opponent) == "simpleai"
     label = "vs SimpleAI（模型胜率）" if vs_simpleai else "self-play（先手座次胜率）"
 
     print(f"\n{'='*60}")
@@ -190,10 +198,10 @@ def train(args: Args):
 
     print(f"\n{'='*80}")
     print(f"Run: {run_name}")
-    if args.opponent == "simpleai":
-        print(f"PPO vs SimpleAI（模型座次随机=先后手各半；评估口径：模型胜率，按 info.modelSeat 判）")
+    if args.opponent == "selfplay":
+        print(f"Self-play PPO（双方同一策略；评估双口径：先手座次胜率 + vs SimpleAI 模型胜率，best/早停按后者）")
     else:
-        print(f"Self-play PPO（评估口径：先手座次胜率）")
+        print(f"PPO vs SimpleAI（模型座次随机=先后手各半；评估口径：模型胜率，按 info.modelSeat 判）")
     print(f"{'='*80}\n")
 
     # 保存配置
@@ -417,9 +425,26 @@ def train(args: Args):
 
             # ==================== 评估（复用训练 env；进行中的对局被打断） ====================
             if update % eval_every_updates == 0:
+                sp_win_rate = None
+                if args.opponent == "selfplay":
+                    # 口径 1：自对弈先手座次胜率（先后手失衡度量，非棋力）
+                    sp_win_rate, *_ = evaluate_greedy(
+                        jit_apply, train_state.params, env, args,
+                        args.eval_episodes, opponent="selfplay",
+                    )
+                # 口径 2（自对弈训练时）/ 唯一口径（simpleai 训练时）：vs SimpleAI 模型胜率
                 win_rate, wins, losses_, draws, avg_length = evaluate_greedy(
-                    jit_apply, train_state.params, env, args, args.eval_episodes
+                    jit_apply, train_state.params, env, args, args.eval_episodes,
+                    opponent="simpleai" if args.opponent == "selfplay" else None,
                 )
+                # 评估结果单独一行落盘（stats 写在 eval 前，混行 jsonl 不影响 tail）
+                with open(log_dir / "stats.jsonl", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({
+                        "update": update, "step": global_step, "eval": True,
+                        "win_rate_vs_simpleai": win_rate,
+                        "sp_win_rate": sp_win_rate,
+                        "avg_length": avg_length,
+                    }, ensure_ascii=False) + "\n")
 
                 # 评估抢占了进行中的对局 → 所有 env 强制重开
                 for env_id, e in enumerate(envs):
@@ -479,18 +504,25 @@ def train(args: Args):
         step_timeout=args.step_timeout,
     )
     try:
+        if args.opponent == "selfplay":
+            evaluate_greedy(
+                jit_apply, train_state.params, eval_env, args,
+                num_episodes=20, opponent="selfplay",
+            )
         final_win_rate, wins, losses_, draws, avg_length = evaluate_greedy(
-            jit_apply, train_state.params, eval_env, args, num_episodes=100
+            jit_apply, train_state.params, eval_env, args, num_episodes=100,
+            opponent="simpleai" if args.opponent == "selfplay" else None,
         )
     finally:
         eval_env.close()
 
     elapsed_total = time.time() - start_time
+    skill_label = "vs SimpleAI 棋力口径" if args.opponent == "selfplay" else args.opponent
     print(f"\n{'='*80}")
     print(f"Training finished!")
     print(f"  Total time: {elapsed_total/3600:.2f} hours")
-    print(f"  Best win rate ({args.opponent}): {best_win_rate*100:.1f}%")
-    print(f"  Final win rate ({args.opponent}): {final_win_rate*100:.1f}%")
+    print(f"  Best win rate ({skill_label}): {best_win_rate*100:.1f}%")
+    print(f"  Final win rate ({skill_label}): {final_win_rate*100:.1f}%")
     print(f"{'='*80}\n")
 
 
@@ -506,6 +538,8 @@ if __name__ == "__main__":
     print(f"  Project: {args.project_path or 'auto-detect'}")
     print(f"  Max episode steps: {args.max_episode_steps}")
     print(f"  Total timesteps: {args.total_timesteps:,}")
-    print(f"  Eval: P1(先手) win rate, target {args.target_win_rate*100:.0f}%\n")
+    print(f"  Opponent: {args.opponent}")
+    print(f"  Eval: vs SimpleAI 模型胜率（早停目标 {args.target_win_rate*100:.0f}%）"
+          + ("；自对弈另报先手座次胜率" if args.opponent == "selfplay" else "") + "\n")
 
     train(args)

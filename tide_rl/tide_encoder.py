@@ -1,8 +1,13 @@
 """
 Tide 编码器（路线 1：MLP/GRU actor-critic + 内容身份 embedding）。
 
-- 卡身份：原子内容哈希/组合结构/关键词组合槽（[15..23]）→ nn.Embed 查表（含槽位位置标记）
-  masked-sum——同原子跨卡共享行（内容寻址，C# CardIdentityService 与费用推算同管线产出哈希）。
+- 卡身份三通路：
+  1) 精确哈希槽 [15..22] → nn.Embed(N_CARD_POOL) 查表（含槽位位置标记）masked-sum——
+     同原子跨卡共享行（内容寻址，C# CardIdentityService 与费用推算同管线产出哈希）。
+  2) EffectType 槽 [23..28] → nn.Embed(N_EFFECT_TYPES)——参数无关，「造成4伤」与「造成5伤」
+     同一行；新参数值不再纯新 token。
+  3) 参数块 [29..]（6 槽 × ATOM_PARAM_DIM 浮点）→ per-slot 共享 Dense 投影 masked-sum——
+     数值插值通路，幅度变化可从已训参数外推。
 - 动作编码：6 维动作特征 + 按 source/targetIndex gather 的来源/目标卡编码 concat 后投影
   ——动作打分能读到它指向的那张卡（对齐 ygo-agent 的 spec gather 思路）。
 - 状态特征（力量/费用/横置…）仍是扁平浮点 Dense 投影。
@@ -21,7 +26,12 @@ from tide_features import (
     N_ACTION_FEATURES,
     CARD_ID_START,
     N_ID_SLOTS,
+    TYPE_ID_START,
+    N_TYPE_SLOTS,
+    ATOM_PARAM_START,
+    ATOM_PARAM_DIM,
     N_CARD_POOL,
+    N_EFFECT_TYPES,
 )
 
 
@@ -30,12 +40,15 @@ default_fc_init = nn.initializers.orthogonal(scale=jnp.sqrt(2))
 
 class TideCardEncoder(nn.Module):
     """
-    卡牌编码器：内容身份 embedding（原子级拆散）+ 状态特征 Dense 投影 → (80, channels)。
+    卡牌编码器：内容身份三通路 + 状态特征 Dense 投影 → (80, channels)。
 
-    身份 = [15..20] 原子哈希槽（执行序，槽位=顺序）+ [21] 组合结构 + [22] 关键词/tag/光环
-    组合，逐槽 nn.Embed 查表加槽位位置标记后 masked-sum——同原子（如 造成伤害4）跨卡
-    共享 embedding 行，相近效果在原子层重叠、语义直接迁移。
-    状态维度（力量/费用/横置…）仍是扁平浮点 Dense 投影。两路相加后 LayerNorm。
+    通路 1 精确身份 = [15..20] 原子哈希槽（执行序，槽位=顺序）+ [21] 组合结构 + [22] 关键词/
+    tag/光环组合，逐槽 nn.Embed 查表加槽位位置标记后 masked-sum——同原子（如 造成伤害4）
+    跨卡共享 embedding 行，相近效果在原子层重叠、语义直接迁移；对未见参数值查表记 0（静默）。
+    通路 2 类型 = [23..28] EffectType 下标（参数无关共享行）；通路 3 参数 = [29..] 浮点块
+    per-slot Dense（槽位间共享权重，存在性由类型下标门控）masked-sum——「造成5伤」可从
+    「造成4伤」的类型行 + 参数线性响应插值。
+    状态维度（力量/费用/横置…）仍是扁平浮点 Dense 投影。四路相加后 LayerNorm。
     """
     channels: int = 128
     dtype: Optional[jnp.dtype] = None
@@ -45,7 +58,7 @@ class TideCardEncoder(nn.Module):
     def __call__(self, x, mask=None):
         """
         Args:
-            x: (batch, 80, 24) 卡牌特征（[15..23] = 内容身份下标九槽：6 原子 + 结构 + 组合 + 预留）
+            x: (batch, 80, 71) 卡牌特征（[15..22] 精确身份 8 槽、[23..28] 类型 6 槽、[29..] 参数块）
             mask: (batch, 80) bool 掩码（True=有效卡，False=空槽）
 
         Returns:
@@ -58,22 +71,47 @@ class TideCardEncoder(nn.Module):
         valid = x[:, :, 0]  # (batch, 80)
         c_mask = jnp.asarray(valid == 0)  # True=空槽（下游池化均有 count≥1 护栏，无需占位槽）
 
-        # 内容身份（原子级拆散）：逐槽 embedding 查表 + 槽位位置标记（原子槽的槽位=执行序，
-        # 位置标记让「先抽牌后伤害」≠「先伤害后抽牌」）后 masked-sum——
-        # 0 = 无该成分不参与求和；同原子跨卡共享 embedding 行
-        ids = x[:, :, CARD_ID_START:CARD_ID_START + N_ID_SLOTS]  # (batch, 80, S)
+        # 通路 1：精确内容身份（原子级拆散）——逐槽 embedding 查表 + 槽位位置标记（原子槽的
+        # 槽位=执行序，位置标记让「先抽牌后伤害」≠「先伤害后抽牌」）后 masked-sum——
+        # 0 = 无该成分/未登记不参与求和；同原子跨卡共享 embedding 行
+        ids = x[:, :, CARD_ID_START:CARD_ID_START + N_ID_SLOTS]  # (batch, 80, 8)
         present = ids > 0
         embedding = nn.Embed(
             N_CARD_POOL, c,
             dtype=self.dtype, param_dtype=self.param_dtype,
-        )(jnp.clip(ids, 0, N_CARD_POOL - 1).astype(jnp.int32))  # (batch, 80, S, channels)
+        )(jnp.clip(ids, 0, N_CARD_POOL - 1).astype(jnp.int32))  # (batch, 80, 8, channels)
         pos = nn.Embed(
             N_ID_SLOTS, c,
             dtype=self.dtype, param_dtype=self.param_dtype,
-        )(jnp.arange(N_ID_SLOTS))  # (S, channels)
+        )(jnp.arange(N_ID_SLOTS))  # (8, channels)
         identity = jnp.where(present[..., None], embedding + pos, 0.0).sum(axis=2)  # (batch, 80, channels)
 
-        # 状态特征（[0..14]，剔除身份槽）Dense 投影 → channels
+        # 通路 2：EffectType 嵌入（参数无关共享行）+ 槽位位置标记（槽位=同一执行序）后 masked-sum
+        types = x[:, :, TYPE_ID_START:TYPE_ID_START + N_TYPE_SLOTS]  # (batch, 80, 6)
+        t_present = types > 0
+        t_embedding = nn.Embed(
+            N_EFFECT_TYPES, c,
+            dtype=self.dtype, param_dtype=self.param_dtype,
+        )(jnp.clip(types, 0, N_EFFECT_TYPES - 1).astype(jnp.int32))  # (batch, 80, 6, channels)
+        t_pos = nn.Embed(
+            N_TYPE_SLOTS, c,
+            dtype=self.dtype, param_dtype=self.param_dtype,
+        )(jnp.arange(N_TYPE_SLOTS))  # (6, channels)
+        type_sum = jnp.where(t_present[..., None], t_embedding + t_pos, 0.0).sum(axis=2)
+
+        # 通路 3：参数数值投影——(6, ATOM_PARAM_DIM) per-slot 共享 Dense → channels，
+        # 槽位存在性由类型下标门控（类型 0 = 无该原子，参数块也不可信）后 masked-sum
+        params = x[:, :, ATOM_PARAM_START:ATOM_PARAM_START + N_TYPE_SLOTS * ATOM_PARAM_DIM]
+        params = params.reshape(x.shape[0], x.shape[1], N_TYPE_SLOTS, ATOM_PARAM_DIM)
+        p_proj = nn.Dense(
+            c,
+            dtype=self.dtype,
+            param_dtype=self.param_dtype,
+            kernel_init=default_fc_init,
+        )(params)  # (batch, 80, 6, channels)
+        param_sum = jnp.where(t_present[..., None], p_proj, 0.0).sum(axis=2)
+
+        # 状态特征（[0..14]，剔除全部身份槽）Dense 投影 → channels
         rest = x[:, :, :CARD_ID_START]
         x_cards = nn.Dense(
             c,
@@ -82,8 +120,8 @@ class TideCardEncoder(nn.Module):
             kernel_init=default_fc_init,
         )(rest)  # (batch, 80, channels)
 
-        # 状态 + 身份合并
-        x_cards = x_cards + identity
+        # 状态 + 三路身份合并
+        x_cards = x_cards + identity + type_sum + param_sum
         x_cards = nn.LayerNorm(use_scale=True, use_bias=True, dtype=self.dtype)(x_cards)
 
         return x_cards, c_mask
@@ -176,7 +214,7 @@ class TideEncoder(nn.Module):
         """
         Args:
             x: obs_dict = {
-                "cards_": (batch, 80, 20),
+                "cards_": (batch, 80, 71),
                 "global_": (batch, 32),
                 "actions_": (batch, max_actions, 6),
                 "h_actions_": (batch, 32, 14) or None
@@ -185,7 +223,7 @@ class TideEncoder(nn.Module):
         Returns:
             encoded: dict with encoded features
         """
-        cards = x["cards_"]      # (batch, 80, 20)
+        cards = x["cards_"]      # (batch, 80, 71)
         global_ = x["global_"]   # (batch, 32)
         actions = x["actions_"]  # (batch, max_actions, 6)
 

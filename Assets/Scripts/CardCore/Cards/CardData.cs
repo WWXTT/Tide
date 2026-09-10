@@ -93,6 +93,8 @@ namespace CardCore
         // 内容身份（2026-09-09 定案，CardIdentityService 与 EnsureCost 同管线推导）：拆散到原子级——
         // 原子哈希数组（跨效果按执行序展平）+ 组合结构哈希 + 关键词/tag/光环组合哈希，全部混入
         // 原子表指纹。观测侧（TideObservation [15..22]）据此查 embedding，同原子跨卡共享行。
+        // 参数数值通路（同日）：EffectType 下标数组（跨参数共享嵌入行）+ 参数浮点块
+        // （每原子 CardIdentityService.AtomParamDim 维，与哈希同序），见观测 [23..]。
         // 属性不进身份（obs 实时特征已有，不重复）。
         // 不随 ResetCache 失效：身份只依赖效果数据与原子表，与费用缓存失效口径无关。
         [NonSerialized]
@@ -101,16 +103,25 @@ namespace CardCore
         internal ulong _structureContentHash;
         [NonSerialized]
         internal ulong _compositionContentHash;
+        [NonSerialized]
+        internal int[] _atomTypeIndexes;   // 与 _atomContentHashes 同序（执行序展平）；0 = 无/未入表
+        [NonSerialized]
+        internal float[] _atomParams;      // 同序参数块（每原子 AtomParamDim 维，全部原子不截断）
 
         public ulong[] AtomContentHashes => _atomContentHashes;
         public ulong StructureContentHash => _structureContentHash;
         public ulong CompositionContentHash => _compositionContentHash;
+        public int[] AtomTypeIndexes => _atomTypeIndexes;
+        public float[] AtomParams => _atomParams;
 
-        internal void SetIdentity(ulong[] atomHashes, ulong structureHash, ulong compositionHash)
+        internal void SetIdentity(ulong[] atomHashes, ulong structureHash, ulong compositionHash,
+            int[] atomTypeIndexes, float[] atomParams)
         {
             _atomContentHashes = atomHashes;
             _structureContentHash = structureHash;
             _compositionContentHash = compositionHash;
+            _atomTypeIndexes = atomTypeIndexes;
+            _atomParams = atomParams;
         }
 
         /// <summary>

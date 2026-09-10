@@ -3419,10 +3419,12 @@ namespace CardCore.Editor
         // ======================================== 测试卡表费用重生成 ========================================
 
         /// <summary>
-        /// 重推导测试卡组费用：逐卡按统一计价换建议档位分布（声明价作废），
+        /// 重推导测试卡组费用 + 重写 ID：逐卡按统一计价换建议档位分布（声明价作废），
         /// 逐卡输出 S/K/E/f/D/Ĉ 明细供人工过目，回写 TestDecks 下每一套卡组 JSON（形状不变）。
+        /// ID 重写为内容哈希（CardIdentityService.ContentId）：内容变 → ID 变；卡名/描述随便改
+        /// 不动 ID（同内容跨文件同 ID——测试集导入训练池后天然对齐，无别名漂移）。
         /// </summary>
-        [MenuItem("Tools/重推导测试卡表费用")]
+        [MenuItem("Tools/重推导测试卡表费用与ID")]
         public static void RegenerateTestTableCosts()
         {
             string dir = Path.Combine(Application.dataPath, "Configs", "TestDecks");
@@ -3446,6 +3448,7 @@ namespace CardCore.Editor
         }
 
         /// <summary>对单套卡组重推导费用并回写。</summary>
+        /// <summary>对单套卡组重推导费用并重写内容 ID 后回写。</summary>
         private static void RegenOneDeck(string path)
         {
             string raw = File.ReadAllText(path);
@@ -3459,18 +3462,26 @@ namespace CardCore.Editor
                           + string.Join(" ", r.SuggestedCost.Select(kv => $"{kv.Key}:{kv.Value}")));
             }
 
-            // 回写：解析原 JSON（保留未参与计价的字段原样），仅替换 costList
+            // 回写：解析原 JSON（保留未参与计价的字段原样），替换 costList + 重写 id 为内容哈希
+            // （CardIdentityService.ContentId：排除卡名/描述/效果展示名——随便改不动 ID；费用
+            // 参与哈希，故先定费后定 ID。同内容卡（含跨文件副本）同 ID，重复时告警）。
             var wrapper = JsonUtility.FromJson<TestCardsConfigWrapper>(raw);
-            var byId = cards.ToDictionary(c => c.ID);
+            // 防重护栏：极端情况下同 id 多卡（手工编辑/历史文件）取首张，保证工具可重复运行
+            var byId = cards.GroupBy(c => c.ID).ToDictionary(g => g.Key, g => g.First());
+            var seenContentIds = new HashSet<string>();
             foreach (var entry in wrapper.cards)
             {
                 if (entry == null || !byId.TryGetValue(entry.id, out var card)) continue;
                 entry.costList = card.Cost
                     .Select(kv => new CostJsonEntry { manaType = kv.Key, amount = kv.Value })
                     .ToList();
+                string contentId = CardIdentityService.ContentId(card);
+                if (!seenContentIds.Add(contentId))
+                    Debug.LogWarning($"[Regen] 内容 ID 重复（同内容多张卡）：{contentId} ← {card.CardName}");
+                entry.id = contentId;
             }
             File.WriteAllText(path, JsonUtility.ToJson(wrapper, true));
-            Debug.Log($"[Regen] 已重写 {cards.Count} 张卡的费用 → {path}");
+            Debug.Log($"[Regen] 已重写 {cards.Count} 张卡的费用与内容 ID → {path}");
         }
 
         private static void Assert(bool condition, string label)

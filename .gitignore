@@ -9,3 +9,7 @@
 /.vs/
 /.idea/
 /tide_rl/logs/
+__pycache__/
+# ONNX export pipeline (regenerated, not source)
+tide_rl/.venv-export/
+tide_rl/exports/
