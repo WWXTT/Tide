@@ -21,21 +21,29 @@ namespace CardCore
         /// priceAsPermanent（三轨制 2026-09-09）：法术宿主置 true——魔法卡赋予全是设置类
         /// （永久直改），**计价按永久效果档估算**；运行时支付路径不传（默认 false，按实例持续）。
         /// </summary>
-        public static List<CostInstance> DeriveElementCosts(EffectDefinition effect, int modeIndex = 0, bool priceAsPermanent = false)
+        public static List<CostInstance> DeriveElementCosts(EffectDefinition effect, int modeIndex = 0)
         {
             var byColor = new Dictionary<ManaType, int>();
             if (effect == null)
                 return new List<CostInstance>();
 
+            // 有效组合域（mode 感知，2026-09-10 极性折价输入）：per-mode 域优先，回落主序列域
+            var domain = effect.ChoiceDomains != null && modeIndex >= 0 && modeIndex < effect.ChoiceDomains.Length
+                && effect.ChoiceDomains[modeIndex] != null && effect.ChoiceDomains[modeIndex].Count > 0
+                ? effect.ChoiceDomains[modeIndex]
+                : effect.TargetDomain;
+
             // 节点化：仅主序列原子（Kind==Atomic）计费；分支 then/else 奖励一律免费。
             // 退化：未配 Steps 的旧卡仍按扁平 Effects 线性计费（向后兼容）。
+            // 持续/落区/数量/动态/缺陷全部自组合层（def）取（2026-09-10 上移定案）；
+            // 法术宿主永久档语义由迁移回填承载（赋予族效果 Duration=Permanent），priceAsPermanent 参数已删。
             if (effect.Steps != null && effect.Steps.Count > 0)
             {
                 foreach (var step in effect.Steps)
                 {
                     if (step == null) continue;
                     if (step.Kind == RuntimeStepKind.Atomic && step.Atomic != null)
-                        AccumulateElementCost(step.Atomic, byColor, priceAsPermanent);
+                        AccumulateElementCost(step.Atomic, effect, domain, byColor);
                     // Kind==Branch：OutcomeGate 奖励免费，不计费。
                     else if (step.Kind == RuntimeStepKind.Choice)
                     {
@@ -50,7 +58,7 @@ namespace CardCore
                             {
                                 if (s == null) continue;
                                 if (s.Kind == RuntimeStepKind.Atomic && s.Atomic != null)
-                                    AccumulateElementCost(s.Atomic, byColor, priceAsPermanent);
+                                    AccumulateElementCost(s.Atomic, effect, domain, byColor);
                                 // choice 内 Kind==Branch：奖励免费（converter 已拒嵌套 Choice）
                             }
                         }
@@ -62,7 +70,7 @@ namespace CardCore
                 foreach (var atom in effect.Effects)
                 {
                     if (atom == null) continue;
-                    AccumulateElementCost(atom, byColor, priceAsPermanent);
+                    AccumulateElementCost(atom, effect, domain, byColor);
                 }
             }
 
@@ -80,32 +88,32 @@ namespace CardCore
             return list;
         }
 
-        private static void AccumulateElementCost(AtomicEffectInstance atom, Dictionary<ManaType, int> byColor, bool priceAsPermanent)
+        private static void AccumulateElementCost(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, Dictionary<ManaType, int> byColor)
         {
             var cfg = AtomicEffectTable.GetByType(atom.Type);
 
-            // 动态数量原子：费用计 0（代价 = 该卡不可作地牌产元素，见 ElementPool.AddCardToPool）。
-            if (atom.DynamicTargetCount)
+            // 动态数量（组合层）：费用计 0（代价 = 该卡不可作地牌产元素，见 ElementPool.AddCardToPool）。
+            if (def.DynamicTargetCount)
             {
-                AccumulateSubEffects(atom, byColor, priceAsPermanent);
+                AccumulateSubEffects(atom, def, domain, byColor);
                 return;
             }
 
-            // 突袭的代价减费（2026-09-08 定案）：自上紊乱指示物（RushSickness 指向 Self）= 代价当量，
+            // 突袭的代价减费（2026-09-08 定案）：自上紊乱（效果级 SelectionMode=Self）= 代价当量，
             // 在同效果桶内记 −1 对冲激励的锚价（冲锋 1 → 突袭 0：用「本回合不能以玩家为目标」换整费）。
             // 对冲色取激励（Untap）的表色保证同桶相消；孤立自紊乱同样记 −1——
             // 桶级合计为负的色由 DeriveElementCosts 过滤（负面白送，不为负价）。
             if (atom.Type == AtomicEffectType.RushSickness
-                && atom.TargetTypeOverride == (int)EffectTargetType.Self)
+                && def.SelectionMode == SelectionMode.Self)
             {
                 var offsetColor = ElementAffinities.GetAffinityForEffect(AtomicEffectType.Untap).PrimaryColor;
                 byColor.TryGetValue(offsetColor, out var prevOff);
                 byColor[offsetColor] = prevOff - 1;
-                AccumulateSubEffects(atom, byColor, priceAsPermanent);
+                AccumulateSubEffects(atom, def, domain, byColor);
                 return;
             }
 
-            int amount = ComputeAtomCost(atom, cfg, priceAsPermanent);
+            int amount = ComputeAtomCost(atom, def, domain, cfg);
             if (amount > 0)
             {
                 var color = ElementAffinities.GetAffinityForEffect(atom.Type).PrimaryColor;
@@ -113,7 +121,7 @@ namespace CardCore
                 byColor[color] = prev + amount;
             }
 
-            AccumulateSubEffects(atom, byColor, priceAsPermanent);
+            AccumulateSubEffects(atom, def, domain, byColor);
         }
 
         /// <summary>
@@ -121,15 +129,13 @@ namespace CardCore
         /// 检索＝筛选维度系数；其余＝round(BaseCost×CostMultiplier×max(1,Value)×持续折扣)，
         /// 固定数量再 ×N；抽牌按所挂减费缺陷累减（下限 0）。
         ///
-        /// 持续时间计价（时间换费用）：折扣取「相对折扣」＝ D(实际持续)/D(表内默认持续)。
-        /// 实际持续 = 实例显式指定（Duration≠Once）？实例 : 表默认。
-        /// 伤害等瞬发原子（表默认 Once、实例也 Once）系数恒为 1，锚点（1 伤害=1 元素）不漂移；
-        /// 把本可永续的效果改短（如 buff 配 UntilEndOfTurn）即打折，拉长（永续化）即加价。
-        /// 系数表见 ValueSystemRuntimeConfig.AttributeValueConfig（凹函数，P3 可调）。
-        /// priceAsPermanent（三轨制 2026-09-09）：法术宿主的赋予族按 Permanent 档计——
-        /// 魔法卡赋予全是设置类（永久直改），计价按永久效果档估算（定案）。
+        /// 持续时间计价（2026-09-10 上移定案后）：持续唯一真相在组合层（def.Duration），
+        /// 折扣 = D(def.Duration)/D(Once)——**Once 为绝对锚**（Once 族系数恒 1，
+        /// 锚点 1 伤害=1 元素不漂移）；配置表数值不动，比值的分母从「各原子表默认」
+        /// 固定为 Once（旧相对口径随表 DurationType 列消亡）。
+        /// 法术宿主永久档语义由迁移回填承载（赋予族效果 Duration=Permanent）。
         /// </summary>
-        private static int ComputeAtomCost(AtomicEffectInstance atom, AtomicEffectConfig cfg, bool priceAsPermanent = false)
+        private static int ComputeAtomCost(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, AtomicEffectConfig cfg)
         {
             // 检索：按筛选维度档计费，替代通用公式。维度档存于 atom.StringValue（默认单一维度）。
             if (atom.Type == AtomicEffectType.SearchDeck)
@@ -142,36 +148,39 @@ namespace CardCore
             float multiplier = cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f;
             int magnitude = Math.Max(1, atom.Value);
 
-            // 持续折扣（相对）：实例 Once(0) 视为未指定 → 取表默认，此时分子分母相同 → 1。
             var attrCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().AttributeValueConfig;
-            DurationType tableDefault = cfg.DurationType;
-            // 法术宿主按永久档计（三轨制定案）——**只对赋予族**：表默认非 Once 的原子才有
-            // 持续维度可拉档；伤害/抽牌等瞬时原子（表默认 Once）无持续时间语义，恒按表默认=1，
-            // 不随宿主放大（修正：此前误把瞬时原子也拉到 Permanent 档，4 伤被 ×2 成 8 红）。
-            DurationType actual = priceAsPermanent && tableDefault != DurationType.Once
-                ? DurationType.Permanent
-                : (atom.Duration != DurationType.Once ? atom.Duration : tableDefault);
-            float durationFactor = attrCfg.GetDurationDiscount(actual, atom.DurationValue)
-                                   / attrCfg.GetDurationDiscount(tableDefault);
+            float durationFactor = attrCfg.GetDurationDiscount(def.Duration, def.DurationValue)
+                                   / attrCfg.GetDurationDiscount(DurationType.Once);
 
             int amount = (int)Math.Round(cfg.BaseCost * multiplier * magnitude * durationFactor, MidpointRounding.AwayFromZero);
 
             // 衍生物落区系数（P1 定案）：按落区分档计价（战场基准/手牌溢价/牌组微溢价）。
-            // 落区取实例级 atom.ZoneParam（注意 Zone.Hand==0：合成界面必须显式填落区，计价不做默认猜测）。
+            // 落区在组合层（def.SummonDropZone，显式三档——Zone.Hand==0 陷阱随显式声明消亡）。
             if (atom.Type == AtomicEffectType.SummonToken)
             {
                 var dropCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().SummonDropConfig;
-                amount = (int)Math.Round(amount * dropCfg.GetFactor(atom.ZoneParam), MidpointRounding.AwayFromZero);
+                amount = (int)Math.Round(amount * dropCfg.GetFactor(def.SummonDropZone), MidpointRounding.AwayFromZero);
             }
 
-            // 固定数量：费用 ×N（N=有效目标数；全部/任意语义无法在构建期确定，按 1）。
-            int n = EffectiveTargetCountForCost(atom, cfg);
+            // 错边折价（2026-09-10 定案）：有益原子(p>0)锁对方域 / 有害原子(p<0)锁己方域 → ×(1−|p|)。
+            // 双侧域=玩家可选按最优边全价；无目标/p=0 不折。显式代价（CostType.Opponent*）是另一逻辑，并存不互斥。
+            float polarity = atom.Polarity;
+            if (polarity != 0f)
+            {
+                int side = SideLock(domain);
+                bool wrongSide = (polarity > 0f && side == 1) || (polarity < 0f && side == -1);
+                if (wrongSide)
+                    amount = (int)Math.Round(amount * (1f - Math.Abs(polarity)), MidpointRounding.AwayFromZero);
+            }
+
+            // 固定数量：费用 ×N（N=组合层 TargetCount；全部/任意语义无法在构建期确定，按 1）。
+            int n = def.TargetCount;
             if (n > 1) amount *= n;
 
-            // 抽牌减费缺陷：每挂一个按 BranchConfig.json 给的减免累减，下限 0。
-            if (atom.Type == AtomicEffectType.DrawCard && atom.Drawbacks != null)
+            // 抽牌减费缺陷（组合层）：每挂一个按 BranchConfig.json 给的减免累减，下限 0。
+            if (atom.Type == AtomicEffectType.DrawCard && def.Drawbacks != null)
             {
-                foreach (var dbId in atom.Drawbacks)
+                foreach (var dbId in def.Drawbacks)
                 {
                     if (string.IsNullOrEmpty(dbId)) continue;
                     var db = BranchConfigTable.GetDrawback(dbId);
@@ -192,67 +201,42 @@ namespace CardCore
             return tier != null ? tier.Cost : 3;
         }
 
-        private static int EffectiveTargetCountForCost(AtomicEffectInstance atom, AtomicEffectConfig cfg)
-        {
-            int count = cfg != null ? cfg.TargetCount : 0;
-            if (atom.TargetCountOverride != -2) count = atom.TargetCountOverride;
-            return count;
-        }
-
-        private static void AccumulateSubEffects(AtomicEffectInstance atom, Dictionary<ManaType, int> byColor, bool priceAsPermanent)
+        private static void AccumulateSubEffects(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, Dictionary<ManaType, int> byColor)
         {
             // 元/复合效果的子效果同样计入费用。
             if (atom.SubEffects == null) return;
             foreach (var sub in atom.SubEffects)
             {
                 if (sub == null) continue;
-                AccumulateElementCost(sub, byColor, priceAsPermanent);
+                AccumulateElementCost(sub, def, domain, byColor);
             }
         }
 
+        /// <summary>域侧别锁定（极性折价输入）：-1=纯己方锁 / +1=纯对方锁 / 0=双侧或无目标（可选最优边，不折）。</summary>
+        private static int SideLock(List<int> domain)
+        {
+            if (domain == null || domain.Count == 0) return 0;
+            bool own = false, enemy = false;
+            foreach (var k in domain)
+            {
+                if (TargetKindRules.IsEnemySide(k)) enemy = true;
+                else own = true;
+            }
+            if (own && !enemy) return -1;
+            if (enemy && !own) return 1;
+            return 0;
+        }
+
         /// <summary>
-        /// 卡牌是否含「动态数量」原子（主序列、分支 then/else 或抉择任一模式的子步骤）。
-        /// 含动态数量原子的卡费用计 0 且不可作地牌产元素（灵活使用的代价）。
+        /// 卡牌是否含「动态数量」效果（组合层标志，2026-09-10 上移）。
+        /// 含动态数量的卡费用计 0 且不可作地牌产元素（灵活使用的代价）。
         /// </summary>
         public static bool HasDynamicTargetEffect(CardData card)
         {
             if (card?.Effects == null) return false;
             foreach (var eff in card.Effects)
-            {
-                if (eff == null) continue;
-                if (eff.Steps != null && eff.Steps.Count > 0)
-                {
-                    foreach (var step in eff.Steps)
-                    {
-                        if (step == null) continue;
-                        if (step.atomic != null && step.atomic.DynamicTargetCount) return true;
-                        if (AnyDynamic(step.thenSteps)) return true;
-                        if (AnyDynamic(step.elseSteps)) return true;
-                        if (AnyDynamicInChoices(step.choices)) return true; // 抉择模式内同样要拦
-                    }
-                }
-                else if (AnyDynamic(eff.AtomicEffects))
-                {
+                if (eff != null && eff.DynamicTargetCount)
                     return true;
-                }
-            }
-            return false;
-        }
-
-        private static bool AnyDynamicInChoices(List<EffectChoiceData> choices)
-        {
-            if (choices == null) return false;
-            foreach (var c in choices)
-            {
-                if (c?.steps == null) continue;
-                foreach (var s in c.steps)
-                {
-                    if (s == null) continue;
-                    if (s.atomic != null && s.atomic.DynamicTargetCount) return true;
-                    if (AnyDynamic(s.thenSteps)) return true;
-                    if (AnyDynamic(s.elseSteps)) return true;
-                }
-            }
             return false;
         }
 
@@ -280,14 +264,6 @@ namespace CardCore
                 }
             }
             return max;
-        }
-
-        private static bool AnyDynamic(List<AtomicEffectEntry> entries)
-        {
-            if (entries == null) return false;
-            foreach (var e in entries)
-                if (e != null && e.DynamicTargetCount) return true;
-            return false;
         }
     }
 }

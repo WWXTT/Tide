@@ -85,6 +85,7 @@ namespace CardCore.Editor
                 TestCreature(core, p1, cardsData);
                 TestSpellBranch(core, p1, p2, cardsData);
                 TestSpellModal(core, p1, p2, cardsData);
+                TestTargetDomainModel(core, p1, p2, cardsData);
                 TestBoard(core, p1, p2, cardsData);
                 TestLinkAura(core, p1, p2, cardsData);
             }
@@ -384,6 +385,124 @@ namespace CardCore.Editor
             CardCore.Attribute.Handlers.ProphecyHandlerUtil.PositionPicker = null; // 还原缺省选位器
         }
 
+        // ======================================== 目标域模型（2026-09-10 M1 重构定案） ========================================
+        // TargetKind 序号集合 + 组合交集 + SelectionMode + 候选空不可发动。
+        private static void TestTargetDomainModel(GameCore core, Player p1, Player p2, List<CardData> cardsData)
+        {
+            // a) 全部原子解析出有效域或显式无目标；b) 全部效果交集非空（有带域原子时）
+            int atomTotal = 0, kindAtoms = 0, effectsChecked = 0, emptyDomain = 0;
+            foreach (var card in cardsData)
+            {
+                if (card?.Effects == null) continue;
+                foreach (var eff in card.Effects)
+                {
+                    if (eff == null) continue;
+                    var def = CardEffectConverter.ConvertOne(eff, card.ID);
+                    if (def == null) continue;
+                    effectsChecked++;
+
+                    var atoms = def.Steps != null && def.Steps.Count > 0
+                        ? CardEffectConverter.EnumerateMainSequenceAtoms(def.Steps, 0).ToList()
+                        : def.Effects?.ToList() ?? new List<AtomicEffectInstance>();
+                    foreach (var atom in atoms)
+                    {
+                        if (atom == null) continue;
+                        atomTotal++;
+                        if (atom.TargetKinds != null && atom.TargetKinds.Count > 0) kindAtoms++;
+                        else if (atom.TargetKinds == null)
+                        {
+                            Assert(false, $"原子 {atom.Type} 域为 null（converter 未解析表默认？）");
+                        }
+                    }
+
+                    bool anyKind = atoms.Any(a => a?.TargetKinds != null && a.TargetKinds.Count > 0);
+                    if (anyKind && (def.TargetDomain == null || def.TargetDomain.Count == 0))
+                    {
+                        emptyDomain++;
+                        Assert(false, $"卡 {card.ID}({card.CardName}) 效果 {def.Id}：带域原子存在但组合域交集为空");
+                    }
+                }
+            }
+            Assert(emptyDomain == 0, $"全部效果组合域非空（空域 {emptyDomain} 个）");
+            Assert(atomTotal > 100 && kindAtoms > 50,
+                $"原子域解析覆盖（原子 {atomTotal}，带域 {kindAtoms}——夹具规模正常）");
+            Debug.Log($"[Verify] 目标域：{effectsChecked} 效果 / {atomTotal} 原子（带域 {kindAtoms}）");
+
+            // c) 表默认抽查：DealDamage 域 = {0,1} 且 filter 含 Creature
+            var dd = CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.DealDamage);
+            var ddKinds = dd?.GetTargetKindList();
+            Assert(ddKinds != null && ddKinds.Contains(0) && ddKinds.Contains(1),
+                $"DealDamage 表默认域 = 己方+对方有生命单位（实际 [{string.Join(",", ddKinds ?? new List<int>())}]）");
+            Assert(dd != null && (dd.TargetFilter ?? "").Contains("Creature"),
+                "DealDamage 表默认 filter 含 Creature（角色排除口径保持）");
+
+            // d) 双路径一致：同原子组 flat 与 Steps 两版的组合域相等
+            var entry = new AtomicEffectEntry { EffectType = AtomicEffectType.DealDamage.ToString(), Value = 2 };
+            var flat = new CardEffectData { Id = "VERIFY_TDM_FLAT", AtomicEffects = new List<AtomicEffectEntry> { entry } };
+            var stepped = new CardEffectData
+            {
+                Id = "VERIFY_TDM_STEP",
+                Steps = new List<EffectStepData> { new EffectStepData { kind = 0, atomic = entry } },
+            };
+            var flatDef = CardEffectConverter.ConvertOne(flat, "VERIFY_TDM");
+            var stepDef = CardEffectConverter.ConvertOne(stepped, "VERIFY_TDM");
+            Assert(TargetKindRules.Format(flatDef.TargetDomain) == TargetKindRules.Format(stepDef.TargetDomain)
+                && flatDef.TargetDomain.Count > 0,
+                $"扁平与 Steps 路径组合域一致（{TargetKindRules.Format(flatDef.TargetDomain)}）");
+
+            // e) 候选空不可发动：清场后带 Creature 过滤的伤害卡不可打（角色被 Creature 过滤排除）
+            var saveP1Field = new List<Card>(core.ZoneManager.GetCards(p1, Zone.Battlefield));
+            var saveP2Field = new List<Card>(core.ZoneManager.GetCards(p2, Zone.Battlefield));
+            foreach (var c in saveP1Field) core.ZoneManager.MoveCard(c, p1, Zone.Battlefield, Zone.Graveyard);
+            foreach (var c in saveP2Field) core.ZoneManager.MoveCard(c, p2, Zone.Battlefield, Zone.Graveyard);
+            try
+            {
+                var probeData = new CardData
+                {
+                    ID = "VERIFY_TDM_PLAY",
+                    Supertype = Cardtype.Spell,
+                    Effects = new List<CardEffectData> { flat },
+                };
+                var probeCard = CardLoader.BuildDeck(new List<CardData> { probeData }, 1)[0];
+                bool playable = TargetDomainService.HasPlayableTargets(core, p1, probeCard, 0);
+                Assert(!playable,
+                    $"空战场 + Creature 过滤 → HasPlayableTargets=false（候选空不可发动；实际 {playable}）");
+            }
+            finally
+            {
+                foreach (var c in saveP1Field) core.ZoneManager.MoveCard(c, p1, Zone.Graveyard, Zone.Battlefield);
+                foreach (var c in saveP2Field) core.ZoneManager.MoveCard(c, p2, Zone.Graveyard, Zone.Battlefield);
+            }
+
+            // f) 极性折价（2026-09-10 定案）：错边 ×(1−|p|)→p=±1 免费；正侧/双侧全价
+            var healCfg = CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.Heal);
+            Assert(healCfg != null && healCfg.Polarity > 0f, "Heal 表极性为正（对己方释放有益）");
+            CardEffectData PolEff(int sideKind) => new CardEffectData
+            {
+                Id = "VERIFY_POL",
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    new AtomicEffectEntry { EffectType = AtomicEffectType.Heal.ToString(), Value = 2, TargetKinds = new List<int> { sideKind } },
+                },
+            };
+            var wrongDef = CardEffectConverter.ConvertOne(PolEff(1), "VERIFY_POL"); // 锁对方 {1}
+            var rightDef = CardEffectConverter.ConvertOne(PolEff(0), "VERIFY_POL"); // 锁己方 {0}
+            int wrongCost = CostDerivationService.DeriveElementCosts(wrongDef).Sum(c => c.Value);
+            int rightCost = CostDerivationService.DeriveElementCosts(rightDef).Sum(c => c.Value);
+            Assert(wrongCost == 0, $"Heal(p=+1) 锁对方域 → 错边折价至 0（实际 {wrongCost}）");
+            Assert(rightCost > 0, $"Heal(p=+1) 锁己方域 → 全价（实际 {rightCost}）");
+            var bothDef = CardEffectConverter.ConvertOne(new CardEffectData
+            {
+                Id = "VERIFY_POL_B",
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    new AtomicEffectEntry { EffectType = AtomicEffectType.Heal.ToString(), Value = 2, TargetKinds = new List<int> { 0, 1 } },
+                },
+            }, "VERIFY_POL_B");
+            Assert(CostDerivationService.DeriveElementCosts(bothDef).Sum(c => c.Value) == rightCost,
+                "双侧域不折（玩家可选按最优边全价；火球双侧锚点另由 TestSpellModal 既有断言承担）");
+        }
+
         // ======================================== 抉择（Modal/选发，2026-09-07 定案） ========================================
 
         /// <summary>
@@ -654,20 +773,7 @@ namespace CardCore.Editor
                 Assert(pool1.AvailableMana[ManaType.Gray] == 0, "第一张结算后照常扣费");
                 Assert(p2.Life == p2Life - 1, "第一张效果照常结算（伤害 1）");
 
-                // ---- 4. 新代价执行（2026-09-07 补）：对手抽牌 / 对手回复生命 ----
-                int p2HandBefore = core.ZoneManager.GetCards(p2, Zone.Hand).Count;
-                int p2DeckBefore = core.ZoneManager.GetCards(p2, Zone.Deck).Count;
-                var oppCostCtx = new CostContext { Payer = p1, ZoneManager = core.ZoneManager, Source = null };
-                Assert(CostHandlerRegistry.Pay(new CostInstance { Type = CostType.OpponentDraw, Value = 1 }, oppCostCtx),
-                       "代价执行：对手抽1（p1 支付，无需资源恒可付）");
-                Assert(core.ZoneManager.GetCards(p2, Zone.Hand).Count == p2HandBefore + 1
-                       && core.ZoneManager.GetCards(p2, Zone.Deck).Count == p2DeckBefore - 1,
-                       "代价执行：对手手牌 +1、牌库 −1");
-
-                p2.Life = 10;
-                Assert(CostHandlerRegistry.Pay(new CostInstance { Type = CostType.OpponentHeal, Value = 2 }, oppCostCtx),
-                       "代价执行：对手回复2（p1 支付）");
-                Assert(p2.Life == 12, "代价执行：对手生命 10→12（未溢出常规回复）");
+                // ---- 4. 跨边代价断言已删（2026-09-10：OpponentDraw/OpponentHeal 机制被 Polarity 错边折价顶替）----
             }
             finally
             {
@@ -1598,7 +1704,7 @@ namespace CardCore.Editor
                     {
                         EffectType = AtomicEffectType.Untap.ToString(),
                         Value = 1,
-                        TargetTypeOverride = (int)CardCore.Attribute.EffectTargetType.Self,
+                        TargetKinds = new List<int> { 0 },
                     },
                 };
                 if (withSickness)
@@ -1606,7 +1712,7 @@ namespace CardCore.Editor
                     {
                         EffectType = AtomicEffectType.RushSickness.ToString(),
                         Value = 1,
-                        TargetTypeOverride = (int)CardCore.Attribute.EffectTargetType.Self,
+                        TargetKinds = new List<int> { 0 },
                     });
                 return eff;
             }
@@ -2089,7 +2195,8 @@ namespace CardCore.Editor
             {
                 Id = "VERIFY_TRACK_H",
                 TriggerTiming = TriggerTiming.Activate_Active,
-                Effects = new List<AtomicEffectInstance> { new AtomicEffectInstance { Type = AtomicEffectType.ModifyPower, Value = 2, Duration = DurationType.Permanent } },
+                Duration = DurationType.Permanent,
+                Effects = new List<AtomicEffectInstance> { new AtomicEffectInstance { Type = AtomicEffectType.ModifyPower, Value = 2 } },
             };
             core.StackEngine.GetExecutor().ExecuteAsync(new EffectInstance
             {
@@ -2843,16 +2950,7 @@ namespace CardCore.Editor
             var nc = CardCostService.Derive(noCost);
             Assert(nc.SuggestedTier == 6, $"计价锚：缺省档位 Ĉ=6（实际 {nc.SuggestedTier}）");
 
-            // ---- 新代价当量（2026-09-07 补）：对手抽1=1费、对手回2点=1费 ----
-            var opponentCostCard = MakeCostCard(Cardtype.Spell, null, null, MakeEffect("Heal", 2));
-            opponentCostCard.Effects[0].Costs = new List<CostEntry>
-            {
-                new CostEntry { CostType = (int)CostType.OpponentDraw, Value = 1 },
-                new CostEntry { CostType = (int)CostType.OpponentHeal, Value = 2 },
-            };
-            var occ = CardCostService.Derive(opponentCostCard);
-            Assert(System.Math.Abs(occ.OffsetProvided - 2f) < 1e-3,
-                   "计价锚：对手抽1（当量1）+ 对手回2点（当量0.5×2=1）→ O=2");
+            // ---- 跨边当量锚点已删（2026-09-10：改由 Polarity 错边折价承担，见 TestTargetDomainModel f 段）----
 
             // ---- 溢出治疗转临时上限（2026-09-07 定案：走 LifeUp 指示物，ceil半入上限/floor半入当前）----
             var overflowPlayer = new Player("VERIFY_OVERFLOW", 30);
@@ -3291,9 +3389,10 @@ namespace CardCore.Editor
                     var def = new EffectDefinition
                     {
                         Id = "VERIFY_TOKEN_COST",
+                        SummonDropZone = zone,
                         Effects = new List<AtomicEffectInstance>
                         {
-                            new AtomicEffectInstance { Type = AtomicEffectType.SummonToken, Value = 10, ZoneParam = zone }
+                            new AtomicEffectInstance { Type = AtomicEffectType.SummonToken, Value = 10 }
                         },
                     };
                     return CostDerivationService.DeriveElementCosts(def).Sum(c => c.Value);
@@ -3319,11 +3418,12 @@ namespace CardCore.Editor
                     new AtomicEffectInstance
                     {
                         Type = AtomicEffectType.SummonToken, Value = count,
-                        StringValue = "VERIFY_TOKEN_TPL", ZoneParam = dropZone,
+                        StringValue = "VERIFY_TOKEN_TPL",
                     },
                     new EffectExecutionContext
                     {
                         Source = caster, Controller = caster,
+                        SummonDropZone = dropZone, // 2026-09-10：落区上移组合层（经 context 下发）
                         Targets = new List<Entity>(),
                         ZoneManager = core.ZoneManager, ElementPool = core.ElementPool,
                     });

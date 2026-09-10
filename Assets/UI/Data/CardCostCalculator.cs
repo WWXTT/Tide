@@ -78,8 +78,6 @@ namespace SynergyUI
                 CostType.SummonMaterial => "召唤素材",
                 CostType.MillDeck => "送墓（本组）",
                 CostType.SendExtraDeck => "送额外组",
-                CostType.OpponentDraw => "对手抽牌",
-                CostType.OpponentHeal => "对手回复",
                 CostType.SelfSickness => "自身紊乱",
                 CostType.OpponentBuff => "对手增益",
                 _ => costType.ToString(),

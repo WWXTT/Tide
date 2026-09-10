@@ -76,7 +76,6 @@ namespace CardCore.Serialization
                 IsOptional = def.IsOptional,
                 Duration = (int)def.Duration,
                 SourceCardId = def.SourceCardId,
-                TargetType = (int)def.TargetType,
             };
 
             dto.Effects = def.Effects?.Select(SerializableAtomicEffectInstance.FromInstance).ToArray()
@@ -110,7 +109,6 @@ namespace CardCore.Serialization
                 IsOptional = IsOptional,
                 Duration = (DurationType)Duration,
                 SourceCardId = SourceCardId,
-                TargetType = (EffectTargetType)TargetType,
             };
 
             if (Effects != null)
@@ -135,26 +133,19 @@ namespace CardCore.Serialization
     [MemoryPackable]
     public partial class SerializableAtomicEffectInstance
     {
+        // 2026-09-10 目标域模型：Type/Value/StringValue/TargetKinds（编排属性上移组合层；旧 AEI_* 标签留作保留位）
+
         [MemoryPackOrder(TagTable.AEI_Type)]
         public int Type;
 
         [MemoryPackOrder(TagTable.AEI_Value)]
         public int Value;
 
-        [MemoryPackOrder(TagTable.AEI_Value2)]
-        public int Value2;
-
         [MemoryPackOrder(TagTable.AEI_StringValue)]
         public string StringValue;
 
-        [MemoryPackOrder(TagTable.AEI_ManaTypeParam)]
-        public int ManaTypeParam;
-
-        [MemoryPackOrder(TagTable.AEI_ZoneParam)]
-        public int ZoneParam;
-
-        [MemoryPackOrder(TagTable.AEI_Duration)]
-        public int Duration;
+        [MemoryPackOrder(TagTable.AEI_TargetKinds)]
+        public int[] TargetKinds;
 
         public static SerializableAtomicEffectInstance FromInstance(AtomicEffectInstance inst)
         {
@@ -162,11 +153,8 @@ namespace CardCore.Serialization
             {
                 Type = (int)inst.Type,
                 Value = inst.Value,
-                Value2 = inst.Value2,
                 StringValue = inst.StringValue,
-                ManaTypeParam = (int)inst.ManaTypeParam,
-                ZoneParam = (int)inst.ZoneParam,
-                Duration = (int)inst.Duration,
+                TargetKinds = inst.TargetKinds?.ToArray() ?? Array.Empty<int>(),
             };
         }
 
@@ -176,11 +164,8 @@ namespace CardCore.Serialization
             {
                 Type = (AtomicEffectType)Type,
                 Value = Value,
-                Value2 = Value2,
                 StringValue = StringValue,
-                ManaTypeParam = (ManaType)ManaTypeParam,
-                ZoneParam = (Zone)ZoneParam,
-                Duration = (DurationType)Duration,
+                TargetKinds = TargetKinds != null ? new List<int>(TargetKinds) : null,
             };
         }
     }

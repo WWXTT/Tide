@@ -348,8 +348,8 @@ namespace SynergyUI
                     foreach (var atomic in CardEffectConverter.EnumerateMainSequenceAtoms(def.Steps, modeIndex))
                     {
                         var cfg = AtomicEffectTable.GetByType(atomic.Type);
-                        if (cfg != null && cfg.TargetType == EffectTargetType.Target)
-                            return cfg;
+                        if (cfg != null && cfg.GetTargetKindList().Count > 0)
+                            return cfg; // TODO(目标域后续任务)：声明期应按组合域（def.TargetDomain）取口径
                     }
                     continue;
                 }
@@ -357,7 +357,7 @@ namespace SynergyUI
                 foreach (var atomic in def.Effects)
                 {
                     var cfg = AtomicEffectTable.GetByType(atomic.Type);
-                    if (cfg != null && cfg.TargetType == EffectTargetType.Target)
+                    if (cfg != null && cfg.GetTargetKindList().Count > 0)
                         return cfg;
                 }
             }
@@ -420,7 +420,7 @@ namespace SynergyUI
                 ElementPool = Core.ElementPool,
             };
             var resolver = new TargetResolver(Core.ZoneManager);
-            var candidates = resolver.GetCandidates(cfg, ctx);
+            var candidates = resolver.GetCandidates(cfg.GetTargetKindList(), cfg.TargetFilter, ctx); // TODO(目标域后续任务)：组合域口径
             if (!string.IsNullOrEmpty(cfg.TargetFilter))
                 candidates = resolver.ApplyFilters(candidates, resolver.ParseFilters(cfg.TargetFilter), ctx);
 
@@ -433,7 +433,7 @@ namespace SynergyUI
                 return;
             }
 
-            int need = cfg.TargetCount > 0 ? cfg.TargetCount : 1;
+            int need = 1; // TODO(组合域口径)：应读 def.TargetCount（表级列已删，声明期逐卡）
             ShowOverlay("选择目标", $"为 {CardName(card)} 选择 {need} 个目标：", candidates, picked =>
             {
                 CloseOverlay();

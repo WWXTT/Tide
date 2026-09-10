@@ -57,6 +57,19 @@ namespace CardCore
     }
 
     /// <summary>卡牌类型筛选器</summary>
+    /// <summary>凡躯（Mortal，2026-09-10 神佑定案）：滤除持有神佑（DivineProtection）的实体——
+    /// 效果死亡族原子在表里带此 token，神佑角色自动不入候选——新击杀效果零引擎改动（表行带 token 即守约）。
+    /// 死亡门口（DeathRules.IsShielded）保留为延迟路径（毒回合计时钟）的安全网。</summary>
+    public class MortalFilter : ITargetFilter
+    {
+        public string DisplayName => "凡躯";
+
+        public List<Entity> Filter(List<Entity> candidates, EffectExecutionContext context)
+        {
+            return candidates.Where(e => !e.HasKeyword(Attribute.DeathRules.DivineProtection)).ToList();
+        }
+    }
+
     public class CardTypeFilter : ITargetFilter
     {
         private readonly Cardtype _cardType;
@@ -267,112 +280,93 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 获取候选目标列表
-        /// 根据 AtomicEffectConfig 的 TargetType 确定初始候选池
+        /// 获取候选目标列表（2026-09-10 目标域模型）：按 TargetKind 序号集合组装候选池。
+        /// 单位种类（0-3）= 战场生物/非生物 + 该侧角色（角色=有生命单位）；
+        /// 卡种类（4-15）= 对应功能区域的卡。
         /// </summary>
-        public List<Entity> GetCandidates(AtomicEffectConfig config, EffectExecutionContext context)
-        {
-            return GetCandidates(config.TargetType, config.TargetFilter, context);
-        }
-
-        /// <summary>
-        /// 按显式目标类型 + 筛选串获取候选目标列表（供每实例目标覆盖使用）。
-        /// </summary>
-        public List<Entity> GetCandidates(EffectTargetType targetType, string targetFilter, EffectExecutionContext context)
+        public List<Entity> GetCandidates(List<int> kinds, string targetFilter, EffectExecutionContext context)
         {
             var candidates = new List<Entity>();
 
-            if (context.Controller == null || _zoneManager == null)
+            if (context.Controller == null || _zoneManager == null || kinds == null)
                 return candidates;
 
             var opponent = context.Controller.Opponent;
-            // 候选取自筛选串指定的分区（默认战场）。墓地/手牌/牌库类效果据此正确取候选。
-            Zone zone = ExtractZone(targetFilter);
-            bool isBattlefield = zone == Zone.Battlefield;
 
-            // 摧毁域（NoLife=无生命值单位：地牌/结界）：跨分区候选——双方元素池地牌 +
-            // 双方战场非生物持久物。命中即接管候选构建（下方分区 switch 跳过；通用限制照走）。
-            if (HasFilterToken(targetFilter, "NoLife"))
+            foreach (var kind in kinds)
             {
-                foreach (var p in new[] { context.Controller, opponent })
+                if (!System.Enum.IsDefined(typeof(TargetKind), kind)) continue;
+                switch ((TargetKind)kind)
                 {
-                    if (p == null) continue;
-                    candidates.AddRange(GetZoneCards(p, Zone.ElementPool));
-                    foreach (var c in GetZoneCards(p, Zone.Battlefield))
-                        if (c is IHasSupertype st && st.Supertype != Cardtype.Creature)
-                            candidates.Add(c);
+                    // 单位种类：战场有生命（生物+该侧角色）/ 无生命（战场非生物持久物）
+                    case TargetKind.OwnLivingUnit:
+                        candidates.AddRange(CreaturesOf(context.Controller));
+                        candidates.Add(context.Controller);
+                        break;
+                    case TargetKind.EnemyLivingUnit:
+                        if (opponent != null)
+                        {
+                            candidates.AddRange(CreaturesOf(opponent));
+                            candidates.Add(opponent);
+                        }
+                        break;
+                    case TargetKind.OwnNonLivingUnit:
+                        candidates.AddRange(NonLivingOf(context.Controller));
+                        break;
+                    case TargetKind.EnemyNonLivingUnit:
+                        if (opponent != null)
+                            candidates.AddRange(NonLivingOf(opponent));
+                        break;
+
+                    // 卡种类：对应功能区域
+                    default:
+                        var (zone, own) = TargetKindRules.ZoneOf(kind);
+                        var owner = own ? context.Controller : opponent;
+                        if (owner != null)
+                            candidates.AddRange(GetZoneCards(owner, zone));
+                        break;
                 }
             }
-            else switch (targetType)
-            {
-                case EffectTargetType.Self:
-                    candidates.Add(context.Source);
-                    break;
 
-                case EffectTargetType.Target:
-                    // 需要玩家选择，先返回所有可能的目标
-                    candidates.AddRange(GetZoneCards(context.Controller, zone));
-                    candidates.AddRange(GetZoneCards(opponent, zone));
-                    if (isBattlefield)
-                    {
-                        candidates.Add(opponent);
-                        candidates.Add(context.Controller);
-                    }
-                    break;
-
-                case EffectTargetType.AllEnemies:
-                    candidates.AddRange(GetZoneCards(opponent, zone));
-                    if (isBattlefield) candidates.Add(opponent);
-                    break;
-
-                case EffectTargetType.AllAllies:
-                    candidates.AddRange(GetZoneCards(context.Controller, zone));
-                    if (isBattlefield) candidates.Add(context.Controller);
-                    break;
-
-                case EffectTargetType.All:
-                case EffectTargetType.Random:
-                    candidates.AddRange(GetZoneCards(context.Controller, zone));
-                    candidates.AddRange(GetZoneCards(opponent, zone));
-                    if (isBattlefield)
-                    {
-                        candidates.Add(opponent);
-                        candidates.Add(context.Controller);
-                    }
-                    break;
-
-                case EffectTargetType.Opponent:
-                    candidates.Add(opponent);
-                    break;
-
-                case EffectTargetType.Owner:
-                case EffectTargetType.Controller:
-                    candidates.Add(context.Controller);
-                    break;
-
-                case EffectTargetType.None:
-                    break;
-            }
+            // 去重（同实体可能经多种类重复入池）
+            candidates = candidates.Distinct().ToList();
 
             // 关键词指定限制（运行时强制，与 EffectTargetValidator.CanTarget 同口径）：
-            // 指向型（Target）候选不含对手的辟邪/潜行随从；AoE（AllEnemies/All）不在此列——
-            // 不可被"指定"≠不可被范围波及。法术护盾在效果执行时消耗（EffectHandlerRegistry），此处不滤。
-            if (targetType == EffectTargetType.Target)
+            // 指向候选不含对手的辟邪/潜行随从——不可被"指定"≠不可被范围波及。
+            // 法术护盾在效果执行时消耗（EffectHandlerRegistry），此处不滤。
+            candidates.RemoveAll(c =>
             {
-                candidates.RemoveAll(c =>
-                {
-                    if (!(c is Card card) || context.Controller == null) return false;
-                    var tc = card.GetController();
-                    return tc != null && tc != context.Controller
-                        && (card.HasKeyword(KeywordRules.Untargetable) || card.HasKeyword(KeywordRules.Stealth));
-                });
-            }
+                if (!(c is Card card) || context.Controller == null) return false;
+                var tc = card.GetController();
+                return tc != null && tc != context.Controller
+                    && (card.HasKeyword(KeywordRules.Untargetable) || card.HasKeyword(KeywordRules.Stealth));
+            });
 
             // 突袭紊乱限制（定案，与攻击同口径）：紊乱指示物存在期间，其发动的效果不准以玩家为目标
             if (KeywordRules.HasRushSickness(context.Source))
                 candidates.RemoveAll(c => c is Player);
 
             return candidates;
+        }
+
+        /// <summary>某玩家的战场生物（有生命单位中的卡部分；角色由调用方补）。</summary>
+        private List<Entity> CreaturesOf(Player player)
+        {
+            var list = new List<Entity>();
+            foreach (var c in GetZoneCards(player, Zone.Battlefield))
+                if (c is IHasSupertype st && st.Supertype == Cardtype.Creature)
+                    list.Add(c);
+            return list;
+        }
+
+        /// <summary>某玩家的战场非生物持久物（无生命单位）。</summary>
+        private List<Entity> NonLivingOf(Player player)
+        {
+            var list = new List<Entity>();
+            foreach (var c in GetZoneCards(player, Zone.Battlefield))
+                if (c is IHasSupertype st && st.Supertype != Cardtype.Creature)
+                    list.Add(c);
+            return list;
         }
 
         /// <summary>从筛选串中解析候选分区 token（Battlefield/Hand/Graveyard/Deck/Exile/Activation/ElementPool），缺省战场。</summary>
@@ -429,8 +423,17 @@ namespace CardCore
                 var trimmed = token.Trim();
                 switch (trimmed)
                 {
-                    case "Creature":
+                    case "NoRole": // 仅生物（排除角色）——2026-09-10 自 Creature 改名（语义自解释）
                         filters.Add(new CardTypeFilter(Cardtype.Creature));
+                        break;
+                    case "Mortal": // 凡躯：滤除神佑持有者（神佑的 TargetFilter 实现，2026-09-10）
+                        filters.Add(new MortalFilter());
+                        break;
+                    case "Stealth": // 仅指潜行中（状态类过滤定案：仅指持有该状态者）
+                        filters.Add(new KeywordFilter(KeywordRules.Stealth, true));
+                        break;
+                    case "Untargetable": // 仅指免疫（辟邪）持有者
+                        filters.Add(new KeywordFilter(KeywordRules.Untargetable, true));
                         break;
                     case "Player":
                         // Player本身不是筛选条件，候选池已包含Player

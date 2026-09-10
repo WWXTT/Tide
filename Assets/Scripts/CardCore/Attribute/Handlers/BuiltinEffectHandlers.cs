@@ -110,8 +110,8 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            var duration = effect.Duration != DurationType.Once
-                ? effect.Duration
+            var duration = context.Duration != DurationType.Once
+                ? context.Duration
                 : DurationType.UntilEndOfTurn;
 
             foreach (var target in context.Targets)
@@ -184,7 +184,7 @@ namespace CardCore.Attribute.Handlers
             {
                 if (!(target is Card card) || !card.IsAlive) continue;
                 int oldPower = card.GetPower();
-                StatGrantRouter.ModifyPower(card, amount, context.Source, effect.Duration);
+                StatGrantRouter.ModifyPower(card, amount, context.Source, context.Duration);
                 PublishEvent(new StatModifyEvent
                 {
                     Target = target,
@@ -192,7 +192,7 @@ namespace CardCore.Attribute.Handlers
                     OldValue = oldPower,
                     NewValue = target.GetPower(),
                     Delta = amount,
-                    Duration = effect.Duration,
+                    Duration = context.Duration,
                     Source = context.Source
                 });
             }

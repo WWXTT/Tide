@@ -7,13 +7,9 @@
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "DealDamage",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature,Player",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": null,
+    "Polarity": -1.0
   },
   {
     "ID": "599fcc9a",
@@ -23,13 +19,9 @@
     "EffectColor": "Green",
     "BaseCost": 0.5,
     "EffectType": "Heal",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature,Player",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": null,
+    "Polarity": 1.0
   },
   {
     "ID": "828060dd",
@@ -39,13 +31,9 @@
     "EffectColor": "Red",
     "BaseCost": 2.0,
     "EffectType": "PierceDamage",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature,Player",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": null,
+    "Polarity": -1.0
   },
   {
     "ID": "81ea17f3",
@@ -55,13 +43,9 @@
     "EffectColor": "Black",
     "BaseCost": 1.0,
     "EffectType": "DrainLife",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature,Player",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": null,
+    "Polarity": -1.0
   },
   {
     "ID": "cca3ed84",
@@ -71,13 +55,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "Poison",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature,Player",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "UntilEndOfTurn",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "Mortal",
+    "Polarity": -1.0
   },
   {
     "ID": "26e457bc",
@@ -87,13 +67,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "DrawCard",
-    "EffectTier": "Atom",
-    "TargetType": "None",
+    "TargetKinds": "0,1",
     "TargetFilter": null,
-    "TargetCount": 0,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "Polarity": 1.0
   },
   {
     "ID": "9457c75b",
@@ -103,13 +79,9 @@
     "EffectColor": "Black",
     "BaseCost": 1.0,
     "EffectType": "DiscardCard",
-    "EffectTier": "Atom",
-    "TargetType": "Opponent",
+    "TargetKinds": "5",
     "TargetFilter": null,
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "Polarity": -1.0
   },
   {
     "ID": "07160bd5",
@@ -119,13 +91,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "ReturnToHand",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0
   },
   {
     "ID": "7ce43160",
@@ -135,13 +103,9 @@
     "EffectColor": "Gray",
     "BaseCost": 1.0,
     "EffectType": "Exile",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0
   },
   {
     "ID": "979b9562",
@@ -151,13 +115,9 @@
     "EffectColor": "Gray",
     "BaseCost": 1.0,
     "EffectType": "ShuffleIntoDeck",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 0.0
   },
   {
     "ID": "c2abbd1f",
@@ -167,13 +127,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "SearchDeck",
-    "EffectTier": "Atom",
-    "TargetType": "None",
+    "TargetKinds": "0,1",
     "TargetFilter": null,
-    "TargetCount": 0,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "Polarity": 1.0
   },
   {
     "ID": "09a3f33f",
@@ -183,13 +139,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "BounceToTop",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0
   },
   {
     "ID": "3813c80e",
@@ -199,13 +151,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "BounceToBottom",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0
   },
   {
     "ID": "5495a10e",
@@ -215,13 +163,9 @@
     "EffectColor": "Black",
     "BaseCost": 1.0,
     "EffectType": "ReturnFromGraveyard",
-    "EffectTier": "Atom",
-    "TargetType": "None",
+    "TargetKinds": "0,1",
     "TargetFilter": null,
-    "TargetCount": 0,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "Polarity": 1.0
   },
   {
     "ID": "84e47f42",
@@ -231,13 +175,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "LookAtTopCards",
-    "EffectTier": "Atom",
-    "TargetType": "None",
+    "TargetKinds": "0,1",
     "TargetFilter": null,
-    "TargetCount": 0,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "Polarity": 0.0
   },
   {
     "ID": "9593f858",
@@ -247,13 +187,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "ModifyPower",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "UntilEndOfTurn",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 0.0
   },
   {
     "ID": "51cc5f47",
@@ -263,13 +199,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "ModifyLife",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 0.0
   },
   {
     "ID": "70034aee",
@@ -279,13 +211,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "SetPower",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 0.0
   },
   {
     "ID": "38a43580",
@@ -295,13 +223,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "SetLife",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 0.0
   },
   {
     "ID": "a9beb7b4",
@@ -311,13 +235,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "SetCost",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Hand",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "4,5",
+    "TargetFilter": null,
+    "Polarity": 0.0
   },
   {
     "ID": "5a1c0f6e",
@@ -327,13 +247,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "ModifyCost",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Hand",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "4,5",
+    "TargetFilter": null,
+    "Polarity": 0.0
   },
   {
     "ID": "40af2c9c",
@@ -343,13 +259,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "AddCostUp",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Hand",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "UntilLeaveBattlefield",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "4,5",
+    "TargetFilter": null,
+    "Polarity": 0.0
   },
   {
     "ID": "46ba80ca",
@@ -359,13 +271,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "AddCostDown",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Hand",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "UntilLeaveBattlefield",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "4,5",
+    "TargetFilter": null,
+    "Polarity": 0.0
   },
   {
     "ID": "c01bcd8f",
@@ -375,13 +283,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "AddPowerUp",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "UntilLeaveBattlefield",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "2650f270",
@@ -391,13 +295,9 @@
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "AddPowerDown",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "UntilLeaveBattlefield",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0
   },
   {
     "ID": "4de69242",
@@ -407,13 +307,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "AddLifeUp",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "UntilLeaveBattlefield",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "374445c6",
@@ -423,13 +319,9 @@
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "AddLifeDown",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "UntilLeaveBattlefield",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0
   },
   {
     "ID": "f6afe078",
@@ -439,13 +331,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "AddPlusOne",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "UntilLeaveBattlefield",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "2d1b6adf",
@@ -455,13 +343,9 @@
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "AddMinusOne",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "UntilLeaveBattlefield",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0
   },
   {
     "ID": "0b9429df",
@@ -471,13 +355,9 @@
     "EffectColor": "Black",
     "BaseCost": 1.0,
     "EffectType": "Weaken",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0
   },
   {
     "ID": "f0f6963a",
@@ -487,13 +367,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "Inspire",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "974b5090",
@@ -503,13 +379,9 @@
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "GrantDoubleStrike",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "289768cd",
@@ -519,13 +391,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "GrantPoisonSting",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "3d875f73",
@@ -535,13 +403,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "GrantLifesteal",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "b9224676",
@@ -551,13 +415,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "GrantStealth",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "299b3e64",
@@ -567,13 +427,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "GrantTaunt",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "9f7acbb1",
@@ -583,13 +439,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "GrantDivineShield",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "641967eb",
@@ -599,13 +451,9 @@
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "GrantOverwhelm",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "ebd9e140",
@@ -615,13 +463,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "GrantArmor",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "6363fc8f",
@@ -631,13 +475,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "DeclareHand",
-    "EffectTier": "Atom",
-    "TargetType": "None",
+    "TargetKinds": "0,1",
     "TargetFilter": null,
-    "TargetCount": 0,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "Polarity": 0.0
   },
   {
     "ID": "60d780ed",
@@ -647,13 +487,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "DeclareDeckTop",
-    "EffectTier": "Atom",
-    "TargetType": "None",
+    "TargetKinds": "0,1",
     "TargetFilter": null,
-    "TargetCount": 0,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "Polarity": 0.0
   },
   {
     "ID": "c320f89a",
@@ -663,13 +499,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "DeclareArrow",
-    "EffectTier": "Atom",
-    "TargetType": "None",
+    "TargetKinds": "0,1",
     "TargetFilter": null,
-    "TargetCount": 0,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "Polarity": 0.0
   },
   {
     "ID": "55a771de",
@@ -679,13 +511,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "ProphecyNextCard",
-    "EffectTier": "Atom",
-    "TargetType": "None",
+    "TargetKinds": "0,1",
     "TargetFilter": null,
-    "TargetCount": 0,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "Polarity": 0.0
   },
   {
     "ID": "429b6976",
@@ -695,13 +523,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "GrantVigilance",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "8a78229d",
@@ -711,13 +535,9 @@
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "GrantFirstStrike",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "2e6955f0",
@@ -727,13 +547,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "GrantSpellShield",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "7d8363dc",
@@ -743,13 +559,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "GrantCannotBeTargeted",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "4715ddea",
@@ -759,13 +571,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "GrantReborn",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "e25e376d",
@@ -775,13 +583,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "GrantIndestructible",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "97d5536e",
@@ -791,13 +595,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "GrantLifelink",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "5f1c8ab3",
@@ -807,13 +607,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "GrantRegeneration",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "9e42d7c0",
@@ -823,13 +619,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "GrantGrowth",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Permanent",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "2a7d3092",
@@ -839,13 +631,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "AddArmor",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature,Player",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": null,
+    "Polarity": 1.0
   },
   {
     "ID": "9a36c706",
@@ -855,14 +643,9 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "AddToxin",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature,Player",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "ForTurns",
-    "Turns": 3,
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "Mortal",
+    "Polarity": -1.0
   },
   {
     "ID": "17dd3732",
@@ -872,13 +655,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "Silence",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "UntilLeaveBattlefield",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0
   },
   {
     "ID": "4eb623b3",
@@ -888,13 +667,9 @@
     "EffectColor": "Blue",
     "BaseCost": 3.0,
     "EffectType": "AddNullify",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "UntilLeaveBattlefield",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 0.0
   },
   {
     "ID": "e7c1a930",
@@ -904,13 +679,9 @@
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "Untap",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature,Friendly,Tapped",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0",
+    "TargetFilter": "NoRole,Tapped",
+    "Polarity": 1.0
   },
   {
     "ID": "b3f8d2e1",
@@ -920,13 +691,9 @@
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "GrantDisarm",
-    "EffectTier": "Keyword",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0
   },
   {
     "ID": "d0a30000",
@@ -936,13 +703,9 @@
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "DealCombatDamage",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature,Player",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": null,
+    "Polarity": -1.0
   },
   {
     "ID": "d0a30002",
@@ -952,13 +715,9 @@
     "EffectColor": "Black",
     "BaseCost": 1.0,
     "EffectType": "LifeLoss",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature,Player",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": null,
+    "Polarity": -1.0
   },
   {
     "ID": "d0a30007",
@@ -968,13 +727,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "FreezePermanent",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0
   },
   {
     "ID": "c29d6e75",
@@ -984,13 +739,9 @@
     "EffectColor": "Blue",
     "BaseCost": 0.5,
     "EffectType": "RushSickness",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "UntilEndOfTurn",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0
   },
   {
     "ID": "60a09ef1",
@@ -1000,13 +751,9 @@
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "AddVulnerable",
-    "EffectTier": "Counter",
-    "TargetType": "Target",
-    "TargetFilter": "Creature,Player",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "UntilEndOfTurn",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": null,
+    "Polarity": -1.0
   },
   {
     "ID": "d0a30008",
@@ -1016,13 +763,9 @@
     "EffectColor": "Blue",
     "BaseCost": 0.5,
     "EffectType": "Tap",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0
   },
   {
     "ID": "d0a3000a",
@@ -1032,13 +775,9 @@
     "EffectColor": "Blue",
     "BaseCost": 2.0,
     "EffectType": "GainControl",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0
   },
   {
     "ID": "d0a3000e",
@@ -1048,13 +787,9 @@
     "EffectColor": "Gray",
     "BaseCost": 1.5,
     "EffectType": "ChangeOwner",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 0.0
   },
   {
     "ID": "d0a30011",
@@ -1064,13 +799,9 @@
     "EffectColor": "Blue",
     "BaseCost": 5.0,
     "EffectType": "NegateActivation",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Activation",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "14,15",
+    "TargetFilter": null,
+    "Polarity": -1.0
   },
   {
     "ID": "ceea9f38",
@@ -1080,13 +811,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "Purify",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature,Player",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": null,
+    "Polarity": 0.0
   },
   {
     "ID": "d0a30014",
@@ -1096,13 +823,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "RedirectTarget",
-    "EffectTier": "Atom",
-    "TargetType": "None",
-    "TargetFilter": "None",
-    "TargetCount": 0,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": null,
+    "Polarity": -1.0
   },
   {
     "ID": "d0a3001e",
@@ -1112,13 +835,9 @@
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "ScryCards",
-    "EffectTier": "Atom",
-    "TargetType": "None",
-    "TargetFilter": "None",
-    "TargetCount": 0,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": null,
+    "Polarity": 0.0
   },
   {
     "ID": "4fd08238",
@@ -1128,13 +847,9 @@
     "EffectColor": "Black",
     "BaseCost": 1.0,
     "EffectType": "MillCard",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Player",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "7",
+    "TargetFilter": null,
+    "Polarity": -1.0
   },
   {
     "ID": "d0a3002e",
@@ -1144,13 +859,9 @@
     "EffectColor": "Gray",
     "BaseCost": 0.5,
     "EffectType": "RecoverToHand",
-    "EffectTier": "Atom",
-    "TargetType": "None",
-    "TargetFilter": "Graveyard",
-    "TargetCount": 0,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "8,9",
+    "TargetFilter": null,
+    "Polarity": 1.0
   },
   {
     "ID": "d0a3002f",
@@ -1160,13 +871,9 @@
     "EffectColor": "Blue",
     "BaseCost": 3.0,
     "EffectType": "TakeExtraTurn",
-    "EffectTier": "Atom",
-    "TargetType": "None",
-    "TargetFilter": "None",
-    "TargetCount": 0,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": null,
+    "Polarity": 1.0
   },
   {
     "ID": "d0a30030",
@@ -1176,13 +883,9 @@
     "EffectColor": "Blue",
     "BaseCost": 2.0,
     "EffectType": "SkipTurn",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Player",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1.0
   },
   {
     "ID": "c5e9f3a2",
@@ -1192,13 +895,9 @@
     "EffectColor": "Green",
     "BaseCost": 3.0,
     "EffectType": "Photosynthesis",
-    "EffectTier": "Atom",
-    "TargetType": "Self",
-    "TargetFilter": "None",
-    "TargetCount": 0,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0",
+    "TargetFilter": null,
+    "Polarity": 1.0
   },
   {
     "ID": "40876904",
@@ -1208,13 +907,9 @@
     "EffectColor": "Gray",
     "BaseCost": 1.0,
     "EffectType": "Morph",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole",
+    "Polarity": 0.0
   },
   {
     "ID": "05775ee3",
@@ -1224,13 +919,9 @@
     "EffectColor": "Black",
     "BaseCost": 1.0,
     "EffectType": "Sacrifice",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature,Friendly",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0",
+    "TargetFilter": "NoRole,Mortal",
+    "Polarity": 0.0
   },
   {
     "ID": "a3312cdc",
@@ -1240,13 +931,9 @@
     "EffectColor": "Green",
     "BaseCost": 2.0,
     "EffectType": "Devour",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole,Mortal",
+    "Polarity": -1.0
   },
   {
     "ID": "fbf5cbc4",
@@ -1256,13 +943,9 @@
     "EffectColor": "Black",
     "BaseCost": 3.0,
     "EffectType": "Annihilate",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "0,1",
+    "TargetFilter": "NoRole,Mortal",
+    "Polarity": -1.0
   },
   {
     "ID": "009ffd35",
@@ -1272,13 +955,9 @@
     "EffectColor": "Red",
     "BaseCost": 3.0,
     "EffectType": "Smash",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "NoLife",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "2,3,12,13",
+    "TargetFilter": null,
+    "Polarity": -1.0
   },
   {
     "ID": "f647aadd",
@@ -1288,13 +967,9 @@
     "EffectColor": "Blue",
     "BaseCost": 3.0,
     "EffectType": "KnockDown",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Activation",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "14,15",
+    "TargetFilter": null,
+    "Polarity": -1.0
   },
   {
     "ID": "25b7f483",
@@ -1304,13 +979,9 @@
     "EffectColor": "White",
     "BaseCost": 1.0,
     "EffectType": "SummonToken",
-    "EffectTier": "Atom",
-    "TargetType": "None",
+    "TargetKinds": "0,1",
     "TargetFilter": null,
-    "TargetCount": 0,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "Polarity": 1.0
   },
   {
     "ID": "b7f4a2d8",
@@ -1320,12 +991,8 @@
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "Mine",
-    "EffectTier": "Atom",
-    "TargetType": "Target",
-    "TargetFilter": "Creature,Friendly,ElementPool",
-    "TargetCount": 1,
-    "TargetScope": "Single",
-    "DurationType": "Instant",
-    "ActivationType": "Voluntary"
+    "TargetKinds": "12",
+    "TargetFilter": "NoRole",
+    "Polarity": 0.0
   }
 ]

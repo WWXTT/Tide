@@ -384,45 +384,23 @@ namespace CardCore.Serialization
     [MemoryPackable]
     public partial class SerializableAtomicEffectEntry
     {
+        // 2026-09-10 目标域模型：原子 = EffectType/Value/ID/ManaList/TargetKinds（编排属性上移组合层，
+        // 见 SerializableEffectStepData/SerializableCardEffectData 侧的效果级字段）。旧 AEI_* 标签留作保留位。
+
         [MemoryPackOrder(TagTable.AEI_Type)]
         public string EffectType;
 
         [MemoryPackOrder(TagTable.AEI_Value)]
         public int Value;
 
-        [MemoryPackOrder(TagTable.AEI_Value2)]
-        public int Value2;
-
         [MemoryPackOrder(TagTable.AEI_StringValue)]
         public string StringValue;
 
-        [MemoryPackOrder(TagTable.AEI_ManaTypeParam)]
-        public int ManaTypeParam;
+        [MemoryPackOrder(TagTable.AEI_TargetKinds)]
+        public int[] TargetKinds;
 
-        [MemoryPackOrder(TagTable.AEI_ZoneParam)]
-        public int ZoneParam;
-
-        [MemoryPackOrder(TagTable.AEI_Duration)]
-        public int Duration;
-
-        [MemoryPackOrder(TagTable.AEI_TargetTypeOverride)]
-        public int TargetTypeOverride = -1;
-
-        [MemoryPackOrder(TagTable.AEI_TargetFilterOverride)]
-        public string TargetFilterOverride = "";
-
-        [MemoryPackOrder(TagTable.AEI_TargetCountOverride)]
-        public int TargetCountOverride = -2;
-
-        [MemoryPackOrder(TagTable.AEI_DynamicTargetCount)]
-        public bool DynamicTargetCount;
-
-        [MemoryPackOrder(TagTable.AEI_Drawbacks)]
-        public string[] Drawbacks;
-
-        // TODO(network): DurationValue（ForTurns 的回合数 N）暂不映射 —— 接传输时需在
-        // RefreshMemoryPackOrder.GetTagDefinitions() 登记 "AtomicEffectEntry.DurationValue"
-        // 并刷新 TagTable（MurmurHash32，seed 0x53796E67），两处 round-trip 同步补齐。
+        [MemoryPackOrder(TagTable.AEI_ManaList)]
+        public SerializableManaAmount[] ManaList;
 
         public static SerializableAtomicEffectEntry FromEntry(AtomicEffectEntry entry)
         {
@@ -430,16 +408,9 @@ namespace CardCore.Serialization
             {
                 EffectType = entry.EffectType,
                 Value = entry.Value,
-                Value2 = entry.Value2,
                 StringValue = entry.ID,
-                ManaTypeParam = entry.ManaTypeParam,
-                ZoneParam = entry.ZoneParam,
-                Duration = entry.Duration,
-                TargetTypeOverride = entry.TargetTypeOverride,
-                TargetFilterOverride = entry.TargetFilterOverride,
-                TargetCountOverride = entry.TargetCountOverride,
-                DynamicTargetCount = entry.DynamicTargetCount,
-                Drawbacks = entry.Drawbacks?.ToArray() ?? System.Array.Empty<string>(),
+                TargetKinds = entry.TargetKinds?.ToArray() ?? System.Array.Empty<int>(),
+                ManaList = entry.ManaList?.Select(m => new SerializableManaAmount { manaType = m.manaType, amount = m.amount }).ToArray(),
             };
         }
 
@@ -449,17 +420,20 @@ namespace CardCore.Serialization
             {
                 EffectType = EffectType,
                 Value = Value,
-                Value2 = Value2,
                 ID = StringValue,
-                ManaTypeParam = ManaTypeParam,
-                ZoneParam = ZoneParam,
-                Duration = Duration,
-                TargetTypeOverride = TargetTypeOverride,
-                TargetFilterOverride = TargetFilterOverride ?? "",
-                TargetCountOverride = TargetCountOverride,
-                DynamicTargetCount = DynamicTargetCount,
-                Drawbacks = Drawbacks != null ? new List<string>(Drawbacks) : new List<string>(),
+                TargetKinds = TargetKinds != null ? new List<int>(TargetKinds) : null,
+                ManaList = ManaList?.Select(m => new ManaAmountEntry { manaType = m.manaType, amount = m.amount }).ToList(),
             };
         }
+    }
+
+    [MemoryPackable]
+    public partial class SerializableManaAmount
+    {
+        [MemoryPackOrder(TagTable.SerializableManaAmount_manaType)]
+        public int manaType;
+
+        [MemoryPackOrder(TagTable.SerializableManaAmount_amount)]
+        public float amount;
     }
 }

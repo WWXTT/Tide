@@ -114,66 +114,109 @@ namespace CardCore.Attribute
             return true;
         }
 
-        /// <summary>每实例有效目标参数：覆盖优先，缺省回落 AtomicEffectTable 配置。</summary>
-        private static (EffectTargetType type, string filter, int count) GetEffectiveTargeting(AtomicEffectInstance effect)
+        /// <summary>每实例有效目标参数（域模型）：实例解析域 + 实例 filter + 计数恒 1
+        /// （2026-09-10 表级 TargetCount 列删除——分支奖励等免编排路径的单原子按 1 个目标结算；
+        /// 多目标需求由组合层 TargetCount 声明）。</summary>
+        private static (List<int> kinds, string filter, int count) GetEffectiveDomain(AtomicEffectInstance effect)
         {
-            var config = AtomicEffectTable.GetByType(effect.Type);
-            var type = config != null ? config.TargetType : EffectTargetType.None;
-            string filter = config != null ? config.TargetFilter : "";
-            int count = config != null ? config.TargetCount : 0;
-
-            if (effect.TargetTypeOverride >= 0) type = (EffectTargetType)effect.TargetTypeOverride;
-            if (!string.IsNullOrEmpty(effect.TargetFilterOverride)) filter = effect.TargetFilterOverride;
-            if (effect.TargetCountOverride != -2) count = effect.TargetCountOverride;
-
-            return (type, filter, count);
+            return (effect.TargetKinds ?? new List<int>(),
+                    effect.Filter ?? "",
+                    1);
         }
 
         /// <summary>
-        /// 按原子效果配置（含每实例覆盖）解析目标候选列表（同步，不弹交互；headless/触发路径用）。
+        /// 组合效果的目标选择（执行引擎统一入口，2026-09-10 目标域模型）：
+        /// 域 = def 预计算交集（per-mode）；按 SelectionMode 三态出目标。
+        /// Self：源卡须在候选内（瞬间在发动区不在单位域 → 空转+警告）；
+        /// Manual：TargetCount/DynamicTargetCount 管数量（候选>需求时弹选）；
+        /// Full：候选全取。
+        /// </summary>
+        public static async UniTask<List<Entity>> ResolveCompositionTargetsAsync(
+            EffectDefinition def, EffectExecutionContext context)
+        {
+            if (def == null || context == null) return new List<Entity>();
+
+            var domain = def.TargetDomain;
+            if (def.ChoiceDomains != null && context.ModeIndex >= 0
+                && context.ModeIndex < def.ChoiceDomains.Length
+                && def.ChoiceDomains[context.ModeIndex] != null
+                && def.ChoiceDomains[context.ModeIndex].Count > 0)
+            {
+                domain = def.ChoiceDomains[context.ModeIndex];
+            }
+            if (domain == null || domain.Count == 0) return new List<Entity>(); // 无目标效果
+
+            var candidates = ResolveCandidates(domain, def.TargetFilter, context);
+            if (candidates.Count == 0) return candidates;
+
+            switch (def.SelectionMode)
+            {
+                case SelectionMode.Self:
+                    if (candidates.Contains(context.Source))
+                        return new List<Entity> { context.Source };
+                    UnityEngine.Debug.LogWarning(
+                        $"[TargetDomain] Self 模式但源不在组合域内（瞬间在发动区？）——效果空转: {def.Id}");
+                    return new List<Entity>();
+
+                case SelectionMode.Full:
+                    return candidates;
+
+                default: // Manual
+                    if (def.DynamicTargetCount)
+                    {
+                        return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                        {
+                            Candidates = candidates,
+                            MinCount = 0,
+                            MaxCount = candidates.Count,
+                            Chooser = context.Controller,
+                            Title = "选择目标（任意数量）",
+                        });
+                    }
+                    int need = def.TargetCount > 0 ? def.TargetCount : candidates.Count;
+                    if (candidates.Count <= need)
+                        return candidates.Take(need).ToList();
+                    return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                    {
+                        Candidates = candidates,
+                        MinCount = need,
+                        MaxCount = need,
+                        Chooser = context.Controller,
+                        Title = "选择目标",
+                    });
+            }
+        }
+
+        /// <summary>
+        /// 按原子效果配置解析目标候选列表（同步，不弹交互；headless/触发路径用）。
         /// per-target 步骤遍历用它取得候选后逐个执行。
         /// </summary>
         public static List<Entity> ResolveTargets(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             if (effect == null || context == null) return new List<Entity>();
 
-            var (type, filter, count) = GetEffectiveTargeting(effect);
-            if (type == EffectTargetType.None) return new List<Entity>();
-            if (type == EffectTargetType.Self) return new List<Entity> { context.Source };
+            var (kinds, filter, count) = GetEffectiveDomain(effect);
+            if (kinds.Count == 0) return new List<Entity>(); // 无目标原子
 
-            var candidates = ResolveCandidates(type, filter, context);
-            // 动态数量同步路径无交互 → 取全部候选（费用侧已按 0 计；真实选择在异步路径）。
-            if (effect.DynamicTargetCount) return candidates;
+            var candidates = ResolveCandidates(kinds, filter, context);
             // TargetCount: 0=全部, <0=任意（全部）, >0=取前 N 个
             return count > 0 ? candidates.Take(count).ToList() : candidates;
         }
 
         /// <summary>
-        /// 异步目标解析：候选 > 需求数时调 TargetSelectionService 弹选择；动态数量允许选 0..候选数。
+        /// 异步目标解析（分支奖励等免编排路径）：候选 > 需求数时弹选择。
+        /// 动态数量已上移组合层——原子级路径恒为固定数量（表级 TargetCount）。
         /// AI / 无头 / 超时由 Service 自动取前 N。
         /// </summary>
         public static async UniTask<List<Entity>> ResolveTargetsInteractiveAsync(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             if (effect == null || context == null) return new List<Entity>();
 
-            var (type, filter, count) = GetEffectiveTargeting(effect);
-            if (type == EffectTargetType.None) return new List<Entity>();
-            if (type == EffectTargetType.Self) return new List<Entity> { context.Source };
+            var (kinds, filter, count) = GetEffectiveDomain(effect);
+            if (kinds.Count == 0) return new List<Entity>();
 
-            var candidates = ResolveCandidates(type, filter, context);
+            var candidates = ResolveCandidates(kinds, filter, context);
             if (candidates.Count == 0) return candidates;
-
-            if (effect.DynamicTargetCount)
-            {
-                return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
-                {
-                    Candidates = candidates,
-                    MinCount = 0,
-                    MaxCount = candidates.Count,
-                    Chooser = context.Controller,
-                    Title = "选择目标（任意数量）",
-                });
-            }
 
             // 固定数量：count<=0 视为全部
             int need = count > 0 ? count : candidates.Count;
@@ -190,10 +233,11 @@ namespace CardCore.Attribute
             });
         }
 
-        private static List<Entity> ResolveCandidates(EffectTargetType type, string filter, EffectExecutionContext context)
+        /// <summary>按域+filter 解析候选（域模型统一口径；TargetDomainService 预检复用）。</summary>
+        public static List<Entity> ResolveCandidates(List<int> kinds, string filter, EffectExecutionContext context)
         {
             var resolver = new TargetResolver(context.ZoneManager);
-            var candidates = resolver.GetCandidates(type, filter, context);
+            var candidates = resolver.GetCandidates(kinds, filter, context);
             if (!string.IsNullOrEmpty(filter))
             {
                 var filters = resolver.ParseFilters(filter);

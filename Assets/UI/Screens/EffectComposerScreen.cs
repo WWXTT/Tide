@@ -120,9 +120,11 @@ namespace SynergyUI
                     EffectType = kw.AtomicEffect,
                     Value = 1,
                     ID = kw.Id,
-                    TargetTypeOverride = (int)EffectTargetType.Self,
                 },
             });
+            // 2026-09-10 目标域模型：关键词授予=效果级 Self + Permanent（自身退化为组合层选择模式）
+            _graph.header.SelectionMode = (int)SelectionMode.Self;
+            _graph.header.Duration = (int)DurationType.Permanent;
             _selectedStepIndex = _graph.steps.Count - 1;
             RefreshSteps();
             RefreshContext();
@@ -488,13 +490,9 @@ namespace SynergyUI
                     RefreshSteps();
                 }
             }));
-            rowA.Add(MakeIntField("副值", atomic.Value2, v => atomic.Value2 = v));
 
             var rowB = new VisualElement();
             rowB.AddToClassList("toolbar");
-            rowB.Add(MakeIntField("法力", atomic.ManaTypeParam, v => atomic.ManaTypeParam = v));
-            rowB.Add(MakeIntField("分区", atomic.ZoneParam, v => atomic.ZoneParam = v));
-            rowB.Add(MakeIntField("持续", atomic.Duration, v => atomic.Duration = v));
 
             var strField = new TextField("字符串");
             strField.AddToClassList("text-input");
@@ -522,7 +520,7 @@ namespace SynergyUI
 
             if (type == AtomicEffectType.DrawCard)
             {
-                atomic.Drawbacks ??= new List<string>();
+                _graph.header.Drawbacks ??= new List<string>(); // 2026-09-10：Drawbacks 上移效果级
                 var header = new Label("抽牌减费缺陷（可叠加，挂越多越便宜）");
                 header.AddToClassList("panel__header");
                 wrap.Add(header);
@@ -531,19 +529,19 @@ namespace SynergyUI
                 {
                     var captured = db;
                     var toggle = new Toggle($"{db.DisplayName}（-{db.CostReduction}）");
-                    toggle.SetValueWithoutNotify(atomic.Drawbacks.Contains(db.Id));
+                    toggle.SetValueWithoutNotify(_graph.header.Drawbacks.Contains(db.Id));
                     toggle.RegisterValueChangedCallback(evt =>
                     {
                         if (evt.newValue)
                         {
-                            if (!atomic.Drawbacks.Contains(captured.Id))
+                            if (!_graph.header.Drawbacks.Contains(captured.Id))
                             {
-                                atomic.Drawbacks.Add(captured.Id);
+                                _graph.header.Drawbacks.Add(captured.Id);
                             }
                         }
                         else
                         {
-                            atomic.Drawbacks.Remove(captured.Id);
+                            _graph.header.Drawbacks.Remove(captured.Id);
                         }
                     });
                     wrap.Add(toggle);
@@ -589,80 +587,72 @@ namespace SynergyUI
             return wrap;
         }
 
-        // 目标编辑器：TargetType / TargetFilter(token 串) / TargetCount / TargetScope，对应 4 个覆盖字段。
+        // 目标编辑器（2026-09-10 目标域模型·编译级最小版）：
+        // 原子级 = TargetKinds 逗号串（空=表默认）；编排属性（数量/动态）上移效果级 header；
+        // 持续/落区/选择模式的效果级完整编辑器属 UI 后续任务（见 项目概览 待办）。
         private VisualElement MakeTargetEditor(AtomicEffectEntry atomic)
         {
             var wrap = new VisualElement();
 
             var rowA = new VisualElement();
             rowA.AddToClassList("toolbar");
-
-            var targetNames = Enum.GetValues(typeof(EffectTargetType)).Cast<EffectTargetType>()
-                .Select(t => t.ToString()).ToList();
-            var typeDropdown = new DropdownField("作用对象");
-            typeDropdown.choices = targetNames;
-            typeDropdown.AddToClassList("text-input");
-            int ti = atomic.TargetTypeOverride;
-            typeDropdown.index = ti >= 0 && ti < targetNames.Count ? ti : (int)EffectTargetType.Self;
-            atomic.TargetTypeOverride = typeDropdown.index;
-            typeDropdown.RegisterValueChangedCallback(_ => atomic.TargetTypeOverride = typeDropdown.index);
-            rowA.Add(typeDropdown);
-
-            var scopeNames = Enum.GetValues(typeof(EffectTargetScope)).Cast<EffectTargetScope>()
-                .Select(s => s.ToString()).ToList();
-            var scopeDropdown = new DropdownField("范围");
-            scopeDropdown.choices = scopeNames;
-            scopeDropdown.AddToClassList("text-input");
-            int si = atomic.TargetScopeOverride;
-            scopeDropdown.index = si >= 0 && si < scopeNames.Count ? si : (int)EffectTargetScope.Single;
-            atomic.TargetScopeOverride = scopeDropdown.index;
-            scopeDropdown.RegisterValueChangedCallback(_ => atomic.TargetScopeOverride = scopeDropdown.index);
-            rowA.Add(scopeDropdown);
+            var kindsField = new TextField("目标域(逗号序号,空=表默认)");
+            kindsField.AddToClassList("text-input");
+            kindsField.SetValueWithoutNotify(atomic.TargetKinds != null
+                ? string.Join(",", atomic.TargetKinds) : "");
+            kindsField.RegisterValueChangedCallback(evt =>
+            {
+                atomic.TargetKinds = string.IsNullOrWhiteSpace(evt.newValue)
+                    ? null
+                    : evt.newValue.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0)
+                        .Select(t => int.TryParse(t, out var k) ? k : -1).Where(k => k >= 0).ToList();
+                if (atomic.TargetKinds != null && atomic.TargetKinds.Count == 0) atomic.TargetKinds = new List<int>();
+            });
+            rowA.Add(kindsField);
             wrap.Add(rowA);
 
             var rowB = new VisualElement();
             rowB.AddToClassList("toolbar");
-
-            // TargetCount: -2=用配置, -1=任意, 0=全部, >0=数量。用普通整数框，提示语义。
-            if (atomic.TargetCountOverride == -2)
-            {
-                atomic.TargetCountOverride = 1;
-            }
-
-            // 数量两态：固定 N / 动态（运行时玩家自选 0..候选数）。动态时数量框禁用 + 注「本卡不可作地牌」。
+            rowB.Add(MakeIntField("数量(-1任意/0全部)", _graph.header.TargetCount, v => _graph.header.TargetCount = v));
             var dynToggle = new Toggle("动态数量");
-            dynToggle.SetValueWithoutNotify(atomic.DynamicTargetCount);
+            dynToggle.SetValueWithoutNotify(_graph.header.DynamicTargetCount);
             rowB.Add(dynToggle);
-
-            var countField = new IntegerField("数量(-1任意/0全部)");
-            countField.AddToClassList("int-input");
-            countField.SetValueWithoutNotify(atomic.TargetCountOverride);
-            countField.SetEnabled(!atomic.DynamicTargetCount);
-            countField.RegisterValueChangedCallback(evt => atomic.TargetCountOverride = evt.newValue);
-            rowB.Add(countField);
-
-            var filterField = new TextField("过滤");
-            filterField.AddToClassList("text-input");
-            filterField.SetValueWithoutNotify(atomic.TargetFilterOverride ?? "");
-            filterField.RegisterValueChangedCallback(evt => atomic.TargetFilterOverride = evt.newValue);
-            rowB.Add(filterField);
             wrap.Add(rowB);
+
+            var modeRow = new VisualElement();
+            modeRow.AddToClassList("toolbar");
+            var modeNames = new List<string> { "无目标", "自身", "手动", "全域" };
+            var modeDropdown = new DropdownField("选择模式");
+            modeDropdown.choices = modeNames;
+            modeDropdown.index = System.Math.Max(0, _graph.header.SelectionMode + 1);
+            modeDropdown.RegisterValueChangedCallback(_ => _graph.header.SelectionMode = modeDropdown.index - 1);
+            modeRow.Add(modeDropdown);
+
+            var durNames = System.Enum.GetNames(typeof(DurationType)).ToList();
+            var durDropdown = new DropdownField("持续");
+            durDropdown.choices = durNames;
+            durDropdown.index = System.Math.Max(0, System.Math.Min(_graph.header.Duration, durNames.Count - 1));
+            durDropdown.RegisterValueChangedCallback(_ => _graph.header.Duration = durDropdown.index);
+            modeRow.Add(durDropdown);
+
+            var dropNames = new List<string> { "战场", "手牌", "牌库" };
+            var dropDropdown = new DropdownField("落区");
+            dropDropdown.choices = dropNames;
+            dropDropdown.index = _graph.header.SummonDropZone == 0 ? 0 : 1;
+            dropDropdown.RegisterValueChangedCallback(_ => _graph.header.SummonDropZone = dropDropdown.index);
+            modeRow.Add(dropDropdown);
+            wrap.Add(modeRow);
 
             var dynNote = new Label("动态数量：本卡费用计 0，且不可作地牌产元素");
             dynNote.AddToClassList("hint");
-            dynNote.style.display = atomic.DynamicTargetCount ? DisplayStyle.Flex : DisplayStyle.None;
+            dynNote.style.display = _graph.header.DynamicTargetCount ? DisplayStyle.Flex : DisplayStyle.None;
             wrap.Add(dynNote);
 
             dynToggle.RegisterValueChangedCallback(evt =>
             {
-                atomic.DynamicTargetCount = evt.newValue;
-                countField.SetEnabled(!evt.newValue);
+                _graph.header.DynamicTargetCount = evt.newValue;
                 dynNote.style.display = evt.newValue ? DisplayStyle.Flex : DisplayStyle.None;
             });
-
-            var hint = new Label("filter token：Creature/Player/Untapped/Tapped/Damaged/Friendly/Enemy/Power>N/Life<=N + 分区 Hand/Graveyard/Deck/Exile/Battlefield（逗号分隔）");
-            hint.AddToClassList("hint");
-            wrap.Add(hint);
 
             return wrap;
         }

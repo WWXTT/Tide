@@ -1,3093 +1,2883 @@
 {
-    "cards": [
+  "cards": [
+    {
+      "id": "e67e05188ac98f92",
+      "cardName": "湛冰法师",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
         {
-            "id": "e67e05188ac98f92",
-            "cardName": "湛冰法师",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_01_00",
-                    "DisplayName": "冻结",
-                    "Description": "登场：冻结一个敌方生物，其无法行动",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "FreezePermanent",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
+          "manaType": 2,
+          "amount": 1.0
         },
         {
-            "id": "0d1a6d4357f85e28",
-            "cardName": "湛冰法师·凛",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_02_00",
-                    "DisplayName": "冻结",
-                    "Description": "登场：冻结一个敌方生物，其无法行动",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "FreezePermanent",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "bbe4de672ad3981f",
-            "cardName": "湛寒霜术士",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_03_00",
-                    "DisplayName": "冻结",
-                    "Description": "登场：冻结一个敌方生物，其无法行动",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "FreezePermanent",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "d76ea70d2f5a19e7",
-            "cardName": "湛寒霜术士·凝",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_04_00",
-                    "DisplayName": "冻结",
-                    "Description": "登场：冻结一个敌方生物，其无法行动",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "FreezePermanent",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "cf7a65e1e6f20b39",
-            "cardName": "湛冻雾行者",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_05_00",
-                    "DisplayName": "冻结",
-                    "Description": "登场：冻结一个敌方生物，其无法行动",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "FreezePermanent",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "895c650f32ed13a0",
-            "cardName": "湛冻雾行者·深",
-            "supertype": "Creature",
-            "power": 4,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_06_00",
-                    "DisplayName": "冻结",
-                    "Description": "登场：冻结一个敌方生物，其无法行动",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "FreezePermanent",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "854eee31813aba06",
-            "cardName": "湛极冰使者",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_07_00",
-                    "DisplayName": "冻结",
-                    "Description": "登场：冻结一个敌方生物，其无法行动",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "FreezePermanent",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "abe6c949326e7474",
-            "cardName": "湛锁链师",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_08_00",
-                    "DisplayName": "定身",
-                    "Description": "登场：横置一个敌方生物",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "Tap",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "3c692bdd7451cda3",
-            "cardName": "湛锁链师·缠",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_09_00",
-                    "DisplayName": "定身",
-                    "Description": "登场：横置一个敌方生物",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "Tap",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "b2db746d5fc13a25",
-            "cardName": "湛定身术士",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_10_00",
-                    "DisplayName": "定身",
-                    "Description": "登场：横置一个敌方生物",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "Tap",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "d33d02d5d57e41cb",
-            "cardName": "湛定身术士·固",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_11_00",
-                    "DisplayName": "定身",
-                    "Description": "登场：横置一个敌方生物",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "Tap",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "338aa3ec0e00340a",
-            "cardName": "湛缚影者",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_12_00",
-                    "DisplayName": "定身",
-                    "Description": "登场：横置一个敌方生物",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "Tap",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "66bfe1c159fc4971",
-            "cardName": "湛回流术士",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_13_00",
-                    "DisplayName": "回流",
-                    "Description": "登场：将一个生物移回其拥有者手牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "ReturnToHand",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "26a04867c1161d5b",
-            "cardName": "湛回流术士·涌",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_14_00",
-                    "DisplayName": "回流",
-                    "Description": "登场：将一个生物移回其拥有者手牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "ReturnToHand",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "9f1adf26ddeef29b",
-            "cardName": "湛逆潮行者",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_15_00",
-                    "DisplayName": "回流",
-                    "Description": "登场：将一个生物移回其拥有者手牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "ReturnToHand",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "38923a4303f6f3e2",
-            "cardName": "湛逆潮行者·卷",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_16_00",
-                    "DisplayName": "回流",
-                    "Description": "登场：将一个生物移回其拥有者手牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "ReturnToHand",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "a27a32328a44977c",
-            "cardName": "湛退浪师",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_17_00",
-                    "DisplayName": "回流",
-                    "Description": "登场：将一个生物移回其拥有者手牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "ReturnToHand",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "6a0f5a3a549a46aa",
-            "cardName": "湛禁言官",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_18_00",
-                    "DisplayName": "缄默",
-                    "Description": "登场：沉默一个生物，其失去所有效果",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "Silence",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "ae3d516510667b5d",
-            "cardName": "湛禁言官·肃",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_19_00",
-                    "DisplayName": "缄默",
-                    "Description": "登场：沉默一个生物，其失去所有效果",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "Silence",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "c033e2e5d618d255",
-            "cardName": "湛缄默审判者",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_20_00",
-                    "DisplayName": "缄默",
-                    "Description": "登场：沉默一个生物，其失去所有效果",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "Silence",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "e4dcf28cebf188b4",
-            "cardName": "湛缄默官·深",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_21_00",
-                    "DisplayName": "缄默",
-                    "Description": "登场：沉默一个生物，其失去所有效果",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "Silence",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "5fd0d44db0a6c17c",
-            "cardName": "湛卷轴师",
-            "supertype": "Creature",
-            "power": 1,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_22_00",
-                    "DisplayName": "汲智",
-                    "Description": "登场：抽一张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DrawCard",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "1920a06bff94d725",
-            "cardName": "湛卷轴师·览",
-            "supertype": "Creature",
-            "power": 1,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_23_00",
-                    "DisplayName": "汲智",
-                    "Description": "登场：抽一张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DrawCard",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "e3018bb573b7e4f7",
-            "cardName": "湛学者",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_24_00",
-                    "DisplayName": "汲智",
-                    "Description": "登场：抽一张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DrawCard",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "31a9557b25ff7d7d",
-            "cardName": "湛学者·博",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_25_00",
-                    "DisplayName": "汲智",
-                    "Description": "登场：抽一张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DrawCard",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "9d9771e5603c8912",
-            "cardName": "湛星象师",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_26_00",
-                    "DisplayName": "汲智",
-                    "Description": "登场：抽一张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DrawCard",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "b384546454facbc4",
-            "cardName": "湛星象师·观",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_27_00",
-                    "DisplayName": "汲智",
-                    "Description": "登场：抽一张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DrawCard",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "ad65e41156d73e9a",
-            "cardName": "湛警戒卫",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "Vigilance"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "3512ae0809339060",
-            "cardName": "湛警戒卫·稳",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [
-                "Vigilance"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "8c22b0d2535893a0",
-            "cardName": "湛哨卫",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [
-                "Vigilance"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "231fb85a228bd091",
-            "cardName": "湛哨卫·坚",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [
-                "Vigilance"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "866a73316b1edcab",
-            "cardName": "湛壁垒卫",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 6,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Vigilance"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "963286d4c88749ac",
-            "cardName": "湛壁垒卫·牢",
-            "supertype": "Creature",
-            "power": 4,
-            "life": 6,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Vigilance"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "3bf35dbbd6b53860",
-            "cardName": "湛法盾卫",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "SpellShield"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "5461fdeed4b583e7",
-            "cardName": "湛法盾卫·御",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "SpellShield"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "379ef5fd9868df7d",
-            "cardName": "湛咒盾手",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [
-                "SpellShield"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "f998331a9eaa9c8c",
-            "cardName": "湛咒盾手·护",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [
-                "SpellShield"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "fdec1f7bf53057b2",
-            "cardName": "湛潜影刺客",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "Stealth"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "b31cd203222fec53",
-            "cardName": "湛潜影刺客·匿",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "Stealth"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "c1955aafb91743bf",
-            "cardName": "湛暗流杀手",
-            "supertype": "Creature",
-            "power": 4,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [
-                "Stealth"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "d814be7a2d6f4f08",
-            "cardName": "湛暗流杀手·影",
-            "supertype": "Creature",
-            "power": 4,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [
-                "Stealth"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "7002efb028ea9003",
-            "cardName": "湛辟邪守望",
-            "supertype": "Creature",
-            "power": 4,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Untargetable"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "8c0798161317b3d8",
-            "cardName": "湛辟邪守望·遥",
-            "supertype": "Creature",
-            "power": 4,
-            "life": 6,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Untargetable"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "69cc405d65613463",
-            "cardName": "湛时空领主",
-            "supertype": "Creature",
-            "power": 5,
-            "life": 6,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Vigilance",
-                "SpellShield"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "425345d795327c12",
-            "cardName": "湛时空领主·恒",
-            "supertype": "Creature",
-            "power": 5,
-            "life": 7,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Vigilance",
-                "SpellShield"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "642b31f34162ce9c",
-            "cardName": "湛回手术",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_46_00",
-                    "DisplayName": "回流",
-                    "Description": "将一个生物移回其拥有者手牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "ReturnToHand",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "c4f0a6abdb0589f4",
-            "cardName": "湛回手术·速",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_47_00",
-                    "DisplayName": "回流",
-                    "Description": "将一个生物移回其拥有者手牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "ReturnToHand",
-                            "Value": 2,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "a6b9fdcf51f2e7ac",
-            "cardName": "湛强制回流",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_48_00",
-                    "DisplayName": "回流",
-                    "Description": "将一个生物移回其拥有者手牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "ReturnToHand",
-                            "Value": 3,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "428e4b15d9d9707e",
-            "cardName": "湛顶回咒",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_49_00",
-                    "DisplayName": "顶回",
-                    "Description": "将一个生物移回其拥有者牌库顶",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "BounceToTop",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "9b9f593988fd4d5e",
-            "cardName": "湛顶回咒·深",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_50_00",
-                    "DisplayName": "顶回",
-                    "Description": "将一个生物移回其拥有者牌库顶",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "BounceToTop",
-                            "Value": 2,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "4d141682bd12af87",
-            "cardName": "湛冰封",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_51_00",
-                    "DisplayName": "冰封",
-                    "Description": "冻结一个敌方生物",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "FreezePermanent",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "4cdd242590260577",
-            "cardName": "湛冰封·锁",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_52_00",
-                    "DisplayName": "冰封",
-                    "Description": "冻结一个敌方生物",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "FreezePermanent",
-                            "Value": 2,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "99f8eb526a316ca7",
-            "cardName": "湛寒冰牢",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_53_00",
-                    "DisplayName": "冰封",
-                    "Description": "冻结一个敌方生物",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "FreezePermanent",
-                            "Value": 3,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "4048985af90342ab",
-            "cardName": "湛定身咒",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_54_00",
-                    "DisplayName": "定身",
-                    "Description": "横置一个敌方生物",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "Tap",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "69d7a3347ee47eb2",
-            "cardName": "湛汲智",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_55_00",
-                    "DisplayName": "汲智",
-                    "Description": "抽两张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DrawCard",
-                            "Value": 2,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "9f722dd874582f0a",
-            "cardName": "湛汲智·渊",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_56_00",
-                    "DisplayName": "汲智",
-                    "Description": "抽两张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DrawCard",
-                            "Value": 3,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "e808eddf98fbdf02",
-            "cardName": "湛灵感潮",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 4.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_57_00",
-                    "DisplayName": "汲智",
-                    "Description": "抽两张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DrawCard",
-                            "Value": 4,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "e8595e89f582c0fa",
-            "cardName": "湛微光检索",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_58_00",
-                    "DisplayName": "检索",
-                    "Description": "抽一张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DrawCard",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "ff79bd8eb8c9059a",
-            "cardName": "湛回响阅读",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 5.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_59_00",
-                    "DisplayName": "检索",
-                    "Description": "抽一张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DrawCard",
-                            "Value": 5,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "2683a018a1782735",
-            "cardName": "湛封口",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_60_00",
-                    "DisplayName": "封口",
-                    "Description": "沉默一个生物",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "Silence",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
+          "manaType": 0,
+          "amount": 1.0
         }
-    ],
-    "deckConfig": {
-        "copiesPerCard": 1
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_01_00",
+          "DisplayName": "冻结",
+          "Description": "登场：冻结一个敌方生物，其无法行动",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "FreezePermanent",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "0d1a6d4357f85e28",
+      "cardName": "湛冰法师·凛",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_02_00",
+          "DisplayName": "冻结",
+          "Description": "登场：冻结一个敌方生物，其无法行动",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "FreezePermanent",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "bbe4de672ad3981f",
+      "cardName": "湛寒霜术士",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_03_00",
+          "DisplayName": "冻结",
+          "Description": "登场：冻结一个敌方生物，其无法行动",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "FreezePermanent",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "d76ea70d2f5a19e7",
+      "cardName": "湛寒霜术士·凝",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_04_00",
+          "DisplayName": "冻结",
+          "Description": "登场：冻结一个敌方生物，其无法行动",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "FreezePermanent",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "cf7a65e1e6f20b39",
+      "cardName": "湛冻雾行者",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_05_00",
+          "DisplayName": "冻结",
+          "Description": "登场：冻结一个敌方生物，其无法行动",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "FreezePermanent",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "895c650f32ed13a0",
+      "cardName": "湛冻雾行者·深",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_06_00",
+          "DisplayName": "冻结",
+          "Description": "登场：冻结一个敌方生物，其无法行动",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "FreezePermanent",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "854eee31813aba06",
+      "cardName": "湛极冰使者",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 5,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_07_00",
+          "DisplayName": "冻结",
+          "Description": "登场：冻结一个敌方生物，其无法行动",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "FreezePermanent",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "abe6c949326e7474",
+      "cardName": "湛锁链师",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_08_00",
+          "DisplayName": "定身",
+          "Description": "登场：横置一个敌方生物",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "Tap",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "3c692bdd7451cda3",
+      "cardName": "湛锁链师·缠",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_09_00",
+          "DisplayName": "定身",
+          "Description": "登场：横置一个敌方生物",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "Tap",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "b2db746d5fc13a25",
+      "cardName": "湛定身术士",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_10_00",
+          "DisplayName": "定身",
+          "Description": "登场：横置一个敌方生物",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "Tap",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "d33d02d5d57e41cb",
+      "cardName": "湛定身术士·固",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_11_00",
+          "DisplayName": "定身",
+          "Description": "登场：横置一个敌方生物",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "Tap",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "338aa3ec0e00340a",
+      "cardName": "湛缚影者",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 5,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_12_00",
+          "DisplayName": "定身",
+          "Description": "登场：横置一个敌方生物",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "Tap",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "66bfe1c159fc4971",
+      "cardName": "湛回流术士",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_13_00",
+          "DisplayName": "回流",
+          "Description": "登场：将一个生物移回其拥有者手牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "ReturnToHand",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "26a04867c1161d5b",
+      "cardName": "湛回流术士·涌",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_14_00",
+          "DisplayName": "回流",
+          "Description": "登场：将一个生物移回其拥有者手牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "ReturnToHand",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "9f1adf26ddeef29b",
+      "cardName": "湛逆潮行者",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_15_00",
+          "DisplayName": "回流",
+          "Description": "登场：将一个生物移回其拥有者手牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "ReturnToHand",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "38923a4303f6f3e2",
+      "cardName": "湛逆潮行者·卷",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_16_00",
+          "DisplayName": "回流",
+          "Description": "登场：将一个生物移回其拥有者手牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "ReturnToHand",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "a27a32328a44977c",
+      "cardName": "湛退浪师",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_17_00",
+          "DisplayName": "回流",
+          "Description": "登场：将一个生物移回其拥有者手牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "ReturnToHand",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "6a0f5a3a549a46aa",
+      "cardName": "湛禁言官",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_18_00",
+          "DisplayName": "缄默",
+          "Description": "登场：沉默一个生物，其失去所有效果",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 3,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "Silence",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "ae3d516510667b5d",
+      "cardName": "湛禁言官·肃",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_19_00",
+          "DisplayName": "缄默",
+          "Description": "登场：沉默一个生物，其失去所有效果",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 3,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "Silence",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "c033e2e5d618d255",
+      "cardName": "湛缄默审判者",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_20_00",
+          "DisplayName": "缄默",
+          "Description": "登场：沉默一个生物，其失去所有效果",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 3,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "Silence",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "e4dcf28cebf188b4",
+      "cardName": "湛缄默官·深",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 5,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_21_00",
+          "DisplayName": "缄默",
+          "Description": "登场：沉默一个生物，其失去所有效果",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 3,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "Silence",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "5fd0d44db0a6c17c",
+      "cardName": "湛卷轴师",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_22_00",
+          "DisplayName": "汲智",
+          "Description": "登场：抽一张牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "DrawCard",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "1920a06bff94d725",
+      "cardName": "湛卷轴师·览",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_23_00",
+          "DisplayName": "汲智",
+          "Description": "登场：抽一张牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "DrawCard",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "e3018bb573b7e4f7",
+      "cardName": "湛学者",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_24_00",
+          "DisplayName": "汲智",
+          "Description": "登场：抽一张牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "DrawCard",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "31a9557b25ff7d7d",
+      "cardName": "湛学者·博",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_25_00",
+          "DisplayName": "汲智",
+          "Description": "登场：抽一张牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "DrawCard",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "9d9771e5603c8912",
+      "cardName": "湛星象师",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_26_00",
+          "DisplayName": "汲智",
+          "Description": "登场：抽一张牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "DrawCard",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "b384546454facbc4",
+      "cardName": "湛星象师·观",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_27_00",
+          "DisplayName": "汲智",
+          "Description": "登场：抽一张牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "DrawCard",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "ad65e41156d73e9a",
+      "cardName": "湛警戒卫",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [
+        "Vigilance"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "3512ae0809339060",
+      "cardName": "湛警戒卫·稳",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 5,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [
+        "Vigilance"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "8c22b0d2535893a0",
+      "cardName": "湛哨卫",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [
+        "Vigilance"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "231fb85a228bd091",
+      "cardName": "湛哨卫·坚",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 5,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [
+        "Vigilance"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "866a73316b1edcab",
+      "cardName": "湛壁垒卫",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 6,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [
+        "Vigilance"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "963286d4c88749ac",
+      "cardName": "湛壁垒卫·牢",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 6,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [
+        "Vigilance"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "3bf35dbbd6b53860",
+      "cardName": "湛法盾卫",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [
+        "SpellShield"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "5461fdeed4b583e7",
+      "cardName": "湛法盾卫·御",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [
+        "SpellShield"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "379ef5fd9868df7d",
+      "cardName": "湛咒盾手",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [
+        "SpellShield"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "f998331a9eaa9c8c",
+      "cardName": "湛咒盾手·护",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 5,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [
+        "SpellShield"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "fdec1f7bf53057b2",
+      "cardName": "湛潜影刺客",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [
+        "Stealth"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "b31cd203222fec53",
+      "cardName": "湛潜影刺客·匿",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [
+        "Stealth"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "c1955aafb91743bf",
+      "cardName": "湛暗流杀手",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 3,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [
+        "Stealth"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "d814be7a2d6f4f08",
+      "cardName": "湛暗流杀手·影",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 4,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [
+        "Stealth"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "7002efb028ea9003",
+      "cardName": "湛辟邪守望",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 5,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [
+        "Untargetable"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "8c0798161317b3d8",
+      "cardName": "湛辟邪守望·遥",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 6,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        },
+        {
+          "manaType": 0,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [
+        "Untargetable"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "69cc405d65613463",
+      "cardName": "湛时空领主",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 6,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 2.0
+        },
+        {
+          "manaType": 0,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [
+        "Vigilance",
+        "SpellShield"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "425345d795327c12",
+      "cardName": "湛时空领主·恒",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 7,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 2.0
+        },
+        {
+          "manaType": 0,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [
+        "Vigilance",
+        "SpellShield"
+      ],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "642b31f34162ce9c",
+      "cardName": "湛回手术",
+      "supertype": "Spell",
+      "power": 0,
+      "life": 0,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_46_00",
+          "DisplayName": "回流",
+          "Description": "将一个生物移回其拥有者手牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "ReturnToHand",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "c4f0a6abdb0589f4",
+      "cardName": "湛回手术·速",
+      "supertype": "Spell",
+      "power": 0,
+      "life": 0,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_47_00",
+          "DisplayName": "回流",
+          "Description": "将一个生物移回其拥有者手牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "ReturnToHand",
+              "Value": 2,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "a6b9fdcf51f2e7ac",
+      "cardName": "湛强制回流",
+      "supertype": "Spell",
+      "power": 0,
+      "life": 0,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_48_00",
+          "DisplayName": "回流",
+          "Description": "将一个生物移回其拥有者手牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "ReturnToHand",
+              "Value": 3,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "428e4b15d9d9707e",
+      "cardName": "湛顶回咒",
+      "supertype": "Spell",
+      "power": 0,
+      "life": 0,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_49_00",
+          "DisplayName": "顶回",
+          "Description": "将一个生物移回其拥有者牌库顶",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "BounceToTop",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "9b9f593988fd4d5e",
+      "cardName": "湛顶回咒·深",
+      "supertype": "Spell",
+      "power": 0,
+      "life": 0,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_50_00",
+          "DisplayName": "顶回",
+          "Description": "将一个生物移回其拥有者牌库顶",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "BounceToTop",
+              "Value": 2,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "4d141682bd12af87",
+      "cardName": "湛冰封",
+      "supertype": "Spell",
+      "power": 0,
+      "life": 0,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_51_00",
+          "DisplayName": "冰封",
+          "Description": "冻结一个敌方生物",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "FreezePermanent",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "4cdd242590260577",
+      "cardName": "湛冰封·锁",
+      "supertype": "Spell",
+      "power": 0,
+      "life": 0,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_52_00",
+          "DisplayName": "冰封",
+          "Description": "冻结一个敌方生物",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "FreezePermanent",
+              "Value": 2,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "99f8eb526a316ca7",
+      "cardName": "湛寒冰牢",
+      "supertype": "Spell",
+      "power": 0,
+      "life": 0,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_53_00",
+          "DisplayName": "冰封",
+          "Description": "冻结一个敌方生物",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "FreezePermanent",
+              "Value": 3,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "4048985af90342ab",
+      "cardName": "湛定身咒",
+      "supertype": "Spell",
+      "power": 0,
+      "life": 0,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_54_00",
+          "DisplayName": "定身",
+          "Description": "横置一个敌方生物",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "Tap",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "69d7a3347ee47eb2",
+      "cardName": "湛汲智",
+      "supertype": "Spell",
+      "power": 0,
+      "life": 0,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_55_00",
+          "DisplayName": "汲智",
+          "Description": "抽两张牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "DrawCard",
+              "Value": 2,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "9f722dd874582f0a",
+      "cardName": "湛汲智·渊",
+      "supertype": "Spell",
+      "power": 0,
+      "life": 0,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_56_00",
+          "DisplayName": "汲智",
+          "Description": "抽两张牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "DrawCard",
+              "Value": 3,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "e808eddf98fbdf02",
+      "cardName": "湛灵感潮",
+      "supertype": "Spell",
+      "power": 0,
+      "life": 0,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 4.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_57_00",
+          "DisplayName": "汲智",
+          "Description": "抽两张牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "DrawCard",
+              "Value": 4,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "e8595e89f582c0fa",
+      "cardName": "湛微光检索",
+      "supertype": "Spell",
+      "power": 0,
+      "life": 0,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_58_00",
+          "DisplayName": "检索",
+          "Description": "抽一张牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "DrawCard",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "ff79bd8eb8c9059a",
+      "cardName": "湛回响阅读",
+      "supertype": "Spell",
+      "power": 0,
+      "life": 0,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 5.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_59_00",
+          "DisplayName": "检索",
+          "Description": "抽一张牌",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "DrawCard",
+              "Value": 5,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
+    },
+    {
+      "id": "2683a018a1782735",
+      "cardName": "湛封口",
+      "supertype": "Spell",
+      "power": 0,
+      "life": 0,
+      "costList": [
+        {
+          "manaType": 2,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [
+        "test-deck"
+      ],
+      "effects": [
+        {
+          "Id": "DECK_BLUE_60_00",
+          "DisplayName": "封口",
+          "Description": "沉默一个生物",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 3,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "EffectType": "Silence",
+              "Value": 1,
+              "ID": ""
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": [],
+          "DurationValue": 0,
+          "SummonDropZone": 1,
+          "SelectionMode": 1,
+          "TargetCount": 1,
+          "DynamicTargetCount": false,
+          "Drawbacks": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "rank": -1,
+      "linkRating": -1,
+      "arrows": "",
+      "linkAuras": []
     }
+  ],
+  "deckConfig": {
+    "copiesPerCard": 1
+  }
 }

@@ -67,10 +67,18 @@ namespace CardCore
                 ActivationType = activationType,
                 BaseSpeed = data.BaseSpeed,
                 IsOptional = data.IsOptional,
-                Duration = data.Duration > 0 ? (DurationType)data.Duration : DurationType.Permanent,
+                // 持续唯一真相在效果级（2026-09-10 上移定案）：卡数据显式携带（0=Once），
+                // 哨兵 -1=未声明回退 Once（绝对计价锚）
+                Duration = data.Duration >= 0 ? (DurationType)data.Duration : DurationType.Once,
+                DurationValue = data.DurationValue,
+                SummonDropZone = (Zone)data.SummonDropZone,
+                SelectionMode = data.SelectionMode >= 0 ? (SelectionMode)data.SelectionMode : SelectionMode.None,
+                DynamicTargetCount = data.DynamicTargetCount,
                 SourceCardId = sourceCardId,
                 ElementCostPrepaid = !isActivated,
             };
+            if (data.Drawbacks != null)
+                def.Drawbacks = new List<string>(data.Drawbacks);
 
             // 转换原子效果列表
             if (data.AtomicEffects != null)
@@ -94,6 +102,12 @@ namespace CardCore
                         def.Steps.Add(runtimeStep);
                 }
             }
+
+            // ---- 组合层域预计算（2026-09-10 目标域模型）----
+            // 主序列原子域交集 → TargetDomain（无 Choice）/ ChoiceDomains（per-mode）；
+            // 组合 filter = 成员带域原子 Filter token 之 AND；TargetCount 哨兵 -2 回落表级。
+            PrecomputeDomains(def);
+            def.TargetCount = data.TargetCount != -2 ? data.TargetCount : FallbackTargetCount(def);
 
             // 转换代价列表
             if (data.Costs != null)
@@ -149,34 +163,105 @@ namespace CardCore
                 return null;
             }
 
-            // 从 AtomicEffectTable 获取默认 Duration
-            // （表侧 DurationType 已统一为运行时 DurationType，直接赋值即可；
-            //  旧实现按 int 跨枚举强转，Permanent(4) 会被错映射成 WhileCondition(4)，已修复）
-            DurationType duration = DurationType.Once;
+            // 目标域：条目显式收窄 ?? 表级默认（解析为有效域存实例，运行时零查表）
             var config = CardCore.Attribute.AtomicEffectTable.GetByType(type);
-            if (config != null)
-                duration = config.DurationType;
-
-            // 如果条目显式指定了 Duration，覆盖默认值
-            if (entry.Duration > 0)
-                duration = (DurationType)entry.Duration;
+            List<int> kinds = entry.TargetKinds != null
+                ? new List<int>(entry.TargetKinds)
+                : config?.GetTargetKindList() ?? new List<int>();
 
             return new AtomicEffectInstance
             {
                 Type = type,
                 Value = entry.Value,
-                Value2 = entry.Value2,
                 StringValue = entry.ID ?? "",
-                ManaTypeParam = (ManaType)entry.ManaTypeParam,
-                ZoneParam = (Zone)entry.ZoneParam,
-                Duration = duration,
-                DurationValue = entry.DurationValue,
-                TargetTypeOverride = entry.TargetTypeOverride,
-                TargetFilterOverride = entry.TargetFilterOverride ?? "",
-                TargetCountOverride = entry.TargetCountOverride,
-                DynamicTargetCount = entry.DynamicTargetCount,
-                Drawbacks = entry.Drawbacks != null ? new List<string>(entry.Drawbacks) : new List<string>(),
+                Mana = BuildMana(entry.ManaList),
+                TargetKinds = kinds,
+                Filter = config?.TargetFilter ?? "",
+                Polarity = config != null ? UnityEngine.Mathf.Clamp(config.Polarity, -1f, 1f) : 0f,
             };
+        }
+
+        /// <summary>ManaList（costList 同款条目）→ 字典；null/空 → null（无 Mana 参数语义）。</summary>
+        private static Dictionary<ManaType, float> BuildMana(List<ManaAmountEntry> list)
+        {
+            if (list == null || list.Count == 0) return null;
+            var dict = new Dictionary<ManaType, float>();
+            foreach (var m in list)
+                if (m.amount > 0)
+                    dict[(ManaType)m.manaType] = m.amount;
+            return dict.Count > 0 ? dict : null;
+        }
+
+        /// <summary>
+        /// 组合域预计算：主序列（含抉择 per-mode）原子域交集 + 组合属性 filter（成员 AND）。
+        /// 无目标原子（域空）不参与约束；分支奖励原子不参与（奖励目标结算期各自解析）。
+        /// </summary>
+        private static void PrecomputeDomains(EffectDefinition def)
+        {
+            def.TargetDomain = DomainOfMode(def, 0);
+            def.TargetFilter = CombinedFilterOfMode(def, 0);
+
+            // 抉择卡：per-mode 域（与 Choices 平行）；无 Choice 时 ChoiceDomains 保持 null
+            int modeCount = 0;
+            foreach (var step in def.Steps)
+            {
+                if (step?.Kind == RuntimeStepKind.Choice && step.Choices != null)
+                {
+                    modeCount = step.Choices.Count;
+                    break;
+                }
+            }
+            if (modeCount > 0)
+            {
+                def.ChoiceDomains = new List<int>[modeCount];
+                for (int m = 0; m < modeCount; m++)
+                    def.ChoiceDomains[m] = DomainOfMode(def, m);
+            }
+        }
+
+        /// <summary>某模式的主序列原子（Steps 非空走步骤枚举，否则扁平 Effects）。</summary>
+        private static IEnumerable<AtomicEffectInstance> MainSequence(EffectDefinition def, int modeIndex)
+        {
+            if (def.Steps != null && def.Steps.Count > 0)
+                return EnumerateMainSequenceAtoms(def.Steps, modeIndex);
+            return def.Effects;
+        }
+
+        private static List<int> DomainOfMode(EffectDefinition def, int modeIndex)
+        {
+            List<int> domain = null;
+            foreach (var atom in MainSequence(def, modeIndex))
+            {
+                if (atom?.TargetKinds == null || atom.TargetKinds.Count == 0) continue;
+                domain = domain == null
+                    ? new List<int>(atom.TargetKinds)
+                    : TargetKindRules.Intersect(domain, atom.TargetKinds);
+            }
+            return domain ?? new List<int>();
+        }
+
+        /// <summary>组合 filter：成员带域原子 Filter token 的并集去重（token 间 AND 语义，多原子合并同款）。</summary>
+        private static string CombinedFilterOfMode(EffectDefinition def, int modeIndex)
+        {
+            var tokens = new List<string>();
+            foreach (var atom in MainSequence(def, modeIndex))
+            {
+                if (atom?.TargetKinds == null || atom.TargetKinds.Count == 0) continue;
+                foreach (var t in (atom.Filter ?? "").Split(','))
+                {
+                    var trimmed = t.Trim();
+                    if (trimmed.Length > 0 && !tokens.Contains(trimmed))
+                        tokens.Add(trimmed);
+                }
+            }
+            return string.Join(",", tokens);
+        }
+
+        /// <summary>TargetCount 哨兵回落（2026-09-10 表级列删除后）：未声明 = 1（卡数据已全量回填真值，
+        /// 此口仅为手写新卡的兜底，不再查表）。</summary>
+        private static int FallbackTargetCount(EffectDefinition def)
+        {
+            return 1;
         }
 
         /// <summary>

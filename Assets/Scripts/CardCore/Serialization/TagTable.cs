@@ -109,6 +109,12 @@ namespace CardCore.Serialization
         public const int AEI_TargetCountOverride = 1101957053;
         public const int AEI_DynamicTargetCount = 1960296747;
         public const int AEI_Drawbacks = 1476602083;
+        public const int AEI_TargetKinds = 1052954153;
+        public const int AEI_ManaList = 902140877;
+
+        // ---- SerializableManaAmount ----
+        public const int SerializableManaAmount_manaType = 549926884;
+        public const int SerializableManaAmount_amount = 433477152;
 
         // ---- CostInstance ----
         public const int CI_Type = 57119624;
@@ -284,6 +290,6 @@ namespace CardCore.Serialization
         public const int RCS_RuntimeId = 1598792242;
         public const int RCS_ControllerSeat = 1105098362;
 
-        // 共 204 个标签
+        // 共 208 个标签
     }
 }

@@ -121,11 +121,8 @@ namespace CardCore.Attribute
             if (context == null) return false;
             if (context.Targets == null || context.Targets.Count == 0)
             {
-                // 某些效果不需要目标
-                var config = AtomicEffectTable.GetByType(effect.Type);
-                if (config != null && config.TargetType == EffectTargetType.None)
-                    return true;
-                if (config != null && config.TargetType == EffectTargetType.Self)
+                // 无目标原子（域空）与无目标效果照常执行；其余缺目标视为无效
+                if (effect.TargetKinds == null || effect.TargetKinds.Count == 0)
                     return true;
                 return false;
             }

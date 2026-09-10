@@ -99,7 +99,23 @@ namespace CardCore
                     return false;
             }
 
-            // 5. 目标有效性检查（由各原子效果在结算期独立解析）
+            // 5. 目标有效性检查（2026-09-10 目标域模型：组合域候选空 → 不可发动；
+            //    结算期仍各自解析目标——预检拦死局，不替代执行）
+            // CanActivate 的 context 是精简构造（无 ZoneManager），此处用完整域预检需要核心句柄——
+            // 由调用方（SimpleAI/LegalActionEnumerator 已走 CanActivate）间接覆盖，引擎内先以 def 判域。
+            if (effect.TargetDomain != null && effect.TargetDomain.Count > 0 && _zoneManager != null)
+            {
+                var probe = new EffectExecutionContext
+                {
+                    Source = source,
+                    Controller = activator,
+                    ZoneManager = _zoneManager,
+                    ElementPool = _elementPool,
+                    ModeIndex = 0,
+                };
+                if (EffectHandlerRegistry.ResolveCandidates(effect.TargetDomain, effect.TargetFilter, probe).Count == 0)
+                    return false;
+            }
 
             return true;
         }
@@ -148,6 +164,9 @@ namespace CardCore
                 ZoneManager = _zoneManager,
                 ElementPool = _elementPool,
                 ModeIndex = instance.ModeIndex, // 抉择：执行引擎按声明期选定的模式分派
+                Duration = effect.Duration,               // 组合层编排属性随 context 下发（参照 ModeIndex 先例）
+                DurationValue = effect.DurationValue,
+                SummonDropZone = effect.SummonDropZone,
             };
 
             // 代价支付：元素代价由配置表自动推导（费用唯一权威），经「抵消+元素」异步路径支付；
@@ -181,7 +200,11 @@ namespace CardCore
                 }
             }
 
-            // 目标解析由每个原子效果在 EffectHandlerRegistry.ExecuteEffect 中独立完成
+            // 组合域统一目标解析（2026-09-10 目标域模型）：
+            // cast 声明期已预选目标（instance.Targets 非空）则沿用；否则按 def 预计算域
+            // + SelectionMode 三态一次解析，效果内全部原子共享同一份目标（Steps/扁平两路径语义统一）。
+            if (context.Targets == null || context.Targets.Count == 0)
+                context.Targets = await EffectHandlerRegistry.ResolveCompositionTargetsAsync(effect, context);
 
             // 节点化步骤非空 → per-target 步骤遍历（含 OutcomeGate 分支）；
             // 为空 → 退化为扁平 Effects 线性结算（向后兼容）。
@@ -252,16 +275,15 @@ namespace CardCore
         /// <summary>
         /// 步骤序列执行（主序列与抉择模式子序列共用）：原子 per-target 遍历 +
         /// 紧邻 OutcomeGate 前瞻配对（奖励免费）；Choice 步骤按 ModeIndex 分派。
+        /// 2026-09-10 目标域模型：组合目标已在 ExecuteAsync 统一解析（context.Targets），
+        /// 步骤层不再逐原子解析——全部原子共享同一份目标序列（与扁平路径语义统一）。
         /// </summary>
         private async UniTask ExecuteStepSequenceAsync(List<RuntimeEffectStep> steps, EffectExecutionContext context)
         {
-            // 目标透传（2026-09-09 修正）：调用方（cast 声明期）预选的目标沿用给**首个目标型原子**
-            // ——与扁平 Effects 路径同口径。此前无条件清空重走交互解析：编辑器/无头场景交互解析回空，
-            // 目标型原子被静默跳过（抉择卡模式0「零伤害」的根因）。消费一次后恢复逐原子解析。
-            var preselected = context.Targets != null && context.Targets.Count > 0
+            // 组合目标序列（快照防遍历中被改；无目标效果 = 单次 null 目标执行）
+            var compositionTargets = context.Targets != null && context.Targets.Count > 0
                 ? new List<Entity>(context.Targets)
-                : null;
-            bool preselectedConsumed = false;
+                : new List<Entity> { null };
 
             for (int i = 0; i < steps.Count; i++)
             {
@@ -274,7 +296,7 @@ namespace CardCore
                         ? step.Choices[System.Math.Max(0, System.Math.Min(context.ModeIndex, step.Choices.Count - 1))]
                         : null;
                     if (chosen != null)
-                        await ExecuteStepSequenceAsync(chosen, context); // 递归捕获同一份预选目标（未消费则透传）
+                        await ExecuteStepSequenceAsync(chosen, context); // 模式内原子共享同一份组合目标
                     continue;
                 }
 
@@ -289,28 +311,7 @@ namespace CardCore
                         ? steps[i + 1]
                         : null;
 
-                // 解析主序列原子的目标（候选>需求时弹交互选择；动态数量允许 0..候选数）
-                List<Entity> targets;
-                bool needsTargets = atomic.TargetTypeOverride >= 0
-                    ? atomic.TargetTypeOverride == (int)CardCore.Attribute.EffectTargetType.Target
-                    : CardCore.Attribute.AtomicEffectTable.GetByType(atomic.Type)?.TargetType
-                        == CardCore.Attribute.EffectTargetType.Target;
-                if (preselected != null && !preselectedConsumed && needsTargets)
-                {
-                    targets = preselected; // 首个目标型原子消费预选（Self/None 原子不消费，各自解析）
-                    preselectedConsumed = true;
-                }
-                else
-                {
-                    context.Targets = new List<Entity>();
-                    targets = await EffectHandlerRegistry.ResolveTargetsInteractiveAsync(atomic, context);
-                }
-                // 无目标原子（抽牌/创建衍生物等）也执行一次
-                var iterTargets = targets.Count > 0
-                    ? targets
-                    : new List<Entity> { null };
-
-                foreach (var target in iterTargets)
+                foreach (var target in compositionTargets)
                 {
                     context.Targets = target != null ? new List<Entity> { target } : new List<Entity>();
                     context.LastOutcome.Reset();

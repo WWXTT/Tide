@@ -238,7 +238,7 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            bool permanent = effect.Duration == DurationType.Permanent;
+            bool permanent = context.Duration == DurationType.Permanent;
             foreach (var target in context.Targets)
                 if (target is Card card)
                     HandlerHelpers.ChangeControl(context, card, context.Controller, permanent);

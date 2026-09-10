@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
-using CardCore.Attribute; // For EffectTargetType
+using CardCore.Attribute; // AtomicEffectTable
 
 namespace CardCore
 {
@@ -305,8 +305,7 @@ namespace CardCore
         public float LifeValuePerPoint = 0.5f;          // 1 点生命 = 0.5 元素（2命/费）
         public float SleepValuePerTurn = 1.0f;          // 沉睡 1 回合 = 1 元素
         public float SummonMaterialValue = 1.0f;        // 1 个召唤素材 = 1 元素
-        public float OpponentDrawValue = 1.0f;          // 对手抽 1 张 = 1 元素（减益型代价，2026-09-07 补）
-        public float OpponentHealValuePerPoint = 0.5f;  // 对手回 1 点 = 0.5 元素（2点/费，2026-09-07 补）
+        // OpponentDrawValue / OpponentHealValuePerPoint 已删除（2026-09-10：跨边益处改由 Polarity 错边折价表达）
         public float SelfSicknessValue = 1.0f;          // 自身紊乱 1 条 = 1 元素（自身减益作代价，2026-09-08 拓展）
         public float OpponentBuffValue = 1.0f;          // 对手 +1/+1 一层 = 1 元素（对手增益作代价，2026-09-08 拓展）
     }
@@ -406,6 +405,24 @@ namespace CardCore
                 return null;
             }
 
+            var config = new ValueSystemRuntimeConfig(); // 字段初始化器 = 兜底默认值，表值逐条覆盖
+            int applied = ApplyEntries(path, config);
+
+            // 2026-09-10 拆分定案：加减费用（CardCost/CardComposition 两类）自 ValueSystemConfig 挪至
+            // CostOffsetConfig.json（同表混合行：Category 非空即 KV 行）——同一反射灌入口接续，机制行跳过。
+            string offsetPath = Path.Combine(Application.dataPath, "Configs/CostOffsetConfig.json");
+            if (File.Exists(offsetPath))
+                applied += ApplyEntries(offsetPath, config, skipNonKvRows: true);
+
+            if (applied == 0)
+                Debug.LogWarning($"[ValueSystemConfigManager] 未从 {ConfigRelativePath} 灌入任何条目");
+            return config;
+        }
+
+        /// <summary>读单文件 KV 条目并反射灌入（Category+"Config" → 同名字段；表加行+代码加同名字段即接通）。
+        /// skipNonKvRows：混合行文件（CostOffsetConfig）里 Category 为空的机制行跳过。</summary>
+        private static int ApplyEntries(string path, ValueSystemRuntimeConfig config, bool skipNonKvRows = false)
+        {
             List<ValueSystemConfigEntry> entries;
             try
             {
@@ -413,16 +430,16 @@ namespace CardCore
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[ValueSystemConfigManager] 加载 {ConfigRelativePath} 失败: {e.Message}，使用代码默认值");
-                return null;
+                Debug.LogWarning($"[ValueSystemConfigManager] 加载 {path} 失败: {e.Message}，跳过该文件");
+                return 0;
             }
-            if (entries == null) return null;
+            if (entries == null) return 0;
 
-            var config = new ValueSystemRuntimeConfig(); // 字段初始化器 = 兜底默认值，表值逐条覆盖
             int applied = 0;
             foreach (var entry in entries)
             {
-                if (entry == null || string.IsNullOrEmpty(entry.Category) || string.IsNullOrEmpty(entry.Key)) continue;
+                if (entry == null || string.IsNullOrEmpty(entry.Category) || string.IsNullOrEmpty(entry.Key))
+                    continue; // skipNonKvRows 时机制行（无 Category）自然在此跳过
 
                 var section = typeof(ValueSystemRuntimeConfig).GetField(entry.Category + "Config");
                 if (section == null)
@@ -441,10 +458,7 @@ namespace CardCore
                 field.SetValue(section.GetValue(config), Convert.ChangeType(entry.Value, field.FieldType));
                 applied++;
             }
-
-            if (applied == 0)
-                Debug.LogWarning($"[ValueSystemConfigManager] 未从 {ConfigRelativePath} 灌入任何条目");
-            return config;
+            return applied;
         }
 
         /// <summary>解析 JSON（导出器每个 sheet 产出顶层裸数组，JsonUtility 需包一层；同 AtomicEffectTable.ParseEntries 惯例）</summary>

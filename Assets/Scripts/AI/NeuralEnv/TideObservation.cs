@@ -30,10 +30,10 @@ namespace CardCore.AI.NeuralEnv
         //   [21]     组合结构哈希下标（时点/条件/代价/Steps 骨架 =「怎么组合」）
         //   [22]     关键词/tag/光环组合哈希下标
         //   [23..28] 原子 EffectType 下标（原子表内排名，参数无关）——「造成4伤」与「造成5伤」同行
-        //   [29..70] 原子参数浮点块（6 槽 × CardIdentityService.AtomParamDim 维）——数值插值通路
+        //   [29..64] 原子参数浮点块（6 槽 × CardIdentityService.AtomParamDim 维）——数值插值通路
         // 精确哈希 = 冻结的查表身份；类型 + 参数 = 泛化通路（新参数值 = 已训类型行 + 已训线性投影，
         // 不再是纯新 token）。0 = 无该成分 / token / 未登记。属性不在此（[3][4][5] 实时特征已覆盖）。
-        public const int NCard = 71;
+        public const int NCard = 65; // 2026-09-10 目标域模型：29 + 6槽 × AtomParamDim(6)；python 侧 N_CARD_FEATURES 同步（另一台机器）
         public const int AtomIdSlots = 6;                                        // [15..20] 精确哈希槽
         public const int TypeIdStart = 23;                                       // [23..28] 类型下标槽
         public const int ParamStart = 29;                                        // [29..] 参数块

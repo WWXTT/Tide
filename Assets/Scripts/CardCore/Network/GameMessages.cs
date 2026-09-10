@@ -98,12 +98,6 @@ namespace CardCore.Network
         [MemoryPackOrder(TagTable.PS_OffsetMillUsed)]
         public int OffsetMillUsed;
 
-        [MemoryPackOrder(TagTable.PS_OffsetOpponentHealUsed)]
-        public int OffsetOpponentHealUsed;
-
-        [MemoryPackOrder(TagTable.PS_OffsetOpponentDrawUsed)]
-        public int OffsetOpponentDrawUsed;
-
         [MemoryPackOrder(TagTable.PS_OffsetSendExtraUsed)]
         public int OffsetSendExtraUsed;
 

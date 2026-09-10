@@ -109,6 +109,12 @@ namespace CardCore.Tools
                 ("AtomicEffectInstance", "TargetTypeOverride"), ("AtomicEffectInstance", "TargetFilterOverride"),
                 ("AtomicEffectInstance", "TargetCountOverride"), ("AtomicEffectInstance", "DynamicTargetCount"),
                 ("AtomicEffectInstance", "Drawbacks"),
+                // 2026-09-10 目标域模型：原子新字段 + Mana 条目（旧 AEI_Value2/ManaTypeParam/ZoneParam/Duration/
+                // Target*Override/DynamicTargetCount/Drawbacks 标签留作保留位——传输链休眠中，无兼容负担）
+                ("AtomicEffectInstance", "TargetKinds"),
+                ("AtomicEffectInstance", "ManaList"),
+                ("SerializableManaAmount", "manaType"),
+                ("SerializableManaAmount", "amount"),
 
                 // ---- CostInstance ----
                 ("CostInstance", "Type"), ("CostInstance", "Value"), ("CostInstance", "ManaType"),

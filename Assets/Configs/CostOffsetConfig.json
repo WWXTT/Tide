@@ -3,36 +3,130 @@
     "Mechanism": "Drain",
     "DisplayName": "流失（无源失命）",
     "ResourcePerOffset": 2,
-    "MaxOffsetPerGame": 14
+    "MaxOffsetPerGame": 14,
+    "Category": null,
+    "Key": null,
+    "Value": null,
+    "Des": null
   },
   {
     "Mechanism": "Discard",
     "DisplayName": "弃手牌",
     "ResourcePerOffset": 1,
-    "MaxOffsetPerGame": 6
+    "MaxOffsetPerGame": 6,
+    "Category": null,
+    "Key": null,
+    "Value": null,
+    "Des": null
   },
   {
     "Mechanism": "Mill",
     "DisplayName": "送墓（本组顶部）",
     "ResourcePerOffset": 5,
-    "MaxOffsetPerGame": 6
+    "MaxOffsetPerGame": 6,
+    "Category": null,
+    "Key": null,
+    "Value": null,
+    "Des": null
   },
   {
     "Mechanism": "SendExtra",
     "DisplayName": "送额外组",
     "ResourcePerOffset": 3,
-    "MaxOffsetPerGame": 5
+    "MaxOffsetPerGame": 5,
+    "Category": null,
+    "Key": null,
+    "Value": null,
+    "Des": null
   },
   {
-    "Mechanism": "OpponentHeal",
-    "DisplayName": "对手回复生命",
-    "ResourcePerOffset": 2,
-    "MaxOffsetPerGame": 4
+    "Mechanism": null,
+    "DisplayName": null,
+    "ResourcePerOffset": null,
+    "MaxOffsetPerGame": null,
+    "Category": "CardCost",
+    "Key": "StatUnit",
+    "Value": 2.0,
+    "Des": "1费=2点属性（攻血各0.5元素，灰）"
   },
   {
-    "Mechanism": "OpponentDraw",
-    "DisplayName": "对手抽牌",
-    "ResourcePerOffset": 1,
-    "MaxOffsetPerGame": 4
+    "Mechanism": null,
+    "DisplayName": null,
+    "ResourcePerOffset": null,
+    "MaxOffsetPerGame": null,
+    "Category": "CardCost",
+    "Key": "KeywordsShareDelayDiscount",
+    "Value": 1.0,
+    "Des": "关键词同享挂载折扣（1=是）"
+  },
+  {
+    "Mechanism": null,
+    "DisplayName": null,
+    "ResourcePerOffset": null,
+    "MaxOffsetPerGame": null,
+    "Category": "CardCost",
+    "Key": "MaxTier",
+    "Value": 9.0,
+    "Des": "档位上限（=地牌槽曲线上限）"
+  },
+  {
+    "Mechanism": null,
+    "DisplayName": null,
+    "ResourcePerOffset": null,
+    "MaxOffsetPerGame": null,
+    "Category": "CardCost",
+    "Key": "DiscardCardValue",
+    "Value": 1.0,
+    "Des": "代价当量：弃1张=1元素（与抵消表同源）"
+  },
+  {
+    "Mechanism": null,
+    "DisplayName": null,
+    "ResourcePerOffset": null,
+    "MaxOffsetPerGame": null,
+    "Category": "CardCost",
+    "Key": "LifeValuePerPoint",
+    "Value": 0.5,
+    "Des": "代价当量：1点生命=0.5元素（2命/费同源）"
+  },
+  {
+    "Mechanism": null,
+    "DisplayName": null,
+    "ResourcePerOffset": null,
+    "MaxOffsetPerGame": null,
+    "Category": "CardCost",
+    "Key": "SleepValuePerTurn",
+    "Value": 1.0,
+    "Des": "代价当量：沉睡1回合=1元素"
+  },
+  {
+    "Mechanism": null,
+    "DisplayName": null,
+    "ResourcePerOffset": null,
+    "MaxOffsetPerGame": null,
+    "Category": "CardCost",
+    "Key": "SummonMaterialValue",
+    "Value": 1.0,
+    "Des": "代价当量：1个召唤素材=1元素"
+  },
+  {
+    "Mechanism": null,
+    "DisplayName": null,
+    "ResourcePerOffset": null,
+    "MaxOffsetPerGame": null,
+    "Category": "CardCost",
+    "Key": "SelfSicknessValue",
+    "Value": 1.0,
+    "Des": "代价当量：自身紊乱1条=1元素（自身减益作代价，2026-09-08 拓展）"
+  },
+  {
+    "Mechanism": null,
+    "DisplayName": null,
+    "ResourcePerOffset": null,
+    "MaxOffsetPerGame": null,
+    "Category": "CardCost",
+    "Key": "OpponentBuffValue",
+    "Value": 1.0,
+    "Des": "代价当量：对手+1/+1一层=1元素（对手增益作代价，2026-09-08 拓展）"
   }
 ]

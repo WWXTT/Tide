@@ -97,6 +97,9 @@ namespace CardCore
             // 规则扩展点（OCP）：出牌限制（如信息轴锁定）经注册表询问
             if (!RuleHooks.CanPlay(core, player, card, fromZone)) return false;
 
+            // 目标域预检（2026-09-10 定案：运行时无候选不可发动）
+            if (!TargetDomainService.HasPlayableTargets(core, player, card, modeIndex)) return false;
+
             // 规则扩展点（OCP）：非手牌来源（如墓地视手牌使用）经注册表取得并占用配额
             if (fromZone != Zone.Hand)
             {

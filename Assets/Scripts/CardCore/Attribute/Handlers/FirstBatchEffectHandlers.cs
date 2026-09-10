@@ -375,7 +375,7 @@ namespace CardCore.Attribute.Handlers
             {
                 if (target == null || !target.IsAlive) continue;
                 int oldLife = target.GetLife();
-                StatGrantRouter.ModifyLife(target, amount, context.Source, effect.Duration);
+                StatGrantRouter.ModifyLife(target, amount, context.Source, context.Duration);
                 PublishEvent(new StatModifyEvent
                 {
                     Target = target,
@@ -383,7 +383,7 @@ namespace CardCore.Attribute.Handlers
                     OldValue = oldLife,
                     NewValue = target.GetLife(),
                     Delta = amount,
-                    Duration = effect.Duration,
+                    Duration = context.Duration,
                     Source = context.Source
                 });
             }
@@ -515,7 +515,7 @@ namespace CardCore.Attribute.Handlers
             {
                 if (!(target is Card card) || card.GetZone() != Zone.Hand) continue; // 费用目标门禁=手牌
                 int oldCost = target.GetCost();
-                StatGrantRouter.ModifyCost(card, amount, context.Source, effect.Duration);
+                StatGrantRouter.ModifyCost(card, amount, context.Source, context.Duration);
                 PublishEvent(new CostModifyEvent
                 {
                     Target = target,
