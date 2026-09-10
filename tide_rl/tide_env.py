@@ -44,7 +44,7 @@ class TideEnv(TideEnvTcp):
         self,
         unity_path: str = None,
         project_path: str = None,
-        max_steps: int = 500,
+        max_steps: int = 1000,
         reward_lambda: float = 0.02,  # 兼容参数：塑形 λ 固定在 Unity 侧（见模块 docstring）
         opponent: str = "selfplay",   # 对手位：selfplay 自对弈 / simpleai 模型 vs SimpleAI
         startup_timeout: float = 300.0,

@@ -20,7 +20,7 @@ tide_rl/
 
 对应 ygo-agent 的 `features.py`，定义 Tide 特征维度：
 
-- `N_CARD_FEATURES = 20` （不是 YGO 的 41）
+- `N_CARD_FEATURES = 71`（不是 YGO 的 41；含内容身份三通路：精确哈希/EffectType/参数块）
 - `N_GLOBAL_FEATURES = 32` （不是 YGO 的 23）
 - `N_ACTION_FEATURES = 6` （不是 YGO 的 12）
 - `MAX_CARDS = 80`
@@ -242,6 +242,65 @@ pip install jax[cpu] flax optax gymnasium numpy
 cd E:\UnityProject\Tide
 python tide_rl/train_tide.py
 ```
+
+---
+
+## 导出 ONNX 到 Unity（Sentis 部署链路）
+
+训练 checkpoint → 单步推理 ONNX → Unity Sentis（包 `com.unity.ai.inference`，命名空间
+`Unity.InferenceEngine`）本地推理。**导出全程用隔离 venv `.venv-export`，不碰训练环境。**
+
+### 一次性准备
+
+```bash
+cd tide_rl
+python -m venv .venv-export
+.venv-export/Scripts/python.exe -m pip install "jax[cpu]==0.11.1" "flax==0.12.9" jax2onnx onnxruntime
+```
+
+### 导出（训练中随时可跑，默认取最新 selfplay run 的 best）
+
+```bash
+cd tide_rl
+.venv-export/Scripts/python.exe export_onnx.py                # best checkpoint
+.venv-export/Scripts/python.exe export_onnx.py --ckpt logs/<run>/last/params.msgpack
+```
+
+产出（自动复制到 `Assets/StreamingAssets/`）：
+- `tide_policy.onnx` —— 推理图（batch 已脱皮：rstate 512 / cards 80×71 / global 32 /
+  actions 128×6 → rstate_next / logits(非法已掩 -1e9) / value），manifest 指纹等元数据在
+  model metadata；opset 23，全标准算子，3.3MB
+- `tide_policy_fixture.json` —— 数值对拍样例（JAX 参考输出）
+
+脚本内置两道验证：onnxruntime vs JAX 逐输出对拍（容差 5e-3，实测 ~2e-6）+ 非法动作
+掩码抽检。已知坑：jax2onnx 0.16.1 的 JitPlugin 与 jax 0.11.1 的 `Var` 内部签名不兼容，
+`export_onnx.py` 头部已带猴子补丁（新 jax 自动退位）；给 `to_onnx` 传的函数不能自带
+`@jax.jit`。
+
+### Unity 侧验证（编辑器菜单）
+
+- `Tools/AI/ONNX 策略/1. 数值对拍 (fixture)` —— Sentis 后端 vs JAX 参考输出
+- `Tools/AI/ONNX 策略/2. vs SimpleAI 20 局` —— 口径镜像训练评估（模型三色随机 /
+  SimpleAI 恒红、随机座次、洗牌抽 30），胜率可与训练日志 eval win_rate 直接对照
+
+### Unity 侧代码
+
+| 文件 | 角色 |
+|---|---|
+| `Assets/Scripts/AI/NeuralAI/OnnxTidePolicy.cs` | Sentis 推理器（rstate 管理 + argmax） |
+| `Assets/Scripts/AI/NeuralAI/NeuralAI.cs` | 整回合驱动器（SimpleAI 同形，`TakeTurn(BattleController)` 可直接替换 `BattleController` 里的 SimpleAI） |
+| `Assets/Editor/NeuralAI/OnnxPolicyMenu.cs` | 上面两个验证菜单 |
+
+活体对局接入：`BattleController.RunAiTurn` 里把 `_ai.TakeTurn(this)` 换成
+`_neural.TakeTurn(this)`，对局开始时调 `ResetEpisode()`（GRU 状态归零）。
+
+### 部署约束（改任何一处都要重导出/重训）
+
+- **卡身份 manifest 必须同一份**：`TideCardIndex` 绑定 `tide_rl/card_identity_manifest.json`
+  （追加式），embedding 行号才不串台。onnx metadata 里存了导出时的 manifest sha256。
+- 观测/动作布局（71/32/6 维、MAX_ACTIONS=128）改了 → 重导出；原子表（83 条 EffectType）
+  变更 → 全体身份换血，需重训。
+- 自对弈权重是「当前回合玩家」视角：部署喂模型自己回合的决策点即可（与训练评估口径一致）。
 
 ---
 

@@ -5,7 +5,53 @@ import jax
 import jax.numpy as jnp
 
 import chex
-import distrax
+
+# ---------------------------------------------------------------------------
+# distrax 兼容层（jax 原生实现）
+# distrax 依赖 tensorflow_probability，后者在 jax>=0.5 已不兼容（引用被移除的
+# jax.interpreters.xla.pytype_aval_mappings，直接 import 即崩）。本模块只用 distrax
+# 的一小块 API（Softmax/Categorical 分布、multiply_no_nan、importance_sampling_ratios），
+# 这里用 jax 原生等价实现，语义与 distrax 完全一致。
+# ---------------------------------------------------------------------------
+class _Categorical:
+    """类别分布（logits 参数化），等价 distrax.Categorical 的 log_prob/prob。"""
+
+    def __init__(self, logits):
+        self.logits = logits
+        self._log_probs = jax.nn.log_softmax(logits)
+
+    def log_prob(self, value):
+        # value 为整数下标（与 distrax 一致：整数按 one-hot 下标取 log_softmax）
+        return jnp.take_along_axis(self._log_probs, value[..., None], axis=-1)[..., 0]
+
+    def prob(self, value):
+        return jnp.exp(self.log_prob(value))
+
+
+class _Softmax(_Categorical):
+    """Softmax 分布（等价 distrax.Softmax 的 entropy/log_prob）。"""
+
+    def entropy(self):
+        probs = jnp.exp(self._log_probs)
+        # where 护栏：probs==0 时 0*-inf=nan，distrax 同样用 probs>0 屏蔽
+        return -jnp.sum(jnp.where(probs > 0, probs * self._log_probs, 0.0), axis=-1)
+
+
+class _DistraxShim:
+    Softmax = _Softmax
+    Categorical = _Categorical
+
+    @staticmethod
+    def multiply_no_nan(a, b):
+        # distrax：b==0 时返回 0（即使 a 是 nan/inf），避免 0*inf=nan
+        return jnp.where(b == 0, 0, a * b)
+
+    @staticmethod
+    def importance_sampling_ratios(new_distribution, old_distribution, value):
+        return jnp.exp(new_distribution.log_prob(value) - old_distribution.log_prob(value))
+
+
+distrax = _DistraxShim()
 
 
 def entropy_loss(logits):

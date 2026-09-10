@@ -9,7 +9,7 @@ Write-Host "===================================="
 Write-Host ""
 
 # Set Unity path
-$env:UNITY_PATH = "C:\Program Files\Unity\Hub\Editor\6000.5.8f1\Editor\Unity.exe"
+$env:UNITY_PATH = "C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Unity.exe"
 
 # Set Python path to include ygo-agent-main and project root
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -24,7 +24,7 @@ Write-Host ""
 # Check Unity exists
 if (-not (Test-Path $env:UNITY_PATH)) {
     Write-Host "[ERROR] Unity not found at: $env:UNITY_PATH" -ForegroundColor Red
-    Write-Host "Please install Unity 6000.5.8f1 or update the UNITY_PATH in this script" -ForegroundColor Red
+    Write-Host "Please install Unity 6000.5.10f1 or update the UNITY_PATH in this script" -ForegroundColor Red
     exit 1
 }
 

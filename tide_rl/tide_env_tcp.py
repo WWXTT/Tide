@@ -42,7 +42,7 @@ class TideEnvTcp(gym.Env):
         self,
         host: str = "localhost",
         port: int = 9999,
-        max_steps: int = 500,
+        max_steps: int = 1000,
         reward_lambda: float = 0.02,
         opponent: str = "selfplay",
     ):
@@ -151,14 +151,16 @@ class TideEnvTcp(gym.Env):
         }
 
     def reset(self, seed=None, options=None):
-        """重置环境（开新局）。"""
+        """重置环境（开新局）。options={"opponent": ...} 可按次覆盖对手位
+        （自对弈训练中途切 vs SimpleAI 评估用），缺省用 self.opponent。"""
         super().reset(seed=seed)
 
         # 连接（如果未连接）
         self._connect()
 
         # 发送 reset（opponent 决定对手位：selfplay / simpleai）
-        self._send_json({"op": "reset", "opponent": self.opponent})
+        opponent = (options or {}).get("opponent") or self.opponent
+        self._send_json({"op": "reset", "opponent": opponent})
 
         # 读取初始 obs
         response = self._read_json()

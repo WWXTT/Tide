@@ -46,7 +46,7 @@ namespace CardCore.AI.NeuralEnv
         private const int MaxSettleAttempts = 32;    // 排干栈重试上限（镜像 SimpleAI）
         private const int PhaseAdvanceGuard = 64;    // 阶段推进循环保险
         private const float NoProgressPenalty = 0.05f; // 无进展动作扣分（即时信号：引导避开无效动作）
-        private const int MaxActionsPerTurn = 64;      // 单回合动作数上限（防换状态翻转死循环的保险）
+        private const int MaxActionsPerTurn = 128;     // 单回合动作数上限（可选操作变多后翻倍；仍防换状态翻转死循环）
 
         private GameCore _core;
         private GameBoard.BoardState _board;

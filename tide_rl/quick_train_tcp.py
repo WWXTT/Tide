@@ -53,12 +53,12 @@ class QuickArgs:
     gamma: float = 0.99
     gae_lambda: float = 0.95
     clip_coef: float = 0.2
-    ent_coef: float = 0.01
+    ent_coef: float = 0.05  # 熵系数（配合 actor 的 √c 温度缩放，防熵塌缩）
     vf_coef: float = 0.5
     max_grad_norm: float = 0.5
 
     total_updates: int = 10  # 只训练 10 次更新
-    max_episode_steps: int = 500  # 单局步数上限（超时判负，保证 episode 一定能完结）
+    max_episode_steps: int = 1000  # 单局步数上限（超时判负，保证 episode 一定能完结；可选操作变多后翻倍）
     reward_lambda: float = 0.02  # 兼容参数（塑形 λ 固定在 Unity 侧）
     channels: int = 128
     rnn_channels: int = 512

@@ -1,18 +1,14 @@
 {
     "cards": [
         {
-            "id": "DECK_RED_01",
-            "cardName": "赤火种",
+            "id": "7456cf13d4c41962",
+            "cardName": "赤先锋",
             "supertype": "Creature",
             "power": 1,
             "life": 1,
             "costList": [
                 {
                     "manaType": 1,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
                     "amount": 1.0
                 }
             ],
@@ -22,9 +18,9 @@
             ],
             "effects": [
                 {
-                    "Id": "DECK_RED_01_ENTRY",
-                    "DisplayName": "冲锋",
-                    "Description": "登场：激励自身——解除横置，当回合即可行动",
+                    "Id": "DECK_RED_01_00",
+                    "DisplayName": "激励",
+                    "Description": "登场：激励自身——当回合即可行动",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -53,11 +49,594 @@
                     "Costs": [],
                     "Tags": [],
                     "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "438fea7a58685b61",
+            "cardName": "赤先锋·烈",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
                 },
                 {
-                    "Id": "DECK_RED_01_ONPLAY",
-                    "DisplayName": "造成伤害",
-                    "Description": "登场：造成伤害",
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_02_00",
+                    "DisplayName": "激励",
+                    "Description": "登场：激励自身——当回合即可行动",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "b50729cd13aae9ba",
+            "cardName": "赤突袭兵",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_03_00",
+                    "DisplayName": "激励",
+                    "Description": "登场：激励自身——当回合即可行动",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "3ba453f638741b00",
+            "cardName": "赤突击手",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_04_00",
+                    "DisplayName": "激励",
+                    "Description": "登场：激励自身——当回合即可行动",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "689969a249e581c0",
+            "cardName": "赤疾行兵",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_05_00",
+                    "DisplayName": "激励",
+                    "Description": "登场：激励自身——当回合即可行动",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "db30b6a9a502ad69",
+            "cardName": "赤疾风统领",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_06_00",
+                    "DisplayName": "激励",
+                    "Description": "登场：激励自身——当回合即可行动",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "7fc6701466388913",
+            "cardName": "赤火星",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_07_00",
+                    "DisplayName": "燃面",
+                    "Description": "登场：对敌方英雄造成 1 点伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DealDamage",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 8,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "e77e0077279c2598",
+            "cardName": "赤火星·迸",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_08_00",
+                    "DisplayName": "燃面",
+                    "Description": "登场：对敌方英雄造成 1 点伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DealDamage",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 8,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "198c5e03d452ad93",
+            "cardName": "赤灼前锋",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_09_00",
+                    "DisplayName": "燃面",
+                    "Description": "登场：对敌方英雄造成 2 点伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DealDamage",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 8,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "f2f7dda89e59d209",
+            "cardName": "赤灼前锋·炽",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_10_00",
+                    "DisplayName": "燃面",
+                    "Description": "登场：对敌方英雄造成 2 点伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DealDamage",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 8,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "0204546197a187c8",
+            "cardName": "赤焰矛手",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_11_00",
+                    "DisplayName": "燃面",
+                    "Description": "登场：对敌方英雄造成 3 点伤害",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -83,14 +662,7 @@
                             "Drawbacks": []
                         }
                     ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 2,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
+                    "Costs": [],
                     "Tags": [],
                     "Steps": []
                 }
@@ -103,19 +675,19 @@
             "linkAuras": []
         },
         {
-            "id": "DECK_RED_02",
-            "cardName": "赤火种Ⅱ",
+            "id": "bf3ec782cb633419",
+            "cardName": "赤焰矛手·烈",
             "supertype": "Creature",
-            "power": 1,
-            "life": 1,
+            "power": 3,
+            "life": 3,
             "costList": [
                 {
                     "manaType": 1,
-                    "amount": 3.0
+                    "amount": 2.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -124,496 +696,9 @@
             ],
             "effects": [
                 {
-                    "Id": "DECK_RED_02_ENTRY",
-                    "DisplayName": "突袭",
-                    "Description": "登场：激励自身——解除横置，当回合即可行动；自上紊乱指示物作代价减费（本回合不能以玩家为目标）",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "Untap",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 0,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        },
-                        {
-                            "EffectType": "RushSickness",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 0,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                },
-                {
-                    "Id": "DECK_RED_02_ONPLAY",
-                    "DisplayName": "穿透伤害",
-                    "Description": "登场：穿透伤害",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "PierceDamage",
-                            "Value": 2,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 8,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 4,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_03",
-            "cardName": "赤火种Ⅲ",
-            "supertype": "Creature",
-            "power": 1,
-            "life": 1,
-            "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "FirstStrike"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_03_ONPLAY",
-                    "DisplayName": "吸取生命",
-                    "Description": "登场：吸取生命",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DrainLife",
-                            "Value": 2,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 8,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 6,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_04",
-            "cardName": "赤灰烬",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "DoubleStrike"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_04_ONPLAY",
-                    "DisplayName": "生命流失",
-                    "Description": "登场：生命流失",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "LifeLoss",
-                            "Value": 3,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 8,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 2,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_05",
-            "cardName": "赤灰烬Ⅱ",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "Overwhelm"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_05_ONPLAY",
-                    "DisplayName": "易损",
-                    "Description": "登场：易损",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "AddVulnerable",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 4,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_06",
-            "cardName": "赤灰烬Ⅲ",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "Disarm"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_06_ONPLAY",
-                    "DisplayName": "攻击力增加",
-                    "Description": "登场：攻击力增加",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "AddPowerUp",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 0,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 6,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_07",
-            "cardName": "赤烈焰",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [
-                "PoisonSting"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_07_ONPLAY",
-                    "DisplayName": "费用减少",
-                    "Description": "登场：费用减少",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "AddCostDown",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 0,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 2,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_08",
-            "cardName": "赤烈焰Ⅱ",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [
-                "Lifesteal"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_08_ONPLAY",
-                    "DisplayName": "造成伤害",
-                    "Description": "登场：造成伤害",
+                    "Id": "DECK_RED_12_00",
+                    "DisplayName": "燃面",
+                    "Description": "登场：对敌方英雄造成 3 点伤害",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -639,118 +724,9 @@
                             "Drawbacks": []
                         }
                     ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 4,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_09",
-            "cardName": "赤烈焰Ⅲ",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 4.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_09_ENTRY",
-                    "DisplayName": "冲锋",
-                    "Description": "登场：激励自身——解除横置，当回合即可行动",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "Untap",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 0,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
                     "Costs": [],
                     "Tags": [],
                     "Steps": []
-                },
-                {
-                    "Id": "DECK_RED_09_ONPLAY",
-                    "DisplayName": "穿透伤害",
-                    "Description": "登场：穿透伤害",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "PierceDamage",
-                            "Value": 2,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 8,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 6,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
                 }
             ],
             "subtype": "",
@@ -761,15 +737,763 @@
             "linkAuras": []
         },
         {
-            "id": "DECK_RED_10",
-            "cardName": "赤狂焰",
+            "id": "858c23d752480959",
+            "cardName": "赤燎原先锋",
             "supertype": "Creature",
             "power": 4,
-            "life": 4,
+            "life": 3,
             "costList": [
                 {
+                    "manaType": 1,
+                    "amount": 3.0
+                },
+                {
                     "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_13_00",
+                    "DisplayName": "燃面",
+                    "Description": "登场：对敌方英雄造成 4 点伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DealDamage",
+                            "Value": 4,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 8,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "dbc203cb8496af82",
+            "cardName": "赤怒战士",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_14_00",
+                    "DisplayName": "怒焰",
+                    "Description": "登场：自身攻击力本回合 +2",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyPower",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "f4025aeafaeec3f9",
+            "cardName": "赤怒战士·狂",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_15_00",
+                    "DisplayName": "怒焰",
+                    "Description": "登场：自身攻击力本回合 +2",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyPower",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "f1bde89ed96304c3",
+            "cardName": "赤斗殴者",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_16_00",
+                    "DisplayName": "怒焰",
+                    "Description": "登场：自身攻击力本回合 +2",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyPower",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "88e732c841a8a752",
+            "cardName": "赤斗殴者·狠",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_17_00",
+                    "DisplayName": "怒焰",
+                    "Description": "登场：自身攻击力本回合 +3",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyPower",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "e87a839d825655fb",
+            "cardName": "赤暴走兵",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_18_00",
+                    "DisplayName": "怒焰",
+                    "Description": "登场：自身攻击力本回合 +3",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyPower",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "581842be177e1cd2",
+            "cardName": "赤战号手",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_19_00",
+                    "DisplayName": "战号",
+                    "Description": "登场：全体友方生物攻击力本回合 +1",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyPower",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 3,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "89adbbc610a99e38",
+            "cardName": "赤战号手·昂",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_20_00",
+                    "DisplayName": "战号",
+                    "Description": "登场：全体友方生物攻击力本回合 +1",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyPower",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 3,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "c10c57163abc30a8",
+            "cardName": "赤鼓手",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_21_00",
+                    "DisplayName": "战号",
+                    "Description": "登场：全体友方生物攻击力本回合 +2",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyPower",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 3,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "2627c7aec461ddc1",
+            "cardName": "赤鼓手·振",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_22_00",
+                    "DisplayName": "战号",
+                    "Description": "登场：全体友方生物攻击力本回合 +2",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "ModifyPower",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 3,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "3100d15456ef8496",
+            "cardName": "赤穿甲兵",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_23_00",
+                    "DisplayName": "贯穿",
+                    "Description": "登场：对敌方英雄造成 2 点穿透伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "PierceDamage",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 8,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "08cbf9036d39ea4c",
+            "cardName": "赤穿甲兵·锐",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_24_00",
+                    "DisplayName": "贯穿",
+                    "Description": "登场：对敌方英雄造成 2 点穿透伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "PierceDamage",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 8,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "a3ca1f6d86a9b51a",
+            "cardName": "赤贯甲者",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 1,
                     "amount": 5.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -778,500 +1502,9 @@
             ],
             "effects": [
                 {
-                    "Id": "DECK_RED_10_ENTRY",
-                    "DisplayName": "突袭",
-                    "Description": "登场：激励自身——解除横置，当回合即可行动；自上紊乱指示物作代价减费（本回合不能以玩家为目标）",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "Untap",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 0,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        },
-                        {
-                            "EffectType": "RushSickness",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 0,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                },
-                {
-                    "Id": "DECK_RED_10_ONPLAY",
-                    "DisplayName": "吸取生命",
-                    "Description": "登场：吸取生命",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DrainLife",
-                            "Value": 2,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 8,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 2,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_11",
-            "cardName": "赤狂焰Ⅱ",
-            "supertype": "Creature",
-            "power": 4,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 5.0
-                },
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "FirstStrike"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_11_ONPLAY",
-                    "DisplayName": "生命流失",
-                    "Description": "登场：生命流失",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "LifeLoss",
-                            "Value": 3,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 8,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 4,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_12",
-            "cardName": "赤狂焰Ⅲ",
-            "supertype": "Creature",
-            "power": 4,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [
-                "DoubleStrike"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_12_ONPLAY",
-                    "DisplayName": "易损",
-                    "Description": "登场：易损",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "AddVulnerable",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 6,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_13",
-            "cardName": "赤熔岩",
-            "supertype": "Creature",
-            "power": 5,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Overwhelm"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_13_ONPLAY",
-                    "DisplayName": "攻击力增加",
-                    "Description": "登场：攻击力增加",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "AddPowerUp",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 0,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 2,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_14",
-            "cardName": "赤熔岩Ⅱ",
-            "supertype": "Creature",
-            "power": 5,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Disarm"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_14_ONPLAY",
-                    "DisplayName": "费用减少",
-                    "Description": "登场：费用减少",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "AddCostDown",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 0,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 4,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_15",
-            "cardName": "赤熔岩Ⅲ",
-            "supertype": "Creature",
-            "power": 5,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "PoisonSting"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_15_ONPLAY",
-                    "DisplayName": "造成伤害",
-                    "Description": "登场：造成伤害",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DealDamage",
-                            "Value": 3,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 8,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 6,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_16",
-            "cardName": "赤狱火",
-            "supertype": "Creature",
-            "power": 6,
-            "life": 6,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 4.0
-                }
-            ],
-            "keywords": [
-                "Lifesteal"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_16_ONPLAY",
-                    "DisplayName": "穿透伤害",
-                    "Description": "登场：穿透伤害",
+                    "Id": "DECK_RED_25_00",
+                    "DisplayName": "贯穿",
+                    "Description": "登场：对敌方英雄造成 3 点穿透伤害",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -1282,7 +1515,7 @@
                     "AtomicEffects": [
                         {
                             "EffectType": "PierceDamage",
-                            "Value": 2,
+                            "Value": 3,
                             "Value2": 0,
                             "StringValue": "",
                             "ManaTypeParam": 0,
@@ -1297,14 +1530,7 @@
                             "Drawbacks": []
                         }
                     ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 2,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
+                    "Costs": [],
                     "Tags": [],
                     "Steps": []
                 }
@@ -1317,19 +1543,19 @@
             "linkAuras": []
         },
         {
-            "id": "DECK_RED_17",
-            "cardName": "赤狱火Ⅱ",
+            "id": "2c733fc44251d801",
+            "cardName": "赤破城锤",
             "supertype": "Creature",
-            "power": 6,
-            "life": 6,
+            "power": 4,
+            "life": 3,
             "costList": [
                 {
                     "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
                     "amount": 6.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -1338,9 +1564,9 @@
             ],
             "effects": [
                 {
-                    "Id": "DECK_RED_17_ENTRY",
-                    "DisplayName": "冲锋",
-                    "Description": "登场：激励自身——解除横置，当回合即可行动",
+                    "Id": "DECK_RED_26_00",
+                    "DisplayName": "贯穿",
+                    "Description": "登场：对敌方英雄造成 4 点穿透伤害",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -1350,15 +1576,15 @@
                     "TriggerConditions": [],
                     "AtomicEffects": [
                         {
-                            "EffectType": "Untap",
-                            "Value": 1,
+                            "EffectType": "PierceDamage",
+                            "Value": 4,
                             "Value2": 0,
                             "StringValue": "",
                             "ManaTypeParam": 0,
                             "ZoneParam": 0,
                             "Duration": 0,
                             "DurationValue": 0,
-                            "TargetTypeOverride": 0,
+                            "TargetTypeOverride": 8,
                             "TargetFilterOverride": "",
                             "TargetCountOverride": -2,
                             "TargetScopeOverride": -1,
@@ -1369,11 +1595,36 @@
                     "Costs": [],
                     "Tags": [],
                     "Steps": []
-                },
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "9410978ccd067382",
+            "cardName": "赤血食者",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
                 {
-                    "Id": "DECK_RED_17_ONPLAY",
-                    "DisplayName": "吸取生命",
-                    "Description": "登场：吸取生命",
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_27_00",
+                    "DisplayName": "噬血",
+                    "Description": "登场：对敌方英雄造成 2 点伤害并回复等量生命",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -1399,14 +1650,7 @@
                             "Drawbacks": []
                         }
                     ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 4,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
+                    "Costs": [],
                     "Tags": [],
                     "Steps": []
                 }
@@ -1419,15 +1663,15 @@
             "linkAuras": []
         },
         {
-            "id": "DECK_RED_18",
-            "cardName": "赤狱火Ⅲ",
+            "id": "e2a6bc6e7f434e0c",
+            "cardName": "赤血食者·贪",
             "supertype": "Creature",
-            "power": 6,
-            "life": 6,
+            "power": 2,
+            "life": 3,
             "costList": [
                 {
                     "manaType": 0,
-                    "amount": 7.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [],
@@ -1436,9 +1680,497 @@
             ],
             "effects": [
                 {
-                    "Id": "DECK_RED_18_ENTRY",
-                    "DisplayName": "突袭",
-                    "Description": "登场：激励自身——解除横置，回合即可行动；自上紊乱指示物作代价减费（本回合不能以玩家为目标）",
+                    "Id": "DECK_RED_28_00",
+                    "DisplayName": "噬血",
+                    "Description": "登场：对敌方英雄造成 2 点伤害并回复等量生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DrainLife",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 8,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "a4b4456cbee5fa24",
+            "cardName": "赤噬血兽",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_29_00",
+                    "DisplayName": "噬血",
+                    "Description": "登场：对敌方英雄造成 3 点伤害并回复等量生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DrainLife",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 8,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "796a1377d30de855",
+            "cardName": "赤标记者",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_30_00",
+                    "DisplayName": "标记",
+                    "Description": "登场：令目标易损，本回合受到的伤害增加",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "AddVulnerable",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "75d67304ed08311f",
+            "cardName": "赤标记者·显",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_31_00",
+                    "DisplayName": "标记",
+                    "Description": "登场：令目标易损，本回合受到的伤害增加",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "AddVulnerable",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "fbb04a199ec3648a",
+            "cardName": "赤先攻剑士",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "FirstStrike"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "436900a87cfa404b",
+            "cardName": "赤先攻剑士·疾",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "FirstStrike"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "17b422dc7541e385",
+            "cardName": "赤连击斗士",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "DoubleStrike"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "5aeb48f5a628079a",
+            "cardName": "赤碾压蛮兵",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Overwhelm"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "eb1460befa49cf7d",
+            "cardName": "赤碾压蛮兵·凶",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Overwhelm"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "77fe28c251326688",
+            "cardName": "赤缴械武者",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Disarm"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "c3d127e850a574a0",
+            "cardName": "赤缴械武者·缚",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Disarm"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "fc01fef1f9db3087",
+            "cardName": "赤先攻统领",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "FirstStrike"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "ba366867eb6e564f",
+            "cardName": "赤暴冲锋兽",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_40_00",
+                    "DisplayName": "激励",
+                    "Description": "登场：激励自身——当回合即可行动",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -1462,9 +2194,92 @@
                             "TargetScopeOverride": -1,
                             "DynamicTargetCount": false,
                             "Drawbacks": []
-                        },
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                },
+                {
+                    "Id": "DECK_RED_40_01",
+                    "DisplayName": "狂暴",
+                    "Description": "登场：自身攻击力本回合 +2",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
                         {
-                            "EffectType": "RushSickness",
+                            "EffectType": "ModifyPower",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "946f60aaa59b2f86",
+            "cardName": "赤暴冲锋兽·王",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_41_00",
+                    "DisplayName": "激励",
+                    "Description": "登场：激励自身——当回合即可行动",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
                             "Value": 1,
                             "Value2": 0,
                             "StringValue": "",
@@ -1485,9 +2300,9 @@
                     "Steps": []
                 },
                 {
-                    "Id": "DECK_RED_18_ONPLAY",
-                    "DisplayName": "生命流失",
-                    "Description": "登场：生命流失",
+                    "Id": "DECK_RED_41_01",
+                    "DisplayName": "狂暴",
+                    "Description": "登场：自身攻击力本回合 +2",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -1497,15 +2312,15 @@
                     "TriggerConditions": [],
                     "AtomicEffects": [
                         {
-                            "EffectType": "LifeLoss",
-                            "Value": 3,
+                            "EffectType": "ModifyPower",
+                            "Value": 2,
                             "Value2": 0,
                             "StringValue": "",
                             "ManaTypeParam": 0,
                             "ZoneParam": 0,
                             "Duration": 0,
                             "DurationValue": 0,
-                            "TargetTypeOverride": 8,
+                            "TargetTypeOverride": 0,
                             "TargetFilterOverride": "",
                             "TargetCountOverride": -2,
                             "TargetScopeOverride": -1,
@@ -1513,14 +2328,7 @@
                             "Drawbacks": []
                         }
                     ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 6,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
+                    "Costs": [],
                     "Tags": [],
                     "Steps": []
                 }
@@ -1533,14 +2341,18 @@
             "linkAuras": []
         },
         {
-            "id": "DECK_RED_19",
-            "cardName": "赤焚风",
+            "id": "2d8b21e9b2935fa4",
+            "cardName": "赤狂战领主",
             "supertype": "Creature",
-            "power": 7,
-            "life": 7,
+            "power": 6,
+            "life": 5,
             "costList": [
                 {
                     "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 3,
                     "amount": 2.0
                 },
                 {
@@ -1548,453 +2360,15 @@
                     "amount": 5.0
                 }
             ],
-            "keywords": [
-                "FirstStrike"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_19_ONPLAY",
-                    "DisplayName": "易损",
-                    "Description": "登场：易损",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "AddVulnerable",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": -1,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 2,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_20",
-            "cardName": "赤焚风Ⅱ",
-            "supertype": "Creature",
-            "power": 7,
-            "life": 7,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 5.0
-                }
-            ],
-            "keywords": [
-                "DoubleStrike"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_20_ONPLAY",
-                    "DisplayName": "攻击力增加",
-                    "Description": "登场：攻击力增加",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "AddPowerUp",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 0,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 4,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_21",
-            "cardName": "赤焚风Ⅲ",
-            "supertype": "Creature",
-            "power": 7,
-            "life": 7,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 5.0
-                }
-            ],
-            "keywords": [
-                "Overwhelm"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_21_ONPLAY",
-                    "DisplayName": "费用减少",
-                    "Description": "登场：费用减少",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "AddCostDown",
-                            "Value": 1,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 0,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 6,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_22",
-            "cardName": "赤赤龙",
-            "supertype": "Creature",
-            "power": 8,
-            "life": 8,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 5.0
-                }
-            ],
-            "keywords": [
-                "Disarm"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_22_ONPLAY",
-                    "DisplayName": "造成伤害",
-                    "Description": "登场：造成伤害",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DealDamage",
-                            "Value": 3,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 8,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 2,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_23",
-            "cardName": "赤赤龙Ⅱ",
-            "supertype": "Creature",
-            "power": 8,
-            "life": 8,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 5.0
-                }
-            ],
-            "keywords": [
-                "PoisonSting"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_23_ONPLAY",
-                    "DisplayName": "穿透伤害",
-                    "Description": "登场：穿透伤害",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "PierceDamage",
-                            "Value": 2,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 8,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 4,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_24",
-            "cardName": "赤赤龙Ⅲ",
-            "supertype": "Creature",
-            "power": 8,
-            "life": 8,
-            "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 7.0
-                },
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "Lifesteal"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_24_ONPLAY",
-                    "DisplayName": "吸取生命",
-                    "Description": "登场：吸取生命",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "DrainLife",
-                            "Value": 2,
-                            "Value2": 0,
-                            "StringValue": "",
-                            "ManaTypeParam": 0,
-                            "ZoneParam": 0,
-                            "Duration": 0,
-                            "DurationValue": 0,
-                            "TargetTypeOverride": 8,
-                            "TargetFilterOverride": "",
-                            "TargetCountOverride": -2,
-                            "TargetScopeOverride": -1,
-                            "DynamicTargetCount": false,
-                            "Drawbacks": []
-                        }
-                    ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 6,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_25",
-            "cardName": "赤燎原",
-            "supertype": "Creature",
-            "power": 9,
-            "life": 9,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 9.0
-                }
-            ],
             "keywords": [],
             "tags": [
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_RED_25_ENTRY",
-                    "DisplayName": "冲锋",
-                    "Description": "登场：激励自身——解除横置，当回合即可行动",
+                    "Id": "DECK_RED_42_00",
+                    "DisplayName": "激励",
+                    "Description": "登场：激励自身——当回合即可行动",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -2025,9 +2399,9 @@
                     "Steps": []
                 },
                 {
-                    "Id": "DECK_RED_25_ONPLAY",
-                    "DisplayName": "生命流失",
-                    "Description": "登场：生命流失",
+                    "Id": "DECK_RED_42_01",
+                    "DisplayName": "狂暴",
+                    "Description": "登场：自身攻击力本回合 +3",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -2037,7 +2411,373 @@
                     "TriggerConditions": [],
                     "AtomicEffects": [
                         {
-                            "EffectType": "LifeLoss",
+                            "EffectType": "ModifyPower",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "5fe830fad3120bd3",
+            "cardName": "赤军犬",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "FirstStrike"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "d42946bc46877213",
+            "cardName": "赤巡哨",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "FirstStrike"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "45e5588b9ddebf1b",
+            "cardName": "赤老兵",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "a4198c3934fcd772",
+            "cardName": "赤火刃",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_46_00",
+                    "DisplayName": "火刃",
+                    "Description": "对目标造成 2 点伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DealDamage",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "3635ee5c6f5edc4a",
+            "cardName": "赤火刃·强",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_47_00",
+                    "DisplayName": "火刃",
+                    "Description": "对目标造成 3 点伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DealDamage",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "71f726297ed09ce2",
+            "cardName": "赤烈焰矢",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_48_00",
+                    "DisplayName": "火刃",
+                    "Description": "对目标造成 3 点伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DealDamage",
+                            "Value": 4,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "a3ca31946b88a2fa",
+            "cardName": "赤烈焰矢·猛",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_49_00",
+                    "DisplayName": "火刃",
+                    "Description": "对目标造成 4 点伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DealDamage",
+                            "Value": 5,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": -1,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "2e2bcaec9d5e38fe",
+            "cardName": "赤焚面",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_50_00",
+                    "DisplayName": "焚面",
+                    "Description": "对敌方英雄造成 3 点伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DealDamage",
                             "Value": 3,
                             "Value2": 0,
                             "StringValue": "",
@@ -2053,14 +2793,7 @@
                             "Drawbacks": []
                         }
                     ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 2,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
+                    "Costs": [],
                     "Tags": [],
                     "Steps": []
                 }
@@ -2073,19 +2806,15 @@
             "linkAuras": []
         },
         {
-            "id": "DECK_RED_26",
-            "cardName": "赤燎原Ⅱ",
-            "supertype": "Creature",
-            "power": 9,
-            "life": 9,
+            "id": "a027340813025f56",
+            "cardName": "赤焚面·炽",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
             "costList": [
                 {
                     "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 7.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [],
@@ -2094,9 +2823,129 @@
             ],
             "effects": [
                 {
-                    "Id": "DECK_RED_26_ENTRY",
-                    "DisplayName": "突袭",
-                    "Description": "登场：激励自身——解除横置，当回合即可行动；自上紊乱指示物作代价减费（本回合不能以玩家为目标）",
+                    "Id": "DECK_RED_51_00",
+                    "DisplayName": "焚面",
+                    "Description": "对敌方英雄造成 4 点伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DealDamage",
+                            "Value": 4,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 8,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "115a646242f0f06e",
+            "cardName": "赤毁灭之焰",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_52_00",
+                    "DisplayName": "焚面",
+                    "Description": "对敌方英雄造成 5 点伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "DealDamage",
+                            "Value": 5,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 8,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "ab8d5d172069a229",
+            "cardName": "赤突进令",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 3,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_53_00",
+                    "DisplayName": "突进",
+                    "Description": "激励一个友方生物并使其攻击力本回合 +2",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -2122,8 +2971,8 @@
                             "Drawbacks": []
                         },
                         {
-                            "EffectType": "RushSickness",
-                            "Value": 1,
+                            "EffectType": "ModifyPower",
+                            "Value": 2,
                             "Value2": 0,
                             "StringValue": "",
                             "ManaTypeParam": 0,
@@ -2141,11 +2990,192 @@
                     "Costs": [],
                     "Tags": [],
                     "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "f182cfa3724931e9",
+            "cardName": "赤突进令·急",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
                 },
                 {
-                    "Id": "DECK_RED_26_ONPLAY",
-                    "DisplayName": "易损",
-                    "Description": "登场：易损",
+                    "manaType": 3,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_54_00",
+                    "DisplayName": "突进",
+                    "Description": "激励一个友方生物并使其攻击力本回合 +2",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        },
+                        {
+                            "EffectType": "ModifyPower",
+                            "Value": 2,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "5fcb25fb59c0e21e",
+            "cardName": "赤战斗怒吼",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 3,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_55_00",
+                    "DisplayName": "突进",
+                    "Description": "激励一个友方生物并使其攻击力本回合 +3",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "EffectType": "Untap",
+                            "Value": 1,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        },
+                        {
+                            "EffectType": "ModifyPower",
+                            "Value": 3,
+                            "Value2": 0,
+                            "StringValue": "",
+                            "ManaTypeParam": 0,
+                            "ZoneParam": 0,
+                            "Duration": 0,
+                            "DurationValue": 0,
+                            "TargetTypeOverride": 0,
+                            "TargetFilterOverride": "",
+                            "TargetCountOverride": -2,
+                            "TargetScopeOverride": -1,
+                            "DynamicTargetCount": false,
+                            "Drawbacks": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "334946fa864da8db",
+            "cardName": "赤裂甲咒",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_56_00",
+                    "DisplayName": "裂甲",
+                    "Description": "令目标易损，本回合受到的伤害增加",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -2171,74 +3201,57 @@
                             "Drawbacks": []
                         }
                     ],
-                    "Costs": [
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": []
+        },
+        {
+            "id": "f11209ad498bdae6",
+            "cardName": "赤贯穿枪",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 8.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "DECK_RED_57_00",
+                    "DisplayName": "贯穿",
+                    "Description": "对敌方英雄造成 4 点穿透伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
                         {
-                            "CostType": 2,
+                            "EffectType": "PierceDamage",
                             "Value": 4,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "DECK_RED_27",
-            "cardName": "赤燎原Ⅲ",
-            "supertype": "Creature",
-            "power": 9,
-            "life": 9,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 6.0
-                }
-            ],
-            "keywords": [
-                "FirstStrike"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_27_ONPLAY",
-                    "DisplayName": "攻击力增加",
-                    "Description": "登场：攻击力增加",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "EffectType": "AddPowerUp",
-                            "Value": 1,
                             "Value2": 0,
                             "StringValue": "",
                             "ManaTypeParam": 0,
                             "ZoneParam": 0,
                             "Duration": 0,
                             "DurationValue": 0,
-                            "TargetTypeOverride": 0,
+                            "TargetTypeOverride": 8,
                             "TargetFilterOverride": "",
                             "TargetCountOverride": -2,
                             "TargetScopeOverride": -1,
@@ -2246,14 +3259,7 @@
                             "Drawbacks": []
                         }
                     ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 6,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
+                    "Costs": [],
                     "Tags": [],
                     "Steps": []
                 }
@@ -2266,32 +3272,26 @@
             "linkAuras": []
         },
         {
-            "id": "DECK_RED_28",
-            "cardName": "赤红莲",
-            "supertype": "Creature",
-            "power": 10,
-            "life": 10,
+            "id": "54e6ca2b8515f866",
+            "cardName": "赤贯穿枪·贯",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
             "costList": [
                 {
                     "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 7.0
+                    "amount": 10.0
                 }
             ],
-            "keywords": [
-                "DoubleStrike"
-            ],
+            "keywords": [],
             "tags": [
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_RED_28_ONPLAY",
-                    "DisplayName": "费用减少",
-                    "Description": "登场：费用减少",
+                    "Id": "DECK_RED_58_00",
+                    "DisplayName": "贯穿",
+                    "Description": "对敌方英雄造成 4 点穿透伤害",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -2301,15 +3301,15 @@
                     "TriggerConditions": [],
                     "AtomicEffects": [
                         {
-                            "EffectType": "AddCostDown",
-                            "Value": 1,
+                            "EffectType": "PierceDamage",
+                            "Value": 5,
                             "Value2": 0,
                             "StringValue": "",
                             "ManaTypeParam": 0,
                             "ZoneParam": 0,
                             "Duration": 0,
                             "DurationValue": 0,
-                            "TargetTypeOverride": 0,
+                            "TargetTypeOverride": 8,
                             "TargetFilterOverride": "",
                             "TargetCountOverride": -2,
                             "TargetScopeOverride": -1,
@@ -2317,14 +3317,7 @@
                             "Drawbacks": []
                         }
                     ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 2,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
+                    "Costs": [],
                     "Tags": [],
                     "Steps": []
                 }
@@ -2337,32 +3330,26 @@
             "linkAuras": []
         },
         {
-            "id": "DECK_RED_29",
-            "cardName": "赤红莲Ⅱ",
-            "supertype": "Creature",
-            "power": 10,
-            "life": 10,
+            "id": "6796a0fe44622847",
+            "cardName": "赤吸血涌动",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
             "costList": [
                 {
-                    "manaType": 1,
-                    "amount": 3.0
-                },
-                {
                     "manaType": 0,
-                    "amount": 7.0
+                    "amount": 2.0
                 }
             ],
-            "keywords": [
-                "Overwhelm"
-            ],
+            "keywords": [],
             "tags": [
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_RED_29_ONPLAY",
-                    "DisplayName": "造成伤害",
-                    "Description": "登场：造成伤害",
+                    "Id": "DECK_RED_59_00",
+                    "DisplayName": "噬血",
+                    "Description": "对敌方英雄造成 3 点伤害并回复等量生命",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -2372,7 +3359,7 @@
                     "TriggerConditions": [],
                     "AtomicEffects": [
                         {
-                            "EffectType": "DealDamage",
+                            "EffectType": "DrainLife",
                             "Value": 3,
                             "Value2": 0,
                             "StringValue": "",
@@ -2388,14 +3375,7 @@
                             "Drawbacks": []
                         }
                     ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 4,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
+                    "Costs": [],
                     "Tags": [],
                     "Steps": []
                 }
@@ -2408,32 +3388,26 @@
             "linkAuras": []
         },
         {
-            "id": "DECK_RED_30",
-            "cardName": "赤红莲Ⅲ",
-            "supertype": "Creature",
-            "power": 10,
-            "life": 10,
+            "id": "07daf58952f4e741",
+            "cardName": "赤噬血术",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
             "costList": [
                 {
-                    "manaType": 1,
-                    "amount": 4.0
-                },
-                {
                     "manaType": 0,
-                    "amount": 7.0
+                    "amount": 3.0
                 }
             ],
-            "keywords": [
-                "Disarm"
-            ],
+            "keywords": [],
             "tags": [
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_RED_30_ONPLAY",
-                    "DisplayName": "穿透伤害",
-                    "Description": "登场：穿透伤害",
+                    "Id": "DECK_RED_60_00",
+                    "DisplayName": "噬血",
+                    "Description": "对敌方英雄造成 3 点伤害并回复等量生命",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -2443,8 +3417,8 @@
                     "TriggerConditions": [],
                     "AtomicEffects": [
                         {
-                            "EffectType": "PierceDamage",
-                            "Value": 2,
+                            "EffectType": "DrainLife",
+                            "Value": 4,
                             "Value2": 0,
                             "StringValue": "",
                             "ManaTypeParam": 0,
@@ -2459,14 +3433,7 @@
                             "Drawbacks": []
                         }
                     ],
-                    "Costs": [
-                        {
-                            "CostType": 2,
-                            "Value": 6,
-                            "ManaType": 0,
-                            "TurnDuration": 0
-                        }
-                    ],
+                    "Costs": [],
                     "Tags": [],
                     "Steps": []
                 }

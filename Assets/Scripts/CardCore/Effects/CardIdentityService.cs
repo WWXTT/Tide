@@ -27,7 +27,15 @@ namespace CardCore
     /// </summary>
     public static class CardIdentityService
     {
+        /// <summary>原子参数浮点布局（观测参数槽 / Python ATOM_PARAM_DIM 对齐，逐原子 7 维）：
+        /// [0]Value [1]Value2 [2]ManaTypeParam [3]Duration [4]DurationValue [5]TargetCountOverride
+        /// [6]DynamicTargetCount。幅度由 AppendAtomParams 统一 Clamp（与观测数值特征同口径）。
+        /// 与类型下标构成「参数数值通路」：EffectType 嵌入行跨参数共享 + 参数线性投影 →
+        /// 「造成5伤」可从「造成4伤」插值迁移（精确哈希行另走通路，双保险；见 TideObservation [23..]）。</summary>
+        public const int AtomParamDim = 7;
+
         private static ulong? _tableFingerprint;
+        private static Dictionary<string, int> _typeIndexMap;
 
         /// <summary>原子表整表指纹（行为字段按 EnumName 排序后哈希；GetAll 走字典 Values 序不稳，必须排序。Id 是装载期自增，排除）。</summary>
         public static ulong TableFingerprint()
@@ -53,17 +61,64 @@ namespace CardCore
         }
 
         /// <summary>推导并写回卡的内容身份（EnsureCost 顶部调用；幂等，重算便宜）。token 等未经装载管线的卡保持空身份（观测侧记 0）。
-        /// 身份拆散到原子级：原子哈希数组（跨效果按执行序展平）+ 组合结构哈希 + 关键词/tag/光环组合哈希。</summary>
+        /// 身份拆散到原子级：原子哈希数组（跨效果按执行序展平）+ 组合结构哈希 + 关键词/tag/光环组合哈希；
+        /// 另附 EffectType 下标数组与参数浮点块（与哈希同序），供观测的参数数值泛化通路。</summary>
         public static void EnsureIdentity(CardData card)
         {
             if (card == null) return;
 
             var atoms = new List<ulong>();
+            var types = new List<int>();
+            var parms = new List<float>();
             if (card.Effects != null)
                 foreach (var e in card.Effects)
-                    CollectAtomHashes(e, atoms);
-            card.SetIdentity(atoms.ToArray(), StructureHash(card), CompositionHash(card));
+                    CollectAtoms(e, atoms, types, parms);
+            card.SetIdentity(atoms.ToArray(), StructureHash(card), CompositionHash(card),
+                types.ToArray(), parms.ToArray());
         }
+
+        // ===================================================== 参数数值通路（EffectType 下标 + 参数块） =====================================================
+
+        /// <summary>EffectType → 原子表内序号（英文枚举名 Ordinal 排序，1 基）。表冻结 → 稳定；
+        /// 表变更全体身份换血（表指纹已混入全部哈希），序号随之换血本该如此。0 = 无/未入表。</summary>
+        internal static int AtomTypeIndex(string effectType)
+        {
+            if (string.IsNullOrEmpty(effectType)) return 0;
+            return TypeIndexMap().TryGetValue(effectType, out int idx) ? idx : 0;
+        }
+
+        private static Dictionary<string, int> TypeIndexMap()
+        {
+            if (_typeIndexMap != null) return _typeIndexMap;
+            var names = AtomicEffectTable.GetAll()
+                .Select(cfg => cfg.EnumName)
+                .Where(n => !string.IsNullOrEmpty(n))
+                .OrderBy(n => n, StringComparer.Ordinal) // GetAll 走字典 Values 序不稳，必须排序
+                .ToList();
+            var map = new Dictionary<string, int>(names.Count);
+            for (int i = 0; i < names.Count; i++) map[names[i]] = i + 1;
+            _typeIndexMap = map;
+            return map;
+        }
+
+        /// <summary>原子参数块（AtomParamDim 维，幅度 Clamp 到观测口径 [-99, 999]）。null 原子记全 0。</summary>
+        private static void AppendAtomParams(List<float> parms, AtomicEffectEntry a)
+        {
+            if (a == null)
+            {
+                for (int i = 0; i < AtomParamDim; i++) parms.Add(0f);
+                return;
+            }
+            parms.Add(Clamp(a.Value));
+            parms.Add(Clamp(a.Value2));
+            parms.Add(a.ManaTypeParam);
+            parms.Add(a.Duration);
+            parms.Add(Clamp(a.DurationValue));
+            parms.Add(Clamp(a.TargetCountOverride));
+            parms.Add(a.DynamicTargetCount ? 1f : 0f);
+        }
+
+        private static float Clamp(float v) => v < -99f ? -99f : (v > 999f ? 999f : v);
 
         // ===================================================== 原子哈希（身份共享单元） =====================================================
 
@@ -98,37 +153,58 @@ namespace CardCore
                 sb.Append('d').Append(string.Join(",", a.Drawbacks.OrderBy(d => d, StringComparer.Ordinal))).Append('\n');
         }
 
-        /// <summary>按执行序展平一张卡全部效果树的原子（观测槽位 [15..] 按此顺序编码）。</summary>
-        private static void CollectAtomHashes(CardEffectData e, List<ulong> atoms)
+        /// <summary>按执行序展平一张卡全部效果树的原子（观测槽位按此顺序编码）。
+        /// 三个平行列表同序追加：精确哈希 / EffectType 下标 / 参数块——哈希计算保持逐字节不变
+        /// （历史清单与既有分配不受本次扩展影响）。</summary>
+        private static void CollectAtoms(CardEffectData e, List<ulong> atoms, List<int> types, List<float> parms)
         {
             if (e == null) return;
             if (e.Steps != null && e.Steps.Count > 0)
             {
-                foreach (var s in e.Steps) CollectStepAtoms(s, atoms);
+                foreach (var s in e.Steps) CollectStepAtoms(s, atoms, types, parms);
             }
             else if (e.AtomicEffects != null)
             {
-                foreach (var a in e.AtomicEffects) atoms.Add(AtomHash(a));
+                foreach (var a in e.AtomicEffects)
+                {
+                    atoms.Add(AtomHash(a));
+                    types.Add(AtomTypeIndex(a?.EffectType));
+                    AppendAtomParams(parms, a);
+                }
             }
         }
 
-        private static void CollectStepAtoms(EffectStepData s, List<ulong> atoms)
+        private static void CollectStepAtoms(EffectStepData s, List<ulong> atoms, List<int> types, List<float> parms)
         {
             if (s == null) return;
             switch (s.kind)
             {
                 case 0:
                     atoms.Add(AtomHash(s.atomic));
+                    types.Add(AtomTypeIndex(s.atomic?.EffectType));
+                    AppendAtomParams(parms, s.atomic);
                     break;
                 case 1:
-                    if (s.thenSteps != null) foreach (var a in s.thenSteps) atoms.Add(AtomHash(a));
-                    if (s.elseSteps != null) foreach (var a in s.elseSteps) atoms.Add(AtomHash(a));
+                    if (s.thenSteps != null)
+                        foreach (var a in s.thenSteps)
+                        {
+                            atoms.Add(AtomHash(a));
+                            types.Add(AtomTypeIndex(a?.EffectType));
+                            AppendAtomParams(parms, a);
+                        }
+                    if (s.elseSteps != null)
+                        foreach (var a in s.elseSteps)
+                        {
+                            atoms.Add(AtomHash(a));
+                            types.Add(AtomTypeIndex(a?.EffectType));
+                            AppendAtomParams(parms, a);
+                        }
                     break;
                 case 2:
                     if (s.choices != null)
                         foreach (var mode in s.choices)
                             if (mode?.steps != null)
-                                foreach (var ms in mode.steps) CollectStepAtoms(ms, atoms);
+                                foreach (var ms in mode.steps) CollectStepAtoms(ms, atoms, types, parms);
                     break;
             }
         }
@@ -212,6 +288,112 @@ namespace CardCore
                 .Select(c => c == null ? string.Empty : $"{c.CostType}|{c.Value}|{c.ManaType}|{c.TurnDuration}")
                 .OrderBy(p => p, StringComparer.Ordinal); // 可叠加无序 → 排序稳定
             sb.Append('C').Append(string.Join(";", parts)).Append('\n');
+        }
+
+        // ===================================================== 卡内容 ID（重推导工具回写用） =====================================================
+
+        /// <summary>卡内容 ID（16 位十六进制小写）：全部内容字段的 FNV-1a——属性/费用/关键词/
+        /// tag/光环/效果全文（时点/条件/代价/Steps 骨架 + 原子全参数）。排除纯展示字段
+        /// （cardName、效果 DisplayName/Description、effect.Id 内嵌卡号、Illustration——
+        /// 这几个随便改名不动 ID）与卡 id 自身（避免循环）。同内容卡（跨文件）同 ID；
+        /// 无序集合（关键词/tag/光环/条件/代价）规范化排序后哈希，手抖调行序不变 ID。
+        /// 与身份哈希的分工：身份拆散到原子级供 embedding 共享；内容 ID 是整卡别名，
+        /// 供重推导工具一键回写（Tools/重推导测试卡表费用）。</summary>
+        public static string ContentId(CardData card)
+        {
+            var sb = new StringBuilder();
+            sb.Append(card.Supertype).Append('|').Append((int)card.Subtype).Append('|')
+              .Append(card.Level ?? -1).Append('|').Append(card.Rank ?? -1).Append('|')
+              .Append(card.LinkRating ?? -1).Append('|').Append((int)card.ArrowDirections).Append('\n');
+            sb.Append("P").Append(card.Power ?? int.MinValue).Append('|')
+              .Append(card.Life ?? int.MinValue).Append('\n');
+            if (card.Cost != null && card.Cost.Count > 0)
+            {
+                var parts = card.Cost.OrderBy(kv => kv.Key)
+                    .Select(kv => $"{kv.Key}:{kv.Value.ToString("0.###", CultureInfo.InvariantCulture)}");
+                sb.Append('C').Append(string.Join(";", parts)).Append('\n');
+            }
+            if (card.Keywords != null && card.Keywords.Count > 0)
+                sb.Append('K').Append(string.Join(",", card.Keywords.OrderBy(k => k, StringComparer.Ordinal))).Append('\n');
+            if (card.Tags != null && card.Tags.Count > 0)
+                sb.Append('T').Append(string.Join(",", card.Tags.OrderBy(t => t, StringComparer.Ordinal))).Append('\n');
+            if (card.LinkAuras != null && card.LinkAuras.Count > 0)
+            {
+                var parts = card.LinkAuras
+                    .Select(l => l == null ? string.Empty : $"{l.stat}|{l.value}|{l.keyword}")
+                    .OrderBy(p => p, StringComparer.Ordinal);
+                sb.Append('A').Append(string.Join(";", parts)).Append('\n');
+            }
+            if (card.Effects != null)
+            {
+                sb.Append("E").Append(card.Effects.Count).Append('\n'); // 效果序列 = 书写序（执行序），保留
+                foreach (var e in card.Effects) AppendEffectForId(sb, e);
+            }
+            return Fnv1a(sb.ToString()).ToString("x16");
+        }
+
+        /// <summary>效果全文（除 Id/DisplayName/Description 三个展示位）：时点/发动/条件/代价/Tags + Steps 骨架与原子。</summary>
+        private static void AppendEffectForId(StringBuilder sb, CardEffectData e)
+        {
+            if (e == null) { sb.Append("e;\n"); return; }
+            sb.Append("X").Append(e.TriggerTiming).Append('|')
+              .Append(e.ActivationType).Append('|')
+              .Append(e.BaseSpeed).Append('|')
+              .Append(e.IsOptional ? 1 : 0).Append('|')
+              .Append(e.Duration).Append('\n');
+            AppendConditions(sb, "AC", e.ActivationConditions);
+            AppendConditions(sb, "TC", e.TriggerConditions);
+            AppendCosts(sb, e.Costs);
+            if (e.Tags != null && e.Tags.Count > 0)
+                sb.Append("t").Append(string.Join(",", e.Tags.OrderBy(t => t, StringComparer.Ordinal))).Append('\n');
+            if (e.Steps != null && e.Steps.Count > 0)
+            {
+                sb.Append("S").Append(e.Steps.Count).Append('\n');
+                foreach (var s in e.Steps) AppendStepForId(sb, s);
+            }
+            else if (e.AtomicEffects != null)
+            {
+                sb.Append("F").Append(e.AtomicEffects.Count).Append('\n');
+                foreach (var a in e.AtomicEffects) AppendAtom(sb, a);
+            }
+        }
+
+        /// <summary>Steps 全文（骨架 + 各支原子全参数；choices.label 是展示名不进）。</summary>
+        private static void AppendStepForId(StringBuilder sb, EffectStepData s)
+        {
+            if (s == null) { sb.Append("s;\n"); return; }
+            switch (s.kind)
+            {
+                case 0:
+                    sb.Append("k0\n");
+                    if (s.atomic != null) AppendAtom(sb, s.atomic);
+                    break;
+                case 1:
+                    sb.Append("k1").Append(s.conditionId ?? string.Empty).Append('|')
+                      .Append(s.conditionParam).Append('|')
+                      .Append(s.conditionStringParam ?? string.Empty).Append('\n');
+                    if (s.thenSteps != null)
+                    {
+                        sb.Append('t').Append(s.thenSteps.Count).Append('\n');
+                        foreach (var a in s.thenSteps) AppendAtom(sb, a);
+                    }
+                    if (s.elseSteps != null)
+                    {
+                        sb.Append('e').Append(s.elseSteps.Count).Append('\n');
+                        foreach (var a in s.elseSteps) AppendAtom(sb, a);
+                    }
+                    break;
+                case 2:
+                    sb.Append("k2c").Append(s.choices?.Count ?? 0).Append('\n');
+                    if (s.choices != null)
+                        foreach (var mode in s.choices)
+                        {
+                            sb.Append("m").Append(mode?.steps?.Count ?? 0).Append('\n');
+                            if (mode?.steps != null)
+                                foreach (var ms in mode.steps) AppendStepForId(sb, ms);
+                        }
+                    break;
+            }
         }
 
         // ===================================================== 组合哈希（关键词/tag/光环） =====================================================

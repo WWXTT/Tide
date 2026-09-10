@@ -41,7 +41,7 @@ Write-Host "[3/4] Setting up environment..."
 if ($env:UNITY_PATH) {
     $unityPath = $env:UNITY_PATH
 } else {
-    $unityPath = "C:\Program Files\Unity\Hub\Editor\6000.5.8f1\Editor\Unity.exe"
+    $unityPath = "C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Unity.exe"
 }
 
 if (-not (Test-Path $unityPath)) {
