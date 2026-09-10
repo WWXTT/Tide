@@ -66,12 +66,18 @@ namespace CardCore
         public float ChoiceSpreadStep = 3f;
         /// <summary>抉择价差溢价封顶（相差 Step×Cap 及以上 → 整体 +Cap 封顶）。</summary>
         public float ChoiceSpreadCap = 2f;
-        /// <summary>效果挂载口基线：默认每卡含此数量的挂载口（不满退费、超出加价）。</summary>
+        /// <summary>效果挂载口基线：默认每卡含此数量的挂载口（不满退费、超出加价）。
+        /// （2026-09-10 攻/守效果化后由 ChassisBudget 取代，保留兼容旧配置读取。）</summary>
         public float MountBaseline = 2f;
-        /// <summary>每超出 1 口挂载的加价（例：1-1 挂三效果 → 原有基础 +1）。</summary>
+        /// <summary>每超出 1 口挂载的加价（例：1-1 挂三效果 → 原有基础 +1）。（已被 ChassisItemRate 取代）</summary>
         public float MountExtraRate = 1f;
-        /// <summary>每空置 1 口挂载的退费（例：2-2 白板两口全空 → −2，恰为 0 费）。</summary>
+        /// <summary>每空置 1 口挂载的退费（例：2-2 白板两口全空 → −2，恰为 0 费）。（已被 ChassisItemRate 取代）</summary>
         public float MountUnusedRate = 1f;
+
+        /// <summary>底盘预算（2026-09-10 攻/守效果化）：免费额度覆盖 攻+守+1 效果槽（默认 3）。</summary>
+        public float ChassisBudget = 3f;
+        /// <summary>底盘单项费率：攻/守/每个效果槽各占 1。</summary>
+        public float ChassisItemRate = 1f;
     }
 
     /// <summary>

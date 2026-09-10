@@ -353,6 +353,7 @@ namespace CardCore
             bool any = false;
             for (int i = 0; i < maxAttempts && (!core.StackEngine.IsEmpty || core.StackEngine.HasPendingEffects); i++)
             {
+                Crumb($"drain iter {i} stack={core.StackEngine.StackSize} pend={core.StackEngine.HasPendingEffects} holder={core.StackEngine.CurrentPriorityHolder?.Name}");
                 if (core.StackEngine.IsEmpty && core.StackEngine.HasPendingEffects)
                     core.StackEngine.ProcessPendingEffects(); // 待发上栈（结算外排队的触发式）
                 var holder = core.StackEngine.CurrentPriorityHolder;
@@ -360,7 +361,16 @@ namespace CardCore
                 if (!PassPriority(core, holder)) break;
                 any = true;
             }
+            Crumb($"drain exit stack={core.StackEngine.StackSize} pend={core.StackEngine.HasPendingEffects}");
             return any;
+        }
+
+        // ---- 冻死定位面包屑（验证器置位启用；Logs/EngineCrumb.txt 逐条落盘）----
+        public static bool CrumbEnabled;
+
+        public static void Crumb(string msg)
+        {
+            try { if (CrumbEnabled) System.IO.File.AppendAllText("Logs/EngineCrumb.txt", $"{System.Environment.TickCount} {msg}\n"); } catch { }
         }
 
         /// <summary>
@@ -564,7 +574,13 @@ namespace CardCore
             if (card is CardWrapper wrapper)
             {
                 var cardData = wrapper.GetData();
-                return CardEffectConverter.ConvertAll(cardData.Effects, cardData.ID);
+                var defs = CardEffectConverter.ConvertAll(cardData.Effects, cardData.ID);
+                // 瞬间富余转速度（2026-09-10 攻/守效果化）：无攻守法术的底盘盈余 2 灰构筑时
+                // 自由分配——SurplusToSpeed=true → 全部效果 BaseSpeed+1（计价侧不退费，见 ChassisAdjust）
+                if (cardData.SurplusToSpeed && cardData.Supertype == Cardtype.Spell)
+                    foreach (var def in defs)
+                        if (def != null) def.BaseSpeed += 1;
+                return defs;
             }
             return new List<EffectDefinition>();
         }

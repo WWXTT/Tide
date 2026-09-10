@@ -147,6 +147,7 @@ namespace CardCore.Attribute
             if (domain == null || domain.Count == 0) return new List<Entity>(); // 无目标效果
 
             var candidates = ResolveCandidates(domain, def.TargetFilter, context);
+            GameActions.Crumb($"comp-targets def={def.Id} mode={def.SelectionMode} dom={TargetKindRules.Format(domain)} cands={candidates.Count} sel={context.Controller?.Name}");
             if (candidates.Count == 0) return candidates;
 
             switch (def.SelectionMode)

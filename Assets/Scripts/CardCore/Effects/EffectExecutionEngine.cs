@@ -710,9 +710,12 @@ namespace CardCore
             _isResolving = true;
             try
             {
+                int guardResolve = 0;
                 while (_stack.Count > 0)
                 {
                     var top = _stack.Pop();
+                    GameActions.Crumb($"resolve top #{guardResolve} cast={top.IsCardCast} id={top.Definition?.Id ?? (top.Source as Card)?.ID ?? "?"}");
+                    if (++guardResolve > 200) { GameActions.Crumb("resolve GUARD-200 break"); break; }
                     // 整卡施放对象走 cast 结算（付费→无效裁决→效果→离区），普通对象走执行器
                     if (top.IsCardCast)
                         await GameActions.ResolveCardCastAsync(top);
@@ -1122,6 +1125,10 @@ namespace CardCore
 
                 // 资源族 — 采掘（地牌指示物转化：去3同类型指示物换1点对应元素入 bank）
                 new MineHandler(),
+
+                // 战斗底盘（2026-09-10 攻击/守卫效果化：1速/2速主动，注册完整性锚——战斗走 CombatSystem）
+                new AttackHandler(),
+                new GuardHandler(),
             };
             foreach (var handler in handlers)
                 EffectHandlerRegistry.Register(handler);

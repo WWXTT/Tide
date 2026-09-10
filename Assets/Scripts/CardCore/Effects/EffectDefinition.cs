@@ -66,7 +66,9 @@ namespace CardCore
 
         #region 元数据
         public bool IsOptional = false;
-        public DurationType Duration = DurationType.Permanent;
+        // 未声明持续回退 Once（2026-09-10 上移定案：与 CardEffectData 哨兵口径一致——
+        // 旧默认 Permanent 是「法术宿主永久档」旧口径残留，会让裸构造 def 意外走永久层/×2 计价）
+        public DurationType Duration = DurationType.Once;
         public List<AtomicEffectInstance> Effects = new List<AtomicEffectInstance>();
         public List<CostInstance> Costs = new List<CostInstance>();
         public List<string> Tags = new List<string>();

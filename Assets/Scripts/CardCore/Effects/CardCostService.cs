@@ -155,16 +155,19 @@ namespace CardCore
             }
 
             // ---- 5) L2 组合完成 + L3 整卡延迟折（2026-09-07 定案：d(C) 对完成的卡最后一步打折）----
-            // L2：E/K 汇桶 + S/挂载口入灰桶（挂载口是 L2 最后一步）；
-            // L3：整卡（S+E+K+卡层调整）×f 一次取整，最大余数法分色（减免发生在组合层，非逐效果）。
+            // L2：E/K 汇桶 + S 入灰桶；L3：整卡（S+E+K）×f 一次取整，最大余数法分色。
+            // 底盘预算（2026-09-10 攻/守效果化，取代旧挂载口曲线）：取整后落位——
+            // 退费先灰后最高色（法术常无灰分量），加价入灰。
             var kwMultiplier = cc.KeywordsShareDelayDiscount ? factor : 1f;
             int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
-            int mountAdj = CardCompositionCost.MountSlotAdjust(card);
-            if (mountAdj != 0)
-                result.Breakdown.Add(new CostBreakdownLine("M",
-                    $"挂载口调整（效果 {card.Effects?.Count ?? 0} 个 vs 基线）", mountAdj, ManaType.Gray));
+            int chassis = CardCompositionCost.ChassisAdjust(card);
+            if (chassis != 0)
+                result.Breakdown.Add(new CostBreakdownLine("C",
+                    $"底盘预算 3 − 攻{(!card.NoAttack && card.Supertype == Cardtype.Creature ? 1 : 0)} − 守{(!card.NoGuard && card.Supertype == Cardtype.Creature ? 1 : 0)} − 效果{card.Effects?.Count ?? 0} → {(chassis > 0 ? $"退费 {chassis}" : $"加价 {-chassis}")}",
+                    chassis, ManaType.Gray));
 
-            var mounted = ApportionMounted(effBuckets, kwBuckets, kwMultiplier, factor, statGray + mountAdj);
+            var mounted = ApportionMounted(effBuckets, kwBuckets, kwMultiplier, factor, statGray);
+            ApplyChassis(card, mounted);
 
             foreach (var kv in mounted)
             {
@@ -183,9 +186,21 @@ namespace CardCore
             result.Breakdown.Add(new CostBreakdownLine("Req", $"抵扣需求 max(0, D{result.DerivedTotal} − C{result.DeclaredTier})", result.OffsetRequirement));
             result.Breakdown.Add(new CostBreakdownLine("O", $"代价当量合计（已提供）", result.OffsetProvided));
 
-            // ---- 7) 建议档位 Ĉ 与建议分布（含卡层挂载口调整——建议价与 D 同口径）----
-            result.SuggestedTier = FindSuggestedTier(card, cc, dd, isSpell, statValue, kwBuckets, effBuckets, mountAdj);
-            result.SuggestedCost = BuildCostAtTier(result.SuggestedTier, cc, dd, isSpell, statValue, kwBuckets, effBuckets, mountAdj);
+            // ---- 7) 建议档位 Ĉ 与建议分布（含底盘预算——建议价与 D 同口径）----
+            result.SuggestedTier = FindSuggestedTier(card, cc, dd, isSpell, statValue, kwBuckets, effBuckets);
+            result.SuggestedCost = BuildCostAtTier(card, result.SuggestedTier, cc, dd, isSpell, statValue, kwBuckets, effBuckets);
+
+            // 自洽补齐（2026-09-10，取代「按实际价值采纳不强行补齐」）：D(Ĉ) 取整总和常 < Ĉ，
+            // 而写回的 costList 总和即新声明档 C′——档位反馈（f=d(C′)，低档折价更小）会让
+            // D(C′) 反超 C′（实测 6 卡：D(5)=4 写回 → C′=4 → D(4)=5 → 规则一永不符），
+            // 升档迭代在反馈下震荡不收敛；唯一自洽解 = 差额补灰到 Ĉ
+            // （声明档=Ĉ，D(Ĉ)≤Ĉ 由 FindSuggestedTier 的定义保证）。
+            int suggestedSum = result.SuggestedCost.Values.Sum();
+            if (suggestedSum < result.SuggestedTier)
+            {
+                result.SuggestedCost.TryGetValue(ManaType.Gray, out var grayPrev);
+                result.SuggestedCost[ManaType.Gray] = grayPrev + (result.SuggestedTier - suggestedSum);
+            }
             return result;
         }
 
@@ -290,7 +305,6 @@ namespace CardCore
             float factor = ComputeMountFactor(card, cc, dd, declaredTier);
             int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
             var kwMultiplier = cc.KeywordsShareDelayDiscount ? factor : 1f;
-            int mountAdj = CardCompositionCost.MountSlotAdjust(card);
 
             // ---- 第一遍：各模式效果锚桶（DeriveElementCosts 的 modeIndex 分支，未折未取整）----
             // 启动式能力与 Derive 同口径：构筑期不占卡费（运行时现付），各模式桶一律跳过。
@@ -323,14 +337,15 @@ namespace CardCore
             if (rawTotals[0] < tierMax - 0.001f)
                 Debug.LogWarning($"[CardCostService] 抉择卡 {card.ID} 模式0非最高消耗（{rawTotals[0]} < {tierMax}）——违反数据契约（编辑界面应把最高消耗放在序号0）");
 
-            // 卡层组合费用：价差溢价按原始锚价差判定（S/挂载口/延迟折对模式均匀，不改变差值）
+            // 卡层组合费用：价差溢价按原始锚价差判定（S/底盘/延迟折对模式均匀，不改变差值）
             int spreadPremium = CardCompositionCost.ChoiceSpreadPremium(rawTotals);
-            float grayAdd = statGray + spreadPremium + mountAdj;
+            float grayAdd = statGray + spreadPremium;
 
             // ---- 第二遍：L2 组合 + L3 整卡折（与 Derive 的 ApportionMounted 同口径）----
             for (int m = 0; m < modeCount; m++)
             {
                 var mounted = ApportionMounted(modeBuckets[m], kwBuckets, kwMultiplier, factor, grayAdd);
+                ApplyChassis(card, mounted); // 底盘预算（2026-09-10）：退费先灰后最高色 / 加价入灰
                 result.Add(mounted.ToDictionary(kv => (int)kv.Key, kv => (float)kv.Value));
             }
             return result;
@@ -518,7 +533,7 @@ namespace CardCore
 
         /// <summary>Ĉ = min{C∈[1..MaxTier] : D(C) ≤ C}；D(C) 随 C 单调不增（d 递减），从 1 向上搜；无满足取 MaxTier。</summary>
         private static int FindSuggestedTier(CardData card, CardCostConfig cc, DelayDiscountConfig dd,
-            bool isSpell, float statValue, Dictionary<ManaType, float> kwBuckets, Dictionary<ManaType, float> effBuckets, int mountAdj)
+            bool isSpell, float statValue, Dictionary<ManaType, float> kwBuckets, Dictionary<ManaType, float> effBuckets)
         {
             // 无身材无效果无关键词 → D=0，无需建议；返回 0，调用方按「保持空」处理。
             // （关键词存在但未登记 Grant 原子时 kwBuckets 为空 —— 仍参与搜索，D≈S。）
@@ -528,22 +543,38 @@ namespace CardCore
 
             for (int tier = 1; tier <= cc.MaxTier; tier++)
             {
-                var costAt = BuildCostAtTier(tier, cc, dd, isSpell, statValue, kwBuckets, effBuckets, mountAdj);
+                var costAt = BuildCostAtTier(card, tier, cc, dd, isSpell, statValue, kwBuckets, effBuckets);
                 if (costAt.Values.Sum() <= tier) return tier;
             }
             return cc.MaxTier;
         }
 
-        /// <summary>按指定档位构建 D(tier) 的逐色分布（L2 组合 + L3 整卡折 + 组合层取整；供建议档位搜索与采纳写入）。</summary>
-        private static Dictionary<ManaType, int> BuildCostAtTier(int tier, CardCostConfig cc, DelayDiscountConfig dd,
-            bool isSpell, float statValue, Dictionary<ManaType, float> kwBuckets, Dictionary<ManaType, float> effBuckets, int mountAdj)
+        /// <summary>按指定档位构建 D(tier) 的逐色分布（L2 组合 + L3 整卡折 + 组合层取整；供建议档位搜索与采纳写入）。
+        /// 含底盘预算（2026-09-10 攻/守效果化）——建议价与 D 同口径。</summary>
+        private static Dictionary<ManaType, int> BuildCostAtTier(CardData card, int tier, CardCostConfig cc, DelayDiscountConfig dd,
+            bool isSpell, float statValue, Dictionary<ManaType, float> kwBuckets, Dictionary<ManaType, float> effBuckets)
         {
             float d = isSpell ? 1f : dd.At(Mathf.Clamp(tier, 1, cc.MaxTier));
             float factor = Mathf.Max(0f, d);
 
             var kwMultiplier = cc.KeywordsShareDelayDiscount ? factor : 1f;
             int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
-            return ApportionMounted(effBuckets, kwBuckets, kwMultiplier, factor, statGray + mountAdj);
+            var mounted = ApportionMounted(effBuckets, kwBuckets, kwMultiplier, factor, statGray);
+            ApplyChassis(card, mounted);
+            return mounted;
+        }
+
+        /// <summary>底盘预算落位（取整后）：正=退费（先灰后最高费用色），负=加价入灰。
+/// 与 Derive/DeriveModeCosts/BuildCostAtTier 三处共用，防口径漂移。</summary>
+        private static void ApplyChassis(CardData card, Dictionary<ManaType, int> mounted)
+        {
+            int chassis = CardCompositionCost.ChassisAdjust(card);
+            if (chassis > 0) CardCompositionCost.ApplyChassisRefund(mounted, chassis);
+            else if (chassis < 0)
+            {
+                mounted.TryGetValue(ManaType.Gray, out var g);
+                mounted[ManaType.Gray] = g - chassis; // 负值 → 加价
+            }
         }
 
         /// <summary>

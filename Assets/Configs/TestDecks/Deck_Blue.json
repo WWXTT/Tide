@@ -1,7 +1,7 @@
 {
     "cards": [
         {
-            "id": "74ecfffc7234de21",
+            "id": "27284f92339269fa",
             "cardName": "湛冰法师",
             "supertype": "Creature",
             "power": 2,
@@ -13,7 +13,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -57,10 +57,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "18e00438c315845b",
+            "id": "e4bd545335568702",
             "cardName": "湛冰法师·凛",
             "supertype": "Creature",
             "power": 2,
@@ -72,7 +75,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -116,10 +119,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "f8dd800a42c4323c",
+            "id": "40941745e5c2b4d5",
             "cardName": "湛寒霜术士",
             "supertype": "Creature",
             "power": 2,
@@ -131,7 +137,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -175,10 +181,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "a17ce40b1f4ee304",
+            "id": "54bff6ae8499aaeb",
             "cardName": "湛寒霜术士·凝",
             "supertype": "Creature",
             "power": 3,
@@ -190,7 +199,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [],
@@ -234,10 +243,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "5e785ca4b1a6cdba",
+            "id": "1ef081613933fa93",
             "cardName": "湛冻雾行者",
             "supertype": "Creature",
             "power": 3,
@@ -249,7 +261,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -293,10 +305,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "e55eecb620a9c393",
+            "id": "4eea85c09cbf3fec",
             "cardName": "湛冻雾行者·深",
             "supertype": "Creature",
             "power": 4,
@@ -308,7 +323,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [],
@@ -352,10 +367,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "03c6c3edd40d3795",
+            "id": "967adfb687a1b10a",
             "cardName": "湛极冰使者",
             "supertype": "Creature",
             "power": 3,
@@ -367,7 +385,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [],
@@ -411,10 +429,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "97e7b53b0bcb11c7",
+            "id": "c14ee6bc7df13e6e",
             "cardName": "湛锁链师",
             "supertype": "Creature",
             "power": 2,
@@ -426,7 +447,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -470,10 +491,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "e99fb2cdebb2f380",
+            "id": "ce34d521f25986b9",
             "cardName": "湛锁链师·缠",
             "supertype": "Creature",
             "power": 2,
@@ -485,7 +509,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -529,10 +553,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "0d3adcefe1a30446",
+            "id": "791a62f2311725ff",
             "cardName": "湛定身术士",
             "supertype": "Creature",
             "power": 3,
@@ -544,7 +571,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -588,10 +615,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "026fa88453a06368",
+            "id": "30038a8c2b6229f7",
             "cardName": "湛定身术士·固",
             "supertype": "Creature",
             "power": 3,
@@ -603,7 +633,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [],
@@ -647,10 +677,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "4be0bde68bdf0879",
+            "id": "dc5c71e72b5fc776",
             "cardName": "湛缚影者",
             "supertype": "Creature",
             "power": 3,
@@ -662,7 +695,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [],
@@ -706,10 +739,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "0245781e99e34852",
+            "id": "3837cbc4a3cb97f1",
             "cardName": "湛回流术士",
             "supertype": "Creature",
             "power": 2,
@@ -721,7 +757,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -765,10 +801,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "37cbe7c3c12b99f8",
+            "id": "2b7955a2a51fd719",
             "cardName": "湛回流术士·涌",
             "supertype": "Creature",
             "power": 2,
@@ -780,7 +819,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -824,10 +863,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "d9e53b7165501f38",
+            "id": "f1b7fe5a8c00be59",
             "cardName": "湛逆潮行者",
             "supertype": "Creature",
             "power": 3,
@@ -839,7 +881,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -883,10 +925,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "ed112261d40a0231",
+            "id": "b316aee5011e5d90",
             "cardName": "湛逆潮行者·卷",
             "supertype": "Creature",
             "power": 3,
@@ -898,7 +943,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -942,10 +987,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "c15548be7a723f2f",
+            "id": "663bd82aeb28c188",
             "cardName": "湛退浪师",
             "supertype": "Creature",
             "power": 3,
@@ -957,7 +1005,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [],
@@ -1001,10 +1049,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "07949cbe8ed4bbd1",
+            "id": "26b959a9b5354368",
             "cardName": "湛禁言官",
             "supertype": "Creature",
             "power": 2,
@@ -1016,7 +1067,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -1060,10 +1111,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "ecce6d632d54a316",
+            "id": "e9b45769cd8c85bf",
             "cardName": "湛禁言官·肃",
             "supertype": "Creature",
             "power": 2,
@@ -1075,7 +1129,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -1119,10 +1173,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "6ec9e537335b6557",
+            "id": "8192de02b4d88fae",
             "cardName": "湛缄默审判者",
             "supertype": "Creature",
             "power": 3,
@@ -1134,7 +1191,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -1178,10 +1235,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "3598bc5ea85b68d6",
+            "id": "ad2cb6e84927ef7f",
             "cardName": "湛缄默官·深",
             "supertype": "Creature",
             "power": 3,
@@ -1193,7 +1253,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -1237,10 +1297,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "3375ee68054a8e5f",
+            "id": "8667dbdc3796535c",
             "cardName": "湛卷轴师",
             "supertype": "Creature",
             "power": 1,
@@ -1252,7 +1315,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -1296,10 +1359,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "b2fd1ed11deeda96",
+            "id": "0697a741aed78a75",
             "cardName": "湛卷轴师·览",
             "supertype": "Creature",
             "power": 1,
@@ -1311,7 +1377,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -1355,10 +1421,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "83b618dc39309a24",
+            "id": "ddeecf27cb123747",
             "cardName": "湛学者",
             "supertype": "Creature",
             "power": 2,
@@ -1370,7 +1439,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -1414,10 +1483,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "f872199ac8361fae",
+            "id": "26b045aacc218a2f",
             "cardName": "湛学者·博",
             "supertype": "Creature",
             "power": 2,
@@ -1429,7 +1501,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -1473,10 +1545,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "a621ddaead4baf51",
+            "id": "9938dcef621b6a30",
             "cardName": "湛星象师",
             "supertype": "Creature",
             "power": 2,
@@ -1488,7 +1563,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -1532,10 +1607,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "79bd01ccc6789987",
+            "id": "c19c6c7279b38266",
             "cardName": "湛星象师·观",
             "supertype": "Creature",
             "power": 3,
@@ -1547,7 +1625,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -1591,10 +1669,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "ad65e41156d73e9a",
+            "id": "41161217b40e1451",
             "cardName": "湛警戒卫",
             "supertype": "Creature",
             "power": 2,
@@ -1606,7 +1687,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -1621,10 +1702,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "3512ae0809339060",
+            "id": "79f0776c05b506c9",
             "cardName": "湛警戒卫·稳",
             "supertype": "Creature",
             "power": 2,
@@ -1636,7 +1720,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1651,10 +1735,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "8c22b0d2535893a0",
+            "id": "a2b69fa2ffd2c709",
             "cardName": "湛哨卫",
             "supertype": "Creature",
             "power": 3,
@@ -1666,7 +1753,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1681,10 +1768,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "231fb85a228bd091",
+            "id": "2181cfefb6ee4a68",
             "cardName": "湛哨卫·坚",
             "supertype": "Creature",
             "power": 3,
@@ -1696,7 +1786,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1711,7 +1801,10 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
             "id": "866a73316b1edcab",
@@ -1741,7 +1834,10 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
             "id": "963286d4c88749ac",
@@ -1771,10 +1867,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "3bf35dbbd6b53860",
+            "id": "0668b584ab1fa1fb",
             "cardName": "湛法盾卫",
             "supertype": "Creature",
             "power": 2,
@@ -1786,7 +1885,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -1801,10 +1900,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "5461fdeed4b583e7",
+            "id": "5d43621493f72f4c",
             "cardName": "湛法盾卫·御",
             "supertype": "Creature",
             "power": 2,
@@ -1816,7 +1918,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -1831,10 +1933,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "379ef5fd9868df7d",
+            "id": "d92b9d5c9160ecf4",
             "cardName": "湛咒盾手",
             "supertype": "Creature",
             "power": 3,
@@ -1846,7 +1951,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1861,10 +1966,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "f998331a9eaa9c8c",
+            "id": "dbaa9bda66ff0215",
             "cardName": "湛咒盾手·护",
             "supertype": "Creature",
             "power": 3,
@@ -1876,7 +1984,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1891,10 +1999,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "fdec1f7bf53057b2",
+            "id": "52fd7a955b13ccd9",
             "cardName": "湛潜影刺客",
             "supertype": "Creature",
             "power": 3,
@@ -1906,7 +2017,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -1921,10 +2032,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "b31cd203222fec53",
+            "id": "65ae0a3b61f3b608",
             "cardName": "湛潜影刺客·匿",
             "supertype": "Creature",
             "power": 3,
@@ -1936,7 +2050,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -1951,10 +2065,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "c1955aafb91743bf",
+            "id": "f0aede4b90dcbcc6",
             "cardName": "湛暗流杀手",
             "supertype": "Creature",
             "power": 4,
@@ -1966,7 +2083,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1981,10 +2098,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "d814be7a2d6f4f08",
+            "id": "b77909e10e2278c1",
             "cardName": "湛暗流杀手·影",
             "supertype": "Creature",
             "power": 4,
@@ -1996,7 +2116,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -2011,7 +2131,10 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
             "id": "7002efb028ea9003",
@@ -2041,7 +2164,10 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
             "id": "8c0798161317b3d8",
@@ -2071,10 +2197,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "69cc405d65613463",
+            "id": "194f5aebd14ed83c",
             "cardName": "湛时空领主",
             "supertype": "Creature",
             "power": 5,
@@ -2086,7 +2215,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [
@@ -2102,10 +2231,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "425345d795327c12",
+            "id": "f280ffe46f9a6cfd",
             "cardName": "湛时空领主·恒",
             "supertype": "Creature",
             "power": 5,
@@ -2117,7 +2249,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [
@@ -2133,10 +2265,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "dae55e14c4d1b0cf",
+            "id": "52fd5e8d67cd3766",
             "cardName": "湛回手术",
             "supertype": "Spell",
             "power": 0,
@@ -2144,6 +2279,10 @@
             "costList": [
                 {
                     "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
                     "amount": 1.0
                 }
             ],
@@ -2188,10 +2327,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "8ef11ec48f58e48f",
+            "id": "6e825d7e369e6395",
             "cardName": "湛回手术·速",
             "supertype": "Spell",
             "power": 0,
@@ -2199,7 +2341,11 @@
             "costList": [
                 {
                     "manaType": 2,
-                    "amount": 2.0
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -2243,10 +2389,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "03948e943ab3ccaf",
+            "id": "04a02c912b004cad",
             "cardName": "湛强制回流",
             "supertype": "Spell",
             "power": 0,
@@ -2254,7 +2403,7 @@
             "costList": [
                 {
                     "manaType": 2,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -2298,10 +2447,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "33cf69aa129678d5",
+            "id": "869650cda8f16f74",
             "cardName": "湛顶回咒",
             "supertype": "Spell",
             "power": 0,
@@ -2309,6 +2461,10 @@
             "costList": [
                 {
                     "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
                     "amount": 1.0
                 }
             ],
@@ -2353,10 +2509,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "98289bf39453980d",
+            "id": "1c09bed95d1af2a7",
             "cardName": "湛顶回咒·深",
             "supertype": "Spell",
             "power": 0,
@@ -2364,7 +2523,11 @@
             "costList": [
                 {
                     "manaType": 2,
-                    "amount": 2.0
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -2408,10 +2571,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "6fcb73a4acebf624",
+            "id": "71ed34b6cf7c6a55",
             "cardName": "湛冰封",
             "supertype": "Spell",
             "power": 0,
@@ -2419,6 +2585,10 @@
             "costList": [
                 {
                     "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
                     "amount": 1.0
                 }
             ],
@@ -2463,10 +2633,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "5027c44b89447bac",
+            "id": "ac0e3b4d9fd31626",
             "cardName": "湛冰封·锁",
             "supertype": "Spell",
             "power": 0,
@@ -2474,7 +2647,11 @@
             "costList": [
                 {
                     "manaType": 2,
-                    "amount": 2.0
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -2518,10 +2695,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "ec3f8c0c35e44cf4",
+            "id": "eb31a8ab96dfa346",
             "cardName": "湛寒冰牢",
             "supertype": "Spell",
             "power": 0,
@@ -2529,7 +2709,7 @@
             "costList": [
                 {
                     "manaType": 2,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -2573,10 +2753,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "1b231f11b2910fc8",
+            "id": "ee8cbddd678e2c39",
             "cardName": "湛定身咒",
             "supertype": "Spell",
             "power": 0,
@@ -2584,6 +2767,10 @@
             "costList": [
                 {
                     "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
                     "amount": 1.0
                 }
             ],
@@ -2628,10 +2815,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "0a9d922ee341a339",
+            "id": "95e18699c8f8fde3",
             "cardName": "湛汲智",
             "supertype": "Spell",
             "power": 0,
@@ -2639,7 +2829,11 @@
             "costList": [
                 {
                     "manaType": 2,
-                    "amount": 2.0
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -2683,10 +2877,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "4b491d521fd44639",
+            "id": "e4b2a37c296a8e3b",
             "cardName": "湛汲智·渊",
             "supertype": "Spell",
             "power": 0,
@@ -2694,7 +2891,7 @@
             "costList": [
                 {
                     "manaType": 2,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -2738,10 +2935,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "b40bb12eecd695d9",
+            "id": "04df7afd50fb395f",
             "cardName": "湛灵感潮",
             "supertype": "Spell",
             "power": 0,
@@ -2749,7 +2949,7 @@
             "costList": [
                 {
                     "manaType": 2,
-                    "amount": 4.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -2793,10 +2993,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "8c3b7f5bd6c6b7d9",
+            "id": "fb35219904199bb0",
             "cardName": "湛微光检索",
             "supertype": "Spell",
             "power": 0,
@@ -2804,6 +3007,10 @@
             "costList": [
                 {
                     "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
                     "amount": 1.0
                 }
             ],
@@ -2848,10 +3055,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "4f59cec023d2c3d9",
+            "id": "458b06208d8ddc5f",
             "cardName": "湛回响阅读",
             "supertype": "Spell",
             "power": 0,
@@ -2859,7 +3069,7 @@
             "costList": [
                 {
                     "manaType": 2,
-                    "amount": 5.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -2903,10 +3113,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "67d8df35e828da0e",
+            "id": "0eb021de0f11fed4",
             "cardName": "湛封口",
             "supertype": "Spell",
             "power": 0,
@@ -2914,7 +3127,11 @@
             "costList": [
                 {
                     "manaType": 2,
-                    "amount": 2.0
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -2958,7 +3175,10 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         }
     ],
     "deckConfig": {

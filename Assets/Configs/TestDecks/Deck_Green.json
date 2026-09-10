@@ -1,7 +1,7 @@
 {
     "cards": [
         {
-            "id": "40acd829947f2603",
+            "id": "3b0a9c01de1d175b",
             "cardName": "翠嫩芽",
             "supertype": "Creature",
             "power": 1,
@@ -10,6 +10,10 @@
                 {
                     "manaType": 3,
                     "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
                 }
             ],
             "keywords": [
@@ -24,10 +28,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "32c46eb99bbe159a",
+            "id": "6e45edff405338e2",
             "cardName": "翠嫩芽·青",
             "supertype": "Creature",
             "power": 1,
@@ -36,31 +43,9 @@
                 {
                     "manaType": 3,
                     "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "Growth"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "4c593bcfd99a9588",
-            "cardName": "翠藤苗",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 2,
-            "costList": [
+                },
                 {
-                    "manaType": 3,
+                    "manaType": 0,
                     "amount": 1.0
                 }
             ],
@@ -76,10 +61,46 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "2a1f6b34486ad749",
+            "id": "4ed1e7ce0ab42910",
+            "cardName": "翠藤苗",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "bd2f73edfaeecaca",
             "cardName": "翠藤苗·伸",
             "supertype": "Creature",
             "power": 2,
@@ -91,7 +112,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -106,43 +127,16 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "c1b4d67a17043b86",
+            "id": "cf2d2967871c78e5",
             "cardName": "翠生长期",
             "supertype": "Creature",
             "power": 2,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "Growth"
-            ],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "20c4c86150058dbc",
-            "cardName": "翠繁茂苗",
-            "supertype": "Creature",
-            "power": 3,
             "life": 4,
             "costList": [
                 {
@@ -166,10 +160,46 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "bf5a9ecf310efd68",
+            "id": "aefce700034043bd",
+            "cardName": "翠繁茂苗",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "89eb67e76afa94d3",
             "cardName": "翠治愈者",
             "supertype": "Creature",
             "power": 1,
@@ -181,7 +211,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -227,10 +257,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "85962722f1b1e984",
+            "id": "9c4ab9065725e39d",
             "cardName": "翠治愈者·泽",
             "supertype": "Creature",
             "power": 1,
@@ -242,7 +275,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -288,10 +321,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "c266bef955653d72",
+            "id": "2af0cd7cf1d34acb",
             "cardName": "翠甘霖祭司",
             "supertype": "Creature",
             "power": 2,
@@ -303,7 +339,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -349,10 +385,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "937628cedb5e5145",
+            "id": "20678bd12d923e0c",
             "cardName": "翠甘霖祭司·霖",
             "supertype": "Creature",
             "power": 2,
@@ -364,7 +403,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -410,10 +449,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "87c1f4ce09048dab",
+            "id": "9cf38ceb0c195cb2",
             "cardName": "翠生命守望",
             "supertype": "Creature",
             "power": 3,
@@ -425,7 +467,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -471,10 +513,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "7057e866a89ef8e6",
+            "id": "156b9c625363b40d",
             "cardName": "翠增殖者",
             "supertype": "Creature",
             "power": 2,
@@ -486,7 +531,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -532,10 +577,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "91e1df54c307b1ec",
+            "id": "5082fe041af25845",
             "cardName": "翠增殖者·衍",
             "supertype": "Creature",
             "power": 2,
@@ -547,7 +595,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -593,10 +641,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "f2bf1cf053c7306b",
+            "id": "f64a7314cc956932",
             "cardName": "翠播种人",
             "supertype": "Creature",
             "power": 2,
@@ -608,7 +659,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -654,10 +705,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "530464b65eb9e84a",
+            "id": "028f329d9a7c0863",
             "cardName": "翠播种人·撒",
             "supertype": "Creature",
             "power": 3,
@@ -669,7 +723,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -715,10 +769,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "94a9310e86c03f4d",
+            "id": "188d4234dbaa8d54",
             "cardName": "翠繁荣使者",
             "supertype": "Creature",
             "power": 3,
@@ -730,7 +787,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -776,10 +833,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "35f1f5625a3f3d37",
+            "id": "0b098c9235faa7ec",
             "cardName": "翠古木壁",
             "supertype": "Creature",
             "power": 1,
@@ -791,7 +851,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -806,10 +866,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "299f2d236b9f096f",
+            "id": "bb2baf4ca1a572b6",
             "cardName": "翠古木壁·厚",
             "supertype": "Creature",
             "power": 1,
@@ -821,7 +884,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -836,10 +899,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "5eb83166d48a31af",
+            "id": "c470d7002cbac2f6",
             "cardName": "翠藤墙",
             "supertype": "Creature",
             "power": 2,
@@ -851,7 +917,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -866,10 +932,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "a9bc3c9a55e8012c",
+            "id": "0517841c1ef98a25",
             "cardName": "翠藤墙·密",
             "supertype": "Creature",
             "power": 2,
@@ -881,7 +950,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -896,7 +965,10 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
             "id": "b702ff340e799fd4",
@@ -926,10 +998,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "7185ff1f47770e76",
+            "id": "539a19eba329afbf",
             "cardName": "翠岩壳兽",
             "supertype": "Creature",
             "power": 2,
@@ -941,7 +1016,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -987,10 +1062,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "7811fcc90bda6487",
+            "id": "1850749069f3c4fe",
             "cardName": "翠岩壳兽·坚",
             "supertype": "Creature",
             "power": 2,
@@ -1002,7 +1080,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -1048,10 +1126,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "25ad4525f37d13c7",
+            "id": "aadcb0c06f1d4f3e",
             "cardName": "翠晶甲虫",
             "supertype": "Creature",
             "power": 3,
@@ -1063,7 +1144,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -1109,10 +1190,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "7abc911ba7c96716",
+            "id": "9eb169174e84238f",
             "cardName": "翠硬壳龟",
             "supertype": "Creature",
             "power": 3,
@@ -1124,7 +1208,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1139,10 +1223,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "a0f019665f6ac737",
+            "id": "fe9db43fd021585e",
             "cardName": "翠硬壳龟·固",
             "supertype": "Creature",
             "power": 3,
@@ -1154,7 +1241,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1169,10 +1256,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "42000935da7a19d1",
+            "id": "0db812bcc73fc9b8",
             "cardName": "翠甲胄兽",
             "supertype": "Creature",
             "power": 4,
@@ -1184,7 +1274,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1199,10 +1289,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "3c64c6eba29823a0",
+            "id": "3f41011391079d9b",
             "cardName": "翠系命藤",
             "supertype": "Creature",
             "power": 3,
@@ -1214,7 +1307,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -1229,10 +1322,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "a7eca67d8b37acdc",
+            "id": "e125051285c99685",
             "cardName": "翠系命藤·缠",
             "supertype": "Creature",
             "power": 3,
@@ -1244,7 +1340,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1259,10 +1355,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "65af9a98704ed6cb",
+            "id": "5c29a986e21c11fa",
             "cardName": "翠生命相连",
             "supertype": "Creature",
             "power": 3,
@@ -1274,7 +1373,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1289,10 +1388,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "d850d11b46f9e2e2",
+            "id": "33d3cf5ae402e0f3",
             "cardName": "翠生命相连·系",
             "supertype": "Creature",
             "power": 3,
@@ -1304,7 +1406,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1319,10 +1421,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "1bac8b956a84363c",
+            "id": "81a10f9085d1adfd",
             "cardName": "翠再生蜥",
             "supertype": "Creature",
             "power": 3,
@@ -1334,7 +1439,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1349,10 +1454,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "d977ffe589f9ee65",
+            "id": "1de125598c084824",
             "cardName": "翠再生蜥·活",
             "supertype": "Creature",
             "power": 3,
@@ -1364,7 +1472,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1379,10 +1487,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "092eb3af4c325664",
+            "id": "1ee70345b92fb2b5",
             "cardName": "翠轮回芽",
             "supertype": "Creature",
             "power": 4,
@@ -1394,7 +1505,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1409,7 +1520,10 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
             "id": "6b02ef6cb8ab4bfc",
@@ -1439,7 +1553,10 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
             "id": "28f36dd82c5c7325",
@@ -1463,7 +1580,10 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
             "id": "930dfe3552ad0a0e",
@@ -1487,62 +1607,17 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "e5437151f4997fb7",
+            "id": "3e8a5937a26e6f26",
             "cardName": "翠古树灵",
             "supertype": "Creature",
             "power": 6,
             "life": 7,
-            "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 4.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "4fbee2915cb7ea4e",
-            "cardName": "翠山岳兽",
-            "supertype": "Creature",
-            "power": 7,
-            "life": 7,
-            "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 4.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": []
-        },
-        {
-            "id": "8295e0c13e8bcb88",
-            "cardName": "翠太古巨木",
-            "supertype": "Creature",
-            "power": 7,
-            "life": 8,
             "costList": [
                 {
                     "manaType": 0,
@@ -1559,10 +1634,67 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "bf02d61feaa892ab",
+            "id": "feeabdfbf2fdf89f",
+            "cardName": "翠山岳兽",
+            "supertype": "Creature",
+            "power": 7,
+            "life": 7,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "a58ec5c723ce985b",
+            "cardName": "翠太古巨木",
+            "supertype": "Creature",
+            "power": 7,
+            "life": 8,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 6.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "test-deck"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "7676ce0019e9107a",
             "cardName": "翠圣盾卫",
             "supertype": "Creature",
             "power": 3,
@@ -1574,7 +1706,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1589,10 +1721,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "8527be1adeebf302",
+            "id": "dfb1db1843acca33",
             "cardName": "翠圣盾卫·辉",
             "supertype": "Creature",
             "power": 3,
@@ -1604,7 +1739,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [
@@ -1619,10 +1754,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "1655287aee1ae2bd",
+            "id": "294ce8f423208e02",
             "cardName": "翠苏生祭司",
             "supertype": "Creature",
             "power": 3,
@@ -1630,7 +1768,7 @@
             "costList": [
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [],
@@ -1674,10 +1812,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "4ca9a925fa1b72d5",
+            "id": "d563cdc3ca504b0c",
             "cardName": "翠苏生祭司·唤",
             "supertype": "Creature",
             "power": 3,
@@ -1685,7 +1826,7 @@
             "costList": [
                 {
                     "manaType": 0,
-                    "amount": 4.0
+                    "amount": 5.0
                 }
             ],
             "keywords": [],
@@ -1729,10 +1870,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "b75073fb86a87104",
+            "id": "7e9bab463f7ee32b",
             "cardName": "翠碾压巨木",
             "supertype": "Creature",
             "power": 6,
@@ -1744,7 +1888,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [
@@ -1759,10 +1903,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "17eeb1736fbadf92",
+            "id": "e19d5063979ba448",
             "cardName": "翠治愈浪潮",
             "supertype": "Spell",
             "power": 0,
@@ -1770,7 +1917,11 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 2.0
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -1816,10 +1967,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "64714f3a49075d12",
+            "id": "411a5bb06f273f60",
             "cardName": "翠治愈浪潮·沛",
             "supertype": "Spell",
             "power": 0,
@@ -1827,7 +1981,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -1873,10 +2027,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "c0294afa611be889",
+            "id": "f10be34e75643a3b",
             "cardName": "翠生命之泉",
             "supertype": "Spell",
             "power": 0,
@@ -1884,7 +2041,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -1930,10 +2087,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "bcbec38c342dc543",
+            "id": "5b881a3f1abcabc9",
             "cardName": "翠成长赐福",
             "supertype": "Spell",
             "power": 0,
@@ -1941,7 +2101,11 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 2.0
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -1987,10 +2151,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "ef80830fbf0655b1",
+            "id": "f51103e5a65dab43",
             "cardName": "翠成长赐福·沃",
             "supertype": "Spell",
             "power": 0,
@@ -1998,7 +2165,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -2044,10 +2211,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "4d5cbaef2f0c6e3e",
+            "id": "e63736d1c97ec388",
             "cardName": "翠繁荣仪式",
             "supertype": "Spell",
             "power": 0,
@@ -2055,7 +2225,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 5.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -2101,10 +2271,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "71ee193e42d0996c",
+            "id": "5753cec7d77e0b0e",
             "cardName": "翠巨力术",
             "supertype": "Spell",
             "power": 0,
@@ -2112,7 +2285,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 6.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [],
@@ -2167,10 +2340,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "5342609b272e30e3",
+            "id": "2b93dca5904ab4ea",
             "cardName": "翠巨力术·壮",
             "supertype": "Spell",
             "power": 0,
@@ -2178,7 +2354,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 10.0
+                    "amount": 8.0
                 }
             ],
             "keywords": [],
@@ -2233,10 +2409,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "347f74818007f2ae",
+            "id": "ad8a4d62adeaed1c",
             "cardName": "翠岩甲术",
             "supertype": "Spell",
             "power": 0,
@@ -2244,7 +2423,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -2290,10 +2469,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "eec232a77ca8dabe",
+            "id": "8b178597c0213108",
             "cardName": "翠岩甲术·厚",
             "supertype": "Spell",
             "power": 0,
@@ -2301,7 +2483,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 4.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -2347,10 +2529,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "a97b1f0db54b3927",
+            "id": "aea20b5ab8b1ac85",
             "cardName": "翠光合",
             "supertype": "Spell",
             "power": 0,
@@ -2358,7 +2543,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -2402,10 +2587,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "ad1ab32c7cd99bf1",
+            "id": "15b54b737b01b593",
             "cardName": "翠光合·盛",
             "supertype": "Spell",
             "power": 0,
@@ -2413,7 +2601,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 6.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [],
@@ -2457,10 +2645,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "2a1452ec2667be9b",
+            "id": "32871488f5f9d312",
             "cardName": "翠采掘",
             "supertype": "Spell",
             "power": 0,
@@ -2468,6 +2659,10 @@
             "costList": [
                 {
                     "manaType": 3,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
                     "amount": 1.0
                 }
             ],
@@ -2512,10 +2707,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "96637760d7536c9a",
+            "id": "edd30482c717c948",
             "cardName": "翠成长赐福·泽",
             "supertype": "Spell",
             "power": 0,
@@ -2523,7 +2721,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 6.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [],
@@ -2569,10 +2767,13 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         },
         {
-            "id": "c90c58457d5f178e",
+            "id": "0406b44672d0bf18",
             "cardName": "翠岩甲术·固",
             "supertype": "Spell",
             "power": 0,
@@ -2580,7 +2781,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 5.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -2626,7 +2827,10 @@
             "rank": -1,
             "linkRating": -1,
             "arrows": "",
-            "linkAuras": []
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
         }
     ],
     "deckConfig": {

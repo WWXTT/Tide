@@ -52,11 +52,15 @@ namespace CardCore
     /// 战斗为双向结算（定案）：随从互殴双方同时互致伤害；角色（玩家）被攻击同样有反伤——
     /// 反伤力量与耐久消耗走武器系统扩展点（见 PlayerCounterattackPower，系统未实现前角色反伤为 0）。
     ///
-    /// 关键词行为（定案）：
+    /// 关键词行为（定案；2026-09-10 攻/守效果化修订）：
     /// - 可用性统一走横置：随从一律横置入场；冲锋/突袭一次性生效 = 解除横置 + 消耗关键词
-    ///   （突袭残留紊乱指示物一回合，期间不能以玩家为目标）；攻击需未横置
-    /// - 风怒：每回合可攻击 2 次；守卫：友方单位被选为攻击目标时横置并强制转移目标
-    /// - 警戒：横置可被取消（攻击/代价横置，一回合一次，经 KeywordRules.ShouldTap）
+    ///   （突袭残留紊乱指示物一回合，期间不能以玩家为目标）；攻击/拦截/启动式均以未横置为资格，
+    ///   横置即上限——激励解除横置即可再动（攻击无每回合计数门槛、守卫无会话次数门槛，2026-09-10 定案）
+    /// - 攻击 = 1 速主动效果（默认自带，NoAttack 卡不能攻；连锁开启时 1 速不可发动）；
+    ///   守卫 = 2 速响应拦截（默认自带，NoGuard 卡不能拦）：阻挡阶段介入，拦截即横置
+    ///   → 结算按横置单向受伤（被动代价不对称：主动结算竖直）
+    /// - 警戒（2026-09-10 重定义）：不再是「代替横置扣除」——攻击照常横置；
+    ///   新语义 = 横置也能造成战斗伤害（横置目标持警戒仍反击，见 ResolvePair）
     /// - 嘲讽：防守方有存活嘲讽随从时不能指定玩家为攻击目标（碾压无视）
     /// - 潜行：不可被指定为攻击目标；攻击后移除（发动效果后的移除在效果执行器）
     /// - 先攻/连击：先攻步先行结算（死者不反击）；连击两步均结算
@@ -132,11 +136,8 @@ namespace CardCore
             });
         }
 
-        /// <summary>每回合攻击次数上限（1；风怒关键词已删除，多次攻击留待将来机制）</summary>
-        public static int MaxAttacksPerTurn(Card card)
-        {
-            return 1;
-        }
+        /// <summary>攻击次数上限已撤（2026-09-10 定案：横置即上限——攻击=横置代价，激励解除横置
+        /// 即可再攻；AttacksThisTurn 仅作统计）。保留此口径注释供引用方追溯。</summary>
 
         /// <summary>检查是否可以攻击（攻击者侧资格）</summary>
         public bool CanDeclareAttack(Entity attacker, Player controller)
@@ -148,15 +149,26 @@ namespace CardCore
             if (controller != _attackingPlayer)
                 return false;
 
+            // 攻击=1速主动效果（2026-09-10 速度接入·分期口径）：连锁开启（记速器>0）时
+            // 1速不可发动（速度发动须 speed > counter）；攻击宣言不上栈（结算走战斗三段），
+            // 速度作为资格门槛。守卫拦截=2速，在阻挡阶段照常可用（2 > 1）。
+            var speedCounter = GameCore.Instance?.StackEngine?.SpeedCounter;
+            if (speedCounter != null && speedCounter.CurrentSpeed > 0)
+                return false;
+
             // 检查是否在战场
             if (attacker is Card card)
             {
                 if (!_zoneManager.IsCardInZone(card, controller, Zone.Battlefield))
                     return false;
 
-                // 攻击次数上限（风怒 = 2）
-                if (card.AttacksThisTurn >= MaxAttacksPerTurn(card))
+                // 攻击能力（2026-09-10 攻击效果化）：攻击=1速主动效果（默认自带），
+                // NoAttack 卡（墙/辅助）不能宣言攻击
+                if (!card.HasAttackAbility())
                     return false;
+
+                // 次数上限已撤（横置即上限）：激励解除横置即可再攻——
+                // AttacksThisTurn 只作台账统计，不再是发动门槛
             }
 
             // 检查是否已横置（横置状态经扩展方法读取——Card 不实现 ITappable，该接口仅地牌池卡实现）
@@ -167,9 +179,8 @@ namespace CardCore
             if (attacker is IHasPower && GetPower(attacker) <= 0)
                 return false;
 
-            // 检查是否已经攻击（本战斗会话内）
-            if (_attackers.Any(a => a.Entity == attacker))
-                return false;
+            // 会话内重复攻击去重已撤（2026-09-10 横置即上限）：激励解除横置可再宣——
+            // 每次宣言生成独立 CombatParticipant（ExecuteDamage 逐配对结算，不串扰）
 
             return true;
         }
@@ -309,6 +320,11 @@ namespace CardCore
             {
                 if (!_zoneManager.IsCardInZone(card, controller, Zone.Battlefield))
                     return false;
+
+                // 守卫能力（2026-09-10 守卫效果化）：拦截=守卫能力专属（2速响应的生物默认自带；
+                // NoGuard 卡不能拦）。拦截时横置自身（见 DeclareBlock）→ 结算按横置单向受伤
+                if (!card.HasGuardAbility())
+                    return false;
             }
 
             if (blocker.IsTapped())
@@ -317,17 +333,17 @@ namespace CardCore
             if (!_attackers.Any(a => a.Entity == attacker))
                 return false;
 
-            if (_blockers.Any(b => b.Entity == blocker))
-                return false;
+            // 会话内重复拦截限制已撤（2026-09-10：横置即上限——守卫拦截即横置，
+            // 激励解除横置可再拦下一个攻击者；BlockedBy 单配对由结算覆盖）
 
             return true;
         }
 
-        /// <summary>宣告阻挡</summary>
-        public void DeclareBlock(Entity blocker, Entity attacker)
+        /// <summary>宣告阻挡（守卫拦截）：成功配对返回 true（资格不过返回 false，与 DeclareAttack 对称）</summary>
+        public bool DeclareBlock(Entity blocker, Entity attacker)
         {
             if (!CanBlock(blocker, attacker, _defendingPlayer))
-                return;
+                return false;
 
             var attackerParticipant = _attackers.First(a => a.Entity == attacker);
 
@@ -342,6 +358,10 @@ namespace CardCore
 
             attackerParticipant.BlockedBy = blocker;
 
+            // 守卫拦截横置自身（2026-09-10 守卫效果化）：被动代价不对称——攻击者宣言时横置、
+            // 守卫拦截时横置；结算按横置单向受伤（targetCanCounter 只看目标横置，警戒例外）
+            blocker.Tap();
+
             _currentPhase = CombatPhase.DeclareBlock;
 
             EventManager.Instance.Publish(new BlockDeclarationEvent
@@ -350,6 +370,7 @@ namespace CardCore
                 Attacker = attacker,
                 BlockingPlayer = _defendingPlayer
             });
+            return true;
         }
 
         /// <summary>结束阻挡宣言，进入伤害结算</summary>
@@ -422,8 +443,11 @@ namespace CardCore
             }
 
             // 反击资格（定案）：只有未横置的随从才能反击——反击不消耗横置（横置是攻击/发动的代价），
-            // 已横置的随从只能挨打。角色目标无横置概念（恒视为未横置）——武器反伤照常。
-            bool targetCanCounter = !target.IsTapped();
+            // 已横置的随从只能挨打（守卫拦截即横置 → 单向受伤，警戒例外：横置也能造成战斗伤害）。
+            // 攻击方横置不削输出（结算按竖直参战——现行规则的直接推论，无内置特判）。
+            // 角色目标无横置概念（恒视为未横置）——武器反伤照常。
+            bool targetCanCounter = !target.IsTapped()
+                                    || (target is Card vc && vc.HasKeyword(KeywordRules.Vigilance));
 
             // ---- 先攻步 ----
             if (attackerFirst)

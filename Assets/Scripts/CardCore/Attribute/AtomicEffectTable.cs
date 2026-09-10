@@ -87,7 +87,8 @@ namespace CardCore.Attribute
                 Priority = 50,
                 // ---- 安全兜底（仅当 entry 缺失或字段解析失败时生效）----
                 TargetKinds = "0,1",                        // 双方有生命单位（最宽域）
-                TargetFilter = "Creature",
+                TargetFilter = null,                        // 无过滤（旧常量 "Creature" 已废：token 改名 NoRole，
+                                                              // 死 token 顶替 null 会让「review 定案 filter=(空)」失真）
             };
 
             if (entry != null)
@@ -100,8 +101,10 @@ namespace CardCore.Attribute
                     ? entry.EffectColor
                     : (string.IsNullOrEmpty(entry.EffectColor) ? entry.EffectFunction : entry.EffectFunction + "," + entry.EffectColor);
 
-                // targeting / 发动 / 三分类：配置驱动，解析失败保留上面的兜底
-                if (!string.IsNullOrEmpty(entry.TargetKinds)) config.TargetKinds = entry.TargetKinds;
+                // targeting / 发动 / 三分类：配置驱动，解析失败保留上面的兜底。
+                // TargetKinds 列即真相：行内显式空（null/""）= 真无域（守卫/跳回合类被动，
+                // 不落 "0,1" 宽域兜底——兜底仅在整行缺失 entry==null 时生效）
+                config.TargetKinds = entry.TargetKinds;
                 if (!string.IsNullOrEmpty(entry.TargetFilter)) config.TargetFilter = entry.TargetFilter;
                 config.Polarity = UnityEngine.Mathf.Clamp(entry.Polarity, -1f, 1f);
             }

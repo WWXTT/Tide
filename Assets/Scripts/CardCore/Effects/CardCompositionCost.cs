@@ -23,21 +23,61 @@ namespace CardCore
     public static class CardCompositionCost
     {
         /// <summary>
-        /// 效果挂载口调整：clamp 到 Baseline 的差 × 对应费率（空置为负、超出为正）。
-        /// 计数 = CardData.Effects 条数（单效果内的原子并发组合由原子层计价承担，不重复计口）。
-        /// 返回灰分量增量（可为负）；调用方套用后灰下限 0（退费不把支付变负）。
+        /// 底盘预算（2026-09-10 攻/守效果化定案，取代旧挂载口 Baseline 曲线）：
+        /// 免费额度 ChassisBudget(3 灰) 覆盖 攻击(1) + 守卫(1) + 效果槽(1/个)。
+        /// 净调整 = 预算 − (攻在 + 守在 + 效果数) × 费率——正数退费、负数加价。
+        /// · 攻/守 = 1速/2速主动效果（不占槽位），生物默认自带（NoAttack/NoGuard opt-out 退额度）；
+        /// · 法术无攻守（恒退 2：即「法术减两费」）；瞬间法术 SurplusToSpeed=true 时
+        ///   盈余转 BaseSpeed+1（转换层授予，见 GameActions.GetCardEffectDefinitions），不退费（返回 0）。
+        /// 退费落位（先灰、灰不足逐点退最高费用色）由 ApplyChassisRefund 承担。
         /// </summary>
-        public static int MountSlotAdjust(CardData card)
+        public static int ChassisAdjust(CardData card)
         {
             var cfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCompositionConfig;
-            int baseline = (int)Math.Max(0f, cfg.MountBaseline);
-            int count = card?.Effects?.Count ?? 0;
+            int budget = (int)Math.Max(0f, cfg.ChassisBudget);
+            int rate = Math.Max(1, (int)Math.Max(0f, cfg.ChassisItemRate));
+            bool isCreature = card != null && card.Supertype == Cardtype.Creature;
+            int atk = isCreature && !card.NoAttack ? 1 : 0;
+            int grd = isCreature && !card.NoGuard ? 1 : 0;
+            int effects = card?.Effects?.Count ?? 0;
 
-            if (count > baseline)
-                return (int)Math.Max(0f, cfg.MountExtraRate) * (count - baseline);
-            if (count < baseline)
-                return -(int)Math.Max(0f, cfg.MountUnusedRate) * (baseline - count);
-            return 0;
+            // 瞬间富余转速度：不退费（速度 +1 在效果定义层授予）
+            if (card != null && card.SurplusToSpeed && IsInstantSpell(card)) return 0;
+
+            return budget - (atk + grd + effects) * rate;
+        }
+
+        /// <summary>瞬间法术 = 法术且无任何效果声明 Permanent 持续（发动完进墓地）。</summary>
+        private static bool IsInstantSpell(CardData card)
+        {
+            if (card == null || card.Supertype != Cardtype.Spell) return false;
+            if (card.Effects == null) return true;
+            foreach (var e in card.Effects)
+                if (e != null && e.Duration >= 0 && (DurationType)e.Duration == DurationType.Permanent)
+                    return false;
+            return true;
+        }
+
+        /// <summary>
+        /// 底盘退费落位：先扣灰桶（≥1 才扣），灰不足（法术常无灰分量）逐点从最高费用色桶扣
+        /// （并列取枚举序靠前者）。全桶空则退无可退（免费卡）。
+        /// </summary>
+        public static void ApplyChassisRefund(Dictionary<ManaType, int> mounted, int refund)
+        {
+            for (int i = 0; i < refund; i++)
+            {
+                if (mounted.TryGetValue(ManaType.Gray, out var g) && g >= 1)
+                {
+                    mounted[ManaType.Gray] = g - 1;
+                    continue;
+                }
+                ManaType best = default;
+                int bestV = 0;
+                foreach (var kv in mounted)
+                    if (kv.Key != ManaType.Gray && kv.Value > bestV) { bestV = kv.Value; best = kv.Key; }
+                if (bestV <= 0) break;
+                mounted[best] = bestV - 1;
+            }
         }
 
         /// <summary>

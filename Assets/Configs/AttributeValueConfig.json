@@ -1138,5 +1138,29 @@
     "TargetKinds": "0,1",
     "TargetFilter": null,
     "Polarity": 0.0
+  },
+  {
+    "ID": "bb9ea37b",
+    "EnumName": "攻击",
+    "DisplayName": "攻击{target}（1速·横置发动；附带竖直参战，持续到攻击结算完成）",
+    "EffectFunction": "Combat",
+    "EffectColor": "Gray",
+    "BaseCost": 1.0,
+    "EffectType": "Attack",
+    "TargetKinds": "1",
+    "TargetFilter": null,
+    "Polarity": -1.0
+  },
+  {
+    "ID": "67dc7e23",
+    "EnumName": "守卫",
+    "DisplayName": "友方被指为攻击目标时拦截：横置自身并转移目标（2速响应；结算按横置，单向受伤）",
+    "EffectFunction": "Combat",
+    "EffectColor": "Gray",
+    "BaseCost": 1.0,
+    "EffectType": "Guard",
+    "TargetKinds": "",
+    "TargetFilter": null,
+    "Polarity": 0.0
   }
 ]

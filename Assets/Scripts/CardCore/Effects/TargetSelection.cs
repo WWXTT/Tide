@@ -81,6 +81,8 @@ namespace CardCore
             if (req == null || req.Candidates == null || req.Candidates.Count == 0 || req.MaxCount <= 0)
                 return new List<Entity>();
 
+            GameActions.Crumb($"target-select cands={req.Candidates.Count} min={req.MinCount} chooser={req.Chooser?.Name} ui={(Current != null ? Current.GetType().Name : "null→auto")}");
+
             // AI / ヘッドレス → 即时自动选择（先頭 MinCount 个）
             if (Current == null || (req.Chooser != null && req.Chooser.IsAI))
                 return AutoSelect(req.Candidates, req.MinCount);
