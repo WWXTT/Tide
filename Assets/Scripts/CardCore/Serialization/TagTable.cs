@@ -60,7 +60,7 @@ namespace CardCore.Serialization
         public const int EffectStepData_ConditionStringParam = 914519353;
         public const int EffectStepData_Choices = 1595595327;
 
-        // ---- EffectChoiceData（抉择模式条目；2026-09-07 手算登记，下次跑 Tools/刷新属性排序 会同值重生成）----
+        // ---- EffectChoiceData ----
         public const int EffectChoiceData_Label = 2001727622;
         public const int EffectChoiceData_Steps = 1201939277;
 
@@ -75,6 +75,8 @@ namespace CardCore.Serialization
         public const int RCS_MaxLife = 922071213;
         public const int RCS_BaseCost = 1630071019;
         public const int RCS_CostModifier = 1414743304;
+        public const int RCS_Armor = 683926072;
+        public const int RCS_DamagePrevention = 1221822787;
         public const int RCS_IsTapped = 1985384084;
         public const int RCS_IsFrozen = 1428218013;
         public const int RCS_IsNegated = 2118117958;
@@ -167,7 +169,121 @@ namespace CardCore.Serialization
         public const int PS_MaxHealth = 459554504;
         public const int PS_DeckCount = 1940827978;
         public const int PS_HandCount = 38995153;
+        public const int PS_Seat = 1342382195;
+        public const int PS_IsAI = 1076858202;
+        public const int PS_FatigueCount = 2096412322;
+        public const int PS_LandCap = 1466244150;
+        public const int PS_ElementBank = 3481387;
+        public const int PS_OffsetDrainUsed = 671719169;
+        public const int PS_OffsetDiscardUsed = 2025050288;
+        public const int PS_OffsetMillUsed = 1250242446;
+        public const int PS_OffsetOpponentHealUsed = 1301472982;
+        public const int PS_OffsetOpponentDrawUsed = 1443501556;
+        public const int PS_OffsetSendExtraUsed = 611576621;
+        public const int PS_GraveyardCount = 1652629631;
+        public const int PS_ExileCount = 1217138263;
 
-        // 共 125 个标签
+        // ---- NetworkMessage ----
+        public const int NM_ProtocolVersion = 965419062;
+
+        // ---- NetEntityRef ----
+        public const int NER_RuntimeId = 1758868744;
+        public const int NER_Seat = 624100802;
+        public const int NER_IsPlayer = 1709381960;
+        public const int NER_CardId = 124142063;
+
+        // ---- NetEvent ----
+        public const int NE_EventType = 554855030;
+        public const int NE_EventId = 1713183649;
+        public const int NE_TurnNumber = 1233211344;
+        public const int NE_Params = 801770002;
+
+        // ---- NetParam ----
+        public const int NP_FieldName = 1421498712;
+        public const int NP_Kind = 1212109321;
+        public const int NP_IntValue = 176539587;
+        public const int NP_FloatValue = 1743336148;
+        public const int NP_StringValue = 1140726418;
+        public const int NP_EntityRefs = 384621897;
+
+        // ---- MsgGameStateSync ----
+        public const int MGSS_ViewerSeat = 1961466223;
+        public const int MGSS_ActiveSeat = 406303112;
+        public const int MGSS_PrioritySeat = 329487059;
+        public const int MGSS_ZoneCards = 1095299921;
+        public const int MGSS_Hands = 1371201158;
+        public const int MGSS_StackV2 = 1464117104;
+
+        // ---- StackItemDTO ----
+        public const int SID_Source = 887547856;
+        public const int SID_IsCardCast = 6974238;
+        public const int SID_EffectId = 1282903965;
+        public const int SID_EffectDisplayName = 2014314126;
+        public const int SID_ModeIndex = 982635335;
+        public const int SID_Targets = 1694824900;
+        public const int SID_ActivationSpeed = 548007896;
+        public const int SID_StackObjectType = 554634774;
+
+        // ---- NetZoneCards ----
+        public const int NZC_Seat = 687121728;
+        public const int NZC_Zone = 495592385;
+        public const int NZC_Cards = 1243020982;
+
+        // ---- CardHandInfo ----
+        public const int CHI_Seat = 715909855;
+        public const int CHI_Count = 1339118341;
+        public const int CHI_OwnRuntimeIds = 1399075956;
+
+        // ---- MsgIntentPlayCard ----
+        public const int MsgIntentPlayCard_CardRuntimeId = 1178557754;
+        public const int MsgIntentPlayCard_Targets = 1450138392;
+        public const int MsgIntentPlayCard_FromZone = 933788219;
+        public const int MsgIntentPlayCard_ModeIndex = 1969366828;
+
+        // ---- MsgIntentTapForElement ----
+        public const int MsgIntentTapForElement_CardRuntimeId = 1223238136;
+        public const int MsgIntentTapForElement_ManaType = 1523545680;
+
+        // ---- MsgIntentAddToElementPool ----
+        public const int MsgIntentAddToElementPool_CardRuntimeId = 713270002;
+
+        // ---- MsgIntentDeclareAttack ----
+        public const int MsgIntentDeclareAttack_Attacker = 439144961;
+        public const int MsgIntentDeclareAttack_Target = 1630252404;
+
+        // ---- MsgIntentDeclareBlock ----
+        public const int MsgIntentDeclareBlock_Blocker = 207940836;
+        public const int MsgIntentDeclareBlock_Attacker = 807317854;
+
+        // ---- MsgIntentActivateEffect ----
+        public const int MsgIntentActivateEffect_SourceCardRuntimeId = 919179242;
+        public const int MsgIntentActivateEffect_EffectId = 976844325;
+        public const int MsgIntentActivateEffect_Targets = 795110869;
+        public const int MsgIntentActivateEffect_PaidBoost = 1309359023;
+
+        // ---- MsgSelectRequest ----
+        public const int MSelR_RequestId = 1404564517;
+        public const int MSelR_ChooserSeat = 499080371;
+        public const int MSelR_Title = 1588971438;
+        public const int MSelR_Hint = 1371349148;
+        public const int MSelR_AllowCancel = 1480366595;
+        public const int MSelR_TimeoutSeconds = 143938716;
+        public const int MSelR_Min = 457187271;
+        public const int MSelR_Max = 1324456978;
+        public const int MSelR_Labels = 108139152;
+        public const int MSelR_Candidates = 1387773462;
+
+        // ---- MsgSelectResponse ----
+        public const int MSelP_RequestId = 1596262577;
+        public const int MSelP_Indices = 2029117393;
+
+        // ---- MsgNetEventBatch ----
+        public const int MNEB_Events = 1087901504;
+
+        // ---- RuntimeCardState ----
+        public const int RCS_RuntimeId = 1598792242;
+        public const int RCS_ControllerSeat = 1105098362;
+
+        // 共 204 个标签
     }
 }

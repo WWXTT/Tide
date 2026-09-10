@@ -15,6 +15,7 @@ namespace CardCore.Network
                 SequenceId = ++_sequenceCounter,
                 Payload = MemoryPackSerializer.Serialize(payload),
                 Timestamp = DateTime.UtcNow.Ticks,
+                ProtocolVersion = NetworkProtocol.Version,
             };
             return MemoryPackSerializer.Serialize(message);
         }

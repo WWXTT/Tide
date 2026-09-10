@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace CardCore
 {
@@ -37,6 +38,14 @@ namespace CardCore
         public TimestampInfo TimestampInfo => _timestamp;
         public DateTime CreationTime => _timestamp.DateTime;
         public uint SequenceNumber => _timestamp.Sequence;
+
+        // 网络实体身份（M1 协议定案 2026-09-10）：进程内全局唯一自增实例 ID。
+        // 不能复用 Card.ID（那是卡表模板 ID，BuildDeck 副本共享）；时间戳路线也不通
+        // （Card 构造 createTimestamp:false，Sequence 恒 0）。构造期分配 → token/复制卡
+        // 天然有 ID，无惰性登记时序耦合；跨局不重置（同进程多局防串号）。
+        // Interlocked 必需：无头桥在后台线程构造实体。
+        private static long _nextRuntimeId;
+        public uint RuntimeId { get; } = (uint)Interlocked.Increment(ref _nextRuntimeId);
 
         /// <summary>
         /// 是否存活
@@ -167,7 +176,7 @@ namespace CardCore
         public int OffsetSendExtraUsed { get; set; }
 
         /// <summary>疲劳计数：空卡组抽牌次数，第 N 次疲劳造成 N 点递增伤害（炉石式）。</summary>
-        // TODO(network): FatigueCount 暂不进 PlayerState DTO —— 接传输时在 GetTagDefinitions() 登记。
+        // FatigueCount 已进 PlayerState DTO（M1 网络协议 2026-09-10，GetTagDefinitions 已登记）。
         public int FatigueCount { get; set; }
 
         /// <summary>重置本局抵消计数与疲劳计数（新对局开始时调用）。</summary>

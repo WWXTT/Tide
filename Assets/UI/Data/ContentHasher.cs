@@ -180,7 +180,7 @@ namespace SynergyUI
               .Append(a.EffectType).Append(',')
               .Append(a.Value).Append(',')
               .Append(a.Value2).Append(',')
-              .Append(a.StringValue).Append(',')
+              .Append(a.ID).Append(',')
               .Append(a.ManaTypeParam).Append(',')
               .Append(a.ZoneParam).Append(',')
               .Append(a.Duration).Append(',')
