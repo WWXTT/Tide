@@ -296,6 +296,14 @@ namespace CardCore
         /// <summary>抉择模式索引（来自 EffectInstance.ModeIndex；执行引擎遇 Choice 步骤按此分派）</summary>
         public int ModeIndex;
 
+        // ---- 组合层编排属性（2026-09-10 重构 P1：自 EffectDefinition 复制进上下文，参照 ModeIndex 先例）----
+        /// <summary>持续（效果级唯一真相；原子 handler 从此读，不再读 effect.Duration）。</summary>
+        public DurationType Duration;
+        /// <summary>ForTurns 持续的回合数 N。</summary>
+        public int DurationValue;
+        /// <summary>SummonToken 落区（战场/手牌/牌库）。</summary>
+        public Zone SummonDropZone;
+
         /// <summary>元素池系统</summary>
         public ElementPoolSystem ElementPool { get; set; }
 

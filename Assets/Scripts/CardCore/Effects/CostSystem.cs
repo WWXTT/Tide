@@ -27,10 +27,8 @@ namespace CardCore
         MillDeck,
         /// <summary>送额外组：将额外卡组 N 张送墓（代价抵消用）</summary>
         SendExtraDeck,
-        /// <summary>对手抽牌：把资源送给对手的减益型代价（当量 1/张，2026-09-07 补）</summary>
-        OpponentDraw,
-        /// <summary>对手回复生命（当量 0.5/点——2点=1费，2026-09-07 补）</summary>
-        OpponentHeal,
+        // OpponentDraw / OpponentHeal 已删除（2026-09-10：被 Polarity 错边折价顶替——
+        // "有益原子锁对方域"自动减费取代显式跨边代价；当日卡数据 Costs 零使用，删值重排无影响）。
         /// <summary>自身减益（紊乱指示物，当量 1/条，2026-09-08 拓展）：Value=层数、TurnDuration=持续回合</summary>
         SelfSickness,
         /// <summary>对手增益（属性增加指示物 +1/+1，当量 1/层，2026-09-08 拓展）：Value=层数</summary>
@@ -270,80 +268,6 @@ namespace CardCore
         }
     }
 
-    /// <summary>对手抽牌代价事件（把资源送给对手的减益型代价）</summary>
-    public class OpponentDrawCostEvent : GameEventBase
-    {
-        public Player Payer;
-        public Player Beneficiary;
-        public int DrawCount;
-        public Entity Source;
-    }
-
-    /// <summary>对手回复生命代价事件（溢出走 Heal 统一管线转上限）</summary>
-    public class OpponentHealCostEvent : GameEventBase
-    {
-        public Player Payer;
-        public Player Beneficiary;
-        public int Amount;
-        public Entity Source;
-    }
-
-    /// <summary>
-    /// 对手抽牌代价处理器：支付时对手抽 Value 张（构筑期当量 1/张——2026-09-07 补）。
-    /// 对手牌库见底照付：抽牌走疲劳管线（此时代价反而对对手有害，规则自洽）。
-    /// </summary>
-    public class OpponentDrawCostHandler : ICostHandler
-    {
-        public CostType CostType => CostType.OpponentDraw;
-
-        public bool CanPay(CostInstance cost, CostContext context)
-            => context != null && context.Payer != null && context.Payer.Opponent != null;
-
-        public void Pay(CostInstance cost, CostContext context)
-        {
-            var opponent = context.Payer.Opponent;
-            int count = Math.Max(1, cost.Value);
-            for (int i = 0; i < count && opponent.IsAlive; i++)
-                ZoneManagerExtensions.DrawCard(context.ZoneManager, opponent, firstDrawOfTurn: false);
-            EventManager.Instance.Publish(new OpponentDrawCostEvent
-            {
-                Payer = context.Payer,
-                Beneficiary = opponent,
-                DrawCount = count,
-                Source = context.Source
-            });
-        }
-
-        public string GetDescription(CostInstance cost) => $"对手抽 {Math.Max(1, cost.Value)} 张牌";
-    }
-
-    /// <summary>
-    /// 对手回复生命代价处理器：支付时对手回复 Value 点（构筑期当量 0.5/点——2点=1费，2026-09-07 补）。
-    /// 走 Heal 扩展统一管线：溢出部分经 LifeUp 指示物转临时生命上限。
-    /// </summary>
-    public class OpponentHealCostHandler : ICostHandler
-    {
-        public CostType CostType => CostType.OpponentHeal;
-
-        public bool CanPay(CostInstance cost, CostContext context)
-            => context != null && context.Payer != null && context.Payer.Opponent != null;
-
-        public void Pay(CostInstance cost, CostContext context)
-        {
-            var opponent = context.Payer.Opponent;
-            int amount = Math.Max(1, cost.Value);
-            opponent.Heal(amount);
-            EventManager.Instance.Publish(new OpponentHealCostEvent
-            {
-                Payer = context.Payer,
-                Beneficiary = opponent,
-                Amount = amount,
-                Source = context.Source
-            });
-        }
-
-        public string GetDescription(CostInstance cost) => $"对手回复 {Math.Max(1, cost.Value)} 点生命";
-    }
 
     /// <summary>
     /// 沉睡代价处理器
@@ -686,8 +610,6 @@ namespace CardCore
             CostHandlerRegistry.Register(new SummonMaterialCostHandler());
             CostHandlerRegistry.Register(new MillDeckCostHandler());
             CostHandlerRegistry.Register(new SendExtraDeckCostHandler());
-            CostHandlerRegistry.Register(new OpponentDrawCostHandler());
-            CostHandlerRegistry.Register(new OpponentHealCostHandler());
             CostHandlerRegistry.Register(new SelfSicknessCostHandler());
             CostHandlerRegistry.Register(new OpponentBuffCostHandler());
         }

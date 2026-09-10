@@ -10,7 +10,7 @@ namespace CardCore.Attribute.Handlers
     /// - token 有全套卡参数（模板 = CardData），与卡的核心区别是**不唯一**；
     /// - 实例 ID = 模板ID#序号（TimestampSystem.NextSequence，对局中临时赋值作索引，
     ///   先例 CopyEffectsEngine.GenerateCopyID；实例 ID 唯一化避免 TextChangeLayer._cardIdMap 同 ID 互覆）；
-    /// - 落区由 effect.ZoneParam 指定（战场/手牌/牌组三档，费用按落区系数计价——
+    /// - 落区由组合层 context.SummonDropZone 指定（战场/手牌/牌组三档，费用按落区系数计价——
     ///   注意 Zone.Hand==0：效果合成界面必须显式填落区，计费不做默认猜测）；
     /// - 模板解析经静态委托 ResolveTemplate（组合根注入 CardCatalog.GetById，
     ///   仿 MorphSystem.ResolveMorphTarget；未注入时复用变形解析器——同为模板ID→CardData）。
@@ -38,7 +38,7 @@ namespace CardCore.Attribute.Handlers
             if (template == null) return;
 
             int count = effect.Value <= 0 ? 1 : effect.Value;
-            var dropZone = effect.ZoneParam;
+            var dropZone = context.SummonDropZone;
 
             for (int i = 0; i < count; i++)
             {

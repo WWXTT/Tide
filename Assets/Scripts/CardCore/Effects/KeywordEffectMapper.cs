@@ -59,7 +59,7 @@ namespace CardCore
             if (!Enum.TryParse<AtomicEffectType>(d.triggeredEffect, out var atomicType))
                 return null;
 
-            Enum.TryParse<DurationType>(d.duration, out var duration);
+            // 2026-09-10：持续上移组合层——关键词 def 恒 Permanent（构造处直设），表 duration 列不再消费
 
             return new EffectDefinition
             {
@@ -77,9 +77,8 @@ namespace CardCore
                     new AtomicEffectInstance
                     {
                         Type = atomicType,
-                        Value = d.value,
-                        Value2 = d.value2,
-                        Duration = duration
+                        Value = d.value
+                        // 2026-09-10：value2 删除（零读者）；持续唯一真相在 def 级（上方 Duration 字段）
                     }
                 }
             };

@@ -29,33 +29,20 @@ namespace CardCore.Attribute
         /// <summary>费用乘数（不同目标范围对费用的影响）</summary>
         public float CostMultiplier;
 
-        /// <summary>作用目标类型</summary>
-        public EffectTargetType TargetType;
+        /// <summary>目标种类集（表 TargetKinds 列：逗号分隔 TargetKind 序号；空 = 无目标原子）。
+        /// 2026-09-10 目标域模型：取代旧 TargetType+分区 filter token——组合层取成员原子域的交集。</summary>
+        public string TargetKinds;
 
-        /// <summary>目标筛选条件（逗号分隔，如 "Minion,Untapped,Damaged"）</summary>
+        /// <summary>域内属性过滤（逗号分隔属性 token：Creature/Player/Untapped/Tapped/Damaged/Power&gt;N 等；
+        /// 分区与归属 token 已并入 TargetKinds 序号，此列只剩属性细化）</summary>
         public string TargetFilter;
 
-        /// <summary>目标数量（0=全部, -1=任意, >0=指定数量）</summary>
-        public int TargetCount;
-
-        /// <summary>作用范围</summary>
-        public EffectTargetScope TargetScope;
-
-        /// <summary>持续时间（运行时唯一枚举 DurationType；表内 DurationType 列同名列，
-        /// 旧表侧枚举 EffectDurationType 已并入本枚举，别名见 AtomicEffectTable.ParseDurationType）</summary>
-        public DurationType DurationType;
-
-        /// <summary>三分类（表 EffectTier 列：Atom=原子效果 / Keyword=关键词 / Counter=指示物）</summary>
-        public EffectTier EffectTier;
-
-        /// <summary>回合数计时的持续值（表 Turns 列，配合 DurationType=ForTurns 使用，如毒素=3）</summary>
-        public int Turns;
+        /// <summary>极性（2026-09-10 定案）：-1=对对手释放有益（伤害/削弱类）；+1=对己方释放有益（治疗/增益类）；
+        /// 0=中性。表级列（EffectType 固有语义，实例不可覆盖）。配合 TargetKind 域侧别做错边折价（CostDerivation）。</summary>
+        public float Polarity;
 
         /// <summary>默认触发时机（仅对触发式效果有效）</summary>
         public string DefaultTriggerTiming;
-
-        /// <summary>默认发动类型</summary>
-        public EffectActivationType ActivationType;
 
         /// <summary>默认发动条件（逗号分隔）</summary>
         public string DefaultConditions;
@@ -71,9 +58,6 @@ namespace CardCore.Attribute
 
         /// <summary>可选触发时机（逗号分隔的 TriggerTiming 枚举名，空表示无触发配置）</summary>
         public string AvailableTriggerTimings;
-
-        /// <summary>可选目标范围（逗号分隔的 EffectTargetScope 枚举名，空则使用 TargetScope）</summary>
-        public string AvailableTargetScopes;
 
         /// <summary>分支配置ID（逗号分隔，引用 BranchConfigTable）</summary>
         public string BranchConfigs;
@@ -130,19 +114,10 @@ namespace CardCore.Attribute
         }
 
         /// <summary>
-        /// 获取可选目标范围列表
+        /// 获取目标种类集（解析 TargetKinds 列；空集 = 无目标原子，不参与组合交集约束）
         /// </summary>
-        public List<string> GetAvailableTargetScopeList()
-        {
-            if (string.IsNullOrEmpty(AvailableTargetScopes)) return new List<string>();
-            var list = new List<string>();
-            foreach (var s in AvailableTargetScopes.Split(','))
-            {
-                var trimmed = s.Trim();
-                if (!string.IsNullOrEmpty(trimmed)) list.Add(trimmed);
-            }
-            return list;
-        }
+        public List<int> GetTargetKindList()
+            => CardCore.TargetKindRules.Parse(TargetKinds);
 
         /// <summary>
         /// 获取分支配置ID列表
@@ -162,49 +137,9 @@ namespace CardCore.Attribute
 
     #region 属性枚举定义
 
-    /// <summary>
-    /// 效果目标类型
-    /// </summary>
-    public enum EffectTargetType
-    {
-        /// <summary>自身</summary>
-        Self,
-        /// <summary>指定目标</summary>
-        Target,
-        /// <summary>所有敌方</summary>
-        AllEnemies,
-        /// <summary>所有友方</summary>
-        AllAllies,
-        /// <summary>全部（双方）</summary>
-        All,
-        /// <summary>随机</summary>
-        Random,
-        /// <summary>拥有者</summary>
-        Owner,
-        /// <summary>控制者</summary>
-        Controller,
-        /// <summary>对手</summary>
-        Opponent,
-        /// <summary>无目标（全局效果）</summary>
-        None
-    }
-
-    /// <summary>
-    /// 效果目标范围
-    /// </summary>
-    public enum EffectTargetScope
-    {
-        /// <summary>单一目标</summary>
-        Single,
-        /// <summary>范围效果（AoE）</summary>
-        AoE,
-        /// <summary>连锁效果</summary>
-        Chain,
-        /// <summary>扩散效果</summary>
-        Spread,
-        /// <summary>全局效果</summary>
-        Global
-    }
+    // EffectTargetType / EffectTargetScope 已删除（2026-09-10 目标域模型）：
+    // 取代者 = TargetKind 序号集合（Effects/TargetKind.cs）+ 组合层 SelectionMode。
+    // 旧→新迁移映射见 Config/m1_schema_migration.py 与 Config/target_kinds_review.csv。
 
     // 效果持续时间类型 EffectDurationType 已删除：
     // 与运行时 DurationType（Enums/Zones.cs）合并为单一真相源，
@@ -212,20 +147,7 @@ namespace CardCore.Attribute
     // （旧表侧 Permanent=4 会被误转为运行时 WhileCondition=4）。
     // 旧 JSON 里的表侧枚举名经 AtomicEffectTable.ParseDurationType 别名归一。
 
-    /// <summary>
-    /// 原子效果表三分类（表 EffectTier 列）：
-    /// Atom=可编辑参数项的原子效果；Keyword=授关键词（不可编辑、效果固定、无持续时间）；
-    /// Counter=附指示物（不可编辑、效果固定、有持续时间、自动移除，未写持续时间=换区清除）。
-    /// </summary>
-    public enum EffectTier
-    {
-        /// <summary>原子效果（有可编辑参数项）</summary>
-        Atom,
-        /// <summary>关键词（不可编辑，效果固定，无持续时间；一次性关键词参照突袭/冲锋）</summary>
-        Keyword,
-        /// <summary>指示物（不可编辑，效果固定，有持续时间，自动移除）</summary>
-        Counter
-    }
+    // EffectTier 三分类枚举已删除（2026-09-10：零消费——关键词认 Grant 前缀、指示物认 CounterRules spec、合成编辑性不看档）。
 
     #endregion
 }

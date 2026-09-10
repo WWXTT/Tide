@@ -344,7 +344,7 @@ namespace SynergyUI
                 ElementPool = core.ElementPool,
             };
             var resolver = new TargetResolver(core.ZoneManager);
-            var candidates = resolver.GetCandidates(cfg, ctx);
+            var candidates = resolver.GetCandidates(cfg.GetTargetKindList(), cfg.TargetFilter, ctx); // TODO(目标域后续任务)：组合域口径
             if (!string.IsNullOrEmpty(cfg.TargetFilter))
                 candidates = resolver.ApplyFilters(candidates, resolver.ParseFilters(cfg.TargetFilter), ctx);
             return candidates != null && candidates.Count > 0;
@@ -368,12 +368,12 @@ namespace SynergyUI
                 ElementPool = core.ElementPool,
             };
             var resolver = new TargetResolver(core.ZoneManager);
-            var candidates = resolver.GetCandidates(cfg, ctx);
+            var candidates = resolver.GetCandidates(cfg.GetTargetKindList(), cfg.TargetFilter, ctx); // TODO(目标域后续任务)：组合域口径
             if (!string.IsNullOrEmpty(cfg.TargetFilter))
                 candidates = resolver.ApplyFilters(candidates, resolver.ParseFilters(cfg.TargetFilter), ctx);
             if (candidates == null || candidates.Count == 0) return null;
 
-            int need = cfg.TargetCount > 0 ? cfg.TargetCount : 1;
+            int need = 1; // TODO(组合域口径)：应读 def.TargetCount（表级列已删，声明期逐卡）
             var opp = me.Opponent;
             IEnumerable<Entity> ordered;
             if (HarmfulAtoms.Contains(atomic.Type))
@@ -411,7 +411,7 @@ namespace SynergyUI
                     foreach (var atomic in CardEffectConverter.EnumerateMainSequenceAtoms(def.Steps, modeIndex))
                     {
                         var c = AtomicEffectTable.GetByType(atomic.Type);
-                        if (c != null && c.TargetType == EffectTargetType.Target)
+                        if (c != null && c.GetTargetKindList().Count > 0)
                         {
                             cfg = c;
                             return atomic;
@@ -423,7 +423,7 @@ namespace SynergyUI
                 foreach (var atomic in def.Effects)
                 {
                     var c = AtomicEffectTable.GetByType(atomic.Type);
-                    if (c != null && c.TargetType == EffectTargetType.Target)
+                    if (c != null && c.GetTargetKindList().Count > 0)
                     {
                         cfg = c;
                         return atomic;

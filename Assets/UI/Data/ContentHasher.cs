@@ -176,18 +176,15 @@ namespace SynergyUI
             {
                 return;
             }
+            // 2026-09-10 目标域模型：原子只余 EffectType/Value/ID/Mana/TargetKinds（编排属性上移组合层）
             sb.Append('[')
               .Append(a.EffectType).Append(',')
               .Append(a.Value).Append(',')
-              .Append(a.Value2).Append(',')
               .Append(a.ID).Append(',')
-              .Append(a.ManaTypeParam).Append(',')
-              .Append(a.ZoneParam).Append(',')
-              .Append(a.Duration).Append(',')
-              .Append(a.TargetTypeOverride).Append(',')
-              .Append(a.TargetFilterOverride).Append(',')
-              .Append(a.TargetCountOverride).Append(',')
-              .Append(a.TargetScopeOverride)
+              .Append(a.ManaList != null && a.ManaList.Count > 0
+                  ? string.Join(";", a.ManaList.OrderBy(m => m.manaType).Select(m => m.manaType + ":" + m.amount.ToString("R", System.Globalization.CultureInfo.InvariantCulture)))
+                  : "-").Append(',')
+              .Append(string.Join(",", (a.TargetKinds ?? new System.Collections.Generic.List<int>()).Distinct().OrderBy(k => k)))
               .Append(']');
         }
 

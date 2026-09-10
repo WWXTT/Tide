@@ -78,7 +78,26 @@ namespace CardCore
         /// 游戏中途授予的动态效果不置位，照常支付。（衍生物 CreateToken 直接入场的卡内效果同样免付——设计内，强度由生成器定价。）
         /// </summary>
         public bool ElementCostPrepaid = false;
-        public EffectTargetType TargetType;
+
+        // ---- 组合层编排属性（2026-09-10 重构：自原子层上移；旧死字段 TargetType 已删）----
+        /// <summary>ForTurns 持续的回合数 N（0 视为 1）。持续唯一真相在效果级（Duration）。</summary>
+        public int DurationValue;
+        /// <summary>SummonToken 落区（战场/手牌/牌库三档，计价按落区系数）。</summary>
+        public Zone SummonDropZone = Zone.Battlefield;
+        /// <summary>目标选择模式（自身/手动/全域；None=无目标）。</summary>
+        public SelectionMode SelectionMode = SelectionMode.None;
+        /// <summary>目标数量：&gt;0=N，0=全部，-1=任意（旧语义保留）；-2=未声明回落表级 TargetCount。</summary>
+        public int TargetCount = -2;
+        /// <summary>动态数量：运行时玩家自选个数（0..候选数）；费用计 0 且该卡不可作地牌产元素。</summary>
+        public bool DynamicTargetCount;
+        /// <summary>抽牌减费缺陷 id 列表（上移自原子层；执行暂缓——等原子完善后在组合阶段实现）。</summary>
+        public List<string> Drawbacks = new List<string>();
+        /// <summary>预计算组合目标域：主序列原子 TargetKinds 交集（converter 填；构筑期校验用）。</summary>
+        public List<int> TargetDomain;
+        /// <summary>组合域内属性过滤（成员带域原子的 Filter token 之 AND；converter 预计算）。</summary>
+        public string TargetFilter;
+        /// <summary>per-mode 组合域（与 Choices 平行；无抉择为 null——用 TargetDomain）。</summary>
+        public List<int>[] ChoiceDomains;
 
         /// <summary>
         /// 节点化效果步骤（原子 + 单层 per-target 条件分支）。
@@ -479,20 +498,17 @@ namespace CardCore
     public class AtomicEffectInstance
     {
         public AtomicEffectType Type;
-        public int Value;
-        public int Value2;
+        public int Value;              // 唯一数值参数（2026-09-10 定案：原子只有 Value）
         public string StringValue;
-        public ManaType ManaTypeParam;
-        public Zone ZoneParam;
-        public DurationType Duration;
-        public int DurationValue;      // Duration==ForTurns 时的回合数 N（0 视为 1）
 
-        // 每实例目标覆盖 —— 哨兵值表示沿用 AtomicEffectTable 的配置级目标。
-        public int TargetTypeOverride = -1;        // EffectTargetType 枚举值，-1 = 用配置
-        public string TargetFilterOverride = "";   // 逗号分隔 filter token，"" = 用配置
-        public int TargetCountOverride = -2;        // -2 = 用配置（-1=任意、0=全部 为合法语义）
-        public bool DynamicTargetCount;             // true = 运行时玩家自选个数（0..候选数），费用计 0 且不可作地牌
-        public List<string> Drawbacks = new List<string>(); // 抽牌减费缺陷 id（UnusableThisTurn 等）
+        /// <summary>Mana 字典（与卡计费同款表达；无 Mana 参数的原子为 null）。</summary>
+        public Dictionary<ManaType, float> Mana;
+        /// <summary>解析后有效目标域（entry 显式收窄 ?? 表级默认；converter 填）。</summary>
+        public List<int> TargetKinds;
+        /// <summary>域内属性过滤 token（表级 TargetFilter；converter 解析存实例）。</summary>
+        public string Filter;
+        /// <summary>极性（表级解析：-1=对对手释放有益 / +1=对己方释放有益 / 0=中性；错边折价输入）。</summary>
+        public float Polarity;
 
         // メタ効果（RepeatEffect/RandomEffect/ChooseOneEffect/DelayedEffect）の子効果。
         // TODO(network): MemoryPack DTO 往復は範囲外。ネットワーク同期する場合は専用 DTO へ写像が必要。

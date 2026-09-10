@@ -164,8 +164,37 @@ namespace CardCore
             }
 
             WarnCostNonConformance(result);
+            ValidateComboDomains(result);
 
             return result;
+        }
+
+        /// <summary>
+        /// 构筑期目标域校验（2026-09-10 目标域模型）：每效果的主序列原子域交集为空 → LogError
+        /// （仿 BranchConfigTable.ValidateAgainstCode 先例：可见不炸——坏卡点名，装载不中断）。
+        /// </summary>
+        private static void ValidateComboDomains(List<CardData> cards)
+        {
+            foreach (var card in cards)
+            {
+                if (card?.Effects == null) continue;
+                foreach (var eff in card.Effects)
+                {
+                    if (eff == null) continue;
+                    var def = CardEffectConverter.ConvertOne(eff, card.ID);
+                    if (def?.TargetDomain == null || def.TargetDomain.Count > 0) continue;
+                    // 域空且并非"全无目标原子"（存在带域原子但交集空）才是断链
+                    var hasKindAtom = false;
+                    foreach (var atom in CardEffectConverter.EnumerateMainSequenceAtoms(def.Steps, 0))
+                        if (atom?.TargetKinds != null && atom.TargetKinds.Count > 0) { hasKindAtom = true; break; }
+                    if (def.Steps == null || def.Steps.Count == 0)
+                        foreach (var atom in def.Effects)
+                            if (atom?.TargetKinds != null && atom.TargetKinds.Count > 0) { hasKindAtom = true; break; }
+                    if (hasKindAtom)
+                        Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
+                                     + $"主序列原子目标域交集为空——组合不可作用任何对象，构筑期拦截（检查各原子 TargetKinds）");
+                }
+            }
         }
 
         /// <summary>
@@ -183,9 +212,15 @@ namespace CardCore
             }
 
             WarnCostNonConformance(result);
+            ValidateComboDomains(result);
 
             return result;
         }
+
+        /// <summary>
+        /// 构筑期目标域校验（2026-09-10 目标域模型）：每效果的主序列原子域交集为空 → LogError
+        /// （仿 BranchConfigTable.ValidateAgainstCode 先例：可见不炸——坏卡点名，装载不中断）。
+        /// </summary>
 
         /// <summary>
         /// 将 CardData 列表转换为 CardWrapper 列表

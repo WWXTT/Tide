@@ -385,26 +385,23 @@ namespace CardCore
     [Serializable]
     public class AtomicEffectEntry
     {
-        public string ID;     // 字符串参数（token ID、关键词 ID）
+        public string ID;     // 字符串参数（token ID、关键词 ID、宣言编码）
         public string EffectType;      // AtomicEffectType 枚举名，如 "DealDamage"
-        public int Value;              // 主数值（伤害量、抽卡数、攻血修改量）
-        public int Value2;             // 副数值（ModifyAllStats 的 life 值）
-        public int ManaTypeParam;      // ManaType 枚举值
-        public int ZoneParam;          // Zone 枚举值
-        public int Duration;           // DurationType 枚举值，0 = 使用表默认
-        public int DurationValue;      // Duration==ForTurns 时的回合数 N（0 视为 1）
+        public int Value;              // 唯一数值参数（伤害量、抽卡数、修改量——2026-09-10 定案：原子只有 Value）
 
-        // 每实例目标覆盖 —— 默认哨兵值表示沿用 AtomicEffectConfig 的配置级目标。
-        // 由效果合成界面按需设置；执行引擎接入留 Phase 4。
-        public int TargetTypeOverride = -1;       // EffectTargetType 枚举值，-1 = 用配置
-        public string TargetFilterOverride = "";  // 逗号分隔 filter token，"" = 用配置
-        public int TargetCountOverride = -2;       // -2 = 用配置（注意 -1=任意、0=全部 是合法语义值）
-        public int TargetScopeOverride = -1;       // EffectTargetScope 枚举值，-1 = 用配置
+        // Mana 字典：与卡计费方式一致（costList 同款 {manaType, amount}；JsonUtility 不支持字典故用列表）。
+        public List<ManaAmountEntry> ManaList;
+        // 目标种类集合（TargetKind 序号，见 Effects/TargetKind.cs）。null = 用表级默认；
+        // 空集 = 无目标原子（DrawCard 等），不参与组合交集约束。
+        public List<int> TargetKinds;
+    }
 
-        // 动态数量：true = 运行时玩家自选个数（0..候选数）；费用计 0 且该卡不可作地牌产元素。
-        public bool DynamicTargetCount;
-        // 抽牌减费缺陷 id 列表（UnusableThisTurn / DiscardAtEndOfTurnIfInHand），可叠加，每个按目录减费。
-        public List<string> Drawbacks = new List<string>();
+    /// <summary>Mana 字典条目（与卡 costList 的 {manaType, amount} 完全同款——键名一致）。</summary>
+    [Serializable]
+    public class ManaAmountEntry
+    {
+        public int manaType;
+        public float amount;
     }
 
     /// <summary>
@@ -507,7 +504,14 @@ namespace CardCore
         public int ActivationType;     // 0=强制, 1=自动, 2=主动
         public int BaseSpeed;
         public bool IsOptional;
-        public int Duration;           // 整体效果的 DurationType
+        public int Duration;           // 整体效果的 DurationType（2026-09-10 重构激活：持续唯一真相在效果级；-1=迁移哨兵=未声明）
+        // ---- 组合层编排属性（2026-09-10 重构 P1：自原子层上移）----
+        public int DurationValue;      // Duration==ForTurns 时的回合数 N（0 视为 1）
+        public int SummonDropZone;    // SummonToken 落区（Zone 枚举：战场/手牌/牌库三档）
+        public int SelectionMode = -1; // SelectionMode 枚举值（-1=None 无目标哨兵）
+        public int TargetCount = -2;   // >0=N，0=全部，-1=任意；-2=未声明回落表级
+        public bool DynamicTargetCount;// 动态数量：运行时玩家自选个数
+        public List<string> Drawbacks = new List<string>(); // 抽牌减费缺陷（上移；执行暂缓）
 
         public List<ActivationConditionData> ActivationConditions;
         public List<ActivationConditionData> TriggerConditions;

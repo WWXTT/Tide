@@ -93,8 +93,6 @@ namespace CardCore.Network
                     OffsetDrainUsed = player.OffsetDrainUsed,
                     OffsetDiscardUsed = player.OffsetDiscardUsed,
                     OffsetMillUsed = player.OffsetMillUsed,
-                    OffsetOpponentHealUsed = player.OffsetOpponentHealUsed,
-                    OffsetOpponentDrawUsed = player.OffsetOpponentDrawUsed,
                     OffsetSendExtraUsed = player.OffsetSendExtraUsed,
                     GraveyardCount = core.ZoneManager.GetCards(player, Zone.Graveyard)?.Count ?? 0,
                     ExileCount = core.ZoneManager.GetCards(player, Zone.Exile)?.Count ?? 0,

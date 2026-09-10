@@ -133,7 +133,7 @@ namespace CardCore
                 }
 
                 float defTotal = 0f;
-                foreach (var cost in CostDerivationService.DeriveElementCosts(def, 0, isSpell)) // 法术宿主按永久档计（三轨制定案）
+                foreach (var cost in CostDerivationService.DeriveElementCosts(def, 0)) // 法术宿主永久档由迁移回填承载（Duration=Permanent）
                 {
                     effBuckets.TryGetValue(cost.ManaType, out var prev);
                     effBuckets[cost.ManaType] = prev + cost.Value;
@@ -303,7 +303,7 @@ namespace CardCore
                 {
                     if (def == null) continue;
                     if (def.IsActivatedEffect) continue;
-                    foreach (var cost in CostDerivationService.DeriveElementCosts(def, m, isSpell)) // 法术宿主按永久档计（三轨制定案）
+                    foreach (var cost in CostDerivationService.DeriveElementCosts(def, m)) // 法术宿主永久档由迁移回填承载（Duration=Permanent）
                     {
                         effBuckets.TryGetValue(cost.ManaType, out var prev);
                         effBuckets[cost.ManaType] = prev + cost.Value;
@@ -463,7 +463,10 @@ namespace CardCore
                 var atomCfg = AtomicEffectTable.GetByType(rep);
                 if (atomCfg == null || atomCfg.BaseCost <= 0f) continue;
 
-                float factor = singleTurn / Mathf.Max(0.0001f, attrCfg.GetDurationDiscount(atomCfg.DurationType));
+                // 光环按「单回合档」折算持续价值：factor = D(UntilEndOfTurn)/D(Permanent)。
+                // 旧口径分母取各原子表默认持续（ModifyPower=1.0 / ModifyLife=0.6 两锚不一致），
+                // 2026-09-10 持续上移后统一为满档 Permanent 锚（语义修正，随 R8 漂移已接受）。
+                float factor = singleTurn / Mathf.Max(0.0001f, attrCfg.GetDurationDiscount(DurationType.Permanent));
                 float amount = atomCfg.BaseCost
                                * (atomCfg.CostMultiplier > 0f ? atomCfg.CostMultiplier : 1f)
                                * magnitude * factor;
@@ -505,8 +508,6 @@ namespace CardCore
                         case CostType.LifePayment: total += cc.LifeValuePerPoint * Mathf.Max(1, cost.Value); break;
                         case CostType.Sleep: total += cc.SleepValuePerTurn * Mathf.Max(1, cost.TurnDuration); break;
                         case CostType.SummonMaterial: total += cc.SummonMaterialValue * Mathf.Max(1, cost.Value); break;
-                        case CostType.OpponentDraw: total += cc.OpponentDrawValue * Mathf.Max(1, cost.Value); break;
-                        case CostType.OpponentHeal: total += cc.OpponentHealValuePerPoint * Mathf.Max(1, cost.Value); break;
                         case CostType.SelfSickness: total += cc.SelfSicknessValue * Mathf.Max(1, cost.Value); break;
                         case CostType.OpponentBuff: total += cc.OpponentBuffValue * Mathf.Max(1, cost.Value); break;
                     }

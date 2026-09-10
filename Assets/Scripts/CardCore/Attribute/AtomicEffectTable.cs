@@ -86,12 +86,8 @@ namespace CardCore.Attribute
                 Stackable = true,
                 Priority = 50,
                 // ---- 安全兜底（仅当 entry 缺失或字段解析失败时生效）----
-                TargetType = EffectTargetType.Target,
+                TargetKinds = "0,1",                        // 双方有生命单位（最宽域）
                 TargetFilter = "Creature",
-                TargetCount = 1,
-                TargetScope = EffectTargetScope.Single,
-                DurationType = DurationType.Once,
-                ActivationType = EffectActivationType.Voluntary,
             };
 
             if (entry != null)
@@ -104,16 +100,10 @@ namespace CardCore.Attribute
                     ? entry.EffectColor
                     : (string.IsNullOrEmpty(entry.EffectColor) ? entry.EffectFunction : entry.EffectFunction + "," + entry.EffectColor);
 
-                // targeting / 持续 / 发动 / 三分类：配置驱动，解析失败保留上面的兜底
-                if (Enum.TryParse<EffectTargetType>(entry.TargetType, out var tt)) config.TargetType = tt;
+                // targeting / 发动 / 三分类：配置驱动，解析失败保留上面的兜底
+                if (!string.IsNullOrEmpty(entry.TargetKinds)) config.TargetKinds = entry.TargetKinds;
                 if (!string.IsNullOrEmpty(entry.TargetFilter)) config.TargetFilter = entry.TargetFilter;
-                else if (entry.TargetType == "None") config.TargetFilter = "";
-                config.TargetCount = entry.TargetCount;
-                if (Enum.TryParse<EffectTargetScope>(entry.TargetScope, out var ts)) config.TargetScope = ts;
-                if (ParseDurationType(entry.DurationType, out var dt)) config.DurationType = dt;
-                if (Enum.TryParse<EffectActivationType>(entry.ActivationType, out var at)) config.ActivationType = at;
-                if (Enum.TryParse<EffectTier>(entry.EffectTier, out var tier)) config.EffectTier = tier;
-                config.Turns = entry.Turns;
+                config.Polarity = UnityEngine.Mathf.Clamp(entry.Polarity, -1f, 1f);
             }
             else
             {
@@ -152,26 +142,6 @@ namespace CardCore.Attribute
             return _typeMap.TryGetValue(type, out var config) ? config : null;
         }
 
-        /// <summary>
-        /// 解析 JSON 的 DurationType 列。
-        /// 新名直接匹配运行时 DurationType；旧表侧枚举（EffectDurationType）名按别名归一：
-        /// Instant→Once、UntilCondition→WhileCondition、UntilEndOfPhase→UntilEndOfTurn
-        /// （阶段粒度的失效暂未实现，先近似为回合末，与三阶段结构下 Main 内施放的语义一致）。
-        /// </summary>
-        private static bool ParseDurationType(string name, out DurationType duration)
-        {
-            if (Enum.TryParse<DurationType>(name, out duration))
-                return true;
-
-            switch (name)
-            {
-                case "Instant": duration = DurationType.Once; return true;
-                case "UntilCondition": duration = DurationType.WhileCondition; return true;
-                case "UntilEndOfPhase": duration = DurationType.UntilEndOfTurn; return true;
-                default: duration = DurationType.Once; return false;
-            }
-        }
-
         /// <summary>通过英文枚举名获取配置</summary>
         public static AtomicEffectConfig GetByEnumName(string enumName)
         {
@@ -200,14 +170,10 @@ namespace CardCore.Attribute
             public string EffectType;     // 英文枚举名（DealDamage）→ AtomicEffectType
             public string EffectTier;     // Atom / Keyword / Counter（三分类，缺省 Atom）
 
-            // ---- targeting / 持续 / 发动（全进 xlsm 后由配置驱动）----
-            public string TargetType;     // EffectTargetType 枚举名
-            public string TargetFilter;   // 逗号分隔筛选条件
-            public int TargetCount;       // 0=全部, -1=任意, >0=指定
-            public string TargetScope;    // EffectTargetScope 枚举名
-            public string DurationType;   // DurationType 枚举名（旧表侧枚举名经 ParseDurationType 别名归一）
-            public int Turns;             // 回合数计时的持续值（配合 DurationType=ForTurns，如毒素=3）
-            public string ActivationType; // EffectActivationType 枚举名
+            // ---- targeting / 发动（2026-09-10 目标域模型：TargetKinds+SelectionMode 取代 TargetType/Scope；持续已上移组合层）----
+            public string TargetKinds;    // 逗号分隔 TargetKind 序号（空 = 无目标原子）
+            public string TargetFilter;   // 逗号分隔属性 token（Creature/Player/Untapped/...）
+            public float Polarity;        // 极性 [-1,1]：-1=对对手释放有益 / +1=对己方释放有益 / 0=中性
         }
 
         [Serializable]

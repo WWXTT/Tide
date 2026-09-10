@@ -1,0 +1,1572 @@
+[
+  {
+    "EffectType": "DealDamage",
+    "EnumName": "造成伤害",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Heal",
+    "EnumName": "回复生命",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "PierceDamage",
+    "EnumName": "穿透伤害",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "DrainLife",
+    "EnumName": "吸取生命",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Poison",
+    "EnumName": "剧毒",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "Mortal",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "Mortal",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "DrawCard",
+    "EnumName": "抽卡",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "DiscardCard",
+    "EnumName": "弃牌",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      5
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "ReturnToHand",
+    "EnumName": "返回手牌",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Exile",
+    "EnumName": "除外",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "ShuffleIntoDeck",
+    "EnumName": "洗入牌库",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "SearchDeck",
+    "EnumName": "检索牌库",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "BounceToTop",
+    "EnumName": "弹回牌库顶",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "BounceToBottom",
+    "EnumName": "弹回牌库底",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "ReturnFromGraveyard",
+    "EnumName": "苏生",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "LookAtTopCards",
+    "EnumName": "查看牌库顶",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "ModifyPower",
+    "EnumName": "修改攻击力",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "ModifyLife",
+    "EnumName": "修改生命值",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "SetPower",
+    "EnumName": "设置攻击力",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "SetLife",
+    "EnumName": "设置生命值",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "SetCost",
+    "EnumName": "设置费用",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      4,
+      5
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "ModifyCost",
+    "EnumName": "修改费用",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      4,
+      5
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "AddCostUp",
+    "EnumName": "费用增加",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      4,
+      5
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "AddCostDown",
+    "EnumName": "费用减少",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      4,
+      5
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "AddPowerUp",
+    "EnumName": "攻击力增加",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "AddPowerDown",
+    "EnumName": "攻击力减少",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "AddLifeUp",
+    "EnumName": "生命值增加",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "AddLifeDown",
+    "EnumName": "生命值减少",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "AddPlusOne",
+    "EnumName": "属性增加",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "AddMinusOne",
+    "EnumName": "属性减少",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Weaken",
+    "EnumName": "虚弱",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Inspire",
+    "EnumName": "鼓舞",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantDoubleStrike",
+    "EnumName": "连击",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantPoisonSting",
+    "EnumName": "毒刺",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantLifesteal",
+    "EnumName": "吸血",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantStealth",
+    "EnumName": "潜行",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantTaunt",
+    "EnumName": "嘲讽",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantDivineShield",
+    "EnumName": "圣盾",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantOverwhelm",
+    "EnumName": "碾压",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantArmor",
+    "EnumName": "坚韧",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "DeclareHand",
+    "EnumName": "宣言确认手牌",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "DeclareDeckTop",
+    "EnumName": "宣言验牌库顶",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "DeclareArrow",
+    "EnumName": "宣言箭头",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "ProphecyNextCard",
+    "EnumName": "预言下回合首张",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantVigilance",
+    "EnumName": "警戒",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantFirstStrike",
+    "EnumName": "先攻",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantSpellShield",
+    "EnumName": "法术护盾",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantCannotBeTargeted",
+    "EnumName": "辟邪",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantReborn",
+    "EnumName": "复生",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantIndestructible",
+    "EnumName": "不灭",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantLifelink",
+    "EnumName": "系命",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantRegeneration",
+    "EnumName": "再生",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantGrowth",
+    "EnumName": "成长",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "AddArmor",
+    "EnumName": "护甲",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "AddToxin",
+    "EnumName": "毒素",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "Mortal",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "Mortal",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Silence",
+    "EnumName": "沉默",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "AddNullify",
+    "EnumName": "无效",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Untap",
+    "EnumName": "激励",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole,Tapped",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0
+    ],
+    "Filter": "NoRole,Tapped",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GrantDisarm",
+    "EnumName": "缴械",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "DealCombatDamage",
+    "EnumName": "战斗伤害",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "LifeLoss",
+    "EnumName": "生命流失",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "FreezePermanent",
+    "EnumName": "冻结",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "RushSickness",
+    "EnumName": "紊乱",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "AddVulnerable",
+    "EnumName": "易损",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Tap",
+    "EnumName": "横置",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "GainControl",
+    "EnumName": "获得控制",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "ChangeOwner",
+    "EnumName": "变更所有者",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "NegateActivation",
+    "EnumName": "无效发动",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      14,
+      15
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Purify",
+    "EnumName": "净化",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "RedirectTarget",
+    "EnumName": "转移目标",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "ScryCards",
+    "EnumName": "占卜",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "MillCard",
+    "EnumName": "送墓",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      7
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "RecoverToHand",
+    "EnumName": "回收",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      8,
+      9
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "TakeExtraTurn",
+    "EnumName": "额外回合",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "SkipTurn",
+    "EnumName": "跳过回合",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Photosynthesis",
+    "EnumName": "光合作用",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Morph",
+    "EnumName": "变形",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Sacrifice",
+    "EnumName": "牺牲",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole,Mortal",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0
+    ],
+    "Filter": "NoRole,Mortal",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Devour",
+    "EnumName": "吞噬",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole,Mortal",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole,Mortal",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Annihilate",
+    "EnumName": "湮灭",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole,Mortal",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "NoRole,Mortal",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Smash",
+    "EnumName": "摧毁",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      2,
+      3,
+      12,
+      13
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "KnockDown",
+    "EnumName": "打落",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      14,
+      15
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": -1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "SummonToken",
+    "EnumName": "召唤衍生物",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      0,
+      1
+    ],
+    "Filter": "",
+    "SelectionMode": "None",
+    "Polarity": 1.0,
+    "Notes": "幂等重推（极性补值）"
+  },
+  {
+    "EffectType": "Mine",
+    "EnumName": "采掘",
+    "Old": {
+      "TargetType": "(已迁移)",
+      "TargetFilter": "NoRole",
+      "DurationType": "(已上移)",
+      "Turns": null,
+      "TargetCount": null
+    },
+    "TargetKinds": [
+      12
+    ],
+    "Filter": "NoRole",
+    "SelectionMode": "None",
+    "Polarity": 0.0,
+    "Notes": "幂等重推（极性补值）"
+  }
+]

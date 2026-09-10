@@ -32,7 +32,7 @@ namespace CardCore
         /// [6]DynamicTargetCount。幅度由 AppendAtomParams 统一 Clamp（与观测数值特征同口径）。
         /// 与类型下标构成「参数数值通路」：EffectType 嵌入行跨参数共享 + 参数线性投影 →
         /// 「造成5伤」可从「造成4伤」插值迁移（精确哈希行另走通路，双保险；见 TideObservation [23..]）。</summary>
-        public const int AtomParamDim = 7;
+        public const int AtomParamDim = 6; // 2026-09-10 目标域模型：Value/Mana总量/Mana色数/kind数/min/max
 
         private static ulong? _tableFingerprint;
         private static Dictionary<string, int> _typeIndexMap;
@@ -45,16 +45,12 @@ namespace CardCore
             var sb = new StringBuilder();
             foreach (var cfg in AtomicEffectTable.GetAll().OrderBy(c => c.EnumName, StringComparer.Ordinal))
             {
+                // 2026-09-10 目标域模型：TargetKinds/SelectionMode 取代 TargetType/Scope；持续列已删（上移组合层）
                 sb.Append(cfg.EnumName).Append('|')
                   .Append(cfg.BaseCost.ToString("R", CultureInfo.InvariantCulture)).Append('|')
-                  .Append((int)cfg.TargetType).Append('|')
+                  .Append(TargetKindRules.Format(cfg.GetTargetKindList())).Append('|')
                   .Append(cfg.TargetFilter ?? string.Empty).Append('|')
-                  .Append(cfg.TargetCount).Append('|')
-                  .Append((int)cfg.TargetScope).Append('|')
-                  .Append((int)cfg.DurationType).Append('|')
-                  .Append(cfg.Turns).Append('|')
-                  .Append((int)cfg.ActivationType).Append('|')
-                  .Append((int)cfg.EffectTier).Append('\n');
+                  .Append(cfg.Polarity.ToString("R", CultureInfo.InvariantCulture)).Append('\n');
             }
             _tableFingerprint = Fnv1a(sb.ToString());
             return _tableFingerprint.Value;
@@ -101,7 +97,8 @@ namespace CardCore
             return map;
         }
 
-        /// <summary>原子参数块（AtomParamDim 维，幅度 Clamp 到观测口径 [-99, 999]）。null 原子记全 0。</summary>
+        /// <summary>原子参数块（AtomParamDim 维，幅度 Clamp 到观测口径 [-99, 999]）。null 原子记全 0。
+        /// 2026-09-10 目标域模型后 6 维：[0]Value [1]Mana总量 [2]Mana色数 [3]kind数 [4]最小kind [5]最大kind。</summary>
         private static void AppendAtomParams(List<float> parms, AtomicEffectEntry a)
         {
             if (a == null)
@@ -109,13 +106,14 @@ namespace CardCore
                 for (int i = 0; i < AtomParamDim; i++) parms.Add(0f);
                 return;
             }
+            var kinds = (a.TargetKinds ?? new List<int>()).Distinct().OrderBy(k => k).ToList();
+            var mana = a.ManaList ?? new List<ManaAmountEntry>();
             parms.Add(Clamp(a.Value));
-            parms.Add(Clamp(a.Value2));
-            parms.Add(a.ManaTypeParam);
-            parms.Add(a.Duration);
-            parms.Add(Clamp(a.DurationValue));
-            parms.Add(Clamp(a.TargetCountOverride));
-            parms.Add(a.DynamicTargetCount ? 1f : 0f);
+            parms.Add(Clamp(mana.Sum(m => m.amount)));
+            parms.Add(Clamp(mana.Count));
+            parms.Add(Clamp(kinds.Count));
+            parms.Add(kinds.Count > 0 ? kinds[0] : 0f);
+            parms.Add(kinds.Count > 0 ? kinds[kinds.Count - 1] : 0f);
         }
 
         private static float Clamp(float v) => v < -99f ? -99f : (v > 999f ? 999f : v);
@@ -133,24 +131,22 @@ namespace CardCore
             return Mix(Fnv1a(sb.ToString()), TableFingerprint());
         }
 
-        /// <summary>原子的全部可变参数与目标覆盖（用户填写面全量进哈希）。目标默认值来自原子表（冻结，经整表指纹全局覆盖）。</summary>
+        /// <summary>原子的全部可变参数（2026-09-10 目标域模型：EffectType+Value+ID+Mana+TargetKinds；
+        /// 编排属性已上移组合层——进 StructureHash 的效果级字段）。表级默认经整表指纹全局覆盖。</summary>
         private static void AppendAtom(StringBuilder sb, AtomicEffectEntry a)
         {
             sb.Append(a.EffectType ?? string.Empty).Append('|')
               .Append(a.Value).Append('|')
-              .Append(a.Value2).Append('|')
               .Append(a.ID ?? string.Empty).Append('|')
-              .Append(a.ManaTypeParam).Append('|')
-              .Append(a.ZoneParam).Append('|')
-              .Append(a.Duration).Append('|')
-              .Append(a.DurationValue).Append('|')
-              .Append(a.TargetTypeOverride).Append('|')
-              .Append(a.TargetFilterOverride ?? string.Empty).Append('|')
-              .Append(a.TargetCountOverride).Append('|')
-              .Append(a.TargetScopeOverride).Append('|')
-              .Append(a.DynamicTargetCount ? 1 : 0).Append('\n');
-            if (a.Drawbacks != null && a.Drawbacks.Count > 0)
-                sb.Append('d').Append(string.Join(",", a.Drawbacks.OrderBy(d => d, StringComparer.Ordinal))).Append('\n');
+              .Append(FormatMana(a.ManaList)).Append('|')
+              .Append(TargetKindRules.Format(a.TargetKinds ?? new List<int>())).Append('\n');
+        }
+
+        /// <summary>Mana 规范串（按 ManaType 排序的 type:amount；空 = "-"）。</summary>
+        private static string FormatMana(List<ManaAmountEntry> list)
+        {
+            if (list == null || list.Count == 0) return "-";
+            return string.Join(";", list.OrderBy(m => m.manaType).Select(m => $"{m.manaType}:{m.amount.ToString("R", CultureInfo.InvariantCulture)}"));
         }
 
         /// <summary>按执行序展平一张卡全部效果树的原子（观测槽位按此顺序编码）。
@@ -225,7 +221,7 @@ namespace CardCore
                       .Append(e.ActivationType).Append('|')
                       .Append(e.BaseSpeed).Append('|')
                       .Append(e.IsOptional ? 1 : 0).Append('|')
-                      .Append(e.Duration).Append('\n');
+                      .Append(e.Duration).Append('|').Append(e.DurationValue).Append('|').Append(e.SummonDropZone).Append('|').Append(e.SelectionMode).Append('|').Append(e.TargetCount).Append('|').Append(e.DynamicTargetCount ? 1 : 0).Append('|').Append(string.Join(",", (e.Drawbacks ?? new List<string>()).OrderBy(d => d, StringComparer.Ordinal))).Append('\n');
                     AppendConditions(sb, "AC", e.ActivationConditions);
                     AppendConditions(sb, "TC", e.TriggerConditions);
                     AppendCosts(sb, e.Costs);
@@ -340,7 +336,7 @@ namespace CardCore
               .Append(e.ActivationType).Append('|')
               .Append(e.BaseSpeed).Append('|')
               .Append(e.IsOptional ? 1 : 0).Append('|')
-              .Append(e.Duration).Append('\n');
+              .Append(e.Duration).Append('|').Append(e.DurationValue).Append('|').Append(e.SummonDropZone).Append('|').Append(e.SelectionMode).Append('|').Append(e.TargetCount).Append('|').Append(e.DynamicTargetCount ? 1 : 0).Append('|').Append(string.Join(",", (e.Drawbacks ?? new List<string>()).OrderBy(d => d, StringComparer.Ordinal))).Append('\n');
             AppendConditions(sb, "AC", e.ActivationConditions);
             AppendConditions(sb, "TC", e.TriggerConditions);
             AppendCosts(sb, e.Costs);

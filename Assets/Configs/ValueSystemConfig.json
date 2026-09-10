@@ -240,72 +240,6 @@
     "Des": "融合召唤折扣"
   },
   {
-    "Category": "CardCost",
-    "Key": "StatUnit",
-    "Value": 2.0,
-    "Des": "1费=2点属性（攻血各0.5元素，灰）"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "KeywordsShareDelayDiscount",
-    "Value": 1.0,
-    "Des": "关键词同享挂载折扣（1=是）"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "MaxTier",
-    "Value": 9.0,
-    "Des": "档位上限（=地牌槽曲线上限）"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "DiscardCardValue",
-    "Value": 1.0,
-    "Des": "代价当量：弃1张=1元素（与抵消表同源）"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "LifeValuePerPoint",
-    "Value": 0.5,
-    "Des": "代价当量：1点生命=0.5元素（2命/费同源）"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "SleepValuePerTurn",
-    "Value": 1.0,
-    "Des": "代价当量：沉睡1回合=1元素"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "SummonMaterialValue",
-    "Value": 1.0,
-    "Des": "代价当量：1个召唤素材=1元素"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "OpponentDrawValue",
-    "Value": 1.0,
-    "Des": "代价当量：对手抽1张=1元素（减益型代价，2026-09-07 补）"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "OpponentHealValuePerPoint",
-    "Value": 0.5,
-    "Des": "代价当量：对手回1点=0.5元素（2点=1费，2026-09-07 补）"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "SelfSicknessValue",
-    "Value": 1.0,
-    "Des": "代价当量：自身紊乱1条=1元素（自身减益作代价，2026-09-08 拓展）"
-  },
-  {
-    "Category": "CardCost",
-    "Key": "OpponentBuffValue",
-    "Value": 1.0,
-    "Des": "代价当量：对手+1/+1一层=1元素（对手增益作代价，2026-09-08 拓展）"
-  },
-  {
     "Category": "DelayDiscount",
     "Key": "C1",
     "Value": 1.0,
@@ -321,13 +255,13 @@
     "Category": "DelayDiscount",
     "Key": "C3",
     "Value": 0.9375,
-    "Des": ""
+    "Des": null
   },
   {
     "Category": "DelayDiscount",
     "Key": "C4",
     "Value": 0.90625,
-    "Des": ""
+    "Des": null
   },
   {
     "Category": "DelayDiscount",
@@ -339,19 +273,19 @@
     "Category": "DelayDiscount",
     "Key": "C6",
     "Value": 0.84375,
-    "Des": ""
+    "Des": null
   },
   {
     "Category": "DelayDiscount",
     "Key": "C7",
     "Value": 0.8125,
-    "Des": ""
+    "Des": null
   },
   {
     "Category": "DelayDiscount",
     "Key": "C8",
     "Value": 0.78125,
-    "Des": ""
+    "Des": null
   },
   {
     "Category": "DelayDiscount",
