@@ -9,4 +9,4 @@
 /.vs/
 /.idea/
 /tide_rl/logs/
-
+/tide_rl/.venv-export/

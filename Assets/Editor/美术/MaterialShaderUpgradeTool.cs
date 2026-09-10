@@ -24,7 +24,7 @@ public class MaterialShaderUpgradeTool : EditorWindow
         public string targetProperty;
     }
 
-    [MenuItem("Tools/填写映射关系后自动更换材质")]
+    [MenuItem("Tools/美术/填写映射关系后自动更换材质")]
     static void Init()
     {
         MaterialShaderUpgradeTool window = (MaterialShaderUpgradeTool)GetWindow(typeof(MaterialShaderUpgradeTool));

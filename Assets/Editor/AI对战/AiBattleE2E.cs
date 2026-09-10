@@ -4,33 +4,20 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using CardCore;
+using CardCore.AI.NeuralEnv;
 using SynergyUI;
-using UnityEditor;
 using UnityEngine;
 
 namespace CardCore.Editor.Tests
 {
     /// <summary>
-    /// AI 自动对战端到端验证（Unity 测试框架 + 菜单双入口）：
+    /// AI 自动对战端到端验证（Unity 测试框架入口，编辑器对战驱动与卡池加载共用设施）：
     /// 双 SimpleAI 打完整局，控制台播报全程，跑到出错或游戏结束。
     /// 同时验证表现层契约——播报器订阅与 BattleScreen（真实表现层）完全相同的事件集合，
     /// 若事件面不足以还原一局对局，这里就会暴露缺口。
     /// </summary>
     public static class AiBattleE2E
     {
-        private const string Tag = "[对局]";
-
-        [MenuItem("Tools/AI 自动对战验证")]
-        public static void RunFromMenu()
-        {
-            if (!TryLoadRandomTestDecks(out var deck1, out var deck2))
-            {
-                Debug.LogError($"{Tag} 无法从 TestDecks 目录加载随机卡组（Configs/TestDecks/*.json）");
-                return;
-            }
-            var result = new AiBattleDriver().RunFullGame(deck1, deck2, maxTurns: 100);
-            Debug.Log($"{Tag} 菜单入口结果：{(result.Completed ? $"完成（胜者 {Name(result.Winner)}，{result.Reason}，共 {result.TotalTurns} 回合）" : result.TurnLimitReached ? "到达回合上限" : "异常中止")}\n错误 {result.Errors.Count} 条，播报 {result.AnnouncedLines} 行");
-        }
 
         /// <summary>标准卡组：纯非仪式卡（仪式验证走全仪式压力口径；AI 对战当前测不到仪式，移出）。</summary>
         public static List<CardData> LoadStandardDeck()
@@ -44,27 +31,6 @@ namespace CardCore.Editor.Tests
         {
             string path = Path.Combine(Application.dataPath, "Configs/TestDecks/TestCreatureCards.json");
             return File.Exists(path) ? CardLoader.LoadCardsFromText(File.ReadAllText(path)) : new List<CardData>();
-        }
-
-        /// <summary>列出 TestDecks 目录下所有卡组 JSON 绝对路径（排除 .meta）。</summary>
-        private static string[] ListTestDecks()
-        {
-            string dir = Path.Combine(Application.dataPath, "Configs", "TestDecks");
-            if (!Directory.Exists(dir)) return new string[0];
-            return Directory.GetFiles(dir, "*.json")
-                .Where(f => !f.EndsWith(".meta"))
-                .ToArray();
-        }
-
-        /// <summary>随机加载两套 TestDecks 卡组（可能同色/异色）。无卡组或解析失败返回 false。</summary>
-        private static bool TryLoadRandomTestDecks(out List<CardData> deck1, out List<CardData> deck2)
-        {
-            deck1 = deck2 = null;
-            var decks = ListTestDecks();
-            if (decks.Length == 0) return false;
-            deck1 = CardLoader.LoadCardsFromText(File.ReadAllText(decks[UnityEngine.Random.Range(0, decks.Length)]));
-            deck2 = CardLoader.LoadCardsFromText(File.ReadAllText(decks[UnityEngine.Random.Range(0, decks.Length)]));
-            return deck1 != null && deck1.Count > 0 && deck2 != null && deck2.Count > 0;
         }
 
         internal static string Name(Entity e) => MatchLogRenderer.Name(e);
@@ -115,8 +81,12 @@ namespace CardCore.Editor.Tests
         }
     }
 
+    /// <summary>回合大脑选择：脚本启发式 SimpleAI / ONNX 神经网络策略（编辑器对战工具口径）。</summary>
+    public enum AiBrain { Script, Neural }
+
     /// <summary>
-    /// 双 AI 自动对战驱动器：双方 SimpleAI 轮流打完整局，跑到出错或游戏结束。
+    /// 双 AI 自动对战驱动器：双方轮流打完整局，跑到出错或游戏结束（默认双 SimpleAI，
+    /// 可按座位换 ONNX 神经网络大脑——见 RunFullGame 双大脑重载）。
     /// 所有范围/目标选择自动应答（双方 IsAI=true 走 TargetSelectionService 的自动路径）。
     /// 编辑器上下文无帧泵：SimpleAI 末尾的 EndTurn 只推进到结束阶段，此处补一次
     /// CheckPhaseTransition 完成 End→Standby 折返（同 CardPipelineVerifier.EndTurnPumped 惯例）。
@@ -126,8 +96,18 @@ namespace CardCore.Editor.Tests
         public BattleRunResult RunFullGame(List<CardData> deckSpec, int maxTurns = 100)
             => RunFullGame(deckSpec, deckSpec, maxTurns);
 
-        /// <summary>双卡组对战：玩家 1 用 deck1、玩家 2 用 deck2（各 BuildDeck copiesPerCard=1）。</summary>
+        /// <summary>双卡组对战（双 SimpleAI）：玩家 1 用 deck1、玩家 2 用 deck2（各 BuildDeck copiesPerCard=1）。</summary>
         public BattleRunResult RunFullGame(List<CardData> deck1, List<CardData> deck2, int maxTurns = 100)
+            => RunFullGame(deck1, deck2, maxTurns, AiBrain.Script, AiBrain.Script, null);
+
+        /// <summary>
+        /// 双卡组 + 双大脑对战：brain 为 Neural 的座位整回合由 ONNX 策略驱动（NeuralAI，
+        /// 时序镜像训练 driver，非 SimpleAI 时序）。policy 由调用方提供并管理生命周期；
+        /// 双 Neural 共用同一 policy —— 单 rstate 链贯穿全局，与训练自对弈同口径。
+        /// 指定了 Neural 但 policy 为 null 时该座位回落 SimpleAI 并记错误。
+        /// </summary>
+        public BattleRunResult RunFullGame(List<CardData> deck1, List<CardData> deck2, int maxTurns,
+            AiBrain brain1, AiBrain brain2, OnnxTidePolicy policy)
         {
             var result = new BattleRunResult();
             var announcer = new ConsoleAnnouncer();
@@ -156,19 +136,17 @@ namespace CardCore.Editor.Tests
                 var core = GameCore.Instance;
                 var ctrl = new BattleController();
                 var ai = new SimpleAI();
+                // Neural 座位共用一个 NeuralAI 实例（TakeTurn 无跨回合状态；rstate 在 policy
+                // 内单链贯穿双方决策点，镜像训练自对弈口径）。policy 缺失回落 SimpleAI。
+                bool wantNeural = brain1 == AiBrain.Neural || brain2 == AiBrain.Neural;
+                var neural = wantNeural && policy != null ? new NeuralAI(policy) : null;
+                if (wantNeural && neural == null)
+                    result.Errors.Add("指定了 Neural 大脑但未提供 ONNX 策略，该座位回落 SimpleAI");
                 // 变形目标形态解析器：组合根注入（编辑器无头路径独立注入）
                 CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
                 core.InitGame(CardLoader.BuildDeck(deck1, 1), CardLoader.BuildDeck(deck2, 1));
                 core.Player1.IsAI = true; // 选择全自动
                 core.Player2.IsAI = true;
-
-                // 测试口径：双方开局元素池预置 5 点灰色元素——加速中高费随从（关键词卡多为 5-8 费）
-                // 出场互殴，让关键词行为在对局内真正得到触发（费用门槛仍受地牌槽上限约束）
-                foreach (var p in new[] { core.Player1, core.Player2 })
-                {
-                    var bank = core.ElementPool.GetPool(p).AvailableMana;
-                    bank[ManaType.Gray] = (bank.TryGetValue(ManaType.Gray, out var g) ? g : 0) + 5;
-                }
 
                 // 棋盘占用层（派生，单向读核心）：为碾压关键词注入邻接解析（核心不绑棋盘，宿主接线）
                 board = new GameBoard.BoardState(core, core.Player1, core.Player2,
@@ -177,11 +155,18 @@ namespace CardCore.Editor.Tests
                 CombatSystem.AdjacentResolver = board.Neighbors;
                 GameBoard.LinkAuraSystem.Attach(board); // 连接光环（三轨制）——与碾压邻接同惯例接线
 
+                neural?.ResetEpisode(); // 新对局 GRU rstate 归零（镜像训练 env 复位口径）
+
                 for (int turn = 0; turn < maxTurns && !gameOver; turn++)
                 {
                     try
                     {
-                        ai.TakeTurn(ctrl);                          // 内部已 EndTurn（不折返）
+                        // 座位大脑分派：Neural 座位策略整回合，其余 SimpleAI（两者内部均已 EndTurn 不折返）
+                        var isP1Turn = ReferenceEquals(core.TurnEngine.TurnPlayer, core.Player1);
+                        if (neural != null && (isP1Turn ? brain1 : brain2) == AiBrain.Neural)
+                            neural.TakeTurn(ctrl);
+                        else
+                            ai.TakeTurn(ctrl);
                         if (!gameOver)
                             core.TurnEngine.CheckPhaseTransition(); // 补 End→Standby 折返；游戏已结束则不开新回合
                     }

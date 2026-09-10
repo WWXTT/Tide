@@ -22,7 +22,7 @@ namespace NoiseMapGenerator
         Texture2D previewTex;
         Vector2 scrollPos;
 
-        [MenuItem("Window/Noise Map Generator")]
+        [MenuItem("Tools/美术/噪声图生成器")]
         static void Open() => GetWindow<NoiseMapGeneratorWindow>("Noise Map Generator");
 
         void OnEnable()
