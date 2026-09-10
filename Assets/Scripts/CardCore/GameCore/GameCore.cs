@@ -543,6 +543,8 @@ namespace CardCore
             if (MatchStats != null) MatchStats.ClearAll(); // 对局史计数跨局不残留（先清再挂仪式订阅）
             MatchLogService.EnsureStarted();               // 对局日志全局钩子（幂等；AnyPublished 收口）
             MatchLogService.ClearAll();                    // 战报缓冲跨局不残留
+            Network.NetEventProjector.EnsureStarted();     // 网络事件流投影（M1：与日志同款 AnyPublished 收口）
+            Network.NetEventProjector.ClearAll();          // 事件缓冲跨局不残留
             ControlChangeLayer.ClearAll();
             TextChangeLayer.ClearAll();
             CopyEffectsEngine.ClearAll();

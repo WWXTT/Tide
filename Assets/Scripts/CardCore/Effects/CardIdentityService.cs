@@ -139,7 +139,7 @@ namespace CardCore
             sb.Append(a.EffectType ?? string.Empty).Append('|')
               .Append(a.Value).Append('|')
               .Append(a.Value2).Append('|')
-              .Append(a.StringValue ?? string.Empty).Append('|')
+              .Append(a.ID ?? string.Empty).Append('|')
               .Append(a.ManaTypeParam).Append('|')
               .Append(a.ZoneParam).Append('|')
               .Append(a.Duration).Append('|')

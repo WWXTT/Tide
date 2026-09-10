@@ -146,6 +146,71 @@ namespace CardCore.Tools
                 // ---- PlayerState ----
                 ("PlayerState", "Name"), ("PlayerState", "Life"), ("PlayerState", "MaxHealth"),
                 ("PlayerState", "DeckCount"), ("PlayerState", "HandCount"),
+                // M1 快照扩展（2026-09-10）
+                ("PlayerState", "Seat"), ("PlayerState", "IsAI"), ("PlayerState", "FatigueCount"),
+                ("PlayerState", "LandCap"), ("PlayerState", "ElementBank"),
+                ("PlayerState", "OffsetDrainUsed"), ("PlayerState", "OffsetDiscardUsed"),
+                ("PlayerState", "OffsetMillUsed"), ("PlayerState", "OffsetOpponentHealUsed"),
+                ("PlayerState", "OffsetOpponentDrawUsed"), ("PlayerState", "OffsetSendExtraUsed"),
+                ("PlayerState", "GraveyardCount"), ("PlayerState", "ExileCount"),
+
+                // ---- M1 网络协议（2026-09-10，详见 根目录 网络协议.md）----
+
+                // ---- NetworkMessage 信封 ----
+                ("NetworkMessage", "ProtocolVersion"),
+
+                // ---- NetEntityRef（实体引用双轨：卡=RuntimeId、玩家=座位）----
+                ("NetEntityRef", "RuntimeId"), ("NetEntityRef", "Seat"),
+                ("NetEntityRef", "IsPlayer"), ("NetEntityRef", "CardId"),
+
+                // ---- NetEvent（通用事件信封，schema-less 投影）----
+                ("NetEvent", "EventType"), ("NetEvent", "EventId"),
+                ("NetEvent", "TurnNumber"), ("NetEvent", "Params"),
+
+                // ---- NetParam（事件字段投影）----
+                ("NetParam", "FieldName"), ("NetParam", "Kind"), ("NetParam", "IntValue"),
+                ("NetParam", "FloatValue"), ("NetParam", "StringValue"), ("NetParam", "EntityRefs"),
+
+                // ---- MsgGameStateSync 扩展（V2 全量快照）----
+                ("MsgGameStateSync", "ViewerSeat"), ("MsgGameStateSync", "ActiveSeat"),
+                ("MsgGameStateSync", "PrioritySeat"), ("MsgGameStateSync", "ZoneCards"),
+                ("MsgGameStateSync", "Hands"), ("MsgGameStateSync", "StackV2"),
+
+                // ---- StackItemDTO（栈条目：现 Stack=SerializableEffectDefinition[] 粒度错误的替换）----
+                ("StackItemDTO", "Source"), ("StackItemDTO", "IsCardCast"), ("StackItemDTO", "EffectId"),
+                ("StackItemDTO", "EffectDisplayName"), ("StackItemDTO", "ModeIndex"),
+                ("StackItemDTO", "Targets"), ("StackItemDTO", "ActivationSpeed"),
+                ("StackItemDTO", "StackObjectType"),
+
+                // ---- NetZoneCards（区域全量）----
+                ("NetZoneCards", "Seat"), ("NetZoneCards", "Zone"), ("NetZoneCards", "Cards"),
+
+                // ---- CardHandInfo（手牌隐藏信息口径：己方传 RuntimeId、对方只数量）----
+                ("CardHandInfo", "Seat"), ("CardHandInfo", "Count"), ("CardHandInfo", "OwnRuntimeIds"),
+
+                // ---- 上行 intent ----
+                ("MsgIntentPlayCard", "CardRuntimeId"), ("MsgIntentPlayCard", "Targets"),
+                ("MsgIntentPlayCard", "FromZone"), ("MsgIntentPlayCard", "ModeIndex"),
+                ("MsgIntentTapForElement", "CardRuntimeId"), ("MsgIntentTapForElement", "ManaType"),
+                ("MsgIntentAddToElementPool", "CardRuntimeId"),
+                ("MsgIntentDeclareAttack", "Attacker"), ("MsgIntentDeclareAttack", "Target"),
+                ("MsgIntentDeclareBlock", "Blocker"), ("MsgIntentDeclareBlock", "Attacker"),
+                ("MsgIntentActivateEffect", "SourceCardRuntimeId"), ("MsgIntentActivateEffect", "EffectId"),
+                ("MsgIntentActivateEffect", "Targets"), ("MsgIntentActivateEffect", "PaidBoost"),
+
+                // ---- 反问请求/应答 ----
+                ("MsgSelectRequest", "RequestId"), ("MsgSelectRequest", "ChooserSeat"),
+                ("MsgSelectRequest", "Title"), ("MsgSelectRequest", "Hint"),
+                ("MsgSelectRequest", "AllowCancel"), ("MsgSelectRequest", "TimeoutSeconds"),
+                ("MsgSelectRequest", "Min"), ("MsgSelectRequest", "Max"),
+                ("MsgSelectRequest", "Labels"), ("MsgSelectRequest", "Candidates"),
+                ("MsgSelectResponse", "RequestId"), ("MsgSelectResponse", "Indices"),
+
+                // ---- MsgNetEventBatch（事件流批次下行）----
+                ("MsgNetEventBatch", "Events"),
+
+                // ---- RuntimeCardState 快照补齐 ----
+                ("RuntimeCardState", "RuntimeId"), ("RuntimeCardState", "ControllerSeat"),
             };
 
             var result = new (string className, string propName, int tag)[raw.Length];
@@ -201,6 +266,15 @@ namespace CardCore.Tools
                 "MsgActivateEffect" => "MAE",
                 "MsgGameStateSync" => "MGSS",
                 "PlayerState" => "PS",
+                "NetEntityRef" => "NER",
+                "NetEvent" => "NE",
+                "NetParam" => "NP",
+                "StackItemDTO" => "SID",
+                "NetZoneCards" => "NZC",
+                "CardHandInfo" => "CHI",
+                "MsgSelectRequest" => "MSelR",
+                "MsgSelectResponse" => "MSelP",
+                "MsgNetEventBatch" => "MNEB",
                 _ => className
             };
         }

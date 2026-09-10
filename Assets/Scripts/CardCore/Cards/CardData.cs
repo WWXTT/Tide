@@ -385,10 +385,10 @@ namespace CardCore
     [Serializable]
     public class AtomicEffectEntry
     {
+        public string ID;     // 字符串参数（token ID、关键词 ID）
         public string EffectType;      // AtomicEffectType 枚举名，如 "DealDamage"
         public int Value;              // 主数值（伤害量、抽卡数、攻血修改量）
         public int Value2;             // 副数值（ModifyAllStats 的 life 值）
-        public string StringValue;     // 字符串参数（token ID、关键词 ID）
         public int ManaTypeParam;      // ManaType 枚举值
         public int ZoneParam;          // Zone 枚举值
         public int Duration;           // DurationType 枚举值，0 = 使用表默认

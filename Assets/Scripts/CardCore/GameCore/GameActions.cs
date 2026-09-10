@@ -552,9 +552,11 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 从卡牌获取效果定义（如有）
+        /// 从卡牌获取效果定义（如有）。
+        /// public：网络 intent 以 EffectDefinition.Id 寻址效果（M1 协议），服务器分派用
+        /// （此前 LegalActionEnumerator 持有一份私有拷贝——统一走本口防口径漂移）。
         /// </summary>
-        private static List<EffectDefinition> GetCardEffectDefinitions(Card card)
+        public static List<EffectDefinition> GetCardEffectDefinitions(Card card)
         {
             if (card is CardWrapper wrapper)
             {

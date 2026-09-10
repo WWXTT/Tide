@@ -39,6 +39,22 @@ namespace CardCore
     }
 
     /// <summary>
+    /// 带实体引用的选择器扩展（M1 网络协议 2026-09-10）：
+    /// 网络选择器（NetworkTargetSelector）需要 Candidates 实体引用才能让远端客户端
+    /// 渲染候选并回传索引——基接口只传 labels 字符串不够。
+    /// 引擎侧 RequestAsync/RequestOneIndexAsync 对 Current 做 is 分流，UI 实现（UiTargetSelector）
+    /// 不实现本接口则走原路径，零感知零改动。requestId 由网络选择器自管（TargetSelectionRequest 本体不加字段）。
+    /// </summary>
+    public interface ITargetSelectorEx : ITargetSelector
+    {
+        /// <summary>实体反问：完整请求（含 Candidates 实体引用）+ 预生成标签；返回选中索引。</summary>
+        UniTask<List<int>> SelectAsync(TargetSelectionRequest request, IReadOnlyList<string> labels);
+
+        /// <summary>纯选项反问（RequestOneIndexAsync：抉择/mode 选择，无实体）；返回选中索引。</summary>
+        UniTask<int> SelectOneAsync(Player chooser, IReadOnlyList<string> options, string title);
+    }
+
+    /// <summary>
     /// 目标选择服务（引擎侧入口）。
     /// 集中处理：AI/ヘッドレス 即时自动选择、回合数递增超时、超时/异常兜底自动选择。
     /// UI 层启动时注册 Current；测试/服务器环境保持 null（全部走自动选择）。
@@ -72,9 +88,12 @@ namespace CardCore
             float timeout = req.TimeoutSeconds > 0f ? req.TimeoutSeconds : ComputeTimeout();
             var labels = req.Candidates.Select(DescribeEntity).ToList();
 
-            // UI 任务与安全网超时竞速：UI 漏掉自动确定时引擎兜底
-            var uiTask = Current.SelectIndicesAsync(
-                labels, req.MinCount, req.MaxCount, req.Title, req.Hint, req.AllowCancel, timeout);
+            // UI 任务与安全网超时竞速：UI 漏掉自动确定时引擎兜底。
+            // M1 分流：扩展选择器（网络）拿完整请求（含 Candidates 实体引用），基接口走原路径
+            var uiTask = Current is ITargetSelectorEx ex
+                ? ex.SelectAsync(req, labels)
+                : Current.SelectIndicesAsync(
+                    labels, req.MinCount, req.MaxCount, req.Title, req.Hint, req.AllowCancel, timeout);
             var graceTask = UniTask.Delay(System.TimeSpan.FromSeconds(timeout + GraceSeconds))
                 .ContinueWith(() => (List<int>)null);
 
@@ -106,8 +125,10 @@ namespace CardCore
 
             float timeout = ComputeTimeout();
 
-            var uiTask = Current.SelectIndicesAsync(
-                options, 1, 1, title, "", false, timeout);
+            // M1 分流：扩展选择器（网络）走 SelectOneAsync（带 chooser），基接口走原路径
+            var uiTask = Current is ITargetSelectorEx ex
+                ? WrapOne(ex.SelectOneAsync(chooser, options, title))
+                : Current.SelectIndicesAsync(options, 1, 1, title, "", false, timeout);
             var graceTask = UniTask.Delay(System.TimeSpan.FromSeconds(timeout + GraceSeconds))
                 .ContinueWith(() => (List<int>)null);
 
@@ -120,6 +141,13 @@ namespace CardCore
                 if (idx >= 0 && idx < options.Count) return idx;
             }
             return 0;
+        }
+
+        /// <summary>SelectOneAsync（int）适配到 WhenAny 竞速的 List&lt;int&gt; 形态；负索引视为取消（走兜底 0）。</summary>
+        private static async UniTask<List<int>> WrapOne(UniTask<int> task)
+        {
+            int idx = await task;
+            return idx >= 0 ? new List<int> { idx } : null;
         }
 
         /// <summary>回合数递增超时：min(10 + 5×(回合−1), 60)。</summary>

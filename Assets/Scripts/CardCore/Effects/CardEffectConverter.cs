@@ -166,7 +166,7 @@ namespace CardCore
                 Type = type,
                 Value = entry.Value,
                 Value2 = entry.Value2,
-                StringValue = entry.StringValue ?? "",
+                StringValue = entry.ID ?? "",
                 ManaTypeParam = (ManaType)entry.ManaTypeParam,
                 ZoneParam = (Zone)entry.ZoneParam,
                 Duration = duration,

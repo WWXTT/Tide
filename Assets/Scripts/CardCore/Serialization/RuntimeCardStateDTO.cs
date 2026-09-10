@@ -53,6 +53,19 @@ namespace CardCore.Serialization
         [MemoryPackOrder(TagTable.RCS_RemainingLandTokens)]
         public ManaEntryDTO[] RemainingLandTokens;
 
+        // ---- M1 网络快照扩展（2026-09-10）：单向导出字段，ApplyToCard 不回灌 ----
+        // RuntimeId 只读（Entity 构造期分配）；ControllerSeat 经 SetController 走 Player 对象（DTO 无核心上下文）；
+        // IsFrozen 是计算值（FreezeCounter>0），回灌须走指示物写入——三者均为快照展示/对账口径。
+
+        [MemoryPackOrder(TagTable.RCS_RuntimeId)]
+        public uint RuntimeId;
+
+        [MemoryPackOrder(TagTable.RCS_ControllerSeat)]
+        public int ControllerSeat;
+
+        [MemoryPackOrder(TagTable.RCS_IsFrozen)]
+        public bool IsFrozen;
+
         public static SerializableRuntimeCardState FromCard(Card card)
         {
             var dto = new SerializableRuntimeCardState
@@ -69,6 +82,9 @@ namespace CardCore.Serialization
                 Zone = (int)card._zone,
                 TargetFlags = (int)card._targetFlags,
                 WasDepletedAsLand = card.WasDepletedAsLand,
+                RuntimeId = card.RuntimeId,
+                ControllerSeat = SeatOfController(card),
+                IsFrozen = card.IsFrozen(),
             };
 
             dto.Keywords = card._keywords?.ToArray() ?? Array.Empty<string>();
@@ -80,6 +96,17 @@ namespace CardCore.Serialization
                 ?? Array.Empty<ManaEntryDTO>();
 
             return dto;
+        }
+
+        /// <summary>控制器座位（P1=0/P2=1/其他=-1）。快照对账口径；回灌走 SetController 不经 DTO。</summary>
+        private static int SeatOfController(Card card)
+        {
+            var controller = card.GetController();
+            var core = GameCore.Instance;
+            if (controller == null || core == null) return -1;
+            if (ReferenceEquals(controller, core.Player1)) return 0;
+            if (ReferenceEquals(controller, core.Player2)) return 1;
+            return -1;
         }
 
         public void ApplyToCard(Card card)

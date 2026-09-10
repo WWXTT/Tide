@@ -119,7 +119,7 @@ namespace SynergyUI
                 {
                     EffectType = kw.AtomicEffect,
                     Value = 1,
-                    StringValue = kw.Id,
+                    ID = kw.Id,
                     TargetTypeOverride = (int)EffectTargetType.Self,
                 },
             });
@@ -498,8 +498,8 @@ namespace SynergyUI
 
             var strField = new TextField("字符串");
             strField.AddToClassList("text-input");
-            strField.SetValueWithoutNotify(atomic.StringValue ?? "");
-            strField.RegisterValueChangedCallback(evt => atomic.StringValue = evt.newValue);
+            strField.SetValueWithoutNotify(atomic.ID ?? "");
+            strField.RegisterValueChangedCallback(evt => atomic.ID = evt.newValue);
             rowB.Add(strField);
 
             var wrap = new VisualElement();
@@ -563,12 +563,12 @@ namespace SynergyUI
                 dropdown.choices = labels;
                 dropdown.AddToClassList("text-input");
 
-                int cur = ids.IndexOf(atomic.StringValue ?? "");
+                int cur = ids.IndexOf(atomic.ID ?? "");
                 if (cur < 0)
                 {
                     cur = ids.IndexOf("SingleDimension");
                     if (cur < 0) cur = 0;
-                    atomic.StringValue = ids.Count > 0 ? ids[cur] : "";
+                    atomic.ID = ids.Count > 0 ? ids[cur] : "";
                 }
                 dropdown.index = cur;
                 dropdown.RegisterValueChangedCallback(_ =>
@@ -576,7 +576,7 @@ namespace SynergyUI
                     int i = dropdown.index;
                     if (i >= 0 && i < ids.Count)
                     {
-                        atomic.StringValue = ids[i];
+                        atomic.ID = ids[i];
                     }
                 });
                 wrap.Add(dropdown);
