@@ -261,4 +261,48 @@ namespace CardCore.Attribute.Handlers
 
         public override string GetDescription(AtomicEffectInstance effect) => "附加无效指示物（非启动式能力无法发动）";
     }
+
+    /// <summary>
+    /// 沉睡原子（2026-09-11 定案，绿1 中性）：赋予目标沉睡指示物（持有期间无法重置+效果无效）并横置。
+    /// 效果/指示物分离原则：本原子只负责**赋予指示物**——持续规则由指示物自身承载
+    /// （GameCore 回合开始逐层倒数代替重置；TriggerEngine/CanActivate 拦效果）。
+    /// 自我沉睡的灰费转时长：目标=来源卡自身且 Value 未显式 → 数量=PendingSleepGray
+    /// （打出时灰份额豁免量，GetCardCost 剥离暂存，消费即清）。
+    /// </summary>
+    public class SleepHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Sleep;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            foreach (var target in context.Targets)
+            {
+                if (target == null || !target.IsAlive) continue;
+
+                int amount = context.GetValueAfterModifiers(effect.Value);
+                if (amount <= 0 && context.Source is Card src && target == src && src.PendingSleepGray > 0)
+                {
+                    amount = src.PendingSleepGray; // 灰费豁免转时长（自我沉睡）
+                    src._pendingSleepGray = 0;     // 消费即清（一次性）
+                }
+                if (amount <= 0) amount = 1;
+
+                // 沉睡=横置进沉睡（横置即上限：不能攻击/守卫；重置被指示物拦）。
+                // 不走 ShouldTap（警戒 2026-09-10 已重定义为「横置也能反击」，无横置抵扣）。
+                target.Tap();
+                target.AddCounters(KeywordRules.SleepCounter, amount, context.Source);
+                PublishEvent(new TapEvent { TappedEntity = target, IsUntapping = false });
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = target,
+                    CounterType = KeywordRules.SleepCounter,
+                    Amount = amount,
+                    Source = context.Source
+                });
+            }
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect)
+            => effect.Value > 0 ? $"赋予{effect.Value}层沉睡（无法重置、效果无效）" : "赋予沉睡（灰费豁免量=持续回合）";
+    }
 }

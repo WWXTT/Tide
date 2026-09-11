@@ -17,7 +17,7 @@ namespace CardCore
         /// <summary>是否可用任意颜色支付（灰色效果）</summary>
         public bool IsGeneric => PrimaryColor == ManaType.Gray;
 
-        /// <summary>是否为特殊颜色（黑/白不在本次实现）</summary>
+        /// <summary>是否为黑白（2026-09-11 转正为真实颜色：获取=卡结算产生，不由地牌产出）</summary>
         public bool IsSpecialColor => PrimaryColor == ManaType.Black || PrimaryColor == ManaType.White;
 
         /// <summary>创建单色倾向</summary>
@@ -49,11 +49,12 @@ namespace CardCore
     /// </summary>
     public static class ElementPaymentValidator
     {
-        /// <summary>纯色（受浓度上限约束）：红/蓝/绿。灰与预留黑白支付不受限。</summary>
-        private static readonly ManaType[] PureColors = { ManaType.Red, ManaType.Blue, ManaType.Green };
+        /// <summary>纯色（受浓度上限约束）：红/蓝/绿/黑/白（黑白 2026-09-11 转正，与三色同权）。灰不受限。</summary>
+        private static readonly ManaType[] PureColors =
+            { ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Black, ManaType.White };
 
         private static bool IsPureColor(ManaType type)
-            => type == ManaType.Red || type == ManaType.Blue || type == ManaType.Green;
+            => PureColors.Contains(type);
 
         /// <summary>
         /// 验证是否可以支付指定倾向的代价
@@ -67,10 +68,7 @@ namespace CardCore
         {
             if (amount <= 0) return true;
 
-            // 特殊颜色暂不支持
-            if (affinity.IsSpecialColor) return false;
-
-            // 灰色效果：可用任意颜色支付；纯色贡献各受浓度上限约束，灰（及预留黑白）不受限
+            // 灰色效果：可用任意颜色支付；纯色（含黑白）贡献各受浓度上限约束，灰不受限
             if (affinity.IsGeneric)
             {
                 int total = 0;
@@ -117,7 +115,7 @@ namespace CardCore
                     remaining -= toUse;
                 }
 
-                // 然后按顺序使用纯色：每种纯色本次贡献 ≤ 浓度上限
+                // 然后按顺序使用纯色（红蓝绿黑白）：每种纯色本次贡献 ≤ 浓度上限
                 foreach (var color in PureColors)
                 {
                     if (remaining <= 0) break;
@@ -193,7 +191,8 @@ namespace CardCore
 
     /// <summary>
     /// 预定义的元素倾向（仅红蓝绿灰）
-    /// 颜色来源：配置表 AttributeValueConfig.json 的 EffectColor（经 AtomicEffectTable 加载，存于 Tags）。
+    /// 颜色来源：配置表 AttributeValueConfig.json 的 EffectColor（经 AtomicEffectTable 加载，存于 Tags；
+    /// 2026-09-11 起 Tags 只含 EffectColor——EffectFunction 列已删）。
     /// </summary>
     public static class ElementAffinities
     {
@@ -215,10 +214,11 @@ namespace CardCore
                     case "Red": return ElementAffinity.Single(ManaType.Red);
                     case "Blue": return ElementAffinity.Single(ManaType.Blue);
                     case "Green": return ElementAffinity.Single(ManaType.Green);
-                    // 预留色黑白正式归一为灰（定案：效果颜色只落红蓝绿灰；表内 White/Black 行照旧，计价/支付按灰）
-                    case "Gray":
-                    case "White":
-                    case "Black": return ElementAffinity.Generic;
+                    // 黑白转正（2026-09-11）：表内 White/Black 行计价/支付落回本色，不再归一为灰。
+                    // 黑白不由地牌产出，获取通道唯一=卡结算（错边原子/代价补偿），见 CostDerivation/EffectExecutionEngine。
+                    case "White": return ElementAffinity.Single(ManaType.White);
+                    case "Black": return ElementAffinity.Single(ManaType.Black);
+                    case "Gray": return ElementAffinity.Generic;
                 }
             }
             return Generic;

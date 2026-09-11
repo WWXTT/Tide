@@ -244,7 +244,7 @@ namespace CardCore
                 AtomicEffectType.Tap => EffectTargetFlags.ImmuneToTap,
 
                 // 冻结相关
-                AtomicEffectType.FreezePermanent => EffectTargetFlags.ImmuneToFreeze,
+                AtomicEffectType.Freeze => EffectTargetFlags.ImmuneToFreeze,
 
                 // 弹回相关
                 AtomicEffectType.ReturnToHand => EffectTargetFlags.ImmuneToBounce,

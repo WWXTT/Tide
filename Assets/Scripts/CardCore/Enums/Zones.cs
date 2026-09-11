@@ -681,6 +681,26 @@ namespace CardCore
             }
         }
 
+        /// <summary>
+        /// 就地重排区域顶部的卡序（观星/占卜用）：orderedTop 即新的顶部顺序（index0=顶）。
+        /// 卡必须全部已在本区域内；未参与重排的卡保持原相对顺序跟在后面。
+        /// </summary>
+        public void ReorderTop(Zone zone, List<Card> orderedTop)
+        {
+            if (orderedTop == null || orderedTop.Count == 0) return;
+            var list = zones[zone];
+            if (orderedTop.Count > list.Count) return; // 防御：重排数超出区域总量
+
+            var set = new HashSet<Card>(orderedTop);
+            var rest = new List<Card>();
+            foreach (var c in list)
+                if (!set.Contains(c))
+                    rest.Add(c);
+
+            for (int i = 0; i < orderedTop.Count; i++) list[i] = orderedTop[i];
+            for (int i = 0; i < rest.Count; i++) list[orderedTop.Count + i] = rest[i];
+        }
+
         /// <summary>按 DeckPosition 将卡牌插入列表（Top=index0 牌库顶，Bottom=末尾，Random=随机）</summary>
         private static void InsertByPosition(List<Card> list, Card card, DeckPosition position)
         {

@@ -8,55 +8,60 @@ namespace CardCore
     /// 目标种类（M1 目标域模型 2026-09-10 定案）：作用区域的显式编号taxonomy，
     /// 取代旧 EffectTargetType(10值)+TargetFilter 分区 token+EffectTargetScope(死)。
     ///
-    /// 两种根本划分：
-    /// - 战场单位（0-3）：生命性（可摧毁=有生命 / 可消灭=无生命）× 归属（己方/对方）。
+    /// 三种根本划分：
+    /// - 自己（0）：**Self 概念找回（2026-09-11 定案）**——关键词（Grant 族）与关键词型效果
+    ///   （沉睡等）只能作用于自己，TargetKinds 一律标 "0"；解析=源卡自身（在组合域内校验）。
+    /// - 战场单位（1-4）：生命性（可摧毁=有生命 / 可消灭=无生命）× 归属（己方/对方）。
     ///   角色=有生命单位（世界观定案），不单列。生物/结界在最早发动时点已身在战场——
-    ///   "指向自己"=从己方单位域选源卡，无"自身"种类（自身是组合层 SelectionMode）。
-    ///   瞬间在发动区=非场上单位：不可被单位域指向，只接卡指向效果（14/15）——由域本身保证。
-    /// - 功能区域卡（4-15）：作用对象是卡不是单位。地牌在元素池（12/13），
-    ///   无生命域（2/3）只含战场非生物。
+    ///   瞬间在发动区=非场上单位：不可被单位域指向，只接卡指向效果（15/16）——由域本身保证。
+    /// - 功能区域卡（5-16）：作用对象是卡不是单位。地牌在元素池（13/14），
+    ///   无生命域（3/4）只含战场非生物。
     ///
     /// 组合语义：原子列可指向目标全集（TargetKinds），组合效果的可作用范围=成员原子域的
     /// **交集**（不是并集）；交集空 → 构筑期拦截；运行时候选空 → 不可发动。
     /// 属性细化过滤（Untapped/Power&gt;N 等）保留为域内 filter，不进序号。
     ///
-    /// 值一经分配只许尾部追加、永不重排（JSON/表列存裸 int）。
+    /// 序号重排（2026-09-11，一次性例外）：Self 插入 0、原 0-15 整体 +1——同批完成全部
+    /// JSON/表列/验证器字面量迁移；此后恢复「只许尾部追加、永不重排」。
     /// </summary>
     public enum TargetKind : int
     {
+        /// <summary>自己（2026-09-11 找回）：关键词/关键词型效果的专属域——解析=源卡自身</summary>
+        Self = 0,
+
         /// <summary>己方有生命单位（战场生物 + 己方角色）</summary>
-        OwnLivingUnit = 0,
+        OwnLivingUnit = 1,
         /// <summary>对方有生命单位（对方生物 + 对方角色）</summary>
-        EnemyLivingUnit = 1,
+        EnemyLivingUnit = 2,
         /// <summary>己方无生命单位（战场结界等非生物持久物）</summary>
-        OwnNonLivingUnit = 2,
+        OwnNonLivingUnit = 3,
         /// <summary>对方无生命单位</summary>
-        EnemyNonLivingUnit = 3,
+        EnemyNonLivingUnit = 4,
 
         /// <summary>己方手牌（卡）</summary>
-        OwnHand = 4,
+        OwnHand = 5,
         /// <summary>对方手牌（卡）</summary>
-        EnemyHand = 5,
+        EnemyHand = 6,
         /// <summary>己方牌库（卡）</summary>
-        OwnDeck = 6,
+        OwnDeck = 7,
         /// <summary>对方牌库（卡）</summary>
-        EnemyDeck = 7,
+        EnemyDeck = 8,
         /// <summary>己方坟场（卡）</summary>
-        OwnGraveyard = 8,
+        OwnGraveyard = 9,
         /// <summary>对方坟场（卡）</summary>
-        EnemyGraveyard = 9,
+        EnemyGraveyard = 10,
         /// <summary>己方除外区（卡）</summary>
-        OwnExile = 10,
+        OwnExile = 11,
         /// <summary>对方除外区（卡）</summary>
-        EnemyExile = 11,
+        EnemyExile = 12,
         /// <summary>己方元素池（地牌卡）</summary>
-        OwnElementPool = 12,
+        OwnElementPool = 13,
         /// <summary>对方元素池（地牌卡）</summary>
-        EnemyElementPool = 13,
+        EnemyElementPool = 14,
         /// <summary>己方发动区（被使用的卡——反制指向落点）</summary>
-        OwnActivation = 14,
+        OwnActivation = 15,
         /// <summary>对方发动区（被使用的卡）</summary>
-        EnemyActivation = 15,
+        EnemyActivation = 16,
     }
 
     /// <summary>组合效果的目标选择模式（域=能指什么；模式=怎么选）。</summary>
@@ -83,11 +88,12 @@ namespace CardCore
         public static bool IsUnitKind(int kind)
             => kind >= (int)TargetKind.OwnLivingUnit && kind <= (int)TargetKind.EnemyNonLivingUnit;
 
-        /// <summary>是否归属对方（序号奇偶：单位 0/2=己方 1/3=对方；卡域成对 odd=对方）。</summary>
+        /// <summary>是否归属对方（单位=对方生命/无生命两类；卡域=自 OwnHand 起成对，偶位己方奇位对方）。
+        /// 2026-09-11 Self=0 重排后弃用绝对奇偶——按相对偏移判（OwnHand 起第 2n+1 个为对方侧）。</summary>
         public static bool IsEnemySide(int kind)
             => kind == (int)TargetKind.EnemyLivingUnit
             || kind == (int)TargetKind.EnemyNonLivingUnit
-            || (IsCardKind(kind) && kind % 2 == 1);
+            || (IsCardKind(kind) && (kind - (int)TargetKind.OwnHand) % 2 == 1);
 
         /// <summary>卡种类 → (Zone, 是否己方)。单位种类返回 (None, false) 无意义值。</summary>
         public static (Zone zone, bool own) ZoneOf(int kind)

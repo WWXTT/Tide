@@ -333,7 +333,7 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 装载期构筑校验（提示级）：声明档位的卡若代价抵扣不足（O &lt; Req）打警告，不阻止加载。
+        /// 装载期构筑校验（提示级）：声明档位的卡若 D &gt; C（规则一 2026-09-11 简化口径）打警告，不阻止加载。
         /// </summary>
         private static void WarnCostNonConformance(List<CardData> cards)
         {
@@ -342,7 +342,7 @@ namespace CardCore
                 if (card?.Cost == null || card.Cost.Count == 0) continue;
                 var r = CardCostService.Derive(card);
                 if (!r.Conformant)
-                    Debug.LogWarning($"[CardCost] {card.ID}({card.CardName}) 代价抵扣不足：需求 Req={r.OffsetRequirement}，已提供 O={r.OffsetProvided}，不符规则一");
+                    Debug.LogWarning($"[CardCost] {card.ID}({card.CardName}) 不符规则一：D={r.DerivedTotal} > C={r.DeclaredTier}（超模 {r.OffsetRequirement}）");
             }
         }
 

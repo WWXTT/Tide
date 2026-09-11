@@ -34,6 +34,13 @@ namespace CardCore.Attribute
         /// </summary>
         public const string FreezeCounter = "Freeze";
 
+        /// <summary>
+        /// 沉睡指示物名（2026-09-11 定案）：沉睡期间无法重置（回合开始改扣 1 层指示物而非重置，
+        /// 扣完即醒）、效果无效（拦触发式+启动式，与无效/沉默合流为三口）。
+        /// 效果/指示物分离原则：Sleep 原子（绿1 中性）只负责赋予指示物——持续规则由指示物自身承载。
+        /// </summary>
+        public const string SleepCounter = "Sleeping";
+
         // ---- 关键词 id（与 GrantKeywordHandlerFactory.Specs 的运行时字符串同源） ----
         public const string DivineShield = "DivineShield";
         public const string Armor = "Armor";

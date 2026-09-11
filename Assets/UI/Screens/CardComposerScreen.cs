@@ -433,10 +433,14 @@ namespace SynergyUI
             }
             else
             {
-                var balance = result.OffsetProvided >= result.OffsetRequirement
+                // 规则一（2026-09-11 简化）：D≤C 直判；错边原子出计价转黑白获得（结算时发放）
+                var balance = result.OffsetRequirement == 0
                     ? "符合规则一"
-                    : $"抵扣不足（差 {result.OffsetRequirement - result.OffsetProvided:0.#}）";
-                _suggested.text = $"建议档位 {result.ManaCost}（D={result.Total:0}）｜代价抵扣 需求 {result.OffsetRequirement} / 已提供 {result.OffsetProvided:0.#}｜{balance}";
+                    : $"超模（D 超 C {result.OffsetRequirement}）";
+                var grantStr = result.Grants.Count > 0
+                    ? "｜获得 " + string.Join(" ", result.Grants.Select(kv => $"{(ManaType)kv.Key} {(int)kv.Value}"))
+                    : "";
+                _suggested.text = $"建议档位 {result.ManaCost}（D={result.Total:0}）｜{balance}{grantStr}";
             }
             RefreshCostLabel();
         }
@@ -476,14 +480,14 @@ namespace SynergyUI
         {
             ApplyTextLists();
 
-            // 构筑期规则一校验（提示级，不阻止保存）：代价抵扣不足 → 警告
+            // 构筑期规则一校验（提示级，不阻止保存）：D > C → 警告（2026-09-11 简化口径）
             string warn = null;
             if (_kind != CardKind.Xyz)
             {
                 var check = CardCostService.Derive(_card);
                 if (check.DeclaredTier > 0 && !check.Conformant)
                 {
-                    warn = $"代价抵扣不足 需{check.OffsetRequirement}/有{check.OffsetProvided:0.#}";
+                    warn = $"超模：D={check.DerivedTotal} > C={check.DeclaredTier}";
                     UnityEngine.Debug.LogWarning($"[CardCost] {_card.CardName} {warn}，不符规则一");
                 }
             }

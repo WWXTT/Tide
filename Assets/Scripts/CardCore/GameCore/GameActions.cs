@@ -115,9 +115,11 @@ namespace CardCore
                 return false;
 
             // 费用预检（不支付——扣费在响应窗口之后的 cast 结算；抉择卡按所选模式取费——先选择再定费用）；
+            // 代价可选（2026-09-11）：带可付代价的卡按「付+减费」封顶减免额预检
+            //（选择窗口在付费步——声明期按最大可能减免放行，付不出时结算入墓不回卷）；
             // 同玩家已声明的施放费用一并计入，防同笔 bank 超发——结算付不出只入墓、不回卷）
             var cost = GetCardCost(card, modeIndex);
-            if (!CanAfford(core.ElementPool, cost, player, GetPendingCastCosts(core, player)))
+            if (!CanAfford(core.ElementPool, PrecheckBill(core, player, card, cost), player, GetPendingCastCosts(core, player)))
                 return false;
 
             // ---- 声明（使用时点）：设控制者 → 进发动区 → cast 上栈 → 使用宣言（对手获得响应窗口） ----
@@ -172,9 +174,10 @@ namespace CardCore
             if (!isSpell && !core.ZoneManager.HasBattlefieldSpace(player))
                 return false;
 
-            // 费用预检（含本玩家已声明的施放承诺；不支付——cast 结算时才扣；抉择按所选模式）
+            // 费用预检（含本玩家已声明的施放承诺；不支付——cast 结算时才扣；抉择按所选模式；
+            // 代价可选：带可付代价按封顶减费额预检，同 PlayCard 口径）
             var cost = GetCardCost(card, modeIndex);
-            if (!CanAfford(core.ElementPool, cost, player, GetPendingCastCosts(core, player)))
+            if (!CanAfford(core.ElementPool, PrecheckBill(core, player, card, cost), player, GetPendingCastCosts(core, player)))
                 return false;
 
             card.SetController(player);
@@ -233,8 +236,24 @@ namespace CardCore
             if (!core.ZoneManager.IsCardInZone(card, player, Zone.Activation))
                 return;
 
-            // 2. 付费（响应窗口之后）——抉择卡按声明期选定的模式付费（cast.ModeIndex）
+            // 2. 付费（响应窗口之后）——抉择卡按声明期选定的模式付费（cast.ModeIndex）。
+            // 代价可选（2026-09-11 定案）：付费步的选择窗口（抉择窗口之外多一个）——
+            // 不付（原价）/ 付+减费 / 付+得黑白（两通道共用单次上限=地牌上限，防重代价换超大生物）。
+            // 被「发动无效」只跳效果、已付代价与补偿不回卷；被打落则全免（上方 1 已拦）。
+            var specialCosts = CollectCardSpecialCosts(card);
             var cost = GetCardCost(card, cast.ModeIndex);
+            var costCtx = new CostContext
+            {
+                Payer = player,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+                Source = player // 来源=角色（来源归因定案 2026-09-09）
+            };
+            if (!await CostCompensationService.PayOptionalCardCostsAsync(specialCosts, costCtx, cost))
+            {
+                CastAbortToGraveyard(core, card, player, "代价流程异常（付费步失败，不回卷）");
+                return;
+            }
             if (!core.ElementPool.PayCost(cost, player))
             {
                 CastAbortToGraveyard(core, card, player, "费用不足（响应窗口后支付失败，不回卷）");
@@ -419,6 +438,57 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 声明期费用预检口径（2026-09-11 代价可选）：卡带可付代价时按「付+减费」的封顶减免额预检
+        ///（选择窗口在付费步；此处只放行最大可能减免——玩家实际可能选不付，付费步付不出按入墓不回卷）。
+        /// </summary>
+        private static Dictionary<int, float> PrecheckBill(GameCore core, Player player, Card card,
+            Dictionary<int, float> cost)
+        {
+            var specials = CollectCardSpecialCosts(card);
+            if (specials.Count == 0) return cost;
+
+            var ctx = new CostContext
+            {
+                Payer = player,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+                Source = player,
+            };
+            foreach (var c in specials)
+            {
+                if (c == null || c.Type == CostType.Payload) continue; // Payload 恒可付（强制效果）
+                if (!CostHandlerRegistry.CanPay(c, ctx)) return cost;  // 代价付不起 → 无减免，按原价预检
+            }
+
+            var discounted = new Dictionary<int, float>(cost);
+            CostCompensationService.ApplyDiscount(discounted,
+                CostCompensationService.CappedTotalEquivalent(specials, ctx));
+            return discounted;
+        }
+
+        /// <summary>
+        /// 收集一张卡的卡级特殊代价（2026-09-11：代价栏单卡单条定案——整卡效果声明的
+        /// 非元素代价在 cast 付费步统一执行并补偿；启动式能力的代价不在此列，发动时现付）。
+        /// </summary>
+        private static List<CostInstance> CollectCardSpecialCosts(Card card)
+        {
+            var result = new List<CostInstance>();
+            var defs = GetCardEffectDefinitions(card);
+            if (defs == null) return result;
+            foreach (var def in defs)
+            {
+                if (def == null || def.IsActivatedEffect) continue; // 启动式：发动时现付（执行器路径）
+                if (def.Costs == null) continue;
+                foreach (var c in def.Costs)
+                {
+                    if (c != null && c.Type != CostType.ElementConsume)
+                        result.Add(c);
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
         /// 主阶段：发起攻击（炉石式，随时可攻击）
         /// </summary>
         public static bool DeclareAttack(GameCore core, Player player, Entity attacker, Entity target)
@@ -537,7 +607,70 @@ namespace CardCore
                 int gray = (cost.TryGetValue((int)ManaType.Gray, out var g) ? (int)g : 0) + costUp - costDown;
                 cost[(int)ManaType.Gray] = Math.Max(0, gray);
             }
+
+            // 自我沉睡的灰费豁免（2026-09-11 定案）：带「自我沉睡登场效果」的卡**使用时不扣灰色费用**，
+            // 灰份额转沉睡时长（暂存 card.PendingSleepGray，入场 Sleep 原子消费为沉睡指示物数）。
+            // 预检/付费/pending/UI 均经本口——全消费面同口径；卡面声明 Cost 不动（地牌/素材口径照旧）。
+            if (data != null && HasSelfSleepEffect(data))
+            {
+                int waived = cost.TryGetValue((int)ManaType.Gray, out var wg) ? (int)wg : 0;
+                if (waived > 0)
+                {
+                    cost.Remove((int)ManaType.Gray);
+                    card._pendingSleepGray = waived;
+                }
+            }
             return cost;
+        }
+
+        /// <summary>
+        /// 是否带「自我沉睡登场效果（灰时长模式）」（灰费豁免判定，2026-09-11 定案）：
+        /// 任一非启动式效果含 **Value 缺省** 的 Sleep 原子且组合域={Self}——
+        /// Value&gt;0 的显式层数沉睡不走灰费豁免（定长沉睡照常付费）。
+        /// 结果缓存于 CardData（ResetCache 失效）。
+        /// </summary>
+        private static bool HasSelfSleepEffect(CardData data)
+        {
+            if (data.SelfSleepEffectCache.HasValue) return data.SelfSleepEffectCache.Value;
+
+            bool result = false;
+            var defs = CardEffectConverter.ConvertAll(data.Effects, data.ID);
+            foreach (var def in defs)
+            {
+                if (def == null || def.IsActivatedEffect) continue;
+                if (def.TargetDomain == null || def.TargetDomain.Count != 1
+                    || def.TargetDomain[0] != (int)TargetKind.Self) continue;
+                bool hasSleep = def.Steps != null && def.Steps.Count > 0
+                    ? ContainsGraySleepAtom(def.Steps.SelectMany(s => s != null && s.Atomic != null
+                        ? new[] { s.Atomic } : new CardCore.AtomicEffectInstance[0]))
+                    : (def.Effects != null && ContainsGraySleepAtom(def.Effects));
+                if (hasSleep) { result = true; break; }
+            }
+            data.SelfSleepEffectCache = result;
+            return result;
+        }
+
+        /// <summary>灰时长模式的沉睡原子（Value≤0：层数=灰费豁免量）。</summary>
+        private static bool ContainsGraySleepAtom(IEnumerable<CardCore.AtomicEffectInstance> atoms)
+        {
+            foreach (var atom in atoms)
+            {
+                if (atom == null) continue;
+                if (atom.Type == AtomicEffectType.Sleep && atom.Value <= 0) return true;
+                if (atom.SubEffects != null && ContainsGraySleepAtom(atom.SubEffects)) return true;
+            }
+            return false;
+        }
+
+        private static bool ContainsSleepAtom(IEnumerable<CardCore.AtomicEffectInstance> atoms)
+        {
+            foreach (var atom in atoms)
+            {
+                if (atom == null) continue;
+                if (atom.Type == AtomicEffectType.Sleep) return true;
+                if (atom.SubEffects != null && ContainsSleepAtom(atom.SubEffects)) return true;
+            }
+            return false;
         }
 
         /// <summary>

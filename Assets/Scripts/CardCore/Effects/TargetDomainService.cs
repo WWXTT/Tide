@@ -42,6 +42,9 @@ namespace CardCore
         public static bool HasCandidates(EffectDefinition def, EffectExecutionContext ctx)
         {
             if (def == null) return true;
+            // 区域自结算类（SelectionMode=None，2026-09-11）：无候选要求——
+            // 空牌库抽卡走疲劳、空库磨牌空转等由 handler 自裁，不在预检拦
+            if (def.SelectionMode == SelectionMode.None) return true;
 
             var domain = def.TargetDomain;
             if (def.ChoiceDomains != null && ctx.ModeIndex >= 0

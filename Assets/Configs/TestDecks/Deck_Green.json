@@ -199,7 +199,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "89eb67e76afa94d3",
+            "id": "e9ba5bdf1496a5b2",
             "cardName": "翠治愈者",
             "supertype": "Creature",
             "power": 1,
@@ -243,7 +243,7 @@
                             "Value": 2,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -263,7 +263,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "9c4ab9065725e39d",
+            "id": "fc866cfe011e599c",
             "cardName": "翠治愈者·泽",
             "supertype": "Creature",
             "power": 1,
@@ -307,7 +307,7 @@
                             "Value": 2,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -327,7 +327,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "2af0cd7cf1d34acb",
+            "id": "8b2c81749bcbc0ca",
             "cardName": "翠甘霖祭司",
             "supertype": "Creature",
             "power": 2,
@@ -371,7 +371,7 @@
                             "Value": 3,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -391,7 +391,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "20678bd12d923e0c",
+            "id": "c02bd7d98399c80d",
             "cardName": "翠甘霖祭司·霖",
             "supertype": "Creature",
             "power": 2,
@@ -435,7 +435,7 @@
                             "Value": 3,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -455,7 +455,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "9cf38ceb0c195cb2",
+            "id": "3d2498f3627d4bd3",
             "cardName": "翠生命守望",
             "supertype": "Creature",
             "power": 3,
@@ -499,7 +499,7 @@
                             "Value": 4,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -519,14 +519,14 @@
             "surplusToSpeed": false
         },
         {
-            "id": "156b9c625363b40d",
+            "id": "024c3c1dd46d09d3",
             "cardName": "翠增殖者",
             "supertype": "Creature",
             "power": 2,
             "life": 2,
             "costList": [
                 {
-                    "manaType": 3,
+                    "manaType": 4,
                     "amount": 2.0
                 },
                 {
@@ -563,7 +563,7 @@
                             "Value": 1,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -583,14 +583,14 @@
             "surplusToSpeed": false
         },
         {
-            "id": "5082fe041af25845",
+            "id": "4df07b2ff05a5a0b",
             "cardName": "翠增殖者·衍",
             "supertype": "Creature",
             "power": 2,
             "life": 3,
             "costList": [
                 {
-                    "manaType": 3,
+                    "manaType": 4,
                     "amount": 2.0
                 },
                 {
@@ -627,7 +627,7 @@
                             "Value": 1,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -647,14 +647,14 @@
             "surplusToSpeed": false
         },
         {
-            "id": "f64a7314cc956932",
+            "id": "09d693594be8788c",
             "cardName": "翠播种人",
             "supertype": "Creature",
             "power": 2,
             "life": 4,
             "costList": [
                 {
-                    "manaType": 3,
+                    "manaType": 4,
                     "amount": 2.0
                 },
                 {
@@ -691,7 +691,7 @@
                             "Value": 1,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -711,14 +711,14 @@
             "surplusToSpeed": false
         },
         {
-            "id": "028f329d9a7c0863",
+            "id": "967d465b1c39aa0d",
             "cardName": "翠播种人·撒",
             "supertype": "Creature",
             "power": 3,
             "life": 4,
             "costList": [
                 {
-                    "manaType": 3,
+                    "manaType": 4,
                     "amount": 2.0
                 },
                 {
@@ -755,7 +755,7 @@
                             "Value": 1,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -775,14 +775,14 @@
             "surplusToSpeed": false
         },
         {
-            "id": "188d4234dbaa8d54",
+            "id": "2b6c761418a0d34a",
             "cardName": "翠繁荣使者",
             "supertype": "Creature",
             "power": 3,
             "life": 3,
             "costList": [
                 {
-                    "manaType": 3,
+                    "manaType": 4,
                     "amount": 2.0
                 },
                 {
@@ -819,7 +819,7 @@
                             "Value": 1,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -839,16 +839,12 @@
             "surplusToSpeed": false
         },
         {
-            "id": "0b098c9235faa7ec",
+            "id": "136122e72d18aebf",
             "cardName": "翠古木壁",
             "supertype": "Creature",
             "power": 1,
             "life": 5,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
                 {
                     "manaType": 0,
                     "amount": 2.0
@@ -872,17 +868,13 @@
             "surplusToSpeed": false
         },
         {
-            "id": "bb2baf4ca1a572b6",
+            "id": "eeb6e5b9a26863e5",
             "cardName": "翠古木壁·厚",
             "supertype": "Creature",
             "power": 1,
             "life": 6,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
                     "manaType": 0,
                     "amount": 3.0
                 }
@@ -905,17 +897,13 @@
             "surplusToSpeed": false
         },
         {
-            "id": "c470d7002cbac2f6",
+            "id": "5cbadf8787ac6325",
             "cardName": "翠藤墙",
             "supertype": "Creature",
             "power": 2,
             "life": 5,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
                     "manaType": 0,
                     "amount": 3.0
                 }
@@ -938,17 +926,13 @@
             "surplusToSpeed": false
         },
         {
-            "id": "0517841c1ef98a25",
+            "id": "581d6dc4f3e3c176",
             "cardName": "翠藤墙·密",
             "supertype": "Creature",
             "power": 2,
             "life": 6,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
                     "manaType": 0,
                     "amount": 3.0
                 }
@@ -971,19 +955,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "b702ff340e799fd4",
+            "id": "b5acfc3cddc81928",
             "cardName": "翠巨石守",
             "supertype": "Creature",
             "power": 2,
             "life": 7,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [
@@ -1004,7 +984,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "539a19eba329afbf",
+            "id": "e9221f480ae4f255",
             "cardName": "翠岩壳兽",
             "supertype": "Creature",
             "power": 2,
@@ -1012,7 +992,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 2.0
+                    "amount": 1.0
                 },
                 {
                     "manaType": 0,
@@ -1048,7 +1028,7 @@
                             "Value": 2,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -1068,7 +1048,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "1850749069f3c4fe",
+            "id": "f76959574462adab",
             "cardName": "翠岩壳兽·坚",
             "supertype": "Creature",
             "power": 2,
@@ -1076,11 +1056,11 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 2.0
+                    "amount": 1.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [],
@@ -1112,7 +1092,7 @@
                             "Value": 2,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -1132,7 +1112,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "aadcb0c06f1d4f3e",
+            "id": "fa46ea0d0f7dcbeb",
             "cardName": "翠晶甲虫",
             "supertype": "Creature",
             "power": 3,
@@ -1140,11 +1120,11 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 2.0
+                    "amount": 1.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [],
@@ -1176,7 +1156,7 @@
                             "Value": 2,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -1295,15 +1275,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "3f41011391079d9b",
+            "id": "74081a35cce78426",
             "cardName": "翠系命藤",
             "supertype": "Creature",
             "power": 3,
             "life": 3,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
+                    "manaType": 5,
+                    "amount": 2.0
                 },
                 {
                     "manaType": 0,
@@ -1328,19 +1308,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "e125051285c99685",
+            "id": "c49ac9e3641c1918",
             "cardName": "翠系命藤·缠",
             "supertype": "Creature",
             "power": 3,
             "life": 4,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
+                    "manaType": 5,
+                    "amount": 3.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -1361,7 +1341,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "5c29a986e21c11fa",
+            "id": "ed86db45902376c9",
             "cardName": "翠生命相连",
             "supertype": "Creature",
             "power": 3,
@@ -1369,11 +1349,11 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 1.0
+                    "amount": 3.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -1394,7 +1374,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "33d3cf5ae402e0f3",
+            "id": "da4b3775d819ea20",
             "cardName": "翠生命相连·系",
             "supertype": "Creature",
             "power": 3,
@@ -1402,11 +1382,11 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 1.0
+                    "amount": 3.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -1427,7 +1407,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "81a10f9085d1adfd",
+            "id": "ad2c14d945a2d978",
             "cardName": "翠再生蜥",
             "supertype": "Creature",
             "power": 3,
@@ -1435,11 +1415,11 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 1.0
+                    "amount": 5.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -1460,7 +1440,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "1de125598c084824",
+            "id": "000d5a4f76b3d8a1",
             "cardName": "翠再生蜥·活",
             "supertype": "Creature",
             "power": 3,
@@ -1468,11 +1448,11 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 1.0
+                    "amount": 5.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -1493,19 +1473,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "1ee70345b92fb2b5",
+            "id": "892fad7593d826c1",
             "cardName": "翠轮回芽",
             "supertype": "Creature",
             "power": 4,
             "life": 4,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
+                    "manaType": 5,
+                    "amount": 2.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -1526,15 +1506,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "6b02ef6cb8ab4bfc",
+            "id": "f24b49d48d48fe39",
             "cardName": "翠轮回芽·归",
             "supertype": "Creature",
             "power": 4,
             "life": 5,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
+                    "manaType": 5,
+                    "amount": 2.0
                 },
                 {
                     "manaType": 0,
@@ -1694,14 +1674,14 @@
             "surplusToSpeed": false
         },
         {
-            "id": "7676ce0019e9107a",
+            "id": "2277e7a99b8e351d",
             "cardName": "翠圣盾卫",
             "supertype": "Creature",
             "power": 3,
             "life": 4,
             "costList": [
                 {
-                    "manaType": 3,
+                    "manaType": 4,
                     "amount": 1.0
                 },
                 {
@@ -1727,14 +1707,14 @@
             "surplusToSpeed": false
         },
         {
-            "id": "dfb1db1843acca33",
+            "id": "6b750a81517901d4",
             "cardName": "翠圣盾卫·辉",
             "supertype": "Creature",
             "power": 3,
             "life": 5,
             "costList": [
                 {
-                    "manaType": 3,
+                    "manaType": 4,
                     "amount": 1.0
                 },
                 {
@@ -1760,15 +1740,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "294ce8f423208e02",
+            "id": "389863dcacb6a04c",
             "cardName": "翠苏生祭司",
             "supertype": "Creature",
             "power": 3,
             "life": 3,
             "costList": [
                 {
-                    "manaType": 0,
+                    "manaType": 4,
                     "amount": 4.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -1818,15 +1802,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "d563cdc3ca504b0c",
+            "id": "598dae70f7cc67ab",
             "cardName": "翠苏生祭司·唤",
             "supertype": "Creature",
             "power": 3,
             "life": 4,
             "costList": [
                 {
+                    "manaType": 4,
+                    "amount": 4.0
+                },
+                {
                     "manaType": 0,
-                    "amount": 5.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -1876,7 +1864,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "7e9bab463f7ee32b",
+            "id": "2574fe43291f01a6",
             "cardName": "翠碾压巨木",
             "supertype": "Creature",
             "power": 6,
@@ -1884,7 +1872,7 @@
             "costList": [
                 {
                     "manaType": 1,
-                    "amount": 1.0
+                    "amount": 4.0
                 },
                 {
                     "manaType": 0,
@@ -1909,7 +1897,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "e19d5063979ba448",
+            "id": "81619c6beda32e49",
             "cardName": "翠治愈浪潮",
             "supertype": "Spell",
             "power": 0,
@@ -1953,7 +1941,7 @@
                             "Value": 4,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -1973,7 +1961,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "411a5bb06f273f60",
+            "id": "e14b67b8c58b2e81",
             "cardName": "翠治愈浪潮·沛",
             "supertype": "Spell",
             "power": 0,
@@ -2013,7 +2001,7 @@
                             "Value": 5,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -2033,7 +2021,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "f10be34e75643a3b",
+            "id": "514797461f5cb03a",
             "cardName": "翠生命之泉",
             "supertype": "Spell",
             "power": 0,
@@ -2073,7 +2061,7 @@
                             "Value": 6,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -2093,14 +2081,14 @@
             "surplusToSpeed": false
         },
         {
-            "id": "5b881a3f1abcabc9",
+            "id": "c99c5ecedd3eb497",
             "cardName": "翠成长赐福",
             "supertype": "Spell",
             "power": 0,
             "life": 0,
             "costList": [
                 {
-                    "manaType": 3,
+                    "manaType": 4,
                     "amount": 0.0
                 },
                 {
@@ -2137,7 +2125,7 @@
                             "Value": 1,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -2157,14 +2145,14 @@
             "surplusToSpeed": false
         },
         {
-            "id": "f51103e5a65dab43",
+            "id": "98712658e6cab2ed",
             "cardName": "翠成长赐福·沃",
             "supertype": "Spell",
             "power": 0,
             "life": 0,
             "costList": [
                 {
-                    "manaType": 3,
+                    "manaType": 4,
                     "amount": 1.0
                 }
             ],
@@ -2197,7 +2185,7 @@
                             "Value": 2,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -2217,14 +2205,14 @@
             "surplusToSpeed": false
         },
         {
-            "id": "e63736d1c97ec388",
+            "id": "818266e6a9adde46",
             "cardName": "翠繁荣仪式",
             "supertype": "Spell",
             "power": 0,
             "life": 0,
             "costList": [
                 {
-                    "manaType": 3,
+                    "manaType": 4,
                     "amount": 3.0
                 }
             ],
@@ -2257,7 +2245,7 @@
                             "Value": 3,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -2277,15 +2265,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "5753cec7d77e0b0e",
+            "id": "413e9a12c6e05e0a",
             "cardName": "翠巨力术",
             "supertype": "Spell",
             "power": 0,
             "life": 0,
             "costList": [
                 {
+                    "manaType": 1,
+                    "amount": 2.0
+                },
+                {
                     "manaType": 3,
-                    "amount": 4.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -2317,7 +2309,7 @@
                             "Value": 2,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         },
                         {
@@ -2326,7 +2318,7 @@
                             "Value": 2,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -2346,15 +2338,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "2b93dca5904ab4ea",
+            "id": "069acb2b0e542122",
             "cardName": "翠巨力术·壮",
             "supertype": "Spell",
             "power": 0,
             "life": 0,
             "costList": [
                 {
+                    "manaType": 1,
+                    "amount": 4.0
+                },
+                {
                     "manaType": 3,
-                    "amount": 8.0
+                    "amount": 4.0
                 }
             ],
             "keywords": [],
@@ -2386,7 +2382,7 @@
                             "Value": 3,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         },
                         {
@@ -2395,7 +2391,7 @@
                             "Value": 3,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -2415,7 +2411,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "ad8a4d62adeaed1c",
+            "id": "191d7820770b565c",
             "cardName": "翠岩甲术",
             "supertype": "Spell",
             "power": 0,
@@ -2423,6 +2419,10 @@
             "costList": [
                 {
                     "manaType": 3,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
                     "amount": 1.0
                 }
             ],
@@ -2455,7 +2455,7 @@
                             "Value": 3,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -2475,7 +2475,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "8b178597c0213108",
+            "id": "73a73c52bc5e01a3",
             "cardName": "翠岩甲术·厚",
             "supertype": "Spell",
             "power": 0,
@@ -2483,7 +2483,11 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 2.0
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -2515,7 +2519,7 @@
                             "Value": 4,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -2535,7 +2539,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "aea20b5ab8b1ac85",
+            "id": "f4dedaae223f6a07",
             "cardName": "翠光合",
             "supertype": "Spell",
             "power": 0,
@@ -2543,6 +2547,10 @@
             "costList": [
                 {
                     "manaType": 3,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
                     "amount": 1.0
                 }
             ],
@@ -2571,7 +2579,7 @@
                     "AtomicEffects": [
                         {
                             "ID": "",
-                            "EffectType": "Photosynthesis",
+                            "EffectType": "AdditionalEnergy",
                             "Value": 1,
                             "ManaList": [],
                             "TargetKinds": []
@@ -2593,7 +2601,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "15b54b737b01b593",
+            "id": "81a95a896289733e",
             "cardName": "翠光合·盛",
             "supertype": "Spell",
             "power": 0,
@@ -2601,7 +2609,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 4.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -2629,7 +2637,7 @@
                     "AtomicEffects": [
                         {
                             "ID": "",
-                            "EffectType": "Photosynthesis",
+                            "EffectType": "AdditionalEnergy",
                             "Value": 2,
                             "ManaList": [],
                             "TargetKinds": []
@@ -2651,76 +2659,14 @@
             "surplusToSpeed": false
         },
         {
-            "id": "32871488f5f9d312",
-            "cardName": "翠采掘",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_GREEN_58_00",
-                    "DisplayName": "采掘",
-                    "Description": "从元素池采掘元素",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "Mine",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "edd30482c717c948",
+            "id": "c43a4872993c5406",
             "cardName": "翠成长赐福·泽",
             "supertype": "Spell",
             "power": 0,
             "life": 0,
             "costList": [
                 {
-                    "manaType": 3,
+                    "manaType": 4,
                     "amount": 4.0
                 }
             ],
@@ -2753,7 +2699,7 @@
                             "Value": 4,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -2773,7 +2719,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "0406b44672d0bf18",
+            "id": "b1e90993cdfaac6b",
             "cardName": "翠岩甲术·固",
             "supertype": "Spell",
             "power": 0,
@@ -2781,7 +2727,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -2813,7 +2759,7 @@
                             "Value": 5,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],

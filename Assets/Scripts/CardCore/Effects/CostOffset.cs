@@ -40,7 +40,7 @@ namespace CardCore
         public List<CostOffsetMechanismConfig> mechanisms = new List<CostOffsetMechanismConfig>();
     }
 
-    /// <summary>代价抵消事件（每次成功抵消 1 费发布一次）。</summary>
+    /// <summary>代价兑换事件（黑经济 2026-09-11：每次成功付资源兑换 1 黑元素发布一次；ReducedColor=产出色黑）。</summary>
     public class CostOffsetEvent : GameEventBase
     {
         public Player Player { get; set; }
@@ -50,9 +50,10 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 代价抵消服务：把「元素消耗代价」升级为「抵消 + 元素支付」的异步流程。
-    /// 交互式（有 UI 且非 AI）：逐次弹出 1-of-N 让玩家选机制或停止；
-    /// AI / 无头 / 超时：不主动抵消，仅在元素不足时贪心抵消补齐。
+    /// 代价兑换服务（黑经济 2026-09-11，原「代价抵消」改道）：把固有资源换成黑元素的异步流程。
+    /// 兑换**不再减账单**——付资源得 1 黑入 bank（与三色同权：付黑/灰费用、浓度受限；纯色缺口补不了）。
+    /// 交互式（有 UI 且非 AI）：逐次弹出 1-of-N 让玩家选机制或停止（可跨回合囤黑）；
+    /// AI / 无头 / 超时：不主动兑换，仅在灰/黑缺口可推进时贪心兑换补齐。
     /// </summary>
     public static class CostOffsetService
     {
@@ -111,7 +112,9 @@ namespace CardCore
         // ======================================== 对外入口 ========================================
 
         /// <summary>
-        /// 支付一组元素消耗代价：先（可选）抵消、再从可用元素扣除。
+        /// 支付一组元素消耗代价：先（可选）兑换黑元素、再从可用元素扣除。
+        /// 黑经济定案（2026-09-11）：兑换不再减账单——付固有资源得 1 黑入 bank（与三色同权，
+        /// 可付黑/灰费用）；纯色（红/蓝/绿）缺口必须地牌产出实付。
         /// 返回 false 表示无法支付（调用方应中止结算）。
         /// </summary>
         public static async UniTask<bool> PayElementWithOffsetAsync(List<CostInstance> elementCosts, CostContext ctx)
@@ -133,12 +136,12 @@ namespace CardCore
 
             var avail = ctx.ElementPool.GetPool(ctx.Payer).AvailableMana;
 
-            // 2. 交互式抵消（仅有 UI 且非 AI 时）
+            // 2. 交互式兑换（仅有 UI 且非 AI 时）：玩家自由把固有资源换成黑元素（可跨回合囤）
             bool interactive = TargetSelectionService.Current != null && !ctx.Payer.IsAI;
             if (interactive)
-                await InteractiveOffsetAsync(need, ctx);
+                await InteractiveOffsetAsync(ctx);
 
-            // 3. 贪心兜底：元素仍不足则继续抵消补齐（AI/超时/交互后仍欠）
+            // 3. 贪心兜底：仍不可付且兑换能推进可付性（灰/黑缺口）时继续补（AI/超时/交互后仍欠）
             GreedyOffset(need, avail, ctx);
 
             // 4. 最终元素支付（原子：先确认可付，再扣）
@@ -149,8 +152,9 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 非破坏性预检：在「最大可能抵消」后，元素是否仍可支付。
-        /// 供 CanActivate 发动前判定（让抵消能救活原本直接付不起的发动）。
+        /// 非破坏性预检：在「最大可能兑换」后，元素是否仍可支付。
+        /// 黑经济口径：最大兑换次数全部折成黑入副本 bank（黑只补黑本色缺口与灰混付缺口，受浓度上限约束）。
+        /// 供 CanActivate 发动前判定（让兑换能救活原本直接付不起的发动）。
         /// </summary>
         public static bool CanAfford(List<CostInstance> elementCosts, CostContext ctx)
         {
@@ -169,22 +173,15 @@ namespace CardCore
             // 可用元素副本（不改动真实池）
             var avail = new Dictionary<ManaType, int>(ctx.ElementPool.GetPool(ctx.Payer).AvailableMana);
 
-            // 估算最大可抵消费数（受 Reducible、单局上限、资源量三者约束）
-            int maxOffset = Math.Min(Reducible(need), MaxAffordableOffsets(ctx));
-
-            // 贪心从最高需求颜色削减 maxOffset 次（副本上模拟；可抵至 0）
-            var needCopy = new Dictionary<ManaType, int>(need);
-            for (int i = 0; i < maxOffset; i++)
+            // 乐观模拟（同旧口径「最大可能抵消」）：全部可兑换次数折黑入副本
+            int conversions = MaxAffordableOffsets(ctx);
+            if (conversions > 0)
             {
-                var color = needCopy.Where(kv => kv.Value > 0)
-                                    .OrderByDescending(kv => kv.Value)
-                                    .Select(kv => (ManaType?)kv.Key)
-                                    .FirstOrDefault();
-                if (color == null) break;
-                needCopy[color.Value]--;
+                avail.TryGetValue(ManaType.Black, out var blackPrev);
+                avail[ManaType.Black] = blackPrev + conversions;
             }
 
-            return CanPayNeed(needCopy, avail, ctx);
+            return CanPayNeed(need, avail, ctx);
         }
 
         /// <summary>各机制（受单局上限 + 当前资源）可抵消的费数之和。</summary>
@@ -209,8 +206,8 @@ namespace CardCore
             switch (mech)
             {
                 case OffsetMechanism.Drain:
-                    // LifePayment 要求 Life > Value，保守取 (Life-1)/per
-                    return Math.Max(0, (ctx.Payer.Life - 1) / per);
+                    // LifePayment 要求 MaxHealth ≥ Value（2026-09-11 扣上限口径），保守取 (MaxHealth-1)/per
+                    return Math.Max(0, (ctx.Payer.MaxHealth - 1) / per);
                 case OffsetMechanism.Discard:
                     return (ctx.ZoneManager?.GetCards(ctx.Payer, Zone.Hand)?.Count ?? 0) / per;
                 case OffsetMechanism.Mill:
@@ -222,82 +219,87 @@ namespace CardCore
             }
         }
 
-        // ======================================== 交互式抵消 ========================================
+        // ======================================== 交互式兑换（黑经济） ========================================
 
-        private static async UniTask InteractiveOffsetAsync(Dictionary<ManaType, int> need, CostContext ctx)
+        private static async UniTask InteractiveOffsetAsync(CostContext ctx)
         {
-            while (Reducible(need) > 0)
+            while (true)
             {
                 var usable = UsableMechanisms(ctx);
                 if (usable.Count == 0) break;
 
-                var labels = new List<string> { "不再抵消（直接支付元素）" };
+                var labels = new List<string> { "不再兑换（直接支付元素）" };
                 labels.AddRange(usable.Select(m =>
                 {
                     var cfg = Config[m];
-                    return $"{cfg.DisplayName}（-1费 / 消耗{cfg.ResourcePerOffset}）";
+                    return $"{cfg.DisplayName}（+1黑元素 / 消耗{cfg.ResourcePerOffset}）";
                 }));
 
-                int idx = await TargetSelectionService.RequestOneIndexAsync(ctx.Payer, labels, "选择代价抵消");
-                if (idx <= 0 || idx > usable.Count) break; // 0 = 不再抵消
+                int idx = await TargetSelectionService.RequestOneIndexAsync(ctx.Payer, labels, "代价兑换黑元素");
+                if (idx <= 0 || idx > usable.Count) break; // 0 = 不再兑换
 
-                if (!ApplyOneOffset(usable[idx - 1], need, ctx))
+                if (!ApplyOneOffset(usable[idx - 1], ctx))
                     break;
             }
         }
 
-        // ======================================== 贪心抵消 ========================================
+        // ======================================== 贪心兑换（黑经济） ========================================
 
         private static void GreedyOffset(Dictionary<ManaType, int> need, Dictionary<ManaType, int> avail, CostContext ctx)
         {
-            // 按 config 顺序优先，逐次抵消，直到可支付或无法再抵消
-            while (!CanPayNeed(need, avail, ctx) && Reducible(need) > 0)
+            // 按 config 顺序优先逐次兑换，直到可支付或兑换不再推进可付性。
+            // 黑只补黑本色缺口与灰混付缺口（黑白非万能色定案）——纯色缺口兑换无用即停，不浪费资源。
+            while (!CanPayNeed(need, avail, ctx) && ConversionHelps(need, avail, ctx))
             {
                 var usable = UsableMechanisms(ctx);
                 if (usable.Count == 0) break;
-                if (!ApplyOneOffset(usable[0], need, ctx))
+                if (!ApplyOneOffset(usable[0], ctx))
                     break;
             }
         }
 
-        // ======================================== 单次抵消 ========================================
-
-        /// <summary>应用一次（1 费）抵消：扣资源、记计数、降一色需求。成功返回 true。</summary>
-        private static bool ApplyOneOffset(OffsetMechanism mech, Dictionary<ManaType, int> need, CostContext ctx)
+        /// <summary>兑换是否能推进可付性：黑本色缺口（need[Black] > bank 黑）或灰混付缺口（通用容量不足）。</summary>
+        private static bool ConversionHelps(Dictionary<ManaType, int> need, Dictionary<ManaType, int> avail, CostContext ctx)
         {
-            if (Reducible(need) <= 0) return false;
+            if (need.TryGetValue(ManaType.Black, out var nb) && nb > 0
+                && (!avail.TryGetValue(ManaType.Black, out var ab) || ab < nb))
+                return true;
+
+            if (need.TryGetValue(ManaType.Gray, out var ng) && ng > 0
+                && !ElementPaymentValidator.CanPay(ElementAffinity.Generic, avail, ng, GetPureColorCap(ctx)))
+                return true;
+
+            return false;
+        }
+
+        // ======================================== 单次兑换 ========================================
+
+        /// <summary>应用一次兑换：扣资源、记计数、得 1 黑元素入 bank（不再减账单）。成功返回 true。</summary>
+        private static bool ApplyOneOffset(OffsetMechanism mech, CostContext ctx)
+        {
             if (RemainingCap(mech, ctx.Payer) <= 0) return false;
 
             var cfg = Config[mech];
             var resourceCost = new CostInstance { Type = ToCostType(mech), Value = cfg.ResourcePerOffset };
             if (!CostHandlerRegistry.CanPay(resourceCost, ctx)) return false;
 
-            // 选一个需求 > 0 的颜色削减（可抵至 0，不设每色保底）
-            var color = need.Where(kv => kv.Value > 0)
-                            .OrderByDescending(kv => kv.Value)
-                            .Select(kv => (ManaType?)kv.Key)
-                            .FirstOrDefault();
-            if (color == null) return false;
-
             CostHandlerRegistry.Pay(resourceCost, ctx);
-            need[color.Value]--;
             IncrementCap(mech, ctx.Payer);
+
+            // 黑经济定案（2026-09-11）：付固有资源 = 得 1 黑（与三色同权，可付黑/灰费用，跨回合保留）
+            ctx.ElementPool.AddMana(ctx.Payer, ManaType.Black, ctx.Source as Card, 1);
 
             EventManager.Instance.Publish(new CostOffsetEvent
             {
                 Player = ctx.Payer,
                 Mechanism = mech,
-                ReducedColor = color.Value,
+                ReducedColor = ManaType.Black, // 语义随黑经济平移：兑换产出色（历史消费者按机制过滤，颜色仅记录）
                 Source = ctx.Source
             });
             return true;
         }
 
         // ======================================== 约束/工具 ========================================
-
-        /// <summary>可抵消总量 = Σ need（可抵至 0，无每色保底）。</summary>
-        private static int Reducible(Dictionary<ManaType, int> need)
-            => need.Values.Sum(v => v);
 
         /// <summary>当前可用（未达上限 + 资源足够抵 1 次）的机制，按 config 顺序。</summary>
         private static List<OffsetMechanism> UsableMechanisms(CostContext ctx)

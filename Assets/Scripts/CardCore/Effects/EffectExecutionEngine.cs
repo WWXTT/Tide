@@ -54,6 +54,11 @@ namespace CardCore
             if (source != null && source.GetCounterCount(Attribute.CounterRules.SilenceCounter) > 0)
                 return false;
 
+            // 0.6 沉睡指示物（2026-09-11 定案）：沉睡期间效果无效——启动式同样不可发动
+            //（触发式在 TriggerEngine.FindMatchingEffects 拦，双口合流）。
+            if (source != null && source.GetCounterCount(Attribute.KeywordRules.SleepCounter) > 0)
+                return false;
+
             // 1. 速度检查（由 SpeedCounter 处理，这里不重复）
 
             // 2. 时点检查
@@ -188,9 +193,15 @@ namespace CardCore
                     Source = instance.Source
                 };
 
-                if (specialCosts.Count > 0 && !CostHandlerRegistry.PayAll(specialCosts, costContext))
+                // 特殊代价（2026-09-11 定案：付代价=得黑/白，补偿跟代价走）：
+                // 卡牌 cast 的特殊代价已在付费步支付并补偿（ResolveCardCastAsync，ElementCostPrepaid 标记）；
+                // 启动式/动态效果在此现付+补偿。
+                if (specialCosts.Count > 0 && !effect.ElementCostPrepaid)
                 {
-                    throw new EffectResolutionException(instance.SourceEffect, $"Cost payment failed for effect {effect.Id}.");
+                    if (!await CostCompensationService.PayWithCompensationAsync(specialCosts, costContext))
+                    {
+                        throw new EffectResolutionException(instance.SourceEffect, $"Cost payment failed for effect {effect.Id}.");
+                    }
                 }
 
                 if (!skipElementCost && !effect.ElementCostPrepaid && elementCosts.Count > 0 &&
@@ -252,6 +263,10 @@ namespace CardCore
             foreach (var atomicEffect in effect.Effects)
             {
                 await EffectHandlerRegistry.ExecuteEffectAsync(atomicEffect, context);
+                // 错边黑白发放（2026-09-11 定案）：原子结算后按实际命中侧别判定，每原子一次发放事件
+                var flatHits = new Dictionary<AtomicEffectInstance, int>();
+                CollectWrongSideHits(atomicEffect, context.Controller, context.Targets, flatHits);
+                FlushWrongSideGrants(flatHits, effect, context);
             }
 
             // 三阶段事件：结算完成
@@ -269,7 +284,7 @@ namespace CardCore
         /// </summary>
         private async UniTask ExecuteStepsAsync(EffectDefinition effect, EffectExecutionContext context)
         {
-            await ExecuteStepSequenceAsync(effect.Steps, context);
+            await ExecuteStepSequenceAsync(effect.Steps, effect, context);
         }
 
         /// <summary>
@@ -278,7 +293,8 @@ namespace CardCore
         /// 2026-09-10 目标域模型：组合目标已在 ExecuteAsync 统一解析（context.Targets），
         /// 步骤层不再逐原子解析——全部原子共享同一份目标序列（与扁平路径语义统一）。
         /// </summary>
-        private async UniTask ExecuteStepSequenceAsync(List<RuntimeEffectStep> steps, EffectExecutionContext context)
+        private async UniTask ExecuteStepSequenceAsync(List<RuntimeEffectStep> steps, EffectDefinition effect,
+            EffectExecutionContext context)
         {
             // 组合目标序列（快照防遍历中被改；无目标效果 = 单次 null 目标执行）
             var compositionTargets = context.Targets != null && context.Targets.Count > 0
@@ -296,7 +312,7 @@ namespace CardCore
                         ? step.Choices[System.Math.Max(0, System.Math.Min(context.ModeIndex, step.Choices.Count - 1))]
                         : null;
                     if (chosen != null)
-                        await ExecuteStepSequenceAsync(chosen, context); // 模式内原子共享同一份组合目标
+                        await ExecuteStepSequenceAsync(chosen, effect, context); // 模式内原子共享同一份组合目标
                     continue;
                 }
 
@@ -311,23 +327,104 @@ namespace CardCore
                         ? steps[i + 1]
                         : null;
 
+                // 错边黑白发放（2026-09-11 定案）：逐目标累计命中（执行前存活才算命中），
+                // 整原子=一次发放事件，循环后统一封顶发放（见 FlushWrongSideGrants）。
+                var wrongHits = new Dictionary<AtomicEffectInstance, int>();
+
                 foreach (var target in compositionTargets)
                 {
                     context.Targets = target != null ? new List<Entity> { target } : new List<Entity>();
                     context.LastOutcome.Reset();
+                    bool wasAlive = target == null || target is Player || target.IsAlive;
 
                     PublishPhase(atomic, AtomicEffectPhase.Activation, context);
                     PublishPhase(atomic, AtomicEffectPhase.StartApplying, context);
                     await EffectHandlerRegistry.ExecuteEffectAsync(atomic, context);
                     PublishPhase(atomic, AtomicEffectPhase.ResolutionComplete, context);
 
+                    if (wasAlive)
+                        CollectWrongSideHits(atomic, context.Controller, context.Targets, wrongHits);
+
                     if (gate != null)
                         await ApplyGateRewardsAsync(gate, context);
                 }
 
+                FlushWrongSideGrants(wrongHits, effect, context);
+
                 if (gate != null)
                     i++; // 消费已配对的分支步骤
             }
+        }
+
+        // ======================================== 错边黑白发放（2026-09-11 定案） ========================================
+
+        /// <summary>
+        /// 错边命中累计（含子效果递归，同构筑期 AccumulateElementGrant 口径）：
+        /// 有害原子(p&lt;0)命中己方目标 / 有益原子(p&gt;0)命中对方目标 计一次命中。
+        /// 以实际解析目标判侧别（双域卡实际打错边同样计入）；无目标/中性不计。
+        /// </summary>
+        private static void CollectWrongSideHits(AtomicEffectInstance atom, Player controller,
+            List<Entity> executedTargets, Dictionary<AtomicEffectInstance, int> hits)
+        {
+            if (atom == null) return;
+            float polarity = atom.Polarity;
+            if (polarity != 0f && executedTargets != null)
+            {
+                int n = 0;
+                foreach (var t in executedTargets)
+                {
+                    int side = TargetSide(t, controller);
+                    if ((polarity > 0f && side == 1) || (polarity < 0f && side == -1))
+                        n++;
+                }
+                if (n > 0)
+                {
+                    hits.TryGetValue(atom, out var prev);
+                    hits[atom] = prev + n;
+                }
+            }
+
+            if (atom.SubEffects == null) return;
+            foreach (var sub in atom.SubEffects)
+                CollectWrongSideHits(sub, controller, executedTargets, hits);
+        }
+
+        /// <summary>
+        /// 按发放事件发放黑白：每个原子（含子效果各自）一次事件，
+        /// 量 = min(单价 × 错边命中数, 当场地牌上限)，余数不补（定案：单次获得上限与纯色一致，走地牌上限）。
+        /// </summary>
+        private void FlushWrongSideGrants(Dictionary<AtomicEffectInstance, int> hits, EffectDefinition def,
+            EffectExecutionContext context)
+        {
+            if (hits == null || hits.Count == 0) return;
+            if (context?.Controller == null || _elementPool == null) return;
+
+            foreach (var kv in hits)
+            {
+                var atom = kv.Key;
+                int unit = CostDerivationService.ComputeAtomUnitGrant(atom, def);
+                if (unit <= 0 || kv.Value <= 0) continue;
+
+                int cap = _elementPool.GetLandCap(context.Controller);
+                int amount = Math.Min(unit * kv.Value, cap);
+                if (amount <= 0) continue;
+
+                _elementPool.AddMana(context.Controller,
+                    CostDerivationService.PolarityGrantColor(atom.Polarity),
+                    context.Source as Card, amount);
+            }
+        }
+
+        /// <summary>实际目标的侧别：-1=施放者己方 / +1=对方 / 0=无主或中性（不计错边）。</summary>
+        private static int TargetSide(Entity target, Player controller)
+        {
+            if (target == null || controller == null) return 0;
+            if (target is Player p)
+                return p == controller ? -1 : (p == controller.Opponent ? 1 : 0);
+
+            var owner = target.GetOwner();
+            if (owner == null) return 0;
+            return owner == controller ? -1 : (owner == controller.Opponent ? 1 : 0);
         }
 
         /// <summary>
@@ -976,6 +1073,13 @@ namespace CardCore
                     && registered.Source.GetCounterCount(CardCore.Attribute.CounterRules.NullifyCounter) > 0)
                     continue;
 
+                // 沉睡（2026-09-11 定案）：沉睡期间**效果无效**——拦触发式（与无效同口）；
+                // 启动式在 CanActivate 拦（与沉默同口）。入场窗口自身的 OnPlay 不受影响
+                //（指示物在结算中才落下，匹配先于结算）。
+                if (registered.Source != null
+                    && registered.Source.GetCounterCount(Attribute.KeywordRules.SleepCounter) > 0)
+                    continue;
+
                 // 检查触发条件（intervening "if" 条件）：仅在已注入区域系统时校验。
                 if (_conditionChecker != null &&
                     effect.TriggerConditions != null && effect.TriggerConditions.Count > 0)
@@ -1061,7 +1165,7 @@ namespace CardCore
                 new DealDamageHandler(),
                 new DrawCardHandler(),
                 new ReturnToHandHandler(),
-                new FreezePermanentHandler(),
+                new FreezeHandler(),
                 new HealHandler(),
                 new ModifyPowerHandler(),
                 new MorphHandler(),
@@ -1119,6 +1223,9 @@ namespace CardCore
 
                 // 无效指示物（蓝3）：拦非启动式能力（触发式+光环）——与沉默（拦启动式）对称
                 new AddNullifyHandler(),
+
+                // 沉睡（2026-09-11 改造，绿1 中性）：赋予沉睡指示物（效果/指示物分离——持续规则在指示物）
+                new SleepHandler(),
 
                 // 衍生物生成（落区三档：战场/手牌/牌组，费用按落区系数计价）
                 new SummonTokenHandler(),

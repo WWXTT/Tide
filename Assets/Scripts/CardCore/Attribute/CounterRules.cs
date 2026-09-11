@@ -140,7 +140,7 @@ namespace CardCore.Attribute
             // ---- 正面（常驻）----
             Register(new CounterSpec { Id = KeywordRules.ArmorCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "护甲" });
             Register(new CounterSpec { Id = PlusOneCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "+1/+1", StatKind = StatCounterKind.PlusOnePlusOne });
-            Register(new CounterSpec { Id = "Awakening", Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "觉醒" });
+            // Awakening（觉醒倒计时）已删（2026-09-11 沉睡改造：SleepCostHandler 统一走 SleepCounter 指示物模型）
 
             // ---- 负面 ----
             // 常驻（SBA 与 +1/+1 对消）
@@ -148,6 +148,9 @@ namespace CardCore.Attribute
             // 持续到回合结束（施加时横置为一次性动作；回合开始重置照常，不改回合规则）
             Register(new CounterSpec { Id = KeywordRules.FreezeCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "冻结" });
             Register(new CounterSpec { Id = KeywordRules.RushSicknessCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "突袭紊乱" });
+            // 沉睡（2026-09-11 定案）：持有期间无法重置（回合开始扣 1 层代替重置，扣完即醒）+ 效果无效。
+            // 持续=Permanent（消退不走 CounterRules 回合末回收——由 GameCore 回合开始的逐层倒数承担）。
+            Register(new CounterSpec { Id = KeywordRules.SleepCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "沉睡" });
 
             // ---- 原子表整体修正新增（2026-09-03 定案）----
             Register(new CounterSpec { Id = PoisonCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "剧毒", TurnEndEffect = CounterTurnEndEffect.PoisonDeath });
