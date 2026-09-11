@@ -276,8 +276,11 @@ namespace SynergyUI
 
         // ======================================== 出牌辅助 ========================================
 
-        /// <summary>出牌预检（引擎无公开 CanPlay，自行组合规则钩子 + 支付力）。
-        /// 抉择卡按「任一模式可付」判（声明值=最大模式费，单值预检会漏掉便宜模式）。</summary>
+        /// <summary>出牌预检（引擎无公开 CanPlay，自行组合规则钩子 + 支付力 + 组合域目标预检）。
+        /// 抉择卡按「任一模式可付」判（声明值=最大模式费，单值预检会漏掉便宜模式；
+        /// 目标逐模式判定在 ChooseMode/ModeHasValidTarget）。非抉择卡接
+        /// TargetDomainService.HasPlayableTargets（与引擎 PlayCard/CanActivate 同口径——
+        /// 组合域候选空不可发动，2026-09-10 目标域模型）。</summary>
         private static bool CanPlayCard(GameCore core, Player me, Card card, Zone fromZone)
         {
             if (!RuleHooks.CanPlay(core, me, card, fromZone)) return false;
@@ -288,6 +291,7 @@ namespace SynergyUI
                     if (core.ElementPool.CanPayCost(GameActions.GetCardCost(card, i), me)) return true;
                 return false;
             }
+            if (!TargetDomainService.HasPlayableTargets(core, me, card, 0)) return false;
             if (card is IHasCost hc && hc.Cost != null && hc.Cost.Count > 0 &&
                 !core.ElementPool.CanPayCost(hc.Cost, me)) return false;
             return true;
@@ -328,62 +332,56 @@ namespace SynergyUI
             return best;
         }
 
-        /// <summary>该模式是否有可选目标（无目标原子恒真；有目标原子看候选集非空）。</summary>
+        /// <summary>该模式是否有可选目标（组合域口径：def 预计算域交集 + 组合 filter；域空恒真）。</summary>
         private static bool ModeHasValidTarget(GameCore core, Player me, Card card, int modeIndex)
         {
-            var atomic = FirstTargetingAtomic(card, modeIndex, out var cfg);
-            if (atomic == null || cfg == null) return true;
+            var def = FirstDomainEffect(card, modeIndex);
+            if (def == null) return true; // 无目标效果（域空）
 
-            var ctx = new EffectExecutionContext
-            {
-                // 镜像引擎来源归因（2026-09-09 定案）：法术效果来源=角色、场上卡效果来源=该卡——
-                // 三轨判轨与目标过滤都按 Source 取义，模拟必须与真实执行同轨
-                Source = card.IsSpellCard() ? (Entity)me : card,
-                Controller = me,
-                ZoneManager = core.ZoneManager,
-                ElementPool = core.ElementPool,
-            };
-            var resolver = new TargetResolver(core.ZoneManager);
-            var candidates = resolver.GetCandidates(cfg.GetTargetKindList(), cfg.TargetFilter, ctx); // TODO(目标域后续任务)：组合域口径
-            if (!string.IsNullOrEmpty(cfg.TargetFilter))
-                candidates = resolver.ApplyFilters(candidates, resolver.ParseFilters(cfg.TargetFilter), ctx);
-            return candidates != null && candidates.Count > 0;
+            var domain = DomainOfMode(def, modeIndex);
+            var candidates = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(domain, def.TargetFilter, BuildTargetCtx(core, me, card));
+            return candidates.Count > 0;
         }
 
         /// <summary>
-        /// 通用目标偏好选择：引擎候选集保合法（同 BattleScreen.PromptTargetThenPlay 惯例），
-        /// 再按有害/有益偏好重排取前 N；无偏好返回 null 交引擎自动解析。
+        /// 通用目标选择（2026-09-10 组合域口径）：候选集 = def 预计算域 + 组合 filter（与引擎
+        /// ResolveCompositionTargetsAsync 同源）；按 SelectionMode 三态出目标——Self 取源卡（须在域内）、
+        /// Full 全取、Manual/None 按 def.TargetCount 数量 + 有害/有益偏好择优。
+        /// 无偏好返回 null 交引擎自动解析。
         /// </summary>
         private static List<Entity> ChooseTargets(GameCore core, Player me, Card card, int modeIndex = 0)
         {
-            var atomic = FirstTargetingAtomic(card, modeIndex, out var cfg);
-            if (atomic == null || cfg == null) return null; // 无需选目标 → 引擎自动
+            var def = FirstDomainEffect(card, modeIndex);
+            if (def == null) return null; // 无需选目标 → 引擎自动
 
-            var ctx = new EffectExecutionContext
+            var ctx = BuildTargetCtx(core, me, card);
+            var domain = DomainOfMode(def, modeIndex);
+            var candidates = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(domain, def.TargetFilter, ctx);
+            if (candidates.Count == 0) return null;
+
+            switch (def.SelectionMode)
             {
-                // 同 ModeHasValidTarget：镜像引擎来源归因（法术=角色 / 场上卡=该卡）
-                Source = card.IsSpellCard() ? (Entity)me : card,
-                Controller = me,
-                ZoneManager = core.ZoneManager,
-                ElementPool = core.ElementPool,
-            };
-            var resolver = new TargetResolver(core.ZoneManager);
-            var candidates = resolver.GetCandidates(cfg.GetTargetKindList(), cfg.TargetFilter, ctx); // TODO(目标域后续任务)：组合域口径
-            if (!string.IsNullOrEmpty(cfg.TargetFilter))
-                candidates = resolver.ApplyFilters(candidates, resolver.ParseFilters(cfg.TargetFilter), ctx);
-            if (candidates == null || candidates.Count == 0) return null;
+                case SelectionMode.Self:
+                    // 源卡在组合域内校验后取为唯一目标（镜像引擎；不在域 → 交引擎按警告口径空转）
+                    return candidates.Contains(ctx.Source) ? new List<Entity> { ctx.Source } : null;
 
-            int need = 1; // TODO(组合域口径)：应读 def.TargetCount（表级列已删，声明期逐卡）
+                case SelectionMode.Full:
+                    return candidates.ToList(); // 全域全取
+            }
+
+            // Manual / None：AI 机器选择——数量按 def.TargetCount（未声明回落 1），偏好按首个带域原子
+            int need = def.TargetCount > 0 ? def.TargetCount : 1;
+            var atomic = FirstTargetingAtomic(card, modeIndex, out _); // 仅作有害/有益偏好参考
             var opp = me.Opponent;
             IEnumerable<Entity> ordered;
-            if (HarmfulAtoms.Contains(atomic.Type))
+            if (atomic != null && HarmfulAtoms.Contains(atomic.Type))
             {
                 // 有害：对方玩家 > 对方单位 > 其他
                 ordered = candidates
                     .OrderByDescending(c => ReferenceEquals(c, opp))
                     .ThenBy(c => c is Card cd && cd.GetController() == me);
             }
-            else if (BeneficialAtoms.Contains(atomic.Type))
+            else if (atomic != null && BeneficialAtoms.Contains(atomic.Type))
             {
                 // 有益：己方单位 > 己方玩家 > 其他
                 ordered = candidates
@@ -397,8 +395,44 @@ namespace SynergyUI
             return ordered.Take(need).ToList();
         }
 
-        /// <summary>该卡第一个需玩家选目标的原子（TargetType==Target，仅非激活式；仿 BattleScreen.FindTargetingAtomic）。
-        /// modeIndex：抉择卡按所选模式扫描（主序列+所选 choice 内原子，跳过分支奖励）。</summary>
+        /// <summary>目标解析上下文（镜像引擎来源归因 2026-09-09 定案：法术效果来源=角色、
+        /// 场上卡效果来源=该卡——三轨判轨与目标过滤都按 Source 取义，模拟必须与真实执行同轨）。</summary>
+        private static EffectExecutionContext BuildTargetCtx(GameCore core, Player me, Card card)
+        {
+            return new EffectExecutionContext
+            {
+                Source = card.IsSpellCard() ? (Entity)me : card,
+                Controller = me,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+                ModeIndex = 0,
+            };
+        }
+
+        /// <summary>第一个带组合域的非激活式效果定义（域 = TargetDomain / ChoiceDomains[mode]
+        /// 预计算交集——目标域模型口径，取代旧「首个带域原子」编译级近似）。</summary>
+        private static EffectDefinition FirstDomainEffect(Card card, int modeIndex)
+        {
+            foreach (var def in GetEffectDefinitions(card))
+            {
+                if (def.IsActivatedEffect) continue; // 施放即结算的才会随出牌自动跑
+                var domain = DomainOfMode(def, modeIndex);
+                if (domain != null && domain.Count > 0) return def;
+            }
+            return null;
+        }
+
+        /// <summary>def 在指定模式的组合域（抉择 per-mode 优先，回落主序列域）。</summary>
+        private static List<int> DomainOfMode(EffectDefinition def, int modeIndex)
+        {
+            return def.ChoiceDomains != null && modeIndex >= 0 && modeIndex < def.ChoiceDomains.Length
+                ? def.ChoiceDomains[modeIndex]
+                : def.TargetDomain;
+        }
+
+        /// <summary>该卡第一个带域原子（仅作有害/有益目标偏好的参考；域/数量/模式判定已由
+        /// FirstDomainEffect 的组合域口径承担）。modeIndex：抉择卡按所选模式扫描（主序列+
+        /// 所选 choice 内原子，跳过分支奖励）。</summary>
         private static AtomicEffectInstance FirstTargetingAtomic(Card card, int modeIndex, out AtomicEffectConfig cfg)
         {
             cfg = null;
