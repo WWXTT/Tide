@@ -46,6 +46,7 @@ from tide_agent import create_tide_agent
 from tide_features import (
     MAX_CARDS, N_CARD_FEATURES, N_GLOBAL_FEATURES,
     MAX_ACTIONS, N_ACTION_FEATURES, N_RNN_CHANNELS,
+    N_CARD_POOL, N_EFFECT_TYPES,
     sample_input, init_rstate,
 )
 
@@ -142,17 +143,19 @@ def load_config(ckpt: Path) -> dict:
 
 
 def build_case(seed: int, mask_from: int | None) -> dict:
-    """一组推理输入。mask_from：把 [mask_from:] 动作置为非法（验证图内掩码）。"""
+    """一组推理输入。mask_from：把 [mask_from:] 动作置为非法（验证图内掩码）。
+    维度全部取自 tide_features 常量（2026-09-10 目标域模型 71→65 后不再硬编码）。"""
     rng = np.random.default_rng(seed)
     cards = rng.normal(size=(MAX_CARDS, N_CARD_FEATURES)).astype(np.float32)
-    # 覆盖身份通路：id 槽填 0..255 合法下标、类型槽 0..83、参数块正常幅值
+    # 覆盖身份通路：id 槽合法下标、类型槽 1 基编号、参数块正常幅值
+    n_id, n_type = 15 + 8, 23 + 6  # 布局下标（与 tide_features 常量同源）
     for i in range(MAX_CARDS):
         cards[i, 0] = rng.integers(0, 2)  # valid 混合空槽
         for s in range(8):
-            cards[i, 15 + s] = rng.integers(0, 256)
+            cards[i, 15 + s] = rng.integers(0, N_CARD_POOL)
         for s in range(6):
-            cards[i, 23 + s] = rng.integers(0, 84)
-        cards[i, 29:] = rng.normal(size=42).astype(np.float32)
+            cards[i, 23 + s] = rng.integers(0, N_EFFECT_TYPES)
+        cards[i, n_type:] = rng.normal(size=N_CARD_FEATURES - n_type).astype(np.float32)
     glob = rng.normal(size=N_GLOBAL_FEATURES).astype(np.float32)
     actions = rng.normal(size=(MAX_ACTIONS, N_ACTION_FEATURES)).astype(np.float32)
     actions[:, 0] = 1.0

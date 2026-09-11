@@ -136,7 +136,11 @@ def evaluate_greedy(agent_apply, params, env, args, num_episodes=20, opponent=No
     episode_lengths = []
 
     for ep in range(num_episodes):
-        obs, info = env.reset()
+        # 按次传对手位（2026-09-11 修复：此前裸调用 env.reset()，options 缺省回落
+        # self.opponent=selfplay——自对弈训练期间"vs SimpleAI"评估实际在跑自对弈，
+        # modelSeat=-1 落进 winner=="0" 分支，统计的是 P1 座次胜率而非模型棋力，
+        # best/早停全程选在幻影指标上）
+        obs, info = env.reset(options={"opponent": opponent or args.opponent})
         rstate = init_rstate(args.rnn_type)
         done = False
         step_count = 0
