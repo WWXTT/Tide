@@ -56,16 +56,18 @@ namespace CardCore
         /// <summary>D 逐色取整后的总和。</summary>
         public int DerivedTotal;
 
-        /// <summary>抵扣需求 Req = max(0, D_total − C_total)。无"超模"态：不足即不符合规则一。</summary>
+        /// <summary>抵扣需求 Req = max(0, D_total − C_total)（信息行——2026-09-11 规则一简化后不再有当量抵扣）。</summary>
         public int OffsetRequirement;
 
-        /// <summary>卡上代价提供的元素当量 O（按 CardCostConfig 当量表换算）。</summary>
-        public float OffsetProvided;
-
-        /// <summary>符合规则一 ⟺ O ≥ Req。</summary>
+        /// <summary>符合规则一 ⟺ D ≤ C（2026-09-11 简化定案：代价当量抵扣下线，补偿改发黑/白元素）。</summary>
         public bool Conformant;
 
-        /// <summary>逐行明细（S / K 逐关键词 / E 逐效果 / f / d(C) / Req / O）。</summary>
+        /// <summary>黑白元素获得量（2026-09-11 定案）：域锁错边原子出计价转化的获得
+        ///（黑=对自己负面 / 白=对对手正面，构筑期显示；运行时按实际命中发放并封顶地牌上限）。
+        /// 按模式0（声明档）口径汇总。</summary>
+        public Dictionary<ManaType, int> Grants = new Dictionary<ManaType, int>();
+
+        /// <summary>逐行明细（S / K 逐关键词 / E 逐效果 / f / d(C) / Req / G）。</summary>
         public List<CostBreakdownLine> Breakdown = new List<CostBreakdownLine>();
     }
 
@@ -74,7 +76,7 @@ namespace CardCore
     ///
     ///   锚价（即时价，法术定价）= CostDerivationService.DeriveElementCosts（原样复用，含持续折扣）。
     ///   身材费 S(灰)  = (攻+血) / StatUnit（StatUnit=2：1费=2属性）。
-    ///   关键词费 K    = Σ 关键词对应 Grant 原子的 BaseCost（固定费，颜色=原子亲和；White/Black 归灰）。
+    ///   关键词费 K    = Σ 关键词对应 Grant 原子的 BaseCost（固定费，颜色=原子亲和；黑白原子落本色，2026-09-11）。
     ///   挂载折扣 f    = 法术恒 1；随从 d(C)——落地时间（费用C=最早第C回合落地，延迟C−1）按延迟贬值。
     ///                  （原 ExtraActivationSlope×(N_active−1) 存活期望折已删——与卡层挂载口计价重复。）
     ///   卡层组合费用  = CardCompositionCost（第三层：抉择价差溢价 / 效果挂载口 ±灰，不参与 f）。
@@ -179,12 +181,58 @@ namespace CardCore
             result.EAnchor = (int)Math.Round(effectTotal, MidpointRounding.AwayFromZero);
             result.DerivedTotal = result.DerivedCost.Values.Sum();
 
-            // ---- 6) 抵扣需求与代价当量 ----
+            // ---- 6) 规则一（2026-09-11 简化定案）：D ≤ C 直判 ----
+            // 代价当量抵扣通道下线——代价补偿改发黑/白元素（运行时），不再压低声明费。
             result.OffsetRequirement = Mathf.Max(0, result.DerivedTotal - result.DeclaredTier);
-            result.OffsetProvided = OffsetProvided(card, cc);
-            result.Conformant = result.OffsetProvided >= result.OffsetRequirement;
-            result.Breakdown.Add(new CostBreakdownLine("Req", $"抵扣需求 max(0, D{result.DerivedTotal} − C{result.DeclaredTier})", result.OffsetRequirement));
-            result.Breakdown.Add(new CostBreakdownLine("O", $"代价当量合计（已提供）", result.OffsetProvided));
+            result.Conformant = result.OffsetRequirement == 0;
+            result.Breakdown.Add(new CostBreakdownLine("Req", $"规则一 D{result.DerivedTotal} ≤ C{result.DeclaredTier}", result.OffsetRequirement));
+
+            // ---- 6b) 黑白获得（2026-09-11 定案）----
+            // 内容契约下效果栏无错边原子，获得主要来自代价栏（付代价=得黑/白）；效果栏 grant 保留兜底口径。
+            foreach (var def in effectDefs)
+            {
+                if (def == null || def.IsActivatedEffect) continue;
+                foreach (var kv in CostDerivationService.DeriveElementGrants(def, 0))
+                {
+                    if (kv.Value <= 0) continue;
+                    result.Grants.TryGetValue(kv.Key, out var prevG);
+                    result.Grants[kv.Key] = prevG + kv.Value;
+                }
+            }
+            // 代价栏：Payload 按全价（构筑显示"获得白16"）；普通代价按当量（弃1张=1黑…对手增益=1白）
+            if (card.Effects != null)
+            {
+                foreach (var eff in card.Effects)
+                {
+                    if (eff?.Costs == null) continue;
+                    foreach (var ce in eff.Costs)
+                    {
+                        if (ce == null) continue;
+                        var inst = new CostInstance
+                        {
+                            Type = (CostType)ce.CostType,
+                            Value = ce.Value,
+                            TurnDuration = ce.TurnDuration,
+                            Payload = CardEffectConverter.ConvertPayloadForDisplay(ce.payload),
+                        };
+                        int amount = inst.Type == CostType.Payload
+                            ? CostDerivationService.PayloadUnitGrant(inst.Payload)
+                            : CostCompensationService.EquivalentValue(inst);
+                        if (amount <= 0) continue;
+                        var gColor = inst.Type == CostType.Payload
+                            ? CostCompensationService.PayloadGrantColor(inst.Payload)
+                            : CostCompensationService.GrantColor(inst);
+                        result.Grants.TryGetValue(gColor, out var prevC);
+                        result.Grants[gColor] = prevC + amount;
+                    }
+                }
+            }
+            foreach (var kv in result.Grants)
+            {
+                result.Breakdown.Add(new CostBreakdownLine("G",
+                    $"获得{ElementAffinity.Single(kv.Key).GetColorName()}{kv.Value}（打出/发动时发放，封顶地牌上限）",
+                    kv.Value, kv.Key));
+            }
 
             // ---- 7) 建议档位 Ĉ 与建议分布（含底盘预算——建议价与 D 同口径）----
             result.SuggestedTier = FindSuggestedTier(card, cc, dd, isSpell, statValue, kwBuckets, effBuckets);
@@ -227,6 +275,19 @@ namespace CardCore
             // 内容身份与费用同管线重推算（2026-09-09 定案）：拆散的效果内容哈希 + 组合哈希，
             // 混入原子表指纹——表冻结则身份稳定；此处先于一切分支，保证所有装载/重生成路径都推导。
             CardIdentityService.EnsureIdentity(card);
+
+            // 代价栏单卡单条（2026-09-11 定案）：整卡 Costs 条目合计 ≤1——一张卡只有一个代价栏，
+            // 无法像效果那样组合。违约仅警告不纠正（支付/补偿按真实数据执行）。
+            int costEntryCount = 0;
+            if (card.Effects != null)
+            {
+                foreach (var eff in card.Effects)
+                {
+                    if (eff?.Costs != null) costEntryCount += eff.Costs.Count;
+                }
+            }
+            if (costEntryCount > 1)
+                Debug.LogWarning($"[CardCostService] 卡 {card.ID} 代价栏 {costEntryCount} 条——违反「单卡单条」定案（应只填一个代价）");
 
             if (CostDerivationService.HasChoiceEffect(card))
             {
@@ -506,30 +567,8 @@ namespace CardCore
             return Mathf.Max(0f, dd.At(tierForFactor));
         }
 
-        /// <summary>卡上代价条目 → 元素当量（构筑期抵扣换算；ElementConsume/Mill/SendExtra 是费用/游戏内机制，不当量）。</summary>
-        private static float OffsetProvided(CardData card, CardCostConfig cc)
-        {
-            float total = 0f;
-            if (card.Effects == null) return total;
-            foreach (var effect in card.Effects)
-            {
-                if (effect?.Costs == null) continue;
-                foreach (var cost in effect.Costs)
-                {
-                    if (cost == null) continue;
-                    switch ((CostType)cost.CostType)
-                    {
-                        case CostType.DiscardCard: total += cc.DiscardCardValue * Mathf.Max(1, cost.Value); break;
-                        case CostType.LifePayment: total += cc.LifeValuePerPoint * Mathf.Max(1, cost.Value); break;
-                        case CostType.Sleep: total += cc.SleepValuePerTurn * Mathf.Max(1, cost.TurnDuration); break;
-                        case CostType.SummonMaterial: total += cc.SummonMaterialValue * Mathf.Max(1, cost.Value); break;
-                        case CostType.SelfSickness: total += cc.SelfSicknessValue * Mathf.Max(1, cost.Value); break;
-                        case CostType.OpponentBuff: total += cc.OpponentBuffValue * Mathf.Max(1, cost.Value); break;
-                    }
-                }
-            }
-            return total;
-        }
+        // OffsetProvided 已删（2026-09-11 规则一简化：代价当量抵扣下线，D≤C 直判；
+        // 当量表转由 CostCompensationService 消费——付代价=得黑/白元素）。
 
         /// <summary>Ĉ = min{C∈[1..MaxTier] : D(C) ≤ C}；D(C) 随 C 单调不增（d 递减），从 1 向上搜；无满足取 MaxTier。</summary>
         private static int FindSuggestedTier(CardData card, CardCostConfig cc, DelayDiscountConfig dd,

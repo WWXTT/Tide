@@ -38,7 +38,7 @@ namespace CardCore
         SetPower,
         SetLife,
         SetCost,
-        FreezePermanent,
+        Freeze,
         Purify,
         Weaken,
         Inspire,
@@ -82,7 +82,7 @@ namespace CardCore
         GrantArmor,
         GrantFirstStrike,
         GrantDisarm,
-        Photosynthesis,
+        AdditionalEnergy,
         GrantVigilance,
         GrantRegeneration,
         GrantGrowth,
@@ -141,6 +141,12 @@ namespace CardCore
         /// <summary>守卫：2 速响应拦截——友方被指为攻击目标时横置自身、转移目标；结算按横置（单向受伤）。
         /// 生物默认自带（CardData.NoGuard 可退除）。</summary>
         Guard,
+
+        // ============ 状态原子（2026-09-11 沉睡改造） ============
+        /// <summary>沉睡（绿1 中性）：赋予目标沉睡指示物——沉睡期间无法重置、效果无效。
+        /// 自我沉睡（登场 SelectionMode=Self）走灰费豁免：打出不扣灰费，指示物数量=豁免的灰元素数。
+        /// 效果/指示物分离定案：效果=赋予指示物，指示物本身承载持续规则。枚举只可尾部追加。</summary>
+        Sleep,
     }
 
     #region 效果分类扩展方法

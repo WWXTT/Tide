@@ -495,6 +495,12 @@ namespace CardCore
         // 回到手牌（任何来源）即重置为未展示。
         internal bool _isRevealed = false;
 
+        // 灰费豁免转沉睡时长（2026-09-11 定案）：自我沉睡卡打出时灰份额不扣（GetCardCost 剥离），
+        // 剥离量暂存于此，登场 Sleep 原子据此赋沉睡指示物（消费后清零）。运行时瞬态，不序列化。
+        internal int _pendingSleepGray = 0;
+        /// <summary>自我沉睡的灰费豁免量（支付时剥离→入场转沉睡指示物数）。</summary>
+        public int PendingSleepGray => _pendingSleepGray;
+
         // 死亡归因留档（2026-09-07 定案）：伤害/流失路径只标死不送墓（落墓由 SBA 泵处理），
         // 死因与死亡来源随尸体留存，SBA/即时路径送墓时经 TryKill 消费并清档。
         // DamageLethal→伤害来源；LifeLoss→效果来源；null=减益/状态动作（无来源）。

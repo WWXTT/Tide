@@ -345,9 +345,9 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 向 bank 添加元素并发布产出事件（采掘 MineHandler 调用；产出固定 1 点故事件无 Amount）。
-        /// 与横置产出共用 ElementPoolGainEvent（FromCard = 采掘目标地牌）；不动地牌横置状态——
-        /// 指示物的去除由调用方完成。
+        /// 向 bank 添加元素并发布产出事件（采掘 MineHandler / 黑白结算发放调用）。
+        /// 与横置产出共用 ElementPoolGainEvent（FromCard = 来源卡）；不动地牌横置状态——
+        /// 指示物的去除由调用方完成。Amount 默认 1（横置/采掘路径不传，兼容旧消费者）。
         /// </summary>
         public void AddMana(Player player, ManaType type, Card fromCard, int amount = 1)
         {
@@ -358,7 +358,8 @@ namespace CardCore
             {
                 Player = player,
                 GainedType = type,
-                FromCard = fromCard
+                FromCard = fromCard,
+                Amount = amount
             });
         }
 
@@ -392,8 +393,9 @@ namespace CardCore
             {
                 ManaType type = (ManaType)kvp.Key;
                 int amount = (int)kvp.Value;
-                // 纯色浓度上限：每种纯色（红/蓝/绿）单次支付量 ≤ 当场地牌槽上限；灰（及预留黑白）不受限。
-                // bank 跨回合无上限积累，但支付受此约束（费用天花板 = 3色×9 + 无限灰 的执行件）。
+                // 纯色浓度上限：每种纯色（红/蓝/绿/黑/白）单次支付量 ≤ 当场地牌槽上限；灰不受限。
+                // 黑白 2026-09-11 转正后与三色同权受此约束。
+                // bank 跨回合无上限积累，但支付受此约束。
                 if (IsPurePaymentColor(type) && amount > landCap)
                     return false;
                 if (!pool.AvailableMana.ContainsKey(type) || pool.AvailableMana[type] < amount)
@@ -403,9 +405,10 @@ namespace CardCore
             return true;
         }
 
-        /// <summary>纯色（受浓度上限约束的颜色）：红/蓝/绿。灰与预留黑白支付不受限。</summary>
+        /// <summary>纯色（受浓度上限约束的颜色）：红/蓝/绿/黑/白（黑白 2026-09-11 转正同权）。灰不受限。</summary>
         private static bool IsPurePaymentColor(ManaType type)
-            => type == ManaType.Red || type == ManaType.Blue || type == ManaType.Green;
+            => type == ManaType.Red || type == ManaType.Blue || type == ManaType.Green
+               || type == ManaType.Black || type == ManaType.White;
 
         /// <summary>
         /// 支付费用（出牌时调用）
@@ -549,11 +552,14 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 从卡牌读取费用，转换为指示物
+        /// 从卡牌读取费用，转换为指示物。
+        /// 黑白不由地牌产出（2026-09-11 定案）：黑白份额不生成指示物——
+        /// 纯黑白费用的卡过滤后为空，AddCardToPool 的 sum==0 校验自然拒绝其入池。
         /// </summary>
         private Dictionary<ManaType, int> GetCardCostAsTokens(Card card)
         {
             var tokens = new Dictionary<ManaType, int>();
+            bool hadPositiveCost = false;
 
             // 从 IHasCost 接口读取费用
             if (card is IHasCost hasCost && hasCost.Cost != null)
@@ -564,13 +570,15 @@ namespace CardCore
                     int amount = (int)kvp.Value;
                     if (amount > 0)
                     {
+                        hadPositiveCost = true;
+                        if (type == ManaType.Black || type == ManaType.White) continue; // 黑白不产指示物
                         tokens[type] = amount;
                     }
                 }
             }
 
-            // 如果卡牌没有费用（灰色1点），给一个默认灰色指示物
-            if (tokens.Values.Sum() == 0)
+            // 只有「本无费用」才给默认灰色指示物；只有黑白费用（hadPositiveCost 但被过滤空）保持空 → 拒绝入池
+            if (!hadPositiveCost)
             {
                 tokens[ManaType.Gray] = 1;
             }
@@ -636,6 +644,8 @@ namespace CardCore
         public Player Player { get; set; }
         public ManaType GainedType { get; set; }
         public Card FromCard { get; set; }
+        /// <summary>本次产出数量（2026-09-11 黑白结算发放可 >1；横置/采掘路径默认 1）。</summary>
+        public int Amount { get; set; } = 1;
     }
 
     public class ElementPoolPayEvent : GameEventBase

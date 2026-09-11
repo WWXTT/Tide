@@ -1,7 +1,7 @@
 {
     "cards": [
         {
-            "id": "50078d8b1db4ba68",
+            "id": "b1877d1a84a3c709",
             "cardName": "火球术",
             "supertype": "Spell",
             "power": 0,
@@ -9,11 +9,11 @@
             "costList": [
                 {
                     "manaType": 1,
-                    "amount": 2.0
+                    "amount": 3.0
                 },
                 {
                     "manaType": 2,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -22,7 +22,7 @@
                 {
                     "Id": "FIREBALL_MAIN",
                     "DisplayName": "火球",
-                    "Description": "对目标造成4点伤害并抽一张牌",
+                    "Description": "对目标造成4点伤害",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -43,7 +43,30 @@
                             "Value": 4,
                             "ManaList": [],
                             "TargetKinds": []
-                        },
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                },
+                {
+                    "Id": "FIREBALL_DRAW",
+                    "DisplayName": "抽牌",
+                    "Description": "抽一张牌",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": -1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
                         {
                             "ID": "",
                             "EffectType": "DrawCard",
@@ -143,126 +166,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "23cd8f0f4cc7fa53",
-            "cardName": "读心预言",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [],
-            "effects": [
-                {
-                    "Id": "DECLARE_BRANCH_MAIN",
-                    "DisplayName": "读心",
-                    "Description": "宣言一个卡牌类型并确认对手手牌，命中则抽一张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": [
-                        {
-                            "kind": 0,
-                            "atomic": {
-                                "ID": "Type:Creature",
-                                "EffectType": "DeclareHand",
-                                "Value": 0,
-                                "ManaList": [],
-                                "TargetKinds": []
-                            },
-                            "condition": {
-                                "Type": 0,
-                                "Value": 0,
-                                "Value2": 0,
-                                "StringValue": "",
-                                "Negate": false
-                            },
-                            "thenSteps": [],
-                            "elseSteps": [],
-                            "conditionId": "",
-                            "conditionParam": 0,
-                            "conditionStringParam": "",
-                            "choices": []
-                        },
-                        {
-                            "kind": 1,
-                            "atomic": {
-                                "ID": "",
-                                "EffectType": "",
-                                "Value": 0,
-                                "ManaList": [],
-                                "TargetKinds": []
-                            },
-                            "condition": {
-                                "Type": 0,
-                                "Value": 0,
-                                "Value2": 0,
-                                "StringValue": "",
-                                "Negate": false
-                            },
-                            "thenSteps": [
-                                {
-                                    "ID": "",
-                                    "EffectType": "DrawCard",
-                                    "Value": 1,
-                                    "ManaList": [],
-                                    "TargetKinds": []
-                                }
-                            ],
-                            "elseSteps": [],
-                            "conditionId": "DeclareHit",
-                            "conditionParam": 0,
-                            "conditionStringParam": "",
-                            "choices": []
-                        }
-                    ]
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "f20c876175da75cb",
+            "id": "55dc486c8ae45e11",
             "cardName": "嘲讽哨卫",
             "supertype": "Creature",
             "power": 0,
             "life": 1,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
                     "manaType": 0,
-                    "amount": 0.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [
@@ -283,7 +195,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "abbd1dc7d73e560e",
+            "id": "4b8169d02d45e00f",
             "cardName": "冲锋突击兵",
             "supertype": "Creature",
             "power": 3,
@@ -327,7 +239,7 @@
                             "Value": 1,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -347,7 +259,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "69bdeb4d72d0f16f",
+            "id": "45598d647f69e32d",
             "cardName": "突袭急先锋",
             "supertype": "Creature",
             "power": 6,
@@ -391,20 +303,25 @@
                             "Value": 1,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
-                            ]
-                        },
-                        {
-                            "ID": "",
-                            "EffectType": "RushSickness",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
-                    "Costs": [],
+                    "Costs": [
+                        {
+                            "CostType": 7,
+                            "Value": 1,
+                            "ManaType": 0,
+                            "TurnDuration": 0,
+                            "payload": {
+                                "ID": "",
+                                "EffectType": "",
+                                "Value": 0,
+                                "ManaList": [],
+                                "TargetKinds": []
+                            }
+                        }
+                    ],
                     "Tags": [],
                     "Steps": []
                 }
@@ -420,16 +337,12 @@
             "surplusToSpeed": false
         },
         {
-            "id": "f72d9c5202fa073d",
+            "id": "e7bc9a41258d5fac",
             "cardName": "连击双刃客",
             "supertype": "Creature",
             "power": 9,
             "life": 4,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
                 {
                     "manaType": 0,
                     "amount": 5.0
@@ -486,19 +399,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "79f2ac9e70cf7e08",
+            "id": "0ec6337eb0abc52f",
             "cardName": "吸血噬血蝠",
             "supertype": "Creature",
             "power": 8,
             "life": 7,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
+                    "manaType": 5,
+                    "amount": 3.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 6.0
+                    "amount": 5.0
                 }
             ],
             "keywords": [
@@ -519,7 +432,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "e4b208718ec4888c",
+            "id": "d26947b67d16051e",
             "cardName": "系命祝祷僧",
             "supertype": "Creature",
             "power": 1,
@@ -527,7 +440,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 1.0
+                    "amount": 3.0
                 },
                 {
                     "manaType": 0,
@@ -585,14 +498,14 @@
             "surplusToSpeed": false
         },
         {
-            "id": "48ed785a4ed37bc3",
+            "id": "d4a3daca0684a5bc",
             "cardName": "圣盾圣辉骑",
             "supertype": "Creature",
             "power": 7,
             "life": 1,
             "costList": [
                 {
-                    "manaType": 3,
+                    "manaType": 4,
                     "amount": 1.0
                 },
                 {
@@ -618,7 +531,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "94435a329e878dad",
+            "id": "ac6b289122e400e9",
             "cardName": "碾压攻城槌",
             "supertype": "Creature",
             "power": 0,
@@ -626,7 +539,7 @@
             "costList": [
                 {
                     "manaType": 1,
-                    "amount": 1.0
+                    "amount": 5.0
                 },
                 {
                     "manaType": 0,
@@ -783,15 +696,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "a4bf6f82a5fe769a",
+            "id": "83f6b3f3dc7b9e07",
             "cardName": "辟邪避世僧",
             "supertype": "Creature",
             "power": 1,
             "life": 9,
             "costList": [
                 {
-                    "manaType": 2,
-                    "amount": 1.0
+                    "manaType": 4,
+                    "amount": 2.0
                 },
                 {
                     "manaType": 0,
@@ -816,15 +729,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "3c0a0c6ccd8c2089",
+            "id": "b77ee96aca155194",
             "cardName": "复生不灭烬",
             "supertype": "Creature",
             "power": 4,
             "life": 1,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
+                    "manaType": 5,
+                    "amount": 2.0
                 },
                 {
                     "manaType": 0,
@@ -849,15 +762,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "2b5bbecf965a768d",
+            "id": "7d2bb5f61789f989",
             "cardName": "不灭磐岩像",
             "supertype": "Creature",
             "power": 7,
             "life": 2,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
+                    "manaType": 4,
+                    "amount": 2.0
                 },
                 {
                     "manaType": 0,
@@ -882,7 +795,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "c8aa2487ce45513d",
+            "id": "07cdb7fae5bcc4c0",
             "cardName": "再生愈体藤",
             "supertype": "Creature",
             "power": 2,
@@ -890,11 +803,11 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 1.0
+                    "amount": 5.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [
@@ -948,7 +861,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "470270ddbce16846",
+            "id": "e7337ce613455767",
             "cardName": "装甲工匠",
             "supertype": "Creature",
             "power": 2,
@@ -992,7 +905,7 @@
                             "Value": 3,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                1
                             ]
                         }
                     ],
@@ -1107,7 +1020,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "6ebdacec4c60ad6e",
+            "id": "499b9cc49ea82826",
             "cardName": "抉择试作",
             "supertype": "Spell",
             "power": 0,
@@ -1115,11 +1028,7 @@
             "costList": [
                 {
                     "manaType": 1,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 0.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -1240,19 +1149,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "a8676c5c3e1576a9",
+            "id": "4dfed6000560ddb3",
             "cardName": "链接光环测试",
             "supertype": "Creature",
             "power": 2,
             "life": 4,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -1280,780 +1185,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "93d4c1e6ddd53808",
-            "cardName": "登场赋嘲测试",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [],
-            "effects": [
-                {
-                    "Id": "GRANT_TAUNT_ONPLAY",
-                    "DisplayName": "登场赋嘲",
-                    "Description": "登场时赋予目标嘲讽（生物轨关键词：非永久=换区清除）",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 1,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "GrantTaunt",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "7936a04cc5655fff",
-            "cardName": "法术赋攻测试",
+            "id": "92407e97a911903d",
+            "cardName": "淬毒双蛇",
             "supertype": "Spell",
             "power": 0,
             "life": 0,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
+                    "manaType": 5,
                     "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [],
-            "effects": [
-                {
-                    "Id": "SPELL_MODIFY_POWER",
-                    "DisplayName": "法术赋攻",
-                    "Description": "目标攻击力+2（法术轨=设置类：永久直改、跨区保留、净化不清）",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 2,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "ModifyPower",
-                            "Value": 2,
-                            "ManaList": [],
-                            "TargetKinds": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "0ee4451dbca68d62",
-            "cardName": "赤疾风统领",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_06_00",
-                    "DisplayName": "激励",
-                    "Description": "登场：激励自身——当回合即可行动",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "Untap",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "3672a3403643101b",
-            "cardName": "赤疾行兵",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_05_00",
-                    "DisplayName": "激励",
-                    "Description": "登场：激励自身——当回合即可行动",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "Untap",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "ef88dbedaf29aaaa",
-            "cardName": "赤焰矛手",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_11_00",
-                    "DisplayName": "燃面",
-                    "Description": "登场：对敌方英雄造成 3 点伤害",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "DealDamage",
-                            "Value": 3,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                1
-                            ]
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "8766c3fb35bd8ef7",
-            "cardName": "赤焚面",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_50_00",
-                    "DisplayName": "焚面",
-                    "Description": "对敌方英雄造成 3 点伤害",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "DealDamage",
-                            "Value": 3,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                1
-                            ]
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "ecc680557075cdd6",
-            "cardName": "赤碾压蛮兵",
-            "supertype": "Creature",
-            "power": 4,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Overwhelm"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "1a67375417a400f8",
-            "cardName": "赤火星·迸",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 1,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_08_00",
-                    "DisplayName": "燃面",
-                    "Description": "登场：对敌方英雄造成 1 点伤害",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "DealDamage",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                1
-                            ]
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "6f0583ff7bae38aa",
-            "cardName": "赤标记者·显",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_31_00",
-                    "DisplayName": "标记",
-                    "Description": "登场：令目标易损，本回合受到的伤害增加",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 2,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "AddVulnerable",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "1436e1e5575b9e40",
-            "cardName": "赤先锋",
-            "supertype": "Creature",
-            "power": 1,
-            "life": 1,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_01_00",
-                    "DisplayName": "激励",
-                    "Description": "登场：激励自身——当回合即可行动",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "Untap",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "a84de11f8dbe9baa",
-            "cardName": "赤战号手",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_19_00",
-                    "DisplayName": "战号",
-                    "Description": "登场：全体友方生物攻击力本回合 +1",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 2,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "ModifyPower",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "2bff111a916d098e",
-            "cardName": "赤巡哨",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "FirstStrike"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "0722462c530b396e",
-            "cardName": "赤火刃",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_46_00",
-                    "DisplayName": "火刃",
-                    "Description": "对目标造成 2 点伤害",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "DealDamage",
-                            "Value": 2,
-                            "ManaList": [],
-                            "TargetKinds": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "c28bf304c5cf78d4",
-            "cardName": "赤突进令",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 0.0
                 },
                 {
                     "manaType": 3,
@@ -2062,19 +1202,19 @@
             ],
             "keywords": [],
             "tags": [
-                "deck-import",
+                "atom-coverage",
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_RED_53_00",
-                    "DisplayName": "突进",
-                    "Description": "激励一个友方生物并使其攻击力本回合 +2",
+                    "Id": "AC_P1",
+                    "DisplayName": "淬毒",
+                    "Description": "对一个目标施加剧毒与毒素",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
                     "IsOptional": false,
-                    "Duration": 2,
+                    "Duration": 0,
                     "DurationValue": 0,
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
@@ -2086,21 +1226,17 @@
                     "AtomicEffects": [
                         {
                             "ID": "",
-                            "EffectType": "Untap",
+                            "EffectType": "Poison",
                             "Value": 1,
                             "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
+                            "TargetKinds": []
                         },
                         {
                             "ID": "",
-                            "EffectType": "ModifyPower",
-                            "Value": 2,
+                            "EffectType": "AddToxin",
+                            "Value": 1,
                             "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
+                            "TargetKinds": []
                         }
                     ],
                     "Costs": [],
@@ -2119,196 +1255,162 @@
             "surplusToSpeed": false
         },
         {
-            "id": "9ad086b377ea62aa",
-            "cardName": "赤斗殴者",
+            "id": "2366e714732e33cd",
+            "cardName": "荆棘傀儡",
             "supertype": "Creature",
             "power": 2,
-            "life": 3,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P3",
+                    "DisplayName": "荆棘",
+                    "Description": "登场：对目标施加一个-1/-1",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddMinusOne",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "e547141ef6ceec68",
+            "cardName": "蚀力波",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P4",
+                    "DisplayName": "蚀力",
+                    "Description": "对目标施加2个攻击力减少指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddPowerDown",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "d1c382b258d6c8e3",
+            "cardName": "蚀命波",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 2.0
+                    "amount": 0.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_16_00",
-                    "DisplayName": "怒焰",
-                    "Description": "登场：自身攻击力本回合 +2",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 2,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "ModifyPower",
-                            "Value": 2,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "c1df219759119253",
-            "cardName": "赤焚面·炽",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_51_00",
-                    "DisplayName": "焚面",
-                    "Description": "对敌方英雄造成 4 点伤害",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "DealDamage",
-                            "Value": 4,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                1
-                            ]
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "317b40ca6efbfc75",
-            "cardName": "赤缴械武者·缚",
-            "supertype": "Creature",
-            "power": 4,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Disarm"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "5620964dc43392ae",
-            "cardName": "赤突进令·急",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 3,
                     "amount": 1.0
                 }
             ],
             "keywords": [],
             "tags": [
-                "deck-import",
+                "atom-coverage",
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_RED_54_00",
-                    "DisplayName": "突进",
-                    "Description": "激励一个友方生物并使其攻击力本回合 +2",
+                    "Id": "AC_P5",
+                    "DisplayName": "蚀命",
+                    "Description": "对目标施加2个生命值减少指示物",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
                     "IsOptional": false,
-                    "Duration": 2,
+                    "Duration": 0,
                     "DurationValue": 0,
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
@@ -2320,21 +1422,10 @@
                     "AtomicEffects": [
                         {
                             "ID": "",
-                            "EffectType": "Untap",
+                            "EffectType": "AddLifeDown",
                             "Value": 2,
                             "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
-                        },
-                        {
-                            "ID": "",
-                            "EffectType": "ModifyPower",
-                            "Value": 2,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
+                            "TargetKinds": []
                         }
                     ],
                     "Costs": [],
@@ -2353,218 +1444,27 @@
             "surplusToSpeed": false
         },
         {
-            "id": "0c58b914d0949161",
-            "cardName": "赤贯甲者",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 5.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_25_00",
-                    "DisplayName": "贯穿",
-                    "Description": "登场：对敌方英雄造成 3 点穿透伤害",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "PierceDamage",
-                            "Value": 3,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                1
-                            ]
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "587a23cf11f2eef6",
-            "cardName": "赤噬血兽",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 5.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_29_00",
-                    "DisplayName": "噬血",
-                    "Description": "登场：对敌方英雄造成 3 点伤害并回复等量生命",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "DrainLife",
-                            "Value": 3,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                1
-                            ]
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "2510f80f9bbf5af5",
-            "cardName": "赤燎原先锋",
-            "supertype": "Creature",
-            "power": 4,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 4.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_RED_13_00",
-                    "DisplayName": "燃面",
-                    "Description": "登场：对敌方英雄造成 4 点伤害",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "DealDamage",
-                            "Value": 4,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                1
-                            ]
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "8888315768d48c9c",
-            "cardName": "赤贯穿枪·贯",
+            "id": "540449d90857a68c",
+            "cardName": "放逐之刃",
             "supertype": "Spell",
             "power": 0,
             "life": 0,
             "costList": [
                 {
-                    "manaType": 1,
-                    "amount": 8.0
+                    "manaType": 4,
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
             "tags": [
-                "deck-import",
+                "atom-coverage",
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_RED_58_00",
-                    "DisplayName": "贯穿",
-                    "Description": "对敌方英雄造成 4 点穿透伤害",
+                    "Id": "AC_P6",
+                    "DisplayName": "放逐",
+                    "Description": "将一个永久物除外",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -2581,12 +1481,10 @@
                     "AtomicEffects": [
                         {
                             "ID": "",
-                            "EffectType": "PierceDamage",
-                            "Value": 5,
+                            "EffectType": "Exile",
+                            "Value": 1,
                             "ManaList": [],
-                            "TargetKinds": [
-                                1
-                            ]
+                            "TargetKinds": []
                         }
                     ],
                     "Costs": [],
@@ -2605,14 +1503,559 @@
             "surplusToSpeed": false
         },
         {
-            "id": "57cdfdfc6d2c3222",
-            "cardName": "湛禁言官·肃",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 4,
+            "id": "2df1dcaffafbcd06",
+            "cardName": "万流归库",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
             "costList": [
                 {
                     "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P8",
+                    "DisplayName": "归库",
+                    "Description": "将目标永久物洗入其牌库",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "ShuffleIntoDeck",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "22854cc7da4c610f",
+            "cardName": "颠倒忠诚",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P9",
+                    "DisplayName": "策反",
+                    "Description": "获得一个对方单位的控制权",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GainControl",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                2
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "383d94ebfcf07c33",
+            "cardName": "净化之风",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P11",
+                    "DisplayName": "净化",
+                    "Description": "净化一个目标",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Purify",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "62196352bb2b7c4f",
+            "cardName": "吞世巨口",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P12",
+                    "DisplayName": "吞噬",
+                    "Description": "吞噬一个目标",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Devour",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "227baf1649cd84f5",
+            "cardName": "湮灭射线",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P13",
+                    "DisplayName": "湮灭",
+                    "Description": "湮灭一个目标（直送除外区）",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Annihilate",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "312bcb9707551c4e",
+            "cardName": "拆解洪流",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P14",
+                    "DisplayName": "拆解",
+                    "Description": "摧毁一个无生命单位或地牌",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Smash",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "f30aa4e36214a507",
+            "cardName": "灵魂榨取",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P16",
+                    "DisplayName": "榨魂",
+                    "Description": "目标失去2点生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "LifeLoss",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "7a6991b7d7dcf6d8",
+            "cardName": "反制号令",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P18",
+                    "DisplayName": "反制",
+                    "Description": "无效化一次发动",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "NegateActivation",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "21e82287e419724a",
+            "cardName": "当头打落",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P19",
+                    "DisplayName": "打落",
+                    "Description": "将发动区中的一张卡打落进墓地",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "KnockDown",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "360f0eba568113a2",
+            "cardName": "禁术封印师",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 4,
                     "amount": 2.0
                 },
                 {
@@ -2622,14 +2065,136 @@
             ],
             "keywords": [],
             "tags": [
-                "deck-import",
+                "atom-coverage",
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_BLUE_19_00",
-                    "DisplayName": "缄默",
-                    "Description": "登场：沉默一个生物，其失去所有效果",
+                    "Id": "AC_P20",
+                    "DisplayName": "封禁",
+                    "Description": "登场：对目标附加无效指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddNullify",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "e62da97f44bb230d",
+            "cardName": "异变术",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P21",
+                    "DisplayName": "异变",
+                    "Description": "将目标变形为一个灰色哨兵",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "7c72811f0e69c917",
+                            "EffectType": "Morph",
+                            "Value": 0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "e59912dc050ce182",
+            "cardName": "沉默低语",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P22",
+                    "DisplayName": "沉默",
+                    "Description": "对目标附加沉默指示物",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -2668,71 +2233,8 @@
             "surplusToSpeed": false
         },
         {
-            "id": "1f876b70c7959cb2",
-            "cardName": "湛学者",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_24_00",
-                    "DisplayName": "汲智",
-                    "Description": "登场：抽一张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "DrawCard",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "85f747cab4207450",
-            "cardName": "湛回手术·速",
+            "id": "2bfd2f2ec170e197",
+            "cardName": "冰封锁链",
             "supertype": "Spell",
             "power": 0,
             "life": 0,
@@ -2748,681 +2250,14 @@
             ],
             "keywords": [],
             "tags": [
-                "deck-import",
+                "atom-coverage",
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_BLUE_47_00",
-                    "DisplayName": "回流",
-                    "Description": "将一个生物移回其拥有者手牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "ReturnToHand",
-                            "Value": 2,
-                            "ManaList": [],
-                            "TargetKinds": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "215da0b30e081dda",
-            "cardName": "湛顶回咒·深",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_50_00",
-                    "DisplayName": "顶回",
-                    "Description": "将一个生物移回其拥有者牌库顶",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "BounceToTop",
-                            "Value": 2,
-                            "ManaList": [],
-                            "TargetKinds": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "d183a5a2815d5c34",
-            "cardName": "湛警戒卫",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [
-                "Vigilance"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "f331c8c6b4e10be4",
-            "cardName": "湛回流术士",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_13_00",
-                    "DisplayName": "回流",
-                    "Description": "登场：将一个生物移回其拥有者手牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "ReturnToHand",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "64e365f3f1edef87",
-            "cardName": "湛冰法师",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_01_00",
-                    "DisplayName": "冻结",
-                    "Description": "登场：冻结一个敌方生物，其无法行动",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "FreezePermanent",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "c55207e8f4d942ae",
-            "cardName": "湛壁垒卫",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 6,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Vigilance"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "5925deaac1a5082c",
-            "cardName": "湛警戒卫·稳",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Vigilance"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "5f01dd20a37a1330",
-            "cardName": "湛咒盾手·护",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "SpellShield"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "a9b0646113927f75",
-            "cardName": "湛逆潮行者·卷",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_16_00",
-                    "DisplayName": "回流",
-                    "Description": "登场：将一个生物移回其拥有者手牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "ReturnToHand",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "2808703bb729188a",
-            "cardName": "湛回响阅读",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_59_00",
-                    "DisplayName": "检索",
-                    "Description": "抽一张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "DrawCard",
-                            "Value": 5,
-                            "ManaList": [],
-                            "TargetKinds": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "77b4ae38461f0659",
-            "cardName": "湛壁垒卫·牢",
-            "supertype": "Creature",
-            "power": 4,
-            "life": 6,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Vigilance"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "91f5fcdf87b796fa",
-            "cardName": "湛灵感潮",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_57_00",
-                    "DisplayName": "汲智",
-                    "Description": "抽两张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "DrawCard",
-                            "Value": 4,
-                            "ManaList": [],
-                            "TargetKinds": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "868695124d6d515d",
-            "cardName": "湛哨卫·坚",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Vigilance"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "e6585ef472c74579",
-            "cardName": "湛法盾卫·御",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [
-                "SpellShield"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "0c12bb940d1601cb",
-            "cardName": "湛寒冰牢",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_BLUE_53_00",
+                    "Id": "AC_P23",
                     "DisplayName": "冰封",
-                    "Description": "冻结一个敌方生物",
+                    "Description": "冻结一个永久物",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -3439,7 +2274,328 @@
                     "AtomicEffects": [
                         {
                             "ID": "",
-                            "EffectType": "FreezePermanent",
+                            "EffectType": "Freeze",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "30379f02c159364b",
+            "cardName": "破甲矛手",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P24",
+                    "DisplayName": "破甲",
+                    "Description": "登场：对目标造成2点穿透伤害",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "PierceDamage",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "c8b540281ab946e4",
+            "cardName": "破绽标记",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P26",
+                    "DisplayName": "破绽",
+                    "Description": "对目标附加易损指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 2,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddVulnerable",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "d3980ed863e7d41c",
+            "cardName": "汲魂之触",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P27",
+                    "DisplayName": "汲魂",
+                    "Description": "吸取目标2点生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "DrainLife",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "8b1975c856cfadd1",
+            "cardName": "祝福双生",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_B2",
+                    "DisplayName": "祝福",
+                    "Description": "目标获得+2/+2指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddPowerUp",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        },
+                        {
+                            "ID": "",
+                            "EffectType": "AddLifeUp",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "67e60093186273c6",
+            "cardName": "重塑化身",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 52.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_B4",
+                    "DisplayName": "重塑",
+                    "Description": "目标攻血均设为3",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "SetPower",
+                            "Value": 3,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        },
+                        {
+                            "ID": "",
+                            "EffectType": "SetLife",
                             "Value": 3,
                             "ManaList": [],
                             "TargetKinds": []
@@ -3461,31 +2617,27 @@
             "surplusToSpeed": false
         },
         {
-            "id": "b3d051f009b7e566",
-            "cardName": "湛汲智",
+            "id": "0eb7ad899f65e8af",
+            "cardName": "墓地拾荒",
             "supertype": "Spell",
             "power": 0,
             "life": 0,
             "costList": [
                 {
                     "manaType": 2,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
                     "amount": 1.0
                 }
             ],
             "keywords": [],
             "tags": [
-                "deck-import",
+                "atom-coverage",
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_BLUE_55_00",
-                    "DisplayName": "汲智",
-                    "Description": "抽两张牌",
+                    "Id": "AC_B5",
+                    "DisplayName": "拾荒",
+                    "Description": "从墓地回收一张卡到手牌",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -3502,7 +2654,188 @@
                     "AtomicEffects": [
                         {
                             "ID": "",
-                            "EffectType": "DrawCard",
+                            "EffectType": "RecoverToHand",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "b996cdf020e3efb4",
+            "cardName": "苏生仪式",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_B6",
+                    "DisplayName": "苏生",
+                    "Description": "从墓地苏生一个单位到战场",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "ReturnFromGraveyard",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "2c87918af1f4db8f",
+            "cardName": "圣光抚慰",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_B7",
+                    "DisplayName": "抚慰",
+                    "Description": "为目标回复3点生命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Heal",
+                            "Value": 3,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "0c2262fb03cd8aac",
+            "cardName": "强化石肤",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_B8",
+                    "DisplayName": "石肤",
+                    "Description": "目标获得2个+1/+1指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 3,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddPlusOne",
                             "Value": 2,
                             "ManaList": [],
                             "TargetKinds": []
@@ -3524,48 +2857,14 @@
             "surplusToSpeed": false
         },
         {
-            "id": "a0c5a0010761a9a6",
-            "cardName": "湛辟邪守望",
-            "supertype": "Creature",
-            "power": 4,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Untargetable"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "cf5550e0d8891195",
-            "cardName": "湛微光检索",
+            "id": "4784ba5844ef1b84",
+            "cardName": "岩甲护持",
             "supertype": "Spell",
             "power": 0,
             "life": 0,
             "costList": [
                 {
-                    "manaType": 2,
+                    "manaType": 3,
                     "amount": 0.0
                 },
                 {
@@ -3575,172 +2874,14 @@
             ],
             "keywords": [],
             "tags": [
-                "deck-import",
+                "atom-coverage",
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_BLUE_58_00",
-                    "DisplayName": "检索",
-                    "Description": "抽一张牌",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "DrawCard",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": []
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "cc0da51ead99959f",
-            "cardName": "翠藤苗·伸",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 3,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [
-                "Growth"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "889ed8393f6cc4c0",
-            "cardName": "翠增殖者",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_GREEN_12_00",
-                    "DisplayName": "增殖",
-                    "Description": "登场：全体友方生物各获得一个 +1/+1 指示物",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 3,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "AddPlusOne",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "3047be1db7595545",
-            "cardName": "翠岩甲术·固",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_GREEN_60_00",
+                    "Id": "AC_B9",
                     "DisplayName": "岩甲",
-                    "Description": "己方英雄获得 3 点护甲",
+                    "Description": "为目标添加2点护甲",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -3758,258 +2899,9 @@
                         {
                             "ID": "",
                             "EffectType": "AddArmor",
-                            "Value": 5,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "7003e0a9f01a19ef",
-            "cardName": "翠生命相连",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 4,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Lifelink"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "7cfdca56c43e13a0",
-            "cardName": "翠藤墙·密",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 6,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Taunt"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "fc5c712ced97e73a",
-            "cardName": "翠山岳兽",
-            "supertype": "Creature",
-            "power": 7,
-            "life": 7,
-            "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 5.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "5376ae110408773e",
-            "cardName": "翠太古巨木",
-            "supertype": "Creature",
-            "power": 7,
-            "life": 8,
-            "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 6.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "2b97756ad0b25ca0",
-            "cardName": "翠巨熊",
-            "supertype": "Creature",
-            "power": 5,
-            "life": 6,
-            "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 4.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "8a048e394a408d76",
-            "cardName": "翠生命相连·系",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 5,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
-            ],
-            "keywords": [
-                "Lifelink"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "41e0a3f3fce0008e",
-            "cardName": "翠成长赐福·沃",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_GREEN_50_00",
-                    "DisplayName": "赐福",
-                    "Description": "全体友方生物各获得一个 +1/+1 指示物",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 3,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "AddPlusOne",
                             "Value": 2,
                             "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
+                            "TargetKinds": []
                         }
                     ],
                     "Costs": [],
@@ -4028,143 +2920,14 @@
             "surplusToSpeed": false
         },
         {
-            "id": "bdbc8d3ecc8d0186",
-            "cardName": "翠生命之泉",
+            "id": "9f5d32e5a8b87a98",
+            "cardName": "迫弃威压",
             "supertype": "Spell",
             "power": 0,
             "life": 0,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [
-                {
-                    "Id": "DECK_GREEN_48_00",
-                    "DisplayName": "治愈",
-                    "Description": "回复己方英雄 6 点生命",
-                    "TriggerTiming": 0,
-                    "ActivationType": 0,
-                    "BaseSpeed": 0,
-                    "IsOptional": false,
-                    "Duration": 0,
-                    "DurationValue": 0,
-                    "SummonDropZone": 1,
-                    "SelectionMode": 1,
-                    "TargetCount": 1,
-                    "DynamicTargetCount": false,
-                    "Drawbacks": [],
-                    "ActivationConditions": [],
-                    "TriggerConditions": [],
-                    "AtomicEffects": [
-                        {
-                            "ID": "",
-                            "EffectType": "Heal",
-                            "Value": 6,
-                            "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
-                        }
-                    ],
-                    "Costs": [],
-                    "Tags": [],
-                    "Steps": []
-                }
-            ],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "fdc52b9272dc963e",
-            "cardName": "翠嫩芽",
-            "supertype": "Creature",
-            "power": 1,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "Growth"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "5d9b3e1b37df0b85",
-            "cardName": "翠藤苗",
-            "supertype": "Creature",
-            "power": 2,
-            "life": 2,
-            "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [
-                "Growth"
-            ],
-            "tags": [
-                "deck-import",
-                "test-deck"
-            ],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "rank": -1,
-            "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "1fcbdbe1debe80f5",
-            "cardName": "翠治愈浪潮",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 3,
+                    "manaType": 5,
                     "amount": 0.0
                 },
                 {
@@ -4174,14 +2937,14 @@
             ],
             "keywords": [],
             "tags": [
-                "deck-import",
+                "atom-coverage",
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_GREEN_46_00",
-                    "DisplayName": "治愈",
-                    "Description": "回复己方英雄 4 点生命",
+                    "Id": "AC_Z1",
+                    "DisplayName": "迫弃",
+                    "Description": "对手弃一张牌",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -4189,7 +2952,7 @@
                     "Duration": 0,
                     "DurationValue": 0,
                     "SummonDropZone": 1,
-                    "SelectionMode": 1,
+                    "SelectionMode": -1,
                     "TargetCount": 1,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
@@ -4198,12 +2961,10 @@
                     "AtomicEffects": [
                         {
                             "ID": "",
-                            "EffectType": "Heal",
-                            "Value": 4,
+                            "EffectType": "DiscardCard",
+                            "Value": 1,
                             "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
+                            "TargetKinds": []
                         }
                     ],
                     "Costs": [],
@@ -4222,10 +2983,304 @@
             "surplusToSpeed": false
         },
         {
-            "id": "9ba0054e557cbb46",
-            "cardName": "翠甘霖祭司",
+            "id": "296092f036321aa5",
+            "cardName": "深谋检索",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_Z3",
+                    "DisplayName": "检索",
+                    "Description": "宣言「灰色哨兵」并从牌库检索",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": -1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "灰色哨兵",
+                            "EffectType": "SearchDeck",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "4afb59143c8b3244",
+            "cardName": "侦察之眼",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_Z4",
+                    "DisplayName": "侦察",
+                    "Description": "查看牌库顶3张",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": -1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "LookAtTopCards",
+                            "Value": 3,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "48b34f631a7e7837",
+            "cardName": "星象占卜",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_Z5",
+                    "DisplayName": "占卜",
+                    "Description": "占卜2",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": -1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "ScryCards",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "ac74892f102f9d3a",
+            "cardName": "时光窃取",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 7.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_Z9",
+                    "DisplayName": "窃时",
+                    "Description": "获得一个额外回合",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": -1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "TakeExtraTurn",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "c1b4574e0f4ba549",
+            "cardName": "集结号角",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_Z10",
+                    "DisplayName": "集结",
+                    "Description": "生成2个灰色哨兵衍生物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": -1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "7c72811f0e69c917",
+                            "EffectType": "SummonToken",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "84b34aa67e544378",
+            "cardName": "光合精灵",
             "supertype": "Creature",
-            "power": 2,
+            "power": 1,
             "life": 3,
             "costList": [
                 {
@@ -4234,19 +3289,19 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
             "tags": [
-                "deck-import",
+                "atom-coverage",
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_GREEN_09_00",
-                    "DisplayName": "治愈",
-                    "Description": "登场：回复己方英雄 3 点生命",
+                    "Id": "AC_O1",
+                    "DisplayName": "光合",
+                    "Description": "登场：横置自身获得1点绿色元素",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -4263,12 +3318,10 @@
                     "AtomicEffects": [
                         {
                             "ID": "",
-                            "EffectType": "Heal",
-                            "Value": 3,
+                            "EffectType": "AdditionalEnergy",
+                            "Value": 1,
                             "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
+                            "TargetKinds": []
                         }
                     ],
                     "Costs": [],
@@ -4287,29 +3340,420 @@
             "surplusToSpeed": false
         },
         {
-            "id": "c729b373089d4cf8",
-            "cardName": "翠繁茂苗",
+            "id": "7c8b79e008ff5f20",
+            "cardName": "催眠花妖",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 5.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_O3",
+                    "DisplayName": "催眠",
+                    "Description": "登场：自我沉睡2回合（效果无效）",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Sleep",
+                            "Value": 2,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "71cbaec3e2f4ba0d",
+            "cardName": "授勋剑士",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 5,
+                    "amount": 5.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_G1",
+                    "DisplayName": "授勋",
+                    "Description": "登场：获得先攻与吸血",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 1,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GrantFirstStrike",
+                            "Value": 0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        },
+                        {
+                            "ID": "",
+                            "EffectType": "GrantLifesteal",
+                            "Value": 0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "442aa4a6679f1425",
+            "cardName": "毒牙祭司",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 6.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_G3",
+                    "DisplayName": "毒牙",
+                    "Description": "登场：获得毒刺与系命",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 1,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GrantPoisonSting",
+                            "Value": 0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        },
+                        {
+                            "ID": "",
+                            "EffectType": "GrantLifelink",
+                            "Value": 0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "13f9114679d8da0e",
+            "cardName": "暗影行者",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 4,
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_G4",
+                    "DisplayName": "暗影",
+                    "Description": "登场：获得潜行与辟邪",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 1,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GrantStealth",
+                            "Value": 0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        },
+                        {
+                            "ID": "",
+                            "EffectType": "GrantCannotBeTargeted",
+                            "Value": 0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "dcb75d050e5c6294",
+            "cardName": "圣辉守卫",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_G5",
+                    "DisplayName": "圣辉",
+                    "Description": "登场：获得圣盾与法术护盾",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 1,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GrantDivineShield",
+                            "Value": 0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        },
+                        {
+                            "ID": "",
+                            "EffectType": "GrantSpellShield",
+                            "Value": 0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "6c6f9e73a6583153",
+            "cardName": "磐岩巨人",
             "supertype": "Creature",
             "power": 3,
             "life": 4,
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 1.0
+                    "amount": 11.0
                 },
                 {
                     "manaType": 0,
                     "amount": 3.0
                 }
             ],
-            "keywords": [
-                "Growth"
-            ],
+            "keywords": [],
             "tags": [
-                "deck-import",
+                "atom-coverage",
                 "test-deck"
             ],
-            "effects": [],
+            "effects": [
+                {
+                    "Id": "AC_G6",
+                    "DisplayName": "磐岩",
+                    "Description": "登场：获得1点坚韧与再生",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 1,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GrantArmor",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        },
+                        {
+                            "ID": "",
+                            "EffectType": "GrantRegeneration",
+                            "Value": 0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
             "subtype": "",
             "level": -1,
             "rank": -1,
@@ -4321,35 +3765,43 @@
             "surplusToSpeed": false
         },
         {
-            "id": "1f2b1e761d3c2bc5",
-            "cardName": "翠繁荣仪式",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
+            "id": "19c5d50d3ec0a510",
+            "cardName": "不朽化身",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
             "costList": [
                 {
-                    "manaType": 3,
+                    "manaType": 5,
                     "amount": 3.0
+                },
+                {
+                    "manaType": 4,
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
             "tags": [
-                "deck-import",
+                "atom-coverage",
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_GREEN_51_00",
-                    "DisplayName": "赐福",
-                    "Description": "全体友方生物各获得一个 +1/+1 指示物",
+                    "Id": "AC_G7",
+                    "DisplayName": "不朽",
+                    "Description": "登场：获得复生与不灭",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
                     "IsOptional": false,
-                    "Duration": 3,
+                    "Duration": 1,
                     "DurationValue": 0,
                     "SummonDropZone": 1,
-                    "SelectionMode": 1,
+                    "SelectionMode": 0,
                     "TargetCount": 1,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
@@ -4358,12 +3810,17 @@
                     "AtomicEffects": [
                         {
                             "ID": "",
-                            "EffectType": "AddPlusOne",
-                            "Value": 3,
+                            "EffectType": "GrantReborn",
+                            "Value": 0,
                             "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
+                            "TargetKinds": []
+                        },
+                        {
+                            "ID": "",
+                            "EffectType": "GrantIndestructible",
+                            "Value": 0,
+                            "ManaList": [],
+                            "TargetKinds": []
                         }
                     ],
                     "Costs": [],
@@ -4382,35 +3839,43 @@
             "surplusToSpeed": false
         },
         {
-            "id": "76914db34b76d6d5",
-            "cardName": "翠成长赐福·泽",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
+            "id": "a8adb2d339ee374a",
+            "cardName": "哨戒教官",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 4.0
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
             "tags": [
-                "deck-import",
+                "atom-coverage",
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_GREEN_59_00",
-                    "DisplayName": "赐福",
-                    "Description": "全体友方生物各获得一个 +1/+1 指示物",
+                    "Id": "AC_G8",
+                    "DisplayName": "哨戒",
+                    "Description": "登场：获得警戒与缴械",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
                     "IsOptional": false,
-                    "Duration": 3,
+                    "Duration": 1,
                     "DurationValue": 0,
                     "SummonDropZone": 1,
-                    "SelectionMode": 1,
+                    "SelectionMode": 0,
                     "TargetCount": 1,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
@@ -4419,12 +3884,17 @@
                     "AtomicEffects": [
                         {
                             "ID": "",
-                            "EffectType": "AddPlusOne",
-                            "Value": 4,
+                            "EffectType": "GrantVigilance",
+                            "Value": 0,
                             "ManaList": [],
-                            "TargetKinds": [
-                                0
-                            ]
+                            "TargetKinds": []
+                        },
+                        {
+                            "ID": "",
+                            "EffectType": "GrantDisarm",
+                            "Value": 0,
+                            "ManaList": [],
+                            "TargetKinds": []
                         }
                     ],
                     "Costs": [],
@@ -4443,27 +3913,90 @@
             "surplusToSpeed": false
         },
         {
-            "id": "bc66937b703f223d",
-            "cardName": "翠治愈浪潮·沛",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
+            "id": "f54e0f08c703e33c",
+            "cardName": "拔芽幼兽",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
                     "amount": 1.0
                 }
             ],
             "keywords": [],
             "tags": [
-                "deck-import",
+                "atom-coverage",
                 "test-deck"
             ],
             "effects": [
                 {
-                    "Id": "DECK_GREEN_47_00",
-                    "DisplayName": "治愈",
-                    "Description": "回复己方英雄 5 点生命",
+                    "Id": "AC_G9",
+                    "DisplayName": "拔芽",
+                    "Description": "登场：获得成长",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 1,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GrantGrowth",
+                            "Value": 0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "691292baec3c5904",
+            "cardName": "重构费率",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 16.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_C1",
+                    "DisplayName": "重构",
+                    "Description": "将一张手牌的费用设为2",
                     "TriggerTiming": 0,
                     "ActivationType": 0,
                     "BaseSpeed": 0,
@@ -4480,11 +4013,11 @@
                     "AtomicEffects": [
                         {
                             "ID": "",
-                            "EffectType": "Heal",
-                            "Value": 5,
+                            "EffectType": "SetCost",
+                            "Value": 2,
                             "ManaList": [],
                             "TargetKinds": [
-                                0
+                                5
                             ]
                         }
                     ],
@@ -4504,29 +4037,188 @@
             "surplusToSpeed": false
         },
         {
-            "id": "db79d6af41c85231",
-            "cardName": "翠再生蜥·活",
-            "supertype": "Creature",
-            "power": 3,
-            "life": 5,
+            "id": "ba9562b51ef2d60e",
+            "cardName": "增赋税契",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
+                    "manaType": 2,
+                    "amount": 0.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
-            "keywords": [
-                "Regeneration"
-            ],
+            "keywords": [],
             "tags": [
-                "deck-import",
+                "atom-coverage",
                 "test-deck"
             ],
-            "effects": [],
+            "effects": [
+                {
+                    "Id": "AC_C3",
+                    "DisplayName": "增赋",
+                    "Description": "为一张手牌添加1个费用增加指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddCostUp",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                5
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "6fe5c0908ea54ea1",
+            "cardName": "减负令",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_C4",
+                    "DisplayName": "减负",
+                    "Description": "为一张手牌添加1个费用减少指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "AddCostDown",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                5
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "ded125f1681d22e6",
+            "cardName": "弹回涟漪",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage",
+                "test-deck"
+            ],
+            "effects": [
+                {
+                    "Id": "AC_P28",
+                    "DisplayName": "弹回",
+                    "Description": "将一个永久物移回其拥有者手牌",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "ReturnToHand",
+                            "Value": 1,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
             "subtype": "",
             "level": -1,
             "rank": -1,

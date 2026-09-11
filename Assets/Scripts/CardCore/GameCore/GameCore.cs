@@ -315,8 +315,20 @@ namespace CardCore
                 }
 
                 // 横置恢复（定案）：回合规则照常——冻结/紊乱等负面指示物不修改重置
-                // （其持续与消退走 CounterRules 统一管理，回合结束清理）
-                if (card.IsTapped())
+                // （其持续与消退走 CounterRules 统一管理，回合结束清理）。
+                // 沉睡例外（2026-09-11 定案）：持有沉睡指示物期间**无法重置**——
+                // 回合开始改扣 1 层指示物（持续=层数），扣完即醒（当次直接重置）。
+                int sleep = card.GetCounterCount(KeywordRules.SleepCounter);
+                if (sleep > 0)
+                {
+                    card.RemoveCounters(KeywordRules.SleepCounter, 1);
+                    if (sleep - 1 <= 0)
+                    {
+                        card.Untap(); // 苏醒：最后一层耗尽的当次回合开始即重置
+                        PublishEvent(new UntapEvent { UntappedEntity = card });
+                    }
+                }
+                else if (card.IsTapped())
                 {
                     card.Untap();
                     PublishEvent(new UntapEvent { UntappedEntity = card });

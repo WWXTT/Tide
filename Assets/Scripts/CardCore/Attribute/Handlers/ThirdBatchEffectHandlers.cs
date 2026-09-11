@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Cysharp.Threading.Tasks;
 using CardCore.Attribute;
 
 namespace CardCore.Attribute.Handlers
@@ -41,7 +42,12 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => $"送墓：牌库顶 {effect.Value} 张入墓地";
     }
 
-    /// <summary>占卜（查看牌库顶 N 张，仅展示，不移动）</summary>
+    /// <summary>
+    /// 占卜（2026-09-11 排列实现）：查看对手牌库顶 {value} 张并任意排列（排列者=发动方）。
+    /// 主路径 ExecuteAsync：排列交互逐张单选（先选的在最顶），整段写回对手牌库新顶序；
+    /// AI/无头/超时自动取剩余首张 = 维持原序（训练确定性）。
+    /// 同步 Execute 仅查看播报（旧同步/触发路径兼容，不弹排列）。
+    /// </summary>
     public class ScryCardsHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.ScryCards;
@@ -50,14 +56,33 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int count = context.GetValueAfterModifiers(effect.Value);
-            if (context.ZoneManager == null || context.Controller == null) return;
-
-            var cards = context.ZoneManager.GetTopCards(context.Controller, count);
-            PublishEvent(new ScryEvent { Player = context.Controller, Cards = cards, Source = context.Source });
+            var owner = DeckArrangeHelper.ResolveDeckOwner(effect, context);
+            var top = DeckArrangeHelper.PeekTop(effect, context, owner);
+            if (top.Count > 0)
+                PublishEvent(new ScryEvent { Player = owner, Cards = top, Source = context.Source });
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"占卜 {effect.Value} 张";
+        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var owner = DeckArrangeHelper.ResolveDeckOwner(effect, context);
+            var top = DeckArrangeHelper.PeekTop(effect, context, owner);
+            if (top.Count == 0) return;
+
+            var final = top;
+            if (top.Count > 1)
+            {
+                var ordered = await DeckArrangeHelper.ArrangeAsync(top, context.Controller,
+                    enemyDeck: owner != context.Controller);
+                if (ordered != null && ordered.Count == top.Count)
+                {
+                    context.ZoneManager.GetZoneContainer(owner).ReorderTop(Zone.Deck, ordered);
+                    final = ordered;
+                }
+            }
+            PublishEvent(new ScryEvent { Player = owner, Cards = final, Source = context.Source });
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect) => $"占卜：查看对手牌库顶 {effect.Value} 张并任意排列";
     }
 
     /// <summary>变更拥有者（各目标的 owner 设为控制者）</summary>

@@ -144,6 +144,9 @@ namespace CardCore.Attribute
             {
                 domain = def.ChoiceDomains[context.ModeIndex];
             }
+            // 无目标效果（区域自结算类：抽卡/磨牌/看顶等，2026-09-11 语义修正）——
+            // 域非空也不解析候选、不弹选（牌库是隐藏信息；handler 按域自结算）
+            if (def.SelectionMode == SelectionMode.None) return new List<Entity>();
             if (domain == null || domain.Count == 0) return new List<Entity>(); // 无目标效果
 
             var candidates = ResolveCandidates(domain, def.TargetFilter, context);

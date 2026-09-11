@@ -33,11 +33,11 @@ namespace SynergyUI
             /// <summary>档位：声明优先，未声明取建议 Ĉ。</summary>
             public int ManaCost;
 
-            /// <summary>构筑期抵扣需求 Req = max(0, D_total − C_total)。</summary>
+            /// <summary>规则一缺口 Req = max(0, D_total − C_total)（2026-09-11 简化：D≤C 直判，无当量抵扣）。</summary>
             public int OffsetRequirement;
 
-            /// <summary>卡上代价已提供的元素当量 O。</summary>
-            public float OffsetProvided;
+            /// <summary>黑白元素获得（错边原子转化；结算时发放，封顶地牌上限）。</summary>
+            public Dictionary<int, int> Grants = new Dictionary<int, int>();
 
             /// <summary>建议采纳的费用分布（多色；已有声明时回显当前声明构成）。</summary>
             public Dictionary<int, float> CostDict = new Dictionary<int, float>();
@@ -53,7 +53,7 @@ namespace SynergyUI
                 Total = r.DerivedTotal,
                 ManaCost = r.DeclaredTier > 0 ? r.DeclaredTier : r.SuggestedTier,
                 OffsetRequirement = r.OffsetRequirement,
-                OffsetProvided = r.OffsetProvided,
+                Grants = r.Grants.ToDictionary(kv => (int)kv.Key, kv => kv.Value),
                 CostDict = r.DeclaredTier > 0 && card != null && card.Cost != null
                     ? card.Cost.Where(kv => kv.Value > 0f).ToDictionary(kv => kv.Key, kv => kv.Value)
                     : r.SuggestedCost.ToDictionary(kv => (int)kv.Key, kv => (float)kv.Value),
@@ -73,13 +73,14 @@ namespace SynergyUI
             {
                 CostType.ElementConsume => "元素消耗",
                 CostType.DiscardCard => "弃牌",
-                CostType.LifePayment => "支付生命",
+                CostType.LifePayment => "支付生命（扣上限）",
                 CostType.Sleep => "沉睡",
                 CostType.SummonMaterial => "召唤素材",
                 CostType.MillDeck => "送墓（本组）",
                 CostType.SendExtraDeck => "送额外组",
                 CostType.SelfSickness => "自身紊乱",
                 CostType.OpponentBuff => "对手增益",
+                CostType.Payload => "代价效果",
                 _ => costType.ToString(),
             };
         }

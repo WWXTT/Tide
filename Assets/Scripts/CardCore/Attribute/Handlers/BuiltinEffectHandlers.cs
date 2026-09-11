@@ -104,9 +104,9 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>冻结</summary>
-    public class FreezePermanentHandler : AtomicEffectHandlerBase
+    public class FreezeHandler : AtomicEffectHandlerBase
     {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.FreezePermanent;
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Freeze;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {

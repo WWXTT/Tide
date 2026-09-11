@@ -281,8 +281,9 @@ namespace CardCore
 
         /// <summary>
         /// 获取候选目标列表（2026-09-10 目标域模型）：按 TargetKind 序号集合组装候选池。
-        /// 单位种类（0-3）= 战场生物/非生物 + 该侧角色（角色=有生命单位）；
-        /// 卡种类（4-15）= 对应功能区域的卡。
+        /// 自己（0）= 源卡自身（2026-09-11 Self 找回——关键词/关键词型效果的专属域）；
+        /// 单位种类（1-4）= 战场生物/非生物 + 该侧角色（角色=有生命单位）；
+        /// 卡种类（5-16）= 对应功能区域的卡。
         /// </summary>
         public List<Entity> GetCandidates(List<int> kinds, string targetFilter, EffectExecutionContext context)
         {
@@ -298,6 +299,12 @@ namespace CardCore
                 if (!System.Enum.IsDefined(typeof(TargetKind), kind)) continue;
                 switch ((TargetKind)kind)
                 {
+                    // 自己：源卡自身（须在战场存活——瞬间在发动区/已死者不入选）
+                    case TargetKind.Self:
+                        if (context.Source != null && context.Source.IsAlive && context.Source is Card)
+                            candidates.Add(context.Source);
+                        break;
+
                     // 单位种类：战场有生命（生物+该侧角色）/ 无生命（战场非生物持久物）
                     case TargetKind.OwnLivingUnit:
                         candidates.AddRange(CreaturesOf(context.Controller));

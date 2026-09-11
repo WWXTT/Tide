@@ -1,0 +1,59 @@
+原子表 AttributeValueConfig.json 字段参考（2026-09-11 生成；改表前看一眼防错）
+====================================================================
+
+枚举全部 88 个 = 可写进表的 86 个 + 刻意不实现 2 个：
+
+伤害族（6）: DealDamage DealCombatDamage LifeLoss PierceDamage DrainLife Heal
+移动族（13）: DrawCard DiscardCard MillCard ReturnToHand Exile ShuffleIntoDeck SearchDeck BounceToTop BounceToBottom ReturnFromGraveyard RecoverToHand SummonToken Morph
+状态族（13）: Tap Untap ModifyPower ModifyLife SetPower SetLife SetCost ModifyCost Freeze Purify Weaken Inspire Sleep
+指示物族（15）: Poison AddToxin AddArmor Silence AddNullify RushSickness AddVulnerable AddPowerUp AddPowerDown AddLifeUp AddLifeDown AddPlusOne AddMinusOne AddCostUp AddCostDown
+Grant族(域=0)（18）: GrantDoubleStrike GrantFirstStrike GrantOverwhelm GrantDisarm GrantVigilance GrantStealth GrantSpellShield GrantCannotBeTargeted GrantLifesteal GrantLifelink GrantRegeneration GrantGrowth GrantArmor GrantDivineShield GrantTaunt GrantPoisonSting GrantReborn GrantIndestructible
+控制/反制族（5）: GainControl ChangeOwner NegateActivation RedirectTarget KnockDown
+消灭族（4）: Sacrifice Devour Annihilate Smash
+信息族（6）: DeclareHand DeclareDeckTop DeclareArrow ProphecyNextCard LookAtTopCards ScryCards
+资源/回合（4）: AdditionalEnergy TakeExtraTurn SkipTurn
+战斗底盘（2）: Attack Guard
+
+刻意不实现（枚举有、表无行，写进表也不生效）: ModifyGameRule OverrideRestriction
+
+【TargetKinds】TargetKind.cs 17 序号（只许尾部追加、永不重排），逗号分隔、升序书写：
+  0  = Self（仅自身——Grant族/沉睡类自我效果）
+  1  = 己方有生命单位（战场生物+己方角色）      2  = 对方有生命单位
+  3  = 己方无生命单位（结界等非生物）            4  = 对方无生命单位
+  5  = 己方手牌                                  6  = 对方手牌
+  7  = 己方牌库                                  8  = 对方牌库
+  9  = 己方坟场                                  10 = 对方坟场
+  11 = 己方除外区                                12 = 对方除外区
+  13 = 己方元素池（地牌）                        14 = 对方元素池
+  15 = 己方发动区（反制指向落点）                16 = 对方发动区
+写法：null 或 ""（空串）= 无目标原子（不参与卡的组合域交集）；"1,2"=逗号分隔多值。
+★ 常见笔误：坟场是 9/10（不是 3/4——3/4 是无生命单位/结界）；
+  牌库是 7/8、手牌是 5/6。
+★ 隐藏区（7/8 牌库、6 对方手牌）域的原子：卡上 SelectionMode 用 None(-1) 自结算，
+  不弹目标选择；公开区（战场/坟场）才用 Manual(1)。
+
+【TargetFilter】域内属性细化（逗号组合 = AND 语义；null/空 = 无过滤）：
+  NoRole      = 仅生物（排除角色）
+  Mortal      = 凡躯（滤除神佑持有者——死亡族表行都带它）
+  Stealth     = 仅潜行中         Untargetable = 仅辟邪持有者
+  Untapped    = 未横置           Tapped       = 已横置
+  Damaged     = 已受伤           Friendly / Enemy = 己方 / 对方
+  Player      = 仅角色（现为 no-op 保留位）
+  分区名 no-op 保留位：Hand Graveyard Deck Exile Battlefield Activation
+  属性比较式：Power>5 / Life<=3 / Power=2 等格式
+★ 新击杀效果 = 表行带 Mortal 即可，零引擎改动。
+
+【其它字段】
+  EnumName   = 中文短名（装载后作为显示名，进表指纹——改名=身份换血）
+  DisplayName= 展示模板（装载后作为描述；ID 列由它哈希：sha256(去首尾空格)前8位hex）
+  EffectColor= 计价落色：Red / Blue / Green / White / Black / Gray（不进表指纹）
+  BaseCost   = 锚价（单价，×Value 计价；进表指纹）
+  Polarity   = 极性 [-1,1]：-1 对敌释放有益 / +1 对己释放有益 / 0 中性（进表指纹）
+
+【改表的连锁反应】
+  · 改 EnumName / BaseCost / TargetKinds / TargetFilter / Polarity 任一 → 表指纹变
+    → 全体卡身份哈希换血 → manifest 作废 → 必须重训 + 重导出
+    （改 EffectColor / DisplayName / ID 不动指纹）
+  · ID 列不用手写：跑 Tools/重推导测试卡表费用与ID 自动重推；
+    DisplayName 撞名 → ID 撞号（工具会告警）
+  · 改完表的标准动作：Tools/重推导测试卡表费用与ID → Tools/端到端验证

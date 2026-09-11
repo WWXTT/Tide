@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Cysharp.Threading.Tasks;
 using CardCore.Attribute;
 
 namespace CardCore.Attribute.Handlers
@@ -94,6 +95,71 @@ namespace CardCore.Attribute.Handlers
                 FromZone = Zone.Battlefield,
                 Source = EnterSource.ControlChange
             });
+        }
+    }
+
+    /// <summary>
+    /// 观星/占卜共用辅助（2026-09-11 排列实现；跨批：FirstBatch 观星 / ThirdBatch 占卜）。
+    /// 隐藏域（7/8 牌库）的组合目标不解析（ResolveCompositionTargetsAsync 对
+    /// SelectionMode=None 返回空、不弹选——牌库是隐藏信息），牌库侧别由原子有效域判定；
+    /// 排列交互 = 逐张单选（从顶到底），AI/无头由 TargetSelectionService 自动取剩余首张
+    /// = 维持原序（排列为无操作，训练/对拍确定性）。
+    /// </summary>
+    internal static class DeckArrangeHelper
+    {
+        /// <summary>
+        /// 按原子有效域解析牌库归属：目标已解析为玩家则用之（Manual 域例外路径）；
+        /// 域含对方牌库(8)归对手，否则（7/默认）归控制者。
+        /// </summary>
+        internal static Player ResolveDeckOwner(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            if (context.PrimaryTarget is Player targeted) return targeted;
+            if (context.Controller == null) return null;
+
+            var kinds = effect.TargetKinds != null && effect.TargetKinds.Count > 0
+                ? effect.TargetKinds
+                : AtomicEffectTable.GetByType(effect.Type)?.GetTargetKindList();
+            if (kinds != null && kinds.Contains((int)TargetKind.EnemyDeck))
+                return context.Controller.Opponent;
+            return context.Controller;
+        }
+
+        /// <summary>读取牌库顶 N 张（不移除；数量兜底至少 1——表定案：模板无 {value} 固定 1）。</summary>
+        internal static List<Card> PeekTop(AtomicEffectInstance effect, EffectExecutionContext context, Player owner)
+        {
+            if (context?.ZoneManager == null || owner == null) return new List<Card>();
+            int count = context.GetValueAfterModifiers(effect.Value);
+            if (count < 1) count = 1;
+            return context.ZoneManager.GetTopCards(owner, count);
+        }
+
+        /// <summary>
+        /// 排列交互：chooser 逐张选定新顶序（先选的在最顶；最后一张无需再问）。
+        /// 返回与入参同量的新顺序；自动路径（AI/无头/超时）等价于维持原序。
+        /// </summary>
+        internal static async UniTask<List<Card>> ArrangeAsync(List<Card> top, Player chooser, bool enemyDeck)
+        {
+            if (top == null || top.Count <= 1) return top;
+
+            var remaining = new List<Card>(top);
+            var ordered = new List<Card>();
+            string side = enemyDeck ? "对手" : "自己";
+
+            while (remaining.Count > 1)
+            {
+                var labels = new List<string>(remaining.Count);
+                foreach (var c in remaining)
+                    labels.Add(c is IHasName n && !string.IsNullOrEmpty(n.CardName) ? n.CardName : c.ID);
+
+                int idx = await TargetSelectionService.RequestOneIndexAsync(chooser, labels,
+                    $"排列{side}牌库顶：选第 {ordered.Count + 1} 张（先选的在最顶）");
+                if (idx < 0 || idx >= remaining.Count) idx = 0;
+
+                ordered.Add(remaining[idx]);
+                remaining.RemoveAt(idx);
+            }
+            ordered.Add(remaining[0]);
+            return ordered;
         }
     }
 
@@ -197,9 +263,9 @@ namespace CardCore.Attribute.Handlers
     /// 控制者获得 {value} 点绿色元素（默认 1）。可重复的产元素引擎——
     /// 代价 = 该单位本回合不可攻/不可发动启动式能力。
     /// </summary>
-    public class PhotosynthesisHandler : AtomicEffectHandlerBase
+    public class AdditionalEnergyHandler : AtomicEffectHandlerBase
     {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Photosynthesis;
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AdditionalEnergy;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
@@ -406,7 +472,7 @@ namespace CardCore.Attribute.Handlers
                 // 状态
                 new TapHandler(),
                 new UntapHandler(),
-                new PhotosynthesisHandler(),
+                new AdditionalEnergyHandler(),
 
                 // 控制
                 new GainControlHandler(),

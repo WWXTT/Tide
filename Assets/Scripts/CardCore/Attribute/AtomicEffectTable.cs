@@ -97,9 +97,10 @@ namespace CardCore.Attribute
                 config.DisplayName = entry.EnumName;
                 config.Description = entry.DisplayName;
                 config.BaseCost = entry.BaseCost;
-                config.Tags = string.IsNullOrEmpty(entry.EffectFunction)
-                    ? entry.EffectColor
-                    : (string.IsNullOrEmpty(entry.EffectColor) ? entry.EffectFunction : entry.EffectFunction + "," + entry.EffectColor);
+                // Tags=颜色载体（ElementAffinities.GetAffinityForEffect 消费）。
+                // 2026-09-11：EffectFunction 列删除——全链零消费（拼进 Tags 的功能 token 在
+                // ElementAffinity switch 永不命中），EffectColor 独自承担
+                config.Tags = entry.EffectColor;
 
                 // targeting / 发动 / 三分类：配置驱动，解析失败保留上面的兜底。
                 // TargetKinds 列即真相：行内显式空（null/""）= 真无域（守卫/跳回合类被动，
@@ -167,8 +168,7 @@ namespace CardCore.Attribute
         {
             public string EnumName;       // 中文短名（造成伤害）
             public string DisplayName;    // 展示模板（对{target}造成{value}点伤害）
-            public string EffectFunction; // Damage / Movement / Status / Protection / Counter
-            public string EffectColor;    // Red / Blue / Green ...
+            public string EffectColor;    // Red / Blue / Green ...（EffectFunction 列 2026-09-11 删除）
             public float BaseCost;
             public string EffectType;     // 英文枚举名（DealDamage）→ AtomicEffectType
             public string EffectTier;     // Atom / Keyword / Counter（三分类，缺省 Atom）

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Cysharp.Threading.Tasks;
 using CardCore.Attribute;
 
 namespace CardCore.Attribute.Handlers
@@ -336,21 +337,45 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => "从墓地回收到手牌";
     }
 
-    /// <summary>查看牌库顶（不移动，仅展示）</summary>
+    /// <summary>
+    /// 观星（2026-09-11 排列实现）：查看自己牌库顶 {value} 张并任意排列。
+    /// 主路径 ExecuteAsync：排列交互逐张单选（先选的在最顶），整段写回新顶序；
+    /// AI/无头/超时自动取剩余首张 = 维持原序（训练确定性）。
+    /// 同步 Execute 仅查看播报（旧同步/触发路径兼容，不弹排列）。
+    /// </summary>
     public class LookAtTopCardsHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.LookAtTopCards;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int count = context.GetValueAfterModifiers(effect.Value);
-            if (context.ZoneManager == null || context.Controller == null) return;
-
-            var cards = context.ZoneManager.GetTopCards(context.Controller, count);
-            PublishEvent(new ScryEvent { Player = context.Controller, Cards = cards, Source = context.Source });
+            var owner = DeckArrangeHelper.ResolveDeckOwner(effect, context);
+            var top = DeckArrangeHelper.PeekTop(effect, context, owner);
+            if (top.Count > 0)
+                PublishEvent(new ScryEvent { Player = owner, Cards = top, Source = context.Source });
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"查看牌库顶 {effect.Value} 张牌";
+        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var owner = DeckArrangeHelper.ResolveDeckOwner(effect, context);
+            var top = DeckArrangeHelper.PeekTop(effect, context, owner);
+            if (top.Count == 0) return;
+
+            var final = top;
+            if (top.Count > 1)
+            {
+                var ordered = await DeckArrangeHelper.ArrangeAsync(top, context.Controller,
+                    enemyDeck: owner != context.Controller);
+                if (ordered != null && ordered.Count == top.Count)
+                {
+                    context.ZoneManager.GetZoneContainer(owner).ReorderTop(Zone.Deck, ordered);
+                    final = ordered;
+                }
+            }
+            PublishEvent(new ScryEvent { Player = owner, Cards = final, Source = context.Source });
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect) => $"观星：查看自己牌库顶 {effect.Value} 张并任意排列";
     }
 
     // 展示手牌原子已删除（2026-09-03 原子表整体修正）——

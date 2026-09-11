@@ -90,6 +90,11 @@ namespace CardCore
         [NonSerialized]
         internal List<Dictionary<int, float>> ModeCostCache;
 
+        // 自我沉睡判定缓存（2026-09-11 灰费豁免定案）：任一非启动式效果含 Sleep 原子且 SelectionMode=Self。
+        // GetCardCost 高频调用，转换结果缓存（ResetCache 失效，随 ModeCostCache 口径）。
+        [NonSerialized]
+        internal bool? SelfSleepEffectCache;
+
         // 内容身份（2026-09-09 定案，CardIdentityService 与 EnsureCost 同管线推导）：拆散到原子级——
         // 原子哈希数组（跨效果按执行序展平）+ 组合结构哈希 + 关键词/tag/光环组合哈希，全部混入
         // 原子表指纹。观测侧（TideObservation [15..22]）据此查 embedding，同原子跨卡共享行。
@@ -373,6 +378,7 @@ namespace CardCore
             _totalCost = -1;
             _hasActiveEffect = null;
             ModeCostCache = null; // 抉择 per-mode 费用随配置失效（下次构筑期重推导）
+            SelfSleepEffectCache = null; // 自我沉睡判定随效果数据失效（2026-09-11）
         }
 
         /// <summary>
@@ -422,7 +428,8 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 代价条目 —— 卡牌效果的费用配置
+    /// 代价条目 —— 卡牌效果的费用配置。
+    /// 定案（2026-09-11）：一张卡只有一个代价栏、只能填一个代价（整卡 Costs 条目合计 ≤1，无法像效果那样组合）。
     /// </summary>
     [Serializable]
     public class CostEntry
@@ -431,6 +438,10 @@ namespace CardCore
         public int Value;              // 代价数值
         public int ManaType;           // 元素消耗的 ManaType
         public int TurnDuration;       // 沉睡回合数
+
+        /// <summary>效果型代价（CostType=Payload，2026-09-11）：付费步强制执行的原子效果，
+        /// 按全价补偿黑/白元素（如「给对手召唤 30/30 衍生物 → 获得白16」）。</summary>
+        public AtomicEffectEntry payload;
     }
 
     /// <summary>

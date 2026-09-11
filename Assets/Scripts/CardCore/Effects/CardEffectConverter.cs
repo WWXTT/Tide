@@ -109,11 +109,46 @@ namespace CardCore
             PrecomputeDomains(def);
             def.TargetCount = data.TargetCount != -2 ? data.TargetCount : FallbackTargetCount(def);
 
+            // Self 域找回（2026-09-11）：组合域恰为 {Self}（关键词/关键词型效果）且未显式声明选择模式
+            // → 自动 SelectionMode=Self（解析=源卡自身，不弹交互）。
+            if (def.TargetDomain != null && def.TargetDomain.Count == 1
+                && def.TargetDomain[0] == (int)TargetKind.Self && data.SelectionMode < 0)
+            {
+                def.SelectionMode = SelectionMode.Self;
+            }
+
             // 转换代价列表
             if (data.Costs != null)
             {
                 foreach (var costEntry in data.Costs)
                 {
+                    // 效果型代价（2026-09-11）：付费步强制执行的原子（执行与补偿在 CostCompensationService）。
+                    // 内容契约：代价只能挂对自己有害 / 对对手有益——p≠0 必须错边；p=0 须单侧域锁定（方向随域）。
+                    // 双侧域/无域 = 中性，既非代价也非收益 → 拒。
+                    if (costEntry.payload != null)
+                    {
+                        var payloadAtom = ConvertAtomicEffect(costEntry.payload, allowWrongSide: true);
+                        bool wrongSide = payloadAtom != null && payloadAtom.Polarity != 0f
+                            && CostDerivationService.WrongSide(payloadAtom.Polarity, payloadAtom.TargetKinds);
+                        bool sideLockedNeutral = payloadAtom != null && payloadAtom.Polarity == 0f
+                            && CostDerivationService.SideLock(payloadAtom.TargetKinds) != 0;
+                        if (payloadAtom == null || !(wrongSide || sideLockedNeutral))
+                        {
+                            Debug.LogError($"[CardEffectConverter] 卡 {sourceCardId} 代价栏 Payload 违反内容契约：" +
+                                           "代价只能挂对自己有害或对对手有益的原子（错边），应当剔除该代价");
+                            continue;
+                        }
+                        def.Costs.Add(new CostInstance
+                        {
+                            Type = (CostType)costEntry.CostType,
+                            Value = costEntry.Value,
+                            ManaType = (ManaType)costEntry.ManaType,
+                            TurnDuration = costEntry.TurnDuration,
+                            Payload = payloadAtom,
+                        });
+                        continue;
+                    }
+
                     def.Costs.Add(new CostInstance
                     {
                         Type = (CostType)costEntry.CostType,
@@ -149,7 +184,7 @@ namespace CardCore
             return def;
         }
 
-        private static AtomicEffectInstance ConvertAtomicEffect(AtomicEffectEntry entry)
+        private static AtomicEffectInstance ConvertAtomicEffect(AtomicEffectEntry entry, bool allowWrongSide = false)
         {
             if (string.IsNullOrEmpty(entry.EffectType))
             {
@@ -170,6 +205,18 @@ namespace CardCore
                 ? new List<int>(entry.TargetKinds)
                 : config?.GetTargetKindList() ?? new List<int>();
 
+            float polarity = config != null ? UnityEngine.Mathf.Clamp(config.Polarity, -1f, 1f) : 0f;
+
+            // 内容契约（2026-09-11 定案）：效果栏（主动/被动效果）只能挂对自己有益或中性的原子——
+            // 错边锁定（有益锁对方域 / 有害锁己方域 = 对自己有害或对对手有益）只能进代价栏（Payload）。
+            // 中性（p=0）与双侧域不受限（双侧「同时作用双方」不支持——需要时制作专用原子，先不管）。
+            if (!allowWrongSide && polarity != 0f && CostDerivationService.WrongSide(polarity, kinds))
+            {
+                Debug.LogError($"[CardEffectConverter] 原子 {type}（极性 {polarity:0.#}，域 [{string.Join(",", kinds)}]）" +
+                               "违反内容契约：效果栏不可挂错边原子（对自己有害/对对手有益只能进代价栏），应当剔除该效果");
+                return null;
+            }
+
             return new AtomicEffectInstance
             {
                 Type = type,
@@ -178,9 +225,14 @@ namespace CardCore
                 Mana = BuildMana(entry.ManaList),
                 TargetKinds = kinds,
                 Filter = config?.TargetFilter ?? "",
-                Polarity = config != null ? UnityEngine.Mathf.Clamp(config.Polarity, -1f, 1f) : 0f,
+                Polarity = polarity,
             };
         }
+
+        /// <summary>构筑期显示用：代价栏 Payload 条目 → 原子实例（允许错边——契约校验在代价转换处；
+        /// 供 CardCostService 计算"获得白16"显示行）。</summary>
+        public static AtomicEffectInstance ConvertPayloadForDisplay(AtomicEffectEntry entry)
+            => entry == null ? null : ConvertAtomicEffect(entry, allowWrongSide: true);
 
         /// <summary>ManaList（costList 同款条目）→ 字典；null/空 → null（无 Mana 参数语义）。</summary>
         private static Dictionary<ManaType, float> BuildMana(List<ManaAmountEntry> list)

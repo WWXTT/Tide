@@ -153,6 +153,18 @@ namespace CardCore
             if (amount > 0) _maxHealth += amount;
         }
 
+        /// <summary>
+        /// 降低生命值上限（2026-09-11 定案：流失及所有扣命代价改扣上限）。
+        /// 超出的当前血一起裁掉；本来就受伤只扣上限（当前血不动）；归零=正常死亡（生命判定收尾）。
+        /// </summary>
+        public void DecreaseMaxHealth(int amount)
+        {
+            if (amount <= 0) return;
+            _maxHealth -= amount;
+            if (_maxHealth < 0) _maxHealth = 0;
+            if (_life > _maxHealth) _life = _maxHealth;
+        }
+
         public int Life
         {
             get => _life;

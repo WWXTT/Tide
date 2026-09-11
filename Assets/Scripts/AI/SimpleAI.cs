@@ -37,7 +37,7 @@ namespace SynergyUI
             // 死亡原子族（牺牲目标己方友军，目标偏好对该原子无实际影响）
             AtomicEffectType.Sacrifice, AtomicEffectType.Devour, AtomicEffectType.Annihilate,
             // 妨碍/压制族
-            AtomicEffectType.Tap, AtomicEffectType.FreezePermanent, AtomicEffectType.Silence,
+            AtomicEffectType.Tap, AtomicEffectType.Freeze, AtomicEffectType.Silence,
             AtomicEffectType.Purify, AtomicEffectType.AddNullify,
             AtomicEffectType.NegateActivation, AtomicEffectType.KnockDown,
             // 夺取控制族
@@ -66,7 +66,7 @@ namespace SynergyUI
             AtomicEffectType.GrantDivineShield, AtomicEffectType.GrantOverwhelm, AtomicEffectType.GrantArmor,
             AtomicEffectType.GrantFirstStrike,
             AtomicEffectType.GrantVigilance, AtomicEffectType.GrantRegeneration,
-            AtomicEffectType.Photosynthesis,
+            AtomicEffectType.AdditionalEnergy,
             AtomicEffectType.GrantGrowth, AtomicEffectType.GrantReborn, AtomicEffectType.GrantIndestructible,
             AtomicEffectType.GrantLifelink,
             // 展开族
@@ -369,7 +369,8 @@ namespace SynergyUI
                     return candidates.ToList(); // 全域全取
             }
 
-            // Manual / None：AI 机器选择——数量按 def.TargetCount（未声明回落 1），偏好按首个带域原子
+            // Manual：AI 机器选择——数量按 def.TargetCount（未声明回落 1），偏好按首个带域原子
+            //（None 已在 FirstDomainEffect 跳过，不会走到这里）
             int need = def.TargetCount > 0 ? def.TargetCount : 1;
             var atomic = FirstTargetingAtomic(card, modeIndex, out _); // 仅作有害/有益偏好参考
             var opp = me.Opponent;
@@ -410,12 +411,14 @@ namespace SynergyUI
         }
 
         /// <summary>第一个带组合域的非激活式效果定义（域 = TargetDomain / ChoiceDomains[mode]
-        /// 预计算交集——目标域模型口径，取代旧「首个带域原子」编译级近似）。</summary>
+        /// 预计算交集——目标域模型口径，取代旧「首个带域原子」编译级近似）。
+        /// None 模式（区域自结算类）跳过——AI 不为其选目标（2026-09-11）。</summary>
         private static EffectDefinition FirstDomainEffect(Card card, int modeIndex)
         {
             foreach (var def in GetEffectDefinitions(card))
             {
                 if (def.IsActivatedEffect) continue; // 施放即结算的才会随出牌自动跑
+                if (def.SelectionMode == SelectionMode.None) continue; // 区域自结算：不选目标
                 var domain = DomainOfMode(def, modeIndex);
                 if (domain != null && domain.Count > 0) return def;
             }
