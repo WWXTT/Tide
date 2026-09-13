@@ -264,10 +264,6 @@ namespace CardCore
         public float EnchantmentBaseValue = 0.7f;
         public float LandBaseValue = 0.0f;
 
-        public float ExtraDeckSummonDiscount = 0.7f;
-        public float RitualSummonDiscount = 0.8f;
-        public float FusionSummonDiscount = 0.75f;
-
         public float GetSupertypeBaseValue(Cardtype supertype)
         {
             return supertype switch
@@ -278,20 +274,6 @@ namespace CardCore
                 Cardtype.Enchantment => EnchantmentBaseValue,
                 Cardtype.Land => LandBaseValue,
                 _ => 0.5f
-            };
-        }
-
-        public float GetSummonMethodDiscount(SummonMethod method)
-        {
-            return method switch
-            {
-                SummonMethod.Normal => 1.0f,
-                SummonMethod.Ritual => RitualSummonDiscount,
-                SummonMethod.Fusion => FusionSummonDiscount,
-                SummonMethod.Synchro => ExtraDeckSummonDiscount,
-                SummonMethod.Xyz => ExtraDeckSummonDiscount,
-                SummonMethod.Link => ExtraDeckSummonDiscount,
-                _ => 1.0f
             };
         }
     }

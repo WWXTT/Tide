@@ -35,8 +35,6 @@ namespace SynergyUI
             sb.Append("P:").Append(card.Power ?? 0).Append('|');
             sb.Append("L:").Append(card.Life ?? 0).Append('|');
             sb.Append("LV:").Append(card.Level ?? -1).Append('|');
-            sb.Append("RK:").Append(card.Rank ?? -1).Append('|');
-            sb.Append("LR:").Append(card.LinkRating ?? -1).Append('|');
             sb.Append("AR:").Append((int)card.ArrowDirections).Append('|');
 
             sb.Append("KW:");

@@ -181,12 +181,20 @@ namespace CardCore
         /// <summary>送墓（本组）已抵消的费数。</summary>
         public int OffsetMillUsed { get; set; }
         // OpponentHeal/OpponentDraw 抵消计数已删（2026-09-10：机制被 Polarity 错边折价顶替）。
-        /// <summary>送额外组已抵消的费数。</summary>
-        public int OffsetSendExtraUsed { get; set; }
 
         /// <summary>疲劳计数：空卡组抽牌次数，第 N 次疲劳造成 N 点递增伤害（炉石式）。</summary>
         // FatigueCount 已进 PlayerState DTO（M1 网络协议 2026-09-10，GetTagDefinitions 已登记）。
         public int FatigueCount { get; set; }
+
+        // ===== 英雄技能（2026-09-13 第二十批：额外卡组退役，技能栏上位——一回合一次、付色费、7 次升级）=====
+        /// <summary>英雄技能 id（HeroSkillId；InitGame 指派，黑白暂无技能=None）。</summary>
+        public int HeroSkill { get; set; }
+        /// <summary>本回合已发动次数（一回合一次闸门；回合开始清零）。</summary>
+        public int HeroSkillUsesThisTurn { get; set; }
+        /// <summary>本局累计发动次数（≥7 触发升级）。</summary>
+        public int HeroSkillTotalUses { get; set; }
+        /// <summary>是否已升级（TotalUses ≥ 7 时置位，单向）。</summary>
+        public bool HeroSkillUpgraded { get; set; }
 
         /// <summary>重置本局抵消计数与疲劳计数（新对局开始时调用）。</summary>
         public void ResetOffsetUsage()
@@ -194,7 +202,6 @@ namespace CardCore
             OffsetDrainUsed = 0;
             OffsetDiscardUsed = 0;
             OffsetMillUsed = 0;
-            OffsetSendExtraUsed = 0;
             FatigueCount = 0;
         }
 

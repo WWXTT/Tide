@@ -78,12 +78,17 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                target.AddCounters(KeywordRules.RushSicknessCounter, 1, context.Source);
+                // 2026-09-13 指示物数量随机：Value>0 时层数掷值（每目标独立，掷到 ≤0 = 空过），缺省 1 层
+                int layers = effect.Value > 0
+                    ? context.GetValueAfterModifiers(effect.GetRolledValue())
+                    : 1;
+                if (layers <= 0) continue;
+                target.AddCounters(KeywordRules.RushSicknessCounter, layers, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
                     CounterType = KeywordRules.RushSicknessCounter,
-                    Amount = 1,
+                    Amount = layers,
                     Source = context.Source,
                 });
             }
@@ -279,13 +284,19 @@ namespace CardCore.Attribute.Handlers
             {
                 if (target == null || !target.IsAlive) continue;
 
-                int amount = context.GetValueAfterModifiers(effect.Value);
+                // 2026-09-13 数值随机：层数掷值（每目标独立）；缺省 0 层走灰费豁免/兜底 1
+                int amount = context.GetValueAfterModifiers(effect.GetRolledValue());
                 if (amount <= 0 && context.Source is Card src && target == src && src.PendingSleepGray > 0)
                 {
                     amount = src.PendingSleepGray; // 灰费豁免转时长（自我沉睡）
                     src._pendingSleepGray = 0;     // 消费即清（一次性）
                 }
-                if (amount <= 0) amount = 1;
+                if (amount <= 0)
+                {
+                    // 显式掷值到 ≤0 = 空过（不横置不挂层）；缺省（名义无层数）兜底 1 层
+                    if (effect.Value > 0 && effect.RandomAmplitude > 0f) continue;
+                    amount = 1;
+                }
 
                 // 沉睡=横置进沉睡（横置即上限：不能攻击/守卫；重置被指示物拦）。
                 // 不走 ShouldTap（警戒 2026-09-10 已重定义为「横置也能反击」，无横置抵扣）。

@@ -47,7 +47,6 @@ namespace CardCore
         public CopyEffectsEngine CopyEffectsEngine => _subSystems.Get<CopyEffectsEngine>();
         public ContinuousEffectDurationTracker DurationTracker => _subSystems.Get<ContinuousEffectDurationTracker>();
         public CombatSystem CombatSystem => _subSystems.Get<CombatSystem>();
-        public SummonEngine SummonEngine => _subSystems.Get<SummonEngine>();
         public DelayedEffectScheduler DelayedEffectScheduler => _subSystems.Get<DelayedEffectScheduler>();
         public ResourceLedger ResourceLedger => _subSystems.Get<ResourceLedger>();
 
@@ -152,9 +151,6 @@ namespace CardCore
             combatSystem.AttachLayerEngine(layerEngine);
             _subSystems.Register(combatSystem);
 
-            // 初始化召唤引擎
-            var summonEngine = new SummonEngine(this);
-            _subSystems.Register(summonEngine);
 
             // 初始化延迟效果调度器（DelayedEffect handler が登録、回合/相位终了で解决）
             var delayedEffectScheduler = new DelayedEffectScheduler();
@@ -178,6 +174,9 @@ namespace CardCore
             // TurnEnd 订阅须先于资源台账：本核心结束阶段的自动产灰要先于台账封行，否则灰色产出被漏记
             EventManager.Instance.Subscribe<TurnEndEvent>(OnTurnEnded);
             EventManager.Instance.Subscribe<PhaseEndEvent>(OnPhaseEnded);
+
+            // 微缩/放大/回响——临时复制卡（2026-09-11）：使用卡宣言时点发复制（静态无状态，跨局无残留）
+            EventManager.Instance.Subscribe<CardPlayEvent>(Attribute.TempCopyRules.OnCardPlayed);
 
             // 资源台账（P0c）：必须在 TurnStart/TurnEnd 订阅之后创建，
             // 保证开行时读到的回合数/地牌槽上限已是本回合新值、封行前已收到全部产出事件
@@ -204,6 +203,19 @@ namespace CardCore
             // 持续指示物消退（定案：正面/负面统一登记于 CounterRules）：
             // UntilEndOfTurn 类（冻结/突袭紊乱）在归属玩家回合结束清零——突袭的"不能以玩家为目标"限制随之解除
             Attribute.CounterRules.OnTurnEnd(e.TurnPlayer, ZoneManager);
+
+            // Temp 轨关键词回合末到期（2026-09-13 定案：生物赋予的关键词固定持续 1 回合——
+            // 魔法 Setting 轨与光环照旧不经此口）：每个回合末清双方战场 Temp 授予
+            foreach (var pl in new[] { _player1, _player2 })
+            {
+                if (pl == null) continue;
+                foreach (var c in ZoneManager.GetCards(pl, Zone.Battlefield).ToList())
+                    Attribute.KeywordRules.ClearZoneKeywords(c);
+            }
+
+            // 临时卡移除（2026-09-11 时序定案）：先移除微缩/放大/回响的临时卡，再做手牌上限弃牌——
+            // 8 张手牌含 2 临时 → 移除后 6 张，不触发上限弃牌
+            Attribute.TempCopyRules.PurgeTemporaryHandCards(e.TurnPlayer, ZoneManager);
 
             // 手牌上限：超出部分由玩家选弃（AI/超时自动弃先头）
             EnforceHandLimitAsync(e.TurnPlayer).Forget();
@@ -275,6 +287,9 @@ namespace CardCore
             if (player == null)
                 return;
 
+            // 英雄技能一回合一次闸门（2026-09-13）：回合开始清零本回合使用
+            player.HeroSkillUsesThisTurn = 0;
+
             // 规则扩展点（OCP）：回合开始自动化拦截（如节奏轴仪式跳过准备阶段——
             // 抽牌、地牌槽（元素浓度上限）推进、横置重置、场上卡准备阶段结算全跳；
             // 引擎簿记（栈优先权/全局回合计数/每回合一次计数）不在跳过范围——那是时钟不是结算）。
@@ -290,15 +305,15 @@ namespace CardCore
             // 随从重置（定案：在地牌重置之后跟着重置）——战斗状态/关键词维护/横置恢复
             foreach (var card in ZoneManager.GetCards(player, Zone.Battlefield))
             {
-                // 攻击次数 / 警戒额度：回合开始重置
+                // 攻击台账清零（纯统计——横置即上限，唯一动作门槛是横置态本身）
                 card.AttacksThisTurn = 0;
-                card._vigilanceUsedThisTurn = false;
 
-                // 再生：回合开始自动回复 2 点生命（固定值，不消耗）
+                // 再生（2026-09-13 定案）：回合开始恢复**全部**生命（原固定 +2）
                 if (card.IsAlive && card.HasKeyword(KeywordRules.Regeneration) && card.GetLife() < card.GetMaxLife())
                 {
-                    card.Heal(2);
-                    PublishEvent(new Attribute.HealEvent { Target = card, Amount = 2 });
+                    int regenAmount = card.GetMaxLife() - card.GetLife();
+                    card.Heal(regenAmount);
+                    PublishEvent(new Attribute.HealEvent { Target = card, Amount = regenAmount });
                 }
 
                 // 成长：回合开始 +1/+1 指示物（固定值）
@@ -314,19 +329,12 @@ namespace CardCore
                     });
                 }
 
-                // 横置恢复（定案）：回合规则照常——冻结/紊乱等负面指示物不修改重置
-                // （其持续与消退走 CounterRules 统一管理，回合结束清理）。
-                // 沉睡例外（2026-09-11 定案）：持有沉睡指示物期间**无法重置**——
-                // 回合开始改扣 1 层指示物（持续=层数），扣完即醒（当次直接重置）。
-                int sleep = card.GetCounterCount(KeywordRules.SleepCounter);
-                if (sleep > 0)
+                // 横置恢复（2026-09-13 定案）：冻结/沉睡期间均**无法重置**——
+                // 谁被禁、被禁期间状态如何推进（沉睡扣层/苏醒重置）由 RuleHooks.IUntapBlockRule
+                // 注册方自理（OCP：重置循环不点名具体指示物）。
+                if (RuleHooks.BlocksUntap(card))
                 {
-                    card.RemoveCounters(KeywordRules.SleepCounter, 1);
-                    if (sleep - 1 <= 0)
-                    {
-                        card.Untap(); // 苏醒：最后一层耗尽的当次回合开始即重置
-                        PublishEvent(new UntapEvent { UntappedEntity = card });
-                    }
+                    RuleHooks.OnUntapBlocked(this, card);
                 }
                 else if (card.IsTapped())
                 {
@@ -346,10 +354,15 @@ namespace CardCore
         /// </summary>
         /// <param name="deck1">玩家1的卡牌实例列表（牌库）</param>
         /// <param name="deck2">玩家2的卡牌实例列表（牌库）</param>
-        public void InitGame(List<Card> deck1, List<Card> deck2)
+        public void InitGame(List<Card> deck1, List<Card> deck2, int? rngSeed = null)
         {
             if (deck1 == null || deck2 == null)
                 throw new ArgumentNullException("卡组不能为null");
+
+            // 对局随机种子（2026-09-13 两个随机定案）：钉种子 → 同种子同随机序列
+            // （验证器/网络对拍/回放用；缺省不重播，沿用服务内既有状态）
+            if (rngSeed.HasValue)
+                GameRng.Reseed(rngSeed.Value);
 
             // 重置游戏状态
             Reset();
@@ -541,6 +554,11 @@ namespace CardCore
                 player.Life = player.MaxHealth;
                 player.ResetOffsetUsage();
                 player.IsAI = false;
+
+                // 英雄技能跨局不残留（2026-09-13）：技能指派/计数/升级全复位
+                player.HeroSkillUsesThisTurn = 0;
+                player.HeroSkillTotalUses = 0;
+                player.HeroSkillUpgraded = false;
             }
 
             TurnEngine.Initialize(_player1);
@@ -564,6 +582,17 @@ namespace CardCore
             ProphecySystem.Reset(); // 待验证预言跨局不残留
             RitualSystem.Reset();   // 仪式任务与光环跨局不残留
             RitualSystem.EnsureRuntime();  // 仪式运行时订阅（任务计数+奖励驱动），开局即挂载（展示记录等不漏采）
+
+            // 回合开始重置拦截（2026-09-13 定案：冻结/沉睡无法重置）——组合根登记（幂等）
+            RuleHooks.RegisterUntapBlockRule(SleepFreezeUntapBlockRule.Instance);
+
+            // 动态分支引擎（2026-09-13 分支体系正规化：倒计时/运势/拼点）——组合根登记（幂等）
+            BranchEngines.EnsureRegistered();
+
+            // 装备系统（2026-09-13 第二十一批：武器反伤/耐久扩展口接线）——组合根（幂等）
+            EquipRules.EnsureAttached(this);
+            EventManager.Instance.Subscribe<CardPutToBattlefieldEvent>(e => EquipRules.OnEnterBattlefield(e?.Card));
+
         }
 
         #endregion

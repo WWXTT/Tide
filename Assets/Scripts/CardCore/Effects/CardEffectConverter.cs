@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace CardCore
@@ -107,6 +108,30 @@ namespace CardCore
             // 主序列原子域交集 → TargetDomain（无 Choice）/ ChoiceDomains（per-mode）；
             // 组合 filter = 成员带域原子 Filter token 之 AND；TargetCount 哨兵 -2 回落表级。
             PrecomputeDomains(def);
+            // 动态分支引擎（2026-09-13 分支体系正规化）：主效果=条件引擎——
+            // AtomicEffects 整批转存 RewardAtoms（不作即时主序列；计价 0：倒计时延迟即付费/运势机制费=灰x）。
+            if (data.EngineKind != (int)BranchEngineKind.None)
+            {
+                def.EngineKind = (BranchEngineKind)data.EngineKind;
+                def.EngineParam = data.EngineParam;
+                def.RewardAtoms = def.Effects;
+                def.Effects = new List<AtomicEffectInstance>();
+                if (def.EngineKind == BranchEngineKind.Countdown)
+                    def.CountdownTurns = data.EngineParam > 0
+                        ? data.EngineParam
+                        : Math.Max(1, (int)Math.Ceiling(RewardDerivedTotal(def.RewardAtoms)));
+            }
+
+            // 触发上限解析（2026-09-13 定案）：含 TriggerCapImmutable(8) 原子（少数，如坚韧）→ 恒 -1
+            //（不可修改——声明被覆写，CardLoader 同步告警）；其余原子 → 未声明(0)=1（一回合一次，默认可修改）。
+            bool capImmutable =
+                def.Effects.Any(a => a != null && MountHasFlag(a.Type, (int)MountKind.TriggerCapImmutable))
+                || (def.Steps != null && EnumerateMainSequenceAtoms(def.Steps, 0)
+                        .Any(a => a != null && MountHasFlag(a.Type, (int)MountKind.TriggerCapImmutable)));
+            def.TriggerLimitPerTurn = capImmutable
+                ? -1
+                : (data.TriggerLimitPerTurn == 0 ? 1 : data.TriggerLimitPerTurn);
+
             def.TargetCount = data.TargetCount != -2 ? data.TargetCount : FallbackTargetCount(def);
 
             // Self 域找回（2026-09-11）：组合域恰为 {Self}（关键词/关键词型效果）且未显式声明选择模式
@@ -117,6 +142,14 @@ namespace CardCore
                 def.SelectionMode = SelectionMode.Self;
             }
 
+            // 固有全域原子（2026-09-13：类型伤害/全体治疗）：**无条件强制 Full**——
+            // 不弹选择窗口、以整个可选范围为目标、不可随机（显式声明其他模式属数据错误，
+            // converter 覆写 + CardLoader 告警）。范围溢价已含 BaseCost（计价 ×1）。
+            if (def.Effects.Any(a => a != null && CostDerivationService.IsIntrinsicSweep(a.Type)))
+            {
+                def.SelectionMode = SelectionMode.Full;
+            }
+
             // 转换代价列表
             if (data.Costs != null)
             {
@@ -125,7 +158,8 @@ namespace CardCore
                     // 效果型代价（2026-09-11）：付费步强制执行的原子（执行与补偿在 CostCompensationService）。
                     // 内容契约：代价只能挂对自己有害 / 对对手有益——p≠0 必须错边；p=0 须单侧域锁定（方向随域）。
                     // 双侧域/无域 = 中性，既非代价也非收益 → 拒。
-                    if (costEntry.payload != null)
+                    // 空 payload（EffectType 为空——SelfSickness 等非 Payload 代价的占位/迁移残留）不作 Payload 处理（2026-09-13 修复）
+                    if (costEntry.payload != null && !string.IsNullOrEmpty(costEntry.payload.EffectType))
                     {
                         var payloadAtom = ConvertAtomicEffect(costEntry.payload, allowWrongSide: true);
                         bool wrongSide = payloadAtom != null && payloadAtom.Polarity != 0f
@@ -184,6 +218,31 @@ namespace CardCore
             return def;
         }
 
+        /// <summary>动态分支奖励原子的推导费合计（倒计时换算用：1费=1回合，向上取整下限 1）。</summary>
+        private static float RewardDerivedTotal(List<AtomicEffectInstance> atoms)
+        {
+            if (atoms == null || atoms.Count == 0) return 0f;
+            // 2026-09-13 修复：奖励换算 shim 显式单次/单目标——字段默认 TriggerLimitPerTurn=-1（无限）
+            // 会被 TriggerCostFactor 当"显式无限"×1.2³，TargetCount=0 又落"任意档"×期望4，
+            // 倒计时回合被 ×6.9 膨胀（抽1=蓝2 → 14 回合）。奖励原子按单次单目标锚价换算。
+            var shim = new EffectDefinition { Id = "REWARD_SHIM", Duration = DurationType.Once,
+                TriggerLimitPerTurn = 1, TargetCount = 1 };
+            shim.Effects = atoms;
+            float total = 0f;
+            foreach (var c in CostDerivationService.DeriveElementCosts(shim))
+                total += c.Value;
+            return total;
+        }
+
+        /// <summary>原子表 MountKinds 是否含指定位（触发上限解析用）。</summary>
+        private static bool MountHasFlag(AtomicEffectType type, int flag)
+        {
+            var csv = Attribute.AtomicEffectTable.GetByType(type)?.MountKinds ?? "";
+            foreach (var tok in csv.Split(','))
+                if (tok.Trim() == flag.ToString()) return true;
+            return false;
+        }
+
         private static AtomicEffectInstance ConvertAtomicEffect(AtomicEffectEntry entry, bool allowWrongSide = false)
         {
             if (string.IsNullOrEmpty(entry.EffectType))
@@ -221,6 +280,8 @@ namespace CardCore
             {
                 Type = type,
                 Value = entry.Value,
+                // 数值随机幅度（2026-09-13）：装载期夹取 [0,1]，运行时零校验；计价/描述读名义 Value
+                RandomAmplitude = UnityEngine.Mathf.Clamp(entry.RandomAmplitude, 0f, 1f),
                 StringValue = entry.ID ?? "",
                 Mana = BuildMana(entry.ManaList),
                 TargetKinds = kinds,

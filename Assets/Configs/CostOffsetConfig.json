@@ -30,16 +30,6 @@
     "Des": null
   },
   {
-    "Mechanism": "SendExtra",
-    "DisplayName": "送额外组",
-    "ResourcePerOffset": 3,
-    "MaxOffsetPerGame": 5,
-    "Category": null,
-    "Key": null,
-    "Value": null,
-    "Des": null
-  },
-  {
     "Mechanism": null,
     "DisplayName": null,
     "ResourcePerOffset": null,
@@ -98,16 +88,6 @@
     "Key": "SleepValuePerTurn",
     "Value": 1.0,
     "Des": "代价当量：沉睡1回合=1元素"
-  },
-  {
-    "Mechanism": null,
-    "DisplayName": null,
-    "ResourcePerOffset": null,
-    "MaxOffsetPerGame": null,
-    "Category": "CardCost",
-    "Key": "SummonMaterialValue",
-    "Value": 1.0,
-    "Des": "代价当量：1个召唤素材=1元素"
   },
   {
     "Mechanism": null,

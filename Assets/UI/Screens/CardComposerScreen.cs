@@ -7,25 +7,21 @@ using UnityEngine.UIElements;
 namespace SynergyUI
 {
     /// <summary>
-    /// 卡牌合成界面（Phase 2-3 精修）—— 业务 7 类型（生物/法术/结界/融合/同步/超量/链接）+ 按类型表单，
+    /// 卡牌合成界面（Phase 2-3 精修）—— 业务 3 类型（生物/法术/结界）+ 按类型表单，
     /// 从效果库挂载效果、实时算费（可手改，非效果杂费记灰色），存为 CardLoader 能读回的卡牌 JSON。
     ///
-    /// 业务类型 → 后端：生物/法术/结界=纯 Supertype；融合/同步/超量/链接=Creature + CardSubtype Flags。
-    ///   超量无固定攻血/费用（由素材推导，UI 标注）；链接显示箭头网格；同步可勾 Tuner。
-    /// 子类型/等级/阶级/链接值/箭头本阶段做到存盘 + 读回 + UI 还原；特殊召唤执行留 Phase 4。
+    /// 业务类型 → 后端：生物/法术/结界=纯 Supertype。子类型/等级做到存盘 + 读回 + UI 还原。
     /// </summary>
     public sealed class CardComposerScreen : UIScreen
     {
         public override string UxmlResourcePath => "UXML/CardComposer";
 
         // 业务类型（UI 维度，非裸 Cardtype）。
-        private enum CardKind { Creature, Spell, Enchantment, Fusion, Synchro, Xyz, Link }
+        private enum CardKind { Creature, Spell, Enchantment }
 
         private static readonly (CardKind kind, string name)[] KindNames =
         {
             (CardKind.Creature, "生物"), (CardKind.Spell, "法术"), (CardKind.Enchantment, "结界"),
-            (CardKind.Fusion, "融合"), (CardKind.Synchro, "同步"), (CardKind.Xyz, "超量"),
-            (CardKind.Link, "链接"),
         };
 
         private readonly CardData _card = new CardData
@@ -117,12 +113,8 @@ namespace SynergyUI
         // 设置 Supertype + Subtype；清掉与新类型无关的额外字段（保持模型干净）。
         private void ApplyKindToCard()
         {
-            // 先清额外卡组字段，再按类型补。
             _card.Subtype = CardSubtype.None;
             _card.Level = null;
-            _card.Rank = null;
-            _card.LinkRating = null;
-            _card.ArrowDirections = CardCore.HexDirection.None;
 
             switch (_kind)
             {
@@ -139,146 +131,35 @@ namespace SynergyUI
                     _card.Power = null;
                     _card.Life = null;
                     break;
-                case CardKind.Fusion:
-                    _card.Supertype = Cardtype.Creature;
-                    _card.Subtype = CardSubtype.Fusion;
-                    break;
-                case CardKind.Synchro:
-                    _card.Supertype = Cardtype.Creature;
-                    _card.Subtype = CardSubtype.Synchro;
-                    break;
-                case CardKind.Xyz:
-                    _card.Supertype = Cardtype.Creature;
-                    _card.Subtype = CardSubtype.Xyz;
-                    // 超量无固定攻血/费用：清空，标注由素材推导。
-                    _card.Power = null;
-                    _card.Life = null;
-                    _card.Cost?.Clear();
-                    break;
-                case CardKind.Link:
-                    _card.Supertype = Cardtype.Creature;
-                    _card.Subtype = CardSubtype.Link;
-                    _card.Life = null; // 链接怪无防御，只有攻击力。
-                    break;
             }
         }
 
-        private bool HasStats => _kind == CardKind.Creature || _kind == CardKind.Fusion
-            || _kind == CardKind.Synchro;
-        private bool HasLevel => _kind == CardKind.Creature || _kind == CardKind.Fusion
-            || _kind == CardKind.Synchro;
+        private bool HasStats => _kind == CardKind.Creature;
+        private bool HasLevel => _kind == CardKind.Creature;
 
         // ---------- 动态表单（按类型切换字段） ----------
         private void BuildDynamicForm()
         {
             _dynamicForm.Clear();
 
-            if (_kind == CardKind.Xyz)
-            {
-                var note = new Label("超量：攻血/费用由素材推导（本阶段不输入）");
-                note.AddToClassList("hint");
-                _dynamicForm.Add(note);
-            }
-
             // 攻 / 血
-            if (HasStats || _kind == CardKind.Link)
+            if (HasStats)
             {
                 var statRow = new VisualElement();
                 statRow.AddToClassList("toolbar");
                 statRow.Add(MakeLabeledInt("攻击", _card.Power ?? 0, v => { _card.Power = v; Recalculate(); }));
-                if (_kind != CardKind.Link) // 链接怪无防御。
-                {
-                    statRow.Add(MakeLabeledInt("生命", _card.Life ?? 0, v => { _card.Life = v; Recalculate(); }));
-                }
+                statRow.Add(MakeLabeledInt("生命", _card.Life ?? 0, v => { _card.Life = v; Recalculate(); }));
                 _dynamicForm.Add(statRow);
             }
 
-            // 等级 / 阶级 / 链接值
-            var lvlRow = new VisualElement();
-            lvlRow.AddToClassList("toolbar");
+            // 等级
             if (HasLevel)
             {
+                var lvlRow = new VisualElement();
+                lvlRow.AddToClassList("toolbar");
                 lvlRow.Add(MakeLabeledInt("等级", _card.Level ?? 1, v => _card.Level = v));
-            }
-            if (_kind == CardKind.Xyz)
-            {
-                lvlRow.Add(MakeLabeledInt("阶级", _card.Rank ?? 1, v => _card.Rank = v));
-            }
-            if (_kind == CardKind.Link)
-            {
-                lvlRow.Add(MakeLabeledInt("链接值", _card.LinkRating ?? 1, v => _card.LinkRating = v));
-            }
-            if (lvlRow.childCount > 0)
-            {
                 _dynamicForm.Add(lvlRow);
             }
-
-            // Tuner（仅同步）
-            if (_kind == CardKind.Synchro)
-            {
-                var tuner = new Toggle("调谐怪（Tuner）");
-                tuner.SetValueWithoutNotify((_card.Subtype & CardSubtype.Tuner) != 0);
-                tuner.RegisterValueChangedCallback(evt =>
-                {
-                    if (evt.newValue)
-                    {
-                        _card.Subtype |= CardSubtype.Tuner;
-                    }
-                    else
-                    {
-                        _card.Subtype &= ~CardSubtype.Tuner;
-                    }
-                });
-                _dynamicForm.Add(tuner);
-            }
-
-            // 箭头网格（仅链接）
-            if (_kind == CardKind.Link)
-            {
-                var arrowHeader = new Label("链接箭头");
-                arrowHeader.AddToClassList("panel__header");
-                _dynamicForm.Add(arrowHeader);
-                _dynamicForm.Add(MakeArrowGrid());
-            }
-        }
-
-        // 链接箭头 6 向网格（对应 CardCore.HexDirection 的 6 个方向，多选合成 Flags）。
-        private static readonly (CardCore.HexDirection dir, string label)[] ArrowLayout =
-        {
-            (CardCore.HexDirection.UpperLeft, "↖"), (CardCore.HexDirection.Up, "↑"), (CardCore.HexDirection.UpperRight, "↗"),
-            (CardCore.HexDirection.LowerLeft, "↙"), (CardCore.HexDirection.Down, "↓"), (CardCore.HexDirection.LowerRight, "↘"),
-        };
-
-        private VisualElement MakeArrowGrid()
-        {
-            var grid = new VisualElement();
-            grid.AddToClassList("arrow-grid");
-
-            foreach (var (dir, label) in ArrowLayout)
-            {
-                var captured = dir;
-                var cell = new Button { text = label };
-                cell.AddToClassList("arrow-cell");
-                if ((_card.ArrowDirections & captured) != 0)
-                {
-                    cell.AddToClassList("arrow-cell--on");
-                }
-                cell.clicked += () =>
-                {
-                    if ((_card.ArrowDirections & captured) != 0)
-                    {
-                        _card.ArrowDirections &= ~captured;
-                        cell.RemoveFromClassList("arrow-cell--on");
-                    }
-                    else
-                    {
-                        _card.ArrowDirections |= captured;
-                        cell.AddToClassList("arrow-cell--on");
-                    }
-                };
-                grid.Add(cell);
-            }
-            return grid;
         }
 
         // 带标签的整数输入（横排）。
@@ -427,32 +308,20 @@ namespace SynergyUI
                 _breakdownList.Add(row);
             }
 
-            if (_kind == CardKind.Xyz)
-            {
-                _suggested.text = "超量：费用由素材决定";
-            }
-            else
-            {
-                // 规则一（2026-09-11 简化）：D≤C 直判；错边原子出计价转黑白获得（结算时发放）
-                var balance = result.OffsetRequirement == 0
-                    ? "符合规则一"
-                    : $"超模（D 超 C {result.OffsetRequirement}）";
-                var grantStr = result.Grants.Count > 0
-                    ? "｜获得 " + string.Join(" ", result.Grants.Select(kv => $"{(ManaType)kv.Key} {(int)kv.Value}"))
-                    : "";
-                _suggested.text = $"建议档位 {result.ManaCost}（D={result.Total:0}）｜{balance}{grantStr}";
-            }
+            // 规则一（2026-09-11 简化）：D≤C 直判；错边原子出计价转黑白获得（结算时发放）
+            var balance = result.OffsetRequirement == 0
+                ? "符合规则一"
+                : $"超模（D 超 C {result.OffsetRequirement}）";
+            var grantStr = result.Grants.Count > 0
+                ? "｜获得 " + string.Join(" ", result.Grants.Select(kv => $"{(ManaType)kv.Key} {(int)kv.Value}"))
+                : "";
+            _suggested.text = $"建议档位 {result.ManaCost}（D={result.Total:0}）｜{balance}{grantStr}";
             RefreshCostLabel();
         }
 
-        // 采纳：整字典写入建议费用分布（多色；超量不输入费用）。
+        // 采纳：整字典写入建议费用分布（多色）。
         private void OnAdoptCost()
         {
-            if (_kind == CardKind.Xyz)
-            {
-                ShowToast("超量卡费用由素材决定，无需采纳");
-                return;
-            }
             if (_lastSuggestedCost == null || _lastSuggestedCost.Count == 0)
             {
                 ShowToast("无建议费用可采纳（D=0 保持空，打出按默认灰 1 计）");
@@ -482,14 +351,11 @@ namespace SynergyUI
 
             // 构筑期规则一校验（提示级，不阻止保存）：D > C → 警告（2026-09-11 简化口径）
             string warn = null;
-            if (_kind != CardKind.Xyz)
+            var check = CardCostService.Derive(_card);
+            if (check.DeclaredTier > 0 && !check.Conformant)
             {
-                var check = CardCostService.Derive(_card);
-                if (check.DeclaredTier > 0 && !check.Conformant)
-                {
-                    warn = $"超模：D={check.DerivedTotal} > C={check.DeclaredTier}";
-                    UnityEngine.Debug.LogWarning($"[CardCost] {_card.CardName} {warn}，不符规则一");
-                }
+                warn = $"超模：D={check.DerivedTotal} > C={check.DeclaredTier}";
+                UnityEngine.Debug.LogWarning($"[CardCost] {_card.CardName} {warn}，不符规则一");
             }
 
             var path = CardConfigSerializer.Save(_card);

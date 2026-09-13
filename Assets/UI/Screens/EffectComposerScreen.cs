@@ -661,7 +661,7 @@ namespace SynergyUI
         private static readonly CostType[] CostTypes =
         {
             CostType.ElementConsume, CostType.DiscardCard, CostType.LifePayment,
-            CostType.Sleep, CostType.SummonMaterial,
+            CostType.Sleep,
         };
 
         private VisualElement MakeCostList()
@@ -720,7 +720,7 @@ namespace SynergyUI
                     case CostType.Sleep:
                         paramHost.Add(MakeIntField("回合", cost.TurnDuration, v => cost.TurnDuration = v));
                         break;
-                    default: // DiscardCard / LifePayment / SummonMaterial
+                    default: // DiscardCard / LifePayment
                         paramHost.Add(MakeIntField("数量", cost.Value, v => cost.Value = v));
                         break;
                 }

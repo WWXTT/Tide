@@ -41,6 +41,11 @@ namespace CardCore.Attribute
         /// 0=中性。表级列（EffectType 固有语义，实例不可覆盖）。配合 TargetKind 域侧别做错边折价（CostDerivation）。</summary>
         public float Polarity;
 
+        /// <summary>可装载范围（2026-09-11 定案）：CSV MountKind 序号（0 主动/1 关键词/2 指示物/
+        /// 3 分支主干/4 分支奖励/5 赋予生物/6 赋予法术）。空 = 未声明兜底不限。显性化装载位，
+        /// 取代用 TargetKinds 反推主动/关键词/指示物的隐式口径。</summary>
+        public string MountKinds;
+
         /// <summary>默认触发时机（仅对触发式效果有效）</summary>
         public string DefaultTriggerTiming;
 

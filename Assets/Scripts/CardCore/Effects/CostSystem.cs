@@ -22,12 +22,8 @@ namespace CardCore
         LifePayment,
         /// <summary>沉睡（翻面+苏醒倒计时）</summary>
         Sleep,
-        /// <summary>召唤素材（额外卡组条件）</summary>
-        SummonMaterial,
         /// <summary>送墓（本组）：将牌库顶 N 张送入墓地（代价抵消用）</summary>
         MillDeck,
-        /// <summary>送额外组：将额外卡组 N 张送墓（代价抵消用）</summary>
-        SendExtraDeck,
         // OpponentDraw / OpponentHeal 已删除（2026-09-10：被 Polarity 错边折价顶替——
         // "有益原子锁对方域"自动减费取代显式跨边代价；当日卡数据 Costs 零使用，删值重排无影响）。
         /// <summary>自身减益（紊乱指示物，当量 1/条，2026-09-08 拓展）：Value=层数、TurnDuration=持续回合</summary>
@@ -57,8 +53,6 @@ namespace CardCore
         /// <summary>沉睡持续回合数</summary>
         public int TurnDuration;
 
-        /// <summary>召唤方式（召唤素材专用）</summary>
-        public SummonMethod SummonMethod;
 
         /// <summary>素材筛选器（召唤素材专用）</summary>
         public ITargetFilter TargetFilter;
@@ -320,70 +314,6 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 召唤素材代价处理器
-    /// 验证素材条件，通过后将素材送入墓地
-    /// </summary>
-    public class SummonMaterialCostHandler : ICostHandler
-    {
-        public CostType CostType => CostType.SummonMaterial;
-
-        public bool CanPay(CostInstance cost, CostContext context)
-        {
-            if (context.ZoneManager == null || context.Payer == null) return false;
-            var battlefield = context.ZoneManager.GetCards(context.Payer, Zone.Battlefield);
-
-            if (cost.TargetFilter != null)
-            {
-                var candidates = battlefield.Cast<Entity>().ToList();
-                var effectCtx = new EffectExecutionContext { Controller = context.Payer, Source = context.Source };
-                return cost.TargetFilter.Filter(candidates, effectCtx).Count > 0;
-            }
-
-            return battlefield.Count >= cost.Value;
-        }
-
-        public void Pay(CostInstance cost, CostContext context)
-        {
-            if (context.ZoneManager == null || context.Payer == null) return;
-
-            var battlefield = context.ZoneManager.GetCards(context.Payer, Zone.Battlefield);
-            List<Card> materials;
-
-            if (cost.TargetFilter != null)
-            {
-                var candidates = battlefield.Cast<Entity>().ToList();
-                var effectCtx = new EffectExecutionContext { Controller = context.Payer, Source = context.Source };
-                var filtered = cost.TargetFilter.Filter(candidates, effectCtx);
-                materials = filtered.OfType<Card>().ToList();
-            }
-            else
-            {
-                materials = battlefield.Take(cost.Value).ToList();
-            }
-
-            foreach (var mat in materials)
-            {
-                context.ZoneManager.MoveCard(mat, context.Payer, Zone.Battlefield, Zone.Graveyard);
-            }
-
-            EventManager.Instance.Publish(new SummonMaterialCostEvent
-            {
-                Player = context.Payer,
-                Materials = materials,
-                SummonMethod = cost.SummonMethod,
-                Source = context.Source
-            });
-        }
-
-        public string GetDescription(CostInstance cost)
-        {
-            if (cost.TargetFilter != null)
-                return $"使用素材: {cost.TargetFilter.DisplayName}";
-            return $"使用 {cost.Value} 个素材";
-        }
-    }
-
-    /// <summary>
     /// 送墓（本组）代价处理器：将牌库顶 N 张送入墓地（代价抵消机制之一）。
     /// </summary>
     public class MillDeckCostHandler : ICostHandler
@@ -423,42 +353,6 @@ namespace CardCore
         public string GetDescription(CostInstance cost) => $"送墓（本组）{cost.Value} 张";
     }
 
-    /// <summary>
-    /// 送额外组代价处理器：将额外卡组 N 张送入墓地（代价抵消机制之一）。
-    /// </summary>
-    public class SendExtraDeckCostHandler : ICostHandler
-    {
-        public CostType CostType => CostType.SendExtraDeck;
-
-        public bool CanPay(CostInstance cost, CostContext context)
-        {
-            if (context.ZoneManager == null || context.Payer == null) return false;
-            var extra = context.ZoneManager.GetCards(context.Payer, Zone.ExtraDeck);
-            return extra.Count >= cost.Value;
-        }
-
-        public void Pay(CostInstance cost, CostContext context)
-        {
-            var extra = context.ZoneManager.GetCards(context.Payer, Zone.ExtraDeck);
-            var sent = new List<Card>();
-            for (int i = 0; i < cost.Value && i < extra.Count; i++)
-            {
-                var card = extra[extra.Count - 1 - i];
-                context.ZoneManager.MoveCard(card, context.Payer, Zone.ExtraDeck, Zone.Graveyard);
-                sent.Add(card);
-            }
-
-            EventManager.Instance.Publish(new SendExtraDeckCostEvent
-            {
-                Player = context.Payer,
-                Cards = sent,
-                Source = context.Source
-            });
-        }
-
-        public string GetDescription(CostInstance cost) => $"送 {cost.Value} 张额外组卡入墓";
-    }
-
     // ================================================================
     // 代价相关事件
     // ================================================================
@@ -471,13 +365,6 @@ namespace CardCore
         public Entity Source { get; set; }
     }
 
-    /// <summary>送额外组代价事件</summary>
-    public class SendExtraDeckCostEvent : GameEventBase
-    {
-        public Player Player { get; set; }
-        public List<Card> Cards { get; set; }
-        public Entity Source { get; set; }
-    }
 
     /// <summary>弃牌代价事件</summary>
     public class CardDiscardCostEvent : GameEventBase
@@ -503,14 +390,6 @@ namespace CardCore
         public Entity Source { get; set; }
     }
 
-    /// <summary>召唤素材代价事件</summary>
-    public class SummonMaterialCostEvent : GameEventBase
-    {
-        public Player Player { get; set; }
-        public List<Card> Materials { get; set; }
-        public SummonMethod SummonMethod { get; set; }
-        public Entity Source { get; set; }
-    }
 
     /// <summary>
     /// 注册内置代价处理器
@@ -669,11 +548,9 @@ namespace CardCore
                 case CostType.Sleep:
                     total = cc.SleepValuePerTurn * Math.Max(1, cost.TurnDuration > 0 ? cost.TurnDuration : cost.Value);
                     break;
-                case CostType.SummonMaterial: total = cc.SummonMaterialValue * Math.Max(1, cost.Value); break;
                 case CostType.SelfSickness: total = cc.SelfSicknessValue * Math.Max(1, cost.Value); break;
                 case CostType.OpponentBuff: total = cc.OpponentBuffValue * Math.Max(1, cost.Value); break;
                 case CostType.MillDeck: total = cost.Value / 5f; break;       // 送墓 5 张=1 费当量（CostOffsetConfig 机制行同源）
-                case CostType.SendExtraDeck: total = cost.Value / 3f; break;  // 送额外 3 张=1 费当量（同上）
                 default: return 0; // 元素消耗本身不是「额外代价」，不当量
             }
             return (int)Math.Floor(total);
@@ -772,19 +649,29 @@ namespace CardCore
                     }
                     else if (ctx.Payer.IsAI && ctx.ElementPool != null && elementBill != null)
                     {
-                        // AI 防御策略：原价付不起、减费后付得起 → 付+减费；否则不付
+                        // AI 策略（2026-09-13 用户裁决）：看手里有没有黑白费卡——
+                        // 有（后续用得上黑白资源）→ 付+得黑白；没有 → 付+减费。
                         int eq = CappedTotalEquivalent(costs, ctx);
-                        var afterDiscount = new Dictionary<int, float>(elementBill);
-                        ApplyDiscount(afterDiscount, eq);
-                        if (eq > 0
-                            && !ctx.ElementPool.CanPayCost(elementBill, ctx.Payer)
-                            && ctx.ElementPool.CanPayCost(afterDiscount, ctx.Payer))
-                            choice = OptionalCostChoice.Discount;
+                        if (eq > 0)
+                        {
+                            bool needsBW = ctx.ZoneManager != null
+                                && (ctx.ZoneManager.GetCards(ctx.Payer, Zone.Hand) ?? new List<Card>())
+                                    .Exists(c => (c as CardWrapper)?.GetData()?.Cost?.Keys
+                                        .Any(k => k == (int)ManaType.Black || k == (int)ManaType.White) == true);
+                            choice = needsBW ? OptionalCostChoice.Elements : OptionalCostChoice.Discount;
+                        }
                     }
                 }
             }
 
             if (choice == OptionalCostChoice.Skip) return true;
+
+            // 2026-09-13 修复：Elements 补偿先于代价执行——Payload 执行会经 SummonTokenHandler 的
+            // new CardWrapper(template) 触发 EnsureCost 给无费模板补建议价（30/30 模板 0→22），
+            // "执行后再算当量"会让高价值复制的补偿意外按膨胀身价计（封顶失真）。补偿按打出时点全价。
+            if (choice == OptionalCostChoice.Elements)
+                foreach (var cost in costs)
+                    if (cost != null) IssueGrant(cost, ctx);
 
             // 执行代价（Payload 异步执行；其余 handler 支付）
             foreach (var cost in costs)
@@ -798,9 +685,6 @@ namespace CardCore
 
             if (choice == OptionalCostChoice.Discount)
                 ApplyDiscount(elementBill, CappedTotalEquivalent(costs, ctx)); // 减费与黑白共用上限
-            else
-                foreach (var cost in costs)
-                    if (cost != null) IssueGrant(cost, ctx);
 
             return true;
         }
@@ -827,11 +711,17 @@ namespace CardCore
             {
                 if (cost == null) continue;
                 if (cost.Type == CostType.Payload)
+                {
+                    // 2026-09-13 修复：补偿先于执行——Payload 执行经 CardWrapper 构造触发
+                    // EnsureCost 补建议价，执行后算当量会按膨胀身价计（同 PayOptionalCardCostsAsync）
+                    IssueGrant(cost, ctx);
                     await ExecutePayloadAsync(cost, ctx);
+                }
                 else
+                {
                     CostHandlerRegistry.Pay(cost, ctx);
-
-                IssueGrant(cost, ctx); // 补偿跟代价走：执行即发放
+                    IssueGrant(cost, ctx); // 补偿跟代价走：执行即发放
+                }
             }
             return true;
         }
@@ -895,7 +785,17 @@ namespace CardCore
 
             if (atom.TargetKinds != null && atom.TargetKinds.Count > 0 && ctx.ZoneManager != null)
             {
-                var resolved = EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, ectx);
+                // 目标域按**支付者视角**解析（2026-09-13 修复）：atom 的"对方域"以支付者为基准编写——
+                // 原以 executor（受惠侧控制者）视角解析，{2} 敌方被反解成支付者自己，产出落错侧。
+                // 受惠侧控制者只承担"产出落在受惠侧"（SummonToken 落区按目标侧/控制器），不参与域解析。
+                var resolveCtx = new EffectExecutionContext
+                {
+                    Controller = ctx.Payer,
+                    Source = ctx.Payer,
+                    ZoneManager = ctx.ZoneManager,
+                    ElementPool = ctx.ElementPool,
+                };
+                var resolved = EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx);
                 if (resolved != null && resolved.Count > 0)
                     ectx.Targets = resolved;
             }
@@ -912,9 +812,7 @@ namespace CardCore
             CostHandlerRegistry.Register(new DiscardCardCostHandler());
             CostHandlerRegistry.Register(new LifePaymentCostHandler());
             CostHandlerRegistry.Register(new SleepCostHandler());
-            CostHandlerRegistry.Register(new SummonMaterialCostHandler());
             CostHandlerRegistry.Register(new MillDeckCostHandler());
-            CostHandlerRegistry.Register(new SendExtraDeckCostHandler());
             CostHandlerRegistry.Register(new SelfSicknessCostHandler());
             CostHandlerRegistry.Register(new OpponentBuffCostHandler());
             CostHandlerRegistry.Register(new PayloadCostHandler());

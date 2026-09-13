@@ -28,6 +28,7 @@ namespace CardCore.Editor.Tests
         }
 
         [Test]
+        [Ignore("2026-09-13：仪式系统屏蔽期（整体挪拓展构想）——c207018 卡组重构后 TestCreatureCards 已无仪式卡，本测试卡组恒空必败。仪式恢复（RitualConfig 卡回池）后移除本忽略。")]
         public void AiVsAi_全仪式卡组_整局无错()
         {
             // 压力口径：开局 6 张仪式占满手牌 → 连环顶替 → 小卡组快速耗尽 → 疲劳收尾

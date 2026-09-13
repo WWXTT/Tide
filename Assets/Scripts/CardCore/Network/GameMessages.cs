@@ -9,7 +9,7 @@ namespace CardCore.Network
     // MsgActivateEffect 已被 IntentMessages 的 intent 集取代并删除，tags 留作保留位）。
     //
     // 隐藏信息口径（快照侧）：己方手牌传 RuntimeId、对方只传数量（CardHandInfo）；
-    // 牌库只传数量；坟场/除外/战场/元素池/发动区/场地区/额外卡组全量公开。
+    // 牌库只传数量；坟场/除外/战场/元素池/发动区/场地区全量公开。
     // 事件流侧的隐藏信息过滤发生在服务器出队时（M2），见 NetEventMessages 声明。
     // 详见根目录 网络协议.md。
     // ============================================================
@@ -98,8 +98,6 @@ namespace CardCore.Network
         [MemoryPackOrder(TagTable.PS_OffsetMillUsed)]
         public int OffsetMillUsed;
 
-        [MemoryPackOrder(TagTable.PS_OffsetSendExtraUsed)]
-        public int OffsetSendExtraUsed;
 
         [MemoryPackOrder(TagTable.PS_GraveyardCount)]
         public int GraveyardCount;

@@ -56,7 +56,18 @@ namespace CardCore
             }
             if (domain == null || domain.Count == 0) return true; // 无目标效果不拦
 
-            return EffectHandlerRegistry.ResolveCandidates(domain, def.TargetFilter, ctx).Count > 0;
+            var candidates = EffectHandlerRegistry.ResolveCandidates(domain, def.TargetFilter, ctx);
+            // 选择层口径（2026-09-13）：Manual 以"可选"判定——帷幕收窄（只吸引效果目标）+ 扰魔/潜行隐藏
+            // （唯一候选被滤空则不可发动）；Random 受帷幕收窄但扰魔/潜行可命中；Full 用全域判定。
+            // edict 原子（牺牲/摒弃——选择权在目标方）豁免帷幕。
+            bool edictExempt = def.Effects != null
+                && def.Effects.Any(a => a != null && TargetResolver.IsEdict(a.Type));
+            if (def.SelectionMode == SelectionMode.Manual)
+                candidates = TargetResolver.ExcludeUnselectable(
+                    TargetResolver.ApplyTauntRestriction(candidates, ctx, edictExempt), ctx.Controller);
+            else if (def.SelectionMode == SelectionMode.Random)
+                candidates = TargetResolver.ApplyTauntRestriction(candidates, ctx, edictExempt);
+            return candidates.Count > 0;
         }
     }
 }

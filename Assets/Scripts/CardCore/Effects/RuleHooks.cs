@@ -11,6 +11,7 @@ namespace CardCore
     // - 事件内容改写（伤害/疲劳数值、事件替换为另一事件）→ ReplacementEngine（替代引擎）
     // - 行为许可（能否打出/能否用某来源区/是否跳过回合开始自动化）→ 本文件注册表
     // - 数值查询链（手牌上限）→ 本文件注册表
+    // - 回合开始重置例外（冻结/沉睡无法重置）→ 本文件注册表（IUntapBlockRule）
     // ================================================================
 
     /// <summary>出牌限制：CanPlay 返回 false 拒绝打出（如信息轴仪式的回合锁定）。</summary>
@@ -37,6 +38,18 @@ namespace CardCore
     public interface IHandLimitModifier
     {
         int Modify(Player player, int currentLimit);
+    }
+
+    /// <summary>回合开始重置拦截（2026-09-13 定案：冻结/沉睡期间无法重置）：
+    /// 注册方声明实体本回合开始是否禁止重置，并自理被禁期间的状态推进（沉睡扣层/苏醒）。
+    /// 重置循环（GameCore 回合开始）只认此扩展点，不点名具体指示物（OCP）。</summary>
+    public interface IUntapBlockRule
+    {
+        /// <summary>该实体本回合开始是否禁止重置（无论当前是否横置——沉睡扣层对未横置者照常推进）。</summary>
+        bool BlocksUntap(Card card);
+
+        /// <summary>禁止重置时的状态推进（如沉睡扣 1 层；末层耗尽由注册方自行苏醒重置）。</summary>
+        void OnUntapBlocked(GameCore core, Card card);
     }
 
     /// <summary>
@@ -130,6 +143,39 @@ namespace CardCore
             foreach (var modifier in _handLimitModifiers)
                 limit = modifier.Modify(player, limit);
             return limit;
+        }
+
+        // ---- 回合开始重置拦截 ----
+
+        private static readonly List<IUntapBlockRule> _untapBlockRules = new List<IUntapBlockRule>();
+
+        public static void RegisterUntapBlockRule(IUntapBlockRule rule)
+        {
+            if (rule != null && !_untapBlockRules.Contains(rule))
+                _untapBlockRules.Add(rule);
+        }
+
+        public static void UnregisterUntapBlockRule(IUntapBlockRule rule)
+            => _untapBlockRules.Remove(rule);
+
+        /// <summary>任一规则命中即禁止该实体本回合开始重置。</summary>
+        public static bool BlocksUntap(Card card)
+        {
+            foreach (var rule in _untapBlockRules)
+                if (rule.BlocksUntap(card))
+                    return true;
+            return false;
+        }
+
+        /// <summary>禁止重置时的状态推进——派发给第一个命中的规则。</summary>
+        public static void OnUntapBlocked(GameCore core, Card card)
+        {
+            foreach (var rule in _untapBlockRules)
+                if (rule.BlocksUntap(card))
+                {
+                    rule.OnUntapBlocked(core, card);
+                    return;
+                }
         }
     }
 }

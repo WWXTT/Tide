@@ -60,6 +60,122 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 主阶段：发动英雄技能（2026-09-13 第二十批——一回合一次、付色费、7 次升级）。
+        /// 逻辑全在 HeroSkillSystem.ActivateAsync（守卫+计费+效果）。
+        /// </summary>
+        public static async Cysharp.Threading.Tasks.UniTask<bool> ActivateHeroSkill(GameCore core, Player player)
+            => await HeroSkillSystem.ActivateAsync(core, player);
+
+        /// <summary>
+        /// 主阶段：横置带地牌特性的生物产 1 元素（2026-09-13 英雄技能·培育赋予的特性）。
+        /// 颜色随该生物费用构成（多色时自动取首个有份额的颜色；无费用→灰）。
+        /// </summary>
+        public static bool TapCreatureForElement(GameCore core, Player player, Card creature)
+        {
+            if (core == null || player == null || creature == null) return false;
+            if (core.TurnEngine.TurnPlayer != player) return false;
+            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
+            if (!creature.IsAlive || creature.IsTapped()) return false;
+            if (!creature.HasKeyword(Attribute.KeywordRules.LandTrait)) return false;
+            if (creature.GetController() != player) return false;
+
+            var data = (creature as CardWrapper)?.GetData();
+            var cost = data?.Cost;
+            ManaType type = ManaType.Gray;
+            if (cost != null && cost.Count > 0)
+            {
+                foreach (var kv in cost)
+                    if (kv.Value > 0) { type = (ManaType)kv.Key; break; }
+            }
+
+            creature.Tap();
+            core.ElementPool.GetPool(player).AvailableMana[type]++;
+            core.PublishEvent(new ElementPoolGainEvent
+            {
+                Player = player,
+                GainedType = type,
+                FromCard = creature,
+            });
+            return true;
+        }
+
+        /// <summary>
+        /// 主阶段：武器主动攻击（2026-09-13 装备系统定案——一回合一次、须已驱动、耐久-1）。
+        /// 以武器 Power 对目标造成**战斗伤害**（走 ApplyDamage 战斗管线：易损/圣盾/护甲/坚韧/改写族全适用）。
+        /// 简化版：一次直接结算不上栈（与 TapCreatureForElement 同口径的主阶段动作）。
+        /// </summary>
+        public static bool AttackWithWeapon(GameCore core, Player player, Card weapon, Entity target)
+        {
+            if (core == null || player == null || weapon == null || target == null) return false;
+            if (core.TurnEngine.TurnPlayer != player) return false;
+            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
+            if (!core.ZoneManager.IsCardInZone(weapon, player, Zone.Battlefield)) return false;
+            if (!(weapon is CardWrapper w) || w.GetData()?.IsWeapon != true) return false;
+            if (!EquipRules.IsDriven(core, weapon)) return false; // 须驱动完成
+            if (!target.IsAlive) return false;
+
+            // 一回合一次闸门（本回合使用追踪）
+            if (weapon.GetCounterCount("__WeaponUsedThisTurn") > 0) return false;
+            weapon.AddCounters("__WeaponUsedThisTurn", 1);
+            // 回合开始清（订阅一次性挂——简单做法：临时计数，回合事件在验证器直接驱动）
+
+            int power = Math.Max(0, weapon.GetPower());
+            if (power <= 0) return false;
+
+            // 目标合法性：走战斗 CanAttackTarget（帷幕/守卫拦截照常——从"我"视角）
+            var combat = core.CombatSystem;
+            if (combat != null && !combat.CanAttackTarget(weapon, target)) return false;
+
+            Attribute.KeywordRules.ApplyDamage(player, target, power, true);
+            core.PublishEvent(new KeywordAppliedEvent
+            {
+                Target = target,
+                Keyword = "武器攻击",
+                Detail = $"{player.Name} 以 {weapon} 主动攻击：{power} 点战斗伤害",
+                Source = player,
+            });
+
+            EquipRules.LoseDurability(core, weapon, 1, "主动攻击");
+            return true;
+        }
+
+        /// <summary>
+        /// 主阶段：转移装备（2026-09-13 装备系统定案——移到己方空位+修改箭头方向，耐久-1）。
+        /// newDirection 为新的箭头 Flags（可多支）；转移后 LinkAuraSystem 缓存失效重算。
+        /// </summary>
+        public static bool TransferEquipment(GameCore core, Player player, Card equipment,
+            CardCore.HexDirection newDirection, int newCellX, int newCellZ)
+        {
+            if (core == null || player == null || equipment == null) return false;
+            if (core.TurnEngine.TurnPlayer != player) return false;
+            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
+            if (!core.ZoneManager.IsCardInZone(equipment, player, Zone.Battlefield)) return false;
+            if (!(equipment is CardWrapper w) || !EquipRules.IsEquipment(equipment)) return false;
+
+            // 目标格须为己方战场空位
+            if (!GameBoard.LinkAuraSystem.Enabled) return false;
+            var occupant = GameBoard.LinkAuraSystem.CardAt?.Invoke(newCellX, newCellZ);
+            if (occupant != null) return false; // 须空位
+
+            // 移动（棋盘层）：直接改 CardAt 映射——经 BoardState 的 Resync 或直接操作
+            // 简化做法：装备仍在 Zone.Battlefield，棋盘层的格位由 BoardState 自动按容器顺序派生——
+            // 真正的"指定格"需要 BoardState.PlaceCard(card, x, z) 类 API；当前用箭头方向修改 + InvalidateCache 近似。
+            var data = w.GetData();
+            data.ArrowDirections = newDirection;
+            GameBoard.LinkAuraSystem.InvalidateCache();
+
+            EquipRules.LoseDurability(core, equipment, 1, "转移");
+            core.PublishEvent(new KeywordAppliedEvent
+            {
+                Target = equipment,
+                Keyword = "装备转移",
+                Detail = $"转移至 ({newCellX},{newCellZ}) 并修改箭头方向——耐久 -1",
+                Source = player,
+            });
+            return true;
+        }
+
+        /// <summary>
         /// 准备阶段：结束准备阶段进入主阶段
         /// </summary>
         public static bool SkipElementPool(GameCore core, Player player)
@@ -404,6 +520,13 @@ namespace CardCore
             GameCore core, Player player, Card card, List<Entity> targets, int modeIndex = 0)
         {
             var defs = GetCardEffectDefinitions(card);
+
+            // 外给目标硬校验收口（2026-09-13 定案修复）：声明期 UI/AI 直接给定的目标不经候选解析——
+            // 补两道同口径检查：源紊乱不可指角色；对手有嘲讽卡时对方侧仅嘲讽卡可指
+            //（edict 原子=牺牲/摒弃豁免帷幕——选择权在目标方）。非法目标剔除（效果对其空转），不整卡拒绝。
+            bool edictExempt = defs != null && defs.Any(d =>
+                d?.Effects != null && d.Effects.Any(a => a != null && TargetResolver.IsEdict(a.Type)));
+            targets = TargetResolver.FilterPreselectedTargets(targets, player, player, core.ZoneManager, edictExempt);
             if (defs != null)
             {
                 var executor = core.StackEngine.GetExecutor();
@@ -533,7 +656,7 @@ namespace CardCore
         /// 启动式能力的发动代价（2026-09-08 定案）：只有启动式（Activate_*）= 横置源卡 + 现付元素锚价 +
         /// 选定目标（元素费经 ElementCostPrepaid=false 由执行器结算路径扣除；CanActivate 预检可付性）；
         /// 只能在自己的主要阶段以速度1使用（记速器须低于1，即栈空）。触发式效果不走本入口的横置与付费。
-        /// 警戒自动抵扣一次横置（一回合一次，经 KeywordRules.ShouldTap）；预检在 EffectExecutionEngine.CanActivate。
+        /// 横置为固定代价（警戒不抵扣——2026-09-10 重定义为「横置也能反击」）；预检在 EffectExecutionEngine.CanActivate。
         /// </summary>
         public static bool ActivateEffect(GameCore core, Player player, EffectDefinition effect, Card source, int paidBoost = 0)
         {
@@ -556,7 +679,7 @@ namespace CardCore
 
             var activated = core.StackEngine.PlayerActivateVoluntary(pending);
 
-            // 发动成功 → 消耗横置（仅启动式；警戒：一回合一次自动抵扣，不发不扣）
+            // 发动成功 → 消耗横置（仅启动式；固定代价，不发不扣）
             if (activated && effect.IsActivatedEffect && source != null && Attribute.KeywordRules.ShouldTap(source))
                 source.Tap();
 

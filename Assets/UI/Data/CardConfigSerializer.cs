@@ -93,8 +93,6 @@ namespace SynergyUI
                 effects = card.Effects != null ? new List<CardEffectData>(card.Effects) : new List<CardEffectData>(),
                 subtype = card.Subtype == CardSubtype.None ? "" : card.Subtype.ToString(),
                 level = card.Level ?? -1,
-                rank = card.Rank ?? -1,
-                linkRating = card.LinkRating ?? -1,
                 arrows = card.ArrowDirections.ToString(),
                 linkAuras = card.LinkAuras != null && card.LinkAuras.Count > 0
                     ? new List<LinkAuraData>(card.LinkAuras)

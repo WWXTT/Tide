@@ -14,9 +14,11 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int dmg = context.GetValueAfterModifiers(effect.Value);
             foreach (var target in context.Targets)
             {
+                // 2026-09-13 数值随机定案：每目标独立掷（掷值在修饰链前——先掷名义值再吃增伤/减伤；
+                // 幅度 0 时恒名义值，行为与旧版一致）
+                int dmg = context.GetValueAfterModifiers(effect.GetRolledValue());
                 int lifeBefore = target.GetLife();
                 target.TakeDamage(dmg, context.Source); // 关键词管线：圣盾/护甲/坚韧/吸血
                 int actual = System.Math.Max(0, lifeBefore - target.GetLife());
@@ -35,6 +37,31 @@ namespace CardCore.Attribute.Handlers
         {
             return $"造成 {effect.Value} 点伤害";
         }
+    }
+
+    /// <summary>
+    /// 类型伤害（2026-09-13 定案，红3，固有全域原子）：对可选范围内全部有生命单位造成 value 伤害——
+    /// 不弹选择、不可随机（converter 强制 Full + 装载校验）；范围溢价已含 BaseCost（计价数量 ×1）。
+    /// 执行复用 DealDamage 管线（含数值随机/修饰链）。
+    /// </summary>
+    public class SweepDamageHandler : DealDamageHandler
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SweepDamage;
+
+        public override string GetDescription(AtomicEffectInstance effect)
+            => $"对范围内全部有生命单位各造成 {effect.Value} 点伤害";
+    }
+
+    /// <summary>
+    /// 全体治疗（2026-09-13 定案，绿2=2费全体回1，固有全域原子）：对可选范围内全部有生命单位恢复 value 生命——
+    /// 同 SweepDamage：强制 Full、禁随机、计价数量 ×1。执行复用 Heal 管线。
+    /// </summary>
+    public class SweepHealHandler : HealHandler
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SweepHeal;
+
+        public override string GetDescription(AtomicEffectInstance effect)
+            => $"对范围内全部有生命单位各恢复 {effect.Value} 点生命";
     }
 
     // ================================================================
@@ -84,9 +111,11 @@ namespace CardCore.Attribute.Handlers
             {
                 if (target is Card card)
                 {
-                    var controller = card.GetController();
-                    if (context.ZoneManager != null && controller != null)
-                        context.ZoneManager.MoveCard(card, controller, Zone.Battlefield, Zone.Hand);
+                    // 归属路由（2026-09-13 定案：弹回回**持有者**手牌）——临时偷取的单位被弹回原主手牌；
+                    // 改写持有者后归新主。与弹回牌库/洗回同口径。
+                    var owner = card.GetOwner() ?? card.GetController();
+                    if (context.ZoneManager != null && owner != null)
+                        context.ZoneManager.MoveCard(card, owner, Zone.Battlefield, Zone.Hand);
 
                     PublishEvent(new CardReturnToHandEvent
                     {
@@ -116,8 +145,14 @@ namespace CardCore.Attribute.Handlers
 
             foreach (var target in context.Targets)
             {
-                // Freeze 定案：强制横置 + 一个冻结指示物（回合开始移除指示物而不重置）
-                target.Freeze(duration);
+                // Freeze 定案（2026-09-13 叠层版）：默认 1 回合；**对已冻结目标施加 = 持续回合数 +1**
+                //（每层一回合，回合末 CounterRules 倒数 -1）；强制横置 + 持有期间无法重置不变。
+                // 指示物数量随机：Value>0 时本次叠加层数掷值（每目标独立，≤0 = 空过），缺省 1 层
+                int layers = effect.Value > 0
+                    ? context.GetValueAfterModifiers(effect.GetRolledValue())
+                    : 1;
+                if (layers <= 0) continue;
+                target.Freeze(duration, layers);
                 PublishEvent(new FreezeEvent
                 {
                     Target = target,
@@ -144,9 +179,10 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int amount = context.GetValueAfterModifiers(effect.Value);
             foreach (var target in context.Targets)
             {
+                // 2026-09-13 数值随机定案：每目标独立掷（掷值在修饰链前；幅度 0 恒名义值）
+                int amount = context.GetValueAfterModifiers(effect.GetRolledValue());
                 int lifeBefore = target.GetLife();
                 target.Heal(amount);
                 int overfill = System.Math.Max(0, amount - (target.GetLife() - lifeBefore)); // 超上限截断部分

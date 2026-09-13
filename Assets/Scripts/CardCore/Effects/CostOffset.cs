@@ -21,7 +21,6 @@ namespace CardCore
         Drain,          // 流失（无源失命）
         Discard,        // 弃手牌
         Mill,           // 送墓（本组）
-        SendExtra,      // 送额外组
         // OpponentHeal / OpponentDraw 已删除（2026-09-10：被 Polarity 错边折价顶替）
     }
 
@@ -212,8 +211,6 @@ namespace CardCore
                     return (ctx.ZoneManager?.GetCards(ctx.Payer, Zone.Hand)?.Count ?? 0) / per;
                 case OffsetMechanism.Mill:
                     return (ctx.ZoneManager?.GetCards(ctx.Payer, Zone.Deck)?.Count ?? 0) / per;
-                case OffsetMechanism.SendExtra:
-                    return (ctx.ZoneManager?.GetCards(ctx.Payer, Zone.ExtraDeck)?.Count ?? 0) / per;
                 default:
                     return 0;
             }
@@ -375,7 +372,6 @@ namespace CardCore
                 case OffsetMechanism.Drain: return CostType.LifePayment;
                 case OffsetMechanism.Discard: return CostType.DiscardCard;
                 case OffsetMechanism.Mill: return CostType.MillDeck;
-                case OffsetMechanism.SendExtra: return CostType.SendExtraDeck;
                 default: return CostType.LifePayment;
             }
         }
@@ -389,7 +385,6 @@ namespace CardCore
                 case OffsetMechanism.Drain: used = p.OffsetDrainUsed; break;
                 case OffsetMechanism.Discard: used = p.OffsetDiscardUsed; break;
                 case OffsetMechanism.Mill: used = p.OffsetMillUsed; break;
-                case OffsetMechanism.SendExtra: used = p.OffsetSendExtraUsed; break;
                 default: used = 0; break;
             }
             return max - used;
@@ -402,7 +397,6 @@ namespace CardCore
                 case OffsetMechanism.Drain: p.OffsetDrainUsed++; break;
                 case OffsetMechanism.Discard: p.OffsetDiscardUsed++; break;
                 case OffsetMechanism.Mill: p.OffsetMillUsed++; break;
-                case OffsetMechanism.SendExtra: p.OffsetSendExtraUsed++; break;
             }
         }
     }

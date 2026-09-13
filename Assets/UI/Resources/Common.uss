@@ -285,33 +285,6 @@
     background-color: rgb(80, 86, 98);
 }
 
-/* ---------- 链接箭头网格（2 行 x 3 列，对应六边形 6 向） ---------- */
-.arrow-grid {
-    flex-direction: row;
-    flex-wrap: wrap;
-    width: 156px;
-    margin-bottom: 8px;
-}
-
-.arrow-cell {
-    width: 44px;
-    height: 36px;
-    margin: 3px;
-    border-radius: 6px;
-    border-width: 1px;
-    border-color: rgb(60, 66, 78);
-    background-color: rgb(40, 45, 55);
-    color: rgb(180, 186, 198);
-    font-size: 18px;
-    -unity-font-style: bold;
-}
-
-.arrow-cell--on {
-    background-color: rgb(64, 132, 240);
-    color: rgb(255, 255, 255);
-    border-color: rgb(86, 150, 250);
-}
-
 /* ---------- 对战界面 ---------- */
 .battle {
     flex-direction: column;

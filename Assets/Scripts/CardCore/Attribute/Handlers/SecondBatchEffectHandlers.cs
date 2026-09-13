@@ -67,6 +67,12 @@ namespace CardCore.Attribute.Handlers
             card.SetController(newController);
             card.SetZone(Zone.Battlefield);
 
+            // 2026-09-13 定案（控制权第三档=改写持有者）：永久控制换手同时**改写 owner**——
+            // 此后弹回/洗回回持有者的卡组手牌、死亡去持有者的墓地（临时档不改写：到期归还，
+            // 弹回死亡仍回原持有者）。
+            if (permanent)
+                card._owner = newController;
+
             if (context.ZoneManager != null)
                 context.ZoneManager.GetZoneContainer(newController)?.Add(card, Zone.Battlefield);
 
@@ -259,7 +265,7 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 光合作用（原蓄能，2026-09-08 更名改造，绿3）：横置自身（经警戒抵扣；已横置 = 代价不可支付，不产元素），
+    /// 光合作用（原蓄能，2026-09-08 更名改造，绿3）：横置自身（固定代价；已横置 = 代价不可支付，不产元素），
     /// 控制者获得 {value} 点绿色元素（默认 1）。可重复的产元素引擎——
     /// 代价 = 该单位本回合不可攻/不可发动启动式能力。
     /// </summary>
@@ -274,7 +280,7 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (!(target is Card unit) || !unit.IsAlive) continue;
-                if (unit.IsTapped()) continue; // 已横置：代价不可支付，也不可被警戒抵消
+                if (unit.IsTapped()) continue; // 已横置：代价不可支付
                 if (KeywordRules.ShouldTap(unit))
                     unit.Tap();
 
@@ -383,9 +389,10 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int amount = context.GetValueAfterModifiers(effect.Value);
             foreach (var target in context.Targets)
             {
+                // 2026-09-13 数值随机：每目标独立掷（掷值在修饰链前）
+                int amount = context.GetValueAfterModifiers(effect.GetRolledValue());
                 // 生命流失（术语定案）：非伤害、不可防止——不走伤害管线（圣盾/护甲/坚韧不挡），
                 // 无伤害来源。死因=LifeLoss（归零族，神佑不拦），死亡来源=效果来源（归因到引发流失的效果卡）。
                 // 卡归零走即时决策表（效果驱动路径先例：牺牲/吞噬/湮灭/剧毒）；角色扣血补发 LifeChangeEvent

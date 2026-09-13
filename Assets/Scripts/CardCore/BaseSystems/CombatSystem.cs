@@ -61,7 +61,7 @@ namespace CardCore
     ///   → 结算按横置单向受伤（被动代价不对称：主动结算竖直）
     /// - 警戒（2026-09-10 重定义）：不再是「代替横置扣除」——攻击照常横置；
     ///   新语义 = 横置也能造成战斗伤害（横置目标持警戒仍反击，见 ResolvePair）
-    /// - 嘲讽：防守方有存活嘲讽随从时不能指定玩家为攻击目标（碾压无视）
+    /// - 帷幕（原嘲讽，2026-09-13 更名）：不拦攻击（只吸引效果目标）；攻击侧目标强制由守卫拦截承担
     /// - 潜行：不可被指定为攻击目标；攻击后移除（发动效果后的移除在效果执行器）
     /// - 先攻/连击：先攻步先行结算（死者不反击）；连击两步均结算
     /// - 缴械：攻击结算时被攻击的目标无法反击（对角色目标同样生效——压制武器反伤）
@@ -149,9 +149,9 @@ namespace CardCore
             if (controller != _attackingPlayer)
                 return false;
 
-            // 攻击=1速主动效果（2026-09-10 速度接入·分期口径）：连锁开启（记速器>0）时
-            // 1速不可发动（速度发动须 speed > counter）；攻击宣言不上栈（结算走战斗三段），
-            // 速度作为资格门槛。守卫拦截=2速，在阻挡阶段照常可用（2 > 1）。
+            // 攻击=1速主动效果（2026-09-10 速度接入；2026-09-13 记速器改峰值模型后口径不变）：
+            // 连锁开启（记速器>0）期间不受理攻击宣言——攻击不上栈（结算走战斗三段），
+            // 主循环栈空才推进，此处为守卫口径。守卫拦截=2速，在阻挡阶段照常可用（2 > 1）。
             var speedCounter = GameCore.Instance?.StackEngine?.SpeedCounter;
             if (speedCounter != null && speedCounter.CurrentSpeed > 0)
                 return false;
@@ -185,7 +185,7 @@ namespace CardCore
             return true;
         }
 
-        /// <summary>检查攻击者能否指定该目标（目标侧资格：突袭紊乱限制/嘲讽/潜行）。
+        /// <summary>检查攻击者能否指定该目标（目标侧资格：突袭紊乱限制/潜行；帷幕不拦攻击）。
         /// 突袭定案：生效即消耗（解除横置），负面=紊乱指示物（一回合内不能以玩家为目标，攻击与效果同口径）。</summary>
         public bool CanAttackTarget(Entity attacker, Entity target)
         {
@@ -203,19 +203,10 @@ namespace CardCore
             if (target is Player && KeywordRules.HasRushSickness(attacker))
                 return false;
 
-            // 嘲讽：防守方战场有存活嘲讽随从时，不能指定玩家（碾压无视嘲讽）
-            if (target is Player && !attacker.HasKeyword(KeywordRules.Overwhelm)
-                && DefendersWithTaunt().Any())
-                return false;
+            // 帷幕（原嘲讽，2026-09-13 更名定案）：**不拦攻击**——只吸引效果目标
+            // （TargetResolver.ApplyTauntRestriction）；攻击侧的目标强制由守卫拦截承担（守卫转移）。
 
             return true;
-        }
-
-        /// <summary>防守方战场上存活的嘲讽随从</summary>
-        private IEnumerable<Card> DefendersWithTaunt()
-        {
-            return _zoneManager.GetCards(_defendingPlayer, Zone.Battlefield)
-                .Where(c => c.IsAlive && c.HasKeyword(KeywordRules.Taunt));
         }
 
         /// <summary>
@@ -223,7 +214,7 @@ namespace CardCore
         /// 1. 资格预检 → 守卫转移（目标确认）→ 发布攻击宣言时点（触发器可响应，如连锁冻结攻击者）；
         /// 2. 宣言后重检：攻击者已横置（代价被连锁抢先支付不出）/死亡、目标丢失（死亡/不可指定）
         ///    → 攻击取消回滚（不支付、不计数、不入队），返回 false 交上层重新确认目标；
-        /// 3. 重检通过 → 支付横置（警戒抵扣，一回合一次）→ 入队 + 潜行失效 + 次数 +1。
+        /// 3. 重检通过 → 支付横置（固定代价，警戒不抵扣）→ 入队 + 潜行失效 + 台账 +1。
         /// 战斗效果结算与生命结算在 ExecuteDamage / EndCombat（第 2、3 段）。
         /// </summary>
         public bool DeclareAttack(Entity attacker, Entity target)
@@ -249,7 +240,7 @@ namespace CardCore
             else EventManager.Instance.Publish(declaration);
 
             // ---- 宣言后重检（连锁响应已生效）：支付不出 / 丢失目标 → 攻击取消回滚 ----
-            // 横置代价不可被支付（宣言期间被冻结等抢先横置）——也不可被警戒抵消；
+            // 横置代价不可被支付（宣言期间被冻结等抢先横置）；
             // 目标丢失（死亡/不可指定）→ 回滚，交上层重新确认攻击目标
             if (!attacker.IsAlive || attacker.IsTapped() || !CanAttackTarget(attacker, target))
             {
@@ -262,7 +253,7 @@ namespace CardCore
                 return false;
             }
 
-            // ---- 支付横置（固定代价；警戒一回合一次抵扣）→ 入队 ----
+            // ---- 支付横置（固定代价）→ 入队 ----
             if (KeywordRules.ShouldTap(attacker))
                 attacker.Tap();
 
@@ -288,7 +279,7 @@ namespace CardCore
                 });
             }
 
-            // 攻击次数 +1（每回合上限见 CanDeclareAttack；取消的宣言不计数）
+            // 攻击台账 +1（纯统计非门槛——横置即上限；取消的宣言不计数）
             if (attacker is Card counted)
                 counted.AttacksThisTurn++;
 
@@ -467,7 +458,8 @@ namespace CardCore
                     OnPlayerCounterattackResolved?.Invoke(counterattacking);
             }
 
-            // ---- 碾压：对目标相邻 1 格随从各视为一次攻击（额外受击不反击） ----
+            // ---- 碾压（2026-09-13 重定义，表行锚=红3）：攻击结算时对目标以及目标相邻 1 格随从
+            //      造成战斗伤害——目标经上方正常步结算，相邻同侧随从在此各受一次（额外受击不反击） ----
             if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Overwhelm)
                 && target is Card pivot && AdjacentResolver != null)
             {
@@ -508,20 +500,8 @@ namespace CardCore
 
             KeywordRules.ApplyDamage(source, target, amount, true);
 
-            // 毒刺：对受到战斗伤害的目标附加一个毒素指示物
-            if (source != null && source.IsAlive && target.IsAlive
-                && source.HasKeyword(KeywordRules.PoisonSting))
-            {
-                target.AddCounters(Attribute.CounterRules.ToxinCounter, 1,
-                    Attribute.CounterRules.Find(Attribute.CounterRules.ToxinCounter).Turns, source);
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = target,
-                    Keyword = KeywordRules.PoisonSting,
-                    Detail = "毒刺：附加一个毒素指示物（回合结束1伤，持续3回合）",
-                    Source = source
-                });
-            }
+            // 毒刺改写（2026-09-13 定案）已上移 KeywordRules.ApplyDamage 战斗伤害改写口——
+            // 造成战斗伤害时"改为"添加指示物（伤害不发生），此处不再附加处理。
         }
 
         /// <summary>结束战斗</summary>

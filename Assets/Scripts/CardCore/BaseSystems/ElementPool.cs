@@ -163,10 +163,12 @@ namespace CardCore
         /// <summary>
         /// 地牌资格（定案）：只有卡组正式生物（CardWrapper + Creature 超类）可作地牌——
         /// 魔法/仪式等非生物超类、效果生成的衍生物/副本（裸 Card 临时卡）一律不可。
+        /// 临时复制卡（微缩/放大/回响，2026-09-11）同样不可——否则 1/1 费1灰副本成免费地牌。
         /// UI/AI 预检与 AddCardToPool 权威校验共用此判据。
         /// </summary>
         public static bool CanServeAsLand(Card card)
             => card is CardWrapper
+               && !card.IsTemporary
                && card is IHasSupertype ht
                && ht.Supertype == Cardtype.Creature;
 

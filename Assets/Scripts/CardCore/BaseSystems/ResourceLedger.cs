@@ -147,11 +147,10 @@ namespace CardCore
             _openRecords.Remove(player);
         }
 
-        /// <summary>读玩家四类抵消已用计数之和</summary>
+        /// <summary>读玩家三类抵消已用计数之和（送额外随额外卡组退役下线，2026-09-13）</summary>
         private static int ReadOffsetTotal(Player player)
         {
-            return player.OffsetDrainUsed + player.OffsetDiscardUsed
-                 + player.OffsetMillUsed + player.OffsetSendExtraUsed;
+            return player.OffsetDrainUsed + player.OffsetDiscardUsed + player.OffsetMillUsed;
         }
     }
 }

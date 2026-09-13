@@ -1,25 +1,24 @@
-﻿using System;
+using System;
 
 namespace CardCore
 {
     /// <summary>
-    /// 速度等级常量
-    /// 基础速度由阶段+回合归属决定
-    /// 卡牌可通过 BaseSpeed 效果加成或动态支付提速
+    /// 速度等级常量（2026-09-13 定案：速度是效果自身属性，废除"阶段×回合归属"的基础速度）
+    /// 原子效果速度默认 0；需要在对手回合发动/响应的，组合期自行调高
     /// </summary>
     public static class SpeedLevel
     {
-        /// <summary>基础速度 — 非主要阶段 / 非回合持有者</summary>
+        /// <summary>原子默认速度——游戏王「普通」档：回合玩家主阶段可用，无法在对手回合发动/响应</summary>
         public const int None = 0;
 
-        /// <summary>普通速度 — 主要阶段 + 回合持有者</summary>
-        public const int Normal = 1;
+        /// <summary>瞬间基准速度——可在对手回合发动（记速器 0 时 1&gt;0）、可响应 0 速发动</summary>
+        public const int Instant = 1;
     }
 
     /// <summary>
     /// 效果发动类型
-    /// 条件发动：基于事件自动触发，不参与速度比较
-    /// 速度发动：玩家自主决定，受记速器限制
+    /// 条件发动：基于事件自动触发，不参与速度比较（"xx时"时点响应，恒可入栈）
+    /// 速度发动：玩家自主决定，受记速器门槛约束
     /// </summary>
     public enum EffectActivationType
     {
@@ -29,15 +28,15 @@ namespace CardCore
         /// <summary>自动发动 — 满足条件自动发动</summary>
         Automatic,
 
-        /// <summary>自由发动 — 玩家选择是否发动，需要轮询</summary>
+        /// <summary>自由发动 — 玩家选择是否发动，受记速器门槛约束</summary>
         Voluntary,
     }
 
     /// <summary>
-    /// 全局速度计数器（记速器）
-    /// 场上唯一的记速器，用于控制连锁深度
-    /// 每个效果入栈后 +1，每结算一个 -1
-    /// 速度发动的速度必须超过记速器才能发动
+    /// 全局速度计数器（记速器）——记录当前连锁中已发动的最高速度（2026-09-13 定案）。
+    /// 发动门槛：回合持有者 速度 ≥ 记速器；非回合持有者 速度 &gt; 记速器（严格大于）。
+    /// 记速器不是无条件 +1：只有发动高于当前值的卡才抬升（回合玩家连锁自己的 0 速不抬）。
+    /// 连锁全部结算完成后 Reset 归 0。
     /// </summary>
     public class SpeedCounter
     {
@@ -45,7 +44,7 @@ namespace CardCore
         private bool _isResolving = false;
         private int _peakSpeed = 0;
 
-        /// <summary>当前记速器值</summary>
+        /// <summary>当前记速器值（本连锁已发动的最高速度）</summary>
         public int CurrentSpeed => _currentSpeed;
 
         /// <summary>是否正在结算中</summary>
@@ -55,32 +54,35 @@ namespace CardCore
         public int PeakSpeed => _peakSpeed;
 
         /// <summary>
-        /// 记速器 +1（效果入栈时调用）
+        /// 抬升记速器：只有发动速度**高于**当前值时才抬到该值，否则保持不变
+        /// （"不是无条件 +1"定案——回合玩家连锁自己的 0 速不抬）。
         /// </summary>
-        public void Increment()
+        public void RaiseTo(int speed)
         {
-            _currentSpeed++;
-            if (_currentSpeed > _peakSpeed)
-                _peakSpeed = _currentSpeed;
+            if (speed > _currentSpeed)
+            {
+                _currentSpeed = speed;
+                if (_currentSpeed > _peakSpeed)
+                    _peakSpeed = _currentSpeed;
+            }
         }
 
         /// <summary>
-        /// 检查效果是否可以发动
-        /// 速度发动：速度必须超过记速器
-        /// 条件发动：不参与速度比较（speed=Max 总是通过）
-        /// 结算中只允许条件发动
+        /// 检查效果是否可以发动（2026-09-13 定案口径）：
+        /// - 条件发动（强制/自动，"xx时"触发）不走速度，恒通过；
+        /// - 速度发动：回合持有者 速度 ≥ 记速器；非回合持有者 速度 &gt; 记速器（严格大于）；
+        /// - 结算中不允许速度发动入栈。
+        /// 例：对手发动 1 速 → 记速器 1 → 回合方可连锁 ≥1，非回合方只能连锁 ≥2。
         /// </summary>
-        public bool CanActivate(int effectSpeed, EffectActivationType activationType)
+        public bool CanActivate(int effectSpeed, bool isTurnPlayer, EffectActivationType activationType)
         {
-            // 结算中不允许速度发动
-            if (_isResolving && activationType == EffectActivationType.Voluntary)
-                return false;
+            if (activationType != EffectActivationType.Voluntary)
+                return true; // 条件发动：不参与速度比较
 
-            // 速度必须超过记速器
-            if (effectSpeed <= _currentSpeed)
-                return false;
+            if (_isResolving)
+                return false; // 结算中不允许速度发动
 
-            return true;
+            return isTurnPlayer ? effectSpeed >= _currentSpeed : effectSpeed > _currentSpeed;
         }
 
         /// <summary>
@@ -92,18 +94,7 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 结算完成一个效果，记速器 -1
-        /// </summary>
-        /// <returns>新的记速器值</returns>
-        public int Decrement()
-        {
-            if (_currentSpeed > 0)
-                _currentSpeed--;
-            return _currentSpeed;
-        }
-
-        /// <summary>
-        /// 重置记速器（连锁结算完成后）
+        /// 重置记速器（连锁全部结算完成后）
         /// </summary>
         public void Reset()
         {
@@ -159,8 +150,8 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 速度计算器
-    /// 速度三层来源：基础(阶段+回合归属) + 卡牌加成(BaseSpeed) + 动态支付(paidBoost)
+    /// 速度计算器（2026-09-13 定案：无"基础速度"——"阶段×回合归属"默认速度已废除）
+    /// 发动速度 = 组合期声明的 BaseSpeed（原子默认 0）+ 对局内动态支付提速
     /// </summary>
     public static class SpeedCalculator
     {
@@ -169,22 +160,10 @@ namespace CardCore
         /// </summary>
         public const int SPEED_COST_RATE = 1;
 
-        /// <summary>
-        /// 获取默认速度（由阶段 + 回合归属决定）
-        /// 主阶段 + 回合持有者 = 1，其他情况 = 0
-        /// </summary>
-        public static int GetDefaultSpeed(Player activator, Player turnPlayer, PhaseType phase)
+        /// <summary>计算发动速度 = BaseSpeed（组合期声明）+ 动态支付提速</summary>
+        public static int CalculateSpeed(int baseSpeed, int paidBoost)
         {
-            if (phase != PhaseType.Main) return 0;
-            return activator == turnPlayer ? 1 : 0;
-        }
-
-        /// <summary>
-        /// 计算最终发动速度 = 默认 + 卡牌加成(BaseSpeed) + 动态支付
-        /// </summary>
-        public static int CalculateSpeed(int defaultSpeed, int baseSpeed, int paidBoost)
-        {
-            return defaultSpeed + baseSpeed + paidBoost;
+            return baseSpeed + paidBoost;
         }
 
         /// <summary>
@@ -193,6 +172,23 @@ namespace CardCore
         public static int CalculateSpeedCost(int desiredBoost)
         {
             return desiredBoost * SPEED_COST_RATE;
+        }
+
+        /// <summary>
+        /// 整卡施放速度（2026-09-13 定案）：卡面声明——其效果 BaseSpeed 的最大值。
+        /// 缺省 0 = 游戏王「普通」档（仅回合玩家主阶段可打）；瞬间类组合期调 1 以上
+        /// 才能在对手回合打出/响应（非回合方门槛为严格大于记速器）。
+        /// 裸 Card（衍生物/临时卡，非 CardWrapper）恒为 0。
+        /// </summary>
+        public static int GetCardCastSpeed(Card card)
+        {
+            var data = (card as CardWrapper)?.GetData();
+            if (data?.Effects == null || data.Effects.Count == 0) return 0;
+            int max = 0;
+            foreach (var effect in data.Effects)
+                if (effect != null && effect.BaseSpeed > max)
+                    max = effect.BaseSpeed;
+            return max;
         }
     }
 }

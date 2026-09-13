@@ -17,34 +17,51 @@ namespace SynergyUI
 
         private static List<CardData> _cache;
         private static Dictionary<string, CardData> _byId;
+        private static bool _loading;
 
-        /// <summary>加载（并缓存）全部卡牌。文件缺失返回空列表。</summary>
+        /// <summary>加载（并缓存）全部卡牌。文件缺失返回空列表。
+        /// 重入防护（2026-09-13 崩溃修复）：装载过程中 CardLoader 的费用巡检会经
+        /// SummonToken 模板解析回调 GetById——此时 _byId 仍空，旧逻辑再触发 LoadAll
+        /// 成无限递归（StackOverflow 硬崩编辑器）。装载中重入返回空表：模板查询得 null，
+        /// 计价按既定 fallback 回落数量口径，装载完成后恢复正解。</summary>
         public static List<CardData> LoadAll()
         {
             if (_cache != null)
             {
                 return _cache;
             }
-
-            string path = Path.Combine(Application.dataPath, CardsConfigRelative);
-            if (!File.Exists(path))
+            if (_loading)
             {
-                Debug.LogWarning($"[CardCatalog] 卡表未找到: {path}");
-                _cache = new List<CardData>();
+                return new List<CardData>();
+            }
+
+            _loading = true;
+            try
+            {
+                string path = Path.Combine(Application.dataPath, CardsConfigRelative);
+                if (!File.Exists(path))
+                {
+                    Debug.LogWarning($"[CardCatalog] 卡表未找到: {path}");
+                    _cache = new List<CardData>();
+                    _byId = new Dictionary<string, CardData>();
+                    return _cache;
+                }
+
+                _cache = CardLoader.LoadCardsFromText(File.ReadAllText(path));
                 _byId = new Dictionary<string, CardData>();
+                foreach (var card in _cache)
+                {
+                    if (!string.IsNullOrEmpty(card.ID))
+                    {
+                        _byId[card.ID] = card;
+                    }
+                }
                 return _cache;
             }
-
-            _cache = CardLoader.LoadCardsFromText(File.ReadAllText(path));
-            _byId = new Dictionary<string, CardData>();
-            foreach (var card in _cache)
+            finally
             {
-                if (!string.IsNullOrEmpty(card.ID))
-                {
-                    _byId[card.ID] = card;
-                }
+                _loading = false;
             }
-            return _cache;
         }
 
         /// <summary>按卡牌 ID 取 CardData，找不到返回 null。</summary>
@@ -54,9 +71,9 @@ namespace SynergyUI
             {
                 LoadAll();
             }
-            if (string.IsNullOrEmpty(id))
+            if (_byId == null || string.IsNullOrEmpty(id))
             {
-                return null;
+                return null; // 重入装载未建索引（冷启动费用巡检回调）——查无此卡
             }
             return _byId.TryGetValue(id, out var card) ? card : null;
         }

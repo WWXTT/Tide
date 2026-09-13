@@ -185,7 +185,6 @@ namespace CardCore.Serialization
         public const int PS_OffsetMillUsed = 1250242446;
         public const int PS_OffsetOpponentHealUsed = 1301472982;
         public const int PS_OffsetOpponentDrawUsed = 1443501556;
-        public const int PS_OffsetSendExtraUsed = 611576621;
         public const int PS_GraveyardCount = 1652629631;
         public const int PS_ExileCount = 1217138263;
 

@@ -84,12 +84,6 @@ namespace CardCore
         Giant = 1 << 15,     // 巨人
 
         // ===== YGO 特有子类型 =====
-        Tuner = 1 << 20,     // 协调者
-        Fusion = 1 << 21,    // 融合
-        Synchro = 1 << 22,   // 同调
-        Xyz = 1 << 23,       // 超量
-        Link = 1 << 24,      // 连接
-        Pendulum = 1 << 25,  // 灵摆
         Toon = 1 << 26,      // 卡通
         Spirit = 1 << 27,    // 灵魂
         Gemini = 1 << 28,    // 二重
@@ -107,31 +101,8 @@ namespace CardCore
 
         // ===== 常用组合 =====
         AllCreatureTypes = Beast | Dragon | Warrior | Mage | Demon | Undead | Elf | Human | Mech | Elemental,
-        AllExtraDeckTypes = Fusion | Synchro | Xyz | Link | Pendulum,
     }
 
-    /// <summary>
-    /// 召唤方式
-    /// </summary>
-    public enum SummonMethod
-    {
-        /// <summary>标准费用打出</summary>
-        Normal = 0,
-        /// <summary>效果特殊召唤</summary>
-        Special = 1,
-        /// <summary>融合召唤</summary>
-        Fusion = 2,
-        /// <summary>同调召唤（需要协调者+非协调者，等级匹配）</summary>
-        Synchro = 3,
-        /// <summary>超量召唤（同等级素材叠加）</summary>
-        Xyz = 4,
-        /// <summary>连接召唤（素材数=连接值）</summary>
-        Link = 5,
-        /// <summary>仪式召唤</summary>
-        Ritual = 6,
-        /// <summary>灵摆召唤</summary>
-        Pendulum = 7,
-    }
 
     /// <summary>
     /// 来源游戏

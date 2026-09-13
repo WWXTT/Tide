@@ -110,6 +110,71 @@ namespace GameBoard
             return bonus != null && bonus.Keywords.Contains(keyword);
         }
 
+        /// <summary>光环关键词覆盖数（2026-09-13 按箭头叠加定案）：N 条箭头（×每源声明条数）
+        /// 覆盖同一单位 → N。坚韧光环（受伤-1/箭头）等数值语义走此口；Boolean 走 HasAuraKeyword。</summary>
+        public static int GetAuraKeywordCount(Card card, string keyword)
+        {
+            var bonus = BonusOf(card);
+            if (bonus == null) return 0;
+            int n = 0;
+            foreach (var kw in bonus.Keywords)
+                if (kw == keyword) n++;
+            return n;
+        }
+
+        /// <summary>守护光环源查询（2026-09-13 守护光环化定案）：覆盖该单位的「守护」光环来源列表
+        /// （存活在场、未被无效）。伤害改写取第一个存活源——live-query 天然递补（源离场/断链/被无效
+        /// 下次命中自动落到下一个覆盖源，无需事件换源）。罕见查询，直查不走缓存。</summary>
+        public static List<Card> GetGuardianAuraSources(Card beneficiary)
+        {
+            var result = new List<Card>();
+            if (beneficiary == null || !Enabled) return result;
+            var bCell = TryGetCellOf(beneficiary);
+            if (!bCell.HasValue) return result;
+            var core = GameCore.Instance;
+            if (core?.ZoneManager == null) return result;
+
+            foreach (var player in new[] { core.Player1, core.Player2 })
+            {
+                if (player == null) continue;
+                foreach (var source in core.ZoneManager.GetCards(player, Zone.Battlefield))
+                {
+                    if (source == null || source == beneficiary || !source.IsAlive) continue;
+                    if (source.GetCounterCount(CounterRules.NullifyCounter) > 0) continue; // 无效=唯一能压光环的口
+                    var data = (source as CardWrapper)?.GetData();
+                    if (data?.LinkAuras == null) continue;
+                    bool hasGuardianAura = false;
+                    foreach (var aura in data.LinkAuras)
+                        if (aura != null && aura.keyword == KeywordRules.Guardian) { hasGuardianAura = true; break; }
+                    if (!hasGuardianAura) continue;
+                    if (ArrowsHit(source, bCell.Value, beneficiary)) result.Add(source);
+                }
+            }
+            return result;
+        }
+
+        /// <summary>source 的任一箭头是否指向 beneficiary 所在格（对手视角镜像同 AccumulateFrom 口径）。</summary>
+        private static bool ArrowsHit(Card source, (int x, int z) bCell, Card beneficiary)
+        {
+            var arrows = ((source as CardWrapper)?.GetData()?.ArrowDirections) ?? HexDirection.None;
+            if (arrows == HexDirection.None) return false;
+            var sCell = TryGetCellOf(source);
+            if (!sCell.HasValue) return false;
+            int owner = OwnerIndexOf(source);
+            if (owner < 0) return false;
+
+            foreach (var bit in ArrowBits)
+            {
+                if ((arrows & bit) == 0) continue;
+                var abs = BoardMath.MapArrow(bit);
+                if (owner == 1) abs = BoardMath.Opposite(abs);
+                var (nx, nz) = BoardMath.Neighbor(sCell.Value.x, sCell.Value.z, abs);
+                if (!BoardMath.InBounds(nx, nz)) continue;
+                if (ReferenceEquals(CardAt(nx, nz), beneficiary)) return true;
+            }
+            return false;
+        }
+
         /// <summary>
         /// 手动失效（事件已自动覆盖常规路径；直改区域列表/手动 Resync 的测试场景调用）。
         /// 生命加成回落的受益者：裁剪溢出治疗（raw 不保留超出有效上限的部分）并泵一次 SBA
@@ -204,8 +269,10 @@ namespace GameBoard
                     if (aura.stat.Equals("Power", StringComparison.OrdinalIgnoreCase)) bonus.Power += aura.value;
                     else if (aura.stat.Equals("Life", StringComparison.OrdinalIgnoreCase)) bonus.Life += aura.value;
                 }
-                else if (!string.IsNullOrEmpty(aura.keyword) && !bonus.Keywords.Contains(aura.keyword))
+                else if (!string.IsNullOrEmpty(aura.keyword))
                 {
+                    // 2026-09-13 按箭头叠加定案：关键词不去重——每条命中箭头×每条声明各计一次
+                    //（Boolean 查询 HasAuraKeyword 用 Contains 不受影响；计数查询 GetAuraKeywordCount）
                     bonus.Keywords.Add(aura.keyword);
                 }
             }

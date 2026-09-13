@@ -11,7 +11,8 @@ namespace SynergyUI
     /// 每回合穷举可用动作并执行，直到无进展——费用花完、手牌打空、无可攻击单位、无可发动效果。
     /// 所有动作都走 GameActions / BattleController 既有入口；可行性由引擎校验（失败即静默跳过，卡留手不付费）。
     /// 清理对手场面作为通用目标偏好（非针对特定卡组）：攻击优先击杀对方随从（优换 > 换子），
-    /// 无击杀机会才打脸（被嘲讽挡则拆嘲讽）；有害类原子的目标优先对方玩家、有益类优先己方；无偏好回落引擎自动解析（targets=null）。
+    /// 无击杀机会才打脸（打脸被守卫拦由引擎守卫转移承担——帷幕不拦攻击）；有害类原子的目标也优先对方单位
+    /// （威胁降序——解场优先，2026-09-13 用户裁决）、有益类优先己方；无偏好回落引擎自动解析（targets=null）。
     /// 当前回合玩家即可驱动（AI 对 AI 验证用；BattleScreen 仍只对 P2 调用）。
     /// </summary>
     public sealed class SimpleAI
@@ -19,7 +20,7 @@ namespace SynergyUI
         private const int MaxActionRounds = 64;   // 动作耗尽循环硬上限（保险，防效果自我循环）
         private const int MaxSettleAttempts = 32; // 排干栈重试上限（保险）
 
-        /// <summary>有害类原子：目标偏好对方玩家 &gt; 对方单位（削血优先的通用化，卡组无关）</summary>
+        /// <summary>有害类原子：目标偏好对方单位 &gt; 对方玩家（解场优先——2026-09-13 用户裁决，原削血优先反转）</summary>
         private static readonly HashSet<AtomicEffectType> HarmfulAtoms = new HashSet<AtomicEffectType>
         {
             // 伤害族（穿透伤害也偏好打脸——越过多层防护直击）
@@ -69,6 +70,8 @@ namespace SynergyUI
             AtomicEffectType.AdditionalEnergy,
             AtomicEffectType.GrantGrowth, AtomicEffectType.GrantReborn, AtomicEffectType.GrantIndestructible,
             AtomicEffectType.GrantLifelink,
+            AtomicEffectType.GrantMiniature, AtomicEffectType.GrantMagnify,
+            AtomicEffectType.DiscoverCard, AtomicEffectType.GrantGuardian,
             // 展开族
             AtomicEffectType.TakeExtraTurn,
         };
@@ -93,14 +96,15 @@ namespace SynergyUI
                 bool progress = DrainVoluntaryQueue(core)
                               | ActivateBattlefieldAbilities(core, me)
                               | PlayBestAffordableCard(core, me)
-                              | TryGraveyardPlay(core, me);
+                              | TryGraveyardPlay(core, me)
+                              | UseHeroSkill(core, me);
                 if (!progress) break;
             }
 
             // 3. 战前排干栈：让本回合发动/触发的效果先落地（增益类才影响攻击结算）
             SettleStack(core);
 
-            // 4. 战斗：清场优先（能击杀的随从先清）→ 无击杀机会才打脸 → 嘲讽挡则拆嘲讽 → 兜底。
+            // 4. 战斗：清场优先（能击杀的随从先清）→ 无击杀机会才打脸 → 兜底。
             //    连锁结算完成即判胜负（CombatSystem.EndCombat），判负后不再继续动作
             if (!core.IsGameOver)
                 DoCombat(ctrl, core, me);
@@ -195,14 +199,32 @@ namespace SynergyUI
             return most;
         }
 
-        // ======================================== 动作耗尽循环的四个动作源 ========================================
+        // ======================================== 动作耗尽循环的动作源 ========================================
+
+        /// <summary>英雄技能（2026-09-13）：一回合一次，付得起就开（蓝色恒开；红绿有生物才开）。
+        /// 发动计数驱动 7 次升级——AI 对战可验证升级链。</summary>
+        private static bool UseHeroSkill(GameCore core, Player me)
+        {
+            if (me.HeroSkill == (int)HeroSkillId.None) return false;
+            if (me.HeroSkillUsesThisTurn > 0) return false;
+
+            // 红绿基础版需要己方生物（选择对象）；蓝色恒可
+            var skill = (HeroSkillId)me.HeroSkill;
+            bool needCreature = skill == HeroSkillId.GreenCultivate
+                || (skill == HeroSkillId.RedFrenzy && !me.HeroSkillUpgraded);
+            if (needCreature && !core.ZoneManager.GetCards(me, Zone.Battlefield).Any()) return false;
+
+            var ok = GameActions.ActivateHeroSkill(core, me).GetAwaiter().GetResult();
+            if (ok) SettleStack(core);
+            return ok;
+        }
 
         /// <summary>发动引擎已入队的可选待发效果（触发式可选项，"把能发动的都发动"）。</summary>
         private static bool DrainVoluntaryQueue(GameCore core)
         {
             bool any = false;
             // 快照遍历：发动（出队入栈）本身会改动待发队列
-            var pending = new List<PendingEffect>(core.StackEngine.GetActivatableVoluntaryEffects());
+            var pending = new List<PendingEffect>(core.StackEngine.GetActivatableVoluntaryEffects(core.StackEngine.CurrentPriorityHolder));
             foreach (var effect in pending)
             {
                 if (core.StackEngine.PlayerActivateVoluntary(effect))
@@ -377,10 +399,14 @@ namespace SynergyUI
             IEnumerable<Entity> ordered;
             if (atomic != null && HarmfulAtoms.Contains(atomic.Type))
             {
-                // 有害：对方玩家 > 对方单位 > 其他
+                // 有害（解场优先 2026-09-13 用户裁决）：对方单位（LayerEngine 实时威胁降序）> 对方玩家 > 其他
+                // ——冻结/沉默/弹回类指玩家多空转，指单位才有解场价值；无对方单位才削血
                 ordered = candidates
-                    .OrderByDescending(c => ReferenceEquals(c, opp))
-                    .ThenBy(c => c is Card cd && cd.GetController() == me);
+                    .OrderByDescending(c => c is Card cd && cd.GetController() == opp && cd.IsAlive)
+                    .ThenByDescending(c => c is Card cd2 && cd2.GetController() == opp
+                        ? core.LayerEngine.CalculatePower(cd2) : int.MinValue)
+                    .ThenByDescending(c => ReferenceEquals(c, opp))
+                    .ThenBy(c => c is Card cd3 && cd3.GetController() == me); // 己方垫底
             }
             else if (atomic != null && BeneficialAtoms.Contains(atomic.Type))
             {
@@ -435,7 +461,10 @@ namespace SynergyUI
 
         /// <summary>该卡第一个带域原子（仅作有害/有益目标偏好的参考；域/数量/模式判定已由
         /// FirstDomainEffect 的组合域口径承担）。modeIndex：抉择卡按所选模式扫描（主序列+
-        /// 所选 choice 内原子，跳过分支奖励）。</summary>
+        /// 所选 choice 内原子，跳过分支奖励）。
+        /// 无表行 fallback 原子（BounceToTop/Bottom 等读心预言先例）：converter 已把实例域
+        ///（条目声明 ?? 表级默认）存进 atomic.TargetKinds——实例带域同样参与偏好判定，
+        /// 否则这类原子目标偏好失效回落引擎序（候选首位常=自己，观测到自指空放）。</summary>
         private static AtomicEffectInstance FirstTargetingAtomic(Card card, int modeIndex, out AtomicEffectConfig cfg)
         {
             cfg = null;
@@ -448,7 +477,7 @@ namespace SynergyUI
                     foreach (var atomic in CardEffectConverter.EnumerateMainSequenceAtoms(def.Steps, modeIndex))
                     {
                         var c = AtomicEffectTable.GetByType(atomic.Type);
-                        if (c != null && c.GetTargetKindList().Count > 0)
+                        if (HasTargetDomain(atomic, c))
                         {
                             cfg = c;
                             return atomic;
@@ -460,7 +489,7 @@ namespace SynergyUI
                 foreach (var atomic in def.Effects)
                 {
                     var c = AtomicEffectTable.GetByType(atomic.Type);
-                    if (c != null && c.GetTargetKindList().Count > 0)
+                    if (HasTargetDomain(atomic, c))
                     {
                         cfg = c;
                         return atomic;
@@ -469,6 +498,11 @@ namespace SynergyUI
             }
             return null;
         }
+
+        /// <summary>原子是否带目标域：表行域非空，或无表行但实例域非空（fallback 原子）。</summary>
+        private static bool HasTargetDomain(AtomicEffectInstance atomic, AtomicEffectConfig cfg)
+            => (cfg != null && cfg.GetTargetKindList().Count > 0)
+            || (atomic?.TargetKinds != null && atomic.TargetKinds.Count > 0);
 
         /// <summary>卡效果转译（CardData → EffectDefinition 列表）；非 CardWrapper 或无效果返回空。</summary>
         private static List<EffectDefinition> GetEffectDefinitions(Card card)
@@ -591,8 +625,8 @@ namespace SynergyUI
 
         /// <summary>
         /// 攻击目标决策（清场优先）：能击杀的对方随从先清——"自己也存活"的优换严格优先于换子，
-        /// 同档内挑攻击力最高的（拆最大威胁）；无击杀机会才打脸（不蹭随从白送血）；
-        /// 打脸被嘲讽挡则拆嘲讽（无论能否击杀，清路优先）；兜底任意可指定目标。
+        /// 同档内挑攻击力最高的（拆最大威胁）；无击杀机会才打脸（不蹭随从白送血；
+        /// 打脸被守卫拦由引擎守卫转移承担——帷幕不拦攻击）；兜底任意可指定目标。
         /// 力量按 LayerEngine 实时值（光环/增益在场时击杀判定不失真），权威结算仍在引擎。
         /// </summary>
         private static Entity PickAttackTarget(GameCore core, Card unit, Player opp)
@@ -626,13 +660,6 @@ namespace SynergyUI
 
             // ---- 无击杀机会 → 打脸 ----
             if (combat.CanAttackTarget(unit, opp)) return opp;
-
-            // ---- 打脸被嘲讽挡 → 拆嘲讽（CombatSystem.DefendersWithTaunt 的等价自查） ----
-            foreach (var taunter in oppField)
-            {
-                if (taunter.IsAlive && taunter.HasKeyword(KeywordRules.Taunt) && combat.CanAttackTarget(unit, taunter))
-                    return taunter;
-            }
 
             foreach (var enemy in oppField) // 突袭（无冲锋）不能攻玩家等受限情形的兜底：只打随从
             {
