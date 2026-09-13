@@ -21,7 +21,7 @@
                     <ui:DropdownField name="dropdown-cardtype" class="text-input" />
                 </ui:VisualElement>
 
-                <!-- 动态表单区：按业务类型切换（攻血/等级/阶级/链接值/箭头/Tuner） -->
+                <!-- 动态表单区：按业务类型切换（攻血/等级） -->
                 <ui:VisualElement name="dynamic-form" />
 
                 <ui:VisualElement class="toolbar">

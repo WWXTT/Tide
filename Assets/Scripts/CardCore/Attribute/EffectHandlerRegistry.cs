@@ -153,6 +153,10 @@ namespace CardCore.Attribute
             GameActions.Crumb($"comp-targets def={def.Id} mode={def.SelectionMode} dom={TargetKindRules.Format(domain)} cands={candidates.Count} sel={context.Controller?.Name}");
             if (candidates.Count == 0) return candidates;
 
+            // edict 豁免（2026-09-13）：牺牲/摒弃类选择权在目标方——帷幕只约束对手的选择，不管持有者自选
+            bool edictExempt = def.Effects != null
+                && def.Effects.Any(a => a != null && TargetResolver.IsEdict(a.Type));
+
             switch (def.SelectionMode)
             {
                 case SelectionMode.Self:
@@ -165,7 +169,24 @@ namespace CardCore.Attribute
                 case SelectionMode.Full:
                     return candidates;
 
+                case SelectionMode.Random:
+                    // 2026-09-13 定案：范围存在且目标数>0 → 不弹窗，随机种子自动抽取；
+                    // 从完整候选域抽（对方侧扰魔/潜行可被随机命中——绕过选择），
+                    // 但受帷幕收窄约束（"效果只能以帷幕卡为目标"对指定与随机生效；全域/范围不受限）。
+                    // TargetCount≤0（全部档）随机无意义，等价 Full 全取。
+                {
+                    var pool = TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt);
+                    int take = def.TargetCount > 0 ? def.TargetCount : pool.Count;
+                    if (take >= pool.Count) return pool;
+                    return GameRng.PickN(pool, take);
+                }
+
                 default: // Manual
+                    // 选择层两道过滤（2026-09-13）：①帷幕收窄（对方侧仅帷幕卡；不拦攻击；edict 豁免）
+                    // ②弹窗显示域（对方侧扰魔/潜行隐藏；AI/无头自动取前 N 同口径）。
+                    candidates = TargetResolver.ExcludeUnselectable(
+                        TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt), context.Controller);
+                    if (candidates.Count == 0) return candidates;
                     if (def.DynamicTargetCount)
                     {
                         return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
@@ -226,6 +247,12 @@ namespace CardCore.Attribute
             int need = count > 0 ? count : candidates.Count;
             if (candidates.Count <= need)
                 return candidates.Take(need).ToList();
+
+            // 选择层两道过滤（2026-09-13）：帷幕收窄 + 弹窗显示域（扰魔/潜行隐藏）——
+            // 全域/随机不经此处（随机池在组合层收窄）；edict 原子（牺牲/摒弃）豁免帷幕
+            candidates = TargetResolver.ExcludeUnselectable(
+                TargetResolver.ApplyTauntRestriction(candidates, context, TargetResolver.IsEdict(effect.Type)), context.Controller);
+            if (candidates.Count == 0) return candidates;
 
             return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
             {

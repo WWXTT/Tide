@@ -37,6 +37,17 @@ namespace CardCore.Attribute.Handlers
             var template = resolver(templateId);
             if (template == null) return;
 
+            // 2026-09-11 定案：{衍生物} = 指向一张真实生物卡——任何衍生物都是某张真实卡的实例，
+            // 身份/观测/计价全走真实卡数据。模板非生物卡 → 拒绝（构筑校验另有拦截，此处运行时兜底）。
+            // 2026-09-13 修复：真实链路（CardCatalog.GetById）返回裸 CardData——不实现 IHasSupertype
+            // （仅 CardWrapper 实现），is 判定恒 false 导致全游戏 SummonToken 静默空转；改属性直判。
+            var templateSupertype = template is IHasSupertype ht ? ht.Supertype : template.Supertype;
+            if (templateSupertype != Cardtype.Creature)
+            {
+                UnityEngine.Debug.LogWarning($"[SummonTokenHandler] 衍生物模板 {templateId} 不是生物卡，跳过");
+                return;
+            }
+
             int count = effect.Value <= 0 ? 1 : effect.Value;
             var dropZone = context.SummonDropZone;
 

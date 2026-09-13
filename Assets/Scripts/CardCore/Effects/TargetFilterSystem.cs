@@ -87,6 +87,19 @@ namespace CardCore
         }
     }
 
+    /// <summary>仅角色（TargetFilter token "Player"，2026-09-13 启用：原休眠 no-op）——
+    /// 滤除全部非 Player 实体（生物等卡）。"以角色为作用对象"的效果用（如牺牲原子：
+    /// 目标=双方角色，持有者自行选择一个生物效果死亡）。</summary>
+    public class RoleOnlyFilter : ITargetFilter
+    {
+        public string DisplayName => "仅角色";
+
+        public List<Entity> Filter(List<Entity> candidates, EffectExecutionContext context)
+        {
+            return candidates.Where(e => e is Player).ToList();
+        }
+    }
+
     /// <summary>属性比较筛选器（攻击力/生命值大于/小于/等于阈值）</summary>
     public class StatComparisonFilter : ITargetFilter
     {
@@ -338,22 +351,100 @@ namespace CardCore
             // 去重（同实体可能经多种类重复入池）
             candidates = candidates.Distinct().ToList();
 
-            // 关键词指定限制（运行时强制，与 EffectTargetValidator.CanTarget 同口径）：
-            // 指向候选不含对手的辟邪/潜行随从——不可被"指定"≠不可被范围波及。
-            // 法术护盾在效果执行时消耗（EffectHandlerRegistry），此处不滤。
-            candidates.RemoveAll(c =>
-            {
-                if (!(c is Card card) || context.Controller == null) return false;
-                var tc = card.GetController();
-                return tc != null && tc != context.Controller
-                    && (card.HasKeyword(KeywordRules.Untargetable) || card.HasKeyword(KeywordRules.Stealth));
-            });
+            // 扰魔/潜行过滤搬家（2026-09-13 定案）：候选域保留对方侧扰魔/潜行——
+            // "不可成为目标"= 存在此范围但**弹窗不显示**，只有手动选择层滤（TargetResolver.ExcludeUnselectable）；
+            // 随机（SelectionMode.Random）与全域（Full）绕过选择、照常命中（范围波及）。
+            // 指名路径的硬校验仍在 EffectTargeting.CanTarget。法术护盾在效果执行时消耗（EffectHandlerRegistry），此处不滤。
 
             // 突袭紊乱限制（定案，与攻击同口径）：紊乱指示物存在期间，其发动的效果不准以玩家为目标
             if (KeywordRules.HasRushSickness(context.Source))
                 candidates.RemoveAll(c => c is Player);
 
             return candidates;
+        }
+
+        /// <summary>
+        /// 手动选择显示域（2026-09-13 扰魔/潜行定案）：从"选择"候选中隐藏对方侧扰魔/潜行单位——
+        /// 弹窗不显示、AI/无头代替选取（自动取前 N）同口径不可选；不改变范围本身
+        /// （Full/Random 从完整候选域结算，照常命中）。指名硬校验走 EffectTargeting.CanTarget。
+        /// </summary>
+        public static List<Entity> ExcludeUnselectable(List<Entity> candidates, Player controller)
+        {
+            if (candidates == null || candidates.Count == 0) return candidates ?? new List<Entity>();
+            return candidates.Where(c =>
+            {
+                if (!(c is Card card) || controller == null) return true;
+                var tc = card.GetController();
+                return tc == null || tc == controller
+                    || !(card.HasKeyword(KeywordRules.Untargetable) || card.HasKeyword(KeywordRules.Stealth));
+            }).ToList();
+        }
+
+        /// <summary>edict 原子（2026-09-13）：选择权在目标方——作用对象=角色、持有者自行选择自家单位结算
+        /// （牺牲=生物/摒弃=无生命单位）。**豁免帷幕**：帷幕只约束对手的选择，不管目标方自己选（用户定案）。</summary>
+        public static bool IsEdict(AtomicEffectType type)
+            => type == AtomicEffectType.Sacrifice || type == AtomicEffectType.Abandon;
+
+        /// <summary>
+        /// 帷幕收窄（2026-09-13 更名定案：原"嘲讽"→帷幕，**只吸引效果目标**、不拦攻击）——
+        /// 选择层口径：施放者对手的战场有存活帷幕卡时，对方侧候选（角色/随从/结界）收窄为帷幕卡；
+        /// 己方侧不动；全域/范围波及**不受限**
+        /// （"只能以…作为目标"约束的是指定与随机选择，不约束范围）。
+        /// edictExempt：牺牲/摒弃类（选择权在目标方）豁免——帷幕=对手无法选择，不包括持有者自选。
+        /// 攻击侧由守卫拦截承担（CombatSystem），帷幕不经此口。
+        /// 碾压已重定义为攻击溅射（2026-09-13），不再无视帷幕。
+        /// </summary>
+        public static List<Entity> ApplyTauntRestriction(List<Entity> candidates, EffectExecutionContext context, bool edictExempt = false)
+        {
+            if (edictExempt) return candidates ?? new List<Entity>();
+            if (candidates == null || candidates.Count == 0) return candidates ?? new List<Entity>();
+            var controller = context.Controller;
+            var opp = controller?.Opponent;
+            if (opp == null || context.ZoneManager == null) return candidates;
+
+            var taunts = context.ZoneManager.GetCards(opp, Zone.Battlefield)
+                .Where(c => c.IsAlive && c.HasKeyword(KeywordRules.Taunt)).ToList();
+            if (taunts.Count == 0) return candidates;
+
+            return candidates.Where(c =>
+            {
+                var side = c is Card card ? card.GetController() : c as Player;
+                if (side != opp) return true;                       // 己方侧不受限
+                return c is Card tc && taunts.Contains(tc);          // 对方侧：仅帷幕卡
+            }).ToList();
+        }
+
+        /// <summary>
+        /// 外给目标硬校验收口（2026-09-13 定案修复）：声明期由 UI/AI 直接给定的目标不经候选解析——
+        /// 此处补两道与解析路径同口径的检查：①源紊乱不可指角色（与 GetCandidates 域层一致）；
+        /// ②对手有帷幕卡时对方侧仅帷幕卡可指（帷幕只吸引效果目标，不拦攻击；
+        /// edictExempt=牺牲/摒弃类豁免——选择权在目标方，帷幕不管持有者自选）。
+        /// 非法目标剔除（效果对其空转），不整卡拒绝。
+        /// </summary>
+        public static List<Entity> FilterPreselectedTargets(List<Entity> targets, Entity source, Player controller, ZoneManager zoneManager, bool edictExempt = false)
+        {
+            if (targets == null || targets.Count == 0) return targets ?? new List<Entity>();
+
+            bool sick = KeywordRules.HasRushSickness(source);
+            var opp = controller?.Opponent;
+            var taunts = (!edictExempt && opp != null && zoneManager != null)
+                ? zoneManager.GetCards(opp, Zone.Battlefield)
+                    .Where(c => c.IsAlive && c.HasKeyword(KeywordRules.Taunt)).ToList()
+                : null;
+            bool hasTaunt = taunts != null && taunts.Count > 0;
+
+            return targets.Where(t =>
+            {
+                if (t == null) return false;
+                if (sick && t is Player) return false;               // 紊乱：不可指角色
+                if (hasTaunt)
+                {
+                    var side = t is Card card ? card.GetController() : t as Player;
+                    if (side == opp && !(t is Card tc && taunts.Contains(tc)))
+                        return false;                                 // 嘲讽：对方侧仅嘲讽卡
+                }
+                return true;
+            }).ToList();
         }
 
         /// <summary>某玩家的战场生物（有生命单位中的卡部分；角色由调用方补）。</summary>
@@ -443,7 +534,8 @@ namespace CardCore
                         filters.Add(new KeywordFilter(KeywordRules.Untargetable, true));
                         break;
                     case "Player":
-                        // Player本身不是筛选条件，候选池已包含Player
+                        // 仅角色（2026-09-13 启用，原休眠 no-op）：滤除生物等卡——牺牲原子（持有者选生物牺牲）等以角色为作用对象的效果
+                        filters.Add(new RoleOnlyFilter());
                         break;
                     case "Hand":
                     case "Graveyard":

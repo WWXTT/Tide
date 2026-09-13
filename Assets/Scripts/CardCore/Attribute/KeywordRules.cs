@@ -8,7 +8,7 @@ namespace CardCore.Attribute
     /// 关键词战斗/伤害行为的唯一实现点。
     ///
     /// 【设计原则（定案）】表内关键词零参数、效果固定（坚韧恒 −1、再生恒 +2）——
-    /// 强化只走融合叠加（重复坚韧 = −N，仅融合怪兽；非融合不可重复添加）。
+    /// 强化只走重复叠加（重复坚韧 = −N）。
     /// 参数化效果走原子（AddArmor 护甲 N 点指示物）。
     ///
     /// 伤害管线（效果 TakeDamage 与战斗 CombatSystem 两条路径都经 ApplyDamage）：
@@ -45,10 +45,24 @@ namespace CardCore.Attribute
         public const string DivineShield = "DivineShield";
         public const string Armor = "Armor";
         public const string PoisonSting = "PoisonSting";
+        /// <summary>冰晶（2026-09-13 改写定案，蓝2）：造成战斗伤害时，改为对目标添加一个冻结指示物</summary>
+        public const string IceCrystal = "IceCrystal";
+        /// <summary>梦魇（2026-09-13 改写定案，黑2）：造成战斗伤害时，改为对目标添加一个沉睡指示物</summary>
+        public const string Nightmare = "Nightmare";
+        /// <summary>病原体（2026-09-13 改写定案，绿5）：造成战斗伤害时，改为对目标添加一个剧毒指示物</summary>
+        public const string Pathogen = "Pathogen";
+        /// <summary>禁魔石（2026-09-13 改写定案，白3）：受到的非战斗伤害变为 0</summary>
+        public const string Spellban = "Spellban";
+        /// <summary>地牌特性（2026-09-13 英雄技能·培育）：持有者可横置产 1 元素（色随自身费用构成）。
+        /// GameActions.TapCreatureForElement 是横置口。</summary>
+        public const string LandTrait = "LandTrait";
         public const string Lifesteal = "Lifesteal";
         public const string Lifelink = "Lifelink";
         public const string Vigilance = "Vigilance";
         public const string Stealth = "Stealth";
+        /// <summary>帷幕（原"嘲讽"，2026-09-13 更名定案）：只吸引**效果**目标（选择层收窄见
+        /// TargetResolver.ApplyTauntRestriction）；不拦攻击——攻击侧目标强制由守卫拦截承担。
+        /// 运行时 id 仍为 Taunt（更名只改中文文案，同辟邪→扰魔先例）。</summary>
         public const string Taunt = "Taunt";
         public const string FirstStrike = "FirstStrike";
         public const string DoubleStrike = "DoubleStrike";
@@ -60,6 +74,14 @@ namespace CardCore.Attribute
         public const string Growth = "Growth";
         public const string SpellShield = "SpellShield";
         public const string Untargetable = "Untargetable";
+        /// <summary>微缩（2026-09-11）：使用卡时获得同效果 1/1 费1灰临时卡。行为见 TempCopyRules。</summary>
+        public const string Miniature = "Miniature";
+        /// <summary>放大：同微缩，临时卡 10/10 费10灰。</summary>
+        public const string Magnify = "Magnify";
+        /// <summary>回响：瞬间法术专用——使用时获得带回响的完全复制临时卡。</summary>
+        public const string Echo = "Echo";
+        /// <summary>守护（2026-09-11）：被守护者受到的伤害改由第一个守护者承受（改写在 ApplyDamage 咽喉）。</summary>
+        public const string Guardian = "Guardian";
 
         // ---- 一次性关键词概念已彻底删除（2026-09-08 定案：错误设计）----
         // 关键词都是持续性特征，无「一次性生效后消失/重新入场刷新」的说法：
@@ -202,7 +224,7 @@ namespace CardCore.Attribute
         /// pierce=true 为穿透伤害：越过关键词和指示物（跳过圣盾/护甲/坚韧），
         /// 但受光环限制——替代引擎/层效果照走，事件链与吸血照常。
         /// </summary>
-        public static int ApplyDamage(Entity source, Entity target, int amount, bool isCombat, bool pierce = false)
+        public static int ApplyDamage(Entity source, Entity target, int amount, bool isCombat, bool pierce = false, bool guardRerouted = false)
         {
             if (amount <= 0 || target == null || !target.IsAlive) return 0;
 
@@ -218,6 +240,36 @@ namespace CardCore.Attribute
                 if (amount <= 0) return 0;
             }
 
+            // 禁魔石（2026-09-13 改写定案，白3）：受到的**非战斗伤害**变为 0（战斗伤害照常）
+            if (!isCombat && target.HasKeyword(Spellban))
+            {
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                { Target = target, Keyword = Spellban, Detail = "禁魔石：非战斗伤害变为 0", Source = source });
+                return 0;
+            }
+
+            // 守护改写（2026-09-13 光环化定案）：守护=连接箭头光环（keyword "Guardian"，白1×箭头数）——
+            // 被守护者（箭头指向格占据者）受到的伤害改由第一个存活光环源承受。live-query：
+            // 源离场/断链/被无效自动失效，多源覆盖取第一个存活者（天然递补，无事件换源）。
+            // 单跳（guardRerouted 防链式改写）；替代路由之后、易损/防护层之前。
+            if (!guardRerouted && target is Card guarded)
+            {
+                var guardian = GameBoard.LinkAuraSystem.GetGuardianAuraSources(guarded)
+                    .FirstOrDefault(g => g != guarded && g.IsAlive);
+                if (guardian != null)
+                {
+                    if (CardCore.GameCore.Instance != null)
+                        CardCore.GameCore.Instance.PublishEvent(new KeywordAppliedEvent
+                        {
+                            Target = guarded,
+                            Keyword = "守护",
+                            Detail = $"守护改写：伤害转由 {guardian} 承受",
+                            Source = guardian,
+                        });
+                    return ApplyDamage(source, guardian, amount, isCombat, pierce, guardRerouted: true);
+                }
+            }
+
             // 0. 易损指示物（定案）：受到伤害时每层使受到的伤害 +1——
             //    替代结算后、防护层前生效（圣盾/护甲吸收的是放大后的量；穿透伤害同样被放大）
             int vulnerable = target.GetCounterCount(CounterRules.VulnerableCounter);
@@ -228,6 +280,45 @@ namespace CardCore.Attribute
             {
                 ApplyPreventionLayers(source, target, ref amount);
                 if (amount <= 0) return 0;
+            }
+
+            // 战斗伤害改写（2026-09-13 定案修订：**防护层之后、落血之前**——只有"将要成功造成的伤害"
+            // 才改写：圣盾/护甲/坚韧完全挡住 → 不触发；部分吸收后仍有剩余 → 剩余改写为指示物，不再落血）。
+            // 毒刺→毒素1层（绿1，带3回合时钟）/ 冰晶→冻结1层（蓝2，横置）/ 梦魇→沉睡1层（黑2，横置）/
+            // 病原体→剧毒（绿5）。固定序取第一个命中（多关键词不叠加改写）；
+            // 角色（打脸）也改写——毒素/剧毒落角色有效，冻结/沉睡对角色空转；穿透伤害不经防护层，恒可改写。
+            if (isCombat && source != null && source.IsAlive)
+            {
+                if (source.HasKeyword(PoisonSting))
+                {
+                    target.AddCounters(CounterRules.ToxinCounter, 1,
+                        CounterRules.Find(CounterRules.ToxinCounter).Turns, source);
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    { Target = target, Keyword = PoisonSting, Detail = "毒刺：战斗伤害改为毒素指示物×1（3 回合时钟）", Source = source });
+                    return 0;
+                }
+                if (source.HasKeyword(IceCrystal))
+                {
+                    target.Freeze(DurationType.Permanent, 1); // 层数模型：1 层=1 回合（对角色空转）
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    { Target = target, Keyword = IceCrystal, Detail = "冰晶：战斗伤害改为冻结指示物×1", Source = source });
+                    return 0;
+                }
+                if (source.HasKeyword(Nightmare))
+                {
+                    if (target is Card sleeper) sleeper.Tap();
+                    target.AddCounters(SleepCounter, 1, source);
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    { Target = target, Keyword = Nightmare, Detail = "梦魇：战斗伤害改为沉睡指示物×1", Source = source });
+                    return 0;
+                }
+                if (source.HasKeyword(Pathogen))
+                {
+                    target.AddCounters(CounterRules.PoisonCounter, 1, source);
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    { Target = target, Keyword = Pathogen, Detail = "病原体：战斗伤害改为剧毒指示物×1", Source = source });
+                    return 0;
+                }
             }
 
             // 4. 落血（Card 到 0 标记死亡；Player 直接扣）。
@@ -366,8 +457,13 @@ namespace CardCore.Attribute
                 }
             }
 
-            // 3. 坚韧：每次受到的最终伤害 −1 × 持有次数（叠加 = 融合专属强化）
-            int toughness = KeywordCount(target, Armor);
+            // 3. 坚韧：每次受到的最终伤害 −1 × 持有次数（叠加 = 融合专属强化）。
+            //    坚韧光环（2026-09-13 定案：坚韧改为连接箭头光环，绿1×箭头数）——箭头指向格占据者
+            //    每条覆盖箭头各 -1（按箭头叠加），无触发上限（静态替代非触发式）；断链/来源被无效即失效。
+            int toughness = KeywordCount(target, Armor)
+                + (target is Card auraHolder
+                    ? GameBoard.LinkAuraSystem.GetAuraKeywordCount(auraHolder, Armor)
+                    : 0);
             if (toughness > 0)
             {
                 amount = Math.Max(0, amount - toughness);

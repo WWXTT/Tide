@@ -205,7 +205,8 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => $"宣言{effect.StringValue}并展示己方牌库顶";
     }
 
-    /// <summary>宣言·箭头（即时验证：私密确认对手额外卡组中是否存在带该方向箭头的连接卡，内容不公开）</summary>
+    /// <summary>宣言·箭头（2026-09-13 修订：额外卡组退役——改读**对手战场卡**的箭头声明。
+    /// 即时验证：对手战场上是否存在带该方向箭头的连接生物，内容不公开（私密确认）。</summary>
     public class DeclareArrowHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DeclareArrow;
@@ -214,8 +215,23 @@ namespace CardCore.Attribute.Handlers
         {
             context.LastOutcome.Declaration = effect.StringValue;
 
-            var extra = context.ZoneManager?.GetCards(context.Controller?.Opponent, Zone.ExtraDeck);
-            bool hit = extra != null && extra.Any(c => ProphecyHandlerUtil.MatchesDeclaration(effect.StringValue, c));
+            // 链接生物现在活在战场上（ArrowDirections 卡面数据）——箭头宣言读战场而非额外卡组
+            var opp = context.Controller?.Opponent;
+            var field = context.ZoneManager?.GetCards(opp, Zone.Battlefield);
+            bool hit = false;
+            if (field != null)
+            {
+                foreach (var c in field)
+                {
+                    if (!(c is CardWrapper w)) continue;
+                    var arrows = w.GetData()?.ArrowDirections ?? HexDirection.None;
+                    if (arrows == HexDirection.None) continue;
+                    if (System.Enum.TryParse<HexDirection>(effect.StringValue, out var declared)
+                        && (arrows & declared) != 0) { hit = true; break; }
+                    // 宣言文本也兼容直接匹配卡名/ID（MatchesDeclaration 同族口径）
+                    if (ProphecyHandlerUtil.MatchesDeclaration(effect.StringValue, c)) { hit = true; break; }
+                }
+            }
 
             context.LastOutcome.DeclareHit = hit;
             PublishEvent(new DeclareResolvedEvent
@@ -228,7 +244,7 @@ namespace CardCore.Attribute.Handlers
             });
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"宣言{effect.StringValue}箭头并确认对手额外卡组";
+        public override string GetDescription(AtomicEffectInstance effect) => $"宣言{effect.StringValue}箭头并确认对手战场";
     }
 
     /// <summary>

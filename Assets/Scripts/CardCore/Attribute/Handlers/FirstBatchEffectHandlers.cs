@@ -22,9 +22,10 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int dmg = context.GetValueAfterModifiers(effect.Value);
             foreach (var target in context.Targets)
             {
+                // 2026-09-13 数值随机：每目标独立掷（掷值在修饰链前）
+                int dmg = context.GetValueAfterModifiers(effect.GetRolledValue());
                 int lifeBefore = target.GetLife();
                 int actual = KeywordRules.ApplyDamage(context.Source, target, dmg, false, pierce: true);
                 context.LastOutcome.RecordDamage(target, lifeBefore, actual);
@@ -49,10 +50,11 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            int dmg = context.GetValueAfterModifiers(effect.Value);
             int drained = 0;
             foreach (var target in context.Targets)
             {
+                // 2026-09-13 数值随机：每目标独立掷（吸取量按各目标实扣累计）
+                int dmg = context.GetValueAfterModifiers(effect.GetRolledValue());
                 int lifeBefore = target.GetLife();
                 target.TakeDamage(dmg, context.Source); // 关键词管线
                 int actual = System.Math.Max(0, lifeBefore - target.GetLife());

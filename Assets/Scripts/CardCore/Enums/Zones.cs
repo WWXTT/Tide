@@ -44,25 +44,15 @@ namespace CardCore
         None,
 
         /// <summary>
-        /// 额外卡组（融合/同调/超量/连接卡）
-        /// </summary>
-        ExtraDeck,
-
-        /// <summary>
         /// 场地区（场地魔法/场地效果）
         /// </summary>
         FieldZone,
 
         /// <summary>
-        /// 灵摆区（灵摆刻度）
-        /// </summary>
-        PendulumZone,
-
-        /// <summary>
         /// 发动区（万能结算位）：隐蔽区（手牌/卡组等）来源的发动先移入此区结算，
         /// 公开且可被指向（反制指向发动区而非来源区）；结算后按去向离区
         /// （入场型进战场、满则失败入墓；非入场型回原位）。场上卡原地发动，不经此区。
-        /// 注意：新值只能追加在枚举末尾——RuntimeCardStateDTO 按 int 序列化，插中间会错位旧档。
+        /// 注意：新值只能追加在枚举末尾——SerializableRuntimeCardState 按 int 序列化，插中间会错位旧档。
         /// </summary>
         Activation,
     }
@@ -117,6 +107,11 @@ namespace CardCore
         /// 摧毁（作用于无生命值单位：地牌/结界——不经死亡决策表，直送墓地）
         /// </summary>
         Smashed,
+
+        /// <summary>
+        /// 摒弃（2026-09-13：牺牲的无生命等价——持有者自行选择一个己方场上无生命单位，直送墓地）
+        /// </summary>
+        Abandoned,
 
         /// <summary>
         /// 传说规则（同名卡）
@@ -930,7 +925,7 @@ namespace CardCore
 
             // 入场可用性统一走横置（定案）：随从一律横置入场（召唤失调）；
             // 冲锋/突袭不再豁免——已改为卡的登场效果（OnPlay+激励自己解除横置，突袭另自上紊乱指示物）。
-            // 默认 true（2026-09-09 修正）：此前默认 false 且无调用方显式传 true——cast 出牌/额外卡组特招/
+            // 默认 true（2026-09-09 修正）：此前默认 false 且无调用方显式传 true——cast 出牌/效果直入/
             // 复活全部不横置，09-08「一律横置」只落实在 TryAddToBattlefield；显式 tapped=false 可解横置入场。
             card._isTapped = tapped;
 
@@ -969,7 +964,7 @@ namespace CardCore
             {
                 case Zone.Activation: return EnterSource.CastPlayed;   // 经发动区打出
                 case Zone.Graveyard: return EnterSource.Revived;       // 墓地复活
-                default: return EnterSource.SummonedByEffect;          // 额外卡组特招/牌组检索等效果直入
+                default: return EnterSource.SummonedByEffect;          // 牌组检索等效果直入
             }
         }
 

@@ -45,11 +45,9 @@ namespace CardCore
         public List<string> tags;
         public List<CardEffectData> effects;
 
-        // 额外卡组 / 子类型字段（缺省 → 旧行为，向后兼容）
-        public string subtype;     // 逗号分隔的 CardSubtype Flags 名，如 "Synchro,Tuner"
+        // 子类型 / 扩展字段（缺省 → 旧行为，向后兼容）
+        public string subtype;     // 逗号分隔的 CardSubtype Flags 名，如 "Dragon"
         public int level = -1;     // 等级，-1 = 无
-        public int rank = -1;      // 阶级，-1 = 无
-        public int linkRating = -1;// 链接值，-1 = 无
         public string arrows;      // 逗号分隔的 HexDirection Flags 名，如 "Up,LowerRight"
 
         // 连接光环声明（三轨制 2026-09-09）：箭头指向格占据者享受的持续效果（stat/keyword 二选一）
@@ -170,8 +168,113 @@ namespace CardCore
 
             WarnCostNonConformance(result);
             ValidateComboDomains(result);
+            ValidateMountHosts(result);
+            ValidateRandomParams(result);
 
             return result;
+        }
+
+        /// <summary>
+        /// 构筑期装载宿主校验（2026-09-11 MountKinds 定案配套的硬约束，可见不炸——坏卡点名）：
+        /// - 微缩/放大（MountKinds=0,5，登场效果）：宿主须具备属性（Power/Life）——无属性生物不可承载；
+        /// - 回响（MountKinds=1,5,6）：2026-09-13 定案生物和法术通用——宿主类型不限制；
+        /// - 召唤衍生物：字符串参数（条目 ID）必须指向一张真实生物卡（非空、非自指、可解析且为生物）。
+        /// 后续 MountKinds 全面收紧时，通用装载位校验在此扩展。
+        /// </summary>
+        private static void ValidateMountHosts(List<CardData> cards)
+        {
+            foreach (var card in cards)
+            {
+                if (card?.Effects == null) continue;
+                foreach (var eff in card.Effects)
+                {
+                    foreach (var atom in EnumerateAtomEntries(eff))
+                    {
+                        if (atom == null || string.IsNullOrEmpty(atom.EffectType)) continue;
+                        if (atom.EffectType == "GrantMiniature" || atom.EffectType == "GrantMagnify"
+                            || atom.EffectType == "GrantGuardian")
+                        {
+                            if (!card.HasCombatStats)
+                                Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName})："
+                                             + $"微缩/放大/守护为登场效果，宿主不具备属性（Power/Life）——构筑期拦截");
+                        }
+                        // 回响（2026-09-13 用户定案：生物和法术通用）——不再限制宿主类型，
+                        // 旧"须为瞬间法术"拦截已废除
+                        else if (atom.EffectType == "SummonToken")
+                        {
+                            if (string.IsNullOrEmpty(atom.ID))
+                            {
+                                Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName})："
+                                             + $"召唤衍生物的字符串参数为空——必须指向一张真实生物卡，构筑期拦截");
+                            }
+                            else if (atom.ID == card.ID)
+                            {
+                                Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName})："
+                                             + $"召唤衍生物自指（模板=宿主本身）——构筑期拦截");
+                            }
+                            else
+                            {
+                                var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate
+                                               ?? Attribute.MorphSystem.ResolveMorphTarget;
+                                var template = resolver?.Invoke(atom.ID);
+                                // 2026-09-13 修复：resolver 返回裸 CardData（不实现 IHasSupertype），
+                                // is 判定恒 false 会把正常模板误报为非生物——改属性直判（同 SummonTokenHandler）。
+                                var tplSuper = template is IHasSupertype ht ? ht.Supertype : template?.Supertype;
+                                if (template != null && tplSuper != Cardtype.Creature)
+                                    Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName})："
+                                                 + $"衍生物模板 {atom.ID} 不是生物卡——构筑期拦截");
+                            }
+                        }
+                    }
+                }
+                // 自带关键词回响（printed）：2026-09-13 生物和法术通用——不再限制宿主类型
+
+                // 连接光环须有箭头（2026-09-13 坚韧光环定案：生物/结界搭载光环必须声明箭头——
+                // 无箭头光环永远无受益者，属数据错误；箭头数=光环受益面与计价乘数）
+                if (card.LinkAuras != null && card.LinkAuras.Count > 0
+                    && card.ArrowDirections == HexDirection.None)
+                    Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName})：声明了连接光环但未配箭头（arrows 为空）——构筑期拦截（生物/结界同规）");
+            }
+        }
+
+        /// <summary>是否瞬间法术：法术超类 + 任一效果 Activate_Instant（瞬间法术底盘盈余同判据）。</summary>
+        private static bool IsInstantSpell(CardData card)
+            => card is IHasSupertype ht && ht.Supertype == Cardtype.Spell
+               && card.Effects != null
+               && card.Effects.Any(f => f.TriggerTiming == (int)TriggerTiming.Activate_Instant);
+
+        /// <summary>枚举效果内全部原子条目（Steps 含抉择/分支嵌套 + 扁平 AtomicEffects 兜底）。</summary>
+        private static IEnumerable<AtomicEffectEntry> EnumerateAtomEntries(CardEffectData eff)
+        {
+            if (eff.Steps != null)
+            {
+                foreach (var s in eff.Steps)
+                    foreach (var a in EnumerateStepAtomEntries(s))
+                        yield return a;
+            }
+            else if (eff.AtomicEffects != null)
+            {
+                foreach (var a in eff.AtomicEffects)
+                    if (!string.IsNullOrEmpty(a?.EffectType)) yield return a;
+            }
+        }
+
+        private static IEnumerable<AtomicEffectEntry> EnumerateStepAtomEntries(EffectStepData step)
+        {
+            if (step == null) yield break;
+            if (!string.IsNullOrEmpty(step.atomic?.EffectType)) yield return step.atomic;
+            if (step.choices != null)
+                foreach (var c in step.choices)
+                    if (c?.steps != null)
+                        foreach (var s in c.steps)
+                            foreach (var a in EnumerateStepAtomEntries(s))
+                                yield return a;
+            if (step.thenSteps != null)
+                foreach (var a in step.thenSteps)
+                    if (!string.IsNullOrEmpty(a?.EffectType)) yield return a;
+            if (step.elseSteps != null)
+                foreach (var a in step.elseSteps)
+                    if (!string.IsNullOrEmpty(a?.EffectType)) yield return a;
         }
 
         /// <summary>
@@ -216,6 +319,118 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 两个随机（2026-09-13 定案）构筑校验：
+        /// ① 数值随机幅度 ∉ [0,1] 告警（converter 会夹取，此处纯诊断）；
+        /// ② SelectionMode=Random 且 DynamicTargetCount=true 告警（随机需固定个数，动态数量配随机退化为全取）。
+        /// </summary>
+        private static void ValidateRandomParams(List<CardData> cards)
+        {
+            foreach (var card in cards)
+            {
+                if (card?.Effects == null) continue;
+                foreach (var eff in card.Effects)
+                {
+                    if (eff == null) continue;
+
+                    if (eff.SelectionMode == (int)SelectionMode.Random && eff.DynamicTargetCount)
+                        Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                       + "SelectionMode=Random 与 DynamicTargetCount 互斥——随机抽取需固定个数，动态数量将退化为全取");
+
+                    // 固有全域原子（2026-09-13）：显式声明 Manual/Random 属数据错误——converter 会强制 Full，此处告警
+                    bool hasSweep = (eff.AtomicEffects ?? new List<AtomicEffectEntry>()).Any(a =>
+                            a != null && System.Enum.TryParse<AtomicEffectType>(a.EffectType, out var t)
+                                     && CardCore.CostDerivationService.IsIntrinsicSweep(t))
+                        || (eff.Steps ?? new List<EffectStepData>()).Any(s => s != null
+                            && ((s.atomic != null && System.Enum.TryParse<AtomicEffectType>(s.atomic.EffectType, out var st)
+                                 && CardCore.CostDerivationService.IsIntrinsicSweep(st))
+                                || (s.thenSteps ?? new List<AtomicEffectEntry>()).Any(a => a != null
+                                    && System.Enum.TryParse<AtomicEffectType>(a.EffectType, out var tt)
+                                    && CardCore.CostDerivationService.IsIntrinsicSweep(tt))));
+                    if (hasSweep && (eff.SelectionMode == (int)SelectionMode.Manual || eff.SelectionMode == (int)SelectionMode.Random))
+                        Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                       + "固有全域原子（类型伤害/全体治疗）只能全域结算——已强制 SelectionMode=Full（声明的 Manual/Random 被覆写）");
+
+                    // 触发上限不可修改原子（2026-09-13，MountKinds 含 8——少数，如坚韧 bd623d85）：
+                    // 声明 TriggerLimitPerTurn 属数据错误——converter 已覆写为无限（-1）
+                    bool HasCap8(AtomicEffectEntry a)
+                        => a != null && System.Enum.TryParse<AtomicEffectType>(a.EffectType, out var t8)
+                           && (Attribute.AtomicEffectTable.GetByType(t8)?.MountKinds ?? "")
+                               .Split(',').Select(s => s.Trim()).Any(s => s == "8");
+                    bool hasCap8 = (eff.AtomicEffects ?? new List<AtomicEffectEntry>()).Any(HasCap8)
+                        || (eff.Steps ?? new List<EffectStepData>()).Any(s => s != null && HasCap8(s.atomic));
+                    if (hasCap8 && eff.TriggerLimitPerTurn != 0)
+                        Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                       + "含触发上限不可修改原子（MountKinds=8，如坚韧）——声明的 TriggerLimitPerTurn 被覆写为无限");
+
+                    // 动态分支引擎（2026-09-13 分支体系正规化）：奖励原子须可挂载为分支奖励（MountKinds 含 4）；
+                    // 运势/拼点 x∈[1,5]（运行时夹取）；倒计时 EngineParam>0 为显式回合数（缺省按奖励推导费换算）
+                    if (eff.EngineKind != (int)CardCore.BranchEngineKind.None)
+                    {
+                        foreach (var a in (eff.AtomicEffects ?? new List<AtomicEffectEntry>()))
+                        {
+                            if (a == null || !System.Enum.TryParse<AtomicEffectType>(a.EffectType, out var et4)) continue;
+                            var mk4 = (Attribute.AtomicEffectTable.GetByType(et4)?.MountKinds ?? "").Split(',').Select(s => s.Trim());
+                            if (!mk4.Contains("4"))
+                                Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                               + $"引擎奖励原子 {a.EffectType} 未开放分支奖励挂载（MountKinds 不含 4）");
+                        }
+                        if (eff.EngineKind != (int)CardCore.BranchEngineKind.Countdown && (eff.EngineParam < 1 || eff.EngineParam > 5))
+                            Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                           + $"运势/拼点参数 x={eff.EngineParam} 越界 [1,5]（运行时夹取）");
+
+                    // 属性价梯（2026-09-13 定案）：属性效果固定回合只许 1、2 两档
+                    //（UntilEndOfTurn/UntilNextTurn；ForTurns(3+) 构筑拦截——计价封顶按 2 回合兜底）
+                    bool hasStatAtom = (eff.AtomicEffects ?? new List<AtomicEffectEntry>()).Any(a =>
+                            a != null && (a.EffectType == nameof(AtomicEffectType.ModifyPower)
+                                       || a.EffectType == nameof(AtomicEffectType.ModifyLife)));
+                    if (hasStatAtom && eff.Duration == (int)DurationType.ForTurns && eff.DurationValue > 2)
+                        Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                       + $"属性效果固定回合只许 1、2 两档（ForTurns({eff.DurationValue}) 越界——计价按 2 回合封顶）");
+
+                    // 生物赋予关键词固定 1 回合（2026-09-13 定案）：生物宿主的 Grant 原子声明
+                    // Permanent/长持续 → 运行时被覆写为 Temp+回合末到期——计价按声明收（构筑侧提示）
+                    if (card.Supertype == Cardtype.Creature
+                        && (eff.AtomicEffects ?? new List<AtomicEffectEntry>()).Any(a =>
+                            a != null && !string.IsNullOrEmpty(a.EffectType) && a.EffectType.StartsWith("Grant"))
+                        && eff.Duration != (int)DurationType.UntilEndOfTurn && eff.Duration != (int)DurationType.Once)
+                        Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                       + "生物赋予的关键词固定持续 1 回合（声明持续被运行时覆写为 Temp/UET——魔法与光环照旧）");
+                    }
+
+                    void CheckAmplitude(AtomicEffectEntry atom, string where)
+                    {
+                        if (atom == null) return;
+                        if (atom.RandomAmplitude < 0f || atom.RandomAmplitude > 1f)
+                            Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.EffectType}({where})："
+                                           + $"RandomAmplitude={atom.RandomAmplitude:0.###} 越界 [0,1]（converter 已夹取）");
+                        // 挂载位校验（2026-09-13 MountKinds 7=可挂载随机）：未开放的原子配幅度 → 告警
+                        if (atom.RandomAmplitude > 0f
+                            && System.Enum.TryParse<AtomicEffectType>(atom.EffectType, out var t))
+                        {
+                            var mountCsv = CardCore.Attribute.AtomicEffectTable.GetByType(t)?.MountKinds ?? "";
+                            bool allowsRandom = mountCsv.Split(',')
+                                .Select(s => s.Trim()).Any(s => s == "7");
+                            if (!allowsRandom)
+                                Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.EffectType}({where})："
+                                               + "配了 RandomAmplitude 但表未开放可挂载随机（MountKinds 不含 7）");
+                        }
+                    }
+
+                    if (eff.AtomicEffects != null)
+                        foreach (var atom in eff.AtomicEffects) CheckAmplitude(atom, "主序列");
+                    if (eff.Steps != null)
+                        foreach (var step in eff.Steps)
+                        {
+                            if (step == null) continue;
+                            CheckAmplitude(step.atomic, "步骤");
+                            if (step.thenSteps != null) foreach (var a in step.thenSteps) CheckAmplitude(a, "then");
+                            if (step.elseSteps != null) foreach (var a in step.elseSteps) CheckAmplitude(a, "else");
+                        }
+                }
+            }
+        }
+
+        /// <summary>
         /// 直接从 JSON 文本加载卡牌（用于测试，不依赖 Resources）
         /// </summary>
         public static List<CardData> LoadCardsFromText(string jsonText)
@@ -231,6 +446,8 @@ namespace CardCore
 
             WarnCostNonConformance(result);
             ValidateComboDomains(result);
+            ValidateMountHosts(result);
+            ValidateRandomParams(result);
 
             return result;
         }
@@ -292,10 +509,60 @@ namespace CardCore
         // ======================================== 内部方法 ========================================
 
         /// <summary>
+        /// 生物黑白关键词转启动式自赋予（2026-09-14 定案）：黑白不进生物费用列表——
+        /// 生物可作地牌，黑白若入费用构成即从地牌产出，破坏「黑白=错边效果补偿资源」定位
+        /// （运行时选择：抵扣此卡灰色费用 / 生成黑白元素）。印制黑白关键词改为启动式效果：
+        /// 构筑期不计锚价（激活式不进 E 桶，仅占技能挂载口），使用时现付锚价
+        /// （发动=横置+付费+赋予自身；黑白元素经错边补偿/黑经济获得）。
+        /// 法术不作地牌，印制黑白关键词照旧计价。幂等（转换后关键词已移除，二次调用空转）。
+        /// 返回被转换的关键词 id 列表（空=无转换）。
+        /// </summary>
+        public static List<string> ConvertCreatureSpecialKeywordsToActivated(CardConfigEntry entry)
+        {
+            var converted = new List<string>();
+            if (entry == null || entry.keywords == null || entry.keywords.Count == 0) return converted;
+            if (ParseCardtype(entry.supertype) != Cardtype.Creature) return converted;
+
+            LoadKeywords();
+            for (int i = entry.keywords.Count - 1; i >= 0; i--)
+            {
+                var kwId = entry.keywords[i];
+                var def = GetKeywordDefinition(kwId);
+                if (def == null || string.IsNullOrEmpty(def.atomicEffect)
+                    || !Enum.TryParse<AtomicEffectType>(def.atomicEffect, out var grant)) continue;
+
+                var color = ElementAffinities.GetAffinityForEffect(grant).PrimaryColor;
+                if (color != ManaType.White && color != ManaType.Black) continue;
+
+                entry.keywords.RemoveAt(i);
+                converted.Add(kwId);
+                if (entry.effects == null) entry.effects = new List<CardEffectData>();
+                entry.effects.Add(new CardEffectData
+                {
+                    Id = "ACT_" + kwId,
+                    DisplayName = "启动·" + def.nameZh,
+                    Description = "使用时支付锚价，自身获得「" + def.nameZh + "」",
+                    TriggerTiming = (int)TriggerTiming.Activate_Active,
+                    ActivationType = 2, // 主动（启动式只能主动发动）
+                    SelectionMode = 0, // Self：源卡为唯一目标
+                    TargetCount = 1,
+                    AtomicEffects = new List<AtomicEffectEntry>
+                    {
+                        new AtomicEffectEntry { EffectType = def.atomicEffect }, // 域回落表级默认 {Self}
+                    },
+                });
+            }
+            return converted;
+        }
+
+        /// <summary>
         /// 从配置条目创建 CardData
         /// </summary>
         private static CardData CreateCardData(CardConfigEntry entry)
         {
+            // 黑白关键词装载期转启动式（须先于 CardData 组装：keywords/effects 读转换后的条目）
+            ConvertCreatureSpecialKeywordsToActivated(entry);
+
             var cardData = new CardData
             {
                 ID = entry.id,
@@ -312,8 +579,6 @@ namespace CardCore
             };
 
             if (entry.level >= 0) cardData.Level = entry.level;
-            if (entry.rank >= 0) cardData.Rank = entry.rank;
-            if (entry.linkRating >= 0) cardData.LinkRating = entry.linkRating;
 
             // 连接光环声明（三轨制）：无效条目（stat/keyword 双空）装载期即丢弃
             if (entry.linkAuras != null)

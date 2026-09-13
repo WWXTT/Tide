@@ -182,7 +182,7 @@ namespace CardCore
         None = 0,
         /// <summary>经发动区打出（PlayCard/PlayCardInResponse 结算入场）</summary>
         CastPlayed = 1,
-        /// <summary>效果召唤/特招直入（额外卡组/牌组检索等，不走发动区）</summary>
+        /// <summary>效果召唤/特招直入（牌组检索等，不走发动区）</summary>
         SummonedByEffect = 2,
         /// <summary>从墓地复活回到战场</summary>
         Revived = 3,
@@ -201,7 +201,7 @@ namespace CardCore
         public Card Card { get; set; }
         public Player Controller { get; set; }
         public bool Tapped { get; set; } // 是否横置入场（状态记录，非触发代价）
-        /// <summary>来源区（发动区=打出结算、墓地=复活、额外卡组=特招、None=token 新生）</summary>
+        /// <summary>来源区（发动区=打出结算、墓地=复活、None=token 新生）</summary>
         public Zone FromZone { get; set; }
         /// <summary>进场来源（区分手牌打出/效果召唤/复活/token/控制权变更）</summary>
         public EnterSource Source { get; set; }
@@ -597,7 +597,7 @@ namespace CardCore
     /// <summary>
     /// 关键词生效事件：规则关键词产生实际作用的统一观察点
     /// （圣盾抵挡、护甲吸收、坚韧减免、剧毒致死、吸血/系命回复、守卫转移、
-    ///   潜行失效、警戒抵消横置、复生回场、法术护盾挡效果、成长等）。
+    ///   潜行失效、警戒横置反击、复生回场、法术护盾挡效果、成长等）。
     /// 由 KeywordRules / CombatSystem / GameCore 的关键词结算点发布，
     /// 表现层（战报播报/UI 特效）据此呈现"关键词为什么改变了这次结算"。
     /// </summary>

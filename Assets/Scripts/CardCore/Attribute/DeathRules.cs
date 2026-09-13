@@ -135,7 +135,9 @@ namespace CardCore.Attribute
                 return false;
 
             var destination = cause == DeathCause.Annihilate ? Zone.Exile : Zone.Graveyard;
-            var owner = card.GetController();
+            // 归属路由（2026-09-13 定案：死亡去**持有者**的墓地）——临时偷取的单位死在对手场
+            // 上也回原主墓地；改写持有者（ChangeOwner/GainControl Permanent）后归新主。
+            var owner = card.GetOwner() ?? card.GetController();
             if (manager != null && owner != null)
             {
                 var from = card.GetZone();

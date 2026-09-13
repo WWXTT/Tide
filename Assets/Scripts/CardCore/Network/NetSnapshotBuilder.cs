@@ -8,7 +8,7 @@ namespace CardCore.Network
     /// 快照构造器（M1 协议下行）：GameCore → MsgGameStateSync（viewerSeat 视角）。
     ///
     /// - 隐藏信息：己方手牌传 RuntimeId（CardHandInfo.OwnRuntimeIds）、对方只数量；
-    ///   牌库只数量；坟场/除外/战场/元素池/发动区/场地区/额外卡组全量公开。
+    ///   牌库只数量；坟场/除外/战场/元素池/发动区/场地区全量公开。
     /// - 字节稳定：Counters 按键排序后序列化（同状态两次序列化 byte[] 相等——确定性回归断言用）。
     /// - 时点约束（M1 记录、M2 服务器收口）：人局 EndTurn 后可能赶上半完成结算
     ///   （EnforceHandLimitAsync / PassPriority 内部 .Forget() 异步）——服务器侧快照
@@ -20,8 +20,7 @@ namespace CardCore.Network
         private static readonly Zone[] PublicZones =
         {
             Zone.Battlefield, Zone.Graveyard, Zone.Exile,
-            Zone.ElementPool, Zone.Activation, Zone.FieldZone, Zone.ExtraDeck,
-        };
+            Zone.ElementPool, Zone.Activation, Zone.FieldZone,        };
 
         public static MsgGameStateSync Build(GameCore core, int viewerSeat)
         {
@@ -93,7 +92,6 @@ namespace CardCore.Network
                     OffsetDrainUsed = player.OffsetDrainUsed,
                     OffsetDiscardUsed = player.OffsetDiscardUsed,
                     OffsetMillUsed = player.OffsetMillUsed,
-                    OffsetSendExtraUsed = player.OffsetSendExtraUsed,
                     GraveyardCount = core.ZoneManager.GetCards(player, Zone.Graveyard)?.Count ?? 0,
                     ExileCount = core.ZoneManager.GetCards(player, Zone.Exile)?.Count ?? 0,
                 });

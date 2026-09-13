@@ -32,6 +32,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -41,6 +44,7 @@
                             "ID": "",
                             "EffectType": "DealDamage",
                             "Value": 4,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -62,6 +66,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": -1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -71,6 +78,7 @@
                             "ID": "",
                             "EffectType": "DrawCard",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -91,15 +99,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "73d91ea1dc7ea143",
+            "id": "7c72811f0e69c917",
             "cardName": "古树守卫",
             "supertype": "Creature",
-            "power": 3,
-            "life": 5,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -116,15 +124,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "8de72c2bde3d932d",
+            "id": "7c72811f0e69c917",
             "cardName": "深水哨兵",
             "supertype": "Creature",
-            "power": 2,
-            "life": 3,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -166,15 +174,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "55dc486c8ae45e11",
+            "id": "e519275943ccf715",
             "cardName": "嘲讽哨卫",
             "supertype": "Creature",
-            "power": 0,
+            "power": 1,
             "life": 1,
             "costList": [
                 {
-                    "manaType": 0,
+                    "manaType": 4,
                     "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 0.0
                 }
             ],
             "keywords": [
@@ -195,11 +207,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "4b8169d02d45e00f",
+            "id": "853cea1ca07fb8bc",
             "cardName": "冲锋突击兵",
             "supertype": "Creature",
-            "power": 3,
-            "life": 2,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 1,
@@ -207,7 +219,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -228,6 +240,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -237,6 +252,7 @@
                             "ID": "",
                             "EffectType": "Untap",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": [
                                 1
@@ -259,11 +275,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "45598d647f69e32d",
+            "id": "9fe3a3c3ba82d1f5",
             "cardName": "突袭急先锋",
             "supertype": "Creature",
-            "power": 6,
-            "life": 3,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 1,
@@ -271,7 +287,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 4.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -292,6 +308,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -301,6 +320,7 @@
                             "ID": "",
                             "EffectType": "Untap",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": [
                                 1
@@ -317,6 +337,7 @@
                                 "ID": "",
                                 "EffectType": "",
                                 "Value": 0,
+                                "RandomAmplitude": 0.0,
                                 "ManaList": [],
                                 "TargetKinds": []
                             }
@@ -337,15 +358,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "e7bc9a41258d5fac",
+            "id": "b45a5f813a4c3135",
             "cardName": "连击双刃客",
             "supertype": "Creature",
-            "power": 9,
-            "life": 4,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 0,
-                    "amount": 5.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [
@@ -366,11 +387,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "7e616e3c21ac87d4",
+            "id": "f1e9beb2b8c2555b",
             "cardName": "毒刺毒沼虫",
             "supertype": "Creature",
-            "power": 5,
-            "life": 6,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 3,
@@ -378,7 +399,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 4.0
+                    "amount": 0.0
                 }
             ],
             "keywords": [
@@ -399,11 +420,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "0ec6337eb0abc52f",
+            "id": "1e153db5b932296d",
             "cardName": "吸血噬血蝠",
             "supertype": "Creature",
-            "power": 8,
-            "life": 7,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 5,
@@ -411,7 +432,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 5.0
+                    "amount": 0.0
                 }
             ],
             "keywords": [
@@ -432,11 +453,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "d26947b67d16051e",
+            "id": "c9a8438881173c3c",
             "cardName": "系命祝祷僧",
             "supertype": "Creature",
             "power": 1,
-            "life": 8,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 3,
@@ -444,7 +465,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 0.0
                 }
             ],
             "keywords": [
@@ -465,11 +486,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "3eb427cb1a002b02",
+            "id": "919c3c7dc8677932",
             "cardName": "潜行影匿者",
             "supertype": "Creature",
-            "power": 4,
-            "life": 9,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 2,
@@ -477,7 +498,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 5.0
+                    "amount": 0.0
                 }
             ],
             "keywords": [
@@ -498,10 +519,10 @@
             "surplusToSpeed": false
         },
         {
-            "id": "d4a3daca0684a5bc",
+            "id": "925a5b2d61dffb51",
             "cardName": "圣盾圣辉骑",
             "supertype": "Creature",
-            "power": 7,
+            "power": 1,
             "life": 1,
             "costList": [
                 {
@@ -510,7 +531,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 0.0
                 }
             ],
             "keywords": [
@@ -531,15 +552,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "ac6b289122e400e9",
+            "id": "cac17cd5f3990d7d",
             "cardName": "碾压攻城槌",
             "supertype": "Creature",
-            "power": 0,
-            "life": 2,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 1,
-                    "amount": 5.0
+                    "amount": 3.0
                 },
                 {
                     "manaType": 0,
@@ -564,19 +585,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "9619980ded418e11",
+            "id": "2e5ad05a3fc30bb9",
             "cardName": "坚韧老树皮",
             "supertype": "Creature",
-            "power": 3,
-            "life": 3,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [
@@ -597,11 +614,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "f3497308fc433afc",
+            "id": "0a13e0fe48dd5285",
             "cardName": "警戒巡夜人",
             "supertype": "Creature",
-            "power": 9,
-            "life": 5,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 2,
@@ -609,7 +626,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 5.0
+                    "amount": 0.0
                 }
             ],
             "keywords": [
@@ -630,11 +647,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "2dda9cab7828055d",
+            "id": "1bcfd3781934869a",
             "cardName": "先攻迅击剑士",
             "supertype": "Creature",
-            "power": 2,
-            "life": 6,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 1,
@@ -642,7 +659,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 0.0
                 }
             ],
             "keywords": [
@@ -663,11 +680,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "7cbac4cb465ade06",
+            "id": "e985b23fa911c440",
             "cardName": "法术护盾秘纹像",
             "supertype": "Creature",
-            "power": 8,
-            "life": 8,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 2,
@@ -675,7 +692,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 6.0
+                    "amount": 0.0
                 }
             ],
             "keywords": [
@@ -696,11 +713,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "83f6b3f3dc7b9e07",
+            "id": "6e493b98437c9a64",
             "cardName": "辟邪避世僧",
             "supertype": "Creature",
             "power": 1,
-            "life": 9,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 4,
@@ -708,7 +725,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 0.0
                 }
             ],
             "keywords": [
@@ -729,10 +746,10 @@
             "surplusToSpeed": false
         },
         {
-            "id": "b77ee96aca155194",
+            "id": "a10bb8722f7fe5b3",
             "cardName": "复生不灭烬",
             "supertype": "Creature",
-            "power": 4,
+            "power": 1,
             "life": 1,
             "costList": [
                 {
@@ -741,7 +758,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 0.0
                 }
             ],
             "keywords": [
@@ -762,11 +779,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "7d2bb5f61789f989",
+            "id": "f53d9ba786624d27",
             "cardName": "不灭磐岩像",
             "supertype": "Creature",
-            "power": 7,
-            "life": 2,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 4,
@@ -774,7 +791,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 0.0
                 }
             ],
             "keywords": [
@@ -795,11 +812,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "07cdb7fae5bcc4c0",
+            "id": "45b5ab1dec1a6415",
             "cardName": "再生愈体藤",
             "supertype": "Creature",
-            "power": 2,
-            "life": 5,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 3,
@@ -807,7 +824,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 0.0
                 }
             ],
             "keywords": [
@@ -828,11 +845,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "2e57fbfdf8aec64b",
+            "id": "69ce3e48b847ea71",
             "cardName": "成长萌芽兽",
             "supertype": "Creature",
             "power": 1,
-            "life": 2,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 3,
@@ -840,7 +857,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 0.0
                 }
             ],
             "keywords": [
@@ -861,11 +878,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "e7337ce613455767",
+            "id": "30281c467fae8273",
             "cardName": "装甲工匠",
             "supertype": "Creature",
-            "power": 2,
-            "life": 4,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 3,
@@ -873,7 +890,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -894,6 +911,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -903,6 +923,7 @@
                             "ID": "",
                             "EffectType": "AddArmor",
                             "Value": 3,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": [
                                 1
@@ -958,6 +979,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -967,6 +991,7 @@
                             "ID": "",
                             "EffectType": "Untap",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -987,11 +1012,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "cad9fe4fdcc3b509",
+            "id": "2d83176eea7ab622",
             "cardName": "缴械断刃客",
             "supertype": "Creature",
-            "power": 4,
-            "life": 4,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 1,
@@ -999,7 +1024,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 0.0
                 }
             ],
             "keywords": [
@@ -1047,6 +1072,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -1061,6 +1089,7 @@
                                 "ID": "",
                                 "EffectType": "",
                                 "Value": 0,
+                                "RandomAmplitude": 0.0,
                                 "ManaList": [],
                                 "TargetKinds": []
                             },
@@ -1086,6 +1115,7 @@
                                                 "ID": "",
                                                 "EffectType": "DealDamage",
                                                 "Value": 4,
+                                                "RandomAmplitude": 0.0,
                                                 "ManaList": [],
                                                 "TargetKinds": []
                                             },
@@ -1114,6 +1144,7 @@
                                                 "ID": "",
                                                 "EffectType": "DrawCard",
                                                 "Value": 1,
+                                                "RandomAmplitude": 0.0,
                                                 "ManaList": [],
                                                 "TargetKinds": []
                                             },
@@ -1149,15 +1180,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "4dfed6000560ddb3",
+            "id": "1885913026707c88",
             "cardName": "链接光环测试",
             "supertype": "Creature",
-            "power": 2,
-            "life": 4,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 4,
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -1219,6 +1254,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -1228,6 +1266,7 @@
                             "ID": "",
                             "EffectType": "Poison",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         },
@@ -1235,6 +1274,7 @@
                             "ID": "",
                             "EffectType": "AddToxin",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -1255,11 +1295,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "2366e714732e33cd",
+            "id": "b3af98f16c903046",
             "cardName": "荆棘傀儡",
             "supertype": "Creature",
-            "power": 2,
-            "life": 2,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 5,
@@ -1267,7 +1307,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -1289,6 +1329,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -1298,6 +1341,7 @@
                             "ID": "",
                             "EffectType": "AddMinusOne",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -1352,6 +1396,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -1361,6 +1408,7 @@
                             "ID": "",
                             "EffectType": "AddPowerDown",
                             "Value": 2,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -1415,6 +1463,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -1424,6 +1475,7 @@
                             "ID": "",
                             "EffectType": "AddLifeDown",
                             "Value": 2,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -1474,6 +1526,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -1483,6 +1538,7 @@
                             "ID": "",
                             "EffectType": "Exile",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -1537,6 +1593,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -1546,6 +1605,7 @@
                             "ID": "",
                             "EffectType": "ShuffleIntoDeck",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -1600,6 +1660,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -1609,6 +1672,7 @@
                             "ID": "",
                             "EffectType": "GainControl",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": [
                                 2
@@ -1665,6 +1729,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -1674,6 +1741,7 @@
                             "ID": "",
                             "EffectType": "Purify",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -1724,6 +1792,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -1733,6 +1804,7 @@
                             "ID": "",
                             "EffectType": "Devour",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -1783,6 +1855,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -1792,6 +1867,7 @@
                             "ID": "",
                             "EffectType": "Annihilate",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -1842,6 +1918,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -1851,6 +1930,7 @@
                             "ID": "",
                             "EffectType": "Smash",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -1901,6 +1981,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -1910,6 +1993,7 @@
                             "ID": "",
                             "EffectType": "LifeLoss",
                             "Value": 2,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -1960,6 +2044,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -1969,6 +2056,7 @@
                             "ID": "",
                             "EffectType": "NegateActivation",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2019,6 +2107,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2028,6 +2119,7 @@
                             "ID": "",
                             "EffectType": "KnockDown",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2048,11 +2140,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "360f0eba568113a2",
+            "id": "b4fdf4a9d7d37c89",
             "cardName": "禁术封印师",
             "supertype": "Creature",
-            "power": 2,
-            "life": 3,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 4,
@@ -2060,7 +2152,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -2082,6 +2174,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2091,6 +2186,7 @@
                             "ID": "",
                             "EffectType": "AddNullify",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2141,6 +2237,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2150,6 +2249,7 @@
                             "ID": "7c72811f0e69c917",
                             "EffectType": "Morph",
                             "Value": 0,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2204,6 +2304,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2213,6 +2316,7 @@
                             "ID": "",
                             "EffectType": "Silence",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2267,6 +2371,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2276,6 +2383,7 @@
                             "ID": "",
                             "EffectType": "Freeze",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2296,19 +2404,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "30379f02c159364b",
+            "id": "7d944637afafba21",
             "cardName": "破甲矛手",
             "supertype": "Creature",
-            "power": 3,
-            "life": 2,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 1,
-                    "amount": 2.0
+                    "amount": 3.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -2330,6 +2438,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2339,6 +2450,7 @@
                             "ID": "",
                             "EffectType": "PierceDamage",
                             "Value": 2,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2393,6 +2505,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2402,6 +2517,7 @@
                             "ID": "",
                             "EffectType": "AddVulnerable",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2452,6 +2568,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2461,6 +2580,7 @@
                             "ID": "",
                             "EffectType": "DrainLife",
                             "Value": 2,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2515,6 +2635,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2524,6 +2647,7 @@
                             "ID": "",
                             "EffectType": "AddPowerUp",
                             "Value": 2,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         },
@@ -2531,6 +2655,7 @@
                             "ID": "",
                             "EffectType": "AddLifeUp",
                             "Value": 2,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2551,7 +2676,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "67e60093186273c6",
+            "id": "4b9481416f1de526",
             "cardName": "重塑化身",
             "supertype": "Spell",
             "power": 0,
@@ -2559,7 +2684,7 @@
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 52.0
+                    "amount": 16.0
                 }
             ],
             "keywords": [],
@@ -2581,6 +2706,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2590,6 +2718,7 @@
                             "ID": "",
                             "EffectType": "SetPower",
                             "Value": 3,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         },
@@ -2597,6 +2726,7 @@
                             "ID": "",
                             "EffectType": "SetLife",
                             "Value": 3,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2647,6 +2777,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2656,6 +2789,7 @@
                             "ID": "",
                             "EffectType": "RecoverToHand",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2706,6 +2840,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2715,6 +2852,7 @@
                             "ID": "",
                             "EffectType": "ReturnFromGraveyard",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2769,6 +2907,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2778,6 +2919,7 @@
                             "ID": "",
                             "EffectType": "Heal",
                             "Value": 3,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2828,6 +2970,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2837,6 +2982,7 @@
                             "ID": "",
                             "EffectType": "AddPlusOne",
                             "Value": 2,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2891,6 +3037,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2900,6 +3049,7 @@
                             "ID": "",
                             "EffectType": "AddArmor",
                             "Value": 2,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -2954,6 +3104,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": -1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -2963,6 +3116,7 @@
                             "ID": "",
                             "EffectType": "DiscardCard",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -3013,6 +3167,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": -1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -3022,6 +3179,7 @@
                             "ID": "灰色哨兵",
                             "EffectType": "SearchDeck",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -3072,6 +3230,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": -1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -3081,6 +3242,7 @@
                             "ID": "",
                             "EffectType": "LookAtTopCards",
                             "Value": 3,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -3101,12 +3263,17 @@
             "surplusToSpeed": false
         },
         {
-            "id": "48b34f631a7e7837",
+            "id": "9e9b7076bf18e087",
             "cardName": "星象占卜",
             "supertype": "Spell",
             "power": 0,
             "life": 0,
-            "costList": [],
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                }
+            ],
             "keywords": [],
             "tags": [
                 "atom-coverage",
@@ -3126,6 +3293,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": -1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -3135,6 +3305,7 @@
                             "ID": "",
                             "EffectType": "ScryCards",
                             "Value": 2,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -3185,6 +3356,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": -1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -3194,6 +3368,7 @@
                             "ID": "",
                             "EffectType": "TakeExtraTurn",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -3248,6 +3423,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": -1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -3257,6 +3435,7 @@
                             "ID": "7c72811f0e69c917",
                             "EffectType": "SummonToken",
                             "Value": 2,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -3277,11 +3456,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "84b34aa67e544378",
+            "id": "3dc53d186161b309",
             "cardName": "光合精灵",
             "supertype": "Creature",
             "power": 1,
-            "life": 3,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 3,
@@ -3289,7 +3468,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -3311,6 +3490,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -3320,6 +3502,7 @@
                             "ID": "",
                             "EffectType": "AdditionalEnergy",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -3340,11 +3523,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "7c8b79e008ff5f20",
+            "id": "362accca6cf98508",
             "cardName": "催眠花妖",
             "supertype": "Creature",
             "power": 1,
-            "life": 2,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 3,
@@ -3352,7 +3535,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -3374,6 +3557,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 0,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -3383,6 +3569,7 @@
                             "ID": "",
                             "EffectType": "Sleep",
                             "Value": 2,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -3403,11 +3590,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "71cbaec3e2f4ba0d",
+            "id": "4672db6f79d99336",
             "cardName": "授勋剑士",
             "supertype": "Creature",
-            "power": 2,
-            "life": 2,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 1,
@@ -3419,7 +3606,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -3441,6 +3628,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 0,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -3450,6 +3640,7 @@
                             "ID": "",
                             "EffectType": "GrantFirstStrike",
                             "Value": 0,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         },
@@ -3457,6 +3648,7 @@
                             "ID": "",
                             "EffectType": "GrantLifesteal",
                             "Value": 0,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -3477,11 +3669,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "442aa4a6679f1425",
+            "id": "3dfe8bc074d3fe06",
             "cardName": "毒牙祭司",
             "supertype": "Creature",
-            "power": 2,
-            "life": 2,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 3,
@@ -3489,7 +3681,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -3511,6 +3703,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 0,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -3520,6 +3715,7 @@
                             "ID": "",
                             "EffectType": "GrantPoisonSting",
                             "Value": 0,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         },
@@ -3527,6 +3723,7 @@
                             "ID": "",
                             "EffectType": "GrantLifelink",
                             "Value": 0,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -3547,11 +3744,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "13f9114679d8da0e",
+            "id": "e4225265229e40ed",
             "cardName": "暗影行者",
             "supertype": "Creature",
-            "power": 2,
-            "life": 2,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 2,
@@ -3563,7 +3760,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -3585,6 +3782,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 0,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -3594,6 +3794,7 @@
                             "ID": "",
                             "EffectType": "GrantStealth",
                             "Value": 0,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         },
@@ -3601,6 +3802,7 @@
                             "ID": "",
                             "EffectType": "GrantCannotBeTargeted",
                             "Value": 0,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -3621,15 +3823,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "dcb75d050e5c6294",
+            "id": "034930e37e5b4eee",
             "cardName": "圣辉守卫",
             "supertype": "Creature",
-            "power": 2,
-            "life": 3,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 4,
-                    "amount": 2.0
+                    "amount": 1.0
                 },
                 {
                     "manaType": 2,
@@ -3659,6 +3861,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 0,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -3668,6 +3873,7 @@
                             "ID": "",
                             "EffectType": "GrantDivineShield",
                             "Value": 0,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         },
@@ -3675,6 +3881,7 @@
                             "ID": "",
                             "EffectType": "GrantSpellShield",
                             "Value": 0,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -3695,19 +3902,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "6c6f9e73a6583153",
+            "id": "5aebd2074c5e37de",
             "cardName": "磐岩巨人",
             "supertype": "Creature",
-            "power": 3,
-            "life": 4,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 11.0
+                    "amount": 10.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 3.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -3729,6 +3936,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 0,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -3736,15 +3946,9 @@
                     "AtomicEffects": [
                         {
                             "ID": "",
-                            "EffectType": "GrantArmor",
-                            "Value": 1,
-                            "ManaList": [],
-                            "TargetKinds": []
-                        },
-                        {
-                            "ID": "",
                             "EffectType": "GrantRegeneration",
                             "Value": 0,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -3758,18 +3962,24 @@
             "level": -1,
             "rank": -1,
             "linkRating": -1,
-            "arrows": "",
-            "linkAuras": [],
+            "arrows": "Up",
+            "linkAuras": [
+                {
+                    "stat": "",
+                    "value": 0,
+                    "keyword": "Armor"
+                }
+            ],
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false
         },
         {
-            "id": "19c5d50d3ec0a510",
+            "id": "d1429842e52b8e2b",
             "cardName": "不朽化身",
             "supertype": "Creature",
-            "power": 2,
-            "life": 2,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 5,
@@ -3781,7 +3991,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 1.0
                 }
             ],
             "keywords": [],
@@ -3803,6 +4013,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 0,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -3812,6 +4025,7 @@
                             "ID": "",
                             "EffectType": "GrantReborn",
                             "Value": 0,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         },
@@ -3819,6 +4033,7 @@
                             "ID": "",
                             "EffectType": "GrantIndestructible",
                             "Value": 0,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -3839,15 +4054,15 @@
             "surplusToSpeed": false
         },
         {
-            "id": "a8adb2d339ee374a",
+            "id": "6121ab3a7a31a730",
             "cardName": "哨戒教官",
             "supertype": "Creature",
-            "power": 2,
-            "life": 3,
+            "power": 1,
+            "life": 1,
             "costList": [
                 {
                     "manaType": 2,
-                    "amount": 2.0
+                    "amount": 1.0
                 },
                 {
                     "manaType": 1,
@@ -3877,6 +4092,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 0,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -3886,6 +4104,7 @@
                             "ID": "",
                             "EffectType": "GrantVigilance",
                             "Value": 0,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         },
@@ -3893,6 +4112,7 @@
                             "ID": "",
                             "EffectType": "GrantDisarm",
                             "Value": 0,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -3947,6 +4167,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 0,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -3956,6 +4179,7 @@
                             "ID": "",
                             "EffectType": "GrantGrowth",
                             "Value": 0,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -4006,6 +4230,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -4015,6 +4242,7 @@
                             "ID": "",
                             "EffectType": "SetCost",
                             "Value": 2,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": [
                                 5
@@ -4071,6 +4299,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -4080,6 +4311,7 @@
                             "ID": "",
                             "EffectType": "AddCostUp",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": [
                                 5
@@ -4136,6 +4368,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -4145,6 +4380,7 @@
                             "ID": "",
                             "EffectType": "AddCostDown",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": [
                                 5
@@ -4201,6 +4437,9 @@
                     "SummonDropZone": 1,
                     "SelectionMode": 1,
                     "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
                     "DynamicTargetCount": false,
                     "Drawbacks": [],
                     "ActivationConditions": [],
@@ -4210,6 +4449,7 @@
                             "ID": "",
                             "EffectType": "ReturnToHand",
                             "Value": 1,
+                            "RandomAmplitude": 0.0,
                             "ManaList": [],
                             "TargetKinds": []
                         }
@@ -4217,6 +4457,1719 @@
                     "Costs": [],
                     "Tags": [],
                     "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "8ce22051dcb9cdd0",
+            "cardName": "读心预言",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [
+                {
+                    "Id": "DECLARE_BRANCH_MAIN",
+                    "DisplayName": "读心",
+                    "Description": "宣言生物或非生物，展示对手手牌中的一张卡——类型命中则抽一张卡",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": [
+                        {
+                            "kind": 0,
+                            "atomic": {
+                                "ID": "Type:Creature",
+                                "EffectType": "DeclareHand",
+                                "Value": 0,
+                                "RandomAmplitude": 0.0,
+                                "ManaList": [],
+                                "TargetKinds": []
+                            },
+                            "condition": {
+                                "Type": 0,
+                                "Value": 0,
+                                "Value2": 0,
+                                "StringValue": "",
+                                "Negate": false
+                            },
+                            "thenSteps": [],
+                            "elseSteps": [],
+                            "conditionId": "",
+                            "conditionParam": 0,
+                            "conditionStringParam": "",
+                            "choices": []
+                        },
+                        {
+                            "kind": 1,
+                            "atomic": {
+                                "ID": "",
+                                "EffectType": "",
+                                "Value": 0,
+                                "RandomAmplitude": 0.0,
+                                "ManaList": [],
+                                "TargetKinds": []
+                            },
+                            "condition": {
+                                "Type": 0,
+                                "Value": 0,
+                                "Value2": 0,
+                                "StringValue": "",
+                                "Negate": false
+                            },
+                            "thenSteps": [
+                                {
+                                    "ID": "",
+                                    "EffectType": "DrawCard",
+                                    "Value": 1,
+                                    "RandomAmplitude": 0.0,
+                                    "ManaList": [],
+                                    "TargetKinds": []
+                                }
+                            ],
+                            "elseSteps": [],
+                            "conditionId": "DeclareHit",
+                            "conditionParam": 0,
+                            "conditionStringParam": "",
+                            "choices": []
+                        }
+                    ]
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "cc36b503801ec4a2",
+            "cardName": "全域烈焰",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N154",
+                    "DisplayName": "烈焰",
+                    "Description": "范围伤害2",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 2,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "SweepDamage",
+                            "Value": 2,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "e6e53e16e3a91ad5",
+            "cardName": "全域春晖",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N155",
+                    "DisplayName": "春晖",
+                    "Description": "范围治疗2",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 2,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "SweepHeal",
+                            "Value": 2,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "9ef72213612d5d0d",
+            "cardName": "放大试验体",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 5.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N156",
+                    "DisplayName": "放大",
+                    "Description": "登场获得放大",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 1,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GrantMagnify",
+                            "Value": 0,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "756c2f906b8e8131",
+            "cardName": "微缩试验体",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 5.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N157",
+                    "DisplayName": "微缩",
+                    "Description": "登场获得微缩",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 1,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GrantMiniature",
+                            "Value": 0,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "3c5d37fcb72c8273",
+            "cardName": "回响生物样板",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N158",
+                    "DisplayName": "回响",
+                    "Description": "登场获得回响",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 1,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GrantEcho",
+                            "Value": 0,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "962626b512537442",
+            "cardName": "回响法术样板",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Echo"
+            ],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N159",
+                    "DisplayName": "回响",
+                    "Description": "回响复制并抽一张牌",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": -1,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "DrawCard",
+                            "Value": 1,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "e540c90ee851e0b5",
+            "cardName": "冰晶样板",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N160",
+                    "DisplayName": "冰晶",
+                    "Description": "登场获得冰晶",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 1,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GrantIceCrystal",
+                            "Value": 0,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "c66b2ba8cc23b940",
+            "cardName": "梦魇样板",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N161",
+                    "DisplayName": "梦魇",
+                    "Description": "登场获得梦魇",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 1,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GrantNightmare",
+                            "Value": 0,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "207e93696b9a6f22",
+            "cardName": "病原体样板",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 5.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N162",
+                    "DisplayName": "病原",
+                    "Description": "登场获得病原体",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 1,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GrantPathogen",
+                            "Value": 0,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "49ed7af8bd39e4c0",
+            "cardName": "禁魔石样板",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 5.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N163",
+                    "DisplayName": "禁魔",
+                    "Description": "登场获得禁魔石",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 1,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GrantSpellban",
+                            "Value": 0,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "5303c98917d8e9b3",
+            "cardName": "碾压样板",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 5.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N164",
+                    "DisplayName": "碾压",
+                    "Description": "登场获得碾压",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 1,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GrantOverwhelm",
+                            "Value": 0,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "58410d5d01345d16",
+            "cardName": "帷幕样板",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N165",
+                    "DisplayName": "帷幕",
+                    "Description": "登场获得帷幕",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 1,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 0,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "GrantTaunt",
+                            "Value": 0,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "d2ec34195f686786",
+            "cardName": "发现样板",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N166",
+                    "DisplayName": "发现",
+                    "Description": "三选一入手",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": -1,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "DiscoverCard",
+                            "Value": 3,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "449aafa78ff6f32f",
+            "cardName": "跳过样板",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N167",
+                    "DisplayName": "时滞",
+                    "Description": "跳过对手准备阶段",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": -1,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "SkipTurn",
+                            "Value": 1,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "c42c7177da016b56",
+            "cardName": "易主样板",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N168",
+                    "DisplayName": "易主",
+                    "Description": "改写持有者",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "ChangeOwner",
+                            "Value": 1,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "6cf7078cb5eaa727",
+            "cardName": "牺牲样板",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N169",
+                    "DisplayName": "牺牲",
+                    "Description": "持有者选择生物牺牲",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Sacrifice",
+                            "Value": 1,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "b3f5139b34149185",
+            "cardName": "摒弃样板",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N170",
+                    "DisplayName": "摒弃",
+                    "Description": "持有者摒弃无生命单位",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "Abandon",
+                            "Value": 1,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "bcd845cb8e597e58",
+            "cardName": "紊乱样板",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N171",
+                    "DisplayName": "紊乱",
+                    "Description": "附加紊乱指示物",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "RushSickness",
+                            "Value": 1,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "10d765fdf37045bc",
+            "cardName": "入库顶样板",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N172",
+                    "DisplayName": "入库",
+                    "Description": "弹回牌库顶",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "BounceToTop",
+                            "Value": 1,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                1,
+                                2
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "913ed2a6ca982468",
+            "cardName": "入库底样板",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N173",
+                    "DisplayName": "沉底",
+                    "Description": "弹回牌库底",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "BounceToBottom",
+                            "Value": 1,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": [
+                                1,
+                                2
+                            ]
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "60fbab894c542ae8",
+            "cardName": "并列样板",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 5,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N174",
+                    "DisplayName": "并列",
+                    "Description": "伤害+易伤",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [
+                        {
+                            "ID": "",
+                            "EffectType": "DealDamage",
+                            "Value": 3,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        },
+                        {
+                            "ID": "",
+                            "EffectType": "AddVulnerable",
+                            "Value": 1,
+                            "RandomAmplitude": 0.0,
+                            "ManaList": [],
+                            "TargetKinds": []
+                        }
+                    ],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": []
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "43cd37e37aa1bf6c",
+            "cardName": "抉择样板",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N175",
+                    "DisplayName": "抉择",
+                    "Description": "伤害或抽牌",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": [
+                        {
+                            "kind": 2,
+                            "atomic": {
+                                "ID": "",
+                                "EffectType": "",
+                                "Value": 0,
+                                "RandomAmplitude": 0.0,
+                                "ManaList": [],
+                                "TargetKinds": []
+                            },
+                            "condition": {
+                                "Type": 0,
+                                "Value": 0,
+                                "Value2": 0,
+                                "StringValue": "",
+                                "Negate": false
+                            },
+                            "thenSteps": [],
+                            "elseSteps": [],
+                            "conditionId": "",
+                            "conditionParam": 0,
+                            "conditionStringParam": "",
+                            "choices": [
+                                {
+                                    "label": "烈焰",
+                                    "steps": [
+                                        {
+                                            "kind": 0,
+                                            "atomic": {
+                                                "ID": "",
+                                                "EffectType": "DealDamage",
+                                                "Value": 4,
+                                                "RandomAmplitude": 0.0,
+                                                "ManaList": [],
+                                                "TargetKinds": []
+                                            },
+                                            "condition": {
+                                                "Type": 0,
+                                                "Value": 0,
+                                                "Value2": 0,
+                                                "StringValue": "",
+                                                "Negate": false
+                                            },
+                                            "thenSteps": [],
+                                            "elseSteps": [],
+                                            "conditionId": "",
+                                            "conditionParam": 0,
+                                            "conditionStringParam": "",
+                                            "choices": []
+                                        }
+                                    ]
+                                },
+                                {
+                                    "label": "灵感",
+                                    "steps": [
+                                        {
+                                            "kind": 0,
+                                            "atomic": {
+                                                "ID": "",
+                                                "EffectType": "DrawCard",
+                                                "Value": 1,
+                                                "RandomAmplitude": 0.0,
+                                                "ManaList": [],
+                                                "TargetKinds": []
+                                            },
+                                            "condition": {
+                                                "Type": 0,
+                                                "Value": 0,
+                                                "Value2": 0,
+                                                "StringValue": "",
+                                                "Negate": false
+                                            },
+                                            "thenSteps": [],
+                                            "elseSteps": [],
+                                            "conditionId": "",
+                                            "conditionParam": 0,
+                                            "conditionStringParam": "",
+                                            "choices": []
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "subtype": "",
+            "level": -1,
+            "rank": -1,
+            "linkRating": -1,
+            "arrows": "",
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "f5fc8fb584ac32c5",
+            "cardName": "分支样板",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 0.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "atom-coverage"
+            ],
+            "effects": [
+                {
+                    "Id": "T_N176",
+                    "DisplayName": "分支",
+                    "Description": "伤害3；击杀则抽牌",
+                    "TriggerTiming": 0,
+                    "ActivationType": 0,
+                    "BaseSpeed": 0,
+                    "IsOptional": false,
+                    "Duration": 0,
+                    "DurationValue": 0,
+                    "SummonDropZone": 1,
+                    "SelectionMode": 1,
+                    "TargetCount": 1,
+                    "TriggerLimitPerTurn": 0,
+                    "EngineKind": 0,
+                    "EngineParam": 0,
+                    "DynamicTargetCount": false,
+                    "Drawbacks": [],
+                    "ActivationConditions": [],
+                    "TriggerConditions": [],
+                    "AtomicEffects": [],
+                    "Costs": [],
+                    "Tags": [],
+                    "Steps": [
+                        {
+                            "kind": 0,
+                            "atomic": {
+                                "ID": "",
+                                "EffectType": "DealDamage",
+                                "Value": 3,
+                                "RandomAmplitude": 0.0,
+                                "ManaList": [],
+                                "TargetKinds": []
+                            },
+                            "condition": {
+                                "Type": 0,
+                                "Value": 0,
+                                "Value2": 0,
+                                "StringValue": "",
+                                "Negate": false
+                            },
+                            "thenSteps": [],
+                            "elseSteps": [],
+                            "conditionId": "",
+                            "conditionParam": 0,
+                            "conditionStringParam": "",
+                            "choices": []
+                        },
+                        {
+                            "kind": 1,
+                            "atomic": {
+                                "ID": "",
+                                "EffectType": "",
+                                "Value": 0,
+                                "RandomAmplitude": 0.0,
+                                "ManaList": [],
+                                "TargetKinds": []
+                            },
+                            "condition": {
+                                "Type": 0,
+                                "Value": 0,
+                                "Value2": 0,
+                                "StringValue": "",
+                                "Negate": false
+                            },
+                            "thenSteps": [
+                                {
+                                    "ID": "",
+                                    "EffectType": "DrawCard",
+                                    "Value": 1,
+                                    "RandomAmplitude": 0.0,
+                                    "ManaList": [],
+                                    "TargetKinds": []
+                                }
+                            ],
+                            "elseSteps": [],
+                            "conditionId": "DmgKillsTarget",
+                            "conditionParam": 0,
+                            "conditionStringParam": "",
+                            "choices": []
+                        }
+                    ]
                 }
             ],
             "subtype": "",

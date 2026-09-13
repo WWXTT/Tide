@@ -175,7 +175,7 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 卡牌子类型（种族 / 怪兽种类 / 融合-同步-超量-链接等额外卡组标记），Flags 组合。
+        /// 卡牌子类型（种族 / 怪兽种类 / 魔法陷阱种类），Flags 组合。
         /// </summary>
         [SerializeField]
         private CardSubtype _subtype = CardSubtype.None;
@@ -185,7 +185,7 @@ namespace CardCore
             set => _subtype = value;
         }
 
-        /// <summary>等级（生物 / 融合 / 同步），可空。</summary>
+        /// <summary>等级（生物），可空。</summary>
         [SerializeField]
         private int _level = -1;
         public int? Level
@@ -194,25 +194,7 @@ namespace CardCore
             set => _level = value ?? -1;
         }
 
-        /// <summary>阶级（超量），可空。</summary>
-        [SerializeField]
-        private int _rank = -1;
-        public int? Rank
-        {
-            get => _rank < 0 ? (int?)null : _rank;
-            set => _rank = value ?? -1;
-        }
-
-        /// <summary>链接值（链接），可空。</summary>
-        [SerializeField]
-        private int _linkRating = -1;
-        public int? LinkRating
-        {
-            get => _linkRating < 0 ? (int?)null : _linkRating;
-            set => _linkRating = value ?? -1;
-        }
-
-        /// <summary>链接箭头方向（链接），Flags 组合。</summary>
+        /// <summary>连接箭头方向（连接光环/指向用），Flags 组合。</summary>
         [SerializeField]
         private HexDirection _arrowDirections = HexDirection.None;
         public HexDirection ArrowDirections
@@ -246,6 +228,18 @@ namespace CardCore
         [SerializeField]
         private bool _noGuard;
         public bool NoGuard { get => _noGuard; set => _noGuard = value; }
+
+        // ===== 装备系统（2026-09-13 第二十一批：万智神器×炉石武器——箭头佩带+驱动）=====
+        [SerializeField]
+        private bool _isWeapon;
+        /// <summary>武器标记：佩带者=控制者角色（非箭头格）——角色获得 Power 攻击力、
+        /// 可主动攻击（1/回合）、被攻击反伤；主动攻击与反伤各 -1 耐久。</summary>
+        public bool IsWeapon { get => _isWeapon; set => _isWeapon = value; }
+
+        [SerializeField]
+        private int _durability;
+        /// <summary>初始耐久（0=无耐久档——持续型装备）；归零=销毁入墓。</summary>
+        public int Durability { get => _durability; set => _durability = value; }
 
         /// <summary>瞬间法术的底盘盈余（无攻无守省下的 2 灰）构筑时自由分配：
         /// true = 转 BaseSpeed+1（不退费）；false（缺省）= 退费（灰不足落最高费用色）。</summary>
@@ -411,6 +405,9 @@ namespace CardCore
         public string ID;     // 字符串参数（token ID、关键词 ID、宣言编码）
         public string EffectType;      // AtomicEffectType 枚举名，如 "DealDamage"
         public int Value;              // 唯一数值参数（伤害量、抽卡数、修改量——2026-09-10 定案：原子只有 Value）
+        // 数值随机幅度（2026-09-13 定案）：0..1，结算时名义值 ±span（span=round(|Value|×幅度)，3 伤 ±100%→0..6）；
+        // 0=off。计价按名义值（锚点不漂移）；缺省 0 向后兼容。
+        public float RandomAmplitude;
 
         // Mana 字典：与卡计费方式一致（costList 同款 {manaType, amount}；JsonUtility 不支持字典故用列表）。
         public List<ManaAmountEntry> ManaList;
@@ -538,6 +535,14 @@ namespace CardCore
         public int SummonDropZone;    // SummonToken 落区（Zone 枚举：战场/手牌/牌库三档）
         public int SelectionMode = -1; // SelectionMode 枚举值（-1=None 无目标哨兵）
         public int TargetCount = -2;   // >0=N，0=全部，-1=任意；-2=未声明回落表级
+        // 触发式每回合触发上限（2026-09-13）：0=未声明（原子含 TriggerCapImmutable→无限；否则默认 1）；
+        // >0=每回合 N 次；-1=显式无限。仅对触发式生效；不可修改原子（含 8）声明上限被覆写+构筑告警。
+        public int TriggerLimitPerTurn;
+        // 动态分支引擎（2026-09-13 分支体系正规化）：0=无/1=倒计时/2=运势（BranchEngineKind）。
+        // 引擎模式下 AtomicEffects=奖励原子（不占卡费：倒计时延迟即付费/运势机制费=EngineParam 灰）。
+        public int EngineKind;
+        // 引擎参数：运势阈值 x（[1,5]）；倒计时缺省 0=奖励推导费自动换算回合（1费=1回合）。
+        public int EngineParam;
         public bool DynamicTargetCount;// 动态数量：运行时玩家自选个数
         public List<string> Drawbacks = new List<string>(); // 抽牌减费缺陷（上移；执行暂缓）
 

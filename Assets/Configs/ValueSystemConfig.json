@@ -222,24 +222,6 @@
     "Des": "地牌基础价值"
   },
   {
-    "Category": "CardTypeValue",
-    "Key": "ExtraDeckSummonDiscount",
-    "Value": 0.7,
-    "Des": "额外组特招（同步/超量/链接）折扣"
-  },
-  {
-    "Category": "CardTypeValue",
-    "Key": "RitualSummonDiscount",
-    "Value": 0.8,
-    "Des": "仪式召唤折扣"
-  },
-  {
-    "Category": "CardTypeValue",
-    "Key": "FusionSummonDiscount",
-    "Value": 0.75,
-    "Des": "融合召唤折扣"
-  },
-  {
     "Category": "DelayDiscount",
     "Key": "C1",
     "Value": 1.0,

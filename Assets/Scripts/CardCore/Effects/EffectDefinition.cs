@@ -92,6 +92,21 @@ namespace CardCore
         public int TargetCount = -2;
         /// <summary>动态数量：运行时玩家自选个数（0..候选数）；费用计 0 且该卡不可作地牌产元素。</summary>
         public bool DynamicTargetCount;
+        /// <summary>触发式每回合触发上限（2026-09-13 定案）：&gt;0=每回合最多 N 次；-1=无限。
+        /// 默认口径——原子含 MountKind.TriggerCapImmutable（少数，如坚韧）→ 恒 -1（不可修改、声明被覆写）；
+        /// 其余原子 → 未声明=1（一回合一次），组合期可改 N 或 -1。启动式不消费本字段（费用现付自限）。</summary>
+        public int TriggerLimitPerTurn = -1;
+        /// <summary>动态分支引擎（2026-09-13 定案：主效果=条件引擎，奖励原子不占卡费）：
+        /// None=普通效果；Countdown=倒计时（回合开始-1，归零发奖并重置——初值=奖励推导费换算回合，1费=1回合）；
+        /// LuckRoll=运势（回合开始掷 2d6 双&gt;EngineParam 发奖——机制费=x 灰，x∈[1,5]）。
+        /// AtomicEffects 在引擎模式下转存 RewardAtoms（不作即时主序列）。</summary>
+        public BranchEngineKind EngineKind = BranchEngineKind.None;
+        /// <summary>引擎参数：运势阈值 x（[1,5]）；倒计时缺省 0=按奖励推导费自动换算。</summary>
+        public int EngineParam;
+        /// <summary>动态分支的奖励原子（converter 从 AtomicEffects 转存；计价 0——倒计时延迟即付费/运势走机制费）。</summary>
+        public List<AtomicEffectInstance> RewardAtoms = new List<AtomicEffectInstance>();
+        /// <summary>倒计时初值回合数（converter 换算：奖励推导费 1费=1回合，向上取整下限 1；引擎运行时归零重置回此值）。</summary>
+        public int CountdownTurns;
         /// <summary>抽牌减费缺陷 id 列表（上移自原子层；执行暂缓——等原子完善后在组合阶段实现）。</summary>
         public List<string> Drawbacks = new List<string>();
         /// <summary>预计算组合目标域：主序列原子 TargetKinds 交集（converter 填；构筑期校验用）。</summary>
@@ -112,12 +127,12 @@ namespace CardCore
 
         /// <summary>
         /// 计算实际发动速度
-        /// 三层叠加: 默认(阶段+回合归属) + BaseSpeed + 动态支付
+        /// 2026-09-13 定案：无"基础速度"——速度 = BaseSpeed（组合期声明，原子默认 0）+ 动态支付；
+        /// 回合归属不进速度，只进记速器门槛（SpeedCounter.CanActivate）
         /// </summary>
         public int CalculateActivationSpeed(Player activator, Player activePlayer, PhaseType phase, int paidBoost = 0)
         {
-            int defaultSpeed = SpeedCalculator.GetDefaultSpeed(activator, activePlayer, phase);
-            return SpeedCalculator.CalculateSpeed(defaultSpeed, BaseSpeed, paidBoost);
+            return SpeedCalculator.CalculateSpeed(BaseSpeed, paidBoost);
         }
 
         public string GetFullDescription()
@@ -161,7 +176,6 @@ namespace CardCore
                 TriggerTiming.OnUntap => "重置时",
                 TriggerTiming.OnTargeted => "被指定为目标时",
                 TriggerTiming.OnGameStart => "游戏开始时",
-                TriggerTiming.OnMaterialDetach => "超量素材取除时",
                 TriggerTiming.OnAtomicEffectActivation => "原子效果发动时",
                 TriggerTiming.OnAtomicEffectStartApplying => "原子效果开始作用时",
                 TriggerTiming.OnAtomicEffectResolution => "原子效果结算完成时",
@@ -207,7 +221,7 @@ namespace CardCore
         /// <summary>
         /// 创建待发效果
         /// 条件发动 speed=Max 绕过速度检查
-        /// 速度发动 三层叠加: 默认 + BaseSpeed + paidBoost
+        /// 速度发动 = BaseSpeed + paidBoost（2026-09-13：无基础速度）
         /// </summary>
         public static PendingEffect Create(
             EffectDefinition effect,
@@ -220,10 +234,7 @@ namespace CardCore
         {
             int speed = (effect.ActivationType != EffectActivationType.Voluntary)
                 ? int.MaxValue
-                : SpeedCalculator.CalculateSpeed(
-                    SpeedCalculator.GetDefaultSpeed(controller, activePlayer, currentPhase),
-                    effect.BaseSpeed,
-                    paidBoost);
+                : SpeedCalculator.CalculateSpeed(effect.BaseSpeed, paidBoost);
 
             return new PendingEffect
             {
@@ -293,12 +304,12 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 获取可发动的速度效果列表（speed > counter）
+        /// 获取可发动的速度效果列表（2026-09-13 口径：回合持有者 ≥ 记速器 / 非回合持有者严格 &gt;）
         /// </summary>
-        public List<PendingEffect> GetVoluntaryEffects()
+        public List<PendingEffect> GetVoluntaryEffects(bool isTurnPlayer)
         {
             return _voluntaryEffects
-                .Where(e => e.ActivationSpeed > _speedCounter.CurrentSpeed)
+                .Where(e => _speedCounter.CanActivate(e.ActivationSpeed, isTurnPlayer, EffectActivationType.Voluntary))
                 .OrderByDescending(e => e.ActivationSpeed)
                 .ThenBy(e => e.SequenceNumber)
                 .ToList();
@@ -432,7 +443,6 @@ namespace CardCore
                 TriggerTiming.OnAtomicEffectResolution => typeof(AtomicEffectPhaseEvent),
                 TriggerTiming.OnTargeted => typeof(AtomicEffectPhaseEvent),
 
-                // OnMaterialDetach：待超量素材取除事件补齐，暂无映射（返回 null 静默跳过）
                 _ => null
             };
         }
@@ -497,10 +507,27 @@ namespace CardCore
     #region 原子效果实例
 
     [Serializable]
+    /// <summary>动态分支引擎（2026-09-13 分支体系正规化定案）。</summary>
+    public enum BranchEngineKind : int
+    {
+        /// <summary>普通效果（无引擎）</summary>
+        None = 0,
+        /// <summary>倒计时：回合开始计数-1，归零→执行奖励并重置；初值=奖励推导费换算回合（1费=1回合）——延迟即付费</summary>
+        Countdown = 1,
+        /// <summary>运势：回合开始掷 2d6，双&gt;x → 执行奖励；机制费=x 灰（x∈[1,5]，双 6 才中=1/36）</summary>
+        LuckRoll = 2,
+        /// <summary>拼点：回合开始双方牌库顶各展示一张（放回原位，空库按费用 0）——
+        /// 自己卡费用 &gt; 对手卡费用 + x → 执行奖励；机制费=x 灰（x∈[1,5]）</summary>
+        Clash = 3,
+    }
+
     public class AtomicEffectInstance
     {
         public AtomicEffectType Type;
-        public int Value;              // 唯一数值参数（2026-09-10 定案：原子只有 Value）
+        public int Value;              // 唯一数值参数（2026-09-10 定案：原子只有 Value）——名义值：计价/描述/UI 读它
+        /// <summary>数值随机幅度 0..1（2026-09-13 定案）：&gt;0 时结算读 GetRolledValue()——
+        /// 每目标独立掷 [Value−span, Value+span]（span=round(|Value|×幅度)）；计价按名义 Value（锚点不漂移）。</summary>
+        public float RandomAmplitude;
         public string StringValue;
 
         /// <summary>Mana 字典（与卡计费同款表达；无 Mana 参数的原子为 null）。</summary>
@@ -520,6 +547,11 @@ namespace CardCore
         {
             return AtomicEffectTypeExtensions.GetEffectDescription(Type, Value);
         }
+
+        /// <summary>结算期掷值（2026-09-13 数值随机定案）：幅度&gt;0 时名义值 ±span 均匀随机
+        /// （每调用一次掷一次——handler 在 per-target 循环里读即每目标独立掷）；幅度 0 恒名义值。
+        /// 只有效果结算读它；计价/构筑/描述读 Value 名义值。</summary>
+        public int GetRolledValue() => RandomAmplitude > 0f ? GameRng.RollValue(Value, RandomAmplitude) : Value;
     }
 
     #endregion

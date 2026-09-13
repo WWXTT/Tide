@@ -30,6 +30,16 @@ namespace CardCore
             VisitBillableAtoms(effect, modeIndex,
                 (atom, domain) => AccumulateElementCost(atom, effect, domain, byColor));
 
+            // 固定分支门附加费 + 动态分支机制费（2026-09-13 分支体系正规化）：
+            // 门费=技能类型三档（伤害命中1/击杀2/宣言命中2，灰）；运势/拼点机制费=x（灰，[1,5]）；
+            // 倒计时机制费 0（延迟即付费——奖励费已换算成回合）。奖励原子恒 0 费（EnumerateMainSequenceAtoms 不含分支）。
+            int engineFee = GateAndEngineFee(effect);
+            if (engineFee > 0)
+            {
+                byColor.TryGetValue(ManaType.Gray, out var grayPrev);
+                byColor[ManaType.Gray] = grayPrev + engineFee;
+            }
+
             var list = new List<CostInstance>();
             foreach (var kv in byColor)
             {
@@ -152,6 +162,100 @@ namespace CardCore
         /// 固定为 Once（旧相对口径随表 DurationType 列消亡）。
         /// 法术宿主永久档语义由迁移回填承载（赋予族效果 Duration=Permanent）。
         /// </summary>
+        /// <summary>全部档（TargetCount≤0）的期望目标数（2026-09-13 用户定案：少了亏多了赚，
+        /// 前期很难超过 4 个生物同时存活）。</summary>
+        public const int FullModeExpectedTargets = 4;
+
+        /// <summary>固有全域原子（2026-09-13：类型伤害/全体治疗）——范围是原子自身的语义
+        /// （强制 Full、禁随机），扫场溢价已含 BaseCost，计价数量恒 ×1。</summary>
+        public static bool IsIntrinsicSweep(AtomicEffectType type)
+            => type == AtomicEffectType.SweepDamage || type == AtomicEffectType.SweepHeal;
+
+        /// <summary>数量乘数：固有全域原子=1；SummonToken=1（数量已含在量级 max(count,模板费)）；
+        /// Full 全域按期望 4（TargetCount 是 converter 兜底噪声，不代表真实目标数）；
+        /// 其余显式 TargetCount&gt;1 用之；任意（≤0）按期望 4。</summary>
+        private static int QuantityMultiplier(AtomicEffectType type, EffectDefinition def)
+        {
+            if (IsIntrinsicSweep(type)) return 1;
+            if (type == AtomicEffectType.SummonToken) return 1;
+            if (def.SelectionMode == SelectionMode.Full) return FullModeExpectedTargets;
+            int n = def.TargetCount;
+            return n > 0 ? n : FullModeExpectedTargets;
+        }
+
+        /// <summary>多次触发连乘基（2026-09-13 定案）。</summary>
+        public const float TriggerExtraCostFactor = 1.2f;
+
+        /// <summary>属性锚（2026-09-13 定案）：+1 攻/+1 生命 = 0.5（攻血同锚）。</summary>
+        public const float StatAnchor = 0.5f;
+
+        /// <summary>
+        /// 属性价梯（2026-09-13 定案）：返回该原子在当前持续档的每 +1 单价；非属性原子返回 0（走通用公式）。
+        /// 修改族 0.5/1.0/1.5/2.0（固定1回合/固定2回合/换区移除/换区不移除）；
+        /// 改写族（Set* 设置直改）恒 3.0；光环档（1.5）在 CardCostService.ComputeLinkAuraBuckets 对齐。
+        /// </summary>
+        public static float StatTierPrice(AtomicEffectType type, EffectDefinition def)
+        {
+            bool isSet = type == AtomicEffectType.SetPower || type == AtomicEffectType.SetLife;
+            bool isModify = type == AtomicEffectType.ModifyPower || type == AtomicEffectType.ModifyLife;
+            // 费用修改两档（2026-09-13 定案）：指示物档（CostUp/Down 计数——仅手牌离手消失=换区语义）1.5/+1；
+            // 永久改写 3.0/+1（Permanent=直改本体）。
+            if (type == AtomicEffectType.ModifyCost)
+                return def.Duration == DurationType.Permanent ? 3f : StatAnchor * 3f;
+            if (!isSet && !isModify) return 0f;
+            if (isSet) return 3f; // 改写档（设置直改视同本体）恒 3.0/+1
+
+            float per = StatAnchor;
+            switch (def.Duration)
+            {
+                case DurationType.UntilEndOfTurn: return per;                    // 固定1回合 0.5
+                case DurationType.UntilNextTurn: return per * 2f;                // 固定2回合 1.0
+                case DurationType.ForTurns: return def.DurationValue <= 1 ? per : per * 2f; // 只许1、2；>2 构筑拦截，计价封顶 1.0
+                case DurationType.UntilLeaveBattlefield: return per * 3f;        // 换区移除 1.5
+                case DurationType.WhileCondition: return per * 3f;               // 条件持续≈换区档
+                case DurationType.Permanent: return per * 4f;                    // 换区不移除 2.0
+                default: return per; // Once 等瞬态兜底（属性 grant 不应出现）
+            }
+        }
+
+        /// <summary>固定分支门附加费表（2026-09-13 定案：条件=技能类型——奖励原子维持 0 费；
+        /// "造成伤害时"门已随战斗伤害改写族上线而移除）。</summary>
+        public static readonly Dictionary<string, int> GatePremium = new Dictionary<string, int>
+        {
+            { "DmgKillsTarget", 2 }, // 消灭目标时
+            { "DeclareHit", 2 },     // 宣言结果一致时
+        };
+
+        /// <summary>效果级附加费合计：Steps 中命中门附加费（可多门叠加）+ 引擎机制费（运势/拼点=x 灰）。</summary>
+        public static int GateAndEngineFee(EffectDefinition def)
+        {
+            if (def == null) return 0;
+            int fee = 0;
+            if (def.Steps != null)
+            {
+                foreach (var step in def.Steps)
+                {
+                    if (step == null || string.IsNullOrEmpty(step.ConditionId)) continue;
+                    if (GatePremium.TryGetValue(step.ConditionId, out var premium)) fee += premium;
+                }
+            }
+            if (def.EngineKind == BranchEngineKind.LuckRoll || def.EngineKind == BranchEngineKind.Clash)
+                fee += Math.Max(1, Math.Min(5, def.EngineParam));
+            return fee;
+        }
+
+        /// <summary>触发上限计价系数：触发式 N&gt;1 → 1.2^(N-1)（连乘）；显式无限(-1) → 1.2³；
+        /// N=1 / 非触发式（启动式现付、光环静态）不乘。只对触发式生效（IsTriggeredEffect 守卫）。</summary>
+        public static float TriggerCostFactor(EffectDefinition def)
+        {
+            if (def == null || !def.IsTriggeredEffect) return 1f;
+            if (def.TriggerLimitPerTurn > 1)
+                return (float)Math.Pow(TriggerExtraCostFactor, def.TriggerLimitPerTurn - 1);
+            if (def.TriggerLimitPerTurn == -1)
+                return (float)Math.Pow(TriggerExtraCostFactor, 3);
+            return 1f;
+        }
+
         private static int ComputeAtomCost(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, AtomicEffectConfig cfg)
         {
             int amount = ComputeAtomBaseAmount(atom, def, cfg);
@@ -165,9 +269,17 @@ namespace CardCore
             if (polarity != 0f && WrongSide(polarity, domain))
                 amount = (int)Math.Round(amount * (1f - Math.Abs(polarity)), MidpointRounding.AwayFromZero);
 
-            // 固定数量：费用 ×N（N=组合层 TargetCount；全部/任意语义无法在构建期确定，按 1）。
-            int n = def.TargetCount;
+            // 固定数量：费用 ×N（N=组合层 TargetCount）；全部/任意语义无法在构建期确定——
+            // 按**期望目标数**计（2026-09-13 用户定案：期望 4，少了亏多了赚，前期难超 4 生物同场）；
+            // 固有全域原子（类型伤害/全体治疗）范围溢价已含 BaseCost，数量恒 ×1。
+            int n = QuantityMultiplier(atom.Type, def);
             if (n > 1) amount *= n;
+
+            // 触发上限计价（2026-09-13 定案）：多次触发连乘 1.2^(N-1)；显式无限(-1)=×1.2³
+            //（与 Full 期望 4 同智，曲线连续）；N=1 / 非触发式 / 光环不乘。
+            float triggerFactor = TriggerCostFactor(def);
+            if (triggerFactor > 1f)
+                amount = (int)Math.Round(amount * triggerFactor, MidpointRounding.AwayFromZero);
 
             // 抽牌减费缺陷（组合层）：每挂一个按 BranchConfig.json 给的减免累减，下限 0。
             if (atom.Type == AtomicEffectType.DrawCard && def.Drawbacks != null)
@@ -194,12 +306,61 @@ namespace CardCore
             if (atom.Type == AtomicEffectType.SearchDeck)
                 return FilterPrecisionCost(atom);
 
+            // 属性价梯（2026-09-13 定案：攻/血同锚 0.5/+1，按持续档定价——取代通用公式与持续折扣）：
+            // 修改族（ModifyPower/ModifyLife）档价：固定1回合（UntilEndOfTurn/ForTurns(1)）0.5、
+            // 固定2回合（UntilNextTurn/ForTurns(2)）1.0、换区移除（UntilLeaveBattlefield/WhileCondition）1.5、
+            // 换区不移除（Permanent=指示物永久档）2.0；改写族（SetPower/SetLife=设置直改，视同本体）3.0。
+            // 属性固定回合只许 1、2 两档（ForTurns(3+) 走 CardLoader 拦截；计价按 1.0 封顶兜底）。
+            float statTier = StatTierPrice(atom.Type, def);
+            if (statTier > 0f)
+                return (int)Math.Round(statTier * Math.Abs(atom.Value), MidpointRounding.AwayFromZero);
+
+            // 控制权三档（2026-09-13 定案）：回合级临时（UET/UNT/ForTurns≤2）×1.2 /
+            // 持续到离场（ULB/WhileCondition）×1.6 / 改写持有者（Permanent——控制+owner 换写，
+            // 弹回洗回死亡都归新主）×3.0。ChangeOwner 显式原子恒 ×3.0（同第三档）。
+            if (atom.Type == AtomicEffectType.GainControl || atom.Type == AtomicEffectType.ChangeOwner)
+            {
+                float ctrlMult = def.Duration == DurationType.Permanent || atom.Type == AtomicEffectType.ChangeOwner ? 3f
+                    : (def.Duration == DurationType.UntilLeaveBattlefield || def.Duration == DurationType.WhileCondition) ? 1.6f
+                    : 1.2f;
+                return (int)Math.Round(cfg.BaseCost * ctrlMult, MidpointRounding.AwayFromZero);
+            }
+
+            // Grant 关键词梯（2026-09-13 定案，魔法侧照旧按声明持续；生物侧运行时固定 UET=1.2 档）：
+            // 一次性（Once，圣盾/复生式消耗）×1.0 / 临时短（UET/ForTurns(1)）×1.2 /
+            // 临时长（UNT/ForTurns(2)/ULB/WhileCondition）×1.6 / 永久（GrantedPermanent/Setting）×2.0。
+            if (atom.Type.ToString().StartsWith("Grant"))
+            {
+                float grantMult;
+                switch (def.Duration)
+                {
+                    case DurationType.Once: grantMult = 1.0f; break;
+                    case DurationType.UntilEndOfTurn: grantMult = 1.2f; break;
+                    case DurationType.ForTurns: grantMult = def.DurationValue <= 1 ? 1.2f : 1.6f; break;
+                    case DurationType.UntilNextTurn:
+                    case DurationType.UntilLeaveBattlefield:
+                    case DurationType.WhileCondition: grantMult = 1.6f; break;
+                    default: grantMult = 2.0f; break; // Permanent（含魔法 Setting 回填）
+                }
+                return (int)Math.Round(cfg.BaseCost * grantMult, MidpointRounding.AwayFromZero);
+            }
+
             if (cfg == null || cfg.BaseCost <= 0f)
                 return 0;
 
             // CostMultiplier 在表加载时默认 1.0；目标范围等可在配置中放大费用。
             float multiplier = cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f;
             int magnitude = Math.Max(1, atom.Value);
+
+            // 召唤衍生物（2026-09-11 定案）：{衍生物}=真实生物卡指针——量级取 max(数量, 模板卡总费用)，
+            // 高价值生物的复制按其身价计价（构筑期可解析模板时；不可解析回落数量，运行时 handler 兜底拒绝）。
+            if (atom.Type == AtomicEffectType.SummonToken && !string.IsNullOrEmpty(atom.StringValue))
+            {
+                var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate ?? Attribute.MorphSystem.ResolveMorphTarget;
+                var template = resolver?.Invoke(atom.StringValue);
+                if (template != null && template.TotalCost > magnitude)
+                    magnitude = (int)Math.Round(template.TotalCost, MidpointRounding.AwayFromZero);
+            }
 
             var attrCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().AttributeValueConfig;
             float durationFactor = attrCfg.GetDurationDiscount(def.Duration, def.DurationValue)
@@ -282,9 +443,12 @@ namespace CardCore
                 int unit = ComputeAtomUnitGrant(atom, def);
                 if (unit > 0)
                 {
-                    // 固定数量同计费口径 ×N（构筑显示的声明意图；运行时按实际命中数）
-                    int n = def.TargetCount;
+                    // 固定数量同计费口径 ×N（构筑显示的声明意图；运行时按实际命中数；
+                    // 全部档按期望 4 / 固有全域 ×1 / 触发连乘——与 ComputeAtomCost 同口径）
+                    int n = QuantityMultiplier(atom.Type, def);
                     if (n > 1) unit *= n;
+                    float gtf = TriggerCostFactor(def);
+                    if (gtf > 1f) unit = (int)Math.Round(unit * gtf, MidpointRounding.AwayFromZero);
 
                     var color = PolarityGrantColor(polarity);
                     grants.TryGetValue(color, out var prev);

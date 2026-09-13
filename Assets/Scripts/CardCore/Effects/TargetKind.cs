@@ -71,10 +71,15 @@ namespace CardCore
         None = -1,
         /// <summary>自身：源卡在组合域内校验，取源卡为唯一目标。</summary>
         Self = 0,
-        /// <summary>手动：TargetSelectionService 交互选取（TargetCount/DynamicTargetCount 管数量）。</summary>
+        /// <summary>手动：TargetSelectionService 交互选取（TargetCount/DynamicTargetCount 管数量）。
+        /// 弹窗显示域不含对方侧扰魔/潜行（2026-09-13 定案：存在此范围但弹窗不显示——AI/无头代替选取同口径）。</summary>
         Manual = 1,
-        /// <summary>全域：候选全取（旧 All/AllAllies/AllEnemies/Random 的运行时行为）。</summary>
+        /// <summary>全域：候选全取（旧 All/AllAllies/AllEnemies 的运行时行为）——扰魔/潜行照常命中（范围波及）。</summary>
         Full = 2,
+        /// <summary>随机（2026-09-13 定案）：范围存在且目标数&gt;0 时不弹窗，随机种子自动抽取——
+        /// TargetCount 管抽取个数（count≤0 全部档随机无意义 ≡ Full）；从**完整候选域**抽取，
+        /// 绕过选择：扰魔/潜行可被随机命中（不可被"选"≠不可被随机/范围波及）。与 DynamicTargetCount 互斥（构筑校验）。</summary>
+        Random = 3,
     }
 
     /// <summary>TargetKind 静态规则：区域映射、类别判定、解析与格式化（表列/JSON 存逗号分隔 int 串）。</summary>

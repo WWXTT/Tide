@@ -30,6 +30,20 @@ namespace CardCore
             _usageTracker = new EffectUsageTracker();
         }
 
+        /// <summary>触发上限闸门（2026-09-13 定案）：触发式效果本回合触发数是否已达上限——
+        /// 触发式在 ProcessTriggeredEffects 入栈即记账（RecordQueuedActivation，防同批出队时
+        /// 第 1 个未结算导致第 2 个漏拦）；启动式结算记账走既有 RecordActivation
+        /// （启动/触发同台账，按 effect.Id 天然不互扰；OnNewTurn 清零）。
+        /// 坚韧等不可修改原子（MountKinds 含 8）恒 TriggerLimitPerTurn=-1 不受限。</summary>
+        public bool TriggerCapReached(EffectDefinition effect)
+            => effect != null && effect.TriggerLimitPerTurn > 0
+               && _usageTracker.GetTurnUsage(effect.Id) >= effect.TriggerLimitPerTurn;
+
+        /// <summary>触发式入栈即记账（2026-09-13 修复：结算期记账在同批多触发下查账恒滞后一轮，
+        /// "一回合一次"闸门失效）；结算处对触发式跳过 RecordActivation 防双记。</summary>
+        public void RecordQueuedActivation(EffectDefinition effect)
+            => _usageTracker.RecordActivation(effect.Id);
+
         /// <summary>
         /// 检查效果是否可以发动
         /// </summary>
@@ -42,7 +56,7 @@ namespace CardCore
             int turnNumber)
         {
             // 0. 横置代价预检（2026-09-08 定案）：只有启动式能力（Activate_*）以横置为发动代价
-            //    （与攻击同价、一回合一次；警戒抵扣在发动成功时经 KeywordRules.ShouldTap 结算）；
+            //    （与攻击同价的固定代价，发动成功时经 KeywordRules.ShouldTap 统一支付——恒横置，警戒不抵扣）；
             //    触发式（登场/死亡/离场/受攻击等）发动不横置，已横置的源也不受阻。
             if (effect.IsActivatedEffect
                 && source is Card activateCard && activateCard.IsTapped()
@@ -196,9 +210,13 @@ namespace CardCore
                 // 特殊代价（2026-09-11 定案：付代价=得黑/白，补偿跟代价走）：
                 // 卡牌 cast 的特殊代价已在付费步支付并补偿（ResolveCardCastAsync，ElementCostPrepaid 标记）；
                 // 启动式/动态效果在此现付+补偿。
-                if (specialCosts.Count > 0 && !effect.ElementCostPrepaid)
+                // 可选代价除外（2026-09-13 用户裁决：代价可选=玩家自选，AI 按手里有无黑白卡决定
+                // 得资源/减费）——SelfSickness 类在无决策点的直入路径（入场/触发/动态）默认不付，
+                // 选择只发生在 cast 付费步（PayOptionalCardCostsAsync）。
+                var forcedCosts = specialCosts.Where(c => c != null && c.Type != CostType.SelfSickness).ToList();
+                if (forcedCosts.Count > 0 && !effect.ElementCostPrepaid)
                 {
-                    if (!await CostCompensationService.PayWithCompensationAsync(specialCosts, costContext))
+                    if (!await CostCompensationService.PayWithCompensationAsync(forcedCosts, costContext))
                     {
                         throw new EffectResolutionException(instance.SourceEffect, $"Cost payment failed for effect {effect.Id}.");
                     }
@@ -231,8 +249,9 @@ namespace CardCore
             // 标记已结算
             instance.IsResolved = true;
 
-            // 记录使用次数
-            _usageTracker.RecordActivation(effect.Id);
+            // 记录使用次数（触发式已在 ProcessTriggeredEffects 入栈时记账，此处防双记）
+            if (instance.TriggeringEvent == null)
+                _usageTracker.RecordActivation(effect.Id);
 
             // 触发效果结算事件（关联来源 Effect 与解析上下文）
             EventManager.Instance.Publish(new EffectResolveEvent
@@ -603,8 +622,8 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 处理条件发动效果（强制/自动，不检查速度，自动入栈）
-        /// 每轮轮询前调用
+        /// 处理条件发动效果（强制/自动，不走速度，自动入栈）
+        /// 每轮轮询前调用；2026-09-13 定案：条件发动不参与速度比较、不抬升记速器
         /// </summary>
         public void ProcessTriggeredEffects()
         {
@@ -613,10 +632,17 @@ namespace CardCore
                 var next = _pendingQueue.GetNextEffect();
                 if (next == null) break;
 
-                _speedCounter.Increment();
+                // 触发上限闸门（2026-09-13 定案）：达到上限的触发式静默丢弃
+                //（GetNextEffect 已出队——丢弃即不回插；不可修改原子恒 -1 不受限）
+                if (_executor.TriggerCapReached(next.Effect)) continue;
+
                 var instance = EffectInstance.FromPendingEffect(next);
                 _stack.Push(instance);
                 next.IsOnStack = true;
+
+                // 触发上限记账提前到入栈时（2026-09-13 修复）：同批多个触发出队时，
+                // 结算期记账会让第 2 个及以后的触发绕过"一回合一次"闸门
+                _executor.RecordQueuedActivation(next.Effect);
 
                 EventManager.Instance.Publish(new StackAddEvent
                 {
@@ -627,16 +653,16 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 尝试发动效果（速度发动入口）
-        /// 速度检查： speed > counter
-        /// 入栈后 counter +1（不是 RaiseTo）
+        /// 尝试发动效果（速度发动入口，2026-09-13 定案口径）
+        /// 门槛：回合持有者 速度 ≥ 记速器；非回合持有者 速度 &gt; 记速器（严格大于）
+        /// 入栈时记速器只在更高速度时抬升（RaiseTo，非无条件 +1）
         /// </summary>
         public bool TryActivateEffect(PendingEffect pending)
         {
-            if (!_speedCounter.CanActivate(pending.ActivationSpeed, pending.ActivationType))
+            if (!_speedCounter.CanActivate(pending.ActivationSpeed, pending.Controller == _activePlayer, pending.ActivationType))
                 return false;
 
-            _speedCounter.Increment(); // ★ 记速器 +1
+            _speedCounter.RaiseTo(pending.ActivationSpeed); // ★ 记速器：更高才抬升
 
             var instance = EffectInstance.FromPendingEffect(pending);
             _stack.Push(instance);
@@ -658,8 +684,8 @@ namespace CardCore
         /// <summary>
         /// 整卡施放入栈（使用时点声明）：打出的卡已移入发动区，本对象代表「此卡被使用」，
         /// 对手获得优先权——响应窗口内可经 GameActions.PlayCardInResponse 打出 打落/发动无效 等。
-        /// 速度 = 记速器 +1：出牌作为基础动作单位不受连锁深度限制
-        /// （深度照常计入记速器，激活式能力的速度门槛不受影响）。
+        /// 2026-09-13 定案：整卡施放同为速度发动——速度=卡面声明（效果 BaseSpeed 最大值，缺省 0）；
+        /// 门槛同 TryActivateEffect（回合方 ≥ / 非回合方严格大于），0 速卡无法在对手回合响应打出。
         /// 结算消费点见 GameActions.ResolveCardCastAsync（Option Y：扣费在响应窗口之后）。
         /// </summary>
         public bool PushCardCast(Card card, Player controller, List<Entity> targets, int modeIndex = 0)
@@ -667,17 +693,21 @@ namespace CardCore
             if (card == null || controller == null) return false;
             if (_isResolving) return false; // 结算中不可声明（与 SpeedCounter.CanActivate 同口径）
 
+            int castSpeed = SpeedCalculator.GetCardCastSpeed(card);
+            if (!_speedCounter.CanActivate(castSpeed, controller == _activePlayer, EffectActivationType.Voluntary))
+                return false;
+
             var instance = new EffectInstance
             {
                 IsCardCast = true,
                 Source = card,
                 Controller = controller,
-                ActivationSpeed = _speedCounter.CurrentSpeed + 1,
+                ActivationSpeed = castSpeed,
                 Targets = targets != null ? new List<Entity>(targets) : new List<Entity>(),
                 ModeIndex = modeIndex, // 抉择：声明期选定模式（随 cast 上栈，对手可见、结算按此付费）
             };
 
-            _speedCounter.Increment(); // ★ 记速器 +1（与 TryActivateEffect 同规）
+            _speedCounter.RaiseTo(castSpeed); // ★ 记速器：更高才抬升
 
             _stack.Push(instance);
             _priorityHolder = controller.Opponent;
@@ -773,11 +803,11 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 获取可发动的速度效果列表
+        /// 获取可发动的速度效果列表（2026-09-13 口径：回合归属进门槛——activator=null 按非回合方严格口径）
         /// </summary>
-        public List<PendingEffect> GetActivatableVoluntaryEffects()
+        public List<PendingEffect> GetActivatableVoluntaryEffects(Player activator)
         {
-            return _pendingQueue.GetVoluntaryEffects();
+            return _pendingQueue.GetVoluntaryEffects(activator != null && activator == _activePlayer);
         }
 
         /// <summary>
@@ -818,7 +848,7 @@ namespace CardCore
                         await GameActions.ResolveCardCastAsync(top);
                     else
                         await _executor.ExecuteAsync(top);
-                    _speedCounter.Decrement();
+                    // 2026-09-13 定案：记速器=本连锁最高速度，逐个结算不递减——归 0 统一在 FinishResolution
 
                     EventManager.Instance.Publish(new StackResolutionEndEvent
                     {
@@ -913,7 +943,9 @@ namespace CardCore
                         await GameActions.ResolveCardCastAsync(top);
                     else
                         await _executor.ExecuteAsync(top);
-                    _speedCounter.Decrement();
+                    // 2026-09-13 定案：记速器=本连锁最高速度，逐个结算不递减——栈排干时归 0
+                    if (_stack.Count == 0)
+                        _speedCounter.Reset();
                 }
                 finally
                 {
@@ -1169,6 +1201,10 @@ namespace CardCore
                 new HealHandler(),
                 new ModifyPowerHandler(),
                 new MorphHandler(),
+
+                // 固有全域原子（2026-09-13：类型伤害/全体治疗——强制 Full、禁随机，执行复用上方管线）
+                new SweepDamageHandler(),
+                new SweepHealHandler(),
 
                 // 第一批补齐 — 伤害类
                 new PierceDamageHandler(),

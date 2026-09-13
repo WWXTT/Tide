@@ -75,7 +75,7 @@ namespace CardCore.Network
     /// <summary>
     /// RuntimeId → Entity 运行时字典（解析缓存）。
     /// miss 时全区域扫描重建（双方 Hand/Battlefield/Graveyard/Exile/Deck/ElementPool/Activation/
-    /// ExtraDeck/FieldZone + 发动区，≤200 张，O(n) 可忽略）。
+    /// FieldZone，≤200 张，O(n) 可忽略）。
     /// 卡在发动区（cast 上栈期间）也在 Zone 扫描覆盖内——MoveCard 先进 Activation 再 PushCardCast。
     /// </summary>
     public static class NetEntityDirectory

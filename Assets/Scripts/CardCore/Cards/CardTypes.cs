@@ -156,16 +156,6 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 具有等级/阶级/连接值的接口（YGO 怪兽）
-    /// </summary>
-    public interface IHasLevel
-    {
-        int? Level { get; }
-        int? Rank { get; }
-        int? LinkRating { get; }
-    }
-
-    /// <summary>
     /// 具有颜色认同的接口（MTG 颜色饼）
     /// </summary>
     public interface IHasColorIdentity
@@ -173,14 +163,6 @@ namespace CardCore
         ColorIdentity ColorIdentity { get; }
     }
 
-    /// <summary>
-    /// 额外卡组卡牌接口
-    /// </summary>
-    public interface IIsExtraDeck
-    {
-        bool IsExtraDeck { get; }
-        SummonMethod DefaultSummonMethod { get; }
-    }
 
     /// <summary>
     /// 具有来源信息的接口

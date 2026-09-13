@@ -376,15 +376,17 @@ namespace CardCore
         #region 特殊状态
 
         /// <summary>
-        /// 冻结（定案）：强制横置（一次性动作）+ 放置一个负面冻结指示物（持续到回合结束，
-        /// 经 CounterRules 统一消退）。不修改回合规则——回合开始横置重置照常。
+        /// 冻结（2026-09-13 定案）：强制横置（一次性动作）+ 放置冻结指示物——**默认 1 回合、可叠加**：
+        /// 对已冻结目标施加冻结 = 持续回合数 +1（每层一回合，回合末 CounterRules 倒数 -1）；
+        /// 持有期间无法重置（SleepFreezeUntapBlockRule）。duration 参数 vestigial（层数模型取代持续档）。
+        /// layers：指示物层数（2026-09-13 指示物数量随机——Value 掷值，缺省 1）。
         /// </summary>
-        public static void Freeze(this Entity entity, DurationType duration)
+        public static void Freeze(this Entity entity, DurationType duration, int layers = 1)
         {
             if (entity is Card card)
             {
                 card._isTapped = true;
-                card.AddCounters(Attribute.KeywordRules.FreezeCounter, 1);
+                card.AddCounters(Attribute.KeywordRules.FreezeCounter, System.Math.Max(1, layers));
             }
         }
 
@@ -524,16 +526,18 @@ namespace CardCore
         // 【定案】随从可用性唯一指标 = 横置（_isTapped）：默认横置入场（冲锋/突袭豁免），
         // 攻击与发动效果各消耗一次横置，己方回合开始（地牌重置后）重置——不另设召唤失调标记。
 
-        /// <summary>本回合已攻击次数（上限 1，风怒 = 2；己方回合开始清零）</summary>
+        /// <summary>本回合已攻击次数台账（纯统计：2026-09-10 横置即上限定案后非发动门槛，
+        /// CardPipelineVerifier 激励再攻锚消费此计数；己方回合开始清零）</summary>
         public int AttacksThisTurn { get; set; } = 0;
 
-        /// <summary>警戒：本回合横置抵消额度已消耗（一回合只生效一次）</summary>
-        internal bool _vigilanceUsedThisTurn = false;
+        /// <summary>临时卡标记（2026-09-11 微缩/放大/回响定案）：复制生成的临时卡回合结束时从手牌移除、
+        /// 不可作地牌（CanServeAsLand 守卫）、自身不再触发微缩/放大（防自复制链；回响连锁除外——复制自带回响是设计）。</summary>
+        public bool IsTemporary { get; set; } = false;
 
         /// <summary>
-        /// 召唤来源标记：是否经「正式召唤」入场（普通召唤 / 特殊召唤 / 从额外组召唤）。
+        /// 召唤来源标记：是否经「正式召唤」入场（打出 / 效果召唤 / 复活）。
         /// 仅正式召唤过的随从死亡后才可被 ReturnFromGraveyard 复活；
-        /// 被弃牌 / 送墓（本组）/ 送额外组等「非正式入墓」的随从该标记为 false，不可复活。
+        /// 被弃牌 / 送墓（本组）等「非正式入墓」的随从该标记为 false，不可复活。
         /// </summary>
         public bool WasFormallySummoned { get; set; } = false;
 

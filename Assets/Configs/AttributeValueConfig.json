@@ -8,7 +8,8 @@
     "EffectType": "Attack",
     "TargetKinds": "2",
     "TargetFilter": null,
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0"
   },
   {
     "ID": "f2344636",
@@ -19,7 +20,8 @@
     "EffectType": "Guard",
     "TargetKinds": "",
     "TargetFilter": null,
-    "Polarity": 0.0
+    "Polarity": 0.0,
+    "MountKinds": "0"
   },
   {
     "ID": "615fc28b",
@@ -30,7 +32,8 @@
     "EffectType": "DealDamage",
     "TargetKinds": "1,2",
     "TargetFilter": null,
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,3,4,7"
   },
   {
     "ID": "d2720caf",
@@ -41,7 +44,8 @@
     "EffectType": "Heal",
     "TargetKinds": "1,2",
     "TargetFilter": null,
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,3,4,7"
   },
   {
     "ID": "3c678110",
@@ -52,7 +56,8 @@
     "EffectType": "PierceDamage",
     "TargetKinds": "1,2",
     "TargetFilter": null,
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,3,4,7"
   },
   {
     "ID": "a5d8c66a",
@@ -63,7 +68,8 @@
     "EffectType": "DrainLife",
     "TargetKinds": "1,2",
     "TargetFilter": null,
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,3,4,7"
   },
   {
     "ID": "9b86aa31",
@@ -74,7 +80,8 @@
     "EffectType": "Poison",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4,2"
   },
   {
     "ID": "120ad4d1",
@@ -85,7 +92,8 @@
     "EffectType": "DrawCard",
     "TargetKinds": "7,8",
     "TargetFilter": null,
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "bf06d56b",
@@ -96,7 +104,8 @@
     "EffectType": "DiscardCard",
     "TargetKinds": "5,6",
     "TargetFilter": null,
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "be13c16c",
@@ -107,7 +116,8 @@
     "EffectType": "ReturnToHand",
     "TargetKinds": "1,2,3,4",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "4c8525cd",
@@ -118,7 +128,8 @@
     "EffectType": "RecoverToHand",
     "TargetKinds": "9,10",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "f1b37855",
@@ -129,7 +140,8 @@
     "EffectType": "Exile",
     "TargetKinds": "1,2,3,4",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "6d939742",
@@ -140,7 +152,8 @@
     "EffectType": "ShuffleIntoDeck",
     "TargetKinds": "1,2,3,4",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "fc49d799",
@@ -151,7 +164,8 @@
     "EffectType": "ShuffleIntoDeck",
     "TargetKinds": "9,10",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "c2abbd1f",
@@ -162,7 +176,8 @@
     "EffectType": "SearchDeck",
     "TargetKinds": "7",
     "TargetFilter": null,
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "81ecd1c7",
@@ -173,29 +188,32 @@
     "EffectType": "ReturnFromGraveyard",
     "TargetKinds": "9,10",
     "TargetFilter": null,
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "4b1174b6",
-    "EnumName": "观星",
+    "EnumName": "占卜",
     "DisplayName": "查看自己牌库顶{value}张卡并任意排列",
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "LookAtTopCards",
     "TargetKinds": "7",
     "TargetFilter": null,
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "3b959efe",
-    "EnumName": "占卜",
+    "EnumName": "刺探",
     "DisplayName": "查看对手牌库顶{value}张卡并任意排列",
     "EffectColor": "Blue",
     "BaseCost": 1.5,
     "EffectType": "ScryCards",
     "TargetKinds": "8",
     "TargetFilter": null,
-    "Polarity": 1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "df96e6c6",
@@ -206,7 +224,8 @@
     "EffectType": "SetPower",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": 0.0
+    "Polarity": 0.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "ce59ba16",
@@ -217,7 +236,8 @@
     "EffectType": "SetLife",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": 0.0
+    "Polarity": 0.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "638e6adf",
@@ -228,7 +248,8 @@
     "EffectType": "SetCost",
     "TargetKinds": "5,6",
     "TargetFilter": null,
-    "Polarity": 0.0
+    "Polarity": 0.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "a2f82a34",
@@ -239,7 +260,8 @@
     "EffectType": "AddCostUp",
     "TargetKinds": "5,6",
     "TargetFilter": null,
-    "Polarity": 0.0
+    "Polarity": 0.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "47778da8",
@@ -250,7 +272,8 @@
     "EffectType": "AddCostDown",
     "TargetKinds": "5,6",
     "TargetFilter": null,
-    "Polarity": 0.0
+    "Polarity": 0.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "20e8ab89",
@@ -261,7 +284,8 @@
     "EffectType": "AddPowerUp",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "f7fd0646",
@@ -272,7 +296,8 @@
     "EffectType": "AddPowerDown",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "e0bed832",
@@ -283,7 +308,8 @@
     "EffectType": "AddLifeUp",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "80579c02",
@@ -294,7 +320,8 @@
     "EffectType": "AddLifeDown",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "e77b2bc0",
@@ -305,7 +332,8 @@
     "EffectType": "AddPlusOne",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,2"
   },
   {
     "ID": "64192531",
@@ -316,18 +344,20 @@
     "EffectType": "AddMinusOne",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4,2"
   },
   {
-    "ID": "31bc459c",
+    "ID": "51e31ad5",
     "EnumName": "毒刺",
-    "DisplayName": "造成伤害时，会给对手附加一个持续{value}回合的毒素指示物",
+    "DisplayName": "造成战斗伤害时，改为对目标添加一个毒素指示物",
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "GrantPoisonSting",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
   },
   {
     "ID": "9794b926",
@@ -338,7 +368,8 @@
     "EffectType": "GrantLifesteal",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
   },
   {
     "ID": "d3f3996c",
@@ -349,7 +380,8 @@
     "EffectType": "GrantStealth",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
   },
   {
     "ID": "feab5d3b",
@@ -360,29 +392,20 @@
     "EffectType": "GrantDivineShield",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
   },
   {
-    "ID": "1281837b",
+    "ID": "b8bfd901",
     "EnumName": "碾压",
-    "DisplayName": "攻击会同时对目标附近单位造成伤害",
+    "DisplayName": "获得碾压：攻击结算时，对目标以及目标相邻单位造成战斗伤害",
     "EffectColor": "Red",
-    "BaseCost": 6.0,
+    "BaseCost": 3.0,
     "EffectType": "GrantOverwhelm",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
-  },
-  {
-    "ID": "bd623d85",
-    "EnumName": "坚韧",
-    "DisplayName": "受到伤害时，最终伤害-1",
-    "EffectColor": "Green",
-    "BaseCost": 1.0,
-    "EffectType": "GrantArmor",
-    "TargetKinds": "0",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
   },
   {
     "ID": "465f51dc",
@@ -393,7 +416,8 @@
     "EffectType": "GrantVigilance",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
   },
   {
     "ID": "96f16089",
@@ -404,7 +428,8 @@
     "EffectType": "GrantFirstStrike",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
   },
   {
     "ID": "e62da629",
@@ -415,18 +440,20 @@
     "EffectType": "GrantSpellShield",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
   },
   {
-    "ID": "a39fdf1c",
-    "EnumName": "辟邪",
-    "DisplayName": "不会成为效果目标",
+    "ID": "4fa2abee",
+    "EnumName": "扰魔",
+    "DisplayName": "不会成为效果目标（扰魔）",
     "EffectColor": "White",
     "BaseCost": 2.0,
     "EffectType": "GrantCannotBeTargeted",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
   },
   {
     "ID": "376db582",
@@ -437,7 +464,8 @@
     "EffectType": "GrantReborn",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
   },
   {
     "ID": "fd04d3c7",
@@ -448,7 +476,8 @@
     "EffectType": "GrantIndestructible",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
   },
   {
     "ID": "2d46dbd4",
@@ -459,7 +488,8 @@
     "EffectType": "GrantLifelink",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
   },
   {
     "ID": "5d59d89a",
@@ -470,7 +500,8 @@
     "EffectType": "GrantRegeneration",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
   },
   {
     "ID": "baf2ff12",
@@ -481,7 +512,8 @@
     "EffectType": "GrantGrowth",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
   },
   {
     "ID": "f438a5e9",
@@ -492,7 +524,8 @@
     "EffectType": "AddArmor",
     "TargetKinds": "1,2",
     "TargetFilter": null,
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,2"
   },
   {
     "ID": "d2fbd616",
@@ -503,7 +536,8 @@
     "EffectType": "AddToxin",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4,2"
   },
   {
     "ID": "2ccdc6cd",
@@ -514,18 +548,20 @@
     "EffectType": "Silence",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4,2"
   },
   {
-    "ID": "4ae92be6",
-    "EnumName": "无效",
-    "DisplayName": "对目标附加无效指示物（非启动式能力无法发动）",
+    "ID": "b5bb3de9",
+    "EnumName": "无响应",
+    "DisplayName": "对目标附加无响应指示物（非启动式能力无法响应）",
     "EffectColor": "White",
     "BaseCost": 2.0,
     "EffectType": "AddNullify",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": 0.0
+    "Polarity": 0.0,
+    "MountKinds": "0,4,2"
   },
   {
     "ID": "f503d5cd",
@@ -536,7 +572,8 @@
     "EffectType": "Untap",
     "TargetKinds": "1",
     "TargetFilter": "NoRole,Tapped",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "69b7d29f",
@@ -547,7 +584,8 @@
     "EffectType": "GrantDisarm",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
   },
   {
     "ID": "e5a7087d",
@@ -558,7 +596,8 @@
     "EffectType": "LifeLoss",
     "TargetKinds": "1,2",
     "TargetFilter": null,
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4,7"
   },
   {
     "ID": "3d814637",
@@ -569,7 +608,8 @@
     "EffectType": "Freeze",
     "TargetKinds": "1,2,3,4",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4,2,7"
   },
   {
     "ID": "98710212",
@@ -580,7 +620,8 @@
     "EffectType": "RushSickness",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4,2,7"
   },
   {
     "ID": "fe49ceb5",
@@ -591,7 +632,8 @@
     "EffectType": "AddVulnerable",
     "TargetKinds": "1,2",
     "TargetFilter": null,
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4,2"
   },
   {
     "ID": "99d5cea3",
@@ -602,7 +644,8 @@
     "EffectType": "GainControl",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "6559671a",
@@ -613,7 +656,8 @@
     "EffectType": "NegateActivation",
     "TargetKinds": "15,16",
     "TargetFilter": null,
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "e4b597c4",
@@ -624,7 +668,8 @@
     "EffectType": "Purify",
     "TargetKinds": "1,2",
     "TargetFilter": null,
-    "Polarity": 0.0
+    "Polarity": 0.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "bcb21d67",
@@ -635,7 +680,8 @@
     "EffectType": "TakeExtraTurn",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "322f5e4a",
@@ -646,7 +692,8 @@
     "EffectType": "SkipTurn",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "0087a01c",
@@ -657,7 +704,8 @@
     "EffectType": "SkipTurn",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "ddd6f733",
@@ -668,7 +716,8 @@
     "EffectType": "Morph",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
-    "Polarity": 0.0
+    "Polarity": 0.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "5ce13923",
@@ -679,7 +728,8 @@
     "EffectType": "Devour",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole,Mortal",
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "48980cf0",
@@ -690,7 +740,8 @@
     "EffectType": "Annihilate",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole,Mortal",
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "cc4f6990",
@@ -701,7 +752,8 @@
     "EffectType": "Smash",
     "TargetKinds": "3,4,13,14",
     "TargetFilter": null,
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "db0a05fa",
@@ -712,40 +764,32 @@
     "EffectType": "KnockDown",
     "TargetKinds": "15,16",
     "TargetFilter": null,
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   },
   {
-    "ID": "acdf4975",
+    "ID": "3a4aef82",
     "EnumName": "召唤衍生物",
-    "DisplayName": "生成一个具有攻击和守卫，属性值为{value}的衍生物至指定区域",
+    "DisplayName": "召唤{value}个衍生物至指定落区（{衍生物}=字符串参数指向一张真实生物卡，实例=该卡全参数复制）",
     "EffectColor": "White",
     "BaseCost": 1.0,
     "EffectType": "SummonToken",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 1.0
-  },
-  {
-    "ID": "75dbb97a",
-    "EnumName": "召唤衍生物",
-    "DisplayName": "生成{value}个具有攻击和守卫，属性值为一的衍生物至指定区域",
-    "EffectColor": "White",
-    "BaseCost": 1.0,
-    "EffectType": "SummonToken",
-    "TargetKinds": null,
-    "TargetFilter": null,
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "19e2454b",
     "EnumName": "采掘",
     "DisplayName": "去除目标地牌3个同类型元素指示物，获得1点对应元素",
-    "EffectColor": "Gray",
+    "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "AdditionalEnergy",
     "TargetKinds": "13",
     "TargetFilter": "NoRole",
-    "Polarity": 0.0
+    "Polarity": 0.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "fa3902cc",
@@ -756,7 +800,8 @@
     "EffectType": "AdditionalEnergy",
     "TargetKinds": "0",
     "TargetFilter": null,
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4"
   },
   {
     "ID": "8cf5c57c",
@@ -767,7 +812,8 @@
     "EffectType": "Sleep",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": -1.0
+    "Polarity": -1.0,
+    "MountKinds": "0,4,2,7"
   },
   {
     "ID": "bd2554f2",
@@ -778,6 +824,175 @@
     "EffectType": "Sleep",
     "TargetKinds": "0",
     "TargetFilter": null,
-    "Polarity": 1.0
+    "Polarity": 1.0,
+    "MountKinds": "0,4,2,7"
+  },
+  {
+    "ID": "67893ecf",
+    "EnumName": "帷幕",
+    "DisplayName": "获得帷幕：敌方效果只能指定帷幕单位（攻击不受限，由守卫承担）",
+    "EffectColor": "White",
+    "BaseCost": 1.0,
+    "EffectType": "GrantTaunt",
+    "TargetKinds": "0",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "0,1,4,5"
+  },
+  {
+    "ID": "3c696cb0",
+    "EnumName": "微缩",
+    "DisplayName": "{target}获得微缩：你使用卡时，将一张同效果、1/1、费用1灰的临时卡加入手牌（回合结束移除）",
+    "EffectColor": "Blue",
+    "BaseCost": 3.0,
+    "EffectType": "GrantMiniature",
+    "TargetKinds": "1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "0,5"
+  },
+  {
+    "ID": "a9cf639e",
+    "EnumName": "放大",
+    "DisplayName": "{target}获得放大：你使用卡时，将一张同效果、10/10、费用10灰的临时卡加入手牌（回合结束移除）",
+    "EffectColor": "Red",
+    "BaseCost": 3.0,
+    "EffectType": "GrantMagnify",
+    "TargetKinds": "1",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "0,5"
+  },
+  {
+    "ID": "803898ac",
+    "EnumName": "回响",
+    "DisplayName": "使用后获得一张完全复制的临时卡，复制也带回响（回合结束移除）",
+    "EffectColor": "Blue",
+    "BaseCost": 1.0,
+    "EffectType": "GrantEcho",
+    "TargetKinds": "0",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "1,5,6"
+  },
+  {
+    "ID": "4e609e26",
+    "EnumName": "发现",
+    "DisplayName": "从牌库中随机展示{value}张牌（默认3），从中选择一张加入手牌；未选中的留在牌库原位",
+    "EffectColor": "Blue",
+    "BaseCost": 2.0,
+    "EffectType": "DiscoverCard",
+    "TargetKinds": "7",
+    "TargetFilter": null,
+    "Polarity": 1.0,
+    "MountKinds": "0,4"
+  },
+  {
+    "ID": "1e66e0c9",
+    "EnumName": "类型伤害",
+    "DisplayName": "对范围内全部有生命单位造成{value}点伤害（不弹选择、不可随机，全域结算）",
+    "EffectColor": "Red",
+    "BaseCost": 3.0,
+    "EffectType": "SweepDamage",
+    "TargetKinds": "1,2",
+    "TargetFilter": null,
+    "Polarity": -1.0,
+    "MountKinds": "0,3,4"
+  },
+  {
+    "ID": "a0014ebe",
+    "EnumName": "全体治疗",
+    "DisplayName": "对范围内全部有生命单位恢复{value}点生命（不弹选择、不可随机，全域结算）",
+    "EffectColor": "Green",
+    "BaseCost": 2.0,
+    "EffectType": "SweepHeal",
+    "TargetKinds": "1,2",
+    "TargetFilter": null,
+    "Polarity": 1.0,
+    "MountKinds": "0,3,4"
+  },
+  {
+    "ID": "33f21d4c",
+    "EnumName": "牺牲",
+    "DisplayName": "持有者选择一个生物牺牲（效果死亡，来源为持有者，无视不灭）",
+    "EffectColor": "Black",
+    "BaseCost": 3.0,
+    "EffectType": "Sacrifice",
+    "TargetKinds": "1,2",
+    "TargetFilter": "Player",
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
+  },
+  {
+    "ID": "86180457",
+    "EnumName": "摒弃",
+    "DisplayName": "持有者选择一个己方场上无生命单位摒弃（直送墓地）",
+    "EffectColor": "Black",
+    "BaseCost": 3.0,
+    "EffectType": "Abandon",
+    "TargetKinds": "1,2",
+    "TargetFilter": "Player",
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
+  },
+  {
+    "ID": "2acf8573",
+    "EnumName": "冰晶",
+    "DisplayName": "造成战斗伤害时，改为对目标添加一个冻结指示物",
+    "EffectColor": "Blue",
+    "BaseCost": 2.0,
+    "EffectType": "GrantIceCrystal",
+    "TargetKinds": "0",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
+  },
+  {
+    "ID": "c0b1b0f8",
+    "EnumName": "梦魇",
+    "DisplayName": "造成战斗伤害时，改为对目标添加一个沉睡指示物",
+    "EffectColor": "Black",
+    "BaseCost": 2.0,
+    "EffectType": "GrantNightmare",
+    "TargetKinds": "0",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
+  },
+  {
+    "ID": "345ceda5",
+    "EnumName": "病原体",
+    "DisplayName": "造成战斗伤害时，改为对目标添加一个剧毒指示物",
+    "EffectColor": "Green",
+    "BaseCost": 3.0,
+    "EffectType": "GrantPathogen",
+    "TargetKinds": "0",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
+  },
+  {
+    "ID": "cc55f2ce",
+    "EnumName": "禁魔石",
+    "DisplayName": "受到的非战斗伤害变为0",
+    "EffectColor": "White",
+    "BaseCost": 3.0,
+    "EffectType": "GrantSpellban",
+    "TargetKinds": "0",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5"
+  },
+  {
+    "ID": "225441a1",
+    "EnumName": "改写持有者",
+    "DisplayName": "改写目标的持有者（永久换手含控制权——弹回洗回回新主卡组手牌，死亡去新主墓地）",
+    "EffectColor": "Black",
+    "BaseCost": 2.0,
+    "EffectType": "ChangeOwner",
+    "TargetKinds": "1,2",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0,
+    "MountKinds": "0,4"
   }
 ]

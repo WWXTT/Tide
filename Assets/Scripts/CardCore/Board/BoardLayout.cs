@@ -17,9 +17,6 @@ namespace GameBoard
         /// <summary>卡组格</summary>
         Deck,
 
-        /// <summary>额外卡组格</summary>
-        ExtraDeck,
-
         /// <summary>墓地格</summary>
         Graveyard,
 
@@ -36,7 +33,7 @@ namespace GameBoard
     /// <summary>
     /// 13×8 对战棋盘布局常量表（唯一真相源）。
     ///
-    /// 104 = 54 核心（9×6，双方各 9×3）+ 12 特殊格（每方 6）+ 38 边缘环；
+    /// 104 = 54 核心（9×6，双方各 9×3）+ 10 特殊格（每方 5）+ 40 边缘环；
     /// 双方 180° 旋转对称：rotate(c,r) = (12−c, 7−r)。
     /// 归属以玩家序号表达（0 = P1 下半场 / 1 = P2 上半场），与具体 Player 对象解耦，
     /// 由 BoardState 建立 Player ↔ 序号的映射。
@@ -44,7 +41,7 @@ namespace GameBoard
     /// 玩家自身视角（非旋转）下的半场（11×3）：
     /// <code>
     ///        lx0      lx1 ……………… lx9      lx10
-    ///  ly0   除外     ▓ 单位区（近中线）      额外
+    ///  ly0   除外     ▓ 单位区（近中线）      ○
     ///  ly1   墓地     ▓ 单位区               卡组
     ///  ly2   发动     ▓ 地牌行（贴己方边缘）  角色
     /// </code>
@@ -70,7 +67,6 @@ namespace GameBoard
         public const int P1ExileX = 1,  P1ExileZ = 4;
         public const int P1GraveX = 1,  P1GraveZ = 5;
         public const int P1ActX = 1,    P1ActZ = 6;
-        public const int P1ExtraX = 11, P1ExtraZ = 4;
         public const int P1DeckX = 11,  P1DeckZ = 5;
         public const int P1CharX = 11,  P1CharZ = 6;
 
@@ -93,7 +89,6 @@ namespace GameBoard
             SetSpecial(CellRole.Exile, P1ExileX, P1ExileZ);
             SetSpecial(CellRole.Graveyard, P1GraveX, P1GraveZ);
             SetSpecial(CellRole.Activation, P1ActX, P1ActZ);
-            SetSpecial(CellRole.ExtraDeck, P1ExtraX, P1ExtraZ);
             SetSpecial(CellRole.Deck, P1DeckX, P1DeckZ);
             SetSpecial(CellRole.Character, P1CharX, P1CharZ);
             for (int x = ColMin; x <= ColMax; x++)

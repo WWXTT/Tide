@@ -83,7 +83,8 @@ namespace CardCore.Attribute
     /// - 回合结束口径（定案）：**每个回合结束都结算**（双方回合末各一次；剧毒在最近的回合末死亡，
     ///   毒素 3 层时钟=3 个回合末）——效果型指示物与 ForTurns 时钟遍历全部实体，非仅回合玩家。
     /// - UntilEndOfTurn 整类清零保持"回合玩家战场"范围（冻结/突袭紊乱既有语义不变）。
-    /// - 持续指示物不改回合规则（回合开始横置重置照常）。
+    /// - 重置例外经 RuleHooks.IUntapBlockRule 接入（2026-09-13 定案：冻结/沉睡期间无法重置），
+    ///   其余指示物不改回合规则（回合开始横置重置照常）。
     /// - 新指示物 = 此处登记一条（OCP：不改引擎热点）；未登记 id 保守视为 正面/Permanent（不参与清理）。
     /// </summary>
     public static class CounterRules
@@ -103,6 +104,12 @@ namespace CardCore.Attribute
         public const string NullifyCounter = "Nullify";
         /// <summary>易损：持续1回合，受到伤害时每层使受到的伤害+1（每个回合末到期）</summary>
         public const string VulnerableCounter = "Vulnerable";
+        /// <summary>倒计时（2026-09-13 动态分支引擎）：层数=剩余回合，控制者回合开始 -1，归零发奖并重置；
+        /// 换区清除（重入场经 CardPutToBattlefieldEvent 重挂初值）。</summary>
+        public const string CountdownCounter = "Countdown";
+        /// <summary>耐久（2026-09-13 装备系统）：武器/效果装备的使用期限——反伤/主动攻击/转移/主动效果各 -1，
+        /// 归零销毁入墓（Smash 同款直毁）。正面/Permanent（净化可削——对位手段）。</summary>
+        public const string DurabilityCounter = "Durability";
         /// <summary>攻击力增加指示物（每层 +1 攻，仅场上）</summary>
         public const string PowerUpCounter = "PowerUp";
         /// <summary>攻击力减少指示物（每层 −1 攻，仅场上）</summary>
@@ -145,19 +152,25 @@ namespace CardCore.Attribute
             // ---- 负面 ----
             // 常驻（SBA 与 +1/+1 对消）
             Register(new CounterSpec { Id = MinusOneCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "-1/-1", StatKind = StatCounterKind.MinusOneMinusOne });
-            // 持续到回合结束（施加时横置为一次性动作；回合开始重置照常，不改回合规则）
-            Register(new CounterSpec { Id = KeywordRules.FreezeCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "冻结" });
+            // 冻结（2026-09-13 定案：**层数模型**——默认 1 回合、对已冻结目标施加=持续+1；
+            // 每回合末倒数 -1 层（OnTurnEnd ①b），不走 UntilEndOfTurn 整类清零；
+            // 持有期间无法重置（SleepFreezeUntapBlockRule）；spec=Permanent 仅为避开整类清零）
+            Register(new CounterSpec { Id = KeywordRules.FreezeCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "冻结" });
             Register(new CounterSpec { Id = KeywordRules.RushSicknessCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "突袭紊乱" });
             // 沉睡（2026-09-11 定案）：持有期间无法重置（回合开始扣 1 层代替重置，扣完即醒）+ 效果无效。
-            // 持续=Permanent（消退不走 CounterRules 回合末回收——由 GameCore 回合开始的逐层倒数承担）。
+            // 持续=Permanent（消退不走 CounterRules 回合末回收——由回合开始重置拦截的逐层倒数承担）。
             Register(new CounterSpec { Id = KeywordRules.SleepCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "沉睡" });
 
             // ---- 原子表整体修正新增（2026-09-03 定案）----
             Register(new CounterSpec { Id = PoisonCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "剧毒", TurnEndEffect = CounterTurnEndEffect.PoisonDeath });
             Register(new CounterSpec { Id = ToxinCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.ForTurns, DisplayName = "毒素", TurnEndEffect = CounterTurnEndEffect.DamagePerStack, Turns = 3 });
             Register(new CounterSpec { Id = SilenceCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "沉默" });
-            Register(new CounterSpec { Id = NullifyCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "无效" });
+            Register(new CounterSpec { Id = NullifyCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "无响应" });
             Register(new CounterSpec { Id = VulnerableCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "易损" });
+            // 倒计时（2026-09-13 动态分支引擎）：换区清（UntilLeaveBattlefield）；消退不走回合末回收——BranchEngines 逐回合倒数
+            Register(new CounterSpec { Id = CountdownCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "倒计时" });
+            // 耐久（2026-09-13 装备系统）：常驻层——使用消耗（EquipRules.LoseDurability），归零销毁
+            Register(new CounterSpec { Id = DurabilityCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "耐久" });
             Register(new CounterSpec { Id = PowerUpCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "攻击力增加", StatKind = StatCounterKind.PowerUp });
             Register(new CounterSpec { Id = PowerDownCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "攻击力减少", StatKind = StatCounterKind.PowerDown });
             Register(new CounterSpec { Id = LifeUpCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "生命值增加", StatKind = StatCounterKind.LifeUp });
@@ -173,6 +186,10 @@ namespace CardCore.Attribute
             Register(new CounterSpec { Id = PowerDownPermanentCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "攻击力减少（永久）", StatKind = StatCounterKind.PowerDown });
             Register(new CounterSpec { Id = LifeUpPermanentCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "生命值增加（永久）", StatKind = StatCounterKind.LifeUp });
             Register(new CounterSpec { Id = LifeDownPermanentCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "生命值减少（永久）", StatKind = StatCounterKind.LifeDown });
+
+            // ---- 守护（2026-09-11 定案）----
+            // 守护者/被守护者成对：被守护者指示物的来源=第一个守护者（多守护者仅第一个触发改写）；
+            // 改写在 KeywordRules.ApplyDamage 咽喉（单跳不链式），守护者须存活在战场。
         }
 
         /// <summary>登记指示物规格（新指示物=新登记，OCP）。</summary>
@@ -200,13 +217,15 @@ namespace CardCore.Attribute
         /// 加时即写、清除（换区/净化）时反向回写——数值=字段+指示物，战斗直读字段的路径零改动。
         /// source = 施加方（指示物来源定案）：随计数登记，削减类归零标死时作为死亡来源归因。
         /// </summary>
-        public static void AddStatCounter(Card card, string id, int amount, Entity source = null)
+        public static void AddStatCounter(Card card, string id, int amount, Entity source = null, int turns = 0)
         {
             if (card == null || amount == 0) return;
             var spec = Find(id);
             if (spec.StatKind == StatCounterKind.None) return;
             card.AddCounters(id, amount, source);
             ApplyStatDelta(card, spec.StatKind, amount, source);
+            if (turns > 0)
+                card._counterClocks.Add(new CounterInstance { Id = id, Amount = amount, RemainingTurns = turns });
             EventManager.Instance.Publish(new CounterChangedEvent
             {
                 Target = card,
@@ -390,6 +409,23 @@ namespace CardCore.Attribute
                 TickClocks(entity);
             }
 
+            // ── ①b 冻结层数倒数（2026-09-13 定案：默认 1 回合、叠加 +1——每回合末 -1 层）──
+            foreach (var entity in AllEntities(turnPlayer, zoneManager))
+            {
+                int freeze = entity.GetCounterCount(KeywordRules.FreezeCounter);
+                if (freeze > 0)
+                {
+                    entity.AddCounters(KeywordRules.FreezeCounter, -1);
+                    if (freeze - 1 <= 0)
+                        EventManager.Instance.Publish(new KeywordAppliedEvent
+                        {
+                            Target = entity,
+                            Keyword = KeywordRules.FreezeCounter,
+                            Detail = "冻结消退（回合末倒数）",
+                        });
+                }
+            }
+
             // ── ② UntilEndOfTurn 整类清零（双侧战场） ──
             // 语义修正（2026-09-10 验证器对齐）：「持续到回合结束」按到期时点计，不区分持有者阵营——
             // 跨侧施加的限时指示物（易损/紊乱）须在施加方回合末即消退，否则白送一整轮；
@@ -492,6 +528,30 @@ namespace CardCore.Attribute
         }
 
         /// <summary>ForTurns 时钟递减：每个回合结束减一，到期层回收并从计数扣除（发消退播报）。</summary>
+        /// <summary>按层数反向回写属性增量（时钟到期部分回收用——n=到期层数；
+        /// 与 RevertStat（全量按当前计数）互补，处理"一个时钟到期、其余仍在"的部分回收）。</summary>
+        internal static void RevertStatDelta(Card card, StatCounterKind kind, int n)
+        {
+            if (card == null || n <= 0) return;
+            switch (kind)
+            {
+                case StatCounterKind.PowerUp: card._power -= n; break;
+                case StatCounterKind.PowerDown: card._power += n; break;
+                case StatCounterKind.LifeUp:
+                    card._maxLife -= n;
+                    if (card._life > card._maxLife) card._life = card._maxLife;
+                    break;
+                case StatCounterKind.LifeDown: card._maxLife += n; break;
+                case StatCounterKind.CostUp: card._costModifier -= n; break;
+                case StatCounterKind.CostDown: card._costModifier += n; break;
+                case StatCounterKind.PlusOnePlusOne:
+                    card._power -= n; card._maxLife -= n;
+                    if (card._life > card._maxLife) card._life = card._maxLife;
+                    break;
+                case StatCounterKind.MinusOneMinusOne: card._power += n; card._maxLife += n; break;
+            }
+        }
+
         private static void TickClocks(Entity entity)
         {
             if (entity._counterClocks.Count == 0) return;
@@ -505,11 +565,16 @@ namespace CardCore.Attribute
             {
                 entity._counters.TryGetValue(clock.Id, out var cur);
                 entity._counters[clock.Id] = Math.Max(0, cur - clock.Amount);
+                // 2026-09-13 修复：属性指示物到期回写——此前 TickClocks 只减计数不还原 _power/_maxLife，
+                // ForTurns 属性层到期后属性残留（缺口首次被英雄技能红 buff 暴露）。
+                var spec = Find(clock.Id);
+                if (entity is Card statCard && spec.StatKind != StatCounterKind.None)
+                    RevertStatDelta(statCard, spec.StatKind, clock.Amount);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = entity,
                     Keyword = clock.Id,
-                    Detail = $"{Find(clock.Id).DisplayName}消退（持续{Find(clock.Id).Turns}回合）"
+                    Detail = $"{spec.DisplayName}消退（持续{spec.Turns}回合）"
                 });
             }
             entity._counterClocks.RemoveAll(c => c.RemainingTurns <= 0);
@@ -525,6 +590,38 @@ namespace CardCore.Attribute
                 .ToList();
             foreach (var id in negatives)
                 card.AddCounters(id, -card.GetCounterCount(id));
+        }
+    }
+
+    /// <summary>
+    /// 冻结/沉睡的重置拦截（2026-09-13 定案：两者持有期间均**无法重置**）。
+    /// 沉睡：回合开始扣 1 层代替重置，末层耗尽的当次直接苏醒（重置）；
+    /// 冻结：无层数，保持横置至指示物消退（UntilEndOfTurn，回合末统一清理）。
+    /// 登记于 GameCore.Reset（组合根例外，幂等）——重置循环经 RuleHooks 只认接口。
+    /// </summary>
+    public sealed class SleepFreezeUntapBlockRule : IUntapBlockRule
+    {
+        public static readonly SleepFreezeUntapBlockRule Instance = new SleepFreezeUntapBlockRule();
+
+        private SleepFreezeUntapBlockRule() { }
+
+        public bool BlocksUntap(Card card)
+            => card != null
+            && (card.GetCounterCount(KeywordRules.SleepCounter) > 0
+                || card.GetCounterCount(KeywordRules.FreezeCounter) > 0);
+
+        public void OnUntapBlocked(GameCore core, Card card)
+        {
+            // 冻结：不推进，保持横置至回合末消退
+            int sleep = card.GetCounterCount(KeywordRules.SleepCounter);
+            if (sleep <= 0) return;
+
+            card.RemoveCounters(KeywordRules.SleepCounter, 1);
+            if (sleep - 1 <= 0)
+            {
+                card.Untap(); // 苏醒：最后一层耗尽的当次回合开始即重置
+                core?.PublishEvent(new UntapEvent { UntappedEntity = card });
+            }
         }
     }
 }

@@ -157,7 +157,6 @@ namespace CardCore.Tools
                 ("PlayerState", "LandCap"), ("PlayerState", "ElementBank"),
                 ("PlayerState", "OffsetDrainUsed"), ("PlayerState", "OffsetDiscardUsed"),
                 ("PlayerState", "OffsetMillUsed"), ("PlayerState", "OffsetOpponentHealUsed"),
-                ("PlayerState", "OffsetOpponentDrawUsed"), ("PlayerState", "OffsetSendExtraUsed"),
                 ("PlayerState", "GraveyardCount"), ("PlayerState", "ExileCount"),
 
                 // ---- M1 网络协议（2026-09-10，详见 根目录 网络协议.md）----

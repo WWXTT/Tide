@@ -35,8 +35,6 @@ namespace CardCore
         OnAttacked = 8,
         /// <summary>进场时（任意来源含打出/效果召唤/复活/token/控制权变更——OnPlay 的超集）</summary>
         OnSummon = 9,
-        /// <summary>超量素材取除时（暂无映射事件，待超量素材取除事件补齐）</summary>
-        OnMaterialDetach = 10,
         /// <summary>被指定为目标时（原子效果开始作用且目标含自己）</summary>
         OnTargeted = 11,
         /// <summary>其他生物进入战场时（payload 过滤：进场的不是自己）</summary>

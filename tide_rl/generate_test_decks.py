@@ -85,8 +85,6 @@ def card(num, name, supertype, power, life, keywords, effects):
         "effects": effects,
         "subtype": "",
         "level": -1,
-        "rank": -1,
-        "linkRating": -1,
         "arrows": "",
         "linkAuras": [],
    }

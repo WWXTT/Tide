@@ -25,11 +25,12 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 三轨判轨（2026-09-09 定案）：魔法卡来源（=角色）→ Setting（视同本体，净化/换区都不清）；
-            // 场上卡来源 → Duration=Permanent 走 GrantedPermanent（换区不清、净化清），否则 Temp（两清）。
-            var lane = context.Source is Player ? KeywordLane.Setting
-                     : context.Duration == DurationType.Permanent ? KeywordLane.GrantedPermanent
-                     : KeywordLane.Temp;
+            // 三轨判轨（2026-09-09 定案；2026-09-13 修订）：魔法卡来源（=角色）→ Setting（视同本体）——
+            // **照旧**按声明持续（含 Permanent=设置轨）；**生物来源固定 Temp 持续 1 回合**
+            //（声明持续被覆写——回合末 GameCore 清 Temp 轨；光环（linkAuras）不经此口）。
+            var lane = context.Source is Player
+                ? KeywordLane.Setting
+                : KeywordLane.Temp;
 
             foreach (var target in context.Targets)
             {
@@ -64,7 +65,9 @@ namespace CardCore.Attribute.Handlers
         // RemoveDebuffs 八条；GrantPoisonous→GrantPoisonSting（毒刺：对受战斗伤害目标附加毒素指示物）。
         // 2026-09-08 冲锋/突袭去关键词化：GrantHaste/GrantRush 删除——关键词都是持续性特征，
         // 无「一次性生效后消失」的说法；冲锋/突袭改由登场效果表达（OnPlay+激励自己，突袭另自上紊乱指示物）。
-        // 现役关键词 17 个 + 缴械。
+        // 2026-09-11：嘲讽还原（GrantTaunt）；辟邪更名扰魔（运行时 id 仍 Untargetable）；
+        // 2026-09-13：嘲讽更名帷幕（只吸引效果目标、不拦攻击；运行时 id 仍 Taunt）；
+        // 新增微缩/放大/回响（临时复制卡族，行为见 TempCopyRules，装载范围见原子表 MountKinds 列）。
         private static readonly (AtomicEffectType type, string keywordId, string description)[] Specs =
         {
             // 红色 - 攻击性
@@ -77,7 +80,7 @@ namespace CardCore.Attribute.Handlers
             (AtomicEffectType.GrantVigilance, "Vigilance", "获得警戒"),
             (AtomicEffectType.GrantStealth, "Stealth", "获得潜行"),
             (AtomicEffectType.GrantSpellShield, "SpellShield", "获得法术护盾"),
-            (AtomicEffectType.GrantCannotBeTargeted, "Untargetable", "获得不可被指定"),
+            (AtomicEffectType.GrantCannotBeTargeted, "Untargetable", "获得扰魔"),
 
             // 绿色 - 续航/成长
             (AtomicEffectType.GrantLifesteal, "Lifesteal", "获得吸血"),
@@ -86,10 +89,19 @@ namespace CardCore.Attribute.Handlers
             (AtomicEffectType.GrantGrowth, "Growth", "获得成长"),
             (AtomicEffectType.GrantArmor, "Armor", "获得坚韧"),
             (AtomicEffectType.GrantDivineShield, "DivineShield", "获得圣盾"),
-            (AtomicEffectType.GrantTaunt, "Taunt", "获得嘲讽"),
-            (AtomicEffectType.GrantPoisonSting, "PoisonSting", "获得毒刺"),
+            (AtomicEffectType.GrantTaunt, "Taunt", "获得帷幕"),
+            (AtomicEffectType.GrantPoisonSting, "PoisonSting", "获得毒刺（战斗伤害改为毒素）"),
+            (AtomicEffectType.GrantIceCrystal, "IceCrystal", "获得冰晶（战斗伤害改为冻结）"),
+            (AtomicEffectType.GrantNightmare, "Nightmare", "获得梦魇（战斗伤害改为沉睡）"),
+            (AtomicEffectType.GrantPathogen, "Pathogen", "获得病原体（战斗伤害改为剧毒）"),
+            (AtomicEffectType.GrantSpellban, "Spellban", "获得禁魔石（非战斗伤害为0）"),
             (AtomicEffectType.GrantReborn, "Reborn", "获得复生"),
             (AtomicEffectType.GrantIndestructible, "Indestructible", "获得不灭"),
+
+            // 临时复制卡族（2026-09-11；回响=瞬间法术自带/可赋予法术）
+            (AtomicEffectType.GrantMiniature, "Miniature", "获得微缩"),
+            (AtomicEffectType.GrantMagnify, "Magnify", "获得放大"),
+            (AtomicEffectType.GrantEcho, "Echo", "获得回响"),
         };
 
         /// <summary>
