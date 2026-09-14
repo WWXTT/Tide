@@ -45,148 +45,112 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 元素支付验证器
+    /// 元素支付验证器（2026-09-14 统一混付定案）：**账单级规划器**——出牌（ElementPool.CanPayCost/PayCost）
+    /// 与效果费（ElementCostPayment）共用同一算法，消灭「出牌精确扣款/效果混付」双轨。
+    /// 统一支付序：同色 → 灰 → 黑 → 白（黑白=万用色，可替代红蓝绿灰；黑先于白，确定性）。
+    /// 单向：红蓝绿灰不可付黑白费，黑不可付白费（反之亦然）。
+    /// 浓度上限：每种货币（**含灰**与作万用的黑白）单次支付总贡献 ≤ cap；
+    /// 纯色**需求量** > cap 时不论货币直接不可付（灰需求无需求侧帽）。
     /// </summary>
     public static class ElementPaymentValidator
     {
-        /// <summary>纯色（受浓度上限约束）：红/蓝/绿/黑/白（黑白 2026-09-11 转正，与三色同权）。灰不受限。</summary>
+        /// <summary>纯色（受需求侧浓度上限约束）：红/蓝/绿/黑/白。</summary>
         private static readonly ManaType[] PureColors =
             { ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Black, ManaType.White };
+
+        /// <summary>四色需求（红蓝绿灰——黑白万用可垫）的固定处理序。</summary>
+        private static readonly ManaType[] FourColorOrder =
+            { ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Gray };
 
         private static bool IsPureColor(ManaType type)
             => PureColors.Contains(type);
 
-        /// <summary>
-        /// 验证是否可以支付指定倾向的代价
-        /// </summary>
-        /// <param name="affinity">元素倾向</param>
-        /// <param name="availableMana">可用元素（按颜色分类）</param>
-        /// <param name="amount">需要支付的数量</param>
-        /// <param name="pureColorCap">纯色浓度上限（每种纯色单次可支付量 ≤ 此值；null = 不限制）</param>
-        /// <returns>是否可以支付</returns>
-        public static bool CanPay(ElementAffinity affinity, Dictionary<ManaType, int> availableMana, int amount, int? pureColorCap = null)
+        /// <summary>int/float 账单归一为 ManaType→int（跳过 ≤0 项）。</summary>
+        public static Dictionary<ManaType, int> NormalizeBill(Dictionary<int, float> cost)
         {
-            if (amount <= 0) return true;
-
-            // 灰色效果：可用任意颜色支付；纯色（含黑白）贡献各受浓度上限约束，灰不受限
-            if (affinity.IsGeneric)
+            var bill = new Dictionary<ManaType, int>();
+            if (cost == null) return bill;
+            foreach (var kv in cost)
             {
-                int total = 0;
-                foreach (var kv in availableMana)
-                {
-                    total += IsPureColor(kv.Key) && pureColorCap.HasValue
-                        ? Math.Min(kv.Value, pureColorCap.Value)
-                        : kv.Value;
-                }
-                return total >= amount;
+                int amount = (int)kv.Value;
+                if (amount > 0) bill[(ManaType)kv.Key] = amount;
             }
-
-            // 指定颜色：必须用该颜色支付；纯色另受浓度上限约束
-            if (pureColorCap.HasValue && IsPureColor(affinity.PrimaryColor) && amount > pureColorCap.Value)
-                return false;
-            return availableMana.TryGetValue(affinity.PrimaryColor, out int count) && count >= amount;
+            return bill;
         }
 
-        /// <summary>
-        /// 尝试支付指定倾向的代价
-        /// </summary>
-        /// <param name="affinity">元素倾向</param>
-        /// <param name="availableMana">可用元素（会被修改）</param>
-        /// <param name="amount">需要支付的数量</param>
-        /// <param name="pureColorCap">纯色浓度上限（每种纯色单次可支付量 ≤ 此值；null = 不限制）</param>
-        /// <returns>是否支付成功</returns>
-        public static bool TryPay(ElementAffinity affinity, Dictionary<ManaType, int> availableMana, int amount, int? pureColorCap = null)
+        /// <summary>填链：需求色的候选货币按支付序排列。红/蓝/绿=[本色,灰,黑,白]；灰=[灰,黑,白]；黑/白=[本色]（单向）。</summary>
+        private static ManaType[] ChainFor(ManaType need) => need switch
         {
-            if (!CanPay(affinity, availableMana, amount, pureColorCap))
-                return false;
-
-            if (amount <= 0) return true;
-
-            if (affinity.IsGeneric)
-            {
-                // 灰色效果：从任意颜色扣除，优先使用非主要颜色
-                int remaining = amount;
-
-                // 优先使用灰色（不受浓度上限约束）
-                if (availableMana.TryGetValue(ManaType.Gray, out int grayCount) && grayCount > 0)
-                {
-                    int toUse = Math.Min(grayCount, remaining);
-                    availableMana[ManaType.Gray] -= toUse;
-                    remaining -= toUse;
-                }
-
-                // 然后按顺序使用纯色（红蓝绿黑白）：每种纯色本次贡献 ≤ 浓度上限
-                foreach (var color in PureColors)
-                {
-                    if (remaining <= 0) break;
-                    if (availableMana.TryGetValue(color, out int count) && count > 0)
-                    {
-                        int toUse = Math.Min(count, remaining);
-                        if (pureColorCap.HasValue) toUse = Math.Min(toUse, pureColorCap.Value);
-                        availableMana[color] -= toUse;
-                        remaining -= toUse;
-                    }
-                }
-
-                return remaining == 0;
-            }
-            else
-            {
-                // 指定颜色：从该颜色扣除
-                availableMana[affinity.PrimaryColor] -= amount;
-                return true;
-            }
-        }
+            ManaType.Red => new[] { ManaType.Red, ManaType.Gray, ManaType.Black, ManaType.White },
+            ManaType.Blue => new[] { ManaType.Blue, ManaType.Gray, ManaType.Black, ManaType.White },
+            ManaType.Green => new[] { ManaType.Green, ManaType.Gray, ManaType.Black, ManaType.White },
+            ManaType.Gray => new[] { ManaType.Gray, ManaType.Black, ManaType.White },
+            _ => new[] { need },
+        };
 
         /// <summary>
-        /// 获取支付指定倾向代价所需的最优元素组合
+        /// 整账单支付规划（非破坏——不改 availableMana）。
+        /// 处理序：黑→白（仅本色）**先行预留**（否则四色贪心会吃掉黑白本色费所需的货币），
+        /// 再按固定序处理红蓝绿灰，每需求沿填链（同色→灰→黑→白）扣减。
         /// </summary>
-        /// <param name="affinity">元素倾向</param>
-        /// <param name="availableMana">可用元素</param>
-        /// <param name="amount">需要支付的数量</param>
-        /// <param name="pureColorCap">纯色浓度上限（每种纯色单次可支付量 ≤ 此值；null = 不限制）</param>
-        /// <returns>支付方案（颜色到数量的映射），null表示无法支付</returns>
-        public static Dictionary<ManaType, int> GetPaymentPlan(ElementAffinity affinity, Dictionary<ManaType, int> availableMana, int amount, int? pureColorCap = null)
+        /// <returns>实际扣款组合（货币→数量）；null = 不可付。</returns>
+        public static Dictionary<ManaType, int> GetBillPaymentPlan(
+            Dictionary<ManaType, int> bill, Dictionary<ManaType, int> availableMana, int? cap)
         {
-            if (!CanPay(affinity, availableMana, amount, pureColorCap))
-                return null;
+            if (bill == null || bill.Count == 0) return new Dictionary<ManaType, int>();
 
+            // 需求侧浓度上限：纯色需求量超帽，混付也救不了
+            if (cap.HasValue)
+            {
+                foreach (var kv in bill)
+                    if (IsPureColor(kv.Key) && kv.Value > cap.Value)
+                        return null;
+            }
+
+            var working = new Dictionary<ManaType, int>(availableMana ?? new Dictionary<ManaType, int>());
+            var used = new Dictionary<ManaType, int>();
             var plan = new Dictionary<ManaType, int>();
-
-            if (amount <= 0) return plan;
-
-            if (affinity.IsGeneric)
+            foreach (ManaType c in Enum.GetValues(typeof(ManaType)))
             {
-                int remaining = amount;
+                used[c] = 0;
+                if (!working.ContainsKey(c)) working[c] = 0;
+            }
 
-                // 优先使用灰色（不受浓度上限约束）
-                if (availableMana.TryGetValue(ManaType.Gray, out int grayCount) && grayCount > 0)
-                {
-                    int toUse = Math.Min(grayCount, remaining);
-                    plan[ManaType.Gray] = toUse;
-                    remaining -= toUse;
-                }
+            // 黑白本色费先行预留（需求侧检查已保证 ≤ cap；used 从 0 起故贡献即合规）
+            foreach (var bw in new[] { ManaType.Black, ManaType.White })
+            {
+                if (!bill.TryGetValue(bw, out var bwNeed) || bwNeed <= 0) continue;
+                if (working[bw] < bwNeed) return null;
+                working[bw] -= bwNeed;
+                used[bw] += bwNeed;
+                plan[bw] = bwNeed;
+            }
 
-                // 然后按顺序使用纯色：每种纯色本次贡献 ≤ 浓度上限
-                foreach (var color in PureColors)
+            foreach (var need in FourColorOrder)
+            {
+                if (!bill.TryGetValue(need, out var remaining) || remaining <= 0) continue;
+                foreach (var currency in ChainFor(need))
                 {
                     if (remaining <= 0) break;
-                    if (availableMana.TryGetValue(color, out int count) && count > 0)
-                    {
-                        int toUse = Math.Min(count, remaining);
-                        if (pureColorCap.HasValue) toUse = Math.Min(toUse, pureColorCap.Value);
-                        plan[color] = toUse;
-                        remaining -= toUse;
-                    }
+                    int have = working[currency];
+                    if (have <= 0) continue;
+                    int room = cap.HasValue ? cap.Value - used[currency] : int.MaxValue;
+                    int take = Math.Min(Math.Min(have, remaining), room);
+                    if (take <= 0) continue;
+                    working[currency] = have - take;
+                    used[currency] += take;
+                    plan[currency] = plan.TryGetValue(currency, out var prev) ? prev + take : take;
+                    remaining -= take;
                 }
-            }
-            else
-            {
-                plan[affinity.PrimaryColor] = amount;
+                if (remaining > 0) return null;
             }
 
             return plan;
         }
+
+        /// <summary>整账单可付性预检（非破坏）。= GetBillPaymentPlan(...) != null。</summary>
+        public static bool CanPayBill(Dictionary<ManaType, int> bill, Dictionary<ManaType, int> availableMana, int? cap)
+            => GetBillPaymentPlan(bill, availableMana, cap) != null;
     }
 
     /// <summary>

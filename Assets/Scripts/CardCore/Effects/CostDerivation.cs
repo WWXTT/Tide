@@ -30,15 +30,12 @@ namespace CardCore
             VisitBillableAtoms(effect, modeIndex,
                 (atom, domain) => AccumulateElementCost(atom, effect, domain, byColor));
 
-            // 固定分支门附加费 + 动态分支机制费（2026-09-13 分支体系正规化）：
-            // 门费=技能类型三档（伤害命中1/击杀2/宣言命中2，灰）；运势/拼点机制费=x（灰，[1,5]）；
-            // 倒计时机制费 0（延迟即付费——奖励费已换算成回合）。奖励原子恒 0 费（EnumerateMainSequenceAtoms 不含分支）。
-            int engineFee = GateAndEngineFee(effect);
-            if (engineFee > 0)
-            {
-                byColor.TryGetValue(ManaType.Gray, out var grayPrev);
-                byColor[ManaType.Gray] = grayPrev + engineFee;
-            }
+            // 分支计价（2026-09-15 用户定案，**废除 09-13 全部灰费**）：
+            // **有限分支（门）=纯校验上限，零计价**——门"预算"只是奖励锚价的放置上限（drop 硬校验），
+            // 奖励原子免费（条件性即折扣），分支整体贡献 0 费。
+            // **引擎=零计价**——拼点门槛=奖励锚价合计（运行时判差额 ≥ 门槛，见 BranchEngines），
+            // 奖励按声明值结算（门槛制）；运势 x=纯概率门槛（掷骰阈值）；倒计时延迟即付费。
+            // 引擎奖励原子免费（EnumerateMainSequenceAtoms 不含 RewardAtoms）。
 
             var list = new List<CostInstance>();
             foreach (var kv in byColor)
@@ -130,7 +127,7 @@ namespace CardCore
             var cfg = AtomicEffectTable.GetByType(atom.Type);
 
             // 动态数量（组合层）：费用计 0（代价 = 该卡不可作地牌产元素，见 ElementPool.AddCardToPool）。
-            if (def.DynamicTargetCount)
+            if (def.TargetCount == -1)
             {
                 AccumulateSubEffects(atom, def, domain, byColor);
                 return;
@@ -211,7 +208,6 @@ namespace CardCore
             {
                 case DurationType.UntilEndOfTurn: return per;                    // 固定1回合 0.5
                 case DurationType.UntilNextTurn: return per * 2f;                // 固定2回合 1.0
-                case DurationType.ForTurns: return def.DurationValue <= 1 ? per : per * 2f; // 只许1、2；>2 构筑拦截，计价封顶 1.0
                 case DurationType.UntilLeaveBattlefield: return per * 3f;        // 换区移除 1.5
                 case DurationType.WhileCondition: return per * 3f;               // 条件持续≈换区档
                 case DurationType.Permanent: return per * 4f;                    // 换区不移除 2.0
@@ -241,24 +237,6 @@ namespace CardCore
             foreach (var c in DeriveElementCosts(shim))
                 total += c.Value;
             return total;
-        }
-
-        /// <summary>效果级附加费合计：Steps 中命中门附加费（可多门叠加）+ 引擎机制费（运势/拼点=x 灰）。</summary>
-        public static int GateAndEngineFee(EffectDefinition def)
-        {
-            if (def == null) return 0;
-            int fee = 0;
-            if (def.Steps != null)
-            {
-                foreach (var step in def.Steps)
-                {
-                    if (step == null || string.IsNullOrEmpty(step.ConditionId)) continue;
-                    if (GatePremium.TryGetValue(step.ConditionId, out var premium)) fee += premium;
-                }
-            }
-            if (def.EngineKind == BranchEngineKind.LuckRoll || def.EngineKind == BranchEngineKind.Clash)
-                fee += Math.Max(1, Math.Min(5, def.EngineParam));
-            return fee;
         }
 
         /// <summary>触发上限计价系数：触发式 N&gt;1 → 1.2^(N-1)（连乘）；显式无限(-1) → 1.2³；
@@ -353,7 +331,6 @@ namespace CardCore
                 {
                     case DurationType.Once: grantMult = 1.0f; break;
                     case DurationType.UntilEndOfTurn: grantMult = 1.2f; break;
-                    case DurationType.ForTurns: grantMult = def.DurationValue <= 1 ? 1.2f : 1.6f; break;
                     case DurationType.UntilNextTurn:
                     case DurationType.UntilLeaveBattlefield:
                     case DurationType.WhileCondition: grantMult = 1.6f; break;
@@ -380,7 +357,7 @@ namespace CardCore
             }
 
             var attrCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().AttributeValueConfig;
-            float durationFactor = attrCfg.GetDurationDiscount(def.Duration, def.DurationValue)
+            float durationFactor = attrCfg.GetDurationDiscount(def.Duration)
                                    / attrCfg.GetDurationDiscount(DurationType.Once);
 
             int amount = (int)Math.Round(cfg.TotalUnitCost * multiplier * magnitude * durationFactor, MidpointRounding.AwayFromZero);
@@ -495,7 +472,7 @@ namespace CardCore
             Dictionary<ManaType, int> grants)
         {
             // 动态数量：构筑期不可知（计费同口径为 0），运行时按实际命中发放。
-            if (def.DynamicTargetCount) return;
+            if (def.TargetCount == -1) return;
 
             float polarity = atom.Polarity;
             if (polarity != 0f && WrongSide(polarity, domain))
@@ -563,12 +540,13 @@ namespace CardCore
         /// <summary>
         /// 卡牌是否含「动态数量」效果（组合层标志，2026-09-10 上移）。
         /// 含动态数量的卡费用计 0 且不可作地牌产元素（灵活使用的代价）。
+        /// 2026-09-14 收缩：DynamicTargetCount 并入 TargetCount=-1（任意=玩家自选数量）。
         /// </summary>
         public static bool HasDynamicTargetEffect(CardData card)
         {
             if (card?.Effects == null) return false;
             foreach (var eff in card.Effects)
-                if (eff != null && eff.DynamicTargetCount)
+                if (eff != null && eff.TargetCount == -1)
                     return true;
             return false;
         }

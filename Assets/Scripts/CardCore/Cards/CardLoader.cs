@@ -346,9 +346,9 @@ namespace CardCore
                 {
                     if (eff == null) continue;
 
-                    if (eff.SelectionMode == (int)SelectionMode.Random && eff.DynamicTargetCount)
+                    if (eff.SelectionMode == (int)SelectionMode.Random && eff.TargetCount == -1)
                         Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
-                                       + "SelectionMode=Random 与 DynamicTargetCount 互斥——随机抽取需固定个数，动态数量将退化为全取");
+                                       + "SelectionMode=Random 与任意数量(-1)互斥——随机抽取需固定个数，动态数量将退化为全取");
 
                     // 固有全域原子（2026-09-13）：显式声明 Manual/Random 属数据错误——converter 会强制 Full，此处告警
                     bool HasSweep(AtomicEffectEntry a)
@@ -387,24 +387,25 @@ namespace CardCore
                             Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
                                            + $"运势/拼点参数 x={eff.EngineParam} 越界 [1,5]（运行时夹取）");
 
-                    // 属性价梯（2026-09-13 定案）：属性效果固定回合只许 1、2 两档
-                    //（UntilEndOfTurn/UntilNextTurn；ForTurns(3+) 构筑拦截——计价封顶按 2 回合兜底）
-                    bool hasStatAtom = (eff.AtomicEffects ?? new List<AtomicEffectEntry>()).Any(a =>
-                            TypeOf(a) is { } st2
-                               && (st2 == AtomicEffectType.ModifyPower || st2 == AtomicEffectType.ModifyLife));
-                    if (hasStatAtom && eff.Duration == (int)DurationType.ForTurns && eff.DurationValue > 2)
-                        Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
-                                       + $"属性效果固定回合只许 1、2 两档（ForTurns({eff.DurationValue}) 越界——计价按 2 回合封顶）");
+                    // 属性价梯（2026-09-13 定案；2026-09-14 收缩：DurationValue/ForTurns 效果级退役——
+                    // 固定回合只有 UntilEndOfTurn/UntilNextTurn 两档专档，无越界可查，此校验随之删除）
 
-                    // 生物赋予关键词固定 1 回合（2026-09-13 定案）：生物宿主的 Grant 原子声明
-                    // Permanent/长持续 → 运行时被覆写为 Temp+回合末到期——计价按声明收（构筑侧提示）
+                    // 关键词赋予权限三分（2026-09-14 用户定案）：目标=自己（域={Self} 的 Grant）走
+                    // Setting 文本轨——声明任意持续按声明计价（Permanent=永久的诚实档）；
+                    // **可指向他人的 Grant**（域含单位 1-4）由生物来源赋予 → 运行时覆写为 Temp 1 回合
+                    //（回合末到期）——声明非 UET/Once 时计价按声明收（构筑侧提示）。
                     if (card.Supertype == Cardtype.Creature
+                        && eff.Duration != (int)DurationType.UntilEndOfTurn && eff.Duration != (int)DurationType.Once
                         && (eff.AtomicEffects ?? new List<AtomicEffectEntry>()).Any(a =>
-                            a != null && !string.IsNullOrEmpty(a.refId)
-                                && Attribute.AtomicEffectTable.GetByHashId(a.refId)?.EnumName.StartsWith("Grant") == true)
-                        && eff.Duration != (int)DurationType.UntilEndOfTurn && eff.Duration != (int)DurationType.Once)
+                        {
+                            if (a == null || string.IsNullOrEmpty(a.refId)) return false;
+                            var row = Attribute.AtomicEffectTable.GetByHashId(a.refId);
+                            if (row?.EnumName?.StartsWith("Grant") != true) return false;
+                            var kinds = row.GetTargetKindList();
+                            return kinds != null && kinds.Any(k => k >= 1 && k <= 4); // 可指向单位（别人）
+                        }))
                         Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
-                                       + "生物赋予的关键词固定持续 1 回合（声明持续被运行时覆写为 Temp/UET——魔法与光环照旧）");
+                                       + "生物赋予**他人**的关键词固定 1 回合（声明持续被覆写为 Temp/UET——自身/魔法/光环走文本轨照旧）");
                     }
 
                     void CheckAmplitude(AtomicEffectEntry atom, string where)
@@ -518,61 +519,13 @@ namespace CardCore
         // ======================================== 内部方法 ========================================
 
         /// <summary>
-        /// 生物黑白关键词转启动式自赋予（2026-09-14 定案）：黑白不进生物费用列表——
-        /// 生物可作地牌，黑白若入费用构成即从地牌产出，破坏「黑白=错边效果补偿资源」定位
-        /// （运行时选择：抵扣此卡灰色费用 / 生成黑白元素）。印制黑白关键词改为启动式效果：
-        /// 构筑期不计锚价（激活式不进 E 桶，仅占技能挂载口），使用时现付锚价
-        /// （发动=横置+付费+赋予自身；黑白元素经错边补偿/黑经济获得）。
-        /// 法术不作地牌，印制黑白关键词照旧计价。幂等（转换后关键词已移除，二次调用空转）。
-        /// 返回被转换的关键词 id 列表（空=无转换）。
-        /// </summary>
-        public static List<string> ConvertCreatureSpecialKeywordsToActivated(CardConfigEntry entry)
-        {
-            var converted = new List<string>();
-            if (entry == null || entry.keywords == null || entry.keywords.Count == 0) return converted;
-            if (ParseCardtype(entry.supertype) != Cardtype.Creature) return converted;
-
-            LoadKeywords();
-            for (int i = entry.keywords.Count - 1; i >= 0; i--)
-            {
-                var kwId = entry.keywords[i];
-                var def = GetKeywordDefinition(kwId);
-                if (def == null || string.IsNullOrEmpty(def.atomicEffect)
-                    || !Enum.TryParse<AtomicEffectType>(def.atomicEffect, out var grant)) continue;
-
-                var color = ElementAffinities.GetAffinityForEffect(grant).PrimaryColor;
-                if (color != ManaType.White && color != ManaType.Black) continue;
-
-                entry.keywords.RemoveAt(i);
-                converted.Add(kwId);
-                if (entry.effects == null) entry.effects = new List<CardEffectData>();
-                entry.effects.Add(new CardEffectData
-                {
-                    Id = "ACT_" + kwId,
-                    DisplayName = "启动·" + def.nameZh,
-                    Description = "使用时支付锚价，自身获得「" + def.nameZh + "」",
-                    TriggerTiming = (int)TriggerTiming.Activate_Active,
-                    ActivationType = 2, // 主动（启动式只能主动发动）
-                    SelectionMode = 0, // Self：源卡为唯一目标
-                    TargetCount = 1,
-                    AtomicEffects = new List<AtomicEffectEntry>
-                    {
-                        // 引用型：枚举名→行 ID 反查（GetByEnumName 键=枚举名；无表行→refId 空→装载告警）
-                        new AtomicEffectEntry { refId = Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect)?.HashId ?? def.atomicEffect },
-                    },
-                });
-            }
-            return converted;
-        }
-
-        /// <summary>
         /// 从配置条目创建 CardData
         /// </summary>
         private static CardData CreateCardData(CardConfigEntry entry)
         {
-            // 黑白关键词装载期转启动式（须先于 CardData 组装：keywords/effects 读转换后的条目）
-            ConvertCreatureSpecialKeywordsToActivated(entry);
-
+            // 黑白关键词照旧印制（2026-09-14 撤销「转启动式」定案）：参杂黑白的生物可作地牌，
+            // 地牌只是不从黑白份额产指示物（ElementPool.GetCardCostAsTokens 过滤）——
+            // 黑白获取通道不变（=卡结算：错边/Payload 补偿），费用侧照常计价。
             var cardData = new CardData
             {
                 ID = entry.id,

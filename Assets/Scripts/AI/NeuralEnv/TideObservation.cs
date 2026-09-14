@@ -37,7 +37,10 @@ namespace CardCore.AI.NeuralEnv
         public const int AtomIdSlots = 6;                                        // [15..20] 精确哈希槽
         public const int TypeIdStart = 23;                                       // [23..28] 类型下标槽
         public const int ParamStart = 29;                                        // [29..] 参数块
-        public const int NGlobal = 32;
+        // 2026-09-14 32→36：追加 4 维黑白每回合获得余量（双方×两色 = 1 - Black/WhiteGainedThisTurn，
+        // 见 g[32..35]）——黑白万用化后这是 policy 估值错边收益的必要状态（每回合封顶 1/色）。
+        // python 侧 N_GLOBAL_FEATURES 同步；ONNX 图输入随之重导出（随本批重训一起做）。
+        public const int NGlobal = 36;
         public const int NAction = 6; // 动作特征槽：valid/type/sourceIndex/targetIndex/modeIndex/actionCost
 
         public float[] Cards = new float[MaxCardsTotal * NCard];
@@ -194,6 +197,11 @@ namespace CardCore.AI.NeuralEnv
             g[29] = FieldValueReward.TotalValue(core, opp); // 对方全资源价值
             g[30] = ep.GetLandCap(me);
             g[31] = ep.GetLandCap(opp);
+            // 黑白每回合获得余量（2026-09-14 定案：封顶 1/色）——policy 可见「本回合黑/白还能不能进账」
+            g[32] = 1 - ep.GetPool(me).BlackGainedThisTurn;
+            g[33] = 1 - ep.GetPool(me).WhiteGainedThisTurn;
+            g[34] = 1 - ep.GetPool(opp).BlackGainedThisTurn;
+            g[35] = 1 - ep.GetPool(opp).WhiteGainedThisTurn;
         }
 
         private static float Clamp(float v, float min, float max)

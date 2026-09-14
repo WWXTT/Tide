@@ -95,60 +95,8 @@ namespace CardCore.AI.NeuralEnv
         // ======================================== 地牌横置（复刻 TideHeadlessDriver 启发式） ========================================
 
         /// <summary>回合初横置全部未横置地牌：产色按手牌费用需求匹配，无需求色回落剩余指示物最多的颜色。</summary>
+        /// <summary>横置全部地牌（2026-09-14 收敛到共享 LandTapPolicy——混付感知产色）。</summary>
         private static void TapAllLands(GameCore core, Player me)
-        {
-            var demand = BuildColorDemand(core, me);
-            foreach (var land in new List<PooledCard>(core.ElementPool.GetPooledCards(me)))
-            {
-                var color = SelectLandColor(land, demand);
-                if (color.HasValue)
-                    GameActions.GainElementFromToken(core, me, land, color.Value);
-            }
-        }
-
-        /// <summary>手牌费用色需求直方图（决定横置产色的优先级）。</summary>
-        private static Dictionary<ManaType, int> BuildColorDemand(GameCore core, Player me)
-        {
-            var demand = new Dictionary<ManaType, int>();
-            foreach (var card in core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
-            {
-                if (!(card is IHasCost hc) || hc.Cost == null) continue;
-                foreach (var kv in hc.Cost)
-                {
-                    var color = (ManaType)kv.Key;
-                    int amount = (int)Math.Ceiling(kv.Value);
-                    demand[color] = demand.TryGetValue(color, out var v) ? v + amount : amount;
-                }
-            }
-            return demand;
-        }
-
-        /// <summary>单地产色决策：需求色优先（需求量大者优先），无需求色取剩余指示物最多者。</summary>
-        private static ManaType? SelectLandColor(PooledCard land, Dictionary<ManaType, int> demand)
-        {
-            ManaType? best = null;
-            int bestScore = 0;
-            foreach (var color in land.GetAvailableColors())
-            {
-                if (demand.TryGetValue(color, out var d) && d > bestScore)
-                {
-                    best = color;
-                    bestScore = d;
-                }
-            }
-            if (best != null) return best;
-
-            ManaType? most = null;
-            int mostTokens = 0;
-            foreach (var kv in land.Tokens)
-            {
-                if (kv.Value > mostTokens)
-                {
-                    mostTokens = kv.Value;
-                    most = kv.Key;
-                }
-            }
-            return most;
-        }
+            => LandTapPolicy.TapAllLands(core, me);
     }
 }

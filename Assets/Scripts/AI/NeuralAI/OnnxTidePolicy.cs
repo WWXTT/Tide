@@ -8,7 +8,7 @@ namespace CardCore.AI.NeuralEnv
     /// ONNX 单步策略推理器（Sentis，包名 com.unity.ai.inference，命名空间 Unity.InferenceEngine）。
     ///
     /// 图契约（tide_rl/export_onnx.py 导出，batch 已脱皮）：
-    ///   输入 float32：rstate(512) cards(80×71) global(32) actions(128×6)
+    ///   输入 float32：rstate(512) cards(80×65) global(36) actions(128×6)
     ///   输出 float32：rstate_next(512) logits(128) value(1)
     /// 非法动作在图内已掩 -1e9（actions[:,0]==0），Select 直接 argmax；
     /// rstate 局内逐步传递，新对局 Reset() 归零（与训练 rollout 同口径）。

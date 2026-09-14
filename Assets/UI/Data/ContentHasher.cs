@@ -107,10 +107,10 @@ namespace SynergyUI
         private static void AppendOrchestration(StringBuilder sb, CardEffectData h, List<EffectStepData> graphSteps)
         {
             sb.Append("EK:").Append(h.EngineKind).Append('/').Append(h.EngineParam).Append('|');
+            // 2026-09-14 收缩：SM 去 DynamicTargetCount 段（并入 TargetCount=-1）、DU 去 DurationValue 段（ForTurns 退役）
             sb.Append("SM:").Append(h.SelectionMode).Append('/')
-              .Append(h.TargetCount).Append('/')
-              .Append(h.DynamicTargetCount ? 1 : 0).Append('|');
-            sb.Append("DU:").Append(h.Duration).Append('/').Append(h.DurationValue).Append('/')
+              .Append(h.TargetCount).Append('|');
+            sb.Append("DU:").Append(h.Duration).Append('/')
               .Append(h.SummonDropZone).Append('/');
             sb.Append("TL:").Append(h.TriggerLimitPerTurn).Append('|');
             sb.Append("BS:").Append(h.BaseSpeed).Append('|');

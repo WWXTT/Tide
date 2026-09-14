@@ -66,10 +66,8 @@ namespace CardCore
         public int speed;              // BaseSpeed
         public int limit;              // TriggerLimitPerTurn
         public int duration;           // DurationType
-        public int durationValue;
         public int selection;          // SelectionMode（-1=None）
-        public int count;              // TargetCount（-2=未声明）
-        public bool dynamicCount;      // DynamicTargetCount
+        public int count;              // TargetCount（>0=N；0=全部；-1=任意[玩家自选数量=0费+不可作地牌]；-2=未声明）
         public int dropZone;           // SummonDropZone
         public int engine;             // BranchEngineKind（≠0 时 rewards 有效、steps 恒空）
         public int engineParam;
@@ -233,10 +231,8 @@ namespace CardCore
                 BaseSpeed = dto.speed,
                 TriggerLimitPerTurn = dto.limit,
                 Duration = dto.duration,
-                DurationValue = dto.durationValue,
                 SelectionMode = dto.selection,
                 TargetCount = dto.count,
-                DynamicTargetCount = dto.dynamicCount,
                 SummonDropZone = dto.dropZone,
                 EngineKind = dto.engine,
                 EngineParam = dto.engineParam,

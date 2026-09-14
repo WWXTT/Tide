@@ -25,15 +25,18 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 三轨判轨（2026-09-09 定案；2026-09-13 修订）：魔法卡来源（=角色）→ Setting（视同本体）——
-            // **照旧**按声明持续（含 Permanent=设置轨）；**生物来源固定 Temp 持续 1 回合**
-            //（声明持续被覆写——回合末 GameCore 清 Temp 轨；光环（linkAuras）不经此口）。
-            var lane = context.Source is Player
-                ? KeywordLane.Setting
-                : KeywordLane.Temp;
-
             foreach (var target in context.Targets)
             {
+                // 判轨（2026-09-09 三轨制；2026-09-13 修订；2026-09-14 用户定案三分）：
+                // ①角色来源（魔法/英雄——来源归因=Player）→ Setting（视同本体，按声明持续）；
+                // ②**目标=来源卡自己** → Setting（**文本效果轨**——自赋予视同印制文本，永久：
+                //「赋予」给别人才是 1 回合增益）；
+                // ③其余（生物→别人的单位目标）→ Temp 固定 1 回合（回合末 GameCore 清 Temp 轨；
+                // 光环 linkAuras 不经此口）。
+                var lane = context.Source is Player || ReferenceEquals(target, context.Source)
+                    ? KeywordLane.Setting
+                    : KeywordLane.Temp;
+
                 target.AddKeyword(_keywordId, lane, context.Source);
                 PublishEvent(new KeywordEvent
                 {

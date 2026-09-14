@@ -465,9 +465,9 @@ namespace CardCore
 
                     var atomCfg = AtomicEffectTable.GetByType(grantType);
                     // ManaList 分色（2026-09-14）：关键词费=表行费用构成逐色入桶。
-                    // 黑白不进生物费用列表（2026-09-14 定案）：装载路径已转启动式自赋予（CardLoader），
-                    // 此处兜底覆盖运行时合成卡（验证器夹具等）——生物的黑白关键词构筑期不计费。
-                    // 法术不作地牌，黑白照旧计价。
+                    // 黑白照常进生物费用列表（2026-09-14 撤销「转启动式/不计费」定案）——
+                    // 参杂黑白的生物可作地牌，地牌不从黑白份额产指示物（ElementPool 过滤），
+                    // 黑白获取通道不变（=卡结算：错边/Payload 补偿）。
                     float baseCost = atomCfg?.TotalUnitCost ?? 0f;
                     foreach (var m in atomCfg?.ManaList ?? new List<ManaAmountEntry>())
                     {
@@ -548,15 +548,8 @@ namespace CardCore
                     else if (aura.keyword == Attribute.KeywordRules.Guardian) { auraName = "守护"; auraColor = ManaType.White; }
                     if (auraName != null)
                     {
-                        // 黑白光环关键词不进费用列表（2026-09-14 定案，同关键词口径）：
-                        // 守护（白）构筑期不计费——启动式化/重定色待设计（当前卡池未使用）。
-                        if (auraColor == ManaType.White || auraColor == ManaType.Black)
-                        {
-                            breakdown?.Add(new CostBreakdownLine("A",
-                                $"连接光环 {auraName}（黑白不计费——待重定色）", 0f));
-                            continue;
-                        }
                         // 2026-09-13 修订：条目平价（1/条）——箭头数不再逐条乘（卡级 1.2 累乘统一计，见方法尾）
+                        // 黑白光环照常计费（2026-09-14 撤销「黑白不计费」豁免，同关键词口径）。
                         float auraCost = 1.0f;
                         buckets.TryGetValue(auraColor, out var acPrev);
                         buckets[auraColor] = acPrev + auraCost;

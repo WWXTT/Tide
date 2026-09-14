@@ -550,11 +550,11 @@ namespace CardCore
         public int BaseSpeed;
         public bool IsOptional;
         public int Duration;           // 整体效果的 DurationType（2026-09-10 重构激活：持续唯一真相在效果级；-1=迁移哨兵=未声明）
-        // ---- 组合层编排属性（2026-09-10 重构 P1：自原子层上移）----
-        public int DurationValue;      // Duration==ForTurns 时的回合数 N（0 视为 1）
+        // ---- 组合层编排属性（2026-09-10 重构 P1：自原子层上移；2026-09-14 收缩：DurationValue 删除——
+        //      持续档收缩后 ForTurns(1/2)≡专档同义词，回合数走指示物自减，效果级不再携带）----
         public int SummonDropZone;    // SummonToken 落区（Zone 枚举：战场/手牌/牌库三档）
         public int SelectionMode = -1; // SelectionMode 枚举值（-1=None 无目标哨兵）
-        public int TargetCount = -2;   // >0=N，0=全部，-1=任意；-2=未声明回落表级
+        public int TargetCount = -2;   // >0=恰好 N 个；0=全部；**-1=任意（2026-09-14 并入 DynamicTargetCount：玩家自选数量——原子计 0 费+整卡不可作地牌）**；-2=未声明回落表级
         // 触发式每回合触发上限（2026-09-13）：0=未声明（原子含 TriggerCapImmutable→无限；否则默认 1）；
         // >0=每回合 N 次；-1=显式无限。仅对触发式生效；不可修改原子（含 8）声明上限被覆写+构筑告警。
         public int TriggerLimitPerTurn;
@@ -563,7 +563,6 @@ namespace CardCore
         public int EngineKind;
         // 引擎参数：运势阈值 x（[1,5]）；倒计时缺省 0=奖励推导费自动换算回合（1费=1回合）。
         public int EngineParam;
-        public bool DynamicTargetCount;// 动态数量：运行时玩家自选个数
         public List<string> Drawbacks = new List<string>(); // 抽牌减费缺陷（上移；执行暂缓）
 
         public List<ActivationConditionData> ActivationConditions;

@@ -118,7 +118,10 @@ namespace CardCore
 
         private void OnPoolGain(ElementPoolGainEvent e)
         {
-            if (e.Player != null && _openRecords.TryGetValue(e.Player, out var rec))
+            // 只计地牌横置产出（2026-09-14 Source 区分）：补偿/错边/采掘等发放不虚增「拍地次数」
+            // ——代价强制化后每次施放都发黑白，旧口径会显著失真 LandUtilization。
+            if (e.Player != null && e.Source == GainSource.Tap
+                && _openRecords.TryGetValue(e.Player, out var rec))
                 rec.TapsTaken++;
         }
 

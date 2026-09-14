@@ -1075,13 +1075,13 @@ namespace SynergyUI
             _effectSettings.Add(row0);
 
             var row1 = new VisualElement(); row1.AddToClassList("toolbar");
-            var durNames = Enum.GetNames(typeof(DurationType)).ToList();
+            // ForTurns 仅存于指示物时钟（2026-09-14 收缩：效果级 DurationValue 退役）——效果级下拉不提供
+            var durNames = Enum.GetNames(typeof(DurationType)).Where(n => n != nameof(DurationType.ForTurns)).ToList();
             var dur = new DropdownField("持续") { choices = durNames };
             dur.AddToClassList("text-input");
             dur.index = Mathf.Clamp(h.Duration >= 0 ? h.Duration : 0, 0, durNames.Count - 1);
             dur.RegisterValueChangedCallback(_ => h.Duration = dur.index);
             row1.Add(dur);
-            row1.Add(MakeIntField("持续值", h.DurationValue, v => h.DurationValue = v));
 
             var modeChoices = SelectionModes.Select(m => m.label).ToList();
             var sel = new DropdownField("选择模式") { choices = modeChoices };
@@ -1093,10 +1093,8 @@ namespace SynergyUI
             _effectSettings.Add(row1);
 
             var row2 = new VisualElement(); row2.AddToClassList("toolbar");
+            // -1=任意（2026-09-14 并入 DynamicTargetCount：玩家自选数量=原子计 0 费+整卡不可作地牌）
             row2.Add(MakeIntField("数量(>0=N/0全部/-1任意)", h.TargetCount, v => h.TargetCount = v));
-            var dyn = new Toggle("动态数量") { value = h.DynamicTargetCount };
-            dyn.RegisterValueChangedCallback(e => h.DynamicTargetCount = e.newValue);
-            row2.Add(dyn);
 
             var dropChoices = new List<string> { "战场", "手牌", "牌库" };
             var dropVals = new List<int> { (int)Zone.Battlefield, (int)Zone.Hand, (int)Zone.Deck };

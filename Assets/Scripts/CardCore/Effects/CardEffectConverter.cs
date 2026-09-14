@@ -71,10 +71,8 @@ namespace CardCore
                 // 持续唯一真相在效果级（2026-09-10 上移定案）：卡数据显式携带（0=Once），
                 // 哨兵 -1=未声明回退 Once（绝对计价锚）
                 Duration = data.Duration >= 0 ? (DurationType)data.Duration : DurationType.Once,
-                DurationValue = data.DurationValue,
                 SummonDropZone = (Zone)data.SummonDropZone,
                 SelectionMode = data.SelectionMode >= 0 ? (SelectionMode)data.SelectionMode : SelectionMode.None,
-                DynamicTargetCount = data.DynamicTargetCount,
                 SourceCardId = sourceCardId,
                 ElementCostPrepaid = !isActivated,
             };

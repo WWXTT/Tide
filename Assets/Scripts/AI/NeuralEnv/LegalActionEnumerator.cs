@@ -162,7 +162,7 @@ namespace CardCore.AI.NeuralEnv
                 int modes = ModeCount(c);
                 for (int m = 0; m < modes; m++)
                 {
-                    if (!CanAfford(core, me, GameActions.GetCardCost(c, m))) continue;
+                    if (!GameActions.CanAfford(core, me, GameActions.GetCardCost(c, m))) continue;
                     if (!IsSpell(c) && !zm.HasBattlefieldSpace(me)) continue;
 
                     Actions.Add(new TideAction
@@ -283,14 +283,8 @@ namespace CardCore.AI.NeuralEnv
         private static bool IsSpell(Card c)
             => c is IHasSupertype s && s.Supertype == Cardtype.Spell;
 
-        /// <summary>费用可付（对齐 GameActions.CanAfford 的两条门槛：总额 ≤ 地牌槽上限 + 分色充足）。</summary>
-        private static bool CanAfford(GameCore core, Player me, Dictionary<int, float> cost)
-        {
-            float total = 0f;
-            foreach (var v in cost.Values) total += v;
-            if (total > core.ElementPool.GetLandCap(me)) return false;
-            return core.ElementPool.CanPayCost(cost, me);
-        }
+        // 费用可付性：2026-09-14 收敛到引擎公共谓词 GameActions.CanAfford（含 pending 声明承诺 +
+        // 统一混付口径）——消除动作掩码/引擎门槛分叉（旧私有副本漏 pending，会枚举出被引擎拒的动作）。
 
         private static List<EffectDefinition> GetEffectDefinitions(Card card)
         {
