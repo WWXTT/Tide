@@ -8,7 +8,7 @@ namespace CardCore
     /// 费用自动推导服务 —— 效果「锚价」（即时价，法术定价：第 1 回合立刻打出来的价格）。
     /// 由效果配置表（AttributeValueConfig.json 的 BaseCost/EffectColor）推导出「元素消耗代价」，
     /// 使费用成为配置表唯一权威：费用 = round(BaseCost × CostMultiplier × 效果值) 个 EffectColor 元素。
-    /// 卡牌仍可在 effect.Costs 中显式声明非元素特殊代价（Sleep/SummonMaterial/弃牌 等）。
+    /// 卡牌仍可在 effect.Costs 中声明效果型代价（Payload 原子——弃牌/送墓/流失等资源支付，付费步执行+补偿）。
     /// 生物挂载折扣（落地延迟 d(C) 与存活期望的额外回合折）不在此处 —— 在 CardCostService 的组合层计价。
     /// </summary>
     public static class CostDerivationService
@@ -137,15 +137,16 @@ namespace CardCore
             }
 
             // 突袭的「−1 对冲激励锚价」特判已删（2026-09-11 代价可选定案）：
-            // 自上紊乱挪进代价栏（CostType.SelfSickness）——使用时选择窗口决定 减费/得黑/不付，
+            // （历史注：突袭曾以 CostType.SelfSickness 代价承载，2026-09-14 代价原子化后已退役）
             // 计价侧不再有效果内对冲；RushSickness 原子留在效果栏会被内容契约剔除（错边只能进代价栏）。
 
-            int amount = ComputeAtomCost(atom, def, domain, cfg);
-            if (amount > 0)
+            // ManaList 分色计价（2026-09-14）：标量总价按表行份额比例拆分到各色（规则全保留）
+            var byColorCosts = ComputeAtomCostByColor(atom, def, domain, cfg);
+            foreach (var kv in byColorCosts)
             {
-                var color = ElementAffinities.GetAffinityForEffect(atom.Type).PrimaryColor;
-                byColor.TryGetValue(color, out var prev);
-                byColor[color] = prev + amount;
+                if (kv.Value <= 0) continue;
+                byColor.TryGetValue(kv.Key, out var prev);
+                byColor[kv.Key] = prev + kv.Value;
             }
 
             AccumulateSubEffects(atom, def, domain, byColor);
@@ -225,6 +226,22 @@ namespace CardCore
             { "DmgKillsTarget", 2 }, // 消灭目标时
             { "DeclareHit", 2 },     // 宣言结果一致时
         };
+
+        /// <summary>奖励原子的推导费合计（2026-09-14 自 CardEffectConverter 上移——倒计时回合换算与
+        /// 合成器【奖励x】预算校验共用同一口径）：单次/单目标锚价——Once、TargetCount=1、
+        /// TriggerLimitPerTurn=1 的 shim（防字段默认 -1 被 TriggerCostFactor 当"显式无限"×1.2³、
+        /// TargetCount=0 落"任意档"×期望4 的膨胀——2026-09-13 修复口径固化于此）。</summary>
+        public static float RewardDerivedCost(List<AtomicEffectInstance> atoms)
+        {
+            if (atoms == null || atoms.Count == 0) return 0f;
+            var shim = new EffectDefinition { Id = "REWARD_SHIM", Duration = DurationType.Once,
+                TriggerLimitPerTurn = 1, TargetCount = 1 };
+            shim.Effects = atoms;
+            float total = 0f;
+            foreach (var c in DeriveElementCosts(shim))
+                total += c.Value;
+            return total;
+        }
 
         /// <summary>效果级附加费合计：Steps 中命中门附加费（可多门叠加）+ 引擎机制费（运势/拼点=x 灰）。</summary>
         public static int GateAndEngineFee(EffectDefinition def)
@@ -323,7 +340,7 @@ namespace CardCore
                 float ctrlMult = def.Duration == DurationType.Permanent || atom.Type == AtomicEffectType.ChangeOwner ? 3f
                     : (def.Duration == DurationType.UntilLeaveBattlefield || def.Duration == DurationType.WhileCondition) ? 1.6f
                     : 1.2f;
-                return (int)Math.Round(cfg.BaseCost * ctrlMult, MidpointRounding.AwayFromZero);
+                return (int)Math.Round(cfg.TotalUnitCost * ctrlMult, MidpointRounding.AwayFromZero);
             }
 
             // Grant 关键词梯（2026-09-13 定案，魔法侧照旧按声明持续；生物侧运行时固定 UET=1.2 档）：
@@ -342,10 +359,10 @@ namespace CardCore
                     case DurationType.WhileCondition: grantMult = 1.6f; break;
                     default: grantMult = 2.0f; break; // Permanent（含魔法 Setting 回填）
                 }
-                return (int)Math.Round(cfg.BaseCost * grantMult, MidpointRounding.AwayFromZero);
+                return (int)Math.Round(cfg.TotalUnitCost * grantMult, MidpointRounding.AwayFromZero);
             }
 
-            if (cfg == null || cfg.BaseCost <= 0f)
+            if (cfg == null || cfg.TotalUnitCost <= 0f)
                 return 0;
 
             // CostMultiplier 在表加载时默认 1.0；目标范围等可在配置中放大费用。
@@ -366,7 +383,7 @@ namespace CardCore
             float durationFactor = attrCfg.GetDurationDiscount(def.Duration, def.DurationValue)
                                    / attrCfg.GetDurationDiscount(DurationType.Once);
 
-            int amount = (int)Math.Round(cfg.BaseCost * multiplier * magnitude * durationFactor, MidpointRounding.AwayFromZero);
+            int amount = (int)Math.Round(cfg.TotalUnitCost * multiplier * magnitude * durationFactor, MidpointRounding.AwayFromZero);
 
             // 衍生物落区系数（P1 定案）：按落区分档计价（战场基准/手牌溢价/牌组微溢价）。
             // 落区在组合层（def.SummonDropZone，显式三档——Zone.Hand==0 陷阱随显式声明消亡）。
@@ -379,8 +396,51 @@ namespace CardCore
             return amount;
         }
 
-        // ======================================== 黑白元素获得（2026-09-11 定案） ========================================
+        /// <summary>
+        /// 分色计价（2026-09-14 ManaList 定案）：**先按既有标量管线算总价**（ComputeAtomCost——
+        /// 含梯价/错边拆分/数量期望/触发连乘/缺陷减费/落区全部规则，一字不改），
+        /// 再按表行 ManaList 份额**比例拆分**到各色。单色行=行为与旧口径完全一致；
+        /// 混合色行=总价不变、构成按份额分布（余数归首色保总额）。
+        /// </summary>
+        public static Dictionary<ManaType, int> ComputeAtomCostByColor(AtomicEffectInstance atom, EffectDefinition def,
+            List<int> domain, AtomicEffectConfig cfg)
+        {
+            var result = new Dictionary<ManaType, int>();
+            int total = ComputeAtomCost(atom, def, domain, cfg);
+            if (total <= 0 || cfg?.ManaList == null || cfg.ManaList.Count == 0) return result;
 
+            float unitSum = cfg.TotalUnitCost;
+            if (unitSum <= 0f)
+            {
+                result[cfg.PrimaryColor] = total; // 份额退化（不应发生）——全额落主色
+                return result;
+            }
+
+            int allocated = 0;
+            ManaType first = cfg.PrimaryColor;
+            int idx = 0;
+            foreach (var m in cfg.ManaList)
+            {
+                if (m == null || m.amount <= 0f) continue;
+                var color = (ManaType)m.manaType;
+                if (idx == 0) first = color;
+                if (idx == cfg.ManaList.Count - 1)
+                {
+                    // 末项吃余数——保证分配合计 == total（最大余数法的单行简化）
+                    result.TryGetValue(color, out var prevLast);
+                    result[color] = prevLast + (total - allocated);
+                    break;
+                }
+                int share = (int)Math.Round(total * (m.amount / unitSum), MidpointRounding.AwayFromZero);
+                result.TryGetValue(color, out var prev);
+                result[color] = prev + share;
+                allocated += share;
+                idx++;
+            }
+            return result;
+        }
+
+        // ======================================== 黑白元素获得（2026-09-11 定案） ========================================
         /// <summary>错边判定的极性→获得颜色：有害原子(p&lt;0)命中己方→黑；有益原子(p&gt;0)命中对方→白。</summary>
         public static ManaType PolarityGrantColor(float polarity)
             => polarity < 0f ? ManaType.Black : ManaType.White;

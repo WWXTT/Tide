@@ -396,24 +396,44 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 原子效果条目 —— 描述单个原子效果的所有参数
-    /// 直接映射为 AtomicEffectInstance
+    /// 原子效果条目（2026-09-14 彻底引用化定案）——**原子 = 表行引用 + 增量**，全链唯一表示：
+    /// refId 指向原子表行（AttributeValueConfig.json 首列 8-hex）；枚举名/默认域/Filter/极性/
+    /// MountKinds 一律装载时经 AtomicEffectTable.GetByHashId(refId) 从行解析（消费方自行查表）。
+    /// 增量仅四项：value（唯一数值，模板含 {value} 才有语义）/ str（字符串参数：token 模板、
+    /// 关键词 id、宣言卡名）/ amp（数值随机幅度 0..1）/ kinds（实例域收窄，null=表行默认域）。
+    /// 旧 EffectType/ID/RandomAmplitude/TargetKinds/ManaList 字段已删——历史事故根源是
+    /// 全字段内嵌与存储层引用的双轨转换，本定案消灭双轨。
+    /// 构造请用 AtomRefs.New(AtomicEffectType, ...)（枚举→行 ID 反查工厂）。
     /// </summary>
     [Serializable]
     public class AtomicEffectEntry
     {
-        public string ID;     // 字符串参数（token ID、关键词 ID、宣言编码）
-        public string EffectType;      // AtomicEffectType 枚举名，如 "DealDamage"
-        public int Value;              // 唯一数值参数（伤害量、抽卡数、修改量——2026-09-10 定案：原子只有 Value）
-        // 数值随机幅度（2026-09-13 定案）：0..1，结算时名义值 ±span（span=round(|Value|×幅度)，3 伤 ±100%→0..6）；
-        // 0=off。计价按名义值（锚点不漂移）；缺省 0 向后兼容。
-        public float RandomAmplitude;
+        public string refId;          // 原子表行 ID（首列 8-hex）——唯一身份
+        public int value = 1;         // 唯一可编辑数值（名义值：计价/描述/UI 读它，结算读掷值）
+        public string str;            // 字符串参数（token 模板 ID、关键词 id、宣言卡名）
+        public float amp;             // 数值随机幅度 0..1（0=off；span=round(|value|×amp)）
+        public List<int> kinds;       // 实例域收窄（TargetKind 序号；null=表行默认域）
+    }
 
-        // Mana 字典：与卡计费方式一致（costList 同款 {manaType, amount}；JsonUtility 不支持字典故用列表）。
-        public List<ManaAmountEntry> ManaList;
-        // 目标种类集合（TargetKind 序号，见 Effects/TargetKind.cs）。null = 用表级默认；
-        // 空集 = 无目标原子（DrawCard 等），不参与组合交集约束。
-        public List<int> TargetKinds;
+    /// <summary>
+    /// 原子引用工厂（2026-09-14 引用化配套）：枚举 → 表行 ID 反查构造 AtomicEffectEntry。
+    /// GetByType 反查（同枚举多行取末行——与 ResolveRowId 运行时口径一致）。
+    /// 表未装载/行缺 HashId 时返回 refId=null 的条目（装载校验会点名告警）。
+    /// </summary>
+    public static class AtomRefs
+    {
+        public static AtomicEffectEntry New(AtomicEffectType type, int value = 1,
+            List<int> kinds = null, string str = null, float amp = 0f)
+        {
+            return new AtomicEffectEntry
+            {
+                refId = Attribute.AtomicEffectTable.GetByType(type)?.HashId,
+                value = value,
+                kinds = kinds,
+                str = str,
+                amp = amp,
+            };
+        }
     }
 
     /// <summary>Mana 字典条目（与卡 costList 的 {manaType, amount} 完全同款——键名一致）。</summary>

@@ -144,7 +144,7 @@ namespace CardCore
                     return;
                 }
                 string raw = File.ReadAllText(path).TrimStart();
-                string wrapped = raw.StartsWith("[") ? "{\"rituals\":" + raw + "}" : raw; // 裸数组包一层（同 CostOffsetService 惯例）
+                string wrapped = raw.StartsWith("[") ? "{\"rituals\":" + raw + "}" : raw; // 裸数组包一层（同 AtomicEffectTable 惯例）
                 var parsed = JsonUtility.FromJson<RitualConfigWrapper>(wrapped);
                 if (parsed?.rituals == null) return;
                 foreach (var def in parsed.rituals)

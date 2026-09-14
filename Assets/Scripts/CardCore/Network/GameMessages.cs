@@ -88,16 +88,7 @@ namespace CardCore.Network
         [MemoryPackOrder(TagTable.PS_ElementBank)]
         public ManaEntryDTO[] ElementBank;
 
-        // 代价抵消用量（单局上限，构筑期代价抵消口径）
-        [MemoryPackOrder(TagTable.PS_OffsetDrainUsed)]
-        public int OffsetDrainUsed;
-
-        [MemoryPackOrder(TagTable.PS_OffsetDiscardUsed)]
-        public int OffsetDiscardUsed;
-
-        [MemoryPackOrder(TagTable.PS_OffsetMillUsed)]
-        public int OffsetMillUsed;
-
+        // 代价抵消用量三字段已删（2026-09-14 抵消系统退役；MemoryPackOrder 为显式标签，其余字段序不漂移）
 
         [MemoryPackOrder(TagTable.PS_GraveyardCount)]
         public int GraveyardCount;

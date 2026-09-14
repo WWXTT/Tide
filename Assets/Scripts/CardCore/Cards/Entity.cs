@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -15,7 +15,7 @@ namespace CardCore
         private TimestampInfo _timestamp;
         private bool _isAlive = true;
 
-        // 关键词存储（List 而非 HashSet：融合继承允许重复叠加；唯一性由 AddKeyword 的 Contains 保证）
+        // 关键词存储（List 而非 HashSet：重复叠加允许（双坚韧=−2）；唯一性由 AddKeyword 的 Contains 保证）
         internal List<string> _keywords = new List<string>();
 
         // 指示物存储（上移 Entity：角色/卡牌同构——剧毒/毒素可指向玩家；对齐 _keywords 先例）。
@@ -173,14 +173,8 @@ namespace CardCore
         public List<Card> Deck => _deck;
         public List<Card> Hand => _hand;
 
-        // ===== 单局代价抵消已用「费」计数（按机制；受 CostOffsetConfig 单局上限约束，InitGame 时归零）=====
-        /// <summary>流失（无源失命）已抵消的费数。</summary>
-        public int OffsetDrainUsed { get; set; }
-        /// <summary>弃手牌已抵消的费数。</summary>
-        public int OffsetDiscardUsed { get; set; }
-        /// <summary>送墓（本组）已抵消的费数。</summary>
-        public int OffsetMillUsed { get; set; }
-        // OpponentHeal/OpponentDraw 抵消计数已删（2026-09-10：机制被 Polarity 错边折价顶替）。
+        // 抵消（流失/弃牌/送墓兑换黑元素）单局计数已删（2026-09-14：CostOffset 抵消系统随错边经济全面退役，
+        // 资源支付改走代价栏 Payload 原子——黑白获取通道唯一=卡结算，无单局兑换上限）。
 
         /// <summary>疲劳计数：空卡组抽牌次数，第 N 次疲劳造成 N 点递增伤害（炉石式）。</summary>
         // FatigueCount 已进 PlayerState DTO（M1 网络协议 2026-09-10，GetTagDefinitions 已登记）。
@@ -196,12 +190,9 @@ namespace CardCore
         /// <summary>是否已升级（TotalUses ≥ 7 时置位，单向）。</summary>
         public bool HeroSkillUpgraded { get; set; }
 
-        /// <summary>重置本局抵消计数与疲劳计数（新对局开始时调用）。</summary>
-        public void ResetOffsetUsage()
+        /// <summary>重置疲劳计数（新对局开始时调用）。</summary>
+        public void ResetFatigueCount()
         {
-            OffsetDrainUsed = 0;
-            OffsetDiscardUsed = 0;
-            OffsetMillUsed = 0;
             FatigueCount = 0;
         }
 

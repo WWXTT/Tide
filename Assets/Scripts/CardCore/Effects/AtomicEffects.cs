@@ -184,6 +184,17 @@ namespace CardCore
         GrantPathogen,
         /// <summary>禁魔石（2026-09-13 改写定案，白3）：受到的非战斗伤害变为 0</summary>
         GrantSpellban,
+
+        // ============ 自由分支主干（2026-09-14 合成器重做：引擎型条件作为可拖拽条目入表）============
+        // 主干不作为普通原子执行/计价（BaseCost=0、空域、极性 0）——表行 MountKinds="9"（FreeBranchTrunk）；
+        // 落入合成器主干槽时 UI 直接写 header.EngineKind/EngineParam（奖励槽写 header.AtomicEffects），
+        // converter 对误入普通步骤的主干原子做守卫剔除（见 ComposerCatalog.IsEngineTrunk）。
+        /// <summary>拼点主干：回合开始双方牌库顶各展示一张——自己费用 &gt; 对手费用 + x 时执行奖励；机制费=x 灰（x∈[1,5]，Value→EngineParam）</summary>
+        BranchEngineClash,
+        /// <summary>运势主干：回合开始掷 2d6，两点均 &gt; x 时执行奖励；机制费=x 灰（x∈[1,5]，Value→EngineParam）</summary>
+        BranchEngineLuckRoll,
+        /// <summary>倒计时主干：入场挂 N 回合倒计时，归零执行奖励并重置（Value→EngineParam；0=按奖励推导费自动换算 1费=1回合）</summary>
+        BranchEngineCountdown,
     }
 
     #region 效果分类扩展方法

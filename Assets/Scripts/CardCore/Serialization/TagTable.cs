@@ -110,6 +110,7 @@ namespace CardCore.Serialization
         public const int AEI_DynamicTargetCount = 1960296747;
         public const int AEI_Drawbacks = 1476602083;
         public const int AEI_TargetKinds = 1052954153;
+        public const int AEI_Amplitude = 1052954154;
         public const int AEI_ManaList = 902140877;
 
         // ---- SerializableManaAmount ----
@@ -180,9 +181,6 @@ namespace CardCore.Serialization
         public const int PS_FatigueCount = 2096412322;
         public const int PS_LandCap = 1466244150;
         public const int PS_ElementBank = 3481387;
-        public const int PS_OffsetDrainUsed = 671719169;
-        public const int PS_OffsetDiscardUsed = 2025050288;
-        public const int PS_OffsetMillUsed = 1250242446;
         public const int PS_OffsetOpponentHealUsed = 1301472982;
         public const int PS_OffsetOpponentDrawUsed = 1443501556;
         public const int PS_GraveyardCount = 1652629631;

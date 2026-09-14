@@ -384,33 +384,33 @@ namespace CardCore.Serialization
     [MemoryPackable]
     public partial class SerializableAtomicEffectEntry
     {
-        // 2026-09-10 目标域模型：原子 = EffectType/Value/ID/ManaList/TargetKinds（编排属性上移组合层，
-        // 见 SerializableEffectStepData/SerializableCardEffectData 侧的效果级字段）。旧 AEI_* 标签留作保留位。
+        // 2026-09-14 彻底引用化：原子 = 表行引用+增量（refId/value/str/amp/kinds）。
+        // 旧 AEI_* 标签名沿用（refId 复用 AEI_Type 槽位——网络线格式随重构换血，无兼容负担）。
 
         [MemoryPackOrder(TagTable.AEI_Type)]
-        public string EffectType;
+        public string refId;
 
         [MemoryPackOrder(TagTable.AEI_Value)]
-        public int Value;
+        public int value;
 
         [MemoryPackOrder(TagTable.AEI_StringValue)]
-        public string StringValue;
+        public string str;
 
         [MemoryPackOrder(TagTable.AEI_TargetKinds)]
-        public int[] TargetKinds;
+        public int[] kinds;
 
-        [MemoryPackOrder(TagTable.AEI_ManaList)]
-        public SerializableManaAmount[] ManaList;
+        [MemoryPackOrder(TagTable.AEI_Amplitude)]
+        public float amp;
 
         public static SerializableAtomicEffectEntry FromEntry(AtomicEffectEntry entry)
         {
             return new SerializableAtomicEffectEntry
             {
-                EffectType = entry.EffectType,
-                Value = entry.Value,
-                StringValue = entry.ID,
-                TargetKinds = entry.TargetKinds?.ToArray() ?? System.Array.Empty<int>(),
-                ManaList = entry.ManaList?.Select(m => new SerializableManaAmount { manaType = m.manaType, amount = m.amount }).ToArray(),
+                refId = entry.refId,
+                value = entry.value,
+                str = entry.str,
+                kinds = entry.kinds?.ToArray() ?? System.Array.Empty<int>(),
+                amp = entry.amp,
             };
         }
 
@@ -418,11 +418,11 @@ namespace CardCore.Serialization
         {
             return new AtomicEffectEntry
             {
-                EffectType = EffectType,
-                Value = Value,
-                ID = StringValue,
-                TargetKinds = TargetKinds != null ? new List<int>(TargetKinds) : null,
-                ManaList = ManaList?.Select(m => new ManaAmountEntry { manaType = m.manaType, amount = m.amount }).ToList(),
+                refId = refId,
+                value = value,
+                str = str,
+                kinds = kinds != null ? new List<int>(kinds) : null,
+                amp = amp,
             };
         }
     }

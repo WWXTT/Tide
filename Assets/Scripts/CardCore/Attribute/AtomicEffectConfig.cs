@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace CardCore.Attribute
@@ -11,8 +11,12 @@ namespace CardCore.Attribute
     [Serializable]
     public class AtomicEffectConfig
     {
-        /// <summary>效果唯一ID</summary>
+        /// <summary>效果行序号（装载序）</summary>
         public int Id;
+
+        /// <summary>表首列 ID（8-hex 描述哈希——2026-09-14 原子引用化的引用键；
+        /// 空=行缺失该列，不可被 AtomRef 引用）。</summary>
+        public string HashId;
 
         /// <summary>枚举名称（对应 AtomicEffectType）</summary>
         public string EnumName;
@@ -23,8 +27,25 @@ namespace CardCore.Attribute
         /// <summary>效果描述模板</summary>
         public string Description;
 
-        /// <summary>基准费用（价值评估用，每点效果值对应的费用权重）</summary>
-        public float BaseCost;
+        /// <summary>费用构成（2026-09-14 ManaList 定案：EffectColor+BaseCost 两列合并——
+        /// 混合色原子的基础。计价 = 各色 amount × Value（随值缩放）；null/空 = 不计价行）。</summary>
+        public List<ManaAmountEntry> ManaList;
+
+        /// <summary>主色（ManaList 首项；空=Gray）——UI 圆点等单色消费口。</summary>
+        public ManaType PrimaryColor
+            => ManaList != null && ManaList.Count > 0 ? (ManaType)ManaList[0].manaType : ManaType.Gray;
+
+        /// <summary>费用合计基数（各色 amount 之和）——原 BaseCost 的标量消费者过渡用。</summary>
+        public float TotalUnitCost
+        {
+            get
+            {
+                float sum = 0f;
+                if (ManaList == null) return 0f;
+                foreach (var m in ManaList) sum += m?.amount ?? 0f;
+                return sum;
+            }
+        }
 
         /// <summary>费用乘数（不同目标范围对费用的影响）</summary>
         public float CostMultiplier;

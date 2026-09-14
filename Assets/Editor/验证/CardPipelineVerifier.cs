@@ -130,6 +130,8 @@ namespace CardCore.Editor
             // 分支条件目录 + 信息族（宣言/预言）引擎流：不依赖卡表（合成卡驱动）
             Crumb("→TestCostAnchors");
             TestCostAnchors();
+            Crumb("→TestComposerModel");
+            TestComposerModel();
             // BranchConfig.json 已随 5397a3f 删除（2026-09-10 用户裁定：分支目录/例外规则复杂度
             // 暂不收编，原规则收尾后再恢复——恢复时还原该文件 + 取消本行注释）
             // TestBranchCatalog();
@@ -394,9 +396,9 @@ namespace CardCore.Editor
             // 拆为两效果（伤害 Manual 域 {1,2}；抽牌 None 自结算）
             Assert(data.Effects != null && data.Effects.Count == 2
                    && data.Effects[0].AtomicEffects != null && data.Effects[0].AtomicEffects.Count == 1
-                   && data.Effects[0].AtomicEffects[0].EffectType == nameof(AtomicEffectType.DealDamage)
+                   && data.Effects[0].AtomicEffects[0].refId == AtomicEffectTable.GetByEnumName(nameof(AtomicEffectType.DealDamage)?.HashId
                    && data.Effects[1].AtomicEffects != null && data.Effects[1].AtomicEffects.Count == 1
-                   && data.Effects[1].AtomicEffects[0].EffectType == nameof(AtomicEffectType.DrawCard),
+                   && data.Effects[1].AtomicEffects[0].refId == AtomicEffectTable.GetByEnumName(nameof(AtomicEffectType.DrawCard)?.HashId,
                    "火球术效果反序列化（伤害/抽牌两效果——抽卡域改牌库后拆分）");
 
             var fireball = new CardWrapper(data);
@@ -531,7 +533,7 @@ namespace CardCore.Editor
                 "DealDamage 表默认 filter 为空（可指角色，直伤打脸合法——review 定案）");
 
             // d) 双路径一致：同原子组 flat 与 Steps 两版的组合域相等
-            var entry = new AtomicEffectEntry { EffectType = AtomicEffectType.DealDamage.ToString(), Value = 2 };
+            var entry = AtomRefs.New(AtomicEffectType.DealDamage, value: 2);
             var flat = new CardEffectData { Id = "VERIFY_TDM_FLAT", AtomicEffects = new List<AtomicEffectEntry> { entry } };
             var stepped = new CardEffectData
             {
@@ -565,7 +567,7 @@ namespace CardCore.Editor
                             SelectionMode = (int)CardCore.SelectionMode.Manual, // 显式 Manual：None=区域自结算类会早真（2026-09-13 对齐）
                             AtomicEffects = new List<AtomicEffectEntry>
                             {
-                                new AtomicEffectEntry { EffectType = AtomicEffectType.Untap.ToString(), Value = 1 },
+                                AtomRefs.New(AtomicEffectType.Untap, value: 1),
                             },
                         },
                     },
@@ -590,7 +592,7 @@ namespace CardCore.Editor
                 Id = "VERIFY_POL",
                 AtomicEffects = new List<AtomicEffectEntry>
                 {
-                    new AtomicEffectEntry { EffectType = AtomicEffectType.Heal.ToString(), Value = 2, TargetKinds = new List<int> { sideKind } },
+                    AtomRefs.New(AtomicEffectType.Heal, value: 2, kinds: new List<int> { sideKind }) },
                 },
             };
             var wrongDef = CardEffectConverter.ConvertOne(PolEff(2), "VERIFY_POL"); // 锁对方 {2}=EnemyLivingUnit = 错边
@@ -606,7 +608,7 @@ namespace CardCore.Editor
                 Id = "VERIFY_POL_B",
                 AtomicEffects = new List<AtomicEffectEntry>
                 {
-                    new AtomicEffectEntry { EffectType = AtomicEffectType.Heal.ToString(), Value = 2, TargetKinds = new List<int> { 1, 2 } },
+                    AtomRefs.New(AtomicEffectType.Heal, value: 2, kinds: new List<int> { 1 }),
                 },
             }, "VERIFY_POL_B");
             Assert(CostDerivationService.DeriveElementCosts(bothDef).Sum(c => c.Value) == rightCost,
@@ -702,7 +704,7 @@ namespace CardCore.Editor
                     TriggerTiming = (int)TriggerTiming.OnPlay,
                     AtomicEffects = new List<AtomicEffectEntry>
                     {
-                        new AtomicEffectEntry { EffectType = AtomicEffectType.Sleep.ToString() }, // 域={Self}，Value 缺省→灰费时长
+                        AtomRefs.New(AtomicEffectType.Sleep), // 域={Self}，Value 缺省→灰费时长
                     },
                 });
                 sleepData.Effects.Add(new CardEffectData
@@ -711,8 +713,7 @@ namespace CardCore.Editor
                     TriggerTiming = (int)TriggerTiming.OnTurnEnd,
                     AtomicEffects = new List<AtomicEffectEntry>
                     {
-                        new AtomicEffectEntry { EffectType = AtomicEffectType.ModifyPower.ToString(), Value = 1,
-                            TargetKinds = new List<int> { 0 } }, // {Self}：自己的回合结束+1 攻（沉睡期间应被拦）
+                        AtomRefs.New(AtomicEffectType.ModifyPower, value: 1, kinds: new List<int> { 0 }) }, // {Self}：自己的回合结束+1 攻（沉睡期间应被拦）
                     },
                 });
                 var sleepCard = InjectCard(core, p1, sleepData);
@@ -773,7 +774,7 @@ namespace CardCore.Editor
                     TriggerTiming = (int)TriggerTiming.OnPlay,
                     AtomicEffects = new List<AtomicEffectEntry>
                     {
-                        new AtomicEffectEntry { EffectType = AtomicEffectType.Sleep.ToString(), Value = 2 }, // 域={Self} 定长 2
+                        AtomRefs.New(AtomicEffectType.Sleep, value: 2), // 域={Self} 定长 2
                     },
                 });
                 var fixedCard = InjectCard(core, p1, fixedData);
@@ -799,8 +800,10 @@ namespace CardCore.Editor
 
         /// <summary>
         /// 黑白元素经济端到端：①错边原子出计价+结算发放（封顶地牌上限）②黑白支付侧（本色费/浓度上限/灰混付）
-        /// ③代价栏补偿跟代价走（弃牌→黑 / Payload 效果型→按极性色）④抵消改道（付资源得黑；灰缺口可补、纯色不可）
-        /// ⑤流失改扣 MaxHealth（满血裁剪 / 受伤只扣上限 / 归零正常死亡）⑥含黑白费用卡作地牌不产黑白指示物。
+        /// ③代价栏补偿跟代价走（Payload 原子按全价+极性色——2026-09-14 代价原子化：弃牌/送墓/流失皆原子）
+        /// ④元素支付（黑可混付灰缺口、纯色缺口不可救——抵消兑换已退役，黑白获取只经卡结算）
+        /// ⑤流失改扣 MaxHealth（LifeLoss 原子=支付载体：满血裁剪/受伤只扣上限/归零正常死亡+支付事件）
+        /// ⑥含黑白费用卡作地牌不产黑白指示物。
         /// </summary>
         private static void TestBlackWhiteEconomy(GameCore core, Player p1, Player p2)
         {
@@ -810,7 +813,6 @@ namespace CardCore.Editor
             var snapBank = new Dictionary<ManaType, int>(pool1.AvailableMana);
             int snapTurnIdx = pool1.GlobalTurnIndex;
             int snapMax = p1.MaxHealth, snapLife = p1.Life;
-            int snapDrainUsed = p1.OffsetDrainUsed;
 
             CardData SpellData(string id, string name, params AtomicEffectEntry[] atoms) => new CardData
             {
@@ -820,8 +822,8 @@ namespace CardCore.Editor
                     new CardEffectData { Id = id + "_EFF", AtomicEffects = new List<AtomicEffectEntry>(atoms) },
                 },
             };
-            AtomicEffectEntry Atom(string type, int value = 0, List<int> kinds = null)
-                => new AtomicEffectEntry { EffectType = type, Value = value, TargetKinds = kinds };
+            AtomicEffectEntry Atom(string type, int value = 1, List<int> kinds = null)
+                => new AtomicEffectEntry { refId = CardCore.Attribute.AtomicEffectTable.GetByEnumName(type)?.HashId, value = value, kinds = kinds };
 
             try
             {
@@ -889,9 +891,17 @@ namespace CardCore.Editor
                 };
 
                 // 3a. e2e 默认（无头非 AI → 不付）：无弃牌、无黑、原价支付
+                // （2026-09-14 代价原子化：弃牌代价=DiscardCard 原子锁己方手牌域 {5} 的 Payload）
                 var discardCostCard = InjectCard(core, p1, SpellData("VERIFY_BW_DISC", "验证弃牌代价"));
                 ((CardWrapper)discardCostCard).GetData().Effects[0].Costs =
-                    new List<CostEntry> { new CostEntry { CostType = (int)CostType.DiscardCard, Value = 1 } };
+                    new List<CostEntry>
+                    {
+                        new CostEntry
+                        {
+                            CostType = (int)CostType.Payload, Value = 1,
+                            payload = AtomRefs.New(AtomicEffectType.DiscardCard, value: 1, kinds: new List<int> { 5 }),
+                        },
+                    };
                 int handBefore = core.ZoneManager.GetCards(p1, Zone.Hand).Count;
                 Assert(GameActions.PlayCard(core, p1, discardCostCard, new List<Entity>()), "打出带弃牌代价的卡");
                 GameActions.DrainStack(core);
@@ -899,33 +909,54 @@ namespace CardCore.Editor
                        "默认不付代价：只少打出本体（代价未执行）");
                 Assert(pool1.AvailableMana[ManaType.Black] == 0, "默认不付：无黑白获得");
 
-                // 3b. 强制 Discount：付弃1张 → 元素账单 −当量
+                // 3b. 强制 Discount：付弃1张（Payload 全价=表锚 2）→ 元素账单 −2
                 int hand3b = core.ZoneManager.GetCards(p1, Zone.Hand).Count;
-                var discCosts = new List<CostInstance> { new CostInstance { Type = CostType.DiscardCard, Value = 1 } };
+                var discCosts = new List<CostInstance>
+                {
+                    new CostInstance
+                    {
+                        Type = CostType.Payload,
+                        Payload = CardEffectConverter.ConvertPayloadForDisplay(AtomRefs.New(AtomicEffectType.DiscardCard, value: 1, kinds: new List<int> { 5 }))
+                    },
+                };
                 var bill3b = new Dictionary<int, float> { { (int)ManaType.Gray, 4f } };
                 Assert(CostCompensationService.PayOptionalCardCostsAsync(discCosts, optCtx, bill3b,
                        OptionalCostChoice.Discount).GetAwaiter().GetResult(), "付+减费路径执行");
                 Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Count == hand3b - 1, "付+减费：代价执行（弃1张）");
-                Assert(System.Math.Abs(bill3b.GetValueOrDefault((int)ManaType.Gray) - 3f) < 1e-4,
-                       $"减费：灰账单 4−当量1=3（实际 {bill3b.GetValueOrDefault((int)ManaType.Gray)}）");
+                Assert(System.Math.Abs(bill3b.GetValueOrDefault((int)ManaType.Gray) - 2f) < 1e-4,
+                       $"减费：灰账单 4−Payload全价2=2（实际 {bill3b.GetValueOrDefault((int)ManaType.Gray)}）");
 
-                // 3c. 强制 Elements：付弃1张 → +1 黑（封顶地牌上限）
+                // 3c. 强制 Elements：付弃1张 → +2 黑（Payload 全价=表锚 2；封顶地牌上限）
                 int hand3c = core.ZoneManager.GetCards(p1, Zone.Hand).Count;
-                var elemCosts = new List<CostInstance> { new CostInstance { Type = CostType.DiscardCard, Value = 1 } };
+                var elemCosts = new List<CostInstance>
+                {
+                    new CostInstance
+                    {
+                        Type = CostType.Payload,
+                        Payload = CardEffectConverter.ConvertPayloadForDisplay(AtomRefs.New(AtomicEffectType.DiscardCard, value: 1, kinds: new List<int> { 5 }))
+                    },
+                };
                 var bill3c = new Dictionary<int, float> { { (int)ManaType.Gray, 4f } };
                 Assert(CostCompensationService.PayOptionalCardCostsAsync(elemCosts, optCtx, bill3c,
                        OptionalCostChoice.Elements).GetAwaiter().GetResult(), "付+得黑白路径执行");
                 Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Count == hand3c - 1, "付+得黑白：代价执行");
-                Assert(pool1.AvailableMana[ManaType.Black] == 1, "付+得黑白：+1 黑（弃1张当量1）");
+                Assert(pool1.AvailableMana[ManaType.Black] == 2, "付+得黑白：+2 黑（弃1张 Payload 全价=表锚 2）");
                 Assert(System.Math.Abs(bill3c.GetValueOrDefault((int)ManaType.Gray) - 4f) < 1e-4, "得黑白路径不减费");
 
-                // 3d. 减费与黑白共用上限：弃9张（当量9）地牌上限3 → 只减 3（防第一回合重代价换大生物）
-                var bigCosts = new List<CostInstance> { new CostInstance { Type = CostType.DiscardCard, Value = 9 } };
+                // 3d. 减费与黑白共用上限：弃9张（Payload 全价18）地牌上限3 → 只减 3（防第一回合重代价换大生物）
+                var bigCosts = new List<CostInstance>
+                {
+                    new CostInstance
+                    {
+                        Type = CostType.Payload,
+                        Payload = CardEffectConverter.ConvertPayloadForDisplay(AtomRefs.New(AtomicEffectType.DiscardCard, value: 9, kinds: new List<int> { 5 }))
+                    },
+                };
                 var bill3d = new Dictionary<int, float> { { (int)ManaType.Gray, 9f } };
                 Assert(CostCompensationService.PayOptionalCardCostsAsync(bigCosts, optCtx, bill3d,
                        OptionalCostChoice.Discount).GetAwaiter().GetResult(), "重代价减费执行");
                 Assert(System.Math.Abs(bill3d.GetValueOrDefault((int)ManaType.Gray) - 6f) < 1e-4,
-                       $"减费封顶：当量9 但上限3 → 灰 9−3=6（实际 {bill3d.GetValueOrDefault((int)ManaType.Gray)}）");
+                       $"减费封顶：全价18 但上限3 → 灰 9−3=6（实际 {bill3d.GetValueOrDefault((int)ManaType.Gray)}）");
 
                 // ---- 4. Payload 效果型代价：默认不付（不执行）；强制 Elements → 对手召唤 + 得白 ----
                 var tpl = new CardData { ID = "VERIFY_BW_TPL", CardName = "验证白衍生物", Supertype = Cardtype.Creature, Power = 30, Life = 30 };
@@ -939,13 +970,7 @@ namespace CardCore.Editor
                     new CostEntry
                     {
                         CostType = (int)CostType.Payload,
-                        payload = new AtomicEffectEntry
-                        {
-                            EffectType = AtomicEffectType.SummonToken.ToString(),
-                            Value = 1,
-                            ID = tpl.ID,                       // 字符串参数 = token 模板 ID
-                            TargetKinds = new List<int> { 2 }, // 锁对方域（EnemyLivingUnit）→ 受惠侧=对手执行
-                        },
+                        payload = AtomRefs.New(AtomicEffectType.SummonToken, value: 1, kinds: new List<int> { 2 }, str: tpl.ID), // 锁对方域（EnemyLivingUnit）→ 受惠侧=对手执行
                     },
                 };
                 var payDerive = CardCostService.Derive(((CardWrapper)payloadCard).GetData());
@@ -966,13 +991,7 @@ namespace CardCore.Editor
                     {
                         Type = CostType.Payload,
                         Payload = CardEffectConverter.ConvertPayloadForDisplay(
-                            new AtomicEffectEntry
-                            {
-                                EffectType = AtomicEffectType.SummonToken.ToString(),
-                                Value = 1,
-                                ID = tpl.ID,
-                                TargetKinds = new List<int> { 2 },
-                            }),
+                            AtomRefs.New(AtomicEffectType.SummonToken, value: 1, kinds: new List<int> { 2 }, str: tpl.ID)),
                     },
                 };
                 var bill4 = new Dictionary<int, float> { { (int)ManaType.Gray, 1f } };
@@ -989,29 +1008,25 @@ namespace CardCore.Editor
                 Assert(pool1.AvailableMana[ManaType.White] == 1,
                        $"Payload 补偿：得白 = min(全价1, 上限3) = 1（实际 {pool1.AvailableMana[ManaType.White]}）");
 
-                // ---- 5. 抵消改道黑经济：付资源得黑、灰缺口可补 / 纯色缺口不可救 ----
+                // ---- 5. 元素支付（2026-09-14 抵消退役）：黑可混付灰缺口 / 纯色缺口不可救 ----
                 foreach (var t in AllManaTypes()) pool1.AvailableMana[t] = 0;
                 pool1.AvailableMana[ManaType.Gray] = 1;
+                pool1.AvailableMana[ManaType.Black] = 1;
                 pool1.GlobalTurnIndex = 1; // 上限 1：黑混付贡献 ≤1
-                p1.OffsetDrainUsed = 0;
-                int maxBefore5 = p1.MaxHealth;
                 var ctx5 = new CostContext
                 {
                     Payer = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool, Source = p1,
                 };
                 var grayNeed = new List<CostInstance> { new CostInstance { Type = CostType.ElementConsume, Value = 2, ManaType = ManaType.Gray } };
-                bool paidGray = CostOffsetService.PayElementWithOffsetAsync(grayNeed, ctx5).GetAwaiter().GetResult();
-                Assert(paidGray && p1.MaxHealth == maxBefore5 - 2 && p1.OffsetDrainUsed == 1
-                       && pool1.AvailableMana[ManaType.Gray] == 0 && pool1.AvailableMana[ManaType.Black] == 0,
-                       $"灰缺口可补：贪心兑换 1 次（流失 2 上限→+1黑）→ 灰1+黑1 付清（max {maxBefore5}→{p1.MaxHealth}，drain {p1.OffsetDrainUsed}）");
+                bool paidGray = ElementCostPayment.Pay(grayNeed, ctx5);
+                Assert(paidGray && pool1.AvailableMana[ManaType.Gray] == 0 && pool1.AvailableMana[ManaType.Black] == 0,
+                       "灰费混付：灰1+黑1 付灰2（黑白参与通用支付——黑元素只经卡结算获得，无兑换通道）");
 
                 foreach (var t in AllManaTypes()) pool1.AvailableMana[t] = 9;
                 pool1.AvailableMana[ManaType.Red] = 0;
                 var redNeed = new List<CostInstance> { new CostInstance { Type = CostType.ElementConsume, Value = 1, ManaType = ManaType.Red } };
-                int maxBefore5b = p1.MaxHealth;
-                bool paidRed = CostOffsetService.PayElementWithOffsetAsync(redNeed, ctx5).GetAwaiter().GetResult();
-                Assert(!paidRed && p1.MaxHealth == maxBefore5b && p1.OffsetDrainUsed == 1,
-                       "纯色缺口不可救：红费黑补不了，不浪费资源兑换（流失/计数不变）");
+                bool paidRed = ElementCostPayment.Pay(redNeed, ctx5);
+                Assert(!paidRed, "纯色缺口不可救：红费黑补不了（黑只补黑本色与灰混付缺口）");
 
                 // ---- 6. 流失改扣 MaxHealth：满血裁剪 / 受伤只扣上限 / 归零正常死亡 ----
                 var pl = new Player("VERIFY_BW_MAXHP", 30);
@@ -1023,13 +1038,29 @@ namespace CardCore.Editor
                 pl2.Life = 20;
                 pl2.DecreaseMaxHealth(2);
                 Assert(pl2.MaxHealth == 28 && pl2.Life == 20, "已受伤（20/30）扣 2 → 20/28（只扣上限）");
-                var lifeCtx = new CostContext { Payer = pl2 };
-                var pay29 = new CostInstance { Type = CostType.LifePayment, Value = 29 };
-                Assert(!CostHandlerRegistry.CanPay(pay29, lifeCtx), "上限 28 付不出 29（可付到恰好归零）");
-                var pay28 = new CostInstance { Type = CostType.LifePayment, Value = 28 };
-                Assert(CostHandlerRegistry.CanPay(pay28, lifeCtx) && CostHandlerRegistry.Pay(pay28, lifeCtx),
-                       "可付到恰好归零");
-                Assert(pl2.MaxHealth == 0 && pl2.Life == 0, "归零 = 0/0（正常死亡交生命判定收尾）");
+                // 流失原子（2026-09-14 代价原子化：LifeLoss=支付载体）——目标=自己 → 扣上限 + 发支付事件
+                int evtSum = 0;
+                void OnLifePay(LifePaymentCostEvent e) { if (e.Player == pl2) evtSum += e.Amount; }
+                EventManager.Instance.Subscribe<LifePaymentCostEvent>(OnLifePay);
+                var drainAtom = new AtomicEffectInstance { Type = AtomicEffectType.LifeLoss, Value = 8 };
+                var drainCtx = new EffectExecutionContext
+                {
+                    Controller = pl2, Source = pl2,
+                    Targets = new List<Entity> { pl2 },
+                };
+                CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(drainAtom, drainCtx).GetAwaiter().GetResult();
+                EventManager.Instance.Unsubscribe<LifePaymentCostEvent>(OnLifePay);
+                Assert(pl2.MaxHealth == 20 && pl2.Life == 20 && evtSum == 8,
+                       $"流失原子：20/28 扣 8 → 20/20（只降上限）+ LifePaymentCostEvent 8（实际 {pl2.MaxHealth}/{pl2.Life}，事件 {evtSum}）");
+                var plZero = new Player("VERIFY_BW_MAXHP3", 30);
+                var drainAllCtx = new EffectExecutionContext
+                {
+                    Controller = plZero, Source = plZero,
+                    Targets = new List<Entity> { plZero },
+                };
+                CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
+                    new AtomicEffectInstance { Type = AtomicEffectType.LifeLoss, Value = 30 }, drainAllCtx).GetAwaiter().GetResult();
+                Assert(plZero.MaxHealth == 0 && plZero.Life == 0, "可扣到恰好归零（归零=正常死亡交生命判定收尾）");
 
                 // ---- 7. 含黑白费用的卡作地牌：黑白份额不产指示物；纯黑白卡不可入池 ----
                 // 2026-09-13 修复：前段（TestLandEconomy 等）地牌未回收，上限=1 时占位即拒——先清池残留
@@ -1058,7 +1089,6 @@ namespace CardCore.Editor
             {
                 foreach (var kv in snapBank) pool1.AvailableMana[kv.Key] = kv.Value;
                 pool1.GlobalTurnIndex = snapTurnIdx;
-                p1.OffsetDrainUsed = snapDrainUsed;
                 // 生命/上限不逐点恢复（后续段落自建夹具；MaxHealth 只在本段被扣，恢复到快照）
                 if (p1.MaxHealth != snapMax || p1.Life != snapLife)
                 {
@@ -1244,8 +1274,8 @@ namespace CardCore.Editor
             var ser = CardCore.Serialization.SerializableEffectStepData.FromData(data.Effects[0].Steps[0]);
             var back = ser.ToData();
             Assert(back.choices != null && back.choices.Count == 2
-                   && back.choices[0].steps[0].atomic.EffectType == "DealDamage"
-                   && back.choices[1].steps[0].atomic.EffectType == "DrawCard",
+                   && back.choices[0].steps[0].atomic.refId == AtomicEffectTable.GetByEnumName("DealDamage")?.HashId
+                   && back.choices[1].steps[0].atomic.refId == AtomicEffectTable.GetByEnumName("DrawCard")?.HashId,
                    "序列化往返保抉择结构（模式数与原子类型）");
         }
 
@@ -1354,7 +1384,7 @@ namespace CardCore.Editor
                     new CardEffectData
                     {
                         Id = "VERIFY_AG_CAST_E", BaseSpeed = 1,
-                        AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = AtomicEffectType.DrawCard.ToString(), Value = 1 } },
+                        AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
                     },
                 },
             };
@@ -1376,7 +1406,7 @@ namespace CardCore.Editor
                     new CardEffectData
                     {
                         Id = "VERIFY_AG_SWIFT_E",
-                        AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = AtomicEffectType.DrawCard.ToString(), Value = 1 } },
+                        AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
                     },
                 },
             };
@@ -1690,7 +1720,7 @@ namespace CardCore.Editor
             boltData.Supertype = Cardtype.Spell;
             boltData.Cost[(int)ManaType.Gray] = 0;
             var boltEffect = new CardEffectData { Id = "VERIFY_ATTRIB_EFF", TriggerTiming = (int)TriggerTiming.OnPlay };
-            boltEffect.AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = "DealDamage", Value = 3 } };
+            boltEffect.AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DealDamage, value: 3) };
             boltData.Effects.Add(boltEffect);
             var bolt = InjectCard(core, p1, boltData);
 
@@ -2518,10 +2548,10 @@ namespace CardCore.Editor
                 return card;
             }
 
-            // 冲锋/突袭的登场效果（2026-09-08；2026-09-11 代价可选改写）：
-            // OnPlay + 激励自己（域 {Self}）。突袭的自紊乱**挪进代价栏**（SelfSickness）——
-            // 使用时选择窗口决定 不付/付+减费/付+得黑（原 CostDerivation 的 Self 紊乱对冲已删）；
-            // 本验证直接入场不经付费步 → 代价默认不付，紊乱由下方显式支付模拟。
+            // 冲锋/突袭的登场效果（2026-09-08）：
+            // OnPlay + 激励自己（域 {Self}）。突袭的自紊乱曾以 SelfSickness 代价承载——
+            // 2026-09-14 代价原子化后退役（代价栏只剩 Payload 原子；自上紊乱改由 RushSickness
+            // 原子表达——下方以直接执行原子模拟付费后果）。
             CardEffectData EntryReadyEffect(bool withSickness)
             {
                 var eff = new CardEffectData
@@ -2537,18 +2567,9 @@ namespace CardCore.Editor
                 };
                 eff.AtomicEffects = new List<AtomicEffectEntry>
                 {
-                    new AtomicEffectEntry
-                    {
-                        EffectType = AtomicEffectType.Untap.ToString(),
-                        Value = 1,
-                        TargetKinds = new List<int> { 0 },
+                    AtomRefs.New(AtomicEffectType.Untap, value: 1, kinds: new List<int> { 0 }),
                     },
                 };
-                if (withSickness)
-                    eff.Costs = new List<CostEntry>
-                    {
-                        new CostEntry { CostType = (int)CostType.SelfSickness, Value = 1 },
-                    };
                 return eff;
             }
 
@@ -2593,16 +2614,17 @@ namespace CardCore.Editor
             GameActions.DrainStack(core);
             Assert(!rusher.IsTapped()
                    && rusher.GetCounterCount(CardCore.Attribute.KeywordRules.RushSicknessCounter) == 0,
-                   "突袭（代价可选）：结算后解除横置；直接入场不经付费步 → 代价默认不付（无紊乱）");
-            // 模拟「付代价」路径：SelfSickness 支付 → 自上紊乱 1 层（使用时选择窗口的真实后果）
-            var sickCtx = new CostContext
-            {
-                Payer = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool, Source = rusher,
-            };
-            Assert(CostHandlerRegistry.Pay(new CostInstance { Type = CostType.SelfSickness, Value = 1 }, sickCtx),
-                   "自紊乱代价可支付（源在场存活）");
+                   "突袭：结算后解除横置（自紊乱代价已退役——紊乱由下方原子执行模拟）");
+            // 模拟「付代价」路径（2026-09-14 代价原子化）：RushSickness 原子直接执行 → 自上紊乱 1 层
+            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
+                new AtomicEffectInstance { Type = AtomicEffectType.RushSickness, Value = 1 },
+                new EffectExecutionContext
+                {
+                    Controller = p1, Source = rusher, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool,
+                    Targets = new List<Entity> { rusher },
+                }).GetAwaiter().GetResult();
             Assert(rusher.GetCounterCount(CardCore.Attribute.KeywordRules.RushSicknessCounter) == 1,
-                   "付代价后：自上紊乱 1 层");
+                   "RushSickness 原子执行后：自上紊乱 1 层");
             Assert(combat.CanAttackTarget(rusher, enemy) && !combat.CanAttackTarget(rusher, p2),
                    "突袭：紊乱期间只能攻随从，不准攻击玩家（效果发动同口径）");
             CardCore.Attribute.CounterRules.OnTurnEnd(p1, core.ZoneManager); // 回合结束持续指示物清理
@@ -2939,11 +2961,15 @@ namespace CardCore.Editor
                    && withered.GetCounterSource(CardCore.Attribute.CounterRules.LifeDownCounter) == debuffer,
                    "减益致死：削减归零标死，来源登记（SBA 收尸时归因到施加方）");
 
-            // ⑤ 生命抵扣边界：恰好归零可付（归零=正常死亡），超出当前生命不可付
-            var costCtx15 = new CostContext { Payer = p2, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool };
-            Assert(CostHandlerRegistry.CanPay(new CostInstance { Type = CostType.LifePayment, Value = p2.Life }, costCtx15)
-                   && !CostHandlerRegistry.CanPay(new CostInstance { Type = CostType.LifePayment, Value = p2.Life + 1 }, costCtx15),
-                   "生命抵扣：可付到恰好归零（归零=正常死亡），超出不可付");
+            // ⑤ 流失扣上限边界（2026-09-14 代价原子化：LifeLoss 原子=支付载体，无 CanPay 门槛）：
+            // 可扣到恰好归零（归零=正常死亡交生命判定收尾）；新玩家夹具不污染共享 p2
+            var plEdge = new Player("VERIFY_KW_LIFE_EDGE", 30);
+            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
+                new AtomicEffectInstance { Type = AtomicEffectType.LifeLoss, Value = 30 },
+                new EffectExecutionContext { Controller = plEdge, Source = plEdge, Targets = new List<Entity> { plEdge } })
+                .GetAwaiter().GetResult();
+            Assert(plEdge.MaxHealth == 0 && plEdge.Life == 0,
+                   "流失原子：可扣到恰好归零（归零=正常死亡交生命判定收尾）");
 
             // ---- 16. 再生（2026-09-13 全额定案）/ 成长（回合开始维护） ----
             for (int i = 0; i < 3; i++) core.ZoneManager.GetZoneContainer(p1).Add(new Card { ID = "VERIFY_KW_DECK" }, Zone.Deck);
@@ -3455,24 +3481,24 @@ namespace CardCore.Editor
                    "完成态光环与进行中任务并存（光环占格存续，新仪式开新任务）");
 
             p2.Life = 100; // 测试脚手架：保证 3×10 可付且不触发抵扣归零终局
-            var costCtx = new CostContext { Payer = p2, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool };
+            // 2026-09-14 代价原子化：生命支付=LifeLoss 原子（流失自己→LifePaymentCostEvent，血偿进度照常计数）
             for (int i = 0; i < 3; i++)
             {
-                Assert(CostHandlerRegistry.Pay(new CostInstance { Type = CostType.LifePayment, Value = 10 }, costCtx),
-                       $"血偿任务：第 {i + 1} 次支付 10 生命（累计 {(i + 1) * 10}）");
+                CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
+                    new AtomicEffectInstance { Type = AtomicEffectType.LifeLoss, Value = 10 },
+                    new EffectExecutionContext { Controller = p2, Source = p2, Targets = new List<Entity> { p2 } })
+                    .GetAwaiter().GetResult();
+                Assert(p2.MaxHealth == 30 - (i + 1) * 10,
+                       $"血偿任务：第 {i + 1} 次流失 10 上限（累计 {(i + 1) * 10}）");
             }
             Assert(RitualSystem.Active == null && RitualSystem.CompletedAuras.Count == 2
                    && RitualSystem.CompletedAuras[1].Completer == p2,
                    "累计支付 30 生命 → p2 完成血偿仪典");
             Assert(blood.HasKeyword(CardCore.Attribute.KeywordRules.Indestructible), "血偿完成态：不可摧毁");
 
-            // ---- 6. 血偿光环：p2 支付生命 → p1 扣血、p2 不动 ----
-            p1.Life = 50;
-            int p2LifeBefore = p2.Life;
-            Assert(CostHandlerRegistry.Pay(new CostInstance { Type = CostType.LifePayment, Value = 5 }, costCtx),
-                   "血偿光环下支付生命代价成功");
-            Assert(p1.Life == 45 && p2.Life == p2LifeBefore,
-                   "血偿光环：改用对手生命支付（p1 −5，p2 不动）");
+            // ---- 6. 血偿光环转嫁：已随 LifePayment 代价处理器退役（2026-09-14 代价原子化）----
+            // 装饰器（包装代价处理器）无挂点可包；仪式复活时改挂 LifeLoss 原子执行口
+            // （流失自己=支付，见 LifeLossHandler 的 LifePaymentCostEvent 发布处）。
 
             // ---- 7. 完成态不可破坏 ----
             var onField = core.ZoneManager.GetCards(p2, Zone.Battlefield).Contains(blood);
@@ -3578,9 +3604,14 @@ namespace CardCore.Editor
             var resourceCard = InjectCard(core, p1, resource);
             Assert(PlayCardSync(core, p1, resourceCard), "归土仪典打出");
 
-            var costCtx = new CostContext { Payer = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool };
-            Assert(CostHandlerRegistry.Pay(new CostInstance { Type = CostType.MillDeck, Value = 5 }, costCtx),
-                   "真实代价送墓 5 张（MillDeckCostEvent 计数）");
+            // 2026-09-14 代价原子化：送墓=MillCard 原子（磨自己牌库→MillDeckCostEvent 批量计数）
+            int deckBeforeMill = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
+            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
+                new AtomicEffectInstance { Type = AtomicEffectType.MillCard, Value = 5 },
+                new EffectExecutionContext { Controller = p1, Source = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool })
+                .GetAwaiter().GetResult();
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBeforeMill - 5,
+                   "送墓原子执行：磨自己 5 张（MillDeckCostEvent 批量计数）");
             for (int i = 0; i < 25; i++)
                 EventManager.Instance.Publish(new CardCore.Attribute.CardMillEvent { Player = p1, Source = null });
             Assert(RitualSystem.CompletedAuras.Any(a => a.Card == resourceCard), "送墓累计 30 → 归土完成");
@@ -3728,6 +3759,153 @@ namespace CardCore.Editor
         /// 9费挂3费全免（d(9)=0）、卡层组合费用（挂载口两向 + 抉择价差——2026-09-07 新层，
         /// 原「选发额外折」已删）、构筑代价抵消（无"超模"态）、关键词同享 d(C)、缺省档位 Ĉ。
         /// </summary>
+        // ======================================== 合成器模型（2026-09-14 合成器重做） ========================================
+
+        /// <summary>
+        /// 合成器重做模型断言（纯模型层——UI 交互留 Unity 手测）：
+        /// ①三主干表行（MountKinds=9/BaseCost=0/空域）；②converter 主干守卫；③自由分支 header 通道端到端
+        /// （RewardAtoms 转存/机制费/CountdownTurns 换算）；④有限分支预算（RewardDerivedCost vs GatePremium）；
+        /// ⑤并列保序；⑥描述动态渲染（值随机区间文本）；⑦哈希口径（amp/EngineKind 参与去重）。
+        /// </summary>
+        private static void TestComposerModel()
+        {
+            // ---- 1. 三主干表行 ----
+            foreach (var name in new[] { "BranchEngineClash", "BranchEngineLuckRoll", "BranchEngineCountdown" })
+            {
+                var row = CardCore.Attribute.AtomicEffectTable.GetByEnumName(name);
+                Assert(row != null, $"主干表行存在：{name}");
+                Assert(row.MountKinds == "9", $"{name} MountKinds=\"9\"（空会被兜底混入主动原子）");
+                Assert(row.BaseCost == 0f && string.IsNullOrEmpty(row.TargetKinds) && row.Polarity == 0f,
+                       $"{name} 主干不计价/无域/零极性");
+            }
+            Assert(System.Enum.IsDefined(typeof(CardCore.MountKind), 9), "MountKind 含 9=FreeBranchTrunk");
+            Assert(CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.BranchEngineClash)
+                   && CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.BranchEngineLuckRoll)
+                   && CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.BranchEngineCountdown)
+                   && !CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.DealDamage),
+                   "ComposerCatalog.IsEngineTrunk 判定（三主干在内/普通原子不在）");
+            Assert(CardCore.ComposerCatalog.TrunkToEngine(CardCore.AtomicEffectType.BranchEngineClash)
+                       == CardCore.BranchEngineKind.Clash
+                   && CardCore.ComposerCatalog.TrunkToEngine(CardCore.AtomicEffectType.DealDamage)
+                       == CardCore.BranchEngineKind.None,
+                   "TrunkToEngine 映射");
+
+            // ---- 2. converter 主干守卫：trunk 塞普通步骤 → ConvertAtomicEffect 剔除（null）----
+            var trunkDef = CardCore.CardEffectConverter.ConvertOne(new CardCore.CardEffectData
+            {
+                Id = "VERIFY_TRUNK_GUARD",
+                AtomicEffects = new List<CardCore.AtomicEffectEntry>
+                {
+                    new CardCore.AtomicEffectEntry { EffectType = "BranchEngineClash", Value = 2 },
+                },
+            }, "VERIFY_TRUNK_GUARD");
+            Assert(trunkDef.Effects.Count == 0,
+                   "主干守卫：trunk 原子塞进普通序列被 converter 剔除（自由分支经 header.EngineKind 声明）");
+
+            // ---- 3. 自由分支 header 通道端到端（合成器产出形态 = TestBranchEngines 数据形态）----
+            var freeDef = CardCore.CardEffectConverter.ConvertOne(new CardCore.CardEffectData
+            {
+                Id = "VERIFY_COMPOSER_FREE",
+                EngineKind = (int)CardCore.BranchEngineKind.Clash,
+                EngineParam = 2,
+                AtomicEffects = new List<CardCore.AtomicEffectEntry>
+                {
+                    new CardCore.AtomicEffectEntry { EffectType = "DrawCard", Value = 1 },
+                },
+            }, "VERIFY_COMPOSER_FREE");
+            Assert(freeDef.EngineKind == CardCore.BranchEngineKind.Clash && freeDef.RewardAtoms.Count == 1
+                   && freeDef.Effects.Count == 0,
+                   "自由分支：header 通道 → EngineKind=Clash，奖励原子转存 RewardAtoms（主序列空）");
+            var freeCosts = CardCore.CostDerivationService.DeriveElementCosts(freeDef);
+            Assert(freeCosts.Any(c => c.ManaType == CardCore.ManaType.Gray && c.Value == 2),
+                   "自由分支计价：拼点机制费 = EngineParam 2 灰（奖励 0 费）");
+
+            var countdownDef = CardCore.CardEffectConverter.ConvertOne(new CardCore.CardEffectData
+            {
+                Id = "VERIFY_COMPOSER_COUNTDOWN",
+                EngineKind = (int)CardCore.BranchEngineKind.Countdown,
+                EngineParam = 0, // 0 = 按奖励推导费自动换算
+                AtomicEffects = new List<CardCore.AtomicEffectEntry>
+                {
+                    new CardCore.AtomicEffectEntry { EffectType = "DrawCard", Value = 1 }, // 锚价 2 → 2 回合
+                },
+            }, "VERIFY_COMPOSER_COUNTDOWN");
+            Assert(countdownDef.CountdownTurns == 2,
+                   $"倒计时自动换算：奖励锚价 2 → 2 回合（实际 {countdownDef.CountdownTurns}）");
+
+            // ---- 4. 有限分支预算：RewardDerivedCost vs GatePremium ----
+            float drawCost = CardCore.CostDerivationService.RewardDerivedCost(new List<CardCore.AtomicEffectInstance>
+            {
+                CardCore.CardEffectConverter.ConvertAtomForUI(
+                    new CardCore.AtomicEffectEntry { EffectType = "DrawCard", Value = 1 }),
+            });
+            float dmgCost = CardCore.CostDerivationService.RewardDerivedCost(new List<CardCore.AtomicEffectInstance>
+            {
+                CardCore.CardEffectConverter.ConvertAtomForUI(
+                    new CardCore.AtomicEffectEntry { EffectType = "DealDamage", Value = 3 }),
+            });
+            Assert(drawCost == 2f, $"预算口径：抽1 锚价 2（≤2 过，实际 {drawCost}）");
+            Assert(dmgCost == 3f, $"预算口径：3伤 锚价 3（>2 拒，实际 {dmgCost}）");
+            var gate = System.Linq.Enumerable.First(CardCore.ComposerCatalog.GatesFor(CardCore.AtomicEffectType.DealDamage));
+            Assert(gate.Id == "DmgKillsTarget" && CardCore.ComposerCatalog.GateBudget(gate) == 2
+                   && CardCore.ComposerCatalog.GateLabel(gate).Contains("【奖励2】"),
+                   "有限分支目录：伤害主干 → 消灭门【奖励2】（premium 与 GatePremium 同源）");
+            Assert(!CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.DrawCard),
+                   "非产出族原子不可做有限分支主干");
+
+            // ---- 5. 并列保序：三原子 Steps → def.Steps 顺序一致 ----
+            var parDef = CardCore.CardEffectConverter.ConvertOne(new CardCore.CardEffectData
+            {
+                Id = "VERIFY_COMPOSER_PAR",
+                Steps = new List<CardCore.EffectStepData>
+                {
+                    new CardCore.EffectStepData { kind = 0, atomic = new CardCore.AtomicEffectEntry { EffectType = "DealDamage", Value = 1 } },
+                    new CardCore.EffectStepData { kind = 0, atomic = new CardCore.AtomicEffectEntry { EffectType = "DrawCard", Value = 1 } },
+                    new CardCore.EffectStepData { kind = 0, atomic = new CardCore.AtomicEffectEntry { EffectType = "Heal", Value = 2 } },
+                },
+            }, "VERIFY_COMPOSER_PAR");
+            Assert(parDef.Steps.Count == 3
+                   && parDef.Steps[0].Atomic.Type == CardCore.AtomicEffectType.DealDamage
+                   && parDef.Steps[1].Atomic.Type == CardCore.AtomicEffectType.DrawCard
+                   && parDef.Steps[2].Atomic.Type == CardCore.AtomicEffectType.Heal,
+                   "并列：三原子步骤保序转换");
+
+            // ---- 6. 描述动态渲染（AtomText——SynergyUI 侧）----
+            var cfg = CardCore.Attribute.AtomicEffectTable.GetByType(CardCore.AtomicEffectType.DealDamage);
+            var atom = new CardCore.AtomicEffectEntry { EffectType = "DealDamage", Value = 3, RandomAmplitude = 1f };
+            string rendered = SynergyUI.AtomText.Render(cfg, atom, null);
+            Assert(rendered == "随机 对目标造成0至6点伤害",
+                   $"描述动态渲染：3±100% → 「随机 对目标造成0至6点伤害」（实际 「{rendered}」）");
+            atom.RandomAmplitude = 0f;
+            Assert(SynergyUI.AtomText.Render(cfg, atom, null) == "对目标造成3点伤害", "描述渲染：amp=0 → 原模板");
+
+            // ---- 7. 哈希口径：amp / EngineKind 参与 HashEffect（去重不失真） ----
+            var g1 = new SynergyUI.EffectGraphData("H") { header = new CardCore.CardEffectData() };
+            g1.steps.Add(new CardCore.EffectStepData
+            {
+                kind = 0,
+                atomic = new CardCore.AtomicEffectEntry { EffectType = "DealDamage", Value = 3 },
+            });
+            var g2 = new SynergyUI.EffectGraphData("H") { header = new CardCore.CardEffectData() };
+            g2.steps.Add(new CardCore.EffectStepData
+            {
+                kind = 0,
+                atomic = new CardCore.AtomicEffectEntry { EffectType = "DealDamage", Value = 3, RandomAmplitude = 1f },
+            });
+            Assert(SynergyUI.ContentHasher.HashEffect(g1) != SynergyUI.ContentHasher.HashEffect(g2),
+                   "哈希口径：RandomAmplitude 不同 → HashEffect 不同");
+            var g3 = new SynergyUI.EffectGraphData("H")
+            {
+                header = new CardCore.CardEffectData { EngineKind = (int)CardCore.BranchEngineKind.Clash, EngineParam = 2 },
+            };
+            var g4 = new SynergyUI.EffectGraphData("H")
+            {
+                header = new CardCore.CardEffectData { EngineKind = (int)CardCore.BranchEngineKind.LuckRoll, EngineParam = 2 },
+            };
+            Assert(SynergyUI.ContentHasher.HashEffect(g3) != SynergyUI.ContentHasher.HashEffect(g4),
+                   "哈希口径：EngineKind 不同 → HashEffect 不同");
+        }
+
         private static void TestCostAnchors()
         {
             // ---- 表值 ----
@@ -3782,7 +3960,7 @@ namespace CardCore.Editor
             // ---- 法术不折：锚价全额；底盘退 2（法术无攻守）无灰落最高费用色 ----
             // 2026-09-13 用户调表：DealDamage 0.5→1.0、DrawCard 1.0→2.0 → 锚价红4+蓝2，退2落红
             var fbEffect = MakeEffect("DealDamage", 4);
-            fbEffect.AtomicEffects.Add(new AtomicEffectEntry { EffectType = "DrawCard", Value = 1 });
+            fbEffect.AtomicEffects.Add(AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1));
             var fb = CardCostService.Derive(MakeCostCard(Cardtype.Spell, null, null, fbEffect));
             Assert(fb.DerivedCost.GetValueOrDefault(ManaType.Red) == 2 && fb.DerivedCost.GetValueOrDefault(ManaType.Blue) == 2,
                    "计价锚：法术 4伤+1抽 = 红2+蓝2（锚价全额红4蓝2 − 底盘退2 落最高色红）");
@@ -3825,10 +4003,18 @@ namespace CardCore.Editor
             var ov = CardCostService.Derive(overBaseline);
             Assert(ov.OffsetRequirement == 5 && !ov.Conformant,
                    "计价锚：3费声明 整卡折 D=8 → 缺口 5，无代价 → 不符规则一");
-            overBaseline.Effects[0].Costs = new List<CostEntry> { new CostEntry { CostType = (int)CostType.DiscardCard, Value = 4 } };
+            overBaseline.Effects[0].Costs = new List<CostEntry>
+            {
+                new CostEntry
+                {
+                    CostType = (int)CostType.Payload, Value = 4,
+                    payload = AtomRefs.New(AtomicEffectType.DiscardCard, value: 4, kinds: new List<int> { 5 }),
+                    },
+                },
+            };
             var ov2 = CardCostService.Derive(overBaseline);
             Assert(ov2.DerivedTotal == ov.DerivedTotal && !ov2.Conformant,
-                   "计价锚（2026-09-11）：同卡挂弃4张代价 → D/规则一不变（当量抵扣下线，补偿改运行时得黑——EquivalentValue=4 见代价补偿段）");
+                   "计价锚（2026-09-11/09-14）：同卡挂弃4张 Payload 代价 → D/规则一不变（当量抵扣下线，补偿改运行时按全价得黑——见代价补偿段）");
 
             // ---- 关键词计价：Grant 固定费 + 随整卡同折（挂载口退费并存）----
             var kwCard = MakeCostCard(Cardtype.Creature, 1, 1);
@@ -3937,7 +4123,7 @@ namespace CardCore.Editor
                     TriggerLimitPerTurn = -1,
                     AtomicEffects = new List<AtomicEffectEntry>
                     {
-                        new AtomicEffectEntry { EffectType = "DrawCard", Value = 1 }
+                        AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)
                     },
                 });
             }
@@ -4896,7 +5082,7 @@ namespace CardCore.Editor
                 SelectionMode = (int)CardCore.SelectionMode.Manual, // 故意声明 Manual——固有全域应覆写为 Full
                 AtomicEffects = new List<AtomicEffectEntry>
                 {
-                    new AtomicEffectEntry { EffectType = AtomicEffectType.SweepDamage.ToString(), Value = 1 },
+                    AtomRefs.New(AtomicEffectType.SweepDamage, value: 1),
                 },
             };
             var forcedDef = CardEffectConverter.ConvertOne(data, "VERIFY_SWEEP");
@@ -4907,7 +5093,7 @@ namespace CardCore.Editor
             var dmgDef = CardEffectConverter.ConvertOne(new CardEffectData
             {
                 Id = "VERIFY_SWEEP_D3",
-                AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = "SweepDamage", Value = 3 } },
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.SweepDamage, value: 3) },
             }, "VERIFY_SWEEP_D3");
             var dmgCost = CardCore.CostDerivationService.DeriveElementCosts(dmgDef);
             int redPaid = dmgCost.Where(c => c.ManaType == ManaType.Red).Sum(c => c.Value);
@@ -4917,7 +5103,7 @@ namespace CardCore.Editor
             var healDef = CardEffectConverter.ConvertOne(new CardEffectData
             {
                 Id = "VERIFY_SWEEP_H1",
-                AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = "SweepHeal", Value = 1 } },
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.SweepHeal, value: 1) },
             }, "VERIFY_SWEEP_H1");
             var healCost = CardCore.CostDerivationService.DeriveElementCosts(healDef);
             int greenPaid = healCost.Where(c => c.ManaType == ManaType.Green).Sum(c => c.Value);
@@ -4928,7 +5114,7 @@ namespace CardCore.Editor
             {
                 Id = "VERIFY_SWEEP_FULL3",
                 SelectionMode = (int)CardCore.SelectionMode.Full,
-                AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = "DealDamage", Value = 3 } },
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DealDamage, value: 3) },
             }, "VERIFY_SWEEP_FULL3");
             var fullCost = CardCore.CostDerivationService.DeriveElementCosts(fullDmgDef);
             int fullRed = fullCost.Where(c => c.ManaType == ManaType.Red).Sum(c => c.Value);
@@ -4973,7 +5159,7 @@ namespace CardCore.Editor
                     TriggerTiming = (int)TriggerTiming.OnPlay,
                     AtomicEffects = new List<AtomicEffectEntry>
                     {
-                        new AtomicEffectEntry { EffectType = "SweepDamage", Value = 1, TargetKinds = new List<int> { 1, 2 } },
+                        AtomRefs.New(CardCore.AtomicEffectType.SweepDamage, value: 1, kinds: new List<int> { 1 }) },
                     },
                 });
                 var sweepCard = InjectCard(core, p1, sweepCardData);
@@ -5075,7 +5261,7 @@ namespace CardCore.Editor
                 // 断言要求双方角色都在 → 显式 2
                 SelectionMode = (int)CardCore.SelectionMode.Manual,
                 TargetCount = 2,
-                AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = "Sacrifice", Value = 1 } },
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.Sacrifice, value: 1) },
             }, "VERIFY_SAC_CURTAIN");
             var curtainPicked = CardCore.Attribute.EffectHandlerRegistry
                 .ResolveCompositionTargetsAsync(sacDef, ctx).GetAwaiter().GetResult();
@@ -5277,7 +5463,7 @@ namespace CardCore.Editor
             {
                 Id = "VERIFY_CAP_1",
                 TriggerTiming = (int)TriggerTiming.OnDraw, // 触发式
-                AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = "DrawCard", Value = 1 } },
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
             });
             Assert(normal.TriggerLimitPerTurn == 1, "默认口径：普通原子触发式未声明 → 一回合一次");
 
@@ -5286,7 +5472,7 @@ namespace CardCore.Editor
                 Id = "VERIFY_CAP_2",
                 TriggerTiming = (int)TriggerTiming.OnDraw,
                 TriggerLimitPerTurn = 2,
-                AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = "DrawCard", Value = 1 } },
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
             });
             Assert(declared.TriggerLimitPerTurn == 2, "可修改：组合期声明 N=2 采纳");
 
@@ -5295,7 +5481,7 @@ namespace CardCore.Editor
                 Id = "VERIFY_CAP_3",
                 TriggerTiming = (int)TriggerTiming.OnDraw,
                 TriggerLimitPerTurn = -1,
-                AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = "DrawCard", Value = 1 } },
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
             });
             Assert(unlimited.TriggerLimitPerTurn == -1, "可修改：组合期显式无限（-1）采纳");
 
@@ -5304,7 +5490,7 @@ namespace CardCore.Editor
                 Id = "VERIFY_CAP_4",
                 TriggerTiming = (int)TriggerTiming.OnDraw,
                 TriggerLimitPerTurn = -1, // 可修改原子的显式无限（计价 ×1.2³）
-                AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = "DrawCard", Value = 1 } },
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
             });
             Assert(unlimitedDeclared.TriggerLimitPerTurn == -1, "可修改：组合期显式无限（-1）采纳");
 
@@ -5314,7 +5500,7 @@ namespace CardCore.Editor
                 Id = $"VERIFY_CAP_P{limit}",
                 TriggerTiming = (int)TriggerTiming.OnDraw,
                 TriggerLimitPerTurn = limit,
-                AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = "DealDamage", Value = 5 } },
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DealDamage, value: 5) },
             }, "VERIFY_CAP_P");
             int RedCostOf(CardCore.EffectDefinition d) => CardCore.CostDerivationService.DeriveElementCosts(d)
                 .Where(c => c.ManaType == ManaType.Red).Sum(c => c.Value);
@@ -5387,9 +5573,9 @@ namespace CardCore.Editor
                     Id = "VERIFY_GATE_" + gateId,
                     Steps = new List<EffectStepData>
                     {
-                        new EffectStepData { kind = 0, atomic = new AtomicEffectEntry { EffectType = "DealDamage", Value = 3 } },
+                        new EffectStepData { kind = 0, atomic = AtomRefs.New(CardCore.AtomicEffectType.DealDamage, value: 3) },
                         new EffectStepData { kind = 1, conditionId = gateId,
-                            thenSteps = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = "DrawCard", Value = 1 } } },
+                            thenSteps = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) } },
                     },
                 };
                 return CardEffectConverter.ConvertOne(data, "VERIFY_GATE");
@@ -5456,7 +5642,7 @@ namespace CardCore.Editor
             {
                 Id = "VERIFY_CD_MAIN",
                 EngineKind = (int)CardCore.BranchEngineKind.Countdown,
-                AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = "DrawCard", Value = 1 } },
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
             });
             var cdCard = new CardWrapper(cdData);
             cdCard.SetController(p1);
@@ -5489,7 +5675,7 @@ namespace CardCore.Editor
                 Id = "VERIFY_LUCK_MAIN",
                 EngineKind = (int)CardCore.BranchEngineKind.LuckRoll,
                 EngineParam = 1,
-                AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = "DrawCard", Value = 1 } },
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
             });
             var luckDef = CardEffectConverter.ConvertOne(luckData.Effects[0], luckData.ID);
             int luckGray = CardCore.CostDerivationService.DeriveElementCosts(luckDef)
@@ -5521,7 +5707,7 @@ namespace CardCore.Editor
                 Id = "VERIFY_CLASH_MAIN",
                 EngineKind = (int)CardCore.BranchEngineKind.Clash,
                 EngineParam = 1,
-                AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { EffectType = "DrawCard", Value = 1 } },
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
             });
             var clashDef = CardEffectConverter.ConvertOne(clashData.Effects[0], clashData.ID);
             int clashGray = CardCore.CostDerivationService.DeriveElementCosts(clashDef)

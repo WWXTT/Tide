@@ -147,7 +147,7 @@ namespace CardCore.Attribute
             // ---- 正面（常驻）----
             Register(new CounterSpec { Id = KeywordRules.ArmorCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "护甲" });
             Register(new CounterSpec { Id = PlusOneCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "+1/+1", StatKind = StatCounterKind.PlusOnePlusOne });
-            // Awakening（觉醒倒计时）已删（2026-09-11 沉睡改造：SleepCostHandler 统一走 SleepCounter 指示物模型）
+            // Awakening（觉醒倒计时）已删（2026-09-11 沉睡改造：统一走 SleepCounter 指示物模型）
 
             // ---- 负面 ----
             // 常驻（SBA 与 +1/+1 对消）

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 
@@ -182,7 +182,7 @@ namespace CardCore
         None = 0,
         /// <summary>经发动区打出（PlayCard/PlayCardInResponse 结算入场）</summary>
         CastPlayed = 1,
-        /// <summary>效果召唤/特招直入（牌组检索等，不走发动区）</summary>
+        /// <summary>效果直入（牌组检索等，不走发动区）</summary>
         SummonedByEffect = 2,
         /// <summary>从墓地复活回到战场</summary>
         Revived = 3,

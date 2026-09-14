@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -16,6 +17,7 @@ namespace CardCore.Attribute
         private const string ConfigRelativePath = "Configs/AttributeValueConfig.json";
 
         private static Dictionary<int, AtomicEffectConfig> _idMap;
+        private static Dictionary<string, AtomicEffectConfig> _hashIdMap;
         private static Dictionary<string, AtomicEffectConfig> _enumNameMap;
         private static Dictionary<AtomicEffectType, AtomicEffectConfig> _typeMap;
 
@@ -27,6 +29,7 @@ namespace CardCore.Attribute
         private static void Initialize()
         {
             _idMap = new Dictionary<int, AtomicEffectConfig>();
+            _hashIdMap = new Dictionary<string, AtomicEffectConfig>();
             _enumNameMap = new Dictionary<string, AtomicEffectConfig>();
             _typeMap = new Dictionary<AtomicEffectType, AtomicEffectConfig>();
 
@@ -43,6 +46,10 @@ namespace CardCore.Attribute
             if (loaded == 0)
                 Debug.LogWarning($"[AtomicEffectTable] 未从 JSON 加载到任何条目（配置缺失或解析失败）");
         }
+
+        /// <summary>强制重读表（2026-09-14 合成器「读取原子表」按钮——外部直改 JSON 后免重启刷新；
+        /// 重读重建三张映射，运行中已取出的 config 引用不回填）。</summary>
+        public static void Reload() => Initialize();
 
         /// <summary>从 JSON 薄配置加载并与引擎默认值合并，返回成功合入的条目数</summary>
         private static int LoadFromJson()
@@ -93,14 +100,16 @@ namespace CardCore.Attribute
 
             if (entry != null)
             {
+                // 表首列 ID（8-hex）：原子引用键（EffectSlim.AtomRef.refId）——空列不可被引用
+                if (!string.IsNullOrEmpty(entry.ID))
+                {
+                    config.HashId = entry.ID;
+                }
                 // EnumName(中文短名) → DisplayName；DisplayName(模板) → Description
                 config.DisplayName = entry.EnumName;
                 config.Description = entry.DisplayName;
-                config.BaseCost = entry.BaseCost;
-                // Tags=颜色载体（ElementAffinities.GetAffinityForEffect 消费）。
-                // 2026-09-11：EffectFunction 列删除——全链零消费（拼进 Tags 的功能 token 在
-                // ElementAffinity switch 永不命中），EffectColor 独自承担
-                config.Tags = entry.EffectColor;
+                // ManaList 定案（2026-09-14）：EffectColor+BaseCost 两列合并为费用构成——混合色原子的基础
+                config.ManaList = entry.ManaList;
 
                 // targeting / 发动 / 三分类：配置驱动，解析失败保留上面的兜底。
                 // TargetKinds 列即真相：行内显式空（null/""）= 真无域（守卫/跳回合类被动，
@@ -116,8 +125,7 @@ namespace CardCore.Attribute
             {
                 config.DisplayName = type.ToString();
                 config.Description = "";
-                config.BaseCost = 1.0f;
-                config.Tags = "";
+                config.ManaList = new List<ManaAmountEntry> { new ManaAmountEntry { manaType = (int)ManaType.Gray, amount = 1f } };
             }
 
             return config;
@@ -138,9 +146,46 @@ namespace CardCore.Attribute
         private static void AddConfig(AtomicEffectConfig config)
         {
             _idMap[config.Id] = config;
+            if (!string.IsNullOrEmpty(config.HashId))
+                _hashIdMap[config.HashId] = config;
             _enumNameMap[config.EnumName] = config;
             if (Enum.TryParse<AtomicEffectType>(config.EnumName, out var type))
                 _typeMap[type] = config;
+        }
+
+        /// <summary>通过表 ID 列（8-hex）获取配置（原子引用键——无则 null）。</summary>
+        public static AtomicEffectConfig GetByHashId(string hashId)
+        {
+            if (string.IsNullOrEmpty(hashId)) return null;
+            return _hashIdMap.TryGetValue(hashId, out var cfg) ? cfg : null;
+        }
+
+        /// <summary>
+        /// 反查行 ID（EffectSlim.ToRef 用）：EffectType + 实例域 → 表 ID 列 8-hex。
+        /// 规则：实例域非空且与某行表级域**集合相等**且唯一 → 该行；否则取该类型**末次注册行**
+        /// （与 GetByType 覆写语义一致——同枚举多行时运行时读的就是末行）。无行返回 null。
+        /// </summary>
+        public static string ResolveRowId(string effectTypeName, List<int> instanceKinds)
+        {
+            AtomicEffectConfig last = null;
+            AtomicEffectConfig unique = null;
+            int uniqueCount = 0;
+            foreach (var cfg in _idMap.Values)
+            {
+                if (cfg == null || cfg.EnumName != effectTypeName || string.IsNullOrEmpty(cfg.HashId)) continue;
+                last = cfg;
+                if (instanceKinds != null && instanceKinds.Count > 0)
+                {
+                    var tableKinds = cfg.GetTargetKindList();
+                    if (tableKinds.Count == instanceKinds.Count && !tableKinds.Except(instanceKinds).Any())
+                    {
+                        unique = cfg;
+                        uniqueCount++;
+                    }
+                }
+            }
+            if (uniqueCount == 1) return unique.HashId;
+            return last?.HashId;
         }
 
         /// <summary>通过 AtomicEffectType 获取配置</summary>
@@ -174,8 +219,7 @@ namespace CardCore.Attribute
         {
             public string EnumName;       // 中文短名（造成伤害）
             public string DisplayName;    // 展示模板（对{target}造成{value}点伤害）
-            public string EffectColor;    // Red / Blue / Green ...（EffectFunction 列 2026-09-11 删除）
-            public float BaseCost;
+            public List<ManaAmountEntry> ManaList;  // 费用构成（2026-09-14：EffectColor+BaseCost 合并——混合色原子）
             public string EffectType;     // 英文枚举名（DealDamage）→ AtomicEffectType
             public string EffectTier;     // Atom / Keyword / Counter（三分类，缺省 Atom）
 
@@ -186,6 +230,7 @@ namespace CardCore.Attribute
 
             // ---- 可装载范围（2026-09-11 定案）：主动效果/关键词/指示物/分支位置/赋予目标，显性化 ----
             public string MountKinds;     // 逗号分隔 MountKind 序号（空 = 未声明，消费方兜底=不限）
+        public string ID;             // 表首列：8 位 hex 描述哈希（原子引用键——EffectSlim.AtomRef.refId）
         }
 
         [Serializable]

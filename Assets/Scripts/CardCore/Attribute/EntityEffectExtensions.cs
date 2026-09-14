@@ -71,7 +71,7 @@ namespace CardCore
             Attribute.KeywordRules.ApplyDamage(source, entity, amount, isCombat);
         }
 
-        /// <summary>关键词持有次数（List 计数——融合叠加：重复坚韧计 2）</summary>
+        /// <summary>关键词持有次数（List 计数——重复叠加：双坚韧计 2）</summary>
         public static int GetKeywordCount(this Entity entity, string keyword)
         {
             return entity is Card card ? card._keywords.Count(k => k == keyword) : 0;
@@ -275,7 +275,7 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 叠加式添加关键词（融合叠加通道，定案：强化只走融合叠加）：不去重——
+        /// 叠加式添加关键词（重复叠加通道，定案：强化只走重复叠加）：不去重——
         /// 重复坚韧计 2（GetKeywordCount 按 List 计数），每份各记一条台账（清除按轨逐份撤）。
         /// </summary>
         public static void AddKeywordStack(this Entity entity, string keyword, KeywordLane lane, Entity source = null)
@@ -304,7 +304,7 @@ namespace CardCore
         }
 
         /// <summary>检查是否有关键词（角色默认带神佑 DivineProtection；连接光环关键词=光环期间视为持有，
-        /// 不进 _keywords、不参与 GetKeywordCount 融合叠加计数）</summary>
+        /// 不进 _keywords、不参与 GetKeywordCount 重复叠加计数）</summary>
         public static bool HasKeyword(this Entity entity, string keyword)
         {
             if (entity == null) return false;
@@ -518,8 +518,8 @@ namespace CardCore
         // 关键词和指示物。
         // _keywords 与 _counters/_counterClocks 均已上移至 Entity 基类（角色=普通生物单位的
         // 世界观定案：Player 同构持有，角色默认带神佑；剧毒/毒素指示物可指向玩家）。
-        // List 而非 HashSet：融合继承允许重复叠加（双坚韧 = −2），
-        // 普通授予路径的「唯一性」由 AddKeyword 的 Contains 检查保证（非融合不可重复添加）。
+        // List 而非 HashSet：重复叠加允许（双坚韧 = −2），
+        // 普通授予路径的「唯一性」由 AddKeyword 的 Contains 检查保证。
 
         // ===== 战斗状态（关键词行为；核心规则字段，非棋盘坐标） =====
 

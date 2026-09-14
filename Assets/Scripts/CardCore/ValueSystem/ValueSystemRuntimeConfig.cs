@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -144,7 +144,7 @@ namespace CardCore
         public float GetAtomicEffectBaseValue(AtomicEffectType type, int value = 1, bool applyValue = true)
         {
             // 基础价值来自配置表（AttributeValueConfig.json 的 BaseCost），不再维护第二份硬编码
-            float baseValue = AtomicEffectTable.GetByType(type)?.BaseCost ?? 1.0f;
+            float baseValue = AtomicEffectTable.GetByType(type)?.TotalUnitCost ?? 1.0f;
 
             if (applyValue && value > 0)
             {
@@ -279,7 +279,9 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 卡牌计价配置（表 Category=CardCost）——规则一·平衡的统一推导参数。
+    /// 卡牌计价配置（表 Category=CardCost，ValueSystemConfig.json）——规则一·平衡的统一推导参数。
+    /// 代价当量表已删（2026-09-14 代价原子化）：弃牌/送墓/流失等资源支付的补偿一律按
+    /// Payload 原子全价（原子表唯一锚），不再有第二套当量。
     /// </summary>
     [Serializable]
     public class CardCostConfig
@@ -287,15 +289,6 @@ namespace CardCore
         public float StatUnit = 2f;                     // 1费=StatUnit点属性（攻血各 1/StatUnit 元素，灰）
         public bool KeywordsShareDelayDiscount = true;  // 关键词是否同享挂载折扣（关键词=Grant原子=挂载效果）
         public int MaxTier = 9;                         // 档位上限（=地牌槽曲线上限）
-
-        // ==== 卡上代价条目 → 元素当量（构筑期抵扣换算；默认与 CostOffsetConfig 锚定同源：弃1张/费、2命/费）====
-        public float DiscardCardValue = 1.0f;           // 弃 1 张 = 1 元素
-        public float LifeValuePerPoint = 0.5f;          // 1 点生命 = 0.5 元素（2命/费）
-        public float SleepValuePerTurn = 1.0f;          // 沉睡 1 回合 = 1 元素
-        public float SummonMaterialValue = 1.0f;        // 1 个召唤素材 = 1 元素
-        // OpponentDrawValue / OpponentHealValuePerPoint 已删除（2026-09-10：跨边益处改由 Polarity 错边折价表达）
-        public float SelfSicknessValue = 1.0f;          // 自身紊乱 1 条 = 1 元素（自身减益作代价，2026-09-08 拓展）
-        public float OpponentBuffValue = 1.0f;          // 对手 +1/+1 一层 = 1 元素（对手增益作代价，2026-09-08 拓展）
     }
 
     /// <summary>
@@ -396,20 +389,15 @@ namespace CardCore
             var config = new ValueSystemRuntimeConfig(); // 字段初始化器 = 兜底默认值，表值逐条覆盖
             int applied = ApplyEntries(path, config);
 
-            // 2026-09-10 拆分定案：加减费用（CardCost/CardComposition 两类）自 ValueSystemConfig 挪至
-            // CostOffsetConfig.json（同表混合行：Category 非空即 KV 行）——同一反射灌入口接续，机制行跳过。
-            string offsetPath = Path.Combine(Application.dataPath, "Configs/CostOffsetConfig.json");
-            if (File.Exists(offsetPath))
-                applied += ApplyEntries(offsetPath, config, skipNonKvRows: true);
-
+            // CostOffsetConfig.json 已删（2026-09-14 代价原子化）：CardCost 三行（StatUnit/
+            // KeywordsShareDelayDiscount/MaxTier）已回迁本表；机制行与当量行随抵消系统退役。
             if (applied == 0)
                 Debug.LogWarning($"[ValueSystemConfigManager] 未从 {ConfigRelativePath} 灌入任何条目");
             return config;
         }
 
-        /// <summary>读单文件 KV 条目并反射灌入（Category+"Config" → 同名字段；表加行+代码加同名字段即接通）。
-        /// skipNonKvRows：混合行文件（CostOffsetConfig）里 Category 为空的机制行跳过。</summary>
-        private static int ApplyEntries(string path, ValueSystemRuntimeConfig config, bool skipNonKvRows = false)
+        /// <summary>读单文件 KV 条目并反射灌入（Category+"Config" → 同名字段；表加行+代码加同名字段即接通）。</summary>
+        private static int ApplyEntries(string path, ValueSystemRuntimeConfig config)
         {
             List<ValueSystemConfigEntry> entries;
             try
@@ -427,7 +415,7 @@ namespace CardCore
             foreach (var entry in entries)
             {
                 if (entry == null || string.IsNullOrEmpty(entry.Category) || string.IsNullOrEmpty(entry.Key))
-                    continue; // skipNonKvRows 时机制行（无 Category）自然在此跳过
+                    continue;
 
                 var section = typeof(ValueSystemRuntimeConfig).GetField(entry.Category + "Config");
                 if (section == null)

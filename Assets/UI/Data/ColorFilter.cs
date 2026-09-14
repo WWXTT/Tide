@@ -4,7 +4,8 @@ using CardCore.Attribute;
 
 namespace SynergyUI
 {
-    /// <summary>UI 颜色过滤维度（红蓝绿灰 + 全部）。内部英文，展示中文。</summary>
+    /// <summary>UI 颜色过滤维度（红蓝绿灰黑白 + 全部）。内部英文，展示中文。
+    /// 黑白 2026-09-14 补（错边经济后原子表 EffectColor 含 Black/White 行——此前并入灰 chip）。</summary>
     public enum UIColor
     {
         All,
@@ -12,6 +13,8 @@ namespace SynergyUI
         Blue,
         Green,
         Gray,
+        Black,
+        White,
     }
 
     /// <summary>
@@ -59,6 +62,8 @@ namespace SynergyUI
                 UIColor.Blue => "蓝",
                 UIColor.Green => "绿",
                 UIColor.Gray => "灰",
+                UIColor.Black => "黑",
+                UIColor.White => "白",
                 _ => color.ToString(),
             };
         }
@@ -76,9 +81,15 @@ namespace SynergyUI
                 ManaType.Red => UIColor.Red,
                 ManaType.Blue => UIColor.Blue,
                 ManaType.Green => UIColor.Green,
+                ManaType.Black => UIColor.Black,
+                ManaType.White => UIColor.White,
                 _ => UIColor.Gray,
             };
         }
+
+        /// <summary>表 EffectColor 列颜色名（"Red"/"Blue"/"Green"/"Gray"/"Black"/"White"）→ UIColor。
+        /// 2026-09-14：原子库圆点直读表行颜色（此前经 ElementAffinity 间接取色，含兜底失真）。</summary>
+        public static UIColor OfColorName(string colorName) => FromColorName(colorName);
 
         private static UIColor FromColorName(string colorName)
         {

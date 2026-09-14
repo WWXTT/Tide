@@ -99,23 +99,15 @@ namespace CardCore
         }
     }
 
-    /// <summary>血偿仪典：完成者支付生命代价时，改用对手的生命值支付（装饰器包装代价处理器）。</summary>
+    /// <summary>血偿仪典：完成者支付生命代价时，改用对手的生命值支付。
+    /// 2026-09-14 代价原子化：LifePayment 代价处理器退役——原「装饰代价处理器」的转嫁挂点已拆；
+    /// 仪式机制当前屏蔽（设计归拓展构想），复活时改挂 LifeLoss 原子执行口（流失自己=支付，
+    /// 见 LifeLossHandler 的 LifePaymentCostEvent 发布处），IsCompleter 查询保留。</summary>
     public sealed class BloodPactAura : IRitualAura
     {
         public string EffectId => "BloodPact";
 
-        private static bool _decoratorRegistered;
-
-        public BloodPactAura()
-        {
-            // 覆盖注册生命代价装饰器（在 BuiltinCostHandlers.RegisterAll 之后挂载即可——
-            // EnsureRegistered 由 GameCore.Reset 调用，晚于 GameCore 构造期的内置注册）。
-            // 装饰器内部实时查询完成者状态：无血偿完成者时行为与原处理器完全一致。
-            if (_decoratorRegistered) return;
-            _decoratorRegistered = true;
-            var original = CostHandlerRegistry.GetHandler(CostType.LifePayment);
-            CostHandlerRegistry.Register(new Decorator(original));
-        }
+        public BloodPactAura() { }
 
         public void OnCompleted(CompletedRitualAura aura) { }
         public void OnRemoved(CompletedRitualAura aura) { }
@@ -123,47 +115,6 @@ namespace CardCore
         /// <summary>payer 是否为某已完成血偿仪典的完成者（是 → 其生命代价转由对手承担）。</summary>
         public static bool IsCompleter(Player payer)
             => RitualAuraQueries.HasCompletedAura(payer, "BloodPact");
-
-        /// <summary>装饰器：完成者支付生命代价时 Payer 换为对手（CanPay 同样看对手——可付到恰好归零，
-        /// 归零=正常死亡，与基础处理器同口径）。LifePaymentCostEvent.Player = 实际失去生命的一方（对手）。</summary>
-        private class Decorator : ICostHandler
-        {
-            private readonly ICostHandler _fallback;
-
-            public Decorator(ICostHandler fallback) => _fallback = fallback;
-
-            public CostType CostType => CostType.LifePayment;
-
-            public bool CanPay(CostInstance cost, CostContext context)
-            {
-                if (IsCompleter(context?.Payer))
-                {
-                    var payer = context.Payer.Opponent;
-                    return payer != null && payer.Life >= cost.Value;
-                }
-                return _fallback != null && _fallback.CanPay(cost, context);
-            }
-
-            public void Pay(CostInstance cost, CostContext context)
-            {
-                if (IsCompleter(context?.Payer))
-                {
-                    var payer = context.Payer.Opponent; // 实际支付者
-                    payer.Life -= cost.Value;
-                    EventManager.Instance.Publish(new LifePaymentCostEvent
-                    {
-                        Player = payer,
-                        Amount = cost.Value,
-                        Source = context.Source
-                    });
-                    // 转嫁同口径：可付到归零（=正常死亡），终局交连锁结束后统一检查（同基础处理器）
-                    return;
-                }
-                _fallback?.Pay(cost, context);
-            }
-
-            public string GetDescription(CostInstance cost) => $"支付 {cost.Value} 点生命";
-        }
     }
 
     /// <summary>丰盈仪典：完成者（角色）单次受到的伤害 ≤ 5（经替代引擎，见 OnGameReset 注册）。</summary>

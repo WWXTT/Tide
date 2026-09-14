@@ -119,7 +119,7 @@ namespace CardCore
                 if (def.EngineKind == BranchEngineKind.Countdown)
                     def.CountdownTurns = data.EngineParam > 0
                         ? data.EngineParam
-                        : Math.Max(1, (int)Math.Ceiling(RewardDerivedTotal(def.RewardAtoms)));
+                        : Math.Max(1, (int)Math.Ceiling(CostDerivationService.RewardDerivedCost(def.RewardAtoms)));
             }
 
             // 触发上限解析（2026-09-13 定案）：含 TriggerCapImmutable(8) 原子（少数，如坚韧）→ 恒 -1
@@ -158,8 +158,8 @@ namespace CardCore
                     // 效果型代价（2026-09-11）：付费步强制执行的原子（执行与补偿在 CostCompensationService）。
                     // 内容契约：代价只能挂对自己有害 / 对对手有益——p≠0 必须错边；p=0 须单侧域锁定（方向随域）。
                     // 双侧域/无域 = 中性，既非代价也非收益 → 拒。
-                    // 空 payload（EffectType 为空——SelfSickness 等非 Payload 代价的占位/迁移残留）不作 Payload 处理（2026-09-13 修复）
-                    if (costEntry.payload != null && !string.IsNullOrEmpty(costEntry.payload.EffectType))
+                    // 空 payload（refId 为空——非 Payload 代价的占位/迁移残留）不作 Payload 处理
+                    if (costEntry.payload != null && !string.IsNullOrEmpty(costEntry.payload.refId))
                     {
                         var payloadAtom = ConvertAtomicEffect(costEntry.payload, allowWrongSide: true);
                         bool wrongSide = payloadAtom != null && payloadAtom.Polarity != 0f
@@ -174,21 +174,20 @@ namespace CardCore
                         }
                         def.Costs.Add(new CostInstance
                         {
-                            Type = (CostType)costEntry.CostType,
+                            Type = CostType.Payload, // 带 payload 原子的条目恒为效果型代价（声明值不参与）
                             Value = costEntry.Value,
                             ManaType = (ManaType)costEntry.ManaType,
-                            TurnDuration = costEntry.TurnDuration,
                             Payload = payloadAtom,
                         });
                         continue;
                     }
 
+                    // 2026-09-14 代价原子化：仅剩 ElementConsume/Payload 两值——无 payload 的条目按元素代价透传
                     def.Costs.Add(new CostInstance
                     {
                         Type = (CostType)costEntry.CostType,
                         Value = costEntry.Value,
                         ManaType = (ManaType)costEntry.ManaType,
-                        TurnDuration = costEntry.TurnDuration, // 沉睡/自身紊乱等按回合计持续的代价
                     });
                 }
             }
@@ -218,21 +217,10 @@ namespace CardCore
             return def;
         }
 
-        /// <summary>动态分支奖励原子的推导费合计（倒计时换算用：1费=1回合，向上取整下限 1）。</summary>
-        private static float RewardDerivedTotal(List<AtomicEffectInstance> atoms)
-        {
-            if (atoms == null || atoms.Count == 0) return 0f;
-            // 2026-09-13 修复：奖励换算 shim 显式单次/单目标——字段默认 TriggerLimitPerTurn=-1（无限）
-            // 会被 TriggerCostFactor 当"显式无限"×1.2³，TargetCount=0 又落"任意档"×期望4，
-            // 倒计时回合被 ×6.9 膨胀（抽1=蓝2 → 14 回合）。奖励原子按单次单目标锚价换算。
-            var shim = new EffectDefinition { Id = "REWARD_SHIM", Duration = DurationType.Once,
-                TriggerLimitPerTurn = 1, TargetCount = 1 };
-            shim.Effects = atoms;
-            float total = 0f;
-            foreach (var c in CostDerivationService.DeriveElementCosts(shim))
-                total += c.Value;
-            return total;
-        }
+        /// <summary>UI 编辑出口（2026-09-14 合成器重做）：原子条目 → 运行时实例（内容契约照常生效——
+        /// 错边剔除/主干守卫同装载转换）。供合成器预算校验（RewardDerivedCost）与描述预览消费。</summary>
+        public static AtomicEffectInstance ConvertAtomForUI(AtomicEffectEntry entry)
+            => ConvertAtomicEffect(entry);
 
         /// <summary>原子表 MountKinds 是否含指定位（触发上限解析用）。</summary>
         private static bool MountHasFlag(AtomicEffectType type, int flag)
@@ -243,28 +231,38 @@ namespace CardCore
             return false;
         }
 
+        /// <summary>引用型唯一转换口（2026-09-14 彻底引用化）：refId → 表行 → 运行时实例。
+        /// 枚举/默认域/Filter/极性/MountKinds 全部从行解析；增量只读 value/str/amp/kinds。</summary>
         private static AtomicEffectInstance ConvertAtomicEffect(AtomicEffectEntry entry, bool allowWrongSide = false)
         {
-            if (string.IsNullOrEmpty(entry.EffectType))
+            if (entry == null || string.IsNullOrEmpty(entry.refId))
             {
-                Debug.LogWarning("[CardEffectConverter] AtomicEffectEntry.EffectType 为空，跳过");
+                Debug.LogWarning("[CardEffectConverter] 原子引用为空（refId 缺失——旧格式数据？），跳过");
                 return null;
             }
 
-            if (!Enum.TryParse<AtomicEffectType>(entry.EffectType, out var type))
+            var config = CardCore.Attribute.AtomicEffectTable.GetByHashId(entry.refId);
+            if (config == null || !Enum.TryParse<AtomicEffectType>(config.EnumName, out var type))
             {
-                Debug.LogWarning($"[CardEffectConverter] 无法解析 AtomicEffectType: {entry.EffectType}，跳过");
+                Debug.LogWarning($"[CardEffectConverter] 原子表引用缺失: {entry.refId}（表无此行或枚举错名），跳过");
                 return null;
             }
 
-            // 目标域：条目显式收窄 ?? 表级默认（解析为有效域存实例，运行时零查表）。
-            // 空列表 = 未收窄（迁移脚本写 []，语义同缺省）——只有表级默认为空才是真无目标原子
-            var config = CardCore.Attribute.AtomicEffectTable.GetByType(type);
-            List<int> kinds = entry.TargetKinds != null && entry.TargetKinds.Count > 0
-                ? new List<int>(entry.TargetKinds)
-                : config?.GetTargetKindList() ?? new List<int>();
+            // 引擎主干守卫（2026-09-14 合成器重做）：自由分支主干经 header.EngineKind 声明——
+            // 不可作为普通原子/分支奖励/payload 挂载（表行 MountKinds 漏配或手写 JSON 误用在此拦截）。
+            if (ComposerCatalog.IsEngineTrunk(type))
+            {
+                Debug.LogError($"[CardEffectConverter] 引擎主干原子 {type} 不可作为普通原子挂载" +
+                               "（自由分支经 header.EngineKind 声明），已剔除");
+                return null;
+            }
 
-            float polarity = config != null ? UnityEngine.Mathf.Clamp(config.Polarity, -1f, 1f) : 0f;
+            // 目标域：条目显式收窄 kinds ?? 表行默认域（解析为有效域存实例，运行时零查表）
+            List<int> kinds = entry.kinds != null && entry.kinds.Count > 0
+                ? new List<int>(entry.kinds)
+                : config.GetTargetKindList();
+
+            float polarity = UnityEngine.Mathf.Clamp(config.Polarity, -1f, 1f);
 
             // 内容契约（2026-09-11 定案）：效果栏（主动/被动效果）只能挂对自己有益或中性的原子——
             // 错边锁定（有益锁对方域 / 有害锁己方域 = 对自己有害或对对手有益）只能进代价栏（Payload）。
@@ -279,13 +277,12 @@ namespace CardCore
             return new AtomicEffectInstance
             {
                 Type = type,
-                Value = entry.Value,
-                // 数值随机幅度（2026-09-13）：装载期夹取 [0,1]，运行时零校验；计价/描述读名义 Value
-                RandomAmplitude = UnityEngine.Mathf.Clamp(entry.RandomAmplitude, 0f, 1f),
-                StringValue = entry.ID ?? "",
-                Mana = BuildMana(entry.ManaList),
+                Value = entry.value,
+                RandomAmplitude = UnityEngine.Mathf.Clamp(entry.amp, 0f, 1f),
+                StringValue = entry.str ?? "",
+                Mana = null, // ManaList 已随彻底引用化删除（全数据 0 使用）
                 TargetKinds = kinds,
-                Filter = config?.TargetFilter ?? "",
+                Filter = config.TargetFilter ?? "",
                 Polarity = polarity,
             };
         }

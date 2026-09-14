@@ -78,12 +78,13 @@ namespace SynergyUI
             {
                 return;
             }
-            // header 仅取影响功能的字段（时点/激活/代价），忽略名称/描述/标签。
+            // header 仅取影响功能的字段（时点/激活/编排/代价），忽略名称/描述/标签。
             var h = graph.header;
             if (h != null)
             {
                 sb.Append("TT:").Append(h.TriggerTiming).Append('|');
                 sb.Append("AT:").Append(h.ActivationType).Append('|');
+                AppendOrchestration(sb, h, graph.steps);
                 AppendCosts(sb, h.Costs);
             }
             sb.Append("STEPS:");
@@ -97,6 +98,37 @@ namespace SynergyUI
             }
         }
 
+        /// <summary>
+        /// 效果级编排字段（2026-09-14 合成器重做扩展）：引擎通道（EngineKind/EngineParam+奖励原子）、
+        /// 选择编排（SelectionMode/TargetCount/Dynamic）、持续/落区/触发上限/速度、Drawbacks。
+        /// 此前这些字段均不参与哈希——合成器可编辑它们后去重会失真（同名不同功能视为重复）。
+        /// AE: 段条件追加：非引擎效果（AtomicEffects 空）不写段，保旧哈希尽量少漂移。
+        /// </summary>
+        private static void AppendOrchestration(StringBuilder sb, CardEffectData h, List<EffectStepData> graphSteps)
+        {
+            sb.Append("EK:").Append(h.EngineKind).Append('/').Append(h.EngineParam).Append('|');
+            sb.Append("SM:").Append(h.SelectionMode).Append('/')
+              .Append(h.TargetCount).Append('/')
+              .Append(h.DynamicTargetCount ? 1 : 0).Append('|');
+            sb.Append("DU:").Append(h.Duration).Append('/').Append(h.DurationValue).Append('/')
+              .Append(h.SummonDropZone).Append('/');
+            sb.Append("TL:").Append(h.TriggerLimitPerTurn).Append('|');
+            sb.Append("BS:").Append(h.BaseSpeed).Append('|');
+            if (h.Drawbacks != null && h.Drawbacks.Count > 0)
+            {
+                sb.Append("DB:").Append(string.Join(";", h.Drawbacks.OrderBy(d => d))).Append('|');
+            }
+            // AE 段单源化（2026-09-14 v2）：仅 steps 为空（引擎形态——奖励原子唯一承载）时计入；
+            // steps 形态的 AtomicEffects 是旧投影冗余，不再参与哈希（否则同一效果两种存储两套 id）
+            if ((h.AtomicEffects != null && h.AtomicEffects.Count > 0)
+                && (graphSteps == null || graphSteps.Count == 0))
+            {
+                sb.Append("AE:");
+                foreach (var atom in h.AtomicEffects) AppendAtomic(sb, atom);
+                sb.Append('|');
+            }
+        }
+
         private static void AppendCardEffect(StringBuilder sb, CardEffectData fx)
         {
             if (fx == null)
@@ -105,6 +137,7 @@ namespace SynergyUI
             }
             sb.Append("TT:").Append(fx.TriggerTiming).Append(',');
             sb.Append("AT:").Append(fx.ActivationType).Append(',');
+            AppendOrchestration(sb, fx, fx.Steps);
             AppendCosts(sb, fx.Costs);
             if (fx.Steps != null && fx.Steps.Count > 0)
             {
@@ -153,6 +186,10 @@ namespace SynergyUI
             }
             else
             {
+                // 产出条件门（2026-09-14 补：conditionId/参数是功能字段——此前只哈希旧 condition 字段）
+                sb.Append("gid:").Append(step.conditionId ?? "").Append('/')
+                  .Append(step.conditionParam).Append('/')
+                  .Append(step.conditionStringParam ?? "").Append(';');
                 AppendCondition(sb, step.condition);
                 sb.Append("then{");
                 if (step.thenSteps != null)
@@ -174,15 +211,14 @@ namespace SynergyUI
             {
                 return;
             }
-            // 2026-09-10 目标域模型：原子只余 EffectType/Value/ID/Mana/TargetKinds（编排属性上移组合层）
+            // 2026-09-14 彻底引用化：原子=表行引用+增量——哈希直接组引用形态（不查表，确定性；
+            // 表行内容变化不改变卡/效果 id——表是平衡层，引用是身份层）
             sb.Append('[')
-              .Append(a.EffectType).Append(',')
-              .Append(a.Value).Append(',')
-              .Append(a.ID).Append(',')
-              .Append(a.ManaList != null && a.ManaList.Count > 0
-                  ? string.Join(";", a.ManaList.OrderBy(m => m.manaType).Select(m => m.manaType + ":" + m.amount.ToString("R", System.Globalization.CultureInfo.InvariantCulture)))
-                  : "-").Append(',')
-              .Append(string.Join(",", (a.TargetKinds ?? new System.Collections.Generic.List<int>()).Distinct().OrderBy(k => k)))
+              .Append(a.refId).Append(',')
+              .Append(a.value).Append(',')
+              .Append(a.str).Append(',')
+              .Append(string.Join(",", (a.kinds ?? new System.Collections.Generic.List<int>()).Distinct().OrderBy(k => k)))
+              .Append(",amp=").Append(a.amp.ToString("R", System.Globalization.CultureInfo.InvariantCulture))
               .Append(']');
         }
 
@@ -213,8 +249,14 @@ namespace SynergyUI
                       .Append(c.CostType).Append(',')
                       .Append(c.Value).Append(',')
                       .Append(c.ManaType).Append(',')
-                      .Append(c.TurnDuration)
-                      .Append('>');
+                      .Append(c.TurnDuration);
+                    // Payload 原子（2026-09-14 补）：代价栏效果是功能字段——此前漏哈希
+                    if (c.payload != null && !string.IsNullOrEmpty(c.payload.refId))
+                    {
+                        sb.Append(",p=");
+                        AppendAtomic(sb, c.payload);
+                    }
+                    sb.Append('>');
                 }
             }
             sb.Append('|');

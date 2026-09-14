@@ -5,7 +5,8 @@ using UnityEngine;
 namespace SynergyUI
 {
     /// <summary>
-    /// 卡组 JSON 读写 —— 落盘到 Assets/Configs/Decks/。
+    /// 卡组 JSON 读写 —— 落盘到 StreamingAssets/Tide/（2026-09-14 统一定案：与三张种子卡组同目录；
+    /// 卡组只存卡 ID 引用——实体卡在 CreatureCards.json，经 CardCatalog 还原）。
     /// 与现有 AtomicEffectTable 一致，使用 Application.dataPath + System.IO
     /// （非 Resources），保证存盘后能立即读回。
     ///
@@ -14,10 +15,10 @@ namespace SynergyUI
     /// </summary>
     public static class DeckSerializer
     {
-        // 相对 Application.dataPath 的卡组目录。
-        private const string DeckDirRelative = "Configs/Decks";
+        // StreamingAssets 下的卡组目录（相对 streamingAssetsPath）。
+        private const string DeckDirRelative = "Tide";
 
-        private static string DeckDir => Path.Combine(Application.dataPath, DeckDirRelative);
+        private static string DeckDir => Path.Combine(Application.streamingAssetsPath, DeckDirRelative);
 
         /// <summary>保存卡组为 &lt;name&gt;.json。返回写入的完整路径。</summary>
         public static string Save(DeckData deck)
