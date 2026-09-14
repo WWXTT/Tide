@@ -230,12 +230,12 @@ namespace CardCore
             if (!isSpell && !core.ZoneManager.HasBattlefieldSpace(player))
                 return false;
 
-            // 费用预检（不支付——扣费在响应窗口之后的 cast 结算；抉择卡按所选模式取费——先选择再定费用）；
-            // 代价可选（2026-09-11）：带可付代价的卡按「付+减费」封顶减免额预检
-            //（选择窗口在付费步——声明期按最大可能减免放行，付不出时结算入墓不回卷）；
+            // 费用预检（不支付——扣费在响应窗口之后的 cast 结算；抉择卡按所选模式取费——先选择再定费用）。
+            // 2026-09-14 代价强制：撤销「按最大减免放行」——声明期即按**原价账单**预检，
+            // 混付口径与结算一致（同色→灰→黑白，见 ElementPool.CanPayCost）；
             // 同玩家已声明的施放费用一并计入，防同笔 bank 超发——结算付不出只入墓、不回卷）
             var cost = GetCardCost(card, modeIndex);
-            if (!CanAfford(core.ElementPool, PrecheckBill(core, player, card, cost), player, GetPendingCastCosts(core, player)))
+            if (!CanAfford(core.ElementPool, cost, player, GetPendingCastCosts(core, player)))
                 return false;
 
             // ---- 声明（使用时点）：设控制者 → 进发动区 → cast 上栈 → 使用宣言（对手获得响应窗口） ----
@@ -291,9 +291,9 @@ namespace CardCore
                 return false;
 
             // 费用预检（含本玩家已声明的施放承诺；不支付——cast 结算时才扣；抉择按所选模式；
-            // 代价可选：带可付代价按封顶减费额预检，同 PlayCard 口径）
+            // 2026-09-14 代价强制：原价账单预检，混付口径同 PlayCard）
             var cost = GetCardCost(card, modeIndex);
-            if (!CanAfford(core.ElementPool, PrecheckBill(core, player, card, cost), player, GetPendingCastCosts(core, player)))
+            if (!CanAfford(core.ElementPool, cost, player, GetPendingCastCosts(core, player)))
                 return false;
 
             card.SetController(player);
@@ -353,8 +353,9 @@ namespace CardCore
                 return;
 
             // 2. 付费（响应窗口之后）——抉择卡按声明期选定的模式付费（cast.ModeIndex）。
-            // 代价可选（2026-09-11 定案）：付费步的选择窗口（抉择窗口之外多一个）——
-            // 不付（原价）/ 付+减费 / 付+得黑白（两通道共用单次上限=地牌上限，防重代价换超大生物）。
+            // 代价强制（2026-09-14 撤销「代价可选」）：付费步强制执行全部 Payload 代价并按全价
+            // 获得黑/白（每回合封顶 1/色，AddMana 钳制）——无选择窗口、无减费通道；
+            // 补偿先于代价执行（2026-09-13 排序保留：Payload 执行会膨胀模板身价，补偿按打出时点全价）。
             // 被「发动无效」只跳效果、已付代价与补偿不回卷；被打落则全免（上方 1 已拦）。
             var specialCosts = CollectCardSpecialCosts(card);
             var cost = GetCardCost(card, cast.ModeIndex);
@@ -365,7 +366,7 @@ namespace CardCore
                 ElementPool = core.ElementPool,
                 Source = player // 来源=角色（来源归因定案 2026-09-09）
             };
-            if (!await CostCompensationService.PayOptionalCardCostsAsync(specialCosts, costCtx, cost))
+            if (!await CostCompensationService.PayWithCompensationAsync(specialCosts, costCtx))
             {
                 CastAbortToGraveyard(core, card, player, "代价流程异常（付费步失败，不回卷）");
                 return;
@@ -558,35 +559,6 @@ namespace CardCore
                 Controller = player,
                 ToZone = Zone.Graveyard
             });
-        }
-
-        /// <summary>
-        /// 声明期费用预检口径（2026-09-11 代价可选）：卡带可付代价时按「付+减费」的封顶减免额预检
-        ///（选择窗口在付费步；此处只放行最大可能减免——玩家实际可能选不付，付费步付不出按入墓不回卷）。
-        /// </summary>
-        private static Dictionary<int, float> PrecheckBill(GameCore core, Player player, Card card,
-            Dictionary<int, float> cost)
-        {
-            var specials = CollectCardSpecialCosts(card);
-            if (specials.Count == 0) return cost;
-
-            var ctx = new CostContext
-            {
-                Payer = player,
-                ZoneManager = core.ZoneManager,
-                ElementPool = core.ElementPool,
-                Source = player,
-            };
-            foreach (var c in specials)
-            {
-                if (c == null || c.Type == CostType.Payload) continue; // Payload 恒可付（强制效果）
-                if (!CostHandlerRegistry.CanPay(c, ctx)) return cost;  // 代价付不起 → 无减免，按原价预检
-            }
-
-            var discounted = new Dictionary<int, float>(cost);
-            CostCompensationService.ApplyDiscount(discounted,
-                CostCompensationService.CappedTotalEquivalent(specials, ctx));
-            return discounted;
         }
 
         /// <summary>
@@ -797,27 +769,26 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 检查是否能支付费用：
+        /// 检查是否能支付费用（2026-09-14 统一混付口径；public 供 LegalActionEnumerator 共用防掩码/引擎分叉）：
         /// 1. 门槛：卡总费用不得超过当前地牌槽上限（费用上限 9 由此隐含——上限最大 9；按卡判定不累计）
-        /// 2. 余量：bank 各颜色元素充足（bank 无上限，跨回合保留）；
+        /// 2. 余量：账单+pending 合并后走账单规划器（同色→灰→黑白；黑白=万用色）；
         ///    pending = 同玩家已声明未结算的整卡施放费用（响应窗口内的支付承诺，一并占用）
         /// </summary>
+        public static bool CanAfford(GameCore core, Player player, Dictionary<int, float> cost)
+            => CanAfford(core?.ElementPool, cost, player, GetPendingCastCosts(core, player));
+
         private static bool CanAfford(ElementPoolSystem elementPool, Dictionary<int, float> cost, Player player,
             Dictionary<int, float> pending = null)
         {
             if (cost.Values.Sum() > elementPool.GetLandCap(player))
                 return false;
 
-            foreach (var kvp in cost)
-            {
-                ManaType type = (ManaType)kvp.Key;
-                int amount = (int)kvp.Value;
-                if (pending != null && pending.TryGetValue(kvp.Key, out var committed))
-                    amount += (int)committed;
-                if (elementPool.GetAvailableManaCount(type, player) < amount)
-                    return false;
-            }
-            return true;
+            // 合并声明承诺后统一混付规划（2026-09-14：原逐色精确余量检查退役）
+            var bill = ElementPaymentValidator.NormalizeBill(cost);
+            foreach (var kv in ElementPaymentValidator.NormalizeBill(pending))
+                bill[kv.Key] = bill.TryGetValue(kv.Key, out var v) ? v + kv.Value : kv.Value;
+            return ElementPaymentValidator.CanPayBill(
+                bill, elementPool.GetPool(player).AvailableMana, elementPool.GetLandCap(player));
         }
 
         /// <summary>

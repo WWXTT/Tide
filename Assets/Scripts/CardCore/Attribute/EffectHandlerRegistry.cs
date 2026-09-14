@@ -187,7 +187,7 @@ namespace CardCore.Attribute
                     candidates = TargetResolver.ExcludeUnselectable(
                         TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt), context.Controller);
                     if (candidates.Count == 0) return candidates;
-                    if (def.DynamicTargetCount)
+                    if (def.TargetCount == -1) // 任意（2026-09-14 并入 DynamicTargetCount）：玩家自选数量
                     {
                         return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
                         {

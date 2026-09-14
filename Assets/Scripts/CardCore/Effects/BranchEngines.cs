@@ -7,12 +7,12 @@ using CardCore.Attribute;
 namespace CardCore
 {
     /// <summary>
-    /// 动态分支引擎运行时（2026-09-13 分支体系正规化）：主效果=条件引擎，奖励原子不占卡费。
+    /// 动态分支引擎运行时（2026-09-13 分支体系正规化；2026-09-15 灰费全废）：主效果=条件引擎，奖励原子不占卡费。
     /// - **倒计时**：入场挂 Countdown 计数（层数=def.CountdownTurns=奖励推导费换算回合，1费=1回合；
     ///   UntilLeaveBattlefield 换区清）；控制者回合开始 -1，归零→执行奖励原子→重置回初值。
-    /// - **运势**：控制者回合开始掷 2d6（GameRng），双 > x → 执行奖励（无状态，每回合独立判定）。
-    /// - **拼点**：控制者回合开始双方牌库顶各展示一张（放回原位不改序，空库按费用 0）——
-    ///   自己卡费用 > 对手卡费用 + x → 执行奖励。
+    /// - **运势**：控制者回合开始掷 2d6（GameRng），双 > x → 执行奖励（无状态，每回合独立判定；x=纯概率门槛）。
+    /// - **拼点**（2026-09-15 门槛制定案）：控制者回合开始双方牌库顶各展示一张（放回原位不改序，空库按费用 0）——
+    ///   比的是**费用总额**（数量，不计算颜色）；**差额 ≥ 奖励锚价合计**（大于等于）才触发，奖励按声明值结算。
     /// 组合根 EnsureRegistered（GameCore.Reset，幂等）；奖励原子各自解析目标（ExecuteEffectAsync）。
     /// </summary>
     public static class BranchEngines
@@ -88,15 +88,19 @@ namespace CardCore
                             break;
 
                         case BranchEngineKind.Clash:
-                            int cx = Math.Max(1, Math.Min(5, def.EngineParam));
+                            // 2026-09-15 用户定案（门槛制）：比双方牌库顶**费用总额**（数量，不计算颜色）；
+                            // 门槛 = 奖励锚价合计（推导），**差额 ≥ 门槛**（大于等于）才触发，奖励按声明值结算。
+                            // 灰机制费已废除——锚价既是门槛也是奖励的价，由差额支付。
                             int mine = DeckTopCost(player, zm);
                             int theirs = DeckTopCost(player.Opponent, zm);
-                            if (mine > theirs + cx)
+                            int threshold = Math.Max(1, (int)Math.Round(
+                                CostDerivationService.RewardDerivedCost(def.RewardAtoms), MidpointRounding.AwayFromZero));
+                            if (mine - theirs >= threshold)
                             {
                                 EventManager.Instance.Publish(new KeywordAppliedEvent
                                 {
                                     Target = card, Keyword = "拼点",
-                                    Detail = $"拼点 {mine} > {theirs}+{cx}：执行奖励（展示牌已放回原位）",
+                                    Detail = $"拼点 {mine} vs {theirs}（差额 {mine - theirs} ≥ 门槛 {threshold}）：执行奖励（展示牌已放回原位）",
                                 });
                                 FireRewards(def, card, player, core);
                             }

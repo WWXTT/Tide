@@ -29,6 +29,9 @@ namespace CardCore.AI.NeuralEnv
         public static float LifeWeight = 0.15f;
         /// <summary>bank 法力权重（建议 0.3~0.5：1 法力 ≈ 0.3~0.5 费；已支付待用资源）</summary>
         public static float ManaWeight = 0.4f;
+        /// <summary>黑白（万用色）bank 权重（2026-09-14 黑白万用化）：可替代红蓝绿灰支付，
+        /// 替代面宽于任何纯色 → 估值高于纯色（对齐 LandTokenWeight 档）。</summary>
+        public static float WildManaWeight = 0.6f;
         /// <summary>地牌剩余指示物权重（建议 0.5~0.8：1 指示物 ≈ 0.5~0.8 费；未来产出价值折现）</summary>
         public static float LandTokenWeight = 0.6f;
         /// <summary>手牌权重（建议 0.5~0.7：1 手牌 ≈ 0.5~0.7 费；未打出潜在价值折现）</summary>
@@ -136,12 +139,13 @@ namespace CardCore.AI.NeuralEnv
             // 1) 生命
             value += player.GetLife() * LifeWeight;
 
-            // 2) bank 法力（已积攒待用）
+            // 2) bank 法力（已积攒待用；黑白=万用色按 WildManaWeight 估值）
             var pool = core.ElementPool.GetPool(player);
             if (pool != null)
             {
-                foreach (var mana in pool.AvailableMana.Values)
-                    value += mana * ManaWeight;
+                foreach (var kv in pool.AvailableMana)
+                    value += kv.Value * (kv.Key == ManaType.Black || kv.Key == ManaType.White
+                        ? WildManaWeight : ManaWeight);
             }
 
             // 3) 地牌剩余指示物（未来产出价值）

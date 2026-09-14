@@ -235,9 +235,10 @@ namespace CardCore
     // ================================================================
 
     /// <summary>
-    /// 元素代价支付（纯支付，无兑换）：按颜色聚合需求 → 浓度上限校验 → 扣款 + 支付事件。
-    /// 纯色（红/蓝/绿/黑/白）单次支付量 ≤ 支付者地牌槽上限；灰走 ElementPaymentValidator 混付
-    /// （灰优先→纯色补足，黑白参与通用支付）。黑白元素获取通道唯一=卡结算（错边/Payload 补偿）。
+    /// 元素代价支付（纯支付，无兑换）：按颜色聚合需求 → 账单规划器一次出方案 → 扣款 + 支付事件。
+    /// 2026-09-14 统一混付：与出牌（ElementPool.PayCost）共用 ElementPaymentValidator.GetBillPaymentPlan——
+    /// 支付序=同色→灰→黑→白（黑白=万用色单向替代四色）；每种货币（**含灰**）单次贡献 ≤ 地牌槽上限；
+    /// 纯色需求量超上限不论货币不可付。黑白获取通道唯一=卡结算（错边/Payload 补偿，每回合封顶 1/色）。
     /// </summary>
     public static class ElementCostPayment
     {
@@ -247,10 +248,12 @@ namespace CardCore
             var need = AggregateNeed(elementCosts);
             if (need.Count == 0) return true;
             if (ctx?.Payer == null || ctx.ElementPool == null) return false;
-            return CanPayNeed(need, ctx.ElementPool.GetPool(ctx.Payer).AvailableMana, ctx);
+            return ElementPaymentValidator.CanPayBill(
+                need, ctx.ElementPool.GetPool(ctx.Payer).AvailableMana, GetPureColorCap(ctx));
         }
 
-        /// <summary>支付一组元素代价（原子：先确认可付，再扣）。失败返回 false（调用方中止结算）。</summary>
+        /// <summary>支付一组元素代价（原子：整账单一次规划，失败不动 bank）。失败返回 false（调用方中止结算）。
+        /// 支付事件携带实际货币组合（如红1 账单付 {黑1}）。</summary>
         public static bool Pay(List<CostInstance> elementCosts, CostContext ctx)
         {
             var need = AggregateNeed(elementCosts);
@@ -258,8 +261,20 @@ namespace CardCore
             if (ctx?.Payer == null || ctx.ElementPool == null) return false;
 
             var avail = ctx.ElementPool.GetPool(ctx.Payer).AvailableMana;
-            if (!CanPayNeed(need, avail, ctx)) return false;
-            PayNeed(need, avail, ctx);
+            var plan = ElementPaymentValidator.GetBillPaymentPlan(need, avail, GetPureColorCap(ctx));
+            if (plan == null) return false;
+
+            foreach (var kv in plan)
+                avail[kv.Key] -= kv.Value;
+
+            if (plan.Count > 0)
+            {
+                EventManager.Instance.Publish(new ElementPoolPayEvent
+                {
+                    Player = ctx.Payer,
+                    PaidCost = plan.ToDictionary(kv => (int)kv.Key, kv => (float)kv.Value)
+                });
+            }
             return true;
         }
 
@@ -276,214 +291,28 @@ namespace CardCore
             return need;
         }
 
-        private static bool CanPayNeed(Dictionary<ManaType, int> need, Dictionary<ManaType, int> avail, CostContext ctx)
-        {
-            // 纯色浓度上限：每种纯色单次支付量 ≤ 当场地牌槽上限（灰不受限）
-            int? cap = GetPureColorCap(ctx);
-            foreach (var kv in need)
-            {
-                if (kv.Value <= 0) continue;
-                var affinity = kv.Key == ManaType.Gray
-                    ? ElementAffinity.Generic
-                    : ElementAffinity.Single(kv.Key);
-                if (!ElementPaymentValidator.CanPay(affinity, avail, kv.Value, cap))
-                    return false;
-            }
-            return true;
-        }
-
-        /// <summary>当前纯色浓度上限（= 支付者地牌槽上限）；上下文不全时退化为不限制。</summary>
+        /// <summary>当前浓度上限（= 支付者地牌槽上限；灰与万用黑白同受此约束）；上下文不全时退化为不限制。</summary>
         private static int? GetPureColorCap(CostContext ctx)
             => ctx?.ElementPool != null && ctx.Payer != null
                 ? ctx.ElementPool.GetLandCap(ctx.Payer)
                 : (int?)null;
-
-        private static void PayNeed(Dictionary<ManaType, int> need, Dictionary<ManaType, int> avail, CostContext ctx)
-        {
-            var paid = new Dictionary<int, float>();
-            int? cap = GetPureColorCap(ctx);
-            foreach (var kv in need)
-            {
-                if (kv.Value <= 0) continue;
-                var affinity = kv.Key == ManaType.Gray
-                    ? ElementAffinity.Generic
-                    : ElementAffinity.Single(kv.Key);
-                var plan = ElementPaymentValidator.GetPaymentPlan(affinity, avail, kv.Value, cap);
-                if (plan == null) continue;
-                foreach (var p in plan)
-                {
-                    avail[p.Key] -= p.Value;
-                    paid.TryGetValue((int)p.Key, out var prev);
-                    paid[(int)p.Key] = prev + p.Value;
-                }
-            }
-
-            if (paid.Count > 0)
-            {
-                EventManager.Instance.Publish(new ElementPoolPayEvent
-                {
-                    Player = ctx.Payer,
-                    PaidCost = paid
-                });
-            }
-        }
     }
 
     // ================================================================
-    // 代价补偿服务（2026-09-11 黑白元素经济定案）
+    // 代价补偿服务（2026-09-11 黑白元素经济定案；2026-09-14 代价强制化）
     // ================================================================
-
-    /// <summary>卡级代价的选择（2026-09-11 定案：代价可选——使用时多一个选择窗口）。</summary>
-    public enum OptionalCostChoice
-    {
-        /// <summary>不付代价：原价支付元素费，代价不执行（无补偿）。</summary>
-        Skip = 0,
-        /// <summary>支付代价 + 减费：元素账单按当量削减（可减至 0）。</summary>
-        Discount = 1,
-        /// <summary>支付代价 + 得黑白：按当量获得黑/白元素（封顶地牌上限）。</summary>
-        Elements = 2,
-    }
 
     /// <summary>
-    /// 代价补偿服务（2026-09-11 黑白元素经济定案；2026-09-14 代价原子化后仅剩 Payload 一种代价）。
-    /// **卡级代价可选**（使用时的选择窗口，除抉择窗口外）：
-    /// 不付（原价）/ 付+减费（元素账单−当量）/ 付+得黑白（黑=己方侧、白=对方侧，封顶地牌上限）——
-    /// 避免「产生了用不了，白白承受代价」。
-    /// 当量=Payload 原子**全价**（PayloadUnitGrant：按 Once/单目标/战场落区合成组合层计价，
-    /// 原子表为唯一锚——弃牌/送墓/流失等资源支付一律走原子，不再有第二套当量表）。
-    /// 启动式/动态效果的代价仍为强制支付+得黑白（发动条件，见 PayWithCompensationAsync）。
+    /// 代价补偿服务（2026-09-14 定案：**代价强制**——撤销 09-11 的「代价可选」三选一窗口）。
+    /// cast 付费步与启动式/动态效果统一走 PayWithCompensationAsync：
+    /// Payload 原子**强制执行** + 按全价获得黑（己方侧）/白（对方侧）——无选择窗口、无减费通道。
+    /// 补偿数量=Payload 原子全价（PayloadUnitGrant：按 Once/单目标/战场落区合成组合层计价，
+    /// 原子表为唯一锚）；**每回合获得封顶 1/色**由 ElementPool.AddMana 统一钳制（余数不补）。
     /// </summary>
     public static class CostCompensationService
     {
-        /// <summary>单条代价的当量（元素数）：Payload 按原子全价；元素消耗不当量（非「额外代价」）。</summary>
-        public static int EquivalentValue(CostInstance cost)
-        {
-            if (cost == null) return 0;
-            if (cost.Type == CostType.Payload)
-                return CostDerivationService.PayloadUnitGrant(cost.Payload);
-            return 0; // 元素消耗本身不是「额外代价」，不当量
-        }
-
-        /// <summary>一组代价的当量合计。</summary>
-        public static int TotalEquivalent(List<CostInstance> costs)
-        {
-            int total = 0;
-            if (costs == null) return 0;
-            foreach (var c in costs)
-                if (c != null) total += EquivalentValue(c);
-            return total;
-        }
-
-        /// <summary>补偿上限（生成黑白与代价抵扣**共用**，2026-09-11 定案）：当前地牌槽上限——
-        /// 防第一回合重代价直接换出超大生物/巨量黑白。黑/白生成与减费两通道同源封顶。</summary>
-        public static int CompensationCap(CostContext ctx)
-            => ctx?.ElementPool != null && ctx.Payer != null ? Math.Max(0, ctx.ElementPool.GetLandCap(ctx.Payer)) : 0;
-
-        /// <summary>封顶后的当量：min(合计当量, 地牌上限)——减费通道用（黑白生成按条在 IssueGrant 封顶）。</summary>
-        public static int CappedTotalEquivalent(List<CostInstance> costs, CostContext ctx)
-            => Math.Min(TotalEquivalent(costs), CompensationCap(ctx));
-
         /// <summary>
-        /// 元素账单按当量减费（从最高需求色减起，可减至 0——沿用旧抵消的贪心口径；原地修改）。
-        /// </summary>
-        public static void ApplyDiscount(Dictionary<int, float> elementBill, int amount)
-        {
-            if (elementBill == null) return;
-            while (amount > 0)
-            {
-                int bestKey = -1;
-                float bestVal = 0;
-                foreach (var kv in elementBill)
-                {
-                    if (kv.Value > bestVal) { bestVal = kv.Value; bestKey = kv.Key; }
-                }
-                if (bestKey < 0) break;
-                int take = Math.Min(amount, (int)elementBill[bestKey]);
-                elementBill[bestKey] -= take;
-                if (elementBill[bestKey] <= 0) elementBill.Remove(bestKey);
-                amount -= take;
-            }
-        }
-
-        /// <summary>
-        /// 卡级代价的可选支付流程（cast 付费步——抉择窗口之后的选择窗口）：
-        /// 交互（有 UI 非 AI）弹 1-of-3；AI 防御性策略（原价付不起且减费后付得起 → 付+减费，
-        /// 不主动承受牺牲）；无头/超时默认不付。forcedChoice 供验证器直测三路径。
-        /// 返回 false=不可中止的异常态（Payer 缺失）。
-        /// </summary>
-        public static async Cysharp.Threading.Tasks.UniTask<bool> PayOptionalCardCostsAsync(
-            List<CostInstance> costs, CostContext ctx, Dictionary<int, float> elementBill,
-            OptionalCostChoice? forcedChoice = null)
-        {
-            if (costs == null || costs.Count == 0) return true;
-            if (ctx?.Payer == null) return false;
-
-            var choice = OptionalCostChoice.Skip;
-
-            if (forcedChoice.HasValue)
-            {
-                choice = forcedChoice.Value;
-            }
-            else
-            {
-                // 代价均为 Payload（强制效果，恒可付）——窗口恒可用（2026-09-14 代价原子化后无预检面）
-                {
-                    bool interactive = TargetSelectionService.Current != null && !ctx.Payer.IsAI;
-                    if (interactive)
-                    {
-                        int eq = CappedTotalEquivalent(costs, ctx);
-                        var labels = new List<string>
-                        {
-                            "不付代价（原价支付）",
-                            eq > 0 ? $"支付代价，费用 −{eq}" : "支付代价，减费",
-                            "支付代价，获得黑/白元素",
-                        };
-                        int idx = await TargetSelectionService.RequestOneIndexAsync(ctx.Payer, labels, "代价选择");
-                        choice = idx == 1 ? OptionalCostChoice.Discount
-                              : idx == 2 ? OptionalCostChoice.Elements
-                              : OptionalCostChoice.Skip;
-                    }
-                    else if (ctx.Payer.IsAI && ctx.ElementPool != null && elementBill != null)
-                    {
-                        // AI 策略（2026-09-13 用户裁决）：看手里有没有黑白费卡——
-                        // 有（后续用得上黑白资源）→ 付+得黑白；没有 → 付+减费。
-                        int eq = CappedTotalEquivalent(costs, ctx);
-                        if (eq > 0)
-                        {
-                            bool needsBW = ctx.ZoneManager != null
-                                && (ctx.ZoneManager.GetCards(ctx.Payer, Zone.Hand) ?? new List<Card>())
-                                    .Exists(c => (c as CardWrapper)?.GetData()?.Cost?.Keys
-                                        .Any(k => k == (int)ManaType.Black || k == (int)ManaType.White) == true);
-                            choice = needsBW ? OptionalCostChoice.Elements : OptionalCostChoice.Discount;
-                        }
-                    }
-                }
-            }
-
-            if (choice == OptionalCostChoice.Skip) return true;
-
-            // 2026-09-13 修复：Elements 补偿先于代价执行——Payload 执行会经 SummonTokenHandler 的
-            // new CardWrapper(template) 触发 EnsureCost 给无费模板补建议价（30/30 模板 0→22），
-            // "执行后再算当量"会让高价值复制的补偿意外按膨胀身价计（封顶失真）。补偿按打出时点全价。
-            if (choice == OptionalCostChoice.Elements)
-                foreach (var cost in costs)
-                    if (cost != null) IssueGrant(cost, ctx);
-
-            // 执行代价（全部为 Payload 原子：付费步异步执行）
-            foreach (var cost in costs)
-            {
-                if (cost == null) continue;
-                await ExecutePayloadAsync(cost, ctx);
-            }
-
-            if (choice == OptionalCostChoice.Discount)
-                ApplyDiscount(elementBill, CappedTotalEquivalent(costs, ctx)); // 减费与黑白共用上限
-
-            return true;
-        }
-
-        /// <summary>
-        /// 强制支付一组代价并逐条发放补偿（启动式/动态效果路径——代价=发动条件，无选择窗口）。
+        /// 强制支付一组代价并逐条发放补偿（cast 付费步与启动式/动态效果共用的唯一路径）。
         /// Payload 在此异步执行（恒可付=强制效果）。
         /// </summary>
         public static async Cysharp.Threading.Tasks.UniTask<bool> PayWithCompensationAsync(
@@ -496,24 +325,21 @@ namespace CardCore
             {
                 if (cost == null) continue;
                 // 2026-09-13 修复：补偿先于执行——Payload 执行经 CardWrapper 构造触发
-                // EnsureCost 补建议价，执行后算当量会按膨胀身价计（同 PayOptionalCardCostsAsync）
+                // EnsureCost 补建议价，执行后算当量会按膨胀身价计。补偿按打出时点全价。
                 IssueGrant(cost, ctx);
                 await ExecutePayloadAsync(cost, ctx);
             }
             return true;
         }
 
-        /// <summary>单条代价的补偿发放（每条=一次发放事件，封顶地牌上限）。Payload 按原子全价+极性色。</summary>
+        /// <summary>单条代价的补偿发放（每条=一次发放事件）。Payload 按原子全价+极性色；
+        /// 每回合封顶 1/色在 ElementPool.AddMana 钳制（余数不补），此处不再二次封顶。</summary>
         private static void IssueGrant(CostInstance cost, CostContext ctx)
         {
             if (ctx?.Payer == null || ctx.ElementPool == null) return;
 
             int amount = CostDerivationService.PayloadUnitGrant(cost.Payload);
             ManaType color = PayloadGrantColor(cost.Payload);
-            if (amount <= 0) return;
-
-            int cap = ctx.ElementPool.GetLandCap(ctx.Payer);
-            amount = Math.Min(amount, Math.Max(0, cap));
             if (amount <= 0) return;
 
             ctx.ElementPool.AddMana(ctx.Payer, color, ctx.Source as Card, amount);

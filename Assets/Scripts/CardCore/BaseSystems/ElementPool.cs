@@ -86,6 +86,17 @@ namespace CardCore
         /// <summary>本回合产出次数（手动自选色 + 结束阶段自动灰色；每个全局回合重置）</summary>
         public int TapsThisTurn { get; set; }
 
+        // ===== 黑白每回合获得封顶（2026-09-14 定案）=====
+        // 黑白=万用色（可替代红蓝绿灰支付），若每回合可攒地牌上限个则效果分色失去意义——
+        // 每回合获得封顶各自 1，全来源累计（代价补偿/错边结算/一切 AddMana 路径），
+        // 余数不补；bank 跨回合无上限结转不受影响。钳制唯一咽喉=ElementPool.AddMana。
+
+        /// <summary>本回合已获得黑元素数（封顶 1；回合开始清零）</summary>
+        public int BlackGainedThisTurn { get; set; }
+
+        /// <summary>本回合已获得白元素数（封顶 1；回合开始清零）</summary>
+        public int WhiteGainedThisTurn { get; set; }
+
         public PlayerElementPool()
         {
             foreach (ManaType mana in Enum.GetValues(typeof(ManaType)))
@@ -304,7 +315,8 @@ namespace CardCore
             {
                 Player = player,
                 GainedType = type,
-                FromCard = land.SourceCard
+                FromCard = land.SourceCard,
+                Source = GainSource.Tap,
             });
 
             return true;
@@ -336,7 +348,8 @@ namespace CardCore
                 {
                     Player = turnPlayer,
                     GainedType = type.Value,
-                    FromCard = pc.SourceCard
+                    FromCard = pc.SourceCard,
+                    Source = GainSource.Tap,
                 });
             }
 
@@ -347,14 +360,27 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 向 bank 添加元素并发布产出事件（采掘 MineHandler / 黑白结算发放调用）。
+        /// 向 bank 添加元素并发布产出事件（采掘 MineHandler / 黑白补偿与错边发放调用）。
         /// 与横置产出共用 ElementPoolGainEvent（FromCard = 来源卡）；不动地牌横置状态——
         /// 指示物的去除由调用方完成。Amount 默认 1（横置/采掘路径不传，兼容旧消费者）。
+        /// **黑白每回合获得封顶 1/色**（2026-09-14 定案）：本方法为唯一钳制咽喉——
+        /// 全来源累计、余数不补；钳到 0 时不入账也不发事件。返回实发量（钳后）。
         /// </summary>
-        public void AddMana(Player player, ManaType type, Card fromCard, int amount = 1)
+        public int AddMana(Player player, ManaType type, Card fromCard, int amount = 1)
         {
-            if (player == null || amount <= 0) return;
+            if (player == null || amount <= 0) return 0;
             var pool = GetPool(player);
+
+            if (type == ManaType.Black || type == ManaType.White)
+            {
+                int gained = type == ManaType.Black ? pool.BlackGainedThisTurn : pool.WhiteGainedThisTurn;
+                int allowed = Math.Min(amount, 1 - gained);
+                if (allowed <= 0) return 0; // 本回合该色已满：不入账、不发事件
+                amount = allowed;
+                if (type == ManaType.Black) pool.BlackGainedThisTurn += amount;
+                else pool.WhiteGainedThisTurn += amount;
+            }
+
             pool.AvailableMana[type] += amount;
             PublishEvent(new ElementPoolGainEvent
             {
@@ -363,6 +389,7 @@ namespace CardCore
                 FromCard = fromCard,
                 Amount = amount
             });
+            return amount;
         }
 
         /// <summary>自动消耗选色：剩余指示物最多的颜色（并列取枚举序靠前者）</summary>
@@ -384,57 +411,37 @@ namespace CardCore
         // ======================================== 支付费用 ========================================
 
         /// <summary>
-        /// 检查是否可以支付指定费用
+        /// 检查是否可以支付指定费用（2026-09-14 统一混付：委托账单规划器非破坏预检）。
+        /// 支付序=同色→灰→黑白（黑白万用垫四色缺口）；纯色需求量 > 地牌上限不论货币不可付；
+        /// 每种货币（含灰）单次贡献 ≤ 地牌上限。出牌/效果费/AI 预检共用本口径。
         /// </summary>
         public bool CanPayCost(Dictionary<int, float> cost, Player player)
-        {
-            var pool = GetPool(player);
-            int landCap = GetLandCap(player);
-
-            foreach (var kvp in cost)
-            {
-                ManaType type = (ManaType)kvp.Key;
-                int amount = (int)kvp.Value;
-                // 纯色浓度上限：每种纯色（红/蓝/绿/黑/白）单次支付量 ≤ 当场地牌槽上限；灰不受限。
-                // 黑白 2026-09-11 转正后与三色同权受此约束。
-                // bank 跨回合无上限积累，但支付受此约束。
-                if (IsPurePaymentColor(type) && amount > landCap)
-                    return false;
-                if (!pool.AvailableMana.ContainsKey(type) || pool.AvailableMana[type] < amount)
-                    return false;
-            }
-
-            return true;
-        }
-
-        /// <summary>纯色（受浓度上限约束的颜色）：红/蓝/绿/黑/白（黑白 2026-09-11 转正同权）。灰不受限。</summary>
-        private static bool IsPurePaymentColor(ManaType type)
-            => type == ManaType.Red || type == ManaType.Blue || type == ManaType.Green
-               || type == ManaType.Black || type == ManaType.White;
+            => ElementPaymentValidator.CanPayBill(
+                ElementPaymentValidator.NormalizeBill(cost),
+                GetPool(player).AvailableMana,
+                GetLandCap(player));
 
         /// <summary>
-        /// 支付费用（出牌时调用）
+        /// 支付费用（出牌时调用；2026-09-14 统一混付：按规划器实际货币组合扣款）。
+        /// ElementPoolPayEvent.PaidCost 携带**实际扣款组合**（如红1 账单付 {红1} 或 {灰1}/{黑1}）——
+        /// Trinity 光环/台账按真实货币计数。
         /// </summary>
         public bool PayCost(Dictionary<int, float> cost, Player player)
         {
             var pool = GetPool(player);
+            var plan = ElementPaymentValidator.GetBillPaymentPlan(
+                ElementPaymentValidator.NormalizeBill(cost),
+                pool.AvailableMana,
+                GetLandCap(player));
+            if (plan == null) return false;
 
-            // 先检查是否够
-            if (!CanPayCost(cost, player))
-                return false;
-
-            // 扣减可用元素
-            foreach (var kvp in cost)
-            {
-                ManaType type = (ManaType)kvp.Key;
-                int amount = (int)kvp.Value;
-                pool.AvailableMana[type] -= amount;
-            }
+            foreach (var kv in plan)
+                pool.AvailableMana[kv.Key] -= kv.Value;
 
             PublishEvent(new ElementPoolPayEvent
             {
                 Player = player,
-                PaidCost = cost
+                PaidCost = plan.ToDictionary(kv => (int)kv.Key, kv => (float)kv.Value)
             });
 
             return true;
@@ -445,7 +452,7 @@ namespace CardCore
         /// <summary>
         /// 全局回合开始（GameCore.OnTurnStarted 调用，每回合一次，无论轮到谁）：
         /// 1. 地牌槽曲线按全局回合数推进（先手首回合 1，此后每回合开始 +1，最大 9 —— 对手首回合即为 2）
-        /// 2. 所有玩家的本回合产出计数清零
+        /// 2. 所有玩家的本回合产出计数与黑白获得计数清零（每回合封顶 1/色按全局回合重置）
         /// 3. 回合玩家（准备阶段）地牌全部解除横置
         /// </summary>
         public void OnTurnStart(Player turnPlayer, int globalTurnNumber)
@@ -460,6 +467,8 @@ namespace CardCore
                 if (globalTurnNumber > pool.GlobalTurnIndex)
                     pool.GlobalTurnIndex = globalTurnNumber;
                 pool.TapsThisTurn = 0;
+                pool.BlackGainedThisTurn = 0;
+                pool.WhiteGainedThisTurn = 0;
             }
 
             foreach (var pc in turnPool.PooledCards)
@@ -599,6 +608,8 @@ namespace CardCore
                 pool.GlobalTurnIndex = 0;
                 pool.PersonalTurnIndex = 0;
                 pool.TapsThisTurn = 0;
+                pool.BlackGainedThisTurn = 0;
+                pool.WhiteGainedThisTurn = 0;
                 foreach (ManaType mana in Enum.GetValues(typeof(ManaType)))
                 {
                     pool.AvailableMana[mana] = 0;
@@ -621,6 +632,7 @@ namespace CardCore
 
             var manaStr = string.Join(", ", pool.AvailableMana.Where(kv => kv.Value > 0).Select(kv => $"{kv.Key}:{kv.Value}"));
             result += $"积攒费用(bank): {manaStr}\n";
+            result += $"黑白获得(本回合): 黑{pool.BlackGainedThisTurn}/白{pool.WhiteGainedThisTurn}\n";
             result += $"本回合产出: {pool.TapsThisTurn}";
 
             return result;
@@ -641,6 +653,15 @@ namespace CardCore
         public Dictionary<ManaType, int> Tokens { get; set; }
     }
 
+    /// <summary>元素入账来源（2026-09-14）：台账只把 Tap 计入「拍地次数」，补偿/采掘等发放不虚增。</summary>
+    public enum GainSource
+    {
+        /// <summary>效果发放（代价补偿/错边/采掘等 AddMana 路径）——缺省值，兼容旧消费者</summary>
+        Grant = 0,
+        /// <summary>地牌横置产出（手动选色 / 回合结束自动）</summary>
+        Tap = 1,
+    }
+
     public class ElementPoolGainEvent : GameEventBase
     {
         public Player Player { get; set; }
@@ -648,6 +669,8 @@ namespace CardCore
         public Card FromCard { get; set; }
         /// <summary>本次产出数量（2026-09-11 黑白结算发放可 >1；横置/采掘路径默认 1）。</summary>
         public int Amount { get; set; } = 1;
+        /// <summary>入账来源（2026-09-14）：缺省 Grant；横置路径标 Tap。</summary>
+        public GainSource Source { get; set; } = GainSource.Grant;
     }
 
     public class ElementPoolPayEvent : GameEventBase

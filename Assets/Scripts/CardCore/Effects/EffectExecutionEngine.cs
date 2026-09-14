@@ -184,7 +184,6 @@ namespace CardCore
                 ElementPool = _elementPool,
                 ModeIndex = instance.ModeIndex, // 抉择：执行引擎按声明期选定的模式分派
                 Duration = effect.Duration,               // 组合层编排属性随 context 下发（参照 ModeIndex 先例）
-                DurationValue = effect.DurationValue,
                 SummonDropZone = effect.SummonDropZone,
             };
 
@@ -208,9 +207,9 @@ namespace CardCore
                     Source = instance.Source
                 };
 
-                // 特殊代价（2026-09-11 定案：付代价=得黑/白，补偿跟代价走）：
-                // 卡牌 cast 的特殊代价已在付费步支付并补偿（ResolveCardCastAsync，ElementCostPrepaid 标记）；
-                // 启动式/动态效果在此现付+补偿（代价可选的选择只发生在 cast 付费步 PayOptionalCardCostsAsync）。
+                // 特殊代价（2026-09-14 代价强制定案：付代价=得黑/白，补偿跟代价走）：
+                // 卡牌 cast 的特殊代价已在付费步**强制支付并补偿**（ResolveCardCastAsync，ElementCostPrepaid 标记）；
+                // 启动式/动态效果在此现付+补偿（同为强制路径 PayWithCompensationAsync——无选择窗口）。
                 if (specialCosts.Count > 0 && !effect.ElementCostPrepaid)
                 {
                     if (!await CostCompensationService.PayWithCompensationAsync(specialCosts, costContext))
@@ -407,7 +406,8 @@ namespace CardCore
 
         /// <summary>
         /// 按发放事件发放黑白：每个原子（含子效果各自）一次事件，
-        /// 量 = min(单价 × 错边命中数, 当场地牌上限)，余数不补（定案：单次获得上限与纯色一致，走地牌上限）。
+        /// 量 = 单价 × 错边命中数——**每回合获得封顶 1/色**（2026-09-14 定案，与代价补偿全来源累计，
+        /// 钳制在 ElementPool.AddMana 统一执行，余数不补）。
         /// </summary>
         private void FlushWrongSideGrants(Dictionary<AtomicEffectInstance, int> hits, EffectDefinition def,
             EffectExecutionContext context)
@@ -421,13 +421,9 @@ namespace CardCore
                 int unit = CostDerivationService.ComputeAtomUnitGrant(atom, def);
                 if (unit <= 0 || kv.Value <= 0) continue;
 
-                int cap = _elementPool.GetLandCap(context.Controller);
-                int amount = Math.Min(unit * kv.Value, cap);
-                if (amount <= 0) continue;
-
                 _elementPool.AddMana(context.Controller,
                     CostDerivationService.PolarityGrantColor(atom.Polarity),
-                    context.Source as Card, amount);
+                    context.Source as Card, unit * kv.Value);
             }
         }
 

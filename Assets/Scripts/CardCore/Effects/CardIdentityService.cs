@@ -224,7 +224,7 @@ namespace CardCore
                       .Append(e.ActivationType).Append('|')
                       .Append(e.BaseSpeed).Append('|')
                       .Append(e.IsOptional ? 1 : 0).Append('|')
-                      .Append(e.Duration).Append('|').Append(e.DurationValue).Append('|').Append(e.SummonDropZone).Append('|').Append(e.SelectionMode).Append('|').Append(e.TargetCount).Append('|').Append(e.DynamicTargetCount ? 1 : 0).Append('|').Append(string.Join(",", (e.Drawbacks ?? new List<string>()).OrderBy(d => d, StringComparer.Ordinal))).Append('\n');
+                      .Append(e.Duration).Append('|').Append(e.SummonDropZone).Append('|').Append(e.SelectionMode).Append('|').Append(e.TargetCount).Append('|').Append(string.Join(",", (e.Drawbacks ?? new List<string>()).OrderBy(d => d, StringComparer.Ordinal))).Append('\n');
                     AppendConditions(sb, "AC", e.ActivationConditions);
                     AppendConditions(sb, "TC", e.TriggerConditions);
                     AppendCosts(sb, e.Costs);
@@ -338,7 +338,7 @@ namespace CardCore
               .Append(e.ActivationType).Append('|')
               .Append(e.BaseSpeed).Append('|')
               .Append(e.IsOptional ? 1 : 0).Append('|')
-              .Append(e.Duration).Append('|').Append(e.DurationValue).Append('|').Append(e.SummonDropZone).Append('|').Append(e.SelectionMode).Append('|').Append(e.TargetCount).Append('|').Append(e.DynamicTargetCount ? 1 : 0).Append('|').Append(string.Join(",", (e.Drawbacks ?? new List<string>()).OrderBy(d => d, StringComparer.Ordinal))).Append('\n');
+              .Append(e.Duration).Append('|').Append(e.SummonDropZone).Append('|').Append(e.SelectionMode).Append('|').Append(e.TargetCount).Append('|').Append(string.Join(",", (e.Drawbacks ?? new List<string>()).OrderBy(d => d, StringComparer.Ordinal))).Append('\n');
             AppendConditions(sb, "AC", e.ActivationConditions);
             AppendConditions(sb, "TC", e.TriggerConditions);
             AppendCosts(sb, e.Costs);

@@ -230,11 +230,11 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 持续时间折扣（绝对系数）。
-        /// turns 仅在 duration==ForTurns 时有意义（回合数 N，≤0 按 1 计）。
+        /// 持续时间折扣（绝对系数）。2026-09-14 收缩：效果级 DurationValue 删除（ForTurns 档
+        /// 收缩后 ≡ 专档同义词），turns 参数退役——ForTurns 仅存于指示物时钟（CounterSpec.Turns）。
         /// 费用侧请用相对折扣：D(实际)/D(表内默认)，见 CostDerivationService.ComputeAtomCost。
         /// </summary>
-        public float GetDurationDiscount(DurationType duration, int turns = 1)
+        public float GetDurationDiscount(DurationType duration)
         {
             return duration switch
             {
@@ -244,9 +244,7 @@ namespace CardCore
                 DurationType.UntilNextTurn => UntilNextTurnDiscount,
                 DurationType.UntilLeaveBattlefield => UntilLeaveBattlefieldDiscount,
                 DurationType.WhileCondition => WhileConditionDiscount,
-                DurationType.ForTurns => turns <= 1
-                    ? UntilEndOfTurnDiscount
-                    : Mathf.Min(ForTurnsBase + ForTurnsStep * (turns - 2), ForTurnsCap),
+                DurationType.ForTurns => UntilNextTurnDiscount, // 效果级已不可声明；兜底按 2 回合档
                 _ => 0.8f
             };
         }
