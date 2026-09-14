@@ -30,6 +30,10 @@ namespace CardCore
         /// **无每回合触发上限、组合期不可加限**——按触发次数线性堆价值的效果（如坚韧：受伤-1/次）。
         /// 其余原子默认**可修改且默认上限=一回合一次**（组合层 TriggerLimitPerTurn 可调 N 或显式无限）。</summary>
         TriggerCapImmutable = 8,
+        /// <summary>自由分支主干（2026-09-14 合成器重做）：引擎型条件条目（拼点/运势/倒计时）——
+        /// 只可落入合成器「主干槽」（写 header.EngineKind/EngineParam），不可作普通原子/奖励/payload 挂载。
+        /// 值只可尾部追加（同 TargetKind 惯例）。</summary>
+        FreeBranchTrunk = 9,
     }
 
     /// <summary>MountKinds CSV 解析/判定辅助（AtomicEffectTable 与装载校验共用）。</summary>

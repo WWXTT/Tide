@@ -47,7 +47,8 @@ namespace CardCore
             {
                 // 2026-09-10 目标域模型：TargetKinds/SelectionMode 取代 TargetType/Scope；持续列已删（上移组合层）
                 sb.Append(cfg.EnumName).Append('|')
-                  .Append(cfg.BaseCost.ToString("R", CultureInfo.InvariantCulture)).Append('|')
+                  .Append(string.Join(";", (cfg.ManaList ?? new List<ManaAmountEntry>())
+                      .OrderBy(m => m.manaType).Select(m => m.manaType + ":" + m.amount.ToString("R", CultureInfo.InvariantCulture)))).Append('|')
                   .Append(TargetKindRules.Format(cfg.GetTargetKindList())).Append('|')
                   .Append(cfg.TargetFilter ?? string.Empty).Append('|')
                   .Append(cfg.Polarity.ToString("R", CultureInfo.InvariantCulture)).Append('\n');
@@ -106,14 +107,15 @@ namespace CardCore
                 for (int i = 0; i < AtomParamDim; i++) parms.Add(0f);
                 return;
             }
-            var kinds = (a.TargetKinds ?? new List<int>()).Distinct().OrderBy(k => k).ToList();
-            var mana = a.ManaList ?? new List<ManaAmountEntry>();
-            parms.Add(Clamp(a.Value));
-            parms.Add(Clamp(mana.Sum(m => m.amount)));
-            parms.Add(Clamp(mana.Count));
+            // 2026-09-14 彻底引用化：参数向量随字段重构（ManaList 删除——两维归零；amp 入向量）
+            var kinds = (a.kinds ?? new List<int>()).Distinct().OrderBy(k => k).ToList();
+            parms.Add(Clamp(a.value));
+            parms.Add(0f); // 原 mana 总量（ManaList 已删）
+            parms.Add(0f); // 原 mana 条数
             parms.Add(Clamp(kinds.Count));
             parms.Add(kinds.Count > 0 ? kinds[0] : 0f);
             parms.Add(kinds.Count > 0 ? kinds[kinds.Count - 1] : 0f);
+            parms.Add(Clamp(a.amp));
         }
 
         private static float Clamp(float v) => v < -99f ? -99f : (v > 999f ? 999f : v);
@@ -135,11 +137,12 @@ namespace CardCore
         /// 编排属性已上移组合层——进 StructureHash 的效果级字段）。表级默认经整表指纹全局覆盖。</summary>
         private static void AppendAtom(StringBuilder sb, AtomicEffectEntry a)
         {
-            sb.Append(a.EffectType ?? string.Empty).Append('|')
-              .Append(a.Value).Append('|')
-              .Append(a.ID ?? string.Empty).Append('|')
-              .Append(FormatMana(a.ManaList)).Append('|')
-              .Append(TargetKindRules.Format(a.TargetKinds ?? new List<int>())).Append('\n');
+            // 2026-09-14 彻底引用化：原子=表行引用+增量（与 ContentHasher 同形态口径）
+            sb.Append(a.refId ?? string.Empty).Append('|')
+              .Append(a.value).Append('|')
+              .Append(a.str ?? string.Empty).Append('|')
+              .Append(TargetKindRules.Format(a.kinds ?? new List<int>())).Append('|')
+              .Append(a.amp.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('\n');
         }
 
         /// <summary>Mana 规范串（按 ManaType 排序的 type:amount；空 = "-"）。</summary>
@@ -164,7 +167,7 @@ namespace CardCore
                 foreach (var a in e.AtomicEffects)
                 {
                     atoms.Add(AtomHash(a));
-                    types.Add(AtomTypeIndex(a?.EffectType));
+                    types.Add(AtomTypeIndex(AtomicEffectTable.GetByHashId(a?.refId)?.EnumName));
                     AppendAtomParams(parms, a);
                 }
             }
@@ -177,7 +180,7 @@ namespace CardCore
             {
                 case 0:
                     atoms.Add(AtomHash(s.atomic));
-                    types.Add(AtomTypeIndex(s.atomic?.EffectType));
+                    types.Add(AtomTypeIndex(AtomicEffectTable.GetByHashId(s.atomic?.refId)?.EnumName));
                     AppendAtomParams(parms, s.atomic);
                     break;
                 case 1:
@@ -185,14 +188,14 @@ namespace CardCore
                         foreach (var a in s.thenSteps)
                         {
                             atoms.Add(AtomHash(a));
-                            types.Add(AtomTypeIndex(a?.EffectType));
+                            types.Add(AtomTypeIndex(AtomicEffectTable.GetByHashId(a?.refId)?.EnumName));
                             AppendAtomParams(parms, a);
                         }
                     if (s.elseSteps != null)
                         foreach (var a in s.elseSteps)
                         {
                             atoms.Add(AtomHash(a));
-                            types.Add(AtomTypeIndex(a?.EffectType));
+                            types.Add(AtomTypeIndex(AtomicEffectTable.GetByHashId(a?.refId)?.EnumName));
                             AppendAtomParams(parms, a);
                         }
                     break;

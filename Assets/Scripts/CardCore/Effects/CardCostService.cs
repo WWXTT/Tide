@@ -199,7 +199,7 @@ namespace CardCore
                     result.Grants[kv.Key] = prevG + kv.Value;
                 }
             }
-            // 代价栏：Payload 按全价（构筑显示"获得白16"）；普通代价按当量（弃1张=1黑…对手增益=1白）
+            // 代价栏：Payload 按原子全价（构筑显示"获得白16"；2026-09-14 代价原子化后代价=Payload 一种）
             if (card.Effects != null)
             {
                 foreach (var eff in card.Effects)
@@ -207,21 +207,11 @@ namespace CardCore
                     if (eff?.Costs == null) continue;
                     foreach (var ce in eff.Costs)
                     {
-                        if (ce == null) continue;
-                        var inst = new CostInstance
-                        {
-                            Type = (CostType)ce.CostType,
-                            Value = ce.Value,
-                            TurnDuration = ce.TurnDuration,
-                            Payload = CardEffectConverter.ConvertPayloadForDisplay(ce.payload),
-                        };
-                        int amount = inst.Type == CostType.Payload
-                            ? CostDerivationService.PayloadUnitGrant(inst.Payload)
-                            : CostCompensationService.EquivalentValue(inst);
+                        if (ce == null || ce.payload == null || string.IsNullOrEmpty(ce.payload.refId)) continue;
+                        var payload = CardEffectConverter.ConvertPayloadForDisplay(ce.payload);
+                        int amount = CostDerivationService.PayloadUnitGrant(payload);
                         if (amount <= 0) continue;
-                        var gColor = inst.Type == CostType.Payload
-                            ? CostCompensationService.PayloadGrantColor(inst.Payload)
-                            : CostCompensationService.GrantColor(inst);
+                        var gColor = CostCompensationService.PayloadGrantColor(payload);
                         result.Grants.TryGetValue(gColor, out var prevC);
                         result.Grants[gColor] = prevC + amount;
                     }
@@ -264,7 +254,7 @@ namespace CardCore
         /// D=0（无身材无效果无关键词）保持空 —— PlayCard 的 {Gray:1} 默认兜底行为不变。
         ///
         /// 抉择卡（2026-09-07 定案）：①构筑期推导全部模式费写入 ModeCostCache（发动时只读不重推导）；
-        /// ②声明 costList 缺省时写**最大模式费**——「作为地牌取最大」，地牌产元素/召唤素材/UI 等
+        /// ②声明 costList 缺省时写**最大模式费**——「作为地牌取最大」，地牌产元素/UI 等
         /// 声明值消费面零改动；支付仍按所选模式（GameActions.GetCardCost 走 GetModeCost）。
         /// 声明值已存在则只填缓存不动声明（手写费用=地牌值，声明优先惯例延续）。
         /// </summary>
@@ -474,22 +464,20 @@ namespace CardCore
                     }
 
                     var atomCfg = AtomicEffectTable.GetByType(grantType);
-                    float baseCost = atomCfg?.BaseCost ?? 0f;
-                    var color = ElementAffinities.GetAffinityForEffect(grantType).PrimaryColor;
+                    // ManaList 分色（2026-09-14）：关键词费=表行费用构成逐色入桶。
                     // 黑白不进生物费用列表（2026-09-14 定案）：装载路径已转启动式自赋予（CardLoader），
                     // 此处兜底覆盖运行时合成卡（验证器夹具等）——生物的黑白关键词构筑期不计费。
-                    // 法术不作地牌，黑白关键词照旧计价。
-                    if (card.Supertype == Cardtype.Creature
-                        && (color == ManaType.White || color == ManaType.Black))
+                    // 法术不作地牌，黑白照旧计价。
+                    float baseCost = atomCfg?.TotalUnitCost ?? 0f;
+                    foreach (var m in atomCfg?.ManaList ?? new List<ManaAmountEntry>())
                     {
-                        breakdown?.Add(new CostBreakdownLine("K",
-                            $"关键词 {kwId}（黑白——生物不计费，已转/应转启动式）", 0f));
-                        continue;
+                        if (m == null || m.amount <= 0f) continue;
+                        var color = (ManaType)m.manaType;
+                        kwBuckets.TryGetValue(color, out var prev);
+                        kwBuckets[color] = prev + m.amount;
+                        keywordTotal += baseCost;
+                        breakdown?.Add(new CostBreakdownLine("K", $"关键词 {kwId} (Grant 固定费)", baseCost, color));
                     }
-                    kwBuckets.TryGetValue(color, out var prev);
-                    kwBuckets[color] = prev + baseCost;
-                    keywordTotal += baseCost;
-                    breakdown?.Add(new CostBreakdownLine("K", $"关键词 {kwId} (Grant 固定费)", baseCost, color));
                 }
             }
             return kwBuckets;
@@ -589,21 +577,28 @@ namespace CardCore
                 else continue;
 
                 var atomCfg = AtomicEffectTable.GetByType(rep);
-                if (atomCfg == null || atomCfg.BaseCost <= 0f) continue;
+                if (atomCfg == null || atomCfg.TotalUnitCost <= 0f) continue;
 
                 // 光环按「单回合档」折算持续价值：factor = D(UntilEndOfTurn)/D(Permanent)。
                 // 旧口径分母取各原子表默认持续（ModifyPower=1.0 / ModifyLife=0.6 两锚不一致），
                 // 2026-09-10 持续上移后统一为满档 Permanent 锚（语义修正，随 R8 漂移已接受）。
                 float factor = singleTurn / Mathf.Max(0.0001f, attrCfg.GetDurationDiscount(DurationType.Permanent));
-                float amount = atomCfg.BaseCost
-                               * (atomCfg.CostMultiplier > 0f ? atomCfg.CostMultiplier : 1f)
-                               * magnitude * factor;
-                var color = ElementAffinities.GetAffinityForEffect(rep).PrimaryColor;
-                buckets.TryGetValue(color, out var prev);
-                buckets[color] = prev + amount;
-                auraTotal += amount;
+                float mult = atomCfg.CostMultiplier > 0f ? atomCfg.CostMultiplier : 1f;
+                // ManaList 分色（2026-09-14）：光环费逐色入桶（首色承担明细则行）
+                float firstAmount = 0f;
+                ManaType firstColor = ManaType.Gray;
+                foreach (var m in atomCfg.ManaList)
+                {
+                    if (m == null || m.amount <= 0f) continue;
+                    var color = (ManaType)m.manaType;
+                    float amount = m.amount * mult * magnitude * factor;
+                    buckets.TryGetValue(color, out var prev);
+                    buckets[color] = prev + amount;
+                    auraTotal += amount;
+                    if (firstAmount == 0f) { firstAmount = amount; firstColor = color; }
+                }
                 breakdown?.Add(new CostBreakdownLine("A",
-                    $"连接光环 {label}（单回合档 ×{factor:0.###}）", amount, color));
+                    $"连接光环 {label}（单回合档 ×{factor:0.###}）", firstAmount, firstColor));
             }
 
             // 卡级箭头累乘（2026-09-13 定案）：箭头数单独按 1.2 系数累乘——×1.2^(箭头-1)，

@@ -16,8 +16,9 @@ namespace SynergyUI
     /// </summary>
     public sealed class UIManager
     {
-        // 根容器：UIDocument.rootVisualElement，所有界面挂在它下面。
-        private readonly VisualElement _root;
+        // 根容器：PanelRenderer 装载回调给的根（原 UIDocument.rootVisualElement——6000.5 迁移；
+        // 热重载会换根，故非 readonly，ReattachRoot 换根重建）。
+        private VisualElement _root;
 
         // 导航历史栈，栈顶为当前界面。
         private readonly Stack<UIScreen> _stack = new Stack<UIScreen>();
@@ -41,6 +42,14 @@ namespace SynergyUI
             _stack.Push(screen);
             Activate(screen);
             return screen;
+        }
+
+        /// <summary>换根重建（PanelRenderer 热重载）：新根清空并重新装配当前栈顶界面（导航栈保持）。</summary>
+        public void ReattachRoot(VisualElement newRoot)
+        {
+            _root = newRoot ?? throw new ArgumentNullException(nameof(newRoot));
+            if (_stack.Count > 0)
+                Activate(_stack.Peek());
         }
 
         /// <summary>替换当前界面（弹出当前并销毁其显示，压入新界面，历史深度不变）。</summary>

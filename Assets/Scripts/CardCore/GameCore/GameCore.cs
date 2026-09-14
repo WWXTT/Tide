@@ -66,7 +66,7 @@ namespace CardCore
         private void Initialize()
         {
             // 初始化玩家
-            // 初始生命 30：使流失抵消触顶可达（14 费 × 2 命 = 28 ≤ 30），四类抵消上限 14+6+6+5=31 构成单局额外资源预算
+            // 初始生命 30（2026-09-14 抵消退役后无单局兑换预算概念——流失扣上限的总量自然受 30 封顶）
             _player1 = new Player("Player 1", 30);
             _player2 = new Player("Player 2", 30);
             _player1.Opponent = _player2;
@@ -367,9 +367,9 @@ namespace CardCore
             // 重置游戏状态
             Reset();
 
-            // 重置本局代价抵消计数（单局上限随对局生命周期）
-            _player1.ResetOffsetUsage();
-            _player2.ResetOffsetUsage();
+            // 重置本局疲劳计数
+            _player1.ResetFatigueCount();
+            _player2.ResetFatigueCount();
 
             // 地牌槽曲线注入（固定 [1..9]：起始 1，回合开始 +1，最大 9；
             // 卡组涌现曲线 DeckCurveCompiler 保留为分析工具，不再作为局内执行依据）
@@ -543,7 +543,7 @@ namespace CardCore
 
             // 跨局不残留（曾缺失，AI 对战/验证器同域连开多局时暴露）：
             // 1) 清空双方全部区域容器——上一局的卡牌不得带入新局
-            // 2) 玩家状态回满——生命/疲劳/抵消计数恢复初始
+            // 2) 玩家状态回满——生命/疲劳计数恢复初始
             foreach (var player in new[] { _player1, _player2 })
             {
                 var container = ZoneManager.GetZoneContainer(player);
@@ -552,7 +552,7 @@ namespace CardCore
                     container.Clear(zone);
 
                 player.Life = player.MaxHealth;
-                player.ResetOffsetUsage();
+                player.ResetFatigueCount();
                 player.IsAI = false;
 
                 // 英雄技能跨局不残留（2026-09-13）：技能指派/计数/升级全复位

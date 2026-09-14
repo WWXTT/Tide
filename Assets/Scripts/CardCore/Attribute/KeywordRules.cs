@@ -130,7 +130,7 @@ namespace CardCore.Attribute
 
         /// <summary>
         /// 形态复制（定案⑨：临时不随形态）——只复制 from 的 Printed+Setting 轨关键词，
-        /// 落到 to 按 toLane 记账（吞噬/融合继承=Setting：吸收后视同本体）。
+        /// 落到 to 按 toLane 记账（吞噬继承=Setting：吸收后视同本体）。
         /// 台账缺失（重连/旧档）时保守按 from._keywords 全量去重复制。
         /// </summary>
         public static void CopyFormKeywords(Card from, Card to, KeywordLane toLane = KeywordLane.Setting)
@@ -194,7 +194,7 @@ namespace CardCore.Attribute
         /// <summary>
         /// 台账移除核心：按谓词撤掉授予条目，随后同步 _keywords——
         /// 某关键词的授予条目被清空后（无任何轨再持有）才移除其本体占用。
-        /// 注意：无台账条目的关键词（重连还原/融合直加）不在清除面内——保守视同本体。
+        /// 注意：无台账条目的关键词（重连还原/直加）不在清除面内——保守视同本体。
         /// </summary>
         private static void RemoveGrants(Entity entity, Func<KeywordGrant, bool> predicate)
         {
@@ -212,7 +212,7 @@ namespace CardCore.Attribute
             }
         }
 
-        /// <summary>持有某关键词的次数（融合叠加：重复坚韧计 2）</summary>
+        /// <summary>持有某关键词的次数（重复叠加：双坚韧计 2）</summary>
         public static int KeywordCount(Entity entity, string keyword)
         {
             return entity is Card card ? card.GetKeywordCount(keyword) : (entity.HasKeyword(keyword) ? 1 : 0);
@@ -457,7 +457,7 @@ namespace CardCore.Attribute
                 }
             }
 
-            // 3. 坚韧：每次受到的最终伤害 −1 × 持有次数（叠加 = 融合专属强化）。
+            // 3. 坚韧：每次受到的最终伤害 −1 × 持有次数（叠加 = 重复叠加强化）。
             //    坚韧光环（2026-09-13 定案：坚韧改为连接箭头光环，绿1×箭头数）——箭头指向格占据者
             //    每条覆盖箭头各 -1（按箭头叠加），无触发上限（静态替代非触发式）；断链/来源被无效即失效。
             int toughness = KeywordCount(target, Armor)

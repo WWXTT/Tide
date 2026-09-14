@@ -382,7 +382,8 @@ namespace CardCore.Attribute.Handlers
         public override string GetDescription(AtomicEffectInstance effect) => $"造成 {effect.Value} 点战斗伤害";
     }
 
-    /// <summary>失去生命（不可防止，非伤害）</summary>
+    /// <summary>失去生命（不可防止，非伤害）。角色目标扣**生命上限**（2026-09-14 对齐流失扣上限定案，
+    /// 代价原子化后本原子即「流失生命」的代价载体——代价栏 Payload 锁己方域，付费步执行+错边补偿黑）。</summary>
     public class LifeLossHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.LifeLoss;
@@ -395,8 +396,8 @@ namespace CardCore.Attribute.Handlers
                 int amount = context.GetValueAfterModifiers(effect.GetRolledValue());
                 // 生命流失（术语定案）：非伤害、不可防止——不走伤害管线（圣盾/护甲/坚韧不挡），
                 // 无伤害来源。死因=LifeLoss（归零族，神佑不拦），死亡来源=效果来源（归因到引发流失的效果卡）。
-                // 卡归零走即时决策表（效果驱动路径先例：牺牲/吞噬/湮灭/剧毒）；角色扣血补发 LifeChangeEvent
-                // （伤害管线同口径；游戏结束由既有终局链裁决）。
+                // 卡归零走即时决策表（效果驱动路径先例：牺牲/吞噬/湮灭/剧毒）；角色扣上限（2026-09-11 定案：
+                // 流失及所有扣命改扣 MaxHealth——治愈回复不了已扣的上限），归零=正常死亡交生命判定收尾。
                 if (target is Card card)
                 {
                     card._life -= amount;
@@ -410,7 +411,7 @@ namespace CardCore.Attribute.Handlers
                 else if (target is Player player)
                 {
                     int oldLife = player.Life;
-                    player.Life = oldLife - amount;
+                    player.DecreaseMaxHealth(amount);
                     PublishEvent(new LifeChangeEvent
                     {
                         Player = player,
@@ -418,6 +419,15 @@ namespace CardCore.Attribute.Handlers
                         NewLife = player.Life,
                         Source = context.Source
                     });
+                    // 流失**自己**生命上限=支付语义（2026-09-14 代价原子化：替代原 LifePayment 代价
+                    // 的域事件发布口）——MatchStats 生命支付统计/血偿仪典进度照常；流失敌方=攻击，不发。
+                    if (ReferenceEquals(player, context.Controller))
+                        PublishEvent(new LifePaymentCostEvent
+                        {
+                            Player = player,
+                            Amount = amount,
+                            Source = context.Source
+                        });
                 }
 
                 PublishEvent(new AtomicDamageEvent

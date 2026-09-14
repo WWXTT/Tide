@@ -89,9 +89,6 @@ namespace CardCore.Network
                     FatigueCount = player.FatigueCount,
                     LandCap = core.ElementPool.GetLandCap(player),
                     ElementBank = bank.ToArray(),
-                    OffsetDrainUsed = player.OffsetDrainUsed,
-                    OffsetDiscardUsed = player.OffsetDiscardUsed,
-                    OffsetMillUsed = player.OffsetMillUsed,
                     GraveyardCount = core.ZoneManager.GetCards(player, Zone.Graveyard)?.Count ?? 0,
                     ExileCount = core.ZoneManager.GetCards(player, Zone.Exile)?.Count ?? 0,
                 });

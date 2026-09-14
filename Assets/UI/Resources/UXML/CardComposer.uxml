@@ -53,7 +53,11 @@
             <ui:VisualElement class="column panel">
                 <ui:Label text="效果库（点击挂载到卡牌）" class="panel__header" />
                 <ui:ScrollView name="list-library" class="list" />
-                <ui:Label text="已挂载效果" class="panel__header" style="margin-top: 8px;" />
+                <ui:VisualElement class="toolbar">
+                    <ui:Label text="已挂载效果" class="panel__header" style="margin-bottom: 0;" />
+                    <ui:VisualElement class="spacer" />
+                    <ui:Button name="btn-new-effect" text="+ 新建效果" class="btn" />
+                </ui:VisualElement>
                 <ui:ScrollView name="list-attached" class="list" />
             </ui:VisualElement>
         </ui:VisualElement>

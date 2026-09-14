@@ -66,18 +66,12 @@ namespace SynergyUI
             return result;
         }
 
-        /// <summary>CostType → 中文名（供 UI 与明细展示）。</summary>
+        /// <summary>CostType → 中文名（供 UI 与明细展示）。2026-09-14 代价原子化后仅剩两值。</summary>
         public static string CostTypeName(int costType)
         {
             return (CostType)costType switch
             {
                 CostType.ElementConsume => "元素消耗",
-                CostType.DiscardCard => "弃牌",
-                CostType.LifePayment => "支付生命（扣上限）",
-                CostType.Sleep => "沉睡",
-                CostType.MillDeck => "送墓（本组）",
-                CostType.SelfSickness => "自身紊乱",
-                CostType.OpponentBuff => "对手增益",
                 CostType.Payload => "代价效果",
                 _ => costType.ToString(),
             };

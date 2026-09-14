@@ -14,15 +14,17 @@ namespace SynergyUI
     ///   每卡 CardConfigEntry（camelCase: id/cardName/supertype/power/life/costList/keywords/tags/effects）
     ///   costList 项 { manaType:int, amount:float }；effects 项为 CardEffectData（PascalCase）。
     ///
-    /// 落盘到 Assets/Configs/<file>.json（默认 ComposedCards.json）。仅编辑器内有效。
+    /// 落盘到 StreamingAssets/Tide/Cards.json（2026-09-14 统一定案+效果引用化：编辑器读取
+    /// （CardCatalog 卡池）与 UI 保存同一文件——合成卡即入池；效果不内嵌——写 effectIds 引用，
+    /// 定义经 EffectLibrarySerializer upsert 进 Tide/Effects.json；TestDecks 原件留作训练桥/验证夹具）。
     /// </summary>
     public static class CardConfigSerializer
     {
-        public const string DefaultFileRelative = "Configs/ComposedCards.json";
+        public const string DefaultFileRelative = "Tide/Cards.json";
 
         private static string PathFor(string relative)
         {
-            return Path.Combine(Application.dataPath, string.IsNullOrEmpty(relative) ? DefaultFileRelative : relative);
+            return Path.Combine(Application.streamingAssetsPath, string.IsNullOrEmpty(relative) ? DefaultFileRelative : relative);
         }
 
         /// <summary>
@@ -48,6 +50,9 @@ namespace SynergyUI
             {
                 wrapper.deckConfig = new DeckConfig();
             }
+
+            // 效果引用化：每个效果 upsert 进效果库（ContentHasher.HashEffect 为 id），卡表只存引用
+            EffectLibrarySerializer.EnsureEffectsSaved(card.Effects);
 
             var entry = ToEntry(card);
 
@@ -90,7 +95,8 @@ namespace SynergyUI
                 costList = new List<CostJsonEntry>(),
                 keywords = card.Keywords != null ? new List<string>(card.Keywords) : new List<string>(),
                 tags = card.Tags != null ? new List<string>(card.Tags) : new List<string>(),
-                effects = card.Effects != null ? new List<CardEffectData>(card.Effects) : new List<CardEffectData>(),
+                effects = null, // 效果引用化（2026-09-14）：不内嵌——经 effectIds 引用 Effects.json
+                effectIds = EffectLibrarySerializer.EffectIdsOf(card.Effects),
                 subtype = card.Subtype == CardSubtype.None ? "" : card.Subtype.ToString(),
                 level = card.Level ?? -1,
                 arrows = card.ArrowDirections.ToString(),

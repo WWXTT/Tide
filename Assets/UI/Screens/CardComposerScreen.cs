@@ -68,6 +68,11 @@ namespace SynergyUI
             UIBinder.BindButton(Root, "btn-back", () => Manager.Back());
             UIBinder.BindButton(Root, "btn-save", OnSave);
             UIBinder.BindButton(Root, "btn-adopt", OnAdoptCost);
+            UIBinder.BindButton(Root, "btn-new-effect", () =>
+            {
+                ComposerSession.BeginCardEdit(_card, -1); // -1 = 新建（保存时追加）
+                Manager.Show<EffectComposerScreen>();
+            });
 
             BindForm();
             BuildCardtypeDropdown();
@@ -200,10 +205,13 @@ namespace SynergyUI
             Recalculate();
         }
 
-        // 效果图 → 卡内嵌效果：header 复制 + Steps 原样保留 + then 分支线性投影到 AtomicEffects。
+        // 效果图 → 卡内嵌效果（2026-09-14 修复：编排字段全量拷贝——此前漏 SelectionMode/TargetCount/
+        // Duration/DurationValue/TriggerLimitPerTurn/EngineKind 等上移字段；引擎通道 AtomicEffects
+        // 原被 ProjectLinear(steps) 清空（自由分支 steps 为空）——现按形态分路）。
         private static CardEffectData SnapshotEffect(EffectGraphData graph)
         {
             var src = graph.header ?? new CardEffectData();
+            var isEngine = src.EngineKind != (int)BranchEngineKind.None;
             return new CardEffectData
             {
                 Id = src.Id,
@@ -214,12 +222,24 @@ namespace SynergyUI
                 BaseSpeed = src.BaseSpeed,
                 IsOptional = src.IsOptional,
                 Duration = src.Duration,
+                DurationValue = src.DurationValue,
+                SummonDropZone = src.SummonDropZone,
+                SelectionMode = src.SelectionMode,
+                TargetCount = src.TargetCount,
+                TriggerLimitPerTurn = src.TriggerLimitPerTurn,
+                DynamicTargetCount = src.DynamicTargetCount,
+                Drawbacks = src.Drawbacks,
+                EngineKind = src.EngineKind,
+                EngineParam = src.EngineParam,
                 ActivationConditions = src.ActivationConditions,
                 TriggerConditions = src.TriggerConditions,
                 Costs = src.Costs,
                 Tags = src.Tags,
-                Steps = graph.steps != null ? new List<EffectStepData>(graph.steps) : new List<EffectStepData>(),
-                AtomicEffects = ProjectLinear(graph.steps),
+                Steps = isEngine ? null : (graph.steps != null ? new List<EffectStepData>(graph.steps) : null),
+                // 引擎通道：奖励原子来自 header.AtomicEffects；其余形态线性投影（converter 双通道兼容）
+                AtomicEffects = isEngine
+                    ? (src.AtomicEffects != null ? new List<AtomicEffectEntry>(src.AtomicEffects) : null)
+                    : ProjectLinear(graph.steps),
             };
         }
 
@@ -256,7 +276,15 @@ namespace SynergyUI
             {
                 var index = i;
                 var label = string.IsNullOrEmpty(effects[i].DisplayName) ? $"效果 #{i + 1}" : effects[i].DisplayName;
-                _attachedList.Add(MakeNameRow(label, "移除", () => RemoveAttachedAt(index)));
+                var row = MakeAttachedRow(label, effects[i],
+                    () => RemoveAttachedAt(index),
+                    () =>
+                    {
+                        // 跳转效果合成器编辑该效果（2026-09-14 合成器重做：静态会话传上下文）
+                        ComposerSession.BeginCardEdit(_card, index);
+                        Manager.Show<EffectComposerScreen>();
+                    });
+                _attachedList.Add(row);
             }
         }
 
@@ -282,6 +310,35 @@ namespace SynergyUI
             var btn = new Button(onAction) { text = action };
             btn.AddToClassList("btn");
             btn.AddToClassList("btn--mini");
+            row.Add(btn);
+            return row;
+        }
+
+        /// <summary>挂载效果行：名称 + 组合摘要（AtomText）+ 编辑/移除。</summary>
+        private VisualElement MakeAttachedRow(string name, CardEffectData effect, Action onRemove, Action onEdit)
+        {
+            var row = new VisualElement();
+            row.AddToClassList("list-row");
+            row.style.flexWrap = UnityEngine.UIElements.Wrap.Wrap;
+
+            var label = new Label(name);
+            label.AddToClassList("list-row__name");
+            row.Add(label);
+
+            var graph = new EffectGraphData(name) { header = effect, steps = effect?.Steps };
+            var summary = new Label(AtomText.RenderEffectSummary(graph));
+            summary.AddToClassList("list-row__meta");
+            row.Add(summary);
+
+            var edit = new Button(onEdit) { text = "编辑" };
+            edit.AddToClassList("btn");
+            edit.AddToClassList("btn--mini");
+            row.Add(edit);
+
+            var btn = new Button(onRemove) { text = "移除" };
+            btn.AddToClassList("btn");
+            btn.AddToClassList("btn--mini");
+            btn.AddToClassList("btn--danger");
             row.Add(btn);
             return row;
         }

@@ -103,7 +103,7 @@ namespace GameBoard
         /// <summary>最大生命光环加成（与 GetLifeBonus 同值——生命光环上限当前同加）</summary>
         public static int GetMaxLifeBonus(Card card) => BonusOf(card)?.Life ?? 0;
 
-        /// <summary>光环关键词（Boolean 语义：光环期间视为持有，不参与 GetKeywordCount 融合叠加计数）</summary>
+        /// <summary>光环关键词（Boolean 语义：光环期间视为持有，不参与 GetKeywordCount 重复叠加计数）</summary>
         public static bool HasAuraKeyword(Card card, string keyword)
         {
             var bonus = BonusOf(card);

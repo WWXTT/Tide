@@ -17,7 +17,10 @@ namespace CardCore.Attribute.Handlers
 
     // ---------------- 牌库 ----------------
 
-    /// <summary>送墓（原名"磨牌"；控制者牌库顶 N 张 → 坟墓场）</summary>
+    /// <summary>送墓（原名"磨牌"；牌库顶 N 张 → 坟墓场）。牌库归属按目标域解析（2026-09-14 代价原子化）：
+    /// 域锁对方（{8}）磨对手牌库（干扰向），其余（含默认双域 {7,8}）磨自己牌库——
+    /// 磨**自己**=「送墓」资源代价语义（代价栏 Payload 锁 {7}，付费步执行+错边补偿黑），
+    /// 批量发 MillDeckCostEvent（MatchStats/归土进度照常）；磨对手只发逐张 CardMillEvent。</summary>
     public class MillCardHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.MillCard;
@@ -29,14 +32,21 @@ namespace CardCore.Attribute.Handlers
             int count = context.GetValueAfterModifiers(effect.Value);
             if (context.ZoneManager == null || context.Controller == null) return;
 
-            var top = context.ZoneManager.GetTopCards(context.Controller, count);
-            var container = context.ZoneManager.GetZoneContainer(context.Controller);
+            bool ownDeck = CostDerivationService.SideLock(effect.TargetKinds) != 1; // 对方锁→磨对手；其余→自己
+            var owner = ownDeck ? context.Controller
+                : (context.Controller.Opponent ?? context.Controller);
+
+            var top = context.ZoneManager.GetTopCards(owner, count);
+            var container = context.ZoneManager.GetZoneContainer(owner);
             foreach (var card in top)
             {
                 container.Move(card, Zone.Deck, Zone.Graveyard);
                 card.SetZone(Zone.Graveyard);
-                PublishEvent(new CardMillEvent { Player = context.Controller, Card = card, Source = context.Source });
+                PublishEvent(new CardMillEvent { Player = owner, Card = card, Source = context.Source });
             }
+
+            if (ownDeck && top.Count > 0)
+                PublishEvent(new MillDeckCostEvent { Player = owner, Cards = top.ToList(), Source = context.Source });
         }
 
         public override string GetDescription(AtomicEffectInstance effect) => $"送墓：牌库顶 {effect.Value} 张入墓地";

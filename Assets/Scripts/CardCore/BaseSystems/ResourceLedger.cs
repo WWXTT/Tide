@@ -18,8 +18,6 @@ namespace CardCore
         public int TapsTaken { get; set; }
         /// <summary>支付元素总量</summary>
         public int ElementsPaid { get; set; }
-        /// <summary>抵消使用量（流失/弃牌/送墓/送额外组四类之和，本回合增量）</summary>
-        public int OffsetsUsed { get; set; }
         /// <summary>回合开始时 bank 存量</summary>
         public int BankStart { get; set; }
         /// <summary>回合开始时池内指示物存量</summary>
@@ -31,7 +29,7 @@ namespace CardCore
         public float LandUtilization => LandCap <= 0 ? 0f : (float)TapsTaken / LandCap;
 
         public override string ToString()
-            => $"T{PersonalTurn} cap={LandCap} 产={TapsTaken} 付={ElementsPaid} 抵消={OffsetsUsed} bank={BankStart} 池余={PoolTokensRemaining} 地={LandsInPool}";
+            => $"T{PersonalTurn} cap={LandCap} 产={TapsTaken} 付={ElementsPaid} bank={BankStart} 池余={PoolTokensRemaining} 地={LandsInPool}";
     }
 
     /// <summary>
@@ -51,8 +49,6 @@ namespace CardCore
             new Dictionary<Player, List<ResourceTurnRecord>>();
         private readonly Dictionary<Player, ResourceTurnRecord> _openRecords =
             new Dictionary<Player, ResourceTurnRecord>();
-        private readonly Dictionary<Player, int> _offsetBaselines =
-            new Dictionary<Player, int>();
 
         public ResourceLedger(ElementPoolSystem elementPool)
         {
@@ -80,7 +76,6 @@ namespace CardCore
         {
             _records.Clear();
             _openRecords.Clear();
-            _offsetBaselines.Clear();
         }
 
         // ======================================== 事件处理 ========================================
@@ -101,7 +96,6 @@ namespace CardCore
                 LandCap = _elementPool.GetLandCap(player),
                 TapsTaken = 0,
                 ElementsPaid = 0,
-                OffsetsUsed = 0,
                 BankStart = _elementPool.GetTotalAvailableMana(player),
                 PoolTokensRemaining = _elementPool.GetTotalTokensInPool(player),
                 LandsInPool = pool.PooledCards.Count,
@@ -114,7 +108,6 @@ namespace CardCore
             }
             list.Add(record);
             _openRecords[player] = record;
-            _offsetBaselines[player] = ReadOffsetTotal(player);
         }
 
         private void OnTurnEnd(TurnEndEvent e)
@@ -141,16 +134,8 @@ namespace CardCore
 
         private void CloseRecord(Player player)
         {
-            if (!_openRecords.TryGetValue(player, out var rec))
-                return;
-            rec.OffsetsUsed = ReadOffsetTotal(player) - _offsetBaselines.GetValueOrDefault(player, 0);
+            // 2026-09-14：抵消使用量（OffsetsUsed）随 CostOffset 退役删除——本回合行封存只落资源产支
             _openRecords.Remove(player);
-        }
-
-        /// <summary>读玩家三类抵消已用计数之和（送额外随额外卡组退役下线，2026-09-13）</summary>
-        private static int ReadOffsetTotal(Player player)
-        {
-            return player.OffsetDrainUsed + player.OffsetDiscardUsed + player.OffsetMillUsed;
         }
     }
 }

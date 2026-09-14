@@ -155,8 +155,6 @@ namespace CardCore.Tools
                 // M1 快照扩展（2026-09-10）
                 ("PlayerState", "Seat"), ("PlayerState", "IsAI"), ("PlayerState", "FatigueCount"),
                 ("PlayerState", "LandCap"), ("PlayerState", "ElementBank"),
-                ("PlayerState", "OffsetDrainUsed"), ("PlayerState", "OffsetDiscardUsed"),
-                ("PlayerState", "OffsetMillUsed"), ("PlayerState", "OffsetOpponentHealUsed"),
                 ("PlayerState", "GraveyardCount"), ("PlayerState", "ExileCount"),
 
                 // ---- M1 网络协议（2026-09-10，详见 根目录 网络协议.md）----

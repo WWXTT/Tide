@@ -25,6 +25,7 @@
     flex-direction: row;
     align-items: center;
     margin-bottom: 12px;
+    flex-wrap: wrap; /* 2026-09-14：控件过多时换行而非互相挤压遮挡（min-width 保形） */
 }
 
 .spacer {
@@ -437,3 +438,85 @@
 }
 
 
+
+/* ---------- 合成器重做（2026-09-14）：拖拽槽位 / 模式条 / 黑白色 chip ---------- */
+
+.chip--black {
+    background-color: rgb(28, 30, 36);
+    color: rgb(225, 229, 236);
+    border-color: rgb(90, 95, 108);
+}
+
+.chip--white {
+    background-color: rgb(210, 214, 222);
+    color: rgb(30, 32, 38);
+}
+
+.mode-bar {
+    margin-bottom: 6px;
+}
+
+.mode-chip {
+    margin-right: 6px;
+    padding: 4px 12px;
+    border-radius: 6px;
+    background-color: rgb(54, 60, 72);
+    color: rgb(200, 205, 214);
+    border-width: 1px;
+    border-color: rgb(64, 70, 84);
+}
+
+.mode-chip--active {
+    background-color: rgb(58, 84, 120);
+    color: rgb(235, 240, 250);
+    border-color: rgb(120, 150, 200);
+    border-width: 2px;
+}
+
+.slot-area {
+    min-height: 180px;
+}
+
+.drop-slot {
+    border-width: 2px;
+    border-color: rgb(64, 70, 84);
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 6px;
+    background-color: rgba(24, 27, 33, 0.6);
+}
+
+.drop-slot--trunk {
+    border-color: rgb(110, 130, 170);
+}
+
+.drop-slot--reward {
+    border-color: rgb(120, 150, 110);
+}
+
+.drop-slot--target {
+    border-color: rgb(235, 240, 250);
+    background-color: rgba(58, 84, 120, 0.45);
+    border-width: 2px;
+}
+
+.drag-ghost {
+    padding: 4px 10px;
+    border-radius: 6px;
+    background-color: rgba(58, 84, 120, 0.85);
+    color: rgb(235, 240, 250);
+    border-width: 1px;
+    border-color: rgb(120, 150, 200);
+    pointer-events: none;
+}
+
+.library-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 4px 6px;
+}
+
+.color-filter-chip {
+    min-width: 40px;
+}

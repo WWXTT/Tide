@@ -17,6 +17,9 @@ namespace SynergyUI
     public class EffectGraphData
     {
         public string name;
+        /// <summary>效果 id（2026-09-14 效果引用化）：ContentHasher.HashEffect 8 位 hex——
+        /// 保存时由 EffectLibrarySerializer 计算/回填；卡表 effectIds 引用此 id。</summary>
+        public string id;
         public CardEffectData header = new CardEffectData();
         public List<EffectStepData> steps = new List<EffectStepData>();
 

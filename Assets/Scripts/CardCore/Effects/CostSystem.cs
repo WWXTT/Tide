@@ -10,29 +10,21 @@ namespace CardCore
     // ================================================================
 
     /// <summary>
-    /// 代价类型
+    /// 代价类型（2026-09-14 代价原子化定案：资源类特殊代价——弃牌/生命/沉睡/送墓/自紊乱/对手增益——
+    /// 全部退役，由**代价栏 Payload 原子**承载（流失生命=LifeLoss、弃手牌=DiscardCard、送墓=MillCard
+    /// 等，付费步执行 + 错边全价补偿黑/白——见 CostCompensationService）。黑白元素获取通道唯一=卡结算。
+    /// 中间枚举值已删但 **Payload 显式保留 =7**（EffectCostEntry 按 int 序列化，防旧档错位）；
+    /// 编号整体重排留到训练前统一处理（同 Zone 枚举口径）。
     /// </summary>
     public enum CostType
     {
         /// <summary>元素消耗</summary>
-        ElementConsume,
-        /// <summary>弃牌</summary>
-        DiscardCard,
-        /// <summary>扣除玩家生命</summary>
-        LifePayment,
-        /// <summary>沉睡（翻面+苏醒倒计时）</summary>
-        Sleep,
-        /// <summary>送墓（本组）：将牌库顶 N 张送入墓地（代价抵消用）</summary>
-        MillDeck,
-        // OpponentDraw / OpponentHeal 已删除（2026-09-10：被 Polarity 错边折价顶替——
-        // "有益原子锁对方域"自动减费取代显式跨边代价；当日卡数据 Costs 零使用，删值重排无影响）。
-        /// <summary>自身减益（紊乱指示物，当量 1/条，2026-09-08 拓展）：Value=层数、TurnDuration=持续回合</summary>
-        SelfSickness,
-        /// <summary>对手增益（属性增加指示物 +1/+1，当量 1/层，2026-09-08 拓展）：Value=层数</summary>
-        OpponentBuff,
-        /// <summary>效果型代价（2026-09-11 定案）：代价栏装载的强制原子效果（如「给对手召唤 30/30 衍生物」），
-        /// 在付费步执行并按全价补偿黑/白元素。Payload 字段承载原子。枚举追加在尾，存量序列化值不动。</summary>
-        Payload,
+        ElementConsume = 0,
+        /// <summary>效果型代价（2026-09-11 定案）：代价栏装载的强制原子效果（如「给对手召唤 30/30 衍生物」、
+        /// 「弃自己 2 张手牌」「流失 2 点生命上限」），在付费步执行并按全价补偿黑/白元素。
+        /// Payload 字段承载原子。显式 =7：原中段值（DiscardCard/LifePayment/Sleep/MillDeck/
+        /// SelfSickness/OpponentBuff）已删，保号防序列化错位。</summary>
+        Payload = 7,
     }
 
     /// <summary>
@@ -44,18 +36,11 @@ namespace CardCore
         /// <summary>代价类型</summary>
         public CostType Type;
 
-        /// <summary>数值（元素数量/弃牌数/生命值/沉睡回合数）</summary>
+        /// <summary>数值（元素数量/Payload 未用）</summary>
         public int Value;
 
         /// <summary>法力类型（元素消耗专用）</summary>
         public ManaType ManaType;
-
-        /// <summary>沉睡持续回合数</summary>
-        public int TurnDuration;
-
-
-        /// <summary>素材筛选器（召唤素材专用）</summary>
-        public ITargetFilter TargetFilter;
 
         /// <summary>效果型代价的原子（CostType.Payload 专用，2026-09-11）：付费步强制执行并按全价补偿黑/白。</summary>
         public AtomicEffectInstance Payload;
@@ -198,166 +183,16 @@ namespace CardCore
         }
     }
 
-    /// <summary>
-    /// 弃牌代价处理器
-    /// </summary>
-    public class DiscardCardCostHandler : ICostHandler
-    {
-        public CostType CostType => CostType.DiscardCard;
-
-        public bool CanPay(CostInstance cost, CostContext context)
-        {
-            if (context.ZoneManager == null || context.Payer == null) return false;
-            var hand = context.ZoneManager.GetCards(context.Payer, Zone.Hand);
-            return hand.Count >= cost.Value;
-        }
-
-        public void Pay(CostInstance cost, CostContext context)
-        {
-            var hand = context.ZoneManager.GetCards(context.Payer, Zone.Hand);
-            for (int i = 0; i < cost.Value && i < hand.Count; i++)
-            {
-                var card = hand[hand.Count - 1 - i]; // 从最后一张开始弃
-                context.ZoneManager.MoveCard(card, context.Payer, Zone.Hand, Zone.Graveyard);
-                EventManager.Instance.Publish(new CardDiscardCostEvent
-                {
-                    Player = context.Payer,
-                    Card = card,
-                    Source = context.Source
-                });
-            }
-        }
-
-        public string GetDescription(CostInstance cost)
-        {
-            return $"弃 {cost.Value} 张牌";
-        }
-    }
-
-    /// <summary>
-    /// 扣除生命代价处理器（2026-09-11 定案：改扣生命上限）。
-    /// 超出的当前血一起裁掉；本来就受伤只扣上限；归零=正常死亡。
-    /// </summary>
-    public class LifePaymentCostHandler : ICostHandler
-    {
-        public CostType CostType => CostType.LifePayment;
-
-        public bool CanPay(CostInstance cost, CostContext context)
-        {
-            if (context.Payer == null) return false;
-            // 定案（死亡术语表，随扣上限口径平移）：可付到恰好归零——归零视为正常死亡（死因=LifePayment，
-            // 死亡来源=自己；效果归因见 LifePaymentCostEvent.Source）。付不出（上限低于代价）才不可付。
-            return context.Payer.MaxHealth >= cost.Value;
-        }
-
-        public void Pay(CostInstance cost, CostContext context)
-        {
-            context.Payer.DecreaseMaxHealth(cost.Value);
-            EventManager.Instance.Publish(new LifePaymentCostEvent
-            {
-                Player = context.Payer,
-                Amount = cost.Value,
-                Source = context.Source
-            });
-            // 抵扣可归零（定案：归零=正常死亡，来源=自己），但此处只扣不发终局——
-            // 生命判负属连锁结算后的检查（EffectExecutionEngine.FinishResolution →
-            // CheckLifeGameOver，幂等），连锁中途归零不立即终局（效果照常结算完）。
-        }
-
-        public string GetDescription(CostInstance cost)
-        {
-            return $"支付 {cost.Value} 点生命上限";
-        }
-    }
-
-
-    /// <summary>
-    /// 沉睡代价处理器（2026-09-11 统一指示物模型）：翻面（Tap）+ 沉睡指示物 ×持续回合数
-    ///（持有期间无法重置——回合开始逐层倒数；效果无效——拦触发式+启动式）。
-    /// 不再挂 Sleeping 关键词/Awakening 倒计时（效果/指示物分离定案：规则全在指示物上）。
-    /// </summary>
-    public class SleepCostHandler : ICostHandler
-    {
-        public CostType CostType => CostType.Sleep;
-
-        public bool CanPay(CostInstance cost, CostContext context)
-        {
-            // 来源必须是场上生物且未横置
-            return context.Source != null
-                && context.Source.IsAlive
-                && !context.Source.IsTapped()
-                && context.Source is Card;
-        }
-
-        public void Pay(CostInstance cost, CostContext context)
-        {
-            var target = context.Source;
-            int duration = cost.TurnDuration > 0 ? cost.TurnDuration : cost.Value;
-
-            // 沉睡=横置进沉睡（不走 ShouldTap——警戒已重定义，无横置抵扣）
-            target.Tap();
-            target.AddCounters(Attribute.KeywordRules.SleepCounter, duration, context.Source);
-
-            EventManager.Instance.Publish(new SleepCostEvent
-            {
-                Target = target,
-                TurnDuration = duration,
-                Source = context.Source
-            });
-        }
-
-        public string GetDescription(CostInstance cost)
-        {
-            int duration = cost.TurnDuration > 0 ? cost.TurnDuration : cost.Value;
-            return $"沉睡 {duration} 回合";
-        }
-    }
-
-    /// <summary>
-    /// 送墓（本组）代价处理器：将牌库顶 N 张送入墓地（代价抵消机制之一）。
-    /// </summary>
-    public class MillDeckCostHandler : ICostHandler
-    {
-        public CostType CostType => CostType.MillDeck;
-
-        public bool CanPay(CostInstance cost, CostContext context)
-        {
-            if (context.ZoneManager == null || context.Payer == null) return false;
-            var deck = context.ZoneManager.GetCards(context.Payer, Zone.Deck);
-            return deck.Count >= cost.Value;
-        }
-
-        public void Pay(CostInstance cost, CostContext context)
-        {
-            var deck = context.ZoneManager.GetCards(context.Payer, Zone.Deck);
-            var milled = new List<Card>();
-            // 牌库顶 = index 0（与抽牌/送墓/GetTopCards 同约定，见 Zones.cs 牌库顶注释）。
-            // 先快照再移动，规避 GetCards 返回活列表时边移边取的错位；曾误从列表末端（牌库底）取牌。
-            for (int i = 0; i < cost.Value && i < deck.Count; i++)
-            {
-                milled.Add(deck[i]);
-            }
-            foreach (var card in milled)
-            {
-                context.ZoneManager.MoveCard(card, context.Payer, Zone.Deck, Zone.Graveyard);
-            }
-
-            EventManager.Instance.Publish(new MillDeckCostEvent
-            {
-                Player = context.Payer,
-                Cards = milled,
-                Source = context.Source
-            });
-        }
-
-        public string GetDescription(CostInstance cost) => $"送墓（本组）{cost.Value} 张";
-    }
-
     // ================================================================
-    // 代价相关事件
+    // 代价相关事件（域事件——发布方为原子 handler，消费方=对局统计/仪式组件）
     // ================================================================
+    // 2026-09-14 代价原子化：资源类代价处理器（弃牌/生命/沉睡/送墓/自紊乱/对手增益）随
+    // CostOffset 抵消系统退役——资源支付改由**代价栏 Payload 原子**承载（付费步执行 +
+    // 错边全价补偿黑/白）。下列域事件保留：改由对应原子 handler 发布——
+    // MillCard（磨**自己**牌库=送墓语义）与 LifeLoss（流失**自己**生命上限=支付语义）
+    // 在归属==控制者时发布，MatchStatsService / RitualTrackers 等既有订阅零改动。
 
-    /// <summary>送墓（本组）代价事件</summary>
+    /// <summary>送墓（自己牌库）事件：MillCard 原子磨自己牌库时发布（批量）。</summary>
     public class MillDeckCostEvent : GameEventBase
     {
         public Player Player { get; set; }
@@ -365,16 +200,7 @@ namespace CardCore
         public Entity Source { get; set; }
     }
 
-
-    /// <summary>弃牌代价事件</summary>
-    public class CardDiscardCostEvent : GameEventBase
-    {
-        public Player Player { get; set; }
-        public Card Card { get; set; }
-        public Entity Source { get; set; }
-    }
-
-    /// <summary>生命支付代价事件</summary>
+    /// <summary>生命支付事件：LifeLoss 原子流失**自己**生命上限时发布（流失敌方=攻击非支付，不发）。</summary>
     public class LifePaymentCostEvent : GameEventBase
     {
         public Player Player { get; set; }
@@ -382,111 +208,9 @@ namespace CardCore
         public Entity Source { get; set; }
     }
 
-    /// <summary>沉睡代价事件</summary>
-    public class SleepCostEvent : GameEventBase
-    {
-        public Entity Target { get; set; }
-        public int TurnDuration { get; set; }
-        public Entity Source { get; set; }
-    }
-
-
     /// <summary>
-    /// 注册内置代价处理器
-    /// </summary>
-    /// <summary>自身紊乱代价事件（2026-09-08 代价拓展：自身减益作代价）。</summary>
-    public class SelfSicknessCostEvent : GameEventBase
-    {
-        public Player Payer;
-        public Card Target;
-        public int Stacks;
-        public int Turns;
-        public Entity Source;
-    }
-
-    /// <summary>
-    /// 自身紊乱代价处理器（2026-09-08 拓展：自身减益作代价）：支付时给源卡附加紊乱指示物
-    /// Value 层（默认 1）、持续 TurnDuration 回合（0 = 按指示物默认持续到回合结束）。
-    /// 构筑期当量 CardCostConfig.SelfSicknessValue（默认 1/条）。
-    /// </summary>
-    public class SelfSicknessCostHandler : ICostHandler
-    {
-        public CostType CostType => CostType.SelfSickness;
-
-        public bool CanPay(CostInstance cost, CostContext context)
-            => context != null && context.Source is Card c && c.IsAlive;
-
-        public void Pay(CostInstance cost, CostContext context)
-        {
-            if (!(context.Source is Card self) || !self.IsAlive) return;
-            int stacks = Math.Max(1, cost.Value);
-            int turns = cost.TurnDuration > 0 ? cost.TurnDuration : -1; // -1 = 无回合时钟（按指示物注册的默认持续）
-            self.AddCounters(Attribute.KeywordRules.RushSicknessCounter, stacks, turns, context.Source);
-            EventManager.Instance.Publish(new SelfSicknessCostEvent
-            {
-                Payer = context.Payer,
-                Target = self,
-                Stacks = stacks,
-                Turns = cost.TurnDuration,
-                Source = context.Source
-            });
-        }
-
-        public string GetDescription(CostInstance cost)
-            => $"自身紊乱 {Math.Max(1, cost.Value)} 层（持续 {(cost.TurnDuration > 0 ? cost.TurnDuration : 1)} 回合，期间不能以玩家为目标）";
-    }
-
-    /// <summary>对手增益代价事件（2026-09-08 代价拓展：给对方增加增益作代价）。</summary>
-    public class OpponentBuffCostEvent : GameEventBase
-    {
-        public Player Payer;
-        public Card Beneficiary;
-        public int Stacks;
-        public Entity Source;
-    }
-
-    /// <summary>
-    /// 对手增益代价处理器（2026-09-08 拓展）：支付时给对手战场首个存活生物加 Value 层
-    /// 属性增加指示物（+1/+1/层，默认 1 层）。构筑期当量 CardCostConfig.OpponentBuffValue（默认 1/层）。
-    /// CanPay 要求对手战场有存活生物（增益无处安放 = 代价不可支付）。
-    /// </summary>
-    public class OpponentBuffCostHandler : ICostHandler
-    {
-        public CostType CostType => CostType.OpponentBuff;
-
-        public bool CanPay(CostInstance cost, CostContext context)
-            => context != null && context.Payer != null && context.Payer.Opponent != null
-               && FirstAliveEnemyCreature(context) != null;
-
-        public void Pay(CostInstance cost, CostContext context)
-        {
-            var beneficiary = FirstAliveEnemyCreature(context);
-            if (beneficiary == null) return;
-            int stacks = Math.Max(1, cost.Value);
-            Attribute.CounterRules.AddStatCounter(beneficiary, Attribute.CounterRules.PlusOneCounter, stacks, context.Source);
-            EventManager.Instance.Publish(new OpponentBuffCostEvent
-            {
-                Payer = context.Payer,
-                Beneficiary = beneficiary,
-                Stacks = stacks,
-                Source = context.Source
-            });
-        }
-
-        private static Card FirstAliveEnemyCreature(CostContext context)
-        {
-            var cards = context.ZoneManager?.GetCards(context.Payer.Opponent, Zone.Battlefield);
-            if (cards == null) return null;
-            foreach (var c in cards)
-                if (c.IsAlive) return c;
-            return null;
-        }
-
-        public string GetDescription(CostInstance cost) => $"对手一个生物获得 +1/+1 ×{Math.Max(1, cost.Value)}";
-    }
-
-    /// <summary>
-    /// 效果型代价处理器（2026-09-11 定案）：代价栏装载的强制原子效果（如「给对手召唤 30/30 衍生物」）。
+    /// 效果型代价处理器（2026-09-11 定案）：代价栏装载的强制原子效果（如「给对手召唤 30/30 衍生物」、
+    /// 「弃自己 2 张手牌」「流失 2 点生命上限」「磨自己 5 张牌库」）。
     /// CanPay 恒真（强制效果无支付门槛）；实际执行在 CostCompensationService.PayWithCompensationAsync
     /// （付费步异步路径——ICostHandler 接口为同步，此处只做注册占位与描述，防双执行）。
     /// </summary>
@@ -507,6 +231,105 @@ namespace CardCore
     }
 
     // ================================================================
+    // 元素代价支付（2026-09-14：原 CostOffsetService 的元素支付段——兑换面板随抵消系统退役）
+    // ================================================================
+
+    /// <summary>
+    /// 元素代价支付（纯支付，无兑换）：按颜色聚合需求 → 浓度上限校验 → 扣款 + 支付事件。
+    /// 纯色（红/蓝/绿/黑/白）单次支付量 ≤ 支付者地牌槽上限；灰走 ElementPaymentValidator 混付
+    /// （灰优先→纯色补足，黑白参与通用支付）。黑白元素获取通道唯一=卡结算（错边/Payload 补偿）。
+    /// </summary>
+    public static class ElementCostPayment
+    {
+        /// <summary>非破坏性预检：当前 bank 是否可支付全部元素代价。</summary>
+        public static bool CanPay(List<CostInstance> elementCosts, CostContext ctx)
+        {
+            var need = AggregateNeed(elementCosts);
+            if (need.Count == 0) return true;
+            if (ctx?.Payer == null || ctx.ElementPool == null) return false;
+            return CanPayNeed(need, ctx.ElementPool.GetPool(ctx.Payer).AvailableMana, ctx);
+        }
+
+        /// <summary>支付一组元素代价（原子：先确认可付，再扣）。失败返回 false（调用方中止结算）。</summary>
+        public static bool Pay(List<CostInstance> elementCosts, CostContext ctx)
+        {
+            var need = AggregateNeed(elementCosts);
+            if (need.Count == 0) return true;
+            if (ctx?.Payer == null || ctx.ElementPool == null) return false;
+
+            var avail = ctx.ElementPool.GetPool(ctx.Payer).AvailableMana;
+            if (!CanPayNeed(need, avail, ctx)) return false;
+            PayNeed(need, avail, ctx);
+            return true;
+        }
+
+        private static Dictionary<ManaType, int> AggregateNeed(List<CostInstance> elementCosts)
+        {
+            var need = new Dictionary<ManaType, int>();
+            if (elementCosts == null) return need;
+            foreach (var c in elementCosts)
+            {
+                if (c == null || c.Type != CostType.ElementConsume || c.Value <= 0) continue;
+                need.TryGetValue(c.ManaType, out var prev);
+                need[c.ManaType] = prev + c.Value;
+            }
+            return need;
+        }
+
+        private static bool CanPayNeed(Dictionary<ManaType, int> need, Dictionary<ManaType, int> avail, CostContext ctx)
+        {
+            // 纯色浓度上限：每种纯色单次支付量 ≤ 当场地牌槽上限（灰不受限）
+            int? cap = GetPureColorCap(ctx);
+            foreach (var kv in need)
+            {
+                if (kv.Value <= 0) continue;
+                var affinity = kv.Key == ManaType.Gray
+                    ? ElementAffinity.Generic
+                    : ElementAffinity.Single(kv.Key);
+                if (!ElementPaymentValidator.CanPay(affinity, avail, kv.Value, cap))
+                    return false;
+            }
+            return true;
+        }
+
+        /// <summary>当前纯色浓度上限（= 支付者地牌槽上限）；上下文不全时退化为不限制。</summary>
+        private static int? GetPureColorCap(CostContext ctx)
+            => ctx?.ElementPool != null && ctx.Payer != null
+                ? ctx.ElementPool.GetLandCap(ctx.Payer)
+                : (int?)null;
+
+        private static void PayNeed(Dictionary<ManaType, int> need, Dictionary<ManaType, int> avail, CostContext ctx)
+        {
+            var paid = new Dictionary<int, float>();
+            int? cap = GetPureColorCap(ctx);
+            foreach (var kv in need)
+            {
+                if (kv.Value <= 0) continue;
+                var affinity = kv.Key == ManaType.Gray
+                    ? ElementAffinity.Generic
+                    : ElementAffinity.Single(kv.Key);
+                var plan = ElementPaymentValidator.GetPaymentPlan(affinity, avail, kv.Value, cap);
+                if (plan == null) continue;
+                foreach (var p in plan)
+                {
+                    avail[p.Key] -= p.Value;
+                    paid.TryGetValue((int)p.Key, out var prev);
+                    paid[(int)p.Key] = prev + p.Value;
+                }
+            }
+
+            if (paid.Count > 0)
+            {
+                EventManager.Instance.Publish(new ElementPoolPayEvent
+                {
+                    Player = ctx.Payer,
+                    PaidCost = paid
+                });
+            }
+        }
+    }
+
+    // ================================================================
     // 代价补偿服务（2026-09-11 黑白元素经济定案）
     // ================================================================
 
@@ -522,38 +345,23 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 代价补偿服务（2026-09-11 黑白元素经济定案）。
+    /// 代价补偿服务（2026-09-11 黑白元素经济定案；2026-09-14 代价原子化后仅剩 Payload 一种代价）。
     /// **卡级代价可选**（使用时的选择窗口，除抉择窗口外）：
     /// 不付（原价）/ 付+减费（元素账单−当量）/ 付+得黑白（黑=己方侧、白=对方侧，封顶地牌上限）——
     /// 避免「产生了用不了，白白承受代价」。
-    /// 当量=CardCost 当量表（弃1张=1费、2命=1费、沉睡1回合=1费、素材1个=1费、自紊乱1条=1费、
-    /// 对手+1/+1一层=1费、送墓5张=1费、送额外3张=1费）；Payload 效果型代价按全价。
-    /// 启动式/动态效果的特殊代价仍为强制支付+得黑白（发动条件，见 PayWithCompensationAsync）。
+    /// 当量=Payload 原子**全价**（PayloadUnitGrant：按 Once/单目标/战场落区合成组合层计价，
+    /// 原子表为唯一锚——弃牌/送墓/流失等资源支付一律走原子，不再有第二套当量表）。
+    /// 启动式/动态效果的代价仍为强制支付+得黑白（发动条件，见 PayWithCompensationAsync）。
     /// </summary>
     public static class CostCompensationService
     {
-        /// <summary>单条代价的当量（元素数，向下取整）；读 CardCostConfig 当量表（Payload 按全价）。0=无当量。</summary>
+        /// <summary>单条代价的当量（元素数）：Payload 按原子全价；元素消耗不当量（非「额外代价」）。</summary>
         public static int EquivalentValue(CostInstance cost)
         {
             if (cost == null) return 0;
             if (cost.Type == CostType.Payload)
                 return CostDerivationService.PayloadUnitGrant(cost.Payload);
-
-            var cc = ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig;
-            float total;
-            switch (cost.Type)
-            {
-                case CostType.DiscardCard: total = cc.DiscardCardValue * Math.Max(1, cost.Value); break;
-                case CostType.LifePayment: total = cc.LifeValuePerPoint * Math.Max(1, cost.Value); break;
-                case CostType.Sleep:
-                    total = cc.SleepValuePerTurn * Math.Max(1, cost.TurnDuration > 0 ? cost.TurnDuration : cost.Value);
-                    break;
-                case CostType.SelfSickness: total = cc.SelfSicknessValue * Math.Max(1, cost.Value); break;
-                case CostType.OpponentBuff: total = cc.OpponentBuffValue * Math.Max(1, cost.Value); break;
-                case CostType.MillDeck: total = cost.Value / 5f; break;       // 送墓 5 张=1 费当量（CostOffsetConfig 机制行同源）
-                default: return 0; // 元素消耗本身不是「额外代价」，不当量
-            }
-            return (int)Math.Floor(total);
+            return 0; // 元素消耗本身不是「额外代价」，不当量
         }
 
         /// <summary>一组代价的当量合计。</summary>
@@ -574,10 +382,6 @@ namespace CardCore
         /// <summary>封顶后的当量：min(合计当量, 地牌上限)——减费通道用（黑白生成按条在 IssueGrant 封顶）。</summary>
         public static int CappedTotalEquivalent(List<CostInstance> costs, CostContext ctx)
             => Math.Min(TotalEquivalent(costs), CompensationCap(ctx));
-
-        /// <summary>普通代价的补偿颜色：对方侧代价→白，其余（己方侧）→黑。</summary>
-        public static ManaType GrantColor(CostInstance cost)
-            => cost.Type == CostType.OpponentBuff ? ManaType.White : ManaType.Black;
 
         /// <summary>
         /// 元素账单按当量减费（从最高需求色减起，可减至 0——沿用旧抵消的贪心口径；原地修改）。
@@ -622,15 +426,7 @@ namespace CardCore
             }
             else
             {
-                // 可付性预检（不可付 → 窗口不出现，直接原价）
-                bool payable = true;
-                foreach (var cost in costs)
-                {
-                    if (cost == null || cost.Type == CostType.Payload) continue;
-                    if (!CostHandlerRegistry.CanPay(cost, ctx)) { payable = false; break; }
-                }
-
-                if (payable)
+                // 代价均为 Payload（强制效果，恒可付）——窗口恒可用（2026-09-14 代价原子化后无预检面）
                 {
                     bool interactive = TargetSelectionService.Current != null && !ctx.Payer.IsAI;
                     if (interactive)
@@ -673,14 +469,11 @@ namespace CardCore
                 foreach (var cost in costs)
                     if (cost != null) IssueGrant(cost, ctx);
 
-            // 执行代价（Payload 异步执行；其余 handler 支付）
+            // 执行代价（全部为 Payload 原子：付费步异步执行）
             foreach (var cost in costs)
             {
                 if (cost == null) continue;
-                if (cost.Type == CostType.Payload)
-                    await ExecutePayloadAsync(cost, ctx);
-                else
-                    CostHandlerRegistry.Pay(cost, ctx);
+                await ExecutePayloadAsync(cost, ctx);
             }
 
             if (choice == OptionalCostChoice.Discount)
@@ -691,7 +484,7 @@ namespace CardCore
 
         /// <summary>
         /// 强制支付一组代价并逐条发放补偿（启动式/动态效果路径——代价=发动条件，无选择窗口）。
-        /// Payload 在此异步执行。返回 false=存在不可支付的代价（调用方应中止，未支付任何项）。
+        /// Payload 在此异步执行（恒可付=强制效果）。
         /// </summary>
         public static async Cysharp.Threading.Tasks.UniTask<bool> PayWithCompensationAsync(
             List<CostInstance> costs, CostContext ctx)
@@ -699,50 +492,24 @@ namespace CardCore
             if (costs == null || costs.Count == 0) return true;
             if (ctx?.Payer == null) return false;
 
-            // 预检（原子：全部可付才开始支付；Payload 恒可付=强制效果）
             foreach (var cost in costs)
             {
                 if (cost == null) continue;
-                if (cost.Type == CostType.Payload) continue;
-                if (!CostHandlerRegistry.CanPay(cost, ctx)) return false;
-            }
-
-            foreach (var cost in costs)
-            {
-                if (cost == null) continue;
-                if (cost.Type == CostType.Payload)
-                {
-                    // 2026-09-13 修复：补偿先于执行——Payload 执行经 CardWrapper 构造触发
-                    // EnsureCost 补建议价，执行后算当量会按膨胀身价计（同 PayOptionalCardCostsAsync）
-                    IssueGrant(cost, ctx);
-                    await ExecutePayloadAsync(cost, ctx);
-                }
-                else
-                {
-                    CostHandlerRegistry.Pay(cost, ctx);
-                    IssueGrant(cost, ctx); // 补偿跟代价走：执行即发放
-                }
+                // 2026-09-13 修复：补偿先于执行——Payload 执行经 CardWrapper 构造触发
+                // EnsureCost 补建议价，执行后算当量会按膨胀身价计（同 PayOptionalCardCostsAsync）
+                IssueGrant(cost, ctx);
+                await ExecutePayloadAsync(cost, ctx);
             }
             return true;
         }
 
-        /// <summary>单条代价的补偿发放（每条=一次发放事件，封顶地牌上限）。</summary>
+        /// <summary>单条代价的补偿发放（每条=一次发放事件，封顶地牌上限）。Payload 按原子全价+极性色。</summary>
         private static void IssueGrant(CostInstance cost, CostContext ctx)
         {
             if (ctx?.Payer == null || ctx.ElementPool == null) return;
 
-            ManaType color;
-            int amount;
-            if (cost.Type == CostType.Payload)
-            {
-                amount = CostDerivationService.PayloadUnitGrant(cost.Payload);
-                color = PayloadGrantColor(cost.Payload);
-            }
-            else
-            {
-                amount = EquivalentValue(cost);
-                color = GrantColor(cost);
-            }
+            int amount = CostDerivationService.PayloadUnitGrant(cost.Payload);
+            ManaType color = PayloadGrantColor(cost.Payload);
             if (amount <= 0) return;
 
             int cap = ctx.ElementPool.GetLandCap(ctx.Payer);
@@ -809,13 +576,8 @@ namespace CardCore
         public static void RegisterAll()
         {
             CostHandlerRegistry.Register(new ElementConsumeCostHandler());
-            CostHandlerRegistry.Register(new DiscardCardCostHandler());
-            CostHandlerRegistry.Register(new LifePaymentCostHandler());
-            CostHandlerRegistry.Register(new SleepCostHandler());
-            CostHandlerRegistry.Register(new MillDeckCostHandler());
-            CostHandlerRegistry.Register(new SelfSicknessCostHandler());
-            CostHandlerRegistry.Register(new OpponentBuffCostHandler());
             CostHandlerRegistry.Register(new PayloadCostHandler());
         }
     }
 }
+

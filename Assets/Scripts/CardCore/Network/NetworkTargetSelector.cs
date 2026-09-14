@@ -7,7 +7,7 @@ namespace CardCore.Network
 {
     /// <summary>
     /// 引擎反问的网络实现（M1 协议）：TargetSelectionService.Current = 本实例时，
-    /// 引擎的全部结算期交互（目标选择/抉择/弃牌/召唤素材…）转为 MsgSelectRequest 下发
+    /// 引擎的全部结算期交互（目标选择/抉择/弃牌…）转为 MsgSelectRequest 下发
     /// 到 Chooser 座位的客户端，await 客户端回传的 MsgSelectResponse。
     ///
     /// - 生命周期：requestId 自增关联 Dictionary&lt;int, UniTaskCompletionSource&gt;；

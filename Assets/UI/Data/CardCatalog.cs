@@ -12,8 +12,9 @@ namespace SynergyUI
     /// </summary>
     public static class CardCatalog
     {
-        // 相对 Application.dataPath 的卡表文件。Phase 1 先用测试卡表。
-        private const string CardsConfigRelative = "Configs/TestDecks/TestCreatureCards.json";
+        // StreamingAssets/Tide/Cards.json（2026-09-14 统一定案+更名：与卡牌合成保存同一文件——
+        // 合成卡即入池；效果经 EffectsLibrary 引用解析；原 TestDecks 留作训练桥/验证夹具）。
+        private const string CardsConfigRelative = "Tide/Cards.json";
 
         private static List<CardData> _cache;
         private static Dictionary<string, CardData> _byId;
@@ -38,7 +39,7 @@ namespace SynergyUI
             _loading = true;
             try
             {
-                string path = Path.Combine(Application.dataPath, CardsConfigRelative);
+                string path = Path.Combine(Application.streamingAssetsPath, CardsConfigRelative);
                 if (!File.Exists(path))
                 {
                     Debug.LogWarning($"[CardCatalog] 卡表未找到: {path}");

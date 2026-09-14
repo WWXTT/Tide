@@ -113,8 +113,8 @@ namespace CardCore
                 // 特殊代价：必须可原子支付
                 if (specialCosts.Count > 0 && !CostHandlerRegistry.CanPayAll(specialCosts, costContext))
                     return false;
-                // 元素代价：考虑「最大可能抵消」后仍需可支付
-                if (elementCosts.Count > 0 && !CostOffsetService.CanAfford(elementCosts, costContext))
+                // 元素代价：当前 bank 可付（浓度上限口径；黑白获取只经卡结算，无兑换通道）
+                if (elementCosts.Count > 0 && !ElementCostPayment.CanPay(elementCosts, costContext))
                     return false;
             }
 
@@ -188,9 +188,10 @@ namespace CardCore
                 SummonDropZone = effect.SummonDropZone,
             };
 
-            // 代价支付：元素代价由配置表自动推导（费用唯一权威），经「抵消+元素」异步路径支付；
+            // 代价支付：元素代价由配置表自动推导（费用唯一权威），经 ElementCostPayment 纯支付
+            // （浓度上限校验 + 混付；兑换通道已随抵消系统退役——黑白获取只经卡结算）；
             // 卡内效果（ElementCostPrepaid）的元素费已随卡牌档位费收讫，跳过以防双计；游戏中途授予的动态效果照付。
-            // 卡牌的 effect.Costs 仅保留非元素的特殊代价（Sleep/SummonMaterial/弃牌 等），走原子同步支付。
+            // 卡牌的 effect.Costs 仅保留非元素的特殊代价（Payload 原子），走付费步异步执行+补偿。
             // 抉择卡按所选模式推导（per-mode 独立计价定案）。
             var elementCosts = CostDerivationService.DeriveElementCosts(effect, instance.ModeIndex);
             var specialCosts = effect.Costs != null
@@ -209,21 +210,17 @@ namespace CardCore
 
                 // 特殊代价（2026-09-11 定案：付代价=得黑/白，补偿跟代价走）：
                 // 卡牌 cast 的特殊代价已在付费步支付并补偿（ResolveCardCastAsync，ElementCostPrepaid 标记）；
-                // 启动式/动态效果在此现付+补偿。
-                // 可选代价除外（2026-09-13 用户裁决：代价可选=玩家自选，AI 按手里有无黑白卡决定
-                // 得资源/减费）——SelfSickness 类在无决策点的直入路径（入场/触发/动态）默认不付，
-                // 选择只发生在 cast 付费步（PayOptionalCardCostsAsync）。
-                var forcedCosts = specialCosts.Where(c => c != null && c.Type != CostType.SelfSickness).ToList();
-                if (forcedCosts.Count > 0 && !effect.ElementCostPrepaid)
+                // 启动式/动态效果在此现付+补偿（代价可选的选择只发生在 cast 付费步 PayOptionalCardCostsAsync）。
+                if (specialCosts.Count > 0 && !effect.ElementCostPrepaid)
                 {
-                    if (!await CostCompensationService.PayWithCompensationAsync(forcedCosts, costContext))
+                    if (!await CostCompensationService.PayWithCompensationAsync(specialCosts, costContext))
                     {
                         throw new EffectResolutionException(instance.SourceEffect, $"Cost payment failed for effect {effect.Id}.");
                     }
                 }
 
                 if (!skipElementCost && !effect.ElementCostPrepaid && elementCosts.Count > 0 &&
-                    !await CostOffsetService.PayElementWithOffsetAsync(elementCosts, costContext))
+                    !ElementCostPayment.Pay(elementCosts, costContext))
                 {
                     throw new EffectResolutionException(instance.SourceEffect, $"Element cost payment failed for effect {effect.Id}.");
                 }

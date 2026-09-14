@@ -113,8 +113,10 @@ namespace CardCore.Attribute.Handlers
     // ---------------- 卡牌移动 / 牌库操作 ----------------
 
     /// <summary>
-    /// 弃牌（定案改语义）：对手从手牌中自选弃掉 {value} 张牌。
-    /// 选择器 = 被弃方（对手）；P1 以可插拔启发式代选（AI=按价值升序弃最差，人类 UI 后续接入）。
+    /// 弃牌：被弃方从手牌中自选弃掉 {value} 张牌（P1 启发式代选：AI=按价值升序弃最差）。
+    /// 被弃方判定（2026-09-14 代价原子化）：目标中的 Player > 目标手牌卡的控制者 > 控制者的对手——
+    /// 双域 {5,6} 效果栏用法=指向谁弃谁（原「恒对手」口径废除，与域模型对齐）；
+    /// 代价栏 Payload 锁己方 {5}（解析出己方手牌卡）→ 弃自己 = 资源支付语义。
     /// </summary>
     public class DiscardCardHandler : AtomicEffectHandlerBase
     {
@@ -125,8 +127,8 @@ namespace CardCore.Attribute.Handlers
             int count = context.GetValueAfterModifiers(effect.Value);
             if (context.ZoneManager == null || context.Controller == null) return;
 
-            // 目标 = 对手（表 TargetType=Opponent；无解析目标时退化取控制者对手）
             var victim = context.Targets.OfType<Player>().FirstOrDefault()
+                ?? context.Targets.OfType<Card>().Select(c => c.GetController()).FirstOrDefault(c => c != null)
                 ?? context.Controller.Opponent;
             if (victim == null) return;
 
