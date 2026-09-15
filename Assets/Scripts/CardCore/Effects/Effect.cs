@@ -163,6 +163,16 @@ namespace CardCore
         public bool IsCardCast { get; set; }
 
         /// <summary>
+        /// SBA 伪对象标记（2026-09-15 定案：SBA=速度1栈对象）：本实例代表一批待执行的状态动作
+        /// （尸体送墓/判负），由 StackEngine.PushStateAction 创建、ResolveStack 的 IsSBA 分支消费
+        /// （SBAEngine.ExecuteAll 到点重查——窗口内被救回的不再执行），
+        /// 不走 EffectExecutor（Definition=null 会 throw EffectResolutionException）。
+        /// Source/Controller/Definition 恒 null；Type 报告 StackObjectType.Effect；
+        /// GetPendingCastCosts 按 IsCardCast=false 跳过、网络快照按 null 安全回落。
+        /// </summary>
+        public bool IsSBA { get; set; }
+
+        /// <summary>
         /// 抉择模式索引（2026-09-07 定案）：整卡施放声明期选定（先选择再定费用），
         /// 由 PushCardCast 写入、ResolveCardCastAsync 按此付费、执行引擎按此分派 Choices。
         /// 普通效果实例恒 0；越界由消费方 Clamp（多 Choice 步骤共享卡级索引）。

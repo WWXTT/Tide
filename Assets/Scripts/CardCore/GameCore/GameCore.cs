@@ -185,6 +185,25 @@ namespace CardCore
             // 对局史计数服务（P2a）：须先于 RitualSystem.EnsureRuntime（Reset 内）订阅——
             // 同一事件先过服务计数、后过仪式 tracker 差值判达标，顺序即正确性
             _subSystems.Register(new MatchStatsService());
+
+            // 角色亡语（2026-09-15 定案，判负效果化）：每个角色注册内置亡语
+            // OnRoleDeath → 宣告对手获得胜利（宣判即终局）；硬判负 LifeZero 退为兜底
+            //（亡语被全拦时 CheckLifeGameOver 收尾）。RegisterEffect 幂等（同源+同 Id）重跑安全；
+            // TriggerLimitPerTurn 默认 -1（无限，不受触发上限闸门）；效果可再给角色追加/改写亡语。
+            var roleDeathrattle = new EffectDefinition
+            {
+                Id = "ROLE_DEATHRATTLE",
+                DisplayName = "角色亡语：对手获得胜利",
+                TriggerTiming = TriggerTiming.OnRoleDeath,
+                ActivationType = EffectActivationType.Mandatory, // 强制触发（自动池最高优先）
+                ElementCostPrepaid = true,                        // 内置效果无费用
+                Effects = new System.Collections.Generic.List<AtomicEffectInstance>
+                {
+                    new AtomicEffectInstance { Type = AtomicEffectType.DeclareVictory }
+                },
+            };
+            triggerEngine.RegisterEffect(roleDeathrattle, _player1, _player1);
+            triggerEngine.RegisterEffect(roleDeathrattle, _player2, _player2);
         }
 
         /// <summary>
@@ -474,13 +493,20 @@ namespace CardCore
         /// 生命判负检查（LifeZero）：在每次连锁（栈 / 战斗）结算完成后调用一次。
         /// PublishGameOverOnce 内含 Ended 守卫，全局只发一次，多点调用安全；
         /// 结束阶段 TurnEngine.CheckGameOver 保留为最终兜底。
+        /// 角色亡语定案（2026-09-15）：已宣判（RoleDeathEvent 已发）且亡语在途（有待发触发式）
+        /// 的玩家跳过——终局交给亡语宣告（默认=对手获得胜利）；亡语排干仍未终局时
+        /// 下一轮回到这里兜底判负 LifeZero。
         /// </summary>
         internal void CheckLifeGameOver()
         {
             if (IsGameOver) return;
-            if (Player2 != null && Player2.Life <= 0)
+            bool deathrattlesInFlight = StackEngine.HasPendingEffects; // 亡语/触发式在途
+            var sba = SBAEngine;
+            if (Player2 != null && Player2.Life <= 0
+                && (sba == null || !sba.IsProclaimed(Player2) || !deathrattlesInFlight))
                 PublishGameOverOnce(Player1, GameOverReason.LifeZero);
-            else if (Player1 != null && Player1.Life <= 0)
+            else if (Player1 != null && Player1.Life <= 0
+                && (sba == null || !sba.IsProclaimed(Player1) || !deathrattlesInFlight))
                 PublishGameOverOnce(Player2, GameOverReason.LifeZero);
         }
 

@@ -63,10 +63,37 @@ namespace CardCore
         private int _stabilityCheckCount = 0;
         private const int MAX_STABILITY_CHECKS = 100; // 防止死循环
 
+        // 角色亡语宣判标记（2026-09-15 定案）：RoleDeathEvent 已发、亡语在途——
+        // Life 仍 ≤0 但不再开 SBA 窗口/发事件；亡语排干仍未终局时 CheckLifeGameOver 兜底判负
+        private readonly HashSet<Player> _proclaimedPlayers = new HashSet<Player>();
+
         /// <summary>
         /// 是否有待执行的状态动作
         /// </summary>
         public bool HasPendingActions => _pendingActions.Count > 0;
+
+        /// <summary>关键 SBA：影响存活/胜负的两类——只有它们开响应窗口（2026-09-15 SBA=栈对象定案）。</summary>
+        private static bool IsCritical(SBAActionRecord a) =>
+            a.Type == SBAActionType.ZeroToughness || a.Type == SBAActionType.ZeroLife;
+
+        /// <summary>
+        /// 探测（2026-09-15 SBA=栈对象定案）：跑一轮 checker 收集（不执行），只问是否存在关键 SBA
+        /// （送墓/判负）。ZoneChange 等记账型不开窗口、照旧自发执行——每次出牌都会产生
+        /// 区域变更记录（手牌→发动区→墓地），若一并发窗口会对每次使用开假响应窗。
+        /// </summary>
+        public bool HasCriticalPendingAfterCheck()
+        {
+            foreach (var checker in _checkers)
+                checker.Check(this, _gameCore);
+            return _pendingActions.Any(IsCritical);
+        }
+
+        /// <summary>
+        /// 清关键记录（信号化）：SBA 栈对象不携带载荷，到点（ResolveStack 的 IsSBA 分支）
+        /// 重查——窗口内被救回的 checker 不再 AddAction。记账型记录保留
+        /// （ZoneChangeChecker 的 _lastSeen 基线在 Check 内已前移，记录被丢弃=事件永久丢失）。
+        /// </summary>
+        public void ClearCriticalPending() => _pendingActions.RemoveAll(a => IsCritical(a));
 
         /// <summary>
         /// 初始化SBA系统
@@ -109,6 +136,9 @@ namespace CardCore
             // 循环执行，直到状态稳定
             do
             {
+                if (_gameCore != null && _gameCore.IsGameOver)
+                    break; // 判负后空转截断：ZeroLifeChecker 见 Life≤0 恒重排队，烧满 100 轮无意义
+
                 if (!CheckAndExecute())
                     break;
 
@@ -185,6 +215,10 @@ namespace CardCore
             _history.Add(action);
         }
 
+        /// <summary>角色亡语宣判中（RoleDeathEvent 已发、亡语在途）——ZeroLifeChecker 与
+        /// CheckLifeGameOver 据此跳过，防窗口重开与判负抢跑。</summary>
+        public bool IsProclaimed(Player player) => player != null && _proclaimedPlayers.Contains(player);
+
         /// <summary>
         /// 执行生命值归零动作
         /// </summary>
@@ -192,17 +226,16 @@ namespace CardCore
         {
             var player = action.AffectedEntity as Player;
             if (player == null) return;
+            // 到点重验（2026-09-15 SBA=栈对象定案）：记录检出后状态可能已被响应窗口内的救场改写——
+            // 血量已回正或已判负 → 空转
+            if (player.Life > 0 || (_gameCore != null && _gameCore.IsGameOver)) return;
 
-            // 触发游戏结束事件（经 GameCore 统一发布口：只发一次 + TotalTurns 补全）
-            if (_gameCore != null)
-                _gameCore.PublishGameOverOnce(player.Opponent, GameOverReason.LifeZero);
-            else
-                PublishEvent(new GameOverEvent
-                {
-                    Winner = player.Opponent,
-                    Loser = player,
-                    Reason = GameOverReason.LifeZero
-                });
+            // 角色亡语定案（2026-09-15，判负效果化）：不直接终局——发角色死亡事件，
+            // 角色亡语（默认=宣告对手获得胜利，宣判即终局）经触发式轮结算；
+            // 亡语被全拦/未挂时由 GameCore.CheckLifeGameOver 兜底判负 LifeZero。
+            // 宣判标记防重入：此后 Life 仍 ≤0，但不再开 SBA 窗口、不再发事件。
+            _proclaimedPlayers.Add(player);
+            PublishEvent(new RoleDeathEvent { Player = player });
         }
 
         /// <summary>
@@ -214,6 +247,13 @@ namespace CardCore
         {
             var card = action.AffectedEntity as Card;
             if (card == null) return;
+            // 到点重验（2026-09-15 SBA=栈对象定案）：记录检出后状态可能已被响应窗口内的救场改写——
+            // 已离场（含本批先杀，TryKill 对已死卡不设防、CardDestroyEvent 会再发=亡语二触发）
+            // 或已被救回（治疗解标死 IsAlive 复位）→ 空转，不重复送墓。
+            if (card.GetZone() != Zone.Battlefield) return;
+            bool stillDead = !card.IsAlive
+                || (_gameCore != null && _gameCore.LayerEngine.CalculateToughness(card) <= 0);
+            if (!stillDead) return;
             Attribute.DeathRules.TryKill(
                 card,
                 card._pendingDeathCause ?? Attribute.DeathCause.ZeroToughness,
@@ -302,6 +342,7 @@ namespace CardCore
             _pendingActions.Clear();
             _history.Clear();
             _stabilityCheckCount = 0;
+            _proclaimedPlayers.Clear(); // 宣判标记随对局重置
         }
     }
 

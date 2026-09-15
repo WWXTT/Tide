@@ -105,6 +105,9 @@ namespace CardCore
         /// 结算栈。
         /// 替代效果（Replacement）已在事件发布路径 GameCore.PublishEvent 处统一拦截，
         /// 不在此处重复检查。
+        /// ⚠ 零调用预留路径：现行活路径中 SBA 是速度1栈对象、经双 Pass 在
+        /// StackEngine.ResolveStack 的 IsSBA 分支结算（见 FinishResolution/PushStateAction）；
+        /// 本方法若将来接线需补 IsSBA 消费分支，且每步直调 CheckAndExecute 的语义已过时。
         /// </summary>
         public async UniTask ResolveStack()
         {

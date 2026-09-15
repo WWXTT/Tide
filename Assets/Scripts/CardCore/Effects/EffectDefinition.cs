@@ -410,6 +410,8 @@ namespace CardCore
                 // 死亡/离场/除外族
                 TriggerTiming.OnDeath => typeof(CardDestroyEvent),
                 TriggerTiming.OnDestroy => typeof(CardDestroyEvent),
+                TriggerTiming.OnOtherCreatureDeath => typeof(CardDestroyEvent),
+                TriggerTiming.OnRoleDeath => typeof(RoleDeathEvent),
                 TriggerTiming.OnExile => typeof(CardExileEvent),
                 TriggerTiming.OnLeaveBattlefield => typeof(CardLeaveBattlefieldEvent),
 

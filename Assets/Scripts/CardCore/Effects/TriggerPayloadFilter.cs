@@ -93,6 +93,25 @@ namespace CardCore
                     return gameEvent is CardExileEvent e &&
                            ReferenceEquals(e.Card, registered.Source);
 
+                // ---- 死亡族（CardDestroyEvent，TryKill 末尾发布；载荷卡字段=DestroyedCard）----
+                // OnDeath=亡语（自身死亡）：必须限定载荷卡==自己——门禁豁免（FindMatchingEffects
+                // 的 IsAlive 自身死亡豁免）放行后若走 default(true)，活体观察者的 OnDeath
+                // 会在任意其他卡死亡时跨火。
+                case TriggerTiming.OnDeath:
+                    return gameEvent is CardDestroyEvent dd &&
+                           ReferenceEquals(dd.DestroyedCard, registered.Source);
+
+                case TriggerTiming.OnOtherCreatureDeath:
+                    // 观察者时点（镜像 OnOtherCreatureEnter）：死的是别的卡
+                    return gameEvent is CardDestroyEvent od &&
+                           od.DestroyedCard != null &&
+                           !ReferenceEquals(od.DestroyedCard, registered.Source);
+
+                // ---- 角色亡语（RoleDeathEvent，2026-09-15 定案；注册源=Player）----
+                case TriggerTiming.OnRoleDeath:
+                    return gameEvent is RoleDeathEvent rd &&
+                           ReferenceEquals(rd.Player, registered.Source);
+
                 default:
                     return true;
             }

@@ -716,6 +716,46 @@ namespace CardCore
             return true;
         }
 
+        /// <summary>SBA 栈对象速度（2026-09-15 定案）：SBA=速度1——回合方可连锁（≥1）、非回合方严格大于（≥2）。</summary>
+        public const int SbaStackSpeed = 1;
+
+        /// <summary>
+        /// SBA 伪对象入栈（2026-09-15 定案：SBA=速度1栈对象）。
+        /// 由 FinishResolution 检出关键 SBA（尸体送墓/判负）后调用：不携带记录载荷（到点重查，
+        /// 与预言延迟验证同哲学），记速器抬到 1，回合方先获优先权——LIFO 使窗口内的救场效果
+        /// （如速度2治疗）先结算，SBA 到点重查被救回则空转、亡语不触发。
+        /// 注意：调用点在 ResolveStack 的 try 块内（引擎 _isResolving 仍 true），故不设
+        /// PushCardCast 的结算中拒入闸——那是给玩家声明用的；SpeedCounter 已在 FinishResolution
+        /// 开头 Reset，RaiseTo(1) 恒 0→1。
+        /// </summary>
+        public bool PushStateAction()
+        {
+            if (_stack.Count > 0) return false; // 栈上有待响应对象时不插（理论不可达：调用点栈必空）
+
+            var instance = new EffectInstance
+            {
+                IsSBA = true,
+                ActivationSpeed = SbaStackSpeed,
+                // Source/Controller/Definition 恒 null：SBA 是规则动作，无施放者、无费用、无执行定义
+                Targets = new List<Entity>()
+            };
+
+            _speedCounter.RaiseTo(SbaStackSpeed); // ★ 记速器：SBA 抬到 1（本连锁的最高速度基线）
+
+            _stack.Push(instance);
+            _priorityHolder = _activePlayer;   // 回合方先响应（与触发式轮统一）
+            _consecutivePassCount = 0;
+            _waitingForPlayer = true;
+
+            EventManager.Instance.Publish(new StackAddEvent
+            {
+                AddedObject = instance,
+                AddingPlayer = _activePlayer
+            });
+
+            return true;
+        }
+
         /// <summary>
         /// 添加待发效果到队列
         /// </summary>
@@ -834,10 +874,20 @@ namespace CardCore
                 while (_stack.Count > 0)
                 {
                     var top = _stack.Pop();
-                    GameActions.Crumb($"resolve top #{guardResolve} cast={top.IsCardCast} id={top.Definition?.Id ?? (top.Source as Card)?.ID ?? "?"}");
+                    GameActions.Crumb($"resolve top #{guardResolve} cast={top.IsCardCast} sba={top.IsSBA} id={top.Definition?.Id ?? (top.Source as Card)?.ID ?? "?"}");
                     if (++guardResolve > 200) { GameActions.Crumb("resolve GUARD-200 break"); break; }
+                    // SBA 伪对象：到点重查执行（必须先于执行器拦截——Definition=null 会 throw）；
                     // 整卡施放对象走 cast 结算（付费→无效裁决→效果→离区），普通对象走执行器
-                    if (top.IsCardCast)
+                    if (top.IsSBA)
+                    {
+                        var sbaCore = GameCore.Instance;
+                        if (sbaCore != null)
+                        {
+                            sbaCore.SBAEngine.ExecuteAll(); // 到点重查：窗口内被救回的 checker 不再收集
+                            sbaCore.CheckLifeGameOver();    // 判负（ExecuteZeroLife 内含幂等守卫）
+                        }
+                    }
+                    else if (top.IsCardCast)
                         await GameActions.ResolveCardCastAsync(top);
                     else
                         await _executor.ExecuteAsync(top);
@@ -860,8 +910,11 @@ namespace CardCore
         /// <summary>
         /// 结算完成 — 自发连锁处理（用户定案模型）：
         /// 单次连锁结算完成后，① 结算期间累积的条件触发先上栈（开新一轮连锁）；
-        /// ② SBA 状态动作自发执行（战场尸体送墓 / 防御归零 / 判负）；③ SBA 产生的事件
-        /// （死亡/送墓/抽卡…）经路由喂触发引擎 → 若有待发效果再开新一轮。循环直到稳定。
+        /// ② 关键 SBA（尸体送墓/判负）作为速度1栈对象入栈、开响应窗口（2026-09-15 定案：
+        /// 记速器抬到 1——回合方 ≥1、非回合方 ≥2 可连锁救场；到点重查，被救回则空转）；
+        /// ③ SBA 结算产生的事件（死亡/送墓/抽卡…）经路由喂触发引擎 → 若有待发效果再开新一轮。
+        /// 循环直到稳定。顺序敏感：关键 SBA 检查必须先于 CheckLifeGameOver（后者直查
+        /// Life≤0 即终局，排前会让 0 血绕过响应窗口）。
         /// </summary>
         private void FinishResolution()
         {
@@ -875,11 +928,17 @@ namespace CardCore
 
             for (int guard = 0; guard < 16; guard++)
             {
+                // 终局搁浅（保持旧定案）：判负后不再开触发式/SBA 新一轮——否则判负同批入队的
+                // 亡语会上栈结算（HasAutoEffects 分支先于下方 IsGameOver 检查 return，顺序敏感）
+                var coreEarly = GameCore.Instance;
+                if (coreEarly != null && coreEarly.IsGameOver) return;
+
                 if (_pendingQueue.HasAutoEffects)
                 {
                     ProcessTriggeredEffects();
                     if (_stack.Count > 0)
                     {
+                        _priorityHolder = _activePlayer; // 自发轮统一：回合方先响应（与 SBA 轮同口径）
                         _waitingForPlayer = true;
                         _consecutivePassCount = 0;
                         return; // 新一轮连锁：双 Pass → BeginResolution → 结算完再回到这里
@@ -888,8 +947,19 @@ namespace CardCore
 
                 var core = GameCore.Instance;
                 if (core == null) break;
-                core.SBAEngine.ExecuteAll();   // 自发状态动作：尸体送墓等（事件经路由喂触发引擎）
-                core.CheckLifeGameOver();      // 死亡引发的判负（幂等）
+
+                // SBA 即栈对象（2026-09-15）：检出关键 SBA（送墓/判负）→ 速度1伪对象入栈开响应窗口；
+                // 到点（ResolveStack 的 IsSBA 分支）重查执行——窗口内 ≥2 速响应可救回（治疗解标死）。
+                // 无人响应（双 Pass）则照旧送墓/判负，亡语走触发式新一轮（计数器已归 0）。
+                if (core.SBAEngine.HasCriticalPendingAfterCheck())
+                {
+                    core.SBAEngine.ClearCriticalPending();
+                    PushStateAction();
+                    return; // SBA 轮：双 Pass → BeginResolution → 消费 → 回到这里再查触发式/SBA
+                }
+
+                core.SBAEngine.ExecuteAll();   // 无关键 SBA：记账型照旧自发执行（ZoneChange 事件补发等）
+                core.CheckLifeGameOver();      // 兜底（关键判负已走 SBA 轮；幂等）
                 if (core.IsGameOver) return;
 
                 if (!_pendingQueue.HasAutoEffects) break; // 稳定：无新动作、无新触发
@@ -931,8 +1001,17 @@ namespace CardCore
                 try
                 {
                     var top = _stack.Pop();
-                    // 整卡施放对象走 cast 结算（与 ResolveStack 同一消费点）
-                    if (top.IsCardCast)
+                    // SBA 伪对象：与 ResolveStack 同一消费口径（到点重查）；整卡施放对象走 cast 结算
+                    if (top.IsSBA)
+                    {
+                        var sbaCore = GameCore.Instance;
+                        if (sbaCore != null)
+                        {
+                            sbaCore.SBAEngine.ExecuteAll();
+                            sbaCore.CheckLifeGameOver();
+                        }
+                    }
+                    else if (top.IsCardCast)
                         await GameActions.ResolveCardCastAsync(top);
                     else
                         await _executor.ExecuteAsync(top);
@@ -1087,9 +1166,15 @@ namespace CardCore
                 if (!TriggerPayloadFilter.Matches(effect.TriggerTiming, gameEvent, registered))
                     continue;
 
-                // 检查来源是否在场
+                // 检查来源是否在场；亡语豁免（2026-09-15 修复）：自己的 CardDestroyEvent 不受此拦——
+                // 伤害落血即置 IsAlive=false（KeywordRules.ApplyDamage），一刀切会拦死全部亡语
+                //（TryKill 在发布 CardDestroyEvent 前已置 IsAlive=false）。
+                // 其后的无效指示物/沉睡/TriggerConditions 门禁照常拦截（蓝无效仍拦亡语）。
                 if (registered.Source != null && !registered.Source.IsAlive)
-                    continue;
+                {
+                    if (!(gameEvent is CardDestroyEvent de && ReferenceEquals(de.DestroyedCard, registered.Source)))
+                        continue;
+                }
 
                 // 无效指示物（2026-09-09 定案）：拦全部触发式（事件匹配后、上栈前）——
                 // 含登场 OnPlay 族触发；只拦「注册来源自身」的能力。与沉默（拦启动式，CanActivate）对称。
@@ -1198,6 +1283,9 @@ namespace CardCore
                 // 固有全域原子（2026-09-13：类型伤害/全体治疗——强制 Full、禁随机，执行复用上方管线）
                 new SweepDamageHandler(),
                 new SweepHealHandler(),
+
+                // 终局原子（2026-09-15：宣告胜利——亡语「对手获得胜利」载体）
+                new DeclareVictoryHandler(),
 
                 // 第一批补齐 — 伤害类
                 new PierceDamageHandler(),

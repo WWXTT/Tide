@@ -81,6 +81,14 @@ namespace CardCore
         OnAtomicEffectStartApplying = 29,
         /// <summary>原子效果结算完成时</summary>
         OnAtomicEffectResolution = 30,
+
+        /// <summary>其他生物死亡时（观察者时点，镜像 OnOtherCreatureEnter：死的不是自己。
+        /// 枚举只尾部追加不重排）</summary>
+        OnOtherCreatureDeath = 31,
+
+        /// <summary>角色死亡时（2026-09-15 定案）：玩家角色生命归零、SBA 到点重查仍死——
+        /// 角色亡语时点（默认亡语=宣告对手获得胜利）。枚举只尾部追加不重排。</summary>
+        OnRoleDeath = 32,
     }
 
     /// <summary>

@@ -64,6 +64,27 @@ namespace CardCore.Attribute.Handlers
             => $"对范围内全部有生命单位各恢复 {effect.Value} 点生命";
     }
 
+    /// <summary>
+    /// 宣告胜利（2026-09-15 终局原子，黑）：效果控制者的对手获得游戏胜利——
+    /// 亡语「对手获得胜利」等终局效果载体。经 GameCore.EndGame→PublishGameOverOnce
+    ///（Ended 状态守卫幂等——同批已有终局时本宣告搁浅）。TargetKinds 置空（无目标原子）。
+    /// </summary>
+    public class DeclareVictoryHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DeclareVictory;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var winner = context.Controller?.Opponent;
+            if (winner == null) return;
+            if (GameCore.Instance != null)
+                GameCore.Instance.EndGame(winner, GameOverReason.EffectVictory);
+        }
+
+        public override string GetDescription(AtomicEffectInstance effect)
+            => "效果控制者的对手获得胜利";
+    }
+
     // ================================================================
     // 蓝色效果 - 控制与知识
     // ================================================================
