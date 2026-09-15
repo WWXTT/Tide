@@ -11,7 +11,8 @@ JSON to Excel Importer
 
 用法:
     python import_from_json.py                       # 只导入 AttributeValueConfig
-    python import_from_json.py AttributeValueConfig CostOffsetConfig ...
+    python import_from_json.py AttributeValueConfig ValueSystemConfig ...
+    （CostOffsetConfig 已删——2026-09-14 代价原子化，CardCost 三行已回迁 ValueSystemConfig）
 """
 
 import openpyxl

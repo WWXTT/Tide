@@ -164,6 +164,19 @@ namespace CardCore
     }
 
     /// <summary>
+    /// 角色死亡事件（2026-09-15 角色亡语定案）：ZeroLife SBA 到点重查仍死时发布——
+    /// 角色亡语（OnRoleDeath）的触发载体。此时尚未判负：终局交给亡语宣告
+    ///（默认亡语=宣告对手获得胜利，宣判即终局）；亡语被全拦时由 CheckLifeGameOver 兜底判负。
+    /// </summary>
+    public class RoleDeathEvent : GameEventBase
+    {
+        /// <summary>死亡的角色（亡语注册源）</summary>
+        public Player Player { get; set; }
+        /// <summary>死因来源（击杀者，可空——角色无死因留档，尽力归因）</summary>
+        public Entity Source { get; set; }
+    }
+
+    /// <summary>
     /// 流放事件
     /// </summary>
     public class CardBanishEvent : GameEventBase

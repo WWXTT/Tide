@@ -195,6 +195,10 @@ namespace CardCore
         BranchEngineLuckRoll,
         /// <summary>倒计时主干：入场挂 N 回合倒计时，归零执行奖励并重置（Value→EngineParam；0=按奖励推导费自动换算 1费=1回合）</summary>
         BranchEngineCountdown,
+
+        /// <summary>宣告胜利（2026-09-15，终局原子）：效果控制者的对手获得游戏胜利——
+        /// 亡语「对手获得胜利」等终局效果载体。枚举只可尾部追加。</summary>
+        DeclareVictory,
     }
 
     #region 效果分类扩展方法

@@ -173,7 +173,12 @@ namespace CardCore
         /// <summary>
         /// 超时
         /// </summary>
-        TimeOut
+        TimeOut,
+
+        /// <summary>
+        /// 效果宣告胜利（终局原子：效果控制者的对手获胜）
+        /// </summary>
+        EffectVictory
     }
 
     /// <summary>

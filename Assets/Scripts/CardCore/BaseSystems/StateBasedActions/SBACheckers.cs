@@ -23,7 +23,9 @@ namespace CardCore
     {
         public void Check(StateBasedActions sba, GameCore gameCore)
         {
-            if (gameCore.Player1.Life <= 0)
+            // 宣判排除（2026-09-15 角色亡语定案）：RoleDeathEvent 已发的玩家不再检出——
+            // 否则 Life 恒 ≤0 会让每个后续轮重开 SBA 窗口、重发死亡事件
+            if (gameCore.Player1.Life <= 0 && !sba.IsProclaimed(gameCore.Player1))
             {
                 sba.AddAction(new SBAActionRecord
                 {
@@ -31,7 +33,7 @@ namespace CardCore
                     AffectedEntity = gameCore.Player1
                 });
             }
-            if (gameCore.Player2.Life <= 0)
+            if (gameCore.Player2.Life <= 0 && !sba.IsProclaimed(gameCore.Player2))
             {
                 sba.AddAction(new SBAActionRecord
                 {

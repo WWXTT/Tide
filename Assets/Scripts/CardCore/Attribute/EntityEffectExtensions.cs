@@ -119,6 +119,19 @@ namespace CardCore
                 {
                     card._life = raw;
                 }
+
+                // SBA 窗口救回（2026-09-15）：战场标死卡（伤害致死未送墓）治疗回到有效生命 >0 → 撤销标死，
+                // SBA 到点重查两类捕获（!IsAlive / toughness≤0）均不命中 → 不送墓、亡语不触发。
+                // 口径对齐 KeywordRules.TryReborn（不横置——未离场过）；清归因档防陈旧死因残留。
+                // 连锁内 LIFO 的后置治疗救回先置伤害的标死单位，正是「到点重查」的规则语义。
+                if (!card.IsAlive
+                    && card._life + GameBoard.LinkAuraSystem.GetLifeBonus(card) > 0
+                    && card.GetZone() == Zone.Battlefield)
+                {
+                    card.IsAlive = true;
+                    card._pendingDeathCause = null;
+                    card._pendingDeathSource = null;
+                }
             }
         }
 

@@ -151,6 +151,6 @@ Render Pipeline），包名 com.unity.render-pipelines.danbaidong。
   卡通后处理               │ 自定义 AcesFilm（Genshin 移动端风格）+ _BLOOM_DANBAIDONG 卡通 Bloom
 
 结语：
-  PBRToon 系列虽然最终走前向着色，但 GBuffer pass 仍然在写深度和法线。如果是写实风格
-  PBR，写完整的 GBuffer pass 就能享受延迟渲染的好处；如果是卡通风或需要特殊光照模型，
-  就参照 PBRToonBase 的模式：GBuffer 只写深度+法线，着色放在 CharacterForward 里做。
+  PBRToon 系列虽然最终走前向着色，但 GBuffer pass 仍然在写深度和法线。
+  如果是写实风格 PBR，写完整的 GBuffer pass 就能享受延迟渲染的好处；
+  如果是卡通风或需要特殊光照模型，就参照 PBRToonBase 的模式：GBuffer 只写深度+法线，着色放在 CharacterForward 里做。

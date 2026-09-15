@@ -994,5 +994,29 @@
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
     "MountKinds": "0,4"
+  },
+  {
+    "ID": "5e8a01c4",
+    "EnumName": "对手胜利",
+    "DisplayName": "效果控制者的对手获得胜利",
+    "EffectColor": "Black",
+    "BaseCost": 0.0,
+    "EffectType": "DeclareVictory",
+    "TargetKinds": "",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "0"
+  },
+  {
+    "ID": "5e8a01c4",
+    "EnumName": "胜利",
+    "DisplayName": "效果控制者获得胜利",
+    "EffectColor": "White",
+    "BaseCost": 0.0,
+    "EffectType": "DeclareVictory",
+    "TargetKinds": "",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "0"
   }
 ]

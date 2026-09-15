@@ -198,6 +198,11 @@ namespace CardCore.Editor
             TestSummonToken(core, p1, p2);
             Crumb("→TestMatchStats");
             TestMatchStats(core, p1, p2);
+
+            // SBA=速度1栈对象（2026-09-15 定案）——必须挂最末：T3 终局后 core 进入 Ended
+            //（PublishGameOverOnce 幂等），共享单例 core 的后续段落全部静默
+            Crumb("→TestSbaWindow");
+            TestSbaWindow(core, p1, p2);
             Crumb("all sections done");
 
             // 仪式段屏蔽（2026-09-10）：内容未就绪
@@ -4486,6 +4491,274 @@ namespace CardCore.Editor
             finally
             {
                 RestoreBanks(core, p1, p2, banks);
+            }
+        }
+
+        // ======================================== SBA 窗口（2026-09-15 SBA=速度1栈对象定案） ========================================
+
+        /// <summary>
+        /// SBA=速度1栈对象（2026-09-15 定案）：死亡/判负类 SBA 在连锁排干后作为速度1伪对象入栈——
+        /// 记速器抬到1、开响应窗口（回合方≥1 / 非回合方严格&gt;1 可连锁）、LIFO 救场效果先结算、
+        /// SBA 到点重查（被救回则空转、亡语不触发——与预言延迟验证同哲学）。
+        /// 覆盖：T1 时点过滤单测（OnDeath/OnOtherCreatureDeath payload）；
+        /// T2 亡语真实管线（门禁自身死亡豁免后 OnDeath 经 SBA 送墓真实触发）；
+        /// T4a 速度2治疗在 SBA 窗口救回标死宿主（亡语「对手获得胜利」不触发）；
+        /// T4c 速度1治疗非回合方连锁被拒（1 不&gt;1）；
+        /// T3 无人救场 → SBA 结算 → 亡语 DeclareVictory 宣告对手胜利（EffectVictory 终局）。
+        /// </summary>
+        private static void TestSbaWindow(GameCore core, Player p1, Player p2)
+        {
+            // ---- 段内夹具 ----
+            CardData Vanilla(string id) => new CardData
+            {
+                ID = id, CardName = id, Supertype = Cardtype.Creature, Power = 1, Life = 1,
+            };
+
+            // 亡语宿主（"角色"替身）：1/1 生物，OnDeath → 指定原子
+            CardData DeathrattleData(string id, AtomicEffectType atom)
+            {
+                var data = new CardData
+                {
+                    ID = id, CardName = id, Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                };
+                data.Effects.Add(new CardEffectData
+                {
+                    Id = id + "_ONDEATH",
+                    DisplayName = id,
+                    TriggerTiming = (int)TriggerTiming.OnDeath,
+                    TriggerLimitPerTurn = -1,
+                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(atom, value: 1) },
+                });
+                return data;
+            }
+
+            // 定速法术（BaseSpeed 声明卡面速度）：kinds 实例域收窄 + 手动/全域选择
+            CardData SpeedSpellData(string id, int baseSpeed, AtomicEffectType atom, int value,
+                List<int> kinds, CardCore.SelectionMode mode = CardCore.SelectionMode.Manual)
+            {
+                var data = new CardData { ID = id, CardName = id, Supertype = Cardtype.Spell };
+                data.Effects.Add(new CardEffectData
+                {
+                    Id = id + "_ONPLAY",
+                    DisplayName = id,
+                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                    BaseSpeed = baseSpeed,
+                    SelectionMode = (int)mode,
+                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(atom, value: value, kinds: kinds) },
+                });
+                return data;
+            }
+
+            // AoE 法术：对全体敌人（kinds{2}=EnemyLivingUnit 对方生物+角色）value 伤
+            CardData AoEData(string id, int value = 1)
+            {
+                var data = new CardData { ID = id, CardName = id, Supertype = Cardtype.Spell };
+                data.Effects.Add(new CardEffectData
+                {
+                    Id = id + "_ONPLAY",
+                    DisplayName = "对全体敌人" + value + "伤",
+                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                    BaseSpeed = 1,
+                    SelectionMode = (int)CardCore.SelectionMode.Full,
+                    AtomicEffects = new List<AtomicEffectEntry>
+                    {
+                        AtomRefs.New(AtomicEffectType.DealDamage, value: value, kinds: new List<int> { 2 }),
+                    },
+                });
+                return data;
+            }
+
+            Card Spawn(Player owner, CardData data)
+            {
+                var card = new CardWrapper(data);
+                card.SetController(owner);
+                Assert(core.ZoneManager.TryAddToBattlefield(card, owner), $"SBA段合成入场（{data.CardName}）");
+                card.Untap();
+                return card;
+            }
+
+            int Hand(Player p) => core.ZoneManager.GetCards(p, Zone.Hand).Count;
+
+            // ---- T1 时点过滤单测（不上桌）----
+            var stubSelf = new CardWrapper(Vanilla("VERIFY_SBA_T1_SELF"));
+            var stubOther = new CardWrapper(Vanilla("VERIFY_SBA_T1_OTHER"));
+            Assert(TriggerTimingDefaults.GetEventType(TriggerTiming.OnOtherCreatureDeath) == typeof(CardDestroyEvent),
+                   "SBA·T1 映射：OnOtherCreatureDeath → CardDestroyEvent");
+            var regOnDeath = new RegisteredEffect
+            {
+                Effect = new EffectDefinition { Id = "VERIFY_SBA_T1_F", TriggerTiming = TriggerTiming.OnDeath },
+                Source = stubSelf, Controller = p1,
+            };
+            Assert(TriggerPayloadFilter.Matches(TriggerTiming.OnDeath,
+                       new CardDestroyEvent { DestroyedCard = stubSelf }, regOnDeath),
+                   "SBA·T1 OnDeath 过滤：自己死 → 通过");
+            Assert(!TriggerPayloadFilter.Matches(TriggerTiming.OnDeath,
+                        new CardDestroyEvent { DestroyedCard = stubOther }, regOnDeath),
+                   "SBA·T1 OnDeath 过滤：他人死 → 拒绝（default 跨火已修）");
+            var regOtherDeath = new RegisteredEffect
+            {
+                Effect = new EffectDefinition { Id = "VERIFY_SBA_T1_G", TriggerTiming = TriggerTiming.OnOtherCreatureDeath },
+                Source = stubSelf, Controller = p1,
+            };
+            Assert(TriggerPayloadFilter.Matches(TriggerTiming.OnOtherCreatureDeath,
+                       new CardDestroyEvent { DestroyedCard = stubOther }, regOtherDeath),
+                   "SBA·T1 OnOtherCreatureDeath 过滤：他人死 → 通过");
+            Assert(!TriggerPayloadFilter.Matches(TriggerTiming.OnOtherCreatureDeath,
+                        new CardDestroyEvent { DestroyedCard = stubSelf }, regOtherDeath),
+                   "SBA·T1 OnOtherCreatureDeath 过滤：自己死 → 拒绝");
+
+            // ---- T2 亡语真实管线（门禁豁免后：OnDeath 经 SBA 送墓真实触发）----
+            EnsureMainPhase(core, p1);
+            var banks2 = FillBanks(core, p1, p2);
+            try
+            {
+                var host2 = Spawn(p1, DeathrattleData("VERIFY_SBA_T2HOST", AtomicEffectType.DrawCard));
+                int h0 = Hand(p1);
+                var bolt = InjectCard(core, p1,
+                    SpeedSpellData("VERIFY_SBA_T2BOLT", 1, AtomicEffectType.DealDamage, 1, new List<int> { 1 }));
+                Assert(PlayCardSync(core, p1, bolt, new List<Entity> { host2 }), "SBA·T2 直伤打出（打己方宿主）");
+                Assert(!host2.IsAlive && core.ZoneManager.IsCardInZone(host2, p1, Zone.Graveyard),
+                       "SBA·T2 门禁豁免后亡语宿主真实送墓（SBA 轮对 DrainStack 透明）");
+                Assert(Hand(p1) == h0, "SBA·T2 OnDeath 亡语经真实管线结算（打出 -1 + 亡语抽 +1 = 持平）");
+                RetireCards(core, p1, host2, bolt);
+            }
+            finally { RestoreBanks(core, p1, p2, banks2); }
+
+            // ---- T4a 速度2治疗在 SBA 窗口救回（核心新语义）----
+            // P2 回合：P1 是非回合方（响应门槛=速度严格 >1）；P1 场上 3×1/1 + 亡语宿主，
+            // P1 手持速度2治疗。AoE 结算后全场归 0 → SBA 入栈开窗 → 2 速治疗 LIFO 先结（解标死）
+            // → SBA 到点重查：宿主已活（空转不送墓、亡语不触发）、三个无辜生物照旧送墓。
+            EnsureMainPhase(core, p2);
+            var banks4a = FillBanks(core, p1, p2);
+            try
+            {
+                var m1 = Spawn(p1, Vanilla("VERIFY_SBA_M1"));
+                var m2 = Spawn(p1, Vanilla("VERIFY_SBA_M2"));
+                var m3 = Spawn(p1, Vanilla("VERIFY_SBA_M3"));
+                var hero = Spawn(p1, DeathrattleData("VERIFY_SBA_HERO", AtomicEffectType.DeclareVictory));
+                var heal2 = InjectCard(core, p1,
+                    SpeedSpellData("VERIFY_SBA_HEAL2", 2, AtomicEffectType.Heal, 2, new List<int> { 1 }));
+                var aoe = InjectCard(core, p2, AoEData("VERIFY_SBA_AOE"));
+
+                Assert(GameActions.PlayCard(core, p2, aoe), "SBA·T4a P2 主阶段打出 AoE（对全体敌人1伤）");
+                GameActions.PassPriority(core, p1);
+                GameActions.PassPriority(core, p2); // 双 Pass → AoE 同步结算 → FinishResolution → SBA 入栈
+                var top4a = core.StackEngine.Peek();
+                Assert(top4a != null && top4a.IsSBA, "SBA·T4a AoE 结算后：SBA 伪对象在栈顶（速度1栈对象）");
+                Assert(core.StackEngine.CurrentPriorityHolder == p2,
+                       "SBA·T4a SBA 轮：回合方先持优先权");
+                Assert(core.StackEngine.SpeedCounter.CurrentSpeed == 1,
+                       "SBA·T4a 记速器被 SBA 抬到 1");
+                Assert(!hero.IsAlive, "SBA·T4a 宿主伤害落血即标死（未送墓——等 SBA 到点）");
+
+                GameActions.PassPriority(core, p2); // 回合方让权 → holder=p1
+                Assert(GameActions.PlayCardInResponse(core, p1, heal2, new List<Entity> { hero }),
+                       "SBA·T4a 非回合方速度2治疗响应入栈（2 > 1 达标）");
+                GameActions.DrainStack(core);       // LIFO：治疗先结（解标死）→ SBA 到点重查
+
+                Assert(hero.IsAlive && hero.GetLife() > 0
+                           && core.ZoneManager.IsCardInZone(hero, p1, Zone.Battlefield),
+                       "SBA·T4a 宿主被救回（治疗解标死，SBA 重查空转）");
+                Assert(!core.IsGameOver, "SBA·T4a 亡语「对手获得胜利」未触发（无终局）");
+                Assert(core.ZoneManager.IsCardInZone(m1, p1, Zone.Graveyard)
+                           && core.ZoneManager.IsCardInZone(m2, p1, Zone.Graveyard)
+                           && core.ZoneManager.IsCardInZone(m3, p1, Zone.Graveyard),
+                       "SBA·T4a 三个无辜生物照旧送墓（SBA 批内各自结算）");
+                RetireCards(core, p1, m1, m2, m3, hero, heal2, aoe);
+            }
+            finally { RestoreBanks(core, p1, p2, banks4a); }
+
+            // ---- T4c 速度1拒连（非回合方 1 不 > 1）----
+            EnsureMainPhase(core, p2);
+            var banks4c = FillBanks(core, p1, p2);
+            try
+            {
+                var m4c = Spawn(p1, Vanilla("VERIFY_SBA_T4C_M"));
+                var hero4c = Spawn(p1, DeathrattleData("VERIFY_SBA_T4C_HERO", AtomicEffectType.DeclareVictory));
+                var heal1 = InjectCard(core, p1,
+                    SpeedSpellData("VERIFY_SBA_HEAL1", 1, AtomicEffectType.Heal, 2, new List<int> { 1 }));
+                var aoe4c = InjectCard(core, p2, AoEData("VERIFY_SBA_T4C_AOE"));
+
+                Assert(GameActions.PlayCard(core, p2, aoe4c), "SBA·T4c P2 打出 AoE");
+                GameActions.PassPriority(core, p1);
+                GameActions.PassPriority(core, p2);
+                Assert(core.StackEngine.Peek()?.IsSBA == true, "SBA·T4c SBA 在栈顶（记速器=1）");
+                GameActions.PassPriority(core, p2); // holder → p1
+                Assert(!GameActions.PlayCardInResponse(core, p1, heal1, new List<Entity> { hero4c }),
+                       "SBA·T4c 非回合方速度1响应被拒（1 不> 1——记速器已被 SBA 抬到 1）");
+                Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Contains(heal1),
+                       "SBA·T4c 治疗卡留在手中（声明失败退回手）");
+                Assert(core.StackEngine.Peek()?.IsSBA == true, "SBA·T4c SBA 仍在栈顶");
+                // 不排干收尾（避免第二场终局撞 PublishGameOverOnce 幂等闸门）：直接清场
+                core.StackEngine.Clear();
+                core.SBAEngine.ClearHistory();
+                RetireCards(core, p1, m4c, hero4c, heal1, aoe4c);
+            }
+            finally { RestoreBanks(core, p1, p2, banks4c); }
+
+            // ---- T4d 角色判负同样可救：AoE 打角色至 0 → SBA 窗口速度2治疗救回 → 不宣判不终局 ----
+            EnsureMainPhase(core, p2);
+            var banks4d = FillBanks(core, p1, p2);
+            try
+            {
+                var m4d = Spawn(p1, Vanilla("VERIFY_SBA_T4D_M"));
+                var heal2d = InjectCard(core, p1,
+                    SpeedSpellData("VERIFY_SBA_T4D_HEAL", 2, AtomicEffectType.Heal, 2, new List<int> { 1, 2 }));
+                var aoe4d = InjectCard(core, p2, AoEData("VERIFY_SBA_T4D_AOE", 30));
+
+                Assert(GameActions.PlayCard(core, p2, aoe4d), "SBA·T4d P2 打出 AoE(30)（角色一并归零）");
+                GameActions.PassPriority(core, p1);
+                GameActions.PassPriority(core, p2);
+                Assert(core.StackEngine.Peek()?.IsSBA == true, "SBA·T4d 判负 SBA（ZeroLife）在栈顶");
+                GameActions.PassPriority(core, p2); // holder → p1
+                Assert(GameActions.PlayCardInResponse(core, p1, heal2d, new List<Entity> { p1 }),
+                       "SBA·T4d 速度2治疗响应入栈（目标=自己的角色）");
+                GameActions.DrainStack(core); // 治疗先结（角色 Life 0→2）→ SBA 到点重查：ZeroLife 空转、生物照送
+
+                Assert(p1.Life == 2, "SBA·T4d 角色被救回（Life=2，宣判未发生）");
+                Assert(!core.IsGameOver, "SBA·T4d 无终局（角色亡语未宣告）");
+                Assert(core.ZoneManager.IsCardInZone(m4d, p1, Zone.Graveyard),
+                       "SBA·T4d 无辜生物照旧送墓");
+                RetireCards(core, p1, heal2d, aoe4d);
+            }
+            finally { RestoreBanks(core, p1, p2, banks4d); }
+
+            // ---- T5 角色亡语宣告终局（判负效果化，本段最后）----
+            // AoE(30) 连角色一并归零 → SBA 批 [ZeroLife, ZeroToughness×4] 到点：
+            // 先宣判（RoleDeathEvent → 内置角色亡语入队）→ 四尸送墓（宿主卡亡语入队）→
+            // 亡语轮：角色亡语 DeclareVictory 宣告 P2 胜（宣判即终局，宿主卡亡语同轮幂等空转）。
+            EnsureMainPhase(core, p2);
+            var banks3 = FillBanks(core, p1, p2);
+            GameOverEvent goEvt = null;
+            void OnGameOver(GameOverEvent e) => goEvt = e;
+            EventManager.Instance.Subscribe<GameOverEvent>(OnGameOver);
+            try
+            {
+                var n1 = Spawn(p1, Vanilla("VERIFY_SBA_T5_M1"));
+                var n2 = Spawn(p1, Vanilla("VERIFY_SBA_T5_M2"));
+                var n3 = Spawn(p1, Vanilla("VERIFY_SBA_T5_M3"));
+                var hero3 = Spawn(p1, DeathrattleData("VERIFY_SBA_T5_HERO", AtomicEffectType.DeclareVictory));
+                var aoe3 = InjectCard(core, p2, AoEData("VERIFY_SBA_T5_AOE", 30));
+
+                Assert(GameActions.PlayCard(core, p2, aoe3), "SBA·T5 P2 打出 AoE(30)（角色+三生物+宿主全灭）");
+                GameActions.PassPriority(core, p1);
+                GameActions.PassPriority(core, p2);
+                Assert(core.StackEngine.Peek()?.IsSBA == true, "SBA·T5 死局 SBA 在栈顶（无人可救）");
+                GameActions.DrainStack(core); // SBA 轮 → 宣判+送墓 → 亡语轮（角色亡语先宣）→ 终局
+
+                Assert(core.ZoneManager.IsCardInZone(n1, p1, Zone.Graveyard)
+                           && core.ZoneManager.IsCardInZone(n2, p1, Zone.Graveyard)
+                           && core.ZoneManager.IsCardInZone(n3, p1, Zone.Graveyard)
+                           && core.ZoneManager.IsCardInZone(hero3, p1, Zone.Graveyard),
+                       "SBA·T5 四具尸体全部送墓（三生物 + 亡语宿主）");
+                Assert(core.IsGameOver, "SBA·T5 游戏终局");
+                Assert(goEvt != null && goEvt.Winner == p2 && goEvt.Reason == GameOverReason.EffectVictory,
+                       "SBA·T5 角色亡语「对手获得胜利」宣告 P2 胜（EffectVictory，判负效果化）");
+            }
+            finally
+            {
+                EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
+                RestoreBanks(core, p1, p2, banks3);
             }
         }
 
