@@ -1079,7 +1079,7 @@ MonoBehaviour:
   active: 1
   skyType:
     m_OverrideState: 1
-    m_Value: 1
+    m_Value: 0
 --- !u!114 &8053007209879873467
 MonoBehaviour:
   m_ObjectHideFlags: 3

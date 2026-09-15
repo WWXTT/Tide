@@ -1729,8 +1729,17 @@ namespace UnityEngine.Rendering.Universal
             {
                 cameraData.camera.TryGetComponent(out Skybox cameraSkybox);
                 Material skyboxMaterial = cameraSkybox != null ? cameraSkybox.material : RenderSettings.skybox;
-                if (skyboxMaterial != null)
+                if (SkySystem.instance.IsValid())
+                {
+                    // DBDRP visual sky (VisualSky volume component) owns the sky.
                     m_DrawSkyboxPass.Render(renderGraph, frameData, resourceData.activeColorTexture, resourceData.activeDepthTexture);
+                }
+                else if (skyboxMaterial != null)
+                {
+                    // SkyType.None: no visual sky active, fall back to the standard Unity skybox
+                    // (camera Skybox component override or RenderSettings.skybox, e.g. UniStorm's).
+                    m_DrawSkyboxPass.Render(renderGraph, frameData, context, resourceData.activeColorTexture, resourceData.activeDepthTexture, skyboxMaterial);
+                }
             }
 
             RecordCustomRenderGraphPasses(renderGraph, RenderPassEvent.AfterRenderingSkybox);
