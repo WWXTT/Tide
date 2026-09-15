@@ -41,6 +41,11 @@ namespace UnityEngine.Rendering.Universal
         RTHandle m_BlackCubmapRT;
         GraphicsBuffer m_BlackAmbientProbeBuffer;
 
+        // Fallbacks used when no DBDRP visual sky is active (SkyType.None):
+        // ambient light packed from RenderSettings.ambientProbe, and Unity's default skybox cubemap for reflections.
+        RTHandle m_FallbackCubemapRT;
+        GraphicsBuffer m_FallbackAmbientProbeBuffer;
+
         // SkyUpdate
         private SkySettings m_SkySettings;
         private SkyRenderer m_SkyRenderer;
@@ -127,6 +132,11 @@ namespace UnityEngine.Rendering.Universal
             Type skyType = null;
             switch (typeEnum)
             {
+                case SkyType.None:
+                    // Sky ownership handed to the standard Unity skybox (RenderSettings.skybox).
+                    // Returning null makes IsValid() false: skyRenderer cleans up, the renderer falls
+                    // back to drawing RenderSettings.skybox and UpdateEnvironment uses fallbacks.
+                    return null;
                 case SkyType.ProceduralToon:
                     skyType = typeof(ProceduralToonSky);
                     break;
@@ -276,18 +286,72 @@ namespace UnityEngine.Rendering.Universal
             }
             else
             {
-                return m_BlackCubmapRT;
+                return GetFallbackReflectionTexture();
             }
+        }
+
+        // When no visual sky is active, return Unity's default skybox cubemap instead of a black one
+        // so reflections (SSR etc.) keep a plausible sky. Approximation: does not follow the actual sky/weather.
+        RTHandle GetFallbackReflectionTexture()
+        {
+            if (m_FallbackCubemapRT == null)
+            {
+                var defaultCubemap = ReflectionProbe.defaultTexture;
+                if (defaultCubemap != null)
+                    m_FallbackCubemapRT = RTHandles.Alloc(defaultCubemap);
+            }
+
+            return m_FallbackCubemapRT != null ? m_FallbackCubemapRT : m_BlackCubmapRT;
         }
 
         internal GraphicsBuffer GetDiffuseAmbientProbeBuffer()
         {
             if (IsValid() && m_DiffuseAmbientProbeBuffer != null && m_DiffuseAmbientProbeBuffer.IsValid())
             {
-                return m_DiffuseAmbientProbeBuffer; 
+                return m_DiffuseAmbientProbeBuffer;
             }
 
-            return m_BlackAmbientProbeBuffer;
+            return GetFallbackAmbientProbeBuffer();
+        }
+
+        // Packs RenderSettings.ambientProbe into the same 7xfloat4 layout the compute path produces
+        // (AmbientProbeConvolution.compute / PackSHFromScratchBuffer), so _AmbientProbeData consumers
+        // (DeferredLighting, CharacterForwardLighting, SSR) receive real ambient light when no visual
+        // sky is active. SphericalHarmonicsL2 coefficient order matches the compute scratch layout
+        // (0:const 1:y 2:z 3:x 4:xy 5:yz 6:z^2 7:xz 8:x^2-y^2); kSHBasisCoef premultiplies into the
+        // pure polynomial form the packed layout expects (ambientProbe itself is not basis-multiplied).
+        GraphicsBuffer GetFallbackAmbientProbeBuffer()
+        {
+            if (m_FallbackAmbientProbeBuffer == null)
+            {
+                m_FallbackAmbientProbeBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 7, 16) { name = "FallbackDiffuseAmbientProbeBuffer" };
+            }
+
+            const float kSHBasis0 = 1.0f;
+            const float kSHBasis1 = 2.0f / 3.0f;
+            const float kSHBasis2 = 1.0f / 4.0f;
+
+            var sh = RenderSettings.ambientProbe;
+            var packed = new Vector4[7];
+            for (int c = 0; c < 3; c++)
+            {
+                float s0 = sh[c, 0] * kSHBasis0;
+                float s1 = sh[c, 1] * kSHBasis1;
+                float s2 = sh[c, 2] * kSHBasis1;
+                float s3 = sh[c, 3] * kSHBasis1;
+                float s4 = sh[c, 4] * kSHBasis2;
+                float s5 = sh[c, 5] * kSHBasis2;
+                float s6 = sh[c, 6] * kSHBasis2;
+                float s7 = sh[c, 7] * kSHBasis2;
+                float s8 = sh[c, 8] * kSHBasis2;
+
+                packed[c] = new Vector4(s3, s1, s2, s0 - s6);
+                packed[3 + c] = new Vector4(s4, s5, s6 * 3.0f, s7);
+            }
+            packed[6] = new Vector4(sh[0, 8] * kSHBasis2, sh[1, 8] * kSHBasis2, sh[2, 8] * kSHBasis2, 1.0f);
+
+            m_FallbackAmbientProbeBuffer.SetData(packed);
+            return m_FallbackAmbientProbeBuffer;
         }
 
         private class RenderSkyToCubemapPassData
@@ -666,6 +730,9 @@ namespace UnityEngine.Rendering.Universal
                 m_AmbientProbeResult.Release();
             if (m_DiffuseAmbientProbeBuffer != null)
                 m_DiffuseAmbientProbeBuffer.Release();
+            if (m_FallbackAmbientProbeBuffer != null)
+                m_FallbackAmbientProbeBuffer.Release();
+            RTHandles.Release(m_FallbackCubemapRT);
 
         }
 

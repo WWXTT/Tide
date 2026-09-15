@@ -8,6 +8,8 @@ namespace UnityEngine.Rendering.Universal
     /// </summary>
     public enum SkyType
     {
+        /// <summary>No DBDRP visual sky. Sky ownership is handed to the standard Unity skybox (RenderSettings.skybox, e.g. UniStorm).</summary>
+        None = 0,
         /// <summary>Gradient Sky Unique ID.</summary>
         Gradient = 1,
         /// <summary>HDRI Sky Unique ID.</summary>
@@ -43,9 +45,11 @@ namespace UnityEngine.Rendering.Universal
     [SupportedOnRenderPipeline(typeof(UniversalRenderPipelineAsset))]
     public sealed class VisualSky : VolumeComponent
     {
-        /// <summary>Type of sky that should be used for rendering.</summary>
+        /// <summary>Type of sky that should be used for rendering. Defaults to None so that projects which hand
+        /// sky ownership to the standard Unity skybox (RenderSettings.skybox, e.g. UniStorm) get the fallback
+        /// path unless a visual sky is explicitly enabled.</summary>
         [Header("Sky")]
-        public SkyTypeParameter skyType = new SkyTypeParameter(SkyType.Gradient, true);
+        public SkyTypeParameter skyType = new SkyTypeParameter(SkyType.None, true);
         ///// <summary>Type of clouds that should be used for rendering.</summary>
         //public NoInterpIntParameter cloudType = new NoInterpIntParameter(0);
         ///// <summary>Defines the way the ambient probe should be computed.</summary>

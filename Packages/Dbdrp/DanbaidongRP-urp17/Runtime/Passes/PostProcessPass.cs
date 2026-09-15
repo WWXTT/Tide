@@ -1646,6 +1646,9 @@ namespace UnityEngine.Rendering.Universal
                     m_ColorLookup.contribution.value)
             );
 
+            material.SetVector(ShaderConstants._GTToneMap_Params0, new Vector4(m_Tonemapping.maxBrightness.value, m_Tonemapping.contrast.value, m_Tonemapping.linearSectionStart.value, m_Tonemapping.linearSectionLength.value));
+            material.SetVector(ShaderConstants._GTToneMap_Params1, new Vector4(m_Tonemapping.blackPow.value, m_Tonemapping.blackMin.value, 0.0f, 0.0f));
+
             if (hdr)
             {
                 material.EnableKeyword(ShaderKeywordStrings.HDRGrading);
