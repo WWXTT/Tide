@@ -152,7 +152,7 @@ namespace CardCore
         /// <summary>
         /// 单个原子的元素费用：
         /// 检索＝筛选维度系数；其余＝round(BaseCost×CostMultiplier×max(1,Value)×持续折扣)，
-        /// 固定数量再 ×N；抽牌按所挂减费缺陷累减（下限 0）。
+        /// 固定数量再 ×N（减费已归代价 Payload 体系——抽牌缺陷累减 2026-09-16 退役）。
         ///
         /// 持续时间计价（2026-09-10 上移定案后）：持续唯一真相在组合层（def.Duration），
         /// 折扣 = D(def.Duration)/D(Once)——**Once 为绝对锚**（Once 族系数恒 1，
@@ -170,13 +170,13 @@ namespace CardCore
             => type == AtomicEffectType.SweepDamage || type == AtomicEffectType.SweepHeal;
 
         /// <summary>数量乘数：固有全域原子=1；SummonToken=1（数量已含在量级 max(count,模板费)）；
-        /// Full 全域按期望 4（TargetCount 是 converter 兜底噪声，不代表真实目标数）；
+        /// 全取档（Whole/WholeUnion，2026-09-16 六值迁移）按期望 4（TargetCount 是 converter 兜底噪声，不代表真实目标数）；
         /// 其余显式 TargetCount&gt;1 用之；任意（≤0）按期望 4。</summary>
         private static int QuantityMultiplier(AtomicEffectType type, EffectDefinition def)
         {
             if (IsIntrinsicSweep(type)) return 1;
             if (type == AtomicEffectType.SummonToken) return 1;
-            if (def.SelectionMode == SelectionMode.Full) return FullModeExpectedTargets;
+            if (SelectionModeRules.IsTakeAll(def.SelectionMode)) return FullModeExpectedTargets;
             int n = def.TargetCount;
             return n > 0 ? n : FullModeExpectedTargets;
         }
@@ -275,18 +275,6 @@ namespace CardCore
             float triggerFactor = TriggerCostFactor(def);
             if (triggerFactor > 1f)
                 amount = (int)Math.Round(amount * triggerFactor, MidpointRounding.AwayFromZero);
-
-            // 抽牌减费缺陷（组合层）：每挂一个按 BranchConfig.json 给的减免累减，下限 0。
-            if (atom.Type == AtomicEffectType.DrawCard && def.Drawbacks != null)
-            {
-                foreach (var dbId in def.Drawbacks)
-                {
-                    if (string.IsNullOrEmpty(dbId)) continue;
-                    var db = BranchConfigTable.GetDrawback(dbId);
-                    if (db != null) amount -= db.CostReduction;
-                }
-                if (amount < 0) amount = 0;
-            }
 
             return amount;
         }

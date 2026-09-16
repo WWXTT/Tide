@@ -5,7 +5,7 @@ namespace CardCore
 {
     /// <summary>
     /// 对局随机服务（2026-09-13「两个随机」定案）：全场随机统一经此口——
-    /// 随机目标抽取（SelectionMode.Random）与数值随机（Value 幅度）都走这里，
+    /// 随机目标抽取（RandomTarget 标志，2026-09-16 自 SelectionMode 移出）与数值随机（Value 幅度）都走这里，
     /// 种子可复播（M3 网络同种子对拍/回放的前提；验证器可钉种子做确定性断言）。
     /// 与 Zones 洗牌 _rng 同款哲学、各管各的（合流留到网络对拍统一收口）。
     /// 新增随机一律走 GameRng，不再散用 UnityEngine.Random（确定性地雷）。

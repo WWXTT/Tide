@@ -1,8 +1,8 @@
 [
   {
-    "ID": "ab79ee2a",
+    "ID": "3057d8ac",
     "EnumName": "攻击",
-    "DisplayName": "攻击目标，结算战斗伤害后横置",
+    "DisplayName": "攻击{target}，结算战斗伤害后横置",
     "EffectColor": "Gray",
     "BaseCost": 1.0,
     "EffectType": "Attack",
@@ -12,9 +12,9 @@
     "MountKinds": "0"
   },
   {
-    "ID": "b3d9782d",
+    "ID": "1d703414",
     "EnumName": "守卫",
-    "DisplayName": "横置并转移对手攻击目标为自身",
+    "DisplayName": "横置并转移对手攻击目标，以此卡作为攻击对象",
     "EffectColor": "Gray",
     "BaseCost": 1.0,
     "EffectType": "Guard",
@@ -24,9 +24,9 @@
     "MountKinds": "0"
   },
   {
-    "ID": "615fc28b",
+    "ID": "a4b823fc",
     "EnumName": "造成伤害",
-    "DisplayName": "对目标造成{value}点伤害",
+    "DisplayName": "对{target}造成{value}点伤害",
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "DealDamage",
@@ -36,9 +36,9 @@
     "MountKinds": "0,3,4,7"
   },
   {
-    "ID": "d2720caf",
+    "ID": "599fcc9a",
     "EnumName": "回复生命",
-    "DisplayName": "为目标回复{value}点生命",
+    "DisplayName": "为{target}回复{value}点生命",
     "EffectColor": "Green",
     "BaseCost": 0.5,
     "EffectType": "Heal",
@@ -48,9 +48,9 @@
     "MountKinds": "0,3,4,7"
   },
   {
-    "ID": "3c678110",
+    "ID": "c6734fff",
     "EnumName": "穿透伤害",
-    "DisplayName": "对目标造成{value}点穿透伤害（无视关键词与指示物）",
+    "DisplayName": "对{target}造成{value}点穿透伤害（无视关键词与指示物）",
     "EffectColor": "Red",
     "BaseCost": 1.5,
     "EffectType": "PierceDamage",
@@ -60,9 +60,9 @@
     "MountKinds": "0,3,4,7"
   },
   {
-    "ID": "a5d8c66a",
+    "ID": "81ea17f3",
     "EnumName": "吸取",
-    "DisplayName": "吸取目标{value}点生命（造成伤害并回复生命）",
+    "DisplayName": "吸取{target}{value}点生命（造成伤害并回复生命）",
     "EffectColor": "Black",
     "BaseCost": 2.0,
     "EffectType": "DrainLife",
@@ -72,9 +72,9 @@
     "MountKinds": "0,3,4,7"
   },
   {
-    "ID": "9b86aa31",
+    "ID": "0c7dd9d2",
     "EnumName": "剧毒",
-    "DisplayName": "对目标附加剧毒指示物（回合结束时死亡）",
+    "DisplayName": "对{target}附加剧毒指示物（回合结束时死亡）",
     "EffectColor": "Black",
     "BaseCost": 3.0,
     "EffectType": "Poison",
@@ -108,9 +108,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "be13c16c",
+    "ID": "3e00ecd2",
     "EnumName": "弹回",
-    "DisplayName": "将目标单位从场上返回手牌",
+    "DisplayName": "将{target}单位从场上返回手牌",
     "EffectColor": "Blue",
     "BaseCost": 2.0,
     "EffectType": "ReturnToHand",
@@ -120,9 +120,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "4c8525cd",
+    "ID": "ae4c7937",
     "EnumName": "回收",
-    "DisplayName": "将目标卡从墓地返回手牌",
+    "DisplayName": "将{target}卡从墓地返回手牌",
     "EffectColor": "Blue",
     "BaseCost": 3.0,
     "EffectType": "RecoverToHand",
@@ -132,9 +132,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "f1b37855",
+    "ID": "0f5b8c17",
     "EnumName": "除外",
-    "DisplayName": "将目标单位从场上除外",
+    "DisplayName": "将{target}单位从场上除外",
     "EffectColor": "White",
     "BaseCost": 5.0,
     "EffectType": "Exile",
@@ -144,9 +144,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "6d939742",
+    "ID": "219bdb9f",
     "EnumName": "洗回",
-    "DisplayName": "将目标单位从场上洗入牌库",
+    "DisplayName": "将{target}单位从场上洗入牌库",
     "EffectColor": "Blue",
     "BaseCost": 3.0,
     "EffectType": "ShuffleIntoDeck",
@@ -156,9 +156,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "fc49d799",
+    "ID": "557f95e5",
     "EnumName": "洗入",
-    "DisplayName": "将目标卡洗入牌库",
+    "DisplayName": "将{target}卡洗入牌库",
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "ShuffleIntoDeck",
@@ -180,9 +180,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "81ecd1c7",
+    "ID": "bde084f6",
     "EnumName": "苏生",
-    "DisplayName": "苏生：从墓地返回目标到己方战场",
+    "DisplayName": "苏生：从墓地返回{target}到己方战场",
     "EffectColor": "White",
     "BaseCost": 5.0,
     "EffectType": "ReturnFromGraveyard",
@@ -216,9 +216,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "df96e6c6",
+    "ID": "70034aee",
     "EnumName": "设置攻击力",
-    "DisplayName": "将目标攻击力设为{value}",
+    "DisplayName": "将{target}攻击力设为{value}",
     "EffectColor": "Green",
     "BaseCost": 9.0,
     "EffectType": "SetPower",
@@ -228,9 +228,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "ce59ba16",
+    "ID": "38a43580",
     "EnumName": "设置生命值",
-    "DisplayName": "将目标生命值设为{value}",
+    "DisplayName": "将{target}生命值设为{value}",
     "EffectColor": "Green",
     "BaseCost": 9.0,
     "EffectType": "SetLife",
@@ -240,9 +240,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "638e6adf",
+    "ID": "a9beb7b4",
     "EnumName": "设置费用",
-    "DisplayName": "将目标的费用设为{value}",
+    "DisplayName": "将{target}的费用设为{value}",
     "EffectColor": "Blue",
     "BaseCost": 9.0,
     "EffectType": "SetCost",
@@ -252,9 +252,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "a2f82a34",
+    "ID": "40af2c9c",
     "EnumName": "费用增加",
-    "DisplayName": "为目标添加{value}个费用增加指示物",
+    "DisplayName": "为{target}添加{value}个费用增加指示物",
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "AddCostUp",
@@ -264,9 +264,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "47778da8",
+    "ID": "46ba80ca",
     "EnumName": "费用减少",
-    "DisplayName": "为目标添加{value}个费用减少指示物",
+    "DisplayName": "为{target}添加{value}个费用减少指示物",
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "AddCostDown",
@@ -276,9 +276,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "20e8ab89",
+    "ID": "c01bcd8f",
     "EnumName": "攻击力增加",
-    "DisplayName": "为目标添加{value}个攻击力增加指示物",
+    "DisplayName": "为{target}添加{value}个攻击力增加指示物",
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "AddPowerUp",
@@ -288,9 +288,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "f7fd0646",
+    "ID": "2650f270",
     "EnumName": "攻击力减少",
-    "DisplayName": "为目标添加{value}个攻击力减少指示物",
+    "DisplayName": "为{target}添加{value}个攻击力减少指示物",
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "AddPowerDown",
@@ -300,9 +300,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "e0bed832",
+    "ID": "4de69242",
     "EnumName": "生命值增加",
-    "DisplayName": "为目标添加{value}个生命值增加指示物",
+    "DisplayName": "为{target}添加{value}个生命值增加指示物",
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "AddLifeUp",
@@ -312,9 +312,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "80579c02",
+    "ID": "374445c6",
     "EnumName": "生命值减少",
-    "DisplayName": "为目标添加{value}个生命值减少指示物",
+    "DisplayName": "为{target}添加{value}个生命值减少指示物",
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "AddLifeDown",
@@ -324,9 +324,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "e77b2bc0",
+    "ID": "f6afe078",
     "EnumName": "属性增加",
-    "DisplayName": "为目标添加{value}个属性增加指示物（+1/+1）",
+    "DisplayName": "为{target}添加{value}个属性增加指示物（+1/+1）",
     "EffectColor": "White",
     "BaseCost": 1.0,
     "EffectType": "AddPlusOne",
@@ -336,9 +336,9 @@
     "MountKinds": "0,4,2"
   },
   {
-    "ID": "64192531",
+    "ID": "2d1b6adf",
     "EnumName": "属性减少",
-    "DisplayName": "为目标添加{value}个属性减少指示物（-1/-1）",
+    "DisplayName": "为{target}添加{value}个属性减少指示物（-1/-1）",
     "EffectColor": "Black",
     "BaseCost": 1.0,
     "EffectType": "AddMinusOne",
@@ -348,9 +348,9 @@
     "MountKinds": "0,4,2"
   },
   {
-    "ID": "51e31ad5",
+    "ID": "58cf21a1",
     "EnumName": "毒刺",
-    "DisplayName": "造成战斗伤害时，改为对目标添加一个毒素指示物",
+    "DisplayName": "造成战斗伤害时，改为对{target}添加一个毒素指示物",
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "GrantPoisonSting",
@@ -372,9 +372,9 @@
     "MountKinds": "0,4,1,5"
   },
   {
-    "ID": "d3f3996c",
+    "ID": "d8de5946",
     "EnumName": "潜行",
-    "DisplayName": "不会成为攻击和效果的目标，发动效果后移除潜行",
+    "DisplayName": "不会成为攻击和效果的{target}，发动效果后移除潜行",
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "GrantStealth",
@@ -396,9 +396,9 @@
     "MountKinds": "0,4,1,5"
   },
   {
-    "ID": "b8bfd901",
+    "ID": "13b63a87",
     "EnumName": "碾压",
-    "DisplayName": "获得碾压：攻击结算时，对目标以及目标相邻单位造成战斗伤害",
+    "DisplayName": "获得碾压：攻击结算时，对{target}以及{target}相邻单位造成战斗伤害",
     "EffectColor": "Red",
     "BaseCost": 3.0,
     "EffectType": "GrantOverwhelm",
@@ -420,9 +420,9 @@
     "MountKinds": "0,4,1,5"
   },
   {
-    "ID": "96f16089",
+    "ID": "0490b22c",
     "EnumName": "先攻",
-    "DisplayName": "战斗结算时，先造成战斗伤害，如果目标死亡，则无法反击",
+    "DisplayName": "战斗结算时，先造成战斗伤害，如果{target}死亡，则无法反击",
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "GrantFirstStrike",
@@ -432,9 +432,9 @@
     "MountKinds": "0,4,1,5"
   },
   {
-    "ID": "e62da629",
+    "ID": "2e6955f0",
     "EnumName": "法术护盾",
-    "DisplayName": "目标获得法术护盾",
+    "DisplayName": "{target}获得法术护盾",
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "GrantSpellShield",
@@ -444,9 +444,9 @@
     "MountKinds": "0,4,1,5"
   },
   {
-    "ID": "4fa2abee",
+    "ID": "e006ea39",
     "EnumName": "扰魔",
-    "DisplayName": "不会成为效果目标（扰魔）",
+    "DisplayName": "不会成为效果{target}",
     "EffectColor": "White",
     "BaseCost": 2.0,
     "EffectType": "GrantCannotBeTargeted",
@@ -516,9 +516,9 @@
     "MountKinds": "0,4,1,5"
   },
   {
-    "ID": "f438a5e9",
+    "ID": "2a7d3092",
     "EnumName": "护甲",
-    "DisplayName": "为目标添加{value}点护甲",
+    "DisplayName": "为{target}添加{value}点护甲",
     "EffectColor": "Green",
     "BaseCost": 0.5,
     "EffectType": "AddArmor",
@@ -540,9 +540,9 @@
     "MountKinds": "0,4,2"
   },
   {
-    "ID": "2ccdc6cd",
+    "ID": "a9732a48",
     "EnumName": "沉默",
-    "DisplayName": "对目标附加沉默指示物（不可发动主动效果）",
+    "DisplayName": "对{target}附加沉默指示物（不可发动主动效果）",
     "EffectColor": "White",
     "BaseCost": 1.0,
     "EffectType": "Silence",
@@ -552,9 +552,9 @@
     "MountKinds": "0,4,2"
   },
   {
-    "ID": "b5bb3de9",
+    "ID": "0e50cd8b",
     "EnumName": "无响应",
-    "DisplayName": "对目标附加无响应指示物（非启动式能力无法响应）",
+    "DisplayName": "对{target}附加无响应指示物（非启动式能力无法响应）",
     "EffectColor": "White",
     "BaseCost": 2.0,
     "EffectType": "AddNullify",
@@ -564,9 +564,9 @@
     "MountKinds": "0,4,2"
   },
   {
-    "ID": "f503d5cd",
+    "ID": "efc6de8a",
     "EnumName": "激励",
-    "DisplayName": "重置目标单位横置状态",
+    "DisplayName": "重置{target}单位横置状态",
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "Untap",
@@ -576,9 +576,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "69b7d29f",
+    "ID": "adb8456f",
     "EnumName": "缴械",
-    "DisplayName": "攻击时目标单位无法反击",
+    "DisplayName": "攻击时{target}单位无法反击",
     "EffectColor": "Red",
     "BaseCost": 1.0,
     "EffectType": "GrantDisarm",
@@ -588,9 +588,9 @@
     "MountKinds": "0,4,1,5"
   },
   {
-    "ID": "e5a7087d",
+    "ID": "b2f5d9bf",
     "EnumName": "生命流失",
-    "DisplayName": "目标失去{value}点生命（扣除生命上限）",
+    "DisplayName": "{target}失去{value}点生命（扣除生命上限）",
     "EffectColor": "Black",
     "BaseCost": 2.0,
     "EffectType": "LifeLoss",
@@ -600,9 +600,9 @@
     "MountKinds": "0,4,7"
   },
   {
-    "ID": "3d814637",
+    "ID": "a295546d",
     "EnumName": "冻结",
-    "DisplayName": "冻结目标：横置并放置冻结指示物（负面，持续到回合结束）",
+    "DisplayName": "冻结{target}：横置并放置冻结指示物（负面，持续到回合结束）",
     "EffectColor": "Blue",
     "BaseCost": 1.0,
     "EffectType": "Freeze",
@@ -612,9 +612,9 @@
     "MountKinds": "0,4,2,7"
   },
   {
-    "ID": "98710212",
+    "ID": "8b347e8e",
     "EnumName": "紊乱",
-    "DisplayName": "对目标附加{value}回合紊乱指示物（不能以玩家为攻击，效果目标）",
+    "DisplayName": "对{target}附加{value}回合紊乱指示物（不能以玩家为攻击，效果{target}）",
     "EffectColor": "Black",
     "BaseCost": 0.5,
     "EffectType": "RushSickness",
@@ -624,9 +624,9 @@
     "MountKinds": "0,4,2,7"
   },
   {
-    "ID": "fe49ceb5",
+    "ID": "baceb14b",
     "EnumName": "易损",
-    "DisplayName": "对目标附加易损指示物（持续1回合，受到伤害时每层+1）",
+    "DisplayName": "对{target}附加易损指示物（持续1回合，受到伤害时每层+1）",
     "EffectColor": "Black",
     "BaseCost": 1.0,
     "EffectType": "AddVulnerable",
@@ -636,9 +636,9 @@
     "MountKinds": "0,4,2"
   },
   {
-    "ID": "99d5cea3",
+    "ID": "d1bb3d9e",
     "EnumName": "获得控制",
-    "DisplayName": "获得目标的控制权",
+    "DisplayName": "获得{target}的控制权",
     "EffectColor": "Black",
     "BaseCost": 2.0,
     "EffectType": "GainControl",
@@ -660,9 +660,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "e4b597c4",
+    "ID": "ceea9f38",
     "EnumName": "净化",
-    "DisplayName": "净化目标：移除其全部关键词与指示物",
+    "DisplayName": "净化{target}：移除其全部关键词与指示物",
     "EffectColor": "White",
     "BaseCost": 1.0,
     "EffectType": "Purify",
@@ -672,9 +672,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "bcb21d67",
+    "ID": "9eba4ee1",
     "EnumName": "额外回合",
-    "DisplayName": "获得一个额外回合",
+    "DisplayName": "回合结束时，获得一个额外回合",
     "EffectColor": "Blue",
     "BaseCost": 9.0,
     "EffectType": "TakeExtraTurn",
@@ -684,9 +684,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "322f5e4a",
+    "ID": "85908c0a",
     "EnumName": "跳过准备阶段",
-    "DisplayName": "目标跳过下个回合准备阶段",
+    "DisplayName": "{target}跳过下个回合准备阶段",
     "EffectColor": "Blue",
     "BaseCost": 6.0,
     "EffectType": "SkipTurn",
@@ -696,9 +696,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "0087a01c",
+    "ID": "a7dcfb89",
     "EnumName": "跳过准备阶段",
-    "DisplayName": "目标跳过下个回合主要阶段",
+    "DisplayName": "{target}跳过下个回合主要阶段",
     "EffectColor": "Blue",
     "BaseCost": 6.0,
     "EffectType": "SkipTurn",
@@ -708,21 +708,21 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "ddd6f733",
+    "ID": "e004f1e7",
     "EnumName": "变形",
-    "DisplayName": "变形为目标（仅场上目标）",
+    "DisplayName": "此卡变形为另一个{target}单位",
     "EffectColor": "Blue",
-    "BaseCost": 3.0,
+    "BaseCost": 6.0,
     "EffectType": "Morph",
-    "TargetKinds": "0",
+    "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
-    "Polarity": 0.0,
+    "Polarity": 1.0,
     "MountKinds": "0,4"
   },
   {
-    "ID": "5ce13923",
+    "ID": "15a34e8f",
     "EnumName": "吞噬",
-    "DisplayName": "吞噬目标，回复生命，获得其关键词并消灭",
+    "DisplayName": "消灭{target}，并按其最大生命值回复等量生命",
     "EffectColor": "Black",
     "BaseCost": 5.0,
     "EffectType": "Devour",
@@ -732,9 +732,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "48980cf0",
+    "ID": "32e47cb1",
     "EnumName": "湮灭",
-    "DisplayName": "消灭目标并且赋予永久指示物无法苏生",
+    "DisplayName": "消灭{target}并且赋予永久指示物无法苏生",
     "EffectColor": "Black",
     "BaseCost": 5.0,
     "EffectType": "Annihilate",
@@ -744,9 +744,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "cc4f6990",
+    "ID": "009ffd35",
     "EnumName": "摧毁",
-    "DisplayName": "摧毁目标（无生命值单位：地牌/结界）",
+    "DisplayName": "摧毁{target}（无生命值单位：地牌/结界）",
     "EffectColor": "Black",
     "BaseCost": 3.0,
     "EffectType": "Smash",
@@ -780,9 +780,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "19e2454b",
+    "ID": "4fd4c954",
     "EnumName": "采掘",
-    "DisplayName": "去除目标地牌3个同类型元素指示物，获得1点对应元素",
+    "DisplayName": "去除{target}地牌3个同类型元素指示物，获得1点对应元素",
     "EffectColor": "Green",
     "BaseCost": 1.0,
     "EffectType": "AdditionalEnergy",
@@ -804,9 +804,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "8cf5c57c",
+    "ID": "82f5ef6f",
     "EnumName": "沉睡",
-    "DisplayName": "赋予目标沉睡：持续{value}回合（沉睡期间无法重置，效果无效）",
+    "DisplayName": "赋予{target}沉睡：持续{value}回合（沉睡期间无法重置，效果无效）",
     "EffectColor": "Green",
     "BaseCost": 2.0,
     "EffectType": "Sleep",
@@ -900,18 +900,6 @@
     "MountKinds": "0,3,4"
   },
   {
-    "ID": "a0014ebe",
-    "EnumName": "全体治疗",
-    "DisplayName": "对范围内全部有生命单位恢复{value}点生命（不弹选择、不可随机，全域结算）",
-    "EffectColor": "Green",
-    "BaseCost": 2.0,
-    "EffectType": "SweepHeal",
-    "TargetKinds": "1,2",
-    "TargetFilter": null,
-    "Polarity": 1.0,
-    "MountKinds": "0,3,4"
-  },
-  {
     "ID": "33f21d4c",
     "EnumName": "牺牲",
     "DisplayName": "持有者选择一个生物牺牲（效果死亡，来源为持有者，无视不灭）",
@@ -936,9 +924,9 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "2acf8573",
+    "ID": "d6837972",
     "EnumName": "冰晶",
-    "DisplayName": "造成战斗伤害时，改为对目标添加一个冻结指示物",
+    "DisplayName": "造成战斗伤害时，改为对{target}添加一个冻结指示物",
     "EffectColor": "Blue",
     "BaseCost": 2.0,
     "EffectType": "GrantIceCrystal",
@@ -948,9 +936,9 @@
     "MountKinds": "0,4,1,5"
   },
   {
-    "ID": "c0b1b0f8",
+    "ID": "641b73bc",
     "EnumName": "梦魇",
-    "DisplayName": "造成战斗伤害时，改为对目标添加一个沉睡指示物",
+    "DisplayName": "造成战斗伤害时，改为对{target}添加一个沉睡指示物",
     "EffectColor": "Black",
     "BaseCost": 2.0,
     "EffectType": "GrantNightmare",
@@ -960,9 +948,9 @@
     "MountKinds": "0,4,1,5"
   },
   {
-    "ID": "345ceda5",
+    "ID": "ff32deb5",
     "EnumName": "病原体",
-    "DisplayName": "造成战斗伤害时，改为对目标添加一个剧毒指示物",
+    "DisplayName": "造成战斗伤害时，改为对{target}添加一个剧毒指示物",
     "EffectColor": "Green",
     "BaseCost": 3.0,
     "EffectType": "GrantPathogen",
@@ -984,9 +972,9 @@
     "MountKinds": "0,4,1,5"
   },
   {
-    "ID": "225441a1",
+    "ID": "50f99c1b",
     "EnumName": "改写持有者",
-    "DisplayName": "改写目标的持有者（永久换手含控制权——弹回洗回回新主卡组手牌，死亡去新主墓地）",
+    "DisplayName": "改写{target}的持有者（永久换手含控制权——弹回洗回回新主卡组手牌，死亡去新主墓地）",
     "EffectColor": "Black",
     "BaseCost": 2.0,
     "EffectType": "ChangeOwner",
@@ -1000,7 +988,7 @@
     "EnumName": "对手胜利",
     "DisplayName": "效果控制者的对手获得胜利",
     "EffectColor": "Black",
-    "BaseCost": 0.0,
+    "BaseCost": 10.0,
     "EffectType": "DeclareVictory",
     "TargetKinds": "",
     "TargetFilter": null,
@@ -1012,7 +1000,7 @@
     "EnumName": "胜利",
     "DisplayName": "效果控制者获得胜利",
     "EffectColor": "White",
-    "BaseCost": 0.0,
+    "BaseCost": 10.0,
     "EffectType": "DeclareVictory",
     "TargetKinds": "",
     "TargetFilter": null,

@@ -66,12 +66,12 @@ namespace CardCore
         public int speed;              // BaseSpeed
         public int limit;              // TriggerLimitPerTurn
         public int duration;           // DurationType
-        public int selection;          // SelectionMode（-1=None）
+        public int selection;          // SelectionMode（-1=None；0-5=六值定案 2026-09-16）
         public int count;              // TargetCount（>0=N；0=全部；-1=任意[玩家自选数量=0费+不可作地牌]；-2=未声明）
+        public int random;             // RandomTarget（0/1——目标随机正交标志，与"选多少"无关）
         public int dropZone;           // SummonDropZone
         public int engine;             // BranchEngineKind（≠0 时 rewards 有效、steps 恒空）
         public int engineParam;
-        public List<string> drawbacks;
         public List<CostRef> costs;
         public List<StepRef> steps;
         public List<AtomicEffectEntry> rewards;  // 引擎奖励（engine≠0）
@@ -233,10 +233,10 @@ namespace CardCore
                 Duration = dto.duration,
                 SelectionMode = dto.selection,
                 TargetCount = dto.count,
+                RandomTarget = dto.random,
                 SummonDropZone = dto.dropZone,
                 EngineKind = dto.engine,
                 EngineParam = dto.engineParam,
-                Drawbacks = dto.drawbacks != null ? new List<string>(dto.drawbacks) : new List<string>(),
                 Costs = ToCostEntries(dto.costs),
             };
             if (dto.engine != (int)BranchEngineKind.None)

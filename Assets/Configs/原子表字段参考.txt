@@ -1,4 +1,4 @@
-原子表 AttributeValueConfig.json 字段参考（2026-09-11 生成；改表前看一眼防错）
+原子表 AttributeValueConfig.json 字段参考（2026-09-11 生成；2026-09-16 补 TargetKinds 分区全体与 MountKinds；改表前看一眼防错）
 ====================================================================
 
 枚举全部 88 个 = 可写进表的 86 个 + 刻意不实现 2 个：
@@ -27,10 +27,47 @@ Grant族(域=0)（18）: GrantDoubleStrike GrantFirstStrike GrantOverwhelm Grant
   13 = 己方元素池（地牌）                        14 = 对方元素池
   15 = 己方发动区（反制指向落点）                16 = 对方发动区
 写法：null 或 ""（空串）= 无目标原子（不参与卡的组合域交集）；"1,2"=逗号分隔多值。
-★ 常见笔误：坟场是 9/10（不是 3/4——3/4 是无生命单位/结界）；
-  牌库是 7/8、手牌是 5/6。
 ★ 隐藏区（7/8 牌库、6 对方手牌）域的原子：卡上 SelectionMode 用 None(-1) 自结算，
-  不弹目标选择；公开区（战场/坟场）才用 Manual(1)。
+  不弹目标选择；公开区（战场/坟场）才用选一/选多档（0/1/3/4）。
+
+【SelectionMode 六值（2026-09-16 定案）= 数量（1/N/全）× 范围宽（单/多）】
+  0=单范围选一个（域={Self} 即源卡自身——旧 Self 溶解）
+  1=单范围选多个（所选必须同范围——构筑期域宽校验保证）
+  2=单范围全取          3=多范围选一个      4=多范围选多个      5=多范围全取
+  规则：一个 {target} 只能从一个范围选择——0/1/2 要求组合域恰为单一 TargetKind，
+  多范围域须用 3/4/5（构筑期校验，违反报错）。目标随机为正交标志 random（0/1），
+  不再占枚举位（随机1个=0/3+random、随机N个=1/4+random、随机全部≡5 无意义）。
+
+【TargetKinds × AoE 分区全体（2026-09-16 定案）】
+  AoE 不用专用原子：原子行 TargetKinds 指向分区 + 卡上效果级全取档（2 单范围 / 5 多范围）
+  = 该分区全部对象（候选全取、不弹选择、帷幕/扰魔不过滤=波及语义）。三个标准组合：
+    1    = 己方有生命单位全体（含己方角色）        —— 用 2
+    2    = 敌方有生命单位全体（含对方角色）        —— 用 2
+    1,2  = 双方全体                                —— 用 5
+  固有全域两行 SweepDamage/SweepHeal（TargetKinds="1,2"）即「双方全体」的一等实例，
+  converter 无条件强制 WholeUnion(5)、计价数量 ×1（范围溢价已含 BaseCost）；
+  普通原子 + 全取档的分区全体按期望 4 目标计价（CostDerivation.FullModeExpectedTargets）。
+★ 单体 AoE 混写笔误：只要单体就别配全取档——全取是"整分区"不是"目标数上限"。
+
+【MountKinds】可装载范围（MountKind.cs 10 值，CSV 多选同 TargetKinds 惯例；只许尾部追加）：
+  0 = ActiveEffect   可作主动效果（效果栏原子：登场/触发/启动式）
+  1 = Keyword        可作关键词（卡面自带印刷，如剧毒/嘲讽/回响）
+  2 = Counter        可作指示物（效果=赋予指示物，指示物承载持续规则）
+  3 = BranchTrunk    可作条件分支主干（产出可被 OutcomeGate 条件观测：伤害/治疗/宣言/预言族）
+  4 = BranchReward   可加入分支（条件达成的奖励原子）
+  5 = GrantOnCreature 可赋予生物（Grant 类授予的合法目标）
+  6 = GrantOnSpell   可赋予法术（回响等法术侧关键词）
+  7 = RandomMount    可挂载数值随机幅度（伤害/治疗族+限制型指示物层数随机，2026-09-13）
+  8 = TriggerCapImmutable 触发上限不可修改（**少数**，如坚韧）：触发式恒无每回合上限、
+      组合期不可加限；其余原子默认可修改且默认上限=一回合一次
+  9 = FreeBranchTrunk 自由分支主干（拼点/运势/倒计时——**只可落入合成器主干槽**，
+      写 header.EngineKind/EngineParam；MountKinds=9 的行必须显式只写 9，不与其余位混挂）
+写法：CSV 逗号分隔（"0,4" = 主动效果+分支奖励；"" 空串=未声明，消费方自行兜底）。
+★ 消费方：装载校验（CardLoader）/触发上限解析（CardEffectConverter.MountHasFlag(8)→
+  TriggerLimitPerTurn 恒 -1）/合成器可拖拽目录（ComposerCatalog 按 MountKinds 驱动检查器）。
+★ MountKinds **不进表指纹**（CardIdentityService.TableFingerprint 只哈希 EnumName/ManaList/
+  TargetKinds/TargetFilter/Polarity）——改它不触发卡身份换血/manifest 作废/重训，
+  只影响装载校验与合成器可挂范围。
 
 【TargetFilter】域内属性细化（逗号组合 = AND 语义；null/空 = 无过滤）：
   NoRole      = 仅生物（排除角色）

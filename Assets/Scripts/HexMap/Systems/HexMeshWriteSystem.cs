@@ -164,7 +164,7 @@ namespace HexMap
                     // 添加渲染组件（首次）或更新 MaterialMeshInfo
                     if (!EntityManager.HasComponent<MaterialMeshInfo>(cellEntity))
                     {
-                        var desc = new RenderMeshDescription(ShadowCastingMode.Off, receiveShadows: false);
+                        var desc = new RenderMeshDescription(ShadowCastingMode.On, receiveShadows: true);
                         RenderMeshUtility.AddComponents(cellEntity, EntityManager, desc, new MaterialMeshInfo(matID, meshID));
 
                         // 强制设置 LocalToWorld 为单位矩阵（RenderMeshUtility 可能会添加零矩阵）

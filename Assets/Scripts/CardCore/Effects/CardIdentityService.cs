@@ -22,7 +22,7 @@ namespace CardCore
     /// Id/DisplayName/Description/choices.label 是别名与展示，不参与（EffectChoiceData.label
     /// 注释「不参与哈希」的既有约定）。
     ///
-    /// 稳定性口径：Steps/原子序列保留书写序（= 执行序）；条件/代价/Drawback/关键词/tag/光环
+    /// 稳定性口径：Steps/原子序列保留书写序（= 执行序）；条件/代价/关键词/tag/光环
     /// 是无序叠加语义 → 规范化排序后再哈希（手抖调换行序不变身份）。
     /// </summary>
     public static class CardIdentityService
@@ -224,7 +224,7 @@ namespace CardCore
                       .Append(e.ActivationType).Append('|')
                       .Append(e.BaseSpeed).Append('|')
                       .Append(e.IsOptional ? 1 : 0).Append('|')
-                      .Append(e.Duration).Append('|').Append(e.SummonDropZone).Append('|').Append(e.SelectionMode).Append('|').Append(e.TargetCount).Append('|').Append(string.Join(",", (e.Drawbacks ?? new List<string>()).OrderBy(d => d, StringComparer.Ordinal))).Append('\n');
+                      .Append(e.Duration).Append('|').Append(e.SummonDropZone).Append('|').Append(e.SelectionMode).Append('|').Append(e.TargetCount).Append('|').Append(e.RandomTarget).Append('\n');
                     AppendConditions(sb, "AC", e.ActivationConditions);
                     AppendConditions(sb, "TC", e.TriggerConditions);
                     AppendCosts(sb, e.Costs);
@@ -338,7 +338,7 @@ namespace CardCore
               .Append(e.ActivationType).Append('|')
               .Append(e.BaseSpeed).Append('|')
               .Append(e.IsOptional ? 1 : 0).Append('|')
-              .Append(e.Duration).Append('|').Append(e.SummonDropZone).Append('|').Append(e.SelectionMode).Append('|').Append(e.TargetCount).Append('|').Append(string.Join(",", (e.Drawbacks ?? new List<string>()).OrderBy(d => d, StringComparer.Ordinal))).Append('\n');
+              .Append(e.Duration).Append('|').Append(e.SummonDropZone).Append('|').Append(e.SelectionMode).Append('|').Append(e.TargetCount).Append('|').Append(e.RandomTarget).Append('\n');
             AppendConditions(sb, "AC", e.ActivationConditions);
             AppendConditions(sb, "TC", e.TriggerConditions);
             AppendCosts(sb, e.Costs);

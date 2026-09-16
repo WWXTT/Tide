@@ -353,7 +353,7 @@ namespace CardCore
 
             // 扰魔/潜行过滤搬家（2026-09-13 定案）：候选域保留对方侧扰魔/潜行——
             // "不可成为目标"= 存在此范围但**弹窗不显示**，只有手动选择层滤（TargetResolver.ExcludeUnselectable）；
-            // 随机（SelectionMode.Random）与全域（Full）绕过选择、照常命中（范围波及）。
+            // 随机（RandomTarget 标志）与全取档（Whole/WholeUnion）绕过选择、照常命中（范围波及）。
             // 指名路径的硬校验仍在 EffectTargeting.CanTarget。法术护盾在效果执行时消耗（EffectHandlerRegistry），此处不滤。
 
             // 突袭紊乱限制（定案，与攻击同口径）：紊乱指示物存在期间，其发动的效果不准以玩家为目标

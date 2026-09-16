@@ -64,22 +64,52 @@ namespace CardCore
         EnemyActivation = 16,
     }
 
-    /// <summary>组合效果的目标选择模式（域=能指什么；模式=怎么选）。</summary>
+    /// <summary>
+    /// 组合效果的目标选择模式（2026-09-16 六值定案）= 数量（1/N/全）× 范围宽（单/多）的交叉积。
+    /// 原子的 TargetKinds = 该原子的全部可作用范围（多范围并集）；选择模式的"单范围"指组合域恰为单一 TargetKind。
+    /// 规则：**一个 {target} 只能从一个范围选择**——模式 0/1/2 要求组合域为单一 TargetKind
+    /// （构筑期域宽校验，CardLoader.ValidateComboDomains）；模式 3/4/5 候选=各范围并集（现状行为）。
+    /// 未来可能存在两个 {target}（如变形：一个目标变形成另一个目标）——届时每个 {target} 各绑
+    /// mode+范围，不得超出本规则（不实现，仅预留）。
+    /// 旧 Self 溶解：域={Self}+Single（选一即源卡自身）；随机移出枚举 → EffectDefinition.RandomTarget 正交标志。
+    /// </summary>
     public enum SelectionMode : int
     {
-        /// <summary>无目标（DrawCard 等）：域为空集，不参与交集约束。</summary>
+        /// <summary>无目标/区域自结算（DrawCard/磨牌/看顶等）：不解析候选、不弹选——handler 按域自结算。</summary>
         None = -1,
-        /// <summary>自身：源卡在组合域内校验，取源卡为唯一目标。</summary>
-        Self = 0,
-        /// <summary>手动：TargetSelectionService 交互选取（TargetCount/DynamicTargetCount 管数量）。
-        /// 弹窗显示域不含对方侧扰魔/潜行（2026-09-13 定案：存在此范围但弹窗不显示——AI/无头代替选取同口径）。</summary>
-        Manual = 1,
-        /// <summary>全域：候选全取（旧 All/AllAllies/AllEnemies 的运行时行为）——扰魔/潜行照常命中（范围波及）。</summary>
-        Full = 2,
-        /// <summary>随机（2026-09-13 定案）：范围存在且目标数&gt;0 时不弹窗，随机种子自动抽取——
-        /// TargetCount 管抽取个数（count≤0 全部档随机无意义 ≡ Full）；从**完整候选域**抽取，
-        /// 绕过选择：扰魔/潜行可被随机命中（不可被"选"≠不可被随机/范围波及）。与 DynamicTargetCount 互斥（构筑校验）。</summary>
-        Random = 3,
+        /// <summary>单范围·选一个单位（域={Self} 时=源卡自身，不弹交互）。</summary>
+        Single = 0,
+        /// <summary>单范围·选多个单位（TargetCount/DynamicTargetCount 管数量——所选必须同范围，域宽校验保证）。</summary>
+        Multiple = 1,
+        /// <summary>单范围·全取整个范围。</summary>
+        Whole = 2,
+        /// <summary>多范围·选一个单位（候选=各范围并集，弹窗显示域不含对方侧扰魔/潜行——2026-09-13 口径）。</summary>
+        SingleUnion = 3,
+        /// <summary>多范围·选多个单位（可跨范围混选）。</summary>
+        MultipleUnion = 4,
+        /// <summary>多范围·全取全部范围（旧 Full——"AoE=TargetKinds 分区全体"，扰魔/潜行照常命中）。</summary>
+        WholeUnion = 5,
+    }
+
+    /// <summary>SelectionMode 静态规则：六值按数量三维归并 + 单范围域宽判定。
+    /// 运行时只实现三个行为（0/3 同路、1/4 同路、2/5 同路）——单/多的差别是数据契约（构筑期校验），不是运行时分支。</summary>
+    public static class SelectionModeRules
+    {
+        /// <summary>选一个（Single=0 / SingleUnion=3）。</summary>
+        public static bool IsPickOne(SelectionMode mode)
+            => mode == SelectionMode.Single || mode == SelectionMode.SingleUnion;
+
+        /// <summary>选多个（Multiple=1 / MultipleUnion=4）。</summary>
+        public static bool IsPickMany(SelectionMode mode)
+            => mode == SelectionMode.Multiple || mode == SelectionMode.MultipleUnion;
+
+        /// <summary>全取（Whole=2 / WholeUnion=5）。</summary>
+        public static bool IsTakeAll(SelectionMode mode)
+            => mode == SelectionMode.Whole || mode == SelectionMode.WholeUnion;
+
+        /// <summary>单范围模式（0/1/2）——组合域须为单一 TargetKind（构筑期校验）。</summary>
+        public static bool IsSingleScope(SelectionMode mode)
+            => mode == SelectionMode.Single || mode == SelectionMode.Multiple || mode == SelectionMode.Whole;
     }
 
     /// <summary>TargetKind 静态规则：区域映射、类别判定、解析与格式化（表列/JSON 存逗号分隔 int 串）。</summary>

@@ -246,7 +246,7 @@ namespace CardCore.Editor
       ""cardName"": ""火球术"", ""supertype"": ""Spell"",
       ""costList"": [ { ""manaType"": 1, ""amount"": 3.0 }, { ""manaType"": 2, ""amount"": 2.0 } ],
       ""keywords"": [], ""effects"": [
-        { ""Id"": ""FIREBALL_MAIN"", ""TriggerTiming"": 0, ""SelectionMode"": 1, ""TargetCount"": 1,
+        { ""Id"": ""FIREBALL_MAIN"", ""TriggerTiming"": 0, ""SelectionMode"": 0, ""TargetCount"": 1,
           ""AtomicEffects"": [ { ""refId"": ""615fc28b"", ""value"": 4 } ] },
         { ""Id"": ""FIREBALL_DRAW"", ""TriggerTiming"": 0, ""SelectionMode"": -1,
           ""AtomicEffects"": [ { ""refId"": ""120ad4d1"", ""value"": 1 } ] } ]
@@ -263,7 +263,7 @@ namespace CardCore.Editor
       ""cardName"": ""抉择试作"", ""supertype"": ""Spell"",
       ""costList"": [ { ""manaType"": 1, ""amount"": 2.0 } ],
       ""keywords"": [], ""effects"": [
-        { ""Id"": ""MODAL_MAIN"", ""TriggerTiming"": 0, ""SelectionMode"": 1, ""TargetCount"": 1,
+        { ""Id"": ""MODAL_MAIN"", ""TriggerTiming"": 0, ""SelectionMode"": 0, ""TargetCount"": 1,
           ""Steps"": [ { ""kind"": 2, ""choices"": [
             { ""label"": ""烈焰"", ""steps"": [ { ""kind"": 0, ""atomic"": { ""refId"": ""615fc28b"", ""value"": 4 } } ] },
             { ""label"": ""灵感"", ""steps"": [ { ""kind"": 0, ""atomic"": { ""refId"": ""120ad4d1"", ""value"": 1 } } ] } ] } ] } ]
@@ -631,7 +631,7 @@ namespace CardCore.Editor
                         new CardEffectData
                         {
                             Id = "VERIFY_TDM_PROBE",
-                            SelectionMode = (int)CardCore.SelectionMode.Manual, // 显式 Manual：None=区域自结算类会早真（2026-09-13 对齐）
+                            SelectionMode = (int)CardCore.SelectionMode.Single, // 显式选一：None=区域自结算类会早真（2026-09-13 对齐）
                             AtomicEffects = new List<AtomicEffectEntry>
                             {
                                 AtomRefs.New(AtomicEffectType.Untap, value: 1),
@@ -2333,9 +2333,7 @@ namespace CardCore.Editor
             Assert(BranchConfigTable.GetByEffectType("DeclareHand")?.Conditions.Count >= 2, "宣言族 2 条件（DeclareHit/DeclareMiss）");
             Assert(BranchConfigTable.GetByEffectType("ProphecyNextCard")?.Conditions.Count >= 2, "预言族 2 条件（ProphecyHit/ProphecyMiss）");
 
-            Assert(BranchConfigTable.GetDrawback("UnusableThisTurn")?.CostReduction == 1
-                   && BranchConfigTable.GetDrawback("DiscardAtEndOfTurnIfInHand")?.CostReduction == 1,
-                   "抽牌减费缺陷 ×2 各 −1（设计文稿值）");
+            // 抽牌减费缺陷目录已随减费归入代价体系退役（2026-09-16）——减负表达走代价栏 Payload 原子
             // 检索改宣言卡名（ExactCard 单档；TypePlusRace/SingleDimension 不再可表达，已删）
             Assert(BranchConfigTable.GetFilterTier("ExactCard")?.Cost == 3
                    && BranchConfigTable.GetFilterTier("TypePlusRace") == null
@@ -2667,7 +2665,7 @@ namespace CardCore.Editor
                     DisplayName = withSickness ? "突袭" : "冲锋",
                     Description = "登场：激励自身——解除横置",
                     TriggerTiming = (int)TriggerTiming.OnPlay,
-                    SelectionMode = (int)CardCore.SelectionMode.Self,
+                    SelectionMode = (int)CardCore.SelectionMode.Single,
                 };
                 eff.AtomicEffects = new List<AtomicEffectEntry>
                 {
@@ -4495,9 +4493,9 @@ namespace CardCore.Editor
                 return data;
             }
 
-            // 定速法术（BaseSpeed 声明卡面速度）：kinds 实例域收窄 + 手动/全域选择
+            // 定速法术（BaseSpeed 声明卡面速度）：kinds 实例域收窄 + 选一/全取选择
             CardData SpeedSpellData(string id, int baseSpeed, AtomicEffectType atom, int value,
-                List<int> kinds, CardCore.SelectionMode mode = CardCore.SelectionMode.Manual)
+                List<int> kinds, CardCore.SelectionMode mode = CardCore.SelectionMode.Single)
             {
                 var data = new CardData { ID = id, CardName = id, Supertype = Cardtype.Spell };
                 data.Effects.Add(new CardEffectData
@@ -4522,7 +4520,7 @@ namespace CardCore.Editor
                     DisplayName = "对全体敌人" + value + "伤",
                     TriggerTiming = (int)TriggerTiming.OnPlay,
                     BaseSpeed = 1,
-                    SelectionMode = (int)CardCore.SelectionMode.Full,
+                    SelectionMode = (int)CardCore.SelectionMode.Whole,
                     AtomicEffects = new List<AtomicEffectEntry>
                     {
                         AtomRefs.New(AtomicEffectType.DealDamage, value: value, kinds: new List<int> { 2 }),
@@ -5129,9 +5127,10 @@ namespace CardCore.Editor
         /// 两个随机端到端：
         /// ① 数值随机：RollValue 边界（3±100% 样本 ⊆[0,6] 且两端可达；幅度 0 恒名义值；
         ///    实例名义 Value 字段不随掷值漂移——计价锚点）；
-        /// ② 单位随机（SelectionMode.Random）：TargetCount=2 从完整候选域种子抽取（数量=2、成员⊆候选、
-        ///    不弹交互）；扰魔/潜行口径——手动显示域不含（弹窗不显示）、完整候选域含、随机可命中（绕过选择）；
-        ///    全部档（TargetCount=0）≡ Full 全取；Manual 预检用显示域（唯一候选是扰魔时不可发动）。
+        /// ② 单位随机（RandomTarget 标志，2026-09-16 自 SelectionMode 移出）：TargetCount=2 从完整候选域
+        ///    种子抽取（数量=2、成员⊆候选、不弹交互）；扰魔/潜行口径——手动显示域不含（弹窗不显示）、
+        ///    完整候选域含、随机可命中（绕过选择）；全部档（TargetCount≤0）≡全取；选一/选多预检用显示域
+        ///    （唯一候选是扰魔时不可发动）。
         /// </summary>
         private static void TestRandomness(GameCore core, Player p1, Player p2)
         {
@@ -5202,11 +5201,12 @@ namespace CardCore.Editor
             Assert(!manual.Contains(demon) && manual.Contains(plain),
                    "扰魔口径：手动显示域不含扰魔（弹窗不显示，AI/无头代替选取同口径）");
 
-            // ---- 2. Random 模式：TargetCount=2 不弹交互、从完整域抽取 ----
+            // ---- 2. 目标随机：TargetCount=2 不弹交互、从完整域抽取 ----
             var def = new CardCore.EffectDefinition
             {
                 Id = "VERIFY_RANDOM_2",
-                SelectionMode = CardCore.SelectionMode.Random,
+                SelectionMode = CardCore.SelectionMode.Multiple, // 单范围·选多（域={EnemyLivingUnit}）
+                RandomTarget = true,
                 TargetCount = 2,
                 TargetDomain = new List<int>(kinds),
             };
@@ -5224,25 +5224,26 @@ namespace CardCore.Editor
                     .Contains(demon);
             Assert(demonEverHit, "单位随机：随机可命中扰魔（绕过选择——不弹弹窗不受显示域限制）");
 
-            // 全部档（TargetCount=0）≡ Full 全取
+            // 全部档（TargetCount≤0）随机 ≡ 全取
             var defAll = new CardCore.EffectDefinition
             {
                 Id = "VERIFY_RANDOM_ALL",
-                SelectionMode = CardCore.SelectionMode.Random,
+                SelectionMode = CardCore.SelectionMode.Multiple,
+                RandomTarget = true,
                 TargetDomain = new List<int>(kinds),
             };
             var pickedAll = CardCore.Attribute.EffectHandlerRegistry
                 .ResolveCompositionTargetsAsync(defAll, ctx).GetAwaiter().GetResult();
-            Assert(pickedAll.Count == full.Count, $"单位随机：全部档 ≡ Full（{pickedAll.Count} vs {full.Count}）");
+            Assert(pickedAll.Count == full.Count, $"单位随机：全部档 ≡ 全取（{pickedAll.Count} vs {full.Count}）");
 
-            // ---- 3. Manual 预检走显示域：唯一候选是扰魔 → 不可发动 ----
+            // ---- 3. 选一预检走显示域：唯一候选是扰魔 → 不可发动 ----
             var loneDef = new CardCore.EffectDefinition
             {
                 Id = "VERIFY_RANDOM_MANUAL",
-                SelectionMode = CardCore.SelectionMode.Manual,
+                SelectionMode = CardCore.SelectionMode.Single,
                 TargetCount = 1,
                 // Stealth filter = 仅指潜行中——完整候选只剩新造的潜行单位（扰魔/普通被 filter 排除），
-                // 而 Manual 显示域又把它隐藏 → "完整域有候选、显示域空"的正交样本
+                // 而选一/选多显示域又把它隐藏 → "完整域有候选、显示域空"的正交样本
                 TargetDomain = new List<int> { (int)CardCore.TargetKind.EnemyLivingUnit },
                 TargetFilter = "Stealth",
             };
@@ -5313,36 +5314,37 @@ namespace CardCore.Editor
                    && combat.CanAttackTarget(attacker, curtain, p1),
                    "帷幕（2026-09-13 更名）：不拦攻击——角色/非帷幕/帷幕随从均可指（攻击侧由守卫承担）");
 
-            // ---- 2. 帷幕：效果侧选择层（Manual/Random 收窄；Full 不受限） ----
+            // ---- 2. 帷幕：效果侧选择层（选一/随机收窄；全取不受限） ----
             var manualDef = new CardCore.EffectDefinition
             {
-                Id = "VERIFY_TAUNT_M", SelectionMode = CardCore.SelectionMode.Manual,
+                Id = "VERIFY_TAUNT_M", SelectionMode = CardCore.SelectionMode.Single,
                 TargetCount = 1, TargetDomain = new List<int>(enemyKinds),
             };
             var manualPicked = CardCore.Attribute.EffectHandlerRegistry
                 .ResolveCompositionTargetsAsync(manualDef, ctx).GetAwaiter().GetResult();
             Assert(manualPicked.Count == 1 && manualPicked[0] == curtain,
-                   "帷幕效果侧：Manual 选择收窄为帷幕卡（角色/非帷幕随从不可选）");
+                   "帷幕效果侧：选一档选择收窄为帷幕卡（角色/非帷幕随从不可选）");
 
             var randDef = new CardCore.EffectDefinition
             {
-                Id = "VERIFY_TAUNT_R", SelectionMode = CardCore.SelectionMode.Random,
+                Id = "VERIFY_TAUNT_R", SelectionMode = CardCore.SelectionMode.Single,
+                RandomTarget = true,
                 TargetCount = 1, TargetDomain = new List<int>(enemyKinds),
             };
             var randPicked = CardCore.Attribute.EffectHandlerRegistry
                 .ResolveCompositionTargetsAsync(randDef, ctx).GetAwaiter().GetResult();
             Assert(randPicked.Count == 1 && randPicked[0] == curtain,
-                   "帷幕效果侧：Random 抽取池收窄为帷幕卡（指定与随机同受限）");
+                   "帷幕效果侧：随机抽取池收窄为帷幕卡（指定与随机同受限）");
 
             var fullDef = new CardCore.EffectDefinition
             {
-                Id = "VERIFY_TAUNT_F", SelectionMode = CardCore.SelectionMode.Full,
+                Id = "VERIFY_TAUNT_F", SelectionMode = CardCore.SelectionMode.Whole,
                 TargetDomain = new List<int>(enemyKinds),
             };
             var fullPicked = CardCore.Attribute.EffectHandlerRegistry
                 .ResolveCompositionTargetsAsync(fullDef, ctx).GetAwaiter().GetResult();
             Assert(fullPicked.Contains(other) && fullPicked.Contains(curtain),
-                   "帷幕效果侧：Full 全域不受限（范围波及照常命中全部）");
+                   "帷幕效果侧：全取档全域不受限（范围波及照常命中全部）");
 
             // ---- 3. 帷幕：外给目标收口（声明期 UI/AI 直给目标） ----
             var external = new List<Entity> { p2, other, curtain };
@@ -5381,8 +5383,8 @@ namespace CardCore.Editor
 
         /// <summary>
         /// 固有全域原子端到端：①表行锚（类型伤害 红3 Polarity=-1 域 1,2 / 全体治疗 绿2 Polarity=+1 域 1,2）
-        /// ②converter 强制 Full（显式 Manual 也覆写）③计价：固有全域数量 ×1（3伤=红9、回1=绿2）、
-        /// 普通原子挂 Full 按期望 4（DealDamage 3伤=红12）④行为：打出后对双方全部有生命单位（含角色）结算，无弹窗。
+        /// ②converter 强制 WholeUnion（显式选一也覆写）③计价：固有全域数量 ×1（3伤=红9、回1=绿2）、
+        /// 普通原子挂全取档按期望 4（DealDamage 3伤=红12）④行为：打出后对双方全部有生命单位（含角色）结算，无弹窗。
         /// </summary>
         private static void TestSweepAtoms(GameCore core, Player p1, Player p2)
         {
@@ -5400,19 +5402,19 @@ namespace CardCore.Editor
                    && ElementAffinities.GetAffinityForEffect(AtomicEffectType.SweepHeal).PrimaryColor == ManaType.Green,
                    "全体治疗表行：绿2 Polarity=+1 域={1,2}");
 
-            // ---- 2. converter 强制 Full（显式 Manual 也覆写）----
+            // ---- 2. converter 强制 WholeUnion（显式选一也覆写）----
             var data = new CardEffectData
             {
                 Id = "VERIFY_SWEEP_FORCE",
-                SelectionMode = (int)CardCore.SelectionMode.Manual, // 故意声明 Manual——固有全域应覆写为 Full
+                SelectionMode = (int)CardCore.SelectionMode.SingleUnion, // 故意声明选一——固有全域应覆写为全取
                 AtomicEffects = new List<AtomicEffectEntry>
                 {
                     AtomRefs.New(AtomicEffectType.SweepDamage, value: 1),
                 },
             };
             var forcedDef = CardEffectConverter.ConvertOne(data, "VERIFY_SWEEP");
-            Assert(forcedDef.SelectionMode == CardCore.SelectionMode.Full,
-                   "固有全域原子：显式 Manual 被 converter 强制覆写为 Full（不弹选择、不可随机）");
+            Assert(forcedDef.SelectionMode == CardCore.SelectionMode.WholeUnion && !forcedDef.RandomTarget,
+                   "固有全域原子：显式选一被 converter 强制覆写为 WholeUnion（不弹选择、不可随机）");
 
             // ---- 3. 计价：固有全域 ×1；普通原子 Full 档按期望 4 ----
             var dmgDef = CardEffectConverter.ConvertOne(new CardEffectData
@@ -5438,7 +5440,7 @@ namespace CardCore.Editor
             var fullDmgDef = CardEffectConverter.ConvertOne(new CardEffectData
             {
                 Id = "VERIFY_SWEEP_FULL3",
-                SelectionMode = (int)CardCore.SelectionMode.Full,
+                SelectionMode = (int)CardCore.SelectionMode.WholeUnion, // 普通原子挂全取档——按期望 4 计价
                 AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DealDamage, value: 3) },
             }, "VERIFY_SWEEP_FULL3");
             var fullCost = CardCore.CostDerivationService.DeriveElementCosts(fullDmgDef);
@@ -5582,9 +5584,9 @@ namespace CardCore.Editor
             {
                 Id = "VERIFY_SAC_CURTAIN",
                 // 2026-09-13 修复：缺省 SelectionMode=-1(None) 会让组合解析早退返回空目标——
-                // 显式 Manual（第十三批 TDM 探针同款坑）；TargetCount 缺省兜底 1 只选单目标，
-                // 断言要求双方角色都在 → 显式 2
-                SelectionMode = (int)CardCore.SelectionMode.Manual,
+                // 显式选多·多范围（牺牲域跨双方角色，第十三批 TDM 探针同款坑）；
+                // TargetCount 缺省兜底 1 只选单目标，断言要求双方角色都在 → 显式 2
+                SelectionMode = (int)CardCore.SelectionMode.MultipleUnion,
                 TargetCount = 2,
                 AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.Sacrifice, value: 1) },
             }, "VERIFY_SAC_CURTAIN");
@@ -5594,7 +5596,7 @@ namespace CardCore.Editor
                    "牺牲豁免帷幕：对手有帷幕卡时角色目标照常可选（选择权在持有者）");
             var dmgDef2 = new CardCore.EffectDefinition
             {
-                Id = "VERIFY_SAC_VS_DMG", SelectionMode = CardCore.SelectionMode.Manual,
+                Id = "VERIFY_SAC_VS_DMG", SelectionMode = CardCore.SelectionMode.Single,
                 TargetCount = 1,
                 TargetDomain = new List<int> { (int)CardCore.TargetKind.EnemyLivingUnit },
             };

@@ -319,8 +319,8 @@ namespace SynergyUI
 
         /// <summary>
         /// 通用目标选择（2026-09-10 组合域口径）：候选集 = def 预计算域 + 组合 filter（与引擎
-        /// ResolveCompositionTargetsAsync 同源）；按 SelectionMode 三态出目标——Self 取源卡（须在域内）、
-        /// Full 全取、Manual/None 按 def.TargetCount 数量 + 有害/有益偏好择优。
+        /// ResolveCompositionTargetsAsync 同源）；按 SelectionMode 六值三维出目标（2026-09-16）——
+        /// 全取档全取、选一/选多按数量 + 有害/有益偏好择优（域={Self} 的选一=取源卡自身）。
         /// 无偏好返回 null 交引擎自动解析。
         /// </summary>
         private static List<Entity> ChooseTargets(GameCore core, Player me, Card card, int modeIndex = 0)
@@ -335,17 +335,17 @@ namespace SynergyUI
 
             switch (def.SelectionMode)
             {
-                case SelectionMode.Self:
-                    // 源卡在组合域内校验后取为唯一目标（镜像引擎；不在域 → 交引擎按警告口径空转）
-                    return candidates.Contains(ctx.Source) ? new List<Entity> { ctx.Source } : null;
-
-                case SelectionMode.Full:
-                    return candidates.ToList(); // 全域全取
+                // 全取档（Whole/WholeUnion，2026-09-16 六值迁移）：全域全取
+                case SelectionMode.Whole:
+                case SelectionMode.WholeUnion:
+                    return candidates.ToList();
             }
 
-            // Manual：AI 机器选择——数量按 def.TargetCount（未声明回落 1），偏好按首个带域原子
-            //（None 已在 FirstDomainEffect 跳过，不会走到这里）
-            int need = def.TargetCount > 0 ? def.TargetCount : 1;
+            // 选一/选多（含域={Self} 的 Single——候选=[源卡]，通用路径 Take 即源卡自身）：
+            // AI 机器选择——数量按 def.TargetCount（未声明回落 1），偏好按首个带域原子
+            //（None 已在 FirstDomainEffect 跳过，不会走到这里；RandomTarget 不影响 AI 代替选取口径）
+            int need = SelectionModeRules.IsPickOne(def.SelectionMode) ? 1
+                : (def.TargetCount > 0 ? def.TargetCount : 1);
             var atomic = FirstTargetingAtomic(card, modeIndex, out _); // 仅作有害/有益偏好参考
             var opp = me.Opponent;
             IEnumerable<Entity> ordered;

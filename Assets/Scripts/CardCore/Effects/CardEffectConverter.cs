@@ -73,11 +73,10 @@ namespace CardCore
                 Duration = data.Duration >= 0 ? (DurationType)data.Duration : DurationType.Once,
                 SummonDropZone = (Zone)data.SummonDropZone,
                 SelectionMode = data.SelectionMode >= 0 ? (SelectionMode)data.SelectionMode : SelectionMode.None,
+                RandomTarget = data.RandomTarget != 0,
                 SourceCardId = sourceCardId,
                 ElementCostPrepaid = !isActivated,
             };
-            if (data.Drawbacks != null)
-                def.Drawbacks = new List<string>(data.Drawbacks);
 
             // 转换原子效果列表
             if (data.AtomicEffects != null)
@@ -150,30 +149,36 @@ namespace CardCore
 
             def.TargetCount = data.TargetCount != -2 ? data.TargetCount : FallbackTargetCount(def);
 
-            // Self 域找回（2026-09-11）：组合域恰为 {Self}（关键词/关键词型效果）且未显式声明选择模式
-            // → 自动 SelectionMode=Self（解析=源卡自身，不弹交互）。
+            // Self 域找回（2026-09-11；2026-09-16 Self 溶解为 Single）：组合域恰为 {Self}
+            //（关键词/关键词型效果）且未显式声明选择模式 → 自动 Single（选一=源卡自身，不弹交互）。
             if (def.TargetDomain != null && def.TargetDomain.Count == 1
                 && def.TargetDomain[0] == (int)TargetKind.Self && data.SelectionMode < 0)
             {
-                def.SelectionMode = SelectionMode.Self;
+                def.SelectionMode = SelectionMode.Single;
             }
 
             // 强制类目标闸（2026-09-16 三类弹窗口径定案）：强制类（Mandatory）自动入栈自动执行、
-            // **无目标选择窗口**——目标必须构筑期明确。声明 Manual（执行期弹选）属数据错误：
-            // 告警并强制 Full（域内全取，与固有全域原子同口径）。Self/Full/Random/None 均构筑期可解析。
-            if (activationType == EffectActivationType.Mandatory && def.SelectionMode == SelectionMode.Manual)
+            // **无目标选择窗口**——目标必须构筑期明确。声明选一/选多（执行期弹选）属数据错误：
+            // 告警并强制 WholeUnion（域内全取，与固有全域原子同口径）。
+            // 构筑期可解析的例外放行：域={Self} 的 Single（解析=源卡自身）、RandomTarget（种子自动抽取）、全取档。
+            if (activationType == EffectActivationType.Mandatory
+                && (SelectionModeRules.IsPickOne(def.SelectionMode) || SelectionModeRules.IsPickMany(def.SelectionMode))
+                && !def.RandomTarget
+                && !(def.SelectionMode == SelectionMode.Single && def.TargetDomain != null
+                     && def.TargetDomain.Count == 1 && def.TargetDomain[0] == (int)TargetKind.Self))
             {
-                Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 为强制类但声明 Manual" +
-                                 "（强制类无目标选择窗口，目标须构筑期明确）——已覆写为 Full");
-                def.SelectionMode = SelectionMode.Full;
+                Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 为强制类但声明选一/选多" +
+                                 "（强制类无目标选择窗口，目标须构筑期明确）——已覆写为 WholeUnion");
+                def.SelectionMode = SelectionMode.WholeUnion;
             }
 
-            // 固有全域原子（2026-09-13：类型伤害/全体治疗）：**无条件强制 Full**——
+            // 固有全域原子（2026-09-13：类型伤害/全体治疗）：**无条件强制 WholeUnion**——
             // 不弹选择窗口、以整个可选范围为目标、不可随机（显式声明其他模式属数据错误，
             // converter 覆写 + CardLoader 告警）。范围溢价已含 BaseCost（计价 ×1）。
             if (def.Effects.Any(a => a != null && CostDerivationService.IsIntrinsicSweep(a.Type)))
             {
-                def.SelectionMode = SelectionMode.Full;
+                def.SelectionMode = SelectionMode.WholeUnion;
+                def.RandomTarget = false;
             }
 
             // 转换代价列表

@@ -108,7 +108,6 @@ namespace CardCore.Serialization
         public const int AEI_TargetFilterOverride = 1665166535;
         public const int AEI_TargetCountOverride = 1101957053;
         public const int AEI_DynamicTargetCount = 1960296747;
-        public const int AEI_Drawbacks = 1476602083;
         public const int AEI_TargetKinds = 1052954153;
         public const int AEI_Amplitude = 1052954154;
         public const int AEI_ManaList = 902140877;

@@ -20,7 +20,7 @@ namespace UnityEditor.DanbaidongGUI
         // Created with texture(close OnLostFocus)
         public bool editWithTex = false;
 
-        [MenuItem("Tools/GradientsRampEditor")]
+        [MenuItem("Tools/美术/创建渐变贴图")]
         public static void ShowWindow()
         {
             var window = EditorWindow.GetWindow(typeof(GradientsRampEditorWindow));
