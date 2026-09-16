@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -135,10 +135,10 @@ namespace CardCore
         AddNullify,
 
         // ============ 战斗底盘（2026-09-10 攻击/守卫效果化：1速/2速主动效果，各 1 灰，不占槽） ============
-        /// <summary>攻击：1 速主动效果（横置发动）。附带竖直参战（结算按竖直，结算完恢复横置）。
+        /// <summary>攻击：速度0主动效果（2026-09-16；结算期横置支付）。附带竖直参战（结算按竖直，结算完恢复横置）。
         /// 生物默认自带（CardData.NoAttack 可退除）。战斗流程由 CombatSystem 消费，不走常规原子执行。</summary>
         Attack,
-        /// <summary>守卫：2 速响应拦截——友方被指为攻击目标时横置自身、转移目标；结算按横置（单向受伤）。
+        /// <summary>守卫：速度1响应拦截（2026-09-16）——友方被指为攻击目标时横置自身、转移目标；结算按横置（单向受伤）。
         /// 生物默认自带（CardData.NoGuard 可退除）。</summary>
         Guard,
 
@@ -199,67 +199,6 @@ namespace CardCore
         /// <summary>宣告胜利（2026-09-15，终局原子）：效果控制者的对手获得游戏胜利——
         /// 亡语「对手获得胜利」等终局效果载体。枚举只可尾部追加。</summary>
         DeclareVictory,
-    }
-
-    #region 效果分类扩展方法
-
-    /// <summary>
-    /// 效果类型扩展方法
-    /// </summary>
-    public static class AtomicEffectTypeExtensions
-    {
-       
-
-        /// <summary>
-        /// 获取效果描述模板（使用英文枚举作为 key）
-        /// </summary>
-        public static string GetEffectDescription(AtomicEffectType effectType, int value = 0)
-        {
-            
-            return "";
-        }
-    }
-
-    #endregion
-
-    #region 原子效果基类
-
-    /// <summary>
-    /// 原子效果基类
-    /// </summary>
-    [Serializable]
-    public abstract class AtomicEffectBase : IAtomicEffect
-    {
-        /// <summary>效果类型</summary>
-        public abstract AtomicEffectType EffectType { get; }
-
-        /// <summary>效果数值</summary>
-        public int Value;
-
-        /// <summary>效果修正器</summary>
-        public List<EffectModifier> Modifiers { get; set; } = new List<EffectModifier>();
-
-        /// <summary>
-        /// 执行效果
-        /// </summary>
-        public abstract void Execute(EffectExecutionContext context);
-
-        /// <summary>
-        /// 获取效果描述
-        /// </summary>
-        public virtual string GetDescription()
-        {
-            return AtomicEffectTypeExtensions.GetEffectDescription(EffectType, Value);
-        }
-    }
-
-    /// <summary>
-    /// 效果修正器
-    /// </summary>
-    [Serializable]
-    public class EffectModifier
-    {
-        public int Apply(int baseValue) => baseValue;
     }
 
     /// <summary>
@@ -383,6 +322,4 @@ namespace CardCore
             return baseValue;
         }
     }
-
-    #endregion
 }

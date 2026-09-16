@@ -1,11 +1,15 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using CardCore;
+using Cysharp.Threading.Tasks;
 
 namespace SynergyUI
 {
     /// <summary>
-    /// 对战编排器：负责组卡 / 初始化 GameCore、每帧驱动结算栈、补齐战斗结算链
-    /// （引擎里 CombatSystem.StartCombat 无人调用，此处在 UI 层按顺序补齐），以及驱动 AI 回合。
-    /// 不改任何 CardCore 引擎逻辑，仅按正确顺序调用既有 API。
+    /// 对战编排器：负责组卡 / 初始化 GameCore、棋盘接线，以及驱动 AI 回合。
+    /// 2026-09-16 战斗接入栈机器：攻击=速度0栈对象逐攻击开窗（引擎内闭环），
+    /// 旧"UI 层补齐战斗结算链"（BeginCombat/ResolveCombat）退役；
+    /// 响应窗口（发动弹窗）经 GameActions.SettleResponseWindowAsync 驱动，人类弹窗在此注册。
     /// </summary>
     public sealed class BattleController
     {
@@ -19,7 +23,6 @@ namespace SynergyUI
         public Player P2 => Core?.Player2;
         public Player TurnPlayer => Core?.TurnEngine?.TurnPlayer;
         public bool IsPlayerTurn => TurnPlayer != null && TurnPlayer == P1;
-        public bool InCombat => Core != null && Core.CombatSystem.InCombat;
 
         /// <summary>组双方卡组并初始化对局（卡组不重复：每种 1 张；起手含仪式占位、StartGame 发 GameStartEvent + 开 P1 回合）。</summary>
         public void StartNewGame()
@@ -49,42 +52,24 @@ namespace SynergyUI
             GameBoard.LinkAuraSystem.Attach(_board); // 连接光环（三轨制）：箭头指向格占据者享受 linkAuras
         }
 
-        // ======================================== 战斗结算链（补缺口） ========================================
+        // ======================================== 攻击与响应窗口（2026-09-16 逐攻击开窗） ========================================
 
-        /// <summary>进入战斗：StartCombat 当前在引擎里无人调用，是必补点。</summary>
-        public void BeginCombat()
-        {
-            var tp = TurnPlayer;
-            if (tp == null) return;
-            Core.CombatSystem.StartCombat(tp, tp.Opponent);
-        }
-
-        /// <summary>玩家声明一次攻击（GameActions 内部已校验 CanCombatAction + CanDeclareAttack）。</summary>
+        /// <summary>玩家声明一次攻击（速度0上栈开响应窗口）——窗口/结算由调用方接 SettleResponseWindowAsync。</summary>
         public bool DeclareAttack(Player attacker, Entity attackerUnit, Entity target)
         {
             return GameActions.DeclareAttack(Core, attacker, attackerUnit, target);
         }
 
-        /// <summary>
-        /// 结束战斗：先 EndAttackDeclaration（无攻击者则直接 EndCombat），
-        /// 若仍在战斗中（进入 SelectBlocker）则 EndBlockDeclaration 触发伤害结算 → EndCombat。
-        /// AI 不阻挡，故直接结算。
-        /// </summary>
-        public void ResolveCombat()
-        {
-            var combat = Core.CombatSystem;
-            if (!combat.InCombat) return;
-            combat.EndAttackDeclaration();
-            if (combat.InCombat)
-                combat.EndBlockDeclaration();
-        }
+        /// <summary>响应窗口泵（人类候选→弹窗由 HumanResponder 承担；AI→守卫启发；无候选→自动双 Pass）。</summary>
+        public UniTask SettleResponseWindow()
+            => GameActions.SettleResponseWindowAsync(Core);
 
         // ======================================== AI 回合 ========================================
 
-        /// <summary>把 P2 的整个回合交给极简脚本 AI 执行（顺序执行，末尾由调用方刷新界面）。</summary>
-        public void RunAiTurn()
+        /// <summary>把 P2 的整个回合交给极简脚本 AI 执行（异步：战斗窗口处可暂停等人类响应弹窗）。</summary>
+        public async UniTask RunAiTurnAsync()
         {
-            _ai.TakeTurn(this);
+            await _ai.TakeTurnAsync(this);
         }
     }
 }

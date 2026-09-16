@@ -210,18 +210,25 @@ namespace CardCore
                 // 特殊代价（2026-09-14 代价强制定案：付代价=得黑/白，补偿跟代价走）：
                 // 卡牌 cast 的特殊代价已在付费步**强制支付并补偿**（ResolveCardCastAsync，ElementCostPrepaid 标记）；
                 // 启动式/动态效果在此现付+补偿（同为强制路径 PayWithCompensationAsync——无选择窗口）。
+                // 2026-09-16 结算失败口径定案：费用付不出/目标为0 → **空转+日志，不回滚不断链**
+                //（入栈期已过滤可付性，此处失败=窗口内状态变化；已付不退，结算链继续）——
+                // 旧 EffectResolutionException 会中断整条 ResolveStack，已退役。
                 if (specialCosts.Count > 0 && !effect.ElementCostPrepaid)
                 {
                     if (!await CostCompensationService.PayWithCompensationAsync(specialCosts, costContext))
                     {
-                        throw new EffectResolutionException(instance.SourceEffect, $"Cost payment failed for effect {effect.Id}.");
+                        UnityEngine.Debug.LogWarning($"[EffectExecutor] 效果 {effect.Id} 特殊代价付不出——空转（不回滚不断链）");
+                        instance.IsResolved = true;
+                        return;
                     }
                 }
 
                 if (!skipElementCost && !effect.ElementCostPrepaid && elementCosts.Count > 0 &&
                     !ElementCostPayment.Pay(elementCosts, costContext))
                 {
-                    throw new EffectResolutionException(instance.SourceEffect, $"Element cost payment failed for effect {effect.Id}.");
+                    UnityEngine.Debug.LogWarning($"[EffectExecutor] 效果 {effect.Id} 元素费付不出——空转（不回滚不断链）");
+                    instance.IsResolved = true;
+                    return;
                 }
             }
 
@@ -233,17 +240,34 @@ namespace CardCore
 
             // 节点化步骤非空 → per-target 步骤遍历（含 OutcomeGate 分支）；
             // 为空 → 退化为扁平 Effects 线性结算（向后兼容）。
+            // 片段收集（2026-09-16 描述接口化）：逐原子在执行后经 handler.GetDescription(atom, context)
+            // 捕获片段（此刻目标=当前目标、LastOutcome=真实产出），末尾聚合为效果级完整文本。
+            var fragments = new List<string>();
             if (effect.Steps != null && effect.Steps.Count > 0)
             {
-                await ExecuteStepsAsync(effect, context);
+                await ExecuteStepsAsync(effect, context, fragments);
             }
             else
             {
-                await ExecuteFlatAsync(effect, context);
+                await ExecuteFlatAsync(effect, context, fragments);
             }
 
             // 标记已结算
             instance.IsResolved = true;
+
+            // 效果级完整描述（2026-09-16 定案，仅效果级）：聚合写入栈对象 + 发布
+            //（战报/UI 栈显示/回放的唯一文本源；原子片段不单独出口）
+            if (fragments.Count > 0)
+            {
+                var who = context.Controller != null ? $"{EffectText.Name(context.Controller)} 的 " : "";
+                var name = string.IsNullOrEmpty(effect.DisplayName) ? effect.Id : effect.DisplayName;
+                instance.ExecutionSummary = $"{who}{name}：{string.Join("；", fragments)}";
+                EventManager.Instance.Publish(new EffectExecutionSummaryEvent
+                {
+                    Instance = instance,
+                    Description = instance.ExecutionSummary
+                });
+            }
 
             // 记录使用次数（触发式已在 ProcessTriggeredEffects 入栈时记账，此处防双记）
             if (instance.TriggeringEvent == null)
@@ -260,7 +284,8 @@ namespace CardCore
         /// <summary>
         /// 扁平线性结算（旧路径，无分支）：保持原三阶段事件语义与逐原子执行。
         /// </summary>
-        private async UniTask ExecuteFlatAsync(EffectDefinition effect, EffectExecutionContext context)
+        private async UniTask ExecuteFlatAsync(EffectDefinition effect, EffectExecutionContext context,
+            List<string> fragments)
         {
             if (effect.Effects == null || effect.Effects.Count == 0)
                 return;
@@ -278,6 +303,7 @@ namespace CardCore
             foreach (var atomicEffect in effect.Effects)
             {
                 await EffectHandlerRegistry.ExecuteEffectAsync(atomicEffect, context);
+                CaptureDescription(atomicEffect, context, fragments);
                 // 错边黑白发放（2026-09-11 定案）：原子结算后按实际命中侧别判定，每原子一次发放事件
                 var flatHits = new Dictionary<AtomicEffectInstance, int>();
                 CollectWrongSideHits(atomicEffect, context.Controller, context.Targets, flatHits);
@@ -297,9 +323,10 @@ namespace CardCore
         /// 若紧随其后是 OutcomeGate 分支步骤，则在同一目标循环体内立即评估并执行 then/else（奖励免费）。
         /// 抉择（Choice）步骤：按 context.ModeIndex 只执行所选模式的子序列（converter 已保证不嵌套）。
         /// </summary>
-        private async UniTask ExecuteStepsAsync(EffectDefinition effect, EffectExecutionContext context)
+        private async UniTask ExecuteStepsAsync(EffectDefinition effect, EffectExecutionContext context,
+            List<string> fragments)
         {
-            await ExecuteStepSequenceAsync(effect.Steps, effect, context);
+            await ExecuteStepSequenceAsync(effect.Steps, effect, context, fragments);
         }
 
         /// <summary>
@@ -309,7 +336,7 @@ namespace CardCore
         /// 步骤层不再逐原子解析——全部原子共享同一份目标序列（与扁平路径语义统一）。
         /// </summary>
         private async UniTask ExecuteStepSequenceAsync(List<RuntimeEffectStep> steps, EffectDefinition effect,
-            EffectExecutionContext context)
+            EffectExecutionContext context, List<string> fragments)
         {
             // 组合目标序列（快照防遍历中被改；无目标效果 = 单次 null 目标执行）
             var compositionTargets = context.Targets != null && context.Targets.Count > 0
@@ -327,7 +354,7 @@ namespace CardCore
                         ? step.Choices[System.Math.Max(0, System.Math.Min(context.ModeIndex, step.Choices.Count - 1))]
                         : null;
                     if (chosen != null)
-                        await ExecuteStepSequenceAsync(chosen, effect, context); // 模式内原子共享同一份组合目标
+                        await ExecuteStepSequenceAsync(chosen, effect, context, fragments); // 模式内原子共享同一份组合目标
                     continue;
                 }
 
@@ -355,13 +382,14 @@ namespace CardCore
                     PublishPhase(atomic, AtomicEffectPhase.Activation, context);
                     PublishPhase(atomic, AtomicEffectPhase.StartApplying, context);
                     await EffectHandlerRegistry.ExecuteEffectAsync(atomic, context);
+                    CaptureDescription(atomic, context, fragments);
                     PublishPhase(atomic, AtomicEffectPhase.ResolutionComplete, context);
 
                     if (wasAlive)
                         CollectWrongSideHits(atomic, context.Controller, context.Targets, wrongHits);
 
                     if (gate != null)
-                        await ApplyGateRewardsAsync(gate, context);
+                        await ApplyGateRewardsAsync(gate, context, fragments);
                 }
 
                 FlushWrongSideGrants(wrongHits, effect, context);
@@ -445,7 +473,8 @@ namespace CardCore
         /// 预言族条件（延迟验证）在此拦截：不即时评估，把分支打包成 PendingProphecy
         /// 注册到 ProphecySystem——对手下回合首张出牌时验证，到期未验证作未命中走 else。
         /// </summary>
-        private async UniTask ApplyGateRewardsAsync(RuntimeEffectStep gate, EffectExecutionContext context)
+        private async UniTask ApplyGateRewardsAsync(RuntimeEffectStep gate, EffectExecutionContext context,
+            List<string> fragments)
         {
             if (BranchConditionEvaluator.IsDelayedCondition(gate.ConditionId))
             {
@@ -482,8 +511,22 @@ namespace CardCore
                 {
                     context.Targets = rt != null ? new List<Entity> { rt } : new List<Entity>();
                     await EffectHandlerRegistry.ExecuteEffectAsync(reward, context);
+                    CaptureDescription(reward, context, fragments);
                 }
             }
+        }
+
+        /// <summary>
+        /// 原子片段捕获（2026-09-16 描述接口化）：在原子执行**后**调用——此刻 context.Targets=当前目标、
+        /// LastOutcome=handler 写入的真实产出（描述不重掷随机）。经 handler 接口生成片段入聚合列表。
+        /// </summary>
+        private static void CaptureDescription(AtomicEffectInstance atom, EffectExecutionContext context,
+            List<string> fragments)
+        {
+            if (atom == null || fragments == null) return;
+            var handler = EffectHandlerRegistry.GetHandler(atom.Type);
+            if (handler == null) return;
+            fragments.Add(handler.GetDescription(atom, context));
         }
 
         private static void PublishPhase(AtomicEffectInstance atomic, AtomicEffectPhase phase, EffectExecutionContext context)
@@ -756,6 +799,90 @@ namespace CardCore
             return true;
         }
 
+        /// <summary>攻击宣言栈对象速度（2026-09-16 战斗接入栈机器定案）：攻击=速度0——
+        /// 回合方 ≥ 计数器，即计数器为 0（栈空/连锁闭合）才可宣言，连锁中天然不可宣。
+        /// 宣言期零支付（不横置不扣费）——横置在结算时支付（到点重查）。</summary>
+        public const int AttackStackSpeed = 0;
+
+        /// <summary>守卫拦截速度（2026-09-16 定案）：守卫=速度1响应（原2速阻挡阶段退役）——
+        /// 非回合方（防守方）严格 &gt; 计数器：1 &gt; 0 ✓；入栈后计数器抬到 1，
+        /// 攻击方可 ≥1 再连锁，防守方守卫全 1 速无法再响应（1 不 &gt; 1）→ 双 Pass 结算。</summary>
+        public const int GuardStackSpeed = 1;
+
+        /// <summary>
+        /// 攻击宣言入栈（逐攻击开窗，2026-09-16 定案）。速度门=标准口径（0 ≥ 计数器），
+        /// 栈非空（连锁中）不可宣；宣言期零支付；发 AttackDeclarationEvent（宣言时点，触发器可见）；
+        /// 防守方先获响应机会。结算消费见 ResolveStack 的 IsAttackDeclaration 分支。
+        /// </summary>
+        public bool PushAttackDeclaration(Entity attacker, Entity target, Player controller)
+        {
+            if (attacker == null || target == null || controller == null) return false;
+            if (_stack.Count > 0) return false; // 连锁中不可宣（速度门 0≥计数器的等价直查）
+            if (!_speedCounter.CanActivate(AttackStackSpeed, controller == _activePlayer, EffectActivationType.Voluntary))
+                return false;
+
+            var instance = new EffectInstance
+            {
+                IsAttackDeclaration = true,
+                Source = attacker,
+                Controller = controller,
+                ActivationSpeed = AttackStackSpeed, // RaiseTo(0) 无操作——攻击宣言不抬计数器
+                Targets = new List<Entity> { target },
+            };
+
+            _stack.Push(instance);
+            _priorityHolder = controller.Opponent; // 防守方先响应（发动弹窗候选：守卫/响应卡）
+            _consecutivePassCount = 0;
+            _waitingForPlayer = true;
+
+            var declaration = new AttackDeclarationEvent
+            {
+                Attacker = attacker,
+                Target = target,
+                AttackingPlayer = controller
+            };
+            if (GameCore.Instance != null) GameCore.Instance.PublishEvent(declaration);
+            else EventManager.Instance.Publish(declaration);
+
+            EventManager.Instance.Publish(new StackAddEvent { AddedObject = instance, AddingPlayer = controller });
+            return true;
+        }
+
+        /// <summary>
+        /// 守卫拦截入栈（速度1响应，2026-09-16 定案）：Targets=[被拦截的攻击宣言对象]。
+        /// 宣言期零支付（横置在结算时支付）；结算时改写攻击目标（CombatSystem.ResolveGuardDeclaration）。
+        /// </summary>
+        public bool PushGuardDeclaration(Entity guarder, EffectInstance attackInstance, Player controller)
+        {
+            if (guarder == null || attackInstance == null || controller == null) return false;
+            if (!_stack.Contains(attackInstance)) return false; // 拦截对象须在栈上
+            // 资格闸（2026-09-16）：守卫能力（NoGuard 卡不能拦）/存活/未横置——横置支付在结算期，
+            // 此处拦的是"已横置不能再宣"
+            if (!(guarder is Card guardCard) || !guardCard.HasGuardAbility()
+                || !guardCard.IsAlive || guardCard.IsTapped()) return false;
+            if (!_speedCounter.CanActivate(GuardStackSpeed, controller == _activePlayer, EffectActivationType.Voluntary))
+                return false;
+
+            _speedCounter.RaiseTo(GuardStackSpeed); // ★ 记速器抬到 1：攻方可 ≥1 连锁、守方 1 速不能再响应
+
+            var instance = new EffectInstance
+            {
+                IsGuardDeclaration = true,
+                Source = guarder,
+                Controller = controller,
+                ActivationSpeed = GuardStackSpeed,
+                InterceptedAttack = attackInstance, // 拦截载荷（Targets 装不下栈对象，专用字段）
+            };
+
+            _stack.Push(instance);
+            _priorityHolder = controller.Opponent;
+            _consecutivePassCount = 0;
+            _waitingForPlayer = true;
+
+            EventManager.Instance.Publish(new StackAddEvent { AddedObject = instance, AddingPlayer = controller });
+            return true;
+        }
+
         /// <summary>
         /// 添加待发效果到队列
         /// </summary>
@@ -877,6 +1004,8 @@ namespace CardCore
                     GameActions.Crumb($"resolve top #{guardResolve} cast={top.IsCardCast} sba={top.IsSBA} id={top.Definition?.Id ?? (top.Source as Card)?.ID ?? "?"}");
                     if (++guardResolve > 200) { GameActions.Crumb("resolve GUARD-200 break"); break; }
                     // SBA 伪对象：到点重查执行（必须先于执行器拦截——Definition=null 会 throw）；
+                    // 攻击/守卫宣言走战斗结算（2026-09-16 战斗接入栈机器：死亡处理由栈机器 SBA 轮
+                    // 统一接管——战斗死亡与效果致死同口径，救场窗口自然覆盖）；
                     // 整卡施放对象走 cast 结算（付费→无效裁决→效果→离区），普通对象走执行器
                     if (top.IsSBA)
                     {
@@ -887,6 +1016,10 @@ namespace CardCore
                             sbaCore.CheckLifeGameOver();    // 判负（ExecuteZeroLife 内含幂等守卫）
                         }
                     }
+                    else if (top.IsGuardDeclaration)
+                        GameCore.Instance?.CombatSystem?.ResolveGuardDeclaration(top);
+                    else if (top.IsAttackDeclaration)
+                        GameCore.Instance?.CombatSystem?.ResolveAttackDeclaration(top);
                     else if (top.IsCardCast)
                         await GameActions.ResolveCardCastAsync(top);
                     else
@@ -899,7 +1032,7 @@ namespace CardCore
                     });
                 }
 
-                FinishResolution();
+                await FinishResolution();
             }
             finally
             {
@@ -909,14 +1042,17 @@ namespace CardCore
 
         /// <summary>
         /// 结算完成 — 自发连锁处理（用户定案模型）：
-        /// 单次连锁结算完成后，① 结算期间累积的条件触发先上栈（开新一轮连锁）；
+        /// 单次连锁结算完成后，① 结算期间累积的条件触发先上栈，分两类批（2026-09-16 拆轮定案）：
+        /// 开窗批（批内含自动桶效果）照旧开响应窗口等双 Pass；强制批（纯强制桶）合成双方 Pass
+        /// 直接进 BeginResolution 结算——复用 PlayerPass/ResolveStack/执行器/Crumb/触发上限全套
+        /// 机器，不写第二条结算路径（AI/headless 的 DrainStack 本来就是这个行为）；
         /// ② 关键 SBA（尸体送墓/判负）作为速度1栈对象入栈、开响应窗口（2026-09-15 定案：
         /// 记速器抬到 1——回合方 ≥1、非回合方 ≥2 可连锁救场；到点重查，被救回则空转）；
         /// ③ SBA 结算产生的事件（死亡/送墓/抽卡…）经路由喂触发引擎 → 若有待发效果再开新一轮。
         /// 循环直到稳定。顺序敏感：关键 SBA 检查必须先于 CheckLifeGameOver（后者直查
         /// Life≤0 即终局，排前会让 0 血绕过响应窗口）。
         /// </summary>
-        private void FinishResolution()
+        private async UniTask FinishResolution()
         {
             _speedCounter.Reset();
             _waitingForPlayer = false;
@@ -935,13 +1071,26 @@ namespace CardCore
 
                 if (_pendingQueue.HasAutoEffects)
                 {
+                    // 批分类探针：须在排水前取——排水即清空，取晚恒 false
+                    bool opensWindow = _pendingQueue.HasAutomaticEffects;
                     ProcessTriggeredEffects();
                     if (_stack.Count > 0)
                     {
                         _priorityHolder = _activePlayer; // 自发轮统一：回合方先响应（与 SBA 轮同口径）
-                        _waitingForPlayer = true;
                         _consecutivePassCount = 0;
-                        return; // 新一轮连锁：双 Pass → BeginResolution → 结算完再回到这里
+                        if (opensWindow)
+                        {
+                            _waitingForPlayer = true;
+                            return; // 开窗批（含自动桶）：双 Pass → BeginResolution → 结算完再回到这里
+                        }
+
+                        // 强制批（纯强制桶）：合成双方 Pass 直接结算——与 DrainStack 同路径
+                        //（PlayerPass×2：事件/计数器状态与真实双 Pass 全同），全程不开响应窗口
+                        //（_waitingForPlayer 恒 false，UI 天然不显示窗口）；后续轮次由嵌套链
+                        //（BeginResolution→ResolveStack→FinishResolution）接管
+                        await PlayerPass(_priorityHolder);
+                        await PlayerPass(_priorityHolder);
+                        return;
                     }
                 }
 
@@ -1001,7 +1150,8 @@ namespace CardCore
                 try
                 {
                     var top = _stack.Pop();
-                    // SBA 伪对象：与 ResolveStack 同一消费口径（到点重查）；整卡施放对象走 cast 结算
+                    // SBA 伪对象：与 ResolveStack 同一消费口径（到点重查）；攻击/守卫宣言走战斗结算；
+                    // 整卡施放对象走 cast 结算
                     if (top.IsSBA)
                     {
                         var sbaCore = GameCore.Instance;
@@ -1011,6 +1161,10 @@ namespace CardCore
                             sbaCore.CheckLifeGameOver();
                         }
                     }
+                    else if (top.IsGuardDeclaration)
+                        GameCore.Instance?.CombatSystem?.ResolveGuardDeclaration(top);
+                    else if (top.IsAttackDeclaration)
+                        GameCore.Instance?.CombatSystem?.ResolveAttackDeclaration(top);
                     else if (top.IsCardCast)
                         await GameActions.ResolveCardCastAsync(top);
                     else
@@ -1216,7 +1370,10 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 将待发触发效果放入栈
+        /// 将待发触发效果放入栈。
+        /// ⚠ 强制批拆轮（2026-09-16）仅在 FinishResolution 口径内生效（开窗/合成双 Pass）；
+        /// 本路径（GameLoopController.Update 帧泵，空栈+可动阶段）推出的纯强制批仍走
+        /// ProcessPriority（有动作则等）——未覆盖，口径见 StackEngine.FinishResolution。
         /// </summary>
         public void PutTriggersOnStack()
         {

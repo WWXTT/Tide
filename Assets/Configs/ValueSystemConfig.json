@@ -147,13 +147,13 @@
     "Category": "AttributeValue",
     "Key": "UntilEndOfTurnDiscount",
     "Value": 0.6,
-    "Des": "持续=到自己回合结束（快攻攻击 buff 标准档）"
+    "Des": "持续=到持有者回合结束（限时指示物统一档）"
   },
   {
     "Category": "AttributeValue",
     "Key": "UntilNextTurnDiscount",
-    "Value": 0.7,
-    "Des": "持续=到对手回合结束（防御档）"
+    "Value": 0.6,
+    "Des": "≡UntilEndOfTurn（2026-09-16 统一档：两档合一，费用按 1 回合计）"
   },
   {
     "Category": "AttributeValue",

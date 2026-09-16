@@ -139,11 +139,6 @@ namespace CardCore
     /// </summary>
     public interface IEffect { }
 
-    /// <summary>
-    /// 原子效果接口
-    /// </summary>
-    public interface IAtomicEffect : IEffect { }
-
     // ============================================ 扩展卡牌属性接口（三游戏统一） ============================================
 
     /// <summary>

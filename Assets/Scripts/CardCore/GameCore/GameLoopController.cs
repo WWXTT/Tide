@@ -84,6 +84,9 @@ namespace CardCore
         /// <summary>
         /// 处理优先权。
         /// 自动 Pass 可能触发结算，而结算含异步原子效果（await UI）→ 本方法异步。
+        /// 2026-09-16：旧 HasAvailableAction 桩（手牌含效果卡即等待——假阳性干等）替换为
+        /// 响应窗口收集口（GameActions.CollectAvailableResponses：速度门+费用+代价双过滤）——
+        /// 有真实候选 → 等待决策（UI/AI 泵驱动）；0 候选 → 自动 Pass（跳过弹窗口径）。
         /// </summary>
         public async UniTask ProcessPriority()
         {
@@ -91,12 +94,13 @@ namespace CardCore
                 return;
 
             Player currentHolder = _stackEngine.CurrentPriorityHolder;
-            bool hasAction = currentHolder != null && currentHolder.HasAvailableAction();
+            bool hasAction = currentHolder != null
+                && GameActions.CollectAvailableResponses(GameCore.Instance, currentHolder).Count > 0;
 
             if (hasAction)
-                return; // 等待玩家决策
+                return; // 等待决策（响应窗口泵/弹窗）
 
-            // 没有可用动作，Pass优先权
+            // 没有可用候选，Pass优先权
             if (currentHolder != null)
                 await _stackEngine.PassPriority(currentHolder);
         }

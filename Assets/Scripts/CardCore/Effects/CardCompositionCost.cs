@@ -26,7 +26,7 @@ namespace CardCore
         /// 底盘预算（2026-09-10 攻/守效果化定案，取代旧挂载口 Baseline 曲线）：
         /// 免费额度 ChassisBudget(3 灰) 覆盖 攻击(1) + 守卫(1) + 效果槽(1/个)。
         /// 净调整 = 预算 − (攻在 + 守在 + 效果数) × 费率——正数退费、负数加价。
-        /// · 攻/守 = 1速/2速主动效果（不占槽位），生物默认自带（NoAttack/NoGuard opt-out 退额度）；
+        /// · 攻/守 = 速度0/速度1主动效果（2026-09-16）（不占槽位），生物默认自带（NoAttack/NoGuard opt-out 退额度）；
         /// · 法术无攻守（恒退 2：即「法术减两费」）；瞬间法术 SurplusToSpeed=true 时
         ///   盈余转 BaseSpeed+1（转换层授予，见 GameActions.GetCardEffectDefinitions），不退费（返回 0）。
         /// 退费落位（先灰、灰不足逐点退最高费用色）由 ApplyChassisRefund 承担。

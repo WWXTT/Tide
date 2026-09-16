@@ -170,7 +170,7 @@ namespace CardCore.Attribute.Handlers
             });
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"宣言{effect.StringValue}并验证对手一张未展示的手牌";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"宣言{effect.StringValue}并验证对手一张未展示的手牌";
     }
 
     /// <summary>宣言·验牌库顶（即时验证：展示己方牌库顶比对；展示 = 公开）</summary>
@@ -202,7 +202,7 @@ namespace CardCore.Attribute.Handlers
             });
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"宣言{effect.StringValue}并展示己方牌库顶";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"宣言{effect.StringValue}并展示己方牌库顶";
     }
 
     /// <summary>宣言·箭头（2026-09-13 修订：额外卡组退役——改读**对手战场卡**的箭头声明。
@@ -244,7 +244,7 @@ namespace CardCore.Attribute.Handlers
             });
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"宣言{effect.StringValue}箭头并确认对手战场";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"宣言{effect.StringValue}箭头并确认对手战场";
     }
 
     /// <summary>
@@ -270,7 +270,7 @@ namespace CardCore.Attribute.Handlers
             context.LastOutcome.Declaration = effect.StringValue;
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"预言对手下回合首张卡为{effect.StringValue}";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"预言对手下回合首张卡为{effect.StringValue}";
     }
 
     // ---------------- 共用小工具 ----------------

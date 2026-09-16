@@ -49,7 +49,7 @@ namespace CardCore.Attribute.Handlers
                 PublishEvent(new MillDeckCostEvent { Player = owner, Cards = top.ToList(), Source = context.Source });
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"送墓：牌库顶 {effect.Value} 张入墓地";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"送墓：牌库顶 {effect.Value} 张入墓地";
     }
 
     /// <summary>
@@ -92,7 +92,7 @@ namespace CardCore.Attribute.Handlers
             PublishEvent(new ScryEvent { Player = owner, Cards = final, Source = context.Source });
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"占卜：查看对手牌库顶 {effect.Value} 张并任意排列";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"占卜：查看对手牌库顶 {effect.Value} 张并任意排列";
     }
 
     /// <summary>改写持有者（2026-09-13 定案升级，黑2 锚 ×3.0）：永久换手 + owner 改写——
@@ -110,7 +110,7 @@ namespace CardCore.Attribute.Handlers
                     HandlerHelpers.ChangeControl(context, card, context.Controller, permanent: true);
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "改写目标的持有者（含控制权；弹回/洗回/死亡均归新主）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "改写目标的持有者（含控制权；弹回/洗回/死亡均归新主）";
     }
 
     // ---------------- 死亡原子（牺牲 / 吞噬 / 湮灭） ----------------
@@ -173,7 +173,7 @@ namespace CardCore.Attribute.Handlers
                 .ToList();
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "持有者选择一个己方生物牺牲（效果死亡，来源为持有者，无视不灭）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "持有者选择一个己方生物牺牲（效果死亡，来源为持有者，无视不灭）";
     }
 
     /// <summary>摒弃（2026-09-13，黑2，edict 原子——牺牲的无生命等价）：作用对象=双方角色（filter "Player"）——
@@ -263,7 +263,7 @@ namespace CardCore.Attribute.Handlers
             return result;
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "持有者选择一个己方场上无生命单位摒弃（直送墓地）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "持有者选择一个己方场上无生命单位摒弃（直送墓地）";
     }
 
     /// <summary>吞噬（2026-09-13 简化定案）：只是**消灭** + 吞噬者按被消灭单位的**最大生命值**恢复生命——
@@ -293,7 +293,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "吞噬：消灭目标并按其最大生命值恢复";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "吞噬：消灭目标并按其最大生命值恢复";
     }
 
     /// <summary>湮灭：彻底移除，直送除外区，不可复生（DeathRules 内定案）</summary>
@@ -310,7 +310,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "湮灭目标生物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "湮灭目标生物";
     }
 
     /// <summary>
@@ -355,7 +355,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "摧毁目标（无生命值单位：地牌/结界）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "摧毁目标（无生命值单位：地牌/结界）";
     }
 
     // ---------------- 反制 / 沉默 ----------------
@@ -386,7 +386,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "把发动中的卡打落入墓（不付费即中止）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "把发动中的卡打落入墓（不付费即中止）";
     }
 
     /// <summary>无效发动（标记目标无效，IsActivation）</summary>
@@ -403,7 +403,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "无效目标的发动";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "无效目标的发动";
     }
 
     /// <summary>
@@ -438,7 +438,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "附加沉默指示物（不可发动主动效果）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加沉默指示物（不可发动主动效果）";
     }
 
     /// <summary>
@@ -511,7 +511,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) =>
+        protected override string DescribeTemplate(AtomicEffectInstance effect) =>
             $"发现：从牌库随机展示 {Math.Max(1, effect.Value)} 张，选一张加入手牌";
     }
 

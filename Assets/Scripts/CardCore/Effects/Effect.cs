@@ -155,6 +155,13 @@ namespace CardCore
         public bool IsResolved { get; set; }
 
         /// <summary>
+        /// 执行完整文本（2026-09-16 描述接口化定案，效果级聚合）：栈结算完成时由执行器写入——
+        /// 原子片段经 handler.GetDescription(atom, context) 逐个生成（含目标名与 LastOutcome 真实产出）
+        /// 后聚合为一条。UI 栈显示/战报/回放共用。
+        /// </summary>
+        public string ExecutionSummary { get; set; }
+
+        /// <summary>
         /// 整卡施放标记：本实例代表「一张牌的使用」（打出的卡 = Source），
         /// 由 StackEngine.PushCardCast 创建、GameActions.ResolveCardCastAsync 结算
         /// （付费 → 无效裁决 → 效果 → 离区），不走普通 EffectDefinition 执行路径。
@@ -171,6 +178,27 @@ namespace CardCore
         /// GetPendingCastCosts 按 IsCardCast=false 跳过、网络快照按 null 安全回落。
         /// </summary>
         public bool IsSBA { get; set; }
+
+        /// <summary>
+        /// 攻击宣言标记（2026-09-16 战斗接入栈机器定案）：本实例代表一次攻击宣言——
+        /// 速度0栈对象（逐攻击开窗），Source=攻击者、Targets=[宣言目标]、Controller=攻击方；
+        /// 由 StackEngine.PushAttackDeclaration 创建、ResolveStack 的 IsAttackDeclaration 分支
+        /// 交 CombatSystem.ResolveAttackDeclaration 消费（重检+横置支付→战斗结算；死亡处理由
+        /// 栈机器 SBA 轮统一接管）。横置/扣费在**结算时**支付（到点重查，宣言期零支付）。
+        /// </summary>
+        public bool IsAttackDeclaration { get; set; }
+
+        /// <summary>
+        /// 守卫拦截宣言标记（2026-09-16 定案）：守卫=速度1响应（原2速阻挡阶段退役）——
+        /// Source=守卫者、Targets=[被拦截的攻击宣言对象]、Controller=防守方；
+        /// ResolveStack 交 CombatSystem.ResolveGuardDeclaration 消费：重检+横置支付→
+        /// 攻击目标变更（改写攻击宣言对象的 Targets[0]=守卫者）。横置结算时支付（同攻击口径）。
+        /// </summary>
+        public bool IsGuardDeclaration { get; set; }
+
+        /// <summary>守卫拦截载荷（IsGuardDeclaration 时非空）：被拦截的攻击宣言栈对象——
+        /// 守卫结算时改写其 Targets[0]=守卫者（攻击目标变更）。Targets 装不下栈对象（List&lt;Entity&gt;），专用字段承载。</summary>
+        public EffectInstance InterceptedAttack { get; set; }
 
         /// <summary>
         /// 抉择模式索引（2026-09-07 定案）：整卡施放声明期选定（先选择再定费用），

@@ -31,7 +31,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"添加{effect.Value}点护甲";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}点护甲";
     }
 
     /// <summary>
@@ -62,7 +62,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "附加毒素指示物（回合结束1伤，持续3回合，可叠加）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加毒素指示物（回合结束1伤，持续3回合，可叠加）";
     }
 
     /// <summary>
@@ -94,7 +94,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "附加紊乱指示物（持续到回合结束，期间不能以玩家为目标）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加紊乱指示物（持续到回合结束，期间不能以玩家为目标）";
     }
 
     /// <summary>
@@ -124,7 +124,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "附加易损指示物（持续1回合，受到伤害时每层+1）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加易损指示物（持续1回合，受到伤害时每层+1）";
     }
 
     /// <summary>
@@ -154,7 +154,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPowerUp;
         protected override string CounterId => CounterRules.PowerUpCounter;
-        public override string GetDescription(AtomicEffectInstance effect) => $"添加{effect.Value}个攻击力增加指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个攻击力增加指示物";
     }
 
     /// <summary>攻击力减少指示物（每层 −1 攻）</summary>
@@ -162,7 +162,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPowerDown;
         protected override string CounterId => CounterRules.PowerDownCounter;
-        public override string GetDescription(AtomicEffectInstance effect) => $"添加{effect.Value}个攻击力减少指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个攻击力减少指示物";
     }
 
     /// <summary>生命值增加指示物（每层 +1 上限与当前）</summary>
@@ -170,7 +170,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddLifeUp;
         protected override string CounterId => CounterRules.LifeUpCounter;
-        public override string GetDescription(AtomicEffectInstance effect) => $"添加{effect.Value}个生命值增加指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个生命值增加指示物";
     }
 
     /// <summary>生命值减少指示物（每层 −1 上限，归零标死交 SBA）</summary>
@@ -178,7 +178,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddLifeDown;
         protected override string CounterId => CounterRules.LifeDownCounter;
-        public override string GetDescription(AtomicEffectInstance effect) => $"添加{effect.Value}个生命值减少指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个生命值减少指示物";
     }
 
     /// <summary>属性增加指示物（+1/+1，成长同款）</summary>
@@ -186,7 +186,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPlusOne;
         protected override string CounterId => CounterRules.PlusOneCounter;
-        public override string GetDescription(AtomicEffectInstance effect) => $"添加{effect.Value}个属性增加指示物（+1/+1）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个属性增加指示物（+1/+1）";
     }
 
     /// <summary>属性减少指示物（-1/-1）</summary>
@@ -194,7 +194,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddMinusOne;
         protected override string CounterId => CounterRules.MinusOneCounter;
-        public override string GetDescription(AtomicEffectInstance effect) => $"添加{effect.Value}个属性减少指示物（-1/-1）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个属性减少指示物（-1/-1）";
     }
 
     /// <summary>虚弱：对{target}施加 {value} 个属性减少（= -1/-1 层 ×{value}）</summary>
@@ -202,7 +202,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Weaken;
         protected override string CounterId => CounterRules.MinusOneCounter;
-        public override string GetDescription(AtomicEffectInstance effect) => $"施加{effect.Value}个属性减少（-1/-1）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"施加{effect.Value}个属性减少（-1/-1）";
     }
 
     /// <summary>鼓舞：对{target}施加 {value} 个属性增加（= +1/+1 层 ×{value}）</summary>
@@ -210,7 +210,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Inspire;
         protected override string CounterId => CounterRules.PlusOneCounter;
-        public override string GetDescription(AtomicEffectInstance effect) => $"施加{effect.Value}个属性增加（+1/+1）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"施加{effect.Value}个属性增加（+1/+1）";
     }
 
     /// <summary>费用增加指示物（每层 +1 费，仅手牌生效，离手消失）</summary>
@@ -218,7 +218,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostUp;
         protected override string CounterId => CounterRules.CostUpCounter;
-        public override string GetDescription(AtomicEffectInstance effect) => $"添加{effect.Value}个费用增加指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个费用增加指示物";
     }
 
     /// <summary>费用减少指示物（每层 −1 费，仅手牌生效，离手消失）</summary>
@@ -226,7 +226,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCostDown;
         protected override string CounterId => CounterRules.CostDownCounter;
-        public override string GetDescription(AtomicEffectInstance effect) => $"添加{effect.Value}个费用减少指示物";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个费用减少指示物";
     }
 
     /// <summary>
@@ -264,7 +264,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "附加无效指示物（非启动式能力无法发动）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加无效指示物（非启动式能力无法发动）";
     }
 
     /// <summary>
@@ -313,7 +313,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect)
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
             => effect.Value > 0 ? $"赋予{effect.Value}层沉睡（无法重置、效果无效）" : "赋予沉睡（灰费豁免量=持续回合）";
     }
 }

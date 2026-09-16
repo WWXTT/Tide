@@ -135,54 +135,6 @@ namespace CardCore
             return SpeedCalculator.CalculateSpeed(BaseSpeed, paidBoost);
         }
 
-        public string GetFullDescription()
-        {
-            var parts = new List<string>();
-            if (IsTriggeredEffect)
-                parts.Add($"[{GetTriggerDescription()}]");
-            if (ActivationType == EffectActivationType.Mandatory)
-                parts.Add("[强制]");
-            return string.Join("：", parts);
-        }
-
-        private string GetTriggerDescription()
-        {
-            return TriggerTiming switch
-            {
-                TriggerTiming.Activate_Active => "主要阶段发动",
-                TriggerTiming.Activate_Instant => "瞬间发动",
-                TriggerTiming.Activate_Response => "响应发动",
-                TriggerTiming.OnPlay => "登场",
-                TriggerTiming.OnSummon => "进场时",
-                TriggerTiming.OnOtherCreatureEnter => "其他生物进场时",
-                TriggerTiming.OnDeath => "死亡时",
-                TriggerTiming.OnDestroy => "破坏时",
-                TriggerTiming.OnExile => "除外时",
-                TriggerTiming.OnReturnFromGraveyard => "从墓地回到战场时",
-                TriggerTiming.OnLeaveBattlefield => "离场时",
-                TriggerTiming.OnDraw => "抽牌时",
-                TriggerTiming.OnDealDamage => "造成伤害时",
-                TriggerTiming.OnTakeDamage => "受到伤害时",
-                TriggerTiming.OnTurnStart => "回合开始时",
-                TriggerTiming.OnTurnEnd => "回合结束时",
-                TriggerTiming.OnPhaseStart => "阶段开始时",
-                TriggerTiming.OnPhaseEnd => "阶段结束时",
-                TriggerTiming.OnAttack => "攻击宣言时",
-                TriggerTiming.OnAttacked => "被攻击时",
-                TriggerTiming.OnBlockDeclare => "阻拦宣言时",
-                TriggerTiming.OnCardPlayed => "使用卡牌时",
-                TriggerTiming.OnSpellCast => "施放法术时",
-                TriggerTiming.OnTap => "横置时",
-                TriggerTiming.OnUntap => "重置时",
-                TriggerTiming.OnTargeted => "被指定为目标时",
-                TriggerTiming.OnGameStart => "游戏开始时",
-                TriggerTiming.OnAtomicEffectActivation => "原子效果发动时",
-                TriggerTiming.OnAtomicEffectStartApplying => "原子效果开始作用时",
-                TriggerTiming.OnAtomicEffectResolution => "原子效果结算完成时",
-                _ => TriggerTiming.ToString()
-            };
-        }
-
         public bool IsTriggeredEffect =>
             TriggerTiming != TriggerTiming.Activate_Active &&
             TriggerTiming != TriggerTiming.Activate_Instant &&
@@ -292,14 +244,16 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 获取下一个要入栈的条件发动效果（仅强制/自动）
+        /// 获取下一个要入栈的条件发动效果（仅强制/自动）。
+        /// 桶序（2026-09-16 对调定案）：自动桶先清——自动池最高优先（先入栈居链底）；
+        /// 强制桶后清——居栈顶，混合批中先结算（宣判优先）。旧序（强制先清）与描述口径相反。
         /// </summary>
         public PendingEffect GetNextEffect()
         {
-            if (_mandatoryEffects.Count > 0)
-                return PopHighestSpeed(_mandatoryEffects);
             if (_automaticEffects.Count > 0)
                 return PopHighestSpeed(_automaticEffects);
+            if (_mandatoryEffects.Count > 0)
+                return PopHighestSpeed(_mandatoryEffects);
             return null;
         }
 
@@ -347,6 +301,10 @@ namespace CardCore
         public bool HasAutoEffects =>
             _mandatoryEffects.Count > 0 ||
             _automaticEffects.Count > 0;
+
+        /// <summary>自动桶非空——批分类探针（2026-09-16 拆轮定案）：批内含自动效果 → 开窗批（等双 Pass）；
+        /// 纯强制批 → 合成双 Pass 直接结算（无响应窗口，见 StackEngine.FinishResolution）。</summary>
+        public bool HasAutomaticEffects => _automaticEffects.Count > 0;
 
         private PendingEffect PopHighestSpeed(List<PendingEffect> list)
         {
@@ -545,9 +503,12 @@ namespace CardCore
         // TODO(network): MemoryPack DTO 往復は範囲外。ネットワーク同期する場合は専用 DTO へ写像が必要。
         public List<AtomicEffectInstance> SubEffects = new List<AtomicEffectInstance>();
 
+        /// <summary>无执行场景的模板描述（代价文本等）：走 handler 注册表（context=null → 纯模板）。
+        /// 执行期完整描述由执行器在结算时经 handler.GetDescription(effect, context) 生成（效果级聚合）。</summary>
         public string GetDescription()
         {
-            return AtomicEffectTypeExtensions.GetEffectDescription(Type, Value);
+            var handler = Attribute.EffectHandlerRegistry.GetHandler(Type);
+            return handler != null ? handler.GetDescription(this, null) : Type.ToString();
         }
 
         /// <summary>结算期掷值（2026-09-13 数值随机定案）：幅度&gt;0 时名义值 ±span 均匀随机

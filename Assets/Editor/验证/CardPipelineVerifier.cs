@@ -1386,14 +1386,15 @@ namespace CardCore.Editor
                    "序列化往返保抉择结构（模式数与原子类型）");
         }
 
-        // ======================================== 攻击/守卫效果化（2026-09-10） ========================================
+        // ======================================== 攻击/守卫效果化（2026-09-10；2026-09-16 战斗接入栈机器重写） ========================================
 
         /// <summary>
-        /// 攻击/守卫效果化端到端：
-        /// - NoAttack 卡不能宣言攻击（攻击=默认自带 1 速主动效果，opt-out 退底盘额度）；
-        /// - NoGuard 卡不能拦截；守卫拦截=目标转移+守卫横置+结算单向受伤（被动代价不对称）；
-        /// - 警戒守卫：横置仍造成战斗伤害（新语义——结算资格看目标横置，警戒例外）；
-        /// - 速度门槛：连锁开启（记速器&gt;0）时 1 速攻击不可宣言；
+        /// 攻击/守卫端到端（2026-09-16 逐攻击开窗定案）：
+        /// - 攻击=速度0栈对象：宣言零支付上栈开窗，结算期重检+横置支付→战斗三段；
+        /// - 守卫=速度1响应：窗口内 PushGuardDeclaration 入栈（资格闸 NoGuard/横置/存活），
+        ///   LIFO 先结算——横置支付+攻击目标变更；
+        /// - 警戒守卫：横置仍造成战斗伤害（结算资格看目标横置，警戒例外）；
+        /// - 速度门槛：标准速度门（0≥计数器）——连锁开启时攻击不可宣言；
         /// - 瞬间富余转速度：SurplusToSpeed 法术全部效果 BaseSpeed+1。
         /// </summary>
         private static void TestAttackGuard(GameCore core, Player p1, Player p2)
@@ -1419,68 +1420,65 @@ namespace CardCore.Editor
             }
 
             // ---- 1. NoAttack 资格（墙不能攻；同身材正常卡能攻） ----
-            combat.StartCombat(p1, p2);
             var wall = Spawn(p1, 3, 5, noAttack: true);
             var hitter = Spawn(p1, 3, 3);
             Assert(!combat.CanDeclareAttack(wall, p1), "攻击效果化：NoAttack 卡不能宣言攻击");
             Assert(combat.CanDeclareAttack(hitter, p1), "攻击效果化：默认自带攻击能力");
-            combat.EndCombat();
 
-            // ---- 2. 守卫拦截：打脸攻击 → 目标转移 + 守卫横置 + 单向受伤 ----
-            combat.StartCombat(p1, p2);
+            // ---- 2. 守卫拦截：打脸攻击 → 窗口守卫响应 → 目标转移 + 守卫结算期横置 + 单向受伤 ----
             var striker = Spawn(p1, 4, 2);       // 4 攻
             var shield = Spawn(p2, 3, 6);        // 3 攻 6 血守卫
             int p2Life0 = p2.Life;
-            Assert(combat.DeclareAttack(striker, p2), "守卫段：打脸宣言成功");
-            combat.EndAttackDeclaration();       // → SelectBlocker
-            Assert(combat.CanBlock(shield, striker, p2), "守卫段：守卫可拦截");
-            combat.DeclareBlock(shield, striker);
-            Assert(shield.IsTapped(), "守卫拦截：横置自身（被动代价）");
-            combat.EndBlockDeclaration();        // 结算 + EndCombat
+            Assert(GameActions.DeclareAttack(core, p1, striker, p2), "守卫段：打脸宣言上栈（速度0开窗，宣言期零支付）");
+            Assert(!striker.IsTapped(), "守卫段：宣言期不横置（结算期支付）");
+            var attackInstance = core.StackEngine.Peek();
+            Assert(core.StackEngine.PushGuardDeclaration(shield, attackInstance, p2), "守卫段：守卫速度1响应入栈");
+            GameActions.DrainStack(core);        // 守卫先结（横置+目标变更）→ 攻击三段
+            Assert(shield.IsTapped(), "守卫拦截：结算期横置自身（被动代价）");
             Assert(shield.IsAlive && shield.GetLife() == 2, "守卫拦截：守卫吃 4 伤（6→2）");
             Assert(striker.IsAlive && striker.GetLife() == 2, "守卫拦截：单向受伤——守卫横置不反击（攻击者只受 0 反伤）");
+            Assert(striker.IsTapped(), "守卫段：攻击者结算期支付横置");
             Assert(p2.Life == p2Life0, "守卫拦截：玩家未被击中（目标已转移）");
 
             // ---- 2b. 警戒守卫：横置仍反击（新语义） ----
-            combat.StartCombat(p1, p2);
             var raider = Spawn(p1, 4, 2);
             var valiant = Spawn(p2, 3, 6, false, false, CardCore.Attribute.KeywordRules.Vigilance);
-            Assert(combat.DeclareAttack(raider, p2), "警戒守卫段：打脸宣言成功");
-            combat.EndAttackDeclaration();
-            combat.DeclareBlock(valiant, raider);
-            Assert(valiant.IsTapped(), "警戒守卫：拦截照常横置");
-            combat.EndBlockDeclaration();
+            Assert(GameActions.DeclareAttack(core, p1, raider, p2), "警戒守卫段：打脸宣言上栈");
+            Assert(core.StackEngine.PushGuardDeclaration(valiant, core.StackEngine.Peek(), p2), "警戒守卫段：守卫响应入栈");
+            GameActions.DrainStack(core);
+            Assert(valiant.IsTapped(), "警戒守卫：结算期照常横置");
             Assert(valiant.GetLife() == 2 && !raider.IsAlive,
                    "警戒重定义：横置守卫仍造成战斗伤害（守卫 6→2、4/2 攻击者被 3 反击致死）");
 
-            // ---- 2c. NoGuard 不能拦 ----
-            combat.StartCombat(p1, p2);
+            // ---- 2c. NoGuard 不能拦（守卫入栈资格闸） ----
             var charger2 = Spawn(p1, 4, 2);
             var pacifist = Spawn(p2, 3, 6, noGuard: true);
-            Assert(combat.DeclareAttack(charger2, p2), "NoGuard 段：打脸宣言成功");
-            combat.EndAttackDeclaration();
-            Assert(!combat.CanBlock(pacifist, charger2, p2), "守卫效果化：NoGuard 卡不能拦截");
-            combat.EndBlockDeclaration();
+            Assert(GameActions.DeclareAttack(core, p1, charger2, p2), "NoGuard 段：打脸宣言上栈");
+            Assert(!core.StackEngine.PushGuardDeclaration(pacifist, core.StackEngine.Peek(), p2),
+                   "守卫效果化：NoGuard 卡不能响应拦截（资格闸拒绝）");
+            GameActions.DrainStack(core);        // 无守卫 → 攻击照常结算（打脸）
             Assert(pacifist.GetLife() == 6, "NoGuard 段：未拦截（守卫满血）");
 
-            // ---- 2d. 激励再拦：守卫解除横置后同会话可拦第二个攻击者（会话去重已撤） ----
-            combat.StartCombat(p1, p2);
+            // ---- 2d. 激励再拦：守卫解除横置后可拦下一攻（逐攻击开窗） ----
             var a1 = Spawn(p1, 2, 2);
             var a2 = Spawn(p1, 3, 2);
             var gatekeeper = Spawn(p2, 1, 6);
-            Assert(combat.DeclareAttack(a1, p2) && combat.DeclareAttack(a2, p2), "再拦段：双打脸宣言");
-            combat.EndAttackDeclaration();
-            Assert(combat.DeclareBlock(gatekeeper, a1), "再拦段：首拦成功");
-            Assert(gatekeeper.IsTapped() && !combat.CanBlock(gatekeeper, a2, p2), "再拦段：横置期间不可再拦");
+            Assert(GameActions.DeclareAttack(core, p1, a1, p2), "再拦段：首攻宣言上栈");
+            var attackA1 = core.StackEngine.Peek();
+            Assert(core.StackEngine.PushGuardDeclaration(gatekeeper, attackA1, p2), "再拦段：首拦入栈");
+            Assert(!core.StackEngine.PushGuardDeclaration(gatekeeper, attackA1, p2),
+                   "再拦段：同窗二拦被拒（速度门 1 不> 1——记速器已被守卫抬到 1）");
+            GameActions.DrainStack(core);
+            Assert(gatekeeper.IsTapped() && gatekeeper.GetLife() == 4, "再拦段：首拦结算（6−2=4，横置不反击）");
             gatekeeper.Untap(); // 激励通路
-            Assert(combat.CanBlock(gatekeeper, a2, p2) && combat.DeclareBlock(gatekeeper, a2),
+            Assert(GameActions.DeclareAttack(core, p1, a2, p2), "再拦段：第二攻宣言上栈（新窗口）");
+            Assert(core.StackEngine.PushGuardDeclaration(gatekeeper, core.StackEngine.Peek(), p2),
                    "再拦段：解除横置可拦第二攻击者");
-            combat.EndBlockDeclaration();
+            GameActions.DrainStack(core);
             Assert(gatekeeper.IsAlive && gatekeeper.GetLife() == 1,
                    "再拦段：两拦都结算（6−2−3=1，守卫横置不反击）");
 
-            // ---- 3. 速度门槛：连锁开启时 1 速攻击不可宣言 ----
-            combat.StartCombat(p1, p2);
+            // ---- 3. 速度门槛：标准速度门（0≥计数器）——连锁开启时攻击不可宣言 ----
             var runner = Spawn(p1, 3, 3);
             var dummyData = new CardData
             {
@@ -1498,10 +1496,11 @@ namespace CardCore.Editor
             var dummy = new CardWrapper(dummyData);
             dummy.SetController(p1);
             core.StackEngine.PushCardCast(dummy, p1, null); // 1 速 cast → 记速器抬到 1（连锁开启）
-            Assert(!combat.CanDeclareAttack(runner, p1), "速度门槛：连锁开启（记速器>0）时 1 速攻击不可宣言");
+            Assert(!GameActions.DeclareAttack(core, p1, runner, p2),
+                   "速度门槛：连锁开启（记速器>0）时 0 速攻击不可宣言（0≥1 不达）");
             core.StackEngine.Clear();                        // 记速器归零
-            Assert(combat.CanDeclareAttack(runner, p1), "速度门槛：连锁闭合后攻击恢复");
-            combat.EndCombat();
+            Assert(GameActions.DeclareAttack(core, p1, runner, p2), "速度门槛：连锁闭合后攻击恢复（0≥0）");
+            GameActions.DrainStack(core);                    // 攻击收口（3 攻打脸）
 
             // ---- 4. 瞬间富余转速度：SurplusToSpeed → 全效果 BaseSpeed+1 ----
             var swiftData = new CardData
@@ -2058,7 +2057,7 @@ namespace CardCore.Editor
                        && armorDerive.Breakdown.Any(l => l.Label.Contains("累乘")),
                        "坚韧光环计价：条目平价绿1 + 箭头卡级累乘（2箭头=×1.2，不逐条乘箭头）");
 
-                // 属性价梯（2026-09-13 定案：攻血同锚 0.5/+1，六档 0.5/1/1.5/1.5/2/3）
+                // 属性价梯（2026-09-13 定案：攻血同锚 0.5/+1；2026-09-16 统一档：UNT≡UET 同价 0.5）
                 CardCore.EffectDefinition StatDef(int duration, string type = "ModifyPower", int value = 1)
                     => CardEffectConverter.ConvertOne(new CardEffectData
                     {
@@ -2068,8 +2067,8 @@ namespace CardCore.Editor
                     }, "VERIFY_STAT");
                 int StatCost(CardCore.EffectDefinition d) => CardCore.CostDerivationService.DeriveElementCosts(d).Sum(c => c.Value);
                 Assert(StatCost(StatDef((int)DurationType.UntilEndOfTurn, value: 2)) == 1
-                       && StatCost(StatDef((int)DurationType.UntilNextTurn, value: 2)) == 2,
-                       "属性价梯：固定1回合 0.5/+1（+2攻=1）；固定2回合 1.0/+1（+2攻=2）");
+                       && StatCost(StatDef((int)DurationType.UntilNextTurn, value: 2)) == 1,
+                       "属性价梯：固定1回合 0.5/+1（+2攻=1）；UNT≡UET（统一档费用按1回合，+2攻=1）");
                 Assert(StatCost(StatDef((int)DurationType.UntilLeaveBattlefield, value: 2)) == 3,
                        "属性价梯：换区移除 1.5/+1（+2攻=3）");
                 Assert(StatCost(StatDef((int)DurationType.Permanent, value: 2)) == 4,
@@ -2623,7 +2622,6 @@ namespace CardCore.Editor
                    "工厂登记复生关键词 id");
 
             // ---- 2. 横置可用性 / 冲锋 / 突袭（2026-09-08 定案：一律横置入场；冲锋/突袭=登场效果，无入场豁免） ----
-            combat.StartCombat(p1, p2);
             var tappedUnit = Make(p1, 3, 3);
             tappedUnit.Tap(); // 模拟横置在场（未过回合重置）
             Assert(!combat.CanDeclareAttack(tappedUnit, p1), "横置随从不可攻击（可用性统一走横置）");
@@ -2712,7 +2710,7 @@ namespace CardCore.Editor
                    $"冲锋（登场效果）：结算后解除横置（激励自己）（诊断：入场即待发={queuedAtEntry} 上栈×{stackAdd} "
                    + $"已结算={chargerInstance?.IsResolved} 目标数={chargerInstance?.Targets?.Count}——"
                    + "上栈=0查触发注册/匹配；目标数=0查Self解析[Console搜TargetDomain警告]）");
-            Assert(combat.CanDeclareAttack(charger, p1) && combat.CanAttackTarget(charger, p2),
+            Assert(combat.CanDeclareAttack(charger, p1) && combat.CanAttackTarget(charger, p2, p1),
                    "冲锋：无目标限制，可攻击玩家");
             var rusher = MakeEntry(EntryReadyEffect(true));
             var enemy = Make(p2, 1, 9);
@@ -2730,68 +2728,59 @@ namespace CardCore.Editor
                 }).GetAwaiter().GetResult();
             Assert(rusher.GetCounterCount(CardCore.Attribute.KeywordRules.RushSicknessCounter) == 1,
                    "RushSickness 原子执行后：自上紊乱 1 层");
-            Assert(combat.CanAttackTarget(rusher, enemy) && !combat.CanAttackTarget(rusher, p2),
+            Assert(combat.CanAttackTarget(rusher, enemy, p1) && !combat.CanAttackTarget(rusher, p2, p1),
                    "突袭：紊乱期间只能攻随从，不准攻击玩家（效果发动同口径）");
             CardCore.Attribute.CounterRules.OnTurnEnd(p1, core.ZoneManager); // 回合结束持续指示物清理
             Assert(rusher.GetCounterCount(CardCore.Attribute.KeywordRules.RushSicknessCounter) == 0
-                   && combat.CanAttackTarget(rusher, p2),
+                   && combat.CanAttackTarget(rusher, p2, p1),
                    "突袭：紊乱消退（持续到回合结束）后目标限制解除");
-            combat.EndCombat();
 
             // ---- 3. 帷幕（原嘲讽,2026-09-13 更名=只吸引效果目标）不拦攻击；碾压已重定义为攻击溅射（见第 11 段） ----
-            combat.StartCombat(p1, p2);
             var attacker = Make(p1, 3, 3);
             var curtainHolder = Make(p2, 0, 9, "Taunt");
-            Assert(combat.CanAttackTarget(attacker, p2),
+            Assert(combat.CanAttackTarget(attacker, p2, p1),
                    "帷幕：不拦攻击——有帷幕随从也可指定玩家（效果侧吸引见 TestTauntAndSickness；溅射见第 11 段）");
             curtainHolder.IsAlive = false; // 清场（不干扰后续段）
-            combat.EndCombat();
 
             // ---- 4. 守卫关键词已删除（2026-09-03 原子表整体修正）：无守卫转移，攻击目标保持宣言 ----
-            combat.StartCombat(p1, p2);
             var striker = Make(p1, 3, 3);
             var victim = Make(p2, 2, 5);
             var guardDoppel = Make(p2, 1, 8); // 同位置单位（无 Guard 关键词——已删除）
-            combat.DeclareAttack(striker, victim);
-            var participant = combat.Attackers.FirstOrDefault(a => a.Entity == striker);
-            Assert(participant != null && participant.DeclaredTarget == victim && !guardDoppel.IsTapped(),
-                   "守卫删除：攻击目标保持宣言（无转移、无横置旁观者）");
-            combat.ExecuteDamage();
-            combat.EndCombat();
+            GameActions.DeclareAttack(core, p1, striker, victim);
+            var attackInst4 = core.StackEngine.Peek();
+            Assert(attackInst4 != null && attackInst4.IsAttackDeclaration && attackInst4.Targets[0] == victim
+                   && !guardDoppel.IsTapped(),
+                   "守卫删除：攻击目标保持宣言（无转移、无横置旁观者；宣言期零支付）");
+            GameActions.DrainStack(core);
 
-            // ---- 5. 潜行：不可被指定 + 攻击后移除 ----
-            combat.StartCombat(p1, p2);
+            // ---- 5. 潜行：不可被指定 + 攻击结算后移除 ----
             var lurker = Make(p2, 2, 2, "Stealth");
             var hunter = Make(p1, 3, 3);
-            Assert(!combat.CanAttackTarget(hunter, lurker), "潜行：不可被指定为攻击目标");
+            Assert(!combat.CanAttackTarget(hunter, lurker, p1), "潜行：不可被指定为攻击目标");
             var spy = Make(p1, 2, 2, "Stealth");
-            combat.DeclareAttack(spy, p2);
-            Assert(!spy.HasKeyword("Stealth"), "潜行：攻击后移除");
-            combat.ExecuteDamage();
-            combat.EndCombat();
+            GameActions.DeclareAttack(core, p1, spy, p2);
+            GameActions.DrainStack(core);
+            Assert(!spy.HasKeyword("Stealth"), "潜行：攻击结算后移除（结算期支付段）");
 
             // ---- 6. 警戒（2026-09-10 重定义）：攻击照常横置；横置也能造成战斗伤害 ----
-            combat.StartCombat(p1, p2);
             var vigilant = Make(p1, 3, 3, "Vigilance");
-            combat.DeclareAttack(vigilant, p2);
-            Assert(vigilant.IsTapped(), "警戒重定义：攻击照常横置（不再代替横置扣除）");
+            GameActions.DeclareAttack(core, p1, vigilant, p2);
+            GameActions.DrainStack(core);
+            Assert(vigilant.IsTapped(), "警戒重定义：攻击结算期照常横置（不再代替横置扣除）");
             Assert(CardCore.Attribute.KeywordRules.ShouldTap(vigilant), "警戒重定义：横置代价恒支付");
-            combat.ExecuteDamage();
-            combat.EndCombat();
             // 横置持警戒反击：守卫拦截横置后，持警戒的守卫仍造成战斗伤害（见 TestAttackGuard 新段）
 
-            // ---- 7. 横置即上限（2026-09-10 定案：计数/会话门槛均已撤，激励可再动）----
-            combat.StartCombat(p1, p2);
+            // ---- 7. 横置即上限（2026-09-10 定案：计数/会话门槛均已撤，激励可再动；逐攻击开窗）----
             var loneWolf = Make(p1, 1, 9);
             int p2Life7 = p2.Life;
-            Assert(combat.DeclareAttack(loneWolf, p2), "横置即上限：首次攻击宣言");
+            Assert(GameActions.DeclareAttack(core, p1, loneWolf, p2), "横置即上限：首次攻击宣言");
+            GameActions.DrainStack(core);
             Assert(loneWolf.IsTapped() && !combat.CanDeclareAttack(loneWolf, p1),
-                   "横置即上限：攻击后保持横置、不能再攻");
+                   "横置即上限：攻击结算后保持横置、不能再攻");
             loneWolf.Untap(); // 激励通路
-            Assert(combat.CanDeclareAttack(loneWolf, p1) && combat.DeclareAttack(loneWolf, p2),
+            Assert(combat.CanDeclareAttack(loneWolf, p1) && GameActions.DeclareAttack(core, p1, loneWolf, p2),
                    "激励再动：解除横置即可再宣（无每回合计数/会话去重门槛）");
-            combat.ExecuteDamage();
-            combat.EndCombat();
+            GameActions.DrainStack(core);
             Assert(loneWolf.AttacksThisTurn == 2 && p2.Life == p2Life7 - 2,
                    "激励再动：两次宣言都结算（台账计数 2、玩家共受 2 伤）");
 
@@ -2806,132 +2795,108 @@ namespace CardCore.Editor
             CardCore.Attribute.KeywordRules.ApplyDamage(p1, wardedTank, 5, false); // 普通路径对照
             Assert(wardedTank.GetLife() == 15 && !wardedTank.HasKeyword("DivineShield"),
                    "普通伤害对照：圣盾挡下一次并消耗");
-            combat.EndCombat();
 
             // ---- 8. 先攻：目标死亡不反击 ----
-            combat.StartCombat(p1, p2);
             var first = Make(p1, 5, 3, "FirstStrike");
             var bulky = Make(p2, 4, 3);
-            bool declared8 = combat.DeclareAttack(first, bulky);
-            UnityEngine.Debug.Log($"[CMBTDBG] declared={declared8} attackers={combat.Attackers.Count} first._power={first.GetPower()} layerPower={core.LayerEngine.CalculatePower(first)} firstTapped={first.IsTapped()} bulkyAlive={bulky.IsAlive} bulkyLife={bulky.GetLife()}");
-            combat.ExecuteDamage();
+            bool declared8 = GameActions.DeclareAttack(core, p1, first, bulky);
+            UnityEngine.Debug.Log($"[CMBTDBG] declared={declared8} stack={core.StackEngine.StackSize} first._power={first.GetPower()} layerPower={core.LayerEngine.CalculatePower(first)} firstTapped={first.IsTapped()} bulkyAlive={bulky.IsAlive} bulkyLife={bulky.GetLife()}");
+            GameActions.DrainStack(core);
             UnityEngine.Debug.Log($"[CMBTDBG] after ExecuteDamage: bulkyAlive={bulky.IsAlive} bulkyLife={bulky.GetLife()} firstLife={first.GetLife()}");
             Assert(!bulky.IsAlive && first.GetLife() == 3, "先攻：目标死于先攻步，不反击");
 
             // ---- 8b. 缴械：被攻击的目标无法反击 ----
-            combat.StartCombat(p1, p2);
             var disarmer = Make(p1, 3, 5, "Disarm");
             var bigGuard = Make(p2, 4, 9);
-            combat.DeclareAttack(disarmer, bigGuard);
-            combat.ExecuteDamage();
+            GameActions.DeclareAttack(core, p1, disarmer, bigGuard);
+            GameActions.DrainStack(core);
             Assert(disarmer.GetLife() == 5 && bigGuard.GetLife() == 6,
                    "缴械：目标（4 攻）无法反击，攻击者无伤（单向伤害）");
-            combat.EndCombat();
 
             // ---- 8c. 反击资格：已横置的随从只能挨打（不反击、无消耗） ----
-            combat.StartCombat(p1, p2);
             var aggressor = Make(p1, 3, 5);
             var tired = Make(p2, 4, 9);
             tired.Tap(); // 模拟已横置（刚攻击过/被冻结）
-            combat.DeclareAttack(aggressor, tired);
-            combat.ExecuteDamage();
+            GameActions.DeclareAttack(core, p1, aggressor, tired);
+            GameActions.DrainStack(core);
             Assert(aggressor.GetLife() == 5 && tired.GetLife() == 6,
                    "反击资格：已横置目标（4 攻）不反击，攻击者无伤");
-            combat.EndCombat();
-            combat.EndCombat();
 
             // ---- 9. 连击：两步各结算一次 ----
-            combat.StartCombat(p1, p2);
             var doubleS = Make(p1, 2, 9, "DoubleStrike");
             var tank = Make(p2, 1, 5);
-            combat.DeclareAttack(doubleS, tank);
-            combat.ExecuteDamage();
+            GameActions.DeclareAttack(core, p1, doubleS, tank);
+            GameActions.DrainStack(core);
             Assert(tank.GetLife() == 1 && doubleS.IsAlive, "连击：伤害结算两次（5命 −2×2 = 1）");
-            combat.EndCombat();
 
             // ---- 11. 碾压：邻接受击（注入邻接扩展点） ----
-            combat.StartCombat(p1, p2);
             var hammer = Make(p1, 4, 9, "Overwhelm");
             var pivot = Make(p2, 1, 9);
             var neighbor = Make(p2, 1, 9);
             CardCore.CombatSystem.AdjacentResolver = c => c == pivot ? new[] { neighbor } : System.Array.Empty<Card>();
-            combat.DeclareAttack(hammer, pivot);
-            combat.ExecuteDamage();
+            GameActions.DeclareAttack(core, p1, hammer, pivot);
+            GameActions.DrainStack(core);
             Assert(pivot.GetLife() == 5 && neighbor.GetLife() == 5, "碾压：目标与相邻随从各受 4 点（无反击）");
             CardCore.CombatSystem.AdjacentResolver = null;
-            combat.EndCombat();
 
             // ---- 12. 毒刺（2026-09-13 第十九批改写版）：将要成功造成的战斗伤害改写为毒素指示物×1
             //      （被改写伤害 return 0 不落血、无伤害事件链；反击无毒刺照常落血）----
-            combat.StartCombat(p1, p2);
             var viper = Make(p1, 1, 9, "PoisonSting");
             var giant = Make(p2, 3, 10);
-            combat.DeclareAttack(viper, giant);
-            combat.ExecuteDamage();
+            GameActions.DeclareAttack(core, p1, viper, giant);
+            GameActions.DrainStack(core);
             Assert(giant.IsAlive && giant.GetLife() == 10 && viper.GetLife() == 6
                    && giant.GetCounterCount(CardCore.Attribute.CounterRules.ToxinCounter) == 1,
                    "毒刺：战斗伤害被改写为目标 1 层毒素（目标不落血，反击正常）");
-            // 毒素回合结束结算：每个回合末每层 1 伤，ForTurns=3 计时（giant 从满血 10 起跳）
+            // 毒素回合结束结算（2026-09-16 统一档）：仅**持有者**回合末发作——施加方回合末不结算
             CardCore.Attribute.CounterRules.OnTurnEnd(p1, core.ZoneManager);
-            Assert(giant.GetLife() == 9, "毒素：回合结束每层受 1 点伤害");
-            combat.EndCombat();
+            Assert(giant.GetLife() == 10 && giant.GetCounterCount(CardCore.Attribute.CounterRules.ToxinCounter) == 1,
+                   "毒素：施加方回合末不发作（持有者侧结算域）");
+            CardCore.Attribute.CounterRules.OnTurnEnd(p2, core.ZoneManager);
+            Assert(giant.IsAlive && giant.GetLife() == 9 && giant.GetCounterCount(CardCore.Attribute.CounterRules.ToxinCounter) == 0,
+                   "毒素：持有者回合末每层 1 伤后清空（原 3 回合时钟退役）");
 
-            // ---- 12b. 毒素 3 层时钟：第 3 个回合末到期消失 ----
-            CardCore.Attribute.CounterRules.OnTurnEnd(p1, core.ZoneManager);
-            Assert(giant.GetLife() == 8 && giant.GetCounterCount(CardCore.Attribute.CounterRules.ToxinCounter) == 1,
-                   "毒素：第 2 个回合末仍跳伤（层未到期）");
-            CardCore.Attribute.CounterRules.OnTurnEnd(p1, core.ZoneManager);
-            Assert(giant.IsAlive && giant.GetLife() == 7 && giant.GetCounterCount(CardCore.Attribute.CounterRules.ToxinCounter) == 0,
-                   "毒素：第 3 个回合末跳伤后到期消失");
-
-            // ---- 12c. 剧毒指示物（新语义）：回合结束时持有者死亡（效果死亡、无伤害来源） ----
+            // ---- 12c. 剧毒指示物（新语义）：持有者回合结束时死亡（效果死亡、无伤害来源） ----
             var plagued = Make(p2, 3, 10);
             plagued.AddCounters(CardCore.Attribute.CounterRules.PoisonCounter, 1);
             CardCore.Attribute.CounterRules.OnTurnEnd(p1, core.ZoneManager);
-            Assert(!plagued.IsAlive, "剧毒指示物：回合结束时死亡（不再造成即时伤害）");
+            Assert(plagued.IsAlive, "剧毒：施加方回合末不发作（持有者侧结算域）");
+            CardCore.Attribute.CounterRules.OnTurnEnd(p2, core.ZoneManager);
+            Assert(!plagued.IsAlive, "剧毒指示物：持有者回合结束时死亡（不再造成即时伤害）");
 
             // ---- 13. 吸血（恢复自身）/ 系命（回复角色） ----
             ResetField(); // 段界清场：2-12 段已累计 17+ 单位，逼近容量 18
-            combat.StartCombat(p1, p2);
             var bat = Make(p1, 2, 3, "Lifesteal");
             CardCore.Attribute.KeywordRules.ApplyDamage(p2, bat, 2, false); // 受伤状态
             var prey = Make(p2, 0, 9);
-            combat.DeclareAttack(bat, prey);
-            combat.ExecuteDamage();
+            GameActions.DeclareAttack(core, p1, bat, prey);
+            GameActions.DrainStack(core);
             Assert(bat.GetLife() == 3, "吸血：造成 2 伤害恢复随从自身");
-            combat.EndCombat();
 
-            combat.StartCombat(p1, p2);
             p1.Life = 20;
             var monk = Make(p1, 3, 3, "Lifelink");
-            combat.DeclareAttack(monk, p2);
-            combat.ExecuteDamage();
+            GameActions.DeclareAttack(core, p1, monk, p2);
+            GameActions.DrainStack(core);
             Assert(p1.Life == 23, "系命：造成 3 伤害回复角色");
-            combat.EndCombat();
 
             // ---- 14. 圣盾 / 坚韧 / 护甲指示物 ----
-            combat.StartCombat(p1, p2);
             var shielded = Make(p2, 1, 5, "DivineShield");
             var breaker = Make(p1, 4, 9);
-            combat.DeclareAttack(breaker, shielded);
-            combat.ExecuteDamage();
+            GameActions.DeclareAttack(core, p1, breaker, shielded);
+            GameActions.DrainStack(core);
             Assert(shielded.IsAlive && shielded.GetLife() == 5 && !shielded.HasKeyword("DivineShield"),
                    "圣盾：挡下一次伤害并消耗");
             breaker.Untap();
             breaker.AttacksThisTurn = 0; // 台账清零（2026-09-10 后非门槛，仅为下文计数断言口径干净）
-            combat.StartCombat(p1, p2);
-            combat.DeclareAttack(breaker, shielded);
-            combat.ExecuteDamage();
+            GameActions.DeclareAttack(core, p1, breaker, shielded);
+            GameActions.DrainStack(core);
             Assert(shielded.GetLife() == 1, "圣盾消耗后正常受伤");
-            combat.EndCombat();
 
-            combat.StartCombat(p1, p2);
             var tough = Make(p2, 1, 9, "Armor"); // 坚韧 −1
             var hitter = Make(p1, 4, 9);
-            combat.DeclareAttack(hitter, tough);
-            combat.ExecuteDamage();
+            GameActions.DeclareAttack(core, p1, hitter, tough);
+            GameActions.DrainStack(core);
             Assert(tough.GetLife() == 6, "坚韧：最终伤害 −1（9 −3 = 6）");
-            combat.EndCombat();
 
             // 融合叠加：直接向列表补第二个坚韧（融合继承路径）
             ((IHasKeywords)tough).Keywords.Add("Armor");
@@ -3122,21 +3087,19 @@ namespace CardCore.Editor
             Assert(twin.GetPower() == 1 && twin.GetMaxLife() == 3,
                    "±1 层对消共存：-1/-1×2 与 +1/+1×1（净 -1/-1）");
 
-            // ---- 18d. 易损：受到伤害每层 +1（防护层吸收放大后的量）；回合末到期 ----
+            // ---- 18d. 易损：受到伤害每层 +1（防护层吸收放大后的量）；持有者回合末到期 ----
             var brittle = Make(p2, 2, 9);
             brittle.AddCounters(CardCore.Attribute.CounterRules.VulnerableCounter, 2);
             CardCore.Attribute.KeywordRules.ApplyDamage(p1, brittle, 3, false);
             Assert(brittle.GetLife() == 4, "易损：3 伤 + 2 层 = 5 伤（防护层前放大）");
-            CardCore.Attribute.CounterRules.OnTurnEnd(p1, core.ZoneManager);
+            CardCore.Attribute.CounterRules.OnTurnEnd(p2, core.ZoneManager);
             Assert(brittle.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 0,
-                   "易损：持续 1 回合（每个回合末到期）");
+                   "易损：持续到持有者回合结束（施加方回合末不结算）");
 
             // ---- 18e. 紊乱原子：附加后不能以玩家为目标（攻击与效果同口径） ----
             var dizzy = Make(p2, 2, 5);
             dizzy.AddCounters(CardCore.Attribute.KeywordRules.RushSicknessCounter, 1);
-            combat.StartCombat(p1, p2);
-            Assert(!combat.CanAttackTarget(dizzy, p1), "紊乱：持有者不能以玩家为目标（攻击侧）");
-            combat.EndCombat();
+            Assert(!combat.CanAttackTarget(dizzy, p1, p1), "紊乱：持有者不能以玩家为目标（攻击侧）");
             CardCore.Attribute.CounterRules.OnTurnEnd(p1, core.ZoneManager);
             Assert(dizzy.GetCounterCount(CardCore.Attribute.KeywordRules.RushSicknessCounter) == 0,
                    "紊乱：持续到回合结束消退");
@@ -5054,14 +5017,19 @@ namespace CardCore.Editor
                 return;
             }
 
-            RegenOneDeck(path);
-
+            // 三层推导链（2026-09-16 定案，顺序敏感）：原子表 id（sha256(DisplayName)）→
+            // 效果 id（HashEffect：文本+参数+原子引用）→ 卡 id（HashCard：文本+参数+效果id序列）。
+            // 原子表必须先行——效果/卡里的 refId 按 id 引用表行（GetByHashId），原子 id 后推会引用断链
             RegenAtomicTableIds();
+
+            RegenOneDeck(path);
         }
 
         /// <summary>原子表 ID 列重推（镜像 Config/gen_effect_ids.py 口径：sha256(DisplayName.Trim())
-        /// UTF-8 的前 8 位 hex。ID 列运行时零消费——JsonUtility DTO 不读、不进表指纹/卡身份，
-        /// 仅为管线行标识）。DisplayName 撞名 → ID 撞号，告警。</summary>
+        /// UTF-8 的前 8 位 hex——三层推导链的第一层）。ID 是引用键：Effects.json/Cards.json 的
+        /// 原子 refId 经 AtomicEffectTable.GetByHashId 按行解析（2026-09-16 修正旧注释"零消费"口径）。
+        /// DisplayName 改动 → ID 漂移 → 引用方需同步（文本即身份，与 python 管线同约定）。
+        /// DisplayName 撞名 → ID 撞号，告警。</summary>
         private static void RegenAtomicTableIds()
         {
             string path = Path.Combine(Application.dataPath, "Configs", "AttributeValueConfig.json");
@@ -5341,11 +5309,9 @@ namespace CardCore.Editor
             var other = Spawn(p2, 3, 3);
             var attacker = Spawn(p1, 4, 4);
             var combat = core.CombatSystem;
-            combat.StartCombat(p1, p2);
-            Assert(combat.CanAttackTarget(attacker, p2) && combat.CanAttackTarget(attacker, other)
-                   && combat.CanAttackTarget(attacker, curtain),
+            Assert(combat.CanAttackTarget(attacker, p2, p1) && combat.CanAttackTarget(attacker, other, p1)
+                   && combat.CanAttackTarget(attacker, curtain, p1),
                    "帷幕（2026-09-13 更名）：不拦攻击——角色/非帷幕/帷幕随从均可指（攻击侧由守卫承担）");
-            combat.EndCombat();
 
             // ---- 2. 帷幕：效果侧选择层（Manual/Random 收窄；Full 不受限） ----
             var manualDef = new CardCore.EffectDefinition
@@ -5397,10 +5363,8 @@ namespace CardCore.Editor
             var cands = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(enemyKinds, "", sickCtx);
             Assert(!cands.Contains(p2) && cands.Contains(other),
                    "紊乱：效果候选域剔除角色（源紊乱的效果不可指角色）");
-            combat.StartCombat(p1, p2);
-            Assert(!combat.CanAttackTarget(sick, p2) && combat.CanAttackTarget(sick, other),
+            Assert(!combat.CanAttackTarget(sick, p2, p1) && combat.CanAttackTarget(sick, other, p1),
                    "紊乱：攻击不可指角色、随从照常");
-            combat.EndCombat();
 
             p1.AddCounters(Attribute.KeywordRules.RushSicknessCounter, 1); // 施法者紊乱（法术来源=角色）
             var extSick = CardCore.TargetResolver.FilterPreselectedTargets(
@@ -6141,18 +6105,18 @@ namespace CardCore.Editor
             public bool ShouldSkipTurnStartAutomation(Player player) => true;
         }
 
-        // ======================================== 档位收缩定案（2026-09-13：冻结叠层/生物关键词1回合/三族计价梯） ========================================
+        // ======================================== 档位收缩定案（2026-09-13；2026-09-16 指示物统一档追改） ========================================
 
         /// <summary>
-        /// ①冻结：默认 1 回合、对已冻结目标施加=持续+1（叠层），回合末倒数 -1，持有期间无法重置；
+        /// ①冻结：持续恒=持有者回合结束（叠层仅累计显示不再延展），持有期间无法重置；
         /// ②生物赋予关键词固定 Temp 1 回合（回合末清，魔法 Setting/光环照旧）；
-        /// ③计价梯：控制权三档（1.2/1.6/3.0）、Grant 四档（1.0/1.2/1.6/2.0）、费用修改两档（1.5/3.0）。
+        /// ③计价梯：控制权三档（1.2/1.6/3.0）、Grant 四档（1.0/1.2/1.6/2.0——UNT≡UET 并入 1.2）、费用修改两档（1.5/3.0）。
         /// </summary>
         private static void TestTierConsolidation(GameCore core, Player p1, Player p2)
         {
             EnsureMainPhase(core, p1);
 
-            // ---- 1. 冻结叠层 ----
+            // ---- 1. 冻结（2026-09-16 统一档：层数累计不延展；持有者回合末全清） ----
             var frozenUnit = SpawnTier(core, p1, 3, 3);
             var freezeAtom = new CardCore.AtomicEffectInstance { Type = AtomicEffectType.Freeze, Value = 0 };
             var fctx = new EffectExecutionContext
@@ -6162,16 +6126,16 @@ namespace CardCore.Editor
             };
             CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(freezeAtom, fctx); // 默认 1 层
             Assert(frozenUnit.IsTapped() && frozenUnit.GetCounterCount(CardCore.Attribute.KeywordRules.FreezeCounter) == 1,
-                   "冻结：默认 1 层（1 回合）");
-            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(freezeAtom, fctx); // 再施加 = +1
+                   "冻结：默认 1 层");
+            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(freezeAtom, fctx); // 再施加 = 层数累计（不延展）
             Assert(frozenUnit.GetCounterCount(CardCore.Attribute.KeywordRules.FreezeCounter) == 2,
-                   "冻结叠加：对已冻结目标施加 = 持续回合数 +1（2 层）");
-            CardCore.Attribute.CounterRules.OnTurnEnd(p1, core.ZoneManager); // 回合末 -1
-            Assert(frozenUnit.GetCounterCount(CardCore.Attribute.KeywordRules.FreezeCounter) == 1 && frozenUnit.IsTapped(),
-                   "冻结倒数：回合末 -1 层（剩 1——仍冻结仍横置）");
-            CardCore.Attribute.CounterRules.OnTurnEnd(p2, core.ZoneManager);
+                   "冻结叠加：层数累计（统一档：叠加不再延长持续）");
+            CardCore.Attribute.CounterRules.OnTurnEnd(p2, core.ZoneManager); // 施加方回合末：不碰持有者侧
+            Assert(frozenUnit.GetCounterCount(CardCore.Attribute.KeywordRules.FreezeCounter) == 2 && frozenUnit.IsTapped(),
+                   "冻结：施加方回合末不消退（持有者侧结算域，仍冻结仍横置）");
+            CardCore.Attribute.CounterRules.OnTurnEnd(p1, core.ZoneManager); // 持有者回合末：整类清零
             Assert(frozenUnit.GetCounterCount(CardCore.Attribute.KeywordRules.FreezeCounter) == 0,
-                   "冻结消退：末层扣完清零（下回合可重置）");
+                   "冻结消退：持有者回合末全清（下回合可重置）");
             RetireCards(core, p1, frozenUnit);
 
             // ---- 2. 关键词赋予权限三分（2026-09-14 用户定案）：他人=Temp 1 回合；自己=Setting 文本轨永久 ----
@@ -6369,27 +6333,27 @@ namespace CardCore.Editor
             Assert(!GameActions.TapCreatureForElement(core, p2, grower), "已横置不可再产（横置即上限）");
             RetireCards(core, p2, grower);
 
-            // ---- 4. 红基础：双方各 +2（本回合）----
+            // ---- 4. 红基础（2026-09-16 调档·红2）：双方全体生物各 +1（持续到各自持有者回合结束）----
             var r1 = SpawnTier(core, p1, 3, 3);
             var r2 = SpawnTier(core, p2, 3, 3);
             EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 860 });
             EnsureMainPhase(core, p1);
             p1.HeroSkill = (int)HeroSkillId.RedFrenzy;
             // 2026-09-13 修复：HeroSkillTotalUses/Upgraded 是玩家级**跨技能共享**——蓝段已推到
-            // 8 次/升级置位，红段首次发动会直接走升级版（燃尽直伤）而非 +2 buff；重置后再测红基础。
-            // 红费按 8 次激活 ×红3 = 24 计，直接补 99（原 +9 只够 3 次，升级段会中途断费）
+            // 8 次/升级置位，红段首次发动会直接走升级版（燃尽直伤）而非 buff；重置后再测红基础。
+            // 红费按多次激活 ×红2 计，直接补 99（防升级段中途断费）
             p1.HeroSkillTotalUses = 0;
             p1.HeroSkillUpgraded = false;
             pool1.AvailableMana[ManaType.Red] = 99;
             int r1Pow = r1.GetPower(), r2Pow = r2.GetPower();
             Assert(GameActions.ActivateHeroSkill(core, p1).GetAwaiter().GetResult(), "红技能发动");
-            Assert(r1.GetPower() == r1Pow + 2 && r2.GetPower() == r2Pow + 2,
-                   "红基础：双方生物各 +2");
+            Assert(r1.GetPower() == r1Pow + 1 && r2.GetPower() == r2Pow + 1,
+                   "红基础：双方全体生物各 +1（红2 调档）");
             EventManager.Instance.Publish(new TurnEndEvent { TurnPlayer = p1, TurnNumber = 860 });
-            Assert(r1.GetPower() == r1Pow + 2 && r2.GetPower() == r2Pow + 2,
-                   "红基础：第 1 个回合末仍 +2（持续两回合——活过对手回合）");
+            Assert(r1.GetPower() == r1Pow && r2.GetPower() == r2Pow + 1,
+                   "红基础：自己生物在自己回合末消退；对手生物不消退（持有者侧，等对手回合结束）");
             EventManager.Instance.Publish(new TurnEndEvent { TurnPlayer = p2, TurnNumber = 861 });
-            Assert(r1.GetPower() == r1Pow && r2.GetPower() == r2Pow, "红基础：第 2 个回合末消退（属性随时钟回写）");
+            Assert(r1.GetPower() == r1Pow && r2.GetPower() == r2Pow, "红基础：对手生物在其回合末消退（属性随时钟回写）");
 
             // ---- 5. 红升级：以其攻击力对对手角色直伤 ----
             EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 861 });
@@ -6416,7 +6380,7 @@ namespace CardCore.Editor
             pool1.AvailableMana[ManaType.Red] = 0;
             p1.HeroSkillUsesThisTurn = 0;
             Assert(!GameActions.ActivateHeroSkill(core, p1).GetAwaiter().GetResult(),
-                   "费用不足：付不起红 3 拒绝发动");
+                   "费用不足：付不起红 2 拒绝发动");
 
             // None 无技能
             p1.HeroSkill = (int)HeroSkillId.None;

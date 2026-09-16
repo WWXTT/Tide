@@ -15,8 +15,8 @@ namespace CardCore
         /// <summary>绿·培育（绿2）：双方各选一个己方生物赋予地牌特性（横置→得 1 元素，色随生物费用）；
         /// 升级（7 次）：从自己墓地选一张卡置入地牌区</summary>
         GreenCultivate = 2,
-        /// <summary>红·狂热（红3）：双方各选一个己方生物攻击力+2（本回合）；升级（7 次）：
-        /// 选一个己方生物以其当前攻击力对对手角色造成等量伤害</summary>
+        /// <summary>红·狂热（红2，2026-09-16 调档）：双方全体生物攻击力 +1（持续到各自持有者回合结束）；
+        /// 升级（7 次）：选一个己方生物以其当前攻击力对对手角色造成等量伤害</summary>
         RedFrenzy = 3,
     }
 
@@ -38,7 +38,7 @@ namespace CardCore
         {
             HeroSkillId.BlueInsight => (ManaType.Blue, 1),
             HeroSkillId.GreenCultivate => (ManaType.Green, 2),
-            HeroSkillId.RedFrenzy => (ManaType.Red, 3),
+            HeroSkillId.RedFrenzy => (ManaType.Red, 2),
             _ => (ManaType.Gray, 0),
         };
 
@@ -51,8 +51,8 @@ namespace CardCore
                 ? "培育·再生（绿2）：从自己墓地选一张卡置入地牌区"
                 : "培育（绿2）：双方各选一个己方生物赋予地牌特性（横置得 1 元素）",
             HeroSkillId.RedFrenzy => upgraded
-                ? "狂热·燃尽（红3）：选一个己方生物以其攻击力对对手角色造成等量伤害"
-                : "狂热（红3）：双方各选一个己方生物攻击力 +2（本回合）",
+                ? "狂热·燃尽（红2）：选一个己方生物以其攻击力对对手角色造成等量伤害"
+                : "狂热（红2）：双方全体生物攻击力 +1（持续到各自持有者回合结束）",
             _ => "无技能",
         };
 
@@ -130,8 +130,9 @@ namespace CardCore
                     }
                     else
                     {
-                        await BuffOwnCreatureAsync(core, player, 2);
-                        if (opponent != null) await BuffOwnCreatureAsync(core, opponent, 2);
+                        // 对称设计（双方全体各 +1——激活者付费、双方受益，优势来自先手利用）
+                        BuffAllCreaturesAsync(core, player, 1);
+                        if (opponent != null) BuffAllCreaturesAsync(core, opponent, 1);
                     }
                     break;
             }
@@ -234,36 +235,22 @@ namespace CardCore
             });
         }
 
-        /// <summary>红基础：玩家自选一个己方生物，攻击力 +N（本回合，Setting 轨——技能来源=角色）。</summary>
-        private static async UniTask BuffOwnCreatureAsync(GameCore core, Player player, int bonus)
+        /// <summary>红基础（2026-09-16 调档）：玩家全体生物攻击力 +N——不再选目标；持续到各自
+        /// 持有者回合结束（统一档：clock 到期反写，无多回合倒数）。不经 StatGrantRouter
+        /// （Player 来源会被判设置轨=永久直改），直接走指示物+时钟。</summary>
+        private static void BuffAllCreaturesAsync(GameCore core, Player player, int bonus)
         {
-            var creatures = OwnCreatures(core, player);
-            if (creatures.Count == 0) return;
-
-            Card chosen = creatures[0];
-            if (creatures.Count > 1)
+            foreach (var card in OwnCreatures(core, player))
             {
-                var picked = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                Attribute.CounterRules.AddStatCounter(card, Attribute.CounterRules.PowerUpCounter, bonus, player, turns: 1);
+                core.PublishEvent(new KeywordAppliedEvent
                 {
-                    Candidates = creatures.Cast<Entity>().ToList(),
-                    MinCount = 1,
-                    MaxCount = 1,
-                    Chooser = player,
-                    Title = $"英雄技能·狂热（选择攻击力+{bonus} 的生物）",
+                    Target = card,
+                    Keyword = "狂热",
+                    Detail = $"攻击力 +{bonus}（持续到持有者回合结束）",
+                    Source = player,
                 });
-                if (picked != null && picked.Count > 0 && picked[0] is Card pc) chosen = pc;
             }
-
-            // 2026-09-13 用户修订：+2 持续两回合（ForTurns(2)≡UntilNextTurn——活过对手回合，防御+进攻双窗口）。
-            // 直接走指示物+时钟（AddStatCounter turns:2）——不经 StatGrantRouter（Player 来源会被判设置轨=永久直改）
-            Attribute.CounterRules.AddStatCounter(chosen, Attribute.CounterRules.PowerUpCounter, bonus, player, turns: 2);
-            core.PublishEvent(new KeywordAppliedEvent
-            {
-                Target = chosen,
-                Keyword = "狂热",
-                Detail = $"攻击力 +{bonus}（持续 2 回合）",
-                Source = player,
-            });
         }
 
         /// <summary>红升级：选一个己方生物，以其当前攻击力（LayerEngine 实时值）对对手角色造成等量伤害。</summary>

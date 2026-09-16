@@ -1,101 +1,7 @@
 {
     "cards": [
         {
-            "id": "C_D370C6F5",
-            "cardName": "黑红双蚀·造成2点伤害并流失1点生命上限",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [],
-            "keywords": [],
-            "tags": [],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "arrows": "None",
-            "effectIds": [
-                "CB2858B4"
-            ],
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "C_15E806B5",
-            "cardName": "处决钩·造成2点伤害，击杀则抽1张",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "arrows": "None",
-            "effectIds": [
-                "A5AEE20E"
-            ],
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "C_2B4AF056",
-            "cardName": "蓄能圣钟·每3回合回复自身2点生命",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [],
-            "keywords": [],
-            "tags": [],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "arrows": "None",
-            "effectIds": [
-                "22F9E322"
-            ],
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "C_B1454777",
-            "cardName": "血债拼点·拼点胜出抽1张，结算弃1张手牌",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "arrows": "None",
-            "effectIds": [
-                "9A65A611"
-            ],
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "C_27AB801E",
+            "id": "C_2556C0F4",
             "cardName": "毒刺",
             "supertype": "Creature",
             "power": 1,
@@ -113,7 +19,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "232CBF90"
+                "89065F1B"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -121,7 +27,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_66C34806",
+            "id": "C_B003DB3C",
             "cardName": "吸血",
             "supertype": "Creature",
             "power": 1,
@@ -139,7 +45,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "4ADE1B15"
+                "4F5B0B2C"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -147,7 +53,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_3430AF50",
+            "id": "C_0A84C614",
             "cardName": "潜行",
             "supertype": "Creature",
             "power": 1,
@@ -165,7 +71,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "A6D29B70"
+                "395B55AF"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -173,7 +79,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_8CE381CD",
+            "id": "C_2BD5A227",
             "cardName": "圣盾",
             "supertype": "Creature",
             "power": 1,
@@ -191,7 +97,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "F1DD683F"
+                "69087C16"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -199,7 +105,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_84AFFAF8",
+            "id": "C_5BB4D216",
             "cardName": "碾压",
             "supertype": "Creature",
             "power": 1,
@@ -217,7 +123,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "98388ACF"
+                "F999F300"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -225,7 +131,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_8AADCD59",
+            "id": "C_30D61751",
             "cardName": "警戒",
             "supertype": "Creature",
             "power": 1,
@@ -243,7 +149,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "DCF8B858"
+                "174F64DC"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -251,7 +157,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_B4EA6FDF",
+            "id": "C_6A842BCC",
             "cardName": "先攻",
             "supertype": "Creature",
             "power": 1,
@@ -269,7 +175,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "1E888678"
+                "E0DA5510"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -277,7 +183,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_D040B33D",
+            "id": "C_171CD2B6",
             "cardName": "法术护盾",
             "supertype": "Creature",
             "power": 1,
@@ -295,7 +201,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "FA0C1B8D"
+                "38DAFABA"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -303,7 +209,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_AEC3503F",
+            "id": "C_E9D8761E",
             "cardName": "扰魔",
             "supertype": "Creature",
             "power": 1,
@@ -321,7 +227,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "16D1F440"
+                "60D981AC"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -329,7 +235,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_284AC436",
+            "id": "C_19FBA988",
             "cardName": "复生",
             "supertype": "Creature",
             "power": 1,
@@ -347,7 +253,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "E9987EC4"
+                "46B25057"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -355,7 +261,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_F14DC4A0",
+            "id": "C_F400D0A1",
             "cardName": "不灭",
             "supertype": "Creature",
             "power": 1,
@@ -373,7 +279,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "92FA9A58"
+                "A17D998C"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -381,7 +287,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_D07CC679",
+            "id": "C_AB6FD5E5",
             "cardName": "系命",
             "supertype": "Creature",
             "power": 1,
@@ -399,7 +305,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "53D23808"
+                "34A4CF64"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -407,7 +313,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_4A22003A",
+            "id": "C_CA010C21",
             "cardName": "再生",
             "supertype": "Creature",
             "power": 1,
@@ -425,7 +331,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "34DDF64F"
+                "1BF6DB1B"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -433,7 +339,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_FF1A0C22",
+            "id": "C_C6CB9F95",
             "cardName": "成长",
             "supertype": "Creature",
             "power": 1,
@@ -451,7 +357,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "E4A3A790"
+                "7ED23704"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -459,7 +365,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_4502A445",
+            "id": "C_FB4C2C2A",
             "cardName": "缴械",
             "supertype": "Creature",
             "power": 1,
@@ -477,7 +383,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "F5BBB122"
+                "3DC2DA55"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -485,7 +391,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_B65DDED4",
+            "id": "C_6B5017F8",
             "cardName": "帷幕",
             "supertype": "Creature",
             "power": 1,
@@ -503,7 +409,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "E611565F"
+                "AA5CD542"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -511,7 +417,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_930F9BE6",
+            "id": "C_A88CBBCF",
             "cardName": "回响",
             "supertype": "Creature",
             "power": 1,
@@ -529,7 +435,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "7541CDFA"
+                "1BCF71A6"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -537,7 +443,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_B017275B",
+            "id": "C_C2DC3E00",
             "cardName": "冰晶",
             "supertype": "Creature",
             "power": 1,
@@ -555,7 +461,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "6B92C2A7"
+                "F2A29CE6"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -563,7 +469,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_20396C3D",
+            "id": "C_6FBB49E1",
             "cardName": "梦魇",
             "supertype": "Creature",
             "power": 1,
@@ -581,7 +487,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "727AFFAC"
+                "94D9D9E7"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -589,7 +495,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_C9C25CB3",
+            "id": "C_A61C4278",
             "cardName": "病原体",
             "supertype": "Creature",
             "power": 1,
@@ -607,7 +513,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "77A36EF0"
+                "3A911470"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -615,7 +521,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_ADB3AF94",
+            "id": "C_E9C5CADC",
             "cardName": "禁魔石",
             "supertype": "Creature",
             "power": 1,
@@ -633,28 +539,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "6C2C4CCB"
-            ],
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "C_7A8A6549",
-            "cardName": "过载核心·抽1张，打出时流失1点生命上限",
-            "supertype": "Spell",
-            "power": 0,
-            "life": 0,
-            "costList": [],
-            "keywords": [],
-            "tags": [],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "arrows": "None",
-            "effectIds": [
-                "CC49BCC2"
+                "8683BE2A"
             ],
             "linkAuras": [],
             "noAttack": false,

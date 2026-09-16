@@ -57,4 +57,18 @@ namespace CardCore
             };
         }
     }
+
+    /// <summary>
+    /// 效果执行完整文本事件（2026-09-16 描述接口化定案，效果级）：一个 EffectInstance 结算完成时
+    /// 由执行器发布——原子片段（handler.GetDescription(atom, context)：模板+目标名+真实产出）
+    /// 聚合为一条完整描述，随 EffectInstance.ExecutionSummary 一并携带。战报/UI 栈显示的唯一文本源。
+    /// </summary>
+    public class EffectExecutionSummaryEvent : GameEventBase
+    {
+        /// <summary>结算完成的效果实例（含 ExecutionSummary）</summary>
+        public EffectInstance Instance { get; set; }
+
+        /// <summary>效果级完整描述文本</summary>
+        public string Description { get; set; }
+    }
 }

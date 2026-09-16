@@ -33,7 +33,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect)
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
         {
             return $"造成 {effect.Value} 点伤害";
         }
@@ -48,7 +48,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SweepDamage;
 
-        public override string GetDescription(AtomicEffectInstance effect)
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
             => $"对范围内全部有生命单位各造成 {effect.Value} 点伤害";
     }
 
@@ -60,7 +60,7 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SweepHeal;
 
-        public override string GetDescription(AtomicEffectInstance effect)
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
             => $"对范围内全部有生命单位各恢复 {effect.Value} 点生命";
     }
 
@@ -68,6 +68,10 @@ namespace CardCore.Attribute.Handlers
     /// 宣告胜利（2026-09-15 终局原子，黑）：效果控制者的对手获得游戏胜利——
     /// 亡语「对手获得胜利」等终局效果载体。经 GameCore.EndGame→PublishGameOverOnce
     ///（Ended 状态守卫幂等——同批已有终局时本宣告搁浅）。TargetKinds 置空（无目标原子）。
+    /// 含本原子的效果经 converter 闸一律强制（2026-09-16：纯强制批合成双 Pass 直接结算，宣判即终局）。
+    /// ⚠ 方向未接线（2026-09-16 标记）：表内「效果控制者获得胜利」行与本行同 EffectType，
+    /// AtomicEffectTable.GetByType 按 Type 查行互相遮蔽，且本 handler 硬编码 winner=对手——
+    /// 「自己胜」方向运行时不可达。等真有卡使用时再拆枚举或加方向参数。
     /// </summary>
     public class DeclareVictoryHandler : AtomicEffectHandlerBase
     {
@@ -81,7 +85,7 @@ namespace CardCore.Attribute.Handlers
                 GameCore.Instance.EndGame(winner, GameOverReason.EffectVictory);
         }
 
-        public override string GetDescription(AtomicEffectInstance effect)
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
             => "效果控制者的对手获得胜利";
     }
 
@@ -115,7 +119,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect)
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
         {
             return $"抽 {effect.Value} 张牌";
         }
@@ -147,7 +151,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect)
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
         {
             return "将目标移回手牌";
         }
@@ -166,8 +170,8 @@ namespace CardCore.Attribute.Handlers
 
             foreach (var target in context.Targets)
             {
-                // Freeze 定案（2026-09-13 叠层版）：默认 1 回合；**对已冻结目标施加 = 持续回合数 +1**
-                //（每层一回合，回合末 CounterRules 倒数 -1）；强制横置 + 持有期间无法重置不变。
+                // Freeze 统一档（2026-09-16）：持续恒=持有者回合结束（原叠层延展模型退役）——
+                // 层数仅累计显示，不再延长持续；强制横置 + 持有期间无法重置不变。
                 // 指示物数量随机：Value>0 时本次叠加层数掷值（每目标独立，≤0 = 空过），缺省 1 层
                 int layers = effect.Value > 0
                     ? context.GetValueAfterModifiers(effect.GetRolledValue())
@@ -183,7 +187,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect)
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
         {
             return "冻结目标";
         }
@@ -218,7 +222,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect)
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
         {
             return $"恢复 {effect.Value} 点生命";
         }
@@ -255,7 +259,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect)
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
         {
             string sign = effect.Value >= 0 ? "+" : "";
             return $"攻击力 {sign}{effect.Value}";
@@ -294,13 +298,13 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "变形为另一张卡";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "变形为另一张卡";
     }
 
     // ============ 战斗底盘（2026-09-10 攻击/守卫效果化） ============
 
     /// <summary>
-    /// 攻击原子（1 速主动效果，横置发动）：底盘能力的计价/组合锚。
+    /// 攻击原子（速度0主动效果，2026-09-16）：底盘能力的计价/组合锚。
     /// 战斗流程由 CombatSystem 消费（宣言→响应窗口→结算），不走常规原子执行——
     /// 本 handler 仅满足注册完整性（VerifyHandlerCoverage 契约），直调为防御性空转。
     /// 附带「竖直参战至结算完成」由默认攻击能力的明文组合承载（Untap 自身，持续到攻击结算）。
@@ -314,11 +318,11 @@ namespace CardCore.Attribute.Handlers
             UnityEngine.Debug.LogWarning("[Attack] 攻击原子不应经常规原子路径执行（战斗流程走 CombatSystem）");
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "攻击（1速·横置发动）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "攻击（速度0·结算期横置）";
     }
 
     /// <summary>
-    /// 守卫原子（2 速响应拦截）：底盘能力的计价/组合锚。
+    /// 守卫原子（速度1响应拦截，2026-09-16）：底盘能力的计价/组合锚。
     /// 拦截流程由 CombatSystem 目标确认段消费（友方被指→横置自身→转移目标），
     /// 本 handler 仅满足注册完整性，直调为防御性空转。
     /// </summary>
@@ -331,6 +335,6 @@ namespace CardCore.Attribute.Handlers
             UnityEngine.Debug.LogWarning("[Guard] 守卫原子不应经常规原子路径执行（拦截走 CombatSystem）");
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "守卫（2速·响应拦截）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "守卫（速度1·响应拦截）";
     }
 }
