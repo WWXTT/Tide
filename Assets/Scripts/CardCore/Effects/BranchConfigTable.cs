@@ -7,7 +7,8 @@ namespace CardCore
 {
     /// <summary>
     /// 分支配置注册表。运行时唯一真相源：从 Assets/Configs/BranchConfig.json 加载三族条件目录
-    /// （OutcomeGate / Drawback / FilterPrecision）+ 减费缺陷 + 检索维度系数。增删条件不改代码。
+    /// （OutcomeGate / FilterPrecision）+ 检索维度系数。增删条件不改代码。
+    /// 抽牌减费缺陷（Drawback）目录已随减费归入代价体系退役（2026-09-16）。
     ///
     /// 与代码的同步契约（加载自检强制）：
     /// - effects 里每个 effectType 必须存在于 AtomicEffectTable 且属于 OutcomeProducerTypes（产出族）；
@@ -39,7 +40,6 @@ namespace CardCore
 
         private static Dictionary<string, BranchConfig> _idMap;
         private static Dictionary<string, BranchConfig> _effectTypeMap;
-        private static Dictionary<string, BranchCondition> _drawbackMap;
         private static List<BranchFilterTier> _filterTiers;
 
         static BranchConfigTable()
@@ -51,7 +51,6 @@ namespace CardCore
         {
             _idMap = new Dictionary<string, BranchConfig>();
             _effectTypeMap = new Dictionary<string, BranchConfig>();
-            _drawbackMap = new Dictionary<string, BranchCondition>();
             _filterTiers = new List<BranchFilterTier>();
 
             int loaded = 0;
@@ -132,22 +131,6 @@ namespace CardCore
                 }
             }
 
-            if (root.drawbacks != null)
-            {
-                foreach (var d in root.drawbacks)
-                {
-                    if (d == null || string.IsNullOrEmpty(d.id)) continue;
-                    _drawbackMap[d.id] = new BranchCondition
-                    {
-                        Id = d.id,
-                        Kind = BranchConditionKind.Drawback,
-                        DisplayName = d.displayName,
-                        Description = d.description,
-                        CostReduction = d.costReduction,
-                    };
-                }
-            }
-
             if (root.filterPrecisionTiers != null)
             {
                 foreach (var t in root.filterPrecisionTiers)
@@ -194,7 +177,6 @@ namespace CardCore
                         Description = c.description,
                         Param = c.param,
                         StringParam = c.stringParam,
-                        CostReduction = c.costReduction,
                     });
                 }
             }
@@ -226,18 +208,6 @@ namespace CardCore
             return _idMap.Values;
         }
 
-        /// <summary>获取抽牌减费缺陷定义</summary>
-        public static BranchCondition GetDrawback(string id)
-        {
-            return _drawbackMap.TryGetValue(id, out var d) ? d : null;
-        }
-
-        /// <summary>获取全部抽牌减费缺陷</summary>
-        public static IEnumerable<BranchCondition> GetAllDrawbacks()
-        {
-            return _drawbackMap.Values;
-        }
-
         /// <summary>获取检索筛选维度档</summary>
         public static BranchFilterTier GetFilterTier(string id)
         {
@@ -258,7 +228,6 @@ namespace CardCore
         private class BranchConfigRoot
         {
             public List<BranchEffectEntry> effects;
-            public List<DrawbackEntry> drawbacks;
             public List<FilterTierEntry> filterPrecisionTiers;
         }
 
@@ -281,16 +250,6 @@ namespace CardCore
             public string description;
             public int param;
             public string stringParam;
-            public int costReduction;
-        }
-
-        [Serializable]
-        private class DrawbackEntry
-        {
-            public string id;
-            public string displayName;
-            public string description;
-            public int costReduction;
         }
 
         [Serializable]

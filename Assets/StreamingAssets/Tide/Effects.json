@@ -8,12 +8,11 @@
             "speed": 0,
             "limit": 0,
             "duration": 0,
-            "selection": 1,
+            "selection": 0,
             "count": 1,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -74,7 +73,6 @@
             "dropZone": 0,
             "engine": 1,
             "engineParam": 3,
-            "drawbacks": [],
             "costs": [],
             "steps": [],
             "rewards": [
@@ -102,7 +100,6 @@
             "dropZone": 0,
             "engine": 3,
             "engineParam": 1,
-            "drawbacks": [],
             "costs": [
                 {
                     "type": 7,
@@ -144,7 +141,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -181,7 +177,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -218,7 +213,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -255,7 +249,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -292,7 +285,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -329,7 +321,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -366,7 +357,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -403,7 +393,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -440,7 +429,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -477,7 +465,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -514,7 +501,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -551,7 +537,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -588,7 +573,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -625,7 +609,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -662,7 +645,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -699,7 +681,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -736,7 +717,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -773,7 +753,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -810,7 +789,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -847,7 +825,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -884,7 +861,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -921,7 +897,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [
                 {
                     "type": 7,
@@ -967,12 +942,11 @@
             "speed": 0,
             "limit": 0,
             "duration": 0,
-            "selection": 1,
+            "selection": 0,
             "count": 1,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1033,7 +1007,6 @@
             "dropZone": 0,
             "engine": 1,
             "engineParam": 3,
-            "drawbacks": [],
             "costs": [],
             "steps": [],
             "rewards": [
@@ -1061,7 +1034,6 @@
             "dropZone": 0,
             "engine": 3,
             "engineParam": 1,
-            "drawbacks": [],
             "costs": [
                 {
                     "type": 7,
@@ -1103,7 +1075,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1140,7 +1111,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1177,7 +1147,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1214,7 +1183,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1251,7 +1219,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1288,7 +1255,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1325,7 +1291,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1362,7 +1327,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1399,7 +1363,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1436,7 +1399,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1473,7 +1435,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1510,7 +1471,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1547,7 +1507,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1584,7 +1543,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1621,7 +1579,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1658,7 +1615,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1695,7 +1651,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1732,7 +1687,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1769,7 +1723,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1806,7 +1759,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1843,7 +1795,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [
                 {
@@ -1880,7 +1831,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [
                 {
                     "type": 7,
@@ -1931,7 +1881,6 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
-            "drawbacks": [],
             "costs": [],
             "steps": [],
             "rewards": []

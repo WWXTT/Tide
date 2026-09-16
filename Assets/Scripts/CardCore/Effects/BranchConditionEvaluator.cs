@@ -5,8 +5,9 @@ namespace CardCore
     /// <summary>
     /// OutcomeGate 运行时条件评估器。
     /// 仅服务「分支步骤」：宣言族读当前目标的 EffectOutcome 即时判定；
-    /// 伤害/治疗族读产出记录。Drawback（抽牌减费缺陷）与 FilterPrecision（检索按维度计费）
-    /// 不走此路径。条件 id 取自 Configs/BranchConfig.json（见 BranchConfigTable），
+    /// 伤害/治疗族读产出记录。FilterPrecision（检索按维度计费）不走此路径
+    ///（抽牌减费缺陷 Drawback 已随减费归入代价体系退役 2026-09-16）。
+    /// 条件 id 取自 Configs/BranchConfig.json（见 BranchConfigTable），
     /// 目录与这里的 switch 是唯一同步点——加载自检会核对两侧一致。
     /// </summary>
     public static class BranchConditionEvaluator

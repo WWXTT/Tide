@@ -126,10 +126,10 @@ namespace SynergyUI
                 duration = h.Duration,
                 selection = h.SelectionMode,
                 count = h.TargetCount,
+                random = h.RandomTarget,
                 dropZone = h.SummonDropZone,
                 engine = h.EngineKind,
                 engineParam = h.EngineParam,
-                drawbacks = h.Drawbacks != null && h.Drawbacks.Count > 0 ? new List<string>(h.Drawbacks) : null,
                 costs = h.Costs != null && h.Costs.Count > 0
                     ? h.Costs.Select(EffectSlim.ToCostRef).Where(c => c != null).ToList() : null,
                 steps = new List<StepRef>(),
@@ -170,10 +170,10 @@ namespace SynergyUI
                     Duration = dto.duration,
                     SelectionMode = dto.selection,
                     TargetCount = dto.count,
+                    RandomTarget = dto.random,
                     SummonDropZone = dto.dropZone,
                     EngineKind = dto.engine,
                     EngineParam = dto.engineParam,
-                    Drawbacks = dto.drawbacks != null ? new List<string>(dto.drawbacks) : new List<string>(),
                     Costs = EffectSlim.ToCostEntries(dto.costs),
                 },
                 steps = dto.steps != null

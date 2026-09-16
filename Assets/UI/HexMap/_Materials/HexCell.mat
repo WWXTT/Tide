@@ -205,9 +205,9 @@ Material:
     - _MacroVariationScale: 0.001
     - _MacroVariationStrength: 0
     - _MainLightColorLerp: 0.5
-    - _Metallic: 0.2
+    - _Metallic: 0.5
     - _Mode: 0
-    - _NormalScale: 1
+    - _NormalScale: 0.4
     - _Occlusion: 1
     - _OcclusionStrength: 0
     - _OutLineNormalSource: 0
@@ -225,7 +225,7 @@ Material:
     - _ShadowSmoothScene: 0.1
     - _ShadowStrength: 1
     - _Shininess: 0.2
-    - _Smoothness: 0.1
+    - _Smoothness: 0.3
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1

@@ -123,9 +123,11 @@ namespace SynergyUI
 
         /// <summary>
         /// 效果级编排字段（2026-09-14 合成器重做扩展）：引擎通道（EngineKind/EngineParam+奖励原子）、
-        /// 选择编排（SelectionMode/TargetCount/Dynamic）、持续/落区/触发上限/速度、Drawbacks。
+        /// 选择编排（SelectionMode/TargetCount/RandomTarget）、持续/落区/触发上限/速度。
         /// 此前这些字段均不参与哈希——合成器可编辑它们后去重会失真（同名不同功能视为重复）。
         /// AE: 段条件追加：非引擎效果（AtomicEffects 空）不写段，保旧哈希尽量少漂移。
+        /// RT: 段条件追加（2026-09-16）：仅 RandomTarget 置位时写——现网数据零漂移；
+        /// Drawbacks（DB 段）已随减费归入代价体系退役。
         /// </summary>
         private static void AppendOrchestration(StringBuilder sb, CardEffectData h, List<EffectStepData> graphSteps)
         {
@@ -137,10 +139,8 @@ namespace SynergyUI
               .Append(h.SummonDropZone).Append('/');
             sb.Append("TL:").Append(h.TriggerLimitPerTurn).Append('|');
             sb.Append("BS:").Append(h.BaseSpeed).Append('|');
-            if (h.Drawbacks != null && h.Drawbacks.Count > 0)
-            {
-                sb.Append("DB:").Append(string.Join(";", h.Drawbacks.OrderBy(d => d))).Append('|');
-            }
+            if (h.RandomTarget != 0)
+                sb.Append("RT:1|");
             // AE 段单源化（2026-09-14 v2）：仅 steps 为空（引擎形态——奖励原子唯一承载）时计入；
             // steps 形态的 AtomicEffects 是旧投影冗余，不再参与哈希（否则同一效果两种存储两套 id）
             if ((h.AtomicEffects != null && h.AtomicEffects.Count > 0)

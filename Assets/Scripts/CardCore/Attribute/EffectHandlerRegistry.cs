@@ -126,10 +126,11 @@ namespace CardCore.Attribute
 
         /// <summary>
         /// 组合效果的目标选择（执行引擎统一入口，2026-09-10 目标域模型）：
-        /// 域 = def 预计算交集（per-mode）；按 SelectionMode 三态出目标。
-        /// Self：源卡须在候选内（瞬间在发动区不在单位域 → 空转+警告）；
-        /// Manual：TargetCount/DynamicTargetCount 管数量（候选>需求时弹选）；
-        /// Full：候选全取。
+        /// 域 = def 预计算交集（per-mode）；按 SelectionMode 六值（2026-09-16 定案）三维出目标——
+        /// 运行时只实现三个行为（单/多的差别是构筑期数据契约，不是运行时分支）：
+        /// 选一（Single/SingleUnion）：need=1（域={Self} 时=源卡自身，候选≤1 自动取不弹选）；
+        /// 选多（Multiple/MultipleUnion）：TargetCount/DynamicTargetCount 管数量（候选>需求时弹选）；
+        /// 全取（Whole/WholeUnion）：候选全取。RandomTarget 标志：绕过选择从完整候选域按种子随机抽取。
         /// </summary>
         public static async UniTask<List<Entity>> ResolveCompositionTargetsAsync(
             EffectDefinition def, EffectExecutionContext context)
@@ -151,65 +152,78 @@ namespace CardCore.Attribute
 
             var candidates = ResolveCandidates(domain, def.TargetFilter, context);
             GameActions.Crumb($"comp-targets def={def.Id} mode={def.SelectionMode} dom={TargetKindRules.Format(domain)} cands={candidates.Count} sel={context.Controller?.Name}");
-            if (candidates.Count == 0) return candidates;
+            if (candidates.Count == 0)
+            {
+                // Self 域空转诊断（原 Self 模式口径）：源不在候选（瞬间在发动区不在单位域）
+                if (domain.Count == 1 && domain[0] == (int)TargetKind.Self)
+                    UnityEngine.Debug.LogWarning(
+                        $"[TargetDomain] 域={{Self}} 但源不在候选内（瞬间在发动区？）——效果空转: {def.Id}");
+                return candidates;
+            }
 
             // edict 豁免（2026-09-13）：牺牲/摒弃类选择权在目标方——帷幕只约束对手的选择，不管持有者自选
             bool edictExempt = def.Effects != null
                 && def.Effects.Any(a => a != null && TargetResolver.IsEdict(a.Type));
 
-            switch (def.SelectionMode)
+            // 全取（Whole/WholeUnion）：候选全取——扰魔/潜行照常命中（范围波及），不受帷幕收窄。
+            if (SelectionModeRules.IsTakeAll(def.SelectionMode))
+                return candidates;
+
+            // 目标随机（RandomTarget 正交标志，2026-09-16 自 SelectionMode 移出）：不弹窗，随机种子自动抽取；
+            // 从完整候选域抽（对方侧扰魔/潜行可被随机命中——绕过选择），
+            // 但受帷幕收窄约束（"效果只能以帷幕卡为目标"对指定与随机生效；全域/范围不受限）。
+            if (def.RandomTarget)
             {
-                case SelectionMode.Self:
-                    if (candidates.Contains(context.Source))
-                        return new List<Entity> { context.Source };
-                    UnityEngine.Debug.LogWarning(
-                        $"[TargetDomain] Self 模式但源不在组合域内（瞬间在发动区？）——效果空转: {def.Id}");
-                    return new List<Entity>();
-
-                case SelectionMode.Full:
-                    return candidates;
-
-                case SelectionMode.Random:
-                    // 2026-09-13 定案：范围存在且目标数>0 → 不弹窗，随机种子自动抽取；
-                    // 从完整候选域抽（对方侧扰魔/潜行可被随机命中——绕过选择），
-                    // 但受帷幕收窄约束（"效果只能以帷幕卡为目标"对指定与随机生效；全域/范围不受限）。
-                    // TargetCount≤0（全部档）随机无意义，等价 Full 全取。
-                {
-                    var pool = TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt);
-                    int take = def.TargetCount > 0 ? def.TargetCount : pool.Count;
-                    if (take >= pool.Count) return pool;
-                    return GameRng.PickN(pool, take);
-                }
-
-                default: // Manual
-                    // 选择层两道过滤（2026-09-13）：①帷幕收窄（对方侧仅帷幕卡；不拦攻击；edict 豁免）
-                    // ②弹窗显示域（对方侧扰魔/潜行隐藏；AI/无头自动取前 N 同口径）。
-                    candidates = TargetResolver.ExcludeUnselectable(
-                        TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt), context.Controller);
-                    if (candidates.Count == 0) return candidates;
-                    if (def.TargetCount == -1) // 任意（2026-09-14 并入 DynamicTargetCount）：玩家自选数量
-                    {
-                        return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
-                        {
-                            Candidates = candidates,
-                            MinCount = 0,
-                            MaxCount = candidates.Count,
-                            Chooser = context.Controller,
-                            Title = "选择目标（任意数量）",
-                        });
-                    }
-                    int need = def.TargetCount > 0 ? def.TargetCount : candidates.Count;
-                    if (candidates.Count <= need)
-                        return candidates.Take(need).ToList();
-                    return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
-                    {
-                        Candidates = candidates,
-                        MinCount = need,
-                        MaxCount = need,
-                        Chooser = context.Controller,
-                        Title = "选择目标",
-                    });
+                var pool = TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt);
+                int take = SelectionModeRules.IsPickOne(def.SelectionMode) ? 1
+                    : (def.TargetCount > 0 ? def.TargetCount : pool.Count);
+                if (take >= pool.Count) return pool;
+                return GameRng.PickN(pool, take);
             }
+
+            // 选一/选多：交互选取——选择层两道过滤（2026-09-13）：①帷幕收窄（对方侧仅帷幕卡；不拦攻击；edict 豁免）
+            // ②弹窗显示域（对方侧扰魔/潜行隐藏；AI/无头自动取前 N 同口径）。
+            candidates = TargetResolver.ExcludeUnselectable(
+                TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt), context.Controller);
+            if (candidates.Count == 0) return candidates;
+
+            if (SelectionModeRules.IsPickOne(def.SelectionMode))
+            {
+                // 选一个：候选≤1 自动取（域={Self} 的关键词效果即此路——唯一候选=源卡自身）
+                if (candidates.Count <= 1) return candidates.Take(1).ToList();
+                return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                {
+                    Candidates = candidates,
+                    MinCount = 1,
+                    MaxCount = 1,
+                    Chooser = context.Controller,
+                    Title = "选择目标",
+                });
+            }
+
+            // 选多个（Multiple/MultipleUnion）
+            if (def.TargetCount == -1) // 任意（2026-09-14 并入 DynamicTargetCount）：玩家自选数量
+            {
+                return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                {
+                    Candidates = candidates,
+                    MinCount = 0,
+                    MaxCount = candidates.Count,
+                    Chooser = context.Controller,
+                    Title = "选择目标（任意数量）",
+                });
+            }
+            int need = def.TargetCount > 0 ? def.TargetCount : candidates.Count;
+            if (candidates.Count <= need)
+                return candidates.Take(need).ToList();
+            return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+            {
+                Candidates = candidates,
+                MinCount = need,
+                MaxCount = need,
+                Chooser = context.Controller,
+                Title = "选择目标",
+            });
         }
 
         /// <summary>

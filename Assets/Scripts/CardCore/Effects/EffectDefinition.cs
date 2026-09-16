@@ -86,10 +86,15 @@ namespace CardCore
         public int DurationValue;
         /// <summary>SummonToken 落区（战场/手牌/牌库三档，计价按落区系数）。</summary>
         public Zone SummonDropZone = Zone.Battlefield;
-        /// <summary>目标选择模式（自身/手动/全域；None=无目标）。</summary>
+        /// <summary>目标选择模式（六值定案 2026-09-16：数量 1/N/全 × 范围宽 单/多；None=无目标/区域自结算）。
+        /// 一个 {target} 只能从一个范围选择——0/1/2 要求组合域单一 TargetKind（构筑期校验）。</summary>
         public SelectionMode SelectionMode = SelectionMode.None;
         /// <summary>目标数量：&gt;0=N，0=全部，-1=任意（旧语义保留）；-2=未声明回落表级 TargetCount。</summary>
         public int TargetCount = -2;
+        /// <summary>目标随机（2026-09-16 自 SelectionMode 移出为正交标志）：不弹选择，从完整候选域按种子
+        /// 随机抽取（TargetCount 管抽取个数；帷幕收窄生效、扰魔/潜行可被随机命中——不可被"选"≠不可被随机/范围波及）。
+        /// 仅对选一/选多档有意义（全取随机≡全取）；与动态数量（-1）互斥（构筑校验）。</summary>
+        public bool RandomTarget;
         /// <summary>动态数量：运行时玩家自选个数（0..候选数）；费用计 0 且该卡不可作地牌产元素。</summary>
         public bool DynamicTargetCount;
         /// <summary>触发式每回合触发上限（2026-09-13 定案）：&gt;0=每回合最多 N 次；-1=无限。
@@ -107,8 +112,6 @@ namespace CardCore
         public List<AtomicEffectInstance> RewardAtoms = new List<AtomicEffectInstance>();
         /// <summary>倒计时初值回合数（converter 换算：奖励推导费 1费=1回合，向上取整下限 1；引擎运行时归零重置回此值）。</summary>
         public int CountdownTurns;
-        /// <summary>抽牌减费缺陷 id 列表（上移自原子层；执行暂缓——等原子完善后在组合阶段实现）。</summary>
-        public List<string> Drawbacks = new List<string>();
         /// <summary>预计算组合目标域：主序列原子 TargetKinds 交集（converter 填；构筑期校验用）。</summary>
         public List<int> TargetDomain;
         /// <summary>组合域内属性过滤（成员带域原子的 Filter token 之 AND；converter 预计算）。</summary>
@@ -423,14 +426,13 @@ namespace CardCore
     /// <summary>
     /// 条件族判别：
     /// OutcomeGate（伤害/治疗/信息→读产出，达成走 then 免费奖励），
-    /// Drawback（抽牌→可叠加减费缺陷，挂在原子上，不走 then/else），
     /// FilterPrecision（检索→筛选即条件，按维度计费）。
+    /// Drawback（抽牌减费缺陷）已随减费归入代价体系退役（2026-09-16）——值 1 留空洞保号不重排。
     /// 分支步骤（Kind==Branch）当前仅承载 OutcomeGate。
     /// </summary>
     public enum BranchConditionKind
     {
         OutcomeGate = 0,
-        Drawback = 1,
         FilterPrecision = 2,
     }
 

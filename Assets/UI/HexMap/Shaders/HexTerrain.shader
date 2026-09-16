@@ -145,6 +145,9 @@ Shader "Custom/HexTerrain"
             #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Lighting.hlsl"
             #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Shadows.hlsl"
+            #if defined(LOD_FADE_CROSSFADE)
+                #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/LODCrossFade.hlsl"
+            #endif
 
             float3 _LightDirection;
             float3 _LightPosition;
@@ -228,6 +231,9 @@ Shader "Custom/HexTerrain"
             #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DOTS.hlsl"
 
             #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+            #if defined(LOD_FADE_CROSSFADE)
+                #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/LODCrossFade.hlsl"
+            #endif
 
             struct DepthAttributes
             {
@@ -289,6 +295,9 @@ Shader "Custom/HexTerrain"
             #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/RenderingLayers.hlsl"
 
             #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+            #if defined(LOD_FADE_CROSSFADE)
+                #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/LODCrossFade.hlsl"
+            #endif
 
             struct DNAttributes
             {

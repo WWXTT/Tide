@@ -13,7 +13,7 @@ namespace SynergyUI
     ///   - 普通渲染：{value} → Value；
     ///   - 数值随机（RandomAmplitude>0）：前缀「随机 」+ {value} → 区间文本
     ///     （span=round(|Value|×幅度)，3 伤 ±100% → "随机 对目标造成0至6点伤害"）；
-    ///   - 目标随机（header.SelectionMode==Random）：前缀「随机目标·」。
+    ///   - 目标随机（header.RandomTarget，2026-09-16 自 SelectionMode 移出为正交标志）：前缀「随机目标·」。
     /// 计价/构筑读名义 Value 不变——此处只做展示层渲染（口径对齐 2026-09-13 两个随机定案）。
     /// </summary>
     public static class AtomText
@@ -29,7 +29,7 @@ namespace SynergyUI
             string number = span > 0 ? $"{Mathf.Max(0, v - span)}至{v + span}" : v.ToString();
             string body = tpl.Replace("{value}", number);
             if (span > 0) body = "随机 " + body;
-            if (header != null && header.SelectionMode == (int)CardCore.SelectionMode.Random)
+            if (header != null && header.RandomTarget != 0)
                 body = "随机目标·" + body;
             return body;
         }

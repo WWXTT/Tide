@@ -33,7 +33,7 @@ namespace SynergyUI
     /// 自动名旁显示自动费用（ConvertOne+DeriveElementCosts 实时推导，含引擎机制费）；
     /// 存储统一 StreamingAssets/Tide（CreatureCards=卡池+合成保存同文件；效果库 Effects/；卡组只存 ID 引用）。
     /// 旧版分支/缺陷/维度档走 BranchConfigTable 的死路径（BranchConfig.json 已删）全部移除——
-    /// 有限分支条件目录用代码侧 ComposerCatalog；Drawbacks 降级为效果级 CSV 文本行。
+    /// 有限分支条件目录用代码侧 ComposerCatalog；Drawbacks 已随减费归入代价体系退役（2026-09-16）。
     /// </summary>
     public sealed class EffectComposerScreen : UIScreen
     {
@@ -132,10 +132,12 @@ namespace SynergyUI
         private static readonly (string label, int value)[] SelectionModes =
         {
             ("无目标", (int)CardCore.SelectionMode.None),
-            ("自身", (int)CardCore.SelectionMode.Self),
-            ("手动", (int)CardCore.SelectionMode.Manual),
-            ("全域", (int)CardCore.SelectionMode.Full),
-            ("随机", (int)CardCore.SelectionMode.Random),
+            ("选1·单范围", (int)CardCore.SelectionMode.Single),
+            ("选N·单范围", (int)CardCore.SelectionMode.Multiple),
+            ("全取·单范围", (int)CardCore.SelectionMode.Whole),
+            ("选1·多范围", (int)CardCore.SelectionMode.SingleUnion),
+            ("选N·多范围", (int)CardCore.SelectionMode.MultipleUnion),
+            ("全取·多范围", (int)CardCore.SelectionMode.WholeUnion),
         };
 
         // ======================================== 生命周期 ========================================
@@ -733,11 +735,12 @@ namespace SynergyUI
 
                 var rand = new Toggle("目标随机（不弹选择·按种子随机）")
                 {
-                    value = _graph.header.SelectionMode == (int)CardCore.SelectionMode.Random,
+                    value = _graph.header.RandomTarget != 0,
                 };
                 rand.RegisterValueChangedCallback(e =>
                 {
-                    _graph.header.SelectionMode = e.newValue ? (int)CardCore.SelectionMode.Random : (int)CardCore.SelectionMode.None;
+                    // 2026-09-16 随机移出枚举为正交标志——只翻标志，不再覆写选择模式
+                    _graph.header.RandomTarget = e.newValue ? 1 : 0;
                     RefreshEffectSettings();
                     RefreshSlots();
                 });
@@ -752,19 +755,8 @@ namespace SynergyUI
             if (mounts.Contains(MountKind.TriggerCapImmutable))
                 box.Add(MakeHint("触发上限锁定：该原子恒无限（TriggerLimitPerTurn 被覆写，不可限）"));
 
-            // DrawCard：Drawbacks 降级 CSV（数据源 BranchConfig 已删）
-            if (type == AtomicEffectType.DrawCard)
-            {
-                _graph.header.Drawbacks ??= new List<string>();
-                var f = new TextField("抽牌缺陷 CSV") { value = string.Join(",", _graph.header.Drawbacks) };
-                f.AddToClassList("text-input");
-                f.RegisterValueChangedCallback(e =>
-                    _graph.header.Drawbacks = e.newValue.Split(',')
-                        .Select(s2 => s2.Trim()).Where(s2 => s2.Length > 0).ToList());
-                box.Add(f);
-                box.Add(MakeHint("缺陷目录（BranchConfig.json）已删——按 id 手填，每个 −1 费"));
-            }
-            else if (type == AtomicEffectType.SearchDeck)
+            // DrawCard：抽牌减费缺陷已随减费归入代价体系退役（2026-09-16）——减负表达走代价栏 Payload 原子
+            if (type == AtomicEffectType.SearchDeck)
             {
                 box.Add(MakeHint("检索按维度档计费：字符串字段填宣言卡名（ExactCard=3），空=单维度 1"));
             }
@@ -987,8 +979,8 @@ namespace SynergyUI
                     kind = 0,
                     atomic = new AtomicEffectEntry { refId = CardCore.Attribute.AtomicEffectTable.GetByEnumName(kw.AtomicEffect)?.HashId ?? kw.AtomicEffect, value = 1, str = kw.Id },
                 });
-                // 关键词授予惯例（同旧版）：Self + Permanent
-                _graph.header.SelectionMode = (int)CardCore.SelectionMode.Self;
+                // 关键词授予惯例（同旧版；2026-09-16 Self 溶解）：域={Self} 的 Single + Permanent
+                _graph.header.SelectionMode = (int)CardCore.SelectionMode.Single;
                 _graph.header.Duration = (int)DurationType.Permanent;
             }
             else if (payload is LibPayload lp)

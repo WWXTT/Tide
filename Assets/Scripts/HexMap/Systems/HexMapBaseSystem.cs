@@ -100,7 +100,7 @@ namespace HexMap
                 }
                 var matID = egs.RegisterMaterial(material);
 
-                var desc = new RenderMeshDescription(ShadowCastingMode.Off, receiveShadows: false);
+                var desc = new RenderMeshDescription(ShadowCastingMode.On, receiveShadows: true);
                 RenderMeshUtility.AddComponents(baseEntity, em, desc, new MaterialMeshInfo(matID, meshID));
 
                 em.SetComponentData(baseEntity, new LocalToWorld { Value = float4x4.identity });

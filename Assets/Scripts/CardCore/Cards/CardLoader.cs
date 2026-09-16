@@ -296,6 +296,8 @@ namespace CardCore
         /// （仿 BranchConfigTable.ValidateAgainstCode 先例：可见不炸——坏卡点名，装载不中断）。
         /// 同场校验组合上限：主序列原子 ≤ 2（2026-09-10 攻/守效果化定案——
         /// 三种合法组合形式：抉择 / 条件奖励(门) / 并列；超限告警不拦截）。
+        /// 单范围域宽校验（2026-09-16 六值定案）：模式 0/1/2 要求组合域单一 TargetKind——
+        /// 一个 {target} 只能从一个范围选择，多范围域须用 3/4/5。
         /// </summary>
         private static void ValidateComboDomains(List<CardData> cards)
         {
@@ -317,6 +319,40 @@ namespace CardCore
                         Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
                                        + $"主序列原子 {atomCount} 个超组合上限 2（抉择/条件奖励/并列三形式）");
 
+                    // 单范围域宽校验（2026-09-16 六值定案核心）：一个 {target} 只能从一个范围选择——
+                    // 模式 0/1/2（Single/Multiple/Whole）要求组合域恰为单一 TargetKind，违反=数据错误
+                    //（converter 已覆写的强制 WholeUnion 不受影响；域空=无目标效果不在此列）。
+                    if (SelectionModeRules.IsSingleScope(def.SelectionMode))
+                    {
+                        var modeDomains = new List<List<int>> { def.TargetDomain };
+                        if (def.ChoiceDomains != null)
+                            foreach (var cd in def.ChoiceDomains)
+                                if (cd != null && cd.Count > 0) modeDomains.Add(cd);
+                        foreach (var dom in modeDomains)
+                        {
+                            if (dom != null && dom.Count > 1)
+                            {
+                                Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
+                                             + $"声明单范围模式 {def.SelectionMode}（{string.Join(",", dom)} 共 {dom.Count} 个范围）——"
+                                             + "一个 {{target}} 只能从一个范围选择，应改用多范围模式 3/4/5");
+                                break;
+                            }
+                        }
+                    }
+
+                    // 数量-模式矛盾（轻告警，按原始声明判——converter 兜底回填不触发）：
+                    // 选一档显式声明非 1 的数量 / 全取档显式声明正数量，均属声明噪声。
+                    if (!def.RandomTarget)
+                    {
+                        if (SelectionModeRules.IsPickOne(def.SelectionMode)
+                            && eff.TargetCount != -2 && eff.TargetCount != 1)
+                            Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
+                                           + $"选一档（{def.SelectionMode}）显式声明 TargetCount={eff.TargetCount}——数量以模式为准（1），多余声明被忽略");
+                        if (SelectionModeRules.IsTakeAll(def.SelectionMode) && eff.TargetCount > 0)
+                            Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
+                                           + $"全取档（{def.SelectionMode}）显式声明 TargetCount={eff.TargetCount}——全取不按数量，多余声明被忽略");
+                    }
+
                     if (def.TargetDomain == null || def.TargetDomain.Count > 0) continue;
                     // 域空且并非"全无目标原子"（存在带域原子但交集空）才是断链
                     var hasKindAtom = false;
@@ -333,9 +369,9 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 两个随机（2026-09-13 定案）构筑校验：
+        /// 两个随机（2026-09-13 定案；2026-09-16 RandomTarget 移出枚举为正交标志）构筑校验：
         /// ① 数值随机幅度 ∉ [0,1] 告警（converter 会夹取，此处纯诊断）；
-        /// ② SelectionMode=Random 且 DynamicTargetCount=true 告警（随机需固定个数，动态数量配随机退化为全取）。
+        /// ② RandomTarget 且动态数量(-1) 告警（随机需固定个数，动态数量配随机退化为全取）。
         /// </summary>
         private static void ValidateRandomParams(List<CardData> cards)
         {
@@ -346,19 +382,21 @@ namespace CardCore
                 {
                     if (eff == null) continue;
 
-                    if (eff.SelectionMode == (int)SelectionMode.Random && eff.TargetCount == -1)
+                    if (eff.RandomTarget != 0 && eff.TargetCount == -1)
                         Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
-                                       + "SelectionMode=Random 与任意数量(-1)互斥——随机抽取需固定个数，动态数量将退化为全取");
+                                       + "目标随机与任意数量(-1)互斥——随机抽取需固定个数，动态数量将退化为全取");
 
-                    // 固有全域原子（2026-09-13）：显式声明 Manual/Random 属数据错误——converter 会强制 Full，此处告警
+                    // 固有全域原子（2026-09-13）：显式声明选一/选多/随机属数据错误——converter 会强制 WholeUnion，此处告警
                     bool HasSweep(AtomicEffectEntry a)
                         => a != null && TypeOf(a) is { } sweepType && CardCore.CostDerivationService.IsIntrinsicSweep(sweepType);
                     bool hasSweep = (eff.AtomicEffects ?? new List<AtomicEffectEntry>()).Any(HasSweep)
                         || (eff.Steps ?? new List<EffectStepData>()).Any(s => s != null
                             && (HasSweep(s.atomic) || (s.thenSteps ?? new List<AtomicEffectEntry>()).Any(HasSweep)));
-                    if (hasSweep && (eff.SelectionMode == (int)SelectionMode.Manual || eff.SelectionMode == (int)SelectionMode.Random))
+                    if (hasSweep && (SelectionModeRules.IsPickOne((SelectionMode)eff.SelectionMode)
+                                     || SelectionModeRules.IsPickMany((SelectionMode)eff.SelectionMode)
+                                     || eff.RandomTarget != 0))
                         Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
-                                       + "固有全域原子（类型伤害/全体治疗）只能全域结算——已强制 SelectionMode=Full（声明的 Manual/Random 被覆写）");
+                                       + "固有全域原子（类型伤害/全体治疗）只能全域结算——已强制 SelectionMode=WholeUnion（声明的选一/选多/随机被覆写）");
 
                     // 触发上限不可修改原子（2026-09-13，MountKinds 含 8——少数，如坚韧 bd623d85）：
                     // 声明 TriggerLimitPerTurn 属数据错误——converter 已覆写为无限（-1）
