@@ -77,7 +77,12 @@ namespace SynergyUI
             AtomicEffectType.TakeExtraTurn,
         };
 
+        /// <summary>同步入口（纯 AI 对局/无头：无人类响应者，全链同步完成）。</summary>
         public void TakeTurn(BattleController ctrl)
+            => TakeTurnAsync(ctrl).GetAwaiter().GetResult();
+
+        /// <summary>异步入口（UI 对局：战斗窗口可暂停等人类响应弹窗）。</summary>
+        public async Cysharp.Threading.Tasks.UniTask TakeTurnAsync(BattleController ctrl)
         {
             var core = ctrl.Core;
             var me = ctrl.TurnPlayer;
@@ -105,10 +110,9 @@ namespace SynergyUI
             // 3. 战前排干栈：让本回合发动/触发的效果先落地（增益类才影响攻击结算）
             SettleStack(core);
 
-            // 4. 战斗：清场优先（能击杀的随从先清）→ 无击杀机会才打脸 → 兜底。
-            //    连锁结算完成即判胜负（CombatSystem.EndCombat），判负后不再继续动作
+            // 4. 战斗（2026-09-16 逐攻击开窗）：每次宣言→响应窗口（人类对手=发动弹窗）→结算→下一攻
             if (!core.IsGameOver)
-                DoCombat(ctrl, core, me);
+                await DoCombatAsync(core, me);
 
             // 5. 收尾：排干栈（栈未空时 EndTurn 会被栈空守卫静默拒绝）→ 结束回合。
             //    游戏已结束则不再 EndTurn（避免"★ 游戏结束"之后又出现阶段推进）
@@ -508,73 +512,31 @@ namespace SynergyUI
             return card is IHasCost hc && hc.Cost != null ? hc.Cost.Values.Sum() : 0f;
         }
 
-        // ======================================== 战斗 ========================================
+        // ======================================== 战斗（2026-09-16 逐攻击开窗） ========================================
 
-        /// <summary>开战斗 → 每个可攻击单位按 清场优先 选目标宣言 → 防守方守卫拦截 → 结算。</summary>
-        private static void DoCombat(BattleController ctrl, GameCore core, Player me)
+        /// <summary>逐攻击开窗：每个可攻击单位按清场优先选目标宣言（速度0上栈）→
+        /// 响应窗口（SettleResponseWindowAsync：对方人类=发动弹窗/AI=守卫启发/无头=自动双 Pass）
+        /// → 结算 → 下一攻。攻击资格由引擎权威判定（横置/零攻/NoAttack）。</summary>
+        private static async Cysharp.Threading.Tasks.UniTask DoCombatAsync(GameCore core, Player me)
         {
-            ctrl.BeginCombat();
-
             var opp = me.Opponent;
+            if (opp == null) return;
             var battlefield = new List<Card>(core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>());
             foreach (var unit in battlefield)
             {
-                if (!core.CombatSystem.CanDeclareAttack(unit, me)) continue; // 失调/横置/零攻/超次数/连锁中，引擎权威判定
+                if (core.IsGameOver) return;
+                if (!core.CombatSystem.CanDeclareAttack(unit, me)) continue;
                 var target = PickAttackTarget(core, unit, opp);
-                if (target != null)
-                    ctrl.DeclareAttack(me, unit, target);
-            }
-
-            // 防守方守卫拦截窗口（2026-09-10 守卫效果化）：宣言后、结算前——
-            // 拆开 ResolveCombat 以插入防守 AI 决策（玩家路径仍走 BattleController.ResolveCombat）
-            var combat = core.CombatSystem;
-            combat.EndAttackDeclaration();
-            if (combat.InCombat)
-            {
-                DoGuardBlocks(core, opp);
-                combat.EndBlockDeclaration();
-            }
-        }
-
-        /// <summary>
-        /// 防守 AI 守卫拦截（2026-09-10 守卫效果化）：只拦打脸的攻击——
-        /// 优先派能扛住的守卫（拦截即横置 → 单向挨打，扛得住 = 免费挡刀）；
-        /// 玩家将被击杀时任何守卫都上（牺牲保命）。随从指向的攻击不拦（交换交给结算）。
-        /// 拦截资格（守卫能力/未横置/在场）由 CanBlock 引擎权威判定。
-        /// </summary>
-        private static void DoGuardBlocks(GameCore core, Player defender)
-        {
-            var combat = core.CombatSystem;
-            foreach (var attacker in combat.Attackers)
-            {
-                if (attacker?.Entity == null || !attacker.Entity.IsAlive) continue;
-                var effectiveTarget = attacker.BlockedBy ?? attacker.DeclaredTarget ?? (Entity)defender;
-                if (!(effectiveTarget is Player)) continue; // 只拦打脸
-
-                // 击杀判定（LayerEngine 实时力量）
-                int incoming = core.LayerEngine != null ? core.LayerEngine.CalculatePower(attacker.Entity) : 0;
-                bool lethal = defender.Life - incoming <= 0;
-
-                Card chosen = null;   // 能扛住的守卫里挑血最厚的
-                Card anyGuard = null; // 兜底（仅致命时牺牲）
-                foreach (var g in core.ZoneManager.GetCards(defender, Zone.Battlefield) ?? new List<Card>())
-                {
-                    if (!g.IsAlive || !combat.CanBlock(g, attacker.Entity, defender)) continue;
-                    if (anyGuard == null) anyGuard = g;
-                    if (g.GetLife() > incoming && (chosen == null || g.GetLife() > chosen.GetLife()))
-                        chosen = g;
-                }
-                if (chosen == null && lethal) chosen = anyGuard; // 致命一击：任何守卫牺牲保命
-                if (chosen == null) continue;                     // 挡不住且不致命——不白送守卫
-
-                combat.DeclareBlock(chosen, attacker.Entity);
+                if (target == null) continue;
+                if (!GameActions.DeclareAttack(core, me, unit, target)) continue;
+                await GameActions.SettleResponseWindowAsync(core); // 窗口+结算（含级联触发/SBA 轮）
             }
         }
 
         /// <summary>
         /// 攻击目标决策（清场优先）：能击杀的对方随从先清——"自己也存活"的优换严格优先于换子，
         /// 同档内挑攻击力最高的（拆最大威胁）；无击杀机会才打脸（不蹭随从白送血；
-        /// 打脸被守卫拦由引擎守卫转移承担——帷幕不拦攻击）；兜底任意可指定目标。
+        /// 打脸被守卫拦由响应窗口守卫承担——帷幕不拦攻击）；兜底任意可指定目标。
         /// 力量按 LayerEngine 实时值（光环/增益在场时击杀判定不失真），权威结算仍在引擎。
         /// </summary>
         private static Entity PickAttackTarget(GameCore core, Card unit, Player opp)
@@ -582,7 +544,7 @@ namespace SynergyUI
             var combat = core.CombatSystem;
             var oppField = core.ZoneManager.GetCards(opp, Zone.Battlefield) ?? new List<Card>();
 
-            // ---- 清场档：打得死的对方随从（合法性经 CanAttackTarget：潜行/守卫等由引擎滤） ----
+            // ---- 清场档：打得死的对方随从（合法性经 CanAttackTarget：潜行等由引擎滤） ----
             int myPower = core.LayerEngine.CalculatePower(unit);
             int myLife = unit.GetLife();
             Card pick = null;
@@ -590,7 +552,7 @@ namespace SynergyUI
             int pickThreat = int.MinValue;
             foreach (var enemy in oppField)
             {
-                if (!enemy.IsAlive || !combat.CanAttackTarget(unit, enemy)) continue;
+                if (!enemy.IsAlive || !combat.CanAttackTarget(unit, enemy, opp)) continue;
                 if (myPower < enemy.GetLife()) continue; // 打不死——不白送，交还打脸
 
                 int threat = core.LayerEngine.CalculatePower(enemy);
@@ -607,11 +569,11 @@ namespace SynergyUI
             if (pick != null) return pick;
 
             // ---- 无击杀机会 → 打脸 ----
-            if (combat.CanAttackTarget(unit, opp)) return opp;
+            if (combat.CanAttackTarget(unit, opp, opp.Opponent)) return opp;
 
             foreach (var enemy in oppField) // 突袭（无冲锋）不能攻玩家等受限情形的兜底：只打随从
             {
-                if (combat.CanAttackTarget(unit, enemy)) return enemy;
+                if (combat.CanAttackTarget(unit, enemy, opp.Opponent)) return enemy;
             }
             return null;
         }

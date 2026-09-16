@@ -219,7 +219,7 @@ namespace CardCore
         }
 
         // ---- 战斗底盘（2026-09-10 攻击/守卫效果化）----
-        // 攻/守 = 1速/2速主动效果（各 1 灰，不占槽位），生物默认自带；opt-out 退底盘额度。
+        // 攻/守 = 速度0/速度1主动效果（2026-09-16；各 1 灰，不占槽位），生物默认自带；opt-out 退底盘额度。
         // 计价见 CardCompositionCost.ChassisAdjust；资格见 CombatSystem（NoAttack 卡不能攻击）。
         [SerializeField]
         private bool _noAttack;

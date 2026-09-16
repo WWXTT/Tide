@@ -207,7 +207,7 @@ namespace CardCore
             switch (def.Duration)
             {
                 case DurationType.UntilEndOfTurn: return per;                    // 固定1回合 0.5
-                case DurationType.UntilNextTurn: return per * 2f;                // 固定2回合 1.0
+                case DurationType.UntilNextTurn: return per;                     // ≡1回合（2026-09-16 统一档：限时指示物两档合一，费用按1回合计）
                 case DurationType.UntilLeaveBattlefield: return per * 3f;        // 换区移除 1.5
                 case DurationType.WhileCondition: return per * 3f;               // 条件持续≈换区档
                 case DurationType.Permanent: return per * 4f;                    // 换区不移除 2.0
@@ -302,10 +302,10 @@ namespace CardCore
                 return FilterPrecisionCost(atom);
 
             // 属性价梯（2026-09-13 定案：攻/血同锚 0.5/+1，按持续档定价——取代通用公式与持续折扣）：
-            // 修改族（ModifyPower/ModifyLife）档价：固定1回合（UntilEndOfTurn/ForTurns(1)）0.5、
-            // 固定2回合（UntilNextTurn/ForTurns(2)）1.0、换区移除（UntilLeaveBattlefield/WhileCondition）1.5、
-            // 换区不移除（Permanent=指示物永久档）2.0；改写族（SetPower/SetLife=设置直改，视同本体）3.0。
-            // 属性固定回合只许 1、2 两档（ForTurns(3+) 走 CardLoader 拦截；计价按 1.0 封顶兜底）。
+            // 修改族（ModifyPower/ModifyLife）档价：固定1回合（UntilEndOfTurn/UntilNextTurn）0.5
+            //（2026-09-16 统一档：限时指示物两档合一=持有者回合结束，费用一律按 1 回合计）、
+            // 换区移除（UntilLeaveBattlefield/WhileCondition）1.5、换区不移除（Permanent=指示物永久档）2.0；
+            // 改写族（SetPower/SetLife=设置直改，视同本体）3.0。
             float statTier = StatTierPrice(atom.Type, def);
             if (statTier > 0f)
                 return (int)Math.Round(statTier * Math.Abs(atom.Value), MidpointRounding.AwayFromZero);
@@ -321,17 +321,17 @@ namespace CardCore
                 return (int)Math.Round(cfg.TotalUnitCost * ctrlMult, MidpointRounding.AwayFromZero);
             }
 
-            // Grant 关键词梯（2026-09-13 定案，魔法侧照旧按声明持续；生物侧运行时固定 UET=1.2 档）：
-            // 一次性（Once，圣盾/复生式消耗）×1.0 / 临时短（UET/ForTurns(1)）×1.2 /
-            // 临时长（UNT/ForTurns(2)/ULB/WhileCondition）×1.6 / 永久（GrantedPermanent/Setting）×2.0。
+            // Grant 关键词梯（2026-09-13 定案；2026-09-16 统一档：UNT≡UET 计价并入 1.2 档）：
+            // 一次性（Once，圣盾/复生式消耗）×1.0 / 临时（UET/UNT——持续到持有者回合结束）×1.2 /
+            // 换区持续（ULB/WhileCondition）×1.6 / 永久（GrantedPermanent/Setting）×2.0。
             if (atom.Type.ToString().StartsWith("Grant"))
             {
                 float grantMult;
                 switch (def.Duration)
                 {
                     case DurationType.Once: grantMult = 1.0f; break;
-                    case DurationType.UntilEndOfTurn: grantMult = 1.2f; break;
-                    case DurationType.UntilNextTurn:
+                    case DurationType.UntilEndOfTurn:
+                    case DurationType.UntilNextTurn: grantMult = 1.2f; break;
                     case DurationType.UntilLeaveBattlefield:
                     case DurationType.WhileCondition: grantMult = 1.6f; break;
                     default: grantMult = 2.0f; break; // Permanent（含魔法 Setting 回填）

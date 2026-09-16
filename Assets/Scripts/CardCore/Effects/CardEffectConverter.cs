@@ -120,6 +120,24 @@ namespace CardCore
                         : Math.Max(1, (int)Math.Ceiling(CostDerivationService.RewardDerivedCost(def.RewardAtoms)));
             }
 
+            // 胜利宣判闸（2026-09-16 定案）：含 DeclareVictory 原子的效果一律强制——纯强制批
+            // 合成双 Pass 直接结算（宣判即终局，见 StackEngine.FinishResolution 拆轮）。
+            // 启动式（玩家主动发动）与此语义互斥：启动式声明 DeclareVictory 属数据错误，
+            // 告警跳闸（上方守卫已按主动处理——玩家自发宣胜利的卡不该存在）。
+            if (ContainsAtom(def, AtomicEffectType.DeclareVictory))
+            {
+                if (isActivated)
+                    Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 启动式声明 DeclareVictory" +
+                                     "（数据错误——胜利宣判不可主动发动），按主动处理保留");
+                else if (activationType != EffectActivationType.Mandatory)
+                {
+                    Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 含 DeclareVictory 原子，" +
+                                     $"ActivationType={activationType} 覆写为 Mandatory（胜利宣判一律强制）");
+                    activationType = EffectActivationType.Mandatory;
+                    def.ActivationType = activationType;
+                }
+            }
+
             // 触发上限解析（2026-09-13 定案）：含 TriggerCapImmutable(8) 原子（少数，如坚韧）→ 恒 -1
             //（不可修改——声明被覆写，CardLoader 同步告警）；其余原子 → 未声明(0)=1（一回合一次，默认可修改）。
             bool capImmutable =
@@ -138,6 +156,16 @@ namespace CardCore
                 && def.TargetDomain[0] == (int)TargetKind.Self && data.SelectionMode < 0)
             {
                 def.SelectionMode = SelectionMode.Self;
+            }
+
+            // 强制类目标闸（2026-09-16 三类弹窗口径定案）：强制类（Mandatory）自动入栈自动执行、
+            // **无目标选择窗口**——目标必须构筑期明确。声明 Manual（执行期弹选）属数据错误：
+            // 告警并强制 Full（域内全取，与固有全域原子同口径）。Self/Full/Random/None 均构筑期可解析。
+            if (activationType == EffectActivationType.Mandatory && def.SelectionMode == SelectionMode.Manual)
+            {
+                Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 为强制类但声明 Manual" +
+                                 "（强制类无目标选择窗口，目标须构筑期明确）——已覆写为 Full");
+                def.SelectionMode = SelectionMode.Full;
             }
 
             // 固有全域原子（2026-09-13：类型伤害/全体治疗）：**无条件强制 Full**——
@@ -227,6 +255,50 @@ namespace CardCore
             foreach (var tok in csv.Split(','))
                 if (tok.Trim() == flag.ToString()) return true;
             return false;
+        }
+
+        /// <summary>胜利宣判闸扫描：主序列原子 / 步骤全形态（原子+分支 Then/Else+抉择全模式）/
+        /// 引擎奖励原子中是否含指定类型（SubEffects 递归）。</summary>
+        private static bool ContainsAtom(EffectDefinition def, AtomicEffectType type)
+        {
+            if (AtomsContain(def.Effects, type) || AtomsContain(def.RewardAtoms, type)) return true;
+            if (def.Steps == null) return false;
+            foreach (var step in def.Steps)
+                if (StepContainsAtom(step, type)) return true;
+            return false;
+        }
+
+        private static bool StepContainsAtom(RuntimeEffectStep step, AtomicEffectType type)
+        {
+            if (step == null) return false;
+            if (step.Kind == RuntimeStepKind.Atomic)
+                return AtomContains(step.Atomic, type);
+            if (step.Kind == RuntimeStepKind.Choice)
+            {
+                if (step.Choices == null) return false;
+                foreach (var mode in step.Choices)
+                    if (mode != null)
+                        foreach (var s in mode)
+                            if (StepContainsAtom(s, type)) return true;
+                return false;
+            }
+            // Branch：Then/Else 为扁平原子列表
+            return AtomsContain(step.Then, type) || AtomsContain(step.Else, type);
+        }
+
+        private static bool AtomsContain(List<AtomicEffectInstance> atoms, AtomicEffectType type)
+        {
+            if (atoms == null) return false;
+            foreach (var a in atoms)
+                if (AtomContains(a, type)) return true;
+            return false;
+        }
+
+        private static bool AtomContains(AtomicEffectInstance atom, AtomicEffectType type)
+        {
+            if (atom == null) return false;
+            if (atom.Type == type) return true;
+            return AtomsContain(atom.SubEffects, type);
         }
 
         /// <summary>引用型唯一转换口（2026-09-14 彻底引用化）：refId → 表行 → 运行时实例。

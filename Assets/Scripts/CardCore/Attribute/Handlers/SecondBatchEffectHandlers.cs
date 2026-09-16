@@ -185,7 +185,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "横置目标";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "横置目标";
     }
 
     /// <summary>重置（解除横置）</summary>
@@ -202,7 +202,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "重置目标";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "重置目标";
     }
 
     // ======================= 资源转化 =======================
@@ -260,7 +260,7 @@ namespace CardCore.Attribute.Handlers
                 context.ElementPool.CheckDepletedCards(owner, context.ZoneManager);
         }
 
-        public override string GetDescription(AtomicEffectInstance effect)
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
             => "采掘地牌：去除3个同类型元素指示物，获得1点对应元素";
     }
 
@@ -297,7 +297,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect)
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
             => $"光合作用：横置自身获得 {(effect.Value > 0 ? effect.Value : 1)} 点绿色元素";
     }
 
@@ -316,7 +316,7 @@ namespace CardCore.Attribute.Handlers
                     HandlerHelpers.ChangeControl(context, card, context.Controller, permanent);
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "获得目标的控制权";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "获得目标的控制权";
     }
 
     // ======================= 净化 =======================
@@ -351,7 +351,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "净化目标：变回原有状态（清临时赋予与指示物，保留本体与设置）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "净化目标：变回原有状态（清临时赋予与指示物，保留本体与设置）";
     }
 
     // ======================= 战斗 / 伤害 =======================
@@ -379,7 +379,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"造成 {effect.Value} 点战斗伤害";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"造成 {effect.Value} 点战斗伤害";
     }
 
     /// <summary>失去生命（不可防止，非伤害）。角色目标扣**生命上限**（2026-09-14 对齐流失扣上限定案，
@@ -438,7 +438,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"失去 {effect.Value} 点生命";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"失去 {effect.Value} 点生命";
     }
 
     // ======================= 特殊 =======================
@@ -458,7 +458,7 @@ namespace CardCore.Attribute.Handlers
             PublishEvent(new ExtraTurnEvent { Player = player, Source = context.Source });
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "获得额外回合";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "获得额外回合";
     }
 
     /// <summary>跳过回合</summary>
@@ -476,7 +476,7 @@ namespace CardCore.Attribute.Handlers
             PublishEvent(new SkipTurnEvent { Player = player, Source = context.Source });
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "跳过回合";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "跳过回合";
     }
 
     /// <summary>第二批 handler 工厂</summary>

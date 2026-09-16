@@ -266,14 +266,10 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
-        /// <summary>战斗结算（镜像 BattleController.ResolveCombat）：EndAttackDeclaration → EndBlockDeclaration 伤害落地。</summary>
+        /// <summary>战斗收口（2026-09-16 战斗接入栈机器退役）：攻击动作 Apply 后即经 DrainStack
+        /// 逐攻击结算——本方法保留为空占位，调用方时序不变（排干在 Step 主循环统一做）。</summary>
         private void ResolveCombat()
         {
-            var combat = _core.CombatSystem;
-            if (!combat.InCombat) return;
-            combat.EndAttackDeclaration();
-            if (combat.InCombat)
-                combat.EndBlockDeclaration();
         }
 
         private TideStepResult BuildResult(float reward)

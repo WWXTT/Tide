@@ -20,8 +20,8 @@ namespace CardCore
 
         // 指示物存储（上移 Entity：角色/卡牌同构——剧毒/毒素可指向玩家；对齐 _keywords 先例）。
         // 计数模型：_counters 字典存净量（带符号——攻/血/费指示物可 ±）；
-        // 回合时钟：_counterClocks 只收 ForTurns 计时的层（毒素每层独立 3 回合时钟），
-        // 到期层由 CounterRules.OnTurnEnd 回收并从计数中扣除。
+        // 回合时钟：_counterClocks 收限时层（2026-09-16 统一档：不倒数——持有者回合末一律到期，
+        // 由 CounterRules.OnTurnEnd 回收并从计数中扣除）。
         internal Dictionary<string, int> _counters = new Dictionary<string, int>();
         internal List<CounterInstance> _counterClocks = new List<CounterInstance>();
 

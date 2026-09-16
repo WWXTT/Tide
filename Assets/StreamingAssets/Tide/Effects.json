@@ -1,63 +1,8 @@
 {
     "items": [
         {
-            "id": "CB2858B4",
-            "name": "黑红双蚀·造成2点伤害并流失1点生命上限",
-            "timing": 0,
-            "activation": 0,
-            "speed": 0,
-            "limit": 0,
-            "duration": 0,
-            "selection": 1,
-            "count": 1,
-            "dropZone": 0,
-            "engine": 0,
-            "engineParam": 0,
-            "drawbacks": [],
-            "costs": [],
-            "steps": [
-                {
-                    "kind": 0,
-                    "atom": {
-                        "refId": "615fc28b",
-                        "value": 2,
-                        "str": "",
-                        "amp": 0.25,
-                        "kinds": [
-                            2
-                        ]
-                    },
-                    "gid": "",
-                    "gparam": 0,
-                    "gstr": "",
-                    "then": [],
-                    "els": [],
-                    "choices": []
-                },
-                {
-                    "kind": 0,
-                    "atom": {
-                        "refId": "e5a7087d",
-                        "value": 1,
-                        "str": "",
-                        "amp": 0.0,
-                        "kinds": [
-                            2
-                        ]
-                    },
-                    "gid": "",
-                    "gparam": 0,
-                    "gstr": "",
-                    "then": [],
-                    "els": [],
-                    "choices": []
-                }
-            ],
-            "rewards": []
-        },
-        {
             "id": "A5AEE20E",
-            "name": "处决钩·造成2点伤害，击杀则抽1张",
+            "name": "造成2点伤害，击杀则抽1张",
             "timing": 0,
             "activation": 0,
             "speed": 0,
@@ -118,7 +63,7 @@
         },
         {
             "id": "22F9E322",
-            "name": "蓄能圣钟·每3回合回复自身2点生命",
+            "name": "回合开始时回复自身2点生命",
             "timing": 5,
             "activation": 1,
             "speed": 0,
@@ -146,7 +91,7 @@
         },
         {
             "id": "9A65A611",
-            "name": "血债拼点·拼点胜出抽1张，结算弃1张手牌",
+            "name": "代价，弃一张手牌；拼点，拼点胜出抽1张",
             "timing": 5,
             "activation": 1,
             "speed": 0,
@@ -1012,6 +957,983 @@
                     "choices": []
                 }
             ],
+            "rewards": []
+        },
+        {
+            "id": "9A455F57",
+            "name": "造成2点伤害，击杀则抽1张",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 1,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "615fc28b",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                },
+                {
+                    "kind": 1,
+                    "atom": {
+                        "refId": "",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "DmgKillsTarget",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [
+                        {
+                            "refId": "120ad4d1",
+                            "value": 1,
+                            "str": "",
+                            "amp": 0.0,
+                            "kinds": []
+                        }
+                    ],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "FD3D89FB",
+            "name": "回合开始时回复自身2点生命",
+            "timing": 5,
+            "activation": 1,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "dropZone": 0,
+            "engine": 1,
+            "engineParam": 3,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [],
+            "rewards": [
+                {
+                    "refId": "d2720caf",
+                    "value": 2,
+                    "str": "",
+                    "amp": 0.0,
+                    "kinds": [
+                        1
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "3F8E326A",
+            "name": "代价，弃一张手牌；拼点，拼点胜出抽1张",
+            "timing": 5,
+            "activation": 1,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "dropZone": 0,
+            "engine": 3,
+            "engineParam": 1,
+            "drawbacks": [],
+            "costs": [
+                {
+                    "type": 7,
+                    "value": 1,
+                    "manaType": 0,
+                    "turns": 0,
+                    "payload": {
+                        "refId": "bf06d56b",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            5
+                        ]
+                    }
+                }
+            ],
+            "steps": [],
+            "rewards": [
+                {
+                    "refId": "120ad4d1",
+                    "value": 1,
+                    "str": "",
+                    "amp": 0.0,
+                    "kinds": []
+                }
+            ]
+        },
+        {
+            "id": "89065F1B",
+            "name": "毒刺",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "51e31ad5",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "4F5B0B2C",
+            "name": "吸血",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "9794b926",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "395B55AF",
+            "name": "潜行",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "d3f3996c",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "69087C16",
+            "name": "圣盾",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "feab5d3b",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "F999F300",
+            "name": "碾压",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "b8bfd901",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "174F64DC",
+            "name": "警戒",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "465f51dc",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "E0DA5510",
+            "name": "先攻",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "96f16089",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "38DAFABA",
+            "name": "法术护盾",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "e62da629",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "60D981AC",
+            "name": "扰魔",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "4fa2abee",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "46B25057",
+            "name": "复生",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "376db582",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "A17D998C",
+            "name": "不灭",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "fd04d3c7",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "34A4CF64",
+            "name": "系命",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "2d46dbd4",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "1BF6DB1B",
+            "name": "再生",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "5d59d89a",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "7ED23704",
+            "name": "成长",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "baf2ff12",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "3DC2DA55",
+            "name": "缴械",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "69b7d29f",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "4AD360F0",
+            "name": "帷幕",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "67893ecf",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "1BCF71A6",
+            "name": "回响",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "803898ac",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "F2A29CE6",
+            "name": "冰晶",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "2acf8573",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "94D9D9E7",
+            "name": "梦魇",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "c0b1b0f8",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "3A911470",
+            "name": "病原体",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "345ceda5",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "8683BE2A",
+            "name": "禁魔石",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "cc55f2ce",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "43327FE4",
+            "name": "过载核心·抽1张，打出时流失1点生命上限",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [
+                {
+                    "type": 7,
+                    "value": 1,
+                    "manaType": 0,
+                    "turns": 0,
+                    "payload": {
+                        "refId": "e5a7087d",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "120ad4d1",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "AA5CD542",
+            "name": "帷幕",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "drawbacks": [],
+            "costs": [],
+            "steps": [],
             "rewards": []
         }
     ]

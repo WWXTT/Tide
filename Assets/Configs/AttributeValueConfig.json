@@ -12,9 +12,9 @@
     "MountKinds": "0"
   },
   {
-    "ID": "f2344636",
+    "ID": "b3d9782d",
     "EnumName": "守卫",
-    "DisplayName": "对手发动攻击时响应，横置并转移对手攻击目标为自身",
+    "DisplayName": "横置并转移对手攻击目标为自身",
     "EffectColor": "Gray",
     "BaseCost": 1.0,
     "EffectType": "Guard",
@@ -828,9 +828,9 @@
     "MountKinds": "0,4,2,7"
   },
   {
-    "ID": "67893ecf",
+    "ID": "407eb771",
     "EnumName": "帷幕",
-    "DisplayName": "获得帷幕：敌方效果只能指定帷幕单位（攻击不受限，由守卫承担）",
+    "DisplayName": "获得帷幕：敌方效果只能指定帷幕单位",
     "EffectColor": "White",
     "BaseCost": 1.0,
     "EffectType": "GrantTaunt",
@@ -996,7 +996,7 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "5e8a01c4",
+    "ID": "7d701213",
     "EnumName": "对手胜利",
     "DisplayName": "效果控制者的对手获得胜利",
     "EffectColor": "Black",
@@ -1008,7 +1008,7 @@
     "MountKinds": "0"
   },
   {
-    "ID": "5e8a01c4",
+    "ID": "24918cf4",
     "EnumName": "胜利",
     "DisplayName": "效果控制者获得胜利",
     "EffectColor": "White",

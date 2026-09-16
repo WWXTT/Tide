@@ -64,7 +64,7 @@ namespace CardCore.Attribute.Handlers
             });
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "重定向栈顶效果的目标";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "重定向栈顶效果的目标";
     }
 
     // CopyTargetAbility 已删除（2026-09-03 原子表整体修正——复制能力类占位行清除）

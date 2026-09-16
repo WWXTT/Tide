@@ -99,7 +99,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) =>
+        protected override string DescribeTemplate(AtomicEffectInstance effect) =>
             $"生成 {effect.Value} 个衍生物（{effect.StringValue}）";
     }
 }

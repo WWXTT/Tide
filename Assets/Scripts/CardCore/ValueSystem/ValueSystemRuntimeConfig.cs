@@ -209,8 +209,8 @@ namespace CardCore
         // 用法为「相对折扣」：CostDerivation 按 D(实际持续)/D(表内默认) 计价，
         // 保证既有锚点（1 伤害 = 1 元素，伤害原子表默认 Once）不因接入而漂移。
         public float OnceDiscount = 0.5f;                  // 瞬发（本回合内即时结算）
-        public float UntilEndOfTurnDiscount = 0.6f;        // 到自己回合结束（快攻攻击 buff 标准档）
-        public float UntilNextTurnDiscount = 0.7f;         // 到对手回合结束（防御档：活过对手回合）
+        public float UntilEndOfTurnDiscount = 0.6f;        // 到持有者回合结束（限时指示物统一档，2026-09-16 两档合一）
+        public float UntilNextTurnDiscount = 0.6f;         // ≡UntilEndOfTurn（2026-09-16 统一档：运行时语义与费用均按持有者回合结束=1回合档）
         public float WhileConditionDiscount = 0.75f;       // 条件满足期间
         public float UntilLeaveBattlefieldDiscount = 0.8f; // 到离场（挂在实体上，实体亡即失效）
         public float PermanentDiscount = 1.0f;             // 本局有效（永续档，复利载体）

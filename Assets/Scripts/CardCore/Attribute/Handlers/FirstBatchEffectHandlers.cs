@@ -40,7 +40,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"造成 {effect.Value} 点穿透伤害（无视关键词与指示物）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"造成 {effect.Value} 点穿透伤害（无视关键词与指示物）";
     }
 
     /// <summary>吸取生命（对目标造成伤害，控制者回复等量生命）</summary>
@@ -79,7 +79,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"吸取 {effect.Value} 点生命";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"吸取 {effect.Value} 点生命";
     }
 
     /// <summary>
@@ -107,7 +107,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "附加剧毒指示物（回合结束时死亡）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加剧毒指示物（回合结束时死亡）";
     }
 
     // ---------------- 卡牌移动 / 牌库操作 ----------------
@@ -142,7 +142,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"对手从手牌中自选弃掉 {effect.Value} 张牌";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"对手从手牌中自选弃掉 {effect.Value} 张牌";
     }
 
     /// <summary>除外（将目标移入流放区）</summary>
@@ -165,7 +165,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "将目标除外";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "将目标除外";
     }
 
     /// <summary>洗入牌库（将目标随机洗回拥有者牌库）</summary>
@@ -191,7 +191,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "将目标洗入牌库";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "将目标洗入牌库";
     }
 
     /// <summary>
@@ -238,7 +238,7 @@ namespace CardCore.Attribute.Handlers
             return false;
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"宣言「{effect.StringValue}」并从牌库检索对应的卡";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"宣言「{effect.StringValue}」并从牌库检索对应的卡";
     }
 
     /// <summary>弹回牌库顶</summary>
@@ -261,7 +261,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "将目标放回牌库顶";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "将目标放回牌库顶";
     }
 
     /// <summary>弹回牌库底</summary>
@@ -284,7 +284,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "将目标放回牌库底";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "将目标放回牌库底";
     }
 
     /// <summary>苏生（原名"墓地返回"，2026-09-03 改名）：将目标从坟墓场放回战场</summary>
@@ -312,7 +312,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "从墓地返回到战场";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "从墓地返回到战场";
     }
 
     /// <summary>墓地回收到手牌（将控制者墓地前 N 张放回手牌；费用锚点：回收 1 张 = 1 费）。</summary>
@@ -338,7 +338,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => "从墓地回收到手牌";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "从墓地回收到手牌";
     }
 
     /// <summary>
@@ -379,7 +379,7 @@ namespace CardCore.Attribute.Handlers
             PublishEvent(new ScryEvent { Player = owner, Cards = final, Source = context.Source });
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"观星：查看自己牌库顶 {effect.Value} 张并任意排列";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"观星：查看自己牌库顶 {effect.Value} 张并任意排列";
     }
 
     // 展示手牌原子已删除（2026-09-03 原子表整体修正）——
@@ -418,7 +418,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect)
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
         {
             string sign = effect.Value >= 0 ? "+" : "";
             return $"生命值 {sign}{effect.Value}";
@@ -452,7 +452,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"将攻击力设为 {effect.Value}";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"将攻击力设为 {effect.Value}";
     }
 
     /// <summary>设置生命值</summary>
@@ -492,7 +492,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"将生命值设为 {effect.Value}";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"将生命值设为 {effect.Value}";
     }
 
     /// <summary>
@@ -523,7 +523,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect) => $"将费用设为 {effect.Value}";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"将费用设为 {effect.Value}";
     }
 
     /// <summary>
@@ -556,7 +556,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        public override string GetDescription(AtomicEffectInstance effect)
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
         {
             string sign = effect.Value >= 0 ? "+" : "";
             return $"费用 {sign}{effect.Value}";

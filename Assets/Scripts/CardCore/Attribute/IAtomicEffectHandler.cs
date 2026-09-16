@@ -22,6 +22,15 @@ namespace CardCore.Attribute
         void Execute(AtomicEffectInstance effect, EffectExecutionContext context);
 
         /// <summary>
+        /// 获取效果描述（2026-09-16 接口化定案：唯一描述口，模板 + 上下文合成）。
+        /// 栈执行时传入执行上下文（含解析后目标与 LastOutcome 真实产出）→ 完整执行文本；
+        /// 无执行场景（代价文本等）传 null → 纯模板。
+        /// </summary>
+        /// <param name="effect">原子效果实例</param>
+        /// <param name="context">执行上下文（可为 null）</param>
+        string GetDescription(AtomicEffectInstance effect, EffectExecutionContext context);
+
+        /// <summary>
         /// 异步执行效果（支持 UI 等待，如目标选择弹窗）。
         /// 非交互 handler 由基类默认实现桥接到同步 Execute；交互 handler 需 override。
         /// </summary>
@@ -36,53 +45,6 @@ namespace CardCore.Attribute
         /// <param name="context">执行上下文</param>
         /// <returns>是否可以执行</returns>
         bool CanExecute(AtomicEffectInstance effect, EffectExecutionContext context);
-
-        /// <summary>
-        /// 获取效果描述
-        /// </summary>
-        /// <param name="effect">原子效果实例</param>
-        /// <returns>描述文本</returns>
-        string GetDescription(AtomicEffectInstance effect);
-
-        /// <summary>
-        /// 获取效果预览（用于UI显示）
-        /// </summary>
-        /// <param name="effect">原子效果实例</param>
-        /// <param name="context">执行上下文（可能为null）</param>
-        /// <returns>预览信息</returns>
-        EffectPreviewInfo GetPreview(AtomicEffectInstance effect, EffectExecutionContext context);
-    }
-
-    /// <summary>
-    /// 效果预览信息
-    /// 用于UI显示效果执行前的预览
-    /// </summary>
-    [Serializable]
-    public struct EffectPreviewInfo
-    {
-        /// <summary>效果描述文本</summary>
-        public string Description;
-
-        /// <summary>预期影响的实体数量</summary>
-        public int TargetCount;
-
-        /// <summary>预期数值（伤害/治疗量等）</summary>
-        public int ExpectedValue;
-
-        /// <summary>是否有风险（可能产生负面效果）</summary>
-        public bool HasRisk;
-
-        /// <summary>效果图标路径</summary>
-        public string IconPath;
-
-        public static EffectPreviewInfo Empty => new EffectPreviewInfo
-        {
-            Description = "",
-            TargetCount = 0,
-            ExpectedValue = 0,
-            HasRisk = false,
-            IconPath = "",
-        };
     }
 
     /// <summary>
@@ -129,31 +91,33 @@ namespace CardCore.Attribute
             return true;
         }
 
-        public virtual string GetDescription(AtomicEffectInstance effect)
+        /// <summary>
+        /// 执行期完整描述（模板方法，2026-09-16 接口化定案）：DescribeTemplate 模板主干 +
+        /// 上下文合成（目标名 + LastOutcome 真实产出——handler 结算时写入，描述不重掷随机）。
+        /// context=null（代价文本等无执行场景）退纯模板。
+        /// </summary>
+        public string GetDescription(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            return effect.GetDescription();
-        }
+            if (effect == null) return "";
+            var text = DescribeTemplate(effect);
+            if (context == null) return text;
 
-        public virtual EffectPreviewInfo GetPreview(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            var config = AtomicEffectTable.GetByType(effect.Type);
-            if (config == null) return EffectPreviewInfo.Empty;
-
-            return new EffectPreviewInfo
-            {
-                Description = GetDescription(effect),
-                TargetCount = context?.Targets?.Count ?? 0,
-                ExpectedValue = effect.Value,
-                IconPath = GetIconPath(effect),
-            };
+            if (context.Targets != null && context.Targets.Count > 0)
+                text += $" → {EffectText.DescribeEntities(context.Targets)}";
+            var outcome = EffectText.DescribeOutcome(context.LastOutcome);
+            if (outcome.Length > 0)
+                text += $"（{outcome}）";
+            return text;
         }
 
         /// <summary>
-        /// 获取效果图标路径
+        /// 模板主干（原 70+ 处 GetDescription 覆写层的归宿）：句式由各 handler 覆写提供。
+        /// 默认回落原子表行 DisplayName（原 GetPreview 取数口径），再回落枚举名。
         /// </summary>
-        protected virtual string GetIconPath(AtomicEffectInstance effect)
+        protected virtual string DescribeTemplate(AtomicEffectInstance effect)
         {
-            return $"Icons/Effects/{effect.Type}";
+            var config = GetConfig(effect.Type);
+            return config?.DisplayName ?? effect.Type.ToString();
         }
 
         /// <summary>

@@ -55,8 +55,10 @@ namespace CardCore
                     return hand.IsDraw
                         ? $"{Name(hand.Player)} 抽到 {Name(hand.Card)}"
                         : $"{Name(hand.Player)} 获得 {Name(hand.Card)}（来自 {hand.FromZone}）";
-                case AtomicEffectPhaseEvent phase:
-                    return RenderAtomicPhase(phase);
+                // 原子三阶段事件不再出行（2026-09-16 描述接口化：效果级文本统一走
+                // EffectExecutionSummaryEvent——引擎时点语义不变，仅表现层收口）
+                case EffectExecutionSummaryEvent summary:
+                    return summary.Description;
                 case AttackDeclarationEvent atk:
                     return $"〔攻击〕{Name(atk.Attacker)} → {Name(atk.Target)}";
                 case FatigueEvent fatigue:
@@ -95,59 +97,16 @@ namespace CardCore
             return string.Join("\n", lines);
         }
 
-        /// <summary>
-        /// 效果目标选择 + 结算产出：
-        /// StartApplying 出目标行（仅 Targets 非空），ResolutionComplete 出结算行（仅 LastOutcome 可读）；
-        /// Activation 与 StartApplying 紧邻发布，不出行。
-        /// </summary>
-        private static string RenderAtomicPhase(AtomicEffectPhaseEvent e)
-        {
-            switch (e.Phase)
-            {
-                case AtomicEffectPhase.StartApplying:
-                    if (e.Targets != null && e.Targets.Count > 0)
-                        return $"〔效果〕{Name(e.Source)} 的 {e.EffectType} → {DescribeEntities(e.Targets)}";
-                    return null;
+        // ======================================== 公共辅助（转发 EffectText 单一真相，2026-09-16 描述接口化） ========================================
 
-                case AtomicEffectPhase.ResolutionComplete:
-                    var o = e.Context?.LastOutcome;
-                    if (!HasReadableOutcome(o)) return null;
-                    if (o.DamageDealt > 0)
-                        return $"〔结算〕{e.EffectType}：{DescribeEntities(o.AffectedTargets)} 共受 {o.DamageDealt} 伤害"
-                               + (o.KilledTargets.Count > 0 ? $"，{DescribeEntities(o.KilledTargets)} 死亡" : "");
-                    if (o.HealApplied > 0)
-                        return $"〔结算〕{e.EffectType}：{DescribeEntities(o.AffectedTargets)} 回复 {o.HealApplied} 生命";
-                    if (o.Declaration != null)
-                        return $"〔结算〕{e.EffectType}：宣言「{o.Declaration}」{(o.DeclareHit ? "命中" : "未命中")}";
-                    return $"〔结算〕{e.EffectType}：作用于 {DescribeEntities(o.AffectedTargets)}";
+        /// <summary>实体短名（转发 EffectText）</summary>
+        public static string Name(Entity entity) => EffectText.Name(entity);
 
-                default:
-                    return null;
-            }
-        }
+        /// <summary>同名聚合的紧凑卡牌清单（转发 EffectText）</summary>
+        public static string DescribeCards(List<Card> cards) => EffectText.DescribeCards(cards);
 
-        // ======================================== 公共辅助（原 AiBattleE2E 内部方法公共化） ========================================
-
-        /// <summary>实体短名（玩家名 / 卡名 / 卡 ID）</summary>
-        public static string Name(Entity entity) => entity == null ? "∅"
-            : entity is Player p ? p.Name
-            : entity is IHasName n && !string.IsNullOrEmpty(n.CardName) ? n.CardName
-            : entity is Card c ? c.ID
-            : entity.ToString();
-
-        public static bool HasReadableOutcome(EffectOutcome o)
-            => o != null && (o.DamageDealt > 0 || o.HealApplied > 0
-                          || o.KilledTargets.Count > 0 || o.AffectedTargets.Count > 0
-                          || o.Declaration != null);
-
-        /// <summary>同名聚合的紧凑卡牌清单（"火球、嘲讽守卫×2、…"）</summary>
-        public static string DescribeCards(List<Card> cards)
-            => cards == null || cards.Count == 0 ? "∅"
-               : string.Join("、", cards.GroupBy(Name)
-                                        .Select(g => g.Count() > 1 ? $"{g.Key}×{g.Count()}" : g.Key));
-
-        public static string DescribeEntities(List<Entity> list)
-            => list == null || list.Count == 0 ? "∅" : string.Join("、", list.Select(Name));
+        /// <summary>实体清单（转发 EffectText）</summary>
+        public static string DescribeEntities(List<Entity> list) => EffectText.DescribeEntities(list);
 
         public static string DescribeTokens(Dictionary<ManaType, int> tokens)
         {

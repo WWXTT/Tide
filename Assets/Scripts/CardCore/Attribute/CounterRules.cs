@@ -92,7 +92,7 @@ namespace CardCore.Attribute
         // ---- 指示物 id 常量（新指示物 = 一条常量 + 一条 spec）----
         /// <summary>剧毒：持续 1 回合，回合结束时持有者死亡（效果死亡，无伤害来源）</summary>
         public const string PoisonCounter = "Poison";
-        /// <summary>毒素：持续 3 回合，回合结束时持有者每层受 1 点伤害，可叠加</summary>
+        /// <summary>毒素：持续到持有者回合结束，回合结束时持有者每层受 1 点伤害后清层（2026-09-16 统一档）</summary>
         public const string ToxinCounter = "Toxin";
         /// <summary>沉默：持有者不可发动主动效果（未写持续时间=换区清除）</summary>
         public const string SilenceCounter = "Silence";
@@ -152,10 +152,9 @@ namespace CardCore.Attribute
             // ---- 负面 ----
             // 常驻（SBA 与 +1/+1 对消）
             Register(new CounterSpec { Id = MinusOneCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "-1/-1", StatKind = StatCounterKind.MinusOneMinusOne });
-            // 冻结（2026-09-13 定案：**层数模型**——默认 1 回合、对已冻结目标施加=持续+1；
-            // 每回合末倒数 -1 层（OnTurnEnd ①b），不走 UntilEndOfTurn 整类清零；
-            // 持有期间无法重置（SleepFreezeUntapBlockRule）；spec=Permanent 仅为避开整类清零）
-            Register(new CounterSpec { Id = KeywordRules.FreezeCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "冻结" });
+            // 冻结（2026-09-16 统一档：原层数模型退役——叠加不再延长持续；持续恒=持有者回合结束，
+            // 回合末整类清零；持有期间无法重置（SleepFreezeUntapBlockRule）。层数仅累计显示）
+            Register(new CounterSpec { Id = KeywordRules.FreezeCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "冻结" });
             Register(new CounterSpec { Id = KeywordRules.RushSicknessCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "突袭紊乱" });
             // 沉睡（2026-09-11 定案）：持有期间无法重置（回合开始扣 1 层代替重置，扣完即醒）+ 效果无效。
             // 持续=Permanent（消退不走 CounterRules 回合末回收——由回合开始重置拦截的逐层倒数承担）。
@@ -163,7 +162,7 @@ namespace CardCore.Attribute
 
             // ---- 原子表整体修正新增（2026-09-03 定案）----
             Register(new CounterSpec { Id = PoisonCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "剧毒", TurnEndEffect = CounterTurnEndEffect.PoisonDeath });
-            Register(new CounterSpec { Id = ToxinCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.ForTurns, DisplayName = "毒素", TurnEndEffect = CounterTurnEndEffect.DamagePerStack, Turns = 3 });
+            Register(new CounterSpec { Id = ToxinCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "毒素", TurnEndEffect = CounterTurnEndEffect.DamagePerStack });
             Register(new CounterSpec { Id = SilenceCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "沉默" });
             Register(new CounterSpec { Id = NullifyCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "无响应" });
             Register(new CounterSpec { Id = VulnerableCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "易损" });
@@ -393,43 +392,25 @@ namespace CardCore.Attribute
         // ==================== 回合结束处理 ====================
 
         /// <summary>
-        /// 回合结束处理（由 GameCore.OnTurnEnd 调用，与 DurationTracker / TextChangeLayer 同链）：
-        /// ① 效果型指示物与 ForTurns 时钟——**定案口径：每个回合结束都结算**（双方回合末各一次），
-        ///    遍历全部实体（双方玩家 + 双方战场卡）；
-        /// ② UntilEndOfTurn 整类清零——保持回合玩家战场范围（冻结/突袭紊乱既有语义）。
+        /// 回合结束处理（由 GameCore.OnTurnEnd 调用，与 DurationTracker / TextChangeLayer 同链）。
+        /// 2026-09-16 统一档定案：限时指示物（两个时长档合一）一律**持续到持有者回合结束**——
+        /// 只结算回合方侧（回合方玩家 + 回合方战场卡）；对手实体上的指示物不碰，
+        /// 等对手自己回合结束时才发作/消退：
+        /// ① 效果型指示物（剧毒/毒素/易损）发作 + 回合时钟到期回收（不再多回合倒数）；
+        /// ② UntilEndOfTurn 整类清零（冻结/突袭紊乱/毒素层等）。
         /// </summary>
         public static void OnTurnEnd(Player turnPlayer, ZoneManager zoneManager)
         {
             if (turnPlayer == null) return;
 
-            // ── ① 效果型指示物 + 回合时钟（全部实体） ──
+            // ── ① 效果型指示物 + 回合时钟（持有者侧） ──
             foreach (var entity in AllEntities(turnPlayer, zoneManager))
             {
                 ProcessTurnEndEffects(entity, zoneManager);
                 TickClocks(entity);
             }
 
-            // ── ①b 冻结层数倒数（2026-09-13 定案：默认 1 回合、叠加 +1——每回合末 -1 层）──
-            foreach (var entity in AllEntities(turnPlayer, zoneManager))
-            {
-                int freeze = entity.GetCounterCount(KeywordRules.FreezeCounter);
-                if (freeze > 0)
-                {
-                    entity.AddCounters(KeywordRules.FreezeCounter, -1);
-                    if (freeze - 1 <= 0)
-                        EventManager.Instance.Publish(new KeywordAppliedEvent
-                        {
-                            Target = entity,
-                            Keyword = KeywordRules.FreezeCounter,
-                            Detail = "冻结消退（回合末倒数）",
-                        });
-                }
-            }
-
-            // ── ② UntilEndOfTurn 整类清零（双侧战场） ──
-            // 语义修正（2026-09-10 验证器对齐）：「持续到回合结束」按到期时点计，不区分持有者阵营——
-            // 跨侧施加的限时指示物（易损/紊乱）须在施加方回合末即消退，否则白送一整轮；
-            // 与 ① 的全实体结算域（AllEntities）同口径，快照化遍历双侧战场。
+            // ── ② UntilEndOfTurn 整类清零（持有者侧） ──
             if (zoneManager == null) return;
             foreach (var card in AllEntities(turnPlayer, zoneManager).OfType<Card>())
             {
@@ -444,29 +425,21 @@ namespace CardCore.Attribute
                     {
                         Target = card,
                         Keyword = id,
-                        Detail = $"{Find(id).DisplayName}消退（持续到回合结束）"
+                        Detail = $"{Find(id).DisplayName}消退（持有者回合结束）"
                     });
                 }
             }
         }
 
-        /// <summary>双方玩家 + 双方战场卡（效果型指示物的结算域）。
+        /// <summary>回合方玩家 + 回合方战场卡（持有者侧结算域，2026-09-16 统一档定案：
+        /// 指示物只在持有者回合末发作/到期——对手侧实体等对手回合末，此域不含对手）。
         /// ToList 物化快照：剧毒死亡会在结算中把卡移出战场（容器列表变更），惰性遍历会炸。</summary>
         private static IEnumerable<Entity> AllEntities(Player turnPlayer, ZoneManager zoneManager)
         {
             var snapshot = new List<Entity> { turnPlayer };
-            if (turnPlayer.Opponent != null) snapshot.Add(turnPlayer.Opponent);
             if (zoneManager != null)
-            {
-                var seen = new HashSet<Entity>();
-                foreach (var p in new[] { turnPlayer, turnPlayer.Opponent })
-                {
-                    if (p == null) continue;
-                    foreach (var card in zoneManager.GetCards(p, Zone.Battlefield).ToList())
-                        if (card != null && seen.Add(card))
-                            snapshot.Add(card);
-                }
-            }
+                foreach (var card in zoneManager.GetCards(turnPlayer, Zone.Battlefield).ToList())
+                    if (card != null) snapshot.Add(card);
             return snapshot;
         }
 
@@ -500,16 +473,18 @@ namespace CardCore.Attribute
                 });
             }
 
-            // 毒素：每层 1 点伤害（null 来源——毒素自身不是伤害来源实体，吸血/系命无从触发）
+            // 毒素：持续到持有者回合结束——每层 1 点伤害（null 来源——毒素自身不是伤害来源实体，
+            // 吸血/系命无从触发）后整层清空（2026-09-16 统一档：原 ForTurns=3 时钟退役）
             int toxin = entity.GetCounterCount(ToxinCounter);
             if (toxin > 0 && entity.IsAlive)
             {
                 KeywordRules.ApplyDamage(null, entity, toxin, false);
+                entity.AddCounters(ToxinCounter, -toxin);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = entity,
                     Keyword = ToxinCounter,
-                    Detail = $"毒素发作（{toxin} 层）"
+                    Detail = $"毒素发作（{toxin} 层，持有者回合结束清空）"
                 });
             }
 
@@ -552,21 +527,18 @@ namespace CardCore.Attribute
             }
         }
 
+        /// <summary>回合时钟到期回收（2026-09-16 统一档：不再多回合倒数——clock 层一律在
+        /// **持有者**回合末到期，计数扣除 + 属性反写 + 播报后全清）。</summary>
         private static void TickClocks(Entity entity)
         {
             if (entity._counterClocks.Count == 0) return;
-            var expired = new List<CounterInstance>();
-            foreach (var clock in entity._counterClocks)
-            {
-                clock.RemainingTurns--;
-                if (clock.RemainingTurns <= 0) expired.Add(clock);
-            }
+            var expired = new List<CounterInstance>(entity._counterClocks);
             foreach (var clock in expired)
             {
                 entity._counters.TryGetValue(clock.Id, out var cur);
                 entity._counters[clock.Id] = Math.Max(0, cur - clock.Amount);
                 // 2026-09-13 修复：属性指示物到期回写——此前 TickClocks 只减计数不还原 _power/_maxLife，
-                // ForTurns 属性层到期后属性残留（缺口首次被英雄技能红 buff 暴露）。
+                // 属性层到期后残留（缺口首次被英雄技能红 buff 暴露）。
                 var spec = Find(clock.Id);
                 if (entity is Card statCard && spec.StatKind != StatCounterKind.None)
                     RevertStatDelta(statCard, spec.StatKind, clock.Amount);
@@ -574,10 +546,10 @@ namespace CardCore.Attribute
                 {
                     Target = entity,
                     Keyword = clock.Id,
-                    Detail = $"{spec.DisplayName}消退（持续{spec.Turns}回合）"
+                    Detail = $"{spec.DisplayName}消退（持有者回合结束）"
                 });
             }
-            entity._counterClocks.RemoveAll(c => c.RemainingTurns <= 0);
+            entity._counterClocks.Clear();
         }
 
         /// <summary>清空目标全部负面指示物（解减益类效果的统一口径；横置状态不在此恢复）。</summary>
@@ -596,7 +568,7 @@ namespace CardCore.Attribute
     /// <summary>
     /// 冻结/沉睡的重置拦截（2026-09-13 定案：两者持有期间均**无法重置**）。
     /// 沉睡：回合开始扣 1 层代替重置，末层耗尽的当次直接苏醒（重置）；
-    /// 冻结：无层数，保持横置至指示物消退（UntilEndOfTurn，回合末统一清理）。
+    /// 冻结：层数累计（不延展持续——2026-09-16 统一档），保持横置至持有者回合末整类清零。
     /// 登记于 GameCore.Reset（组合根例外，幂等）——重置循环经 RuleHooks 只认接口。
     /// </summary>
     public sealed class SleepFreezeUntapBlockRule : IUntapBlockRule

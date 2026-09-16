@@ -124,7 +124,7 @@ namespace CardCore
 
             // 目标合法性：走战斗 CanAttackTarget（帷幕/守卫拦截照常——从"我"视角）
             var combat = core.CombatSystem;
-            if (combat != null && !combat.CanAttackTarget(weapon, target)) return false;
+            if (combat != null && !combat.CanAttackTarget(weapon, target, player)) return false;
 
             Attribute.KeywordRules.ApplyDamage(player, target, power, true);
             core.PublishEvent(new KeywordAppliedEvent
@@ -509,6 +509,157 @@ namespace CardCore
             try { if (CrumbEnabled) System.IO.File.AppendAllText("Logs/EngineCrumb.txt", $"{System.Environment.TickCount} {msg}\n"); } catch { }
         }
 
+        // ======================================== 响应窗口（2026-09-16 战斗接入栈机器定案） ========================================
+
+        /// <summary>
+        /// 收集响应窗口候选（发动弹窗条目）：速度门 + **双过滤**（元素费用 CanAfford 含 pending 承诺
+        /// + 特殊代价 executor.CanActivate 内含 CostHandlerRegistry）——付不起的不进弹窗。
+        /// 候选=0 → 调用方直接 Pass（跳过弹窗）。本期候选=守卫能力（速度1响应）+ 待发自愿效果 +
+        /// 启动式能力（回合方主阶段）；手牌响应卡待二期窗口 UI 一并接入。
+        /// </summary>
+        public static List<ResponseOption> CollectAvailableResponses(GameCore core, Player p)
+        {
+            var options = new List<ResponseOption>();
+            if (core?.StackEngine == null || p == null || core.IsGameOver) return options;
+            var engine = core.StackEngine;
+            bool isTurnPlayer = p == engine.ActivePlayer;
+
+            // ① 守卫能力（速度1响应）：栈上有对方的攻击宣言 → 己方未横置守卫生物
+            foreach (var obj in engine.GetStackContents())
+            {
+                if (obj == null || !obj.IsAttackDeclaration || obj.Controller == p) continue;
+                if (!engine.SpeedCounter.CanActivate(StackEngine.GuardStackSpeed, isTurnPlayer,
+                        EffectActivationType.Voluntary)) continue;
+                foreach (var g in core.ZoneManager.GetCards(p, Zone.Battlefield) ?? new List<Card>())
+                {
+                    if (g == null || !g.IsAlive || g.IsTapped() || !g.HasGuardAbility()) continue;
+                    options.Add(new ResponseOption
+                    {
+                        Kind = ResponseOption.ResponseKind.GuardAbility,
+                        SourceCard = g,
+                        AttackInstance = obj,
+                        Label = $"{EffectText.Name(g)} 守卫拦截（速度1·结算期横置）",
+                        CostSummary = "横置",
+                    });
+                }
+                break; // 响应最先宣言的攻击（LIFO 顶层由后续窗口轮次覆盖）
+            }
+
+            // ② 待发自愿效果（速度门已过）+ 可付性过滤（启动式走 executor.CanActivate：费用+代价+条件）
+            var executor = engine.GetExecutor();
+            foreach (var pe in engine.GetActivatableVoluntaryEffects(p))
+            {
+                var def = pe.Effect;
+                if (def == null) continue;
+                if (def.IsActivatedEffect)
+                {
+                    // 启动式：回合方+主阶段+横置/沉默/沉睡/条件/费用全检（executor.CanActivate）
+                    if (!isTurnPlayer || engine.CurrentPhase != PhaseType.Main) continue;
+                    if (!executor.CanActivate(def, pe.Source, p, engine.ActivePlayer, engine.CurrentPhase,
+                            core.TurnEngine.TurnNumber)) continue;
+                }
+                options.Add(new ResponseOption
+                {
+                    Kind = def.IsActivatedEffect
+                        ? ResponseOption.ResponseKind.ActivatedAbility
+                        : ResponseOption.ResponseKind.VoluntaryEffect,
+                    Pending = pe,
+                    SourceCard = pe.Source as Card,
+                    Definition = def,
+                    Label = $"{(pe.Source != null ? EffectText.Name(pe.Source) + " 的 " : "")}{def.DisplayName}",
+                });
+            }
+
+            return options;
+        }
+
+        /// <summary>
+        /// 响应窗口泵（交互式 DrainStack，2026-09-16）：循环——当前优先权方收集候选：
+        /// 0 候选 → 自动 Pass（跳过弹窗）；有候选 → 人类弹窗（HumanResponder）/AI 决策/无头自动放弃；
+        /// 选择 → 应用（守卫入栈/效果发动）→ 优先权翻转继续；双 Pass → 结算（await 完成整条链，
+        /// 含 FinishResolution 新开窗口）→ 循环直到栈空且无待发（稳定）。
+        /// </summary>
+        public static async Cysharp.Threading.Tasks.UniTask SettleResponseWindowAsync(GameCore core, int maxRounds = 96)
+        {
+            for (int i = 0; i < maxRounds; i++)
+            {
+                if (core == null || core.IsGameOver) return;
+                var engine = core.StackEngine;
+                if (engine.IsEmpty)
+                {
+                    if (!engine.HasPendingEffects) return; // 稳定
+                    engine.ProcessPendingEffects();
+                    if (engine.IsEmpty) return;
+                }
+
+                var holder = engine.CurrentPriorityHolder;
+                if (holder == null) return;
+
+                ResponseOption choice = null;
+                var options = CollectAvailableResponses(core, holder);
+                if (options.Count > 0)
+                {
+                    if (holder.IsAI)
+                        choice = ResponseWindowService.AiResponder?.Invoke(core, holder, options)
+                                 ?? DefaultAiRespond(core, holder, options);
+                    else if (ResponseWindowService.HumanResponder != null)
+                        choice = await ResponseWindowService.HumanResponder(holder, options);
+                    // 均未注册（无头/训练）→ choice=null 自动 Pass（守卫不响应=训练旧行为）
+                }
+
+                if (choice != null && ApplyResponse(core, holder, choice))
+                    continue; // 发动成功 → 优先权已翻转，继续下一轮
+
+                await engine.PassPriority(holder); // 0 候选/放弃/失败 → Pass（双 Pass 触发结算并 await 完成）
+            }
+        }
+
+        /// <summary>应用所选响应：守卫=PushGuardDeclaration；启动式=ActivateEffect；自愿效果=PlayerActivateVoluntary。</summary>
+        private static bool ApplyResponse(GameCore core, Player p, ResponseOption opt)
+        {
+            if (opt == null) return false;
+            switch (opt.Kind)
+            {
+                case ResponseOption.ResponseKind.GuardAbility:
+                    return core.StackEngine.PushGuardDeclaration(opt.SourceCard, opt.AttackInstance, p);
+                case ResponseOption.ResponseKind.ActivatedAbility:
+                    return opt.Definition != null && opt.SourceCard != null
+                        && ActivateEffect(core, p, opt.Definition, opt.SourceCard);
+                case ResponseOption.ResponseKind.VoluntaryEffect:
+                    return core.StackEngine.PlayerActivateVoluntary(opt.Pending);
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>内置 AI 响应启发（守卫决策，搬自原 DoGuardBlocks）：只拦打脸攻击——
+        /// 能扛住的守卫里挑血最厚；玩家将被击杀时任何守卫都上。其他响应放弃（Pass）。</summary>
+        private static ResponseOption DefaultAiRespond(GameCore core, Player defender, List<ResponseOption> options)
+        {
+            ResponseOption chosen = null, anyGuard = null;
+            foreach (var o in options)
+            {
+                if (o.Kind != ResponseOption.ResponseKind.GuardAbility || o.SourceCard == null) continue;
+                if (!(o.AttackInstance?.Targets is List<Entity> t && t.Count > 0 && t[0] is Player)) continue; // 只拦打脸
+                if (anyGuard == null) anyGuard = o;
+                int incoming = core.LayerEngine != null && o.AttackInstance.Source != null
+                    ? core.LayerEngine.CalculatePower(o.AttackInstance.Source) : 0;
+                if (o.SourceCard.GetLife() > incoming
+                    && (chosen == null || o.SourceCard.GetLife() > chosen.SourceCard.GetLife()))
+                    chosen = o;
+            }
+            if (chosen == null && anyGuard != null)
+            {
+                // 致命判定：任何守卫牺牲保命
+                var t = anyGuard.AttackInstance?.Targets;
+                int incoming = core.LayerEngine != null && anyGuard.AttackInstance?.Source != null
+                    ? core.LayerEngine.CalculatePower(anyGuard.AttackInstance.Source) : 0;
+                if (t != null && t.Count > 0 && t[0] is Player && defender.Life - incoming <= 0)
+                    chosen = anyGuard;
+            }
+            return chosen;
+        }
+
         /// <summary>
         /// 结算法术的施放效果（经本核心的 EffectExecutor），完成后离开发动区入墓。
         /// 法术一次性结算：OnPlay 等触发时点在此即是「施放即生效」，直接执行；
@@ -584,7 +735,11 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 主阶段：发起攻击（炉石式，随时可攻击）
+        /// 主阶段：宣言攻击（2026-09-16 战斗接入栈机器定案：攻击=速度0栈对象，逐攻击开窗）。
+        /// 资格（CanDeclareAttack+CanAttackTarget）→ StackEngine.PushAttackDeclaration
+        /// （宣言期零支付，防守方获响应窗口——发动弹窗候选：守卫速度1/响应卡）→
+        /// 双 Pass 结算（重检+横置支付→战斗三段，死亡处理走栈机器 SBA 轮）。
+        /// 主阶段+回合方在此把守；速度门（0≥计数器）在 PushAttackDeclaration。
         /// </summary>
         public static bool DeclareAttack(GameCore core, Player player, Entity attacker, Entity target)
         {
@@ -593,18 +748,10 @@ namespace CardCore
             if (core.TurnEngine.TurnPlayer != player) return false;
 
             var combat = core.CombatSystem;
+            if (!combat.CanDeclareAttack(attacker, player)) return false;
+            if (!combat.CanAttackTarget(attacker, target, player)) return false;
 
-            // 战斗按需开启（主阶段随时可攻击，无独立战斗阶段）：
-            // 若尚未处于本玩家的战斗会话，则进入攻击者选择状态，否则 CanDeclareAttack 因
-            // _attackingPlayer 为空/不符而恒为 false。
-            if (!combat.InCombat || combat.AttackingPlayer != player)
-                combat.StartCombat(player, player.Opponent);
-
-            if (!combat.CanDeclareAttack(attacker, player))
-                return false;
-
-            // 宣言可能被时点效果取消（重检失败：代价支付不出/目标丢失）——透传结果供上层重选目标
-            return combat.DeclareAttack(attacker, target);
+            return core.StackEngine.PushAttackDeclaration(attacker, target, player);
         }
 
         // ======================================== 回合控制 ========================================

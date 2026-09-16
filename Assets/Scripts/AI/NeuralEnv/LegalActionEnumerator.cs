@@ -206,10 +206,9 @@ namespace CardCore.AI.NeuralEnv
 
         private void EnumerateAttack(GameCore core, Player me, Player opp, ZoneManager zm)
         {
-            // 惰性进入战斗（镜像 SimpleAI.BeginCombat）：主阶段随时可攻击，进战斗不阻挡出牌/发动。
-            if (!core.CombatSystem.InCombat)
-                core.CombatSystem.StartCombat(me, opp);
-
+            // 2026-09-16 战斗接入栈机器：攻击=速度0栈对象逐攻击开窗——动作语义不变
+            //（Apply→GameActions.DeclareAttack 上栈，随后 DrainStack 结算）；
+            // 旧"惰性进入战斗会话"退役（无会话概念）。
             var bf = zm.GetCards(me, Zone.Battlefield);
             var oppBf = zm.GetCards(opp, Zone.Battlefield);
             for (int i = 0; i < bf.Count; i++)
@@ -220,7 +219,7 @@ namespace CardCore.AI.NeuralEnv
                 for (int j = 0; j < oppBf.Count; j++)
                 {
                     var t = oppBf[j];
-                    if (!core.CombatSystem.CanAttackTarget(atk, t)) continue;
+                    if (!core.CombatSystem.CanAttackTarget(atk, t, me)) continue;
                     Actions.Add(new TideAction
                     {
                         Type = TideActionType.Attack,
@@ -231,7 +230,7 @@ namespace CardCore.AI.NeuralEnv
                     });
                 }
 
-                if (core.CombatSystem.CanAttackTarget(atk, opp))
+                if (core.CombatSystem.CanAttackTarget(atk, opp, me))
                 {
                     Actions.Add(new TideAction
                     {

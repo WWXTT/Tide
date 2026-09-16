@@ -46,21 +46,24 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 战斗系统
-    /// 处理攻击宣言、阻挡宣言、伤害计算和结算。
+    /// 战斗系统（2026-09-16 战斗接入栈机器定案重写）：
+    /// 攻击=速度0栈对象（逐攻击开窗）、守卫=速度1响应——战斗三段在栈结算分支执行：
+    /// ① 攻击目标变更（守卫结算改写攻击目标）② 战斗结算（ResolvePair）③ 死亡处理
+    /// （由栈机器 SBA 轮统一接管——战斗死亡与效果致死同口径，救场窗口自然覆盖）。
+    /// 旧批次模型（会话/阻挡阶段/ExecuteDamage 批结算/EndCombat 直执泵）全部退役。
+    /// 横置在**结算时**支付（确定进入战斗才横置——到点重查，宣言期零支付）。
     ///
     /// 战斗为双向结算（定案）：随从互殴双方同时互致伤害；角色（玩家）被攻击同样有反伤——
     /// 反伤力量与耐久消耗走武器系统扩展点（见 PlayerCounterattackPower，系统未实现前角色反伤为 0）。
     ///
-    /// 关键词行为（定案；2026-09-10 攻/守效果化修订）：
+    /// 关键词行为（定案；2026-09-16 攻/守效果化修订）：
     /// - 可用性统一走横置：随从一律横置入场；冲锋/突袭一次性生效 = 解除横置 + 消耗关键词
     ///   （突袭残留紊乱指示物一回合，期间不能以玩家为目标）；攻击/拦截/启动式均以未横置为资格，
-    ///   横置即上限——激励解除横置即可再动（攻击无每回合计数门槛、守卫无会话次数门槛，2026-09-10 定案）
-    /// - 攻击 = 1 速主动效果（默认自带，NoAttack 卡不能攻；连锁开启时 1 速不可发动）；
-    ///   守卫 = 2 速响应拦截（默认自带，NoGuard 卡不能拦）：阻挡阶段介入，拦截即横置
-    ///   → 结算按横置单向受伤（被动代价不对称：主动结算竖直）
-    /// - 警戒（2026-09-10 重定义）：不再是「代替横置扣除」——攻击照常横置；
-    ///   新语义 = 横置也能造成战斗伤害（横置目标持警戒仍反击，见 ResolvePair）
+    ///   横置即上限——激励解除横置即可再动
+    /// - 攻击 = 速度0主动效果（默认自带，NoAttack 卡不能攻；标准速度门 0≥计数器——连锁中不可宣）；
+    ///   守卫 = 速度1响应拦截（默认自带，NoGuard 卡不能拦）：响应窗口内入栈，
+    ///   结算期横置 → 结算按横置单向受伤（被动代价不对称：攻击方强制竖直参战）
+    /// - 警戒：横置也能造成战斗伤害（横置目标持警戒仍反击，见 ResolvePair）
     /// - 帷幕（原嘲讽，2026-09-13 更名）：不拦攻击（只吸引效果目标）；攻击侧目标强制由守卫拦截承担
     /// - 潜行：不可被指定为攻击目标；攻击后移除（发动效果后的移除在效果执行器）
     /// - 先攻/连击：先攻步先行结算（死者不反击）；连击两步均结算
@@ -91,20 +94,8 @@ namespace CardCore
         /// <summary>角色反伤结算完成回调（武器系统注入：消耗 1 点武器耐久）。</summary>
         public static Action<Player> OnPlayerCounterattackResolved;
 
-        private CombatPhase _currentPhase = CombatPhase.None;
-        private List<CombatParticipant> _attackers = new List<CombatParticipant>();
-        private List<CombatParticipant> _blockers = new List<CombatParticipant>();
-        private Player _attackingPlayer;
-        private Player _defendingPlayer;
         private ZoneManager _zoneManager;
         private LayerEngine _layerEngine;
-
-        public CombatPhase CurrentPhase => _currentPhase;
-        public List<CombatParticipant> Attackers => _attackers;
-        public List<CombatParticipant> Blockers => _blockers;
-        public bool InCombat => _currentPhase != CombatPhase.None;
-        public Player AttackingPlayer => _attackingPlayer;
-        public Player DefendingPlayer => _defendingPlayer;
 
         public CombatSystem(ZoneManager zoneManager)
         {
@@ -120,58 +111,30 @@ namespace CardCore
             _layerEngine = layerEngine;
         }
 
-        /// <summary>开始战斗阶段</summary>
-        public void StartCombat(Player attackingPlayer, Player defendingPlayer)
-        {
-            _attackingPlayer = attackingPlayer;
-            _defendingPlayer = defendingPlayer;
-            _attackers.Clear();
-            _blockers.Clear();
-            _currentPhase = CombatPhase.SelectAttacker;
-
-            EventManager.Instance.Publish(new CombatPhaseStartEvent
-            {
-                AttackingPlayer = attackingPlayer,
-                DefendingPlayer = defendingPlayer
-            });
-        }
-
         /// <summary>攻击次数上限已撤（2026-09-10 定案：横置即上限——攻击=横置代价，激励解除横置
         /// 即可再攻；AttacksThisTurn 仅作统计）。保留此口径注释供引用方追溯。</summary>
 
-        /// <summary>检查是否可以攻击（攻击者侧资格）</summary>
+        /// <summary>检查是否可以攻击（攻击者侧资格；2026-09-16 战斗接入栈机器：会话/阶段/
+        /// 记速器依赖全退役）。速度约束由 StackEngine.PushAttackDeclaration 的标准速度门承担
+        /// （攻击=速度0：回合方 ≥ 计数器，即计数器为 0 才可宣——旧手写"计数器>0 拒绝"守卫
+        /// 与该规则重复，已删，规则本身零变化）。主阶段+回合方校验在 GameActions 层。</summary>
         public bool CanDeclareAttack(Entity attacker, Player controller)
         {
-            if (_currentPhase != CombatPhase.SelectAttacker &&
-                _currentPhase != CombatPhase.DeclareAttack)
-                return false;
-
-            if (controller != _attackingPlayer)
-                return false;
-
-            // 攻击=1速主动效果（2026-09-10 速度接入；2026-09-13 记速器改峰值模型后口径不变）：
-            // 连锁开启（记速器>0）期间不受理攻击宣言——攻击不上栈（结算走战斗三段），
-            // 主循环栈空才推进，此处为守卫口径。守卫拦截=2速，在阻挡阶段照常可用（2 > 1）。
-            var speedCounter = GameCore.Instance?.StackEngine?.SpeedCounter;
-            if (speedCounter != null && speedCounter.CurrentSpeed > 0)
-                return false;
+            if (attacker == null || controller == null) return false;
 
             // 检查是否在战场
             if (attacker is Card card)
             {
-                if (!_zoneManager.IsCardInZone(card, controller, Zone.Battlefield))
+                if (_zoneManager != null && !_zoneManager.IsCardInZone(card, controller, Zone.Battlefield))
                     return false;
 
-                // 攻击能力（2026-09-10 攻击效果化）：攻击=1速主动效果（默认自带），
-                // NoAttack 卡（墙/辅助）不能宣言攻击
+                // 攻击能力（攻击效果化）：攻击=速度0主动效果（默认自带），NoAttack 卡不能宣言攻击。
+                // 次数上限已撤（横置即上限）——AttacksThisTurn 只作台账统计
                 if (!card.HasAttackAbility())
                     return false;
-
-                // 次数上限已撤（横置即上限）：激励解除横置即可再攻——
-                // AttacksThisTurn 只作台账统计，不再是发动门槛
             }
 
-            // 检查是否已横置（横置状态经扩展方法读取——Card 不实现 ITappable，该接口仅地牌池卡实现）
+            // 检查是否已横置（宣言期已横置不可再宣；结算期横置在 ResolveAttackDeclaration 支付）
             if (attacker.IsTapped())
                 return false;
 
@@ -179,21 +142,19 @@ namespace CardCore
             if (attacker is IHasPower && GetPower(attacker) <= 0)
                 return false;
 
-            // 会话内重复攻击去重已撤（2026-09-10 横置即上限）：激励解除横置可再宣——
-            // 每次宣言生成独立 CombatParticipant（ExecuteDamage 逐配对结算，不串扰）
-
             return true;
         }
 
         /// <summary>检查攻击者能否指定该目标（目标侧资格：突袭紊乱限制/潜行；帷幕不拦攻击）。
-        /// 突袭定案：生效即消耗（解除横置），负面=紊乱指示物（一回合内不能以玩家为目标，攻击与效果同口径）。</summary>
-        public bool CanAttackTarget(Entity attacker, Entity target)
+        /// 突袭定案：生效即消耗（解除横置），负面=紊乱指示物（一回合内不能以玩家为目标，攻击与效果同口径）。
+        /// 2026-09-16：防守方=攻击方对手（会话字段退役，参数化）。</summary>
+        public bool CanAttackTarget(Entity attacker, Entity target, Player attackingPlayer)
         {
             if (target == null || !target.IsAlive || target == attacker) return false;
 
             // 只能攻击防守方（对方随从或对方玩家）
             var targetController = target is Card tc ? tc.GetController() : target as Player;
-            if (targetController != _defendingPlayer) return false;
+            if (attackingPlayer == null || targetController != attackingPlayer.Opponent) return false;
 
             // 潜行：不可被指定为攻击目标
             if (target is Card sc && sc.HasKeyword(KeywordRules.Stealth))
@@ -204,69 +165,79 @@ namespace CardCore
                 return false;
 
             // 帷幕（原嘲讽，2026-09-13 更名定案）：**不拦攻击**——只吸引效果目标
-            // （TargetResolver.ApplyTauntRestriction）；攻击侧的目标强制由守卫拦截承担（守卫转移）。
+            // （TargetResolver.ApplyTauntRestriction）；攻击侧的目标强制由守卫拦截承担。
 
             return true;
         }
 
+        // ======================= 战斗三段结算（ResolveStack 分支消费，2026-09-16 定案） =======================
+
         /// <summary>
-        /// 宣告攻击（时点定案）：
-        /// 1. 资格预检 → 守卫转移（目标确认）→ 发布攻击宣言时点（触发器可响应，如连锁冻结攻击者）；
-        /// 2. 宣言后重检：攻击者已横置（代价被连锁抢先支付不出）/死亡、目标丢失（死亡/不可指定）
-        ///    → 攻击取消回滚（不支付、不计数、不入队），返回 false 交上层重新确认目标；
-        /// 3. 重检通过 → 支付横置（固定代价，警戒不抵扣）→ 入队 + 潜行失效 + 台账 +1。
-        /// 战斗效果结算与生命结算在 ExecuteDamage / EndCombat（第 2、3 段）。
+        /// 守卫拦截结算（速度1响应，LIFO 先于被拦截的攻击结算）：
+        /// 重检（存活/未横置——支付不出即落空，宣言期零支付天然不回滚）→ 支付横置 →
+        /// **攻击目标变更**（战斗三段第①段）：改写被拦截攻击宣言对象的目标为守卫者。
+        /// 原阻挡阶段（SelectBlocker/DeclareBlock）退役。
         /// </summary>
-        public bool DeclareAttack(Entity attacker, Entity target)
+        public void ResolveGuardDeclaration(EffectInstance guard)
         {
-            if (!CanDeclareAttack(attacker, _attackingPlayer))
-                return false;
-            if (!CanAttackTarget(attacker, target))
-                return false;
+            var guarder = guard?.Source;
+            var attack = guard?.InterceptedAttack;
+            if (guarder == null || attack == null || !attack.IsAttackDeclaration) return;
 
-            // 守卫关键词已删除（2026-09-03 原子表整体修正）——攻击目标确认不再有守卫转移
-
-            _currentPhase = CombatPhase.DeclareAttack;
-
-            // 攻击宣言时点（经 GameCore 统一路由发布，OnAttack/OnAttacked 触发可见）——
-            // 先于横置支付：宣言触发的效果（如冻结攻击者）在此同步生效
-            var declaration = new AttackDeclarationEvent
+            // 重检+支付：窗口内被冻结抢先横置/死亡 → 拦截落空（不支付不回滚）
+            if (!guarder.IsAlive || guarder.IsTapped())
             {
-                Attacker = attacker,
-                Target = target,
-                AttackingPlayer = _attackingPlayer
-            };
-            if (GameCore.Instance != null) GameCore.Instance.PublishEvent(declaration);
-            else EventManager.Instance.Publish(declaration);
+                UnityEngine.Debug.Log($"[CMBTDBG] 守卫拦截落空：守卫者不可用（{(guarder is Card gc ? gc.ID : "玩家")}）");
+                return;
+            }
+            guarder.Tap(); // 守卫拦截横置自身（被动代价不对称：攻击/守卫均在结算期支付）
 
-            // ---- 宣言后重检（连锁响应已生效）：支付不出 / 丢失目标 → 攻击取消回滚 ----
-            // 横置代价不可被支付（宣言期间被冻结等抢先横置）；
-            // 目标丢失（死亡/不可指定）→ 回滚，交上层重新确认攻击目标
-            if (!attacker.IsAlive || attacker.IsTapped() || !CanAttackTarget(attacker, target))
+            // 攻击目标变更：改写攻击宣言对象的目标（攻击结算时按改写后目标走 CanAttackTarget 重检）
+            attack.Targets[0] = guarder;
+            UnityEngine.Debug.Log($"[CMBTDBG] 守卫拦截：{(guarder is Card g ? g.ID : "玩家")} 改写攻击目标");
+
+            EventManager.Instance.Publish(new BlockDeclarationEvent
             {
+                Blocker = guarder,
+                Attacker = attack.Source,
+                BlockingPlayer = guard.Controller
+            });
+        }
+
+        /// <summary>
+        /// 攻击宣言结算（战斗三段第①②段；第③段死亡处理由栈机器 SBA 轮统一接管——
+        /// 战斗死亡与效果致死同口径，救场窗口自然覆盖，旧 EndCombat 直执泵退役）：
+        /// ① 重检+支付：窗口内状态可能已变（冻结抢先横置/死亡/目标丢失）→ 落空
+        ///    （CombatCancelledEvent；宣言期零支付，天然不回滚）；重检通过 → **支付横置**
+        ///    （确定进入战斗才横置——与旧"宣言即横置"的差异点）。
+        /// ② 战斗结算：ResolvePair——**显式特判：攻击方支付横置后强制按竖直参战**
+        ///    （横置不削输出、不失去参战资格）；防守方/守卫横置 → 不反击（双方横置=攻击单向伤害）。
+        /// </summary>
+        public void ResolveAttackDeclaration(EffectInstance attack)
+        {
+            var attacker = attack?.Source;
+            var target = attack?.Targets != null && attack.Targets.Count > 0 ? attack.Targets[0] : null;
+
+            // ① 重检（此时已含守卫改写后的目标）
+            if (attacker == null || !attacker.IsAlive || attacker.IsTapped()
+                || target == null || !target.IsAlive
+                || !CanAttackTarget(attacker, target, attack.Controller))
+            {
+                UnityEngine.Debug.Log($"[CMBTDBG] 攻击落空：重检失败 攻击者={(attacker is Card ac ? ac.ID : "玩家")} 目标={(target is Card tc ? tc.ID : "玩家")}");
                 EventManager.Instance.Publish(new CombatCancelledEvent
                 {
                     Attacker = attacker,
                     OriginalTarget = target,
-                    AttackingPlayer = _attackingPlayer
+                    AttackingPlayer = attack.Controller
                 });
-                return false;
+                return;
             }
 
-            // ---- 支付横置（固定代价）→ 入队 ----
+            // 支付横置（确定进入战斗才横置；警戒不抵扣）
             if (KeywordRules.ShouldTap(attacker))
                 attacker.Tap();
 
-            var participant = new CombatParticipant
-            {
-                Entity = attacker,
-                Controller = _attackingPlayer,
-                IsAttacking = true,
-                DeclaredTarget = target,
-            };
-            _attackers.Add(participant);
-
-            // 潜行：攻击后移除（发动效果后的移除见 EffectExecutor）
+            // 潜行：攻击后移除；台账 +1（取消/落空的攻击不计数）
             if (attacker is Card attackerCard && attackerCard.HasKeyword(KeywordRules.Stealth))
             {
                 attackerCard.RemoveKeyword(KeywordRules.Stealth);
@@ -278,134 +249,18 @@ namespace CardCore
                     Source = attacker
                 });
             }
-
-            // 攻击台账 +1（纯统计非门槛——横置即上限；取消的宣言不计数）
             if (attacker is Card counted)
                 counted.AttacksThisTurn++;
 
-            return true;
-        }
-
-        /// <summary>结束攻击宣言阶段，进入阻挡阶段</summary>
-        public void EndAttackDeclaration()
-        {
-            if (_attackers.Count == 0)
-            {
-                EndCombat();
-                return;
-            }
-            _currentPhase = CombatPhase.SelectBlocker;
-        }
-
-        /// <summary>检查是否可以阻挡</summary>
-        public bool CanBlock(Entity blocker, Entity attacker, Player controller)
-        {
-            if (_currentPhase != CombatPhase.SelectBlocker &&
-                _currentPhase != CombatPhase.DeclareBlock)
-                return false;
-
-            if (controller != _defendingPlayer)
-                return false;
-
-            if (blocker is Card card)
-            {
-                if (!_zoneManager.IsCardInZone(card, controller, Zone.Battlefield))
-                    return false;
-
-                // 守卫能力（2026-09-10 守卫效果化）：拦截=守卫能力专属（2速响应的生物默认自带；
-                // NoGuard 卡不能拦）。拦截时横置自身（见 DeclareBlock）→ 结算按横置单向受伤
-                if (!card.HasGuardAbility())
-                    return false;
-            }
-
-            if (blocker.IsTapped())
-                return false;
-
-            if (!_attackers.Any(a => a.Entity == attacker))
-                return false;
-
-            // 会话内重复拦截限制已撤（2026-09-10：横置即上限——守卫拦截即横置，
-            // 激励解除横置可再拦下一个攻击者；BlockedBy 单配对由结算覆盖）
-
-            return true;
-        }
-
-        /// <summary>宣告阻挡（守卫拦截）：成功配对返回 true（资格不过返回 false，与 DeclareAttack 对称）</summary>
-        public bool DeclareBlock(Entity blocker, Entity attacker)
-        {
-            if (!CanBlock(blocker, attacker, _defendingPlayer))
-                return false;
-
-            var attackerParticipant = _attackers.First(a => a.Entity == attacker);
-
-            var blockerParticipant = new CombatParticipant
-            {
-                Entity = blocker,
-                Controller = _defendingPlayer,
-                IsBlocking = true,
-                BlockedTarget = attacker
-            };
-            _blockers.Add(blockerParticipant);
-
-            attackerParticipant.BlockedBy = blocker;
-
-            // 守卫拦截横置自身（2026-09-10 守卫效果化）：被动代价不对称——攻击者宣言时横置、
-            // 守卫拦截时横置；结算按横置单向受伤（targetCanCounter 只看目标横置，警戒例外）
-            blocker.Tap();
-
-            _currentPhase = CombatPhase.DeclareBlock;
-
-            EventManager.Instance.Publish(new BlockDeclarationEvent
-            {
-                Blocker = blocker,
-                Attacker = attacker,
-                BlockingPlayer = _defendingPlayer
-            });
-            return true;
-        }
-
-        /// <summary>结束阻挡宣言，进入伤害结算</summary>
-        public void EndBlockDeclaration()
-        {
-            _currentPhase = CombatPhase.DamageCalculation;
-            ExecuteDamage();
-        }
-
-        /// <summary>计算战斗伤害（保留阶段流转入口；实际结算在 ExecuteDamage 按关键词规则进行）</summary>
-        public void CalculateDamage()
-        {
-            _currentPhase = CombatPhase.DamageDealing;
-            ExecuteDamage();
-        }
-
-        /// <summary>
-        /// 执行战斗伤害：逐攻击者按配对结算。
-        /// 配对目标 = BlockedBy（阻挡流程）优先，否则 DeclaredTarget（直接指定），否则防守玩家。
-        /// 先攻/连击分两步：先攻步（先攻/连击者结算，死者不进普通步）；普通步（存活者结算，连击者再结算一次）。
-        /// </summary>
-        public void ExecuteDamage()
-        {
-            UnityEngine.Debug.Log($"[CMBTDBG] ExecuteDamage entry attackers={_attackers.Count} defendingLife={_defendingPlayer?.Life} defendingAlive={_defendingPlayer?.IsAlive}");
-            foreach (var attacker in _attackers)
-            {
-                // 防守方玩家已判负（前序攻击致生命归零）→ 后续攻击不再结算，交由 EndCombat 判定胜负
-                if (_defendingPlayer != null && _defendingPlayer.Life <= 0) { UnityEngine.Debug.Log($"[CMBTDBG] ExecuteDamage BREAK defendingLife={_defendingPlayer.Life}"); break; }
-
-                var target = attacker.BlockedBy ?? attacker.DeclaredTarget ?? (Entity)_defendingPlayer;
-                if (target == null || !target.IsAlive) { UnityEngine.Debug.Log($"[CMBTDBG] ExecuteDamage CONTINUE target null/dead target={(target is Card tc ? tc.ID : "player")}"); continue; } // 目标已倒（前序攻击击杀）→ 落空
-                if (!attacker.Entity.IsAlive) { UnityEngine.Debug.Log($"[CMBTDBG] ExecuteDamage CONTINUE attacker dead attacker={(attacker.Entity is Card ac ? ac.ID : "player")}"); continue; } // 攻击者已倒（宣言后效果致死）→ 落空（横置代价已付不退）
-
-                ResolvePair(attacker.Entity, target);
-            }
-
-            EndCombat();
+            // ② 战斗结算（攻击方强制竖直参战特判在 ResolvePair：横置不查攻击方、不削输出）
+            ResolvePair(attacker, target);
         }
 
         /// <summary>结算一次攻击配对（含先攻/连击/碾压；剧毒吸血圣盾护甲坚韧在 KeywordRules 内）</summary>
         private void ResolvePair(Entity attacker, Entity target)
         {
             int attackerPower = GetPower(attacker);
-            UnityEngine.Debug.Log($"[CMBTDBG] ResolvePair attacker={(attacker is Card ac ? ac.ID : "player")} attackerPower={attackerPower} target={(target is Card tc ? tc.ID : "player")} attackerFirst={attacker.HasKeyword(KeywordRules.FirstStrike) || attacker.HasKeyword(KeywordRules.DoubleStrike)}");
+            UnityEngine.Debug.Log($"[CMBTDBG] 结算配对：攻击者={(attacker is Card ac ? ac.ID : "玩家")} 攻击力={attackerPower} 目标={(target is Card tc ? tc.ID : "玩家")} 攻击者先手={attacker.HasKeyword(KeywordRules.FirstStrike) || attacker.HasKeyword(KeywordRules.DoubleStrike)}");
             // 双向结算：随从目标按层引擎力量反击；角色（玩家）目标反伤走武器扩展点
             //（无武器/未接线 = 0，不反伤——见类头武器系统 TODO 注释）
             int targetPower = target is Card ? GetPower(target)
@@ -435,7 +290,9 @@ namespace CardCore
 
             // 反击资格（定案）：只有未横置的随从才能反击——反击不消耗横置（横置是攻击/发动的代价），
             // 已横置的随从只能挨打（守卫拦截即横置 → 单向受伤，警戒例外：横置也能造成战斗伤害）。
-            // 攻击方横置不削输出（结算按竖直参战——现行规则的直接推论，无内置特判）。
+            // **攻击方强制竖直参战（2026-09-16 显式特判，原隐式注释"结算按竖直参战"显式化）**：
+            // 攻击方在结算期支付横置后强制按竖直参战——横置不削输出、不失去参战资格；
+            // 双方横置 = 攻击单向伤害（目标侧 targetCanCounter=false）。
             // 角色目标无横置概念（恒视为未横置）——武器反伤照常。
             bool targetCanCounter = !target.IsTapped()
                                     || (target is Card vc && vc.HasKeyword(KeywordRules.Vigilance));
@@ -495,7 +352,7 @@ namespace CardCore
         /// </summary>
         private void DealCombatDamage(Entity source, Entity target, int amount)
         {
-            UnityEngine.Debug.Log($"[CMBTDBG] DealCombatDamage source={(source is Card sc ? sc.ID : "player")} target={(target is Card tdc ? tdc.ID : "player")} amount={amount} targetAlive={target?.IsAlive}");
+            UnityEngine.Debug.Log($"[CMBTDBG] 造成战斗伤害：来源={(source is Card sc ? sc.ID : "玩家")} 目标={(target is Card tdc ? tdc.ID : "玩家")} 数值={amount} 目标存活={target?.IsAlive}");
             if (amount <= 0 || target == null || !target.IsAlive) return;
 
             KeywordRules.ApplyDamage(source, target, amount, true);
@@ -504,34 +361,8 @@ namespace CardCore
             // 造成战斗伤害时"改为"添加指示物（伤害不发生），此处不再附加处理。
         }
 
-        /// <summary>结束战斗</summary>
-        public void EndCombat()
-        {
-            _currentPhase = CombatPhase.EndCombat;
-
-            EventManager.Instance.Publish(new CombatPhaseEndEvent
-            {
-                AttackingPlayer = _attackingPlayer,
-                DefendingPlayer = _defendingPlayer
-            });
-
-            _currentPhase = CombatPhase.None;
-            _attackers.Clear();
-            _blockers.Clear();
-
-            // 泵一次状态动作：战斗死亡的移墓/复生/触发不等下一次栈结算（编辑器直攻路径无人泵 SBA）
-            GameCore.Instance?.SBAEngine.ExecuteAll();
-
-            // 战斗连锁结算完成后：生命判负即时判定（每连锁一次；幂等只发一次）
-            GameCore.Instance?.CheckLifeGameOver();
-        }
-
-        /// <summary>取消战斗</summary>
-        public void CancelCombat()
-        {
-            _currentPhase = CombatPhase.None;
-            _attackers.Clear();
-            _blockers.Clear();
-        }
+        // EndCombat/CancelCombat/阻挡阶段（SelectBlocker/DeclareBlock/EndBlockDeclaration/
+        // EndAttackDeclaration/ExecuteDamage 批结算）已随 2026-09-16 战斗接入栈机器退役：
+        // 攻击=速度0栈对象逐攻击开窗，死亡处理由栈机器 SBA 轮统一接管（见 ResolveAttackDeclaration）。
     }
 }

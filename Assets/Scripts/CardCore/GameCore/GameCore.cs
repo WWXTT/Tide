@@ -195,7 +195,7 @@ namespace CardCore
                 Id = "ROLE_DEATHRATTLE",
                 DisplayName = "角色亡语：对手获得胜利",
                 TriggerTiming = TriggerTiming.OnRoleDeath,
-                ActivationType = EffectActivationType.Mandatory, // 强制触发（自动池最高优先）
+                ActivationType = EffectActivationType.Mandatory, // 强制触发：纯强制批合成双 Pass 直接结算（无响应窗口，宣判即终局）；与自动桶同批时后入居栈顶先结算
                 ElementCostPrepaid = true,                        // 内置效果无费用
                 Effects = new System.Collections.Generic.List<AtomicEffectInstance>
                 {
@@ -219,8 +219,9 @@ namespace CardCore
             // 延迟效果解决含异步原子效果（await UI）→ 事件回调为 void，故 fire-and-forget
             DelayedEffectScheduler.OnTurnEnd(e.TurnPlayer).Forget();
 
-            // 持续指示物消退（定案：正面/负面统一登记于 CounterRules）：
-            // UntilEndOfTurn 类（冻结/突袭紊乱）在归属玩家回合结束清零——突袭的"不能以玩家为目标"限制随之解除
+            // 持续指示物消退（2026-09-16 统一档定案：限时指示物一律持续到**持有者**回合结束）：
+            // 只结算回合方侧——自己回合末清自己的（冻结/毒素/易损/紊乱/限时属性层），
+            // 对手的要等对手回合末；突袭的"不能以玩家为目标"限制随自己回合末解除
             Attribute.CounterRules.OnTurnEnd(e.TurnPlayer, ZoneManager);
 
             // Temp 轨关键词回合末到期（2026-09-13 定案：生物赋予的关键词固定持续 1 回合——

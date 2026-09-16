@@ -74,22 +74,13 @@ namespace CardCore.AI.NeuralEnv
             EndTurnSequence(core, me);
         }
 
-        /// <summary>EndTurn 时序（镜像 TideHeadlessDriver.Step）：结算攻击 → 排干 → 结束回合。</summary>
+        /// <summary>EndTurn 时序（镜像 TideHeadlessDriver.Step）：排干 → 结束回合。
+        /// 2026-09-16 战斗接入栈机器：攻击动作 Apply 后即经 DrainStack 逐攻击结算，
+        /// 战斗收口（旧 ResolveCombat）退役。</summary>
         private static void EndTurnSequence(GameCore core, Player me)
         {
-            ResolveCombat(core);
             if (!core.IsGameOver) GameActions.DrainStack(core, MaxSettleAttempts);
             if (!core.IsGameOver) GameActions.EndTurn(core, me);
-        }
-
-        /// <summary>战斗结算（镜像 BattleController.ResolveCombat / driver）：声明收口 → 阻挡收口伤害落地。</summary>
-        private static void ResolveCombat(GameCore core)
-        {
-            var combat = core.CombatSystem;
-            if (!combat.InCombat) return;
-            combat.EndAttackDeclaration();
-            if (combat.InCombat)
-                combat.EndBlockDeclaration();
         }
 
         // ======================================== 地牌横置（复刻 TideHeadlessDriver 启发式） ========================================

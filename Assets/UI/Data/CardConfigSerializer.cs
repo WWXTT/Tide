@@ -51,8 +51,8 @@ namespace SynergyUI
                 wrapper.deckConfig = new DeckConfig();
             }
 
-            // 效果引用化：每个效果 upsert 进效果库（ContentHasher.HashEffect 为 id），卡表只存引用
-            EffectLibrarySerializer.EnsureEffectsSaved(card.Effects);
+            // 效果引用化：ToEntry 的 EffectIdsOf 逐效果 upsert（HashEffect 为 id）并取引用——
+            // 效果 id → 卡 id 依赖链在 HashCard 内部同构推导（ContentHasher.HashEffectOf 单源投影）
 
             var entry = ToEntry(card);
 

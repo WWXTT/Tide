@@ -100,11 +100,14 @@ namespace CardCore.Network
                     var attacker = NetEntityDirectory.Resolve(core, intent.Attacker);
                     if (blocker == null || attacker == null) { error = "格挡者/攻击者解析失败"; return false; }
 
-                    // 预留路径：引擎 API 存在但全工程零调用。格挡窗口期声明，返回 void——
-                    // 接受即入列（CanBlock 预检先行；EndBlockDeclaration 收口属 M2 会话编排）。
-                    if (!core.CombatSystem.CanBlock(blocker, attacker, player))
-                    { error = "格挡声明不合法（CanBlock 拒绝）"; return false; }
-                    core.CombatSystem.DeclareBlock(blocker, attacker);
+                    // 2026-09-16 战斗接入栈机器：守卫=速度1响应——按攻击者寻址栈上的攻击宣言对象，
+                    // PushGuardDeclaration 入栈（结算期横置+攻击目标变更）。旧阻挡阶段 API 退役。
+                    var attackInstance = core.StackEngine.GetStackContents()
+                        .FirstOrDefault(o => o != null && o.IsAttackDeclaration && o.Source == attacker);
+                    if (attackInstance == null)
+                    { error = "栈上无该攻击者的攻击宣言（响应窗口已关闭？）"; return false; }
+                    if (!core.StackEngine.PushGuardDeclaration(blocker, attackInstance, player))
+                    { error = "守卫声明不合法（速度门/资格拒绝）"; return false; }
                     return true;
                 }
 

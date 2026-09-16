@@ -91,11 +91,13 @@ def card(num, name, supertype, power, life, keywords, effects):
 
 
 def _content_sig(c):
-    """内容签名（镜像 C# ContentId 口径）：排除 id/卡名/效果展示三件套，其余全量。"""
+    """内容签名（镜像 C# ContentId 口径，2026-09-16 三层推导链同步）：卡名/效果 DisplayName
+    计入身份（文本即基底——与 HashCard/HashEffect 的 NM: 段同口径）；效果 Description 仍排除
+    （动态渲染文案非身份）；id 排除（派生量）。"""
     scrubbed = json.loads(json.dumps(c, ensure_ascii=False))
-    scrubbed.pop("id", None); scrubbed.pop("cardName", None)
+    scrubbed.pop("id", None)
     for e in scrubbed.get("effects", []):
-        for k in ("Id", "DisplayName", "Description"):
+        for k in ("Id", "Description"):
             e.pop(k, None)
     return json.dumps(scrubbed, ensure_ascii=False, sort_keys=True)
 

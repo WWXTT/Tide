@@ -27,12 +27,12 @@ namespace CardCore
         // 扩展方法口径（与 IsTapped 同款）：CombatSystem/AI 拿到的是 Card 基类引用。
         // 裸 Card（衍生物/临时卡，无卡数据）从严 = 无攻无守。
 
-        /// <summary>攻击能力（1 速主动效果）：生物默认自带；NoAttack 卡不能宣言攻击。</summary>
+        /// <summary>攻击能力（速度0主动效果，2026-09-16 战斗接入栈机器）：生物默认自带；NoAttack 卡不能宣言攻击。</summary>
         public static bool HasAttackAbility(this Card card)
             => card is CardWrapper w && w.GetData() is CardData d
                && d.Supertype == Cardtype.Creature && !d.NoAttack;
 
-        /// <summary>守卫能力（2 速响应拦截）：生物默认自带；守卫拦截入口按此过滤。</summary>
+        /// <summary>守卫能力（速度1响应拦截，2026-09-16）：生物默认自带；守卫拦截入口按此过滤。</summary>
         public static bool HasGuardAbility(this Card card)
             => card is CardWrapper w && w.GetData() is CardData d
                && d.Supertype == Cardtype.Creature && !d.NoGuard;

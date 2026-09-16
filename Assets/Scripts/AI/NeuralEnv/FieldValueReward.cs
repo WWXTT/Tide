@@ -98,7 +98,7 @@ namespace CardCore.AI.NeuralEnv
 
             // 3) 负面指示物（剧毒、毒素、沉默）
             if (card.GetCounterCount(CounterRules.PoisonCounter) > 0) counterDelta -= baseValue * 0.9f; // 剧毒=下回合末死亡，价值接近归零
-            counterDelta -= card.GetCounterCount(CounterRules.ToxinCounter) * 0.3f; // 毒素每层受 1 伤，持续 3 回合
+            counterDelta -= card.GetCounterCount(CounterRules.ToxinCounter) * 0.1f; // 毒素每层受 1 伤（2026-09-16 统一档：仅持有者回合末发作一次后清空）
             if (card.GetCounterCount(CounterRules.SilenceCounter) > 0) counterDelta -= baseValue * 0.3f; // 沉默=不可发动效果，打折 30%
             if (card.GetCounterCount(CounterRules.VulnerableCounter) > 0) counterDelta -= 0.5f; // 易损=受伤 +1
 

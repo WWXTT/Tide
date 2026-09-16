@@ -15,7 +15,11 @@ namespace SynergyUI
     /// </summary>
     public static class ContentHasher
     {
-        /// <summary>效果图功能哈希（排除 header 的 DisplayName/Description/Tags）。</summary>
+        /// <summary>
+        /// 效果内容哈希（2026-09-16 三层推导链定案）：**文本描述为基底**（header.DisplayName，
+        /// 与原子表 ID=sha256(DisplayName) 同口径）+ 附加参数（时点/激活/编排/代价/steps 原子引用）。
+        /// Description 是动态渲染文案不作身份；graph.name 是展示别名不参与。
+        /// </summary>
         public static string HashEffect(EffectGraphData graph)
         {
             var sb = new StringBuilder();
@@ -24,12 +28,30 @@ namespace SynergyUI
         }
 
         /// <summary>
-        /// 卡牌功能哈希（排除 CardName/Tags/Cost；Keywords 影响功能，纳入）。
+        /// 卡内嵌效果 → 效果 id（投影单一真相）：与 EffectLibrarySerializer.EffectIdsOf 的
+        /// upsert 投影同构（EffectGraphData(fx.DisplayName){header,steps} → HashEffect）——
+        /// HashCard 的 FX 段与卡表 effectIds 引用天然一致。
+        /// </summary>
+        public static string HashEffectOf(CardEffectData fx)
+        {
+            if (fx == null) return "∅";
+            return HashEffect(new EffectGraphData(fx.DisplayName)
+            {
+                header = fx,
+                steps = fx.Steps != null ? new List<EffectStepData>(fx.Steps) : new List<EffectStepData>()
+            });
+        }
+
+        /// <summary>
+        /// 卡牌内容哈希（2026-09-16 三层推导链定案）：**文本描述为基底**（CardName）+
+        /// 附加参数（类型/身材/等级/箭头/关键词/光环）+ **效果 id 序列**（原子id→效果id→卡id
+        /// 依赖链——不再内联展开效果内容，效果内容变更经效果 id 传导）。
         /// 费用不参与哈希——配置改费不改 ID（费用为运行时推导口径，见 CardCostService）。
         /// </summary>
         public static string HashCard(CardData card)
         {
             var sb = new StringBuilder();
+            sb.Append("NM:").Append(card.CardName ?? "").Append('|');
             sb.Append("ST:").Append((int)card.Supertype).Append('|');
             sb.Append("SUB:").Append((int)card.Subtype).Append('|');
             sb.Append("P:").Append(card.Power ?? 0).Append('|');
@@ -44,8 +66,7 @@ namespace SynergyUI
             }
             sb.Append('|');
 
-            // 连接光环声明影响功能（三轨制 2026-09-09）——**条件追加**：空表不写 LA: 段，
-            // 保既有 125 张卡（无箭头/无光环）ID 不漂移（CardCatalog 存量去重依赖 ID 稳定）。
+            // 连接光环声明影响功能（三轨制 2026-09-09）
             var auras = card.LinkAuras;
             if (auras != null && auras.Count > 0)
             {
@@ -59,13 +80,13 @@ namespace SynergyUI
                 sb.Append('|');
             }
 
+            // FX 段 = 效果 id 序列（推导链中间层）：效果文本/参数/原子引用变更 → 效果 id 变 → 卡 id 变
             sb.Append("FX:");
             if (card.Effects != null)
             {
                 foreach (var fx in card.Effects)
                 {
-                    AppendCardEffect(sb, fx);
-                    sb.Append(';');
+                    sb.Append(HashEffectOf(fx)).Append(';');
                 }
             }
 
@@ -78,10 +99,12 @@ namespace SynergyUI
             {
                 return;
             }
-            // header 仅取影响功能的字段（时点/激活/编排/代价），忽略名称/描述/标签。
+            // header 取文本基底（DisplayName——身份层，与原子表同口径）+ 功能字段（时点/激活/编排/代价）；
+            // Description 是动态渲染文案、Tags 是展示标签，均不作身份。
             var h = graph.header;
             if (h != null)
             {
+                sb.Append("NM:").Append(h.DisplayName ?? "").Append('|');
                 sb.Append("TT:").Append(h.TriggerTiming).Append('|');
                 sb.Append("AT:").Append(h.ActivationType).Append('|');
                 AppendOrchestration(sb, h, graph.steps);
@@ -126,32 +149,6 @@ namespace SynergyUI
                 sb.Append("AE:");
                 foreach (var atom in h.AtomicEffects) AppendAtomic(sb, atom);
                 sb.Append('|');
-            }
-        }
-
-        private static void AppendCardEffect(StringBuilder sb, CardEffectData fx)
-        {
-            if (fx == null)
-            {
-                return;
-            }
-            sb.Append("TT:").Append(fx.TriggerTiming).Append(',');
-            sb.Append("AT:").Append(fx.ActivationType).Append(',');
-            AppendOrchestration(sb, fx, fx.Steps);
-            AppendCosts(sb, fx.Costs);
-            if (fx.Steps != null && fx.Steps.Count > 0)
-            {
-                foreach (var step in fx.Steps)
-                {
-                    AppendStep(sb, step);
-                }
-            }
-            else if (fx.AtomicEffects != null)
-            {
-                foreach (var atom in fx.AtomicEffects)
-                {
-                    AppendAtomic(sb, atom);
-                }
             }
         }
 

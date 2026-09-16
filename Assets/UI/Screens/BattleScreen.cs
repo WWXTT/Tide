@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using CardCore;
 using CardCore.Attribute;
+using Cysharp.Threading.Tasks;
 using UnityEngine.UIElements;
 
 namespace SynergyUI
@@ -44,8 +45,6 @@ namespace SynergyUI
 
             UIBinder.BindButton(Root, "btn-back", () => Manager.Back());
             UIBinder.BindButton(Root, "btn-skip-standby", OnSkipStandby);
-            UIBinder.BindButton(Root, "btn-begin-combat", OnBeginCombat);
-            UIBinder.BindButton(Root, "btn-resolve-combat", OnResolveCombat);
             UIBinder.BindButton(Root, "btn-grave-play", OnGraveyardPlay);
             UIBinder.BindButton(Root, "btn-end-turn", OnEndTurn);
             UIBinder.BindButton(Root, "overlay-cancel", OnOverlayCancel);
@@ -67,6 +66,13 @@ namespace SynergyUI
             // 注册通用目标选择器（效果引擎在结算时通过 TargetSelectionService 调用本弹窗）
             TargetSelectionService.Current = new UiTargetSelector(Root);
 
+            // 响应窗口（2026-09-16 发动弹窗）：人类候选→简版选择弹窗；筛选 0 时引擎直接 Pass 不进此处
+            ResponseWindowService.HumanResponder = ShowResponsePopupAsync;
+
+            // 旧战斗会话按钮退役（2026-09-16 战斗接入栈机器：攻击=主阶段直接宣言逐攻击开窗）
+            Q<Button>("btn-begin-combat").style.display = DisplayStyle.None;
+            Q<Button>("btn-resolve-combat").style.display = DisplayStyle.None;
+
             CloseOverlay();
             RefreshAll();
         }
@@ -76,6 +82,8 @@ namespace SynergyUI
             // 仅在仍是本界面注册时解除，避免覆盖其它界面的注册
             if (TargetSelectionService.Current is UiTargetSelector)
                 TargetSelectionService.Current = null;
+            if (ResponseWindowService.HumanResponder == ShowResponsePopupAsync)
+                ResponseWindowService.HumanResponder = null;
         }
 
         // ======================================== 全量刷新 ========================================
@@ -104,7 +112,8 @@ namespace SynergyUI
             var tp = _ctrl.TurnPlayer;
             string who = tp == P1 ? "我方" : "对手";
             Q<Label>("lbl-phase").text = $"回合 {Core.TurnEngine.TurnNumber} · {who}的{PhaseName(CurrentPhase)}阶段";
-            Q<Label>("lbl-stack").text = _ctrl.InCombat ? "战斗中" : "栈：空";
+            Q<Label>("lbl-stack").text = Core.StackEngine != null && Core.StackEngine.StackSize > 0
+                ? $"栈：{Core.StackEngine.StackSize} 个对象" : "栈：空";
             UpdateActionButtons();
         }
 
@@ -113,8 +122,6 @@ namespace SynergyUI
             bool myMain = IsPlayerTurn && CurrentPhase == PhaseType.Main && !_gameEnded;
             bool myStandby = IsPlayerTurn && CurrentPhase == PhaseType.Standby && !_gameEnded;
             SetEnabled("btn-skip-standby", myStandby);
-            SetEnabled("btn-begin-combat", myMain && !_ctrl.InCombat);
-            SetEnabled("btn-resolve-combat", myMain && _ctrl.InCombat);
             SetEnabled("btn-grave-play", myMain && GraveyardPlayAura.CanUse(P1) && Count(P1, Zone.Graveyard) > 0);
             SetEnabled("btn-end-turn", IsPlayerTurn && !_gameEnded);
         }
@@ -239,7 +246,7 @@ namespace SynergyUI
                     return;
                 }
                 if (GameActions.PlayCard(Core, P1, card, null))
-                    GameActions.DrainStack(Core); // 出牌即上栈：无响应即排干结算（人类响应窗口 UI 留二期）
+                    _ctrl.SettleResponseWindow().Forget(); // 出牌即上栈：响应窗口泵（对手 AI 响应/无候选自动双 Pass 结算）
                 else if (LockRevealedAura.IsLockedThisTurn(card))
                     ShowToast("该卡本回合被锁定，不可使用");
                 RefreshAll();
@@ -266,7 +273,7 @@ namespace SynergyUI
                         return;
                     }
                     if (GameActions.PlayCardFromGraveyard(Core, P1, c))
-                        GameActions.DrainStack(Core); // 出牌即上栈：无响应即排干结算
+                        _ctrl.SettleResponseWindow().Forget(); // 出牌即上栈：响应窗口泵
                     else
                         ShowToast("无法使用（配额已用或不可支付）");
                 }
@@ -281,39 +288,21 @@ namespace SynergyUI
             RefreshAll();
         }
 
-        private void OnBeginCombat()
-        {
-            if (!IsPlayerTurn || CurrentPhase != PhaseType.Main) return;
-            _ctrl.BeginCombat();
-            RefreshAll();
-        }
-
-        private void OnResolveCombat()
-        {
-            _ctrl.ResolveCombat();
-            RefreshAll();
-        }
-
-        private void OnEndTurn()
+        private async void OnEndTurn()
         {
             if (!IsPlayerTurn || _gameEnded) return;
             GameActions.EndTurn(Core, P1);
-            // 交给 AI 跑完 P2 的整个回合，回到 P1，再统一刷新。
+            // 交给 AI 跑完 P2 的整个回合（异步：战斗窗口处暂停等人类守卫响应弹窗），再统一刷新。
             if (!_gameEnded && _ctrl.TurnPlayer == P2)
-                _ctrl.RunAiTurn();
+                await _ctrl.RunAiTurnAsync();
             RefreshAll();
         }
 
-        // ======================================== 我方单位攻击 ========================================
+        // ======================================== 我方单位攻击（2026-09-16 逐攻击开窗） ========================================
 
         private void OnClickMyUnit(Card unit)
         {
-            if (!IsPlayerTurn || _gameEnded) return;
-            if (!_ctrl.InCombat)
-            {
-                ShowToast("先点「进入战斗」");
-                return;
-            }
+            if (!IsPlayerTurn || CurrentPhase != PhaseType.Main || _gameEnded) return;
             if (unit.IsTapped()) { ShowToast("该单位已横置"); return; }
 
             // 攻击目标：对手玩家 + 对手战场单位。
@@ -322,11 +311,38 @@ namespace SynergyUI
 
             ShowOverlay("选择攻击目标", $"用 {CardName(unit)} 攻击：", targets, picked =>
             {
-                if (!_ctrl.DeclareAttack(P1, unit, picked))
-                    ShowToast("无法对该目标攻击");
                 CloseOverlay();
-                RefreshAll();
+                if (!_ctrl.DeclareAttack(P1, unit, picked))
+                {
+                    ShowToast("无法对该目标攻击");
+                    RefreshAll();
+                    return;
+                }
+                // 攻击宣言已上栈（速度0）→ 响应窗口（对手守卫弹窗/AI 决策）→ 双 Pass 结算
+                DeclareAndSettleAsync().Forget();
             });
+        }
+
+        /// <summary>攻击宣言后的窗口泵+结算收尾（异步：窗口内人类/弹窗与结算可能跨帧）。</summary>
+        private async UniTask DeclareAndSettleAsync()
+        {
+            await _ctrl.SettleResponseWindow();
+            RefreshAll();
+        }
+
+        // ======================================== 响应窗口弹窗（发动弹窗·简版） ========================================
+
+        /// <summary>人类响应弹窗（ShowChoiceOverlay 同 DOM）：候选列表 + 「跳过」行；返回所选或 null=Pass。</summary>
+        private UniTask<ResponseOption> ShowResponsePopupAsync(Player holder, List<ResponseOption> options)
+        {
+            var tcs = new UniTaskCompletionSource<ResponseOption>();
+            var labels = new List<string>(options.Select(o => o.Label)) { "跳过（让过优先权）" };
+            ShowChoiceOverlay("响应窗口", $"{holder?.Name}：发动一个响应，或跳过", labels, idx =>
+            {
+                CloseOverlay();
+                tcs.TrySetResult(idx >= options.Count ? null : options[idx]);
+            });
+            return tcs.Task;
         }
 
         // ======================================== 目标选择弹窗（指向性法术） ========================================
@@ -400,7 +416,7 @@ namespace SynergyUI
                     return;
                 }
                 if (PlayFromZone(card, null, idx, fromZone))
-                    GameActions.DrainStack(Core);
+                    _ctrl.SettleResponseWindow().Forget(); // 响应窗口泵（无候选自动双 Pass）
                 RefreshAll();
             });
         }
@@ -428,7 +444,7 @@ namespace SynergyUI
             {
                 // 无候选：按无目标直接结算（引擎自动解析兜底）。
                 if (PlayFromZone(card, null, modeIndex, fromZone))
-                    GameActions.DrainStack(Core); // 出牌即上栈：无响应即排干结算
+                    _ctrl.SettleResponseWindow().Forget(); // 出牌即上栈：响应窗口泵
                 RefreshAll();
                 return;
             }
@@ -438,7 +454,7 @@ namespace SynergyUI
             {
                 CloseOverlay();
                 if (PlayFromZone(card, new List<Entity> { picked }, modeIndex, fromZone))
-                    GameActions.DrainStack(Core); // 出牌即上栈：无响应即排干结算
+                    _ctrl.SettleResponseWindow().Forget(); // 出牌即上栈：响应窗口泵
                 RefreshAll();
             });
         }
