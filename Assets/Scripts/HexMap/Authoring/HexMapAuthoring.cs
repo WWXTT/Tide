@@ -28,7 +28,6 @@ namespace HexMap
         public const float InnerRadius = OuterRadius * 0.866025404f;
         public const float SolidFactor = 0.8f;
         public const float ElevationStep = 3f;
-        public const int TerracesPerSlope = 2;
         public const float NoiseScale = 0.003f;
 
         public static BlobAssetReference<HexMapConfigBlob> Build(
@@ -53,7 +52,6 @@ namespace HexMap
                 root.SolidFactor = SolidFactor;
                 root.BlendFactor = 1f - SolidFactor;
                 root.ElevationStep = ElevationStep;
-                root.TerracesPerSlope = TerracesPerSlope;
                 root.NoiseScale = NoiseScale;
                 // 扰动范围钳制：cell 缩放 0.5~1.5（防止六边形翻转），高度缩放 0.5~1.5（防止相邻 cell 高度交叉）
                 root.CellPerturbRange = new float2(
@@ -138,10 +136,6 @@ namespace HexMap
         [Tooltip("每帧最多重建网格的 cell 数")]
         public int maxMeshBuildsPerFrame = 50;
 
-        [Header("Texture Tiling")]
-        [Tooltip("贴图平铺粒度（cell 数）：贴图整图铺满 N×N 个 cell 的世界区域。默认 1 = 每 cell 平铺一张，侧面/连接区与六边形用同一尺度，避免大落差时侧面贴图被拉伸")]
-        public int textureTileCells = 1;
-
         /// <summary>
         /// 构建配置单例。可重复调用（先清理旧单例）。
         /// </summary>
@@ -204,10 +198,8 @@ namespace HexMap
             HexMapRuntime.OuterRadius = HexMapConfigBuilder.OuterRadius;
 
             // 贴图平铺尺寸全局常量（HexTerrain shader 读取 _ChunkWorldSize 做世界空间 UV；
-            // 旧版按 chunk 尺寸写入，chunk 移除后改为按 N×N cell 的世界区域平铺）
-            int tileCells = math.max(1, textureTileCells);
-            float tileWorldX = tileCells * HexMapConfigBuilder.InnerRadius * 2f;
-            float tileWorldZ = tileCells * HexMapConfigBuilder.OuterRadius * 1.5f;
+            float tileWorldX = HexMapConfigBuilder.InnerRadius * 2f;
+            float tileWorldZ = HexMapConfigBuilder.OuterRadius * 1.5f;
             Shader.SetGlobalVector("_ChunkWorldSize", new Vector4(tileWorldX, tileWorldZ, 0f, 0f));
         }
 

@@ -11,7 +11,6 @@ struct Attributes
     float4 positionOS   : POSITION;
     float3 normalOS     : NORMAL;
     float4 color        : COLOR;          // splat 权重 (RGB)
-    float2 uvCorrection : TEXCOORD0;      // 坡面 UV 补偿向量（mesh 逐顶点烘焙）
     float3 terrainIndices : TEXCOORD1;    // splat 3 个地形索引 (UV1)
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
@@ -20,7 +19,7 @@ struct Varyings
 {
     float3 positionWS               : TEXCOORD0;
     float3 normalWS                 : TEXCOORD1;
-    float4 terrainData              : TEXCOORD2;   // splat 权重
+    float3 terrainData              : TEXCOORD2;   // splat 权重
     half3 vertexSH                  : TEXCOORD3;
 
 #ifdef _ADDITIONAL_LIGHTS_VERTEX
@@ -37,7 +36,7 @@ struct Varyings
     float4 probeOcclusion           : TEXCOORD6;
 #endif
 
-    float4 terrainIndices           : TEXCOORD7;   // xyz：splat 索引；w：uvCorrection.y（搭便车传递）
+    float3 terrainIndices           : TEXCOORD7;   // splat 索引
 
     float4 positionCS               : SV_POSITION;
     UNITY_VERTEX_INPUT_INSTANCE_ID
@@ -89,9 +88,9 @@ Varyings HexTerrainVert(Attributes input)
     output.positionWS = vertexInput.positionWS;
     output.positionCS = vertexInput.positionCS;
     output.normalWS = normalInput.normalWS;
-    // splat 权重走 RGB；alpha 槽位搭 uvCorrection.x（TEXCOORD 插值器已满，借道传递）
-    output.terrainData = float4(input.color.rgb, input.uvCorrection.x);
-    output.terrainIndices = float4(input.terrainIndices, input.uvCorrection.y);
+    // splat 权重走顶点色 RGB；贴图 UV 全部由 shader 从世界坐标现算（三平面投影）
+    output.terrainData = input.color.rgb;
+    output.terrainIndices = input.terrainIndices;
 
     half3 vertexLight = VertexLighting(vertexInput.positionWS, normalInput.normalWS);
     half fogFactor = 0;
@@ -131,30 +130,17 @@ void HexTerrainFrag(
 
     // splat：3 个地形索引（UV1）+ 3 个权重（顶点色 RGB，已插值，需归一化）
     uint3 idx = DecodeSplatIndices(input.terrainIndices);
-    float3 weights = input.terrainData.rgb;
+    float3 weights = input.terrainData;
     weights /= (weights.x + weights.y + weights.z + 1e-4);
-
-    half3 finalNormalWS;
-    half3 finalAlbedo;
-    half  finalMetallic, finalSmoothness, finalOcclusion;
 
     float3 normalWS = SafeNormalize(input.normalWS);
 
-    // 坡面补偿 UV（逐顶点烘焙）：顶视投影只用 XZ，陡壁沿落差严重拉伸；mesh 按坡度
-    // 把「低于坡顶的高度」烘成补偿向量（terrainData.a + terrainIndices.w 两处插值）。
-    // 插值连续——相邻三角形共享顶点取同一值，不会像按片元法线现算那样逐面错位；
-    // 平地补偿恒 0，退化为纯顶视投影
-    float2 uvCorrection = float2(input.terrainData.a, input.terrainIndices.w);
-    float2 uv = ChunkUV(input.positionWS.xz + uvCorrection);
-    half3 albedo, normalTS; half metal, smth, occ;
-    SampleSplatSurface(uv, idx, weights, albedo, normalTS, metal, smth, occ);
-
-    float3x3 TBN = CreateTangentFrame(normalWS);
-    finalNormalWS = SafeNormalize(TransformTangentToWorld(normalTS, TBN));
-    finalAlbedo = albedo;
-    finalMetallic = metal;
-    finalSmoothness = smth;
-    finalOcclusion = occ;
+    // 三平面映射：顶面 XZ + 侧面X + 侧面Z 按逐轴 |法线| 权重混合（见
+    // SampleSplatSurfaceTriplanar）。贴图自循环直铺
+    half3 finalNormalWS, finalAlbedo;
+    half  finalMetallic, finalSmoothness, finalOcclusion;
+    SampleSplatSurfaceTriplanar(input.positionWS, normalWS, idx, weights,
+        finalAlbedo, finalNormalWS, finalMetallic, finalSmoothness, finalOcclusion);
 
     SurfaceData surfaceData = (SurfaceData)0;
     surfaceData.albedo = finalAlbedo;

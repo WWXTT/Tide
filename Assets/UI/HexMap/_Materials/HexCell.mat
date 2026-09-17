@@ -25,6 +25,8 @@ Material:
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
+  - _ENVIRONMENTREFLECTIONS_OFF
+  - _SPECULARHIGHLIGHTS_OFF
   - _TERRAIN_HEIGHT_MAP
   - _TERRAIN_NORMAL_MAP
   m_InvalidKeywords:
@@ -195,8 +197,8 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _HeightBlendOffset: 0.3
-    - _HeightBlendStrength: 0.8
+    - _HeightBlendOffset: 0.5
+    - _HeightBlendStrength: 4
     - _INDIR_CUBEMAP: 0
     - _IndirDiffIntensity: 1
     - _IndirDiffUpDirSH: 0
@@ -205,7 +207,7 @@ Material:
     - _MacroVariationScale: 0.001
     - _MacroVariationStrength: 0
     - _MainLightColorLerp: 0.5
-    - _Metallic: 0.5
+    - _Metallic: 0
     - _Mode: 0
     - _NormalScale: 0.4
     - _Occlusion: 1
@@ -215,7 +217,7 @@ Material:
     - _OutlineDirectLightingOffset: -1
     - _OutlinePunctualLightingOffset: -1
     - _OutlineWidth: 1
-    - _Parallax: 0.02
+    - _Parallax: 0.01
     - _PunctualRimWidth: 2.75
     - _QueueOffset: 0
     - _ReceiveShadows: 1
@@ -225,7 +227,7 @@ Material:
     - _ShadowSmoothScene: 0.1
     - _ShadowStrength: 1
     - _Shininess: 0.2
-    - _Smoothness: 0.3
+    - _Smoothness: 0
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
@@ -239,6 +241,7 @@ Material:
     - _Surface: 0
     - _TerrainTiling: 0.1
     - _ToonFlagsKeywords: -1
+    - _TriplanarBlendSharpness: 12
     - _TriplanarSharpness: 1.1
     - _UVSec: 0
     - _UseTerrainHeightArray: 0

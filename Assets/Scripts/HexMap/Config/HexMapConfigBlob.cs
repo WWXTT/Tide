@@ -20,7 +20,6 @@ namespace HexMap
         public float SolidFactor;
         public float BlendFactor;
         public float ElevationStep;
-        public int TerracesPerSlope;
         /// <summary>形状扰动：六边形半径的随机缩放范围（1 = 不扰动）</summary>
         public float2 CellPerturbRange;
         public float NoiseScale;

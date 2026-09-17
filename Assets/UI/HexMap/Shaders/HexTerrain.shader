@@ -10,16 +10,32 @@ Shader "Custom/HexTerrain"
         _TerrainOcclusionArray("Occlusion Array", 2DArray) = "" {}
 
         [Header(Height Blend)]
-        // offset/strength sets the visible transition width in strip-space.
-        // ~1.0 spreads the mutual invasion across the whole 0.2 connection strip.
-        _HeightBlendStrength("Height Blend Strength", Range(0.01, 10.0)) = 0.5
-        _HeightBlendOffset("Height blend Offset", Range(0.0, 1.0)) = 0.5
+        // 高度图驱动的 splat 混合（公式见 HexTerrainInput.HeightBlend3）：
+        // offset = 过渡带宽度，越小高度差驱动的锯齿互侵越明显（0.2~0.3 自然），
+        // ≈1 时近似退回线性混合；strength = 高权重层被抬升的量（抗入侵强度）。
+        _HeightBlendStrength("Height Blend Strength", Range(0.01, 10.0)) = 1.0
+        _HeightBlendOffset("Height blend Offset", Range(0.0, 1.0)) = 0.25
+
+        [Header(Parallax)]
+        // 高度图视差幅度（UV 单位，公式/单位与 RP Lit 的 _Parallax("Scale") 一致，
+        // 等大小立方体上 Lit 调好的值可直接平移）。依赖高度数组，0 = 关闭。
+        _Parallax("Parallax Scale", Range(0.0, 0.08)) = 0.0
+
+        [Header(Triplanar)]
+        // |法线|^sharp 顶面/侧面双平面权重，值越大平地↔陡壁的过渡带越窄
+        _TriplanarBlendSharpness("Triplanar Blend Sharpness", Range(1.0, 16.0)) = 4.0
 
         [Header(PBR)]
         _Metallic("Metallic", Range(0.0, 1.0)) = 0.0
         _Smoothness("Smoothness", Range(0.0, 1.0)) = 1.0
         _NormalScale("Normal Scale", Range(0.0, 2.0)) = 1.0
         _OcclusionStrength("Occlusion Strength", Range(0.0, 1.0)) = 1.0
+
+        // 反射开关（URP Lit 同款 keyword）。smoothness=0 时仍存在的菲涅尔高光
+        // 与天空/探针镜面反射是 PBR 固有项，不想叠在贴图上就整段关掉。
+        // 只驱动 keyword，不进 UnityPerMaterial（与 URP Lit 一致，SRP Batcher 兼容）。
+        [Toggle(_SPECULARHIGHLIGHTS_OFF)] _SpecularHighlights("Specular Highlights", Float) = 1.0
+        [Toggle(_ENVIRONMENTREFLECTIONS_OFF)] _EnvironmentReflections("Environment Reflections", Float) = 1.0
 
         [HideInInspector] _Cull("__cull", Float) = 2.0
     }
@@ -65,6 +81,10 @@ Shader "Custom/HexTerrain"
             #pragma shader_feature_local_fragment _TERRAIN_HEIGHT_MAP
             #pragma shader_feature_local_fragment _TERRAIN_MS_MAP
             #pragma shader_feature_local_fragment _TERRAIN_OCCLUSION_MAP
+
+            // 反射开关（RP 的 Lighting/GlobalIllumination 按 keyword 短路）
+            #pragma shader_feature_local_fragment _SPECULARHIGHLIGHTS_OFF
+            #pragma shader_feature_local_fragment _ENVIRONMENTREFLECTIONS_OFF
 
             // -------------------------------------
             // Universal Pipeline keywords
@@ -382,6 +402,10 @@ Shader "Custom/HexTerrain"
             #pragma shader_feature_local_fragment _TERRAIN_MS_MAP
             #pragma shader_feature_local_fragment _TERRAIN_OCCLUSION_MAP
 
+            // 反射开关（RP 的 Lighting/GlobalIllumination 按 keyword 短路）
+            #pragma shader_feature_local_fragment _SPECULARHIGHLIGHTS_OFF
+            #pragma shader_feature_local_fragment _ENVIRONMENTREFLECTIONS_OFF
+
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _REFLECTION_PROBE_BLENDING
             #pragma multi_compile_fragment _ _REFLECTION_PROBE_BOX_PROJECTION
@@ -422,7 +446,6 @@ Shader "Custom/HexTerrain"
                 float4 positionOS : POSITION;
                 float3 normalOS   : NORMAL;
                 float4 color      : COLOR;            // splat 权重
-                float2 uvCorrection : TEXCOORD0;      // 坡面 UV 补偿向量（mesh 逐顶点烘焙）
                 float3 terrainIndices : TEXCOORD1;    // splat 3 个地形索引
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -431,14 +454,14 @@ Shader "Custom/HexTerrain"
             {
                 float3 positionWS   : TEXCOORD0;
                 float3 normalWS     : TEXCOORD1;
-                float4 terrainData  : TEXCOORD2;      // splat 权重
+                float3 terrainData  : TEXCOORD2;      // splat 权重
                 half3 vertexSH      : TEXCOORD3;
                 half fogFactor      : TEXCOORD4;
                 float4 shadowCoord  : TEXCOORD5;
                 #ifdef USE_APV_PROBE_OCCLUSION
                 float4 probeOcclusion : TEXCOORD6;
                 #endif
-                float4 terrainIndices : TEXCOORD7;    // xyz：splat 索引；w：uvCorrection.y
+                float3 terrainIndices : TEXCOORD7;    // splat 索引
                 float4 positionCS   : SV_POSITION;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
@@ -457,9 +480,8 @@ Shader "Custom/HexTerrain"
                 output.positionWS = vertexInput.positionWS;
                 output.positionCS = vertexInput.positionCS;
                 output.normalWS = normalInput.normalWS;
-                // alpha 槽位搭 uvCorrection.x（TEXCOORD 插值器已满，借道传递）
-                output.terrainData = float4(input.color.rgb, input.uvCorrection.x);
-                output.terrainIndices = float4(input.terrainIndices, input.uvCorrection.y);
+                output.terrainData = input.color.rgb;
+                output.terrainIndices = input.terrainIndices;
 
                 half fogFactor = 0;
                 #if !defined(_FOG_FRAGMENT)
@@ -484,35 +506,30 @@ Shader "Custom/HexTerrain"
                 #endif
 
                 uint3 idx = DecodeSplatIndices(input.terrainIndices);
-                float3 weights = input.terrainData.rgb;
+                float3 weights = input.terrainData;
                 weights /= (weights.x + weights.y + weights.z + 1e-4);
 
                 float3 normalWS = SafeNormalize(input.normalWS);
 
-                // 坡面补偿 UV（逐顶点烘焙，防陡壁拉伸）：插值连续不逐面错位，平地恒 0
-                float2 uvCorrection = float2(input.terrainData.a, input.terrainIndices.w);
-                float2 uv = ChunkUV(input.positionWS.xz + uvCorrection);
-
-                half3 finalAlbedo, finalNormalTS;
+                // 三平面映射（与 ForwardLit 同一实现）：顶面 XZ + 侧面X + 侧面Z
+                // 按逐轴 |法线| 权重混合，贴图自循环直铺
+                half3 finalAlbedo, surfNormalWS;
                 half finalMetallic, finalSmoothness, finalOcclusion;
-                SampleSplatSurface(uv, idx, weights,
-                    finalAlbedo, finalNormalTS, finalMetallic, finalSmoothness, finalOcclusion);
-
-                float3x3 TBN = CreateTangentFrame(normalWS);
-                float3 surfNormal = SafeNormalize(TransformTangentToWorld(finalNormalTS, TBN));
+                SampleSplatSurfaceTriplanar(input.positionWS, normalWS, idx, weights,
+                    finalAlbedo, surfNormalWS, finalMetallic, finalSmoothness, finalOcclusion);
 
                 SurfaceData surfaceData = (SurfaceData)0;
                 surfaceData.albedo = finalAlbedo;
                 surfaceData.metallic = finalMetallic * _Metallic;
                 surfaceData.smoothness = finalSmoothness * _Smoothness;
-                surfaceData.normalTS = finalNormalTS;
+                surfaceData.normalTS = half3(0, 0, 1);
                 surfaceData.occlusion = lerp(1.0, finalOcclusion, _OcclusionStrength);
                 surfaceData.emission = half3(0, 0, 0);
                 surfaceData.alpha = 1.0;
 
                 InputData inputData = (InputData)0;
                 inputData.positionWS = input.positionWS;
-                inputData.normalWS = NormalizeNormalPerPixel(surfNormal);
+                inputData.normalWS = NormalizeNormalPerPixel(surfNormalWS);
                 inputData.viewDirectionWS = GetWorldSpaceNormalizeViewDir(input.positionWS);
                 inputData.shadowCoord = input.shadowCoord;
                 inputData.fogCoord = input.fogFactor;
