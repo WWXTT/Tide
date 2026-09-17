@@ -6,16 +6,19 @@
 
 // 全局常量（由 HexMapAuthoring.Install 通过 Shader.SetGlobalVector 写入，整张地图共用）。
 // 放在 UnityPerMaterial 之外，作为全局 uniform 不影响 SRP Batcher。
-// xy = 贴图平铺区域在世界 XZ 上的尺寸（N×N cell）；贴图整图铺满该区域。
+// xy = 贴图平铺区域在世界 XZ 上的尺寸（N×N cell，顶面 ChunkUV 用）；
+// x 同时作为侧面周期（墙面纹素方形）。
 float4 _ChunkWorldSize;
 
 CBUFFER_START(UnityPerMaterial)
     float _HeightBlendStrength;
     float _HeightBlendOffset;
+    float _TriplanarBlendSharpness;
     float _Metallic;
     float _Smoothness;
     float _NormalScale;
     float _OcclusionStrength;
+    float _Parallax;
     // 调试用属性：只有 HexTerrainDebugCommon.hlsl 会打开这个开关。
     // 必须在此 cbuffer 内，否则 Entities Graphics 的 BatchRendererGroup 会拒绝该 pass。
 #ifdef HEX_TERRAIN_DEBUG_PROPS
@@ -54,92 +57,50 @@ SAMPLER(sampler_TerrainOcclusionArray);
 
 // ---------- Shared helpers ----------
 
-float HeightBlend(float h0, float h1, float blendWeight, float strength, float offset)
-{
-    float h0a = h0 + (1.0 - blendWeight) * strength;
-    float h1a = h1 + blendWeight * strength;
-    float ma = max(h0a, h1a) - offset;
-    float b0 = max(h0a - ma, 0.0);
-    float b1 = max(h1a - ma, 0.0);
-    return b1 / (b0 + b1 + 0.0001);
-}
-
-// 三向高度混合：把 3 个 splat 权重按各自高度做 height-aware 再归一化。
-// 权重为 0 的地形其高度被压到 0，自然退出竞争；返回归一化后的 3 个权重。
+// 三向高度混合（经典 heightmap splatting 公式的三通道版）：
+//   ha = h + w * strength —— 权重只做整体抬升，逐像素的高度差决定层与层
+//   互相入侵出的锯齿边缘（岩石A的高峰穿过岩石B的低谷，而不是 50/50 混泥）。
+//   b  = max(ha - max(ha) + offset, 0)
+// offset = 过渡带宽度：越大越软（≈1 时近似退回线性混合），越小边缘越碎越锐，
+// 岩石互侵的自然观感通常在 0.2~0.3。
+// 注意 b 不要再乘 w —— 权重二次计入会让混合退回纯线性，高度差就白采了。
+// 权重为 0 的槽位（不在本三角形 splat 集合内）高度压 0，退出竞争。
 float3 HeightBlend3(float h0, float h1, float h2, float3 w, float strength, float offset)
 {
     float3 ha = float3(h0, h1, h2) + w * strength;
-    // 权重为 0 的通道不参与高度抬升，避免无关地形入侵
     ha *= step(1e-5, w);
     float ma = max(max(ha.x, ha.y), ha.z) - offset;
-    float3 b = max(ha - ma, 0.0) * w;
+    float3 b = max(ha - ma, 0.0);
     float sum = b.x + b.y + b.z + 1e-4;
     return b / sum;
 }
 
-// 世界 XZ → chunk UV：整图铺满一个 chunk。MirrorTileUV 在 chunk 边界折叠，
-// 实现“以 chunk 为单位镜像”，且每个六边形只采样它在 chunk 内的 1/25。
-// 陡壁防拉伸的坡面补偿由 mesh 逐顶点烘焙（TEXCOORD0），调用方在传入前加上。
+// 世界平面坐标 → chunk UV：整图铺满一个 chunk（N×N cell 的世界区域）。
+// 顶面取世界 XZ；侧面投影见 SampleSplatSurfaceTriplanar。
 float2 ChunkUV(float2 worldXZ)
 {
     return worldXZ / _ChunkWorldSize.xy;
 }
 
-float3x3 CreateTangentFrame(float3 normalWS)
-{
-    float3 up = abs(normalWS.y) < 0.999 ? float3(0, 1, 0) : float3(1, 0, 0);
-    float3 tangent = normalize(cross(up, normalWS));
-    float3 bitangent = cross(normalWS, tangent);
-    return float3x3(tangent, bitangent, normalWS);
-}
-
-// World-tile mirroring: even tiles run UV forward, odd tiles run it reversed,
-// so texture values stay continuous across tile borders (no content seam).
-// Returns the mirrored UV and outputs the PRE-mirror derivatives, which stay
-// continuous across the whole plane and feed GRAD sampling to kill the faint
-// mip line the derivative flip would otherwise leave at the border.
-float2 MirrorTileUV(float2 uv, out float2 outDdx, out float2 outDdy)
-{
-    outDdx = ddx(uv);
-    outDdy = ddy(uv);
-
-    float2 cell = floor(uv);
-    float2 f    = uv - cell;                 // [0,1)
-    float2 odd  = frac(cell * 0.5) * 2.0;    // 0 or 1: is this an odd tile
-    float2 mUV  = lerp(f, 1.0 - f, odd);     // odd tiles flip f -> 1-f
-    return cell + mUV;
-}
-
 // Surface sample WITHOUT height. Height is only needed when two terrain
 // types blend (HeightBlend); single-type paths skip the height fetch entirely.
-// One mirror calc is shared across all four surface fetches.
-//
-// Scalars + albedo are sampled through the MIRRORED uv (mirroring keeps them
-// continuous across seams while breaking up tiling). The NORMAL is the one
-// channel that must NOT be mirrored: mirroring flips tangent handedness and
-// leaves a sign-flip crease at every tile/chunk seam (two opposing speculars
-// under high smoothness). Sampling the normal with plain tiled uv keeps the
-// vector field continuous across seams. PRE-mirror derivatives feed GRAD so
-// the plain-tiled normal still gets clean mips.
+// 贴图自循环直铺：不镜像、无导数翻转，隐式导数即可。
 void SampleTerrainSurface(
     float2 uv, uint idx,
     out half3 albedo, out half3 normalTS,
     out half metallic, out half smoothness, out half occlusion)
 {
-    float2 dx, dy;
-    float2 muv = MirrorTileUV(uv, dx, dy);
-
-    albedo     = SAMPLE_TEXTURE2D_ARRAY_GRAD(_TerrainAlbedoArray, sampler_TerrainAlbedoArray, muv, idx, dx, dy).rgb;
+    albedo     = SAMPLE_TEXTURE2D_ARRAY(_TerrainAlbedoArray, sampler_TerrainAlbedoArray, uv, idx).rgb;
 
     // 可选数组：keyword 关闭时给中性常量，禁止采样空纹理槽
 #ifdef _TERRAIN_NORMAL_MAP
-    normalTS   = UnpackNormalScale(SAMPLE_TEXTURE2D_ARRAY_GRAD(_TerrainNormalArray, sampler_TerrainNormalArray, uv, idx, dx, dy), _NormalScale);
+    normalTS   = UnpackNormalScale(SAMPLE_TEXTURE2D_ARRAY(_TerrainNormalArray, sampler_TerrainNormalArray, uv, idx), _NormalScale);
 #else
     normalTS   = half3(0, 0, 1);
 #endif
 
 #ifdef _TERRAIN_MS_MAP
-    half4 ms   = SAMPLE_TEXTURE2D_ARRAY_GRAD(_TerrainMetallicSmoothnessArray, sampler_TerrainMetallicSmoothnessArray, muv, idx, dx, dy);
+    half4 ms   = SAMPLE_TEXTURE2D_ARRAY(_TerrainMetallicSmoothnessArray, sampler_TerrainMetallicSmoothnessArray, uv, idx);
     metallic   = ms.r;
     smoothness = ms.a;
 #else
@@ -150,7 +111,7 @@ void SampleTerrainSurface(
 #endif
 
 #ifdef _TERRAIN_OCCLUSION_MAP
-    occlusion  = SAMPLE_TEXTURE2D_ARRAY_GRAD(_TerrainOcclusionArray, sampler_TerrainOcclusionArray, muv, idx, dx, dy).r;
+    occlusion  = SAMPLE_TEXTURE2D_ARRAY(_TerrainOcclusionArray, sampler_TerrainOcclusionArray, uv, idx).r;
 #else
     occlusion  = 1.0;   // 无遮蔽
 #endif
@@ -159,12 +120,44 @@ void SampleTerrainSurface(
 half SampleTerrainHeight(float2 uv, uint idx)
 {
 #ifdef _TERRAIN_HEIGHT_MAP
-    float2 dx, dy;
-    float2 muv = MirrorTileUV(uv, dx, dy);
-    return SAMPLE_TEXTURE2D_ARRAY_GRAD(_TerrainHeightArray, sampler_TerrainHeightArray, muv, idx, dx, dy).r;
+    return SAMPLE_TEXTURE2D_ARRAY(_TerrainHeightArray, sampler_TerrainHeightArray, uv, idx).r;
 #else
     return 0.5;
 #endif
+}
+
+// 视差预取用：显式 LOD0。偏移前的 uv 处在「先偏移再采样」的反馈链上，
+// 不能用隐式导数采样；且视差预取在 uniform 分支里，导数未定义。
+half SampleTerrainHeightLOD0(float2 uv, uint idx)
+{
+#ifdef _TERRAIN_HEIGHT_MAP
+    return SAMPLE_TEXTURE2D_ARRAY_LOD(_TerrainHeightArray, sampler_TerrainHeightArray, uv, idx, 0).r;
+#else
+    return 0.5;
+#endif
+}
+
+// ---------- Parallax ----------
+
+// 与 RP Lit 的 _Parallax("Scale") 同公式（core 的 ParallaxOffset1Step）同单位
+// （UV 单位）：offset = (h*scale - scale/2) * viewTS.xy / max(viewTS.z, 0.42)。
+// 在等大小立方体上用 Lit 调好的值可直接平移过来。
+// plane 的 (u,v,n) 三元组：u/v 是该投影平面 UV 的两个世界轴，n 是带面朝向符号的
+// 面法线轴 —— viewTS = (dot(view,u), dot(view,v), dot(view,n))。
+float2 ParallaxOffsetTerrain(float blendedHeight, float amplitude, float3 viewTS)
+{
+    float h = blendedHeight * amplitude - amplitude * 0.5;
+    float2 v = viewTS.xy / max(viewTS.z, 0.42);
+    return h * v;
+}
+
+// 平面预取 splat 混合高度（LOD0），做一次视差偏移。需要高度数组。
+float2 ApplyTriplanarParallax(float2 uv, float3 viewTS, uint3 idx, float3 weights)
+{
+    half h = SampleTerrainHeightLOD0(uv, idx.x) * weights.x
+           + SampleTerrainHeightLOD0(uv, idx.y) * weights.y
+           + SampleTerrainHeightLOD0(uv, idx.z) * weights.z;
+    return uv + ParallaxOffsetTerrain(h, _Parallax, viewTS);
 }
 
 // Full sample (surface + height). Kept for callers that genuinely need both.
@@ -193,7 +186,7 @@ uint3 DecodeSplatIndices(float3 rawIndices)
     return min(idx, uint3(last, last, last));
 }
 
-// 三向 splat 表面采样（平地路径，单一 UV）：对 3 个地形各采一次，
+// 三向 splat 表面采样（单一 UV）：对 3 个地形各采一次，
 // 用 height-aware 归一化权重混合。权重为 0 的地形其纹理结果仍被乘 0，
 // 编译器无法跳过采样，但 splat 数量固定为 3，成本可控。
 void SampleSplatSurface(
@@ -223,6 +216,74 @@ void SampleSplatSurface(
     smoothness = s0 * w.x + s1 * w.y + s2 * w.z;
     occlusion  = o0 * w.x + o1 * w.y + o2 * w.z;
     normalTS   = SafeNormalize(n0 * w.x + n1 * w.y + n2 * w.z);
+}
+
+// ---------- 三平面（顶面 XZ + 侧面X + 侧面Z，直铺） ----------
+
+// 经典三平面：贴图按三个世界轴向投影，pow(|法线|, sharp) 逐轴权重混合。
+// 顶面 uv=(x,z)（ChunkUV，整图铺满平铺区域）；侧面X uv=(z,y)、侧面Z uv=(x,y)
+// （同除 _ChunkWorldSize.x，墙面纹素方形——ChunkUV 的 xy 是 X/Z 两个不同周期，
+// 直接复用会让墙面竖向纹素拉伸 ~15%）。贴图自循环，直铺不镜像。
+//
+// 已知特性：六边形侧面法线落在 60° 方向上，侧面 X/Z 两根 90° 投影轴的切换
+// 发生在 4 个角（其中 3 个在相机背面）；相机单方向（yaw 45°）下唯一可见的
+// 切换在 SW–W 共享角，表现为软混合带——任意轴向旋转/加权都无法把全部切换
+// 赶到背面（前向三面墙切向跨 180°，两根正交轴必有边界），按原三平面观感接受。
+//
+// 法线不走任意切线架，每平面的切线/副切线就是其 UV 的两个世界轴：
+//   顶面 uv=(x,z)：T=+X B=+Z N=±Y → (n.x, n.z·sy, n.y)
+//   侧面X uv=(z,y)：T=+Z B=+Y N=±X → (n.z·sx, n.y, n.x)
+//   侧面Z uv=(x,y)：T=+X B=+Y N=±Z → (n.x, n.y, n.z·sz)
+// sx/sy/sz 只把各平面 out-of-plane 分量翻到表面外侧。
+// 三平面各自独立采样后线性混合（角落三角世界投影，无恒定 U 拉伸）。
+// 视差每平面独立（_Parallax 为材质常量 → uniform 分支）。
+void SampleSplatSurfaceTriplanar(
+    float3 positionWS, float3 normalWS, uint3 idx, float3 splatWeights,
+    out half3 albedo, out half3 normalWSOut,
+    out half metallic, out half smoothness, out half occlusion)
+{
+    // 逐轴权重：x=侧面X（朝±X 的面）、y=顶面、z=侧面Z（朝±Z 的面）
+    float3 aw = pow(abs(normalWS), _TriplanarBlendSharpness);
+    float wSum = aw.x + aw.y + aw.z + 1e-4;
+    float3 w = aw / wSum;
+
+    float sx = normalWS.x >= 0.0 ? 1.0 : -1.0;
+    float sy = normalWS.y >= 0.0 ? 1.0 : -1.0;
+    float sz = normalWS.z >= 0.0 ? 1.0 : -1.0;
+
+    float2 uvTop = ChunkUV(positionWS.xz);
+    float2 uvX   = float2(positionWS.z, positionWS.y) / _ChunkWorldSize.x;
+    float2 uvZ   = float2(positionWS.x, positionWS.y) / _ChunkWorldSize.x;
+
+    // 视差（需要高度数组）：每平面预取 splat 混合高度做一次 UV 偏移，
+    // 之后该平面的全部采样都走偏移后的 UV。各平面用自己的切线架。
+#if defined(_TERRAIN_HEIGHT_MAP)
+    if (_Parallax > 1e-4)
+    {
+        float3 viewWS = GetWorldSpaceNormalizeViewDir(positionWS);
+        // 顶面 T=+X B=+Z N=±Y；侧面X T=+Z B=+Y N=±X；侧面Z T=+X B=+Y N=±Z
+        uvTop = ApplyTriplanarParallax(uvTop, float3(viewWS.x, viewWS.z, viewWS.y * sy), idx, splatWeights);
+        uvX   = ApplyTriplanarParallax(uvX,   float3(viewWS.z, viewWS.y, viewWS.x * sx), idx, splatWeights);
+        uvZ   = ApplyTriplanarParallax(uvZ,   float3(viewWS.x, viewWS.y, viewWS.z * sz), idx, splatWeights);
+    }
+#endif
+
+    half3 aT, nT; half mT, sT, oT;
+    half3 aX, nX; half mX, sX, oX;
+    half3 aZ, nZ; half mZ, sZ, oZ;
+    SampleSplatSurface(uvTop, idx, splatWeights, aT, nT, mT, sT, oT);
+    SampleSplatSurface(uvX, idx, splatWeights, aX, nX, mX, sX, oX);
+    SampleSplatSurface(uvZ, idx, splatWeights, aZ, nZ, mZ, sZ, oZ);
+
+    albedo     = aT * w.y + aX * w.x + aZ * w.z;
+    metallic   = mT * w.y + mX * w.x + mZ * w.z;
+    smoothness = sT * w.y + sX * w.x + sZ * w.z;
+    occlusion  = oT * w.y + oX * w.x + oZ * w.z;
+
+    half3 nWTop = half3(nT.x, nT.z * sy, nT.y);
+    half3 nWX   = half3(nX.z * sx, nX.y, nX.x);
+    half3 nWZ   = half3(nZ.x, nZ.y, nZ.z * sz);
+    normalWSOut = SafeNormalize(nWTop * w.y + nWX * w.x + nWZ * w.z);
 }
 
 #endif

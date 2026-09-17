@@ -15,10 +15,6 @@ namespace HexMap
         public float SolidFactor;
         public float BlendFactor;
         public float ElevationStep;
-        public int TerracesPerSlope;
-        public int TerraceSteps;
-        public float HorizontalTerraceStepSize;
-        public float VerticalTerraceStepSize;
         /// <summary>形状扰动：六边形半径的随机缩放范围（1 = 不扰动）</summary>
         public float2 CellPerturbRange;
         public float NoiseScale;
@@ -37,14 +33,10 @@ namespace HexMap
                 SolidFactor = b.SolidFactor,
                 BlendFactor = b.BlendFactor,
                 ElevationStep = b.ElevationStep,
-                TerracesPerSlope = b.TerracesPerSlope,
                 CellPerturbRange = b.CellPerturbRange,
                 NoiseScale = b.NoiseScale,
                 ElevationPerturbRange = b.ElevationPerturbRange,
             };
-            m.TerraceSteps = m.TerracesPerSlope * 2 + 1;
-            m.HorizontalTerraceStepSize = 1f / m.TerraceSteps;
-            m.VerticalTerraceStepSize = 1f / (m.TerracesPerSlope + 1);
             m.Corners.Add(new float3(0f, 0f, m.OuterRadius));
             m.Corners.Add(new float3(m.InnerRadius, 0f, 0.5f * m.OuterRadius));
             m.Corners.Add(new float3(m.InnerRadius, 0f, -0.5f * m.OuterRadius));
@@ -67,28 +59,6 @@ namespace HexMap
         /// 颜色混合区域（bridge）向量：相邻两角点之和 × blendFactor
         /// </summary>
         public float3 GetBridge(HexDirection direction) => (Corners[(int)direction] + Corners[(int)direction + 1]) * BlendFactor;
-
-        /// <summary>
-        /// 阶梯连接区域的顶点插值：水平方向按步长比例、垂直方向仅在奇数步长变化
-        /// </summary>
-        public float3 TerraceLerp(float3 a, float3 b, int step)
-        {
-            float h = step * HorizontalTerraceStepSize;
-            a.x += (b.x - a.x) * h;
-            a.z += (b.z - a.z) * h;
-            float v = ((step + 1) / 2) * VerticalTerraceStepSize;
-            a.y += (b.y - a.y) * v;
-            return a;
-        }
-
-        /// <summary>两个相邻 cell 的高度差类型</summary>
-        public static HexEdgeType GetEdgeType(int elevation1, int elevation2)
-        {
-            if (elevation1 == elevation2) return HexEdgeType.Flat;
-            int delta = elevation2 - elevation1;
-            if (delta == 1 || delta == -1) return HexEdgeType.Slope;
-            return HexEdgeType.Cliff;
-        }
 
         /// <summary>
         /// 形状扰动的最大位移（世界单位）。

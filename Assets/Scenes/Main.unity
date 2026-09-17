@@ -450,7 +450,7 @@ Light:
   serializedVersion: 13
   m_Type: 1
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: 8
+  m_Intensity: 6
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -493,7 +493,7 @@ Light:
   m_LightShadowCasterMode: 0
   m_AreaSize: {x: 1, y: 1}
   m_BounceIntensity: 2
-  m_ColorTemperature: 4057
+  m_ColorTemperature: 4520
   m_UseColorTemperature: 1
   m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
   m_UseBoundingSphereOverride: 0
@@ -512,13 +512,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 369751147}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.23911765, y: 0.3696438, z: -0.09904577, w: 0.89239913}
+  m_LocalRotation: {x: 0.27781588, y: 0.36497167, z: -0.1150751, w: 0.8811196}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 30, y: 45, z: 0}
+  m_LocalEulerAnglesHint: {x: 35, y: 45, z: 0}
 --- !u!1 &413633937
 GameObject:
   m_ObjectHideFlags: 0
@@ -554,14 +554,14 @@ MonoBehaviour:
   cellCountX: 10
   cellCountZ: 20
   maxElevation: 10
-  cellPerturbRange: {x: 0.8, y: 1.2}
-  elevationPerturbRange: {x: 0.8, y: 1.2}
+  cellPerturbRange: {x: 1, y: 1}
+  elevationPerturbRange: {x: 1, y: 1}
   terrainMaterial: {fileID: 2100000, guid: c0ac3ce1f15f74768acd4c2e5c885301, type: 2}
   loadRadius: 20
   unloadRadius: 30
   maxCellCreationsPerFrame: 100
   maxMeshBuildsPerFrame: 100
-  textureTileCells: 5
+  textureTileCells: 3
 --- !u!4 &413633939
 Transform:
   m_ObjectHideFlags: 0

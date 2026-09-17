@@ -14,7 +14,8 @@ namespace HexMap
     /// - cellIndices (float3)：UV1，splat 地形索引三元组（同一三角形 3 顶点相同）
     /// - triangles (int)：索引
     ///
-    /// 与旧版顶点流布局完全一致。
+    /// 顶点流不含 UV0：贴图 UV 全部由 shader 从世界坐标现算（三平面投影，
+    /// 贴图自循环直铺），网格不烘焙任何贴图坐标。
     /// </summary>
     [BurstCompile]
     public partial struct HexMeshJob
@@ -29,14 +30,6 @@ namespace HexMap
         public NativeList<int> Triangles;
         public NativeList<float4> Colors;
         public NativeList<float3> CellIndices;
-
-        /// <summary>
-        /// 逐顶点 UV 坡面补偿向量（世界单位）：uv = 世界xz + 补偿。
-        /// 顶视投影在陡壁上沿落差拉伸，连接带/角部把「低于坡顶的高度 × k·下坡方向」
-        /// 烘进该通道；平地恒 0。片元只插值不现算——相邻三角形共享顶点取同一值，
-        /// 不会像按片元法线计算那样逐面错位。
-        /// </summary>
-        public NativeList<float2> UvCorr;
 
         // splat 权重基向量
         private static readonly float4 W100 = new float4(1f, 0f, 0f, 1f);
@@ -151,48 +144,9 @@ namespace HexMap
             Positions.Add(Perturb(v1));
             Positions.Add(Perturb(v2));
             Positions.Add(Perturb(v3));
-            UvCorr.Add(float2.zero);
-            UvCorr.Add(float2.zero);
-            UvCorr.Add(float2.zero);
             Triangles.Add(vertexIndex);
             Triangles.Add(vertexIndex + 1);
             Triangles.Add(vertexIndex + 2);
-        }
-
-        /// <summary>
-        /// 添加三角形顶点（不扰动，用于阶梯边界）
-        /// </summary>
-        private void AddTriangleUnperturbed(float3 v1, float3 v2, float3 v3)
-        {
-            int vertexIndex = Positions.Length;
-            Positions.Add(v1);
-            Positions.Add(v2);
-            Positions.Add(v3);
-            UvCorr.Add(float2.zero);
-            UvCorr.Add(float2.zero);
-            UvCorr.Add(float2.zero);
-            Triangles.Add(vertexIndex);
-            Triangles.Add(vertexIndex + 1);
-            Triangles.Add(vertexIndex + 2);
-        }
-
-        /// <summary>回填刚发射的 3 个顶点的 UV 补偿（Add* 默认填 0，坡面几何按需覆盖）</summary>
-        private void PatchLast3(float2 a, float2 b, float2 c)
-        {
-            int i = UvCorr.Length - 3;
-            UvCorr[i] = a;
-            UvCorr[i + 1] = b;
-            UvCorr[i + 2] = c;
-        }
-
-        /// <summary>回填刚发射的 4 个顶点的 UV 补偿</summary>
-        private void PatchLast4(float2 a, float2 b, float2 c, float2 d)
-        {
-            int i = UvCorr.Length - 4;
-            UvCorr[i] = a;
-            UvCorr[i + 1] = b;
-            UvCorr[i + 2] = c;
-            UvCorr[i + 3] = d;
         }
 
         /// <summary>
@@ -206,10 +160,6 @@ namespace HexMap
             Positions.Add(v2);
             Positions.Add(v3);
             Positions.Add(v4);
-            UvCorr.Add(float2.zero);
-            UvCorr.Add(float2.zero);
-            UvCorr.Add(float2.zero);
-            UvCorr.Add(float2.zero);
             Triangles.Add(vertexIndex);
             Triangles.Add(vertexIndex + 2);
             Triangles.Add(vertexIndex + 1);
@@ -228,10 +178,6 @@ namespace HexMap
             Positions.Add(Perturb(v2));
             Positions.Add(Perturb(v3));
             Positions.Add(Perturb(v4));
-            UvCorr.Add(float2.zero);
-            UvCorr.Add(float2.zero);
-            UvCorr.Add(float2.zero);
-            UvCorr.Add(float2.zero);
             Triangles.Add(vertexIndex);
             Triangles.Add(vertexIndex + 2);
             Triangles.Add(vertexIndex + 1);

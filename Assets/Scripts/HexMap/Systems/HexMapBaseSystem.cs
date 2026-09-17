@@ -73,7 +73,6 @@ namespace HexMap
             mesh.SetVertexBufferParams(vertices.Length,
                 new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
                 new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float32, 4),
-                new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 3));
             mesh.SetVertexBufferData(vertices, 0, 0, vertices.Length);
             mesh.SetIndexBufferParams(triangles.Length, IndexFormat.UInt32);
@@ -127,7 +126,6 @@ namespace HexMap
             {
                 Position = position,
                 Color = new float4(1f, 0f, 0f, 1f), // splat 权重 (1,0,0)
-                UV0 = float2.zero,                  // 底面平置，无坡面补偿
                 UV1 = new float3(0f, 0f, 0f)        // 地形索引 (0,0,0)
             };
         }
