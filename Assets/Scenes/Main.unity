@@ -512,13 +512,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 369751147}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.27781588, y: 0.36497167, z: -0.1150751, w: 0.8811196}
+  m_LocalRotation: {x: 0.31598538, y: 0.3596048, z: -0.13088542, w: 0.8681629}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 35, y: 45, z: 0}
+  m_LocalEulerAnglesHint: {x: 40, y: 45, z: 0}
 --- !u!1 &413633937
 GameObject:
   m_ObjectHideFlags: 0
@@ -554,14 +554,21 @@ MonoBehaviour:
   cellCountX: 10
   cellCountZ: 20
   maxElevation: 10
-  cellPerturbRange: {x: 1, y: 1}
-  elevationPerturbRange: {x: 1, y: 1}
+  cellPerturbRange: {x: 0.85, y: 1.25}
+  elevationPerturbRange: {x: 0.9, y: 1.1}
+  meshSettings:
+    slopeInset: 2
+    slopeSubdivisions: 4
+    rimNormalBlend: 1
+    variationEnabled: 1
+    variationScaleRange: {x: 0.85, y: 1.25}
+    variationFadeWidth: 0
+    variationSeed: 24301
   terrainMaterial: {fileID: 2100000, guid: c0ac3ce1f15f74768acd4c2e5c885301, type: 2}
   loadRadius: 20
   unloadRadius: 30
   maxCellCreationsPerFrame: 100
   maxMeshBuildsPerFrame: 100
-  textureTileCells: 3
 --- !u!4 &413633939
 Transform:
   m_ObjectHideFlags: 0

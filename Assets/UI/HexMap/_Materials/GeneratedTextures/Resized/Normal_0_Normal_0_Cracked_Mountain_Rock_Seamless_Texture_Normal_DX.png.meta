@@ -1,16 +1,16 @@
 fileFormatVersion: 2
-guid: 5c803fd0c64d2d14ab7dea0f397b2a38
+guid: d112d1662e3787c4a8a02ec8b4458015
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 3262005964697985546
-    second: Albedo_0_Smooth_Mountain_Rock_Seamless_Texture_Albedo_0
+      213: -534941369637065711
+    second: Normal_0_Normal_0_Cracked_Mountain_Rock_Seamless_Texture_Normal_DX_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
     mipMapMode: 0
     enableMipMap: 1
-    sRGBTexture: 1
+    sRGBTexture: 0
     linearTexture: 0
     fadeOut: 0
     borderMipMap: 0
@@ -23,7 +23,7 @@ TextureImporter:
     externalNormalMap: 0
     heightScale: 0.25
     normalMapFilter: 0
-    flipGreenChannel: 0
+    flipGreenChannel: 1
   isReadable: 1
   streamingMipmaps: 0
   streamingMipmapsPriority: 0
@@ -57,7 +57,7 @@ TextureImporter:
   alphaUsage: 1
   alphaIsTransparency: 0
   spriteTessellationDetail: -1
-  textureType: 0
+  textureType: 1
   textureShape: 1
   singleChannelComponent: 0
   flipbookRows: 1
@@ -87,7 +87,7 @@ TextureImporter:
     buildTarget: Standalone
     maxTextureSize: 2048
     resizeAlgorithm: 0
-    textureFormat: 4
+    textureFormat: -1
     textureCompression: 1
     compressionQuality: 50
     crunchedCompression: 0
@@ -126,7 +126,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Albedo_0_Smooth_Mountain_Rock_Seamless_Texture_Albedo_0
+      name: Normal_0_Normal_0_Cracked_Mountain_Rock_Seamless_Texture_Normal_DX_0
       rect:
         serializedVersion: 2
         x: 0
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: a02670d5429f44d20800000000000000
-      internalID: 3262005964697985546
+      spriteID: 11c2f1798a18398f0800000000000000
+      internalID: -534941369637065711
       vertices: []
       indices: 
       edges: []
@@ -161,7 +161,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Albedo_0_Smooth_Mountain_Rock_Seamless_Texture_Albedo_0: 3262005964697985546
+      Normal_0_Normal_0_Cracked_Mountain_Rock_Seamless_Texture_Normal_DX_0: -534941369637065711
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

@@ -25,6 +25,13 @@ Shader "Custom/HexTerrain"
         // |法线|^sharp 顶面/侧面双平面权重，值越大平地↔陡壁的过渡带越窄
         _TriplanarBlendSharpness("Triplanar Blend Sharpness", Range(1.0, 16.0)) = 4.0
 
+        [Header(Hex Cell Variation)]
+        // 六边形单元变异（反平铺）：逐格 (θ,s,ox,oy) 在 mesh 构建期烘焙进顶点流，
+        // 板缘/坡棱/桥/角淡回纯平铺采样保证无缝。0 = 一键关闭 A/B 对比。
+        _HexVariationEnabled("Hex Variation Enabled", Float) = 1.0
+        // 层间去相关：黄金比常量偏移强度（0 = 三层同相位）
+        _LayerDecorrelate("Layer Decorrelate", Float) = 1.0
+
         [Header(PBR)]
         _Metallic("Metallic", Range(0.0, 1.0)) = 0.0
         _Smoothness("Smoothness", Range(0.0, 1.0)) = 1.0
@@ -444,9 +451,11 @@ Shader "Custom/HexTerrain"
             struct GBAttributes
             {
                 float4 positionOS : POSITION;
-                float3 normalOS   : NORMAL;
-                float4 color      : COLOR;            // splat 权重
+                float3 normalOS   : NORMAL;           // 纯表面法线（光照/阴影）
+                float3 blendNormalOS : TANGENT;       // rim 融合法线（投影权重）
+                float4 color      : COLOR;            // splat 权重 (RGB) + 变异权重 (A)
                 float3 terrainIndices : TEXCOORD1;    // splat 3 个地形索引
+                float4 hexVariation : TEXCOORD2;      // 本格变异常量
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -462,6 +471,9 @@ Shader "Custom/HexTerrain"
                 float4 probeOcclusion : TEXCOORD6;
                 #endif
                 float3 terrainIndices : TEXCOORD7;    // splat 索引
+                float4 hexVar       : TEXCOORD8;      // 本格变异常量直传
+                half variationWeight : TEXCOORD9;     // 变异权重
+                float3 blendNormalWS : TEXCOORD10;    // rim 融合法线（投影权重用）
                 float4 positionCS   : SV_POSITION;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
@@ -482,6 +494,9 @@ Shader "Custom/HexTerrain"
                 output.normalWS = normalInput.normalWS;
                 output.terrainData = input.color.rgb;
                 output.terrainIndices = input.terrainIndices;
+                output.hexVar = input.hexVariation;
+                output.variationWeight = input.color.a;
+                output.blendNormalWS = TransformObjectToWorldNormal(input.blendNormalOS);
 
                 half fogFactor = 0;
                 #if !defined(_FOG_FRAGMENT)
@@ -512,10 +527,11 @@ Shader "Custom/HexTerrain"
                 float3 normalWS = SafeNormalize(input.normalWS);
 
                 // 三平面映射（与 ForwardLit 同一实现）：顶面 XZ + 侧面X + 侧面Z
-                // 按逐轴 |法线| 权重混合，贴图自循环直铺
+                // 按逐轴 |法线| 权重混合，贴图自循环直铺 + 六边形变异
                 half3 finalAlbedo, surfNormalWS;
                 half finalMetallic, finalSmoothness, finalOcclusion;
-                SampleSplatSurfaceTriplanar(input.positionWS, normalWS, idx, weights,
+                SampleSplatSurfaceTriplanar(input.positionWS, normalWS, input.blendNormalWS, idx, weights,
+                    input.hexVar, input.variationWeight,
                     finalAlbedo, surfNormalWS, finalMetallic, finalSmoothness, finalOcclusion);
 
                 SurfaceData surfaceData = (SurfaceData)0;
@@ -556,6 +572,10 @@ Shader "Custom/HexTerrain"
 
                 Light mainLight = GetMainLight(inputData.shadowCoord, inputData.positionWS, inputData.shadowMask);
                 MixRealtimeAndBakedGI(mainLight, inputData.normalWS, inputData.bakedGI, inputData.shadowMask);
+                #if defined(_SPECULARHIGHLIGHTS_OFF) && defined(_ENVIRONMENTREFLECTIONS_OFF)
+                // 同 ForwardLit：双反射开关全关时消掉 GI 的掠射菲涅尔鞘（view=normal → NoV=1）
+                inputData.viewDirectionWS = inputData.normalWS;
+                #endif
                 half3 gi = GlobalIllumination(brdfData, inputData.bakedGI, surfaceData.occlusion,
                     inputData.positionWS, inputData.normalWS, inputData.viewDirectionWS);
 
@@ -566,8 +586,6 @@ Shader "Custom/HexTerrain"
         }
     }
 
-    // 按可选纹理数组是否绑定自动开关 keyword（HexTerrainShaderGUI 位于 Assets/Editor）
-    CustomEditor "HexTerrainShaderGUI"
-
+    // keyword 需在材质 Inspector 手动勾选（原 HexTerrainShaderGUI 已随旧方案退役）
     FallBack "Hidden/Universal Render Pipeline/FallbackError"
 }

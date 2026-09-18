@@ -13,5 +13,5 @@ ScriptedImporter:
   anisoLevel: 8
   isReadable: 0
   textures:
-  - {fileID: 2800000, guid: f825c4b5b375e0f41b87ffc917a8c5fa, type: 3}
-  - {fileID: 2800000, guid: 9f0496a54501b3442928d89358d07e6b, type: 3}
+  - {fileID: 2800000, guid: dcda0783111833748b839dfd7dbda2ad, type: 3}
+  - {fileID: 2800000, guid: 09b80152b3c20ea4b9e500896c28ee41, type: 3}

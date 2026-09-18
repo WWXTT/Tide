@@ -152,10 +152,6 @@ namespace HexMap
             var em = EntityManager;
             var cell = em.GetComponentData<HexCellData>(cellEntity);
 
-            // 禁止编辑边界 cell：外圈恒为 0 高度是边界连接区不开缝的前提
-            if (HexBoundary.IsBoundary(in cell, blob.CellCount))
-                return;
-
             if (cell.TerrainIndex == terrainIndex)
                 return;
 
@@ -169,10 +165,8 @@ namespace HexMap
             var em = EntityManager;
             var cell = em.GetComponentData<HexCellData>(cellEntity);
 
-            // 禁止编辑边界 cell：外圈恒为 0 高度是边界连接区不开缝的前提
-            if (HexBoundary.IsBoundary(in cell, blob.CellCount))
-                return;
-
+            // 边界 cell 允许编辑（网格重做后）：边界坡高度 = cell.y − bottomY 现算，
+            // 角落吸收按实际高度走，任意高度组合构造性水密（旧版裙边等高约束已不存在）。
             int newElevation = math.clamp(cell.Elevation + delta, 0, blob.MaxElevation);
             if (newElevation == cell.Elevation)
                 return;

@@ -25,7 +25,6 @@ Material:
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
-  - _ENVIRONMENTREFLECTIONS_OFF
   - _SPECULARHIGHLIGHTS_OFF
   - _TERRAIN_HEIGHT_MAP
   - _TERRAIN_NORMAL_MAP
@@ -179,7 +178,7 @@ Material:
     - _DstBlend: 0
     - _DstBlendAlpha: 0
     - _EnvColorLerp: 0.5
-    - _EnvironmentReflections: 1
+    - _EnvironmentReflections: 0
     - _FoldoutDirectLight: 0
     - _FoldoutDirectLightEnd: 0
     - _FoldoutEmissRim: 0
@@ -197,17 +196,19 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _HeightBlendOffset: 0.5
-    - _HeightBlendStrength: 4
+    - _HeightBlendOffset: 1
+    - _HeightBlendStrength: 1
+    - _HexVariationEnabled: 1
     - _INDIR_CUBEMAP: 0
     - _IndirDiffIntensity: 1
     - _IndirDiffUpDirSH: 0
     - _IndirSpecCubeWeight: 0.5
     - _IndirSpecIntensity: 1
+    - _LayerDecorrelate: 1
     - _MacroVariationScale: 0.001
     - _MacroVariationStrength: 0
     - _MainLightColorLerp: 0.5
-    - _Metallic: 0
+    - _Metallic: 0.1
     - _Mode: 0
     - _NormalScale: 0.4
     - _Occlusion: 1
@@ -217,7 +218,7 @@ Material:
     - _OutlineDirectLightingOffset: -1
     - _OutlinePunctualLightingOffset: -1
     - _OutlineWidth: 1
-    - _Parallax: 0.01
+    - _Parallax: 0
     - _PunctualRimWidth: 2.75
     - _QueueOffset: 0
     - _ReceiveShadows: 1
@@ -227,7 +228,7 @@ Material:
     - _ShadowSmoothScene: 0.1
     - _ShadowStrength: 1
     - _Shininess: 0.2
-    - _Smoothness: 0
+    - _Smoothness: 0.1
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
@@ -249,6 +250,8 @@ Material:
     - _UseTerrainNormalArray: 1
     - _UseTerrainOcclusionArray: 0
     - _UseUIAlphaClip: 0
+    - _VariationDistanceFadeEnd: 120
+    - _VariationDistanceFadeStart: 40
     - _WorkflowMode: 1
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1

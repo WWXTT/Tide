@@ -94,8 +94,8 @@ namespace HexMap
                 int elevation;
                 if (isBoundary)
                 {
-                    // 边界 cell 固定 elevation = 0 且不做高度扰动：
-                    // 相邻边界的连接区在共享角点两侧必须等高，高度差会在裙边角点处错层开缝
+                    // 边界 cell 初始固定 elevation = 0（纯初始状态偏好，运行期可自由编辑——
+                    // 网格重做后边界坡按 cell.y − bottomY 现算，无等高约束）
                     elevation = 0;
                     position.y = 0f;
                 }
