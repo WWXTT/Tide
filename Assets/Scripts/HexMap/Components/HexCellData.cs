@@ -30,8 +30,8 @@ namespace HexMap
     {
         /// <summary>
         /// 该 cell 是否位于地图最外一圈（offset 坐标系）。
-        /// 外圈 cell 恒定 elevation 0、不接受编辑：相邻边界的连接区在共享角点两侧
-        /// 必须等高，高度不一致时两条裙边会在角点处错层开缝。
+        /// （旧版曾禁止编辑外圈高度——裙边等高约束；网格重做后该约束已不存在，
+        /// 边界坡按 cell.y − bottomY 现算，此方法仅用于生成期初始状态。）
         /// </summary>
         public static bool IsBoundary(int2 offsetCoords, int2 cellCount)
         {

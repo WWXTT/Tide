@@ -1,16 +1,16 @@
 fileFormatVersion: 2
-guid: f825c4b5b375e0f41b87ffc917a8c5fa
+guid: 8a28c9baa4d9eba42a837ec08c598e02
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -4524543903001265051
-    second: Height_0_Cracked_Mountain_Rock_Seamless_Texture_Height_0
+      213: -7477031645083086585
+    second: Albedo_0_Albedo_1_Smooth_Mountain_Rock_Seamless_Texture_Albedo_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
     mipMapMode: 0
     enableMipMap: 1
-    sRGBTexture: 0
+    sRGBTexture: 1
     linearTexture: 0
     fadeOut: 0
     borderMipMap: 0
@@ -87,7 +87,7 @@ TextureImporter:
     buildTarget: Standalone
     maxTextureSize: 2048
     resizeAlgorithm: 0
-    textureFormat: 4
+    textureFormat: -1
     textureCompression: 1
     compressionQuality: 50
     crunchedCompression: 0
@@ -126,7 +126,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Height_0_Cracked_Mountain_Rock_Seamless_Texture_Height_0
+      name: Albedo_0_Albedo_1_Smooth_Mountain_Rock_Seamless_Texture_Albedo_0
       rect:
         serializedVersion: 2
         x: 0
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 56c33f2da479531c0800000000000000
-      internalID: -4524543903001265051
+      spriteID: 701d774755f3c3890800000000000000
+      internalID: -7477031645083086585
       vertices: []
       indices: 
       edges: []
@@ -161,7 +161,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Height_0_Cracked_Mountain_Rock_Seamless_Texture_Height_0: -4524543903001265051
+      Albedo_0_Albedo_1_Smooth_Mountain_Rock_Seamless_Texture_Albedo_0: -7477031645083086585
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

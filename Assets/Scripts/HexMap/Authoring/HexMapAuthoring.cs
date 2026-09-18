@@ -1,3 +1,4 @@
+using System;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -16,6 +17,41 @@ namespace HexMap
         public static float OuterRadius;
 
         public static bool IsValid => CellCount.x > 0 && CellCount.y > 0;
+    }
+
+    /// <summary>
+    /// 地形网格重做参数（板/坡/桥/角闭合 + 六边形单元变异）。
+    /// 变异的取值逐格在 mesh 构建时按坐标哈希烘焙，这里只存范围与开关。
+    /// ≤0 的距离项在 Build 内回退默认值，因此旧场景缺省序列化数据也能得到合理配置。
+    /// </summary>
+    [Serializable]
+    public struct HexMeshRewriteSettings
+    {
+        [Tooltip("坡带宽度 d（世界单位）：高 cell 顶面从共享边内缩的距离，坡占高 cell 面积。≤0 = 默认 InnerRadius×BlendFactor")]
+        public float slopeInset;
+        [Tooltip("坡/桥沿边横向细分数")]
+        [Range(1, 8)] public int slopeSubdivisions;
+        [Tooltip("rim 法线融合系数：0=硬边，1=全融合（smoothnormal 风格烘焙，材质改不动）")]
+        [Range(0f, 1f)] public float rimNormalBlend;
+        [Tooltip("六边形单元变异（逐格 UV 旋转/缩放/偏移，边界与远距淡回纯平铺）")]
+        public bool variationEnabled;
+        [Tooltip("逐格缩放范围（1=不变）")]
+        public Vector2 variationScaleRange;
+        [Tooltip("板内环距：变异权重从内环 1 渐到边环 0 的环宽。≤0 = 默认 InnerRadius×0.45")]
+        public float variationFadeWidth;
+        [Tooltip("变异哈希种子")]
+        public uint variationSeed;
+
+        public static HexMeshRewriteSettings Default => new HexMeshRewriteSettings
+        {
+            slopeInset = 0f,
+            slopeSubdivisions = 4,
+            rimNormalBlend = 1f,
+            variationEnabled = true,
+            variationScaleRange = new Vector2(0.85f, 1.25f),
+            variationFadeWidth = 0f,
+            variationSeed = 0x5EEDu,
+        };
     }
 
     /// <summary>
@@ -38,7 +74,8 @@ namespace HexMap
             int cellCountZ,
             int maxElevation,
             Vector2 cellPerturbRange,
-            Vector2 elevationPerturbRange)
+            Vector2 elevationPerturbRange,
+            in HexMeshRewriteSettings mesh)
         {
             var builder = new BlobBuilder(Allocator.Temp);
             try
@@ -60,6 +97,22 @@ namespace HexMap
                 root.ElevationPerturbRange = new float2(
                     math.clamp(elevationPerturbRange.x, 0.5f, 1.5f),
                     math.clamp(elevationPerturbRange.y, 0.5f, 1.5f));
+
+                // ---- 网格重做参数（防呆钳制；≤0 的距离项回退默认）----
+                float defaultInset = InnerRadius * (1f - SolidFactor);
+                root.SlopeInset = mesh.slopeInset > 0f
+                    ? math.clamp(mesh.slopeInset, 0.01f, InnerRadius * 0.5f)
+                    : defaultInset;
+                root.SlopeSubdivisions = math.clamp(mesh.slopeSubdivisions, 1, 8);
+                root.RimNormalBlend = math.saturate(mesh.rimNormalBlend);
+                root.VariationEnabled = mesh.variationEnabled ? 1 : 0;
+                float sx = math.clamp(Mathf.Min(mesh.variationScaleRange.x, mesh.variationScaleRange.y), 0.5f, 2f);
+                float sy = math.clamp(Mathf.Max(mesh.variationScaleRange.x, mesh.variationScaleRange.y), 0.5f, 2f);
+                root.VariationScaleRange = new float2(sx, sy);
+                root.VariationFadeWidth = mesh.variationFadeWidth > 0f
+                    ? math.clamp(mesh.variationFadeWidth, 0.01f, InnerRadius)
+                    : InnerRadius * 0.45f;
+                root.VariationSeed = mesh.variationSeed;
 
                 root.MaxElevation = maxElevation;
 
@@ -123,6 +176,9 @@ namespace HexMap
         [Tooltip("高度扰动范围：台阶落差的随机缩放比例（1 = 不扰动，0.8~1.2 推荐）")]
         public Vector2 elevationPerturbRange = new Vector2(0.8f, 1.2f);
 
+        [Header("Terrain Mesh Rewrite (Plate/Slope/Corner)")]
+        public HexMeshRewriteSettings meshSettings = HexMeshRewriteSettings.Default;
+
         [Header("Rendering")]
         public Material terrainMaterial;
 
@@ -156,7 +212,7 @@ namespace HexMap
             }
 
             var blob = HexMapConfigBuilder.Build(noiseSource, noiseSampleRange, noiseSeed,
-                cellCountX, cellCountZ, maxElevation, cellPerturbRange, elevationPerturbRange);
+                cellCountX, cellCountZ, maxElevation, cellPerturbRange, elevationPerturbRange, meshSettings);
 
             var configEntity = em.CreateEntity(typeof(HexMapConfig));
 #if ENABLE_HEX_DEBUG_LABEL
@@ -197,7 +253,8 @@ namespace HexMap
             HexMapRuntime.InnerRadius = HexMapConfigBuilder.InnerRadius;
             HexMapRuntime.OuterRadius = HexMapConfigBuilder.OuterRadius;
 
-            // 贴图平铺尺寸全局常量（HexTerrain shader 读取 _ChunkWorldSize 做世界空间 UV；
+            // 贴图平铺尺寸全局常量（HexTerrain shader 读取 _ChunkWorldSize 做世界空间 UV）。
+            // 双保险：SubScene/Baker 路径由 HexMapShaderGlobalsSystem 兜底写入。
             float tileWorldX = HexMapConfigBuilder.InnerRadius * 2f;
             float tileWorldZ = HexMapConfigBuilder.OuterRadius * 1.5f;
             Shader.SetGlobalVector("_ChunkWorldSize", new Vector4(tileWorldX, tileWorldZ, 0f, 0f));
@@ -233,7 +290,8 @@ namespace HexMap
 
             var blob = HexMapConfigBuilder.Build(authoring.noiseSource, authoring.noiseSampleRange,
                 authoring.noiseSeed, authoring.cellCountX, authoring.cellCountZ,
-                authoring.maxElevation, authoring.cellPerturbRange, authoring.elevationPerturbRange);
+                authoring.maxElevation, authoring.cellPerturbRange, authoring.elevationPerturbRange,
+                authoring.meshSettings);
 
             var entity = GetEntity(TransformUsageFlags.None);
             AddComponent(entity, new HexMapConfig

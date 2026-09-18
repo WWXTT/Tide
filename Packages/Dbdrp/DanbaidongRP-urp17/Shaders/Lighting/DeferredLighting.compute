@@ -576,6 +576,17 @@ DeferredLightingOutput DeferredLit(PositionInputs posInput, ShadingData shadingD
         indirectSpecular += specularFGD * skyReflection * weight;
     }
 
+    // 材质声明 _SPECULARHIGHLIGHTS_OFF（gbuffer 材质标志位 kMaterialFlagSpecularHighlightsOff，
+    // 语义 = Does not receive specular）：彻底关闭镜面（直接+间接）。
+    // 此前延迟路径只靠 gbuffer 写 packedSpecular=0 清直接镜面，
+    // 间接环境镜面（掠射菲涅尔鞘，specularFGD 随 clampedNdotV 抬升）仍按真实视线累积，
+    // 导致阴影内的侧面在掠射视角发亮。
+    if ((shadingData.materialFlags & kMaterialFlagSpecularHighlightsOff) != 0)
+    {
+        directSpecular = 0;
+        indirectSpecular = 0;
+    }
+
     float ambientOcclusion = 1.0;
     float gbufferOcclusion = shadingData.occlusion;
 

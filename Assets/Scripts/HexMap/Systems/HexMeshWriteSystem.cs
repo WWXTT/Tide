@@ -69,10 +69,13 @@ namespace HexMap
             var cellData = EntityManager.GetComponentData<HexCellData>(cellEntity);
 
             // 准备 Job 输出缓冲
-            var positions = new NativeList<float3>(128, Allocator.TempJob);
-            var triangles = new NativeList<int>(256, Allocator.TempJob);
-            var colors = new NativeList<float4>(128, Allocator.TempJob);
-            var cellIndices = new NativeList<float3>(128, Allocator.TempJob);
+            var positions = new NativeList<float3>(256, Allocator.TempJob);
+            var triangles = new NativeList<int>(512, Allocator.TempJob);
+            var colors = new NativeList<float4>(256, Allocator.TempJob);
+            var cellIndices = new NativeList<float3>(256, Allocator.TempJob);
+            var normals = new NativeList<float3>(256, Allocator.TempJob);
+            var pureNormals = new NativeList<float3>(256, Allocator.TempJob);
+            var variations = new NativeList<float4>(256, Allocator.TempJob);
 
             var job = new HexMeshJob
             {
@@ -85,6 +88,9 @@ namespace HexMap
                 Triangles = triangles,
                 Colors = colors,
                 CellIndices = cellIndices,
+                Normals = normals,
+                PureNormals = pureNormals,
+                Variations = variations,
             };
 
             job.Execute();
@@ -96,6 +102,9 @@ namespace HexMap
                 triangles.Dispose();
                 colors.Dispose();
                 cellIndices.Dispose();
+                normals.Dispose();
+                pureNormals.Dispose();
+                variations.Dispose();
                 return;
             }
 
@@ -121,17 +130,25 @@ namespace HexMap
                 vertices[i] = new TerrainVertex
                 {
                     Position = positions[i],
+                    Normal = pureNormals[i],   // 纯表面法线：光照/SH/SSAO/阴影
+                    Tangent = normals[i],      // rim 融合法线：三平面投影权重专用
                     Color = colors[i],
                     UV1 = cellIndices[i],
+                    UV2 = variations[i],
                 };
             }
 
-            // 上传顶点数据（单条交错流：Position + Color + TexCoord1。
-            // 贴图 UV 由 shader 三平面投影现算，mesh 不烘焙 UV0）
+            // 上传顶点数据（单条交错流：Position + Normal + Tangent + Color + TexCoord1 + TexCoord2。
+            // 贴图采样 UV 由 shader 三平面投影现算（TexCoord2 是逐格变异常量，非采样坐标）。
+            // 双法线：Normal = 纯表面法线（光照/SH/SSAO/阴影，几何正确）；
+            // Tangent = rim 融合法线（仅 shader 三平面投影权重用，保纹理跨棱线连续）。
             mesh.SetVertexBufferParams(vertices.Length,
                 new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
+                new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3),
+                new VertexAttributeDescriptor(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 3),
                 new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float32, 4),
-                new VertexAttributeDescriptor(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 3));
+                new VertexAttributeDescriptor(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 3),
+                new VertexAttributeDescriptor(VertexAttribute.TexCoord2, VertexAttributeFormat.Float32, 4));
 
             mesh.SetVertexBufferData(vertices, 0, 0, vertices.Length);
             mesh.SetIndexBufferParams(triangles.Length, IndexFormat.UInt32);
@@ -139,7 +156,6 @@ namespace HexMap
             mesh.SetSubMesh(0, new SubMeshDescriptor(0, triangles.Length));
             vertices.Dispose();
 
-            mesh.RecalculateNormals();
             mesh.RecalculateBounds();
             mesh.UploadMeshData(false);
 
@@ -204,19 +220,29 @@ namespace HexMap
             triangles.Dispose();
             colors.Dispose();
             cellIndices.Dispose();
+            normals.Dispose();
+            pureNormals.Dispose();
+            variations.Dispose();
         }
     }
 
     /// <summary>
     /// 地形 mesh 的交错顶点布局：字段顺序/偏移与 RebuildCellMesh 中
-    /// VertexAttributeDescriptor 的声明一致（Position offset 0 / Color offset 12 / UV1 offset 28）
+    /// VertexAttributeDescriptor 的声明一致（Position 0 / Normal 12 / Color 24 / UV1 40 / UV2 52）
     /// </summary>
     public struct TerrainVertex
     {
         public float3 Position;
+        /// <summary>纯表面法线（Job 烘焙：板 +Y、坡逐边常量），供光照/阴影</summary>
+        public float3 Normal;
+        /// <summary>rim 融合法线（TANGENT 语义），仅供 shader 三平面投影权重</summary>
+        public float3 Tangent;
+        /// <summary>RGB = splat 权重，A = 变异权重（板心 1 → 板缘 0，坡 0→peak→0，过渡区 0）</summary>
         public float4 Color;
         /// <summary>UV1：splat 地形索引三元组</summary>
         public float3 UV1;
+        /// <summary>UV2：本格变异常量 (s·cosθ, s·sinθ, ox, oy)，shader 复数乘应用</summary>
+        public float4 UV2;
     }
 
     /// <summary>
