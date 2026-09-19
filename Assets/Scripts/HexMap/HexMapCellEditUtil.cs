@@ -56,6 +56,23 @@ namespace HexMap
         }
 
         /// <summary>
+        /// 写 cell 的 TerrainIndex + 标脏（cell+6 邻居）。同值短路。
+        /// 手编笔刷与存档加载共用（自 HexMapEditingSystem.ApplyTerrain 上移，行为零变化）。
+        /// </summary>
+        public static bool ApplyTerrain(EntityManager em, Entity cellEntity, int terrainIndex)
+        {
+            var cell = em.GetComponentData<HexCellData>(cellEntity);
+
+            if (cell.TerrainIndex == terrainIndex)
+                return false;
+
+            cell.TerrainIndex = terrainIndex;
+            em.SetComponentData(cellEntity, cell);
+            MarkCellAndNeighborsDirty(em, cellEntity);
+            return true;
+        }
+
+        /// <summary>
         /// 射线步进拾取（提取自编辑系统）：沿视线步进，命中条件是「位于某 cell 列内
         /// 且已降到该 cell 顶面以下」。步长 0.5（cell 宽 ~17，误差可忽略）。
         /// 编辑笔刷与 POI 放置共用。

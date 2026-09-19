@@ -1,3 +1,4 @@
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -54,6 +55,12 @@ namespace HexMap
         public float MountainStrength;
         /// <summary>Curl 域扭曲强度（世界单位，0=不扭曲）</summary>
         public float CurlWarpStrength;
+        /// <summary>
+        /// 高程→TerrainIndex 分带（按 maxElevation 升序匹配首个命中；空表 → 全 0 层）。
+        /// 生成 Job（Burst）与重置路径共用，见 HexMapTerrainMath.TerrainIndexFor。
+        /// FixedList 上限 15 带（8B/带），Build 时截断。
+        /// </summary>
+        public FixedList128Bytes<HexTerrainBand> TerrainBands;
 
         // ---- 地形网格重做（板/坡/桥/角闭合）----
         /// <summary>坡带宽度 d（世界单位）：高 cell 板从共享边内缩的距离，坡占高 cell 面积</summary>

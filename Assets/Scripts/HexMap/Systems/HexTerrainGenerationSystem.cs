@@ -7,9 +7,10 @@ using Unity.Mathematics;
 namespace HexMap
 {
     /// <summary>
-    /// 地形生成系统：为新建的 cell 采样噪声 → 计算 elevation。
-    /// 噪声只决定高度；地形类型统一初始化为 0，之后由编辑操作手动修改。
-    /// 采样完成后更新 Position.y（加入高程扰动），并标记 cell 脏（触发网格重建）。
+    /// 地形生成系统：为新建的 cell 采样噪声 → 计算 elevation + 按分带规则分配 TerrainIndex
+    /// （HexMapTerrainMath.TerrainIndexFor，空分带表时全 0 层；手动刷地块可覆盖，
+    /// 直到 ResetElevation 重置回分带值）。采样完成后更新 Position.y（加入高程扰动），
+    /// 并标记 cell 脏（触发网格重建）。
     /// </summary>
     [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
@@ -98,7 +99,7 @@ namespace HexMap
                 position.y = y;
 
                 cell.Elevation = elevation;
-                cell.TerrainIndex = 0;
+                cell.TerrainIndex = HexMapTerrainMath.TerrainIndexFor(ref blob, elevation);
                 cell.Position = position;
 
                 CellData[index] = cell;

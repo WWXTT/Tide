@@ -1,0 +1,49 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="../Common.uss" />
+    <!-- 常驻世界编辑器工具条：右上角锚定，不遮挡地图。
+         根容器 pickingMode=Ignore——只有面板本体接指针事件，
+         面板外区域旧 Input（涂地块/升降）不受影响。 -->
+    <ui:VisualElement style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;" picking-mode="Ignore">
+        <ui:VisualElement name="hex-editor-panel" class="panel"
+                          style="position: absolute; top: 12px; right: 12px; width: 268px;">
+            <ui:Label name="lbl-title" text="Hex 世界编辑器" class="panel__header" />
+            <ui:Button name="btn-collapse" text="—" class="btn--mini"
+                       style="position: absolute; top: 4px; right: 4px;" />
+
+            <ui:VisualElement name="content">
+                <ui:VisualElement class="toolbar" style="margin-bottom: 4px;">
+                    <ui:Button name="btn-mode-terrain" text="地形笔刷" class="btn--mini" />
+                    <ui:Button name="btn-mode-spring" text="放泉水" class="btn--mini" />
+                    <ui:Button name="btn-mode-roadnode" text="放路点" class="btn--mini" />
+                    <ui:Button name="btn-mode-delpoi" text="删 POI" class="btn--mini" />
+                </ui:VisualElement>
+
+                <ui:Label text="笔刷地块（数字键）" class="hint" />
+                <ui:VisualElement name="brush-row" style="flex-direction: row; flex-wrap: wrap;" />
+
+                <ui:Label text="POI 半径" class="hint" />
+                <ui:Slider name="slider-poi-radius" low-value="2" high-value="60" value="20"
+                           show-input-field="true" />
+
+                <ui:VisualElement class="toolbar" style="margin-bottom: 4px;">
+                    <ui:Button name="btn-regen-features" text="重生成(R)" class="btn--mini" />
+                    <ui:Button name="btn-regen-full" text="完整重置" class="btn--mini" />
+                    <ui:Button name="btn-regen-vegetation" text="植被(V)" class="btn--mini" />
+                    <ui:Button name="btn-verify" text="验证确定性" class="btn--mini" />
+                </ui:VisualElement>
+
+                <ui:TextField name="field-save-name" text="World1" class="text-input"
+                              style="margin-top: 4px;" />
+                <ui:VisualElement class="toolbar" style="margin-bottom: 4px;">
+                    <ui:Button name="btn-save" text="保存(F5)" class="btn--mini btn--primary" />
+                    <ui:Button name="btn-load" text="加载(F9)" class="btn--mini" />
+                    <ui:Button name="btn-refresh" text="刷新" class="btn--mini" />
+                </ui:VisualElement>
+                <ui:DropdownField name="dropdown-loads" label="存档" />
+
+                <ui:Label name="lbl-status" text="" class="hint"
+                          style="color: rgb(140, 200, 160); white-space: normal;" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

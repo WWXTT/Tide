@@ -290,7 +290,7 @@ namespace HexMap
         // ── 距离图 ─────────────────────────────────────────────────
 
         /// <summary>多源 BFS 距离图（道路格作源）——植被散布的路距过滤用</summary>
-        private static void BuildRoadDistanceMap(HexFeatureSnapshot snap, HexFeatureState state)
+        public static void BuildRoadDistanceMap(HexFeatureSnapshot snap, HexFeatureState state)
         {
             state.RoadDist.Clear();
             var queue = new Queue<int2>();

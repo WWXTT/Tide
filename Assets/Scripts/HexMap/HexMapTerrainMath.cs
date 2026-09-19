@@ -48,6 +48,22 @@ namespace HexMap
         }
 
         /// <summary>
+        /// 高程 → 地块层索引（生成规则分带）：按 maxElevation 升序匹配首个
+        /// elevation ≤ maxElevation 的带；超出末带上限沿用末带；空表 → 0。
+        /// 生成 Job 与重置路径共用，手动刷的地块不走此式（编辑语义优先）。
+        /// </summary>
+        public static int TerrainIndexFor(ref HexMapConfigBlob blob, int elevation)
+        {
+            var bands = blob.TerrainBands;
+            for (int i = 0; i < bands.Length; i++)
+            {
+                if (elevation <= bands[i].maxElevation)
+                    return bands[i].terrainIndex;
+            }
+            return bands.Length > 0 ? bands[bands.Length - 1].terrainIndex : 0;
+        }
+
+        /// <summary>
         /// 两个 offset 坐标的 hex 网格距离（轴坐标立方距离 (|dx|+|dy|+|dz|)/2）。
         /// 用于泉眼间距、回路防护、寻路启发。
         /// </summary>

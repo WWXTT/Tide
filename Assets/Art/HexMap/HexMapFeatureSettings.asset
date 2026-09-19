@@ -21,8 +21,8 @@ MonoBehaviour:
   noiseSeed: 1
   mountainStrength: 0.5
   curlWarpStrength: 15
-  cellCountX: 10
-  cellCountZ: 20
+  cellCountX: 100
+  cellCountZ: 100
   maxElevation: 10
   cellPerturbRange: {x: 0.85, y: 1.25}
   elevationPerturbRange: {x: 0.9, y: 1.1}

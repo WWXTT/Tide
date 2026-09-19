@@ -200,37 +200,46 @@ namespace HexMap
 
         /// <summary>
         /// 对噪声图采样（像素存于 config blob，四张图按用途独立）。
-        /// 采样仅使用 position 的 x/z；缺图（尺寸 0）返回中性值 0.5
+        /// 采样仅使用 position 的 x/z；缺图（尺寸 0）或哨兵不匹配返回中性值 0.5
         /// （顶点扰动零位移、高度居中、阈值过滤半通过）。
+        ///
+        /// ⚠ 绝不可把 BlobArray 拷贝到局部变量再索引：m_OffsetPtr 是「相对字段自身地址」
+        /// 的偏移（见 BlobBuilder.CreateBlobAssetReference 的 patch），拷贝后索引 = 栈地址 +
+        /// blob 内偏移 = 野指针，Mono 把访问冲突报成 NullReferenceException（09-19 NRE 事故根因）。
+        /// 必须通过 ref cfg 原地索引字段。
         /// </summary>
         public static float4 SampleNoise(ref HexMapConfigBlob cfg, float3 position, HexNoiseKind kind)
         {
+            // 布局哨兵：失败 = blob 来自旧布局/陈旧烘焙缓存，全部采样降级为中性值
+            if (math.asint(cfg.BlobSanity) != 0x5EEDB10B)
+                return new float4(0.5f, 0.5f, 0.5f, 0.5f);
+
             int2 size;
             float scale;
-            BlobArray<float4> pixels;
             switch (kind)
             {
                 case HexNoiseKind.Mountain:
                     size = cfg.MountainNoiseSize;
                     scale = cfg.NoiseScales.y;
-                    pixels = cfg.MountainNoisePixels;
                     break;
                 case HexNoiseKind.Detail:
                     size = cfg.DetailNoiseSize;
                     scale = cfg.NoiseScales.z;
-                    pixels = cfg.DetailNoisePixels;
                     break;
                 case HexNoiseKind.Curl:
                     size = cfg.CurlNoiseSize;
                     scale = cfg.NoiseScales.w;
-                    pixels = cfg.CurlNoisePixels;
                     break;
                 default:
                     size = cfg.HeightNoiseSize;
                     scale = cfg.NoiseScales.x;
-                    pixels = cfg.HeightNoisePixels;
                     break;
             }
+
+            // 缺图（尺寸 0）：不能进索引器——空数组的 m_OffsetPtr 为 0（Allocate 长度≤0 时不
+            // 注册 patch），索引会静默读到根结构体字段，返回 0.5 中性值
+            if (size.x <= 0 || size.y <= 0)
+                return new float4(0.5f, 0.5f, 0.5f, 0.5f);
 
             // 在 [0,1) 上平铺
             float u = math.fmod(position.x * scale, 1f);
@@ -244,7 +253,16 @@ namespace HexMap
 
             int px = math.clamp((int)(u * size.x), 0, size.x - 1);
             int py = math.clamp((int)(v * size.y), 0, size.y - 1);
-            return pixels[py * size.x + px];
+            int index = py * size.x + px;
+
+            // 原地索引（字段经 ref cfg 定位在 blob 内，偏移还原才正确）
+            switch (kind)
+            {
+                case HexNoiseKind.Mountain: return cfg.MountainNoisePixels[index];
+                case HexNoiseKind.Detail:   return cfg.DetailNoisePixels[index];
+                case HexNoiseKind.Curl:     return cfg.CurlNoisePixels[index];
+                default:                    return cfg.HeightNoisePixels[index];
+            }
         }
     }
 }

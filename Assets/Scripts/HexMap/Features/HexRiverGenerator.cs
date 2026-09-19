@@ -263,6 +263,31 @@ namespace HexMap
                 return;
             }
 
+            // 剖面修复：行进中「削平当前格接陡降」只修了前向边（cur→cand），被削的 cur
+            // 与其前驱的落差可能被拉大（A5→B5→C1 削 B 到 2，A→B 差 3）。
+            // 两遍 min 平滑（前向+后向）把整条路径压回 |Δe| ≤ maxDrop——只降不升，
+            // 与雕刻语义一致；后向遍历同时兜住「源头被削」的情形。
+            int maxDrop = math.max(1, cfg.maxElevationDropPerStep);
+            var bedE = new int[path.Count];
+            for (int i = 0; i < path.Count; i++)
+                bedE[i] = snap.GetElev(path[i]);
+            for (int i = 1; i < path.Count; i++)
+                bedE[i] = math.min(bedE[i], bedE[i - 1] + maxDrop);
+            for (int i = path.Count - 2; i >= 0; i--)
+                bedE[i] = math.min(bedE[i], bedE[i + 1] + maxDrop);
+            for (int i = 0; i < path.Count; i++)
+            {
+                if (snap.GetElev(path[i]) != bedE[i])
+                    snap.Snap[path[i].x, path[i].y] = bedE[i];
+            }
+
+            // 河岸格重新对齐其侧翼河床步的平滑后高程
+            for (int i = 0; i < bankCells.Count; i++)
+            {
+                int step = math.min(bankBedIdx[i], bedE.Length - 1);
+                snap.Snap[bankCells[i].x, bankCells[i].y] = bedE[step];
+            }
+
             // 水面后算：单调不升 + 床面上方 RiverDepth（见常量注释），河岸格与侧翼河床步同值
             var waterY = new List<float>(path.Count);
             float prevWy = float.MaxValue;
@@ -520,8 +545,9 @@ namespace HexMap
             }
         }
 
-        /// <summary>多源 BFS 距离图（河/湖格一起作河源）——植被散布的河距过滤用</summary>
-        private static void BuildRiverDistanceMap(HexFeatureSnapshot snap, HexFeatureState state)
+        /// <summary>多源 BFS 距离图（河/湖格一起作河源）——植被散布的河距过滤用；
+        /// 存档加载路径重建状态时也调用</summary>
+        public static void BuildRiverDistanceMap(HexFeatureSnapshot snap, HexFeatureState state)
         {
             state.RiverDist.Clear();
             var queue = new Queue<int2>();
