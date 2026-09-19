@@ -1,7 +1,9 @@
 // 河湖水面（计划 4.5）：透明混合、ZWrite Off、Cull Off（俯视/水下双面可见），
 // 世界 UV 微波纹（sin 扰动亮度，备用扩展：深度渐变/stencil 合并）。
 // 管线 = DanbaidongRP（URP 17.5 同 GUID 顶替），include 走 danbaidong 包路径；
-// 无 DOTS 实例化属性 → Entities Graphics 按批次常量渲染即可（同 URP Lit 上 ECS 实体）。
+// BRG（Entities Graphics/GPU Resident Drawer）要求 shader 必须存在 DOTS_INSTANCING_ON
+// 变体（UnityPerMaterial 全为批次常量也不例外），声明方式与 HexTerrain 一致：
+// include_with_pragmas DOTS.hlsl。
 Shader "HexMap/Water"
 {
     Properties
@@ -36,6 +38,10 @@ Shader "HexMap/Water"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+
+            #pragma multi_compile_instancing
+            #pragma instancing_options renderinglayer
+            #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DOTS.hlsl"
 
             #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
 

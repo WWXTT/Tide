@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -77,6 +78,20 @@ namespace HexMap
                 root.MaxElevation = s.maxElevation;
                 root.MountainStrength = math.saturate(s.mountainStrength);
                 root.CurlWarpStrength = math.max(0f, s.curlWarpStrength);
+
+                // 地形分带：按上限升序匹配首个命中；容量截断（FixedList128Bytes ≤ 15 带）
+                root.TerrainBands.Clear();
+                if (s.terrainBands != null)
+                {
+                    var bands = new List<HexTerrainBand>(s.terrainBands);
+                    bands.Sort((a, b) => a.maxElevation.CompareTo(b.maxElevation));
+                    foreach (var b in bands)
+                    {
+                        if (b.terrainIndex < 0 || root.TerrainBands.Length >= 15)
+                            continue;
+                        root.TerrainBands.Add(b);
+                    }
+                }
 
                 // 噪声图像素（四张独立；缺图 → 尺寸 0，采样返回中性值 0.5）
                 // 注意：BlobBuilder 是 struct，必须 ref 传递——按值传副本会丢失分块账本，
@@ -159,6 +174,10 @@ namespace HexMap
             }
             var s = featureSettings;
             var em = world.EntityManager;
+
+            // 运行时 POI 播种（覆盖式）：settings.pois 降级为初始种子，
+            // 之后游戏内放置/删除只改 HexPoiRuntime（存档读写也只认运行时表）
+            HexPoiRuntime.ResetFrom(s);
 
             // 清理旧配置（支持重复安装）
             using (var oldConfig = em.CreateEntityQuery(typeof(HexMapConfig)))

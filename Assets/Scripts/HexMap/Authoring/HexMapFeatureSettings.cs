@@ -18,6 +18,19 @@ namespace HexMap
     }
 
     /// <summary>
+    /// 高程→地块类型分带（生成规则）：elevation ≤ maxElevation 的首个带生效。
+    /// terrainIndex 对应贴图数组层序（表见 HexMapFeatureSettings 类注释）。
+    /// </summary>
+    [Serializable]
+    public struct HexTerrainBand
+    {
+        [Tooltip("本带上限（含）：elevation ≤ 此值落入本带。带按上限升序匹配")]
+        public int maxElevation;
+        [Tooltip("贴图数组层索引（TerrainIndex）")]
+        public int terrainIndex;
+    }
+
+    /// <summary>
     /// 地形网格重做参数（板/坡/桥/角闭合 + 六边形单元变异）。
     /// 变异的取值逐格在 mesh 构建时按坐标哈希烘焙，这里只存范围与开关。
     /// ≤0 的距离项在 Build 内回退默认值，因此旧资产缺省序列化数据也能得到合理配置。
@@ -173,6 +186,15 @@ namespace HexMap
 
         [Header("地形生成")]
         public int maxElevation = 10;
+        [Tooltip("高程→地块类型分带（生成/重置时自动分配；层序表见类注释）。手动刷的地块在只重跑特征时不被覆盖，ResetElevation 重置时回到分带值")]
+        public List<HexTerrainBand> terrainBands = new()
+        {
+            new HexTerrainBand { maxElevation = 0, terrainIndex = 7 },   // Sand 海滩/水位线
+            new HexTerrainBand { maxElevation = 3, terrainIndex = 2 },   // GrassGreen 低地草
+            new HexTerrainBand { maxElevation = 6, terrainIndex = 4 },   // Dirt 山麓
+            new HexTerrainBand { maxElevation = 9, terrainIndex = 5 },   // CliffDark 高山岩
+            new HexTerrainBand { maxElevation = 999, terrainIndex = 9 }, // Snow 雪线
+        };
 
         [Header("扰动")]
         [Tooltip("形状扰动范围：六边形半径的随机缩放比例（1 = 不扰动）")]
@@ -261,6 +283,14 @@ namespace HexMap
             roads = d;
 
             featureSeed = featureSeed == 0 ? 1u : featureSeed;   // 0 是 Random(uint seed) 的非法种子
+
+            // 分带：索引非负（顺序/越界由 Build 时排序+截断兜底）
+            for (int i = 0; i < terrainBands.Count; i++)
+            {
+                var b = terrainBands[i];
+                b.terrainIndex = Mathf.Max(0, b.terrainIndex);
+                terrainBands[i] = b;
+            }
         }
     }
 }
