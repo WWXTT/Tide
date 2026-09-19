@@ -3,6 +3,20 @@ using Unity.Mathematics;
 
 namespace HexMap
 {
+    /// <summary>噪声图用途（四张独立纹理，由 NoiseMapGenerator 工具生成）</summary>
+    public enum HexNoiseKind
+    {
+        /// <summary>主高度（Perlin）：elevation 基础</summary>
+        Height,
+        /// <summary>山脉（RidgedFBM）：按 MountainStrength 叠加到高度</summary>
+        Mountain,
+        /// <summary>侵蚀/岩石细节（Worley）：顶点扰动、高度扰动、植被聚簇。
+        /// 建议用 SplitFirst3Octaves 输出（R/G/B=三个八度）让三路去相关</summary>
+        Detail,
+        /// <summary>流场（Curl）：高度采样域扭曲</summary>
+        Curl,
+    }
+
     /// <summary>
     /// 整张地图的只读配置（Blob 资产）：
     /// 尺寸、HexMetrics 全部常量、噪声图像素、地形类型参考色。
@@ -10,6 +24,11 @@ namespace HexMap
     /// </summary>
     public struct HexMapConfigBlob
     {
+        // ---- 布局哨兵 ----
+        /// <summary>构建时写入魔数（asfloat(0x5EEDB10B)）。读取端校验失败 = blob 来自旧布局/外来路径
+        /// （例如陈旧的 SubScene 烘焙缓存），采样降级为中性值 0.5 而非 NRE。</summary>
+        public float BlobSanity;
+
         // ---- 尺寸 ----
         /// <summary>地图 offset 坐标系下的 cell 数</summary>
         public int2 CellCount;
@@ -22,7 +41,8 @@ namespace HexMap
         public float ElevationStep;
         /// <summary>形状扰动：六边形半径的随机缩放范围（1 = 不扰动）</summary>
         public float2 CellPerturbRange;
-        public float NoiseScale;
+        /// <summary>各噪声世界→UV 缩放（x=Height y=Mountain z=Detail w=Curl）</summary>
+        public float4 NoiseScales;
         public float NoiseSampleRange;
         public float2 NoiseSampleOrigin;
         /// <summary>高度扰动：台阶落差的随机缩放范围（1 = 不扰动）</summary>
@@ -30,6 +50,10 @@ namespace HexMap
 
         // ---- 地形生成 ----
         public int MaxElevation;
+        /// <summary>山脉叠加强度（Ridged 对高度的贡献，0..1）</summary>
+        public float MountainStrength;
+        /// <summary>Curl 域扭曲强度（世界单位，0=不扭曲）</summary>
+        public float CurlWarpStrength;
 
         // ---- 地形网格重做（板/坡/桥/角闭合）----
         /// <summary>坡带宽度 d（世界单位）：高 cell 板从共享边内缩的距离，坡占高 cell 面积</summary>
@@ -47,8 +71,18 @@ namespace HexMap
         /// <summary>变异哈希种子</summary>
         public uint VariationSeed;
 
-        // ---- 噪声图 ----
-        public int2 NoiseSize;
-        public BlobArray<float4> NoisePixels;
+        // ---- 噪声图（四张独立，用途各异；缺图的采样返回中性值 0.5）----
+        /// <summary>Height（Perlin）：主高度。xy=尺寸</summary>
+        public int2 HeightNoiseSize;
+        public BlobArray<float4> HeightNoisePixels;
+        /// <summary>Mountain（RidgedFBM）：山脉叠加。xy=尺寸</summary>
+        public int2 MountainNoiseSize;
+        public BlobArray<float4> MountainNoisePixels;
+        /// <summary>Detail（Worley）：侵蚀/岩石细节——顶点扰动、高度扰动、植被聚簇。xy=尺寸</summary>
+        public int2 DetailNoiseSize;
+        public BlobArray<float4> DetailNoisePixels;
+        /// <summary>Curl：流场扭曲（高度采样域扭曲）。xy=尺寸</summary>
+        public int2 CurlNoiseSize;
+        public BlobArray<float4> CurlNoisePixels;
     }
 }

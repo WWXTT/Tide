@@ -91,24 +91,11 @@ namespace HexMap
                 var position = cell.Position;
                 bool isBoundary = HexBoundary.IsBoundary(in cell, blob.CellCount);
 
-                int elevation;
-                if (isBoundary)
-                {
-                    // 边界 cell 初始固定 elevation = 0（纯初始状态偏好，运行期可自由编辑——
-                    // 网格重做后边界坡按 cell.y − bottomY 现算，无等高约束）
-                    elevation = 0;
-                    position.y = 0f;
-                }
-                else
-                {
-                    // 内部 cell 按噪声生成高度
-                    var noiseSample = HexMetrics.SampleNoise(ref blob, position);
-                    elevation = (int)math.round(noiseSample.w * blob.MaxElevation);
-                    elevation = math.clamp(elevation, 0, blob.MaxElevation);
-
-                    // 更新 Position.y（高程 × 台阶 + 有界扰动，与编辑路径共用同一公式）
-                    position.y = HexMetrics.ElevationToY(ref blob, elevation, noiseSample.y);
-                }
+                // 统一公式（HexMapTerrainMath）：边界 cell 恒 0，内部按噪声。
+                // 与重生成重置/特征路径共用，公式漂移 = 重生成结果与初次生成不一致
+                int elevation = HexMapTerrainMath.ElevationFromNoise(
+                    ref blob, position, isBoundary, out float y);
+                position.y = y;
 
                 cell.Elevation = elevation;
                 cell.TerrainIndex = 0;

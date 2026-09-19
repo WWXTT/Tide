@@ -123,7 +123,7 @@ namespace NoiseMapGenerator
             tileRepeats = EditorGUILayout.IntSlider("Preview Tiling", tileRepeats, 1, 64);
             seed = EditorGUILayout.IntSlider("Seed", seed, 0, int.MaxValue);
             octaves = EditorGUILayout.IntSlider("Octaves", octaves, 1, 12);
-            frequency = EditorGUILayout.Slider("Frequency", frequency, 0.001f, 2f);
+            frequency = EditorGUILayout.Slider("Frequency", frequency, 0.001f, 8f);
             lacunarity = EditorGUILayout.Slider("Lacunarity", lacunarity, 1f, 8f);
             gain = EditorGUILayout.Slider("Gain", gain, 0f, 1f);
             normalize = EditorGUILayout.Toggle("Normalize 0..1", normalize);

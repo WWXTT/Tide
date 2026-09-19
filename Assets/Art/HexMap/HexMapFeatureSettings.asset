@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a05c38327d378ec4793a1cdd1bc2745e, type: 3}
+  m_Name: HexMapFeatureSettings
+  m_EditorClassIdentifier: HexMap.ECS::HexMap.HexMapFeatureSettings
+  heightNoise: {fileID: 2800000, guid: 7c2f9a1d4e6b8305af1c2d3e4b5a6c7d, type: 3}
+  mountainNoise: {fileID: 2800000, guid: 2d8e4b7a1c9f3056be7d8c9a0f1e2d3c, type: 3}
+  detailNoise: {fileID: 2800000, guid: e6b1c4a7d92f4b03a1e5f8c2d70b4a19, type: 3}
+  curlNoise: {fileID: 2800000, guid: 9a3c5e7b1d2f4806cb4e5f60718293a4, type: 3}
+  noiseScales: {x: 0.003, y: 0.003, z: 0.003, w: 0.003}
+  noiseSampleRange: 1
+  noiseSeed: 1
+  mountainStrength: 0.5
+  curlWarpStrength: 15
+  cellCountX: 10
+  cellCountZ: 20
+  maxElevation: 10
+  cellPerturbRange: {x: 0.85, y: 1.25}
+  elevationPerturbRange: {x: 0.9, y: 1.1}
+  meshSettings:
+    slopeInset: 2
+    slopeSubdivisions: 4
+    rimNormalBlend: 1
+    variationEnabled: 1
+    variationScaleRange: {x: 0.85, y: 1.25}
+    variationFadeWidth: 0
+    variationSeed: 24301
+  terrainMaterial: {fileID: 2100000, guid: c0ac3ce1f15f74768acd4c2e5c885301, type: 2}
+  loadRadius: 20
+  unloadRadius: 30
+  maxCellCreationsPerFrame: 100
+  maxMeshBuildsPerFrame: 100
+  enableFeatures: 1
+  featureSeed: 333538
+  rivers:
+    springNoiseThresholdElevation: 0
+    springMinSpacing: 4
+    maxSprings: 3
+    initialCarveAllowance: 1
+    maxCarveAllowance: 3
+    widthGrowPerStep: 0.06
+    widthTwoCellThreshold: 1.6
+    dryUpWidth: 0.5
+    minRiverLength: 6
+    maxLakeCells: 40
+    maxElevationDropPerStep: 1
+    riverBedTerrainIndex: -1
+  roads:
+    connectionsPerNode: 2
+    maxConnectionsTotal: 3
+    minConnectionAngle: 60
+    maxHeightCost: 2
+    riverCrossCost: 40
+    boundaryCost: 5
+    roadHalfWidth: 0
+    sampleStep: 2
+    uvScale: 0.1
+  scatterRules: []
+  pois: []
+  waterMaterial: {fileID: 2100000, guid: cd9dacc537d60e54f80131f2262cde0a, type: 2}
+  roadMaterial: {fileID: 2100000, guid: f31d0224f2279914fb665b7ad68c7f92, type: 2}

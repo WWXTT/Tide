@@ -249,14 +249,14 @@ namespace NoiseMapGenerator
             float jx = (Frand01(ref h) - 0.5f) * cellSize;
             float jy = (Frand01(ref h) - 0.5f) * cellSize;
             float ang = Frand01(ref h) * Mathf.PI * 2f;
-            float fr  = Mathf.Lerp(2f, 12f, Frand01(ref h));
+            float cycles = Mathf.Lerp(1.5f, 4f, Frand01(ref h));    // kernel 宽度内的载波周期数
             float ph  = Frand01(ref h) * Mathf.PI * 2f;
-            float sig = Mathf.Lerp(0.004f, 0.025f, Frand01(ref h));
+            float sig = Mathf.Lerp(0.35f, 0.8f, Frand01(ref h)) * cellSize; // footprint 随网格 cell 缩放
             return new GaborKernel
             {
                 cx = uu + jx, cy = vv + jy,
                 dx = Mathf.Cos(ang), dy = Mathf.Sin(ang),
-                freq = fr, phase = ph,
+                freq = cycles / cellSize, phase = ph,
                 sigma2 = sig * sig
             };
         }
@@ -269,6 +269,11 @@ namespace NoiseMapGenerator
 
         public static float GaborNoise(float u, float v, uint seed, float freqScale)
         {
+            // 域缩放（FBM 与 SplitFirst3Octaves 会把 u/v 乘 lacunarity 推到 >1）必须先包回 [0,1) 环面，
+            // 否则 TorusDist 得到负距离 → 高斯包络全灭，输出退化为噪声底
+            u -= Mathf.Floor(u);
+            v -= Mathf.Floor(v);
+
             // Cell count scales with frequency
             int res = Mathf.Clamp(Mathf.RoundToInt(freqScale * 12f), 3, 64);
             float invRes = 1f / res;
@@ -426,6 +431,12 @@ namespace NoiseMapGenerator
             }
             else // SplitFirst3Octaves → RGB
             {
+                // 三通道先落 float 图，Normalize 开时逐通道 min-max 拉伸
+                //（split 模式的核求和会把对比度平均掉，不拉伸则输出几乎全灰）
+                var rMap = new float[outW * outH];
+                var gMap = new float[outW * outH];
+                var bMap = new float[outW * outH];
+
                 for (int y = 0; y < outH; y++)
                 for (int x = 0; x < outW; x++)
                 {
@@ -445,17 +456,41 @@ namespace NoiseMapGenerator
                         };
                     }
 
-                    float r = SampleOctave(0);
-                    float g = SampleOctave(1);
-                    float b = SampleOctave(2);
-                    outPixels[y * outW + x] = new Color32(
-                        (byte)Mathf.Clamp(Mathf.RoundToInt(r * 255f), 0, 255),
-                        (byte)Mathf.Clamp(Mathf.RoundToInt(g * 255f), 0, 255),
-                        (byte)Mathf.Clamp(Mathf.RoundToInt(b * 255f), 0, 255),
-                        255);
+                    int i = y * outW + x;
+                    rMap[i] = SampleOctave(0);
+                    gMap[i] = SampleOctave(1);
+                    bMap[i] = SampleOctave(2);
                 }
+
+                if (s.Normalize)
+                {
+                    NormalizeMap(rMap);
+                    NormalizeMap(gMap);
+                    NormalizeMap(bMap);
+                }
+
+                for (int i = 0; i < rMap.Length; i++)
+                    outPixels[i] = new Color32(
+                        (byte)Mathf.Clamp(Mathf.RoundToInt(rMap[i] * 255f), 0, 255),
+                        (byte)Mathf.Clamp(Mathf.RoundToInt(gMap[i] * 255f), 0, 255),
+                        (byte)Mathf.Clamp(Mathf.RoundToInt(bMap[i] * 255f), 0, 255),
+                        255);
             }
             return true;
+        }
+
+        /// <summary>分位数稳健归一化到 0..1：先按 0.2%/99.8% 分位裁剪再拉伸、钳 0..1。
+        /// 纯 min-max 会被核中心尖峰等离群值吃掉主体对比度（Gabor 尤甚）。</summary>
+        static void NormalizeMap(float[] map)
+        {
+            var sorted = (float[])map.Clone();
+            System.Array.Sort(sorted);
+            int n = sorted.Length;
+            float lo = sorted[(int)(n * 0.002f)];
+            float hi = sorted[(int)(n * 0.998f)];
+            float inv = hi > lo ? 1f / (hi - lo) : 0f;
+            for (int i = 0; i < map.Length; i++)
+                map[i] = Mathf.Clamp01((map[i] - lo) * inv);
         }
 
         public static Texture2D CreatePreview(NoiseBakeSettings s, int repeatsUV)
@@ -478,29 +513,37 @@ namespace NoiseMapGenerator
                 System.IO.Directory.CreateDirectory(basePath);
 
             string assetName = s.BaseName;
-            string fullPath = $"{basePath}/{assetName}.asset";
+            string fullPath = $"{basePath}/{assetName}.png";
 
             if (!s.Overwrite)
             {
                 int suffix = 1;
                 while (System.IO.File.Exists(fullPath))
-                    fullPath = $"{basePath}/{assetName}_{suffix++:D3}.asset";
+                    fullPath = $"{basePath}/{assetName}_{suffix++:D3}.png";
             }
 
-            Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false)
-            {
-                wrapMode = TextureWrapMode.Repeat,
-                alphaIsTransparency = false
-            };
+            // 统一导出 PNG（不再存 .asset）：走 TextureImporter，
+            // isReadable/可平铺/不压缩——与噪声 blob 的 GetPixels 管线兼容
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
             tex.SetPixels32(pixels);
-            tex.Apply(false);
+            System.IO.File.WriteAllBytes(fullPath, tex.EncodeToPNG());
+            UnityEngine.Object.DestroyImmediate(tex);
 
-            AssetDatabase.CreateAsset(tex, fullPath);
+            AssetDatabase.ImportAsset(fullPath);
+            if (AssetImporter.GetAtPath(fullPath) is TextureImporter imp)
+            {
+                imp.isReadable = true;
+                imp.textureCompression = TextureImporterCompression.Uncompressed;
+                imp.mipmapEnabled = false;
+                imp.wrapMode = TextureWrapMode.Repeat;
+                imp.SaveAndReimport();
+            }
+
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
             EditorUtility.DisplayDialog("Noise Map Generator", $"Saved to: {fullPath}", "OK");
-            EditorGUIUtility.PingObject(tex);
+            EditorGUIUtility.PingObject(AssetDatabase.LoadAssetAtPath<Texture2D>(fullPath));
         }
     }
 }

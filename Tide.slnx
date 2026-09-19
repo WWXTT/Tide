@@ -2,10 +2,10 @@
   <Project Path="Unity.RenderPipelines.Universal.Editor.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Runtime.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.2D.Runtime.csproj" />
-  <Project Path="HexMap.ECS.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
-  <Project Path="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
+  <Project Path="HexMap.ECS.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
+  <Project Path="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
   <Project Path="PPv2URPConverters.csproj" />
   <Project Path="Unity.SmoothNormalTool.Editor.csproj" />
   <Project Path="Unity.SmoothNormalTool.Runtime.csproj" />
