@@ -1,4 +1,3 @@
-using System;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -20,42 +19,8 @@ namespace HexMap
     }
 
     /// <summary>
-    /// 地形网格重做参数（板/坡/桥/角闭合 + 六边形单元变异）。
-    /// 变异的取值逐格在 mesh 构建时按坐标哈希烘焙，这里只存范围与开关。
-    /// ≤0 的距离项在 Build 内回退默认值，因此旧场景缺省序列化数据也能得到合理配置。
-    /// </summary>
-    [Serializable]
-    public struct HexMeshRewriteSettings
-    {
-        [Tooltip("坡带宽度 d（世界单位）：高 cell 顶面从共享边内缩的距离，坡占高 cell 面积。≤0 = 默认 InnerRadius×BlendFactor")]
-        public float slopeInset;
-        [Tooltip("坡/桥沿边横向细分数")]
-        [Range(1, 8)] public int slopeSubdivisions;
-        [Tooltip("rim 法线融合系数：0=硬边，1=全融合（smoothnormal 风格烘焙，材质改不动）")]
-        [Range(0f, 1f)] public float rimNormalBlend;
-        [Tooltip("六边形单元变异（逐格 UV 旋转/缩放/偏移，边界与远距淡回纯平铺）")]
-        public bool variationEnabled;
-        [Tooltip("逐格缩放范围（1=不变）")]
-        public Vector2 variationScaleRange;
-        [Tooltip("板内环距：变异权重从内环 1 渐到边环 0 的环宽。≤0 = 默认 InnerRadius×0.45")]
-        public float variationFadeWidth;
-        [Tooltip("变异哈希种子")]
-        public uint variationSeed;
-
-        public static HexMeshRewriteSettings Default => new HexMeshRewriteSettings
-        {
-            slopeInset = 0f,
-            slopeSubdivisions = 4,
-            rimNormalBlend = 1f,
-            variationEnabled = true,
-            variationScaleRange = new Vector2(0.85f, 1.25f),
-            variationFadeWidth = 0f,
-            variationSeed = 0x5EEDu,
-        };
-    }
-
-    /// <summary>
     /// HexMapConfigBlob 的构建逻辑，运行时安装与 Baker 烘焙共用。
+    /// 全部参数来自 HexMapFeatureSettings 资产（地形与特征的唯一配置处）。
     /// </summary>
     public static class HexMapConfigBuilder
     {
@@ -64,41 +29,36 @@ namespace HexMap
         public const float InnerRadius = OuterRadius * 0.866025404f;
         public const float SolidFactor = 0.8f;
         public const float ElevationStep = 3f;
-        public const float NoiseScale = 0.003f;
 
-        public static BlobAssetReference<HexMapConfigBlob> Build(
-            Texture2D noiseSource,
-            float noiseSampleRange,
-            int noiseSeed,
-            int cellCountX,
-            int cellCountZ,
-            int maxElevation,
-            Vector2 cellPerturbRange,
-            Vector2 elevationPerturbRange,
-            in HexMeshRewriteSettings mesh)
+        public static BlobAssetReference<HexMapConfigBlob> Build(HexMapFeatureSettings s)
         {
             var builder = new BlobBuilder(Allocator.Temp);
             try
             {
                 ref var root = ref builder.ConstructRoot<HexMapConfigBlob>();
 
-                root.CellCount = new int2(cellCountX, cellCountZ);
+                root.BlobSanity = math.asfloat(0x5EEDB10Bu);
+
+                root.CellCount = new int2(s.cellCountX, s.cellCountZ);
 
                 root.OuterRadius = OuterRadius;
                 root.InnerRadius = InnerRadius;
                 root.SolidFactor = SolidFactor;
                 root.BlendFactor = 1f - SolidFactor;
                 root.ElevationStep = ElevationStep;
-                root.NoiseScale = NoiseScale;
+                root.NoiseScales = new float4(
+                    math.max(0.0001f, s.noiseScales.x), math.max(0.0001f, s.noiseScales.y),
+                    math.max(0.0001f, s.noiseScales.z), math.max(0.0001f, s.noiseScales.w));
                 // 扰动范围钳制：cell 缩放 0.5~1.5（防止六边形翻转），高度缩放 0.5~1.5（防止相邻 cell 高度交叉）
                 root.CellPerturbRange = new float2(
-                    math.clamp(cellPerturbRange.x, 0.5f, 1.5f),
-                    math.clamp(cellPerturbRange.y, 0.5f, 1.5f));
+                    math.clamp(s.cellPerturbRange.x, 0.5f, 1.5f),
+                    math.clamp(s.cellPerturbRange.y, 0.5f, 1.5f));
                 root.ElevationPerturbRange = new float2(
-                    math.clamp(elevationPerturbRange.x, 0.5f, 1.5f),
-                    math.clamp(elevationPerturbRange.y, 0.5f, 1.5f));
+                    math.clamp(s.elevationPerturbRange.x, 0.5f, 1.5f),
+                    math.clamp(s.elevationPerturbRange.y, 0.5f, 1.5f));
 
                 // ---- 网格重做参数（防呆钳制；≤0 的距离项回退默认）----
+                var mesh = s.meshSettings;
                 float defaultInset = InnerRadius * (1f - SolidFactor);
                 root.SlopeInset = mesh.slopeInset > 0f
                     ? math.clamp(mesh.slopeInset, 0.01f, InnerRadius * 0.5f)
@@ -114,29 +74,27 @@ namespace HexMap
                     : InnerRadius * 0.45f;
                 root.VariationSeed = mesh.variationSeed;
 
-                root.MaxElevation = maxElevation;
+                root.MaxElevation = s.maxElevation;
+                root.MountainStrength = math.saturate(s.mountainStrength);
+                root.CurlWarpStrength = math.max(0f, s.curlWarpStrength);
 
-                // 噪声图像素
-                if (noiseSource != null)
-                {
-                    var pixels = noiseSource.GetPixels();
-                    root.NoiseSize = new int2(noiseSource.width, noiseSource.height);
-                    var blobPixels = builder.Allocate(ref root.NoisePixels, pixels.Length);
-                    for (int i = 0; i < pixels.Length; i++)
-                        blobPixels[i] = new float4(pixels[i].r, pixels[i].g, pixels[i].b, pixels[i].a);
-                }
-                else
-                {
-                    root.NoiseSize = int2.zero;
-                    builder.Allocate(ref root.NoisePixels, 0);
-                    Debug.LogWarning("[HexMap] noiseSource 未赋值，地形将为全 0 高度");
-                }
+                // 噪声图像素（四张独立；缺图 → 尺寸 0，采样返回中性值 0.5）
+                // 注意：BlobBuilder 是 struct，必须 ref 传递——按值传副本会丢失分块账本，
+                // 分配出的数组偏移无效 → 采样时 BlobArray 解引用 NRE
+                BakeNoise(ref builder, s.heightNoise,
+                    ref root.HeightNoiseSize, ref root.HeightNoisePixels, "heightNoise(Perlin)");
+                BakeNoise(ref builder, s.mountainNoise,
+                    ref root.MountainNoiseSize, ref root.MountainNoisePixels, "mountainNoise(Ridged)");
+                BakeNoise(ref builder, s.detailNoise,
+                    ref root.DetailNoiseSize, ref root.DetailNoisePixels, "detailNoise(Worley)");
+                BakeNoise(ref builder, s.curlNoise,
+                    ref root.CurlNoiseSize, ref root.CurlNoisePixels, "curlNoise(Curl)");
 
                 // 采样窗口：与旧版 HexGrid.ApplyNoiseSampling 一致
-                float range = math.clamp(noiseSampleRange, 0.05f, 1f);
+                float range = math.clamp(s.noiseSampleRange, 0.05f, 1f);
                 root.NoiseSampleRange = range;
                 float span = 1f - range;
-                var rng = new System.Random(noiseSeed);
+                var rng = new System.Random(s.noiseSeed);
                 root.NoiseSampleOrigin = new float2(
                     (float)rng.NextDouble() * span,
                     (float)rng.NextDouble() * span);
@@ -148,49 +106,40 @@ namespace HexMap
                 builder.Dispose();
             }
         }
+
+        /// <summary>烘焙一张噪声图进 blob（RGBA 像素全保留；缺图 → 尺寸 0 + 警告）。
+        /// builder 必须 ref 传（struct，按值传副本会丢失分块账本 → 数组偏移无效）。</summary>
+        private static void BakeNoise(ref BlobBuilder builder, Texture2D tex,
+            ref int2 size, ref BlobArray<float4> pixels, string what)
+        {
+            if (tex != null)
+            {
+                var raw = tex.GetPixels();
+                size = new int2(tex.width, tex.height);
+                var dst = builder.Allocate(ref pixels, raw.Length);
+                for (int i = 0; i < raw.Length; i++)
+                    dst[i] = new float4(raw[i].r, raw[i].g, raw[i].b, raw[i].a);
+            }
+            else
+            {
+                size = int2.zero;
+                builder.Allocate(ref pixels, 0);
+                Debug.LogWarning($"[HexMap] {what} 未赋值，该路采样退化为中性值 0.5");
+            }
+        }
     }
 
     /// <summary>
     /// 地图作者组件（替代旧版 HexGrid）。
+    /// 全部引用与参数在 HexMapFeatureSettings 资产上，本组件只持有资产引用。
     /// 直接放在场景 GameObject 上即可：OnEnable 时手动构建 HexMapConfig 单例（无需 SubScene）。
     /// 放入 SubScene 时则由 HexMapAuthoringBaker 烘焙，两者共用同一构建逻辑。
     /// </summary>
     [DisallowMultipleComponent]
     public class HexMapAuthoring : MonoBehaviour
     {
-        [Header("Noise Sampling")]
-        public Texture2D noiseSource;
-        [Range(0.05f, 1f)] public float noiseSampleRange = 1f;
-        public int noiseSeed = 0;
-
-        [Header("Map Size (cells)")]
-        public int cellCountX = 1;
-        public int cellCountZ = 1;
-
-        [Header("Terrain Generation")]
-        public int maxElevation = 6;
-
-        [Header("Perturbation (Random Variation)")]
-        [Tooltip("形状扰动范围：六边形半径的随机缩放比例（1 = 不扰动，0.8~1.2 推荐）")]
-        public Vector2 cellPerturbRange = new Vector2(0.8f, 1.2f);
-        [Tooltip("高度扰动范围：台阶落差的随机缩放比例（1 = 不扰动，0.8~1.2 推荐）")]
-        public Vector2 elevationPerturbRange = new Vector2(0.8f, 1.2f);
-
-        [Header("Terrain Mesh Rewrite (Plate/Slope/Corner)")]
-        public HexMeshRewriteSettings meshSettings = HexMeshRewriteSettings.Default;
-
-        [Header("Rendering")]
-        public Material terrainMaterial;
-
-        [Header("Streaming")]
-        [Tooltip("加载半径（cell 单位）。摄像机周围此距离内的 cell 保持加载")]
-        public float loadRadius = 15f;
-        [Tooltip("卸载半径（cell 单位）。超出此距离的 cell 会被卸载。应大于 loadRadius")]
-        public float unloadRadius = 30f;
-        [Tooltip("每帧最多创建的 cell 数")]
-        public int maxCellCreationsPerFrame = 100;
-        [Tooltip("每帧最多重建网格的 cell 数")]
-        public int maxMeshBuildsPerFrame = 50;
+        [Tooltip("HexMap 唯一配置资产（地形参数/引用 + 特征配置），右键 Create>HexMap>Feature Settings")]
+        public HexMapFeatureSettings featureSettings;
 
         /// <summary>
         /// 构建配置单例。可重复调用（先清理旧单例）。
@@ -203,6 +152,12 @@ namespace HexMap
                 Debug.LogWarning("[HexMap] Default World 尚未创建，HexMapAuthoring.Install 跳过");
                 return;
             }
+            if (featureSettings == null)
+            {
+                Debug.LogError("[HexMap] featureSettings 资产未赋值，HexMapAuthoring 无法安装配置");
+                return;
+            }
+            var s = featureSettings;
             var em = world.EntityManager;
 
             // 清理旧配置（支持重复安装）
@@ -211,8 +166,7 @@ namespace HexMap
                 em.DestroyEntity(oldConfig);
             }
 
-            var blob = HexMapConfigBuilder.Build(noiseSource, noiseSampleRange, noiseSeed,
-                cellCountX, cellCountZ, maxElevation, cellPerturbRange, elevationPerturbRange, meshSettings);
+            var blob = HexMapConfigBuilder.Build(s);
 
             var configEntity = em.CreateEntity(typeof(HexMapConfig));
 #if ENABLE_HEX_DEBUG_LABEL
@@ -221,16 +175,42 @@ namespace HexMap
             em.SetComponentData(configEntity, new HexMapConfig
             {
                 Blob = blob,
-                TerrainMaterial = terrainMaterial,
-                LoadRadius = loadRadius,
-                UnloadRadius = math.max(unloadRadius, loadRadius + 1f),
-                MaxCellCreationsPerFrame = math.max(1, maxCellCreationsPerFrame),
-                MaxMeshBuildsPerFrame = math.max(1, maxMeshBuildsPerFrame),
+                TerrainMaterial = s.terrainMaterial,
+                LoadRadius = s.loadRadius,
+                UnloadRadius = math.max(s.unloadRadius, s.loadRadius + 1f),
+                MaxCellCreationsPerFrame = math.max(1, s.maxCellCreationsPerFrame),
+                MaxMeshBuildsPerFrame = math.max(1, s.maxMeshBuildsPerFrame),
             });
 
-            Debug.Log($"[HexMap] 配置已安装: CellCount=({cellCountX},{cellCountZ}), " +
+            Debug.Log($"[HexMap] 配置已安装: CellCount=({s.cellCountX},{s.cellCountZ}), " +
                       $"InnerRadius={blob.Value.InnerRadius}, OuterRadius={blob.Value.OuterRadius}, " +
-                      $"LoadRadius={loadRadius}");
+                      $"LoadRadius={s.loadRadius}");
+            Debug.Log("[HexMap] 噪声blob（尺寸×像素数，像素数=0 表示该路未接线）: " +
+                      $"H {blob.Value.HeightNoiseSize.x}×{blob.Value.HeightNoisePixels.Length}, " +
+                      $"M {blob.Value.MountainNoiseSize.x}×{blob.Value.MountainNoisePixels.Length}, " +
+                      $"D {blob.Value.DetailNoiseSize.x}×{blob.Value.DetailNoisePixels.Length}, " +
+                      $"C {blob.Value.CurlNoiseSize.x}×{blob.Value.CurlNoisePixels.Length}");
+
+            // 特征单例（托管）：河流/道路/植被生成配置与运行状态。
+            // 重复安装时先销毁旧单例（含重生成请求残留）
+            using (var oldFeature = em.CreateEntityQuery(typeof(HexFeatureConfig), typeof(HexFeatureState)))
+            {
+                em.DestroyEntity(oldFeature);
+            }
+            if (s.enableFeatures)
+            {
+                var featureEntity = em.CreateEntity(typeof(HexFeatureConfig), typeof(HexFeatureState));
+#if ENABLE_HEX_DEBUG_LABEL
+                em.AddComponentData(featureEntity, new EntityDebugLabel { Group = "HexFeature" });
+#endif
+                em.SetComponentData(featureEntity, new HexFeatureConfig
+                {
+                    Settings = s,
+                    WaterMaterial = s.waterMaterial,
+                    RoadMaterial = s.roadMaterial,
+                });
+                em.SetComponentData(featureEntity, new HexFeatureState());
+            }
 
             // 摄像机数据单例（若不存在则创建并初始化）
             using (var camQuery = em.CreateEntityQuery(typeof(HexMapCameraData)))
@@ -249,7 +229,7 @@ namespace HexMap
             }
 
             // MonoBehaviour 层静态边界信息（HexMapCamera 使用）
-            HexMapRuntime.CellCount = new int2(cellCountX, cellCountZ);
+            HexMapRuntime.CellCount = new int2(s.cellCountX, s.cellCountZ);
             HexMapRuntime.InnerRadius = HexMapConfigBuilder.InnerRadius;
             HexMapRuntime.OuterRadius = HexMapConfigBuilder.OuterRadius;
 
@@ -285,24 +265,40 @@ namespace HexMap
     {
         public override void Bake(HexMapAuthoring authoring)
         {
-            DependsOn(authoring.noiseSource);
-            DependsOn(authoring.terrainMaterial);
+            var s = authoring.featureSettings;
+            if (s == null)
+            {
+                Debug.LogWarning("[HexMap] HexMapAuthoring.featureSettings 未赋值，烘焙跳过");
+                return;
+            }
+            DependsOn(s);
+            DependsOn(s.heightNoise);
+            DependsOn(s.mountainNoise);
+            DependsOn(s.detailNoise);
+            DependsOn(s.curlNoise);
+            DependsOn(s.terrainMaterial);
 
-            var blob = HexMapConfigBuilder.Build(authoring.noiseSource, authoring.noiseSampleRange,
-                authoring.noiseSeed, authoring.cellCountX, authoring.cellCountZ,
-                authoring.maxElevation, authoring.cellPerturbRange, authoring.elevationPerturbRange,
-                authoring.meshSettings);
+            var blob = HexMapConfigBuilder.Build(s);
 
             var entity = GetEntity(TransformUsageFlags.None);
             AddComponent(entity, new HexMapConfig
             {
                 Blob = blob,
-                TerrainMaterial = authoring.terrainMaterial,
-                LoadRadius = authoring.loadRadius,
-                UnloadRadius = math.max(authoring.unloadRadius, authoring.loadRadius + 1f),
-                MaxCellCreationsPerFrame = math.max(1, authoring.maxCellCreationsPerFrame),
-                MaxMeshBuildsPerFrame = math.max(1, authoring.maxMeshBuildsPerFrame),
+                TerrainMaterial = s.terrainMaterial,
+                LoadRadius = s.loadRadius,
+                UnloadRadius = math.max(s.unloadRadius, s.loadRadius + 1f),
+                MaxCellCreationsPerFrame = math.max(1, s.maxCellCreationsPerFrame),
+                MaxMeshBuildsPerFrame = math.max(1, s.maxMeshBuildsPerFrame),
             });
+
+            // 特征单例（HexFeatureConfig/State 是托管组件，Baker 的泛型 AddComponent
+            // 只接受非托管类型——SubScene 路径不装特征单例，特征系统只在 Install 路径生效。
+            // 本项目 HexMapAuthoring 挂在场景 GameObject 上走 Install，SubScene 仅备用）
+            if (s.enableFeatures)
+            {
+                Debug.LogWarning("[HexMap] SubScene/Baker 路径未安装特征单例（托管组件），" +
+                                 "请用场景 GameObject 的 Install 路径启用特征生成");
+            }
         }
     }
 }

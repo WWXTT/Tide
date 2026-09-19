@@ -548,27 +548,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9d0124804f9aaf440b2d2b61be8fbe72, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  noiseSource: {fileID: 2800000, guid: 0d4a0a08cb4038643ba193bfc7910bda, type: 3}
-  noiseSampleRange: 1
-  noiseSeed: 1
-  cellCountX: 10
-  cellCountZ: 20
-  maxElevation: 10
-  cellPerturbRange: {x: 0.85, y: 1.25}
-  elevationPerturbRange: {x: 0.9, y: 1.1}
-  meshSettings:
-    slopeInset: 2
-    slopeSubdivisions: 4
-    rimNormalBlend: 1
-    variationEnabled: 1
-    variationScaleRange: {x: 0.85, y: 1.25}
-    variationFadeWidth: 0
-    variationSeed: 24301
-  terrainMaterial: {fileID: 2100000, guid: c0ac3ce1f15f74768acd4c2e5c885301, type: 2}
-  loadRadius: 20
-  unloadRadius: 30
-  maxCellCreationsPerFrame: 100
-  maxMeshBuildsPerFrame: 100
+  featureSettings: {fileID: 11400000, guid: c50b5ba365f85aa43990a77fff2e90d6, type: 2}
 --- !u!4 &413633939
 Transform:
   m_ObjectHideFlags: 0

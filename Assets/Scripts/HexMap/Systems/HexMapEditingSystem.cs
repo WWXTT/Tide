@@ -77,13 +77,17 @@ namespace HexMap
             }
 
             var ray = cam.ScreenPointToRay(Input.mousePosition);
-            if (!PickCell(ray, ref blob, in metrics, streaming.CellLookup, out var cellEntity))
+            if (!HexMapCellEditUtil.PickCell(ray, EntityManager, ref blob, in metrics,
+                    streaming.CellLookup, out var cellEntity, out _))
                 return;
 
             if (elevate)
             {
                 bool lower = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                ApplyElevation(cellEntity, lower ? -1 : 1, ref blob);
+                int delta = lower ? -1 : 1;
+                var cell = EntityManager.GetComponentData<HexCellData>(cellEntity);
+                HexMapCellEditUtil.ApplyElevation(EntityManager, cellEntity,
+                    cell.Elevation + delta, ref blob);
             }
             else
             {
@@ -105,48 +109,6 @@ namespace HexMap
             return Object.FindFirstObjectByType<Camera>();
         }
 
-        /// <summary>
-        /// 射线步进拾取：沿视线步进，命中条件是「位于某 cell 列内且已降到该 cell
-        /// 顶面以下」。步长 0.5（cell 宽 ~17，误差可忽略），视线向下且越过最低
-        /// 地面后提前退出。
-        /// </summary>
-        private bool PickCell(Ray ray, ref HexMapConfigBlob blob, in HexMetrics metrics,
-            NativeHashMap<int2, Entity> lookup, out Entity cellEntity)
-        {
-            cellEntity = Entity.Null;
-            var em = EntityManager;
-            const float step = 0.5f;
-            // 视线朝下：走到穿过 y=0 平面再走 50 单位即可；否则走满诊断距离
-            float descent = ray.direction.y < -0.05f
-                ? ((float3)ray.origin).y / -ray.direction.y + 50f
-                : 3000f;
-            float maxDist = math.clamp(descent, 50f, 3000f);
-
-            for (float t = step; t < maxDist; t += step)
-            {
-                float3 p = (float3)ray.origin + (float3)ray.direction * t;
-
-                var offset = HexCoordinates.FromPosition(p, in metrics).ToOffsetCoordinates();
-                bool inBounds = offset.x >= 0 && offset.x < blob.CellCount.x &&
-                                offset.y >= 0 && offset.y < blob.CellCount.y;
-
-                if (inBounds && lookup.TryGetValue(offset, out var e) && em.HasComponent<HexCellData>(e))
-                {
-                    var cell = em.GetComponentData<HexCellData>(e);
-                    // Elevation >= 0：地形已生成（-1 是 TerrainPending 哨兵）
-                    if (cell.Elevation >= 0 && p.y <= cell.Position.y + 0.75f)
-                    {
-                        cellEntity = e;
-                        return true;
-                    }
-                }
-
-                if (p.y < -10f && ray.direction.y < 0f)
-                    return false;
-            }
-            return false;
-        }
-
         private void ApplyTerrain(Entity cellEntity, int terrainIndex, ref HexMapConfigBlob blob)
         {
             var em = EntityManager;
@@ -157,50 +119,7 @@ namespace HexMap
 
             cell.TerrainIndex = terrainIndex;
             em.SetComponentData(cellEntity, cell);
-            MarkCellAndNeighborsDirty(cellEntity);
-        }
-
-        private void ApplyElevation(Entity cellEntity, int delta, ref HexMapConfigBlob blob)
-        {
-            var em = EntityManager;
-            var cell = em.GetComponentData<HexCellData>(cellEntity);
-
-            // 边界 cell 允许编辑（网格重做后）：边界坡高度 = cell.y − bottomY 现算，
-            // 角落吸收按实际高度走，任意高度组合构造性水密（旧版裙边等高约束已不存在）。
-            int newElevation = math.clamp(cell.Elevation + delta, 0, blob.MaxElevation);
-            if (newElevation == cell.Elevation)
-                return;
-
-            // 与 HexTerrainGenerationSystem 相同的 y 公式：台阶 × 噪声缩放。
-            // SampleNoise 只用 x/z，用当前位置重采样结果稳定
-            var noise = HexMetrics.SampleNoise(ref blob, cell.Position);
-            cell.Elevation = newElevation;
-            cell.Position = new float3(
-                cell.Position.x,
-                HexMetrics.ElevationToY(ref blob, newElevation, noise.y),
-                cell.Position.z);
-
-            em.SetComponentData(cellEntity, cell);
-            MarkCellAndNeighborsDirty(cellEntity);
-        }
-
-        /// <summary>cell 与 6 路邻居全部标脏：边缘条带/扇面嵌入了双方的索引与高度</summary>
-        private void MarkCellAndNeighborsDirty(Entity cellEntity)
-        {
-            var em = EntityManager;
-            if (em.HasComponent<CellDirty>(cellEntity))
-                em.SetComponentEnabled<CellDirty>(cellEntity, true);
-
-            if (!em.HasBuffer<Neighbors>(cellEntity))
-                return;
-
-            var neighbors = em.GetBuffer<Neighbors>(cellEntity);
-            for (int d = 0; d < neighbors.Length; d++)
-            {
-                var n = neighbors[d].Value;
-                if (n != Entity.Null && em.HasComponent<CellDirty>(n))
-                    em.SetComponentEnabled<CellDirty>(n, true);
-            }
+            HexMapCellEditUtil.MarkCellAndNeighborsDirty(em, cellEntity);
         }
 
         /// <summary>

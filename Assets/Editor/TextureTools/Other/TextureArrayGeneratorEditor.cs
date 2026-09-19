@@ -22,7 +22,7 @@ public class TextureArrayGeneratorEditor : EditorWindow
     private List<Texture2D> textures = new List<Texture2D>();
 
     private int targetSize = 1024;
-    private string outputFolder = "Assets/UI/HexMap/_Materials/GeneratedTextures";
+    private string outputFolder = "Assets/Art/HexMap";
 
     // 每种类型记住各自的数组文件名
     private readonly Dictionary<TextureKind, string> arrayNames = new Dictionary<TextureKind, string>

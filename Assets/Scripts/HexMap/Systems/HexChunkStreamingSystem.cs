@@ -113,6 +113,29 @@ namespace HexMap
         }
 
         /// <summary>
+        /// 无视加载半径与帧预算，同步补建全图缺失的 cell。
+        /// 特征重生成入口（特征生成需要全图高程视野）；已存在的 cell 不动，
+        /// 新建 cell 带 TerrainPending，由 HexTerrainGenerationSystem 在同帧稍后生成地形。
+        /// </summary>
+        public void EnsureAllLoaded()
+        {
+            var configEntity = SystemAPI.GetSingletonEntity<HexMapConfig>();
+            var config = SystemAPI.GetComponent<HexMapConfig>(configEntity);
+            ref var blob = ref config.Blob.Value;
+            var metrics = HexMetrics.FromBlob(ref blob);
+
+            for (int z = 0; z < blob.CellCount.y; z++)
+            {
+                for (int x = 0; x < blob.CellCount.x; x++)
+                {
+                    var key = new int2(x, z);
+                    if (!_cellLookup.ContainsKey(key))
+                        CreateCell(key, ref blob, in metrics);
+                }
+            }
+        }
+
+        /// <summary>
         /// 创建单个 cell entity，登记到映射表并与已存在的邻居建立双向链接
         /// </summary>
         private void CreateCell(int2 offsetCoords, ref HexMapConfigBlob blob, in HexMetrics metrics)

@@ -25,7 +25,7 @@ namespace HexMap
             if (newElevation == cell.Elevation)
                 return false;
 
-            var noise = HexMetrics.SampleNoise(ref blob, cell.Position);
+            var noise = HexMetrics.SampleNoise(ref blob, cell.Position, HexNoiseKind.Detail);
             cell.Elevation = newElevation;
             cell.Position = new float3(
                 cell.Position.x,

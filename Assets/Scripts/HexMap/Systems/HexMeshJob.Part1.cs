@@ -442,8 +442,9 @@ namespace HexMap
             if (amplitude <= 0f)
                 return position;
 
-            float4 sample = HexMetrics.SampleNoise(ref blob, position);
+            float4 sample = HexMetrics.SampleNoise(ref blob, position, HexNoiseKind.Detail);
             // 噪声 [0,1] 映射到 [-1,1]，再乘以以半径为单位的最大位移
+            // （Worley 图建议 SplitFirst3Octaves：R/G 独立去相关；灰度时 .x==.z → 斜向偏置）
             position.x += (sample.x * 2f - 1f) * amplitude;
             position.z += (sample.z * 2f - 1f) * amplitude;
             return position;

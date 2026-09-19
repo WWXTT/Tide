@@ -1,4 +1,5 @@
 using Unity.Collections;
+using Unity.Entities;
 using Unity.Mathematics;
 
 namespace HexMap
@@ -37,7 +38,8 @@ namespace HexMap
         public float SlopeInset;
         /// <summary>形状扰动：六边形半径的随机缩放范围（1 = 不扰动）</summary>
         public float2 CellPerturbRange;
-        public float NoiseScale;
+        /// <summary>各噪声世界→UV 缩放（x=Height y=Mountain z=Detail w=Curl）</summary>
+        public float4 NoiseScales;
         /// <summary>高度扰动：台阶落差的随机缩放范围（1 = 不扰动）</summary>
         public float2 ElevationPerturbRange;
 
@@ -55,7 +57,7 @@ namespace HexMap
                 ElevationStep = b.ElevationStep,
                 SlopeInset = b.SlopeInset,
                 CellPerturbRange = b.CellPerturbRange,
-                NoiseScale = b.NoiseScale,
+                NoiseScales = b.NoiseScales,
                 ElevationPerturbRange = b.ElevationPerturbRange,
             };
             m.Corners.Add(new float3(0f, 0f, m.OuterRadius));
@@ -197,26 +199,52 @@ namespace HexMap
         }
 
         /// <summary>
-        /// 对彩色噪点图采样（像素存于 config blob）。采样仅使用 x/z，与旧版一致。
+        /// 对噪声图采样（像素存于 config blob，四张图按用途独立）。
+        /// 采样仅使用 position 的 x/z；缺图（尺寸 0）返回中性值 0.5
+        /// （顶点扰动零位移、高度居中、阈值过滤半通过）。
         /// </summary>
-        public static float4 SampleNoise(ref HexMapConfigBlob cfg, float3 position)
+        public static float4 SampleNoise(ref HexMapConfigBlob cfg, float3 position, HexNoiseKind kind)
         {
-            if (cfg.NoiseSize.x == 0 || cfg.NoiseSize.y == 0)
-                return float4.zero;
+            int2 size;
+            float scale;
+            BlobArray<float4> pixels;
+            switch (kind)
+            {
+                case HexNoiseKind.Mountain:
+                    size = cfg.MountainNoiseSize;
+                    scale = cfg.NoiseScales.y;
+                    pixels = cfg.MountainNoisePixels;
+                    break;
+                case HexNoiseKind.Detail:
+                    size = cfg.DetailNoiseSize;
+                    scale = cfg.NoiseScales.z;
+                    pixels = cfg.DetailNoisePixels;
+                    break;
+                case HexNoiseKind.Curl:
+                    size = cfg.CurlNoiseSize;
+                    scale = cfg.NoiseScales.w;
+                    pixels = cfg.CurlNoisePixels;
+                    break;
+                default:
+                    size = cfg.HeightNoiseSize;
+                    scale = cfg.NoiseScales.x;
+                    pixels = cfg.HeightNoisePixels;
+                    break;
+            }
 
             // 在 [0,1) 上平铺
-            float u = math.fmod(position.x * cfg.NoiseScale, 1f);
-            float v = math.fmod(position.z * cfg.NoiseScale, 1f);
+            float u = math.fmod(position.x * scale, 1f);
+            float v = math.fmod(position.z * scale, 1f);
             if (u < 0f) u += 1f;
             if (v < 0f) v += 1f;
 
-            // 映射到由种子决定的采样窗口
+            // 映射到由种子决定的采样窗口（四张图共享同一窗口/种子）
             u = cfg.NoiseSampleOrigin.x + u * cfg.NoiseSampleRange;
             v = cfg.NoiseSampleOrigin.y + v * cfg.NoiseSampleRange;
 
-            int px = math.clamp((int)(u * cfg.NoiseSize.x), 0, cfg.NoiseSize.x - 1);
-            int py = math.clamp((int)(v * cfg.NoiseSize.y), 0, cfg.NoiseSize.y - 1);
-            return cfg.NoisePixels[py * cfg.NoiseSize.x + px];
+            int px = math.clamp((int)(u * size.x), 0, size.x - 1);
+            int py = math.clamp((int)(v * size.y), 0, size.y - 1);
+            return pixels[py * size.x + px];
         }
     }
 }

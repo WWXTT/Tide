@@ -10,8 +10,11 @@ namespace HexMap
     public static class HexMapTerrainMath
     {
         /// <summary>
-        /// 噪声采样 → 高程与世界 y（与旧 TerrainGenerationJob 完全同公式）：
-        /// elevation = round(noise.w × MaxElevation) 钳 0..Max；y = ElevationToY（含扰动）。
+        /// 噪声采样 → 高程与世界 y（四张噪声图分工）：
+        /// 1. Curl 流场域扭曲：采样位置沿流场偏移（x/z 用换轴采样去相关）
+        /// 2. Perlin 主高度 + Ridged 山脉加权叠加：h = p + strength·r·(1−p)（谷地保留、峰不削顶）
+        /// 3. elevation = round(saturate(h) × MaxElevation) 钳 0..Max
+        /// 4. y = ElevationToY（高度扰动取 Detail 图 .y）
         /// 边界圈恒 0（初始状态偏好，运行期可自由编辑）。
         /// </summary>
         public static int ElevationFromNoise(ref HexMapConfigBlob blob, float3 position, bool isBoundary, out float y)
@@ -22,10 +25,25 @@ namespace HexMap
                 return 0;
             }
 
-            var noise = HexMetrics.SampleNoise(ref blob, position);
-            int elevation = (int)math.round(noise.w * blob.MaxElevation);
+            // Curl 流场域扭曲
+            float3 p = position;
+            if (blob.CurlWarpStrength > 0f && blob.CurlNoiseSize.x > 0)
+            {
+                float cx = HexMetrics.SampleNoise(ref blob, position, HexNoiseKind.Curl).x;
+                float cz = HexMetrics.SampleNoise(ref blob,
+                    new float3(position.z, position.y, position.x), HexNoiseKind.Curl).x;
+                float2 warp = (new float2(cx, cz) - 0.5f) * blob.CurlWarpStrength;
+                p += new float3(warp.x, 0f, warp.y);
+            }
+
+            float perlin = HexMetrics.SampleNoise(ref blob, p, HexNoiseKind.Height).x;
+            float ridged = HexMetrics.SampleNoise(ref blob, p, HexNoiseKind.Mountain).x;
+            float h = math.saturate(perlin + blob.MountainStrength * ridged * (1f - perlin));
+            int elevation = (int)math.round(h * blob.MaxElevation);
             elevation = math.clamp(elevation, 0, blob.MaxElevation);
-            y = HexMetrics.ElevationToY(ref blob, elevation, noise.y);
+
+            float noiseY = HexMetrics.SampleNoise(ref blob, position, HexNoiseKind.Detail).y;
+            y = HexMetrics.ElevationToY(ref blob, elevation, noiseY);
             return elevation;
         }
 
