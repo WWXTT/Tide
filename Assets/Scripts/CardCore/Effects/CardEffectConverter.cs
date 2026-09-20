@@ -327,7 +327,8 @@ namespace CardCore
             // 不可作为普通原子/分支奖励/payload 挂载（表行 MountKinds 漏配或手写 JSON 误用在此拦截）。
             if (ComposerCatalog.IsEngineTrunk(type))
             {
-                Debug.LogError($"[CardEffectConverter] 引擎主干原子 {type} 不可作为普通原子挂载" +
+                // 数据质量诊断（主干守卫是既定拦截，负面测试会故意触发——告警级与契约剔除同级）
+                Debug.LogWarning($"[CardEffectConverter] 引擎主干原子 {type} 不可作为普通原子挂载" +
                                "（自由分支经 header.EngineKind 声明），已剔除");
                 return null;
             }
@@ -344,8 +345,9 @@ namespace CardCore
             // 中性（p=0）与双侧域不受限（双侧「同时作用双方」不支持——需要时制作专用原子，先不管）。
             if (!allowWrongSide && polarity != 0f && CostDerivationService.WrongSide(polarity, kinds))
             {
-                Debug.LogError($"[CardEffectConverter] 原子 {type}（极性 {polarity:0.#}，域 [{string.Join(",", kinds)}]）" +
-                               "违反内容契约：效果栏不可挂错边原子（对自己有害/对对手有益只能进代价栏），应当剔除该效果");
+                // 数据质量诊断（与 WarnCostNonConformance 同级）：错边原子被剔除——装载可见不炸
+                Debug.LogWarning($"[CardEffectConverter] 原子 {type}（极性 {polarity:0.#}，域 [{string.Join(",", kinds)}]）" +
+                               "违反内容契约：效果栏不可挂错边原子（对自己有害/对对手有益只能进代价栏），已剔除该效果");
                 return null;
             }
 

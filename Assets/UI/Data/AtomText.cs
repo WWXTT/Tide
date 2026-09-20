@@ -27,7 +27,8 @@ namespace SynergyUI
             int v = atom.value;
             int span = atom.amp > 0f ? Mathf.RoundToInt(Math.Abs(v) * atom.amp) : 0;
             string number = span > 0 ? $"{Mathf.Max(0, v - span)}至{v + span}" : v.ToString();
-            string body = tpl.Replace("{value}", number);
+            // {target} → 「目标」（2026-09-20 补：文档示例口径「对目标造成…」——f6886e8 文本重做时遗失）
+            string body = tpl.Replace("{value}", number).Replace("{target}", "目标");
             if (span > 0) body = "随机 " + body;
             if (header != null && header.RandomTarget != 0)
                 body = "随机目标·" + body;

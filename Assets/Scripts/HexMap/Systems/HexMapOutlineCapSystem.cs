@@ -12,8 +12,8 @@ namespace HexMap
     /// <summary>
     /// 地图轮廓封底系统（替换旧矩形底面）：
     /// 在 bottomY 生成一张跟随地图实际外轮廓链（外圈 cell 边界边的名义角点链，
-    /// 六边形锯齿形状）的整面 Cap。边界坡底边落在这条链上（名义角、不扰动），
-    /// 与 Cap 逐点重合构成封闭体；Cap 顶点法线在 rim 处向相邻边界坡法线融合。
+    /// 六边形锯齿形状）的整面 Cap。边界陡壁底边落在这条链上（名义角、不扰动），
+    /// 与 Cap 逐点重合构成封闭体；Cap 顶点法线恒朝下（垂直版无 rim 坡法线融合）。
     ///
     /// 轮廓全部用标称几何（不查实体、不扰动——地图边缘扰动振幅恒 0），
     /// 因此轮廓与高度/地形编辑无关，仅在 CellCount 变化时重建。
@@ -51,14 +51,10 @@ namespace HexMap
         {
             var metrics = HexMetrics.FromBlob(ref blob);
             float bottomY = HexMeshJob.GetBottomY(ref metrics);
-            // 边界坡法线估计（Cap rim 融合用）：Cap 只知名义几何不知 cell 高度，
-            // 取一个台阶作近似；边界格被抬高后该估计略偏，仅影响 Cap 棱线法线的柔和度
-            float slopeDh = metrics.ElevationStep;
 
-            // ---- 1) 枚举边界段：名义角点段 + 相邻坡法线 ----
+            // ---- 1) 枚举边界段：名义角点段 ----
             var pointIndex = new Dictionary<long, int>();
             var points = new List<float3>();
-            var slopeNormals = new List<List<float3>>(); // 每顶点相邻边界坡法线（rim 融合用）
             var segments = new List<int2>();             // 有向段（起点索引 → 终点索引）
 
             for (int oz = 0; oz < blob.CellCount.y; oz++)
@@ -73,17 +69,18 @@ namespace HexMap
                     if (!HexBoundary.IsOutsideMap(nOff, blob.CellCount))
                         continue;
 
+                    // 名义角点吸附格点（x=i·IR, z=j·OR/2）：边界壁底边由格 Job 从
+                    // 另一套「格心+角点」算式得出，吸附后两侧逐位重合（Cap 不扰动，
+                    // 地图边缘扰动振幅恒 0，位置即吸附值本身）
+                    float dx = metrics.InnerRadius;
+                    float dz = metrics.OuterRadius * 0.5f;
                     float3 c1 = center + metrics.Corners[d];
                     float3 c2 = center + metrics.Corners[d + 1];
-                    c1.y = bottomY;
-                    c2.y = bottomY;
-                    float3 nSlope = HexMetrics.SlopeNormal(
-                        metrics.GetEdgeNormal((HexDirection)d), slopeDh, metrics.SlopeInset);
+                    c1 = new float3(math.round(c1.x / dx) * dx, bottomY, math.round(c1.z / dz) * dz);
+                    c2 = new float3(math.round(c2.x / dx) * dx, bottomY, math.round(c2.z / dz) * dz);
 
-                    int i1 = InternPoint(c1, pointIndex, points, slopeNormals);
-                    int i2 = InternPoint(c2, pointIndex, points, slopeNormals);
-                    slopeNormals[i1].Add(nSlope);
-                    slopeNormals[i2].Add(nSlope);
+                    int i1 = InternPoint(c1, pointIndex, points);
+                    int i2 = InternPoint(c2, pointIndex, points);
                     segments.Add(new int2(i1, i2));
                 }
             }
@@ -111,8 +108,9 @@ namespace HexMap
             var triangles = EarClip(loop, points);
 
             // ---- 5) 组装顶点流并注册渲染 ----
+            // 垂直版单一法线源：Normal 恒朝下（边界壁法线水平，与 Cap 面成直角，
+            // 无 rim 融合过渡；TANGENT 通道已随 rim 融合设计退役）
             float3 down = new float3(0f, -1f, 0f);
-            float rimBlend = math.saturate(blob.RimNormalBlend);
             var variation = blob.VariationEnabled != 0
                 ? new float4(1f, 0f, 0f, 0f) // Cap 权重恒 0（恒等变换即可）
                 : new float4(1f, 0f, 0f, 0f);
@@ -120,18 +118,10 @@ namespace HexMap
             var vertices = new NativeArray<TerrainVertex>(points.Count, Allocator.Temp);
             for (int i = 0; i < points.Count; i++)
             {
-                // rim 融合：down 向「down ⊕ 相邻坡法线之和」过渡
-                float3 junction = down;
-                foreach (var ns in slopeNormals[i])
-                    junction += ns;
-                junction = math.normalize(junction);
-                float3 n = math.normalize(math.lerp(down, junction, rimBlend));
-
                 vertices[i] = new TerrainVertex
                 {
                     Position = points[i],
                     Normal = down,            // 纯法线：恒朝下（光照/阴影）
-                    Tangent = n,              // rim 融合法线（三平面投影权重）
                     Color = new float4(1f, 0f, 0f, 0f), // splat 权重 (1,0,0)，变异权重 0
                     UV1 = new float3(0f, 0f, 0f),
                     UV2 = variation,
@@ -146,7 +136,6 @@ namespace HexMap
             mesh.SetVertexBufferParams(vertices.Length,
                 new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
                 new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3),
-                new VertexAttributeDescriptor(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 3),
                 new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float32, 4),
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 3),
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord2, VertexAttributeFormat.Float32, 4));
@@ -208,8 +197,7 @@ namespace HexMap
         }
 
         /// <summary>量化去重：同一名义角点由多个 cell 独立算出，值相同 → 合并</summary>
-        private static int InternPoint(float3 p, Dictionary<long, int> index, List<float3> points,
-            List<List<float3>> slopeNormals)
+        private static int InternPoint(float3 p, Dictionary<long, int> index, List<float3> points)
         {
             long qx = (long)math.round(p.x * 10000f);
             long qz = (long)math.round(p.z * 10000f);
@@ -218,7 +206,6 @@ namespace HexMap
                 return i;
             i = points.Count;
             points.Add(p);
-            slopeNormals.Add(new List<float3>(2));
             index[key] = i;
             return i;
         }

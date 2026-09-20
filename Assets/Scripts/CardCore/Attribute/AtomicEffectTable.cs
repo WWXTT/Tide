@@ -108,8 +108,25 @@ namespace CardCore.Attribute
                 // EnumName(中文短名) → DisplayName；DisplayName(模板) → Description
                 config.DisplayName = entry.EnumName;
                 config.Description = entry.DisplayName;
-                // ManaList 定案（2026-09-14）：EffectColor+BaseCost 两列合并为费用构成——混合色原子的基础
+                // ManaList 定案（2026-09-14）：EffectColor+BaseCost 两列合并为费用构成——混合色原子的基础。
+                // 旧两列兜底（2026-09-20 修复）：表数据仍在旧格式（2f0fcf4 解析器先迁、数据未迁）——
+                // 行内没有 ManaList 时由 EffectColor+BaseCost 合成单色构成，计价不落零。
                 config.ManaList = entry.ManaList;
+                if ((config.ManaList == null || config.ManaList.Count == 0)
+                    && !string.IsNullOrEmpty(entry.EffectColor) && entry.BaseCost > 0f
+                    && Enum.TryParse<ManaType>(entry.EffectColor, true, out var legacyColor))
+                {
+                    config.ManaList = new List<ManaAmountEntry>
+                    {
+                        new ManaAmountEntry { manaType = (int)legacyColor, amount = entry.BaseCost },
+                    };
+                }
+
+                // 表色回填（2026-09-20 修复）：ElementAffinities.GetAffinityForEffect 读 Tags 取色
+                //（旧 EffectColor 列的迁移落点）——BuildConfig 此前从未写入，全表退化为 Generic。
+                // 费用构成首色即表色（混合色原子取主导色）。
+                if (config.ManaList != null && config.ManaList.Count > 0)
+                    config.Tags = ((ManaType)config.ManaList[0].manaType).ToString();
 
                 // targeting / 发动 / 三分类：配置驱动，解析失败保留上面的兜底。
                 // TargetKinds 列即真相：行内显式空（null/""）= 真无域（守卫/跳回合类被动，
@@ -220,6 +237,8 @@ namespace CardCore.Attribute
             public string EnumName;       // 中文短名（造成伤害）
             public string DisplayName;    // 展示模板（对{target}造成{value}点伤害）
             public List<ManaAmountEntry> ManaList;  // 费用构成（2026-09-14：EffectColor+BaseCost 合并——混合色原子）
+            public string EffectColor;    // 旧列（单色）：ManaList 缺失时兜底合成用
+            public float BaseCost;        // 旧列（单色锚价）：同上
             public string EffectType;     // 英文枚举名（DealDamage）→ AtomicEffectType
             public string EffectTier;     // Atom / Keyword / Counter（三分类，缺省 Atom）
 

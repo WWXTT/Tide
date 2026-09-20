@@ -385,23 +385,18 @@ void SamplePlaneSplat(
 // 三平面各自独立采样后线性混合（角落三角世界投影，无恒定 U 拉伸）。
 // 视差每平面独立（_Parallax 为材质常量 → uniform 分支），先于变异变换。
 void SampleSplatSurfaceTriplanar(
-    float3 positionWS, float3 normalWS, float3 blendNormalWS, uint3 idx, float3 splatWeights,
+    float3 positionWS, float3 normalWS, uint3 idx, float3 splatWeights,
     float4 hexVar, half variationWeight,
     out half3 albedo, out half3 normalWSOut,
     out half metallic, out half smoothness, out half occlusion)
 {
-    // 双法线：blendNormalWS（TANGENT 通道，rim 融合）驱动贴图投影权重——
-    // 纹理跨棱线连续；normalWS（NORMAL 通道，纯表面法线）驱动输出法线的权重与
-    // 面朝向符号——光照/SH/阴影锚定真实几何（融合法线污染光照会造成
-    // 背光面阴影边界偏移一截）。
+    // 单一法线源：normalWS（NORMAL 通道，纯表面法线）同时驱动贴图投影权重与
+    // 输出法线的权重/面朝向符号——垂直版无 rim 融合，纹理投影与光照/阴影
+    // 锚定同一几何（TANGENT 通道已随坡带设计退役）。
     // 逐轴权重：x=侧面X（朝±X 的面）、y=顶面、z=侧面Z（朝±Z 的面）
-    float3 aw = pow(abs(blendNormalWS), _TriplanarBlendSharpness);
-    float wSum = aw.x + aw.y + aw.z + 1e-4;
-    float3 w = aw / wSum;
-
     float3 awN = pow(abs(normalWS), _TriplanarBlendSharpness);
     float wSumN = awN.x + awN.y + awN.z + 1e-4;
-    float3 wN = awN / wSumN;
+    float3 w = awN / wSumN;
 
     float sx = normalWS.x >= 0.0 ? 1.0 : -1.0;
     float sy = normalWS.y >= 0.0 ? 1.0 : -1.0;
@@ -442,7 +437,7 @@ void SampleSplatSurfaceTriplanar(
     half3 nWX   = half3(nX.z * sx, nX.y, nX.x);
     half3 nWZ   = half3(nZ.x, nZ.y, nZ.z * sz);
     // 输出法线按纯法线权重混合：纹理细节叠加在真实几何朝向上
-    normalWSOut = SafeNormalize(nWTop * wN.y + nWX * wN.x + nWZ * wN.z);
+    normalWSOut = SafeNormalize(nWTop * w.y + nWX * w.x + nWZ * w.z);
 }
 
 #endif

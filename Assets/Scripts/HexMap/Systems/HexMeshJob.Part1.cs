@@ -6,18 +6,25 @@ using Unity.Mathematics;
 namespace HexMap
 {
     /// <summary>
-    /// 单个 cell 的网格生成 Job（垂直侧壁版：板 + 陡壁）。
+    /// 单个 cell 的网格生成 Job（垂直侧壁 + 内缩阶梯版，2026-09-20 定案）。
     ///
-    /// 架构原则（2026-09-20 垂直重构定案）：
-    /// - 每格 = 全宽名义六边形板（不内缩），高度定义在 Cell 上；相邻等高板直接共边密铺；
-    /// - 侧面完全垂直：相邻更低（或图外/未加载）时，本格在共享边发陡壁条带，
-    ///   从本格板缘垂直下落到低侧板缘（或 bottomY）——「上小下大」与坡带/桥/角落吸收
-    ///   全套退役，角落多级高差由三条边壁共享角落竖棱（烟囱状交汇）构造性水密；
-    /// - 顶点允许分裂：每个表面（板/壁）持有自己的边界顶点，靠「位置的纯函数」
+    /// 架构原则：
+    /// - 每格 = 名义六边形板，沿「阶梯边」（邻居更低且 Δe≤2）内缩 L、其余边全宽；
+    ///   板角点走辐射线规则：格心→名义角点射线上取两邻边内缩较深者
+    ///   （板角_k = center + Corners[k]·(min(l_{k-1}, l_k)/IR)），
+    ///   相邻扇形共享同一板角点、几何互不越界，板边在内缩不等处为斜弦；
+    /// - 边带分级：Δe≤2 高格在内缩带里造台阶（Δe+1 段踏面 + Δe 段立面，
+    ///   带宽 L 等分）；Δe>2 垂直壁（板不内缩）；等高噪声竖缝由高侧发薄缝壁；
+    ///   图外/未加载垂直壁落 bottomY——壁构造沿用「角柱分段 + 烟囱交汇」定案；
+    /// - 非阶梯边发「平带」：板弦→名义边的 y_A 平面延伸，通常零宽退化，
+    ///   仅在相邻阶梯边切角的角落非退化（斜弦三角形）；
+    /// - 角落封闭：本格两相邻边带的端剖面（沿辐射线的折线）之间的竖直
+    ///   「楼梯侧面板」，全部限制在本格扇形分界面（格心→角点辐射平面）内，
+    ///   零跨格三角形；名义角点竖棱由对面那条边自己的几何覆盖；
+    /// - 顶点允许分裂：每个表面持有自己的边界顶点，靠「位置的纯函数」
     ///   （同批标称角点 + 同 EdgeVertices 插值 + 同 Perturb）保证相邻表面逐点重合；
-    /// - 陡壁墙柱在两侧角落第三方格的板高处分段（防 T-junction 发丝缝）；
-    /// - 法线单一来源：板 +Y、壁 = 逐边水平外法线，直写 NORMAL 通道
-    ///   （rim 融合与 TANGENT 通道已随坡带设计退役，三平面投影权重只用纯法线）。
+    /// - 法线单一来源：板/踏面 +Y、壁/立面逐边水平外法线、面板逐矩形水平常量，
+    ///   直写 NORMAL 通道（rim 融合与 TANGENT 通道已随坡带设计退役）。
     ///
     /// 输出 5 个 NativeList：
     /// - positions (float3)：顶点位置（已扰动）
@@ -29,6 +36,9 @@ namespace HexMap
     [BurstCompile]
     public partial struct HexMeshJob
     {
+        /// <summary>阶梯边最大高差级数（Δe∈{1,2} 造阶梯，>2 垂直壁）</summary>
+        private const int StairMaxDelta = 2;
+
         [ReadOnly] public BlobAssetReference<HexMapConfigBlob> Blob;
         [ReadOnly] public Entity CellEntity; // 当前 cell entity
         [ReadOnly] public HexCellData CellData; // 当前 cell
@@ -66,14 +76,56 @@ namespace HexMap
         }
 
         /// <summary>
-        /// 全宽板 + 6 方向陡壁（底面为整图轮廓 Cap，不逐 cell 生成）
+        /// 一条边的分类结果 + 带生成所需数据（ClassifyAll 一次算好，板/带/面板共用）。
+        /// Boundary/Streaming 的 NeighborY = bottomY、对侧地形 = 本格（恒本格 splat）。
         /// </summary>
+        private struct EdgeInfo
+        {
+            public EdgeKind Kind;
+            /// <summary>高差级数（Lower 时 = elevation 差，≥1；其余 0）</summary>
+            public int DeltaE;
+            /// <summary>对侧板高（真实邻居 = 其板 y；图外/未加载 = bottomY）</summary>
+            public float NeighborY;
+            /// <summary>对侧地形索引（无效邻居 = 本格）</summary>
+            public int NeighborTerrain;
+            /// <summary>真实邻居（splat 渐变到对侧地形；否则恒本格）</summary>
+            public bool RealNeighbor;
+        }
+
         private void TriangulateCell(HexCellData cell, ref HexMetrics metrics, ref HexMapConfigBlob blob)
         {
-            BuildPlate(cell, ref metrics, ref blob);
+            var edges = new FixedList128Bytes<EdgeInfo>();
+            ClassifyAll(cell, ref metrics, ref blob, ref edges);
+
+            BuildPlate(cell, ref metrics, ref blob, ref edges);
 
             for (int d = 0; d < 6; d++)
-                BuildDirection((HexDirection)d, cell, ref metrics, ref blob);
+                BuildDirection((HexDirection)d, cell, ref metrics, ref blob, ref edges);
+
+            for (int k = 0; k < 6; k++)
+                BuildCornerPanel(k, cell, ref metrics, ref blob, ref edges);
+        }
+
+        /// <summary>六边一次性分类（板内缩、边带、面板都要查边类型/对侧高度）</summary>
+        private void ClassifyAll(HexCellData cell, ref HexMetrics metrics, ref HexMapConfigBlob blob,
+            ref FixedList128Bytes<EdgeInfo> edges)
+        {
+            float bottomY = GetBottomY(ref metrics);
+            for (int d = 0; d < 6; d++)
+            {
+                var kind = ClassifyEdge(cell, CellEntity, (HexDirection)d, ref blob, out var neighbor, out _);
+                bool real = kind == EdgeKind.Equal || kind == EdgeKind.Lower || kind == EdgeKind.Higher;
+                edges.Add(new EdgeInfo
+                {
+                    Kind = kind,
+                    RealNeighbor = real,
+                    NeighborY = real ? neighbor.Position.y : bottomY,
+                    NeighborTerrain = real ? neighbor.TerrainIndex : cell.TerrainIndex,
+                    DeltaE = kind == EdgeKind.Lower
+                        ? math.max(1, cell.Elevation - neighbor.Elevation)
+                        : 0,
+                });
+            }
         }
 
         /// <summary>
@@ -131,31 +183,75 @@ namespace HexMap
             return neighbor.Elevation > x.Elevation ? EdgeKind.Higher : EdgeKind.Lower;
         }
 
-        // ---------- 板（全宽双环扇形）----------
+        // ---------- 板（双环扇形 + 阶梯边内缩）----------
+
+        /// <summary>阶梯带宽度 L = blob.SlopeInset，钳到 [5%, 90%]·IR（防 authoring 失配）</summary>
+        private static float StairBandWidth(ref HexMapConfigBlob blob, float ir)
+        {
+            return math.clamp(blob.SlopeInset, ir * 0.05f, ir * 0.9f);
+        }
+
+        /// <summary>边有效内缩：阶梯边（Lower 且 Δe≤2）= IR−L，其余全宽 IR</summary>
+        private static float EffectiveInset(in EdgeInfo e, float ir, float bandL)
+        {
+            return e.Kind == EdgeKind.Lower && e.DeltaE <= StairMaxDelta
+                ? math.max(ir - bandL, ir * 0.1f)
+                : ir;
+        }
 
         /// <summary>
-        /// 顶面板 = 全宽名义六边形（不内缩）：中心 + 内环（再内缩 VariationFadeWidth）+ 边环（名义角）。
-        /// 边环与陡壁顶行共享同一批标称角点与 EdgeVertices 插值 → 扰动后逐点重合。
-        /// 变异权重：中心/内环 1，边环 0（渐变跨内环→边环的环带，即 fade 宽度；壁全 0 → 共享线两侧一致）。
+        /// 板角点 k（辐射线规则）：格心→名义角点 k 的射线上，取相邻两边
+        /// (k−1)/k 有效内缩的较深者。两邻边等内缩时与平行内缩角点重合；
+        /// 不等时角点收在辐射线上不戳到浅边——相邻扇形共享同一板角点、互不越界。
+        /// 全宽角（两边都不内缩）= 名义角点，吸附格点保证跨格逐位重合。
+        /// 纯函数：板、边带、面板各自调用得到同一结果（单一来源）。
+        /// </summary>
+        private float3 PlateRimCorner(int k, HexCellData cell, ref HexMetrics metrics,
+            ref HexMapConfigBlob blob, ref FixedList128Bytes<EdgeInfo> edges)
+        {
+            float ir = metrics.InnerRadius;
+            float bandL = StairBandWidth(ref blob, ir);
+            float l = math.min(
+                EffectiveInset(edges[(k + 5) % 6], ir, bandL),
+                EffectiveInset(edges[k], ir, bandL));
+            float3 c = cell.Position + metrics.Corners[k] * (l / ir);
+            return l >= ir ? SnapToLattice(c, ref metrics) : c;
+        }
+
+        /// <summary>板角 k 是否未被切角（两边都不内缩 = 落在名义角点上）</summary>
+        private static bool IsRimFull(ref FixedList128Bytes<EdgeInfo> edges, int k, float ir, float bandL)
+        {
+            return math.min(
+                EffectiveInset(edges[(k + 5) % 6], ir, bandL),
+                EffectiveInset(edges[k], ir, bandL)) >= ir;
+        }
+
+        /// <summary>
+        /// 顶面板 = 名义六边形板（阶梯边内缩）：中心 + 内环（再内缩 fade）+ 边环（板多边形）。
+        /// 边环与边带顶行共享同一批角点与 EdgeVertices 插值 → 扰动后逐点重合。
+        /// 变异权重：中心/内环 1，边环 0（渐变跨内环→边环的环带；带/壁/面板全 0 → 共享线两侧一致）。
         /// 法线恒 +Y。相邻等高格的板直接共边密铺——地形边界为硬边（块状观感定案）。
         /// </summary>
-        private void BuildPlate(HexCellData cell, ref HexMetrics metrics, ref HexMapConfigBlob blob)
+        private void BuildPlate(HexCellData cell, ref HexMetrics metrics, ref HexMapConfigBlob blob,
+            ref FixedList128Bytes<EdgeInfo> edges)
         {
             float3 center = cell.Position;
-            float3 up = new float3(0f, 1f, 0f);
-            _surfaceNormal = up; // 板的表面法线恒 +Y
+            _surfaceNormal = new float3(0f, 1f, 0f); // 板的表面法线恒 +Y
             float ir = metrics.InnerRadius;
+            float bandL = StairBandWidth(ref blob, ir);
             float fade = math.clamp(blob.VariationFadeWidth, 0.01f, ir);
 
-            var rim = new FixedList128Bytes<float3>();   // 板角点 = 名义角（全宽）
-            var inner = new FixedList128Bytes<float3>(); // 内环角点（再内缩 fade，≥5% IR 兜底）
+            var rim = new FixedList128Bytes<float3>();   // 板角点（辐射线规则，含阶梯边内缩）
+            var inner = new FixedList128Bytes<float3>(); // 内环角点（同规则再内缩 fade，≥5% IR 兜底）
             for (int k = 0; k < 6; k++)
             {
-                var dPrev = (HexDirection)((k + 5) % 6);
-                rim.Add(center + metrics.Corners[k]);
-                inner.Add(center + metrics.GetPlateCorner(dPrev,
-                    math.max(ir - fade, ir * 0.05f),
-                    math.max(ir - fade, ir * 0.05f)));
+                var ePrev = edges[(k + 5) % 6];
+                var eNext = edges[k];
+                float lIn = math.min(
+                    math.max(EffectiveInset(ePrev, ir, bandL) - fade, ir * 0.05f),
+                    math.max(EffectiveInset(eNext, ir, bandL) - fade, ir * 0.05f));
+                rim.Add(PlateRimCorner(k, cell, ref metrics, ref blob, ref edges));
+                inner.Add(center + metrics.Corners[k] * (lIn / ir));
             }
 
             float3 indices = new float3(cell.TerrainIndex, cell.TerrainIndex, cell.TerrainIndex);
@@ -179,6 +275,21 @@ namespace HexMap
                 AddQuad(ie.v3, ie.v4, re.v3, re.v4, indices, wIn, wIn, wRim, wRim);
                 AddQuad(ie.v4, ie.v5, re.v4, re.v5, indices, wIn, wIn, wRim, wRim);
             }
+        }
+
+        /// <summary>
+        /// 名义角点/名义边位置吸附到六边形格点（x = i·IR，z = j·OR/2）。
+        /// 跨格共享的位置必须逐位一致：相邻格各自用「格心 + 角点偏移」计算同一个
+        /// 名义角点会有 ~1 ulp 浮点差（坐标 ~100 时 ~1e-5），量化配对后跨 1e-4 桶
+        /// 即成发丝缝。格点下标用 round(坐标/间距) 从整数恢复，两侧必然同值
+        /// （格心公式保证名义角点严格落在该格点上）；吸附只动 x/z（修正量 ~1e-5，
+        /// 视觉不可见），y 不变。格心公式见 HexChunkStreamingSystem.CreateCell。
+        /// </summary>
+        private static float3 SnapToLattice(float3 p, ref HexMetrics metrics)
+        {
+            float dx = metrics.InnerRadius;
+            float dz = metrics.OuterRadius * 0.5f;
+            return new float3(math.round(p.x / dx) * dx, p.y, math.round(p.z / dz) * dz);
         }
 
         // ---------- 顶点追加（位置/法线/splat 索引/权重/变异常量五通道同 append）----------
@@ -210,9 +321,7 @@ namespace HexMap
             Variations.Add(_cellVariation);
         }
 
-        /// <summary>
-        /// 添加四边形（2 个三角形，扰动）。
-        /// </summary>
+        /// <summary>添加四边形（2 个三角形，扰动）。</summary>
         private void AddQuad(float3 v1, float3 v2, float3 v3, float3 v4,
             float3 indices, float4 w1, float4 w2, float4 w3, float4 w4)
         {
@@ -276,6 +385,31 @@ namespace HexMap
             PureNormals.Add(_surfaceNormal);
             PureNormals.Add(_surfaceNormal);
             Variations.Add(_cellVariation);
+            Variations.Add(_cellVariation);
+            Variations.Add(_cellVariation);
+            Variations.Add(_cellVariation);
+        }
+
+        /// <summary>添加三角形（不扰动，与 AddQuadUnperturbed 同理；退化列收三角时用）</summary>
+        private void AddTriangleUnperturbed(float3 v1, float3 v2, float3 v3,
+            float3 indices, float4 w1, float4 w2, float4 w3)
+        {
+            int vertexIndex = Positions.Length;
+            Positions.Add(v1);
+            Positions.Add(v2);
+            Positions.Add(v3);
+            Triangles.Add(vertexIndex);
+            Triangles.Add(vertexIndex + 1);
+            Triangles.Add(vertexIndex + 2);
+            CellIndices.Add(indices);
+            CellIndices.Add(indices);
+            CellIndices.Add(indices);
+            Colors.Add(w1);
+            Colors.Add(w2);
+            Colors.Add(w3);
+            PureNormals.Add(_surfaceNormal);
+            PureNormals.Add(_surfaceNormal);
+            PureNormals.Add(_surfaceNormal);
             Variations.Add(_cellVariation);
             Variations.Add(_cellVariation);
             Variations.Add(_cellVariation);

@@ -16,7 +16,7 @@ namespace SynergyUI
     public static class DeckSerializer
     {
         // StreamingAssets 下的卡组目录（相对 streamingAssetsPath）。
-        private const string DeckDirRelative = "Tide";
+        private const string DeckDirRelative = "Card";
 
         private static string DeckDir => Path.Combine(Application.streamingAssetsPath, DeckDirRelative);
 

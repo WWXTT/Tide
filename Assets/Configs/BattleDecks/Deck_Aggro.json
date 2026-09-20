@@ -1,0 +1,1431 @@
+{
+  "cards": [
+    {
+      "id": "AGG_001",
+      "cardName": "焰刃新兵",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 2,
+      "life": 1
+    },
+    {
+      "id": "AGG_002",
+      "cardName": "焰刃新兵",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 2,
+      "life": 1
+    },
+    {
+      "id": "AGG_003",
+      "cardName": "焰刃新兵",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 2,
+      "life": 1
+    },
+    {
+      "id": "AGG_004",
+      "cardName": "焰刃新兵",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 2,
+      "life": 1
+    },
+    {
+      "id": "AGG_005",
+      "cardName": "火纹猎手",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 3,
+      "life": 2
+    },
+    {
+      "id": "AGG_006",
+      "cardName": "火纹猎手",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 3,
+      "life": 2
+    },
+    {
+      "id": "AGG_007",
+      "cardName": "火纹猎手",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 3,
+      "life": 2
+    },
+    {
+      "id": "AGG_008",
+      "cardName": "火纹猎手",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 2.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 3,
+      "life": 2
+    },
+    {
+      "id": "AGG_009",
+      "cardName": "疾风剑士",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_FS",
+          "DisplayName": "先攻",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 1,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "0490b22c",
+              "value": 1,
+              "str": "",
+              "amp": 0.0,
+              "kinds": []
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 2,
+      "life": 2
+    },
+    {
+      "id": "AGG_010",
+      "cardName": "疾风剑士",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_FS",
+          "DisplayName": "先攻",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 1,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "0490b22c",
+              "value": 1,
+              "str": "",
+              "amp": 0.0,
+              "kinds": []
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 2,
+      "life": 2
+    },
+    {
+      "id": "AGG_011",
+      "cardName": "疾风剑士",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_FS",
+          "DisplayName": "先攻",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 1,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "0490b22c",
+              "value": 1,
+              "str": "",
+              "amp": 0.0,
+              "kinds": []
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 2,
+      "life": 2
+    },
+    {
+      "id": "AGG_012",
+      "cardName": "疾风剑士",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_FS",
+          "DisplayName": "先攻",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 1,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "0490b22c",
+              "value": 1,
+              "str": "",
+              "amp": 0.0,
+              "kinds": []
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 2,
+      "life": 2
+    },
+    {
+      "id": "AGG_013",
+      "cardName": "战地鼓手",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_VG",
+          "DisplayName": "警戒",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 1,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "465f51dc",
+              "value": 1,
+              "str": "",
+              "amp": 0.0,
+              "kinds": []
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 2,
+      "life": 2
+    },
+    {
+      "id": "AGG_014",
+      "cardName": "战地鼓手",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_VG",
+          "DisplayName": "警戒",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 1,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "465f51dc",
+              "value": 1,
+              "str": "",
+              "amp": 0.0,
+              "kinds": []
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 2,
+      "life": 2
+    },
+    {
+      "id": "AGG_015",
+      "cardName": "战地鼓手",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_VG",
+          "DisplayName": "警戒",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 1,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "465f51dc",
+              "value": 1,
+              "str": "",
+              "amp": 0.0,
+              "kinds": []
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 2,
+      "life": 2
+    },
+    {
+      "id": "AGG_016",
+      "cardName": "战地鼓手",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_VG",
+          "DisplayName": "警戒",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 1,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "465f51dc",
+              "value": 1,
+              "str": "",
+              "amp": 0.0,
+              "kinds": []
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 2,
+      "life": 2
+    },
+    {
+      "id": "AGG_017",
+      "cardName": "血怒狂战",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 5.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_DA",
+          "DisplayName": "缴械",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 1,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "adb8456f",
+              "value": 1,
+              "str": "",
+              "amp": 0.0,
+              "kinds": []
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 4,
+      "life": 3
+    },
+    {
+      "id": "AGG_018",
+      "cardName": "血怒狂战",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 5.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_DA",
+          "DisplayName": "缴械",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 1,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "adb8456f",
+              "value": 1,
+              "str": "",
+              "amp": 0.0,
+              "kinds": []
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 4,
+      "life": 3
+    },
+    {
+      "id": "AGG_019",
+      "cardName": "血怒狂战",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 5.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_DA",
+          "DisplayName": "缴械",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 1,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "adb8456f",
+              "value": 1,
+              "str": "",
+              "amp": 0.0,
+              "kinds": []
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 4,
+      "life": 3
+    },
+    {
+      "id": "AGG_020",
+      "cardName": "破城巨兽",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 8.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_OW",
+          "DisplayName": "碾压",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 1,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "13b63a87",
+              "value": 1,
+              "str": "",
+              "amp": 0.0,
+              "kinds": []
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 6,
+      "life": 5
+    },
+    {
+      "id": "AGG_021",
+      "cardName": "破城巨兽",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 8.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_OW",
+          "DisplayName": "碾压",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 1,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "13b63a87",
+              "value": 1,
+              "str": "",
+              "amp": 0.0,
+              "kinds": []
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 6,
+      "life": 5
+    },
+    {
+      "id": "AGG_022",
+      "cardName": "破城巨兽",
+      "supertype": "Creature",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 8.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_OW",
+          "DisplayName": "碾压",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 1,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "13b63a87",
+              "value": 1,
+              "str": "",
+              "amp": 0.0,
+              "kinds": []
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false,
+      "power": 6,
+      "life": 5
+    },
+    {
+      "id": "AGG_023",
+      "cardName": "烈焰箭",
+      "supertype": "Spell",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_FB1",
+          "DisplayName": "烈焰箭",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "a4b823fc",
+              "value": 2,
+              "str": "",
+              "amp": 0.0,
+              "kinds": [
+                2
+              ]
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false
+    },
+    {
+      "id": "AGG_024",
+      "cardName": "烈焰箭",
+      "supertype": "Spell",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_FB1",
+          "DisplayName": "烈焰箭",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "a4b823fc",
+              "value": 2,
+              "str": "",
+              "amp": 0.0,
+              "kinds": [
+                2
+              ]
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false
+    },
+    {
+      "id": "AGG_025",
+      "cardName": "烈焰箭",
+      "supertype": "Spell",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_FB1",
+          "DisplayName": "烈焰箭",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "a4b823fc",
+              "value": 2,
+              "str": "",
+              "amp": 0.0,
+              "kinds": [
+                2
+              ]
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false
+    },
+    {
+      "id": "AGG_026",
+      "cardName": "烈焰箭",
+      "supertype": "Spell",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 1.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_FB1",
+          "DisplayName": "烈焰箭",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "a4b823fc",
+              "value": 2,
+              "str": "",
+              "amp": 0.0,
+              "kinds": [
+                2
+              ]
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false
+    },
+    {
+      "id": "AGG_027",
+      "cardName": "炽火轰击",
+      "supertype": "Spell",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_FB4",
+          "DisplayName": "炽火轰击",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "a4b823fc",
+              "value": 4,
+              "str": "",
+              "amp": 0.0,
+              "kinds": [
+                2
+              ]
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false
+    },
+    {
+      "id": "AGG_028",
+      "cardName": "炽火轰击",
+      "supertype": "Spell",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_FB4",
+          "DisplayName": "炽火轰击",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "a4b823fc",
+              "value": 4,
+              "str": "",
+              "amp": 0.0,
+              "kinds": [
+                2
+              ]
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false
+    },
+    {
+      "id": "AGG_029",
+      "cardName": "炽火轰击",
+      "supertype": "Spell",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_FB4",
+          "DisplayName": "炽火轰击",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "a4b823fc",
+              "value": 4,
+              "str": "",
+              "amp": 0.0,
+              "kinds": [
+                2
+              ]
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false
+    },
+    {
+      "id": "AGG_030",
+      "cardName": "炽火轰击",
+      "supertype": "Spell",
+      "costList": [
+        {
+          "manaType": 1,
+          "amount": 3.0
+        }
+      ],
+      "keywords": [],
+      "tags": [],
+      "effects": [
+        {
+          "Id": "AGG_FX_FB4",
+          "DisplayName": "炽火轰击",
+          "Description": "",
+          "TriggerTiming": 0,
+          "ActivationType": 0,
+          "BaseSpeed": 0,
+          "IsOptional": false,
+          "Duration": 0,
+          "SummonDropZone": 0,
+          "SelectionMode": 0,
+          "TargetCount": 1,
+          "RandomTarget": 0,
+          "TriggerLimitPerTurn": 0,
+          "EngineKind": 0,
+          "EngineParam": 0,
+          "ActivationConditions": [],
+          "TriggerConditions": [],
+          "AtomicEffects": [
+            {
+              "refId": "a4b823fc",
+              "value": 4,
+              "str": "",
+              "amp": 0.0,
+              "kinds": [
+                2
+              ]
+            }
+          ],
+          "Costs": [],
+          "Tags": [],
+          "Steps": []
+        }
+      ],
+      "subtype": "",
+      "level": -1,
+      "arrows": "None",
+      "effectIds": [],
+      "linkAuras": [],
+      "noAttack": false,
+      "noGuard": false,
+      "surplusToSpeed": false
+    }
+  ],
+  "deckConfig": {
+    "copiesPerCard": 1
+  }
+}

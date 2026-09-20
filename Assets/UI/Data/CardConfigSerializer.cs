@@ -20,7 +20,7 @@ namespace SynergyUI
     /// </summary>
     public static class CardConfigSerializer
     {
-        public const string DefaultFileRelative = "Tide/Cards.json";
+        public const string DefaultFileRelative = "Card/Cards.json";
 
         private static string PathFor(string relative)
         {

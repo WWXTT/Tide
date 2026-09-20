@@ -63,12 +63,15 @@ namespace CardCore
         /// <summary>
         /// 初始化所有子系统并注册到注册表
         /// </summary>
+        /// <summary>初始生命 30（2026-09-14 抵消退役后无单局兑换预算概念——流失扣上限的总量自然受 30 封顶）；
+        /// Reset 跨局复位同用此值（上限被 LifeUp/流失改动后回初始）。</summary>
+        public const int InitialLife = 30;
+
         private void Initialize()
         {
             // 初始化玩家
-            // 初始生命 30（2026-09-14 抵消退役后无单局兑换预算概念——流失扣上限的总量自然受 30 封顶）
-            _player1 = new Player("Player 1", 30);
-            _player2 = new Player("Player 2", 30);
+            _player1 = new Player("Player 1", InitialLife);
+            _player2 = new Player("Player 2", InitialLife);
             _player1.Opponent = _player2;
             _player2.Opponent = _player1;
 
@@ -571,6 +574,9 @@ namespace CardCore
             // 跨局不残留（曾缺失，AI 对战/验证器同域连开多局时暴露）：
             // 1) 清空双方全部区域容器——上一局的卡牌不得带入新局
             // 2) 玩家状态回满——生命/疲劳计数恢复初始
+            // 3) 上限/指示物/关键词复位（2026-09-20 修复）：原 Life=Max 会把回血溢出（LifeUp）
+            //    抬高、流失压低的上限原样带进新局——连跑多局开局出现 33/40 血即此；
+            //    角色残留的指示物与关键词轨一并清空，神佑（构造态默认）随后重新注入
             foreach (var player in new[] { _player1, _player2 })
             {
                 var container = ZoneManager.GetZoneContainer(player);
@@ -578,7 +584,13 @@ namespace CardCore
                 foreach (Zone zone in Enum.GetValues(typeof(Zone)))
                     container.Clear(zone);
 
-                player.Life = player.MaxHealth;
+                player.ResetVitals(InitialLife);
+                player._counters.Clear();
+                player._counterClocks.Clear();
+                player._counterSources.Clear();
+                player._keywords.Clear();
+                player._keywordGrants.Clear();
+                EntityEffectExtensions.AddKeyword(player, DeathRules.DivineProtection, KeywordLane.Status);
                 player.ResetFatigueCount();
                 player.IsAI = false;
 
