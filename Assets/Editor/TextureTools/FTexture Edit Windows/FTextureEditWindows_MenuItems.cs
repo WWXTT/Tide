@@ -66,11 +66,5 @@ namespace FIMSpace.FTextureTools
         {
             NoiseMapGenerator.NoiseMapGeneratorWindow.Open();
         }
-
-        [MenuItem("Assets/Texture Tools/创建渐变贴图", false, 2)]
-        public static void OpenGradientsRampEditor()
-        {
-            UnityEditor.DanbaidongGUI.GradientsRampEditorWindow.ShowWindow();
-        }
     }
 }

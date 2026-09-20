@@ -3,7 +3,7 @@
 #ifndef UNIVERSAL_GBUFFERCOMMON_INCLUDED
 #define UNIVERSAL_GBUFFERCOMMON_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 
 // Material flags:

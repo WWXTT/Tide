@@ -3,9 +3,9 @@
 #ifndef UNIVERSAL_GBUFFEROUTPUT_INCLUDED
 #define UNIVERSAL_GBUFFEROUTPUT_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/GBufferCommon.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SurfaceData.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Lighting.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GBufferCommon.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SurfaceData.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
 #define DECL_SV_TARGET(idx) SV_Target##idx
 #define DECL_OPT_GBUFFER_TARGET(type, name, idx) type name : DECL_SV_TARGET(GBUFFER_IDX_AFTER(idx))

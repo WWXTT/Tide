@@ -1,7 +1,7 @@
 #ifndef UNIVERSAL_LIGHT_COOKIE_TYPES_INCLUDED
 #define UNIVERSAL_LIGHT_COOKIE_TYPES_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/UnityTypes.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityTypes.hlsl"
 
 // Types
 

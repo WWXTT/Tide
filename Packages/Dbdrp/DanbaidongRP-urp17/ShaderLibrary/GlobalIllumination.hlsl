@@ -4,10 +4,10 @@
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ImageBasedLighting.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/RealtimeLights.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RealtimeLights.hlsl"
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/GPUCulledLights.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Material.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GPUCulledLights.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Material.hlsl"
 
 // DanbaidongRP GlobalIllumination only handles bakedGI(Lightmaps).
 #define USE_BAKED_GI_ONLY 1
@@ -343,7 +343,7 @@ half3 SampleLightmap(float2 staticLightmapUV, half3 normalWS)
 // If lightmap: sampleData.xy = lightmapUV
 // If probe: sampleData.xyz = L2 SH terms
 #if defined(_SCREEN_SPACE_IRRADIANCE)
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareScreenSpaceIrradianceTexture.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareScreenSpaceIrradianceTexture.hlsl"
 #define SAMPLE_GI(positionCS) SampleScreenSpaceIrradiance(positionCS)
 #elif defined(LIGHTMAP_ON) && defined(DYNAMICLIGHTMAP_ON)
 #define SAMPLE_GI(staticLmName, dynamicLmName, shName, normalWSName) SampleLightmap(staticLmName, dynamicLmName, normalWSName)

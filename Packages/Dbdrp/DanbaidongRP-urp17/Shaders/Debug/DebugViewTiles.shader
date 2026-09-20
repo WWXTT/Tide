@@ -30,17 +30,17 @@ Shader "Hidden/Universal/DebugViewTiles"
             //-------------------------------------------------------------------------------------
             // Include
             //-------------------------------------------------------------------------------------
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Debug.hlsl"
             // #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
 
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Debug/DebuggingFullscreen.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/Runtime/Lights/GPULights.cs.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/GPUCulledLights.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareDepthTexture.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Lighting.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Debug/DebugViewEnums.cs.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Debug/DebuggingFullscreen.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Runtime/Lights/GPULights.cs.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GPUCulledLights.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Debug/DebugViewEnums.cs.hlsl"
 
             //-------------------------------------------------------------------------------------
             // variable declaration

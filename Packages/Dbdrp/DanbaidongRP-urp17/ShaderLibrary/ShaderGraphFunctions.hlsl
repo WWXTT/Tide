@@ -15,15 +15,15 @@
 #define SHADERGRAPH_RENDERER_BOUNDS_MAX shadergraph_RendererBoundsWS_Max()
 
 #if defined(REQUIRE_DEPTH_TEXTURE)
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareDepthTexture.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
 #endif
 
 #if defined(REQUIRE_OPAQUE_TEXTURE)
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareOpaqueTexture.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareOpaqueTexture.hlsl"
 #endif
 
 #if defined(REQUIRE_NORMAL_TEXTURE)
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareNormalsTexture.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareNormalsTexture.hlsl"
 #endif
 
 float shadergraph_LWSampleSceneDepth(float2 uv)

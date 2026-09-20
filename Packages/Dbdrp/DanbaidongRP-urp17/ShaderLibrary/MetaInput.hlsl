@@ -2,7 +2,7 @@
 #define UNIVERSAL_META_INPUT_INCLUDED
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/MetaPass.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Lighting.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
 #define MetaInput UnityMetaInput

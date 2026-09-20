@@ -18,7 +18,7 @@ Shader "Hidden/DanbaidongRP/PreIntegratedFGD_CharlieFabricLambert"
             #define PREFER_HALF 0
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ImageBasedLighting.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/Runtime/PreIntegratedFGD/PreIntegratedFGD.cs.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Runtime/PreIntegratedFGD/PreIntegratedFGD.cs.hlsl"
 
             // ----------------------------------------------------------------------------
             // Importance Sampling

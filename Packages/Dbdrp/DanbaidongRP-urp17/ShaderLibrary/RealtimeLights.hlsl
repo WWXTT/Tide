@@ -2,11 +2,11 @@
 #ifndef UNIVERSAL_REALTIME_LIGHTS_INCLUDED
 #define UNIVERSAL_REALTIME_LIGHTS_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/AmbientOcclusion.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Input.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Shadows.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/LightCookie/LightCookie.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Clustering.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/AmbientOcclusion.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Input.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LightCookie/LightCookie.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Clustering.hlsl"
 
 // Abstraction over Light shading data.
 struct Light

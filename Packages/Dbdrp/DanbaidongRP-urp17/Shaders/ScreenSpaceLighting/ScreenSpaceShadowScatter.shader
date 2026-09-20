@@ -34,15 +34,15 @@ Shader "Hidden/ScreenSpaceShadowScatter"
             // -------------------------------------
             // Includes
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Lighting.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareDepthTexture.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
 
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/ScreenSpaceLighting/ScreenSpaceLighting.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/ScreenSpaceLighting/ScreenSpaceLighting.hlsl"
 
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/ShadowsPCSS.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShadowsPCSS.hlsl"
 
 
             #define DOWNSAMPLE  (0.5)

@@ -7,7 +7,7 @@ namespace UnityEngine.Rendering.Universal
     /// <summary>
     /// Class for 2D shadow caster groups.
     /// </summary>
-    [MovedFrom(false, "UnityEngine.Experimental.Rendering.Universal", "com.unity.render-pipelines.danbaidong")]
+    [MovedFrom(false, "UnityEngine.Experimental.Rendering.Universal", "com.unity.render-pipelines.universal")]
     public abstract class ShadowCasterGroup2D : MonoBehaviour
     {
         [SerializeField] internal int  m_ShadowGroup = 0;

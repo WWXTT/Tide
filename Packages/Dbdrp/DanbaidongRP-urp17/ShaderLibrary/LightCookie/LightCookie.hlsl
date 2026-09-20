@@ -3,8 +3,8 @@
 
 // Includes
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Input.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/LightCookie/LightCookieInput.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Input.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LightCookie/LightCookieInput.hlsl"
 
 #if defined(_LIGHT_COOKIES)
     #ifndef REQUIRES_WORLD_SPACE_POS_INTERPOLATOR

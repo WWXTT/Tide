@@ -3,7 +3,7 @@
 // URP package specific shader input variables and defines.
 // Unity Engine specific built-in shader input variables are defined in .universal/ShaderLibrary/UnityInput.hlsl
 
-#include "Packages/com.unity.render-pipelines.danbaidong-config/Runtime/ShaderConfig.cs.hlsl"
+#include "Packages/com.unity.render-pipelines.universal-config/Runtime/ShaderConfig.cs.hlsl"
 
 #define MAX_VISIBLE_LIGHTS_UBO  32
 #define MAX_VISIBLE_LIGHTS_SSBO 256
@@ -11,8 +11,8 @@
 // Keep in sync with RenderingUtils.useStructuredBuffer
 #define USE_STRUCTURED_BUFFER_FOR_LIGHT_DATA 0
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/ShaderTypes.cs.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Deprecated.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderTypes.cs.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Deprecated.hlsl"
 
 // Must match: UniversalRenderPipeline.maxVisibleAdditionalLights
 #if defined(SHADER_API_MOBILE) && defined(SHADER_API_GLES30)
@@ -228,9 +228,9 @@ CBUFFER_END
 // UnityInput.hlsl must be included before UnityInstancing.hlsl, so constant buffer
 // declarations don't fail because of instancing macros.
 // UniversalDOTSInstancing.hlsl must be included after UnityInstancing.hlsl
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/UnityInput.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityInput.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/UniversalDOTSInstancing.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UniversalDOTSInstancing.hlsl"
 
 // VFX may also redefine UNITY_MATRIX_M / UNITY_MATRIX_I_M as static per-particle global matrices.
 #ifdef HAVE_VFX_MODIFICATION

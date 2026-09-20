@@ -2,7 +2,7 @@
 #define UNITY_SCREENSPACE_LIGHTING_INCLUDED
 
 // We always need NoueNoise
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/BlueNoise.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/BlueNoise.hlsl"
 
 TEXTURE2D_X(_CameraMotionVectorsTexture);
 

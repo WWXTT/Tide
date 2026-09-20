@@ -1,7 +1,7 @@
 #ifndef GPU_CULLED_LIGHTS_INCLUDED
 #define GPU_CULLED_LIGHTS_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/Runtime/Lights/GPULights.cs.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Runtime/Lights/GPULights.cs.hlsl"
 
 #ifdef _GPU_LIGHTS_CLUSTER
 #define USE_GPULIGHTS_CLUSTER

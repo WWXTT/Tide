@@ -47,23 +47,23 @@ namespace UnityEditor.Rendering.Universal
             yield return (
                 new string[]
                 {
-                    "Packages/com.unity.render-pipelines.danbaidong/Tests/Editor/PostProcessDataTests/PostProcessData BloomPS Different.asset",
+                    "Packages/com.unity.render-pipelines.universal/Tests/Editor/PostProcessDataTests/PostProcessData BloomPS Different.asset",
                 },
                 s_Datas[0]);
 
             yield return (
                 new string[]
                 {
-                    "Packages/com.unity.render-pipelines.danbaidong/Tests/Editor/PostProcessDataTests/PostProcessData BloomPS Different.asset",
-                    "Packages/com.unity.render-pipelines.danbaidong/Tests/Editor/PostProcessDataTests/PostProcessData BloomPS Different.asset",
+                    "Packages/com.unity.render-pipelines.universal/Tests/Editor/PostProcessDataTests/PostProcessData BloomPS Different.asset",
+                    "Packages/com.unity.render-pipelines.universal/Tests/Editor/PostProcessDataTests/PostProcessData BloomPS Different.asset",
                 },
                 s_Datas[1]);
 
             yield return (
                 new string[]
                 {
-                    "Packages/com.unity.render-pipelines.danbaidong/Tests/Editor/PostProcessDataTests/PostProcessData BloomPS Different 1.asset",
-                    "Packages/com.unity.render-pipelines.danbaidong/Tests/Editor/PostProcessDataTests/PostProcessData BloomPS Different.asset",
+                    "Packages/com.unity.render-pipelines.universal/Tests/Editor/PostProcessDataTests/PostProcessData BloomPS Different 1.asset",
+                    "Packages/com.unity.render-pipelines.universal/Tests/Editor/PostProcessDataTests/PostProcessData BloomPS Different.asset",
                 },
                 s_Datas[2]);
         }

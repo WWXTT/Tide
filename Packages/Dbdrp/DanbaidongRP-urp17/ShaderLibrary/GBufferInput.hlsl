@@ -3,10 +3,10 @@
 #ifndef UNIVERSAL_GBUFFERINPUT_INCLUDED
 #define UNIVERSAL_GBUFFERINPUT_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/GBufferCommon.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SurfaceData.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/BRDF.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GBufferCommon.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SurfaceData.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/BRDF.hlsl"
 
 #if defined(GBUFFER_FBFETCH_AVAILABLE)
 // Native render pass / framebuffer fetch available!

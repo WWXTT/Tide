@@ -1,7 +1,7 @@
 #ifndef UNIVERSAL_FORWARD_LIT_DEPTH_NORMALS_PASS_INCLUDED
 #define UNIVERSAL_FORWARD_LIT_DEPTH_NORMALS_PASS_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Terrain/TerrainLitPasses.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitPasses.hlsl"
 
 // DepthNormal pass
 struct AttributesDepthNormal

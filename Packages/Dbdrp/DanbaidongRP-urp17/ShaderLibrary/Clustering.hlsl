@@ -1,7 +1,7 @@
 #ifndef UNIVERSAL_CLUSTERING_INCLUDED
 #define UNIVERSAL_CLUSTERING_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Input.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Input.hlsl"
 
 #if USE_FORWARD_PLUS
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRendering.hlsl"

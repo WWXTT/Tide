@@ -11,7 +11,7 @@ namespace UnityEditor.Rendering.Universal
 {
     internal class LightBatchingDebugger : EditorWindow
     {
-        private const string ResourcePath = "Packages/com.unity.render-pipelines.danbaidong/Editor/2D/LightBatchingDebugger/";
+        private const string ResourcePath = "Packages/com.unity.render-pipelines.universal/Editor/2D/LightBatchingDebugger/";
 
         private class LayerBatch
         {

@@ -3,7 +3,7 @@ Shader "Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion"
     HLSLINCLUDE
         #pragma editor_sync_compilation
         #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-        #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
     ENDHLSL
 
@@ -40,7 +40,7 @@ Shader "Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion"
                 #pragma multi_compile_local_fragment _SAMPLE_COUNT_LOW _SAMPLE_COUNT_MEDIUM _SAMPLE_COUNT_HIGH
 
                 #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-                #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SSAO.hlsl"
+                #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SSAO.hlsl"
             ENDHLSL
         }
 
@@ -57,7 +57,7 @@ Shader "Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion"
                 #pragma vertex Vert
                 #pragma fragment HorizontalBlur
                 #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-                #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SSAO.hlsl"
+                #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SSAO.hlsl"
             ENDHLSL
         }
 
@@ -70,7 +70,7 @@ Shader "Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion"
                 #pragma vertex Vert
                 #pragma fragment VerticalBlur
                 #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-                #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SSAO.hlsl"
+                #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SSAO.hlsl"
             ENDHLSL
         }
 
@@ -83,7 +83,7 @@ Shader "Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion"
                 #pragma vertex Vert
                 #pragma fragment FinalBlur
                 #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-                #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SSAO.hlsl"
+                #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SSAO.hlsl"
             ENDHLSL
         }
 
@@ -103,7 +103,7 @@ Shader "Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion"
                 #pragma fragment FragBilateralAfterOpaque
 
                 #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-                #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SSAO.hlsl"
+                #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SSAO.hlsl"
 
                 half4 FragBilateralAfterOpaque(Varyings input) : SV_Target
                 {
@@ -127,7 +127,7 @@ Shader "Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion"
                 #pragma vertex Vert
                 #pragma fragment HorizontalGaussianBlur
                 #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-                #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SSAO.hlsl"
+                #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SSAO.hlsl"
             ENDHLSL
         }
 
@@ -140,7 +140,7 @@ Shader "Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion"
                 #pragma vertex Vert
                 #pragma fragment VerticalGaussianBlur
                 #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-                #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SSAO.hlsl"
+                #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SSAO.hlsl"
             ENDHLSL
         }
 
@@ -160,7 +160,7 @@ Shader "Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion"
                 #pragma fragment FragGaussianAfterOpaque
 
                 #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-                #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SSAO.hlsl"
+                #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SSAO.hlsl"
 
                 half4 FragGaussianAfterOpaque(Varyings input) : SV_Target
                 {
@@ -184,7 +184,7 @@ Shader "Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion"
                 #pragma vertex Vert
                 #pragma fragment KawaseBlur
                 #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-                #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SSAO.hlsl"
+                #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SSAO.hlsl"
             ENDHLSL
         }
 
@@ -204,7 +204,7 @@ Shader "Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion"
                 #pragma fragment FragKawaseAfterOpaque
 
                 #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-                #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SSAO.hlsl"
+                #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SSAO.hlsl"
 
                 half4 FragKawaseAfterOpaque(Varyings input) : SV_Target
                 {

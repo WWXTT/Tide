@@ -1,7 +1,7 @@
 #ifndef GPU_LIGHTS_CULLING_UTILS_INCLUDE
 #define GPU_LIGHTS_CULLING_UTILS_INCLUDE
 
-#include "Packages/com.unity.render-pipelines.danbaidong/Runtime/Lights/GPULights.cs.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Runtime/Lights/GPULights.cs.hlsl"
 
 // Used to index into our SFiniteLightBound (g_LightBounds) and
 // LightVolumeData (_LightVolumeData) buffers.

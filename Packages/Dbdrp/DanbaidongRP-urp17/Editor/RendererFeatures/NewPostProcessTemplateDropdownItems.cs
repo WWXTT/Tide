@@ -8,10 +8,10 @@ namespace UnityEditor.Rendering.Universal
     internal static class NewPostProcessTemplateDropdownItems
     {
         const string k_FeatureTemplatePath =
-            "Packages/com.unity.render-pipelines.danbaidong/Editor/RendererFeatures/NewPostProcessRendererFeature.cs.txt";
+            "Packages/com.unity.render-pipelines.universal/Editor/RendererFeatures/NewPostProcessRendererFeature.cs.txt";
 
         const string k_VolumeTemplatePath =
-            "Packages/com.unity.render-pipelines.danbaidong/Editor/RendererFeatures/NewPostProcessVolumeComponent.cs.txt";
+            "Packages/com.unity.render-pipelines.universal/Editor/RendererFeatures/NewPostProcessVolumeComponent.cs.txt";
 
         static string PreprocessScriptTemplate(string content, string featureType = null, string volumeType = null, string displayName = null)
         {

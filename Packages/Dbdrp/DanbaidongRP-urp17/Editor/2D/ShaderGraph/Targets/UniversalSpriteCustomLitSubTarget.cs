@@ -275,10 +275,10 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
         #region Includes
         static class SpriteLitIncludes
         {
-            const string kSpriteUnlitPass = "Packages/com.unity.render-pipelines.danbaidong/Editor/2D/ShaderGraph/Includes/SpriteUnlitPass.hlsl";
-            const string k2DNormal = "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/NormalsRenderingShared.hlsl";
-            const string kSpriteNormalPass = "Packages/com.unity.render-pipelines.danbaidong/Editor/2D/ShaderGraph/Includes/SpriteNormalPass.hlsl";
-            const string kSpriteForwardPass = "Packages/com.unity.render-pipelines.danbaidong/Editor/2D/ShaderGraph/Includes/SpriteForwardPass.hlsl";
+            const string kSpriteUnlitPass = "Packages/com.unity.render-pipelines.universal/Editor/2D/ShaderGraph/Includes/SpriteUnlitPass.hlsl";
+            const string k2DNormal = "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/NormalsRenderingShared.hlsl";
+            const string kSpriteNormalPass = "Packages/com.unity.render-pipelines.universal/Editor/2D/ShaderGraph/Includes/SpriteNormalPass.hlsl";
+            const string kSpriteForwardPass = "Packages/com.unity.render-pipelines.universal/Editor/2D/ShaderGraph/Includes/SpriteForwardPass.hlsl";
 
             public static IncludeCollection Lit = new IncludeCollection
             {

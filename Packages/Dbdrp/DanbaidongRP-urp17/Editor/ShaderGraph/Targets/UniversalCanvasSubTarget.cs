@@ -12,7 +12,7 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
     {
         static readonly GUID kSourceCodeGuid = new GUID("f7075c3a804b49bf86535f6f86615132");  // UniversalCanvasSubTarget.cs
 
-        static readonly string kCanvasPass = "Packages/com.unity.render-pipelines.danbaidong/Editor/ShaderGraph/Includes/CanvasPass.hlsl";
+        static readonly string kCanvasPass = "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/CanvasPass.hlsl";
         public override void Setup(ref TargetSetupContext context)
         {
             base.Setup(ref context);

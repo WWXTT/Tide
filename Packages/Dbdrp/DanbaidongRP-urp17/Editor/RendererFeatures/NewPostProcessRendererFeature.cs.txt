@@ -8,7 +8,7 @@ using UnityEngine.Rendering.Universal;
 // To see how this feature is made to work with on a custom VolumeComponent observe the "AddRenderPasses" and "ExecuteMainPass" methods
 //
 // For a general guide on how to create custom ScriptableRendererFeatures see the following URP documentation page:
-// https://docs.unity3d.com/Packages/com.unity.render-pipelines.danbaidong@latest/index.html?subfolder=/manual/renderer-features/create-custom-renderer-feature.html
+// https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@latest/index.html?subfolder=/manual/renderer-features/create-custom-renderer-feature.html
 public sealed class #FEATURE_TYPE# : ScriptableRendererFeature
 {
     #region FEATURE_FIELDS
@@ -41,7 +41,7 @@ public sealed class #FEATURE_TYPE# : ScriptableRendererFeature
         //     2) Or add "Shader Graphs/FullscreenInvertColors" to the "Always Included Shaders List" under "ProjectSettings"-> "Graphics" -> "Shader Settings"
         //        and call 'm_Shader = Shader.Find("Shader Graphs/FullscreenInvertColors")' outside of the UNITY_EDITOR section
         if (m_Material == null)
-            m_Material = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/FullscreenInvertColors.mat");
+            m_Material = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Packages/com.unity.render-pipelines.universal/Runtime/Materials/FullscreenInvertColors.mat");
 #endif
 
         if(m_Material)
@@ -85,9 +85,9 @@ public sealed class #FEATURE_TYPE# : ScriptableRendererFeature
         // will either reuse these if they've been generated earlier in the frame or will add passes to generate them.
         //
         // The inputs will get bound as global shader texture properties and can be sampled in the shader using using the following:
-        // * Depth  - use "SampleSceneDepth" after including "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareNormalsTexture.hlsl"
-        // * Normal - use "SampleSceneNormals" after including "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareNormalsTexture.hlsl"
-        // * Opaque Scene Color - use "SampleSceneColor" after including "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareOpaqueTexture.hlsl".
+        // * Depth  - use "SampleSceneDepth" after including "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareNormalsTexture.hlsl"
+        // * Normal - use "SampleSceneNormals" after including "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareNormalsTexture.hlsl"
+        // * Opaque Scene Color - use "SampleSceneColor" after including "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareOpaqueTexture.hlsl".
         //   Note that "OpaqueSceneColor" is a texture containing a possibly downscaled copy of the framebuffer from before rendering transparent objects which
         //   should not be your first choice when wanting to do a post-processing effect, for that this template will copy the active texture for sampling which is more expensive
         // * Motion Vectors - you currently need to declare and sample the texture as follows:

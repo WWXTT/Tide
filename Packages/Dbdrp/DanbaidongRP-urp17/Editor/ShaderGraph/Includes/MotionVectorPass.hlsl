@@ -1,7 +1,7 @@
 #ifndef SG_MOTION_VECTORS_PASS_INCLUDED
 #define SG_MOTION_VECTORS_PASS_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/MotionVectorsCommon.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/MotionVectorsCommon.hlsl"
 
 struct MotionVectorPassAttributes
 {

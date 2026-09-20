@@ -1,6 +1,6 @@
-#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/Core2D.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/SurfaceData2D.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Debug/Debugging2D.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/Core2D.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/SurfaceData2D.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Debug/Debugging2D.hlsl"
 
 half4 _RendererColor;
 

@@ -7,7 +7,7 @@ Shader "Universal Render Pipeline/2D/Sprite-Mask"
     }
 
     HLSLINCLUDE
-    #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+    #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
     ENDHLSL
 
     SubShader
@@ -35,7 +35,7 @@ Shader "Universal Render Pipeline/2D/Sprite-Mask"
             #pragma vertex MaskRenderingVertex
             #pragma fragment MaskRenderingFragment
 
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/SpriteMaskShared.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/SpriteMaskShared.hlsl"
             ENDHLSL
         }
         Pass
@@ -45,7 +45,7 @@ Shader "Universal Render Pipeline/2D/Sprite-Mask"
             #pragma vertex MaskRenderingVertex
             #pragma fragment MaskRenderingFragment
 
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/SpriteMaskShared.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/SpriteMaskShared.hlsl"
             ENDHLSL
         }
         Pass
@@ -55,7 +55,7 @@ Shader "Universal Render Pipeline/2D/Sprite-Mask"
             #pragma vertex MaskRenderingVertex
             #pragma fragment MaskRenderingFragment
 
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/SpriteMaskShared.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/SpriteMaskShared.hlsl"
             ENDHLSL
         }
 

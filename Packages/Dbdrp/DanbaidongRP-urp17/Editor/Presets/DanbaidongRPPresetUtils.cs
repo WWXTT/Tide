@@ -6,7 +6,7 @@ namespace UnityEditor.Rendering.Universal
 {
     public class DanbaidongRPPresetUtils
     {
-        public static readonly string pipelinePresetsPath = "Packages/com.unity.render-pipelines.danbaidong/Editor/Presets/";
+        public static readonly string pipelinePresetsPath = "Packages/com.unity.render-pipelines.universal/Editor/Presets/";
 
         public static Preset LoadPreset(string presetName)
         {

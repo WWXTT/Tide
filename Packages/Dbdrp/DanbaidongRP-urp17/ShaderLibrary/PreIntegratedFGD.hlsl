@@ -1,7 +1,7 @@
 #ifndef PREINTEGRATED_FGD
 #define PREINTEGRATED_FGD
 
-#include "Packages/com.unity.render-pipelines.danbaidong/Runtime/PreIntegratedFGD/PreIntegratedFGD.cs.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Runtime/PreIntegratedFGD/PreIntegratedFGD.cs.hlsl"
 
 TEXTURE2D(_PreIntegratedFGD_GGXDisneyDiffuse);
 TEXTURE2D(_PreIntegratedFGD_CharlieAndFabric);

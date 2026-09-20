@@ -1,7 +1,7 @@
 #ifndef UNITY_SHADER_VARIABLES_FUNCTIONS_DEPRECATED_INCLUDED
 #define UNITY_SHADER_VARIABLES_FUNCTIONS_DEPRECATED_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Input.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Input.hlsl"
 
 // Deprecated: A confusingly named and duplicate function that scales clipspace to unity NDC range. (-w < x(-y) < w --> 0 < xy < w)
 // Use GetVertexPositionInputs().positionNDC instead for vertex shader

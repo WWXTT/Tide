@@ -1,6 +1,6 @@
-#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/Core2D.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/SurfaceData2D.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Debug/Debugging2D.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/Core2D.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/SurfaceData2D.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Debug/Debugging2D.hlsl"
 
 #if USE_SHAPE_LIGHT_TYPE_0
 SHAPE_LIGHT(0)
@@ -18,7 +18,7 @@ SHAPE_LIGHT(2)
 SHAPE_LIGHT(3)
 #endif
 
-#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/CombinedShapeLightShared.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/CombinedShapeLightShared.hlsl"
 
 half4 _RendererColor;
 

@@ -3,7 +3,7 @@ Shader "Hidden/Universal Render Pipeline/Stop NaN"
     HLSLINCLUDE
         #pragma target 3.5
 
-        #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
 
         #define NAN_COLOR half4(0.0, 0.0, 0.0, 0.0)

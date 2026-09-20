@@ -2,7 +2,7 @@
 #ifndef UNIVERSAL_DEBUGGING_COMMON_INCLUDED
 #define UNIVERSAL_DEBUGGING_COMMON_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Debug/DebugViewEnums.cs.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Debug/DebugViewEnums.cs.hlsl"
 
 #if defined(DEBUG_DISPLAY)
 
