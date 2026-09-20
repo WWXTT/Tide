@@ -11,15 +11,17 @@
                        style="position: absolute; top: 4px; right: 4px;" />
 
             <ui:VisualElement name="content">
-                <ui:VisualElement class="toolbar" style="margin-bottom: 4px;">
+                <ui:VisualElement class="toolbar" style="margin-bottom: 4px; flex-wrap: wrap;">
                     <ui:Button name="btn-mode-terrain" text="地形笔刷" class="btn--mini" />
-                    <ui:Button name="btn-mode-spring" text="放泉水" class="btn--mini" />
-                    <ui:Button name="btn-mode-roadnode" text="放路点" class="btn--mini" />
-                    <ui:Button name="btn-mode-delpoi" text="删 POI" class="btn--mini" />
+                    <ui:Button name="btn-mode-height" text="高度" class="btn--mini" />
+                    <ui:Button name="btn-mode-water" text="水" class="btn--mini" />
+                    <ui:Button name="btn-mode-road" text="路" class="btn--mini" />
+                    <ui:Button name="btn-mode-veg" text="植被" class="btn--mini" />
+                    <ui:Button name="btn-mode-poi" text="POI" class="btn--mini" />
                 </ui:VisualElement>
 
-                <ui:Label text="笔刷地块（数字键）" class="hint" />
-                <ui:VisualElement name="brush-row" style="flex-direction: row; flex-wrap: wrap;" />
+                <ui:Label name="lbl-option-title" text="贴图（数字键快选）" class="hint" />
+                <ui:VisualElement name="option-row" style="flex-direction: row; flex-wrap: wrap;" />
 
                 <ui:Label text="POI 半径" class="hint" />
                 <ui:Slider name="slider-poi-radius" low-value="2" high-value="60" value="20"
@@ -36,10 +38,9 @@
                               style="margin-top: 4px;" />
                 <ui:VisualElement class="toolbar" style="margin-bottom: 4px;">
                     <ui:Button name="btn-save" text="保存(F5)" class="btn--mini btn--primary" />
-                    <ui:Button name="btn-load" text="加载(F9)" class="btn--mini" />
-                    <ui:Button name="btn-refresh" text="刷新" class="btn--mini" />
+                    <ui:Button name="btn-load" text="重载选中(F9)" class="btn--mini" />
                 </ui:VisualElement>
-                <ui:DropdownField name="dropdown-loads" label="存档" />
+                <ui:DropdownField name="dropdown-loads" label="存档（选中即加载）" />
 
                 <ui:Label name="lbl-status" text="" class="hint"
                           style="color: rgb(140, 200, 160); white-space: normal;" />

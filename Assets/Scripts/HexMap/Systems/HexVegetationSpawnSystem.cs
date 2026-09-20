@@ -1,9 +1,6 @@
 using System.Collections.Generic;
-using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
-using Unity.Rendering;
-using Unity.Transforms;
 using UnityEngine;
 
 namespace HexMap
@@ -35,9 +32,6 @@ namespace HexMap
         private EntityQuery _featureQuery;
         private HexChunkStreamingSystem _streaming;
         private readonly List<PendingInstance> _pending = new();
-        private readonly Dictionary<(Mesh mesh, Material material), MaterialMeshInfo> _registered = new();
-        private EntityArchetype _instanceArchetype;
-        private bool _archetypeReady;
 
         protected override void OnCreate()
         {
@@ -90,7 +84,29 @@ namespace HexMap
             }
 
             if (_pending.Count == 0)
+            {
                 state.VegetationDirty = false;
+                ApplyManualOverrides(featureConfig);   // 手动植被重放（活过整批重建）
+            }
+        }
+
+        /// <summary>散布完成后重放手动覆写（植被笔刷的持久层，见 HexVegetationSpawner）</summary>
+        private void ApplyManualOverrides(HexFeatureConfig featureConfig)
+        {
+            if (HexManualVegetationState.Overrides.Count == 0)
+                return;
+
+            var em = EntityManager;
+            var configEntity = SystemAPI.GetSingletonEntity<HexMapConfig>();
+            var config = SystemAPI.GetComponentRO<HexMapConfig>(configEntity).ValueRO;
+            ref var blob = ref config.Blob.Value;
+            var metrics = HexMetrics.FromBlob(ref blob);
+
+            if (_streaming == null || !_streaming.CellLookup.IsCreated)
+                return;
+
+            HexVegetationSpawner.ApplyManualOverrides(World, em, featureConfig.Settings,
+                in metrics, ref blob, _streaming.CellLookup);
         }
 
         // ── 6.1 散布算法（逐 cell 哈希驱动，确定性） ────────────────
@@ -207,59 +223,12 @@ namespace HexMap
             }
         }
 
-        // ── 6.2 ECS 实例化 ──────────────────────────────────────────
+        // ── 6.2 ECS 实例化（落子器提取至 HexVegetationSpawner，散布/手动笔刷共用）──
 
         private void SpawnOne(EntityManager em, in PendingInstance inst, HexScatterRule rule)
         {
-            if (!_archetypeReady)
-            {
-                _instanceArchetype = em.CreateArchetype(
-                    typeof(LocalTransform),
-                    typeof(HexScatterInstance),
-                    typeof(HexScatterCell),
-                    typeof(HexScatterPrototype));
-                _archetypeReady = true;
-            }
-
-            var key = (rule.mesh, rule.material);
-            if (!_registered.TryGetValue(key, out var mmi))
-            {
-                var egs = World.GetExistingSystemManaged<EntitiesGraphicsSystem>();
-                if (egs == null)
-                    return;
-                mmi = new MaterialMeshInfo(egs.RegisterMaterial(rule.material), egs.RegisterMesh(rule.mesh));
-                _registered[key] = mmi;
-            }
-
-            var entity = em.CreateEntity(_instanceArchetype);
-            em.SetSharedComponentManaged(entity, new HexScatterPrototype { PrototypeIndex = inst.RuleIndex });
-            em.SetComponentData(entity, new HexScatterCell { Offset = inst.Cell });
-            em.SetComponentData(entity, new LocalTransform
-            {
-                Position = inst.Pos,
-                Rotation = inst.Rot,
-                Scale = inst.Scale,
-            });
-
-            var desc = new RenderMeshDescription(
-                UnityEngine.Rendering.ShadowCastingMode.On, receiveShadows: true);
-            RenderMeshUtility.AddComponents(entity, em, desc, mmi);
-
-            // AddComponents 后 LocalToWorld 可能残留零矩阵 → 按 TRS 直写（HexMeshWriteSystem 同坑）
-            em.SetComponentData(entity, new LocalToWorld
-            {
-                Value = float4x4.TRS(inst.Pos, inst.Rot, new float3(inst.Scale)),
-            });
-
-            var b = rule.mesh.bounds;
-            em.SetComponentData(entity, new RenderBounds
-            {
-                Value = new AABB
-                {
-                    Center = new float3(b.center.x, b.center.y, b.center.z) * inst.Scale,
-                    Extents = new float3(b.extents.x, b.extents.y, b.extents.z) * inst.Scale,
-                },
-            });
+            HexVegetationSpawner.SpawnInstance(World, em, inst.Pos, inst.Rot, inst.Scale,
+                inst.Cell, inst.RuleIndex, rule);
         }
     }
 }

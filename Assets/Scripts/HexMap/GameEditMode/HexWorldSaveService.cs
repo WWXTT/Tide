@@ -99,6 +99,16 @@ namespace HexMap
                 roads[i] = RoadToDto(state.Roads[i]);
             save.roads = roads;
 
+            // 手动植被覆写（植被笔刷的持久层）
+            if (HexManualVegetationState.Overrides.Count > 0)
+            {
+                var veg = new HexVegOverrideDto[HexManualVegetationState.Overrides.Count];
+                int vi = 0;
+                foreach (var kv in HexManualVegetationState.Overrides)
+                    veg[vi++] = HexVegOverrideDto.Of(kv.Key, kv.Value);
+                save.vegOverrides = veg;
+            }
+
             return save;
         }
 
@@ -200,6 +210,21 @@ namespace HexMap
             {
                 foreach (var r in save.roads)
                     state.Roads.Add(RoadFromDto(r));
+            }
+
+            // ④.5 手动植被覆写重灌（存档为唯一真相源；⑥ 重散布完成后由
+            //     HexVegetationSpawnSystem 重放——手动植被随档恢复）
+            if (save.vegOverrides == null || save.vegOverrides.Length == 0)
+                HexManualVegetationState.Overrides.Clear();
+            else
+            {
+                var pairs = new List<KeyValuePair<int2, HexVegOverride>>(save.vegOverrides.Length);
+                foreach (var v in save.vegOverrides)
+                {
+                    var (offset, value) = v.ToPair();
+                    pairs.Add(new KeyValuePair<int2, HexVegOverride>(offset, value));
+                }
+                HexManualVegetationState.ResetFrom(pairs);
             }
 
             // ⑤ 新快照（Snap/Elev = 已恢复的高程）→ 距离图 → 水/路网格复现

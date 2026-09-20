@@ -43,6 +43,35 @@ namespace HexMap
         public HexRiverDto[] rivers;
         public HexLakeDto[] lakes;
         public HexRoadDto[] roads;
+        /// <summary>手动植被覆写（植被笔刷；旧档 null = 无覆写）</summary>
+        public HexVegOverrideDto[] vegOverrides;
+    }
+
+    /// <summary>手动植被覆写 DTO（HexManualVegetationState.Offsets 的 JsonUtility 转储）</summary>
+    [Serializable]
+    public struct HexVegOverrideDto
+    {
+        public int x, z;
+        public int mode;               // (int)HexVegOverrideMode
+        public int prototypeIndex;     // Manual：散布规则索引
+        public int count;              // Manual：每格株数
+
+        public static HexVegOverrideDto Of(int2 offset, HexVegOverride o) => new HexVegOverrideDto
+        {
+            x = offset.x,
+            z = offset.y,
+            mode = (int)o.Mode,
+            prototypeIndex = o.PrototypeIndex,
+            count = o.Count,
+        };
+
+        public (int2 offset, HexVegOverride value) ToPair() =>
+            (new int2(x, z), new HexVegOverride
+            {
+                Mode = (HexVegOverrideMode)mode,
+                PrototypeIndex = prototypeIndex,
+                Count = count,
+            });
     }
 
     [Serializable]
