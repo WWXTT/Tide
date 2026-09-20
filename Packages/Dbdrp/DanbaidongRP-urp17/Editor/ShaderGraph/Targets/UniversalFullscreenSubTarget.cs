@@ -29,7 +29,7 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
 
         protected override string pipelineTag => UniversalTarget.kPipelineTag;
 
-        const string kURPInput = "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Input.hlsl";
+        const string kURPInput = "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Input.hlsl";
 
         protected override IncludeCollection pregraphIncludes => new IncludeCollection
         {

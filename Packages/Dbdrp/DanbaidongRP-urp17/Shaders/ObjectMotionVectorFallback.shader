@@ -10,7 +10,7 @@ Shader "Hidden/Universal Render Pipeline/ObjectMotionVectorFallback"
             ColorMask RG
 
             HLSLPROGRAM
-            #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/ObjectMotionVectors.hlsl"
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ObjectMotionVectors.hlsl"
             ENDHLSL
         }
 
@@ -31,7 +31,7 @@ Shader "Hidden/Universal Render Pipeline/ObjectMotionVectorFallback"
 
             HLSLPROGRAM
             #define APLICATION_SPACE_WARP_MOTION 1
-            #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/ObjectMotionVectors.hlsl"
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ObjectMotionVectors.hlsl"
             ENDHLSL
         }
     }

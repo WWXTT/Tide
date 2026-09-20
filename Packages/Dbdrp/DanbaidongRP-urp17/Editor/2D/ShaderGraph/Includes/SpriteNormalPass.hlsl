@@ -1,4 +1,4 @@
-#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/Core2D.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/Core2D.hlsl"
 
 PackedVaryings vert(Attributes input)
 {

@@ -49,7 +49,7 @@ namespace Documentation
     //     public void TestURPHelpURLAttributes()
     //     {
     //         // Start with checking a bad URL to make sure TestURL() works.
-    //         string badURL = "https://docs.unity3d.com/Packages/com.unity.render-pipelines.danbaidong@16.0/manual/incorrect-url";
+    //         string badURL = "https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@16.0/manual/incorrect-url";
     //         bool badURLResults = TestURL(badURL);
     //         Assert.IsFalse(badURLResults, "TestURL() failed. A broken URL should have been detected.");
 

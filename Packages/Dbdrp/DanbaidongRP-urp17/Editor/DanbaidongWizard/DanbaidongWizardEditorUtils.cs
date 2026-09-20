@@ -21,8 +21,8 @@ namespace UnityEditor.Rendering.Universal
 
     public class DanbaidongWizardEditorUtils
     {
-        internal const string FormatingPath = @"Packages/com.unity.render-pipelines.danbaidong/Editor/DanbaidongWizard/USS/Formating";
-        internal const string WizardSheetPath = @"Packages/com.unity.render-pipelines.danbaidong/Editor/DanbaidongWizard/USS/Wizard";
+        internal const string FormatingPath = @"Packages/com.unity.render-pipelines.universal/Editor/DanbaidongWizard/USS/Formating";
+        internal const string WizardSheetPath = @"Packages/com.unity.render-pipelines.universal/Editor/DanbaidongWizard/USS/Wizard";
 
         private static (StyleSheet baseSkin, StyleSheet professionalSkin, StyleSheet personalSkin) LoadStyleSheets(string basePath)
         => (

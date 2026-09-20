@@ -34,7 +34,7 @@ namespace UnityEditor.Rendering.Universal
 
         static ScriptableRendererData CreateRendererAsset(string path, RendererType type, bool relativePath = true, string suffix = "Renderer")
         {
-            string packagePath = "Packages/com.unity.render-pipelines.danbaidong";
+            string packagePath = "Packages/com.unity.render-pipelines.universal";
 
             ScriptableRendererData data = CreateRendererData(type);
             string dataPath;

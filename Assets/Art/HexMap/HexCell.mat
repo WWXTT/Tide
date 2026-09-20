@@ -25,7 +25,6 @@ Material:
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
-  - _ENVIRONMENTREFLECTIONS_OFF
   - _SPECULARHIGHLIGHTS_OFF
   - _TERRAIN_HEIGHT_MAP
   - _TERRAIN_NORMAL_MAP
@@ -179,7 +178,7 @@ Material:
     - _DstBlend: 0
     - _DstBlendAlpha: 0
     - _EnvColorLerp: 0.5
-    - _EnvironmentReflections: 1
+    - _EnvironmentReflections: 0
     - _FoldoutDirectLight: 0
     - _FoldoutDirectLightEnd: 0
     - _FoldoutEmissRim: 0

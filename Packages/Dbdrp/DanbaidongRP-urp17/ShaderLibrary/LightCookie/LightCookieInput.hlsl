@@ -2,7 +2,7 @@
 #define UNIVERSAL_LIGHT_COOKIE_INPUT_INCLUDED
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/GlobalSamplers.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/LightCookie/LightCookieTypes.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LightCookie/LightCookieTypes.hlsl"
 
 // Textures
 TEXTURE2D(_MainLightCookieTexture);

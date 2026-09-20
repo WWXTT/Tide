@@ -24,7 +24,7 @@ Shader "Crest/Copy Depth Buffer Into Cache"
 			#pragma vertex vert
 			#pragma fragment frag
 
-			#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
 			#include "../../OceanGlobals.hlsl"
 

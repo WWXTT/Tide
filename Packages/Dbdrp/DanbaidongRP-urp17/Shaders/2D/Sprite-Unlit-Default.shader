@@ -25,13 +25,13 @@ Shader "Universal Render Pipeline/2D/Sprite-Unlit-Default"
             Tags { "LightMode" = "Universal2D" }
 
             HLSLPROGRAM
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/Core2D.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/Core2D.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/DebugMipmapStreamingMacros.hlsl"
             #if defined(DEBUG_DISPLAY)
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/InputData2D.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/SurfaceData2D.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Debug/Debugging2D.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/InputData2D.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/SurfaceData2D.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Debug/Debugging2D.hlsl"
             #endif
 
             #pragma vertex UnlitVertex
@@ -114,13 +114,13 @@ Shader "Universal Render Pipeline/2D/Sprite-Unlit-Default"
             Tags { "LightMode" = "UniversalForward" "Queue"="Transparent" "RenderType"="Transparent"}
 
             HLSLPROGRAM
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/Core2D.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/Core2D.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/DebugMipmapStreamingMacros.hlsl"
             #if defined(DEBUG_DISPLAY)
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/InputData2D.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/SurfaceData2D.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Debug/Debugging2D.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/InputData2D.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/SurfaceData2D.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Debug/Debugging2D.hlsl"
             #endif
 
             #pragma vertex UnlitVertex

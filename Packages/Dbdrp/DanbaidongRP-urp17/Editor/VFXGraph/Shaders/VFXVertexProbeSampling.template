@@ -20,7 +20,7 @@ ${VFXBegin:VFXVertexProbeFillVaryings}
 ${VFXEnd}
 
 ${VFXBegin:VFXVertexProbeDeclareFunctions}
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SixWayLighting.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SixWayLighting.hlsl"
 
 void EvaluateProbesSixWay(inout VFX_VARYING_PS_INPUTS input)
 {

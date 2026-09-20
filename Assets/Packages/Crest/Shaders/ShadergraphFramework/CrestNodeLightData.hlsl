@@ -11,7 +11,7 @@
 #include "OceanGraphConstants.hlsl"
 
 #if CREST_URP
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Lighting.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 #include "../OceanLightingHelpers.hlsl"
 #endif
 

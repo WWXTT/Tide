@@ -1,0 +1,14 @@
+ * Simple Player Interaction
+
+ Shader interaction with touch bedding animation. Works with any prefab as well as with terrain plants. It can be switched between multiple players.
+
+ X Limitations: Support only one interactor at a time.
+
+
+ * Physics Interaction
+
+ Works with an unlimited number of interactors at the same time.
+
+ X Limitations: Doesn't work on terrain objects as the terrain has its own collision system that is different from the default mesh.
+
+ - As a quick workaround, you can use the "Convert Terrain to Prefab" script to transform terrain plants into prefabs. This tool creates a clone of the terrain plants as prefabs without being destructive. It is not recommended for extremely large terrains, proceed with caution as it might requier computing power! -

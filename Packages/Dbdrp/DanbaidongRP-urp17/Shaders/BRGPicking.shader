@@ -40,7 +40,7 @@ Shader "Hidden/Universal Render Pipeline/BRGPicking"
 
             float4 _SelectionID;
 
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             struct Attributes
             {
@@ -99,9 +99,9 @@ Shader "Hidden/Universal Render Pipeline/BRGPicking"
             int _ObjectId;
             int _PassValue;
 
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/ShaderVariablesFunctions.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/LitInput.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderVariablesFunctions.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
 
             struct Attributes
             {

@@ -16,7 +16,7 @@ namespace UnityEngine.Rendering.Universal
     /// <summary>
     /// Decal Projector component.
     /// </summary>
-    [CoreRPHelpURL("renderer-feature-decal", "com.unity.render-pipelines.danbaidong")]
+    [CoreRPHelpURL("renderer-feature-decal", "com.unity.render-pipelines.universal")]
     [ExecuteAlways]
 #if UNITY_EDITOR
     [CanEditMultipleObjects]

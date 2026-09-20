@@ -25,7 +25,7 @@ Shader "Hidden/Universal Render Pipeline/XR/XRMirrorView"
                 #define SRC_TEXTURE2D_X_ARRAY 1
                 #endif
                 #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-                #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/XR/XRMirrorView.hlsl"
+                #include "Packages/com.unity.render-pipelines.universal/Shaders/XR/XRMirrorView.hlsl"
             ENDHLSL
         }
     }

@@ -33,7 +33,7 @@ Shader "Hidden/Crest/Underwater/Ocean Mask URP"
 
 			#pragma multi_compile_local _ CREST_WATER_VOLUME
 
-			#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
 			#include "../UnderwaterMaskShared.hlsl"
 			ENDHLSL
@@ -57,7 +57,7 @@ Shader "Hidden/Crest/Underwater/Ocean Mask URP"
 			#pragma vertex Vert
 			#pragma fragment Frag
 
-			#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
 			#include "../UnderwaterMaskHorizonShared.hlsl"
 			ENDHLSL

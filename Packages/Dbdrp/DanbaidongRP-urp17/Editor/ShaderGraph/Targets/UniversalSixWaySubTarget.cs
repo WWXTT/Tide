@@ -485,11 +485,11 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
         #region Includes
         static class SixWayIncludes
         {
-            const string kShadows = "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Shadows.hlsl";
-            const string kMetaInput = "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/MetaInput.hlsl";
-            const string kForwardPass = "Packages/com.unity.render-pipelines.danbaidong/Editor/ShaderGraph/Includes/SixWayForwardPass.hlsl";
-            const string kLightingMetaPass = "Packages/com.unity.render-pipelines.danbaidong/Editor/ShaderGraph/Includes/LightingMetaPass.hlsl";
-            const string kSixWayLighting = "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SixWayLighting.hlsl";
+            const string kShadows = "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl";
+            const string kMetaInput = "Packages/com.unity.render-pipelines.universal/ShaderLibrary/MetaInput.hlsl";
+            const string kForwardPass = "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/SixWayForwardPass.hlsl";
+            const string kLightingMetaPass = "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/LightingMetaPass.hlsl";
+            const string kSixWayLighting = "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SixWayLighting.hlsl";
 
             public static readonly IncludeCollection Forward = new IncludeCollection
             {

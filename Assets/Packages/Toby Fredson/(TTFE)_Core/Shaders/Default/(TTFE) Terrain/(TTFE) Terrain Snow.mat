@@ -1,0 +1,233 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: (TTFE) Terrain Snow
+  m_Shader: {fileID: 4800000, guid: 0f55ffeb4fde7b2419f649d730c22898, type: 3}
+  m_ValidKeywords:
+  - _TERRAIN_INSTANCED_PERPIXEL_NORMAL
+  m_InvalidKeywords:
+  - _COLORMAP_ON
+  - _MASKROOTS_ON
+  - _SNOWSLOPE_ON
+  - _WINDTYPE_STRONGWIND
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _ColorMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ColorMapProjection:
+        m_Texture: {fileID: 2800000, guid: 2ba8a82146d1460448cd7a0845be28ed, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Control:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _HeatMap:
+        m_Texture: {fileID: 2800000, guid: 27e7f7e1dba8adc4aa99d88272615d39, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _HeightColorMap:
+        m_Texture: {fileID: 2800000, guid: 27e7f7e1dba8adc4aa99d88272615d39, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Mask0:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Mask1:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Mask2:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Mask3:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Normal0:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Normal1:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Normal2:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Normal3:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NormalMap:
+        m_Texture: {fileID: 2800000, guid: 8e843cdc8a31a59438a600598713dc81, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Normalx:
+        m_Texture: {fileID: 2800000, guid: 8e843cdc8a31a59438a600598713dc81, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SnowMapBaseColor:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SnowMapNormal:
+        m_Texture: {fileID: 2800000, guid: 0e4fd15331996fd489432cd75f26014d, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SnowMapSplat:
+        m_Texture: {fileID: 2800000, guid: 5dfa642cff8c269449a4e670e296911e, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Splat0:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Splat1:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Splat2:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Splat3:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TerrainHolesTexture:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TextureSample0x:
+        m_Texture: {fileID: 2800000, guid: 27e7f7e1dba8adc4aa99d88272615d39, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _texcoord:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _ADVANCEDSETTINGS: 0
+    - _AlphaCutoff: 0.5
+    - _BIASSS: -0.45
+    - _Biass: 2.04
+    - _CACA: 0.1
+    - _ColorMap: 1
+    - _ColorMapIntenisty: 1
+    - _ColorMapIntensity: 0.1
+    - _DIVIDER_01: 0
+    - _DIVIDER_02: 0
+    - _DIVIDER_03: 0
+    - _DIVIDER_2: 0
+    - _EnableFog: 1
+    - _EnableInstancedPerPixelNormal: 1
+    - _EnvironmentReflections: 1
+    - _FogFill: 1
+    - _FogHeight: 1
+    - _FogSmoothness: 1
+    - _Metallic0: 0
+    - _Metallic1: 0
+    - _Metallic2: 0
+    - _Metallic3: 0
+    - _NormalIntensity: 1
+    - _NormalMapBasedSnow: 0
+    - _NormalScale0: 1
+    - _NormalScale1: 1
+    - _NormalScale2: 1
+    - _NormalScale3: 1
+    - _QueueControl: 0
+    - _QueueOffset: 0
+    - _ReceiveShadows: 1
+    - _SCALEE: 1.44
+    - _SEASONSETTINGS: 0
+    - _Scallee: 6.23
+    - _SlopeMax: 0.01
+    - _SlopeMin: 0.31
+    - _Smoothness0: 0
+    - _Smoothness1: 0
+    - _Smoothness2: 0
+    - _Smoothness3: 0
+    - _SmoothnessIntensity: 1
+    - _SnowAmount: 0
+    - _SnowBrightness: 1
+    - _SnowEnable: 1
+    - _SnowNormalStrength: 1
+    - _SnowOffset: 0.79
+    - _SnowSaturation: 1
+    - _SnowScale: 7.61
+    - _SnowSlope: 1
+    - _SnowSplatABlendFactor: 0
+    - _SnowSplatABlendFalloff: 0
+    - _SnowSplatABlendStrength: 0
+    - _SnowSplatAEnable: 0
+    - _SnowSplatAMax: 1
+    - _SnowSplatAMin: -0.5
+    - _SnowSplatASplatBias: 1
+    - _SnowSplatBBlendFactor: 0
+    - _SnowSplatBBlendFalloff: 0
+    - _SnowSplatBBlendStrength: 0
+    - _SnowSplatBEnable: 0
+    - _SnowSplatBMax: 1
+    - _SnowSplatBMin: -0.5
+    - _SnowSplatBSplatBias: 1
+    - _SnowSplatGBlendFactor: 0
+    - _SnowSplatGBlendFalloff: 0
+    - _SnowSplatGBlendStrength: 0
+    - _SnowSplatGEnable: 0
+    - _SnowSplatGMax: 1
+    - _SnowSplatGMin: -0.5
+    - _SnowSplatGSplatBias: 1
+    - _SnowSplatRBlendFactor: 3.01
+    - _SnowSplatRBlendFalloff: 10
+    - _SnowSplatRBlendStrength: 5
+    - _SnowSplatREnable: 1
+    - _SnowSplatRMax: 1
+    - _SnowSplatRMin: -0.5
+    - _SnowSplatRSplatBias: 1
+    - _SpecularHighlights: 1
+    - _SpecularOffset: 0.0004
+    - _SpecularPower: 1
+    - _TEXTUREMAPS: 0
+    - _TEXTURESETTINGS: 0
+    - _TTFELIGHTTERRAINSNOWSHADER: 0
+    - _TTFETERRAINSNOWSHADER: 0
+    - _TerrainNormalMap: 0
+    - _WetnessShine: 1
+    - __dirty: 1
+    m_Colors:
+    - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
+    - _SnowColor: {r: 1, g: 1, b: 1, a: 0}
+    - _SnowMainUVs: {r: 0.002, g: 0.002, b: 0, a: 0}
+  m_BuildTextureStacks: []

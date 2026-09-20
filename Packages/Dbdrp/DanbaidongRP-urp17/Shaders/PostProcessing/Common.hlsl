@@ -33,7 +33,7 @@
 #define FXAA_GATHER4_ALPHA 0
 #define FXAA_PC_CONSOLE !FXAA_PC
 
-#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/PostProcessing/FXAA3_11.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Shaders/PostProcessing/FXAA3_11.hlsl"
 #endif
 
 // ----------------------------------------------------------------------------------

@@ -1,8 +1,8 @@
 #ifndef AMBIENT_OCCLUSION_INCLUDED
 #define AMBIENT_OCCLUSION_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SurfaceData.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SurfaceData.hlsl"
 
 // Ambient occlusion
 TEXTURE2D_X(_ScreenSpaceOcclusionTexture);

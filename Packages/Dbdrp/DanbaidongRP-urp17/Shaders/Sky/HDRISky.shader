@@ -13,7 +13,7 @@ Shader "Hidden/DanbaidongRP/Sky/HDRISky"
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
-    #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Sky/SkyUtils.hlsl"
+    #include "Packages/com.unity.render-pipelines.universal/Shaders/Sky/SkyUtils.hlsl"
 
     TEXTURECUBE(_Cubemap);
     SAMPLER(sampler_Cubemap);

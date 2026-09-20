@@ -8,7 +8,7 @@
 // _FORWARD_PLUS keyword deprecated in 6.1
 // We will emit a warning and define _CLUSTER_LIGHT_LOOP for backwards compatibility.
 // This block will be removed in a future release.
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/ForwardPlusKeyword.deprecated.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ForwardPlusKeyword.deprecated.hlsl"
 
 #if defined(_CLUSTER_LIGHT_LOOP)
 #define USE_CLUSTER_LIGHT_LOOP 1
@@ -25,7 +25,7 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Version.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/GlobalSamplers.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Input.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Input.hlsl"
 
 // AcesFilm: custom tonemap curve (moved here from the custom core Color.hlsl that was
 // replaced by core 6000.5). Used by deferred lighting (shadow scatter) and post-processing.
@@ -297,7 +297,7 @@ struct VertexNormalInputs
     float3 normalWS;
 };
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/ShaderVariablesFunctions.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Deprecated.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderVariablesFunctions.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Deprecated.hlsl"
 
 #endif

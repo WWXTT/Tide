@@ -37,22 +37,22 @@
 #endif
 
 #ifdef _DECAL_LAYERS
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareRenderingLayerTexture.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareRenderingLayerTexture.hlsl"
 #endif
 
 #if defined(DECAL_LOAD_NORMAL)
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareNormalsTexture.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareNormalsTexture.hlsl"
 #endif
 
 #if defined(DECAL_PROJECTOR) || defined(DECAL_RECONSTRUCT_NORMAL)
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareDepthTexture.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
 #endif
 
 #ifdef DECAL_MESH
-#include "Packages/com.unity.render-pipelines.danbaidong/Editor/ShaderGraph/Includes/DecalMeshBiasTypeEnum.cs.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/DecalMeshBiasTypeEnum.cs.hlsl"
 #endif
 #ifdef DECAL_RECONSTRUCT_NORMAL
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/NormalReconstruction.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/NormalReconstruction.hlsl"
 #endif
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRendering.hlsl"

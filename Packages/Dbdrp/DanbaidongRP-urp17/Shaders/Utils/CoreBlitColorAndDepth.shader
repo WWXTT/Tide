@@ -5,7 +5,7 @@ Shader "Hidden/Universal/CoreBlitColorAndDepth"
         #pragma target 2.0
         #pragma editor_sync_compilation
         // Core.hlsl for XR dependencies
-        #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include_with_pragmas "Packages/com.unity.render-pipelines.core/Runtime/Utilities/BlitColorAndDepth.hlsl"
     ENDHLSL
 

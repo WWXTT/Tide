@@ -1,8 +1,8 @@
 #ifndef SHADOWS_PCSS_INCLUDED
 #define SHADOWS_PCSS_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Shadows.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/ShadowSamplingDisk.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShadowSamplingDisk.hlsl"
 
 
 // Limitation:

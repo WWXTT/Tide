@@ -9,7 +9,7 @@ Shader "Hidden/ColorPyramid"
         Tags{ "RenderPipeline" = "UniversalPipeline" }
         HLSLINCLUDE
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             TEXTURE2D_X_HALF(_Source);
             uniform half4 _SrcScaleBias;

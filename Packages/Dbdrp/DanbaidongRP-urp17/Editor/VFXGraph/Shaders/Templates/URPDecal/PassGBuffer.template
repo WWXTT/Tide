@@ -38,9 +38,9 @@
     #pragma multi_compile_fragment _ _RENDER_PASS_ENABLED
 
     ${VFXIncludeRP("VFXDecalVaryings.template")}
-    #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/ProbeVolumeVariants.hlsl"
-    #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/UnityGBuffer.hlsl"
-    #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DecalInput.hlsl"
+    #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ProbeVolumeVariants.hlsl"
+    #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityGBuffer.hlsl"
+    #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DecalInput.hlsl"
 
     #if _RENDER_PASS_ENABLED
     #define GBUFFER3 0
@@ -73,11 +73,11 @@
     #endif
 
     #ifdef DECAL_RECONSTRUCT_NORMAL
-        #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/NormalReconstruction.hlsl"
+        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/NormalReconstruction.hlsl"
     #endif
 
     #if defined(DECAL_LOAD_NORMAL)
-        #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareNormalsTexture.hlsl"
+        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareNormalsTexture.hlsl"
     #endif
 
     ${VFXIncludeRP("VFXDecal.template")}

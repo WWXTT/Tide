@@ -1,8 +1,8 @@
 #ifndef HEX_TERRAIN_INPUT_INCLUDED
 #define HEX_TERRAIN_INPUT_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SurfaceInput.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SurfaceInput.hlsl"
 
 // 全局常量（由 HexMapAuthoring.Install / HexMapShaderGlobalsSystem 通过
 // Shader.SetGlobalVector 写入，整张地图共用）。放在 UnityPerMaterial 之外，

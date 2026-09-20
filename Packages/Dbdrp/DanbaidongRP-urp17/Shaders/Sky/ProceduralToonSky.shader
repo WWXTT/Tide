@@ -29,8 +29,8 @@ Shader "Hidden/DanbaidongRP/Sky/ProceduralToon"
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/GlobalSamplers.hlsl"
-    #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Sky/SkyUtils.hlsl"
-    #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Lighting.hlsl"
+    #include "Packages/com.unity.render-pipelines.universal/Shaders/Sky/SkyUtils.hlsl"
+    #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
     int _RenderSunDisk;
 

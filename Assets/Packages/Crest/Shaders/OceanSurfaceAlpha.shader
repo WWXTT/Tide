@@ -33,7 +33,7 @@ Shader "Crest/Ocean Surface Alpha"
 			#pragma fragment Frag
 			#pragma multi_compile_fog
 
-			#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
 			#include "OceanConstants.hlsl"
 			#include "OceanGlobals.hlsl"

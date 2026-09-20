@@ -32,7 +32,7 @@ Shader "Hidden/Universal Render Pipeline/XR/XRMotionVector"
 
             // -------------------------------------
             // Includes
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             // -------------------------------------
             // Structs

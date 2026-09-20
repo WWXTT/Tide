@@ -242,7 +242,7 @@ Shader "Hidden/Crest/Underwater/Underwater Effect SG"
 	{
 		PackageRequirements
 		{
-			"com.unity.render-pipelines.danbaidong"
+			"com.unity.render-pipelines.universal"
 		}
 
 		Tags { "RenderPipeline"="UniversalPipeline" }

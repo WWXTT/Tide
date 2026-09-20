@@ -25,6 +25,6 @@
 #define RAY_TRACING_WORLD_ENV_LIGHT_DATAS_REGISTER              t17
 #define RAY_TRACING_VOLUMETRIC_CLOUDS_SHADOW_REGISTER           t18
 
-// #include "Packages/com.unity.render-pipelines.danbaidong/Runtime/ShaderVariablesGlobal.cs.hlsl"
+// #include "Packages/com.unity.render-pipelines.universal/Runtime/ShaderVariablesGlobal.cs.hlsl"
 
 #endif /* UNITY_SHADER_VARIABLES_GLOBAL_INCLUDED */

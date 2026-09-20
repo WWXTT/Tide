@@ -205,7 +205,7 @@
         "com.unity.modules.jsonserialize": "1.0.0"
       }
     },
-    "com.unity.render-pipelines.danbaidong": {
+    "com.unity.render-pipelines.universal": {
       "version": "file:Dbdrp/DanbaidongRP-urp17",
       "depth": 0,
       "source": "local",
@@ -214,7 +214,7 @@
         "com.unity.shadergraph": "17.3.0"
       }
     },
-    "com.unity.render-pipelines.danbaidong-config": {
+    "com.unity.render-pipelines.universal-config": {
       "version": "file:Dbdrp/DanbaidongRPConfig-urp17",
       "depth": 0,
       "source": "local",

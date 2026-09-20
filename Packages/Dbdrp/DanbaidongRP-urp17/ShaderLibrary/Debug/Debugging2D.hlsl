@@ -2,9 +2,9 @@
 #ifndef UNIVERSAL_DEBUGGING2D_INCLUDED
 #define UNIVERSAL_DEBUGGING2D_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/InputData2D.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/2D/Include/SurfaceData2D.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Debug/DebuggingCommon.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/InputData2D.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/SurfaceData2D.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Debug/DebuggingCommon.hlsl"
 
 #if defined(DEBUG_DISPLAY)
 

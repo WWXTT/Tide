@@ -17,7 +17,7 @@ Shader "Hidden/Universal Render Pipeline/Sampling"
             #pragma vertex Vert
             #pragma fragment FragBoxDownsample
 
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
 
             SAMPLER(sampler_BlitTexture);

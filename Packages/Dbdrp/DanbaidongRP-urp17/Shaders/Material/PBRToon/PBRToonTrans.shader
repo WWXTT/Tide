@@ -158,7 +158,7 @@ Shader "DanbaidongRP/PBRToon/Transparent"
             // #pragma multi_compile_fragment _ _DBUFFER_MRT1 _DBUFFER_MRT2 _DBUFFER_MRT3
             #pragma multi_compile_fragment _ _LIGHT_COOKIES
             #pragma multi_compile _ _LIGHT_LAYERS
-            #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/RenderingLayers.hlsl"
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
 
             // -------------------------------------
             // Unity defined keywords
@@ -175,21 +175,21 @@ Shader "DanbaidongRP/PBRToon/Transparent"
             // GPU Instancing
             #pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
-            #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DOTS.hlsl"
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
             // -------------------------------------
             // Includes
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Lighting.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/UnityGBuffer.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareDepthTexture.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityGBuffer.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
 
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/GPUCulledLights.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/PreIntegratedFGD.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/PerObjectShadows.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GPUCulledLights.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/PreIntegratedFGD.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/PerObjectShadows.hlsl"
 
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Material/PBRToon/PBRToon.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/Material/PBRToon/PBRToon.hlsl"
 
 
             CBUFFER_START(UnityPerMaterial)
@@ -582,7 +582,7 @@ Shader "DanbaidongRP/PBRToon/Transparent"
             // #pragma multi_compile_fragment _ _DBUFFER_MRT1 _DBUFFER_MRT2 _DBUFFER_MRT3
             #pragma multi_compile_fragment _ _LIGHT_COOKIES
             #pragma multi_compile _ _LIGHT_LAYERS
-            #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/RenderingLayers.hlsl"
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
 
             // -------------------------------------
             // Unity defined keywords
@@ -599,21 +599,21 @@ Shader "DanbaidongRP/PBRToon/Transparent"
             // GPU Instancing
             #pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
-            #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DOTS.hlsl"
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
             // -------------------------------------
             // Includes
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Lighting.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/UnityGBuffer.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DeclareDepthTexture.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityGBuffer.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
 
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/GPUCulledLights.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/PreIntegratedFGD.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/PerObjectShadows.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GPUCulledLights.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/PreIntegratedFGD.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/PerObjectShadows.hlsl"
 
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Material/PBRToon/PBRToon.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/Material/PBRToon/PBRToon.hlsl"
 
 
             CBUFFER_START(UnityPerMaterial)
@@ -995,7 +995,7 @@ Shader "DanbaidongRP/PBRToon/Transparent"
             //--------------------------------------
             // GPU Instancing
             #pragma multi_compile_instancing
-            #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DOTS.hlsl"
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
             // -------------------------------------
             // Universal Pipeline keywords
@@ -1009,8 +1009,8 @@ Shader "DanbaidongRP/PBRToon/Transparent"
 
             // -------------------------------------
             // Includes
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/LitInput.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/ShadowCasterPass.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
             ENDHLSL
         }
 
@@ -1049,12 +1049,12 @@ Shader "DanbaidongRP/PBRToon/Transparent"
             //--------------------------------------
             // GPU Instancing
             #pragma multi_compile_instancing
-            #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DOTS.hlsl"
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
             // -------------------------------------
             // Includes
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/LitInput.hlsl"
-            #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/DepthOnlyPass.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/DepthOnlyPass.hlsl"
             ENDHLSL
         }
 
@@ -1108,7 +1108,7 @@ Shader "DanbaidongRP/PBRToon/Transparent"
     //         // #pragma multi_compile _ _LIGHT_LAYERS
     //         // #pragma multi_compile _ _FORWARD_PLUS
     //         // #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-    //         // #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/RenderingLayers.hlsl"
+    //         // #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
 
 
     //         // -------------------------------------
@@ -1122,13 +1122,13 @@ Shader "DanbaidongRP/PBRToon/Transparent"
     //         // #pragma multi_compile _ LOD_FADE_CROSSFADE
     //         // #pragma multi_compile_fog
     //         // #pragma multi_compile_fragment _ DEBUG_DISPLAY
-    //         // #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/ProbeVolumeVariants.hlsl"
+    //         // #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ProbeVolumeVariants.hlsl"
 
     //         //--------------------------------------
     //         // GPU Instancing
     //         // #pragma multi_compile_instancing
     //         // #pragma instancing_options renderinglayer
-    //         // #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DOTS.hlsl"
+    //         // #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
 
     //         // List all the attributes needed in raytracing shader
@@ -1137,14 +1137,14 @@ Shader "DanbaidongRP/PBRToon/Transparent"
     //         #define ATTRIBUTES_NEED_TANGENT
 
     //         #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-    //         #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+    //         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
 
-    //         #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/ShaderVariablesRaytracing.hlsl"
-    //         #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/RaytracingIntersection.hlsl"
-    //         #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/RaytracingFragInputs.hlsl"
-    //         #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/RaytracingLighting.hlsl"
-    //         #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/RayTracingCommon.hlsl"
+    //         #include "Packages/com.unity.render-pipelines.universal/Shaders/Raytracing/ShaderVariablesRaytracing.hlsl"
+    //         #include "Packages/com.unity.render-pipelines.universal/Shaders/Raytracing/RaytracingIntersection.hlsl"
+    //         #include "Packages/com.unity.render-pipelines.universal/Shaders/Raytracing/RaytracingFragInputs.hlsl"
+    //         #include "Packages/com.unity.render-pipelines.universal/Shaders/Raytracing/RaytracingLighting.hlsl"
+    //         #include "Packages/com.unity.render-pipelines.universal/Shaders/Raytracing/RayTracingCommon.hlsl"
 
 
     //         CBUFFER_START(UnityPerMaterial)
@@ -1197,7 +1197,7 @@ Shader "DanbaidongRP/PBRToon/Transparent"
 
 
 
-    //         #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/RayTracingShaderPassPBRToon.hlsl"
+    //         #include "Packages/com.unity.render-pipelines.universal/Shaders/Raytracing/RayTracingShaderPassPBRToon.hlsl"
 
     //         ENDHLSL
     //     }
@@ -1247,7 +1247,7 @@ Shader "DanbaidongRP/PBRToon/Transparent"
     //         // #pragma multi_compile _ _LIGHT_LAYERS
     //         // #pragma multi_compile _ _FORWARD_PLUS
     //         // #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-    //         // #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/RenderingLayers.hlsl"
+    //         // #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
 
 
     //         // -------------------------------------
@@ -1261,13 +1261,13 @@ Shader "DanbaidongRP/PBRToon/Transparent"
     //         // #pragma multi_compile _ LOD_FADE_CROSSFADE
     //         // #pragma multi_compile_fog
     //         // #pragma multi_compile_fragment _ DEBUG_DISPLAY
-    //         // #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/ProbeVolumeVariants.hlsl"
+    //         // #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ProbeVolumeVariants.hlsl"
 
     //         //--------------------------------------
     //         // GPU Instancing
     //         // #pragma multi_compile_instancing
     //         // #pragma instancing_options renderinglayer
-    //         // #include_with_pragmas "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/DOTS.hlsl"
+    //         // #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
 
     //         // List all the attributes needed in raytracing shader
@@ -1276,16 +1276,16 @@ Shader "DanbaidongRP/PBRToon/Transparent"
     //         // #define ATTRIBUTES_NEED_TANGENT
 
     //         #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-    //         #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+    //         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
 
-    //         #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/ShaderVariablesRaytracing.hlsl"
-    //         #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/RaytracingIntersection.hlsl"
-    //         #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/RaytracingFragInputs.hlsl"
-    //         #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/RaytracingLighting.hlsl"
-    //         #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/RayTracingCommon.hlsl"
+    //         #include "Packages/com.unity.render-pipelines.universal/Shaders/Raytracing/ShaderVariablesRaytracing.hlsl"
+    //         #include "Packages/com.unity.render-pipelines.universal/Shaders/Raytracing/RaytracingIntersection.hlsl"
+    //         #include "Packages/com.unity.render-pipelines.universal/Shaders/Raytracing/RaytracingFragInputs.hlsl"
+    //         #include "Packages/com.unity.render-pipelines.universal/Shaders/Raytracing/RaytracingLighting.hlsl"
+    //         #include "Packages/com.unity.render-pipelines.universal/Shaders/Raytracing/RayTracingCommon.hlsl"
 
-    //         #include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Raytracing/RayTracingShaderPassVisibility.hlsl"
+    //         #include "Packages/com.unity.render-pipelines.universal/Shaders/Raytracing/RayTracingShaderPassVisibility.hlsl"
 
     //         ENDHLSL
     //     }

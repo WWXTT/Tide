@@ -1,0 +1,1 @@
+Additional functions from the free version of TTFE. Lighter and faster shader functions, but not currently compatible with this version of the Global controller.

@@ -1,7 +1,7 @@
 #ifndef UNIVERSAL_PARTICLES_LIT_DEPTH_NORMALS_PASS_INCLUDED
 #define UNIVERSAL_PARTICLES_LIT_DEPTH_NORMALS_PASS_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
 VaryingsDepthNormalsParticle DepthNormalsVertex(AttributesDepthNormalsParticle input)
 {

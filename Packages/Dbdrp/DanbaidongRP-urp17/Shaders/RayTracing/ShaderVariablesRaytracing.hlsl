@@ -1,8 +1,8 @@
 #ifndef SHADER_VARIABLES_RAYTRACING_INCLUDED
 #define SHADER_VARIABLES_RAYTRACING_INCLUDED
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/ShaderVariablesGlobal.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/Runtime/Raytracing/RayTracingSystem.cs.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/Runtime/Raytracing/ShaderVariablesRaytracing.cs.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderVariablesGlobal.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Runtime/Raytracing/RayTracingSystem.cs.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Runtime/Raytracing/ShaderVariablesRaytracing.cs.hlsl"
 
 
 // The target acceleration acceleration structure should only be defined for non compute shaders

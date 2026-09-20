@@ -4,11 +4,11 @@
 #endif
 
 #if VFX_MATERIAL_TYPE_SIX_WAY_SMOKE
-    #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/SixWayLighting.hlsl"
+    #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SixWayLighting.hlsl"
     #include "Packages/com.unity.visualeffectgraph/Shaders/SixWay/VFXSixWayCommon.hlsl"
 #else
-    #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Lighting.hlsl"
-    #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/UnityGBuffer.hlsl"
+    #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+    #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityGBuffer.hlsl"
 #endif
 
 float3 VFXGetPositionRWS(VFX_VARYING_PS_INPUTS i)

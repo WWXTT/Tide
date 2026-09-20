@@ -67,10 +67,10 @@ namespace UnityEditor.Rendering.Universal
             if (data != null)
                 m_SpriteLitDefaultMat = data.GetDefaultMaterial(DefaultMaterialType.Sprite);
             else
-                m_SpriteLitDefaultMat = AssetDatabase.LoadAssetAtPath<Material>("Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/Sprite-Lit-Default.mat");
+                m_SpriteLitDefaultMat = AssetDatabase.LoadAssetAtPath<Material>("Packages/com.unity.render-pipelines.universal/Runtime/Materials/Sprite-Lit-Default.mat");
 
             m_SpritesDefaultMat = AssetDatabase.GetBuiltinExtraResource<Material>("Sprites-Default.mat");
-            m_SpriteMaskDefaultMat = AssetDatabase.LoadAssetAtPath<Material>("Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/SpriteMask-Default.mat");
+            m_SpriteMaskDefaultMat = AssetDatabase.LoadAssetAtPath<Material>("Packages/com.unity.render-pipelines.universal/Runtime/Materials/SpriteMask-Default.mat");
             m_SpritesMaskMat = AssetDatabase.GetBuiltinExtraResource<Material>("Sprites-Mask.mat");
             m_SpriteLitDefaultShader = m_SpriteLitDefaultMat.shader;
             m_SpritesDefaultShader = m_SpritesDefaultMat.shader;

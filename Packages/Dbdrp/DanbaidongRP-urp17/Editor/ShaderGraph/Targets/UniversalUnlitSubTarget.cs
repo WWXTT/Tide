@@ -389,8 +389,8 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
         #region Includes
         static class UnlitIncludes
         {
-            const string kUnlitPass = "Packages/com.unity.render-pipelines.danbaidong/Editor/ShaderGraph/Includes/UnlitPass.hlsl";
-            const string kUnlitGBufferPass = "Packages/com.unity.render-pipelines.danbaidong/Editor/ShaderGraph/Includes/UnlitGBufferPass.hlsl";
+            const string kUnlitPass = "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/UnlitPass.hlsl";
+            const string kUnlitGBufferPass = "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/UnlitGBufferPass.hlsl";
 
             public static IncludeCollection Unlit = new IncludeCollection
             {

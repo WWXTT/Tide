@@ -16,7 +16,7 @@ namespace UnityEngine.Rendering.Universal
         /// <summary>
         /// The name of the package
         /// </summary>
-        public const string packageName = "com.unity.render-pipelines.danbaidong";
+        public const string packageName = "com.unity.render-pipelines.universal";
 
         /// <summary>
         /// Generates a Universal Render Pipeline help url for the given page name

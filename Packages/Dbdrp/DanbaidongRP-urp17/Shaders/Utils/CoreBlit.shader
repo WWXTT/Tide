@@ -5,10 +5,10 @@ Shader "Hidden/Universal/CoreBlit"
         #pragma target 2.0
         #pragma editor_sync_compilation
         // Core.hlsl for XR dependencies
-        #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Core.hlsl"
+        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
         // DebuggingFullscreen.hlsl for URP debug draw
-        #include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/Debug/DebuggingFullscreen.hlsl"
+        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Debug/DebuggingFullscreen.hlsl"
         // Color.hlsl for color space conversion
         #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 

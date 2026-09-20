@@ -14,8 +14,8 @@
 //--------------------------------------------------------------------------------------------------
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Lights/GPULightsCullingUtils.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/Runtime/Lights/GPULights.cs.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Shaders/Lights/GPULightsCullingUtils.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Runtime/Lights/GPULights.cs.hlsl"
 
 //--------------------------------------------------------------------------------------------------
 // Inputs & outputs
@@ -191,8 +191,8 @@ float4x4 PerspectiveProjection4x4(float a, float g, float n, float f)
 
 #elif defined(GPULIGHTS_COARSECULLING)
 
-#include "Packages/com.unity.render-pipelines.danbaidong/ShaderLibrary/UnityInput.hlsl"
-#include "Packages/com.unity.render-pipelines.danbaidong/Shaders/Lights/SortingComputeUtils.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityInput.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/Shaders/Lights/SortingComputeUtils.hlsl"
 
 #define EXACT_EDGE_TESTS
 #define PERFORM_SPHERICAL_INTERSECTION_TESTS

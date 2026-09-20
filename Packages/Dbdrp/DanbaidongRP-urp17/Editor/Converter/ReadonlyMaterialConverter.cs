@@ -16,23 +16,23 @@ namespace UnityEditor.Rendering.Universal
     {
         public static readonly Dictionary<string, string> Map = new Dictionary<string, string>
         {
-            {"Default-Diffuse", "Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/Lit.mat"},
-            {"Default-Material", "Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/Lit.mat"},
-            {"Default-ParticleSystem", "Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/ParticlesUnlit.mat"},
-            {"Default-Particle", "Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/ParticlesUnlit.mat"},
-            {"Default-Terrain-Diffuse", "Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/TerrainLit.mat"},
-            {"Default-Terrain-Specular", "Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/TerrainLit.mat"},
-            {"Default-Terrain-Standard", "Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/TerrainLit.mat"},
-            {"Sprites-Default", "Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/Sprite-Unlit-Default.mat"},
-            {"Sprites-Mask", "Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/Sprite-Unlit-Default.mat"},
-            {"SpatialMappingOcclusion", "Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/SpatialMappingOcclusion.mat"},
-            {"SpatialMappingWireframe", "Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/SpatialMappingWireframe.mat"},
+            {"Default-Diffuse", "Packages/com.unity.render-pipelines.universal/Runtime/Materials/Lit.mat"},
+            {"Default-Material", "Packages/com.unity.render-pipelines.universal/Runtime/Materials/Lit.mat"},
+            {"Default-ParticleSystem", "Packages/com.unity.render-pipelines.universal/Runtime/Materials/ParticlesUnlit.mat"},
+            {"Default-Particle", "Packages/com.unity.render-pipelines.universal/Runtime/Materials/ParticlesUnlit.mat"},
+            {"Default-Terrain-Diffuse", "Packages/com.unity.render-pipelines.universal/Runtime/Materials/TerrainLit.mat"},
+            {"Default-Terrain-Specular", "Packages/com.unity.render-pipelines.universal/Runtime/Materials/TerrainLit.mat"},
+            {"Default-Terrain-Standard", "Packages/com.unity.render-pipelines.universal/Runtime/Materials/TerrainLit.mat"},
+            {"Sprites-Default", "Packages/com.unity.render-pipelines.universal/Runtime/Materials/Sprite-Unlit-Default.mat"},
+            {"Sprites-Mask", "Packages/com.unity.render-pipelines.universal/Runtime/Materials/Sprite-Unlit-Default.mat"},
+            {"SpatialMappingOcclusion", "Packages/com.unity.render-pipelines.universal/Runtime/Materials/SpatialMappingOcclusion.mat"},
+            {"SpatialMappingWireframe", "Packages/com.unity.render-pipelines.universal/Runtime/Materials/SpatialMappingWireframe.mat"},
 
             // TODO: These currently render in URP, but they are using BIRP shaders. Create a task to convert these.
-            // {"Default UI Material", "Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/Lit.mat"},
-            // {"ETC1 Supported UI Material", "Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/Lit.mat"},
-            // {"Default-Line", "Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/Lit.mat"},
-            // {"Default-Skybox", "Packages/com.unity.render-pipelines.danbaidong/Runtime/Materials/Lit.mat"},
+            // {"Default UI Material", "Packages/com.unity.render-pipelines.universal/Runtime/Materials/Lit.mat"},
+            // {"ETC1 Supported UI Material", "Packages/com.unity.render-pipelines.universal/Runtime/Materials/Lit.mat"},
+            // {"Default-Line", "Packages/com.unity.render-pipelines.universal/Runtime/Materials/Lit.mat"},
+            // {"Default-Skybox", "Packages/com.unity.render-pipelines.universal/Runtime/Materials/Lit.mat"},
         };
     }
 
