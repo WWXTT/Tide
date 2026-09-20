@@ -1006,5 +1006,89 @@
     "TargetFilter": null,
     "Polarity": 0.0,
     "MountKinds": "0"
+  },
+  {
+    "ID": "5bd8351a",
+    "EnumName": "拼点",
+    "DisplayName": "拼点主干（双方牌库顶费用总额差额制）",
+    "EffectColor": "Gray",
+    "BaseCost": 0.0,
+    "EffectType": "BranchEngineClash",
+    "TargetKinds": "",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "9"
+  },
+  {
+    "ID": "fb61e127",
+    "EnumName": "运势",
+    "DisplayName": "运势主干（掷骰门槛制）",
+    "EffectColor": "Gray",
+    "BaseCost": 0.0,
+    "EffectType": "BranchEngineLuckRoll",
+    "TargetKinds": "",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "9"
+  },
+  {
+    "ID": "b86516c0",
+    "EnumName": "倒计时",
+    "DisplayName": "倒计时主干（回合开始倒数归零发奖）",
+    "EffectColor": "Gray",
+    "BaseCost": 0.0,
+    "EffectType": "BranchEngineCountdown",
+    "TargetKinds": "",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "9"
+  },
+  {
+    "ID": "2ac33fb6",
+    "EnumName": "攻击力修改",
+    "DisplayName": "修改{target}攻击力{value}",
+    "EffectColor": "Red",
+    "BaseCost": 0.5,
+    "EffectType": "ModifyPower",
+    "TargetKinds": "1,2",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "0,4"
+  },
+  {
+    "ID": "08cba511",
+    "EnumName": "生命值修改",
+    "DisplayName": "修改{target}生命值{value}",
+    "EffectColor": "Green",
+    "BaseCost": 0.5,
+    "EffectType": "ModifyLife",
+    "TargetKinds": "1,2",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "0,4"
+  },
+  {
+    "ID": "39168153",
+    "EnumName": "费用修改",
+    "DisplayName": "修改{target}费用{value}",
+    "EffectColor": "Blue",
+    "BaseCost": 0.5,
+    "EffectType": "ModifyCost",
+    "TargetKinds": "5,6",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "0,4"
+  },
+  {
+    "ID": "a1fb810d",
+    "EnumName": "全体治疗",
+    "DisplayName": "为范围内全部有生命单位回复{value}点生命",
+    "EffectColor": "Green",
+    "BaseCost": 2.0,
+    "EffectType": "SweepHeal",
+    "TargetKinds": "1,2",
+    "TargetFilter": null,
+    "Polarity": 1.0,
+    "MountKinds": "0,3,4"
   }
 ]

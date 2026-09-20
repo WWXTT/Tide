@@ -451,8 +451,7 @@ Shader "Custom/HexTerrain"
             struct GBAttributes
             {
                 float4 positionOS : POSITION;
-                float3 normalOS   : NORMAL;           // 纯表面法线（光照/阴影）
-                float3 blendNormalOS : TANGENT;       // rim 融合法线（投影权重）
+                float3 normalOS   : NORMAL;           // 纯表面法线（光照/阴影 + 投影权重）
                 float4 color      : COLOR;            // splat 权重 (RGB) + 变异权重 (A)
                 float3 terrainIndices : TEXCOORD1;    // splat 3 个地形索引
                 float4 hexVariation : TEXCOORD2;      // 本格变异常量
@@ -473,7 +472,6 @@ Shader "Custom/HexTerrain"
                 float3 terrainIndices : TEXCOORD7;    // splat 索引
                 float4 hexVar       : TEXCOORD8;      // 本格变异常量直传
                 half variationWeight : TEXCOORD9;     // 变异权重
-                float3 blendNormalWS : TEXCOORD10;    // rim 融合法线（投影权重用）
                 float4 positionCS   : SV_POSITION;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
@@ -496,7 +494,6 @@ Shader "Custom/HexTerrain"
                 output.terrainIndices = input.terrainIndices;
                 output.hexVar = input.hexVariation;
                 output.variationWeight = input.color.a;
-                output.blendNormalWS = TransformObjectToWorldNormal(input.blendNormalOS);
 
                 half fogFactor = 0;
                 #if !defined(_FOG_FRAGMENT)
@@ -530,7 +527,7 @@ Shader "Custom/HexTerrain"
                 // 按逐轴 |法线| 权重混合，贴图自循环直铺 + 六边形变异
                 half3 finalAlbedo, surfNormalWS;
                 half finalMetallic, finalSmoothness, finalOcclusion;
-                SampleSplatSurfaceTriplanar(input.positionWS, normalWS, input.blendNormalWS, idx, weights,
+                SampleSplatSurfaceTriplanar(input.positionWS, normalWS, idx, weights,
                     input.hexVar, input.variationWeight,
                     finalAlbedo, surfNormalWS, finalMetallic, finalSmoothness, finalOcclusion);
 

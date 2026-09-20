@@ -9,8 +9,7 @@
 struct Attributes
 {
     float4 positionOS   : POSITION;
-    float3 normalOS     : NORMAL;         // 纯表面法线（光照/SH/阴影）
-    float3 blendNormalOS : TANGENT;       // rim 融合法线（三平面投影权重专用）
+    float3 normalOS     : NORMAL;         // 纯表面法线（光照/SH/阴影 + 三平面投影权重）
     float4 color        : COLOR;          // splat 权重 (RGB) + 变异权重 (A)
     float3 terrainIndices : TEXCOORD1;    // splat 3 个地形索引 (UV1)
     float4 hexVariation : TEXCOORD2;      // 本格变异常量 (s·cosθ, s·sinθ, ox, oy)
@@ -41,7 +40,6 @@ struct Varyings
     float3 terrainIndices           : TEXCOORD7;   // splat 索引
     float4 hexVar                   : TEXCOORD8;   // 本格变异常量直传
     half  variationWeight           : TEXCOORD9;   // 变异权重（顶点色 alpha）
-    float3 blendNormalWS            : TEXCOORD10;  // rim 融合法线（投影权重用）
 
     float4 positionCS               : SV_POSITION;
     UNITY_VERTEX_INPUT_INSTANCE_ID
@@ -98,7 +96,6 @@ Varyings HexTerrainVert(Attributes input)
     output.terrainIndices = input.terrainIndices;
     output.hexVar = input.hexVariation;
     output.variationWeight = input.color.a;
-    output.blendNormalWS = TransformObjectToWorldNormal(input.blendNormalOS);
 
     half3 vertexLight = VertexLighting(vertexInput.positionWS, normalInput.normalWS);
     half fogFactor = 0;
@@ -147,7 +144,7 @@ void HexTerrainFrag(
     // SampleSplatSurfaceTriplanar）。贴图自循环直铺 + 六边形变异（边界/远距淡回纯平铺）
     half3 finalNormalWS, finalAlbedo;
     half  finalMetallic, finalSmoothness, finalOcclusion;
-    SampleSplatSurfaceTriplanar(input.positionWS, normalWS, input.blendNormalWS, idx, weights,
+    SampleSplatSurfaceTriplanar(input.positionWS, normalWS, idx, weights,
         input.hexVar, input.variationWeight,
         finalAlbedo, finalNormalWS, finalMetallic, finalSmoothness, finalOcclusion);
 

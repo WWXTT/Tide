@@ -13,7 +13,7 @@ namespace CardCore
     /// </summary>
     public static class EffectsLibrary
     {
-        private const string ConfigRelative = "Tide/Effects.json";
+        private const string ConfigRelative = "Card/Effects.json";
 
         [Serializable]
         private class Wrapper { public List<EffectSlimDto> items; }

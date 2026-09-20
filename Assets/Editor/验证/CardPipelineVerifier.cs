@@ -247,7 +247,7 @@ namespace CardCore.Editor
       ""costList"": [ { ""manaType"": 1, ""amount"": 3.0 }, { ""manaType"": 2, ""amount"": 2.0 } ],
       ""keywords"": [], ""effects"": [
         { ""Id"": ""FIREBALL_MAIN"", ""TriggerTiming"": 0, ""SelectionMode"": 0, ""TargetCount"": 1,
-          ""AtomicEffects"": [ { ""refId"": ""615fc28b"", ""value"": 4 } ] },
+          ""AtomicEffects"": [ { ""refId"": ""a4b823fc"", ""value"": 4, ""kinds"": [2] } ] },
         { ""Id"": ""FIREBALL_DRAW"", ""TriggerTiming"": 0, ""SelectionMode"": -1,
           ""AtomicEffects"": [ { ""refId"": ""120ad4d1"", ""value"": 1 } ] } ]
     },
@@ -265,8 +265,8 @@ namespace CardCore.Editor
       ""keywords"": [], ""effects"": [
         { ""Id"": ""MODAL_MAIN"", ""TriggerTiming"": 0, ""SelectionMode"": 0, ""TargetCount"": 1,
           ""Steps"": [ { ""kind"": 2, ""choices"": [
-            { ""label"": ""烈焰"", ""steps"": [ { ""kind"": 0, ""atomic"": { ""refId"": ""615fc28b"", ""value"": 4 } } ] },
-            { ""label"": ""灵感"", ""steps"": [ { ""kind"": 0, ""atomic"": { ""refId"": ""120ad4d1"", ""value"": 1 } } ] } ] } ] } ]
+            { ""label"": ""烈焰"", ""steps"": [ { ""kind"": 0, ""atomic"": { ""refId"": ""a4b823fc"", ""value"": 4, ""kinds"": [2] } } ] },
+            { ""label"": ""灵感"", ""steps"": [ { ""kind"": 0, ""atomic"": { ""refId"": ""120ad4d1"", ""value"": 1, ""kinds"": [7] } } ] } ] } ] } ]
     },
     {
       ""cardName"": ""链接光环测试"", ""supertype"": ""Creature"", ""power"": 1, ""life"": 1,
@@ -298,8 +298,19 @@ namespace CardCore.Editor
                 Assert(!GameActions.AddToElementPool(core, p1, nonCreature), "地牌资格：魔法/仪式等非生物超类拒绝");
 
             // T1 地牌选 ≥2 指示物的生物（总费用=指示物总量）：T3「回合开始恢复」断言要求
-            // T1 地牌产一次后仍在池——1 指示物地产出即耗尽离池（抽到哪只随洗牌变，须显式择牌）
-            var land1 = creatures.FirstOrDefault(c => TotalCost(c) >= 2) ?? creatures[0];
+            // T1 地牌产一次后仍在池——1 指示物地产出即耗尽离池。2026-09-20 确定性修复：
+            // 卡组混入正式池后起手是否含 ≥2 费生物随洗牌漂移（正式池曾被全标灰1，回退
+            // 1 指示物地即耗尽→T3 池空假失败）——固定注入 4 费夹具生物保证择卡成立。
+            var auraData = cardsData.FirstOrDefault(c => c.CardName == "光环测试");
+            Card land1;
+            if (auraData != null)
+            {
+                land1 = new CardWrapper(auraData);
+                land1.SetController(p1);
+                core.ZoneManager.GetZoneContainer(p1).Add(land1, Zone.Hand);
+                hand1.Add(land1);
+            }
+            else land1 = creatures.FirstOrDefault(c => TotalCost(c) >= 2) ?? creatures[0];
             Assert(GameActions.AddToElementPool(core, p1, land1), "主阶段放地牌成功");
 
             var pooled1 = core.ElementPool.GetPooledCards(p1);
@@ -586,8 +597,8 @@ namespace CardCore.Editor
                 }
             }
             Assert(emptyDomain == 0, $"全部效果组合域非空（空域 {emptyDomain} 个）");
-            Assert(atomTotal > 40 && kindAtoms > 40,
-                $"原子域解析覆盖（原子 {atomTotal}，带域 {kindAtoms}——夹具规模正常；91 卡夹具实为 ~50 原子）");
+            Assert(atomTotal > 10 && kindAtoms > 10,
+                $"原子域解析覆盖（原子 {atomTotal}，带域 {kindAtoms}——现行 5 卡夹具 ~13 原子；阈值随夹具缩放）");
             Debug.Log($"[Verify] 目标域：{effectsChecked} 效果 / {atomTotal} 原子（带域 {kindAtoms}）");
 
             // c) 表默认抽查：DealDamage 域 = {0,1} 且 filter 为空（target_kinds_review 定案：
@@ -721,7 +732,7 @@ namespace CardCore.Editor
             EnsureMainPhase(core, p1);
 
             // ---- 0. 表行锚（2026-09-13 修正取法：_typeMap 同枚举多行后行覆盖——GetByType(Sleep)
-            // 实际返回苏醒行 bd2554f2（JSON 行序在后）；按中文短名精确取沉睡行 8cf5c57c） ----
+            // 实际返回苏醒行 bd2554f2（JSON 行序在后）；按中文短名精确取沉睡行 82f5ef6f） ----
             var sleepCfg = CardCore.Attribute.AtomicEffectTable.GetAll()
                 .FirstOrDefault(c => c.EnumName == "Sleep" && c.DisplayName == "沉睡");
             Assert(sleepCfg != null && System.Math.Abs(sleepCfg.TotalUnitCost - 2f) < 1e-4 && sleepCfg.Polarity == -1f,
@@ -753,7 +764,7 @@ namespace CardCore.Editor
                     TriggerTiming = (int)TriggerTiming.OnPlay,
                     AtomicEffects = new List<AtomicEffectEntry>
                     {
-                        AtomRefs.New(AtomicEffectType.Sleep), // 域={Self}，Value 缺省→灰费时长
+                        AtomRefs.New(AtomicEffectType.Sleep, value: 0), // 域={Self}，Value≤0=灰费时长模式（灰费豁免判定口径）
                     },
                 });
                 sleepData.Effects.Add(new CardEffectData
@@ -2609,6 +2620,9 @@ namespace CardCore.Editor
                 used.Clear();
             }
             ResetField();
+            // 相位复位（2026-09-20 补）：本段大量 DeclareAttack/PlayCard 走 CanCombatAction 门（Main+Active）——
+            // 前序段落结束状态不保证 p1 主阶段（曾致战斗段整体级联假失败）；与 TestSleep 等同款前置。
+            EnsureMainPhase(core, p1);
 
             // ---- 1. 表与工厂 ----
             Assert(CardCore.Attribute.AtomicEffectTable.GetByEnumName("GrantReborn") != null
@@ -2694,6 +2708,11 @@ namespace CardCore.Editor
             Assert(charger.IsTapped(), "冲锋（登场效果）：入场时仍横置（结算前无豁免）");
             bool queuedAtEntry = core.StackEngine.HasPendingEffects; // 入场事件应已把 OnPlay 排进待发队列
             var conv = GameActions.GetCardEffectDefinitions(charger);
+            System.IO.File.AppendAllText(System.IO.Path.Combine("Logs", "VerifyFailures.txt"),
+                "\n[KWDBG] 上栈×" + stackAdd + " 已结算=" + (chargerInstance?.IsResolved ?? false)
+                + " 目标数=" + (chargerInstance?.Targets?.Count ?? -1) + " tapped=" + charger.IsTapped()
+                + " 栈深=" + core.StackEngine.StackSize + " 待发=" + core.StackEngine.HasPendingEffects
+                + " 结算中=" + core.StackEngine.IsResolving + "\n");
             UnityEngine.Debug.Log("[KWDBG] charger 转换=" + string.Join(";", conv.Select(d =>
                 $"{d.Id}:触发式={d.IsTriggeredEffect},激活={d.ActivationType},域数={(d.TargetDomain == null ? -1 : d.TargetDomain.Count)}"
                 + $",模式={d.SelectionMode},filter={d.TargetFilter}"))
@@ -2704,6 +2723,11 @@ namespace CardCore.Editor
                                 + $" 目标数={chargerInstance?.Targets?.Count} tapped={charger.IsTapped()} "
                                 + $"栈深={core.StackEngine.StackSize} 待发={core.StackEngine.HasPendingEffects} "
                                 + $"结算中={core.StackEngine.IsResolving}");
+            System.IO.File.AppendAllText(System.IO.Path.Combine("Logs", "VerifyFailures.txt"),
+                "\n[KWDBG·drain后] 上栈×" + stackAdd + " 已结算=" + (chargerInstance?.IsResolved ?? false)
+                + " 目标数=" + (chargerInstance?.Targets?.Count ?? -1) + " tapped=" + charger.IsTapped()
+                + " 栈深=" + core.StackEngine.StackSize + " 待发=" + core.StackEngine.HasPendingEffects
+                + " 结算中=" + core.StackEngine.IsResolving + "\n");
             Assert(!charger.IsTapped(),
                    $"冲锋（登场效果）：结算后解除横置（激励自己）（诊断：入场即待发={queuedAtEntry} 上栈×{stackAdd} "
                    + $"已结算={chargerInstance?.IsResolved} 目标数={chargerInstance?.Targets?.Count}——"
@@ -2744,11 +2768,21 @@ namespace CardCore.Editor
             var striker = Make(p1, 3, 3);
             var victim = Make(p2, 2, 5);
             var guardDoppel = Make(p2, 1, 8); // 同位置单位（无 Guard 关键词——已删除）
-            GameActions.DeclareAttack(core, p1, striker, victim);
+            bool decl4 = GameActions.DeclareAttack(core, p1, striker, victim);
             var attackInst4 = core.StackEngine.Peek();
-            Assert(attackInst4 != null && attackInst4.IsAttackDeclaration && attackInst4.Targets[0] == victim
+            Assert(decl4 && attackInst4 != null && attackInst4.IsAttackDeclaration && attackInst4.Targets[0] == victim
                    && !guardDoppel.IsTapped(),
-                   "守卫删除：攻击目标保持宣言（无转移、无横置旁观者；宣言期零支付）");
+                   $"守卫删除：攻击目标保持宣言（无转移、无横置旁观者；宣言期零支付）"
+                   + $"（诊断 decl={decl4} peek={(attackInst4 == null ? "null" : attackInst4.GetType().Name)}"
+                   + $" phase={core.TurnEngine.CurrentPhase?.Phase}/{core.TurnEngine.CurrentPhase?.State}"
+                   + $" turnIsP1={core.TurnEngine.TurnPlayer == p1}"
+                   + $" canDecl={combat.CanDeclareAttack(striker, p1)} canTgt={combat.CanAttackTarget(striker, victim, p1)}"
+                   + $" 栈深={core.StackEngine.StackSize} 待发={core.StackEngine.HasPendingEffects}"
+                   + $" sp={core.StackEngine.SpeedCounter.CurrentSpeed} spr={core.StackEngine.SpeedCounter.IsResolving}"
+                   + $" gate0={core.StackEngine.SpeedCounter.CanActivate(0, true, CardCore.EffectActivationType.Voluntary)}"
+                   + $" prio={core.StackEngine.CurrentPriorityHolder?.Name ?? "null"}"
+                   + $" act={core.StackEngine.ActivePlayer?.Name ?? "null"} turn={core.TurnEngine.TurnNumber}"
+                   + $" tapped={striker.IsTapped()}）");
             GameActions.DrainStack(core);
 
             // ---- 5. 潜行：不可被指定 + 攻击结算后移除 ----
@@ -5008,7 +5042,7 @@ namespace CardCore.Editor
         public static void RegenerateTestTableCosts()
         {
             // 2026-09-14 双表口径：唯一卡表=StreamingAssets/Tide/Cards.json（TestDecks 已随效果引用化退役）
-            string path = Path.Combine(Application.streamingAssetsPath, "Tide", "Cards.json");
+            string path = Path.Combine(Application.streamingAssetsPath, "Card", "Cards.json");
             if (!File.Exists(path))
             {
                 Debug.LogError($"[Regen] 找不到卡表 {path}");
@@ -5020,6 +5054,21 @@ namespace CardCore.Editor
             // 原子表必须先行——效果/卡里的 refId 按 id 引用表行（GetByHashId），原子 id 后推会引用断链
             RegenAtomicTableIds();
 
+            RegenOneDeck(path);
+        }
+
+        /// <summary>仅重写卡表费用（2026-09-20）：跳过 RegenAtomicTableIds——当前原子表 ID 与
+        /// sha256(DisplayName) 口径存在漂移（用户改表未走推导管线），全链重推会打断
+        /// Effects.json/卡表的既有 refId；本入口只做 RegenOneDeck 的建议价重写，ID 全不动。</summary>
+        [MenuItem("Tools/仅重推正式卡费用（不动ID）")]
+        public static void RegenerateCardCostsOnly()
+        {
+            string path = Path.Combine(Application.streamingAssetsPath, "Card", "Cards.json");
+            if (!File.Exists(path))
+            {
+                Debug.LogError($"[Regen] 找不到卡表 {path}");
+                return;
+            }
             RegenOneDeck(path);
         }
 
@@ -6504,7 +6553,18 @@ namespace CardCore.Editor
             {
                 _fail++;
                 Debug.LogError($"[Verify] FAIL — {label}");
+                // 双写文件（2026-09-20）：编辑器控制台 Info 级被过滤时失败仍可查
+                try
+                {
+                    System.IO.File.AppendAllText(
+                        System.IO.Path.Combine("Logs", "VerifyFailures.txt"),
+                        $"[{System.DateTime.Now:HH:mm:ss}] FAIL — {label}\n",
+                        System.Text.Encoding.UTF8);
+                }
+                catch (System.IO.IOException) { }
             }
         }
     }
 }
+
+// [menu-table-rebuild 2026-09-20]

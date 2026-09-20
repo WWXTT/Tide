@@ -165,6 +165,17 @@ namespace CardCore
             if (_life > _maxHealth) _life = _maxHealth;
         }
 
+        /// <summary>
+        /// 跨局复位（GameCore.Reset 专用）：上限与当前生命回初始。
+        /// 上限可能被回血溢出（LifeUp）抬高、被流失压低——跨局都不得残留
+        /// （2026-09-20 修复：原 Reset 只做 Life=Max，虚高上限被带进新局，连跑多局开局生命 33/40）。
+        /// </summary>
+        public void ResetVitals(int maxHealth)
+        {
+            _maxHealth = maxHealth;
+            _life = maxHealth;
+        }
+
         public int Life
         {
             get => _life;

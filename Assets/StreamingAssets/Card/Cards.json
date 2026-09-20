@@ -1,7 +1,7 @@
 {
     "cards": [
         {
-            "id": "C_2556C0F4",
+            "id": "C_11C15AAC",
             "cardName": "毒刺",
             "supertype": "Creature",
             "power": 1,
@@ -18,9 +18,7 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [
-                "89065F1B"
-            ],
+            "effectIds": [],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
@@ -33,6 +31,10 @@
             "power": 1,
             "life": 1,
             "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 5.0
+                },
                 {
                     "manaType": 0,
                     "amount": 1.0
@@ -53,7 +55,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_0A84C614",
+            "id": "C_8AF9CCF8",
             "cardName": "潜行",
             "supertype": "Creature",
             "power": 1,
@@ -70,9 +72,7 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [
-                "395B55AF"
-            ],
+            "effectIds": [],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
@@ -85,6 +85,10 @@
             "power": 1,
             "life": 1,
             "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 2.0
+                },
                 {
                     "manaType": 0,
                     "amount": 1.0
@@ -105,7 +109,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_5BB4D216",
+            "id": "C_7E0412D4",
             "cardName": "碾压",
             "supertype": "Creature",
             "power": 1,
@@ -122,9 +126,7 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [
-                "F999F300"
-            ],
+            "effectIds": [],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
@@ -137,6 +139,10 @@
             "power": 1,
             "life": 1,
             "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
                 {
                     "manaType": 0,
                     "amount": 1.0
@@ -157,7 +163,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_6A842BCC",
+            "id": "C_398B0F7C",
             "cardName": "先攻",
             "supertype": "Creature",
             "power": 1,
@@ -174,16 +180,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [
-                "E0DA5510"
-            ],
+            "effectIds": [],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false
         },
         {
-            "id": "C_171CD2B6",
+            "id": "C_C2F5ACB2",
             "cardName": "法术护盾",
             "supertype": "Creature",
             "power": 1,
@@ -200,16 +204,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [
-                "38DAFABA"
-            ],
+            "effectIds": [],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false
         },
         {
-            "id": "C_E9D8761E",
+            "id": "C_09D2C1F3",
             "cardName": "扰魔",
             "supertype": "Creature",
             "power": 1,
@@ -226,9 +228,7 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [
-                "60D981AC"
-            ],
+            "effectIds": [],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
@@ -242,8 +242,12 @@
             "life": 1,
             "costList": [
                 {
+                    "manaType": 5,
+                    "amount": 3.0
+                },
+                {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -268,8 +272,12 @@
             "life": 1,
             "costList": [
                 {
+                    "manaType": 4,
+                    "amount": 3.0
+                },
+                {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -293,6 +301,10 @@
             "power": 1,
             "life": 1,
             "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 5.0
+                },
                 {
                     "manaType": 0,
                     "amount": 1.0
@@ -320,6 +332,10 @@
             "life": 1,
             "costList": [
                 {
+                    "manaType": 3,
+                    "amount": 9.0
+                },
+                {
                     "manaType": 0,
                     "amount": 1.0
                 }
@@ -346,6 +362,10 @@
             "life": 1,
             "costList": [
                 {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
                     "manaType": 0,
                     "amount": 1.0
                 }
@@ -365,7 +385,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_FB4C2C2A",
+            "id": "C_8680ED64",
             "cardName": "缴械",
             "supertype": "Creature",
             "power": 1,
@@ -382,9 +402,7 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [
-                "3DC2DA55"
-            ],
+            "effectIds": [],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
@@ -424,6 +442,10 @@
             "life": 1,
             "costList": [
                 {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
                     "manaType": 0,
                     "amount": 1.0
                 }
@@ -443,7 +465,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_C2DC3E00",
+            "id": "C_B7F8E335",
             "cardName": "冰晶",
             "supertype": "Creature",
             "power": 1,
@@ -460,16 +482,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [
-                "F2A29CE6"
-            ],
+            "effectIds": [],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false
         },
         {
-            "id": "C_6FBB49E1",
+            "id": "C_AFDC01CB",
             "cardName": "梦魇",
             "supertype": "Creature",
             "power": 1,
@@ -486,16 +506,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [
-                "94D9D9E7"
-            ],
+            "effectIds": [],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false
         },
         {
-            "id": "C_A61C4278",
+            "id": "C_B3C88116",
             "cardName": "病原体",
             "supertype": "Creature",
             "power": 1,
@@ -512,9 +530,7 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [
-                "3A911470"
-            ],
+            "effectIds": [],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
@@ -527,6 +543,10 @@
             "power": 1,
             "life": 1,
             "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 5.0
+                },
                 {
                     "manaType": 0,
                     "amount": 1.0

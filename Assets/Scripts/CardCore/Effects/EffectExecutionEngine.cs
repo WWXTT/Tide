@@ -728,7 +728,7 @@ namespace CardCore
         {
             if (card == null || controller == null) return false;
             if (_isResolving) return false; // 结算中不可声明（与 SpeedCounter.CanActivate 同口径）
-
+            SyncActivePlayerFromTurn();
             int castSpeed = SpeedCalculator.GetCardCastSpeed(card);
             if (!_speedCounter.CanActivate(castSpeed, controller == _activePlayer, EffectActivationType.Voluntary))
                 return false;
@@ -804,6 +804,24 @@ namespace CardCore
         /// 宣言期零支付（不横置不扣费）——横置在结算时支付（到点重查）。</summary>
         public const int AttackStackSpeed = 0;
 
+        /// <summary>回合归属对账（2026-09-20 修复）：_activePlayer 是回合开始事件的缓存副本——
+        /// 合成 TurnStartEvent（验证器 shield 段）/非标准回合推进会让它与 TurnEngine 撕裂
+        /// （曾见 TurnPlayer=P1 而 _activePlayer=P2，攻击宣言被「非回合方 0&gt;0」静默拒绝、
+        /// 后续断言整体级联）。栈空且无等待窗口=连锁间歇，此时以 TurnEngine 为唯一真值回填。</summary>
+        private void SyncActivePlayerFromTurn()
+        {
+            if (_stack.Count > 0) return; // 连锁进行中不作对账（等待窗口必然有栈对象）
+            // 栈空却 _waitingForPlayer=true = 上一轮非正常收尾的悬置脏态——对账时一并复位
+            var turnPlayer = GameCore.Instance?.TurnEngine?.TurnPlayer;
+            if (turnPlayer != null && !ReferenceEquals(turnPlayer, _activePlayer))
+            {
+                _activePlayer = turnPlayer;
+                _priorityHolder = turnPlayer;
+                _consecutivePassCount = 0;
+                _waitingForPlayer = false;
+            }
+        }
+
         /// <summary>守卫拦截速度（2026-09-16 定案）：守卫=速度1响应（原2速阻挡阶段退役）——
         /// 非回合方（防守方）严格 &gt; 计数器：1 &gt; 0 ✓；入栈后计数器抬到 1，
         /// 攻击方可 ≥1 再连锁，防守方守卫全 1 速无法再响应（1 不 &gt; 1）→ 双 Pass 结算。</summary>
@@ -818,6 +836,7 @@ namespace CardCore
         {
             if (attacker == null || target == null || controller == null) return false;
             if (_stack.Count > 0) return false; // 连锁中不可宣（速度门 0≥计数器的等价直查）
+            SyncActivePlayerFromTurn();
             if (!_speedCounter.CanActivate(AttackStackSpeed, controller == _activePlayer, EffectActivationType.Voluntary))
                 return false;
 
@@ -860,6 +879,7 @@ namespace CardCore
             // 此处拦的是"已横置不能再宣"
             if (!(guarder is Card guardCard) || !guardCard.HasGuardAbility()
                 || !guardCard.IsAlive || guardCard.IsTapped()) return false;
+            SyncActivePlayerFromTurn();
             if (!_speedCounter.CanActivate(GuardStackSpeed, controller == _activePlayer, EffectActivationType.Voluntary))
                 return false;
 
@@ -1037,6 +1057,10 @@ namespace CardCore
             finally
             {
                 _isResolving = false;
+                // 异常收口（2026-09-20）：ResolveStack 中途抛出时 FinishResolution 不会执行——
+                // 记速器永久锁在「结算中」，后续一切速度发动（攻击宣言/cast）静默被拒（曾致
+                // 验证器战斗段整体级联假失败）。正常路径 FinishResolution 已 Reset，此处为无操作。
+                if (_speedCounter.IsResolving) _speedCounter.Reset();
             }
         }
 

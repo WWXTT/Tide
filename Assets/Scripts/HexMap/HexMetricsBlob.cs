@@ -41,7 +41,7 @@ namespace HexMap
         /// <summary>高度扰动：台阶落差的随机缩放范围（1 = 不扰动）</summary>
         public float2 ElevationPerturbRange;
 
-        /// <summary>7 个角点（第 7 个重复第一个，供 GetSecondCorner(NW) 使用，防止越界判断）</summary>
+        /// <summary>7 个角点（第 7 个重复第一个，供边 d 取 Corners[d+1] 时不做取模判断）</summary>
         public FixedList128Bytes<float3> Corners;
 
         public static HexMetrics FromBlob(ref HexMapConfigBlob b)
@@ -67,35 +67,11 @@ namespace HexMap
             return m;
         }
 
-        public float3 GetFirstCorner(HexDirection direction) => Corners[(int)direction];
-
-        public float3 GetSecondCorner(HexDirection direction) => Corners[(int)direction + 1];
-
         // ---- 网格 helpers（板/陡壁）----
 
         /// <summary>方向 d 的边线单位外法线（指向该方向邻居）= normalize(两角点之和)</summary>
         public float3 GetEdgeNormal(HexDirection direction)
             => math.normalize(Corners[(int)direction] + Corners[(int)direction + 1]);
-
-        /// <summary>
-        /// 板角点：方向 d 与 d+1 两条内缩边线的交点（cell 局部坐标，未扰动）。
-        /// 边线定义 { p : dot(p, n_k) = l_k }，n_k = GetEdgeNormal(k)，l 为该边内缩距离。
-        /// 相邻边法线夹角 60°，det = ±sin60° 恒非零，Cramer 求解稳定。
-        /// 垂直版板 = 全宽名义六边形（l = IR），本函数供内环（再内缩 fade）等内缩六边形取角。
-        /// 必须是纯函数：相邻 cell 对共享角点各自调用要得到同一结果。
-        /// </summary>
-        public float3 GetPlateCorner(HexDirection direction, float l1, float l2)
-        {
-            float3 n1 = GetEdgeNormal(direction);
-            float3 n2 = GetEdgeNormal(direction.Next());
-            // Cramer：x = (l1·b2 − b1·l2)/det，z = (a1·l2 − l1·a2)/det，det = a1·b2 − a2·b1
-            // （a=n.x, b=n.z；b1 是 n1.z 不是 n2.x —— 写错会让统一内缩的角点横向拉伸 1/0.866）
-            float det = n1.x * n2.z - n2.x * n1.z;
-            return new float3(
-                (l1 * n2.z - n1.z * l2) / det,
-                0f,
-                (n1.x * l2 - l1 * n2.x) / det);
-        }
 
         /// <summary>
         /// 逐格 UV 变异常量（反平铺）：按 offset 坐标哈希确定性生成（重建稳定）。
