@@ -11,10 +11,13 @@ namespace SynergyUI
     /// 游戏内 HexMap 世界编辑器面板（常驻右上角工具条，非 UIScreen——UIManager 是
     /// 全屏栈式会清根，不适合常驻面板；本类镜像 UIBootstrap 的装配方式）。
     ///
-    /// 职责：工具模式/笔刷切换（写 HexEditorToolState，HexMapEditingSystem 读）、
+    /// 职责：六工具模式/选项切换（写 HexEditorToolState，HexMapEditingSystem 读）、
     /// 特征重生成 / 植被重散布 / 确定性验证、世界存档保存与加载（HexWorldSaveService）。
-    /// 快捷键：F5 保存 / F9 加载 / R 重生成(保留手编) / Shift+R 完整重置 / V 植被
+    /// 快捷键：F5 保存 / F9 重载选中 / R 重生成(保留手编) / Shift+R 完整重置 / V 植被
     /// （文本输入框聚焦时全部让位）。
+    ///
+    /// 存档下拉：打开时自动刷新列表，选中即加载（放弃当前修改按存档重载）；
+    /// 无独立刷新按钮。选项行为中文条目（数字键按序号快选，0 恒为删除/清除）。
     ///
     /// 指针穿透：场景无 EventSystem，旧 Input 不会被 UI Toolkit 吞掉——
     /// 用 PointerEnter/Leave 维护 HexEditorToolState.PointerOverUI，编辑系统据此避让。
@@ -31,7 +34,11 @@ namespace SynergyUI
         private bool _collapsed;
         private Coroutine _flow;
 
-        // ── 装配（UIBootstrap 同款）──────────────────────────────
+        /// <summary>程序化刷新下拉列表期间抑制「选中即加载」回调</summary>
+        private bool _suppressDropdownCallback;
+
+        /// <summary>选项行缓存签名（模式+上限）——变化才重建按钮行</summary>
+        private (HexEditorToolMode mode, int limit, int option) _optionRowSig;
 
         private void OnEnable()
         {
@@ -81,6 +88,7 @@ namespace SynergyUI
                 return;   // 双发防重复初始化
             _panelVersion = version;
             _root = root;
+            _optionRowSig = default;
             Bind(root);
         }
 
@@ -102,15 +110,19 @@ namespace SynergyUI
                 _panel.Q<Button>("btn-collapse").text = _collapsed ? "+" : "—";
             });
 
-            // 工具模式
+            // 工具模式（六模式）
             UIBinder.BindButton(root, "btn-mode-terrain",
                 () => HexEditorToolState.SetMode(HexEditorToolMode.Terrain));
-            UIBinder.BindButton(root, "btn-mode-spring",
-                () => HexEditorToolState.SetMode(HexEditorToolMode.PlaceSpring));
-            UIBinder.BindButton(root, "btn-mode-roadnode",
-                () => HexEditorToolState.SetMode(HexEditorToolMode.PlaceRoadNode));
-            UIBinder.BindButton(root, "btn-mode-delpoi",
-                () => HexEditorToolState.SetMode(HexEditorToolMode.DeletePoi));
+            UIBinder.BindButton(root, "btn-mode-height",
+                () => HexEditorToolState.SetMode(HexEditorToolMode.Height));
+            UIBinder.BindButton(root, "btn-mode-water",
+                () => HexEditorToolState.SetMode(HexEditorToolMode.Water));
+            UIBinder.BindButton(root, "btn-mode-road",
+                () => HexEditorToolState.SetMode(HexEditorToolMode.Road));
+            UIBinder.BindButton(root, "btn-mode-veg",
+                () => HexEditorToolState.SetMode(HexEditorToolMode.Vegetation));
+            UIBinder.BindButton(root, "btn-mode-poi",
+                () => HexEditorToolState.SetMode(HexEditorToolMode.Poi));
 
             // POI 半径
             UIBinder.BindField(root.Q<Slider>("slider-poi-radius"), HexEditorToolState.PoiRadius,
@@ -128,57 +140,139 @@ namespace SynergyUI
             nameField.RegisterCallback<FocusOutEvent>(_ => HexEditorToolState.TextInputFocused = false);
             UIBinder.BindButton(root, "btn-save", () => StartFlow(SaveFlow()));
             UIBinder.BindButton(root, "btn-load", () => StartFlow(LoadFlow()));
-            UIBinder.BindButton(root, "btn-refresh", RefreshSaveList);
 
-            RebuildBrushRow();
+            var dropdown = root.Q<DropdownField>("dropdown-loads");
+            // 打开即刷新列表（保当前值，不触发加载）——替代旧「刷新」按钮
+            dropdown.RegisterCallback<PointerDownEvent>(_ => RefreshSaveList());
+            // 选中即加载（放弃当前未保存修改，按存档重载）
+            dropdown.RegisterValueChangedCallback(evt =>
+            {
+                if (_suppressDropdownCallback || string.IsNullOrEmpty(evt.newValue))
+                    return;
+                StartFlow(LoadFlow());
+            });
+
             RefreshSaveList();
             RefreshHighlights();
         }
 
-        /// <summary>笔刷地形按钮行（按材质贴图数组层数动态生成）</summary>
-        private void RebuildBrushRow()
+        // ── 选项行（随模式重建；中文条目，数字键按序号快选）────────
+
+        /// <summary>当前模式的选项条目（index 与数字键/HexEditorToolState.OptionIndex 对应）</summary>
+        private static (int index, string label)[] OptionEntries(HexEditorToolMode mode)
         {
-            var row = _root?.Q<VisualElement>("brush-row");
+            switch (mode)
+            {
+                case HexEditorToolMode.Terrain:
+                {
+                    var entries = new (int, string)[HexEditorToolState.TerrainLimit + 1];
+                    for (int i = 0; i <= HexEditorToolState.TerrainLimit; i++)
+                    {
+                        string name = i < HexEditorToolState.TerrainLayerNames.Length
+                            ? HexEditorToolState.TerrainLayerNames[i]
+                            : $"层";
+                        entries[i] = (i, $"{i}·{name}");
+                    }
+                    return entries;
+                }
+
+                case HexEditorToolMode.Height:
+                {
+                    var entries = new (int, string)[HexEditorToolState.HeightLimit + 1];
+                    for (int i = 0; i <= HexEditorToolState.HeightLimit; i++)
+                        entries[i] = (i, $"高度{i}");
+                    return entries;
+                }
+
+                case HexEditorToolMode.Water:
+                    return new[] { (0, "0·清除水"), (1, "1·河流"), (2, "2·湖泊") };
+
+                case HexEditorToolMode.Road:
+                    return new[] { (0, "0·清路"), (1, "1·道路") };
+
+                case HexEditorToolMode.Poi:
+                    return new[] { (0, "0·删POI"), (1, "1·泉水"), (2, "2·路点") };
+
+                case HexEditorToolMode.Vegetation:
+                {
+                    var rules = ResolveScatterRules();
+                    int count = rules?.Count ?? HexEditorToolState.VegPrototypeCount;
+                    var entries = new (int, string)[count + 1];
+                    entries[0] = (0, "0·清除");
+                    for (int i = 1; i <= count; i++)
+                    {
+                        string name = (rules != null && i - 1 < rules.Count && !string.IsNullOrEmpty(rules[i - 1].name))
+                            ? rules[i - 1].name
+                            : $"原型{i}";
+                        entries[i] = (i, $"{i}·{name}");
+                    }
+                    return entries;
+                }
+
+                default:
+                    return System.Array.Empty<(int, string)>();
+            }
+        }
+
+        /// <summary>选项行标题（随模式）</summary>
+        private static string OptionTitle(HexEditorToolMode mode) => mode switch
+        {
+            HexEditorToolMode.Terrain => "贴图（数字键快选，拖动涂刷）",
+            HexEditorToolMode.Height => "高度（数字键 0-9 直接设定，拖动应用）",
+            HexEditorToolMode.Water => "水（拖动画河/湖，0 清除）",
+            HexEditorToolMode.Road => "路（拖动画路，0 清除）",
+            HexEditorToolMode.Vegetation => "植被（拖动放置，0 清除）",
+            HexEditorToolMode.Poi => "POI（拖动放置，R 重生成生效）",
+            _ => "选项（数字键快选）",
+        };
+
+        private void RebuildOptionRow()
+        {
+            var row = _root?.Q<VisualElement>("option-row");
             if (row == null)
                 return;
+
             row.Clear();
-            for (int i = 0; i <= HexEditorToolState.TerrainLimit; i++)
+            foreach (var (index, label) in OptionEntries(HexEditorToolState.Mode))
             {
-                int index = i;
-                var b = new Button(() => HexEditorToolState.SetBrushTerrain(index))
+                int i = index;
+                var b = new Button(() => HexEditorToolState.SetOption(i))
                 {
-                    text = i.ToString(),
-                    name = $"btn-brush-{i}",
+                    text = label,
+                    name = $"btn-option-{i}",
                 };
                 b.AddToClassList("btn--mini");
                 row.Add(b);
             }
+            UIBinder.SetText(_root, "lbl-option-title", OptionTitle(HexEditorToolState.Mode));
         }
 
-        /// <summary>模式/笔刷按钮高亮刷新（HexEditorToolState.Changed 触发）</summary>
+        /// <summary>模式/选项按钮高亮刷新（Changed 事件 + 每帧轮询双触发：
+        /// 贴图数组层数/植被规则数是编辑系统晚解析的，轮询兜底补建按钮行）</summary>
         private void RefreshHighlights()
         {
             if (_root == null)
                 return;
 
             Mode(HexEditorToolMode.Terrain, "btn-mode-terrain");
-            Mode(HexEditorToolMode.PlaceSpring, "btn-mode-spring");
-            Mode(HexEditorToolMode.PlaceRoadNode, "btn-mode-roadnode");
-            Mode(HexEditorToolMode.DeletePoi, "btn-mode-delpoi");
+            Mode(HexEditorToolMode.Height, "btn-mode-height");
+            Mode(HexEditorToolMode.Water, "btn-mode-water");
+            Mode(HexEditorToolMode.Road, "btn-mode-road");
+            Mode(HexEditorToolMode.Vegetation, "btn-mode-veg");
+            Mode(HexEditorToolMode.Poi, "btn-mode-poi");
 
-            if (HexEditorToolState.TerrainLimit != _lastBrushLimit)
+            var sig = (HexEditorToolState.Mode, HexEditorToolState.OptionLimit, HexEditorToolState.OptionIndex);
+            if (!sig.Equals(_optionRowSig))
             {
-                _lastBrushLimit = HexEditorToolState.TerrainLimit;
-                RebuildBrushRow();   // 编辑系统解析出数组层数后补建按钮
+                _optionRowSig = sig;
+                RebuildOptionRow();
             }
-            for (int i = 0; i <= HexEditorToolState.TerrainLimit; i++)
+            foreach (var (index, _) in OptionEntries(HexEditorToolState.Mode))
             {
-                var b = _root.Q<Button>($"btn-brush-{i}");
-                b?.EnableInClassList("btn--primary", i == HexEditorToolState.BrushTerrainIndex);
+                var b = _root.Q<Button>($"btn-option-{index}");
+                b?.EnableInClassList("btn--primary", index == HexEditorToolState.OptionIndex);
             }
         }
-
-        private int _lastBrushLimit = -1;
 
         private void Mode(HexEditorToolMode mode, string buttonName)
             => _root.Q<Button>(buttonName)?.EnableInClassList("btn--primary",
@@ -189,9 +283,13 @@ namespace SynergyUI
             var dd = _root?.Q<DropdownField>("dropdown-loads");
             if (dd == null)
                 return;
+
+            _suppressDropdownCallback = true;
+            string current = dd.value;
             dd.choices = HexWorldSerializer.ListSaveNames();
-            if (dd.index < 0 || dd.index >= dd.choices.Count)
-                dd.index = dd.choices.Count > 0 ? 0 : -1;
+            // 保持当前选中（仍在列表内）——SetValueWithoutNotify 不触发加载
+            dd.SetValueWithoutNotify(dd.choices.Contains(current) ? current : null);
+            _suppressDropdownCallback = false;
         }
 
         // ── 快捷键 ────────────────────────────────────────────────
@@ -200,6 +298,8 @@ namespace SynergyUI
         {
             if (HexEditorToolState.TextInputFocused)
                 return;   // 输入框聚焦：快捷键让位
+
+            RefreshHighlights();   // 晚解析上限（贴图层数/规则数）兜底补建选项行
 
             if (Input.GetKeyDown(KeyCode.F5))
                 StartFlow(SaveFlow());
@@ -279,6 +379,14 @@ namespace SynergyUI
             string path = HexWorldSerializer.Save(save);
             Status(path != null ? $"已保存：{path}" : "保存失败（详见 Console）");
             RefreshSaveList();
+            if (path != null)
+            {
+                // 新存档成为当前选中（不触发加载——就是刚存的世界）
+                var dd = _root?.Q<DropdownField>("dropdown-loads");
+                _suppressDropdownCallback = true;
+                dd?.SetValueWithoutNotify(save.name);
+                _suppressDropdownCallback = false;
+            }
         }
 
         private IEnumerator LoadFlow()
@@ -311,7 +419,7 @@ namespace SynergyUI
                 Debug.LogWarning($"[HexWorld] 配置指纹不符（存档 {save.settingsFingerprint} / 当前 {current}），" +
                                  "继续加载：Detail 扰动类数据可能有视觉级偏差");
 
-            Status("恢复中…");
+            Status("恢复中…（放弃当前未保存修改）");
             yield return EnsureAllLoadedAndWait();
 
             var world = ResolveWorld();
@@ -420,6 +528,19 @@ namespace SynergyUI
         {
             var q = world.EntityManager.CreateEntityQuery(typeof(HexFeatureConfig));
             return q.IsEmpty ? null : world.EntityManager.GetComponentData<HexFeatureConfig>(q.GetSingletonEntity()).Settings;
+        }
+
+        /// <summary>植被选项行名称用：解析散布规则表（世界未就绪返回 null）</summary>
+        private static List<HexScatterRule> ResolveScatterRules()
+        {
+            var world = World.DefaultGameObjectInjectionWorld;
+            if (world == null || !world.IsCreated)
+                return null;
+            var em = world.EntityManager;
+            var q = em.CreateEntityQuery(typeof(HexFeatureConfig));
+            if (q.IsEmpty)
+                return null;
+            return em.GetComponentData<HexFeatureConfig>(q.GetSingletonEntity()).Settings?.scatterRules;
         }
 
         private int CurrentSerial() => FeatureState(ResolveWorld())?.GenerationSerial ?? -1;

@@ -197,7 +197,7 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _HeightBlendOffset: 1
+    - _HeightBlendOffset: 0.2
     - _HeightBlendStrength: 1
     - _HexVariationEnabled: 1
     - _INDIR_CUBEMAP: 0
