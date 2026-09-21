@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
 using CardCore;
+using CardCore.AI;
 using CardCore.AI.NeuralEnv;
 using SynergyUI;
 using UnityEngine;
@@ -19,19 +19,14 @@ namespace CardCore.Editor.Tests
     public static class AiBattleE2E
     {
 
-        /// <summary>标准卡组：纯非仪式卡（仪式验证走全仪式压力口径；AI 对战当前测不到仪式，移出）。</summary>
+        /// <summary>标准卡池（2026-09-21 数据层迁移）：Cards.json 全池非仪式卡
+        /// （TestDecks 已随主题卡组重构删除；仪式验证走全仪式压力口径，AI 对战测不到仪式）。</summary>
         public static List<CardData> LoadStandardDeck()
-            => LoadTestCards().Where(c => !RitualSystem.IsRitual(new CardWrapper(c))).ToList();
+            => CardCatalog.LoadAll().Where(c => !RitualSystem.IsRitual(new CardWrapper(c))).ToList();
 
         /// <summary>全仪式卡组（压力口径）：开局仪式占满手牌、连环顶替、小卡组疲劳收尾。</summary>
         public static List<CardData> LoadRitualHeavyDeck()
-            => LoadTestCards().Where(c => RitualSystem.IsRitual(new CardWrapper(c))).ToList();
-
-        private static List<CardData> LoadTestCards()
-        {
-            string path = Path.Combine(Application.dataPath, "Configs/TestDecks/TestCreatureCards.json");
-            return File.Exists(path) ? CardLoader.LoadCardsFromText(File.ReadAllText(path)) : new List<CardData>();
-        }
+            => CardCatalog.LoadAll().Where(c => RitualSystem.IsRitual(new CardWrapper(c))).ToList();
 
         internal static string Name(Entity e) => MatchLogRenderer.Name(e);
     }
@@ -101,13 +96,15 @@ namespace CardCore.Editor.Tests
             => RunFullGame(deck1, deck2, maxTurns, AiBrain.Script, AiBrain.Script, null);
 
         /// <summary>
-        /// 双卡组 + 双大脑对战：brain 为 Neural 的座位整回合由 ONNX 策略驱动（NeuralAI，
-        /// 时序镜像训练 driver，非 SimpleAI 时序）。policy 由调用方提供并管理生命周期；
+        /// 双卡组 + 双大脑 + 双策略对战：brain 为 Neural 的座位整回合由 ONNX 策略驱动（NeuralAI，
+        /// 时序镜像训练 driver，非 SimpleAI 时序）；Script 座位由注入的 AiStrategy 分化决策偏好
+        /// （null=通用 GeneralAiStrategy，行为与策略化之前一致）。policy 由调用方提供并管理生命周期；
         /// 双 Neural 共用同一 policy —— 单 rstate 链贯穿全局，与训练自对弈同口径。
         /// 指定了 Neural 但 policy 为 null 时该座位回落 SimpleAI 并记错误。
         /// </summary>
         public BattleRunResult RunFullGame(List<CardData> deck1, List<CardData> deck2, int maxTurns,
-            AiBrain brain1, AiBrain brain2, OnnxTidePolicy policy)
+            AiBrain brain1, AiBrain brain2, OnnxTidePolicy policy,
+            AiStrategy strategy1 = null, AiStrategy strategy2 = null)
         {
             var result = new BattleRunResult();
             var announcer = new ConsoleAnnouncer();
@@ -135,7 +132,8 @@ namespace CardCore.Editor.Tests
 
                 var core = GameCore.Instance;
                 var ctrl = new BattleController();
-                var ai = new SimpleAI();
+                var ai1 = new SimpleAI(strategy1); // 策略注入（null=通用）；Neural 座位忽略 Script 大脑
+                var ai2 = new SimpleAI(strategy2);
                 // Neural 座位共用一个 NeuralAI 实例（TakeTurn 无跨回合状态；rstate 在 policy
                 // 内单链贯穿双方决策点，镜像训练自对弈口径）。policy 缺失回落 SimpleAI。
                 bool wantNeural = brain1 == AiBrain.Neural || brain2 == AiBrain.Neural;
@@ -144,6 +142,9 @@ namespace CardCore.Editor.Tests
                     result.Errors.Add("指定了 Neural 大脑但未提供 ONNX 策略，该座位回落 SimpleAI");
                 // 变形目标形态解析器：组合根注入（编辑器无头路径独立注入）
                 CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
+                // 召唤衍生物模板解析器（2026-09-21 修复：此前只验证器自注入，对战路径 SummonToken
+                // 静默空转——"打召唤法术只付费无衍生物"）：与变形同惯例接 CardCatalog
+                CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
                 core.InitGame(CardLoader.BuildDeck(deck1, 1), CardLoader.BuildDeck(deck2, 1));
                 core.Player1.IsAI = true; // 选择全自动
                 core.Player2.IsAI = true;
@@ -161,12 +162,12 @@ namespace CardCore.Editor.Tests
                 {
                     try
                     {
-                        // 座位大脑分派：Neural 座位策略整回合，其余 SimpleAI（两者内部均已 EndTurn 不折返）
+                        // 座位大脑分派：Neural 座位策略整回合，其余按座位取各自的 SimpleAI（策略已注入）
                         var isP1Turn = ReferenceEquals(core.TurnEngine.TurnPlayer, core.Player1);
                         if (neural != null && (isP1Turn ? brain1 : brain2) == AiBrain.Neural)
                             neural.TakeTurn(ctrl);
                         else
-                            ai.TakeTurn(ctrl);
+                            (isP1Turn ? ai1 : ai2).TakeTurn(ctrl);
                         if (!gameOver)
                             core.TurnEngine.CheckPhaseTransition(); // 补 End→Standby 折返；游戏已结束则不开新回合
                     }
@@ -191,6 +192,7 @@ namespace CardCore.Editor.Tests
                 EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
                 CombatSystem.AdjacentResolver = null; // 撤销本局的棋盘接线（静态扩展点归零）
                 GameBoard.LinkAuraSystem.Detach();    // 连接光环接线同步归零
+                CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = null; // 召唤模板接线同步归零
                 board?.Dispose();
                 result.AnnouncedLines = announcer.LineCount;
                 // P2b：对局日志按需导出（内存缓冲 → markdown 战报落盘）

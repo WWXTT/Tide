@@ -3,7 +3,7 @@ Tide 特征维度常量与辅助函数（对应 ygo-agent 的 features.py）。
 
 TideObservation 产出的扁平特征向量：
 - cards_: (80, 65) — 每槽 65 维特征
-- global_: (32,) — 全局状态
+- global_: (36,) — 全局状态（2026-09-14 起 36 维：末尾 4 维黑白每回合获得余量）
 - actions_: (max_actions, 6) — 每动作 6 维特征
 - h_actions_: (32, 14) — 历史动作（暂未实现，传 None）
 """
@@ -31,17 +31,22 @@ ATOM_PARAM_DIM = 6      # 与 C# CardIdentityService.AtomParamDim 对齐（2026-
 # 精确身份 embedding 表大小，与 C# TideCardIndex.Capacity 对齐（超出容量 C# 侧记 0）。
 # TideCardIndex 为追加式分配 + manifest 持久化（tide_rl/card_identity_manifest.json）：
 # 新哈希只在末尾续排，训练/部署同一份清单 → 已训行永不串台。
-N_CARD_POOL = 256
-# EffectType embedding 表：C# 原子表 97 条（2026-09-10 攻/守效果化 +2）按枚举名排序 1 基编号，128 = 余量。
-# 表冻结（表指纹已混入所有哈希）；表一旦变更 → 全体身份换血，需重训。
-N_EFFECT_TYPES = 128
+# 容量口径（2026-09-21 扩容 256→1024）：占行的是「原子实例级身份」（原子类型+参数+目标域
+# 组合 / 结构骨架 / 关键词组合），不是卡——白板卡不占行、同原子跨卡共享行；
+# 1024 ≈ 千张常用卡的互异效果实例余量；触顶静默降级（新哈希记 0，类型+参数通路照常）。
+N_CARD_POOL = 1024
+# EffectType embedding 表：C# 原子表 97 条（2026-09-10 攻/守效果化 +2）按枚举名排序 1 基编号，
+# 256 = 余量（2026-09-21 扩容 128→256，规划原子表将来扩到 256 种）。
+# 表冻结（表指纹已混入所有哈希）；表一旦变更 → 全体身份换血，需重训（容量≠免重训）。
+N_EFFECT_TYPES = 256
 MAX_CARDS = 80
 # 动作截断上限：攻击动作 = 攻击方 × (对方随从 + 玩家)，8v8 场面就 ~72 个，64 会截掉
 # 真实动作（含末位的 EndTurn——Unity 侧 MaxActionsPerTurn 强制收口兜底但不干净）；
 # 128 覆盖 10v10 以内（超出部分仅不可选，不影响正确性）。Unity 侧发全量无截断。
 MAX_ACTIONS = 128
 N_ACTION_FEATURES = 6
-N_GLOBAL_FEATURES = 32
+N_GLOBAL_FEATURES = 36  # 2026-09-14 C# NGlobal 32→36（追加 g[32..35] 黑白每回合获得余量）——
+                        # Python 侧同步补齐（此前一直没跟上，模型 init 32 维 vs 实际 obs 36 维直接炸）
 N_HISTORY_ACTIONS = 32
 H_ACTIONS_FEATS = 14
 N_RNN_CHANNELS = 512

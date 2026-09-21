@@ -55,10 +55,11 @@ namespace CardCore.AI.NeuralEnv
         private Player _winner;
         private string _reason;
 
-        // vs SimpleAI 对手位：_modelPlayer != null 时，非模型回合由 SimpleAI 整回合自动打
+        // vs 脚本对手位：_modelPlayer != null 时，非模型回合由 SimpleAI 整回合自动打
+        // （策略每局按 Reset 注入重建——主题评估用 AutoMatch，缺省 General）
         private Player _modelPlayer;
         private BattleController _aiCtrl;
-        private readonly SimpleAI _simpleAI = new SimpleAI();
+        private SimpleAI _simpleAI = new SimpleAI();
 
         // 回合内无进展防护：引擎拒绝（枚举/引擎口径漂移）的动作按签名本回合摘除 + 小额扣分——
         // 否则确定性策略会无限重选同一无效动作，回合冻结烧满步数上限、对局永不自然终局
@@ -85,14 +86,17 @@ namespace CardCore.AI.NeuralEnv
             => ResetCore(deck1, deck2, null);
 
         /// <summary>
-        /// 初始化一局 vs SimpleAI：modelIsP1 指定模型座次，另一座位整回合由 SimpleAI 自动打。
+        /// 初始化一局 vs 脚本对手：modelIsP1 指定模型座次，另一座位整回合由 SimpleAI 自动打
+        /// （opponentStrategy 注入决策偏好——主题评估传 AiStrategy.AutoMatch(对手卡组)，缺省通用）。
         /// obs/合法动作/reward 恒为模型视角（对手回合在内部自动完成，Python 只见模型决策点）；
         /// 非终局塑形的 ΔΦ 口径随之变为「模型行动 + 对手整回合响应」的弧长，终局 ±1 仍按模型胜负。
         /// </summary>
-        public TideStepResult Reset(List<CardData> deck1, List<CardData> deck2, bool modelIsP1)
-            => ResetCore(deck1, deck2, modelIsP1);
+        public TideStepResult Reset(List<CardData> deck1, List<CardData> deck2, bool modelIsP1,
+            AiStrategy opponentStrategy = null)
+            => ResetCore(deck1, deck2, modelIsP1, opponentStrategy);
 
-        private TideStepResult ResetCore(List<CardData> deck1, List<CardData> deck2, bool? modelIsP1)
+        private TideStepResult ResetCore(List<CardData> deck1, List<CardData> deck2, bool? modelIsP1,
+            AiStrategy opponentStrategy = null)
         {
             // 变形目标形态解析器：组合根注入（镜像 AiBattleDriver / BattleController）
             CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
@@ -103,6 +107,8 @@ namespace CardCore.AI.NeuralEnv
             _core.Player2.IsAI = true;
             _modelPlayer = modelIsP1.HasValue ? (modelIsP1.Value ? _core.Player1 : _core.Player2) : null;
             _aiCtrl = modelIsP1.HasValue ? new BattleController() : null;
+            if (modelIsP1.HasValue)
+                _simpleAI = new SimpleAI(opponentStrategy); // vs 模式：每局按注入策略重建（自对弈不用）
 
             // 棋盘占用层（派生，单向读核心）：为碾压关键词注入邻接解析 + 连接光环接线（核心不绑棋盘，宿主接线）
             _board?.Dispose();
