@@ -10,10 +10,9 @@ Shader "Custom/HexTerrain"
         _TerrainOcclusionArray("Occlusion Array", 2DArray) = "" {}
 
         [Header(Height Blend)]
-        // 高度图驱动的 splat 混合（公式见 HexTerrainInput.HeightBlend3）：
-        // offset = 过渡带宽度，越小高度差驱动的锯齿互侵越明显（0.2~0.3 自然），
-        // ≈1 时近似退回线性混合；strength = 高权重层被抬升的量（抗入侵强度）。
-        _HeightBlendStrength("Height Blend Strength", Range(0.01, 10.0)) = 1.0
+        // 层间混合软化窗（公式见 HexTerrainInput.HeightBlend3）：
+        // offset = 高度差软化窗宽度——差值在其内的层线性过渡，超出硬切。
+        // 未绑高度数组时恒中性，混合完全由顶点权重（固定宽线性带）决定。
         _HeightBlendOffset("Height blend Offset", Range(0.0, 1.0)) = 0.25
 
         [Header(Parallax)]
@@ -37,6 +36,12 @@ Shader "Custom/HexTerrain"
         _Smoothness("Smoothness", Range(0.0, 1.0)) = 1.0
         _NormalScale("Normal Scale", Range(0.0, 2.0)) = 1.0
         _OcclusionStrength("Occlusion Strength", Range(0.0, 1.0)) = 1.0
+
+        [Header(Weather)]
+        // 季节/雪/湿由全局变量驱动（TTFE Global Shaders Controller 同名契约），
+        // 材质只定义目标色；缺省 0 = 无天气 no-op
+        _SeasonDryColor("Season Dry Color (autumn)", Color) = (0.75, 0.55, 0.22, 1.0)
+        _SnowColor("Snow Color", Color) = (0.92, 0.94, 0.98, 1.0)
 
         // 反射开关（URP Lit 同款 keyword）。smoothness=0 时仍存在的菲涅尔高光
         // 与天空/探针镜面反射是 PBR 固有项，不想叠在贴图上就整段关掉。
@@ -530,6 +535,11 @@ Shader "Custom/HexTerrain"
                 SampleSplatSurfaceTriplanar(input.positionWS, normalWS, idx, weights,
                     input.hexVar, input.variationWeight,
                     finalAlbedo, surfNormalWS, finalMetallic, finalSmoothness, finalOcclusion);
+
+                // 天气响应（与 ForwardLit 同一实现，全局驱动，缺省 0 = no-op）
+                ApplySeasonGrass(finalAlbedo, _SeasonDryColor.rgb);
+                ApplySnow(finalAlbedo, finalSmoothness, normalWS, input.positionWS.xz, _SnowColor.rgb);
+                ApplyWetness(finalAlbedo, finalSmoothness);
 
                 SurfaceData surfaceData = (SurfaceData)0;
                 surfaceData.albedo = finalAlbedo;

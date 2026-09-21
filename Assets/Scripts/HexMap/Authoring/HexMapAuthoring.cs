@@ -25,11 +25,12 @@ namespace HexMap
     /// </summary>
     public static class HexMapConfigBuilder
     {
-        // 与旧版 HexMetrics 常量一致
-        public const float OuterRadius = 10f;
+        // 2026-09-21 定案：格子默认 1m、层高 0.5m（原 10m/3m 与 2.5m 植被网格比例失衡，
+        // 植被在格子上几乎不可见；散布 scaleRange 已按 1m 格等比缩小）
+        public const float OuterRadius = 1f;
         public const float InnerRadius = OuterRadius * 0.866025404f;
         public const float SolidFactor = 0.8f;
-        public const float ElevationStep = 3f;
+        public const float ElevationStep = 0.5f;
 
         public static BlobAssetReference<HexMapConfigBlob> Build(HexMapFeatureSettings s)
         {
@@ -58,14 +59,12 @@ namespace HexMap
                     math.clamp(s.elevationPerturbRange.x, 0.5f, 1.5f),
                     math.clamp(s.elevationPerturbRange.y, 0.5f, 1.5f));
 
-                // ---- 网格重做参数（防呆钳制；≤0 的距离项回退默认）----
+                // ---- 网格参数（防呆钳制；≤0 的距离项回退默认）----
                 var mesh = s.meshSettings;
                 float defaultInset = InnerRadius * (1f - SolidFactor);
-                root.SlopeInset = mesh.slopeInset > 0f
-                    ? math.clamp(mesh.slopeInset, 0.01f, InnerRadius * 0.5f)
+                root.SlopeInset = mesh.stairBandInset > 0f
+                    ? math.clamp(mesh.stairBandInset, 0.01f, InnerRadius * 0.5f)
                     : defaultInset;
-                root.SlopeSubdivisions = math.clamp(mesh.slopeSubdivisions, 1, 8);
-                root.RimNormalBlend = math.saturate(mesh.rimNormalBlend);
                 root.VariationEnabled = mesh.variationEnabled ? 1 : 0;
                 float sx = math.clamp(Mathf.Min(mesh.variationScaleRange.x, mesh.variationScaleRange.y), 0.5f, 2f);
                 float sy = math.clamp(Mathf.Max(mesh.variationScaleRange.x, mesh.variationScaleRange.y), 0.5f, 2f);

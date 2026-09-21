@@ -62,13 +62,9 @@ namespace HexMap
         /// </summary>
         public FixedList128Bytes<HexTerrainBand> TerrainBands;
 
-        // ---- 地形网格重做（板/坡/桥/角闭合）----
-        /// <summary>坡带宽度 d（世界单位）：高 cell 板从共享边内缩的距离，坡占高 cell 面积</summary>
+        // ---- 地形网格（垂直侧壁 + 内缩阶梯）----
+        /// <summary>阶梯带内缩宽度 L（世界单位）：高格板沿阶梯边内缩、带内造台阶（StairBandWidth 钳 5%~90%·IR）</summary>
         public float SlopeInset;
-        /// <summary>坡/桥沿边横向细分数（EdgeVertices v1..v5 = 4 段）</summary>
-        public int SlopeSubdivisions;
-        /// <summary>rim 法线融合系数 0..1（0=硬边回退，1=全融合）。烘焙进顶点，材质改不动</summary>
-        public float RimNormalBlend;
         /// <summary>六边形单元变异开关（逐格 (θ,s,ox,oy) 烘焙，shader 边界/远距淡回纯平铺）</summary>
         public int VariationEnabled;
         /// <summary>逐格缩放范围</summary>

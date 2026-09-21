@@ -1461,10 +1461,6 @@ namespace CardCore
                 new ModifyPowerHandler(),
                 new MorphHandler(),
 
-                // 固有全域原子（2026-09-13：类型伤害/全体治疗——强制 Full、禁随机，执行复用上方管线）
-                new SweepDamageHandler(),
-                new SweepHealHandler(),
-
                 // 终局原子（2026-09-15：宣告胜利——亡语「对手获得胜利」载体）
                 new DeclareVictoryHandler(),
 

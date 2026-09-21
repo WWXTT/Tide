@@ -19,17 +19,26 @@ MonoBehaviour:
   noiseScales: {x: 0.003, y: 0.003, z: 0.003, w: 0.003}
   noiseSampleRange: 1
   noiseSeed: 1
-  mountainStrength: 0.5
+  mountainStrength: 1
   curlWarpStrength: 15
-  cellCountX: 100
-  cellCountZ: 100
+  cellCountX: 10
+  cellCountZ: 10
   maxElevation: 10
+  terrainBands:
+  - maxElevation: 0
+    terrainIndex: 5
+  - maxElevation: 3
+    terrainIndex: 0
+  - maxElevation: 6
+    terrainIndex: 2
+  - maxElevation: 9
+    terrainIndex: 3
+  - maxElevation: 999
+    terrainIndex: 7
   cellPerturbRange: {x: 0.85, y: 1.25}
-  elevationPerturbRange: {x: 0.9, y: 1.1}
+  elevationPerturbRange: {x: 1, y: 1}
   meshSettings:
-    slopeInset: 2
-    slopeSubdivisions: 4
-    rimNormalBlend: 1
+    stairBandInset: 2
     variationEnabled: 1
     variationScaleRange: {x: 0.85, y: 1.25}
     variationFadeWidth: 0
@@ -64,7 +73,137 @@ MonoBehaviour:
     roadHalfWidth: 0
     sampleStep: 2
     uvScale: 0.1
-  scatterRules: []
+  scatterRules:
+  - name: "\u8349-Nettle"
+    mesh: {fileID: 4300000, guid: 297b44a7155db5c4c92cb004363bb6f2, type: 3}
+    material: {fileID: 2100000, guid: 42ff8b544e651994e81adfaad1cd0542, type: 2}
+    densityPerTerrain:
+    - 0
+    - 0
+    - 6
+    - 4
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    scaleRange: {x: 0.25, y: 0.45}
+    yOffset: 0
+    randomYRotation: 1
+    elevationMin: 0
+    elevationMax: 8
+    maxNeighborElevationDiff: 2
+    riverMarginCells: 2
+    roadMarginCells: 2
+    clumpNoiseThreshold: 0.15
+    clumpNoiseScale: 0.8
+  - name: "\u8349-Sedge"
+    mesh: {fileID: 4300000, guid: f7d31bd631b34f94ebc99ccb747ebc33, type: 3}
+    material: {fileID: 2100000, guid: 07b0c442a532006469f2d3603305595e, type: 2}
+    densityPerTerrain:
+    - 0
+    - 0
+    - 9
+    - 6
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    scaleRange: {x: 0.25, y: 0.45}
+    yOffset: 0
+    randomYRotation: 1
+    elevationMin: 0
+    elevationMax: 8
+    maxNeighborElevationDiff: 2
+    riverMarginCells: 2
+    roadMarginCells: 2
+    clumpNoiseThreshold: 0.15
+    clumpNoiseScale: 1.1
+  - name: "\u77F3-Stone01"
+    mesh: {fileID: 4300000, guid: 499c2e6ee7caded47a9f8d37c80faffd, type: 3}
+    material: {fileID: 2100000, guid: ff8547c28748ee64f81da9a89fe6ba36, type: 2}
+    densityPerTerrain:
+    - 0
+    - 0
+    - 0.1
+    - 0.1
+    - 0.25
+    - 0.25
+    - 0.15
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    scaleRange: {x: 0.15, y: 0.45}
+    yOffset: -0.02
+    randomYRotation: 1
+    elevationMin: 1
+    elevationMax: 99
+    maxNeighborElevationDiff: 2
+    riverMarginCells: 2
+    roadMarginCells: 2
+    clumpNoiseThreshold: 0
+    clumpNoiseScale: 1
+  - name: "\u77F3-Stone02"
+    mesh: {fileID: 4300000, guid: 27b59eb720d801f4b919dee4137932ad, type: 3}
+    material: {fileID: 2100000, guid: 87e9a2520fc2faf43bc283a18b8e05f3, type: 2}
+    densityPerTerrain:
+    - 0
+    - 0
+    - 0.08
+    - 0.08
+    - 0.19999999
+    - 0.19999999
+    - 0.12
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    scaleRange: {x: 0.15, y: 0.45}
+    yOffset: -0.02
+    randomYRotation: 1
+    elevationMin: 1
+    elevationMax: 99
+    maxNeighborElevationDiff: 2
+    riverMarginCells: 2
+    roadMarginCells: 2
+    clumpNoiseThreshold: 0
+    clumpNoiseScale: 1
+  - name: "\u77F3-Stone03"
+    mesh: {fileID: 4300000, guid: da83337b5e029bc468042a17b6457c07, type: 3}
+    material: {fileID: 2100000, guid: 6f586380f5e81724bad36acc4381f8f2, type: 2}
+    densityPerTerrain:
+    - 0
+    - 0
+    - 0.07
+    - 0.07
+    - 0.175
+    - 0.175
+    - 0.105000004
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    scaleRange: {x: 0.15, y: 0.45}
+    yOffset: -0.02
+    randomYRotation: 1
+    elevationMin: 1
+    elevationMax: 99
+    maxNeighborElevationDiff: 2
+    riverMarginCells: 2
+    roadMarginCells: 2
+    clumpNoiseThreshold: 0
+    clumpNoiseScale: 1
   pois: []
   waterMaterial: {fileID: 2100000, guid: cd9dacc537d60e54f80131f2262cde0a, type: 2}
   roadMaterial: {fileID: 2100000, guid: f31d0224f2279914fb665b7ad68c7f92, type: 2}

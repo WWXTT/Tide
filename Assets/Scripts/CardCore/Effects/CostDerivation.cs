@@ -126,7 +126,7 @@ namespace CardCore
         {
             var cfg = AtomicEffectTable.GetByType(atom.Type);
 
-            // 动态数量（组合层）：费用计 0（代价 = 该卡不可作地牌产元素，见 ElementPool.AddCardToPool）。
+            // 动态数量（组合层）：费用计 0（2026-09-21 定案：不再关联地牌资格——地牌只看生物身份）。
             if (def.TargetCount == -1)
             {
                 AccumulateSubEffects(atom, def, domain, byColor);
@@ -164,17 +164,14 @@ namespace CardCore
         /// 前期很难超过 4 个生物同时存活）。</summary>
         public const int FullModeExpectedTargets = 4;
 
-        /// <summary>固有全域原子（2026-09-13：类型伤害/全体治疗）——范围是原子自身的语义
-        /// （强制 Full、禁随机），扫场溢价已含 BaseCost，计价数量恒 ×1。</summary>
-        public static bool IsIntrinsicSweep(AtomicEffectType type)
-            => type == AtomicEffectType.SweepDamage || type == AtomicEffectType.SweepHeal;
+        // 固有全域原子（SweepDamage/SweepHeal）2026-09-21 退役——全域语义由组合期
+        // TargetKinds+全取档表达，计价统一走期望 4，无 ×1 特判。
 
-        /// <summary>数量乘数：固有全域原子=1；SummonToken=1（数量已含在量级 max(count,模板费)）；
+        /// <summary>数量乘数：SummonToken=1（数量已含在量级 max(count,模板费)）；
         /// 全取档（Whole/WholeUnion，2026-09-16 六值迁移）按期望 4（TargetCount 是 converter 兜底噪声，不代表真实目标数）；
         /// 其余显式 TargetCount&gt;1 用之；任意（≤0）按期望 4。</summary>
         private static int QuantityMultiplier(AtomicEffectType type, EffectDefinition def)
         {
-            if (IsIntrinsicSweep(type)) return 1;
             if (type == AtomicEffectType.SummonToken) return 1;
             if (SelectionModeRules.IsTakeAll(def.SelectionMode)) return FullModeExpectedTargets;
             int n = def.TargetCount;
@@ -469,7 +466,7 @@ namespace CardCore
                 if (unit > 0)
                 {
                     // 固定数量同计费口径 ×N（构筑显示的声明意图；运行时按实际命中数；
-                    // 全部档按期望 4 / 固有全域 ×1 / 触发连乘——与 ComputeAtomCost 同口径）
+                    // 全部档按期望 4 / 触发连乘——与 ComputeAtomCost 同口径）
                     int n = QuantityMultiplier(atom.Type, def);
                     if (n > 1) unit *= n;
                     float gtf = TriggerCostFactor(def);
@@ -525,20 +522,6 @@ namespace CardCore
             return 0;
         }
 
-        /// <summary>
-        /// 卡牌是否含「动态数量」效果（组合层标志，2026-09-10 上移）。
-        /// 含动态数量的卡费用计 0 且不可作地牌产元素（灵活使用的代价）。
-        /// 2026-09-14 收缩：DynamicTargetCount 并入 TargetCount=-1（任意=玩家自选数量）。
-        /// </summary>
-        public static bool HasDynamicTargetEffect(CardData card)
-        {
-            if (card?.Effects == null) return false;
-            foreach (var eff in card.Effects)
-                if (eff != null && eff.TargetCount == -1)
-                    return true;
-            return false;
-        }
-
         /// <summary>卡牌是否含抉择（Choice）步骤（任一效果的 Steps 含 kind==2 且 choices≥2）。</summary>
         public static bool HasChoiceEffect(CardData card)
         {
@@ -563,6 +546,28 @@ namespace CardCore
                 }
             }
             return max;
+        }
+
+        /// <summary>
+        /// 效果槽位数（2026-09-21 抉择分支计槽定案）：每个效果 1 槽，Choice 步骤每多一个分支再 +1 槽
+        /// （抉择装两个效果，收两次槽位费）。供 ChassisAdjust 底盘预算消费。
+        /// </summary>
+        public static int CountEffectSlots(CardData card)
+        {
+            if (card?.Effects == null) return 0;
+            int slots = 0;
+            foreach (var eff in card.Effects)
+            {
+                if (eff == null) continue;
+                slots += 1;
+                if (eff.Steps == null) continue;
+                foreach (var step in eff.Steps)
+                {
+                    if (step?.choices != null && step.choices.Count > 1)
+                        slots += step.choices.Count - 1;
+                }
+            }
+            return slots;
         }
     }
 }

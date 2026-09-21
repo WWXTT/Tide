@@ -199,7 +199,8 @@ namespace CardCore
                     result.Grants[kv.Key] = prevG + kv.Value;
                 }
             }
-            // 代价栏：Payload 按原子全价（构筑显示"获得白16"；2026-09-14 代价原子化后代价=Payload 一种）
+            // 代价栏：Payload **全量获得**（2026-09-21 定案：发放无钳制；构筑期只允许装形成 1 费的代价，
+            // 见 CardEffectConverter 限价警告——故 Grants 恒 ≤1；后续靠情况开放）。
             if (card.Effects != null)
             {
                 foreach (var eff in card.Effects)
@@ -220,7 +221,7 @@ namespace CardCore
             foreach (var kv in result.Grants)
             {
                 result.Breakdown.Add(new CostBreakdownLine("G",
-                    $"获得{ElementAffinity.Single(kv.Key).GetColorName()}{kv.Value}（打出/发动时发放，封顶地牌上限）",
+                    $"获得{ElementAffinity.Single(kv.Key).GetColorName()}{kv.Value}（打出/发动时全量发放；黑白获取每回合封顶 1/色·全来源）",
                     kv.Value, kv.Key));
             }
 
@@ -253,10 +254,11 @@ namespace CardCore
         /// 幂等兜底：Cost 为空 → 写入建议档位分布；非空一律不动。
         /// D=0（无身材无效果无关键词）保持空 —— PlayCard 的 {Gray:1} 默认兜底行为不变。
         ///
-        /// 抉择卡（2026-09-07 定案）：①构筑期推导全部模式费写入 ModeCostCache（发动时只读不重推导）；
-        /// ②声明 costList 缺省时写**最大模式费**——「作为地牌取最大」，地牌产元素/UI 等
-        /// 声明值消费面零改动；支付仍按所选模式（GameActions.GetCardCost 走 GetModeCost）。
-        /// 声明值已存在则只填缓存不动声明（手写费用=地牌值，声明优先惯例延续）。
+        /// 抉择卡（2026-09-07 定案；2026-09-21 地牌模式修订）：①构筑期推导全部模式费写入
+        /// ModeCostCache（发动时只读不重推导）；②声明 costList 缺省时写**最大模式费**——
+        /// 仅作 UI/排序口径；支付与**地牌产元素**均按玩家所选模式（GameActions.GetCardCost /
+        /// ElementPool.AddCardToPool 的 modeIndex，与出牌同口径）。
+        /// 声明值已存在则只填缓存不动声明（声明优先惯例延续）。
         /// </summary>
         public static void EnsureCost(CardData card)
         {
@@ -382,9 +384,9 @@ namespace CardCore
             if (rawTotals[0] < tierMax - 0.001f)
                 Debug.LogWarning($"[CardCostService] 抉择卡 {card.ID} 模式0非最高消耗（{rawTotals[0]} < {tierMax}）——违反数据契约（编辑界面应把最高消耗放在序号0）");
 
-            // 卡层组合费用：价差溢价按原始锚价差判定（S/底盘/延迟折对模式均匀，不改变差值）
-            int spreadPremium = CardCompositionCost.ChoiceSpreadPremium(rawTotals);
-            float grayAdd = statGray + spreadPremium;
+            // 卡层组合费用：抉择价差溢价已废（2026-09-21）——灰桶只入身材费；
+            // 抉择的弹性费在 ChassisAdjust 分支计槽（每分支一个效果槽），对模式均匀。
+            float grayAdd = statGray;
 
             // ---- 第二遍：L2 组合 + L3 整卡折（与 Derive 的 ApportionMounted 同口径）----
             for (int m = 0; m < modeCount; m++)

@@ -17,8 +17,9 @@ namespace CardCore
         /// 主阶段：将手牌以可用（未横置）状态作为地牌放入元素池。
         /// 不限张数/次数，张数由地牌槽上限约束（min(全局回合数, 9)）；
         /// 本回合即可手动横置产出。
+        /// 抉择卡（2026-09-21 定案）：modeIndex 玩家自选（与出牌同口径），指示物按所选模式生成。
         /// </summary>
-        public static bool AddToElementPool(GameCore core, Player player, Card card)
+        public static bool AddToElementPool(GameCore core, Player player, Card card, int modeIndex = 0)
         {
             if (core == null || player == null || card == null) return false;
             if (core.TurnEngine.TurnPlayer != player) return false;
@@ -28,9 +29,9 @@ namespace CardCore
             var hand = core.ZoneManager.GetCards(player, Zone.Hand);
             if (!hand.Contains(card)) return false;
 
-            // 放入元素池（张数 ≤ 地牌槽上限）
+            // 放入元素池（张数 ≤ 地牌槽上限；抉择卡按所选模式产指示物）
             var elementPool = core.ElementPool;
-            if (!elementPool.AddCardToPool(card, player))
+            if (!elementPool.AddCardToPool(card, player, modeIndex))
                 return false;
 
             // 从手牌移到元素池区域
@@ -825,7 +826,8 @@ namespace CardCore
         /// 从卡牌读取费用——出牌预检 / cast 付费 / pending 合计的唯一口径（public：UI/AI 声明期展示与预检同口径）。
         /// 抉择卡（HasChoiceEffect）走 per-mode 推导缓存（CardCostService.GetModeCost——构筑期推导存储，
         /// 发动时只读不重推导）；推导为空=该模式免费（不落 {Gray:1} 默认——那是「无费用数据」的兜底）。
-        /// 声明 costList 在装载期写为最大模式费，仅供地牌产元素/UI 消费，不用于支付。
+        /// 声明 costList 在装载期写为最大模式费，仅供 UI/排序消费；支付与地牌产元素均按所选模式
+        /// （GetModeCost / ElementPool.AddCardToPool modeIndex——2026-09-21 地牌自选模式定案）。
         /// 费用指示物层在此接入（定案：层带颜色，P1 恒灰）：灰色分量 += 费用增加层 − 费用减少层（下限 0），
         /// 逐模式独立套用。层在进入发动区时不清（ZoneContainer.OnCardMoved 发动区豁免——付费发生在发动区内），
         /// 结算离开发动区（入墓/入场）与离手时按真实移动清除。

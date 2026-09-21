@@ -73,7 +73,7 @@ namespace CardCore.Network
                     var card = NetEntityDirectory.ResolveCard(core, intent.CardRuntimeId);
                     if (card == null) { error = $"卡不存在 RuntimeId={intent.CardRuntimeId}"; return false; }
 
-                    return Ok(GameActions.AddToElementPool(core, player, card), out error);
+                    return Ok(GameActions.AddToElementPool(core, player, card, intent.ModeIndex), out error);
                 }
 
                 case NetworkMessageType.IntentSkipStandby:

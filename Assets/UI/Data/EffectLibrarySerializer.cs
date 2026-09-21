@@ -8,15 +8,16 @@ using UnityEngine;
 namespace SynergyUI
 {
     /// <summary>
-    /// 效果库 JSON 读写（2026-09-14 v2·大修）：**单文件瘦格式** StreamingAssets/Tide/Effects.json
+    /// 效果库 JSON 读写（2026-09-14 v2·大修）：**单文件瘦格式** StreamingAssets/Card/Effects.json
     /// （{items:[EffectSlimDto]}——原子=表行 ID 引用+增量，见 EffectSlim.cs）。
+    /// 效果属用户数据（2026-09-21 定案）：与卡/卡组同住 Card/ 目录（EffectsLibrary.cs 同源同路径）。
     ///
     /// 效果 id = ContentHasher.HashEffect（单源化：AE 段仅 steps 空时计入）。Save=按 id upsert；
     /// EffectIdsOf/EnsureEffectsSaved 供卡牌保存链路写引用。
     /// </summary>
     public static class EffectLibrarySerializer
     {
-        private const string FilePathRelative = "Tide/Effects.json";
+        private const string FilePathRelative = "Card/Effects.json";
 
         private static string FilePath => Path.Combine(Application.streamingAssetsPath, FilePathRelative);
 
@@ -147,6 +148,17 @@ namespace SynergyUI
                 {
                     var sr = EffectSlim.ToStepRef(st);
                     if (sr != null) dto.steps.Add(sr);
+                }
+                // 扁平原子投影（2026-09-21 修复：白板卡根因）——Steps 空而 AtomicEffects 非空时
+                // 逐原子投影为 kind=0 步骤：此前直接丢弃，凡以扁平形态构建的效果（主题卡构建器等）
+                // 落盘后原子全失，打出只付费不结算。读回方向 ToCardEffect 天然支持 Steps 还原。
+                if (dto.steps.Count == 0 && h.AtomicEffects != null && h.AtomicEffects.Count > 0)
+                {
+                    foreach (var atom in h.AtomicEffects)
+                    {
+                        var ar = EffectSlim.ToRef(atom);
+                        if (ar != null) dto.steps.Add(new StepRef { kind = 0, atom = ar });
+                    }
                 }
             }
             return dto;

@@ -21,12 +21,14 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 英雄技能系统（2026-09-13 第二十批定案）：
-    /// - **一回合一次**（回合玩家+主阶段+本回合未用）；**激活需付对应颜色费用**（蓝1/绿2/红3）；
-    /// - **7 次发动后升级**（TotalUses ≥ 7 → 升级版，费用不变）；
+    /// 英雄技能系统（2026-09-13 第二十批定案；2026-09-21 改造：技能=初始在场永续魔法）：
+    /// - **技能卡实体**：Enchantment（结界/永续魔法）超类，开局由 InitGame 生成放入 FieldZone
+    ///   （原额外卡组退役后的空缺槽位）；**发动=横置本卡**（一回合一次=准备阶段重置）；
+    ///   **交互与一般永续魔法一致**——可被沉默（不可发动主动效果）/无效/摧毁/弹回（离场即失技能）；
+    /// - **激活需付对应颜色费用**（蓝1/绿2/红2）；**7 次发动后升级**（TotalUses ≥ 7 → 升级版）；
     /// - 对称设计（双方各…）：激活者付费、双方受益——优势来自不对称利用；
-    /// - 黑白暂无技能（None）。
-    /// 接线：GameActions.ActivateHeroSkill（声明口）；回合开始 GameCore 清 UsesThisTurn。
+    /// - 黑白暂无技能（None）；InitGame 按卡组费用主色自动指派。
+    /// 接线：GameActions.ActivateHeroSkill（声明口）；回合开始 GameCore 重置技能卡横置。
     /// </summary>
     public static class HeroSkillSystem
     {
@@ -41,6 +43,98 @@ namespace CardCore
             HeroSkillId.RedFrenzy => (ManaType.Red, 2),
             _ => (ManaType.Gray, 0),
         };
+
+        // ======================================== 技能卡实体（2026-09-21） ========================================
+
+        /// <summary>解析技能卡实体：优先运行时引用；丢失时（快照/存档恢复、旧档）按 FieldZone
+        /// 现场 lazy 回填（技能卡 ID 稳定 = HEROSKILL_+枚举名）。</summary>
+        public static Card ResolveSkillCard(GameCore core, Player player)
+        {
+            if (player == null) return null;
+            if (player.HeroSkillCard != null) return player.HeroSkillCard;
+            if (core == null) return null;
+            string wantId = "HEROSKILL_" + (HeroSkillId)player.HeroSkill;
+            player.HeroSkillCard = core.ZoneManager.GetCards(player, Zone.FieldZone)
+                .FirstOrDefault(c => c is CardWrapper w && w.GetData()?.ID == wantId);
+            return player.HeroSkillCard;
+        }
+
+        /// <summary>生成技能卡（Enchantment 永续魔法实体：在场可交互；效果执行仍走本系统，
+        /// 卡面不挂原子——效果定义与交互语义解耦）。</summary>
+        public static CardWrapper CreateSkillCard(HeroSkillId skill)
+        {
+            var (color, amount) = CostOf(skill);
+            var data = new CardData
+            {
+                ID = "HEROSKILL_" + skill,
+                CardName = SkillName(skill),
+                Supertype = Cardtype.Enchantment,
+                Cost = new Dictionary<int, float> { { (int)color, amount } },
+            };
+            return new CardWrapper(data);
+        }
+
+        /// <summary>指派技能并落场：清 FieldZone 旧技能卡 → 建卡入 FieldZone → 写 player 字段。
+        /// None = 清场不落卡。重复调用幂等（换技能/重开局安全）。</summary>
+        public static void AssignSkill(GameCore core, Player player, HeroSkillId skill)
+        {
+            if (core == null || player == null) return;
+            player.HeroSkill = (int)skill;
+            player.HeroSkillCard = null;
+            var container = core.ZoneManager.GetZoneContainer(player);
+            var oldSkills = core.ZoneManager.GetCards(player, Zone.FieldZone)
+                .Where(c => c is CardWrapper w && w.GetData()?.ID?.StartsWith("HEROSKILL_") == true)
+                .ToList();
+            foreach (var old in oldSkills)
+                container.Remove(old, Zone.FieldZone);
+
+            if (skill == HeroSkillId.None) return;
+            var card = CreateSkillCard(skill);
+            card.SetController(player);
+            card.SetOwner(player);
+            container.Add(card, Zone.FieldZone);
+            player.HeroSkillCard = card;
+        }
+
+        /// <summary>按卡组指派（InitGame 用）：①主题标签优先（Theme* 标签多数派——费用色在跨色
+        /// 卡组不可靠：绿组碾压/清场的红费可能比治疗绿费还多）；②无标签回落费用主色（灰不参选）。</summary>
+        public static HeroSkillId AutoSkillForDeck(List<Card> deck)
+        {
+            int red = 0, green = 0, blue = 0;
+            var total = new Dictionary<int, float>();
+            if (deck != null)
+                foreach (var card in deck)
+                {
+                    if (!(card is CardWrapper wrapper)) continue;
+                    var data = wrapper.GetData();
+                    if (data?.Tags != null)
+                        foreach (var t in data.Tags)
+                        {
+                            if (t == "ThemeRed") red++;
+                            else if (t == "ThemeGreen") green++;
+                            else if (t == "ThemeBlue") blue++;
+                        }
+                    foreach (var kv in data?.Cost ?? new Dictionary<int, float>())
+                        total[kv.Key] = total.GetValueOrDefault(kv.Key) + kv.Value;
+                }
+            if (red > green && red > blue) return HeroSkillId.RedFrenzy;
+            if (green > red && green > blue) return HeroSkillId.GreenCultivate;
+            if (blue > red && blue > green) return HeroSkillId.BlueInsight;
+
+            int best = -1; float bestV = 0;
+            foreach (var kv in total)
+            {
+                if ((ManaType)kv.Key == ManaType.Gray) continue; // 灰=垫付色不参选
+                if (kv.Value > bestV) { bestV = kv.Value; best = kv.Key; }
+            }
+            switch ((ManaType)best)
+            {
+                case ManaType.Red: return HeroSkillId.RedFrenzy;
+                case ManaType.Blue: return HeroSkillId.BlueInsight;
+                case ManaType.Green: return HeroSkillId.GreenCultivate;
+                default: return HeroSkillId.None;
+            }
+        }
 
         public static string Describe(HeroSkillId id, bool upgraded) => id switch
         {
@@ -59,8 +153,10 @@ namespace CardCore
         // ======================================== 发动 ========================================
 
         /// <summary>
-        /// 发动英雄技能（主阶段声明口）。守卫：回合玩家 + 主阶段 + 本回合未用 + 付色费。
-        /// 成功 → 计数 +1（≥7 升级）→ 执行当前版本效果（异步：选择交互）。
+        /// 发动英雄技能（主阶段声明口，2026-09-21 永续魔法化）。守卫：回合玩家 + 主阶段 +
+        /// **技能卡在场（FieldZone）且未横置且未被沉默**（交互与永续魔法一致：被摧毁/弹回=无技能、
+        /// 沉默=不可发动主动效果、横置=本回合已用）+ 付色费。成功 → 横置技能卡 → 计数 +1（≥7 升级）
+        /// → 执行当前版本效果（异步：选择交互）。
         /// </summary>
         public static async UniTask<bool> ActivateAsync(GameCore core, Player player)
         {
@@ -69,14 +165,23 @@ namespace CardCore
             if (skill == HeroSkillId.None) return false;
             if (core.TurnEngine.TurnPlayer != player) return false;
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
-            if (player.HeroSkillUsesThisTurn > 0) return false;
+
+            // 技能卡实体守卫：在场 + 未横置 + 未沉默
+            var skillCard = ResolveSkillCard(core, player); // 含快照恢复后的 lazy 回填
+            if (skillCard == null) return false; // 未指派（无技能卡）
+            if (!core.ZoneManager.GetCards(player, Zone.FieldZone).Contains(skillCard))
+                return false; // 已被摧毁/弹回/移场——技能随卡离场失效
+            if (skillCard.IsTapped()) return false; // 本回合已发动（准备阶段重置）
+            if (skillCard.GetCounterCount(Attribute.CounterRules.SilenceCounter) > 0)
+                return false; // 沉默：不可发动主动效果（永续魔法交互一致）
 
             var (color, amount) = CostOf(skill);
             var bill = new Dictionary<int, float> { { (int)color, amount } };
             if (!core.ElementPool.CanPayCost(bill, player)) return false;
-            if (!core.ElementPool.PayCost(bill, player)) return false;
+            if (!core.ElementPool.PayCost(bill, player, "英雄技能·" + SkillName(skill))) return false;
 
-            player.HeroSkillUsesThisTurn = 1;
+            skillCard.Tap(); // 发动横置（一回合一次的实体闸门）
+            player.HeroSkillUsesThisTurn = 1; // 兼容口径回写（旧消费者）
             player.HeroSkillTotalUses++;
             if (!player.HeroSkillUpgraded && player.HeroSkillTotalUses >= UpgradeThreshold)
                 player.HeroSkillUpgraded = true; // 本次发动仍用基础版，下一次起用升级版
@@ -282,6 +387,18 @@ namespace CardCore
             => core.ZoneManager.GetCards(player, Zone.Battlefield)
                 .Where(c => c.IsAlive && c is IHasSupertype st && st.Supertype == Cardtype.Creature)
                 .ToList();
+
+        /// <summary>技能中文名（战报支付来源标注/技能发动行渲染用，2026-09-21）。</summary>
+        public static string SkillName(HeroSkillId skill)
+        {
+            switch (skill)
+            {
+                case HeroSkillId.RedFrenzy: return "红·狂热";
+                case HeroSkillId.BlueInsight: return "蓝·洞察";
+                case HeroSkillId.GreenCultivate: return "绿·培育";
+                default: return skill.ToString();
+            }
+        }
     }
 
     /// <summary>英雄技能发动事件（播报/观察用）。</summary>

@@ -90,12 +90,11 @@ namespace HexMap
                     return;
 
                 var position = cell.Position;
-                bool isBoundary = HexBoundary.IsBoundary(in cell, blob.CellCount);
 
-                // 统一公式（HexMapTerrainMath）：边界 cell 恒 0，内部按噪声。
+                // 统一公式（HexMapTerrainMath）：全部 cell 按噪声（2026-09-21 起边界圈不再恒 0）。
                 // 与重生成重置/特征路径共用，公式漂移 = 重生成结果与初次生成不一致
                 int elevation = HexMapTerrainMath.ElevationFromNoise(
-                    ref blob, position, isBoundary, out float y);
+                    ref blob, position, out float y);
                 position.y = y;
 
                 cell.Elevation = elevation;

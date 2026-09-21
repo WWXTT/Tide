@@ -130,6 +130,33 @@ namespace HexMap.EditorTools
                     string s2 = keyPos.TryGetValue(e.Item2, out var p2) ? p2.ToString("F6") : e.Item2.ToString();
                     Debug.Log($"  边界边: {s1} → {s2}");
                 }
+
+                // 全量洞边导出（调试）：无反向边的有向边写文件，便于离线聚类定位
+                try
+                {
+                    var sb = new System.Text.StringBuilder();
+                    foreach (var kv in edgeCount)
+                    {
+                        var rev = (kv.Key.Item4, kv.Key.Item5, kv.Key.Item6, kv.Key.Item1, kv.Key.Item2, kv.Key.Item3);
+                        edgeCount.TryGetValue(rev, out int revCount);
+                        if (revCount == 0 && kv.Value > 0)
+                        {
+                            string a = keyPos.TryGetValue((kv.Key.Item1, kv.Key.Item2, kv.Key.Item3), out var pa)
+                                ? pa.ToString("F3") : "?";
+                            string b = keyPos.TryGetValue((kv.Key.Item4, kv.Key.Item5, kv.Key.Item6), out var pb)
+                                ? pb.ToString("F3") : "?";
+                            sb.AppendLine($"{a} -> {b}");
+                        }
+                    }
+                    string dir = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "TempVerifyShots");
+                    if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
+                    System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "holes.txt"), sb.ToString());
+                    Debug.Log("[验证] 全量洞边已写入 TempVerifyShots/holes.txt");
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning($"[验证] 洞边导出失败: {ex.Message}");
+                }
             }
         }
 

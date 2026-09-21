@@ -186,10 +186,12 @@ namespace CardCore
         /// <summary>
         /// 将手牌作为地牌放入元素池（主阶段调用，可用/未横置状态入场，不限张数/次数）。
         /// 张数受地牌槽上限约束（min(全局回合数, 9)）；指示物基于卡牌费用构成。
+        /// 抉择卡（2026-09-21 定案）：modeIndex 由玩家自选（与出牌同口径），指示物按所选模式生成；
+        /// 所选模式 0 费 → 无指示物 → 拒绝入池。
         /// 状态跟随卡：耗尽过的卡（WasDepletedAsLand）永久拒绝；
         /// 离池未耗尽的卡再入池按其记录的余量生成指示物，而非重新按费用满额生成。
         /// </summary>
-        public bool AddCardToPool(Card card, Player owner)
+        public bool AddCardToPool(Card card, Player owner, int modeIndex = 0)
         {
             if (card == null || owner == null) return false;
 
@@ -201,9 +203,8 @@ namespace CardCore
             if (card.WasDepletedAsLand)
                 return false;
 
-            // 含动态数量原子的卡不可作地牌产元素（灵活使用的代价：其费用计 0）。
-            if (card is CardWrapper wrapper && CostDerivationService.HasDynamicTargetEffect(wrapper.GetData()))
-                return false;
+            // 地牌资格只看生物身份（2026-09-21 定案）——与效果内容（如动态数量）无关；
+            // 纯 0 费卡入池由下方 sum==0 校验自然拦截。
 
             var pool = GetPool(owner);
 
@@ -211,10 +212,10 @@ namespace CardCore
             if (pool.PooledCards.Count >= GetLandCap(owner))
                 return false;
 
-            // 指示物来源：优先用地牌余量状态（回手再入池保留剩余），否则按费用构成
+            // 指示物来源：优先用地牌余量状态（回手再入池保留剩余），否则按费用构成（抉择卡按所选模式）
             var cost = card.HasLandTokenState
                 ? card.GetRemainingLandTokens()
-                : GetCardCostAsTokens(card);
+                : GetCardCostAsTokens(card, modeIndex);
             if (cost.Values.Sum() == 0)
                 return false;
 
@@ -425,8 +426,10 @@ namespace CardCore
         /// 支付费用（出牌时调用；2026-09-14 统一混付：按规划器实际货币组合扣款）。
         /// ElementPoolPayEvent.PaidCost 携带**实际扣款组合**（如红1 账单付 {红1} 或 {灰1}/{黑1}）——
         /// Trinity 光环/台账按真实货币计数。
+        /// sourceNote（2026-09-21）：支付来源说明（英雄技能/打出卡名/效果费）——仅供战报渲染，
+        /// 不参与任何规则判定。
         /// </summary>
-        public bool PayCost(Dictionary<int, float> cost, Player player)
+        public bool PayCost(Dictionary<int, float> cost, Player player, string sourceNote = null)
         {
             var pool = GetPool(player);
             var plan = ElementPaymentValidator.GetBillPaymentPlan(
@@ -441,7 +444,8 @@ namespace CardCore
             PublishEvent(new ElementPoolPayEvent
             {
                 Player = player,
-                PaidCost = plan.ToDictionary(kv => (int)kv.Key, kv => (float)kv.Value)
+                PaidCost = plan.ToDictionary(kv => (int)kv.Key, kv => (float)kv.Value),
+                SourceNote = sourceNote,
             });
 
             return true;
@@ -566,11 +570,32 @@ namespace CardCore
         /// 从卡牌读取费用，转换为指示物。
         /// 黑白不由地牌产出（2026-09-11 定案）：黑白份额不生成指示物——
         /// 纯黑白费用的卡过滤后为空，AddCardToPool 的 sum==0 校验自然拒绝其入池。
+        /// 抉择卡（2026-09-21 定案）：按玩家所选模式（modeIndex，与出牌同口径）取 per-mode 费用——
+        /// 声明 costList 只是缺省=最大模式费的 UI/排序口径，不用于产指示物；所选模式 0 费 → 空表 → 拒绝入池。
         /// </summary>
-        private Dictionary<ManaType, int> GetCardCostAsTokens(Card card)
+        private Dictionary<ManaType, int> GetCardCostAsTokens(Card card, int modeIndex = 0)
         {
             var tokens = new Dictionary<ManaType, int>();
             bool hadPositiveCost = false;
+
+            // 抉择卡：per-mode 费用（GetModeCost 内部 Clamp；缓存缺失时兜底重推导）
+            if (card is CardWrapper choiceWrapper)
+            {
+                var choiceData = choiceWrapper.GetData();
+                if (choiceData != null && CostDerivationService.HasChoiceEffect(choiceData))
+                {
+                    foreach (var kv in CardCostService.GetModeCost(choiceData, modeIndex))
+                    {
+                        if (kv.Value <= 0) continue;
+                        hadPositiveCost = true;
+                        var type = (ManaType)kv.Key;
+                        if (type == ManaType.Black || type == ManaType.White) continue; // 黑白不产指示物
+                        tokens[type] = (int)kv.Value;
+                    }
+                    // 所选模式无正费用（或只剩黑白被过滤）→ 空表 → 调用方 sum==0 拒绝；不落 Gray 默认（免费模式不可白嫖地牌）
+                    return tokens;
+                }
+            }
 
             // 从 IHasCost 接口读取费用
             if (card is IHasCost hasCost && hasCost.Cost != null)
@@ -677,6 +702,8 @@ namespace CardCore
     {
         public Player Player { get; set; }
         public Dictionary<int, float> PaidCost { get; set; }
+        /// <summary>支付来源说明（2026-09-21 战报补上下文）：英雄技能/出牌/效果费——null=未标注（旧口径）。</summary>
+        public string SourceNote { get; set; }
     }
 
     public class ElementPoolDepleteEvent : GameEventBase

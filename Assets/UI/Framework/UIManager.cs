@@ -88,6 +88,17 @@ namespace SynergyUI
 
         private void Activate(UIScreen screen)
         {
+            // 面板级样式注入（2026-09-21）：下拉弹出菜单（GenericDropdownMenu）挂在面板
+            // visualTree 的覆盖层、不在任何界面根子树内——界面 UXML 引用的 USS 管不到它。
+            // 把 Common.uss 注入面板根，使 .unity-generic-menu 规则（弹窗拉宽/去横向滚动）生效。
+            var panelRoot = _root?.panel?.visualTree;
+            if (panelRoot != null)
+            {
+                var uss = Resources.Load<StyleSheet>("Common");
+                if (uss != null && !panelRoot.styleSheets.Contains(uss))
+                    panelRoot.styleSheets.Add(uss);
+            }
+
             // 重新装配根容器：清空再 clone UXML，保证界面状态干净。
             _root.Clear();
 

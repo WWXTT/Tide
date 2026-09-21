@@ -148,6 +148,12 @@ void HexTerrainFrag(
         input.hexVar, input.variationWeight,
         finalAlbedo, finalNormalWS, finalMetallic, finalSmoothness, finalOcclusion);
 
+    // 天气响应（全局驱动，全部缺省 0 = no-op）：季节只染绿优层（草地），
+    // 雪用几何法线的朝上掩码（不叠贴图法线，雪线平滑），湿统一变暗+反光
+    ApplySeasonGrass(finalAlbedo, _SeasonDryColor.rgb);
+    ApplySnow(finalAlbedo, finalSmoothness, normalWS, input.positionWS.xz, _SnowColor.rgb);
+    ApplyWetness(finalAlbedo, finalSmoothness);
+
     SurfaceData surfaceData = (SurfaceData)0;
     surfaceData.albedo = finalAlbedo;
     surfaceData.metallic = finalMetallic * _Metallic;

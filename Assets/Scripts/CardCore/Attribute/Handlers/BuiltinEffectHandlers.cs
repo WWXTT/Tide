@@ -39,30 +39,8 @@ namespace CardCore.Attribute.Handlers
         }
     }
 
-    /// <summary>
-    /// 类型伤害（2026-09-13 定案，红3，固有全域原子）：对可选范围内全部有生命单位造成 value 伤害——
-    /// 不弹选择、不可随机（converter 强制 Full + 装载校验）；范围溢价已含 BaseCost（计价数量 ×1）。
-    /// 执行复用 DealDamage 管线（含数值随机/修饰链）。
-    /// </summary>
-    public class SweepDamageHandler : DealDamageHandler
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SweepDamage;
-
-        protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"对范围内全部有生命单位各造成 {effect.Value} 点伤害";
-    }
-
-    /// <summary>
-    /// 全体治疗（2026-09-13 定案，绿2=2费全体回1，固有全域原子）：对可选范围内全部有生命单位恢复 value 生命——
-    /// 同 SweepDamage：强制 Full、禁随机、计价数量 ×1。执行复用 Heal 管线。
-    /// </summary>
-    public class SweepHealHandler : HealHandler
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SweepHeal;
-
-        protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"对范围内全部有生命单位各恢复 {effect.Value} 点生命";
-    }
+    // 固有全域原子（SweepDamage/SweepHeal）2026-09-21 退役——全域改由组合期 TargetKinds+全取档表达；
+    // Handler 与注册已删（枚举槽位保留作序列化墓碑，见 AtomicEffects.cs）。
 
     /// <summary>
     /// 宣告胜利（2026-09-15 终局原子，黑）：效果控制者的对手获得游戏胜利——

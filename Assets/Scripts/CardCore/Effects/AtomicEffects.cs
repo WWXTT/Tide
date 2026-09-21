@@ -165,12 +165,13 @@ namespace CardCore
         /// 被守护者受到的伤害改由第一个守护者承受（多守护者仅第一个触发改写；单跳不链式）。
         /// 改写在 KeywordRules.ApplyDamage 咽喉；守护者离场/死亡=保护失效。</summary>
         GrantGuardian,
-        /// <summary>类型伤害（2026-09-13，红3，固有全域原子）：对可选范围内**全部**有生命单位造成 value 伤害——
-        /// 不弹选择窗口、不可随机（converter 强制 SelectionMode=Full + 装载校验拒 Manual/Random）；
-        /// 范围溢价已含在 BaseCost——计价数量恒 ×1（不走 Full 期望 4）。</summary>
+        // ============ 固有全域原子（2026-09-21 退役墓碑，勿用） ============
+        // 全域语义改由组合期表达：TargetKinds 定域 + SelectionMode 全取档（期望 4 计价）。
+        // 枚举以 int 数值经 MemoryPack 序列化（EffectDefinitionDTO.AEI_Type）且"只可尾部追加"——
+        // 中段删除会移位破坏旧档，故保留槽位；表行/Handler/计价特判已全部移除。
+        [System.Obsolete("固有全域原子 2026-09-21 退役——全域用 TargetKinds+全取档组合表达")]
         SweepDamage,
-        /// <summary>全体治疗（2026-09-13，绿2，固有全域原子）：对可选范围内**全部**有生命单位恢复 value 生命——
-        /// 同 SweepDamage：强制 Full、禁随机、计价数量 ×1（2费全体回1）。</summary>
+        [System.Obsolete("固有全域原子 2026-09-21 退役——全域用 TargetKinds+全取档组合表达")]
         SweepHeal,
         /// <summary>摒弃（2026-09-13，黑2，edict 原子）：作用对象=双方角色（filter "Player"）——
         /// 持有者自行选择一个**己方场上无生命单位**（结界等非生物持久物）直送墓地（DestroyReason.Abandoned）。

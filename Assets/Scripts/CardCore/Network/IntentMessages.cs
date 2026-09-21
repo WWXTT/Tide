@@ -40,12 +40,16 @@ namespace CardCore.Network
         public int ManaType;
     }
 
-    /// <summary>放地进元素池（主阶段，不限次数，地牌槽上限约束）。</summary>
+    /// <summary>放地进元素池（主阶段，不限次数，地牌槽上限约束）。
+    /// 抉择卡（2026-09-21）：ModeIndex 玩家自选，指示物按所选模式生成（与出牌同口径）。</summary>
     [MemoryPackable]
     public partial class MsgIntentAddToElementPool
     {
         [MemoryPackOrder(TagTable.MsgIntentAddToElementPool_CardRuntimeId)]
         public uint CardRuntimeId;
+
+        [MemoryPackOrder(TagTable.MsgIntentAddToElementPool_ModeIndex)]
+        public int ModeIndex;
     }
 
     /// <summary>宣告攻击（炉石式主阶段随时攻击）。Target 可为玩家（座位号表达）或单位。</summary>

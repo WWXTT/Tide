@@ -248,6 +248,7 @@ namespace CardCore.Serialization
 
         // ---- MsgIntentAddToElementPool ----
         public const int MsgIntentAddToElementPool_CardRuntimeId = 713270002;
+        public const int MsgIntentAddToElementPool_ModeIndex = 713270003;
 
         // ---- MsgIntentDeclareAttack ----
         public const int MsgIntentDeclareAttack_Attacker = 439144961;

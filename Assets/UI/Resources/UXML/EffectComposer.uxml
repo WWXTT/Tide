@@ -29,8 +29,6 @@
                 <ui:VisualElement name="mode-bar" class="toolbar mode-bar" />
                 <ui:VisualElement name="cost-zone" />
                 <ui:ScrollView name="slot-area" class="list slot-area" />
-                <ui:Label text="效果设置" class="panel__header" style="margin-top: 8px;" />
-                <ui:ScrollView name="effect-settings" class="list" style="max-height: 260px; flex-shrink: 0;" />
             </ui:VisualElement>
             <ui:VisualElement class="column column--right panel">
                 <!-- 效果表模式（点击效果=载入左侧编辑，保存覆盖） -->
@@ -44,7 +42,7 @@
                         <ui:TextField name="field-filter-name" class="text-input" />
                     </ui:VisualElement>
                     <ui:ScrollView name="library-list" class="list" style="flex-grow: 1; flex-basis: 0;" />
-                    <ui:Label text="关键词（点击/拖入并列槽，默认 Self）" class="panel__header" style="margin-top: 6px;" />
+                    <ui:Label text="关键词（点击加入并列槽，默认 Self）" class="panel__header" style="margin-top: 6px;" />
                     <ui:ScrollView name="keyword-list" class="list" style="flex-grow: 1; flex-basis: 0;" />
                 </ui:VisualElement>
             </ui:VisualElement>

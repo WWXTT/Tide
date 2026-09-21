@@ -13,14 +13,14 @@ namespace HexMap
     ///   板角点走辐射线规则：格心→名义角点射线上取两邻边内缩较深者
     ///   （板角_k = center + Corners[k]·(min(l_{k-1}, l_k)/IR)），
     ///   相邻扇形共享同一板角点、几何互不越界，板边在内缩不等处为斜弦；
-    /// - 边带分级：Δe≤2 高格在内缩带里造台阶（Δe+1 段踏面 + Δe 段立面，
-    ///   带宽 L 等分）；Δe>2 垂直壁（板不内缩）；等高噪声竖缝由高侧发薄缝壁；
+    /// - 边带分级：Δe≤2 高格在内缩带里造台阶——台阶只占边中段一半（列 v2..v4）、
+    ///   每级 2 梯（Δe=1 两级 / Δe=2 四级），两翼悬崖保持完整（缺口两侧由
+    ///   楼梯侧面板封闭）；Δe>2 垂直壁（板不内缩）；等高噪声竖缝由高侧发薄缝壁；
     ///   图外/未加载垂直壁落 bottomY——壁构造沿用「角柱分段 + 烟囱交汇」定案；
     /// - 非阶梯边发「平带」：板弦→名义边的 y_A 平面延伸，通常零宽退化，
     ///   仅在相邻阶梯边切角的角落非退化（斜弦三角形）；
-    /// - 角落封闭：本格两相邻边带的端剖面（沿辐射线的折线）之间的竖直
-    ///   「楼梯侧面板」，全部限制在本格扇形分界面（格心→角点辐射平面）内，
-    ///   零跨格三角形；名义角点竖棱由对面那条边自己的几何覆盖；
+    /// - 台阶不达角落 → 角列剖面恒平，角落封闭全部由垂直壁的角柱分段 +
+    ///   烟囱交汇覆盖，无角落面板、零跨格三角形；
     /// - 顶点允许分裂：每个表面持有自己的边界顶点，靠「位置的纯函数」
     ///   （同批标称角点 + 同 EdgeVertices 插值 + 同 Perturb）保证相邻表面逐点重合；
     /// - 法线单一来源：板/踏面 +Y、壁/立面逐边水平外法线、面板逐矩形水平常量，
@@ -38,6 +38,11 @@ namespace HexMap
     {
         /// <summary>阶梯边最大高差级数（Δe∈{1,2} 造阶梯，>2 垂直壁）</summary>
         private const int StairMaxDelta = 2;
+        /// <summary>每个高程级的台阶数（Δe=1 → 2 级、Δe=2 → 4 级）</summary>
+        private const int StairStepsPerLevel = 2;
+        /// <summary>台阶占边中段一半：EdgeVertices 列索引 v2..v4（翼 = v1..v2 / v4..v5）</summary>
+        private const int StairColFirst = 1;
+        private const int StairColLast = 3;
 
         [ReadOnly] public BlobAssetReference<HexMapConfigBlob> Blob;
         [ReadOnly] public Entity CellEntity; // 当前 cell entity
@@ -101,9 +106,8 @@ namespace HexMap
 
             for (int d = 0; d < 6; d++)
                 BuildDirection((HexDirection)d, cell, ref metrics, ref blob, ref edges);
-
-            for (int k = 0; k < 6; k++)
-                BuildCornerPanel(k, cell, ref metrics, ref blob, ref edges);
+            // 台阶不达角落（角列剖面恒平）→ 无角落面板；角落封闭由垂直壁
+            // 角柱分段 + 烟囱交汇承担（见 Part2 类注释）
         }
 
         /// <summary>六边一次性分类（板内缩、边带、面板都要查边类型/对侧高度）</summary>
@@ -185,7 +189,7 @@ namespace HexMap
 
         // ---------- 板（双环扇形 + 阶梯边内缩）----------
 
-        /// <summary>阶梯带宽度 L = blob.SlopeInset，钳到 [5%, 90%]·IR（防 authoring 失配）</summary>
+        /// <summary>阶梯带宽度 L = blob.SlopeInset（authoring 的 stairBandInset），钳到 [5%, 90%]·IR（防 authoring 失配）</summary>
         private static float StairBandWidth(ref HexMapConfigBlob blob, float ir)
         {
             return math.clamp(blob.SlopeInset, ir * 0.05f, ir * 0.9f);
@@ -256,7 +260,6 @@ namespace HexMap
 
             float3 indices = new float3(cell.TerrainIndex, cell.TerrainIndex, cell.TerrainIndex);
             float4 wIn = new float4(W100.xyz, 1f);   // 内环/中心：变异权重 1
-            float4 wRim = new float4(W100.xyz, 0f);  // 边环：变异权重 0
 
             for (int d = 0; d < 6; d++)
             {
@@ -269,11 +272,73 @@ namespace HexMap
                 AddTriangle(center, ie.v3, ie.v4, indices, wIn, wIn, wIn);
                 AddTriangle(center, ie.v4, ie.v5, indices, wIn, wIn, wIn);
 
-                // 内环 → 边环（4 四边形，边环变异权重 0）
-                AddQuad(ie.v1, ie.v2, re.v1, re.v2, indices, wIn, wIn, wRim, wRim);
-                AddQuad(ie.v2, ie.v3, re.v2, re.v3, indices, wIn, wIn, wRim, wRim);
-                AddQuad(ie.v3, ie.v4, re.v3, re.v4, indices, wIn, wIn, wRim, wRim);
-                AddQuad(ie.v4, ie.v5, re.v4, re.v5, indices, wIn, wIn, wRim, wRim);
+                // 内环 → 边环：rim 顶点带等高边渐变（角点三向混合 / 中点 50/50 / 四分位 75/25）
+                var rIdx = new FixedList128Bytes<float3>();
+                var rW = new FixedList128Bytes<float4>();
+                for (int i = 0; i < 5; i++)
+                {
+                    float3 ri;
+                    float4 rw;
+                    if (i == 0) RimCornerBlend(d, cell, ref edges, out ri, out rw);
+                    else if (i == 4) RimCornerBlend((d + 1) % 6, cell, ref edges, out ri, out rw);
+                    else RimEdgeBlend(edges[d], cell.TerrainIndex, i, out ri, out rw);
+                    rIdx.Add(ri);
+                    rW.Add(rw);
+                }
+
+                AddQuad(ie.v1, ie.v2, re.v1, re.v2, indices, indices, rIdx[0], rIdx[1], wIn, wIn, rW[0], rW[1]);
+                AddQuad(ie.v2, ie.v3, re.v2, re.v3, indices, indices, rIdx[1], rIdx[2], wIn, wIn, rW[1], rW[2]);
+                AddQuad(ie.v3, ie.v4, re.v3, re.v4, indices, indices, rIdx[2], rIdx[3], wIn, wIn, rW[2], rW[3]);
+                AddQuad(ie.v4, ie.v5, re.v4, re.v5, indices, indices, rIdx[3], rIdx[4], wIn, wIn, rW[3], rW[4]);
+            }
+        }
+
+        /// <summary>
+        /// rim 边内顶点（v2..v4）权重：**等高**且地形不同才混合——沿边统一 50/50，
+        /// 渐变只垂直于边（内环纯本格 → 边线 50/50 一维线性带）。
+        /// 高差边不在这里混合（过渡已由侧壁/楼梯的固定带完成，顶面再加会双重过渡）。
+        /// 同地形不混合（贴图无缝平铺即可）。变异权重恒 0。
+        /// </summary>
+        private static void RimEdgeBlend(EdgeInfo e, int selfTerrain, int i, out float3 idx, out float4 w)
+        {
+            if (e.Kind == EdgeKind.Equal && e.NeighborTerrain != selfTerrain)
+            {
+                idx = new float3(selfTerrain, e.NeighborTerrain, e.NeighborTerrain);
+                w = new float4(0.5f, 0.5f, 0f, 0f);
+            }
+            else
+            {
+                idx = new float3(selfTerrain, selfTerrain, selfTerrain);
+                w = new float4(W100.xyz, 0f);
+            }
+        }
+
+        /// <summary>
+        /// rim 角点权重：**双等高角**且三格地形不全相同 = 三向混合——
+        /// 三个地形索引升序、权重 0.6/0.2/0.2（排序保证三方算出同一组值 →
+        /// 共享角点逐位同色无缝）。其余角（高差/边界/流式/全同地形）恒纯本格。
+        /// </summary>
+        private static void RimCornerBlend(int k, HexCellData cell, ref FixedList128Bytes<EdgeInfo> edges,
+            out float3 idx, out float4 w)
+        {
+            var ePrev = edges[(k + 5) % 6];
+            var eNext = edges[k];
+            int a = cell.TerrainIndex;
+            int b = ePrev.NeighborTerrain;
+            int c = eNext.NeighborTerrain;
+            if (ePrev.Kind == EdgeKind.Equal && eNext.Kind == EdgeKind.Equal &&
+                (a != b || b != c))
+            {
+                if (a > b) { int t = a; a = b; b = t; }
+                if (b > c) { int t = b; b = c; c = t; }
+                if (a > b) { int t = a; a = b; b = t; }
+                idx = new float3(a, b, c);
+                w = new float4(0.6f, 0.2f, 0.2f, 0f);
+            }
+            else
+            {
+                idx = new float3(cell.TerrainIndex, cell.TerrainIndex, cell.TerrainIndex);
+                w = new float4(W100.xyz, 0f);
             }
         }
 
@@ -321,9 +386,13 @@ namespace HexMap
             Variations.Add(_cellVariation);
         }
 
-        /// <summary>添加四边形（2 个三角形，扰动）。</summary>
+        /// <summary>
+        /// 添加四边形（2 个三角形，扰动）。逐顶点地形索引——板边环 rim 渐变
+        /// （等高边 50/50、角点三向混合）需要每个顶点各自的 splat 索引三元组。
+        /// </summary>
         private void AddQuad(float3 v1, float3 v2, float3 v3, float3 v4,
-            float3 indices, float4 w1, float4 w2, float4 w3, float4 w4)
+            float3 i1, float3 i2, float3 i3, float3 i4,
+            float4 w1, float4 w2, float4 w3, float4 w4)
         {
             int vertexIndex = Positions.Length;
             Positions.Add(Perturb(v1));
@@ -336,10 +405,10 @@ namespace HexMap
             Triangles.Add(vertexIndex + 1);
             Triangles.Add(vertexIndex + 2);
             Triangles.Add(vertexIndex + 3);
-            CellIndices.Add(indices);
-            CellIndices.Add(indices);
-            CellIndices.Add(indices);
-            CellIndices.Add(indices);
+            CellIndices.Add(i1);
+            CellIndices.Add(i2);
+            CellIndices.Add(i3);
+            CellIndices.Add(i4);
             Colors.Add(w1);
             Colors.Add(w2);
             Colors.Add(w3);
@@ -426,23 +495,12 @@ namespace HexMap
         }
 
         /// <summary>
-        /// 顶点形状扰动（仅 x/z，y 保持平坦）。
-        /// 必须是「世界坐标的纯函数」：相邻表面在共享顶点处算出同一结果，网格才不会裂开。
-        /// 振幅随位置到地图边缘的距离衰减到 0（边缘完全不扰动）。
+        /// 顶点形状扰动（仅 x/z，y 保持平坦）——共享实现见 HexMetrics.PerturbPosition
+        /// （轮廓 Cap 共用同一函数保证边界壁底与 Cap 轮廓逐位重合）。
         /// </summary>
         private float3 Perturb(float3 position)
         {
-            ref var blob = ref Blob.Value;
-            float amplitude = HexMetrics.CellPerturbAmplitude(ref blob, position);
-            if (amplitude <= 0f)
-                return position;
-
-            float4 sample = HexMetrics.SampleNoise(ref blob, position, HexNoiseKind.Detail);
-            // 噪声 [0,1] 映射到 [-1,1]，再乘以以半径为单位的最大位移
-            // （Worley 图建议 SplitFirst3Octaves：R/G 独立去相关；灰度时 .x==.z → 斜向偏置）
-            position.x += (sample.x * 2f - 1f) * amplitude;
-            position.z += (sample.z * 2f - 1f) * amplitude;
-            return position;
+            return HexMetrics.PerturbPosition(ref Blob.Value, position);
         }
     }
 }
