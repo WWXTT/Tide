@@ -45,11 +45,23 @@ namespace HexMap
             var state = em.GetComponentData<HexFeatureState>(_featureQuery.GetSingletonEntity());
             var featureConfig = em.GetComponentData<HexFeatureConfig>(_featureQuery.GetSingletonEntity());
 
+            // 流式系统必须先于 Collect 解析：旧顺序在 Collect 之后才赋值 _streaming，
+            // 而 CollectPendingInstances 依赖 _streaming.CellLookup —— 首帧 Collect 必拿
+            // 空 lookup → 误判"无落点"永久清掉 VegetationDirty，规则非空也永远不散布。
+            if (_streaming == null)
+            {
+                _streaming = World.GetExistingSystemManaged<HexChunkStreamingSystem>();
+                if (_streaming == null)
+                    return;
+            }
+
             bool starting = _pending.Count == 0;
             if (starting)
             {
                 if (!state.VegetationDirty || !featureConfig.EnableVegetation)
                     return;
+                if (!_streaming.CellLookup.IsCreated || _streaming.CellLookup.Count == 0)
+                    return;                 // cell 尚未加载，下帧重试（不清 dirty）
                 CollectPendingInstances(state, featureConfig);
                 if (_pending.Count > 0)
                 {
@@ -61,13 +73,6 @@ namespace HexMap
                     state.VegetationDirty = false;   // 无规则/无落点，直接完成
                     return;
                 }
-            }
-
-            if (_streaming == null)
-            {
-                _streaming = World.GetExistingSystemManaged<HexChunkStreamingSystem>();
-                if (_streaming == null)
-                    return;
             }
 
             var settings = featureConfig.Settings;

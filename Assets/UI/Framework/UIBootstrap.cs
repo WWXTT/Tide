@@ -31,7 +31,6 @@ namespace SynergyUI
 
         private void OnEnable()
         {
-            Debug.Log("支持光追：" + SystemInfo.supportsRayTracing);
             _renderer = GetComponent<PanelRenderer>();
 
             // 运行时确保 PanelSettings 已设置（若 Inspector 未指定则从 Resources 加载）。

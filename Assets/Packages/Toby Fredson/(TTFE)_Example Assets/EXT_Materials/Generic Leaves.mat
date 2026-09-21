@@ -9,6 +9,8 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: Generic Leaves
   m_Shader: {fileID: 4800000, guid: 6f53b8cb323b0614c82237d5b033019f, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
   - _LIGHTDETECTFRONTFACE_ON
   - _WINDTYPE_STRONGWIND
@@ -49,6 +51,7 @@ Material:
   m_CustomRenderQueue: -1
   stringTagMap: {}
   disabledShaderPasses: []
+  m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -195,7 +198,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _ADVANCEDSETTINGS: 0
-    - _AlphaClip: 0.3
+    - _AlphaClip: 0.4
     - _AlphaCutoff: 0.5
     - _AmbientOcclusionIntensity: 1
     - _BackfaceCulling: 0
@@ -478,3 +481,4 @@ Material:
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _WindAxis: {r: 0, g: 0, b: 1, a: 0}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1

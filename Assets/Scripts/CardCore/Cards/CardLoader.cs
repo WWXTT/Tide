@@ -386,17 +386,7 @@ namespace CardCore
                         Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
                                        + "目标随机与任意数量(-1)互斥——随机抽取需固定个数，动态数量将退化为全取");
 
-                    // 固有全域原子（2026-09-13）：显式声明选一/选多/随机属数据错误——converter 会强制 WholeUnion，此处告警
-                    bool HasSweep(AtomicEffectEntry a)
-                        => a != null && TypeOf(a) is { } sweepType && CardCore.CostDerivationService.IsIntrinsicSweep(sweepType);
-                    bool hasSweep = (eff.AtomicEffects ?? new List<AtomicEffectEntry>()).Any(HasSweep)
-                        || (eff.Steps ?? new List<EffectStepData>()).Any(s => s != null
-                            && (HasSweep(s.atomic) || (s.thenSteps ?? new List<AtomicEffectEntry>()).Any(HasSweep)));
-                    if (hasSweep && (SelectionModeRules.IsPickOne((SelectionMode)eff.SelectionMode)
-                                     || SelectionModeRules.IsPickMany((SelectionMode)eff.SelectionMode)
-                                     || eff.RandomTarget != 0))
-                        Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
-                                       + "固有全域原子（类型伤害/全体治疗）只能全域结算——已强制 SelectionMode=WholeUnion（声明的选一/选多/随机被覆写）");
+                    // 固有全域原子告警块已删（2026-09-21 退役——全域用 TargetKinds+全取档组合表达）
 
                     // 触发上限不可修改原子（2026-09-13，MountKinds 含 8——少数，如坚韧 bd623d85）：
                     // 声明 TriggerLimitPerTurn 属数据错误——converter 已覆写为无限（-1）

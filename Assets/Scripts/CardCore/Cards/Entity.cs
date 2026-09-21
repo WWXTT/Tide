@@ -191,10 +191,14 @@ namespace CardCore
         // FatigueCount 已进 PlayerState DTO（M1 网络协议 2026-09-10，GetTagDefinitions 已登记）。
         public int FatigueCount { get; set; }
 
-        // ===== 英雄技能（2026-09-13 第二十批：额外卡组退役，技能栏上位——一回合一次、付色费、7 次升级）=====
-        /// <summary>英雄技能 id（HeroSkillId；InitGame 指派，黑白暂无技能=None）。</summary>
+        // ===== 英雄技能（2026-09-13 第二十批；2026-09-21 改造：技能=初始在场永续魔法）=====
+        /// <summary>英雄技能 id（HeroSkillId；InitGame 按卡组主色指派，黑白暂无技能=None）。</summary>
         public int HeroSkill { get; set; }
-        /// <summary>本回合已发动次数（一回合一次闸门；回合开始清零）。</summary>
+        /// <summary>技能卡实体（2026-09-21 定案：技能=Enchantment 永续魔法，开局入 FieldZone——
+        /// 原额外卡组退役后的空缺槽位；发动=横置本卡（一回合一次=准备阶段重置），
+        /// 交互与一般永续魔法一致（可被沉默/无效/摧毁/弹回）。运行时引用，每局 InitGame 重建。</summary>
+        public Card HeroSkillCard;
+        /// <summary>本回合已发动次数（兼容口径：权威闸门=技能卡横置态，此字段仅旧消费者回读）。</summary>
         public int HeroSkillUsesThisTurn { get; set; }
         /// <summary>本局累计发动次数（≥7 触发升级）。</summary>
         public int HeroSkillTotalUses { get; set; }

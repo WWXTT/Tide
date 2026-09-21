@@ -48,7 +48,7 @@
     "MountKinds": "0,3,4,7"
   },
   {
-    "ID": "c6734fff",
+    "ID": "828060dd",
     "EnumName": "穿透伤害",
     "DisplayName": "对{target}造成{value}点穿透伤害（无视关键词与指示物）",
     "EffectColor": "Red",
@@ -60,7 +60,7 @@
     "MountKinds": "0,3,4,7"
   },
   {
-    "ID": "81ea17f3",
+    "ID": "af7bd26e",
     "EnumName": "吸取",
     "DisplayName": "吸取{target}{value}点生命（造成伤害并回复生命）",
     "EffectColor": "Black",
@@ -72,7 +72,7 @@
     "MountKinds": "0,3,4,7"
   },
   {
-    "ID": "0c7dd9d2",
+    "ID": "cca3ed84",
     "EnumName": "剧毒",
     "DisplayName": "对{target}附加剧毒指示物（回合结束时死亡）",
     "EffectColor": "Black",
@@ -444,7 +444,7 @@
     "MountKinds": "0,4,1,5"
   },
   {
-    "ID": "e006ea39",
+    "ID": "d7def412",
     "EnumName": "扰魔",
     "DisplayName": "不会成为效果{target}",
     "EffectColor": "White",
@@ -496,7 +496,7 @@
     "EnumName": "再生",
     "DisplayName": "回合开始时自己恢复自身全部生命值",
     "EffectColor": "Green",
-    "BaseCost": 6.0,
+    "BaseCost": 3.0,
     "EffectType": "GrantRegeneration",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
@@ -540,7 +540,7 @@
     "MountKinds": "0,4,2"
   },
   {
-    "ID": "a9732a48",
+    "ID": "17dd3732",
     "EnumName": "沉默",
     "DisplayName": "对{target}附加沉默指示物（不可发动主动效果）",
     "EffectColor": "White",
@@ -552,7 +552,7 @@
     "MountKinds": "0,4,2"
   },
   {
-    "ID": "0e50cd8b",
+    "ID": "f3a89899",
     "EnumName": "无响应",
     "DisplayName": "对{target}附加无响应指示物（非启动式能力无法响应）",
     "EffectColor": "White",
@@ -588,7 +588,7 @@
     "MountKinds": "0,4,1,5"
   },
   {
-    "ID": "b2f5d9bf",
+    "ID": "7b8c45bc",
     "EnumName": "生命流失",
     "DisplayName": "{target}失去{value}点生命（扣除生命上限）",
     "EffectColor": "Black",
@@ -600,7 +600,7 @@
     "MountKinds": "0,4,7"
   },
   {
-    "ID": "a295546d",
+    "ID": "b80c2d73",
     "EnumName": "冻结",
     "DisplayName": "冻结{target}：横置并放置冻结指示物（负面，持续到回合结束）",
     "EffectColor": "Blue",
@@ -612,7 +612,7 @@
     "MountKinds": "0,4,2,7"
   },
   {
-    "ID": "8b347e8e",
+    "ID": "20fa8bae",
     "EnumName": "紊乱",
     "DisplayName": "对{target}附加{value}回合紊乱指示物（不能以玩家为攻击，效果{target}）",
     "EffectColor": "Black",
@@ -624,7 +624,7 @@
     "MountKinds": "0,4,2,7"
   },
   {
-    "ID": "baceb14b",
+    "ID": "60a09ef1",
     "EnumName": "易损",
     "DisplayName": "对{target}附加易损指示物（持续1回合，受到伤害时每层+1）",
     "EffectColor": "Black",
@@ -708,7 +708,7 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "e004f1e7",
+    "ID": "131e6d94",
     "EnumName": "变形",
     "DisplayName": "此卡变形为另一个{target}单位",
     "EffectColor": "Blue",
@@ -888,18 +888,6 @@
     "MountKinds": "0,4"
   },
   {
-    "ID": "1e66e0c9",
-    "EnumName": "类型伤害",
-    "DisplayName": "对范围内全部有生命单位造成{value}点伤害（不弹选择、不可随机，全域结算）",
-    "EffectColor": "Red",
-    "BaseCost": 3.0,
-    "EffectType": "SweepDamage",
-    "TargetKinds": "1,2",
-    "TargetFilter": null,
-    "Polarity": -1.0,
-    "MountKinds": "0,3,4"
-  },
-  {
     "ID": "33f21d4c",
     "EnumName": "牺牲",
     "DisplayName": "持有者选择一个生物牺牲（效果死亡，来源为持有者，无视不灭）",
@@ -976,7 +964,7 @@
     "EnumName": "改写持有者",
     "DisplayName": "改写{target}的持有者（永久换手含控制权——弹回洗回回新主卡组手牌，死亡去新主墓地）",
     "EffectColor": "Black",
-    "BaseCost": 2.0,
+    "BaseCost": 6.0,
     "EffectType": "ChangeOwner",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
@@ -1078,17 +1066,5 @@
     "TargetFilter": null,
     "Polarity": 0.0,
     "MountKinds": "0,4"
-  },
-  {
-    "ID": "a1fb810d",
-    "EnumName": "全体治疗",
-    "DisplayName": "为范围内全部有生命单位回复{value}点生命",
-    "EffectColor": "Green",
-    "BaseCost": 2.0,
-    "EffectType": "SweepHeal",
-    "TargetKinds": "1,2",
-    "TargetFilter": null,
-    "Polarity": 1.0,
-    "MountKinds": "0,3,4"
   }
 ]

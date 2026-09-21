@@ -11,13 +11,14 @@ namespace HexMap
 {
     /// <summary>
     /// 地图轮廓封底系统（替换旧矩形底面）：
-    /// 在 bottomY 生成一张跟随地图实际外轮廓链（外圈 cell 边界边的名义角点链，
-    /// 六边形锯齿形状）的整面 Cap。边界陡壁底边落在这条链上（名义角、不扰动），
-    /// 与 Cap 逐点重合构成封闭体；Cap 顶点法线恒朝下（垂直版无 rim 坡法线融合）。
+    /// 在 bottomY 生成一张跟随地图实际外轮廓链（外圈 cell 边界边，六边形锯齿形状）
+    /// 的整面 Cap。轮廓点 = 边界壁底边同一批点：名义角吸附格点 → EdgeVertices 5 点
+    /// 细分 → HexMetrics.PerturbPosition 扰动（锯齿边界段振幅非 0，旧版「边缘恒不扰动」
+    /// 的假设只在包围矩形最外沿成立，西/东缘锯齿段会错位露黑——2026-09-21 黑区修复）。
+    /// Cap 顶点法线恒朝下（垂直版无 rim 坡法线融合）。
     ///
-    /// 轮廓全部用标称几何（不查实体、不扰动——地图边缘扰动振幅恒 0），
-    /// 因此轮廓与高度/地形编辑无关，仅在 CellCount 变化时重建。
-    /// 三角化用耳切（锯齿轮廓在方向转折处存在凹齿，不保证凸）。
+    /// 轮廓全部用标称几何 + 确定性扰动（不查实体），因此与高度/地形编辑无关，
+    /// 仅在 CellCount 变化时重建。三角化用耳切（锯齿轮廓在方向转折处存在凹齿，不保证凸）。
     /// </summary>
     [UpdateInGroup(typeof(PresentationSystemGroup))]
     [UpdateAfter(typeof(HexMeshWriteSystem))]
@@ -69,9 +70,9 @@ namespace HexMap
                     if (!HexBoundary.IsOutsideMap(nOff, blob.CellCount))
                         continue;
 
-                    // 名义角点吸附格点（x=i·IR, z=j·OR/2）：边界壁底边由格 Job 从
-                    // 另一套「格心+角点」算式得出，吸附后两侧逐位重合（Cap 不扰动，
-                    // 地图边缘扰动振幅恒 0，位置即吸附值本身）
+                    // 与边界壁底边完全同链：名义角吸附格点（x=i·IR, z=j·OR/2）→
+                    // EdgeVertices 5 点细分 → PerturbPosition 扰动 → y=bottomY。
+                    // 共享 HexMetrics.PerturbPosition（单一来源）保证与 Job 输出逐位一致
                     float dx = metrics.InnerRadius;
                     float dz = metrics.OuterRadius * 0.5f;
                     float3 c1 = center + metrics.Corners[d];
@@ -79,9 +80,17 @@ namespace HexMap
                     c1 = new float3(math.round(c1.x / dx) * dx, bottomY, math.round(c1.z / dz) * dz);
                     c2 = new float3(math.round(c2.x / dx) * dx, bottomY, math.round(c2.z / dz) * dz);
 
-                    int i1 = InternPoint(c1, pointIndex, points);
-                    int i2 = InternPoint(c2, pointIndex, points);
-                    segments.Add(new int2(i1, i2));
+                    var ev = new EdgeVertices(c1, c2);
+                    int prev = InternPoint(
+                        HexMetrics.PerturbPosition(ref blob, ev.v1), pointIndex, points);
+                    for (int v = 1; v < 5; v++)
+                    {
+                        float3 p = v == 4 ? ev.v5 : (v == 3 ? ev.v4 : (v == 2 ? ev.v3 : ev.v2));
+                        int cur = InternPoint(
+                            HexMetrics.PerturbPosition(ref blob, p), pointIndex, points);
+                        segments.Add(new int2(prev, cur));
+                        prev = cur;
+                    }
                 }
             }
 

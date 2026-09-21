@@ -310,8 +310,10 @@ namespace CardCore
             if (player == null)
                 return;
 
-            // 英雄技能一回合一次闸门（2026-09-13）：回合开始清零本回合使用
-            player.HeroSkillUsesThisTurn = 0;
+            // 英雄技能一回合一次闸门（2026-09-13；2026-09-21 永续魔法化）：
+            // 权威闸门=技能卡横置态——回合开始重置（与地牌/随从同规则）；引用丢失时 lazy 回填
+            HeroSkillSystem.ResolveSkillCard(this, player)?.Untap();
+            player.HeroSkillUsesThisTurn = 0; // 兼容口径同步清
 
             // 规则扩展点（OCP）：回合开始自动化拦截（如节奏轴仪式跳过准备阶段——
             // 抽牌、地牌槽（元素浓度上限）推进、横置重置、场上卡准备阶段结算全跳；
@@ -410,6 +412,11 @@ namespace CardCore
                 card.SetController(_player2);
                 ZoneManager.GetZoneContainer(_player2).Add(card, Zone.Deck);
             }
+
+            // 英雄技能指派（2026-09-21 永续魔法化）：按卡组费用主色自动指派（红/蓝/绿），
+            // 技能卡=Enchantment 实体开局入 FieldZone（原额外卡组空缺槽位）
+            HeroSkillSystem.AssignSkill(this, _player1, HeroSkillSystem.AutoSkillForDeck(deck1));
+            HeroSkillSystem.AssignSkill(this, _player2, HeroSkillSystem.AutoSkillForDeck(deck2));
 
             // 洗牌
             ZoneManagerExtensions.ShuffleDeck(ZoneManager, _player1);
@@ -594,10 +601,17 @@ namespace CardCore
                 player.ResetFatigueCount();
                 player.IsAI = false;
 
-                // 英雄技能跨局不残留（2026-09-13）：技能指派/计数/升级全复位
+                // 英雄技能跨局不残留（2026-09-13；2026-09-21 永续魔法化）：指派/技能卡/计数/升级全复位
                 player.HeroSkillUsesThisTurn = 0;
                 player.HeroSkillTotalUses = 0;
                 player.HeroSkillUpgraded = false;
+                player.HeroSkill = (int)HeroSkillId.None;
+                player.HeroSkillCard = null;
+                var staleSkillCards = ZoneManager.GetCards(player, Zone.FieldZone)
+                    .Where(c => c is CardWrapper w && w.GetData()?.ID?.StartsWith("HEROSKILL_") == true)
+                    .ToList();
+                foreach (var stale in staleSkillCards)
+                    ZoneManager.GetZoneContainer(player).Remove(stale, Zone.FieldZone);
             }
 
             TurnEngine.Initialize(_player1);

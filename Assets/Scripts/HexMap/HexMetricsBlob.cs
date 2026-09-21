@@ -101,6 +101,26 @@ namespace HexMap
         }
 
         /// <summary>
+        /// 顶点形状扰动的共享实现（仅 x/z，y 不动）：世界坐标纯函数，
+        /// 相邻表面在共享点算出同一结果。HexMeshJob.Perturb 与轮廓 Cap 共用
+        /// 同一实现——Cap 轮廓必须与边界壁底边逐位重合（同一批点、同一算式），
+        /// 单一来源保证浮点逐位一致。振幅随到地图边缘距离衰减（见 CellPerturbAmplitude）。
+        /// </summary>
+        public static float3 PerturbPosition(ref HexMapConfigBlob cfg, float3 position)
+        {
+            float amplitude = CellPerturbAmplitude(ref cfg, position);
+            if (amplitude <= 0f)
+                return position;
+
+            float4 sample = SampleNoise(ref cfg, position, HexNoiseKind.Detail);
+            // 噪声 [0,1] 映射到 [-1,1]，再乘以最大位移
+            // （Worley 图建议 SplitFirst3Octaves：R/G 独立去相关；灰度时 .x==.z → 斜向偏置）
+            position.x += (sample.x * 2f - 1f) * amplitude;
+            position.z += (sample.z * 2f - 1f) * amplitude;
+            return position;
+        }
+
+        /// <summary>
         /// 顶点形状扰动的最大位移（世界单位），随位置到地图边缘的距离衰减：
         /// 地图边缘处恒为 0（边界完全不扰动，等效于该处 CellPerturbRange = (1,1)），
         /// 向内经过 falloff 距离（2×外半径，覆盖整个外圈 cell 的几何）线性恢复到全值。

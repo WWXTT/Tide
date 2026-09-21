@@ -5,8 +5,9 @@ using UnityEngine;
 namespace SynergyUI
 {
     /// <summary>
-    /// 卡组 JSON 读写 —— 落盘到 StreamingAssets/Tide/（2026-09-14 统一定案：与三张种子卡组同目录；
-    /// 卡组只存卡 ID 引用——实体卡在 CreatureCards.json，经 CardCatalog 还原）。
+    /// 卡组 JSON 读写 —— 落盘到 StreamingAssets/Card/（2026-09-14 统一定案；2026-09-21 定案：
+    /// 卡组属用户数据，与卡/效果同目录。卡组只存卡 ID 引用数组（DeckData.cardIds）——
+    /// 实体卡经 Cards.json（CardCatalog）按 ID 还原）。
     /// 与现有 AtomicEffectTable 一致，使用 Application.dataPath + System.IO
     /// （非 Resources），保证存盘后能立即读回。
     ///

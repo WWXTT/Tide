@@ -95,7 +95,7 @@ namespace CardCore
         /// 随机抽取（TargetCount 管抽取个数；帷幕收窄生效、扰魔/潜行可被随机命中——不可被"选"≠不可被随机/范围波及）。
         /// 仅对选一/选多档有意义（全取随机≡全取）；与动态数量（-1）互斥（构筑校验）。</summary>
         public bool RandomTarget;
-        /// <summary>动态数量：运行时玩家自选个数（0..候选数）；费用计 0 且该卡不可作地牌产元素。</summary>
+        /// <summary>动态数量：运行时玩家自选个数（0..候选数）；费用计 0（2026-09-21 定案：不关联地牌资格）。</summary>
         public bool DynamicTargetCount;
         /// <summary>触发式每回合触发上限（2026-09-13 定案）：&gt;0=每回合最多 N 次；-1=无限。
         /// 默认口径——原子含 MountKind.TriggerCapImmutable（少数，如坚韧）→ 恒 -1（不可修改、声明被覆写）；

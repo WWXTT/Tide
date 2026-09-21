@@ -398,7 +398,7 @@ Material:
         m_Scale: {x: 5, y: 5}
         m_Offset: {x: 0, y: 0}
     - _SecondaryNormalMapCustomNormals:
-        m_Texture: {fileID: 2800000, guid: 4ae2681c4acb7704b874970019abea3d, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SmoothnessMap:
@@ -549,7 +549,7 @@ Material:
     - _Addnoise: 0
     - _Addswitch: 1
     - _AlbedoAffectEmissive: 0
-    - _AlphaClip: 0.25
+    - _AlphaClip: 0.4
     - _AlphaCutoff: 0.5
     - _AlphaCutoffEnable: 1
     - _AlphaCutoffPostpass: 0.5
@@ -909,8 +909,8 @@ Material:
     - _Saturateinteraction: 0
     - _SeasonChangeGlobal: 2
     - _SeasonVertexColorR: 0
-    - _SecondaryNormalIntensity: 0.25
-    - _SecondaryNormalScale: 7
+    - _SecondaryNormalIntensity: 0
+    - _SecondaryNormalScale: 0
     - _SelfShadingVertexColor: 0
     - _SettingsCategory: 1
     - _ShaderMode: 0
@@ -937,7 +937,7 @@ Material:
     - _SpecularAAScreenSpaceVariance: 0.1
     - _SpecularAAThreshold: 0.2
     - _SpecularBackfaceOcclusion: 1
-    - _SpecularBias: 5
+    - _SpecularBias: 1
     - _SpecularEnable: 0
     - _SpecularHighlights: 1
     - _SpecularMapOffset: -0.1

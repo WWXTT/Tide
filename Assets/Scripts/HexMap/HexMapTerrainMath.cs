@@ -15,16 +15,12 @@ namespace HexMap
         /// 2. Perlin 主高度 + Ridged 山脉加权叠加：h = p + strength·r·(1−p)（谷地保留、峰不削顶）
         /// 3. elevation = round(saturate(h) × MaxElevation) 钳 0..Max
         /// 4. y = ElevationToY（高度扰动取 Detail 图 .y）
-        /// 边界圈恒 0（初始状态偏好，运行期可自由编辑）。
+        /// 2026-09-21：去掉「边界圈恒 0」——第一行/列与内部同公式生成
+        /// （bottomY = −1 级仍低于全部板面：elevation ≥ 0 → 板 y ≥ 扰动下限 > bottomY，
+        /// 封底/边界壁的构造前提不受影响）。
         /// </summary>
-        public static int ElevationFromNoise(ref HexMapConfigBlob blob, float3 position, bool isBoundary, out float y)
+        public static int ElevationFromNoise(ref HexMapConfigBlob blob, float3 position, out float y)
         {
-            if (isBoundary)
-            {
-                y = 0f;
-                return 0;
-            }
-
             // Curl 流场域扭曲
             float3 p = position;
             if (blob.CurlWarpStrength > 0f && blob.CurlNoiseSize.x > 0)

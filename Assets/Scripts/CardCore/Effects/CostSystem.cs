@@ -174,7 +174,9 @@ namespace CardCore
         public void Pay(CostInstance cost, CostContext context)
         {
             var costDict = new Dictionary<int, float> { { (int)cost.ManaType, cost.Value } };
-            context.ElementPool.PayCost(costDict, context.Payer);
+            // 战报来源标注（2026-09-21）：效果费挂在哪个来源（场上卡/角色）上
+            string note = context?.Source != null ? "效果费·" + EffectText.Name(context.Source) : "效果费";
+            context.ElementPool.PayCost(costDict, context.Payer, note);
         }
 
         public string GetDescription(CostInstance cost)
@@ -303,11 +305,14 @@ namespace CardCore
     // ================================================================
 
     /// <summary>
-    /// 代价补偿服务（2026-09-14 定案：**代价强制**——撤销 09-11 的「代价可选」三选一窗口）。
+    /// 代价补偿服务（2026-09-14 定案：**代价强制**——撤销 09-11 的「代价可选」三选一窗口；
+    /// 2026-09-21 定案：**全量获得**——构筑期只允许装形成 1 费的代价（CardEffectConverter 限价警告），
+    /// 发放侧无钳制）。
     /// cast 付费步与启动式/动态效果统一走 PayWithCompensationAsync：
     /// Payload 原子**强制执行** + 按全价获得黑（己方侧）/白（对方侧）——无选择窗口、无减费通道。
     /// 补偿数量=Payload 原子全价（PayloadUnitGrant：按 Once/单目标/战场落区合成组合层计价，
-    /// 原子表为唯一锚）；**每回合获得封顶 1/色**由 ElementPool.AddMana 统一钳制（余数不补）。
+    /// 原子表为唯一锚）；**每回合获得封顶 1/色**由 ElementPool.AddMana 统一钳制（余数不补）——
+    /// 那是全来源黑白经济护栏（错边原子转化等），非 payload 专属发放钳制。
     /// </summary>
     public static class CostCompensationService
     {

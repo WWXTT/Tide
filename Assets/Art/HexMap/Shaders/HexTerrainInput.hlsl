@@ -3,6 +3,8 @@
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SurfaceInput.hlsl"
+// 天气/季节全局契约（TTFE 同名全局 + Apply 函数，见 HexWeather.hlsl 头注释）
+#include "HexWeather.hlsl"
 
 // 全局常量（由 HexMapAuthoring.Install / HexMapShaderGlobalsSystem 通过
 // Shader.SetGlobalVector 写入，整张地图共用）。放在 UnityPerMaterial 之外，
@@ -12,7 +14,6 @@
 float4 _ChunkWorldSize;
 
 CBUFFER_START(UnityPerMaterial)
-    float _HeightBlendStrength;
     float _HeightBlendOffset;
     float _TriplanarBlendSharpness;
     float _Metallic;
@@ -25,6 +26,10 @@ CBUFFER_START(UnityPerMaterial)
     // 淡出会把变异在最需要的视角杀掉；闪烁风险经评估不成立，见权重点） ----
     float _HexVariationEnabled;
     float _LayerDecorrelate;
+    // ---- 天气响应（全局驱动，材质只出目标色）。
+    // 必须 float4（同上：half4 破坏 SRP Batcher 布局，常规渲染路径读 0）
+    float4 _SeasonDryColor;
+    float4 _SnowColor;
     // 调试用属性：只有 HexTerrainDebugCommon.hlsl 会打开这个开关。
     // 必须在此 cbuffer 内，否则 Entities Graphics 的 BatchRendererGroup 会拒绝该 pass。
 #ifdef HEX_TERRAIN_DEBUG_PROPS
@@ -63,18 +68,17 @@ SAMPLER(sampler_TerrainOcclusionArray);
 
 // ---------- Shared helpers ----------
 
-// 三向高度混合（经典 heightmap splatting 公式的三通道版）：
-//   ha = h + w * strength —— 权重只做整体抬升，逐像素的高度差决定层与层
-//   互相入侵出的锯齿边缘（岩石A的高峰穿过岩石B的低谷，而不是 50/50 混泥）。
-//   b  = max(ha - max(ha) + offset, 0)
-// offset = 过渡带宽度：越大越软（≈1 时近似退回线性混合），越小边缘越碎越锐，
-// 岩石互侵的自然观感通常在 0.2~0.3。
-// 注意 b 不要再乘 w —— 权重二次计入会让混合退回纯线性，高度差就白采了。
-// 权重为 0 的槽位（不在本三角形 splat 集合内）高度压 0，退出竞争。
-float3 HeightBlend3(float h0, float h1, float h2, float3 w, float strength, float offset)
+// 层间混合（2026-09-21 定案：去掉 strength 权重抬升项，只保留 offset 软化窗）：
+//   b = max(h − (max(h) − offset), 0) —— 层高差 < offset 的层按高度线性混合，
+//   差异更大的层被硬切。绑定高度数组时形成高度驱动的层间边界；
+//   未绑定（h 恒中性 0.5）→ 退化为纯顶点权重的线性混合
+//   （当前观感：壁/梯/板缘的固定宽线性过渡带）。
+// offset = 软化窗宽度：高度差在其内的层平滑过渡，超出则硬边。
+// 权重为 0 的槽位压 −10 退出竞争（乘 step 压 0 在 offset 大时会回渗）。
+float3 HeightBlend3(float h0, float h1, float h2, float3 w, float offset)
 {
-    float3 ha = float3(h0, h1, h2) + w * strength;
-    ha *= step(1e-5, w);
+    float3 ha = float3(h0, h1, h2);
+    ha -= (1.0 - step(1e-5, w)) * 10.0;
     float ma = max(max(ha.x, ha.y), ha.z) - offset;
     float3 b = max(ha - ma, 0.0);
     float sum = b.x + b.y + b.z + 1e-4;
@@ -268,7 +272,7 @@ void SampleSplatSurface(
     half h0 = SampleTerrainHeight(uv, idx.x);
     half h1 = SampleTerrainHeight(uv, idx.y);
     half h2 = SampleTerrainHeight(uv, idx.z);
-    float3 w = HeightBlend3(h0, h1, h2, weights, _HeightBlendStrength, _HeightBlendOffset);
+    float3 w = HeightBlend3(h0, h1, h2, weights, _HeightBlendOffset);
 #else
     float3 w = weights / (weights.x + weights.y + weights.z + 1e-4);
 #endif
@@ -298,7 +302,7 @@ void SampleSplatSurfaceGrad(
     half h0 = SampleTerrainHeightGrad(uv + LayerOffset(idx.x), ddxUV, ddyUV, idx.x);
     half h1 = SampleTerrainHeightGrad(uv + LayerOffset(idx.y), ddxUV, ddyUV, idx.y);
     half h2 = SampleTerrainHeightGrad(uv + LayerOffset(idx.z), ddxUV, ddyUV, idx.z);
-    float3 w = HeightBlend3(h0, h1, h2, weights, _HeightBlendStrength, _HeightBlendOffset);
+    float3 w = HeightBlend3(h0, h1, h2, weights, _HeightBlendOffset);
 #else
     float3 w = weights / (weights.x + weights.y + weights.z + 1e-4);
 #endif
@@ -330,7 +334,7 @@ void SampleSplatSurfaceImplicit(
     half h0 = SampleTerrainHeight(uv + LayerOffset(idx.x), idx.x);
     half h1 = SampleTerrainHeight(uv + LayerOffset(idx.y), idx.y);
     half h2 = SampleTerrainHeight(uv + LayerOffset(idx.z), idx.z);
-    float3 w = HeightBlend3(h0, h1, h2, weights, _HeightBlendStrength, _HeightBlendOffset);
+    float3 w = HeightBlend3(h0, h1, h2, weights, _HeightBlendOffset);
 #else
     float3 w = weights / (weights.x + weights.y + weights.z + 1e-4);
 #endif

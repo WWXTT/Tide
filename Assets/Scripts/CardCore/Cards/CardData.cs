@@ -554,7 +554,7 @@ namespace CardCore
         //      持续档收缩后 ForTurns(1/2)≡专档同义词，回合数走指示物自减，效果级不再携带）----
         public int SummonDropZone;    // SummonToken 落区（Zone 枚举：战场/手牌/牌库三档）
         public int SelectionMode = -1; // SelectionMode 枚举值（-1=None 无目标哨兵；0-5=六值定案 2026-09-16）
-        public int TargetCount = -2;   // >0=恰好 N 个；0=全部；**-1=任意（2026-09-14 并入 DynamicTargetCount：玩家自选数量——原子计 0 费+整卡不可作地牌）**；-2=未声明回落表级
+        public int TargetCount = -2;   // >0=恰好 N 个；0=全部；**-1=任意（2026-09-14 并入 DynamicTargetCount：玩家自选数量——原子计 0 费；不关联地牌资格 2026-09-21）**；-2=未声明回落表级
         public int RandomTarget;       // 目标随机（0/1）：绕过选择从完整候选域按种子抽取——与"选多少"（SelectionMode）正交
         // 触发式每回合触发上限（2026-09-13）：0=未声明（原子含 TriggerCapImmutable→无限；否则默认 1）；
         // >0=每回合 N 次；-1=显式无限。仅对触发式生效；不可修改原子（含 8）声明上限被覆写+构筑告警。

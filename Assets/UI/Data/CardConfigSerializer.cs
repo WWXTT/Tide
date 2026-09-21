@@ -14,9 +14,10 @@ namespace SynergyUI
     ///   每卡 CardConfigEntry（camelCase: id/cardName/supertype/power/life/costList/keywords/tags/effects）
     ///   costList 项 { manaType:int, amount:float }；effects 项为 CardEffectData（PascalCase）。
     ///
-    /// 落盘到 StreamingAssets/Tide/Cards.json（2026-09-14 统一定案+效果引用化：编辑器读取
-    /// （CardCatalog 卡池）与 UI 保存同一文件——合成卡即入池；效果不内嵌——写 effectIds 引用，
-    /// 定义经 EffectLibrarySerializer upsert 进 Tide/Effects.json；TestDecks 原件留作训练桥/验证夹具）。
+    /// 落盘到 StreamingAssets/Card/Cards.json（2026-09-14 统一定案+效果引用化；2026-09-21 定案：
+    /// 卡属用户数据，与效果/卡组同住 Card/ 目录。编辑器读取（CardCatalog 卡池）与 UI 保存同一文件——
+    /// 合成卡即入池；效果不内嵌——写 effectIds 引用，定义经 EffectLibrarySerializer upsert 进
+    /// Card/Effects.json；TestDecks 原件留作训练桥/验证夹具）。
     /// </summary>
     public static class CardConfigSerializer
     {

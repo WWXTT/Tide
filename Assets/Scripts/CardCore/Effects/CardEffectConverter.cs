@@ -172,14 +172,8 @@ namespace CardCore
                 def.SelectionMode = SelectionMode.WholeUnion;
             }
 
-            // 固有全域原子（2026-09-13：类型伤害/全体治疗）：**无条件强制 WholeUnion**——
-            // 不弹选择窗口、以整个可选范围为目标、不可随机（显式声明其他模式属数据错误，
-            // converter 覆写 + CardLoader 告警）。范围溢价已含 BaseCost（计价 ×1）。
-            if (def.Effects.Any(a => a != null && CostDerivationService.IsIntrinsicSweep(a.Type)))
-            {
-                def.SelectionMode = SelectionMode.WholeUnion;
-                def.RandomTarget = false;
-            }
+            // 固有全域原子特判已删（2026-09-21 退役）——全域语义由组合期 TargetKinds+全取档表达；
+            // 普通原子挂全取档照常计价（期望 4）。
 
             // 转换代价列表
             if (data.Costs != null)
@@ -202,6 +196,14 @@ namespace CardCore
                             Debug.LogError($"[CardEffectConverter] 卡 {sourceCardId} 代价栏 Payload 违反内容契约：" +
                                            "代价只能挂对自己有害或对对手有益的原子（错边），应当剔除该代价");
                             continue;
+                        }
+                        // 构筑期限价（2026-09-21 定案）：只允许装**形成 1 费**的代价——
+                        // 发放侧是全量获得（无钳制），限价在构筑期收口；后续靠情况开放。
+                        int payloadPrice = CostDerivationService.PayloadUnitGrant(payloadAtom);
+                        if (payloadPrice > 1)
+                        {
+                            Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 代价栏 Payload 形成 {payloadPrice} 费：" +
+                                             "构筑期只允许装形成 1 费的代价（2026-09-21 定案，后续靠情况开放）");
                         }
                         def.Costs.Add(new CostInstance
                         {

@@ -12,8 +12,9 @@ namespace SynergyUI
     /// </summary>
     public static class CardCatalog
     {
-        // StreamingAssets/Tide/Cards.json（2026-09-14 统一定案+更名：与卡牌合成保存同一文件——
-        // 合成卡即入池；效果经 EffectsLibrary 引用解析；原 TestDecks 留作训练桥/验证夹具）。
+        // StreamingAssets/Card/Cards.json（2026-09-14 统一定案+更名；2026-09-21 定案：卡属用户数据。
+        // 与卡牌合成保存同一文件——合成卡即入池；效果经 EffectsLibrary 引用解析；
+        // 原 TestDecks 留作训练桥/验证夹具）。
         private const string CardsConfigRelative = "Card/Cards.json";
 
         private static List<CardData> _cache;

@@ -174,9 +174,8 @@ namespace HexMap
                 foreach (var kv in lookup)
                 {
                     var cell = em.GetComponentData<HexCellData>(kv.Value);
-                    bool isBoundary = HexBoundary.IsBoundary(cell, blob.CellCount);
                     int elevation = HexMapTerrainMath.ElevationFromNoise(
-                        ref blob, cell.Position, isBoundary, out _);
+                        ref blob, cell.Position, out _);
 
                     // 地块类型回到分带值（高程不变也要刷——旧存档可能是全 0 层）
                     int terrain = HexMapTerrainMath.TerrainIndexFor(ref blob, elevation);

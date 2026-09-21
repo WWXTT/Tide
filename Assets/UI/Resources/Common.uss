@@ -279,11 +279,40 @@
 }
 
 .color-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 6px;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
     margin-right: 8px;
     background-color: rgb(80, 86, 98);
+    /* 细亮描边：深色主题上黑色圆点靠描边与背景区分（2026-09-21） */
+    border-width: 1px;
+    border-color: rgba(235, 240, 245, 0.45);
+}
+
+/* 圆点亮色覆盖（2026-09-21）：chip--* 的基色为大面积按钮设计（暗色），
+   12-14px 圆点上红/蓝与黑/灰不可辨——圆点场景单独提亮加饱和。 */
+.color-dot.chip--red {
+    background-color: rgb(232, 82, 82);
+}
+
+.color-dot.chip--blue {
+    background-color: rgb(84, 138, 242);
+}
+
+.color-dot.chip--green {
+    background-color: rgb(74, 200, 108);
+}
+
+.color-dot.chip--gray {
+    background-color: rgb(148, 154, 166);
+}
+
+.color-dot.chip--black {
+    background-color: rgb(20, 21, 26);
+}
+
+.color-dot.chip--white {
+    background-color: rgb(240, 243, 248);
 }
 
 /* ---------- 对战界面 ---------- */
@@ -494,20 +523,27 @@
     border-color: rgb(120, 150, 110);
 }
 
-.drop-slot--target {
-    border-color: rgb(235, 240, 250);
-    background-color: rgba(58, 84, 120, 0.45);
+/* 槽位选中态（2026-09-21 交互重做：右侧点击=替换选中槽的原子） */
+.drop-slot--selected {
+    border-color: rgb(126, 168, 255);
     border-width: 2px;
+    background-color: rgba(70, 110, 170, 0.32);
 }
 
-.drag-ghost {
-    padding: 4px 10px;
-    border-radius: 6px;
-    background-color: rgba(58, 84, 120, 0.85);
-    color: rgb(235, 240, 250);
-    border-width: 1px;
-    border-color: rgb(120, 150, 200);
-    pointer-events: none;
+/* 下拉菜单拉宽 + 去横向滚动（2026-09-21）：弹窗挂面板层——由 UIManager 面板级注入本表生效 */
+.unity-generic-menu {
+    min-width: 280px;
+    max-width: none;
+}
+
+.unity-generic-menu .unity-scroller--horizontal {
+    display: none;
+}
+
+/* 字段标签可读性（2026-09-21）：IntegerField/Slider/Dropdown 的 label 默认色与深底混淆 */
+.int-input .unity-base-field__label,
+.text-input .unity-base-field__label {
+    color: rgb(205, 210, 220);
 }
 
 .library-row {

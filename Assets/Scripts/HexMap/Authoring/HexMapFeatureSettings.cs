@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace HexMap
 {
@@ -31,19 +32,16 @@ namespace HexMap
     }
 
     /// <summary>
-    /// 地形网格重做参数（板/坡/桥/角闭合 + 六边形单元变异）。
+    /// 地形网格参数（垂直侧壁 + 内缩阶梯 + 六边形单元变异）。
     /// 变异的取值逐格在 mesh 构建时按坐标哈希烘焙，这里只存范围与开关。
     /// ≤0 的距离项在 Build 内回退默认值，因此旧资产缺省序列化数据也能得到合理配置。
     /// </summary>
     [Serializable]
     public struct HexMeshRewriteSettings
     {
-        [Tooltip("坡带宽度 d（世界单位）：高 cell 顶面从共享边内缩的距离，坡占高 cell 面积。≤0 = 默认 InnerRadius×BlendFactor")]
-        public float slopeInset;
-        [Tooltip("坡/桥沿边横向细分数")]
-        [Range(1, 8)] public int slopeSubdivisions;
-        [Tooltip("rim 法线融合系数：0=硬边，1=全融合（smoothnormal 风格烘焙，材质改不动）")]
-        [Range(0f, 1f)] public float rimNormalBlend;
+        [Tooltip("阶梯带内缩宽度（世界单位）：高格板沿阶梯边（落差≤2）内缩、带内造台阶的带宽。台阶只占边中段一半。≤0 = 默认 InnerRadius×(1−SolidFactor)≈1.73")]
+        [FormerlySerializedAs("slopeInset")]
+        public float stairBandInset;
         [Tooltip("六边形单元变异（逐格 UV 旋转/缩放/偏移，边界与远距淡回纯平铺）")]
         public bool variationEnabled;
         [Tooltip("逐格缩放范围（1=不变）")]
@@ -55,9 +53,7 @@ namespace HexMap
 
         public static HexMeshRewriteSettings Default => new HexMeshRewriteSettings
         {
-            slopeInset = 0f,
-            slopeSubdivisions = 4,
-            rimNormalBlend = 1f,
+            stairBandInset = 0f,
             variationEnabled = true,
             variationScaleRange = new Vector2(0.85f, 1.25f),
             variationFadeWidth = 0f,

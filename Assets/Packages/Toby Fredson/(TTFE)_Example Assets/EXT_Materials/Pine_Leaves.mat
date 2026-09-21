@@ -224,7 +224,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _ADVANCEDSETTINGS: 0
-    - _AlphaClip: 0.3
+    - _AlphaClip: 0.4
     - _AlphaCutoff: 0.5
     - _AmbientOcclusionIntensity: 1
     - _BackfaceCulling: 0
@@ -349,7 +349,7 @@ Material:
     - _NoramlUV: 0
     - _NoramlWSCALE: 0
     - _NormalBackFaceFixBranch: 0
-    - _NormalIntenisty: 2
+    - _NormalIntenisty: 1
     - _NormalMapBasedSnow: 1
     - _NormalizeSeasons: 0
     - _OcclusionStrength: 1
@@ -404,8 +404,8 @@ Material:
     - _SeasonRustAmount2: 1
     - _SeasonVertexColorR: 1
     - _SeasonVertexR: 0
-    - _SecondaryNormalIntensity: 1
-    - _SecondaryNormalScale: 2
+    - _SecondaryNormalIntensity: 0.6
+    - _SecondaryNormalScale: 1
     - _SelfShading: 1
     - _SelfShading1: 0
     - _SelfShadingVertexCol: 1
@@ -503,3 +503,4 @@ Material:
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 0}
     - _WindAxis: {r: 0, g: 0, b: 1, a: 0}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1
