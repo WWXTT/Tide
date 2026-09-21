@@ -52,8 +52,9 @@ class TideEnvTcp(gym.Env):
             port: Unity TCP 服务器端口（默认 9999）
             max_steps: 单局最大步数
             reward_lambda: 兼容参数（塑形 λ 固定在 Unity 侧 TideHeadlessDriver.ShapingLambda）
-            opponent: 对手位——"selfplay" 自对弈（双方模型驱动）/
-                      "simpleai" 模型 vs SimpleAI（对手回合 Unity 侧自动打，obs/reward 恒为模型视角）
+        opponent: 对手位——"selfplay" 主题自对弈（主题整组 vs Cards 随机 30，双方模型驱动）/
+                  "simpleai" 模型 vs 脚本主题卡组（SimpleAI+AutoMatch，对手回合 Unity 侧自动打，
+                  obs/reward 恒为模型视角，info.theme=对手主题 key 供分主题统计）
         """
         super().__init__()
 

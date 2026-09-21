@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using CardCore;
+using CardCore.AI;
 using CardCore.AI.NeuralEnv;
 using CardCore.Editor.Tests;
 using UnityEditor;
@@ -22,11 +24,17 @@ namespace CardCore.Editor.TideHeadless
     ///
     /// 协议（每行一条 JSON）：
     ///   请求  {"op":"reset"}                          → 自对弈（双方都由模型驱动）
-    ///   请求  {"op":"reset","opponent":"simpleai"}    → 模型 vs SimpleAI（随机模型座次，对手回合 Unity 侧自动打）
+    ///   请求  {"op":"reset","opponent":"simpleai"}    → 模型 vs 脚本主题卡组（随机模型座次，对手回合
+    ///                                                  Unity 侧由 SimpleAI+AutoMatch 策略自动打）
     ///   请求  {"op":"step","action":N}                → 响应同上
-    ///   响应 {op, obs{cards,globals,actions,nActions}, reward, done, info{toPlay,winner,reason,turn,modelSeat}}
-    ///   obs 恒为「当前回合玩家」视角（自对弈）/「模型」视角（vs SimpleAI），reward 归属同视角；
-    ///   info.modelSeat：模型座次（0=P1 / 1=P2），自对弈为 -1——vs 模式按它判胜负。
+    ///   响应 {op, obs{cards,globals,actions,nActions}, reward, done, info{toPlay,winner,reason,turn,modelSeat,theme}}
+    ///   obs 恒为「当前回合玩家」视角（自对弈）/「模型」视角（vs 脚本），reward 归属同视角；
+    ///   info.modelSeat：模型座次（0=P1 / 1=P2），自对弈为 -1——vs 模式按它判胜负；
+    ///   info.theme：对手主题 key（red/green/blue，vs 模式才有；自对弈空串）——Python 分主题统计胜率。
+    ///
+    /// 卡组口径（2026-09-21 主题卡组迁移，BattleDeckSources 统一取数）：
+    ///   自对弈 = 主题整组（三套随机其一）vs Cards.json 随机 30 张，随机换座；
+    ///   vs 脚本 = 模型 Cards.json 随机 30 张 vs 随机主题整组（SimpleAI 按主题 AutoMatch 策略）。
     ///
     /// batchmode 调用约定（关键）：
     ///   Unity.exe -batchmode -nographics -projectPath &lt;proj&gt; -executeMethod TideHeadlessServer.Main
@@ -59,7 +67,9 @@ namespace CardCore.Editor.TideHeadless
             }
 
             _isRunning = true;
-            _deckPool = null; // 服务器重启时重新加载卡池（编辑器内可能改了卡表配置）
+            // 服务器重启时重载数据层（编辑器内可能改了 Cards.json/主题卡组）：
+            // CardCatalog 缓存失效 + 主题卡组缓存置空（BattleDeckSources 每次重新读盘）
+            _themeDecks = null;
             int loaded = TideCardIndex.ConfigureManifest(CardManifestPath); // 追加式下标，重启不改写
             Debug.Log(loaded >= 0
                 ? $"[TideHeadless] 卡身份清单载入 {loaded} 条（{CardManifestPath}）"
@@ -168,21 +178,24 @@ namespace CardCore.Editor.TideHeadless
 
         public static void RunSelfTest()
         {
-            var deck = AiBattleE2E.LoadStandardDeck();
-            if (deck == null || deck.Count == 0)
+            var pool = BattleDeckSources.AllCards();
+            if (pool == null || pool.Count == 0)
             {
-                Debug.LogError("[无头驱动] 标准卡组加载失败（Configs/TestCreatureCards.json）");
+                Debug.LogError("[无头驱动] Cards.json 卡池加载失败（StreamingAssets/Card/Cards.json，先运行 Tools/构建三色主题卡组）");
                 return;
             }
             TideCardIndex.ConfigureManifest(CardManifestPath); // 与训练路径同一份清单（追加式续排）
-            int added = TideCardIndex.Register(deck); // 自测路径同口径登记卡身份（与 DeckPool 同源同序）
+            int added = TideCardIndex.Register(pool); // 自测路径同口径登记卡身份（与 BattleDeckSources 同源同序）
             Debug.Log($"[无头驱动] 卡身份登记 +{added}（总 {TideCardIndex.Count}）");
 
             var driver = new TideHeadlessDriver();
             var rng = new System.Random(12345);
             try
             {
-                var result = driver.Reset(deck, deck);
+                // 随机策略自测只验证驱动环，口径对齐 selfplay：Cards 池随机 30 vs 随机 30（池含主题卡）
+                var result = driver.Reset(
+                    BattleDeckSources.SampleRandomDeck(pool, RandomDeckSize, rng),
+                    BattleDeckSources.SampleRandomDeck(pool, RandomDeckSize, rng));
                 int steps = 0;
                 while (!result.Done && steps++ < SelfTestMaxSteps)
                 {
@@ -256,90 +269,60 @@ namespace CardCore.Editor.TideHeadless
 
         private static TideStepResult HandleReset(TideHeadlessDriver driver, string opponent)
         {
-            // v2 随机对局（TCP / batchmode 共用）：
-            //   双方各自从标准池（TestCreatureCards 非仪式）随机抽 30 张组卡组；
-            //   引擎 P1 恒先手 → 随机先后手（自对弈 = 换座 / vs SimpleAI = 随机模型座次）。
-            //   opponent=="simpleai" 时另一座位整回合由 SimpleAI 自动打，obs/reward 恒为模型视角。
-            var pool = DeckPool;
-            if (pool == null || pool.Count == 0)
+            // 2026-09-21 主题卡组口径（数据层迁移到 Cards.json + StreamingAssets/Card/，TestDecks 已删）：
+            //   自对弈  = 主题整组（三套随机其一）vs Cards.json 随机 30 张，随机换座，双方模型驱动；
+            //   vs 脚本 = 模型 Cards.json 随机 30 张 vs 随机主题整组，SimpleAI 按主题 AutoMatch 策略
+            //              整回合自动打，obs/reward 恒为模型视角（info.modelSeat 判胜负、info.theme 分主题统计）。
+            var pool = BattleDeckSources.AllCards();
+            var themes = ThemeDeckCache.Where(t => t.deck.Count > 0).ToList();
+            if (pool.Count == 0 || themes.Count == 0)
             {
-                UnityEngine.Debug.LogError("[TideHeadless] 标准卡组加载失败（Configs/TestDecks/TestCreatureCards.json），退回整池空卡组不可用");
+                _opponentTheme = "";
+                UnityEngine.Debug.LogError("[TideHeadless] 数据层缺失（Cards.json 卡池 "
+                    + $"{pool.Count} 张 / 有效主题卡组 {themes.Count} 套）——先运行 Tools/构建三色主题卡组");
                 return driver.Reset(new List<CardData>(), new List<CardData>());
             }
 
-            // 身份登记：标准池 + 三色主题池（追加式幂等，新组合哈希自动续排进 manifest）
-            int addedIds = TideCardIndex.Register(pool);
-            foreach (var cp in ColorPools)
-                addedIds += TideCardIndex.Register(cp);
+            int addedIds = BattleDeckSources.RegisterIdentities(); // 追加式幂等：新卡身份自动续排进 manifest
             if (addedIds > 0)
                 UnityEngine.Debug.Log($"[TideHeadless] 卡身份登记 +{addedIds}（总 {TideCardIndex.Count}）");
 
             lock (DeckRngLock)
             {
+                var theme = themes[DeckRng.Next(themes.Count)];
                 if (opponent == "simpleai")
                 {
-                    // 验证阶段对位口径：模型 = 三色随机一色抽 30；SimpleAI 恒红色抽 30（缺池退回标准池）
-                    var colors = ColorPools;
-                    var modelPool = colors[DeckRng.Next(colors.Length)];
-                    if (modelPool.Count == 0) modelPool = pool;
-                    var aiPool = colors[0].Count > 0 ? colors[0] : pool;
+                    // 模型 = Cards 随机 30；脚本 = 主题整组（策略按主题自动匹配：红快攻/绿慢速/蓝控制）
+                    _opponentTheme = theme.key;
                     return driver.Reset(
-                        SampleRandomDeck(modelPool, RandomDeckSize),
-                        SampleRandomDeck(aiPool, RandomDeckSize),
-                        DeckRng.Next(2) == 0); // 随机模型座次（先后手各半）
+                        BattleDeckSources.SampleRandomDeck(pool, RandomDeckSize, DeckRng),
+                        theme.deck,
+                        DeckRng.Next(2) == 0, // 随机模型座次（先后手各半）
+                        AiStrategy.AutoMatch(theme.deck));
                 }
 
-                // 自对弈：双方标准池各抽 30（扩池后含主题导入卡）
-                var deck1 = SampleRandomDeck(pool, RandomDeckSize);
-                var deck2 = SampleRandomDeck(pool, RandomDeckSize);
-                bool swap = DeckRng.Next(2) == 1; // 随机先后手换座
-                if (swap) { var t = deck1; deck1 = deck2; deck2 = t; }
-                return driver.Reset(deck1, deck2);
+                // 自对弈：主题整组 vs Cards 随机 30，主题侧随机先后手
+                _opponentTheme = "";
+                var randomDeck = BattleDeckSources.SampleRandomDeck(pool, RandomDeckSize, DeckRng);
+                return DeckRng.Next(2) == 0
+                    ? driver.Reset(theme.deck, randomDeck)
+                    : driver.Reset(randomDeck, theme.deck);
             }
         }
 
         private const int RandomDeckSize = 30;
 
-        /// <summary>标准卡池缓存：JSON 只解析一次（每个 reset 复用；编辑器重启 TCP 服务器时置空重载）。</summary>
-        private static List<CardData> _deckPool;
-        private static List<CardData> DeckPool => _deckPool ??= AiBattleE2E.LoadStandardDeck();
+        /// <summary>本局对手主题 key（vs 模式 red/green/blue；自对弈空串）——Serialize info.theme 用。
+        /// 单连接单局串行，读写无竞态。</summary>
+        private static string _opponentTheme = "";
 
-        /// <summary>主题色卡池缓存（[0]=Red [1]=Blue [2]=Green，Deck_*.json 由 tide_rl/generate_test_decks.py 生成）。
-        /// 验证阶段对位口径：SimpleAI 恒用红色；模型从三色随机抽一色再抽 30 张。缺失文件 = 空池，调用方退回标准池。</summary>
-        private static List<CardData>[] _colorPools;
-        private static List<CardData>[] ColorPools => _colorPools ??= LoadColorPools();
-        private static readonly string[] ColorDeckFiles = { "Deck_Red.json", "Deck_Blue.json", "Deck_Green.json" };
-
-        private static List<CardData>[] LoadColorPools()
-        {
-            var dir = Path.Combine(Application.dataPath, "Configs", "TestDecks");
-            var pools = new List<CardData>[ColorDeckFiles.Length];
-            for (int i = 0; i < pools.Length; i++)
-            {
-                var path = Path.Combine(dir, ColorDeckFiles[i]);
-                pools[i] = File.Exists(path)
-                    ? CardLoader.LoadCardsFromText(File.ReadAllText(path))
-                    : new List<CardData>();
-                if (pools[i].Count == 0)
-                    UnityEngine.Debug.LogError($"[TideHeadless] 主题卡池缺失或为空：{ColorDeckFiles[i]}（验证对位将退回标准池）");
-            }
-            return pools;
-        }
+        /// <summary>主题卡组缓存（编辑器 TCP 重启时置空重载；batchmode 进程内加载一次）。</summary>
+        private static List<(string key, List<CardData> deck)> _themeDecks;
+        private static List<(string key, List<CardData> deck)> ThemeDeckCache
+            => _themeDecks ??= BattleDeckSources.ThemeDecks();
 
         private static readonly System.Random DeckRng = new System.Random();
         private static readonly object DeckRngLock = new object();
-
-        /// <summary>池洗牌（Fisher-Yates）后取前 size 张；池不足时整池上阵。</summary>
-        private static List<CardData> SampleRandomDeck(List<CardData> pool, int size)
-        {
-            var shuffled = new List<CardData>(pool);
-            for (int i = shuffled.Count - 1; i > 0; i--)
-            {
-                int j = DeckRng.Next(i + 1);
-                (shuffled[i], shuffled[j]) = (shuffled[j], shuffled[i]);
-            }
-            return shuffled.GetRange(0, Math.Min(size, shuffled.Count));
-        }
 
         private static TideStepResult HandleStep(TideHeadlessDriver driver, int action)
             => driver.Step(action);
@@ -366,6 +349,7 @@ namespace CardCore.Editor.TideHeadless
                     reason = r.Reason ?? "",
                     turn = r.Turn,
                     modelSeat = r.ModelSeat,
+                    theme = _opponentTheme ?? "",
                 },
             };
             return JsonUtility.ToJson(resp);
@@ -382,7 +366,7 @@ namespace CardCore.Editor.TideHeadless
 
         [Serializable] public class HeadlessRequest { public string op; public int action; public string opponent; }
         [Serializable] public class HeadlessObs { public List<float> cards; public List<float> globals; public List<float> actions; public int nActions; }
-        [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; public int modelSeat; }
+        [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; public int modelSeat; public string theme; }
         [Serializable] public class HeadlessResponse { public string op; public HeadlessObs obs; public float reward; public bool done; public HeadlessInfo info; }
     }
 }

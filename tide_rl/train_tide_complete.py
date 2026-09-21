@@ -1,20 +1,22 @@
 """
 Tide 完整 PPO 训练脚本（stdio batchmode 桥接）。
 
-目标：自对弈训练（默认 opponent="selfplay"——双方同一策略驱动，obs/reward 按
-「当前行动方」视角轮换，标准池随机卡组 + 随机换座）。
+目标：主题自对弈训练（默认 opponent="selfplay"——双方同一策略驱动，obs/reward 按
+「当前行动方」视角轮换；卡组口径 2026-09-21 主题卡组迁移：一侧随机用三套主题卡组
+之一整组，另一侧 Cards.json 全池随机抽 30 张，随机换座）。
 评估双口径（自对弈模式每次评估都跑两组）：
 - 自对弈先手座次胜率：P1 恒先手，偏离 50% 的幅度 = 先后手失衡度量（非棋力）；
-- vs SimpleAI 模型胜率（座次随机、按 info.modelSeat 判）——真实棋力指标，
-  best 保存与早停均按此口径，与上一轮 vs-simpleai 训练（100k 步 75%）直接可比。
-opponent="simpleai" 可切回「打 SimpleAI」训练（评估只剩单一口径）。
+- vs 脚本主题卡组模型胜率（模型 Cards 随机 30 vs SimpleAI+AutoMatch 主题整组，座次随机、
+  按 info.modelSeat 判）——真实棋力指标，另按 info.theme（red/green/blue）分主题统计；
+  best 保存与早停均按此口径（总胜率）。
+opponent="simpleai" 可切回「打脚本主题」训练（评估只剩单一口径）。
 策略：
 1. 使用 ygo-agent 的 PPO 损失（jit + 整批前向，rollout 记录 rstate 保证更新期口径一致）
 2. 对局跨更新窗口延续（rollout_common），episode 统计真实完结
 3. 训练统计每个 update 落盘 stats.jsonl（loss/ep_ret/ep_len/sps，可 tail 实时跟踪）
 4. YOLO 风格模型保存：best/（评估刷新纪录时覆盖）+ last/（周期覆盖，退出时也存）
 
-运行：
+运行（推荐临时工程隔离训练，见 make_train_copy.ps1 / start_training_traincopy.ps1）：
   python tide_rl/train_tide_complete.py
   （Unity.exe 自动发现：UNITY_PATH 环境变量 → Hub 扫描匹配工程版本；
     进程常驻跨局复用，启动前自动清理上次残留的 batchmode 进程）
@@ -70,7 +72,7 @@ def stack_rstates(rstates):
 @dataclass
 class Args:
     """训练超参。"""
-    exp_name: str = "tide_ppo_selfplay"
+    exp_name: str = "tide_ppo_selfplay_theme"
     seed: int = 42
     learning_rate: float = 2.5e-4
     anneal_lr: bool = True  # 学习率线性衰减
@@ -96,7 +98,7 @@ class Args:
     # Tide 特定
     max_episode_steps: int = 1000  # 单局步数上限（超时判负；可选操作变多后 500 会提前截断对局）
     reward_lambda: float = 0.02  # 兼容参数（塑形 λ 固定在 Unity 侧）
-    opponent: str = "selfplay"   # 对手位：selfplay = 自对弈（双方同一策略）；simpleai = 模型 vs SimpleAI（座次随机=先后手各半）
+    opponent: str = "selfplay"   # 对手位：selfplay = 主题自对弈（主题整组 vs Cards 随机 30）；simpleai = 模型 vs 脚本主题卡组（座次随机=先后手各半）
     channels: int = 128
     rnn_channels: int = 512
     rnn_type: str = "gru"
@@ -120,13 +122,17 @@ def evaluate_greedy(agent_apply, params, env, args, num_episodes=20, opponent=No
     opponent=None 时用 args.opponent（训练口径）；自对弈训练中途可传 "simpleai"
     切换评估对手（reset 协议按次传 opponent，无需另开 env）。
 
-    对手位口径：
-    - simpleai：模型 vs SimpleAI，座次随机（先后手各半），按 info.modelSeat 判模型胜负
-      ——这是真实棋力指标；
+    对手位口径（2026-09-21 主题卡组迁移）：
+    - simpleai：模型（Cards.json 随机 30）vs 脚本主题卡组（SimpleAI+AutoMatch 主题整组），
+      座次随机，按 info.modelSeat 判模型胜负——真实棋力指标；info.theme（red/green/blue）
+      另做分主题统计（对手是哪套主题）；
     - selfplay：双方同一策略按座次报告——P1 恒先手，即「先手座次胜率」（衡量先手优势）。
+
+    返回 (win_rate, wins, losses, draws, avg_length, theme_stats)；
+    theme_stats = {theme_key: (wins, games)}（仅 simpleai 口径有值，selfplay 为空 dict）。
     """
-    vs_simpleai = (opponent or args.opponent) == "simpleai"
-    label = "vs SimpleAI（模型胜率）" if vs_simpleai else "self-play（先手座次胜率）"
+    vs_script = (opponent or args.opponent) == "simpleai"
+    label = "vs 脚本主题卡组（模型胜率）" if vs_script else "self-play（先手座次胜率）"
 
     print(f"\n{'='*60}")
     print(f"Evaluating {num_episodes} episodes (greedy, {label})")
@@ -134,6 +140,7 @@ def evaluate_greedy(agent_apply, params, env, args, num_episodes=20, opponent=No
 
     wins = losses = draws = 0
     episode_lengths = []
+    theme_stats = {}  # theme key -> [wins, games]（vs 脚本口径）
 
     for ep in range(num_episodes):
         # 按次传对手位（2026-09-11 修复：此前裸调用 env.reset()，options 缺省回落
@@ -156,21 +163,24 @@ def evaluate_greedy(agent_apply, params, env, args, num_episodes=20, opponent=No
         episode_lengths.append(step_count)
 
         # 协议 info.winner 为字符串："0"=P1（先手）、"1"=P2；超时/平局为空
-        # vs SimpleAI（info.modelSeat=0/1）按模型座次判；自对弈（-1）按先手座次判
+        # vs 脚本主题（info.modelSeat=0/1）按模型座次判；自对弈（-1）按先手座次判
         winner = str(info.get("winner", ""))
         model_seat = int(info.get("modelSeat", -1))
+        model_win = False
         if info.get("timeout"):
             draws += 1
             result = "TIMEOUT"
         elif winner and model_seat >= 0:
             if int(winner) == model_seat:
                 wins += 1
+                model_win = True
                 result = "WIN(model)"
             else:
                 losses += 1
-                result = "LOSS(simpleai)"
+                result = "LOSS(theme)"
         elif winner == "0":
             wins += 1
+            model_win = True
             result = "WIN(P1)"
         elif winner == "1":
             losses += 1
@@ -179,7 +189,17 @@ def evaluate_greedy(agent_apply, params, env, args, num_episodes=20, opponent=No
             draws += 1
             result = "DRAW"
 
-        print(f"  Episode {ep+1}/{num_episodes}: {result} (length={step_count})")
+        # 分主题统计（vs 脚本口径：info.theme = 对手主题 key red/green/blue）
+        theme = str(info.get("theme", "") or "")
+        if vs_script and theme:
+            tally = theme_stats.setdefault(theme, [0, 0])
+            tally[1] += 1
+            if model_win:
+                tally[0] += 1
+
+        print(f"  Episode {ep+1}/{num_episodes}: {result}"
+              + (f" [theme={theme}]" if vs_script and theme else "")
+              + f" (length={step_count})")
 
     win_rate = wins / num_episodes
     avg_length = float(np.mean(episode_lengths))
@@ -188,10 +208,16 @@ def evaluate_greedy(agent_apply, params, env, args, num_episodes=20, opponent=No
     print(f"Evaluation Results ({label}):")
     print(f"  Win Rate: {win_rate*100:.1f}% ({wins}/{num_episodes})")
     print(f"  Losses: {losses}, Draws/Timeouts: {draws}")
+    if theme_stats:
+        per_theme = ", ".join(
+            f"{key} {t[0]}/{t[1]} ({t[0]/t[1]*100:.0f}%)"
+            for key, t in sorted(theme_stats.items()) if t[1] > 0
+        )
+        print(f"  Per-theme: {per_theme}")
     print(f"  Avg Episode Length: {avg_length:.1f}")
     print(f"{'='*60}\n")
 
-    return win_rate, wins, losses, draws, avg_length
+    return win_rate, wins, losses, draws, avg_length, theme_stats
 
 
 def train(args: Args):
@@ -203,9 +229,9 @@ def train(args: Args):
     print(f"\n{'='*80}")
     print(f"Run: {run_name}")
     if args.opponent == "selfplay":
-        print(f"Self-play PPO（双方同一策略；评估双口径：先手座次胜率 + vs SimpleAI 模型胜率，best/早停按后者）")
+        print(f"主题自对弈 PPO（主题整组 vs Cards 随机 30；评估双口径：先手座次胜率 + vs 脚本主题卡组模型胜率，best/早停按后者）")
     else:
-        print(f"PPO vs SimpleAI（模型座次随机=先后手各半；评估口径：模型胜率，按 info.modelSeat 判）")
+        print(f"PPO vs 脚本主题卡组（模型 Cards 随机 30，座次随机=先后手各半；评估口径：模型胜率，按 info.modelSeat 判）")
     print(f"{'='*80}\n")
 
     # 保存配置
@@ -436,8 +462,8 @@ def train(args: Args):
                         jit_apply, train_state.params, env, args,
                         args.eval_episodes, opponent="selfplay",
                     )
-                # 口径 2（自对弈训练时）/ 唯一口径（simpleai 训练时）：vs SimpleAI 模型胜率
-                win_rate, wins, losses_, draws, avg_length = evaluate_greedy(
+                # 口径 2（自对弈训练时）/ 唯一口径（simpleai 训练时）：vs 脚本主题卡组模型胜率
+                win_rate, wins, losses_, draws, avg_length, theme_stats = evaluate_greedy(
                     jit_apply, train_state.params, env, args, args.eval_episodes,
                     opponent="simpleai" if args.opponent == "selfplay" else None,
                 )
@@ -445,7 +471,8 @@ def train(args: Args):
                 with open(log_dir / "stats.jsonl", "a", encoding="utf-8") as f:
                     f.write(json.dumps({
                         "update": update, "step": global_step, "eval": True,
-                        "win_rate_vs_simpleai": win_rate,
+                        "win_rate_vs_theme": win_rate,
+                        "theme_win_rates": {k: (t[0] / t[1]) for k, t in theme_stats.items() if t[1] > 0},
                         "sp_win_rate": sp_win_rate,
                         "avg_length": avg_length,
                     }, ensure_ascii=False) + "\n")
@@ -513,7 +540,7 @@ def train(args: Args):
                 jit_apply, train_state.params, eval_env, args,
                 num_episodes=20, opponent="selfplay",
             )
-        final_win_rate, wins, losses_, draws, avg_length = evaluate_greedy(
+        final_win_rate, wins, losses_, draws, avg_length, _theme_stats = evaluate_greedy(
             jit_apply, train_state.params, eval_env, args, num_episodes=100,
             opponent="simpleai" if args.opponent == "selfplay" else None,
         )
@@ -521,7 +548,7 @@ def train(args: Args):
         eval_env.close()
 
     elapsed_total = time.time() - start_time
-    skill_label = "vs SimpleAI 棋力口径" if args.opponent == "selfplay" else args.opponent
+    skill_label = "vs 脚本主题卡组棋力口径" if args.opponent == "selfplay" else args.opponent
     print(f"\n{'='*80}")
     print(f"Training finished!")
     print(f"  Total time: {elapsed_total/3600:.2f} hours")
@@ -543,7 +570,7 @@ if __name__ == "__main__":
     print(f"  Max episode steps: {args.max_episode_steps}")
     print(f"  Total timesteps: {args.total_timesteps:,}")
     print(f"  Opponent: {args.opponent}")
-    print(f"  Eval: vs SimpleAI 模型胜率（早停目标 {args.target_win_rate*100:.0f}%）"
+    print(f"  Eval: vs 脚本主题卡组模型胜率（早停目标 {args.target_win_rate*100:.0f}%，分主题 red/green/blue 统计）"
           + ("；自对弈另报先手座次胜率" if args.opponent == "selfplay" else "") + "\n")
 
     train(args)

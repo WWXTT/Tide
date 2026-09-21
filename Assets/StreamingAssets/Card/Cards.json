@@ -1,15 +1,19 @@
 {
     "cards": [
         {
-            "id": "C_11C15AAC",
+            "id": "C_AA52D390",
             "cardName": "毒刺",
             "supertype": "Creature",
-            "power": 1,
-            "life": 1,
+            "power": 2,
+            "life": 2,
             "costList": [
                 {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -18,18 +22,20 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "F38EB5B8"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false
         },
         {
-            "id": "C_B003DB3C",
+            "id": "C_E7215E49",
             "cardName": "吸血",
             "supertype": "Creature",
-            "power": 1,
-            "life": 1,
+            "power": 3,
+            "life": 3,
             "costList": [
                 {
                     "manaType": 5,
@@ -37,7 +43,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -55,15 +61,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_8AF9CCF8",
+            "id": "C_F67F2E56",
             "cardName": "潜行",
             "supertype": "Creature",
-            "power": 1,
+            "power": 2,
             "life": 1,
             "costList": [
                 {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -72,18 +82,20 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "55B7DAEE"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false
         },
         {
-            "id": "C_2BD5A227",
+            "id": "C_DDFBA890",
             "cardName": "圣盾",
             "supertype": "Creature",
-            "power": 1,
-            "life": 1,
+            "power": 2,
+            "life": 2,
             "costList": [
                 {
                     "manaType": 4,
@@ -91,7 +103,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -109,15 +121,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_7E0412D4",
+            "id": "C_E1731C63",
             "cardName": "碾压",
             "supertype": "Creature",
-            "power": 1,
-            "life": 1,
+            "power": 4,
+            "life": 2,
             "costList": [
                 {
+                    "manaType": 1,
+                    "amount": 5.0
+                },
+                {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -126,18 +142,20 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "C2D4CEAE"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false
         },
         {
-            "id": "C_30D61751",
+            "id": "C_2606D275",
             "cardName": "警戒",
             "supertype": "Creature",
-            "power": 1,
-            "life": 1,
+            "power": 2,
+            "life": 3,
             "costList": [
                 {
                     "manaType": 2,
@@ -145,7 +163,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -163,15 +181,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_398B0F7C",
+            "id": "C_02FE797B",
             "cardName": "先攻",
             "supertype": "Creature",
-            "power": 1,
+            "power": 3,
             "life": 1,
             "costList": [
                 {
+                    "manaType": 1,
+                    "amount": 2.0
+                },
+                {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -180,22 +202,28 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "37CC1C5C"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false
         },
         {
-            "id": "C_C2F5ACB2",
+            "id": "C_82995BE3",
             "cardName": "法术护盾",
             "supertype": "Creature",
             "power": 1,
-            "life": 1,
+            "life": 3,
             "costList": [
                 {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -204,22 +232,28 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "A7B23BD3"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false
         },
         {
-            "id": "C_09D2C1F3",
+            "id": "C_80E59E2E",
             "cardName": "扰魔",
             "supertype": "Creature",
             "power": 1,
-            "life": 1,
+            "life": 3,
             "costList": [
                 {
+                    "manaType": 4,
+                    "amount": 3.0
+                },
+                {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -228,18 +262,20 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "16D5DE83"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false
         },
         {
-            "id": "C_19FBA988",
+            "id": "C_8FEE3A39",
             "cardName": "复生",
             "supertype": "Creature",
-            "power": 1,
-            "life": 1,
+            "power": 3,
+            "life": 2,
             "costList": [
                 {
                     "manaType": 5,
@@ -247,7 +283,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -265,11 +301,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_F400D0A1",
+            "id": "C_3A67A03F",
             "cardName": "不灭",
             "supertype": "Creature",
-            "power": 1,
-            "life": 1,
+            "power": 2,
+            "life": 4,
             "costList": [
                 {
                     "manaType": 4,
@@ -277,7 +313,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 2.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -295,11 +331,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_AB6FD5E5",
+            "id": "C_97E78114",
             "cardName": "系命",
             "supertype": "Creature",
-            "power": 1,
-            "life": 1,
+            "power": 3,
+            "life": 5,
             "costList": [
                 {
                     "manaType": 3,
@@ -307,7 +343,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -325,19 +361,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_CA010C21",
+            "id": "C_BDEA55D7",
             "cardName": "再生",
             "supertype": "Creature",
-            "power": 1,
-            "life": 1,
+            "power": 4,
+            "life": 6,
             "costList": [
                 {
                     "manaType": 3,
-                    "amount": 9.0
+                    "amount": 4.0
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 5.0
                 }
             ],
             "keywords": [],
@@ -355,11 +391,11 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_C6CB9F95",
+            "id": "C_157AB8A2",
             "cardName": "成长",
             "supertype": "Creature",
-            "power": 1,
-            "life": 1,
+            "power": 2,
+            "life": 4,
             "costList": [
                 {
                     "manaType": 3,
@@ -367,7 +403,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -385,39 +421,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_8680ED64",
+            "id": "C_D28AD64E",
             "cardName": "缴械",
             "supertype": "Creature",
-            "power": 1,
+            "power": 2,
             "life": 1,
             "costList": [
                 {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
-            ],
-            "keywords": [],
-            "tags": [],
-            "effects": [],
-            "subtype": "",
-            "level": -1,
-            "arrows": "None",
-            "effectIds": [],
-            "linkAuras": [],
-            "noAttack": false,
-            "noGuard": false,
-            "surplusToSpeed": false
-        },
-        {
-            "id": "C_6B5017F8",
-            "cardName": "帷幕",
-            "supertype": "Creature",
-            "power": 1,
-            "life": 1,
-            "costList": [
+                    "manaType": 1,
+                    "amount": 2.0
+                },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -427,7 +443,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "AA5CD542"
+                "58CBEB91"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -435,11 +451,41 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_A88CBBCF",
-            "cardName": "回响",
+            "id": "C_D3D90927",
+            "cardName": "帷幕",
             "supertype": "Creature",
             "power": 1,
-            "life": 1,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "7F0D790D"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_BD3A5156",
+            "cardName": "回响",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
             "costList": [
                 {
                     "manaType": 2,
@@ -447,7 +493,7 @@
                 },
                 {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -465,15 +511,19 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_B7F8E335",
+            "id": "C_C2CB2582",
             "cardName": "冰晶",
             "supertype": "Creature",
             "power": 1,
-            "life": 1,
+            "life": 3,
             "costList": [
                 {
+                    "manaType": 2,
+                    "amount": 3.0
+                },
+                {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -482,22 +532,28 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "0B0C523F"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false
         },
         {
-            "id": "C_AFDC01CB",
+            "id": "C_A09A1EEA",
             "cardName": "梦魇",
             "supertype": "Creature",
-            "power": 1,
-            "life": 1,
+            "power": 2,
+            "life": 3,
             "costList": [
                 {
+                    "manaType": 5,
+                    "amount": 3.0
+                },
+                {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 3.0
                 }
             ],
             "keywords": [],
@@ -506,22 +562,28 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "F4C5805F"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false
         },
         {
-            "id": "C_B3C88116",
+            "id": "C_421D1F64",
             "cardName": "病原体",
             "supertype": "Creature",
-            "power": 1,
-            "life": 1,
+            "power": 2,
+            "life": 3,
             "costList": [
                 {
+                    "manaType": 3,
+                    "amount": 5.0
+                },
+                {
                     "manaType": 0,
-                    "amount": 1.0
+                    "amount": 2.0
                 }
             ],
             "keywords": [],
@@ -530,22 +592,110 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "B36F6387"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false
         },
         {
-            "id": "C_E9C5CADC",
+            "id": "C_A5CEB55A",
             "cardName": "禁魔石",
             "supertype": "Creature",
             "power": 1,
-            "life": 1,
+            "life": 4,
             "costList": [
                 {
                     "manaType": 4,
                     "amount": 5.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "8683BE2A"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_69D19A8F",
+            "cardName": "破甲箭",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "1DD10265"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_20B3EE3C",
+            "cardName": "狂热指挥官",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "F5291FD9"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_A5A7B045",
+            "cardName": "挫志",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 0.0
                 },
                 {
                     "manaType": 0,
@@ -559,7 +709,3988 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "8683BE2A"
+                "3146B4D1"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_B5267F89",
+            "cardName": "冲锋号角手",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "044A65B8"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_FA524C9D",
+            "cardName": "巨力化身",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "22465D09"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_88B01747",
+            "cardName": "力量调律",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "EB77774B"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_FAC7932F",
+            "cardName": "时空回溯",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "20B80B69"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_E41872E6",
+            "cardName": "幻化突袭",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "EEA86D45"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_60278BA0",
+            "cardName": "秘典研究",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "053F7E93"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_772F7002",
+            "cardName": "窥探军情",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "69B31C56"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_E9FBDBF9",
+            "cardName": "发掘秘藏",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "FB6DEE19"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_0C84C4F4",
+            "cardName": "法术反制",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "E46F8211"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_64502B88",
+            "cardName": "截断术",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "F1DBAD3A"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_FD40FA33",
+            "cardName": "重税令",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "54FD2D85"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_74A94F38",
+            "cardName": "精简军备",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "848DE0A3"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_94605A4F",
+            "cardName": "时之枷锁",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "B46CA240"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_89A55164",
+            "cardName": "时间扩张",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 7.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "0045E090"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_D87CEE4D",
+            "cardName": "回收利用",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "433B97E2"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_7DED0FF9",
+            "cardName": "遗物归档",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "CA1E7BBA"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_00B00E25",
+            "cardName": "迷雾回廊",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "E0EE48B3"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_41137D3C",
+            "cardName": "佩银侍从",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "E9349EB6"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_5EECA31E",
+            "cardName": "冰封长眠",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 3,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "4608C1AD"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_0AD64FA6",
+            "cardName": "生命赐福者",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "CB2B0631"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_8CCECD5C",
+            "cardName": "重甲龟背兽",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "2ABA6ED5"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_2FD32662",
+            "cardName": "毒雾眷者",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "EA69240F"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_91CC7BFE",
+            "cardName": "生命调律",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "97C1572B"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_C63022F6",
+            "cardName": "矿脉德鲁伊",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "82F60C6B"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_B13B1495",
+            "cardName": "古树幼苗",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "3796EB82"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_77B68590",
+            "cardName": "冬眠兽",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 7,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 4.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "95D0621A"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_92B9FFD0",
+            "cardName": "神谕天平",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "129BBA74"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_8FCD15F5",
+            "cardName": "凋零之触",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 5,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "2E408B17"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_4DB74F5D",
+            "cardName": "灵魂榨取",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 6.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "D246841A"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_1C0CAEF7",
+            "cardName": "致命毒瓶",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "7543816F"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_5862DF31",
+            "cardName": "深渊吞噬",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "70891D56"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_BC1A791B",
+            "cardName": "虚空湮灭",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "20F6F9B9"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_CD3A3838",
+            "cardName": "崩地术",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "05A740FE"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_99A2CC09",
+            "cardName": "心灵支配",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "45338A53"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_2084AF74",
+            "cardName": "政权更迭",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 16.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "6181F407"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_F58B7DF2",
+            "cardName": "神经干扰",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "0F239BDC"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_ADF5FAAD",
+            "cardName": "祝福之拥",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "299DBEC6"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_82967A31",
+            "cardName": "噤声封魔",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "2D2C8861"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_C2F2778E",
+            "cardName": "圣光净化",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "1ADC0059"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_5C7889BF",
+            "cardName": "次元放逐",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "4DB63170"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_952B65B6",
+            "cardName": "安魂复苏",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "900CC8FF"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_427794BF",
+            "cardName": "集结号令",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "900B6A48"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_5BBD3AD3",
+            "cardName": "等价交换",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 7.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "E87C39E6"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_75886B2B",
+            "cardName": "血祭仪式",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 2,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "BF9B6DA2",
+                "FEF7847B"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_3D15895C",
+            "cardName": "摒弃令",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "B61E9C49",
+                "EA5D2A60"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_9CBDD76F",
+            "cardName": "灰烬猎犬",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_A0AF544D",
+            "cardName": "火花哥布林",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_3C06E8E8",
+            "cardName": "烬鳞蜥",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_29D4958D",
+            "cardName": "血怒新兵",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "FirstStrike"
+            ],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_8E06A0A7",
+            "cardName": "灼锋斥候",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "FirstStrike"
+            ],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_1C2F5A42",
+            "cardName": "狂焰斗士",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Disarm"
+            ],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_89D4C76A",
+            "cardName": "血牙狼人",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Lifesteal"
+            ],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_AEC7E2C9",
+            "cardName": "赤鬃掠夺者",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_310866E0",
+            "cardName": "熔岩突击兵",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_1E925907",
+            "cardName": "烬痕刺客",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "Lifesteal"
+            ],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_3244447D",
+            "cardName": "焚风骑士",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_1BCE95D1",
+            "cardName": "火焰先驱",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "FirstStrike"
+            ],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_EB26C118",
+            "cardName": "暴怒角蜥",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_6514010C",
+            "cardName": "裂地獒",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "FirstStrike"
+            ],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_289A18CA",
+            "cardName": "焰尾狐",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "FirstStrike"
+            ],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_6C440748",
+            "cardName": "焰爪狼",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 1,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [
+                "FirstStrike"
+            ],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_863B0464",
+            "cardName": "赤鳞迅猛龙",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 2,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Disarm"
+            ],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_7BF79F0C",
+            "cardName": "战嚎统领",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "4297DD3F"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_A40ED344",
+            "cardName": "激励·冲锋号角",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "2ED6FB7E"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_36ED2339",
+            "cardName": "激励·战鼓",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "B54B4246"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_7A9563A2",
+            "cardName": "激励·血战到底",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "4E2D8D80"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_214B42EE",
+            "cardName": "全军突击",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "1B8CA39C"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_A1CC3914",
+            "cardName": "血性狂热",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "0717D033"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_7793EFCA",
+            "cardName": "战意勃发",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "04E65FAF"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_797C6F13",
+            "cardName": "献祭召唤",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "EB41ECFA"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_9D66C3FC",
+            "cardName": "急行军召援",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "446FAE3D"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_79C89338",
+            "cardName": "烈焰箭",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "EAFA3599"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_E97F114F",
+            "cardName": "焚城",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "E020BE53"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_F7CC9863",
+            "cardName": "致命齐射",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "BEAB6B11"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_DABF92A7",
+            "cardName": "灼烧之触",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeRed"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "EC76F5D2"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_78A92563",
+            "cardName": "苔壳龟",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_5804ECA9",
+            "cardName": "藤蔓守望者",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_A52EF97B",
+            "cardName": "森林贤者",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_0BE495BF",
+            "cardName": "春藤蔓延者",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_22AAA83E",
+            "cardName": "蜜露祭司",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Lifelink"
+            ],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_62154C72",
+            "cardName": "古木卫士",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_1602F666",
+            "cardName": "荆棘树妖",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Growth"
+            ],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_1C26FC4A",
+            "cardName": "沼泽医者",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 3.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Lifelink"
+            ],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_A6747CA5",
+            "cardName": "苍翠巨熊",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_D8A7891D",
+            "cardName": "岩背巨龟",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 7,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_3B7D3424",
+            "cardName": "翠冠鹿王",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [
+                "Lifelink"
+            ],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_977E9E63",
+            "cardName": "蛮荒树人",
+            "supertype": "Creature",
+            "power": 6,
+            "life": 7,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_2612B8A4",
+            "cardName": "荆棘岭巨兽",
+            "supertype": "Creature",
+            "power": 6,
+            "life": 8,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [
+                "Overwhelm"
+            ],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_98FA6E81",
+            "cardName": "荒野震颤者",
+            "supertype": "Creature",
+            "power": 7,
+            "life": 7,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [
+                "Overwhelm"
+            ],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_7EF407FA",
+            "cardName": "沼泽泰坦",
+            "supertype": "Creature",
+            "power": 7,
+            "life": 8,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 5.0
+                }
+            ],
+            "keywords": [
+                "Indestructible"
+            ],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_96023269",
+            "cardName": "林地始祖",
+            "supertype": "Creature",
+            "power": 8,
+            "life": 9,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 6.0
+                }
+            ],
+            "keywords": [
+                "Overwhelm"
+            ],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_B3A2199A",
+            "cardName": "世界树之影",
+            "supertype": "Creature",
+            "power": 9,
+            "life": 9,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 4,
+                    "amount": 2.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 6.0
+                }
+            ],
+            "keywords": [
+                "Overwhelm",
+                "Indestructible"
+            ],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_28049C5C",
+            "cardName": "晨露",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "DCEFC789"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_601D893F",
+            "cardName": "治愈之息",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "FF697511"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_7DB8A961",
+            "cardName": "自然抚慰",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "4D4CBAB4"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_627D36F8",
+            "cardName": "生命涌泉",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "E167D565"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_DCA93662",
+            "cardName": "木甲术",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "347D58B3"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_D2AE0241",
+            "cardName": "磐石庇护",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "89EBA63C"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_3E8449EE",
+            "cardName": "荒野回响",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "417423EA"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_49381575",
+            "cardName": "活体盔甲",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "EA930D88"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_244F96CE",
+            "cardName": "光合滋养",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "E3A2646D"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_721FAC68",
+            "cardName": "深林苏醒",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "BDF8EEFC"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_9F72D3B4",
+            "cardName": "采掘",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "ABAB742E"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_8812E53B",
+            "cardName": "荆棘风暴",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 6.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "341C0173"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_4C9AEDC8",
+            "cardName": "藤蔓绞杀",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 1,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeGreen"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "A1855E71"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_AED82E7F",
+            "cardName": "霜翼哨兵",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Vigilance"
+            ],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_7B61EF2C",
+            "cardName": "寒潮术士",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_EF102C24",
+            "cardName": "潮汐预言者",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Vigilance"
+            ],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_62BACD5E",
+            "cardName": "深海密探",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [
+                "Vigilance"
+            ],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_1C7B95EB",
+            "cardName": "迷雾行者",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Vigilance"
+            ],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_3A052F9E",
+            "cardName": "秘法守望者",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_44D0DFFB",
+            "cardName": "冰川执政官",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "SpellShield"
+            ],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_BA6AEC4E",
+            "cardName": "苍蓝哨兵",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_9EB680C3",
+            "cardName": "霜语者",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Vigilance"
+            ],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_4E1D1D66",
+            "cardName": "星辉贤者",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "SpellShield"
+            ],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_DCEC6BDC",
+            "cardName": "凛冬领主",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_7CD6085C",
+            "cardName": "深渊凝视者",
+            "supertype": "Creature",
+            "power": 5,
+            "life": 6,
+            "costList": [
+                {
+                    "manaType": 0,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_E597A139",
+            "cardName": "秘法织网者",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 4,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "SpellShield"
+            ],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_2F3A0154",
+            "cardName": "潮汐守护者",
+            "supertype": "Creature",
+            "power": 4,
+            "life": 5,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 1.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 3.0
+                }
+            ],
+            "keywords": [
+                "Vigilance"
+            ],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_101E22FF",
+            "cardName": "剧毒之触",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "49B7794C"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_646C94AD",
+            "cardName": "蔓延毒雾",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "FC3C15F3"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_087B5A28",
+            "cardName": "蚀骨毒潭",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 3,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "44196175"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_9E8DDE57",
+            "cardName": "寒冰锁链",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "C136E023"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_7CCEF84A",
+            "cardName": "冰封禁锢",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "2B86C4EA"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_84D9787E",
+            "cardName": "沉默诅咒",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 4,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "73B803FE"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_EAC793B5",
+            "cardName": "混乱低语",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "63E9AC2B"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_594BB0F1",
+            "cardName": "迷失心智",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "953D4894"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_7D9BB2EF",
+            "cardName": "破甲标记",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "12F26D80"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_A83159CD",
+            "cardName": "易伤诅咒",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 5,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "EAD2F7E1"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_E8194A4F",
+            "cardName": "回流",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "22575A59"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_C872637E",
+            "cardName": "回溯之潮",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "5CF1C161"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_8B8FCC13",
+            "cardName": "深海汲取",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 0.0
+                },
+                {
+                    "manaType": 0,
+                    "amount": 1.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "E997348F"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_4414AEA7",
+            "cardName": "奥术智慧",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "61038C2D"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_821A7598",
+            "cardName": "禁忌知识",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 2.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "75878FF3"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false
+        },
+        {
+            "id": "C_56CC4641",
+            "cardName": "星图研读",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                {
+                    "manaType": 2,
+                    "amount": 4.0
+                }
+            ],
+            "keywords": [],
+            "tags": [
+                "ThemeBlue"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [
+                "368A20AB"
             ],
             "linkAuras": [],
             "noAttack": false,

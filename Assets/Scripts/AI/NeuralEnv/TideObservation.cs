@@ -213,8 +213,11 @@ namespace CardCore.AI.NeuralEnv
     /// 关键词+tag+光环组合哈希，均已混入原子表指纹）→ 池内小整数下标，供 TideObservation
     /// [15..22] 输出、Python 侧 nn.Embed 查表。拆散到原子级：同原子（如 造成伤害4）跨卡共享
     /// 同一行——相近效果在原子层重叠，语义直接迁移。
-    /// 0 = 无该成分 / token / 未登记；容量 256 与 Python N_CARD_POOL 对齐。
-    /// 键是内容哈希（内容寻址，别名 ID 不参与）。
+    /// 0 = 无该成分 / token / 未登记；容量 1024 与 Python N_CARD_POOL 对齐。
+    /// 键是内容哈希（内容寻址，别名 ID 不参与）。容量口径（2026-09-21 扩容定案）：
+    /// 占行的是「原子实例级身份」（原子类型+参数+目标域组合 / 结构骨架 / 关键词组合），
+    /// 不是卡——白板卡不占行、同原子跨卡共享行；1024 ≈ 千张常用卡的互异效果实例余量。
+    /// 触顶静默降级不崩（新哈希记 0，类型+参数通路照常）。
     ///
     /// 分配口径（追加式 + manifest 持久化，2026-09-09 修复）：
     ///   - 已分配的下标永不改写（旧实现重复 Register 时把全部哈希覆盖成 Count+1，
@@ -226,7 +229,7 @@ namespace CardCore.AI.NeuralEnv
     /// </summary>
     public static class TideCardIndex
     {
-        private const int Capacity = 256;
+        private const int Capacity = 1024; // 2026-09-21 256→1024（趁新口径重训扩容；manifest 下标系统不变）
         private static readonly Dictionary<ulong, int> _map = new Dictionary<ulong, int>();
         private static string _manifestPath; // ConfigureManifest 绑定；null = 纯内存（无持久化）
 

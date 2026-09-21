@@ -2,7 +2,21 @@
 
 ## 🎯 目标
 
-训练一个能**稳赢 SimpleAI**（胜率 >75%）的打牌 AI。
+主题自对弈训练（一侧随机三套主题卡组之一、另一侧 Cards.json 随机 30 张），
+训练出一个能**稳赢脚本控制的主题卡组**（vs SimpleAI+AutoMatch，总胜率 >75%）的打牌 AI。
+评估按对手主题（红/蓝/绿）分主题统计，best/早停按总胜率。
+
+## 🏗️ 临时工程隔离（推荐，2026-09-21 起）
+
+训练跑在临时复制工程 `E:\UnityProject\Tide_train` 上，主工程不被打扰（可开着编辑器开发）：
+
+```powershell
+cd E:\UnityProject\Tide\tide_rl
+powershell -ExecutionPolicy Bypass -File start_training_traincopy.ps1   # 无临时工程会自动先复制
+```
+
+训练产物回拷主工程：`sync_model_to_main.ps1`（manifest+best checkpoint+exports）。
+改卡/效果表后：先主工程跑 `Tools/构建三色主题卡组`，再 `make_train_copy.ps1 -Refresh`。
 
 ---
 

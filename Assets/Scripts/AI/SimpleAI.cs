@@ -8,7 +8,8 @@ using CardCore.Attribute;
 namespace SynergyUI
 {
     /// <summary>
-    /// 通用脚本 AI（卡组无关，一期：动作耗尽）。
+    /// 通用脚本 AI（卡组无关，一期：动作耗尽）。策略模式（2026-09-21）：决策偏好经 AiStrategy 注入——
+    /// 缺省 GeneralAiStrategy = 本类原通用行为；红快攻/绿慢速/蓝控制见 AiStrategy 派生。
     /// 每回合穷举可用动作并执行，直到无进展——费用花完、手牌打空、无可攻击单位、无可发动效果。
     /// 所有动作都走 GameActions / BattleController 既有入口；可行性由引擎校验（失败即静默跳过，卡留手不付费）。
     /// 清理对手场面作为通用目标偏好（非针对特定卡组）：攻击优先击杀对方随从（优换 > 换子），
@@ -20,6 +21,11 @@ namespace SynergyUI
     {
         private const int MaxActionRounds = 64;   // 动作耗尽循环硬上限（保险，防效果自我循环）
         private const int MaxSettleAttempts = 32; // 排干栈重试上限（保险）
+
+        private readonly AiStrategy _strategy;
+
+        /// <summary>注入策略（null=通用 GeneralAiStrategy，行为与策略化之前完全一致）。</summary>
+        public SimpleAI(AiStrategy strategy = null) => _strategy = strategy ?? AiStrategy.General;
 
         /// <summary>有害类原子：目标偏好对方单位 &gt; 对方玩家（解场优先——2026-09-13 用户裁决，原削血优先反转）</summary>
         private static readonly HashSet<AtomicEffectType> HarmfulAtoms = new HashSet<AtomicEffectType>
@@ -114,6 +120,21 @@ namespace SynergyUI
             if (!core.IsGameOver)
                 await DoCombatAsync(core, me);
 
+            // 4.5 战斗间补牌（2026-09-21 激励时机修复）：激励（Untap·filter=Tapped）只有在攻击者
+            //     横置后打出才有候选——第一波攻击完打出激励（红策略指向攻击力最高者）解横置，
+            //     随后第二波攻击让被激励者再动一次（CanDeclareAttack 只放行已解横置者）。
+            if (!core.IsGameOver)
+            {
+                bool playedAfterCombat = false;
+                for (int i = 0; i < 3; i++)
+                {
+                    if (!PlayBestAffordableCard(core, me)) break;
+                    playedAfterCombat = true;
+                }
+                if (playedAfterCombat)
+                    await DoCombatAsync(core, me);
+            }
+
             // 5. 收尾：排干栈（栈未空时 EndTurn 会被栈空守卫静默拒绝）→ 结束回合。
             //    游戏已结束则不再 EndTurn（避免"★ 游戏结束"之后又出现阶段推进）
             SettleStack(core);
@@ -153,18 +174,16 @@ namespace SynergyUI
 
         // ======================================== 动作耗尽循环的动作源 ========================================
 
-        /// <summary>英雄技能（2026-09-13）：一回合一次，付得起就开（蓝色恒开；红绿有生物才开）。
+        /// <summary>英雄技能（2026-09-21 永续魔法化）：一回合一次闸门=技能卡横置态，
+        /// 由 HeroSkillSystem.ActivateAsync 统一守卫（在场/未横置/未沉默）——此处只做策略筛选。
         /// 发动计数驱动 7 次升级——AI 对战可验证升级链。</summary>
-        private static bool UseHeroSkill(GameCore core, Player me)
+        private bool UseHeroSkill(GameCore core, Player me)
         {
             if (me.HeroSkill == (int)HeroSkillId.None) return false;
-            if (me.HeroSkillUsesThisTurn > 0) return false;
+            // 技能卡在场/未横置/未沉默由 HeroSkillSystem.ActivateAsync 统一守卫（含 lazy 回填）
 
-            // 红绿基础版需要己方生物（选择对象）；蓝色恒可
-            var skill = (HeroSkillId)me.HeroSkill;
-            bool needCreature = skill == HeroSkillId.GreenCultivate
-                || (skill == HeroSkillId.RedFrenzy && !me.HeroSkillUpgraded);
-            if (needCreature && !core.ZoneManager.GetCards(me, Zone.Battlefield).Any()) return false;
+            if (!_strategy.WantHeroSkill(core, me, (HeroSkillId)me.HeroSkill, me.HeroSkillUpgraded))
+                return false;
 
             var ok = GameActions.ActivateHeroSkill(core, me).GetAwaiter().GetResult();
             if (ok) SettleStack(core);
@@ -205,16 +224,15 @@ namespace SynergyUI
             return any;
         }
 
-        /// <summary>出一张最优的牌：有害原子优先（削血优先的通用化）→ 总费用降序（大费先出，资源花光）。
+        /// <summary>出一张最优的牌：优先级经策略 CardPlayScore（通用=有害原子优先 → 总费用降序——大费先出，资源花光）。
         /// 抉择卡先选模式（ChooseMode——机器版「满足才能使用」），全模式不可用换下一张。
         /// 出牌即上栈（使用时点）：出完立刻排干——cast 结算付费后 bank 已更新，下一轮预检不失真。</summary>
-        private static bool PlayBestAffordableCard(GameCore core, Player me)
+        private bool PlayBestAffordableCard(GameCore core, Player me)
         {
             var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
             var ordered = hand
                 .Where(c => CanPlayCard(core, me, c, Zone.Hand))
-                .OrderByDescending(ContainsHarmfulAtom)
-                .ThenByDescending(TotalCost)
+                .OrderByDescending(c => _strategy.CardPlayScore(core, me, c, ContainsHarmfulAtom, TotalCost))
                 .ToList();
             foreach (var card in ordered)
             {
@@ -231,7 +249,7 @@ namespace SynergyUI
         }
 
         /// <summary>墓地出牌（归土仪典配额内；预检后再调，避免 TryBeginUse 先烧配额）。出完同样立刻排干。</summary>
-        private static bool TryGraveyardPlay(GameCore core, Player me)
+        private bool TryGraveyardPlay(GameCore core, Player me)
         {
             var graveyard = core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>();
             foreach (var card in graveyard)
@@ -273,18 +291,17 @@ namespace SynergyUI
 
         /// <summary>
         /// 抉择模式选择（机器版「满足才能使用」定案）：逐模式条件过滤（费用可付 + 目标可得），
-        /// 再按既有出牌偏好打分——有害原子优先 → 大费先出（per-mode 版排序语义）。
+        /// 再按策略 ModeScore 打分（通用=有害原子优先 → 大费先出）。
         /// 返回 -1 = 全模式不可发动。非抉择卡恒 0。
         /// </summary>
-        private static int ChooseMode(GameCore core, Player me, Card card)
+        private int ChooseMode(GameCore core, Player me, Card card)
         {
             if (!(card is CardWrapper wrapper)) return 0;
             int modeCount = CostDerivationService.GetModeCount(wrapper.GetData());
             if (modeCount <= 1) return 0;
 
             int best = -1;
-            bool bestHarmful = false;
-            float bestCost = -1f;
+            float bestScore = float.NegativeInfinity;
             for (int i = 0; i < modeCount; i++)
             {
                 var cost = GameActions.GetCardCost(card, i);
@@ -296,11 +313,11 @@ namespace SynergyUI
                 float total = 0f;
                 foreach (var v in cost.Values) total += v;
 
-                if (best < 0 || (harmful && !bestHarmful) || (harmful == bestHarmful && total > bestCost))
+                float score = _strategy.ModeScore(harmful, total);
+                if (best < 0 || score > bestScore)
                 {
                     best = i;
-                    bestHarmful = harmful;
-                    bestCost = total;
+                    bestScore = score;
                 }
             }
             return best;
@@ -320,10 +337,10 @@ namespace SynergyUI
         /// <summary>
         /// 通用目标选择（2026-09-10 组合域口径）：候选集 = def 预计算域 + 组合 filter（与引擎
         /// ResolveCompositionTargetsAsync 同源）；按 SelectionMode 六值三维出目标（2026-09-16）——
-        /// 全取档全取、选一/选多按数量 + 有害/有益偏好择优（域={Self} 的选一=取源卡自身）。
+        /// 全取档全取、选一/选多按数量 + 有害/有益偏好经策略择优（域={Self} 的选一=取源卡自身）。
         /// 无偏好返回 null 交引擎自动解析。
         /// </summary>
-        private static List<Entity> ChooseTargets(GameCore core, Player me, Card card, int modeIndex = 0)
+        private List<Entity> ChooseTargets(GameCore core, Player me, Card card, int modeIndex = 0)
         {
             var def = FirstDomainEffect(card, modeIndex);
             if (def == null) return null; // 无需选目标 → 引擎自动
@@ -347,25 +364,16 @@ namespace SynergyUI
             int need = SelectionModeRules.IsPickOne(def.SelectionMode) ? 1
                 : (def.TargetCount > 0 ? def.TargetCount : 1);
             var atomic = FirstTargetingAtomic(card, modeIndex, out _); // 仅作有害/有益偏好参考
-            var opp = me.Opponent;
             IEnumerable<Entity> ordered;
             if (atomic != null && HarmfulAtoms.Contains(atomic.Type))
             {
-                // 有害（解场优先 2026-09-13 用户裁决）：对方单位（LayerEngine 实时威胁降序）> 对方玩家 > 其他
-                // ——冻结/沉默/弹回类指玩家多空转，指单位才有解场价值；无对方单位才削血
-                ordered = candidates
-                    .OrderByDescending(c => c is Card cd && cd.GetController() == opp && cd.IsAlive)
-                    .ThenByDescending(c => c is Card cd2 && cd2.GetController() == opp
-                        ? core.LayerEngine.CalculatePower(cd2) : int.MinValue)
-                    .ThenByDescending(c => ReferenceEquals(c, opp))
-                    .ThenBy(c => c is Card cd3 && cd3.GetController() == me); // 己方垫底
+                // 有害：目标偏好经策略（通用=对方存活单位威胁降序 > 对方玩家 > 己方垫底——解场优先）
+                ordered = _strategy.OrderHarmfulTargets(core, me, candidates);
             }
             else if (atomic != null && BeneficialAtoms.Contains(atomic.Type))
             {
-                // 有益：己方单位 > 己方玩家 > 其他
-                ordered = candidates
-                    .OrderByDescending(c => c is Card cd && cd.GetController() == me)
-                    .ThenBy(c => ReferenceEquals(c, me));
+                // 有益：目标偏好经策略（通用=己方单位 > 己方玩家）
+                ordered = _strategy.OrderBeneficialTargets(core, me, candidates);
             }
             else
             {
@@ -514,10 +522,10 @@ namespace SynergyUI
 
         // ======================================== 战斗（2026-09-16 逐攻击开窗） ========================================
 
-        /// <summary>逐攻击开窗：每个可攻击单位按清场优先选目标宣言（速度0上栈）→
+        /// <summary>逐攻击开窗：每个可攻击单位按策略选目标宣言（通用=清场优先；速度0上栈）→
         /// 响应窗口（SettleResponseWindowAsync：对方人类=发动弹窗/AI=守卫启发/无头=自动双 Pass）
         /// → 结算 → 下一攻。攻击资格由引擎权威判定（横置/零攻/NoAttack）。</summary>
-        private static async Cysharp.Threading.Tasks.UniTask DoCombatAsync(GameCore core, Player me)
+        private async Cysharp.Threading.Tasks.UniTask DoCombatAsync(GameCore core, Player me)
         {
             var opp = me.Opponent;
             if (opp == null) return;
@@ -526,57 +534,15 @@ namespace SynergyUI
             {
                 if (core.IsGameOver) return;
                 if (!core.CombatSystem.CanDeclareAttack(unit, me)) continue;
-                var target = PickAttackTarget(core, unit, opp);
+                var target = _strategy.PickAttackTarget(core, me, unit, opp); // 攻击决策经策略（通用=清场优先）
                 if (target == null) continue;
                 if (!GameActions.DeclareAttack(core, me, unit, target)) continue;
                 await GameActions.SettleResponseWindowAsync(core); // 窗口+结算（含级联触发/SBA 轮）
             }
         }
 
-        /// <summary>
-        /// 攻击目标决策（清场优先）：能击杀的对方随从先清——"自己也存活"的优换严格优先于换子，
-        /// 同档内挑攻击力最高的（拆最大威胁）；无击杀机会才打脸（不蹭随从白送血；
-        /// 打脸被守卫拦由响应窗口守卫承担——帷幕不拦攻击）；兜底任意可指定目标。
-        /// 力量按 LayerEngine 实时值（光环/增益在场时击杀判定不失真），权威结算仍在引擎。
-        /// </summary>
-        private static Entity PickAttackTarget(GameCore core, Card unit, Player opp)
-        {
-            var combat = core.CombatSystem;
-            var oppField = core.ZoneManager.GetCards(opp, Zone.Battlefield) ?? new List<Card>();
-
-            // ---- 清场档：打得死的对方随从（合法性经 CanAttackTarget：潜行等由引擎滤） ----
-            int myPower = core.LayerEngine.CalculatePower(unit);
-            int myLife = unit.GetLife();
-            Card pick = null;
-            bool pickSurvives = false;
-            int pickThreat = int.MinValue;
-            foreach (var enemy in oppField)
-            {
-                if (!enemy.IsAlive || !combat.CanAttackTarget(unit, enemy, opp)) continue;
-                if (myPower < enemy.GetLife()) continue; // 打不死——不白送，交还打脸
-
-                int threat = core.LayerEngine.CalculatePower(enemy);
-                // 反击资格（定案）：已横置的目标只能挨打不反击 → 恒优换；未横置按反击力量判断
-                bool iSurvive = enemy.IsTapped() || threat < myLife;
-                if (pick == null || (iSurvive && !pickSurvives)
-                    || (iSurvive == pickSurvives && threat > pickThreat))
-                {
-                    pick = enemy;
-                    pickSurvives = iSurvive;
-                    pickThreat = threat;
-                }
-            }
-            if (pick != null) return pick;
-
-            // ---- 无击杀机会 → 打脸 ----
-            if (combat.CanAttackTarget(unit, opp, opp.Opponent)) return opp;
-
-            foreach (var enemy in oppField) // 突袭（无冲锋）不能攻玩家等受限情形的兜底：只打随从
-            {
-                if (combat.CanAttackTarget(unit, enemy, opp.Opponent)) return enemy;
-            }
-            return null;
-        }
+        // 攻击目标决策已上移 AiStrategy.PickAttackTarget（2026-09-21 策略模式；
+        // 力量口径同前——LayerEngine 实时值，权威结算仍在引擎）。
 
         // ======================================== 收尾 ========================================
 

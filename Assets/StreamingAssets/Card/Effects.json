@@ -10,6 +10,7 @@
             "duration": 0,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -70,6 +71,7 @@
             "duration": 0,
             "selection": -1,
             "count": -2,
+            "random": 0,
             "dropZone": 0,
             "engine": 1,
             "engineParam": 3,
@@ -97,6 +99,7 @@
             "duration": 0,
             "selection": -1,
             "count": -2,
+            "random": 0,
             "dropZone": 0,
             "engine": 3,
             "engineParam": 1,
@@ -138,6 +141,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -174,6 +178,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -210,6 +215,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -246,6 +252,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -282,6 +289,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -318,6 +326,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -354,6 +363,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -390,6 +400,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -426,6 +437,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -434,7 +446,7 @@
                 {
                     "kind": 0,
                     "atom": {
-                        "refId": "e006ea39",
+                        "refId": "d7def412",
                         "value": 1,
                         "str": "",
                         "amp": 0.0,
@@ -462,6 +474,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -498,6 +511,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -534,6 +548,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -570,6 +585,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -606,6 +622,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -642,6 +659,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -678,6 +696,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -714,6 +733,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -750,6 +770,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -786,6 +807,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -822,6 +844,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -858,6 +881,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -894,6 +918,7 @@
             "duration": 0,
             "selection": -1,
             "count": -2,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -904,7 +929,7 @@
                     "manaType": 0,
                     "turns": 0,
                     "payload": {
-                        "refId": "b2f5d9bf",
+                        "refId": "7b8c45bc",
                         "value": 1,
                         "str": "",
                         "amp": 0.0,
@@ -944,6 +969,7 @@
             "duration": 0,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1004,6 +1030,7 @@
             "duration": 0,
             "selection": -1,
             "count": -2,
+            "random": 0,
             "dropZone": 0,
             "engine": 1,
             "engineParam": 3,
@@ -1031,6 +1058,7 @@
             "duration": 0,
             "selection": -1,
             "count": -2,
+            "random": 0,
             "dropZone": 0,
             "engine": 3,
             "engineParam": 1,
@@ -1072,6 +1100,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1108,6 +1137,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1144,6 +1174,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1180,6 +1211,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1216,6 +1248,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1252,6 +1285,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1288,6 +1322,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1324,6 +1359,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1360,6 +1396,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1368,7 +1405,7 @@
                 {
                     "kind": 0,
                     "atom": {
-                        "refId": "e006ea39",
+                        "refId": "d7def412",
                         "value": 1,
                         "str": "",
                         "amp": 0.0,
@@ -1396,6 +1433,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1432,6 +1470,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1468,6 +1507,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1504,6 +1544,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1540,6 +1581,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1576,6 +1618,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1612,6 +1655,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1648,6 +1692,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1684,6 +1729,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1720,6 +1766,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1756,6 +1803,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1792,6 +1840,7 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1828,6 +1877,7 @@
             "duration": 0,
             "selection": -1,
             "count": -2,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
@@ -1838,7 +1888,7 @@
                     "manaType": 0,
                     "turns": 0,
                     "payload": {
-                        "refId": "b2f5d9bf",
+                        "refId": "7b8c45bc",
                         "value": 1,
                         "str": "",
                         "amp": 0.0,
@@ -1878,6 +1928,4901 @@
             "duration": 1,
             "selection": 0,
             "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "1DD10265",
+            "name": "破甲箭·穿透",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "828060dd",
+                        "value": 3,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "F5291FD9",
+            "name": "狂热指挥官·战斗号令",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "c01bcd8f",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "3146B4D1",
+            "name": "挫志·挫其锋芒",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "2650f270",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "044A65B8",
+            "name": "冲锋号角手·激励",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "efc6de8a",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "22465D09",
+            "name": "巨力化身·放大",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a9cf639e",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "EB77774B",
+            "name": "力量调律·攻击强化",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "2ac33fb6",
+                        "value": 3,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "20B80B69",
+            "name": "时空回溯·弹回",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "3e00ecd2",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "EEA86D45",
+            "name": "幻化突袭·变形",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "131e6d94",
+                        "value": 1,
+                        "str": "C_CA010C21",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "053F7E93",
+            "name": "秘典研究·检索占卜",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "c2abbd1f",
+                        "value": 1,
+                        "str": "碾压",
+                        "amp": 0.0,
+                        "kinds": [
+                            7
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                },
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "4b1174b6",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            7
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "69B31C56",
+            "name": "窥探军情·刺探",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "3b959efe",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            8
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "FB6DEE19",
+            "name": "发掘秘藏·发现",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "4e609e26",
+                        "value": 3,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            7
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "E46F8211",
+            "name": "法术反制·无效发动",
+            "timing": 0,
+            "activation": 0,
+            "speed": 2,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "6559671a",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            16
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "F1DBAD3A",
+            "name": "截断术·打落",
+            "timing": 0,
+            "activation": 0,
+            "speed": 2,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "db0a05fa",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            16
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "54FD2D85",
+            "name": "重税令·费用增加",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "40af2c9c",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            6
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "848DE0A3",
+            "name": "精简军备·费用缩减",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "46ba80ca",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            5
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                },
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "39168153",
+                        "value": -2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            5
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "311B2986",
+            "name": "断金咒·设置费用",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a9beb7b4",
+                        "value": 9,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            6
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "B46CA240",
+            "name": "时之枷锁·跳过回合",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "85908c0a",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "0045E090",
+            "name": "时间扩张·额外回合",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "9eba4ee1",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "433B97E2",
+            "name": "回收利用·墓地回收",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "ae4c7937",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            9
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "CA1E7BBA",
+            "name": "遗物归档·洗入牌库",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "557f95e5",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            9
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "E0EE48B3",
+            "name": "迷雾回廊·洗回",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "219bdb9f",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "E9349EB6",
+            "name": "佩银侍从·微缩",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "3c696cb0",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "4608C1AD",
+            "name": "冰封长眠·冻结沉睠",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "b80c2d73",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                },
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "82f5ef6f",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "CB2B0631",
+            "name": "生命赐福者·赐福",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "4de69242",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "2ABA6ED5",
+            "name": "重甲龟背兽·重甲",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "2a7d3092",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "EA69240F",
+            "name": "毒雾眷者·毒雾",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "d2fbd616",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "97C1572B",
+            "name": "生命调律·生命强化",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "08cba511",
+                        "value": 3,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "82F60C6B",
+            "name": "矿脉德鲁伊·采掘",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "4fd4c954",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            13
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "3796EB82",
+            "name": "古树幼苗·光合作用",
+            "timing": 5,
+            "activation": 1,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "fa3902cc",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "95D0621A",
+            "name": "冬眠兽·苏醒冬眠",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "bd2554f2",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "129BBA74",
+            "name": "神谕天平·天命重塑",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "70034aee",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                },
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "38a43580",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "2E408B17",
+            "name": "凋零之触·枯萎衰弱",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "374445c6",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                },
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "2d1b6adf",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "D246841A",
+            "name": "灵魂榨取·吸取流失",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "af7bd26e",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                },
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "7b8c45bc",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "7543816F",
+            "name": "致命毒瓶·剧毒",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "cca3ed84",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "70891D56",
+            "name": "深渊吞噬·吞噬",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "15a34e8f",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "20F6F9B9",
+            "name": "虚空湮灭·湮灭",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "32e47cb1",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "05A740FE",
+            "name": "崩地术·摧毁地牌",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "009ffd35",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            14
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "239FADE2",
+            "name": "血祭仪式·血祭",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "33f21d4c",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                },
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "120ad4d1",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "E9193DB3",
+            "name": "摒弃令·摒弃",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "86180457",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                },
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "120ad4d1",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "45338A53",
+            "name": "心灵支配·获得控制",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "d1bb3d9e",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "6181F407",
+            "name": "政权更迭·改写持有者",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "50f99c1b",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "0F239BDC",
+            "name": "神经干扰·易损紊乱",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "60a09ef1",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                },
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "20fa8bae",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "299DBEC6",
+            "name": "祝福之拥·赐福强化",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "f6afe078",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "2D2C8861",
+            "name": "噤声封魔·沉默无响应",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "17dd3732",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                },
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "f3a89899",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "1ADC0059",
+            "name": "圣光净化·净化",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "ceea9f38",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "4DB63170",
+            "name": "次元放逐·除外",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "0f5b8c17",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "900CC8FF",
+            "name": "安魂复苏·苏生",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "bde084f6",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            9
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "900B6A48",
+            "name": "集结号令·召唤",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 1,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "3a4aef82",
+                        "value": 1,
+                        "str": "C_8680ED64",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "F38EB5B8",
+            "name": "毒刺",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "58cf21a1",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "55B7DAEE",
+            "name": "潜行",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "d8de5946",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "C2D4CEAE",
+            "name": "碾压",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "13b63a87",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "37CC1C5C",
+            "name": "先攻",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "0490b22c",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "A7B23BD3",
+            "name": "法术护盾",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "2e6955f0",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "16D5DE83",
+            "name": "扰魔",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "d7def412",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "58CBEB91",
+            "name": "缴械",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "adb8456f",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "7F0D790D",
+            "name": "帷幕",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "407eb771",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "0B0C523F",
+            "name": "冰晶",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "d6837972",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "F4C5805F",
+            "name": "梦魇",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "641b73bc",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "B36F6387",
+            "name": "病原体",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "ff32deb5",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "E87C39E6",
+            "name": "等价交换·设置费用",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a9beb7b4",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            5
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "4297DD3F",
+            "name": "R_WARCRY",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "c01bcd8f",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "2ED6FB7E",
+            "name": "R_INSPIRE_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "efc6de8a",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "B54B4246",
+            "name": "R_INSPIRE_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "efc6de8a",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "4E2D8D80",
+            "name": "R_INSPIRE_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "efc6de8a",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "1B8CA39C",
+            "name": "R_RALLY_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "c01bcd8f",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "0717D033",
+            "name": "R_RALLY_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "c01bcd8f",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "04E65FAF",
+            "name": "R_BUFF_SINGLE",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "c01bcd8f",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "EB41ECFA",
+            "name": "R_TOKEN_SWARM",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [
+                {
+                    "type": 7,
+                    "value": 0,
+                    "manaType": 0,
+                    "turns": 0,
+                    "payload": {
+                        "refId": "d2fbd616",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "3a4aef82",
+                        "value": 2,
+                        "str": "C_9CBDD76F",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "446FAE3D",
+            "name": "R_TOKEN_REINFORCE",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [
+                {
+                    "type": 7,
+                    "value": 0,
+                    "manaType": 0,
+                    "turns": 0,
+                    "payload": {
+                        "refId": "b80c2d73",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "3a4aef82",
+                        "value": 1,
+                        "str": "C_A0AF544D",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "EAFA3599",
+            "name": "R_BOLT_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a4b823fc",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "E020BE53",
+            "name": "R_BOLT_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a4b823fc",
+                        "value": 3,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "BEAB6B11",
+            "name": "R_BOLT_4",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a4b823fc",
+                        "value": 4,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "EC76F5D2",
+            "name": "R_BOLT_5",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a4b823fc",
+                        "value": 5,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "DCEFC789",
+            "name": "G_HEAL_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "599fcc9a",
+                        "value": 3,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "FF697511",
+            "name": "G_HEAL_4",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "599fcc9a",
+                        "value": 4,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "4D4CBAB4",
+            "name": "G_HEAL_6",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "599fcc9a",
+                        "value": 6,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "E167D565",
+            "name": "G_HEAL_8",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "599fcc9a",
+                        "value": 8,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "347D58B3",
+            "name": "G_ARMOR_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "2a7d3092",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "89EBA63C",
+            "name": "G_ARMOR_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "2a7d3092",
+                        "value": 3,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "417423EA",
+            "name": "G_HEAL_5",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "599fcc9a",
+                        "value": 5,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "EA930D88",
+            "name": "G_LIFEUP_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "4de69242",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "E3A2646D",
+            "name": "G_PHOTO",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "fa3902cc",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "BDF8EEFC",
+            "name": "G_SLEEP_SAVE",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "bd2554f2",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "ABAB742E",
+            "name": "G_MINE",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "4fd4c954",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "341C0173",
+            "name": "G_SWEEP_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a4b823fc",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "4D240BE7",
+            "name": "G_SWEEP_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "49B7794C",
+            "name": "B_POISON",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "cca3ed84",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "FC3C15F3",
+            "name": "B_TOXIN_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "d2fbd616",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "44196175",
+            "name": "B_TOXIN_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "d2fbd616",
+                        "value": 3,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "C136E023",
+            "name": "B_FREEZE_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "b80c2d73",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "2B86C4EA",
+            "name": "B_FREEZE_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "b80c2d73",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "73B803FE",
+            "name": "B_SILENCE",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "17dd3732",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "63E9AC2B",
+            "name": "B_DISARRAY_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "20fa8bae",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "953D4894",
+            "name": "B_DISARRAY_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "20fa8bae",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "12F26D80",
+            "name": "B_VULN_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "60a09ef1",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "EAD2F7E1",
+            "name": "B_VULN_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "60a09ef1",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "22575A59",
+            "name": "B_BOUNCE_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "3e00ecd2",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "5CF1C161",
+            "name": "B_BOUNCE_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "3e00ecd2",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "E997348F",
+            "name": "B_DRAW_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "120ad4d1",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "61038C2D",
+            "name": "B_DRAW_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "120ad4d1",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "75878FF3",
+            "name": "B_DRAW_2B",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "120ad4d1",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "368A20AB",
+            "name": "B_DISCOVER",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "4e609e26",
+                        "value": 3,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "BF9B6DA2",
+            "name": "血祭仪式·血祭",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "33f21d4c",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "FEF7847B",
+            "name": "血祭仪式·血祭抽牌",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "120ad4d1",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "B61E9C49",
+            "name": "摒弃令·摒弃",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "86180457",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "EA5D2A60",
+            "name": "摒弃令·摒弃抽牌",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "120ad4d1",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "A1855E71",
+            "name": "G_SWEEP_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a4b823fc",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "F5E89AFF",
+            "name": "R_WARCRY",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "1AB1E874",
+            "name": "R_INSPIRE_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "4E593CBC",
+            "name": "R_INSPIRE_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "74DCCC0E",
+            "name": "R_INSPIRE_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "408D4A74",
+            "name": "R_RALLY_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "67B48809",
+            "name": "R_RALLY_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "853C99C9",
+            "name": "R_BUFF_SINGLE",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "1B42EC3E",
+            "name": "R_TOKEN_SWARM",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [
+                {
+                    "type": 7,
+                    "value": 0,
+                    "manaType": 0,
+                    "turns": 0,
+                    "payload": {
+                        "refId": "d2fbd616",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    }
+                }
+            ],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "BA0CFD8D",
+            "name": "R_TOKEN_REINFORCE",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [
+                {
+                    "type": 7,
+                    "value": 0,
+                    "manaType": 0,
+                    "turns": 0,
+                    "payload": {
+                        "refId": "b80c2d73",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    }
+                }
+            ],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "7BB1113D",
+            "name": "R_BOLT_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "E15216B2",
+            "name": "R_BOLT_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "30992102",
+            "name": "R_BOLT_4",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "19B54475",
+            "name": "R_BOLT_5",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "DB08C311",
+            "name": "G_HEAL_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "B91DCD44",
+            "name": "G_HEAL_4",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "4E80734B",
+            "name": "G_HEAL_6",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "921505CB",
+            "name": "G_HEAL_8",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "69000079",
+            "name": "G_ARMOR_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "153A14A8",
+            "name": "G_ARMOR_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "8B224561",
+            "name": "G_HEAL_5",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "9C17C6FE",
+            "name": "G_LIFEUP_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "85DA967C",
+            "name": "G_PHOTO",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "B970ABD8",
+            "name": "G_SLEEP_SAVE",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "4452FCFA",
+            "name": "G_MINE",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "3A7F652F",
+            "name": "G_SWEEP_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "6BE19378",
+            "name": "G_SWEEP_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "E5DE2840",
+            "name": "B_POISON",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "33D89EA8",
+            "name": "B_TOXIN_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "572D0363",
+            "name": "B_TOXIN_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "0D3B7625",
+            "name": "B_FREEZE_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "81511DE7",
+            "name": "B_FREEZE_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "43195491",
+            "name": "B_SILENCE",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "14CA08EA",
+            "name": "B_DISARRAY_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "A3B4ED4D",
+            "name": "B_DISARRAY_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "AD7E5FDC",
+            "name": "B_VULN_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "D45C723B",
+            "name": "B_VULN_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "EAD5B3A1",
+            "name": "B_BOUNCE_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "B0F9B3BF",
+            "name": "B_BOUNCE_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "FED9EFC1",
+            "name": "B_DRAW_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "83958146",
+            "name": "B_DRAW_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "9DFD6705",
+            "name": "B_DRAW_2B",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "F115BC11",
+            "name": "B_DISCOVER",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
