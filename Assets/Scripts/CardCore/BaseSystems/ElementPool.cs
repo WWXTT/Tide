@@ -545,6 +545,20 @@ namespace CardCore
             return GetPool(player).AvailableMana.Values.Sum();
         }
 
+        /// <summary>bank 中数量最多的颜色计数（2026-09-22 元素充盈引擎用）：全六色（红蓝绿黑白灰）参与，
+        /// 并列取枚举序靠前者（Gray 最前——与 PickProduceColor 同口径）。付费后调用读到的即扣费后余量。</summary>
+        public int GetMaxManaCount(Player player)
+        {
+            var mana = GetPool(player).AvailableMana;
+            int best = 0;
+            foreach (ManaType type in Enum.GetValues(typeof(ManaType)))
+            {
+                if (mana.TryGetValue(type, out int n) && n > best)
+                    best = n;
+            }
+            return best;
+        }
+
         public List<PooledCard> GetPooledCards(Player player)
         {
             return GetPool(player).PooledCards.ToList();

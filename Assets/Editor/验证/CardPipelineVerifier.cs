@@ -3926,8 +3926,9 @@ namespace CardCore.Editor
         /// </summary>
         private static void TestComposerModel()
         {
-            // ---- 1. 三主干表行 ----
-            foreach (var name in new[] { "BranchEngineClash", "BranchEngineLuckRoll", "BranchEngineCountdown" })
+            // ---- 1. 主干表行（2026-09-22 +死亡计数/元素充盈/手牌序位）----
+            foreach (var name in new[] { "BranchEngineClash", "BranchEngineLuckRoll", "BranchEngineCountdown",
+                                         "BranchEngineDeathToll", "BranchEngineManaSurplus", "BranchEngineNthHandCard" })
             {
                 var row = CardCore.Attribute.AtomicEffectTable.GetByEnumName(name);
                 Assert(row != null, $"主干表行存在：{name}");
@@ -3939,13 +3940,32 @@ namespace CardCore.Editor
             Assert(CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.BranchEngineClash)
                    && CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.BranchEngineLuckRoll)
                    && CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.BranchEngineCountdown)
+                   && CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.BranchEngineDeathToll)
+                   && CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.BranchEngineManaSurplus)
+                   && CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.BranchEngineNthHandCard)
                    && !CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.DealDamage),
-                   "ComposerCatalog.IsEngineTrunk 判定（三主干在内/普通原子不在）");
+                   "ComposerCatalog.IsEngineTrunk 判定（六主干在内/普通原子不在）");
             Assert(CardCore.ComposerCatalog.TrunkToEngine(CardCore.AtomicEffectType.BranchEngineClash)
                        == CardCore.BranchEngineKind.Clash
+                   && CardCore.ComposerCatalog.TrunkToEngine(CardCore.AtomicEffectType.BranchEngineDeathToll)
+                       == CardCore.BranchEngineKind.DeathToll
+                   && CardCore.ComposerCatalog.TrunkToEngine(CardCore.AtomicEffectType.BranchEngineManaSurplus)
+                       == CardCore.BranchEngineKind.ManaSurplus
+                   && CardCore.ComposerCatalog.TrunkToEngine(CardCore.AtomicEffectType.BranchEngineNthHandCard)
+                       == CardCore.BranchEngineKind.NthHandCard
                    && CardCore.ComposerCatalog.TrunkToEngine(CardCore.AtomicEffectType.DealDamage)
                        == CardCore.BranchEngineKind.None,
-                   "TrunkToEngine 映射");
+                   "TrunkToEngine 映射（含 2026-09-22 新引擎）");
+            // 引擎参数范围与奖励预算（2026-09-22 定案：奖励预算制——死亡计数/元素充盈 预算=x）
+            CardCore.ComposerCatalog.EngineParamRange(CardCore.BranchEngineKind.DeathToll, out int rMin, out int rMax);
+            Assert(rMin == 1 && rMax == 9, "引擎参数范围：死亡计数 x∈[1,9]");
+            Assert(CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.DeathToll, 3) == 3
+                   && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.ManaSurplus, 2) == 2
+                   && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.NthHandCard, 2) == 2
+                   && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.Clash, 3) == -1
+                   && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.Countdown, 0) == -1
+                   && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.LuckRoll, 1) == -1,
+                   "引擎奖励预算：死亡计数/元素充盈/手牌序位=x；既有三引擎自平衡（-1 无上限）");
 
             // ---- 2. converter 主干守卫：trunk 塞普通步骤 → ConvertAtomicEffect 剔除（null）----
             var trunkDef = CardCore.CardEffectConverter.ConvertOne(new CardCore.CardEffectData
@@ -4007,8 +4027,36 @@ namespace CardCore.Editor
             Assert(gate.Id == "DmgKillsTarget" && CardCore.ComposerCatalog.GateBudget(gate) == 2
                    && CardCore.ComposerCatalog.GateLabel(gate).Contains("【奖励2】"),
                    "有限分支目录：伤害主干 → 消灭门【奖励2】（premium 与 GatePremium 同源）");
-            Assert(!CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.DrawCard),
-                   "非产出族原子不可做有限分支主干");
+            // ---- 4b. 局面状态门目录（2026-09-22 定案：通用门，预算 1，任意主动原子可挂）----
+            var drawGates = CardCore.ComposerCatalog.GatesFor(CardCore.AtomicEffectType.DrawCard).ToList();
+            Assert(drawGates.Any(g => g.Id == "FirstCardThisTurn") && drawGates.Any(g => g.Id == "DrawnInStandbyThisTurn")
+                   && drawGates.Any(g => g.Id == "LifeBelowOpp") && drawGates.Any(g => g.Id == "CreaturesAboveOpp")
+                   && drawGates.Any(g => g.Id == "LandsGe7") && drawGates.Any(g => g.Id == "HandEmpty")
+                   && drawGates.Any(g => g.Id == "LifeLe7"),
+                   "通用门：非产出族原子（抽牌）可挂局面状态门（含二批三门）");
+            Assert(CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.DrawCard),
+                   "2026-09-22 通用门口径：任意可作主效果原子可做有限分支主干（旧「非产出族不可」口径废止）");
+            Assert(!CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.BranchEngineClash),
+                   "引擎主干原子不可做有限分支主干");
+            Assert(CardCore.CostDerivationService.GatePremium.TryGetValue("FirstCardThisTurn", out var sb) && sb == 1
+                   && CardCore.CostDerivationService.GatePremium.TryGetValue("LifeBelowOpp", out var lb) && lb == 1,
+                   "状态门预算=1（零计价——预算只是放置上限）");
+            Assert(CardCore.CostDerivationService.GatePremium.TryGetValue("LandsGe7", out var lg) && lg == 2
+                   && CardCore.CostDerivationService.GatePremium.TryGetValue("HandEmpty", out var he) && he == 2
+                   && CardCore.CostDerivationService.GatePremium.TryGetValue("LifeLe7", out var ll) && ll == 2,
+                   "状态门二批预算=2（操控地≥7/手牌=0/生命≤7）");
+            // 改写门目录（2026-09-22 拦截式）：伤害族限定、无奖励槽、GateLabel 不带【奖励x】
+            var dmgGates = CardCore.ComposerCatalog.GatesFor(CardCore.AtomicEffectType.DealDamage).ToList();
+            var venomGate = dmgGates.FirstOrDefault(g => g.Id == "DmgRewriteVenom");
+            Assert(venomGate != null && !CardCore.ComposerCatalog.GateLabel(venomGate).Contains("【奖励")
+                   && CardCore.ComposerCatalog.GateBudget(venomGate) == 0,
+                   "改写门：伤害主干可挂、无奖励预算（GateLabel 不带【奖励x】）");
+            Assert(!CardCore.ComposerCatalog.GatesFor(CardCore.AtomicEffectType.DrawCard).Any(
+                       g => CardCore.BranchConditionEvaluator.IsRewriteCondition(g.Id)),
+                   "改写门不挂非伤害主干（产出族限定）");
+            Assert(!CardCore.ComposerCatalog.GatesFor(CardCore.AtomicEffectType.DeclareHand).Any(
+                       g => CardCore.BranchConditionEvaluator.IsRewriteCondition(g.Id)),
+                   "改写门不挂宣言族主干");
 
             // ---- 5. 并列保序：三原子 Steps → def.Steps 顺序一致 ----
             var parDef = CardCore.CardEffectConverter.ConvertOne(new CardCore.CardEffectData
@@ -6198,6 +6246,355 @@ namespace CardCore.Editor
                        core.ZoneManager.GetCards(p1, Zone.Deck).First()),
                    "拼点：展示牌放回原位不改序（顺带断言）");
             core.ZoneManager.MoveCard(clashCard, p1, Zone.Battlefield, Zone.Graveyard);
+
+            // ======================================== 2026-09-22 定案：死亡计数 / 元素充盈 / 状态门 / 改写门 =======
+
+            // 本段抽牌断言密集——牌库保底（见 PadDeck 注释：抽干=净 0 / 疲劳判负两类失效模式）
+            PadDeck(core, p1, 15, "VERIFY_0922_P1_");
+            PadDeck(core, p2, 15, "VERIFY_0922_P2_");
+
+            // ---- 5. 死亡计数：双方合计 ≥ x 触发一次/回合（奖励预算=x）----
+            // 引擎宿主用真实生物（0/0 结界会在出牌结算的 SBA 泵里被"防御归零"送墓——见 6 段教训）
+            var tollData = new CardData
+            {
+                ID = "VERIFY_ENGINE_TOLL", CardName = "验证死亡计数", Supertype = Cardtype.Creature, Power = 3, Life = 3,
+            };
+            tollData.Effects.Add(new CardEffectData
+            {
+                Id = "VERIFY_TOLL_MAIN",
+                EngineKind = (int)CardCore.BranchEngineKind.DeathToll,
+                EngineParam = 2,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
+            });
+            var tollDef = CardEffectConverter.ConvertOne(tollData.Effects[0], tollData.ID);
+            Assert(tollDef.EngineKind == CardCore.BranchEngineKind.DeathToll && tollDef.RewardAtoms.Count == 1,
+                   "死亡计数：header 通道 → EngineKind/RewardAtoms 转存");
+            int tollGray = CardCore.CostDerivationService.DeriveElementCosts(tollDef)
+                .Where(c => c.ManaType == ManaType.Gray).Sum(c => c.Value);
+            Assert(tollGray == 0, "死亡计数计价：引擎零计价（奖励预算=x 只是合成器放置上限，非收费）");
+
+            var tollCard = new CardWrapper(tollData);
+            tollCard.SetController(p1);
+            Assert(core.ZoneManager.TryAddToBattlefield(tollCard, p1), "死亡计数：结界入场");
+
+            var tollA = SpawnTier(core, p2, 1, 1);
+            var tollB = SpawnTier(core, p1, 1, 1);
+            var tollC = SpawnTier(core, p2, 1, 1);
+            int deckAtToll = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
+            System.Func<string> tollState = () =>
+                $"stats={core.MatchStats.GetStat(p1, CardCore.MatchStatsService.CreaturesDied, StatScope.ThisTurn)}+"
+                + $"{core.MatchStats.GetStat(p2, CardCore.MatchStatsService.CreaturesDied, StatScope.ThisTurn)} "
+                + $"deck={core.ZoneManager.GetCards(p1, Zone.Deck).Count} tollAlive={tollCard.IsAlive} "
+                + $"tollZone={tollCard.GetZone()} A={tollA.IsAlive}/{tollA.GetZone()} B={tollB.IsAlive}/{tollB.GetZone()}";
+            CardCore.Attribute.KeywordRules.ApplyDamage(p2, tollA, 99, false); // 对手侧 1 死
+            core.SBAEngine.CheckAndExecute(); // 直接 ApplyDamage 不经栈——手动泵 SBA 送墓（标死→死透→CardDestroyEvent）
+            Crumb("toll kill1: " + tollState());
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll,
+                   "死亡计数：双方合计 1 < x=2 未触发");
+            CardCore.Attribute.KeywordRules.ApplyDamage(p1, tollB, 99, false); // 己方侧 +1 → 合计 2
+            core.SBAEngine.CheckAndExecute();
+            Crumb("toll kill2: " + tollState());
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1,
+                   "死亡计数：双方合计 2 ≥ x=2 触发（抽 1）——含双方口径（第 2 死是己方生物）");
+            CardCore.Attribute.KeywordRules.ApplyDamage(p2, tollC, 99, false); // 第 3 死
+            core.SBAEngine.CheckAndExecute();
+            Crumb("toll kill3: " + tollState());
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll - 1,
+                   "死亡计数：计数单调达标时刻唯一——同回合不重复触发");
+            core.ZoneManager.MoveCard(tollCard, p1, Zone.Battlefield, Zone.Graveyard);
+
+            // ---- 6. 元素充盈：出牌付费后 bank 最多色 > x，每次达标都触发 ----
+            // 引擎宿主用真实生物：0/0 结界会在出牌结算后的 SBA 泵里被"防御归零"送墓（首跑实证），引擎只活半次
+            var surgeData = new CardData
+            {
+                ID = "VERIFY_ENGINE_SURGE", CardName = "验证元素充盈", Supertype = Cardtype.Creature, Power = 3, Life = 3,
+            };
+            surgeData.Effects.Add(new CardEffectData
+            {
+                Id = "VERIFY_SURGE_MAIN",
+                EngineKind = (int)CardCore.BranchEngineKind.ManaSurplus,
+                EngineParam = 1,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
+            });
+            var surgeCard = new CardWrapper(surgeData);
+            surgeCard.SetController(p1);
+            Assert(core.ZoneManager.TryAddToBattlefield(surgeCard, p1), "元素充盈：结界入场");
+
+            // bank 清零后注红 5（其他色残留会干扰"最多色"判定——直接写池字典保证确定性）
+            var surgePool = core.ElementPool.GetPool(p1);
+            surgePool.GlobalTurnIndex = 9; // 浓度门槛放开
+            foreach (ManaType t in System.Enum.GetValues(typeof(ManaType))) surgePool.AvailableMana[t] = 0;
+            surgePool.AvailableMana[ManaType.Red] = 5;
+
+            EnsureMainPhase(core, p1);
+            CardData SurgeSpell() => new CardData
+            {
+                ID = "VERIFY_SURGE_SPELL", CardName = "充盈载体", Supertype = Cardtype.Spell,
+                Cost = new Dictionary<int, float> { { (int)ManaType.Red, 1f } },
+            };
+            int surgeDeck = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
+            System.Func<string> surgeState = () =>
+                $"red={surgePool.AvailableMana[ManaType.Red]} max={core.ElementPool.GetMaxManaCount(p1)} "
+                + $"deck={core.ZoneManager.GetCards(p1, Zone.Deck).Count} surgeZone={surgeCard.GetZone()} "
+                + $"hand={core.ZoneManager.GetCards(p1, Zone.Hand).Count}";
+
+            // 出牌①：付费红1 → 剩红4（最多色4 > 1）→ 引擎抽1 + 法术自身抽1 = -2
+            var spell1 = SurgeSpell();
+            spell1.Effects.Add(new CardEffectData
+            {
+                Id = "VERIFY_SURGE_SPELL_FX",
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
+            });
+            Assert(PlayCardSync(core, p1, InjectCard(core, p1, spell1)), "元素充盈：载体①打出");
+            Crumb("surge cast1: " + surgeState());
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 2,
+                   "元素充盈：付费后余红4 > x=1 → 触发（引擎抽1 + 载体抽1）");
+
+            // 出牌②：剩红3 > 1 → 再触发（每次达标都触发——2026-09-22 用户定案）
+            var spell2 = SurgeSpell();
+            spell2.Effects.Add(new CardEffectData
+            {
+                Id = "VERIFY_SURGE_SPELL_FX2",
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
+            });
+            Assert(PlayCardSync(core, p1, InjectCard(core, p1, spell2)), "元素充盈：载体②打出");
+            Crumb("surge cast2: " + surgeState());
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 4,
+                   "元素充盈：每次达标都触发（同回合第二次出牌照样触发）");
+
+            // 非出牌支付（直接 PayCost）不触发：红3→红1，牌库不动
+            core.ElementPool.PayCost(new Dictionary<int, float> { { (int)ManaType.Red, 2f } }, p1);
+            Crumb("surge manualpay: " + surgeState());
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 4,
+                   "元素充盈：非出牌支付（直接扣款）不触发——钩子只在出牌付费口");
+
+            // 出牌③：付费红1 → 剩红0（最多色0 ≤ 1）→ 不触发，仅载体抽1 = -1
+            var spell3 = SurgeSpell();
+            spell3.Effects.Add(new CardEffectData
+            {
+                Id = "VERIFY_SURGE_SPELL_FX3",
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
+            });
+            Assert(PlayCardSync(core, p1, InjectCard(core, p1, spell3)), "元素充盈：载体③打出");
+            Crumb("surge cast3: " + surgeState());
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == surgeDeck - 5,
+                   "元素充盈：付费后最多色 0 ≤ x=1 → 不触发（判定读付费后余量）");
+            core.ZoneManager.MoveCard(surgeCard, p1, Zone.Battlefield, Zone.Graveyard);
+
+            // ---- 7. 局面状态门（评估器直测 + 口径断言）----
+            // 回合层清零（shield 跳过自动化防抽牌副作用；事件订阅照常分发清 _turn）
+            var stateShield = new TurnStartAutomationShield();
+            RuleHooks.RegisterTurnStartInterceptor(stateShield);
+            try
+            {
+                EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 700 });
+                GameActions.DrainStack(core);
+            }
+            finally { RuleHooks.UnregisterTurnStartInterceptor(stateShield); }
+
+            var sctx = new EffectExecutionContext
+            { Controller = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool };
+            bool EvalGate(string id) => CardCore.BranchConditionEvaluator.Evaluate(id, new CardCore.EffectOutcome(), 0, null, sctx);
+
+            int lifeKeep1 = p1.Life, lifeKeep2 = p2.Life;
+            p1.Life = 10; p2.Life = 20;
+            Assert(EvalGate("LifeBelowOpp") && !EvalGate("LifeAboveOpp"), "状态门：生命 10<20 → 低于真/高于假");
+            p1.Life = 25;
+            Assert(EvalGate("LifeAboveOpp") && !EvalGate("LifeBelowOpp"), "状态门：生命 25>20 → 高于真");
+            p1.Life = 20;
+            Assert(!EvalGate("LifeAboveOpp") && !EvalGate("LifeBelowOpp"), "状态门：生命相等 → 双假（严格比较）");
+            p1.Life = lifeKeep1; p2.Life = lifeKeep2;
+
+            int deckP1 = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
+            int deckP2 = core.ZoneManager.GetCards(p2, Zone.Deck).Count;
+            Assert(EvalGate("DeckBelowOpp") == (deckP1 < deckP2) && EvalGate("DeckAboveOpp") == (deckP1 > deckP2),
+                   $"状态门：卡组剩余对比与实际一致（{deckP1} vs {deckP2}）");
+
+            int crP1 = core.ZoneManager.GetCards(p1, Zone.Battlefield)
+                .Count(c => c is CardCore.IHasSupertype st && st.Supertype == Cardtype.Creature);
+            int crP2 = core.ZoneManager.GetCards(p2, Zone.Battlefield)
+                .Count(c => c is CardCore.IHasSupertype st && st.Supertype == Cardtype.Creature);
+            Assert(EvalGate("CreaturesBelowOpp") == (crP1 < crP2) && EvalGate("CreaturesAboveOpp") == (crP1 > crP2),
+                   $"状态门：场上生物对比与实际一致（{crP1} vs {crP2}）");
+
+            Assert(!EvalGate("FirstCardThisTurn"), "状态门：回合开始未出牌 → 非首张");
+            EventManager.Instance.Publish(new CardPlayEvent { Player = p1 });
+            Assert(EvalGate("FirstCardThisTurn"), "状态门：本回合首张出牌宣言 → 真（CardsPlayed ThisTurn==1）");
+            EventManager.Instance.Publish(new CardPlayEvent { Player = p1 });
+            Assert(!EvalGate("FirstCardThisTurn"), "状态门：第二张出牌后 → 假");
+
+            var standbyDrawn = ZoneManagerExtensions.DrawCard(core.ZoneManager, p1, firstDrawOfTurn: true);
+            var effectDrawn = ZoneManagerExtensions.DrawCard(core.ZoneManager, p1, firstDrawOfTurn: false);
+            var dctxStandby = new EffectExecutionContext
+            { Controller = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool, CastCard = standbyDrawn };
+            var dctxEffect = new EffectExecutionContext
+            { Controller = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool, CastCard = effectDrawn };
+            Assert(CardCore.BranchConditionEvaluator.Evaluate("DrawnInStandbyThisTurn", new CardCore.EffectOutcome(), 0, null, dctxStandby),
+                   "状态门：本回合准备阶段抽到的卡（FirstDrawOfTurn 自然抽）→ 真");
+            Assert(!CardCore.BranchConditionEvaluator.Evaluate("DrawnInStandbyThisTurn", new CardCore.EffectOutcome(), 0, null, dctxEffect),
+                   "状态门：效果抽牌（非准备阶段）→ 假");
+
+            // ---- 7b. 局面状态门·二批（2026-09-22 追加，预算 2：操控地≥7 / 手牌=0 / 生命≤7）----
+            // 生命≤7（7 真 / 8 假，恢复原值）
+            int lifeKeepB = p1.Life;
+            p1.Life = 7;
+            Assert(EvalGate("LifeLe7"), "状态门二批：生命 7 ≤ 7 → 真");
+            p1.Life = 8;
+            Assert(!EvalGate("LifeLe7"), "状态门二批：生命 8 > 7 → 假");
+            p1.Life = lifeKeepB;
+
+            // 手牌=0：临时清手（手→牌库）→ 真 → 还原
+            var handSnapshot = core.ZoneManager.GetCards(p1, Zone.Hand).ToList();
+            Assert(EvalGate("HandEmpty") == (handSnapshot.Count == 0), "状态门二批：手牌判与实际张数一致（清空前）");
+            foreach (var hc in handSnapshot)
+                core.ZoneManager.MoveCard(hc, p1, Zone.Hand, Zone.Deck);
+            Assert(EvalGate("HandEmpty"), "状态门二批：手牌清空 → 真");
+            foreach (var hc in handSnapshot)
+                core.ZoneManager.MoveCard(hc, p1, Zone.Deck, Zone.Hand);
+
+            // 操控地≥7：红1 费生物卡垫地到 7 张（surge 段已置 GlobalTurnIndex=9 → 上限 9），结束回收
+            var addedLands = new List<Card>();
+            Assert(EvalGate("LandsGe7") == (core.ElementPool.GetPooledCards(p1).Count >= 7),
+                   "状态门二批：地数判与实际张数一致（垫前）");
+            while (core.ElementPool.GetPooledCards(p1).Count < 7)
+            {
+                var land = CardLoader.BuildDeck(new List<CardData>
+                {
+                    new CardData { ID = "VERIFY_GATE_LAND_" + addedLands.Count, CardName = "状态门垫地",
+                        Supertype = Cardtype.Creature, Power = 0, Life = 1,
+                        Cost = new Dictionary<int, float> { { (int)ManaType.Red, 1f } } },
+                }, 1)[0];
+                land.SetController(p1);
+                if (!core.ElementPool.AddCardToPool(land, p1)) break; // 上限兜底（不应发生：cap=9）
+                addedLands.Add(land);
+            }
+            Assert(EvalGate("LandsGe7"), $"状态门二批：操控地 {core.ElementPool.GetPooledCards(p1).Count} ≥ 7 → 真");
+            foreach (var land in addedLands)
+                core.ElementPool.RemoveCardFromPool(land, p1);
+
+            // ---- 8. 拦截式改写门：伤害不发生改为指示物；差价计价；converter 守卫 ----
+            // 差价：DealDamage value1（红1 锚）+ 剧毒改写（病原体锚3）→ 补差绿2，主干照常红1
+            CardCore.EffectDefinition RewriteDef(int dmgValue, string gateId) => CardEffectConverter.ConvertOne(new CardEffectData
+            {
+                Id = "VERIFY_REWRITE_" + gateId,
+                Steps = new List<EffectStepData>
+                {
+                    new EffectStepData { kind = 0, atomic = AtomRefs.New(CardCore.AtomicEffectType.DealDamage, value: dmgValue) },
+                    new EffectStepData { kind = 1, conditionId = gateId },
+                },
+            }, "VERIFY_REWRITE");
+            int ColorOf(CardCore.EffectDefinition d, ManaType t) => CardCore.CostDerivationService.DeriveElementCosts(d)
+                .Where(c => c.ManaType == t).Sum(c => c.Value);
+
+            var rwCheap = RewriteDef(1, "DmgRewriteVenom");
+            Assert(ColorOf(rwCheap, ManaType.Red) == 1 && ColorOf(rwCheap, ManaType.Green) == 2,
+                   "改写差价：1费伤害→剧毒（锚3）补差绿2（主干伤害照常计红1）——防低价换高价套利");
+            var rwBig = RewriteDef(5, "DmgRewriteVenom");
+            Assert(ColorOf(rwBig, ManaType.Red) == 5 && ColorOf(rwBig, ManaType.Green) == 0,
+                   "改写差价：伤害价 5 ≥ 关键词价 3 → 不加价（自选降级）");
+
+            // converter 守卫：改写门不紧跟伤害主干 → 剔除
+            var rwMis = CardEffectConverter.ConvertOne(new CardEffectData
+            {
+                Id = "VERIFY_REWRITE_MISPAIR",
+                Steps = new List<EffectStepData>
+                {
+                    new EffectStepData { kind = 0, atomic = AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
+                    new EffectStepData { kind = 1, conditionId = "DmgRewriteToxin" },
+                },
+            }, "VERIFY_REWRITE_MISPAIR");
+            Assert(rwMis.Steps.Count == 1,
+                   "改写门守卫：非伤害主干（抽牌）紧跟 → 门步骤被剔除");
+
+            // 运行时：伤害原子被拦截——目标不落血、改冻结×1、无击杀
+            var rwTgt = SpawnTier(core, p2, 3, 5);
+            int rwLife = rwTgt.GetLife();
+            var rwRun = RewriteDef(3, "DmgRewriteFreeze");
+            Assert(rwRun.Steps.Count == 2, "改写门：伤害主干配对保留");
+            core.StackEngine.GetExecutor().ExecuteAsync(new EffectInstance
+            {
+                Definition = rwRun,
+                Source = p1,
+                Controller = p1,
+                Targets = new List<Entity> { rwTgt },
+            }, skipElementCost: true).Forget();
+            GameActions.DrainStack(core);
+            Assert(rwTgt.GetLife() == rwLife && rwTgt.IsTapped()
+                   && rwTgt.GetCounterCount(CardCore.Attribute.KeywordRules.FreezeCounter) == 1
+                   && rwTgt.IsAlive,
+                   "改写门运行时：效果伤害不发生——目标改冻结×1（横置）、无落血、无击杀（效果伤害首次可改写）");
+            RetireCards(core, p2, rwTgt);
+
+            // ---- 9. 手牌序位：此卡=本回合从手牌使用的第 x 张卡 → 施放结算时发奖 ----
+            // 回合层清零（序位统计与本回合手牌使用计数归零；shield 隔离自动化副作用）
+            var nthShield = new TurnStartAutomationShield();
+            RuleHooks.RegisterTurnStartInterceptor(nthShield);
+            try
+            {
+                EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 800 });
+                GameActions.DrainStack(core);
+            }
+            finally { RuleHooks.UnregisterTurnStartInterceptor(nthShield); }
+
+            EnsureMainPhase(core, p1);
+            // 供能+定费（确定性）：红1 费卡 + bank 红 4——空表/null Cost 的 0 费路径跨版本行为不稳，实测口径
+            var nthPool = core.ElementPool.GetPool(p1);
+            nthPool.GlobalTurnIndex = 9;
+            nthPool.AvailableMana[ManaType.Red] = 4;
+            CardData NthCard(int x)
+            {
+                var d = new CardData
+                {
+                    ID = "VERIFY_ENGINE_NTH" + x, CardName = "验证手牌序位" + x,
+                    Supertype = Cardtype.Creature, Power = 2, Life = 2,
+                    Cost = new Dictionary<int, float> { { (int)ManaType.Red, 1f } },
+                };
+                d.Effects.Add(new CardEffectData
+                {
+                    Id = "VERIFY_NTH_MAIN" + x,
+                    EngineKind = (int)CardCore.BranchEngineKind.NthHandCard,
+                    EngineParam = x,
+                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
+                });
+                return d;
+            }
+            var nthDef = CardEffectConverter.ConvertAll(NthCard(2).Effects, "VERIFY_NTH")
+                .FirstOrDefault(d => d?.EngineKind == CardCore.BranchEngineKind.NthHandCard);
+            Assert(nthDef != null && nthDef.RewardAtoms.Count == 1
+                   && CardCore.CostDerivationService.DeriveElementCosts(nthDef).Count == 0,
+                   "手牌序位：header 通道转存 RewardAtoms 且引擎零计价（预算=x 只是放置上限）");
+
+            int deckAtNth = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
+            // 出牌并断言（拒因探针嵌消息——一次运行定位 PlayCard 门禁失败点）
+            void NthPlay(CardData data, string label)
+            {
+                var c = InjectCard(core, p1, data);
+                bool ok = PlayCardSync(core, p1, c);
+                Assert(ok, label + "——拒因：" + PlayGateProbe(core, p1, c));
+            }
+
+            // 第 1 张手牌使用：普通红1 费生物（无引擎，不抽牌）
+            NthPlay(new CardData
+            { ID = "VERIFY_NTH_FILLER", CardName = "序位垫子", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+              Cost = new Dictionary<int, float> { { (int)ManaType.Red, 1f } } },
+                "手牌序位：第 1 张手牌使用（垫子）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtNth,
+                   "手牌序位：垫子无引擎不抽牌（序位 1 占位）");
+
+            // 第 2 张：x=2 引擎卡 → 序位 2 == x → 发奖（抽 1）
+            NthPlay(NthCard(2), "手牌序位：第 2 张（x=2 引擎卡）打出");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtNth - 1,
+                   "手牌序位：此卡为第 2 张手牌使用 = x=2 → 执行奖励（抽 1）");
+
+            // 第 3 张：x=2 引擎卡 → 序位 3 ≠ 2 → 不发奖
+            NthPlay(NthCard(2), "手牌序位：第 3 张（x=2 引擎卡）打出");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtNth - 1,
+                   "手牌序位：序位 3 ≠ x=2 → 不触发");
+
+            // 第 4 张：x=4 引擎卡 → 序位 4 == x → 发奖
+            NthPlay(NthCard(4), "手牌序位：第 4 张（x=4 引擎卡）打出");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtNth - 2,
+                   "手牌序位：序位 4 = x=4 → 执行奖励（抽 1）——序位含自身按宣言序计");
         }
 
         /// <summary>
@@ -6380,7 +6777,7 @@ namespace CardCore.Editor
             // ---- 1. 蓝基础（2026-09-22 单方化·蓝2）：只自己抽 1 + 闸门（技能卡入 FieldZone、横置闸门）----
             HeroSkillSystem.AssignSkill(core, p1, HeroSkillId.BlueInsight);
             var pool1 = core.ElementPool.GetPool(p1);
-            pool1.AvailableMana[ManaType.Blue] += 9;
+            pool1.AvailableMana[ManaType.Blue] = 99; // 升级链全程 8 次发动 × 蓝2 = 16——一次性供足
             int p1Deck = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
             int p2Deck = core.ZoneManager.GetCards(p2, Zone.Deck).Count;
             int blueBefore = pool1.AvailableMana[ManaType.Blue];
@@ -6396,7 +6793,9 @@ namespace CardCore.Editor
             Assert(pool1.AvailableMana[ManaType.Blue] == blueBefore - 2, "蓝技能扣费：蓝 2");
             Assert(!GameActions.ActivateHeroSkill(core, p1).GetAwaiter().GetResult(),
                    "蓝技能：一回合一次闸门（横置中第二次 false）");
-            Assert(p1.HeroSkillTotalUses == 1, "发动计数 =1");
+            Assert(HeroSkillSystem.GetTotalUses(core, p1) == 1
+                   && p1.HeroSkillCard.GetCounterCount(CardCore.Attribute.CounterRules.SkillUseCounter) == 1,
+                   "发动计数 =1（挂技能卡 SkillUse 指示物）");
 
             // 交互一致性：沉默拦发动（永续魔法语义）
             p1.HeroSkillCard.AddCounters(CardCore.Attribute.CounterRules.SilenceCounter, 1);
@@ -6404,13 +6803,13 @@ namespace CardCore.Editor
                   "沉默技能卡：不可发动主动效果（永续魔法交互一致）");
             p1.HeroSkillCard.RemoveCounters(CardCore.Attribute.CounterRules.SilenceCounter, 1);
 
-            // 回合推进清闸门
+            // 回合推进清闸门（2026-09-22：本回合一次权威=横置态，玩家级兼容口径字段已删）
             EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 800 });
-            Assert(p1.HeroSkillUsesThisTurn == 0, "回合开始清零本回合使用（兼容口径）");
             Assert(p1.HeroSkillCard != null && !p1.HeroSkillCard.IsTapped(), "回合开始重置技能卡横置（准备阶段）");
             EnsureMainPhase(core, p1);
 
-            // ---- 2. 升级链：推到 7 次 → 第 8 次走升级版（发现三选一入手）----
+            // ---- 2. 升级链（2026-09-22 定案：升级=抉择式条件分支——门=「此前已发动 ≥7 次」，
+            //      门前=基础档/门后=升级档，费用不变）：推到 7 次 → 第 8 次走升级档（发现三选一入手）----
             // 牌库保底：7 次自抽 + 循环内 6 个合成回合开始各抽 1
             PadDeck(core, p1, 16, "VERIFY_HS_BLUEPAD_P1_");
             for (int i = 0; i < 6; i++) // 已 1 次，再 6 次 = 7
@@ -6419,21 +6818,22 @@ namespace CardCore.Editor
                 EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 810 + i });
                 EnsureMainPhase(core, p1);
             }
-            Assert(p1.HeroSkillTotalUses == 7 && p1.HeroSkillUpgraded, "7 次发动 → 升级置位");
+            Assert(HeroSkillSystem.GetTotalUses(core, p1) == 7 && HeroSkillSystem.IsUpgraded(core, p1),
+                   "7 次发动 → 升级置位");
             int handBefore = core.ZoneManager.GetCards(p1, Zone.Hand).Count;
             int deckBefore = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
             Assert(GameActions.ActivateHeroSkill(core, p1).GetAwaiter().GetResult(), "升级后第 8 次发动");
-            Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Count == handBefore + 1
-                   && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBefore - 1,
-                   "蓝升级·发现：牌库选 1 入手（+1/-1）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Count == handBefore + 2
+                   && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBefore - 2,
+                   "蓝升级·发现并抽 1：牌库选 1 入手 + 抽 1（+2/-2）");
 
             // ---- 3. 绿基础（2026-09-22 重做·绿3）：从牌库随机将一张生物作为地牌横置入场 ----
             RetireCards(core, p1, core.ZoneManager.GetCards(p1, Zone.Battlefield).ToArray());
             RetireCards(core, p2, core.ZoneManager.GetCards(p2, Zone.Battlefield).ToArray());
-            p2.HeroSkillTotalUses = 0; p2.HeroSkillUpgraded = false; // 跨技能共享态保险重置
+            // 2026-09-22：发动计数随技能卡（SkillUse 指示物）——新技能卡=归零，无需玩家级共享态重置
             HeroSkillSystem.AssignSkill(core, p2, HeroSkillId.GreenCultivate);
             var pool2 = core.ElementPool.GetPool(p2);
-            pool2.AvailableMana[ManaType.Green] += 9;
+            pool2.AvailableMana[ManaType.Green] = 99; // 升级链 8 次 × 绿3 = 24——供足
             // p2 不是回合玩家——切到 p2 回合
             EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p2, TurnNumber = 850 });
             EnsureMainPhase(core, p2);
@@ -6458,17 +6858,25 @@ namespace CardCore.Editor
                    "绿基础：横置入场（本回合不可产元素）+ 移入地牌区");
 
             // ---- 4. 绿升级链：推到 7 次 → 第 8 次从墓地选生物横置入地牌区 ----
-            // 牌库保底：循环内 6 次技能各拉 1（有带费生物时）+ 6 个回合开始各抽 1
+            // 牌库保底：循环内 6 次技能各拉 1（有带费生物时）+ 7 个回合开始各抽 1
             PadDeck(core, p2, 24, "VERIFY_HS_GREENPAD_P2_");
+            // 基础发动已横置技能卡——先推一回合解横置再进循环（与红段同法；
+            // 末次循环的回合推进同时为第 8 次发动解横置）
+            EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p2, TurnNumber = 851 });
+            EnsureMainPhase(core, p2);
             for (int i = 0; i < 6; i++) // 已 1 次，再 6 次 = 7
             {
                 GameActions.ActivateHeroSkill(core, p2).GetAwaiter().GetResult();
-                EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p2, TurnNumber = 851 + i });
+                EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p2, TurnNumber = 852 + i });
                 EnsureMainPhase(core, p2);
             }
-            Assert(p2.HeroSkillTotalUses == 7 && p2.HeroSkillUpgraded, "绿技能 7 次发动 → 升级置位");
-            // 墓地清残留后注入唯一候选（ui=null 自动选择首张 = 无歧义）
-            RetireCards(core, p2, core.ZoneManager.GetCards(p2, Zone.Graveyard).ToArray());
+            Assert(HeroSkillSystem.GetTotalUses(core, p2) == 7 && HeroSkillSystem.IsUpgraded(core, p2),
+                   "绿技能 7 次发动 → 升级置位");
+            // 墓地清残留后注入地牌候选+回收候选（0 费回收种不入地牌候选——ui=null 自动选择无歧义）。
+            // 按容器实际区域指名直删（2026-09-22 实证：VERIFY_KW/TIER 族存在 _zone 与容器脱节的
+            // 历史挂卡——RetireCards 按 GetZone() 删不动，会残留在墓地首位使无头自动选择误取）。
+            foreach (var stale in core.ZoneManager.GetCards(p2, Zone.Graveyard).ToArray())
+                core.ZoneManager.GetZoneContainer(p2).Remove(stale, Zone.Graveyard);
             var graveSeed = new CardWrapper(new CardData
             {
                 ID = "VERIFY_HS_GREEN_GRAVE", CardName = "墓源种", Supertype = Cardtype.Creature, Power = 1, Life = 1,
@@ -6476,21 +6884,31 @@ namespace CardCore.Editor
             });
             graveSeed.SetController(p2);
             core.ZoneManager.GetZoneContainer(p2).Add(graveSeed, Zone.Graveyard);
+            var recycleSeed = new CardWrapper(new CardData
+            {
+                ID = "VERIFY_HS_GREEN_RECYCLE", CardName = "回收种", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+            });
+            recycleSeed.SetController(p2);
+            core.ZoneManager.GetZoneContainer(p2).Add(recycleSeed, Zone.Graveyard);
             int p2Pooled2 = core.ElementPool.GetPooledCards(p2).Count;
+            int p2Hand2 = core.ZoneManager.GetCards(p2, Zone.Hand).Count;
             Assert(GameActions.ActivateHeroSkill(core, p2).GetAwaiter().GetResult(), "绿升级发动");
             var gp = core.ElementPool.GetPooledCards(p2).LastOrDefault();
             Assert(core.ElementPool.GetPooledCards(p2).Count == p2Pooled2 + 1
                    && gp != null && gp.SourceCard == graveSeed && gp.IsTapped,
                    "绿升级·再生：墓地选生物作地牌横置入场");
+            var p2HandAfter = core.ZoneManager.GetCards(p2, Zone.Hand);
+            var p2GraveAfter = core.ZoneManager.GetCards(p2, Zone.Graveyard);
+            Assert(p2HandAfter.Count == p2Hand2 + 1 && !p2GraveAfter.Contains(recycleSeed),
+                   $"绿升级·回收：墓地一张卡回手（+1）——hand {p2Hand2}→{p2HandAfter.Count}，" +
+                   $"graveAfter=[{string.Join(",", p2GraveAfter.Select(c => c.ID ?? "?"))}]");
 
             // ---- 5. 红基础（2026-09-22 重做·红1）：召唤一个 1/1 可攻击衍生物 ----
             EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 860 });
             EnsureMainPhase(core, p1);
             HeroSkillSystem.AssignSkill(core, p1, HeroSkillId.RedFrenzy);
-            // 2026-09-13 修复：HeroSkillTotalUses/Upgraded 是玩家级**跨技能共享**——蓝段已推到
-            // 8 次/升级置位，红段首次发动会直接走升级版而非 1/1——重置后再测红基础。
-            p1.HeroSkillTotalUses = 0;
-            p1.HeroSkillUpgraded = false;
+            // 2026-09-22 升级=抉择式条件分支：发动计数随技能卡——AssignSkill 换卡即归零，
+            // 蓝段计数不串色（旧玩家级跨技能共享字段已删，无需手工重置）。
             pool1.AvailableMana[ManaType.Red] = 99;
             RetireCards(core, p1, core.ZoneManager.GetCards(p1, Zone.Battlefield).ToArray());
             int bf0 = core.ZoneManager.GetCards(p1, Zone.Battlefield).Count;
@@ -6501,17 +6919,23 @@ namespace CardCore.Editor
             Assert(core.ZoneManager.GetCards(p1, Zone.Battlefield).Count == bf0 + 1 && token != null,
                    "红基础：召唤 1 个衍生物（战场 +1，实例 ID=模板#序号）");
             Assert(token != null && token.GetPower() == 1 && token.GetLife() == 1
+                   && !token.IsTapped() // 横置入场并激励：入场横置已被解除——当回合可攻击
                    && CardCore.EntityEffectExtensions.HasAttackAbility(token),
-                   "红基础 token：1/1 生物且可攻击（NoAttack 未设）");
+                   "红基础 token：1/1 生物，激励后当回合可攻击（NoAttack 未设）");
 
             // ---- 6. 红升级：第 8 次召唤 2/1 ----
-            for (int i = 0; i < 6; i++)
+            // 基础发动已横置技能卡——先推一回合解横置再进循环（循环=发动→回合推进；
+            // 末次循环的回合推进同时为第 8 次发动解横置）
+            EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 861 });
+            EnsureMainPhase(core, p1);
+            for (int i = 0; i < 6; i++) // 已 1 次，再 6 次 = 7
             {
                 GameActions.ActivateHeroSkill(core, p1).GetAwaiter().GetResult();
-                EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 861 + i });
+                EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 862 + i });
                 EnsureMainPhase(core, p1);
             }
-            Assert(p1.HeroSkillUpgraded, "红技能 7 次升级置位");
+            Assert(HeroSkillSystem.GetTotalUses(core, p1) == 7 && HeroSkillSystem.IsUpgraded(core, p1),
+                   "红技能 7 次升级置位");
             int bf1 = core.ZoneManager.GetCards(p1, Zone.Battlefield).Count;
             Assert(GameActions.ActivateHeroSkill(core, p1).GetAwaiter().GetResult(), "红升级发动");
             GameActions.DrainStack(core);
@@ -6520,8 +6944,8 @@ namespace CardCore.Editor
                 .Where(c => c.ID != null && c.ID.StartsWith("HEROSKILL_TOKEN_RED#"))
                 .OrderByDescending(c => long.TryParse(c.ID.Substring(c.ID.LastIndexOf('#') + 1), out var seq) ? seq : 0)
                 .FirstOrDefault();
-            Assert(token2 != null && token2.GetPower() == 2 && token2.GetLife() == 1,
-                   "红升级 token：2/1");
+            Assert(token2 != null && token2.GetPower() == 2 && token2.GetLife() == 1 && !token2.IsTapped(),
+                   "红升级 token：2/1（同激励）");
             RetireCards(core, p1, core.ZoneManager.GetCards(p1, Zone.Battlefield).ToArray());
 
             // ---- 7. 费用不足拒绝 ----

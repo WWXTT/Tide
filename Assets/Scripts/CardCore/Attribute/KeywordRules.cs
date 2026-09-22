@@ -287,38 +287,16 @@ namespace CardCore.Attribute
             // 毒刺→毒素1层（绿1，带3回合时钟）/ 冰晶→冻结1层（蓝2，横置）/ 梦魇→沉睡1层（黑2，横置）/
             // 病原体→剧毒（绿5）。固定序取第一个命中（多关键词不叠加改写）；
             // 角色（打脸）也改写——毒素/剧毒落角色有效，冻结/沉睡对角色空转；穿透伤害不经防护层，恒可改写。
+            // 施加口径收口 ApplyRewriteCounter（2026-09-22：与拦截式改写门共用，防两套漂移）。
             if (isCombat && source != null && source.IsAlive)
             {
-                if (source.HasKeyword(PoisonSting))
-                {
-                    target.AddCounters(CounterRules.ToxinCounter, 1,
-                        CounterRules.Find(CounterRules.ToxinCounter).Turns, source);
-                    EventManager.Instance.Publish(new KeywordAppliedEvent
-                    { Target = target, Keyword = PoisonSting, Detail = "毒刺：战斗伤害改为毒素指示物×1（3 回合时钟）", Source = source });
+                string combatRewrite =
+                    source.HasKeyword(PoisonSting) ? PoisonSting :
+                    source.HasKeyword(IceCrystal) ? IceCrystal :
+                    source.HasKeyword(Nightmare) ? Nightmare :
+                    source.HasKeyword(Pathogen) ? Pathogen : null;
+                if (combatRewrite != null && ApplyRewriteCounter(combatRewrite, target, source, CombatRewriteDetail(combatRewrite)))
                     return 0;
-                }
-                if (source.HasKeyword(IceCrystal))
-                {
-                    target.Freeze(DurationType.Permanent, 1); // 层数模型：1 层=1 回合（对角色空转）
-                    EventManager.Instance.Publish(new KeywordAppliedEvent
-                    { Target = target, Keyword = IceCrystal, Detail = "冰晶：战斗伤害改为冻结指示物×1", Source = source });
-                    return 0;
-                }
-                if (source.HasKeyword(Nightmare))
-                {
-                    if (target is Card sleeper) sleeper.Tap();
-                    target.AddCounters(SleepCounter, 1, source);
-                    EventManager.Instance.Publish(new KeywordAppliedEvent
-                    { Target = target, Keyword = Nightmare, Detail = "梦魇：战斗伤害改为沉睡指示物×1", Source = source });
-                    return 0;
-                }
-                if (source.HasKeyword(Pathogen))
-                {
-                    target.AddCounters(CounterRules.PoisonCounter, 1, source);
-                    EventManager.Instance.Publish(new KeywordAppliedEvent
-                    { Target = target, Keyword = Pathogen, Detail = "病原体：战斗伤害改为剧毒指示物×1", Source = source });
-                    return 0;
-                }
             }
 
             // 4. 落血（Card 到 0 标记死亡；Player 直接扣）。
@@ -410,6 +388,77 @@ namespace CardCore.Attribute
             }
 
             return amount;
+        }
+
+        // ======================================== 改写施加共用口（2026-09-22 拦截式改写门） ========================================
+
+        /// <summary>改写施加共用口：按改写关键词 id 对目标施加对应指示物（固定 1 层）并发布审计事件——
+        /// 战斗关键词路径（ApplyDamage 固定序命中）与效果侧拦截式改写门（EffectExecutionEngine 预执行拦截）
+        /// 共用，防两套口径漂移。detail 由调用方给（战斗/改写门文案不同）。未知 id 返回 false。</summary>
+        public static bool ApplyRewriteCounter(string keywordId, Entity target, Entity source, string detail)
+        {
+            switch (keywordId)
+            {
+                case PoisonSting:
+                    target.AddCounters(CounterRules.ToxinCounter, 1,
+                        CounterRules.Find(CounterRules.ToxinCounter).Turns, source);
+                    break;
+                case IceCrystal:
+                    target.Freeze(DurationType.Permanent, 1); // 层数模型：1 层=1 回合（对角色空转）
+                    break;
+                case Nightmare:
+                    if (target is Card sleeper) sleeper.Tap();
+                    target.AddCounters(SleepCounter, 1, source);
+                    break;
+                case Pathogen:
+                    target.AddCounters(CounterRules.PoisonCounter, 1, source);
+                    break;
+                default:
+                    return false;
+            }
+            EventManager.Instance.Publish(new KeywordAppliedEvent
+            { Target = target, Keyword = keywordId, Detail = detail, Source = source });
+            return true;
+        }
+
+        /// <summary>战斗改写路径的审计文案（与 2026-09-13 原文案逐字一致）。</summary>
+        private static string CombatRewriteDetail(string keywordId)
+        {
+            switch (keywordId)
+            {
+                case PoisonSting: return "毒刺：战斗伤害改为毒素指示物×1（3 回合时钟）";
+                case IceCrystal: return "冰晶：战斗伤害改为冻结指示物×1";
+                case Nightmare: return "梦魇：战斗伤害改为沉睡指示物×1";
+                case Pathogen: return "病原体：战斗伤害改为剧毒指示物×1";
+                default: return "战斗伤害改写";
+            }
+        }
+
+        /// <summary>拦截式改写门（2026-09-22 定案）条件 id → 改写关键词 id。
+        /// 与 BranchConditionEvaluator.IsRewriteCondition 的 4 个 id 同步。</summary>
+        public static string RewriteGateKeyword(string conditionId)
+        {
+            switch (conditionId)
+            {
+                case "DmgRewriteToxin": return PoisonSting;
+                case "DmgRewriteFreeze": return IceCrystal;
+                case "DmgRewriteSleep": return Nightmare;
+                case "DmgRewriteVenom": return Pathogen;
+                default: return null;
+            }
+        }
+
+        /// <summary>拦截式改写门的审计文案。</summary>
+        public static string RewriteGateDetail(string conditionId)
+        {
+            switch (conditionId)
+            {
+                case "DmgRewriteToxin": return "改写门：伤害改为毒素指示物×1（伤害未发生）";
+                case "DmgRewriteFreeze": return "改写门：伤害改为冻结指示物×1（伤害未发生）";
+                case "DmgRewriteSleep": return "改写门：伤害改为沉睡指示物×1（伤害未发生）";
+                case "DmgRewriteVenom": return "改写门：伤害改为剧毒指示物×1（伤害未发生）";
+                default: return "改写门：伤害改写为指示物（伤害未发生）";
+            }
         }
 
         /// <summary>

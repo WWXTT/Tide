@@ -122,6 +122,10 @@ namespace CardCore.Attribute
         public const string CostUpCounter = "CostUp";
         /// <summary>费用减少指示物（每层 −1 费，仅手牌，离手消失）</summary>
         public const string CostDownCounter = "CostDown";
+        /// <summary>技能发动计数（2026-09-22 升级=抉择式条件分支定案）：挂在技能卡上，每发动 +1；
+        /// 升级门读它（此前已发动 ≥7 次 → 走升级档）。Permanent——随技能卡存续，
+        /// 换技能卡=新卡计数归零；净化可清（极端交互，接受）。</summary>
+        public const string SkillUseCounter = "SkillUse";
         /// <summary>+1/+1（成长产物，历史 id 保留）</summary>
         public const string PlusOneCounter = "+1/+1";
         /// <summary>-1/-1（历史 id，SBA 对消）</summary>
@@ -179,6 +183,8 @@ namespace CardCore.Attribute
             // 进发动区不清（发动区豁免），结算离开发动区与离手时清除。
             Register(new CounterSpec { Id = CostUpCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "费用增加", StatKind = StatCounterKind.CostUp });
             Register(new CounterSpec { Id = CostDownCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "费用减少", StatKind = StatCounterKind.CostDown });
+            // 技能发动计数（2026-09-22）：Permanent 常驻（随技能卡存续；换技能卡=新卡归零）
+            Register(new CounterSpec { Id = SkillUseCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "技能发动计数" });
 
             // ---- 三轨制·生物轨永久档（2026-09-09）----
             Register(new CounterSpec { Id = PowerUpPermanentCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "攻击力增加（永久）", StatKind = StatCounterKind.PowerUp });

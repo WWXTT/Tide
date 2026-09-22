@@ -1032,6 +1032,42 @@
     "MountKinds": "9"
   },
   {
+    "ID": "b12721c6",
+    "EnumName": "死亡计数",
+    "DisplayName": "死亡计数主干（本回合双方合计生物死亡数≥x发奖，奖励预算x）",
+    "EffectColor": "Gray",
+    "BaseCost": 0.0,
+    "EffectType": "BranchEngineDeathToll",
+    "TargetKinds": "",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "9"
+  },
+  {
+    "ID": "a8cb78a7",
+    "EnumName": "元素充盈",
+    "DisplayName": "元素充盈主干（出牌付费后bank最多色>x发奖，每次达标都触发，奖励预算x）",
+    "EffectColor": "Gray",
+    "BaseCost": 0.0,
+    "EffectType": "BranchEngineManaSurplus",
+    "TargetKinds": "",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "9"
+  },
+  {
+    "ID": "ca553553",
+    "EnumName": "手牌序位",
+    "DisplayName": "手牌序位主干（此卡为本回合从手牌使用的第x张时发奖，奖励预算x）",
+    "EffectColor": "Gray",
+    "BaseCost": 0.0,
+    "EffectType": "BranchEngineNthHandCard",
+    "TargetKinds": "",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "9"
+  },
+  {
     "ID": "2ac33fb6",
     "EnumName": "攻击力修改",
     "DisplayName": "修改{target}攻击力{value}",

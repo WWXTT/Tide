@@ -200,6 +200,16 @@ namespace CardCore
         /// <summary>宣告胜利（2026-09-15，终局原子）：效果控制者的对手获得游戏胜利——
         /// 亡语「对手获得胜利」等终局效果载体。枚举只可尾部追加。</summary>
         DeclareVictory,
+
+        /// <summary>死亡计数主干（2026-09-22 定案）：本回合双方合计生物死亡数 ≥ x（EngineParam）时执行奖励；
+        /// 奖励预算=x（Value→EngineParam，x∈[1,9]）。枚举只可尾部追加。</summary>
+        BranchEngineDeathToll,
+        /// <summary>元素充盈主干（2026-09-22 定案）：自己出牌付费完成后，bank 最多色（全六色）&gt; x（EngineParam）
+        /// 即执行奖励、每次达标都触发；奖励预算=x（Value→EngineParam，x∈[1,9]）。</summary>
+        BranchEngineManaSurplus,
+        /// <summary>手牌序位主干（2026-09-22 定案）：此卡为本回合从手牌使用的第 x 张卡（EngineParam）时，
+        /// 施放结算中执行奖励；奖励预算=x（Value→EngineParam，x∈[1,9]）。</summary>
+        BranchEngineNthHandCard,
     }
 
     /// <summary>
@@ -235,6 +245,10 @@ namespace CardCore
         /// <summary>信息族：本步的宣言原文（"维度:值"编码，见 ProphecyDimension）——延迟验证的押注凭据</summary>
         public string Declaration;
 
+        /// <summary>改写族（2026-09-22 拦截式改写门）：本步伤害被改写为指示物（伤害未发生）——
+        /// 下游门（如 DmgKillsTarget）据此/凭空产出自然判否；AffectedTargets 照记（指示物已施加）。</summary>
+        public bool Rewritten;
+
         /// <summary>本步是否有目标死亡</summary>
         public bool AnyKilled => KilledTargets.Count > 0;
 
@@ -247,6 +261,7 @@ namespace CardCore
             AnySurvived = false;
             DeclareHit = false;
             Declaration = null;
+            Rewritten = false;
             AffectedTargets.Clear();
             KilledTargets.Clear();
         }
@@ -311,6 +326,11 @@ namespace CardCore
 
         /// <summary>元素池系统</summary>
         public ElementPoolSystem ElementPool { get; set; }
+
+        /// <summary>施放中的宿主卡（2026-09-22 定案）：出牌结算链路上的卡实例——
+        /// 魔法卡效果 Source=角色（来源归因定案），状态门（如「本回合准备阶段抽到的卡」）
+        /// 需要卡身份时先读本字段、退回 Source as Card。仅 GameActions 施放路径填充。</summary>
+        public Card CastCard { get; set; }
 
         /// <summary>上一步原子效果的产出结果（per-target，由分支步骤读取）</summary>
         public EffectOutcome LastOutcome { get; set; } = new EffectOutcome();

@@ -198,12 +198,10 @@ namespace CardCore
         /// 原额外卡组退役后的空缺槽位；发动=横置本卡（一回合一次=准备阶段重置），
         /// 交互与一般永续魔法一致（可被沉默/无效/摧毁/弹回）。运行时引用，每局 InitGame 重建。</summary>
         public Card HeroSkillCard;
-        /// <summary>本回合已发动次数（兼容口径：权威闸门=技能卡横置态，此字段仅旧消费者回读）。</summary>
-        public int HeroSkillUsesThisTurn { get; set; }
-        /// <summary>本局累计发动次数（≥7 触发升级）。</summary>
-        public int HeroSkillTotalUses { get; set; }
-        /// <summary>是否已升级（TotalUses ≥ 7 时置位，单向）。</summary>
-        public bool HeroSkillUpgraded { get; set; }
+        // 发动计数/升级态已随 2026-09-22「升级=抉择式条件分支」定案迁至技能卡：
+        // 计数=技能卡 SkillUse 指示物（换卡归零）；升级门/是否已升级读
+        // HeroSkillSystem.GetTotalUses / IsUpgraded（玩家级共享字段已删）。
+        // 本回合一次闸门权威=技能卡横置态（HeroSkillUsesThisTurn 兼容口径同步删除）。
 
         /// <summary>重置疲劳计数（新对局开始时调用）。</summary>
         public void ResetFatigueCount()

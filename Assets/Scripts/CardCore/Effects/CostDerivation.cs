@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CardCore.Attribute;
 
 namespace CardCore
@@ -36,6 +37,9 @@ namespace CardCore
             // **引擎=零计价**——拼点门槛=奖励锚价合计（运行时判差额 ≥ 门槛，见 BranchEngines），
             // 奖励按声明值结算（门槛制）；运势 x=纯概率门槛（掷骰阈值）；倒计时延迟即付费。
             // 引擎奖励原子免费（EnumerateMainSequenceAtoms 不含 RewardAtoms）。
+            // 例外（2026-09-22）：**改写门差价制**——拦截式改写改变效果本体（伤害→指示物），
+            // 不属"条件性即折扣"，按 max(0, 关键词锚价−主干伤害价) 真实入卡费。
+            AccumulateRewriteSurcharge(effect, modeIndex, byColor);
 
             var list = new List<CostInstance>();
             foreach (var kv in byColor)
@@ -79,10 +83,7 @@ namespace CardCore
             Action<AtomicEffectInstance, List<int>> visit)
         {
             // 有效组合域（mode 感知，2026-09-10 极性输入）：per-mode 域优先，回落主序列域
-            var domain = effect.ChoiceDomains != null && modeIndex >= 0 && modeIndex < effect.ChoiceDomains.Length
-                && effect.ChoiceDomains[modeIndex] != null && effect.ChoiceDomains[modeIndex].Count > 0
-                ? effect.ChoiceDomains[modeIndex]
-                : effect.TargetDomain;
+            var domain = ResolveVisitDomain(effect, modeIndex);
 
             if (effect.Steps != null && effect.Steps.Count > 0)
             {
@@ -121,6 +122,67 @@ namespace CardCore
                 }
             }
         }
+
+        /// <summary>
+        /// 改写门差价计价（2026-09-22 定案）：配对的 [伤害主干原子 + 拦截式改写门] 步骤对——
+        /// 加价 = max(0, round(改写关键词锚价 × 数量N) − 主干伤害原子计费合计)，颜色取改写关键词主色。
+        /// 防套利：低价伤害换高价指示物（如 1 费伤害→剧毒）补差；伤害价已高则为自选降级、不加价。
+        /// 数量N 与主干计费同乘数（QuantityMultiplier）——改写按 per-target 施加指示物，比较面一致。
+        /// </summary>
+        private static void AccumulateRewriteSurcharge(EffectDefinition effect, int modeIndex,
+            Dictionary<ManaType, int> byColor)
+        {
+            if (effect?.Steps == null || effect.Steps.Count == 0) return;
+            var domain = ResolveVisitDomain(effect, modeIndex);
+            AccumulateRewriteSurcharge(effect.Steps, modeIndex, effect, domain, byColor);
+        }
+
+        private static void AccumulateRewriteSurcharge(List<RuntimeEffectStep> steps, int modeIndex,
+            EffectDefinition effect, List<int> domain, Dictionary<ManaType, int> byColor)
+        {
+            for (int i = 0; i < steps.Count; i++)
+            {
+                var step = steps[i];
+                if (step == null) continue;
+                if (step.Kind == RuntimeStepKind.Choice)
+                {
+                    var chosen = step.Choices != null && step.Choices.Count > 0
+                        ? step.Choices[Math.Max(0, Math.Min(modeIndex, step.Choices.Count - 1))]
+                        : null;
+                    if (chosen != null)
+                        AccumulateRewriteSurcharge(chosen, modeIndex, effect, domain, byColor);
+                    continue;
+                }
+                if (step.Kind != RuntimeStepKind.Branch
+                    || !BranchConditionEvaluator.IsRewriteCondition(step.ConditionId)) continue;
+
+                // 前一步须为配对的伤害主干（converter 守卫保证；此处防御性跳过失配）
+                if (i == 0 || steps[i - 1]?.Kind != RuntimeStepKind.Atomic || steps[i - 1].Atomic == null) continue;
+                var trunk = steps[i - 1].Atomic;
+
+                if (!RewriteConditionGrant.TryGetValue(step.ConditionId, out var grantType)) continue;
+                var grantCfg = AtomicEffectTable.GetByType(grantType);
+                var trunkCfg = AtomicEffectTable.GetByType(trunk.Type);
+                if (grantCfg == null || trunkCfg == null) continue;
+
+                int n = QuantityMultiplier(trunk.Type, effect);
+                float rewriteValue = grantCfg.TotalUnitCost * Math.Max(1, n);
+                int trunkBilled = ComputeAtomCostByColor(trunk, effect, domain, trunkCfg).Values.Sum();
+                int surcharge = (int)Math.Round(rewriteValue, MidpointRounding.AwayFromZero) - trunkBilled;
+                if (surcharge <= 0) continue;
+
+                var color = grantCfg.PrimaryColor;
+                byColor.TryGetValue(color, out var prev);
+                byColor[color] = prev + surcharge;
+            }
+        }
+
+        /// <summary>计价访问域（per-mode 优先回落主序列域——VisitBillableAtoms 与改写差价共用）。</summary>
+        private static List<int> ResolveVisitDomain(EffectDefinition effect, int modeIndex)
+            => effect.ChoiceDomains != null && modeIndex >= 0 && modeIndex < effect.ChoiceDomains.Length
+               && effect.ChoiceDomains[modeIndex] != null && effect.ChoiceDomains[modeIndex].Count > 0
+                ? effect.ChoiceDomains[modeIndex]
+                : effect.TargetDomain;
 
         private static void AccumulateElementCost(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, Dictionary<ManaType, int> byColor)
         {
@@ -212,12 +274,36 @@ namespace CardCore
             }
         }
 
-        /// <summary>固定分支门附加费表（2026-09-13 定案：条件=技能类型——奖励原子维持 0 费；
-        /// "造成伤害时"门已随战斗伤害改写族上线而移除）。</summary>
+        /// <summary>固定分支门预算表（2026-09-14 定案：门=纯校验上限，零计价——奖励原子维持 0 费，
+        /// 预算只是放置上限；"造成伤害时"门已随战斗伤害改写族上线而移除）。
+        /// 2026-09-22 新增局面状态族 8 门（通用门，预算 1）——零计价口径不变。
+        /// 改写门（DmgRewrite*）不入本表：无奖励槽，计价走差价制（RewriteSurcharge）。</summary>
         public static readonly Dictionary<string, int> GatePremium = new Dictionary<string, int>
         {
             { "DmgKillsTarget", 2 }, // 消灭目标时
             { "DeclareHit", 2 },     // 宣言结果一致时
+            // ---- 局面状态族（2026-09-22，预算 1）----
+            { "DrawnInStandbyThisTurn", 1 }, // 本回合准备阶段抽到的卡
+            { "LifeBelowOpp", 1 },           // 生命值低于对手
+            { "LifeAboveOpp", 1 },           // 生命值高于对手
+            { "DeckBelowOpp", 1 },           // 卡组剩余低于对手
+            { "DeckAboveOpp", 1 },           // 卡组剩余高于对手
+            { "CreaturesBelowOpp", 1 },      // 场上生物低于对手
+            { "CreaturesAboveOpp", 1 },      // 场上生物高于对手
+            { "FirstCardThisTurn", 1 },      // 本回合使用的第一张卡
+            // ---- 局面状态族·二批（2026-09-22 追加，预算 2）----
+            { "LandsGe7", 2 },               // 操控地数量≥7
+            { "HandEmpty", 2 },              // 手牌数量=0
+            { "LifeLe7", 2 },                // 生命值≤7
+        };
+
+        /// <summary>改写门 → 对应改写关键词原子（指示物施加口径共用；锚价取表行 TotalUnitCost）。</summary>
+        public static readonly Dictionary<string, AtomicEffectType> RewriteConditionGrant = new Dictionary<string, AtomicEffectType>
+        {
+            { "DmgRewriteToxin",  AtomicEffectType.GrantPoisonSting },
+            { "DmgRewriteFreeze", AtomicEffectType.GrantIceCrystal },
+            { "DmgRewriteSleep",  AtomicEffectType.GrantNightmare },
+            { "DmgRewriteVenom",  AtomicEffectType.GrantPathogen },
         };
 
         /// <summary>奖励原子的推导费合计（2026-09-14 自 CardEffectConverter 上移——倒计时回合换算与

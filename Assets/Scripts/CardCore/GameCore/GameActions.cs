@@ -378,6 +378,10 @@ namespace CardCore
                 return;
             }
 
+            // 元素充盈引擎判定（2026-09-22 定案）：出牌付费完成后回调——引擎读付费后余量
+            //（bank 最多色 > x 即发奖，每次达标都触发；效果费支付不走此口）。发动无效不回卷：费已实付，照判。
+            BranchEngines.OnCardCostPaid(player);
+
             // 3. 发动无效：付了但被否定 → 入墓、跳过效果、费用不退
             if (card._isNegated)
             {
@@ -385,6 +389,10 @@ namespace CardCore
                 CastAbortToGraveyard(core, card, player, "发动无效");
                 return;
             }
+
+            // 手牌序位引擎（2026-09-22 定案）：此卡为本回合从手牌使用的第 x 张卡 → 执行奖励——
+            // 评估对象=正在施放的卡本身；无效已在上游拦截（效果不结算），序位判定在结算效果前。
+            BranchEngines.OnCardCastResolved(card, player);
 
             // 4. 结算：法术 → 效果全结算后离区入墓；永久物 → 登记触发式 + 入场
             if (card.IsSpellCard())
@@ -694,11 +702,12 @@ namespace CardCore
                         Definition = def,
                         // 来源归因定案（2026-09-09 规则②）：所有魔法卡的效果来源=角色（Player）——
                         // 伤害/死亡/指示物/三轨判轨的归因都指向施法者；cast 对象的 Source 仍是卡
-                        // （发动区付费/无效裁决/离区依赖它，见 ResolveCardCastAsync）。
+                        //（发动区付费/无效裁决/离区依赖它，见 ResolveCardCastAsync）。
                         Source = player,
                         Controller = player,
                         Targets = targets != null ? new List<Entity>(targets) : new List<Entity>(),
                         ModeIndex = modeIndex,
+                        CastCard = card, // 施放宿主卡（状态门「本回合准备阶段抽到的卡」需要卡身份）
                     }, skipElementCost: true);
                 }
             }

@@ -149,6 +149,11 @@ namespace CardCore
         /// </summary>
         public Player Controller { get; set; }
 
+        /// <summary>施放中的宿主卡（2026-09-22）：卡牌 cast 结算链路上效果所属的卡实例——
+        /// 魔法卡效果 Source=角色（来源归因定案），状态门需要卡身份时经此透传（context.CastCard）。
+        /// 非施放路径（场上触发/启动式）不填——宿主=Source。</summary>
+        public Card CastCard { get; set; }
+
         /// <summary>
         /// 效果是否已结算
         /// </summary>
