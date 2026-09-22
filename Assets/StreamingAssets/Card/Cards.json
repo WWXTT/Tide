@@ -2483,7 +2483,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_14113CB5",
+            "id": "C_7BF79F0C",
             "cardName": "战嚎统领",
             "supertype": "Creature",
             "power": 4,
@@ -2507,7 +2507,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "7BF56C2D"
+                "4297DD3F"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -2515,7 +2515,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_5CEEF027",
+            "id": "C_A40ED344",
             "cardName": "激励·冲锋号角",
             "supertype": "Spell",
             "power": 0,
@@ -2539,7 +2539,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "C35E9E7A"
+                "2ED6FB7E"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -2547,7 +2547,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_99E5A86F",
+            "id": "C_36ED2339",
             "cardName": "激励·战鼓",
             "supertype": "Spell",
             "power": 0,
@@ -2571,7 +2571,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "F571776C"
+                "B54B4246"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -2579,7 +2579,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_220BEFBD",
+            "id": "C_7A9563A2",
             "cardName": "激励·血战到底",
             "supertype": "Spell",
             "power": 0,
@@ -2603,7 +2603,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "6A04095B"
+                "4E2D8D80"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -2611,7 +2611,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_7223B8B2",
+            "id": "C_214B42EE",
             "cardName": "全军突击",
             "supertype": "Spell",
             "power": 0,
@@ -2631,7 +2631,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "1127D906"
+                "1B8CA39C"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -2639,7 +2639,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_8880C538",
+            "id": "C_A1CC3914",
             "cardName": "血性狂热",
             "supertype": "Spell",
             "power": 0,
@@ -2659,7 +2659,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "5C6FA623"
+                "0717D033"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -2667,7 +2667,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_F8287719",
+            "id": "C_7793EFCA",
             "cardName": "战意勃发",
             "supertype": "Spell",
             "power": 0,
@@ -2691,7 +2691,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "8CC9B4AA"
+                "04E65FAF"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -2699,7 +2699,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_984483F2",
+            "id": "C_797C6F13",
             "cardName": "献祭召唤",
             "supertype": "Spell",
             "power": 0,
@@ -2723,7 +2723,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "16EA580F"
+                "EB41ECFA"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -2731,7 +2731,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_64B6E2DC",
+            "id": "C_9D66C3FC",
             "cardName": "急行军召援",
             "supertype": "Spell",
             "power": 0,
@@ -2755,7 +2755,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "92D0AE0F"
+                "446FAE3D"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -2763,7 +2763,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_93405871",
+            "id": "C_79C89338",
             "cardName": "烈焰箭",
             "supertype": "Spell",
             "power": 0,
@@ -2787,7 +2787,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "B8418484"
+                "EAFA3599"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -2795,7 +2795,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_6945689D",
+            "id": "C_E97F114F",
             "cardName": "焚城",
             "supertype": "Spell",
             "power": 0,
@@ -2815,7 +2815,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "245C61B7"
+                "E020BE53"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -2823,7 +2823,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_0B7A1F9F",
+            "id": "C_F7CC9863",
             "cardName": "致命齐射",
             "supertype": "Spell",
             "power": 0,
@@ -2843,7 +2843,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "A3557690"
+                "BEAB6B11"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -2851,7 +2851,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_15F9F481",
+            "id": "C_DABF92A7",
             "cardName": "灼烧之触",
             "supertype": "Spell",
             "power": 0,
@@ -2871,7 +2871,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "79BF48F6"
+                "EC76F5D2"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -3392,7 +3392,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_FE0329A0",
+            "id": "C_28049C5C",
             "cardName": "晨露",
             "supertype": "Spell",
             "power": 0,
@@ -3416,7 +3416,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "9CA8C865"
+                "DCEFC789"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -3424,7 +3424,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_8DC3062F",
+            "id": "C_601D893F",
             "cardName": "治愈之息",
             "supertype": "Spell",
             "power": 0,
@@ -3448,7 +3448,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "DE8F7CDA"
+                "FF697511"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -3456,7 +3456,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_039E5102",
+            "id": "C_7DB8A961",
             "cardName": "自然抚慰",
             "supertype": "Spell",
             "power": 0,
@@ -3476,7 +3476,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "1297DD20"
+                "4D4CBAB4"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -3484,7 +3484,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_5F09BE86",
+            "id": "C_627D36F8",
             "cardName": "生命涌泉",
             "supertype": "Spell",
             "power": 0,
@@ -3504,7 +3504,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "AFFD8DEE"
+                "E167D565"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -3512,7 +3512,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_2735EB38",
+            "id": "C_DCA93662",
             "cardName": "木甲术",
             "supertype": "Spell",
             "power": 0,
@@ -3536,7 +3536,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "D3788F0C"
+                "347D58B3"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -3544,7 +3544,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_1D2C0BCB",
+            "id": "C_D2AE0241",
             "cardName": "磐石庇护",
             "supertype": "Spell",
             "power": 0,
@@ -3568,7 +3568,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "A8E91E69"
+                "89EBA63C"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -3576,7 +3576,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_D7CD28D3",
+            "id": "C_3E8449EE",
             "cardName": "荒野回响",
             "supertype": "Spell",
             "power": 0,
@@ -3596,7 +3596,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "B1BE94EF"
+                "417423EA"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -3604,7 +3604,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_7AAC143C",
+            "id": "C_49381575",
             "cardName": "活体盔甲",
             "supertype": "Spell",
             "power": 0,
@@ -3628,7 +3628,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "62C8B97F"
+                "EA930D88"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -3636,7 +3636,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_1272F386",
+            "id": "C_244F96CE",
             "cardName": "光合滋养",
             "supertype": "Spell",
             "power": 0,
@@ -3660,7 +3660,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "16BEDB69"
+                "E3A2646D"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -3668,7 +3668,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_C9DA689D",
+            "id": "C_721FAC68",
             "cardName": "深林苏醒",
             "supertype": "Spell",
             "power": 0,
@@ -3688,7 +3688,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "DFB605B2"
+                "BDF8EEFC"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -3696,7 +3696,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_9191E659",
+            "id": "C_9F72D3B4",
             "cardName": "采掘",
             "supertype": "Spell",
             "power": 0,
@@ -3720,7 +3720,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "3491CD76"
+                "ABAB742E"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -3728,7 +3728,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_055591BE",
+            "id": "C_8812E53B",
             "cardName": "荆棘风暴",
             "supertype": "Spell",
             "power": 0,
@@ -3748,7 +3748,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "059AABAB"
+                "341C0173"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -3756,7 +3756,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_AB60E7F8",
+            "id": "C_4C9AEDC8",
             "cardName": "藤蔓绞杀",
             "supertype": "Spell",
             "power": 0,
@@ -3776,7 +3776,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "8AAECFBA"
+                "A1855E71"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4202,7 +4202,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_09618A48",
+            "id": "C_101E22FF",
             "cardName": "剧毒之触",
             "supertype": "Spell",
             "power": 0,
@@ -4222,7 +4222,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "722AAAD0"
+                "49B7794C"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4230,7 +4230,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_386E701A",
+            "id": "C_646C94AD",
             "cardName": "蔓延毒雾",
             "supertype": "Spell",
             "power": 0,
@@ -4254,7 +4254,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "276F3421"
+                "FC3C15F3"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4262,7 +4262,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_EB99C597",
+            "id": "C_087B5A28",
             "cardName": "蚀骨毒潭",
             "supertype": "Spell",
             "power": 0,
@@ -4286,7 +4286,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "24932E5B"
+                "44196175"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4294,7 +4294,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_719DBEA4",
+            "id": "C_9E8DDE57",
             "cardName": "寒冰锁链",
             "supertype": "Spell",
             "power": 0,
@@ -4318,7 +4318,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "21F5800E"
+                "C136E023"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4326,7 +4326,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_9457A81D",
+            "id": "C_7CCEF84A",
             "cardName": "冰封禁锢",
             "supertype": "Spell",
             "power": 0,
@@ -4350,7 +4350,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "07B70527"
+                "2B86C4EA"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4358,7 +4358,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_85CEC904",
+            "id": "C_84D9787E",
             "cardName": "沉默诅咒",
             "supertype": "Spell",
             "power": 0,
@@ -4382,7 +4382,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "3492F37E"
+                "73B803FE"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4390,7 +4390,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_4284F45B",
+            "id": "C_EAC793B5",
             "cardName": "混乱低语",
             "supertype": "Spell",
             "power": 0,
@@ -4414,7 +4414,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "981858DA"
+                "63E9AC2B"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4422,7 +4422,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_ECB1B4CA",
+            "id": "C_594BB0F1",
             "cardName": "迷失心智",
             "supertype": "Spell",
             "power": 0,
@@ -4446,7 +4446,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "1E8C8767"
+                "953D4894"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4454,7 +4454,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_963C2A67",
+            "id": "C_7D9BB2EF",
             "cardName": "破甲标记",
             "supertype": "Spell",
             "power": 0,
@@ -4478,7 +4478,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "0A091DFD"
+                "12F26D80"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4486,7 +4486,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_CEED63A0",
+            "id": "C_A83159CD",
             "cardName": "易伤诅咒",
             "supertype": "Spell",
             "power": 0,
@@ -4510,7 +4510,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "4164CF50"
+                "EAD2F7E1"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4518,7 +4518,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_259D5C54",
+            "id": "C_E8194A4F",
             "cardName": "回流",
             "supertype": "Spell",
             "power": 0,
@@ -4542,7 +4542,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "41143731"
+                "22575A59"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4550,7 +4550,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_C909F24D",
+            "id": "C_C872637E",
             "cardName": "回溯之潮",
             "supertype": "Spell",
             "power": 0,
@@ -4574,7 +4574,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "8175EF1F"
+                "5CF1C161"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4582,7 +4582,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_683DC4A3",
+            "id": "C_8B8FCC13",
             "cardName": "深海汲取",
             "supertype": "Spell",
             "power": 0,
@@ -4606,7 +4606,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "1CADF193"
+                "E997348F"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4614,7 +4614,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_2F5B2C7F",
+            "id": "C_4414AEA7",
             "cardName": "奥术智慧",
             "supertype": "Spell",
             "power": 0,
@@ -4634,7 +4634,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "0BECBC0D"
+                "61038C2D"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4642,7 +4642,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_C62D15B0",
+            "id": "C_821A7598",
             "cardName": "禁忌知识",
             "supertype": "Spell",
             "power": 0,
@@ -4662,7 +4662,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "A614CD9F"
+                "75878FF3"
             ],
             "linkAuras": [],
             "noAttack": false,
@@ -4670,7 +4670,7 @@
             "surplusToSpeed": false
         },
         {
-            "id": "C_D1EBAE08",
+            "id": "C_56CC4641",
             "cardName": "星图研读",
             "supertype": "Spell",
             "power": 0,
@@ -4690,7 +4690,7 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "CD21BECE"
+                "368A20AB"
             ],
             "linkAuras": [],
             "noAttack": false,

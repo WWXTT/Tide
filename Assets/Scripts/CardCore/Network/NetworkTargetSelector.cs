@@ -63,7 +63,9 @@ namespace CardCore.Network
                 TimeoutSeconds = request.TimeoutSeconds, // 0 = 客户端按引擎同款公式自算
                 Min = request.MinCount,
                 Max = request.MaxCount,
-                Labels = labels.ToArray(),
+                // 2026-09-22 线上去文本：实体反问不传 Labels（卡名客户端按 CardId 查表，应答索引指向
+                // Candidates 下标不变）；纯选项反问（Candidates 空，如抉择模式）保留 Labels 作语义载荷
+                Labels = request.Candidates.Count > 0 ? Array.Empty<string>() : labels.ToArray(),
                 Candidates = request.Candidates.Select(NetEntityMapper.FromEntity).ToArray(),
             };
 

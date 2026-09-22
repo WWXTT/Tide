@@ -265,7 +265,10 @@ namespace CardCore
                 EventManager.Instance.Publish(new EffectExecutionSummaryEvent
                 {
                     Instance = instance,
-                    Description = instance.ExecutionSummary
+                    Description = instance.ExecutionSummary,
+                    EffectId = effect.Id,
+                    Source = instance.Source,
+                    Controller = context.Controller
                 });
             }
 

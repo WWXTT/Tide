@@ -142,8 +142,12 @@ namespace CardCore.Network
         public static NetEvent Project(IGameEvent e)
         {
             if (e == null) return null;
+            // 缓存期一次性过滤 [NetProjectionIgnore] 属性（2026-09-22 线上去文本：
+            // 服务器拼好的显示文本/重对象不进线格式，客户端按 ID 本地重渲染）
             var props = _propCache.GetOrAdd(e.GetType(),
-                t => t.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly));
+                t => t.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                    .Where(p => p.GetCustomAttribute<NetProjectionIgnoreAttribute>() == null)
+                    .ToArray());
 
             var parameters = new List<NetParam>(props.Length);
             foreach (var prop in props)

@@ -32,7 +32,8 @@ namespace CardCore.AI.NeuralEnv
     ///   → 下一决策点（可能是对方回合）。
     ///
     /// 奖励（actor-centric 自对弈，reward 恒归属「刚行动的那一方」）：
-    ///   终局 ±1 主导；非终局每步 λ·(Φ_after − Φ_before)，Φ = 己方战场价值 − 对方战场价值。
+    ///   终局 ±1 主导；非终局每步 λ·(Φ_after − Φ_before)，Φ = 己方战场价值 − 对方战场价值
+    ///   （2026-09-22：λ 默认 0.005 且 Φ 剔除手牌——塑形累计须 ≪ 终局 ±1，否则学拖局）。
     ///
     /// v1 文档化简化：
     ///  - 地牌横置由驱动回合初自动完成（色匹配启发式，逻辑复刻 SimpleAI.TapAllLands），不建模；
@@ -42,7 +43,10 @@ namespace CardCore.AI.NeuralEnv
     /// </summary>
     public sealed class TideHeadlessDriver
     {
-        private const float ShapingLambda = 0.05f;   // 塑形系数（终端 ±1 恒为主导）
+        // 塑形系数（2026-09-22 定案 0.05→0.005：λ=0.05 时双方各自整局塑形累计 ≈ +3.1，
+        // 是终局 ±1 的 3 倍，自对弈收敛到拖局刷塑形；reset 协议可按局覆盖——
+        // TideHeadlessServer.HandleReset 的 shapingLambda 字段，>0 生效，0 用本默认值）
+        private float _shapingLambda = 0.005f;
         private const int MaxSettleAttempts = 32;    // 排干栈重试上限（镜像 SimpleAI）
         private const int PhaseAdvanceGuard = 64;    // 阶段推进循环保险
         private const float NoProgressPenalty = 0.05f; // 无进展动作扣分（即时信号：引导避开无效动作）
@@ -69,6 +73,12 @@ namespace CardCore.AI.NeuralEnv
 
         public bool IsGameOver => _gameOver;
         public Player Winner => _winner;
+
+        /// <summary>按局覆盖塑形系数 λ（reset 协议透传；≤0 忽略保持默认）。</summary>
+        public void SetShapingLambda(float lambda)
+        {
+            if (lambda > 0f) _shapingLambda = lambda;
+        }
 
         /// <summary>模型座次（0=P1 先手 / 1=P2）；自对弈为 -1。协议 info.modelSeat 用。</summary>
         public int ModelSeat
@@ -135,7 +145,8 @@ namespace CardCore.AI.NeuralEnv
             if (_gameOver) return BuildResult(0f); // 已终局：无动作可执行
 
             var me = _core.TurnEngine.TurnPlayer;
-            float before = FieldValueReward.ComputePotential(_core, me);
+            // 奖励势能剔除手牌（2026-09-22 定案）：含手牌时「每回合摸牌」是白拿的正奖励流
+            float before = FieldValueReward.ComputePotential(_core, me, includeHand: false);
 
             // 越界下标：保守兜底——不推进、奖励 0，重观测同状态
             if (_legal == null || actionIndex < 0 || actionIndex >= _legal.Actions.Count)
@@ -170,9 +181,11 @@ namespace CardCore.AI.NeuralEnv
                 {
                     // 引擎拒绝（枚举/引擎口径漂移）：本回合摘除该动作（重观测不再出现）+ 小额扣分，
                     // 不推进。摘除保证最坏情况把无效动作各试一次后只剩 EndTurn → 回合必然流动。
+                    // 2026-09-22 符号修复：此前误传 +NoProgressPenalty（正奖励）——拒绝动作反而
+                    // +0.05，构成可刷的奖励泉（每回合把会被拒的动作挨个试一遍）；取负恢复扣分本意。
                     _bannedThisTurn.Add(a.Signature);
                     _legal.RemoveAll(_bannedThisTurn);
-                    return BuildResult(NoProgressPenalty);
+                    return BuildResult(-NoProgressPenalty);
                 }
             }
 
@@ -187,8 +200,8 @@ namespace CardCore.AI.NeuralEnv
             }
             else
             {
-                float after = FieldValueReward.ComputePotential(_core, me);
-                reward = FieldValueReward.ShapingDelta(before, after, ShapingLambda);
+                float after = FieldValueReward.ComputePotential(_core, me, includeHand: false);
+                reward = FieldValueReward.ShapingDelta(before, after, _shapingLambda);
             }
 
             return BuildResult(reward);

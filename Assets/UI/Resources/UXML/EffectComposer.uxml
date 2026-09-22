@@ -31,18 +31,22 @@
                 <ui:ScrollView name="slot-area" class="list slot-area" />
             </ui:VisualElement>
             <ui:VisualElement class="column column--right panel">
-                <!-- 效果表模式（点击效果=载入左侧编辑，保存覆盖） -->
+                <!-- 筛选栏（2026-09-22 两模式共用）：效果分类 + 近似搜索
+                     （原子库=表行中文名；效果表=内含原子名并集；检索对效果表额外含 id∪简称） -->
+                <ui:VisualElement class="toolbar filter-bar">
+                    <ui:Label text="效果分类：" class="field-label" />
+                    <ui:DropdownField name="dropdown-filter-type" class="text-input" />
+                    <ui:Label text="近似搜索" class="field-label" style="margin-left: 12px;" />
+                    <ui:TextField name="field-filter-name" class="text-input" />
+                </ui:VisualElement>
+                <!-- 效果表模式（点击效果=载入左侧编辑，保存覆盖）——行=色点+名+id 单行（2026-09-22） -->
                 <ui:ScrollView name="list-effects" class="list" style="flex-grow: 1; flex-basis: 0;" />
                 <!-- 原子库模式 -->
                 <ui:VisualElement name="atom-panel" style="flex-grow: 1;">
-                    <ui:VisualElement class="toolbar filter-bar">
-                        <ui:Label text="效果分类：" class="field-label" />
-                        <ui:DropdownField name="dropdown-filter-type" class="text-input" />
-                        <ui:Label text="近似搜索" class="field-label" style="margin-left: 12px;" />
-                        <ui:TextField name="field-filter-name" class="text-input" />
-                    </ui:VisualElement>
+                    <!-- 选中槽上下文（2026-09-22 五轮）：库按选中槽过滤——标签动态显示当前过滤口径 -->
+                    <ui:Label name="lbl-lib-context" text="" class="hint" style="margin-bottom: 2px;" />
                     <ui:ScrollView name="library-list" class="list" style="flex-grow: 1; flex-basis: 0;" />
-                    <ui:Label text="关键词（点击加入并列槽，默认 Self）" class="panel__header" style="margin-top: 6px;" />
+                    <ui:Label name="lbl-keyword-header" text="可编辑关键词（点击加入并列槽——赋予一个生物）" class="panel__header" style="margin-top: 6px;" />
                     <ui:ScrollView name="keyword-list" class="list" style="flex-grow: 1; flex-basis: 0;" />
                 </ui:VisualElement>
             </ui:VisualElement>

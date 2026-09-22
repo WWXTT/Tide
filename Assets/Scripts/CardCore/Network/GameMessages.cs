@@ -30,8 +30,8 @@ namespace CardCore.Network
         [MemoryPackOrder(TagTable.MGSS_BattlefieldCards)]
         public SerializableRuntimeCardState[] BattlefieldCards; // 旧字段保留（tag 兼容）；V2 全量在 ZoneCards
 
-        [MemoryPackOrder(TagTable.MGSS_Stack)]
-        public SerializableEffectDefinition[] Stack; // 废弃不用（粒度错误：栈上是 EffectInstance 非定义）；恒 null，V2 用 StackV2
+        // MGSS_Stack（SerializableEffectDefinition[]）已删（2026-09-22 线上去文本：全量效果定义不上网，
+        // 线上按 EffectId 引用；tag 留作保留位，DTO 一并退役）
 
         [MemoryPackOrder(TagTable.MGSS_ViewerSeat)]
         public int ViewerSeat;
@@ -111,8 +111,7 @@ namespace CardCore.Network
         [MemoryPackOrder(TagTable.SID_EffectId)]
         public string EffectId;
 
-        [MemoryPackOrder(TagTable.SID_EffectDisplayName)]
-        public string EffectDisplayName;
+        // SID_EffectDisplayName 已删（2026-09-22 线上去文本：显示名客户端按 EffectId 查 Effects.json；tag 留作保留位）
 
         [MemoryPackOrder(TagTable.SID_ModeIndex)]
         public int ModeIndex;

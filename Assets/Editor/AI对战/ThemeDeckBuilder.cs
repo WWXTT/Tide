@@ -21,9 +21,9 @@ namespace CardCore.Editor.Tests
     /// </summary>
     public static class ThemeDeckBuilder
     {
-        public const string RedDeckName = "赤红疾袭（红·快攻）";
-        public const string GreenDeckName = "翠绿深林（绿·慢速）";
-        public const string BlueDeckName = "苍蓝壁垒（蓝·控制）";
+        public const string RedDeckName = "红·快攻";
+        public const string GreenDeckName = "绿·慢速";
+        public const string BlueDeckName = "蓝·控制";
 
         private const string RedTag = "ThemeRed";
         private const string GreenTag = "ThemeGreen";

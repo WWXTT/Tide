@@ -129,7 +129,6 @@ namespace CardCore.Network
                 Source = NetEntityMapper.FromEntity(instance.Source),
                 IsCardCast = instance.IsCardCast,
                 EffectId = instance.Definition?.Id,
-                EffectDisplayName = instance.Definition?.DisplayName,
                 ModeIndex = instance.ModeIndex,
                 Targets = instance.Targets?.Select(NetEntityMapper.FromEntity).ToArray() ?? Array.Empty<NetEntityRef>(),
                 ActivationSpeed = instance.ActivationSpeed,

@@ -99,7 +99,8 @@ namespace CardCore.Network
     // ============================================================
 
     /// <summary>反问请求：候选集已由引擎筛选，客户端回传选中索引（MsgSelectResponse.Indices）。
-    /// Labels 与 Candidates 同序；Candidates 为空表示纯选项反问（RequestOneIndexAsync）。</summary>
+    /// 实体反问（Candidates 非空）Labels 恒空——卡名客户端按 CardId 查表渲染（2026-09-22 线上去文本）；
+    /// Candidates 为空表示纯选项反问（RequestOneIndexAsync），此时 Labels 是语义载荷（选项文本）。</summary>
     [MemoryPackable]
     public partial class MsgSelectRequest
     {

@@ -534,6 +534,9 @@
 .unity-generic-menu {
     min-width: 280px;
     max-width: none;
+    /* 限高纵向滚动（2026-09-22）：触发时机 27 项全长过高——300px 约见一半，
+       超出部分由弹窗内 ScrollView 出纵向滚动条；持续/目标域等短菜单不受影响 */
+    max-height: 300px;
 }
 
 .unity-generic-menu .unity-scroller--horizontal {
@@ -555,4 +558,16 @@
 
 .color-filter-chip {
     min-width: 40px;
+}
+
+/* 单行省略（2026-09-22）：效果表行只留一行描述——超宽截断出省略号，不再纵向换行 */
+.single-line {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 不可编辑关键词行（2026-09-22）：攻击/守卫固定展示（不可组合/修改）——降透明度示只读 */
+.library-row--locked {
+    opacity: 0.6;
 }

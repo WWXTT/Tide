@@ -242,8 +242,10 @@ class TideEnv(TideEnvTcp):
             out = subprocess.run(
                 ["powershell", "-NoProfile", "-Command", script],
                 capture_output=True, text=True, timeout=60,
+                # 中文 Windows 控制台输出是 GBK：UTF-8 模式下严格解码会炸 reader 线程 → stdout 变 None
+                encoding="utf-8", errors="replace",
             )
-            for line in out.stdout.split():
+            for line in (out.stdout or "").split():
                 if line.strip().isdigit():
                     self._taskkill(int(line))
         except (OSError, subprocess.TimeoutExpired):
@@ -255,8 +257,11 @@ class TideEnv(TideEnvTcp):
             out = subprocess.run(
                 ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV"],
                 capture_output=True, text=True, timeout=30,
+                # tasklist 表头是本地化文本（GBK）：errors=replace 保证解码不炸；
+                # 判定用的 "Unity.exe" 是纯 ASCII，替换字符不影响匹配
+                encoding="utf-8", errors="replace",
             ).stdout
-            return "Unity.exe" in out
+            return out is not None and "Unity.exe" in out
         except (OSError, subprocess.TimeoutExpired):
             return False
 

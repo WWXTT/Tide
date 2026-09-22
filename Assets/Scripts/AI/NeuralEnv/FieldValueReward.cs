@@ -15,8 +15,14 @@ namespace CardCore.AI.NeuralEnv
     ///
     ///   每步塑形奖励 = λ·(Φ(s') − Φ(s))
     ///
-    /// 势能塑形（potential-based reward shaping）理论上不改变最优策略——终端 ±1 始终主导；
-    /// λ 取小值（0.01~0.05）让终局信号为主导，塑形为引导。
+    /// 势能塑形（potential-based reward shaping）理论上不改变最优策略——前提是塑形累计量 ≪ 终局 ±1。
+    ///
+    /// 【2026-09-22 训练定案】：
+    ///  - λ 0.05 → 0.005：λ=0.05 时双方各自整局塑形累计 ≈ +3.1，是终局 ±1 的 3 倍，
+    ///    且 Φ 含手牌（HandWeight 0.6）让「每回合摸牌」成为白拿的正奖励流——自对弈双方
+    ///    联合收敛到拖局刷塑形（局长 90→267，对脚本胜率 0.35→0.1）。
+    ///  - 奖励势能剔除手牌：ComputePotential(includeHand:false)，只用于驱动器塑形；
+    ///    TideObservation 的 g[28]/g[29] 仍走 includeHand=true（默认），观测口径不变。
     ///
     /// 【2026-09-08 重写理由】：
     /// v1 只算战场卡静态 DerivedTotal，不含动态指示物/状态，也不含资源（生命/法力/地牌/手牌）；
@@ -45,12 +51,14 @@ namespace CardCore.AI.NeuralEnv
 
         // ======================================== 公开 API ========================================
 
-        /// <summary>己方净势能（me − opponent）。</summary>
-        public static float ComputePotential(GameCore core, Player me)
+        /// <summary>己方净势能（me − opponent）。
+        /// includeHand=false 为 2026-09-22 奖励口径：塑形势能剔除手牌（摸牌不再是白拿的奖励流）；
+        /// 默认 true 保持 TideObservation 观测口径（g[28]/g[29]）不变。</summary>
+        public static float ComputePotential(GameCore core, Player me, bool includeHand = true)
         {
             if (core == null || me == null) return 0f;
-            float myTotal = TotalValue(core, me);
-            float oppTotal = TotalValue(core, me.Opponent);
+            float myTotal = TotalValue(core, me, includeHand);
+            float oppTotal = TotalValue(core, me.Opponent, includeHand);
             return myTotal - oppTotal;
         }
 
@@ -58,11 +66,11 @@ namespace CardCore.AI.NeuralEnv
         public static float ShapingDelta(float potentialBefore, float potentialAfter, float lambda)
             => lambda * (potentialAfter - potentialBefore);
 
-        /// <summary>某玩家的全部价值（战场 + 资源），供 TideObservation 使用。</summary>
-        public static float TotalValue(GameCore core, Player player)
+        /// <summary>某玩家的全部价值（战场 + 资源），供 TideObservation 使用（includeHand 语义见 ComputePotential）。</summary>
+        public static float TotalValue(GameCore core, Player player, bool includeHand = true)
         {
             if (core == null || player == null) return 0f;
-            return BattlefieldValue(core, player) + ResourceValue(core, player);
+            return BattlefieldValue(core, player) + ResourceValue(core, player, includeHand);
         }
 
         // ======================================== 战场价值（动态） ========================================
@@ -130,7 +138,7 @@ namespace CardCore.AI.NeuralEnv
         // ======================================== 资源价值 ========================================
 
         /// <summary>某玩家的资源价值（生命 + 法力 bank + 地牌剩余指示物 + 手牌）。</summary>
-        public static float ResourceValue(GameCore core, Player player)
+        public static float ResourceValue(GameCore core, Player player, bool includeHand = true)
         {
             if (core == null || player == null) return 0f;
 
@@ -162,12 +170,15 @@ namespace CardCore.AI.NeuralEnv
                 }
             }
 
-            // 4) 手牌（潜在价值）
-            var hand = core.ZoneManager.GetCards(player, Zone.Hand);
-            if (hand != null)
+            // 4) 手牌（潜在价值）——奖励势能口径下剔除（includeHand=false）：摸牌/囤牌不再是白拿的奖励流
+            if (includeHand)
             {
-                foreach (var c in hand)
-                    value += CardBaseValue(c) * HandWeight;
+                var hand = core.ZoneManager.GetCards(player, Zone.Hand);
+                if (hand != null)
+                {
+                    foreach (var c in hand)
+                        value += CardBaseValue(c) * HandWeight;
+                }
             }
 
             return value;

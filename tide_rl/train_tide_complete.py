@@ -4,6 +4,9 @@ Tide 完整 PPO 训练脚本（stdio batchmode 桥接）。
 目标：主题自对弈训练（默认 opponent="selfplay"——双方同一策略驱动，obs/reward 按
 「当前行动方」视角轮换；卡组口径 2026-09-21 主题卡组迁移：一侧随机用三套主题卡组
 之一整组，另一侧 Cards.json 全池随机抽 30 张，随机换座）。
+奖励（2026-09-22 修复）：塑形 λ 经 reset 协议下发（默认 0.005）且 Unity 侧势能剔除
+手牌——旧口径（λ=0.05 硬编码 + 势能含手牌）塑形累计淹没终局 ±1，学成拖局；
+自对弈 GAE 按 info.toPlay 行动方座次做零和符号修正（对手步价值/奖励反号）。
 评估双口径（自对弈模式每次评估都跑两组）：
 - 自对弈先手座次胜率：P1 恒先手，偏离 50% 的幅度 = 先后手失衡度量（非棋力）；
 - vs 脚本主题卡组模型胜率（模型 Cards 随机 30 vs SimpleAI+AutoMatch 主题整组，座次随机、
@@ -65,8 +68,14 @@ def stack_obs(obs_list):
 
 
 def stack_rstates(rstates):
-    """N 个 (1, D) rstate → (N, D)；LSTM 元组按叶堆叠。"""
+    """N 个 (1, D) rstate → (N, D)；LSTM 元素组按叶堆叠。"""
     return jax.tree.map(lambda *leaves: np.stack(leaves).reshape(len(leaves), -1), *rstates)
+
+
+def _seat_of(info):
+    """reset/step 响应 info 里的行动方座次（info.toPlay，0/1）；缺失/非法返回 None。"""
+    to_play = (info or {}).get("toPlay")
+    return int(to_play) if isinstance(to_play, int) and to_play >= 0 else None
 
 
 @dataclass
@@ -91,14 +100,20 @@ class Args:
 
     total_timesteps: int = 2_000_000
     eval_interval: int = 50_000  # 每 5 万步评估
-    eval_episodes: int = 20  # 每次评估局数
+    eval_episodes: int = 50  # 每次评估局数（2026-09-22 20→50：20 局二项噪声 σ≈0.11，best 选点运气成分过大）
     save_interval: int = 100_000  # 每 10 万步保存
     log_interval: int = 2_560  # 每 2560 步打印（对齐 update 粒度）
 
     # Tide 特定
     max_episode_steps: int = 1000  # 单局步数上限（超时判负；可选操作变多后 500 会提前截断对局）
-    reward_lambda: float = 0.02  # 兼容参数（塑形 λ 固定在 Unity 侧）
+    # 塑形 λ（2026-09-22 起经 reset 协议真正下发到 Unity）。旧口径 λ=0.05 且势能含手牌：
+    # 双方各自整局塑形累计 ≈ +3.1 淹没终局 ±1，自对弈收敛到拖局（局长 90→267、
+    # 对脚本胜率 0.35→0.1）——现降 10 倍，且 Unity 侧奖励势能已剔除手牌。
+    reward_lambda: float = 0.005
     opponent: str = "selfplay"   # 对手位：selfplay = 主题自对弈（主题整组 vs Cards 随机 30）；simpleai = 模型 vs 脚本主题卡组（座次随机=先后手各半）
+    # 评估基准主题（2026-09-22 临时定案：绿/蓝脚本待重设计——随机基线绿 100%/蓝 55% 白送分
+    # 污染总胜率口径，重设计期只以红·快攻验证进步；重设计完成后改回空串=三主题随机）
+    eval_theme: str = "red"
     channels: int = 128
     rnn_channels: int = 512
     rnn_type: str = "gru"
@@ -116,11 +131,12 @@ class Args:
     step_timeout: float = 120.0
 
 
-def evaluate_greedy(agent_apply, params, env, args, num_episodes=20, opponent=None):
+def evaluate_greedy(agent_apply, params, env, args, num_episodes=20, opponent=None, theme=None):
     """贪心策略评估（复用训练 env——stdio 桥接一进程一局，不能另开）。
 
     opponent=None 时用 args.opponent（训练口径）；自对弈训练中途可传 "simpleai"
     切换评估对手（reset 协议按次传 opponent，无需另开 env）。
+    theme 可钉死 vs 脚本口径的对手主题（args.eval_theme，2026-09-22 临时只评红）。
 
     对手位口径（2026-09-21 主题卡组迁移）：
     - simpleai：模型（Cards.json 随机 30）vs 脚本主题卡组（SimpleAI+AutoMatch 主题整组），
@@ -146,8 +162,11 @@ def evaluate_greedy(agent_apply, params, env, args, num_episodes=20, opponent=No
         # 按次传对手位（2026-09-11 修复：此前裸调用 env.reset()，options 缺省回落
         # self.opponent=selfplay——自对弈训练期间"vs SimpleAI"评估实际在跑自对弈，
         # modelSeat=-1 落进 winner=="0" 分支，统计的是 P1 座次胜率而非模型棋力，
-        # best/早停全程选在幻影指标上）
-        obs, info = env.reset(options={"opponent": opponent or args.opponent})
+        # best/早停全程选在幻影指标上）；theme 钉死对手主题（临时只评红）
+        options = {"opponent": opponent or args.opponent}
+        if theme:
+            options["theme"] = theme
+        obs, info = env.reset(options=options)
         rstate = init_rstate(args.rnn_type)
         done = False
         step_count = 0
@@ -350,11 +369,11 @@ def train(args: Args):
     start_time = time.time()
 
     try:
-        # 初始观测（对局从这里开始，跨更新窗口延续）
+        # 初始观测（对局从这里开始，跨更新窗口延续）；carries[4] = 行动方座次
         carries = []
         for e in envs:
-            obs, _ = e.reset()
-            carries.append([obs, init_rstate(args.rnn_type), 0.0, 0])
+            obs, info = e.reset()
+            carries.append([obs, init_rstate(args.rnn_type), 0.0, 0, _seat_of(info)])
 
         for update in range(1, num_updates + 1):
             update_start = time.time()
@@ -364,15 +383,16 @@ def train(args: Args):
             rollout_data = []
 
             for env_id, e in enumerate(envs):
-                obs, rstate, pend_ret, pend_len = carries[env_id]
+                obs, rstate, pend_ret, pend_len, seat = carries[env_id]
                 data, obs, rstate, rng, episodes, pending = rollout_single_env(
                     jit_apply, train_state.params, e, obs, rstate,
                     args.num_steps, rng, args.rnn_type,
                     pending=(pend_ret, pend_len),
                     log_every_steps=64,
+                    seat=seat,
                 )
                 rollout_data.append(data)
-                carries[env_id] = [obs, rstate, pending[0], pending[1]]
+                carries[env_id] = [obs, rstate, pending[0], pending[1], data["next_seat"]]
 
                 for ep_ret, ep_len, timeout in episodes:
                     episode_returns.append(ep_ret)
@@ -381,7 +401,7 @@ def train(args: Args):
 
             global_step += args.num_envs * args.num_steps
 
-            # ==================== GAE（逐环境，简化单序列） ====================
+            # ==================== GAE（逐环境，简化单序列；seats 非空时做自对弈座次修正） ====================
             all_advantages = []
             all_returns = []
 
@@ -393,6 +413,7 @@ def train(args: Args):
                 advantages, returns = compute_advantages_simple(
                     data["values"], data["rewards"], data["dones"],
                     next_value, args.gamma, args.gae_lambda,
+                    seats=data.get("seats"), next_seat=data.get("next_seat"),
                 )
                 all_advantages.append(advantages)
                 all_returns.append(returns)
@@ -466,6 +487,7 @@ def train(args: Args):
                 win_rate, wins, losses_, draws, avg_length, theme_stats = evaluate_greedy(
                     jit_apply, train_state.params, env, args, args.eval_episodes,
                     opponent="simpleai" if args.opponent == "selfplay" else None,
+                    theme=args.eval_theme or None,
                 )
                 # 评估结果单独一行落盘（stats 写在 eval 前，混行 jsonl 不影响 tail）
                 with open(log_dir / "stats.jsonl", "a", encoding="utf-8") as f:
@@ -479,8 +501,8 @@ def train(args: Args):
 
                 # 评估抢占了进行中的对局 → 所有 env 强制重开
                 for env_id, e in enumerate(envs):
-                    obs, _ = e.reset()
-                    carries[env_id] = [obs, init_rstate(args.rnn_type), 0.0, 0]
+                    obs, info = e.reset()
+                    carries[env_id] = [obs, init_rstate(args.rnn_type), 0.0, 0, _seat_of(info)]
 
                 if win_rate > best_win_rate:
                     best_win_rate = win_rate
@@ -543,6 +565,7 @@ def train(args: Args):
         final_win_rate, wins, losses_, draws, avg_length, _theme_stats = evaluate_greedy(
             jit_apply, train_state.params, eval_env, args, num_episodes=100,
             opponent="simpleai" if args.opponent == "selfplay" else None,
+            theme=args.eval_theme or None,
         )
     finally:
         eval_env.close()
@@ -564,12 +587,25 @@ if __name__ == "__main__":
     args.unity_path = os.environ.get("UNITY_PATH") or args.unity_path
     args.project_path = os.environ.get("TIDE_PROJECT_PATH") or args.project_path
 
+    # 超参覆盖（JSON dict 合并进 Args，键须与 dataclass 字段同名）——
+    # verify 短跑 / 超参实验不再临时手改数据类（此前 verify_small 即手改产物）：
+    #   $env:TIDE_TRAIN_OVERRIDE='{"exp_name":"verify_reward_fix","total_timesteps":300000}'
+    overrides = json.loads(os.environ.get("TIDE_TRAIN_OVERRIDE") or "{}")
+    for k, v in overrides.items():
+        if not hasattr(args, k):
+            raise SystemExit(f"[!] TIDE_TRAIN_OVERRIDE 含未知字段: {k}")
+        setattr(args, k, v)
+
     print(f"\nConfiguration:")
     print(f"  Unity: {args.unity_path or 'auto-detect（UNITY_PATH → Hub 扫描匹配工程版本）'}")
     print(f"  Project: {args.project_path or 'auto-detect'}")
     print(f"  Max episode steps: {args.max_episode_steps}")
     print(f"  Total timesteps: {args.total_timesteps:,}")
     print(f"  Opponent: {args.opponent}")
+    print(f"  Eval theme: {args.eval_theme or '三主题随机'}（2026-09-22 临时：绿/蓝脚本待重设计）")
+    print(f"  Reward lambda: {args.reward_lambda}（经 reset 协议下发；Unity 奖励势能已剔除手牌）")
+    if overrides:
+        print(f"  Overrides: {overrides}")
     print(f"  Eval: vs 脚本主题卡组模型胜率（早停目标 {args.target_win_rate*100:.0f}%，分主题 red/green/blue 统计）"
           + ("；自对弈另报先手座次胜率" if args.opponent == "selfplay" else "") + "\n")
 

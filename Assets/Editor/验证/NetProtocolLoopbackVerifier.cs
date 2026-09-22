@@ -16,7 +16,8 @@ namespace CardCore.Editor
     /// <summary>
     /// 网络协议回环验证（M1）：进程内 SimpleAI vs SimpleAI 一局，验证协议三件套自洽——
     /// ① 事件投影（NetEventProjector）产出完整无损；② 快照（NetSnapshotBuilder）与活体对账；
-    /// ③ intent 通道（NetworkIntentApplier）与直调 GameActions 等价；④ 反问回环（ITargetSelectorEx）。
+    /// ③ intent 通道（NetworkIntentApplier）与直调 GameActions 等价；④ 反问回环（ITargetSelectorEx）；
+    /// ⑤ 开局握手（NetMatchHandshake：卡组引用闭包校验——缺卡/重复/原子行摘要漂移/回显篡改拒绝）。
     /// 全部走真实序列化路径：MemoryPack DTO → NetworkSerializer 信封 → FrameCodec 4B 前缀帧 →
     /// 流式解码（半包/粘包切分）→ 反序列化 → 逐字段深度比较。
     /// 菜单：Tools/网络协议回环验证。
@@ -54,6 +55,7 @@ namespace CardCore.Editor
                 RunFullGameSection(deck);
                 RunIntentSection(deck);
                 RunSelectorSection(deck);
+                RunHandshakeSection();
             }
             catch (Exception ex)
             {
@@ -115,6 +117,31 @@ namespace CardCore.Editor
                 return;
             }
             Debug.Log($"[NetVerify] 事件总量 {events.Count}，类型 {events.Select(e => e.EventType).Distinct().Count()} 种");
+
+            // ---- 1a-2. 线上去文本口径（2026-09-22）：执行摘要事件只传身份，拼好文本不进线格式 ----
+            var summaryEvents = events.Where(e => e.EventType == nameof(CardCore.EffectExecutionSummaryEvent)).ToList();
+            if (summaryEvents.Count == 0)
+            {
+                Assert(false, "整局无执行摘要事件——线上去文本口径未被覆盖（效果未发动？）");
+            }
+            else
+            {
+                foreach (var se in summaryEvents)
+                {
+                    var names = se.Params.Select(p => p.FieldName).ToHashSet();
+                    if (names.Contains("Description") || names.Contains("Instance"))
+                    {
+                        Assert(false, $"执行摘要事件 {se.EventId} 携带 Description/Instance 参数（线上去文本回归）");
+                        break;
+                    }
+                    if (!names.Contains("EffectId") || !names.Contains("Source") || !names.Contains("Controller"))
+                    {
+                        Assert(false, $"执行摘要事件 {se.EventId} 缺身份参数 EffectId/Source/Controller");
+                        break;
+                    }
+                }
+                Assert(true, $"执行摘要事件 ×{summaryEvents.Count}：只传 EffectId/Source/Controller，不传拼好文本");
+            }
 
             // ---- 1b. 信封 + 帧无损：批次 64 与单条两口径，帧按三段切分（半包/粘包） ----
             var roundTripped = 0;
@@ -491,9 +518,9 @@ namespace CardCore.Editor
                 Assert(chosen.Count == 1 && chosen[0].RuntimeId == hand[0].RuntimeId,
                     "实体反问：模拟客户端选 [0] → 引擎拿到候选[0]（索引→实体映射经网络往返）");
                 var last = selector.Seen.Last();
-                Assert(last.Labels.Length == last.Candidates.Length && last.Candidates.Length == hand.Count
+                Assert(last.Labels.Length == 0 && last.Candidates.Length == hand.Count
                     && last.Min == 1 && last.Max == 2 && last.ChooserSeat == 0,
-                    "MsgSelectRequest 携带完整请求（Labels/Candidates 同序、Min/Max/座位）");
+                    "MsgSelectRequest 携带完整请求（实体反问 Labels 恒空——卡名客户端按 CardId 查表、Min/Max/座位）");
                 Assert(last.Candidates[0].RuntimeId == hand[0].RuntimeId
                     && last.Candidates[0].CardId == hand[0].ID,
                     "候选实体引用双轨正确（RuntimeId+模板 CardId）");
@@ -532,6 +559,124 @@ namespace CardCore.Editor
             Assert(auto.Count == 1, "headless 自动选择路径不受影响（未装 Ex 时走原分支）");
         }
 
+        // ============================================================
+        // 第五段：开局握手（DeckSubmit/MatchManifest + 卡组引用闭包校验，2026-09-22）
+        // 口径：只核对卡组引用闭包（卡/效果 ID 命中即一致 + 闭包原子行内容摘要）——不做全池对比。
+        // ============================================================
+
+        private static void RunHandshakeSection()
+        {
+            Section("5. 开局握手（卡组引用闭包校验）");
+
+            // 真实用户数据路径（Cards.json/Effects.json/原子表）——握手校验的对象就是卡组引用
+            var pool = CardCatalog.LoadAll();
+            Assert(pool.Count > 0, "卡池非空（Cards.json 有卡——握手段落依赖真实用户数据）");
+            if (pool.Count == 0) return;
+
+            var deckIds = pool.Select(c => c.ID).ToArray();
+            var totalRows = CardCore.Attribute.AtomicEffectTable.GetAll().Count();
+            var digest = NetMatchHandshake.ComputeDeckDigest(deckIds);
+            Assert(!string.IsNullOrEmpty(digest.AtomicRowsHash) && digest.AtomicRowCount > 0,
+                "闭包原子行摘要非空（卡组确有原子引用）");
+            Assert(digest.AtomicRowCount <= totalRows,
+                $"摘要只覆盖卡组引用的行（{digest.AtomicRowCount} ≤ 全表 {totalRows}——非全量对比口径）");
+            var digestAgain = NetMatchHandshake.ComputeDeckDigest(deckIds);
+            Assert(digest.AtomicRowsHash == digestAgain.AtomicRowsHash,
+                "摘要计算确定性（同数据两次计算全等）");
+
+            // ---- 5a. 正例：真实卡池组卡组提交 → 服务器通过 + 线格式往返 + 双座位下发 + 客户端双向校验 ----
+            var submit = new MsgDeckSubmit
+            {
+                DeckName = "回环验证卡组",
+                CardIds = deckIds,
+                Digest = digest,
+            };
+            Assert(NetMatchHandshake.ValidateDeckSubmit(submit, out _),
+                $"正例卡组提交通过（{deckIds.Length} 张，含效果/原子引用闭环检查）");
+
+            var decodedSubmit = RoundTripMessage(NetworkMessageType.DeckSubmit, submit);
+            Assert(decodedSubmit.DeckName == submit.DeckName
+                   && decodedSubmit.CardIds.SequenceEqual(submit.CardIds)
+                   && decodedSubmit.Digest.AtomicRowsHash == digest.AtomicRowsHash,
+                "DeckSubmit 信封+帧往返无损（卡组 ID 与闭包摘要）");
+
+            foreach (var seat in new[] { 0, 1 })
+            {
+                var manifestMsg = NetMatchHandshake.BuildMatchManifest(seat, deckIds, deckIds.Length);
+                var decodedManifest = RoundTripMessage(NetworkMessageType.MatchManifest, manifestMsg);
+                Assert(NetMatchHandshake.VerifyMatchManifest(decodedManifest, deckIds, out var clientReason),
+                    $"座位 {seat} 客户端对局清单双向校验通过{(clientReason != null ? "（" + clientReason + "）" : "")}");
+            }
+
+            // ---- 5b. 反例：缺卡拒绝（卡表无此 ID——原先会静默打成缺卡对局） ----
+            var withGhost = new MsgDeckSubmit
+            {
+                DeckName = "缺卡卡组",
+                CardIds = deckIds.Concat(new[] { "C_DEADBEEF" }).ToArray(),
+                Digest = NetMatchHandshake.ComputeDeckDigest(deckIds.Concat(new[] { "C_DEADBEEF" }).ToArray()),
+            };
+            Assert(!NetMatchHandshake.ValidateDeckSubmit(withGhost, out var ghostReason)
+                   && ghostReason.Contains("卡表缺失"),
+                $"缺卡提交被拒（reason 含\"卡表缺失\"：{ghostReason}）");
+
+            // ---- 5c. 反例：重复卡拒绝（README 铁律：卡组构成不重复） ----
+            var withDup = new MsgDeckSubmit
+            {
+                DeckName = "重复卡组",
+                CardIds = deckIds.Concat(new[] { deckIds[0] }).ToArray(),
+                Digest = digest,
+            };
+            Assert(!NetMatchHandshake.ValidateDeckSubmit(withDup, out var dupReason)
+                   && dupReason.Contains("重复"),
+                $"重复卡提交被拒（reason 含\"重复\"：{dupReason}）");
+
+            // ---- 5d. 反例：闭包原子行摘要漂移 / 缺失 ----
+            var driftSubmit = new MsgDeckSubmit
+            {
+                DeckName = "摘要漂移",
+                CardIds = deckIds,
+                Digest = new NetDeckDigest { AtomicRowsHash = "00000000", AtomicRowCount = digest.AtomicRowCount },
+            };
+            Assert(!NetMatchHandshake.ValidateDeckSubmit(driftSubmit, out var driftReason)
+                   && driftReason.Contains("原子行摘要不一致"),
+                $"原子行摘要漂移被拒（{driftReason}）");
+
+            var noDigestSubmit = new MsgDeckSubmit { DeckName = "无摘要", CardIds = deckIds, Digest = null };
+            Assert(!NetMatchHandshake.ValidateDeckSubmit(noDigestSubmit, out var noDigestReason)
+                   && noDigestReason.Contains("未随提交携带"),
+                $"缺摘要提交被拒（{noDigestReason}）");
+
+            // ---- 5e. 反例：客户端侧——服务器摘要漂移 / 卡组回显不符 ----
+            var tamperedManifest = NetMatchHandshake.BuildMatchManifest(0, deckIds, deckIds.Length);
+            tamperedManifest.OwnDeckDigest = new NetDeckDigest
+            {
+                AtomicRowsHash = "FFFFFFFF",
+                AtomicRowCount = digest.AtomicRowCount,
+            };
+            Assert(!NetMatchHandshake.VerifyMatchManifest(tamperedManifest, deckIds, out var clientDrift)
+                   && clientDrift.Contains("原子行摘要不一致"),
+                $"客户端拒绝摘要漂移的服务器（{clientDrift}）");
+
+            var echoTampered = NetMatchHandshake.BuildMatchManifest(0,
+                deckIds.Reverse().ToArray(), deckIds.Length);
+            Assert(!NetMatchHandshake.VerifyMatchManifest(echoTampered, deckIds, out var echoReason)
+                   && echoReason.Contains("回显"),
+                $"客户端拒绝卡组回显不符（{echoReason}）");
+        }
+
+        /// <summary>单消息全链路往返：DTO → 信封 → 帧 → 解码 → 反序列化（握手段专用）。</summary>
+        private static T RoundTripMessage<T>(NetworkMessageType type, T msg) where T : class
+        {
+            var wire = NetworkSerializer.SerializeMessage(type, msg);
+            var envelope = NetworkSerializer.DeserializeEnvelope(wire);
+            var frame = FrameCodec.Frame(envelope);
+            var decoder = new FrameCodec.FrameDecoder();
+            decoder.Append(frame);
+            if (!decoder.TryDecode(out var decoded))
+                throw new InvalidOperationException("握手帧解码失败");
+            return NetworkSerializer.DeserializePayload<T>(decoded);
+        }
+
         /// <summary>
         /// 回环选择器：SelectAsync 内 MsgSelectRequest → 信封 → 帧 → 解码（去程），
         /// 模拟客户端选索引，MsgSelectResponse → 信封 → 帧 → 解码（回程）——全同步。
@@ -560,7 +705,8 @@ namespace CardCore.Editor
                     TimeoutSeconds = request.TimeoutSeconds,
                     Min = request.MinCount,
                     Max = request.MaxCount,
-                    Labels = labels.ToArray(),
+                    // 与 NetworkTargetSelector 同口径（2026-09-22 线上去文本）：实体反问不传 Labels
+                    Labels = request.Candidates.Count > 0 ? Array.Empty<string>() : labels.ToArray(),
                     Candidates = request.Candidates.Select(NetEntityMapper.FromEntity).ToArray(),
                 };
 
@@ -570,8 +716,10 @@ namespace CardCore.Editor
                     NetworkSerializer.DeserializeEnvelope(wire));
                 Seen.Add(decodedRequest);
 
-                // 模拟客户端：选前 Min 个索引（AutoSelect 同款策略）
-                int count = Math.Max(1, Math.Min(decodedRequest.Min, decodedRequest.Labels.Length));
+                // 模拟客户端：选前 Min 个索引（AutoSelect 同款策略）——
+                // 实体反问 Labels 为空，候选数以 Candidates 为准（卡名客户端按 CardId 查表渲染）
+                int pool = decodedRequest.Candidates.Length > 0 ? decodedRequest.Candidates.Length : decodedRequest.Labels.Length;
+                int count = Math.Max(1, Math.Min(decodedRequest.Min, pool));
                 var indices = Enumerable.Range(0, count).ToArray();
 
                 // 回程：应答经完整协议栈返回"服务器"
