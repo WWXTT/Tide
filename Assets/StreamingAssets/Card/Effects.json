@@ -1,95 +1,6 @@
 {
     "items": [
         {
-            "id": "DEF0D65D",
-            "name": "造成2点伤害，击杀则抽1张",
-            "timing": 0,
-            "activation": 0,
-            "speed": 0,
-            "limit": 0,
-            "duration": 0,
-            "selection": 0,
-            "count": 1,
-            "random": 0,
-            "dropZone": 0,
-            "engine": 0,
-            "engineParam": 0,
-            "costs": [],
-            "steps": [
-                {
-                    "kind": 0,
-                    "atom": {
-                        "refId": "a4b823fc",
-                        "value": 2,
-                        "str": "",
-                        "amp": 0.0,
-                        "kinds": [
-                            2
-                        ]
-                    },
-                    "gid": "",
-                    "gparam": 0,
-                    "gstr": "",
-                    "then": [],
-                    "els": [],
-                    "choices": []
-                },
-                {
-                    "kind": 1,
-                    "atom": {
-                        "refId": "",
-                        "value": 1,
-                        "str": "",
-                        "amp": 0.0,
-                        "kinds": []
-                    },
-                    "gid": "DmgKillsTarget",
-                    "gparam": 0,
-                    "gstr": "",
-                    "then": [
-                        {
-                            "refId": "120ad4d1",
-                            "value": 1,
-                            "str": "",
-                            "amp": 0.0,
-                            "kinds": []
-                        }
-                    ],
-                    "els": [],
-                    "choices": []
-                }
-            ],
-            "rewards": []
-        },
-        {
-            "id": "28694D74",
-            "name": "回合开始时回复自身2点生命",
-            "timing": 5,
-            "activation": 1,
-            "speed": 0,
-            "limit": 0,
-            "duration": 0,
-            "selection": -1,
-            "count": -2,
-            "random": 0,
-            "dropZone": 0,
-            "engine": 1,
-            "engineParam": 3,
-            "costs": [],
-            "steps": [],
-            "rewards": [
-                {
-                    "refId": "599fcc9a",
-                    "value": 2,
-                    "str": "",
-                    "amp": 0.0,
-                    "kinds": [
-                        1
-                    ]
-                }
-            ]
-        },
-        {
             "id": "3F8E326A",
             "name": "代价，弃一张手牌；拼点，拼点胜出抽1张",
             "timing": 5,
@@ -5462,6 +5373,1666 @@
             "engineParam": 0,
             "costs": [],
             "steps": [],
+            "rewards": []
+        },
+        {
+            "id": "A47481C8",
+            "name": "造成伤害→抽卡",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a4b823fc",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.75,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                },
+                {
+                    "kind": 1,
+                    "atom": {
+                        "refId": "",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "DmgKillsTarget",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [
+                        {
+                            "refId": "120ad4d1",
+                            "value": 1,
+                            "str": "",
+                            "amp": 0.0,
+                            "kinds": []
+                        }
+                    ],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "28736498",
+            "name": "回复生命",
+            "timing": 5,
+            "activation": 1,
+            "speed": 0,
+            "limit": 1,
+            "duration": 1,
+            "selection": 0,
+            "count": 1,
+            "random": 1,
+            "dropZone": 1,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "599fcc9a",
+                        "value": 2,
+                        "str": "",
+                        "amp": 1.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "4297DD3F",
+            "name": "R_WARCRY",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "c01bcd8f",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "2ED6FB7E",
+            "name": "R_INSPIRE_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "efc6de8a",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "B54B4246",
+            "name": "R_INSPIRE_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "efc6de8a",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "4E2D8D80",
+            "name": "R_INSPIRE_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "efc6de8a",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "1B8CA39C",
+            "name": "R_RALLY_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "c01bcd8f",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "0717D033",
+            "name": "R_RALLY_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "c01bcd8f",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "04E65FAF",
+            "name": "R_BUFF_SINGLE",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "c01bcd8f",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "EB41ECFA",
+            "name": "R_TOKEN_SWARM",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [
+                {
+                    "type": 7,
+                    "value": 0,
+                    "manaType": 0,
+                    "turns": 0,
+                    "payload": {
+                        "refId": "d2fbd616",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "3a4aef82",
+                        "value": 2,
+                        "str": "C_9CBDD76F",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "446FAE3D",
+            "name": "R_TOKEN_REINFORCE",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [
+                {
+                    "type": 7,
+                    "value": 0,
+                    "manaType": 0,
+                    "turns": 0,
+                    "payload": {
+                        "refId": "b80c2d73",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "3a4aef82",
+                        "value": 1,
+                        "str": "C_A0AF544D",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "EAFA3599",
+            "name": "R_BOLT_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a4b823fc",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "E020BE53",
+            "name": "R_BOLT_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a4b823fc",
+                        "value": 3,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "BEAB6B11",
+            "name": "R_BOLT_4",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a4b823fc",
+                        "value": 4,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "EC76F5D2",
+            "name": "R_BOLT_5",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a4b823fc",
+                        "value": 5,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "DCEFC789",
+            "name": "G_HEAL_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "599fcc9a",
+                        "value": 3,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "FF697511",
+            "name": "G_HEAL_4",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "599fcc9a",
+                        "value": 4,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "4D4CBAB4",
+            "name": "G_HEAL_6",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "599fcc9a",
+                        "value": 6,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "E167D565",
+            "name": "G_HEAL_8",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "599fcc9a",
+                        "value": 8,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "347D58B3",
+            "name": "G_ARMOR_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "2a7d3092",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "89EBA63C",
+            "name": "G_ARMOR_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "2a7d3092",
+                        "value": 3,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "417423EA",
+            "name": "G_HEAL_5",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "599fcc9a",
+                        "value": 5,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "EA930D88",
+            "name": "G_LIFEUP_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "4de69242",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            1
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "E3A2646D",
+            "name": "G_PHOTO",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "fa3902cc",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "BDF8EEFC",
+            "name": "G_SLEEP_SAVE",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "bd2554f2",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "ABAB742E",
+            "name": "G_MINE",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "4fd4c954",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "341C0173",
+            "name": "G_SWEEP_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a4b823fc",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "A1855E71",
+            "name": "G_SWEEP_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 2,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a4b823fc",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "49B7794C",
+            "name": "B_POISON",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "cca3ed84",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "FC3C15F3",
+            "name": "B_TOXIN_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "d2fbd616",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "44196175",
+            "name": "B_TOXIN_3",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "d2fbd616",
+                        "value": 3,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "C136E023",
+            "name": "B_FREEZE_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "b80c2d73",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "2B86C4EA",
+            "name": "B_FREEZE_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "b80c2d73",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "73B803FE",
+            "name": "B_SILENCE",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "17dd3732",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "63E9AC2B",
+            "name": "B_DISARRAY_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "20fa8bae",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "953D4894",
+            "name": "B_DISARRAY_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "20fa8bae",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "12F26D80",
+            "name": "B_VULN_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "60a09ef1",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "EAD2F7E1",
+            "name": "B_VULN_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "60a09ef1",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "22575A59",
+            "name": "B_BOUNCE_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "3e00ecd2",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "5CF1C161",
+            "name": "B_BOUNCE_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "3e00ecd2",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "E997348F",
+            "name": "B_DRAW_1",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "120ad4d1",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "61038C2D",
+            "name": "B_DRAW_2",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "120ad4d1",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "75878FF3",
+            "name": "B_DRAW_2B",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "120ad4d1",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "368A20AB",
+            "name": "B_DISCOVER",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": 0,
+            "count": 1,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "4e609e26",
+                        "value": 3,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
             "rewards": []
         }
     ]

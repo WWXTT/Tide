@@ -116,17 +116,17 @@ namespace CardCore.Serialization
         public const int SerializableManaAmount_manaType = 549926884;
         public const int SerializableManaAmount_amount = 433477152;
 
-        // ---- CostInstance ----
+        // ---- CostInstance（已退役：SerializableCostInstance 随 EffectDefinitionDTO 删除，2026-09-22；tag 留作保留位） ----
         public const int CI_Type = 57119624;
         public const int CI_Value = 832738714;
         public const int CI_ManaType = 1850397482;
 
-        // ---- ActivationCondition ----
+        // ---- ActivationCondition（已退役：SerializableActivationCondition 随 EffectDefinitionDTO 删除，2026-09-22；tag 留作保留位） ----
         public const int AC_Type = 1310782459;
         public const int AC_Value = 1634179753;
         public const int AC_Value2 = 21033891;
 
-        // ---- EffectDefinition ----
+        // ---- EffectDefinition（已退役：SerializableEffectDefinition 全量效果定义不上网，随 EffectDefinitionDTO 删除，2026-09-22；tag 留作保留位） ----
         public const int ED_Id = 548492777;
         public const int ED_DisplayName = 1300219100;
         public const int ED_Description = 1631759857;
@@ -167,7 +167,7 @@ namespace CardCore.Serialization
         public const int MGSS_CurrentPhase = 1337617274;
         public const int MGSS_Players = 1169411298;
         public const int MGSS_BattlefieldCards = 574488751;
-        public const int MGSS_Stack = 272663845;
+        public const int MGSS_Stack = 272663845; // 已退役（2026-09-22 全量效果定义不上网；tag 留作保留位）
 
         // ---- PlayerState ----
         public const int PS_Name = 1780016741;
@@ -220,7 +220,7 @@ namespace CardCore.Serialization
         public const int SID_Source = 887547856;
         public const int SID_IsCardCast = 6974238;
         public const int SID_EffectId = 1282903965;
-        public const int SID_EffectDisplayName = 2014314126;
+        public const int SID_EffectDisplayName = 2014314126; // 已退役（2026-09-22 显示名客户端按 EffectId 查表；tag 留作保留位）
         public const int SID_ModeIndex = 982635335;
         public const int SID_Targets = 1694824900;
         public const int SID_ActivationSpeed = 548007896;
@@ -287,6 +287,21 @@ namespace CardCore.Serialization
         public const int RCS_RuntimeId = 1598792242;
         public const int RCS_ControllerSeat = 1105098362;
 
-        // 共 208 个标签
+        // ---- NetDeckDigest（开局握手：卡组引用闭包的原子行摘要，2026-09-22）----
+        public const int NDD_AtomicRowsHash = 1017044835;
+        public const int NDD_AtomicRowCount = 1928083177;
+
+        // ---- MsgDeckSubmit（上行：卡组提交，2026-09-22）----
+        public const int MDS_DeckName = 1095059584;
+        public const int MDS_CardIds = 339936047;
+        public const int MDS_Digest = 216745245;
+
+        // ---- MsgMatchManifest（下行：对局清单，2026-09-22）----
+        public const int MMM_OwnSeat = 2014680492;
+        public const int MMM_OwnCardIds = 1186475388;
+        public const int MMM_OpponentCardCount = 750558643;
+        public const int MMM_OwnDeckDigest = 1791650654;
+
+        // 共 216 个标签（另有 SID_EffectDisplayName/MGSS_Stack 等退役 tag 留作保留位，不计数）
     }
 }

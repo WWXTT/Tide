@@ -153,15 +153,25 @@ class TideEnvTcp(gym.Env):
 
     def reset(self, seed=None, options=None):
         """重置环境（开新局）。options={"opponent": ...} 可按次覆盖对手位
-        （自对弈训练中途切 vs SimpleAI 评估用），缺省用 self.opponent。"""
+        （自对弈训练中途切 vs SimpleAI 评估用），缺省用 self.opponent；
+        options={"theme": "red"} 指定 vs 脚本口径的对手主题（2026-09-22 临时：
+        评估基准暂只认红，空/缺省=三主题随机，Unity 侧找不到回落随机）。
+        塑形 λ 经 self.reward_lambda 每局下发（2026-09-22 协议扩展：shapingLambda 字段，
+        Unity 侧 >0 生效、缺省/0 用驱动默认 0.005）。"""
         super().reset(seed=seed)
 
         # 连接（如果未连接）
         self._connect()
 
-        # 发送 reset（opponent 决定对手位：selfplay / simpleai）
+        # 发送 reset（opponent 决定对手位；shapingLambda 按局覆盖塑形 λ；theme 钉死对手主题）
         opponent = (options or {}).get("opponent") or self.opponent
-        self._send_json({"op": "reset", "opponent": opponent})
+        payload = {"op": "reset", "opponent": opponent}
+        theme = (options or {}).get("theme")
+        if theme:
+            payload["theme"] = theme
+        if self.reward_lambda and self.reward_lambda > 0:
+            payload["shapingLambda"] = float(self.reward_lambda)
+        self._send_json(payload)
 
         # 读取初始 obs
         response = self._read_json()
@@ -195,8 +205,10 @@ class TideEnvTcp(gym.Env):
         info = response.get("info", {})
 
         # reward 采用 Unity 权威值（actor-centric）：终局 ±1 归属「刚行动的一方」，
-        # 非终局 λ·ΔΦ 势能塑形（λ 固定在 TideHeadlessDriver.ShapingLambda=0.05）。
+        # 非终局 λ·ΔΦ 势能塑形（λ 由 reset 协议下发，默认 0.005——2026-09-22 前固定 0.05
+        # 且 Φ 含手牌，塑形累计淹没终局信号导致学拖局，现已剔除手牌并降 λ）。
         # 注意不能按 info.winner 的座次判符号——obs 视角随行动方轮换，座次判会反号。
+        # info.toPlay = 下一决策点行动方座次（0/1，终局 -1）——自对弈 GAE 座次修正用。
         reward = float(response.get("reward", 0.0))
 
         self.step_count += 1

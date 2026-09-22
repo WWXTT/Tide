@@ -175,12 +175,31 @@ namespace CardCore.AI
             return null;
         }
 
-        /// <summary>英雄技能是否发动。默认=原 UseHeroSkill 条件：红绿基础版需己方生物，蓝色恒可。</summary>
+        /// <summary>英雄技能是否发动（2026-09-22 单方效果版）：蓝=牌库非空（空库抽牌=疲劳）；
+        /// 绿=按升级态牌库/墓地有可入池生物且地牌槽未满；红=战场有空位（满场 token 入墓=白费）。</summary>
         public virtual bool WantHeroSkill(GameCore core, Player me, HeroSkillId skill, bool upgraded)
         {
-            bool needCreature = skill == HeroSkillId.GreenCultivate
-                                || (skill == HeroSkillId.RedFrenzy && !upgraded);
-            return !needCreature || core.ZoneManager.GetCards(me, Zone.Battlefield).Any();
+            bool LandCandidate(Card c)
+                => ElementPoolSystem.CanServeAsLand(c) && core.ElementPool.CanPoolProduceTokens(c);
+
+            switch (skill)
+            {
+                case HeroSkillId.BlueInsight:
+                    return core.ZoneManager.GetCards(me, Zone.Deck).Count > 0;
+
+                case HeroSkillId.GreenCultivate:
+                    if (core.ElementPool.GetPooledCards(me).Count >= core.ElementPool.GetLandCap(me))
+                        return false; // 地牌槽满：入池会被拒，白付绿3
+                    return upgraded
+                        ? core.ZoneManager.GetCards(me, Zone.Graveyard).Any(c => c.IsAlive && LandCandidate(c))
+                        : core.ZoneManager.GetCards(me, Zone.Deck).Any(LandCandidate);
+
+                case HeroSkillId.RedFrenzy:
+                    return core.ZoneManager.HasBattlefieldSpace(me);
+
+                default:
+                    return false;
+            }
         }
 
         // ======================================== 共用小工具（策略实现用） ========================================

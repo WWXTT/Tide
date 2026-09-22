@@ -80,31 +80,43 @@ tide_rl/
 ```json
 发送: {"op":"reset"}                          → 自对弈：主题整组（三套随机其一）vs Cards.json 随机 30，随机换座
 发送: {"op":"reset","opponent":"simpleai"}    → 模型（Cards.json 随机 30）vs 脚本主题卡组（SimpleAI+AutoMatch）
+发送: {"op":"reset","shapingLambda":0.005}    → 按局覆盖塑形 λ（2026-09-22；缺省/0 用 Unity 默认 0.005）
 接收: {"obs":{...},"info":{...,"theme":"red|green|blue"}}   # theme=对手主题（vs 模式），供分主题统计
 ```
 
 **Step**:
 ```json
 发送: {"op":"step","action":N}
-接收: {"obs":{...},"done":false,"info":{...}}
+接收: {"obs":{...},"done":false,"info":{...,"toPlay":0|1}}   # toPlay=下一决策点行动方座次（自对弈 GAE 座次修正用）
 ```
 
-### 奖励计算
+### 奖励计算（Unity 权威，2026-09-22 定案）
+
+reward 归属「刚行动的一方」（actor-centric）：终局 ±1 主导；非终局 λ·ΔΦ 势能塑形。
+
+**2026-09-22 修复（背景：旧口径 λ=0.05 硬编码 + 势能含手牌，双方各自整局塑形累计 ≈ +3.1
+淹没终局 ±1，自对弈收敛到拖局刷塑形——局长 90→267、对脚本胜率 0.35→0.1）：**
+- **λ 0.05 → 0.005**，且经 reset 协议 `shapingLambda` 下发（Python `reward_lambda` 从死参数变真参数）；
+- **势能剔除手牌**（`ComputePotential(includeHand:false)`）——含手牌时「每回合摸牌」是白拿的正奖励流；
+  观测 g[28]/g[29] 仍走含手牌口径，不受影响；
+- **`NoProgressPenalty` 符号修复**——引擎拒绝动作此前误得 +0.05（可刷的奖励泉），现为 -0.05 扣分；
+- **自对弈 GAE 座次修正**（`rollout_common.compute_advantages_simple` 的 seats 参数）：双方决策交替的
+  轨迹按 info.toPlay 做零和符号变换（对手步价值/奖励反号），退化为单代理口径时与旧行为逐位一致。
+
+**验证**（`verify_reward_fix`，30 万步）：终局主导生效——ep_ret 有界 0.5~1.0（终局座次偏斜），
+ep_len 稳定 57~82 不再膨胀，vs 脚本主题卡组 100 局终评 **85%**（绿 100%/蓝 83%/红 73%）；
+旧口径 200 万步仅 10%。健康自检：新口径下混合流 ep_ret 数学上限 ≈ +1（双方塑形对消 +
+终局只发一个 ±1），持续超 1 即存在新的正奖励漏洞。
+
+**评估基准临时只认红（2026-09-22 定案）**：重建卡组+引擎修复后发现脚本阵营失衡——零训练
+随机策略 vs 脚本即 68%（绿 25/25、蓝 11/20、红 5/15），总胜率口径被白送分污染。
+reset 协议新增 `theme` 字段可钉死对手主题；训练 `Args.eval_theme` 默认 `"red"`，
+best/早停/终评全部只对红·快攻计。绿/蓝等卡组与出牌策略重设计完成、并通过随机基线
+校准（随机胜率应≈0）后改回空串恢复三主题。
 
 ```python
-# 终局奖励（主导信号）
-if done:
-    if winner == 1: reward = +1.0
-    elif winner == 2: reward = -1.0
-    else: reward = 0.0  # 平局/超时
-
-# 塑形奖励（引导信号）
-else:
-    Φ_current = obs["global_"][28] - obs["global_"][29]  # TotalValue(me) - TotalValue(opp)
-    reward = lambda * (Φ_current - Φ_last)
+env = TideEnv(reward_lambda=0.005, ...)   # λ 由此下发
 ```
-
-**λ 建议值**：`0.01~0.05`（v2 全资源势能变化更大，需降低 λ）
 
 ### 启动 Unity
 

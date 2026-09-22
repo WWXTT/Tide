@@ -26,9 +26,11 @@ namespace CardCore.Editor.TideHeadless
     ///   请求  {"op":"reset"}                          → 自对弈（双方都由模型驱动）
     ///   请求  {"op":"reset","opponent":"simpleai"}    → 模型 vs 脚本主题卡组（随机模型座次，对手回合
     ///                                                  Unity 侧由 SimpleAI+AutoMatch 策略自动打）
+    ///   请求  {"op":"reset","shapingLambda":0.005}    → 按局覆盖塑形 λ（2026-09-22；缺省/0 用驱动默认 0.005）
     ///   请求  {"op":"step","action":N}                → 响应同上
     ///   响应 {op, obs{cards,globals,actions,nActions}, reward, done, info{toPlay,winner,reason,turn,modelSeat,theme}}
     ///   obs 恒为「当前回合玩家」视角（自对弈）/「模型」视角（vs 脚本），reward 归属同视角；
+    ///   info.toPlay：下一决策点行动方座次（0=P1 / 1=P2，终局 -1）——Python 自对弈 GAE 座次修正用；
     ///   info.modelSeat：模型座次（0=P1 / 1=P2），自对弈为 -1——vs 模式按它判胜负；
     ///   info.theme：对手主题 key（red/green/blue，vs 模式才有；自对弈空串）——Python 分主题统计胜率。
     ///
@@ -156,7 +158,7 @@ namespace CardCore.Editor.TideHeadless
                     }
 
                     TideStepResult result = req.op == "reset"
-                        ? HandleReset(driver, req.opponent)
+                        ? HandleReset(driver, req.opponent, req.shapingLambda, req.theme)
                         : HandleStep(driver, req.action);
 
                     string resp = Serialize(req.op, result);
@@ -267,8 +269,12 @@ namespace CardCore.Editor.TideHeadless
             }
         }
 
-        private static TideStepResult HandleReset(TideHeadlessDriver driver, string opponent)
+        private static TideStepResult HandleReset(TideHeadlessDriver driver, string opponent,
+            float shapingLambda = 0f, string themeKey = null)
         {
+            // 按局覆盖塑形 λ（>0 生效；旧客户端不发该字段=0 → 用驱动默认 0.005）
+            driver.SetShapingLambda(shapingLambda);
+
             // 2026-09-21 主题卡组口径（数据层迁移到 Cards.json + StreamingAssets/Card/，TestDecks 已删）：
             //   自对弈  = 主题整组（三套随机其一）vs Cards.json 随机 30 张，随机换座，双方模型驱动；
             //   vs 脚本 = 模型 Cards.json 随机 30 张 vs 随机主题整组，SimpleAI 按主题 AutoMatch 策略
@@ -289,7 +295,14 @@ namespace CardCore.Editor.TideHeadless
 
             lock (DeckRngLock)
             {
-                var theme = themes[DeckRng.Next(themes.Count)];
+                // 2026-09-22 临时：评估基准暂只认红（绿/蓝脚本待重设计——随机基线下绿 100%/蓝 55%
+                // 白送分污染总胜率）。reset 可指定主题 key（red/green/blue），空/找不到回落随机；
+                // 仅 vs 脚本口径使用，自对弈不传（保持三主题训练多样性）。
+                var theme = string.IsNullOrEmpty(themeKey)
+                    ? default
+                    : themes.FirstOrDefault(t => t.key == themeKey);
+                if (theme.deck == null)
+                    theme = themes[DeckRng.Next(themes.Count)];
                 if (opponent == "simpleai")
                 {
                     // 模型 = Cards 随机 30；脚本 = 主题整组（策略按主题自动匹配：红快攻/绿慢速/蓝控制）
@@ -364,7 +377,7 @@ namespace CardCore.Editor.TideHeadless
 
         // ===================================================== JSON DTO（JsonUtility 字段名即协议键） =====================================================
 
-        [Serializable] public class HeadlessRequest { public string op; public int action; public string opponent; }
+        [Serializable] public class HeadlessRequest { public string op; public int action; public string opponent; public float shapingLambda; public string theme; }
         [Serializable] public class HeadlessObs { public List<float> cards; public List<float> globals; public List<float> actions; public int nActions; }
         [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; public int modelSeat; public string theme; }
         [Serializable] public class HeadlessResponse { public string op; public HeadlessObs obs; public float reward; public bool done; public HeadlessInfo info; }

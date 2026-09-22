@@ -237,6 +237,15 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 预检：卡作为地牌入池是否会产生至少 1 个指示物（英雄技能候选筛选/AI 预检用，
+        /// 2026-09-22）。资格（CanServeAsLand）与地牌槽上限不在内——由 AddCardToPool 权威校验。
+        /// </summary>
+        public bool CanPoolProduceTokens(Card card, int modeIndex = 0)
+            => (card.HasLandTokenState
+                   ? card.GetRemainingLandTokens()
+                   : GetCardCostAsTokens(card, modeIndex)).Values.Sum() > 0;
+
+        /// <summary>
         /// 将未耗尽的池内地牌移出元素池（弹回手等效果使用）。
         /// 剩余指示物写回卡上的地牌余量状态，再入池时按余量继续，不重新满额。
         /// 只移除池内记录，不动区域 —— 区域移动由调用方完成。

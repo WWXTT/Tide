@@ -179,9 +179,10 @@ namespace CardCore.Tools
                 ("MsgGameStateSync", "PrioritySeat"), ("MsgGameStateSync", "ZoneCards"),
                 ("MsgGameStateSync", "Hands"), ("MsgGameStateSync", "StackV2"),
 
-                // ---- StackItemDTO（栈条目：现 Stack=SerializableEffectDefinition[] 粒度错误的替换）----
+                // ---- StackItemDTO（栈条目：EffectInstance 投影。EffectDisplayName 已删——2026-09-22
+                //      线上去文本，显示名客户端按 EffectId 查表；旧 Stack=SerializableEffectDefinition[] 字段同日删除）----
                 ("StackItemDTO", "Source"), ("StackItemDTO", "IsCardCast"), ("StackItemDTO", "EffectId"),
-                ("StackItemDTO", "EffectDisplayName"), ("StackItemDTO", "ModeIndex"),
+                ("StackItemDTO", "ModeIndex"),
                 ("StackItemDTO", "Targets"), ("StackItemDTO", "ActivationSpeed"),
                 ("StackItemDTO", "StackObjectType"),
 
@@ -214,6 +215,12 @@ namespace CardCore.Tools
 
                 // ---- RuntimeCardState 快照补齐 ----
                 ("RuntimeCardState", "RuntimeId"), ("RuntimeCardState", "ControllerSeat"),
+
+                // ---- 开局握手（2026-09-22：DeckSubmit/MatchManifest + 卡组闭包原子行摘要）----
+                ("NetDeckDigest", "AtomicRowsHash"), ("NetDeckDigest", "AtomicRowCount"),
+                ("MsgDeckSubmit", "DeckName"), ("MsgDeckSubmit", "CardIds"), ("MsgDeckSubmit", "Digest"),
+                ("MsgMatchManifest", "OwnSeat"), ("MsgMatchManifest", "OwnCardIds"),
+                ("MsgMatchManifest", "OpponentCardCount"), ("MsgMatchManifest", "OwnDeckDigest"),
             };
 
             var result = new (string className, string propName, int tag)[raw.Length];
@@ -278,6 +285,9 @@ namespace CardCore.Tools
                 "MsgSelectRequest" => "MSelR",
                 "MsgSelectResponse" => "MSelP",
                 "MsgNetEventBatch" => "MNEB",
+                "NetDeckDigest" => "NDD",
+                "MsgDeckSubmit" => "MDS",
+                "MsgMatchManifest" => "MMM",
                 _ => className
             };
         }

@@ -1,20 +1,38 @@
-原子表 AttributeValueConfig.json 字段参考（2026-09-11 生成；2026-09-16 补 TargetKinds 分区全体与 MountKinds；改表前看一眼防错）
+原子表 AttributeValueConfig.json 字段参考（2026-09-11 生成；2026-09-16 补 TargetKinds/MountKinds；
+2026-09-22 重写：补 EffectType/ManaList/EffectTier 列、修正指纹与兜底描述、枚举清单对齐当前数据；改表前看一眼防错）
 ====================================================================
 
-枚举全部 88 个 = 可写进表的 86 个 + 刻意不实现 2 个：
+当前表共 89 行（同枚举可多行=域/模板变体，各自中文短名：
+洗牌×2（洗回/洗入）、跳过回合×2、沉睡×2、额外元素×2、宣告胜利×2）。
 
-伤害族（6）: DealDamage DealCombatDamage LifeLoss PierceDamage DrainLife Heal
-移动族（13）: DrawCard DiscardCard MillCard ReturnToHand Exile ShuffleIntoDeck SearchDeck BounceToTop BounceToBottom ReturnFromGraveyard RecoverToHand SummonToken Morph
-状态族（13）: Tap Untap ModifyPower ModifyLife SetPower SetLife SetCost ModifyCost Freeze Purify Weaken Inspire Sleep
-指示物族（15）: Poison AddToxin AddArmor Silence AddNullify RushSickness AddVulnerable AddPowerUp AddPowerDown AddLifeUp AddLifeDown AddPlusOne AddMinusOne AddCostUp AddCostDown
-Grant族(域=0)（18）: GrantDoubleStrike GrantFirstStrike GrantOverwhelm GrantDisarm GrantVigilance GrantStealth GrantSpellShield GrantCannotBeTargeted GrantLifesteal GrantLifelink GrantRegeneration GrantGrowth GrantArmor GrantDivineShield GrantTaunt GrantPoisonSting GrantReborn GrantIndestructible
-控制/反制族（5）: GainControl ChangeOwner NegateActivation RedirectTarget KnockDown
-消灭族（4）: Sacrifice Devour Annihilate Smash
-信息族（6）: DeclareHand DeclareDeckTop DeclareArrow ProphecyNextCard LookAtTopCards ScryCards
-资源/回合（4）: AdditionalEnergy TakeExtraTurn SkipTurn
-战斗底盘（2）: Attack Guard
+伤害族: DealDamage LifeLoss PierceDamage DrainLife Heal
+移动族: DrawCard DiscardCard ReturnToHand RecoverToHand Exile ShuffleIntoDeck SearchDeck
+        ReturnFromGraveyard SummonToken Morph DiscoverCard
+状态族: Untap SetPower SetLife SetCost ModifyPower ModifyLife ModifyCost Freeze Purify Sleep
+指示物族: Poison AddToxin AddArmor Silence AddNullify RushSickness AddVulnerable
+        AddPowerUp AddPowerDown AddLifeUp AddLifeDown AddPlusOne AddMinusOne AddCostUp AddCostDown
+Grant族(域=0，23 行): GrantPoisonSting GrantLifesteal GrantStealth GrantDivineShield GrantOverwhelm
+        GrantVigilance GrantFirstStrike GrantSpellShield GrantCannotBeTargeted GrantReborn
+        GrantIndestructible GrantLifelink GrantRegeneration GrantGrowth GrantDisarm GrantTaunt
+        GrantMiniature GrantMagnify GrantEcho GrantIceCrystal GrantNightmare GrantPathogen GrantSpellban
+控制/反制族: GainControl ChangeOwner NegateActivation KnockDown
+消灭族: Sacrifice Devour Annihilate Smash Abandon
+信息/宣告族: LookAtTopCards ScryCards DeclareVictory
+资源/回合: AdditionalEnergy TakeExtraTurn SkipTurn
+战斗底盘: Attack Guard（合成器锁定为不可编辑关键词——默认携带，不可组合）
+引擎主干(MountKinds=9): BranchEngineClash BranchEngineLuckRoll BranchEngineCountdown
+        （合成器锁定为不可编辑关键词——主干槽下拉直选）
 
-刻意不实现（枚举有、表无行，写进表也不生效）: ModifyGameRule OverrideRestriction
+枚举有、表无行（写进表才生效）: DealCombatDamage MillCard BounceToTop BounceToBottom Tap Weaken
+Inspire DeclareHand DeclareDeckTop DeclareArrow ProphecyNextCard RedirectTarget
+GrantDoubleStrike GrantArmor（后两者 GrantKeywordHandlerFactory.Specs 有映射但表无行）
+刻意不实现: ModifyGameRule OverrideRestriction
+
+【EffectType】解析键（2026-09-22 补）——**每行必填**：
+  必须与 AtomicEffectType 枚举名完全一致（DealDamage/GrantTaunt/...英文）。
+  LoadFromJson 对它做 Enum.TryParse，失败=整行跳过并告警（表其余列全对也没用）。
+  装载后 config.EnumName = 该英文枚举名（查表键），**表里的 EnumName 列反而是中文短名**
+  （见下文字段换位说明）——两列名字是历史遗留，勿混淆。
 
 【TargetKinds】TargetKind.cs 17 序号（只许尾部追加、永不重排），逗号分隔、升序书写：
   0  = Self（仅自身——Grant族/沉睡类自我效果）
@@ -29,6 +47,8 @@ Grant族(域=0)（18）: GrantDoubleStrike GrantFirstStrike GrantOverwhelm Grant
 写法：null 或 ""（空串）= 无目标原子（不参与卡的组合域交集）；"1,2"=逗号分隔多值。
 ★ 隐藏区（7/8 牌库、6 对方手牌）域的原子：卡上 SelectionMode 用 None(-1) 自结算，
   不弹目标选择；公开区（战场/坟场）才用选一/选多档（0/1/3/4）。
+★ 实例收窄（2026-09-22）：Effects.json 条目可带 kinds 单值收窄表域；合成器目标域下拉按
+  Polarity×槽位限选（效果区 p>0 只己方侧 / p<0 只对方侧；代价区只错侧），{target} 按实例域渲染。
 
 【SelectionMode 六值（2026-09-16 定案）= 数量（1/N/全）× 范围宽（单/多）】
   0=单范围选一个（域={Self} 即源卡自身——旧 Self 溶解）
@@ -38,15 +58,15 @@ Grant族(域=0)（18）: GrantDoubleStrike GrantFirstStrike GrantOverwhelm Grant
   多范围域须用 3/4/5（构筑期校验，违反报错）。目标随机为正交标志 random（0/1），
   不再占枚举位（随机1个=0/3+random、随机N个=1/4+random、随机全部≡5 无意义）。
 
-【TargetKinds × AoE 分区全体（2026-09-16 定案）】
+【TargetKinds × AoE 分区全体（2026-09-16 定案；2026-09-21 固有全域原子退役）】
   AoE 不用专用原子：原子行 TargetKinds 指向分区 + 卡上效果级全取档（2 单范围 / 5 多范围）
   = 该分区全部对象（候选全取、不弹选择、帷幕/扰魔不过滤=波及语义）。三个标准组合：
     1    = 己方有生命单位全体（含己方角色）        —— 用 2
     2    = 敌方有生命单位全体（含对方角色）        —— 用 2
     1,2  = 双方全体                                —— 用 5
-  固有全域两行 SweepDamage/SweepHeal（TargetKinds="1,2"）即「双方全体」的一等实例，
-  converter 无条件强制 WholeUnion(5)、计价数量 ×1（范围溢价已含 BaseCost）；
-  普通原子 + 全取档的分区全体按期望 4 目标计价（CostDerivation.FullModeExpectedTargets）。
+  固有全域两行 SweepDamage/SweepHeal 已于 2026-09-21 从表删除——全域语义全部走
+  「TargetKinds 定域 + 全取档」的组合期表达，计价统一按期望 4 目标
+  （CostDerivation.FullModeExpectedTargets）。
 ★ 单体 AoE 混写笔误：只要单体就别配全取档——全取是"整分区"不是"目标数上限"。
 
 【MountKinds】可装载范围（MountKind.cs 10 值，CSV 多选同 TargetKinds 惯例；只许尾部追加）：
@@ -62,9 +82,11 @@ Grant族(域=0)（18）: GrantDoubleStrike GrantFirstStrike GrantOverwhelm Grant
       组合期不可加限；其余原子默认可修改且默认上限=一回合一次
   9 = FreeBranchTrunk 自由分支主干（拼点/运势/倒计时——**只可落入合成器主干槽**，
       写 header.EngineKind/EngineParam；MountKinds=9 的行必须显式只写 9，不与其余位混挂）
-写法：CSV 逗号分隔（"0,4" = 主动效果+分支奖励；"" 空串=未声明，消费方自行兜底）。
+写法：CSV 逗号分隔（"0,4" = 主动效果+分支奖励；"" 空串 = **BuildConfig 兜底硬编码
+  "0,1,2,3,4,5,6"**——不含 7/8/9，随机/上限锁/引擎主干必须显式声明）。
 ★ 消费方：装载校验（CardLoader）/触发上限解析（CardEffectConverter.MountHasFlag(8)→
-  TriggerLimitPerTurn 恒 -1）/合成器可拖拽目录（ComposerCatalog 按 MountKinds 驱动检查器）。
+  TriggerLimitPerTurn 恒 -1）/合成器可用性过滤（ComposerCatalog+EffectComposer 按
+  MountKinds×选中槽过滤库——2026-09-22）。
 ★ MountKinds **不进表指纹**（CardIdentityService.TableFingerprint 只哈希 EnumName/ManaList/
   TargetKinds/TargetFilter/Polarity）——改它不触发卡身份换血/manifest 作废/重训，
   只影响装载校验与合成器可挂范围。
@@ -80,17 +102,39 @@ Grant族(域=0)（18）: GrantDoubleStrike GrantFirstStrike GrantOverwhelm Grant
   属性比较式：Power>5 / Life<=3 / Power=2 等格式
 ★ 新击杀效果 = 表行带 Mortal 即可，零引擎改动。
 
-【其它字段】
-  EnumName   = 中文短名（装载后作为显示名，进表指纹——改名=身份换血）
-  DisplayName= 展示模板（装载后作为描述；ID 列由它哈希：sha256(去首尾空格)前8位hex）
-  EffectColor= 计价落色：Red / Blue / Green / White / Black / Gray（不进表指纹）
-  BaseCost   = 锚价（单价，×Value 计价；进表指纹）
-  Polarity   = 极性 [-1,1]：-1 对敌释放有益 / +1 对己释放有益 / 0 中性（进表指纹）
+【费用构成三列（2026-09-22 补——迁移链务必看清）】
+  ManaList   = **正式费用构成列**（2026-09-14 定案）：[{manaType,amount},…] 混合色数组。
+               计价 = 各色 amount × Value；首色即主色（config.PrimaryColor）。
+               当前 89 行数据**尚未迁移**——ManaList 全空，走下行兜底。
+  EffectColor+BaseCost = **旧格式两列**（兜底合成）：仅当 ManaList 为空且 EffectColor
+               可解析为 ManaType 且 BaseCost>0 时，BuildConfig 合成单条
+               ManaList={EffectColor, BaseCost}。新行应直接写 ManaList（旧两列可留作对照）。
+  Tags       = **只读派生列（表里不写）**：BuildConfig 写入 ManaList 首色的颜色名字符串
+               （"Red"/"Blue"/…）——UI 圆点/ElementAffinity 取色都读它。
+               旧数据下实质 = EffectColor 的迁移落点（2026-09-20 修复，此前从未写入全表退化）。
+★ 进表指纹的是 **ManaList**（排序后 type:amount）——旧数据下改 EffectColor/BaseCost
+  会经合成 ManaList 间接动指纹；迁移到显式 ManaList 后旧两列不再影响任何东西。
 
-【改表的连锁反应】
-  · 改 EnumName / BaseCost / TargetKinds / TargetFilter / Polarity 任一 → 表指纹变
-    → 全体卡身份哈希换血 → manifest 作废 → 必须重训 + 重导出
-    （改 EffectColor / DisplayName / ID 不动指纹）
+【EffectTier】（DTO 已支持、数据未迁移——预告位）：Atom/Keyword/Counter 三分类，
+  缺省 Atom。现零消费（关键词认 Grant 前缀、指示物认 CounterRules spec），
+  迁移前不要写进表。
+
+【其它字段】
+  ID         = 行主键 8-hex：sha256(DisplayName 去首尾空格) 前 8 位——原子引用键
+               （Effects.json 的 refId 指向它）。空=该行不可被引用。
+  EnumName   = **中文短名**（装载后落到 config.DisplayName 作显示名——与 EffectType 列
+               名字错位是历史遗留）；进表指纹，改名=身份换血。
+  DisplayName= 展示模板（装载后落到 config.Description 作描述）；{value}/{target} 占位。
+               不进指纹；改它只改描述文案。
+  Polarity   = 极性 [-1,1]：-1 有害（对敌释放有益）/ +1 有益（对己释放有益）/ 0 中性。
+               进表指纹。合成器目标域限选、代价错侧改写、错边转化黑白补偿全由它驱动。
+
+【改表的连锁反应（2026-09-22 修正口径）】
+  · 表指纹（CardIdentityService.TableFingerprint）只哈希：
+      EnumName | ManaList(排序 type:amount) | TargetKinds | TargetFilter | Polarity
+    改这五者任一 → 表指纹变 → 全体卡身份哈希换血 → manifest 作废 → 必须重训 + 重导出。
+    （改 BaseCost/EffectColor 在**旧数据**下经合成 ManaList 间接动指纹——等价于改计价；
+     迁移显式 ManaList 后旧两列怎么改都不动指纹；改 DisplayName/ID/MountKinds/EffectTier 不动指纹）
   · ID 列不用手写：跑 Tools/重推导测试卡表费用与ID 自动重推；
     DisplayName 撞名 → ID 撞号（工具会告警）
   · 改完表的标准动作：Tools/重推导测试卡表费用与ID → Tools/端到端验证

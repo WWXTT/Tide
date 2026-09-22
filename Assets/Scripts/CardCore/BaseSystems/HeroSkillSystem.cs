@@ -10,23 +10,24 @@ namespace CardCore
     public enum HeroSkillId : int
     {
         None = 0,
-        /// <summary>蓝·洞察（蓝1）：双方各抽 1 张卡；升级（7 次）：从自己牌库发现一张卡（随机 3 选 1）</summary>
+        /// <summary>蓝·洞察（蓝2）：抽一张牌；升级（7 次）：从自己牌库发现一张卡（随机 3 选 1）</summary>
         BlueInsight = 1,
-        /// <summary>绿·培育（绿2）：双方各选一个己方生物赋予地牌特性（横置→得 1 元素，色随生物费用）；
-        /// 升级（7 次）：从自己墓地选一张卡置入地牌区</summary>
+        /// <summary>绿·培育（绿3）：从自己牌库随机将一张生物作为地牌横置入场；
+        /// 升级（7 次）：从自己墓地选一张生物作为地牌横置入场</summary>
         GreenCultivate = 2,
-        /// <summary>红·狂热（红2，2026-09-16 调档）：双方全体生物攻击力 +1（持续到各自持有者回合结束）；
-        /// 升级（7 次）：选一个己方生物以其当前攻击力对对手角色造成等量伤害</summary>
+        /// <summary>红·狂热（红1，2026-09-22 重做）：召唤一个 1/1 衍生物（可攻击）；
+        /// 升级（7 次）：召唤一个 2/1 衍生物</summary>
         RedFrenzy = 3,
     }
 
     /// <summary>
-    /// 英雄技能系统（2026-09-13 第二十批定案；2026-09-21 改造：技能=初始在场永续魔法）：
+    /// 英雄技能系统（2026-09-13 第二十批定案；2026-09-21 改造：技能=初始在场永续魔法；
+    /// 2026-09-22 重做：对称设计退役——AI 优先用技能时"双方各…"喂养对手资源显得愚蠢，改为单方收益）：
     /// - **技能卡实体**：Enchantment（结界/永续魔法）超类，开局由 InitGame 生成放入 FieldZone
     ///   （原额外卡组退役后的空缺槽位）；**发动=横置本卡**（一回合一次=准备阶段重置）；
     ///   **交互与一般永续魔法一致**——可被沉默（不可发动主动效果）/无效/摧毁/弹回（离场即失技能）；
-    /// - **激活需付对应颜色费用**（蓝1/绿2/红2）；**7 次发动后升级**（TotalUses ≥ 7 → 升级版）；
-    /// - 对称设计（双方各…）：激活者付费、双方受益——优势来自不对称利用；
+    /// - **激活需付对应颜色费用**（蓝2/绿3/红1）；**7 次发动后升级**（TotalUses ≥ 7 → 升级版）；
+    /// - 单方收益（2026-09-22）：效果只利己，不再"双方各…"；
     /// - 黑白暂无技能（None）；InitGame 按卡组费用主色自动指派。
     /// 接线：GameActions.ActivateHeroSkill（声明口）；回合开始 GameCore 重置技能卡横置。
     /// </summary>
@@ -38,9 +39,9 @@ namespace CardCore
         /// <summary>技能费用（id → (色, 量)）。</summary>
         public static (ManaType color, int amount) CostOf(HeroSkillId id) => id switch
         {
-            HeroSkillId.BlueInsight => (ManaType.Blue, 1),
-            HeroSkillId.GreenCultivate => (ManaType.Green, 2),
-            HeroSkillId.RedFrenzy => (ManaType.Red, 2),
+            HeroSkillId.BlueInsight => (ManaType.Blue, 2),
+            HeroSkillId.GreenCultivate => (ManaType.Green, 3),
+            HeroSkillId.RedFrenzy => (ManaType.Red, 1),
             _ => (ManaType.Gray, 0),
         };
 
@@ -139,14 +140,14 @@ namespace CardCore
         public static string Describe(HeroSkillId id, bool upgraded) => id switch
         {
             HeroSkillId.BlueInsight => upgraded
-                ? "洞察·发现（蓝1）：从自己牌库随机展示 3 张选 1 入手"
-                : "洞察（蓝1）：双方各抽 1 张卡",
+                ? "洞察·发现（蓝2）：从自己牌库随机展示 3 张选 1 入手"
+                : "洞察（蓝2）：抽一张牌",
             HeroSkillId.GreenCultivate => upgraded
-                ? "培育·再生（绿2）：从自己墓地选一张卡置入地牌区"
-                : "培育（绿2）：双方各选一个己方生物赋予地牌特性（横置得 1 元素）",
+                ? "培育·再生（绿3）：从自己墓地选一张生物作为地牌横置入场"
+                : "培育（绿3）：从自己牌库随机将一张生物作为地牌横置入场",
             HeroSkillId.RedFrenzy => upgraded
-                ? "狂热·燃尽（红2）：选一个己方生物以其攻击力对对手角色造成等量伤害"
-                : "狂热（红2）：双方全体生物攻击力 +1（持续到各自持有者回合结束）",
+                ? "狂热·壮大（红1）：召唤一个 2/1 衍生物"
+                : "狂热（红1）：召唤一个 1/1 衍生物（可攻击）",
             _ => "无技能",
         };
 
@@ -201,7 +202,6 @@ namespace CardCore
 
         private static async UniTask ExecuteAsync(GameCore core, Player player, HeroSkillId skill, bool upgraded)
         {
-            var opponent = player.Opponent;
             switch (skill)
             {
                 case HeroSkillId.BlueInsight:
@@ -211,34 +211,24 @@ namespace CardCore
                     }
                     else
                     {
+                        // 单方收益（2026-09-22）：只自己抽，不再"双方各抽 1"
                         ZoneManagerExtensions.DrawCard(core.ZoneManager, player);
-                        if (opponent != null) ZoneManagerExtensions.DrawCard(core.ZoneManager, opponent);
                     }
                     break;
 
                 case HeroSkillId.GreenCultivate:
                     if (upgraded)
                     {
-                        await GraveyardToLandAsync(core, player);
+                        await GraveyardCreatureToLandTappedAsync(core, player);
                     }
                     else
                     {
-                        await GrantLandTraitAsync(core, player);
-                        if (opponent != null) await GrantLandTraitAsync(core, opponent);
+                        RandomDeckCreatureToLandTapped(core, player);
                     }
                     break;
 
                 case HeroSkillId.RedFrenzy:
-                    if (upgraded)
-                    {
-                        await PowerDamageAsync(core, player);
-                    }
-                    else
-                    {
-                        // 对称设计（双方全体各 +1——激活者付费、双方受益，优势来自先手利用）
-                        BuffAllCreaturesAsync(core, player, 1);
-                        if (opponent != null) BuffAllCreaturesAsync(core, opponent, 1);
-                    }
+                    SummonFrenzyToken(core, player, upgraded ? 2 : 1);
                     break;
             }
         }
@@ -278,41 +268,28 @@ namespace CardCore
             core.PublishEvent(new RevealCardsEvent { Player = player, Cards = new List<Card> { chosen }, Source = player });
         }
 
-        /// <summary>绿基础：玩家自选一个己方生物，赋予地牌特性（LandTrait 关键词）。</summary>
-        private static async UniTask GrantLandTraitAsync(GameCore core, Player player)
+        /// <summary>绿基础（2026-09-22 重做）：从自己牌库随机将一张生物作为地牌横置入场。
+        /// 随机序逐张尝试——0 费/纯黑白生物（入池无指示物）被池校验自然拒绝后换下一张，不白花钱。</summary>
+        private static void RandomDeckCreatureToLandTapped(GameCore core, Player player)
         {
-            var creatures = OwnCreatures(core, player);
-            if (creatures.Count == 0) return;
-
-            Card chosen = creatures[0];
-            if (creatures.Count > 1)
+            var candidates = core.ZoneManager.GetCards(player, Zone.Deck)
+                .Where(c => ElementPoolSystem.CanServeAsLand(c))
+                .OrderBy(_ => GameRng.Next(0, int.MaxValue))
+                .ToList();
+            foreach (var card in candidates)
             {
-                var picked = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
-                {
-                    Candidates = creatures.Cast<Entity>().ToList(),
-                    MinCount = 1,
-                    MaxCount = 1,
-                    Chooser = player,
-                    Title = "英雄技能·培育（选择获得地牌特性的生物）",
-                });
-                if (picked != null && picked.Count > 0 && picked[0] is Card pc) chosen = pc;
+                if (LandTappedFromZone(core, player, card, Zone.Deck)) return;
             }
-
-            chosen.AddKeyword(Attribute.KeywordRules.LandTrait, KeywordLane.Setting, player);
-            core.PublishEvent(new KeywordAppliedEvent
-            {
-                Target = chosen,
-                Keyword = Attribute.KeywordRules.LandTrait,
-                Detail = "培育：获得地牌特性（横置→得 1 元素，色随费用构成）",
-                Source = player,
-            });
         }
 
-        /// <summary>绿升级：从自己墓地选一张卡置入地牌区（复用地牌资格校验）。</summary>
-        private static async UniTask GraveyardToLandAsync(GameCore core, Player player)
+        /// <summary>绿升级（2026-09-22 重做）：从自己墓地选一张生物作为地牌横置入场。</summary>
+        private static async UniTask GraveyardCreatureToLandTappedAsync(GameCore core, Player player)
         {
             var grave = core.ZoneManager.GetCards(player, Zone.Graveyard)?
-                .Where(c => c.IsAlive).ToList() ?? new List<Card>();
+                .Where(c => c.IsAlive
+                            && ElementPoolSystem.CanServeAsLand(c)
+                            && core.ElementPool.CanPoolProduceTokens(c))
+                .ToList() ?? new List<Card>();
             if (grave.Count == 0) return;
 
             Card chosen = grave[0];
@@ -324,69 +301,66 @@ namespace CardCore
                     MinCount = 1,
                     MaxCount = 1,
                     Chooser = player,
-                    Title = "英雄技能·培育·再生（选一张卡置入地牌区）",
+                    Title = "英雄技能·培育·再生（选一张生物作为地牌横置入场）",
                 });
                 if (picked != null && picked.Count > 0 && picked[0] is Card pc) chosen = pc;
             }
 
-            if (!core.ElementPool.AddCardToPool(chosen, player)) return;
-            core.ZoneManager.MoveCard(chosen, player, Zone.Graveyard, Zone.ElementPool);
+            LandTappedFromZone(core, player, chosen, Zone.Graveyard);
+        }
+
+        /// <summary>绿技能共用：卡作为地牌横置入池——入池（资格/上限/指示物权威校验）→ 移区 →
+        /// 横置（本回合不可产元素，己方回合开始恢复直立）。</summary>
+        private static bool LandTappedFromZone(GameCore core, Player player, Card card, Zone fromZone)
+        {
+            if (!core.ElementPool.AddCardToPool(card, player)) return false;
+            core.ZoneManager.MoveCard(card, player, fromZone, Zone.ElementPool);
+
+            var pooled = core.ElementPool.GetPool(player).PooledCards
+                .FirstOrDefault(pc => pc.SourceCard == card);
+            if (pooled != null) pooled.IsTapped = true; // 横置入场：本回合不能立即横置产元素
+
             core.PublishEvent(new KeywordAppliedEvent
             {
-                Target = chosen,
-                Keyword = "培育·再生",
-                Detail = "墓地卡置入地牌区（按费用构成产指示物）",
+                Target = card,
+                Keyword = "培育",
+                Detail = "生物作为地牌横置入场（按费用构成产指示物）",
                 Source = player,
             });
+            return true;
         }
 
-        /// <summary>红基础（2026-09-16 调档）：玩家全体生物攻击力 +N——不再选目标；持续到各自
-        /// 持有者回合结束（统一档：clock 到期反写，无多回合倒数）。不经 StatGrantRouter
-        /// （Player 来源会被判设置轨=永久直改），直接走指示物+时钟。</summary>
-        private static void BuffAllCreaturesAsync(GameCore core, Player player, int bonus)
+        /// <summary>红技能 token 模板 ID（实例 ID = 模板#序号，对齐 SummonTokenHandler 口径）。</summary>
+        private const string FrenzyTokenTemplateId = "HEROSKILL_TOKEN_RED";
+
+        /// <summary>红技能（2026-09-22 重做）：召唤一个可攻击的衍生物（基础 1/1，升级 2/1）。
+        /// 与 SummonTokenHandler 同口径：全参数工厂 + 对局临时实例 ID + TokenSpawned 进场；
+        /// 普通 Creature 模板默认可宣言攻击（NoAttack 未设）。满场由 TryAddToBattlefield 统一入墓。</summary>
+        private static void SummonFrenzyToken(GameCore core, Player player, int power)
         {
-            foreach (var card in OwnCreatures(core, player))
+            var token = new CardWrapper(new CardData
             {
-                Attribute.CounterRules.AddStatCounter(card, Attribute.CounterRules.PowerUpCounter, bonus, player, turns: 1);
-                core.PublishEvent(new KeywordAppliedEvent
-                {
-                    Target = card,
-                    Keyword = "狂热",
-                    Detail = $"攻击力 +{bonus}（持续到持有者回合结束）",
-                    Source = player,
-                });
-            }
-        }
-
-        /// <summary>红升级：选一个己方生物，以其当前攻击力（LayerEngine 实时值）对对手角色造成等量伤害。</summary>
-        private static async UniTask PowerDamageAsync(GameCore core, Player player)
-        {
-            var creatures = OwnCreatures(core, player);
-            if (creatures.Count == 0 || player.Opponent == null) return;
-
-            Card chosen = creatures[0];
-            if (creatures.Count > 1)
+                ID = FrenzyTokenTemplateId,
+                CardName = "狂热魔仆",
+                Supertype = Cardtype.Creature,
+                Power = power,
+                Life = 1,
+            })
             {
-                var picked = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
-                {
-                    Candidates = creatures.Cast<Entity>().ToList(),
-                    MinCount = 1,
-                    MaxCount = 1,
-                    Chooser = player,
-                    Title = "英雄技能·狂热·燃尽（选择以其攻击力直伤的生物）",
-                });
-                if (picked != null && picked.Count > 0 && picked[0] is Card pc) chosen = pc;
-            }
-
-            int power = core.LayerEngine?.CalculatePower(chosen) ?? chosen.GetPower();
-            if (power <= 0) return;
-            Attribute.KeywordRules.ApplyDamage(player, player.Opponent, power, false);
+                ID = $"{FrenzyTokenTemplateId}#{CardCore.TimestampSystem.NextSequence}",
+            };
+            token.SetController(player);
+            core.ZoneManager.TryAddToBattlefield(token, player, EnterSource.TokenSpawned);
+            core.PublishEvent(new TokenCreatedEvent
+            {
+                TokenTemplateId = FrenzyTokenTemplateId,
+                Controller = player,
+                Source = player,
+                Tapped = token.IsTapped(),
+                Card = token,
+                DropZone = Zone.Battlefield,
+            });
         }
-
-        private static List<Card> OwnCreatures(GameCore core, Player player)
-            => core.ZoneManager.GetCards(player, Zone.Battlefield)
-                .Where(c => c.IsAlive && c is IHasSupertype st && st.Supertype == Cardtype.Creature)
-                .ToList();
 
         /// <summary>技能中文名（战报支付来源标注/技能发动行渲染用，2026-09-21）。</summary>
         public static string SkillName(HeroSkillId skill)

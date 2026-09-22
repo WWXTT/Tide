@@ -6377,12 +6377,13 @@ namespace CardCore.Editor
         {
             EnsureMainPhase(core, p1);
 
-            // ---- 1. 蓝基础：双方各抽 1 + 扣蓝1 + 闸门（2026-09-21 永续魔法化：技能卡入 FieldZone、横置闸门）----
+            // ---- 1. 蓝基础（2026-09-22 单方化·蓝2）：只自己抽 1 + 闸门（技能卡入 FieldZone、横置闸门）----
             HeroSkillSystem.AssignSkill(core, p1, HeroSkillId.BlueInsight);
             var pool1 = core.ElementPool.GetPool(p1);
             pool1.AvailableMana[ManaType.Blue] += 9;
             int p1Deck = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
             int p2Deck = core.ZoneManager.GetCards(p2, Zone.Deck).Count;
+            int blueBefore = pool1.AvailableMana[ManaType.Blue];
             Assert(p1.HeroSkillCard != null
                    && core.ZoneManager.GetCards(p1, Zone.FieldZone).Contains(p1.HeroSkillCard)
                    && p1.HeroSkillCard is CardWrapper hsw && hsw.GetData().Supertype == Cardtype.Enchantment,
@@ -6390,8 +6391,9 @@ namespace CardCore.Editor
             Assert(GameActions.ActivateHeroSkill(core, p1).GetAwaiter().GetResult(), "蓝技能发动成功");
             Assert(p1.HeroSkillCard.IsTapped(), "发动后技能卡横置（实体闸门）");
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == p1Deck - 1
-                   && core.ZoneManager.GetCards(p2, Zone.Deck).Count == p2Deck - 1,
-                   "蓝基础：双方各抽 1（牌库各 -1）");
+                   && core.ZoneManager.GetCards(p2, Zone.Deck).Count == p2Deck,
+                   "蓝基础（单方化）：只自己抽 1（己方牌库 -1，对手牌库不变）");
+            Assert(pool1.AvailableMana[ManaType.Blue] == blueBefore - 2, "蓝技能扣费：蓝 2");
             Assert(!GameActions.ActivateHeroSkill(core, p1).GetAwaiter().GetResult(),
                    "蓝技能：一回合一次闸门（横置中第二次 false）");
             Assert(p1.HeroSkillTotalUses == 1, "发动计数 =1");
@@ -6409,10 +6411,8 @@ namespace CardCore.Editor
             EnsureMainPhase(core, p1);
 
             // ---- 2. 升级链：推到 7 次 → 第 8 次走升级版（发现三选一入手）----
-            // 牌库保底（根因 D 修复）：7 次发动双方各抽 7，牌库见底会触发疲劳判负——
-            // 终局后 FinishResolution 搁浅（EffectExecutionEngine），后续 SBA 段窗口永不再开
-            PadDeck(core, p1, 16, "VERIFY_HS_BLUEPAD_P1_"); // 7 次自抽 + 循环内 6 个合成回合开始最多再抽 6
-            PadDeck(core, p2, 10, "VERIFY_HS_BLUEPAD_P2_");
+            // 牌库保底：7 次自抽 + 循环内 6 个合成回合开始各抽 1
+            PadDeck(core, p1, 16, "VERIFY_HS_BLUEPAD_P1_");
             for (int i = 0; i < 6; i++) // 已 1 次，再 6 次 = 7
             {
                 GameActions.ActivateHeroSkill(core, p1).GetAwaiter().GetResult();
@@ -6427,82 +6427,111 @@ namespace CardCore.Editor
                    && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBefore - 1,
                    "蓝升级·发现：牌库选 1 入手（+1/-1）");
 
-            // ---- 3. 绿基础：生物得地牌特性、横置产色元素 ----
-            // 2026-09-13 修复：培育=双方各选一生物——前段残留卡会污染自动选择
-            // （TargetSelectionService ui=null auto 选首张 ≠ grower），清场保证 grower 是唯一候选
+            // ---- 3. 绿基础（2026-09-22 重做·绿3）：从牌库随机将一张生物作为地牌横置入场 ----
             RetireCards(core, p1, core.ZoneManager.GetCards(p1, Zone.Battlefield).ToArray());
             RetireCards(core, p2, core.ZoneManager.GetCards(p2, Zone.Battlefield).ToArray());
             p2.HeroSkillTotalUses = 0; p2.HeroSkillUpgraded = false; // 跨技能共享态保险重置
-            var grower = SpawnTier(core, p2, 2, 3);
             HeroSkillSystem.AssignSkill(core, p2, HeroSkillId.GreenCultivate);
             var pool2 = core.ElementPool.GetPool(p2);
             pool2.AvailableMana[ManaType.Green] += 9;
             // p2 不是回合玩家——切到 p2 回合
             EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p2, TurnNumber = 850 });
             EnsureMainPhase(core, p2);
-            int p2GreenBefore = pool2.AvailableMana[ManaType.Green];
+            // 牌库保底（回合抽牌后注入，防被抽走）：一张带红费生物
+            //（PadDeck 填充卡 0 费——入池无指示物会被随机序跳过）
+            var seed = new CardWrapper(new CardData
+            {
+                ID = "VERIFY_HS_GREEN_SEED", CardName = "绿源种", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                Cost = new Dictionary<int, float> { { (int)ManaType.Red, 2f } },
+            });
+            seed.SetController(p2);
+            core.ZoneManager.GetZoneContainer(p2).Add(seed, Zone.Deck);
+            int p2Pooled = core.ElementPool.GetPooledCards(p2).Count;
+            int p2DeckNow = core.ZoneManager.GetCards(p2, Zone.Deck).Count;
             Assert(GameActions.ActivateHeroSkill(core, p2).GetAwaiter().GetResult(), "绿技能发动（p2 回合）");
-            Assert(grower.HasKeyword(CardCore.Attribute.KeywordRules.LandTrait),
-                   "绿基础：生物获得地牌特性（LandTrait）");
-            // 造一张带红色费用的生物测产色——直接给 grower 的 Data 设红费
-            var gd = (grower as CardWrapper).GetData();
-            gd.Cost = new Dictionary<int, float> { { (int)ManaType.Red, 2f } };
-            int p2RedBefore = pool2.AvailableMana[ManaType.Red];
-            Assert(GameActions.TapCreatureForElement(core, p2, grower), "横置产元素成功");
-            Assert(grower.IsTapped() && pool2.AvailableMana[ManaType.Red] == p2RedBefore + 1,
-                   "地牌特性：横置→产 1 元素（色随生物红费）");
-            Assert(!GameActions.TapCreatureForElement(core, p2, grower), "已横置不可再产（横置即上限）");
-            RetireCards(core, p2, grower);
+            var pooled = core.ElementPool.GetPooledCards(p2).LastOrDefault();
+            Assert(core.ElementPool.GetPooledCards(p2).Count == p2Pooled + 1
+                   && core.ZoneManager.GetCards(p2, Zone.Deck).Count == p2DeckNow - 1,
+                   "绿基础：牌库随机生物作地牌入场（地牌区 +1 / 牌库 -1）");
+            Assert(pooled != null && pooled.IsTapped && pooled.SourceCard != null
+                   && core.ZoneManager.GetCards(p2, Zone.ElementPool).Contains(pooled.SourceCard),
+                   "绿基础：横置入场（本回合不可产元素）+ 移入地牌区");
 
-            // ---- 4. 红基础（2026-09-16 调档·红2）：双方全体生物各 +1（持续到各自持有者回合结束）----
-            var r1 = SpawnTier(core, p1, 3, 3);
-            var r2 = SpawnTier(core, p2, 3, 3);
+            // ---- 4. 绿升级链：推到 7 次 → 第 8 次从墓地选生物横置入地牌区 ----
+            // 牌库保底：循环内 6 次技能各拉 1（有带费生物时）+ 6 个回合开始各抽 1
+            PadDeck(core, p2, 24, "VERIFY_HS_GREENPAD_P2_");
+            for (int i = 0; i < 6; i++) // 已 1 次，再 6 次 = 7
+            {
+                GameActions.ActivateHeroSkill(core, p2).GetAwaiter().GetResult();
+                EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p2, TurnNumber = 851 + i });
+                EnsureMainPhase(core, p2);
+            }
+            Assert(p2.HeroSkillTotalUses == 7 && p2.HeroSkillUpgraded, "绿技能 7 次发动 → 升级置位");
+            // 墓地清残留后注入唯一候选（ui=null 自动选择首张 = 无歧义）
+            RetireCards(core, p2, core.ZoneManager.GetCards(p2, Zone.Graveyard).ToArray());
+            var graveSeed = new CardWrapper(new CardData
+            {
+                ID = "VERIFY_HS_GREEN_GRAVE", CardName = "墓源种", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                Cost = new Dictionary<int, float> { { (int)ManaType.Blue, 2f } },
+            });
+            graveSeed.SetController(p2);
+            core.ZoneManager.GetZoneContainer(p2).Add(graveSeed, Zone.Graveyard);
+            int p2Pooled2 = core.ElementPool.GetPooledCards(p2).Count;
+            Assert(GameActions.ActivateHeroSkill(core, p2).GetAwaiter().GetResult(), "绿升级发动");
+            var gp = core.ElementPool.GetPooledCards(p2).LastOrDefault();
+            Assert(core.ElementPool.GetPooledCards(p2).Count == p2Pooled2 + 1
+                   && gp != null && gp.SourceCard == graveSeed && gp.IsTapped,
+                   "绿升级·再生：墓地选生物作地牌横置入场");
+
+            // ---- 5. 红基础（2026-09-22 重做·红1）：召唤一个 1/1 可攻击衍生物 ----
             EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 860 });
             EnsureMainPhase(core, p1);
             HeroSkillSystem.AssignSkill(core, p1, HeroSkillId.RedFrenzy);
             // 2026-09-13 修复：HeroSkillTotalUses/Upgraded 是玩家级**跨技能共享**——蓝段已推到
-            // 8 次/升级置位，红段首次发动会直接走升级版（燃尽直伤）而非 buff；重置后再测红基础。
-            // 红费按多次激活 ×红2 计，直接补 99（防升级段中途断费）
+            // 8 次/升级置位，红段首次发动会直接走升级版而非 1/1——重置后再测红基础。
             p1.HeroSkillTotalUses = 0;
             p1.HeroSkillUpgraded = false;
             pool1.AvailableMana[ManaType.Red] = 99;
-            int r1Pow = r1.GetPower(), r2Pow = r2.GetPower();
+            RetireCards(core, p1, core.ZoneManager.GetCards(p1, Zone.Battlefield).ToArray());
+            int bf0 = core.ZoneManager.GetCards(p1, Zone.Battlefield).Count;
             Assert(GameActions.ActivateHeroSkill(core, p1).GetAwaiter().GetResult(), "红技能发动");
-            Assert(r1.GetPower() == r1Pow + 1 && r2.GetPower() == r2Pow + 1,
-                   "红基础：双方全体生物各 +1（红2 调档）");
-            EventManager.Instance.Publish(new TurnEndEvent { TurnPlayer = p1, TurnNumber = 860 });
-            Assert(r1.GetPower() == r1Pow && r2.GetPower() == r2Pow + 1,
-                   "红基础：自己生物在自己回合末消退；对手生物不消退（持有者侧，等对手回合结束）");
-            EventManager.Instance.Publish(new TurnEndEvent { TurnPlayer = p2, TurnNumber = 861 });
-            Assert(r1.GetPower() == r1Pow && r2.GetPower() == r2Pow, "红基础：对手生物在其回合末消退（属性随时钟回写）");
+            GameActions.DrainStack(core);
+            var token = core.ZoneManager.GetCards(p1, Zone.Battlefield)
+                .FirstOrDefault(c => c.ID != null && c.ID.StartsWith("HEROSKILL_TOKEN_RED#"));
+            Assert(core.ZoneManager.GetCards(p1, Zone.Battlefield).Count == bf0 + 1 && token != null,
+                   "红基础：召唤 1 个衍生物（战场 +1，实例 ID=模板#序号）");
+            Assert(token != null && token.GetPower() == 1 && token.GetLife() == 1
+                   && CardCore.EntityEffectExtensions.HasAttackAbility(token),
+                   "红基础 token：1/1 生物且可攻击（NoAttack 未设）");
 
-            // ---- 5. 红升级：以其攻击力对对手角色直伤 ----
-            EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 861 });
-            EnsureMainPhase(core, p1);
+            // ---- 6. 红升级：第 8 次召唤 2/1 ----
             for (int i = 0; i < 6; i++)
             {
                 GameActions.ActivateHeroSkill(core, p1).GetAwaiter().GetResult();
-                EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 862 + i });
+                EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 861 + i });
                 EnsureMainPhase(core, p1);
             }
             Assert(p1.HeroSkillUpgraded, "红技能 7 次升级置位");
-            int p2Life = p2.Life;
-            int r1Current = r1.GetPower();
+            int bf1 = core.ZoneManager.GetCards(p1, Zone.Battlefield).Count;
             Assert(GameActions.ActivateHeroSkill(core, p1).GetAwaiter().GetResult(), "红升级发动");
             GameActions.DrainStack(core);
-            Assert(p2.Life == p2Life - r1Current,
-                   $"红升级·燃尽：以其攻击力 {r1Current} 对对手角色直伤（{p2Life}→{p2.Life}）");
-            RetireCards(core, p1, r1);
-            RetireCards(core, p2, r2);
+            Assert(core.ZoneManager.GetCards(p1, Zone.Battlefield).Count == bf1 + 1, "红升级：召唤 +1");
+            var token2 = core.ZoneManager.GetCards(p1, Zone.Battlefield)
+                .Where(c => c.ID != null && c.ID.StartsWith("HEROSKILL_TOKEN_RED#"))
+                .OrderByDescending(c => long.TryParse(c.ID.Substring(c.ID.LastIndexOf('#') + 1), out var seq) ? seq : 0)
+                .FirstOrDefault();
+            Assert(token2 != null && token2.GetPower() == 2 && token2.GetLife() == 1,
+                   "红升级 token：2/1");
+            RetireCards(core, p1, core.ZoneManager.GetCards(p1, Zone.Battlefield).ToArray());
 
-            // ---- 6. 费用不足拒绝 ----
+            // ---- 7. 费用不足拒绝 ----
             EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 880 });
             EnsureMainPhase(core, p1);
-            // 红账单可由 灰/黑/白 垫付（混付定案 2026-09-14）——须清全色，只把红归零（根因 A 修复）
+            // 红账单可由 灰/黑/白 垫付（混付定案 2026-09-14）——须清全色，只把红归零
             HygieneBank(pool1, ManaType.Red, 0);
             p1.HeroSkillCard?.Untap(); // 实体闸门重置（等效旧 UsesThisTurn=0）
             Assert(!GameActions.ActivateHeroSkill(core, p1).GetAwaiter().GetResult(),
-                   "费用不足：付不起红 2 拒绝发动");
+                   "费用不足：付不起红 1 拒绝发动");
 
             // None 无技能；技能卡离场=无技能（永续魔法交互：被摧毁即失效）
             HeroSkillSystem.AssignSkill(core, p1, HeroSkillId.None);

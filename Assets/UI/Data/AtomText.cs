@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using CardCore;
 using CardCore.Attribute;
 using UnityEngine;
@@ -11,13 +12,50 @@ namespace SynergyUI
     /// 模板源 = 原子表 DisplayName 列（装载后落在 config.Description——注意 config.DisplayName
     /// 是 EnumName 列的中文短名，见 AtomicEffectTable.BuildConfig）。模板含 {value} 占位：
     ///   - 普通渲染：{value} → Value；
-    ///   - 数值随机（RandomAmplitude>0）：前缀「随机 」+ {value} → 区间文本
+    ///   - 数值随机（RandomAmplitude&gt;0）：前缀「随机 」+ {value} → 区间文本
     ///     （span=round(|Value|×幅度)，3 伤 ±100% → "随机 对目标造成0至6点伤害"）；
     ///   - 目标随机（header.RandomTarget，2026-09-16 自 SelectionMode 移出为正交标志）：前缀「随机目标·」。
     /// 计价/构筑读名义 Value 不变——此处只做展示层渲染（口径对齐 2026-09-13 两个随机定案）。
+    ///
+    /// {target} 占位（2026-09-22 五轮）：按实例域 kinds 推导——null/多值 → 「目标」；
+    /// 单值 → TargetKind 中文名（"对己方单位造成1点伤害"）——目标域收窄后描述实时反映作用对象。
     /// </summary>
     public static class AtomText
     {
+        /// <summary>TargetKind 中文（2026-09-22 公共化：合成器目标域下拉与 {target} 渲染单一来源）。</summary>
+        public static readonly Dictionary<TargetKind, string> TargetKindZhMap = new Dictionary<TargetKind, string>
+        {
+            { TargetKind.Self, "自己" },
+            { TargetKind.OwnLivingUnit, "己方单位" },
+            { TargetKind.EnemyLivingUnit, "对方单位" },
+            { TargetKind.OwnNonLivingUnit, "己方无生命单位" },
+            { TargetKind.EnemyNonLivingUnit, "对方无生命单位" },
+            { TargetKind.OwnHand, "己方手牌" },
+            { TargetKind.EnemyHand, "对方手牌" },
+            { TargetKind.OwnDeck, "己方牌库" },
+            { TargetKind.EnemyDeck, "对方牌库" },
+            { TargetKind.OwnGraveyard, "己方墓地" },
+            { TargetKind.EnemyGraveyard, "对方墓地" },
+            { TargetKind.OwnExile, "己方除外区" },
+            { TargetKind.EnemyExile, "对方除外区" },
+            { TargetKind.OwnElementPool, "己方元素池" },
+            { TargetKind.EnemyElementPool, "对方元素池" },
+            { TargetKind.OwnActivation, "己方发动区" },
+            { TargetKind.EnemyActivation, "对方发动区" },
+        };
+
+        /// <summary>TargetKind → 中文名（无映射回退枚举名）。</summary>
+        public static string TargetKindZhOf(TargetKind k)
+            => TargetKindZhMap.TryGetValue(k, out var zh) ? zh : k.ToString();
+
+        /// <summary>{target} 占位的名词：单值实例域 → 中文名；null（表默认）/多值 → 「目标」。</summary>
+        public static string TargetNoun(AtomicEffectEntry atom)
+        {
+            if (atom?.kinds != null && atom.kinds.Count == 1)
+                return TargetKindZhOf((TargetKind)atom.kinds[0]);
+            return "目标";
+        }
+
         /// <summary>渲染单原子描述。cfg 为空（无表行 fallback 原子）时回退 refId。</summary>
         public static string Render(AtomicEffectConfig cfg, AtomicEffectEntry atom, CardEffectData header)
         {
@@ -27,8 +65,8 @@ namespace SynergyUI
             int v = atom.value;
             int span = atom.amp > 0f ? Mathf.RoundToInt(Math.Abs(v) * atom.amp) : 0;
             string number = span > 0 ? $"{Mathf.Max(0, v - span)}至{v + span}" : v.ToString();
-            // {target} → 「目标」（2026-09-20 补：文档示例口径「对目标造成…」——f6886e8 文本重做时遗失）
-            string body = tpl.Replace("{value}", number).Replace("{target}", "目标");
+            // {target} → 实例域名次（2026-09-22 五轮：单值域显作用对象；表默认/多值保持「目标」）
+            string body = tpl.Replace("{value}", number).Replace("{target}", TargetNoun(atom));
             if (span > 0) body = "随机 " + body;
             if (header != null && header.RandomTarget != 0)
                 body = "随机目标·" + body;
