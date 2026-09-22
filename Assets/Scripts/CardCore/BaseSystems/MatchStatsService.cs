@@ -31,6 +31,10 @@ namespace CardCore
             new Dictionary<Player, Dictionary<string, int>>();
         private readonly Dictionary<Player, Dictionary<string, int>> _turn =
             new Dictionary<Player, Dictionary<string, int>>();
+        /// <summary>本回合「准备阶段抽到的卡」实例集（2026-09-22 状态门 DrawnInStandbyThisTurn 用；
+        /// FirstDrawOfTurn==true 只有准备阶段自然抽牌一个置位点——效果抽牌不进集）。TurnStart 清零。</summary>
+        private readonly Dictionary<Player, HashSet<Card>> _standbyDrawn =
+            new Dictionary<Player, HashSet<Card>>();
         private bool _subscribed;
 
         public MatchStatsService()
@@ -48,6 +52,7 @@ namespace CardCore
         public const string StandbySkipped = "StandbySkipped";           // 跳过自己准备阶段次数（疾风）
         public const string CreaturesDied = "CreaturesDied";             // 己方随从死亡次数
         public const string CardsPlayed = "CardsPlayed";                 // 使用卡牌次数（使用宣言）
+        public const string CardsPlayedFromHand = "CardsPlayedFromHand"; // 从手牌使用的卡牌次数（手牌序位引擎用；墓地视手牌等他源不算）
         public const string SpellsCast = "SpellsCast";                   // 施放法术次数
         public const string DamageDealt = "DamageDealt";                 // 造成伤害量（点）
         public const string DamageTaken = "DamageTaken";                 // 受到伤害量（点）
@@ -89,6 +94,8 @@ namespace CardCore
             {
                 if (e?.Player == null) return;
                 Add(e.Player, CardsPlayed, 1);
+                if (e.FromZone == Zone.Hand)
+                    Add(e.Player, CardsPlayedFromHand, 1);
                 if (e.PlayedCard is IHasSupertype st && st.Supertype == Cardtype.Spell)
                     Add(e.Player, SpellsCast, 1);
             });
@@ -102,6 +109,18 @@ namespace CardCore
             {
                 if (e?.Player == null || e.PaidCost == null) return;
                 Add(e.Player, ElementsSpent, (int)e.PaidCost.Values.Sum(v => Math.Max(0f, v)));
+            });
+
+            // —— 本回合准备阶段抽到的卡（实例集，2026-09-22 状态门用） ——
+            em.Subscribe<CardDrawEvent>(e =>
+            {
+                if (e?.Player == null || e.DrawnCard == null || !e.FirstDrawOfTurn) return;
+                if (!_standbyDrawn.TryGetValue(e.Player, out var set))
+                {
+                    set = new HashSet<Card>();
+                    _standbyDrawn[e.Player] = set;
+                }
+                set.Add(e.DrawnCard);
             });
         }
 
@@ -145,11 +164,18 @@ namespace CardCore
                 : new Dictionary<string, int>();
         }
 
+        /// <summary>该卡是否为本回合准备阶段抽到的（2026-09-22 状态门 DrawnInStandbyThisTurn；
+        /// 效果抽牌不算——只有 FirstDrawOfTurn 自然抽牌入集）</summary>
+        public bool WasDrawnInStandbyThisTurn(Player player, Card card)
+            => player != null && card != null
+               && _standbyDrawn.TryGetValue(player, out var set) && set.Contains(card);
+
         /// <summary>清空（GameCore.Reset 调用；幂等重挂订阅防 ClearAll 后静默漏挂）</summary>
         public void ClearAll()
         {
             _game.Clear();
             _turn.Clear();
+            _standbyDrawn.Clear();
             // EventManager.ClearAll 会清光订阅且当前无人调用；若未来接入，幂等旗标在此复位保证重挂
             //（订阅本身一次性挂载，与 RitualComponents 同模式）
         }
@@ -178,6 +204,7 @@ namespace CardCore
         {
             // 本回合层清零（全局回合口径：双方共享同一个"当前回合"）
             _turn.Clear();
+            _standbyDrawn.Clear();
         }
     }
 }

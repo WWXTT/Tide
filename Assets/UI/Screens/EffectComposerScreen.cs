@@ -66,7 +66,7 @@ namespace SynergyUI
         // ======================================== 组合形态 ========================================
 
         /// <summary>组合三态（UI/存读共用推断，防三种形态互串）。</summary>
-        public enum ComposeMode { Parallel, FreeBranch, OutcomeGate }
+        public enum ComposeMode { Parallel, FreeBranch, OutcomeGate, Aura }
 
         /// <summary>右栏双模式：原子库（点击装配）/ 效果表（点击载入编辑）。</summary>
         private enum RightMode { Atoms, Effects }
@@ -185,11 +185,12 @@ namespace SynergyUI
         private static bool IsFixedBattleAtom(string enumName)
             => enumName == "Attack" || enumName == "Guard";
 
-        // 固定引擎主干（2026-09-22）：拼点/运势/倒计时=不可修改关键词——移出原子库，
+        // 固定引擎主干（2026-09-22）：拼点/运势/倒计时/死亡计数/元素充盈/手牌序位=不可修改关键词——移出原子库，
         // 自由分支主干在主干槽内下拉直选（表行中文名经 TrunkZh 取表 Display 名）
         private static readonly BranchEngineKind[] TrunkEngines =
         {
             BranchEngineKind.None, BranchEngineKind.Clash, BranchEngineKind.LuckRoll, BranchEngineKind.Countdown,
+            BranchEngineKind.DeathToll, BranchEngineKind.ManaSurplus, BranchEngineKind.NthHandCard,
         };
 
         private static bool IsEngineTrunkRow(AtomicEffectConfig r)
@@ -436,6 +437,7 @@ namespace SynergyUI
             _modeBar.Add(MakeModeChip("并列（1-3 原子）", ComposeMode.Parallel));
             _modeBar.Add(MakeModeChip("自由分支（引擎条件）", ComposeMode.FreeBranch));
             _modeBar.Add(MakeModeChip("有限分支（产出条件）", ComposeMode.OutcomeGate));
+            _modeBar.Add(MakeModeChip("光环（连接箭头）", ComposeMode.Aura));
 
             // 卡编辑模式提示
             if (_editingCard != null)
@@ -510,6 +512,22 @@ namespace SynergyUI
                         });
                     }
                     ShowToast("切换为有限分支——主干须为产出族原子");
+                    break;
+                }
+                case ComposeMode.Aura:
+                {
+                    // 光环（2026-09-22 定案）＝卡面字段（LinkAuras+箭头），不是效果——仅在卡编辑会话可用；
+                    // 作用对象不可指定（运行时 live-query 箭头指向格占据者）；效果数据清空防误存
+                    if (_editingCard == null)
+                    {
+                        ShowToast("光环是卡面字段（LinkAuras+箭头）——仅卡编辑会话可用（从卡组成界面进入效果编辑）");
+                        return;
+                    }
+                    h.EngineKind = (int)BranchEngineKind.None;
+                    h.EngineParam = 0;
+                    h.AtomicEffects = null;
+                    _graph.steps.Clear();
+                    ShowToast("光环模式：编辑卡面箭头与光环条目（作用对象=箭头指向格占据者，不可指定）；保存不改动效果槽");
                     break;
                 }
             }
@@ -594,7 +612,7 @@ namespace SynergyUI
                     {
                         trunkSlot.Add(MakeTrunkCard((BranchEngineKind)h.EngineKind, h.EngineParam));
                     }
-                    else trunkSlot.Add(MakeHint("从上方下拉选择 拼点/运势/倒计时；奖励在下方奖励槽（点击库行填入）"));
+                    else trunkSlot.Add(MakeHint("从上方下拉选择引擎（拼点/运势/倒计时/死亡计数/元素充盈/手牌序位）；奖励在下方奖励槽（点击库行填入）"));
                     _slotArea.Add(trunkSlot);
 
                     var arrow = new Label("条件达成 →");
@@ -602,7 +620,7 @@ namespace SynergyUI
                     arrow.style.unityTextAlign = TextAnchor.MiddleCenter;
                     _slotArea.Add(arrow);
 
-                    // 奖励槽（单原子）
+                    // 奖励槽（单原子；死亡计数/元素充盈带预算=x——2026-09-22 奖励预算制）
                     var rewardSlot = MakeSlot("奖励（单原子）", "drop-slot", "drop-slot--reward");
                     MarkSelected(rewardSlot, SelKind.FreeReward, 0);
                     SelectOnClick(rewardSlot, SelKind.FreeReward, 0, false);
@@ -610,6 +628,23 @@ namespace SynergyUI
                     if (reward != null) rewardSlot.Add(MakeAtomCard(reward, 0, SelKind.FreeReward));
                     else rewardSlot.Add(MakeHint("选中后点击库中的奖励原子填入（须开放分支奖励挂载）"));
                     _slotArea.Add(rewardSlot);
+
+                    if (ComposerCatalog.EngineRewardBudget((BranchEngineKind)h.EngineKind, h.EngineParam) > 0)
+                    {
+                        var bl = new Label(FreeRewardBudgetText());
+                        bl.AddToClassList("hint");
+                        _slotArea.Add(bl);
+                    }
+                    break;
+                }
+                case ComposeMode.Aura:
+                {
+                    if (_editingCard == null)
+                    {
+                        _slotArea.Add(MakeHint("光环模式需要卡编辑会话（从卡组成界面进入效果编辑）——光环是卡面字段（LinkAuras+箭头）"));
+                        break;
+                    }
+                    _slotArea.Add(MakeAuraPanel());
                     break;
                 }
                 case ComposeMode.OutcomeGate:
@@ -627,6 +662,13 @@ namespace SynergyUI
 
                     // 门行：条件下拉（中文+【奖励x】）内联——不再走检查器
                     _slotArea.Add(MakeGateRow(branch));
+
+                    // 改写门（2026-09-22 拦截式）：伤害不发生改为施加指示物——无奖励槽、无预算行
+                    if (CardCore.BranchConditionEvaluator.IsRewriteCondition(branch.conditionId))
+                    {
+                        _slotArea.Add(MakeHint("改写门：该伤害原子的结算改为对目标施加对应指示物（固定 1 层，伤害不发生）——无奖励槽；差价自动计入卡费"));
+                        break;
+                    }
 
                     // 奖励槽（单原子 + 预算）
                     var rewardSlot = MakeSlot("奖励（单原子·预算内）", "drop-slot", "drop-slot--reward");
@@ -1033,14 +1075,15 @@ namespace SynergyUI
             {
                 var box = new VisualElement();
                 box.AddToClassList("sub-item");
-                string label = engine == BranchEngineKind.Countdown ? "回合数（0=自动换算）" : "参数 x（1-5）";
+                ComposerCatalog.EngineParamRange(engine, out int pMin, out int pMax);
+                string label = engine == BranchEngineKind.Countdown ? "回合数（0=自动换算）" : $"参数 x（{pMin}-{pMax}）";
                 var field = new IntegerField(label) { value = _graph.header.EngineParam };
                 field.AddToClassList("int-input");
                 field.RegisterValueChangedCallback(e =>
                 {
                     _graph.header.EngineParam = engine == BranchEngineKind.Countdown
                         ? Mathf.Max(0, e.newValue)
-                        : Mathf.Clamp(e.newValue, 1, 5);
+                        : Mathf.Clamp(e.newValue, pMin, pMax);
                     field.SetValueWithoutNotify(_graph.header.EngineParam);
                     RefreshSlots();
                 });
@@ -1095,7 +1138,9 @@ namespace SynergyUI
                     if (i >= 0 && i < gates.Count)
                     {
                         branch.conditionId = gates[i].Id;
-                        RefreshSlots(); // 预算行随门刷新
+                        if (CardCore.BranchConditionEvaluator.IsRewriteCondition(branch.conditionId))
+                            branch.thenSteps?.Clear(); // 改写门无奖励槽——切换即清空遗留奖励
+                        RefreshSlots(); // 预算行/奖励槽随门刷新
                     }
                 });
                 wrap.Add(dd);
@@ -1113,6 +1158,8 @@ namespace SynergyUI
 
         private string GateBudgetText(EffectStepData branch)
         {
+            if (CardCore.BranchConditionEvaluator.IsRewriteCondition(branch?.conditionId))
+                return "改写门无奖励槽（伤害不发生，改为施加指示物；差价自动入卡费）";
             var trunkType = ResolveType(_graph.steps[0].atomic);
             var gates = ComposerCatalog.GatesFor(trunkType).ToList();
             var gate = gates.FirstOrDefault(g => g.Id == branch.conditionId) ?? gates.FirstOrDefault();
@@ -1124,6 +1171,31 @@ namespace SynergyUI
                 : 0f;
             string state = cost > budget ? $"（超出 {cost - budget:0.#}——保存前请调整）" : "";
             return $"【奖励{budget}】当前 {cost:0.#}/{budget}{state}";
+        }
+
+        /// <summary>自由分支奖励预算文本（2026-09-22 奖励预算制）：死亡计数/元素充盈 预算=x；
+        /// 既有三引擎自平衡（拼点门槛/倒计时回合/运势概率）无上限。</summary>
+        private string FreeRewardBudgetText()
+        {
+            var h = _graph.header;
+            int budget = ComposerCatalog.EngineRewardBudget((BranchEngineKind)h.EngineKind, h.EngineParam);
+            var reward = h.AtomicEffects?.FirstOrDefault();
+            float cost = reward != null
+                ? CostDerivationService.RewardDerivedCost(new List<AtomicEffectInstance> { CardEffectConverter.ConvertAtomForUI(reward) })
+                : 0f;
+            string state = cost > budget ? $"（超出 {cost - budget:0.#}——保存前请调整）" : "";
+            return $"【奖励预算 {budget}】当前 {cost:0.#}/{budget}{state}";
+        }
+
+        /// <summary>自由分支奖励预算校验（无预算引擎恒过）。</summary>
+        private bool FreeRewardWithinBudget(AtomicEffectEntry entry)
+        {
+            var h = _graph.header;
+            int budget = ComposerCatalog.EngineRewardBudget((BranchEngineKind)h.EngineKind, h.EngineParam);
+            if (budget < 0) return true;
+            var inst = CardEffectConverter.ConvertAtomForUI(entry);
+            if (inst == null) return false;
+            return CostDerivationService.RewardDerivedCost(new List<AtomicEffectInstance> { inst }) <= budget;
         }
 
         /// <summary>原子引用 → 枚举（行缺失回退 DealDamage——门行兜底口径同旧）。</summary>
@@ -1529,17 +1601,30 @@ namespace SynergyUI
                     contextZh = $"并列槽 {_selSlotIndex + 1}（主动原子·非错边）";
                     return lp => lp.CanBeActiveAtom && !lp.IsWrongSideOnly;
                 case ComposeMode.FreeBranch:
-                    contextZh = "自由分支奖励（开放奖励挂载）";
-                    return lp => lp.CanBeBranchReward && !lp.IsWrongSideOnly;
+                {
+                    int budget = ComposerCatalog.EngineRewardBudget((BranchEngineKind)_graph.header.EngineKind, _graph.header.EngineParam);
+                    contextZh = budget > 0
+                        ? $"自由分支奖励（预算内·非错边——预算 {budget}）"
+                        : "自由分支奖励（开放奖励挂载）";
+                    return lp => lp.CanBeBranchReward && !lp.IsWrongSideOnly && FreeRewardWithinBudget(lp.Entry());
+                }
                 case ComposeMode.OutcomeGate:
                     if (_selSlot == SelKind.GateTrunk)
                     {
-                        contextZh = "有限分支主干（产出族原子）";
+                        contextZh = "有限分支主干（产出族/通用门主干）";
                         return lp => lp.CanBeGateTrunk;
+                    }
+                    if (CardCore.BranchConditionEvaluator.IsRewriteCondition(_graph.steps[1].conditionId))
+                    {
+                        contextZh = "改写门——无奖励槽（改写即分支效果）";
+                        return lp => false;
                     }
                     contextZh = "有限分支奖励（预算内·非错边）";
                     return lp => lp.CanBeBranchReward && !lp.IsWrongSideOnly
                         && RewardWithinBudget(lp.Entry(), _graph.steps[1]);
+                case ComposeMode.Aura:
+                    contextZh = "光环模式——不可指定作用对象（箭头指向格占据者，运行时解析）";
+                    return lp => false;
             }
             contextZh = null;
             return null;
@@ -1625,8 +1710,9 @@ namespace SynergyUI
                     break;
                 case ComposeMode.FreeBranch:
                     // 主干=槽内下拉直选（2026-09-22）——库行点击唯一落点=奖励槽；引擎行已移出库（防御兜底）
-                    if (payload.IsEngineTrunk) { ShowToast("拼点/运势/倒计时=固定机制——主干在主干槽下拉直选"); break; }
+                    if (payload.IsEngineTrunk) { ShowToast("引擎主干=固定机制——主干在主干槽下拉直选"); break; }
                     if (!RewardCanDrop(payload)) { ShowToast("选中槽=奖励——该原子不开放分支奖励挂载"); break; }
+                    if (!FreeRewardWithinBudget(payload.Entry())) { ShowToast("选中槽=奖励——超出引擎奖励预算（奖励预算=x）"); break; }
                     if (payload.IsKeywordAtom) ApplyKeywordHeader();
                     ReplaceFreeReward(EntryForEffectSlot(payload));
                     break;
@@ -1906,10 +1992,198 @@ namespace SynergyUI
             return row != null && MountKindExtensions.ParseCsv(row.MountKinds ?? "").Contains(MountKind.BranchReward);
         }
 
+        // ======================================== 光环模式（2026-09-22 定案：连接光环=卡面字段，不可指定作用对象） ========================================
+
+        /// <summary>光环编辑面板：连接箭头六向勾选 + 光环条目（属性/关键词）+ 光环费用预览。
+        /// 作用对象**不可指定**——运行时 live-query 箭头指向格的当前占据者（断链/离场即失效）；
+        /// 每支命中箭头各享受一次全部声明（按箭头叠加）；箭头数进卡级累乘 ×1.2^(n-1)。</summary>
+        private VisualElement MakeAuraPanel()
+        {
+            var panel = new VisualElement();
+            panel.Add(MakeHint("光环＝连接箭头持续效果：作用对象=箭头指向格的**当前占据者**（运行时 live-query，断链/离场即失效）——不可指定作用对象；每支命中箭头各享受一次声明（按箭头叠加）。"));
+
+            // ---- 连接箭头（六向勾选，直接写卡面）----
+            var arrowsBox = new VisualElement(); arrowsBox.AddToClassList("sub-item");
+            var ah = new Label($"连接箭头（当前 {CountArrowBits(_editingCard.ArrowDirections)} 支——计价按箭头受益面：条目平价 + 卡级累乘 ×1.2^(n-1)）");
+            ah.AddToClassList("panel__header");
+            arrowsBox.Add(ah);
+            var arrowRow = new VisualElement(); arrowRow.AddToClassList("toolbar"); arrowRow.style.flexWrap = Wrap.Wrap;
+            foreach (var dir in new[] { HexDirection.Up, HexDirection.Down, HexDirection.UpperLeft,
+                                         HexDirection.UpperRight, HexDirection.LowerLeft, HexDirection.LowerRight })
+            {
+                var d = dir;
+                var t = new Toggle(ArrowZh(d)) { value = _editingCard.ArrowDirections.HasFlag(d) };
+                t.AddToClassList("toggle");
+                t.RegisterValueChangedCallback(e =>
+                {
+                    _editingCard.ArrowDirections = e.newValue
+                        ? _editingCard.ArrowDirections | d
+                        : _editingCard.ArrowDirections & ~d;
+                    RefreshSlots(); // 箭头数与费用预览联动
+                });
+                arrowRow.Add(t);
+            }
+            arrowsBox.Add(arrowRow);
+            arrowsBox.Add(MakeHint("光环必须搭配至少一支箭头（无箭头=永无受益者，保存拦截）；方向按持有玩家视角声明。"));
+            panel.Add(arrowsBox);
+
+            // ---- 光环条目 ----
+            var listBox = new VisualElement(); listBox.AddToClassList("sub-item");
+            var lh = new Label("光环条目（属性修正 stat+value / 关键词 keyword——二选一）");
+            lh.AddToClassList("panel__header");
+            listBox.Add(lh);
+            _editingCard.LinkAuras ??= new List<LinkAuraData>();
+            for (int i = 0; i < _editingCard.LinkAuras.Count; i++)
+                listBox.Add(MakeAuraEntryRow(i));
+
+            var addRow = new VisualElement(); addRow.AddToClassList("toolbar");
+            var addStat = new Button(() =>
+            {
+                _editingCard.LinkAuras.Add(new LinkAuraData { stat = "Power", value = 1 });
+                RefreshSlots();
+            }) { text = "+属性光环" };
+            var addArmor = new Button(() =>
+            {
+                _editingCard.LinkAuras.Add(new LinkAuraData { keyword = CardCore.Attribute.KeywordRules.Armor });
+                RefreshSlots();
+            }) { text = "+坚韧（绿1/条）" };
+            var addGuardian = new Button(() =>
+            {
+                _editingCard.LinkAuras.Add(new LinkAuraData { keyword = CardCore.Attribute.KeywordRules.Guardian });
+                RefreshSlots();
+            }) { text = "+守护（白1/条）" };
+            foreach (var b in new[] { addStat, addArmor, addGuardian })
+            {
+                b.AddToClassList("btn"); b.AddToClassList("btn--mini");
+                addRow.Add(b);
+            }
+            listBox.Add(addRow);
+            panel.Add(listBox);
+
+            // ---- 费用预览（Stage A 行——CardCostService 光环计价同源）----
+            _auraCostLabel = new Label(AuraCostText());
+            _auraCostLabel.AddToClassList("hint");
+            panel.Add(_auraCostLabel);
+            return panel;
+        }
+
+        /// <summary>光环费用预览标签（就地刷新防输入丢焦）。</summary>
+        private Label _auraCostLabel;
+
+        /// <summary>光环条目行：类型切换（属性/关键词）+ 对应编辑器 + 删除。</summary>
+        private VisualElement MakeAuraEntryRow(int index)
+        {
+            var aura = _editingCard.LinkAuras[index];
+            var row = new VisualElement();
+            row.AddToClassList("step-card");
+
+            var bar = new VisualElement(); bar.AddToClassList("toolbar");
+            bool isStat = !string.IsNullOrEmpty(aura.stat);
+            var type = new DropdownField("类型") { choices = new List<string> { "属性", "关键词" } };
+            type.AddToClassList("text-input");
+            type.index = isStat ? 0 : 1;
+            type.RegisterValueChangedCallback(_ =>
+            {
+                if (type.index == 0) { aura.stat = "Power"; aura.keyword = null; }
+                else { aura.stat = null; aura.keyword = CardCore.Attribute.KeywordRules.Armor; }
+                RefreshSlots();
+            });
+            bar.Add(type);
+
+            if (isStat)
+            {
+                var stat = new DropdownField("属性") { choices = new List<string> { "攻击力", "生命值" } };
+                stat.AddToClassList("text-input");
+                stat.index = aura.stat.Equals("Life", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                stat.RegisterValueChangedCallback(_ =>
+                {
+                    aura.stat = stat.index == 1 ? "Life" : "Power";
+                    RefreshAuraCost();
+                });
+                bar.Add(stat);
+                bar.Add(MakeIntField("值(±)", aura.value, v => { aura.value = v; RefreshAuraCost(); }));
+            }
+            else
+            {
+                var kw = new TextField("关键词id") { value = aura.keyword ?? "" };
+                kw.AddToClassList("text-input");
+                kw.RegisterValueChangedCallback(e => { aura.keyword = e.newValue; RefreshAuraCost(); });
+                bar.Add(kw);
+                bar.Add(MakeHint("坚韧=Armor 守护=Guardian"));
+            }
+
+            var del = new Button(() => { _editingCard.LinkAuras.RemoveAt(index); RefreshSlots(); }) { text = "删除" };
+            del.AddToClassList("btn"); del.AddToClassList("btn--mini"); del.AddToClassList("btn--danger");
+            bar.Add(del);
+            row.Add(bar);
+            return row;
+        }
+
+        /// <summary>光环费用预览文本（CardCostService.Derive 的 Stage=="A" 行同源——含箭头累乘）。</summary>
+        private string AuraCostText()
+        {
+            if (_editingCard == null) return "光环费：—";
+            try
+            {
+                var lines = CardCore.CardCostService.Derive(_editingCard).Breakdown
+                    .Where(l => l != null && l.Stage == "A").ToList();
+                if (lines.Count == 0)
+                    return "光环费：—（未声明条目；坚韧=绿1/条、守护=白1/条、属性=光环档 1.5/+1）";
+                var parts = lines.Select(l =>
+                    $"{l.Label}＝{l.Value:0.#}{(l.Color.HasValue ? ColorZh(l.Color.Value) : "")}").ToList();
+                return "光环费：" + string.Join("；", parts);
+            }
+            catch
+            {
+                return "光环费：—（计算异常）";
+            }
+        }
+
+        /// <summary>就地刷新光环费用行（值/属性微调不重建面板——防输入丢焦）。</summary>
+        private void RefreshAuraCost()
+        {
+            if (_auraCostLabel != null) _auraCostLabel.text = AuraCostText();
+        }
+
+        private static int CountArrowBits(HexDirection d)
+        {
+            int n = 0, v = (int)d;
+            while (v != 0) { n += v & 1; v >>= 1; }
+            return n;
+        }
+
+        private static string ArrowZh(HexDirection d) => d switch
+        {
+            HexDirection.Up => "上",
+            HexDirection.Down => "下",
+            HexDirection.UpperLeft => "左上",
+            HexDirection.UpperRight => "右上",
+            HexDirection.LowerLeft => "左下",
+            _ => "右下",
+        };
+
         // ======================================== 保存 ========================================
 
         private void OnSave()
         {
+            // 光环模式（2026-09-22 定案）：光环=卡面字段（LinkAuras+箭头）——保存只校验+返回，效果槽不动
+            if (_mode == ComposeMode.Aura)
+            {
+                if (_editingCard == null) { ShowToast("光环模式仅在卡编辑会话可用"); return; }
+                _editingCard.LinkAuras ??= new List<LinkAuraData>();
+                _editingCard.LinkAuras.RemoveAll(a =>
+                    a == null || (string.IsNullOrEmpty(a.stat) && string.IsNullOrEmpty(a.keyword)));
+                if (_editingCard.LinkAuras.Count == 0)
+                { ShowToast("光环模式：未声明任何有效光环条目（stat/keyword 至少一项）"); return; }
+                if (_editingCard.ArrowDirections == HexDirection.None)
+                { ShowToast("光环必须搭配箭头——无箭头=永无受益者（CardLoader 构筑校验同口径）；请在光环面板勾选箭头"); return; }
+                ShowToast($"已保存连接光环 ×{_editingCard.LinkAuras.Count}（箭头 ×{CountArrowBits(_editingCard.ArrowDirections)}，费用自动入整卡推导）——效果槽未改动");
+                _editingCard = null;
+                _editingIndex = -1;
+                Manager.Back();
+                return;
+            }
+
             // 效果名自动构成（中文名＋组合方式＋中文名）——只读展示，保存时落账
             _graph.name = AutoName();
             _graph.header.DisplayName = _graph.name;

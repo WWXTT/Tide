@@ -313,7 +313,6 @@ namespace CardCore
             // 英雄技能一回合一次闸门（2026-09-13；2026-09-21 永续魔法化）：
             // 权威闸门=技能卡横置态——回合开始重置（与地牌/随从同规则）；引用丢失时 lazy 回填
             HeroSkillSystem.ResolveSkillCard(this, player)?.Untap();
-            player.HeroSkillUsesThisTurn = 0; // 兼容口径同步清
 
             // 规则扩展点（OCP）：回合开始自动化拦截（如节奏轴仪式跳过准备阶段——
             // 抽牌、地牌槽（元素浓度上限）推进、横置重置、场上卡准备阶段结算全跳；
@@ -601,10 +600,8 @@ namespace CardCore
                 player.ResetFatigueCount();
                 player.IsAI = false;
 
-                // 英雄技能跨局不残留（2026-09-13；2026-09-21 永续魔法化）：指派/技能卡/计数/升级全复位
-                player.HeroSkillUsesThisTurn = 0;
-                player.HeroSkillTotalUses = 0;
-                player.HeroSkillUpgraded = false;
+                // 英雄技能跨局不残留（2026-09-13；2026-09-21 永续魔法化）：指派/技能卡复位
+                //（发动计数挂在技能卡上，随下方陈旧技能卡清除一并消失——2026-09-22 升级=抉择式条件分支）
                 player.HeroSkill = (int)HeroSkillId.None;
                 player.HeroSkillCard = null;
                 var staleSkillCards = ZoneManager.GetCards(player, Zone.FieldZone)

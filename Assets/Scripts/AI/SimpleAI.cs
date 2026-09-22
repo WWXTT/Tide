@@ -176,13 +176,14 @@ namespace SynergyUI
 
         /// <summary>英雄技能（2026-09-21 永续魔法化）：一回合一次闸门=技能卡横置态，
         /// 由 HeroSkillSystem.ActivateAsync 统一守卫（在场/未横置/未沉默）——此处只做策略筛选。
-        /// 发动计数驱动 7 次升级——AI 对战可验证升级链。</summary>
+        /// 升级=抉择式条件分支（2026-09-22）：门状态（已发动 ≥7）读技能卡计数。</summary>
         private bool UseHeroSkill(GameCore core, Player me)
         {
             if (me.HeroSkill == (int)HeroSkillId.None) return false;
             // 技能卡在场/未横置/未沉默由 HeroSkillSystem.ActivateAsync 统一守卫（含 lazy 回填）
 
-            if (!_strategy.WantHeroSkill(core, me, (HeroSkillId)me.HeroSkill, me.HeroSkillUpgraded))
+            if (!_strategy.WantHeroSkill(core, me, (HeroSkillId)me.HeroSkill,
+                    HeroSkillSystem.IsUpgraded(core, me)))
                 return false;
 
             var ok = GameActions.ActivateHeroSkill(core, me).GetAwaiter().GetResult();

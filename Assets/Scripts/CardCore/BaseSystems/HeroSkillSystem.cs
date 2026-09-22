@@ -6,44 +6,151 @@ using CardCore.Attribute;
 
 namespace CardCore
 {
-    /// <summary>英雄技能 id（2026-09-13 第二十批：额外卡组退役，技能栏上位）。</summary>
+    /// <summary>英雄技能 id（2026-09-13 第二十批：额外卡组退役，技能栏上位；
+    /// 2026-09-22 定案：升级=抉择式条件分支——门=「此前已发动 ≥7 次」，门前后各一档效果；
+    /// 同日升级调整：两档同色同轴、费用差（≈2 费奖励标定）决定升级难度）。</summary>
     public enum HeroSkillId : int
     {
         None = 0,
-        /// <summary>蓝·洞察（蓝2）：抽一张牌；升级（7 次）：从自己牌库发现一张卡（随机 3 选 1）</summary>
+        /// <summary>蓝·洞察（蓝2·资源轴）：门前=抽一张牌；门后（第 8 次起）=发现一张（随机 3 选 1）并抽一张（+2 费）</summary>
         BlueInsight = 1,
-        /// <summary>绿·培育（绿3）：从自己牌库随机将一张生物作为地牌横置入场；
-        /// 升级（7 次）：从自己墓地选一张生物作为地牌横置入场</summary>
+        /// <summary>绿·培育（绿3·资源轴）：门前=牌库随机生物横置入地牌；
+        /// 门后（第 8 次起）=墓地选生物横置入地牌 + 回收墓地一张卡（+2 费）</summary>
         GreenCultivate = 2,
-        /// <summary>红·狂热（红1，2026-09-22 重做）：召唤一个 1/1 衍生物（可攻击）；
-        /// 升级（7 次）：召唤一个 2/1 衍生物</summary>
+        /// <summary>红·狂热（红1·场面轴）：门前=召唤 1/1 衍生物（横置入场并激励，当回合可攻击）；
+        /// 门后（第 8 次起）=召唤 2/1 衍生物（同激励）——升级效果暂定，随机红色关键词方案已弃（2026-09-22）</summary>
         RedFrenzy = 3,
     }
 
     /// <summary>
     /// 英雄技能系统（2026-09-13 第二十批定案；2026-09-21 改造：技能=初始在场永续魔法；
-    /// 2026-09-22 重做：对称设计退役——AI 优先用技能时"双方各…"喂养对手资源显得愚蠢，改为单方收益）：
+    /// 2026-09-22 重做：对称设计退役——单方收益；同日定案：**升级=抉择式条件分支**）：
     /// - **技能卡实体**：Enchantment（结界/永续魔法）超类，开局由 InitGame 生成放入 FieldZone
     ///   （原额外卡组退役后的空缺槽位）；**发动=横置本卡**（一回合一次=准备阶段重置）；
     ///   **交互与一般永续魔法一致**——可被沉默（不可发动主动效果）/无效/摧毁/弹回（离场即失技能）；
-    /// - **激活需付对应颜色费用**（蓝2/绿3/红1）；**7 次发动后升级**（TotalUses ≥ 7 → 升级版）；
+    /// - **激活需付对应颜色费用**（蓝2/绿3/红1）；
+    /// - **升级=抉择式条件分支（2026-09-22 定案）**：技能效果为同一发动流程下的**两档分支**
+    ///   （结构类似抉择卡的双模式，但分支不走玩家选择而走条件门）——门=「**此技能此前已发动
+    ///   ≥7 次**」：条件满足前（第 1..7 次发动）执行基础档，满足后（第 8 次起）执行升级档
+    ///   （第 7 次当次仍走基础档）；费用不变、单向。发动计数挂在技能卡（SkillUse 指示物），
+    ///   换技能卡=新卡计数归零；
     /// - 单方收益（2026-09-22）：效果只利己，不再"双方各…"；
     /// - 黑白暂无技能（None）；InitGame 按卡组费用主色自动指派。
     /// 接线：GameActions.ActivateHeroSkill（声明口）；回合开始 GameCore 重置技能卡横置。
     /// </summary>
     public static class HeroSkillSystem
     {
-        /// <summary>升级阈值（发动次数）。</summary>
+        /// <summary>升级门槛（发动次数）：第 8 次发动起走升级档。</summary>
         public const int UpgradeThreshold = 7;
 
-        /// <summary>技能费用（id → (色, 量)）。</summary>
-        public static (ManaType color, int amount) CostOf(HeroSkillId id) => id switch
+        // ======================================== 技能定义表（2026-09-22：升级=抉择式条件分支） ========================================
+
+        /// <summary>技能效果分支：类似抉择卡的一个模式——同一发动流程下两档只执行其一。</summary>
+        public sealed class HeroSkillBranch
         {
-            HeroSkillId.BlueInsight => (ManaType.Blue, 2),
-            HeroSkillId.GreenCultivate => (ManaType.Green, 3),
-            HeroSkillId.RedFrenzy => (ManaType.Red, 1),
-            _ => (ManaType.Gray, 0),
+            /// <summary>档名（如「洞察」「洞察·发现」）。</summary>
+            public string Title;
+            /// <summary>效果描述（描述正文）。</summary>
+            public string Body;
+            /// <summary>效果实件（含选择交互）。</summary>
+            public Func<GameCore, Player, UniTask> Execute;
+
+            public HeroSkillBranch(string title, string body, Func<GameCore, Player, UniTask> execute)
+            { Title = title; Body = body; Execute = execute; }
+        }
+
+        /// <summary>技能定义：费用 + 升级门阈值 + 两档效果（Base=门未满足 / Upgraded=门已满足）。
+        /// 分支选择不走玩家选择（区别于抉择卡），而走条件门「此技能此前已发动 ≥ 阈值次」；
+        /// 费用不变、单向（升级后不回退）。
+        /// **升级设计约束（2026-09-22 定案）**：两档效果限定**相同颜色、相同轴向**
+        /// （蓝=资源/绿=资源/红=场面），**费用差决定升级难度**——当前标定：升级奖励 ≈2 费差 → 阈值 7 次发动。</summary>
+        public sealed class HeroSkillDefinition
+        {
+            public HeroSkillId Id;
+            public ManaType CostColor;
+            public int CostAmount;
+            public int UpgradeThreshold = HeroSkillSystem.UpgradeThreshold;
+            /// <summary>条件未满足（此前发动 &lt; 阈值，即第 1..7 次）执行的分支。</summary>
+            public HeroSkillBranch Base;
+            /// <summary>条件已满足（此前发动 ≥ 阈值，即第 8 次起）执行的分支。</summary>
+            public HeroSkillBranch Upgraded;
+        }
+
+        private static readonly Dictionary<HeroSkillId, HeroSkillDefinition> _definitions = new()
+        {
+            [HeroSkillId.BlueInsight] = new HeroSkillDefinition
+            {
+                Id = HeroSkillId.BlueInsight, CostColor = ManaType.Blue, CostAmount = 2,
+                Base = new HeroSkillBranch("洞察", "抽一张牌", (core, p) =>
+                {
+                    ZoneManagerExtensions.DrawCard(core.ZoneManager, p); // 单方收益（2026-09-22）：只自己抽
+                    return UniTask.CompletedTask;
+                }),
+                // 升级调整（2026-09-22）：发现与抽 1 同为 2 费，单纯升级"没有体现"——升级档=发现+抽 1
+                //（约 2+2=4 费，较基础 +2 费 = 升级奖励标定值）
+                Upgraded = new HeroSkillBranch("洞察·发现", "从自己牌库发现一张（随机 3 选 1 入手）并抽一张",
+                    async (core, p) =>
+                    {
+                        await DiscoverFromDeckAsync(core, p, 3);
+                        ZoneManagerExtensions.DrawCard(core.ZoneManager, p);
+                    }),
+            },
+            [HeroSkillId.GreenCultivate] = new HeroSkillDefinition
+            {
+                Id = HeroSkillId.GreenCultivate, CostColor = ManaType.Green, CostAmount = 3,
+                Base = new HeroSkillBranch("培育", "从自己牌库随机将一张生物作为地牌横置入场", (core, p) =>
+                {
+                    RandomDeckCreatureToLandTapped(core, p);
+                    return UniTask.CompletedTask;
+                }),
+                // 升级调整（2026-09-22）：再生=墓地精确选（较牌库随机的溢价）+ 回收墓地一张卡（1 费锚）——约 +2 费
+                Upgraded = new HeroSkillBranch("培育·再生", "从自己墓地选一张生物作为地牌横置入场，并回收墓地一张卡",
+                    async (core, p) =>
+                    {
+                        await GraveyardCreatureToLandTappedAsync(core, p);
+                        await RecycleFromGraveyardAsync(core, p, 1);
+                    }),
+            },
+            [HeroSkillId.RedFrenzy] = new HeroSkillDefinition
+            {
+                Id = HeroSkillId.RedFrenzy, CostColor = ManaType.Red, CostAmount = 1,
+                Base = new HeroSkillBranch("狂热", "召唤一个 1/1 衍生物（横置入场并激励，当回合可攻击）", (core, p) =>
+                {
+                    SummonFrenzyToken(core, p, 1);
+                    return UniTask.CompletedTask;
+                }),
+                // 升级档暂定 2/1（同激励）——原「随机获得一个 1-3 费红色元素关键词」方案因一个效果
+                // 含双随机需改框架而放弃（2026-09-22），升级效果待另定
+                Upgraded = new HeroSkillBranch("狂热·壮大", "召唤一个 2/1 衍生物（横置入场并激励，当回合可攻击）",
+                    (core, p) =>
+                    {
+                        SummonFrenzyToken(core, p, 2);
+                        return UniTask.CompletedTask;
+                    }),
+            },
         };
+
+        /// <summary>技能定义（None/未定义 → null）。</summary>
+        public static HeroSkillDefinition DefinitionOf(HeroSkillId skill)
+            => _definitions.TryGetValue(skill, out var def) ? def : null;
+
+        /// <summary>技能费用（id → (色, 量)）；单一来源=定义表。</summary>
+        public static (ManaType color, int amount) CostOf(HeroSkillId id)
+            => DefinitionOf(id) is { } def ? (def.CostColor, def.CostAmount) : (ManaType.Gray, 0);
+
+        /// <summary>此技能累计发动次数（读技能卡的 SkillUse 指示物；无技能卡=0）。</summary>
+        public static int GetTotalUses(GameCore core, Player player)
+            => ResolveSkillCard(core, player)?.GetCounterCount(CounterRules.SkillUseCounter) ?? 0;
+
+        /// <summary>升级门状态（局面口径）：已发动 ≥ 阈值——第 7 次发动即置位（当次仍走基础档）。
+        /// AI/播报等"是否已升级"读取口。</summary>
+        public static bool IsUpgraded(GameCore core, Player player)
+            => GetTotalUses(core, player) >= UpgradeThreshold;
+
+        /// <summary>分支解析（抉择式）：门=「此前已发动 ≥ 阈值次」→ 升级档；否则基础档。
+        /// priorUses=本次发动**前**的累计次数（发动计数 +1 前抓拍）。</summary>
+        public static HeroSkillBranch ResolveBranch(HeroSkillDefinition def, int priorUses)
+            => priorUses >= def.UpgradeThreshold ? def.Upgraded : def.Base;
 
         // ======================================== 技能卡实体（2026-09-21） ========================================
 
@@ -137,33 +244,40 @@ namespace CardCore
             }
         }
 
-        public static string Describe(HeroSkillId id, bool upgraded) => id switch
+        /// <summary>技能描述（分支驱动，2026-09-22）：档名（色费）：效果正文。</summary>
+        public static string Describe(HeroSkillId id, bool upgraded)
         {
-            HeroSkillId.BlueInsight => upgraded
-                ? "洞察·发现（蓝2）：从自己牌库随机展示 3 张选 1 入手"
-                : "洞察（蓝2）：抽一张牌",
-            HeroSkillId.GreenCultivate => upgraded
-                ? "培育·再生（绿3）：从自己墓地选一张生物作为地牌横置入场"
-                : "培育（绿3）：从自己牌库随机将一张生物作为地牌横置入场",
-            HeroSkillId.RedFrenzy => upgraded
-                ? "狂热·壮大（红1）：召唤一个 2/1 衍生物"
-                : "狂热（红1）：召唤一个 1/1 衍生物（可攻击）",
-            _ => "无技能",
+            var def = DefinitionOf(id);
+            if (def == null) return "无技能";
+            var branch = upgraded ? def.Upgraded : def.Base;
+            return $"{branch.Title}（{ColorChar(def.CostColor)}{def.CostAmount}）：{branch.Body}";
+        }
+
+        private static string ColorChar(ManaType color) => color switch
+        {
+            ManaType.Red => "红",
+            ManaType.Blue => "蓝",
+            ManaType.Green => "绿",
+            ManaType.Black => "黑",
+            ManaType.White => "白",
+            _ => "灰",
         };
 
         // ======================================== 发动 ========================================
 
         /// <summary>
-        /// 发动英雄技能（主阶段声明口，2026-09-21 永续魔法化）。守卫：回合玩家 + 主阶段 +
-        /// **技能卡在场（FieldZone）且未横置且未被沉默**（交互与永续魔法一致：被摧毁/弹回=无技能、
-        /// 沉默=不可发动主动效果、横置=本回合已用）+ 付色费。成功 → 横置技能卡 → 计数 +1（≥7 升级）
-        /// → 执行当前版本效果（异步：选择交互）。
+        /// 发动英雄技能（主阶段声明口，2026-09-21 永续魔法化；2026-09-22 升级=抉择式条件分支）。
+        /// 守卫：回合玩家 + 主阶段 + **技能卡在场（FieldZone）且未横置且未被沉默**
+        /// （交互与永续魔法一致：被摧毁/弹回=无技能、沉默=不可发动主动效果、横置=本回合已用）+ 付色费。
+        /// 成功 → 横置技能卡 → 发动计数 +1（挂技能卡）→ **升级门评估**（门=「此前已发动 ≥7 次」，
+        /// 计数 +1 前抓拍）→ 执行命中分支（基础档/升级档，异步：选择交互）。
         /// </summary>
         public static async UniTask<bool> ActivateAsync(GameCore core, Player player)
         {
             if (core == null || player == null) return false;
             var skill = (HeroSkillId)player.HeroSkill;
-            if (skill == HeroSkillId.None) return false;
+            var def = DefinitionOf(skill);
+            if (def == null) return false; // None/未定义——无技能
             if (core.TurnEngine.TurnPlayer != player) return false;
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
 
@@ -173,64 +287,32 @@ namespace CardCore
             if (!core.ZoneManager.GetCards(player, Zone.FieldZone).Contains(skillCard))
                 return false; // 已被摧毁/弹回/移场——技能随卡离场失效
             if (skillCard.IsTapped()) return false; // 本回合已发动（准备阶段重置）
-            if (skillCard.GetCounterCount(Attribute.CounterRules.SilenceCounter) > 0)
+            if (skillCard.GetCounterCount(CounterRules.SilenceCounter) > 0)
                 return false; // 沉默：不可发动主动效果（永续魔法交互一致）
 
-            var (color, amount) = CostOf(skill);
-            var bill = new Dictionary<int, float> { { (int)color, amount } };
+            var bill = new Dictionary<int, float> { { (int)def.CostColor, def.CostAmount } };
             if (!core.ElementPool.CanPayCost(bill, player)) return false;
             if (!core.ElementPool.PayCost(bill, player, "英雄技能·" + SkillName(skill))) return false;
 
             skillCard.Tap(); // 发动横置（一回合一次的实体闸门）
-            player.HeroSkillUsesThisTurn = 1; // 兼容口径回写（旧消费者）
-            player.HeroSkillTotalUses++;
-            if (!player.HeroSkillUpgraded && player.HeroSkillTotalUses >= UpgradeThreshold)
-                player.HeroSkillUpgraded = true; // 本次发动仍用基础版，下一次起用升级版
+            // 发动计数 +1（随技能卡）；门在计数前抓拍——本次走哪档由「此前已发动次数」判
+            int priorUses = skillCard.GetCounterCount(CounterRules.SkillUseCounter);
+            skillCard.AddCounters(CounterRules.SkillUseCounter, 1);
 
+            // 升级门（抉择式条件分支，2026-09-22 定案）：条件满足前（第 1..7 次）走基础档、
+            // 满足后（第 8 次起）走升级档——第 7 次发动当次仍走基础档（单向，费用不变）
+            bool upgraded = priorUses >= def.UpgradeThreshold;
             core.PublishEvent(new HeroSkillActivatedEvent
             {
                 Player = player,
                 Skill = skill,
-                Upgraded = player.HeroSkillUpgraded,
-                TotalUses = player.HeroSkillTotalUses,
+                Upgraded = upgraded,
+                TotalUses = priorUses + 1,
             });
 
-            await ExecuteAsync(core, player, skill, player.HeroSkillUpgraded && player.HeroSkillTotalUses > UpgradeThreshold);
-            // 注：升级当次（TotalUses==7 且刚置位）仍执行基础版；≥8 起执行升级版
+            var branch = ResolveBranch(def, priorUses);
+            await branch.Execute(core, player);
             return true;
-        }
-
-        private static async UniTask ExecuteAsync(GameCore core, Player player, HeroSkillId skill, bool upgraded)
-        {
-            switch (skill)
-            {
-                case HeroSkillId.BlueInsight:
-                    if (upgraded)
-                    {
-                        await DiscoverFromDeckAsync(core, player, 3);
-                    }
-                    else
-                    {
-                        // 单方收益（2026-09-22）：只自己抽，不再"双方各抽 1"
-                        ZoneManagerExtensions.DrawCard(core.ZoneManager, player);
-                    }
-                    break;
-
-                case HeroSkillId.GreenCultivate:
-                    if (upgraded)
-                    {
-                        await GraveyardCreatureToLandTappedAsync(core, player);
-                    }
-                    else
-                    {
-                        RandomDeckCreatureToLandTapped(core, player);
-                    }
-                    break;
-
-                case HeroSkillId.RedFrenzy:
-                    SummonFrenzyToken(core, player, upgraded ? 2 : 1);
-                    break;
-            }
         }
 
         // ======================================== 效果实件 ========================================
@@ -333,7 +415,9 @@ namespace CardCore
         /// <summary>红技能 token 模板 ID（实例 ID = 模板#序号，对齐 SummonTokenHandler 口径）。</summary>
         private const string FrenzyTokenTemplateId = "HEROSKILL_TOKEN_RED";
 
-        /// <summary>红技能（2026-09-22 重做）：召唤一个可攻击的衍生物（基础 1/1，升级 2/1）。
+        /// <summary>红技能（2026-09-22 重做；同日升级调整）：召唤一个衍生物（基础 1/1，升级 2/1），
+        /// **横置入场并激励**——入场统一横置（TryAddToBattlefield 定案）后立即解除（冲锋语义，
+        /// 当回合即可宣言攻击；口径=UntapHandler：Untap+UntapEvent）。
         /// 与 SummonTokenHandler 同口径：全参数工厂 + 对局临时实例 ID + TokenSpawned 进场；
         /// 普通 Creature 模板默认可宣言攻击（NoAttack 未设）。满场由 TryAddToBattlefield 统一入墓。</summary>
         private static void SummonFrenzyToken(GameCore core, Player player, int power)
@@ -350,7 +434,11 @@ namespace CardCore
                 ID = $"{FrenzyTokenTemplateId}#{CardCore.TimestampSystem.NextSequence}",
             };
             token.SetController(player);
-            core.ZoneManager.TryAddToBattlefield(token, player, EnterSource.TokenSpawned);
+            if (core.ZoneManager.TryAddToBattlefield(token, player, EnterSource.TokenSpawned))
+            {
+                token.Untap(); // 激励自己：横置入场后立即解除（当回合可攻击）
+                core.PublishEvent(new UntapEvent { UntappedEntity = token });
+            }
             core.PublishEvent(new TokenCreatedEvent
             {
                 TokenTemplateId = FrenzyTokenTemplateId,
@@ -360,6 +448,37 @@ namespace CardCore
                 Card = token,
                 DropZone = Zone.Battlefield,
             });
+        }
+
+        /// <summary>回收（2026-09-22 升级调整）：从自己墓地选 count 张卡回手（回收 1 张=1 费锚）。
+        /// 与 RecoverToHandHandler 同口径（墓→手）；候选不足 count 张时全收（无交互），
+        /// 超出时弹选择（无头/超时自动取前 N）。</summary>
+        private static async UniTask RecycleFromGraveyardAsync(GameCore core, Player player, int count)
+        {
+            var grave = core.ZoneManager.GetCards(player, Zone.Graveyard);
+            if (grave == null || grave.Count == 0 || count <= 0) return;
+
+            List<Card> picked;
+            if (grave.Count <= count)
+            {
+                picked = new List<Card>(grave);
+            }
+            else
+            {
+                var chosen = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                {
+                    Candidates = grave.Cast<Entity>().ToList(),
+                    MinCount = count,
+                    MaxCount = count,
+                    Chooser = player,
+                    Title = "英雄技能·培育·再生（回收：选一张卡回手）",
+                });
+                picked = (chosen?.OfType<Card>() ?? Enumerable.Empty<Card>()).Take(count).ToList();
+                if (picked.Count == 0) picked = grave.Take(count).ToList(); // 无头兜底：前 N 张
+            }
+
+            foreach (var card in picked)
+                core.ZoneManager.MoveCard(card, player, Zone.Graveyard, Zone.Hand);
         }
 
         /// <summary>技能中文名（战报支付来源标注/技能发动行渲染用，2026-09-21）。</summary>

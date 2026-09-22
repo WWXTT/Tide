@@ -185,6 +185,7 @@ namespace CardCore
                 ModeIndex = instance.ModeIndex, // 抉择：执行引擎按声明期选定的模式分派
                 Duration = effect.Duration,               // 组合层编排属性随 context 下发（参照 ModeIndex 先例）
                 SummonDropZone = effect.SummonDropZone,
+                CastCard = instance.CastCard, // 施放链路宿主卡（状态门 DrawnInStandbyThisTurn 用）
             };
 
             // 代价支付：元素代价由配置表自动推导（费用唯一权威），经 ElementCostPayment 纯支付
@@ -372,6 +373,11 @@ namespace CardCore
                         ? steps[i + 1]
                         : null;
 
+                // 拦截式改写门（2026-09-22 定案）：配对门为改写门 → 伤害原子**不执行**，
+                // 改为对目标施加对应指示物（固定 1 层，共用 KeywordRules.ApplyRewriteCounter 口径）；
+                // 无 then/else 奖励槽（改写即分支效果）、不计错边命中（无伤害发生）。
+                bool rewriteGate = gate != null && BranchConditionEvaluator.IsRewriteCondition(gate.ConditionId);
+
                 // 错边黑白发放（2026-09-11 定案）：逐目标累计命中（执行前存活才算命中），
                 // 整原子=一次发放事件，循环后统一封顶发放（见 FlushWrongSideGrants）。
                 var wrongHits = new Dictionary<AtomicEffectInstance, int>();
@@ -384,14 +390,21 @@ namespace CardCore
 
                     PublishPhase(atomic, AtomicEffectPhase.Activation, context);
                     PublishPhase(atomic, AtomicEffectPhase.StartApplying, context);
-                    await EffectHandlerRegistry.ExecuteEffectAsync(atomic, context);
-                    CaptureDescription(atomic, context, fragments);
+                    if (rewriteGate)
+                    {
+                        ApplyRewriteGate(gate, target, context);
+                    }
+                    else
+                    {
+                        await EffectHandlerRegistry.ExecuteEffectAsync(atomic, context);
+                        CaptureDescription(atomic, context, fragments);
+                    }
                     PublishPhase(atomic, AtomicEffectPhase.ResolutionComplete, context);
 
-                    if (wasAlive)
+                    if (wasAlive && !rewriteGate)
                         CollectWrongSideHits(atomic, context.Controller, context.Targets, wrongHits);
 
-                    if (gate != null)
+                    if (gate != null && !rewriteGate)
                         await ApplyGateRewardsAsync(gate, context, fragments);
                 }
 
@@ -468,6 +481,22 @@ namespace CardCore
             var owner = target.GetOwner();
             if (owner == null) return 0;
             return owner == controller ? -1 : (owner == controller.Opponent ? 1 : 0);
+        }
+
+        /// <summary>拦截式改写门施加（2026-09-22 定案）：跳过伤害原子执行，对目标施加对应指示物
+        ///（固定 1 层，共用 KeywordRules.ApplyRewriteCounter——与战斗关键词改写同口径）；
+        /// 产出记 Rewritten（无伤害无击杀——下游门 DmgKillsTarget 等自然判否），目标计入受影响面。</summary>
+        private static void ApplyRewriteGate(RuntimeEffectStep gate, Entity target, EffectExecutionContext context)
+        {
+            string keyword = KeywordRules.RewriteGateKeyword(gate.ConditionId);
+            if (keyword == null) return;
+
+            KeywordRules.ApplyRewriteCounter(keyword, target, context.Source, KeywordRules.RewriteGateDetail(gate.ConditionId));
+
+            var outcome = context.LastOutcome;
+            outcome.Rewritten = true;
+            if (target != null) outcome.AffectedTargets.Add(target);
+            if (target == null || target.IsAlive) outcome.AnySurvived = true;
         }
 
         /// <summary>

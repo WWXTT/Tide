@@ -101,6 +101,23 @@ namespace CardCore
                 }
             }
 
+            // 拦截式改写门配对守卫（2026-09-22 定案）：改写门（DmgRewrite*）必须紧跟伤害族主干原子
+            //（DealDamage/PierceDamage/DrainLife）——失配（手写 JSON/旧数据）告警剔除，
+            // 防改写拦截在非伤害原子上空转。倒序遍历防索引漂移。
+            for (int i = def.Steps.Count - 1; i >= 0; i--)
+            {
+                var s = def.Steps[i];
+                if (s?.Kind != RuntimeStepKind.Branch || !BranchConditionEvaluator.IsRewriteCondition(s.ConditionId))
+                    continue;
+                bool paired = i > 0 && def.Steps[i - 1]?.Kind == RuntimeStepKind.Atomic
+                              && Array.IndexOf(ComposerCatalog.DamageProducers,
+                                  def.Steps[i - 1].Atomic?.Type.ToString() ?? "") >= 0;
+                if (paired) continue;
+                Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 改写门 {s.ConditionId}" +
+                                 " 未紧跟伤害族主干原子，已剔除（改写门只挂 DealDamage/PierceDamage/DrainLife）");
+                def.Steps.RemoveAt(i);
+            }
+
             // ---- 组合层域预计算（2026-09-10 目标域模型）----
             // 主序列原子域交集 → TargetDomain（无 Choice）/ ChoiceDomains（per-mode）；
             // 组合 filter = 成员带域原子 Filter token 之 AND；TargetCount 哨兵 -2 回落表级。

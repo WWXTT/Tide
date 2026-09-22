@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CardCore;
 using CardCore.Attribute;
 using UnityEngine;
@@ -99,10 +100,20 @@ namespace SynergyUI
                     if (s.kind == 0 && s.atomic != null) parts.Add(RenderAtomEntry(s.atomic));
                     else if (s.kind == 1)
                     {
-                        string gate = string.IsNullOrEmpty(s.conditionId) ? "?" : s.conditionId;
-                        string reward = s.thenSteps != null && s.thenSteps.Count > 0
-                            ? RenderAtomEntry(s.thenSteps[0]) : "（未设奖励）";
-                        parts.Add($"[{gate}]→{reward}");
+                        // 门条件中文（ComposerCatalog.GateLabel 同源——含改写门"伤害不发生"口径）
+                        var spec = ComposerCatalog.OutcomeGates.FirstOrDefault(g => g.Id == s.conditionId);
+                        string gate = spec != null ? ComposerCatalog.GateLabel(spec)
+                            : (string.IsNullOrEmpty(s.conditionId) ? "?" : s.conditionId);
+                        if (CardCore.BranchConditionEvaluator.IsRewriteCondition(s.conditionId))
+                        {
+                            parts.Add(gate); // 改写门无奖励（伤害不发生，改写即分支效果）
+                        }
+                        else
+                        {
+                            string reward = s.thenSteps != null && s.thenSteps.Count > 0
+                                ? RenderAtomEntry(s.thenSteps[0]) : "（未设奖励）";
+                            parts.Add($"[{gate}]→{reward}");
+                        }
                     }
                     else if (s.kind == 2) parts.Add($"抉择（{s.choices?.Count ?? 0} 模式）");
                 }
@@ -123,13 +134,19 @@ namespace SynergyUI
             switch (engine)
             {
                 case BranchEngineKind.Clash:
-                    return $"拼点：牌库顶费用 > 对手 + {param} 时执行奖励（机制费 {param} 灰）";
+                    return $"拼点：牌库顶费用总额差额 ≥ 奖励锚价合计时执行奖励（零计价·门槛制）";
                 case BranchEngineKind.LuckRoll:
-                    return $"运势：2d6 两点均 > {param} 时执行奖励（机制费 {param} 灰）";
+                    return $"运势：2d6 两点均 > {param} 时执行奖励（零计价·概率门槛）";
                 case BranchEngineKind.Countdown:
                     return param > 0
                         ? $"倒计时 {param} 回合，归零执行奖励并重置"
                         : "倒计时：按奖励推导费自动换算回合（1费=1回合）";
+                case BranchEngineKind.DeathToll:
+                    return $"死亡计数：本回合双方合计 {param} 个生物死亡时执行奖励（预算 {param}）";
+                case BranchEngineKind.ManaSurplus:
+                    return $"元素充盈：出牌付费后 bank 最多色 > {param} 时执行奖励（每次达标都触发，预算 {param}）";
+                case BranchEngineKind.NthHandCard:
+                    return $"手牌序位：此卡为本回合从手牌使用的第 {param} 张卡时执行奖励（预算 {param}）";
                 default:
                     return "";
             }
