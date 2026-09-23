@@ -44,6 +44,15 @@ namespace CardCore
         public List<StepRef> steps;
     }
 
+    /// <summary>效果锚价条目（2026-09-23 定案：效果组合阶段=纯表累加、无减免抵消——
+    /// 合成期实时推导随效果落盘；派生数据，不入内容哈希）。</summary>
+    [Serializable]
+    public class ElementCostRef
+    {
+        public int mana;   // ManaType
+        public int value;  // 元素数
+    }
+
     /// <summary>代价引用：type=7(Payload) 时 payload 为错边原子引用。</summary>
     [Serializable]
     public class CostRef
@@ -72,6 +81,11 @@ namespace CardCore
         public int dropZone;           // SummonDropZone
         public int engine;             // BranchEngineKind（≠0 时 rewards 有效、steps 恒空）
         public int engineParam;
+        public int arrows;             // 光环形态（2026-09-23）：HexDirection Flags——箭头随效果合成，挂卡并集
+        public List<LinkAuraData> linkAuras;  // 光环条目（非光环效果 null——空列不写，向后兼容）
+        public List<ElementCostRef> cost;     // 效果锚价（2026-09-23）：合成期按表累加实时推导落盘——
+                                              // 装载期逐效果还原为 AnchorCost 缓存（启动式/动态效果运行时
+                                              // 现付的显示/预检口径）；派生数据不入内容哈希（表变更重算不换 id）
         public List<CostRef> costs;
         public List<StepRef> steps;
         public List<AtomicEffectEntry> rewards;  // 引擎奖励（engine≠0）
@@ -237,6 +251,14 @@ namespace CardCore
                 SummonDropZone = dto.dropZone,
                 EngineKind = dto.engine,
                 EngineParam = dto.engineParam,
+                ArrowDirections = dto.arrows,
+                LinkAuras = dto.linkAuras != null && dto.linkAuras.Count > 0
+                    ? dto.linkAuras.Where(a => a != null
+                        && (!string.IsNullOrEmpty(a.stat) || !string.IsNullOrEmpty(a.keyword))).ToList()
+                    : null, // 光环条目（2026-09-23 效果级）——无效条目装载期即丢弃
+                AnchorCost = dto.cost != null && dto.cost.Count > 0
+                    ? dto.cost.Where(c => c != null).Select(c => new ElementCostRef { mana = c.mana, value = c.value }).ToList()
+                    : null, // 锚价缓存（2026-09-23）——装载期逐效果建立
                 Costs = ToCostEntries(dto.costs),
             };
             if (dto.engine != (int)BranchEngineKind.None)

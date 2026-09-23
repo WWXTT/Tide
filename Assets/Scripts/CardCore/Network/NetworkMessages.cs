@@ -42,6 +42,7 @@ namespace CardCore.Network
         IntentConcede = 109,         // 认输：EndGame(opponent, Concede)
         SelectResponse = 110,        // 反问应答（MsgSelectResponse）
         DeckSubmit = 111,            // 开局握手：卡组提交（MsgDeckSubmit，见 网络协议.md §11）
+        JoinRoom = 112,              // 会话层：进房分座/观战登记（MsgJoinRoom，见 网络协议.md §12）
 
         // ---- 下行（服务器→客户端）----
         SelectRequest = 120,         // 反问请求（MsgSelectRequest）
@@ -50,6 +51,7 @@ namespace CardCore.Network
         Ping = 123,
         Pong = 124,
         MatchManifest = 125,         // 开局握手：对局清单（MsgMatchManifest，见 网络协议.md §11）
+        RoomState = 126,             // 会话层：房间全量状态广播（MsgRoomState，见 网络协议.md §12）
     }
 
     /// <summary>协议版本常量。信封 ProtocolVersion 读到 0 视为 legacy（无版本草稿期数据）。</summary>

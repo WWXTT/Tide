@@ -385,8 +385,14 @@ namespace CardCore
 
             // 对局随机种子（2026-09-13 两个随机定案）：钉种子 → 同种子同随机序列
             // （验证器/网络对拍/回放用；缺省不重播，沿用服务内既有状态）
+            // M3 对拍收口（2026-09-23）：引擎有两条独立随机流——GameRng（效果随机）+
+            // ZoneContainer._rng（洗牌专用，static 独立 Reseed）——只重播前者时起手洗牌
+            // 仍不确定，同种子对拍必炸；现双流同种子重播。
             if (rngSeed.HasValue)
+            {
                 GameRng.Reseed(rngSeed.Value);
+                ZoneContainer.Reseed(rngSeed.Value);
+            }
 
             // 重置游戏状态
             Reset();

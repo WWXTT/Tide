@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Sockets;
+using System.Threading;
 using CardCore.AI.NeuralEnv;
 using CardCore.Editor.Tests;
 using CardCore.Network;
@@ -48,7 +50,7 @@ namespace CardCore.Editor
                 var deck = AiBattleE2E.LoadStandardDeck();
                 if (deck == null || deck.Count == 0)
                 {
-                    Debug.LogError("[NetVerify] 测试卡缺失（Configs/TestDecks/TestCreatureCards.json），中止");
+                    Debug.LogError("[NetVerify] 测试卡缺失（Cards.json 卡池为空——LoadStandardDeck=CardCatalog 全池非仪式卡），中止");
                     return;
                 }
 
@@ -56,6 +58,8 @@ namespace CardCore.Editor
                 RunIntentSection(deck);
                 RunSelectorSection(deck);
                 RunHandshakeSection();
+                RunSocketSection();
+                RunM3Section();
             }
             catch (Exception ex)
             {
@@ -363,6 +367,8 @@ namespace CardCore.Editor
                 var enumerator = new LegalActionEnumerator();
                 var banned = new HashSet<string>();
                 var coverage = new Dictionary<TideActionType, int>();
+                int bannedTurnStamp = -1; // 拉黑按回合清（镜像 TideHeadlessDriver._bannedThisTurn）：
+                                          // 同一动作下回合可能重新合法（费用攒够/场面变化）
 
                 // 泛型保持具体声明类型：MemoryPack 按声明类型找 formatter（object 无注册）；
                 // 空载荷 intent 用 byte[0] 占位（原生支持，applier 不读这些 payload）
@@ -385,6 +391,21 @@ namespace CardCore.Editor
 
                     if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) continue;
 
+                    if (bannedTurnStamp != core.TurnEngine.TurnNumber)
+                    {
+                        bannedTurnStamp = core.TurnEngine.TurnNumber;
+                        banned.Clear();
+                    }
+
+                    // 周期诊断（Attack 覆盖回归定位用）：场面/手牌/地牌走势
+                    if (turn % 10 == 0)
+                        Debug.Log($"[NetVerify][intent] T{turn} seat{seat}"
+                            + $" hand={core.ZoneManager.GetCards(me, Zone.Hand).Count}"
+                            + $" bf0={core.ZoneManager.GetCards(core.Player1, Zone.Battlefield).Count}"
+                            + $" bf1={core.ZoneManager.GetCards(core.Player2, Zone.Battlefield).Count}"
+                            + $" lands0={core.ElementPool.GetPooledCards(core.Player1).Count}"
+                            + $" lands1={core.ElementPool.GetPooledCards(core.Player2).Count}");
+
                     // 横置产元素：经 intent（颜色=首个可用色；驱动侧镜像 SimpleAI.TapAllLands 职责）
                     foreach (var pooled in core.ElementPool.GetPooledCards(me).Where(p => !p.IsTapped).ToList())
                     {
@@ -394,21 +415,30 @@ namespace CardCore.Editor
                             new MsgIntentTapForElement { CardRuntimeId = pooled.SourceCard.RuntimeId, ManaType = (int)color });
                     }
 
-                    // 动作循环：枚举 → 按覆盖优先选型 → 映射 intent → 分派（拒绝即拉黑重枚举）
+                    // 动作循环：枚举 → 选型 → 映射 intent → 分派（拒绝即本回合拉黑重枚举）
+                    bool landPlayedThisTurn = false;
                     for (int step = 0; step < 24; step++)
                     {
                         enumerator.Enumerate(core, me);
                         enumerator.RemoveAll(banned);
                         if (enumerator.Count == 0) break;
 
-                        // 选型：优先覆盖未触碰的动作类型 → 任意非 EndTurn → EndTurn（TideAction 是结构体，不用 ??）
+                        // 选型（2026-09-23 修复 Attack×0 回归）：①优先覆盖未触碰类型
+                        // ②非 EndTurn 且非 PlayLand ③PlayLand（每回合至多 1 张——地牌资格=只有
+                        // 生物可作地牌，无节制铺地会把生物全部吞成地、战场常年空、攻击与
+                        // 激活永远覆盖不到；引擎不限次数，驱动按 TCG 惯例配速）④EndTurn
+                        //（TideAction 是结构体，不用 ??）
                         TideAction choice = default;
                         bool found = false;
                         foreach (var a in enumerator.Actions)
-                            if (a.Type != TideActionType.EndTurn && !coverage.ContainsKey(a.Type)) { choice = a; found = true; break; }
+                            if (a.Type != TideActionType.EndTurn && a.Type != TideActionType.PlayLand
+                                && !coverage.ContainsKey(a.Type)) { choice = a; found = true; break; }
                         if (!found)
                             foreach (var a in enumerator.Actions)
-                                if (a.Type != TideActionType.EndTurn) { choice = a; found = true; break; }
+                                if (a.Type != TideActionType.EndTurn && a.Type != TideActionType.PlayLand) { choice = a; found = true; break; }
+                        if (!found && !landPlayedThisTurn)
+                            foreach (var a in enumerator.Actions)
+                                if (a.Type == TideActionType.PlayLand) { choice = a; found = true; break; }
                         if (!found)
                             foreach (var a in enumerator.Actions)
                                 if (a.Type == TideActionType.EndTurn) { choice = a; found = true; break; }
@@ -453,6 +483,7 @@ namespace CardCore.Editor
                         if (accepted)
                         {
                             coverage[choice.Type] = coverage.GetValueOrDefault(choice.Type) + 1;
+                            if (choice.Type == TideActionType.PlayLand) landPlayedThisTurn = true;
                             if (choice.Type == TideActionType.EndTurn) break;
                             GameActions.DrainStack(core); // 结算上栈的 cast（驱动侧职责，同 SimpleAI.SettleStack）
                         }
@@ -662,6 +693,521 @@ namespace CardCore.Editor
             Assert(!NetMatchHandshake.VerifyMatchManifest(echoTampered, deckIds, out var echoReason)
                    && echoReason.Contains("回显"),
                 $"客户端拒绝卡组回显不符（{echoReason}）");
+        }
+
+        // ============================================================
+        // 第六段：真实 socket 会话（M2 冒烟，2026-09-23）：
+        // 进程内起 NetSessionServer（真实 TCP）+ 双玩家客户端 + 观战客户端——
+        // 房间分座/抢座拒绝 → DeckSubmit→MatchManifest 握手 → intent 拒绝 Error 帧 →
+        // 脚本化整局（SkipStandby/出牌/放地/让行/EndTurn，回合上限后认输兜底）→
+        // 隐藏过滤（玩家不见对方抽的牌）/观战全信息/快照往返 全链路断言。
+        // ============================================================
+
+        private static void RunSocketSection()
+        {
+            Section("6. 真实 socket 会话（M2 冒烟）");
+
+            var pool = CardCatalog.LoadAll();
+            Assert(pool.Count >= 2, $"卡池 ≥2 张（socket 段依赖真实用户数据，实际 {pool.Count}）");
+            if (pool.Count < 2) return;
+
+            var deckIds = pool.Select(c => c.ID).Distinct().Take(30).ToArray();
+            var submit = new MsgDeckSubmit
+            {
+                DeckName = "socket冒烟",
+                CardIds = deckIds,
+                Digest = NetMatchHandshake.ComputeDeckDigest(deckIds),
+            };
+
+            var server = new NetSessionServer("verify", null);
+            server.Start(0); // OS 分配空闲口
+            try
+            {
+                var a = new SocketTestClient(); a.Connect(server.Port);
+                var b = new SocketTestClient(); b.Connect(server.Port);
+                var spec = new SocketTestClient(); spec.Connect(server.Port);
+
+                // ---- 6a. 分座：A 指定 0 / 抢座反例 / B 指定 1 / 观战 ----
+                a.Send(NetworkMessageType.JoinRoom, new MsgJoinRoom { RoomId = "verify", WantSeat = 0, Nickname = "A" });
+                PumpAndReceive(server, 300, a);
+                Assert(a.LastRoomState != null
+                    && a.LastRoomState.Phase == (int)NetRoomPhase.Waiting
+                    && a.LastRoomState.Players[0].Connected && a.LastRoomState.Players[0].Nickname == "A",
+                    "A 分到椅子 0（RoomState=Waiting）");
+
+                var rogue = new SocketTestClient(); rogue.Connect(server.Port);
+                rogue.Send(NetworkMessageType.JoinRoom, new MsgJoinRoom { RoomId = "verify", WantSeat = 0, Nickname = "抢座" });
+                PumpAndReceive(server, 300, rogue);
+                Assert(rogue.Errors.Any(e => e.Context == "JoinRoom" && e.Reason.Contains("占用")),
+                    "抢已占座位被拒（Error 帧 Context=JoinRoom）");
+                rogue.Close();
+
+                b.Send(NetworkMessageType.JoinRoom, new MsgJoinRoom { RoomId = "verify", WantSeat = 1, Nickname = "B" });
+                spec.Send(NetworkMessageType.JoinRoom, new MsgJoinRoom { RoomId = "verify", AsSpectator = true, Nickname = "S" });
+                PumpAndReceive(server, 300, a, b, spec);
+                Assert(a.LastRoomState != null && a.LastRoomState.Phase == (int)NetRoomPhase.DeckSubmit
+                    && a.LastRoomState.Players[1].Connected && a.LastRoomState.SpectatorCount == 1,
+                    "双玩家位满 → DeckSubmit（观战 1 人）");
+
+                // ---- 6b. 握手（真实 socket 驱动 §11 消息流）----
+                a.Send(NetworkMessageType.DeckSubmit, submit);
+                b.Send(NetworkMessageType.DeckSubmit, submit);
+                for (int i = 0; i < 100 && (a.Manifest == null || b.Manifest == null); i++)
+                    PumpAndReceive(server, 30, a, b, spec);
+                Assert(a.Manifest != null && b.Manifest != null, "双座位收到 MatchManifest");
+                if (a.Manifest == null || b.Manifest == null) return;
+
+                Assert(a.Manifest.OwnSeat + b.Manifest.OwnSeat == 1, "引擎座位互补（换先手映射）");
+                int firstSeat = a.LastRoomState?.FirstSeatThisMatch ?? -1;
+                Assert(firstSeat == 0 || firstSeat == 1, $"RoomState 广播本局先手椅位（{firstSeat}）");
+                Assert(a.Manifest.OwnSeat == (firstSeat == 0 ? 0 : 1)
+                    && b.Manifest.OwnSeat == (firstSeat == 0 ? 1 : 0),
+                    "椅位→引擎座位映射与先手一致（A=椅0）");
+                a.MyEngineSeat = a.Manifest.OwnSeat;
+                b.MyEngineSeat = b.Manifest.OwnSeat;
+                Assert(NetMatchHandshake.VerifyMatchManifest(a.Manifest, deckIds, out var reasonA),
+                    $"A 客户端侧清单校验通过{(reasonA != null ? "（" + reasonA + "）" : "")}");
+                Assert(NetMatchHandshake.VerifyMatchManifest(b.Manifest, deckIds, out _),
+                    "B 客户端侧清单校验通过");
+
+                // ---- 6c. 拒绝语义：必失败 intent → Error 帧回发（§5 M2 落地）----
+                a.Send(NetworkMessageType.IntentPlayCard,
+                    new MsgIntentPlayCard { CardRuntimeId = 999999, FromZone = (int)Zone.Hand });
+                PumpAndReceive(server, 300, a, b, spec);
+                Assert(a.Errors.Any(e => e.Context == "IntentPlayCard"),
+                    "非法 intent 被 Error 帧拒绝（RuntimeId 不存在）");
+
+                // ---- 6d. 整局脚本（双客户端 intent 驱动；回合上限后认输兜底）----
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                bool conceded = false;
+                while (sw.ElapsedMilliseconds < 90000)
+                {
+                    server.Pump();
+                    a.Receive(5); b.Receive(5); spec.Receive(5);
+
+                    if (a.Events.Any(e => e.EventType == nameof(GameOverEvent))) break;
+
+                    var snap = a.LastSnapshot ?? b.LastSnapshot;
+                    if (!conceded && snap != null && snap.CurrentTurn > 30)
+                    {
+                        conceded = true;
+                        a.Send<object>(NetworkMessageType.IntentConcede, null);
+                        continue;
+                    }
+
+                    ScriptClient(a);
+                    ScriptClient(b);
+                }
+
+                for (int i = 0; i < 50; i++) // 终局冲刷
+                {
+                    server.Pump();
+                    a.Receive(10); b.Receive(10); spec.Receive(10);
+                    if (a.LastRoomState?.Phase == (int)NetRoomPhase.Finished
+                        && b.LastRoomState?.Phase == (int)NetRoomPhase.Finished
+                        && spec.LastRoomState?.Phase == (int)NetRoomPhase.Finished)
+                        break;
+                }
+
+                Assert(a.Events.Any(e => e.EventType == nameof(GameOverEvent)), "整局到达终局（GameOverEvent 到达客户端）");
+                Assert(a.LastRoomState?.Phase == (int)NetRoomPhase.Finished
+                    && b.LastRoomState?.Phase == (int)NetRoomPhase.Finished
+                    && spec.LastRoomState?.Phase == (int)NetRoomPhase.Finished,
+                    "三方 RoomState(Finished)（正常终局/断线作废统一收口）");
+                Assert(!a.Disconnected && !b.Disconnected && !spec.Disconnected, "全程无意外断线");
+
+                // ---- 6e. 回合推进与快照 ----
+                Assert(a.SnapshotsReceived >= 2 && b.SnapshotsReceived >= 2, "双客户端持续收到快照（稳定决策点取样）");
+                int lastTurn = Math.Max(a.LastSnapshot?.CurrentTurn ?? 0, b.LastSnapshot?.CurrentTurn ?? 0);
+                Assert(lastTurn >= 3, $"回合推进 ≥3（实际 {lastTurn}——SkipStandby/EndTurn/折返链路通）");
+
+                // ---- 6f. 隐藏过滤（玩家侧）与观战全信息（2026-09-23 定案）----
+                Assert(a.Events.Count > 0 && spec.Events.Count > 0, "事件流到达（玩家+观战）");
+                var aOppDraws = a.Events.Where(e => e.EventType == nameof(CardDrawEvent))
+                    .Where(e => SeatOfParam(e, "Player") == 1 - a.MyEngineSeat).ToList();
+                Assert(aOppDraws.Count > 0, "A 的事件流含对手抽牌事件（抽牌发生本身可见）");
+                Assert(aOppDraws.All(e => HiddenOrAbsent(e, "DrawnCard")),
+                    "A 的对手抽牌事件不携带 DrawnCard 引用（服务器出队按座位过滤）");
+                var aSelfDraws = a.Events.Where(e => e.EventType == nameof(CardDrawEvent))
+                    .Where(e => SeatOfParam(e, "Player") == a.MyEngineSeat).ToList();
+                Assert(aSelfDraws.Count > 0 && aSelfDraws.All(e => !HiddenOrAbsent(e, "DrawnCard")),
+                    "A 的自己抽牌事件携带 DrawnCard（己方手牌可见）");
+
+                var specDraws = spec.Events.Where(e => e.EventType == nameof(CardDrawEvent)).ToList();
+                Assert(specDraws.Count > 0 && specDraws.Any(e => !HiddenOrAbsent(e, "DrawnCard")),
+                    "观战全信息：抽牌事件携带 DrawnCard");
+
+                var specSnap = spec.FirstSnapshot ?? spec.LastSnapshot;
+                Assert(specSnap != null && specSnap.Hands.All(h => h.Count == 0
+                    || (h.OwnRuntimeIds != null && h.OwnRuntimeIds.Length == h.Count)),
+                    "观战快照双方手牌全展开（OwnRuntimeIds 满员）");
+                Assert(specSnap != null && specSnap.ZoneCards.Count(z => (Zone)z.Zone == Zone.Hand) == 2,
+                    "观战快照含双方手牌区（fullInfo）");
+                var aLast = a.LastSnapshot;
+                Assert(aLast != null
+                    && (aLast.Hands.First(h => h.Seat == 1 - a.MyEngineSeat).OwnRuntimeIds?.Length ?? 0) == 0,
+                    "玩家快照对方手牌只见数量");
+
+                Debug.Log($"[NetVerify] socket 冒烟：事件 A×{a.Events.Count}/B×{b.Events.Count}/观战×{spec.Events.Count}，" +
+                    $"快照 A×{a.SnapshotsReceived}/B×{b.SnapshotsReceived}，Error A×{a.Errors.Count}/B×{b.Errors.Count}，" +
+                    $"终局回合 {lastTurn}（先手椅位 {firstSeat}）");
+
+                a.Close(); b.Close(); spec.Close();
+            }
+            finally
+            {
+                server.Stop();
+            }
+        }
+
+        /// <summary>窗口内循环泵 + 客户端收下行（覆盖"字节还在路上"的时序窗口——
+        /// 单拍泵会赶在读线程入队前空转，断言随机失败）。</summary>
+        private static void PumpAndReceive(NetSessionServer server, int totalMs, params SocketTestClient[] clients)
+        {
+            var deadline = DateTime.UtcNow.AddMilliseconds(totalMs);
+            while (DateTime.UtcNow < deadline)
+            {
+                server.Pump();
+                foreach (var c in clients)
+                    c.Receive(10);
+            }
+        }
+
+        /// <summary>
+        /// 脚本客户端决策（黑盒：只依据自己收到的快照/反问）：
+        /// 反问优先应答 → 栈上让行（PrioritySeat+StackV2）→ Standby 跳过 → Main 尝试出牌/放地后 EndTurn。
+        /// 非法尝试被服务器拒绝即收 Error 帧——拒绝面本身是验证点，脚本只保证回合必然流动。
+        /// </summary>
+        private static void ScriptClient(SocketTestClient c)
+        {
+            if (c.PendingSelects.Count > 0)
+            {
+                var req = c.PendingSelects[0];
+                c.PendingSelects.RemoveAt(0);
+                int poolCount = req.Candidates != null && req.Candidates.Length > 0
+                    ? req.Candidates.Length
+                    : (req.Labels?.Length ?? 0);
+                int count = Math.Max(1, Math.Min(req.Min, poolCount));
+                c.Send(NetworkMessageType.SelectResponse, new MsgSelectResponse
+                {
+                    RequestId = req.RequestId,
+                    Indices = Enumerable.Range(0, count).ToArray(),
+                });
+                return;
+            }
+
+            var snap = c.LastSnapshot;
+            if (snap == null || snap.ActiveSeat != c.MyEngineSeat) return;
+
+            // 栈上有对象且优先权在我 → 让行（响应窗口放行；要响应的客户端走 PlayCardInResponse 同一消息位）
+            if (snap.PrioritySeat == c.MyEngineSeat && snap.StackV2 != null && snap.StackV2.Length > 0)
+            {
+                c.Send<object>(NetworkMessageType.IntentPassPriority, null);
+                return;
+            }
+
+            var phase = (PhaseType)snap.CurrentPhase;
+            if (phase == PhaseType.Standby)
+            {
+                c.Send<object>(NetworkMessageType.IntentSkipStandby, null);
+                return;
+            }
+            if (phase == PhaseType.Main)
+            {
+                if (c.LastActedTurn < snap.CurrentTurn)
+                {
+                    c.LastActedTurn = snap.CurrentTurn;
+                    var handIds = snap.Hands.FirstOrDefault(h => h.Seat == c.MyEngineSeat)?.OwnRuntimeIds;
+                    if (handIds != null && handIds.Length > 0)
+                    {
+                        c.Send(NetworkMessageType.IntentPlayCard, new MsgIntentPlayCard
+                        {
+                            CardRuntimeId = handIds[0],
+                            FromZone = (int)Zone.Hand,
+                            ModeIndex = 0,
+                        });
+                        c.Send(NetworkMessageType.IntentAddToElementPool,
+                            new MsgIntentAddToElementPool { CardRuntimeId = handIds[handIds.Length - 1] });
+                    }
+                    return; // 本帧动作上栈，等快照同步后再 EndTurn
+                }
+                c.Send<object>(NetworkMessageType.IntentEndTurn, null);
+            }
+        }
+
+        /// <summary>取事件实体字段的座位（仅玩家引用有座位；其余 null）。</summary>
+        private static int? SeatOfParam(NetEvent e, string fieldName)
+        {
+            var p = e.Params?.FirstOrDefault(x => x.FieldName == fieldName);
+            if (p == null || p.Kind != NetParamKind.Entity || p.EntityRefs == null || p.EntityRefs.Length == 0)
+                return null;
+            var r = p.EntityRefs[0];
+            return r != null && r.IsPlayer ? r.Seat : (int?)null;
+        }
+
+        /// <summary>字段被隐藏过滤（整体丢弃）或被置 Null（字段在、值隐）。</summary>
+        private static bool HiddenOrAbsent(NetEvent e, string fieldName)
+        {
+            var p = e.Params?.FirstOrDefault(x => x.FieldName == fieldName);
+            if (p == null) return true;
+            return p.Kind == NetParamKind.Null;
+        }
+
+        /// <summary>
+        /// socket 测试客户端（黑盒）：真实 TCP + FrameCodec，收到的下行按类型分派到公开字段。
+        /// 只用于验证器——正式客户端 UI 消费侧是 M3 范畴。可选挂 NetClientBrain（M3 对拍），
+        /// 下行自动喂入大脑。
+        /// </summary>
+        private sealed class SocketTestClient : IBrainChannel
+        {
+            private readonly TcpClient _tcp = new TcpClient();
+            private NetworkStream _stream;
+            private readonly FrameCodec.FrameDecoder _decoder = new FrameCodec.FrameDecoder();
+            private readonly byte[] _buf = new byte[16 * 1024];
+
+            public NetClientBrain Brain;
+
+            public int MyEngineSeat = -1;
+            public int LastActedTurn;
+            public bool Disconnected;
+            public MsgRoomState LastRoomState;
+            public MsgMatchManifest Manifest;
+            public MsgGameStateSync LastSnapshot;
+            public MsgGameStateSync FirstSnapshot;
+            public int SnapshotsReceived;
+            public readonly List<NetEvent> Events = new List<NetEvent>();
+            public readonly List<MsgSelectRequest> PendingSelects = new List<MsgSelectRequest>();
+            public readonly List<MsgError> Errors = new List<MsgError>();
+
+            public void Connect(int port)
+            {
+                _tcp.Connect("127.0.0.1", port);
+                _stream = _tcp.GetStream();
+            }
+
+            public void Send<T>(NetworkMessageType type, T payload) where T : class
+            {
+                if (Disconnected || _stream == null) return;
+                try
+                {
+                    var frame = FrameCodec.Frame(NetworkSerializer.BuildEnvelope(type, payload));
+                    _stream.Write(frame, 0, frame.Length);
+                    _stream.Flush();
+                }
+                catch (Exception) { Disconnected = true; }
+            }
+
+            /// <summary>收一段时间（有数据续期），解码分派全部下行。</summary>
+            public void Receive(int timeoutMs)
+            {
+                if (Disconnected || _stream == null) return;
+                var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+                while (DateTime.UtcNow < deadline)
+                {
+                    if (!_stream.DataAvailable) { Thread.Sleep(2); continue; }
+                    int n;
+                    try { n = _stream.Read(_buf, 0, _buf.Length); }
+                    catch (Exception) { Disconnected = true; return; }
+                    if (n <= 0) { Disconnected = true; return; }
+                    _decoder.Append(_buf, 0, n);
+                    while (_decoder.TryDecode(out var msg))
+                        Dispatch(msg);
+                    deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+                }
+            }
+
+            private void Dispatch(NetworkMessage msg)
+            {
+                switch (msg.Type)
+                {
+                    case NetworkMessageType.RoomState:
+                        LastRoomState = NetworkSerializer.DeserializePayload<MsgRoomState>(msg);
+                        if (Brain != null) Brain.RoomState = LastRoomState;
+                        break;
+                    case NetworkMessageType.MatchManifest:
+                        Manifest = NetworkSerializer.DeserializePayload<MsgMatchManifest>(msg);
+                        if (Brain != null) Brain.MyEngineSeat = Manifest.OwnSeat;
+                        break;
+                    case NetworkMessageType.GameStateSyncV2:
+                        LastSnapshot = NetworkSerializer.DeserializePayload<MsgGameStateSync>(msg);
+                        if (FirstSnapshot == null) FirstSnapshot = LastSnapshot;
+                        SnapshotsReceived++;
+                        Brain?.OnSnapshot(LastSnapshot);
+                        break;
+                    case NetworkMessageType.NetEventBatch:
+                        var batch = NetworkSerializer.DeserializePayload<MsgNetEventBatch>(msg);
+                        if (batch?.Events != null) Events.AddRange(batch.Events);
+                        break;
+                    case NetworkMessageType.SelectRequest:
+                        var request = NetworkSerializer.DeserializePayload<MsgSelectRequest>(msg);
+                        PendingSelects.Add(request);
+                        Brain?.PendingSelects.Add(request);
+                        break;
+                    case NetworkMessageType.Error:
+                        var error = NetworkSerializer.DeserializePayload<MsgError>(msg);
+                        Errors.Add(error);
+                        if (Brain != null) Brain.ErrorsSeen++;
+                        break;
+                }
+            }
+
+            public void Close()
+            {
+                Disconnected = true;
+                try { _tcp.Close(); } catch (Exception) { }
+            }
+        }
+
+        // ============================================================
+        // 第七段：M3 对拍（2026-09-23）——双 headless 客户端（NetClientBrain）经真实 TCP
+        // 打完整局；同种子两局：服务器事件流逐值相等 + 终局快照字节相等（"本地直连"口径=
+        // 同种子重复局：同一大脑+同一服务器栈，传输不扰动即等价）；换种子第三局：流必须不同
+        // （种子敏感性，防假对拍）。对拍前置：Entity.RuntimeId / GameEventBase.EventId 计数器
+        // 局边界归零（否则跨局自增漂移无法逐值比）+ NetEntityDirectory 缓存清空。
+        // ============================================================
+
+        private sealed class M3RunRecord
+        {
+            public NetEvent[] Events;
+            public byte[] SnapshotSeat0;
+            public byte[] SnapshotSeat1;
+            public int FinalTurn;
+            public int FirstSeat;
+            public bool ReachedGameOver;
+            public bool ClientDisconnected;
+            public int SnapshotCount;
+        }
+
+        private static void RunM3Section()
+        {
+            Section("7. M3 对拍（同种子双整局一致 + 种子敏感）");
+
+            var pool = CardCatalog.LoadAll();
+            Assert(pool.Count >= 2, $"卡池 ≥2（M3 段依赖真实用户数据，实际 {pool.Count}）");
+            if (pool.Count < 2) return;
+
+            var deckIds = pool.Select(c => c.ID).Distinct().Take(30).ToArray();
+            var submit = new MsgDeckSubmit
+            {
+                DeckName = "m3对拍",
+                CardIds = deckIds,
+                Digest = NetMatchHandshake.ComputeDeckDigest(deckIds),
+            };
+
+            var run1 = RunM3NetworkGame(777, submit);
+            var run2 = RunM3NetworkGame(777, submit);
+            var run3 = RunM3NetworkGame(888, submit);
+
+            // ---- 整局性 ----
+            Assert(run1.ReachedGameOver && run2.ReachedGameOver && run3.ReachedGameOver,
+                "三局都到达终局（GameOverEvent 到达客户端）");
+            Assert(!run1.ClientDisconnected && !run2.ClientDisconnected && !run3.ClientDisconnected,
+                "三局全程无意外断线");
+            Assert(run1.SnapshotCount > 10 && run2.SnapshotCount > 10, "客户端持续收到快照（锁步驱动）");
+
+            // ---- 同种子对拍：事件流逐值相等 ----
+            Assert(run1.Events.Length == run2.Events.Length && run1.Events.Length > 0,
+                $"同种子两局事件总量相等且非空（{run1.Events.Length} vs {run2.Events.Length}）");
+            int mismatchAt = -1;
+            for (int i = 0; i < Math.Min(run1.Events.Length, run2.Events.Length); i++)
+            {
+                if (!EqualEvent(run1.Events[i], run2.Events[i])) { mismatchAt = i; break; }
+            }
+            Assert(mismatchAt < 0,
+                $"同种子两局事件流逐值相等（首个差异 @{mismatchAt}：{run1.Events[Math.Max(0, mismatchAt)]?.EventType}）");
+            Assert(run1.SnapshotSeat0.SequenceEqual(run2.SnapshotSeat0)
+                && run1.SnapshotSeat1.SequenceEqual(run2.SnapshotSeat1),
+                "同种子两局终局快照字节相等（双视角）");
+            Assert(run1.FinalTurn == run2.FinalTurn && run1.FirstSeat == run2.FirstSeat,
+                $"同种子两局终局回合/先手一致（{run1.FinalTurn}/{run1.FirstSeat} vs {run2.FinalTurn}/{run2.FirstSeat}）");
+
+            // ---- 种子敏感性：换种子流必须不同 ----
+            bool seedDiverged = run1.Events.Length != run3.Events.Length
+                || !Enumerable.Range(0, Math.Min(run1.Events.Length, run3.Events.Length))
+                    .All(i => EqualEvent(run1.Events[i], run3.Events[i]));
+            Assert(seedDiverged, "换种子事件流不同（种子真实参与洗牌/先手——防假对拍）");
+
+            Debug.Log($"[NetVerify] M3 对拍：seed777 双局 {run1.Events.Length} 事件全等" +
+                $"（终局回合 {run1.FinalTurn}，先手椅位 {run1.FirstSeat}，快照 {run1.SnapshotSeat0.Length}B）；" +
+                $"seed888 局 {run3.Events.Length} 事件（已发散）");
+        }
+
+        /// <summary>跑一局种子钉死的网络整局（双 brain 客户端 + 真实 TCP），采集服务器侧对拍记录。</summary>
+        private static M3RunRecord RunM3NetworkGame(int seed, MsgDeckSubmit submit)
+        {
+            // 对拍前置：身份计数器归零（两局各自从 1 起）+ 解析缓存清空（防旧 RuntimeId 串号）
+            Entity.ResetRuntimeIdCounterForVerification();
+            GameEventBase.ResetEventIdCounterForVerification();
+            NetEntityDirectory.Clear();
+
+            var record = new M3RunRecord();
+            var server = new NetSessionServer("m3", null, seed);
+            server.Start(0);
+            try
+            {
+                var a = new SocketTestClient { Brain = new NetClientBrain() };
+                var b = new SocketTestClient { Brain = new NetClientBrain() };
+                a.Connect(server.Port);
+                b.Connect(server.Port);
+
+                // 进房（先双方就座 → DeckSubmit 阶段，再提交——防提交赶在阶段迁移前被拒）
+                a.Send(NetworkMessageType.JoinRoom, new MsgJoinRoom { RoomId = "m3", WantSeat = 0, Nickname = "A" });
+                b.Send(NetworkMessageType.JoinRoom, new MsgJoinRoom { RoomId = "m3", WantSeat = 1, Nickname = "B" });
+                for (int i = 0; i < 200 && !(a.LastRoomState?.Phase == (int)NetRoomPhase.DeckSubmit
+                    && b.LastRoomState?.Phase == (int)NetRoomPhase.DeckSubmit); i++)
+                {
+                    server.Pump();
+                    a.Receive(10); b.Receive(10);
+                }
+
+                a.Send(NetworkMessageType.DeckSubmit, submit);
+                b.Send(NetworkMessageType.DeckSubmit, submit);
+                for (int i = 0; i < 300 && (a.Manifest == null || b.Manifest == null); i++)
+                {
+                    server.Pump();
+                    a.Receive(10); b.Receive(10);
+                }
+
+                // 锁步整局：每 tick 服务器泵 → 客户端收 → 大脑决策（修订锁步——行动是下行序列的纯函数）
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                while (sw.ElapsedMilliseconds < 120000)
+                {
+                    server.Pump();
+                    a.Receive(5); b.Receive(5);
+                    if (a.Events.Any(e => e.EventType == nameof(GameOverEvent))) break;
+                    a.Brain.Think(a, turnConcedeCap: 40);
+                    b.Brain.Think(b, turnConcedeCap: 40);
+                }
+
+                // 终局冲刷（事件/快照/RoomState 收尾）
+                for (int i = 0; i < 60; i++)
+                {
+                    server.Pump();
+                    a.Receive(10); b.Receive(10);
+                    if (a.LastRoomState?.Phase == (int)NetRoomPhase.Finished
+                        && b.LastRoomState?.Phase == (int)NetRoomPhase.Finished)
+                        break;
+                }
+
+                record.ReachedGameOver = a.Events.Any(e => e.EventType == nameof(GameOverEvent));
+                record.ClientDisconnected = a.Disconnected || b.Disconnected;
+                record.FinalTurn = a.LastSnapshot?.CurrentTurn ?? -1;
+                record.FirstSeat = a.LastRoomState?.FirstSeatThisMatch ?? -1;
+                record.SnapshotCount = a.SnapshotsReceived;
+
+                // 服务器侧采集（终局冲刷后、下一局重置前）：本局事件流 + 双视角终局快照字节
+                record.Events = NetEventProjector.Events.ToArray();
+                var core = GameCore.Instance;
+                record.SnapshotSeat0 = MemoryPackSerializer.Serialize(NetSnapshotBuilder.Build(core, 0));
+                record.SnapshotSeat1 = MemoryPackSerializer.Serialize(NetSnapshotBuilder.Build(core, 1));
+
+                a.Close(); b.Close();
+            }
+            finally
+            {
+                server.Stop();
+            }
+            return record;
         }
 
         /// <summary>单消息全链路往返：DTO → 信封 → 帧 → 解码 → 反序列化（握手段专用）。</summary>

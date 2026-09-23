@@ -48,6 +48,16 @@ namespace CardCore
         public uint RuntimeId { get; } = (uint)Interlocked.Increment(ref _nextRuntimeId);
 
         /// <summary>
+        /// 对拍重置（M3，2026-09-23）：RuntimeId 计数器归零，使同种子两局的事件流/快照
+        /// 可逐值对拍。**仅供验证器在局边界调用**——旧局实体必须已不再被引用，且须同步
+        /// NetEntityDirectory.Clear()（防旧缓存与新 ID 串号）。运行时路径禁用。
+        /// </summary>
+        public static void ResetRuntimeIdCounterForVerification()
+        {
+            _nextRuntimeId = 0;
+        }
+
+        /// <summary>
         /// 是否存活
         /// </summary>
         public bool IsAlive

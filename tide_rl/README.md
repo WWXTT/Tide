@@ -302,12 +302,32 @@ powershell -ExecutionPolicy Bypass -File sync_model_to_main.ps1         # 训练
 训练 checkpoint → 单步推理 ONNX → Unity Sentis（包 `com.unity.ai.inference`，命名空间
 `Unity.InferenceEngine`）本地推理。**导出全程用隔离 venv `.venv-export`，不碰训练环境。**
 
-### 一次性准备
+### 一次性准备（2026-09-23 双机环境修复，本机 Windows 10）
 
-```bash
-cd tide_rl
-python -m venv .venv-export
-.venv-export/Scripts/python.exe -m pip install "jax[cpu]==0.11.1" "flax==0.12.9" jax2onnx onnxruntime
+**双机开发注意：venv 不跨机器迁移。** 家里机（Python 3.12）与本机（默认 3.10）共用仓库，
+`.venv-export` 在本机重建时必须显式 `py -3.12`（jax 0.11.1 要求 ≥3.12）。本机另有三个坑：
+
+1. **venv 实体放短路径 `E:\vexp`，`tide_rl\.venv-export` 是指向它的 junction**——pip 装
+   orbax 时其 wheel 内测试夹具路径长达 238 字符，工程内深路径直接撞 MAX_PATH。
+2. **orbax-checkpoint 0.11.36**（flax 0.12.9 解析出的版本）wheel 需先剥掉
+   `orbax/checkpoint/experimental/v1/_src/testing/compatibility/checkpoints/` 下的纯测试
+   夹具并同步修剪 RECORD 行再 `pip install --no-deps`，否则 pip 报 ENOENT/206。
+   （剥离脚本思路：重写 zip 剔除该前缀条目 + 过滤 RECORD 对应行，文件名保持与 dist-info 一致。）
+3. **本机 System32 的 MSVCP140.dll 是 14.31（2021），太旧**——jaxlib 0.11.1 的
+   `jax_common.dll` 静态初始化直接 0xC0000005 崩溃（DLL load failed / 初始化例程失败）。
+   免管理员解法：把 VS 18 自带的 14.5x 版 `msvcp140*.dll + vcruntime140*.dll` 旁加载到
+   **基础解释器目录** `...\Python312\`（venv shim 实际重启的是基础 python.exe，其应用目录
+   优先于 System32；原 vcruntime140.dll 已备份为 .bak）。正式修复是管理员更新
+   VC++ 2015-2022 redist：`Invoke-WebRequest https://aka.ms/vs/17/release/vc_redist.x64.exe`
+   后 `vc_redist.x64.exe /install /quiet /norestart`。
+
+```powershell
+py -3.12 -m venv E:\vexp                       # 短路径实体
+E:\vexp\Scripts\python.exe -m pip install --upgrade pip
+# orbax-checkpoint==0.11.36 先按上述第 2 条剥离后 --no-deps 安装，再装其余：
+E:\vexp\Scripts\python.exe -m pip install "jax[cpu]==0.11.1" "flax==0.12.9" "jax2onnx==0.16.1" onnxruntime onnx
+powershell -NoProfile -Command "New-Item -ItemType Junction -Path 'E:\UnityProject\Tide\tide_rl\.venv-export' -Target 'E:\vexp'"
+# 第 3 条 CRT 旁加载（或管理员更新 redist）
 ```
 
 ### 导出（训练中随时可跑，默认取最新 selfplay run 的 best）
@@ -318,10 +338,12 @@ cd tide_rl
 .venv-export/Scripts/python.exe export_onnx.py --ckpt logs/<run>/last/params.msgpack
 ```
 
-产出（自动复制到 `Assets/StreamingAssets/`）：
+产出（自动复制到 `Assets/Resources/`——Sentis 运行时无 ONNX 文件解析器，编辑器
+ScriptedImporter 把 Resources 下的 .onnx 转 ModelAsset 供加载）：
 - `tide_policy.onnx` —— 推理图（batch 已脱皮：rstate 512 / cards 80×65 / global 36 /
   actions 128×6 → rstate_next / logits(非法已掩 -1e9) / value），manifest 指纹等元数据在
-  model metadata；opset 23，全标准算子，3.3MB
+  model metadata；opset 23，全标准算子；单文件自包含 ~7MB（导出脚本会把权重嵌回并
+  自动清理 jax2onnx 中间产物 `.onnx.data`）
 - `tide_policy_fixture.json` —— 数值对拍样例（JAX 参考输出）
 
 脚本内置两道验证：onnxruntime vs JAX 逐输出对拍（容差 5e-3，实测 ~2e-6）+ 非法动作

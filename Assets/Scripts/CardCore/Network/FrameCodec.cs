@@ -44,6 +44,14 @@ namespace CardCore.Network
                 _buffer.AddRange(data);
             }
 
+            /// <summary>喂入缓冲的一段（socket 读返回 count &lt; 缓冲长时用，防把未读垃圾并入流）。</summary>
+            public void Append(byte[] data, int offset, int count)
+            {
+                if (data == null || count <= 0) return;
+                for (int i = 0; i < count; i++)
+                    _buffer.Add(data[offset + i]);
+            }
+
             /// <summary>尝试取出下一条完整消息；不足一帧返回 false。</summary>
             public bool TryDecode(out NetworkMessage message)
             {

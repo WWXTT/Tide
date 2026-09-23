@@ -69,24 +69,33 @@ GrantDoubleStrike GrantArmor（后两者 GrantKeywordHandlerFactory.Specs 有映
   （CostDerivation.FullModeExpectedTargets）。
 ★ 单体 AoE 混写笔误：只要单体就别配全取档——全取是"整分区"不是"目标数上限"。
 
-【MountKinds】可装载范围（MountKind.cs 10 值，CSV 多选同 TargetKinds 惯例；只许尾部追加）：
-  0 = ActiveEffect   可作主动效果（效果栏原子：登场/触发/启动式）
-  1 = Keyword        可作关键词（卡面自带印刷，如剧毒/嘲讽/回响）
-  2 = Counter        可作指示物（效果=赋予指示物，指示物承载持续规则）
-  3 = BranchTrunk    可作条件分支主干（产出可被 OutcomeGate 条件观测：伤害/治疗/宣言/预言族）
-  4 = BranchReward   可加入分支（条件达成的奖励原子）
-  5 = GrantOnCreature 可赋予生物（Grant 类授予的合法目标）
-  6 = GrantOnSpell   可赋予法术（回响等法术侧关键词）
-  7 = RandomMount    可挂载数值随机幅度（伤害/治疗族+限制型指示物层数随机，2026-09-13）
+【MountKinds】可装载范围（MountKind.cs 11 值，CSV 多选同 TargetKinds 惯例；只许尾部追加）——
+  **2026-09-23 定案：可挂范围唯一权威——合成器/装载逐位兑现，调整挂载限制只改本列不改代码**：
+  0 = ActiveEffect   可作主动效果（效果栏原子：登场/触发/启动式）——并列槽/关键词面板并列放置资格
+  1 = Keyword        可作关键词（卡面自带印刷，如剧毒/嘲讽/回响）——关键词类原子编辑形态判定
+  2 = Counter        可作指示物（效果=赋予指示物，指示物承载持续规则）——提示级（无槽位限制）
+  3 = BranchTrunk    可作条件分支主干（**显式主干声明通道**，当前=伤害/治疗产出族四行）——
+      主干资格 = 含 3 ∪（含 0 且通用门存在）——2026-09-23 数据化，产出族硬编码数组已退役
+  4 = BranchReward   可加入分支（条件达成的奖励原子）——奖励槽资格
+  5 = GrantOnCreature 可赋予生物（Grant 类授予的合法目标）——关键词面板条目资格 + 授予目标域推导
+      （含 5 → 授予域=双方生物 {1,2}）
+  6 = GrantOnSpell   可赋予法术（回响等法术侧关键词）——只含 6 → 授予域=表行默认
+  7 = RandomMount    可挂载数值随机幅度（伤害/治疗族+限制型指示物层数随机，2026-09-13）——滑条显示
   8 = TriggerCapImmutable 触发上限不可修改（**少数**，如坚韧）：触发式恒无每回合上限、
-      组合期不可加限；其余原子默认可修改且默认上限=一回合一次
-  9 = FreeBranchTrunk 自由分支主干（拼点/运势/倒计时——**只可落入合成器主干槽**，
-      写 header.EngineKind/EngineParam；MountKinds=9 的行必须显式只写 9，不与其余位混挂）
+      组合期不可加限（合成器锁触发上限输入框——2026-09-23）；其余原子默认可修改且默认上限=一回合一次
+  9 = FreeBranchTrunk 自由分支主干（拼点/运势/倒计时等引擎——**只可落入合成器主干槽**，
+      写 header.EngineKind/EngineParam；MountKinds=9 的行必须显式只写 9，不与其余位混挂——
+      装载期混挂告警 2026-09-23 补齐；合成器"锁定关键词"分组判定读本位）
+ 10 = LinkAura       可作连接光环条目（Grant 行声明才可作 LinkAuraData.keyword，2026-09-23）——
+      **消耗型关键词（圣盾/复生/潜行/法术护盾——移除即用掉）不声明本位**：与光环 live-query
+      持续语义冲突（不物化 → RemoveKeyword 空操作 → 等效永久持有）。合成期下拉只列可挂 +
+      校验区拦截；装载期 LogError 拦截。坚韧(Armor)/守护(Guardian) 无表行——代码特判放行。
 写法：CSV 逗号分隔（"0,4" = 主动效果+分支奖励；"" 空串 = **BuildConfig 兜底硬编码
-  "0,1,2,3,4,5,6"**——不含 7/8/9，随机/上限锁/引擎主干必须显式声明）。
-★ 消费方：装载校验（CardLoader）/触发上限解析（CardEffectConverter.MountHasFlag(8)→
-  TriggerLimitPerTurn 恒 -1）/合成器可用性过滤（ComposerCatalog+EffectComposer 按
-  MountKinds×选中槽过滤库——2026-09-22）。
+  "0,1,2,3,4,5,6"**——不含 7/8/9/10，随机/上限锁/引擎主干/光环必须显式声明）。
+★ 消费方：装载校验（CardLoader——含光环关键词位 10 拦截与位 9 混挂告警）/触发上限解析
+  （CardEffectConverter.MountHasFlag(8)→TriggerLimitPerTurn 恒 -1）/合成器可用性过滤
+  （ComposerCatalog+EffectComposer 按 MountKinds×选中槽过滤库——2026-09-22；2026-09-23
+  起主干资格/面板资格/授予目标域/锁定行/光环可挂全部读表）。
 ★ MountKinds **不进表指纹**（CardIdentityService.TableFingerprint 只哈希 EnumName/ManaList/
   TargetKinds/TargetFilter/Polarity）——改它不触发卡身份换血/manifest 作废/重训，
   只影响装载校验与合成器可挂范围。

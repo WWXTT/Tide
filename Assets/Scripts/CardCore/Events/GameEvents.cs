@@ -31,6 +31,15 @@ namespace CardCore
 
         public DateTime Timestamp { get; } = DateTime.Now;
         public uint EventId { get; } = ++_nextEventId;
+
+        /// <summary>
+        /// 对拍重置（M3，2026-09-23）：EventId 计数器归零，使同种子两局的事件流可逐值对拍。
+        /// **仅供验证器在局边界调用**（与 Entity.ResetRuntimeIdCounterForVerification 配套）。
+        /// </summary>
+        public static void ResetEventIdCounterForVerification()
+        {
+            _nextEventId = 0;
+        }
     }
 
     // ==================== 阶段事件 ====================

@@ -111,7 +111,7 @@ namespace SynergyUI
 
         // ======================================== 图 ↔ 瘦 DTO（EffectGraphData 在 UI 层——转换在本地） ========================================
 
-        /// <summary>图 → 瘦 DTO（steps 单源；引擎形态奖励进 rewards）。</summary>
+        /// <summary>图 → 瘦 DTO（steps 单源；引擎形态奖励进 rewards；锚价合成期推导落盘）。</summary>
         private static EffectSlimDto ToDto(EffectGraphData graph)
         {
             if (graph?.header == null) return null;
@@ -131,6 +131,10 @@ namespace SynergyUI
                 dropZone = h.SummonDropZone,
                 engine = h.EngineKind,
                 engineParam = h.EngineParam,
+                arrows = h.ArrowDirections,
+                linkAuras = h.LinkAuras != null && h.LinkAuras.Count > 0
+                    ? new List<LinkAuraData>(h.LinkAuras) : null, // 空表不写列（2026-09-23 向后兼容）
+                cost = DeriveAnchorCost(graph), // 效果锚价（2026-09-23）：纯表累加实时推导——与合成器费用预览同口径
                 costs = h.Costs != null && h.Costs.Count > 0
                     ? h.Costs.Select(EffectSlim.ToCostRef).Where(c => c != null).ToList() : null,
                 steps = new List<StepRef>(),
@@ -186,6 +190,12 @@ namespace SynergyUI
                     SummonDropZone = dto.dropZone,
                     EngineKind = dto.engine,
                     EngineParam = dto.engineParam,
+                    ArrowDirections = dto.arrows,
+                    LinkAuras = dto.linkAuras != null && dto.linkAuras.Count > 0
+                        ? new List<LinkAuraData>(dto.linkAuras) : null,
+                    AnchorCost = dto.cost != null && dto.cost.Count > 0
+                        ? dto.cost.Where(c => c != null)
+                            .Select(c => new ElementCostRef { mana = c.mana, value = c.value }).ToList() : null,
                     Costs = EffectSlim.ToCostEntries(dto.costs),
                 },
                 steps = dto.steps != null
@@ -198,6 +208,50 @@ namespace SynergyUI
                 graph.steps = new List<EffectStepData>();
             }
             return graph;
+        }
+
+        /// <summary>效果锚价（2026-09-23 定案）：**效果组合阶段=纯表累加、无减免抵消**——
+        /// ConvertOne+DeriveElementCosts 实时推导（与合成器费用预览 AutoCostText 同一口径），
+        /// 代价不参与（代价已上移卡组合层，效果层不存在费用减免抵消）。
+        /// 派生数据不入内容哈希（HashEffect 不读 cost 列——原子表调价重算不换效果 id）。
+        /// 编辑中间态转换失败/无费返回 null（空列不写）。</summary>
+        private static List<ElementCostRef> DeriveAnchorCost(EffectGraphData graph)
+        {
+            try
+            {
+                var h = graph.header;
+                // 与合成器 BuildCardEffect 同构：Steps 优先、引擎形态走 AtomicEffects、并列扁平投影
+                var fx = JsonUtility.FromJson<CardEffectData>(JsonUtility.ToJson(h));
+                fx.Steps = graph.steps != null && graph.steps.Count > 0 ? graph.steps : null;
+                fx.AtomicEffects = h.EngineKind != (int)BranchEngineKind.None
+                    ? h.AtomicEffects
+                    : ProjectLinear(graph.steps);
+                var def = CardEffectConverter.ConvertOne(fx, "ANCHOR_COST_DERIVE");
+                var costs = def == null ? null : CostDerivationService.DeriveElementCosts(def, 0);
+                if (costs == null || costs.Count == 0) return null;
+                return costs
+                    .Where(c => c != null && c.Value > 0)
+                    .Select(c => new ElementCostRef { mana = (int)c.ManaType, value = (int)c.Value })
+                    .ToList();
+            }
+            catch
+            {
+                return null; // 推导失败不阻断保存（费用预览同样显示 —）
+            }
+        }
+
+        /// <summary>并列步骤线性投影（引擎形态除外——与合成器 BuildCardEffect 同构）。</summary>
+        private static List<AtomicEffectEntry> ProjectLinear(List<EffectStepData> steps)
+        {
+            var flat = new List<AtomicEffectEntry>();
+            if (steps == null) return flat;
+            foreach (var step in steps)
+            {
+                if (step == null) continue;
+                if (step.kind == 0 && step.atomic != null) flat.Add(step.atomic);
+                else if (step.kind == 1 && step.thenSteps != null) flat.AddRange(step.thenSteps);
+            }
+            return flat;
         }
     }
 }

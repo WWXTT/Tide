@@ -3967,6 +3967,51 @@ namespace CardCore.Editor
                    && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.LuckRoll, 1) == -1,
                    "引擎奖励预算：死亡计数/元素充盈/手牌序位=x；既有三引擎自平衡（-1 无上限）");
 
+            // ---- 1b. MountKinds 数据驱动（2026-09-23 定案：可挂范围唯一权威——合成器/装载逐位兑现）----
+            Assert(System.Enum.IsDefined(typeof(CardCore.MountKind), 10), "MountKind 含 10=LinkAura（可作连接光环条目）");
+            // 光环关键词资格：四消耗型（移除即用掉）不可挂；坚韧/守护（无表行——光环本体特判）与普通授予可挂
+            Assert(!CardCore.ComposerCatalog.IsAuraMountableKeyword("DivineShield")
+                   && !CardCore.ComposerCatalog.IsAuraMountableKeyword("Stealth")
+                   && !CardCore.ComposerCatalog.IsAuraMountableKeyword("Reborn")
+                   && !CardCore.ComposerCatalog.IsAuraMountableKeyword("SpellShield"),
+                   "光环可挂判定：圣盾/潜行/复生/法术护盾（消耗型）不可挂——名单在表（无位 10）不在代码");
+            Assert(CardCore.ComposerCatalog.IsAuraMountableKeyword("Armor")
+                   && CardCore.ComposerCatalog.IsAuraMountableKeyword("Guardian")
+                   && CardCore.ComposerCatalog.IsAuraMountableKeyword("Lifesteal")
+                   && CardCore.ComposerCatalog.IsAuraMountableKeyword("Taunt"),
+                   "光环可挂判定：坚韧/守护（特判）+ 吸血/帷幕（表行含位 10）可挂");
+            // 位 10 数据存在性：19 条非消耗 Grant 行声明、四条消耗型未声明
+            var grantRows = CardCore.Attribute.AtomicEffectTable.GetAll()
+                .Where(r => r != null && !string.IsNullOrEmpty(r.EnumName) && r.EnumName.StartsWith("Grant")).ToList();
+            Assert(grantRows.Count(r => CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.LinkAura)) == 19,
+                   "位 10 数据：19 条 Grant 行声明可作光环");
+            Assert(grantRows.Where(r => !CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.LinkAura))
+                   .Select(r => r.EnumName).OrderBy(n => n).SequenceEqual(
+                       new[] { "GrantDivineShield", "GrantReborn", "GrantSpellShield", "GrantStealth" }),
+                   "位 10 数据：恰为四消耗型未声明（圣盾/复生/法术护盾/潜行）");
+            // 主干资格位 3 声明制：产出族四行走位 3；无 0 无 3 的行（回响=1,5,6,10）不可作主干；位 0 通用门通道照常
+            Assert(CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.DealDamage)
+                   && CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.Heal)
+                   && CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.DrainLife),
+                   "主干资格位 3 声明制：伤害/治疗产出族（表行含位 3）可作主干");
+            Assert(!CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.GrantEcho),
+                   "主干资格：回响（1,5,6,10——无位 0/位 3）不可作主干（数据说了算）");
+            Assert(CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.GrantLifesteal),
+                   "主干资格：位 0 通用门通道（吸血=0,4,1,5,10 含主动位——通用门可挂）");
+            // 位 9 数据驱动锁定：六引擎行均只写 9（UI 锁定判定读表）
+            foreach (var name in new[] { "BranchEngineClash", "BranchEngineLuckRoll", "BranchEngineCountdown",
+                                         "BranchEngineDeathToll", "BranchEngineManaSurplus", "BranchEngineNthHandCard" })
+            {
+                var engineRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName(name);
+                Assert(CardCore.ComposerCatalog.HasMountBit(engineRow, CardCore.MountKind.FreeBranchTrunk),
+                       $"位 9 数据驱动：{name} 含 FreeBranchTrunk 位（合成器锁定判定读表）");
+            }
+            // 光环关键词下拉数据源：坚韧/守护 + 位 10 行（不含四消耗型）
+            var auraChoices = CardCore.ComposerCatalog.AuraKeywordChoices();
+            Assert(auraChoices.Any(c => c.id == "Armor") && auraChoices.Any(c => c.id == "Guardian")
+                   && !auraChoices.Any(c => c.id == "DivineShield" || c.id == "Stealth" || c.id == "Reborn" || c.id == "SpellShield"),
+                   "光环关键词下拉：坚韧/守护在列、四消耗型不在列");
+
             // ---- 2. converter 主干守卫：trunk 塞普通步骤 → ConvertAtomicEffect 剔除（null）----
             var trunkDef = CardCore.CardEffectConverter.ConvertOne(new CardCore.CardEffectData
             {

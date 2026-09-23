@@ -33,6 +33,10 @@ namespace SynergyUI
                 {
                     continue;
                 }
+                // 面板资格=MountKinds 位 5（可赋予生物，2026-09-23 数据驱动）——
+                // 取代旧"Grant 前缀"隐式口径；以后增删可赋关键词只改原子表 MountKinds
+                var row = CardCore.Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect);
+                if (!ComposerCatalog.HasMountBit(row, MountKind.GrantOnCreature)) continue;
                 result.Add(new KeywordCatalogEntry
                 {
                     Id = def.id,

@@ -571,3 +571,86 @@
 .library-row--locked {
     opacity: 0.6;
 }
+
+/* ============ 2026-09-23：校验红框闪烁 / 属性描述条 / 六向箭头三角选择器 ============ */
+
+/* 校验区（不合规设置）：闪烁红边框——根类 .zones-flash-off 由界面 500ms 翻转实现双态闪烁；
+   放文件末尾保证对 .drop-slot--selected 等同特异度边框规则的覆盖 */
+.zone--invalid {
+    border-width: 2px;
+    border-color: rgb(235, 82, 82);
+}
+
+.zones-flash-off .zone--invalid {
+    border-color: rgba(235, 82, 82, 0.28);
+}
+
+/* 校验区红字提示（区域内部追加） */
+.hint--error {
+    color: rgb(242, 126, 126);
+    -unity-font-style: bold;
+    margin-top: 2px;
+    margin-bottom: 0;
+    white-space: normal;
+}
+
+/* 属性描述条（2026-09-23）：控件说明选中才出现——不常驻 */
+.desc-strip {
+    min-height: 30px;
+    color: rgb(172, 202, 238);
+    font-size: 11px;
+    white-space: normal;
+    margin-top: 4px;
+    margin-bottom: 0;
+    border-width: 1px;
+    border-color: rgb(52, 62, 80);
+    border-radius: 6px;
+    padding: 4px 8px;
+    background-color: rgba(36, 44, 60, 0.5);
+}
+
+/* 六向三角选择器（2026-09-23 光环箭头）：三角形围成一圈，选中变蓝白。
+   三角形=CSS 边框三角（0 尺寸+三边框）；arrow-hit=更大的透明点击格（旋转朝外） */
+.arrow-picker {
+    width: 132px;
+    height: 132px;
+    align-self: center;
+    margin-top: 6px;
+    margin-bottom: 2px;
+}
+
+.arrow-hit {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+}
+
+.arrow-tri {
+    width: 0;
+    height: 0;
+    margin-top: -8px; /* 边框三角自 content 点向下展开——上提一半使其绕圈心居中 */
+    border-left-width: 10px;
+    border-right-width: 10px;
+    border-bottom-width: 16px;
+    border-left-color: rgba(0, 0, 0, 0);
+    border-right-color: rgba(0, 0, 0, 0);
+    border-bottom-color: rgb(96, 104, 118);
+    transition-property: border-bottom-color;
+    transition-duration: 0.15s;
+}
+
+.arrow-hit:hover .arrow-tri {
+    border-bottom-color: rgb(140, 152, 170);
+}
+
+/* 选中=蓝白 */
+.arrow-hit--on {
+    background-color: rgba(90, 160, 230, 0.16);
+}
+
+.arrow-hit--on .arrow-tri {
+    border-bottom-color: rgb(148, 212, 255);
+}

@@ -120,8 +120,9 @@ namespace CardCore.Attribute.Handlers
     /// 未展示的手牌卡位**翻开验证——符合宣言 = DeclareHit，不符合 = DeclareMiss（宣言分支照挂）。
     /// 翻开的卡永久标记已展示（IsRevealed），未展示卡不可重复确认；已展示卡不可再被指定——
     /// **不展示全部**，重复宣言逐张递进揭示。每确认一张发 RevealHandEvent（窥渊仪典按张计数）。
-    /// 卡位选择经静态委托 PositionPicker 由驱动层注入（同 MorphSystem.ResolveMorphTarget 惯例）；
-    /// 缺省 = 首个未展示卡位（AI/验证器可直接跑，人类 UI 后续接入）。
+    /// 卡位选择经 TargetSelectionService 单漏斗（M2 异步化，2026-09-23）：无注册/AI → AutoSelect
+    /// 首个未展示位（M1 缺省行为不变）；UI → 弹窗；网络 → MsgSelectRequest 反问（协议位已预留）。
+    /// 静态委托 PositionPicker 保留为测试/驱动层注入口（注入时走同步旧路径——验证器零改动）。
     /// </summary>
     public class DeclareHandHandler : AtomicEffectHandlerBase
     {
@@ -149,6 +150,56 @@ namespace CardCore.Attribute.Handlers
                 : candidates[0];
             if (picked == null || picked.IsRevealed) picked = candidates[0];
 
+            Reveal(effect, context, picked);
+        }
+
+        /// <summary>
+        /// 异步路径（M2 网络化，2026-09-23）：委托已注入（验证器/驱动层）走同步旧路径零改动；
+        /// 未注入 → TargetSelectionService.RequestAsync 单漏斗（min=max=1，候选=未展示卡位）——
+        /// AI/无头回落 AutoSelect 首个、UI 弹窗、网络反问（SelectResponse 协议位）。
+        /// </summary>
+        public override async Cysharp.Threading.Tasks.UniTask ExecuteAsync(
+            AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            if (ProphecyHandlerUtil.PositionPicker != null)
+            {
+                Execute(effect, context);
+                return;
+            }
+
+            context.LastOutcome.Declaration = effect.StringValue;
+            var hand = ProphecyHandlerUtil.OpponentHand(context);
+            if (hand == null || hand.Count == 0)
+            {
+                context.LastOutcome.DeclareHit = false;
+                return;
+            }
+            var candidates = hand.Where(c => !c.IsRevealed).ToList();
+            if (candidates.Count == 0)
+            {
+                context.LastOutcome.DeclareHit = false;
+                return;
+            }
+
+            var chosen = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+            {
+                Candidates = candidates.Cast<Entity>().ToList(),
+                MinCount = 1,
+                MaxCount = 1,
+                Chooser = context.Controller,
+                Title = "宣言·指定卡位",
+                Hint = $"从对手 {hand.Count} 张手牌的未展示卡位中指定一张翻开验证",
+                AllowCancel = false,
+            });
+            var picked = chosen.FirstOrDefault() as Card;
+            if (picked == null || picked.IsRevealed) picked = candidates[0];
+
+            Reveal(effect, context, picked);
+        }
+
+        /// <summary>翻开验证公共尾段：永久已展示 + 按张发布 + 命中判定（同步/异步两路径共用）。</summary>
+        private void Reveal(AtomicEffectInstance effect, EffectExecutionContext context, Card picked)
+        {
             // 翻开：永久已展示 + 按张发布（窥渊仪典等订阅方按张计数）
             picked._isRevealed = true;
             EventManager.Instance.Publish(new RevealHandEvent

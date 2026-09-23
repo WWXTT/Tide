@@ -109,6 +109,18 @@ namespace SynergyUI
                 sb.Append("AT:").Append(h.ActivationType).Append('|');
                 AppendOrchestration(sb, h, graph.steps);
                 AppendCosts(sb, h.Costs);
+                // 光环段（2026-09-23 效果级）：箭头/光环条目随效果哈希——空声明不写段（存量效果 id 零漂移）
+                if (h.ArrowDirections != 0 || (h.LinkAuras != null && h.LinkAuras.Count > 0))
+                {
+                    sb.Append("AUR:").Append(h.ArrowDirections).Append(';');
+                    foreach (var aura in h.LinkAuras)
+                    {
+                        if (aura == null) continue;
+                        sb.Append(aura.stat ?? "").Append('=').Append(aura.value)
+                          .Append('#').Append(aura.keyword ?? "").Append(',');
+                    }
+                    sb.Append('|');
+                }
             }
             sb.Append("STEPS:");
             if (graph.steps != null)
