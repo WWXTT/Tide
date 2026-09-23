@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
+using CardCore.Attribute;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace SynergyUI
@@ -38,6 +40,7 @@ namespace SynergyUI
         private ScrollView _attachedList;
         private ScrollView _breakdownList;
         private VisualElement _dynamicForm;
+        private VisualElement _payloadZone;
         private Label _toast;
         private Label _suggested;
         private Label _costLabel;
@@ -56,6 +59,7 @@ namespace SynergyUI
             _attachedList = Q<ScrollView>("list-attached");
             _breakdownList = Q<ScrollView>("list-breakdown");
             _dynamicForm = Q<VisualElement>("dynamic-form");
+            _payloadZone = Q<VisualElement>("payload-zone");
             _toast = Q<Label>("lbl-toast");
             _suggested = Q<Label>("lbl-suggested");
             _costLabel = Q<Label>("lbl-cost");
@@ -78,7 +82,10 @@ namespace SynergyUI
             BuildCardtypeDropdown();
             BuildManaDropdown();
             BuildDynamicForm();
+            BuildPayloadZone(); // 代价栏（2026-09-23 上移卡组合层）
             BuildLibrary();
+            // 光环上移效果层（2026-09-23）：从效果合成器返回/重进时按挂载效果重算卡面箭头+光环
+            _card.AggregateEffectAuras(true);
             RefreshAttached();
             Recalculate();
         }
@@ -184,6 +191,152 @@ namespace SynergyUI
             return wrap;
         }
 
+        // ---------- 代价栏（2026-09-23 定案：上移卡组合层）----------
+        // 单卡单条 Payload：填装时作用域改写错侧（有益→对手 / 有害→己方），限 1 费；
+        // cast 付费步强制执行并按全价补偿黑/白（CollectCardSpecialCosts 读 CardData.PayloadCost）。
+
+        private void BuildPayloadZone()
+        {
+            _payloadZone.Clear();
+            var header = new Label("代价（错侧作用·限 1 费·单卡单条）");
+            header.AddToClassList("panel__header");
+            _payloadZone.Add(header);
+
+            var pe = _card.PayloadCost?.payload;
+            if (pe != null && !string.IsNullOrEmpty(pe.refId))
+            {
+                var row = new VisualElement();
+                row.AddToClassList("toolbar");
+                row.style.flexWrap = Wrap.Wrap;
+                var name = new Label(AtomText.RenderAtomEntry(pe));
+                name.AddToClassList("list-row__name");
+                row.Add(name);
+                var price = new Label(PayloadPriceText(pe));
+                price.AddToClassList("hint");
+                row.Add(price);
+                var del = new Button(() =>
+                {
+                    _card.PayloadCost = null;
+                    _card.ResetCache();
+                    BuildPayloadZone();
+                    Recalculate();
+                }) { text = "移除" };
+                del.AddToClassList("btn");
+                del.AddToClassList("btn--mini");
+                del.AddToClassList("btn--danger");
+                row.Add(del);
+                _payloadZone.Add(row);
+                return;
+            }
+
+            // 未填装：候选下拉（与 FillPayloadCost 同口径的表级过滤——错侧可达·默认 1 费）
+            var rows = PayloadCandidates().ToList();
+            var choices = new List<string> { "（选择代价原子）" };
+            choices.AddRange(rows.Select(r => r.DisplayName));
+            var dd = new DropdownField("填装") { choices = choices };
+            dd.AddToClassList("text-input");
+            dd.index = 0;
+            dd.RegisterValueChangedCallback(_ =>
+            {
+                int i = dd.index - 1;
+                if (i >= 0 && i < rows.Count)
+                    FillPayloadCost(new AtomicEffectEntry { refId = rows[i].HashId, value = 1 });
+            });
+            _payloadZone.Add(dd);
+        }
+
+        /// <summary>填装代价栏（自效果合成器 FillCostSlot 移植，2026-09-23）：**作用单位改写错侧 + 限 1 费**。
+        /// 改写规则（与装载期 WrongSide/SideLock 同口径）：有益(p&gt;0)→实例域取表域的对手侧成员、
+        /// 有害(p&lt;0)→取己方侧成员（表域无该侧成员=该原子无法作用于错误对象，拒）；
+        /// 中性(p=0)须表域单侧锁定（双侧/无目标=既非代价也非收益，拒）。
+        /// 限价：PayloadUnitGrant &gt;1 放置口拦截（2026-09-21 定案）。</summary>
+        private void FillPayloadCost(AtomicEffectEntry entry)
+        {
+            var cfg = AtomicEffectTable.GetByHashId(entry?.refId);
+            if (cfg == null || !Enum.TryParse<AtomicEffectType>(cfg.EnumName, out var type))
+            {
+                ShowToast("原子表引用缺失——无法作代价");
+                return;
+            }
+            if (ComposerCatalog.IsEngineTrunk(type)) { ShowToast("引擎主干（拼点/运势/倒计时）不可作代价"); return; }
+            if (ComposerCatalog.HasMountBit(cfg, MountKind.Keyword))
+            { ShowToast("关键词类原子不可作代价（代价位不出现关键词）"); return; }
+
+            var kinds = cfg.GetTargetKindList();
+            float p = Mathf.Clamp(cfg.Polarity, -1f, 1f);
+            if (p != 0f)
+            {
+                bool wantEnemy = p > 0f; // 有益→对手侧 / 有害→己方侧
+                var side = kinds.Where(k => TargetKindRules.IsEnemySide(k) == wantEnemy).ToList();
+                if (side.Count == 0)
+                {
+                    ShowToast($"该原子的作用域没有{(wantEnemy ? "对手" : "己方")}侧单位——无法作用于错误对象，不可作代价");
+                    return;
+                }
+                entry.kinds = side.Count == kinds.Count ? null : side; // 表域恰为整侧=免写（表默认同效）
+            }
+            else
+            {
+                if (CostDerivationService.SideLock(kinds) == 0)
+                {
+                    ShowToast("中性原子须单侧域锁定才可作代价（双侧域/无目标=既非代价也非收益）");
+                    return;
+                }
+                entry.kinds = null; // 表默认即单侧锁
+            }
+
+            // 构筑期限价（2026-09-21 定案：只允许装形成 1 费的代价）——放置口拦截
+            var inst = CardEffectConverter.ConvertPayloadForDisplay(entry);
+            int price = inst != null ? CostDerivationService.PayloadUnitGrant(inst) : 0;
+            if (price > 1)
+            {
+                ShowToast($"该原子作代价将形成 {price} 费——构筑期只允许 1 费（调低数值或换原子）");
+                return;
+            }
+
+            _card.PayloadCost = new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = entry };
+            _card.ResetCache();
+            BuildPayloadZone();
+            Recalculate();
+            ShowToast($"已填装代价（{price} 费·错侧作用）——打出时付费步强制执行并按全价补偿黑/白");
+        }
+
+        /// <summary>代价候选行（表级）：非引擎/非关键词 + 错侧可达（p≠0 有错侧成员 / p=0 单侧锁）
+        /// + 默认值(value=1)全价 ≤1——下拉只列真正可装的原子。</summary>
+        private static IEnumerable<AtomicEffectConfig> PayloadCandidates()
+        {
+            foreach (var row in AtomicEffectTable.GetAll())
+            {
+                if (row == null || string.IsNullOrEmpty(row.EnumName)) continue;
+                if (!Enum.TryParse<AtomicEffectType>(row.EnumName, out var type)) continue;
+                if (ComposerCatalog.IsEngineTrunk(type)) continue;
+                if (ComposerCatalog.HasMountBit(row, MountKind.Keyword)) continue;
+
+                var kinds = row.GetTargetKindList();
+                float p = Mathf.Clamp(row.Polarity, -1f, 1f);
+                bool sideOk = p != 0f
+                    ? kinds.Any(k => TargetKindRules.IsEnemySide(k) == (p > 0f))
+                    : CostDerivationService.SideLock(kinds) != 0;
+                if (!sideOk) continue;
+
+                var inst = CardEffectConverter.ConvertPayloadForDisplay(
+                    new AtomicEffectEntry { refId = row.HashId, value = 1 });
+                int price = inst != null ? CostDerivationService.PayloadUnitGrant(inst) : 0;
+                if (price > 1) continue;
+                yield return row;
+            }
+        }
+
+        /// <summary>代价全价展示行（限 1 费——口径同装载期 PayloadUnitGrant）。</summary>
+        private static string PayloadPriceText(AtomicEffectEntry entry)
+        {
+            var inst = CardEffectConverter.ConvertPayloadForDisplay(entry);
+            int price = inst != null ? CostDerivationService.PayloadUnitGrant(inst) : 0;
+            return price <= 1
+                ? $"全价：{price} / 限 1 费"
+                : $"全价：{price}——超限（构筑期只允许 1 费代价，保存前请调低数值或换原子）";
+        }
+
         // ---------- 右：效果库 ----------
         private void BuildLibrary()
         {
@@ -201,6 +354,9 @@ namespace SynergyUI
         private void AttachEffect(EffectGraphData graph)
         {
             _card.Effects.Add(SnapshotEffect(graph));
+            // 光环上移效果层（2026-09-23）：挂载即并集入卡面（多光环取并集）——重算式
+            _card.AggregateEffectAuras(true);
+            _card.ResetCache();
             RefreshAttached();
             Recalculate();
         }
@@ -229,6 +385,9 @@ namespace SynergyUI
                 TriggerLimitPerTurn = src.TriggerLimitPerTurn,
                 EngineKind = src.EngineKind,
                 EngineParam = src.EngineParam,
+                ArrowDirections = src.ArrowDirections, // 光环上移效果层（2026-09-23）——箭头随效果快照
+                LinkAuras = src.LinkAuras != null && src.LinkAuras.Count > 0
+                    ? new List<LinkAuraData>(src.LinkAuras) : null,
                 ActivationConditions = src.ActivationConditions,
                 TriggerConditions = src.TriggerConditions,
                 Costs = src.Costs,
@@ -291,6 +450,9 @@ namespace SynergyUI
             if (index >= 0 && index < _card.Effects.Count)
             {
                 _card.Effects.RemoveAt(index);
+                // 光环随效果回收（2026-09-23）：移除效果后按剩余效果重算卡面箭头+光环
+                _card.AggregateEffectAuras(true);
+                _card.ResetCache();
                 RefreshAttached();
                 Recalculate();
             }

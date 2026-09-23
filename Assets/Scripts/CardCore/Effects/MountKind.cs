@@ -34,6 +34,11 @@ namespace CardCore
         /// 只可落入合成器「主干槽」（写 header.EngineKind/EngineParam），不可作普通原子/奖励/payload 挂载。
         /// 值只可尾部追加（同 TargetKind 惯例）。</summary>
         FreeBranchTrunk = 9,
+        /// <summary>可作连接光环条目（2026-09-23 定案）：Grant 行声明该位才可作为光环关键词（LinkAuraData.keyword）。
+        /// **消耗型关键词（圣盾/复生/潜行/法术护盾——移除即用掉）不声明此位**：与光环 live-query 持续语义冲突
+        /// （不物化 → RemoveKeyword 空操作 → 等效永久持有）。合成期校验+装载期拦截均读本位，不硬编码名单。
+        /// 坚韧(Armor)/守护(Guardian) 无表行（Grant 行已退役、光环本体）——代码特判放行。</summary>
+        LinkAura = 10,
     }
 
     /// <summary>MountKinds CSV 解析/判定辅助（AtomicEffectTable 与装载校验共用）。</summary>

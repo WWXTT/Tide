@@ -175,8 +175,23 @@ namespace CardCore
             ValidateComboDomains(result);
             ValidateMountHosts(result);
             ValidateRandomParams(result);
+            ValidateMountKindsTable();
 
             return result;
+        }
+
+        /// <summary>表级 MountKinds 健全性（2026-09-23）：位 9（自由分支主干）行必须显式只写 "9"——
+        /// 混挂其他位会被空串兜底/合成器过滤逻辑误伤（此前仅编辑器测试断言有此校验，装载期补齐）。</summary>
+        private static void ValidateMountKindsTable()
+        {
+            foreach (var row in Attribute.AtomicEffectTable.GetAll())
+            {
+                if (row == null || string.IsNullOrEmpty(row.MountKinds)) continue;
+                var bits = MountKindExtensions.ParseCsv(row.MountKinds);
+                if (bits.Contains(MountKind.FreeBranchTrunk) && bits.Count > 1)
+                    Debug.LogWarning($"[CardLoader] 原子表行 {row.EnumName}：MountKinds=\"{row.MountKinds}\"——"
+                                   + "位 9（自由分支主干）必须显式只写 9，不与其他位混挂");
+            }
         }
 
         /// <summary>
@@ -240,6 +255,20 @@ namespace CardCore
                 if (card.LinkAuras != null && card.LinkAuras.Count > 0
                     && card.ArrowDirections == HexDirection.None)
                     Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName})：声明了连接光环但未配箭头（arrows 为空）——构筑期拦截（生物/结界同规）");
+
+                // 光环关键词条目须可挂（2026-09-23 定案·位 10 数据驱动）：消耗型关键词
+                //（圣盾/复生/潜行/法术护盾——移除即用掉）与光环 live-query 持续语义冲突
+                //（不物化 → RemoveKeyword 空操作 → 等效永久持有），表中不声明位 10 即不可挂
+                if (card.LinkAuras != null)
+                {
+                    foreach (var aura in card.LinkAuras)
+                    {
+                        if (aura == null || string.IsNullOrEmpty(aura.keyword)) continue;
+                        if (!ComposerCatalog.IsAuraMountableKeyword(aura.keyword))
+                            Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName})：光环关键词「{aura.keyword}」"
+                                         + "不可作光环（原子表 Grant 行未声明 MountKinds 位 10——消耗型关键词移除即用掉，与光环持续语义冲突）——构筑期拦截");
+                    }
+                }
             }
         }
 
@@ -486,6 +515,7 @@ namespace CardCore
             ValidateComboDomains(result);
             ValidateMountHosts(result);
             ValidateRandomParams(result);
+            ValidateMountKindsTable();
 
             return result;
         }
@@ -588,6 +618,10 @@ namespace CardCore
                 cardData.LinkAuras = entry.linkAuras
                     .Where(a => a != null && (!string.IsNullOrEmpty(a.stat) || !string.IsNullOrEmpty(a.keyword)))
                     .ToList();
+
+            // 效果层光环聚合（2026-09-23 定案）：效果携带的箭头/光环条目并集入卡面
+            //（与卡面直书值并集——兼容旧数据）；须在 EnsureCost 前完成（光环费/箭头累乘进计价）
+            cardData.AggregateEffectAuras(false);
 
             // 战斗底盘（2026-09-10 攻/守效果化）：opt-out 与瞬间盈余分配，缺省全 false（自带攻守、退费）
             cardData.NoAttack = entry.noAttack;

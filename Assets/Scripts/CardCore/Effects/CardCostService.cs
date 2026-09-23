@@ -199,24 +199,34 @@ namespace CardCore
                     result.Grants[kv.Key] = prevG + kv.Value;
                 }
             }
-            // 代价栏：Payload **全量获得**（2026-09-21 定案：发放无钳制；构筑期只允许装形成 1 费的代价，
-            // 见 CardEffectConverter 限价警告——故 Grants 恒 ≤1；后续靠情况开放）。
-            if (card.Effects != null)
+            // 代价栏：卡层 PayloadCost（2026-09-23 上移卡组合层）为正式口；legacy 效果级 Costs 兜底
+            //（卡层已填时跳过 legacy——防双收）。Payload **全量获得**（2026-09-21 定案：发放无钳制；
+            // 构筑期只允许装形成 1 费的代价，见 CardEffectConverter 限价警告——故 Grants 恒 ≤1；后续靠情况开放）。
+            var payloadEntries = new List<AtomicEffectEntry>();
+            if (card.PayloadCost?.payload != null && !string.IsNullOrEmpty(card.PayloadCost.payload.refId))
+            {
+                payloadEntries.Add(card.PayloadCost.payload);
+            }
+            else if (card.Effects != null)
             {
                 foreach (var eff in card.Effects)
                 {
                     if (eff?.Costs == null) continue;
                     foreach (var ce in eff.Costs)
                     {
-                        if (ce == null || ce.payload == null || string.IsNullOrEmpty(ce.payload.refId)) continue;
-                        var payload = CardEffectConverter.ConvertPayloadForDisplay(ce.payload);
-                        int amount = CostDerivationService.PayloadUnitGrant(payload);
-                        if (amount <= 0) continue;
-                        var gColor = CostCompensationService.PayloadGrantColor(payload);
-                        result.Grants.TryGetValue(gColor, out var prevC);
-                        result.Grants[gColor] = prevC + amount;
+                        if (ce?.payload == null || string.IsNullOrEmpty(ce.payload.refId)) continue;
+                        payloadEntries.Add(ce.payload);
                     }
                 }
+            }
+            foreach (var pe in payloadEntries)
+            {
+                var payload = CardEffectConverter.ConvertPayloadForDisplay(pe);
+                int amount = CostDerivationService.PayloadUnitGrant(payload);
+                if (amount <= 0) continue;
+                var gColor = CostCompensationService.PayloadGrantColor(payload);
+                result.Grants.TryGetValue(gColor, out var prevC);
+                result.Grants[gColor] = prevC + amount;
             }
             foreach (var kv in result.Grants)
             {
@@ -268,9 +278,9 @@ namespace CardCore
             // 混入原子表指纹——表冻结则身份稳定；此处先于一切分支，保证所有装载/重生成路径都推导。
             CardIdentityService.EnsureIdentity(card);
 
-            // 代价栏单卡单条（2026-09-11 定案）：整卡 Costs 条目合计 ≤1——一张卡只有一个代价栏，
-            // 无法像效果那样组合。违约仅警告不纠正（支付/补偿按真实数据执行）。
-            int costEntryCount = 0;
+            // 代价栏单卡单条（2026-09-11 定案；2026-09-23 上移卡层）：PayloadCost(卡层) + 效果级 Costs(legacy)
+            // 合计 ≤1——一张卡只有一个代价栏，无法像效果那样组合。违约仅警告不纠正（支付/补偿按真实数据执行）。
+            int costEntryCount = card.PayloadCost?.payload != null && !string.IsNullOrEmpty(card.PayloadCost.payload.refId) ? 1 : 0;
             if (card.Effects != null)
             {
                 foreach (var eff in card.Effects)

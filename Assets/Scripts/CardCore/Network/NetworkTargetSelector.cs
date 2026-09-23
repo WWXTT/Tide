@@ -48,6 +48,22 @@ namespace CardCore.Network
             return true;
         }
 
+        /// <summary>是否有未决反问（M2 服务器快照静默检查：非静默点不取样——半完成结算不快照）。
+        /// 与 _pending 全部访问同在逻辑线程（单逻辑线程定案），无锁。</summary>
+        public bool HasPending => _pending.Count > 0;
+
+        /// <summary>作废全部未决反问（M2 断线收口）：空索引集完成 → 引擎按空应答回落 AutoSelect，
+        /// 防止断线连接的反问永远悬住泵。返回作废条数。逻辑线程调用。</summary>
+        public int AbortPending()
+        {
+            int count = _pending.Count;
+            var aborted = _pending.Values.ToList();
+            _pending.Clear();
+            foreach (var tcs in aborted)
+                tcs.TrySetResult(new List<int>());
+            return count;
+        }
+
         /// <summary>实体反问：完整请求（含 Candidates 引用）下发，await 客户端索引集。</summary>
         public async UniTask<List<int>> SelectAsync(TargetSelectionRequest request, IReadOnlyList<string> labels)
         {

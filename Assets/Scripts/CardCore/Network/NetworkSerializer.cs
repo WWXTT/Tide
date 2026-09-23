@@ -7,17 +7,22 @@ namespace CardCore.Network
     {
         private static uint _sequenceCounter;
 
-        public static byte[] SerializeMessage<T>(NetworkMessageType type, T payload) where T : class
+        /// <summary>构造信封对象（不终序列化）——M2 会话层出站便捷口与 SerializeMessage 共用。</summary>
+        public static NetworkMessage BuildEnvelope<T>(NetworkMessageType type, T payload) where T : class
         {
-            var message = new NetworkMessage
+            return new NetworkMessage
             {
                 Type = type,
                 SequenceId = ++_sequenceCounter,
-                Payload = MemoryPackSerializer.Serialize(payload),
+                Payload = payload == null ? Array.Empty<byte>() : MemoryPackSerializer.Serialize(payload),
                 Timestamp = DateTime.UtcNow.Ticks,
                 ProtocolVersion = NetworkProtocol.Version,
             };
-            return MemoryPackSerializer.Serialize(message);
+        }
+
+        public static byte[] SerializeMessage<T>(NetworkMessageType type, T payload) where T : class
+        {
+            return MemoryPackSerializer.Serialize(BuildEnvelope(type, payload));
         }
 
         public static NetworkMessage DeserializeEnvelope(byte[] data)

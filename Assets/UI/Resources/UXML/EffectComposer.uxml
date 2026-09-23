@@ -27,8 +27,9 @@
         <ui:VisualElement class="columns">
             <ui:VisualElement class="column column--left panel">
                 <ui:VisualElement name="mode-bar" class="toolbar mode-bar" />
-                <ui:VisualElement name="cost-zone" />
                 <ui:ScrollView name="slot-area" class="list slot-area" />
+                <!-- 属性描述条（2026-09-23）：可编辑控件的说明选中才在此出现——不常驻，拓宽可用区域 -->
+                <ui:Label name="lbl-prop-desc" text="" class="desc-strip" style="display: none;" />
             </ui:VisualElement>
             <ui:VisualElement class="column column--right panel">
                 <!-- 筛选栏（2026-09-22 两模式共用）：效果分类 + 近似搜索
@@ -41,13 +42,11 @@
                 </ui:VisualElement>
                 <!-- 效果表模式（点击效果=载入左侧编辑，保存覆盖）——行=色点+名+id 单行（2026-09-22） -->
                 <ui:ScrollView name="list-effects" class="list" style="flex-grow: 1; flex-basis: 0;" />
-                <!-- 原子库模式 -->
+                <!-- 原子库模式（2026-09-23 单列：关键词 Grant 行随原子同列，锁定行直接隐藏——不再分两段） -->
                 <ui:VisualElement name="atom-panel" style="flex-grow: 1;">
                     <!-- 选中槽上下文（2026-09-22 五轮）：库按选中槽过滤——标签动态显示当前过滤口径 -->
                     <ui:Label name="lbl-lib-context" text="" class="hint" style="margin-bottom: 2px;" />
                     <ui:ScrollView name="library-list" class="list" style="flex-grow: 1; flex-basis: 0;" />
-                    <ui:Label name="lbl-keyword-header" text="可编辑关键词（点击加入并列槽——赋予一个生物）" class="panel__header" style="margin-top: 6px;" />
-                    <ui:ScrollView name="keyword-list" class="list" style="flex-grow: 1; flex-basis: 0;" />
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

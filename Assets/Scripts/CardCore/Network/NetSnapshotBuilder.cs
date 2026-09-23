@@ -23,8 +23,17 @@ namespace CardCore.Network
             Zone.ElementPool, Zone.Activation, Zone.FieldZone,        };
 
         public static MsgGameStateSync Build(GameCore core, int viewerSeat)
+            => Build(core, viewerSeat, fullInfo: false);
+
+        /// <summary>
+        /// 全量快照（viewerSeat 视角）。fullInfo=true 为**观战全信息**视角（2026-09-23 定案，
+        /// M2 会话层）：双方手牌 RuntimeIds 皆下发、双方手牌区皆进 ZoneCards——直播/复盘口径；
+        /// 仅允许 viewerSeat=-1（观战）携带，玩家座位一律 false（隐藏信息口径不变）。
+        /// </summary>
+        public static MsgGameStateSync Build(GameCore core, int viewerSeat, bool fullInfo)
         {
             if (core == null) return null;
+            if (fullInfo && viewerSeat >= 0) viewerSeat = -1; // 防误用：全信息只在观战视角合法
 
             var snapshot = new MsgGameStateSync
             {
@@ -34,11 +43,11 @@ namespace CardCore.Network
                 ActiveSeat = NetEntityMapper.SeatOf(core.TurnEngine?.TurnPlayer),
                 PrioritySeat = NetEntityMapper.SeatOf(core.StackEngine?.CurrentPriorityHolder),
                 Players = BuildPlayers(core),
-                Hands = BuildHands(core, viewerSeat),
+                Hands = BuildHands(core, viewerSeat, fullInfo),
                 StackV2 = BuildStack(core),
             };
 
-            // 区域全量（公开区 + viewer 自己的手牌）
+            // 区域全量（公开区 + viewer 自己的手牌；观战全信息=双方手牌）
             var zones = new System.Collections.Generic.List<NetZoneCards>();
             foreach (var seat in new[] { 0, 1 })
             {
@@ -47,7 +56,7 @@ namespace CardCore.Network
 
                 foreach (var zone in PublicZones)
                     zones.Add(BuildZone(core, seat, player, zone));
-                if (seat == viewerSeat)
+                if (seat == viewerSeat || fullInfo)
                     zones.Add(BuildZone(core, seat, player, Zone.Hand));
             }
             snapshot.ZoneCards = zones.ToArray();
@@ -96,7 +105,7 @@ namespace CardCore.Network
             return players.ToArray();
         }
 
-        private static CardHandInfo[] BuildHands(GameCore core, int viewerSeat)
+        private static CardHandInfo[] BuildHands(GameCore core, int viewerSeat, bool fullInfo)
         {
             var hands = new System.Collections.Generic.List<CardHandInfo>(2);
             foreach (var seat in new[] { 0, 1 })
@@ -109,7 +118,7 @@ namespace CardCore.Network
                 {
                     Seat = seat,
                     Count = hand.Count,
-                    OwnRuntimeIds = seat == viewerSeat
+                    OwnRuntimeIds = seat == viewerSeat || fullInfo
                         ? hand.Select(c => c.RuntimeId).ToArray()
                         : Array.Empty<uint>(),
                 };

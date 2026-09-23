@@ -7034,6 +7034,98 @@
                 }
             ],
             "rewards": []
+        },
+        {
+            "id": "98830BE4",
+            "name": "赋予先攻＋赋予碾压＋赋予缴械",
+            "timing": 14,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 2,
+            "selection": 0,
+            "count": -2,
+            "random": 0,
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "costs": [
+                {
+                    "type": 7,
+                    "value": 1,
+                    "manaType": 0,
+                    "turns": 0,
+                    "payload": {
+                        "refId": "f6afe078",
+                        "value": 2,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            2
+                        ]
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "0490b22c",
+                        "value": 1,
+                        "str": "FirstStrike",
+                        "amp": 0.0,
+                        "kinds": [
+                            1,
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                },
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "13b63a87",
+                        "value": 1,
+                        "str": "Overwhelm",
+                        "amp": 0.0,
+                        "kinds": [
+                            1,
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                },
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "adb8456f",
+                        "value": 1,
+                        "str": "Disarm",
+                        "amp": 0.0,
+                        "kinds": [
+                            1,
+                            2
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
         }
     ]
 }

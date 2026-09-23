@@ -180,7 +180,7 @@ def main():
                     help="覆盖 config.json 的 rnn_type（lstm 暂未适配导出）")
     ap.add_argument("--opset", type=int, default=23, help="ONNX opset（Sentis 2.6 支持 7..25）")
     ap.add_argument("--tol", type=float, default=5e-3, help="ORT vs JAX 最大绝对误差告警线")
-    ap.add_argument("--no-unity-copy", action="store_true", help="不复制到 Assets/StreamingAssets")
+    ap.add_argument("--no-unity-copy", action="store_true", help="不复制到 Assets/Resources")
     args = ap.parse_args()
     if args.ckpt is None:
         args.ckpt = latest_checkpoint()
@@ -254,6 +254,16 @@ def main():
         entry = model.metadata_props.add()
         entry.key, entry.value = k, v
     onnx.save(model, str(onnx_path))
+
+    # onnx.save 已把权重嵌回单文件；jax2onnx 中间步骤落下的外部权重残留要清掉，
+    # 否则 exports/ 里留一个 12MB 的孤儿 .data，还容易被误当成部署必需品
+    n_external = sum(1 for i in model.graph.initializer
+                     if i.data_location == onnx.TensorProto.EXTERNAL)
+    assert n_external == 0, "权重仍外置在 .data，Unity 单文件部署会加载失败"
+    orphan_data = onnx_path.with_name(onnx_path.name + ".data")
+    if orphan_data.exists():
+        orphan_data.unlink()
+        print(f"[✓] 已清理中间产物: {orphan_data.name}")
 
     # ---- ORT 数值对拍 ----
     sess = ort.InferenceSession(str(onnx_path), providers=["CPUExecutionProvider"])

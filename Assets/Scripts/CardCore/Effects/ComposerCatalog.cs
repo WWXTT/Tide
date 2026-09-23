@@ -124,18 +124,62 @@ namespace CardCore
             return OutcomeGates.Where(g => g.Producers == null || Array.IndexOf(g.Producers, name) >= 0);
         }
 
-        /// <summary>原子是否可做有限分支主干（产出族成员且非引擎主干）——2026-09-22 起：
-        /// 产出族成员 **或** 可作主效果（表行 MountKinds 含 ActiveEffect）且通用门存在的原子皆可
-        /// （通用门读局面状态，不依赖主干产出）。</summary>
+        /// <summary>原子是否可做有限分支主干——**MountKinds 数据驱动（2026-09-23 定案）**：
+        /// 含位 3（BranchTrunk=显式主干声明通道，当前=伤害/治疗产出族四行）
+        /// **∪** 含位 0（ActiveEffect）且通用门存在（2026-09-22 通用门放宽——局面门读 context 不依赖主干产出）。
+        /// 旧口径的产出族硬编码数组已退役（与位 3 数据等价）；以后放宽/收窄主干资格只改表 MountKinds。
+        /// DamageProducers/DeclareProducers 数组仅供改写门/宣言门的适用族过滤（语义族，非挂载位）。</summary>
         public static bool CanBeGateTrunk(AtomicEffectType t)
         {
             if (IsEngineTrunk(t)) return false;
-            if (OutcomeGates.Any(g => g.Producers != null && Array.IndexOf(g.Producers, t.ToString()) >= 0))
-                return true;
+            var mounts = RowMounts(t);
+            if (mounts.Contains(MountKind.BranchTrunk)) return true;
             if (!OutcomeGates.Any(g => g.Producers == null)) return false;
-            var row = AtomicEffectTable.GetByEnumName(t.ToString());
-            var mounts = MountKindExtensions.ParseCsv(row?.MountKinds ?? "");
             return mounts.Contains(MountKind.ActiveEffect);
+        }
+
+        // ======================================== 可挂范围判定（2026-09-23：MountKinds=唯一权威，合成器/装载共用） ========================================
+
+        /// <summary>表行挂载位判定小工具（全判定统一走 ParseCsv——空串=空集=未声明）。</summary>
+        public static bool HasMountBit(Attribute.AtomicEffectConfig row, MountKind bit)
+            => MountKindExtensions.ParseCsv(row?.MountKinds ?? "").Contains(bit);
+
+        /// <summary>枚举 → 表行挂载位集合（行缺失=空集）。</summary>
+        public static HashSet<MountKind> RowMounts(AtomicEffectType t)
+            => MountKindExtensions.ParseCsv(Attribute.AtomicEffectTable.GetByEnumName(t.ToString())?.MountKinds ?? "");
+
+        /// <summary>关键词 id 是否可作连接光环条目（2026-09-23 定案·位 10 数据驱动）：
+        /// 坚韧(Armor)/守护(Guardian) 无表行（Grant 行已退役、光环本体）——特判放行（与 CardCostService 计价特判同口径）；
+        /// 其余经关键词定义 → Grant 原子表行 → MountKinds 含 LinkAura 位判定。
+        /// 消耗型关键词（圣盾/复生/潜行/法术护盾）在表中不声明位 10 即不可挂——名单不在代码里。</summary>
+        public static bool IsAuraMountableKeyword(string keywordId)
+        {
+            if (string.IsNullOrEmpty(keywordId)) return false;
+            if (keywordId == CardCore.Attribute.KeywordRules.Armor
+                || keywordId == CardCore.Attribute.KeywordRules.Guardian) return true;
+            var def = CardLoader.LoadKeywords().TryGetValue(keywordId, out var d) ? d : null;
+            if (def == null || string.IsNullOrEmpty(def.atomicEffect)) return false;
+            var row = Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect);
+            return HasMountBit(row, MountKind.LinkAura);
+        }
+
+        /// <summary>光环关键词下拉数据源（UI 用）：坚韧/守护（按计价特判同序）+ 全部位 10 声明的 Grant 行。</summary>
+        public static List<(string id, string label)> AuraKeywordChoices()
+        {
+            var list = new List<(string, string)>
+            {
+                (CardCore.Attribute.KeywordRules.Armor, "坚韧（绿1/条）"),
+                (CardCore.Attribute.KeywordRules.Guardian, "守护（白1/条）"),
+            };
+            foreach (var kv in CardLoader.LoadKeywords())
+            {
+                var def = kv.Value;
+                if (def == null || string.IsNullOrEmpty(def.id)) continue;
+                var row = Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect);
+                if (!HasMountBit(row, MountKind.LinkAura)) continue;
+                list.Add((def.id, string.IsNullOrEmpty(def.nameZh) ? def.id : def.nameZh));
+            }
+            return list;
         }
 
         /// <summary>门的显示文本（含【奖励x】——premium 取 GatePremium，与计价同源）；

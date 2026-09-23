@@ -16,9 +16,10 @@ namespace CardCore.Tools
         public static void GenerateTagTable()
         {
             var tags = GetTagDefinitions();
-            var generated = GenerateCode(tags);
+            var rawTags = GetRawTagDefinitions();
+            var generated = GenerateCode(tags, rawTags);
 
-            // 检测碰撞
+            // 检测碰撞（哈希条目 + 手工定值条目合并查重）
             var usedTags = new System.Collections.Generic.Dictionary<int, string>();
             bool hasCollision = false;
 
@@ -34,6 +35,18 @@ namespace CardCore.Tools
                     usedTags[tag] = $"{className}.{propName}";
                 }
             }
+            foreach (var (constName, value, _) in rawTags)
+            {
+                if (usedTags.TryGetValue(value, out var existing))
+                {
+                    Debug.LogError($"Tag collision: 手工定值 {constName} vs {existing} = {value}");
+                    hasCollision = true;
+                }
+                else
+                {
+                    usedTags[value] = constName;
+                }
+            }
 
             if (hasCollision)
             {
@@ -43,8 +56,22 @@ namespace CardCore.Tools
 
             File.WriteAllText(OUTPUT_PATH, generated);
             AssetDatabase.Refresh();
-            Debug.Log($"TagTable.cs 已生成，共 {tags.Length} 个标签");
+            Debug.Log($"TagTable.cs 已生成，共 {tags.Length + rawTags.Length} 个标签（含 {rawTags.Length} 个手工定值保留位）");
         }
+
+        /// <summary>
+        /// 手工定值条目（2026-09-23 增设）：历史上手工分配、哈希公式推不出的标签值——
+        /// **改值=线格式字段 ID 变更**，一律原值保留。曾因只存在于 TagTable.cs 手改区，
+        /// 被一次"刷新属性排序"整体重生成冲掉（编译 CS0117 事故）——现统一登记在此，
+        /// 生成器按原值透传，重生成不再丢条目。新增此类条目：这里加一行 + TagTable.cs 同步。
+        /// </summary>
+        private static (string constName, int value, string note)[] GetRawTagDefinitions() => new[]
+        {
+            // SerializableAtomicEffectEntry.amp 专用（复用 AEI_ 前缀命名；2026-09-13 数值随机）
+            ("AEI_Amplitude", 1052954154, "SerializableAtomicEffectEntry.amp（数值随机 RandomAmplitude）"),
+            // 抉择卡放地模式（2026-09-21：与出牌同口径），紧邻 CardRuntimeId=713270002 手工递增
+            ("MsgIntentAddToElementPool_ModeIndex", 713270003, "MsgIntentAddToElementPool.ModeIndex（抉择放地）"),
+        };
 
         private static (string className, string propName, int tag)[] GetTagDefinitions()
         {
@@ -156,6 +183,8 @@ namespace CardCore.Tools
                 ("PlayerState", "Seat"), ("PlayerState", "IsAI"), ("PlayerState", "FatigueCount"),
                 ("PlayerState", "LandCap"), ("PlayerState", "ElementBank"),
                 ("PlayerState", "GraveyardCount"), ("PlayerState", "ExileCount"),
+                // 退役保留位（2026-09-14 抵消系统退役——字段已删，值保留防字段 ID 复用歧义）
+                ("PlayerState", "OffsetOpponentDrawUsed"), ("PlayerState", "OffsetOpponentHealUsed"),
 
                 // ---- M1 网络协议（2026-09-10，详见 根目录 网络协议.md）----
 
@@ -180,8 +209,10 @@ namespace CardCore.Tools
                 ("MsgGameStateSync", "Hands"), ("MsgGameStateSync", "StackV2"),
 
                 // ---- StackItemDTO（栈条目：EffectInstance 投影。EffectDisplayName 已删——2026-09-22
-                //      线上去文本，显示名客户端按 EffectId 查表；旧 Stack=SerializableEffectDefinition[] 字段同日删除）----
+                //      线上去文本，显示名客户端按 EffectId 查表；旧 Stack=SerializableEffectDefinition[] 字段同日删除。
+                //      EffectDisplayName 值留保留位防字段 ID 复用歧义）----
                 ("StackItemDTO", "Source"), ("StackItemDTO", "IsCardCast"), ("StackItemDTO", "EffectId"),
+                ("StackItemDTO", "EffectDisplayName"),
                 ("StackItemDTO", "ModeIndex"),
                 ("StackItemDTO", "Targets"), ("StackItemDTO", "ActivationSpeed"),
                 ("StackItemDTO", "StackObjectType"),
@@ -221,6 +252,16 @@ namespace CardCore.Tools
                 ("MsgDeckSubmit", "DeckName"), ("MsgDeckSubmit", "CardIds"), ("MsgDeckSubmit", "Digest"),
                 ("MsgMatchManifest", "OwnSeat"), ("MsgMatchManifest", "OwnCardIds"),
                 ("MsgMatchManifest", "OpponentCardCount"), ("MsgMatchManifest", "OwnDeckDigest"),
+
+                // ---- 会话层（M2，2026-09-23：Error 载荷 + 房间状态机，见 网络协议.md §12）----
+                ("MsgError", "Reason"), ("MsgError", "Context"),
+                ("MsgJoinRoom", "RoomId"), ("MsgJoinRoom", "WantSeat"),
+                ("MsgJoinRoom", "AsSpectator"), ("MsgJoinRoom", "Nickname"),
+                ("MsgRoomState", "RoomId"), ("MsgRoomState", "Phase"),
+                ("MsgRoomState", "Players"), ("MsgRoomState", "SpectatorCount"),
+                ("MsgRoomState", "FirstSeatThisMatch"),
+                ("MsgRoomSeatInfo", "Seat"), ("MsgRoomSeatInfo", "Nickname"),
+                ("MsgRoomSeatInfo", "Connected"),
             };
 
             var result = new (string className, string propName, int tag)[raw.Length];
@@ -229,11 +270,13 @@ namespace CardCore.Tools
             return result;
         }
 
-        private static string GenerateCode((string className, string propName, int tag)[] tags)
+        private static string GenerateCode((string className, string propName, int tag)[] tags,
+            (string constName, int value, string note)[] rawTags)
         {
             var sb = new StringBuilder();
             sb.AppendLine("// 此文件由 Tools/刷新MemoryPackOrder 自动生成，请勿手动修改");
             sb.AppendLine("// 如需添加新属性，请修改 RefreshMemoryPackOrder.cs 中的 GetTagDefinitions()");
+            sb.AppendLine("// 手工定值标签登记 GetRawTagDefinitions()（只改 TagTable.cs 的手改区会被下次重生成冲掉）");
             sb.AppendLine();
             sb.AppendLine("namespace CardCore.Serialization");
             sb.AppendLine("{");
@@ -254,8 +297,14 @@ namespace CardCore.Tools
                 sb.AppendLine($"        public const int {varPrefix}_{propName} = {tag};");
             }
 
+            // 手工定值保留位（原值透传——见 GetRawTagDefinitions 的注释）
             sb.AppendLine();
-            sb.AppendLine($"        // 共 {tags.Length} 个标签");
+            sb.AppendLine("        // ---- 手工定值保留位（历史手工分配的值，哈希公式推不出；改值=线格式字段 ID 变更，勿动）----");
+            foreach (var (constName, value, note) in rawTags)
+                sb.AppendLine($"        public const int {constName} = {value}; // {note}");
+
+            sb.AppendLine();
+            sb.AppendLine($"        // 共 {tags.Length + rawTags.Length} 个标签（含 {rawTags.Length} 个手工定值保留位）");
             sb.AppendLine("    }");
             sb.AppendLine("}");
 
@@ -288,6 +337,10 @@ namespace CardCore.Tools
                 "NetDeckDigest" => "NDD",
                 "MsgDeckSubmit" => "MDS",
                 "MsgMatchManifest" => "MMM",
+                "MsgError" => "MErr",
+                "MsgJoinRoom" => "MJR",
+                "MsgRoomState" => "MRS",
+                "MsgRoomSeatInfo" => "MRSI",
                 _ => className
             };
         }

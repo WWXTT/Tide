@@ -139,7 +139,20 @@ namespace CardCore
             get => _effects ??= new List<CardEffectData>();
             set => _effects = value;
         }
-        
+
+        /// <summary>
+        /// 代价栏（2026-09-23 定案：上移卡组合层）：单卡单条 Payload——错边原子引用，
+        /// cast 付费步强制执行并按全价补偿黑/白。效果级 CardEffectData.Costs 为 legacy 兜底
+        /// （旧数据仍读取；卡层已填时以卡层为准，防双收）。
+        /// </summary>
+        [SerializeField]
+        private global::CardCore.CostEntry _payloadCost;
+        public global::CardCore.CostEntry PayloadCost
+        {
+            get => _payloadCost;
+            set => _payloadCost = value;
+        }
+
 
         /// <summary>
         /// 创建时间（用于时间戳）
@@ -375,6 +388,33 @@ namespace CardCore
             SelfSleepEffectCache = null; // 自我沉睡判定随效果数据失效（2026-09-11）
         }
 
+        /// <summary>效果层光环聚合（2026-09-23 定案：箭头/光环随效果合成，卡面=聚合缓存）——
+        /// 把各效果携带的 ArrowDirections/LinkAuras 并集入卡面（多光环取并集）。
+        /// recompute=false 与卡面已有值并集（装载期：兼容旧卡面直书数据）；
+        /// true 以效果声明为准重算（编辑期：移除效果后箭头同步回收）。
+        /// 须在 CardCostService.EnsureCost 前调用（光环费/箭头累乘进计价）。</summary>
+        public void AggregateEffectAuras(bool recompute)
+        {
+            if (recompute)
+            {
+                _arrowDirections = HexDirection.None;
+                _linkAuras = new List<LinkAuraData>();
+            }
+            if (_effects == null) return;
+            foreach (var fx in _effects)
+            {
+                if (fx == null) continue;
+                if (fx.ArrowDirections != 0)
+                    _arrowDirections |= (HexDirection)fx.ArrowDirections;
+                if (fx.LinkAuras == null) continue;
+                foreach (var aura in fx.LinkAuras)
+                {
+                    if (aura == null || (string.IsNullOrEmpty(aura.stat) && string.IsNullOrEmpty(aura.keyword))) continue;
+                    LinkAuras.Add(aura);
+                }
+            }
+        }
+
         /// <summary>
         /// 成本条目
         /// </summary>
@@ -564,6 +604,19 @@ namespace CardCore
         public int EngineKind;
         // 引擎参数：运势阈值 x（[1,5]）；倒计时缺省 0=奖励推导费自动换算回合（1费=1回合）。
         public int EngineParam;
+
+        // 光环上移效果层（2026-09-23 定案）：光环形态效果自带连接箭头+光环条目——
+        // 效果挂到卡上时并集入卡面（多光环取并集，CardData.AggregateEffectAuras）；
+        // 卡编辑界面不再编辑箭头（组合只发生在效果合成界面第四形态，任意会话可用）。
+        // 运行时/计价照旧读卡面聚合值（CardLoader 装载聚合，LinkAuraSystem 零改动）。
+        public int ArrowDirections;          // HexDirection Flags（int 序列化——JsonUtility 枚举同 int）
+        public List<LinkAuraData> LinkAuras; // 光环条目（stat+value / keyword 二选一；非光环效果恒 null）
+
+        // 效果锚价缓存（2026-09-23 定案：效果组合阶段=纯表累加、无减免抵消）：合成期实时推导
+        // 随效果落盘（Effects.json cost 列），装载期逐效果还原于此——启动式/动态效果构筑期不占卡费、
+        // 运行时现付，其显示/预检读此（不靠整卡缓存——card.Cost/ModeCostCache 只覆盖非启动式效果）。
+        // 派生数据：不入内容哈希，原子表调价后重算即可。
+        public List<ElementCostRef> AnchorCost;
 
         public List<ActivationConditionData> ActivationConditions;
         public List<ActivationConditionData> TriggerConditions;

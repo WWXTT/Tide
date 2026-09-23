@@ -725,10 +725,36 @@ namespace CardCore
         /// <summary>
         /// 收集一张卡的卡级特殊代价（2026-09-11：代价栏单卡单条定案——整卡效果声明的
         /// 非元素代价在 cast 付费步统一执行并补偿；启动式能力的代价不在此列，发动时现付）。
+        /// 2026-09-23 代价栏上移卡组合层：CardData.PayloadCost 为唯一正式口（合成器在卡层填装，
+        /// 错侧改写已在放置口完成）；效果级 def.Costs 降为 legacy 兜底——卡层已填时跳过，防双收。
         /// </summary>
         private static List<CostInstance> CollectCardSpecialCosts(Card card)
         {
             var result = new List<CostInstance>();
+
+            // 卡层代价栏（2026-09-23）：单条 Payload——经转换器同口径校验后入列
+            if (card is CardWrapper wrapper)
+            {
+                var pc = wrapper.GetData()?.PayloadCost;
+                if (pc?.payload != null && !string.IsNullOrEmpty(pc.payload.refId))
+                {
+                    var payloadAtom = CardEffectConverter.ConvertPayloadForDisplay(pc.payload);
+                    if (payloadAtom != null)
+                    {
+                        result.Add(new CostInstance
+                        {
+                            Type = CostType.Payload,
+                            Value = pc.Value,
+                            ManaType = (ManaType)pc.ManaType,
+                            Payload = payloadAtom,
+                        });
+                        return result; // 卡层已填——legacy 效果级代价不再收集（单卡单条）
+                    }
+                    UnityEngine.Debug.LogWarning("[CardActions] 卡层代价栏 Payload 转换失败（表行缺失？）——按无代价处理");
+                }
+            }
+
+            // legacy 兜底：效果级 Costs（旧数据——代价曾随效果合成）
             var defs = GetCardEffectDefinitions(card);
             if (defs == null) return result;
             foreach (var def in defs)
