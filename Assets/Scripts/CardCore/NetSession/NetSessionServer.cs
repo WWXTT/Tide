@@ -31,16 +31,22 @@ namespace CardCore.Network
         public NetRoom Room => _room;
         public int Port => _host.Port;
 
+        /// <summary>是否有会话服务器实例在运行（2026-09-24）：UIBootstrap.Update 的引擎驱动闸
+        /// （同 NetLobbyServer.IsRunning——同进程宿主对局期间 GameCore 由服务器泵独占驱动）。</summary>
+        public static bool IsRunning { get; private set; }
+
         /// <summary>开始监听（port=0 由 OS 分配空闲口）。</summary>
         public void Start(int port)
         {
             _host.Start(port);
+            IsRunning = true;
             _log?.Invoke($"[NetSession] 会话服务器监听 0.0.0.0:{_host.Port}（单房间单进程）");
         }
 
         /// <summary>停机：关监听、断全部连接、拆对局接线。</summary>
         public void Stop()
         {
+            IsRunning = false;
             _host.Stop();
             _log?.Invoke("[NetSession] 已停止");
         }

@@ -1,0 +1,49 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="../Common.uss" />
+    <ui:VisualElement name="root" class="screen">
+        <!-- 顶部工具栏 -->
+        <ui:VisualElement class="toolbar">
+            <ui:Button name="btn-back" text="返回" class="btn" />
+            <ui:Label text="联机匹配" class="screen__title" style="margin-bottom: 0; margin-left: 8px;" />
+            <ui:VisualElement class="spacer" />
+            <ui:Label name="lbl-toast" text="" class="toast" />
+        </ui:VisualElement>
+
+        <!-- 连接栏：IP:端口 + 昵称 + 连接/断开 -->
+        <ui:VisualElement class="toolbar">
+            <ui:Label text="服务器" class="field-label" />
+            <ui:TextField name="field-host" class="text-input" value="127.0.0.1" style="width: 140px;" />
+            <ui:Label text="端口" class="field-label" style="margin-left: 8px;" />
+            <ui:IntegerField name="field-port" class="int-input" value="7777" />
+            <ui:Label text="昵称" class="field-label" style="margin-left: 8px;" />
+            <ui:TextField name="field-nickname" class="text-input" value="player" style="width: 120px;" />
+            <ui:Button name="btn-connect" text="连接" class="btn btn--primary" />
+        </ui:VisualElement>
+
+        <!-- 两栏：左=房间列表+操作，右=当前状态 -->
+        <ui:VisualElement class="columns">
+            <ui:VisualElement class="column panel" style="flex-grow: 5;">
+                <ui:VisualElement class="toolbar">
+                    <ui:Label text="出战卡组" class="field-label" />
+                    <ui:DropdownField name="dropdown-decks" class="text-input" style="flex-grow: 1;" />
+                </ui:VisualElement>
+                <ui:Label text="房间列表" class="panel__header" />
+                <ui:ScrollView name="list-rooms" class="list" />
+                <ui:VisualElement class="toolbar">
+                    <ui:Label text="房名" class="field-label" />
+                    <ui:TextField name="field-roomname" class="text-input" />
+                    <ui:Button name="btn-create" text="创建房间" class="btn btn--mini" />
+                </ui:VisualElement>
+                <ui:VisualElement class="toolbar">
+                    <ui:Button name="btn-automatch" text="自动匹配" class="btn" />
+                    <ui:Button name="btn-ai" text="+ AI 对手填位" class="btn btn--mini" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement class="column panel" style="flex-grow: 4;">
+                <ui:Label text="当前状态" class="panel__header" />
+                <ui:ScrollView name="status-zone" class="list" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

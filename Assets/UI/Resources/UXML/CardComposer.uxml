@@ -9,59 +9,71 @@
             <ui:Label name="lbl-toast" text="" class="toast" />
         </ui:VisualElement>
 
-        <!-- 两栏：左=卡牌表单+算费，右=效果挂载 -->
+        <!-- 三栏（2026-09-24 定案）：左=卡池预览（生物/法术分组），中=卡牌表单+算费，右=挂载效果+关键词 -->
         <ui:VisualElement class="columns">
-            <ui:VisualElement class="column panel">
+            <ui:VisualElement class="column panel" style="flex-grow: 5;">
+                <ui:VisualElement class="toolbar">
+                    <ui:Label text="卡池（点击载入编辑）" class="panel__header" style="margin-bottom: 0;" />
+                    <ui:VisualElement class="spacer" />
+                    <ui:Button name="btn-new" text="新建卡牌" class="btn btn--mini" />
+                </ui:VisualElement>
+                <ui:VisualElement name="pool-filter" class="filter-bar" />
+                <ui:VisualElement class="toolbar">
+                    <ui:Label text="搜索" class="field-label" />
+                    <ui:TextField name="field-search" class="text-input" />
+                </ui:VisualElement>
+                <ui:ScrollView name="list-pool" class="list" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="column panel" style="flex-grow: 4;">
                 <ui:Label text="卡牌属性" class="panel__header" />
 
                 <ui:VisualElement class="toolbar">
                     <ui:Label text="名称" class="field-label" />
                     <ui:TextField name="field-card-name" class="text-input" value="新卡牌" />
-                    <ui:Label text="类型" class="field-label" style="margin-left: 12px;" />
+                </ui:VisualElement>
+                <ui:VisualElement class="toolbar">
+                    <ui:Label text="类型" class="field-label" />
                     <ui:DropdownField name="dropdown-cardtype" class="text-input" />
                 </ui:VisualElement>
 
-                <!-- 动态表单区：按业务类型切换（攻血/等级） -->
+                <!-- 动态表单区：按业务类型切换（生物：攻/血/等级；结界：耐久；瞬间：无） -->
                 <ui:VisualElement name="dynamic-form" />
 
                 <ui:VisualElement class="toolbar">
                     <ui:Label text="标签" class="field-label" />
                     <ui:TextField name="field-tags" class="text-input" />
-                    <ui:Label text="关键词" class="field-label" style="margin-left: 12px;" />
-                    <ui:TextField name="field-keywords" class="text-input" />
                 </ui:VisualElement>
 
                 <!-- 代价栏（2026-09-23 上移卡组合层）：单卡单条 Payload——错边原子，cast 付费步强制执行+补偿黑白 -->
                 <ui:VisualElement name="payload-zone" />
 
                 <ui:Label text="算费明细" class="panel__header" style="margin-top: 8px;" />
-                <ui:ScrollView name="list-breakdown" class="list" style="max-height: 200px;" />
+                <ui:ScrollView name="list-breakdown" class="list" style="max-height: 180px;" />
 
                 <ui:VisualElement class="toolbar">
                     <ui:Label name="lbl-suggested" text="建议费用 0" class="field-label" />
-                    <ui:Label text="主色" class="field-label" style="margin-left: 12px;" />
-                    <ui:DropdownField name="dropdown-mana" class="text-input" />
-                    <ui:Button name="btn-adopt" text="采纳费用" class="btn" />
+                    <ui:Button name="btn-adopt" text="采纳费用" class="btn btn--mini" />
                 </ui:VisualElement>
 
                 <ui:VisualElement class="toolbar">
                     <ui:Label name="lbl-cost" text="当前费用 (无)" class="field-label" />
-                </ui:VisualElement>
-
-                <ui:VisualElement class="toolbar">
+                    <ui:VisualElement class="spacer" />
                     <ui:Button name="btn-save" text="保存到卡表" class="btn btn--primary" />
                 </ui:VisualElement>
             </ui:VisualElement>
 
-            <ui:VisualElement class="column panel">
-                <ui:Label text="效果库（点击挂载到卡牌）" class="panel__header" />
-                <ui:ScrollView name="list-library" class="list" />
+            <ui:VisualElement class="column panel" style="flex-grow: 4;">
                 <ui:VisualElement class="toolbar">
                     <ui:Label text="已挂载效果" class="panel__header" style="margin-bottom: 0;" />
                     <ui:VisualElement class="spacer" />
-                    <ui:Button name="btn-new-effect" text="+ 新建效果" class="btn" />
+                    <ui:Button name="btn-new-effect" text="+ 新建效果" class="btn btn--mini" />
                 </ui:VisualElement>
-                <ui:ScrollView name="list-attached" class="list" />
+                <ui:VisualElement name="effect-library-zone" />
+                <ui:ScrollView name="list-attached" class="list" style="max-height: 240px;" />
+
+                <ui:Label text="关键词（本体=直接引用原子）" class="panel__header" style="margin-top: 8px;" />
+                <ui:VisualElement name="keyword-zone" />
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>

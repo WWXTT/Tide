@@ -64,8 +64,13 @@ namespace CardCore.Network
             return count;
         }
 
-        /// <summary>实体反问：完整请求（含 Candidates 引用）下发，await 客户端索引集。</summary>
-        public async UniTask<List<int>> SelectAsync(TargetSelectionRequest request, IReadOnlyList<string> labels)
+        /// <summary>实体反问：完整请求（含 Candidates 引用）下发，await 客户端索引集。
+        /// timeoutSeconds = 有效决策窗口（2026-09-24 竞速归属修订）——**超时竞速在本类内部自持并自清理**：
+        /// 外层 RequestAsync 曾用 WhenAny 抛弃本方法的 await，grace 胜出后 _pending 条目残留 →
+        /// HasPending 卡真 → 服务器快照取样/End 折返整局冻结（客户端表现为"选了没反应、手牌不刷新"）。
+        /// 超时返回 null（外层 AutoSelect 兜底）；迟到应答命中已移除条目会得"未知 RequestId"回执（可诊断、无副作用）。</summary>
+        public async UniTask<List<int>> SelectAsync(TargetSelectionRequest request, IReadOnlyList<string> labels,
+            float timeoutSeconds)
         {
             if (request == null || labels == null) return null;
 
@@ -76,7 +81,7 @@ namespace CardCore.Network
                 Title = request.Title,
                 Hint = request.Hint,
                 AllowCancel = request.AllowCancel,
-                TimeoutSeconds = request.TimeoutSeconds, // 0 = 客户端按引擎同款公式自算
+                TimeoutSeconds = timeoutSeconds, // 有效窗口直传：客户端倒计时=服务器兜底前 1.5s（GraceSeconds）
                 Min = request.MinCount,
                 Max = request.MaxCount,
                 // 2026-09-22 线上去文本：实体反问不传 Labels（卡名客户端按 CardId 查表，应答索引指向
@@ -104,12 +109,17 @@ namespace CardCore.Network
                 return null; // 发送失败：引擎兜底
             }
 
-            // 引擎 GraceSeconds 竞速在外层 RequestAsync——此处纯 await，超时由外层截胡
-            return await tcs.Task;
+            // 自超时竞速（+1.5s 宽限对齐外层本地路径）：无论哪边胜出都清 _pending 条目
+            var timeoutTask = UniTask.Delay(TimeSpan.FromSeconds(timeoutSeconds + GraceSeconds))
+                .ContinueWith(() => (List<int>)null);
+            var (winIndex, uiResult, _) = await UniTask.WhenAny(tcs.Task, timeoutTask);
+            _pending.Remove(msg.RequestId);
+            return winIndex == 0 ? uiResult : null;
         }
 
-        /// <summary>纯选项反问（抉择/mode）：Candidates 空、min=max=1；负索引=取消（引擎兜底 0）。</summary>
-        public async UniTask<int> SelectOneAsync(Player chooser, IReadOnlyList<string> options, string title)
+        /// <summary>纯选项反问（抉择/mode）：Candidates 空、min=max=1；负索引=取消/超时（引擎兜底 0）。</summary>
+        public async UniTask<int> SelectOneAsync(Player chooser, IReadOnlyList<string> options, string title,
+            float timeoutSeconds)
         {
             var request = new TargetSelectionRequest
             {
@@ -121,7 +131,7 @@ namespace CardCore.Network
                 AllowCancel = false,
             };
 
-            var indices = await SelectAsync(request, options);
+            var indices = await SelectAsync(request, options, timeoutSeconds);
             if (indices != null && indices.Count > 0)
             {
                 int idx = indices[0];
@@ -129,6 +139,9 @@ namespace CardCore.Network
             }
             return -1;
         }
+
+        /// <summary>超时宽限（对齐 TargetSelectionService.GraceSeconds——客户端倒计时先于此到期）。</summary>
+        private const float GraceSeconds = 1.5f;
 
         /// <summary>基接口成员：Ex 消费方不使用（RequestAsync 已分流到 SelectAsync）。</summary>
         public UniTask<List<int>> SelectIndicesAsync(IReadOnlyList<string> labels,

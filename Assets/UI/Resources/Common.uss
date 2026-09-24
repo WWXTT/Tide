@@ -654,3 +654,179 @@
 .arrow-hit--on .arrow-tri {
     border-bottom-color: rgb(148, 212, 255);
 }
+
+/* ============ 2026-09-24：对战 HUD 重做（格子化战场 + 战报侧栏） ============ */
+
+.battle-screen {
+    flex-grow: 1;
+}
+
+.battle-main {
+    flex-direction: row;
+    flex-grow: 1;
+}
+
+.battle-board {
+    flex-grow: 1;
+    flex-direction: column;
+}
+
+/* 玩家信息栏（对手在上=红调，我方在下=蓝调） */
+.battle-bar {
+    flex-direction: row;
+    align-items: center;
+    background-color: rgb(28, 31, 38);
+    border-radius: 8px;
+    border-width: 1px;
+    padding: 4px 8px;
+    margin-bottom: 4px;
+}
+
+.battle-bar--opponent {
+    border-color: rgb(120, 70, 70);
+}
+
+.battle-bar--self {
+    border-color: rgb(64, 100, 160);
+}
+
+/* 技能卡小片（FieldZone 永续魔法）：名+费用+横置态 */
+.skill-chip {
+    min-width: 88px;
+    max-width: 150px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgb(120, 100, 60);
+    background-color: rgb(46, 42, 34);
+    padding: 3px 6px;
+    margin-right: 12px;
+    color: rgb(226, 216, 190);
+    font-size: 11px;
+    white-space: normal;
+}
+
+.skill-chip--tapped {
+    opacity: 0.45;
+}
+
+/* 棋盘行：9 格横排；odd-r 六角——奇数行右偏半格（格宽 96 的一半） */
+.hex-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.hex-row--odd {
+    margin-left: 48px;
+}
+
+/* 单位格底座（常驻可见的空格；有卡时内嵌 .battle-card） */
+.hex-cell {
+    position: relative;
+    width: 96px;
+    height: 74px;
+    margin: 3px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgb(38, 42, 51);
+    background-color: rgb(26, 29, 36);
+    padding: 0;
+}
+
+.hex-cell--land {
+    width: 76px;
+    height: 62px;
+}
+
+/* 地牌格内卡（小卡） */
+.land-tokens {
+    color: rgb(170, 176, 188);
+    font-size: 10px;
+    white-space: normal;
+}
+
+/* 箭头指示点：卡面六向光环（odd-r 邻接方向）；亮起=该向有箭头 */
+.arrow-dot {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    border-radius: 5px;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.arrow-dot--on {
+    background-color: rgb(148, 212, 255);
+    box-shadow: 0 0 4px rgb(148, 212, 255);
+}
+
+/* 六方向定位（相对格子；单位格 96×74） */
+.arrow-dot--ne { top: 2px; left: 82px; }
+.arrow-dot--e  { top: 32px; left: 84px; }
+.arrow-dot--se { bottom: 2px; left: 82px; }
+.arrow-dot--sw { bottom: 2px; left: 4px; }
+.arrow-dot--w  { top: 32px; left: 3px; }
+.arrow-dot--nw { top: 2px; left: 4px; }
+
+/* 战报侧栏 */
+.battle-log {
+    width: 260px;
+    margin-left: 8px;
+}
+
+.battle-log__list {
+    flex-grow: 1;
+}
+
+.log-line {
+    color: rgb(176, 182, 194);
+    font-size: 11px;
+    white-space: normal;
+    padding: 2px 4px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(46, 51, 61, 0.5);
+}
+
+.log-line--turn {
+    color: rgb(148, 212, 255);
+    -unity-font-style: bold;
+    margin-top: 4px;
+}
+
+.log-line--combat {
+    color: rgb(235, 150, 130);
+}
+
+.log-line--system {
+    color: rgb(120, 200, 150);
+}
+
+/* 我方手牌条 */
+.battle-hand {
+    flex-direction: row;
+    flex-wrap: wrap;
+    background-color: rgb(28, 31, 38);
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgb(46, 51, 61);
+    padding: 4px;
+    margin-top: 4px;
+    min-height: 84px;
+}
+
+.battle-center__top {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+/* 发动区卡（中栏右侧摘要用小片） */
+.activation-chip {
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgb(96, 104, 118);
+    background-color: rgb(40, 38, 50);
+    color: rgb(210, 205, 224);
+    font-size: 11px;
+    padding: 2px 6px;
+    margin-left: 6px;
+}

@@ -44,14 +44,18 @@ namespace CardCore
     /// 渲染候选并回传索引——基接口只传 labels 字符串不够。
     /// 引擎侧 RequestAsync/RequestOneIndexAsync 对 Current 做 is 分流，UI 实现（UiTargetSelector）
     /// 不实现本接口则走原路径，零感知零改动。requestId 由网络选择器自管（TargetSelectionRequest 本体不加字段）。
+    ///
+    /// 2026-09-24 竞速归属修订：timeoutSeconds = 本请求的有效决策窗口——**超时竞速由 Ex 实现内部
+    /// 自持并自清理**（外层不再 WhenAny 抛弃实现的 await——那会让网络选择器的 _pending 残留，
+    /// HasPending 卡真导致服务器快照取样/End 折返整局冻结）；超时由实现返回 null，外层 AutoSelect 兜底。
     /// </summary>
     public interface ITargetSelectorEx : ITargetSelector
     {
-        /// <summary>实体反问：完整请求（含 Candidates 实体引用）+ 预生成标签；返回选中索引。</summary>
-        UniTask<List<int>> SelectAsync(TargetSelectionRequest request, IReadOnlyList<string> labels);
+        /// <summary>实体反问：完整请求（含 Candidates 实体引用）+ 预生成标签 + 决策窗口（秒）；超时返回 null。</summary>
+        UniTask<List<int>> SelectAsync(TargetSelectionRequest request, IReadOnlyList<string> labels, float timeoutSeconds);
 
-        /// <summary>纯选项反问（RequestOneIndexAsync：抉择/mode 选择，无实体）；返回选中索引。</summary>
-        UniTask<int> SelectOneAsync(Player chooser, IReadOnlyList<string> options, string title);
+        /// <summary>纯选项反问（RequestOneIndexAsync：抉择/mode 选择，无实体）+ 决策窗口（秒）；负索引=取消/超时。</summary>
+        UniTask<int> SelectOneAsync(Player chooser, IReadOnlyList<string> options, string title, float timeoutSeconds);
     }
 
     /// <summary>
@@ -72,6 +76,15 @@ namespace CardCore
         private const float MaxTimeout = 60f;
         /// <summary>UI 自动确定的宽限时间（引擎安全网 race 用）。</summary>
         private const float GraceSeconds = 1.5f;
+        /// <summary>网络反问的人类决策超时（2026-09-24）：超时梯子（10s 起）为本地 UI 调校，
+        /// 远端人类读牌远超此数——命中即被 AutoSelect 代选（弃错卡/选错目标，用户视角"选了没生效"）。
+        /// AI Chooser 走即时自动选择不受影响。</summary>
+        private const float NetworkHumanTimeoutSeconds = 120f;
+
+        /// <summary>在途反问数（2026-09-24）：End→Standby 折返门用——手牌上限弃牌等回合末
+        /// 异步链未收口前不得折返（否则弃牌与新回合抽牌交错、手牌口径漂移）。
+        /// 静态计数对本地 UI 与网络选择器通用（网络侧另有 NetRoom.HasPending 同向门）。</summary>
+        public static int PendingRequests { get; private set; }
 
         /// <summary>
         /// 通用目标选择。返回玩家选中的实体列表（自动选择时为候选前 MinCount 个）。
@@ -90,27 +103,43 @@ namespace CardCore
             float timeout = req.TimeoutSeconds > 0f ? req.TimeoutSeconds : ComputeTimeout();
             var labels = req.Candidates.Select(DescribeEntity).ToList();
 
-            // UI 任务与安全网超时竞速：UI 漏掉自动确定时引擎兜底。
-            // M1 分流：扩展选择器（网络）拿完整请求（含 Candidates 实体引用），基接口走原路径
-            var uiTask = Current is ITargetSelectorEx ex
-                ? ex.SelectAsync(req, labels)
-                : Current.SelectIndicesAsync(
-                    labels, req.MinCount, req.MaxCount, req.Title, req.Hint, req.AllowCancel, timeout);
-            var graceTask = UniTask.Delay(System.TimeSpan.FromSeconds(timeout + GraceSeconds))
-                .ContinueWith(() => (List<int>)null);
-
-            var (winIndex, uiResult, graceResult) = await UniTask.WhenAny(uiTask, graceTask);
-            var indices = winIndex == 0 ? uiResult : graceResult;
-
-            // 安全网超时（grace 胜出，winIndex==1）或 UI 返回空
-            if (winIndex != 0 || indices == null || indices.Count == 0)
+            PendingRequests++;
+            try
             {
-                if (winIndex == 0 && req.AllowCancel)
-                    return new List<Entity>();
-                return AutoSelect(req.Candidates, req.MinCount);
+            List<int> indices;
+            if (Current is ITargetSelectorEx ex)
+            {
+                // 网络（Ex）+ 人类决策 → 拉长到网络人类档（梯子是本地 UI 口径）。
+                // 竞速唯一归属=Ex 实现内部（自超时并自清理 _pending——2026-09-24 泄漏修复，
+                // 此前外层 WhenAny 抛弃实现的 await，超时胜出后 _pending 残留 → HasPending 卡真
+                // → 快照取样/End 折返整局冻结，客户端表现为"选了没反应、手牌不刷新"）。
+                if (req.TimeoutSeconds <= 0f && (req.Chooser == null || !req.Chooser.IsAI))
+                    timeout = NetworkHumanTimeoutSeconds;
+                indices = await ex.SelectAsync(req, labels, timeout);
+            }
+            else
+            {
+                // 本地 UI：UI 任务与安全网超时竞速（UI 漏掉自动确定时引擎兜底）
+                var uiTask = Current.SelectIndicesAsync(
+                    labels, req.MinCount, req.MaxCount, req.Title, req.Hint, req.AllowCancel, timeout);
+                var graceTask = UniTask.Delay(System.TimeSpan.FromSeconds(timeout + GraceSeconds))
+                    .ContinueWith(() => (List<int>)null);
+
+                var (winIndex, uiResult, graceResult) = await UniTask.WhenAny(uiTask, graceTask);
+                indices = winIndex == 0 ? uiResult : graceResult;
             }
 
-            return MapIndices(req.Candidates, indices);
+                if (indices == null)
+                    return AutoSelect(req.Candidates, req.MinCount); // 超时（安全网）：自动代选
+                if (indices.Count == 0)
+                    return req.AllowCancel ? new List<Entity>() : AutoSelect(req.Candidates, req.MinCount);
+
+                return MapIndices(req.Candidates, indices);
+            }
+            finally
+            {
+                PendingRequests--;
+            }
         }
 
         /// <summary>
@@ -127,29 +156,36 @@ namespace CardCore
 
             float timeout = ComputeTimeout();
 
-            // M1 分流：扩展选择器（网络）走 SelectOneAsync（带 chooser），基接口走原路径
-            var uiTask = Current is ITargetSelectorEx ex
-                ? WrapOne(ex.SelectOneAsync(chooser, options, title))
-                : Current.SelectIndicesAsync(options, 1, 1, title, "", false, timeout);
-            var graceTask = UniTask.Delay(System.TimeSpan.FromSeconds(timeout + GraceSeconds))
-                .ContinueWith(() => (List<int>)null);
-
-            var (winIndex, uiResult, graceResult) = await UniTask.WhenAny(uiTask, graceTask);
-            var indices = winIndex == 0 ? uiResult : graceResult;
-
-            if (winIndex == 0 && indices != null && indices.Count > 0)
+            PendingRequests++;
+            try
             {
-                int idx = indices[0];
-                if (idx >= 0 && idx < options.Count) return idx;
-            }
-            return 0;
-        }
+                // M1 分流 + 2026-09-24 竞速归属修订：Ex（网络）自持超时并自清理；人类决策拉长到网络档
+                if (Current is ITargetSelectorEx ex)
+                {
+                    if (chooser == null || !chooser.IsAI)
+                        timeout = NetworkHumanTimeoutSeconds;
+                    var picked = await ex.SelectOneAsync(chooser, options, title, timeout);
+                    return picked >= 0 && picked < options.Count ? picked : 0;
+                }
 
-        /// <summary>SelectOneAsync（int）适配到 WhenAny 竞速的 List&lt;int&gt; 形态；负索引视为取消（走兜底 0）。</summary>
-        private static async UniTask<List<int>> WrapOne(UniTask<int> task)
-        {
-            int idx = await task;
-            return idx >= 0 ? new List<int> { idx } : null;
+                var uiTask = Current.SelectIndicesAsync(options, 1, 1, title, "", false, timeout);
+                var graceTask = UniTask.Delay(System.TimeSpan.FromSeconds(timeout + GraceSeconds))
+                    .ContinueWith(() => (List<int>)null);
+
+                var (winIndex, uiResult, graceResult) = await UniTask.WhenAny(uiTask, graceTask);
+                var indices = winIndex == 0 ? uiResult : graceResult;
+
+                if (winIndex == 0 && indices != null && indices.Count > 0)
+                {
+                    int idx = indices[0];
+                    if (idx >= 0 && idx < options.Count) return idx;
+                }
+                return 0;
+            }
+            finally
+            {
+                PendingRequests--;
+            }
         }
 
         /// <summary>回合数递增超时：min(10 + 5×(回合−1), 60)。</summary>

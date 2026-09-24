@@ -564,7 +564,10 @@ namespace CardCore.Editor
                 for (int i = 0; i < over; i++)
                     core.ZoneManager.DrawCard(core.Player1);
 
-                Assert(GameActions.SkipElementPool(core, core.Player1), "进入主阶段");
+                // 2026-09-24 回合推进口径：准备阶段由引擎自动推进入主（StartNewTurn 即 AdvanceFromStandby）
+                // ——SkipElementPool 保留兼容但正常流程不再需要（调用时相位已是 Main，返回 false）
+                Assert(core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main,
+                    "准备阶段已自动推进入主阶段（2026-09-24 口径）");
                 Assert(GameActions.EndTurn(core, core.Player1), "结束 P1 回合（触发手牌上限弃牌反问）");
                 // EnforceHandLimitAsync 为 fire-and-forget，但回环选择器同步完成 → 链路同步收敛
                 int after = core.ZoneManager.GetCards(core.Player1, Zone.Hand).Count;
@@ -1239,7 +1242,8 @@ namespace CardCore.Editor
                     TargetSelectionService.Current = null;
             }
 
-            public UniTask<List<int>> SelectAsync(TargetSelectionRequest request, IReadOnlyList<string> labels)
+            public UniTask<List<int>> SelectAsync(TargetSelectionRequest request, IReadOnlyList<string> labels,
+                float timeoutSeconds)
             {
                 var msg = new MsgSelectRequest
                 {
@@ -1277,7 +1281,8 @@ namespace CardCore.Editor
                 return UniTask.FromResult(decodedResponse.Indices.ToList());
             }
 
-            public UniTask<int> SelectOneAsync(Player chooser, IReadOnlyList<string> options, string title)
+            public UniTask<int> SelectOneAsync(Player chooser, IReadOnlyList<string> options, string title,
+                float timeoutSeconds)
                 => UniTask.FromResult(0);
 
             public UniTask<List<int>> SelectIndicesAsync(IReadOnlyList<string> labels,

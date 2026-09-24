@@ -19,7 +19,7 @@ namespace SynergyUI
     {
         private const string FilePathRelative = "Card/Effects.json";
 
-        private static string FilePath => Path.Combine(Application.streamingAssetsPath, FilePathRelative);
+        private static string FilePath => CardDataPaths.FileIn("Effects.json"); // 路径收口（2026-09-24）
 
         [Serializable]
         private class Wrapper { public List<EffectSlimDto> items; }

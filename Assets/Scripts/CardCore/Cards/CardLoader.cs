@@ -62,6 +62,9 @@ namespace CardCore
         public bool noAttack;
         public bool noGuard;
         public bool surplusToSpeed;
+
+        // 结界耐久（2026-09-24 定案：结界=耐久体，被攻击每次仅损失 1 点，归零销毁；0=无）——生物不使用
+        public int durability;
     }
 
     /// <summary>
@@ -171,7 +174,7 @@ namespace CardCore
                 result.Add(cardData);
             }
 
-            WarnCostNonConformance(result);
+            // D≤C 超模校验已移除（2026-09-24 定案：效果层纯表累加、卡层只算减费，直判无意义）
             ValidateComboDomains(result);
             ValidateMountHosts(result);
             ValidateRandomParams(result);
@@ -511,7 +514,7 @@ namespace CardCore
                 result.Add(cardData);
             }
 
-            WarnCostNonConformance(result);
+            // D≤C 超模校验已移除（2026-09-24 定案：效果层纯表累加、卡层只算减费，直判无意义）
             ValidateComboDomains(result);
             ValidateMountHosts(result);
             ValidateRandomParams(result);
@@ -599,14 +602,33 @@ namespace CardCore
                 ArrowDirections = ParseFlags<HexDirection>(entry.arrows),
             };
 
-            // 效果引用解析（2026-09-14）：effectIds 非空 → 从 Effects.json 还原（内嵌 effects 被忽略）
+            // 效果引用解析（2026-09-14；2026-09-24 关键词引用化）：effectIds 双路——
+            // Effects.json 命中=组合效果；**原子表命中=本体关键词**（直接引用原子效果即关键词，
+            // 引用组合效果中的赋予族=赋予关键词）。非 Grant 原子直接引用无语义，点名跳过。
+            // legacy keywords 列兼容读取（迁移前数据/反查失败的引擎专用词），与原子引用合并去重。
             if (entry.effectIds != null && entry.effectIds.Count > 0)
             {
                 var resolved = new List<CardEffectData>();
                 foreach (var eid in entry.effectIds)
                 {
                     var effect = EffectsLibrary.Resolve(eid);
-                    if (effect != null) resolved.Add(effect);
+                    if (effect != null) { resolved.Add(effect); continue; }
+
+                    var atom = AtomicEffectTable.GetByHashId(eid);
+                    if (atom == null)
+                    {
+                        Debug.LogWarning($"[CardLoader] {entry.id}：effectIds 引用 {eid} 既不在效果库也不在原子表——跳过");
+                        continue;
+                    }
+                    if (Enum.TryParse<AtomicEffectType>(atom.EnumName, out var grantType)
+                        && GrantKeywordHandlerFactory.TryGetKeywordId(grantType, out var kwId))
+                    {
+                        if (!cardData.Keywords.Contains(kwId)) cardData.Keywords.Add(kwId);
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[CardLoader] {entry.id}：原子 {atom.EnumName} 非 Grant 族——不可作本体关键词，跳过");
+                    }
                 }
                 cardData.Effects = resolved;
             }
@@ -628,24 +650,13 @@ namespace CardCore
             cardData.NoGuard = entry.noGuard;
             cardData.SurplusToSpeed = entry.surplusToSpeed;
 
+            // 结界耐久（2026-09-24 定案）：数据字段先行采集，战斗侧执行待做
+            cardData.Durability = entry.durability;
+
             // 统一计价兜底：costList 缺省 → 写入建议档位分布（幂等，非空不动）
             CardCostService.EnsureCost(cardData);
 
             return cardData;
-        }
-
-        /// <summary>
-        /// 装载期构筑校验（提示级）：声明档位的卡若 D &gt; C（规则一 2026-09-11 简化口径）打警告，不阻止加载。
-        /// </summary>
-        private static void WarnCostNonConformance(List<CardData> cards)
-        {
-            foreach (var card in cards)
-            {
-                if (card?.Cost == null || card.Cost.Count == 0) continue;
-                var r = CardCostService.Derive(card);
-                if (!r.Conformant)
-                    Debug.LogWarning($"[CardCost] {card.ID}({card.CardName}) 不符规则一：D={r.DerivedTotal} > C={r.DeclaredTier}（超模 {r.OffsetRequirement}）");
-            }
         }
 
         /// <summary>

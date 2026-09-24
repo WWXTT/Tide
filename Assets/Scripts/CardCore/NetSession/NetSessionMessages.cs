@@ -97,4 +97,82 @@ namespace CardCore.Network
         /// <summary>对局结束（正常终局或断线作废）。重开 = 全员断开后房间回 Waiting 再进。</summary>
         Finished = 3,
     }
+
+    // ============================================================
+    // 大厅层（L1，2026-09-24 定案）：房间列表 + 自动匹配 + AI 填位，见 网络协议.md §13。
+    // 连接后可先 LobbyHello(130) 进大厅浏览房间，再 LobbyCreateRoom/LobbyJoinRoom/
+    // LobbyAutoMatch 入房；也可直接 JoinRoom(112) 跳过大厅（M2 兼容路径）。
+    // 单房串行：GameCore 进程单例 → 一个进程同时只一局；房间占用期间创建/配对排队等待，
+    // 房间回收（Finished + 全员离开 → Waiting）后队列自动补位。真并发多局需专用服务器构建（后置）。
+    // ============================================================
+
+    /// <summary>上行：进大厅（连接后第一条，登记昵称）——服务器回 LobbyState。</summary>
+    [MemoryPackable]
+    public partial class MsgLobbyHello
+    {
+        [MemoryPackOrder(TagTable.MLH_Nickname)]
+        public string Nickname;
+    }
+
+    /// <summary>下行：大厅全量状态（任何房间/队列变化时推送给大厅相位连接）。</summary>
+    [MemoryPackable]
+    public partial class MsgLobbyState
+    {
+        [MemoryPackOrder(TagTable.MLS_Rooms)]
+        public MsgLobbyRoomInfo[] Rooms;
+
+        [MemoryPackOrder(TagTable.MLS_QueuedCount)]
+        public int QueuedCount;
+    }
+
+    /// <summary>房间列表条目（单房串行 v1：Rooms 恒 0..1 条——空房不列）。</summary>
+    [MemoryPackable]
+    public partial class MsgLobbyRoomInfo
+    {
+        [MemoryPackOrder(TagTable.MLRI_RoomId)]
+        public string RoomId;
+
+        [MemoryPackOrder(TagTable.MLRI_Name)]
+        public string Name;
+
+        [MemoryPackOrder(TagTable.MLRI_Phase)]
+        public int Phase;
+
+        [MemoryPackOrder(TagTable.MLRI_PlayerCount)]
+        public int PlayerCount;
+
+        [MemoryPackOrder(TagTable.MLRI_Nicknames)]
+        public string[] Nicknames;
+
+        [MemoryPackOrder(TagTable.MLRI_SpectatorCount)]
+        public int SpectatorCount;
+    }
+
+    /// <summary>上行：创建房间（房间名；单房串行——现有房间未回收时拒绝）。</summary>
+    [MemoryPackable]
+    public partial class MsgLobbyCreateRoom
+    {
+        [MemoryPackOrder(TagTable.MLCR_RoomName)]
+        public string RoomName;
+    }
+
+    /// <summary>上行：从列表加入指定房间（内部走 JoinRoom 分座；房间锁定/已满由房间侧拒绝）。</summary>
+    [MemoryPackable]
+    public partial class MsgLobbyJoinRoom
+    {
+        [MemoryPackOrder(TagTable.MLJR_RoomId)]
+        public string RoomId;
+    }
+
+    /// <summary>上行：AI 填位（房内玩家请求）——服务器向自身回环发起 NetClientBrain 客户端
+    /// 连接占用剩余空位；对房间而言就是一个普通 TCP 客户端（走完整握手与锁步）。</summary>
+    [MemoryPackable]
+    public partial class MsgLobbyAddAi
+    {
+        [MemoryPackOrder(TagTable.MLAA_RoomId)]
+        public string RoomId;
+
+        [MemoryPackOrder(TagTable.MLAA_Nickname)]
+        public string Nickname;
+    }
 }

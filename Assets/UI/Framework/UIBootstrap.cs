@@ -77,9 +77,14 @@ namespace SynergyUI
         /// <summary>
         /// 每帧驱动引擎主循环（结算栈）。对战界面依赖它推进栈/触发结算；
         /// 非对局进行中时 GameCore.Update 内部自检空转，无副作用。
+        /// 2026-09-24 双驱动闸：同进程宿主网络对局（大厅/会话服务器）期间停驱——
+        /// 引擎由服务器泵独占驱动，此处再驱会双驱动（响应窗口/触发收集被两路交错管理）。
         /// </summary>
         private void Update()
         {
+            if (CardCore.Network.NetLobbyServer.IsRunning
+                || CardCore.Network.NetSessionServer.IsRunning)
+                return;
             GameCore.Instance?.Update();
         }
     }

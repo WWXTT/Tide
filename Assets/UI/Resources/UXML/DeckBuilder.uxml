@@ -4,31 +4,49 @@
         <!-- 顶部工具栏 -->
         <ui:VisualElement class="toolbar">
             <ui:Button name="btn-back" text="返回" class="btn" />
-            <ui:Label text="卡组构筑" class="screen__title" style="margin-bottom: 0; margin-left: 8px;" />
+            <ui:Label text="卡组构建" class="screen__title" style="margin-bottom: 0; margin-left: 8px;" />
             <ui:VisualElement class="spacer" />
-            <ui:Label name="lbl-summary" text="卡数 0 · 合计费用 0" class="list-row__meta" />
-        </ui:VisualElement>
-
-        <!-- 存档工具栏 -->
-        <ui:VisualElement class="toolbar">
-            <ui:Label text="卡组名" class="field-label" />
-            <ui:TextField name="field-deck-name" class="text-input" value="新卡组" />
-            <ui:Button name="btn-save" text="保存" class="btn btn--primary" />
-            <ui:Label text="读取" class="field-label" style="margin-left: 12px;" />
-            <ui:DropdownField name="dropdown-decks" class="text-input" />
-            <ui:Button name="btn-load" text="载入" class="btn" />
             <ui:Label name="lbl-toast" text="" class="toast" />
         </ui:VisualElement>
 
-        <!-- 两栏：左=全部卡牌，右=当前卡组 -->
+        <!-- 三栏（2026-09-24 定案）：左=效果预览，中=当前卡组+统计，右=卡牌列表 -->
         <ui:VisualElement class="columns">
-            <ui:VisualElement class="column panel">
-                <ui:Label text="卡牌总表（点击加入）" class="panel__header" />
-                <ui:ScrollView name="list-catalog" class="list" />
+            <ui:VisualElement class="column panel" style="flex-grow: 3;">
+                <ui:Label text="效果预览（点击卡牌/卡组行显示）" class="panel__header" />
+                <ui:ScrollView name="preview-zone" class="list" />
             </ui:VisualElement>
-            <ui:VisualElement class="column panel">
-                <ui:Label text="当前卡组（点击移除）" class="panel__header" />
+
+            <ui:VisualElement class="column panel" style="flex-grow: 4;">
+                <ui:VisualElement class="toolbar">
+                    <ui:Label text="卡组名" class="field-label" />
+                    <ui:TextField name="field-deck-name" class="text-input" />
+                </ui:VisualElement>
+                <ui:VisualElement class="toolbar">
+                    <ui:DropdownField name="dropdown-decks" class="text-input" />
+                    <ui:Button name="btn-load" text="读取" class="btn btn--mini" />
+                    <ui:Button name="btn-delete" text="删除" class="btn btn--mini btn--danger" />
+                </ui:VisualElement>
+                <ui:VisualElement class="toolbar">
+                    <ui:Label name="lbl-summary" text="卡数 0" class="field-label" />
+                    <ui:VisualElement class="spacer" />
+                    <ui:Button name="btn-save" text="保存卡组" class="btn btn--primary" />
+                </ui:VisualElement>
+
+                <!-- 统计区：费用曲线 / 颜色分布 / 类型比例 / 英雄技能预览 -->
+                <ui:VisualElement name="stats-zone" />
+
+                <ui:Label text="当前卡组（点击行预览，按钮移除）" class="panel__header" style="margin-top: 8px;" />
                 <ui:ScrollView name="list-deck" class="list" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="column panel" style="flex-grow: 4;">
+                <ui:Label text="卡牌列表（点击行预览，按钮添加）" class="panel__header" />
+                <ui:VisualElement name="catalog-filter" class="filter-bar" />
+                <ui:VisualElement class="toolbar">
+                    <ui:Label text="搜索" class="field-label" />
+                    <ui:TextField name="field-search" class="text-input" />
+                </ui:VisualElement>
+                <ui:ScrollView name="list-catalog" class="list" />
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>

@@ -75,8 +75,15 @@ namespace CardCore
                 }
                 else
                 {
-                    // 8. 栈为空，尝试推进阶段
-                    _turnEngine.CheckPhaseTransition();
+                    // 8.（2026-09-24 回合推进口径收敛）**只做 End→Standby 折返**，且等回合末
+                    //    异步链（手牌上限弃牌等反问）收口——旧"空栈即自由滑当前阶段"会把主要
+                    //    阶段滑进结束（同进程双驱动时整局相位空转、每圈多抽一张牌）；
+                    //    准备→主已由引擎自动推进（TurnEngine.StartNewTurn），主→结束仅 IntentEndTurn。
+                    if (_turnEngine.CurrentPhase?.Phase == PhaseType.End
+                        && CardCore.TargetSelectionService.PendingRequests == 0)
+                    {
+                        _turnEngine.CheckPhaseTransition();
+                    }
                 }
             }
         }

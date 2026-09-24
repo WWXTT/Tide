@@ -14,6 +14,9 @@
             "dropZone": 0,
             "engine": 3,
             "engineParam": 1,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [
                 {
                     "type": 7,
@@ -56,6 +59,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -93,6 +104,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 6
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -130,6 +149,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -167,6 +194,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 4,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -204,6 +239,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 6
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -241,6 +284,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -278,6 +329,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -315,6 +374,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -352,6 +419,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 4,
+                    "value": 4
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -389,6 +464,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 4
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -426,6 +509,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 4,
+                    "value": 4
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -463,6 +554,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 6
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -500,6 +599,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 6
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -537,6 +644,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -574,6 +689,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -611,6 +734,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 4,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -648,6 +779,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -685,6 +824,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 4
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -722,6 +869,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 4
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -759,6 +914,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 6
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -796,6 +959,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 4,
+                    "value": 6
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -833,6 +1004,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [
                 {
                     "type": 7,
@@ -884,6 +1058,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -902,6 +1079,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 5
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -939,6 +1124,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -976,6 +1169,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1013,6 +1214,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1050,6 +1259,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 3
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1087,6 +1304,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1124,6 +1349,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1161,6 +1394,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 6
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1198,6 +1439,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 5
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1253,6 +1502,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 3
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1290,6 +1547,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 6
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1327,6 +1592,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 5
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1364,6 +1637,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 3
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1401,6 +1682,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1438,6 +1727,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 5
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1493,6 +1790,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -1530,6 +1830,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 6
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1565,6 +1873,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 9
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1600,6 +1916,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 6
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1637,6 +1961,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1674,6 +2006,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1711,6 +2051,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 3
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1748,6 +2096,18 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 1
+                },
+                {
+                    "mana": 3,
+                    "value": 6
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1803,6 +2163,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1840,6 +2208,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1877,6 +2253,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1914,6 +2298,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1951,6 +2343,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -1988,6 +2388,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2025,6 +2433,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 6
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2062,6 +2478,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 6
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2117,6 +2541,18 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 2
+                },
+                {
+                    "mana": 5,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2172,6 +2608,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 8
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2227,6 +2671,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 3
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2264,6 +2716,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 5
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2301,6 +2761,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 5
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2338,6 +2806,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 3
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2375,6 +2851,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -2426,6 +2905,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -2477,6 +2959,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2514,6 +3004,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 18
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2551,6 +3049,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 3
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2606,6 +3112,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 4,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2643,6 +3157,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 4,
+                    "value": 3
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2698,6 +3220,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 4,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2735,6 +3265,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 4,
+                    "value": 5
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2772,6 +3310,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 4,
+                    "value": 5
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2809,6 +3355,14 @@
             "dropZone": 1,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 4,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2844,6 +3398,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 9
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2881,6 +3443,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 4
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2918,6 +3488,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2953,6 +3531,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -2988,6 +3574,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3023,6 +3617,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 4
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3060,6 +3662,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 4
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3097,6 +3707,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3134,6 +3752,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 4,
+                    "value": 2
+                }
+            ],
             "costs": [
                 {
                     "type": 7,
@@ -3185,6 +3811,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 4,
+                    "value": 1
+                }
+            ],
             "costs": [
                 {
                     "type": 7,
@@ -3236,6 +3870,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3273,6 +3915,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 3
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3310,6 +3960,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 4
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3347,6 +4005,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 5
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3384,6 +4050,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3421,6 +4095,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3458,6 +4140,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 3
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3495,6 +4185,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 4
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3532,6 +4230,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3569,6 +4275,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3606,6 +4320,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 3
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3643,6 +4365,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3680,6 +4410,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3715,6 +4453,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 3
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3750,6 +4496,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3785,6 +4539,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 8
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3822,6 +4584,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -3840,6 +4605,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 3
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3877,6 +4650,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3914,6 +4695,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 3,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3951,6 +4740,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -3988,6 +4785,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -4025,6 +4830,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 4,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -4062,6 +4875,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -4099,6 +4920,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -4136,6 +4965,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -4173,6 +5010,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 1
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -4210,6 +5055,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -4247,6 +5100,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -4284,6 +5145,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -4319,6 +5183,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -4354,6 +5221,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -4389,6 +5259,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 6
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -4424,6 +5302,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 3
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -4459,6 +5345,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 4
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -4494,6 +5388,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 5,
+                    "value": 3
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -4529,6 +5431,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 2,
+                    "value": 2
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -4564,6 +5474,14 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                {
+                    "mana": 1,
+                    "value": 4
+                }
+            ],
             "costs": [],
             "steps": [
                 {
@@ -4601,6 +5519,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4619,6 +5540,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4637,6 +5561,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4655,6 +5582,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4673,6 +5603,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4691,6 +5624,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4709,6 +5645,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4727,6 +5666,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [
                 {
                     "type": 7,
@@ -4761,6 +5703,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [
                 {
                     "type": 7,
@@ -4795,6 +5740,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4813,6 +5761,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4831,6 +5782,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4849,6 +5803,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4867,6 +5824,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4885,6 +5845,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4903,6 +5866,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4921,6 +5887,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4939,6 +5908,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4957,6 +5929,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4975,6 +5950,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -4993,6 +5971,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5011,6 +5992,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5029,6 +6013,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5047,6 +6034,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5065,6 +6055,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5083,6 +6076,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5101,6 +6097,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5119,6 +6118,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5137,6 +6139,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5155,6 +6160,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5173,6 +6181,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5191,6 +6202,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5209,6 +6223,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5227,6 +6244,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5245,6 +6265,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5263,6 +6286,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5281,6 +6307,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5299,6 +6328,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5317,6 +6349,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5335,6 +6370,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5353,6 +6391,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5371,6 +6412,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [],
             "rewards": []
@@ -5389,6 +6433,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -5450,6 +6497,9 @@
             "dropZone": 1,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -5487,6 +6537,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -5524,6 +6577,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -5559,6 +6615,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -5594,6 +6653,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -5629,6 +6691,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -5666,6 +6731,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -5703,6 +6771,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -5740,6 +6811,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [
                 {
                     "type": 7,
@@ -5791,6 +6865,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [
                 {
                     "type": 7,
@@ -5842,6 +6919,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -5879,6 +6959,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -5916,6 +6999,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -5953,6 +7039,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -5990,6 +7079,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6027,6 +7119,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6064,6 +7159,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6101,6 +7199,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6138,6 +7239,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6175,6 +7279,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6212,6 +7319,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6249,6 +7359,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6286,6 +7399,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6321,6 +7437,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6356,6 +7475,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6391,6 +7513,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6428,6 +7553,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6465,6 +7593,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6502,6 +7633,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6539,6 +7673,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6576,6 +7713,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6613,6 +7753,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6650,6 +7793,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6687,6 +7833,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6724,6 +7873,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6761,6 +7913,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6798,6 +7953,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6835,6 +7993,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6872,6 +8033,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6909,6 +8073,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6944,6 +8111,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -6979,6 +8149,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -7014,6 +8187,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [],
             "steps": [
                 {
@@ -7049,6 +8225,9 @@
             "dropZone": 0,
             "engine": 0,
             "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [],
             "costs": [
                 {
                     "type": 7,
