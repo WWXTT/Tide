@@ -28,7 +28,9 @@ namespace CardCore
             _items = new List<EffectSlimDto>();
             try
             {
-                string path = Path.Combine(Application.streamingAssetsPath, ConfigRelative);
+                // 路径收口（2026-09-24）：经 SynergyUI.CardDataPaths——编辑器 StreamingAssets / 玩家 persistentData
+                SynergyUI.CardDataPaths.EnsureBootstrap();
+                string path = SynergyUI.CardDataPaths.FileIn("Effects.json");
                 if (!File.Exists(path))
                 {
                     Debug.LogWarning($"[EffectsLibrary] 效果库不存在: {path}（卡表 effectIds 引用将解析为空）");

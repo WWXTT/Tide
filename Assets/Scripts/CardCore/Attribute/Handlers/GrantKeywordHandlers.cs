@@ -132,5 +132,23 @@ namespace CardCore.Attribute.Handlers
             keywordId = null;
             return false;
         }
+
+        /// <summary>运行时关键词 id → 原子表行 HashId（2026-09-24 关键词引用化：
+        /// 卡表 effectIds 直接存原子 refId=本体关键词——写出端经此反查 refId，装载端正向解析）。
+        /// 未登记（无 Spec 或表行缺失）返回 false。</summary>
+        public static bool TryGetAtomRefId(string keywordId, out string refId)
+        {
+            refId = null;
+            if (string.IsNullOrEmpty(keywordId)) return false;
+            foreach (var spec in Specs)
+            {
+                if (spec.keywordId != keywordId) continue;
+                var row = AtomicEffectTable.GetByEnumName(spec.type.ToString());
+                if (row == null || string.IsNullOrEmpty(row.HashId)) return false;
+                refId = row.HashId;
+                return true;
+            }
+            return false;
+        }
     }
 }

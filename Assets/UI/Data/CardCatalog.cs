@@ -40,7 +40,8 @@ namespace SynergyUI
             _loading = true;
             try
             {
-                string path = Path.Combine(Application.streamingAssetsPath, CardsConfigRelative);
+                CardDataPaths.EnsureBootstrap(); // 玩家端首启引导（编辑器空操作）
+                string path = CardDataPaths.FileIn("Cards.json");
                 if (!File.Exists(path))
                 {
                     Debug.LogWarning($"[CardCatalog] 卡表未找到: {path}");

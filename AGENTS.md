@@ -10,6 +10,5 @@
 
 ## 数据文件铁律
 
-- **配置表**：`Assets/Configs/AttributeValueConfig.json`（原子效果表，唯一权威）——调平衡只改它，不改代码。
-- **用户数据**：`Assets/StreamingAssets/Card/` 下的 `Cards.json` / `Effects.json` / 卡组 JSON——效果、卡、卡组都是用户数据，不得放进 Configs。
+- **配置表**：`Assets/Configs/AttributeValueConfig.json`，原子效果表，唯一权威。
 - 三层引用链（卡组→卡 ID→effectIds→原子表 refId）不得倒退回内嵌格式。

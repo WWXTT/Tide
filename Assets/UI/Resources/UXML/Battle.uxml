@@ -1,0 +1,108 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="../Common.uss" />
+    <ui:VisualElement name="root" class="screen battle-screen">
+        <ui:VisualElement class="toolbar">
+            <ui:Button name="btn-back" text="返回" class="btn" />
+            <ui:Label text="对战" class="screen__title" style="margin-bottom: 0; margin-left: 8px;" />
+            <ui:Label name="lbl-mode" text="本地·AI" class="battle-meta" />
+            <ui:VisualElement class="spacer" />
+            <ui:Label name="lbl-toast" text="" class="toast" />
+        </ui:VisualElement>
+
+        <!-- 主体：左=棋盘主区，右=战报栏 -->
+        <ui:VisualElement class="battle-main">
+            <ui:VisualElement name="board" class="battle-board">
+                <!-- 对手信息栏（上） -->
+                <ui:VisualElement name="opp-bar" class="battle-bar battle-bar--opponent">
+                    <ui:Label name="lbl-opp-name" text="对手" class="battle-side__name" />
+                    <ui:Label name="lbl-opp-life" text="生命 30" class="life-badge" />
+                    <ui:Label name="lbl-opp-deck" text="牌库 0" class="battle-meta" />
+                    <ui:Label name="lbl-opp-hand" text="手牌 0" class="battle-meta" />
+                    <ui:Label name="lbl-opp-grave" text="墓地 0" class="battle-meta" />
+                    <ui:Label name="lbl-opp-fatigue" text="" class="battle-meta" />
+                    <ui:VisualElement class="spacer" />
+                    <ui:VisualElement name="opp-skill" class="skill-chip" />
+                    <ui:Label name="lbl-opp-bank" text="元素池 —" class="battle-meta" />
+                </ui:VisualElement>
+
+                <!-- 对手地牌行（z=1，odd-r 奇数行右偏半格） -->
+                <ui:VisualElement name="opp-lands" class="hex-row hex-row--odd" />
+                <!-- 对手单位区两行（z=2 偶 / z=3 奇·近中线） -->
+                <ui:VisualElement name="opp-units-near" class="hex-row" />
+                <ui:VisualElement name="opp-units-far" class="hex-row hex-row--odd" />
+
+                <!-- 中区：回合/阶段/栈/操作 -->
+                <ui:VisualElement class="battle-center">
+                    <ui:VisualElement class="battle-center__top">
+                        <ui:Label name="lbl-phase" text="回合 1 · 准备阶段" class="phase-bar" />
+                        <ui:Label name="lbl-stack" text="栈：空" class="battle-meta" />
+                        <ui:Label name="lbl-priority" text="" class="battle-meta" />
+                        <ui:VisualElement class="spacer" />
+                        <ui:Label name="lbl-activation" text="" class="battle-meta" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="battle-actions">
+                        <ui:Button name="btn-skip-standby" text="跳过准备" class="btn btn--mini" />
+                        <ui:Button name="btn-grave-play" text="墓地使用" class="btn btn--mini" />
+                        <ui:Button name="btn-activate-skill" text="发动技能" class="btn btn--mini" />
+                        <ui:Button name="btn-pass-priority" text="让过优先权" class="btn btn--mini" />
+                        <ui:Button name="btn-end-turn" text="结束回合" class="btn btn--primary btn--mini" />
+                        <ui:Button name="btn-concede" text="投降" class="btn btn--danger btn--mini" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- 我方单位区两行（z=4 偶 / z=5 奇） -->
+                <ui:VisualElement name="self-units-far" class="hex-row" />
+                <ui:VisualElement name="self-units-near" class="hex-row hex-row--odd" />
+                <!-- 我方地牌行（z=6 偶） -->
+                <ui:VisualElement name="self-lands" class="hex-row" />
+
+                <!-- 我方信息栏（下） -->
+                <ui:VisualElement name="self-bar" class="battle-bar battle-bar--self">
+                    <ui:VisualElement name="self-skill" class="skill-chip" />
+                    <ui:Label name="lbl-self-bank" text="元素池 —" class="battle-meta" />
+                    <ui:VisualElement class="spacer" />
+                    <ui:Label name="lbl-self-fatigue" text="" class="battle-meta" />
+                    <ui:Label name="lbl-self-grave" text="墓地 0" class="battle-meta" />
+                    <ui:Label name="lbl-self-deck" text="牌库 0" class="battle-meta" />
+                    <ui:Label name="lbl-self-hand" text="手牌 0" class="battle-meta" />
+                    <ui:Label name="lbl-self-life" text="生命 30" class="life-badge" />
+                    <ui:Label name="lbl-self-name" text="我方" class="battle-side__name" />
+                </ui:VisualElement>
+
+                <!-- 我方手牌 -->
+                <ui:VisualElement name="self-hand" class="battle-hand" />
+            </ui:VisualElement>
+
+            <!-- 战报栏（右） -->
+            <ui:VisualElement class="battle-log panel">
+                <ui:Label text="战报" class="panel__header" />
+                <ui:ScrollView name="log-list" class="list battle-log__list" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 通用选择弹窗（目标/模式/攻击/响应/网络反问/胜负） -->
+        <ui:VisualElement name="overlay" class="overlay" style="display:none;">
+            <ui:VisualElement class="overlay__panel">
+                <ui:Label name="overlay-title" text="标题" class="screen__title" />
+                <ui:Label name="overlay-hint" text="" class="battle-meta" />
+                <ui:ScrollView name="overlay-list" class="list" style="max-height: 360px;" />
+                <ui:Button name="overlay-cancel" text="取消" class="btn" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 目标选择器（UiTargetSelector 既有 DOM 契约） -->
+        <ui:VisualElement name="selector-overlay" class="overlay" style="display:none;">
+            <ui:VisualElement class="overlay__panel">
+                <ui:Label name="selector-title" text="选择" class="screen__title" />
+                <ui:Label name="selector-hint" text="" class="battle-meta" />
+                <ui:ScrollView name="selector-list" class="list" style="max-height: 320px;" />
+                <ui:VisualElement class="toolbar" style="margin-bottom: 0;">
+                    <ui:Label name="selector-countdown" text="" class="battle-meta" />
+                    <ui:VisualElement class="spacer" />
+                    <ui:Button name="selector-confirm" text="确认" class="btn btn--primary" />
+                    <ui:Button name="selector-cancel" text="取消" class="btn" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

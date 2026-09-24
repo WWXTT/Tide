@@ -262,6 +262,16 @@ namespace CardCore.Tools
                 ("MsgRoomState", "FirstSeatThisMatch"),
                 ("MsgRoomSeatInfo", "Seat"), ("MsgRoomSeatInfo", "Nickname"),
                 ("MsgRoomSeatInfo", "Connected"),
+
+                // ---- 大厅层（L1，2026-09-24：房间列表/自动匹配/AI 填位，见 网络协议.md §13）----
+                ("MsgLobbyHello", "Nickname"),
+                ("MsgLobbyState", "Rooms"), ("MsgLobbyState", "QueuedCount"),
+                ("MsgLobbyRoomInfo", "RoomId"), ("MsgLobbyRoomInfo", "Name"),
+                ("MsgLobbyRoomInfo", "Phase"), ("MsgLobbyRoomInfo", "PlayerCount"),
+                ("MsgLobbyRoomInfo", "Nicknames"), ("MsgLobbyRoomInfo", "SpectatorCount"),
+                ("MsgLobbyCreateRoom", "RoomName"),
+                ("MsgLobbyJoinRoom", "RoomId"),
+                ("MsgLobbyAddAi", "RoomId"), ("MsgLobbyAddAi", "Nickname"),
             };
 
             var result = new (string className, string propName, int tag)[raw.Length];
@@ -341,6 +351,12 @@ namespace CardCore.Tools
                 "MsgJoinRoom" => "MJR",
                 "MsgRoomState" => "MRS",
                 "MsgRoomSeatInfo" => "MRSI",
+                "MsgLobbyHello" => "MLH",
+                "MsgLobbyState" => "MLS",
+                "MsgLobbyRoomInfo" => "MLRI",
+                "MsgLobbyCreateRoom" => "MLCR",
+                "MsgLobbyJoinRoom" => "MLJR",
+                "MsgLobbyAddAi" => "MLAA",
                 _ => className
             };
         }

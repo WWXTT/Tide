@@ -52,6 +52,14 @@ namespace CardCore.Network
         Pong = 124,
         MatchManifest = 125,         // 开局握手：对局清单（MsgMatchManifest，见 网络协议.md §11）
         RoomState = 126,             // 会话层：房间全量状态广播（MsgRoomState，见 网络协议.md §12）
+
+        // ---- 大厅层（L1，2026-09-24：房间列表 + 自动匹配 + AI 填位，见 网络协议.md §13）----
+        LobbyHello = 130,            // 上行：进大厅（MsgLobbyHello）→ 服务器回 LobbyState
+        LobbyState = 131,            // 下行：大厅全量状态（MsgLobbyState：房间列表 + 排队数）
+        LobbyCreateRoom = 132,       // 上行：创建房间（MsgLobbyCreateRoom）——单房串行：房间占用即拒
+        LobbyJoinRoom = 133,         // 上行：从房间列表加入（MsgLobbyJoinRoom）→ 内部走 JoinRoom 分座
+        LobbyAutoMatch = 134,        // 上行：自动匹配排队/取消（空载荷；重复发送 = 取消排队）
+        LobbyAddAi = 135,            // 上行：AI 填位（MsgLobbyAddAi）——服务器本机回环 NetClientBrain 入座
     }
 
     /// <summary>协议版本常量。信封 ProtocolVersion 读到 0 视为 legacy（无版本草稿期数据）。</summary>

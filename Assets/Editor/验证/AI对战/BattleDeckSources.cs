@@ -20,9 +20,9 @@ namespace CardCore.Editor.Tests
         /// <summary>主题 key → 卡组名（与 ThemeDeckBuilder 三常量同序：red/green/blue）。</summary>
         public static readonly (string key, string deckName)[] ThemeKeys =
         {
-            ("red", ThemeDeckBuilder.RedDeckName),
-            ("green", ThemeDeckBuilder.GreenDeckName),
-            ("blue", ThemeDeckBuilder.BlueDeckName),
+            ("red", "红·快攻"),
+            ("green", "绿·慢速"),
+            ("blue", "蓝·控制"),
         };
 
         /// <summary>Cards.json 全池（CardCatalog 静态缓存；编辑器内改表后 Invalidate 再取）。</summary>

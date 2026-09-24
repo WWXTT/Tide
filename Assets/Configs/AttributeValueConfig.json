@@ -1032,7 +1032,7 @@
     "MountKinds": "9"
   },
   {
-    "ID": "b12721c6",
+    "ID": "051891ba",
     "EnumName": "死亡计数",
     "DisplayName": "死亡计数主干（本回合双方合计生物死亡数≥x发奖，奖励预算x）",
     "EffectColor": "Gray",
@@ -1044,7 +1044,7 @@
     "MountKinds": "9"
   },
   {
-    "ID": "a8cb78a7",
+    "ID": "36103e49",
     "EnumName": "元素充盈",
     "DisplayName": "元素充盈主干（出牌付费后bank最多色>x发奖，每次达标都触发，奖励预算x）",
     "EffectColor": "Gray",
@@ -1056,7 +1056,7 @@
     "MountKinds": "9"
   },
   {
-    "ID": "ca553553",
+    "ID": "eb172c00",
     "EnumName": "手牌序位",
     "DisplayName": "手牌序位主干（此卡为本回合从手牌使用的第x张时发奖，奖励预算x）",
     "EffectColor": "Gray",

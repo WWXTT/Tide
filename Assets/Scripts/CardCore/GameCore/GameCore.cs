@@ -247,6 +247,11 @@ namespace CardCore
         /// <summary>初始手牌总量（含仪式：仪式先占位，再抽牌补满至此数；超出的仪式留牌库正常抽）。</summary>
         private const int OpeningHandSize = 6;
 
+        /// <summary>装备入场接线委托（2026-09-24：Reset 重订阅用缓存实例——lambda 无法退订，
+        /// 每局 new 会随 SubscribeCore 累积，装备入场效果同进程多局重复触发）。</summary>
+        private readonly Action<CardPutToBattlefieldEvent> _equipEnterHandler =
+            e => EquipRules.OnEnterBattlefield(e?.Card);
+
         private async UniTask EnforceHandLimitAsync(Player player)
         {
             if (player == null) return;
@@ -647,7 +652,10 @@ namespace CardCore
 
             // 装备系统（2026-09-13 第二十一批：武器反伤/耐久扩展口接线）——组合根（幂等）
             EquipRules.EnsureAttached(this);
-            EventManager.Instance.Subscribe<CardPutToBattlefieldEvent>(e => EquipRules.OnEnterBattlefield(e?.Card));
+            // 订阅缓存委托（2026-09-24 泄漏修复）：lambda 每局 new 一个实例无法退订，
+            // SubscribeCore 不去重 → 同进程连开多局时装备入场效果重复触发（先退再订，幂等）
+            EventManager.Instance.Unsubscribe(_equipEnterHandler);
+            EventManager.Instance.Subscribe(_equipEnterHandler);
 
         }
 

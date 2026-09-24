@@ -119,6 +119,12 @@ namespace CardCore
 
             // 开始第一个阶段（准备阶段）
             StartPhase(PhaseType.Standby);
+
+            // 2026-09-24 回合推进口径定案：准备阶段纯自动、完成即推进主阶段——
+            // 原"停等玩家 IntentSkipStandby"口径废除（跳过仪式改走 ITurnStartInterceptor
+            // 声明，不占相位窗口）；主要→结束仅由 IntentEndTurn（未来加操作超时）驱动，
+            // 驱动器不得自由滑相位（GameLoopController 已收敛为仅 End 折返）。
+            AdvanceFromStandby();
         }
 
         /// <summary>

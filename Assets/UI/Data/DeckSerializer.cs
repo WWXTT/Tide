@@ -16,10 +16,8 @@ namespace SynergyUI
     /// </summary>
     public static class DeckSerializer
     {
-        // StreamingAssets 下的卡组目录（相对 streamingAssetsPath）。
-        private const string DeckDirRelative = "Card";
-
-        private static string DeckDir => Path.Combine(Application.streamingAssetsPath, DeckDirRelative);
+        // 卡组目录（2026-09-24 路径收口）：经 CardDataPaths——编辑器 StreamingAssets / 玩家 persistentData
+        private static string DeckDir => CardDataPaths.CardDir;
 
         /// <summary>保存卡组为 &lt;name&gt;.json。返回写入的完整路径。</summary>
         public static string Save(DeckData deck)
@@ -48,7 +46,9 @@ namespace SynergyUI
             foreach (var file in Directory.GetFiles(DeckDir, "*.json"))
             {
                 var deck = JsonUtility.FromJson<DeckData>(File.ReadAllText(file));
-                if (deck != null)
+                // 同目录混住 Cards.json/Effects.json（2026-09-21 数据分层定案）——
+                // 它们解析出的 DeckData name 为空，跳过；只认真实卡组文件
+                if (deck != null && !string.IsNullOrEmpty(deck.name))
                 {
                     result.Add(deck);
                 }
@@ -69,6 +69,22 @@ namespace SynergyUI
                 return null;
             }
             return JsonUtility.FromJson<DeckData>(File.ReadAllText(path));
+        }
+
+        /// <summary>删除卡组文件（按名）。返回是否存在且已删除。</summary>
+        public static bool Delete(string deckName)
+        {
+            if (string.IsNullOrEmpty(deckName))
+            {
+                return false;
+            }
+            string path = Path.Combine(DeckDir, SanitizeFileName(deckName) + ".json");
+            if (!File.Exists(path))
+            {
+                return false;
+            }
+            File.Delete(path);
+            return true;
         }
 
         // 去除文件名非法字符，避免卡组名含 / : 等导致写盘失败。

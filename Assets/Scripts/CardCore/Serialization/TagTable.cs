@@ -324,12 +324,32 @@ namespace CardCore.Serialization
         public const int MRSI_Nickname = 807757571;
         public const int MRSI_Connected = 531597507;
 
+        // ---- 大厅层消息（L1，2026-09-24：MsgLobbyHello/State/RoomInfo/CreateRoom/JoinRoom/AddAi）----
+        public const int MLH_Nickname = 1532381561;
+
+        public const int MLS_Rooms = 1570248777;
+        public const int MLS_QueuedCount = 124003943;
+
+        public const int MLRI_RoomId = 1765793158;
+        public const int MLRI_Name = 1340740691;
+        public const int MLRI_Phase = 96593306;
+        public const int MLRI_PlayerCount = 1334109926;
+        public const int MLRI_Nicknames = 304988505;
+        public const int MLRI_SpectatorCount = 207819560;
+
+        public const int MLCR_RoomName = 921235863;
+
+        public const int MLJR_RoomId = 815627303;
+
+        public const int MLAA_RoomId = 97705085;
+        public const int MLAA_Nickname = 1153192151;
+
         // ---- 手工定值保留位（历史手工分配的值，哈希公式推不出；改值=线格式字段 ID 变更，勿动）----
         // SerializableAtomicEffectEntry.amp 专用（复用 AEI_ 前缀命名；2026-09-13 数值随机）
         public const int AEI_Amplitude = 1052954154; // SerializableAtomicEffectEntry.amp（数值随机 RandomAmplitude）
         // 抉择卡放地模式（2026-09-21：与出牌同口径），紧邻 CardRuntimeId=713270002 手工递增
         public const int MsgIntentAddToElementPool_ModeIndex = 713270003; // MsgIntentAddToElementPool.ModeIndex（抉择放地）
 
-        // 共 228 个标签（含 2 个手工定值保留位）
+        // 共 241 个标签（含 2 个手工定值保留位）
     }
 }

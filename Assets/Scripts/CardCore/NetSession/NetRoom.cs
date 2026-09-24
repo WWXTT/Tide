@@ -53,6 +53,15 @@ namespace CardCore.Network
         public bool IsEmpty =>
             _chairs.All(c => c == null) && _spectators.Count == 0;
 
+        /// <summary>房间 ID（大厅层列表/加入寻址用，2026-09-24）。</summary>
+        public string RoomId => _roomId;
+
+        /// <summary>玩家椅子位空位数（大厅层判断可否入座/配对，2026-09-24）。</summary>
+        public int FreeChairCount => _chairs.Count(c => c == null);
+
+        /// <summary>房间当前状态快照（大厅列表/外部展示用——与成员广播同构，2026-09-24）。</summary>
+        public MsgRoomState State => BuildRoomState();
+
         // ============================================================ 上行分派 ============================================================
 
         /// <summary>处理一条来自成员连接的上行消息（逻辑线程）。</summary>
@@ -65,7 +74,9 @@ namespace CardCore.Network
                 switch (msg.Type)
                 {
                     case NetworkMessageType.JoinRoom:
-                        HandleJoin(conn, msg);
+                        var join = NetworkSerializer.DeserializePayload<MsgJoinRoom>(msg);
+                        if (join == null) { SendError(conn, "JoinRoom 载荷损坏", "JoinRoom"); break; }
+                        HandleJoin(conn, join);
                         break;
 
                     case NetworkMessageType.DeckSubmit:
@@ -96,10 +107,10 @@ namespace CardCore.Network
             }
         }
 
-        private void HandleJoin(NetClientConnection conn, NetworkMessage msg)
+        /// <summary>进房分座（M2；2026-09-24 大厅层复用：LobbyCreateRoom/LobbyJoinRoom/自动配对
+        /// 全部经此口入座，与直连 JoinRoom 同一校验路径）。</summary>
+        public void HandleJoin(NetClientConnection conn, MsgJoinRoom join)
         {
-            var join = NetworkSerializer.DeserializePayload<MsgJoinRoom>(msg);
-            if (join == null) { SendError(conn, "JoinRoom 载荷损坏", "JoinRoom"); return; }
             if (conn.ChairSeat != -2) { SendError(conn, "本连接已进房（M2 一连接一身份）", "JoinRoom"); return; }
             if (_phase == NetRoomPhase.Finished)
             { SendError(conn, "对局已结束（单局串行——全员断开后房间回 Waiting 再进）", "JoinRoom"); return; }

@@ -8,6 +8,8 @@
             <ui:Button name="btn-card" text="卡牌合成" class="btn btn--block"/>
             <ui:Button name="btn-deck" text="卡组构筑" class="btn btn--block btn--primary"/>
             <ui:Button name="btn-battle" text="对战" class="btn btn--block"/>
+            <ui:Button name="btn-match" text="联机匹配" class="btn btn--block btn--primary"/>
+            <ui:Button name="btn-battle-net" text="网络对战（调试）" class="btn btn--block"/>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

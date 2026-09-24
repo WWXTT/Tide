@@ -28,7 +28,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_E7215E49",
@@ -58,7 +59,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_F67F2E56",
@@ -88,7 +90,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_DDFBA890",
@@ -118,7 +121,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_E1731C63",
@@ -148,7 +152,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_2606D275",
@@ -178,7 +183,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_02FE797B",
@@ -208,7 +214,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_82995BE3",
@@ -238,7 +245,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_80E59E2E",
@@ -268,7 +276,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_8FEE3A39",
@@ -298,7 +307,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_3A67A03F",
@@ -328,7 +338,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_97E78114",
@@ -358,7 +369,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_BDEA55D7",
@@ -388,7 +400,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_157AB8A2",
@@ -418,7 +431,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_D28AD64E",
@@ -448,7 +462,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_D3D90927",
@@ -478,7 +493,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_BD3A5156",
@@ -508,7 +524,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_C2CB2582",
@@ -538,7 +555,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_A09A1EEA",
@@ -568,7 +586,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_421D1F64",
@@ -598,7 +617,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_A5CEB55A",
@@ -628,7 +648,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_69D19A8F",
@@ -654,7 +675,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_20B3EE3C",
@@ -684,7 +706,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_A5A7B045",
@@ -714,7 +737,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_B5267F89",
@@ -744,7 +768,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_FA524C9D",
@@ -774,7 +799,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_88B01747",
@@ -804,7 +830,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_FAC7932F",
@@ -834,7 +861,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_E41872E6",
@@ -860,7 +888,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_60278BA0",
@@ -886,7 +915,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_772F7002",
@@ -912,7 +942,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_E9FBDBF9",
@@ -938,7 +969,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_0C84C4F4",
@@ -964,7 +996,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_64502B88",
@@ -990,7 +1023,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_FD40FA33",
@@ -1020,7 +1054,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_74A94F38",
@@ -1046,7 +1081,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_94605A4F",
@@ -1072,7 +1108,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_89A55164",
@@ -1098,7 +1135,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_D87CEE4D",
@@ -1124,7 +1162,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_7DED0FF9",
@@ -1154,7 +1193,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_00B00E25",
@@ -1184,7 +1224,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_41137D3C",
@@ -1214,7 +1255,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_5EECA31E",
@@ -1244,7 +1286,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_0AD64FA6",
@@ -1274,7 +1317,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_8CCECD5C",
@@ -1304,7 +1348,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_2FD32662",
@@ -1334,7 +1379,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_91CC7BFE",
@@ -1364,7 +1410,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_C63022F6",
@@ -1394,7 +1441,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_B13B1495",
@@ -1424,7 +1472,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_77B68590",
@@ -1454,7 +1503,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_92B9FFD0",
@@ -1480,7 +1530,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_8FCD15F5",
@@ -1510,7 +1561,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_4DB74F5D",
@@ -1536,7 +1588,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_1C0CAEF7",
@@ -1562,7 +1615,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_5862DF31",
@@ -1588,7 +1642,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_BC1A791B",
@@ -1614,7 +1669,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_CD3A3838",
@@ -1640,7 +1696,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_99A2CC09",
@@ -1670,7 +1727,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_2084AF74",
@@ -1696,7 +1754,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_F58B7DF2",
@@ -1722,7 +1781,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_ADF5FAAD",
@@ -1752,7 +1812,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_82967A31",
@@ -1778,7 +1839,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_C2F2778E",
@@ -1808,7 +1870,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_5C7889BF",
@@ -1834,7 +1897,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_952B65B6",
@@ -1860,7 +1924,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_427794BF",
@@ -1890,7 +1955,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_5BBD3AD3",
@@ -1916,7 +1982,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_75886B2B",
@@ -1947,7 +2014,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_3D15895C",
@@ -1978,7 +2046,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_9CBDD76F",
@@ -2004,7 +2073,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_A0AF544D",
@@ -2030,7 +2100,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_3C06E8E8",
@@ -2056,7 +2127,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_29D4958D",
@@ -2074,9 +2146,7 @@
                     "amount": 1.0
                 }
             ],
-            "keywords": [
-                "FirstStrike"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeRed"
             ],
@@ -2084,11 +2154,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "0490b22c"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_8E06A0A7",
@@ -2106,9 +2179,7 @@
                     "amount": 1.0
                 }
             ],
-            "keywords": [
-                "FirstStrike"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeRed"
             ],
@@ -2116,11 +2187,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "0490b22c"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_1C2F5A42",
@@ -2138,9 +2212,7 @@
                     "amount": 2.0
                 }
             ],
-            "keywords": [
-                "Disarm"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeRed"
             ],
@@ -2148,11 +2220,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "adb8456f"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_89D4C76A",
@@ -2170,9 +2245,7 @@
                     "amount": 2.0
                 }
             ],
-            "keywords": [
-                "Lifesteal"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeRed"
             ],
@@ -2180,11 +2253,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "9794b926"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_AEC7E2C9",
@@ -2210,7 +2286,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_310866E0",
@@ -2236,7 +2313,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_1E925907",
@@ -2254,9 +2332,7 @@
                     "amount": 1.0
                 }
             ],
-            "keywords": [
-                "Lifesteal"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeRed"
             ],
@@ -2264,11 +2340,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "9794b926"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_3244447D",
@@ -2294,7 +2373,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_1BCE95D1",
@@ -2312,9 +2392,7 @@
                     "amount": 2.0
                 }
             ],
-            "keywords": [
-                "FirstStrike"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeRed"
             ],
@@ -2322,11 +2400,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "0490b22c"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_EB26C118",
@@ -2352,7 +2433,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_6514010C",
@@ -2370,9 +2452,7 @@
                     "amount": 2.0
                 }
             ],
-            "keywords": [
-                "FirstStrike"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeRed"
             ],
@@ -2380,11 +2460,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "0490b22c"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_289A18CA",
@@ -2402,9 +2485,7 @@
                     "amount": 1.0
                 }
             ],
-            "keywords": [
-                "FirstStrike"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeRed"
             ],
@@ -2412,11 +2493,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "0490b22c"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_6C440748",
@@ -2434,9 +2518,7 @@
                     "amount": 1.0
                 }
             ],
-            "keywords": [
-                "FirstStrike"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeRed"
             ],
@@ -2444,11 +2526,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "0490b22c"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_863B0464",
@@ -2466,9 +2551,7 @@
                     "amount": 2.0
                 }
             ],
-            "keywords": [
-                "Disarm"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeRed"
             ],
@@ -2476,11 +2559,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "adb8456f"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_7BF79F0C",
@@ -2512,7 +2598,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_A40ED344",
@@ -2544,7 +2631,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_36ED2339",
@@ -2576,7 +2664,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_7A9563A2",
@@ -2608,7 +2697,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_214B42EE",
@@ -2636,7 +2726,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_A1CC3914",
@@ -2664,7 +2755,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_7793EFCA",
@@ -2696,7 +2788,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_797C6F13",
@@ -2728,7 +2821,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_9D66C3FC",
@@ -2760,7 +2854,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_79C89338",
@@ -2792,7 +2887,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_E97F114F",
@@ -2820,7 +2916,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_F7CC9863",
@@ -2848,7 +2945,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_DABF92A7",
@@ -2876,7 +2974,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_78A92563",
@@ -2902,7 +3001,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_5804ECA9",
@@ -2920,9 +3020,7 @@
                     "amount": 2.0
                 }
             ],
-            "keywords": [
-                "Growth"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeGreen"
             ],
@@ -2930,11 +3028,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "baf2ff12"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_A52EF97B",
@@ -2960,7 +3061,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_0BE495BF",
@@ -2978,9 +3080,7 @@
                     "amount": 2.0
                 }
             ],
-            "keywords": [
-                "Growth"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeGreen"
             ],
@@ -2988,11 +3088,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "baf2ff12"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_22AAA83E",
@@ -3010,9 +3113,7 @@
                     "amount": 2.0
                 }
             ],
-            "keywords": [
-                "Lifelink"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeGreen"
             ],
@@ -3020,11 +3121,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "2d46dbd4"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_62154C72",
@@ -3050,7 +3154,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_1602F666",
@@ -3068,9 +3173,7 @@
                     "amount": 3.0
                 }
             ],
-            "keywords": [
-                "Growth"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeGreen"
             ],
@@ -3078,11 +3181,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "baf2ff12"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_1C26FC4A",
@@ -3100,9 +3206,7 @@
                     "amount": 2.0
                 }
             ],
-            "keywords": [
-                "Lifelink"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeGreen"
             ],
@@ -3110,11 +3214,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "2d46dbd4"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_A6747CA5",
@@ -3140,7 +3247,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_D8A7891D",
@@ -3166,7 +3274,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_3B7D3424",
@@ -3184,9 +3293,7 @@
                     "amount": 5.0
                 }
             ],
-            "keywords": [
-                "Lifelink"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeGreen"
             ],
@@ -3194,11 +3301,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "2d46dbd4"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_977E9E63",
@@ -3224,7 +3334,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_2612B8A4",
@@ -3242,9 +3353,7 @@
                     "amount": 5.0
                 }
             ],
-            "keywords": [
-                "Overwhelm"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeGreen"
             ],
@@ -3252,11 +3361,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "13b63a87"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_98FA6E81",
@@ -3274,9 +3386,7 @@
                     "amount": 5.0
                 }
             ],
-            "keywords": [
-                "Overwhelm"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeGreen"
             ],
@@ -3284,11 +3394,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "13b63a87"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_7EF407FA",
@@ -3306,9 +3419,7 @@
                     "amount": 5.0
                 }
             ],
-            "keywords": [
-                "Indestructible"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeGreen"
             ],
@@ -3316,11 +3427,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "fd04d3c7"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_96023269",
@@ -3338,9 +3452,7 @@
                     "amount": 6.0
                 }
             ],
-            "keywords": [
-                "Overwhelm"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeGreen"
             ],
@@ -3348,11 +3460,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "13b63a87"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_B3A2199A",
@@ -3374,10 +3489,7 @@
                     "amount": 6.0
                 }
             ],
-            "keywords": [
-                "Overwhelm",
-                "Indestructible"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeGreen"
             ],
@@ -3385,11 +3497,15 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "13b63a87",
+                "fd04d3c7"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_28049C5C",
@@ -3421,7 +3537,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_601D893F",
@@ -3453,7 +3570,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_7DB8A961",
@@ -3481,7 +3599,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_627D36F8",
@@ -3509,7 +3628,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_DCA93662",
@@ -3541,7 +3661,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_D2AE0241",
@@ -3573,7 +3694,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_3E8449EE",
@@ -3601,7 +3723,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_49381575",
@@ -3633,7 +3756,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_244F96CE",
@@ -3665,7 +3789,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_721FAC68",
@@ -3693,7 +3818,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_9F72D3B4",
@@ -3725,7 +3851,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_8812E53B",
@@ -3753,7 +3880,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_4C9AEDC8",
@@ -3781,7 +3909,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_AED82E7F",
@@ -3799,9 +3928,7 @@
                     "amount": 2.0
                 }
             ],
-            "keywords": [
-                "Vigilance"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeBlue"
             ],
@@ -3809,11 +3936,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "465f51dc"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_7B61EF2C",
@@ -3839,7 +3969,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_EF102C24",
@@ -3857,9 +3988,7 @@
                     "amount": 2.0
                 }
             ],
-            "keywords": [
-                "Vigilance"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeBlue"
             ],
@@ -3867,11 +3996,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "465f51dc"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_62BACD5E",
@@ -3889,9 +4021,7 @@
                     "amount": 2.0
                 }
             ],
-            "keywords": [
-                "Vigilance"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeBlue"
             ],
@@ -3899,11 +4029,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "465f51dc"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_1C7B95EB",
@@ -3921,9 +4054,7 @@
                     "amount": 3.0
                 }
             ],
-            "keywords": [
-                "Vigilance"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeBlue"
             ],
@@ -3931,11 +4062,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "465f51dc"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_3A052F9E",
@@ -3961,7 +4095,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_44D0DFFB",
@@ -3979,9 +4114,7 @@
                     "amount": 3.0
                 }
             ],
-            "keywords": [
-                "SpellShield"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeBlue"
             ],
@@ -3989,11 +4122,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "2e6955f0"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_BA6AEC4E",
@@ -4019,7 +4155,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_9EB680C3",
@@ -4037,9 +4174,7 @@
                     "amount": 3.0
                 }
             ],
-            "keywords": [
-                "Vigilance"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeBlue"
             ],
@@ -4047,11 +4182,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "465f51dc"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_4E1D1D66",
@@ -4069,9 +4207,7 @@
                     "amount": 3.0
                 }
             ],
-            "keywords": [
-                "SpellShield"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeBlue"
             ],
@@ -4079,11 +4215,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "2e6955f0"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_DCEC6BDC",
@@ -4109,7 +4248,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_7CD6085C",
@@ -4135,7 +4275,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_E597A139",
@@ -4153,9 +4294,7 @@
                     "amount": 3.0
                 }
             ],
-            "keywords": [
-                "SpellShield"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeBlue"
             ],
@@ -4163,11 +4302,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "2e6955f0"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_2F3A0154",
@@ -4185,9 +4327,7 @@
                     "amount": 3.0
                 }
             ],
-            "keywords": [
-                "Vigilance"
-            ],
+            "keywords": [],
             "tags": [
                 "ThemeBlue"
             ],
@@ -4195,11 +4335,14 @@
             "subtype": "",
             "level": -1,
             "arrows": "None",
-            "effectIds": [],
+            "effectIds": [
+                "465f51dc"
+            ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_101E22FF",
@@ -4227,7 +4370,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_646C94AD",
@@ -4259,7 +4403,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_087B5A28",
@@ -4291,7 +4436,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_9E8DDE57",
@@ -4323,7 +4469,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_7CCEF84A",
@@ -4355,7 +4502,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_84D9787E",
@@ -4387,7 +4535,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_EAC793B5",
@@ -4419,7 +4568,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_594BB0F1",
@@ -4451,7 +4601,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_7D9BB2EF",
@@ -4483,7 +4634,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_A83159CD",
@@ -4515,7 +4667,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_E8194A4F",
@@ -4547,7 +4700,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_C872637E",
@@ -4579,7 +4733,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         },
         {
             "id": "C_56CC4641",
@@ -4607,7 +4762,8 @@
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
-            "surplusToSpeed": false
+            "surplusToSpeed": false,
+            "durability": 0
         }
     ],
     "deckConfig": {
