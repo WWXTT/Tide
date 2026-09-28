@@ -21,6 +21,10 @@ namespace UnityEngine.Rendering.Universal.Internal
         private int m_LightBoundsCapacity = 0;
         private int m_LightBoundsCount = 0;
 
+        // Area-light sizes pre-read on the main thread each frame for CreateGPULightDataJob.
+        private NativeArray<Vector2> m_AreaSizes;
+        private int m_AreaSizesCapacity = 0;
+
         private NativeArray<GPULightData> m_GPULightsData;
         private int m_LightCapacity = 0;
         private int m_LightCount = 0;
@@ -35,6 +39,16 @@ namespace UnityEngine.Rendering.Universal.Internal
 
         private AdditionalLightsShadowCasterPass m_AdditionalLightsShadowCasterPass;
         private LightCookieManager m_LightCookieManager;
+
+        // Per-frame type breakdown of the last ReBuildGPULightsDataBuffer (see DbdrpLightDebugData).
+        internal int punctualLightsCount;
+        internal int rectangleLightsCount;
+        internal int discLightsCount;
+        internal int tubeLightsCount;
+
+        // View matrix used by CreateGPULightDataJob (Z-flipped), kept for editor overlays that
+        // need to project the view-space bounds back to screen.
+        internal Matrix4x4 lastWorldToView;
 
         //Auxiliary GPU arrays for coarse culling
         public NativeArray<SFiniteLightBound> lightBounds => m_LightBounds;
@@ -68,6 +82,11 @@ namespace UnityEngine.Rendering.Universal.Internal
 
             m_AdditionalLightsShadowCasterPass = addShadowCaster;
             m_LightCookieManager = cookieManager;
+
+            punctualLightsCount = 0;
+            rectangleLightsCount = 0;
+            discLightsCount = 0;
+            tubeLightsCount = 0;
         }
 
 
@@ -185,6 +204,48 @@ namespace UnityEngine.Rendering.Universal.Internal
                     gpuLightsData.rimContribution = additionalLightData.rimContribution;
                     gpuLightsData.outlineContribution = additionalLightData.outlineContribution;
 
+                    // World-space axes and emissive size for area lights; must match the dimensions
+                    // fed to CreateGPULightDataJob so bounds and shading agree on the light shape.
+                    var lightToWorld = visibleLights[visLightIndex].localToWorldMatrix;
+                    switch (visibleLights[visLightIndex].lightType)
+                    {
+                        case LightType.Rectangle:
+                        case LightType.Disc:
+                            gpuLightsData.gpuLightType = (uint)GPULightType.Rectangle;
+                            var areaSize = light.areaSize;
+                            if (visibleLights[visLightIndex].lightType == LightType.Disc)
+                            {
+                                areaSize.y = areaSize.x; // Disc stores its diameter in x
+                                discLightsCount++;
+                            }
+                            else
+                            {
+                                rectangleLightsCount++;
+                            }
+                            gpuLightsData.lightAxisX = lightToWorld.GetColumn(0);
+                            gpuLightsData.lightAxisY = lightToWorld.GetColumn(1);
+                            gpuLightsData.areaSizeX = Mathf.Max(areaSize.x, 0.05f);
+                            gpuLightsData.areaSizeY = Mathf.Max(areaSize.y, 0.05f);
+                            // Overwrite the spot-direction semantics with the emission face normal.
+                            gpuLightsData.lightDirection = lightToWorld.GetColumn(2);
+                            break;
+
+                        case LightType.Tube:
+                            gpuLightsData.gpuLightType = (uint)GPULightType.Tube;
+                            tubeLightsCount++;
+                            gpuLightsData.lightAxisX = lightToWorld.GetColumn(0);
+                            gpuLightsData.lightAxisY = lightToWorld.GetColumn(1);
+                            gpuLightsData.areaSizeX = Mathf.Max(light.areaSize.x, 0.05f);
+                            gpuLightsData.areaSizeY = 0.0f;
+                            gpuLightsData.lightDirection = lightToWorld.GetColumn(2);
+                            break;
+
+                        default:
+                            gpuLightsData.gpuLightType = (uint)(visibleLights[visLightIndex].lightType == LightType.Spot ? GPULightType.Spot : GPULightType.Point);
+                            punctualLightsCount++;
+                            break;
+                    }
+
                     m_GPULightsData[visLightIndex - dirlightCount] = gpuLightsData;
                 }
             }
@@ -213,7 +274,31 @@ namespace UnityEngine.Rendering.Universal.Internal
 
             //AllocateGPULightsData(lightCount, 0);
 
+            // NewFrame sized the bounds arrays from lightData.additionalLightsCount, which can be
+            // smaller than the visible-light span below (clamped counts, extra directionals) —
+            // grow the arrays here so the job never writes past the end.
+            if (m_boundsCount + lightCount > m_LightBoundsCapacity)
+            {
+                m_LightBoundsCapacity = Math.Max(m_LightBoundsCapacity * 2, m_boundsCount + lightCount);
+                m_LightBounds.ResizeArray(m_LightBoundsCapacity);
+                m_LightVolumes.ResizeArray(m_LightBoundsCapacity);
+            }
             m_boundsCount += lightCount;
+
+            // VisibleLight.light is a main-thread-only API, so pre-read the area sizes the job
+            // will need before scheduling it off the main thread.
+            if (lightCount > m_AreaSizesCapacity)
+            {
+                m_AreaSizesCapacity = Math.Max(Math.Max(m_AreaSizesCapacity * 2, lightCount), ArrayCapacity);
+                m_AreaSizes.ResizeArray(m_AreaSizesCapacity);
+            }
+            for (int i = 0; i < lightCount; i++)
+            {
+                var vl = visibleAdditionalLights[i];
+                m_AreaSizes[i] = (vl.lightType == LightType.Rectangle || vl.lightType == LightType.Disc || vl.lightType == LightType.Tube)
+                    ? vl.light.areaSize
+                    : Vector2.zero;
+            }
 
             // StartCreateGpuLightDataJob
 
@@ -225,6 +310,7 @@ namespace UnityEngine.Rendering.Universal.Internal
             worldToCamMatrix.m21 *= -1;
             worldToCamMatrix.m22 *= -1;
             worldToCamMatrix.m23 *= -1;
+            lastWorldToView = worldToCamMatrix;
 
             var createJob = new CreateGPULightDataJob()
             {
@@ -232,6 +318,7 @@ namespace UnityEngine.Rendering.Universal.Internal
                 worldToViewMatrix = worldToCamMatrix,
 
                 visibleLights = visibleAdditionalLights,
+                areaSizes = m_AreaSizes,
 
                 lightBounds = m_LightBounds,
                 lightVolumes = m_LightVolumes,
@@ -417,6 +504,10 @@ namespace UnityEngine.Rendering.Universal.Internal
             #region input visible lights processed
             [ReadOnly]
             public NativeArray<VisibleLight> visibleLights;
+            // VisibleLight.light resolves a managed object and can only be touched on the main
+            // thread, so the area sizes are pre-read in BuildGPULightList and passed in here.
+            [ReadOnly]
+            public NativeArray<Vector2> areaSizes;
             #endregion
 
             #region output processed lights
@@ -444,6 +535,9 @@ namespace UnityEngine.Rendering.Universal.Internal
                 var lightCategory = LightCategory.Punctual;
                 var gpuLightType = GPULightType.Point;
                 var lightVolumeType = LightVolumeType.Sphere;
+                // Area lights carry their size in Light.areaSize (x = width or tube length, y = height);
+                // for Tube only x is meaningful.
+                var lightDimensions = new Vector3(0.5f, 0.5f, light.range);
                 switch (light.lightType)
                 {
                     case LightType.Point:
@@ -455,13 +549,29 @@ namespace UnityEngine.Rendering.Universal.Internal
                         lightVolumeType = LightVolumeType.Cone;
                         break;
 
+                    case LightType.Rectangle:
+                    case LightType.Disc:
+                        gpuLightType = GPULightType.Rectangle;
+                        lightVolumeType = LightVolumeType.Box;
+                        var areaSize = areaSizes[lightIndex];
+                        if (light.lightType == LightType.Disc)
+                            areaSize.y = areaSize.x; // Disc stores its diameter in x; evaluate as an equal-sided rectangle
+                        lightDimensions = new Vector3(Mathf.Max(areaSize.x, 0.05f), Mathf.Max(areaSize.y, 0.05f), light.range);
+                        break;
+
+                    case LightType.Tube:
+                        gpuLightType = GPULightType.Tube;
+                        lightVolumeType = LightVolumeType.Box;
+                        lightDimensions = new Vector3(Mathf.Max(areaSizes[lightIndex].x, 0.05f), 0.0f, light.range);
+                        break;
+
                     default:
                         Debug.Assert(false, "Encountered an unknown LightType.");
                         break;
                 }
 
                 ComputeLightVolumeDataAndBound(lightIndex, lightCategory, gpuLightType, lightVolumeType,
-                                               light, new Vector3(0.5f, 0.5f, light.range), worldToViewMatrix);
+                                               light, lightDimensions, worldToViewMatrix);
 
             }
 
@@ -577,48 +687,50 @@ namespace UnityEngine.Rendering.Universal.Internal
                     lightVolumeData.cotan = cota;
                     lightVolumeData.featureFlags = (uint)LightFeatureFlags.Punctual;
                 }
-                //else if (gpuLightType == GPULightType.Tube)
-                //{
-                //    Vector3 dimensions = new Vector3(lightDimensions.x + 2 * range, 2 * range, 2 * range); // Omni-directional
-                //    Vector3 extents = 0.5f * dimensions;
-                //    Vector3 centerVS = positionVS;
+                else if (gpuLightType == GPULightType.Tube)
+                {
+                    Vector3 dimensions = new Vector3(lightDimensions.x + 2 * range, 2 * range, 2 * range); // Omni-directional
+                    Vector3 extents = 0.5f * dimensions;
+                    Vector3 centerVS = positionVS;
 
-                //    bound.center = centerVS;
-                //    bound.boxAxisX = extents.x * xAxisVS;
-                //    bound.boxAxisY = extents.y * yAxisVS;
-                //    bound.boxAxisZ = extents.z * zAxisVS;
-                //    bound.radius = extents.x;
-                //    bound.scaleXY = 1.0f;
+                    bound.center = centerVS;
+                    bound.boxAxisX = extents.x * xAxisVS;
+                    bound.boxAxisY = extents.y * yAxisVS;
+                    bound.boxAxisZ = extents.z * zAxisVS;
+                    bound.radius = extents.x;
+                    bound.scaleXY = 1.0f;
 
-                //    lightVolumeData.lightPos = centerVS;
-                //    lightVolumeData.lightAxisX = xAxisVS;
-                //    lightVolumeData.lightAxisY = yAxisVS;
-                //    lightVolumeData.lightAxisZ = zAxisVS;
-                //    lightVolumeData.boxInvRange.Set(1.0f / extents.x, 1.0f / extents.y, 1.0f / extents.z);
-                //    lightVolumeData.featureFlags = (uint)LightFeatureFlags.Area;
-                //}
-                //else if (gpuLightType == GPULightType.Rectangle)
-                //{
-                //    Vector3 dimensions = new Vector3(lightDimensions.x + 2 * range, lightDimensions.y + 2 * range, range); // One-sided
-                //    Vector3 extents = 0.5f * dimensions;
-                //    Vector3 centerVS = positionVS + extents.z * zAxisVS;
+                    lightVolumeData.lightPos = centerVS;
+                    lightVolumeData.lightAxisX = xAxisVS;
+                    lightVolumeData.lightAxisY = yAxisVS;
+                    lightVolumeData.lightAxisZ = zAxisVS;
+                    lightVolumeData.boxInvRange.Set(1.0f / extents.x, 1.0f / extents.y, 1.0f / extents.z);
+                    // Area lights ride the Punctual category: the cluster pipeline only evaluates
+                    // LIGHTCATEGORY_PUNCTUAL, and the pixel shader branches on the light type.
+                    lightVolumeData.featureFlags = (uint)LightFeatureFlags.Punctual;
+                }
+                else if (gpuLightType == GPULightType.Rectangle)
+                {
+                    Vector3 dimensions = new Vector3(lightDimensions.x + 2 * range, lightDimensions.y + 2 * range, range); // One-sided
+                    Vector3 extents = 0.5f * dimensions;
+                    Vector3 centerVS = positionVS + extents.z * zAxisVS;
 
-                //    float d = range + 0.5f * Mathf.Sqrt(lightDimensions.x * lightDimensions.x + lightDimensions.y * lightDimensions.y);
+                    float d = range + 0.5f * Mathf.Sqrt(lightDimensions.x * lightDimensions.x + lightDimensions.y * lightDimensions.y);
 
-                //    bound.center = centerVS;
-                //    bound.boxAxisX = extents.x * xAxisVS;
-                //    bound.boxAxisY = extents.y * yAxisVS;
-                //    bound.boxAxisZ = extents.z * zAxisVS;
-                //    bound.radius = Mathf.Sqrt(d * d + (0.5f * range) * (0.5f * range));
-                //    bound.scaleXY = 1.0f;
+                    bound.center = centerVS;
+                    bound.boxAxisX = extents.x * xAxisVS;
+                    bound.boxAxisY = extents.y * yAxisVS;
+                    bound.boxAxisZ = extents.z * zAxisVS;
+                    bound.radius = Mathf.Sqrt(d * d + (0.5f * range) * (0.5f * range));
+                    bound.scaleXY = 1.0f;
 
-                //    lightVolumeData.lightPos = centerVS;
-                //    lightVolumeData.lightAxisX = xAxisVS;
-                //    lightVolumeData.lightAxisY = yAxisVS;
-                //    lightVolumeData.lightAxisZ = zAxisVS;
-                //    lightVolumeData.boxInvRange.Set(1.0f / extents.x, 1.0f / extents.y, 1.0f / extents.z);
-                //    lightVolumeData.featureFlags = (uint)LightFeatureFlags.Area;
-                //}
+                    lightVolumeData.lightPos = centerVS;
+                    lightVolumeData.lightAxisX = xAxisVS;
+                    lightVolumeData.lightAxisY = yAxisVS;
+                    lightVolumeData.lightAxisZ = zAxisVS;
+                    lightVolumeData.boxInvRange.Set(1.0f / extents.x, 1.0f / extents.y, 1.0f / extents.z);
+                    lightVolumeData.featureFlags = (uint)LightFeatureFlags.Punctual;
+                }
                 else if (gpuLightType == GPULightType.ProjectorBox)
                 {
                     Vector3 dimensions = new Vector3(lightDimensions.x, lightDimensions.y, range);  // One-sided

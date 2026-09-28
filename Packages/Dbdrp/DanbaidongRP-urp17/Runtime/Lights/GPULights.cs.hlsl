@@ -12,6 +12,9 @@
 #define GPULIGHTTYPE_SPOT (2)
 #define GPULIGHTTYPE_PROJECTOR_PYRAMID (3)
 #define GPULIGHTTYPE_PROJECTOR_BOX (4)
+#define GPULIGHTTYPE_TUBE (5)
+#define GPULIGHTTYPE_RECTANGLE (6)
+#define GPULIGHTTYPE_DISC (7)
 
 //
 // UnityEngine.Rendering.Universal.Internal.LightCategory:  static fields
@@ -107,11 +110,18 @@ struct GPULightData
     int cookieLightIndex;
     int shadowType;
     float minRoughness;
-    float __unused1__;
+    uint gpuLightType;
     float baseContribution;
     float rimContribution;
     float outlineContribution;
     float __unused2__;
+
+    // Area lights (GPULightType.Tube/Rectangle/Disc): world-space axes and emissive size.
+    // Tube uses lightAxisX/areaSizeX (length); Rectangle/Disc use X/Y axes and width/height.
+    float3 lightAxisX;
+    float areaSizeX;
+    float3 lightAxisY;
+    float areaSizeY;
 };
 
 // Generated from UnityEngine.Rendering.Universal.Internal.LightVolumeData

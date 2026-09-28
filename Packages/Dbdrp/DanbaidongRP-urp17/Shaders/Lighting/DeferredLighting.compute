@@ -313,6 +313,87 @@ ShadingData DecodeShadingDataFromGBuffer(PositionInputs posInput)
     return shadingData;
 }
 
+// Approximate evaluation of area lights (GPULightType.Tube/Rectangle/Disc).
+// Rectangle/Disc: 2x2 sub-area sampling with solid-angle weighting (Lambert diffuse).
+// Tube: three samples along the segment with sphere-style softening (artistic, not calibrated).
+// Specular: punctual GGX towards the light center — adequate for the stylized pipeline; swap in
+// LTC if accurate area specular is ever required.
+void EvalAreaLight(GPULightData gpuLight, float3 positionWS, float3 normalWS, float3 viewDirWS,
+                   ShadingData shadingData, float clampedNdotV,
+                   inout float3 directDiffuse, inout float3 directSpecular)
+{
+    const float kInvPi = 0.31830988618;
+    const float kMinDistSq = 1e-4;   // clamps the integral when a sample sits on the surface
+    const float kTubeSoften = 0.25;  // meters, sphere-style softening of tube samples
+
+    float3 axisX       = normalize(gpuLight.lightAxisX);
+    float3 axisY       = normalize(gpuLight.lightAxisY);
+    float3 lightNormal = normalize(gpuLight.lightDirection); // emission face normal (forward)
+    float3 center      = gpuLight.lightPosWS;
+    bool isTube        = gpuLight.gpuLightType == GPULIGHTTYPE_TUBE;
+
+    // Diffuse irradiance accumulated over the emissive shape.
+    float irradiance = 0.0;
+    if (isTube)
+    {
+        float3 halfX = 0.5 * gpuLight.areaSizeX * axisX;
+        [unroll]
+        for (int k = 0; k < 3; k++)
+        {
+            float3 sp = center + halfX * (k - 1.0); // segment endpoints and midpoint
+            float3 L = sp - positionWS;
+            float distSq = max(dot(L, L), kMinDistSq);
+            irradiance += saturate(dot(normalWS, L) * rsqrt(distSq)) / (distSq + kTubeSoften * kTubeSoften);
+        }
+        irradiance *= (1.0 / 3.0);
+    }
+    else
+    {
+        static const float2 kSubOffsets[4] =
+        {
+            float2(-0.25, -0.25), float2(0.25, -0.25),
+            float2(-0.25,  0.25), float2(0.25,  0.25)
+        };
+        float w  = gpuLight.areaSizeX;
+        float h  = gpuLight.areaSizeY;
+        float dA = w * h * 0.25;
+        [unroll]
+        for (int k = 0; k < 4; k++)
+        {
+            float3 sp = center + (kSubOffsets[k].x * w) * axisX + (kSubOffsets[k].y * h) * axisY;
+            float3 L = sp - positionWS;
+            float distSq = max(dot(L, L), kMinDistSq);
+            float3 lDir = L * rsqrt(distSq);
+            float cosLight = saturate(dot(lightNormal, -lDir));  // one-sided emission
+            float cosSurf  = saturate(dot(normalWS, lDir));
+            irradiance += cosLight * cosSurf * dA / distSq;
+        }
+    }
+
+    // Specular: punctual GGX towards the light center.
+    float3 Lc = center - positionWS;
+    float dc2 = max(dot(Lc, Lc), kMinDistSq);
+    float3 lightDirWS = Lc * rsqrt(dc2);
+    float specAtten = isTube
+        ? 1.0 / (dc2 + kTubeSoften * kTubeSoften)
+        : saturate(dot(lightNormal, -lightDirWS)) * gpuLight.areaSizeX * gpuLight.areaSizeY / dc2;
+
+    float NdotL = dot(normalWS, lightDirWS);
+    float clampedNdotL = saturate(NdotL);
+    float clampedRoughness = max(shadingData.roughness, gpuLight.minRoughness);
+
+    float LdotV, NdotH, LdotH, invLenLV;
+    GetBSDFAngle(viewDirWS, lightDirWS, NdotL, dot(normalWS, viewDirWS), LdotV, NdotH, LdotH, invLenLV);
+
+    float3 F = F_Schlick(shadingData.fresnel0, LdotH);
+    float DV = DV_SmithJointGGX(NdotH, abs(NdotL), clampedNdotV, clampedRoughness);
+    float3 specTerm = F * DV * clampedNdotL;
+
+    float3 lightColor = gpuLight.lightColor * gpuLight.baseContribution;
+    directDiffuse += shadingData.diffuseColor * kInvPi * irradiance * lightColor;
+    directSpecular += specTerm * lightColor * specAtten;
+}
+
 DeferredLightingOutput DeferredLit(PositionInputs posInput, ShadingData shadingData)
 {
     DeferredLightingOutput lightOutput;
@@ -478,6 +559,14 @@ DeferredLightingOutput DeferredLit(PositionInputs posInput, ShadingData shadingD
                         gpuLight.lightColor *= cookieColor.rgb;
                     }
                     #endif
+
+                    if (gpuLight.gpuLightType >= GPULIGHTTYPE_TUBE) // Tube / Rectangle / Disc
+                    {
+                        EvalAreaLight(gpuLight, positionWS, normalWS, viewDirWS, shadingData, clampedNdotV,
+                                      directDiffuse, directSpecular);
+                        v_lightListOffset++;
+                        continue;
+                    }
 
                     float3 lightVector = gpuLight.lightPosWS - positionWS.xyz;
                     float distanceSqr = max(dot(lightVector, lightVector), FLT_MIN);
