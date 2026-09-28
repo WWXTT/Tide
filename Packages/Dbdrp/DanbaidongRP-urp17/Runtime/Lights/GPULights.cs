@@ -98,10 +98,10 @@ namespace UnityEngine.Rendering.Universal.Internal
         ProjectorBox,
 
         // AreaLight
-        //Tube, // Keep Line lights before Rectangle. This is needed because of a compiler bug (see LightLoop.hlsl)
-        //Rectangle,
+        Tube, // Keep Line lights before Rectangle. This is needed because of a compiler bug (see LightLoop.hlsl)
+        Rectangle,
         // Currently not supported in real time (just use for reference)
-        //Disc,
+        Disc,
         // Sphere,
     };
 
@@ -268,12 +268,20 @@ namespace UnityEngine.Rendering.Universal.Internal
         public int cookieLightIndex;
         public int shadowType;
         public float minRoughness;
-        public float __unused1__; 
-        
+        public uint gpuLightType;
+
         public float baseContribution;
         public float rimContribution;
         public float outlineContribution;
         public float __unused2__;
+
+        // Area lights (GPULightType.Tube/Rectangle/Disc): world-space axes and emissive size.
+        // Tube uses lightAxisX/areaSizeX (length); Rectangle/Disc use X/Y axes and width/height.
+        public Vector3 lightAxisX;
+        public float areaSizeX;
+
+        public Vector3 lightAxisY;
+        public float areaSizeY;
 
     };
 
@@ -424,8 +432,11 @@ namespace UnityEngine.Rendering.Universal.Internal
             }
 
             int envLightsCount = gpuLightsDataBuildSystem.envLightsCount;
-            int additionalLightsCount = lightData.additionalLightsCount;
-            lightCBuffer.g_iNrVisibLights = additionalLightsCount + envLightsCount;
+            // The compute passes iterate g_iNrVisibLights over the uploaded bounds arrays, so the
+            // count must equal what BuildGPULightList/BuildEnvLightList actually appended (which
+            // light-count clamps or extra directionals can desync from lightData.additionalLightsCount).
+            int additionalLightsCount = gpuLightsDataBuildSystem.boundsCount - envLightsCount;
+            lightCBuffer.g_iNrVisibLights = gpuLightsDataBuildSystem.boundsCount;
             lightCBuffer._DirectionalLightCount = (uint)lightData.directionalLightsCount;
 
             /// <see cref="ScriptableRenderer"/> cmd.SetGlobalVector(ShaderPropertyId.screenSize...
@@ -451,6 +462,48 @@ namespace UnityEngine.Rendering.Universal.Internal
             lightCBuffer.g_isLogBaseBufferEnabled = 1;// Need depth
             lightCBuffer._NumTileClusteredX = (uint)RenderingUtils.DivRoundUp(width, LightDefinitions.s_TileSizeClustered);
             lightCBuffer._NumTileClusteredY = (uint)RenderingUtils.DivRoundUp(height, LightDefinitions.s_TileSizeClustered);
+
+#if UNITY_EDITOR
+            // Snapshot the built bounds for the "Dbdrp Tile Light Debug" SceneView overlay.
+            // At this point both BuildGPULightList and BuildEnvLightList have appended their
+            // final entries, so boundsCount is the upload-accurate total. Stored per camera:
+            // concurrent Game/SceneView cameras would otherwise overwrite each other.
+            var buildSystem = gpuLightsDataBuildSystem;
+            int boundsCount = buildSystem.boundsCount;
+            int cameraKey = cameraData.camera.GetEntityId().GetHashCode();
+
+            DbdrpLightDebugData.DebugLightBound[] bounds;
+            DbdrpLightDebugData.byCamera.TryGetValue(cameraKey, out var previous);
+            if (previous.bounds == null || previous.bounds.Length < boundsCount)
+                bounds = new DbdrpLightDebugData.DebugLightBound[Mathf.Max(boundsCount, 64)];
+            else
+                bounds = previous.bounds;
+
+            var snapshot = new DbdrpLightDebugData.Snapshot
+            {
+                cameraKey = cameraKey,
+                frame = Time.frameCount,
+                lightCount = boundsCount,
+                bounds = bounds,
+                worldToView = buildSystem.lastWorldToView,
+                // The bounds live in the Z-flipped view space, so pair them with the same
+                // flip-premultiplied projection the light list culling itself uses.
+                projection = cameraData.GetProjectionMatrix() * Matrix4x4.Scale(new Vector3(1, 1, -1)),
+                punctualLights = buildSystem.punctualLightsCount,
+                areaLights = buildSystem.rectangleLightsCount + buildSystem.discLightsCount + buildSystem.tubeLightsCount,
+                directionalLights = lightData.directionalLightsCount,
+            };
+            for (int i = 0; i < boundsCount; i++)
+            {
+                snapshot.bounds[i].center = buildSystem.lightBounds[i].center;
+                snapshot.bounds[i].axisX = buildSystem.lightBounds[i].boxAxisX;
+                snapshot.bounds[i].axisY = buildSystem.lightBounds[i].boxAxisY;
+                snapshot.bounds[i].axisZ = buildSystem.lightBounds[i].boxAxisZ;
+                snapshot.bounds[i].radius = buildSystem.lightBounds[i].radius;
+            }
+            DbdrpLightDebugData.byCamera[cameraKey] = snapshot;
+            DbdrpLightDebugData.Prune(Time.frameCount);
+#endif
         }
 
         private class GPULightsPassData
@@ -582,9 +635,13 @@ namespace UnityEngine.Rendering.Universal.Internal
         /// </summary>
         /// <param name="cmd"></param>
         /// <param name="bufferToClear"></param>
+        // Reused scratch for ClearLightList: the compute-side parameter is an int2, so it must be
+        // uploaded as ints — a Vector2 upload gets reinterpreted as garbage int bits and defeats
+        // the bounds check inside the kernel.
+        static int[] s_ClearListEntriesAndOffset = new int[2];
+
         static void ClearLightList(ComputeCommandBuffer cmd, GPULightsPassData data, GraphicsBuffer bufferToClear)
         {
-            Vector2 countAndOffset = new Vector2Int(bufferToClear.count, 0);
             int totalNumberOfGroupsNeeded = RenderingUtils.DivRoundUp(bufferToClear.count, 64);
             const int maxAllowedGroups = 65535;// On higher resolutions we might end up with more than 65535 group which is not allowed, so we need to to have multiple dispatches.
 
@@ -593,8 +650,9 @@ namespace UnityEngine.Rendering.Universal.Internal
             int i = 0;
             while (totalNumberOfGroupsNeeded > 0)
             {
-                countAndOffset.y = maxAllowedGroups * i;
-                cmd.SetComputeVectorParam(data.gpuLightsClearLists, "_LightListEntriesAndOffset", countAndOffset);
+                s_ClearListEntriesAndOffset[0] = bufferToClear.count;
+                s_ClearListEntriesAndOffset[1] = maxAllowedGroups * i;
+                cmd.SetComputeIntParams(data.gpuLightsClearLists, "_LightListEntriesAndOffset", s_ClearListEntriesAndOffset);
 
                 int currGroupCount = Math.Min(maxAllowedGroups, totalNumberOfGroupsNeeded);
 
@@ -672,6 +730,11 @@ namespace UnityEngine.Rendering.Universal.Internal
             // ClusterLights
             using (new ProfilingScope(cmd, m_ClusterCullingSampler))
             {
+                // The cluster light-list allocator must start at zero before this dispatch: the buffer is
+                // created uninitialized every frame, and the in-shader reset by dispatch thread (0,0) races
+                // with other groups' InterlockedAdd, corrupting every per-cluster light list.
+                ClearLightList(cmd, data, data.globalLightListAtomic);
+
                 cmd.SetComputeBufferParam(data.gpuLightsCluster, data.clusterCullingLightsKernel, ShaderConstants.g_LightVolumeData, data.lightVolumeDataBuffer);// in
                 cmd.SetComputeBufferParam(data.gpuLightsCluster, data.clusterCullingLightsKernel, ShaderConstants.g_LightBounds, data.lightBoundsBuffer);// in
 
