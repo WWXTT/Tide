@@ -8,7 +8,12 @@
       "codegraph": {
         "type": "stdio",
         "command": "cmd",
-        "args": ["/c", "codegraph", "serve", "--mcp"]
+        "args": [
+          "/c",
+          "codegraph",
+          "serve",
+          "--mcp"
+        ]
       }
     }
   }

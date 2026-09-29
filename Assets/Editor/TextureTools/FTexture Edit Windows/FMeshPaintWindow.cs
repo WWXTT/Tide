@@ -32,7 +32,7 @@ namespace FIMSpace.FTextureTools
         Vector2 scrollPos = Vector2.zero;
         int maxPreviewSize = 256;
 
-        [MenuItem( "Window/F Mesh Painting Window", false, 222 )]
+        [MenuItem( "Window/网格贴图绘制", false, 222 )]
         public static void Init()
         {
             FMeshPaintWindow window = (FMeshPaintWindow)GetWindow( typeof( FMeshPaintWindow ) );

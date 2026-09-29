@@ -6,20 +6,21 @@ namespace FIMSpace.FEditor
 {
     public static class FResizeTools_MenuItems
     {
-        [MenuItem("Assets/Texture Tools/Change Texture Resolution", priority = 101)]
+        // ── 尺寸调整（80-89）────────────────────────────────────
+        [MenuItem("Assets/Texture Tools/修改贴图分辨率", priority = 80)]
         public static void ResizeTexture()
         {
             FResizeWindow.Init();
         }
 
-        [MenuItem("Assets/Texture Tools/Quick Resize", priority = 102)]
+        [MenuItem("Assets/Texture Tools/快速缩放", priority = 81)]
         public static void QuickResizeTexture()
         {
             FQuickResizeWindow.Init();
         }
 
 
-        [MenuItem("Assets/Texture Tools/Resize to nearest power of 2", priority = 125)]
+        [MenuItem("Assets/Texture Tools/缩放到最近二次幂", priority = 82)]
         public static void ResizeToPowerOf2()
         {
             try
@@ -43,7 +44,7 @@ namespace FIMSpace.FEditor
             }
         }
 
-        [MenuItem("Assets/Texture Tools/Resize to power of 2 Lower", priority = 127)]
+        [MenuItem("Assets/Texture Tools/缩放到下限二次幂", priority = 83)]
         public static void ResizeToPowerOf2Lower()
         {
             try
@@ -67,7 +68,7 @@ namespace FIMSpace.FEditor
             }
         }
 
-        [MenuItem("Assets/Texture Tools/Resize to power of 2 Higher", priority = 126)]
+        [MenuItem("Assets/Texture Tools/缩放到上限二次幂", priority = 84)]
         public static void ResizeToPowerOf2Higher()
         {
             try
@@ -93,8 +94,8 @@ namespace FIMSpace.FEditor
         }
 
 
-        [MenuItem("Assets/Texture Tools/Change Texture Resolution", true)]
-        [MenuItem("Assets/Texture Tools/Quick Resize", true)]
+        [MenuItem("Assets/Texture Tools/修改贴图分辨率", true)]
+        [MenuItem("Assets/Texture Tools/快速缩放", true)]
         public static bool CheckResizeTextureAllSelected()
         {
             if (!Selection.activeObject) return false;

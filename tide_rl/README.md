@@ -242,8 +242,11 @@ export PYTHONPATH="/path/to/ygo-agent-main:$PYTHONPATH"
 ## 安装依赖
 
 ```bash
-pip install jax[cpu] flax optax gymnasium numpy
+python -m pip install -r tide_rl/requirements-train.txt
 ```
+
+版本已钉死（jax 0.4.35 / flax 0.8.5 / optax 0.2.5 / gymnasium 1.3.0 / numpy 2.2.6），
+**双机统一基线（2026-09-29 定）**：两台机器都用 Python 3.12 + 此文件，不要裸 `pip install jax...`。
 
 **注意**：JAX CPU 版足够（GPU 版需 CUDA，但训练规模不大时 CPU 即可）
 
@@ -304,8 +307,11 @@ powershell -ExecutionPolicy Bypass -File sync_model_to_main.ps1         # 训练
 
 ### 一次性准备（2026-09-23 双机环境修复，本机 Windows 10）
 
-**双机开发注意：venv 不跨机器迁移。** 家里机（Python 3.12）与本机（默认 3.10）共用仓库，
-`.venv-export` 在本机重建时必须显式 `py -3.12`（jax 0.11.1 要求 ≥3.12）。本机另有三个坑：
+**双机开发注意：venv 不跨机器迁移。** 家里机（Python 3.12）与本机共用仓库；
+**2026-09-29 起本机裸 `python`/`pip` 已统一为 3.12**（系统 PATH 前置了 Python312，
+遮蔽原先误写在系统 PATH 里的 Python310 与 emsdk 3.13 条目；3.10 及其旧训练栈保留未动、
+仅被遮蔽，`py -3.10` 仍可达）。`.venv-export` 在任一台重建时仍必须显式 `py -3.12`
+（jax 0.11.1 要求 ≥3.12）。本机另有三个坑：
 
 1. **venv 实体放短路径 `E:\vexp`，`tide_rl\.venv-export` 是指向它的 junction**——pip 装
    orbax 时其 wheel 内测试夹具路径长达 238 字符，工程内深路径直接撞 MAX_PATH。
