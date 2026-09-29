@@ -14,9 +14,10 @@ namespace CardCore.AI.NeuralEnv
     /// rstate 局内逐步传递，新对局 Reset() 归零（与训练 rollout 同口径）。
     ///
     /// 模型加载：Sentis 运行时没有 ONNX 文件解析器（ModelLoader.Load(path) 只认
-    /// .sentis 自有序列化格式）——ONNX 必须放 Assets/Resources/ 由编辑器
-    /// ScriptedImporter 转成 ModelAsset，此处经 Resources.Load + ModelLoader.Load(asset)
-    /// 加载（export_onnx.py 默认复制到该目录）。
+    /// .sentis 自有序列化格式）——ONNX 由编辑器 ScriptedImporter 转成 ModelAsset。
+    /// 三级回落加载（LoadModelAsset）：YooAsset 热更包（真机/Launch 流程，模型随包热更）
+    /// → 编辑器 AssetDatabase（直启 Main 的开发流程）→ Resources（过渡期旧位置兜底）。
+    /// 模型默认放 Assets/AIModels/（export_onnx.py 复制到该目录；YooAsset 收集组 AIModel）。
     ///
     /// 前置条件：TideCardIndex 必须绑定与训练同一份 manifest
     /// （ConfigureManifest(tide_rl/card_identity_manifest.json) 后 Register 卡池），
@@ -37,23 +38,63 @@ namespace CardCore.AI.NeuralEnv
         public float LastValue { get; private set; }
         public float[] LastLogits { get; private set; } = new float[MaxActions];
 
-        /// <summary>默认模型资源名（Assets/Resources/tide_policy.onnx，省扩展名）。</summary>
+        /// <summary>默认模型资源名（Assets/AIModels/tide_policy.onnx，YooAsset 寻址省扩展名）。</summary>
         public const string DefaultResourcePath = "tide_policy";
 
-        /// <summary>加载默认模型（Resources/tide_policy）并建 CPU worker。</summary>
+        /// <summary>模型目录（YooAsset AIModel 收集组与编辑器 AssetDatabase 兜底共用）。</summary>
+        public const string ModelAssetFolder = "Assets/AIModels";
+
+        /// <summary>加载默认模型（tide_policy）并建 CPU worker。</summary>
         public OnnxTidePolicy() : this(DefaultResourcePath) { }
 
-        /// <summary>从 Resources 加载 ONNX 导入的 ModelAsset 并建 CPU worker
+        /// <summary>加载 ONNX 导入的 ModelAsset 并建 CPU worker
         /// （小模型 CPU 快于 GPU，且输入输出都在 CPU）。</summary>
         public OnnxTidePolicy(string resourcePath)
         {
-            var asset = UnityEngine.Resources.Load<IE.ModelAsset>(resourcePath);
+            var asset = LoadModelAsset(resourcePath);
             if (asset == null)
                 throw new FileNotFoundException(
-                    $"Resources 里找不到策略模型 {resourcePath}（ModelAsset）。\n" +
-                    "把 tide_policy.onnx 放到 Assets/Resources/ 并等 Unity 完成 ONNX 导入" +
-                    "（tide_rl/export_onnx.py 默认复制到该目录）");
+                    $"找不到策略模型 {resourcePath}（ModelAsset）。\n" +
+                    $"期望位置：YooAsset 包（{Tide.Launch.Launch.PackageName}）或 " +
+                    $"{ModelAssetFolder}/{resourcePath}.onnx（tide_rl/export_onnx.py 复制到该目录；" +
+                    "热更侧需先跑 Tide/热更/2 配置收集器）");
             _worker = new IE.Worker(IE.ModelLoader.Load(asset), IE.BackendType.CPU);
+        }
+
+        /// <summary>
+        /// 三级回落：YooAsset 热更包 → 编辑器 AssetDatabase（直启 Main，未走 Launch）→
+        /// Resources（过渡期旧副本兜底）。真机上模型只随资源包下发——注意必须与卡池
+        /// manifest/Configs 同版本节奏更新（模型权重绑定导出时的卡身份 manifest 指纹）。
+        /// </summary>
+        private static IE.ModelAsset LoadModelAsset(string resourcePath)
+        {
+            // YooAsset：包未初始化/收集器未配置时抛异常或返回失败句柄，捕获后回落，
+            // 不阻断编辑器直启流程。成功路径的句柄不释放——worker 生命周期内保活。
+            try
+            {
+                if (YooAsset.YooAssets.TryGetPackage(Tide.Launch.Launch.PackageName, out var package))
+                {
+                    var handle = package.LoadAssetAsync<IE.ModelAsset>(resourcePath);
+                    handle.WaitForAsyncComplete();
+                    if (handle.Status == YooAsset.EOperationStatus.Succeeded
+                        && handle.AssetObject is IE.ModelAsset viaYoo)
+                        return viaYoo;
+                    handle.Dispose();
+                }
+            }
+            catch (Exception)
+            {
+                // 未配置 YooAsset（如编辑器直启 Main），走兜底
+            }
+
+#if UNITY_EDITOR
+            var editorAsset = UnityEditor.AssetDatabase.LoadAssetAtPath<IE.ModelAsset>(
+                $"{ModelAssetFolder}/{resourcePath}.onnx");
+            if (editorAsset != null)
+                return editorAsset;
+#endif
+
+            return UnityEngine.Resources.Load<IE.ModelAsset>(resourcePath);
         }
 
         /// <summary>新对局：GRU 隐状态归零（镜像训练 env 的 episode 起点复位）。</summary>

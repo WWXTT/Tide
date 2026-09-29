@@ -130,7 +130,6 @@ MonoBehaviour:
   - {fileID: 3360894219110178970}
   - {fileID: -7011558710299706105}
   - {fileID: 3552256855404745735}
-  - {fileID: 7501570155182338421}
   - {fileID: -2360153091809742909}
   - {fileID: 6589568682158429268}
   - {fileID: 1425385118579628545}
@@ -228,8 +227,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.Shadows
   active: 1
   rayTracing:
-    m_OverrideState: 0
-    m_Value: 0
+    m_OverrideState: 1
+    m_Value: 1
   dirShadowsRayLength:
     m_OverrideState: 0
     m_Value: 1000
@@ -258,7 +257,7 @@ MonoBehaviour:
     m_Value: 1
   shadowScatterMode:
     m_OverrideState: 1
-    m_Value: 1
+    m_Value: 0
   shadowRampTex:
     m_OverrideState: 0
     m_Value: {fileID: 2800000, guid: afea1fed01220fc4491569f42c01f3f4, type: 3}
@@ -506,19 +505,3 @@ MonoBehaviour:
         m_PreInfinity: 2
         m_PostInfinity: 2
         m_RotationOrder: 4
---- !u!114 &7501570155182338421
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 81180773991d8724ab7f2d216912b564, type: 3}
-  m_Name: ChromaticAberration
-  m_EditorClassIdentifier: 
-  active: 1
-  intensity:
-    m_OverrideState: 1
-    m_Value: 0.1

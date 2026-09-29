@@ -9,6 +9,13 @@
 /.vs/
 /.idea/
 /tide_rl/logs/
+/tide_rl/__pycache__/
 /tide_rl/.venv-export/
 /Assets/Packages/Crest/Crest-Examples/
 /Assets/Packages/Toby Fredson/(TTFE)_Demo/
+
+# ============== 热更管线（HybridCLR + YooAsset） ==============
+# HybridCLR 本地安装与编译产物（机器本地生成，不入库）
+/HybridCLRData/
+# YooAsset 资源包构建输出
+/Bundles/

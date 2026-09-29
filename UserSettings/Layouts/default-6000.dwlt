@@ -218,8 +218,8 @@ MonoBehaviour:
     y: 0
     width: 1093
     height: 653
-  m_MinSize: {x: 200, y: 200}
-  m_MaxSize: {x: 4000, y: 4000}
+  m_MinSize: {x: 202, y: 226}
+  m_MaxSize: {x: 4002, y: 4026}
   m_ActualView: {fileID: 15}
   m_Panes:
   - {fileID: 15}
@@ -272,8 +272,8 @@ MonoBehaviour:
     y: 0
     width: 438
     height: 932
-  m_MinSize: {x: 275, y: 50}
-  m_MaxSize: {x: 4000, y: 4000}
+  m_MinSize: {x: 276, y: 76}
+  m_MaxSize: {x: 4001, y: 4026}
   m_ActualView: {fileID: 18}
   m_Panes:
   - {fileID: 18}
@@ -300,8 +300,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "UnityEditor.MainToolbarWindow\u200B"
   m_Pos:
     serializedVersion: 2
-    x: -1919
-    y: 57
+    x: 0
+    y: 0
     width: 1918
     height: 36
   m_SerializedDataModeController:
@@ -613,7 +613,7 @@ MonoBehaviour:
     m_SkipHidden: 0
     m_SearchArea: 0
     m_Folders:
-    - Assets/Configs/TestDecks
+    - Assets/Configs
     m_Globs: []
     m_ProductIds: 
     m_AnyWithAssetOrigin: 0
@@ -636,17 +636,34 @@ MonoBehaviour:
     m_LastClickedID:
       m_rawData: 568105584918838890
     m_ExpandedIDs:
-    - m_rawData: 568105589213755034
     - m_rawData: 0
-    - m_rawData: 568105584918838562
-    - m_rawData: 568105584918838564
-    - m_rawData: 568105584918838566
-    - m_rawData: 568105584918838568
-    - m_rawData: 568105584918838570
-    - m_rawData: 568105584918838572
-    - m_rawData: 568105584918838574
-    - m_rawData: 568105584918838576
-    - m_rawData: 568105584918838908
+    - m_rawData: 568105584918909614
+    - m_rawData: 568105584918909616
+    - m_rawData: 568105584918909618
+    - m_rawData: 568105584918909620
+    - m_rawData: 568105584918909622
+    - m_rawData: 568105584918909624
+    - m_rawData: 568105584918909626
+    - m_rawData: 568105584918909628
+    - m_rawData: 568105584918909630
+    - m_rawData: 568105584918909632
+    - m_rawData: 568105584918909634
+    - m_rawData: 568105584918909636
+    - m_rawData: 568105584918909638
+    - m_rawData: 568105584918909640
+    - m_rawData: 568105584918909642
+    - m_rawData: 568105584918909644
+    - m_rawData: 568105584918909646
+    - m_rawData: 568105584918909648
+    - m_rawData: 568105584918909650
+    - m_rawData: 568105584918909652
+    - m_rawData: 568105584918909654
+    - m_rawData: 568105584918909656
+    - m_rawData: 568105584918909658
+    - m_rawData: 568105584918909660
+    - m_rawData: 568105584918909662
+    - m_rawData: 568105584918909664
+    - m_rawData: 568105584918909666
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -680,14 +697,33 @@ MonoBehaviour:
       m_rawData: 0
     m_ExpandedIDs:
     - m_rawData: 0
-    - m_rawData: 568105584918838562
-    - m_rawData: 568105584918838564
-    - m_rawData: 568105584918838566
-    - m_rawData: 568105584918838568
-    - m_rawData: 568105584918838570
-    - m_rawData: 568105584918838572
-    - m_rawData: 568105584918838574
-    - m_rawData: 568105584918838576
+    - m_rawData: 568105584918909614
+    - m_rawData: 568105584918909616
+    - m_rawData: 568105584918909618
+    - m_rawData: 568105584918909620
+    - m_rawData: 568105584918909622
+    - m_rawData: 568105584918909624
+    - m_rawData: 568105584918909626
+    - m_rawData: 568105584918909628
+    - m_rawData: 568105584918909630
+    - m_rawData: 568105584918909632
+    - m_rawData: 568105584918909634
+    - m_rawData: 568105584918909636
+    - m_rawData: 568105584918909638
+    - m_rawData: 568105584918909640
+    - m_rawData: 568105584918909642
+    - m_rawData: 568105584918909644
+    - m_rawData: 568105584918909646
+    - m_rawData: 568105584918909648
+    - m_rawData: 568105584918909650
+    - m_rawData: 568105584918909652
+    - m_rawData: 568105584918909654
+    - m_rawData: 568105584918909656
+    - m_rawData: 568105584918909658
+    - m_rawData: 568105584918909660
+    - m_rawData: 568105584918909662
+    - m_rawData: 568105584918909664
+    - m_rawData: 568105584918909666
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -778,8 +814,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Hierarchy\u200B"
   m_Pos:
     serializedVersion: 2
-    x: -1919
-    y: 93
+    x: 0
+    y: 24
     width: 386
     height: 627
   m_SerializedDataModeController:
@@ -800,8 +836,7 @@ MonoBehaviour:
   m_SceneHierarchy:
     m_TreeViewState:
       scrollPos: {x: 0, y: 0}
-      m_SelectedIDs:
-      - m_rawData: 568105584918838922
+      m_SelectedIDs: []
       m_LastClickedID:
         m_rawData: 0
       m_ExpandedIDs:
@@ -854,8 +889,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Scene\u200B"
   m_Pos:
     serializedVersion: 2
-    x: -1532
-    y: 93
+    x: 388
+    y: 24
     width: 1091
     height: 627
   m_SerializedDataModeController:
@@ -1472,7 +1507,7 @@ MonoBehaviour:
   m_AudioPlay: 0
   m_DebugDrawModesUseInteractiveLightBakingData: 0
   m_Position:
-    m_Target: {x: 0, y: 0, z: 0}
+    m_Target: {x: -0.01823926, y: 1.7326895, z: 6.8604856}
     speed: 2
     m_Value: {x: 0, y: 0, z: 0}
   m_RenderMode: 0
@@ -1521,17 +1556,17 @@ MonoBehaviour:
     m_gridOpacity: 0.5
     m_NearestPlaneToHandleMode: 0
   m_Rotation:
-    m_Target: {x: 0.12806328, y: -0.1260485, z: 0.01574536, w: 0.984231}
+    m_Target: {x: 0.14833856, y: 0.19078375, z: -0.014705675, w: 0.97147495}
     speed: 2
-    m_Value: {x: 0.1279835, y: -0.12596998, z: 0.015735552, w: 0.98361784}
+    m_Value: {x: 0, y: 0, z: 0, w: 1}
   m_Size:
-    m_Target: 10.40772
+    m_Target: 4.5198812
     speed: 2
     m_Value: 10.40772
   m_Ortho:
     m_Target: 0
     speed: 2
-    m_Value: 0
+    m_Value: 1
   m_CameraSettings:
     m_Speed: 0.7006501
     m_SpeedNormalized: 0.35000005
@@ -1691,8 +1726,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Console\u200B"
   m_Pos:
     serializedVersion: 2
-    x: -1919
-    y: 746
+    x: 0
+    y: 677
     width: 1479
     height: 253
   m_SerializedDataModeController:
@@ -1732,8 +1767,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Inspector\u200B"
   m_Pos:
     serializedVersion: 2
-    x: -439
-    y: 93
+    x: 1481
+    y: 24
     width: 437
     height: 906
   m_SerializedDataModeController:

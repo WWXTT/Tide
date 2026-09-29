@@ -4,6 +4,8 @@
     "com.danbaidong.smoothnormal": "file:Dbdrp/SmoothNormal-main",
     "com.github-glitchenzo.nugetforunity": "https://github.com/GlitchEnzo/NuGetForUnity.git?path=/src/NuGetForUnity",
     "com.oddworm.texture2darrayimportpipeline": "https://github.com/pschraut/UnityTexture2DArrayImportPipeline.git#1.6.0",
+    "com.code-philosophy.hybridclr": "https://gitee.com/focus-creative-games/hybridclr_unity.git",
+    "com.tuyoogame.yooasset": "https://github.com/tuyoogame/YooAsset.git?path=Assets/YooAsset#3.0.6",
     "com.unity.ai.inference": "2.6.1",
     "com.unity.cinemachine": "3.1.6",
     "com.unity.editorcoroutines": "1.1.0",

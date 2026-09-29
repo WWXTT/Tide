@@ -176,7 +176,7 @@ namespace FIMSpace.FEditor
         }
 
 
-        [MenuItem("CONTEXT/Material/Convert Material Textures To PNGs")]
+        [MenuItem("CONTEXT/Material/材质贴图批量转换为 PNG")]
         private static void ConvertMaterialTexturesToPNGs(MenuCommand menuCommand)
         {
             Material targetMaterial = (Material)menuCommand.context;
@@ -204,7 +204,7 @@ namespace FIMSpace.FEditor
             AssetDatabase.Refresh();
         }
 
-        [MenuItem("CONTEXT/Material/Convert Material Textures To PNGs and Remove Sources")]
+        [MenuItem("CONTEXT/Material/材质贴图转 PNG 并删除原贴图")]
         private static void ConvertMaterialTexturesToPNGsAndRemove(MenuCommand menuCommand)
         {
             Material targetMaterial = (Material)menuCommand.context;
