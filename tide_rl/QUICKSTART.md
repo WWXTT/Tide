@@ -178,12 +178,12 @@ tail -f logs/train_YYYYMMDD_HHMMSS.log
 | 参数 | 默认值 | 说明 |
 |---|---|---|
 | `total_timesteps` | 2,000,000 | 总训练步数（约 5~10k 局） |
-| `num_envs` | 4 | 并行环境数量 |
+| `num_envs` | 1 | 一进程一局（TCP 桥硬约束） |
 | `num_steps` | 256 | 每次 rollout 步数 |
 | `learning_rate` | 2.5e-4 | 学习率（线性衰减） |
-| `reward_lambda` | 0.02 | 塑形强度（v2 全资源） |
-| `eval_interval` | 5,000 | 每 5k 步评估一次 |
-| `eval_episodes` | 20 | 每次评估 20 局 |
+| `reward_lambda` | 0.005 | 塑形强度（reset 协议下发） |
+| `eval_interval` | 50,000 | 每 5 万步评估一次 |
+| `eval_episodes` | 50 | 每次评估 50 局（20 局二项噪声 σ≈0.11） |
 | `target_win_rate` | 0.75 | 目标胜率 75% |
 | `patience` | 5 | 连续 5 次达标即停止 |
 

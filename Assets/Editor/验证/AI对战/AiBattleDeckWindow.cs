@@ -158,7 +158,13 @@ namespace CardCore.Editor.Tests
             OnnxTidePolicy policy = null;
             if (brain1 == AiBrain.Neural || brain2 == AiBrain.Neural)
             {
-                ConfigureNeuralIdentity(p1, p2);
+                var guardError = NeuralDeployGuard.Verify(out var guardDetail);
+                if (guardError != null)
+                {
+                    EditorUtility.DisplayDialog("AI 大脑", $"{guardError}\n（{guardDetail}）", "好");
+                    return;
+                }
+                if (!ConfigureNeuralIdentity(p1, p2)) return;
                 try
                 {
                     policy = new OnnxTidePolicy();
@@ -363,16 +369,23 @@ namespace CardCore.Editor.Tests
             return null;
         }
 
-        /// <summary>ONNX 卡身份登记（镜像 TideHeadlessServer.HandleReset / 训练服务器口径）。</summary>
-        private static void ConfigureNeuralIdentity(List<CardData> p1, List<CardData> p2)
+        /// <summary>ONNX 卡身份登记（镜像 TideHeadlessServer.HandleReset / 训练服务器口径）。
+        /// 2026-09-29 起表指纹不符 = 失败拒跑（登记会全体换行、embedding 串台），不再只是警告。</summary>
+        private static bool ConfigureNeuralIdentity(List<CardData> p1, List<CardData> p2)
         {
             int loaded = TideCardIndex.ConfigureManifest(ManifestPath);
-            Debug.Log(loaded >= 0
-                ? $"[AI 对战] 卡身份清单载入 {loaded} 条（{ManifestPath}）"
-                : "[AI 对战] ⚠ manifest 表指纹不符——模型 embedding 行可能串台，建议重导出");
+            if (loaded < 0)
+            {
+                EditorUtility.DisplayDialog("AI 大脑",
+                    "card_identity_manifest.json 表指纹与当前原子表不符——游戏内容已变更，"
+                    + "卡身份会全体换行、模型 embedding 串台。\n需重训 + 重导出（模型/清单/游戏内容三者同源）。", "好");
+                return false;
+            }
+            Debug.Log($"[AI 对战] 卡身份清单载入 {loaded} 条（{ManifestPath}）");
             BattleDeckSources.RegisterIdentities(); // Cards.json 全池（含三主题卡）——2026-09-21 起替代已删的 Configs/TestDecks
             TideCardIndex.Register(p1);
             TideCardIndex.Register(p2);
+            return true;
         }
 
         private static string ManifestPath

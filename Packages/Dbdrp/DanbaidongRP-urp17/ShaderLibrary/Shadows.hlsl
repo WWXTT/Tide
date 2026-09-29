@@ -121,6 +121,10 @@ CBUFFER_END
 // w: unused
 float4 _ShadowBias;
 
+// Strength of indirect specular (env probe + sky reflection) occlusion by the main light
+// shadow in deferred lighting. 0 = off, 1 = full Gotanda-curve occlusion.
+float _EnvSpecShadowOcclusion;
+
 half IsSpotLight()
 {
     return round(_ShadowBias.z) == 0.0 ? 1 : 0;

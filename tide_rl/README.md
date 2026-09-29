@@ -21,10 +21,10 @@ tide_rl/
 对应 ygo-agent 的 `features.py`，定义 Tide 特征维度：
 
 - `N_CARD_FEATURES = 65`（2026-09-10 目标域模型 71→65）（不是 YGO 的 41；含内容身份三通路：精确哈希/EffectType/参数块）
-- `N_GLOBAL_FEATURES = 32` （不是 YGO 的 23）
+- `N_GLOBAL_FEATURES = 36`（2026-09-14 起 32→36，末尾 4 维黑白每回合获得余量）（不是 YGO 的 23）
 - `N_ACTION_FEATURES = 6` （不是 YGO 的 12）
 - `MAX_CARDS = 80`
-- `MAX_ACTIONS = 24`
+- `MAX_ACTIONS = 128`（覆盖 10v10 以内的攻击全叉积；超出截断，见 tide_features.py 注释）
 
 辅助函数：
 - `sample_input()` — 生成样本输入（模型初始化用）
@@ -124,7 +124,7 @@ env = TideEnv(reward_lambda=0.005, ...)   # λ 由此下发
 env = TideEnv(
     unity_path=r"C:\...\Unity.exe",  # 或从环境变量 UNITY_PATH 读取
     project_path=r"E:\UnityProject\Tide",
-    reward_lambda=0.02,
+    reward_lambda=0.005,
 )
 ```
 
@@ -179,15 +179,16 @@ Encoder → Cards池化 → GRU → 增强Global特征 → Actor/Critic
 
 ```python
 learning_rate: 2.5e-4
-num_envs: 4                # 串行 env 数量（CPU 限制）
-num_steps: 128             # 每次 rollout 步数
-gamma: 0.99
+num_envs: 1                 # 一进程一局（TCP 桥硬约束，assert 1）
+num_steps: 256              # 每次 rollout 步数
+gamma: 1.0                  # 2026-09-29 起零和回合制口径（原 0.99）
 gae_lambda: 0.95
-clip_coef: 0.1
-ent_coef: 0.01
+clip_coef: 0.2
+ent_coef: 0.05
 vf_coef: 0.5
-total_timesteps: 1_000_000  # 100 万步（约 2~3k 局）
-reward_lambda: 0.02         # v2 全资源势能，降低塑形强度
+total_timesteps: 2_000_000
+reward_lambda: 0.005        # 2026-09-22 起 0.05→0.005（防拖后期塑形淹没终局）
+update_epochs: 4            # 2026-09-29 起多 epoch（此前 1=纯策略梯度，clip 恒不生效）
 ```
 
 ### 训练循环

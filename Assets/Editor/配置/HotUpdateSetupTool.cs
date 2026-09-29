@@ -53,12 +53,14 @@ namespace Tide.HotUpdateTools
             EnsureGroup(package, "HotUpdateDll", HotDllFolder);
             EnsureGroup(package, "AotDll", AotDllFolder);
             EnsureGroup(package, "Scene", "Assets/Scenes");
-            EnsureGroup(package, "AIModel", "Assets/AIModels");
+            EnsureGroup(package, "Art", "Assets/Art");
+            EnsureGroup(package, "Configs", "Assets/Configs");
+            EnsureGroup(package, "UI", "Assets/UI/Res");
 
             BundleCollectorSettingData.SaveFile();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[热更配置] YooAsset 收集器：DefaultPackage ← HotUpdateDll/AotDll/Scene/AIModel 四组（其余资源组后续按需追加）");
+            Debug.Log("[热更配置] YooAsset 收集器：DefaultPackage ← HotUpdateDll/AotDll/Scene/Art/Configs/UI 六组（热更区=Art+Configs+UI+热更DLL，Art 覆盖 AIModels/HexMap）");
         }
 
         [MenuItem("Tide/热更/3. 生成 Launch 场景")]

@@ -6,7 +6,7 @@
 #     全池=超集；部署链路约束「训练/部署 manifest 必须同一份」）
 #   - tide_rl\logs\<最新 run>\ —— best/last checkpoint + stats.jsonl
 #   - tide_rl\exports\ —— 若曾在临时工程内导出过 onnx（可选）
-#   - Assets\Resources\tide_policy* —— export_onnx 默认复制的部署产物（若存在）
+#   - Assets\Art\AIModels\tide_policy* —— export_onnx 默认复制的部署产物（onnx+fixture 成对）
 #
 # 之后建议在主工程 tide_rl 用 .venv-export 跑 export_onnx.py 完成部署导出
 # （manifest 已同步，身份一致）。训练在跑时禁止同步（manifest 并发写）。
@@ -70,13 +70,13 @@ if (Test-Path $srcExports) {
     Write-Host "[OK] 已回拷 exports/"
 }
 
-# ---- 4) Assets\Resources 部署产物（若存在）----
-$srcRes = "$TrainRoot\Assets\Resources"
+# ---- 4) Assets\Art\AIModels 部署产物（若存在）----
+$srcRes = "$TrainRoot\Assets\Art\AIModels"
 if (Test-Path $srcRes) {
     Get-ChildItem $srcRes -Filter "tide_policy*" -File | ForEach-Object {
-        New-Item -ItemType Directory -Force -Path "$Main\Assets\Resources" | Out-Null
-        Copy-Item $_.FullName "$Main\Assets\Resources" -Force
-        Write-Host "[OK] 已回拷 Resources：$($_.Name)"
+        New-Item -ItemType Directory -Force -Path "$Main\Assets\Art\AIModels" | Out-Null
+        Copy-Item $_.FullName "$Main\Assets\Art\AIModels" -Force
+        Write-Host "[OK] 已回拷 Art/AIModels：$($_.Name)"
     }
 }
 

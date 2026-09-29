@@ -1,7 +1,14 @@
 {
     "name": "Tide.HotUpdate",
     "rootNamespace": "Tide.HotUpdate",
-    "references": [],
+    "references": [
+        "HexMap.ECS",
+        "Unity.Entities",
+        "Unity.Collections",
+        "Unity.InferenceEngine",
+        "YooAsset",
+        "UniTask"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

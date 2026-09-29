@@ -18,7 +18,7 @@ namespace CardCore.Editor.NetSession
     /// </summary>
     public static class NetLobbyHost
     {
-        private const int DefaultPort = 7777;
+        private const int DefaultPort = 8090;
 
         private static NetLobbyServer _server;
 

@@ -7,7 +7,7 @@ batch 已脱皮，Unity 侧无需再压 batch 维）：
   输入（float32）
     rstate  (512,)   GRU 隐状态（局内逐步传递；新对局置零）
     cards   (80,65)  TideObservation.Cards
-    global  (32,)    TideObservation.Globals
+    global  (36,)    TideObservation.Globals
     actions (128,6)  LegalActionEnumerator.Features 补零到 128（valid=0 → 图内掩 -1e9）
   输出（float32）
     rstate_next (512,)  写回状态，下一步作 rstate 输入
@@ -21,7 +21,7 @@ batch 已脱皮，Unity 侧无需再压 batch 维）：
 产出（tide_rl/exports/）：
   tide_policy.onnx           推理图（含 manifest 指纹等元数据）
   tide_policy_fixture.json   数值对拍样例（Unity 侧 Sentis vs JAX 参考输出）
-并复制到 Assets/AI/Models/（--no-unity-copy 关闭；Unity 导入 .onnx 生成 ModelAsset，供 YooAsset 热更打包）。
+并复制到 Assets/Art/AIModels/（--no-unity-copy 关闭；Unity 导入 .onnx 生成 ModelAsset，供 YooAsset 热更打包）。
 
 数值验证：onnxruntime 逐输出对拍 JAX，非法动作掩码抽检；容差 5e-3（f32 归约顺序差异）。
 """
@@ -51,11 +51,10 @@ from tide_features import (
 )
 
 ROOT = Path(__file__).resolve().parent
-DEFAULT_RUN = ROOT / "logs" / "tide_ppo_selfplay__42__1788965027"
 MANIFEST = ROOT / "card_identity_manifest.json"
-# ONNX 放 Assets/AI/Models/：编辑器 ScriptedImporter 转成 ModelAsset（Sentis 运行时无
+# ONNX 放 Assets/Art/AIModels/：编辑器 ScriptedImporter 转成 ModelAsset（Sentis 运行时无
 # ONNX 文件解析器）；YooAsset AIModel 收集组随热更包下发，编辑器直启走 AssetDatabase 兜底
-UNITY_ASSETS = ROOT.parent / "Assets" / "AI" / "Models"
+UNITY_ASSETS = ROOT.parent / "Assets" / "Art" / "AIModels"
 
 INPUT_NAMES = ["rstate", "cards", "global", "actions"]
 OUTPUT_NAMES = ["rstate_next", "logits", "value"]
@@ -180,7 +179,7 @@ def main():
                     help="覆盖 config.json 的 rnn_type（lstm 暂未适配导出）")
     ap.add_argument("--opset", type=int, default=23, help="ONNX opset（Sentis 2.6 支持 7..25）")
     ap.add_argument("--tol", type=float, default=5e-3, help="ORT vs JAX 最大绝对误差告警线")
-    ap.add_argument("--no-unity-copy", action="store_true", help="不复制到 Assets/AI/Models")
+    ap.add_argument("--no-unity-copy", action="store_true", help="不复制到 Assets/Art/AIModels")
     args = ap.parse_args()
     if args.ckpt is None:
         args.ckpt = latest_checkpoint()
@@ -329,7 +328,7 @@ def main():
         shutil.copy2(fixture_path, UNITY_ASSETS / fixture_path.name)
         print(f"[✓] 已复制到 {UNITY_ASSETS}（Unity 下次打开时生成 .meta）")
 
-    print("[✓] 完成。Unity 侧用法见 Assets/Scripts/AI/NeuralAI/OnnxTidePolicy.cs 头注释。")
+    print("[✓] 完成。Unity 侧用法见 Assets/Scripts/HotUpdate/AI/NeuralAI/OnnxTidePolicy.cs 头注释。")
 
 
 if __name__ == "__main__":
