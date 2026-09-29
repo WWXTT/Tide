@@ -20,8 +20,8 @@ if not exist ".venv-export\Scripts\python.exe" (
 )
 
 echo Usage  : export_onnx.bat [ckpt_arg]   (default = latest selfplay best)
-echo Example: export_onnx.bat logs\tide_ppo_selfplay__42__1788965027\last\params.msgpack
-echo Output : exports\tide_policy.onnx -^> Assets\StreamingAssets\
+echo Example: export_onnx.bat logs\tide_ppo_selfplay_theme__42__xxxx\best\params.msgpack
+echo Output : exports\tide_policy.onnx -^> Assets\Art\AIModels\（onnx+fixture 成对复制）
 echo ========================================
 echo.
 
@@ -36,8 +36,8 @@ echo.
 if "%EXITCODE%"=="0" (
     echo ========================================
     echo   Export OK. Unity menu:
-    echo   Tools/AI/ONNX 策略/1. 数值对拍 (fixture)
-    echo   Tools/AI/ONNX 策略/2. vs SimpleAI 20 局
+    echo   Tools/AI/模型fixture自检
+    echo   Tools/AI/模型vs脚本主题批量对局
     echo ========================================
 ) else (
     echo ========================================

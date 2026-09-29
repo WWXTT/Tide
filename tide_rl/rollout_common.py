@@ -124,7 +124,7 @@ def bootstrap_next_value(agent_apply, params, obs, rstate):
 
 
 def compute_advantages_simple(values, rewards, dones, next_value, gamma, gae_lambda,
-                              seats=None, next_seat=None):
+                              seats=None, next_seat=None, use_upgo=False):
     """简化版 GAE（单环境序列）。
 
     seats 给出每步行动方座次（info.toPlay）时启用零和自对弈修正（2026-09-22）：
@@ -138,6 +138,13 @@ def compute_advantages_simple(values, rewards, dones, next_value, gamma, gae_lam
     终局 ±1 是 actor-centric（胜者行动步 +1 / 败者行动步 −1），与该约定自洽。
     seats=None 走旧单代理口径（simpleai 训练 / quick 实验兼容；simpleai 模式下
     所有决策点都是模型座次，符号永不翻转，两条路径数值一致）。
+
+    use_upgo（2026-09-29，仅座次修正口径生效）：UPGO「跟随赢家」优势项
+    （ygo-agent truncated_gae_sep 默认开）——在符号修正空间反向递推
+      U_t = r̂_t + γ·non_terminal·max(V̂_{t+1}, U_{t+1})
+    （对手应手点取 max：对手若走最优，本步的实际延续价值不低于其估计），
+    A += U_t − V̂_t。critic 目标 R 保持纯 GAE 回报不变（ygo 同口径：
+    targets 先于 upgo 项算出）。
     """
     if seats is None:
         advantages = []
@@ -191,5 +198,16 @@ def compute_advantages_simple(values, rewards, dones, next_value, gamma, gae_lam
     adv_hat = np.array(adv_hat, dtype=np.float32)
     advantages = sign * adv_hat
     returns = advantages + values
+
+    # UPGO 项（符号修正空间反向递推，见 docstring；critic 目标 returns 不动）
+    if use_upgo:
+        upgo_delta = np.empty(n, dtype=np.float32)
+        u = nv_hat  # 窗口末 bootstrap（已按换手定号）
+        for t in reversed(range(n)):
+            next_val = nv_hat if t == n - 1 else v_hat[t + 1]
+            non_terminal = 1.0 - float(dones[t])
+            u = r_hat[t] + gamma * non_terminal * max(next_val, u)
+            upgo_delta[t] = u - v_hat[t]
+        advantages = advantages + sign * upgo_delta
 
     return advantages, returns

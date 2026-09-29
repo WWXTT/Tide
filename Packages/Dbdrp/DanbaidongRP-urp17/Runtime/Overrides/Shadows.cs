@@ -83,6 +83,9 @@ namespace UnityEngine.Rendering.Universal
         [Tooltip("Use Edge-Avoiding A-Trous Wavelet (EAW) filter.")]
         public BoolParameter edgeAvoidingWaveletBlur = new BoolParameter(true);
 
+        [Tooltip("Occlusion strength for indirect specular (env probe + sky reflection) in main-light shadow, damps grazing-angle fresnel brightening of shadowed surfaces. 0 disables.")]
+        public ClampedFloatParameter indirectSpecularShadowOcclusion = new ClampedFloatParameter(1.0f, 0.0f, 1.0f);
+
         /// <inheritdoc/>
         public bool IsActive() => true; // Always enable screenSpaceShadows.
 

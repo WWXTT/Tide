@@ -211,6 +211,11 @@ class TideEnvTcp(gym.Env):
         # info.toPlay = 下一决策点行动方座次（0/1，终局 -1）——自对弈 GAE 座次修正用。
         reward = float(response.get("reward", 0.0))
 
+        # 平局（SimpleAI 崩溃等 winner 为空）：驱动侧 ReferenceEquals(null, me)=false 发了
+        # -1，此处归零——平局按 0 回报计，不与超时/判负混在同一信号里（2026-09-29）
+        if done and not str(info.get("winner", "") or ""):
+            reward = 0.0
+
         self.step_count += 1
 
         # 超时判负

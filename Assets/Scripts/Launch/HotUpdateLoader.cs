@@ -35,7 +35,7 @@ namespace Tide.Launch
                 .FirstOrDefault(a => a.GetName().Name == HotAssemblyName);
             if (assembly == null)
             {
-                PatchConsole.Error($"编辑器下未找到 {HotAssemblyName} 程序集，请检查 Assets/HotUpdate/Tide.HotUpdate.asmdef");
+                PatchConsole.Error($"编辑器下未找到 {HotAssemblyName} 程序集，请检查 Assets/Scripts/HotUpdate/Tide.HotUpdate.asmdef");
                 return false;
             }
             return InvokeEntry(assembly);

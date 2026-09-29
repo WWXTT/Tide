@@ -257,7 +257,7 @@ MonoBehaviour:
     m_Value: 1
   shadowScatterMode:
     m_OverrideState: 1
-    m_Value: 0
+    m_Value: 1
   shadowRampTex:
     m_OverrideState: 0
     m_Value: {fileID: 2800000, guid: afea1fed01220fc4491569f42c01f3f4, type: 3}
@@ -272,7 +272,7 @@ MonoBehaviour:
     m_Value: 0.07
   occlusionPenumbra:
     m_OverrideState: 0
-    m_Value: 1
+    m_Value: 0.65
   denoiser:
     m_OverrideState: 0
     m_Value: 1

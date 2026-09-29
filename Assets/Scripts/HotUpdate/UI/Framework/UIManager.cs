@@ -1,0 +1,148 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace SynergyUI
+{
+    /// <summary>
+    /// 运行时界面栈管理器。
+    /// 负责：加载界面 UXML、装配到根容器、调用生命周期、维护导航历史。
+    ///
+    /// 用法：
+    ///   manager.Show&lt;MainMenuScreen&gt;();   // 压栈进入新界面
+    ///   manager.Back();                       // 返回上一界面
+    ///   manager.Replace&lt;BattleScreen&gt;();  // 替换当前界面（不入历史）
+    /// </summary>
+    public sealed class UIManager
+    {
+        // 根容器：PanelRenderer 装载回调给的根（原 UIDocument.rootVisualElement——6000.5 迁移；
+        // 热重载会换根，故非 readonly，ReattachRoot 换根重建）。
+        private VisualElement _root;
+
+        // 导航历史栈，栈顶为当前界面。
+        private readonly Stack<UIScreen> _stack = new Stack<UIScreen>();
+
+        // 已实例化界面缓存（每种界面只 new 一次，复用实例）。
+        private readonly Dictionary<Type, UIScreen> _cache = new Dictionary<Type, UIScreen>();
+
+        public UIManager(VisualElement root)
+        {
+            _root = root ?? throw new ArgumentNullException(nameof(root));
+        }
+
+        /// <summary>当前栈顶界面，无则返回 null。</summary>
+        public UIScreen Current => _stack.Count > 0 ? _stack.Peek() : null;
+
+        /// <summary>压栈进入新界面，隐藏（OnExit）当前界面。</summary>
+        public T Show<T>() where T : UIScreen, new()
+        {
+            DeactivateCurrent();
+            var screen = GetOrCreate<T>();
+            _stack.Push(screen);
+            Activate(screen);
+            return screen;
+        }
+
+        /// <summary>换根重建（PanelRenderer 热重载）：新根清空并重新装配当前栈顶界面（导航栈保持）。</summary>
+        public void ReattachRoot(VisualElement newRoot)
+        {
+            _root = newRoot ?? throw new ArgumentNullException(nameof(newRoot));
+            if (_stack.Count > 0)
+                Activate(_stack.Peek());
+        }
+
+        /// <summary>替换当前界面（弹出当前并销毁其显示，压入新界面，历史深度不变）。</summary>
+        public T Replace<T>() where T : UIScreen, new()
+        {
+            if (_stack.Count > 0)
+            {
+                var top = _stack.Pop();
+                Deactivate(top);
+            }
+            var screen = GetOrCreate<T>();
+            _stack.Push(screen);
+            Activate(screen);
+            return screen;
+        }
+
+        /// <summary>返回上一界面。若已在栈底则无操作。</summary>
+        public void Back()
+        {
+            if (_stack.Count <= 1)
+            {
+                return;
+            }
+            var top = _stack.Pop();
+            Deactivate(top);
+            Activate(_stack.Peek());
+        }
+
+        private void DeactivateCurrent()
+        {
+            if (_stack.Count > 0)
+            {
+                Deactivate(_stack.Peek());
+            }
+        }
+
+        /// <summary>界面 UXML 统一加载（2026-09-29 UI 资产迁出 Resources → Assets/UI/Res）：
+        /// resourcePath 形如 "UXML/Battle"，YooAsset 地址取尾段文件名（AddressByFileName），
+        /// 编辑器兜底路径保留子目录。</summary>
+        private static VisualTreeAsset LoadUxml(string resourcePath)
+        {
+            string fileName = resourcePath.Substring(resourcePath.LastIndexOf('/') + 1);
+            return Tide.HotUpdate.HotUpdateAssets.Load<VisualTreeAsset>(
+                fileName, "Assets/UI/Res/" + resourcePath + ".uxml");
+        }
+
+        private void Activate(UIScreen screen)
+        {
+            // 面板级样式注入（2026-09-21）：下拉弹出菜单（GenericDropdownMenu）挂在面板
+            // visualTree 的覆盖层、不在任何界面根子树内——界面 UXML 引用的 USS 管不到它。
+            // 把 Common.uss 注入面板根，使 .unity-generic-menu 规则（弹窗拉宽/去横向滚动）生效。
+            var panelRoot = _root?.panel?.visualTree;
+            if (panelRoot != null)
+            {
+                var uss = Tide.HotUpdate.HotUpdateAssets.Load<StyleSheet>("Common", "Assets/UI/Res/Common.uss");
+                if (uss != null && !panelRoot.styleSheets.Contains(uss))
+                    panelRoot.styleSheets.Add(uss);
+            }
+
+            // 重新装配根容器：清空再 clone UXML，保证界面状态干净。
+            _root.Clear();
+
+            var tree = LoadUxml(screen.UxmlResourcePath);
+            if (tree == null)
+            {
+                Debug.LogError($"[UIManager] 找不到 UXML: {screen.UxmlResourcePath}（YooAsset 地址=文件名 / Assets/UI/Res）");
+                return;
+            }
+
+            var container = tree.Instantiate();
+            // 让界面填满整个根容器。
+            container.style.flexGrow = 1;
+            _root.Add(container);
+
+            screen.Bind(this, container);
+            screen.OnEnter();
+        }
+
+        private void Deactivate(UIScreen screen)
+        {
+            screen.FlushSubscriptions();
+            screen.OnExit();
+        }
+
+        private T GetOrCreate<T>() where T : UIScreen, new()
+        {
+            var type = typeof(T);
+            if (!_cache.TryGetValue(type, out var screen))
+            {
+                screen = new T();
+                _cache[type] = screen;
+            }
+            return (T)screen;
+        }
+    }
+}

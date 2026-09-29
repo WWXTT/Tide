@@ -88,6 +88,7 @@ namespace UnityEngine.Rendering.Universal.Internal
             internal TextureHandle SSShadowsTexture;
             internal TextureHandle shadowScatterTexture;
             internal Vector4 ambientOcclusionParam;
+            internal float envSpecShadowOcclusion;
         }
 
         static void SetGlobalStates(PassData data, ComputeCommandBuffer cmd)
@@ -96,6 +97,7 @@ namespace UnityEngine.Rendering.Universal.Internal
             cmd.SetKeyword(ShaderGlobalKeywords.ScreenSpaceOcclusion, data.AmbientOcclusionTexture.IsValid());
             cmd.SetKeyword(ShaderGlobalKeywords.RayTracingShadows, data.rayTracingShadowsEnabled);
             cmd.SetGlobalVector(ShaderConstants._AmbientOcclusionParam, data.ambientOcclusionParam);
+            cmd.SetGlobalFloat(ShaderConstants._EnvSpecShadowOcclusion, data.envSpecShadowOcclusion);
         }
 
         static void ExecutePass(PassData data, ComputeGraphContext context)
@@ -210,6 +212,13 @@ namespace UnityEngine.Rendering.Universal.Internal
                 }
                 passData.ambientOcclusionParam = aoParam;
 
+                // Indirect specular (env probe + sky reflection) occlusion from the main light
+                // shadow; damps grazing-angle fresnel brightening of shadowed surfaces.
+                passData.envSpecShadowOcclusion = 1.0f;
+                var shadowsVolumeSetting = stack.GetComponent<Shadows>();
+                if (shadowsVolumeSetting != null && shadowsVolumeSetting.IsActive())
+                    passData.envSpecShadowOcclusion = shadowsVolumeSetting.indirectSpecularShadowOcclusion.value;
+
                 // Declare input/output
                 builder.UseTexture(passData.lightingHandle, AccessFlags.ReadWrite);
                 builder.UseTexture(passData.stencilHandle, AccessFlags.Read);
@@ -264,6 +273,7 @@ namespace UnityEngine.Rendering.Universal.Internal
             public static readonly int _ReflectionLightingTexture = Shader.PropertyToID("_ReflectionLightingTexture");
             public static readonly int _AmbientOcclusionTexture = Shader.PropertyToID("_AmbientOcclusionTexture");
             public static readonly int _AmbientOcclusionParam = Shader.PropertyToID("_AmbientOcclusionParam");
+            public static readonly int _EnvSpecShadowOcclusion = Shader.PropertyToID("_EnvSpecShadowOcclusion");
         }
     }
 }

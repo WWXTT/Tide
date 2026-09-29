@@ -11,8 +11,9 @@ Protocol（每行一条 JSON，与编辑器 TCP 路径完全一致）:
 - step:  {"op":"step","action":N} → obs, reward, done, info
 
 reward 直接采用 Unity 响应的 reward 字段（actor-centric 权威口径：
-终局 ±1 归属「刚行动的一方」；非终局 λ·ΔΦ 势能塑形，λ 固定在 Unity 侧
-TideHeadlessDriver.ShapingLambda=0.05）。Python 侧只保留超时判负。
+终局 ±1 归属「刚行动的一方」；非终局 λ·ΔΦ 势能塑形，λ 经 reset 协议
+shapingLambda 下发——训练 Args.reward_lambda=0.005，Unity 侧缺省同值）。
+Python 侧只保留超时判负。
 
 进程生命周期：
 - 惰性启动：首次 reset 才拉起 Unity batchmode，之后跨局复用（协议 reset 本身
@@ -45,7 +46,7 @@ class TideEnv(TideEnvTcp):
         unity_path: str = None,
         project_path: str = None,
         max_steps: int = 1000,
-        reward_lambda: float = 0.02,  # 兼容参数：塑形 λ 固定在 Unity 侧（见模块 docstring）
+        reward_lambda: float = 0.005,  # 塑形 λ（reset 协议 shapingLambda 下发 Unity）
         opponent: str = "selfplay",   # 对手位：selfplay 自对弈 / simpleai 模型 vs SimpleAI
         startup_timeout: float = 300.0,
         step_timeout: float = 120.0,
@@ -57,7 +58,7 @@ class TideEnv(TideEnvTcp):
                         Hub 目录扫描并匹配 ProjectVersion.txt）
             project_path: Tide 工程路径（默认当前目录的父目录）
             max_steps: 单局最大步数（超时判负）
-            reward_lambda: 兼容参数（Unity 侧已内置 λ=0.05，此处不生效）
+            reward_lambda: 塑形 λ，经 reset 协议 shapingLambda 下发（Unity 侧缺省 0.005）
             opponent: 对手位——"selfplay" 自对弈 / "simpleai" 模型 vs SimpleAI
                      （模型座次随机 = 先后手各半，obs/reward 恒为模型视角，info.modelSeat 判胜负）
             startup_timeout: Unity batchmode 启动 + 建立连接的总超时

@@ -89,14 +89,22 @@ class Args:
     # stdio 桥接一个 Unity 进程一场对局 → 恒为 1（评估复用同一 env）
     num_envs: int = 1
     num_steps: int = 256  # 每次 rollout 步数（对局跨窗口延续）
-    update_epochs: int = 1  # 简化：单次更新（minibatch/多轮 TODO）
+    # 2026-09-29 起 4 epoch 复用同批样本：此前恒 1，ratio 恒为 1、clip 永不触发，
+    # PPO 实际退化为单步归一化优势策略梯度。epoch1 ratio=1，epoch≥2 clip 生效。
+    # num_envs=1 无环境轴可切 minibatch，全批 256 样本直接多轮（梯度步很小，够用）。
+    update_epochs: int = 4
 
-    gamma: float = 0.99
+    # 2026-09-29 对齐 ygo-agent 口径：零和回合制 + 终局 ±1 + 势能塑形（γ=1 下严格
+    # 策略不变），γ=1.0 不再对未来终局奖励打折（旧 0.99 无依据地压低长线回报）。
+    gamma: float = 1.0
     gae_lambda: float = 0.95
     clip_coef: float = 0.2
+    dual_clip_coef: float = 3.0  # JueWu dual-clip（负优势下 ratio 下限）——ygo 默认开
+    vloss_clip: float = 1.0      # 价值损失单样本封顶 min(0.5·SE, clip)——ygo 口径，防离群回报拉飞 critic
     ent_coef: float = 0.05  # 熵系数（0.01 时点积 actor 熵 7 个 update 内塌零，已加温度修复后仍提到 0.05 保险）
     vf_coef: float = 0.5
     max_grad_norm: float = 0.5
+    use_upgo: bool = True  # UPGO 优势项（ygo 默认开；自对弈座次修正口径下生效，不稳可关掉消融）
 
     total_timesteps: int = 2_000_000
     eval_interval: int = 50_000  # 每 5 万步评估
@@ -208,16 +216,18 @@ def evaluate_greedy(agent_apply, params, env, args, num_episodes=20, opponent=No
             draws += 1
             result = "DRAW"
 
-        # 分主题统计（vs 脚本口径：info.theme = 对手主题 key red/green/blue）
-        theme = str(info.get("theme", "") or "")
-        if vs_script and theme:
-            tally = theme_stats.setdefault(theme, [0, 0])
+        # 分主题统计（vs 脚本口径：info.theme = 对手主题 key red/green/blue）。
+        # 注意不能重名遮蔽入参 theme——曾因此从第 2 局起把上一局主题写进 reset 请求
+        # （单主题评估自洽无症状，多主题恢复时会静默钉死单一主题）。
+        ep_theme = str(info.get("theme", "") or "")
+        if vs_script and ep_theme:
+            tally = theme_stats.setdefault(ep_theme, [0, 0])
             tally[1] += 1
             if model_win:
                 tally[0] += 1
 
         print(f"  Episode {ep+1}/{num_episodes}: {result}"
-              + (f" [theme={theme}]" if vs_script and theme else "")
+              + (f" [theme={ep_theme}]" if vs_script and ep_theme else "")
               + f" (length={step_count})")
 
     win_rate = wins / num_episodes
@@ -296,12 +306,12 @@ def train(args: Args):
         )
         optimizer = optax.chain(
             optax.clip_by_global_norm(args.max_grad_norm),
-            optax.adam(learning_rate=lr_schedule),
+            optax.adam(learning_rate=lr_schedule, eps=1e-5),  # ygo 口径 eps（默认 1e-8 易受小梯度噪声干扰）
         )
     else:
         optimizer = optax.chain(
             optax.clip_by_global_norm(args.max_grad_norm),
-            optax.adam(learning_rate=args.learning_rate),
+            optax.adam(learning_rate=args.learning_rate, eps=1e-5),
         )
 
     train_state = TrainState.create(
@@ -332,12 +342,18 @@ def train(args: Args):
             _, logits, values = ts.apply_fn(params, b_rstates, b_obs)
             logp_all = jax.nn.log_softmax(logits)
             logp_a = logp_all[jnp.arange(b_actions.shape[0]), b_actions]
-            ratios = jnp.exp(logp_a - b_old_logprobs)
-            pg_loss = clipped_surrogate_pg_loss(ratios, b_advantages, args.clip_coef).mean()
-            v_loss = mse_loss(b_returns, values).mean()
+            logratio = logp_a - b_old_logprobs
+            ratios = jnp.exp(logratio)
+            pg_loss = clipped_surrogate_pg_loss(ratios, b_advantages, args.clip_coef,
+                                                dual_clip_coef=args.dual_clip_coef).mean()
+            # 价值损失单样本封顶（ygo 口径的 cap，非 PPO value-clip）
+            v_loss = jnp.minimum(mse_loss(b_returns, values), args.vloss_clip).mean()
             entropy = entropy_loss(logits).mean()
             loss = pg_loss + args.vf_coef * v_loss - args.ent_coef * entropy
-            return loss, (pg_loss, v_loss, entropy)
+            # 诊断量（不进梯度）：k3 KL 估计（恒非负）与 clip 触发率——epoch≥2 才有意义
+            approx_kl = ((ratios - 1.0) - logratio).mean()
+            clipfrac = (jnp.abs(ratios - 1.0) > args.clip_coef).mean()
+            return loss, (pg_loss, v_loss, entropy, approx_kl, clipfrac)
 
         (loss, aux), grads = jax.value_and_grad(loss_fn, has_aux=True)(ts.params)
         ts = ts.apply_gradients(grads=grads)
@@ -414,6 +430,7 @@ def train(args: Args):
                     data["values"], data["rewards"], data["dones"],
                     next_value, args.gamma, args.gae_lambda,
                     seats=data.get("seats"), next_seat=data.get("next_seat"),
+                    use_upgo=args.use_upgo,
                 )
                 all_advantages.append(advantages)
                 all_returns.append(returns)
@@ -434,10 +451,13 @@ def train(args: Args):
             b_returns = jnp.array(b_returns, dtype=jnp.float32)
 
             # ==================== PPO Update（jit 整批，update 1 编译一次后亚秒级） ====================
-            train_state, loss, (pg_loss, v_loss, entropy) = ppo_update(
-                train_state, b_obs, b_rstates, b_actions,
-                b_old_logprobs, b_advantages, b_returns,
-            )
+            # 多 epoch 复用同批：epoch1 ratio=1（params 未动，等价纯 PG），epoch≥2 偏离
+            # 采样口径、clip 窗口接管——单 epoch 时代 clip 恒不触发（2026-09-29 修正）。
+            for _ in range(args.update_epochs):
+                train_state, loss, (pg_loss, v_loss, entropy, approx_kl, clipfrac) = ppo_update(
+                    train_state, b_obs, b_rstates, b_actions,
+                    b_old_logprobs, b_advantages, b_returns,
+                )
 
             update_time = time.time() - update_start
 
@@ -454,6 +474,8 @@ def train(args: Args):
                 "pg_loss": float(pg_loss),
                 "vf_loss": float(v_loss),
                 "entropy": float(entropy),
+                "approx_kl": float(approx_kl),
+                "clipfrac": float(clipfrac),
                 "ep_ret": mean_return,
                 "ep_len": mean_length,
                 "episodes": len(episode_returns),

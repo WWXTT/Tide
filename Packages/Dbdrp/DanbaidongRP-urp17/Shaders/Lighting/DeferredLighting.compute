@@ -460,6 +460,10 @@ DeferredLightingOutput DeferredLit(PositionInputs posInput, ShadingData shadingD
             }
 
         }
+        // Occlusion for indirect specular (env probe + sky reflection): the main-light shadow value is
+        // used as an AO proxy in the Gotanda curve, so shadowed surfaces no longer light up from
+        // grazing-angle fresnel reflections of the sky. SSR is intentionally not occluded.
+        float envSpecShadowOcclusion = 1.0;
         // Apply Shadows
         if (!materialReceiveShadowsOff)
         {
@@ -517,6 +521,10 @@ DeferredLightingOutput DeferredLit(PositionInputs posInput, ShadingData shadingD
                 directDiffuse *= shadowAttenuation;
                 directSpecular *= shadowAttenuation;
             }
+
+            // In scatter mode shadowAttenuation is the raw geometric signal, in the plain mode it is
+            // already strength-lerped — both are a valid occlusion proxy for indirect specular.
+            envSpecShadowOcclusion = lerp(1.0, GetSpecularOcclusionFromAmbientOcclusion(clampedNdotV, shadowAttenuation, shadingData.roughness), _EnvSpecShadowOcclusion);
 
         }
 
@@ -652,9 +660,9 @@ DeferredLightingOutput DeferredLit(PositionInputs posInput, ShadingData shadingD
     if (reflectionHierarchyWeight < 1.0)
     {
         float3 envReflection = EvaluateEnvProbes(posInput, reflectDirWS, shadingData.perceptualRoughness, reflectionHierarchyWeight);
-        indirectSpecular += specularFGD * envReflection;
+        indirectSpecular += specularFGD * envReflection * envSpecShadowOcclusion;
     }
-    
+
 
     // Evaluate SkyEnvironment
     if (reflectionHierarchyWeight < 1.0)
@@ -662,7 +670,7 @@ DeferredLightingOutput DeferredLit(PositionInputs posInput, ShadingData shadingD
         float weight = 1.0;
         UpdateLightingHierarchyWeights(reflectionHierarchyWeight, weight);
         float3 skyReflection = SampleSkyEnvironment(reflectDirWS, shadingData.perceptualRoughness);
-        indirectSpecular += specularFGD * skyReflection * weight;
+        indirectSpecular += specularFGD * skyReflection * weight * envSpecShadowOcclusion;
     }
 
     // 材质声明 _SPECULARHIGHLIGHTS_OFF（gbuffer 材质标志位 kMaterialFlagSpecularHighlightsOff，
