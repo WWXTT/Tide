@@ -78,7 +78,6 @@
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Cards\CardLoader.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\UI\Screens\BattleViewData.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\UI\Data\CardCatalog.cs" />
-    <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\RitualTrackers.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\NetSession\NetSessionServer.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Attribute\Handlers\IndicatorHandler.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Events\GameEvents.cs" />
@@ -94,8 +93,8 @@
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Serialization\TagRegistry.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\MountKind.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\KeywordEffectMapper.cs" />
-    <Compile Include="Assets\Scripts\HotUpdate\CardCore\Attribute\MorphSystem.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\CostDerivation.cs" />
+    <Compile Include="Assets\Scripts\HotUpdate\CardCore\Attribute\MorphSystem.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\UI\Screens\DeckBuilderScreen.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Network\NetworkSerializer.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Network\NetEntities.cs" />
@@ -110,6 +109,7 @@
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\GameCore\GameState.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\SpeedSystem.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Utility\TideMath.cs" />
+    <Compile Include="Assets\Scripts\HotUpdate\UI\Framework\CardOverlayController.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Network\NetProjectionIgnore.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Attribute\KeywordRules.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\UI\Screens\BattleEventText.cs" />
@@ -127,6 +127,7 @@
     <Compile Include="Assets\Scripts\HotUpdate\HotUpdateEntry.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Attribute\CounterRules.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\NetSession\NetRoom.cs" />
+    <Compile Include="Assets\Scripts\HotUpdate\UI\Framework\CardOverlayCard.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\UI\Screens\MainMenuScreen.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Attribute\Handlers\BuiltinEffectHandlers.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\TargetKind.cs" />
@@ -141,7 +142,6 @@
     <Compile Include="Assets\Scripts\HotUpdate\AI\NeuralEnv\TideObservation.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Network\FrameCodec.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\EffectText.cs" />
-    <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\RitualAuras.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\GameRng.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Layers\ContinuousEffectDurationTracker.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\TriggerPayloadFilter.cs" />
@@ -170,7 +170,6 @@
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\BaseSystems\ElementUnlockManager.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\UI\Data\EffectGraphData.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Attribute\AtomicEffectTable.cs" />
-    <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\RitualSystem.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\GameCore\ResponseWindow.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Attribute\Handlers\ProphecyHandlers.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Attribute\Handlers\FirstBatchEffectHandlers.cs" />
@@ -206,6 +205,7 @@
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Serialization\MemoryPackDTOs.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\TargetFilterSystem.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Attribute\IAtomicEffectHandler.cs" />
+    <Compile Include="Assets\Scripts\HotUpdate\UI\Framework\CardOverlayItem.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\ComposerCatalog.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\UI\Data\EffectLibrarySerializer.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Serialization\RuntimeCardStateDTO.cs" />
@@ -1443,12 +1443,12 @@
       <HintPath>Library\ScriptAssemblies\UniTask.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="UnityEditor.UI">
-      <HintPath>Library\ScriptAssemblies\UnityEditor.UI.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>Library\ScriptAssemblies\UnityEngine.UI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEditor.UI">
+      <HintPath>Library\ScriptAssemblies\UnityEditor.UI.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>

@@ -228,15 +228,18 @@
       "depth": 0,
       "source": "local",
       "dependencies": {
-        "com.unity.render-pipelines.core": "17.3.0",
-        "com.unity.shadergraph": "17.3.0"
+        "com.unity.render-pipelines.core": "17.5.0",
+        "com.unity.shadergraph": "17.5.0",
+        "com.unity.render-pipelines.universal-config": "17.5.0"
       }
     },
     "com.unity.render-pipelines.universal-config": {
       "version": "file:Dbdrp/DanbaidongRPConfig-urp17",
       "depth": 0,
       "source": "local",
-      "dependencies": {}
+      "dependencies": {
+        "com.unity.render-pipelines.core": "17.5.0"
+      }
     },
     "com.unity.scriptablebuildpipeline": {
       "version": "2.6.1",

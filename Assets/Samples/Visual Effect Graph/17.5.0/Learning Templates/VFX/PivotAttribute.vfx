@@ -296,7 +296,6 @@ MonoBehaviour:
   materialType: 0
   workflowMode: 0
   smoothnessSource: 1
-  useBaseColorMap: 3
   useOcclusionMap: 0
   useMetallicMap: 1
   useSpecularMap: 0

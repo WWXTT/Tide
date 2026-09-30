@@ -248,8 +248,8 @@
     <Compile Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\BuildProcessors\URPPreprocessBuild.cs" />
     <Compile Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\Overrides\LiftGammaGainEditor.cs" />
     <Compile Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\Camera\UniversalRenderPipelineCameraEditor.cs" />
-    <Compile Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\2D\ShapeEditor\GUIFramework\Control.cs" />
     <Compile Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\AssetPostProcessors\UniversalRenderPipelineGlobalSettingsPostprocessor.cs" />
+    <Compile Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\2D\ShapeEditor\GUIFramework\Control.cs" />
     <Compile Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\ShaderGraph\AssetCallbacks\CreateFullscreenShaderGraph.cs" />
     <Compile Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\2D\ShapeEditor\Selection\RectSelector.cs" />
     <Compile Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\EditorUtils.cs" />
@@ -385,6 +385,7 @@
     <None Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\DanbaidongWizard\USS\Formating.uss" />
     <None Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\VFXGraph\Shaders\Templates\ParticlePlanarPrimitivesLit\PassShadowCaster.template" />
     <None Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\ShaderGraph\Templates\SharedCode.template.hlsl" />
+    <None Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\VFXGraph\Shaders\Templates\VFXPassDepthCommonFragmentLit.template" />
     <None Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\VFXGraph\Shaders\Templates\VFXParticleLitMesh.template" />
     <None Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\VFXGraph\Shaders\Templates\ParticleMeshesLit\PassShadowCaster.template" />
     <None Include="Packages\Dbdrp\DanbaidongRP-urp17\Editor\ShaderGraph\Includes\DepthNormalsOnlyPass.hlsl" />
