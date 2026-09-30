@@ -2,19 +2,6 @@ using System;
 
 namespace UnityEngine.Rendering.Universal
 {
-    public enum BloomMode
-    {
-        None,
-        BloomURP,
-        BloomDanbaidong,
-    }
-    [Serializable]
-    public sealed class BloomModeParameter : VolumeParameter<BloomMode>
-    {
-        public BloomModeParameter(BloomMode value, bool overrideState = false) : base(value, overrideState)
-        {
-        }
-    }
     /// <summary>
     /// This controls the size of the bloom texture.
     /// </summary>
@@ -39,8 +26,6 @@ namespace UnityEngine.Rendering.Universal
     [URPHelpURL("post-processing-bloom")]
     public sealed partial class Bloom : VolumeComponent, IPostProcessComponent
     {
-        [Tooltip("Select a Bloom Mode.")]
-        public BloomModeParameter mode = new BloomModeParameter(BloomMode.None);
         /// <summary>
         /// Set the level of brightness to filter out pixels under this level.
         /// This value is expressed in gamma-space.
@@ -48,22 +33,13 @@ namespace UnityEngine.Rendering.Universal
         /// </summary>
         [Header("Bloom")]
         [Tooltip("Filters out pixels under this level of brightness. Value is in gamma-space.")]
-        public MinFloatParameter threshold = new MinFloatParameter(0.7f, 0f);
+        public MinFloatParameter threshold = new MinFloatParameter(0.9f, 0f);
 
         /// <summary>
         /// Controls the strength of the bloom filter.
         /// </summary>
         [Tooltip("Strength of the bloom filter.")]
-        public MinFloatParameter intensity = new MinFloatParameter(0.75f, 0f);
-
-        [Tooltip("lumRnageScale of the bloom filter. We need this to anti-flicker.")]
-        public ClampedFloatParameter lumRnageScale = new ClampedFloatParameter(0.2f, 0f, 1f);
-
-        [Tooltip("preFilterScale of the bloom filter.")]
-        public ClampedFloatParameter preFilterScale = new ClampedFloatParameter(2.5f, 0f, 5.0f);
-
-        [Tooltip("preFilterScale of the bloom filter.")]
-        public Vector4Parameter blurCompositeWeight = new Vector4Parameter(new Vector4(0.3f, 0.3f, 0.26f, 0.15f));
+        public MinFloatParameter intensity = new MinFloatParameter(0f, 0f);
 
         /// <summary>
         /// Controls the extent of the veiling effect.
@@ -82,7 +58,7 @@ namespace UnityEngine.Rendering.Universal
         /// Specifies the tint of the bloom filter.
         /// </summary>
         [Tooltip("Use the color picker to select a color for the Bloom effect to tint to.")]
-        public ColorParameter tint = new ColorParameter(new Color(1f, 1f, 1f, 0f), false, true, true);
+        public ColorParameter tint = new ColorParameter(Color.white, false, false, true);
 
         /// <summary>
         /// Controls whether to use bicubic sampling instead of bilinear sampling for the upsampling passes.
@@ -117,7 +93,7 @@ namespace UnityEngine.Rendering.Universal
         public MinFloatParameter dirtIntensity = new MinFloatParameter(0f, 0f);
 
         /// <inheritdoc/>
-        public bool IsActive() => intensity.value > 0f && mode.value != BloomMode.None;
+        public bool IsActive() => intensity.value > 0f;
 
         /// <inheritdoc/>
         [Obsolete("Unused #from(2023.1)", false)]

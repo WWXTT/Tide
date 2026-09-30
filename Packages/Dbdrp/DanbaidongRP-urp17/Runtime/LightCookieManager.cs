@@ -86,9 +86,9 @@ namespace UnityEngine.Rendering.Universal
                 if (d == 0)
                 {
                     // Sort by texture ID if "undecided" to batch fetches to the same cookie texture.
-                    EntityId ai = alc.GetEntityId();
-                    EntityId bi = blc.GetEntityId();
-                    return ai.CompareTo(bi);
+                    int ai = alc.GetInstanceID();
+                    int bi = blc.GetInstanceID();
+                    return ai - bi;
                 }
                 return d;
             };
@@ -628,12 +628,12 @@ namespace UnityEngine.Rendering.Universal
         uint ComputeCookieRequestPixelCount(ref WorkSlice<LightCookieMapping> validLightMappings)
         {
             uint requestPixelCount = 0;
-            EntityId prevCookieID = default;
+            int prevCookieID = 0;
             for (int i = 0; i < validLightMappings.length; i++)
             {
                 var lcm = validLightMappings[i];
                 Texture cookie = lcm.light.cookie;
-                EntityId cookieID = cookie.GetEntityId();
+                int cookieID = cookie.GetInstanceID();
 
                 // Consider only unique textures as atlas request pixels
                 // NOTE: relies on same cookies being sorted together

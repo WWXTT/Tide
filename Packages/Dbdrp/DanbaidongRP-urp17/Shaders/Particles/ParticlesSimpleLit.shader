@@ -109,7 +109,7 @@ Shader "Universal Render Pipeline/Particles/Simple Lit"
             AlphaToMask[_AlphaToMask]
 
             HLSLPROGRAM
-            #pragma target 4.5
+            #pragma target 2.0
 
             // -------------------------------------
             // Shader Stages

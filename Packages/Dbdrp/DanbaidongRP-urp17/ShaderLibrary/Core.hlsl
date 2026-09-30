@@ -5,20 +5,12 @@
 // node work by falling to regular texture sampling.
 #define FORCE_VIRTUAL_TEXTURING_OFF 1
 
-// _FORWARD_PLUS keyword deprecated in 6.1
-// We will emit a warning and define _CLUSTER_LIGHT_LOOP for backwards compatibility.
-// This block will be removed in a future release.
-#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ForwardPlusKeyword.deprecated.hlsl"
-
-#if defined(_CLUSTER_LIGHT_LOOP)
-#define USE_CLUSTER_LIGHT_LOOP 1
-#else
-#define USE_CLUSTER_LIGHT_LOOP 0
-#endif
-
-#if USE_CLUSTER_LIGHT_LOOP
+#if defined(_FORWARD_PLUS)
 #define _ADDITIONAL_LIGHTS 1
 #undef _ADDITIONAL_LIGHTS_VERTEX
+#define USE_FORWARD_PLUS 1
+#else
+#define USE_FORWARD_PLUS 0
 #endif
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
@@ -27,35 +19,9 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/GlobalSamplers.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Input.hlsl"
 
-// AcesFilm: custom tonemap curve (moved here from the custom core Color.hlsl that was
-// replaced by core 6000.5). Used by deferred lighting (shadow scatter) and post-processing.
-#ifndef DANBAIDONG_ACESFILM_INCLUDED
-#define DANBAIDONG_ACESFILM_INCLUDED
-float3 AcesFilm(float3 x)
-{
-    float a = 1.36f;
-    float b = 0.047f;
-    float c = 0.93f;
-    float d = 0.56f;
-    float e = 0.14f;
-    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
-}
-#endif
-
-// SigmoidSharp: sharp logistic sigmoid for toon light/shadow boundary (moved here from the
-// custom core Color.hlsl that was replaced by core 6000.5). Used by the PBRToon/Character
-// shaders and ray-tracing lighting to sharpen NdotL / shadow attenuation into stylized edges.
-#ifndef DANBAIDONG_SIGMOIDSHARP_INCLUDED
-#define DANBAIDONG_SIGMOIDSHARP_INCLUDED
-float SigmoidSharp(float x, float center, float sharp)
-{
-    return saturate(1.0 / (1.0 + exp(-sharp * (x - center))));
-}
-#endif
-
 #if UNITY_REVERSED_Z
     // TODO: workaround. There's a bug where SHADER_API_GL_CORE gets erroneously defined on switch.
-    #if (defined(SHADER_API_GLCORE) && !defined(SHADER_API_SWITCH) && !defined(SHADER_API_SWITCH2)) || defined(SHADER_API_GLES3)
+    #if (defined(SHADER_API_GLCORE) && !defined(SHADER_API_SWITCH)) || defined(SHADER_API_GLES3)
         //GL with reversed z => z clip range is [near, -far] -> remapping to [0, far]
         #define UNITY_Z_0_FAR_FROM_CLIPSPACE(coord) max((coord - _ProjectionParams.y)/(-_ProjectionParams.z-_ProjectionParams.y)*_ProjectionParams.z, 0)
     #else
@@ -90,12 +56,6 @@ float SigmoidSharp(float x, float center, float sharp)
     #undef FRAMEBUFFER_INPUT_X_INT
     #undef FRAMEBUFFER_INPUT_X_UINT
     #undef LOAD_FRAMEBUFFER_X_INPUT
-    #undef LOAD_FRAMEBUFFER_INPUT_X
-    #undef FRAMEBUFFER_INPUT_X_HALF_MS
-    #undef FRAMEBUFFER_INPUT_X_FLOAT_MS
-    #undef FRAMEBUFFER_INPUT_X_INT_MS
-    #undef FRAMEBUFFER_INPUT_X_UINT_MS
-    #undef LOAD_FRAMEBUFFER_INPUT_X_MS
 
     #if defined(SHADER_API_METAL) && defined(UNITY_NEEDS_RENDERPASS_FBFETCH_FALLBACK)
 
@@ -120,52 +80,21 @@ float SigmoidSharp(float x, float center, float sharp)
 
         #define LOAD_FRAMEBUFFER_X_INPUT(idx, v2fname)                      ReadFBInput_##idx(hlslcc_fbfetch_##idx, uint2(v2fname.xy))
 
-        #define LOAD_FRAMEBUFFER_INPUT_X(idx, v2fname)                      LOAD_FRAMEBUFFER_X_INPUT(idx, v2fname)
-
-        #define FRAMEBUFFER_INPUT_X_FLOAT_MS(idx)                           cbuffer hlslcc_SubpassInput_F_##idx { float4 hlslcc_fbinput_##idx[8]; bool hlslcc_fbfetch_##idx; }; \
-                                                                            RENDERPASS_DECLARE_FALLBACK_MS_X(float4, idx)
-
-        #define FRAMEBUFFER_INPUT_X_HALF_MS(idx)                            cbuffer hlslcc_SubpassInput_H_##idx { half4 hlslcc_fbinput_##idx[8]; bool hlslcc_fbfetch_##idx; };  \
-                                                                            RENDERPASS_DECLARE_FALLBACK_MS_X(half4, idx)
-
-        #define FRAMEBUFFER_INPUT_X_INT_MS(idx)                             cbuffer hlslcc_SubpassInput_I_##idx { int4 hlslcc_fbinput_##idx[8]; bool hlslcc_fbfetch_##idx; };   \
-                                                                            RENDERPASS_DECLARE_FALLBACK_MS_X(int4, idx)
-
-        #define FRAMEBUFFER_INPUT_X_UINT_MS(idx)                            cbuffer hlslcc_SubpassInput_U_##idx { uint4 hlslcc_fbinput_##idx[8]; bool hlslcc_fbfetch_##idx; };  \
-                                                                            RENDERPASS_DECLARE_FALLBACK_MS(uint4, idx)
-
-        #define LOAD_FRAMEBUFFER_INPUT_X_MS(idx, sampleIdx, v2fname)        ReadFBInput_##idx(hlslcc_fbfetch_##idx, uint2(v2fname.xy), sampleIdx)
-
     #elif !defined(PLATFORM_SUPPORTS_NATIVE_RENDERPASS)
         #define FRAMEBUFFER_INPUT_X_HALF(idx)                               TEXTURE2D_X_HALF(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize
         #define FRAMEBUFFER_INPUT_X_FLOAT(idx)                              TEXTURE2D_X_FLOAT(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize
-        #define FRAMEBUFFER_INPUT_X_INT(idx)                                TYPED_TEXTURE2D_X(int4, _UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize
-        #define FRAMEBUFFER_INPUT_X_UINT(idx)                               TYPED_TEXTURE2D_X(uint4, _UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize
-        #define LOAD_FRAMEBUFFER_X_INPUT(idx, v2fname)                      LOAD_TEXTURE2D_ARRAY(_UnityFBInput##idx, v2fname.xy, SLICE_ARRAY_INDEX)
-        #define LOAD_FRAMEBUFFER_INPUT_X(idx, v2fname)                      LOAD_FRAMEBUFFER_X_INPUT(idx, v2fname)
-
-        #define FRAMEBUFFER_INPUT_X_HALF_MS(idx)                            Texture2DMSArray<float4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize
-        #define FRAMEBUFFER_INPUT_X_FLOAT_MS(idx)                           Texture2DMSArray<float4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize
-        #define FRAMEBUFFER_INPUT_X_INT_MS(idx)                             Texture2DMSArray<int4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize
-        #define FRAMEBUFFER_INPUT_X_UINT_MS(idx)                            Texture2DMSArray<uint4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize
-        #define LOAD_FRAMEBUFFER_INPUT_X_MS(idx, sampleIdx, v2fname)        LOAD_TEXTURE2D_ARRAY_MSAA(_UnityFBInput##idx, v2fname.xy, SLICE_ARRAY_INDEX, sampleIdx)
+        #define FRAMEBUFFER_INPUT_X_INT(idx)                                TEXTURE2D_X_INT(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize
+        #define FRAMEBUFFER_INPUT_X_UINT(idx)                               TEXTURE2D_X_UINT(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize
+        #define LOAD_FRAMEBUFFER_X_INPUT(idx, v2fname)                      _UnityFBInput##idx.Load(uint4(v2fname.xy, SLICE_ARRAY_INDEX, 0))
     #else
         #define FRAMEBUFFER_INPUT_X_HALF(idx)                               FRAMEBUFFER_INPUT_HALF(idx)
         #define FRAMEBUFFER_INPUT_X_FLOAT(idx)                              FRAMEBUFFER_INPUT_FLOAT(idx)
         #define FRAMEBUFFER_INPUT_X_INT(idx)                                FRAMEBUFFER_INPUT_INT(idx)
         #define FRAMEBUFFER_INPUT_X_UINT(idx)                               FRAMEBUFFER_INPUT_UINT(idx)
         #define LOAD_FRAMEBUFFER_X_INPUT(idx, v2fname)                      LOAD_FRAMEBUFFER_INPUT(idx, v2fname)
-        #define LOAD_FRAMEBUFFER_INPUT_X(idx, v2fname)                      LOAD_FRAMEBUFFER_X_INPUT(idx, v2fname)
-
-        #define FRAMEBUFFER_INPUT_X_HALF_MS(idx)                            FRAMEBUFFER_INPUT_HALF_MS(idx)
-        #define FRAMEBUFFER_INPUT_X_FLOAT_MS(idx)                           FRAMEBUFFER_INPUT_FLOAT_MS(idx)
-        #define FRAMEBUFFER_INPUT_X_INT_MS(idx)                             FRAMEBUFFER_INPUT_INT_MS(idx)
-        #define FRAMEBUFFER_INPUT_X_UINT_MS(idx)                            FRAMEBUFFER_INPUT_UINT_MS(idx)
-        #define LOAD_FRAMEBUFFER_INPUT_X_MS(idx, sampleIdx, v2fname)        LOAD_FRAMEBUFFER_INPUT_MS(idx, sampleIdx, v2fname)
     #endif
 
     #define LOAD_TEXTURE2D_X(textureName, unCoord2)                         LOAD_TEXTURE2D_ARRAY(textureName, unCoord2, SLICE_ARRAY_INDEX)
-    #define LOAD_TEXTURE2D_X_MSAA(textureName, unCoord2, sampleIndex)       LOAD_TEXTURE2D_ARRAY_MSAA(textureName, unCoord2, SLICE_ARRAY_INDEX, sampleIndex)
     #define LOAD_TEXTURE2D_X_LOD(textureName, unCoord2, lod)                LOAD_TEXTURE2D_ARRAY_LOD(textureName, unCoord2, SLICE_ARRAY_INDEX, lod)
     #define SAMPLE_TEXTURE2D_X(textureName, samplerName, coord2)            SAMPLE_TEXTURE2D_ARRAY(textureName, samplerName, coord2, SLICE_ARRAY_INDEX)
     #define SAMPLE_TEXTURE2D_X_LOD(textureName, samplerName, coord2, lod)   SAMPLE_TEXTURE2D_ARRAY_LOD(textureName, samplerName, coord2, SLICE_ARRAY_INDEX, lod)
@@ -190,16 +119,8 @@ float SigmoidSharp(float x, float center, float sharp)
     #define FRAMEBUFFER_INPUT_X_INT(idx)                                    FRAMEBUFFER_INPUT_INT(idx)
     #define FRAMEBUFFER_INPUT_X_UINT(idx)                                   FRAMEBUFFER_INPUT_UINT(idx)
     #define LOAD_FRAMEBUFFER_X_INPUT(idx, v2fname)                          LOAD_FRAMEBUFFER_INPUT(idx, v2fname)
-    #define LOAD_FRAMEBUFFER_INPUT_X(idx, v2fname)                          LOAD_FRAMEBUFFER_X_INPUT(idx, v2fname)
-
-    #define FRAMEBUFFER_INPUT_X_HALF_MS(idx)                                FRAMEBUFFER_INPUT_HALF_MS(idx)
-    #define FRAMEBUFFER_INPUT_X_FLOAT_MS(idx)                               FRAMEBUFFER_INPUT_FLOAT_MS(idx)
-    #define FRAMEBUFFER_INPUT_X_INT_MS(idx)                                 FRAMEBUFFER_INPUT_INT_MS(idx)
-    #define FRAMEBUFFER_INPUT_X_UINT_MS(idx)                                FRAMEBUFFER_INPUT_UINT_MS(idx)
-    #define LOAD_FRAMEBUFFER_INPUT_X_MS(idx, sampleIdx, v2fname)            LOAD_FRAMEBUFFER_INPUT_MS(idx, sampleIdx, v2fname)
 
     #define LOAD_TEXTURE2D_X(textureName, unCoord2)                         LOAD_TEXTURE2D(textureName, unCoord2)
-    #define LOAD_TEXTURE2D_X_MSAA(textureName, unCoord2, sampleIndex)       LOAD_TEXTURE2D_MSAA(textureName, unCoord2, sampleIndex)
     #define LOAD_TEXTURE2D_X_LOD(textureName, unCoord2, lod)                LOAD_TEXTURE2D_LOD(textureName, unCoord2, lod)
     #define SAMPLE_TEXTURE2D_X(textureName, samplerName, coord2)            SAMPLE_TEXTURE2D(textureName, samplerName, coord2)
     #define SAMPLE_TEXTURE2D_X_LOD(textureName, samplerName, coord2, lod)   SAMPLE_TEXTURE2D_LOD(textureName, samplerName, coord2, lod)

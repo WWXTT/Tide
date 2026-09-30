@@ -174,7 +174,7 @@ namespace UnityEngine.Rendering.Universal
         internal ushort[] indices { get { return m_Triangles; } set { m_Triangles = value; } }
 
         // Transients
-        EntityId m_PreviousLightCookieSprite;
+        int m_PreviousLightCookieSprite;
         internal Vector3 m_CachedPosition;
 
         // We use Blue Channel of LightMesh's vertex color to indicate Slot Index.
@@ -182,7 +182,7 @@ namespace UnityEngine.Rendering.Universal
         internal int batchSlotIndex { get { return m_BatchSlotIndex; } set {  m_BatchSlotIndex = value; } }
         internal int[] affectedSortingLayers => m_ApplyToSortingLayers;
 
-        private EntityId lightCookieSpriteInstanceID => lightCookieSprite?.GetEntityId() ?? default;
+        private int lightCookieSpriteInstanceID => lightCookieSprite?.GetInstanceID() ?? 0;
 
         internal bool useCookieSprite => (lightType == LightType.Point || lightType == LightType.Sprite) && (lightCookieSprite != null && lightCookieSprite.texture != null);
 

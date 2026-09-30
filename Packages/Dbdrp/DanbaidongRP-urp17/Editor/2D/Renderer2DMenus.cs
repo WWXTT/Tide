@@ -19,11 +19,11 @@ namespace UnityEditor.Rendering.Universal
             ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, instance, "New 2D Renderer Data.asset", null, null);
         }
 
-        class Create2DRendererDataAsset : AssetCreationEndAction
+        class Create2DRendererDataAsset : EndNameEditAction
         {
             public event Action<Renderer2DData> onCreated;
 
-            public override void Action(EntityId instanceId, string pathName, string resourceFile)
+            public override void Action(int instanceId, string pathName, string resourceFile)
             {
                 var instance = CreateRendererAsset(pathName, RendererType._2DRenderer, false) as Renderer2DData;
                 Selection.activeObject = instance;
@@ -112,7 +112,7 @@ namespace UnityEditor.Rendering.Universal
             var parent = menuCommand.context as GameObject;
             Place(go, parent);
 
-            Analytics.LightDataAnalytic lightData = new Analytics.LightDataAnalytic(light2D.GetEntityId().GetHashCode(), true, light2D.lightType);
+            Analytics.LightDataAnalytic lightData = new Analytics.LightDataAnalytic(light2D.GetInstanceID(), true, light2D.lightType);
             Analytics.Renderer2DAnalytics.instance.SendData(lightData);
 
             return light2D;
@@ -186,9 +186,9 @@ namespace UnityEditor.Rendering.Universal
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1812")]
-        internal class CreateUniversalPipelineAsset : AssetCreationEndAction
+        internal class CreateUniversalPipelineAsset : EndNameEditAction
         {
-            public override void Action(EntityId instanceId, string pathName, string resourceFile)
+            public override void Action(int instanceId, string pathName, string resourceFile)
             {
                 //Create asset
                 AssetDatabase.CreateAsset(UniversalRenderPipelineAsset.Create(CreateRendererAsset(pathName, RendererType._2DRenderer)), pathName);
@@ -207,7 +207,7 @@ namespace UnityEditor.Rendering.Universal
         {
             Renderer2DMenus.Create2DRendererData((instance) =>
             {
-                Analytics.RenderAssetAnalytic modifiedData = new Analytics.RenderAssetAnalytic(instance.GetEntityId().GetHashCode(), true, 1, 2);
+                Analytics.RenderAssetAnalytic modifiedData = new Analytics.RenderAssetAnalytic(instance.GetInstanceID(), true, 1, 2);
                 Analytics.Renderer2DAnalytics.instance.SendData(modifiedData);
             });
         }

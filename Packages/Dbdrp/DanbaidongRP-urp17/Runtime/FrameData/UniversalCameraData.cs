@@ -15,9 +15,6 @@ namespace UnityEngine.Rendering.Universal
         Matrix4x4 m_ProjectionMatrix;
         Matrix4x4 m_JitterMatrix;
 
-        // PixelCoord to ViewDirWS. For Sky or compute shaders.
-        Matrix4x4 m_PixelCoordToViewDirWS;
-
         internal void SetViewAndProjectionMatrix(Matrix4x4 viewMatrix, Matrix4x4 projectionMatrix)
         {
             m_ViewMatrix = viewMatrix;
@@ -30,11 +27,6 @@ namespace UnityEngine.Rendering.Universal
             m_ViewMatrix = viewMatrix;
             m_ProjectionMatrix = projectionMatrix;
             m_JitterMatrix = jitterMatrix;
-        }
-
-        internal void SetPixelCoordToViewDirWSMatrix(Matrix4x4 pCoordToViewDirWSMatrix)
-        {
-            m_PixelCoordToViewDirWS = pCoordToViewDirWSMatrix;
         }
 
 #if ENABLE_VR && ENABLE_XR_MODULE
@@ -145,18 +137,7 @@ namespace UnityEngine.Rendering.Universal
 
         internal Matrix4x4 GetGPUProjectionMatrix(bool renderIntoTexture, int viewIndex = 0)
         {
-            // Is there a bug? Add by Danbaidong, 20240518.
-            //return m_JitterMatrix * GL.GetGPUProjectionMatrix(GetProjectionMatrix(viewIndex), renderIntoTexture);
-            return GL.GetGPUProjectionMatrix(GetProjectionMatrix(viewIndex), renderIntoTexture);
-        }
-
-        /// <summary>
-        /// Utility matrix (used by sky) to map screen position to WS view direction.
-        /// </summary>
-        /// <returns></returns>
-        internal Matrix4x4 GetPixelCoordToViewDirWSMatrix()
-        {
-            return m_PixelCoordToViewDirWS;
+            return m_JitterMatrix * GL.GetGPUProjectionMatrix(GetProjectionMatrix(viewIndex), renderIntoTexture);
         }
 
         /// <summary>
@@ -212,15 +193,7 @@ namespace UnityEngine.Rendering.Universal
         internal bool useScreenCoordOverride;
         internal Vector4 screenSizeOverride;
         internal Vector4 screenCoordScaleBias;
-
-        /// <summary>
-        /// Returns the non-scaled width of the Camera.
-        /// </summary>
         internal int pixelWidth;
-
-        /// <summary>
-        /// Returns the non-scaled height of the Camera.
-        /// </summary>
         internal int pixelHeight;
         internal float aspectRatio;
 
@@ -265,16 +238,6 @@ namespace UnityEngine.Rendering.Universal
         /// True if this camera can write the alpha channel. Post-processing uses this. Requires the color target to have an alpha channel.
         /// </summary>
         public bool isAlphaOutputEnabled;
-
-        /// <summary>
-        /// True if this camera can enable ray tracing pipeline.
-        /// </summary>
-        public bool supportedRayTracing;
-
-        /// <summary>
-        /// RayTracing system for current camera.
-        /// </summary>
-        internal RayTracingSystem rayTracingSystem;
 
         /// <summary>
         /// True if this camera requires to write _CameraDepthTexture.
@@ -555,11 +518,6 @@ namespace UnityEngine.Rendering.Universal
         public float maxShadowDistance;
 
         /// <summary>
-        /// For PerObjectShadow. Maximum shadow distance visible to the camera.When set to zero shadows will be disable for that camera.
-        /// </summary>
-        public float maxPerObjectShadowDistance;
-
-        /// <summary>
         /// True if post-processing is enabled for this camera.
         /// </summary>
         public bool postProcessEnabled;
@@ -692,8 +650,6 @@ namespace UnityEngine.Rendering.Universal
             isHdrEnabled = false;
             allowHDROutput = false;
             isAlphaOutputEnabled = false;
-            supportedRayTracing = false;
-            rayTracingSystem = null;
             requiresDepthTexture = false;
             requiresOpaqueTexture = false;
             postProcessingRequiresDepthTexture = false;
@@ -702,7 +658,6 @@ namespace UnityEngine.Rendering.Universal
             defaultOpaqueSortFlags = SortingCriteria.None;
             xr = default;
             maxShadowDistance = 0.0f;
-            maxPerObjectShadowDistance = 0.0f;
             postProcessEnabled = false;
             captureActions = default;
             volumeLayerMask = 0;

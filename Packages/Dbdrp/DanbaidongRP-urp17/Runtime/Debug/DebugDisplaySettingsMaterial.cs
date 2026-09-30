@@ -395,7 +395,7 @@ namespace UnityEngine.Rendering.Universal
                 setter = (value) => panel.data.materialValidationMode = (DebugMaterialValidationMode)value,
                 getIndex = () => (int)panel.data.materialValidationMode,
                 setIndex = (value) => panel.data.materialValidationMode = (DebugMaterialValidationMode)value,
-                onValueChanged = (_, _) => DebugManager.instance.RecreateDebugUI()
+                onValueChanged = (_, _) => DebugManager.instance.ReDrawOnScreenDebug()
             };
 
             internal static DebugUI.Widget CreateRenderingLayersSelectedLight (SettingsPanel panel) => new DebugUI.BoolField
@@ -431,7 +431,7 @@ namespace UnityEngine.Rendering.Universal
                 setter = (value) => panel.data.albedoValidationPreset = (AlbedoDebugValidationPreset)value,
                 getIndex = () => (int)panel.data.albedoValidationPreset,
                 setIndex = (value) => panel.data.albedoValidationPreset = (AlbedoDebugValidationPreset)value,
-                onValueChanged = (_, _) => DebugManager.instance.RecreateDebugUI()
+                onValueChanged = (_, _) => DebugManager.instance.ReDrawOnScreenDebug()
             };
 
             internal static DebugUI.Widget CreateAlbedoCustomColor(SettingsPanel panel) => new DebugUI.ColorField()
@@ -494,6 +494,7 @@ namespace UnityEngine.Rendering.Universal
         }
 
         [DisplayInfo(name = "Material", order = 2)]
+        [URPHelpURL("features/rendering-debugger-reference", "material")]
         internal class SettingsPanel : DebugDisplaySettingsPanel<DebugDisplaySettingsMaterial>
         {
             public SettingsPanel(DebugDisplaySettingsMaterial data)

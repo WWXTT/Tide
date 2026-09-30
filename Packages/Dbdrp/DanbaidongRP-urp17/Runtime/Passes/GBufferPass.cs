@@ -16,7 +16,6 @@ namespace UnityEngine.Rendering.Universal.Internal
         private static readonly ShaderTagId s_ShaderTagLit = new ShaderTagId("Lit");
         private static readonly ShaderTagId s_ShaderTagSimpleLit = new ShaderTagId("SimpleLit");
         private static readonly ShaderTagId s_ShaderTagUnlit = new ShaderTagId("Unlit");
-        static ShaderTagId s_ShaderTagCharacter = new ShaderTagId("Character");
         private static readonly ShaderTagId s_ShaderTagComplexLit = new ShaderTagId("ComplexLit");
         private static readonly ShaderTagId s_ShaderTagUniversalGBuffer = new ShaderTagId("UniversalGBuffer");
         private static readonly ShaderTagId s_ShaderTagUniversalMaterialType = new ShaderTagId("UniversalMaterialType");
@@ -32,7 +31,7 @@ namespace UnityEngine.Rendering.Universal.Internal
 
         public GBufferPass(RenderPassEvent evt, RenderQueueRange renderQueueRange, LayerMask layerMask, StencilState stencilState, int stencilReference, DeferredLights deferredLights)
         {
-            base.profilingSampler = new ProfilingSampler("Render GBuffer");
+            base.profilingSampler = new ProfilingSampler("Draw GBuffer");
             base.renderPassEvent = evt;
             m_PassData = new PassData();
 
@@ -49,18 +48,19 @@ namespace UnityEngine.Rendering.Universal.Internal
                 s_ShaderTagValues = new ShaderTagId[5];
                 s_ShaderTagValues[0] = s_ShaderTagLit;
                 s_ShaderTagValues[1] = s_ShaderTagSimpleLit;
-                s_ShaderTagValues[2] = s_ShaderTagCharacter;
-                s_ShaderTagValues[3] = new ShaderTagId(); // Special catch all case for materials where UniversalMaterialType is not defined or the tag value doesn't match anything we know.
+                s_ShaderTagValues[2] = s_ShaderTagUnlit;
+                s_ShaderTagValues[3] = s_ShaderTagComplexLit;
+                s_ShaderTagValues[4] = new ShaderTagId(); // Special catch all case for materials where UniversalMaterialType is not defined or the tag value doesn't match anything we know.
             }
 
             if (s_RenderStateBlocks == null)
             {
                 s_RenderStateBlocks = new RenderStateBlock[5];
-                s_RenderStateBlocks[0] = DeferredLights.OverwriteStencil(m_RenderStateBlock, (int)ShadingModels.ModelsMask, (int)ShadingModels.Lit);
-                s_RenderStateBlocks[1] = DeferredLights.OverwriteStencil(m_RenderStateBlock, (int)ShadingModels.ModelsMask, (int)ShadingModels.SimpleLit);
-                s_RenderStateBlocks[2] = DeferredLights.OverwriteStencil(m_RenderStateBlock, (int)ShadingModels.ModelsMask, (int)ShadingModels.Character);
-                //s_RenderStateBlocks[3] = s_RenderStateBlocks[0];
-                s_RenderStateBlocks[3] = new RenderStateBlock(RenderStateMask.Nothing); // We want material handles renderState itself.
+                s_RenderStateBlocks[0] = DeferredLights.OverwriteStencil(m_RenderStateBlock, (int)StencilUsage.MaterialMask, (int)StencilUsage.MaterialLit);
+                s_RenderStateBlocks[1] = DeferredLights.OverwriteStencil(m_RenderStateBlock, (int)StencilUsage.MaterialMask, (int)StencilUsage.MaterialSimpleLit);
+                s_RenderStateBlocks[2] = DeferredLights.OverwriteStencil(m_RenderStateBlock, (int)StencilUsage.MaterialMask, (int)StencilUsage.MaterialUnlit);
+                s_RenderStateBlocks[3] = DeferredLights.OverwriteStencil(m_RenderStateBlock, (int)StencilUsage.MaterialMask, (int)StencilUsage.MaterialUnlit);  // Fill GBuffer, but skip lighting pass for ComplexLit
+                s_RenderStateBlocks[4] = s_RenderStateBlocks[0];
             }
         }
 
@@ -276,16 +276,13 @@ namespace UnityEngine.Rendering.Universal.Internal
                 builder.UseRendererList(passData.rendererListHdl);
                 builder.UseRendererList(passData.objectsWithErrorRendererListHdl);
 
-                // DanbaidongRP need this.
-                GBufferPass.SetGlobalGBufferTextures(builder, gbuffer, ref m_DeferredLights);
+                if (setGlobalTextures)
+                {
+                    builder.SetGlobalTextureAfterPass(resourceData.cameraNormalsTexture, s_CameraNormalsTextureID);
 
-                //if (setGlobalTextures)
-                //{
-                //    builder.SetGlobalTextureAfterPass(resourceData.cameraNormalsTexture, s_CameraNormalsTextureID);
-
-                //    if (useCameraRenderingLayersTexture)
-                //        builder.SetGlobalTextureAfterPass(resourceData.renderingLayersTexture, s_CameraRenderingLayersTextureID);
-                //}
+                    if (useCameraRenderingLayersTexture)
+                        builder.SetGlobalTextureAfterPass(resourceData.renderingLayersTexture, s_CameraRenderingLayersTextureID);
+                }
 
                 builder.AllowPassCulling(false);
                 builder.AllowGlobalStateModification(true);
@@ -294,27 +291,6 @@ namespace UnityEngine.Rendering.Universal.Internal
                 {
                     ExecutePass(context.cmd, data, data.rendererListHdl, data.objectsWithErrorRendererListHdl);
                 });
-            }
-        }
-
-        // DanbaidongRP need set global GBuffer.
-        internal static void SetGlobalGBufferTextures(IRasterRenderGraphBuilder builder, TextureHandle[] gbuffer, ref DeferredLights deferredLights)
-        {
-            for (int i = 0; i < gbuffer.Length; i++)
-            {
-                if (i != deferredLights.GBufferLightingIndex && gbuffer[i].IsValid())
-                    builder.SetGlobalTextureAfterPass(gbuffer[i], Shader.PropertyToID(DeferredLights.k_GBufferNames[i]));
-            }
-
-            // If any sub-system needs camera normal texture, make it available.
-            // Input attachments will only be used when this is not needed so safe to skip in that case
-            if (gbuffer[deferredLights.GBufferNormalSmoothnessIndex].IsValid())
-                builder.SetGlobalTextureAfterPass(gbuffer[deferredLights.GBufferNormalSmoothnessIndex], s_CameraNormalsTextureID);
-
-            if (deferredLights.UseRenderingLayers && gbuffer[deferredLights.GBufferRenderingLayers].IsValid())
-            {
-                builder.SetGlobalTextureAfterPass(gbuffer[deferredLights.GBufferRenderingLayers], Shader.PropertyToID(DeferredLights.k_GBufferNames[deferredLights.GBufferRenderingLayers]));
-                builder.SetGlobalTextureAfterPass(gbuffer[deferredLights.GBufferRenderingLayers], s_CameraRenderingLayersTextureID);
             }
         }
     }

@@ -204,6 +204,14 @@ namespace UnityEngine.Rendering.Universal
         {
             Assert.IsNotNull(cameraData, "cameraData can not be null when updating the volume stack.");
 
+            // UUM-91000: The UpdateVolumeStack may happens before the pipeline is constructed.
+            // Repro: enter play mode with a script that trigger this API at Start.
+            if (!VolumeManager.instance.isInitialized)
+            {
+                Debug.LogError($"{nameof(UpdateVolumeStack)} must not be called before {nameof(VolumeManager)}.{nameof(VolumeManager.instance)}.{nameof(VolumeManager.instance.Initialize)}. If you tries calling this from Awake or Start, try instead to use the {nameof(RenderPipelineManager)}.{nameof(RenderPipelineManager.activeRenderPipelineCreated)} callback to be sure your render pipeline is fully initialized before calling this.");
+                return;
+            }
+
             // We only update the local volume stacks for cameras set to ViaScripting.
             // Otherwise it will be updated in the frame.
             if (cameraData.requiresVolumeFrameworkUpdate)
@@ -292,8 +300,6 @@ namespace UnityEngine.Rendering.Universal
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Camera))]
-    // DanbaidongRP: URP removed this (6000.0.0f1 -> 6000.0.30f1). But we need it for SceneViewCamera's AdditionalCameraData.
-    [ImageEffectAllowedInSceneView]
     [ExecuteAlways] // NOTE: This is required to get calls to OnDestroy() always. Graphics resources are released in OnDestroy().
     [URPHelpURL("universal-additional-camera-data")]
     public class UniversalAdditionalCameraData : MonoBehaviour, ISerializationCallbackReceiver, IAdditionalData
@@ -350,9 +356,6 @@ namespace UnityEngine.Rendering.Universal
         [NonSerialized] internal UniversalCameraHistory m_History = new UniversalCameraHistory();
 
         [SerializeField] internal TemporalAA.Settings m_TaaSettings = TemporalAA.Settings.Create();
-
-        /// <summary>Copy from HDCamera, Enable to retain history buffers even if the camera is disabled.</summary>
-        public bool hasPersistentHistory = false;
 
         /// <summary>
         /// The serialized version of the class. Used for upgrading.

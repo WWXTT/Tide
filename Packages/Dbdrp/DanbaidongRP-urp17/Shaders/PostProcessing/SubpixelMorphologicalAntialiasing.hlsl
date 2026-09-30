@@ -200,7 +200,7 @@
  *
  * 2. Then, you must setup the temporal resolve. You may want to take a look
  *    into SMAAResolve for resolving 2x modes. After you get it working, you'll
- *    probably see Performing everywhere. But fear not, you can enable the
+ *    probably see ghosting everywhere. But fear not, you can enable the
  *    CryENGINE temporal reprojection by setting the SMAA_REPROJECTION macro.
  *    Check out SMAA_DECODE_VELOCITY if your velocity buffer is encoded.
  *
@@ -452,10 +452,10 @@
 #endif
 
 /**
- * Temporal reprojection allows to remove Performing artifacts when using
+ * Temporal reprojection allows to remove ghosting artifacts when using
  * temporal supersampling. We use the CryEngine 3 method which also introduces
  * velocity weighting. This feature is of extreme importance for totally
- * removing Performing. More information here:
+ * removing ghosting. More information here:
  *    http://iryoku.com/aacourse/downloads/13-Anti-Aliasing-Methods-in-CryENGINE-3.pdf
  *
  * Note that you'll need to setup a velocity buffer for enabling reprojection.
@@ -467,7 +467,7 @@
 #endif
 
 /**
- * Temporal reprojection allows to remove Performing artifacts when using
+ * Temporal reprojection allows to remove ghosting artifacts when using
  * temporal supersampling. However, the default reprojection requires a velocity buffer
  * in order to function properly.
  *
@@ -480,8 +480,8 @@
 
 /**
  * SMAA_REPROJECTION_WEIGHT_SCALE controls the velocity weighting. It allows to
- * remove Performing trails behind the moving object, which are not removed by
- * just using reprojection. Using low values will exhibit Performing, while using
+ * remove ghosting trails behind the moving object, which are not removed by
+ * just using reprojection. Using low values will exhibit ghosting, while using
  * high values will disable temporal supersampling under motion.
  *
  * Behind the scenes, velocity weighting removes temporal supersampling when
