@@ -5,6 +5,22 @@ namespace UnityEngine.Rendering.Universal
     /// </summary>
     public class UniversalRenderingData : ContextItem
     {
+        // Non-rendergraph path only. Do NOT use with rendergraph! (RG execution timeline breaks.)
+        // NOTE: internal for a ref return in legacy RenderingData.commandBuffer.
+        internal CommandBuffer m_CommandBuffer;
+
+        // Non-rendergraph path only. Do NOT use with rendergraph! (RG execution timeline breaks.)
+        internal CommandBuffer commandBuffer
+        {
+            get
+            {
+                if (m_CommandBuffer == null)
+                    Debug.LogError("UniversalRenderingData.commandBuffer is null. RenderGraph does not support this property. Please use the command buffer provided by the RenderGraphContext.");
+
+                return m_CommandBuffer;
+            }
+        }
+
         /// <summary>
         /// Returns culling results that exposes handles to visible objects, lights and probes.
         /// You can use this to draw objects with <c>ScriptableRenderContext.DrawRenderers</c>
@@ -17,7 +33,6 @@ namespace UnityEngine.Rendering.Universal
         /// True if the pipeline supports dynamic batching.
         /// This settings doesn't apply when drawing shadow casters. Dynamic batching is always disabled when drawing shadow casters.
         /// </summary>
-        [System.Obsolete("supportsDynamicBatching is deprecated and will be removed in a future release. #from(6000.5)", false)]
         public bool supportsDynamicBatching;
 
         /// <summary>
@@ -34,11 +49,6 @@ namespace UnityEngine.Rendering.Universal
         public RenderingMode renderingMode { get; internal set; }
 
         /// <summary>
-        /// The layer mask set on the renderer to filter prepass objects.
-        /// </summary>
-        public LayerMask prepassLayerMask { get; internal set; }
-
-        /// <summary>
         /// The layer mask set on the renderer to filter opaque objects.
         /// </summary>
         public LayerMask opaqueLayerMask { get; internal set; }
@@ -48,22 +58,14 @@ namespace UnityEngine.Rendering.Universal
         /// </summary>
         public LayerMask transparentLayerMask { get; internal set; }
 
-        /// <summary>
-        /// True if the Stencil Lod Cross fade is enabled.
-        /// </summary>
-        public bool stencilLodCrossFadeEnabled { get; internal set; }
-
         /// <inheritdoc/>
         public override void Reset()
         {
+            m_CommandBuffer = default;
             cullResults = default;
-#pragma warning disable 618
             supportsDynamicBatching = default;
-#pragma warning restore 618
             perObjectData = default;
             renderingMode = default;
-            stencilLodCrossFadeEnabled = default;
-            prepassLayerMask = -1;
             opaqueLayerMask = -1;
             transparentLayerMask = -1;
         }

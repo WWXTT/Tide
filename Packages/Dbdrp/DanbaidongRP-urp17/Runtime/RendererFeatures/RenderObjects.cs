@@ -25,7 +25,7 @@ namespace UnityEngine.Rendering.Universal
     [ExcludeFromPreset]
     [MovedFrom(true, "UnityEngine.Experimental.Rendering.Universal")]
     [Tooltip("Render Objects simplifies the injection of additional render passes by exposing a selection of commonly used settings.")]
-    [URPHelpURL("urp/renderer-features/renderer-feature-render-objects")]
+    [URPHelpURL("renderer-features/renderer-feature-render-objects")]
     public class RenderObjects : ScriptableRendererFeature
     {
         /// <summary>
@@ -238,6 +238,11 @@ namespace UnityEngine.Rendering.Universal
                 || UniversalRenderer.IsOffscreenDepthTexture(ref renderingData.cameraData))
                 return;
             renderer.EnqueuePass(renderObjectsPass);
+        }
+
+        internal override bool SupportsNativeRenderPass()
+        {
+            return true;
         }
     }
 }

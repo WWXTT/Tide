@@ -1,9 +1,5 @@
 fileFormatVersion: 2
-<<<<<<<< HEAD:Packages/Dbdrp/DanbaidongRP-urp17/Runtime/Materials/PerObjectShadow.mat.meta
 guid: a6d73c2e4faecff48a28d51fbf582ac6
-========
-guid: 8a239b3da89050c4e89ac06b168fc684
->>>>>>>> official-175:Packages/Dbdrp/DanbaidongRP-urp17/Runtime/RendererFeatures/SurfaceCacheGIRendererFeature/FallbackMaterial.mat.meta
 NativeFormatImporter:
   externalObjects: {}
   mainObjectFileID: 0

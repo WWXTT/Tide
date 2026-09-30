@@ -1,3 +1,4 @@
+using System;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -13,9 +14,6 @@ namespace UnityEngine.Rendering.Universal
 
         [ReadOnly]
         public NativeArray<VisibleReflectionProbe> reflectionProbes;
-
-        [ReadOnly]
-        public bool reflectionProbeRotation;
 
         [NativeDisableParallelForRestriction]
         public NativeArray<InclusiveRange> tileRanges;
@@ -58,10 +56,7 @@ namespace UnityEngine.Rendering.Universal
                 if (isOrthographic) { TileLightOrthographic(index); }
                 else { TileLight(index); }
             }
-            else
-            {
-                TileReflectionProbe(index);
-            }
+            else { TileReflectionProbe(index); }
         }
 
         void TileLight(int lightIndex)
@@ -427,11 +422,6 @@ namespace UnityEngine.Rendering.Universal
             var reflectionProbe = reflectionProbes[index - lights.Length];
             var centerWS = (float3)reflectionProbe.bounds.center;
             var extentsWS = (float3)reflectionProbe.bounds.extents;
-            quaternion rotation;
-            if (reflectionProbeRotation)
-                rotation = (quaternion)reflectionProbe.localToWorldMatrix.rotation;
-            else
-                rotation = quaternion.identity;
 
             // The vertices of the cube in view space.
             var points = new NativeArray<float3>(k_CubePoints.Length, Allocator.Temp);
@@ -441,8 +431,7 @@ namespace UnityEngine.Rendering.Universal
             var leftmostIndex = 0;
             for (var i = 0; i < k_CubePoints.Length; i++)
             {
-                var rotatedPointsWS = centerWS + math.rotate(rotation, extentsWS * k_CubePoints[i]);
-                var point = math.mul(worldToViews[m_ViewIndex], math.float4(rotatedPointsWS, 1)).xyz;
+                var point = math.mul(worldToViews[m_ViewIndex], math.float4(centerWS + extentsWS * k_CubePoints[i], 1)).xyz;
                 point.z *= -1;
                 points[i] = point;
                 if (point.z >= near)
