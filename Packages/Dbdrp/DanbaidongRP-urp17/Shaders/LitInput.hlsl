@@ -31,7 +31,6 @@ float _ClearCoatMask;
 float _ClearCoatSmoothness;
 float _DetailAlbedoMapScale;
 float _DetailNormalMapScale;
-float _Surface;
 UNITY_TEXTURE_STREAMING_DEBUG_VARS;
 CBUFFER_END
 

@@ -342,10 +342,10 @@ real SampleShadowmapArrayFilteredLowQuality(TEXTURE2D_ARRAY_SHADOW_PARAM(ShadowM
     real3 coord3 = shadowCoord.xyz + real3(samplingData.shadowOffset1.zw, 0);
 
     real4 attenuation4;
-    attenuation4.x = real(SAMPLE_TEXTURE2D_ARRAY_SHADOW(ShadowMap, sampler_ShadowMap, coord0, shadowCoord.w));
-    attenuation4.y = real(SAMPLE_TEXTURE2D_ARRAY_SHADOW(ShadowMap, sampler_ShadowMap, coord1, shadowCoord.w));
-    attenuation4.z = real(SAMPLE_TEXTURE2D_ARRAY_SHADOW(ShadowMap, sampler_ShadowMap, coord2, shadowCoord.w));
-    attenuation4.w = real(SAMPLE_TEXTURE2D_ARRAY_SHADOW(ShadowMap, sampler_ShadowMap, coord3, shadowCoord.w));
+    attenuation4.x = SAMPLE_TEXTURE2D_ARRAY_SHADOW(ShadowMap, sampler_ShadowMap, coord0, shadowCoord.w).x;
+    attenuation4.y = SAMPLE_TEXTURE2D_ARRAY_SHADOW(ShadowMap, sampler_ShadowMap, coord1, shadowCoord.w).x;
+    attenuation4.z = SAMPLE_TEXTURE2D_ARRAY_SHADOW(ShadowMap, sampler_ShadowMap, coord2, shadowCoord.w).x;
+    attenuation4.w = SAMPLE_TEXTURE2D_ARRAY_SHADOW(ShadowMap, sampler_ShadowMap, coord3, shadowCoord.w).x;
     return dot(attenuation4, real(0.25));
 }
 
@@ -602,15 +602,6 @@ half AdditionalLightRealtimeShadow(int lightIndex, float3 positionWS, half3 ligh
     #else
         return half(1.0);
     #endif
-}
-
-half AdditionalLightRealtimeShadow(int lightIndex, float3 positionWS, half3 lightDirection)
-{
-    #if !defined(ADDITIONAL_LIGHT_CALCULATE_SHADOWS)
-        return half(1.0);
-    #endif
-
-    return AdditionalLightRealtimeShadow(lightIndex, positionWS, lightDirection, GetAdditionalLightShadowParams(lightIndex), GetAdditionalLightShadowSamplingData(lightIndex));
 }
 
 half GetMainLightShadowFade(float3 positionWS)
