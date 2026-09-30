@@ -194,3 +194,30 @@ DBDRP 与 stock URP 的兼容性边界（三层模型）
  ⚠manifest 里永远不要再加 com.unity.render-pipelines.universal，会和dbdrp重复。
 
 
+
+═══════════════════════════════════════════════════════════════
+【2026-09-30 基线升级附注:dbdrp 已提升至官方 URP 17.5.0 基线】
+═══════════════════════════════════════════════════════════════
+升级方式:以官方 URP 17.0.3(Graphics@53297a2)为三方合并基线,
+theirs=官方 17.5.0(编辑器 6000.5.10f1 内置包),ours=本 fork。
+
+终态架构(与升级前的分工差异):
+  1. C# 层(Runtime/Editor/Tests)与 fork 原版完全一致——fork 自研架构
+     (集群延迟光照/自研天空/PerObjectShadow/XeGTAO/ToonBloom/兼容模式
+     ScriptableRenderPass 虚方法)原样保留,这是编译自洽的保证。
+  2. 17.5.0 的价值沉淀在非 C# 层:
+     - Shaders/ShaderLibrary 117+35 文件的官方演进(hunk 级合并,
+       fork 特性如 GT 色调映射/BloomDanbaidong cbuffer/GGX VNDF shim 均保留)
+     - VFX Graph 模板全套对齐官方 17.5(含 VFXPassDepthCommonFragmentLit)
+     - package.json:17.5.0 / unity 6000.5 / 依赖 core+shadergraph+config 17.5.0
+     - universal-config 同升 17.5.0
+  3. 已知取舍(17.5 新增、因 fork 架构未跟进而移除,git 历史可取回):
+     - Passes/PostProcess/ 新后处理家族(Bloom/Uber/STP/TAA 等 23 文件)
+     - Tile-Only 模式全家(OnTilePostProcess*/相关 Stripper/Editor)
+     - SurfaceCacheGI、Editor/Tools 转换器新框架、2D 官方重构(fork 2D 保留)
+     未来若要采纳,fork 的 UniversalRenderer/URRG 需先跟进 17.5 的
+     useTileOnlyMode/postProcessEnabled/usesClusterLightLoop 等 API。
+  4. 合并方法学备忘:三方合并存在"静默删除/静默内容替换"陷阱——
+     fork 未修改且官方删除的文件/成员会无冲突消失。本次靠
+     Runtime/Editor/Tests 目录级对齐 fork 收口;后续再升级时,
+     C# 层建议直接整目录走 fork,仅合并资源/着色器层。
