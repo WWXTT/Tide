@@ -17,6 +17,14 @@ namespace UnityEditor.Rendering.Universal
         SerializedDataParameter m_HDRMaxNits;
         SerializedDataParameter m_HDRAcesPreset;
 
+        // GT Tonemapping
+        SerializedDataParameter m_MaxBrightness;
+        SerializedDataParameter m_Contrast;
+        SerializedDataParameter m_LinearSectionStart;
+        SerializedDataParameter m_LinearSectionLength;
+        SerializedDataParameter m_BlackPow;
+        SerializedDataParameter m_BlackMin;
+
         public override bool hasAdditionalProperties => true;
 
         public override void OnEnable()
@@ -32,6 +40,13 @@ namespace UnityEditor.Rendering.Universal
             m_HDRMinNits = Unpack(o.Find(x => x.minNits));
             m_HDRMaxNits = Unpack(o.Find(x => x.maxNits));
             m_HDRAcesPreset = Unpack(o.Find(x => x.acesPreset));
+
+            m_MaxBrightness = Unpack(o.Find(x => x.maxBrightness));
+            m_Contrast = Unpack(o.Find(x => x.contrast));
+            m_LinearSectionStart = Unpack(o.Find(x => x.linearSectionStart));
+            m_LinearSectionLength = Unpack(o.Find(x => x.linearSectionLength));
+            m_BlackPow = Unpack(o.Find(x => x.blackPow));
+            m_BlackMin = Unpack(o.Find(x => x.blackMin));
         }
 
         public override void OnInspectorGUI()
@@ -41,6 +56,17 @@ namespace UnityEditor.Rendering.Universal
             // Display a warning if the user is trying to use a tonemap while rendering in LDR
             var asset = UniversalRenderPipeline.asset;
             int hdrTonemapMode = m_Mode.value.intValue;
+
+            if (hdrTonemapMode == (int)TonemappingMode.GranTurismo)
+            {
+                PropertyField(m_MaxBrightness);
+                PropertyField(m_Contrast);
+                PropertyField(m_LinearSectionStart);
+                PropertyField(m_LinearSectionLength);
+                PropertyField(m_BlackPow);
+                PropertyField(m_BlackMin);
+            }
+
             if (asset != null && !asset.supportsHDR && hdrTonemapMode != (int)TonemappingMode.None)
             {
                 EditorGUILayout.HelpBox("Tonemapping should only be used when working with High Dynamic Range (HDR). Please enable HDR through the active Render Pipeline Asset.", MessageType.Warning);
@@ -85,6 +111,7 @@ namespace UnityEditor.Rendering.Universal
                     }
                     EditorGUI.indentLevel--;
                 }
+                // TODO: GT tonemapping
             }
         }
     }

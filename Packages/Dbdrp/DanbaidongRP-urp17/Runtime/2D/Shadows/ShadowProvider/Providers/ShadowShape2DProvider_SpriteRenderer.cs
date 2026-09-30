@@ -111,7 +111,8 @@ namespace UnityEngine.Rendering.Universal
         {
             SpriteRenderer spriteRenderer = (SpriteRenderer)sourceComponent;
 
-            m_PersistantShapeData = persistantShadowShape as ShadowMesh2D;
+            m_PersistantShapeData = persistantShadowShape;
+            spriteRenderer.RegisterSpriteChangeCallback(UpdatePersistantShapeData);
 
             if (spriteRenderer.sprite != null)
             {
@@ -127,20 +128,6 @@ namespace UnityEngine.Rendering.Universal
             SpriteRenderer spriteRenderer = (SpriteRenderer)sourceComponent;
             persistantShadowShape.SetFlip(spriteRenderer.flipX, spriteRenderer.flipY);
             TryToSetPersistantShapeData(spriteRenderer, persistantShadowShape, false);
-        }
-
-        public override void Enabled(Component sourceComponent, ShadowShape2D persistantShadowShape)
-        {
-            SpriteRenderer spriteRenderer = (SpriteRenderer)sourceComponent;
-
-            m_PersistantShapeData = persistantShadowShape;
-            spriteRenderer.RegisterSpriteChangeCallback(UpdatePersistantShapeData);
-        }
-
-        public override void Disabled(Component sourceComponent, ShadowShape2D persistantShadowShape)
-        {
-            SpriteRenderer spriteRenderer = (SpriteRenderer)sourceComponent;
-            spriteRenderer.UnregisterSpriteChangeCallback(UpdatePersistantShapeData);
         }
     }
 }

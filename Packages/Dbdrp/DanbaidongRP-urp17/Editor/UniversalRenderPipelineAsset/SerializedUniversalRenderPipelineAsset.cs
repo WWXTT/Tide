@@ -16,6 +16,8 @@ namespace UnityEditor.Rendering.Universal
         public SerializedProperty lodCrossFadeDitheringTypeProp { get; }
         public SerializedProperty storeActionsOptimizationProperty { get; }
 
+        public SerializedProperty requireRayTracingProp {  get; }
+
         public SerializedProperty hdr { get; }
         public SerializedProperty hdrColorBufferPrecisionProp { get; }
         public SerializedProperty msaa { get; }
@@ -51,6 +53,8 @@ namespace UnityEditor.Rendering.Universal
         public SerializedProperty additionalLightCookieResolutionProp { get; }
         public SerializedProperty additionalLightCookieFormatProp { get; }
 
+        public SerializedProperty skyReflectionSizeProp { get; }
+
         public SerializedProperty reflectionProbeBlendingProp { get; }
         public SerializedProperty reflectionProbeBoxProjectionProp { get; }
 
@@ -65,6 +69,14 @@ namespace UnityEditor.Rendering.Universal
         public SerializedProperty softShadowsSupportedProp { get; }
         public SerializedProperty softShadowQualityProp { get; }
         public SerializedProperty conservativeEnclosingSphereProp { get; }
+
+        // Per Object Shadow Prop
+        public SerializedProperty poshadowMaxObjectsCountProp { get; }
+        public SerializedProperty poshadowMaxDrawDistanceProp { get; }
+        public SerializedProperty poshadowShadowMapResolutionProp { get; }
+        public SerializedProperty poshadowExcludeLayerProp { get; }
+        public SerializedProperty poshadowDepthBiasProp { get; }
+        public SerializedProperty poshadowNormalBiasProp { get; }
 
         public SerializedProperty srpBatcher { get; }
         public SerializedProperty supportsDynamicBatching { get; }
@@ -142,6 +154,8 @@ namespace UnityEditor.Rendering.Universal
             additionalLightCookieResolutionProp = serializedObject.FindProperty("m_AdditionalLightsCookieResolution");
             additionalLightCookieFormatProp = serializedObject.FindProperty("m_AdditionalLightsCookieFormat");
 
+            skyReflectionSizeProp = serializedObject.FindProperty("m_SkyReflectionSize");
+
             reflectionProbeBlendingProp = serializedObject.FindProperty("m_ReflectionProbeBlending");
             reflectionProbeBoxProjectionProp = serializedObject.FindProperty("m_ReflectionProbeBoxProjection");
 
@@ -158,6 +172,14 @@ namespace UnityEditor.Rendering.Universal
             softShadowQualityProp = serializedObject.FindProperty("m_SoftShadowQuality");
             conservativeEnclosingSphereProp = serializedObject.FindProperty("m_ConservativeEnclosingSphere");
 
+            // Per Object Shadow
+            poshadowMaxObjectsCountProp = serializedObject.FindProperty("m_POShadowMaxObjectsCount");
+            poshadowMaxDrawDistanceProp = serializedObject.FindProperty("m_POShadowMaxDrawDistance");
+            poshadowShadowMapResolutionProp = serializedObject.FindProperty("m_POShadowShadowMapResolution");
+            poshadowExcludeLayerProp = serializedObject.FindProperty("m_POShadowExcludeLayer");
+            poshadowDepthBiasProp = serializedObject.FindProperty("m_POShadowDepthBias");
+            poshadowNormalBiasProp = serializedObject.FindProperty("m_POShadowNormalBias");
+
             srpBatcher = serializedObject.FindProperty("m_UseSRPBatcher");
             supportsDynamicBatching = serializedObject.FindProperty("m_SupportsDynamicBatching");
             mixedLightingSupportedProp = serializedObject.FindProperty("m_MixedLightingSupported");
@@ -169,6 +191,8 @@ namespace UnityEditor.Rendering.Universal
             volumeProfileProp = serializedObject.FindProperty("m_VolumeProfile");
 
             storeActionsOptimizationProperty = serializedObject.FindProperty("m_StoreActionsOptimization");
+
+            requireRayTracingProp = serializedObject.FindProperty("m_RequireRayTracing");
 
             colorGradingMode = serializedObject.FindProperty("m_ColorGradingMode");
             colorGradingLutSize = serializedObject.FindProperty("m_ColorGradingLutSize");

@@ -83,7 +83,7 @@ namespace UnityEngine.Rendering.Universal
 
         // Private Fields
         private Material m_Material;
-        private ScreenSpaceAmbientOcclusionPass m_SSAOPass = null;
+        //private ScreenSpaceAmbientOcclusionPass m_SSAOPass = null;
 
         // Internal / Constants
         internal ref ScreenSpaceAmbientOcclusionSettings settings => ref m_Settings;
@@ -105,8 +105,8 @@ namespace UnityEngine.Rendering.Universal
             ResourceReloader.TryReloadAllNullIn(this, UniversalRenderPipelineAsset.packagePath);
 #endif
             // Create the pass...
-            if (m_SSAOPass == null)
-                m_SSAOPass = new ScreenSpaceAmbientOcclusionPass();
+            //if (m_SSAOPass == null)
+            //    m_SSAOPass = new ScreenSpaceAmbientOcclusionPass();
 
             // Check for previous version of SSAO
             if (m_Settings.SampleCount > 0)
@@ -127,27 +127,27 @@ namespace UnityEngine.Rendering.Universal
         /// <inheritdoc/>
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
         {
-            if (UniversalRenderer.IsOffscreenDepthTexture(ref renderingData.cameraData))
-                return;
+            //if (UniversalRenderer.IsOffscreenDepthTexture(ref renderingData.cameraData))
+            //    return;
 
-            if (!GetMaterials())
-            {
-                Debug.LogErrorFormat("{0}.AddRenderPasses(): Missing material. {1} render pass will not be added.", GetType().Name, name);
-                return;
-            }
+            //if (!GetMaterials())
+            //{
+            //    Debug.LogErrorFormat("{0}.AddRenderPasses(): Missing material. {1} render pass will not be added.", GetType().Name, name);
+            //    return;
+            //}
 
-            bool shouldAdd = m_SSAOPass.Setup(ref m_Settings, ref renderer, ref m_Material, ref m_BlueNoise256Textures);
-            if (shouldAdd)
-            {
-                renderer.EnqueuePass(m_SSAOPass);
-            }
+            //bool shouldAdd = m_SSAOPass.Setup(ref m_Settings, ref renderer, ref m_Material, ref m_BlueNoise256Textures);
+            //if (shouldAdd)
+            //{
+            //    renderer.EnqueuePass(m_SSAOPass);
+            //}
         }
 
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
-            m_SSAOPass?.Dispose();
-            m_SSAOPass = null;
+            //m_SSAOPass?.Dispose();
+            //m_SSAOPass = null;
             CoreUtils.Destroy(m_Material);
         }
 

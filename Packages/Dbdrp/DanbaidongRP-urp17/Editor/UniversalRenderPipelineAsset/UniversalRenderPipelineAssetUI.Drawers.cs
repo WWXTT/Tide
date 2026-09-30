@@ -15,11 +15,12 @@ namespace UnityEditor.Rendering.Universal
             Quality = 1 << 2,
             Lighting = 1 << 3,
             Shadows = 1 << 4,
-            PostProcessing = 1 << 5,
+            PerObjectShadows = 1 << 5,
+            PostProcessing = 1 << 6,
 #if ADAPTIVE_PERFORMANCE_2_0_0_OR_NEWER
-            AdaptivePerformance = 1 << 6,
+            AdaptivePerformance = 1 << 7,
 #endif
-            Volumes = 1 << 7,
+            Volumes = 1 << 8,
         }
 
         enum ExpandableAdditional
@@ -104,6 +105,7 @@ namespace UnityEditor.Rendering.Universal
             CED.FoldoutGroup(Styles.qualitySettingsText, Expandable.Quality, k_ExpandedState, DrawQuality),
             CED.AdditionalPropertiesFoldoutGroup(Styles.lightingSettingsText, Expandable.Lighting, k_ExpandedState, ExpandableAdditional.Lighting, k_AdditionalPropertiesState, DrawLighting, DrawLightingAdditional),
             CED.AdditionalPropertiesFoldoutGroup(Styles.shadowSettingsText, Expandable.Shadows, k_ExpandedState, ExpandableAdditional.Shadows, k_AdditionalPropertiesState, DrawShadows, DrawShadowsAdditional),
+            CED.FoldoutGroup(Styles.perObjectShadowSettingsText, Expandable.PerObjectShadows, k_ExpandedState, DrawPerObjectShadows),
             CED.FoldoutGroup(Styles.postProcessingSettingsText, Expandable.PostProcessing, k_ExpandedState, DrawPostProcessing),
             CED.FoldoutGroup(Styles.volumeSettingsText, Expandable.Volumes, k_ExpandedState, DrawVolumes)
 #if ADAPTIVE_PERFORMANCE_2_0_0_OR_NEWER
@@ -173,6 +175,12 @@ namespace UnityEditor.Rendering.Universal
             EditorGUILayout.PropertyField(serialized.supportsDynamicBatching, Styles.dynamicBatching);
             EditorGUILayout.PropertyField(serialized.debugLevelProp, Styles.debugLevel);
             EditorGUILayout.PropertyField(serialized.storeActionsOptimizationProperty, Styles.storeActionsOptimizationText);
+
+            EditorGUILayout.PropertyField(serialized.requireRayTracingProp, Styles.rayTracingText);
+            if (serialized.requireRayTracingProp.boolValue && !SystemInfo.supportsRayTracing)
+            {
+                EditorGUILayout.HelpBox(Styles.noSupportRayTracingText, MessageType.Warning, true);
+            }
         }
 
         static void DrawQuality(SerializedUniversalRenderPipelineAsset serialized, Editor ownerEditor)
@@ -330,6 +338,12 @@ namespace UnityEditor.Rendering.Universal
 
             EditorGUI.indentLevel--;
             EditorGUILayout.Space();
+
+            // Sky
+            EditorGUILayout.LabelField(Styles.skySettingsText);
+            EditorGUI.indentLevel++;
+            EditorGUILayout.PropertyField(serialized.skyReflectionSizeProp, Styles.skyReflectionSizeContent);
+            EditorGUI.indentLevel--;
 
             // Reflection Probes
             EditorGUILayout.LabelField(Styles.reflectionProbesSettingsText);
@@ -595,6 +609,18 @@ namespace UnityEditor.Rendering.Universal
 
                 serialized.shadowCascadeBorderProp.floatValue = cascades[lastCascade].borderSize;
             }
+        }
+
+        static void DrawPerObjectShadows(SerializedUniversalRenderPipelineAsset serialized, Editor ownerEditor)
+        {
+            serialized.poshadowMaxObjectsCountProp.intValue = EditorGUILayout.IntSlider(Styles.POShadowMaxObjectsCountText, serialized.poshadowMaxObjectsCountProp.intValue, 0, 32);
+            serialized.poshadowMaxDrawDistanceProp.floatValue = Mathf.Max(0.0f, EditorGUILayout.FloatField(Styles.POShadowMaxDrawDistanceText, serialized.poshadowMaxDrawDistanceProp.floatValue));
+
+            EditorGUILayout.PropertyField(serialized.poshadowShadowMapResolutionProp, Styles.POShadowShadowmapResolutionText);
+            EditorGUILayout.PropertyField(serialized.poshadowExcludeLayerProp, Styles.POShadowExcludeLayerText);
+
+            serialized.poshadowDepthBiasProp.floatValue = EditorGUILayout.Slider(Styles.POShadowDepthBiasText, serialized.poshadowDepthBiasProp.floatValue, 0.0f, UniversalRenderPipeline.maxShadowBias);
+            serialized.poshadowNormalBiasProp.floatValue = EditorGUILayout.Slider(Styles.POShadowNormalBiasText, serialized.poshadowNormalBiasProp.floatValue, 0.0f, UniversalRenderPipeline.maxShadowBias);
         }
 
         static void DrawPostProcessing(SerializedUniversalRenderPipelineAsset serialized, Editor ownerEditor)

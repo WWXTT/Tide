@@ -964,6 +964,8 @@ namespace UnityEngine.Rendering.Universal
         private class DrawGizmosPassData
         {
             public RendererListHandle gizmoRenderList;
+            public TextureHandle color;
+            public TextureHandle depth;
         };
 
         /// <summary>
@@ -981,20 +983,25 @@ namespace UnityEngine.Rendering.Universal
             if (!Handles.ShouldRenderGizmos() || cameraData.camera.sceneViewFilterMode == Camera.SceneViewFilterMode.ShowFiltered)
                 return;
 
-            using (var builder = renderGraph.AddRasterRenderPass<DrawGizmosPassData>("Draw Gizmos Pass", out var passData,
+            // Use UnsafePass instead of RasterRenderPass because gizmo rendering
+            // (Gizmos.Draw* from [DrawGizmo] callbacks) cannot execute inside a native render pass.
+            using (var builder = renderGraph.AddUnsafePass<DrawGizmosPassData>("Draw Gizmos Pass", out var passData,
                 Profiling.drawGizmos))
             {
-                builder.SetRenderAttachment(color, 0, AccessFlags.Write);
-                builder.SetRenderAttachmentDepth(depth, AccessFlags.ReadWrite);
-
-                passData.gizmoRenderList = renderGraph.CreateGizmoRendererList(cameraData.camera, gizmoSubset);
-                builder.UseRendererList(passData.gizmoRenderList);
+                builder.UseTexture(color, AccessFlags.Write);
+                builder.UseTexture(depth, AccessFlags.ReadWrite);
                 builder.AllowPassCulling(false);
 
-                builder.SetRenderFunc((DrawGizmosPassData data, RasterGraphContext rgContext) =>
+                passData.color = color;
+                passData.depth = depth;
+                passData.gizmoRenderList = renderGraph.CreateGizmoRendererList(cameraData.camera, gizmoSubset);
+                builder.UseRendererList(passData.gizmoRenderList);
+
+                builder.SetRenderFunc((DrawGizmosPassData data, UnsafeGraphContext rgContext) =>
                 {
                     using (new ProfilingScope(rgContext.cmd, Profiling.drawGizmos))
                     {
+                        rgContext.cmd.SetRenderTarget(data.color, data.depth);
                         rgContext.cmd.DrawRendererList(data.gizmoRenderList);
                     }
                 });
@@ -1655,7 +1662,7 @@ namespace UnityEngine.Rendering.Universal
             cmd.SetKeyword(ShaderGlobalKeywords.ShadowsShadowMask, false);
             cmd.SetKeyword(ShaderGlobalKeywords.LinearToSRGBConversion, false);
             cmd.SetKeyword(ShaderGlobalKeywords.LightLayers, false);
-            cmd.SetGlobalVector(ScreenSpaceAmbientOcclusionPass.s_AmbientOcclusionParamID, Vector4.zero);
+            //cmd.SetGlobalVector(ScreenSpaceAmbientOcclusionPass.s_AmbientOcclusionParamID, Vector4.zero);
         }
 
         internal void Clear(CameraRenderType cameraType)
@@ -2191,6 +2198,9 @@ namespace UnityEngine.Rendering.Universal
             if (!Handles.ShouldRenderGizmos() || camera.sceneViewFilterMode == Camera.SceneViewFilterMode.ShowFiltered)
                 return;
 
+            // Ensure any active native render pass is ended before drawing gizmos.
+            EndActiveNativeRenderPass(context);
+
             var cmd = renderingData.commandBuffer;
             using (new ProfilingScope(cmd, Profiling.drawGizmos))
             {
@@ -2269,26 +2279,29 @@ namespace UnityEngine.Rendering.Universal
 
         private protected int AdjustAndGetScreenMSAASamples(RenderGraph renderGraph, bool useIntermediateColorTarget)
         {
-            // In the editor (ConfigureTargetTexture in PlayModeView.cs) and many platforms, the system render target is always allocated without MSAA    
-            if (!SystemInfo.supportsMultisampledBackBuffer) return 1;
+            #if UNITY_EDITOR
+                // In the editor, the system render target is always allocated with no msaa
+                // See: ConfigureTargetTexture in PlayModeView.cs
+                return 1;
+            #else
+                // In the players, when URP main rendering is done to an intermediate target and NRP enabled
+                // we disable multisampling for the system backbuffer as a bandwidth optimization
+                // doing so, we avoid storing costly msaa samples back to system memory for nothing
+                bool canOptimizeScreenMSAASamples = UniversalRenderPipeline.canOptimizeScreenMSAASamples
+                                                 && useIntermediateColorTarget
+                                                 && renderGraph.nativeRenderPassesEnabled
+                                                 && Screen.msaaSamples > 1;
+                
+                if (canOptimizeScreenMSAASamples)
+                {
+                    Screen.SetMSAASamples(1);
+                }
 
-            // For mobile platforms, when URP main rendering is done to an intermediate target and NRP enabled
-            // we disable multisampling for the system render target as a bandwidth optimization
-            // doing so, we avoid storing costly MSAA samples back to system memory for nothing
-            bool canOptimizeScreenMSAASamples = UniversalRenderPipeline.canOptimizeScreenMSAASamples
-                                                && useIntermediateColorTarget
-                                                && renderGraph.nativeRenderPassesEnabled
-                                                && Screen.msaaSamples > 1;
-            
-            if (canOptimizeScreenMSAASamples)
-            {
-                Screen.SetMSAASamples(1);
-            }
+                // iOS and macOS corner case
+                bool screenAPIHasOneFrameDelay = (Application.platform == RuntimePlatform.OSXPlayer || Application.platform == RuntimePlatform.IPhonePlayer);
 
-            // iOS and macOS corner case
-            bool screenAPIHasOneFrameDelay = (Application.platform == RuntimePlatform.OSXPlayer || Application.platform == RuntimePlatform.IPhonePlayer);
-
-            return screenAPIHasOneFrameDelay ? Mathf.Max(UniversalRenderPipeline.startFrameScreenMSAASamples, 1) : Mathf.Max(Screen.msaaSamples, 1);
+                return screenAPIHasOneFrameDelay ? Mathf.Max(UniversalRenderPipeline.startFrameScreenMSAASamples, 1) : Mathf.Max(Screen.msaaSamples, 1);
+            #endif
         }
 
         internal static void SortStable(List<ScriptableRenderPass> list)

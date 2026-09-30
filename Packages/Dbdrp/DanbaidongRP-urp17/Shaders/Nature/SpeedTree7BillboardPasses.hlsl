@@ -30,8 +30,7 @@ void InitializeData(inout SpeedTreeVertexInput input, out half2 outUV, out half 
     billboardPos.y += (percent.y * unity_BillboardSize.y + unity_BillboardSize.z) * heightScale;
 
 #ifdef ENABLE_WIND
-    float windEnabled = dot(_ST_WindVector.xyz, _ST_WindVector.xyz) > 0.0f ? 1.0f : 0.0f;
-    if (_WindQuality * windEnabled > 0)
+    if (_WindQuality * _WindEnabled > 0)
     {
         billboardPos = GlobalWind(billboardPos, worldPos, true, _ST_WindVector.xyz, input.texcoord1.w);
     }

@@ -126,7 +126,6 @@ Shader "Universal Render Pipeline/2D/Sprite-Unlit-Default"
             #pragma vertex UnlitVertex
             #pragma fragment UnlitFragment
 
-            #pragma multi_compile _ SKINNED_SPRITE
             #pragma multi_compile_fragment _ DEBUG_DISPLAY
 
             struct Attributes
@@ -199,4 +198,6 @@ Shader "Universal Render Pipeline/2D/Sprite-Unlit-Default"
             ENDHLSL
         }
     }
+
+    Fallback "Sprites/Default"
 }

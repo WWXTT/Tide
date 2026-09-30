@@ -281,7 +281,7 @@ namespace UnityEngine.Rendering.Universal
                 builder.SetRenderAttachment(resourceData.activeColorTexture, 0, AccessFlags.Write);
                 builder.SetRenderAttachmentDepth(resourceData.activeDepthTexture, AccessFlags.Write);
 
-                TextureHandle mainShadowsTexture = resourceData.mainShadowsTexture;
+                TextureHandle mainShadowsTexture = resourceData.directionalShadowsTexture;
                 TextureHandle additionalShadowsTexture = resourceData.additionalShadowsTexture;
 
                 if (mainShadowsTexture.IsValid())

@@ -39,7 +39,7 @@
 // ----------------------------------------------------------------------------------
 // Utility functions
 
-half GetLuminance(half3 colorLinear)
+float GetLuminance(float3 colorLinear)
 {
 #if _TONEMAP_ACES
     return AcesLuminance(colorLinear);
@@ -88,7 +88,7 @@ real4 GetLinearToSRGB(real4 c)
 // Shared functions for uber & fast path (on-tile)
 // These should only process an input color, don't sample in neighbor pixels!
 
-half3 ApplyVignette(half3 input, float2 uv, float2 center, float intensity, float roundness, float smoothness, half3 color)
+float3 ApplyVignette(float3 input, float2 uv, float2 center, float intensity, float roundness, float smoothness, float3 color)
 {
     center = UnityStereoTransformScreenSpaceTex(center);
     float2 dist = abs(uv - center) * intensity;
@@ -98,9 +98,87 @@ half3 ApplyVignette(half3 input, float2 uv, float2 center, float intensity, floa
     return input * lerp(color, (1.0).xxx, vfactor);
 }
 
-half3 ApplyTonemap(half3 input)
+// AcesFilm GranTurismoTonemap add by houdong 20230909
+// Modify AcesFilm to match genshin mobile tonemap.
+// (Moved here from the custom core Color.hlsl, which was replaced by core 6000.5.
+//  Also declared in ShaderLibrary/Core.hlsl for the deferred lighting compute shader.)
+#ifndef DANBAIDONG_ACESFILM_INCLUDED
+#define DANBAIDONG_ACESFILM_INCLUDED
+float3 AcesFilm(float3 x)
 {
-#if _TONEMAP_ACES
+    float a = 1.36f;
+    float b = 0.047f;
+    float c = 0.93f;
+    float d = 0.56f;
+    float e = 0.14f;
+    return saturate((x*(a*x+b))/(x*(c*x+d)+e));
+}
+#endif
+
+// GranTurismoTonemap add by houdong 20230909 (GT Sport style tonemap).
+// (Moved here verbatim from the custom core Color.hlsl, which was replaced by core 6000.5.
+//  Param order matches the C# side: _GTToneMap_Params0 = (P, a, m, l),
+//  _GTToneMap_Params1 = (c, b) — see Tonemapping.cs GT region.)
+#ifndef DANBAIDONG_GRANTURISMO_INCLUDED
+#define DANBAIDONG_GRANTURISMO_INCLUDED
+float W_f(float x, float e0, float e1)
+{
+    if (x <= e0)
+        return 0;
+    if (x >= e1)
+        return 1;
+    float a = (x - e0) / (e1 - e0);
+    return a * a * (3 - 2 * a);
+}
+
+float H_f(float x, float e0, float e1)
+{
+    if (x <= e0)
+        return 0;
+    if (x >= e1)
+        return 1;
+    return (x - e0) / (e1 - e0);
+}
+
+float GranTurismoTonemap(float x, float P, float a, float m, float l, float c, float b)
+{
+    // float P = 1; // Maximum brightness
+    // float a = 1; // Contrast
+    // float m = 0.22; // Linear section start
+    // float l = 0.4; // Linear section length
+    // float c = 1; // Black pow
+    // float b = 0; // Black min
+    float l0 = (P - m) * l / a;
+    float L0 = m - m / a;
+    float L1 = m + (1 - m) / a;
+    float L_x = m + a * (x - m);
+    float T_x = m * pow(x / m, c) + b;
+    float S0 = m + l0;
+    float S1 = m + a * l0;
+    float C2 = a * P / (P - S1);
+    float S_x = P - (P - S1) * exp(-(C2 * (x - S0) / P));
+    float w0_x = 1 - W_f(x, 0, m);
+    float w2_x = H_f(x, m + l0, m + l0);
+    float w1_x = 1 - w0_x - w2_x;
+    float f_x = T_x * w0_x + L_x * w1_x + S_x * w2_x;
+    return f_x;
+}
+#endif
+
+float3 ApplyTonemap(float3 input
+#if _TONEMAP_GT
+    , float4 tonemapParams0
+    , float4 tonemapParams1
+#endif
+)
+{
+#if _TONEMAP_GT
+    input.r = GranTurismoTonemap(input.r, tonemapParams0.x, tonemapParams0.y, tonemapParams0.z, tonemapParams0.w, tonemapParams1.x, tonemapParams1.y);
+    input.g = GranTurismoTonemap(input.g, tonemapParams0.x, tonemapParams0.y, tonemapParams0.z, tonemapParams0.w, tonemapParams1.x, tonemapParams1.y);
+    input.b = GranTurismoTonemap(input.b, tonemapParams0.x, tonemapParams0.y, tonemapParams0.z, tonemapParams0.w, tonemapParams1.x, tonemapParams1.y);
+#elif _TONEMAP_ACES_SAMPLE_VER
+    input = AcesFilm(input);
+#elif _TONEMAP_ACES
     float3 aces = unity_to_ACES(input);
     input = AcesTonemap(aces);
 #elif _TONEMAP_NEUTRAL
@@ -110,7 +188,12 @@ half3 ApplyTonemap(half3 input)
     return saturate(input);
 }
 
-half3 ApplyColorGrading(half3 input, float postExposure, TEXTURE2D_PARAM(lutTex, lutSampler), float3 lutParams, TEXTURE2D_PARAM(userLutTex, userLutSampler), float3 userLutParams, float userLutContrib)
+float3 ApplyColorGrading(float3 input, float postExposure, TEXTURE2D_PARAM(lutTex, lutSampler), float3 lutParams, TEXTURE2D_PARAM(userLutTex, userLutSampler), float3 userLutParams, float userLutContrib
+#if _TONEMAP_GT
+    , float4 tonemapParams0
+    , float4 tonemapParams1
+#endif
+)
 {
     // Artist request to fine tune exposure in post without affecting bloom, dof etc
     input *= postExposure;
@@ -128,7 +211,7 @@ half3 ApplyColorGrading(half3 input, float postExposure, TEXTURE2D_PARAM(lutTex,
         {
             input = saturate(input);
             input.rgb = GetLinearToSRGB(input.rgb); // In LDR do the lookup in sRGB for the user LUT
-            half3 outLut = ApplyLut2D(TEXTURE2D_ARGS(userLutTex, userLutSampler), input, userLutParams);
+            float3 outLut = ApplyLut2D(TEXTURE2D_ARGS(userLutTex, userLutSampler), input, userLutParams);
             input = lerp(input, outLut, userLutContrib);
             input.rgb = GetSRGBToLinear(input.rgb);
         }
@@ -140,13 +223,18 @@ half3 ApplyColorGrading(half3 input, float postExposure, TEXTURE2D_PARAM(lutTex,
     //   - Apply internal linear LUT
     #else
     {
+        #if _TONEMAP_GT
+        input = ApplyTonemap(input, tonemapParams0, tonemapParams1);
+        #else
         input = ApplyTonemap(input);
+        #endif
+        
 
         UNITY_BRANCH
         if (userLutContrib > 0.0)
         {
             input.rgb = GetLinearToSRGB(input.rgb); // In LDR do the lookup in sRGB for the user LUT
-            half3 outLut = ApplyLut2D(TEXTURE2D_ARGS(userLutTex, userLutSampler), input, userLutParams);
+            float3 outLut = ApplyLut2D(TEXTURE2D_ARGS(userLutTex, userLutSampler), input, userLutParams);
             input = lerp(input, outLut, userLutContrib);
             input.rgb = GetSRGBToLinear(input.rgb);
         }
@@ -158,10 +246,10 @@ half3 ApplyColorGrading(half3 input, float postExposure, TEXTURE2D_PARAM(lutTex,
     return input;
 }
 
-half3 ApplyGrain(half3 input, float2 uv, TEXTURE2D_PARAM(GrainTexture, GrainSampler), float intensity, float response, float2 scale, float2 offset, float oneOverPaperWhite)
+float3 ApplyGrain(float3 input, float2 uv, TEXTURE2D_PARAM(GrainTexture, GrainSampler), float intensity, float response, float2 scale, float2 offset, float oneOverPaperWhite)
 {
     // Grain in range [0;1] with neutral at 0.5
-    half grain = SAMPLE_TEXTURE2D(GrainTexture, GrainSampler, uv * scale + offset).w;
+    float grain = SAMPLE_TEXTURE2D(GrainTexture, GrainSampler, uv * scale + offset).w;
 
     // Remap [-1;1]
     grain = (grain - 0.5) * 2.0;
@@ -177,7 +265,7 @@ half3 ApplyGrain(half3 input, float2 uv, TEXTURE2D_PARAM(GrainTexture, GrainSamp
     return input + input * grain * intensity * lum;
 }
 
-half3 ApplyDithering(half3 input, float2 uv, TEXTURE2D_PARAM(BlueNoiseTexture, BlueNoiseSampler), float2 scale, float2 offset, float paperWhite, float oneOverPaperWhite)
+float3 ApplyDithering(float3 input, float2 uv, TEXTURE2D_PARAM(BlueNoiseTexture, BlueNoiseSampler), float2 scale, float2 offset, float paperWhite, float oneOverPaperWhite)
 {
     // Symmetric triangular distribution on [-1,1] with maximal density at 0
     float noise = SAMPLE_TEXTURE2D(BlueNoiseTexture, BlueNoiseSampler, uv * scale + offset).a * 2.0 - 1.0;
@@ -203,7 +291,7 @@ static const FxaaFloat kRelativeContrastThreshold = 0.15;
 static const FxaaFloat kAbsoluteContrastThreshold = 0.03;
 #endif
 
-half3 ApplyFXAA(half3 color, float2 positionNDC, int2 positionSS, float4 sourceSize, TEXTURE2D_X(inputTexture), float paperWhite, float oneOverPaperWhite)
+float3 ApplyFXAA(float3 color, float2 positionNDC, int2 positionSS, float4 sourceSize, TEXTURE2D_X(inputTexture), float paperWhite, float oneOverPaperWhite)
 {
 #if _FXAA
     FxaaTex tex = {sampler_LinearClamp, _BlitTexture};

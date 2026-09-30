@@ -103,31 +103,13 @@ namespace UnityEngine.Rendering.Universal
             return true;
         }
 
-        private static bool CanBatchCameraSortingLayer(int startLayerIndex, SortingLayer[] sortingLayers, Renderer2DData rendererData)
+        private static int FindUpperBoundInBatch(int startLayerIndex, SortingLayer[] sortingLayers, ILight2DCullResult lightCullResult)
         {
-            if (rendererData.useCameraSortingLayerTexture)
-            {
-                var cameraSortingLayerBoundsIndex = Render2DLightingPass.GetCameraSortingLayerBoundsIndex(rendererData);
-                return sortingLayers[startLayerIndex].value == cameraSortingLayerBoundsIndex;
-            }
-
-            return false;
-        }
-
-        private static int FindUpperBoundInBatch(int startLayerIndex, SortingLayer[] sortingLayers, Renderer2DData rendererData)
-        {
-            // break layer if camera sorting layer is active
-            if (CanBatchCameraSortingLayer(startLayerIndex, sortingLayers, rendererData))
-                return startLayerIndex;
-
             // start checking at the next layer
             for (var i = startLayerIndex + 1; i < sortingLayers.Length; i++)
             {
-                if (!CanBatchLightsInLayer(startLayerIndex, i, sortingLayers, rendererData.lightCullResult))
+                if (!CanBatchLightsInLayer(startLayerIndex, i, sortingLayers, lightCullResult))
                     return i - 1;
-
-                if (CanBatchCameraSortingLayer(i, sortingLayers, rendererData))
-                    return i;
             }
             return sortingLayers.Length - 1;
         }
@@ -159,7 +141,7 @@ namespace UnityEngine.Rendering.Universal
             }
         }
 
-        public static LayerBatch[] CalculateBatches(Renderer2DData rendererData, out int batchCount)
+        public static LayerBatch[] CalculateBatches(ILight2DCullResult lightCullResult, out int batchCount)
         {
             var cachedSortingLayers = Light2DManager.GetCachedSortingLayer();
             InitializeBatchInfos(cachedSortingLayers);
@@ -170,10 +152,10 @@ namespace UnityEngine.Rendering.Universal
             {
                 var layerToRender = cachedSortingLayers[i].id;
                 ref var layerBatch = ref s_LayerBatches[batchCount++];
-                var lightStats = rendererData.lightCullResult.GetLightStatsByLayer(layerToRender, ref layerBatch);
+                var lightStats = lightCullResult.GetLightStatsByLayer(layerToRender, ref layerBatch);
 
                 // Find the highest layer that share the same set of lights and shadows as this layer.
-                var upperLayerInBatch = FindUpperBoundInBatch(i, cachedSortingLayers, rendererData);
+                var upperLayerInBatch = FindUpperBoundInBatch(i, cachedSortingLayers, lightCullResult);
 
                 // Some renderers override their sorting layer value with short.MinValue or short.MaxValue.
                 // When drawing the first sorting layer, we should include the range from short.MinValue to layerValue.
@@ -213,13 +195,19 @@ namespace UnityEngine.Rendering.Universal
             return s_LayerBatches;
         }
 
-        public static void GetFilterSettings(Renderer2DData rendererData, ref LayerBatch layerBatch, out FilteringSettings filterSettings)
+        public static void GetFilterSettings(Renderer2DData rendererData, ref LayerBatch layerBatch, short cameraSortingLayerBoundsIndex, out FilteringSettings filterSettings)
         {
             filterSettings = FilteringSettings.defaultValue;
             filterSettings.renderQueueRange = RenderQueueRange.all;
             filterSettings.layerMask = -1;
             filterSettings.renderingLayerMask = 0xFFFFFFFF;
-            filterSettings.sortingLayerRange = layerBatch.layerRange;
+
+            short upperBound = layerBatch.layerRange.upperBound;
+
+            if (rendererData.useCameraSortingLayerTexture && cameraSortingLayerBoundsIndex >= layerBatch.layerRange.lowerBound && cameraSortingLayerBoundsIndex < layerBatch.layerRange.upperBound)
+                upperBound = cameraSortingLayerBoundsIndex;
+
+            filterSettings.sortingLayerRange = new SortingLayerRange(layerBatch.layerRange.lowerBound, upperBound);
         }
 
         static void SetupActiveBlendStyles()

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace UnityEngine.Rendering.Universal
 {
@@ -7,20 +8,6 @@ namespace UnityEngine.Rendering.Universal
         private static SortingLayer[] s_SortingLayers;
 
         public static List<Light2D> lights { get; } = new List<Light2D>();
-
-        internal static void Initialize()
-        {
-#if UNITY_EDITOR
-            SortingLayer.onLayerChanged += OnSortingLayerChanged;
-#endif
-        }
-
-        internal static void Dispose()
-        {
-#if UNITY_EDITOR
-            SortingLayer.onLayerChanged -= OnSortingLayerChanged;
-#endif
-        }
 
         // Called during OnEnable
         public static void RegisterLight(Light2D light)
@@ -121,13 +108,5 @@ namespace UnityEngine.Rendering.Universal
 
             return s_SortingLayers;
         }
-
-#if UNITY_EDITOR
-        internal static void OnSortingLayerChanged()
-        {
-            // Update sorting layers that were added or removed or changed order
-             s_SortingLayers = SortingLayer.layers;
-        }
-#endif
     }
 }

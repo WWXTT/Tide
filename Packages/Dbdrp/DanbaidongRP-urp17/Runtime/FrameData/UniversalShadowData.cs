@@ -15,6 +15,11 @@ namespace UnityEngine.Rendering.Universal
         public bool supportsMainLightShadows;
 
         /// <summary>
+        /// True if ray tracing shadows are enabled.
+        /// </summary>
+        public bool rayTracingShadowsEnabled;
+
+        /// <summary>
         /// True if additional lights shadows are enabled in the URP Asset
         /// </summary>
         internal bool mainLightShadowsEnabled;
@@ -86,6 +91,16 @@ namespace UnityEngine.Rendering.Universal
         /// </summary>
         public List<int> resolution;
 
+
+        // PerObjectShadows
+        internal int perObjectShadowMaxObjectsCount;
+        internal float perObjectShadowMaxDrawDistance;
+        internal int perObjectShadowShadowMapResolution;
+        internal RenderingLayerMask perObjectShadowExcludeLayer;
+        internal float perObjectShadowDepthBias;
+        internal float perObjectShadowNormalBias;
+
+
         internal bool isKeywordAdditionalLightShadowsEnabled;
         internal bool isKeywordSoftShadowsEnabled;
         internal int mainLightShadowResolution;
@@ -99,6 +114,7 @@ namespace UnityEngine.Rendering.Universal
         public override void Reset()
         {
             supportsMainLightShadows = false;
+            rayTracingShadowsEnabled = false;
             mainLightShadowmapWidth = 0;
             mainLightShadowmapHeight = 0;
             mainLightShadowCascadesCount = 0;
@@ -111,6 +127,14 @@ namespace UnityEngine.Rendering.Universal
             shadowmapDepthBufferBits = 0;
             bias?.Clear();
             resolution?.Clear();
+
+            // PerObjectShadows
+            perObjectShadowMaxObjectsCount = 0;
+            perObjectShadowMaxDrawDistance = 0;
+            perObjectShadowShadowMapResolution = 1;
+            perObjectShadowExcludeLayer = 0;
+            perObjectShadowDepthBias = 0;
+            perObjectShadowNormalBias = 0;
 
             isKeywordAdditionalLightShadowsEnabled = false;
             isKeywordSoftShadowsEnabled = false;

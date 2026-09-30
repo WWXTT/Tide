@@ -121,7 +121,8 @@ half4 _MainLightOcclusionProbes;
 uint _MainLightLayerMask;
 
 // x: SSAO Enabled/Disabled (Needed for situations when OFF keyword is stripped out but feature disabled in runtime)
-// yz are currently unused
+// y: intensity
+// z: specularOcclusionBlend (RTAO)
 // w: directLightStrength
 half4 _AmbientOcclusionParam;
 
@@ -178,7 +179,9 @@ CBUFFER_END
 #endif
 #endif
 
-#if USE_FORWARD_PLUS
+// We need this in danbaidongRP, should we move it to ReflectionProbeManager define?
+// #if USE_FORWARD_PLUS
+#if 1
 
 CBUFFER_START(urp_ZBinBuffer)
         float4 urp_ZBins[MAX_ZBIN_VEC4S];

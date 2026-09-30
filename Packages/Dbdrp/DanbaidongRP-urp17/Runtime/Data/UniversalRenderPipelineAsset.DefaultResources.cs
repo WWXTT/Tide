@@ -9,8 +9,11 @@ namespace UnityEngine.Rendering.Universal
         Particle,
         Terrain,
         Sprite,
+        UnityBuiltinDefault,
         SpriteMask,
-        Decal
+        Decal,
+        PerObjectShadow,
+        ProceduralToonSkyBox,
     }
 
     public partial class UniversalRenderPipelineAsset
@@ -35,7 +38,8 @@ namespace UnityEngine.Rendering.Universal
                       DefaultMaterialType.Particle => defaultMaterials.defaultParticleUnlitMaterial,
                       DefaultMaterialType.Terrain => defaultMaterials.defaultTerrainLitMaterial,
                       DefaultMaterialType.Decal => defaultMaterials.defaultDecalMaterial,
-                      DefaultMaterialType.Sprite => defaultMaterials.defaultSpriteMaterial,
+                      DefaultMaterialType.PerObjectShadow => defaultMaterials.defaultPerObjectShadowMaterial,
+                      DefaultMaterialType.ProceduralToonSkyBox => defaultMaterials.defaulProceduralToonSkyBoxMaterial,
                       _ => null
                     };
                 }
@@ -89,6 +93,16 @@ namespace UnityEngine.Rendering.Universal
         /// <returns>Returns the Material containing the Unity decal shader.</returns>
         public Material decalMaterial => GetMaterial(DefaultMaterialType.Decal);
 
+        /// <summary>
+        /// Returns the Material that DanbaidongRP uses to render PerObjectShadow.
+        /// </summary>
+        public Material perObjectShadowMaterial => GetMaterial(DefaultMaterialType.PerObjectShadow);
+
+        /// <summary>
+        /// Returns the Material that DanbaidongRP uses to render ProceduralToonSky.
+        /// </summary>
+        public Material proceduralToonSkyBoxMat => GetMaterial(DefaultMaterialType.ProceduralToonSkyBox);
+
         #endregion
 
         #region Shaders
@@ -135,61 +149,6 @@ namespace UnityEngine.Rendering.Universal
             }
         }
 
-        #region Terrain
-
-        /// <summary>
-        /// Returns the terrain detail lit shader that this asset uses.
-        /// </summary>
-        public override Shader terrainDetailLitShader
-        {
-            get
-            {
-                if (GraphicsSettings.TryGetRenderPipelineSettings<UniversalRenderPipelineRuntimeShaders>(
-                        out var shadersResources))
-                {
-                    return shadersResources.terrainDetailLitShader;
-                }
-
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Returns the terrain detail grass shader that this asset uses.
-        /// </summary>
-        public override Shader terrainDetailGrassShader
-        {
-            get
-            {
-                if (GraphicsSettings.TryGetRenderPipelineSettings<UniversalRenderPipelineRuntimeShaders>(
-                        out var shadersResources))
-                {
-                    return shadersResources.terrainDetailGrassShader;
-                }
-
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Returns the terrain detail grass billboard shader that this asset uses.
-        /// </summary>
-        public override Shader terrainDetailGrassBillboardShader
-        {
-            get
-            {
-                if (GraphicsSettings.TryGetRenderPipelineSettings<UniversalRenderPipelineRuntimeShaders>(
-                        out var shadersResources))
-                {
-                    return shadersResources.terrainDetailGrassBillboardShader;
-                }
-
-                return null;
-            }
-        }
-
-        #endregion
-
 #if UNITY_EDITOR
 
         #region Autodesk
@@ -211,6 +170,28 @@ namespace UnityEngine.Rendering.Universal
         /// </summary>
         /// <returns>Returns the Autodesk Interactive mask shader that this asset uses</returns>
         public override Shader autodeskInteractiveMaskedShader => defaultShaders?.autodeskInteractiveMaskedShader;
+
+        #endregion
+
+        #region Terrain
+
+        /// <summary>
+        /// Returns the terrain detail lit shader that this asset uses.
+        /// </summary>
+        /// <returns>Returns the terrain detail lit shader that this asset uses.</returns>
+        public override Shader terrainDetailLitShader => defaultShaders?.terrainDetailLitShader;
+
+        /// <summary>
+        /// Returns the terrain detail grass shader that this asset uses.
+        /// </summary>
+        /// <returns>Returns the terrain detail grass shader that this asset uses.</returns>
+        public override Shader terrainDetailGrassShader => defaultShaders?.terrainDetailGrassShader;
+
+        /// <summary>
+        /// Returns the terrain detail grass billboard shader that this asset uses.
+        /// </summary>
+        /// <returns>Returns the terrain detail grass billboard shader that this asset uses.</returns>
+        public override Shader terrainDetailGrassBillboardShader => defaultShaders?.terrainDetailGrassBillboardShader;
 
         #endregion
 

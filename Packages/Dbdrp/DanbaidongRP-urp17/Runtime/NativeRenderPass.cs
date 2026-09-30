@@ -14,6 +14,8 @@ namespace UnityEngine.Rendering.Universal
 
         // used to keep track of the index of the last pass when we called BeginSubpass
         private int m_LastBeginSubpassPassIndex = 0;
+        // tracks whether a native render pass is currently active on the context
+        private bool m_NativeRenderPassActive = false;
 
         private Dictionary<Hash128, int[]> m_MergeableRenderPassesMap = new Dictionary<Hash128, int[]>(kRenderPassMapSize);
         // static array storing all the mergeableRenderPassesMap arrays. This is used to remove any GC allocs during the frame which would have been introduced by using a dynamic array to store the mergeablePasses per RenderPass
@@ -82,6 +84,7 @@ namespace UnityEngine.Rendering.Universal
             }
 
             m_firstPassIndexOfLastMergeableGroup = 0;
+            m_NativeRenderPassActive = false;
         }
 
         internal void SetupNativeRenderPassFrameData(UniversalCameraData cameraData, bool isRenderPassEnabled)
@@ -450,6 +453,7 @@ namespace UnityEngine.Rendering.Universal
                     context.BeginSubPass(attachmentIndices);
 
                     m_LastBeginSubpassPassIndex = currentPassIndex;
+                    m_NativeRenderPassActive = true;
                 }
                 else
                 {
@@ -492,6 +496,7 @@ namespace UnityEngine.Rendering.Universal
                     context.EndRenderPass();
 
                     m_LastBeginSubpassPassIndex = 0;
+                    m_NativeRenderPassActive = false;
                 }
 
                 for (int i = 0; i < m_ActiveColorAttachmentDescriptors.Length; ++i)
@@ -502,6 +507,17 @@ namespace UnityEngine.Rendering.Universal
 
                 m_ActiveDepthAttachmentDescriptor = RenderingUtils.emptyAttachment;
             }
+        }
+
+        internal void EndActiveNativeRenderPass(ScriptableRenderContext context)
+        {
+            if (!m_NativeRenderPassActive)
+                return;
+
+            context.EndSubPass();
+            context.EndRenderPass();
+            m_LastBeginSubpassPassIndex = 0;
+            m_NativeRenderPassActive = false;
         }
 
         internal void SetupInputAttachmentIndices(ScriptableRenderPass pass)

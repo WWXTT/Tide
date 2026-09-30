@@ -9,8 +9,7 @@ void InitializeData(inout SpeedTreeVertexInput input, float lodValue)
     float3 finalPosition = input.vertex.xyz;
 
     #ifdef ENABLE_WIND
-        float windEnabled = dot(_ST_WindVector.xyz, _ST_WindVector.xyz) > 0.0f ? 1.0f : 0.0f;
-        half windQuality = _WindQuality * windEnabled;
+        half windQuality = _WindQuality * _WindEnabled;
 
         float3 rotatedWindVector, rotatedBranchAnchor;
         if (windQuality <= WIND_QUALITY_NONE)

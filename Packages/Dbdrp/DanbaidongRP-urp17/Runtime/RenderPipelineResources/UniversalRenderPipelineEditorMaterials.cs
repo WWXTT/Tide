@@ -62,13 +62,23 @@ namespace UnityEngine.Rendering.Universal
         }
 
         [SerializeField]
-        [ResourcePath("Runtime/Materials/Sprite-Unlit-Default.mat")]
-        private Material m_DefaultSpriteMaterial;
+        [ResourcePath("Runtime/Materials/PerObjectShadow.mat")]
+        private Material m_DefaultPerObjectShadowMaterial;
 
-        public virtual Material defaultSpriteMaterial
+        public virtual Material defaultPerObjectShadowMaterial
         {
-            get => m_DefaultSpriteMaterial;
-            set => this.SetValueAndNotify(ref m_DefaultSpriteMaterial, value);
+            get => m_DefaultPerObjectShadowMaterial;
+            set => this.SetValueAndNotify(ref m_DefaultPerObjectShadowMaterial, value);
+        }
+
+        [SerializeField]
+        [ResourcePath("Runtime/Materials/ProceduralToonSkyBox.mat")]
+        private Material m_DefaultProceduralToonSkyBoxMaterial;
+
+        public virtual Material defaulProceduralToonSkyBoxMaterial
+        {
+            get => m_DefaultProceduralToonSkyBoxMaterial;
+            set => this.SetValueAndNotify(ref m_DefaultProceduralToonSkyBoxMaterial, value);
         }
     }
 }

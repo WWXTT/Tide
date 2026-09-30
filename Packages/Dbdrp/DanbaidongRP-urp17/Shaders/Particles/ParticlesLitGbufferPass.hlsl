@@ -140,9 +140,10 @@ FragmentOutput ParticlesGBufferFragment(VaryingsParticle input)
 
     Light mainLight = GetMainLight(inputData.shadowCoord, inputData.positionWS, inputData.shadowMask);
     MixRealtimeAndBakedGI(mainLight, inputData.normalWS, inputData.bakedGI, inputData.shadowMask);
-    half3 color = GlobalIllumination(brdfData, inputData.bakedGI, surfaceData.occlusion, inputData.positionWS, inputData.normalWS, inputData.viewDirectionWS);
+    // half3 color = GlobalIllumination(brdfData, inputData.bakedGI, surfaceData.occlusion, inputData.positionWS, inputData.normalWS, inputData.viewDirectionWS);
 
-    return BRDFDataToGbuffer(brdfData, inputData, surfaceData.smoothness, surfaceData.emission + color, surfaceData.occlusion);
+    // return BRDFDataToGbuffer(brdfData, inputData, surfaceData.smoothness, surfaceData.emission + color, surfaceData.occlusion);
+    return BRDFDataToGbuffer(brdfData, inputData, surfaceData.smoothness, surfaceData.emission, surfaceData.occlusion);
 }
 
 #endif // UNIVERSAL_PARTICLES_GBUFFER_LIT_PASS_INCLUDED

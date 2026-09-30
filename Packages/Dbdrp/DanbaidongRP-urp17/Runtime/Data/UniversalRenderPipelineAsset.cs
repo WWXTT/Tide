@@ -223,6 +223,7 @@ namespace UnityEngine.Rendering.Universal
         _4xBilinear
     }
 
+
     /// <summary>
     /// Options for light rendering mode.
     /// </summary>
@@ -462,14 +463,17 @@ namespace UnityEngine.Rendering.Universal
         [SerializeField] internal int m_DefaultRendererIndex = 0;
 
         // General settings
-        [SerializeField] bool m_RequireDepthTexture = false;
-        [SerializeField] bool m_RequireOpaqueTexture = false;
-        [SerializeField] Downsampling m_OpaqueDownsampling = Downsampling._2xBilinear;
+        [SerializeField] bool m_RequireRayTracing = true;
+
+        // General settings
+        [SerializeField] bool m_RequireDepthTexture = true;
+        [SerializeField] bool m_RequireOpaqueTexture = true;
+        [SerializeField] Downsampling m_OpaqueDownsampling = Downsampling.None;
         [SerializeField] bool m_SupportsTerrainHoles = true;
 
         // Quality settings
         [SerializeField] bool m_SupportsHDR = true;
-        [SerializeField] HDRColorBufferPrecision m_HDRColorBufferPrecision = HDRColorBufferPrecision._32Bits;
+        [SerializeField] HDRColorBufferPrecision m_HDRColorBufferPrecision = HDRColorBufferPrecision._64Bits;
         [SerializeField] MsaaQuality m_MSAA = MsaaQuality.Disabled;
         [SerializeField] float m_RenderScale = 1.0f;
         [SerializeField] UpscalingFilterSelection m_UpscalingFilter = UpscalingFilterSelection.Auto;
@@ -511,37 +515,40 @@ namespace UnityEngine.Rendering.Universal
         // Main directional light Settings
         [SerializeField] LightRenderingMode m_MainLightRenderingMode = LightRenderingMode.PerPixel;
         [SerializeField] bool m_MainLightShadowsSupported = true;
-        [SerializeField] ShadowResolution m_MainLightShadowmapResolution = ShadowResolution._2048;
+        [SerializeField] ShadowResolution m_MainLightShadowmapResolution = ShadowResolution._4096;
 
         // Additional lights settings
         [SerializeField] LightRenderingMode m_AdditionalLightsRenderingMode = LightRenderingMode.PerPixel;
-        [SerializeField] int m_AdditionalLightsPerObjectLimit = 4;
-        [SerializeField] bool m_AdditionalLightShadowsSupported = false;
+        [SerializeField] int m_AdditionalLightsPerObjectLimit = 8;
+        [SerializeField] bool m_AdditionalLightShadowsSupported = true;
         [SerializeField] ShadowResolution m_AdditionalLightsShadowmapResolution = ShadowResolution._2048;
 
         [SerializeField] int m_AdditionalLightsShadowResolutionTierLow = AdditionalLightsDefaultShadowResolutionTierLow;
         [SerializeField] int m_AdditionalLightsShadowResolutionTierMedium = AdditionalLightsDefaultShadowResolutionTierMedium;
         [SerializeField] int m_AdditionalLightsShadowResolutionTierHigh = AdditionalLightsDefaultShadowResolutionTierHigh;
 
+        // Sky Settings
+        [SerializeField] SkyResolution m_SkyReflectionSize = SkyResolution.SkyResolution512;
+
         // Reflection Probes
 #if UNITY_EDITOR // multi_compile_fragment _ _REFLECTION_PROBE_BLENDING
         [ShaderKeywordFilter.SelectOrRemove(true, keywordNames: ShaderKeywordStrings.ReflectionProbeBlending)]
 #endif
-        [SerializeField] bool m_ReflectionProbeBlending = false;
+        [SerializeField] bool m_ReflectionProbeBlending = true;
 #if UNITY_EDITOR // multi_compile_fragment _ _REFLECTION_PROBE_BOX_PROJECTION
         [ShaderKeywordFilter.SelectOrRemove(true, keywordNames: ShaderKeywordStrings.ReflectionProbeBoxProjection)]
 #endif
-        [SerializeField] bool m_ReflectionProbeBoxProjection = false;
+        [SerializeField] bool m_ReflectionProbeBoxProjection = true;
 
         // Shadows Settings
-        [SerializeField] float m_ShadowDistance = 50.0f;
-        [SerializeField] int m_ShadowCascadeCount = 1;
+        [SerializeField] float m_ShadowDistance = 100.0f;
+        [SerializeField] int m_ShadowCascadeCount = 4;
         [SerializeField] float m_Cascade2Split = 0.25f;
         [SerializeField] Vector2 m_Cascade3Split = new Vector2(0.1f, 0.3f);
         [SerializeField] Vector3 m_Cascade4Split = new Vector3(0.067f, 0.2f, 0.467f);
         [SerializeField] float m_CascadeBorder = 0.2f;
-        [SerializeField] float m_ShadowDepthBias = 1.0f;
-        [SerializeField] float m_ShadowNormalBias = 1.0f;
+        [SerializeField] float m_ShadowDepthBias = 0.5f;
+        [SerializeField] float m_ShadowNormalBias = 0.5f;
 #if UNITY_EDITOR // multi_compile_fragment _ _SHADOWS_SOFT
         [ShaderKeywordFilter.RemoveIf(false, keywordNames: ShaderKeywordStrings.SoftShadows)]
         [SerializeField] bool m_AnyShadowsSupported = true;
@@ -549,10 +556,18 @@ namespace UnityEngine.Rendering.Universal
         // No option to force soft shadows -> we'll need to keep the off variant around
         [ShaderKeywordFilter.RemoveIf(false, keywordNames: ShaderKeywordStrings.SoftShadows)]
 #endif
-        [SerializeField] bool m_SoftShadowsSupported = false;
+        [SerializeField] bool m_SoftShadowsSupported = true;
         [SerializeField] bool m_ConservativeEnclosingSphere = false;
         [SerializeField] int m_NumIterationsEnclosingSphere = 64;
-        [SerializeField] SoftShadowQuality m_SoftShadowQuality = SoftShadowQuality.Medium;
+        [SerializeField] SoftShadowQuality m_SoftShadowQuality = SoftShadowQuality.High;
+
+        // Per Object Shadow Settings
+        [SerializeField] internal int m_POShadowMaxObjectsCount = 32;
+        [SerializeField] internal float m_POShadowMaxDrawDistance = 1000f;
+        [SerializeField] internal ShadowResolution m_POShadowShadowMapResolution = ShadowResolution._2048;
+        [SerializeField] internal RenderingLayerMask m_POShadowExcludeLayer = 1u << 1;
+        [SerializeField] internal float m_POShadowDepthBias = 2.0f;
+        [SerializeField] internal float m_POShadowNormalBias = 3.0f;
 
         // Light Cookie Settings
         [SerializeField] LightCookieResolution m_AdditionalLightsCookieResolution = LightCookieResolution._2048;
@@ -577,7 +592,7 @@ namespace UnityEngine.Rendering.Universal
         // multi_compile_fragment _ _LIGHT_LAYERS
         [ShaderKeywordFilter.SelectOrRemove(true, keywordNames: ShaderKeywordStrings.LightLayers)]
 #endif
-        [SerializeField] bool m_SupportsLightLayers = false;
+        [SerializeField] bool m_SupportsLightLayers = true;
         [SerializeField] [Obsolete("",true)] PipelineDebugLevel m_DebugLevel;
         [SerializeField] StoreActionsOptimization m_StoreActionsOptimization = StoreActionsOptimization.Auto;
 
@@ -698,16 +713,16 @@ namespace UnityEngine.Rendering.Universal
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1812")]
-        internal class CreateUniversalPipelineAsset : EndNameEditAction
+        internal class CreateUniversalPipelineAsset : AssetCreationEndAction
         {
-            public override void Action(int instanceId, string pathName, string resourceFile)
+            public override void Action(EntityId instanceId, string pathName, string resourceFile)
             {
                 //Create asset
                 AssetDatabase.CreateAsset(Create(CreateRendererAsset(pathName, RendererType.UniversalRenderer)), pathName);
             }
         }
 
-        [MenuItem("Assets/Create/Rendering/URP Asset (with Universal Renderer)", priority = CoreUtils.Sections.section2 + CoreUtils.Priorities.assetsCreateRenderingMenuPriority + 1)]
+        [MenuItem("Assets/Create/Rendering/Danbaidong RP Asset and Renderer", priority = CoreUtils.Sections.section2 + CoreUtils.Priorities.assetsCreateRenderingMenuPriority + 1)]
         static void CreateUniversalPipeline()
         {
             ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, CreateInstance<CreateUniversalPipelineAsset>(),
@@ -1011,6 +1026,15 @@ namespace UnityEngine.Rendering.Universal
                 }
                 return list;
             }
+        }
+
+        /// <summary>
+        /// When true, we will enable ray tracing pipeline.
+        /// </summary>
+        public bool supportsRayTracing
+        {
+            get => m_RequireRayTracing && SystemInfo.supportsRayTracing;
+            set => m_RequireRayTracing = value;
         }
 
         /// <summary>
@@ -1343,6 +1367,15 @@ namespace UnityEngine.Rendering.Universal
         }
 
         /// <summary>
+        /// Resolution of the sky reflection cubemap.
+        /// </summary>
+        public SkyResolution skyReflectionSize
+        {
+            get => m_SkyReflectionSize;
+            internal set => m_SkyReflectionSize = value;
+        }
+
+        /// <summary>
         /// Specifies if this <c>UniversalRenderPipelineAsset</c> should use Probe blending for the reflection probes in the scene.
         /// </summary>
         public bool reflectionProbeBlending
@@ -1459,6 +1492,61 @@ namespace UnityEngine.Rendering.Universal
             get => m_SoftShadowQuality;
             set => m_SoftShadowQuality = value;
         }
+
+        /// <summary>
+        /// Per Object Shadow draw objects max count.
+        /// </summary>
+        public int perObjectShadowMaxObjectsCount
+        {
+            get => m_POShadowMaxObjectsCount;
+            set => m_POShadowMaxObjectsCount = value;
+        }
+
+        /// <summary>
+        /// Per Object Shadow draw max distance.
+        /// </summary>
+        public float perObjectShadowMaxDrawDistance
+        {
+            get => m_POShadowMaxDrawDistance;
+            set => m_POShadowMaxDrawDistance = value;
+        }
+
+        /// <summary>
+        /// Per Object Shadow map resolution.
+        /// </summary>
+        public int perObjectShadowShadowMapResolution
+        {
+            get => (int)m_POShadowShadowMapResolution;
+            set => m_POShadowShadowMapResolution = (ShadowResolution)value;
+        }
+
+        /// <summary>
+        /// Per Object Shadow exclude shadow layer.
+        /// </summary>
+        public RenderingLayerMask perObjectShadowExcludeLayer
+        {
+            get => m_POShadowExcludeLayer;
+            set => m_POShadowExcludeLayer = value;
+        }
+
+        /// <summary>
+        /// Per Object Shadow depth bias.
+        /// </summary>
+        public float perObjectShadowDepthBias
+        {
+            get => m_POShadowDepthBias;
+            set => m_POShadowDepthBias = value;
+        }
+
+        /// <summary>
+        /// Per Object Shadow normal bias.
+        /// </summary>
+        public float perObjectShadowNormalBias
+        {
+            get => m_POShadowNormalBias;
+            set => m_POShadowNormalBias = value;
+        }
+
 
         /// <summary>
         /// Specifies if this <c>UniversalRenderPipelineAsset</c> should use dynamic batching.
@@ -1822,15 +1910,15 @@ namespace UnityEngine.Rendering.Universal
 #if UNITY_EDITOR
             if (k_AssetPreviousVersion != k_AssetVersion)
             {
-                EditorApplication.delayCall += () => UpgradeAsset(this.GetInstanceID());
+                EditorApplication.delayCall += () => UpgradeAsset(this.GetEntityId());
             }
 #endif
         }
 
 #if UNITY_EDITOR
-        static void UpgradeAsset(int assetInstanceID)
+        static void UpgradeAsset(EntityId assetEntityId)
         {
-            UniversalRenderPipelineAsset asset = EditorUtility.InstanceIDToObject(assetInstanceID) as UniversalRenderPipelineAsset;
+            UniversalRenderPipelineAsset asset = EditorUtility.EntityIdToObject(assetEntityId) as UniversalRenderPipelineAsset;
 
             if (asset.k_AssetPreviousVersion < 5)
             {

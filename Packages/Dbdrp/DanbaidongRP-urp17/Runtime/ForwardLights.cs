@@ -134,10 +134,12 @@ namespace UnityEngine.Rendering.Universal.Internal
                 m_AdditionalLightsLayerMasks = new float[maxLights];
             }
 
+            // TODO: We need this in danbaidongRP. move it to a system?
+            m_ReflectionProbeManager = ReflectionProbeManager.Create();
             if (m_UseForwardPlus)
             {
                 CreateForwardPlusBuffers();
-                m_ReflectionProbeManager = ReflectionProbeManager.Create();
+                //m_ReflectionProbeManager = ReflectionProbeManager.Create();
             }
 
             m_LightCookieManager = initParams.lightCookieManager;
@@ -411,9 +413,10 @@ namespace UnityEngine.Rendering.Universal.Internal
             bool additionalLightsPerVertex = lightData.shadeAdditionalLightsPerVertex;
             using (new ProfilingScope(m_ProfilingSampler))
             {
+                m_ReflectionProbeManager.UpdateGpuData(CommandBufferHelpers.GetNativeCommandBuffer(cmd), ref renderingData.cullResults);
                 if (m_UseForwardPlus)
                 {
-                    m_ReflectionProbeManager.UpdateGpuData(CommandBufferHelpers.GetNativeCommandBuffer(cmd), ref renderingData.cullResults);
+                    //m_ReflectionProbeManager.UpdateGpuData(CommandBufferHelpers.GetNativeCommandBuffer(cmd), ref renderingData.cullResults);
 
                     using (new ProfilingScope(m_ProfilingSamplerFPComplete))
                     {
@@ -496,8 +499,6 @@ namespace UnityEngine.Rendering.Universal.Internal
                 m_TileMasksBuffer = null;
                 m_ReflectionProbeManager.Dispose();
             }
-            m_LightCookieManager?.Dispose();
-            m_LightCookieManager = null;
         }
 
         void InitializeLightConstants(NativeArray<VisibleLight> lights, int lightIndex, bool supportsLightLayers, out Vector4 lightPos, out Vector4 lightColor, out Vector4 lightAttenuation, out Vector4 lightSpotDir, out Vector4 lightOcclusionProbeChannel, out uint lightLayerMask, out bool isSubtractive)
