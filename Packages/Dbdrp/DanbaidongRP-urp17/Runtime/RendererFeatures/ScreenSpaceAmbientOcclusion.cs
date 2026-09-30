@@ -59,66 +59,27 @@ namespace UnityEngine.Rendering.Universal
         }
     }
 
-    [Serializable]
-    [SupportedOnRenderPipeline(typeof(UniversalRenderPipelineAsset))]
-    [Categorization.CategoryInfo(Name = "R: SSAO Shader", Order = 1000)]
-    [Categorization.ElementInfo(Order = 0), HideInInspector]
-    class ScreenSpaceAmbientOcclusionPersistentResources : IRenderPipelineResources
-    {
-        [SerializeField]
-        [ResourcePath("Shaders/Utils/ScreenSpaceAmbientOcclusion.shader")]
-        Shader m_Shader;
-
-        public Shader Shader
-        {
-            get => m_Shader;
-            set => this.SetValueAndNotify(ref m_Shader, value);
-        }
-
-        public bool isAvailableInPlayerBuild => true;
-
-        [SerializeField][HideInInspector] private int m_Version = 0;
-
-        /// <summary>Current version of the resource container. Used only for upgrading a project.</summary>
-        public int version => m_Version;
-    }
-
-    [Serializable]
-    [SupportedOnRenderPipeline(typeof(UniversalRenderPipelineAsset))]
-    [Categorization.CategoryInfo(Name = "R: SSAO Noise Textures", Order = 1000)]
-    [Categorization.ElementInfo(Order = 0), HideInInspector]
-    class ScreenSpaceAmbientOcclusionDynamicResources : IRenderPipelineResources
-    {
-        [SerializeField]
-        [ResourceFormattedPaths("Textures/BlueNoise256/LDR_LLL1_{0}.png", 0, 7)]
-        Texture2D[] m_BlueNoise256Textures;
-
-        public Texture2D[] BlueNoise256Textures
-        {
-            get => m_BlueNoise256Textures;
-            set => this.SetValueAndNotify(ref m_BlueNoise256Textures, value);
-        }
-
-        public bool isAvailableInPlayerBuild => true;
-
-        [SerializeField][HideInInspector] private int m_Version = 0;
-
-        /// <summary>Current version of the resource container. Used only for upgrading a project.</summary>
-        public int version => m_Version;
-    }
-
-
     /// <summary>
     /// The class for the SSAO renderer feature.
     /// </summary>
     [SupportedOnRenderer(typeof(UniversalRendererData))]
     [DisallowMultipleRendererFeature("Screen Space Ambient Occlusion")]
     [Tooltip("The Ambient Occlusion effect darkens creases, holes, intersections and surfaces that are close to each other.")]
-    [URPHelpURL("urp/post-processing-ssao")]
+    [URPHelpURL("post-processing-ssao")]
     public class ScreenSpaceAmbientOcclusion : ScriptableRendererFeature
     {
         // Serialized Fields
         [SerializeField] private ScreenSpaceAmbientOcclusionSettings m_Settings = new ScreenSpaceAmbientOcclusionSettings();
+
+        [SerializeField]
+        [HideInInspector]
+        [Reload("Textures/BlueNoise256/LDR_LLL1_{0}.png", 0, 7)]
+        internal Texture2D[] m_BlueNoise256Textures;
+
+        [SerializeField]
+        [HideInInspector]
+        [Reload("Shaders/Utils/ScreenSpaceAmbientOcclusion.shader")]
+        private Shader m_Shader;
 
         // Private Fields
         private Material m_Material;
@@ -140,6 +101,9 @@ namespace UnityEngine.Rendering.Universal
         /// <inheritdoc/>
         public override void Create()
         {
+#if UNITY_EDITOR
+            ResourceReloader.TryReloadAllNullIn(this, UniversalRenderPipelineAsset.packagePath);
+#endif
             // Create the pass...
             //if (m_SSAOPass == null)
             //    m_SSAOPass = new ScreenSpaceAmbientOcclusionPass();
@@ -187,42 +151,11 @@ namespace UnityEngine.Rendering.Universal
             CoreUtils.Destroy(m_Material);
         }
 
-        bool TryPrepareResources()
+        private bool GetMaterials()
         {
-            if (m_Shader == null)
-            {
-                if (!GraphicsSettings.TryGetRenderPipelineSettings<ScreenSpaceAmbientOcclusionPersistentResources>(out var ssaoPersistentResources))
-                {
-                    Debug.LogErrorFormat(
-                        $"Couldn't find the required resources for the {nameof(ScreenSpaceAmbientOcclusion)} render feature. If this exception appears in the Player, make sure at least one {nameof(ScreenSpaceAmbientOcclusion)} render feature is enabled or adjust your stripping settings.");
-                    return false;
-                }
-
-                m_Shader = ssaoPersistentResources.Shader;
-            }
-
-            if (m_Settings.AOMethod == ScreenSpaceAmbientOcclusionSettings.AOMethodOptions.BlueNoise && (m_BlueNoise256Textures == null || m_BlueNoise256Textures.Length == 0))
-            {
-                if (!GraphicsSettings.TryGetRenderPipelineSettings<ScreenSpaceAmbientOcclusionDynamicResources>(out var ssaoDynamicResources))
-                {
-                    Debug.LogErrorFormat($"Couldn't load {nameof(ScreenSpaceAmbientOcclusionDynamicResources.BlueNoise256Textures)}. If this exception appears in the Player, please check the SSAO options for {nameof(ScreenSpaceAmbientOcclusion)} or adjust your stripping settings");
-                    return false;
-                }
-
-                m_BlueNoise256Textures = ssaoDynamicResources.BlueNoise256Textures;
-            }
-
             if (m_Material == null && m_Shader != null)
                 m_Material = CoreUtils.CreateEngineMaterial(m_Shader);
-
-            if (m_Material == null)
-            {
-                Debug.LogError($"{GetType().Name}.AddRenderPasses(): Missing material. {name} render pass will not be added.");
-                return false;
-            }
-
-            return true;
-
+            return m_Material != null;
         }
     }
 }
