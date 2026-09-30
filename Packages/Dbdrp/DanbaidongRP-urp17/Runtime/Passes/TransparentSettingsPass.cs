@@ -28,23 +28,20 @@ namespace UnityEngine.Rendering.Universal
         [Obsolete(DeprecationMessage.CompatibilityScriptingAPIObsolete, false)]
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
         {
-            RasterCommandBuffer rasterCommandBuffer = CommandBufferHelpers.GetRasterCommandBuffer(renderingData.commandBuffer);
-            using (new ProfilingScope(rasterCommandBuffer, profilingSampler))
+            // Get a command buffer...
+            var cmd = renderingData.commandBuffer;
+            using (new ProfilingScope(cmd, profilingSampler))
             {
-                ExecutePass(rasterCommandBuffer);
+                ExecutePass(CommandBufferHelpers.GetRasterCommandBuffer(cmd), m_shouldReceiveShadows);
             }
         }
 
-        public static void ExecutePass(RasterCommandBuffer rasterCommandBuffer)
+        public static void ExecutePass(RasterCommandBuffer cmd, bool shouldReceiveShadows)
         {
-            // -----------------------------------------------------------
             // This pass is only used when transparent objects should not
             // receive shadows using the setting on the URP Renderer.
-            // This is controlled in the public bool Setup() function above.
-            // -----------------------------------------------------------
-
-            MainLightShadowCasterPass.SetShadowParamsForEmptyShadowmap(rasterCommandBuffer);
-            AdditionalLightsShadowCasterPass.SetShadowParamsForEmptyShadowmap(rasterCommandBuffer);
+            MainLightShadowCasterPass.SetEmptyMainLightShadowParams(cmd);
+            AdditionalLightsShadowCasterPass.SetEmptyAdditionalLightShadowParams(cmd, AdditionalLightsShadowCasterPass.s_EmptyAdditionalLightIndexToShadowParams);
         }
     }
 }

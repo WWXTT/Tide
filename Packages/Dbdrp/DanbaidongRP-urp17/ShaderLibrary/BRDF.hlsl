@@ -10,19 +10,19 @@
 
 struct BRDFData
 {
-    half3 albedo;
-    half3 diffuse;
-    half3 specular;
-    half reflectivity;
-    half perceptualRoughness;
-    half roughness;
-    half roughness2;
-    half grazingTerm;
+    float3 albedo;
+    float3 diffuse;
+    float3 specular;
+    float reflectivity;
+    float perceptualRoughness;
+    float roughness;
+    float roughness2;
+    float grazingTerm;
 
     // We save some light invariant BRDF terms so we don't have to recompute
     // them in the light loop. Take a look at DirectBRDF function for detailed explaination.
-    half normalizationTerm;     // roughness * 4.0 + 2.0
-    half roughness2MinusOne;    // roughness^2 - 1.0
+    float normalizationTerm;     // roughness * 4.0 + 2.0
+    float roughness2MinusOne;    // roughness^2 - 1.0
 };
 
 half ReflectivitySpecular(half3 specular)
@@ -47,7 +47,7 @@ half MetallicFromReflectivity(half reflectivity)
     return (reflectivity - kDielectricSpec.r) / oneMinusDielectricSpec;
 }
 
-inline void InitializeBRDFDataDirect(half3 albedo, half3 diffuse, half3 specular, half reflectivity, half oneMinusReflectivity, half smoothness, inout half alpha, out BRDFData outBRDFData)
+inline void InitializeBRDFDataDirect(float3 albedo, float3 diffuse, float3 specular, float reflectivity, float oneMinusReflectivity, float smoothness, inout float alpha, out BRDFData outBRDFData)
 {
     outBRDFData = (BRDFData)0;
     outBRDFData.albedo = albedo;
@@ -59,8 +59,8 @@ inline void InitializeBRDFDataDirect(half3 albedo, half3 diffuse, half3 specular
     outBRDFData.roughness           = max(PerceptualRoughnessToRoughness(outBRDFData.perceptualRoughness), HALF_MIN_SQRT);
     outBRDFData.roughness2          = max(outBRDFData.roughness * outBRDFData.roughness, HALF_MIN);
     outBRDFData.grazingTerm         = saturate(smoothness + reflectivity);
-    outBRDFData.normalizationTerm   = outBRDFData.roughness * half(4.0) + half(2.0);
-    outBRDFData.roughness2MinusOne  = outBRDFData.roughness2 - half(1.0);
+    outBRDFData.normalizationTerm   = outBRDFData.roughness * 4.0 + 2.0;
+    outBRDFData.roughness2MinusOne  = outBRDFData.roughness2 - 1.0;
 
     // Input is expected to be non-alpha-premultiplied while ROP is set to pre-multiplied blend.
     // We use input color for specular, but (pre-)multiply the diffuse with alpha to complete the standard alpha blend equation.
@@ -73,9 +73,9 @@ inline void InitializeBRDFDataDirect(half3 albedo, half3 diffuse, half3 specular
 }
 
 // Legacy: do not call, will not correctly initialize albedo property.
-inline void InitializeBRDFDataDirect(half3 diffuse, half3 specular, half reflectivity, half oneMinusReflectivity, half smoothness, inout half alpha, out BRDFData outBRDFData)
+inline void InitializeBRDFDataDirect(float3 diffuse, float3 specular, float reflectivity, float oneMinusReflectivity, float smoothness, inout float alpha, out BRDFData outBRDFData)
 {
-    InitializeBRDFDataDirect(half3(0.0, 0.0, 0.0), diffuse, specular, reflectivity, oneMinusReflectivity, smoothness, alpha, outBRDFData);
+    InitializeBRDFDataDirect(float3(0.0, 0.0, 0.0), diffuse, specular, reflectivity, oneMinusReflectivity, smoothness, alpha, outBRDFData);
 }
 
 // Initialize BRDFData for material, managing both specular and metallic setup using shader keyword _SPECULAR_SETUP.

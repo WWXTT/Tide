@@ -1,5 +1,6 @@
 using UnityEditor.EditorTools;
 using UnityEditor.Rendering.Universal.Path2D;
+using EditorToolManager = UnityEditor.Rendering.Universal.Path2D.EditorToolManager;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 

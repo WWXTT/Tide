@@ -297,7 +297,7 @@ namespace UnityEngine.Rendering.Universal
                 setter = (value) => panel.data.wireframeMode = (DebugWireframeMode)value,
                 getIndex = () => (int)panel.data.wireframeMode,
                 setIndex = (value) => panel.data.wireframeMode = (DebugWireframeMode)value,
-                onValueChanged = (_, _) => DebugManager.instance.ReDrawOnScreenDebug()
+                onValueChanged = (_, _) => DebugManager.instance.RecreateDebugUI()
             };
 
             internal static DebugUI.Widget CreateWireframeNotSupportedWarning(SettingsPanel panel) => new DebugUI.MessageBox
@@ -499,7 +499,7 @@ namespace UnityEngine.Rendering.Universal
                 setter = (value) => panel.data.taaDebugMode = (TaaDebugMode)value,
                 getIndex = () => (int)panel.data.taaDebugMode,
                 setIndex = (value) => panel.data.taaDebugMode = (TaaDebugMode)value,
-                onValueChanged = (_, _) => DebugManager.instance.ReDrawOnScreenDebug()
+                onValueChanged = (_, _) => DebugManager.instance.RecreateDebugUI()
             };
 
             internal static DebugUI.Widget CreatePixelValidationMode(SettingsPanel panel) => new DebugUI.EnumField
@@ -510,7 +510,7 @@ namespace UnityEngine.Rendering.Universal
                 setter = (value) => panel.data.validationMode = (DebugValidationMode)value,
                 getIndex = () => (int)panel.data.validationMode,
                 setIndex = (value) => panel.data.validationMode = (DebugValidationMode)value,
-                onValueChanged = (_, _) => DebugManager.instance.ReDrawOnScreenDebug()
+                onValueChanged = (_, _) => DebugManager.instance.RecreateDebugUI()
             };
 
             internal static DebugUI.Widget CreatePixelValidationChannels(SettingsPanel panel) => new DebugUI.EnumField
@@ -541,7 +541,6 @@ namespace UnityEngine.Rendering.Universal
         }
 
         [DisplayInfo(name = "Rendering", order = 1)]
-        [URPHelpURL("features/rendering-debugger-reference", "rendering")]
         internal class SettingsPanel : DebugDisplaySettingsPanel<DebugDisplaySettingsRendering>
         {
             public SettingsPanel(DebugDisplaySettingsRendering data)

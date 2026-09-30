@@ -603,8 +603,8 @@ namespace UnityEditor.Rendering
             if (!EditorUtility.DisplayDialog(
                 L10n.Tr("Upgrade AnimationClips"),
                 dialogMessage,
-                DialogText.proceed,
-                DialogText.cancel))
+                L10n.Tr("Proceed"),
+                L10n.Tr("Cancel")))
                 return;
 
             // only include scene paths if user requested it

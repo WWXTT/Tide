@@ -822,10 +822,10 @@ namespace UnityEditor.Rendering.Universal
         }
     }
 
-    class DoCreateDecalDefaultMaterial : ProjectWindowCallback.EndNameEditAction
+    class DoCreateDecalDefaultMaterial : ProjectWindowCallback.AssetCreationEndAction
     {
         public DecalProjector decalProjector;
-        public override void Action(int instanceId, string pathName, string resourceFile)
+        public override void Action(EntityId instanceId, string pathName, string resourceFile)
         {
             var shader = DecalProjector.defaultMaterial.shader;
             var material = new Material(shader);

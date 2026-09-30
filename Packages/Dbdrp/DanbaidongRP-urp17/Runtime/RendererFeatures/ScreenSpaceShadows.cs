@@ -1,5 +1,7 @@
 using System;
+using UnityEngine;
 using UnityEngine.Experimental.Rendering;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 
 namespace UnityEngine.Rendering.Universal
@@ -68,7 +70,7 @@ namespace UnityEngine.Rendering.Universal
                 bool isDeferredRenderingMode = renderer is UniversalRenderer && ((UniversalRenderer)renderer).renderingModeRequested == RenderingMode.Deferred;
 
                 m_SSShadowsPass.renderPassEvent = isDeferredRenderingMode
-                    ? RenderPassEvent.AfterRenderingGbuffer
+                    ? RenderPassEvent.BeforeRenderingDeferredLights
                     : RenderPassEvent.AfterRenderingPrePasses + 1; // We add 1 to ensure this happens after depth priming depth copy pass that might be scheduled
 
                 renderer.EnqueuePass(m_SSShadowsPass);
@@ -192,7 +194,9 @@ namespace UnityEngine.Rendering.Universal
                 desc.graphicsFormat = SystemInfo.IsFormatSupported(GraphicsFormat.R8_UNorm, GraphicsFormatUsage.Blend)
                     ? GraphicsFormat.R8_UNorm
                     : GraphicsFormat.B8G8R8A8_UNorm;
-                TextureHandle color = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_ScreenSpaceShadowmapTexture", true);
+
+                // Here is a bug, we need to clear with white color. Add by Danbaidong, 20240512.
+                TextureHandle color = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_ScreenSpaceShadowmapTexture", true, Color.white);
 
                 using (var builder = renderGraph.AddRasterRenderPass<PassData>(passName, out var passData, profilingSampler))
                 {

@@ -12,7 +12,7 @@ namespace UnityEditor.Rendering.Universal.Analytics
         public const string k_Renderer2DDataString = "u2drendererdata";
         public const int k_MaxEventsPerHour = 1000;
         public const int k_MaxNumberOfElements = 1000;
-        public const string k_VendorKey = "unity.renderpipelines.universal.editor";
+        public const string k_VendorKey = "unity.renderpipelines.danbaidong.editor";
         public const int k_Version = 1;
     }
 

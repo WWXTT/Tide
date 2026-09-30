@@ -57,5 +57,67 @@ namespace UnityEngine.Rendering.Universal
             get => m_DebugFontTex;
             set => this.SetValueAndNotify(ref m_DebugFontTex, value, nameof(m_DebugFontTex));
         }
+
+        /// <summary>
+        /// Default HDRI Sky
+        /// </summary>
+        [SerializeField]
+        [ResourcePath("Textures/Sky/DefaultHDRISky.exr")]
+        private Cubemap m_DefaultHDRISky;
+
+        public Cubemap defaultHDRISky
+        {
+            get => m_DefaultHDRISky;
+            set => this.SetValueAndNotify(ref m_DefaultHDRISky, value, nameof(m_DefaultHDRISky));
+        }
+
+        /// <summary>
+        /// STBN, Spatial-Temporal Blue Noise, vec1
+        /// </summary>
+        [SerializeField]
+        [ResourceFormattedPaths("Textures/STBN/vec1/stbn_vec1_2Dx1D_128x128x64_{0}.png", 0, 64)]
+        private Texture2D[] m_BlueNoise128RTex = new Texture2D[64];
+        public Texture2D[] blueNoise128RTex
+        {
+            get => m_BlueNoise128RTex;
+            set => this.SetValueAndNotify(ref m_BlueNoise128RTex, value);
+        }
+
+        /// <summary>
+        /// STBN, Spatial-Temporal Blue Noise, vec2
+        /// </summary>
+        [SerializeField]
+        [ResourceFormattedPaths("Textures/STBN/vec2/stbn_vec2_2Dx1D_128x128x64_{0}.png", 0, 64)]
+        private Texture2D[] m_BlueNoise128RGTex = new Texture2D[64];
+        public Texture2D[] blueNoise128RGTex
+        {
+            get => m_BlueNoise128RGTex;
+            set => this.SetValueAndNotify(ref m_BlueNoise128RGTex, value);
+        }
+
+        /// <summary>
+        /// STBN, Spatial-Temporal Blue Noise, cosine-weighted 3D unit vectors
+        /// </summary>
+        [SerializeField]
+        [ResourceFormattedPaths("Textures/STBN/unitvec3cosine/stbn_unitvec3_cosine_2Dx1D_128x128x64_{0}.png", 0, 64)]
+        private Texture2D[] m_BlueNoiseUnitVec3CosineTex = new Texture2D[64];
+        public Texture2D[] blueNoiseUnitVec3CosineTex
+        {
+            get => m_BlueNoiseUnitVec3CosineTex;
+            set => this.SetValueAndNotify(ref m_BlueNoiseUnitVec3CosineTex, value);
+        }
+
+        [SerializeField]
+        [ResourcePath("Textures/ShadowRamp/DirectionalShadowRamp.png")]
+        private Texture2D m_DefaultDirShadowRampTex;
+
+        /// <summary>
+        /// Default directional shadowramp texture.
+        /// </summary>
+        public Texture2D defaultDirShadowRampTex
+        {
+            get => m_DefaultDirShadowRampTex;
+            set => this.SetValueAndNotify(ref m_DefaultDirShadowRampTex, value, nameof(m_DefaultDirShadowRampTex));
+        }
     }
 }

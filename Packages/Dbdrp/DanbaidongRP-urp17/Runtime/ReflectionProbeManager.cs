@@ -12,10 +12,10 @@ namespace UnityEngine.Rendering.Universal
         RenderTexture m_AtlasTexture1;
         RTHandle m_AtlasTexture0Handle;
         BuddyAllocator m_AtlasAllocator;
-        Dictionary<int, CachedProbe> m_Cache;
-        Dictionary<int, int> m_WarningCache;
-        List<int> m_NeedsUpdate;
-        List<int> m_NeedsRemove;
+        Dictionary<EntityId, CachedProbe> m_Cache;
+        Dictionary<EntityId, int> m_WarningCache;
+        List<EntityId> m_NeedsUpdate;
+        List<EntityId> m_NeedsRemove;
 
         // Pre-allocated arrays for filling constant buffers
         Vector4[] m_BoxMax;
@@ -93,10 +93,10 @@ namespace UnityEngine.Rendering.Universal
             // The smallest allocatable resolution we want is 4x4. We calculate the number of levels as:
             // log2(max) - log2(4) = log2(max) - 2
             m_AtlasAllocator = new BuddyAllocator(math.floorlog2(SystemInfo.maxTextureSize) - 2, 2);
-            m_Cache = new Dictionary<int, CachedProbe>(maxProbes);
-            m_WarningCache = new Dictionary<int, int>(maxProbes);
-            m_NeedsUpdate = new List<int>(maxProbes);
-            m_NeedsRemove = new List<int>(maxProbes);
+            m_Cache = new Dictionary<EntityId, CachedProbe>(maxProbes);
+            m_WarningCache = new Dictionary<EntityId, int>(maxProbes);
+            m_NeedsUpdate = new List<EntityId>(maxProbes);
+            m_NeedsRemove = new List<EntityId>(maxProbes);
 
             m_BoxMax = new Vector4[maxProbes];
             m_BoxMin = new Vector4[maxProbes];
@@ -156,7 +156,7 @@ namespace UnityEngine.Rendering.Universal
                 var probe = probes[probeIndex];
 
                 var texture = probe.texture;
-                var id = probe.reflectionProbe.GetInstanceID();
+                var id = probe.reflectionProbe.GetEntityId();
                 var wasCached = m_Cache.TryGetValue(id, out var cachedProbe);
 
                 if (!texture)
@@ -260,7 +260,7 @@ namespace UnityEngine.Rendering.Universal
             for (var probeIndex = 0; probeIndex < probeCount; probeIndex++)
             {
                 var probe = probes[probeIndex];
-                var id = probe.reflectionProbe.GetInstanceID();
+                var id = probe.reflectionProbe.GetEntityId();
                 var dataIndex = probeIndex - skipCount;
                 if (!m_Cache.TryGetValue(id, out var cachedProbe) || !probe.texture)
                 {

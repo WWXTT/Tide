@@ -31,15 +31,13 @@ namespace UnityEngine.Rendering.Universal
         /// Called for the active <c>ShadowShape2DProvider</c> when the <c>ShadowCaster2D</c> becomes enabled
         /// </summary>
         /// <param name="sourceComponent">The component associated with the provider</param>
-        /// <param name="persistantShadowShape">An instance of <c>ShadowShape2D</c> that is used by the <c>ShadowCaster2D</c></param>                
-        public virtual void   Enabled(Component sourceComponent, ShadowShape2D persistantShadowShape) {}
+        public virtual void   Enabled(Component sourceComponent) {}
         
         /// <summary>
         /// Called for the active <c>ShadowShape2DProvider</c> when the <c>ShadowCaster2D</c> becomes disabled
         /// </summary>
         /// <param name="sourceComponent">The component associated with the provider</param>
-        /// <param name="persistantShadowShape">An instance of <c>ShadowShape2D</c> that is used by the <c>ShadowCaster2D</c></param>        
-        public virtual void   Disabled(Component sourceComponent, ShadowShape2D persistantShadowShape) {}
+        public virtual void   Disabled(Component sourceComponent) {}
 
         /// <summary>
         /// Called for each component on a <c>ShadowCaster2D's</c> <c>GameObject</c>. Returns true if the provided component is the data source of the <c>ShadowShapeProvider</c>.

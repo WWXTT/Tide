@@ -129,8 +129,9 @@ namespace UnityEngine.Rendering.Universal
         /// <param name="shadowNearPlane">Near plane value to use for shadow frustums.</param>
         /// <param name="cascadeSplitDistance">The culling sphere for the cascade.</param>
         /// <param name="shadowSliceData">The struct container for shadow slice data.</param>
+        /// <param name="useAtlas">DanbaidongRP this is false, enable if you wangt use atlas transform.</param>
         /// <returns>True if the matrix was successfully extracted.</returns>
-        public static bool ExtractDirectionalLightMatrix(ref CullingResults cullResults, UniversalShadowData shadowData, int shadowLightIndex, int cascadeIndex, int shadowmapWidth, int shadowmapHeight, int shadowResolution, float shadowNearPlane, out Vector4 cascadeSplitDistance, out ShadowSliceData shadowSliceData)
+        public static bool ExtractDirectionalLightMatrix(ref CullingResults cullResults, UniversalShadowData shadowData, int shadowLightIndex, int cascadeIndex, int shadowmapWidth, int shadowmapHeight, int shadowResolution, float shadowNearPlane, out Vector4 cascadeSplitDistance, out ShadowSliceData shadowSliceData, bool useAtlas = false)
         {
             bool success = cullResults.ComputeDirectionalShadowMatricesAndCullingPrimitives(shadowLightIndex,
                 cascadeIndex, shadowData.mainLightShadowCascadesCount, shadowData.mainLightShadowCascadesSplit, shadowResolution, shadowNearPlane, out shadowSliceData.viewMatrix, out shadowSliceData.projectionMatrix,
@@ -148,7 +149,7 @@ namespace UnityEngine.Rendering.Universal
 
             // If we have shadow cascades baked into the atlas we bake cascade transform
             // in each shadow matrix to save shader ALU and L/S
-            if (shadowData.mainLightShadowCascadesCount > 1)
+            if (useAtlas && shadowData.mainLightShadowCascadesCount > 1)
                 ApplySliceTransform(ref shadowSliceData, shadowmapWidth, shadowmapHeight);
 
             return success;
@@ -278,6 +279,20 @@ namespace UnityEngine.Rendering.Universal
             cmd.SetViewport(new Rect(shadowSliceData.offsetX, shadowSliceData.offsetY, shadowSliceData.resolution, shadowSliceData.resolution));
             cmd.SetViewProjectionMatrices(view, proj);
             if(shadowRendererList.isValid)
+                cmd.DrawRendererList(shadowRendererList);
+
+            cmd.DisableScissorRect();
+            cmd.SetGlobalDepthBias(0.0f, 0.0f); // Restore previous depth bias values
+        }
+
+        internal static void RenderShadowSliceNoOffset(RasterCommandBuffer cmd,
+            ref ShadowSliceData shadowSliceData, ref RendererList shadowRendererList,
+            Matrix4x4 proj, Matrix4x4 view)
+        {
+            cmd.SetGlobalDepthBias(1.0f, 2.5f); // these values match HDRP defaults (see https://github.com/Unity-Technologies/Graphics/blob/9544b8ed2f98c62803d285096c91b44e9d8cbc47/com.unity.render-pipelines.high-definition/Runtime/Lighting/Shadow/HDShadowAtlas.cs#L197 )
+
+            cmd.SetViewProjectionMatrices(view, proj);
+            if (shadowRendererList.isValid)
                 cmd.DrawRendererList(shadowRendererList);
 
             cmd.DisableScissorRect();
@@ -533,7 +548,7 @@ namespace UnityEngine.Rendering.Universal
             cmd.SetGlobalMatrix(ShaderPropertyId.cameraToWorldMatrix, cameraToWorldMatrix);
         }
 
-        private static RenderTextureDescriptor GetTemporaryShadowTextureDescriptor(int width, int height, int bits)
+        internal static RenderTextureDescriptor GetTemporaryShadowTextureDescriptor(int width, int height, int bits)
         {
             var format = Experimental.Rendering.GraphicsFormatUtility.GetDepthStencilFormat(bits, 0);
             RenderTextureDescriptor rtd = new RenderTextureDescriptor(width, height, Experimental.Rendering.GraphicsFormat.None, format);

@@ -339,6 +339,21 @@ namespace UnityEngine.Rendering.Universal
             internal TextureHandle[] bloomMipDown;
         }
 
+        private class BloomDanbaidongPassData
+        {
+            internal int iterations;
+
+            internal Material material;
+
+            internal TextureHandle sourceTexture;
+
+            internal TextureHandle preFilterTex;
+            internal TextureHandle preFilterBlurTex;
+
+            internal TextureHandle[] bloomMipUp;
+            internal TextureHandle[] bloomMipDown;
+        }
+
         internal struct BloomMaterialParams
         {
             internal Vector4 parameters;
@@ -355,169 +370,283 @@ namespace UnityEngine.Rendering.Universal
 
         public void RenderBloomTexture(RenderGraph renderGraph, in TextureHandle source, out TextureHandle destination, bool enableAlphaOutput)
         {
-            // Start at half-res
-            int downres = 1;
-            switch (m_Bloom.downscale.value)
+            destination = TextureHandle.nullHandle;
+            if (m_Bloom.mode.value == BloomMode.BloomDanbaidong)
             {
-                case BloomDownscaleMode.Half:
-                    downres = 1;
-                    break;
-                case BloomDownscaleMode.Quarter:
-                    downres = 2;
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
+                // source Tex Size
+                int texWidth = m_Descriptor.width / 4;
+                int texHeight = m_Descriptor.height / 4;
 
-            //We should set the limit the downres result to ensure we dont turn 1x1 textures, which should technically be valid
-            //into 0x0 textures which will be invalid
-            int tw = Mathf.Max(1, m_Descriptor.width >> downres);
-            int th = Mathf.Max(1, m_Descriptor.height >> downres);
+                int iterations = 3;
+                var bloomMaterial = m_Materials.bloom;
+                var danbaidongBloomParams = new Vector4(m_Bloom.threshold.value, m_Bloom.lumRnageScale.value, m_Bloom.preFilterScale.value, m_Bloom.intensity.value);
 
-            // Determine the iteration count
-            int maxSize = Mathf.Max(tw, th);
-            int iterations = Mathf.FloorToInt(Mathf.Log(maxSize, 2f) - 1);
-            int mipCount = Mathf.Clamp(iterations, 1, m_Bloom.maxIterations.value);
+                bloomMaterial.SetVector(ShaderConstants._Bloom_Danbaidong_Params, danbaidongBloomParams);
+                bloomMaterial.SetVector(ShaderConstants._Bloom_Danbaidong_BlurCompositeWeight, m_Bloom.blurCompositeWeight.value);
+                bloomMaterial.SetColor(ShaderConstants._Bloom_Danbaidong_ColorTint, m_Bloom.tint.value);
 
-            // Setup
-            using(new ProfilingScope(ProfilingSampler.Get(URPProfileId.RG_BloomSetup)))
-            {
-                // Pre-filtering parameters
-                float clamp = m_Bloom.clamp.value;
-                float threshold = Mathf.GammaToLinearSpace(m_Bloom.threshold.value);
-                float thresholdKnee = threshold * 0.5f; // Hardcoded soft knee
 
-                // Material setup
-                float scatter = Mathf.Lerp(0.05f, 0.95f, m_Bloom.scatter.value);
+                // Temporary preFilter
+                RenderTextureDescriptor desc = GetCompatibleDescriptor(texWidth, texHeight, m_DefaultColorFormat);
+                var preFilterHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_PreFilteredRT", false, FilterMode.Bilinear, TextureWrapMode.Clamp);
 
-                BloomMaterialParams bloomParams = new BloomMaterialParams();
-                bloomParams.parameters = new Vector4(scatter, clamp, threshold, thresholdKnee);
-                bloomParams.highQualityFiltering = m_Bloom.highQualityFiltering.value;
-                bloomParams.enableAlphaOutput = enableAlphaOutput;
-
-                // Setting keywords can be somewhat expensive on low-end platforms.
-                // Previous params are cached to avoid setting the same keywords every frame.
-                var material = m_Materials.bloom;
-                bool bloomParamsDirty = !m_BloomParamsPrev.Equals(ref bloomParams);
-                bool isParamsPropertySet = material.HasProperty(ShaderConstants._Params);
-                if (bloomParamsDirty || !isParamsPropertySet)
-                {
-                    material.SetVector(ShaderConstants._Params, bloomParams.parameters);
-                    CoreUtils.SetKeyword(material, ShaderKeywordStrings.BloomHQ, bloomParams.highQualityFiltering);
-                    CoreUtils.SetKeyword(material, ShaderKeywordStrings._ENABLE_ALPHA_OUTPUT, bloomParams.enableAlphaOutput);
-
-                    // These materials are duplicate just to allow different bloom blits to use different textures.
-                    for (uint i = 0; i < k_MaxPyramidSize; ++i)
-                    {
-                        var materialPyramid = m_Materials.bloomUpsample[i];
-                        materialPyramid.SetVector(ShaderConstants._Params, bloomParams.parameters);
-                        CoreUtils.SetKeyword(materialPyramid, ShaderKeywordStrings.BloomHQ, bloomParams.highQualityFiltering);
-                        CoreUtils.SetKeyword(materialPyramid, ShaderKeywordStrings._ENABLE_ALPHA_OUTPUT, bloomParams.enableAlphaOutput);
-                    }
-
-                    m_BloomParamsPrev = bloomParams;
-                }
+                // Temporary preFilterBlur
+                var preFilterBlurHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_PreFilteredBlurRT", false, FilterMode.Bilinear, TextureWrapMode.Clamp);
 
                 // Create bloom mip pyramid textures
                 {
-                    var desc = GetCompatibleDescriptor(tw, th, m_DefaultColorFormat);
+                    int lastWidth = texWidth, lastHeight = texHeight;
                     _BloomMipDown[0] = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, m_BloomMipDown[0].name, false, FilterMode.Bilinear);
                     _BloomMipUp[0] = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, m_BloomMipUp[0].name, false, FilterMode.Bilinear);
 
-                    for (int i = 1; i < mipCount; i++)
+                    for (int i = 1; i < iterations; i++)
                     {
-                        tw = Mathf.Max(1, tw >> 1);
-                        th = Mathf.Max(1, th >> 1);
+                        lastWidth = Mathf.Max(1, lastWidth >> 1);
+                        lastHeight = Mathf.Max(1, lastHeight >> 1);
                         ref TextureHandle mipDown = ref _BloomMipDown[i];
                         ref TextureHandle mipUp = ref _BloomMipUp[i];
 
-                        desc.width = tw;
-                        desc.height = th;
+                        desc.width = lastWidth;
+                        desc.height = lastHeight;
 
                         // NOTE: Reuse RTHandle names for TextureHandles
                         mipDown = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, m_BloomMipDown[i].name, false, FilterMode.Bilinear);
                         mipUp = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, m_BloomMipUp[i].name, false, FilterMode.Bilinear);
                     }
-                }
-            }
+                }                
 
-            using (var builder = renderGraph.AddUnsafePass<BloomPassData>("Blit Bloom Mipmaps", out var passData, ProfilingSampler.Get(URPProfileId.Bloom)))
-            {
-                passData.mipCount = mipCount;
-                passData.material = m_Materials.bloom;
-                passData.upsampleMaterials = m_Materials.bloomUpsample;
-                passData.sourceTexture = source;
-                passData.bloomMipDown = _BloomMipDown;
-                passData.bloomMipUp = _BloomMipUp;
-
-                // TODO RENDERGRAPH: properly setup dependencies between passes
-                builder.AllowPassCulling(false);
-
-                builder.UseTexture(source, AccessFlags.Read);
-                for (int i = 0; i < mipCount; i++)
+                using (var builder = renderGraph.AddUnsafePass<BloomDanbaidongPassData>("Bloom", out var passData, ProfilingSampler.Get(URPProfileId.Bloom)))
                 {
-                    builder.UseTexture(_BloomMipDown[i], AccessFlags.ReadWrite);
-                    builder.UseTexture(_BloomMipUp[i], AccessFlags.ReadWrite);
-                }
+                    passData.iterations = iterations;
+                    passData.material = bloomMaterial;
+                    passData.sourceTexture = source;
+                    passData.preFilterTex = preFilterHandle;
+                    passData.preFilterBlurTex = preFilterBlurHandle;
+                    passData.bloomMipDown = _BloomMipDown;
+                    passData.bloomMipUp = _BloomMipUp;
 
-                builder.SetRenderFunc(static (BloomPassData data, UnsafeGraphContext context) =>
-                {
-                    // TODO: can't call BlitTexture with unsafe command buffer
-                    var cmd = CommandBufferHelpers.GetNativeCommandBuffer(context.cmd);
-                    var material = data.material;
-                    int mipCount = data.mipCount;
-
-                    var loadAction = RenderBufferLoadAction.DontCare;   // Blit - always write all pixels
-                    var storeAction = RenderBufferStoreAction.Store;    // Blit - always read by then next Blit
-
-                    // Prefilter
-                    using(new ProfilingScope(cmd, ProfilingSampler.Get(URPProfileId.RG_BloomPrefilter)))
+                    builder.AllowPassCulling(false);
+                    builder.UseTexture(source);
+                    builder.UseTexture(preFilterHandle, AccessFlags.ReadWrite);
+                    builder.UseTexture(preFilterBlurHandle, AccessFlags.ReadWrite);
+                    for (int i = 0; i < iterations; i++)
                     {
-                        Blitter.BlitCameraTexture(cmd, data.sourceTexture, data.bloomMipDown[0], loadAction, storeAction, material, 0);
+                        builder.UseTexture(_BloomMipDown[i], AccessFlags.ReadWrite);
+                        builder.UseTexture(_BloomMipUp[i], AccessFlags.ReadWrite);
                     }
 
-                    // Downsample - gaussian pyramid
-                    // Classic two pass gaussian blur - use mipUp as a temporary target
-                    //   First pass does 2x downsampling + 9-tap gaussian
-                    //   Second pass does 9-tap gaussian using a 5-tap filter + bilinear filtering
-                    using(new ProfilingScope(cmd, ProfilingSampler.Get(URPProfileId.RG_BloomDownsample)))
+                    builder.SetRenderFunc(static (BloomDanbaidongPassData data, UnsafeGraphContext context) =>
                     {
-                        TextureHandle lastDown = data.bloomMipDown[0];
+                        var cmd = CommandBufferHelpers.GetNativeCommandBuffer(context.cmd);
+
+                        // preFilter
+                        Blitter.BlitCameraTexture(cmd, data.sourceTexture, data.preFilterTex, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, data.material, 4);
+
+                        // preFilterBlur
+                        cmd.SetGlobalVector(ShaderConstants._Bloom_Danbaidong_BlurScaler, new Vector4(1, 0, 0, 0));
+                        Blitter.BlitCameraTexture(cmd, data.preFilterTex, data.preFilterBlurTex, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, data.material, 6);
+                        cmd.SetGlobalVector(ShaderConstants._Bloom_Danbaidong_BlurScaler, new Vector4(0, 1, 0, 0));
+                        Blitter.BlitCameraTexture(cmd, data.preFilterBlurTex, data.preFilterTex, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, data.material, 6);
+
+                        // downSample
+                        RTHandle last = data.preFilterTex;
+                        for (var level = 0; level < data.iterations; level++)
+                        {
+                            Blitter.BlitCameraTexture(cmd, last, data.bloomMipDown[level], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, data.material, 5);
+                            last = data.bloomMipDown[level];
+                        }
+
+                        // blur mips
+                        for (var level = 0; level < data.iterations; level++)
+                        {
+                            cmd.SetGlobalVector(ShaderConstants._Bloom_Danbaidong_BlurScaler, new Vector4(1, 0, 0, 0));
+                            Blitter.BlitCameraTexture(cmd, data.bloomMipDown[level], data.bloomMipUp[level], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, data.material, 7 + level);
+
+                            cmd.SetGlobalVector(ShaderConstants._Bloom_Danbaidong_BlurScaler, new Vector4(0, 1, 0, 0));
+                            Blitter.BlitCameraTexture(cmd, data.bloomMipUp[level], data.bloomMipDown[level], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, data.material, 7 + level);
+                        }
+
+                        // upsample once
+                        for (var level = 0; level < data.iterations; level++)
+                        {
+                            data.material.SetTexture(ShaderConstants._BloomMipDown[level], data.bloomMipDown[level]);
+                        }
+
+                        Blitter.BlitCameraTexture(cmd, data.preFilterTex, data.preFilterBlurTex, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, data.material, 10);
+                    });
+
+                    destination = preFilterBlurHandle;
+                }
+                
+            }
+            else if (m_Bloom.mode.value == BloomMode.BloomURP)
+            {
+                // Start at half-res
+                int downres = 1;
+                switch (m_Bloom.downscale.value)
+                {
+                    case BloomDownscaleMode.Half:
+                        downres = 1;
+                        break;
+                    case BloomDownscaleMode.Quarter:
+                        downres = 2;
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+
+                //We should set the limit the downres result to ensure we dont turn 1x1 textures, which should technically be valid
+                //into 0x0 textures which will be invalid
+                int tw = Mathf.Max(1, m_Descriptor.width >> downres);
+                int th = Mathf.Max(1, m_Descriptor.height >> downres);
+
+                // Determine the iteration count
+                int maxSize = Mathf.Max(tw, th);
+                int iterations = Mathf.FloorToInt(Mathf.Log(maxSize, 2f) - 1);
+                int mipCount = Mathf.Clamp(iterations, 1, m_Bloom.maxIterations.value);
+
+                // Setup
+                using (new ProfilingScope(ProfilingSampler.Get(URPProfileId.RG_BloomSetup)))
+                {
+                    // Pre-filtering parameters
+                    float clamp = m_Bloom.clamp.value;
+                    float threshold = Mathf.GammaToLinearSpace(m_Bloom.threshold.value);
+                    float thresholdKnee = threshold * 0.5f; // Hardcoded soft knee
+
+                    // Material setup
+                    float scatter = Mathf.Lerp(0.05f, 0.95f, m_Bloom.scatter.value);
+
+                    BloomMaterialParams bloomParams = new BloomMaterialParams();
+                    bloomParams.parameters = new Vector4(scatter, clamp, threshold, thresholdKnee);
+                    bloomParams.highQualityFiltering = m_Bloom.highQualityFiltering.value;
+                    bloomParams.enableAlphaOutput = enableAlphaOutput;
+
+                    // Setting keywords can be somewhat expensive on low-end platforms.
+                    // Previous params are cached to avoid setting the same keywords every frame.
+                    var material = m_Materials.bloom;
+                    bool bloomParamsDirty = !m_BloomParamsPrev.Equals(ref bloomParams);
+                    bool isParamsPropertySet = material.HasProperty(ShaderConstants._Params);
+                    if (bloomParamsDirty || !isParamsPropertySet)
+                    {
+                        material.SetVector(ShaderConstants._Params, bloomParams.parameters);
+                        CoreUtils.SetKeyword(material, ShaderKeywordStrings.BloomHQ, bloomParams.highQualityFiltering);
+                        CoreUtils.SetKeyword(material, ShaderKeywordStrings._ENABLE_ALPHA_OUTPUT, bloomParams.enableAlphaOutput);
+
+                        // These materials are duplicate just to allow different bloom blits to use different textures.
+                        for (uint i = 0; i < k_MaxPyramidSize; ++i)
+                        {
+                            var materialPyramid = m_Materials.bloomUpsample[i];
+                            materialPyramid.SetVector(ShaderConstants._Params, bloomParams.parameters);
+                            CoreUtils.SetKeyword(materialPyramid, ShaderKeywordStrings.BloomHQ, bloomParams.highQualityFiltering);
+                            CoreUtils.SetKeyword(materialPyramid, ShaderKeywordStrings._ENABLE_ALPHA_OUTPUT, bloomParams.enableAlphaOutput);
+                        }
+
+                        m_BloomParamsPrev = bloomParams;
+                    }
+
+                    // Create bloom mip pyramid textures
+                    {
+                        var desc = GetCompatibleDescriptor(tw, th, m_DefaultColorFormat);
+                        _BloomMipDown[0] = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, m_BloomMipDown[0].name, false, FilterMode.Bilinear);
+                        _BloomMipUp[0] = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, m_BloomMipUp[0].name, false, FilterMode.Bilinear);
+
                         for (int i = 1; i < mipCount; i++)
                         {
-                            TextureHandle mipDown = data.bloomMipDown[i];
-                            TextureHandle mipUp = data.bloomMipUp[i];
+                            tw = Mathf.Max(1, tw >> 1);
+                            th = Mathf.Max(1, th >> 1);
+                            ref TextureHandle mipDown = ref _BloomMipDown[i];
+                            ref TextureHandle mipUp = ref _BloomMipUp[i];
 
-                            Blitter.BlitCameraTexture(cmd, lastDown, mipUp, loadAction, storeAction, material, 1);
-                            Blitter.BlitCameraTexture(cmd, mipUp, mipDown, loadAction, storeAction, material, 2);
+                            desc.width = tw;
+                            desc.height = th;
 
-                            lastDown = mipDown;
+                            // NOTE: Reuse RTHandle names for TextureHandles
+                            mipDown = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, m_BloomMipDown[i].name, false, FilterMode.Bilinear);
+                            mipUp = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, m_BloomMipUp[i].name, false, FilterMode.Bilinear);
                         }
                     }
+                }
 
-                    using (new ProfilingScope(cmd, ProfilingSampler.Get(URPProfileId.RG_BloomUpsample)))
+                using (var builder = renderGraph.AddUnsafePass<BloomPassData>("Blit Bloom Mipmaps", out var passData, ProfilingSampler.Get(URPProfileId.Bloom)))
+                {
+                    passData.mipCount = mipCount;
+                    passData.material = m_Materials.bloom;
+                    passData.upsampleMaterials = m_Materials.bloomUpsample;
+                    passData.sourceTexture = source;
+                    passData.bloomMipDown = _BloomMipDown;
+                    passData.bloomMipUp = _BloomMipUp;
+
+                    // TODO RENDERGRAPH: properly setup dependencies between passes
+                    builder.AllowPassCulling(false);
+
+                    builder.UseTexture(source, AccessFlags.Read);
+                    for (int i = 0; i < mipCount; i++)
                     {
-                        // Upsample (bilinear by default, HQ filtering does bicubic instead
-                        for (int i = mipCount - 2; i >= 0; i--)
-                        {
-                            TextureHandle lowMip = (i == mipCount - 2) ? data.bloomMipDown[i + 1] : data.bloomMipUp[i + 1];
-                            TextureHandle highMip = data.bloomMipDown[i];
-                            TextureHandle dst = data.bloomMipUp[i];
-
-                            // We need a separate material for each upsample pass because setting the low texture mip source
-                            // gets overriden by the time the render func is executed.
-                            // Material is a reference, so all the blits would share the same material state in the cmdbuf.
-                            // NOTE: another option would be to use cmd.SetGlobalTexture().
-                            var upMaterial = data.upsampleMaterials[i];
-                            upMaterial.SetTexture(ShaderConstants._SourceTexLowMip, lowMip);
-
-                            Blitter.BlitCameraTexture(cmd, highMip, dst, loadAction, storeAction, upMaterial, 3);
-                        }
+                        builder.UseTexture(_BloomMipDown[i], AccessFlags.ReadWrite);
+                        builder.UseTexture(_BloomMipUp[i], AccessFlags.ReadWrite);
                     }
-                });
 
-                destination = passData.bloomMipUp[0];
-            }
+                    builder.SetRenderFunc(static (BloomPassData data, UnsafeGraphContext context) =>
+                    {
+                        // TODO: can't call BlitTexture with unsafe command buffer
+                        var cmd = CommandBufferHelpers.GetNativeCommandBuffer(context.cmd);
+                        var material = data.material;
+                        int mipCount = data.mipCount;
+
+                        var loadAction = RenderBufferLoadAction.DontCare;   // Blit - always write all pixels
+                        var storeAction = RenderBufferStoreAction.Store;    // Blit - always read by then next Blit
+
+                        // Prefilter
+                        using (new ProfilingScope(cmd, ProfilingSampler.Get(URPProfileId.RG_BloomPrefilter)))
+                        {
+                            Blitter.BlitCameraTexture(cmd, data.sourceTexture, data.bloomMipDown[0], loadAction, storeAction, material, 0);
+                        }
+
+                        // Downsample - gaussian pyramid
+                        // Classic two pass gaussian blur - use mipUp as a temporary target
+                        //   First pass does 2x downsampling + 9-tap gaussian
+                        //   Second pass does 9-tap gaussian using a 5-tap filter + bilinear filtering
+                        using (new ProfilingScope(cmd, ProfilingSampler.Get(URPProfileId.RG_BloomDownsample)))
+                        {
+                            TextureHandle lastDown = data.bloomMipDown[0];
+                            for (int i = 1; i < mipCount; i++)
+                            {
+                                TextureHandle mipDown = data.bloomMipDown[i];
+                                TextureHandle mipUp = data.bloomMipUp[i];
+
+                                Blitter.BlitCameraTexture(cmd, lastDown, mipUp, loadAction, storeAction, material, 1);
+                                Blitter.BlitCameraTexture(cmd, mipUp, mipDown, loadAction, storeAction, material, 2);
+
+                                lastDown = mipDown;
+                            }
+                        }
+
+                        using (new ProfilingScope(cmd, ProfilingSampler.Get(URPProfileId.RG_BloomUpsample)))
+                        {
+                            // Upsample (bilinear by default, HQ filtering does bicubic instead
+                            for (int i = mipCount - 2; i >= 0; i--)
+                            {
+                                TextureHandle lowMip = (i == mipCount - 2) ? data.bloomMipDown[i + 1] : data.bloomMipUp[i + 1];
+                                TextureHandle highMip = data.bloomMipDown[i];
+                                TextureHandle dst = data.bloomMipUp[i];
+
+                                // We need a separate material for each upsample pass because setting the low texture mip source
+                                // gets overriden by the time the render func is executed.
+                                // Material is a reference, so all the blits would share the same material state in the cmdbuf.
+                                // NOTE: another option would be to use cmd.SetGlobalTexture().
+                                var upMaterial = data.upsampleMaterials[i];
+                                upMaterial.SetTexture(ShaderConstants._SourceTexLowMip, lowMip);
+
+                                Blitter.BlitCameraTexture(cmd, highMip, dst, loadAction, storeAction, upMaterial, 3);
+                            }
+                        }
+                    });
+
+                    destination = passData.bloomMipUp[0];
+                }
+            } /* BloomMode */
+
+            
         }
         #endregion
 
@@ -1811,6 +1940,9 @@ namespace UnityEngine.Rendering.Universal
             internal bool isBackbuffer;
             internal bool enableAlphaOutput;
             internal bool hasFinalPass;
+
+            internal Vector4 GTToneMapParams0;
+            internal Vector4 GTToneMapParams1;
         }
 
         TextureHandle TryGetCachedUserLutTextureHandle(RenderGraph renderGraph)
@@ -1834,7 +1966,7 @@ namespace UnityEngine.Rendering.Universal
             return m_UserLut != null ? renderGraph.ImportTexture(m_UserLut) : TextureHandle.nullHandle;
         }
 
-        public void RenderUberPost(RenderGraph renderGraph, ContextContainer frameData, UniversalCameraData cameraData, UniversalPostProcessingData postProcessingData, in TextureHandle sourceTexture, in TextureHandle destTexture, in TextureHandle lutTexture, in TextureHandle overlayUITexture, bool requireHDROutput, bool enableAlphaOutput, bool resolveToDebugScreen, bool hasFinalPass)
+        public void RenderUberPost(RenderGraph renderGraph, ContextContainer frameData, UniversalCameraData cameraData, UniversalPostProcessingData postProcessingData, in TextureHandle sourceTexture, in TextureHandle destTexture, in TextureHandle lutTexture, in TextureHandle overlayUITexture, in TextureHandle bloomTexture, bool requireHDROutput, bool enableAlphaOutput, bool resolveToDebugScreen, bool hasFinalPass)
         {
             var material = m_Materials.uber;
             bool hdrGrading = postProcessingData.gradingMode == ColorGradingMode.HighDynamicRange;
@@ -1882,7 +2014,7 @@ namespace UnityEngine.Rendering.Universal
                 }
 
                 if (m_Bloom.IsActive())
-                    builder.UseTexture(_BloomMipUp[0], AccessFlags.Read);
+                    builder.UseTexture(bloomTexture, AccessFlags.Read);
                 if (requireHDROutput && m_EnableColorEncodingIfNeeded && overlayUITexture.IsValid())
                     builder.UseTexture(overlayUITexture, AccessFlags.Read);
 
@@ -1893,6 +2025,9 @@ namespace UnityEngine.Rendering.Universal
                 passData.isHdrGrading = hdrGrading;
                 passData.enableAlphaOutput = enableAlphaOutput;
                 passData.hasFinalPass = hasFinalPass;
+
+                passData.GTToneMapParams0 = new Vector4(m_Tonemapping.maxBrightness.value, m_Tonemapping.contrast.value, m_Tonemapping.linearSectionStart.value, m_Tonemapping.linearSectionLength.value);
+                passData.GTToneMapParams1 = new Vector4(m_Tonemapping.blackPow.value, m_Tonemapping.blackMin.value, 0.0f, 0.0f);
 
                 builder.SetRenderFunc(static (UberPostPassData data, RasterGraphContext context) =>
                 {
@@ -1906,6 +2041,9 @@ namespace UnityEngine.Rendering.Universal
                     material.SetTexture(ShaderConstants._UserLut, data.userLutTexture);
                     material.SetVector(ShaderConstants._UserLut_Params, data.userLutParams);
 
+                    material.SetVector(ShaderConstants._GTToneMap_Params0, data.GTToneMapParams0);
+                    material.SetVector(ShaderConstants._GTToneMap_Params1, data.GTToneMapParams1);
+
                     if (data.isHdrGrading)
                     {
                         material.EnableKeyword(ShaderKeywordStrings.HDRGrading);
@@ -1916,6 +2054,8 @@ namespace UnityEngine.Rendering.Universal
                         {
                             case TonemappingMode.Neutral: material.EnableKeyword(ShaderKeywordStrings.TonemapNeutral); break;
                             case TonemappingMode.ACES: material.EnableKeyword(ShaderKeywordStrings.TonemapACES); break;
+                            case TonemappingMode.ACESSimpleVer: material.EnableKeyword(ShaderKeywordStrings.TonemapACESSampleVer); break;
+                            case TonemappingMode.GranTurismo: material.EnableKeyword(ShaderKeywordStrings.TonemapGT); break;
                             default: break; // None
                         }
                     }
@@ -2078,18 +2218,19 @@ namespace UnityEngine.Rendering.Universal
 
                 // Bloom goes first
                 bool bloomActive = m_Bloom.IsActive();
+                TextureHandle bloomTexture = TextureHandle.nullHandle;
                 //Even if bloom is not active we need the texture if the lensFlareScreenSpace pass is active.
                 if (bloomActive || useLensFlareScreenSpace)
                 {
-                    RenderBloomTexture(renderGraph, currentSource, out var BloomTexture, cameraData.isAlphaOutputEnabled);
+                    RenderBloomTexture(renderGraph, currentSource, out bloomTexture, cameraData.isAlphaOutputEnabled);
 
                     if (useLensFlareScreenSpace)
                     {
                         int maxBloomMip = Mathf.Clamp(m_LensFlareScreenSpace.bloomMip.value, 0, m_Bloom.maxIterations.value/2);
-                        BloomTexture = RenderLensFlareScreenSpace(renderGraph, cameraData.camera, in currentSource, _BloomMipUp[0], _BloomMipUp[maxBloomMip], cameraData.xr.enabled);
+                        bloomTexture = RenderLensFlareScreenSpace(renderGraph, cameraData.camera, in currentSource, _BloomMipUp[0], _BloomMipUp[maxBloomMip], cameraData.xr.enabled);
                     }
 
-                    UberPostSetupBloomPass(renderGraph, in BloomTexture, m_Materials.uber);
+                    UberPostSetupBloomPass(renderGraph, in bloomTexture, m_Materials.uber);
                 }
 
                 if (useLensFlare)
@@ -2129,7 +2270,7 @@ namespace UnityEngine.Rendering.Universal
                 DebugHandler debugHandler = GetActiveDebugHandler(cameraData);
                 debugHandler?.UpdateShaderGlobalPropertiesForFinalValidationPass(renderGraph, cameraData, !m_HasFinalPass && !resolveToDebugScreen);
 
-                RenderUberPost(renderGraph, frameData, cameraData, postProcessingData, in currentSource, in postProcessingTarget, in lutTexture, in overlayUITexture, requireHDROutput, enableAlphaOutput, resolveToDebugScreen, hasFinalPass);
+                RenderUberPost(renderGraph, frameData, cameraData, postProcessingData, in currentSource, in postProcessingTarget, in lutTexture, in overlayUITexture, in bloomTexture, requireHDROutput, enableAlphaOutput, resolveToDebugScreen, hasFinalPass);
             }
         }
     }

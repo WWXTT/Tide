@@ -108,9 +108,9 @@ namespace UnityEngine.Rendering.Universal
     {
 #if UNITY_EDITOR
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1812")]
-        internal class CreateUniversalRendererAsset : EndNameEditAction
+        internal class CreateUniversalRendererAsset : AssetCreationEndAction
         {
-            public override void Action(int instanceId, string pathName, string resourceFile)
+            public override void Action(EntityId instanceId, string pathName, string resourceFile)
             {
                 var instance = UniversalRenderPipelineAsset.CreateRendererAsset(pathName, RendererType.UniversalRenderer, false) as UniversalRendererData;
                 Selection.activeObject = instance;
@@ -136,9 +136,9 @@ namespace UnityEngine.Rendering.Universal
         [SerializeField] LayerMask m_TransparentLayerMask = -1;
         [SerializeField] StencilStateData m_DefaultStencilState = new StencilStateData() { passOperation = StencilOp.Replace }; // This default state is compatible with deferred renderer.
         [SerializeField] bool m_ShadowTransparentReceive = true;
-        [SerializeField] RenderingMode m_RenderingMode = RenderingMode.Forward;
+        [SerializeField] RenderingMode m_RenderingMode = RenderingMode.Deferred;
         [SerializeField] DepthPrimingMode m_DepthPrimingMode = DepthPrimingMode.Disabled; // Default disabled because there are some outstanding issues with Text Mesh rendering.
-        [SerializeField] CopyDepthMode m_CopyDepthMode = CopyDepthMode.AfterTransparents;
+        [SerializeField] CopyDepthMode m_CopyDepthMode = CopyDepthMode.AfterOpaques;
         [SerializeField] DepthFormat m_DepthAttachmentFormat = DepthFormat.Default;
         [SerializeField] DepthFormat m_DepthTextureFormat = DepthFormat.Default;
 #if UNITY_EDITOR
@@ -146,7 +146,7 @@ namespace UnityEngine.Rendering.Universal
         [ShaderKeywordFilter.ApplyRulesIfNotGraphicsAPI(GraphicsDeviceType.Vulkan)]
         [ShaderKeywordFilter.RemoveIf(false, keywordNames: ShaderKeywordStrings._GBUFFER_NORMALS_OCT)]
 #endif
-        [SerializeField] bool m_AccurateGbufferNormals = false;
+        [SerializeField] bool m_AccurateGbufferNormals = true;
         [SerializeField] IntermediateTextureMode m_IntermediateTextureMode = IntermediateTextureMode.Always;
 
         /// <inheritdoc/>

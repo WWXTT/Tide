@@ -105,7 +105,7 @@ namespace UnityEngine.Rendering.Universal
                 set => m_Quality = (TemporalAAQuality)Mathf.Clamp((int)value, (int)TemporalAAQuality.VeryLow, (int)TemporalAAQuality.VeryHigh);
             }
             /// <summary>
-            /// Determines how much the history buffer is blended together with current frame result. Higher values means more history contribution, which leads to better anti aliasing, but also more prone to ghosting.
+            /// Determines how much the history buffer is blended together with current frame result. Higher values means more history contribution, which leads to better anti aliasing, but also more prone to Performing.
             /// Between 0.0 - 1.0.
             /// </summary>
             public float baseBlendFactor
@@ -137,7 +137,7 @@ namespace UnityEngine.Rendering.Universal
             }
 
             /// <summary>
-            /// Determines the strength of the history color rectification clamp. Lower values can reduce ghosting, but produce more flickering. Higher values reduce flickering, but are prone to blur and ghosting.
+            /// Determines the strength of the history color rectification clamp. Lower values can reduce Performing, but produce more flickering. Higher values reduce flickering, but are prone to blur and Performing.
             /// Between 0.001 - 10.0.
             /// Good values around 1.0.
             /// </summary>

@@ -133,12 +133,12 @@ namespace UnityEngine.Rendering.Universal
         /// <summary>
         /// Main shadow map.
         /// </summary>
-        public TextureHandle mainShadowsTexture
+        public TextureHandle directionalShadowsTexture
         {
-            get => CheckAndGetTextureHandle(ref _mainShadowsTexture);
-            set => CheckAndSetTextureHandle(ref _mainShadowsTexture, value);
+            get => CheckAndGetTextureHandle(ref _directionalShadowsTexture);
+            set => CheckAndSetTextureHandle(ref _directionalShadowsTexture, value);
         }
-        private TextureHandle _mainShadowsTexture;
+        private TextureHandle _directionalShadowsTexture;
 
         /// <summary>
         /// Additional shadow map.
@@ -149,6 +149,26 @@ namespace UnityEngine.Rendering.Universal
             set => CheckAndSetTextureHandle(ref _additionalShadowsTexture, value);
         }
         private TextureHandle _additionalShadowsTexture;
+
+        /// <summary>
+        /// ScreenSpace shadow map.
+        /// </summary>
+        public TextureHandle screenSpaceShadowsTexture
+        {
+            get => CheckAndGetTextureHandle(ref _screenSpaceShadowsTexture);
+            set => CheckAndSetTextureHandle(ref _screenSpaceShadowsTexture, value);
+        }
+        private TextureHandle _screenSpaceShadowsTexture;
+
+        /// <summary>
+        /// Shadow scatter map.
+        /// </summary>
+        public TextureHandle shadowScatterTexture
+        {
+            get => CheckAndGetTextureHandle(ref _shadowScatterTexture);
+            set => CheckAndSetTextureHandle(ref _shadowScatterTexture, value);
+        }
+        private TextureHandle _shadowScatterTexture;
 
         // GBuffer targets
 
@@ -175,6 +195,16 @@ namespace UnityEngine.Rendering.Universal
         private TextureHandle _cameraOpaqueTexture;
 
         /// <summary>
+        /// Camera depth color texture. Contains the scene gaussian color mips.
+        /// </summary>
+        public TextureHandle cameraColorPyramidTexture
+        {
+            get => CheckAndGetTextureHandle(ref _cameraColorPyramidTexture);
+            set => CheckAndSetTextureHandle(ref _cameraColorPyramidTexture, value);
+        }
+        private TextureHandle _cameraColorPyramidTexture;
+
+        /// <summary>
         /// Camera depth texture. Contains the scene depth if the CopyDepth or Depth Prepass passes are executed.
         /// </summary>
         public TextureHandle cameraDepthTexture
@@ -183,6 +213,25 @@ namespace UnityEngine.Rendering.Universal
             internal set => CheckAndSetTextureHandle(ref _cameraDepthTexture, value);
         }
         private TextureHandle _cameraDepthTexture;
+
+        /// <summary>
+        /// Camera depth pyramid texture. Contains the scene min depth mips.
+        /// </summary>
+        public TextureHandle cameraDepthPyramidTexture
+        {
+            get => CheckAndGetTextureHandle(ref _cameraDepthPyramidTexture);
+            set => CheckAndSetTextureHandle(ref _cameraDepthPyramidTexture, value);
+        }
+        private TextureHandle _cameraDepthPyramidTexture;
+
+        internal BufferHandle cameraDepthPyramidMipLevelOffsets
+        {
+            get => CheckAndGetBufferHandle(ref _cameraDepthPyramidMipLevelOffsets);
+            set => CheckAndSetBufferHandle(ref _cameraDepthPyramidMipLevelOffsets, value);
+        }
+        private BufferHandle _cameraDepthPyramidMipLevelOffsets;
+
+        internal RenderingUtils.PackedMipChainInfo cameraDepthPyramidInfo;
 
         /// <summary>
         /// Camera normals texture. Contains the scene depth if the DepthNormals Prepass pass is executed.
@@ -316,6 +365,16 @@ namespace UnityEngine.Rendering.Universal
         private TextureHandle _ssaoTexture;
 
         /// <summary>
+        /// Screen Space Reflection texture. Written to by the SSR pass.
+        /// </summary>
+        public TextureHandle reflectionLightingTexture
+        {
+            get => CheckAndGetTextureHandle(ref _reflectionLightingTexture);
+            set => CheckAndSetTextureHandle(ref _reflectionLightingTexture, value);
+        }
+        private TextureHandle _reflectionLightingTexture;
+
+        /// <summary>
         /// STP debug visualization written to by the STP upscaler.
         /// </summary>
         internal TextureHandle stpDebugView
@@ -325,15 +384,57 @@ namespace UnityEngine.Rendering.Universal
         }
         private TextureHandle _stpDebugView;
 
+        internal BufferHandle skyAmbientProbe
+        {
+            get => CheckAndGetBufferHandle(ref _skyAmbientProbe);
+            set => CheckAndSetBufferHandle(ref _skyAmbientProbe, value);
+        }
+        private BufferHandle _skyAmbientProbe;
+
+        internal TextureHandle skyReflectionProbe
+        {
+            get => CheckAndGetTextureHandle(ref _skyReflectionProbe);
+            set => CheckAndSetTextureHandle(ref _skyReflectionProbe, value);
+        }
+        private TextureHandle _skyReflectionProbe;
+
+        // Spatio Temporal Blue Noise
+        internal TextureHandle blueNoise128R
+        {
+            get => CheckAndGetTextureHandle(ref _blueNoise128R);
+            set => CheckAndSetTextureHandle(ref _blueNoise128R, value);
+        }
+        private TextureHandle _blueNoise128R;
+
+        internal TextureHandle blueNoise128RG
+        {
+            get => CheckAndGetTextureHandle(ref _blueNoise128RG);
+            set => CheckAndSetTextureHandle(ref _blueNoise128RG, value);
+        }
+        private TextureHandle _blueNoise128RG;
+
+        internal TextureHandle blueNoiseUnitVec3Cosine
+        {
+            get => CheckAndGetTextureHandle(ref _blueNoiseUnitVec3Cosine);
+            set => CheckAndSetTextureHandle(ref _blueNoiseUnitVec3Cosine, value);
+        }
+        private TextureHandle _blueNoiseUnitVec3Cosine;
+
         /// <inheritdoc />
         public override void Reset()
         {
             _backBufferColor = TextureHandle.nullHandle;
             _backBufferDepth = TextureHandle.nullHandle;
             _cameraColor = TextureHandle.nullHandle;
+            _cameraColorPyramidTexture = TextureHandle.nullHandle;
             _cameraDepth = TextureHandle.nullHandle;
-            _mainShadowsTexture = TextureHandle.nullHandle;
+            _cameraDepthPyramidTexture = TextureHandle.nullHandle;
+            _cameraDepthPyramidMipLevelOffsets = BufferHandle.nullHandle;
+            cameraDepthPyramidInfo = default;
+            _directionalShadowsTexture = TextureHandle.nullHandle;
             _additionalShadowsTexture = TextureHandle.nullHandle;
+            _screenSpaceShadowsTexture = TextureHandle.nullHandle;
+            _shadowScatterTexture = TextureHandle.nullHandle;
             _cameraOpaqueTexture = TextureHandle.nullHandle;
             _cameraDepthTexture = TextureHandle.nullHandle;
             _cameraNormalsTexture = TextureHandle.nullHandle;
@@ -347,7 +448,13 @@ namespace UnityEngine.Rendering.Universal
             _renderingLayersTexture = TextureHandle.nullHandle;
             _dBufferDepth = TextureHandle.nullHandle;
             _ssaoTexture = TextureHandle.nullHandle;
+            _reflectionLightingTexture = TextureHandle.nullHandle;
             _stpDebugView = TextureHandle.nullHandle;
+            _skyAmbientProbe = BufferHandle.nullHandle;
+            _skyReflectionProbe = TextureHandle.nullHandle;
+            _blueNoise128R = TextureHandle.nullHandle;
+            _blueNoise128RG = TextureHandle.nullHandle;
+            _blueNoiseUnitVec3Cosine = TextureHandle.nullHandle;
 
             for (int i = 0; i < _gBuffer.Length; i++)
                 _gBuffer[i] = TextureHandle.nullHandle;

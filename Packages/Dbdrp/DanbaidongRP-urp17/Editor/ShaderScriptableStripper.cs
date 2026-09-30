@@ -169,6 +169,7 @@ namespace UnityEditor.Rendering.Universal
         LocalKeyword m_BloomHQ;
         LocalKeyword m_BloomLQDirt;
         LocalKeyword m_BloomHQDirt;
+        LocalKeyword m_BloomDanbaidong;
         LocalKeyword m_HdrGrading;
         LocalKeyword m_ToneMapACES;
         LocalKeyword m_ToneMapNeutral;
@@ -241,6 +242,7 @@ namespace UnityEditor.Rendering.Universal
             m_BloomHQ = TryGetLocalKeyword(shader, ShaderKeywordStrings.BloomHQ);
             m_BloomLQDirt = TryGetLocalKeyword(shader, ShaderKeywordStrings.BloomLQDirt);
             m_BloomHQDirt = TryGetLocalKeyword(shader, ShaderKeywordStrings.BloomHQDirt);
+            m_BloomDanbaidong = TryGetLocalKeyword(shader, ShaderKeywordStrings.BloomDanbaidong);
             m_HdrGrading = TryGetLocalKeyword(shader, ShaderKeywordStrings.HDRGrading);
             m_ToneMapACES = TryGetLocalKeyword(shader, ShaderKeywordStrings.TonemapACES);
             m_ToneMapNeutral = TryGetLocalKeyword(shader, ShaderKeywordStrings.TonemapNeutral);
@@ -277,6 +279,9 @@ namespace UnityEditor.Rendering.Universal
                 return true;
 
             if (stripTool.StripMultiCompileKeepOffVariant(m_BloomHQDirt, VolumeFeatures.BloomHQDirt))
+                return true;
+
+            if (stripTool.StripMultiCompileKeepOffVariant(m_BloomDanbaidong, VolumeFeatures.BloomHQ))
                 return true;
 
             if (stripTool.StripMultiCompileKeepOffVariant(m_ToneMapACES, VolumeFeatures.ToneMapping))
@@ -1103,31 +1108,28 @@ namespace UnityEditor.Rendering.Universal
             };
 
             // All feature sets need to have this variant unused to be stripped out.
-            bool removeInput = strippingData.stripUnusedVariants;
-            if (removeInput)
+            bool removeInput = true;
+            for (var index = 0; index < ShaderBuildPreprocessor.supportedFeaturesList.Count; index++)
             {
-                for (var index = 0; index < ShaderBuildPreprocessor.supportedFeaturesList.Count; index++)
-                {
-                    strippingData.shaderFeatures = ShaderBuildPreprocessor.supportedFeaturesList[index];
+                strippingData.shaderFeatures = ShaderBuildPreprocessor.supportedFeaturesList[index];
 
-                    if (StripUnusedShaders(ref strippingData))
-                        continue;
+                if (StripUnusedShaders(ref strippingData))
+                    continue;
 
-                    if (StripUnusedPass(ref strippingData))
-                        continue;
+                if (StripUnusedPass(ref strippingData))
+                    continue;
 
-                    if (StripInvalidVariants(ref strippingData))
-                        continue;
+                if (StripInvalidVariants(ref strippingData))
+                    continue;
 
-                    if (StripUnsupportedVariants(ref strippingData))
-                        continue;
+                if (StripUnsupportedVariants(ref strippingData))
+                    continue;
 
-                    if (StripUnusedFeatures(ref strippingData))
-                        continue;
+                if (StripUnusedFeatures(ref strippingData))
+                    continue;
 
-                    removeInput = false;
-                    break;
-                }
+                removeInput = false;
+                break;
             }
 
             // Check PostProcessing variants...

@@ -118,8 +118,6 @@ namespace UnityEngine.Rendering.Universal
             LensFlareCommonSRP.mergeNeeded = 0;
             LensFlareCommonSRP.maxLensFlareWithOcclusionTemporalSample = 1;
             LensFlareCommonSRP.Initialize();
-
-            Light2DManager.Initialize();
         }
 
         protected override void Dispose(bool disposing)
@@ -135,7 +133,6 @@ namespace UnityEngine.Rendering.Universal
             m_FinalBlitPass?.Dispose();
             m_DrawOffscreenUIPass?.Dispose();
             m_DrawOverlayUIPass?.Dispose();
-            Light2DManager.Dispose();
 
             CoreUtils.Destroy(m_BlitMaterial);
             CoreUtils.Destroy(m_BlitHDRMaterial);
@@ -408,11 +405,6 @@ namespace UnityEngine.Rendering.Universal
             bool hasPassesAfterPostProcessing = activeRenderPassQueue.Find(x => x.renderPassEvent == RenderPassEvent.AfterRenderingPostProcessing) != null;
             bool needsColorEncoding = DebugHandler == null || !DebugHandler.HDRDebugViewIsActive(cameraData.resolveFinalTarget);
 
-            // Don't resolve during post processing if there are passes after or pixel perfect camera is used
-            bool pixelPerfectCameraEnabled = ppc != null && ppc.enabled;
-            bool hasCaptureActions = cameraData.captureActions != null && lastCameraInStack;
-            bool resolvePostProcessingToCameraTarget = !hasCaptureActions && !hasPassesAfterPostProcessing && !requireFinalPostProcessPass && !pixelPerfectCameraEnabled;
-
             if (hasPostProcess)
             {
                 var desc = PostProcessPass.GetCompatibleDescriptor(cameraTargetDescriptor, cameraTargetDescriptor.width, cameraTargetDescriptor.height, cameraTargetDescriptor.graphicsFormat);
@@ -421,10 +413,9 @@ namespace UnityEngine.Rendering.Universal
                 postProcessPass.Setup(
                     cameraTargetDescriptor,
                     colorTargetHandle,
-                    resolvePostProcessingToCameraTarget,
+                    afterPostProcessColorHandle,
                     depthTargetHandle,
                     colorGradingLutHandle,
-                    null,
                     requireFinalPostProcessPass,
                     afterPostProcessColorHandle.nameID == k_CameraTarget.nameID && needsColorEncoding);
 
@@ -433,7 +424,7 @@ namespace UnityEngine.Rendering.Universal
 
             RTHandle finalTargetHandle = colorTargetHandle;
 
-            if (pixelPerfectCameraEnabled && ppc.cropFrame != PixelPerfectCamera.CropFrame.None)
+            if (ppc != null && ppc.enabled && ppc.cropFrame != PixelPerfectCamera.CropFrame.None)
             {
                 EnqueuePass(m_PixelPerfectBackgroundPass);
 
@@ -453,18 +444,7 @@ namespace UnityEngine.Rendering.Universal
                 finalPostProcessPass.SetupFinalPass(finalTargetHandle, hasPassesAfterPostProcessing, needsColorEncoding);
                 EnqueuePass(finalPostProcessPass);
             }
-
-            // If post-processing then we already resolved to camera target while doing post.
-            // Also only do final blit if camera is not rendering to RT.
-            bool cameraTargetResolved =
-                   // final PP always blit to camera target
-                   requireFinalPostProcessPass ||
-                   // no final PP but we have PP stack. In that case it blit unless there are render pass after PP or pixel perfect camera is used
-                   (hasPostProcess && !hasPassesAfterPostProcessing && !hasCaptureActions && !pixelPerfectCameraEnabled) ||
-                   // offscreen camera rendering to a texture, we don't need a blit pass to resolve to screen
-                   colorTargetHandle.nameID == k_CameraTarget.nameID;
-
-            if (!cameraTargetResolved)
+            else if (lastCameraInStack && finalTargetHandle != k_CameraTarget)
             {
                 m_FinalBlitPass.Setup(cameraTargetDescriptor, finalTargetHandle);
                 EnqueuePass(m_FinalBlitPass);

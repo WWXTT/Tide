@@ -65,12 +65,12 @@ namespace UnityEngine.Rendering.Universal
 
         public override int Priority() { return 10; }  // give higher than default menu priority
 
-        public override void Enabled(Component sourceComponent, ShadowShape2D persistantShadowShape)
+        public override void Enabled(Component sourceComponent)
         {
             ((SpriteShapeController)sourceComponent).ForceShadowShapeUpdate(true);
         }
 
-        public override void Disabled(Component sourceComponent, ShadowShape2D persistantShadowShape)
+        public override void Disabled(Component sourceComponent)
         {
             ((SpriteShapeController)sourceComponent).ForceShadowShapeUpdate(false);
         }
