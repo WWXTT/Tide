@@ -1,5 +1,7 @@
 using System;
+using UnityEngine;
 using UnityEngine.Experimental.Rendering;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 
 namespace UnityEngine.Rendering.Universal
@@ -12,7 +14,7 @@ namespace UnityEngine.Rendering.Universal
     [SupportedOnRenderer(typeof(UniversalRendererData))]
     [DisallowMultipleRendererFeature("Screen Space Shadows")]
     [Tooltip("Screen Space Shadows")]
-    [URPHelpURL("urp/renderer-feature-screen-space-shadows")]
+    [URPHelpURL("renderer-feature-screen-space-shadows")]
     internal class ScreenSpaceShadows : ScriptableRendererFeature
     {
 #if UNITY_EDITOR
@@ -42,7 +44,7 @@ namespace UnityEngine.Rendering.Universal
 
             LoadMaterial();
 
-            m_SSShadowsPass.renderPassEvent = RenderPassEvent.BeforeRenderingGbuffer;
+            m_SSShadowsPass.renderPassEvent = RenderPassEvent.AfterRenderingGbuffer;
             m_SSShadowsPostPass.renderPassEvent = RenderPassEvent.BeforeRenderingTransparents;
         }
 
@@ -65,10 +67,10 @@ namespace UnityEngine.Rendering.Universal
 
             if (shouldEnqueue)
             {
-                bool usesDeferredLighting = renderer is UniversalRenderer { usesDeferredLighting: true };
+                bool isDeferredRenderingMode = renderer is UniversalRenderer && ((UniversalRenderer)renderer).renderingModeRequested == RenderingMode.Deferred;
 
-                m_SSShadowsPass.renderPassEvent = usesDeferredLighting
-                    ? RenderPassEvent.BeforeRenderingGbuffer
+                m_SSShadowsPass.renderPassEvent = isDeferredRenderingMode
+                    ? RenderPassEvent.BeforeRenderingDeferredLights
                     : RenderPassEvent.AfterRenderingPrePasses + 1; // We add 1 to ensure this happens after depth priming depth copy pass that might be scheduled
 
                 renderer.EnqueuePass(m_SSShadowsPass);
@@ -79,6 +81,7 @@ namespace UnityEngine.Rendering.Universal
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
+            m_SSShadowsPass?.Dispose();
             m_SSShadowsPass = null;
             CoreUtils.Destroy(m_Material);
         }
@@ -104,30 +107,26 @@ namespace UnityEngine.Rendering.Universal
             return m_Material != null;
         }
 
-        /// <summary>
-        /// Pass that renders screen-space shadows by sampling the main light shadow map.
-        ///
-        /// This pass reconstructs world positions from the depth prepass (cameraDepthTexture),
-        /// transforms them to shadow space, and samples the shadow map to produce a screen-space
-        /// shadow texture. This is more efficient than traditional forward shadow sampling per-pixel.
-        ///
-        /// IMPORTANT: World position reconstruction from depth requires the inverse view-projection matrix
-        /// (unity_MatrixInvVP) to match the UV origin of the depth texture. In Tile-Only Mode and
-        /// direct-to-backbuffer scenarios, the depth texture orientation may differ from the active
-        /// render target, requiring explicit matrix setup. See ExecutePass for details.
-        /// </summary>
         private class ScreenSpaceShadowsPass : ScriptableRenderPass
         {
             // Private Variables
             private Material m_Material;
             private ScreenSpaceShadowsSettings m_CurrentSettings;
+            private RTHandle m_RenderTarget;
             private int m_ScreenSpaceShadowmapTextureID;
+            private PassData m_PassData;
 
             internal ScreenSpaceShadowsPass()
             {
                 profilingSampler = new ProfilingSampler("Blit Screen Space Shadows");
                 m_CurrentSettings = new ScreenSpaceShadowsSettings();
                 m_ScreenSpaceShadowmapTextureID = Shader.PropertyToID("_ScreenSpaceShadowmapTexture");
+                m_PassData = new PassData();
+            }
+
+            public void Dispose()
+            {
+                m_RenderTarget?.Release();
             }
 
             internal bool Setup(ScreenSpaceShadowsSettings featureSettings, Material material)
@@ -139,25 +138,44 @@ namespace UnityEngine.Rendering.Universal
                 return m_Material != null;
             }
 
+            /// <inheritdoc/>
+            [Obsolete(DeprecationMessage.CompatibilityScriptingAPIObsolete, false)]
+            public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
+            {
+                var desc = renderingData.cameraData.cameraTargetDescriptor;
+                desc.depthStencilFormat = GraphicsFormat.None;
+                desc.msaaSamples = 1;
+                // UUM-41070: We require `Linear | Render` but with the deprecated FormatUsage this was checking `Blend`
+                // For now, we keep checking for `Blend` until the performance hit of doing the correct checks is evaluated
+                desc.graphicsFormat = SystemInfo.IsFormatSupported(GraphicsFormat.R8_UNorm, GraphicsFormatUsage.Blend)
+                    ? GraphicsFormat.R8_UNorm
+                    : GraphicsFormat.B8G8R8A8_UNorm;
+
+                RenderingUtils.ReAllocateHandleIfNeeded(ref m_RenderTarget, desc, FilterMode.Point, TextureWrapMode.Clamp, name: "_ScreenSpaceShadowmapTexture");
+                cmd.SetGlobalTexture(m_RenderTarget.name, m_RenderTarget.nameID);
+
+                // Disable obsolete warning for internal usage
+                #pragma warning disable CS0618
+                ConfigureTarget(m_RenderTarget);
+                ConfigureClear(ClearFlag.None, Color.white);
+                #pragma warning restore CS0618
+            }
+
             private class PassData
             {
                 internal TextureHandle target;
-                internal TextureHandle cameraDepthTexture;
-                internal TextureHandle activeTarget;
                 internal Material material;
-                internal UniversalCameraData cameraData;
+                internal int shadowmapID;
             }
 
             /// <summary>
             /// Initialize the shared pass data.
             /// </summary>
             /// <param name="passData"></param>
-            private void InitPassData(ref PassData passData, in TextureHandle cameraDepthTexture, in TextureHandle activeTarget, UniversalCameraData cameraData)
+            private void InitPassData(ref PassData passData)
             {
                 passData.material = m_Material;
-                passData.cameraDepthTexture = cameraDepthTexture;
-                passData.activeTarget = activeTarget;
-                passData.cameraData = cameraData;
+                passData.shadowmapID = m_ScreenSpaceShadowmapTextureID;
             }
 
             public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
@@ -167,9 +185,7 @@ namespace UnityEngine.Rendering.Universal
                     Debug.LogErrorFormat("{0}.Execute(): Missing material. ScreenSpaceShadows pass will not execute. Check for missing reference in the renderer resources.", GetType().Name);
                     return;
                 }
-                var cameraData = frameData.Get<UniversalCameraData>();
-                var resourceData = frameData.Get<UniversalResourceData>();
-
+                UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
                 var desc = cameraData.cameraTargetDescriptor;
                 desc.depthStencilFormat = GraphicsFormat.None;
                 desc.msaaSamples = 1;
@@ -178,75 +194,71 @@ namespace UnityEngine.Rendering.Universal
                 desc.graphicsFormat = SystemInfo.IsFormatSupported(GraphicsFormat.R8_UNorm, GraphicsFormatUsage.Blend)
                     ? GraphicsFormat.R8_UNorm
                     : GraphicsFormat.B8G8R8A8_UNorm;
-                TextureHandle color = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_ScreenSpaceShadowmapTexture", true);
 
-                // UUM-85291: Using UnsafePass to not allow this pass to merge with other passes as it can cause issues
-                // when using Deferred Lighting by breaking up the Draw GBuffer and Deferred Lighting passes because
-                // of 1) the Deferred Lighting pass reads this resource so it breaks the pass 2) a maximum input attachment
-                // limit is met when this is moved before Draw GBuffer.
-                // For now, using an UnsafePass ensures that this pass won't be merged as a fix is found for the other
-                // underlying issues.
-                using (var builder = renderGraph.AddUnsafePass<PassData>(passName, out var passData, profilingSampler))
+                // Here is a bug, we need to clear with white color. Add by Danbaidong, 20240512.
+                TextureHandle color = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_ScreenSpaceShadowmapTexture", true, Color.white);
+
+                using (var builder = renderGraph.AddRasterRenderPass<PassData>(passName, out var passData, profilingSampler))
                 {
                     passData.target = color;
-                    builder.UseTexture(color, AccessFlags.WriteAll);
-                    builder.UseTexture(resourceData.cameraDepthTexture);
+                    builder.SetRenderAttachment(color, 0, AccessFlags.Write);
 
-                    // activeColorTexture is always valid here since AddRenderPasses returns early for offscreen depth cameras
-                    InitPassData(ref passData, resourceData.cameraDepthTexture, resourceData.activeColorTexture, cameraData);
+                    InitPassData(ref passData);
                     builder.AllowGlobalStateModification(true);
 
                     if (color.IsValid())
                         builder.SetGlobalTextureAfterPass(color, m_ScreenSpaceShadowmapTextureID);
 
-                    builder.SetRenderFunc(static (PassData data, UnsafeGraphContext rgContext) =>
+                    builder.SetRenderFunc((PassData data, RasterGraphContext rgContext) =>
                     {
-                        ExecutePass(rgContext, data);
+                        ExecutePass(rgContext.cmd, data, data.target);
                     });
                 }
             }
 
-            private static void ExecutePass(UnsafeGraphContext rgContext, PassData data)
+            private static void ExecutePass(RasterCommandBuffer cmd, PassData data, RTHandle target)
             {
-                var cmd = rgContext.cmd;
-
-                // CRITICAL FIX for Tile-Only Mode and direct-to-backbuffer rendering:
-                //
-                // The shader reconstructs world positions from depth using:
-                //   float3 wpos = ComputeWorldSpacePosition(uv, depth, unity_MatrixInvVP);
-                //
-                // The global unity_MatrixInvVP might be set for the active render target's orientation (e.g., TopLeft in Tile-Only Mode),
-                // but cameraDepthTexture was rendered with a potentially different orientation (always BottomLeft - it's an intermediate texture).
-                //
-                // When orientations don't match, the Y-coordinate in world-space reconstruction is inverted, causing shadow lookups
-                // to sample from the wrong world positions → shadows appear upside down.
-                //
-                // FIX: Temporarily set unity_MatrixInvVP to match cameraDepthTexture's orientation for correct position reconstruction.
-                TextureUVOrigin depthOrigin = rgContext.GetTextureUVOrigin(data.cameraDepthTexture);
-                Matrix4x4 depthInvVP = RenderingUtils.ComputeInverseViewProjectionMatrix(depthOrigin, data.cameraData);
-                cmd.SetGlobalMatrix(ShaderPropertyId.inverseViewAndProjectionMatrix, depthInvVP);
-
-                // Perform the shadow sampling blit
-                Blitter.BlitTexture(cmd, data.target, Vector2.one, data.material, 0);
-
-                // Set shadow keywords
+                Blitter.BlitTexture(cmd, target, Vector2.one, data.material, 0);
                 cmd.SetKeyword(ShaderGlobalKeywords.MainLightShadows, false);
                 cmd.SetKeyword(ShaderGlobalKeywords.MainLightShadowCascades, false);
                 cmd.SetKeyword(ShaderGlobalKeywords.MainLightShadowScreen, true);
+            }
 
-                // Restore unity_MatrixInvVP to match the active target's orientation for subsequent passes.
-                // Without this, later passes that rely on the global matrix might get incorrect results.
-                TextureUVOrigin activeOrigin = rgContext.GetTextureUVOrigin(data.activeTarget);
-                Matrix4x4 activeInvVP = RenderingUtils.ComputeInverseViewProjectionMatrix(activeOrigin, data.cameraData);
-                cmd.SetGlobalMatrix(ShaderPropertyId.inverseViewAndProjectionMatrix, activeInvVP);
+            /// <inheritdoc/>
+            [Obsolete(DeprecationMessage.CompatibilityScriptingAPIObsolete, false)]
+            public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
+            {
+                if (m_Material == null)
+                {
+                    Debug.LogErrorFormat("{0}.Execute(): Missing material. ScreenSpaceShadows pass will not execute. Check for missing reference in the renderer resources.", GetType().Name);
+                    return;
+                }
+
+                InitPassData(ref m_PassData);
+                var cmd = renderingData.commandBuffer;
+                using (new ProfilingScope(cmd, profilingSampler))
+                {
+                    ExecutePass(CommandBufferHelpers.GetRasterCommandBuffer(renderingData.commandBuffer), m_PassData, m_RenderTarget);
+                }
             }
         }
 
         private class ScreenSpaceShadowsPostPass : ScriptableRenderPass
         {
+            private static readonly RTHandle k_CurrentActive = RTHandles.Alloc(BuiltinRenderTextureType.CurrentActive);
+
             internal ScreenSpaceShadowsPostPass()
             {
                 profilingSampler = new ProfilingSampler("Set Screen Space Shadow Keywords");
+            }
+
+            [Obsolete(DeprecationMessage.CompatibilityScriptingAPIObsolete, false)]
+            public override void Configure(CommandBuffer cmd, RenderTextureDescriptor cameraTextureDescriptor)
+            {
+                // Disable obsolete warning for internal usage
+                #pragma warning disable CS0618
+                ConfigureTarget(k_CurrentActive);
+                #pragma warning restore CS0618
             }
 
             private static void ExecutePass(RasterCommandBuffer cmd, UniversalShadowData shadowData)
@@ -264,11 +276,23 @@ namespace UnityEngine.Rendering.Universal
                 cmd.SetKeyword(ShaderGlobalKeywords.MainLightShadowCascades, receiveShadowsCascades);
             }
 
-            internal class PassData
+            [Obsolete(DeprecationMessage.CompatibilityScriptingAPIObsolete, false)]
+            public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
             {
-                internal UniversalShadowData shadowData;
+                var cmd = renderingData.commandBuffer;
+                UniversalShadowData shadowData = renderingData.frameData.Get<UniversalShadowData>();
+
+                using (new ProfilingScope(cmd, profilingSampler))
+                {
+                    ExecutePass(CommandBufferHelpers.GetRasterCommandBuffer(renderingData.commandBuffer), shadowData);
+                }
             }
 
+            internal class PassData
+            {
+                internal ScreenSpaceShadowsPostPass pass;
+                internal UniversalShadowData shadowData;
+            }
             public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
             {
                 using (var builder = renderGraph.AddRasterRenderPass<PassData>(passName, out var passData, profilingSampler))
@@ -278,10 +302,11 @@ namespace UnityEngine.Rendering.Universal
                     TextureHandle color = resourceData.activeColorTexture;
                     builder.SetRenderAttachment(color, 0, AccessFlags.Write);
                     passData.shadowData = frameData.Get<UniversalShadowData>();
+                    passData.pass = this;
 
                     builder.AllowGlobalStateModification(true);
 
-                    builder.SetRenderFunc(static (PassData data, RasterGraphContext rgContext) =>
+                    builder.SetRenderFunc((PassData data, RasterGraphContext rgContext) =>
                     {
                         ExecutePass(rgContext.cmd, data.shadowData);
                     });

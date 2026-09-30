@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
 using NameAndTooltip = UnityEngine.Rendering.DebugUI.Widget.NameAndTooltip;
 
@@ -9,8 +7,7 @@ namespace UnityEngine.Rendering.Universal
     /// <summary>
     /// Lighting-related Rendering Debugger settings.
     /// </summary>
-    [Serializable]
-    public class DebugDisplaySettingsLighting : IDebugDisplaySettingsData, ISerializedDebugDisplaySettings
+    public class DebugDisplaySettingsLighting : IDebugDisplaySettingsData
     {
         /// <summary>
         /// Current debug lighting mode.
@@ -48,32 +45,32 @@ namespace UnityEngine.Rendering.Universal
 
         internal static class WidgetFactory
         {
-            internal static DebugUI.Widget CreateLightingDebugMode(DebugDisplaySettingsLighting data) => new DebugUI.EnumField
+            internal static DebugUI.Widget CreateLightingDebugMode(SettingsPanel panel) => new DebugUI.EnumField
             {
                 nameAndTooltip = Strings.LightingDebugMode,
                 autoEnum = typeof(DebugLightingMode),
-                getter = () => (int)data.lightingDebugMode,
-                setter = (value) => data.lightingDebugMode = (DebugLightingMode)value,
-                getIndex = () => (int)data.lightingDebugMode,
-                setIndex = (value) => data.lightingDebugMode = (DebugLightingMode)value
+                getter = () => (int)panel.data.lightingDebugMode,
+                setter = (value) => panel.data.lightingDebugMode = (DebugLightingMode)value,
+                getIndex = () => (int)panel.data.lightingDebugMode,
+                setIndex = (value) => panel.data.lightingDebugMode = (DebugLightingMode)value
             };
 
-            internal static DebugUI.Widget CreateLightingFeatures(DebugDisplaySettingsLighting data) => new DebugUI.BitField
+            internal static DebugUI.Widget CreateLightingFeatures(SettingsPanel panel) => new DebugUI.BitField
             {
                 nameAndTooltip = Strings.LightingFeatures,
-                getter = () => data.lightingFeatureFlags,
-                setter = (value) => data.lightingFeatureFlags = (DebugLightingFeatureFlags)value,
+                getter = () => panel.data.lightingFeatureFlags,
+                setter = (value) => panel.data.lightingFeatureFlags = (DebugLightingFeatureFlags)value,
                 enumType = typeof(DebugLightingFeatureFlags),
             };
 
-            internal static DebugUI.Widget CreateHDRDebugMode(DebugDisplaySettingsLighting data) => new DebugUI.EnumField
+            internal static DebugUI.Widget CreateHDRDebugMode(SettingsPanel panel) => new DebugUI.EnumField
             {
                 nameAndTooltip = Strings.HDRDebugMode,
                 autoEnum = typeof(HDRDebugMode),
-                getter = () => (int)data.hdrDebugMode,
-                setter = (value) => data.hdrDebugMode = (HDRDebugMode)value,
-                getIndex = () => (int)data.hdrDebugMode,
-                setIndex = (value) => data.hdrDebugMode = (HDRDebugMode)value
+                getter = () => (int)panel.data.hdrDebugMode,
+                setter = (value) => panel.data.hdrDebugMode = (HDRDebugMode)value,
+                getIndex = () => (int)panel.data.hdrDebugMode,
+                setIndex = (value) => panel.data.hdrDebugMode = (HDRDebugMode)value
             };
             internal static DebugUI.Widget CreateTileClusterDebugMode(SettingsPanel panel) => new DebugUI.EnumField
             {
@@ -121,7 +118,6 @@ namespace UnityEngine.Rendering.Universal
         }
 
         [DisplayInfo(name = "Lighting", order = 3)]
-        [URPHelpURL("urp/features/rendering-debugger-reference", "lighting")]
         internal class SettingsPanel : DebugDisplaySettingsPanel<DebugDisplaySettingsLighting>
         {
             public SettingsPanel(DebugDisplaySettingsLighting data)
@@ -132,17 +128,18 @@ namespace UnityEngine.Rendering.Universal
                 AddWidget(new DebugUI.Foldout
                 {
                     displayName = "Lighting Debug Modes",
+                    flags = DebugUI.Flags.FrequentlyUsed,
+                    isHeader = true,
                     opened = true,
                     children =
                     {
-                        WidgetFactory.CreateLightingDebugMode(data),
-                        WidgetFactory.CreateHDRDebugMode(data),
-                        WidgetFactory.CreateLightingFeatures(data),
-                        WidgetFactory.CreateTileClusterDebugMode(data),
-                        WidgetFactory.CreateClusterIDSelect(data),
-                        WidgetFactory.CreateClusterCategoryDebugMode(data)
-                    },
-                    documentationUrl = typeof(DebugDisplaySettingsLighting).GetCustomAttribute<HelpURLAttribute>()?.URL
+                        WidgetFactory.CreateLightingDebugMode(this),
+                        WidgetFactory.CreateHDRDebugMode(this),
+                        WidgetFactory.CreateLightingFeatures(this),
+                        WidgetFactory.CreateTileClusterDebugMode(this),
+                        WidgetFactory.CreateClusterIDSelect(this),
+                        WidgetFactory.CreateClusterCategoryDebugMode(this),
+                    }
                 });
             }
         }

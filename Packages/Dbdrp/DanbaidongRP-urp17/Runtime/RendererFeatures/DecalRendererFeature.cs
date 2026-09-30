@@ -1,10 +1,7 @@
 using System.Diagnostics;
 using UnityEngine.Assertions;
 using UnityEngine.Rendering.Universal.Internal;
-using System;
-
 #if UNITY_EDITOR
-using UnityEditor.Rendering;
 using ShaderKeywordFilter = UnityEditor.ShaderKeywordFilter;
 #endif
 
@@ -88,9 +85,7 @@ namespace UnityEngine.Rendering.Universal
 
                 m_DecalEntityManager = new DecalEntityManager();
 
-                #pragma warning disable CS0618 // Type or member is obsolete
                 var decalProjectors = GameObject.FindObjectsByType<DecalProjector>(FindObjectsSortMode.InstanceID);
-#pragma warning restore CS0618 // Type or member is obsolete
                 foreach (var decalProjector in decalProjectors)
                 {
                     if (!decalProjector.isActiveAndEnabled || m_DecalEntityManager.IsValid(decalProjector.decalEntity))
@@ -103,9 +98,6 @@ namespace UnityEngine.Rendering.Universal
                 DecalProjector.onDecalPropertyChange += OnDecalPropertyChange;
                 DecalProjector.onDecalMaterialChange += OnDecalMaterialChange;
                 DecalProjector.onAllDecalPropertyChange += OnAllDecalPropertyChange;
-#if UNITY_EDITOR
-                RenderPipelineEditorUtility.onRenderingLayerCountChanged += OnAllDecalPropertyChange;
-#endif
             }
 
             m_ReferenceCounter++;
@@ -137,9 +129,6 @@ namespace UnityEngine.Rendering.Universal
             DecalProjector.onDecalPropertyChange -= OnDecalPropertyChange;
             DecalProjector.onDecalMaterialChange -= OnDecalMaterialChange;
             DecalProjector.onAllDecalPropertyChange -= OnAllDecalPropertyChange;
-#if UNITY_EDITOR
-            RenderPipelineEditorUtility.onRenderingLayerCountChanged -= OnAllDecalPropertyChange;
-#endif
         }
 
         private void OnDecalAdd(DecalProjector decalProjector)
@@ -178,9 +167,8 @@ namespace UnityEngine.Rendering.Universal
     [SupportedOnRenderer(typeof(UniversalRendererData))]
     [DisallowMultipleRendererFeature("Decal")]
     [Tooltip("With this Renderer Feature, Unity can project specific Materials (decals) onto other objects in the Scene.")]
-    [URPHelpURL("urp/renderer-feature-decal")]
-    [Icon("Packages/com.unity.render-pipelines.core/Editor/Icons/Processed/DecalProjector Icon.asset")]
-    public partial class DecalRendererFeature : ScriptableRendererFeature
+    [URPHelpURL("renderer-feature-decal")]
+    public class DecalRendererFeature : ScriptableRendererFeature
     {
         private static SharedDecalEntityManager sharedDecalEntityManager { get; } = new SharedDecalEntityManager();
 
@@ -218,7 +206,6 @@ namespace UnityEngine.Rendering.Universal
         // GBuffer
         private DecalGBufferRenderPass m_GBufferRenderPass;
         private DecalDrawGBufferSystem m_DrawGBufferSystem;
-
         private DeferredLights m_DeferredLights;
 
         // Internal / Constants
@@ -230,6 +217,9 @@ namespace UnityEngine.Rendering.Universal
         /// <inheritdoc />
         public override void Create()
         {
+#if UNITY_EDITOR
+            ResourceReloader.TryReloadAllNullIn(this, UniversalRenderPipelineAsset.packagePath);
+#endif
             m_DecalPreviewPass = new DecalPreviewPass();
             m_RecreateSystems = true;
         }
@@ -283,7 +273,6 @@ namespace UnityEngine.Rendering.Universal
             }
 
             bool isDeferred = universalRenderer.renderingMode == RenderingMode.Deferred;
-            isDeferred |= universalRenderer.renderingMode == RenderingMode.DeferredPlus;
             return GetTechnique(isDeferred, universalRenderer.accurateGbufferNormals);
         }
 
@@ -296,7 +285,8 @@ namespace UnityEngine.Rendering.Universal
                 return DecalTechnique.Invalid;
             }
 
-            return GetTechnique(universalRenderer.usesDeferredLighting, universalRenderer.accurateGbufferNormals);
+            bool isDeferred = universalRenderer.renderingModeActual == RenderingMode.Deferred;
+            return GetTechnique(isDeferred, universalRenderer.accurateGbufferNormals);
         }
 
         internal DecalTechnique GetTechnique(bool isDeferred, bool needsGBufferAccurateNormals, bool checkForInvalidTechniques = true)
@@ -305,9 +295,7 @@ namespace UnityEngine.Rendering.Universal
             switch (m_Settings.technique)
             {
                 case DecalTechniqueOption.Automatic:
-                    if (isGLDevice)
-                        technique = isDeferred ? DecalTechnique.GBuffer : DecalTechnique.ScreenSpace;
-                    else if (IsAutomaticDBuffer() || isDeferred && needsGBufferAccurateNormals)
+                    if (IsAutomaticDBuffer() || isDeferred && needsGBufferAccurateNormals)
                         technique = DecalTechnique.DBuffer;
                     else if (isDeferred)
                         technique = DecalTechnique.GBuffer;
@@ -422,7 +410,9 @@ namespace UnityEngine.Rendering.Universal
                     break;
 
                 case DecalTechnique.GBuffer:
+
                     m_DeferredLights = universalRenderer.deferredLights;
+
                     m_DrawGBufferSystem = new DecalDrawGBufferSystem(m_DecalEntityManager);
                     m_GBufferRenderPass = new DecalGBufferRenderPass(m_ScreenSpaceSettings,
                         intermediateRendering ? m_DrawGBufferSystem : null, m_Settings.decalLayers);
@@ -432,7 +422,7 @@ namespace UnityEngine.Rendering.Universal
                     {
                         // the RenderPassEvent needs to be RenderPassEvent.AfterRenderingPrePasses + 1, so we are sure that if depth priming is enabled
                         // this copy happens after the primed depth is copied, so the depth texture is available
-                        m_CopyDepthPass = new DBufferCopyDepthPass(RenderPassEvent.AfterRenderingPrePasses + 1, rendererShaders.copyDepthPS, false);
+                        m_CopyDepthPass = new DBufferCopyDepthPass(RenderPassEvent.AfterRenderingPrePasses + 1, rendererShaders.copyDepthPS, false, universalRenderer.renderingModeActual != RenderingMode.Deferred);
                         m_DecalDrawDBufferSystem = new DecalDrawDBufferSystem(m_DecalEntityManager);
 
                         m_DBufferRenderPass = new DBufferRenderPass(m_DBufferClearMaterial, m_DBufferSettings, m_DecalDrawDBufferSystem, m_Settings.decalLayers);
@@ -509,6 +499,20 @@ namespace UnityEngine.Rendering.Universal
                 m_DecalCreateDrawCallSystem.Execute();
             }
 
+            if (m_Technique == DecalTechnique.DBuffer)
+            {
+                var universalRenderer = renderer as UniversalRenderer;
+                if (universalRenderer.renderingModeActual == RenderingMode.Deferred)
+                {
+                    m_CopyDepthPass.CopyToDepth = false;
+                }
+                else
+                {
+                    m_CopyDepthPass.CopyToDepth = true;
+                    m_CopyDepthPass.MssaSamples = 1;
+                }
+            }
+
             switch (m_Technique)
             {
                 case DecalTechnique.ScreenSpace:
@@ -526,9 +530,58 @@ namespace UnityEngine.Rendering.Universal
             }
         }
 
+        internal override bool SupportsNativeRenderPass()
+        {
+            return m_Technique == DecalTechnique.GBuffer || m_Technique == DecalTechnique.ScreenSpace;
+        }
+
+        /// <inheritdoc />
+        public override void SetupRenderPasses(ScriptableRenderer renderer, in RenderingData renderingData)
+        {
+            // Disable obsolete warning for internal usage
+            #pragma warning disable CS0618
+
+            if (renderer.cameraColorTargetHandle == null)
+                return;
+
+            if (m_Technique == DecalTechnique.DBuffer)
+            {
+                m_DBufferRenderPass.Setup(renderingData.cameraData);
+
+                var universalRenderer = renderer as UniversalRenderer;
+                if (universalRenderer.renderingModeActual == RenderingMode.Deferred)
+                {
+                    m_DBufferRenderPass.Setup(renderingData.cameraData, renderer.cameraDepthTargetHandle);
+
+                    m_CopyDepthPass.Setup(
+                        renderer.cameraDepthTargetHandle,
+                        universalRenderer.m_DepthTexture
+                    );
+                }
+                else
+                {
+                    m_DBufferRenderPass.Setup(renderingData.cameraData);
+
+                    m_CopyDepthPass.Setup(
+                        universalRenderer.m_DepthTexture,
+                        m_DBufferRenderPass.dBufferDepth
+                    );
+                    m_CopyDepthPass.CopyToDepth = true;
+                    m_CopyDepthPass.MssaSamples = 1;
+                }
+            }
+            else if (m_Technique == DecalTechnique.GBuffer && m_DeferredLights.UseFramebufferFetch)
+            {
+                // Need to call Configure for both of these passes to setup input attachments as first frame otherwise will raise errors
+                m_GBufferRenderPass.Configure(null, renderingData.cameraData.cameraTargetDescriptor);
+            }
+            #pragma warning restore CS0618
+        }
+
         /// <inheritdoc />
         protected override void Dispose(bool disposing)
         {
+            m_DBufferRenderPass?.Dispose();
             m_CopyDepthPass?.Dispose();
 
             CoreUtils.Destroy(m_DBufferClearMaterial);
@@ -540,11 +593,11 @@ namespace UnityEngine.Rendering.Universal
             }
         }
 
-        [Conditional("ENABLE_ADAPTIVE_PERFORMANCE")]
+        [Conditional("ADAPTIVE_PERFORMANCE_4_0_0_OR_NEWER")]
         private void ChangeAdaptivePerformanceDrawDistances()
         {
-#if ENABLE_ADAPTIVE_PERFORMANCE
-            if (UniversalRenderPipeline.asset?.useAdaptivePerformance == true)
+#if ADAPTIVE_PERFORMANCE_4_0_0_OR_NEWER
+            if (UniversalRenderPipeline.asset.useAdaptivePerformance)
             {
                 if (m_DecalCreateDrawCallSystem != null)
                 {

@@ -8,7 +8,7 @@ namespace UnityEngine.Rendering.Universal
     /// <summary>
     /// Renders the post-processing effect stack.
     /// </summary>
-    internal partial class PostProcessPassLegacy : ScriptableRenderPass
+    internal partial class PostProcessPass : ScriptableRenderPass
     {
         RenderTextureDescriptor m_Descriptor;
         RTHandle m_Source;
@@ -128,7 +128,7 @@ namespace UnityEngine.Rendering.Universal
         BloomMaterialParams m_BloomParamsPrev;
 
         /// <summary>
-        /// Creates a new <c>PostProcessPassLegacy</c> instance.
+        /// Creates a new <c>PostProcessPass</c> instance.
         /// </summary>
         /// <param name="evt">The <c>RenderPassEvent</c> to use.</param>
         /// <param name="data">The <c>PostProcessData</c> resources to use.</param>
@@ -136,9 +136,9 @@ namespace UnityEngine.Rendering.Universal
         /// <seealso cref="RenderPassEvent"/>
         /// <seealso cref="PostProcessData"/>
         /// <seealso cref="PostProcessParams"/>
-        public PostProcessPassLegacy(RenderPassEvent evt, PostProcessData data, ref PostProcessParams postProcessParams)
+        public PostProcessPass(RenderPassEvent evt, PostProcessData data, ref PostProcessParams postProcessParams)
         {
-            profilingSampler = new ProfilingSampler(nameof(PostProcessPassLegacy));
+            profilingSampler = new ProfilingSampler(nameof(PostProcessPass));
             renderPassEvent = evt;
             m_Data = data;
             m_Materials = new MaterialLibrary(data);
