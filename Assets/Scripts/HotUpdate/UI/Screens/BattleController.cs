@@ -61,8 +61,7 @@ namespace SynergyUI
         /// <summary>棋盘占用层接线：注入碾压 AdjacentResolver + 连接光环 LinkAuraSystem（核心不绑棋盘，由宿主组装）。</summary>
         private void AttachBoard()
         {
-            _board?.Dispose();
-            GameBoard.LinkAuraSystem.Detach(); // 上一局的接线归零（静态扩展点惯例）
+            DetachBoard();
             var core = GameCore.Instance;
             if (core?.Player1 == null || core.Player2 == null) return;
             _board = new GameBoard.BoardState(core, core.Player1, core.Player2,
@@ -70,6 +69,21 @@ namespace SynergyUI
             _board.EnableAutoResync();
             CombatSystem.AdjacentResolver = _board.Neighbors;
             GameBoard.LinkAuraSystem.Attach(_board); // 连接光环（三轨制）：箭头指向格占据者享受 linkAuras
+        }
+
+        /// <summary>
+        /// 棋盘接线归零（退出对局时调用，对齐 NetRoom.TeardownMatch 惯例）：
+        /// 静态扩展点不清理会指向已过期的占用层——同进程后续开验证器/headless 局时
+        /// 碾压/光环会按旧棋盘结算（BattlefieldVerifier S5 生命周期断言锁定此口径）。
+        /// </summary>
+        public void Shutdown() => DetachBoard();
+
+        private void DetachBoard()
+        {
+            _board?.Dispose();
+            _board = null;
+            CombatSystem.AdjacentResolver = null;
+            GameBoard.LinkAuraSystem.Detach();
         }
 
         // ======================================== 攻击与响应窗口（2026-09-16 逐攻击开窗） ========================================

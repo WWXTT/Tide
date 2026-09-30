@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 
 namespace CardCore
@@ -9,7 +8,7 @@ namespace CardCore
     /// 效果基类
     /// 卡牌能力效果的抽象基类
     /// </summary>
-    public abstract class Effect : ScriptableObject
+    public abstract class Effect
     {
         /// <summary>
         /// 效果ID
@@ -24,7 +23,6 @@ namespace CardCore
         /// <summary>
         /// 效果描述
         /// </summary>
-        [TextArea]
         public string Description { get; set; }
 
         /// <summary>

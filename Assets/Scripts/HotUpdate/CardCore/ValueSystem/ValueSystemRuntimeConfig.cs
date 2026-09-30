@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using UnityEngine;
 using CardCore.Attribute; // AtomicEffectTable
 
 namespace CardCore
@@ -105,7 +104,7 @@ namespace CardCore
         {
             if (conditions == null || conditions.Count == 0) return 1.0f;
             // 每个条件减少5%价值（条件越严格，价值越低）
-            return Mathf.Max(0.5f, 1.0f - conditions.Count * 0.05f);
+            return Math.Max(0.5f, 1.0f - conditions.Count * 0.05f);
         }
 
         public float GetCombinedModifier(float timing, float condition, float trigger)
@@ -149,7 +148,7 @@ namespace CardCore
             if (applyValue && value > 0)
             {
                 // 数值型效果：基础价值 * 数值，但有边际递减
-                return baseValue * Mathf.Log(1 + value, 2);
+                return baseValue * (float)Math.Log(1 + value, 2);
             }
 
             return baseValue;
@@ -377,10 +376,10 @@ namespace CardCore
         /// </summary>
         private static ValueSystemRuntimeConfig LoadFromJson()
         {
-            string path = Path.Combine(Application.dataPath, ConfigRelativePath);
+            string path = Path.Combine(TidePaths.DataPath, ConfigRelativePath);
             if (!File.Exists(path))
             {
-                Debug.LogWarning($"[ValueSystemConfigManager] 配置文件不存在: {path}，使用代码默认值");
+                TideLog.Warn($"[ValueSystemConfigManager] 配置文件不存在: {path}，使用代码默认值");
                 return null;
             }
 
@@ -390,7 +389,7 @@ namespace CardCore
             // CostOffsetConfig.json 已删（2026-09-14 代价原子化）：CardCost 三行（StatUnit/
             // KeywordsShareDelayDiscount/MaxTier）已回迁本表；机制行与当量行随抵消系统退役。
             if (applied == 0)
-                Debug.LogWarning($"[ValueSystemConfigManager] 未从 {ConfigRelativePath} 灌入任何条目");
+                TideLog.Warn($"[ValueSystemConfigManager] 未从 {ConfigRelativePath} 灌入任何条目");
             return config;
         }
 
@@ -404,7 +403,7 @@ namespace CardCore
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[ValueSystemConfigManager] 加载 {path} 失败: {e.Message}，跳过该文件");
+                TideLog.Warn($"[ValueSystemConfigManager] 加载 {path} 失败: {e.Message}，跳过该文件");
                 return 0;
             }
             if (entries == null) return 0;
@@ -418,14 +417,14 @@ namespace CardCore
                 var section = typeof(ValueSystemRuntimeConfig).GetField(entry.Category + "Config");
                 if (section == null)
                 {
-                    Debug.LogWarning($"[ValueSystemConfigManager] 未知 Category='{entry.Category}'（Key={entry.Key}），已跳过");
+                    TideLog.Warn($"[ValueSystemConfigManager] 未知 Category='{entry.Category}'（Key={entry.Key}），已跳过");
                     continue;
                 }
 
                 var field = section.FieldType.GetField(entry.Key);
                 if (field == null)
                 {
-                    Debug.LogWarning($"[ValueSystemConfigManager] {entry.Category} 无同名字段 '{entry.Key}'，已跳过");
+                    TideLog.Warn($"[ValueSystemConfigManager] {entry.Category} 无同名字段 '{entry.Key}'，已跳过");
                     continue;
                 }
 
@@ -443,7 +442,7 @@ namespace CardCore
             string wrapped = trimmed.StartsWith("[")
                 ? "{\"items\":" + raw + "}"
                 : raw; // 已是对象（含 items）则直接用
-            var wrapper = JsonUtility.FromJson<ValueSystemConfigWrapper>(wrapped);
+                    var wrapper = TideJson.FromJson<ValueSystemConfigWrapper>(wrapped);
             return wrapper?.items;
         }
 

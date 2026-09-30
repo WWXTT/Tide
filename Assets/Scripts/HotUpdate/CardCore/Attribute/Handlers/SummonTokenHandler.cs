@@ -44,7 +44,7 @@ namespace CardCore.Attribute.Handlers
             var templateSupertype = template is IHasSupertype ht ? ht.Supertype : template.Supertype;
             if (templateSupertype != Cardtype.Creature)
             {
-                UnityEngine.Debug.LogWarning($"[SummonTokenHandler] 衍生物模板 {templateId} 不是生物卡，跳过");
+                TideLog.Warn($"[SummonTokenHandler] 衍生物模板 {templateId} 不是生物卡，跳过");
                 return;
             }
 

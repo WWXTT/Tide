@@ -47,16 +47,26 @@ namespace CardCore.Network
         public NetRoom Room => _room;
         public int Port => _host.Port;
 
-        /// <summary>是否有大厅实例在运行（2026-09-24）：UIBootstrap.Update 的引擎驱动闸——
-        /// 同进程宿主对局期间，GameCore 由本服务器泵独占驱动，UI 层每帧 Update 会
-        /// 双驱动引擎（旧 GameLoopController 自由滑相位口径下即整局相位空转）。</summary>
+        /// <summary>是否有大厅实例在运行（2026-09-24）：粗粒度运行标记。
+        /// 引擎驱动闸（UIBootstrap.Update）请改读 <see cref="Current"/> 的 <see cref="HasLiveMatch"/>
+        /// ——2026-09-26 大厅随 Play 模式自动常驻后，非对局期间不得拦截 GameCore.Update
+        /// （本地 AI 对战仍需 UI 帧驱推进）。</summary>
         public static bool IsRunning { get; private set; }
+
+        /// <summary>当前进程的大厅实例（Start 登记 / Stop 清空）——UI 层驱动闸读取对局托管状态。</summary>
+        public static NetLobbyServer Current { get; private set; }
+
+        /// <summary>是否正托管对局（等卡组/对战中）——此期间 GameCore 由服务器泵独占驱动，
+        /// UI 层 Update 不得再驱（双驱动=响应窗口/触发收集被两路交错管理）。</summary>
+        public bool HasLiveMatch =>
+            _room.Phase == NetRoomPhase.DeckSubmit || _room.Phase == NetRoomPhase.Playing;
 
         /// <summary>开始监听（port=0 由 OS 分配空闲口）。</summary>
         public void Start(int port)
         {
             _host.Start(port);
             IsRunning = true;
+            Current = this;
             _log?.Invoke($"[NetLobby] 大厅服务器监听 0.0.0.0:{_host.Port}（单房串行）");
         }
 
@@ -64,6 +74,7 @@ namespace CardCore.Network
         public void Stop()
         {
             IsRunning = false;
+            if (ReferenceEquals(Current, this)) Current = null;
             foreach (var ai in _ais)
             {
                 ai.Stop = true;

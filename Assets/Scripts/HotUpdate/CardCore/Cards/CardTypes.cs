@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 
 namespace CardCore
 {
     /// <summary>
     /// 效果表数据结构
-    /// 用于 ScriptableObject 配置效果数据
+    /// 旧编辑器路径的效果配置数据（2026-09-27 去 Unity 化：原注释"用于 ScriptableObject 配置效果数据"）
     /// </summary>
     [Serializable]
     public class Effect_table
@@ -15,38 +14,31 @@ namespace CardCore
         /// <summary>
         /// 效果缩写/ID
         /// </summary>
-        [Tooltip("效果缩写，用于唯一标识效果")]
         public string Effect_Abbreviation;
 
         /// <summary>
         /// 是否为主动效果
         /// </summary>
-        [Tooltip("是否为主动效果")]
         public bool Initiative;
 
         /// <summary>
         /// 效果参数
         /// </summary>
-        [Tooltip("效果参数值")]
         public float Parameters;
 
         /// <summary>
         /// 效果速度
         /// </summary>
-        [Tooltip("效果速度")]
         public EffectSpeed EffctSpeed;
 
         /// <summary>
         /// 法力类型
         /// </summary>
-        [Tooltip("对应的法力类型")]
         public ManaType Mana_type;
 
         /// <summary>
         /// 效果描述
         /// </summary>
-        [Tooltip("效果的详细描述")]
-        [TextArea(3, 10)]
         public string Effect_Description;
     }
 

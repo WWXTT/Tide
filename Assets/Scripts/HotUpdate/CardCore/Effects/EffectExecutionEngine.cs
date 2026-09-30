@@ -218,7 +218,7 @@ namespace CardCore
                 {
                     if (!await CostCompensationService.PayWithCompensationAsync(specialCosts, costContext))
                     {
-                        UnityEngine.Debug.LogWarning($"[EffectExecutor] 效果 {effect.Id} 特殊代价付不出——空转（不回滚不断链）");
+                        TideLog.Warn($"[EffectExecutor] 效果 {effect.Id} 特殊代价付不出——空转（不回滚不断链）");
                         instance.IsResolved = true;
                         return;
                     }
@@ -227,7 +227,7 @@ namespace CardCore
                 if (!skipElementCost && !effect.ElementCostPrepaid && elementCosts.Count > 0 &&
                     !ElementCostPayment.Pay(elementCosts, costContext))
                 {
-                    UnityEngine.Debug.LogWarning($"[EffectExecutor] 效果 {effect.Id} 元素费付不出——空转（不回滚不断链）");
+                    TideLog.Warn($"[EffectExecutor] 效果 {effect.Id} 元素费付不出——空转（不回滚不断链）");
                     instance.IsResolved = true;
                     return;
                 }
@@ -1616,7 +1616,7 @@ namespace CardCore
             if (missing.Count > 0)
             {
                 // 诊断级信息（已知债务清单，非运行时故障）：LogError 会让测试框架/CI 判败，降为警告
-                UnityEngine.Debug.LogWarning(
+                TideLog.Warn(
                     $"[BuiltinHandlerBootstrap] 缺失原子效果处理器 {missing.Count} 种：" +
                     string.Join(", ", missing));
             }

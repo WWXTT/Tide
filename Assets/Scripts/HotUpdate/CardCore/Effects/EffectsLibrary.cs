@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using UnityEngine;
 
 namespace CardCore
 {
@@ -33,10 +32,10 @@ namespace CardCore
                 string path = SynergyUI.CardDataPaths.FileIn("Effects.json");
                 if (!File.Exists(path))
                 {
-                    Debug.LogWarning($"[EffectsLibrary] 效果库不存在: {path}（卡表 effectIds 引用将解析为空）");
+                    TideLog.Warn($"[EffectsLibrary] 效果库不存在: {path}（卡表 effectIds 引用将解析为空）");
                     return;
                 }
-                var wrapper = JsonUtility.FromJson<Wrapper>(File.ReadAllText(path));
+                var wrapper = TideJson.FromJson<Wrapper>(File.ReadAllText(path));
                 if (wrapper?.items == null) return;
                 foreach (var it in wrapper.items)
                 {
@@ -48,7 +47,7 @@ namespace CardCore
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[EffectsLibrary] 加载 {ConfigRelative} 失败: {e.Message}");
+                TideLog.Warn($"[EffectsLibrary] 加载 {ConfigRelative} 失败: {e.Message}");
             }
         }
 
@@ -81,7 +80,7 @@ namespace CardCore
             var it = Get(id);
             if (it == null)
             {
-                Debug.LogWarning($"[EffectsLibrary] 效果引用缺失: {id}（Effects.json 无此条）");
+                TideLog.Warn($"[EffectsLibrary] 效果引用缺失: {id}（Effects.json 无此条）");
                 return null;
             }
             return EffectSlim.ToCardEffect(it);

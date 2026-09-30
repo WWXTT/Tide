@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using CardCore;
 using CardCore.Attribute;
-using UnityEngine;
 
 namespace SynergyUI
 {
@@ -64,8 +63,8 @@ namespace SynergyUI
             string tpl = cfg != null && !string.IsNullOrEmpty(cfg.Description) ? cfg.Description : atom.refId;
 
             int v = atom.value;
-            int span = atom.amp > 0f ? Mathf.RoundToInt(Math.Abs(v) * atom.amp) : 0;
-            string number = span > 0 ? $"{Mathf.Max(0, v - span)}至{v + span}" : v.ToString();
+            int span = atom.amp > 0f ? TideMath.RoundToInt(Math.Abs(v) * atom.amp) : 0;
+            string number = span > 0 ? $"{Math.Max(0, v - span)}至{v + span}" : v.ToString();
             // {target} → 实例域名次（2026-09-22 五轮：单值域显作用对象；表默认/多值保持「目标」）
             string body = tpl.Replace("{value}", number).Replace("{target}", TargetNoun(atom));
             if (span > 0) body = "随机 " + body;

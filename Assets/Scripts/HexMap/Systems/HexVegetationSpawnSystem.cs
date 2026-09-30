@@ -32,6 +32,7 @@ namespace HexMap
         private EntityQuery _featureQuery;
         private HexChunkStreamingSystem _streaming;
         private readonly List<PendingInstance> _pending = new();
+        private Entity _lastFeatureEntity;
 
         protected override void OnCreate()
         {
@@ -42,8 +43,20 @@ namespace HexMap
         protected override void OnUpdate()
         {
             var em = EntityManager;
-            var state = em.GetComponentData<HexFeatureState>(_featureQuery.GetSingletonEntity());
-            var featureConfig = em.GetComponentData<HexFeatureConfig>(_featureQuery.GetSingletonEntity());
+            var featureEntity = _featureQuery.GetSingletonEntity();
+
+            // 跨局复位（2026-09-27 真HexMap战场）：_pending 残留会在新局首帧绕过
+            // starting/dirty 检查无条件冲刷，把上一局的散布实例投进新战场——
+            // 以特征单例实体更换为「新的一局」信号，清队列重解析流式系统。
+            if (_lastFeatureEntity != featureEntity)
+            {
+                _lastFeatureEntity = featureEntity;
+                _pending.Clear();
+                _streaming = null;
+            }
+
+            var state = em.GetComponentData<HexFeatureState>(featureEntity);
+            var featureConfig = em.GetComponentData<HexFeatureConfig>(featureEntity);
 
             // 流式系统必须先于 Collect 解析：旧顺序在 Collect 之后才赋值 _streaming，
             // 而 CollectPendingInstances 依赖 _streaming.CellLookup —— 首帧 Collect 必拿

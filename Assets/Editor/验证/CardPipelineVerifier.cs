@@ -211,6 +211,11 @@ namespace CardCore.Editor
             var sbaDeck2 = deckData.Count > 0 ? CardLoader.BuildDeck(deckData, 1) : new List<Card>();
             core.InitGame(sbaDeck1, sbaDeck2);
             TestSbaWindow(core, core.Player1, core.Player2);
+
+            // 战场辅助检查（2026-09-26）：数学全量性质/事件驱动占用/格位三方对拍/容量边界/
+            // 接线生命周期卫生——独立开新局不共享本 core，自归零静态扩展点（放最末）
+            Crumb("→TestBattlefieldAux");
+            BattlefieldVerifier.RunEmbedded(Assert);
             Crumb("all sections done");
 
             // 仪式段屏蔽（2026-09-10）：内容未就绪
@@ -225,6 +230,9 @@ namespace CardCore.Editor
             Debug.Log($"[Verify] 对局日志导出：{verifyLog ?? "无条目未导出"}");
 
             Debug.Log($"[Verify] 完成 — PASS={_pass} FAIL={_fail}");
+            // 统计行落盘（2026-09-26）：控制台桥/批处理下可靠读取（Logs/VerifyStats.txt 追加）
+            try { File.AppendAllText(Path.Combine("Logs", "VerifyStats.txt"),
+                $"{System.DateTime.Now:HH:mm:ss} PASS={_pass} FAIL={_fail}\n"); } catch { }
             CardCore.GameActions.CrumbEnabled = false;
             if (_fail == 0)
                 Debug.Log("[Verify] ✅ 整条链路贯通：读配置→组卡→对局结算");

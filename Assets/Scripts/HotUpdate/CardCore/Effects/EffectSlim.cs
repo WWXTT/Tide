@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore.Attribute;
-using UnityEngine;
 
 namespace CardCore
 {
@@ -104,10 +103,10 @@ namespace CardCore
             if (ar == null || string.IsNullOrEmpty(ar.refId)) return null;
             if (AtomicEffectTable.GetByHashId(ar.refId) == null)
             {
-                Debug.LogWarning($"[EffectSlim] 原子表引用缺失: {ar.refId}（表无此行）——剔除");
+                TideLog.Warn($"[EffectSlim] 原子表引用缺失: {ar.refId}（表无此行）——剔除");
                 return null;
             }
-            ar.amp = Mathf.Clamp(ar.amp, 0f, 1f);
+            ar.amp = Math.Clamp(ar.amp, 0f, 1f);
             return ar;
         }
 
@@ -159,7 +158,7 @@ namespace CardCore
             if (a == null || string.IsNullOrEmpty(a.refId)) return null;
             if (AtomicEffectTable.GetByHashId(a.refId) == null)
             {
-                Debug.LogWarning($"[EffectSlim] 原子表引用缺失: {a.refId}——不入瘦格式");
+                TideLog.Warn($"[EffectSlim] 原子表引用缺失: {a.refId}——不入瘦格式");
                 return null;
             }
             return a;

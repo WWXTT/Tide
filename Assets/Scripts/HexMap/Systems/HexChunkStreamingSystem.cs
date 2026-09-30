@@ -1,6 +1,7 @@
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using UnityEngine;
 
 namespace HexMap
 {
@@ -133,6 +134,32 @@ namespace HexMap
                         CreateCell(key, ref blob, in metrics);
                 }
             }
+        }
+
+        /// <summary>
+        /// 整图卸载（战场拆除用，与半径滞回卸载无关）：销毁全部 cell 实体并清空映射表。
+        /// cell 实体自带网格——先销毁 MeshReference 持有的托管 Mesh 再毁实体，防泄漏
+        /// （半径卸载路径复用 cell 会重建，此处战场不复用必须连 Mesh 一起收）。
+        /// 调用方随后须销毁 HexMapConfig，否则本系统会在相机半径内把 cell 重建回来。
+        /// </summary>
+        public void UnloadAll()
+        {
+            var keys = _cellLookup.GetKeyArray(Allocator.Temp);
+            var em = EntityManager;
+            for (int i = 0; i < keys.Length; i++)
+            {
+                if (!_cellLookup.TryGetValue(keys[i], out var cellEntity) || !em.Exists(cellEntity))
+                    continue;
+                if (em.HasComponent<MeshReference>(cellEntity))
+                {
+                    var mesh = em.GetComponentData<MeshReference>(cellEntity).Mesh;
+                    if (mesh != null)
+                        Object.Destroy(mesh);
+                }
+                em.DestroyEntity(cellEntity);
+            }
+            keys.Dispose();
+            _cellLookup.Clear();
         }
 
         /// <summary>

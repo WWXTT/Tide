@@ -187,14 +187,12 @@ namespace CardCore
             // 重检+支付：窗口内被冻结抢先横置/死亡 → 拦截落空（不支付不回滚）
             if (!guarder.IsAlive || guarder.IsTapped())
             {
-                UnityEngine.Debug.Log($"[CMBTDBG] 守卫拦截落空：守卫者不可用（{(guarder is Card gc ? gc.ID : "玩家")}）");
                 return;
             }
             guarder.Tap(); // 守卫拦截横置自身（被动代价不对称：攻击/守卫均在结算期支付）
 
             // 攻击目标变更：改写攻击宣言对象的目标（攻击结算时按改写后目标走 CanAttackTarget 重检）
             attack.Targets[0] = guarder;
-            UnityEngine.Debug.Log($"[CMBTDBG] 守卫拦截：{(guarder is Card g ? g.ID : "玩家")} 改写攻击目标");
 
             EventManager.Instance.Publish(new BlockDeclarationEvent
             {
@@ -223,7 +221,6 @@ namespace CardCore
                 || target == null || !target.IsAlive
                 || !CanAttackTarget(attacker, target, attack.Controller))
             {
-                UnityEngine.Debug.Log($"[CMBTDBG] 攻击落空：重检失败 攻击者={(attacker is Card ac ? ac.ID : "玩家")} 目标={(target is Card tc ? tc.ID : "玩家")}");
                 EventManager.Instance.Publish(new CombatCancelledEvent
                 {
                     Attacker = attacker,
@@ -260,7 +257,6 @@ namespace CardCore
         private void ResolvePair(Entity attacker, Entity target)
         {
             int attackerPower = GetPower(attacker);
-            UnityEngine.Debug.Log($"[CMBTDBG] 结算配对：攻击者={(attacker is Card ac ? ac.ID : "玩家")} 攻击力={attackerPower} 目标={(target is Card tc ? tc.ID : "玩家")} 攻击者先手={attacker.HasKeyword(KeywordRules.FirstStrike) || attacker.HasKeyword(KeywordRules.DoubleStrike)}");
             // 双向结算：随从目标按层引擎力量反击；角色（玩家）目标反伤走武器扩展点
             //（无武器/未接线 = 0，不反伤——见类头武器系统 TODO 注释）
             int targetPower = target is Card ? GetPower(target)
@@ -352,7 +348,6 @@ namespace CardCore
         /// </summary>
         private void DealCombatDamage(Entity source, Entity target, int amount)
         {
-            UnityEngine.Debug.Log($"[CMBTDBG] 造成战斗伤害：来源={(source is Card sc ? sc.ID : "玩家")} 目标={(target is Card tdc ? tdc.ID : "玩家")} 数值={amount} 目标存活={target?.IsAlive}");
             if (amount <= 0 || target == null || !target.IsAlive) return;
 
             KeywordRules.ApplyDamage(source, target, amount, true);

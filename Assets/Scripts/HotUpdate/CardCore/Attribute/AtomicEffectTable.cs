@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
-using UnityEngine;
 
 namespace CardCore.Attribute
 {
@@ -13,9 +12,9 @@ namespace CardCore.Attribute
     /// </summary>
     public static class AtomicEffectTable
     {
-        // 配置寻址（2026-09-29 Configs 划入热更区）：YooAsset 地址=文件名（AddressByFileName），
-        // dataPath 相对路径用于编辑器 File 直读兜底（直改 JSON 后 Reload 免重启）。
-        private const string ConfigAddress = "AttributeValueConfig";
+        // 配置寻址（2026-09-30 合并定案）：共享源统一走 TidePaths.ReadConfigText（相对 dataPath 路径）。
+        // 服务器/编辑器=文件直读（直改 JSON 后 Reload 免重启）；真机由宿主装配 YooAsset 热更包
+        // （HotUpdateEntry 装钩子，地址=文件名 AddressByFileName）。
         private const string ConfigRelativePath = "Configs/AttributeValueConfig.json";
 
         private static Dictionary<int, AtomicEffectConfig> _idMap;
@@ -42,11 +41,11 @@ namespace CardCore.Attribute
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[AtomicEffectTable] 加载 {ConfigRelativePath} 失败: {e.Message}");
+                TideLog.Warn($"[AtomicEffectTable] 加载 {ConfigRelativePath} 失败: {e.Message}");
             }
 
             if (loaded == 0)
-                Debug.LogWarning($"[AtomicEffectTable] 未从 JSON 加载到任何条目（配置缺失或解析失败）");
+                TideLog.Warn($"[AtomicEffectTable] 未从 JSON 加载到任何条目（配置缺失或解析失败）");
         }
 
         /// <summary>强制重读表（2026-09-14 合成器「读取原子表」按钮——外部直改 JSON 后免重启刷新；
@@ -56,10 +55,10 @@ namespace CardCore.Attribute
         /// <summary>从 JSON 薄配置加载并与引擎默认值合并，返回成功合入的条目数</summary>
         private static int LoadFromJson()
         {
-            string raw = Tide.HotUpdate.HotUpdateAssets.LoadText(ConfigAddress, ConfigRelativePath);
+            string raw = TidePaths.ReadConfigText(ConfigRelativePath);
             if (string.IsNullOrEmpty(raw))
             {
-                Debug.LogWarning($"[AtomicEffectTable] 配置不可读：YooAsset[{ConfigAddress}] / {ConfigRelativePath}");
+                TideLog.Warn($"[AtomicEffectTable] 配置不可读：{ConfigRelativePath}");
                 return 0;
             }
             var entries = ParseEntries(raw);
@@ -72,7 +71,7 @@ namespace CardCore.Attribute
                 if (entry == null || string.IsNullOrEmpty(entry.EffectType)) continue;
                 if (!Enum.TryParse<AtomicEffectType>(entry.EffectType, out var type))
                 {
-                    Debug.LogWarning($"[AtomicEffectTable] 无法解析 EffectType='{entry.EffectType}'（EnumName={entry.EnumName}），已跳过");
+                    TideLog.Warn($"[AtomicEffectTable] 无法解析 EffectType='{entry.EffectType}'（EnumName={entry.EnumName}），已跳过");
                     continue;
                 }
 
@@ -133,7 +132,7 @@ namespace CardCore.Attribute
                 // 不落 "0,1" 宽域兜底——兜底仅在整行缺失 entry==null 时生效）
                 config.TargetKinds = entry.TargetKinds;
                 if (!string.IsNullOrEmpty(entry.TargetFilter)) config.TargetFilter = entry.TargetFilter;
-                config.Polarity = UnityEngine.Mathf.Clamp(entry.Polarity, -1f, 1f);
+                config.Polarity = Math.Clamp(entry.Polarity, -1f, 1f);
 
                 // 可装载范围（2026-09-11）：空 = 未声明 → 兜底 "不限"（向后兼容存量行，逐步收紧）
                 config.MountKinds = string.IsNullOrEmpty(entry.MountKinds) ? "0,1,2,3,4,5,6" : entry.MountKinds;
@@ -156,7 +155,7 @@ namespace CardCore.Attribute
             string wrapped = trimmed.StartsWith("[")
                 ? "{\"items\":" + raw + "}"
                 : raw; // 已是对象（含 items）则直接用
-            var wrapper = JsonUtility.FromJson<AttributeValueConfigWrapper>(wrapped);
+            var wrapper = TideJson.FromJson<AttributeValueConfigWrapper>(wrapped);
             return wrapper?.items;
         }
 

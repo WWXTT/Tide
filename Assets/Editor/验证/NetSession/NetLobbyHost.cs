@@ -8,21 +8,53 @@ using UnityEngine;
 namespace CardCore.Editor.NetSession
 {
     /// <summary>
-    /// 大厅服务器宿主（L1，2026-09-24，镜像 NetSessionHost 模式）：
+    /// 大厅服务器宿主（L1，2026-09-24；2026-09-26 改为随 Play 模式自动起停）：
     ///
-    /// - 编辑器菜单「Tools/大厅服务器」：起/停本机大厅（房间列表/自动匹配/AI 填位），
-    ///   EditorApplication.update 驱动泵。编辑器 Play 模式下照常运转——本机 UI 客户端
-    ///   （MatchScreen）连 127.0.0.1 即可单人全流程测试（配 AI 填位当对手）。
+    /// - **自动托管**：进入 Play 模式即自动启动本机大厅（房间列表/自动匹配/AI 填位），
+    ///   退出 Play 模式即停止——[InitializeOnLoad] 挂 playModeStateChanged，无需菜单操作。
+    ///   EditorApplication.update 驱动泵；本机 UI 客户端（MatchScreen）连 127.0.0.1 即可
+    ///   单人全流程测试（配 AI 填位当对手）。非对局期间大厅空转，不干扰本地 AI 对战
+    ///   （UIBootstrap 的引擎驱动闸只在对局期间停驱——见 NetLobbyServer.HasLiveMatch）。
     /// - batchmode：-executeMethod CardCore.Editor.NetSession.NetLobbyHost.Main -netPort N，
     ///   供另一台机器/关闭编辑器时做真人双端宿主（阻塞自旋 ~60Hz）。
     /// </summary>
+    [InitializeOnLoad]
     public static class NetLobbyHost
     {
         private const int DefaultPort = 8090;
 
         private static NetLobbyServer _server;
 
-        [MenuItem("Tools/大厅服务器/启动（本机）")]
+        static NetLobbyHost()
+        {
+            EditorApplication.playModeStateChanged += OnPlayModeChanged;
+        }
+
+        /// <summary>Play 模式进出自动起停（2026-09-26 定案）：运行=开服，停止=关服。
+        /// 端口被占（双编辑器实例联机：另一实例已是宿主）时静默退位——本实例作为纯客户端。</summary>
+        private static void OnPlayModeChanged(PlayModeStateChange state)
+        {
+            switch (state)
+            {
+                case PlayModeStateChange.EnteredPlayMode:
+                    if (_server != null)
+                    {
+                        Debug.Log("[NetLobby] 沿用已在运行的大厅服务器（进入 Play 模式）");
+                        break;
+                    }
+                    try { StartServer(); }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[NetLobby] 自动启动失败（{ex.Message}）——本实例作为纯客户端，请连接对方大厅");
+                    }
+                    break;
+
+                case PlayModeStateChange.ExitingPlayMode:
+                    if (_server != null) StopServer();
+                    break;
+            }
+        }
+
         public static void StartServer()
         {
             if (_server != null)
@@ -30,12 +62,12 @@ namespace CardCore.Editor.NetSession
                 Debug.LogWarning("[NetLobby] 服务器已在运行");
                 return;
             }
-            _server = new NetLobbyServer("lobby", Debug.Log);
-            _server.Start(DefaultPort);
+            var server = new NetLobbyServer("lobby", Debug.Log);
+            server.Start(DefaultPort); // 监听失败（端口占用等）抛出——_server 保持 null，宿主退位
+            _server = server;
             EditorApplication.update += PumpEditor;
         }
 
-        [MenuItem("Tools/大厅服务器/停止")]
         public static void StopServer()
         {
             if (_server == null)

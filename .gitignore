@@ -6,6 +6,8 @@
 /Logs/
 /obj/
 /Temp/
+/TideServer/bin/
+/TideServer/obj/
 /.vs/
 /.idea/
 /tide_rl/logs/

@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
 using CardCore;
-using UnityEngine;
 
 namespace SynergyUI
 {
@@ -44,7 +43,7 @@ namespace SynergyUI
                 string path = CardDataPaths.FileIn("Cards.json");
                 if (!File.Exists(path))
                 {
-                    Debug.LogWarning($"[CardCatalog] 卡表未找到: {path}");
+                    TideLog.Warn($"[CardCatalog] 卡表未找到: {path}");
                     _cache = new List<CardData>();
                     _byId = new Dictionary<string, CardData>();
                     return _cache;

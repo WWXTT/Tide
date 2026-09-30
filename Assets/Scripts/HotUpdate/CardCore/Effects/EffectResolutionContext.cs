@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using UnityEngine;
 namespace CardCore
 {
     public class EffectResolutionContext
@@ -69,7 +68,7 @@ namespace CardCore
         }
     }
 
-    public abstract class EffectLogic : ScriptableObject
+    public abstract class EffectLogic
     {
         public abstract void Execute(
             EffectInstance effect,

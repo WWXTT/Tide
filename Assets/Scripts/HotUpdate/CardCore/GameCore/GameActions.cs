@@ -34,8 +34,11 @@ namespace CardCore
             if (!elementPool.AddCardToPool(card, player, modeIndex))
                 return false;
 
-            // 从手牌移到元素池区域
+            // 从手牌移到元素池区域，然后发布入池事件（时序定案 2026-09-26：
+            // 事件须在区域列表落定后发布——BoardState.AutoResync 等区域派生观察者
+            // 立即读到正确占用，棋盘地牌行不滞后）
             core.ZoneManager.MoveCard(card, player, Zone.Hand, Zone.ElementPool);
+            elementPool.PublishPoolAdd(card, player);
 
             return true;
         }
@@ -202,26 +205,35 @@ namespace CardCore
         /// fromZone：出牌来源区（默认手牌；Graveyard = 归土仪典「墓地视手牌中使用」路径）。
         /// </summary>
         public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets = null, Zone fromZone = Zone.Hand, int modeIndex = 0)
+            => PlayCard(core, player, card, targets, fromZone, modeIndex, out _);
+
+        /// <summary>同 <see cref="PlayCard(GameCore,Player,Card,List{Entity},Zone,int)"/>，附带精确拒绝原因（网络 Error 帧直读——2026-09-26 联机排查：通用「门禁」文案无法区分 费用/目标/时点）。</summary>
+        public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets, Zone fromZone, int modeIndex, out string rejectReason)
         {
-            if (core == null || player == null || card == null) return false;
-            if (core.TurnEngine.TurnPlayer != player) return false;
-            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
+            rejectReason = null;
+            if (core == null || player == null || card == null) { rejectReason = "内部错误：空参数"; return false; }
+            if (core.TurnEngine.TurnPlayer != player) { rejectReason = "现在不是你的回合"; return false; }
+            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main)
+            { rejectReason = $"出牌只能在你的主阶段（当前：{core.TurnEngine.CurrentPhase?.Phase}）"; return false; }
 
             // 检查卡牌在来源区
             var sourceZone = core.ZoneManager.GetCards(player, fromZone);
-            if (!sourceZone.Contains(card)) return false;
+            if (!sourceZone.Contains(card)) { rejectReason = $"卡不在{fromZone}（快照过期？请重试）"; return false; }
 
             // 规则扩展点（OCP）：出牌限制（如信息轴锁定）经注册表询问
-            if (!RuleHooks.CanPlay(core, player, card, fromZone)) return false;
+            if (!RuleHooks.CanPlay(core, player, card, fromZone))
+            { rejectReason = "出牌受限（规则锁定）"; return false; }
 
             // 目标域预检（2026-09-10 定案：运行时无候选不可发动）
-            if (!TargetDomainService.HasPlayableTargets(core, player, card, modeIndex)) return false;
+            if (!TargetDomainService.HasPlayableTargets(core, player, card, modeIndex))
+            { rejectReason = "无合法目标（当前场上没有该卡可选的对象）"; return false; }
 
             // 规则扩展点（OCP）：非手牌来源（如墓地视手牌使用）经注册表取得并占用配额
             if (fromZone != Zone.Hand)
             {
                 var playSource = RuleHooks.GetPlaySource(fromZone);
-                if (playSource == null || !playSource.TryBeginUse(player)) return false;
+                if (playSource == null || !playSource.TryBeginUse(player))
+                { rejectReason = $"{fromZone}使用配额已用尽（每回合一次）"; return false; }
             }
 
             bool isSpell = card.IsSpellCard();
@@ -229,7 +241,7 @@ namespace CardCore
             // 永久物：战场容量预检（满场不允许发动，SimpleAI 依赖 false 跳过；
             // 「结算时入场满则失败入墓」由 TryMoveToBattlefield 承担）
             if (!isSpell && !core.ZoneManager.HasBattlefieldSpace(player))
-                return false;
+            { rejectReason = "战场已满（永久物无处入场）"; return false; }
 
             // 费用预检（不支付——扣费在响应窗口之后的 cast 结算；抉择卡按所选模式取费——先选择再定费用）。
             // 2026-09-14 代价强制：撤销「按最大减免放行」——声明期即按**原价账单**预检，
@@ -237,7 +249,7 @@ namespace CardCore
             // 同玩家已声明的施放费用一并计入，防同笔 bank 超发——结算付不出只入墓、不回卷）
             var cost = GetCardCost(card, modeIndex);
             if (!CanAfford(core.ElementPool, cost, player, GetPendingCastCosts(core, player)))
-                return false;
+            { rejectReason = CostRejectText(core, player, cost); return false; }
 
             // ---- 声明（使用时点）：设控制者 → 进发动区 → cast 上栈 → 使用宣言（对手获得响应窗口） ----
             card.SetController(player);
@@ -254,6 +266,7 @@ namespace CardCore
             {
                 // 理论不可达（声明预检已过）；保守回退：卡退回来源区，声明失败不付费
                 core.ZoneManager.MoveCard(card, player, Zone.Activation, fromZone);
+                rejectReason = "栈机器拒入（结算中或速度门）";
                 return false;
             }
 
@@ -276,26 +289,34 @@ namespace CardCore
         /// 门禁差异：不要求回合玩家/主阶段，改为 持有优先权 + 栈上有待响应对象；来源限手牌。
         /// </summary>
         public static bool PlayCardInResponse(GameCore core, Player player, Card card, List<Entity> targets = null, int modeIndex = 0)
+            => PlayCardInResponse(core, player, card, targets, modeIndex, out _);
+
+        /// <summary>同 <see cref="PlayCardInResponse(GameCore,Player,Card,List{Entity},int)"/>，附带精确拒绝原因。</summary>
+        public static bool PlayCardInResponse(GameCore core, Player player, Card card, List<Entity> targets, int modeIndex, out string rejectReason)
         {
-            if (core == null || player == null || card == null) return false;
-            if (core.StackEngine.IsEmpty || core.StackEngine.IsResolving) return false; // 有可响应对象且非结算中
-            if (core.StackEngine.CurrentPriorityHolder != player) return false;         // 优先权在手
+            rejectReason = null;
+            if (core == null || player == null || card == null) { rejectReason = "内部错误：空参数"; return false; }
+            if (core.StackEngine.IsEmpty || core.StackEngine.IsResolving)
+            { rejectReason = "响应窗口已关闭（无可响应对象或结算中）"; return false; }
+            if (core.StackEngine.CurrentPriorityHolder != player)
+            { rejectReason = "响应出牌需要优先权在手"; return false; }                   // 优先权在手
 
             var hand = core.ZoneManager.GetCards(player, Zone.Hand);
-            if (!hand.Contains(card)) return false;
+            if (!hand.Contains(card)) { rejectReason = "卡不在手牌（快照过期？请重试）"; return false; }
 
             // 规则扩展点（OCP）：出牌限制经注册表询问（响应出牌同样受限，如信息轴锁定）
-            if (!RuleHooks.CanPlay(core, player, card, Zone.Hand)) return false;
+            if (!RuleHooks.CanPlay(core, player, card, Zone.Hand))
+            { rejectReason = "出牌受限（规则锁定）"; return false; }
 
             bool isSpell = card.IsSpellCard();
             if (!isSpell && !core.ZoneManager.HasBattlefieldSpace(player))
-                return false;
+            { rejectReason = "战场已满（永久物无处入场）"; return false; }
 
             // 费用预检（含本玩家已声明的施放承诺；不支付——cast 结算时才扣；抉择按所选模式；
             // 2026-09-14 代价强制：原价账单预检，混付口径同 PlayCard）
             var cost = GetCardCost(card, modeIndex);
             if (!CanAfford(core.ElementPool, cost, player, GetPendingCastCosts(core, player)))
-                return false;
+            { rejectReason = CostRejectText(core, player, cost); return false; }
 
             card.SetController(player);
 
@@ -310,6 +331,7 @@ namespace CardCore
             if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex))
             {
                 core.ZoneManager.MoveCard(card, player, Zone.Activation, Zone.Hand);
+                rejectReason = "速度门拒绝（响应卡速度须高于记速器）";
                 return false;
             }
 
@@ -750,7 +772,7 @@ namespace CardCore
                         });
                         return result; // 卡层已填——legacy 效果级代价不再收集（单卡单条）
                     }
-                    UnityEngine.Debug.LogWarning("[CardActions] 卡层代价栏 Payload 转换失败（表行缺失？）——按无代价处理");
+                    TideLog.Warn("[CardActions] 卡层代价栏 Payload 转换失败（表行缺失？）——按无代价处理");
                 }
             }
 
@@ -974,6 +996,39 @@ namespace CardCore
             return ElementPaymentValidator.CanPayBill(
                 bill, elementPool.GetPool(player).AvailableMana, elementPool.GetLandCap(player));
         }
+
+        /// <summary>
+        /// 费用拒绝的可读原因（2026-09-26 联机排查）：浓度上限（单次支付总贡献 ≤ 地牌槽上限，
+        /// 前期大部分卡因此不可出——第 1 回合上限 1）与元素不足分列，供网络 Error 帧直读。
+        /// </summary>
+        private static string CostRejectText(GameCore core, Player player, Dictionary<int, float> cost)
+        {
+            int total = (int)Math.Ceiling(cost.Values.Sum());
+            int cap = core.ElementPool.GetLandCap(player);
+            if (total > cap)
+                return $"费用 {CostText(cost)} 共 {total} 点，超过当前地牌槽上限 {cap}（浓度上限：前期地牌上限低，高费卡须等上限成长）";
+
+            var bank = core.ElementPool.GetPool(player).AvailableMana;
+            string bankText = string.Join("、", bank.Where(kv => kv.Value > 0)
+                .Select(kv => $"{ManaZh(kv.Key)}{kv.Value}"));
+            return $"元素不足——需 {CostText(cost)}，当前元素池：{(string.IsNullOrEmpty(bankText) ? "空" : bankText)}";
+        }
+
+        private static string CostText(Dictionary<int, float> cost)
+            => cost == null || cost.Count == 0
+                ? "0"
+                : string.Join("", cost.Where(kv => kv.Value > 0)
+                    .Select(kv => $"{ManaZh((ManaType)kv.Key)}{kv.Value:0.#}"));
+
+        private static string ManaZh(ManaType type) => type switch
+        {
+            ManaType.Red => "红",
+            ManaType.Blue => "蓝",
+            ManaType.Green => "绿",
+            ManaType.White => "白",
+            ManaType.Black => "黑",
+            _ => "灰",
+        };
 
         /// <summary>
         /// 从卡牌获取效果定义（如有）。

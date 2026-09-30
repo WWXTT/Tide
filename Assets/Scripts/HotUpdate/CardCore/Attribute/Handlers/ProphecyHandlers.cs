@@ -314,7 +314,7 @@ namespace CardCore.Attribute.Handlers
             if (!ProphecyDimension.TryParse(effect.StringValue, out var dim, out var val)
                 || !ProphecyDimension.IsValidValue(dim, val))
             {
-                UnityEngine.Debug.LogWarning(
+                TideLog.Warn(
                     $"[Prophecy] 非法宣言编码 '{effect.StringValue}'（应为 维度:值，且值在有限域内），预言将按未命中结算");
             }
 
