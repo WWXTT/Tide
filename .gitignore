@@ -1,5 +1,8 @@
 # ============== 忽略特定文件 ==============
-*.tmp              # 忽略所有目录的 .tmp 文件
+*.tmp
+*.meta
+*.asset
+*.csproj
 
 # ============== 系统/IDE 文件 ==============
 /Library/
@@ -8,6 +11,10 @@
 /Temp/
 /TideServer/bin/
 /TideServer/obj/
+
+# Unity 生成的工程文件（含本机绝对路径，跨机互踩必炸——各自本地生成；手写工程 TideServer/TideServer.csproj 不受影响）
+/*.csproj
+/*.sln
 /.vs/
 /.idea/
 /tide_rl/logs/
