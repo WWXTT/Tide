@@ -55,15 +55,19 @@ namespace UnityEngine.Rendering.Universal
             combinedEvent = Event.Opaque;
             combinedMaskSize = MaskSize.Bits8;
 
-            bool isDeferred = renderingMode == RenderingMode.Deferred;
+            bool isDeferred = renderingMode == RenderingMode.Deferred || renderingMode == RenderingMode.DeferredPlus;
             bool result = false;
             foreach (var rendererFeature in rendererFeatures)
             {
                 if (rendererFeature.isActive)
                 {
-                    result |= rendererFeature.RequireRenderingLayers(isDeferred, accurateGbufferNormals, out Event rendererEvent, out MaskSize rendererMaskSize);
-                    combinedEvent = Combine(combinedEvent, rendererEvent);
-                    combinedMaskSize = Combine(combinedMaskSize, rendererMaskSize);
+                    bool required = rendererFeature.RequireRenderingLayers(isDeferred, accurateGbufferNormals, out Event rendererEvent, out MaskSize rendererMaskSize);
+                    result |= required;
+                    if (required)
+                    {
+                        combinedEvent = Combine(combinedEvent, rendererEvent);
+                        combinedMaskSize = Combine(combinedMaskSize, rendererMaskSize);
+                    }
                 }
             }
 
@@ -83,7 +87,7 @@ namespace UnityEngine.Rendering.Universal
         }
 
         /// <summary>
-        /// Setups properties that are needed for accessing rendering layers texture.
+        /// Sets property that is needed to write into rendering layers texture.
         /// </summary>
         /// <param name="cmd">Used command buffer</param>
         /// <param name="maskSize">The mask size of rendering layers texture</param>
@@ -92,11 +96,8 @@ namespace UnityEngine.Rendering.Universal
         {
             int bits = GetBits(maskSize);
 
-            // Pre-computes properties used for packing/unpacking
             uint maxInt = bits != 32 ? (1u << bits) - 1u : uint.MaxValue;
-            float rcpMaxInt = Unity.Mathematics.math.rcp(maxInt);
             cmd.SetGlobalInt(ShaderPropertyId.renderingLayerMaxInt, (int)maxInt);
-            cmd.SetGlobalFloat(ShaderPropertyId.renderingLayerRcpMaxInt, rcpMaxInt);
         }
 
         /// <summary>
@@ -107,21 +108,12 @@ namespace UnityEngine.Rendering.Universal
             switch (maskSize)
             {
                 case MaskSize.Bits8:
-                    return GraphicsFormat.R8_UNorm;
+                    return GraphicsFormat.R8_UInt;
                 case MaskSize.Bits16:
-                {
-                        //webgpu does not support r16_unorm as a render target format
-#if UNITY_2023_2_OR_NEWER
-                        if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.WebGPU)
-                        {
-                            return GraphicsFormat.R32_SFloat;
-                        }
-#endif
-                        return GraphicsFormat.R16_UNorm;
-                }
+                    return GraphicsFormat.R16_UInt;
                 case MaskSize.Bits24:
                 case MaskSize.Bits32:
-                    return GraphicsFormat.R32_SFloat;
+                    return GraphicsFormat.R32_UInt;
                 default:
                     throw new NotImplementedException();
             }

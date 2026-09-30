@@ -1,5 +1,9 @@
 fileFormatVersion: 2
+<<<<<<<< HEAD:Packages/Dbdrp/DanbaidongRP-urp17/Editor/DanbaidongWizard.meta
 guid: 211560bd439bbe34da9064e795494ca0
+========
+guid: 920b587f96837464facf6b8036b2c9e6
+>>>>>>>> official-175:Packages/Dbdrp/DanbaidongRP-urp17/Editor/2D/Provider2D.meta
 folderAsset: yes
 DefaultImporter:
   externalObjects: {}

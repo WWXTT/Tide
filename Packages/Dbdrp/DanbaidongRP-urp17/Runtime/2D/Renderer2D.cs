@@ -53,8 +53,8 @@ namespace UnityEngine.Rendering.Universal
 
         PostProcessPasses m_PostProcessPasses;
         internal ColorGradingLutPass colorGradingLutPass { get => m_PostProcessPasses.colorGradingLutPass; }
-        internal PostProcessPass postProcessPass { get => m_PostProcessPasses.postProcessPass; }
-        internal PostProcessPass finalPostProcessPass { get => m_PostProcessPasses.finalPostProcessPass; }
+        internal PostProcessPassLegacy postProcessPass { get => m_PostProcessPasses.postProcessPass; }
+        internal PostProcessPassLegacy finalPostProcessPass { get => m_PostProcessPasses.finalPostProcessPass; }
         internal RTHandle afterPostProcessColorHandle { get => m_PostProcessPasses.afterPostProcessColor; }
         internal RTHandle colorGradingLutHandle { get => m_PostProcessPasses.colorGradingLut; }
 
@@ -407,7 +407,7 @@ namespace UnityEngine.Rendering.Universal
 
             if (hasPostProcess)
             {
-                var desc = PostProcessPass.GetCompatibleDescriptor(cameraTargetDescriptor, cameraTargetDescriptor.width, cameraTargetDescriptor.height, cameraTargetDescriptor.graphicsFormat);
+                var desc = PostProcessPassLegacy.GetCompatibleDescriptor(cameraTargetDescriptor, cameraTargetDescriptor.width, cameraTargetDescriptor.height, cameraTargetDescriptor.graphicsFormat);
                 RenderingUtils.ReAllocateHandleIfNeeded(ref m_PostProcessPasses.m_AfterPostProcessColor, desc, FilterMode.Point, TextureWrapMode.Clamp, name: "_AfterPostProcessTexture");
 
                 postProcessPass.Setup(

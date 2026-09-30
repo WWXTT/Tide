@@ -5,7 +5,7 @@ using UnityEngine.Rendering.Universal.Internal;
 
 namespace UnityEngine.Rendering.Universal
 {
-    internal partial class PostProcessPass : ScriptableRenderPass
+    internal partial class PostProcessPassLegacy : ScriptableRenderPass
     {
         static readonly int s_CameraDepthTextureID = Shader.PropertyToID("_CameraDepthTexture");
 
@@ -58,7 +58,7 @@ namespace UnityEngine.Rendering.Universal
 
         public void RenderStopNaN(RenderGraph renderGraph, RenderTextureDescriptor cameraTargetDescriptor, in TextureHandle activeCameraColor, out TextureHandle stopNaNTarget)
         {
-            var desc = PostProcessPass.GetCompatibleDescriptor(cameraTargetDescriptor,
+            var desc = PostProcessPassLegacy.GetCompatibleDescriptor(cameraTargetDescriptor,
                 cameraTargetDescriptor.width,
                 cameraTargetDescriptor.height,
                 cameraTargetDescriptor.graphicsFormat,
@@ -109,28 +109,28 @@ namespace UnityEngine.Rendering.Universal
         public void RenderSMAA(RenderGraph renderGraph, UniversalResourceData resourceData, AntialiasingQuality antialiasingQuality, in TextureHandle source, out TextureHandle SMAATarget)
         {
 
-            var desc = PostProcessPass.GetCompatibleDescriptor(m_Descriptor,
+            var desc = PostProcessPassLegacy.GetCompatibleDescriptor(m_Descriptor,
                 m_Descriptor.width,
                 m_Descriptor.height,
                 m_Descriptor.graphicsFormat,
                 GraphicsFormat.None);
             SMAATarget = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_SMAATarget", true, FilterMode.Bilinear);
 
-            var edgeTextureDesc = PostProcessPass.GetCompatibleDescriptor(m_Descriptor,
+            var edgeTextureDesc = PostProcessPassLegacy.GetCompatibleDescriptor(m_Descriptor,
                 m_Descriptor.width,
                 m_Descriptor.height,
                 m_SMAAEdgeFormat,
                 GraphicsFormat.None);
             var edgeTexture = UniversalRenderer.CreateRenderGraphTexture(renderGraph, edgeTextureDesc, "_EdgeStencilTexture", true, FilterMode.Bilinear);
 
-            var edgeTextureStencilDesc = PostProcessPass.GetCompatibleDescriptor(m_Descriptor,
+            var edgeTextureStencilDesc = PostProcessPassLegacy.GetCompatibleDescriptor(m_Descriptor,
                 m_Descriptor.width,
                 m_Descriptor.height,
                 GraphicsFormat.None,
                 GraphicsFormatUtility.GetDepthStencilFormat(24));
             var edgeTextureStencil = UniversalRenderer.CreateRenderGraphTexture(renderGraph, edgeTextureStencilDesc, "_EdgeTexture", true, FilterMode.Bilinear);
 
-            var blendTextureDesc = PostProcessPass.GetCompatibleDescriptor(m_Descriptor,
+            var blendTextureDesc = PostProcessPassLegacy.GetCompatibleDescriptor(m_Descriptor,
                 m_Descriptor.width,
                 m_Descriptor.height,
                 GraphicsFormat.R8G8B8A8_UNorm,
@@ -655,7 +655,7 @@ namespace UnityEngine.Rendering.Universal
         {
             var dofMaterial = m_DepthOfField.mode.value == DepthOfFieldMode.Gaussian ? m_Materials.gaussianDepthOfField : m_Materials.bokehDepthOfField;
 
-            var desc = PostProcessPass.GetCompatibleDescriptor(m_Descriptor,
+            var desc = PostProcessPassLegacy.GetCompatibleDescriptor(m_Descriptor,
                 m_Descriptor.width,
                 m_Descriptor.height,
                 m_Descriptor.graphicsFormat,
@@ -704,13 +704,13 @@ namespace UnityEngine.Rendering.Universal
             int hh = m_Descriptor.height / downSample;
 
             // Pass Textures
-            var fullCoCTextureDesc = PostProcessPass.GetCompatibleDescriptor(m_Descriptor, m_Descriptor.width, m_Descriptor.height, m_GaussianCoCFormat);
+            var fullCoCTextureDesc = PostProcessPassLegacy.GetCompatibleDescriptor(m_Descriptor, m_Descriptor.width, m_Descriptor.height, m_GaussianCoCFormat);
             var fullCoCTexture = UniversalRenderer.CreateRenderGraphTexture(renderGraph, fullCoCTextureDesc, "_FullCoCTexture", true, FilterMode.Bilinear);
-            var halfCoCTextureDesc = PostProcessPass.GetCompatibleDescriptor(m_Descriptor, wh, hh, m_GaussianCoCFormat);
+            var halfCoCTextureDesc = PostProcessPassLegacy.GetCompatibleDescriptor(m_Descriptor, wh, hh, m_GaussianCoCFormat);
             var halfCoCTexture = UniversalRenderer.CreateRenderGraphTexture(renderGraph, halfCoCTextureDesc, "_HalfCoCTexture", true, FilterMode.Bilinear);
-            var pingTextureDesc = PostProcessPass.GetCompatibleDescriptor(m_Descriptor, wh, hh, m_DefaultColorFormat);
+            var pingTextureDesc = PostProcessPassLegacy.GetCompatibleDescriptor(m_Descriptor, wh, hh, m_DefaultColorFormat);
             var pingTexture = UniversalRenderer.CreateRenderGraphTexture(renderGraph, pingTextureDesc, "_PingTexture", true, FilterMode.Bilinear);
-            var pongTextureDesc = PostProcessPass.GetCompatibleDescriptor(m_Descriptor, wh, hh, m_DefaultColorFormat);
+            var pongTextureDesc = PostProcessPassLegacy.GetCompatibleDescriptor(m_Descriptor, wh, hh, m_DefaultColorFormat);
             var pongTexture = UniversalRenderer.CreateRenderGraphTexture(renderGraph, pongTextureDesc, "_PongTexture", true, FilterMode.Bilinear);
 
             using (var builder = renderGraph.AddUnsafePass<DoFGaussianPassData>("Depth of Field - Gaussian", out var passData))
@@ -857,11 +857,11 @@ namespace UnityEngine.Rendering.Universal
             int hh = m_Descriptor.height / downSample;
 
             // Pass Textures
-            var fullCoCTextureDesc = PostProcessPass.GetCompatibleDescriptor(m_Descriptor, m_Descriptor.width, m_Descriptor.height, GraphicsFormat.R8_UNorm);
+            var fullCoCTextureDesc = PostProcessPassLegacy.GetCompatibleDescriptor(m_Descriptor, m_Descriptor.width, m_Descriptor.height, GraphicsFormat.R8_UNorm);
             var fullCoCTexture = UniversalRenderer.CreateRenderGraphTexture(renderGraph, fullCoCTextureDesc, "_FullCoCTexture", true, FilterMode.Bilinear);
-            var pingTextureDesc = PostProcessPass.GetCompatibleDescriptor(m_Descriptor, wh, hh, GraphicsFormat.R16G16B16A16_SFloat);
+            var pingTextureDesc = PostProcessPassLegacy.GetCompatibleDescriptor(m_Descriptor, wh, hh, GraphicsFormat.R16G16B16A16_SFloat);
             var pingTexture = UniversalRenderer.CreateRenderGraphTexture(renderGraph, pingTextureDesc, "_PingTexture", true, FilterMode.Bilinear);
-            var pongTextureDesc = PostProcessPass.GetCompatibleDescriptor(m_Descriptor, wh, hh, GraphicsFormat.R16G16B16A16_SFloat);
+            var pongTextureDesc = PostProcessPassLegacy.GetCompatibleDescriptor(m_Descriptor, wh, hh, GraphicsFormat.R16G16B16A16_SFloat);
             var pongTexture = UniversalRenderer.CreateRenderGraphTexture(renderGraph, pongTextureDesc, "_PongTexture", true, FilterMode.Bilinear);
 
             using (var builder = renderGraph.AddUnsafePass<DoFBokehPassData>("Depth of Field - Bokeh", out var passData))
@@ -991,7 +991,7 @@ namespace UnityEngine.Rendering.Universal
 
         public void RenderPaniniProjection(RenderGraph renderGraph, Camera camera, in TextureHandle source, out TextureHandle destination)
         {
-            var desc = PostProcessPass.GetCompatibleDescriptor(m_Descriptor,
+            var desc = PostProcessPassLegacy.GetCompatibleDescriptor(m_Descriptor,
                 m_Descriptor.width,
                 m_Descriptor.height,
                 m_Descriptor.graphicsFormat,
@@ -1044,7 +1044,7 @@ namespace UnityEngine.Rendering.Universal
         private const string _TemporalAATargetName = "_TemporalAATarget";
         private void RenderTemporalAA(RenderGraph renderGraph, UniversalResourceData resourceData, UniversalCameraData cameraData, ref TextureHandle source, out TextureHandle destination)
         {
-            var desc = PostProcessPass.GetCompatibleDescriptor(m_Descriptor,
+            var desc = PostProcessPassLegacy.GetCompatibleDescriptor(m_Descriptor,
                 m_Descriptor.width,
                 m_Descriptor.height,
                 m_Descriptor.graphicsFormat,
@@ -1112,7 +1112,7 @@ namespace UnityEngine.Rendering.Universal
         public void RenderMotionBlur(RenderGraph renderGraph, UniversalResourceData resourceData, UniversalCameraData cameraData, in TextureHandle source, out TextureHandle destination)
         {
             var material = m_Materials.cameraMotionBlur;
-            var desc = PostProcessPass.GetCompatibleDescriptor(m_Descriptor,
+            var desc = PostProcessPassLegacy.GetCompatibleDescriptor(m_Descriptor,
                 m_Descriptor.width,
                 m_Descriptor.height,
                 m_Descriptor.graphicsFormat,

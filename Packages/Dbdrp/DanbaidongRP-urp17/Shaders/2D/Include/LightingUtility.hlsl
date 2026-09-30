@@ -59,13 +59,8 @@
     if(intensity < 1)\
     {\
         half4 shadowTex = SAMPLE_TEXTURE2D(_ShadowTex, sampler_ShadowTex, input.shadowUV); \
-        half  shadowFinalValue   = dot(half4(1,0,0,0), shadowTex.rgba);\
-        half  unshadowValue = dot(half4(0,1,0,0), shadowTex.rgba);\
-        half  unshadowGTEOne = unshadowValue > 1;\
-        half  spriteAlpha   = dot(half4(0,0,1,0), shadowTex.rgba);\
-        half  unshadowFinalValue = unshadowGTEOne * (unshadowValue - (1-spriteAlpha)) + (1-unshadowGTEOne) * (unshadowValue * spriteAlpha);\
-        half  shadowIntensity = 1-saturate(shadowFinalValue - unshadowFinalValue); \
-        color.rgb = (color.rgb * shadowIntensity) + (color.rgb * intensity*(1 - shadowIntensity));\
+        half shadowIntensity = 1 - max(shadowTex.r, shadowTex.g * (1 - shadowTex.b));\
+        color.rgb = (color.rgb * shadowIntensity) + (color.rgb * intensity * (1 - shadowIntensity));\
      }
 
 #define TRANSFER_SHADOWS(output)\
@@ -77,6 +72,22 @@
     half2 _ShapeLightBlendFactors##index;\
     half4 _ShapeLightMaskFilter##index;\
     half4 _ShapeLightInvertedFilter##index;
+
+#if USE_SHAPE_LIGHT_TYPE_0
+    SHAPE_LIGHT(0)
+#endif
+
+#if USE_SHAPE_LIGHT_TYPE_1
+    SHAPE_LIGHT(1)
+#endif
+
+#if USE_SHAPE_LIGHT_TYPE_2
+    SHAPE_LIGHT(2)
+#endif
+
+#if USE_SHAPE_LIGHT_TYPE_3
+    SHAPE_LIGHT(3)
+#endif
 
 #if !defined(USE_SHAPE_LIGHT_TYPE_0) && !defined(USE_SHAPE_LIGHT_TYPE_1) && !defined(USE_SHAPE_LIGHT_TYPE_2) && !defined(USE_SHAPE_LIGHT_TYPE_3)
 #define USE_DEFAULT_LIGHT_TYPE 1
