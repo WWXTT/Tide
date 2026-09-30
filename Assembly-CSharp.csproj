@@ -112,6 +112,7 @@
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\FoamAddFromTex.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\AnimWavesAddFromTex.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\Legacy\(TTFE) Uber Cliff.shader" />
+    <None Include="Assets\Samples\Scriptable Render Pipeline Core\17.5.0\Common\TextMesh Pro\Resources\Fonts &amp; Materials\TMP_Node.hlsl" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_Bitmap.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Uber Cliff Optimized.shader" />
     <None Include="Assets\Art\HexMap\Shaders\HexTerrainDebugCommon.hlsl" />
@@ -159,6 +160,7 @@
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeOcclusion.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\ClipSurfaceSignedDistance.shader" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Surface-Mobile.shader" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF SpaceWarp.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\FlowSplineGeometry.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Helpers\BIRP\Lighting.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\DepthSetBaseWaterHeightUsingGeometry.shader" />
@@ -212,6 +214,7 @@
     <None Include="Assets\Packages\Crest\Shaders\Helpers\BIRP\ScreenSpaceShadows.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\ClipSurfaceRemoveArea.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\UnderwaterMaskHorizonShared.hlsl" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile SpaceWarp.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanVertHelpers.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\Resources\ShapeCombine.compute" />
     <None Include="Assets\Packages\Crest\Shaders\GPUNoise\SOURCE.txt" />
@@ -249,6 +252,7 @@
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeNormalMapping.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\Resources\ShapeCombine.shader" />
     <None Include="Assets\Packages\Toby Fredson\SRP Install Instructions.txt" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF SSD SpaceWarp.shader" />
     <None Include="Assets\Art\HexMap\Shaders\LeafFunctions.cginc" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\ClipSurfaceConvexHull.shader" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile Masking.shader" />
@@ -272,10 +276,12 @@
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\Resources\UnderwaterEffectSG.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Terrain\(TTFE) Terrain Snow AddPass.shader" />
+    <None Include="Assets\Samples\Scriptable Render Pipeline Core\17.5.0\Common\TextMesh Pro\Resources\Fonts &amp; Materials\Inter-LICENSE.txt" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Terrain\(TTFE) Terrain Snow.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Tree Billboard.shader" />
     <None Include="Assets\Art\HexMap\Shaders\HexWater.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Resources\UpdateFoam.compute" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile SSD SpaceWarp.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputsDriven.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanReflection.hlsl" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Grass Foliage (Low-End).shader" />
@@ -1431,6 +1437,10 @@
       <HintPath>C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\BCLExtensions\TargetingPacks\netstandard2.1\ref\System.Text.Json.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Unity.VisualEffectGraph.Editor">
+      <HintPath>Library\ScriptAssemblies\Unity.VisualEffectGraph.Editor.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Unity.Entities">
       <HintPath>Library\ScriptAssemblies\Unity.Entities.dll</HintPath>
       <Private>False</Private>
@@ -1695,6 +1705,10 @@
       <HintPath>Library\ScriptAssemblies\Unity.Serialization.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Unity.VisualEffectGraph.Runtime">
+      <HintPath>Library\ScriptAssemblies\Unity.VisualEffectGraph.Runtime.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Unity.Multiplayer.Center.Common">
       <HintPath>Library\ScriptAssemblies\Unity.Multiplayer.Center.Common.dll</HintPath>
       <Private>False</Private>
@@ -1777,10 +1791,12 @@
     <ProjectReference Include="MCPForUnity.Runtime.csproj" />
     <ProjectReference Include="Crest.Examples.csproj" />
     <ProjectReference Include="MCPForUnity.Editor.csproj" />
+    <ProjectReference Include="Unity.RenderPipelines.Core.Samples.Editor.csproj" />
     <ProjectReference Include="HexMap.ECS.csproj" />
     <ProjectReference Include="Unity.SmoothNormalTool.Runtime.csproj" />
     <ProjectReference Include="Tide.HotUpdate.csproj" />
     <ProjectReference Include="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
+    <ProjectReference Include="Unity.RenderPipelines.Core.Samples.Runtime.csproj" />
   </ItemGroup>
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
   <ItemGroup>

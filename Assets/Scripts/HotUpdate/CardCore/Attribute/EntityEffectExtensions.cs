@@ -78,10 +78,10 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 治疗（2026-09-07 定案：溢出转生命上限，走 LifeUp 指示物）：
-        /// 溢出 X → 加 ceil(X/2) 层「生命值增加」指示物（上限与当前同加——临时上限：
-        /// 生物换区清除、角色不换区按默认持续时间 max=整局），当前实得 +floor(X/2)。
-        /// 例：满血 30 回复 7 → LifeUp×4 → 上限 34、当前 33（奇数溢出偏向上限）。
+        /// 治疗（2026-09-07 定案：溢出转生命上限，走 LifeUp 指示物；2026-09-30 改案：溢出不再折半）：
+        /// 每次溢出固定加 1 层「生命值增加」指示物（上限与当前同加——临时上限：
+        /// 生物换区清除、角色不换区按默认持续时间 max=整局），当前实得=新上限，剩余溢出直接截断。
+        /// 例：满血 30 回复 7 → LifeUp×1 → 上限 31、当前 31（溢出 6 点浪费）。
         /// 角色与生物同口径；指示物持续/清除规则见 CounterRules（默认 max，特殊标记才有具体时长）。
         /// </summary>
         public static void Heal(this Entity entity, int amount)
@@ -93,10 +93,9 @@ namespace CardCore
                 int over = raw - cap;
                 if (over > 0)
                 {
-                    int layers = (over + 1) / 2;
-                    player.AddCounters(Attribute.CounterRules.LifeUpCounter, layers); // 层记录（默认持续时间 max）
-                    player.IncreaseMaxHealth(layers);                                  // 层效果：上限+当前同加
-                    player.Life = raw - layers;                                        // 实得 = 溢出后原始值 − 层数
+                    player.AddCounters(Attribute.CounterRules.LifeUpCounter, 1); // 层记录（默认持续时间 max）
+                    player.IncreaseMaxHealth(1);                                  // 层效果：上限+当前同加
+                    player.Life = player.MaxHealth;                                // 实得=新上限，剩余溢出截断
                 }
                 else
                 {
@@ -111,9 +110,8 @@ namespace CardCore
                 int over = raw - cap;
                 if (over > 0)
                 {
-                    int layers = (over + 1) / 2;
-                    Attribute.CounterRules.AddStatCounter(card, Attribute.CounterRules.LifeUpCounter, layers);
-                    card._life = raw - layers; // AddStatCounter 已把当前抬到上限，回写实得（floor 半入当前）
+                    Attribute.CounterRules.AddStatCounter(card, Attribute.CounterRules.LifeUpCounter, 1);
+                    card._life = card._maxLife; // AddStatCounter 已 +1/+1，实得=新上限，剩余溢出截断
                 }
                 else
                 {

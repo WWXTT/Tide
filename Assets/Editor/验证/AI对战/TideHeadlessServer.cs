@@ -28,9 +28,14 @@ namespace CardCore.Editor.TideHeadless
     ///                                                  Unity 侧由 SimpleAI+AutoMatch 策略自动打）
     ///   请求  {"op":"reset","shapingLambda":0.005}    → 按局覆盖塑形 λ（2026-09-22；缺省/0 用驱动默认 0.005）
     ///   请求  {"op":"step","action":N}                → 响应同上
-    ///   响应 {op, obs{cards,globals,actions,nActions}, reward, done, info{toPlay,winner,reason,turn,modelSeat,theme}}
-    ///   obs 恒为「当前回合玩家」视角（自对弈）/「模型」视角（vs 脚本），reward 归属同视角；
-    ///   info.toPlay：下一决策点行动方座次（0=P1 / 1=P2，终局 -1）——Python 自对弈 GAE 座次修正用；
+    ///   响应 {op, obs{cards,globals,actions,nActions}, reward, done,
+    ///         info{toPlay,winner,reason,turn,modelSeat,theme,layoutVersion,dims,decisionSeat}}
+    ///   obs 恒为「当前决策座次」视角（v2：Main=回合玩家 / 响应窗口=优先权持有方；vs 脚本恒为模型视角），
+    ///   reward 归属同视角；
+    ///   info.toPlay：下一决策点行动方座次（0=P1 / 1=P2，终局 -1）——v2 起含响应窗口座次，Python 自对弈
+    ///   GAE 座次修正用；info.decisionSeat 同值（显式别名）；
+    ///   info.layoutVersion/dims：v2 布局握手（2 / {nCard:65,nGlobal:49,nAction:8,maxActions:512}）——
+    ///   Python reset 时断言逐值相等，维度漂移报清晰错误（防 2026-09-14 式 reshape 静默炸）；
     ///   info.modelSeat：模型座次（0=P1 / 1=P2），自对弈为 -1——vs 模式按它判胜负；
     ///   info.theme：对手主题 key（red/green/blue，vs 模式才有；自对弈空串）——Python 分主题统计胜率。
     ///
@@ -139,11 +144,11 @@ namespace CardCore.Editor.TideHeadless
             var writer = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = true };
 
             var driver = new TideHeadlessDriver();
+            string line = null; // 最后收到的请求（catch 异常日志引用，须声明在 try 外）
 
             try
             {
                 // 热路径：训练期高频调用，除异常外不产生任何日志输出
-                string line;
                 while ((line = reader.ReadLine()) != null && _isRunning)
                 {
                     line = line.Trim();
@@ -167,7 +172,11 @@ namespace CardCore.Editor.TideHeadless
             }
             catch (Exception ex)
             {
-                UnityEngine.Debug.LogError($"[TideHeadless] 处理客户端时出错: {ex.Message}");
+                // 热路径静音不挡异常通道（2026-09-30）：先恢复日志再报——否则对局中
+                // 抛异常只会无声断连退出（Python 侧 10054，服务端零线索）
+                Debug.unityLogger.logEnabled = true;
+                UnityEngine.Debug.LogError(
+                    $"[TideHeadless] 处理客户端时出错（最后请求: {line ?? "(无)"}）: {ex}");
             }
             finally
             {
@@ -356,17 +365,32 @@ namespace CardCore.Editor.TideHeadless
                 done = r.Done,
                 info = new HeadlessInfo
                 {
-                    toPlay = r.Done ? -1
-                        : (ReferenceEquals(GameCore.Instance.TurnEngine.TurnPlayer, GameCore.Instance.Player1) ? 0 : 1),
+                    // toPlay = 本停靠点决策座次（v2：Main=回合玩家 / 响应窗口=优先权持有方——
+                    // 不再从 TurnPlayer 推断；Python 自对弈 GAE 座次修正沿用本字段）
+                    toPlay = r.Done ? -1 : r.DecisionSeat,
                     winner = r.Winner == null ? "" : (ReferenceEquals(r.Winner, GameCore.Instance.Player1) ? "0" : "1"),
                     reason = r.Reason ?? "",
                     turn = r.Turn,
                     modelSeat = r.ModelSeat,
                     theme = _opponentTheme ?? "",
+                    // v2 版本握手（2026-09-30 契约第 5 节，防 2026-09-14 式静默炸）：
+                    // Python reset 时断言逐值相等，不等报清晰错误（替代 reshape 炸）
+                    layoutVersion = LayoutVersion,
+                    dims = new HeadlessDims
+                    {
+                        nCard = TideObservation.NCard,
+                        nGlobal = TideObservation.NGlobal,
+                        nAction = TideObservation.NAction,
+                        maxActions = OnnxTidePolicy.MaxActions,
+                    },
+                    decisionSeat = r.Done ? -1 : r.DecisionSeat,
                 },
             };
             return JsonUtility.ToJson(resp);
         }
+
+        /// <summary>动作空间布局版本（v2 = 2026-09-30 契约：8 维动作特征 / 49 维 globals / 512 动作容量）。</summary>
+        private const int LayoutVersion = 2;
 
         private static List<float> ToList(float[] a)
         {
@@ -379,7 +403,9 @@ namespace CardCore.Editor.TideHeadless
 
         [Serializable] public class HeadlessRequest { public string op; public int action; public string opponent; public float shapingLambda; public string theme; }
         [Serializable] public class HeadlessObs { public List<float> cards; public List<float> globals; public List<float> actions; public int nActions; }
-        [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; public int modelSeat; public string theme; }
+        // v2 布局握手字段（2026-09-30 契约第 5 节）：layoutVersion / dims / decisionSeat
+        [Serializable] public class HeadlessDims { public int nCard; public int nGlobal; public int nAction; public int maxActions; }
+        [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; public int modelSeat; public string theme; public int layoutVersion; public HeadlessDims dims; public int decisionSeat; }
         [Serializable] public class HeadlessResponse { public string op; public HeadlessObs obs; public float reward; public bool done; public HeadlessInfo info; }
     }
 }

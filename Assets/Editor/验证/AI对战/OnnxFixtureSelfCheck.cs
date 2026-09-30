@@ -40,6 +40,19 @@ namespace CardCore.Editor.Tests
 
             using (var policy = new OnnxTidePolicy())
             {
+                // v2 维度预检（2026-09-30 动作空间契约）：旧布局 fixture（6 维动作/128 容量/36 globals）
+                // 在新图上会在张量构造处抛晦涩异常——此处提前给清晰指引（fixture 随 Python P7 重生成闭环）
+                int expectActions = OnnxTidePolicy.MaxActions * CardCore.AI.NeuralEnv.TideObservation.NAction;
+                int expectGlobal = CardCore.AI.NeuralEnv.TideObservation.NGlobal;
+                var probe = fx.cases.FirstOrDefault();
+                if (probe != null && (probe.actions_flat.Count != expectActions || probe.global_flat.Count != expectGlobal))
+                {
+                    Debug.LogError($"[Fixture自检] ✗ fixture 维度过期（actions {probe.actions_flat.Count} 行 × 期望 {expectActions}；"
+                                 + $"global {probe.global_flat.Count} ≠ 期望 {expectGlobal}）——旧布局 fixture 已随动作空间 v2 作废："
+                                 + "重跑 tide_rl/export_onnx.py 重生成 tide_policy_fixture.json（及 onnx 本体）后再自检");
+                    return;
+                }
+
                 float worst = 0f;
                 int worstCase = -1, argmaxMiss = 0;
                 for (int i = 0; i < fx.cases.Count; i++)

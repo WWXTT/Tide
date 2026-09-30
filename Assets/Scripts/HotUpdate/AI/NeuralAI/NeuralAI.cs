@@ -19,7 +19,7 @@ namespace CardCore.AI.NeuralEnv
     public sealed class NeuralAI
     {
         private const int MaxSettleAttempts = 32;  // 排干栈重试上限（镜像 TideHeadlessDriver）
-        private const int MaxActionsPerTurn = 128; // 单回合动作数上限（防死循环保险）
+        private const int MaxActionsPerTurn = 256; // 单回合动作数上限（v2 契约 128→256，与 TideHeadlessDriver 同步）
 
         private readonly OnnxTidePolicy _policy;
         private readonly LegalActionEnumerator _legal = new LegalActionEnumerator();

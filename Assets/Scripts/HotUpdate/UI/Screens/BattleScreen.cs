@@ -60,6 +60,9 @@ namespace SynergyUI
         private bool _running;
         private bool _gameEnded;
 
+        // UGUI 卡牌层绑定（方案2：卡面=UGUI SSO Canvas 压 UITK；卡位=UITK 占位槽，RefreshView 全量重建）
+        private readonly List<CardOverlayBinding> _cardBindings = new List<CardOverlayBinding>();
+
         private bool IsNetwork => BattleEntry.Mode == BattleMode.Network;
         private GameCore Core => _ctrl?.Core;
         private Player P1 => _ctrl?.P1;
@@ -79,7 +82,6 @@ namespace SynergyUI
             _running = true;
 
             UIBinder.BindButton(Root, "btn-back", OnBack);
-            UIBinder.BindButton(Root, "btn-skip-standby", OnSkipStandby);
             UIBinder.BindButton(Root, "btn-grave-play", OnGraveyardPlay);
             UIBinder.BindButton(Root, "btn-activate-skill", OnActivateSkill);
             UIBinder.BindButton(Root, "btn-pass-priority", OnPassPriority);
@@ -107,6 +109,9 @@ namespace SynergyUI
                 TargetSelectionService.Current = null;
             if (ResponseWindowService.HumanResponder == ShowResponsePopupAsync)
                 ResponseWindowService.HumanResponder = null;
+
+            // UGUI 卡牌层回收（卡面 GameObject 独立于 UITK 树，切屏必须显式清）
+            CardOverlayController.ClearActive();
         }
 
         private void OnBack() => Manager.Back();
@@ -342,6 +347,8 @@ namespace SynergyUI
             var d = _view;
             if (d == null) return;
 
+            _cardBindings.Clear(); // UGUI 卡牌层绑定随全量重建收集（BuildHexRow/BuildHand 填充）
+
             // 观众席记录（网络事件文本用）
             if (IsNetwork && _view.NetViewerSeat >= 0) _lastViewerSeat = _view.NetViewerSeat;
 
@@ -367,6 +374,11 @@ namespace SynergyUI
             BuildHand(d);
 
             UpdateButtons(d);
+
+            // UGUI 卡牌层重绑：卡位=本视图刚建好的占位槽；overlay/selector-overlay 任一可见
+            // 即整层隐藏（SSO 恒压 UITK——UITK 弹窗盖不过卡面，只能反向让层）
+            CardOverlayController.Instance.Bind(_cardBindings,
+                suppressors: new List<VisualElement> { Q<VisualElement>("overlay"), Q<VisualElement>("selector-overlay") });
         }
 
         private void FillBar(BattlePlayerView p, string prefix, string skillName, bool oppSide)
@@ -395,7 +407,7 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>一行 9 格（x=2..10）；空格=底座，有卡嵌 battle-card。</summary>
+        /// <summary>一行 9 格（x=2..10）；空格=底座，有卡嵌占位槽（卡面由 UGUI 层渲染）。</summary>
         private void BuildHexRow(VisualElement row, List<BattleCardView> cards, int z, bool mine, bool isLand)
         {
             row.Clear();
@@ -407,64 +419,37 @@ namespace SynergyUI
 
                 var card = cards.FirstOrDefault(c => c.X == x && c.Z == z);
                 if (card != null)
-                    cell.Add(MakeCardElement(card, mine, isLand));
+                {
+                    var slot = MakeCardSlot(isLand, handSlot: false);
+                    cell.Add(slot);
+
+                    // 点击语义不变（我方单位=攻击开窗、我方地牌=产元素；对方卡不可点）
+                    var captured = card;
+                    _cardBindings.Add(new CardOverlayBinding
+                    {
+                        Slot = slot,
+                        Item = CardOverlayItem.FromBattle(captured,
+                            isLand ? CardOverlayLayout.Land : CardOverlayLayout.Compact),
+                        Layout = isLand ? CardOverlayLayout.Land : CardOverlayLayout.Compact,
+                        OnClick = mine
+                            ? (isLand ? (Action)(() => OnClickMyLand(captured)) : () => OnClickMyUnit(captured))
+                            : null,
+                    });
+                }
 
                 row.Add(cell);
             }
         }
 
-        private VisualElement MakeCardElement(BattleCardView card, bool mine, bool isLand)
+        /// <summary>卡位占位槽（UGUI 卡牌层）：只定几何——战场沿用 battle-card 尺寸、手牌竖版槽；
+        /// pickingMode=Ignore 防 UITK 双响应；名称/费用/箭头/标记等视觉全部由上层 UGUI 卡承担。</summary>
+        private VisualElement MakeCardSlot(bool isLand, bool handSlot)
         {
             var el = new VisualElement();
-            el.AddToClassList("battle-card");
-            if (card.IsTapped) el.AddToClassList("battle-card--tapped");
+            el.AddToClassList(handSlot ? "battle-hand-slot" : "battle-card");
             if (isLand) el.style.width = Length.Percent(100);
-
-            var name = new Label(card.Name) { name = "card-name" };
-            name.AddToClassList("battle-card__name");
-            el.Add(name);
-
-            var body = isLand
-                ? (card.LandTokensText ?? "（耗尽）") + (card.IsTapped ? " 横置" : "")
-                : card.StatsText;
-            var stats = new Label(body);
-            stats.AddToClassList("battle-card__stats");
-            el.Add(stats);
-
-            if (!isLand && !string.IsNullOrEmpty(card.CostText))
-            {
-                var cost = new Label($"费 {card.CostText}");
-                cost.AddToClassList("battle-card__stats");
-                el.Add(cost);
-            }
-
-            // 六向箭头指示点（箭头光环位置语义；位=屏幕方向）
-            if (!isLand && card.ArrowFlags != 0)
-            {
-                AddArrowDot(el, "ne", card.ArrowFlags, BattleView.ArrowNE);
-                AddArrowDot(el, "e", card.ArrowFlags, BattleView.ArrowE);
-                AddArrowDot(el, "se", card.ArrowFlags, BattleView.ArrowSE);
-                AddArrowDot(el, "sw", card.ArrowFlags, BattleView.ArrowSW);
-                AddArrowDot(el, "w", card.ArrowFlags, BattleView.ArrowW);
-                AddArrowDot(el, "nw", card.ArrowFlags, BattleView.ArrowNW);
-            }
-
-            // 交互：我方手牌（出牌/放地）、我方单位（攻击）、我方地牌（产元素）
-            if (mine)
-            {
-                if (isLand) el.RegisterCallback<ClickEvent>(_ => OnClickMyLand(card));
-                else el.RegisterCallback<ClickEvent>(_ => OnClickMyUnit(card));
-            }
+            el.pickingMode = PickingMode.Ignore;
             return el;
-        }
-
-        private static void AddArrowDot(VisualElement parent, string dir, int flags, int bit)
-        {
-            var dot = new VisualElement();
-            dot.AddToClassList("arrow-dot");
-            dot.AddToClassList($"arrow-dot--{dir}");
-            if ((flags & bit) != 0) dot.AddToClassList("arrow-dot--on");
-            parent.Add(dot);
         }
 
         private void BuildHand(BattleViewData d)
@@ -473,19 +458,23 @@ namespace SynergyUI
             hand.Clear();
             foreach (var card in d.SelfHand)
             {
-                var el = MakeCardElement(card, mine: false, isLand: false);
                 var captured = card;
-                el.RegisterCallback<ClickEvent>(_ => OnClickHandCard(captured));
-                hand.Add(el);
+                var slot = MakeCardSlot(isLand: false, handSlot: true);
+                _cardBindings.Add(new CardOverlayBinding
+                {
+                    Slot = slot,
+                    Item = CardOverlayItem.FromBattle(captured, CardOverlayLayout.Full),
+                    Layout = CardOverlayLayout.Full,
+                    OnClick = () => OnClickHandCard(captured),
+                });
+                hand.Add(slot);
             }
         }
 
         private void UpdateButtons(BattleViewData d)
         {
             bool myMain = d.MyTurn && d.Phase == PhaseType.Main && !_gameEnded;
-            bool myStandby = d.MyTurn && d.Phase == PhaseType.Standby && !_gameEnded;
 
-            SetEnabled("btn-skip-standby", myStandby);
             SetEnabled("btn-grave-play", myMain && d.Self.GraveyardCount > 0);
             // 网络协议无技能 intent 通道（IntentActivateEffect 寻址卡面效果定义，技能卡不挂原子）——本地可用，网络暂禁
             SetEnabled("btn-activate-skill", !IsNetwork && myMain && !_gameEnded);
@@ -501,7 +490,12 @@ namespace SynergyUI
         private bool GateMyMain()
         {
             if (_gameEnded || _view == null) return false;
-            if (!_view.MyTurn || _view.Phase != PhaseType.Main) return false;
+            if (!_view.MyTurn || _view.Phase != PhaseType.Main)
+            {
+                // 静默 return 会让点击毫无反馈（联机反馈"使用糊"的主因之一）——给一句可读提示
+                ShowToast(!_view.MyTurn ? "对手回合，暂不可操作" : "当前不是主要阶段");
+                return false;
+            }
             return true;
         }
 
@@ -577,7 +571,9 @@ namespace SynergyUI
                 if (!IsNetwork)
                 {
                     var core = Core;
-                    if (core != null && !core.ElementPool.CanPayCost(GameActions.GetCardCost(card.CoreCard, idx), P1))
+                    // 自动横置口径（2026-09-30）：bank 不足但地牌可产所需元素亦放行——付费步自动横置
+                    if (core != null && !core.ElementPool.CanPayCostWithAutoTap(
+                            GameActions.GetCardCost(card.CoreCard, idx), P1))
                     {
                         ShowToast("费用不足——该分支不可发动");
                         RefreshLocal();
@@ -632,8 +628,6 @@ namespace SynergyUI
                 : GameActions.PlayCard(core, P1, card.CoreCard, targets, Zone.Hand, modeIndex);
             if (ok)
                 _ctrl.SettleResponseWindow().Forget();
-            else if (LockRevealedAura.IsLockedThisTurn(card.CoreCard))
-                ShowToast("该卡本回合被锁定，不可使用");
             else
                 ShowToast(fromGrave ? "无法使用（配额已用或不可支付）" : "无法打出（费用/条件不满足）");
             RefreshLocal();
@@ -833,18 +827,8 @@ namespace SynergyUI
         }
 
         // ---- 中栏按钮 ----
-
-        private void OnSkipStandby()
-        {
-            if (_gameEnded || _view == null || !_view.MyTurn || _view.Phase != PhaseType.Standby) return;
-            if (IsNetwork)
-                _net?.Send<object>(NetworkMessageType.IntentSkipStandby, null);
-            else
-            {
-                GameActions.SkipElementPool(Core, P1);
-                RefreshLocal();
-            }
-        }
+        // （跳过准备阶段按钮已删：准备阶段纯自动推进——TurnEngine.StartNewTurn 内
+        //   AdvanceFromStandby 直调，2026-09-24 定案；UI 不再有停等入口。）
 
         private void OnGraveyardPlay()
         {

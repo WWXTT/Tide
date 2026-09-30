@@ -1585,9 +1585,6 @@ namespace CardCore
             // 注册内置代价处理器
             BuiltinCostHandlers.RegisterAll();
 
-            // 仪式装饰器（血偿仪典等）由 RitualComponents.EnsureRegistered 挂载
-            //（GameCore.Reset → RitualSystem.EnsureRuntime，时序在本注册链之后，包装到已注册的原处理器）
-
             // 注册网罗自检：除「暂不实现」2 种外，所有原子效果类型都应有处理器
             VerifyHandlerCoverage();
         }

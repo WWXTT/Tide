@@ -14,13 +14,13 @@ namespace CardCore
     // - 回合开始重置例外（冻结/沉睡无法重置）→ 本文件注册表（IUntapBlockRule）
     // ================================================================
 
-    /// <summary>出牌限制：CanPlay 返回 false 拒绝打出（如信息轴仪式的回合锁定）。</summary>
+    /// <summary>出牌限制：CanPlay 返回 false 拒绝打出（出牌管线的通用拦截扩展点）。</summary>
     public interface IPlayRestriction
     {
         bool CanPlay(GameCore core, Player player, Card card, Zone fromZone);
     }
 
-    /// <summary>非手牌出牌来源（如归土仪典的墓地视手牌使用）：声明来源区与使用配额。</summary>
+    /// <summary>非手牌出牌来源（如墓地视手牌使用）：声明来源区与使用配额。</summary>
     public interface IPlaySource
     {
         Zone SourceZone { get; }

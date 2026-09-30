@@ -58,7 +58,8 @@ class QuickArgs:
     max_grad_norm: float = 0.5
 
     total_updates: int = 10  # 只训练 10 次更新
-    max_episode_steps: int = 1000  # 单局步数上限（超时判负，保证 episode 一定能完结；可选操作变多后翻倍）
+    # v2 1000→2000：响应窗口决策点使每局步数变长（对齐 train_tide_complete 口径）
+    max_episode_steps: int = 2000  # 单局步数上限（超时判负，保证 episode 一定能完结）
     reward_lambda: float = 0.02  # 兼容参数（塑形 λ 固定在 Unity 侧）
     channels: int = 128
     rnn_channels: int = 512
@@ -287,8 +288,10 @@ def quick_train():
     log_print(f"日志已保存到: {log_file}")
     log_print("")
 
-    # 等待用户按回车
-    input("按回车键退出...")
+    # 等待用户按回车（仅交互终端——冒烟自动化跑批时不阻塞）
+    import sys as _sys
+    if _sys.stdin is not None and _sys.stdin.isatty():
+        input("按回车键退出...")
 
 
 if __name__ == "__main__":
