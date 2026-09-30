@@ -36,8 +36,7 @@ namespace UnityEngine.Rendering.Universal
             list.Add(new DebugUI.MessageBox
             {
                 displayName = "Warning: GPU timings may not be accurate on mobile devices that have tile-based architectures.",
-                style = DebugUI.MessageBox.Style.Warning,
-                flags = DebugUI.Flags.RuntimeOnly
+                style = DebugUI.MessageBox.Style.Warning
             });
 #endif
 
@@ -46,6 +45,7 @@ namespace UnityEngine.Rendering.Universal
             var detailedStatsFoldout = new DebugUI.Foldout
             {
                 displayName = "Detailed Stats",
+                isHeader = true,
                 opened = false,
                 children =
                 {

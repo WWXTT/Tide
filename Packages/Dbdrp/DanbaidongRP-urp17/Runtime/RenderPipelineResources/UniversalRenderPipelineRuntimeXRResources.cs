@@ -3,43 +3,16 @@ using System;
 namespace UnityEngine.Rendering.Universal
 {
     /// <summary>
-    /// A resource container for textures used for <see cref="UniversalRenderPipeline"/>.
+    /// Class containing shader resources needed in URP for XR.
     /// </summary>
-    /// <remarks>
-    /// You cannot edit these resources through the editor's UI; use the API for advanced changes.
-    /// Changing this through the API is only allowed in the Editor. In the Player, this raises an error.
-    /// 
-    /// This container is removed for non-XR builds.
-    /// </remarks>
-    /// <seealso cref="IRenderPipelineResources"/>
-    /// <example>
-    /// <para> Here is an example of how to get the MotionVector shader used by URP for XR. </para>
-    /// <code>
-    /// using UnityEngine.Rendering;
-    /// using UnityEngine.Rendering.Universal;
-    /// 
-    /// public static class URPUniversalRendererRuntimeXRResourcesHelper
-    /// {
-    ///     public static Shader motionVector
-    ///     {
-    ///         get
-    ///         {
-    ///             var gs = GraphicsSettings.GetRenderPipelineSettings&lt;UniversalRenderPipelineRuntimeXRResources&gt;();
-    ///             if (gs == null) //not in URP or XR not enabled
-    ///                 return null;
-    ///             return gs.xrMotionVector;
-    ///         }
-    ///     }
-    /// }
-    /// </code>
-    /// </example>
+    /// <seealso cref="Shader"/>
     [Serializable]
     [SupportedOnRenderPipeline(typeof(UniversalRenderPipelineAsset))]
     [Categorization.CategoryInfo(Name = "R: Runtime XR", Order = 1000), HideInInspector]
     public class UniversalRenderPipelineRuntimeXRResources : IRenderPipelineResources
     {
         /// <summary>
-        /// Current version of the resource container. Used only for upgrading a project.
+        /// Version of the XR Resources
         /// </summary>
         public int version => 0;
 

@@ -19,18 +19,6 @@ namespace UnityEngine.Rendering.Universal
     {
         internal bool isInvalidated { get; set; }
 
-        internal virtual bool stripShadowsOffVariants
-        {
-            get => m_StripShadowsOffVariants;
-            set => m_StripShadowsOffVariants = value;
-        }
-
-        internal virtual bool stripAdditionalLightOffVariants
-        {
-            get => m_StripAdditionalLightOffVariants;
-            set => m_StripAdditionalLightOffVariants = value;
-        }
-
         /// <summary>
         /// Creates the instance of the ScriptableRenderer.
         /// </summary>
@@ -39,10 +27,7 @@ namespace UnityEngine.Rendering.Universal
 
         [SerializeField] internal List<ScriptableRendererFeature> m_RendererFeatures = new List<ScriptableRendererFeature>(10);
         [SerializeField] internal List<long> m_RendererFeatureMap = new List<long>(10);
-        [NonSerialized]
-        bool m_StripShadowsOffVariants = false;
-        [NonSerialized]
-        bool m_StripAdditionalLightOffVariants = false;
+        [SerializeField] bool m_UseNativeRenderPass = false;
 
         /// <summary>
         /// List of additional render pass features for this renderer.
@@ -78,34 +63,8 @@ namespace UnityEngine.Rendering.Universal
             // when ScriptableRendererFeatures haven't been compiled before this check).
             if (!EditorApplication.isCompiling && m_RendererFeatures.Contains(null))
                 ValidateRendererFeatures();
-
-            MigrateRendererFeatureHideFlags();
 #endif
         }
-
-#if UNITY_EDITOR
-        /// <summary>
-        /// Migrates renderer features to use HideInHierarchy flag so they don't appear in the project browser.
-        /// </summary>
-        void MigrateRendererFeatureHideFlags()
-        {
-            if (AssetDatabase.IsAssetImportWorkerProcess())
-                return;
-            bool dirty = false;
-            foreach (var feature in m_RendererFeatures)
-            {
-                if (feature != null && (feature.hideFlags & HideFlags.HideInHierarchy) == 0)
-                {
-                    feature.hideFlags |= HideFlags.HideInHierarchy;
-                    EditorUtility.SetDirty(feature);
-                    dirty = true;
-                }
-            }
-
-            if (dirty)
-                EditorUtility.SetDirty(this);
-        }
-#endif
 
         /// <summary>
         /// This function is called when the object becomes enabled and active.
@@ -113,6 +72,19 @@ namespace UnityEngine.Rendering.Universal
         protected virtual void OnEnable()
         {
             SetDirty();
+        }
+
+        /// <summary>
+        /// Specifies whether the renderer should use Native Render Pass.
+        /// </summary>
+        public bool useNativeRenderPass
+        {
+            get => m_UseNativeRenderPass;
+            set
+            {
+                SetDirty();
+                m_UseNativeRenderPass = value;
+            }
         }
 
         /// <summary>
@@ -148,15 +120,6 @@ namespace UnityEngine.Rendering.Universal
 
         internal bool ValidateRendererFeatures()
         {
-            if (AssetDatabase.IsAssetImportWorkerProcess())
-            {
-                // UUM-125400 Asset Import Worker Process encounters a race condition when it tries to validate
-                // RendererFeatures. If we're coming from the AssetImportWorkerProcess, exit early and return
-                // true because it's safe to assume that (1) the features are validated by another process and
-                // (2) it shouldn't be the Asset Import Worker's job to validate RendererFeatures.
-                return true;
-            }
-
             // Get all Subassets
             var subassets = AssetDatabase.LoadAllAssetsAtPath(AssetDatabase.GetAssetPath(this));
             var linkedIds = new List<long>();
@@ -213,25 +176,6 @@ namespace UnityEngine.Rendering.Universal
 
             Debug.LogError($"{name} is missing RendererFeatures\nThis could be due to missing scripts or compile error.", this);
             return false;
-        }
-
-        internal void RemoveMissingRendererFeatures()
-        {
-            string path = AssetDatabase.GetAssetPath(this);
-
-            for (int i = m_RendererFeatures.Count - 1; i >= 0; i--)
-            {
-                if (m_RendererFeatures[i] == null)
-                {
-                    m_RendererFeatures.RemoveAt(i);
-                    m_RendererFeatureMap.RemoveAt(i);
-                }
-            }
-
-            AssetDatabase.RemoveScriptableObjectsWithMissingScript(path);
-            EditorUtility.SetDirty(this);
-            AssetDatabase.SaveAssetIfDirty(this);
-            AssetDatabase.Refresh();
         }
 
         internal bool DuplicateFeatureCheck(Type type)
