@@ -149,61 +149,6 @@ namespace UnityEngine.Rendering.Universal
             }
         }
 
-        #region Terrain
-
-        /// <summary>
-        /// Returns the terrain detail lit shader that this asset uses.
-        /// </summary>
-        public override Shader terrainDetailLitShader
-        {
-            get
-            {
-                if (GraphicsSettings.TryGetRenderPipelineSettings<UniversalRenderPipelineRuntimeTerrainShaders>(
-                        out var shadersResources))
-                {
-                    return shadersResources.terrainDetailLitShader;
-                }
-
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Returns the terrain detail grass shader that this asset uses.
-        /// </summary>
-        public override Shader terrainDetailGrassShader
-        {
-            get
-            {
-                if (GraphicsSettings.TryGetRenderPipelineSettings<UniversalRenderPipelineRuntimeTerrainShaders>(
-                        out var shadersResources))
-                {
-                    return shadersResources.terrainDetailGrassShader;
-                }
-
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Returns the terrain detail grass billboard shader that this asset uses.
-        /// </summary>
-        public override Shader terrainDetailGrassBillboardShader
-        {
-            get
-            {
-                if (GraphicsSettings.TryGetRenderPipelineSettings<UniversalRenderPipelineRuntimeTerrainShaders>(
-                        out var shadersResources))
-                {
-                    return shadersResources.terrainDetailGrassBillboardShader;
-                }
-
-                return null;
-            }
-        }
-
-        #endregion
-
 #if UNITY_EDITOR
 
         #region Autodesk
