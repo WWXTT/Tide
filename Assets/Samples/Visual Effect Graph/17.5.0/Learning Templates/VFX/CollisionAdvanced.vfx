@@ -8126,7 +8126,7 @@ MonoBehaviour:
   sortingPriority: 0
   m_SubOutputs:
   - {fileID: 8926484042661615511}
-  - {fileID: 8926484042661615634}
+  - {fileID: 8926484042661615635}
   useBaseColorMap: 2
   colorMapping: 0
   uvMode: 0
@@ -8156,7 +8156,6 @@ MonoBehaviour:
   materialType: 0
   workflowMode: 0
   smoothnessSource: 0
-  useBaseColorMap: 2
   useOcclusionMap: 0
   useMetallicMap: 0
   useSpecularMap: 0
@@ -11946,7 +11945,7 @@ MonoBehaviour:
         PublicKeyToken=b77a5c561934e089
   m_Direction: 1
   m_LinkedSlots: []
---- !u!114 &8926484042661615634
+--- !u!114 &8926484042661615635
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
