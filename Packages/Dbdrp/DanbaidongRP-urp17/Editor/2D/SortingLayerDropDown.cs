@@ -68,9 +68,6 @@ namespace UnityEditor.Rendering.Universal
                         Light2DManager.ErrorIfDuplicateGlobalLight(light);
                 }
             }
-
-            if (EditorWindow.HasOpenInstances<LightBatchingDebugger>())
-                LightBatchingDebugger.QueueRefresh();
         }
 
         void OnNoSortingLayerSelected(object selectionData)

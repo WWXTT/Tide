@@ -16,14 +16,14 @@ namespace UnityEditor.Rendering.Universal
         {
             var instance = ScriptableObject.CreateInstance<Create2DRendererDataAsset>();
             instance.onCreated += onCreatedCallback;
-            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(EntityId.None, instance, "New 2D Renderer Data.asset", CoreUtils.GetIconForType<ScriptableRendererData>(), null);
+            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, instance, "New 2D Renderer Data.asset", null, null);
         }
 
         class Create2DRendererDataAsset : AssetCreationEndAction
         {
             public event Action<Renderer2DData> onCreated;
 
-            public override void Action(EntityId entityId, string pathName, string resourceFile)
+            public override void Action(EntityId instanceId, string pathName, string resourceFile)
             {
                 var instance = CreateRendererAsset(pathName, RendererType._2DRenderer, false) as Renderer2DData;
                 Selection.activeObject = instance;
@@ -32,7 +32,7 @@ namespace UnityEditor.Rendering.Universal
             }
         }
 
-        internal static ScriptableRendererData CreateRendererAsset(string path, RendererType type, bool relativePath = true, string suffix = "Renderer")
+        static ScriptableRendererData CreateRendererAsset(string path, RendererType type, bool relativePath = true, string suffix = "Renderer")
         {
             string packagePath = "Packages/com.unity.render-pipelines.universal";
 
@@ -101,8 +101,7 @@ namespace UnityEditor.Rendering.Universal
 
         static Light2D CreateLight(MenuCommand menuCommand, Light2D.LightType type, Vector3[] shapePath = null)
         {
-            var lightName = type != Light2D.LightType.Point ? type.ToString() : "Spot";
-            GameObject go = ObjectFactory.CreateGameObject(lightName + " Light 2D", typeof(Light2D));
+            GameObject go = ObjectFactory.CreateGameObject("Light 2D", typeof(Light2D));
             Light2D light2D = go.GetComponent<Light2D>();
             light2D.batchSlotIndex = LightBatch.batchSlotIndex;
             light2D.lightType = type;
@@ -113,7 +112,7 @@ namespace UnityEditor.Rendering.Universal
             var parent = menuCommand.context as GameObject;
             Place(go, parent);
 
-            Analytics.LightDataAnalytic lightData = new Analytics.LightDataAnalytic(light2D.GetEntityId(), true, light2D.lightType);
+            Analytics.LightDataAnalytic lightData = new Analytics.LightDataAnalytic(light2D.GetEntityId().GetHashCode(), true, light2D.lightType);
             Analytics.Renderer2DAnalytics.instance.SendData(lightData);
 
             return light2D;
@@ -189,7 +188,7 @@ namespace UnityEditor.Rendering.Universal
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1812")]
         internal class CreateUniversalPipelineAsset : AssetCreationEndAction
         {
-            public override void Action(EntityId entityId, string pathName, string resourceFile)
+            public override void Action(EntityId instanceId, string pathName, string resourceFile)
             {
                 //Create asset
                 AssetDatabase.CreateAsset(UniversalRenderPipelineAsset.Create(CreateRendererAsset(pathName, RendererType._2DRenderer)), pathName);
@@ -199,8 +198,8 @@ namespace UnityEditor.Rendering.Universal
         [MenuItem("Assets/Create/Rendering/URP Asset (with 2D Renderer)", priority = CoreUtils.Sections.section2 + CoreUtils.Priorities.assetsCreateRenderingMenuPriority)]
         static void CreateUniversalPipeline()
         {
-            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(EntityId.None, ScriptableObject.CreateInstance<CreateUniversalPipelineAsset>(),
-                "New Universal Render Pipeline Asset.asset", CoreUtils.GetIconForType<UniversalRenderPipelineAsset>(), null);
+            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, UniversalRenderPipelineAsset.CreateInstance<CreateUniversalPipelineAsset>(),
+                "New Universal Render Pipeline Asset.asset", null, null);
         }
 
         [MenuItem("Assets/Create/Rendering/URP 2D Renderer", priority = CoreUtils.Sections.section3 + CoreUtils.Priorities.assetsCreateRenderingMenuPriority + 1)]
@@ -208,7 +207,7 @@ namespace UnityEditor.Rendering.Universal
         {
             Renderer2DMenus.Create2DRendererData((instance) =>
             {
-                Analytics.RenderAssetAnalytic modifiedData = new Analytics.RenderAssetAnalytic(instance.GetEntityId(), true, 1, 2);
+                Analytics.RenderAssetAnalytic modifiedData = new Analytics.RenderAssetAnalytic(instance.GetEntityId().GetHashCode(), true, 1, 2);
                 Analytics.Renderer2DAnalytics.instance.SendData(modifiedData);
             });
         }

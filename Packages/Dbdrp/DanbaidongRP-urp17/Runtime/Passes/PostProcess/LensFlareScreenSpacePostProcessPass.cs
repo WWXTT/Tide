@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices; // AggressiveInlining
 
 namespace UnityEngine.Rendering.Universal
 {
-    internal sealed class LensFlareScreenSpacePostProcessPass : PostProcessPass
+    internal sealed class LensFlareScreenSpacePostProcessPass : PostProcessPassLegacy
     {
         Material m_Material;
         bool m_IsValid;

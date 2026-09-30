@@ -1,3 +1,5 @@
+using UnityEditor;
+
 namespace UnityEngine.Rendering.Universal
 {
     public partial class Renderer2DData
@@ -24,15 +26,6 @@ namespace UnityEngine.Rendering.Universal
 
             switch (materialType)
             {
-                case DefaultMaterialType.Default:
-                {
-                    return m_DefaultMaterialType switch
-                    {
-                        Renderer2DDefaultMaterialType.Lit => resources.defaultMesh2DLitMaterial,
-                        Renderer2DDefaultMaterialType.Unlit => resources.defaultMesh2DLitMaterial,
-                        _ => m_DefaultCustomMaterial
-                    };
-                }
                 case DefaultMaterialType.Sprite:
                 case DefaultMaterialType.Particle:
                 {
@@ -45,7 +38,6 @@ namespace UnityEngine.Rendering.Universal
                 }
                 case DefaultMaterialType.SpriteMask:
                     return resources.defaultMaskMaterial;
-
                 default:
                     return null;
             }
@@ -57,10 +49,10 @@ namespace UnityEngine.Rendering.Universal
             const string suggestedNamesKey = "SecondarySpriteTexturePropertyNames";
             const string maskTex = "_MaskTex";
             const string normalMap = "_NormalMap";
-            string suggestedNamesPrefs = UnityEditor.EditorPrefs.GetString(suggestedNamesKey);
+            string suggestedNamesPrefs = EditorPrefs.GetString(suggestedNamesKey);
 
             if (string.IsNullOrEmpty(suggestedNamesPrefs))
-                UnityEditor.EditorPrefs.SetString(suggestedNamesKey, maskTex + "," + normalMap);
+                EditorPrefs.SetString(suggestedNamesKey, maskTex + "," + normalMap);
             else
             {
                 if (!suggestedNamesPrefs.Contains(maskTex))
@@ -69,7 +61,7 @@ namespace UnityEngine.Rendering.Universal
                 if (!suggestedNamesPrefs.Contains(normalMap))
                     suggestedNamesPrefs += ("," + normalMap);
 
-                UnityEditor.EditorPrefs.SetString(suggestedNamesKey, suggestedNamesPrefs);
+                EditorPrefs.SetString(suggestedNamesKey, suggestedNamesPrefs);
             }
 
             ReloadAllNullProperties();

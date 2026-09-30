@@ -1,6 +1,4 @@
-#if USING_2DCOMMON
-
-using UnityEditor.U2D.Common.Path;
+using UnityEditor.Rendering.Universal.Path2D;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
@@ -37,5 +35,3 @@ namespace UnityEditor.Rendering.Universal
         }
     }
 }
-
-#endif
