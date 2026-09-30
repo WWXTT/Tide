@@ -3,9 +3,12 @@
 PackedVaryings vert(Attributes input)
 {
     Varyings output = (Varyings)0;
+    UNITY_SETUP_INSTANCE_ID(input);
+
+    SetUpSpriteInstanceProperties();
     input.positionOS = UnityFlipSprite(input.positionOS, unity_SpriteProps.xy);
     output = BuildVaryings(input);
-    output.normalWS = -GetViewForwardDir();
+    output.color *= unity_SpriteColor;
     PackedVaryings packedOutput = PackVaryings(output);
     return packedOutput;
 }
@@ -16,6 +19,8 @@ half4 frag(PackedVaryings packedInput) : SV_TARGET
     UNITY_SETUP_INSTANCE_ID(unpacked);
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(unpacked);
 
+    SetUpSpriteInstanceProperties();
+    
     SurfaceDescription surfaceDescription = BuildSurfaceDescription(unpacked);
 
 #ifdef UNIVERSAL_USELEGACYSPRITEBLOCKS

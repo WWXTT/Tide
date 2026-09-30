@@ -2,7 +2,7 @@
 #define UNIVERSAL_WAVING_GRASS_PASSES_INCLUDED
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityGBuffer.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GBufferOutput.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderVariablesFunctions.hlsl"
 
 struct GrassVertexInput
@@ -76,7 +76,9 @@ void InitializeInputData(GrassVertexOutput input, out InputData inputData)
 #endif
     inputData.vertexLighting = input.fogFactorAndVertexLight.yzw;
 
-#if defined(DYNAMICLIGHTMAP_ON)
+#if defined(_SCREEN_SPACE_IRRADIANCE)
+    inputData.bakedGI = SAMPLE_GI(_ScreenSpaceIrradiance, inputData.positionCS.xy);
+#elif defined(DYNAMICLIGHTMAP_ON)
     inputData.bakedGI = SAMPLE_GI(input.lightmapUV, NOT_USED, input.vertexSH, inputData.normalWS);
     inputData.shadowMask = SAMPLE_SHADOWMASK(input.lightmapUV);
 #elif !defined(LIGHTMAP_ON) && (defined(PROBE_VOLUMES_L1) || defined(PROBE_VOLUMES_L2))
@@ -200,7 +202,7 @@ inline void InitializeSimpleLitSurfaceData(GrassVertexOutput input, out SurfaceD
     outSurfaceData.alpha = alpha;
     outSurfaceData.albedo = diffuse;
     outSurfaceData.metallic = 0.0; // unused
-    outSurfaceData.specular = 0.1;// SampleSpecularSmoothness(uv, diffuseAlpha.a, _SpecColor, TEXTURE2D_ARGS(_SpecGlossMap, sampler_SpecGlossMap));
+    outSurfaceData.specular = 0.0; // To match forward pass (UUM-113119)
     outSurfaceData.smoothness = input.posWSShininess.w;
     outSurfaceData.normalTS = 0.0; // unused
     outSurfaceData.occlusion = 1.0;
@@ -209,7 +211,7 @@ inline void InitializeSimpleLitSurfaceData(GrassVertexOutput input, out SurfaceD
 
 // Used for StandardSimpleLighting shader
 #ifdef TERRAIN_GBUFFER
-FragmentOutput LitPassFragmentGrass(GrassVertexOutput input)
+GBufferFragOutput LitPassFragmentGrass(GrassVertexOutput input)
 #else
 half4 LitPassFragmentGrass(GrassVertexOutput input) : SV_Target
 #endif
@@ -226,7 +228,7 @@ half4 LitPassFragmentGrass(GrassVertexOutput input) : SV_Target
 
 #ifdef TERRAIN_GBUFFER
     half4 color = half4(inputData.bakedGI * surfaceData.albedo + surfaceData.emission, surfaceData.alpha);
-    return SurfaceDataToGbuffer(surfaceData, inputData, color.rgb, kLightingSimpleLit);
+    return PackGBuffersSurfaceData(surfaceData, inputData, color.rgb);
 #else
     half4 color = UniversalFragmentBlinnPhong(inputData, surfaceData);
     color.rgb = MixFog(color.rgb, inputData.fogCoord);

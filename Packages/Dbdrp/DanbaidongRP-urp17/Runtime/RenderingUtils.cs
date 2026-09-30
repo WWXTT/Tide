@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine.Experimental.Rendering;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace UnityEngine.Rendering.Universal
 {
@@ -37,7 +39,7 @@ namespace UnityEngine.Rendering.Universal
         /// <summary>
         /// Returns a mesh that you can use with <see cref="CommandBuffer.DrawMesh(Mesh, Matrix4x4, Material)"/> to render full-screen effects.
         /// </summary>
-        [Obsolete("Use Blitter.BlitCameraTexture instead of CommandBuffer.DrawMesh(fullscreenMesh, ...)")]  // TODO OBSOLETE: need to fix the URP test failures when bumping
+        [Obsolete("Use Blitter.BlitCameraTexture instead of CommandBuffer.DrawMesh(fullscreenMesh, ...). #from(2022.2)")]  // TODO OBSOLETE: need to fix the URP test failures when bumping
         public static Mesh fullscreenMesh
         {
             get
@@ -94,6 +96,35 @@ namespace UnityEngine.Rendering.Universal
             return true;
         }
 
+        /// <summary>
+        /// Returns true if the given ScriptableRenderPassInput requirements are compatible with Tile-Only Mode on the Universal Renderer.
+        /// Reusable for any ScriptableRenderPass.
+        /// </summary>
+        /// <param name="requirements">The pass input requirements.</param>
+        /// <param name="renderPassEvent">The event at which the pass runs. When only Depth (or Motion) is requested without Normal, a pass before or at BeforeRenderingOpaques gets a prepass instead of a depth copy, so it remains compatible.</param>
+        /// <remarks>
+        /// This method mirrors how the render pipeline fulfills pass input requirements. Keep it in sync with pipeline behavior:
+        /// <list type="bullet">
+        /// <item><b>Color:</b> The pipeline adds a copy color pass and exposes the result as a global texture. That store/load cannot stay on tile and triggers Tile-Only validation.</item>
+        /// <item><b>Depth without Normal:</b> The pipeline fulfills depth-only by adding a depth copy pass when the pass runs after opaque. When the pass runs at or before BeforeRenderingOpaques, the pipeline adds a prepass instead, which is compatible.</item>
+        /// <item><b>Motion without Normal:</b> Motion implies depth; same as Depth without Normal with respect to prepass vs copy and renderPassEvent.</item>
+        /// </list>
+        /// When adding or changing requirements or pipeline behavior, update this method and the corresponding editor validation (e.g. FullScreenPassRendererFeatureEditor) so they stay consistent.
+        /// </remarks>
+        internal static bool IsCompatibleWithTileOnlyMode(ScriptableRenderPassInput requirements, RenderPassEvent renderPassEvent)
+        {
+            if ((requirements & ScriptableRenderPassInput.Color) != ScriptableRenderPassInput.None)
+                return false;
+            // Depth without Normal: pipeline uses a depth copy when the pass runs after opaque; when pass is before or at opaque, pipeline adds a prepass instead (compatible).
+            if ((requirements & ScriptableRenderPassInput.Depth) != ScriptableRenderPassInput.None && (requirements & ScriptableRenderPassInput.Normal) == ScriptableRenderPassInput.None
+                && renderPassEvent > RenderPassEvent.BeforeRenderingOpaques)
+                return false;
+            if ((requirements & ScriptableRenderPassInput.Motion) != ScriptableRenderPassInput.None && (requirements & ScriptableRenderPassInput.Normal) == ScriptableRenderPassInput.None
+                && renderPassEvent > RenderPassEvent.BeforeRenderingOpaques)
+                return false;
+            return true;
+        }
+
         static Material s_ErrorMaterial;
         static Material errorMaterial
         {
@@ -125,7 +156,7 @@ namespace UnityEngine.Rendering.Universal
         /// <param name="projectionMatrix">Projection matrix to be set.</param>
         /// <param name="setInverseMatrices">Set this to true if you also need to set inverse camera matrices.</param>
         public static void SetViewAndProjectionMatrices(CommandBuffer cmd, Matrix4x4 viewMatrix, Matrix4x4 projectionMatrix, bool setInverseMatrices) { SetViewAndProjectionMatrices(CommandBufferHelpers.GetRasterCommandBuffer(cmd), viewMatrix, projectionMatrix, setInverseMatrices); }
-        
+
         /// <summary>
         /// Set view and projection matrices.
         /// This function will set <c>UNITY_MATRIX_V</c>, <c>UNITY_MATRIX_P</c>, <c>UNITY_MATRIX_VP</c> to given view and projection matrices.
@@ -134,7 +165,7 @@ namespace UnityEngine.Rendering.Universal
         /// <param name="cmd">RasterCommandBuffer to submit data to GPU.</param>
         /// <param name="viewMatrix">View matrix to be set.</param>
         /// <param name="projectionMatrix">Projection matrix to be set.</param>
-        /// <param name="setInverseMatrices">Set this to true if you also need to set inverse camera matrices.</param>        
+        /// <param name="setInverseMatrices">Set this to true if you also need to set inverse camera matrices.</param>
         public static void SetViewAndProjectionMatrices(RasterCommandBuffer cmd, Matrix4x4 viewMatrix, Matrix4x4 projectionMatrix, bool setInverseMatrices)
         {
             Matrix4x4 viewAndProjectionMatrix = projectionMatrix * viewMatrix;
@@ -166,120 +197,15 @@ namespace UnityEngine.Rendering.Universal
             cmd.SetGlobalVector(Shader.PropertyToID("_ScaleBiasRt"), scaleBiasRt);
         }
 
-        internal static void SetScaleBiasRt(RasterCommandBuffer cmd, in RenderingData renderingData)
+        internal static void SetupOffscreenUIViewportParams(Material material, ref Rect pixelRect, bool isRenderToBackBufferTarget)
         {
-            var renderer = renderingData.cameraData.renderer;
-
-            // SetRenderTarget has logic to flip projection matrix when rendering to render texture. Flip the uv to account for that case.
-            CameraData cameraData = renderingData.cameraData;
-
-            // Disable obsolete warning for internal usage
-            #pragma warning disable CS0618
-            bool isCameraColorFinalTarget = (cameraData.cameraType == CameraType.Game && renderer.cameraColorTargetHandle.nameID == BuiltinRenderTextureType.CameraTarget && cameraData.camera.targetTexture == null);
-            #pragma warning restore CS0618
-
-            bool yflip = !isCameraColorFinalTarget;
-            float flipSign = yflip ? -1.0f : 1.0f;
-
-            Vector4 scaleBiasRt = (flipSign < 0.0f)
-                ? new Vector4(flipSign, 1.0f, -1.0f, 1.0f)
-                : new Vector4(flipSign, 0.0f, 1.0f, 1.0f);
-
-            cmd.SetGlobalVector(Shader.PropertyToID("_ScaleBiasRt"), scaleBiasRt);
-        }
-
-        internal static void Blit(CommandBuffer cmd,
-            RTHandle source,
-            Rect viewport,
-            RTHandle destination,
-            RenderBufferLoadAction loadAction,
-            RenderBufferStoreAction storeAction,
-            ClearFlag clearFlag,
-            Color clearColor,
-            Material material,
-            int passIndex = 0)
-        {
-            Vector2 viewportScale = source.useScaling ? new Vector2(source.rtHandleProperties.rtHandleScale.x, source.rtHandleProperties.rtHandleScale.y) : Vector2.one;
-            CoreUtils.SetRenderTarget(cmd, destination, loadAction, storeAction, ClearFlag.None, Color.clear);
-            cmd.SetViewport(viewport);
-            Blitter.BlitTexture(cmd, source, viewportScale, material, passIndex);
-        }
-
-        internal static void Blit(CommandBuffer cmd,
-            RTHandle source,
-            Rect viewport,
-            RTHandle destinationColor,
-            RenderBufferLoadAction colorLoadAction,
-            RenderBufferStoreAction colorStoreAction,
-            RTHandle destinationDepthStencil,
-            RenderBufferLoadAction depthStencilLoadAction,
-            RenderBufferStoreAction depthStencilStoreAction,
-            ClearFlag clearFlag,
-            Color clearColor,
-            Material material,
-            int passIndex = 0)
-        {
-            Vector2 viewportScale = source.useScaling ? new Vector2(source.rtHandleProperties.rtHandleScale.x, source.rtHandleProperties.rtHandleScale.y) : Vector2.one;
-            CoreUtils.SetRenderTarget(cmd,
-                destinationColor, colorLoadAction, colorStoreAction,
-                destinationDepthStencil, depthStencilLoadAction, depthStencilStoreAction,
-                clearFlag, clearColor); // implicit depth=1.0f stencil=0x0
-            cmd.SetViewport(viewport);
-            Blitter.BlitTexture(cmd, source, viewportScale, material, passIndex);
-        }
-
-        internal static void FinalBlit(
-            CommandBuffer cmd,
-            UniversalCameraData cameraData,
-            RTHandle source,
-            RTHandle destination,
-            RenderBufferLoadAction loadAction,
-            RenderBufferStoreAction storeAction,
-            Material material, int passIndex)
-        {
-            bool isRenderToBackBufferTarget = !cameraData.isSceneViewCamera;
-#if ENABLE_VR && ENABLE_XR_MODULE
-                if (cameraData.xr.enabled)
-                    isRenderToBackBufferTarget = new RenderTargetIdentifier(destination.nameID, 0, CubemapFace.Unknown, -1) == new RenderTargetIdentifier(cameraData.xr.renderTarget, 0, CubemapFace.Unknown, -1);
-#endif
-
-            Vector2 viewportScale = source.useScaling ? new Vector2(source.rtHandleProperties.rtHandleScale.x, source.rtHandleProperties.rtHandleScale.y) : Vector2.one;
-
-            // We y-flip if
-            // 1) we are blitting from render texture to back buffer(UV starts at bottom) and
-            // 2) renderTexture starts UV at top
-            bool yflip = isRenderToBackBufferTarget && cameraData.targetTexture == null && SystemInfo.graphicsUVStartsAtTop;
-            Vector4 scaleBias = yflip ? new Vector4(viewportScale.x, -viewportScale.y, 0, viewportScale.y) : new Vector4(viewportScale.x, viewportScale.y, 0, 0);
-            CoreUtils.SetRenderTarget(cmd, destination, loadAction, storeAction, ClearFlag.None, Color.clear);
+            Vector4 offscreenUIViewportParams = new Vector4(0f, 0f, 1f, 1f);
             if (isRenderToBackBufferTarget)
-                cmd.SetViewport(cameraData.pixelRect);
-
-            // cmd.Blit must be used in Scene View for wireframe mode to make the full screen draw with fill mode
-            // This branch of the if statement must be removed for render graph and the new command list with a novel way of using Blitter with fill mode
-            if (GL.wireframe && cameraData.isSceneViewCamera)
             {
-                // This set render target is necessary so we change the LOAD state to DontCare.
-                cmd.SetRenderTarget(BuiltinRenderTextureType.CameraTarget,
-                    loadAction, storeAction, // color
-                    RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare); // depth
-
-                // Necessary to disable the wireframe here, since Vulkan is handling the wireframe differently
-                // to handle the Terrain "Draw Instanced" scenario (Ono: case-1205332).
-                if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Vulkan)
-                {
-                    cmd.SetWireframe(false);
-                    cmd.Blit(source, destination);
-                    cmd.SetWireframe(true);
-                }
-                else
-                {
-                    cmd.Blit(source, destination);
-                }
+                var rcpScreenSize = new Vector2(1f / Screen.width, 1f / Screen.height);
+                offscreenUIViewportParams = new Vector4(pixelRect.x * rcpScreenSize.x, pixelRect.y * rcpScreenSize.y, pixelRect.width * rcpScreenSize.x, pixelRect.height * rcpScreenSize.y);
             }
-            else if (source.rt == null)
-                Blitter.BlitTexture(cmd, source.nameID, scaleBias, material, passIndex);  // Obsolete usage of RTHandle aliasing a RenderTargetIdentifier
-            else
-                Blitter.BlitTexture(cmd, source, scaleBias, material, passIndex);
+            material.SetVector(ShaderPropertyId.offscreenUIViewportParams, offscreenUIViewportParams);
         }
 
         // This is used to render materials that contain built-in shader passes not compatible with URP.
@@ -298,23 +224,6 @@ namespace UnityEngine.Rendering.Universal
                 errorSettings.SetShaderPassName(i, m_LegacyShaderPassNames[i]);
 
             param = new RendererListParams(cullResults, errorSettings, filterSettings);
-        }
-
-        [Conditional("DEVELOPMENT_BUILD"), Conditional("UNITY_EDITOR")]
-        internal static void CreateRendererListObjectsWithError(ScriptableRenderContext context, ref CullingResults cullResults, Camera camera, FilteringSettings filterSettings, SortingCriteria sortFlags, ref RendererList rl)
-        {
-            // TODO: When importing project, AssetPreviewUpdater::CreatePreviewForAsset will be called multiple times.
-            // This might be in a point that some resources required for the pipeline are not finished importing yet.
-            // Proper fix is to add a fence on asset import.
-            if (errorMaterial == null)
-            {
-                rl = RendererList.nullRendererList;
-                return;
-            }
-
-            RendererListParams param = new RendererListParams();
-            CreateRendererParamsObjectsWithError(ref cullResults, camera, filterSettings, sortFlags, ref param);
-            rl = context.CreateRendererList(ref param);
         }
 
         // This is used to render materials that contain built-in shader passes not compatible with URP.
@@ -340,48 +249,6 @@ namespace UnityEngine.Rendering.Universal
         internal static void DrawRendererListObjectsWithError(RasterCommandBuffer cmd, ref RendererList rl)
         {
             cmd.DrawRendererList(rl);
-        }
-
-        // Create a RendererList using a RenderStateBlock override is quite common so we have this optimized utility function for it
-        internal static void CreateRendererListWithRenderStateBlock(ScriptableRenderContext context, ref CullingResults cullResults, DrawingSettings ds, FilteringSettings fs, RenderStateBlock rsb, ref RendererList rl)
-        {
-            RendererListParams param = new RendererListParams();
-            unsafe
-            {
-                // Taking references to stack variables in the current function does not require any pinning (as long as you stay within the scope)
-                // so we can safely alias it as a native array
-                RenderStateBlock* rsbPtr = &rsb;
-                var stateBlocks = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<RenderStateBlock>(rsbPtr, 1, Allocator.None);
-
-                var shaderTag = ShaderTagId.none;
-                var tagValues = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<ShaderTagId>(&shaderTag, 1, Allocator.None);
-
-                // Inside CreateRendererList (below), we pass the NativeArrays to C++ by calling GetUnsafeReadOnlyPtr
-                // This will check read access but NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray does not set up the SafetyHandle (by design) so create/add it here
-                // NOTE: we explicitly share the handle
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-                var safetyHandle = AtomicSafetyHandle.Create();
-                AtomicSafetyHandle.SetAllowReadOrWriteAccess(safetyHandle, true);
-
-                NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref stateBlocks, safetyHandle);
-                NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref tagValues, safetyHandle);
-#endif
-
-                // Create & schedule the RL
-                param = new RendererListParams(cullResults, ds, fs)
-                {
-                    tagValues = tagValues,
-                    stateBlocks = stateBlocks
-
-                };
-
-                rl = context.CreateRendererList(ref param);
-
-                // we need to explicitly release the SafetyHandle
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-                AtomicSafetyHandle.Release(safetyHandle);
-#endif
-            }
         }
 
         static ShaderTagId[] s_ShaderTagValues = new ShaderTagId[1];
@@ -433,159 +300,13 @@ namespace UnityEngine.Rendering.Universal
         /// <param name="format">The format to look up.</param>
         /// <param name="usage">The format usage to look up.</param>
         /// <returns>Returns true if the graphics card supports the given <c>GraphicsFormat</c></returns>
-        [Obsolete("Use SystemInfo.IsFormatSupported instead.", false)]
+        [Obsolete("Use SystemInfo.IsFormatSupported instead. #from(2023.2)")]
         public static bool SupportsGraphicsFormat(GraphicsFormat format, FormatUsage usage)
         {
-	    GraphicsFormatUsage graphicsFormatUsage = (GraphicsFormatUsage)(1 << (int)usage);
-	    return SystemInfo.IsFormatSupported(format, graphicsFormatUsage);
+            GraphicsFormatUsage graphicsFormatUsage = (GraphicsFormatUsage)(1 << (int)usage);
+            return SystemInfo.IsFormatSupported(format, graphicsFormatUsage);
         }
-
-        /// <summary>
-        /// Return the last colorBuffer index actually referring to an existing RenderTarget
-        /// </summary>
-        /// <param name="colorBuffers"></param>
-        /// <returns></returns>
-        internal static int GetLastValidColorBufferIndex(RenderTargetIdentifier[] colorBuffers)
-        {
-            int i = colorBuffers.Length - 1;
-            for (; i >= 0; --i)
-            {
-                if (colorBuffers[i] != 0)
-                    break;
-            }
-            return i;
-        }
-
-        /// <summary>
-        /// Return the number of items in colorBuffers actually referring to an existing RenderTarget
-        /// </summary>
-        /// <param name="colorBuffers"></param>
-        /// <returns></returns>
-        internal static uint GetValidColorBufferCount(RTHandle[] colorBuffers)
-        {
-            uint nonNullColorBuffers = 0;
-            if (colorBuffers != null)
-            {
-                foreach (var identifier in colorBuffers)
-                {
-                    if (identifier != null && identifier.nameID != 0)
-                        ++nonNullColorBuffers;
-                }
-            }
-            return nonNullColorBuffers;
-        }
-
-        /// <summary>
-        /// Return true if colorBuffers is an actual MRT setup
-        /// </summary>
-        /// <param name="colorBuffers"></param>
-        /// <returns></returns>
-        internal static bool IsMRT(RTHandle[] colorBuffers)
-        {
-            return GetValidColorBufferCount(colorBuffers) > 1;
-        }
-
-        /// <summary>
-        /// Return true if value can be found in source (without recurring to Linq)
-        /// </summary>
-        /// <param name="source"></param>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        internal static bool Contains(RenderTargetIdentifier[] source, RenderTargetIdentifier value)
-        {
-            foreach (var identifier in source)
-            {
-                if (identifier == value)
-                    return true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Return the index where value was found source. Otherwise, return -1. (without recurring to Linq)
-        /// </summary>
-        /// <param name="source"></param>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        internal static int IndexOf(RTHandle[] source, RenderTargetIdentifier value)
-        {
-            for (int i = 0; i < source.Length; ++i)
-            {
-                if (source[i] == value)
-                    return i;
-            }
-            return -1;
-        }
-
-        /// <summary>
-        /// Return the index where value was found source. Otherwise, return -1. (without recurring to Linq)
-        /// </summary>
-        /// <param name="source"></param>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        internal static int IndexOf(RTHandle[] source, RTHandle value) => IndexOf(source, value.nameID);
-
-        /// <summary>
-        /// Return the number of RenderTargetIdentifiers in "source" that are valid (not 0) and different from "value" (without recurring to Linq)
-        /// </summary>
-        /// <param name="source"></param>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        internal static uint CountDistinct(RTHandle[] source, RTHandle value)
-        {
-            uint count = 0;
-            for (int i = 0; i < source.Length; ++i)
-            {
-                if (source[i] != null && source[i].nameID != 0 && source[i].nameID != value.nameID)
-                    ++count;
-            }
-            return count;
-        }
-
-        /// <summary>
-        /// Return the index of last valid (i.e different from 0) RenderTargetIdentifiers in "source" (without recurring to Linq)
-        /// </summary>
-        /// <param name="source"></param>
-        /// <returns></returns>
-        internal static int LastValid(RTHandle[] source)
-        {
-            for (int i = source.Length - 1; i >= 0; --i)
-            {
-                if (source[i] != null && source[i].nameID != 0)
-                    return i;
-            }
-            return -1;
-        }
-
-        /// <summary>
-        /// Return true if ClearFlag a contains ClearFlag b
-        /// </summary>
-        /// <param name="a"></param>
-        /// <param name="b"></param>
-        /// <returns></returns>
-        internal static bool Contains(ClearFlag a, ClearFlag b)
-        {
-            return (a & b) == b;
-        }
-
-        /// <summary>
-        /// Return true if "left" and "right" are the same (without recurring to Linq)
-        /// </summary>
-        /// <param name="left"></param>
-        /// <param name="right"></param>
-        /// <returns></returns>
-        internal static bool SequenceEqual(RTHandle[] left, RTHandle[] right)
-        {
-            if (left.Length != right.Length)
-                return false;
-
-            for (int i = 0; i < left.Length; ++i)
-                if (left[i].nameID != right[i].nameID)
-                    return false;
-
-            return true;
-        }
-
+        
         internal static bool MultisampleDepthResolveSupported()
         {
             // Temporarily disabling depth resolve a driver bug on OSX when using some AMD graphics cards. Temporarily disabling depth resolve on that platform
@@ -597,16 +318,27 @@ namespace UnityEngine.Rendering.Universal
             return SystemInfo.supportsMultisampleResolveDepth && SystemInfo.supportsMultisampleResolveStencil;
         }
 
+        internal static bool ShouldDepthAttachmentBindMS()
+        {
+            bool canResolveDepth = RenderingUtils.MultisampleDepthResolveSupported();
+            var canSampleMSAADepth = SystemInfo.supportsMultisampledTextures != 0;
+
+            // If we aren't using hardware depth resolves and we have MSAA, we need to resolve depth manually by binding as an MSAA texture.
+            bool bindMS = !canResolveDepth && canSampleMSAADepth;
+
+            // binding MS surfaces is not supported by the GLES backend, and it won't be fixed after investigating
+            // the high performance impact of potential fixes, which would make it more expensive than depth prepass (fogbugz 1339401 for more info)
+            if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.OpenGLES3)
+                bindMS = false;
+
+            return bindMS; 
+        }
+
         /// <summary>
         /// Return true if handle does not match descriptor
         /// </summary>
         /// <param name="handle">RTHandle to check (can be null)</param>
         /// <param name="descriptor">Descriptor for the RTHandle to match</param>
-        /// <param name="filterMode">Filtering mode of the RTHandle.</param>
-        /// <param name="wrapMode">Addressing mode of the RTHandle.</param>
-        /// <param name="anisoLevel">Anisotropic filtering level.</param>
-        /// <param name="mipMapBias">Bias applied to mipmaps during filtering.</param>
-        /// <param name="name">Name of the RTHandle.</param>
         /// <param name="scaled">Check if the RTHandle has auto scaling enabled if not, check the widths and heights</param>
         /// <returns></returns>
         internal static bool RTHandleNeedsReAlloc(
@@ -620,54 +352,33 @@ namespace UnityEngine.Rendering.Universal
                 return true;
             if (!scaled && (handle.rt.width != descriptor.width || handle.rt.height != descriptor.height))
                 return true;
+            if (handle.rt.enableShadingRate && handle.rt.graphicsFormat != descriptor.colorFormat)
+                return true;
 
-            var rtHandleFormat = (handle.rt.descriptor.depthStencilFormat != GraphicsFormat.None) ? handle.rt.descriptor.depthStencilFormat : handle.rt.descriptor.graphicsFormat;
+            //We should always prefer to cache data from Native to prevent duplicate copy operations when re-fetching
+            var rtDescriptor = handle.rt.descriptor;
+            var rtHandleFormat = (rtDescriptor.depthStencilFormat != GraphicsFormat.None) ? rtDescriptor.depthStencilFormat : rtDescriptor.graphicsFormat;
+            var isShadowMap = rtDescriptor.shadowSamplingMode != ShadowSamplingMode.None;
 
             return
                 rtHandleFormat != descriptor.format ||
-                handle.rt.descriptor.dimension != descriptor.dimension ||
-                handle.rt.descriptor.enableRandomWrite != descriptor.enableRandomWrite ||
-                handle.rt.descriptor.useMipMap != descriptor.useMipMap ||
-                handle.rt.descriptor.autoGenerateMips != descriptor.autoGenerateMips ||
-                (MSAASamples)handle.rt.descriptor.msaaSamples != descriptor.msaaSamples ||
-                handle.rt.descriptor.bindMS != descriptor.bindTextureMS ||
-                handle.rt.descriptor.useDynamicScale != descriptor.useDynamicScale ||
-                handle.rt.descriptor.memoryless != descriptor.memoryless ||
+                rtDescriptor.dimension != descriptor.dimension ||
+                rtDescriptor.volumeDepth != descriptor.slices ||
+                rtDescriptor.enableRandomWrite != descriptor.enableRandomWrite ||
+                rtDescriptor.enableShadingRate != descriptor.enableShadingRate ||
+                rtDescriptor.useMipMap != descriptor.useMipMap ||
+                rtDescriptor.autoGenerateMips != descriptor.autoGenerateMips ||
+                isShadowMap != descriptor.isShadowMap ||
+                (MSAASamples)rtDescriptor.msaaSamples != descriptor.msaaSamples ||
+                rtDescriptor.bindMS != descriptor.bindTextureMS ||
+                rtDescriptor.useDynamicScale != descriptor.useDynamicScale ||
+                rtDescriptor.useDynamicScaleExplicit != descriptor.useDynamicScaleExplicit ||
+                rtDescriptor.memoryless != descriptor.memoryless ||
                 handle.rt.filterMode != descriptor.filterMode ||
                 handle.rt.wrapMode != descriptor.wrapMode ||
                 handle.rt.anisoLevel != descriptor.anisoLevel ||
-                handle.rt.mipMapBias != descriptor.mipMapBias ||
+                Mathf.Abs(handle.rt.mipMapBias - descriptor.mipMapBias) > Mathf.Epsilon ||
                 handle.name != descriptor.name;
-        }
-
-        /// <summary>
-        /// Returns the RenderTargetIdentifier of the current camera target.
-        /// </summary>
-        /// <param name="renderingData"></param>
-        /// <returns></returns>
-        internal static RenderTargetIdentifier GetCameraTargetIdentifier(ref RenderingData renderingData)
-        {
-            // Note: We need to get the cameraData.targetTexture as this will get the targetTexture of the camera stack.
-            // Overlay cameras need to output to the target described in the base camera while doing camera stack.
-            ref CameraData cameraData = ref renderingData.cameraData;
-
-            RenderTargetIdentifier cameraTarget = (cameraData.targetTexture != null) ? new RenderTargetIdentifier(cameraData.targetTexture) : BuiltinRenderTextureType.CameraTarget;
-#if ENABLE_VR && ENABLE_XR_MODULE
-            if (cameraData.xr.enabled)
-            {
-                if (cameraData.xr.singlePassEnabled)
-                {
-                    cameraTarget = cameraData.xr.renderTarget;
-                }
-                else
-                {
-                    int depthSlice = cameraData.xr.GetTextureArraySlice();
-                    cameraTarget = new RenderTargetIdentifier(cameraData.xr.renderTarget, 0, CubemapFace.Unknown, depthSlice);
-                }
-            }
-#endif
-
-            return cameraTarget;
         }
 
         /// <summary>
@@ -847,28 +558,42 @@ namespace UnityEngine.Rendering.Universal
                     return true;
                 }
 
-                var actualFormat = descriptor.graphicsFormat != GraphicsFormat.None ? descriptor.graphicsFormat : descriptor.depthStencilFormat;
+                var allocInfo = CreateRTHandleAllocInfo(descriptor, filterMode, wrapMode, anisoLevel, mipMapBias, name);
+                handle = RTHandles.Alloc(descriptor.width, descriptor.height, allocInfo);
+                return true;
+            }
+            return false;
+        }
 
-                RTHandleAllocInfo allocInfo = new RTHandleAllocInfo();
-                allocInfo.slices = descriptor.volumeDepth;
-                allocInfo.format = actualFormat;
-                allocInfo.filterMode = filterMode;
-                allocInfo.wrapModeU = wrapMode;
-                allocInfo.wrapModeV = wrapMode;
-                allocInfo.wrapModeW = wrapMode;
-                allocInfo.dimension = descriptor.dimension;
-                allocInfo.enableRandomWrite = descriptor.enableRandomWrite;
-                allocInfo.useMipMap = descriptor.useMipMap;
-                allocInfo.autoGenerateMips = descriptor.autoGenerateMips;
-                allocInfo.anisoLevel = anisoLevel;
-                allocInfo.mipMapBias = mipMapBias;
-                allocInfo.msaaSamples = (MSAASamples)descriptor.msaaSamples;
-                allocInfo.bindTextureMS = descriptor.bindMS;
-                allocInfo.useDynamicScale = descriptor.useDynamicScale;
-                allocInfo.memoryless = descriptor.memoryless;
-                allocInfo.vrUsage = descriptor.vrUsage;
-                allocInfo.name = name;
+        /// <summary>
+        /// Re-allocate fixed-size RTHandle if it is not allocated or doesn't match the descriptor
+        /// </summary>
+        /// <param name="handle">RTHandle to check (can be null)</param>
+        /// <param name="descriptor">TextureDesc for the RTHandle to match</param>
+        /// <param name="name">Name of the RTHandle.</param>
+        /// <returns>If an allocation was done.</returns>
+        public static bool ReAllocateHandleIfNeeded(
+            ref RTHandle handle,
+            TextureDesc descriptor,
+            string name)
+        {
+            descriptor.name = name;
+            descriptor.sizeMode = TextureSizeMode.Explicit;
 
+            if (RTHandleNeedsReAlloc(handle, in descriptor, false))
+            {
+                if (handle != null && handle.rt != null)
+                {
+                    TextureDesc currentRTDesc = RTHandleResourcePool.CreateTextureDesc(handle.rt.descriptor, TextureSizeMode.Explicit, handle.rt.anisoLevel, handle.rt.mipMapBias, handle.rt.filterMode, handle.rt.wrapMode, handle.name);
+                    AddStaleResourceToPoolOrRelease(currentRTDesc, handle);
+                }
+
+                if (UniversalRenderPipeline.s_RTHandlePool.TryGetResource(descriptor, out handle))
+                {
+                    return true;
+                }
+
+                var allocInfo = CreateRTHandleAllocInfo(descriptor, name);
                 handle = RTHandles.Alloc(descriptor.width, descriptor.height, allocInfo);
                 return true;
             }
@@ -912,28 +637,7 @@ namespace UnityEngine.Rendering.Universal
                     return true;
                 }
 
-                var actualFormat = descriptor.graphicsFormat != GraphicsFormat.None ? descriptor.graphicsFormat : descriptor.depthStencilFormat;
-
-                RTHandleAllocInfo allocInfo = new RTHandleAllocInfo();
-                allocInfo.slices = descriptor.volumeDepth;
-                allocInfo.format = actualFormat;
-                allocInfo.filterMode = filterMode;
-                allocInfo.wrapModeU = wrapMode;
-                allocInfo.wrapModeV = wrapMode;
-                allocInfo.wrapModeW = wrapMode;
-                allocInfo.dimension = descriptor.dimension;
-                allocInfo.enableRandomWrite = descriptor.enableRandomWrite;
-                allocInfo.useMipMap = descriptor.useMipMap;
-                allocInfo.autoGenerateMips = descriptor.autoGenerateMips;
-                allocInfo.anisoLevel = anisoLevel;
-                allocInfo.mipMapBias = mipMapBias;
-                allocInfo.msaaSamples = (MSAASamples)descriptor.msaaSamples;
-                allocInfo.bindTextureMS = descriptor.bindMS;
-                allocInfo.useDynamicScale = descriptor.useDynamicScale;
-                allocInfo.memoryless = descriptor.memoryless;
-                allocInfo.vrUsage = descriptor.vrUsage;
-                allocInfo.name = name;
-
+                var allocInfo = CreateRTHandleAllocInfo(descriptor, filterMode, wrapMode, anisoLevel, mipMapBias, name);
                 handle = RTHandles.Alloc(scaleFactor, allocInfo);
                 return true;
             }
@@ -977,28 +681,7 @@ namespace UnityEngine.Rendering.Universal
                     return true;
                 }
 
-                var actualFormat = descriptor.graphicsFormat != GraphicsFormat.None ? descriptor.graphicsFormat : descriptor.depthStencilFormat;
-
-                RTHandleAllocInfo allocInfo = new RTHandleAllocInfo();
-                allocInfo.slices = descriptor.volumeDepth;
-                allocInfo.format = actualFormat;
-                allocInfo.filterMode = filterMode;
-                allocInfo.wrapModeU = wrapMode;
-                allocInfo.wrapModeV = wrapMode;
-                allocInfo.wrapModeW = wrapMode;
-                allocInfo.dimension = descriptor.dimension;
-                allocInfo.enableRandomWrite = descriptor.enableRandomWrite;
-                allocInfo.useMipMap = descriptor.useMipMap;
-                allocInfo.autoGenerateMips = descriptor.autoGenerateMips;
-                allocInfo.anisoLevel = anisoLevel;
-                allocInfo.mipMapBias = mipMapBias;
-                allocInfo.msaaSamples = (MSAASamples)descriptor.msaaSamples;
-                allocInfo.bindTextureMS = descriptor.bindMS;
-                allocInfo.useDynamicScale = descriptor.useDynamicScale;
-                allocInfo.memoryless = descriptor.memoryless;
-                allocInfo.vrUsage = descriptor.vrUsage;
-                allocInfo.name = name;
-
+                var allocInfo = CreateRTHandleAllocInfo(descriptor, filterMode, wrapMode, anisoLevel, mipMapBias, name);
                 handle = RTHandles.Alloc(scaleFunc, allocInfo);
                 return true;
             }
@@ -1040,7 +723,7 @@ namespace UnityEngine.Rendering.Universal
         /// <param name="sortingCriteria">Criteria to sort objects being rendered.</param>
         /// <returns></returns>
         /// <seealso cref="DrawingSettings"/>
-        static public DrawingSettings CreateDrawingSettings(ShaderTagId shaderTagId, ref RenderingData renderingData, SortingCriteria sortingCriteria)
+        public static DrawingSettings CreateDrawingSettings(ShaderTagId shaderTagId, ref RenderingData renderingData, SortingCriteria sortingCriteria)
         {
             UniversalRenderingData universalRenderingData = renderingData.frameData.Get<UniversalRenderingData>();
             UniversalCameraData cameraData = renderingData.frameData.Get<UniversalCameraData>();
@@ -1059,7 +742,7 @@ namespace UnityEngine.Rendering.Universal
         /// <param name="sortingCriteria">Criteria to sort objects being rendered.</param>
         /// <returns></returns>
         /// <seealso cref="DrawingSettings"/>
-        static public DrawingSettings CreateDrawingSettings(ShaderTagId shaderTagId, UniversalRenderingData renderingData,
+        public static DrawingSettings CreateDrawingSettings(ShaderTagId shaderTagId, UniversalRenderingData renderingData,
             UniversalCameraData cameraData, UniversalLightData lightData, SortingCriteria sortingCriteria)
         {
             Camera camera = cameraData.camera;
@@ -1068,10 +751,14 @@ namespace UnityEngine.Rendering.Universal
             {
                 perObjectData = renderingData.perObjectData,
                 mainLightIndex = lightData.mainLightIndex,
+#pragma warning disable 618
                 enableDynamicBatching = renderingData.supportsDynamicBatching,
+#pragma warning restore 618
 
                 // Disable instancing for preview cameras. This is consistent with the built-in forward renderer. Also fixes case 1127324.
-                enableInstancing = camera.cameraType == CameraType.Preview ? false : true,
+                enableInstancing = camera.cameraType != CameraType.Preview,
+                // stencil-based LOD doesn't support native render pass for now.
+                lodCrossFadeStencilMask = renderingData.stencilLodCrossFadeEnabled ? (int)UniversalRendererStencilRef.CrossFadeStencilRef_All : 0,
             };
             return settings;
         }
@@ -1084,7 +771,7 @@ namespace UnityEngine.Rendering.Universal
         /// <param name="sortingCriteria">Criteria to sort objects being rendered.</param>
         /// <returns></returns>
         /// <seealso cref="DrawingSettings"/>
-        static public DrawingSettings CreateDrawingSettings(List<ShaderTagId> shaderTagIdList,
+        public static DrawingSettings CreateDrawingSettings(List<ShaderTagId> shaderTagIdList,
             ref RenderingData renderingData, SortingCriteria sortingCriteria)
         {
             UniversalRenderingData universalRenderingData = renderingData.frameData.Get<UniversalRenderingData>();
@@ -1103,7 +790,7 @@ namespace UnityEngine.Rendering.Universal
         /// <param name="sortingCriteria">Criteria to sort objects being rendered.</param>
         /// <returns></returns>
         /// <seealso cref="DrawingSettings"/>
-        static public DrawingSettings CreateDrawingSettings(List<ShaderTagId> shaderTagIdList,
+        public static DrawingSettings CreateDrawingSettings(List<ShaderTagId> shaderTagIdList,
             UniversalRenderingData renderingData, UniversalCameraData cameraData,
             UniversalLightData lightData, SortingCriteria sortingCriteria)
         {
@@ -1120,6 +807,21 @@ namespace UnityEngine.Rendering.Universal
         }
 
         /// <summary>
+        /// This is a replace for the old UniversalCameraData.IsHandleYFlipped function to simplify the conversion of code towards
+        /// using the TextureUVOrigin to decide if the UV needs to be flipped. The function is a drop-in replacement, with exactly
+        /// the same output based on the texture orientation of the TextureHandle passed. For new code, avoid using this function and
+        /// directly use the TextureUVOrigin to decide if the UVs need to be flipped for more future proof and understandable code.
+        /// </summary>
+        /// <param name="renderGraphContext">The RasterGraphContext to use.</param>
+        /// <param name="textureHandle">Texture handle representing the texture in the render graph to check.</param>
+        /// <returns>If the texture should be rendered flipped.</returns>
+        internal static bool IsHandleYFlipped(in RasterGraphContext renderGraphContext, in TextureHandle textureHandle)
+        { 
+            return renderGraphContext.GetTextureUVOrigin(textureHandle) == TextureUVOrigin.BottomLeft;
+        }
+
+#if URP_COMPATIBILITY_MODE
+        /// <summary>
         /// Returns the scale bias vector to use for final blits to the backbuffer, based on scaling mode and y-flip platform requirements.
         /// </summary>
         /// <param name="source"></param>
@@ -1128,11 +830,171 @@ namespace UnityEngine.Rendering.Universal
         /// <returns></returns>
         internal static Vector4 GetFinalBlitScaleBias(RTHandle source, RTHandle destination, UniversalCameraData cameraData)
         {
-            Vector2 viewportScale = source.useScaling ? new Vector2(source.rtHandleProperties.rtHandleScale.x, source.rtHandleProperties.rtHandleScale.y) : Vector2.one;
+            Vector2 scale = source.useScaling ? new Vector2(source.rtHandleProperties.rtHandleScale.x, source.rtHandleProperties.rtHandleScale.y) : Vector2.one;
             var yflip = cameraData.IsRenderTargetProjectionMatrixFlipped(destination);
-            Vector4 scaleBias = !yflip ? new Vector4(viewportScale.x, -viewportScale.y, 0, viewportScale.y) : new Vector4(viewportScale.x, viewportScale.y, 0, 0);
+            Vector4 scaleBias = !yflip ? new Vector4(scale.x, -scale.y, 0, scale.y) : new Vector4(scale.x, scale.y, 0, 0);
 
             return scaleBias;
+        }
+#endif
+        internal static Vector4 GetFinalBlitScaleBias(in RasterGraphContext renderGraphContext, in TextureHandle source, in TextureHandle destination)
+        {
+            RTHandle srcRTHandle = source;
+            Vector2 scale = srcRTHandle is { useScaling: true } ? new Vector2(srcRTHandle.rtHandleProperties.rtHandleScale.x, srcRTHandle.rtHandleProperties.rtHandleScale.y) : Vector2.one;
+
+            var yflip = renderGraphContext.GetTextureUVOrigin(in source) != renderGraphContext.GetTextureUVOrigin(in destination);
+
+            Vector4 scaleBias = yflip ? new Vector4(scale.x, -scale.y, 0, scale.y) : new Vector4(scale.x, scale.y, 0, 0);
+
+            return scaleBias;
+        }
+
+        /// <summary>
+        /// Returns the TextureUVOrigin of the real backbuffer for the current graphics API. In modern graphics APIs like
+        /// Vulkan or Metal, this will return TopLeft. For OpenGL, WebGL, GLES, this will return BottomLeft.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static TextureUVOrigin GetRealBackBufferUVOrientation()
+        {
+            return SystemInfo.graphicsUVStartsAtTop ? TextureUVOrigin.TopLeft : TextureUVOrigin.BottomLeft;
+        }
+
+        /// <summary>
+        /// Returns the TextureUVOrigin of the UniversalResourceData.backBuffer. This resource is not always the real backbuffer.
+        /// To get the TextureUVOrigin of the real backbuffer, use GetRealBackBufferUVOrientation().
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static TextureUVOrigin GetBackBufferUVOrientation(UniversalCameraData cameraData)
+        {
+            // Backbuffer orientation is used for either the actual backbuffer (not a texture), or in XR for the eye texture.
+            bool useRealBackbufferOrientation = !cameraData.isSceneViewCamera && !cameraData.isPreviewCamera && cameraData.targetTexture == null;
+            return useRealBackbufferOrientation ? RenderingUtils.GetRealBackBufferUVOrientation() : TextureUVOrigin.BottomLeft;
+        }
+        /// <summary>
+        /// Returns the TextureUVOrigin of the camera targets. These include the intermediate textures (UniversalResourceData.cameraColor, cameraDepth),
+        /// the Gbuffers (UniversalResourceData.gbuffer) and any copy of those. Since these are all textures, they normally are all using the
+        /// Unity texture convention of BottomLeft. However, in the On-Tile Renderer, these can adopt the backbuffer UV orientation. 
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static TextureUVOrigin GetCameraTargetsUVOrientation(UniversalCameraData cameraData)
+        {
+            var universalRenderer = cameraData.renderer as UniversalRenderer;
+            bool onTileRenderer = (universalRenderer == null) ? false : universalRenderer.useTileOnlyMode;
+
+            if (onTileRenderer)
+            {
+                // The On-Tile renderer guarantees that the backbuffer orientation is propagated to
+                // the camera targets.
+                return GetBackBufferUVOrientation(cameraData);
+            }
+            else
+            {
+                return TextureUVOrigin.BottomLeft;
+            }
+        }
+
+        /// <summary>
+        /// Computes the inverse view-projection matrix for a given texture UV origin.
+        /// This is critical for passes that reconstruct world positions from depth textures.
+        ///
+        /// THE PROBLEM:
+        /// Many rendering passes (ScreenSpaceShadows, SSAO, SSR, etc.) need to reconstruct world positions from screen-space depth.
+        /// The reconstruction process uses screen UVs [0,1] and depth to build clip-space coordinates [-1,1], then transforms
+        /// them to world space using the inverse view-projection matrix (unity_MatrixInvVP).
+        ///
+        /// However, the Y-axis direction in clip space depends on the texture's UV origin:
+        /// - BottomLeft (standard texture): UV(0,0) is bottom-left → clip(-1,-1) is bottom-left → Y increases upward
+        /// - TopLeft (backbuffer on modern APIs): UV(0,0) is top-left → clip(-1,+1) is top-left → Y increases downward
+        ///
+        /// The inverse VP matrix encodes this Y-flip assumption via _ProjectionParams.x. If the matrix was computed for TopLeft
+        /// but you're reconstructing from a BottomLeft depth texture, the Y-coordinate is inverted, resulting in incorrect
+        /// world positions (and thus wrong shadow lookups, SSAO samples, etc.).
+        ///
+        /// WHEN IT BREAKS:
+        /// - Tile-Only Mode: The active render target can be TopLeft (backbuffer), so unity_MatrixInvVP is set for TopLeft.
+        ///   But cameraDepthTexture is always BottomLeft (intermediate texture). Mismatch → broken.
+        /// - Direct-to-backbuffer: Similar issue when rendering directly to a TopLeft backbuffer but sampling BottomLeft depth.
+        /// - After prepass: Camera properties are restored for the active target, overwriting the matrix that was correct
+        ///   during the prepass.
+        ///
+        /// THE FIX:
+        /// Query the texture's actual UV origin (via GetTextureUVOrigin) and compute the inverse VP matrix that matches
+        /// how that texture was rendered. This ensures the reconstruction math is consistent with the source data.
+        /// </summary>
+        /// <param name="textureUVOrigin">The UV origin of the texture (typically from GetTextureUVOrigin)</param>
+        /// <param name="cameraData">Camera data containing view and projection matrices</param>
+        /// <returns>The inverse view-projection matrix matching the texture orientation</returns>
+        internal static Matrix4x4 ComputeInverseViewProjectionMatrix(TextureUVOrigin textureUVOrigin, UniversalCameraData cameraData)
+        {
+            bool isFlipped = (textureUVOrigin == TextureUVOrigin.BottomLeft);
+            Matrix4x4 projection = cameraData.GetGPUProjectionMatrix(isFlipped);
+            Matrix4x4 view = cameraData.GetViewMatrix();
+            Matrix4x4 viewProj = CoreMatrixUtils.MultiplyProjectionMatrix(projection, view, cameraData.camera.orthographic);
+            return Matrix4x4.Inverse(viewProj);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static RTHandleAllocInfo CreateRTHandleAllocInfo(in RenderTextureDescriptor descriptor, FilterMode filterMode, TextureWrapMode wrapMode, int anisoLevel, float mipMapBias, string name)
+        {
+            var actualFormat = descriptor.graphicsFormat != GraphicsFormat.None ? descriptor.graphicsFormat : descriptor.depthStencilFormat;
+
+            // NOTE: this calls default(RTHandleAllocInfo) not RTHandleAllocInfo(string = "")
+            RTHandleAllocInfo allocInfo = new RTHandleAllocInfo();
+            allocInfo.slices = descriptor.volumeDepth;
+            allocInfo.format = actualFormat;
+            allocInfo.filterMode = filterMode;
+            allocInfo.wrapModeU = wrapMode;
+            allocInfo.wrapModeV = wrapMode;
+            allocInfo.wrapModeW = wrapMode;
+            allocInfo.dimension = descriptor.dimension;
+            allocInfo.enableRandomWrite = descriptor.enableRandomWrite;
+            allocInfo.enableShadingRate = descriptor.enableShadingRate;
+            allocInfo.useMipMap = descriptor.useMipMap;
+            allocInfo.autoGenerateMips = descriptor.autoGenerateMips;
+            allocInfo.anisoLevel = anisoLevel;
+            allocInfo.mipMapBias = mipMapBias;
+            allocInfo.isShadowMap = descriptor.shadowSamplingMode != ShadowSamplingMode.None;
+            allocInfo.msaaSamples = (MSAASamples)descriptor.msaaSamples;
+            allocInfo.bindTextureMS = descriptor.bindMS;
+            allocInfo.useDynamicScale = descriptor.useDynamicScale;
+            allocInfo.useDynamicScaleExplicit = descriptor.useDynamicScaleExplicit;
+            allocInfo.memoryless = descriptor.memoryless;
+            allocInfo.vrUsage = descriptor.vrUsage;
+            allocInfo.enableShadingRate = descriptor.enableShadingRate;
+            allocInfo.name = name;
+
+            return allocInfo;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static RTHandleAllocInfo CreateRTHandleAllocInfo(in TextureDesc descriptor, string name)
+        {
+            // NOTE: this calls default(RTHandleAllocInfo) not RTHandleAllocInfo(string = "")
+            RTHandleAllocInfo allocInfo = new RTHandleAllocInfo();
+            allocInfo.slices = descriptor.slices;
+            allocInfo.format = descriptor.format;
+            allocInfo.filterMode = descriptor.filterMode;
+            allocInfo.wrapModeU = descriptor.wrapMode;
+            allocInfo.wrapModeV = descriptor.wrapMode;
+            allocInfo.wrapModeW = descriptor.wrapMode;
+            allocInfo.dimension = descriptor.dimension;
+            allocInfo.enableRandomWrite = descriptor.enableRandomWrite;
+            allocInfo.enableShadingRate = descriptor.enableShadingRate;
+            allocInfo.useMipMap = descriptor.useMipMap;
+            allocInfo.autoGenerateMips = descriptor.autoGenerateMips;
+            allocInfo.anisoLevel = descriptor.anisoLevel;
+            allocInfo.mipMapBias = descriptor.mipMapBias;
+            allocInfo.isShadowMap = descriptor.isShadowMap;
+            allocInfo.msaaSamples = (MSAASamples)descriptor.msaaSamples;
+            allocInfo.bindTextureMS = descriptor.bindTextureMS;
+            allocInfo.useDynamicScale = descriptor.useDynamicScale;
+            allocInfo.useDynamicScaleExplicit = descriptor.useDynamicScaleExplicit;
+            allocInfo.memoryless = descriptor.memoryless;
+            allocInfo.vrUsage = descriptor.vrUsage;
+            allocInfo.enableShadingRate = descriptor.enableShadingRate;
+            allocInfo.name = name;
+
+            return allocInfo;
         }
     }
 }

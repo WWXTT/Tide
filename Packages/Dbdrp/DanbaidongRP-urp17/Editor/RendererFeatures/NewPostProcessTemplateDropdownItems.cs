@@ -33,9 +33,9 @@ namespace UnityEditor.Rendering.Universal
             return ProjectWindowUtil.CreateScriptAssetWithContent(targetPath, PreprocessScriptTemplate(content, featureType, volumeType, displayName));
         }
 
-        internal class CreateCombinedScriptTemplateAssetsAction : ProjectWindowCallback.EndNameEditAction
+        internal class CreateCombinedScriptTemplateAssetsAction : ProjectWindowCallback.AssetCreationEndAction
         {
-            public override void Action(int instanceId, string userPath, string resourceFile)
+            public override void Action(EntityId entityId, string userPath, string resourceFile)
             {
                 string directoryPath = Path.GetDirectoryName(userPath);
                 string enteredName = Path.GetFileNameWithoutExtension(userPath);
@@ -62,12 +62,12 @@ namespace UnityEditor.Rendering.Universal
             }
         }
 
-        [MenuItem("Assets/Create/Rendering/URP Post-processing Effect (Renderer Feature with Volume)", priority = CoreUtils.Sections.section4 + CoreUtils.Priorities.assetsCreateRenderingMenuPriority)]
+        [MenuItem("Assets/Create/Scripting/URP Post-process Volume Scripts", priority = UnityEngine.Rendering.CoreUtils.Priorities.scriptingPriority + 1)]
         static void MenuCreateCustomPostProcessVolumeRendererFeature()
         {
             Texture2D icon = EditorGUIUtility.IconContent("cs Script Icon").image as Texture2D;
 
-            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0,
+            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(EntityId.None,
                 ScriptableObject.CreateInstance<CreateCombinedScriptTemplateAssetsAction>(), "NewPostProcessEffect.cs", icon, k_FeatureTemplatePath);
         }
     }

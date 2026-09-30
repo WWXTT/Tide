@@ -30,13 +30,15 @@ namespace UnityEngine.Rendering.Universal
     public enum RenderPathCompatibility
     {
         /// <summary>Forward Rendering Path</summary>
-        Forward     = 1 << 0,
+        Forward      = 1 << 0,
         /// <summary>Deferred Rendering Path</summary>
-        Deferred    = 1 << 1,
+        Deferred     = 1 << 1,
         /// <summary>Forward+ Rendering Path</summary>
-        ForwardPlus = 1 << 2,
+        ForwardPlus  = 1 << 2,
+        /// <summary>Forward+ Rendering Path</summary>
+        DeferredPlus = 1 << 3,
         /// <summary>All Rendering Paths</summary>
-        All         = Forward | Deferred | ForwardPlus
+        All         = Forward | Deferred | ForwardPlus | DeferredPlus
     }
 
     [AttributeUsage(AttributeTargets.Field)]
@@ -103,14 +105,14 @@ namespace UnityEngine.Rendering.Universal
     /// Class containing resources needed for the <c>UniversalRenderer</c>.
     /// </summary>
     [Serializable, ReloadGroup, ExcludeFromPreset]
-    [URPHelpURL("urp-universal-renderer")]
+    [URPHelpURL("urp/urp-universal-renderer")]
     public partial class UniversalRendererData : ScriptableRendererData, ISerializationCallbackReceiver
     {
 #if UNITY_EDITOR
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1812")]
-        internal class CreateUniversalRendererAsset : EndNameEditAction
+        internal class CreateUniversalRendererAsset : AssetCreationEndAction
         {
-            public override void Action(int instanceId, string pathName, string resourceFile)
+            public override void Action(EntityId entityId, string pathName, string resourceFile)
             {
                 var instance = UniversalRenderPipelineAsset.CreateRendererAsset(pathName, RendererType.UniversalRenderer, false) as UniversalRendererData;
                 Selection.activeObject = instance;
@@ -120,7 +122,8 @@ namespace UnityEngine.Rendering.Universal
         [MenuItem("Assets/Create/Rendering/URP Universal Renderer", priority = CoreUtils.Sections.section3 + CoreUtils.Priorities.assetsCreateRenderingMenuPriority + 2)]
         static void CreateUniversalRendererData()
         {
-            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, CreateInstance<CreateUniversalRendererAsset>(), "New Custom Universal Renderer Data.asset", null, null);
+            var icon = CoreUtils.GetIconForType<ScriptableRendererData>();
+            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(EntityId.None, CreateInstance<CreateUniversalRendererAsset>(), "New Custom Universal Renderer Data.asset", icon, null);
         }
 
 #endif
@@ -130,8 +133,9 @@ namespace UnityEngine.Rendering.Universal
         /// </summary>
         public PostProcessData postProcessData = null;
 
-        const int k_LatestAssetVersion = 2;
+        const int k_LatestAssetVersion = 3;
         [SerializeField] int m_AssetVersion = 0;
+        [SerializeField] LayerMask m_PrepassLayerMask = -1;
         [SerializeField] LayerMask m_OpaqueLayerMask = -1;
         [SerializeField] LayerMask m_TransparentLayerMask = -1;
         [SerializeField] StencilStateData m_DefaultStencilState = new StencilStateData() { passOperation = StencilOp.Replace }; // This default state is compatible with deferred renderer.
@@ -146,8 +150,11 @@ namespace UnityEngine.Rendering.Universal
         [ShaderKeywordFilter.ApplyRulesIfNotGraphicsAPI(GraphicsDeviceType.Vulkan)]
         [ShaderKeywordFilter.RemoveIf(false, keywordNames: ShaderKeywordStrings._GBUFFER_NORMALS_OCT)]
 #endif
-        [SerializeField] bool m_AccurateGbufferNormals = false;
+        [SerializeField]
+        bool m_AccurateGbufferNormals = false;
+
         [SerializeField] IntermediateTextureMode m_IntermediateTextureMode = IntermediateTextureMode.Always;
+        [SerializeField] bool m_TileOnlyMode = false;
 
         /// <inheritdoc/>
         protected override ScriptableRenderer Create()
@@ -157,6 +164,19 @@ namespace UnityEngine.Rendering.Universal
                 ReloadAllNullProperties();
             }
             return new UniversalRenderer(this);
+        }
+
+        /// <summary>
+        /// Use this to configure how to filter prepass objects.
+        /// </summary>
+        public LayerMask prepassLayerMask
+        {
+            get => m_PrepassLayerMask;
+            set
+            {
+                SetDirty();
+                m_PrepassLayerMask = value;
+            }
         }
 
         /// <summary>
@@ -327,6 +347,55 @@ namespace UnityEngine.Rendering.Universal
             }
         }
 
+        /// <summary>
+        /// Tile-Only Mode restricts render passes to avoid memory load/store of main camera targets, keeping them in on‑chip tile memory.
+        /// It activates additional RenderGaph validation. Some features may be disabled or fall back. See docs for details.
+        /// This is a potential GPU performance optimization on Tile-Based GPU architectures.
+        /// </summary>
+        public bool tileOnlyMode
+        {
+            get => m_TileOnlyMode;
+            set
+            {
+                if (m_TileOnlyMode == value)
+                    return;
+
+                SetDirty();
+                m_TileOnlyMode = value;
+            }
+        }
+
+        /// <summary>
+        /// Returns true if the renderer uses a deferred lighting pass and GBuffers.
+        /// This is true for the Deferred and Deferred+ rendering paths.
+        /// </summary>
+        public bool usesDeferredLighting => m_RenderingMode == RenderingMode.Deferred ||
+                                            m_RenderingMode == RenderingMode.DeferredPlus;
+
+        /// <summary>
+        /// Returns true if the renderer uses a spatially clustered/tiled light list.
+        /// This is true for the Forward+ and Deferred+ rendering paths.
+        /// </summary>
+        public bool usesClusterLightLoop => m_RenderingMode == RenderingMode.ForwardPlus ||
+                                            m_RenderingMode == RenderingMode.DeferredPlus;
+
+        internal override bool stripShadowsOffVariants
+        {
+            get => m_StripShadowsOffVariants;
+            set => m_StripShadowsOffVariants = value;
+        }
+
+        internal override bool stripAdditionalLightOffVariants
+        {
+            get => m_StripAdditionalLightOffVariants;
+            set => m_StripAdditionalLightOffVariants = value;
+        }
+
+        [NonSerialized]
+        bool m_StripShadowsOffVariants = true;
+        [NonSerialized]
+        bool m_StripAdditionalLightOffVariants = true;
+
         /// <inheritdoc/>
         protected override void OnEnable()
         {
@@ -345,7 +414,7 @@ namespace UnityEngine.Rendering.Universal
             ResourceReloader.TryReloadAllNullIn(this, UniversalRenderPipelineAsset.packagePath);
 
             if (postProcessData != null)
-                ResourceReloader.TryReloadAllNullIn(postProcessData, UniversalRenderPipelineAsset.packagePath);
+                postProcessData.Populate();
 #endif
         }
 
@@ -364,6 +433,10 @@ namespace UnityEngine.Rendering.Universal
                 m_CopyDepthMode = CopyDepthMode.AfterOpaques;
             }
 
+            if (m_AssetVersion <= 2)
+            {
+                m_PrepassLayerMask = m_OpaqueLayerMask;
+            }
 
             m_AssetVersion = k_LatestAssetVersion;
         }

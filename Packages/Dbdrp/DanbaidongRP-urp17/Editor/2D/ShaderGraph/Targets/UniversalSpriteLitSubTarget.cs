@@ -8,7 +8,7 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
 {
     sealed class UniversalSpriteLitSubTarget : UniversalSubTarget, ILegacyTarget
     {
-        static readonly GUID kSourceCodeGuid = new GUID("ea1514729d7120344b27dcd67fbf34de"); // UniversalSpriteLitSubTarget.cs
+        static readonly UnityEngine.GUID kSourceCodeGuid = new UnityEngine.GUID("ea1514729d7120344b27dcd67fbf34de"); // UniversalSpriteLitSubTarget.cs
 
         public UniversalSpriteLitSubTarget()
         {
@@ -23,13 +23,14 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
         {
             base.Setup(ref context);
             context.AddAssetDependency(kSourceCodeGuid, AssetCollection.Flags.SourceDependency);
-#if HAS_VFX_GRAPH
+
             var universalRPType = typeof(UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset);
-            if (TargetsVFX() && !context.HasCustomEditorForRenderPipeline(universalRPType))
-            {
-                context.AddCustomEditorForRenderPipeline(typeof(VFXGenericShaderGraphMaterialGUI).FullName, universalRPType);
-            }
+            var gui = typeof(ShaderGraphSpriteGUI);
+#if HAS_VFX_GRAPH
+            if (TargetsVFX())
+                gui = typeof(VFXGenericShaderGraphMaterialGUI);
 #endif
+            context.AddCustomEditorForRenderPipeline(gui.FullName, universalRPType);
             context.AddSubShader(PostProcessSubShader(SubShaders.SpriteLit(target)));
         }
 
@@ -72,6 +73,12 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             };
 
             return true;
+        }
+
+        public override void CollectShaderProperties(PropertyCollector collector, GenerationMode generationMode)
+        {
+            base.CollectShaderProperties(collector, generationMode);
+            SpriteSubTargetUtility.AddSRPIncompatibility(collector);
         }
 
         #region SubShader
@@ -129,11 +136,12 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                     fieldDependencies = CoreFieldDependencies.Default,
 
                     // Conditional State
-                    renderStates = SpriteSubTargetUtility.GetDefaultRenderState(target),
+
+                    renderStates = target.sort3DAs2DCompatible ? Universal2DSubTargetDescriptors.RenderStateCollections.Sort3DAs2DCompatible : SpriteSubTargetUtility.GetDefaultRenderState(target),
                     pragmas = CorePragmas._2DDefault,
                     defines = new DefineCollection(),
                     keywords = SpriteLitKeywords.Lit,
-                    includes = SpriteLitIncludes.Lit,
+                    includes = target.sort3DAs2DCompatible ? UniversalMeshLitInfo.Includes.Lit : SpriteLitIncludes.Lit,
 
                     // Custom Interpolator Support
                     customInterpolators = CoreCustomInterpDescriptors.Common
@@ -171,10 +179,11 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                     fieldDependencies = CoreFieldDependencies.Default,
 
                     // Conditional State
-                    renderStates = CoreRenderStates.Default,
+                    renderStates = target.sort3DAs2DCompatible ? Universal2DSubTargetDescriptors.RenderStateCollections.Sort3DAs2DCompatible : CoreRenderStates.Default,
                     pragmas = CorePragmas._2DDefault,
                     defines = new DefineCollection(),
-                    includes = SpriteLitIncludes.Normal,
+                    keywords = SpriteLitKeywords.Normal,
+                    includes = target.sort3DAs2DCompatible ? UniversalMeshLitInfo.Includes.Normal : SpriteLitIncludes.Normal,
 
                     // Custom Interpolator Support
                     customInterpolators = CoreCustomInterpDescriptors.Common
@@ -237,8 +246,9 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             {
                 BlockFields.SurfaceDescription.BaseColor,
                 BlockFields.SurfaceDescriptionLegacy.SpriteColor,
-                BlockFields.SurfaceDescription.Alpha,
                 UniversalBlockFields.SurfaceDescription.SpriteMask,
+                BlockFields.SurfaceDescription.NormalTS,
+                BlockFields.SurfaceDescription.Alpha,
                 BlockFields.SurfaceDescription.AlphaClipThreshold,
             };
 
@@ -246,8 +256,8 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             {
                 BlockFields.SurfaceDescription.BaseColor,
                 BlockFields.SurfaceDescriptionLegacy.SpriteColor,
-                BlockFields.SurfaceDescription.Alpha,
                 BlockFields.SurfaceDescription.NormalTS,
+                BlockFields.SurfaceDescription.Alpha,
                 BlockFields.SurfaceDescription.AlphaClipThreshold,
             };
         }
@@ -262,10 +272,12 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 StructFields.Varyings.positionWS,
                 StructFields.Varyings.texCoord0,
                 StructFields.Varyings.screenPosition,
+                StructFields.Varyings.normalWS,
             };
 
             public static FieldCollection Normal = new FieldCollection()
             {
+                StructFields.Varyings.color,
                 StructFields.Varyings.normalWS,
                 StructFields.Varyings.tangentWS,
             };
@@ -289,19 +301,27 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 { CoreKeywordDescriptors.ShapeLightType2 },
                 { CoreKeywordDescriptors.ShapeLightType3 },
                 { CoreKeywordDescriptors.DebugDisplay },
+                { CoreKeywordDescriptors.UseSkinnedSprite },
+            };
+
+            public static KeywordCollection Normal = new KeywordCollection
+            {
+                { CoreKeywordDescriptors.UseSkinnedSprite },
             };
 
             public static KeywordCollection Forward = new KeywordCollection
             {
                 { CoreKeywordDescriptors.DebugDisplay },
+                { CoreKeywordDescriptors.UseSkinnedSprite },
             };
         }
         #endregion
 
         #region Includes
+
         static class SpriteLitIncludes
         {
-            const string k2DLightingUtil = "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/LightingUtility.hlsl";
+            const string kSpriteCore2D = "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/Core2D.hlsl";
             const string k2DNormal = "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/NormalsRenderingShared.hlsl";
             const string kSpriteLitPass = "Packages/com.unity.render-pipelines.universal/Editor/2D/ShaderGraph/Includes/SpriteLitPass.hlsl";
             const string kSpriteNormalPass = "Packages/com.unity.render-pipelines.universal/Editor/2D/ShaderGraph/Includes/SpriteNormalPass.hlsl";
@@ -310,9 +330,10 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             public static IncludeCollection Lit = new IncludeCollection
             {
                 // Pre-graph
+                { CoreIncludes.FogPregraph },
                 { CoreIncludes.CorePregraph },
                 { CoreIncludes.ShaderGraphPregraph },
-                { k2DLightingUtil, IncludeLocation.Pregraph },
+                { kSpriteCore2D, IncludeLocation.Pregraph },
 
                 // Post-graph
                 { CoreIncludes.CorePostgraph },
@@ -325,17 +346,21 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 { CoreIncludes.CorePregraph },
                 { CoreIncludes.ShaderGraphPregraph },
                 { k2DNormal, IncludeLocation.Pregraph },
+                { kSpriteCore2D, IncludeLocation.Pregraph },
 
                 // Post-graph
                 { CoreIncludes.CorePostgraph },
                 { kSpriteNormalPass, IncludeLocation.Postgraph },
+
             };
 
             public static IncludeCollection Forward = new IncludeCollection
             {
                 // Pre-graph
+                { CoreIncludes.FogPregraph },
                 { CoreIncludes.CorePregraph },
                 { CoreIncludes.ShaderGraphPregraph },
+                { kSpriteCore2D, IncludeLocation.Pregraph },
 
                 // Post-graph
                 { CoreIncludes.CorePostgraph },

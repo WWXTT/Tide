@@ -15,7 +15,7 @@ namespace UnityEngine.Rendering.Universal
     /// </summary>
     [Serializable, ReloadGroup, ExcludeFromPreset]
     [MovedFrom(true, "UnityEngine.Experimental.Rendering.Universal", "Unity.RenderPipelines.Universal.Runtime")]
-    [HelpURL("https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@latest/index.html?subfolder=/manual/2DRendererData-overview.html")]
+    [URPHelpURL("urp/2DRendererData-overview")]
     public partial class Renderer2DData : ScriptableRendererData
     {
         internal enum Renderer2DDefaultMaterialType
@@ -24,6 +24,9 @@ namespace UnityEngine.Rendering.Universal
             Unlit,
             Custom
         }
+
+        [SerializeField]
+        LayerMask m_LayerMask = -1;
 
         [SerializeField]
         TransparencySortMode m_TransparencySortMode = TransparencySortMode.Default;
@@ -80,6 +83,7 @@ namespace UnityEngine.Rendering.Universal
         internal bool useCameraSortingLayerTexture => m_UseCameraSortingLayersTexture;
         internal int cameraSortingLayerTextureBound => m_CameraSortingLayersTextureBound;
         internal Downsampling cameraSortingLayerDownsamplingMethod => m_CameraSortingLayerDownsamplingMethod;
+        internal LayerMask layerMask => m_LayerMask;
 
         /// <summary>
         /// Creates the instance of the Renderer2D.
@@ -93,14 +97,13 @@ namespace UnityEngine.Rendering.Universal
                 ReloadAllNullProperties();
             }
 #endif
-
+            UnityEngine.RenderAs2DUtil.InitializeCanRenderAs2D();
             return new Renderer2D(this);
         }
 
         internal void Dispose()
         {
-            for (var i = 0; i < m_LightBlendStyles.Length; ++i)
-                m_LightBlendStyles[i].renderTargetHandle?.Release();
+            UnityEngine.RenderAs2DUtil.DisposeCanRenderAs2D();
 
             foreach(var mat in lightMaterials)
                 CoreUtils.Destroy(mat.Value);
@@ -121,12 +124,6 @@ namespace UnityEngine.Rendering.Universal
         protected override void OnEnable()
         {
             base.OnEnable();
-
-            for (var i = 0; i < m_LightBlendStyles.Length; ++i)
-            {
-                m_LightBlendStyles[i].renderTargetHandleId = Shader.PropertyToID($"_ShapeLightTexture{i}");
-                m_LightBlendStyles[i].renderTargetHandle = RTHandles.Alloc(m_LightBlendStyles[i].renderTargetHandleId, $"_ShapeLightTexture{i}");
-            }
 
             geometrySelfShadowMaterial = null;
             geometryUnshadowMaterial = null;

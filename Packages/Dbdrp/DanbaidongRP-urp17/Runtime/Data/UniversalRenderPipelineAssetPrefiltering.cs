@@ -85,13 +85,13 @@ namespace UnityEngine.Rendering.Universal
         })]
         [SerializeField] private bool m_PrefilterXRKeywords = false;
 
-        // Forward+
-        [ShaderKeywordFilter.RemoveIf(PrefilteringMode.Remove,     keywordNames: ShaderKeywordStrings.ForwardPlus)]
-        [ShaderKeywordFilter.SelectIf(PrefilteringMode.Select,     keywordNames: new [] { "", ShaderKeywordStrings.ForwardPlus })]
-        [ShaderKeywordFilter.SelectIf(PrefilteringMode.SelectOnly, keywordNames: ShaderKeywordStrings.ForwardPlus)]
+        // Forward+ / Deferred+
+        [ShaderKeywordFilter.RemoveIf(PrefilteringMode.Remove,     keywordNames: ShaderKeywordStrings.ClusterLightLoop)]
+        [ShaderKeywordFilter.SelectIf(PrefilteringMode.Select,     keywordNames: new [] { "", ShaderKeywordStrings.ClusterLightLoop })]
+        [ShaderKeywordFilter.SelectIf(PrefilteringMode.SelectOnly, keywordNames: ShaderKeywordStrings.ClusterLightLoop)]
         [SerializeField] private PrefilteringMode m_PrefilteringModeForwardPlus = PrefilteringMode.Select;
 
-        // Deferred Rendering
+        // Deferred Rendering / Deferred+
         [ShaderKeywordFilter.RemoveIf(PrefilteringMode.Remove, keywordNames: new [] {
             ShaderKeywordStrings._DEFERRED_FIRST_LIGHT, ShaderKeywordStrings._DEFERRED_MAIN_LIGHT,
             ShaderKeywordStrings._DEFERRED_MIXED_LIGHTING, ShaderKeywordStrings._GBUFFER_NORMALS_OCT
@@ -160,7 +160,7 @@ namespace UnityEngine.Rendering.Universal
         // Decal Layers - Gets overridden in Decal renderer feature if enabled.
         [ShaderKeywordFilter.RemoveIf(true, keywordNames: ShaderKeywordStrings.DecalLayers)]
         private const bool k_DecalLayersDefault = true;
-        
+
         [ShaderKeywordFilter.RemoveIf(true, keywordNames: ShaderKeywordStrings.SoftShadowsLow)]
         [SerializeField] private bool m_PrefilterSoftShadowsQualityLow = false;
         [ShaderKeywordFilter.RemoveIf(true, keywordNames: ShaderKeywordStrings.SoftShadowsMedium)]
@@ -174,6 +174,10 @@ namespace UnityEngine.Rendering.Universal
         [ShaderKeywordFilter.RemoveIf(true, keywordNames: ShaderKeywordStrings.SCREEN_COORD_OVERRIDE)]
         [SerializeField] private bool m_PrefilterScreenCoord = false;
 
+        // Screen space irradiance.
+        [ShaderKeywordFilter.RemoveIf(true, keywordNames: ShaderKeywordStrings.ScreenSpaceIrradiance)]
+        [SerializeField] private bool m_PrefilterScreenSpaceIrradiance = false;
+
         // Native Render Pass
         [ShaderKeywordFilter.RemoveIf(true, keywordNames: ShaderKeywordStrings.RenderPassEnabled)]
         [SerializeField] private bool m_PrefilterNativeRenderPass = false;
@@ -182,6 +186,32 @@ namespace UnityEngine.Rendering.Universal
         [ShaderKeywordFilter.ApplyRulesIfNotGraphicsAPI(GraphicsDeviceType.OpenGLES3, GraphicsDeviceType.OpenGLCore)]
         [ShaderKeywordFilter.SelectOrRemove(true, keywordNames: ShaderKeywordStrings.USE_LEGACY_LIGHTMAPS)]
         [SerializeField] private bool m_PrefilterUseLegacyLightmaps = false;
+
+        // Bicubic lightmap sampling
+        [ShaderKeywordFilter.RemoveIf(true,  keywordNames: ShaderKeywordStrings.LIGHTMAP_BICUBIC_SAMPLING)]
+        [ShaderKeywordFilter.SelectIf(false, keywordNames: ShaderKeywordStrings.LIGHTMAP_BICUBIC_SAMPLING)]
+        [SerializeField] private bool m_PrefilterBicubicLightmapSampling = false;
+
+        // ReflectionProbe rotation
+        [ShaderKeywordFilter.RemoveIf(true,  keywordNames: ShaderKeywordStrings.ReflectionProbeRotation)]
+        [ShaderKeywordFilter.SelectIf(false, keywordNames: ShaderKeywordStrings.ReflectionProbeRotation)]
+        [SerializeField] private bool m_PrefilterReflectionProbeRotation = false;
+
+        // Reflection probe blending (_REFLECTION_PROBE_BLENDING)
+        [ShaderKeywordFilter.SelectOrRemove(false, keywordNames: ShaderKeywordStrings.ReflectionProbeBlending)]
+        [SerializeField] private bool m_PrefilterReflectionProbeBlending = false;
+
+        // Reflection probe box projection (_REFLECTION_PROBE_BOX_PROJECTION)
+        [ShaderKeywordFilter.SelectOrRemove(false, keywordNames: ShaderKeywordStrings.ReflectionProbeBoxProjection)]
+        [SerializeField] private bool m_PrefilterReflectionProbeBoxProjection = false;
+
+        // Reflection probe atlas (_REFLECTION_PROBE_ATLAS)
+        [ShaderKeywordFilter.RemoveIf(true, keywordNames: ShaderKeywordStrings.ReflectionProbeAtlas)]
+        [SerializeField] private bool m_PrefilterReflectionProbeAtlas = false;
+
+        // Point Sampling Upscaling (_POINT_SAMPLING)
+        [ShaderKeywordFilter.RemoveIf(true, keywordNames: ShaderKeywordStrings.PointSampling)]
+        [SerializeField] private bool m_PrefilterPointSamplingUpsampling = false;
 
         /// <summary>
         /// Data used for Shader Prefiltering. Gathered after going through the URP Assets,
@@ -220,6 +250,16 @@ namespace UnityEngine.Rendering.Universal
             public bool stripSSAOSampleCountLow;
             public bool stripSSAOSampleCountMedium;
             public bool stripSSAOSampleCountHigh;
+
+            public bool stripBicubicLightmapSampling;
+            public bool stripReflectionProbeRotation;
+            public bool stripReflectionProbeBlending;
+            public bool stripReflectionProbeBoxProjection;
+            public bool stripReflectionProbeAtlas;
+
+            public bool stripPointSamplingUpsampling;
+
+            public bool stripScreenSpaceIrradiance;
 
             public static ShaderPrefilteringData GetDefault()
             {
@@ -274,6 +314,16 @@ namespace UnityEngine.Rendering.Universal
             m_PrefilterSSAOSampleCountLow            = prefilteringData.stripSSAOSampleCountLow;
             m_PrefilterSSAOSampleCountMedium         = prefilteringData.stripSSAOSampleCountMedium;
             m_PrefilterSSAOSampleCountHigh           = prefilteringData.stripSSAOSampleCountHigh;
+
+            m_PrefilterBicubicLightmapSampling       = prefilteringData.stripBicubicLightmapSampling;
+            m_PrefilterReflectionProbeRotation       = prefilteringData.stripReflectionProbeRotation;
+            m_PrefilterReflectionProbeBlending       = prefilteringData.stripReflectionProbeBlending;
+            m_PrefilterReflectionProbeBoxProjection  = prefilteringData.stripReflectionProbeBoxProjection;
+            m_PrefilterReflectionProbeAtlas          = prefilteringData.stripReflectionProbeAtlas;
+
+            m_PrefilterPointSamplingUpsampling       = prefilteringData.stripPointSamplingUpsampling;
+
+            m_PrefilterScreenSpaceIrradiance         = prefilteringData.stripScreenSpaceIrradiance;
         }
     }
 }
