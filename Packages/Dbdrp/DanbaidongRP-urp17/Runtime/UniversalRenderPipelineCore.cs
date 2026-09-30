@@ -1448,6 +1448,15 @@ namespace UnityEngine.Rendering.Universal
         /// <summary> Keyword used for APV with SH L2 </summary>
         public const string ProbeVolumeL2 = "PROBE_VOLUMES_L2";
 
+        /// <summary> Keyword used for reflection probe rotation. </summary>
+        public const string ReflectionProbeRotation = "REFLECTION_PROBE_ROTATION";
+
+        /// <summary> Keyword used for screen space irradiance. </summary>
+        public const string ScreenSpaceIrradiance = "SCREEN_SPACE_IRRADIANCE";
+
+        /// <summary> Keyword used for bicubic sampling of lightmaps. </summary>
+        public const string LIGHTMAP_BICUBIC_SAMPLING = "LIGHTMAP_BICUBIC_SAMPLING";
+
         /// <summary> Keyword used for opting out of lightmap texture arrays, when using BatchRendererGroup. </summary>
         public const string USE_LEGACY_LIGHTMAPS = "USE_LEGACY_LIGHTMAPS";
 

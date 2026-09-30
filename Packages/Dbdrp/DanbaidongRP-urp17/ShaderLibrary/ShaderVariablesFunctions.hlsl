@@ -627,6 +627,27 @@ uint EncodeMeshRenderingLayer()
     return GetMeshRenderingLayer() & _RenderingLayerMaxInt;
 }
 
+// Fork (17.0.3 lineage) float-normalized rendering layer path, kept for the
+// fork Runtime's UNorm RT allocation; overload alongside the uint variant above.
+float EncodeMeshRenderingLayer(uint renderingLayer)
+{
+    // Force any bits above max to be skipped
+    renderingLayer &= _RenderingLayerMaxInt;
+
+    // This is copy of "real PackInt(uint i, uint numBits)" from com.unity.render-pipelines.core\ShaderLibrary\Packing.hlsl
+    // Differences of this copy:
+    // - Pre-computed rcpMaxInt
+    // - Returns float instead of real
+    float rcpMaxInt = _RenderingLayerRcpMaxInt;
+    return saturate(renderingLayer * rcpMaxInt);
+}
+
+uint DecodeMeshRenderingLayer(float renderingLayer)
+{
+    uint maxInt = _RenderingLayerMaxInt;
+    return (uint)(renderingLayer * maxInt + 0.5); // Round instead of truncating
+}
+
 // TODO: implement
 float GetCurrentExposureMultiplier()
 {

@@ -781,6 +781,8 @@ Shader "Hidden/Universal Render Pipeline/Bloom"
                 
                 return EncodeHDR( main + mip0 + mip1  + mip2);
             }
+            ENDHLSL
+        }
 
         Pass // 4
         {
@@ -813,3 +815,4 @@ Shader "Hidden/Universal Render Pipeline/Bloom"
         }
     }
 }
+
