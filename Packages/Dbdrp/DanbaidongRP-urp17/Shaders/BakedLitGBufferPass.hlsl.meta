@@ -1,9 +1,5 @@
 fileFormatVersion: 2
-<<<<<<<< HEAD:Packages/Dbdrp/DanbaidongRP-urp17/ShaderLibrary/DeclareAmbientOcclusionTexture.hlsl.meta
-guid: 0c7f38a74ce8d4443ab752bf072d1439
-========
 guid: 3624eb79d3c1a4742a2737c755e4ee51
->>>>>>>> official-175:Packages/Dbdrp/DanbaidongRP-urp17/Shaders/BakedLitGBufferPass.hlsl.meta
 ShaderIncludeImporter:
   externalObjects: {}
   userData: 

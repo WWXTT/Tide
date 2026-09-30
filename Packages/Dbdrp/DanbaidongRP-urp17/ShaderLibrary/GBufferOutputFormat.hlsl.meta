@@ -1,9 +1,5 @@
 fileFormatVersion: 2
-<<<<<<<< HEAD:Packages/Dbdrp/DanbaidongRP-urp17/ShaderLibrary/BlueNoise.hlsl.meta
-guid: c408667b88aaf784990cb1d3df0ef97f
-========
 guid: 87322610c9b88a64e8bce40c056d8116
->>>>>>>> official-175:Packages/Dbdrp/DanbaidongRP-urp17/ShaderLibrary/GBufferOutputFormat.hlsl.meta
 ShaderIncludeImporter:
   externalObjects: {}
   userData: 

@@ -1,9 +1,5 @@
 fileFormatVersion: 2
-<<<<<<<< HEAD:Packages/Dbdrp/DanbaidongRP-urp17/Shaders/Material/Helpers/CharacterEyelashOutter.shader.meta
-guid: 18b6b624d9967df4dad214a7beb6fee7
-========
 guid: 4e90a8289da1f3943885176e4f83e35c
->>>>>>>> official-175:Packages/Dbdrp/DanbaidongRP-urp17/Shaders/2D/Mesh2D-Lit-Default.shader.meta
 ShaderImporter:
   externalObjects: {}
   defaultTextures: []

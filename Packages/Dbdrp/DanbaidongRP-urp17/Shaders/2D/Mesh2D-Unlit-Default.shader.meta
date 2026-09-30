@@ -1,9 +1,5 @@
 fileFormatVersion: 2
-<<<<<<<< HEAD:Packages/Dbdrp/DanbaidongRP-urp17/Shaders/Material/Helpers/CharacterFringe.shader.meta
-guid: 67463d6ed2df0d14bad584678d1f34ec
-========
 guid: 8c3bb6de0c0e7c047b65c077249507e5
->>>>>>>> official-175:Packages/Dbdrp/DanbaidongRP-urp17/Shaders/2D/Mesh2D-Unlit-Default.shader.meta
 ShaderImporter:
   externalObjects: {}
   defaultTextures: []
