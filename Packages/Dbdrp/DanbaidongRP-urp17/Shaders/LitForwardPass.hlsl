@@ -1,7 +1,9 @@
 #ifndef UNIVERSAL_FORWARD_LIT_PASS_INCLUDED
 #define UNIVERSAL_FORWARD_LIT_PASS_INCLUDED
 
+#include "LitInput.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+
 #if defined(LOD_FADE_CROSSFADE)
     #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
 #endif
@@ -64,6 +66,7 @@ struct Varyings
 #endif
 
     float4 positionCS               : SV_POSITION;
+
     UNITY_VERTEX_INPUT_INSTANCE_ID
     UNITY_VERTEX_OUTPUT_STEREO
 };
@@ -110,8 +113,8 @@ void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData
 #else
     inputData.fogCoord = InitializeInputDataFog(float4(input.positionWS, 1.0), input.fogFactor);
 #endif
-
-    inputData.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(input.positionCS);
+                           
+    inputData.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(input.positionCS);  
 
     #if defined(DEBUG_DISPLAY)
     #if defined(DYNAMICLIGHTMAP_ON)
@@ -131,7 +134,7 @@ void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData
 void InitializeBakedGIData(Varyings input, inout InputData inputData)
 {
     #if defined(_SCREEN_SPACE_IRRADIANCE)
-    inputData.bakedGI = SAMPLE_GI(input.positionCS.xy);
+    inputData.bakedGI = SAMPLE_GI(_ScreenSpaceIrradiance, input.positionCS.xy);
     #elif defined(DYNAMICLIGHTMAP_ON)
     inputData.bakedGI = SAMPLE_GI(input.staticLightmapUV, input.dynamicLightmapUV, input.vertexSH, inputData.normalWS);
     inputData.shadowMask = SAMPLE_SHADOWMASK(input.staticLightmapUV);
@@ -259,7 +262,7 @@ void LitPassFragment(
 
     half4 color = UniversalFragmentPBR(inputData, surfaceData);
     color.rgb = MixFog(color.rgb, inputData.fogCoord);
-    color.a = OutputAlpha(color.a, IsSurfaceTypeTransparent(_Surface));
+    color.a = OutputAlpha(color.a, IsSurfaceTypeTransparent());
 
     outColor = color;
 

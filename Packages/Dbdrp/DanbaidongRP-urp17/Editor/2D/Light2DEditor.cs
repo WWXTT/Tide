@@ -1,17 +1,31 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor.EditorTools;
-using UnityEditor.Rendering.Universal.Path2D;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
+using UnityEditor.VersionControl;
 
+
+#if USING_2DCOMMON
+using UnityEditor.U2D.Common.Path;
+#endif
 
 namespace UnityEditor.Rendering.Universal
 {
+
+
     [CustomEditor(typeof(Light2D))]
     [CanEditMultipleObjects]
-    internal class Light2DEditor : PathComponentEditor<ScriptablePath>
+    internal class Light2DEditor
+#if USING_2DCOMMON
+        : PathComponentEditor<ScriptablePath>
+#else
+        : Editor
+#endif
     {
+
+#if USING_2DCOMMON
+
         [EditorTool("Edit Freeform Shape", typeof(Light2D))]
         class FreeformShapeTool : PathEditorTool<ScriptablePath>
         {
@@ -49,11 +63,7 @@ namespace UnityEditor.Rendering.Universal
             }
         }
 
-        private struct ToggleFoldoutResult
-        {
-            public bool foldoutState;
-            public bool toggleState;
-        }
+#endif
 
         private static class Styles
         {
@@ -119,6 +129,9 @@ namespace UnityEditor.Rendering.Universal
             public static string deprecatedParametricLightDialogTitle = "Parametric Light Upgrader";
             public static string deprecatedParametricLightDialogProceed = "Proceed";
             public static string deprecatedParametricLightDialogCancel = "Cancel";
+
+            public static readonly GUIContent buttonText = EditorGUIUtility.TrTextContent("Install 2D Common Package");
+            public static readonly GUIContent helpBox = EditorGUIUtility.TrTextContent("2D Common Package is required to edit Light 2D Shape. Please install it by clicking button above");
         }
 
         const float k_GlobalLightGizmoSize = 1.2f;
@@ -128,17 +141,15 @@ namespace UnityEditor.Rendering.Universal
         const float k_RangeCapSize = 0.025f * k_GlobalLightGizmoSize;
         const float k_InnerRangeCapSize = 0.08f * k_GlobalLightGizmoSize;
 
-        SerializedProperty m_LightType;
+        
         SerializedProperty m_LightColor;
         SerializedProperty m_LightIntensity;
-        SerializedProperty m_UseNormalMap;
         SerializedProperty m_ShadowsEnabled;
         SerializedProperty m_ShadowIntensity;
         SerializedProperty m_ShadowSoftness;
         SerializedProperty m_ShadowSoftnessFalloffIntensity;
         SerializedProperty m_ShadowVolumeIntensity;
         SerializedProperty m_ShadowVolumeIntensityEnabled;
-        SerializedProperty m_ApplyToSortingLayers;
         SerializedProperty m_VolumetricIntensity;
         SerializedProperty m_VolumetricEnabled;
         SerializedProperty m_BlendStyleIndex;
@@ -148,24 +159,26 @@ namespace UnityEditor.Rendering.Universal
         SerializedProperty m_LightOrder;
         SerializedProperty m_OverlapOperation;
 
+        SerializedProperty m_LightType;
+
         // Point Light Properties
         SerializedProperty m_PointInnerAngle;
         SerializedProperty m_PointOuterAngle;
         SerializedProperty m_PointInnerRadius;
         SerializedProperty m_PointOuterRadius;
-        SerializedProperty m_DeprecatedPointLightSprite;
 
         // Shape Light Properties
-        SerializedProperty m_ShapeLightParametricRadius;
         SerializedProperty m_ShapeLightFalloffSize;
-        SerializedProperty m_ShapeLightParametricSides;
         SerializedProperty m_ShapeLightSprite;
 
+        SerializedProperty m_SelectionSources;
+        
+
         SavedBool m_BlendingSettingsFoldout;
+        SavedBool m_ProviderFoldout;
         SavedBool m_ShadowsSettingsFoldout;
         SavedBool m_VolumetricSettingsFoldout;
         SavedBool m_NormalMapsSettingsFoldout;
-
 
         int[] m_BlendStyleIndices;
         GUIContent[] m_BlendStyleNames;
@@ -191,28 +204,6 @@ namespace UnityEditor.Rendering.Universal
             }
         }
 
-        private ToggleFoldoutResult DrawHeaderFoldoutWithToggle(GUIContent title, bool foldoutState, bool toggleState, string documentationURL = "")
-        {
-            ToggleFoldoutResult foldoutResult = new ToggleFoldoutResult();
-
-            const float height = 17f;
-            var backgroundRect = GUILayoutUtility.GetRect(0, 0);
-            float xMin = backgroundRect.xMin;
-
-            var labelRect = backgroundRect;
-            labelRect.yMax += height;
-            labelRect.xMin += 16f;
-            labelRect.xMax -= 20f;
-
-            foldoutResult.toggleState = GUI.Toggle(labelRect, toggleState, " ");  // Needs a space because the checkbox won't have a proper outline if we don't make a space here
-            foldoutResult.foldoutState = CoreEditorUtils.DrawHeaderFoldout("", foldoutState);
-            labelRect.xMin += 20;
-            EditorGUI.LabelField(labelRect, title, EditorStyles.boldLabel);
-
-
-            return foldoutResult;
-        }
-
         void OnEnable()
         {
             m_Analytics = Analytics.Renderer2DAnalytics.instance;
@@ -223,18 +214,17 @@ namespace UnityEditor.Rendering.Universal
             m_ShadowsSettingsFoldout = new SavedBool($"{target.GetType()}.2DURPShadowsSettingsFoldout", false);
             m_VolumetricSettingsFoldout = new SavedBool($"{target.GetType()}.2DURPVolumetricSettingsFoldout", false);
             m_NormalMapsSettingsFoldout = new SavedBool($"{target.GetType()}.2DURPNormalMapsSettingsFoldout", false);
+            m_ProviderFoldout = new SavedBool($"{target.GetType()}.2DURPLight2DProviderFoldout", false);
 
-            m_LightType = serializedObject.FindProperty("m_LightType");
+
             m_LightColor = serializedObject.FindProperty("m_Color");
             m_LightIntensity = serializedObject.FindProperty("m_Intensity");
-            m_UseNormalMap = serializedObject.FindProperty("m_UseNormalMap");
             m_ShadowsEnabled = serializedObject.FindProperty("m_ShadowsEnabled");
             m_ShadowIntensity = serializedObject.FindProperty("m_ShadowIntensity");
             m_ShadowSoftness = serializedObject.FindProperty("m_ShadowSoftness");
             m_ShadowSoftnessFalloffIntensity = serializedObject.FindProperty("m_ShadowSoftnessFalloffIntensity");
             m_ShadowVolumeIntensity = serializedObject.FindProperty("m_ShadowVolumeIntensity");
             m_ShadowVolumeIntensityEnabled = serializedObject.FindProperty("m_ShadowVolumeIntensityEnabled");
-            m_ApplyToSortingLayers = serializedObject.FindProperty("m_ApplyToSortingLayers");
             m_VolumetricIntensity = serializedObject.FindProperty("m_LightVolumeIntensity");
             m_VolumetricEnabled = serializedObject.FindProperty("m_LightVolumeEnabled");
             m_BlendStyleIndex = serializedObject.FindProperty("m_BlendStyleIndex");
@@ -244,19 +234,21 @@ namespace UnityEditor.Rendering.Universal
             m_LightOrder = serializedObject.FindProperty("m_LightOrder");
             m_OverlapOperation = serializedObject.FindProperty("m_OverlapOperation");
 
+            m_LightType = serializedObject.FindProperty("m_LightType");
+
             // Point Light
             m_PointInnerAngle = serializedObject.FindProperty("m_PointLightInnerAngle");
             m_PointOuterAngle = serializedObject.FindProperty("m_PointLightOuterAngle");
             m_PointInnerRadius = serializedObject.FindProperty("m_PointLightInnerRadius");
             m_PointOuterRadius = serializedObject.FindProperty("m_PointLightOuterRadius");
-            m_DeprecatedPointLightSprite = serializedObject.FindProperty("m_DeprecatedPointLightCookieSprite");
 
             // Shape Light
-            m_ShapeLightParametricRadius = serializedObject.FindProperty("m_ShapeLightParametricRadius");
             m_ShapeLightFalloffSize = serializedObject.FindProperty("m_ShapeLightFalloffSize");
-            m_ShapeLightParametricSides = serializedObject.FindProperty("m_ShapeLightParametricSides");
             m_ShapeLightSprite = serializedObject.FindProperty("m_LightCookieSprite");
 
+            m_SelectionSources = serializedObject.FindProperty("m_SelectionSources");
+
+            
             m_AnyBlendStyleEnabled = false;
             var blendStyleIndices = new List<int>();
             var blendStyleNames = new List<string>();
@@ -299,7 +291,7 @@ namespace UnityEditor.Rendering.Universal
 
         internal void SendModifiedAnalytics(Analytics.Renderer2DAnalytics analytics, Light2D light)
         {
-            Analytics.LightDataAnalytic lightData = new Analytics.LightDataAnalytic(light.GetEntityId().GetHashCode(), false, light.lightType);
+            Analytics.LightDataAnalytic lightData = new Analytics.LightDataAnalytic(light.GetEntityId(), false, light.lightType);
             Analytics.Renderer2DAnalytics.instance.SendData(lightData);
         }
 
@@ -317,7 +309,10 @@ namespace UnityEditor.Rendering.Universal
         void DrawBlendingGroup()
         {
             CoreEditorUtils.DrawSplitter(false);
-            m_BlendingSettingsFoldout.value = CoreEditorUtils.DrawHeaderFoldout(Styles.blendingSettingsFoldout, m_BlendingSettingsFoldout.value);
+            bool foldoutState = CoreEditorUtils.DrawHeaderFoldout(Styles.blendingSettingsFoldout, m_BlendingSettingsFoldout.value);
+            if (foldoutState != m_BlendingSettingsFoldout.value)
+                m_BlendingSettingsFoldout.value = foldoutState;
+
             if (m_BlendingSettingsFoldout.value)
             {
                 if (!m_AnyBlendStyleEnabled)
@@ -334,9 +329,7 @@ namespace UnityEditor.Rendering.Universal
         {
             CoreEditorUtils.DrawSplitter(false);
 
-            ToggleFoldoutResult result = DrawHeaderFoldoutWithToggle(Styles.shadowsSettingsFoldout, m_ShadowsSettingsFoldout.value, m_ShadowsEnabled.boolValue);
-            m_ShadowsEnabled.boolValue = result.toggleState;
-            m_ShadowsSettingsFoldout.value = result.foldoutState;
+            Light2DEditorUtility.DrawHeaderFoldoutWithToggle(Styles.shadowsSettingsFoldout, m_ShadowsSettingsFoldout, m_ShadowsEnabled);
 
             if (m_ShadowsSettingsFoldout.value)
             {
@@ -344,7 +337,7 @@ namespace UnityEditor.Rendering.Universal
                 EditorGUI.BeginDisabledGroup(!m_ShadowsEnabled.boolValue);
                 EditorGUILayout.PropertyField(m_ShadowIntensity, Styles.generalShadowIntensity);
                 EditorGUILayout.PropertyField(m_ShadowSoftness, Styles.generalShadowSoftness);
-                EditorGUILayout.PropertyField(m_ShadowSoftnessFalloffIntensity,Styles.generalShadowSoftnessFalloffIntensity);
+                EditorGUILayout.PropertyField(m_ShadowSoftnessFalloffIntensity, Styles.generalShadowSoftnessFalloffIntensity);
                 EditorGUI.EndDisabledGroup();
                 EditorGUI.indentLevel--;
             }
@@ -354,9 +347,8 @@ namespace UnityEditor.Rendering.Universal
         {
             CoreEditorUtils.DrawSplitter(false);
 
-            ToggleFoldoutResult result = DrawHeaderFoldoutWithToggle(Styles.volumetricSettingsFoldout, m_VolumetricSettingsFoldout.value, m_VolumetricEnabled.boolValue);
-            m_VolumetricSettingsFoldout.value = result.foldoutState;
-            m_VolumetricEnabled.boolValue = result.toggleState;
+            Light2DEditorUtility.DrawHeaderFoldoutWithToggle(Styles.volumetricSettingsFoldout, m_VolumetricSettingsFoldout, m_VolumetricEnabled);
+
             if (m_VolumetricSettingsFoldout.value)
             {
                 EditorGUI.indentLevel++;
@@ -375,7 +367,10 @@ namespace UnityEditor.Rendering.Universal
         void DrawNormalMapGroup()
         {
             CoreEditorUtils.DrawSplitter(false);
-            m_NormalMapsSettingsFoldout.value = CoreEditorUtils.DrawHeaderFoldout(Styles.normalMapsSettingsFoldout, m_NormalMapsSettingsFoldout.value);
+            bool foldoutState = CoreEditorUtils.DrawHeaderFoldout(Styles.normalMapsSettingsFoldout, m_NormalMapsSettingsFoldout.value);
+            if (foldoutState != m_NormalMapsSettingsFoldout.value)
+                m_NormalMapsSettingsFoldout.value = foldoutState;
+
             if (m_NormalMapsSettingsFoldout.value)
             {
                 EditorGUILayout.PropertyField(m_NormalMapQuality, Styles.generalNormalMapLightQuality);
@@ -510,8 +505,31 @@ namespace UnityEditor.Rendering.Universal
 
         void DrawGlobalLight(SerializedObject serializedObject)
         {
-            m_SortingLayerDropDown.OnTargetSortingLayers(serializedObject, targets, Styles.generalSortingLayerPrefixLabel, AnalyticsTrackChanges);
             DrawBlendingGroup();
+        }
+
+        void DrawProviderLight(SerializedObject serializedObject)
+        {
+            bool foldoutState = CoreEditorUtils.DrawHeaderFoldout("Provider", m_ProviderFoldout.value);
+            if (foldoutState != m_ProviderFoldout.value)
+                m_ProviderFoldout.value = foldoutState;
+
+            serializedObject.Update();
+
+            if (m_ProviderFoldout.value)
+            {
+                // We have to get this because it may have changed in this editor redraw already
+                SerializedProperty provider = serializedObject.FindProperty("m_Light2DProvider");
+                Light2DProvider lightProvider = provider.boxedValue as Light2DProvider;
+                if (lightProvider != null)
+                {
+                    Light2DProviderSources.DrawSelectedSourceUI(m_SelectionSources);
+                }
+            }
+
+            serializedObject.ApplyModifiedProperties();
+
+            DrawFoldouts();
         }
 
         void DrawParametricDeprecated(SerializedObject serializedObject)
@@ -541,67 +559,111 @@ namespace UnityEditor.Rendering.Universal
             EditorGUILayout.HelpBox(Styles.deprecatedParametricLightInstructions);
         }
 
+        int GetSelectedValue(Light2DProvider light2DProvider)
+        {
+            int selectedValue = m_LightType.intValue;
+            if (selectedValue == (int)Light2D.LightType.Provider)
+            {
+                if (light2DProvider != null)
+                {
+                    selectedValue = light2DProvider.GetType().GetHashCode();
+                }
+            }
+
+            return selectedValue;
+        }
+
         bool DrawLightCommon()
         {
-            var meshChanged = false;
-            Rect lightTypeRect = EditorGUILayout.GetControlRect();
-            EditorGUI.BeginProperty(lightTypeRect, GUIContent.none, m_LightType);
+            bool meshChanged = false;
+
             EditorGUI.BeginChangeCheck();
-            int newLightType = EditorGUI.Popup(lightTypeRect, Styles.generalLightType, m_LightType.intValue - 1, Styles.lightTypeOptions);  // -1 is a bit hacky its to support compatibiltiy. We need something better.
-            if (EditorGUI.EndChangeCheck())
-            {
-                m_LightType.intValue = newLightType + 1; // -1 is a bit hacky its to support compatibiltiy. We need something better.
-                meshChanged = true;
-            }
-            EditorGUI.EndProperty();
+
+            // Use shared utility method for Light Type dropdown
+            Light2DEditorUtility.DrawLightTypePopup(default(Rect), Styles.generalLightType, serializedObject, layoutMode: true);
+
+            serializedObject.Update();
 
             // Color and intensity
             EditorGUILayout.PropertyField(m_LightColor, Styles.generalLightColor);
-            EditorGUI.BeginChangeCheck();
             EditorGUILayout.PropertyField(m_LightIntensity, Styles.generalLightIntensity);
+
+            m_SortingLayerDropDown.OnTargetSortingLayers(serializedObject, targets, Styles.generalSortingLayerPrefixLabel, AnalyticsTrackChanges);
+
+            serializedObject.ApplyModifiedProperties();
+            
+            // Only check for duplicates when properties change (avoid spam on every repaint)
             if (EditorGUI.EndChangeCheck())
+            {
                 m_LightIntensity.floatValue = Mathf.Max(m_LightIntensity.floatValue, 0);
+                Light2D light = (Light2D)target;
+                LightUtility.CheckForExistingGlobalLight(light.gameObject);
+            }
+
 
             return meshChanged;
         }
 
         void DrawSpotLight(SerializedObject serializedObject)
         {
-            DrawRadiusProperties(Styles.pointLightRadius, m_PointInnerRadius, Styles.pointLightInner, m_PointOuterRadius, Styles.pointLightOuter);
-            DrawInnerAndOuterSpotAngle(m_PointInnerAngle, m_PointOuterAngle, Styles.InnerOuterSpotAngle);
-            EditorGUILayout.Slider(m_FalloffIntensity, 0, 1, Styles.generalFalloffIntensity);
+            bool foldoutState = CoreEditorUtils.DrawHeaderFoldout("Spot", m_ProviderFoldout.value);
+            if (foldoutState != m_ProviderFoldout.value)
+                m_ProviderFoldout.value = foldoutState;
 
-            if (m_DeprecatedPointLightSprite.objectReferenceValue != null)
-                EditorGUILayout.PropertyField(m_DeprecatedPointLightSprite, Styles.pointLightSprite);
+            if (m_ProviderFoldout.value)
+            {
+                DrawRadiusProperties(Styles.pointLightRadius, m_PointInnerRadius, Styles.pointLightInner, m_PointOuterRadius, Styles.pointLightOuter);
+                DrawInnerAndOuterSpotAngle(m_PointInnerAngle, m_PointOuterAngle, Styles.InnerOuterSpotAngle);
+                EditorGUILayout.Slider(m_FalloffIntensity, 0, 1, Styles.generalFalloffIntensity);
 
-            m_SortingLayerDropDown.OnTargetSortingLayers(serializedObject, targets, Styles.generalSortingLayerPrefixLabel, AnalyticsTrackChanges);
+                if (m_ShapeLightSprite.objectReferenceValue != null)
+                    EditorGUILayout.PropertyField(m_ShapeLightSprite, Styles.pointLightSprite);
+            }
+
 
             DrawFoldouts();
         }
 
         void DrawSpriteLight(SerializedObject serializedObject)
         {
-            EditorGUILayout.PropertyField(m_ShapeLightSprite, Styles.shapeLightSprite);
+            bool foldoutState = CoreEditorUtils.DrawHeaderFoldout("Sprite", m_ProviderFoldout.value);
+            if (foldoutState != m_ProviderFoldout.value)
+                m_ProviderFoldout.value = foldoutState;
 
-            m_SortingLayerDropDown.OnTargetSortingLayers(serializedObject, targets, Styles.generalSortingLayerPrefixLabel, AnalyticsTrackChanges);
+            if (m_ProviderFoldout.value)
+                EditorGUILayout.PropertyField(m_ShapeLightSprite, Styles.shapeLightSprite);
+
             DrawFoldouts();
         }
 
         void DrawShapeLight(SerializedObject serializedObject)
         {
-            EditorGUILayout.PropertyField(m_ShapeLightFalloffSize, Styles.generalFalloffSize);
-            if (m_ShapeLightFalloffSize.floatValue < 0)
-                m_ShapeLightFalloffSize.floatValue = 0;
+            bool foldoutState = CoreEditorUtils.DrawHeaderFoldout("Freeform", m_ProviderFoldout.value);
+            if (foldoutState != m_ProviderFoldout.value)
+                m_ProviderFoldout.value = foldoutState;
 
-            EditorGUILayout.Slider(m_FalloffIntensity, 0, 1, Styles.generalFalloffIntensity);
-
-            m_SortingLayerDropDown.OnTargetSortingLayers(serializedObject, targets, Styles.generalSortingLayerPrefixLabel, AnalyticsTrackChanges);
-
-            if (m_LightType.intValue == (int)Light2D.LightType.Freeform)
+            if (m_ProviderFoldout.value)
             {
-                DoEditButton<FreeformShapeTool>(PathEditorToolContents.icon, "Edit Shape");
-                DoPathInspector<FreeformShapeTool>();
-                DoSnappingInspector<FreeformShapeTool>();
+
+                EditorGUILayout.PropertyField(m_ShapeLightFalloffSize, Styles.generalFalloffSize);
+                if (m_ShapeLightFalloffSize.floatValue < 0)
+                    m_ShapeLightFalloffSize.floatValue = 0;
+
+                EditorGUILayout.Slider(m_FalloffIntensity, 0, 1, Styles.generalFalloffIntensity);
+
+                if (m_LightType.intValue == (int)Light2D.LightType.Freeform)
+                {
+#if USING_2DCOMMON
+                    DoEditButton<FreeformShapeTool>(PathEditorToolContents.icon, "Edit Shape");
+                    DoPathInspector<FreeformShapeTool>();
+#else
+                    var clicked = GUILayout.Button(Styles.buttonText);
+                    if (clicked)
+                        URP2DConverterUtility.InstallPackage("com.unity.2d.common");
+                    else
+                        EditorGUILayout.HelpBox(Styles.helpBox.text, MessageType.Info);
+#endif
+                }
             }
 
             DrawFoldouts();
@@ -817,6 +879,7 @@ namespace UnityEditor.Rendering.Universal
 
             serializedObject.Update();
 
+
             UniversalRenderPipelineAsset asset = UniversalRenderPipeline.asset;
             if (asset != null)
             {
@@ -856,6 +919,12 @@ namespace UnityEditor.Rendering.Universal
                             DrawParametricDeprecated(serializedObject);
                         }
                         break;
+                        case (int)Light2D.LightType.Provider:
+                        {
+                            Light2D light = target as Light2D;
+                            DrawProviderLight(serializedObject);
+                        }
+                        break;
                     }
 
                     AnalyticsTrackChanges(serializedObject);
@@ -886,4 +955,5 @@ namespace UnityEditor.Rendering.Universal
                 light.MarkForUpdate();
         }
     }
+
 }

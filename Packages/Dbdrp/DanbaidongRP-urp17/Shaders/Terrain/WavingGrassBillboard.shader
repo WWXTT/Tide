@@ -34,14 +34,21 @@ Shader "Hidden/TerrainEngine/Details/UniversalPipeline/BillboardWavingDoublePass
             #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
             #pragma multi_compile _ LIGHTMAP_SHADOW_MIXING
             #pragma multi_compile _ SHADOWS_SHADOWMASK
-            #pragma multi_compile _ _FORWARD_PLUS
+            #pragma multi_compile _ _CLUSTER_LIGHT_LOOP
+#if defined(UNITY_PLATFORM_META_QUEST)
+            #pragma multi_compile _ META_QUEST_ORTHO_PROJ
+            #pragma multi_compile _ META_QUEST_NO_SPOTLIGHTS_LIGHT_LOOP
+#endif
+            #pragma multi_compile_fragment _ _SCREEN_SPACE_IRRADIANCE
             #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Fog.hlsl"
 
             // -------------------------------------
             // Unity defined keywords
             #pragma multi_compile _ DIRLIGHTMAP_COMBINED
             #pragma multi_compile _ LIGHTMAP_ON
-            #pragma multi_compile_fog
+            #pragma multi_compile_fragment _ LIGHTMAP_BICUBIC_SAMPLING
+            #pragma multi_compile_fragment _ REFLECTION_PROBE_ROTATION
             #pragma multi_compile_fragment _ DEBUG_DISPLAY
 
             //--------------------------------------
@@ -51,6 +58,10 @@ Shader "Hidden/TerrainEngine/Details/UniversalPipeline/BillboardWavingDoublePass
             #pragma vertex WavingGrassBillboardVert
             #pragma fragment LitPassFragmentGrass
             #define _ALPHATEST_ON
+
+            #if USE_DYNAMIC_BRANCH_FOG_KEYWORD && SHADER_API_VULKAN && SHADER_API_MOBILE
+            #define SKIP_SHADOWS_LIGHT_INDEX_CHECK 1
+            #endif
 
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/WavingGrassInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/WavingGrassPasses.hlsl"
@@ -78,6 +89,7 @@ Shader "Hidden/TerrainEngine/Details/UniversalPipeline/BillboardWavingDoublePass
             #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
             #pragma multi_compile_fragment _ _RENDER_PASS_ENABLED
             #pragma multi_compile_fragment _ _GBUFFER_NORMALS_OCT
+            #pragma multi_compile_fragment _ _SCREEN_SPACE_IRRADIANCE
             #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
 
             // -------------------------------------
@@ -96,6 +108,7 @@ Shader "Hidden/TerrainEngine/Details/UniversalPipeline/BillboardWavingDoublePass
 
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/WavingGrassInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/WavingGrassPasses.hlsl"
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GBufferOutputFormat.hlsl"
             ENDHLSL
         }
 

@@ -2,7 +2,7 @@
 #define UNIVERSAL_LIT_GBUFFER_PASS_INCLUDED
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityGBuffer.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GBufferOutput.hlsl"
 #if defined(LOD_FADE_CROSSFADE)
     #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
 #endif
@@ -112,7 +112,9 @@ void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData
 
 void InitializeBakedGIData(Varyings input, inout InputData inputData)
 {
-#if defined(DYNAMICLIGHTMAP_ON)
+#if defined(_SCREEN_SPACE_IRRADIANCE)
+    inputData.bakedGI = SAMPLE_GI(_ScreenSpaceIrradiance, input.positionCS.xy);
+#elif defined(DYNAMICLIGHTMAP_ON)
     inputData.bakedGI = SAMPLE_GI(input.staticLightmapUV, input.dynamicLightmapUV, input.vertexSH, inputData.normalWS);
     inputData.shadowMask = SAMPLE_SHADOWMASK(input.staticLightmapUV);
 #elif !defined(LIGHTMAP_ON) && (defined(PROBE_VOLUMES_L1) || defined(PROBE_VOLUMES_L2))
@@ -194,7 +196,7 @@ Varyings LitGBufferPassVertex(Attributes input)
 }
 
 // Used in Standard (Physically Based) shader
-FragmentOutput LitGBufferPassFragment(Varyings input)
+GBufferFragOutput LitGBufferPassFragment(Varyings input)
 {
     UNITY_SETUP_INSTANCE_ID(input);
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
@@ -235,9 +237,12 @@ FragmentOutput LitGBufferPassFragment(Varyings input)
 
     Light mainLight = GetMainLight(inputData.shadowCoord, inputData.positionWS, inputData.shadowMask);
     MixRealtimeAndBakedGI(mainLight, inputData.normalWS, inputData.bakedGI, inputData.shadowMask);
-    half3 color = GlobalIllumination(brdfData, inputData.bakedGI, surfaceData.occlusion, inputData.positionWS, inputData.normalWS, inputData.viewDirectionWS);
 
-    return BRDFDataToGbuffer(brdfData, inputData, surfaceData.smoothness, surfaceData.emission + color, surfaceData.occlusion);
+    half3 color = GlobalIllumination(brdfData, (BRDFData)0, 0,
+                                              inputData.bakedGI, surfaceData.occlusion, inputData.positionWS,
+                                              inputData.normalWS, inputData.viewDirectionWS, inputData.normalizedScreenSpaceUV);
+
+    return PackGBuffersBRDFData(brdfData, inputData, surfaceData.smoothness, surfaceData.emission + color, surfaceData.occlusion);
 }
 
 #endif
