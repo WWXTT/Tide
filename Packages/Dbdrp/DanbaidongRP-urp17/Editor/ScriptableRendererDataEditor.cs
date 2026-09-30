@@ -41,29 +41,14 @@ namespace UnityEditor.Rendering.Universal
         private SerializedProperty m_FalseBool;
         [SerializeField] private bool falseBool = false;
         List<Editor> m_Editors = new List<Editor>();
-        
-        // Computed on first access on this editor frame, and cleaned at the end of OnInspectorGUI
-        /// <summary>
-        /// Compute if this ScriptableRenderer is contained by an URPAsset that has IntermediateTextureMode == Never.
-        /// </summary>
-        [Obsolete("This method is not used. #from(6000.3)", false)]
-        protected bool isIntermediateTextureForbidden => false;
 
         private void OnEnable()
         {
-            InitializeIfNeeded();
+            m_RendererFeatures = serializedObject.FindProperty(nameof(ScriptableRendererData.m_RendererFeatures));
+            m_RendererFeaturesMap = serializedObject.FindProperty(nameof(ScriptableRendererData.m_RendererFeatureMap));
             var editorObj = new SerializedObject(this);
             m_FalseBool = editorObj.FindProperty(nameof(falseBool));
             UpdateEditorList();
-        }
-
-        void InitializeIfNeeded()
-        {
-            if (m_RendererFeatures == null)
-                m_RendererFeatures = serializedObject.FindProperty(nameof(ScriptableRendererData.m_RendererFeatures));
-
-            if (m_RendererFeaturesMap == null)
-                m_RendererFeaturesMap = serializedObject.FindProperty(nameof(ScriptableRendererData.m_RendererFeatureMap));
         }
 
         private void OnDisable()
@@ -110,7 +95,9 @@ namespace UnityEditor.Rendering.Universal
             {
                 if (GUILayout.Button("Add Renderer Feature", EditorStyles.miniButton))
                 {
-                    FilterWindow.Show(hscope.rect, new ScriptableRendererFeatureProvider(this));
+                    var r = hscope.rect;
+                    var pos = new Vector2(r.x + r.width / 2f, r.yMax + 18f);
+                    FilterWindow.Show(pos, new ScriptableRendererFeatureProvider(this));
                 }
             }
         }
@@ -125,15 +112,6 @@ namespace UnityEditor.Rendering.Universal
             }
             title = null;
             return false;
-        }
-
-        /// <summary>
-        /// Draws a warning when IntermediateTextureMode is set to Never.
-        /// Should be called at the top of the Inspector.
-        /// </summary>
-        [Obsolete("This method is not used. #from(6000.3)", false)]
-        protected void DisplayIntermediateTextureWarnings()
-        {
         }
 
         private bool GetTooltip(Type type, out string tooltip)
@@ -202,13 +180,7 @@ namespace UnityEditor.Rendering.Universal
                     }
 
                     EditorGUI.BeginChangeCheck();
-                    if (rendererFeatureEditor is IOwningRendererDataConsumer consumer)
-                    {
-                        consumer.owningRendererData = target as ScriptableRendererData;                        
-                    }
-                   
                     rendererFeatureEditor.OnInspectorGUI();
-                    
                     hasChangedProperties |= EditorGUI.EndChangeCheck();
 
                     EditorGUILayout.Space(EditorGUIUtility.singleLineHeight);
@@ -230,15 +202,7 @@ namespace UnityEditor.Rendering.Universal
                 if (GUILayout.Button("Attempt Fix", EditorStyles.miniButton))
                 {
                     ScriptableRendererData data = target as ScriptableRendererData;
-                    if (!data.ValidateRendererFeatures())
-                    {
-                        if (EditorUtility.DisplayDialog("Remove Missing Renderer Feature",
-                                "This renderer feature script is missing (likely deleted or failed to compile). Do you want to remove it from the list and delete the associated sub-asset?",
-                                "Yes", "No"))
-                        {
-                            data.RemoveMissingRendererFeatures();
-                        }
-                    }
+                    data.ValidateRendererFeatures();
                 }
             }
         }
@@ -269,13 +233,10 @@ namespace UnityEditor.Rendering.Universal
 
         internal void AddComponent(Type type)
         {
-            InitializeIfNeeded();
-
             serializedObject.Update();
 
             ScriptableObject component = CreateInstance(type);
             component.name = $"{type.Name}";
-            component.hideFlags |= HideFlags.HideInHierarchy;
             Undo.RegisterCreatedObjectUndo(component, "Add Renderer Feature");
 
             // Store this new effect as a sub-asset so we can reference it safely afterwards
@@ -308,8 +269,6 @@ namespace UnityEditor.Rendering.Universal
 
         private void RemoveComponent(int id)
         {
-            InitializeIfNeeded();
-
             SerializedProperty property = m_RendererFeatures.GetArrayElementAtIndex(id);
             Object component = property.objectReferenceValue;
             property.objectReferenceValue = null;
@@ -379,14 +338,5 @@ namespace UnityEditor.Rendering.Universal
         {
             EditorUtility.SetDirty(target);
         }
-    }
-
-    /// <summary>
-    /// Implement this interface on a custom Editor for a ScriptableRendererFeature to receive the renderer data that owns the feature when the inspector is drawn.
-    /// </summary>
-    internal interface IOwningRendererDataConsumer
-    {
-        /// <summary>The renderer data that contains this feature. Set by the drawer before OnInspectorGUI, cleared after.</summary>
-        public ScriptableRendererData owningRendererData { get; set; }
     }
 }

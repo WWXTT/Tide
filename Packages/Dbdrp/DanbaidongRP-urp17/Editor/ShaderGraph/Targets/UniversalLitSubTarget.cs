@@ -118,11 +118,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             material.SetFloat(Property.QueueOffset, 0.0f);
             material.SetFloat(Property.QueueControl, (float)BaseShaderGUI.QueueControl.Auto);
 
-            if (IsSpacewarpSupported())
-            {
-                material.SetFloat(Property.XrMotionVectorsPass, 1.0f);
-            }
-
             // call the full unlit material setup function
             ShaderGraphLitGUI.UpdateMaterial(material, MaterialUpdateType.CreatedNewMaterial);
         }
@@ -185,8 +180,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 collector.AddFloatProperty(Property.BlendModePreserveSpecular, blendModePreserveSpecular ? 1.0f : 0.0f);
                 collector.AddFloatProperty(Property.SrcBlend, 1.0f);    // always set by material inspector, ok to have incorrect values here
                 collector.AddFloatProperty(Property.DstBlend, 0.0f);    // always set by material inspector, ok to have incorrect values here
-                collector.AddFloatProperty(Property.SrcBlendAlpha, 1.0f);    // always set by material inspector, ok to have incorrect values here
-                collector.AddFloatProperty(Property.DstBlendAlpha, 0.0f);    // always set by material inspector, ok to have incorrect values here
                 collector.AddToggleProperty(Property.ZWrite, (target.surfaceType == SurfaceType.Opaque));
                 collector.AddFloatProperty(Property.ZWriteControl, (float)target.zWriteControl);
                 collector.AddFloatProperty(Property.ZTest, (float)target.zTestMode);    // ztest mode is designed to directly pass as ztest
@@ -201,11 +194,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             // We initialize queue control to -1 to indicate to UpdateMaterial that it needs to initialize it properly on the material.
             collector.AddFloatProperty(Property.QueueOffset, 0.0f);
             collector.AddFloatProperty(Property.QueueControl, -1.0f);
-
-            if (IsSpacewarpSupported())
-            {
-                collector.AddFloatProperty(Property.XrMotionVectorsPass, 1.0f);
-            }
         }
 
         public override void GetPropertiesGUI(ref TargetPropertyGUIContext context, Action onChange, Action<String> registerUndo)
@@ -369,9 +357,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                     result.customTags = string.Concat(result.customTags, " ", UniversalTarget.kAlwaysRenderMotionVectorsTag);
                 result.passes.Add(PassVariant(CorePasses.MotionVectors(target), CorePragmas.MotionVectors));
 
-                if (IsSpacewarpSupported())
-                    result.passes.Add(PassVariant(CorePasses.XRMotionVectors(target), CorePragmas.XRMotionVectors));
-
                 if (target.mayWriteDepth)
                     result.passes.Add(PassVariant(CorePasses.DepthOnly(target), CorePragmas.Instanced));
 
@@ -422,7 +407,7 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 var result = new PassDescriptor()
                 {
                     // Definition
-                    displayName = "ForwardLit",
+                    displayName = "Universal Forward",
                     referenceName = "SHADERPASS_FORWARD",
                     lightMode = "UniversalForward",
                     useInPreview = true,
@@ -443,7 +428,7 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                     // Conditional State
                     renderStates = CoreRenderStates.UberSwitchedRenderState(target, blendModePreserveSpecular),
                     pragmas = pragmas ?? CorePragmas.Forward,     // NOTE: SM 2.0 only GL
-                    defines = new DefineCollection() { },
+                    defines = new DefineCollection() { CoreDefines.UseFragmentFog },
                     keywords = new KeywordCollection() { keywords },
                     includes = LitIncludes.Forward,
 
@@ -473,7 +458,7 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 var result = new PassDescriptor
                 {
                     // Definition
-                    displayName = "ForwardLit",
+                    displayName = "Universal Forward Only",
                     referenceName = "SHADERPASS_FORWARDONLY",
                     lightMode = "UniversalForwardOnly",
                     useInPreview = true,
@@ -848,19 +833,15 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             public static readonly KeywordCollection Forward = new KeywordCollection
             {
                 { CoreKeywordDescriptors.ScreenSpaceAmbientOcclusion },
-                { CoreKeywordDescriptors.ScreenSpaceIrradiance },
                 { CoreKeywordDescriptors.StaticLightmap },
                 { CoreKeywordDescriptors.DynamicLightmap },
                 { CoreKeywordDescriptors.DirectionalLightmapCombined },
                 { CoreKeywordDescriptors.UseLegacyLightmaps },
-                { CoreKeywordDescriptors.LightmapBicubicSampling },
-                { CoreKeywordDescriptors.ReflectionProbeRotation },
                 { CoreKeywordDescriptors.MainLightShadows },
                 { CoreKeywordDescriptors.AdditionalLights },
                 { CoreKeywordDescriptors.AdditionalLightShadows },
                 { CoreKeywordDescriptors.ReflectionProbeBlending },
                 { CoreKeywordDescriptors.ReflectionProbeBoxProjection },
-                { CoreKeywordDescriptors.ReflectionProbeAtlas },
                 { CoreKeywordDescriptors.ShadowsSoft },
                 { CoreKeywordDescriptors.LightmapShadowMixing },
                 { CoreKeywordDescriptors.ShadowsShadowmask },
@@ -868,19 +849,16 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 { CoreKeywordDescriptors.LightLayers },
                 { CoreKeywordDescriptors.DebugDisplay },
                 { CoreKeywordDescriptors.LightCookies },
-                { CoreKeywordDescriptors.ClusterLightLoop },
+                { CoreKeywordDescriptors.ForwardPlus },
                 { CoreKeywordDescriptors.EvaluateSh },
             };
 
             public static readonly KeywordCollection GBuffer = new KeywordCollection
             {
-                { CoreKeywordDescriptors.ScreenSpaceIrradiance },
                 { CoreKeywordDescriptors.StaticLightmap },
                 { CoreKeywordDescriptors.DynamicLightmap },
                 { CoreKeywordDescriptors.DirectionalLightmapCombined },
                 { CoreKeywordDescriptors.UseLegacyLightmaps },
-                { CoreKeywordDescriptors.LightmapBicubicSampling },
-                { CoreKeywordDescriptors.ReflectionProbeRotation },
                 { CoreKeywordDescriptors.MainLightShadows },
                 { CoreKeywordDescriptors.ReflectionProbeBlending },
                 { CoreKeywordDescriptors.ReflectionProbeBoxProjection },
@@ -892,7 +870,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 { CoreKeywordDescriptors.GBufferNormalsOct },
                 { CoreKeywordDescriptors.RenderPassEnabled },
                 { CoreKeywordDescriptors.DebugDisplay },
-                { CoreKeywordDescriptors.ClusterLightLoop },
             };
         }
         #endregion
@@ -903,7 +880,7 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             const string kShadows = "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl";
             const string kMetaInput = "Packages/com.unity.render-pipelines.universal/ShaderLibrary/MetaInput.hlsl";
             const string kForwardPass = "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/PBRForwardPass.hlsl";
-            const string kGBuffer = "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GBufferOutput.hlsl";
+            const string kGBuffer = "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityGBuffer.hlsl";
             const string kPBRGBufferPass = "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/PBRGBufferPass.hlsl";
             const string kLightingMetaPass = "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/LightingMetaPass.hlsl";
             const string k2DPass = "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/PBR2DPass.hlsl";
@@ -912,7 +889,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             {
                 // Pre-graph
                 { CoreIncludes.DOTSPregraph },
-                { CoreIncludes.FogPregraph },
                 { CoreIncludes.WriteRenderLayersPregraph },
                 { CoreIncludes.ProbeVolumePregraph },
                 { CoreIncludes.CorePregraph },
@@ -929,7 +905,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             {
                 // Pre-graph
                 { CoreIncludes.DOTSPregraph },
-                { CoreIncludes.FogPregraph },
                 { CoreIncludes.WriteRenderLayersPregraph },
                 { CoreIncludes.ProbeVolumePregraph },
                 { CoreIncludes.CorePregraph },
@@ -941,7 +916,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 { CoreIncludes.CorePostgraph },
                 { kGBuffer, IncludeLocation.Postgraph },
                 { kPBRGBufferPass, IncludeLocation.Postgraph },
-                { CoreIncludes.GBufferOutputFormat },
             };
 
             public static readonly IncludeCollection Meta = new IncludeCollection

@@ -5,7 +5,7 @@ using UnityEngine.Rendering.Universal;
 namespace UnityEditor.Rendering.Universal
 {
     [CustomEditor(typeof(ScreenSpaceAmbientOcclusion))]
-    internal class ScreenSpaceAmbientOcclusionEditor : Editor, IOwningRendererDataConsumer
+    internal class ScreenSpaceAmbientOcclusionEditor : Editor
     {
         #region Serialized Properties
         private SerializedProperty m_AOMethod;
@@ -23,14 +23,6 @@ namespace UnityEditor.Rendering.Universal
 
         private bool m_IsInitialized = false;
         private HeaderBool m_ShowQualitySettings;
-        private bool m_ShowAfterOpaqueTileOnlyError;
-
-        private static readonly string k_AfterOpaqueIncompatibleWithTileOnlyMode = L10n.Tr("'After Opaque' is incompatible with the enabled 'Tile-Only Mode'. Disable After Opaque.");
-
-        /// <summary>
-        /// The renderer data that owns the feature when the inspector is drawn.
-        /// </summary>
-        public ScriptableRendererData owningRendererData { get; set; }
 
         class HeaderBool
         {
@@ -131,17 +123,6 @@ namespace UnityEditor.Rendering.Universal
 
                 EditorGUILayout.PropertyField(m_Downsample, Styles.Downsample);
                 EditorGUILayout.PropertyField(m_AfterOpaque, Styles.AfterOpaque);
-
-                if (Event.current.type == EventType.Layout)
-                {
-                    var rendererData = (this as IOwningRendererDataConsumer).owningRendererData as UniversalRendererData;
-                    bool tileOnlyMode = rendererData != null && rendererData.tileOnlyMode;
-                    bool afterOpaque = m_AfterOpaque.boolValue;
-                    m_ShowAfterOpaqueTileOnlyError = tileOnlyMode && afterOpaque;
-                }
-                if (m_ShowAfterOpaqueTileOnlyError)
-                    EditorGUILayout.HelpBox(k_AfterOpaqueIncompatibleWithTileOnlyMode, MessageType.Error, true);
-
                 EditorGUILayout.PropertyField(m_BlurQuality, Styles.BlurQuality);
                 EditorGUILayout.PropertyField(m_Samples, Styles.Samples);
 
@@ -162,10 +143,7 @@ namespace UnityEditor.Rendering.Universal
             for (int rendererIndex = 0; rendererIndex < rendererDataList.Length; ++rendererIndex)
             {
                 var rendererData = rendererDataList[rendererIndex] as UniversalRendererData;
-                if (rendererData == null)
-                    continue;
-
-                if (!rendererData.usesDeferredLighting)
+                if (rendererData == null || rendererData.renderingMode != RenderingMode.Deferred)
                     continue;
 
                 var rendererFeatures = rendererData.rendererFeatures;

@@ -1,15 +1,11 @@
 fileFormatVersion: 2
-<<<<<<<< HEAD:Packages/Dbdrp/DanbaidongRP-urp17/Editor/Sky/ProceduralToonSky/ProceduralToonSkyEditor.cs.meta
 guid: 27024f50ebd37ba4eb302852f8b6a22f
-========
-guid: a48458ea708872f44bf79d4c9e33ff07
->>>>>>>> official-175:Packages/Dbdrp/DanbaidongRP-urp17/Editor/ShaderGUI/ShaderGraphTerrainLitGUI.cs.meta
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
   defaultReferences: []
   executionOrder: 0
   icon: {instanceID: 0}
-  userData:
-  assetBundleName:
-  assetBundleVariant:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

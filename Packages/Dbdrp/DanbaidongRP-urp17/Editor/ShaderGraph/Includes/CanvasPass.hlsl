@@ -80,8 +80,6 @@ Varyings BuildVaryings(Attributes input)
             float4 clampedRect = clamp(_ClipRect, -2e10, 2e10);
             float2 maskUV = (input.positionOS.xy - clampedRect.xy) / (clampedRect.zw - clampedRect.xy);
             output.texCoord1 = float4(input.positionOS.xy * 2 - clampedRect.xy - clampedRect.zw, 0.25 / (0.25 * half2(_UIMaskSoftnessX, _UIMaskSoftnessY) + abs(pixelSize.xy)));
-        #else
-            output.texCoord1 = input.uv1;
         #endif
     #endif
 
@@ -92,22 +90,6 @@ Varyings BuildVaryings(Attributes input)
 
     #if defined(VARYINGS_NEED_TEXCOORD3) || defined(VARYINGS_DS_NEED_TEXCOORD3)
         output.texCoord3 = input.uv3;
-    #endif
-
-    #if defined(VARYINGS_NEED_TEXCOORD4) || defined(VARYINGS_DS_NEED_TEXCOORD4)
-        output.texCoord4 = input.uv4;
-    #endif
-
-    #if defined(VARYINGS_NEED_TEXCOORD5) || defined(VARYINGS_DS_NEED_TEXCOORD5)
-        output.texCoord5 = input.uv5;
-    #endif
-
-    #if defined(VARYINGS_NEED_TEXCOORD6) || defined(VARYINGS_DS_NEED_TEXCOORD6)
-        output.texCoord6 = input.uv6;
-    #endif
-
-    #if defined(VARYINGS_NEED_TEXCOORD7) || defined(VARYINGS_DS_NEED_TEXCOORD7)
-        output.texCoord7 = input.uv7;
     #endif
 
     #if defined(VARYINGS_NEED_COLOR) || defined(VARYINGS_DS_NEED_COLOR)

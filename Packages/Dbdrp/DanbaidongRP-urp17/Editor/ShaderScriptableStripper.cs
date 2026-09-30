@@ -26,8 +26,6 @@ namespace UnityEditor.Rendering.Universal
             public bool stripSoftShadowQualityLevels { get; set; }
             public bool stripDebugDisplayShaders { get; set; }
             public bool stripScreenCoordOverrideVariants { get; set; }
-            public bool stripBicubicLightmapSamplingVariants { get; set; }
-            public bool stripReflectionProbeRotationVariants { get; set; }
             public bool stripUnusedVariants { get; set; }
             public bool stripUnusedPostProcessingVariants { get; set; }
             public bool stripUnusedXRVariants { get; set; }
@@ -64,8 +62,6 @@ namespace UnityEditor.Rendering.Universal
             public bool strip2DPasses { get; set; }
             public bool stripDebugDisplayShaders { get; set; }
             public bool stripScreenCoordOverrideVariants { get; set; }
-            public bool stripBicubicLightmapSamplingVariants { get; set; }
-            public bool stripReflectionProbeRotationVariants { get; set; }
             public bool stripUnusedVariants { get; set; }
             public bool stripUnusedPostProcessingVariants { get; set; }
             public bool stripUnusedXRVariants { get; set; }
@@ -111,12 +107,8 @@ namespace UnityEditor.Rendering.Universal
         Shader m_PaniniProjection = Shader.Find("Hidden/Universal Render Pipeline/PaniniProjection");
         Shader m_Bloom = Shader.Find("Hidden/Universal Render Pipeline/Bloom");
         Shader m_TerrainLit = Shader.Find("Universal Render Pipeline/Terrain/Lit");
-        Shader m_TerrainLitAddPass = Shader.Find("Hidden/Universal Render Pipeline/Terrain/Lit (Add Pass)");
-        Shader m_TerrainLitBasePass = Shader.Find("Hidden/Universal Render Pipeline/Terrain/Lit (Base Pass)");
         Shader m_StencilDeferred = Shader.Find("Hidden/Universal Render Pipeline/StencilDeferred");
-        Shader m_ClusterDeferred = Shader.Find("Hidden/Universal Render Pipeline/ClusterDeferred");
         Shader m_UberPostShader = Shader.Find("Hidden/Universal Render Pipeline/UberPost");
-        Shader m_FinalPostShader = Shader.Find("Hidden/Universal Render Pipeline/FinalPost");
         Shader m_HDROutputBlitShader = Shader.Find("Hidden/Universal/BlitHDROverlay");
         Shader m_DataDrivenLensFlareShader = Shader.Find("Hidden/Universal Render Pipeline/LensFlareDataDriven");
         Shader m_ScreenSpaceLensFlareShader = Shader.Find("Hidden/Universal Render Pipeline/LensFlareScreenSpace");
@@ -127,12 +119,9 @@ namespace UnityEditor.Rendering.Universal
         // Pass names
         public static readonly string kPassNameUniversal2D = "Universal2D";
         public static readonly string kPassNameGBuffer = "GBuffer";
-        public static readonly string kPassNameUnlit = "Unlit";
         public static readonly string kPassNameForwardLit = "ForwardLit";
         public static readonly string kPassNameDepthNormals = "DepthNormals";
         public static readonly string kPassNameXRMotionVectors = "XRMotionVectors";
-        public static readonly string kPassNameXRUberPost = "UberPostXR";
-        public static readonly string kPassNameXRFinalPost = "FinalPostXR";
 
         // Keywords
         LocalKeyword m_MainLightShadows;
@@ -143,8 +132,6 @@ namespace UnityEditor.Rendering.Universal
         LocalKeyword m_AdditionalLightShadows;
         LocalKeyword m_ReflectionProbeBlending;
         LocalKeyword m_ReflectionProbeBoxProjection;
-        LocalKeyword m_ReflectionProbeAtlas;
-        LocalKeyword m_ReflectionProbeRotation;
         LocalKeyword m_CastingPunctualLightShadow;
         LocalKeyword m_SoftShadows;
         LocalKeyword m_SoftShadowsLow;
@@ -159,7 +146,6 @@ namespace UnityEditor.Rendering.Universal
         LocalKeyword m_AlphaTestOn;
         LocalKeyword m_GbufferNormalsOct;
         LocalKeyword m_ScreenSpaceOcclusion;
-        LocalKeyword m_ScreenSpaceIrradiance;
         LocalKeyword m_UseFastSRGBLinearConversion;
         LocalKeyword m_LightLayers;
         LocalKeyword m_DecalLayers;
@@ -172,7 +158,7 @@ namespace UnityEditor.Rendering.Universal
         LocalKeyword m_DecalNormalBlendLow;
         LocalKeyword m_DecalNormalBlendMedium;
         LocalKeyword m_DecalNormalBlendHigh;
-        LocalKeyword m_ClusterLightLoop;
+        LocalKeyword m_ForwardPlus;
         LocalKeyword m_FoveatedRenderingNonUniformRaster;
         LocalKeyword m_EditorVisualization;
         LocalKeyword m_LODFadeCrossFade;
@@ -189,17 +175,12 @@ namespace UnityEditor.Rendering.Universal
         LocalKeyword m_ToneMapNeutral;
         LocalKeyword m_FilmGrain;
         LocalKeyword m_ScreenCoordOverride;
-        LocalKeyword m_LightmapBicubicSampling;
         LocalKeyword m_ProbeVolumesL1;
         LocalKeyword m_ProbeVolumesL2;
         LocalKeyword m_EasuRcasAndHDRInput;
         LocalKeyword m_Gamma20AndHDRInput;
         LocalKeyword m_SHPerVertex;
         LocalKeyword m_SHMixed;
-        LocalKeyword m_Instancing;
-        LocalKeyword m_DotsInstancing;
-        LocalKeyword m_ProceduralInstancing;
-        LocalKeyword m_PointSampling;
 
         private LocalKeyword TryGetLocalKeyword(Shader shader, string name)
         {
@@ -216,8 +197,6 @@ namespace UnityEditor.Rendering.Universal
             m_AdditionalLightShadows = TryGetLocalKeyword(shader, ShaderKeywordStrings.AdditionalLightShadows);
             m_ReflectionProbeBlending = TryGetLocalKeyword(shader, ShaderKeywordStrings.ReflectionProbeBlending);
             m_ReflectionProbeBoxProjection = TryGetLocalKeyword(shader, ShaderKeywordStrings.ReflectionProbeBoxProjection);
-            m_ReflectionProbeAtlas = TryGetLocalKeyword(shader, ShaderKeywordStrings.ReflectionProbeAtlas);
-            m_ReflectionProbeRotation = TryGetLocalKeyword(shader, ShaderKeywordStrings.ReflectionProbeRotation);
             m_CastingPunctualLightShadow = TryGetLocalKeyword(shader, ShaderKeywordStrings.CastingPunctualLightShadow);
             m_SoftShadows = TryGetLocalKeyword(shader, ShaderKeywordStrings.SoftShadows);
             m_SoftShadowsLow = TryGetLocalKeyword(shader, ShaderKeywordStrings.SoftShadowsLow);
@@ -232,7 +211,6 @@ namespace UnityEditor.Rendering.Universal
             m_AlphaTestOn = TryGetLocalKeyword(shader, ShaderKeywordStrings._ALPHATEST_ON);
             m_GbufferNormalsOct = TryGetLocalKeyword(shader, ShaderKeywordStrings._GBUFFER_NORMALS_OCT);
             m_ScreenSpaceOcclusion = TryGetLocalKeyword(shader, ShaderKeywordStrings.ScreenSpaceOcclusion);
-            m_ScreenSpaceIrradiance = TryGetLocalKeyword(shader, ShaderKeywordStrings.ScreenSpaceIrradiance);
             m_UseFastSRGBLinearConversion = TryGetLocalKeyword(shader, ShaderKeywordStrings.UseFastSRGBLinearConversion);
             m_LightLayers = TryGetLocalKeyword(shader, ShaderKeywordStrings.LightLayers);
             m_DecalLayers = TryGetLocalKeyword(shader, ShaderKeywordStrings.DecalLayers);
@@ -245,14 +223,13 @@ namespace UnityEditor.Rendering.Universal
             m_DecalNormalBlendLow = TryGetLocalKeyword(shader, ShaderKeywordStrings.DecalNormalBlendLow);
             m_DecalNormalBlendMedium = TryGetLocalKeyword(shader, ShaderKeywordStrings.DecalNormalBlendMedium);
             m_DecalNormalBlendHigh = TryGetLocalKeyword(shader, ShaderKeywordStrings.DecalNormalBlendHigh);
-            m_ClusterLightLoop = TryGetLocalKeyword(shader, ShaderKeywordStrings.ClusterLightLoop);
+            m_ForwardPlus = TryGetLocalKeyword(shader, ShaderKeywordStrings.ForwardPlus);
             m_FoveatedRenderingNonUniformRaster = TryGetLocalKeyword(shader, ShaderKeywordStrings.FoveatedRenderingNonUniformRaster);
             m_EditorVisualization = TryGetLocalKeyword(shader, ShaderKeywordStrings.EDITOR_VISUALIZATION);
             m_LODFadeCrossFade = TryGetLocalKeyword(shader, ShaderKeywordStrings.LOD_FADE_CROSSFADE);
             m_LightCookies = TryGetLocalKeyword(shader, ShaderKeywordStrings.LightCookies);
 
             m_ScreenCoordOverride = TryGetLocalKeyword(shader, ShaderKeywordStrings.SCREEN_COORD_OVERRIDE);
-            m_LightmapBicubicSampling = TryGetLocalKeyword(shader, ShaderKeywordStrings.LIGHTMAP_BICUBIC_SAMPLING);
             m_ProbeVolumesL1 = TryGetLocalKeyword(shader, ShaderKeywordStrings.ProbeVolumeL1);
             m_ProbeVolumesL2 = TryGetLocalKeyword(shader, ShaderKeywordStrings.ProbeVolumeL2);
             m_EasuRcasAndHDRInput = TryGetLocalKeyword(shader, ShaderKeywordStrings.EasuRcasAndHDRInput);
@@ -272,11 +249,6 @@ namespace UnityEditor.Rendering.Universal
             m_FilmGrain = TryGetLocalKeyword(shader, ShaderKeywordStrings.FilmGrain);
             m_SHPerVertex = TryGetLocalKeyword(shader, ShaderKeywordStrings.EVALUATE_SH_VERTEX);
             m_SHMixed = TryGetLocalKeyword(shader, ShaderKeywordStrings.EVALUATE_SH_MIXED);
-            m_PointSampling = TryGetLocalKeyword(shader, ShaderKeywordStrings.PointSampling);
-
-            m_Instancing = TryGetLocalKeyword(shader, "INSTANCING_ON");
-            m_DotsInstancing = TryGetLocalKeyword(shader, "DOTS_INSTANCING_ON");
-            m_ProceduralInstancing = TryGetLocalKeyword(shader, "PROCEDURAL_INSTANCING_ON");
         }
 
 
@@ -407,40 +379,6 @@ namespace UnityEditor.Rendering.Universal
             return strippingData.stripScreenCoordOverrideVariants && strippingData.IsKeywordEnabled(m_ScreenCoordOverride);
         }
 
-        internal bool StripUnusedFeatures_ScreenSpaceIrradiance(ref IShaderScriptableStrippingData strippingData)
-        {
-#if SURFACE_CACHE
-            if (strippingData.PassHasKeyword(m_ScreenSpaceIrradiance))
-            {
-                return !strippingData.IsShaderFeatureEnabled(ShaderFeatures.SurfaceCache) && strippingData.IsKeywordEnabled(m_ScreenSpaceIrradiance);
-            }
-            return false;
-#else
-            return strippingData.IsKeywordEnabled(m_ScreenSpaceIrradiance);
-#endif
-        }
-
-        internal bool StripUnusedFeatures_BicubicLightmapSampling(ref IShaderScriptableStrippingData strippingData)
-        {
-            if (strippingData.PassHasKeyword(m_LightmapBicubicSampling))
-            {
-                bool useBicubic = !strippingData.stripBicubicLightmapSamplingVariants;
-                return useBicubic != strippingData.IsKeywordEnabled(m_LightmapBicubicSampling);
-            }
-
-            return false;
-        }
-
-        internal bool StripUnusedFeatures_ReflectionProbeRotation(ref IShaderScriptableStrippingData strippingData)
-        {
-            if (strippingData.PassHasKeyword(m_ReflectionProbeRotation))
-            {
-                bool useRotation = !strippingData.stripReflectionProbeRotationVariants;
-                return useRotation != strippingData.IsKeywordEnabled(m_ReflectionProbeRotation);
-            }
-            return false;
-        }
-
         internal bool StripUnusedFeatures_PunctualLightShadows(ref IShaderScriptableStrippingData strippingData)
         {
             // Shadow caster punctual light strip
@@ -477,11 +415,12 @@ namespace UnityEditor.Rendering.Universal
 
         internal bool StripUnusedFeatures_DeferredRendering(ref IShaderScriptableStrippingData strippingData)
         {
-            bool hasDeferredRendererType = strippingData.IsShaderFeatureEnabled(ShaderFeatures.DeferredShading) ||
-                                           strippingData.IsShaderFeatureEnabled(ShaderFeatures.DeferredPlus);
-
-            if (strippingData.passName == kPassNameGBuffer && !hasDeferredRendererType)
-                return true;
+            // TODO: Test against lightMode tag instead.
+            if (strippingData.passName == kPassNameGBuffer)
+            {
+                if (!strippingData.IsShaderFeatureEnabled(ShaderFeatures.DeferredShading))
+                    return true;
+            }
 
             return false;
         }
@@ -587,26 +526,12 @@ namespace UnityEditor.Rendering.Universal
             if (stripTool.StripMultiCompile(m_ReflectionProbeBoxProjection, ShaderFeatures.ReflectionProbeBoxProjection))
                 return true;
 
-            if (stripTool.StripMultiCompile(m_ReflectionProbeAtlas, ShaderFeatures.ReflectionProbeAtlas))
-                return true;
-
             return false;
         }
 
-        internal bool StripUnusedFeatures_ClusterLightLoop(ref IShaderScriptableStrippingData strippingData)
+        internal bool StripUnusedFeatures_ForwardPlus(ref ShaderStripTool<ShaderFeatures> stripTool)
         {
-            // If neither Forward+ or Deferred+ is used, strip away cluster light loop variants.
-            if(!(strippingData.IsShaderFeatureEnabled(ShaderFeatures.ForwardPlus) || strippingData.IsShaderFeatureEnabled(ShaderFeatures.DeferredPlus)))
-            {
-                return strippingData.IsKeywordEnabled(m_ClusterLightLoop);
-            }
-            else if (strippingData.stripUnusedVariants)
-            {
-                if (strippingData.PassHasKeyword(m_ClusterLightLoop) && !strippingData.IsKeywordEnabled(m_ClusterLightLoop))
-                    return true;
-            }
-
-            return false;
+            return stripTool.StripMultiCompile(m_ForwardPlus, ShaderFeatures.ForwardPlus);
         }
 
         internal bool StripUnusedFeatures_SHAuto(ref IShaderScriptableStrippingData strippingData, ref ShaderStripTool<ShaderFeatures> stripTool)
@@ -632,9 +557,9 @@ namespace UnityEditor.Rendering.Universal
 
         internal bool StripUnusedFeatures_AdditionalLights(ref IShaderScriptableStrippingData strippingData, ref ShaderStripTool<ShaderFeatures> stripTool)
         {
-            // Forward+ and Deferred+ do not use Vertex or the Pixel Light variants.
+            // Forward Plus doesn't use Vertex or the Pixel Light variants.
             // It enables the Pixel keyword through a define.
-            if (strippingData.IsShaderFeatureEnabled(ShaderFeatures.ForwardPlus) || strippingData.IsShaderFeatureEnabled(ShaderFeatures.DeferredPlus))
+            if (strippingData.IsShaderFeatureEnabled(ShaderFeatures.ForwardPlus))
             {
                 if (strippingData.IsShaderFeatureEnabled(ShaderFeatures.AdditionalLightsVertex))
                     return true;
@@ -738,7 +663,7 @@ namespace UnityEditor.Rendering.Universal
                     if (stripTool.StripMultiCompile(m_WriteRenderingLayers, ShaderFeatures.DepthNormalPassRenderingLayers))
                         return true;
                 }
-                if (strippingData.passName == kPassNameForwardLit || strippingData.passName == kPassNameUnlit)
+                if (strippingData.passName == kPassNameForwardLit)
                 {
                     if (stripTool.StripMultiCompile(m_WriteRenderingLayers, ShaderFeatures.OpaqueWriteRenderingLayers))
                         return true;
@@ -808,32 +733,7 @@ namespace UnityEditor.Rendering.Universal
 
             return strippingData.stripUnusedXRVariants;
         }
-
-        internal bool StripUnusedFeatures_CrossFadeLod(ref IShaderScriptableStrippingData strippingData)
-        {
-            if (!strippingData.IsKeywordEnabled(m_LODFadeCrossFade))
-                return false; // don't strip if this isn't a cross-fade variation.
-
-            if (strippingData.IsShaderFeatureEnabled(ShaderFeatures.StencilLODCrossFade))
-            {
-                if (strippingData.IsKeywordEnabled(m_Instancing) || strippingData.IsKeywordEnabled(m_DotsInstancing)|| strippingData.IsKeywordEnabled(m_ProceduralInstancing))
-                    return false; // Currently we don't support stencil-based fade with GPU instancing.
-
-                // We can't strip the variations of the passes which may not have stencils.
-                // Stencil's availability in motion vector pass depends on platforms + graphics API.
-                return strippingData.passType != PassType.ShadowCaster && strippingData.passType != PassType.MotionVectors;
-            }
-
-            return !strippingData.IsShaderFeatureEnabled(ShaderFeatures.LODCrossFade);
-        }
-
-        internal bool StripUnusedFeatures_PointSamplingUpsampling(ref IShaderScriptableStrippingData strippingData, ref ShaderStripTool<ShaderFeatures> stripTool)
-        {
-            if (strippingData.shader != m_UberPostShader && strippingData.shader != m_FinalPostShader)
-                return false;
-
-            return stripTool.StripMultiCompile(m_PointSampling, ShaderFeatures.PointSamplingUpsampling);
-        }
+        
 
         internal bool StripUnusedFeatures(ref IShaderScriptableStrippingData strippingData)
         {
@@ -841,15 +741,6 @@ namespace UnityEditor.Rendering.Universal
                 return true;
 
             if (StripUnusedFeatures_ScreenCoordOverride(ref strippingData))
-                return true;
-
-            if (StripUnusedFeatures_ScreenSpaceIrradiance(ref strippingData))
-                return true;
-
-            if (StripUnusedFeatures_BicubicLightmapSampling(ref strippingData))
-                return true;
-
-            if (StripUnusedFeatures_ReflectionProbeRotation(ref strippingData))
                 return true;
 
             if (StripUnusedFeatures_MixedLighting(ref strippingData))
@@ -900,7 +791,7 @@ namespace UnityEditor.Rendering.Universal
             if (StripUnusedFeatures_ReflectionProbes(ref stripTool))
                 return true;
 
-            if (StripUnusedFeatures_ClusterLightLoop(ref strippingData))
+            if (StripUnusedFeatures_ForwardPlus(ref stripTool))
                 return true;
 
             if (StripUnusedFeatures_AdditionalLights(ref strippingData, ref stripTool))
@@ -927,7 +818,7 @@ namespace UnityEditor.Rendering.Universal
             if (StripUnusedFeatures_AccurateGbufferNormals(ref strippingData, ref stripTool))
                 return true;
 
-            if (StripUnusedFeatures_CrossFadeLod(ref strippingData))
+            if (stripTool.StripMultiCompileKeepOffVariant(m_LODFadeCrossFade, ShaderFeatures.LODCrossFade))
                 return true;
 
             if (StripUnusedFeatures_LightCookies(ref strippingData, ref stripTool))
@@ -943,9 +834,6 @@ namespace UnityEditor.Rendering.Universal
                 return true;
 
             if (StripUnusedFeatures_XRMotionVector(ref strippingData))
-                return true;
-
-            if (StripUnusedFeatures_PointSamplingUpsampling(ref strippingData, ref stripTool))
                 return true;
 
             return false;
@@ -1011,7 +899,7 @@ namespace UnityEditor.Rendering.Universal
 
         internal bool StripInvalidVariants_TerrainHoles(ref IShaderScriptableStrippingData strippingData)
         {
-            if (strippingData.shader == m_TerrainLit || strippingData.shader == m_TerrainLitAddPass || strippingData.shader == m_TerrainLitBasePass)
+            if (strippingData.shader == m_TerrainLit)
                 if (!strippingData.IsShaderFeatureEnabled(ShaderFeatures.TerrainHoles) && strippingData.IsKeywordEnabled(m_AlphaTestOn))
                     return true;
             return false;
@@ -1019,16 +907,15 @@ namespace UnityEditor.Rendering.Universal
 
         internal bool StripInvalidVariants_Shadows(ref IShaderScriptableStrippingData strippingData)
         {
-            // Strip Additional Shadow variants if it's not set to PerPixel and not F+/Deferred/D+
+            // Strip Additional Shadow variants if it's not set to PerPixel and not F+/Deferred
             bool areAdditionalShadowsEnabled = strippingData.IsKeywordEnabled(m_AdditionalLightShadows);
             bool hasShadowsOff = strippingData.IsShaderFeatureEnabled(ShaderFeatures.ShadowsKeepOffVariants);
             if (hasShadowsOff && areAdditionalShadowsEnabled)
             {
-                bool isPerPixel     = strippingData.IsKeywordEnabled(m_AdditionalLightsPixel);
-                bool isForwardPlus  = strippingData.IsKeywordEnabled(m_ClusterLightLoop);
-                bool isDeferred     = strippingData.IsShaderFeatureEnabled(ShaderFeatures.DeferredShading);
-                bool isDeferredPlus = strippingData.IsShaderFeatureEnabled(ShaderFeatures.DeferredPlus);
-                if (!isPerPixel && !isForwardPlus && !isDeferred && !isDeferredPlus)
+                bool isPerPixel    = strippingData.IsKeywordEnabled(m_AdditionalLightsPixel);
+                bool isForwardPlus = strippingData.IsKeywordEnabled(m_ForwardPlus);
+                bool isDeferred    = strippingData.IsShaderFeatureEnabled(ShaderFeatures.DeferredShading);
+                if (!isPerPixel && !isForwardPlus && !isDeferred)
                     return true;
             }
 
@@ -1079,11 +966,7 @@ namespace UnityEditor.Rendering.Universal
             if (strippingData.passType == PassType.Meta)
             {
                 if (SupportedRenderingFeatures.active.enlighten == false
-                    || ((int)SupportedRenderingFeatures.active.lightmapBakeTypes | (int)LightmapBakeType.Realtime) == 0
-#if SURFACE_CACHE
-                    || !strippingData.IsShaderFeatureEnabled(ShaderFeatures.SurfaceCache)
-#endif
-                   )
+                    || ((int)SupportedRenderingFeatures.active.lightmapBakeTypes | (int)LightmapBakeType.Realtime) == 0)
                     return true;
             }
             return false;
@@ -1133,23 +1016,7 @@ namespace UnityEditor.Rendering.Universal
             if (strippingData.passName == kPassNameXRMotionVectors && strippingData.stripUnusedXRVariants)
                 return true;
             return false;
-        }
-
-        internal bool StripUnusedPass_XRUberPost(ref IShaderScriptableStrippingData strippingData)
-        {
-            // Strip XR UberPost Passes if there is no XR
-            if (strippingData.passName == kPassNameXRUberPost && strippingData.stripUnusedXRVariants)
-                return true;
-            return false;
-        }
-
-        internal bool StripUnusedPass_XRFinalPost(ref IShaderScriptableStrippingData strippingData)
-        {
-            // Strip XR FinalPost Passes if there is no XR
-            if (strippingData.passName == kPassNameXRFinalPost && strippingData.stripUnusedXRVariants)
-                return true;
-            return false;
-        }
+        }        
 
         internal bool StripUnusedPass(ref IShaderScriptableStrippingData strippingData)
         {
@@ -1168,11 +1035,6 @@ namespace UnityEditor.Rendering.Universal
             if (StripUnusedPass_XRMotionVectors(ref strippingData))
                 return true;
 
-            if (StripUnusedPass_XRUberPost(ref strippingData))
-                return true;
-
-            if (StripUnusedPass_XRFinalPost(ref strippingData))
-                return true;
             return false;
         }
 
@@ -1185,18 +1047,10 @@ namespace UnityEditor.Rendering.Universal
             if (!strippingData.stripUnusedVariants)
                 return false;
 
+            // Remove DeferredStencil if Deferred Rendering is not used
             if (strippingData.shader == m_StencilDeferred)
-            {
-                // Remove StencilDeferred if Deferred Rendering is not used
                 if (!strippingData.IsShaderFeatureEnabled(ShaderFeatures.DeferredShading))
                     return true;
-            }
-            else if (strippingData.shader == m_ClusterDeferred)
-            {
-                // Remove ClusterDeferred if Deferred+ is not used
-                if (!strippingData.IsShaderFeatureEnabled(ShaderFeatures.DeferredPlus))
-                    return true;
-            }
 
             return false;
         }
@@ -1244,8 +1098,6 @@ namespace UnityEditor.Rendering.Universal
                 strip2DPasses = ShaderBuildPreprocessor.s_Strip2DPasses,
                 stripDebugDisplayShaders = ShaderBuildPreprocessor.s_StripDebugDisplayShaders,
                 stripScreenCoordOverrideVariants = ShaderBuildPreprocessor.s_StripScreenCoordOverrideVariants,
-                stripBicubicLightmapSamplingVariants = ShaderBuildPreprocessor.s_StripBicubicLightmapSamplingVariants,
-                stripReflectionProbeRotationVariants = ShaderBuildPreprocessor.s_StripReflectionProbeRotationVariants,
                 stripUnusedVariants = ShaderBuildPreprocessor.s_StripUnusedVariants,
                 stripUnusedPostProcessingVariants = ShaderBuildPreprocessor.s_StripUnusedPostProcessingVariants,
                 stripUnusedXRVariants = ShaderBuildPreprocessor.s_StripXRVariants,

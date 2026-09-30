@@ -797,6 +797,7 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 { Pragma.Vertex("Vert") },
                 { Pragma.Fragment("Frag") },
                 { Pragma.MultiCompileInstancing },
+                { Pragma.MultiCompileFog },
                 { Pragma.EditorSyncCompilation },
             };
 
@@ -807,6 +808,7 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 { Pragma.Vertex("Vert") },
                 { Pragma.Fragment("Frag") },
                 { Pragma.MultiCompileInstancing },
+                { Pragma.MultiCompileFog },
                 { Pragma.EditorSyncCompilation },
             };
 
@@ -985,15 +987,13 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 { CoreKeywordDescriptors.DynamicLightmap },
                 { CoreKeywordDescriptors.DirectionalLightmapCombined },
                 { CoreKeywordDescriptors.UseLegacyLightmaps },
-                { CoreKeywordDescriptors.LightmapBicubicSampling },
-                { CoreKeywordDescriptors.ReflectionProbeRotation },
                 { CoreKeywordDescriptors.MainLightShadows },
                 { CoreKeywordDescriptors.AdditionalLights },
                 { CoreKeywordDescriptors.AdditionalLightShadows },
                 { CoreKeywordDescriptors.ShadowsSoft },
                 { CoreKeywordDescriptors.LightmapShadowMixing },
                 { CoreKeywordDescriptors.ShadowsShadowmask },
-                { CoreKeywordDescriptors.ClusterLightLoop },
+                { CoreKeywordDescriptors.ForwardPlus },
                 { Descriptors.DecalsNormalBlend },
                 { CoreKeywordDescriptors.LODFadeCrossFade, new FieldCondition(Fields.LodCrossFade, true) },
                 { CoreKeywordDescriptors.DebugDisplay },
@@ -1009,11 +1009,10 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             public static readonly KeywordCollection ScreenSpaceProjector = new KeywordCollection
             {
                 { CoreKeywordDescriptors.MainLightShadows },
-                { CoreKeywordDescriptors.ScreenSpaceIrradiance },
                 { CoreKeywordDescriptors.AdditionalLights },
                 { CoreKeywordDescriptors.AdditionalLightShadows },
                 { CoreKeywordDescriptors.ShadowsSoft },
-                { CoreKeywordDescriptors.ClusterLightLoop },
+                { CoreKeywordDescriptors.ForwardPlus },
                 { CoreKeywordDescriptors.LightCookies },
                 { CoreKeywordDescriptors.DebugDisplay },
                 { Descriptors.DecalsNormalBlend },
@@ -1026,8 +1025,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 { CoreKeywordDescriptors.DynamicLightmap },
                 { CoreKeywordDescriptors.DirectionalLightmapCombined },
                 { CoreKeywordDescriptors.UseLegacyLightmaps },
-                { CoreKeywordDescriptors.LightmapBicubicSampling },
-                { CoreKeywordDescriptors.ReflectionProbeRotation },
                 { CoreKeywordDescriptors.MainLightShadows },
                 { CoreKeywordDescriptors.ShadowsSoft },
                 { CoreKeywordDescriptors.LightmapShadowMixing },
@@ -1060,7 +1057,7 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             const string kShaderPass = "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/ShaderPass.hlsl";
             const string kVaryings = "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/Varyings.hlsl";
             const string kDBuffer = "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DBuffer.hlsl";
-            const string kGBuffer = "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GBufferOutput.hlsl";
+            const string kGBuffer = "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityGBuffer.hlsl";
             const string kLODCrossFade = "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl";
 
             public static IncludeCollection DecalPregraph = new IncludeCollection
@@ -1080,7 +1077,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             {
                 // Pre-graph
                 { CoreIncludes.DOTSPregraph },
-                { CoreIncludes.FogPregraph },
                 { CoreIncludes.CorePregraph },
                 { CoreIncludes.ShaderGraphPregraph },
                 { CoreIncludes.ProbeVolumePregraph },
@@ -1096,7 +1092,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             {
                 // Pre-graph
                 { CoreIncludes.DOTSPregraph },
-                { CoreIncludes.FogPregraph },
                 { CoreIncludes.CorePregraph },
                 { CoreIncludes.ShaderGraphPregraph },
                 { CoreIncludes.ProbeVolumePregraph },
@@ -1111,7 +1106,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             {
                 // Pre-graph
                 { CoreIncludes.DOTSPregraph },
-                { CoreIncludes.FogPregraph },
                 { CoreIncludes.CorePregraph },
                 { CoreIncludes.ShaderGraphPregraph },
                 { CoreIncludes.ProbeVolumePregraph },
@@ -1121,7 +1115,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
 
                 // Post-graph
                 { DecalPostgraph },
-                { CoreIncludes.GBufferOutputFormat },
             };
 
             public static IncludeCollection ScenePicking = new IncludeCollection

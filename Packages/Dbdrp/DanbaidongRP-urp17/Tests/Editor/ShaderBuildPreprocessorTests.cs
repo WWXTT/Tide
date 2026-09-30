@@ -20,15 +20,13 @@ namespace ShaderStrippingAndPrefiltering
             internal UniversalRendererData rendererData;
             internal ScriptableRendererData scriptableRendererData;
             internal UniversalRenderPipelineAsset urpAsset;
-            internal ScriptableRenderer scriptableRenderer;
+            internal ScriptableRenderer ScriptableRenderer;
+            internal UniversalRenderer universalRenderer;
             internal List<ShaderFeatures> rendererShaderFeatures;
             internal List<ScreenSpaceAmbientOcclusionSettings> ssaoRendererFeatures;
             internal List<ScriptableRendererFeature> rendererFeatures;
             internal bool stripUnusedVariants;
             internal bool containsForwardRenderer;
-#if SURFACE_CACHE
-            internal bool containsSurfaceCache;
-#endif
             internal bool everyRendererHasSSAO;
 
             internal ShaderFeatures defaultURPAssetFeatures
@@ -73,9 +71,10 @@ namespace ShaderStrippingAndPrefiltering
                     urpAsset.name = "TestHelper_URPAsset";
                     GraphicsSettings.defaultRenderPipeline = urpAsset;
 
-                    scriptableRenderer = urpAsset.GetRenderer(0);
+                    ScriptableRenderer = urpAsset.GetRenderer(0);
+                    universalRenderer = ScriptableRenderer as UniversalRenderer;
                     stripUnusedVariants = true;
-                    Assert.AreNotEqual(null, scriptableRenderer);
+                    Assert.AreNotEqual(null, universalRenderer);
 
                     ssaoRendererFeatures = new List<ScreenSpaceAmbientOcclusionSettings>();
                     rendererFeatures = new List<ScriptableRendererFeature>();
@@ -96,11 +95,7 @@ namespace ShaderStrippingAndPrefiltering
 
             internal ShaderFeatures GetSupportedShaderFeaturesFromAsset()
             {
-#if SURFACE_CACHE
-                return ShaderBuildPreprocessor.GetSupportedShaderFeaturesFromAsset(ref urpAsset, ref rendererShaderFeatures, ref ssaoRendererFeatures, stripUnusedVariants, out containsForwardRenderer, out containsSurfaceCache, out everyRendererHasSSAO);
-#else
-                return ShaderBuildPreprocessor.GetSupportedShaderFeaturesFromAsset(ref urpAsset, ref rendererShaderFeatures, ref ssaoRendererFeatures, stripUnusedVariants, out containsForwardRenderer, out everyRendererHasSSAO);
-#endif
+                return ShaderBuildPreprocessor.GetSupportedShaderFeaturesFromAsset(ref urpAsset, ref rendererShaderFeatures, ref ssaoRendererFeatures, stripUnusedVariants, out bool containsForwardRenderer, out bool everyRendererHasSSAO);
             }
 
             internal ShaderFeatures GetSupportedShaderFeaturesFromRenderer(RendererRequirements rendererRequirements, ShaderFeatures urpAssetShaderFeatures)
@@ -183,8 +178,9 @@ namespace ShaderStrippingAndPrefiltering
 
                 rendererData.renderingMode = RenderingMode.Forward;
 
-                scriptableRendererData.stripAdditionalLightOffVariants = true;
-                scriptableRendererData.stripShadowsOffVariants = true;
+                ScriptableRenderer.useRenderPassEnabled = false;
+                ScriptableRenderer.stripAdditionalLightOffVariants = true;
+                ScriptableRenderer.stripShadowsOffVariants = true;
 
                 for (int i = 0; i < rendererFeatures.Count; i++)
                 {
@@ -406,6 +402,7 @@ namespace ShaderStrippingAndPrefiltering
 
             // Native Render Pass
             m_TestHelper.rendererData.renderingMode = RenderingMode.Forward;
+            m_TestHelper.ScriptableRenderer.useRenderPassEnabled = true;
             expected = m_TestHelper.defaultRendererRequirements;
             expected.renderingMode = m_TestHelper.rendererData.renderingMode;
             expected.needsRenderPass = false;
@@ -413,6 +410,7 @@ namespace ShaderStrippingAndPrefiltering
             m_TestHelper.AssertRendererRequirementsAndReset(expected, actual);
 
             m_TestHelper.rendererData.renderingMode = RenderingMode.ForwardPlus;
+            m_TestHelper.ScriptableRenderer.useRenderPassEnabled = true;
             expected = m_TestHelper.defaultRendererRequirements;
             expected.renderingMode = m_TestHelper.rendererData.renderingMode;
             expected.needsRenderPass = false;
@@ -420,6 +418,7 @@ namespace ShaderStrippingAndPrefiltering
             m_TestHelper.AssertRendererRequirementsAndReset(expected, actual);
 
             m_TestHelper.rendererData.renderingMode = RenderingMode.Deferred;
+            m_TestHelper.ScriptableRenderer.useRenderPassEnabled = true;
             expected = m_TestHelper.defaultRendererRequirements;
             expected.renderingMode = m_TestHelper.rendererData.renderingMode;
             expected.needsRenderPass = true;
@@ -508,26 +507,26 @@ namespace ShaderStrippingAndPrefiltering
             m_TestHelper.AssertRendererRequirementsAndReset(expected, actual);
 
             // Shadows Off
-            m_TestHelper.scriptableRendererData.stripShadowsOffVariants = false;
+            m_TestHelper.ScriptableRenderer.stripShadowsOffVariants = false;
             expected = m_TestHelper.defaultRendererRequirements;
             expected.needsShadowsOff = true;
             actual = m_TestHelper.GetRendererRequirements();
             m_TestHelper.AssertRendererRequirementsAndReset(expected, actual);
 
-            m_TestHelper.scriptableRendererData.stripShadowsOffVariants = true;
+            m_TestHelper.ScriptableRenderer.stripShadowsOffVariants = true;
             expected = m_TestHelper.defaultRendererRequirements;
             expected.needsShadowsOff = false;
             actual = m_TestHelper.GetRendererRequirements();
             m_TestHelper.AssertRendererRequirementsAndReset(expected, actual);
 
             // Additional Lights Off
-            m_TestHelper.scriptableRendererData.stripAdditionalLightOffVariants = false;
+            m_TestHelper.ScriptableRenderer.stripAdditionalLightOffVariants = false;
             expected = m_TestHelper.defaultRendererRequirements;
             expected.needsAdditionalLightsOff = true;
             actual = m_TestHelper.GetRendererRequirements();
             m_TestHelper.AssertRendererRequirementsAndReset(expected, actual);
 
-            m_TestHelper.scriptableRendererData.stripAdditionalLightOffVariants = true;
+            m_TestHelper.ScriptableRenderer.stripAdditionalLightOffVariants = true;
             expected = m_TestHelper.defaultRendererRequirements;
             expected.needsAdditionalLightsOff = false;
             actual = m_TestHelper.GetRendererRequirements();
@@ -842,7 +841,7 @@ namespace ShaderStrippingAndPrefiltering
             actual = m_TestHelper.GetSupportedShaderFeaturesFromRendererFeatures(rendererRequirements);
             expected = ShaderFeatures.ScreenSpaceOcclusion | ShaderFeatures.DecalScreenSpace |
                        ShaderFeatures.DecalNormalBlendLow | ShaderFeatures.DecalLayers |
-                       ShaderFeatures.OpaqueWriteRenderingLayers;
+                       ShaderFeatures.DepthNormalPassRenderingLayers;
             m_TestHelper.AssertShaderFeaturesAndReset(expected, actual);
 
             m_TestHelper.rendererFeatures.Remove(ssaoFeature);
@@ -970,33 +969,6 @@ namespace ShaderStrippingAndPrefiltering
             ScriptableObject.DestroyImmediate(ssaoFeature);
 
         }
-
-#if SURFACE_CACHE
-        // Surface Cache Global Illumination...
-        [Test]
-        public void TestGetSupportedShaderFeaturesFromRendererFeatures_SurfaceCacheGI()
-        {
-            SurfaceCacheGIRendererFeature surfaceCacheFeature = ScriptableObject.CreateInstance<SurfaceCacheGIRendererFeature>();
-            m_TestHelper.rendererFeatures.Add(surfaceCacheFeature);
-
-            // Enabled feature
-            m_TestHelper.rendererFeatures[0].SetActive(true);
-
-            RendererRequirements rendererRequirements = m_TestHelper.defaultRendererRequirements;
-            ShaderFeatures actual = m_TestHelper.GetSupportedShaderFeaturesFromRendererFeatures(rendererRequirements);
-            ShaderFeatures expected = ShaderFeatures.SurfaceCache;
-            m_TestHelper.AssertShaderFeaturesAndReset(expected, actual);
-
-            // Disabled feature
-            m_TestHelper.rendererFeatures[0].SetActive(false);
-            rendererRequirements = m_TestHelper.defaultRendererRequirements;
-            actual = m_TestHelper.GetSupportedShaderFeaturesFromRendererFeatures(rendererRequirements);
-            expected = ShaderFeatures.None;
-            m_TestHelper.AssertShaderFeaturesAndReset(expected, actual);
-
-            Object.DestroyImmediate(surfaceCacheFeature);
-        }
-#endif
 
         [Test]
         public void TestGetSupportedShaderFeaturesFromRendererFeatures_Decals()

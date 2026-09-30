@@ -47,6 +47,8 @@ namespace UnityEditor.Rendering.Universal
             }
         }
 
+        public override string documentationURL => Documentation.GetPageLink(Documentation.packageName, "SGNode-Universal-Sample-Buffer");
+
         public UniversalSampleBufferNode()
         {
             name = "URP Sample Buffer";

@@ -1,9 +1,5 @@
 fileFormatVersion: 2
-<<<<<<<< HEAD:Packages/Dbdrp/DanbaidongRP-urp17/Editor/DanbaidongGUI/GUIExample/DanbaidongGUIMat.mat.meta
 guid: 13cc693ca0e675b4db454023af6dc2ac
-========
-guid: 71942363c5608a64bb62421349d39c9c
->>>>>>>> official-175:Packages/Dbdrp/DanbaidongRP-urp17/Runtime/Materials/Mesh2D-Unlit-Default.mat.meta
 NativeFormatImporter:
   externalObjects: {}
   mainObjectFileID: 2100000
