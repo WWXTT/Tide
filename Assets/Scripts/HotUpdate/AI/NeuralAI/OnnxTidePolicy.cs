@@ -57,7 +57,7 @@ namespace CardCore.AI.NeuralEnv
                     $"找不到策略模型 {resourcePath}（ModelAsset）。\n" +
                     $"期望位置：YooAsset 包（{Tide.HotUpdate.HotUpdateAssets.DefaultPackageName}）或 " +
                     $"{ModelAssetFolder}/{resourcePath}.onnx（tide_rl/export_onnx.py 复制到该目录；" +
-                    "热更侧需先跑 Tide/热更/2 配置收集器）");
+                    "热更侧需先跑 Tools/热更/2 配置收集器）");
             _worker = new IE.Worker(IE.ModelLoader.Load(asset), IE.BackendType.CPU);
         }
 

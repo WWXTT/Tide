@@ -23,9 +23,9 @@ namespace Tide.HotUpdateTools
     {
         private const string HotDllFolder = "Assets/HotUpdateDlls";
         private const string AotDllFolder = "Assets/AotDlls";
-        private const string LaunchScenePath = "Assets/Launch/Launch.unity";
+        private const string LaunchScenePath = "Assets/Scenes/Launch.unity";
 
-        [MenuItem("Tide/热更/1. 配置 HybridCLR 程序集")]
+        [MenuItem("Tools/热更/1. 配置 HybridCLR 程序集")]
         public static void SetupHybridClr()
         {
             var settings = HybridCLRSettings.LoadOrCreate();
@@ -39,7 +39,7 @@ namespace Tide.HotUpdateTools
                 Debug.LogWarning("[热更配置] HybridCLR 本地 il2cpp 未安装：请执行菜单 HybridCLR/Installer → Install（打包前置与真机构建必需）");
         }
 
-        [MenuItem("Tide/热更/2. 配置 YooAsset 资源收集器")]
+        [MenuItem("Tools/热更/2. 配置 YooAsset 资源收集器")]
         public static void SetupCollector()
         {
             var setting = BundleCollectorSettingData.Setting;
@@ -50,23 +50,32 @@ namespace Tide.HotUpdateTools
                 setting.Packages.Add(package);
             }
 
-            EnsureGroup(package, "HotUpdateDll", HotDllFolder);
-            EnsureGroup(package, "AotDll", AotDllFolder);
-            EnsureGroup(package, "Scene", "Assets/Scenes");
-            EnsureGroup(package, "Art", "Assets/Art");
-            EnsureGroup(package, "Configs", "Assets/Configs");
-            EnsureGroup(package, "UI", "Assets/UI/Res");
+            // 启动/热更代码全部按地址寻址（"Main"、"Tide.HotUpdate.dll"…），
+            // Addressable 关闭时清单 Address 字段为空、只能按完整资源路径定位
+            package.EnableAddressable = true;
+
+            // 全量重建组：存量配置的路径/规则/收集类型变更（如 Art 拆分）靠重跑本菜单追平
+            package.Groups.Clear();
+            AddGroup(package, "HotUpdateDll", HotDllFolder);
+            AddGroup(package, "AotDll", AotDllFolder);
+            AddGroup(package, "Scene", "Assets/Scenes", "CollectAllExceptLaunch");
+            AddGroup(package, "Configs", "Assets/Configs");
+            AddGroup(package, "UI", "Assets/UI/Res");
+            AddGroup(package, "AIModel", "Assets/Art/AIModels");
+            // HexMap 美术资源为场景/组件的序列化引用，静态收集进包但不寻址——
+            // 按文件名寻址时同目录同名异扩展（Nettle.FBX/Nettle.tif）会地址冲突
+            AddGroup(package, "ArtStatic", "Assets/Art/HexMap", "CollectAll", ECollectorType.StaticAssetCollector);
 
             BundleCollectorSettingData.SaveFile();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[热更配置] YooAsset 收集器：DefaultPackage ← HotUpdateDll/AotDll/Scene/Art/Configs/UI 六组（热更区=Art+Configs+UI+热更DLL，Art 覆盖 AIModels/HexMap）");
+            Debug.Log("[热更配置] YooAsset 收集器：DefaultPackage（Addressable）← HotUpdateDll/AotDll/Scene/Configs/UI/AIModel 六个寻址组 + ArtStatic 静态组（HexMap 依赖打包）");
         }
 
-        [MenuItem("Tide/热更/3. 生成 Launch 场景")]
+        [MenuItem("Tools/热更/3. 生成 Launch 场景")]
         public static void CreateLaunchScene()
         {
-            EnsureFolder("Assets/Launch");
+            EnsureFolder("Assets/Scenes");
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -84,7 +93,7 @@ namespace Tide.HotUpdateTools
             Debug.Log($"[热更配置] Launch 场景已生成并设为唯一构建场景（{LaunchScenePath}）；Main 场景改由 YooAsset 打包");
         }
 
-        [MenuItem("Tide/热更/4. 编译热更DLL并拷入Assets")]
+        [MenuItem("Tools/热更/4. 编译热更DLL并拷入Assets")]
         public static void CompileHotUpdateDlls()
         {
             CompileDllCommand.CompileDllActiveBuildTargetRelease();
@@ -113,7 +122,7 @@ namespace Tide.HotUpdateTools
             Debug.Log($"[热更编译] 完成（{target}）：热更 DLL → {HotDllFolder}，AOT 补充 → {AotDllFolder}");
         }
 
-        [MenuItem("Tide/热更/5. 打包前置生成（AOT泛型补充/link.xml）")]
+        [MenuItem("Tools/热更/5. 打包前置生成（AOT泛型补充/link.xml）")]
         public static void PrebuildGenerate()
         {
             if (!Directory.Exists(SettingsUtil.LocalIl2CppDir))
@@ -125,27 +134,20 @@ namespace Tide.HotUpdateTools
             Debug.Log("[热更前置] GenerateAll 完成（生成后请重跑第 4 步拷贝 AOT DLL）");
         }
 
-        private static void EnsureGroup(BundleCollectorPackage package, string groupName, string collectPath)
+        private static void AddGroup(BundleCollectorPackage package, string groupName, string collectPath, string filterRuleName = "CollectAll", ECollectorType collectorType = ECollectorType.MainAssetCollector)
         {
             EnsureFolder(collectPath);
-            var group = package.Groups.FirstOrDefault(g => g.GroupName == groupName);
-            if (group == null)
+            var group = new BundleCollectorGroup { GroupName = groupName, GroupDesc = groupName };
+            group.Collectors.Add(new BundleCollector
             {
-                group = new BundleCollectorGroup { GroupName = groupName, GroupDesc = groupName };
-                package.Groups.Add(group);
-            }
-            if (group.Collectors.Count == 0)
-            {
-                group.Collectors.Add(new BundleCollector
-                {
-                    CollectPath = collectPath,
-                    CollectorGUID = AssetDatabase.AssetPathToGUID(collectPath),
-                    CollectorType = ECollectorType.MainAssetCollector,
-                    AddressRuleName = "AddressByFileName",
-                    PackRuleName = "PackDirectory",
-                    FilterRuleName = "CollectAll",
-                });
-            }
+                CollectPath = collectPath,
+                CollectorGUID = AssetDatabase.AssetPathToGUID(collectPath),
+                CollectorType = collectorType,
+                AddressRuleName = "AddressByFileName",
+                PackRuleName = "PackDirectory",
+                FilterRuleName = filterRuleName,
+            });
+            package.Groups.Add(group);
         }
 
         private static void CopyAsBytes(string srcFile, string destFolder, string destFileName)

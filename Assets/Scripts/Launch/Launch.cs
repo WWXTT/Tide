@@ -22,7 +22,7 @@ namespace Tide.Launch
         public EPlayMode PlayMode = EPlayMode.EditorSimulateMode;
 
         [Header("热更资源服务器（HostPlayMode 用）")]
-        public string HostServerUrl = "http://127.0.0.1:8080/CDN/StandaloneWindows64";
+        public string HostServerUrl = "";
 
         private void Start()
         {
