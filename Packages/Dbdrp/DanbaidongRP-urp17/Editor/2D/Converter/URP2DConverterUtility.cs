@@ -8,29 +8,6 @@ using static UnityEditor.Rendering.AnimationClipUpgrader;
 
 internal static class URP2DConverterUtility
 {
-
-    private static class Styles
-    {
-        public static readonly GUIContent failedToInstallPackageTitle = EditorGUIUtility.TrTextContent("Installation Failed");
-        public static readonly GUIContent failedToInstallPackageContent = EditorGUIUtility.TrTextContent("Failed to install {0} package.\nErrorCode: {1}\nMessage: {2}");
-        public static readonly GUIContent okText = EditorGUIUtility.TrTextContent("OK");
-    }
-
-    public static bool InstallPackage(string package)
-    {
-        var addRequest = UnityEditor.PackageManager.Client.Add(package);
-        while (!addRequest.IsCompleted)
-            System.Threading.Thread.Sleep(10);
-
-        if (addRequest.Status == UnityEditor.PackageManager.StatusCode.Failure)
-        {
-            var message = System.String.Format(Styles.failedToInstallPackageContent.text, package, addRequest.Error.errorCode, addRequest.Error.message);
-            EditorUtility.DisplayDialog(Styles.failedToInstallPackageTitle.text, message, Styles.okText.text);
-        }
-        UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
-        return addRequest.Status == UnityEditor.PackageManager.StatusCode.Success;
-    }
-
     public static bool IsPSB(string path)
     {
         if (string.IsNullOrEmpty(path))
@@ -43,7 +20,7 @@ internal static class URP2DConverterUtility
     }
 
 
-    public static bool IsMaterialPath(string path, string[] ids)
+    public static bool IsMaterialPath(string path, string id)
     {
         if (string.IsNullOrEmpty(path))
             throw new ArgumentNullException(nameof(path));
@@ -52,10 +29,7 @@ internal static class URP2DConverterUtility
             return false;
 
         if (path.EndsWith(".mat"))
-        {
-            return URP2DConverterUtility.DoesFileContainString(path, ids);
-        }
-            
+            return URP2DConverterUtility.DoesFileContainString(path, new string[] { id });
 
         return false;
     }
@@ -164,10 +138,11 @@ internal static class URP2DConverterUtility
             EditorSceneManager.CloseScene(scene, true);
     }
 
-    public static void UpgradeMaterial(string path, Action<Material> materialUpgrader)
+    public static void UpgradeMaterial(string path, Shader oldShader, Shader newShader)
     {
         Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
-        materialUpgrader(material);
+        if (material.shader == oldShader)
+            material.shader = newShader;
 
         GUID guid = AssetDatabase.GUIDFromAssetPath(path);
         AssetDatabase.SaveAssetIfDirty(guid);

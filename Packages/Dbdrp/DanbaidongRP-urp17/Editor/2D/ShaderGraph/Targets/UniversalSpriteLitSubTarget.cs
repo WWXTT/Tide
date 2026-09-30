@@ -23,14 +23,13 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
         {
             base.Setup(ref context);
             context.AddAssetDependency(kSourceCodeGuid, AssetCollection.Flags.SourceDependency);
-
-            var universalRPType = typeof(UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset);
-            var gui = typeof(ShaderGraphSpriteGUI);
 #if HAS_VFX_GRAPH
-            if (TargetsVFX())
-                gui = typeof(VFXGenericShaderGraphMaterialGUI);
+            var universalRPType = typeof(UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset);
+            if (TargetsVFX() && !context.HasCustomEditorForRenderPipeline(universalRPType))
+            {
+                context.AddCustomEditorForRenderPipeline(typeof(VFXGenericShaderGraphMaterialGUI).FullName, universalRPType);
+            }
 #endif
-            context.AddCustomEditorForRenderPipeline(gui.FullName, universalRPType);
             context.AddSubShader(PostProcessSubShader(SubShaders.SpriteLit(target)));
         }
 
@@ -73,12 +72,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             };
 
             return true;
-        }
-
-        public override void CollectShaderProperties(PropertyCollector collector, GenerationMode generationMode)
-        {
-            base.CollectShaderProperties(collector, generationMode);
-            SpriteSubTargetUtility.AddSRPIncompatibility(collector);
         }
 
         #region SubShader
@@ -136,12 +129,11 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                     fieldDependencies = CoreFieldDependencies.Default,
 
                     // Conditional State
-
-                    renderStates = target.sort3DAs2DCompatible ? Universal2DSubTargetDescriptors.RenderStateCollections.Sort3DAs2DCompatible : SpriteSubTargetUtility.GetDefaultRenderState(target),
+                    renderStates = SpriteSubTargetUtility.GetDefaultRenderState(target),
                     pragmas = CorePragmas._2DDefault,
                     defines = new DefineCollection(),
                     keywords = SpriteLitKeywords.Lit,
-                    includes = target.sort3DAs2DCompatible ? UniversalMeshLitInfo.Includes.Lit : SpriteLitIncludes.Lit,
+                    includes = SpriteLitIncludes.Lit,
 
                     // Custom Interpolator Support
                     customInterpolators = CoreCustomInterpDescriptors.Common
@@ -179,11 +171,10 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                     fieldDependencies = CoreFieldDependencies.Default,
 
                     // Conditional State
-                    renderStates = target.sort3DAs2DCompatible ? Universal2DSubTargetDescriptors.RenderStateCollections.Sort3DAs2DCompatible : CoreRenderStates.Default,
+                    renderStates = CoreRenderStates.Default,
                     pragmas = CorePragmas._2DDefault,
                     defines = new DefineCollection(),
-                    keywords = SpriteLitKeywords.Normal,
-                    includes = target.sort3DAs2DCompatible ? UniversalMeshLitInfo.Includes.Normal : SpriteLitIncludes.Normal,
+                    includes = SpriteLitIncludes.Normal,
 
                     // Custom Interpolator Support
                     customInterpolators = CoreCustomInterpDescriptors.Common
@@ -246,9 +237,8 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             {
                 BlockFields.SurfaceDescription.BaseColor,
                 BlockFields.SurfaceDescriptionLegacy.SpriteColor,
-                UniversalBlockFields.SurfaceDescription.SpriteMask,
-                BlockFields.SurfaceDescription.NormalTS,
                 BlockFields.SurfaceDescription.Alpha,
+                UniversalBlockFields.SurfaceDescription.SpriteMask,
                 BlockFields.SurfaceDescription.AlphaClipThreshold,
             };
 
@@ -256,8 +246,8 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             {
                 BlockFields.SurfaceDescription.BaseColor,
                 BlockFields.SurfaceDescriptionLegacy.SpriteColor,
-                BlockFields.SurfaceDescription.NormalTS,
                 BlockFields.SurfaceDescription.Alpha,
+                BlockFields.SurfaceDescription.NormalTS,
                 BlockFields.SurfaceDescription.AlphaClipThreshold,
             };
         }
@@ -272,12 +262,10 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 StructFields.Varyings.positionWS,
                 StructFields.Varyings.texCoord0,
                 StructFields.Varyings.screenPosition,
-                StructFields.Varyings.normalWS,
             };
 
             public static FieldCollection Normal = new FieldCollection()
             {
-                StructFields.Varyings.color,
                 StructFields.Varyings.normalWS,
                 StructFields.Varyings.tangentWS,
             };
@@ -301,27 +289,19 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 { CoreKeywordDescriptors.ShapeLightType2 },
                 { CoreKeywordDescriptors.ShapeLightType3 },
                 { CoreKeywordDescriptors.DebugDisplay },
-                { CoreKeywordDescriptors.UseSkinnedSprite },
-            };
-
-            public static KeywordCollection Normal = new KeywordCollection
-            {
-                { CoreKeywordDescriptors.UseSkinnedSprite },
             };
 
             public static KeywordCollection Forward = new KeywordCollection
             {
                 { CoreKeywordDescriptors.DebugDisplay },
-                { CoreKeywordDescriptors.UseSkinnedSprite },
             };
         }
         #endregion
 
         #region Includes
-
         static class SpriteLitIncludes
         {
-            const string kSpriteCore2D = "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/Core2D.hlsl";
+            const string k2DLightingUtil = "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/LightingUtility.hlsl";
             const string k2DNormal = "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/NormalsRenderingShared.hlsl";
             const string kSpriteLitPass = "Packages/com.unity.render-pipelines.universal/Editor/2D/ShaderGraph/Includes/SpriteLitPass.hlsl";
             const string kSpriteNormalPass = "Packages/com.unity.render-pipelines.universal/Editor/2D/ShaderGraph/Includes/SpriteNormalPass.hlsl";
@@ -330,10 +310,9 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             public static IncludeCollection Lit = new IncludeCollection
             {
                 // Pre-graph
-                { CoreIncludes.FogPregraph },
                 { CoreIncludes.CorePregraph },
                 { CoreIncludes.ShaderGraphPregraph },
-                { kSpriteCore2D, IncludeLocation.Pregraph },
+                { k2DLightingUtil, IncludeLocation.Pregraph },
 
                 // Post-graph
                 { CoreIncludes.CorePostgraph },
@@ -346,21 +325,17 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 { CoreIncludes.CorePregraph },
                 { CoreIncludes.ShaderGraphPregraph },
                 { k2DNormal, IncludeLocation.Pregraph },
-                { kSpriteCore2D, IncludeLocation.Pregraph },
 
                 // Post-graph
                 { CoreIncludes.CorePostgraph },
                 { kSpriteNormalPass, IncludeLocation.Postgraph },
-
             };
 
             public static IncludeCollection Forward = new IncludeCollection
             {
                 // Pre-graph
-                { CoreIncludes.FogPregraph },
                 { CoreIncludes.CorePregraph },
                 { CoreIncludes.ShaderGraphPregraph },
-                { kSpriteCore2D, IncludeLocation.Pregraph },
 
                 // Post-graph
                 { CoreIncludes.CorePostgraph },

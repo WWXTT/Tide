@@ -11,12 +11,18 @@ namespace UnityEngine.Rendering.Universal
         private static readonly ProfilingSampler m_ProfilingSampler = new ProfilingSampler(k_CopyCameraSortingLayerPass);
         private static readonly ProfilingSampler m_ExecuteProfilingSampler = new ProfilingSampler("Copy");
         internal static readonly string k_CameraSortingLayerTexture = "_CameraSortingLayerTexture";
-        internal static readonly int k_CameraSortingLayerTextureId = Shader.PropertyToID(k_CameraSortingLayerTexture);
+        private static readonly int k_CameraSortingLayerTextureId = Shader.PropertyToID(k_CameraSortingLayerTexture);
         static Material m_BlitMaterial;
 
         public CopyCameraSortingLayerPass(Material blitMaterial)
         {
             m_BlitMaterial = blitMaterial;
+        }
+
+        [Obsolete(DeprecationMessage.CompatibilityScriptingAPIObsolete, false)]
+        public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
+        {
+            throw new NotImplementedException();
         }
 
         public static void ConfigureDescriptor(Downsampling downsamplingMethod, ref RenderTextureDescriptor descriptor, out FilterMode filterMode)
@@ -51,20 +57,19 @@ namespace UnityEngine.Rendering.Universal
             internal TextureHandle source;
         }
 
-        public void Render(RenderGraph graph, ContextContainer frameData)
+        public void Render(RenderGraph graph, in TextureHandle cameraColorAttachment, in TextureHandle destination)
         {
-            UniversalResourceData commonResourceData = frameData.Get<UniversalResourceData>();
-            Universal2DResourceData universal2DResourceData = frameData.Get<Universal2DResourceData>();
-
             using (var builder = graph.AddRasterRenderPass<PassData>(k_CopyCameraSortingLayerPass, out var passData, m_ProfilingSampler))
             {
-                passData.source = commonResourceData.activeColorTexture;
+                passData.source = cameraColorAttachment;
 
-                builder.SetRenderAttachment(universal2DResourceData.cameraSortingLayerTexture, 0);
+                builder.SetRenderAttachment(destination, 0);
                 builder.UseTexture(passData.source);
                 builder.AllowPassCulling(false);
 
-                builder.SetRenderFunc(static (PassData data, RasterGraphContext context) =>
+                builder.SetGlobalTextureAfterPass(destination, k_CameraSortingLayerTextureId);
+
+                builder.SetRenderFunc((PassData data, RasterGraphContext context) =>
                 {
                     Execute(context.cmd, data.source);
                 });

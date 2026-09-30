@@ -2004,7 +2004,7 @@ namespace UnityEngine.Rendering.Universal
         RenderSSShadow,
         RenderShadowScatter,
 
-        // PostProcessPass
+        // PostProcessPassLegacy
         StopNaNs,
         SMAA,
         GaussianDepthOfField,
@@ -2020,7 +2020,7 @@ namespace UnityEngine.Rendering.Universal
         DrawMotionVectors,
         DrawFullscreen,
 
-        // PostProcessPass RenderGraph
+        // PostProcessPassLegacy RenderGraph
         [HideInDebugUI] RG_SetupPostFX,
         [HideInDebugUI] RG_StopNaNs,
         [HideInDebugUI] RG_SMAAMaterialSetup,

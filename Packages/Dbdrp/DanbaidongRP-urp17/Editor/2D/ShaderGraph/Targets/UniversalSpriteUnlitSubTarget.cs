@@ -23,14 +23,13 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
         {
             base.Setup(ref context);
             context.AddAssetDependency(kSourceCodeGuid, AssetCollection.Flags.SourceDependency);
-
-            var universalRPType = typeof(UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset);
-            var gui = typeof(ShaderGraphSpriteGUI);
 #if HAS_VFX_GRAPH
-            if (TargetsVFX())
-                gui = typeof(VFXGenericShaderGraphMaterialGUI);
+            var universalRPType = typeof(UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset);
+            if (TargetsVFX() && !context.HasCustomEditorForRenderPipeline(universalRPType))
+            {
+                context.AddCustomEditorForRenderPipeline(typeof(VFXGenericShaderGraphMaterialGUI).FullName, universalRPType);
+            }
 #endif
-            context.AddCustomEditorForRenderPipeline(gui.FullName, universalRPType);
             context.AddSubShader(PostProcessSubShader(SubShaders.SpriteUnlit(target)));
         }
 
@@ -68,12 +67,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             };
 
             return true;
-        }
-
-        public override void CollectShaderProperties(PropertyCollector collector, GenerationMode generationMode)
-        {
-            base.CollectShaderProperties(collector, generationMode);
-            SpriteSubTargetUtility.AddSRPIncompatibility(collector);
         }
 
         #region SubShader
@@ -131,11 +124,11 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                     fieldDependencies = CoreFieldDependencies.Default,
 
                     // Conditional State
-                    renderStates = target.sort3DAs2DCompatible ? Universal2DSubTargetDescriptors.RenderStateCollections.Sort3DAs2DCompatible : SpriteSubTargetUtility.GetDefaultRenderState(target),
+                    renderStates = SpriteSubTargetUtility.GetDefaultRenderState(target),
                     pragmas = CorePragmas._2DDefault,
                     defines = new DefineCollection(),
                     keywords = SpriteUnlitKeywords.Unlit,
-                    includes = target.sort3DAs2DCompatible ? MeshUnlitIncludes.Unlit : SpriteUnlitIncludes.Unlit,
+                    includes = SpriteUnlitIncludes.Unlit,
 
                     // Custom Interpolator Support
                     customInterpolators = CoreCustomInterpDescriptors.Common
@@ -214,7 +207,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
                 StructFields.Varyings.positionWS,
                 StructFields.Varyings.color,
                 StructFields.Varyings.texCoord0,
-                StructFields.Varyings.normalWS,
             };
         }
         #endregion
@@ -225,7 +217,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             public static KeywordCollection Unlit = new KeywordCollection
             {
                 { CoreKeywordDescriptors.DebugDisplay },
-                { CoreKeywordDescriptors.UseSkinnedSprite },
             };
         }
         #endregion
@@ -233,16 +224,13 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
         #region Includes
         static class SpriteUnlitIncludes
         {
-            const string kSpriteCore2D = "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/Core2D.hlsl";
             const string kSpriteUnlitPass = "Packages/com.unity.render-pipelines.universal/Editor/2D/ShaderGraph/Includes/SpriteUnlitPass.hlsl";
 
             public static IncludeCollection Unlit = new IncludeCollection
             {
                 // Pre-graph
-                { CoreIncludes.FogPregraph },
                 { CoreIncludes.CorePregraph },
                 { CoreIncludes.ShaderGraphPregraph },
-                { kSpriteCore2D, IncludeLocation.Pregraph },
 
                 // Post-graph
                 { CoreIncludes.CorePostgraph },

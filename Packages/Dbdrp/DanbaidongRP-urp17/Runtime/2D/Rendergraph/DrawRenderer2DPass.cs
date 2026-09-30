@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine.Rendering.RenderGraphModule;
 using CommonResourceData = UnityEngine.Rendering.Universal.UniversalResourceData;
@@ -20,6 +21,12 @@ namespace UnityEngine.Rendering.Universal
         private static readonly int k_HDREmulationScaleID = Shader.PropertyToID("_HDREmulationScale");
         private static readonly int k_RendererColorID = Shader.PropertyToID("_RendererColor");
 
+        [Obsolete(DeprecationMessage.CompatibilityScriptingAPIObsolete, false)]
+        public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
+        {
+            throw new NotImplementedException();
+        }
+
         private static void Execute(RasterGraphContext context, PassData passData)
         {
             var cmd = context.cmd;
@@ -30,7 +37,7 @@ namespace UnityEngine.Rendering.Universal
             RendererLighting.SetLightShaderGlobals(cmd, passData.lightBlendStyles, passData.blendStyleIndices);
 
 #if UNITY_EDITOR
-            if (passData.isLightingActive)
+            if (passData.isLitView)
 #endif
             {
                 if (passData.layerUseLights)
@@ -47,15 +54,8 @@ namespace UnityEngine.Rendering.Universal
                 }
             }
 
-            if (passData.activeDebugHandler)
-            {
-                passData.debugRendererLists.DrawWithRendererList(cmd);
-            }
-            else
-            {
-                // Draw all renderers in layer batch
-                cmd.DrawRendererList(passData.rendererList);
-            }
+            // Draw all renderers in layer batch
+            cmd.DrawRendererList(passData.rendererList);
 
             RendererLighting.DisableAllKeywords(cmd);
         }
@@ -74,63 +74,64 @@ namespace UnityEngine.Rendering.Universal
             internal bool layerUseLights;
             internal TextureHandle[] lightTextures;
             internal RendererListHandle rendererList;
-            internal DebugRendererLists debugRendererLists;
-            internal bool activeDebugHandler;
 
 #if UNITY_EDITOR
-            internal bool isLightingActive; // Required for prefab view and preview camera
+            internal bool isLitView; // Required for prefab view and preview camera
 #endif
         }
 
-        public void Render(RenderGraph graph, ContextContainer frameData, int batchIndex, ref FilteringSettings filterSettings)
+        public void Render(RenderGraph graph, ContextContainer frameData, Renderer2DData rendererData, ref LayerBatch[] layerBatches, int batchIndex, ref FilteringSettings filterSettings)
         {
             UniversalRenderingData renderingData = frameData.Get<UniversalRenderingData>();
             UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
             UniversalLightData lightData = frameData.Get<UniversalLightData>();
             Universal2DResourceData universal2DResourceData = frameData.Get<Universal2DResourceData>();
             CommonResourceData commonResourceData = frameData.Get<CommonResourceData>();
-            Universal2DRenderingData rendering2DData = frameData.Get<Universal2DRenderingData>();
-            Renderer2DData rendererData = rendering2DData.renderingData;
-            var layerBatch = rendering2DData.layerBatches[batchIndex];
 
-            // Check for lighting in scene/prefab/preview camera 
-            var isLightingActive = Renderer2D.IsSceneViewOrPreviewLightingActive(cameraData);
+            var layerBatch = layerBatches[batchIndex];
 
             // Preset global light textures for first batch
             if (batchIndex == 0)
             {
                 using (var builder = graph.AddRasterRenderPass<SetGlobalPassData>(k_SetLightBlendTexture, out var passData, m_SetLightBlendTextureProfilingSampler))
                 {
-                    if (layerBatch.lightStats.useLights && isLightingActive)
+                    if (layerBatch.lightStats.useLights)
                     {
                         passData.lightTextures = universal2DResourceData.lightTextures[batchIndex];
                         for (var i = 0; i < passData.lightTextures.Length; i++)
                             builder.UseTexture(passData.lightTextures[i]);
                     }
 
-                    SetGlobalLightTextures(graph, builder, frameData, batchIndex, isLightingActive);
+                    SetGlobalLightTextures(graph, builder, passData.lightTextures, cameraData, ref layerBatch, rendererData);
 
+                    builder.AllowPassCulling(false);
                     builder.AllowGlobalStateModification(true);
 
-                    builder.SetRenderFunc(static (SetGlobalPassData data, RasterGraphContext context) =>
+                    builder.SetRenderFunc((SetGlobalPassData data, RasterGraphContext context) =>
                     {
                     });
                 }
             }
 
             // Renderer Pass
-            var passName = k_RenderPass;
-            LayerDebug.FormatPassName(layerBatch, ref passName);
-
-            using (var builder = graph.AddRasterRenderPass<PassData>(passName, out var passData, LayerDebug.GetProfilingSampler(passName, m_ProfilingSampler)))
+            using (var builder = graph.AddRasterRenderPass<PassData>(k_RenderPass, out var passData, m_ProfilingSampler))
             {
                 passData.lightBlendStyles = rendererData.lightBlendStyles;
                 passData.blendStyleIndices = layerBatch.activeBlendStylesIndices;
                 passData.hdrEmulationScale = rendererData.hdrEmulationScale;
                 passData.isSceneLit = rendererData.lightCullResult.IsSceneLit();
                 passData.layerUseLights = layerBatch.lightStats.useLights;
+
 #if UNITY_EDITOR
-                passData.isLightingActive = isLightingActive;
+                passData.isLitView = true;
+
+                // Early out for prefabs
+                if (cameraData.isSceneViewCamera && !UnityEditor.SceneView.currentDrawingSceneView.sceneLighting)
+                    passData.isLitView = false;
+
+                // Early out for preview camera
+                if (cameraData.cameraType == CameraType.Preview)
+                    passData.isLitView = false;
 #endif
 
                 var drawSettings = CreateDrawingSettings(k_ShaderTags, renderingData, cameraData, lightData, SortingCriteria.CommonTransparent);
@@ -138,61 +139,50 @@ namespace UnityEngine.Rendering.Universal
                 RendererLighting.GetTransparencySortingMode(rendererData, cameraData.camera, ref sortSettings);
                 drawSettings.sortingSettings = sortSettings;
 
-                var activeDebugHandler = GetActiveDebugHandler(cameraData);
-                passData.activeDebugHandler = activeDebugHandler != null;
+                var param = new RendererListParams(renderingData.cullResults, drawSettings, filterSettings);
+                passData.rendererList = graph.CreateRendererList(param);
+                builder.UseRendererList(passData.rendererList);
 
-                if (activeDebugHandler != null)
-                {
-                    var renderStateBlock = new RenderStateBlock(RenderStateMask.Nothing);
-                    passData.debugRendererLists = activeDebugHandler.CreateRendererListsWithDebugRenderState(graph,
-                        ref renderingData.cullResults, ref drawSettings, ref filterSettings, ref renderStateBlock);
-                    passData.debugRendererLists.PrepareRendererListForRasterPass(builder);
-                }
-                else
-                {
-                    var param = new RendererListParams(renderingData.cullResults, drawSettings, filterSettings);
-                    passData.rendererList = graph.CreateRendererList(param);
-                    builder.UseRendererList(passData.rendererList);
-                }
-
-                if (passData.layerUseLights && isLightingActive)
+                if (passData.layerUseLights)
                 {
                     passData.lightTextures = universal2DResourceData.lightTextures[batchIndex];
                     for (var i = 0; i < passData.lightTextures.Length; i++)
                         builder.UseTexture(passData.lightTextures[i]);
                 }
 
-                if (rendererData.useCameraSortingLayerTexture)
-                    builder.UseTexture(universal2DResourceData.cameraSortingLayerTexture);
-
-                // Set color and depth attachments
                 builder.SetRenderAttachment(commonResourceData.activeColorTexture, 0);
-
-                if (Renderer2D.IsDepthUsageAllowed(frameData, rendererData))
-                    builder.SetRenderAttachmentDepth(commonResourceData.activeDepthTexture);
-
+                builder.SetRenderAttachmentDepth(commonResourceData.activeDepthTexture);
+                builder.AllowPassCulling(false);
                 builder.AllowGlobalStateModification(true);
+                builder.UseAllGlobalTextures(true);
 
                 // Post set global light textures for next renderer pass 
                 var nextBatch = batchIndex + 1;
                 if (nextBatch < universal2DResourceData.lightTextures.Length)
-                    SetGlobalLightTextures(graph, builder, frameData, nextBatch, isLightingActive);
+                    SetGlobalLightTextures(graph, builder, universal2DResourceData.lightTextures[nextBatch], cameraData, ref layerBatches[nextBatch], rendererData);
 
-                builder.SetRenderFunc(static (PassData data, RasterGraphContext context) =>
+                builder.SetRenderFunc((PassData data, RasterGraphContext context) =>
                 {
                     Execute(context, data);
                 });
             }
         }
 
-        void SetGlobalLightTextures(RenderGraph graph, IRasterRenderGraphBuilder builder, ContextContainer frameData, int batchIndex, bool isLightingActive)
+        void SetGlobalLightTextures(RenderGraph graph, IRasterRenderGraphBuilder builder, TextureHandle[] lightTextures, UniversalCameraData cameraData, ref LayerBatch layerBatch, Renderer2DData rendererData)
         {
-            UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
-            Renderer2DData rendererData = frameData.Get<Universal2DRenderingData>().renderingData;
-            var layerBatch = frameData.Get<Universal2DRenderingData>().layerBatches[batchIndex];
-            var lightTextures = frameData.Get<Universal2DResourceData>().lightTextures[batchIndex];
+#if UNITY_EDITOR
+            bool isLitView = true;
 
-            if (isLightingActive)
+            // Early out for prefabs
+            if (cameraData.isSceneViewCamera && !UnityEditor.SceneView.currentDrawingSceneView.sceneLighting)
+                isLitView = false;
+
+            // Early out for preview camera
+            if (cameraData.cameraType == CameraType.Preview)
+                isLitView = false;
+
+            if (isLitView)
+#endif
             {
                 if (layerBatch.lightStats.useLights)
                 {
@@ -204,8 +194,7 @@ namespace UnityEngine.Rendering.Universal
                 }
                 else if (rendererData.lightCullResult.IsSceneLit())
                 {
-                    for (var i = 0; i < RendererLighting.k_ShapeLightTextureIDs.Length; i++)
-                        builder.SetGlobalTextureAfterPass(graph.defaultResources.blackTexture, Shader.PropertyToID(RendererLighting.k_ShapeLightTextureIDs[i]));
+                    builder.SetGlobalTextureAfterPass(graph.defaultResources.blackTexture, Shader.PropertyToID(RendererLighting.k_ShapeLightTextureIDs[0]));
                 }
             }
         }
