@@ -1,28 +1,37 @@
-using System.Collections.Generic;
+using System;
 using UnityEngine.Rendering.RenderGraphModule;
 
 namespace UnityEngine.Rendering.Universal
 {
     public sealed partial class UniversalRenderPipeline
     {
-        static void RecordRenderGraph(RenderGraph renderGraph, ScriptableRenderContext context, ScriptableRenderer renderer)
+        static void RecordAndExecuteRenderGraph(RenderGraph renderGraph, ScriptableRenderContext context, ScriptableRenderer renderer, CommandBuffer cmd, Camera camera)
         {
-            renderer.RecordRenderGraph(renderGraph, context);
-        }
+            var universalRenderer = renderer as UniversalRenderer;
+            var renderTextureUVOriginStrategy = (universalRenderer != null && universalRenderer.useTileOnlyMode) ?
+                RenderTextureUVOriginStrategy.PropagateAttachmentOrientation : RenderTextureUVOriginStrategy.BottomLeft;
 
-        static void RecordAndExecuteRenderGraph(RenderGraph renderGraph, ScriptableRenderContext context, ScriptableRenderer renderer, CommandBuffer cmd, Camera camera, string cameraName)
-        {
             RenderGraphParameters rgParams = new RenderGraphParameters
             {
-                executionName = cameraName,
+                executionId = camera.GetEntityId(),
+                generateDebugData = camera.cameraType != CameraType.Preview && !camera.isProcessingRenderRequest,
                 commandBuffer = cmd,
                 scriptableRenderContext = context,
                 currentFrameIndex = Time.frameCount,
+                renderTextureUVOriginStrategy = renderTextureUVOriginStrategy,
             };
 
-            renderGraph.BeginRecording(rgParams);
-            RecordRenderGraph(renderGraph, context, renderer);
-            renderGraph.EndRecordingAndExecute();
+            try
+            {
+                renderGraph.BeginRecording(rgParams);
+                renderer.RecordRenderGraph(renderGraph, context);
+                renderGraph.EndRecordingAndExecute();
+            }
+            catch (Exception e)
+            {
+                if (renderGraph.ResetGraphAndLogException(e))
+                    throw;
+            }
         }
     }
 }

@@ -550,8 +550,8 @@ namespace UnityEngine.Rendering.Universal
 
         internal static RenderTextureDescriptor GetTemporaryShadowTextureDescriptor(int width, int height, int bits)
         {
-            var format = Experimental.Rendering.GraphicsFormatUtility.GetDepthStencilFormat(bits, 0);
-            RenderTextureDescriptor rtd = new RenderTextureDescriptor(width, height, Experimental.Rendering.GraphicsFormat.None, format);
+            var format = GraphicsFormatUtility.GetDepthStencilFormat(bits, 0);
+            RenderTextureDescriptor rtd = new RenderTextureDescriptor(width, height, GraphicsFormat.None, format);
             rtd.shadowSamplingMode = RenderingUtils.SupportsRenderTextureFormat(RenderTextureFormat.Shadowmap) ? ShadowSamplingMode.CompareDepths : ShadowSamplingMode.None;
             return rtd;
         }
@@ -564,7 +564,7 @@ namespace UnityEngine.Rendering.Universal
         /// <param name="height">The height of the texture.</param>
         /// <param name="bits">The number of depth bits.</param>
         /// <returns>A shadow render texture.</returns>
-        [Obsolete("Use AllocShadowRT or ShadowRTReAllocateIfNeeded", true)]
+        [Obsolete("Use AllocShadowRT or ShadowRTReAllocateIfNeeded. #from(2022.1) #breakingFrom(2023.1)", true)]
         public static RenderTexture GetTemporaryShadowTexture(int width, int height, int bits)
         {
             var rtd = GetTemporaryShadowTextureDescriptor(width, height, bits);
@@ -688,7 +688,7 @@ namespace UnityEngine.Rendering.Universal
         internal static bool SupportsPerLightSoftShadowQuality()
         {
             bool supportsPerLightSoftShadowQuality = true;
-            #if ENABLE_VR && ENABLE_VR_MODULE
+            #if ENABLE_VR && ENABLE_XR_MODULE
             #if PLATFORM_WINRT || PLATFORM_ANDROID
                 // We are using static branches on Quest2 + HL for performance reasons
                 supportsPerLightSoftShadowQuality = !PlatformAutoDetect.isXRMobile;

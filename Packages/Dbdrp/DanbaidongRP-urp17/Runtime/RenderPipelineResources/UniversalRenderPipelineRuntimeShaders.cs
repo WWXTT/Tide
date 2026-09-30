@@ -7,8 +7,34 @@ using UnityEditor.Rendering;
 namespace UnityEngine.Rendering.Universal
 {
     /// <summary>
-    /// Class containing shader resources used in URP.
+    /// A resource container for shaders used for <see cref="UniversalRenderPipeline"/>.
     /// </summary>
+    /// <remarks>
+    /// You cannot edit these resources through the editor's UI; use the API for advanced changes.
+    /// Changing this through the API is only allowed in the Editor. In the Player, this raises an error.
+    /// </remarks>
+    /// <seealso cref="IRenderPipelineResources"/>
+    /// <example>
+    /// <para> Here is an example of how to get the blit shader used by URP. </para>
+    /// <code>
+    /// using UnityEngine.Rendering;
+    /// using UnityEngine.Rendering.Universal;
+    ///
+    /// public static class URPUniversalRendererRuntimeShadersHelper
+    /// {
+    ///     public static Shader blit
+    ///     {
+    ///         get
+    ///         {
+    ///             var gs = GraphicsSettings.GetRenderPipelineSettings&lt;UniversalRenderPipelineRuntimeShaders&gt;();
+    ///             if (gs == null) //not in URP
+    ///                 return null;
+    ///             return gs.coreBlitPS;
+    ///         }
+    ///     }
+    /// }
+    /// </code>
+    /// </example>
     [Serializable]
     [SupportedOnRenderPipeline(typeof(UniversalRenderPipelineAsset))]
     [Categorization.CategoryInfo(Name = "R: Runtime Shaders", Order = 1000), HideInInspector]
@@ -16,7 +42,7 @@ namespace UnityEngine.Rendering.Universal
     {
         [SerializeField][HideInInspector] private int m_Version = 0;
 
-        /// <summary>Version of the resource. </summary>
+        /// <summary>Current version of the resource container. Used only for upgrading a project.</summary>
         public int version => m_Version;
         bool IRenderPipelineGraphicsSettings.isAvailableInPlayerBuild => true;
 
@@ -24,7 +50,7 @@ namespace UnityEngine.Rendering.Universal
         Shader m_FallbackErrorShader;
 
         /// <summary>
-        /// Fallback error shader
+        /// Fallback shader used when error happens.
         /// </summary>
         public Shader fallbackErrorShader
         {
@@ -38,7 +64,7 @@ namespace UnityEngine.Rendering.Universal
         internal Shader m_BlitHDROverlay;
 
         /// <summary>
-        /// Blit HDR Overlay shader.
+        /// Blit shader used for HDR Overlay.
         /// </summary>
         public Shader blitHDROverlay
         {
@@ -51,7 +77,7 @@ namespace UnityEngine.Rendering.Universal
         internal Shader m_CoreBlitPS;
 
         /// <summary>
-        /// Core Blit shader.
+        /// Default blit shader used for blit operation.
         /// </summary>
         public Shader coreBlitPS
         {
@@ -64,7 +90,7 @@ namespace UnityEngine.Rendering.Universal
         internal Shader m_CoreBlitColorAndDepthPS;
 
         /// <summary>
-        /// Core Blit Color And Depth shader.
+        /// Blit shader used for both Color And Depth blit operation.
         /// </summary>
         public Shader coreBlitColorAndDepthPS
         {
@@ -77,7 +103,7 @@ namespace UnityEngine.Rendering.Universal
         private Shader m_SamplingPS;
 
         /// <summary>
-        /// Sampling shader.
+        /// Shader used when sampling is required.
         /// </summary>
         public Shader samplingPS
         {
@@ -88,7 +114,28 @@ namespace UnityEngine.Rendering.Universal
 
         [SerializeField, ResourcePath("Shaders/Utils/GPUCopy.compute")]
         private ComputeShader m_CopyChannelCS;
+        #region Terrain
+        [Header("Terrain")]
 
+        // Original serialized fields preserved for migration purposes.
+        // These fields maintain the original serialized data that was moved to UniversalRenderPipelineRuntimeTerrainShaders;
+        // when the asset is migrated from version 9 to 10, these fields are copied to their equivalents in
+        // UniversalRenderPipelineRuntimeTerrainShaders, and these are then set to null.
+        [SerializeField, HideInInspector] private Shader m_TerrainDetailLit;
+        [SerializeField, HideInInspector] private Shader m_TerrainDetailGrassBillboard;
+        [SerializeField, HideInInspector] private Shader m_TerrainDetailGrass;
+        
+        // Internal methods to access original serialized fields for migration
+        internal Shader GetOriginalTerrainDetailLitShader() => m_TerrainDetailLit;
+        internal Shader GetOriginalTerrainDetailGrassBillboardShader() => m_TerrainDetailGrassBillboard;
+        internal Shader GetOriginalTerrainDetailGrassShader() => m_TerrainDetailGrass;
+        internal void ClearOriginalTerrainDetailShaders()
+        {
+            m_TerrainDetailLit = null;
+            m_TerrainDetailGrassBillboard = null;
+            m_TerrainDetailGrass = null;
+        }
+        
         /// <summary>
         /// GPUCopy compute shader.
         /// </summary>
@@ -100,6 +147,28 @@ namespace UnityEngine.Rendering.Universal
 
         [SerializeField, ResourcePath("Shaders/Utils/DepthPyramid.compute")]
         private ComputeShader m_DepthPyramidCS;
+
+        [Obsolete("terrainDetailLitShader is obsolete. Use UniversalRenderPipelineRuntimeTerrainShaders.terrainDetailLitShader instead.", false)]
+        public Shader terrainDetailLitShader
+        {
+            get
+            {
+                if (GraphicsSettings.TryGetRenderPipelineSettings<UniversalRenderPipelineRuntimeTerrainShaders>(
+                    out var shadersResources))
+                {
+                    return shadersResources.terrainDetailLitShader;
+                }
+                return null;
+            }
+            set
+            {
+                if (GraphicsSettings.TryGetRenderPipelineSettings<UniversalRenderPipelineRuntimeTerrainShaders>(
+                    out var shadersResources))
+                {
+                    shadersResources.terrainDetailLitShader = value;
+                }
+            }
+        }
 
         /// <summary>
         /// DepthPyramid computeshader
@@ -114,6 +183,28 @@ namespace UnityEngine.Rendering.Universal
         [SerializeField, ResourcePath("Shaders/Utils/ColorPyramid.compute")]
         private ComputeShader m_ColorPyramidCS;
 
+        [Obsolete("terrainDetailGrassBillboardShader is obsolete. Use UniversalRenderPipelineRuntimeTerrainShaders.terrainDetailGrassBillboardShader instead.", false)]
+        public Shader terrainDetailGrassBillboardShader
+        {
+            get
+            {
+                if (GraphicsSettings.TryGetRenderPipelineSettings<UniversalRenderPipelineRuntimeTerrainShaders>(
+                    out var shadersResources))
+                {
+                    return shadersResources.terrainDetailGrassBillboardShader;
+                }
+                return null;
+            }
+            set
+            {
+                if (GraphicsSettings.TryGetRenderPipelineSettings<UniversalRenderPipelineRuntimeTerrainShaders>(
+                    out var shadersResources))
+                {
+                    shadersResources.terrainDetailGrassBillboardShader = value;
+                }
+            }
+        }
+
         /// <summary>
         /// ColorPyramid computeshader
         /// </summary>
@@ -121,6 +212,26 @@ namespace UnityEngine.Rendering.Universal
         {
             get => m_ColorPyramidCS;
             set => this.SetValueAndNotify(ref m_ColorPyramidCS, value);
+        [Obsolete("terrainDetailGrassShader is obsolete; Use UniversalRenderPipelineRuntimeTerrainShaders.terrainDetailGrassShader instead.)", false)]
+        public Shader terrainDetailGrassShader
+        {
+            get
+            {
+                if (GraphicsSettings.TryGetRenderPipelineSettings<UniversalRenderPipelineRuntimeTerrainShaders>(
+                    out var shadersResources))
+                {
+                    return shadersResources.terrainDetailGrassShader;
+                }
+                return null;
+            }
+            set
+            {
+                if (GraphicsSettings.TryGetRenderPipelineSettings<UniversalRenderPipelineRuntimeTerrainShaders>(
+                    out var shadersResources))
+                {
+                    shadersResources.terrainDetailGrassShader = value;
+                }
+            }
         }
 
 

@@ -6,6 +6,7 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/GlobalSamplers.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/CommonMaterial.hlsl"
 #include "Core.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/CommonMaterial.hlsl"
 #include "Shadows.deprecated.hlsl"
 
 #define MAX_SHADOW_CASCADES 4
@@ -41,7 +42,11 @@
 #endif
 
 #if defined(SHADOWS_SHADOWMASK) && defined(LIGHTMAP_ON)
+    #if defined(LIGHTMAP_BICUBIC_SAMPLING)
+    #define SAMPLE_SHADOWMASK(uv) SampleLightmapBicubic(SHADOWMASK_NAME, SHADOWMASK_SAMPLER_NAME, uv SHADOWMASK_SAMPLE_EXTRA_ARGS);
+    #else
     #define SAMPLE_SHADOWMASK(uv) SAMPLE_TEXTURE2D_LIGHTMAP(SHADOWMASK_NAME, SHADOWMASK_SAMPLER_NAME, uv SHADOWMASK_SAMPLE_EXTRA_ARGS);
+    #endif
 #elif !defined (LIGHTMAP_ON)
     #define SAMPLE_SHADOWMASK(uv) unity_ProbesOcclusion;
 #else
@@ -63,7 +68,7 @@ TEXTURE2D_SHADOW(_AdditionalLightsShadowmapTexture);
 SAMPLER_CMP(sampler_LinearClampCompare);
 
 // GLES3 causes a performance regression in some devices when using CBUFFER.
-#ifndef SHADER_API_GLES3
+#ifndef LIGHT_SHADOWS_NO_CBUFFER
 CBUFFER_START(LightShadows)
 #endif
 
@@ -104,7 +109,7 @@ float4x4    _AdditionalLightsWorldToShadow[MAX_VISIBLE_LIGHTS];  // Per-shadow-s
 #endif
 #endif
 
-#ifndef SHADER_API_GLES3
+#ifndef LIGHT_SHADOWS_NO_CBUFFER
 CBUFFER_END
 #endif
 
@@ -228,7 +233,10 @@ half4 GetAdditionalLightShadowParams(int lightIndex)
             results = _AdditionalShadowParams_SSBO[lightIndex];
         #else
             results = _AdditionalShadowParams[lightIndex];
-            results.w = lightIndex < 0 ? -1 : results.w;
+            // workaround: Avoid failing the graphics test using Terrain Shader on Android Vulkan when using dynamic branching for fog keywords.
+            #if !SKIP_SHADOWS_LIGHT_INDEX_CHECK
+                results.w = lightIndex < 0 ? -1 : results.w;
+            #endif
         #endif
     #else
         // Same defaults as set in AdditionalLightsShadowCasterPass.cs
@@ -244,6 +252,10 @@ half SampleScreenSpaceShadowmap(float4 shadowCoord)
 
     // The stereo transform has to happen after the manual perspective divide
     shadowCoord.xy = UnityStereoTransformScreenSpaceTex(shadowCoord.xy);
+
+#if defined(UNITY_PRETRANSFORM_TO_DISPLAY_ORIENTATION)
+    shadowCoord.xy = RemovePretransformRotation(shadowCoord.xy);
+#endif
 
 #if defined(UNITY_STEREO_INSTANCING_ENABLED) || defined(UNITY_STEREO_MULTIVIEW_ENABLED)
     half attenuation = SAMPLE_TEXTURE2D_ARRAY(_ScreenSpaceShadowmapTexture, sampler_PointClamp, shadowCoord.xy, unity_StereoEyeIndex).x;
@@ -576,8 +588,8 @@ half AdditionalLightRealtimeShadow(int lightIndex, float3 positionWS, half3 ligh
         if (isPointLight)
         {
             // This is a point light, we have to find out which shadow slice to sample from
-            float cubemapFaceId = CubeMapFaceID(-lightDirection);
-            shadowSliceIndex += cubemapFaceId;
+            const int cubeFaceOffset = CubeMapFaceID(-lightDirection);
+            shadowSliceIndex += cubeFaceOffset;
         }
 
         #if USE_STRUCTURED_BUFFER_FOR_LIGHT_DATA
@@ -590,6 +602,15 @@ half AdditionalLightRealtimeShadow(int lightIndex, float3 positionWS, half3 ligh
     #else
         return half(1.0);
     #endif
+}
+
+half AdditionalLightRealtimeShadow(int lightIndex, float3 positionWS, half3 lightDirection)
+{
+    #if !defined(ADDITIONAL_LIGHT_CALCULATE_SHADOWS)
+        return half(1.0);
+    #endif
+
+    return AdditionalLightRealtimeShadow(lightIndex, positionWS, lightDirection, GetAdditionalLightShadowParams(lightIndex), GetAdditionalLightShadowSamplingData(lightIndex));
 }
 
 half GetMainLightShadowFade(float3 positionWS)

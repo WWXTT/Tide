@@ -50,19 +50,31 @@ half3 LightingPhysicallyBased(BRDFData brdfData, BRDFData brdfDataClearCoat,
     half3 normalWS, half3 viewDirectionWS,
     half clearCoatMask, bool specularHighlightsOff)
 {
+#if (UNITY_PLATFORM_META_QUEST)
+    half NdotL = dot(normalWS, lightDirectionWS);
+#else
     half NdotL = saturate(dot(normalWS, lightDirectionWS));
-    half3 radiance = lightColor * (lightAttenuation * NdotL);
+#endif
 
-    half3 brdf = brdfData.diffuse;
+#if (UNITY_PLATFORM_META_QUEST)
+    [branch]
+    if (NdotL > 0.0)
+    {    
+        half3 radiance = lightColor * (lightAttenuation * saturate(NdotL));
+#else
+        half3 radiance = lightColor * (lightAttenuation * NdotL);
+#endif
+        half3 brdf = brdfData.diffuse;
 #ifndef _SPECULARHIGHLIGHTS_OFF
-    [branch] if (!specularHighlightsOff)
-    {
-        brdf += brdfData.specular * DirectBRDFSpecular(brdfData, normalWS, lightDirectionWS, viewDirectionWS);
+        [branch]
+        if (!specularHighlightsOff)
+        {
+            brdf += brdfData.specular * DirectBRDFSpecular(brdfData, normalWS, lightDirectionWS, viewDirectionWS);
 
 #if defined(_CLEARCOAT) || defined(_CLEARCOATMAP)
-        // Clear coat evaluates the specular a second timw and has some common terms with the base specular.
-        // We rely on the compiler to merge these and compute them only once.
-        half brdfCoat = kDielectricSpec.r * DirectBRDFSpecular(brdfDataClearCoat, normalWS, lightDirectionWS, viewDirectionWS);
+            // Clear coat evaluates the specular a second time and has some common terms with the base specular.
+            // We rely on the compiler to merge these and compute them only once.
+            half brdfCoat = kDielectricSpec.r * DirectBRDFSpecular(brdfDataClearCoat, normalWS, lightDirectionWS, viewDirectionWS);
 
             // Mix clear coat and base layer using khronos glTF recommended formula
             // https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_materials_clearcoat/README.md
@@ -72,12 +84,15 @@ half3 LightingPhysicallyBased(BRDFData brdfData, BRDFData brdfDataClearCoat,
             // It is matching fresnel used in the GI/Env, so should produce a consistent clear coat blend (env vs. direct)
             half coatFresnel = kDielectricSpec.x + kDielectricSpec.a * Pow4(1.0 - NoV);
 
-        brdf = brdf * (1.0 - clearCoatMask * coatFresnel) + brdfCoat * clearCoatMask;
+            brdf = brdf * (1.0 - clearCoatMask * coatFresnel) + brdfCoat * clearCoatMask;
 #endif // _CLEARCOAT
-    }
+        }
 #endif // _SPECULARHIGHLIGHTS_OFF
-
-    return brdf * radiance;
+        return brdf * radiance;
+#if (UNITY_PLATFORM_META_QUEST)
+    }
+#endif
+    return 0.0;
 }
 
 half3 LightingPhysicallyBased(BRDFData brdfData, BRDFData brdfDataClearCoat, Light light, half3 normalWS, half3 viewDirectionWS, half clearCoatMask, bool specularHighlightsOff)
@@ -138,8 +153,13 @@ half3 VertexLighting(float3 positionWS, half3 normalWS)
     if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers))
 #endif
     {
-        half3 lightColor = light.color * light.distanceAttenuation;
-        vertexLightColor += LightingLambert(lightColor, light.direction, normalWS);
+#if defined(UNITY_PLATFORM_META_QUEST)
+        if(light.distanceAttenuation > 0.0)
+#endif
+        {
+            half3 lightColor = light.color * light.distanceAttenuation;
+            vertexLightColor += LightingLambert(lightColor, light.direction, normalWS);
+        }
     }
 
     LIGHT_LOOP_END
@@ -205,17 +225,34 @@ half4 CalculateFinalColor(LightingData lightingData, half alpha)
 
 half4 CalculateFinalColor(LightingData lightingData, half3 albedo, half alpha, float fogCoord)
 {
+    half fogFactor = 0;
     #if defined(_FOG_FRAGMENT)
-        #if (defined(FOG_LINEAR) || defined(FOG_EXP) || defined(FOG_EXP2))
+    bool anyFogEnabled = false;
+    
+    #if defined(FOG_LINEAR_KEYWORD_DECLARED)
+    if (FOG_LINEAR)
+        anyFogEnabled = true;
+    #endif
+    
+    #if defined(FOG_EXP_KEYWORD_DECLARED)
+    if (FOG_EXP)
+        anyFogEnabled = true;
+    #endif
+    
+    #if defined(FOG_EXP2_KEYWORD_DECLARED)
+    if (FOG_EXP2)
+        anyFogEnabled = true;
+    #endif
+    
+    if (anyFogEnabled)
+    {
         float viewZ = -fogCoord;
         float nearToFarZ = max(viewZ - _ProjectionParams.y, 0);
-        half fogFactor = ComputeFogFactorZ0ToFar(nearToFarZ);
-    #else
-        half fogFactor = 0;
-        #endif
-    #else
-    half fogFactor = fogCoord;
-    #endif
+        fogFactor = ComputeFogFactorZ0ToFar(nearToFarZ);
+    }
+    #else  // #if defined(_FOG_FRAGMENT)
+    fogFactor = fogCoord;
+    #endif // #if defined(_FOG_FRAGMENT)
     half3 lightingColor = CalculateLightingColor(lightingData, albedo);
     half3 finalColor = MixFog(lightingColor, fogFactor);
 
@@ -288,6 +325,14 @@ half4 UniversalFragmentPBR(InputData inputData, SurfaceData surfaceData)
     half4 shadowMask = CalculateShadowMask(inputData);
     AmbientOcclusionFactor aoFactor = CreateAmbientOcclusionFactor(inputData, surfaceData);
     uint meshRenderingLayers = GetMeshRenderingLayer();
+
+#if (UNITY_PLATFORM_META_QUEST)
+    if (dot(GetMainLight().direction, inputData.normalWS) <= 0.0)
+    {
+        inputData.shadowCoord.z = -1; // Force outside of shadowmap
+    }
+#endif
+    
     Light mainLight = GetMainLight(inputData, shadowMask, aoFactor);
 
     // NOTE: We don't apply AO to the GI here because it's done in the lighting calculation below...
@@ -311,10 +356,10 @@ half4 UniversalFragmentPBR(InputData inputData, SurfaceData surfaceData)
     #if defined(_ADDITIONAL_LIGHTS)
     uint pixelLightCount = GetAdditionalLightsCount();
 
-    #if USE_FORWARD_PLUS
+    #if USE_CLUSTER_LIGHT_LOOP
     [loop] for (uint lightIndex = 0; lightIndex < min(URP_FP_DIRECTIONAL_LIGHTS_COUNT, MAX_VISIBLE_LIGHTS); lightIndex++)
     {
-        FORWARD_PLUS_SUBTRACTIVE_LIGHT_CHECK
+        CLUSTER_LIGHT_LOOP_SUBTRACTIVE_LIGHT_CHECK
 
         Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
 
@@ -336,6 +381,9 @@ half4 UniversalFragmentPBR(InputData inputData, SurfaceData surfaceData)
         if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers))
 #endif
         {
+#if defined(UNITY_PLATFORM_META_QUEST)
+            if(light.distanceAttenuation > 0.0)
+#endif
             lightingData.additionalLightsColor += LightingPhysicallyBased(brdfData, brdfDataClearCoat, light,
                                                                           inputData.normalWS, inputData.viewDirectionWS,
                                                                           surfaceData.clearCoatMask, specularHighlightsOff);
@@ -409,10 +457,10 @@ half4 UniversalFragmentBlinnPhong(InputData inputData, SurfaceData surfaceData)
     #if defined(_ADDITIONAL_LIGHTS)
     uint pixelLightCount = GetAdditionalLightsCount();
 
-    #if USE_FORWARD_PLUS
+    #if USE_CLUSTER_LIGHT_LOOP
     [loop] for (uint lightIndex = 0; lightIndex < min(URP_FP_DIRECTIONAL_LIGHTS_COUNT, MAX_VISIBLE_LIGHTS); lightIndex++)
     {
-        FORWARD_PLUS_SUBTRACTIVE_LIGHT_CHECK
+        CLUSTER_LIGHT_LOOP_SUBTRACTIVE_LIGHT_CHECK
 
         Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
 #ifdef _LIGHT_LAYERS
@@ -430,6 +478,9 @@ half4 UniversalFragmentBlinnPhong(InputData inputData, SurfaceData surfaceData)
         if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers))
 #endif
         {
+#if defined(UNITY_PLATFORM_META_QUEST)
+            if(light.distanceAttenuation > 0.0)
+#endif
             lightingData.additionalLightsColor += CalculateBlinnPhong(light, inputData, surfaceData);
         }
     LIGHT_LOOP_END
