@@ -173,7 +173,7 @@ namespace CardCore
 
         /// <summary>
         /// 地牌资格（定案）：只有卡组正式生物（CardWrapper + Creature 超类）可作地牌——
-        /// 魔法/仪式等非生物超类、效果生成的衍生物/副本（裸 Card 临时卡）一律不可。
+        /// 魔法等非生物超类、效果生成的衍生物/副本（裸 Card 临时卡）一律不可。
         /// 临时复制卡（微缩/放大/回响，2026-09-11）同样不可——否则 1/1 费1灰副本成免费地牌。
         /// UI/AI 预检与 AddCardToPool 权威校验共用此判据。
         /// </summary>
@@ -468,6 +468,188 @@ namespace CardCore
             });
 
             return true;
+        }
+
+        // ======================================== 自动横置补足（2026-09-30 定案） ========================================
+
+        /// <summary>
+        /// 支付预检（含自动横置潜力，2026-09-30 定案）：bank 不足以支付账单、但未横置地牌可产出
+        /// 所需元素时视为可付——出牌/技能/效果费的**声明期门禁**用本口径（纯预检，不动任何状态）；
+        /// 实际横置发生在付费步（TryPayCostWithAutoTap / AutoTapForCost）。
+        /// 黑白不由地牌产出：黑白本色费缺口不可补。跨回合支付（响应出牌）同样适用——
+        /// 支付时无论轮到谁都可横置己方地牌取元素。
+        /// </summary>
+        public bool CanPayCostWithAutoTap(Dictionary<int, float> cost, Player player)
+            => CanPayCostWithAutoTap(ElementPaymentValidator.NormalizeBill(cost), player);
+
+        /// <summary>同 CanPayCostWithAutoTap（已归一账单入口——GameActions.CanAfford 合并 pending 声明承诺后调用）。</summary>
+        public bool CanPayCostWithAutoTap(Dictionary<ManaType, int> bill, Player player)
+        {
+            var pool = GetPool(player);
+            if (ElementPaymentValidator.CanPayBill(bill, pool.AvailableMana, GetLandCap(player)))
+                return true;
+            return PlanAutoTaps(bill, SnapshotBank(pool), UntappedLands(pool), GetLandCap(player)) != null;
+        }
+
+        /// <summary>
+        /// 支付并按需自动横置：bank 不足时先自动横置地牌补足再支付（付费步统一入口——
+        /// 出牌施放结算 / 英雄技能 / 效果费）。返回 false = 补不足且 bank 原样未动。
+        /// </summary>
+        public bool TryPayCostWithAutoTap(Dictionary<int, float> cost, Player player,
+            ZoneManager zoneManager = null, string sourceNote = null)
+        {
+            if (PayCost(cost, player, sourceNote)) return true;
+            if (!AutoTapForCost(cost, player)) return false;
+            if (zoneManager != null) CheckDepletedCards(player, zoneManager);
+            return PayCost(cost, player, sourceNote);
+        }
+
+        /// <summary>
+        /// 自动横置地牌直到账单可付（只横置不支付）：逐张走 GainElementFromToken——
+        /// 发 ElementPoolGainEvent（战报/网络投影可见）、计 TapsThisTurn、耗指示物/横置。
+        /// 返回 false = 补不足（黑白本色费缺口/地牌耗尽等），此情况下**未横置任何地牌**（先纯规划后执行）。
+        /// </summary>
+        public bool AutoTapForCost(Dictionary<int, float> cost, Player player)
+            => AutoTapForBill(ElementPaymentValidator.NormalizeBill(cost), player);
+
+        /// <summary>同 AutoTapForCost（已归一账单入口——ElementCostPayment 聚合需求后调用）。
+        /// zoneManager 传入时顺带做耗尽清理（横置耗尽的地牌送墓）。</summary>
+        public bool AutoTapForBill(Dictionary<ManaType, int> bill, Player player, ZoneManager zoneManager = null)
+        {
+            var pool = GetPool(player);
+            var untapped = UntappedLands(pool);
+            var plan = PlanAutoTaps(bill, SnapshotBank(pool), untapped, GetLandCap(player));
+            if (plan == null) return false;
+
+            foreach (var tap in plan)
+                GainElementFromToken(tap.land, tap.color, player); // 快照口径下必真，防御性忽略个别失败
+
+            if (zoneManager != null) CheckDepletedCards(player, zoneManager);
+            return true;
+        }
+
+        /// <summary>未横置且有剩余指示物的地牌（自动横置候选）。</summary>
+        private static List<PooledCard> UntappedLands(PlayerElementPool pool)
+            => pool.PooledCards.Where(pc => pc != null && !pc.IsTapped && !pc.IsDepleted).ToList();
+
+        private static Dictionary<ManaType, int> SnapshotBank(PlayerElementPool pool)
+            => new Dictionary<ManaType, int>(pool.AvailableMana);
+
+        /// <summary>
+        /// 自动横置规划（纯函数、非破坏）：求一组 (地牌, 产色) 使账单可付；null = 无法补足。
+        /// 每轮先按当前模拟 bank 试整账单规划，失败则挑一张最有助于支付的地牌横置（每地牌每回合一次）。
+        /// </summary>
+        private static List<(PooledCard land, ManaType color)> PlanAutoTaps(
+            Dictionary<ManaType, int> bill, Dictionary<ManaType, int> bank,
+            List<PooledCard> untapped, int cap)
+        {
+            var bankSim = new Dictionary<ManaType, int>(bank);
+            // 每地牌本回合可选产色（横置一次产一色；快照后不清指示物数——一回合只能横置一次）
+            var avail = untapped.Select(l => l.GetAvailableColors()).ToList();
+            var taps = new List<(PooledCard land, ManaType color)>();
+
+            while (ElementPaymentValidator.GetBillPaymentPlan(bill, bankSim, cap) == null)
+            {
+                if (!TryPickAutoTap(bill, bankSim, avail, cap, out int idx, out var color))
+                    return null;
+                avail[idx] = new List<ManaType>();
+                bankSim.TryGetValue(color, out int have);
+                bankSim[color] = have + 1;
+                taps.Add((untapped[idx], color));
+            }
+            return taps;
+        }
+
+        /// <summary>
+        /// 挑下一张该横置的地牌与产色（分配轨迹与 GetBillPaymentPlan 同序同链）。
+        /// 产色候选序：① 缺口需求的本色（本色货币只进本色链，先花掉不吃亏）；
+        /// ② 为「用灰付掉的先序需求」产本色，释放灰给缺口（灰进全部四色链，留给最难垫的缺口）；
+        /// ③ 灰（垫任意四色缺口）。浓度上限：货币贡献已到帽再产无益，跳过。
+        /// </summary>
+        private static bool TryPickAutoTap(
+            Dictionary<ManaType, int> bill, Dictionary<ManaType, int> bank,
+            List<List<ManaType>> avail, int cap, out int landIdx, out ManaType color)
+        {
+            landIdx = -1;
+            color = default(ManaType);
+
+            // 黑白本色费：bank 不足即无解（地牌不产黑白，黑白获取通道唯一=卡结算）
+            foreach (var bw in new[] { ManaType.Black, ManaType.White })
+                if (bill.TryGetValue(bw, out var bwNeed) && bwNeed > 0
+                    && (!bank.TryGetValue(bw, out var bwHave) || bwHave < bwNeed))
+                    return false;
+
+            // 复刻账单规划器的分配轨迹：定位首个失败需求 + 各货币用量 + 各需求的灰支付量
+            var working = new Dictionary<ManaType, int>(bank);
+            var used = new Dictionary<ManaType, int>();
+            foreach (ManaType c in Enum.GetValues(typeof(ManaType)))
+            {
+                used[c] = 0;
+                if (!working.ContainsKey(c)) working[c] = 0;
+            }
+            var grayPaidBy = new Dictionary<ManaType, int>();
+
+            ManaType failing = ManaType.Gray;
+            foreach (var need in ElementPaymentValidator.FourColorOrder)
+            {
+                if (!bill.TryGetValue(need, out var remaining) || remaining <= 0) continue;
+                foreach (var currency in ElementPaymentValidator.ChainFor(need))
+                {
+                    if (remaining <= 0) break;
+                    int have = working[currency];
+                    if (have <= 0) continue;
+                    int room = cap - used[currency];
+                    int take = Math.Min(Math.Min(have, remaining), room);
+                    if (take <= 0) continue;
+                    working[currency] = have - take;
+                    used[currency] += take;
+                    if (currency == ManaType.Gray)
+                        grayPaidBy[need] = grayPaidBy.TryGetValue(need, out var g) ? g + take : take;
+                    remaining -= take;
+                }
+                if (remaining > 0) { failing = need; break; }
+            }
+
+            // ① 缺口本色（灰需求的本色即灰，归③）
+            if (failing != ManaType.Gray && used[failing] < cap
+                && TryFindLand(avail, failing, out landIdx))
+            {
+                color = failing;
+                return true;
+            }
+
+            // ② 为先序灰支付的需求产本色，释放灰给缺口
+            foreach (var kv in grayPaidBy)
+            {
+                if (kv.Value <= 0 || kv.Key == ManaType.Gray) continue;
+                if (used[kv.Key] >= cap) continue;
+                if (TryFindLand(avail, kv.Key, out landIdx))
+                {
+                    color = kv.Key;
+                    return true;
+                }
+            }
+
+            // ③ 灰（垫任意四色缺口）
+            if (used[ManaType.Gray] < cap && TryFindLand(avail, ManaType.Gray, out landIdx))
+            {
+                color = ManaType.Gray;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryFindLand(List<List<ManaType>> avail, ManaType color, out int landIdx)
+        {
+            for (int i = 0; i < avail.Count; i++)
+                if (avail[i].Contains(color))
+                {
+                    landIdx = i;
+                    return true;
+                }
+            landIdx = -1;
+            return false;
         }
 
         // ======================================== 回合管理 ========================================

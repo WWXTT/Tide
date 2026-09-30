@@ -41,7 +41,6 @@
                         <ui:Label name="lbl-activation" text="" class="battle-meta" />
                     </ui:VisualElement>
                     <ui:VisualElement class="battle-actions">
-                        <ui:Button name="btn-skip-standby" text="跳过准备" class="btn btn--mini" />
                         <ui:Button name="btn-grave-play" text="墓地使用" class="btn btn--mini" />
                         <ui:Button name="btn-activate-skill" text="发动技能" class="btn btn--mini" />
                         <ui:Button name="btn-pass-priority" text="让过优先权" class="btn btn--mini" />

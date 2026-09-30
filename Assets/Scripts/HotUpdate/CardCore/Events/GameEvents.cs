@@ -115,7 +115,7 @@ namespace CardCore
         public bool IsDraw { get; set; }
     }
 
-    /// <summary>跳过准备阶段事件：回合玩家宣告跳过自己本回合的准备阶段自动化（节奏轴仪式行为）。</summary>
+    /// <summary>跳过准备阶段事件：回合玩家本回合的准备阶段自动化被拦截跳过（ITurnStartInterceptor 扩展点）。</summary>
     public class StandbySkippedEvent : GameEventBase
     {
         public Player Player { get; set; }
@@ -696,15 +696,5 @@ namespace CardCore
         public Entity Target { get; set; }
         public NullifyType NullifyType { get; set; }
         public Entity Source { get; set; }
-    }
-
-    /// <summary>
-    /// 仪式完成事件：竞速先达标者完成，独享光环（对手进度作废）。
-    /// </summary>
-    public class RitualCompletedEvent : GameEventBase
-    {
-        public Card Card { get; set; }
-        public Player Completer { get; set; }
-        public string RitualId { get; set; }
     }
 }

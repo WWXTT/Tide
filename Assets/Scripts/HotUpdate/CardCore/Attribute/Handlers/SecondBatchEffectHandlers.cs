@@ -420,7 +420,7 @@ namespace CardCore.Attribute.Handlers
                         Source = context.Source
                     });
                     // 流失**自己**生命上限=支付语义（2026-09-14 代价原子化：替代原 LifePayment 代价
-                    // 的域事件发布口）——MatchStats 生命支付统计/血偿仪典进度照常；流失敌方=攻击，不发。
+                    // 的域事件发布口）——MatchStats 生命支付统计照常；流失敌方=攻击，不发。
                     if (ReferenceEquals(player, context.Controller))
                         PublishEvent(new LifePaymentCostEvent
                         {

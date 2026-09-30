@@ -95,7 +95,6 @@ namespace CardCore
         QuickPlay = 1 << 16,   // 速攻魔法
         Continuous = 1 << 17,  // 永续
         Equip = 1 << 18,       // 装备
-        Ritual = 1 << 19,      // 仪式
         Normal = 1 << 29,      // 通常
         Counter = unchecked((int)0x80000000),  // 反制（使用最高位，long存储）
 

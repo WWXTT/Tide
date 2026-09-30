@@ -105,7 +105,7 @@ namespace CardCore.Attribute
         }
 
         /// <summary>
-        /// 死亡全流程（效果驱动路径的统一入口）：护盾判定 → 仪式回手（摧毁特例）→
+        /// 死亡全流程（效果驱动路径的统一入口）：护盾判定 →
         /// 复生替代（湮灭不可复活）→ 按控制者落墓（湮灭直送除外区）→ CardDestroyEvent
         /// （Reason 按死因映射，经路由发布——OnDeath 触发时点可见）。true = 已死亡落葬。
         /// </summary>
@@ -113,17 +113,6 @@ namespace CardCore.Attribute
         {
             if (card == null) return false;
             if (IsShielded(card, cause)) return false;
-
-            // 进行中仪式：被摧毁 → 回手牌（手牌满则入墓），任务进度作废（完成态已被不灭挡住）
-            var manager = zoneManager ?? GameCore.Instance?.ZoneManager;
-            if (cause == DeathCause.DestroyEffect && RitualSystem.IsActiveRitual(card))
-            {
-                if (manager != null)
-                {
-                    RitualSystem.OnDestroyed(card, manager);
-                    return false;
-                }
-            }
 
             card.IsAlive = false;
             // 归因消费：进入死亡流程即清档（含复生替代——回场后死亡需重新归因，不沿尸旧来源）
@@ -137,6 +126,7 @@ namespace CardCore.Attribute
             var destination = cause == DeathCause.Annihilate ? Zone.Exile : Zone.Graveyard;
             // 归属路由（2026-09-13 定案：死亡去**持有者**的墓地）——临时偷取的单位死在对手场
             // 上也回原主墓地；改写持有者（ChangeOwner/GainControl Permanent）后归新主。
+            var manager = zoneManager ?? GameCore.Instance?.ZoneManager;
             var owner = card.GetOwner() ?? card.GetController();
             if (manager != null && owner != null)
             {

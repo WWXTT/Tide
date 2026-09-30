@@ -107,6 +107,14 @@ def render(run_dir: Path):
         f"ep_len {sum(r.get('ep_len', 0) for r in recent) / n:.1f}  "
         f"完结 {last.get('episodes', 0)} 局（超时累计 {last.get('timeouts', 0)}）"
     )
+    # v2 动作类型使用（C期能力信号：新类型=技能/自愿触发/响应/守卫，带目标=显式目标选择）
+    if any("new_type_frac" in r for r in recent):
+        lines.append(
+            f"v2用法 新类型 {recent[-1].get('new_type_frac', 0):.1%}  "
+            f"带目标 {recent[-1].get('targeted_frac', 0):.1%}  "
+            f"响应步 {recent[-1].get('resp_step_frac', 0):.1%}"
+        )
+        lines.append("新类型趋势 " + spark([r.get("new_type_frac", 0) for r in train_rows if "new_type_frac" in r], lo=0.0))
     lines.append("熵趋势   " + spark([r.get("entropy", 0) for r in train_rows]))
     lines.append("回报趋势 " + spark([r.get("ep_ret", 0) for r in train_rows]))
 

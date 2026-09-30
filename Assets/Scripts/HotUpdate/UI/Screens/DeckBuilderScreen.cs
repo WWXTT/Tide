@@ -22,6 +22,9 @@ namespace SynergyUI
         // 当前正在构筑的卡组（卡牌 ID 列表）。
         private readonly List<string> _deckCardIds = new List<string>();
 
+        // UGUI 卡牌层绑定（卡组区=卡槽网格 + UGUI 卡面；RefreshAll 全量重建）。
+        private readonly List<CardOverlayBinding> _deckBindings = new List<CardOverlayBinding>();
+
         private UIColor _colorFilter = UIColor.All;
         private CardData _previewCard;
 
@@ -58,6 +61,12 @@ namespace SynergyUI
             BuildFilterRow();
             RefreshDecksDropdown();
             RefreshAll();
+        }
+
+        public override void OnExit()
+        {
+            // UGUI 卡牌层回收（卡面 GameObject 独立于 UITK 树，切屏必须显式清）
+            CardOverlayController.ClearActive();
         }
 
         // ======================================== 右栏：卡牌列表 ========================================
@@ -182,6 +191,14 @@ namespace SynergyUI
         private void RefreshDeckList()
         {
             _deckList.Clear();
+            _deckBindings.Clear();
+
+            // 卡组区=UGUI 卡网格：占位槽 wrap 布局；点卡面=预览、右上角×=移除（同旧行语义）
+            var content = _deckList.contentContainer;
+            content.style.flexDirection = FlexDirection.Row;
+            content.style.flexWrap = Wrap.Wrap;
+            content.style.alignItems = Align.FlexStart;
+
             for (int i = 0; i < _deckCardIds.Count; i++)
             {
                 var index = i;
@@ -194,37 +211,19 @@ namespace SynergyUI
                     continue;
                 }
                 var captured = card;
-                var row = MakeDeckRow(captured, () => RemoveCardAt(index));
-                _deckList.Add(row);
+                var slot = new VisualElement();
+                slot.AddToClassList("deck-card-slot");
+                slot.pickingMode = PickingMode.Ignore;
+                _deckBindings.Add(new CardOverlayBinding
+                {
+                    Slot = slot,
+                    Item = CardOverlayItem.FromCardData(captured, "D" + captured.ID),
+                    Layout = CardOverlayLayout.Full,
+                    OnClick = () => ShowPreview(captured),
+                    OnRemoveClick = () => RemoveCardAt(index),
+                });
+                _deckList.Add(slot);
             }
-        }
-
-        private VisualElement MakeDeckRow(CardData card, Action onRemove)
-        {
-            var row = new VisualElement();
-            row.AddToClassList("list-row");
-
-            var cost = new Label(((int)card.TotalCost).ToString());
-            cost.AddToClassList("cost-badge");
-            row.Add(cost);
-
-            var name = new Label(string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName);
-            name.AddToClassList("list-row__name");
-            name.style.flexGrow = 1;
-            row.Add(name);
-
-            var meta = new Label(TypeStatLine(card));
-            meta.AddToClassList("list-row__meta");
-            row.Add(meta);
-
-            var btn = new Button(onRemove) { text = "移除" };
-            btn.AddToClassList("btn");
-            btn.AddToClassList("btn--mini");
-            btn.AddToClassList("btn--danger");
-            row.Add(btn);
-
-            row.RegisterCallback<ClickEvent>(_ => ShowPreview(card));
-            return row;
         }
 
         private void RefreshSummary()
@@ -490,6 +489,9 @@ namespace SynergyUI
             RefreshSummary();
             RefreshStats();
             BuildPreview();
+
+            // UGUI 卡牌层重绑（clip=卡组滚动视口：越界卡随滚动隐藏）
+            CardOverlayController.Instance.Bind(_deckBindings, clip: _deckList);
         }
 
         // ======================================== 存读删 ========================================
