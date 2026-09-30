@@ -58,10 +58,10 @@ namespace TideServer.Verify
             // 预载卡池（各段共用；空池=数据问题，直接失败）
             var pool = SynergyUI.CardCatalog.LoadAll();
             Assert(pool.Count >= 2, $"卡池 ≥2（verify 依赖真实用户数据，实际 {pool.Count}）");
-            // 复刻 AiBattleE2E.LoadStandardDeck：全池非仪式卡（仪式卡连环顶替不适合协议回归）
-            var deck = pool.Where(c => !CardCore.RitualSystem.IsRitual(new CardCore.CardWrapper(c))).ToList();
+            // 复刻 AiBattleE2E.LoadStandardDeck：全池（仪式概念已随 0234192 合并退役，无需过滤）
+            var deck = pool.ToList();
             Assert(deck.Count > 0, $"测试卡组非空（{deck.Count} 张）");
-            Log($"卡池 {pool.Count} 张，测试卡组 {deck.Count} 张（非仪式）");
+            Log($"卡池 {pool.Count} 张，测试卡组 {deck.Count} 张");
 
             var all = new List<SectionDef>
             {

@@ -112,7 +112,7 @@ namespace CardCore.Editor
             var catalog = new List<CardData>();
             try { catalog.AddRange(CardCatalog.LoadAll()); } catch { }
             var deckData = catalog.Count > 0
-                ? catalog.Where(c => !RitualSystem.IsRitual(new CardWrapper(c))).ToList()
+                ? catalog.ToList()
                 : Enumerable.Range(0, 8).Select(i => SimpleCreature("退化卡组生物" + i)).ToList();
             var deck1 = CardLoader.BuildDeck(deckData, 1);
             var deck2 = CardLoader.BuildDeck(deckData, 1);
