@@ -1,22 +1,16 @@
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Unlit.hlsl"
-#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityGBuffer.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GBufferOutput.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderVariablesFunctions.hlsl"
 
 void InitializeInputData(Varyings input, out InputData inputData)
 {
     inputData = (InputData)0;
 
-    // InputData is only used for DebugDisplay purposes in Unlit, so these are not initialized.
-    #if defined(DEBUG_DISPLAY)
-    inputData.positionWS = input.positionWS;
     inputData.positionCS = input.positionCS;
-    inputData.normalWS = NormalizeNormalPerPixel(input.normalWS);
-    #else
-    inputData.positionWS = half3(0, 0, 0);
-    inputData.normalWS = NormalizeNormalPerPixel(input.normalWS);
+    inputData.normalWS = normalize(input.normalWS);
+    inputData.positionWS = float3(0, 0, 0);
     inputData.viewDirectionWS = half3(0, 0, 1);
-    #endif
     inputData.shadowCoord = 0;
     inputData.fogCoord = 0;
     inputData.vertexLighting = half3(0, 0, 0);
@@ -33,7 +27,7 @@ PackedVaryings vert(Attributes input)
     return packedOutput;
 }
 
-FragmentOutput frag(PackedVaryings packedInput)
+GBufferFragOutput frag(PackedVaryings packedInput)
 {
     Varyings unpacked = UnpackVaryings(packedInput);
     UNITY_SETUP_INSTANCE_ID(unpacked);
@@ -72,5 +66,5 @@ FragmentOutput frag(PackedVaryings packedInput)
         surfaceData.occlusion = 1;
     #endif
 
-    return SurfaceDataToGbuffer(surfaceData, inputData, float3(0,0,0), kLightingInvalid);
+    return PackGBuffersSurfaceData(surfaceData, inputData, float3(0,0,0));
 }

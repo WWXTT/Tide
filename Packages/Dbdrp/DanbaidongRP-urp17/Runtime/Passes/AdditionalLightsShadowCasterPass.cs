@@ -18,7 +18,7 @@ namespace UnityEngine.Rendering.Universal.Internal
         private int renderTargetWidth;
         private int renderTargetHeight;
         private bool m_CreateEmptyShadowmap;
-        private bool m_EmptyShadowmapNeedsClear;
+        private bool m_SetKeywordForEmptyShadowmap;
         private bool m_IssuedMessageAboutShadowSlicesTooMany;
         private bool m_IssuedMessageAboutShadowMapsRescale;
         private bool m_IssuedMessageAboutShadowMapsTooBig;
@@ -28,8 +28,6 @@ namespace UnityEngine.Rendering.Universal.Internal
         private readonly bool m_UseStructuredBuffer;
         private float m_MaxShadowDistanceSq;
         private float m_CascadeBorder;
-        private PassData m_PassData;
-        private RTHandle m_EmptyAdditionalLightShadowmapTexture;
         private bool[] m_VisibleLightIndexToIsCastingShadows;                          // maps a "global" visible light index (index to lightData.visibleLights) to a shadow casting state (Is the light casting shadows or not?)
         private short[] m_VisibleLightIndexToAdditionalLightIndex;                     // maps a "global" visible light index (index to lightData.visibleLights) to an "additional light index" (index to arrays _AdditionalLightsPosition, _AdditionalShadowParams, ...), or -1 if it is not an additional light (i.e if it is the main light)
         private short[] m_AdditionalLightIndexToVisibleLightIndex;                     // maps additional light index (index to arrays _AdditionalLightsPosition, _AdditionalShadowParams, ...) to its "global" visible light index (index to lightData.visibleLights)
@@ -46,7 +44,6 @@ namespace UnityEngine.Rendering.Universal.Internal
         private const int k_ShadowmapBufferBits = 16;
         private const int k_EmptyShadowMapDimensions = 1;
         private const string k_AdditionalLightShadowMapTextureName = "_AdditionalLightsShadowmapTexture";
-        private const string k_EmptyAdditionalLightShadowMapTextureName = "_EmptyAdditionalLightShadowmapTexture";
         // x is used in RenderAdditionalShadowMapAtlas to skip shadow map rendering for non-shadow-casting lights.
         // w is perLightFirstShadowSliceIndex, used in Lighting shader to find if Additional light casts shadows.
         readonly static Vector4 c_DefaultShadowParams = new Vector4(0, 0, 0, -1);
@@ -73,9 +70,9 @@ namespace UnityEngine.Rendering.Universal.Internal
         {
             internal int shadowmapID;
             internal bool emptyShadowmap;
+            internal bool setKeywordForEmptyShadowmap;
             internal bool useStructuredBuffer;
             internal bool stripShadowsOffVariants;
-            internal Matrix4x4 viewMatrix;
             internal Vector2Int allocatedShadowAtlasSize;
             internal TextureHandle shadowmapTexture;
             internal RendererList[] shadowRendererLists = new RendererList[ShaderOptions.k_MaxVisibleLightCountDesktop];
@@ -95,7 +92,6 @@ namespace UnityEngine.Rendering.Universal.Internal
             base.profilingSampler = new ProfilingSampler("Draw Additional Lights Shadowmap");
             renderPassEvent = evt;
 
-            m_PassData = new PassData();
             m_UseStructuredBuffer = RenderingUtils.useStructuredBuffer;
 
             // Preallocated a fixed size. CommandBuffer.SetGlobal* does allow this data to grow.
@@ -119,8 +115,6 @@ namespace UnityEngine.Rendering.Universal.Internal
             // Uniform buffers are faster on some platforms, but they have stricter size limitations
             if (!m_UseStructuredBuffer)
                 m_AdditionalLightShadowSliceIndexTo_WorldShadowMatrix = new Matrix4x4[maxVisibleAdditionalLights];
-
-            m_EmptyShadowmapNeedsClear = true;
         }
 
         /// <summary>
@@ -129,7 +123,6 @@ namespace UnityEngine.Rendering.Universal.Internal
         public void Dispose()
         {
             m_AdditionalLightsShadowmapHandle?.Release();
-            m_EmptyAdditionalLightShadowmapTexture?.Release();
         }
 
         // Returns the guard angle that must be added to a frustum angle covering a projection map of resolution sliceResolutionInTexels,
@@ -319,8 +312,13 @@ namespace UnityEngine.Rendering.Universal.Internal
         {
             using var profScope = new ProfilingScope(m_ProfilingSetupSampler);
 
-            if (!shadowData.additionalLightShadowsEnabled)
-                return false;
+            bool shadowsEnabled = shadowData.additionalLightShadowsEnabled;
+            if (!shadowsEnabled)
+            {
+                // If (realtime) shadows are disabled, but any additional light casts baked shadows, we need to do empty rendering to setup the _MainLightShadowParams uniform,
+                // which is also used when sampling baked shadows. This allows for using baked shadows even when realtime shadows are completely disabled.
+                if (AnyAdditionalLightHasMixedShadows(lightData))
+                    return SetupForEmptyRendering(cameraData.renderer.stripShadowsOffVariants, shadowsEnabled, lightData, shadowData);
 
             if (!shadowData.supportsAdditionalLightShadows)
                 return SetupForEmptyRendering(cameraData.renderer.stripShadowsOffVariants, shadowData);
@@ -420,14 +418,17 @@ namespace UnityEngine.Rendering.Universal.Internal
             short additionalLightCount = 0;
             short validShadowCastingLightsCount = 0;
             bool supportsSoftShadows = shadowData.supportsSoftShadows;
-            bool isDeferred = ((UniversalRenderer)cameraData.renderer).renderingModeActual == RenderingMode.Deferred;
+            UniversalRenderer universalRenderer = (UniversalRenderer)cameraData.renderer;
+            bool isDeferred = universalRenderer.renderingModeActual == RenderingMode.Deferred;
+            bool shadowTransparentReceive = universalRenderer.shadowTransparentReceive;
+            bool hasForwardShadowPass = !isDeferred || shadowTransparentReceive;
             for (int visibleLightIndex = 0; visibleLightIndex < visibleLights.Length; ++visibleLightIndex)
             {
                 // Skip main directional light as it is not packed into the shadow atlas
                 if (visibleLightIndex == lightData.mainLightIndex)
                     continue;
 
-                short lightIndexToUse = isDeferred ? validShadowCastingLightsCount : additionalLightCount++;
+                short lightIndexToUse = !hasForwardShadowPass ? validShadowCastingLightsCount : additionalLightCount++;
 
                 // We need to always set these indices, even if the light is not shadow casting or doesn't fit in the shadow slices (UUM-46577)
                 m_VisibleLightIndexToAdditionalLightIndex[visibleLightIndex] = lightIndexToUse;
@@ -582,8 +583,6 @@ namespace UnityEngine.Rendering.Universal.Internal
             m_MaxShadowDistanceSq = cameraData.maxShadowDistance * cameraData.maxShadowDistance;
             m_CascadeBorder = shadowData.mainLightShadowCascadeBorder;
             m_CreateEmptyShadowmap = false;
-            useNativeRenderPass = true;
-
             return true;
         }
 
@@ -605,7 +604,7 @@ namespace UnityEngine.Rendering.Universal.Internal
 
             shadowData.isKeywordAdditionalLightShadowsEnabled = true;
             m_CreateEmptyShadowmap = true;
-            useNativeRenderPass = false;
+            m_SetKeywordForEmptyShadowmap = shadowsEnabled;
 
             // initialize _AdditionalShadowParams
             for (int i = 0; i < m_AdditionalLightIndexToShadowParams.Length; ++i)
@@ -705,13 +704,13 @@ namespace UnityEngine.Rendering.Universal.Internal
                 shadowParamsBuffer.SetData(lightIndexToShadowParams);
                 cmd.SetGlobalBuffer(AdditionalShadowsConstantBuffer._AdditionalShadowParams_SSBO, shadowParamsBuffer);
             }
-            else
+            else if (s_EmptyAdditionalLightIndexToShadowParams.Length <= UniversalRenderPipeline.maxVisibleAdditionalLights)
             {
                 cmd.SetGlobalVectorArray(AdditionalShadowsConstantBuffer._AdditionalShadowParams, lightIndexToShadowParams);
             }
         }
 
-        private void RenderAdditionalShadowmapAtlas(RasterCommandBuffer cmd, ref PassData data, bool useRenderGraph)
+        private void RenderAdditionalShadowmapAtlas(RasterCommandBuffer cmd, ref PassData data)
         {
             NativeArray<VisibleLight> visibleLights = data.lightData.visibleLights;
 
@@ -719,11 +718,6 @@ namespace UnityEngine.Rendering.Universal.Internal
 
             using (new ProfilingScope(cmd, ProfilingSampler.Get(URPProfileId.AdditionalLightsShadow)))
             {
-                // For non-RG, need set the worldToCamera Matrix as that is not set for passes executed before normal rendering,
-                // otherwise shadows will behave incorrectly when Scene and Game windows are open at the same time (UUM-63267).
-                if (!useRenderGraph)
-                    ShadowUtils.SetWorldToCameraAndCameraToWorldMatrices(cmd, data.viewMatrix);
-
                 bool anyShadowSliceRenderer = false;
                 int shadowSlicesCount = m_ShadowSliceToAdditionalLightIndex.Count;
                 if (shadowSlicesCount > 0)
@@ -760,7 +754,7 @@ namespace UnityEngine.Rendering.Universal.Internal
                     // For Directional lights, _LightDirection is used when applying shadow Normal Bias.
                     // For Spot lights and Point lights _LightPosition is used to compute the actual light direction because it is different at each shadow caster geometry vertex.
 
-                    RendererList shadowRendererList = useRenderGraph? data.shadowRendererListsHdl[globalShadowSliceIndex] : data.shadowRendererLists[globalShadowSliceIndex];
+                    RendererList shadowRendererList = data.shadowRendererListsHdl[globalShadowSliceIndex];
                     ShadowUtils.RenderShadowSlice(cmd, ref shadowSliceData, ref shadowRendererList, shadowSliceData.projectionMatrix, shadowSliceData.viewMatrix);
                     additionalLightHasSoftShadows |= shadowLight.light.shadows == LightShadows.Soft;
                     anyShadowSliceRenderer = true;
@@ -835,7 +829,6 @@ namespace UnityEngine.Rendering.Universal.Internal
 
             passData.lightData = lightData;
             passData.shadowData = shadowData;
-            passData.viewMatrix = cameraData.GetViewMatrix();
             passData.stripShadowsOffVariants = cameraData.renderer.stripShadowsOffVariants;
 
             passData.emptyShadowmap = m_CreateEmptyShadowmap;
@@ -887,7 +880,7 @@ namespace UnityEngine.Rendering.Universal.Internal
             using (var builder = graph.AddRasterRenderPass<PassData>(passName, out var passData, profilingSampler))
             {
                 InitPassData(ref passData, cameraData, lightData, shadowData);
-                InitRendererLists(ref renderingData.cullResults, ref passData, default(ScriptableRenderContext), graph, true);
+                InitRendererLists(ref renderingData.cullResults, ref passData, graph);
 
                 if (!m_CreateEmptyShadowmap)
                 {
@@ -897,7 +890,7 @@ namespace UnityEngine.Rendering.Universal.Internal
                     }
 
                     shadowTexture = UniversalRenderer.CreateRenderGraphTexture(graph, m_AdditionalLightShadowDescriptor, k_AdditionalLightShadowMapTextureName, true,  ShadowUtils.m_ForceShadowPointSampling ? FilterMode.Point : FilterMode.Bilinear);
-                    builder.SetRenderAttachmentDepth(shadowTexture, AccessFlags.Write);
+                    builder.SetRenderAttachmentDepth(shadowTexture, AccessFlags.ReadWrite);
                 }
                 else
                 {
@@ -907,14 +900,12 @@ namespace UnityEngine.Rendering.Universal.Internal
                 TextureDesc descriptor = shadowTexture.GetDescriptor(graph);
                 passData.allocatedShadowAtlasSize = new Vector2Int(descriptor.width, descriptor.height);
 
-                // RENDERGRAPH TODO: Need this as shadowmap is only used as Global Texture and not a buffer, so would get culled by RG
-                builder.AllowPassCulling(false);
                 builder.AllowGlobalStateModification(true);
 
                 if (shadowTexture.IsValid())
                     builder.SetGlobalTextureAfterPass(shadowTexture, passData.shadowmapID);
 
-                builder.SetRenderFunc((PassData data, RasterGraphContext context) =>
+                builder.SetRenderFunc(static (PassData data, RasterGraphContext context) =>
                 {
                     if (!data.emptyShadowmap)
                         data.pass.RenderAdditionalShadowmapAtlas(context.cmd, ref data, true);

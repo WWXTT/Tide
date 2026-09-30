@@ -2,12 +2,10 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Profiling;
 using UnityEngine.Rendering.Universal;
 using UnityEditor.Rendering.Universal.Internal;
 using UnityEngine.Experimental.Rendering;
-using UnityEngine.Experimental.Rendering.Universal;
-using UnityEngine.TestTools;
+using UnityEngine.Rendering.RenderGraphModule;
 
 class EditorTests
 {
@@ -120,6 +118,27 @@ class EditorTests
         ScriptableObject.DestroyImmediate(data);
     }
 
+    [Test]
+    public void ValidateDefaultRendererAfterReset()
+    {
+        UniversalRendererData data = ScriptableObject.CreateInstance<UniversalRendererData>();
+        UniversalRenderPipelineAsset asset = UniversalRenderPipelineAsset.Create(data);
+        const string kTempDir = "Assets/ValidateDefaultRendererAfterReset";
+        string assetPath = $"{kTempDir}/URPAsset.asset";
+        CoreUtils.EnsureFolderTreeInAssetFilePath(assetPath);
+        AssetDatabase.CreateAsset(asset, assetPath);
+        AssetDatabase.SaveAssets();
+        string path = AssetDatabase.GetAssetPath(asset);
+        Assume.That(!string.IsNullOrEmpty(path));
+
+        Assert.NotNull(asset.m_RendererDataList[asset.m_DefaultRendererIndex]);
+        Unsupported.SmartReset(asset);// will create a new default renderer data
+        Assert.NotNull(asset.m_RendererDataList[asset.m_DefaultRendererIndex]);
+
+        ScriptableObject.DestroyImmediate(data);
+        AssetDatabase.DeleteAsset(kTempDir);
+    }
+
     // When working with SpeedTree v7 assets, UniversalSpeedTree8Upgrader should not throw exception
     [Test]
     public void UniversalSpeedTree8Upgrader_ShouldntThrowExceptionWhenImportingSpeedTree7Assets()
@@ -159,6 +178,110 @@ class EditorTests
 
         Object[] posttestTextures = Resources.FindObjectsOfTypeAll(typeof(Texture));
 
-        Assert.AreEqual(pretestTextures.Length, posttestTextures.Length, "A texture leak is detected when using RenderingUtils.ReAllocateIfNeeded.");
+        Assert.That(posttestTextures, Is.EquivalentTo(pretestTextures), "A texture leak is detected when using RenderingUtils.ReAllocateIfNeeded.");
+    }
+
+    [Test]
+    public void UseReAllocateIfNeededWithoutTextureLeakTextureDesc()
+    {
+        Object[] pretestTextures = Resources.FindObjectsOfTypeAll(typeof(Texture));
+        RTHandle myHandle = default(RTHandle);
+
+        // URP is not initlized in test framework, init RTHandlePool here which is required for this test.
+        if (UniversalRenderPipeline.s_RTHandlePool == null)
+        {
+            UniversalRenderPipeline.s_RTHandlePool = new RTHandleResourcePool();
+        }       
+
+        // Realloc RTHandle 100 times with different resolution.
+        for (int i = 0; i < 100; i++)
+        {
+            var desc = new TextureDesc(1, 1 + i);
+            desc.format = GraphicsFormat.R8G8B8A8_UNorm;
+            desc.filterMode = FilterMode.Point;
+            desc.wrapMode = TextureWrapMode.Clamp; 
+            RenderingUtils.ReAllocateHandleIfNeeded(ref myHandle, desc, "TestTexture");
+        }
+        UniversalRenderPipeline.s_RTHandlePool.Cleanup();
+        RTHandles.Release(myHandle);
+
+        Object[] posttestTextures = Resources.FindObjectsOfTypeAll(typeof(Texture));
+
+        Assert.That(posttestTextures, Is.EquivalentTo(pretestTextures), "A texture leak is detected when using RenderingUtils.ReAllocateIfNeeded.");
+    }
+
+    [Test]
+    public void UseReAllocateIfNeededCorrect()
+    {
+        Object[] pretestTextures = Resources.FindObjectsOfTypeAll(typeof(Texture));
+        RTHandle myHandle = default(RTHandle);
+
+        // URP is not initlized in test framework, init RTHandlePool here which is required for this test.
+        if (UniversalRenderPipeline.s_RTHandlePool == null)
+        {
+            UniversalRenderPipeline.s_RTHandlePool = new RTHandleResourcePool();
+        }
+
+        var desc = new TextureDesc(128, 128);
+        desc.format = GraphicsFormat.R8G8B8A8_UNorm;
+        desc.filterMode = FilterMode.Point;
+        desc.wrapMode = TextureWrapMode.Clamp;
+
+        RenderingUtils.ReAllocateHandleIfNeeded(ref myHandle, desc, "TestTexture");
+
+        Assert.That(IsEqualDesc(in desc, myHandle), "RenderingUtils.ReAllocateIfNeeded alloced RTHandle with different properties than requested.");
+
+        desc.width = desc.height = 64;
+        desc.format = GraphicsFormat.R32_SFloat;
+        desc.filterMode = FilterMode.Bilinear;
+        desc.wrapMode = TextureWrapMode.Repeat;
+
+        RenderingUtils.ReAllocateHandleIfNeeded(ref myHandle, desc, "TestTexture");
+
+        Assert.That(IsEqualDesc(in desc, myHandle), "RenderingUtils.ReAllocateIfNeeded alloced RTHandle with different properties than requested.");
+
+        UniversalRenderPipeline.s_RTHandlePool.Cleanup();
+        RTHandles.Release(myHandle);
+    }
+
+    bool IsEqualDesc(in TextureDesc desc, RTHandle rt)
+    {
+        return rt.rt.width == desc.width
+            && rt.rt.height == desc.height
+            && rt.rt.graphicsFormat == desc.format
+            && rt.rt.wrapMode == desc.wrapMode
+            && rt.rt.filterMode == desc.filterMode;
+    }
+
+    [TestCase(ShaderPathID.Lit)]
+    [TestCase(ShaderPathID.SimpleLit)]
+    [TestCase(ShaderPathID.Unlit)]
+    [TestCase(ShaderPathID.TerrainLit)]
+    [TestCase(ShaderPathID.ParticlesLit)]
+    [TestCase(ShaderPathID.ParticlesSimpleLit)]
+    [TestCase(ShaderPathID.ParticlesUnlit)]
+    [TestCase(ShaderPathID.BakedLit)]
+    [TestCase(ShaderPathID.SpeedTree7)]
+    [TestCase(ShaderPathID.SpeedTree7Billboard)]
+    [TestCase(ShaderPathID.SpeedTree8)]
+    public void UseDynamicBranchFogKeyword(ShaderPathID shaderPathID)
+    {
+        string path = AssetDatabase.GUIDToAssetPath(ShaderUtils.GetShaderGUID(shaderPathID));
+        var shader = AssetDatabase.LoadAssetAtPath<Shader>(path);
+        var keywordIdentifiers = new string[] { "FOG_EXP", "FOG_EXP2", "FOG_LINEAR" };
+        var dynamicBranchFogKeyword = UniversalRenderPipeline.UseDynamicBranchFogKeyword();
+
+        foreach (var identifier in keywordIdentifiers)
+        {
+            LocalKeyword keyword = new LocalKeyword(shader, identifier);
+            if (dynamicBranchFogKeyword)
+            {
+                Assert.That(keyword.isDynamic, Is.True, $"{identifier} is not dynamic branch keyword.");
+            }
+            else
+            {
+                Assert.That(keyword.isDynamic, Is.False, $"{identifier} is dynamic branch keyword.");
+            }
+        }
     }
 }

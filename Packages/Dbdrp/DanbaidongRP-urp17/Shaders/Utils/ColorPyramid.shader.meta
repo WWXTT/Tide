@@ -1,5 +1,9 @@
 fileFormatVersion: 2
+<<<<<<<< HEAD:Packages/Dbdrp/DanbaidongRP-urp17/Shaders/Utils/ColorPyramid.shader.meta
 guid: ac39fab0aee074940857662a56bf1f9d
+========
+guid: db51e39af1b3c01449a3e6b1ce782a48
+>>>>>>>> official-175:Packages/Dbdrp/DanbaidongRP-urp17/ShaderLibrary/GBufferOutput.hlsl.meta
 ShaderImporter:
   externalObjects: {}
   defaultTextures: []

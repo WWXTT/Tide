@@ -2,6 +2,7 @@
 #ifndef URP_UNLIT_FORWARD_PASS_INCLUDED
 #define URP_UNLIT_FORWARD_PASS_INCLUDED
 
+#include "UnlitInput.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Unlit.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 #if defined(LOD_FADE_CROSSFADE)
@@ -97,7 +98,7 @@ void UnlitPassFragment(
     Varyings input
     , out half4 outColor : SV_Target0
 #ifdef _WRITE_RENDERING_LAYERS
-    , out float4 outRenderingLayers : SV_Target1
+    , out uint outRenderingLayers : SV_Target1
 #endif
 )
 {
@@ -132,25 +133,41 @@ void UnlitPassFragment(
     finalColor.rgb *= aoFactor.directAmbientOcclusion;
 #endif
 
-#if defined(_FOG_FRAGMENT)
-#if (defined(FOG_LINEAR) || defined(FOG_EXP) || defined(FOG_EXP2))
-    float viewZ = -input.fogCoord;
-    float nearToFarZ = max(viewZ - _ProjectionParams.y, 0);
-    half fogFactor = ComputeFogFactorZ0ToFar(nearToFarZ);
-#else
     half fogFactor = 0;
-#endif
-#else
-    half fogFactor = input.fogCoord;
-#endif
+#if defined(_FOG_FRAGMENT)
+    bool anyFogEnabled = false;
+    
+    #if defined(FOG_LINEAR_KEYWORD_DECLARED)
+    if (FOG_LINEAR)
+        anyFogEnabled = true;
+    #endif
+    
+    #if defined(FOG_EXP_KEYWORD_DECLARED)
+    if (FOG_EXP)
+        anyFogEnabled = true;
+    #endif
+    
+    #if defined(FOG_EXP2_KEYWORD_DECLARED)
+    if (FOG_EXP2)
+        anyFogEnabled = true;
+    #endif
+    
+    if (anyFogEnabled)
+    {
+        float viewZ = -input.fogCoord;
+        float nearToFarZ = max(viewZ - _ProjectionParams.y, 0);
+        fogFactor = ComputeFogFactorZ0ToFar(nearToFarZ);
+    }
+#else // #if defined(_FOG_FRAGMENT)
+    fogFactor = input.fogCoord;
+#endif // #if defined(_FOG_FRAGMENT)
     finalColor.rgb = MixFog(finalColor.rgb, fogFactor);
-    finalColor.a = OutputAlpha(finalColor.a, IsSurfaceTypeTransparent(_Surface));
+    finalColor.a = OutputAlpha(finalColor.a, IsSurfaceTypeTransparent());
 
     outColor = finalColor;
 
 #ifdef _WRITE_RENDERING_LAYERS
-    uint renderingLayers = GetMeshRenderingLayer();
-    outRenderingLayers = float4(EncodeMeshRenderingLayer(renderingLayers), 0, 0, 0);
+    outRenderingLayers = EncodeMeshRenderingLayer();
 #endif
 }
 

@@ -1,13 +1,11 @@
-using UnityEditorInternal;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 namespace UnityEditor.Rendering.Universal
 {
     internal class SerializedUniversalRenderPipelineAsset
     {
-        public SerializedProperty rendererDataProp { get; }
-        public SerializedProperty defaultRendererProp { get; }
-
+        public SerializedProperty rendererDatas { get; }
         public SerializedProperty requireDepthTextureProp { get; }
         public SerializedProperty requireOpaqueTextureProp { get; }
         public SerializedProperty opaqueDownsamplingProp { get; }
@@ -23,6 +21,11 @@ namespace UnityEditor.Rendering.Universal
         public SerializedProperty msaa { get; }
         public SerializedProperty renderScale { get; }
         public SerializedProperty upscalingFilter { get; }
+#if ENABLE_UPSCALER_FRAMEWORK
+        public SerializedProperty selectedUpscalerName { get; }
+
+        public SerializedProperty upscalerOptions { get; }
+#endif
         public SerializedProperty fsrOverrideSharpness { get; }
         public SerializedProperty fsrSharpness { get; }
 
@@ -57,6 +60,7 @@ namespace UnityEditor.Rendering.Universal
 
         public SerializedProperty reflectionProbeBlendingProp { get; }
         public SerializedProperty reflectionProbeBoxProjectionProp { get; }
+        public SerializedProperty reflectionProbeAtlasProp { get; }
 
         public SerializedProperty shadowDistanceProp { get; }
         public SerializedProperty shadowCascadeCountProp { get; }
@@ -83,7 +87,6 @@ namespace UnityEditor.Rendering.Universal
         public SerializedProperty mixedLightingSupportedProp { get; }
         public SerializedProperty useRenderingLayers { get; }
         public SerializedProperty supportsLightCookies { get; }
-        public SerializedProperty debugLevelProp { get; }
 
         public SerializedProperty volumeFrameworkUpdateModeProp { get; }
         public SerializedProperty volumeProfileProp { get; }
@@ -99,7 +102,7 @@ namespace UnityEditor.Rendering.Universal
         public SerializedProperty smallMeshScreenPercentage { get; }
         public SerializedProperty gpuResidentDrawerEnableOcclusionCullingInCameras { get; }
 
-#if ADAPTIVE_PERFORMANCE_2_0_0_OR_NEWER
+#if ENABLE_ADAPTIVE_PERFORMANCE
         public SerializedProperty useAdaptivePerformance { get; }
 #endif
         public UniversalRenderPipelineAsset asset { get; }
@@ -111,6 +114,8 @@ namespace UnityEditor.Rendering.Universal
         {
             asset = serializedObject.targetObject as UniversalRenderPipelineAsset;
             this.serializedObject = serializedObject;
+
+            rendererDatas = serializedObject.FindProperty("m_RendererDataList");
 
             requireDepthTextureProp = serializedObject.FindProperty("m_RequireDepthTexture");
             requireOpaqueTextureProp = serializedObject.FindProperty("m_RequireOpaqueTexture");
@@ -124,6 +129,10 @@ namespace UnityEditor.Rendering.Universal
             msaa = serializedObject.FindProperty("m_MSAA");
             renderScale = serializedObject.FindProperty("m_RenderScale");
             upscalingFilter = serializedObject.FindProperty("m_UpscalingFilter");
+#if ENABLE_UPSCALER_FRAMEWORK
+            selectedUpscalerName = serializedObject.FindProperty("m_SelectedUpscalerName");
+            upscalerOptions = serializedObject.FindProperty("m_UpscalerOptions");
+#endif
             fsrOverrideSharpness = serializedObject.FindProperty("m_FsrOverrideSharpness");
             fsrSharpness = serializedObject.FindProperty("m_FsrSharpness");
 
@@ -158,6 +167,7 @@ namespace UnityEditor.Rendering.Universal
 
             reflectionProbeBlendingProp = serializedObject.FindProperty("m_ReflectionProbeBlending");
             reflectionProbeBoxProjectionProp = serializedObject.FindProperty("m_ReflectionProbeBoxProjection");
+            reflectionProbeAtlasProp = serializedObject.FindProperty("m_ReflectionProbeAtlas");
 
             shadowDistanceProp = serializedObject.FindProperty("m_ShadowDistance");
 
@@ -185,7 +195,6 @@ namespace UnityEditor.Rendering.Universal
             mixedLightingSupportedProp = serializedObject.FindProperty("m_MixedLightingSupported");
             useRenderingLayers = serializedObject.FindProperty("m_SupportsLightLayers");
             supportsLightCookies = serializedObject.FindProperty("m_SupportsLightCookies");
-            debugLevelProp = serializedObject.FindProperty("m_DebugLevel");
 
             volumeFrameworkUpdateModeProp = serializedObject.FindProperty("m_VolumeFrameworkUpdateMode");
             volumeProfileProp = serializedObject.FindProperty("m_VolumeProfile");
@@ -206,9 +215,18 @@ namespace UnityEditor.Rendering.Universal
             smallMeshScreenPercentage = serializedObject.FindProperty("m_SmallMeshScreenPercentage");
             gpuResidentDrawerEnableOcclusionCullingInCameras = serializedObject.FindProperty("m_GPUResidentDrawerEnableOcclusionCullingInCameras");
 
-#if ADAPTIVE_PERFORMANCE_2_0_0_OR_NEWER
+#if ENABLE_ADAPTIVE_PERFORMANCE
             useAdaptivePerformance = serializedObject.FindProperty("m_UseAdaptivePerformance");
 #endif
+#if ENABLE_UPSCALER_FRAMEWORK
+            bool referenceModified = UpscalerOptions.ValidateSerializedUpscalerOptionReferencesWithinRPAsset(asset, upscalerOptions);
+            if (referenceModified)
+            {
+                serializedObject.ApplyModifiedProperties();
+                EditorUtility.SetDirty(asset);
+            }
+#endif
+
             string Key = "Universal_Shadow_Setting_Unit:UI_State";
             state = new EditorPrefBoolFlags<EditorUtils.Unit>(Key);
         }

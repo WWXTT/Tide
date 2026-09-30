@@ -9,7 +9,6 @@
 #if defined(DEBUG_DISPLAY)
 
 #define SETUP_DEBUG_TEXTURE_DATA_2D_NO_TS(inputData, positionWS, positionCS, texture)   SetupDebugDataTexture(inputData, positionWS, positionCS, float4(0.1, 0.1, 1.0, 1.0), texture##_MipInfo, texture##_StreamInfo, GetMipCount(TEXTURE2D_ARGS(texture, sampler##texture)))
-#define SETUP_DEBUG_TEXTURE_DATA_2D(inputData, positionWS, positionCS, texture)         SetupDebugDataTexture(inputData, positionWS, positionCS, texture##_TexelSize, texture##_MipInfo, texture##_StreamInfo, GetMipCount(TEXTURE2D_ARGS(texture, sampler##texture)))
 #define SETUP_DEBUG_DATA_2D(inputData, positionWS, positionCS)                          SetupDebugData(inputData, positionWS, positionCS)
 
 void SetupDebugData(inout InputData2D inputData, float3 positionWS, float4 positionCS)
@@ -39,7 +38,7 @@ bool CalculateDebugColorMaterialSettings(in SurfaceData2D surfaceData, in InputD
 
         case DEBUGMATERIALMODE_ALBEDO:
         {
-            debugColor = half4(surfaceData.albedo, 1);
+            debugColor = half4(surfaceData.albedo, surfaceData.alpha);
             return true;
         }
 
@@ -55,10 +54,15 @@ bool CalculateDebugColorMaterialSettings(in SurfaceData2D surfaceData, in InputD
             return true;
         }
 
-        case DEBUGMATERIALMODE_NORMAL_TANGENT_SPACE:
         case DEBUGMATERIALMODE_NORMAL_WORLD_SPACE:
         {
-            debugColor = half4(surfaceData.normalTS, 1);
+            debugColor = half4(surfaceData.normalWS * 0.5 + 0.5, surfaceData.alpha);
+            return true;
+        }
+
+        case DEBUGMATERIALMODE_NORMAL_TANGENT_SPACE:
+        {
+            debugColor = half4(surfaceData.normalTS * 0.5 + 0.5, surfaceData.alpha);
             return true;
         }
 

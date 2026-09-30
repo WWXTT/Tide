@@ -8,7 +8,7 @@ Shader "Hidden/Universal Render Pipeline/BokehDepthOfField"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/Shaders/PostProcessing/Common.hlsl"
 
-        // Do not change this without changing PostProcessPass.PrepareBokehKernel()
+        // Do not change this without changing PostProcessPassLegacy.PrepareBokehKernel()
         #define SAMPLE_COUNT            42
 
         // Toggle this to reduce flickering - note that it will reduce overall bokeh energy and add
