@@ -6,14 +6,7 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ImageBasedLighting.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RealtimeLights.hlsl"
 
-#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GPUCulledLights.hlsl"
-#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Material.hlsl"
-
-// DanbaidongRP GlobalIllumination only handles bakedGI(Lightmaps).
-#define USE_BAKED_GI_ONLY 1
-
-#define AMBIENT_PROBE_BUFFER 1
-StructuredBuffer<float4>    _AmbientProbeData;
+#define AMBIENT_PROBE_BUFFER 0
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/AmbientProbe.hlsl"
 
 #if defined(PROBE_VOLUMES_L1) || defined(PROBE_VOLUMES_L2)
@@ -23,152 +16,12 @@ StructuredBuffer<float4>    _AmbientProbeData;
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 #endif
 
-// ----------------------------------------------------------------------------
-// GGX visible-normal sampling helpers for high-quality reflections.
-// The core 6000.5 upgrade renamed SampleGGXVisibleNormalSphericalCaps to
-// SampleGGXVisibleNormal and dropped VisibleGGXPDF from BSDF.hlsl, so they are
-// re-declared here for the ray-traced / screen-space reflection shaders.
-// ----------------------------------------------------------------------------
-
-// Heitz 2018: "Sampling the GGX Distribution of Visible Normals" (spherical-caps
-// method). Kept under the legacy name still used by the reflection shaders; delegates
-// to core's SampleGGXVisibleNormal, which is the same algorithm.
-void SampleGGXVisibleNormalSphericalCaps(float2 u, float3 V, float3x3 localToWorld, float roughness, out float3 localV, out float3 localH, out float VdotH)
-{
-    SampleGGXVisibleNormal(u, V, localToWorld, roughness, localV, localH, VdotH);
-}
-
-// PDF of the GGX visible-normal distribution (VNDF), used to size the reflection cone.
-float VisibleGGXPDF(float3 localV, float3 localH, float roughness)
-{
-    float NdotH = saturate(localH.z);
-    float VdotH = saturate(dot(localV, localH));
-    float NdotV = saturate(localV.z);
-
-    float D = D_GGX(NdotH, roughness);
-    float a2 = roughness * roughness;
-    // Smith masking function G1(V) = 2 / (1 + sqrt(1 + a2 * tan^2(theta_v)))
-    float G1 = 2.0 * NdotV / (NdotV + sqrt(max(NdotV * NdotV + a2 * (1.0 - NdotV * NdotV), 0.0)));
-
-    return D * G1 * VdotH / max(NdotV, 0.001);
-}
-
 // If lightmap is not defined than we evaluate GI (ambient + probes) from SH
 
 // Renamed -> LIGHTMAP_SHADOW_MIXING
 #if !defined(_MIXED_LIGHTING_SUBTRACTIVE) && defined(LIGHTMAP_SHADOW_MIXING) && !defined(SHADOWS_SHADOWMASK)
     #define _MIXED_LIGHTING_SUBTRACTIVE
 #endif
-
-
-
-//-----------------------------------------------------------------------------
-// Evaluate Environment probes
-//-----------------------------------------------------------------------------
-
-float CalculateProbeWeight(float3 positionWS, float4 probeBoxMin, float4 probeBoxMax)
-{
-    float blendDistance = probeBoxMax.w;
-    float3 weightDir = min(positionWS - probeBoxMin.xyz, probeBoxMax.xyz - positionWS) / blendDistance;
-    return saturate(min(weightDir.x, min(weightDir.y, weightDir.z)));
-}
-
-float3 EvaluateEnvProbes(PositionInputs posInput, float3 reflectDirWS, float perceptualRoughness, inout float hierarchyWeight)
-{
-    float3 irradiance = 0;
-    float totalWeight = 0;
-    float mip = PerceptualRoughnessToMipmapLevel(perceptualRoughness);
-
-    uint lightCategory = LIGHTCATEGORY_ENV;
-    uint lightStart;
-    uint lightCount;
-    GetCountAndStart(posInput, lightCategory, lightStart, lightCount);
-    uint v_lightListOffset = 0;
-    uint v_lightIdx = lightStart;
-
-    if (lightCount > 0) // avoid 0 iteration warning.
-    {
-        while (v_lightListOffset < lightCount)
-        {
-            v_lightIdx = FetchIndex(lightStart, v_lightListOffset);
-            if (v_lightIdx == -1)
-                break;
-
-            uint probeIndex = v_lightIdx;
-
-            float weight = CalculateProbeWeight(posInput.positionWS, urp_ReflProbes_BoxMin[probeIndex], urp_ReflProbes_BoxMax[probeIndex]);
-            weight = min(weight, 1.0f - totalWeight);
-
-            uint maxMip = (uint)abs(urp_ReflProbes_ProbePosition[probeIndex].w) - 1;
-            half probeMip = min(mip, maxMip);
-            float2 uv = saturate(PackNormalOctQuadEncode(reflectDirWS) * 0.5 + 0.5);
-
-            float mip0 = floor(probeMip);
-            float mip1 = mip0 + 1;
-            float mipBlend = probeMip - mip0;
-            float4 scaleOffset0 = urp_ReflProbes_MipScaleOffset[probeIndex * 7 + (uint)mip0];
-            float4 scaleOffset1 = urp_ReflProbes_MipScaleOffset[probeIndex * 7 + (uint)mip1];
-
-            float3 irradiance0 = SAMPLE_TEXTURE2D_LOD(urp_ReflProbes_Atlas, sampler_LinearClamp, uv * scaleOffset0.xy + scaleOffset0.zw, 0.0).xyz;
-            float3 irradiance1 = SAMPLE_TEXTURE2D_LOD(urp_ReflProbes_Atlas, sampler_LinearClamp, uv * scaleOffset1.xy + scaleOffset1.zw, 0.0).xyz;
-            irradiance += weight * lerp(irradiance0, irradiance1, mipBlend);
-            totalWeight += weight;
-
-            v_lightListOffset++;
-        }
-    }
-
-    // Apply the main lobe weight and update main reflection hierarchyWeight:
-    UpdateLightingHierarchyWeights(hierarchyWeight, totalWeight);
-    // irradiance *= totalWeight; // We have applied in the loop.
-
-    return irradiance;
-}
-
-
-//-----------------------------------------------------------------------------
-// Evaluate SkyEnvironment
-//-----------------------------------------------------------------------------
-
-TEXTURECUBE(_SkyTexture);
-
-float4 SampleSkyTexture(float3 texCoord, float lod, int sliceIndex = 0)
-{
-    return SAMPLE_TEXTURECUBE_LOD(_SkyTexture, sampler_TrilinearClamp, texCoord, lod);
-}
-
-float3 SampleSkyEnvironment(float3 reflectVector, float perceptualRoughness)
-{
-    float mip = PerceptualRoughnessToMipmapLevel(perceptualRoughness);
-    return SampleSkyTexture(reflectVector, mip).rgb;
-}
-
-//-----------------------------------------------------------------------------
-// Evaluate Ambient Occlusion
-//-----------------------------------------------------------------------------
-
-// Ambient Occlusion Multibounc
-void EvaluateAmbientOcclusion(float ambientOcclusion, float gbufferOcclusion, float roughness, float clampedNdotV, float3 diffuseColor, float3 fresnel0,
-inout float3 directDiffuse, inout float3 directSpecular, inout float3 indirectDiffuse, inout float3 indirectSpecular)
-{
-    float indirectAmbientOcclusion = PositivePow(ambientOcclusion, _AmbientOcclusionParam.y);
-    float directAmbientOcclusion = lerp(1.0, indirectAmbientOcclusion, _AmbientOcclusionParam.w);
-
-    // This specular occlusion formulation make sense only with SSAO. When we use Raytracing AO we support different range (local, medium, sky). When using medium or
-    // sky occlusion, the result on specular occlusion can be a disaster (all is black). Thus we use _SpecularOcclusionBlend(_AmbientOcclusionParam.z) when using RTAO to disable this trick.
-    float indirectSpecularOcclusion = lerp(1.0, GetSpecularOcclusionFromAmbientOcclusion(clampedNdotV, indirectAmbientOcclusion, roughness), _AmbientOcclusionParam.z);
-    float directSpecularOcclusion = lerp(1.0, indirectSpecularOcclusion, _AmbientOcclusionParam.w);
-
-    indirectDiffuse *= GTAOMultiBounce(min(gbufferOcclusion, indirectAmbientOcclusion), diffuseColor);
-    indirectSpecular *= GTAOMultiBounce(min(gbufferOcclusion, indirectSpecularOcclusion), fresnel0);
-    directDiffuse *= directAmbientOcclusion;
-    directSpecular *= directSpecularOcclusion;
-}
-
-
-//-----------------------------------------------------------------------------
-// Others
-//-----------------------------------------------------------------------------
 
 // SH Vertex Evaluation. Depending on target SH sampling might be
 // done completely per vertex or mixed with L2 term per vertex and L0, L1
@@ -342,10 +195,7 @@ half3 SampleLightmap(float2 staticLightmapUV, half3 normalWS)
 // We either sample GI from baked lightmap or from probes.
 // If lightmap: sampleData.xy = lightmapUV
 // If probe: sampleData.xyz = L2 SH terms
-#if defined(_SCREEN_SPACE_IRRADIANCE)
-#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareScreenSpaceIrradianceTexture.hlsl"
-#define SAMPLE_GI(positionCS) SampleScreenSpaceIrradiance(positionCS)
-#elif defined(LIGHTMAP_ON) && defined(DYNAMICLIGHTMAP_ON)
+#if defined(LIGHTMAP_ON) && defined(DYNAMICLIGHTMAP_ON)
 #define SAMPLE_GI(staticLmName, dynamicLmName, shName, normalWSName) SampleLightmap(staticLmName, dynamicLmName, normalWSName)
 #elif defined(DYNAMICLIGHTMAP_ON)
 #define SAMPLE_GI(staticLmName, dynamicLmName, shName, normalWSName) SampleLightmap(0, dynamicLmName, normalWSName)
@@ -380,6 +230,13 @@ half3 BoxProjectedCubemapDirection(half3 reflectionWS, float3 positionWS, float4
     {
         return reflectionWS;
     }
+}
+
+float CalculateProbeWeight(float3 positionWS, float4 probeBoxMin, float4 probeBoxMax)
+{
+    float blendDistance = probeBoxMax.w;
+    float3 weightDir = min(positionWS - probeBoxMin.xyz, probeBoxMax.xyz - positionWS) / blendDistance;
+    return saturate(min(weightDir.x, min(weightDir.y, weightDir.z)));
 }
 
 half CalculateProbeVolumeSqrMagnitude(float4 probeBoxMin, float4 probeBoxMax)
@@ -563,14 +420,6 @@ half3 GlobalIllumination(BRDFData brdfData, BRDFData brdfDataClearCoat, float cl
     half3 bakedGI, half occlusion, float3 positionWS,
     half3 normalWS, half3 viewDirectionWS, float2 normalizedScreenSpaceUV)
 {
-#if USE_BAKED_GI_ONLY
-    #if defined(LIGHTMAP_ON)
-        return brdfData.diffuse * bakedGI * occlusion;
-    #else
-        return 0;
-    #endif
-#endif
-
     half3 reflectVector = reflect(-viewDirectionWS, normalWS);
     half NoV = saturate(dot(normalWS, viewDirectionWS));
     half fresnelTerm = Pow4(1.0 - NoV);
@@ -620,14 +469,6 @@ half3 GlobalIllumination(BRDFData brdfData, BRDFData brdfDataClearCoat, float cl
     half3 bakedGI, half occlusion,
     half3 normalWS, half3 viewDirectionWS)
 {
-#if USE_BAKED_GI_ONLY
-    #if defined(LIGHTMAP_ON)
-        return brdfData.diffuse * bakedGI * occlusion;
-    #else
-        return 0;
-    #endif
-#endif
-
     half3 reflectVector = reflect(-viewDirectionWS, normalWS);
     half NoV = saturate(dot(normalWS, viewDirectionWS));
     half fresnelTerm = Pow4(1.0 - NoV);

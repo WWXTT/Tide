@@ -34,6 +34,15 @@ namespace UnityEditor.VFX.URP
             BaseColorAndEmissive = BaseColor | Emissive,
         }
 
+        [Flags]
+        public enum BaseColorMapMode
+        {
+            None = 0,
+            Color = 1 << 0,
+            Alpha = 1 << 1,
+            ColorAndAlpha = Color | Alpha
+        }
+
         public enum SmoothnessSource
         {
             None,
@@ -65,6 +74,9 @@ namespace UnityEditor.VFX.URP
 
         [VFXSetting(VFXSettingAttribute.VisibleFlags.InInspector), SerializeField, Tooltip("Specified the smoothness map source. It can be the alpha channel of the Metallic Map or the Base Color Map if they are used in the output.")]
         protected SmoothnessSource smoothnessSource = SmoothnessSource.None;
+
+        [VFXSetting(VFXSettingAttribute.VisibleFlags.InInspector), SerializeField, Tooltip("Specifies what parts of the base color map is applied to the particles. Particles can receive color, alpha, color and alpha, or not receive any values from the base color map.")]
+        protected BaseColorMapMode useBaseColorMap = BaseColorMapMode.ColorAndAlpha;
 
         [VFXSetting(VFXSettingAttribute.VisibleFlags.InInspector), SerializeField, Tooltip("When enabled, the output will accept an occlusion to control how the particle receives lighting.")]
         protected bool useOcclusionMap = false;
@@ -124,23 +136,13 @@ namespace UnityEditor.VFX.URP
 
         protected VFXAbstractParticleURPLitOutput(bool strip = false) : base(strip) {}
 
-        private bool useDeprecatedShaderGraph => GetOrRefreshShaderGraphObject() != null;
+        protected virtual bool allowTextures => GetOrRefreshShaderGraphObject() == null;
 
         protected virtual bool useSmoothness => true;
         protected virtual bool useMetallic => workflowMode == WorkflowMode.Metallic;
         protected virtual bool useSpecular => workflowMode == WorkflowMode.Specular;
         protected virtual bool useNormalScale => true;
 
-        protected sealed override bool hasAnyMap
-        {
-            get
-            {
-                return base.hasAnyMap
-                       || useNormalMap
-                       || useEmissiveMap
-                       || materialType == MaterialType.SixWaySmokeLit;
-            }
-        }
 
         public class URPLitInputProperties
         {
@@ -222,7 +224,7 @@ namespace UnityEditor.VFX.URP
         {
             get
             {
-                yield return new VFXPropertyWithValue(new VFXProperty(GetTextureType(), kOcclusionMap, new TooltipAttribute("Specifies the Occlusion Map for the particle - Ambient occlusion (G)")), (usesFlipbook ? null : VFXResources.defaultResources.maskTexture));
+                yield return new VFXPropertyWithValue(new VFXProperty(GetTextureType(), kOcclusionMap, new TooltipAttribute("Specifies the Occlusion Map for the particle - Ambient occlusion (G)")));
             }
         }
 
@@ -240,7 +242,7 @@ namespace UnityEditor.VFX.URP
         {
             get
             {
-                yield return new VFXPropertyWithValue(new VFXProperty(GetTextureType(), kMetallicMap, new TooltipAttribute("Specifies the Metallic Map for the particle - Metallic (R) - (Optional A) Smoothness")), (usesFlipbook ? null : VFXResources.defaultResources.maskTexture));
+                yield return new VFXPropertyWithValue(new VFXProperty(GetTextureType(), kMetallicMap, new TooltipAttribute("Specifies the Metallic Map for the particle - Metallic (R) - (Optional A) Smoothness")));
             }
         }
 
@@ -250,7 +252,7 @@ namespace UnityEditor.VFX.URP
         {
             get
             {
-                yield return new VFXPropertyWithValue(new VFXProperty(GetTextureType(), kNormalMap, new TooltipAttribute("Specifies the Normal map to obtain normals in tangent space for the particle.")), (usesFlipbook ? null : VFXResources.defaultResources.normalTexture));
+                yield return new VFXPropertyWithValue(new VFXProperty(GetTextureType(), kNormalMap, new TooltipAttribute("Specifies the Normal map to obtain normals in tangent space for the particle.")));
                 if(useNormalScale)
                     yield return new VFXPropertyWithValue(new VFXProperty(typeof(float), kNormalScale, new TooltipAttribute("Sets the scale of the normals. Larger values increase the impact of the normals.")), 1.0f);
             }
@@ -307,8 +309,8 @@ namespace UnityEditor.VFX.URP
         {
             get
             {
-                yield return new VFXPropertyWithValue(new VFXProperty(GetTextureType(), "positiveAxesLightmap", new TooltipAttribute("Specifies the lightmap for the positive axes, Right (R), Up (G), Back (B), and the opacity (A).")), (usesFlipbook ? null : VFXResources.defaultResources.sixWayPositiveTexture));
-                yield return new VFXPropertyWithValue(new VFXProperty(GetTextureType(), "negativeAxesLightmap", new TooltipAttribute("Specifies the lightmap for the Negative axes: Left (R), Bottom (G), Front (B), and the Emissive mask (A) for Single Channel emission mode.")), (usesFlipbook ? null : VFXResources.defaultResources.sixWayNegativeTexture));
+                yield return new VFXPropertyWithValue(new VFXProperty(GetTextureType(), "positiveAxesLightmap", new TooltipAttribute("Specifies the lightmap for the positive axes, Right (R), Up (G), Back (B), and the opacity (A).")));
+                yield return new VFXPropertyWithValue(new VFXProperty(GetTextureType(), "negativeAxesLightmap", new TooltipAttribute("Specifies the lightmap for the Negative axes: Left (R), Bottom (G), Front (B), and the Emissive mask (A) for Single Channel emission mode.")));
 
                 if (lightmapRemapRanges)
                 {
@@ -367,7 +369,7 @@ namespace UnityEditor.VFX.URP
                     else if(materialType == MaterialType.SixWaySmokeLit)
                         properties = properties.Concat(sixWayMapsProperties);
 
-                    if (!useDeprecatedShaderGraph)
+                    if (allowTextures)
                     {
                         if (useBaseColorMap != BaseColorMapMode.None)
                             properties = properties.Concat(baseColorMapProperties);
@@ -376,7 +378,7 @@ namespace UnityEditor.VFX.URP
                     if ((colorMode & ColorMode.BaseColor) == 0) // particle color is not used as base color so add a slot
                         properties = properties.Concat(PropertiesFromType(nameof(BaseColorProperties)));
 
-                    if (!useDeprecatedShaderGraph)
+                    if (allowTextures)
                     {
                         if (useOcclusionMap)
                             properties = properties.Concat(occlusionMapsProperties);
@@ -444,7 +446,7 @@ namespace UnityEditor.VFX.URP
 
                         yield return new VFXNamedExpression(absorptionRangeExp, "absorptionRange");
                     }
-                    if (!useDeprecatedShaderGraph)
+                    if (allowTextures)
                     {
                         if (useBaseColorMap != BaseColorMapMode.None)
                             yield return slotExpressions.First(o => o.name == kBaseColorMap);
@@ -474,7 +476,7 @@ namespace UnityEditor.VFX.URP
                             break;
                     }
 
-                    if (!useDeprecatedShaderGraph)
+                    if (allowTextures)
                     {
                         if (useBaseColorMap != BaseColorMapMode.None)
                             yield return slotExpressions.First(o => o.name == kBaseColorMap);
@@ -570,7 +572,7 @@ namespace UnityEditor.VFX.URP
                 }
 
 
-                if (!useDeprecatedShaderGraph)
+                if (allowTextures)
                 {
                     if (useBaseColorMap != BaseColorMapMode.None)
                         yield return "URP_USE_BASE_COLOR_MAP";
@@ -626,7 +628,7 @@ namespace UnityEditor.VFX.URP
 
                 yield return nameof(colorMapping);
 
-                if (useDeprecatedShaderGraph)
+                if (!allowTextures)
                 {
                     yield return nameof(useBaseColorMap);
                     yield return nameof(useOcclusionMap);
@@ -775,9 +777,9 @@ namespace UnityEditor.VFX.URP
                     gbufferDefines.Write("#define _SPECULAR_SETUP");
                 yield return new KeyValuePair<string, VFXShaderWriter>("${VFXURPGBufferDefines}", gbufferDefines);
 
-                var forwardPassLightMode = new VFXShaderWriter();
-                forwardPassLightMode.Write(materialType == MaterialType.SixWaySmokeLit ? "UniversalForwardOnly" : "UniversalForward");
-                yield return new KeyValuePair<string, VFXShaderWriter>("${VFXURPForwardPassLightMode}", forwardPassLightMode);
+                var forwardPassName = new VFXShaderWriter();
+                forwardPassName.Write(materialType == MaterialType.SixWaySmokeLit ? "UniversalForwardOnly" : "UniversalForward");
+                yield return new KeyValuePair<string, VFXShaderWriter>("${VFXURPForwardPassName}", forwardPassName);
             }
         }
     }

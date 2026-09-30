@@ -1481,7 +1481,7 @@ namespace UnityEngine.Rendering.Universal
         private PolyFillTypes m_ClipFillType;
         private PolyFillTypes m_SubjFillType;
         private List<Join> m_Joins;
-        private List<Join> m_PerformJoins;
+        private List<Join> m_GhostJoins;
         private bool m_UsingPolyTree;
 
         public Clipper(int InitOptions = 0) : base() //constructor
@@ -1496,7 +1496,7 @@ namespace UnityEngine.Rendering.Universal
             m_UsingPolyTree = false;
             m_PolyOuts = new List<OutRec>();
             m_Joins = new List<Join>();
-            m_PerformJoins = new List<Join>();
+            m_GhostJoins = new List<Join>();
             ReverseSolution = (ioReverseSolution & InitOptions) != 0;
             StrictlySimple = (ioStrictlySimple & InitOptions) != 0;
             PreserveCollinear = (ioPreserveCollinear & InitOptions) != 0;
@@ -1660,7 +1660,7 @@ namespace UnityEngine.Rendering.Universal
                 while (PopScanbeam(out topY) || LocalMinimaPending())
                 {
                     ProcessHorizontals();
-                    m_PerformJoins.Clear();
+                    m_GhostJoins.Clear();
                     if (!ProcessIntersections(topY)) return false;
                     ProcessEdgesAtTopOfScanbeam(topY);
                     botY = topY;
@@ -1694,7 +1694,7 @@ namespace UnityEngine.Rendering.Universal
             finally
             {
                 m_Joins.Clear();
-                m_PerformJoins.Clear();
+                m_GhostJoins.Clear();
             }
         }
 
@@ -1719,12 +1719,12 @@ namespace UnityEngine.Rendering.Universal
 
         //------------------------------------------------------------------------------
 
-        private void AddPerformJoin(OutPt Op, IntPoint OffPt)
+        private void AddGhostJoin(OutPt Op, IntPoint OffPt)
         {
             Join j = new Join();
             j.OutPt1 = Op;
             j.OffPt = OffPt;
-            m_PerformJoins.Add(j);
+            m_GhostJoins.Add(j);
         }
 
         private void InsertLocalMinimaIntoAEL(ClipInt botY)
@@ -1779,13 +1779,13 @@ namespace UnityEngine.Rendering.Universal
 
                 //if output polygons share an Edge with a horizontal rb, they'll need joining later ...
                 if (Op1 != null && IsHorizontal(rb) &&
-                    m_PerformJoins.Count > 0 && rb.WindDelta != 0)
+                    m_GhostJoins.Count > 0 && rb.WindDelta != 0)
                 {
-                    for (int i = 0; i < m_PerformJoins.Count; i++)
+                    for (int i = 0; i < m_GhostJoins.Count; i++)
                     {
-                        //if the horizontal Rb and a 'Perform' horizontal overlap, then convert
-                        //the 'Perform' join to a real join ready for later ...
-                        Join j = m_PerformJoins[i];
+                        //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
+                        //the 'ghost' join to a real join ready for later ...
+                        Join j = m_GhostJoins[i];
                         if (HorzSegmentsOverlap(j.OutPt1.Pt.X, j.OffPt.X, rb.Bot.X, rb.Top.X))
                             AddJoin(j.OutPt1, Op1, j.OffPt);
                     }
@@ -2942,7 +2942,7 @@ namespace UnityEngine.Rendering.Universal
                             }
                             eNextHorz = eNextHorz.NextInSEL;
                         }
-                        AddPerformJoin(op1, horzEdge.Bot);
+                        AddGhostJoin(op1, horzEdge.Bot);
                     }
 
                     //OK, so far we're still in range of the horizontal Edge  but make sure
@@ -2994,7 +2994,7 @@ namespace UnityEngine.Rendering.Universal
                     }
                     eNextHorz = eNextHorz.NextInSEL;
                 }
-                AddPerformJoin(op1, horzEdge.Top);
+                AddGhostJoin(op1, horzEdge.Top);
             }
 
             if (horzEdge.NextInLML != null)

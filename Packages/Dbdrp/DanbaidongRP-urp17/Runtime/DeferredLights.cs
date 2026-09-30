@@ -423,7 +423,7 @@ namespace UnityEngine.Rendering.Universal.Internal
             if (this.GbufferRTHandles != null)
             {
                 // In case DeferredLight does not own the RTHandle, we can skip realloc.
-                if (this.GbufferRTHandles[gbufferIndex].GetUniqueID() != this.GbufferAttachments[gbufferIndex].GetUniqueID())
+                if (this.GbufferRTHandles[gbufferIndex].GetInstanceID() != this.GbufferAttachments[gbufferIndex].GetInstanceID())
                     return;
 
                 gbufferSlice.depthStencilFormat = GraphicsFormat.None; // make sure no depth surface is actually created
@@ -1052,6 +1052,12 @@ namespace UnityEngine.Rendering.Universal.Internal
             // Legacy fog does not work in orthographic mode.
             if (!RenderSettings.fog || isOrthographic)
                 return;
+
+            if (m_StencilDeferredPasses[(int)StencilDeferredPasses.Fog] < 0)
+            {
+                Debug.LogError("Missing Deferred Fog Pass. The fog render pass will not execute. Project Settings > Graphics > Shader Stripping > Fog Modes.");
+                return;
+            }
 
             if (m_FullscreenMesh == null)
                 m_FullscreenMesh = CreateFullscreenMesh();

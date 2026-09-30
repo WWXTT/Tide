@@ -1638,10 +1638,7 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
 
         public static readonly PragmaCollection Forward = new PragmaCollection
         {
-            // ps_4_0 (SM4) 只有 32 个临时寄存器，复杂 graph（如 Crest 水下雾）
-            // 的 Forward pass 会超限，fxc 报 "cannot map expression to ps_4_0"。
-            // 升到 4.5 走 ps_5_0（4096 寄存器），与下方 GBuffer pass 一致。
-            { Pragma.Target(ShaderModel.Target45) },
+            { Pragma.Target(ShaderModel.Target20) },
             { Pragma.MultiCompileInstancing },
             { Pragma.MultiCompileFog },
             { Pragma.InstancingOptions(InstancingOptions.RenderingLayer) },
@@ -2055,15 +2052,6 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
         {
             displayName = "Mixed Lighting Subtractive",
             referenceName = "_MIXED_LIGHTING_SUBTRACTIVE",
-            type = KeywordType.Boolean,
-            definition = KeywordDefinition.MultiCompile,
-            scope = KeywordScope.Global,
-        };
-
-        public static readonly KeywordDescriptor LightmapBicubicSampling = new KeywordDescriptor()
-        {
-            displayName = "Lightmap Bicubic Sampling",
-            referenceName = "LIGHTMAP_BICUBIC_SAMPLING",
             type = KeywordType.Boolean,
             definition = KeywordDefinition.MultiCompile,
             scope = KeywordScope.Global,

@@ -75,7 +75,7 @@ namespace UnityEngine.Rendering.Universal
                 public static readonly ProfilingSampler getPerObjectLightFlags = new ProfilingSampler($"{k_Name}.{nameof(GetPerObjectLightFlags)}");
                 public static readonly ProfilingSampler getMainLightIndex = new ProfilingSampler($"{k_Name}.{nameof(GetMainLightIndex)}");
                 public static readonly ProfilingSampler setupPerFrameShaderConstants = new ProfilingSampler($"{k_Name}.{nameof(SetupPerFrameShaderConstants)}");
-                public static readonly ProfilingSampler setupPerCameraEnvShaderConstants = new ProfilingSampler($"{k_Name}.{nameof(SetupPerCameraEnvironmentShaderConstants)}");
+                public static readonly ProfilingSampler setupPerCameraShaderConstants = new ProfilingSampler($"{k_Name}.{nameof(SetupPerCameraShaderConstants)}");
 
                 public static class Renderer
                 {
@@ -196,9 +196,6 @@ namespace UnityEngine.Rendering.Universal
         // asset.
         private readonly UniversalRenderPipelineAsset pipelineAsset;
 
-        // Use to detect frame changes (for accurate frame count in editor, consider using hdCamera.GetCameraFrameCount)
-        int m_FrameCount;
-
         /// <inheritdoc/>
         public override string ToString() => pipelineAsset?.ToString();
 
@@ -216,9 +213,6 @@ namespace UnityEngine.Rendering.Universal
             runtimeTextures = GraphicsSettings.GetRenderPipelineSettings<UniversalRenderPipelineRuntimeTextures>();
 
             var shaders = GraphicsSettings.GetRenderPipelineSettings<UniversalRenderPipelineRuntimeShaders>();
-#if UNITY_EDITOR
-            shaders.EnsureShadersCompiled();
-#endif
             Blitter.Initialize(shaders.coreBlitPS, shaders.coreBlitColorAndDepthPS);
 
             SetSupportedRenderingFeatures(pipelineAsset);
@@ -250,18 +244,6 @@ namespace UnityEngine.Rendering.Universal
             XRSystem.SetDisplayMSAASamples(msaaSamples);
             XRSystem.SetRenderScale(asset.renderScale);
 
-            BlueNoiseSystem.Initialize(runtimeTextures);
-
-            // We always create this.
-            // TODO: Create a switch button for users.
-            PreIntegratedFGD.instance.Build(PreIntegratedFGD.FGDIndex.FGD_GGXAndDisneyDiffuse);
-
-            SkySystem.instance.Build(asset, shaders);
-
-            IBLFilterGGX.instance.Initialize(shaders);
-
-            Hammersley.Initialize();
-
             Lightmapping.SetDelegate(lightsDelegate);
 
             CameraCaptureBridge.enabled = true;
@@ -270,12 +252,7 @@ namespace UnityEngine.Rendering.Universal
 
             DecalProjector.defaultMaterial = asset.decalMaterial;
 
-            PerObjectShadowProjector.excludeLayer = asset.perObjectShadowExcludeLayer;
-            PerObjectShadowProjector.defaultMaterial = asset.perObjectShadowMaterial;
-
-            ProceduralToonSky.defaultMaterial = asset.proceduralToonSkyBoxMat;
-
-            s_RenderGraph = new RenderGraph("DanbaidongRPRenderGraph");
+            s_RenderGraph = new RenderGraph("URPRenderGraph");
             useRenderGraph = !GraphicsSettings.GetRenderPipelineSettings<RenderGraphSettings>().enableRenderCompatibilityMode;
 
 #if !UNITY_EDITOR
@@ -284,7 +261,7 @@ namespace UnityEngine.Rendering.Universal
 
             s_RTHandlePool = new RTHandleResourcePool();
 
-            DebugManager.instance.RecreateDebugUI();
+            DebugManager.instance.RefreshEditor();
 
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
             m_DebugDisplaySettingsUI.RegisterDebug(UniversalRenderPipelineDebugDisplaySettings.Instance);
@@ -335,26 +312,11 @@ namespace UnityEngine.Rendering.Universal
             ShaderData.instance.Dispose();
             XRSystem.Dispose();
 
-            RayTracingSystem.ClearAll();
-
-            BlueNoiseSystem.ClearAll();
-
-            PreIntegratedFGD.instance.Cleanup(PreIntegratedFGD.FGDIndex.FGD_GGXAndDisneyDiffuse);
-
-            SkySystem.ClearAll();
-
-            IBLFilterGGX.instance.Cleanup();
-
             s_RenderGraph.Cleanup();
             s_RenderGraph = null;
 
             s_RTHandlePool.Cleanup();
             s_RTHandlePool = null;
-
-            GraphicsBufferSystem.ClearAll();
-
-            HistoryFrameRTSystem.ClearAll();
-
 #if UNITY_EDITOR
             SceneViewDrawMode.ResetDrawMode();
 #endif
@@ -479,31 +441,6 @@ namespace UnityEngine.Rendering.Universal
                 GraphicsSettings.lightsUseColorTemperature = true;
                 SetupPerFrameShaderConstants();
                 XRSystem.SetDisplayMSAASamples((MSAASamples)asset.msaaSampleCount);
-
-            // For CleanHistoryFrameRTSystem to remove unused Cameras
-            // Copy from HDRenderPipeline, which is HDCamera.CleanUnused()
-            // TODO: Should I handle for m_ProbeCameraCache as HDRP?
-            // TODO: Should I handle for m_FrameCount <= 1 skipped RenderSteps as HDRP?
-#if UNITY_EDITOR
-            int newCount = m_FrameCount;
-            foreach (var c in cameras)
-            {
-                if (c.cameraType != CameraType.Preview)
-                {
-                    newCount++;
-                    break;
-                }
-            }
-#else
-            int newCount = Time.frameCount;
-#endif
-            if (newCount != m_FrameCount)
-            {
-                m_FrameCount = newCount;
-
-                RayTracingSystem.CleanUnused();
-                HistoryFrameRTSystem.CleanUnused();
-            }
 
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
                 if (DebugManager.instance.isAnyDebugUIActive)
@@ -829,10 +766,7 @@ namespace UnityEngine.Rendering.Universal
                 context.ExecuteCommandBuffer(cmd); // Send all the commands enqueued so far in the CommandBuffer cmd, to the ScriptableRenderContext context
                 cmd.Clear();
 
-                PreIntegratedFGD.instance.RenderInit(PreIntegratedFGD.FGDIndex.FGD_GGXAndDisneyDiffuse, cmd);
-                SkySystem.instance.UpdateCurrentSky();
-                SetupPerCameraEnvironmentShaderConstants(cmd);// TODO: use SkySystem.instance.UpdateEnvironment();
-                //SetupPerCameraShaderConstants(cmd);
+                SetupPerCameraShaderConstants(cmd);
 
                 ProbeVolumesOptions apvOptions = null;
                 if (camera.TryGetComponent<UniversalAdditionalCameraData>(out var additionalCameraData))
@@ -883,14 +817,6 @@ namespace UnityEngine.Rendering.Universal
                     UpdateTemporalAATargets(cameraData);
 
                 RTHandles.SetReferenceSize(cameraData.cameraTargetDescriptor.width, cameraData.cameraTargetDescriptor.height);
-
-                /* 
-                 * TODO: We must check this Security, HDCamera doing this at every begining in "BeginRender" function.
-                 * "Updating RTHandle needs to be done at the beginning of rendering (not during update of HDCamera which happens in batches)
-                 * The reason is that RTHandle will hold data necessary to setup RenderTargets and viewports properly."
-                 */
-                var historyFrameRTSystem = HistoryFrameRTSystem.GetOrCreate(camera);
-                historyFrameRTSystem.SetReferenceSize(cameraData.cameraTargetDescriptor.width, cameraData.cameraTargetDescriptor.height);
 
                 // Do NOT use cameraData after 'InitializeRenderingData'. CameraData state may diverge otherwise.
                 // RenderingData takes a copy of the CameraData.
@@ -1585,17 +1511,7 @@ namespace UnityEngine.Rendering.Universal
                 cameraData.screenCoordScaleBias = Vector2.one;
             }
 
-            cameraData.maxPerObjectShadowDistance = cameraData.maxShadowDistance > 0 ? Mathf.Min(settings.perObjectShadowMaxDrawDistance, camera.farClipPlane) : 0.0f;
-
-            // Ray Tracing
-            cameraData.supportedRayTracing = settings.supportsRayTracing && (isSceneViewCamera || cameraData.isGameCamera);
-            if (cameraData.supportedRayTracing)
-            {
-                cameraData.rayTracingSystem = RayTracingSystem.GetOrCreate(camera);
-            }
-
             cameraData.renderer = renderer;
-            cameraData.requiresDepthTexture |= isSceneViewCamera;
             cameraData.postProcessingRequiresDepthTexture = CheckPostProcessForDepth(cameraData);
             cameraData.resolveFinalTarget = resolveFinalTarget;
 
@@ -1640,14 +1556,6 @@ namespace UnityEngine.Rendering.Universal
             TemporalAA.JitterFunc jitterFunc = cameraData.IsSTPEnabled() ? StpUtils.s_JitterFunc : TemporalAA.s_JitterFunc;
             Matrix4x4 jitterMat = TemporalAA.CalculateJitterMatrix(cameraData, jitterFunc);
             cameraData.SetViewProjectionAndJitterMatrix(camera.worldToCameraMatrix, projectionMatrix, jitterMat);
-
-            // SetPixelCoordToViewDirWSMatrix for Sky and compute shader
-            var screenSize = new Vector4(cameraData.cameraTargetDescriptor.width, cameraData.cameraTargetDescriptor.height,
-                                        1.0f / cameraData.cameraTargetDescriptor.width, 1.0f / cameraData.cameraTargetDescriptor.height);
-            var gpuProj = cameraData.GetGPUProjectionMatrix(true);
-            var gpuProjAspect = RenderingUtils.ProjectionMatrixAspect(gpuProj);
-            cameraData.SetPixelCoordToViewDirWSMatrix(
-                RenderingUtils.ComputePixelCoordToWorldSpaceViewDirectionMatrix(camera, camera.worldToCameraMatrix, gpuProj, screenSize, gpuProjAspect));
 
             cameraData.worldSpaceCameraPos = camera.transform.position;
 
@@ -1833,14 +1741,6 @@ namespace UnityEngine.Rendering.Universal
             shadowData.resolution = m_ShadowResolutionData;
             shadowData.supportsSoftShadows = urpAsset.supportsSoftShadows && (shadowData.supportsMainLightShadows || shadowData.supportsAdditionalLightShadows);
 
-            // PerObjectShadow
-            shadowData.perObjectShadowMaxObjectsCount = urpAsset.perObjectShadowMaxObjectsCount;
-            shadowData.perObjectShadowMaxDrawDistance = urpAsset.perObjectShadowMaxDrawDistance;
-            shadowData.perObjectShadowShadowMapResolution = urpAsset.perObjectShadowShadowMapResolution;
-            shadowData.perObjectShadowExcludeLayer = urpAsset.perObjectShadowExcludeLayer;
-            shadowData.perObjectShadowDepthBias = urpAsset.perObjectShadowDepthBias;
-            shadowData.perObjectShadowNormalBias = urpAsset.perObjectShadowNormalBias;
-
             return shadowData;
         }
 
@@ -1896,14 +1796,6 @@ namespace UnityEngine.Rendering.Universal
             UniversalLightData lightData = frameData.Create<UniversalLightData>();
 
             lightData.mainLightIndex = GetMainLightIndex(settings, visibleLights);
-
-            var lightCount = visibleLights.Length;
-            var dirlightOffset = 0;
-            while (dirlightOffset < lightCount && visibleLights[dirlightOffset].lightType == LightType.Directional)
-            {
-                dirlightOffset++;
-            }
-            lightData.directionalLightsCount = dirlightOffset;
 
             if (settings.additionalLightsRenderingMode != LightRenderingMode.Disabled)
             {
@@ -2124,9 +2016,9 @@ namespace UnityEngine.Rendering.Universal
             }
         }
 
-        static void SetupPerCameraEnvironmentShaderConstants(CommandBuffer cmd)
+        static void SetupPerCameraShaderConstants(CommandBuffer cmd)
         {
-            using var profScope = new ProfilingScope(Profiling.Pipeline.setupPerCameraEnvShaderConstants);
+            using var profScope = new ProfilingScope(Profiling.Pipeline.setupPerCameraShaderConstants);
 
             // When glossy reflections are OFF in the shader we set a constant color to use as indirect specular
             SphericalHarmonicsL2 ambientSH = RenderSettings.ambientProbe;
@@ -2376,7 +2268,6 @@ namespace UnityEngine.Rendering.Universal
                 case TonemappingMode.ACES:
                     eetfMode = (int)tonemapping.acesPreset.value;
                     break;
-                // TODO: GT tonemapping
             }
 
             hdrOutputParameters = new Vector4(eetfMode, hueShift, 0.0f, 0.0f);

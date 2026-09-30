@@ -105,12 +105,6 @@ namespace UnityEngine.Rendering.Universal.Internal
             }
         }
 
-        internal DrawObjectsPass(URPProfileId profileId, ShaderTagId[] shaderTagIds, bool opaque, RenderPassEvent evt, RenderQueueRange renderQueueRange, LayerMask layerMask, StencilState stencilState, int stencilReference)
-            : this(profileId.GetType().Name, shaderTagIds, opaque, evt, renderQueueRange, layerMask, stencilState, stencilReference)
-        {
-            profilingSampler = ProfilingSampler.Get(profileId);
-        }
-
         /// <inheritdoc/>
         [Obsolete(DeprecationMessage.CompatibilityScriptingAPIObsolete, false)]
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
@@ -321,7 +315,7 @@ namespace UnityEngine.Rendering.Universal.Internal
                     // Currently we only need to call this additional pass when the user
                     // doesn't want transparent objects to receive shadows
                     if (!data.isOpaque && !data.shouldTransparentsReceiveShadows)
-                        TransparentSettingsPass.ExecutePass(context.cmd, data.shouldTransparentsReceiveShadows);
+                        TransparentSettingsPass.ExecutePass(context.cmd);
 
                     bool yFlip = data.cameraData.IsRenderTargetProjectionMatrixFlipped(data.albedoHdl, data.depthHdl);
 
@@ -478,7 +472,7 @@ namespace UnityEngine.Rendering.Universal.Internal
                     // Currently we only need to call this additional pass when the user
                     // doesn't want transparent objects to receive shadows
                     if (!data.basePassData.isOpaque && !data.basePassData.shouldTransparentsReceiveShadows)
-                        TransparentSettingsPass.ExecutePass(context.cmd, data.basePassData.shouldTransparentsReceiveShadows);
+                        TransparentSettingsPass.ExecutePass(context.cmd);
 
                     bool yFlip = data.basePassData.cameraData.IsRenderTargetProjectionMatrixFlipped(data.basePassData.albedoHdl, data.basePassData.depthHdl);
 

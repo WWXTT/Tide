@@ -1,31 +1,32 @@
 {
   "name": "com.unity.render-pipelines.universal",
-  "description": "The Universal Render Pipeline is a prebuilt Scriptable Render Pipeline, made by Unity.",
-  "version": "17.3.0",
-  "unity": "6000.3",
-
+  "description": "The Universal Render Pipeline (URP) is a prebuilt Scriptable Render Pipeline, made by Unity. URP provides artist-friendly workflows that let you quickly and easily create optimized graphics across a range of platforms, from mobile to high-end consoles and PCs.",
+  "version": "17.0.4",
+  "unity": "6000.0",
   "displayName": "Universal RP",
   "dependencies": {
-
-    "com.unity.render-pipelines.core": "17.3.0",
-    "com.unity.shadergraph": "17.3.0"
+    "com.unity.render-pipelines.core": "17.0.4",
+    "com.unity.shadergraph": "17.0.4",
+    "com.unity.render-pipelines.universal-config": "17.0.3"
   },
   "keywords": [
     "graphics",
     "performance",
     "rendering",
-    "Toon",
     "mobile",
     "render",
     "pipeline"
   ],
-
-  "author": {
-    "name": "Danbaidong",
-    "url": "https://github.com/danbaidong1111"
-  },
-  "samples": [],
-
-  "_fingerprint": "ab772dad2c1bf67d1b3463f09340fcdd5ce4659b"
-
+  "samples": [
+    {
+      "displayName": "URP Package Samples",
+      "description": "Collection of scenes showcasing different features of the Universal Render Pipeline.",
+      "path": "Samples~/URPPackageSamples"
+    },
+    {
+      "displayName": "URP RenderGraph Samples",
+      "description": "Collection of scripts with some examples of RenderGraph and how it is used within the Universal Render Pipeline.",
+      "path": "Samples~/URPRenderGraphSamples"
+    }
+  ]
 }

@@ -132,7 +132,7 @@ namespace UnityEngine.Rendering.Universal
                             }
                             case DebugFullScreenMode.MainLightShadowMap:
                             {
-                                BlitToDebugTexture(renderGraph, resourceData.directionalShadowsTexture, debugTexture);
+                                BlitToDebugTexture(renderGraph, resourceData.mainShadowsTexture, debugTexture);
                                 break;
                             }
                             case DebugFullScreenMode.AdditionalLightsCookieAtlas:
@@ -201,7 +201,7 @@ namespace UnityEngine.Rendering.Universal
                 {
                     var debugSettings = DebugHandler.DebugDisplaySettings.gpuResidentDrawerSettings;
 
-                    GPUResidentDrawer.RenderDebugOcclusionTestOverlay(renderGraph, debugSettings, cameraData.camera.GetEntityId(), resourceData.activeColorTexture);
+                    GPUResidentDrawer.RenderDebugOcclusionTestOverlay(renderGraph, debugSettings, cameraData.camera.GetInstanceID(), resourceData.activeColorTexture);
 
                     float screenWidth = (int)(cameraData.pixelHeight * cameraData.renderScale);
                     float screenHeight = (int)(cameraData.pixelHeight * cameraData.renderScale);

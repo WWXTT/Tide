@@ -1,7 +1,6 @@
 // Shadow pass
 Pass
 {
-    Name ${VFXPassShadow}
     Tags { "LightMode"=${VFXPassShadow} }
 
     ZClip [_ZClip]

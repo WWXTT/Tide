@@ -16,9 +16,9 @@ namespace UnityEngine.Rendering.Universal
     {
 #if UNITY_EDITOR
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1812")]
-        internal class CreatePostProcessDataAsset : AssetCreationEndAction
+        internal class CreatePostProcessDataAsset : EndNameEditAction
         {
-            public override void Action(EntityId instanceId, string pathName, string resourceFile)
+            public override void Action(int instanceId, string pathName, string resourceFile)
             {
                 var instance = CreateInstance<PostProcessData>();
                 AssetDatabase.CreateAsset(instance, pathName);

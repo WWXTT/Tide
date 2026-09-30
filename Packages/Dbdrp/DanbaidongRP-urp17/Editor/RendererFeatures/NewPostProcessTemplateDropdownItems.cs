@@ -33,9 +33,9 @@ namespace UnityEditor.Rendering.Universal
             return ProjectWindowUtil.CreateScriptAssetWithContent(targetPath, PreprocessScriptTemplate(content, featureType, volumeType, displayName));
         }
 
-        internal class CreateCombinedScriptTemplateAssetsAction : ProjectWindowCallback.AssetCreationEndAction
+        internal class CreateCombinedScriptTemplateAssetsAction : ProjectWindowCallback.EndNameEditAction
         {
-            public override void Action(EntityId instanceId, string userPath, string resourceFile)
+            public override void Action(int instanceId, string userPath, string resourceFile)
             {
                 string directoryPath = Path.GetDirectoryName(userPath);
                 string enteredName = Path.GetFileNameWithoutExtension(userPath);

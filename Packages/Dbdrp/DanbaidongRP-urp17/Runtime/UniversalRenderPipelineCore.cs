@@ -938,7 +938,6 @@ namespace UnityEngine.Rendering.Universal
     internal static class ShaderGlobalKeywords
     {
         public static GlobalKeyword MainLightShadows;
-        public static GlobalKeyword RayTracingShadows;
         public static GlobalKeyword MainLightShadowCascades;
         public static GlobalKeyword MainLightShadowScreen;
         public static GlobalKeyword CastingPunctualLightShadow;
@@ -955,7 +954,6 @@ namespace UnityEngine.Rendering.Universal
         public static GlobalKeyword MixedLightingSubtractive; // Backward compatibility
         public static GlobalKeyword LightmapShadowMixing;
         public static GlobalKeyword ShadowsShadowMask;
-        public static GlobalKeyword PerObjectScreenSpaceShadow;
         public static GlobalKeyword LightLayers;
         public static GlobalKeyword RenderPassEnabled;
         public static GlobalKeyword BillboardFaceCameraPos;
@@ -1016,9 +1014,6 @@ namespace UnityEngine.Rendering.Universal
         public static GlobalKeyword _OUTPUT_DEPTH;
         public static GlobalKeyword LinearToSRGBConversion;
         public static GlobalKeyword _ENABLE_ALPHA_OUTPUT;
-        public static GlobalKeyword GPULightsCluster;
-        public static GlobalKeyword ScreenSpaceReflection;
-        public static GlobalKeyword DirectionalShadowRamp;
 
         // TODO: Move following keywords to Local keywords?
         // https://docs.unity3d.com/ScriptReference/Rendering.LocalKeyword.html
@@ -1052,7 +1047,6 @@ namespace UnityEngine.Rendering.Universal
         {
             // Init all keywords upfront
             ShaderGlobalKeywords.MainLightShadows = GlobalKeyword.Create(ShaderKeywordStrings.MainLightShadows);
-            ShaderGlobalKeywords.RayTracingShadows = GlobalKeyword.Create(ShaderKeywordStrings.RayTracingShadows);
             ShaderGlobalKeywords.MainLightShadowCascades = GlobalKeyword.Create(ShaderKeywordStrings.MainLightShadowCascades);
             ShaderGlobalKeywords.MainLightShadowScreen = GlobalKeyword.Create(ShaderKeywordStrings.MainLightShadowScreen);
             ShaderGlobalKeywords.CastingPunctualLightShadow = GlobalKeyword.Create(ShaderKeywordStrings.CastingPunctualLightShadow);
@@ -1065,10 +1059,10 @@ namespace UnityEngine.Rendering.Universal
             ShaderGlobalKeywords.SoftShadows = GlobalKeyword.Create(ShaderKeywordStrings.SoftShadows);
             ShaderGlobalKeywords.SoftShadowsLow = GlobalKeyword.Create(ShaderKeywordStrings.SoftShadowsLow);
             ShaderGlobalKeywords.SoftShadowsMedium = GlobalKeyword.Create(ShaderKeywordStrings.SoftShadowsMedium);
+            ShaderGlobalKeywords.SoftShadowsHigh = GlobalKeyword.Create(ShaderKeywordStrings.SoftShadowsHigh);
             ShaderGlobalKeywords.MixedLightingSubtractive = GlobalKeyword.Create(ShaderKeywordStrings.MixedLightingSubtractive);
             ShaderGlobalKeywords.LightmapShadowMixing = GlobalKeyword.Create(ShaderKeywordStrings.LightmapShadowMixing);
             ShaderGlobalKeywords.ShadowsShadowMask = GlobalKeyword.Create(ShaderKeywordStrings.ShadowsShadowMask);
-            ShaderGlobalKeywords.PerObjectScreenSpaceShadow = GlobalKeyword.Create(ShaderKeywordStrings.PerObjectScreenSpaceShadow);
             ShaderGlobalKeywords.LightLayers = GlobalKeyword.Create(ShaderKeywordStrings.LightLayers);
             ShaderGlobalKeywords.RenderPassEnabled = GlobalKeyword.Create(ShaderKeywordStrings.RenderPassEnabled);
             ShaderGlobalKeywords.BillboardFaceCameraPos = GlobalKeyword.Create(ShaderKeywordStrings.BillboardFaceCameraPos);
@@ -1129,8 +1123,6 @@ namespace UnityEngine.Rendering.Universal
             ShaderGlobalKeywords._OUTPUT_DEPTH = GlobalKeyword.Create(ShaderKeywordStrings._OUTPUT_DEPTH);
             ShaderGlobalKeywords.LinearToSRGBConversion = GlobalKeyword.Create(ShaderKeywordStrings.LinearToSRGBConversion);
             ShaderGlobalKeywords._ENABLE_ALPHA_OUTPUT = GlobalKeyword.Create(ShaderKeywordStrings._ENABLE_ALPHA_OUTPUT);
-            ShaderGlobalKeywords.GPULightsCluster = GlobalKeyword.Create(ShaderKeywordStrings.GPULightsCluster);
-            ShaderGlobalKeywords.ScreenSpaceReflection = GlobalKeyword.Create(ShaderKeywordStrings.ScreenSpaceReflection);
         }
     }
 
@@ -1141,9 +1133,6 @@ namespace UnityEngine.Rendering.Universal
     {
         /// <summary> Keyword used for shadows without cascades. </summary>
         public const string MainLightShadows = "_MAIN_LIGHT_SHADOWS";
-
-        /// <summary> Keyword used for shadows with ray tracing. </summary>
-        public const string RayTracingShadows = "_RAYTRACING_SHADOWS";
 
         /// <summary> Keyword used for shadows with cascades. </summary>
         public const string MainLightShadowCascades = "_MAIN_LIGHT_SHADOWS_CASCADE";
@@ -1268,9 +1257,6 @@ namespace UnityEngine.Rendering.Universal
         /// <summary> Keyword used for high quality Bloom. </summary>
         public const string BloomHQ = "_BLOOM_HQ";
 
-        /// <summary> Keyword used for Danbaidong Bloom. </summary>
-        public const string BloomDanbaidong = "_BLOOM_DANBAIDONG";
-
         /// <summary> Keyword used for low quality Bloom dirt. </summary>
         public const string BloomLQDirt = "_BLOOM_LQ_DIRT";
 
@@ -1288,9 +1274,6 @@ namespace UnityEngine.Rendering.Universal
 
         /// <summary> Keyword used for HDR UI Overlay compositing. </summary>
         public const string HDROverlay = "_HDR_OVERLAY";
-
-        public const string TonemapGT = "_TONEMAP_GT";
-        public const string TonemapACESSampleVer = "_TONEMAP_ACES_SAMPLE_VER";
 
         /// <summary> Keyword used for ACES Tonemapping. </summary>
         public const string TonemapACES = "_TONEMAP_ACES";
@@ -1456,15 +1439,6 @@ namespace UnityEngine.Rendering.Universal
 
         /// <summary> Keyword used for enable alpha output. Used in post processing. </summary>
         public const string _ENABLE_ALPHA_OUTPUT = "_ENABLE_ALPHA_OUTPUT";
-
-        /// <summary> Keyword used for per object shadow. </summary>
-        public const string PerObjectScreenSpaceShadow = "_PEROBJECT_SCREEN_SPACE_SHADOW";
-
-        /// <summary> Keyword used for GPULights.</summary>
-        public const string GPULightsCluster = "_GPU_LIGHTS_CLUSTER";
-
-        /// <summary> Keyword used for ScreenSpaceReflection.</summary>
-        public const string ScreenSpaceReflection = "_SCREEN_SPACE_REFLECTION";
     }
 
     public sealed partial class UniversalRenderPipeline
@@ -1560,8 +1534,7 @@ namespace UnityEngine.Rendering.Universal
             if (camera.targetTexture == null)
             {
                 desc = new RenderTextureDescriptor(cameraData.scaledWidth, cameraData.scaledHeight);
-                // Improving quality, added by danbaidong 20240321.
-                desc.graphicsFormat = MakeRenderTextureGraphicsFormat(isHdrEnabled, requestHDRColorBufferPrecision, camera.cameraType == CameraType.Game ? true : needsAlpha);
+                desc.graphicsFormat = MakeRenderTextureGraphicsFormat(isHdrEnabled, requestHDRColorBufferPrecision, needsAlpha);
                 desc.depthStencilFormat = SystemInfo.GetGraphicsFormat(DefaultFormat.DepthStencil);
                 desc.msaaSamples = msaaSamples;
                 desc.sRGB = (QualitySettings.activeColorSpace == ColorSpace.Linear);
@@ -1573,19 +1546,10 @@ namespace UnityEngine.Rendering.Universal
                 desc.width = cameraData.scaledWidth;
                 desc.height = cameraData.scaledHeight;
 
-                //if (camera.cameraType == CameraType.SceneView && !isHdrEnabled)
-                //{
-                //    desc.graphicsFormat = SystemInfo.GetGraphicsFormat(DefaultFormat.LDR);
-                //}
-
-                // Enhancing sceneView quality: Without this adjustment, if no game camera is available,
-                // the sceneView target will default to the baseCamera target type, which is R8G8B8A8.
-                if (camera.cameraType == CameraType.SceneView)
+                if (camera.cameraType == CameraType.SceneView && !isHdrEnabled)
                 {
-                    if (SystemInfo.IsFormatSupported(GraphicsFormat.R16G16B16A16_SFloat, GraphicsFormatUsage.Blend))
-                        desc.graphicsFormat = GraphicsFormat.R16G16B16A16_SFloat;
+                    desc.graphicsFormat = SystemInfo.GetGraphicsFormat(DefaultFormat.LDR);
                 }
-
                 // SystemInfo.SupportsRenderTextureFormat(camera.targetTexture.descriptor.colorFormat)
                 // will assert on R8_SINT since it isn't a valid value of RenderTextureFormat.
                 // If this is fixed then we can implement debug statement to the user explaining why some
@@ -1670,7 +1634,7 @@ namespace UnityEngine.Rendering.Universal
                         lightData.Init(ref discLight);
                         break;
                     default:
-                        lightData.InitNoBake(light.GetEntityId());
+                        lightData.InitNoBake(light.GetInstanceID());
                         break;
                 }
 
@@ -1684,7 +1648,7 @@ namespace UnityEngine.Rendering.Universal
                 for (int i = 0; i < requests.Length; i++)
                 {
                     Light light = requests[i];
-                    lightData.InitNoBake(light.GetEntityId());
+                    lightData.InitNoBake(light.GetInstanceID());
                     lightsOutput[i] = lightData;
                 }
             }
@@ -1714,14 +1678,14 @@ namespace UnityEngine.Rendering.Universal
                             break;
                         case LightType.Rectangle:
                             // Rect area light is baked only in URP.
-                            lightData.InitNoBake(light.GetEntityId());
+                            lightData.InitNoBake(light.GetInstanceID());
                             break;
                         case LightType.Disc:
                             // Disc light is baked only.
-                            lightData.InitNoBake(light.GetEntityId());
+                            lightData.InitNoBake(light.GetInstanceID());
                             break;
                         default:
-                            lightData.InitNoBake(light.GetEntityId());
+                            lightData.InitNoBake(light.GetInstanceID());
                             break;
                     }
                     lightData.falloff = FalloffType.InverseSquared;
@@ -1894,19 +1858,6 @@ namespace UnityEngine.Rendering.Universal
         DrawDepthNormalPrepass,
         DepthPrepass,
         UpdateReflectionProbeAtlas,
-        GPUCopy,
-        DepthPyramid,
-        BuildGPULightsData,
-        GPULights,
-        GPULightsGlobalAsync,
-        RenderSkyToCubemap,
-        GenerateMipmaps,
-        UpdateSkyAmbientProbe,
-        UpdataSkyEnvConvolution,
-        FilterCubemapGGX,
-
-        // RayTracing
-        RaytracingBuildAccelerationStructure,
 
         // DrawObjectsPass
         DrawOpaqueObjects,
@@ -1922,13 +1873,8 @@ namespace UnityEngine.Rendering.Universal
         LightCookies,
 
         MainLightShadow,
-        DirectionalLightsShadow,
         ResolveShadows,
         SSAO,
-        RenderSSR,
-        RenderSSAO,
-        RenderSSShadow,
-        RenderShadowScatter,
 
         // PostProcessPass
         StopNaNs,
