@@ -40,8 +40,8 @@ namespace UnityEngine.Rendering.Universal
     internal struct PostProcessPasses : IDisposable
     {
         ColorGradingLutPass m_ColorGradingLutPass;
-        PostProcessPassLegacy m_PostProcessPass;
-        PostProcessPassLegacy m_FinalPostProcessPass;
+        PostProcessPass m_PostProcessPass;
+        PostProcessPass m_FinalPostProcessPass;
 
         internal RTHandle m_AfterPostProcessColor;
         internal RTHandle m_ColorGradingLut;
@@ -51,8 +51,8 @@ namespace UnityEngine.Rendering.Universal
         Material m_BlitMaterial;
 
         public ColorGradingLutPass colorGradingLutPass { get => m_ColorGradingLutPass; }
-        public PostProcessPassLegacy postProcessPass { get => m_PostProcessPass; }
-        public PostProcessPassLegacy finalPostProcessPass { get => m_FinalPostProcessPass; }
+        public PostProcessPass postProcessPass { get => m_PostProcessPass; }
+        public PostProcessPass finalPostProcessPass { get => m_FinalPostProcessPass; }
         public RTHandle afterPostProcessColor { get => m_AfterPostProcessColor; }
         public RTHandle colorGradingLut { get => m_ColorGradingLut; }
 
@@ -107,8 +107,8 @@ namespace UnityEngine.Rendering.Universal
             if (data != null)
             {
                 m_ColorGradingLutPass = new ColorGradingLutPass(RenderPassEvent.BeforeRenderingPrePasses, data);
-                m_PostProcessPass = new PostProcessPassLegacy(RenderPassEvent.AfterRenderingPostProcessing - 1, data, ref ppParams);
-                m_FinalPostProcessPass = new PostProcessPassLegacy(RenderPassEvent.AfterRendering - 1, data, ref ppParams);
+                m_PostProcessPass = new PostProcessPass(RenderPassEvent.AfterRenderingPostProcessing - 1, data, ref ppParams);
+                m_FinalPostProcessPass = new PostProcessPass(RenderPassEvent.AfterRendering - 1, data, ref ppParams);
                 m_CurrentPostProcessData = data;
             }
         }

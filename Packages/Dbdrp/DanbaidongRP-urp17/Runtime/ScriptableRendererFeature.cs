@@ -1,4 +1,5 @@
 using System;
+using UnityEngine.Scripting.APIUpdating;
 
 namespace UnityEngine.Rendering.Universal
 {
@@ -8,41 +9,13 @@ namespace UnityEngine.Rendering.Universal
     /// <seealso cref="ScriptableRenderer"/>
     /// <seealso cref="ScriptableRenderPass"/>
     [ExcludeFromPreset]
-    public abstract partial class ScriptableRendererFeature : ScriptableObject, IDisposable
+    public abstract class ScriptableRendererFeature : ScriptableObject, IDisposable
     {
         [SerializeField, HideInInspector] private bool m_Active = true;
         /// <summary>
         /// Returns the state of the ScriptableRenderFeature (true: the feature is active, false: the feature is inactive). Use the method ScriptableRenderFeature.SetActive to change the value of this variable.
         /// </summary>
         public bool isActive => m_Active;
-        
-        /// <summary>
-        /// Specifies whether a render pass makes use of an intermediate texture.
-        /// This allows for early optimization by skipping incompatible passes.
-        /// </summary>
-        [Obsolete("This enum is not used. #from(6000.3)", false)]
-        public enum IntermediateTextureUsage 
-        {
-            /// <summary>
-            /// The usage is not specified. The system will attempt to run the passes and determine compatibility at execution time.
-            /// </summary>
-            Unknown, 
-            /// <summary>
-            /// The passes require or use an intermediate texture.
-            /// </summary>
-            Required, 
-            /// <summary>
-            /// The passes do not use an intermediate texture.
-            /// This signals that the passes can be safely skipped if no intermediate texture is available.
-            /// </summary>
-            NotRequired 
-        }
-
-        /// <summary>
-        /// Specifies the feature's dependency on an intermediate texture. Override this property to allow the renderer to optimize its setup by skipping the creation of render passes for features that are incompatible with the pipeline's Intermediate Texture setting.
-        /// </summary>
-        [Obsolete("This property is not used. #from(6000.3)", false)]
-        protected virtual IntermediateTextureUsage useIntermediateTextures => IntermediateTextureUsage.Unknown;
 
         /// <summary>
         /// Initializes this feature's resources. This is called every time serialization happens.
@@ -63,6 +36,13 @@ namespace UnityEngine.Rendering.Universal
         /// <param name="renderingData">Rendering state. Use this to setup render passes.</param>
         public abstract void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData);
 
+        /// <summary>
+        /// Callback after render targets are initialized. This allows for accessing targets from renderer after they are created and ready.
+        /// </summary>
+        /// <param name="renderer">Renderer used for adding render passes.</param>
+        /// <param name="renderingData">Rendering state. Use this to setup render passes.</param>
+        public virtual void SetupRenderPasses(ScriptableRenderer renderer, in RenderingData renderingData) { }
+
         void OnEnable()
         {
             // UUM-44048: If the pipeline is not created, don't call Create() as it may allocate RTHandles or do other
@@ -80,6 +60,14 @@ namespace UnityEngine.Rendering.Universal
         }
 
         /// <summary>
+        /// Override this method and return true if the feature should use the Native RenderPass API
+        /// </summary>
+        internal virtual bool SupportsNativeRenderPass()
+        {
+            return false;
+        }
+
+        /// <summary>
         /// Override this method and return true that renderer would produce rendering layers texture.
         /// </summary>
         /// <param name="isDeferred">True if renderer is using deferred rendering mode</param>
@@ -89,7 +77,7 @@ namespace UnityEngine.Rendering.Universal
         /// <returns></returns>
         internal virtual bool RequireRenderingLayers(bool isDeferred, bool needsGBufferAccurateNormals, out RenderingLayerUtils.Event atEvent, out RenderingLayerUtils.MaskSize maskSize)
         {
-            atEvent = RenderingLayerUtils.Event.Opaque;
+            atEvent = RenderingLayerUtils.Event.DepthNormalPrePass;
             maskSize = RenderingLayerUtils.MaskSize.Bits8;
             return false;
         }
@@ -122,7 +110,5 @@ namespace UnityEngine.Rendering.Universal
         protected virtual void Dispose(bool disposing)
         {
         }
-
-        internal ScriptableRenderer.RenderingFeatures supportedRenderingFeatures { get; set; } = new ScriptableRenderer.RenderingFeatures();
     }
 }
