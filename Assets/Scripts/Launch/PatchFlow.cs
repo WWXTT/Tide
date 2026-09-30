@@ -18,37 +18,36 @@ namespace Tide.Launch
             if (!await WaitOp(initOp, "初始化资源包"))
                 return false;
 
-            if (playMode == EPlayMode.HostPlayMode || playMode == EPlayMode.WebPlayMode)
+            // 所有模式统一走 版本号→激活清单：SetActiveManifest 只在 LoadPackageManifestAsync 内发生，
+            // 缺了这步 LoadSceneAsync 会抛 "Active package manifest not found"（模拟/离线版本号由本地文件系统提供）
+            var versionOp = package.RequestPackageVersionAsync();
+            if (!await WaitOp(versionOp, "获取资源版本"))
+                return false;
+            PatchConsole.Info($"资源版本：{versionOp.PackageVersion}");
+
+            var manifestOp = package.LoadPackageManifestAsync(new LoadPackageManifestOptions(versionOp.PackageVersion, 60));
+            if (!await WaitOp(manifestOp, "加载资源清单"))
+                return false;
+
+            // HostPlayMode 显式下载全部资源包；WebPlayMode 按需流式加载，跳过下载器
+            if (playMode == EPlayMode.HostPlayMode)
             {
-                var versionOp = package.RequestPackageVersionAsync();
-                if (!await WaitOp(versionOp, "获取资源版本"))
-                    return false;
-                PatchConsole.Info($"资源版本：{versionOp.PackageVersion}");
-
-                var manifestOp = package.LoadPackageManifestAsync(new LoadPackageManifestOptions(versionOp.PackageVersion, 60));
-                if (!await WaitOp(manifestOp, "加载资源清单"))
-                    return false;
-
-                // HostPlayMode 显式下载全部资源包；WebPlayMode 按需流式加载，跳过下载器
-                if (playMode == EPlayMode.HostPlayMode)
+                var downloader = package.CreateResourceDownloader(new ResourceDownloaderOptions(8, 3));
+                if (downloader.TotalDownloadCount > 0)
                 {
-                    var downloader = package.CreateResourceDownloader(new ResourceDownloaderOptions(8, 3));
-                    if (downloader.TotalDownloadCount > 0)
+                    PatchConsole.Info($"发现 {downloader.TotalDownloadCount} 个文件待更新");
+                    downloader.StartDownload();
+                    while (!downloader.IsDone)
                     {
-                        PatchConsole.Info($"发现 {downloader.TotalDownloadCount} 个文件待更新");
-                        downloader.StartDownload();
-                        while (!downloader.IsDone)
-                        {
-                            PatchConsole.Progress(
-                                downloader.CurrentDownloadCount, downloader.TotalDownloadCount,
-                                downloader.CurrentDownloadBytes, downloader.TotalDownloadBytes);
-                            await UniTask.Yield();
-                        }
-                        if (downloader.Status != EOperationStatus.Succeeded)
-                        {
-                            PatchConsole.Error($"资源下载失败：{downloader.Error}");
-                            return false;
-                        }
+                        PatchConsole.Progress(
+                            downloader.CurrentDownloadCount, downloader.TotalDownloadCount,
+                            downloader.CurrentDownloadBytes, downloader.TotalDownloadBytes);
+                        await UniTask.Yield();
+                    }
+                    if (downloader.Status != EOperationStatus.Succeeded)
+                    {
+                        PatchConsole.Error($"资源下载失败：{downloader.Error}");
+                        return false;
                     }
                 }
             }

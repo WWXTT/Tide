@@ -18,7 +18,7 @@ MonoBehaviour:
   Packages:
   - PackageName: DefaultPackage
     PackageDesc: "Tide \u9ED8\u8BA4\u8D44\u6E90\u5305"
-    EnableAddressable: 0
+    EnableAddressable: 1
     SupportExtensionless: 1
     LocationToLower: 0
     IncludeAssetGUID: 0
@@ -61,20 +61,7 @@ MonoBehaviour:
         CollectorType: 0
         AddressRuleName: AddressByFileName
         PackRuleName: PackDirectory
-        FilterRuleName: CollectAll
-        AssetTags: 
-        UserData: 
-    - GroupName: Art
-      GroupDesc: Art
-      AssetTags: 
-      ActiveRuleName: EnableGroup
-      Collectors:
-      - CollectPath: Assets/Art
-        CollectorGUID: f9682571504a2474680777d24ea29e35
-        CollectorType: 0
-        AddressRuleName: AddressByFileName
-        PackRuleName: PackDirectory
-        FilterRuleName: CollectAll
+        FilterRuleName: CollectAllExceptLaunch
         AssetTags: 
         UserData: 
     - GroupName: Configs
@@ -98,6 +85,32 @@ MonoBehaviour:
       - CollectPath: Assets/UI/Res
         CollectorGUID: 1fc5fd11defe247439a93949dd0b87bb
         CollectorType: 0
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackDirectory
+        FilterRuleName: CollectAll
+        AssetTags: 
+        UserData: 
+    - GroupName: AIModel
+      GroupDesc: AIModel
+      AssetTags: 
+      ActiveRuleName: EnableGroup
+      Collectors:
+      - CollectPath: Assets/Art/AIModels
+        CollectorGUID: 6f9f83d37ed2cb444b63603ad8b70aa3
+        CollectorType: 0
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackDirectory
+        FilterRuleName: CollectAll
+        AssetTags: 
+        UserData: 
+    - GroupName: ArtStatic
+      GroupDesc: ArtStatic
+      AssetTags: 
+      ActiveRuleName: EnableGroup
+      Collectors:
+      - CollectPath: Assets/Art/HexMap
+        CollectorGUID: 515d130b280c4ccf8f20f28e13c9516f
+        CollectorType: 1
         AddressRuleName: AddressByFileName
         PackRuleName: PackDirectory
         FilterRuleName: CollectAll

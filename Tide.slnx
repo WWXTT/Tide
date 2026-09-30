@@ -1,12 +1,12 @@
 ﻿<Solution>
   <Project Path="Unity.RenderPipelines.Universal.Runtime.csproj" />
   <Project Path="MCPForUnity.Runtime.csproj" />
+  <Project Path="Tide.HotUpdate.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.2D.Runtime.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Editor.csproj" />
   <Project Path="PPv2URPConverters.csproj" />
   <Project Path="Crest.csproj" />
   <Project Path="MCPForUnity.Editor.csproj" />
-  <Project Path="Assembly-CSharp.csproj" />
   <Project Path="HexMap.ECS.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="Crest.Examples.csproj" />
@@ -14,6 +14,7 @@
   <Project Path="Crest.Helpers.Editor.csproj" />
   <Project Path="Unity.SmoothNormalTool.Runtime.csproj" />
   <Project Path="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
+  <Project Path="Assembly-CSharp.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Shaders.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Config.Runtime.csproj" />
 </Solution>

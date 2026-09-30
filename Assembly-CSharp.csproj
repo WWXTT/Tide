@@ -24,7 +24,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <NoWarn>0169;USG0001</NoWarn>
-    <DefineConstants>UNITY_6000_5_10;UNITY_6000_5;UNITY_6000;UNITY_5_3_OR_NEWER;UNITY_5_4_OR_NEWER;UNITY_5_5_OR_NEWER;UNITY_5_6_OR_NEWER;UNITY_2017_1_OR_NEWER;UNITY_2017_2_OR_NEWER;UNITY_2017_3_OR_NEWER;UNITY_2017_4_OR_NEWER;UNITY_2018_1_OR_NEWER;UNITY_2018_2_OR_NEWER;UNITY_2018_3_OR_NEWER;UNITY_2018_4_OR_NEWER;UNITY_2019_1_OR_NEWER;UNITY_2019_2_OR_NEWER;UNITY_2019_3_OR_NEWER;UNITY_2019_4_OR_NEWER;UNITY_2020_1_OR_NEWER;UNITY_2020_2_OR_NEWER;UNITY_2020_3_OR_NEWER;UNITY_2021_1_OR_NEWER;UNITY_2021_2_OR_NEWER;UNITY_2021_3_OR_NEWER;UNITY_2022_1_OR_NEWER;UNITY_2022_2_OR_NEWER;UNITY_2022_3_OR_NEWER;UNITY_2023_1_OR_NEWER;UNITY_2023_2_OR_NEWER;UNITY_2023_3_OR_NEWER;UNITY_6000_0_OR_NEWER;UNITY_6000_1_OR_NEWER;UNITY_6000_2_OR_NEWER;UNITY_6000_3_OR_NEWER;UNITY_6000_4_OR_NEWER;UNITY_6000_5_OR_NEWER;PLATFORM_ARCH_64;UNITY_64;UNITY_INCLUDE_TESTS;ENABLE_AR;ENABLE_AUDIO;ENABLE_AUDIO_SCRIPTABLE_PIPELINE;ENABLE_CACHING;ENABLE_CLOTH;ENABLE_EVENT_QUEUE;ENABLE_MICROPHONE;ENABLE_MULTIPLE_DISPLAYS;ENABLE_PHYSICS;ENABLE_TEXTURE_STREAMING;ENABLE_VIRTUALTEXTURING;ENABLE_LZMA;ENABLE_UNITYEVENTS;ENABLE_VR;ENABLE_WEBCAM;ENABLE_UNITYWEBREQUEST;ENABLE_WWW;ENABLE_CLOUD_SERVICES;ENABLE_CLOUD_SERVICES_ADS;ENABLE_CLOUD_SERVICES_USE_WEBREQUEST;ENABLE_UNITY_CONSENT;ENABLE_UNITY_CLOUD_IDENTIFIERS;ENABLE_CLOUD_SERVICES_CRASH_REPORTING;ENABLE_CLOUD_SERVICES_NATIVE_CRASH_REPORTING;ENABLE_CLOUD_SERVICES_PURCHASING;ENABLE_CLOUD_SERVICES_ANALYTICS;ENABLE_CLOUD_SERVICES_BUILD;ENABLE_EDITOR_GAME_SERVICES;ENABLE_UNITY_GAME_SERVICES_ANALYTICS_SUPPORT;ENABLE_CLOUD_LICENSE;ENABLE_EDITOR_HUB_LICENSE;ENABLE_WEBSOCKET_CLIENT;ENABLE_GENERATE_NATIVE_PLUGINS_FOR_ASSEMBLIES_API;ENABLE_DIRECTOR_AUDIO;ENABLE_DIRECTOR_TEXTURE;ENABLE_MANAGED_JOBS;ENABLE_MANAGED_TRANSFORM_JOBS;ENABLE_MANAGED_ANIMATION_JOBS;ENABLE_MANAGED_AUDIO_JOBS;ENABLE_MANAGED_UNITYTLS;INCLUDE_DYNAMIC_GI;ENABLE_SCRIPTING_GC_WBARRIERS;PLATFORM_SUPPORTS_MONO;RENDER_SOFTWARE_CURSOR;ENABLE_MARSHALLING_TESTS;ENABLE_VIDEO;ENABLE_NAVIGATION_OFFMESHLINK_TO_NAVMESHLINK;ENABLE_ACCELERATOR_CLIENT_DEBUGGING;ENABLE_ACCESSIBILITY_SCREEN_READER;TEXTCORE_1_0_OR_NEWER;EDITOR_ONLY_NAVMESH_BUILDER_DEPRECATED;PLATFORM_STANDALONE_WIN;PLATFORM_STANDALONE;UNITY_STANDALONE_WIN;UNITY_STANDALONE;ENABLE_RUNTIME_GI;ENABLE_MOVIES;ENABLE_NETWORK;ENABLE_NVIDIA;ENABLE_AMD;ENABLE_CRUNCH_TEXTURE_COMPRESSION;ENABLE_CLOUD_SERVICES_ENGINE_DIAGNOSTICS;ENABLE_OUT_OF_PROCESS_CRASH_HANDLER;ENABLE_CLUSTER_SYNC;ENABLE_CLUSTERINPUT;PLATFORM_UPDATES_TIME_OUTSIDE_OF_PLAYER_LOOP;GFXDEVICE_WAITFOREVENT_MESSAGEPUMP;PLATFORM_USES_EXPLICIT_MEMORY_MANAGER_INITIALIZER;PLATFORM_SUPPORTS_WAIT_FOR_PRESENTATION;PLATFORM_SUPPORTS_SPLIT_GRAPHICS_JOBS;PLATFORM_USES_VULKAN_OLD_SWAPCHAIN;USE_READ_ASYNC_MANAGED_API;ENABLE_MONO;NET_STANDARD_2_0;NET_STANDARD;NET_STANDARD_2_1;NETSTANDARD;NETSTANDARD2_1;ENABLE_PROFILER;DEBUG;TRACE;UNITY_ASSERTIONS;UNITY_EDITOR;UNITY_EDITOR_64;UNITY_EDITOR_WIN;ENABLE_UNITY_COLLECTIONS_CHECKS;ENABLE_BURST_AOT;UNITY_TEAM_LICENSE;ENABLE_CUSTOM_RENDER_TEXTURE;ENABLE_DIRECTOR;ENABLE_LOCALIZATION;ENABLE_SPRITES;ENABLE_TERRAIN;ENABLE_TILEMAP;ENABLE_TIMELINE;ENABLE_LEGACY_INPUT_MANAGER;TEXTCORE_FONT_ENGINE_1_5_OR_NEWER;TEXTCORE_TEXT_ENGINE_1_5_OR_NEWER;TEXTCORE_FONT_ENGINE_1_6_OR_NEWER;ENABLE_HEX_DEBUG_LABEL;MIRROR_17_0_OR_NEWER;MIRROR_18_0_OR_NEWER;MIRROR_24_0_OR_NEWER;MIRROR_26_0_OR_NEWER;MIRROR_27_0_OR_NEWER;MIRROR_28_0_OR_NEWER;MIRROR_29_0_OR_NEWER;MIRROR_30_0_OR_NEWER;MIRROR_30_5_2_OR_NEWER;MIRROR_32_1_2_OR_NEWER;MIRROR_32_1_4_OR_NEWER;MIRROR_35_0_OR_NEWER;MIRROR_35_1_OR_NEWER;MIRROR_37_0_OR_NEWER;MIRROR_38_0_OR_NEWER;MIRROR_39_0_OR_NEWER;MIRROR_40_0_OR_NEWER;MIRROR_41_0_OR_NEWER;MIRROR_42_0_OR_NEWER;MIRROR_43_0_OR_NEWER;MIRROR_44_0_OR_NEWER;MIRROR_46_0_OR_NEWER;MIRROR_47_0_OR_NEWER;MIRROR_53_0_OR_NEWER;MIRROR_55_0_OR_NEWER;MIRROR_57_0_OR_NEWER;MIRROR_58_0_OR_NEWER;MIRROR_65_0_OR_NEWER;MIRROR_66_0_OR_NEWER;MIRROR_2022_9_OR_NEWER;MIRROR_2022_10_OR_NEWER;MIRROR_70_0_OR_NEWER;MIRROR_71_0_OR_NEWER;MIRROR_73_OR_NEWER;MIRROR_78_OR_NEWER;MIRROR_79_OR_NEWER;MIRROR_81_OR_NEWER;MIRROR_82_OR_NEWER;MIRROR_83_OR_NEWER;MIRROR_84_OR_NEWER;MIRROR_85_OR_NEWER;MIRROR_86_OR_NEWER;MIRROR_89_OR_NEWER;MIRROR_90_OR_NEWER;MIRROR_93_OR_NEWER;EDGEGAP_PLUGIN_SERVERS;DOTWEEN;MIRROR_96_OR_NEWER;SENTIS_ANALYTICS_ENABLED;CREST_OCEAN;CSHARP_7_OR_LATER;CSHARP_7_3_OR_NEWER</DefineConstants>
+    <DefineConstants>UNITY_6000_5_10;UNITY_6000_5;UNITY_6000;UNITY_5_3_OR_NEWER;UNITY_5_4_OR_NEWER;UNITY_5_5_OR_NEWER;UNITY_5_6_OR_NEWER;UNITY_2017_1_OR_NEWER;UNITY_2017_2_OR_NEWER;UNITY_2017_3_OR_NEWER;UNITY_2017_4_OR_NEWER;UNITY_2018_1_OR_NEWER;UNITY_2018_2_OR_NEWER;UNITY_2018_3_OR_NEWER;UNITY_2018_4_OR_NEWER;UNITY_2019_1_OR_NEWER;UNITY_2019_2_OR_NEWER;UNITY_2019_3_OR_NEWER;UNITY_2019_4_OR_NEWER;UNITY_2020_1_OR_NEWER;UNITY_2020_2_OR_NEWER;UNITY_2020_3_OR_NEWER;UNITY_2021_1_OR_NEWER;UNITY_2021_2_OR_NEWER;UNITY_2021_3_OR_NEWER;UNITY_2022_1_OR_NEWER;UNITY_2022_2_OR_NEWER;UNITY_2022_3_OR_NEWER;UNITY_2023_1_OR_NEWER;UNITY_2023_2_OR_NEWER;UNITY_2023_3_OR_NEWER;UNITY_6000_0_OR_NEWER;UNITY_6000_1_OR_NEWER;UNITY_6000_2_OR_NEWER;UNITY_6000_3_OR_NEWER;UNITY_6000_4_OR_NEWER;UNITY_6000_5_OR_NEWER;UNITY_INCLUDE_TESTS;ENABLE_AR;ENABLE_AUDIO;ENABLE_AUDIO_SCRIPTABLE_PIPELINE;ENABLE_CACHING;ENABLE_CLOTH;ENABLE_EVENT_QUEUE;ENABLE_MICROPHONE;ENABLE_MULTIPLE_DISPLAYS;ENABLE_PHYSICS;ENABLE_TEXTURE_STREAMING;ENABLE_LZMA;ENABLE_UNITYEVENTS;ENABLE_VR;ENABLE_WEBCAM;ENABLE_UNITYWEBREQUEST;ENABLE_WWW;ENABLE_CLOUD_SERVICES;ENABLE_CLOUD_SERVICES_ADS;ENABLE_CLOUD_SERVICES_USE_WEBREQUEST;ENABLE_UNITY_CONSENT;ENABLE_UNITY_CLOUD_IDENTIFIERS;ENABLE_CLOUD_SERVICES_CRASH_REPORTING;ENABLE_CLOUD_SERVICES_NATIVE_CRASH_REPORTING;ENABLE_CLOUD_SERVICES_PURCHASING;ENABLE_CLOUD_SERVICES_ANALYTICS;ENABLE_CLOUD_SERVICES_BUILD;ENABLE_EDITOR_GAME_SERVICES;ENABLE_UNITY_GAME_SERVICES_ANALYTICS_SUPPORT;ENABLE_CLOUD_LICENSE;ENABLE_EDITOR_HUB_LICENSE;ENABLE_WEBSOCKET_CLIENT;ENABLE_GENERATE_NATIVE_PLUGINS_FOR_ASSEMBLIES_API;ENABLE_DIRECTOR_AUDIO;ENABLE_DIRECTOR_TEXTURE;ENABLE_MANAGED_JOBS;ENABLE_MANAGED_TRANSFORM_JOBS;ENABLE_MANAGED_ANIMATION_JOBS;ENABLE_MANAGED_AUDIO_JOBS;ENABLE_ENGINE_CODE_STRIPPING;ENABLE_ONSCREEN_KEYBOARD;ENABLE_MANAGED_UNITYTLS;INCLUDE_DYNAMIC_GI;ENABLE_SCRIPTING_GC_WBARRIERS;PLATFORM_SUPPORTS_MONO;ENABLE_MARSHALLING_TESTS;ENABLE_VIDEO;ENABLE_NAVIGATION_OFFMESHLINK_TO_NAVMESHLINK;ENABLE_ACCELERATOR_CLIENT_DEBUGGING;ENABLE_ACCESSIBILITY_SCREEN_READER;ENABLE_ACCESSIBILITY_SETTINGS;TEXTCORE_1_0_OR_NEWER;EDITOR_ONLY_NAVMESH_BUILDER_DEPRECATED;PLATFORM_ANDROID;UNITY_ANDROID;UNITY_ANDROID_API;ENABLE_EGL;ENABLE_NETWORK;ENABLE_RUNTIME_GI;ENABLE_CRUNCH_TEXTURE_COMPRESSION;ENABLE_CLOUD_SERVICES_ENGINE_DIAGNOSTICS;ENABLE_FIREBASE_IDENTIFIERS;UNITY_CAN_SHOW_SPLASH_SCREEN;UNITY_HAS_GOOGLEVR;UNITY_HAS_TANGO;ENABLE_SPATIALTRACKING;ENABLE_ETC_COMPRESSION;PLATFORM_EXTENDS_VULKAN_DEVICE;PLATFORM_HAS_MULTIPLE_SWAPCHAINS;UNITY_ANDROID_SUPPORTS_SHADOWFILES;PLATFORM_UPDATES_TIME_OUTSIDE_OF_PLAYER_LOOP;PLATFORM_EXTENDS_VULKAN_PIPELINE_CACHE;PLATFORM_SUPPORTS_SPLIT_GRAPHICS_JOBS;PLATFORM_HAS_ADDITIONAL_API_CHECKS;PLATFORM_HAS_GRAPHICS_JOBS_SUPPORT_CHECK_OVERRIDE;PLATFORM_IMPLEMENTS_INSIGHTS_ANR;PLATFORM_SUPPORTS_INSIGHTS_DEVICE_INFO;ENABLE_ANDROID_ADVERTISING_IDS;PLATFORM_HAS_BUGGY_MSAA_RESOLVE;ENABLE_ANDROID_APP_SET_ID;ENABLE_INSIGHTS_PLATFORM_SPECIFIC_RESOURCES;PLATFORM_REQUIRES_TETHERED_VULKAN_COMMAND_POOL;ENABLE_UNITYADS_RUNTIME;UNITY_UNITYADS_API;ENABLE_MONO;NET_STANDARD_2_0;NET_STANDARD;NET_STANDARD_2_1;NETSTANDARD;NETSTANDARD2_1;ENABLE_PROFILER;DEBUG;TRACE;UNITY_ASSERTIONS;UNITY_EDITOR;UNITY_EDITOR_64;UNITY_EDITOR_WIN;ENABLE_UNITY_COLLECTIONS_CHECKS;ENABLE_BURST_AOT;UNITY_TEAM_LICENSE;ENABLE_CUSTOM_RENDER_TEXTURE;ENABLE_DIRECTOR;ENABLE_LOCALIZATION;ENABLE_SPRITES;ENABLE_TERRAIN;ENABLE_TILEMAP;ENABLE_TIMELINE;ENABLE_LEGACY_INPUT_MANAGER;TEXTCORE_FONT_ENGINE_1_5_OR_NEWER;TEXTCORE_TEXT_ENGINE_1_5_OR_NEWER;TEXTCORE_FONT_ENGINE_1_6_OR_NEWER;DOTWEEN;MIRROR;MIRROR_89_OR_NEWER;MIRROR_90_OR_NEWER;MIRROR_93_OR_NEWER;MIRROR_96_OR_NEWER;EDGEGAP_PLUGIN_SERVERS;SENTIS_ANALYTICS_ENABLED;CREST_OCEAN;APP_UI_EDITOR_ONLY;CSHARP_7_OR_LATER;CSHARP_7_3_OR_NEWER</DefineConstants>
     <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup>
@@ -39,7 +39,7 @@
     <UnityProjectGeneratorVersion>2.0.28</UnityProjectGeneratorVersion>
     <UnityProjectGeneratorStyle>SDK</UnityProjectGeneratorStyle>
     <UnityProjectType>Game:1</UnityProjectType>
-    <UnityBuildTarget>StandaloneWindows64:19</UnityBuildTarget>
+    <UnityBuildTarget>Android:13</UnityBuildTarget>
     <UnityVersion>6000.5.10f1</UnityVersion>
   </PropertyGroup>
   <ItemGroup>
@@ -68,208 +68,33 @@
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\BCLExtensions\TargetingPacks\netstandard2.1\analyzers\dotnet\roslyn4.0\cs\System.Text.Json.SourceGeneration.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\Scripts\CardCore\Network\NetSnapshotBuilder.cs" />
-    <Compile Include="Assets\Scripts\CardCore\BaseSystems\CombatSystem.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\TriggerTiming.cs" />
-    <Compile Include="Assets\UI\Data\DeckSerializer.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\ActivationConditions.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Enums\Zones.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\TargetSelection.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Serialization\MemoryPackDTOs.cs" />
-    <Compile Include="Assets\Scripts\CardCore\BaseSystems\ElementUnlockManager.cs" />
-    <Compile Include="Assets\UI\Screens\MainMenuScreen.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Layers\CopyEffects.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\CardEffectConverter.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\TriggerPayloadFilter.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\ThirdBatchEffectHandlers.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Cards\CardData.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Cards\CardExtensions.cs" />
-    <Compile Include="Assets\UI\Screens\EffectComposerScreen.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\SpeedSystem.cs" />
-    <Compile Include="Assets\Scripts\CardCore\BaseSystems\TimestampSystem.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\BranchConditionEvaluator.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\AtomicEffectPhaseEvents.cs" />
-    <Compile Include="Assets\Scripts\CardCore\BaseSystems\StateBasedActions\StateBasedActions.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Network\NetEventMessages.cs" />
-    <Compile Include="Assets\Scripts\CardCore\ValueSystem\ValueSystemRuntimeConfig.cs" />
-    <Compile Include="Assets\Scripts\AI\NeuralEnv\FieldValueReward.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Board\BoardLayout.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\TargetKind.cs" />
-    <Compile Include="Assets\Scripts\CardCore\BaseSystems\MatchLogService.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Cards\CardTypes.cs" />
-    <Compile Include="Assets\Scripts\CardCore\GameCore\GameCore.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\TargetFilterSystem.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\MorphSystem.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\GameRng.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Layers\LayerEngine.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Cards\Card.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\EffectExecutionEngine.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Network\GameMessages.cs" />
-    <Compile Include="Assets\Scripts\CardCore\BaseSystems\HeroSkillSystem.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\AtomicEffectTable.cs" />
-    <Compile Include="Assets\UI\Screens\PlaceholderScreens.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\AttributeEvents.cs" />
-    <Compile Include="Assets\UI\Screens\DeckBuilderScreen.cs" />
-    <Compile Include="Assets\UI\Data\CardCostCalculator.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\AtomicEffectConfig.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\StatGrantRouter.cs" />
-    <Compile Include="Assets\UI\Screens\BattleViewData.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Enums\ColorIdentity.cs" />
-    <Compile Include="Assets\UI\Data\ColorFilter.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Network\NetMatchHandshake.cs" />
-    <Compile Include="Assets\UI\Screens\CardComposerScreen.cs" />
-    <Compile Include="Assets\Scripts\HotUpdate\HotUpdateEntry.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\ReplacementEngine.cs" />
-    <Compile Include="Assets\UI\Data\EffectLibrarySerializer.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\MountKind.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\RitualSystem.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Layers\ContinuousEffectDurationTracker.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Scripts\ShowHide.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\CardCostService.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\KeywordEffectMapper.cs" />
-    <Compile Include="Assets\Scripts\CardCore\NetSession\NetSessionServer.cs" />
-    <Compile Include="Assets\Scripts\AI\SimpleAI.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Network\NetworkIntentApplier.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Network\NetworkTargetSelector.cs" />
-    <Compile Include="Assets\Scripts\AI\AiStrategy.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Scripts\FPSController.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Layers\CharacteristicDefiningAbilities.cs" />
-    <Compile Include="Assets\UI\Screens\BattleEventText.cs" />
-    <Compile Include="Assets\UI\Screens\UiTargetSelector.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\EffectsLibrary.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\IAtomicEffectHandler.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\KeywordRules.cs" />
-    <Compile Include="Assets\Scripts\CardCore\GameCore\GameStateManager.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\EquipRules.cs" />
-    <Compile Include="Assets\Scripts\CardCore\GameCore\ResponseWindow.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\MatchLogRenderer.cs" />
-    <Compile Include="Assets\Scripts\AI\NeuralAI\NeuralAI.cs" />
-    <Compile Include="Assets\Scripts\CardCore\BaseSystems\StateBasedActions\SBACheckers.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Resources\Interaction\PlantInteractionPhysics.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Serialization\RuntimeCardStateDTO.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\EffectHandlerRegistry.cs" />
-    <Compile Include="Assets\Scripts\AI\LandTapPolicy.cs" />
-    <Compile Include="Assets\UI\Data\CardCatalog.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Scripts\ExtendedFlycam.cs" />
-    <Compile Include="Assets\UI\Framework\UIBinder.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Cards\CardLoader.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\EffectTemplate.cs" />
-    <Compile Include="Assets\Scripts\CardCore\GameCore\GameActions.cs" />
-    <Compile Include="Assets\UI\Data\ContentHasher.cs" />
-    <Compile Include="Assets\Scripts\CardCore\NetSession\NetClientBrain.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Board\BoardMath.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\RuleHooks.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Scripts\RollingBallSpawner.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Serialization\TagRegistry.cs" />
-    <Compile Include="Assets\UI\Screens\HexMapEditorPanel.cs" />
     <Compile Include="Assets\Scripts\Launch\Launch.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\EffectResolutionContext.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\Effect.cs" />
-    <Compile Include="Assets\UI\Framework\UIBootstrap.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\ProphecyHandlers.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\EffectDefinition.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Network\NetworkSerializer.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Events\EventManager.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Scripts\MenuManager.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Resources\(TTFE) GLOBAL CONTROLLER\Scripts\TobyGlobalShadersController.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Serialization\CardDataSerializer.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\TempCopyRules.cs" />
-    <Compile Include="Assets\Scripts\AI\NeuralEnv\TideObservation.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Network\NetEntities.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Resources\(TTFE) GLOBAL CONTROLLER\Scripts\TobyShaderValuesModel.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\EffectTargeting.cs" />
-    <Compile Include="Assets\UI\Framework\UIManager.cs" />
-    <Compile Include="Assets\Scripts\CardCore\BaseSystems\TurnEngine.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Cards\Entity.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Network\IntentMessages.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\AtomicEffects.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\EntityEffectExtensions.cs" />
     <Compile Include="Assets\Scripts\Launch\PatchFlow.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\EffectSlim.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Resources\(TTFE) GLOBAL CONTROLLER\Scripts\TobyConstants.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\ComposerCatalog.cs" />
-    <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Resources\Tools\Material Matcher\MaterialMatcher.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\EffectTemplateTable.cs" />
-    <Compile Include="Assets\UI\Screens\MatchScreen.cs" />
-    <Compile Include="Assets\Scripts\CardCore\NetSession\NetTcpHost.cs" />
-    <Compile Include="Assets\UI\Data\ComposerSession.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Serialization\TagTable.cs" />
-    <Compile Include="Assets\Scripts\CardCore\GameCore\GameLoopController.cs" />
-    <Compile Include="Assets\UI\Framework\UIScreen.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\DeathRules.cs" />
-    <Compile Include="Assets\UI\Data\CardSorter.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Board\LinkAuraSystem.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\BranchEngines.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\BuiltinEffectHandlers.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Enums\CardEnums.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\CardCompositionCost.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\CounterRules.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\BranchConfig.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\CostDerivation.cs" />
-    <Compile Include="Assets\Scripts\CardCore\BaseSystems\ElementPool.cs" />
-    <Compile Include="Assets\Scripts\CardCore\BaseSystems\MatchStatsService.cs" />
-    <Compile Include="Assets\Scripts\CardCore\NetSession\NetEventSeatFilter.cs" />
     <Compile Include="Assets\Scripts\Launch\HotUpdateLoader.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Network\NetworkMessages.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Layers\ControlChangeLayer.cs" />
-    <Compile Include="Assets\Scripts\CardCore\ValueSystem\TriggerValueConfig.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\BranchConfigTable.cs" />
-    <Compile Include="Assets\Scripts\CardCore\ValueSystem\ResourceCurveModel.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Resources\Interaction\PlantInteractionShader.cs" />
-    <Compile Include="Assets\Scripts\CardCore\NetSession\NetLobbyServer.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\ElementAffinity.cs" />
-    <Compile Include="Assets\UI\Data\CardDataPaths.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Network\FrameCodec.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\FirstBatchEffectHandlers.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\AdvancedEffectHandlers.cs" />
-    <Compile Include="Assets\Scripts\CardCore\NetSession\NetRoom.cs" />
-    <Compile Include="Assets\Scripts\AI\NeuralAI\OnnxTidePolicy.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Layers\TextChangeLayer.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Network\HandshakeMessages.cs" />
-    <Compile Include="Assets\Scripts\AI\NeuralEnv\TideHeadlessDriver.cs" />
-    <Compile Include="Assets\UI\Screens\BattleScreen.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Board\BoardState.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\TargetDomainService.cs" />
-    <Compile Include="Assets\Scripts\AI\NeuralEnv\LegalActionEnumerator.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\GrantKeywordHandlers.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\IndicatorHandler.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\RitualAuras.cs" />
-    <Compile Include="Assets\UI\Data\KeywordCatalog.cs" />
-    <Compile Include="Assets\UI\Screens\BattleController.cs" />
-    <Compile Include="Assets\Scripts\CardCore\GameCore\GameExceptions.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\DelayedEffectScheduler.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\EffectText.cs" />
-    <Compile Include="Assets\Scripts\CardCore\BaseSystems\ResourceLedger.cs" />
-    <Compile Include="Assets\Scripts\CardCore\GameCore\SubSystemRegistry.cs" />
-    <Compile Include="Assets\UI\Data\AtomText.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Board\HalfFieldData.cs" />
-    <Compile Include="Assets\UI\Data\CardConfigSerializer.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\ProphecySystem.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\SummonTokenHandler.cs" />
     <Compile Include="Assets\Scripts\Launch\PatchConsole.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Utility\MurmurHash3.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\CostSystem.cs" />
-    <Compile Include="Assets\UI\Data\DeckData.cs" />
-    <Compile Include="Assets\Scripts\CardCore\NetSession\NetGameClient.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\RitualTrackers.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Network\NetProjectionIgnore.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Attribute\Handlers\SecondBatchEffectHandlers.cs" />
-    <Compile Include="Assets\UI\Data\EffectGraphData.cs" />
-    <Compile Include="Assets\Scripts\CardCore\GameCore\GameState.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Effects\CardIdentityService.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Scripts\BaiscPlayerMovement.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Scripts\BoundedRollingBallSpawner.cs" />
-    <Compile Include="Assets\Scripts\CardCore\Events\GameEvents.cs" />
-    <Compile Include="Assets\Scripts\CardCore\NetSession\NetSessionMessages.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Packages\Toby Fredson\Player Interaction Notes.txt" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\UnderwaterMeniscus.shader" />
     <None Include="Assets\Art\HexMap\Shaders\HexGrassInput.hlsl" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Simple Cliff Masked.shader" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMPro.cginc" />
     <None Include="Assets\Packages\Crest\Shaders\OceanFoam.hlsl" />
-    <None Include="Assets\UI\Resources\UXML\DeckBuilder.uxml" />
+    <None Include="Assets\UI\Res\UXML\DeckBuilder.uxml" />
     <None Include="Assets\Packages\Crest\Shaders\Resources\DynWavesSphereWaterInteraction.shader" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile Overlay.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanLightingHelpers.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\AnimWavesRemoveGeometry.shader" />
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeLightWaterVolume.hlsl" />
@@ -277,6 +102,7 @@
     <None Include="Assets\Packages\Crest\Shaders\Resources\UpdateDynWaves.compute" />
     <None Include="Assets\Art\HexMap\Shaders\HexTerrainForwardPass.hlsl" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Grass Foliage (Mobile).shader" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile-2-Pass.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\Resources\UnderwaterEffect.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\GerstnerShared.hlsl" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Resources\(TTFE) GLOBAL CONTROLLER\TTFE_Wind Gizmo\TTFE_Utility Resources\(TTFE) GLOBAL CONTROLLER.shader" />
@@ -286,6 +112,7 @@
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\FoamAddFromTex.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\AnimWavesAddFromTex.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\Legacy\(TTFE) Uber Cliff.shader" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_Bitmap.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Uber Cliff Optimized.shader" />
     <None Include="Assets\Art\HexMap\Shaders\HexTerrainDebugCommon.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\Helpers\Resources\Utility.shader" />
@@ -303,11 +130,13 @@
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\FoamSplineGeometry.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\FlowAddFlowMap.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Prefabs\Prefabs_Vegetation\Trees\VTSpecies_Shrub_Season\1. (NR) = No roots.txt" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMPro_Mobile.cginc" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\AlbedoColor.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Helpers\URP\Core.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanShaderData.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\FullScreenTriangle.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\UnderwaterEffectURP.hlsl" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF SSD.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\Resources\CrestFillMaskArtefacts.compute" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\UnderwaterShared.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\UnderwaterMaskShared.hlsl" />
@@ -316,22 +145,25 @@
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeFoamBubbles.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\ShadowOverride.shader" />
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\LICENSE.TXT" />
-    <None Include="Assets\UI\Resources\UXML\Battle.uxml" />
+    <None Include="Assets\UI\Res\UXML\Battle.uxml" />
     <None Include="Assets\Packages\MemoryPack.Core.1.21.4\lib\netstandard2.1\MemoryPack.Core.dll" />
     <None Include="Assets\Packages\Crest\Shaders\OceanHelpersNew.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\AnimWavesWaveParticle.shader" />
+    <None Include="Assets\Packages\TextMesh Pro\Fonts\txt.txt" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Mesh.shader" />
-    <None Include="Assets\UI\Resources\UXML\CardComposer.uxml" />
+    <None Include="Assets\UI\Res\UXML\CardComposer.uxml" />
     <None Include="Assets\Art\HexMap\Shaders\HexTerrainInput.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\OceanNormalMapping.hlsl" />
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\lib\netstandard2.0\System.Collections.Immutable.xml" />
     <None Include="Assets\Packages\Crest\Shaders\GPUNoise\GPUNoise.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeOcclusion.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\ClipSurfaceSignedDistance.shader" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Surface-Mobile.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\FlowSplineGeometry.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Helpers\BIRP\Lighting.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\DepthSetBaseWaterHeightUsingGeometry.shader" />
-    <None Include="Assets\UI\Resources\UXML\MainMenu.uxml" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\SDFFunctions.hlsl" />
+    <None Include="Assets\UI\Res\UXML\MainMenu.uxml" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\DynWavesSphereWaterInteraction.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\FoamOverride.shader" />
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\OceanGraphConstants.hlsl" />
@@ -344,29 +176,37 @@
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Prefabs\Prefabs_Vegetation\Trees\VTSpecies_Shrub_Dry\1. (NR) = No roots.txt" />
     <None Include="Assets\Packages\Crest\Textures\WaveNormals\SOURCE.TXT" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\CrestNodeApplyUnderwaterEffect.hlsl" />
-    <None Include="Assets\UI\Resources\UXML\EffectComposer.uxml" />
+    <None Include="Assets\UI\Res\UXML\EffectComposer.uxml" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Surface.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanShaderHelpers.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeSampleClipSurfaceData.hlsl" />
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\THIRD-PARTY-NOTICES.TXT" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\ClipSurfaceIncludeArea.shader" />
+    <None Include="Assets\Packages\TextMesh Pro\Sprites\EmojiOne Attribution.txt" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_Bitmap-Custom-Atlas.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\CopyDepthIntoCache.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\FlowFixedDirection.shader" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\OceanDepths.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Grass Foliage.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\UnderwaterEffectHDRP.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\Ocean.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\AnimWavesAddHeightFromGeometry.shader" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile SSD.shader" />
+    <None Include="Assets\Packages\TextMesh Pro\Resources\LineBreaking Leading Characters.txt" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Tree Foliage (Low-End).shader" />
     <None Include="Assets\Packages\Crest\Shaders\Resources\Debug\TextureArray.shader" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMPro_Properties.cginc" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\Resources\UnderwaterMaskURP.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\AnimWavesSetBaseWaterHeightUsingGeometry.shader" />
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeApplyFresnel.hlsl" />
     <None Include="Assets\Art\HexMap\Shaders\HexWeather.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeOceanGlobals.hlsl" />
-    <None Include="Assets\UI\Resources\UXML\Placeholder.uxml" />
+    <None Include="Assets\UI\Res\UXML\Placeholder.uxml" />
     <None Include="Assets\Packages\Crest\Shaders\OceanConstants.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanNormalMapping.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeGeoMorph.hlsl" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMPro_Surface.cginc" />
     <None Include="Assets\Packages\Crest\Shaders\Resources\Gerstner.compute" />
     <None Include="Assets\Art\HexMap\Shaders\HexTerrain.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Helpers\BIRP\ScreenSpaceShadows.hlsl" />
@@ -381,9 +221,10 @@
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeComputeSamplingData.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\ClipSurfaceRemoveAreaTexture.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\UnderwaterEffectShared.hlsl" />
-    <None Include="Assets\UI\Resources\UXML\HexMapEditorPanel.uxml" />
+    <None Include="Assets\UI\Res\UXML\HexMapEditorPanel.uxml" />
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeDrivenInputs.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\Resources\QueryDisplacements.compute" />
+    <None Include="Assets\Packages\TextMesh Pro\Resources\LineBreaking Following Characters.txt" />
     <None Include="Assets\Packages\Crest\Shaders\Helpers\WaterVolume.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanGlobals.hlsl" />
     <None Include="Assets\Packages\Toby Fredson\Active Input Handling Error Fix.txt" />
@@ -410,20 +251,25 @@
     <None Include="Assets\Packages\Toby Fredson\SRP Install Instructions.txt" />
     <None Include="Assets\Art\HexMap\Shaders\LeafFunctions.cginc" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\ClipSurfaceConvexHull.shader" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile Masking.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Helpers\BIRP\InputsDriven.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeSampleOceanData.hlsl" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Terrain\(TTFE) Terrain Snow BasePass.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\DynWavesDampenCircle.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Resources\ClearToBlack.compute" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF Overlay.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Helpers\BIRP\Core.hlsl" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_Bitmap-Mobile.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Cloth.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\AnimWavesGerstner.shader" />
-    <None Include="Assets\UI\Resources\UXML\Match.uxml" />
+    <None Include="Assets\UI\Res\UXML\Match.uxml" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\Resources\UnderwaterMask.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Prefabs\Prefabs_Vegetation\Trees\VTSpecies_Shrub\1. (NR) = No roots.txt" />
-    <None Include="Assets\UI\Resources\Common.uss" />
+    <None Include="Assets\UI\Res\Common.uss" />
+    <None Include="Assets\Packages\TextMesh Pro\Fonts\LiberationSans - OFL.txt" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Roots.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Resources\FFT\FFTCompute.compute" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\Resources\UnderwaterEffectSG.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Terrain\(TTFE) Terrain Snow AddPass.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Terrain\(TTFE) Terrain Snow.shader" />
@@ -441,6 +287,7 @@
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\FoamAddFromVertCol.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Resources\FFT\FFTBake.compute" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Tree Bark.shader" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_Sprite.shader" />
     <None Include="Assets\Packages\Crest\Shaders\ShaderLibrary\UpdateShadow.hlsl" />
   </ItemGroup>
   <ItemGroup>
@@ -486,14 +333,6 @@
     </Reference>
     <Reference Include="UnityEngine.ClothModule">
       <HintPath>C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\Managed\UnityEngine\UnityEngine.ClothModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.ClusterInputModule">
-      <HintPath>C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\Managed\UnityEngine\UnityEngine.ClusterInputModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.ClusterRendererModule">
-      <HintPath>C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\Managed\UnityEngine\UnityEngine.ClusterRendererModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.ContentLoadModule">
@@ -762,10 +601,6 @@
     </Reference>
     <Reference Include="UnityEngine.VideoModule">
       <HintPath>C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\Managed\UnityEngine\UnityEngine.VideoModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.VirtualTexturingModule">
-      <HintPath>C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\Managed\UnityEngine\UnityEngine.VirtualTexturingModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.WindModule">
@@ -1044,6 +879,14 @@
       <HintPath>Library\PackageCache\com.unity.ext.nunit@44f7d31723bd\net472\unity-custom\nunit.framework.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="dnlib">
+      <HintPath>Library\PackageCache\com.code-philosophy.hybridclr@fd32708e7f51\Plugins\dnlib.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="LZ4">
+      <HintPath>Library\PackageCache\com.code-philosophy.hybridclr@fd32708e7f51\Plugins\LZ4.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>Library\PackageCache\com.unity.nuget.newtonsoft-json@4dfd81071c64\Runtime\Newtonsoft.Json.dll</HintPath>
       <Private>False</Private>
@@ -1052,12 +895,12 @@
       <HintPath>Library\PackageCache\com.unity.nuget.mono-cecil@ecb9724e46ff\Mono.Cecil.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="LZ4">
-      <HintPath>Library\PackageCache\com.code-philosophy.hybridclr@fd32708e7f51\Plugins\LZ4.dll</HintPath>
+    <Reference Include="Unity.Android.Types">
+      <HintPath>C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\PlaybackEngines\AndroidPlayer\Unity.Android.Types.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="dnlib">
-      <HintPath>Library\PackageCache\com.code-philosophy.hybridclr@fd32708e7f51\Plugins\dnlib.dll</HintPath>
+    <Reference Include="Unity.Android.Gradle">
+      <HintPath>C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\PlaybackEngines\AndroidPlayer\Unity.Android.Gradle.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="netstandard">
@@ -1624,12 +1467,12 @@
       <HintPath>Library\ScriptAssemblies\Unity.EditorCoroutines.Editor.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Unity.Entities.Graphics.Editor">
-      <HintPath>Library\ScriptAssemblies\Unity.Entities.Graphics.Editor.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="HybridCLR.Editor">
       <HintPath>Library\ScriptAssemblies\HybridCLR.Editor.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Entities.Graphics.Editor">
+      <HintPath>Library\ScriptAssemblies\Unity.Entities.Graphics.Editor.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.RenderPipelines.Core.Runtime.Shared">
@@ -1936,6 +1779,7 @@
     <ProjectReference Include="MCPForUnity.Editor.csproj" />
     <ProjectReference Include="HexMap.ECS.csproj" />
     <ProjectReference Include="Unity.SmoothNormalTool.Runtime.csproj" />
+    <ProjectReference Include="Tide.HotUpdate.csproj" />
     <ProjectReference Include="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
   </ItemGroup>
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />

@@ -44,7 +44,7 @@ namespace SynergyUI
                 {
                     Debug.LogError(
                         $"[UIBootstrap] 找不到 PanelSettings: YooAsset[{PanelSettingsAddress}] / {PanelSettingsEditorPath}。" +
-                        "请确认 Tide/热更/2 收集器已配置且资产存在。");
+                        "请确认 Tools/热更/2 收集器已配置且资产存在。");
                     return;
                 }
                 _renderer.panelSettings = panelSettings;

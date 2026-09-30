@@ -1,10 +1,6 @@
 {
   "mcp": {
     "servers": {
-      "unityMCP": {
-        "type": "http",
-        "url": "http://127.0.0.1:8080/mcp"
-      },
       "codegraph": {
         "type": "stdio",
         "command": "cmd",
@@ -14,6 +10,10 @@
           "serve",
           "--mcp"
         ]
+      },
+      "unityMCP": {
+        "url": "http://127.0.0.1:8080/mcp",
+        "type": "http"
       }
     }
   }
