@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using UnityEngine;
 
 
 namespace CardCore
@@ -71,7 +70,7 @@ namespace CardCore
 
         private ElementUnlockManager()
         {
-            _savePath = Path.Combine(Application.persistentDataPath, SAVE_FILE);
+            _savePath = Path.Combine(TidePaths.PersistentDataPath, SAVE_FILE);
             LoadState();
         }
 
@@ -105,7 +104,7 @@ namespace CardCore
             SaveState();
 
             OnElementUnlocked?.Invoke(manaType);
-            Debug.Log($"ElementUnlockManager: 解锁元素 {manaType}");
+            TideLog.Info($"ElementUnlockManager: 解锁元素 {manaType}");
             return true;
         }
 
@@ -156,7 +155,7 @@ namespace CardCore
                 _unlockedManaTypes.Add(manaType);
             }
             SaveState();
-            Debug.Log("ElementUnlockManager: 重置为默认解锁状态");
+            TideLog.Info("ElementUnlockManager: 重置为默认解锁状态");
         }
 
         /// <summary>
@@ -169,7 +168,7 @@ namespace CardCore
                 _unlockedManaTypes.Add(manaType);
             }
             SaveState();
-            Debug.Log("ElementUnlockManager: 解锁所有元素");
+            TideLog.Info("ElementUnlockManager: 解锁所有元素");
         }
 
         #endregion
@@ -193,7 +192,7 @@ namespace CardCore
                 if (File.Exists(_savePath))
                 {
                     string json = File.ReadAllText(_savePath);
-                    var data = JsonUtility.FromJson<ElementUnlockData>(json);
+                    var data = TideJson.FromJson<ElementUnlockData>(json);
 
                     if (data != null && data.UnlockedTypes != null)
                     {
@@ -209,11 +208,11 @@ namespace CardCore
                 }
 
                 IsLoaded = true;
-                Debug.Log($"ElementUnlockManager: 加载完成，已解锁 {_unlockedManaTypes.Count} 种元素");
+                TideLog.Info($"ElementUnlockManager: 加载完成，已解锁 {_unlockedManaTypes.Count} 种元素");
             }
             catch (Exception ex)
             {
-                Debug.LogError($"ElementUnlockManager: 加载失败 - {ex.Message}");
+                TideLog.Error($"ElementUnlockManager: 加载失败 - {ex.Message}");
                 // 确保默认解锁
                 ResetToDefault();
                 IsLoaded = true;
@@ -237,7 +236,7 @@ namespace CardCore
                     data.UnlockedTypes.Add((int)manaType);
                 }
 
-                string json = JsonUtility.ToJson(data, true);
+                string json = TideJson.ToJson(data, true);
 
                 // 确保目录存在
                 string directory = Path.GetDirectoryName(_savePath);
@@ -250,7 +249,7 @@ namespace CardCore
             }
             catch (Exception ex)
             {
-                Debug.LogError($"ElementUnlockManager: 保存失败 - {ex.Message}");
+                TideLog.Error($"ElementUnlockManager: 保存失败 - {ex.Message}");
             }
         }
 

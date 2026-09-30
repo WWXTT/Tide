@@ -221,6 +221,9 @@ namespace GameBoard
             }
 
             Hook<CardPutToBattlefieldEvent>();
+            Hook<CardLeaveBattlefieldEvent>(); // 战场离场（死亡/放逐/回手）同步事件——容器层直发；
+            // 2026-09-26 补钩（BattlefieldVerifier S2 发现）：漏钩时离场只能等 SBA 快照扫描
+            // 补发 CardZoneChangeEvent 才追上，窗口期内棋盘留幽灵占用（HUD/碾压邻接过期）
             Hook<CardZoneChangeEvent>();
             Hook<CardEnterActivationEvent>();
             Hook<CardLeaveActivationEvent>();

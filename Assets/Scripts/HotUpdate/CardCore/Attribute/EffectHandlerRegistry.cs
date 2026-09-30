@@ -89,7 +89,7 @@ namespace CardCore.Attribute
 
             if (!TryGetHandler(effect.Type, out handler))
             {
-                UnityEngine.Debug.LogWarning($"未注册的效果处理器: {effect.Type}");
+                TideLog.Warn($"未注册的效果处理器: {effect.Type}");
                 return false;
             }
 
@@ -107,7 +107,7 @@ namespace CardCore.Attribute
 
             if (!handler.CanExecute(effect, context))
             {
-                UnityEngine.Debug.LogWarning($"效果无法执行: {effect.Type}");
+                TideLog.Warn($"效果无法执行: {effect.Type}");
                 return false;
             }
 
@@ -156,7 +156,7 @@ namespace CardCore.Attribute
             {
                 // Self 域空转诊断（原 Self 模式口径）：源不在候选（瞬间在发动区不在单位域）
                 if (domain.Count == 1 && domain[0] == (int)TargetKind.Self)
-                    UnityEngine.Debug.LogWarning(
+                    TideLog.Warn(
                         $"[TargetDomain] 域={{Self}} 但源不在候选内（瞬间在发动区？）——效果空转: {def.Id}");
                 return candidates;
             }

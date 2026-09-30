@@ -122,7 +122,7 @@ namespace CardCore
                 // 本地 UI：UI 任务与安全网超时竞速（UI 漏掉自动确定时引擎兜底）
                 var uiTask = Current.SelectIndicesAsync(
                     labels, req.MinCount, req.MaxCount, req.Title, req.Hint, req.AllowCancel, timeout);
-                var graceTask = UniTask.Delay(System.TimeSpan.FromSeconds(timeout + GraceSeconds))
+                var graceTask = TideDelay.After(System.TimeSpan.FromSeconds(timeout + GraceSeconds))
                     .ContinueWith(() => (List<int>)null);
 
                 var (winIndex, uiResult, graceResult) = await UniTask.WhenAny(uiTask, graceTask);
@@ -169,7 +169,7 @@ namespace CardCore
                 }
 
                 var uiTask = Current.SelectIndicesAsync(options, 1, 1, title, "", false, timeout);
-                var graceTask = UniTask.Delay(System.TimeSpan.FromSeconds(timeout + GraceSeconds))
+                var graceTask = TideDelay.After(System.TimeSpan.FromSeconds(timeout + GraceSeconds))
                     .ContinueWith(() => (List<int>)null);
 
                 var (winIndex, uiResult, graceResult) = await UniTask.WhenAny(uiTask, graceTask);

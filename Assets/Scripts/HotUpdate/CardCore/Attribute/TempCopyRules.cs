@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
 using CardCore.Attribute;
 
 namespace CardCore.Attribute
@@ -58,8 +57,8 @@ namespace CardCore.Attribute
         {
             if (source == null || controller == null || zm == null) return;
 
-            // 深克隆：JsonUtility 往返（CardData 全 [SerializeField]，Cost 经 _costJson 同步回调往返）
-            var data = JsonUtility.FromJson<CardData>(JsonUtility.ToJson(source));
+            // 深克隆：TideJson 往返（CardData 序列化字段全量，Cost 经 ITideSerializationCallback 同步）
+            var data = TideJson.FromJson<CardData>(TideJson.ToJson(source));
             if (data == null) return;
 
             if (power.HasValue && life.HasValue && source.HasCombatStats)

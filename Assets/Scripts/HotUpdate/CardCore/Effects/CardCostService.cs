@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore.Attribute;
-using UnityEngine;
 
 namespace CardCore
 {
@@ -96,7 +95,7 @@ namespace CardCore
             var cc = cfg.CardCostConfig;
             var dd = cfg.DelayDiscountConfig;
 
-            result.DeclaredTier = Mathf.RoundToInt(card.Cost?.Values.Sum() ?? 0f);
+            result.DeclaredTier = TideMath.RoundToInt(card.Cost?.Values.Sum() ?? 0f);
             bool isSpell = card.Supertype == Cardtype.Spell;
 
             // ---- 1) 身材费 S（灰桶；身材不是挂载效果，不参与 f）----
@@ -149,7 +148,7 @@ namespace CardCore
             float factor = ComputeMountFactor(card, cc, dd, result.DeclaredTier);
             {
                 int tierForFactor = result.DeclaredTier > 0
-                    ? Mathf.Clamp(result.DeclaredTier, 1, cc.MaxTier)
+                    ? Math.Clamp(result.DeclaredTier, 1, cc.MaxTier)
                     : cc.MaxTier;
                 float d = isSpell ? 1f : dd.At(tierForFactor);
                 result.Factor = factor;
@@ -183,7 +182,7 @@ namespace CardCore
 
             // ---- 6) 规则一（2026-09-11 简化定案）：D ≤ C 直判 ----
             // 代价当量抵扣通道下线——代价补偿改发黑/白元素（运行时），不再压低声明费。
-            result.OffsetRequirement = Mathf.Max(0, result.DerivedTotal - result.DeclaredTier);
+            result.OffsetRequirement = Math.Max(0, result.DerivedTotal - result.DeclaredTier);
             result.Conformant = result.OffsetRequirement == 0;
             result.Breakdown.Add(new CostBreakdownLine("Req", $"规则一 D{result.DerivedTotal} ≤ C{result.DeclaredTier}", result.OffsetRequirement));
 
@@ -289,7 +288,7 @@ namespace CardCore
                 }
             }
             if (costEntryCount > 1)
-                Debug.LogWarning($"[CardCostService] 卡 {card.ID} 代价栏 {costEntryCount} 条——违反「单卡单条」定案（应只填一个代价）");
+                TideLog.Warn($"[CardCostService] 卡 {card.ID} 代价栏 {costEntryCount} 条——违反「单卡单条」定案（应只填一个代价）");
 
             if (CostDerivationService.HasChoiceEffect(card))
             {
@@ -342,7 +341,7 @@ namespace CardCore
             var cc = cfg.CardCostConfig;
             var dd = cfg.DelayDiscountConfig;
             bool isSpell = card.Supertype == Cardtype.Spell;
-            int declaredTier = Mathf.RoundToInt(card.Cost?.Values.Sum() ?? 0f);
+            int declaredTier = TideMath.RoundToInt(card.Cost?.Values.Sum() ?? 0f);
 
             // 模式无关三块（与 Derive 共用助手，防口径漂移；无 breakdown 记录）
             float statValue = ComputeStatValue(card, cc, null);
@@ -392,7 +391,7 @@ namespace CardCore
             float tierMax = 0f;
             foreach (var t in rawTotals) if (t > tierMax) tierMax = t;
             if (rawTotals[0] < tierMax - 0.001f)
-                Debug.LogWarning($"[CardCostService] 抉择卡 {card.ID} 模式0非最高消耗（{rawTotals[0]} < {tierMax}）——违反数据契约（编辑界面应把最高消耗放在序号0）");
+                TideLog.Warn($"[CardCostService] 抉择卡 {card.ID} 模式0非最高消耗（{rawTotals[0]} < {tierMax}）——违反数据契约（编辑界面应把最高消耗放在序号0）");
 
             // 卡层组合费用：抉择价差溢价已废（2026-09-21）——灰桶只入身材费；
             // 抉择的弹性费在 ChassisAdjust 分支计槽（每分支一个效果槽），对模式均匀。
@@ -420,7 +419,7 @@ namespace CardCore
                 card.ModeCostCache = DeriveModeCosts(card); // 兜底：手构卡未走装载链
             if (card.ModeCostCache.Count == 0) return new Dictionary<int, float>();
 
-            int idx = Mathf.Clamp(modeIndex, 0, card.ModeCostCache.Count - 1);
+            int idx = Math.Clamp(modeIndex, 0, card.ModeCostCache.Count - 1);
             return new Dictionary<int, float>(card.ModeCostCache[idx]);
         }
 
@@ -450,7 +449,7 @@ namespace CardCore
         private static float ComputeStatValue(CardData card, CardCostConfig cc, List<CostBreakdownLine> breakdown)
         {
             int statPoints = (card.Power ?? 0) + (card.Life ?? 0);
-            float statValue = statPoints / Mathf.Max(1f, cc.StatUnit);
+            float statValue = statPoints / Math.Max(1f, cc.StatUnit);
             breakdown?.Add(new CostBreakdownLine("S", $"身材费 (攻{card.Power ?? 0}/血{card.Life ?? 0})", statValue, ManaType.Gray));
             return statValue;
         }
@@ -587,7 +586,7 @@ namespace CardCore
                 // 光环按「单回合档」折算持续价值：factor = D(UntilEndOfTurn)/D(Permanent)。
                 // 旧口径分母取各原子表默认持续（ModifyPower=1.0 / ModifyLife=0.6 两锚不一致），
                 // 2026-09-10 持续上移后统一为满档 Permanent 锚（语义修正，随 R8 漂移已接受）。
-                float factor = singleTurn / Mathf.Max(0.0001f, attrCfg.GetDurationDiscount(DurationType.Permanent));
+                float factor = singleTurn / Math.Max(0.0001f, attrCfg.GetDurationDiscount(DurationType.Permanent));
                 float mult = atomCfg.CostMultiplier > 0f ? atomCfg.CostMultiplier : 1f;
                 // ManaList 分色（2026-09-14）：光环费逐色入桶（首色承担明细则行）
                 float firstAmount = 0f;
@@ -611,7 +610,7 @@ namespace CardCore
             int arrows = CountArrowBits(card.ArrowDirections);
             if (arrows > 1 && auraTotal > 0f)
             {
-                float arrowFactor = Mathf.Pow(1.2f, arrows - 1);
+                float arrowFactor = (float)Math.Pow(1.2f, arrows - 1);
                 var scaled = new Dictionary<ManaType, float>();
                 foreach (var kv in buckets) scaled[kv.Key] = kv.Value * arrowFactor;
                 buckets.Clear();
@@ -631,8 +630,8 @@ namespace CardCore
         {
             bool isSpell = card.Supertype == Cardtype.Spell;
             if (isSpell) return 1f;
-            int tierForFactor = declaredTier > 0 ? Mathf.Clamp(declaredTier, 1, cc.MaxTier) : cc.MaxTier;
-            return Mathf.Max(0f, dd.At(tierForFactor));
+            int tierForFactor = declaredTier > 0 ? Math.Clamp(declaredTier, 1, cc.MaxTier) : cc.MaxTier;
+            return Math.Max(0f, dd.At(tierForFactor));
         }
 
         // OffsetProvided 已删（2026-09-11 规则一简化：代价当量抵扣下线，D≤C 直判；
@@ -661,8 +660,8 @@ namespace CardCore
         private static Dictionary<ManaType, int> BuildCostAtTier(CardData card, int tier, CardCostConfig cc, DelayDiscountConfig dd,
             bool isSpell, float statValue, Dictionary<ManaType, float> kwBuckets, Dictionary<ManaType, float> effBuckets)
         {
-            float d = isSpell ? 1f : dd.At(Mathf.Clamp(tier, 1, cc.MaxTier));
-            float factor = Mathf.Max(0f, d);
+            float d = isSpell ? 1f : dd.At(Math.Clamp(tier, 1, cc.MaxTier));
+            float factor = Math.Max(0f, d);
 
             var kwMultiplier = cc.KeywordsShareDelayDiscount ? factor : 1f;
             int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);

@@ -6,6 +6,7 @@ using CardCore.Attribute;
 using CardCore.Network;
 using CardCore.Serialization;
 using Cysharp.Threading.Tasks;
+using HexMap;
 using UnityEngine.UIElements;
 
 namespace SynergyUI
@@ -101,6 +102,10 @@ namespace SynergyUI
             _running = false;
             _net?.Close();
             _net = null;
+
+            // 本地局棋盘接线归零（静态扩展点不清理会跨界面残留——验证器 S5 锁定此口径）
+            _ctrl?.Shutdown();
+            _ctrl = null;
 
             // 仅在仍是本界面注册时解除，避免覆盖其它界面的注册
             if (TargetSelectionService.Current is UiTargetSelector)

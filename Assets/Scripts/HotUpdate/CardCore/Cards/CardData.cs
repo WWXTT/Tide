@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
 
 namespace CardCore
 {
@@ -10,12 +9,12 @@ namespace CardCore
     /// 通过实现多个接口来组合不同的卡牌属性
     /// </summary>
     [Serializable]
-    public class CardData
+    public class CardData : ITideSerializationCallback
     {
         /// <summary>
         /// 卡牌唯一标识ID（基于内容Hash生成）
         /// </summary>
-        [SerializeField]
+        [TideSerialized]
         private string _id;
         public string ID
         {
@@ -26,7 +25,7 @@ namespace CardCore
         /// <summary>
         /// 卡牌类型
         /// </summary>
-        [SerializeField]
+        [TideSerialized]
         private Cardtype _supertype;
         public Cardtype Supertype
         {
@@ -37,7 +36,7 @@ namespace CardCore
         /// <summary>
         /// 卡牌名称
         /// </summary>
-        [SerializeField]
+        [TideSerialized]
         private string _cardName;
         public string CardName
         {
@@ -48,7 +47,7 @@ namespace CardCore
         /// <summary>
         /// 立绘路径
         /// </summary>
-        [SerializeField]
+        [TideSerialized]
         private string _illustration;
         public string Illustration
         {
@@ -59,7 +58,7 @@ namespace CardCore
         /// <summary>
         /// 生命值（可选）
         /// </summary>
-        [SerializeField]
+        [TideSerialized]
         private int? _life;
         public int? Life
         {
@@ -70,7 +69,7 @@ namespace CardCore
         /// <summary>
         /// 攻击力（可选）
         /// </summary>
-        [SerializeField]
+        [TideSerialized]
         private int? _power;
         public int? Power
         {
@@ -81,7 +80,7 @@ namespace CardCore
         /// <summary>
         /// 法力消耗
         /// </summary>
-        [SerializeField]
+        [TideSerialized]
         private string _costJson;
         public Dictionary<int, float> Cost { get; set; } = new Dictionary<int, float>();
 
@@ -132,7 +131,7 @@ namespace CardCore
         /// <summary>
         /// 效果列表
         /// </summary>
-        [SerializeField]
+        [TideSerialized]
         private List<CardEffectData> _effects;
         public List<CardEffectData> Effects
         {
@@ -145,7 +144,7 @@ namespace CardCore
         /// cast 付费步强制执行并按全价补偿黑/白。效果级 CardEffectData.Costs 为 legacy 兜底
         /// （旧数据仍读取；卡层已填时以卡层为准，防双收）。
         /// </summary>
-        [SerializeField]
+        [TideSerialized]
         private global::CardCore.CostEntry _payloadCost;
         public global::CardCore.CostEntry PayloadCost
         {
@@ -157,7 +156,7 @@ namespace CardCore
         /// <summary>
         /// 创建时间（用于时间戳）
         /// </summary>
-        [SerializeField]
+        [TideSerialized]
         private long _creationTicks;
         public DateTime CreationTime
         {
@@ -168,7 +167,7 @@ namespace CardCore
         /// <summary>
         /// 卡牌标签（用于存储额外属性，如Durability等）
         /// </summary>
-        [SerializeField]
+        [TideSerialized]
         private List<string> _tags;
         public List<string> Tags
         {
@@ -179,7 +178,7 @@ namespace CardCore
         /// <summary>
         /// 关键词列表（如冲锋、飞行、圣盾等自身被动效果）
         /// </summary>
-        [SerializeField]
+        [TideSerialized]
         private List<string> _keywords;
         public List<string> Keywords
         {
@@ -190,7 +189,7 @@ namespace CardCore
         /// <summary>
         /// 卡牌子类型（种族 / 怪兽种类 / 魔法陷阱种类），Flags 组合。
         /// </summary>
-        [SerializeField]
+        [TideSerialized]
         private CardSubtype _subtype = CardSubtype.None;
         public CardSubtype Subtype
         {
@@ -199,7 +198,7 @@ namespace CardCore
         }
 
         /// <summary>等级（生物），可空。</summary>
-        [SerializeField]
+        [TideSerialized]
         private int _level = -1;
         public int? Level
         {
@@ -208,7 +207,7 @@ namespace CardCore
         }
 
         /// <summary>连接箭头方向（连接光环/指向用），Flags 组合。</summary>
-        [SerializeField]
+        [TideSerialized]
         private HexDirection _arrowDirections = HexDirection.None;
         public HexDirection ArrowDirections
         {
@@ -223,7 +222,7 @@ namespace CardCore
         /// 受益者身上的净化/沉默/无效不能干扰光环（只有「无效」作用于来源能压制）。
         /// 计价按单回合指示物档（来源须持续在场的折价）。
         /// </summary>
-        [SerializeField]
+        [TideSerialized]
         private List<LinkAuraData> _linkAuras;
         public List<LinkAuraData> LinkAuras
         {
@@ -234,29 +233,29 @@ namespace CardCore
         // ---- 战斗底盘（2026-09-10 攻击/守卫效果化）----
         // 攻/守 = 速度0/速度1主动效果（2026-09-16；各 1 灰，不占槽位），生物默认自带；opt-out 退底盘额度。
         // 计价见 CardCompositionCost.ChassisAdjust；资格见 CombatSystem（NoAttack 卡不能攻击）。
-        [SerializeField]
+        [TideSerialized]
         private bool _noAttack;
         public bool NoAttack { get => _noAttack; set => _noAttack = value; }
 
-        [SerializeField]
+        [TideSerialized]
         private bool _noGuard;
         public bool NoGuard { get => _noGuard; set => _noGuard = value; }
 
         // ===== 装备系统（2026-09-13 第二十一批：万智神器×炉石武器——箭头佩带+驱动）=====
-        [SerializeField]
+        [TideSerialized]
         private bool _isWeapon;
         /// <summary>武器标记：佩带者=控制者角色（非箭头格）——角色获得 Power 攻击力、
         /// 可主动攻击（1/回合）、被攻击反伤；主动攻击与反伤各 -1 耐久。</summary>
         public bool IsWeapon { get => _isWeapon; set => _isWeapon = value; }
 
-        [SerializeField]
+        [TideSerialized]
         private int _durability;
         /// <summary>初始耐久（0=无耐久档——持续型装备）；归零=销毁入墓。</summary>
         public int Durability { get => _durability; set => _durability = value; }
 
         /// <summary>瞬间法术的底盘盈余（无攻无守省下的 2 灰）构筑时自由分配：
         /// true = 转 BaseSpeed+1（不退费）；false（缺省）= 退费（灰不足落最高费用色）。</summary>
-        [SerializeField]
+        [TideSerialized]
         private bool _surplusToSpeed;
         public bool SurplusToSpeed { get => _surplusToSpeed; set => _surplusToSpeed = value; }
 
@@ -336,7 +335,7 @@ namespace CardCore
         /// </summary>
         public string CalculateID()
         {
-            string content = JsonUtility.ToJson(this);
+            string content = TideJson.ToJson(this);
             uint hash = MurmurHash3.Hash32(content);
             return hash.ToString("X8");
         }
@@ -351,7 +350,7 @@ namespace CardCore
             {
                 costList.Add(new CostEntry { ManaType = kvp.Key, Value = kvp.Value });
             }
-            return JsonUtility.ToJson(costList, true);
+            return TideJson.ToJson(costList, true);
         }
 
         /// <summary>
@@ -364,7 +363,7 @@ namespace CardCore
 
             try
             {
-                var costList = JsonUtility.FromJson<CostEntryList>(json);
+                var costList = TideJson.FromJson<CostEntryList>(json);
                 foreach (var entry in costList.entries)
                 {
                     result[entry.ManaType] = entry.Value;
@@ -775,7 +774,7 @@ namespace CardCore
     [Serializable]
     public class CardTemplate
     {
-        [SerializeField]
+        [TideSerialized]
         private Cardtype _supertype;
         public Cardtype Supertype
         {
@@ -783,7 +782,7 @@ namespace CardCore
             set => _supertype = value;
         }
 
-        [SerializeField]
+        [TideSerialized]
         private string _cardName;
         public string CardName
         {
@@ -791,7 +790,7 @@ namespace CardCore
             set => _cardName = value;
         }
 
-        [SerializeField]
+        [TideSerialized]
         private string _illustration;
         public string Illustration
         {
@@ -799,7 +798,7 @@ namespace CardCore
             set => _illustration = value;
         }
 
-        [SerializeField]
+        [TideSerialized]
         private int? _defaultLife;
         public int? DefaultLife
         {
@@ -807,7 +806,7 @@ namespace CardCore
             set => _defaultLife = value;
         }
 
-        [SerializeField]
+        [TideSerialized]
         private int? _defaultPower;
         public int? DefaultPower
         {
@@ -815,7 +814,7 @@ namespace CardCore
             set => _defaultPower = value;
         }
 
-        [SerializeField]
+        [TideSerialized]
         private List<CardEffectData> _defaultEffects;
         public List<CardEffectData> DefaultEffects
         {

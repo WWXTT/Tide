@@ -22,6 +22,7 @@ namespace HexMap
         private EntityQuery _featureQuery;
         private bool _generated;
         private double _nextWarnTime;
+        private Entity _lastConfigEntity;
 
         protected override void OnCreate()
         {
@@ -35,6 +36,16 @@ namespace HexMap
         {
             var em = EntityManager;
             var configEntity = SystemAPI.GetSingletonEntity<HexMapConfig>();
+
+            // 跨局复位（2026-09-27 真HexMap战场）：系统实例随 World 存活，而 HexBattlefield
+            // 每局拆除并重建 HexMapConfig 实体——_generated 残留 true 会让第二局的
+            // 河/路/植被永不生成。以配置实体更换为「新的一局」信号。
+            if (_lastConfigEntity != configEntity)
+            {
+                _lastConfigEntity = configEntity;
+                _generated = false;
+                _streaming = null;
+            }
 
             if (_streaming == null)
             {

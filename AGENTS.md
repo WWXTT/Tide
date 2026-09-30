@@ -12,3 +12,8 @@
 
 - **配置表**：`Assets/Configs/AttributeValueConfig.json`，原子效果表，唯一权威。
 - 三层引用链（卡组→卡 ID→effectIds→原子表 refId）不得倒退回内嵌格式。
+
+## Unity 工作流（2026-09-27 定）
+
+- **禁止手写 `.meta` 文件**——新增/移动脚本与资产后由 Unity 编辑器自动刷新生成。资产 YAML 里要引用脚本 GUID（`m_Script`）时：先让 Unity 刷新、再读回 Unity 生成的 `.meta` 里的真实 GUID 回填，不要自造 GUID。
+- Unity MCP 桥（com.coplaydev.unity-mcp）常开：HTTP `127.0.0.1:8080/mcp`（JSON-RPC）。可用它触发资产刷新、读控制台编译错误等——**验证编译优先走 MCP 读控制台，不起 Unity 批处理**。

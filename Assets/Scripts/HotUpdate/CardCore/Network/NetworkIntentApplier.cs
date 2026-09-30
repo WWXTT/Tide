@@ -46,10 +46,12 @@ namespace CardCore.Network
                         && !core.StackEngine.IsEmpty && !core.StackEngine.IsResolving
                         && core.StackEngine.CurrentPriorityHolder == player)
                     {
-                        return Ok(GameActions.PlayCardInResponse(core, player, card, targets, intent.ModeIndex), out error);
+                        return Ok(GameActions.PlayCardInResponse(core, player, card, targets, intent.ModeIndex, out var respReason),
+                            respReason, out error);
                     }
 
-                    return Ok(GameActions.PlayCard(core, player, card, targets, fromZone, intent.ModeIndex), out error);
+                    return Ok(GameActions.PlayCard(core, player, card, targets, fromZone, intent.ModeIndex, out var reason),
+                        reason, out error);
                 }
 
                 case NetworkMessageType.IntentTapForElement:
@@ -151,6 +153,14 @@ namespace CardCore.Network
         private static bool Ok(bool accepted, out string error)
         {
             error = accepted ? null : "引擎拒绝（GameActions 校验未通过：时点/优先权/费用/目标等门禁）";
+            return accepted;
+        }
+
+        /// <summary>带精确原因的出口（2026-09-26 联机排查）：拒绝文案直读引擎门禁
+        /// （费用不足/浓度上限/无合法目标/非主阶段等），不再一律糊成通用「门禁」。</summary>
+        private static bool Ok(bool accepted, string reason, out string error)
+        {
+            error = accepted ? null : reason ?? "引擎拒绝（GameActions 校验未通过：时点/优先权/费用/目标等门禁）";
             return accepted;
         }
 

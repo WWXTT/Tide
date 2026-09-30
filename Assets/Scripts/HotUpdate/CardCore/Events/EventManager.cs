@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace CardCore
 {
@@ -147,7 +146,7 @@ namespace CardCore
         {
             if (AnyPublished == null) return;
             try { AnyPublished(eventData); }
-            catch (Exception e) { Debug.LogError($"AnyPublished hook error: {e}"); }
+            catch (Exception e) { TideLog.Error($"AnyPublished hook error: {e}"); }
         }
 
         /// <summary>广播发布事件（无 targetId）</summary>
@@ -188,7 +187,7 @@ namespace CardCore
                         }
                         catch (Exception e)
                         {
-                            Debug.LogError($"Event handler error: {e}");
+                            TideLog.Error($"Event handler error: {e}");
                             allSuccess = false;
                         }
                     }
@@ -216,7 +215,7 @@ namespace CardCore
                         }
                         catch (Exception e)
                         {
-                            Debug.LogError($"Event handler error: {e}");
+                            TideLog.Error($"Event handler error: {e}");
                             return false;
                         }
                     }
@@ -269,7 +268,7 @@ namespace CardCore
                     }
                     catch (Exception e)
                     {
-                        Debug.LogError($"Event handler error: {e}");
+                        TideLog.Error($"Event handler error: {e}");
                         allSuccess = false;
                     }
                 }
@@ -312,12 +311,19 @@ namespace CardCore
         #region 内部方法
 
         /// <summary>
-        /// 检查订阅条目是否有效：已销毁的 UnityEngine.Object 订阅者跳过。
-        /// 按 Original.Target 判断（Wrapped 闭包的 Target 是编译器显示类，永非 UO，旧写法从未生效过）。
+        /// 订阅者判活钩子（2026-09-27 去 Unity 化）：宿主装配——Unity 侧装
+        /// 「UnityEngine.Object 已销毁 = 无效」（TideUnityRuntime）；null = 恒活（纯 .NET 服务器）。
+        /// 按 Original.Target 判断（Wrapped 闭包的 Target 是编译器显示类，永非 UO）。
         /// </summary>
+        public static Func<object, bool> AliveTester { get; set; }
+
         private bool IsHandlerValid(SubscriptionEntry entry)
         {
-            return !(entry.Original?.Target is UnityEngine.Object obj) || obj;
+            var tester = AliveTester;
+            if (tester == null) return true; // 无宿主钩子 = 恒活
+            var target = entry.Original?.Target;
+            if (target == null) return true; // 与旧语义对齐：非 UO 目标（含 null）恒有效
+            return tester(target);
         }
 
         private List<SubscriptionEntry> GetHandlerListFromPool()

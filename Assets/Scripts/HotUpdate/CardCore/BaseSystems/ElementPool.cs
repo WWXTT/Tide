@@ -226,14 +226,24 @@ namespace CardCore
             // 状态已转移到 PooledCard，清除卡上的余量记录
             card.SetRemainingLandTokens(null);
 
+            // 事件发布延后（2026-09-26 时序定案）：入池事件不再在此发——调用方完成
+            // Zone.ElementPool 区域移动后调 PublishPoolAdd。旧时序在移区前发事件，
+            // 区域派生观察者（BoardState.AutoResync/表现层）读到未落定的区域列表，
+            // 棋盘地牌行滞后到下一次无关事件才补上（BattlefieldVerifier S2 锁定）。
+            return true;
+        }
+
+        /// <summary>发布地牌入池事件：调用方在 Zone.ElementPool 区域移动完成后调用
+        /// （AddCardToPool 本体不发——见其尾注；事件携带的 Tokens 取池内该卡当前余量）。</summary>
+        public void PublishPoolAdd(Card card, Player owner)
+        {
+            var pooled = GetPool(owner).PooledCards.FirstOrDefault(pc => pc.SourceCard == card);
             PublishEvent(new ElementPoolAddEvent
             {
                 Player = owner,
                 AddedCard = card,
-                Tokens = cost
+                Tokens = pooled?.Tokens
             });
-
-            return true;
         }
 
         /// <summary>
@@ -518,15 +528,16 @@ namespace CardCore
                 pc.SourceCard.WasDepletedAsLand = true;
                 pc.SourceCard.SetRemainingLandTokens(null);
 
+                // 将耗尽卡牌移到墓地（先移区后发事件——同 AddCardToPool/PublishPoolAdd 的
+                // 时序定案：区域派生观察者读到落定后的区域列表，不留幽灵地牌）
+                if (zoneManager != null)
+                    zoneManager.MoveCard(pc.SourceCard, player, Zone.ElementPool, Zone.Graveyard);
+
                 PublishEvent(new ElementPoolDepleteEvent
                 {
                     Player = player,
                     DepletedCard = pc.SourceCard
                 });
-
-                // 将耗尽卡牌移到墓地
-                if (zoneManager != null)
-                    zoneManager.MoveCard(pc.SourceCard, player, Zone.ElementPool, Zone.Graveyard);
 
                 OnCardDepleted?.Invoke(pc.SourceCard, player);
             }

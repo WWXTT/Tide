@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
+using System.IO;
 using CardCore.Attribute;
 using CardCore.Attribute.Handlers;
 using System.Linq;
@@ -154,18 +154,24 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 从 JSON 加载测试卡牌列表
+        /// 从 JSON 加载测试卡牌列表（2026-09-27 去 Unity 化：原 Resources.Load 直读 Assets/Resources 下同名 json）
         /// </summary>
         public static List<CardData> LoadCards(string jsonPath)
         {
-            var json = Resources.Load<TextAsset>(jsonPath);
-            if (json == null)
+            string path = Path.Combine(TidePaths.DataPath, "Resources", jsonPath + ".json");
+            string jsonText = null;
+            try
             {
-                Debug.LogWarning($"[CardLoader] 卡牌配置未找到: {jsonPath}");
+                if (File.Exists(path)) jsonText = File.ReadAllText(path);
+            }
+            catch (Exception) { }
+            if (jsonText == null)
+            {
+                TideLog.Warn($"[CardLoader] 卡牌配置未找到: {path}");
                 return new List<CardData>();
             }
 
-            var wrapper = JsonUtility.FromJson<TestCardsConfigWrapper>(json.text);
+            var wrapper = TideJson.FromJson<TestCardsConfigWrapper>(jsonText);
             var result = new List<CardData>();
 
             foreach (var entry in wrapper.cards)
@@ -192,7 +198,7 @@ namespace CardCore
                 if (row == null || string.IsNullOrEmpty(row.MountKinds)) continue;
                 var bits = MountKindExtensions.ParseCsv(row.MountKinds);
                 if (bits.Contains(MountKind.FreeBranchTrunk) && bits.Count > 1)
-                    Debug.LogWarning($"[CardLoader] 原子表行 {row.EnumName}：MountKinds=\"{row.MountKinds}\"——"
+                    TideLog.Warn($"[CardLoader] 原子表行 {row.EnumName}：MountKinds=\"{row.MountKinds}\"——"
                                    + "位 9（自由分支主干）必须显式只写 9，不与其他位混挂");
             }
         }
@@ -219,7 +225,7 @@ namespace CardCore
                             || atomType == AtomicEffectType.GrantGuardian)
                         {
                             if (!card.HasCombatStats)
-                                Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName})："
+                                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})："
                                              + $"微缩/放大/守护为登场效果，宿主不具备属性（Power/Life）——构筑期拦截");
                         }
                         // 回响（2026-09-13 用户定案：生物和法术通用）——不再限制宿主类型，
@@ -228,12 +234,12 @@ namespace CardCore
                         {
                             if (string.IsNullOrEmpty(atom.str))
                             {
-                                Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName})："
+                                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})："
                                              + $"召唤衍生物的字符串参数为空——必须指向一张真实生物卡，构筑期拦截");
                             }
                             else if (atom.str == card.ID)
                             {
-                                Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName})："
+                                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})："
                                              + $"召唤衍生物自指（模板=宿主本身）——构筑期拦截");
                             }
                             else
@@ -245,7 +251,7 @@ namespace CardCore
                                 // is 判定恒 false 会把正常模板误报为非生物——改属性直判（同 SummonTokenHandler）。
                                 var tplSuper = template is IHasSupertype ht ? ht.Supertype : template?.Supertype;
                                 if (template != null && tplSuper != Cardtype.Creature)
-                                    Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName})："
+                                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})："
                                                  + $"衍生物模板 {atom.str} 不是生物卡——构筑期拦截");
                             }
                         }
@@ -257,7 +263,7 @@ namespace CardCore
                 // 无箭头光环永远无受益者，属数据错误；箭头数=光环受益面与计价乘数）
                 if (card.LinkAuras != null && card.LinkAuras.Count > 0
                     && card.ArrowDirections == HexDirection.None)
-                    Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName})：声明了连接光环但未配箭头（arrows 为空）——构筑期拦截（生物/结界同规）");
+                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：声明了连接光环但未配箭头（arrows 为空）——构筑期拦截（生物/结界同规）");
 
                 // 光环关键词条目须可挂（2026-09-23 定案·位 10 数据驱动）：消耗型关键词
                 //（圣盾/复生/潜行/法术护盾——移除即用掉）与光环 live-query 持续语义冲突
@@ -268,7 +274,7 @@ namespace CardCore
                     {
                         if (aura == null || string.IsNullOrEmpty(aura.keyword)) continue;
                         if (!ComposerCatalog.IsAuraMountableKeyword(aura.keyword))
-                            Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName})：光环关键词「{aura.keyword}」"
+                            TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：光环关键词「{aura.keyword}」"
                                          + "不可作光环（原子表 Grant 行未声明 MountKinds 位 10——消耗型关键词移除即用掉，与光环持续语义冲突）——构筑期拦截");
                     }
                 }
@@ -348,7 +354,7 @@ namespace CardCore
                         : def.Effects?.ToList() ?? new List<AtomicEffectInstance>();
                     int atomCount = mainAtoms.Count(a => a != null);
                     if (atomCount > 2)
-                        Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
+                        TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
                                        + $"主序列原子 {atomCount} 个超组合上限 2（抉择/条件奖励/并列三形式）");
 
                     // 单范围域宽校验（2026-09-16 六值定案核心）：一个 {target} 只能从一个范围选择——
@@ -364,7 +370,7 @@ namespace CardCore
                         {
                             if (dom != null && dom.Count > 1)
                             {
-                                Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
+                                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
                                              + $"声明单范围模式 {def.SelectionMode}（{string.Join(",", dom)} 共 {dom.Count} 个范围）——"
                                              + "一个 {{target}} 只能从一个范围选择，应改用多范围模式 3/4/5");
                                 break;
@@ -378,10 +384,10 @@ namespace CardCore
                     {
                         if (SelectionModeRules.IsPickOne(def.SelectionMode)
                             && eff.TargetCount != -2 && eff.TargetCount != 1)
-                            Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
+                            TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
                                            + $"选一档（{def.SelectionMode}）显式声明 TargetCount={eff.TargetCount}——数量以模式为准（1），多余声明被忽略");
                         if (SelectionModeRules.IsTakeAll(def.SelectionMode) && eff.TargetCount > 0)
-                            Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
+                            TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
                                            + $"全取档（{def.SelectionMode}）显式声明 TargetCount={eff.TargetCount}——全取不按数量，多余声明被忽略");
                     }
 
@@ -394,7 +400,7 @@ namespace CardCore
                         foreach (var atom in def.Effects)
                             if (atom?.TargetKinds != null && atom.TargetKinds.Count > 0) { hasKindAtom = true; break; }
                     if (hasKindAtom)
-                        Debug.LogError($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
+                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
                                      + $"主序列原子目标域交集为空——组合不可作用任何对象，构筑期拦截（检查各原子 TargetKinds）");
                 }
             }
@@ -415,7 +421,7 @@ namespace CardCore
                     if (eff == null) continue;
 
                     if (eff.RandomTarget != 0 && eff.TargetCount == -1)
-                        Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                        TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
                                        + "目标随机与任意数量(-1)互斥——随机抽取需固定个数，动态数量将退化为全取");
 
                     // 固有全域原子告警块已删（2026-09-21 退役——全域用 TargetKinds+全取档组合表达）
@@ -428,7 +434,7 @@ namespace CardCore
                     bool hasCap8 = (eff.AtomicEffects ?? new List<AtomicEffectEntry>()).Any(HasCap8)
                         || (eff.Steps ?? new List<EffectStepData>()).Any(s => s != null && HasCap8(s.atomic));
                     if (hasCap8 && eff.TriggerLimitPerTurn != 0)
-                        Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                        TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
                                        + "含触发上限不可修改原子（MountKinds=8，如坚韧）——声明的 TriggerLimitPerTurn 被覆写为无限");
 
                     // 动态分支引擎（2026-09-13 分支体系正规化）：奖励原子须可挂载为分支奖励（MountKinds 含 4）；
@@ -440,11 +446,11 @@ namespace CardCore
                             if (a == null) continue;
                             var mk4 = (Attribute.AtomicEffectTable.GetByHashId(a.refId)?.MountKinds ?? "").Split(',').Select(s => s.Trim());
                             if (!mk4.Contains("4"))
-                                Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
                                                + $"引擎奖励原子 {a.refId} 未开放分支奖励挂载（MountKinds 不含 4）");
                         }
                         if (eff.EngineKind != (int)CardCore.BranchEngineKind.Countdown && (eff.EngineParam < 1 || eff.EngineParam > 5))
-                            Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                            TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
                                            + $"运势/拼点参数 x={eff.EngineParam} 越界 [1,5]（运行时夹取）");
 
                     // 属性价梯（2026-09-13 定案；2026-09-14 收缩：DurationValue/ForTurns 效果级退役——
@@ -464,7 +470,7 @@ namespace CardCore
                             var kinds = row.GetTargetKindList();
                             return kinds != null && kinds.Any(k => k >= 1 && k <= 4); // 可指向单位（别人）
                         }))
-                        Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                        TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
                                        + "生物赋予**他人**的关键词固定 1 回合（声明持续被覆写为 Temp/UET——自身/魔法/光环走文本轨照旧）");
                     }
 
@@ -472,7 +478,7 @@ namespace CardCore
                     {
                         if (atom == null) return;
                         if (atom.amp < 0f || atom.amp > 1f)
-                            Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
+                            TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
                                            + $"amp={atom.amp:0.###} 越界 [0,1]（converter 已夹取）");
                         // 挂载位校验（2026-09-13 MountKinds 7=可挂载随机）：未开放的原子配幅度 → 告警
                         if (atom.amp > 0f)
@@ -481,7 +487,7 @@ namespace CardCore
                             bool allowsRandom = mountCsv.Split(',')
                                 .Select(s => s.Trim()).Any(s => s == "7");
                             if (!allowsRandom)
-                                Debug.LogWarning($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
+                                TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
                                                + "配了随机幅度但表未开放可挂载随机（MountKinds 不含 7）");
                         }
                     }
@@ -505,7 +511,7 @@ namespace CardCore
         /// </summary>
         public static List<CardData> LoadCardsFromText(string jsonText)
         {
-            var wrapper = JsonUtility.FromJson<TestCardsConfigWrapper>(jsonText);
+            var wrapper = TideJson.FromJson<TestCardsConfigWrapper>(jsonText);
             var result = new List<CardData>();
 
             foreach (var entry in wrapper.cards)
@@ -617,7 +623,7 @@ namespace CardCore
                     var atom = AtomicEffectTable.GetByHashId(eid);
                     if (atom == null)
                     {
-                        Debug.LogWarning($"[CardLoader] {entry.id}：effectIds 引用 {eid} 既不在效果库也不在原子表——跳过");
+                        TideLog.Warn($"[CardLoader] {entry.id}：effectIds 引用 {eid} 既不在效果库也不在原子表——跳过");
                         continue;
                     }
                     if (Enum.TryParse<AtomicEffectType>(atom.EnumName, out var grantType)
@@ -627,7 +633,7 @@ namespace CardCore
                     }
                     else
                     {
-                        Debug.LogWarning($"[CardLoader] {entry.id}：原子 {atom.EnumName} 非 Grant 族——不可作本体关键词，跳过");
+                        TideLog.Warn($"[CardLoader] {entry.id}：原子 {atom.EnumName} 非 Grant 族——不可作本体关键词，跳过");
                     }
                 }
                 cardData.Effects = resolved;

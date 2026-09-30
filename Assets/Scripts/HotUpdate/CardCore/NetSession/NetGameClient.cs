@@ -2,7 +2,6 @@
 using System;
 using System.Net.Sockets;
 using CardCore.Network;
-using UnityEngine;
 
 namespace CardCore.Network
 {
@@ -105,7 +104,7 @@ namespace CardCore.Network
                     var err = NetworkSerializer.DeserializePayload<MsgError>(msg);
                     if (err != null)
                     {
-                        Debug.Log($"[NetGameClient] 拒绝（{err.Context}）：{err.Reason}");
+                        TideLog.Info($"[NetGameClient] 拒绝（{err.Context}）：{err.Reason}");
                         OnError?.Invoke(err);
                     }
                     break;

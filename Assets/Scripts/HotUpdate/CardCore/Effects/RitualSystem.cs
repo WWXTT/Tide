@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using CardCore.Attribute;
-using UnityEngine;
 
 namespace CardCore
 {
@@ -137,15 +136,15 @@ namespace CardCore
             _definitions = new Dictionary<string, RitualDefinition>();
             try
             {
-                string path = Path.Combine(Application.dataPath, ConfigRelativePath);
+                string path = Path.Combine(TidePaths.DataPath, ConfigRelativePath);
                 if (!File.Exists(path))
                 {
-                    Debug.LogWarning($"[RitualSystem] 配置文件不存在: {path}，仪式不可用");
+                    TideLog.Warn($"[RitualSystem] 配置文件不存在: {path}，仪式不可用");
                     return;
                 }
                 string raw = File.ReadAllText(path).TrimStart();
                 string wrapped = raw.StartsWith("[") ? "{\"rituals\":" + raw + "}" : raw; // 裸数组包一层（同 AtomicEffectTable 惯例）
-                var parsed = JsonUtility.FromJson<RitualConfigWrapper>(wrapped);
+                var parsed = TideJson.FromJson<RitualConfigWrapper>(wrapped);
                 if (parsed?.rituals == null) return;
                 foreach (var def in parsed.rituals)
                 {
@@ -155,7 +154,7 @@ namespace CardCore
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[RitualSystem] 加载 {ConfigRelativePath} 失败: {e.Message}");
+                TideLog.Warn($"[RitualSystem] 加载 {ConfigRelativePath} 失败: {e.Message}");
             }
         }
 

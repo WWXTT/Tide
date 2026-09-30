@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
 
 namespace CardCore
 {
@@ -33,7 +32,7 @@ namespace CardCore
             else
             {
                 if (data.TriggerTiming >= 0)
-                    Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 的 TriggerTiming={data.TriggerTiming} 越界（枚举收敛后重排），回退 OnPlay");
+                    TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 的 TriggerTiming={data.TriggerTiming} 越界（枚举收敛后重排），回退 OnPlay");
                 timing = data.TriggerTiming < 0 ? TriggerTiming.Activate_Active : TriggerTiming.OnPlay;
             }
 
@@ -54,7 +53,7 @@ namespace CardCore
             // 启动式只能是主动发动（玩家轮询选择），声明为强制/自动属数据错误——告警并按主动处理。
             if (isActivated && activationType != EffectActivationType.Voluntary)
             {
-                Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 为启动式（{timing}）" +
+                TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 为启动式（{timing}）" +
                                  $"但 ActivationType={activationType}（启动式只能主动发动），按主动处理");
                 activationType = EffectActivationType.Voluntary;
             }
@@ -113,7 +112,7 @@ namespace CardCore
                               && Array.IndexOf(ComposerCatalog.DamageProducers,
                                   def.Steps[i - 1].Atomic?.Type.ToString() ?? "") >= 0;
                 if (paired) continue;
-                Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 改写门 {s.ConditionId}" +
+                TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 改写门 {s.ConditionId}" +
                                  " 未紧跟伤害族主干原子，已剔除（改写门只挂 DealDamage/PierceDamage/DrainLife）");
                 def.Steps.RemoveAt(i);
             }
@@ -143,11 +142,11 @@ namespace CardCore
             if (ContainsAtom(def, AtomicEffectType.DeclareVictory))
             {
                 if (isActivated)
-                    Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 启动式声明 DeclareVictory" +
+                    TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 启动式声明 DeclareVictory" +
                                      "（数据错误——胜利宣判不可主动发动），按主动处理保留");
                 else if (activationType != EffectActivationType.Mandatory)
                 {
-                    Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 含 DeclareVictory 原子，" +
+                    TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 含 DeclareVictory 原子，" +
                                      $"ActivationType={activationType} 覆写为 Mandatory（胜利宣判一律强制）");
                     activationType = EffectActivationType.Mandatory;
                     def.ActivationType = activationType;
@@ -184,7 +183,7 @@ namespace CardCore
                 && !(def.SelectionMode == SelectionMode.Single && def.TargetDomain != null
                      && def.TargetDomain.Count == 1 && def.TargetDomain[0] == (int)TargetKind.Self))
             {
-                Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 为强制类但声明选一/选多" +
+                TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 为强制类但声明选一/选多" +
                                  "（强制类无目标选择窗口，目标须构筑期明确）——已覆写为 WholeUnion");
                 def.SelectionMode = SelectionMode.WholeUnion;
             }
@@ -210,7 +209,7 @@ namespace CardCore
                             && CostDerivationService.SideLock(payloadAtom.TargetKinds) != 0;
                         if (payloadAtom == null || !(wrongSide || sideLockedNeutral))
                         {
-                            Debug.LogError($"[CardEffectConverter] 卡 {sourceCardId} 代价栏 Payload 违反内容契约：" +
+                            TideLog.Error($"[CardEffectConverter] 卡 {sourceCardId} 代价栏 Payload 违反内容契约：" +
                                            "代价只能挂对自己有害或对对手有益的原子（错边），应当剔除该代价");
                             continue;
                         }
@@ -219,7 +218,7 @@ namespace CardCore
                         int payloadPrice = CostDerivationService.PayloadUnitGrant(payloadAtom);
                         if (payloadPrice > 1)
                         {
-                            Debug.LogWarning($"[CardEffectConverter] 卡 {sourceCardId} 代价栏 Payload 形成 {payloadPrice} 费：" +
+                            TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 代价栏 Payload 形成 {payloadPrice} 费：" +
                                              "构筑期只允许装形成 1 费的代价（2026-09-21 定案，后续靠情况开放）");
                         }
                         def.Costs.Add(new CostInstance
@@ -331,14 +330,14 @@ namespace CardCore
         {
             if (entry == null || string.IsNullOrEmpty(entry.refId))
             {
-                Debug.LogWarning("[CardEffectConverter] 原子引用为空（refId 缺失——旧格式数据？），跳过");
+                TideLog.Warn("[CardEffectConverter] 原子引用为空（refId 缺失——旧格式数据？），跳过");
                 return null;
             }
 
             var config = CardCore.Attribute.AtomicEffectTable.GetByHashId(entry.refId);
             if (config == null || !Enum.TryParse<AtomicEffectType>(config.EnumName, out var type))
             {
-                Debug.LogWarning($"[CardEffectConverter] 原子表引用缺失: {entry.refId}（表无此行或枚举错名），跳过");
+                TideLog.Warn($"[CardEffectConverter] 原子表引用缺失: {entry.refId}（表无此行或枚举错名），跳过");
                 return null;
             }
 
@@ -347,7 +346,7 @@ namespace CardCore
             if (ComposerCatalog.IsEngineTrunk(type))
             {
                 // 数据质量诊断（主干守卫是既定拦截，负面测试会故意触发——告警级与契约剔除同级）
-                Debug.LogWarning($"[CardEffectConverter] 引擎主干原子 {type} 不可作为普通原子挂载" +
+                TideLog.Warn($"[CardEffectConverter] 引擎主干原子 {type} 不可作为普通原子挂载" +
                                "（自由分支经 header.EngineKind 声明），已剔除");
                 return null;
             }
@@ -357,7 +356,7 @@ namespace CardCore
                 ? new List<int>(entry.kinds)
                 : config.GetTargetKindList();
 
-            float polarity = UnityEngine.Mathf.Clamp(config.Polarity, -1f, 1f);
+            float polarity = Math.Clamp(config.Polarity, -1f, 1f);
 
             // 内容契约（2026-09-11 定案）：效果栏（主动/被动效果）只能挂对自己有益或中性的原子——
             // 错边锁定（有益锁对方域 / 有害锁己方域 = 对自己有害或对对手有益）只能进代价栏（Payload）。
@@ -365,7 +364,7 @@ namespace CardCore
             if (!allowWrongSide && polarity != 0f && CostDerivationService.WrongSide(polarity, kinds))
             {
                 // 数据质量诊断（与 WarnCostNonConformance 同级）：错边原子被剔除——装载可见不炸
-                Debug.LogWarning($"[CardEffectConverter] 原子 {type}（极性 {polarity:0.#}，域 [{string.Join(",", kinds)}]）" +
+                TideLog.Warn($"[CardEffectConverter] 原子 {type}（极性 {polarity:0.#}，域 [{string.Join(",", kinds)}]）" +
                                "违反内容契约：效果栏不可挂错边原子（对自己有害/对对手有益只能进代价栏），已剔除该效果");
                 return null;
             }
@@ -374,7 +373,7 @@ namespace CardCore
             {
                 Type = type,
                 Value = entry.value,
-                RandomAmplitude = UnityEngine.Mathf.Clamp(entry.amp, 0f, 1f),
+                RandomAmplitude = Math.Clamp(entry.amp, 0f, 1f),
                 StringValue = entry.str ?? "",
                 Mana = null, // ManaList 已随彻底引用化删除（全数据 0 使用）
                 TargetKinds = kinds,
@@ -520,7 +519,7 @@ namespace CardCore
             {
                 if (step.choices == null || step.choices.Count < 2)
                 {
-                    UnityEngine.Debug.LogWarning("[CardEffectConverter] 抉择步骤 choices 缺失或 <2，跳过该步骤");
+                    TideLog.Warn("[CardEffectConverter] 抉择步骤 choices 缺失或 <2，跳过该步骤");
                     return null;
                 }
 
@@ -537,7 +536,7 @@ namespace CardCore
                             if (rs == null) continue;
                             if (rs.Kind == RuntimeStepKind.Choice)
                             {
-                                UnityEngine.Debug.LogWarning("[CardEffectConverter] 抉择不可嵌套，跳过内层抉择");
+                                TideLog.Warn("[CardEffectConverter] 抉择不可嵌套，跳过内层抉择");
                                 continue;
                             }
                             seq.Add(rs);
@@ -547,7 +546,7 @@ namespace CardCore
                 }
                 if (choice.Choices.Count < 2)
                 {
-                    UnityEngine.Debug.LogWarning("[CardEffectConverter] 抉择步骤有效模式 <2，跳过该步骤");
+                    TideLog.Warn("[CardEffectConverter] 抉择步骤有效模式 <2，跳过该步骤");
                     return null;
                 }
                 return choice;

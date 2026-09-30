@@ -293,7 +293,7 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            UnityEngine.Debug.LogWarning("[Attack] 攻击原子不应经常规原子路径执行（战斗流程走 CombatSystem）");
+            TideLog.Warn("[Attack] 攻击原子不应经常规原子路径执行（战斗流程走 CombatSystem）");
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "攻击（速度0·结算期横置）";
@@ -310,7 +310,7 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            UnityEngine.Debug.LogWarning("[Guard] 守卫原子不应经常规原子路径执行（拦截走 CombatSystem）");
+            TideLog.Warn("[Guard] 守卫原子不应经常规原子路径执行（拦截走 CombatSystem）");
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "守卫（速度1·响应拦截）";

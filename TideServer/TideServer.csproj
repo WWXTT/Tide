@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    TideServer：分离的权威服务器（2026-09-27 立项，网络协议.md §14）。
+    共享源编译——CardCore 与 UI/Data 子集直接 Include 本仓 Assets 内源文件（单一真相源，无复制）：
+    Unity 侧（Assembly-CSharp）与服务器编译同一批 .cs，Phase 1 去 Unity 化后两端零 shim。
+
+    版本钉死：MemoryPack 1.21.4（与 Assets/Packages 本地包同版——MemoryPackOrder 标签生成必须一致，
+    线格式 4 字节长度前缀 + MemoryPack 信封才互通）。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- 共享源按 Unity 侧 C# 9 语法书写；服务器工程用最新编译器（MemoryPack 生成器产物需要 C#11+，
+         高版本编译器向后兼容 C#9 共享源，无漂移风险） -->
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>TideServer</AssemblyName>
+    <RootNamespace>TideServer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MemoryPack" Version="1.21.4" />
+    <PackageReference Include="UniTask" Version="2.5.11" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 2026-09-30 合并：热更重排后共享源迁至 Assets/Scripts/HotUpdate/ 下，路径随之更新 -->
+    <Compile Include="..\Assets\Scripts\HotUpdate\CardCore\**\*.cs" LinkBase="Shared\CardCore" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\NeuralEnv\LegalActionEnumerator.cs" Link="Shared\AI\LegalActionEnumerator.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\NeuralEnv\TideObservation.cs" Link="Shared\AI\TideObservation.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\NeuralEnv\FieldValueReward.cs" Link="Shared\AI\FieldValueReward.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\CardCatalog.cs" Link="Shared\SynergyUI\CardCatalog.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\CardDataPaths.cs" Link="Shared\SynergyUI\CardDataPaths.cs" />
+  </ItemGroup>
+
+</Project>

@@ -392,11 +392,12 @@ namespace CardCore
         }
 
         /// <summary>绿技能共用：卡作为地牌横置入池——入池（资格/上限/指示物权威校验）→ 移区 →
-        /// 横置（本回合不可产元素，己方回合开始恢复直立）。</summary>
+        /// 发事件（时序定案 2026-09-26：区域列表落定后发布）→ 横置（本回合不可产元素，己方回合开始恢复直立）。</summary>
         private static bool LandTappedFromZone(GameCore core, Player player, Card card, Zone fromZone)
         {
             if (!core.ElementPool.AddCardToPool(card, player)) return false;
             core.ZoneManager.MoveCard(card, player, fromZone, Zone.ElementPool);
+            core.ElementPool.PublishPoolAdd(card, player);
 
             var pooled = core.ElementPool.GetPool(player).PooledCards
                 .FirstOrDefault(pc => pc.SourceCard == card);

@@ -110,7 +110,7 @@ namespace CardCore.Network
             }
 
             // 自超时竞速（+1.5s 宽限对齐外层本地路径）：无论哪边胜出都清 _pending 条目
-            var timeoutTask = UniTask.Delay(TimeSpan.FromSeconds(timeoutSeconds + GraceSeconds))
+            var timeoutTask = TideDelay.After(TimeSpan.FromSeconds(timeoutSeconds + GraceSeconds))
                 .ContinueWith(() => (List<int>)null);
             var (winIndex, uiResult, _) = await UniTask.WhenAny(tcs.Task, timeoutTask);
             _pending.Remove(msg.RequestId);

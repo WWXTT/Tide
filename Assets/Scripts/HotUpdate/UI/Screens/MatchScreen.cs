@@ -13,8 +13,8 @@ namespace SynergyUI
     /// → 双方就座后自动提交所选卡组 → MatchManifest 下发即接续对战界面
     /// （连接经 BattleEntry.Client 移交——BattleScreen 消费后接管关闭，本屏不再碰）。
     ///
-    /// 服务器宿主：编辑器菜单 Tools/大厅服务器（本进程，单房串行——GameCore 进程单例约束）
-    /// 或另一台机器 batchmode NetLobbyHost.Main；单人测试流程=本机开服 → 创建房间 → AI 填位 → 开局。
+    /// 服务器宿主：Play 模式自动启动的本机大厅（NetLobbyHost，单房串行——GameCore 进程单例约束）
+    /// 或另一台机器 batchmode NetLobbyHost.Main；单人测试流程=直接连接 → 创建房间 → AI 填位 → 开局。
     /// </summary>
     public sealed class MatchScreen : UIScreen
     {
@@ -310,7 +310,7 @@ namespace SynergyUI
             AddStatusLine($"连接：{(Connected ? "已连接" : "未连接")}");
             if (!Connected)
             {
-                var hint = new Label("单人测试：先在编辑器菜单 Tools/大厅服务器 启动本机服务器 → 连接 → 创建房间 → +AI 对手填位 → 自动开局");
+                var hint = new Label("单人测试：本机大厅服务器随 Play 模式自动启动 → 连接 → 创建房间/自动匹配 → +AI 对手填位 → 自动开局");
                 hint.AddToClassList("hint");
                 hint.style.whiteSpace = UnityEngine.UIElements.WhiteSpace.Normal;
                 _statusZone.Add(hint);

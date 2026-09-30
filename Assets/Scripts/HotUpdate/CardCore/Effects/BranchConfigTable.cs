@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using UnityEngine;
 
 namespace CardCore
 {
@@ -16,8 +15,7 @@ namespace CardCore
     /// </summary>
     public static class BranchConfigTable
     {
-        // 配置寻址（2026-09-29 Configs 划入热更区）：YooAsset 地址=文件名；相对路径为编辑器 File 兜底。
-        private const string ConfigAddress = "BranchConfig";
+        // 配置寻址（2026-09-30 合并定案）：统一 TidePaths.ReadConfigText，YooAsset 装配见 HotUpdateEntry。
         private const string ConfigRelativePath = "Configs/BranchConfig.json";
 
         /// <summary>
@@ -62,11 +60,11 @@ namespace CardCore
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[BranchConfigTable] 加载 {ConfigRelativePath} 失败: {e.Message}");
+                TideLog.Warn($"[BranchConfigTable] 加载 {ConfigRelativePath} 失败: {e.Message}");
             }
 
             if (loaded == 0)
-                Debug.LogWarning($"[BranchConfigTable] 未从 JSON 加载到任何条目（配置缺失或解析失败）");
+                TideLog.Warn($"[BranchConfigTable] 未从 JSON 加载到任何条目（配置缺失或解析失败）");
             else
                 ValidateAgainstCode();
         }
@@ -81,19 +79,19 @@ namespace CardCore
             {
                 if (CardCore.Attribute.AtomicEffectTable.GetByEnumName(config.EffectTypeName) == null)
                 {
-                    Debug.LogError($"[BranchConfig] 目录项 '{config.EffectTypeName}' 不在 AtomicEffectTable 中（EffectType 拼写错误或表缺行）");
+                    TideLog.Error($"[BranchConfig] 目录项 '{config.EffectTypeName}' 不在 AtomicEffectTable 中（EffectType 拼写错误或表缺行）");
                     continue;
                 }
 
                 if (!OutcomeProducerTypes.Contains(config.EffectTypeName))
                 {
-                    Debug.LogError($"[BranchConfig] 目录项 '{config.EffectTypeName}' 不属于产出族（OutcomeProducerTypes）——" +
+                    TideLog.Error($"[BranchConfig] 目录项 '{config.EffectTypeName}' 不属于产出族（OutcomeProducerTypes）——" +
                                    "改值/改费/授予系/移动系无可串联条件，不应出现在分支目录中");
                 }
 
                 if (config.Conditions == null || config.Conditions.Count == 0)
                 {
-                    Debug.LogError($"[BranchConfig] 目录项 '{config.EffectTypeName}' 无任何条件（应从产出族目录移除或补条件）");
+                    TideLog.Error($"[BranchConfig] 目录项 '{config.EffectTypeName}' 无任何条件（应从产出族目录移除或补条件）");
                     continue;
                 }
 
@@ -102,7 +100,7 @@ namespace CardCore
                     if (cond.Kind == BranchConditionKind.OutcomeGate
                         && !BranchConditionEvaluator.IsKnownCondition(cond.Id))
                     {
-                        Debug.LogError($"[BranchConfig] 条件 '{cond.Id}'（挂在 {config.EffectTypeName}）不被 BranchConditionEvaluator 识别——" +
+                        TideLog.Error($"[BranchConfig] 条件 '{cond.Id}'（挂在 {config.EffectTypeName}）不被 BranchConditionEvaluator 识别——" +
                                        "目录与评估器 switch 是唯一同步点，两侧须一起改");
                     }
                 }
@@ -111,13 +109,13 @@ namespace CardCore
 
         private static int LoadFromJson()
         {
-            string raw = Tide.HotUpdate.HotUpdateAssets.LoadText(ConfigAddress, ConfigRelativePath);
+            string raw = TidePaths.ReadConfigText(ConfigRelativePath);
             if (string.IsNullOrEmpty(raw))
             {
-                Debug.LogWarning($"[BranchConfigTable] 配置不可读：YooAsset[{ConfigAddress}] / {ConfigRelativePath}");
+                TideLog.Warn($"[BranchConfigTable] 配置不可读：{ConfigRelativePath}");
                 return 0;
             }
-            var root = JsonUtility.FromJson<BranchConfigRoot>(raw);
+            var root = TideJson.FromJson<BranchConfigRoot>(raw);
             if (root == null) return 0;
 
             int count = 0;
