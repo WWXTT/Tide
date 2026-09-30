@@ -59,31 +59,72 @@ namespace UnityEngine.Rendering.Universal
         }
     }
 
+    [Serializable]
+    [SupportedOnRenderPipeline(typeof(UniversalRenderPipelineAsset))]
+    [Categorization.CategoryInfo(Name = "R: SSAO Shader", Order = 1000)]
+    [Categorization.ElementInfo(Order = 0), HideInInspector]
+    class ScreenSpaceAmbientOcclusionPersistentResources : IRenderPipelineResources
+    {
+        [SerializeField]
+        [ResourcePath("Shaders/Utils/ScreenSpaceAmbientOcclusion.shader")]
+        Shader m_Shader;
+
+        public Shader Shader
+        {
+            get => m_Shader;
+            set => this.SetValueAndNotify(ref m_Shader, value);
+        }
+
+        public bool isAvailableInPlayerBuild => true;
+
+        [SerializeField][HideInInspector] private int m_Version = 0;
+
+        /// <summary>Current version of the resource container. Used only for upgrading a project.</summary>
+        public int version => m_Version;
+    }
+
+    [Serializable]
+    [SupportedOnRenderPipeline(typeof(UniversalRenderPipelineAsset))]
+    [Categorization.CategoryInfo(Name = "R: SSAO Noise Textures", Order = 1000)]
+    [Categorization.ElementInfo(Order = 0), HideInInspector]
+    class ScreenSpaceAmbientOcclusionDynamicResources : IRenderPipelineResources
+    {
+        [SerializeField]
+        [ResourceFormattedPaths("Textures/BlueNoise256/LDR_LLL1_{0}.png", 0, 7)]
+        Texture2D[] m_BlueNoise256Textures;
+
+        public Texture2D[] BlueNoise256Textures
+        {
+            get => m_BlueNoise256Textures;
+            set => this.SetValueAndNotify(ref m_BlueNoise256Textures, value);
+        }
+
+        public bool isAvailableInPlayerBuild => true;
+
+        [SerializeField][HideInInspector] private int m_Version = 0;
+
+        /// <summary>Current version of the resource container. Used only for upgrading a project.</summary>
+        public int version => m_Version;
+    }
+
+
     /// <summary>
     /// The class for the SSAO renderer feature.
     /// </summary>
     [SupportedOnRenderer(typeof(UniversalRendererData))]
     [DisallowMultipleRendererFeature("Screen Space Ambient Occlusion")]
     [Tooltip("The Ambient Occlusion effect darkens creases, holes, intersections and surfaces that are close to each other.")]
-    [URPHelpURL("post-processing-ssao")]
+    [URPHelpURL("urp/post-processing-ssao")]
     public class ScreenSpaceAmbientOcclusion : ScriptableRendererFeature
     {
         // Serialized Fields
         [SerializeField] private ScreenSpaceAmbientOcclusionSettings m_Settings = new ScreenSpaceAmbientOcclusionSettings();
 
-        [SerializeField]
-        [HideInInspector]
-        [Reload("Textures/BlueNoise256/LDR_LLL1_{0}.png", 0, 7)]
-        internal Texture2D[] m_BlueNoise256Textures;
-
-        [SerializeField]
-        [HideInInspector]
-        [Reload("Shaders/Utils/ScreenSpaceAmbientOcclusion.shader")]
-        private Shader m_Shader;
-
         // Private Fields
         private Material m_Material;
         private ScreenSpaceAmbientOcclusionPass m_SSAOPass = null;
+        private Shader m_Shader;
+        private Texture2D[] m_BlueNoise256Textures;
 
         // Internal / Constants
         internal ref ScreenSpaceAmbientOcclusionSettings settings => ref m_Settings;
@@ -101,9 +142,6 @@ namespace UnityEngine.Rendering.Universal
         /// <inheritdoc/>
         public override void Create()
         {
-#if UNITY_EDITOR
-            ResourceReloader.TryReloadAllNullIn(this, UniversalRenderPipelineAsset.packagePath);
-#endif
             // Create the pass...
             if (m_SSAOPass == null)
                 m_SSAOPass = new ScreenSpaceAmbientOcclusionPass();
@@ -130,17 +168,55 @@ namespace UnityEngine.Rendering.Universal
             if (UniversalRenderer.IsOffscreenDepthTexture(ref renderingData.cameraData))
                 return;
 
-            if (!GetMaterials())
-            {
-                Debug.LogErrorFormat("{0}.AddRenderPasses(): Missing material. {1} render pass will not be added.", GetType().Name, name);
+            if (!TryPrepareResources())
                 return;
+
+            bool usesDeferred = renderer is UniversalRenderer { usesDeferredLighting: true };
+            ScriptableRenderPassInput requirements;
+            RenderPassEvent passEvent;
+            if (usesDeferred)
+            {
+                passEvent = m_Settings.AfterOpaque ? RenderPassEvent.AfterRenderingOpaques : RenderPassEvent.AfterRenderingPrePasses;
+                requirements = ScriptableRenderPassInput.Depth | ScriptableRenderPassInput.Normal;
+            }
+            else
+            {
+                passEvent = m_Settings.AfterOpaque ? RenderPassEvent.BeforeRenderingTransparents : RenderPassEvent.AfterRenderingPrePasses + 1;
+                requirements = m_Settings.Source == ScreenSpaceAmbientOcclusionSettings.DepthSource.Depth ? ScriptableRenderPassInput.Depth : ScriptableRenderPassInput.Depth | ScriptableRenderPassInput.Normal;
             }
 
-            bool shouldAdd = m_SSAOPass.Setup(ref m_Settings, ref renderer, ref m_Material, ref m_BlueNoise256Textures);
-            if (shouldAdd)
+            if (renderer is UniversalRenderer universalRenderer && universalRenderer.useTileOnlyMode)
             {
-                renderer.EnqueuePass(m_SSAOPass);
+                if (!RenderingUtils.IsCompatibleWithTileOnlyMode(requirements, passEvent))
+                {
+                    Debug.LogErrorFormat(
+                        "Screen Space Ambient Occlusion \"{0}\": the current settings are not compatible with Tile-Only Mode. Open the Universal Renderer \"{1}\" in the Inspector for more information.",
+                        name, renderer.name);
+                    return;
+                }
+
+                // SSAO-specific: In Tile-Only Mode with After Opaque, Render Graph merges the Blit SSAO pass with
+                // earlier passes that use the backbuffer (e.g. TopLeft UV origin). The merged pass then stores the
+                // SSAO occlusion texture with that same origin. Later, the occlusion texture is sampled as a texture
+                // (blur, etc.) which expects a different UV origin (e.g. BottomLeft), causing "Texture attachment
+                // Backbuffer depth with uv origin X does not match with texture attachment _SSAO_OcclusionTexture0
+                // with uv origin Y". Pass merging is currently too aggressive here, so disallow After Opaque with
+                // Depth Normals in Tile-Only Mode.
+                if (m_Settings.AfterOpaque && m_Settings.Source == ScreenSpaceAmbientOcclusionSettings.DepthSource.DepthNormals)
+                {
+                    Debug.LogErrorFormat(
+                        "Screen Space Ambient Occlusion \"{0}\": the current settings are not compatible with Tile-Only Mode. Open the Universal Renderer \"{1}\" in the Inspector for more information.",
+                        name, renderer.name);
+                    return;
+                }
             }
+
+            m_SSAOPass.renderPassEvent = passEvent;
+            m_SSAOPass.ConfigureInput(requirements);
+            var effectiveDepthSource = usesDeferred ? ScreenSpaceAmbientOcclusionSettings.DepthSource.DepthNormals : m_Settings.Source;
+            bool shouldAdd = m_SSAOPass.Setup(m_Settings, effectiveDepthSource, m_Material, m_BlueNoise256Textures);
+            if (shouldAdd)
+                renderer.EnqueuePass(m_SSAOPass);
         }
 
         /// <inheritdoc/>
@@ -151,11 +227,42 @@ namespace UnityEngine.Rendering.Universal
             CoreUtils.Destroy(m_Material);
         }
 
-        private bool GetMaterials()
+        bool TryPrepareResources()
         {
+            if (m_Shader == null)
+            {
+                if (!GraphicsSettings.TryGetRenderPipelineSettings<ScreenSpaceAmbientOcclusionPersistentResources>(out var ssaoPersistentResources))
+                {
+                    Debug.LogErrorFormat(
+                        $"Couldn't find the required resources for the {nameof(ScreenSpaceAmbientOcclusion)} render feature. If this exception appears in the Player, make sure at least one {nameof(ScreenSpaceAmbientOcclusion)} render feature is enabled or adjust your stripping settings.");
+                    return false;
+                }
+
+                m_Shader = ssaoPersistentResources.Shader;
+            }
+
+            if (m_Settings.AOMethod == ScreenSpaceAmbientOcclusionSettings.AOMethodOptions.BlueNoise && (m_BlueNoise256Textures == null || m_BlueNoise256Textures.Length == 0))
+            {
+                if (!GraphicsSettings.TryGetRenderPipelineSettings<ScreenSpaceAmbientOcclusionDynamicResources>(out var ssaoDynamicResources))
+                {
+                    Debug.LogErrorFormat($"Couldn't load {nameof(ScreenSpaceAmbientOcclusionDynamicResources.BlueNoise256Textures)}. If this exception appears in the Player, please check the SSAO options for {nameof(ScreenSpaceAmbientOcclusion)} or adjust your stripping settings");
+                    return false;
+                }
+
+                m_BlueNoise256Textures = ssaoDynamicResources.BlueNoise256Textures;
+            }
+
             if (m_Material == null && m_Shader != null)
                 m_Material = CoreUtils.CreateEngineMaterial(m_Shader);
-            return m_Material != null;
+
+            if (m_Material == null)
+            {
+                Debug.LogError($"{GetType().Name}.AddRenderPasses(): Missing material. {name} render pass will not be added.");
+                return false;
+            }
+
+            return true;
+
         }
     }
 }

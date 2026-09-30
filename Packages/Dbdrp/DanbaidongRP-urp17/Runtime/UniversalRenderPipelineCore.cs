@@ -64,6 +64,10 @@ namespace UnityEngine.Rendering.Universal
     /// <summary>
     /// Enumeration that indicates what kind of upscaling filter is being used
     /// </summary>
+    /// 
+#if ENABLE_UPSCALER_FRAMEWORK
+    [Obsolete("ImageUpscalingFilter is no longer used #from(6000.3)")]
+#endif
     internal enum ImageUpscalingFilter
     {
         /// Bilinear filtering
@@ -76,7 +80,11 @@ namespace UnityEngine.Rendering.Universal
         FSR,
 
         /// Spatial-Temporal Post-Processing
-        STP
+        STP,
+
+#if ENABLE_UPSCALER_FRAMEWORK
+        IUpscaler
+#endif
     }
 
     /// <summary>
@@ -98,19 +106,6 @@ namespace UnityEngine.Rendering.Universal
         }
 
         internal UniversalRenderingData universalRenderingData => frameData.Get<UniversalRenderingData>();
-
-        // Non-rendergraph path only. Do NOT use with rendergraph!
-        internal ref CommandBuffer commandBuffer
-        {
-            get
-            {
-                ref var cmd = ref frameData.Get<UniversalRenderingData>().m_CommandBuffer;
-                if (cmd == null)
-                    Debug.LogError("RenderingData.commandBuffer is null. RenderGraph does not support this property. Please use the command buffer provided by the RenderGraphContext.");
-
-                return ref cmd;
-            }
-        }
 
         /// <summary>
         /// Returns culling results that exposes handles to visible objects, lights and probes.
@@ -148,6 +143,7 @@ namespace UnityEngine.Rendering.Universal
         /// True if the pipeline supports dynamic batching.
         /// This settings doesn't apply when drawing shadow casters. Dynamic batching is always disabled when drawing shadow casters.
         /// </summary>
+        [Obsolete("supportsDynamicBatching is deprecated and will be removed in a future release. #from(6000.5)", false)]
         public ref bool supportsDynamicBatching => ref frameData.Get<UniversalRenderingData>().supportsDynamicBatching;
 
         /// <summary>
@@ -219,6 +215,11 @@ namespace UnityEngine.Rendering.Universal
         public ref bool reflectionProbeBlending => ref frameData.Get<UniversalLightData>().reflectionProbeBlending;
 
         /// <summary>
+        /// True if reflection probes are combined into a single atlas texture.
+        /// </summary>
+        public ref bool reflectionProbeAtlas => ref frameData.Get<UniversalLightData>().reflectionProbeAtlas;
+
+        /// <summary>
         /// True if light layers are enabled.
         /// </summary>
         public ref bool supportsLightLayers => ref frameData.Get<UniversalLightData>().supportsLightLayers;
@@ -233,7 +234,7 @@ namespace UnityEngine.Rendering.Universal
     /// <summary>
     /// Struct that holds settings related to camera.
     /// </summary>
-    public struct CameraData
+    public partial struct CameraData
     {
         ContextContainer frameData;
 
@@ -284,32 +285,6 @@ namespace UnityEngine.Rendering.Universal
             return frameData.Get<UniversalCameraData>().GetProjectionMatrixNoJitter(viewIndex);
         }
 
-        /// <summary>
-        /// Returns the camera GPU projection matrix. This contains platform specific changes to handle y-flip and reverse z. Includes camera jitter if required by active features.
-        /// Similar to <c>GL.GetGPUProjectionMatrix</c> but queries URP internal state to know if the pipeline is rendering to render texture.
-        /// For more info on platform differences regarding camera projection check: https://docs.unity3d.com/Manual/SL-PlatformDifferences.html
-        /// </summary>
-        /// <param name="viewIndex"> View index in case of stereo rendering. By default <c>viewIndex</c> is set to 0. </param>
-        /// <seealso cref="GL.GetGPUProjectionMatrix(Matrix4x4, bool)"/>
-        /// <returns></returns>
-        public Matrix4x4 GetGPUProjectionMatrix(int viewIndex = 0)
-        {
-            return frameData.Get<UniversalCameraData>().GetGPUProjectionMatrix(viewIndex);
-        }
-
-        /// <summary>
-        /// Returns the camera GPU projection matrix. This contains platform specific changes to handle y-flip and reverse z. Does not include any camera jitter.
-        /// Similar to <c>GL.GetGPUProjectionMatrix</c> but queries URP internal state to know if the pipeline is rendering to render texture.
-        /// For more info on platform differences regarding camera projection check: https://docs.unity3d.com/Manual/SL-PlatformDifferences.html
-        /// </summary>
-        /// <param name="viewIndex"> View index in case of stereo rendering. By default <c>viewIndex</c> is set to 0. </param>
-        /// <seealso cref="GL.GetGPUProjectionMatrix(Matrix4x4, bool)"/>
-        /// <returns></returns>
-        public Matrix4x4 GetGPUProjectionMatrixNoJitter(int viewIndex = 0)
-        {
-            return frameData.Get<UniversalCameraData>().GetGPUProjectionMatrixNoJitter(viewIndex);
-        }
-
         internal Matrix4x4 GetGPUProjectionMatrix(bool renderIntoTexture, int viewIndex = 0)
         {
             return frameData.Get<UniversalCameraData>().GetGPUProjectionMatrix(renderIntoTexture, viewIndex);
@@ -354,6 +329,9 @@ namespace UnityEngine.Rendering.Universal
         /// </summary>
         public ref float renderScale => ref frameData.Get<UniversalCameraData>().renderScale;
         internal ref ImageScalingMode imageScalingMode => ref frameData.Get<UniversalCameraData>().imageScalingMode;
+#if ENABLE_UPSCALER_FRAMEWORK
+        [Obsolete("upscalingFilter is no longer used #from(6000.3)")]
+#endif
         internal ref ImageUpscalingFilter upscalingFilter => ref frameData.Get<UniversalCameraData>().upscalingFilter;
         internal ref bool fsrOverrideSharpness => ref frameData.Get<UniversalCameraData>().fsrOverrideSharpness;
         internal ref float fsrSharpness => ref frameData.Get<UniversalCameraData>().fsrSharpness;
@@ -461,19 +439,6 @@ namespace UnityEngine.Rendering.Universal
         public bool IsHandleYFlipped(RTHandle handle)
         {
             return frameData.Get<UniversalCameraData>().IsHandleYFlipped(handle);
-        }
-
-        /// <summary>
-        /// True if the camera device projection matrix is flipped. This happens when the pipeline is rendering
-        /// to a render texture in non OpenGL platforms. If you are doing a custom Blit pass to copy camera textures
-        /// (_CameraColorTexture, _CameraDepthAttachment) you need to check this flag to know if you should flip the
-        /// matrix when rendering with for cmd.Draw* and reading from camera textures.
-        /// </summary>
-        /// <returns> True if the camera device projection matrix is flipped. </returns>
-        [Obsolete(DeprecationMessage.CompatibilityScriptingAPIObsolete, false)]
-        public bool IsCameraProjectionMatrixFlipped()
-        {
-            return frameData.Get<UniversalCameraData>().IsCameraProjectionMatrixFlipped();
         }
 
         /// <summary>
@@ -887,11 +852,12 @@ namespace UnityEngine.Rendering.Universal
         public static readonly int ditheringTextureInvSize = Shader.PropertyToID("_DitheringTextureInvSize");
 
         public static readonly int renderingLayerMaxInt = Shader.PropertyToID("_RenderingLayerMaxInt");
-        public static readonly int renderingLayerRcpMaxInt = Shader.PropertyToID("_RenderingLayerRcpMaxInt");
 
         public static readonly int overlayUITexture = Shader.PropertyToID("_OverlayUITexture");
         public static readonly int hdrOutputLuminanceParams = Shader.PropertyToID("_HDROutputLuminanceParams");
         public static readonly int hdrOutputGradingParams = Shader.PropertyToID("_HDROutputGradingParams");
+        public static readonly int offscreenUIViewportParams = Shader.PropertyToID("_OffscreenUIViewportParams");
+        public static readonly int screenSpaceIrradiance = Shader.PropertyToID("_ScreenSpaceIrradiance");
     }
 
     /// <summary>
@@ -943,10 +909,12 @@ namespace UnityEngine.Rendering.Universal
         public static GlobalKeyword CastingPunctualLightShadow;
         public static GlobalKeyword AdditionalLightsVertex;
         public static GlobalKeyword AdditionalLightsPixel;
-        public static GlobalKeyword ForwardPlus;
+        public static GlobalKeyword ClusterLightLoop;
         public static GlobalKeyword AdditionalLightShadows;
         public static GlobalKeyword ReflectionProbeBoxProjection;
         public static GlobalKeyword ReflectionProbeBlending;
+        public static GlobalKeyword ReflectionProbeAtlas;
+        public static GlobalKeyword ReflectionProbeRotation;
         public static GlobalKeyword SoftShadows;
         public static GlobalKeyword SoftShadowsLow;
         public static GlobalKeyword SoftShadowsMedium;
@@ -971,6 +939,7 @@ namespace UnityEngine.Rendering.Universal
         public static GlobalKeyword DecalLayers;
         public static GlobalKeyword WriteRenderingLayers;
         public static GlobalKeyword ScreenSpaceOcclusion;
+        public static GlobalKeyword ScreenSpaceIrradiance;
         public static GlobalKeyword _SPOT;
         public static GlobalKeyword _DIRECTIONAL;
         public static GlobalKeyword _POINT;
@@ -1011,9 +980,17 @@ namespace UnityEngine.Rendering.Universal
         public static GlobalKeyword EVALUATE_SH_VERTEX;
         public static GlobalKeyword ProbeVolumeL1;
         public static GlobalKeyword ProbeVolumeL2;
+        public static GlobalKeyword LIGHTMAP_BICUBIC_SAMPLING;
         public static GlobalKeyword _OUTPUT_DEPTH;
         public static GlobalKeyword LinearToSRGBConversion;
         public static GlobalKeyword _ENABLE_ALPHA_OUTPUT;
+        public static GlobalKeyword ForwardPlus; // Backward compatibility. Deprecated in 6.1.
+#if (UNITY_META_QUEST)
+        public static GlobalKeyword META_QUEST_ORTHO_PROJ;
+        public static GlobalKeyword META_QUEST_LIGHTUNROLL;
+        public static GlobalKeyword META_QUEST_NO_SPOTLIGHTS_LIGHT_LOOP;
+#endif
+        public static GlobalKeyword APPLICATION_SPACE_WARP_MOTION_TRANSPARENT;
 
         // TODO: Move following keywords to Local keywords?
         // https://docs.unity3d.com/ScriptReference/Rendering.LocalKeyword.html
@@ -1052,10 +1029,12 @@ namespace UnityEngine.Rendering.Universal
             ShaderGlobalKeywords.CastingPunctualLightShadow = GlobalKeyword.Create(ShaderKeywordStrings.CastingPunctualLightShadow);
             ShaderGlobalKeywords.AdditionalLightsVertex = GlobalKeyword.Create(ShaderKeywordStrings.AdditionalLightsVertex);
             ShaderGlobalKeywords.AdditionalLightsPixel = GlobalKeyword.Create(ShaderKeywordStrings.AdditionalLightsPixel);
-            ShaderGlobalKeywords.ForwardPlus = GlobalKeyword.Create(ShaderKeywordStrings.ForwardPlus);
+            ShaderGlobalKeywords.ClusterLightLoop = GlobalKeyword.Create(ShaderKeywordStrings.ClusterLightLoop);
             ShaderGlobalKeywords.AdditionalLightShadows = GlobalKeyword.Create(ShaderKeywordStrings.AdditionalLightShadows);
             ShaderGlobalKeywords.ReflectionProbeBoxProjection = GlobalKeyword.Create(ShaderKeywordStrings.ReflectionProbeBoxProjection);
             ShaderGlobalKeywords.ReflectionProbeBlending = GlobalKeyword.Create(ShaderKeywordStrings.ReflectionProbeBlending);
+            ShaderGlobalKeywords.ReflectionProbeAtlas = GlobalKeyword.Create(ShaderKeywordStrings.ReflectionProbeAtlas);
+            ShaderGlobalKeywords.ReflectionProbeRotation = GlobalKeyword.Create(ShaderKeywordStrings.ReflectionProbeRotation);
             ShaderGlobalKeywords.SoftShadows = GlobalKeyword.Create(ShaderKeywordStrings.SoftShadows);
             ShaderGlobalKeywords.SoftShadowsLow = GlobalKeyword.Create(ShaderKeywordStrings.SoftShadowsLow);
             ShaderGlobalKeywords.SoftShadowsMedium = GlobalKeyword.Create(ShaderKeywordStrings.SoftShadowsMedium);
@@ -1080,6 +1059,7 @@ namespace UnityEngine.Rendering.Universal
             ShaderGlobalKeywords.DecalLayers = GlobalKeyword.Create(ShaderKeywordStrings.DecalLayers);
             ShaderGlobalKeywords.WriteRenderingLayers = GlobalKeyword.Create(ShaderKeywordStrings.WriteRenderingLayers);
             ShaderGlobalKeywords.ScreenSpaceOcclusion = GlobalKeyword.Create(ShaderKeywordStrings.ScreenSpaceOcclusion);
+            ShaderGlobalKeywords.ScreenSpaceIrradiance = GlobalKeyword.Create(ShaderKeywordStrings.ScreenSpaceIrradiance);
             ShaderGlobalKeywords._SPOT = GlobalKeyword.Create(ShaderKeywordStrings._SPOT);
             ShaderGlobalKeywords._DIRECTIONAL = GlobalKeyword.Create(ShaderKeywordStrings._DIRECTIONAL);
             ShaderGlobalKeywords._POINT = GlobalKeyword.Create(ShaderKeywordStrings._POINT);
@@ -1120,9 +1100,18 @@ namespace UnityEngine.Rendering.Universal
             ShaderGlobalKeywords.EVALUATE_SH_VERTEX = GlobalKeyword.Create(ShaderKeywordStrings.EVALUATE_SH_VERTEX);
             ShaderGlobalKeywords.ProbeVolumeL1 = GlobalKeyword.Create(ShaderKeywordStrings.ProbeVolumeL1);
             ShaderGlobalKeywords.ProbeVolumeL2 = GlobalKeyword.Create(ShaderKeywordStrings.ProbeVolumeL2);
+            ShaderGlobalKeywords.LIGHTMAP_BICUBIC_SAMPLING = GlobalKeyword.Create(ShaderKeywordStrings.LIGHTMAP_BICUBIC_SAMPLING);
             ShaderGlobalKeywords._OUTPUT_DEPTH = GlobalKeyword.Create(ShaderKeywordStrings._OUTPUT_DEPTH);
             ShaderGlobalKeywords.LinearToSRGBConversion = GlobalKeyword.Create(ShaderKeywordStrings.LinearToSRGBConversion);
             ShaderGlobalKeywords._ENABLE_ALPHA_OUTPUT = GlobalKeyword.Create(ShaderKeywordStrings._ENABLE_ALPHA_OUTPUT);
+            ShaderGlobalKeywords.ForwardPlus = GlobalKeyword.Create(ShaderKeywordStrings.ForwardPlus); // Backward compatibility. Deprecated in 6.1.
+#if (UNITY_META_QUEST)
+            ShaderGlobalKeywords.META_QUEST_ORTHO_PROJ = GlobalKeyword.Create(ShaderKeywordStrings.META_QUEST_ORTHO_PROJ);
+            ShaderGlobalKeywords.META_QUEST_LIGHTUNROLL = GlobalKeyword.Create(ShaderKeywordStrings.META_QUEST_LIGHTUNROLL);
+            ShaderGlobalKeywords.META_QUEST_NO_SPOTLIGHTS_LIGHT_LOOP = GlobalKeyword.Create(ShaderKeywordStrings.META_QUEST_NO_SPOTLIGHTS_LIGHT_LOOP);            
+#endif
+            ShaderGlobalKeywords.APPLICATION_SPACE_WARP_MOTION_TRANSPARENT = GlobalKeyword.Create(ShaderKeywordStrings.APPLICATION_SPACE_WARP_MOTION_TRANSPARENT);
+
         }
     }
 
@@ -1149,8 +1138,8 @@ namespace UnityEngine.Rendering.Universal
         /// <summary> Keyword used for per pixel additional lights. </summary>
         public const string AdditionalLightsPixel = "_ADDITIONAL_LIGHTS";
 
-        /// <summary> Keyword used for Forward+. </summary>
-        internal const string ForwardPlus = "_FORWARD_PLUS";
+        /// <summary> Keyword used for Forward+ & Deferred+. </summary>
+        internal const string ClusterLightLoop = "_CLUSTER_LIGHT_LOOP";
 
         /// <summary> Keyword used for shadows on additional lights. </summary>
         public const string AdditionalLightShadows = "_ADDITIONAL_LIGHT_SHADOWS";
@@ -1160,6 +1149,12 @@ namespace UnityEngine.Rendering.Universal
 
         /// <summary> Keyword used for Reflection probe blending. </summary>
         public const string ReflectionProbeBlending = "_REFLECTION_PROBE_BLENDING";
+
+        /// <summary> Keyword used for Reflection probe atlas. </summary>
+        public const string ReflectionProbeAtlas = "_REFLECTION_PROBE_ATLAS";
+
+        /// <summary> Keyword used for ReflectionProbe rotation. </summary>
+        public const string ReflectionProbeRotation = "REFLECTION_PROBE_ROTATION";
 
         /// <summary> Keyword used for soft shadows. </summary>
         public const string SoftShadows = "_SHADOWS_SOFT";
@@ -1292,6 +1287,9 @@ namespace UnityEngine.Rendering.Universal
 
         /// <summary> Keyword used for Screen Space Occlusion, such as Screen Space Ambient Occlusion (SSAO). </summary>
         public const string ScreenSpaceOcclusion = "_SCREEN_SPACE_OCCLUSION";
+
+        /// <summary> Keyword used for Screen Space Global Illumination. </summary>
+        public const string ScreenSpaceIrradiance = "_SCREEN_SPACE_IRRADIANCE";
 
         /// <summary> Keyword used for Point sampling when doing upsampling. </summary>
         public const string PointSampling = "_POINT_SAMPLING";
@@ -1431,6 +1429,9 @@ namespace UnityEngine.Rendering.Universal
         /// <summary> Keyword used for APV with SH L2 </summary>
         public const string ProbeVolumeL2 = "PROBE_VOLUMES_L2";
 
+        /// <summary> Keyword used for bicubic sampling of lightmaps. </summary>
+        public const string LIGHTMAP_BICUBIC_SAMPLING = "LIGHTMAP_BICUBIC_SAMPLING";
+
         /// <summary> Keyword used for opting out of lightmap texture arrays, when using BatchRendererGroup. </summary>
         public const string USE_LEGACY_LIGHTMAPS = "USE_LEGACY_LIGHTMAPS";
 
@@ -1439,6 +1440,29 @@ namespace UnityEngine.Rendering.Universal
 
         /// <summary> Keyword used for enable alpha output. Used in post processing. </summary>
         public const string _ENABLE_ALPHA_OUTPUT = "_ENABLE_ALPHA_OUTPUT";
+
+        /// <summary> Deprecated keyword. Use ClusterLightLoop instead. </summary>
+        internal const string ForwardPlus = "_FORWARD_PLUS"; // Backward compatibility. Deprecated in 6.1.
+
+#if (UNITY_META_QUEST)
+        /// <summary> Used to statically branch when checking for projection type on Meta Quest device. </summary>
+        internal const string META_QUEST_ORTHO_PROJ = "META_QUEST_ORTHO_PROJ";
+
+        /// <summary> Unroll light loop if there is only one additional light on Meta Quest device. </summary>
+        internal const string META_QUEST_LIGHTUNROLL = "META_QUEST_LIGHTUNROLL";
+
+        /// <summary> Use light loop optimized for point lights only on Meta Quest device, the evaluation of whether this optimization can be enabled is performed per batch. </summary>
+        internal const string META_QUEST_NO_SPOTLIGHTS_LIGHT_LOOP = "META_QUEST_NO_SPOTLIGHTS_LIGHT_LOOP";
+#endif
+
+        /// <summary> Keyword used for transparency spacewarp-related code </summary>
+        internal const string APPLICATION_SPACE_WARP_MOTION_TRANSPARENT = "APPLICATION_SPACE_WARP_MOTION_TRANSPARENT";
+
+        /// <summary> Keyword used for Multi Sampling Anti-Aliasing (MSAA) with 2 per pixel sample count. </summary>
+        public const string Msaa2 = "_MSAA_2";
+
+        /// <summary> Keyword used for Multi Sampling Anti-Aliasing (MSAA) with 4 per pixel sample count. </summary>
+        public const string Msaa4 = "_MSAA_4";
     }
 
     public sealed partial class UniversalRenderPipeline
@@ -1496,6 +1520,22 @@ namespace UnityEngine.Rendering.Universal
 
 #endif
 
+        /// <summary>
+        /// Returns the index of the last base camera to draw ScreenSpace Overlay UI at the last base camera.
+        /// </summary>
+        private int GetLastBaseCameraIndex(List<Camera> cameras)
+        {
+            int lastBaseCameraIndex = 0;
+            for (int i = 0; i < cameras.Count; i++)
+            {
+                // Assume a camera is a base camera if no UniversalAdditionalCameraData is available (e.g., for cameras created at runtime).
+                cameras[i].TryGetComponent<UniversalAdditionalCameraData>(out var baseCameraAdditionalData);
+                if (baseCameraAdditionalData == null || baseCameraAdditionalData.renderType == CameraRenderType.Base)
+                    lastBaseCameraIndex = i;
+            }
+            return lastBaseCameraIndex;
+        }
+
         internal static GraphicsFormat MakeRenderTextureGraphicsFormat(bool isHdrEnabled, HDRColorBufferPrecision requestHDRColorBufferPrecision, bool needsAlpha)
         {
             if (isHdrEnabled)
@@ -1527,7 +1567,7 @@ namespace UnityEngine.Rendering.Universal
         }
 
         internal static RenderTextureDescriptor CreateRenderTextureDescriptor(Camera camera, UniversalCameraData cameraData,
-            bool isHdrEnabled, HDRColorBufferPrecision requestHDRColorBufferPrecision, int msaaSamples, bool needsAlpha, bool requiresOpaqueTexture)
+            bool isHdrEnabled, HDRColorBufferPrecision requestHDRColorBufferPrecision, int msaaSamples, bool needsAlpha)
         {
             RenderTextureDescriptor desc;
 
@@ -1535,14 +1575,22 @@ namespace UnityEngine.Rendering.Universal
             {
                 desc = new RenderTextureDescriptor(cameraData.scaledWidth, cameraData.scaledHeight);
                 desc.graphicsFormat = MakeRenderTextureGraphicsFormat(isHdrEnabled, requestHDRColorBufferPrecision, needsAlpha);
+                desc.depthBufferBits = (int)CoreUtils.GetDefaultDepthBufferBits();
                 desc.depthStencilFormat = SystemInfo.GetGraphicsFormat(DefaultFormat.DepthStencil);
                 desc.msaaSamples = msaaSamples;
                 desc.sRGB = (QualitySettings.activeColorSpace == ColorSpace.Linear);
             }
             else
             {
+                // Note: External texture replaces internal (intermediate) color buffer here, ignoring the configured internal rendering color buffer format.
+                // This is incorrect. We should use the internal rendering format throughout and blit the result to the external texture at the end (blit could be skipped if the formats match).
+                // However, this would lead to breaking changes in the URP asset as we would need to move the internal rendering format to the renderer asset.
+                // This way it could be selected separately for each target.
+                // Current workflow/workaround is to simply pick a suitable format for the external texture.
                 desc = camera.targetTexture.descriptor;
                 desc.msaaSamples = msaaSamples;
+                // Note: This does not scale the underlying target size.
+                // Instead, it is the scaled viewport rect size which means the viewport offset into the target is always (0,0).
                 desc.width = cameraData.scaledWidth;
                 desc.height = cameraData.scaledHeight;
 
@@ -1577,6 +1625,12 @@ namespace UnityEngine.Rendering.Universal
         private static Lightmapping.RequestLightsDelegate lightsDelegate = (Light[] requests, NativeArray<LightDataGI> lightsOutput) =>
         {
             LightDataGI lightData = new LightDataGI();
+
+            // URP uses a game like lambertian response for punctual lights, they are off by a factor PI.
+            // Since LightBaker expects its punctual lights to be expressed in standard radiometric units, the intensity is pre-multiplied by PI here to counteract this.
+            // This ensures that the baked punctual light intensity matches realtime intensity. (See GFXLIGHT-1755)
+            const float piCorrection = Mathf.PI;
+
 #if UNITY_EDITOR
             // Always extract lights in the Editor.
             for (int i = 0; i < requests.Length; i++)
@@ -1591,6 +1645,8 @@ namespace UnityEngine.Rendering.Universal
                     case LightType.Directional:
                         DirectionalLight directionalLight = new DirectionalLight();
                         LightmapperUtils.Extract(light, ref directionalLight);
+                        directionalLight.color.intensity *= piCorrection;
+                        directionalLight.indirectColor.intensity *= piCorrection;
 
                         if (light.cookie != null)
                         {
@@ -1612,11 +1668,15 @@ namespace UnityEngine.Rendering.Universal
                     case LightType.Point:
                         PointLight pointLight = new PointLight();
                         LightmapperUtils.Extract(light, ref pointLight);
+                        pointLight.color.intensity *= piCorrection;
+                        pointLight.indirectColor.intensity *= piCorrection;
                         lightData.Init(ref pointLight, ref cookie);
                         break;
                     case LightType.Spot:
                         SpotLight spotLight = new SpotLight();
                         LightmapperUtils.Extract(light, ref spotLight);
+                        spotLight.color.intensity *= piCorrection;
+                        spotLight.indirectColor.intensity *= piCorrection;
                         spotLight.innerConeAngle = light.innerSpotAngle * Mathf.Deg2Rad;
                         spotLight.angularFalloff = AngularFalloffType.AnalyticAndInnerAngle;
                         lightData.Init(ref spotLight, ref cookie);
@@ -1634,7 +1694,7 @@ namespace UnityEngine.Rendering.Universal
                         lightData.Init(ref discLight);
                         break;
                     default:
-                        lightData.InitNoBake(light.GetInstanceID());
+                        lightData.InitNoBake(light.GetEntityId());
                         break;
                 }
 
@@ -1648,7 +1708,7 @@ namespace UnityEngine.Rendering.Universal
                 for (int i = 0; i < requests.Length; i++)
                 {
                     Light light = requests[i];
-                    lightData.InitNoBake(light.GetInstanceID());
+                    lightData.InitNoBake(light.GetEntityId());
                     lightsOutput[i] = lightData;
                 }
             }
@@ -1662,30 +1722,36 @@ namespace UnityEngine.Rendering.Universal
                         case LightType.Directional:
                             DirectionalLight directionalLight = new DirectionalLight();
                             LightmapperUtils.Extract(light, ref directionalLight);
+                            directionalLight.color.intensity *= piCorrection;
+                            directionalLight.indirectColor.intensity *= piCorrection;
                             lightData.Init(ref directionalLight);
                             break;
                         case LightType.Point:
                             PointLight pointLight = new PointLight();
                             LightmapperUtils.Extract(light, ref pointLight);
+                            pointLight.color.intensity *= piCorrection;
+                            pointLight.indirectColor.intensity *= piCorrection;
                             lightData.Init(ref pointLight);
                             break;
                         case LightType.Spot:
                             SpotLight spotLight = new SpotLight();
                             LightmapperUtils.Extract(light, ref spotLight);
+                            spotLight.color.intensity *= piCorrection;
+                            spotLight.indirectColor.intensity *= piCorrection;
                             spotLight.innerConeAngle = light.innerSpotAngle * Mathf.Deg2Rad;
                             spotLight.angularFalloff = AngularFalloffType.AnalyticAndInnerAngle;
                             lightData.Init(ref spotLight);
                             break;
                         case LightType.Rectangle:
                             // Rect area light is baked only in URP.
-                            lightData.InitNoBake(light.GetInstanceID());
+                            lightData.InitNoBake(light.GetEntityId());
                             break;
                         case LightType.Disc:
                             // Disc light is baked only.
-                            lightData.InitNoBake(light.GetInstanceID());
+                            lightData.InitNoBake(light.GetEntityId());
                             break;
                         default:
-                            lightData.InitNoBake(light.GetInstanceID());
+                            lightData.InitNoBake(light.GetEntityId());
                             break;
                     }
                     lightData.falloff = FalloffType.InverseSquared;
@@ -1751,6 +1817,14 @@ namespace UnityEngine.Rendering.Universal
             float spotAngle, float? innerSpotAngle,
             ref Vector4 lightAttenuation)
         {
+            // UUM-104997: AngleAttenuation() function isn't precise enough for small spot angles on platforms using float16 registers
+            if (spotAngle < 2.6)
+            {
+                spotAngle = 2.6f;
+                if (innerSpotAngle.HasValue)
+                    innerSpotAngle = Mathf.Min(innerSpotAngle.Value, 2.6f);
+            }
+
             // Spot Attenuation with a linear falloff can be defined as
             // (SdotL - cosOuterAngle) / (cosInnerAngle - cosOuterAngle)
             // This can be rewritten as
@@ -1931,23 +2005,44 @@ namespace UnityEngine.Rendering.Universal
     internal static class PlatformAutoDetect
     {
         /// <summary>
-        /// Detect and cache runtime platform information. This function should only be called once when creating the URP.
+        /// Detect and cache runtime platform information.
+        /// Lazy initialized for situations where platform detection is required before URP is initialized (UUM-134298)
         /// </summary>
-        internal static void Initialize()
+        private sealed class PlatformDetectionCache
         {
-            bool isRunningMobile = false;
-            #if ENABLE_VR && ENABLE_VR_MODULE
-                #if PLATFORM_WINRT || PLATFORM_ANDROID
-                    isRunningMobile = IsRunningXRMobile();
-                #endif
-            #endif
+            public readonly bool isXRMobile;
+            public readonly bool isShaderAPIMobileDefined;
+            public readonly bool isSwitch;
+            public readonly bool isSwitch2;
+            public readonly bool isRunningOnPowerVRGPU;
+            public readonly bool hasRenderToR32F;
 
-            isXRMobile = isRunningMobile;
-            isShaderAPIMobileDefined = GraphicsSettings.HasShaderDefine(BuiltinShaderDefine.SHADER_API_MOBILE);
-            isSwitch = Application.platform == RuntimePlatform.Switch;
+            public PlatformDetectionCache()
+            {
+                bool isRunningMobile = false;
+                #if ENABLE_VR && ENABLE_XR_MODULE
+                    #if PLATFORM_WINRT || PLATFORM_ANDROID
+                        isRunningMobile = IsRunningXRMobile();
+                    #endif
+                #endif
+
+                isXRMobile = isRunningMobile;
+                isShaderAPIMobileDefined = GraphicsSettings.HasShaderDefine(BuiltinShaderDefine.SHADER_API_MOBILE);
+                isSwitch = Application.platform == RuntimePlatform.Switch;
+                isSwitch2 = Application.platform == RuntimePlatform.Switch2;
+                isRunningOnPowerVRGPU = SystemInfo.graphicsDeviceName.Contains("PowerVR");
+                hasRenderToR32F = SystemInfo.IsFormatSupported(GraphicsFormat.R32_SFloat, GraphicsFormatUsage.Render);
+            }
         }
 
-#if ENABLE_VR && ENABLE_VR_MODULE
+        private static readonly Lazy<PlatformDetectionCache> platformCache = new(() => new PlatformDetectionCache(), true);
+
+        internal static void Initialize()
+        {
+            _ = platformCache.Value;
+        }
+
+#if ENABLE_VR && ENABLE_XR_MODULE
     #if PLATFORM_WINRT || PLATFORM_ANDROID
         // XR mobile platforms are not treated as dedicated mobile platforms in Core. Handle them specially here. (Quest and HL).
         private static List<XR.XRDisplaySubsystem> displaySubsystemList = new List<XR.XRDisplaySubsystem>();
@@ -1973,17 +2068,26 @@ namespace UnityEngine.Rendering.Universal
         /// <summary>
         /// If true, the runtime platform is an XR mobile platform.
         /// </summary>
-        internal static bool isXRMobile { get; private set; } = false;
+        internal static bool isXRMobile => platformCache.Value.isXRMobile;
 
         /// <summary>
         /// If true, then SHADER_API_MOBILE has been defined in URP Shaders.
         /// </summary>
-        internal static bool isShaderAPIMobileDefined { get; private set; } = false;
+        internal static bool isShaderAPIMobileDefined => platformCache.Value.isShaderAPIMobileDefined;
 
         /// <summary>
         /// If true, then the runtime platform is set to Switch.
         /// </summary>
-        internal static bool isSwitch { get; private set; } = false;
+        internal static bool isSwitch => platformCache.Value.isSwitch;
+
+        internal static bool isSwitch2 => platformCache.Value.isSwitch2;
+
+        internal static bool isRunningOnPowerVRGPU => platformCache.Value.isRunningOnPowerVRGPU;
+
+        /// <summary>
+        /// If true, then the runtime device supports R32_SFloat render targets. Not guaranteed on GLES 3.1 or earlier.
+        /// </summary>
+        internal static bool hasRenderToR32F => platformCache.Value.hasRenderToR32F;
 
         /// <summary>
         /// Gives the SH evaluation mode when set to automatically detect.
@@ -1994,7 +2098,7 @@ namespace UnityEngine.Rendering.Universal
         {
             if (mode == ShEvalMode.Auto)
             {
-                if (isXRMobile || isShaderAPIMobileDefined || isSwitch)
+                if (isXRMobile || isShaderAPIMobileDefined || isSwitch || isSwitch2)
                     return ShEvalMode.PerVertex;
                 else
                     return ShEvalMode.PerPixel;
@@ -2002,7 +2106,5 @@ namespace UnityEngine.Rendering.Universal
 
             return mode;
         }
-
-        internal static bool isRunningOnPowerVRGPU = SystemInfo.graphicsDeviceName.Contains("PowerVR");
     }
 }

@@ -2,7 +2,7 @@
 #define URP_UNLIT_GBUFFER_PASS_INCLUDED
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Unlit.hlsl"
-#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityGBuffer.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/GBufferOutput.hlsl"
 #if defined(LOD_FADE_CROSSFADE)
     #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
 #endif
@@ -30,8 +30,8 @@ void InitializeInputData(Varyings input, out InputData inputData)
 {
     inputData = (InputData)0;
 
-    inputData.normalWS = NormalizeNormalPerPixel(input.normalWS);
-
+    inputData.positionCS = input.positionCS;
+    inputData.normalWS = normalize(input.normalWS);
     inputData.positionWS = float3(0, 0, 0);
     inputData.viewDirectionWS = half3(0, 0, 1);
     inputData.shadowCoord = 0;
@@ -61,7 +61,7 @@ Varyings UnlitPassVertex(Attributes input)
     return output;
 }
 
-FragmentOutput UnlitPassFragment(Varyings input)
+GBufferFragOutput UnlitPassFragment(Varyings input)
 {
     UNITY_SETUP_INSTANCE_ID(input);
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
@@ -97,7 +97,7 @@ FragmentOutput UnlitPassFragment(Varyings input)
     surfaceData.occlusion = 1;
 #endif
 
-    return SurfaceDataToGbuffer(surfaceData, inputData, float3(0,0,0), kLightingInvalid);
+    return PackGBuffersSurfaceData(surfaceData, inputData, float3(0,0,0));
 }
 
 #endif

@@ -41,11 +41,13 @@ namespace UnityEditor.Rendering.Universal
         private int shadowCount = 0;
 
         // Variables used for refresh view
-        private bool doRefresh;
-        private int cachedSceneHandle;
+        static bool doRefresh;
+        private SceneHandle cachedSceneHandle;
+        private Vector3 cachedCamPos;
         private int totalLightCount;
         private int totalShadowCount;
-        private Vector3 cachedCamPos;
+        private string[] cachedLightNames;
+        private string[] cachedShadowCasterNames;
 
         ILight2DCullResult lightCullResult
         {
@@ -118,6 +120,9 @@ namespace UnityEditor.Rendering.Universal
             var bubble = new Button();
             bubble.AddToClassList("Pill");
             bubble.text = obj.name;
+            bubble.style.maxWidth = 200;
+            bubble.style.overflow = Overflow.Hidden;
+            bubble.style.textOverflow = TextOverflow.Ellipsis;
 
             bubble.clicked += () =>
             {
@@ -162,7 +167,7 @@ namespace UnityEditor.Rendering.Universal
 
             foreach (var obj in batch1.Lights)
             {
-                if(obj != null)
+                if (obj != null)
                     lightBubble1.Add(MakePill(obj));
             }
 
@@ -241,7 +246,7 @@ namespace UnityEditor.Rendering.Universal
             lightBubble1.Clear();
             foreach (var obj in lightSet1)
             {
-                if(obj != null)
+                if (obj != null)
                     lightBubble1.Add(MakePill(obj));
             }
 
@@ -255,7 +260,7 @@ namespace UnityEditor.Rendering.Universal
             lightBubble2.Clear();
             foreach (var obj in lightSet2)
             {
-                if(obj != null)
+                if (obj != null)
                     lightBubble2.Add(MakePill(obj));
             }
 
@@ -351,11 +356,19 @@ namespace UnityEditor.Rendering.Universal
         private void OnEnable()
         {
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+
+#if UNITY_EDITOR
+            SortingLayer.onLayerChanged += QueueRefresh;
+#endif
         }
 
         private void OnDisable()
         {
             EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+
+#if UNITY_EDITOR
+            SortingLayer.onLayerChanged -= QueueRefresh;
+#endif
         }
 
         void OnPlayModeStateChanged(PlayModeStateChange playModeState)
@@ -391,7 +404,7 @@ namespace UnityEditor.Rendering.Universal
                     var firstIndex = batchListView.selectedIndices.First();
                     var secondIndex = batchListView.selectedIndices.Last();
 
-                    if(secondIndex > firstIndex + 1 || secondIndex < firstIndex - 1)
+                    if (secondIndex > firstIndex + 1 || secondIndex < firstIndex - 1)
                     {
                         // Clamp since we do adjacent batch comparisons
                         secondIndex = Mathf.Clamp(secondIndex, firstIndex - 1, firstIndex + 1);
@@ -408,7 +421,7 @@ namespace UnityEditor.Rendering.Universal
 
                 default:
                     // Account for multiple select either with shift or ctrl keys
-                    if(batchListView.selectedIndices.Count() > 2)
+                    if (batchListView.selectedIndices.Count() > 2)
                     {
                         if (selectedIndices.Count == 1)
                         {
@@ -440,7 +453,7 @@ namespace UnityEditor.Rendering.Universal
         private void RefreshView()
         {
             PopulateData();
-            batchListView.RefreshItems();
+            batchListView?.RefreshItems();
             OnSelectionChanged();
 
             ResetDirty();
@@ -457,6 +470,9 @@ namespace UnityEditor.Rendering.Universal
 
         private bool IsDirty()
         {
+            if (lightCullResult == null)
+                return false;
+
             bool isDirty = false;
 
             // Refresh if layers are added or removed
@@ -464,10 +480,22 @@ namespace UnityEditor.Rendering.Universal
             isDirty |= cachedSceneHandle != SceneManager.GetActiveScene().handle;
             isDirty |= cachedCamPos != Camera.main?.transform.position;
 
-            if (lightCullResult != null)
+            if (lightCullResult.IsGameView())
             {
+                var visibleShadows = lightCullResult.visibleShadows.SelectMany(x => x.GetShadowCasters()).ToList();
+
                 isDirty |= totalLightCount != lightCullResult.visibleLights.Count();
-                isDirty |= totalShadowCount != lightCullResult.visibleShadows.Count();
+                isDirty |= totalShadowCount != visibleShadows.Count();
+
+                // Account for name changes
+                if (!isDirty)
+                {
+                    for (int i = 0; i < totalLightCount; ++i)
+                        isDirty |= !lightCullResult.visibleLights.Exists(x => x != null && x.name == cachedLightNames[i]);
+
+                    for (int i = 0; i < totalShadowCount; ++i)
+                        isDirty |= !visibleShadows.Exists(x => x != null && x.name == cachedShadowCasterNames[i]);
+                }
             }
 
             return isDirty;
@@ -482,14 +510,33 @@ namespace UnityEditor.Rendering.Universal
 
             if (lightCullResult != null)
             {
+                var visibleShadows = lightCullResult.visibleShadows.SelectMany(x => x.GetShadowCasters());
+
                 totalLightCount = lightCullResult.visibleLights.Count();
-                totalShadowCount = lightCullResult.visibleShadows.Count();
+                totalShadowCount = visibleShadows.Count();
+
+                cachedLightNames = new string[totalLightCount];
+                cachedShadowCasterNames = new string[totalShadowCount];
+
+                for (int i = 0; i < totalLightCount; ++i)
+                {
+                    var light = lightCullResult.visibleLights[i];
+                    if (light != null)
+                        cachedLightNames[i] = light.name;
+                }
+
+                for (int i = 0; i < totalShadowCount; ++i)
+                {
+                    var shadowCaster = visibleShadows.ElementAt(i);
+                    if (shadowCaster != null)
+                        cachedShadowCasterNames[i] = shadowCaster.name;
+                }
             }
 
             doRefresh = false;
         }
 
-        public void QueueRefresh()
+        internal static void QueueRefresh()
         {
             doRefresh = true;
         }

@@ -15,8 +15,8 @@ namespace UnityEngine.Rendering.Universal
     {
         // Dictionary tracks resources by hash and stores resources with same hash in a List (list instead of a stack because we need to be able to remove stale allocations, potentially in the middle of the stack).
         // The list needs to be sorted otherwise you could get inconsistent resource usage from one frame to another.
-        protected Dictionary<int, SortedList<int, (RTHandle resource, int frameIndex)>> m_ResourcePool = new Dictionary<int, SortedList<int, (RTHandle resource, int frameIndex)>>();
-        protected List<int> m_RemoveList = new List<int>(32); // Used to remove stale resources as there is no RemoveAll on SortedLists
+        protected Dictionary<int, SortedList<ulong, (RTHandle resource, int frameIndex)>> m_ResourcePool = new Dictionary<int, SortedList<ulong, (RTHandle resource, int frameIndex)>>();
+        protected List<ulong> m_RemoveList = new List<ulong>(32); // Used to remove stale resources as there is no RemoveAll on SortedLists
 
         protected static int s_CurrentStaleResourceCount = 0;
         // Keep stale resources alive for 3 frames
@@ -26,7 +26,7 @@ namespace UnityEngine.Rendering.Universal
         protected static int s_StaleResourceMaxCapacity = 32;
 
         /// <summary>
-        /// Controls the resource pool's max stale resource capacity. 
+        /// Controls the resource pool's max stale resource capacity.
         /// Increasing the capacity may have a negative impact on the memory usage.
         /// Increasing the capacity may reduce the runtime RTHandle realloc cost in multi view/multi camera setup.
         /// Setting capacity will purge the current pool. It is recommended to setup the capacity upfront and not changing it during the runtime.
@@ -56,11 +56,11 @@ namespace UnityEngine.Rendering.Universal
             if (!m_ResourcePool.TryGetValue(hashCode, out var list))
             {
                 // Init list with max capacity to avoid runtime GC.Alloc when calling list.Add(resize list)
-                list = new SortedList<int, (RTHandle resource, int frameIndex)>(s_StaleResourceMaxCapacity);
+                list = new SortedList<ulong, (RTHandle resource, int frameIndex)>(s_StaleResourceMaxCapacity);
                 m_ResourcePool.Add(hashCode, list);
             }
 
-            list.Add(resource.GetInstanceID(), (resource, currentFrameIndex));
+            list.Add(resource.GetUniqueID(), (resource, currentFrameIndex));
             s_CurrentStaleResourceCount++;
 
             return true;
@@ -71,7 +71,7 @@ namespace UnityEngine.Rendering.Universal
         internal bool TryGetResource(in TextureDesc texDesc, out RTHandle resource, bool usepool = true)
         {
             int hashCode = GetHashCodeWithNameHash(texDesc);
-            if (usepool && m_ResourcePool.TryGetValue(hashCode, out SortedList<int, (RTHandle resource, int frameIndex)> list) && list.Count > 0)
+            if (usepool && m_ResourcePool.TryGetValue(hashCode, out SortedList<ulong, (RTHandle resource, int frameIndex)> list) && list.Count > 0)
             {
                 resource = list.Values[list.Count - 1].resource;
                 list.RemoveAt(list.Count - 1); // O(1) since it's the last element.
@@ -83,7 +83,7 @@ namespace UnityEngine.Rendering.Universal
             return false;
         }
 
-        // Release all resources in pool. 
+        // Release all resources in pool.
         internal void Cleanup()
         {
             foreach (var kvp in m_ResourcePool)
@@ -176,7 +176,7 @@ namespace UnityEngine.Rendering.Universal
         internal static TextureDesc CreateTextureDesc(RenderTextureDescriptor desc,
             TextureSizeMode textureSizeMode = TextureSizeMode.Explicit, int anisoLevel = 1, float mipMapBias = 0,
             FilterMode filterMode = FilterMode.Point, TextureWrapMode wrapMode = TextureWrapMode.Clamp, string name = "")
-        {            
+        {
             var format = (desc.depthStencilFormat != GraphicsFormat.None) ? desc.depthStencilFormat : desc.graphicsFormat;
 
             TextureDesc rgDesc = new TextureDesc(desc.width, desc.height);
@@ -198,6 +198,7 @@ namespace UnityEngine.Rendering.Universal
             rgDesc.memoryless = RenderTextureMemoryless.None;
             rgDesc.vrUsage = VRTextureUsage.None;
             rgDesc.name = name;
+            rgDesc.enableShadingRate = desc.enableShadingRate;
 
             return rgDesc;
         }

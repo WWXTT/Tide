@@ -1,5 +1,6 @@
 Pass
 {
+    Name "GBuffer"
     Tags { "LightMode"="UniversalGBuffer" }
 
     ${VFXStencilGBuffer}
@@ -82,7 +83,7 @@ ${VFXEnd}
     ${SHADERGRAPH_PIXEL_CODE_GBUFFER}
     #pragma fragment frag
     void frag(ps_input i
-    , out FragmentOutput outGBuffer
+    , out GBufferFragOutput outGBuffer
     #if USE_DOUBLE_SIDED
     , bool frontFace : SV_IsFrontFace
     #endif
