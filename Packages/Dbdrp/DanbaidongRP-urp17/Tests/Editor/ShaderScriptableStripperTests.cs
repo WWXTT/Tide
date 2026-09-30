@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEditor.Rendering;
 using UnityEditor.Rendering.Universal;
+using UnityEditor.VersionControl;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.SocialPlatforms;
 using IShaderScriptableStrippingData = UnityEditor.Rendering.Universal.ShaderScriptableStripper.IShaderScriptableStrippingData;
 
 namespace ShaderStrippingAndPrefiltering
@@ -24,13 +26,10 @@ namespace ShaderStrippingAndPrefiltering
             public bool strip2DPasses { get; set; }
             public bool stripDebugDisplayShaders { get; set; }
             public bool stripScreenCoordOverrideVariants { get; set; }
-            public bool stripBicubicLightmapSamplingVariants { get; set; }
-            public bool stripReflectionProbeRotationVariants { get; set; }
             public bool stripUnusedVariants { get; set; }
             public bool stripUnusedPostProcessingVariants { get; set; }
             public bool stripUnusedXRVariants { get; set; }
             public bool IsHDRDisplaySupportEnabled { get; set; }
-            public bool IsRenderCompatibilityMode { get; set; }
 
             public Shader shader { get; set; }
             public ShaderType shaderType { get; set; }
@@ -119,42 +118,41 @@ namespace ShaderStrippingAndPrefiltering
          * Strip Unused Shaders...
          *****************************************************/
 
-        [TestCase(null, false, false, false)]
-        [TestCase("", false, false, false)]
-        [TestCase("Universal Render Pipeline/Lit", false, false, false)]
-        [TestCase("Universal Render Pipeline/Simple Lit", false, false, false)]
-        [TestCase("Universal Render Pipeline/Unlit", false, false, false)]
-        [TestCase("Universal Render Pipeline/Terrain/Lit", false, false, false)]
-        [TestCase("Universal Render Pipeline/Particles/Lit", false, false, false)]
-        [TestCase("Universal Render Pipeline/Particles/Simple Lit", false, false, false)]
-        [TestCase("Universal Render Pipeline/Particles/Unlit", false, false, false)]
-        [TestCase("Universal Render Pipeline/Baked Lit", false, false, false)]
-        [TestCase("Universal Render Pipeline/Nature/SpeedTree7", false, false, false)]
-        [TestCase("Universal Render Pipeline/Nature/SpeedTree7 Billboard", false, false, false)]
-        [TestCase("Universal Render Pipeline/Nature/SpeedTree8_PBRLit", false, false, false)]
-        [TestCase("Universal Render Pipeline/Complex Lit", false, false, false)]
-        [TestCase("Hidden/Universal Render Pipeline/BokehDepthOfField", false, false, false)]
-        [TestCase("Hidden/Universal Render Pipeline/GaussianDepthOfField", false, false, false)]
-        [TestCase("Hidden/Universal Render Pipeline/CameraMotionBlur", false, false, false)]
-        [TestCase("Hidden/Universal Render Pipeline/PaniniProjection", false, false, false)]
-        [TestCase("Hidden/Universal Render Pipeline/Bloom", false, false, false)]
-        [TestCase("Hidden/Universal Render Pipeline/StencilDeferred", true, false, true)]
-        [TestCase("Hidden/Universal Render Pipeline/ClusterDeferred", true, true, false)]
-        [TestCase("Hidden/Universal Render Pipeline/UberPost", false, false, false)]
-        [TestCase("Hidden/Universal Render Pipeline/ScreenSpaceShadows", false, false, false)]
-        [TestCase("Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion", false, false, false)]
-        [TestCase("Hidden/Universal Render Pipeline/DBufferClear", false, false, false)]
-        [TestCase("Hidden/Universal Render Pipeline/CameraMotionVectors", false, false, false)]
-        [TestCase("Hidden/Universal Render Pipeline/CopyDepth", false, false, false)]
-        [TestCase("Hidden/Universal Render Pipeline/SubpixelMorphologicalAntialiasing", false, false, false)]
-        public void TestStripUnusedShaders(string shaderName, bool expectedNoFeatures, bool expectedWithDeferredShading, bool expectedWithDeferredPlus)
+        [TestCase(null, false, false)]
+        [TestCase("", false, false)]
+        [TestCase("Universal Render Pipeline/Lit", false, false)]
+        [TestCase("Universal Render Pipeline/Simple Lit", false, false)]
+        [TestCase("Universal Render Pipeline/Unlit", false, false)]
+        [TestCase("Universal Render Pipeline/Terrain/Lit", false, false)]
+        [TestCase("Universal Render Pipeline/Particles/Lit", false, false)]
+        [TestCase("Universal Render Pipeline/Particles/Simple Lit", false, false)]
+        [TestCase("Universal Render Pipeline/Particles/Unlit", false, false)]
+        [TestCase("Universal Render Pipeline/Baked Lit", false, false)]
+        [TestCase("Universal Render Pipeline/Nature/SpeedTree7", false, false)]
+        [TestCase("Universal Render Pipeline/Nature/SpeedTree7 Billboard", false, false)]
+        [TestCase("Universal Render Pipeline/Nature/SpeedTree8_PBRLit", false, false)]
+        [TestCase("Universal Render Pipeline/Complex Lit", false, false)]
+        [TestCase("Hidden/Universal Render Pipeline/BokehDepthOfField", false, false)]
+        [TestCase("Hidden/Universal Render Pipeline/GaussianDepthOfField", false, false)]
+        [TestCase("Hidden/Universal Render Pipeline/CameraMotionBlur", false, false)]
+        [TestCase("Hidden/Universal Render Pipeline/PaniniProjection", false, false)]
+        [TestCase("Hidden/Universal Render Pipeline/Bloom", false, false)]
+        [TestCase("Hidden/Universal Render Pipeline/StencilDeferred", true, false)]
+        [TestCase("Hidden/Universal Render Pipeline/UberPost", false, false)]
+        [TestCase("Hidden/Universal Render Pipeline/ScreenSpaceShadows", false, false)]
+        [TestCase("Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion", false, false)]
+        [TestCase("Hidden/Universal Render Pipeline/DBufferClear", false, false)]
+        [TestCase("Hidden/Universal Render Pipeline/CameraMotionVectors", false, false)]
+        [TestCase("Hidden/Universal Render Pipeline/CopyDepth", false, false)]
+        [TestCase("Hidden/Universal Render Pipeline/SubpixelMorphologicalAntialiasing", false, false)]
+        public void TestStripUnusedShaders(string shaderName, bool expectedNoFeatures, bool expectedWithDeferredShading)
         {
             TestHelper helper;
             Shader shader = Shader.Find(shaderName);
             ShaderScriptableStripper scriptableStripper = new();
 
             // Test each individual function...
-            TestStripUnusedShaders_Deferred(shader, expectedNoFeatures, expectedWithDeferredShading, expectedWithDeferredPlus);
+            TestStripUnusedShaders_Deferred(shader, expectedNoFeatures, expectedWithDeferredShading);
 
             // Test the parent function...
 
@@ -166,21 +164,16 @@ namespace ShaderStrippingAndPrefiltering
             helper.IsFalse(scriptableStripper.StripUnusedShaders(ref helper.data));
         }
 
-        public void TestStripUnusedShaders_Deferred(Shader shader, bool expectedNoFeatures, bool expectedWithDeferredShading, bool expectedWithDeferredPlus)
+        public void TestStripUnusedShaders_Deferred(Shader shader, bool expectedNoFeatures, bool expectedWithDeferredShading)
         {
             TestHelper helper;
 
-            // When using Deferred, ClusterDeferred should be stripped
-            // When using DeferredPlus, StencilDeferred should be stripped
-            // If neither is used, both should be stripped
+            // Currently only StencilDeferred is stripped out (when deferred is not in use)
             helper = new TestHelper(shader, ShaderFeatures.None);
             helper.AreEqual(expectedNoFeatures, helper.stripper.StripUnusedShaders_Deferred(ref helper.data));
 
             helper = new TestHelper(shader, ShaderFeatures.DeferredShading);
             helper.AreEqual(expectedWithDeferredShading, helper.stripper.StripUnusedShaders_Deferred(ref helper.data));
-
-            helper = new TestHelper(shader, ShaderFeatures.DeferredPlus);
-            helper.AreEqual(expectedWithDeferredPlus, helper.stripper.StripUnusedShaders_Deferred(ref helper.data));
         }
 
         /*****************************************************
@@ -207,7 +200,6 @@ namespace ShaderStrippingAndPrefiltering
         [TestCase("Hidden/Universal Render Pipeline/PaniniProjection")]
         [TestCase("Hidden/Universal Render Pipeline/Bloom")]
         [TestCase("Hidden/Universal Render Pipeline/StencilDeferred")]
-        [TestCase("Hidden/Universal Render Pipeline/ClusterDeferred")]
         [TestCase("Hidden/Universal Render Pipeline/UberPost")]
         [TestCase("Hidden/Universal Render Pipeline/ScreenSpaceShadows")]
         [TestCase("Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion")]
@@ -260,33 +252,9 @@ namespace ShaderStrippingAndPrefiltering
             helper.IsFalse(helper.stripper.StripUnusedPass(ref helper.data));
 
             helper = new TestHelper(shader, ShaderFeatures.None);
-            helper.data.stripUnusedXRVariants = false;
-            helper.data.passName = ShaderScriptableStripper.kPassNameXRUberPost;
-            helper.IsFalse(helper.stripper.StripUnusedPass_XRUberPost(ref helper.data));
-            helper.IsFalse(helper.stripper.StripUnusedPass(ref helper.data));
-
-            helper = new TestHelper(shader, ShaderFeatures.None);
-            helper.data.stripUnusedXRVariants = false;
-            helper.data.passName = ShaderScriptableStripper.kPassNameXRFinalPost;
-            helper.IsFalse(helper.stripper.StripUnusedPass_XRFinalPost(ref helper.data));
-            helper.IsFalse(helper.stripper.StripUnusedPass(ref helper.data));
-
-            helper = new TestHelper(shader, ShaderFeatures.None);
             helper.data.stripUnusedXRVariants = true;
             helper.data.passName = ShaderScriptableStripper.kPassNameXRMotionVectors;
             helper.IsTrue(helper.stripper.StripUnusedPass_XRMotionVectors(ref helper.data));
-            helper.IsTrue(helper.stripper.StripUnusedPass(ref helper.data));
-
-            helper = new TestHelper(shader, ShaderFeatures.None);
-            helper.data.stripUnusedXRVariants = true;
-            helper.data.passName = ShaderScriptableStripper.kPassNameXRUberPost;
-            helper.IsTrue(helper.stripper.StripUnusedPass_XRUberPost(ref helper.data));
-            helper.IsTrue(helper.stripper.StripUnusedPass(ref helper.data));
-
-            helper = new TestHelper(shader, ShaderFeatures.None);
-            helper.data.stripUnusedXRVariants = true;
-            helper.data.passName = ShaderScriptableStripper.kPassNameXRFinalPost;
-            helper.IsTrue(helper.stripper.StripUnusedPass_XRFinalPost(ref helper.data));
             helper.IsTrue(helper.stripper.StripUnusedPass(ref helper.data));
         }
 
@@ -478,7 +446,6 @@ namespace ShaderStrippingAndPrefiltering
         [TestCase("Hidden/Universal Render Pipeline/PaniniProjection", false, false, true)]
         [TestCase("Hidden/Universal Render Pipeline/Bloom", false, false, true)]
         [TestCase("Hidden/Universal Render Pipeline/StencilDeferred", false, false, true)]
-        [TestCase("Hidden/Universal Render Pipeline/ClusterDeferred", false, false, true)]
         [TestCase("Hidden/Universal Render Pipeline/UberPost", false, false, true)]
         [TestCase("Hidden/Universal Render Pipeline/ScreenSpaceShadows", false, false, true)]
         [TestCase("Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion", false, false, true)]
@@ -672,7 +639,6 @@ namespace ShaderStrippingAndPrefiltering
         [TestCase("Hidden/Universal Render Pipeline/PaniniProjection", true, true, true)]
         [TestCase("Hidden/Universal Render Pipeline/Bloom", true, true, true)]
         [TestCase("Hidden/Universal Render Pipeline/StencilDeferred", true, true, true)]
-        [TestCase("Hidden/Universal Render Pipeline/ClusterDeferred", true, true, true)]
         [TestCase("Hidden/Universal Render Pipeline/UberPost", true, true, true)]
         [TestCase("Hidden/Universal Render Pipeline/ScreenSpaceShadows", true, true, true)]
         [TestCase("Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion", true, true, true)]
@@ -751,7 +717,6 @@ namespace ShaderStrippingAndPrefiltering
         [TestCase("Hidden/Universal Render Pipeline/PaniniProjection")]
         [TestCase("Hidden/Universal Render Pipeline/Bloom")]
         [TestCase("Hidden/Universal Render Pipeline/StencilDeferred")]
-        [TestCase("Hidden/Universal Render Pipeline/ClusterDeferred")]
         [TestCase("Hidden/Universal Render Pipeline/UberPost")]
         [TestCase("Hidden/Universal Render Pipeline/ScreenSpaceShadows")]
         [TestCase("Hidden/Universal Render Pipeline/ScreenSpaceAmbientOcclusion")]
@@ -781,8 +746,8 @@ namespace ShaderStrippingAndPrefiltering
             TestStripUnusedFeatures_UseFastSRGBLinearConversion(shader);
             TestStripUnusedFeatures_LightLayers(shader);
             TestStripUnusedFeatures_RenderPassEnabled(shader);
-            TestStripUnusedFeatures_ClusterLightLoop(shader);
             TestStripUnusedFeatures_ReflectionProbes(shader);
+            TestStripUnusedFeatures_ForwardPlus(shader);
             TestStripUnusedFeatures_AdditionalLights(shader);
             TestStripUnusedFeatures_ScreenSpaceOcclusion(shader);
             TestStripUnusedFeatures_DecalsDbuffer(shader);
@@ -1019,14 +984,18 @@ namespace ShaderStrippingAndPrefiltering
             TestHelper helper;
 
             helper = new TestHelper(shader, ShaderFeatures.None);
+            helper.data.passName = ShaderScriptableStripper.kPassNameUniversal2D;
+            helper.IsFalse(helper.stripper.StripUnusedFeatures_DeferredRendering(ref helper.data));
+
+            helper = new TestHelper(shader, ShaderFeatures.None);
             helper.data.passName = ShaderScriptableStripper.kPassNameGBuffer;
             helper.IsTrue(helper.stripper.StripUnusedFeatures_DeferredRendering(ref helper.data));
 
             helper = new TestHelper(shader, ShaderFeatures.DeferredShading);
-            helper.data.passName = ShaderScriptableStripper.kPassNameGBuffer;
+            helper.data.passName = ShaderScriptableStripper.kPassNameUniversal2D;
             helper.IsFalse(helper.stripper.StripUnusedFeatures_DeferredRendering(ref helper.data));
 
-            helper = new TestHelper(shader, ShaderFeatures.DeferredPlus);
+            helper = new TestHelper(shader, ShaderFeatures.DeferredShading);
             helper.data.passName = ShaderScriptableStripper.kPassNameGBuffer;
             helper.IsFalse(helper.stripper.StripUnusedFeatures_DeferredRendering(ref helper.data));
         }
@@ -1413,38 +1382,6 @@ namespace ShaderStrippingAndPrefiltering
             helper.IsFalse(helper.stripper.StripUnusedFeatures_RenderPassEnabled(ref helper.featureStripTool));
         }
 
-        public void TestStripUnusedFeatures_ClusterLightLoop(Shader shader)
-        {
-            TestHelper helper;
-
-            helper = new TestHelper(shader, ShaderFeatures.None);
-            TestHelper.s_PassKeywords = new List<string>() { ShaderKeywordStrings.ClusterLightLoop };
-            helper.IsFalse(helper.stripper.StripUnusedFeatures_ClusterLightLoop(ref helper.data));
-
-            helper = new TestHelper(shader, ShaderFeatures.None);
-            TestHelper.s_EnabledKeywords = new List<string>() { ShaderKeywordStrings.ClusterLightLoop };
-            TestHelper.s_PassKeywords = new List<string>() { ShaderKeywordStrings.ClusterLightLoop };
-            helper.AreEqual(shader != null, helper.stripper.StripUnusedFeatures_ClusterLightLoop(ref helper.data));
-
-            helper = new TestHelper(shader, ShaderFeatures.ForwardPlus);
-            TestHelper.s_PassKeywords = new List<string>() { ShaderKeywordStrings.ClusterLightLoop };
-            helper.AreEqual(shader != null, helper.stripper.StripUnusedFeatures_ClusterLightLoop(ref helper.data));
-
-            helper = new TestHelper(shader, ShaderFeatures.ForwardPlus);
-            TestHelper.s_EnabledKeywords = new List<string>() { ShaderKeywordStrings.ClusterLightLoop };
-            TestHelper.s_PassKeywords = new List<string>() { ShaderKeywordStrings.ClusterLightLoop };
-            helper.IsFalse(helper.stripper.StripUnusedFeatures_ClusterLightLoop(ref helper.data));
-
-            helper = new TestHelper(shader, ShaderFeatures.DeferredPlus);
-            TestHelper.s_PassKeywords = new List<string>() { ShaderKeywordStrings.ClusterLightLoop };
-            helper.AreEqual(shader != null, helper.stripper.StripUnusedFeatures_ClusterLightLoop(ref helper.data));
-
-            helper = new TestHelper(shader, ShaderFeatures.DeferredPlus);
-            TestHelper.s_EnabledKeywords = new List<string>() { ShaderKeywordStrings.ClusterLightLoop };
-            TestHelper.s_PassKeywords = new List<string>() { ShaderKeywordStrings.ClusterLightLoop };
-            helper.IsFalse(helper.stripper.StripUnusedFeatures_ClusterLightLoop(ref helper.data));
-        }
-
         public void TestStripUnusedFeatures_ReflectionProbes(Shader shader)
         {
             TestHelper helper;
@@ -1483,6 +1420,29 @@ namespace ShaderStrippingAndPrefiltering
             helper = new TestHelper(shader, ShaderFeatures.ReflectionProbeBoxProjection);
             TestHelper.s_EnabledKeywords = new List<string>() { ShaderKeywordStrings.ReflectionProbeBoxProjection };
             helper.IsFalse(helper.stripper.StripUnusedFeatures_ReflectionProbes(ref helper.featureStripTool));
+        }
+
+        public void TestStripUnusedFeatures_ForwardPlus(Shader shader)
+        {
+            TestHelper helper;
+
+            helper = new TestHelper(shader, ShaderFeatures.None);
+            TestHelper.s_PassKeywords = new List<string>() { ShaderKeywordStrings.ForwardPlus };
+            helper.IsFalse(helper.stripper.StripUnusedFeatures_ForwardPlus(ref helper.featureStripTool));
+
+            helper = new TestHelper(shader, ShaderFeatures.None);
+            TestHelper.s_EnabledKeywords = new List<string>() { ShaderKeywordStrings.ForwardPlus };
+            TestHelper.s_PassKeywords = new List<string>() { ShaderKeywordStrings.ForwardPlus };
+            helper.AreEqual(shader != null, helper.stripper.StripUnusedFeatures_ForwardPlus(ref helper.featureStripTool));
+
+            helper = new TestHelper(shader, ShaderFeatures.ForwardPlus);
+            TestHelper.s_PassKeywords = new List<string>() { ShaderKeywordStrings.ForwardPlus };
+            helper.AreEqual(shader != null, helper.stripper.StripUnusedFeatures_ForwardPlus(ref helper.featureStripTool));
+
+            helper = new TestHelper(shader, ShaderFeatures.ForwardPlus);
+            TestHelper.s_EnabledKeywords = new List<string>() { ShaderKeywordStrings.ForwardPlus };
+            TestHelper.s_PassKeywords = new List<string>() { ShaderKeywordStrings.ForwardPlus };
+            helper.IsFalse(helper.stripper.StripUnusedFeatures_ForwardPlus(ref helper.featureStripTool));
         }
 
         public void TestStripUnusedFeatures_AdditionalLights(Shader shader)
@@ -2003,17 +1963,6 @@ namespace ShaderStrippingAndPrefiltering
             helper.AreEqual(shader != null, helper.stripper.StripUnusedFeatures_WriteRenderingLayers(ref helper.data, ref helper.featureStripTool));
 
             helper = new TestHelper(shader, ShaderFeatures.None);
-            helper.data.passName = ShaderScriptableStripper.kPassNameUnlit;
-            TestHelper.s_PassKeywords = new List<string>() {ShaderKeywordStrings.WriteRenderingLayers};
-            helper.IsFalse(helper.stripper.StripUnusedFeatures_WriteRenderingLayers(ref helper.data, ref helper.featureStripTool));
-
-            helper = new TestHelper(shader, ShaderFeatures.None);
-            helper.data.passName = ShaderScriptableStripper.kPassNameUnlit;
-            TestHelper.s_EnabledKeywords = new List<string>() {ShaderKeywordStrings.WriteRenderingLayers};
-            TestHelper.s_PassKeywords = new List<string>() {ShaderKeywordStrings.WriteRenderingLayers};
-            helper.AreEqual(shader != null, helper.stripper.StripUnusedFeatures_WriteRenderingLayers(ref helper.data, ref helper.featureStripTool));
-
-            helper = new TestHelper(shader, ShaderFeatures.None);
             helper.data.passName = ShaderScriptableStripper.kPassNameGBuffer;
             TestHelper.s_PassKeywords = new List<string>() {ShaderKeywordStrings.WriteRenderingLayers};
             helper.IsFalse(helper.stripper.StripUnusedFeatures_WriteRenderingLayers(ref helper.data, ref helper.featureStripTool));
@@ -2057,17 +2006,6 @@ namespace ShaderStrippingAndPrefiltering
             helper.IsFalse(helper.stripper.StripUnusedFeatures_WriteRenderingLayers(ref helper.data, ref helper.featureStripTool));
 
             helper = new TestHelper(shader, ShaderFeatures.OpaqueWriteRenderingLayers);
-            helper.data.passName = ShaderScriptableStripper.kPassNameUnlit;
-            TestHelper.s_PassKeywords = new List<string>() {ShaderKeywordStrings.WriteRenderingLayers};
-            helper.AreEqual(shader != null, helper.stripper.StripUnusedFeatures_WriteRenderingLayers(ref helper.data, ref helper.featureStripTool));
-
-            helper = new TestHelper(shader, ShaderFeatures.OpaqueWriteRenderingLayers);
-            helper.data.passName = ShaderScriptableStripper.kPassNameUnlit;
-            TestHelper.s_EnabledKeywords = new List<string>() {ShaderKeywordStrings.WriteRenderingLayers};
-            TestHelper.s_PassKeywords = new List<string>() {ShaderKeywordStrings.WriteRenderingLayers};
-            helper.IsFalse(helper.stripper.StripUnusedFeatures_WriteRenderingLayers(ref helper.data, ref helper.featureStripTool));
-
-            helper = new TestHelper(shader, ShaderFeatures.OpaqueWriteRenderingLayers);
             helper.data.passName = ShaderScriptableStripper.kPassNameGBuffer;
             TestHelper.s_PassKeywords = new List<string>() {ShaderKeywordStrings.WriteRenderingLayers};
             helper.IsFalse(helper.stripper.StripUnusedFeatures_WriteRenderingLayers(ref helper.data, ref helper.featureStripTool));
@@ -2106,17 +2044,6 @@ namespace ShaderStrippingAndPrefiltering
 
             helper = new TestHelper(shader, ShaderFeatures.GBufferWriteRenderingLayers);
             helper.data.passName = ShaderScriptableStripper.kPassNameForwardLit;
-            TestHelper.s_EnabledKeywords = new List<string>() {ShaderKeywordStrings.WriteRenderingLayers};
-            TestHelper.s_PassKeywords = new List<string>() {ShaderKeywordStrings.WriteRenderingLayers};
-            helper.AreEqual(shader != null, helper.stripper.StripUnusedFeatures_WriteRenderingLayers(ref helper.data, ref helper.featureStripTool));
-
-            helper = new TestHelper(shader, ShaderFeatures.GBufferWriteRenderingLayers);
-            helper.data.passName = ShaderScriptableStripper.kPassNameUnlit;
-            TestHelper.s_PassKeywords = new List<string>() {ShaderKeywordStrings.WriteRenderingLayers};
-            helper.IsFalse(helper.stripper.StripUnusedFeatures_WriteRenderingLayers(ref helper.data, ref helper.featureStripTool));
-
-            helper = new TestHelper(shader, ShaderFeatures.GBufferWriteRenderingLayers);
-            helper.data.passName = ShaderScriptableStripper.kPassNameUnlit;
             TestHelper.s_EnabledKeywords = new List<string>() {ShaderKeywordStrings.WriteRenderingLayers};
             TestHelper.s_PassKeywords = new List<string>() {ShaderKeywordStrings.WriteRenderingLayers};
             helper.AreEqual(shader != null, helper.stripper.StripUnusedFeatures_WriteRenderingLayers(ref helper.data, ref helper.featureStripTool));

@@ -34,7 +34,9 @@ namespace UnityEditor.Rendering.Universal
                 if (GUILayout.Button("Reload All"))
                 {
                     var resources = target as PostProcessData;
-                    resources.Reset();
+                    resources.shaders = null;
+                    resources.textures = null;
+                    ResourceReloader.ReloadAllNullIn(target, UniversalRenderPipelineAsset.packagePath);
                 }
             }
 

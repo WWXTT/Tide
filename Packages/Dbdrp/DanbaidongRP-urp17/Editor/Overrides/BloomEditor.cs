@@ -17,7 +17,6 @@ namespace UnityEditor.Rendering.Universal
         SerializedDataParameter m_Clamp;
         SerializedDataParameter m_Tint;
         SerializedDataParameter m_HighQualityFiltering;
-        SerializedDataParameter m_Filter;
         SerializedDataParameter m_Downsample;
         SerializedDataParameter m_MaxIterations;
         SerializedDataParameter m_DirtTexture;
@@ -37,7 +36,6 @@ namespace UnityEditor.Rendering.Universal
             m_Clamp = Unpack(o.Find(x => x.clamp));
             m_Tint = Unpack(o.Find(x => x.tint));
             m_HighQualityFiltering = Unpack(o.Find(x => x.highQualityFiltering));
-            m_Filter = Unpack(o.Find(x => x.filter));
             m_Downsample = Unpack(o.Find(x => x.downscale));
             m_MaxIterations = Unpack(o.Find(x => x.maxIterations));
             m_DirtTexture = Unpack(o.Find(x => x.dirtTexture));
@@ -65,7 +63,7 @@ namespace UnityEditor.Rendering.Universal
                 PropertyField(m_Tint);
                 PropertyField(m_Clamp);
                 PropertyField(m_HighQualityFiltering);
-                PropertyField(m_Filter);
+
                 PropertyField(m_Downsample);
                 PropertyField(m_MaxIterations);
 

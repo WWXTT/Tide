@@ -15,7 +15,7 @@ namespace UnityEditor.Rendering.Universal
 
     internal partial class UniversalRenderPipelineLightUI
     {
-        [URPHelpURL("urp/light-component")]
+        [URPHelpURL("light-component")]
         enum Expandable
         {
             General = 1 << 0,
@@ -394,7 +394,10 @@ namespace UnityEditor.Rendering.Universal
             {
                 EditorGUI.BeginChangeCheck();
                 GUI.enabled = UniversalRenderPipeline.asset.useRenderingLayers;
-                EditorGUILayout.PropertyField(serializedLight.renderingLayers, UniversalRenderPipeline.asset.useRenderingLayers ? Styles.RenderingLayers : Styles.RenderingLayersDisabled);
+                EditorUtils.DrawRenderingLayerMask(
+                    serializedLight.renderingLayers,
+                    UniversalRenderPipeline.asset.useRenderingLayers ? Styles.RenderingLayers : Styles.RenderingLayersDisabled
+                );
                 GUI.enabled = true;
                 if (EditorGUI.EndChangeCheck())
                 {
@@ -435,17 +438,9 @@ namespace UnityEditor.Rendering.Universal
             {
                 if (serializedLight.settings.isBakedOrMixed)
                 {
-                    switch (lightType)
-                    {
-                        // Baked Shadow radius
-                        case LightType.Point:
-                        case LightType.Spot:
-                            serializedLight.settings.DrawShapeRadius();
-                            break;
-                        case LightType.Directional:
-                            serializedLight.settings.DrawBakedShadowAngle();
-                            break;
-                    }
+                    // Baked Shadow Radius was renamed to Shape Radius and is now drawn in the Shape foldout
+                    if (lightType == LightType.Directional)
+                        serializedLight.settings.DrawBakedShadowAngle();
                 }
 
                 if (lightType != LightType.Rectangle && !serializedLight.settings.isCompletelyBaked)
@@ -465,12 +460,14 @@ namespace UnityEditor.Rendering.Universal
                         // this min bound should match the calculation in SharedLightData::GetNearPlaneMinBound()
                         float nearPlaneMinBound = Mathf.Min(0.01f * serializedLight.settings.range.floatValue, 0.1f);
                         EditorGUILayout.Slider(serializedLight.settings.shadowsNearPlane, nearPlaneMinBound, 10.0f, Styles.ShadowNearPlane);
+                        var isHololens = false;
                         var isQuest = false;
 #if XR_MANAGEMENT_4_0_1_OR_NEWER
                         var buildTargetGroup = BuildPipeline.GetBuildTargetGroup(EditorUserBuildSettings.activeBuildTarget);
                         var buildTargetSettings = XRGeneralSettingsPerBuildTarget.XRGeneralSettingsForBuildTarget(buildTargetGroup);
                         if (buildTargetSettings != null && buildTargetSettings.AssignedSettings != null && buildTargetSettings.AssignedSettings.activeLoaders.Count > 0)
                         {
+                            isHololens = buildTargetGroup == BuildTargetGroup.WSA;
                             isQuest = buildTargetGroup == BuildTargetGroup.Android;
                         }
 
@@ -479,10 +476,10 @@ namespace UnityEditor.Rendering.Universal
                         if (serializedLight.settings.light.shadows == LightShadows.Soft)
                             EditorGUILayout.PropertyField(serializedLight.softShadowQualityProp, Styles.SoftShadowQuality);
 
-                        if (isQuest)
+                        if (isHololens || isQuest)
                         {
                             EditorGUILayout.HelpBox(
-                                "Per-light soft shadow quality level is not supported on the Meta platforms. Use the Soft Shadow Quality setting in the URP Asset instead",
+                                "Per-light soft shadow quality level is not supported on HoloLens and Oculus platforms. Use the Soft Shadow Quality setting in the URP Asset instead",
                                 MessageType.Warning
                             );
                         }
@@ -493,11 +490,6 @@ namespace UnityEditor.Rendering.Universal
                     {
                         EditorGUI.BeginChangeCheck();
                         EditorGUILayout.PropertyField(serializedLight.customShadowLayers, Styles.customShadowLayers);
-                        if (serializedLight.customShadowLayers.boolValue)
-                        {
-                            using (new EditorGUI.IndentLevelScope())
-                                EditorGUILayout.PropertyField(serializedLight.shadowRenderingLayers, Styles.ShadowLayer);
-                        }
                         // Undo the changes in the light component because the SyncLightAndShadowLayers will change the value automatically when link is ticked
                         if (EditorGUI.EndChangeCheck())
                         {
@@ -509,6 +501,20 @@ namespace UnityEditor.Rendering.Universal
                             {
                                 serializedLight.serializedAdditionalDataObject.ApplyModifiedProperties(); // we need to push above modification the modification on object as it is used to sync
                                 SyncLightAndShadowLayers(serializedLight, serializedLight.renderingLayers);
+                            }
+                        }
+
+                        if (serializedLight.customShadowLayers.boolValue)
+                        {
+                            using (new EditorGUI.IndentLevelScope())
+                            {
+                                EditorGUI.BeginChangeCheck();
+                                EditorUtils.DrawRenderingLayerMask(serializedLight.shadowRenderingLayers, Styles.ShadowLayer);
+                                if (EditorGUI.EndChangeCheck())
+                                {
+                                    serializedLight.settings.light.renderingLayerMask = serializedLight.shadowRenderingLayers.intValue;
+                                    serializedLight.Apply();
+                                }
                             }
                         }
                     }

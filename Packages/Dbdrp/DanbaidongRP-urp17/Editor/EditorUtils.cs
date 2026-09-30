@@ -28,9 +28,6 @@ namespace UnityEditor.Rendering.Universal
 
             public static readonly GUIContent alembicMotionVectors = EditorGUIUtility.TrTextContent("Alembic Motion Vectors",
                 "When enabled, the material will use motion vectors from the Alembic animation cache. Should not be used on regular meshes or Alembic caches without precomputed motion vectors.");
-
-            public static readonly GUIContent xrMotionVectorsPass = EditorGUIUtility.TrTextContent("XR Motion Vectors Pass (Space Warp)",
-                "When enabled, the material will run the XR motion vectors pass to be compatible with Space Warp.");
         }
 
         internal static void FeatureHelpBox(string message, MessageType type)
@@ -42,21 +39,15 @@ namespace UnityEditor.Rendering.Universal
             });
         }
 
-        static bool s_URPWindowHighlighting;
         internal static void QualitySettingsHelpBox(string message, MessageType type, UniversalRenderPipelineAssetUI.Expandable expandable, string propertyPath)
         {
             CoreEditorUtils.DrawFixMeBox(message, type, "Open", () =>
             {
-                if (s_URPWindowHighlighting)
-                    return;
-
-                // Set flag here to avoid closing the window for which we are waiting for highlighting to finish - delayed to ensure it is populated.
-                s_URPWindowHighlighting = true;
-
                 var currentPipeline = UniversalRenderPipeline.asset;
 
                 // Make sure we open a new window if the user has already selected Open
                 var windows = Resources.FindObjectsOfTypeAll<EditorWindow>();
+
                 if (windows.Length != 0)
                 {
                     foreach (var window in windows)
@@ -69,14 +60,21 @@ namespace UnityEditor.Rendering.Universal
                 EditorUtility.OpenPropertyEditor(currentPipeline);
                 UniversalRenderPipelineAssetUI.Expand(expandable, true);
 
-                // Delay to ensure the inspector is populated and ready before highlighting.
                 EditorApplication.delayCall += () =>
                     EditorApplication.delayCall += () =>
-                    {
                         CoreEditorUtils.Highlight(currentPipeline.name, propertyPath, HighlightSearchMode.Identifier);
-                        s_URPWindowHighlighting = false;
-                    };
             });
+        }
+
+        internal static void DrawRenderingLayerMask(SerializedProperty property, GUIContent style)
+        {
+            var renderingLayer = property.uintValue;
+
+            EditorGUI.BeginChangeCheck();
+            renderingLayer = EditorGUILayout.RenderingLayerMaskField(style, renderingLayer);
+
+            if (EditorGUI.EndChangeCheck())
+                property.uintValue = renderingLayer;
         }
     }
 }
