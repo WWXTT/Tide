@@ -249,7 +249,7 @@ namespace SynergyUI
             return false;
         }
 
-        /// <summary>墓地出牌（归土仪典配额内；预检后再调，避免 TryBeginUse 先烧配额）。出完同样立刻排干。</summary>
+        /// <summary>墓地出牌（经 IPlaySource 授权；预检后再调，避免 TryBeginUse 先烧配额）。出完同样立刻排干。</summary>
         private bool TryGraveyardPlay(GameCore core, Player me)
         {
             var graveyard = core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>();

@@ -18,8 +18,12 @@ Python 侧只保留超时判负。
 进程生命周期：
 - 惰性启动：首次 reset 才拉起 Unity batchmode，之后跨局复用（协议 reset 本身
   就是完整重开一局，进程重启一次要 30~60s，纯属浪费）；
-- 启动前清理上次残留：pidfile 记录 + 命令行匹配（本工程 + TideHeadlessServer
-  的孤儿 Unity 进程 taskkill），避免「二次运行卡死在工程锁」；
+- 启动前只清「孤儿」残留（本工程 TideHeadlessServer 无头 Unity 里父进程已死者，
+  工程锁元凶）；其它活实例（父进程仍在服务）不杀——强杀会把对方训练打断成
+  WinError 10054 且日志被新实例覆盖、极难排查（2026-09-30 互杀修复），
+  改为直接报错退出；
+- 日志/pid 按端口隔离（tide_headless_<port>.log/.pid）：并发实例互不覆盖，
+  _fail 打出的日志尾部才是本实例自己的；
 - 连接重试带 deadline（Unity boot 需几十秒到几分钟）；断连/超时 → 杀进程 +
   打印日志尾部 + 抛明确错误；
 - 同一工程同时只允许一个 TideEnv 持有进程（一进程一局，num_envs>1 请开多个
@@ -27,6 +31,7 @@ Python 侧只保留超时判负。
 """
 
 import os
+import re
 import socket
 import subprocess
 import time
@@ -45,7 +50,7 @@ class TideEnv(TideEnvTcp):
         self,
         unity_path: str = None,
         project_path: str = None,
-        max_steps: int = 1000,
+        max_steps: int = 2000,  # v2：响应窗口决策点使每局步数变长（train_tide_complete 显式传参同值）
         reward_lambda: float = 0.005,  # 塑形 λ（reset 协议 shapingLambda 下发 Unity）
         opponent: str = "selfplay",   # 对手位：selfplay 自对弈 / simpleai 模型 vs SimpleAI
         startup_timeout: float = 300.0,
@@ -70,13 +75,16 @@ class TideEnv(TideEnvTcp):
         self.step_timeout = step_timeout
         self.connect_retry_interval = connect_retry_interval
         self.project_path = str(project_path or Path(__file__).parent.parent.resolve())
-        self._log_file = Path(self.project_path) / "Logs" / "tide_headless.log"
-        self._pid_file = Path(self.project_path) / "Logs" / "tide_headless.pid"
+        # 日志/pid 按端口隔离（2026-09-30 串台修复）：旧固定名 tide_headless.log/.pid
+        # 会被并发实例互相覆盖——_fail 打出的「日志尾部」可能根本不是本实例的
+        port = self._pick_free_port()
+        self._log_file = Path(self.project_path) / "Logs" / f"tide_headless_{port}.log"
+        self._pid_file = Path(self.project_path) / "Logs" / f"tide_headless_{port}.pid"
         self.unity_path = unity_path or self._find_unity()
 
         super().__init__(
             host="127.0.0.1",
-            port=self._pick_free_port(),
+            port=port,
             max_steps=max_steps,
             reward_lambda=reward_lambda,
             opponent=opponent,
@@ -218,27 +226,29 @@ class TideEnv(TideEnvTcp):
             pass
 
     def _kill_stale_processes(self):
-        """杀掉上次运行残留的 Unity batchmode 进程（工程锁的元凶）。"""
-        # 1) pidfile 记录的上一个实例
-        if self._pid_file.is_file():
-            try:
-                pid = int(self._pid_file.read_text(encoding="ascii").strip())
-                if self._is_unity_pid(pid):
-                    self._taskkill(pid)
-            except (ValueError, OSError):
-                pass
-            try:
-                self._pid_file.unlink()
-            except OSError:
-                pass
+        """只清「孤儿」残留（2026-09-30 互杀修复）。
 
-        # 2) 命令行匹配的孤儿（本工程 + TideHeadlessServer；编辑器实例不含 executeMethod，不会被误杀）
+        旧逻辑按命令行匹配即 taskkill，分不清孤儿与服务中的活实例——只要两次
+        训练启动重叠，新启动就会把上一只还在服务的 Unity 杀掉，对方随即以
+        WinError 10054 崩溃，且其错误信息引用的日志已被新实例覆盖，极难排查。
+        新口径按「无头 Unity 的父进程」分类：
+        - 属于本进程内其它活 TideEnv（评估/多 env 场景）→ 保护，交给 _launch 的
+          _active_by_project 守卫去报错；
+        - 父进程已死（上次训练崩溃留下的孤儿，工程锁元凶）→ 杀；
+        - 父进程是本进程（同进程内重试的上一只，且无人认领）→ 杀；
+        - 父进程是别的活进程（另一个训练正在跑）→ 不杀，报错退出。
+        """
+        protected = {
+            e.process.pid
+            for e in TideEnv._active_by_project.values()
+            if e is not self and e.process is not None and e.process.poll() is None
+        }
         try:
             script = (
                 "Get-CimInstance Win32_Process -Filter \"Name='Unity.exe'\" | "
                 "Where-Object { $_.CommandLine -like '*" + self.project_path + "*' -and "
                 "$_.CommandLine -like '*TideHeadlessServer*' } | "
-                "Select-Object -ExpandProperty ProcessId"
+                "ForEach-Object { \"$($_.ProcessId)`t$($_.ParentProcessId)`t$($_.CommandLine)\" }"
             )
             out = subprocess.run(
                 ["powershell", "-NoProfile", "-Command", script],
@@ -246,25 +256,47 @@ class TideEnv(TideEnvTcp):
                 # 中文 Windows 控制台输出是 GBK：UTF-8 模式下严格解码会炸 reader 线程 → stdout 变 None
                 encoding="utf-8", errors="replace",
             )
-            for line in (out.stdout or "").split():
-                if line.strip().isdigit():
-                    self._taskkill(int(line))
         except (OSError, subprocess.TimeoutExpired):
-            pass  # 查询失败不阻塞启动（还有连接 deadline 兜底）
+            return  # 查询失败不阻塞启动（工程锁/连接 deadline 报错兜底）
+
+        live_foreign = []
+        for line in (out.stdout or "").splitlines():
+            parts = line.strip().split("\t", 2)
+            if len(parts) != 3 or not parts[0].strip().isdigit():
+                continue
+            pid, ppid, cmdline = int(parts[0]), int(parts[1]), parts[2]
+            if pid in protected:
+                continue  # 本进程内别的 TideEnv 持有——不是残留
+            if ppid != os.getpid() and self._pid_alive(ppid):
+                m = re.search(r"-tidePort\s+(\d+)", cmdline)
+                live_foreign.append((pid, ppid, m.group(1) if m else "?"))
+                continue
+            self._taskkill(pid)  # 孤儿（父进程已死）/ 本进程重试遗留 → 清掉
+
+        if live_foreign:
+            desc = "、".join(f"PID={p}（端口 {pt}，属父进程 {pp}）" for p, pp, pt in live_foreign)
+            raise RuntimeError(
+                f"工程 {self.project_path} 已有正在运行的训练无头实例：{desc}。\n"
+                "新实例会被工程锁挡住，强杀则会打断对方训练——请等它跑完，"
+                "或确认放弃后手动执行 taskkill /F /T /PID <PID> 再重试。"
+            )
 
     @staticmethod
-    def _is_unity_pid(pid: int) -> bool:
+    def _pid_alive(pid: int) -> bool:
+        """进程是否还活着（/NH 无表头 CSV：无匹配时输出本地化提示行，不以引号开头）。"""
+        if pid <= 0:
+            return False
         try:
             out = subprocess.run(
-                ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV"],
+                ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
                 capture_output=True, text=True, timeout=30,
-                # tasklist 表头是本地化文本（GBK）：errors=replace 保证解码不炸；
-                # 判定用的 "Unity.exe" 是纯 ASCII，替换字符不影响匹配
+                # 表头/提示均为本地化文本（GBK）：errors=replace 保证解码不炸；
+                # 判定只看「有没有以引号开头的 CSV 数据行」，替换字符不影响
                 encoding="utf-8", errors="replace",
             ).stdout
-            return out is not None and "Unity.exe" in out
+            return any(ln.startswith('"') for ln in (out or "").splitlines())
         except (OSError, subprocess.TimeoutExpired):
-            return False
+            return True  # 查不动时按「活着」处理——宁可误报不误杀
 
     @staticmethod
     def _taskkill(pid: int):
@@ -287,9 +319,10 @@ class TideEnv(TideEnvTcp):
                 pass
         raise RuntimeError(
             f"[TideEnv] {reason}。\n"
-            f"已终止 Unity 进程。日志尾部（{self._log_file}）：\n{log_tail}\n"
-            "常见原因：① 工程被打开中的 Unity 编辑器占用（先关编辑器）② 上次训练的 "
-            "batchmode 进程残留（已自动清理再试）③ 脚本编译错误（看上方日志）。"
+            f"已终止 Unity 进程。日志尾部（{self._log_file}，本实例按端口隔离的独立日志）：\n{log_tail}\n"
+            "常见原因：① 工程被打开中的 Unity 编辑器占用（先关编辑器）② 对局中服务端抛异常"
+            "（TideHeadlessServer 异常通道已恢复日志——查上方/日志里的 [TideHeadless] 报错）"
+            "③ 脚本编译错误（看上方日志）。"
         )
 
     def _log_tail(self, n: int = 30) -> str:

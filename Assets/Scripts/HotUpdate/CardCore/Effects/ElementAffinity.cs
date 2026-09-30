@@ -58,8 +58,9 @@ namespace CardCore
         private static readonly ManaType[] PureColors =
             { ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Black, ManaType.White };
 
-        /// <summary>四色需求（红蓝绿灰——黑白万用可垫）的固定处理序。</summary>
-        private static readonly ManaType[] FourColorOrder =
+        /// <summary>四色需求（红蓝绿灰——黑白万用可垫）的固定处理序。
+        /// 公开给自动横置规划器（ElementPool.PlanAutoTaps）——分配轨迹须与账单规划器同序。</summary>
+        public static readonly ManaType[] FourColorOrder =
             { ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Gray };
 
         private static bool IsPureColor(ManaType type)
@@ -78,8 +79,9 @@ namespace CardCore
             return bill;
         }
 
-        /// <summary>填链：需求色的候选货币按支付序排列。红/蓝/绿=[本色,灰,黑,白]；灰=[灰,黑,白]；黑/白=[本色]（单向）。</summary>
-        private static ManaType[] ChainFor(ManaType need) => need switch
+        /// <summary>填链：需求色的候选货币按支付序排列。红/蓝/绿=[本色,灰,黑,白]；灰=[灰,黑,白]；黑/白=[本色]（单向）。
+        /// 公开给自动横置规划器（ElementPool.PlanAutoTaps）——产色候选须沿同一填链评估。</summary>
+        public static ManaType[] ChainFor(ManaType need) => need switch
         {
             ManaType.Red => new[] { ManaType.Red, ManaType.Gray, ManaType.Black, ManaType.White },
             ManaType.Blue => new[] { ManaType.Blue, ManaType.Gray, ManaType.Black, ManaType.White },

@@ -22,7 +22,7 @@ opponent="simpleai" 可切回「打脚本主题」训练（评估只剩单一口
 运行（推荐临时工程隔离训练，见 make_train_copy.ps1 / start_training_traincopy.ps1）：
   python tide_rl/train_tide_complete.py
   （Unity.exe 自动发现：UNITY_PATH 环境变量 → Hub 扫描匹配工程版本；
-    进程常驻跨局复用，启动前自动清理上次残留的 batchmode 进程）
+    进程常驻跨局复用；启动前只清「孤儿」残留——有别的活训练实例时报错退出、不杀）
 
 重要约束：stdio 桥接一个 Unity 进程一次只跑一场对局 → num_envs 必须为 1。
 """
@@ -51,12 +51,45 @@ from ygoai.rl.jax import clipped_surrogate_pg_loss, mse_loss, entropy_loss
 
 from tide_env import TideEnv
 from tide_agent import create_tide_agent
-from tide_features import init_rstate, sample_input
+from tide_features import (
+    init_rstate, sample_input,
+    ACTION_F_TYPE, ACTION_F_TARGET_KIND, ACTION_TYPES, NEW_ACTION_TYPES,
+    GLOBAL_F_DECISION_CONTEXT,
+)
 from rollout_common import (
     rollout_single_env,
     bootstrap_next_value,
     compute_advantages_simple,
 )
+
+
+def action_usage_stats(rollout_data):
+    """v2 动作类型使用统计（「学会了没有」的可观测信号，进 stats.jsonl）。
+
+    rollout 记录的 obs 是**行动前**观测（actions_ 为 C# 原始特征、未过编码器归一化），
+    故可按下标直读所选动作行的 type/targetKind，global_[47] 即该步决策上下文。
+    返回 (type_counts: {类型名: 次数}, new_type_frac, targeted_frac, response_step_frac)。
+    """
+    type_counts = {}
+    n = new_type = targeted = response_steps = 0
+    for data in rollout_data:
+        obs_list = data["obs"]
+        actions = data["actions"]
+        for obs, act in zip(obs_list, actions):
+            n += 1
+            row = obs["actions_"][act]
+            t = int(row[ACTION_F_TYPE])
+            name = ACTION_TYPES.get(t, f"type{t}")
+            type_counts[name] = type_counts.get(name, 0) + 1
+            if t in NEW_ACTION_TYPES:
+                new_type += 1
+            if int(row[ACTION_F_TARGET_KIND]) == 1:
+                targeted += 1
+            if int(obs["global_"][GLOBAL_F_DECISION_CONTEXT]) == 1:
+                response_steps += 1
+    if n == 0:
+        return {}, 0.0, 0.0, 0.0
+    return type_counts, new_type / n, targeted / n, response_steps / n
 
 
 def stack_obs(obs_list):
@@ -81,7 +114,9 @@ def _seat_of(info):
 @dataclass
 class Args:
     """训练超参。"""
-    exp_name: str = "tide_ppo_selfplay_theme"
+    # v2c（2026-09-30 C 期动作空间）：效果时机+目标选择+响应窗口进动作空间，
+    # 旧 checkpoint/fixture/onnx 全作废（动作编码器输入 6→8、global 36→49）。
+    exp_name: str = "tide_ppo_selfplay_v2c"
     seed: int = 42
     learning_rate: float = 2.5e-4
     anneal_lr: bool = True  # 学习率线性衰减
@@ -113,7 +148,8 @@ class Args:
     log_interval: int = 2_560  # 每 2560 步打印（对齐 update 粒度）
 
     # Tide 特定
-    max_episode_steps: int = 1000  # 单局步数上限（超时判负；可选操作变多后 500 会提前截断对局）
+    # v2 1000→2000：响应窗口决策点使每局步数变长（停靠仅在候选>0 时发生，增长有界）
+    max_episode_steps: int = 2000  # 单局步数上限（超时判负）
     # 塑形 λ（2026-09-22 起经 reset 协议真正下发到 Unity）。旧口径 λ=0.05 且势能含手牌：
     # 双方各自整局塑形累计 ≈ +3.1 淹没终局 ±1，自对弈收敛到拖局（局长 90→267、
     # 对脚本胜率 0.35→0.1）——现降 10 倍，且 Unity 侧奖励势能已剔除手牌。
@@ -461,6 +497,9 @@ def train(args: Args):
 
             update_time = time.time() - update_start
 
+            # ==================== v2 动作类型使用统计（C期能力「学会了没有」的信号） ====================
+            type_counts, new_type_frac, targeted_frac, resp_step_frac = action_usage_stats(rollout_data)
+
             # ==================== 统计落盘（每个 update 一行，stats.jsonl 可 tail） ====================
             mean_return = float(np.mean(episode_returns)) if episode_returns else 0.0
             mean_length = float(np.mean(episode_lengths)) if episode_lengths else 0.0
@@ -483,6 +522,12 @@ def train(args: Args):
                 "sps": sps,
                 "update_time": update_time,
                 "elapsed": elapsed,
+                # v2：动作类型分布 + 新能力使用率（new_type=HeroSkill/VoluntaryTrigger/Pass/
+                # Respond*/Guard；targeted=所选动作带卡目标；resp=响应窗口决策步占比）
+                "act_type": type_counts,
+                "new_type_frac": round(new_type_frac, 4),
+                "targeted_frac": round(targeted_frac, 4),
+                "resp_step_frac": round(resp_step_frac, 4),
             }
             with open(log_dir / "stats.jsonl", "a", encoding="utf-8") as f:
                 f.write(json.dumps(stats, ensure_ascii=False) + "\n")
@@ -494,7 +539,8 @@ def train(args: Args):
                       f"VF {float(v_loss):7.3f} | Ent {float(entropy):6.3f} | "
                       f"EpRet {mean_return:7.2f} | EpLen {mean_length:5.1f} | "
                       f"Eps {len(episode_returns)} (超时 {episode_timeouts}) | "
-                      f"SPS {sps:5.0f} | Time {update_time:.2f}s", flush=True)
+                      f"SPS {sps:5.0f} | Time {update_time:.2f}s | "
+                      f"新类型 {new_type_frac:.0%} 带目标 {targeted_frac:.0%} 响应步 {resp_step_frac:.0%}", flush=True)
 
             # ==================== 评估（复用训练 env；进行中的对局被打断） ====================
             if update % eval_every_updates == 0:

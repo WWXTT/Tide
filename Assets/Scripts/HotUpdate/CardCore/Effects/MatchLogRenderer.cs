@@ -75,8 +75,6 @@ namespace CardCore
                     return $"{Name(gain.Player)} 横置 {Name(gain.FromCard)} 产出 {gain.GainedType}";
                 case KeywordAppliedEvent kw:
                     return $"〔关键词〕{Name(kw.Target)}：{kw.Detail}";
-                case RitualCompletedEvent ritual:
-                    return $"★ 仪式完成：{Name(ritual.Card)}（{ritual.RitualId}，完成者 {Name(ritual.Completer)}）";
                 case TokenCreatedEvent token:
                     return $"{Name(token.Controller)} 生成衍生物 {Name(token.Card)}（{token.DropZone}）";
 

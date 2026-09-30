@@ -8,8 +8,11 @@ namespace CardCore.AI.NeuralEnv
     /// ONNX 单步策略推理器（Sentis，包名 com.unity.ai.inference，命名空间 Unity.InferenceEngine）。
     ///
     /// 图契约（tide_rl/export_onnx.py 导出，batch 已脱皮）：
-    ///   输入 float32：rstate(512) cards(80×65) global(36) actions(128×6)
-    ///   输出 float32：rstate_next(512) logits(128) value(1)
+    ///   输入 float32：rstate(512) cards(80×65) global(49) actions(512×8)
+    ///   输出 float32：rstate_next(512) logits(512) value(1)
+    /// v2 布局（2026-09-30 动作空间二期契约）：动作特征 8 维（追加 effectIdentity/targetKind）、
+    /// globals 49 维（英雄技能块/栈信息/决策上下文）、动作容量 512——旧 onnx/fixture 全部作废，
+    /// 需重跑 export_onnx.py 重导出后使用本推理器。
     /// 非法动作在图内已掩 -1e9（actions[:,0]==0），Select 直接 argmax；
     /// rstate 局内逐步传递，新对局 Reset() 归零（与训练 rollout 同口径）。
     ///
@@ -27,7 +30,7 @@ namespace CardCore.AI.NeuralEnv
     {
         // 与 tide_rl/tide_features.py 对齐（模型图内写死，改维度必须重导出）
         public const int RnnChannels = 512;
-        public const int MaxActions = 128;
+        public const int MaxActions = 512; // v2 契约第 4 节 128→512（逐目标展开后动作行变多；EndTurn/Pass 恒排末位保截断兜底）
         private const int MaxCards = TideObservation.MaxCardsTotal; // 80
 
         private readonly IE.Worker _worker;
@@ -110,9 +113,9 @@ namespace CardCore.AI.NeuralEnv
             if (n <= 0) return -1;
             if (n > MaxActions)
             {
-                // 攻击全叉积（攻方×对方全单位+玩家）偶发超 128：截断到前 MaxActions 个防越界
-                // （LastLogits 只有 128 位）。EndTurn 恒排末位，被截掉时由驱动 MaxActionsPerTurn
-                // 强制结束兜底——与训练侧 pad_or_truncate_actions 同口径，动作空间扩容期根治。
+                // 逐目标展开 + 攻击全叉积偶发超容量：截断到前 MaxActions 个防越界（LastLogits 定长）。
+                // EndTurn/PassPriority 恒排末位，被截掉时由驱动 MaxActionsPerTurn 强制结束兜底——
+                // 与训练侧 pad_or_truncate_actions 同口径。
                 UnityEngine.Debug.LogWarning(
                     $"[OnnxTidePolicy] 合法动作 {n} > {MaxActions}，截断到前 {MaxActions} 个");
                 n = MaxActions;
@@ -164,7 +167,7 @@ namespace CardCore.AI.NeuralEnv
         public struct StepOutputs
         {
             public float[] RstateNext; // (512,)
-            public float[] Logits;     // (128,)
+            public float[] Logits;     // (MaxActions,)
             public float Value;        // 标量
         }
 

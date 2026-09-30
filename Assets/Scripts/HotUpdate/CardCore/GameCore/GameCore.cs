@@ -50,7 +50,7 @@ namespace CardCore
         public DelayedEffectScheduler DelayedEffectScheduler => _subSystems.Get<DelayedEffectScheduler>();
         public ResourceLedger ResourceLedger => _subSystems.Get<ResourceLedger>();
 
-        /// <summary>对局史计数服务（P2a）：三方共用查询（仪式差值化/卡条件 Custom/AI）</summary>
+        /// <summary>对局史计数服务（P2a）：卡条件 Custom / AI 共用查询</summary>
         public MatchStatsService MatchStats => _subSystems.Get<MatchStatsService>();
 
         #endregion
@@ -185,8 +185,7 @@ namespace CardCore
             // 保证开行时读到的回合数/地牌槽上限已是本回合新值、封行前已收到全部产出事件
             _subSystems.Register(new ResourceLedger(elementPool));
 
-            // 对局史计数服务（P2a）：须先于 RitualSystem.EnsureRuntime（Reset 内）订阅——
-            // 同一事件先过服务计数、后过仪式 tracker 差值判达标，顺序即正确性
+            // 对局史计数服务（P2a）：卡条件/AI 的单一计数源
             _subSystems.Register(new MatchStatsService());
 
             // 角色亡语（2026-09-15 定案，判负效果化）：每个角色注册内置亡语
@@ -244,7 +243,7 @@ namespace CardCore
             EnforceHandLimitAsync(e.TurnPlayer).Forget();
         }
 
-        /// <summary>初始手牌总量（含仪式：仪式先占位，再抽牌补满至此数；超出的仪式留牌库正常抽）。</summary>
+        /// <summary>初始手牌总量。</summary>
         private const int OpeningHandSize = 6;
 
         /// <summary>装备入场接线委托（2026-09-24：Reset 重订阅用缓存实例——lambda 无法退订，
@@ -259,7 +258,7 @@ namespace CardCore
             var hand = ZoneManager.GetCards(player, Zone.Hand);
             if (hand == null) return;
 
-            // 手牌上限：规则扩展点（OCP）修改链（基值 7，如纳川仪典提升到 15）
+            // 手牌上限：规则扩展点（OCP）修改链（基值 7）
             int over = hand.Count - RuleHooks.GetHandLimit(player);
             if (over <= 0) return;
 
@@ -319,7 +318,7 @@ namespace CardCore
             // 权威闸门=技能卡横置态——回合开始重置（与地牌/随从同规则）；引用丢失时 lazy 回填
             HeroSkillSystem.ResolveSkillCard(this, player)?.Untap();
 
-            // 规则扩展点（OCP）：回合开始自动化拦截（如节奏轴仪式跳过准备阶段——
+            // 规则扩展点（OCP）：回合开始自动化拦截（ITurnStartInterceptor 声明跳过准备阶段——
             // 抽牌、地牌槽（元素浓度上限）推进、横置重置、场上卡准备阶段结算全跳；
             // 引擎簿记（栈优先权/全局回合计数/每回合一次计数）不在跳过范围——那是时钟不是结算）。
             if (RuleHooks.ShouldSkipTurnStartAutomation(player))
@@ -432,11 +431,7 @@ namespace CardCore
             ZoneManagerExtensions.ShuffleDeck(ZoneManager, _player1);
             ZoneManagerExtensions.ShuffleDeck(ZoneManager, _player2);
 
-            // 仪式占初始手牌位：仪式先占位（总量不超过初始手牌数），再抽牌补满；超出的仪式留牌库正常抽
-            MoveRitualsToOpeningHand(_player1);
-            MoveRitualsToOpeningHand(_player2);
-
-            // 起手抽牌补满至初始手牌总量（仪式占位后剩余的空位）
+            // 起手抽牌
             for (int i = ZoneManager.GetCards(_player1, Zone.Hand).Count; i < OpeningHandSize; i++)
             {
                 ZoneManagerExtensions.DrawCard(ZoneManager, _player1);
@@ -448,26 +443,6 @@ namespace CardCore
 
             // 开始游戏
             StartGame();
-        }
-
-        /// <summary>
-        /// 仪式卡占初始手牌位：将牌库中的仪式卡逐一移入手牌，直至初始手牌总量上限；超出的仪式留牌库正常抽。
-        /// （规则定案：初始手牌 6 张含仪式——携带多张仪式时也挤占抽牌位，不以任何形式突破总量。）
-        /// </summary>
-        private void MoveRitualsToOpeningHand(Player player)
-        {
-            int slots = OpeningHandSize - ZoneManager.GetCards(player, Zone.Hand).Count;
-            if (slots <= 0) return;
-
-            var rituals = ZoneManager.GetCards(player, Zone.Deck)
-                .Where(c => RitualSystem.IsRitual(c))
-                .ToList();
-            foreach (var ritual in rituals)
-            {
-                if (slots <= 0) break;
-                ZoneManager.MoveCard(ritual, player, Zone.Deck, Zone.Hand);
-                slots--;
-            }
         }
 
         /// <summary>
@@ -631,7 +606,7 @@ namespace CardCore
             TriggerEngine.ClearAll();
             ElementPool.Reset();
             ResourceLedger.ClearAll();
-            if (MatchStats != null) MatchStats.ClearAll(); // 对局史计数跨局不残留（先清再挂仪式订阅）
+            if (MatchStats != null) MatchStats.ClearAll(); // 对局史计数跨局不残留
             MatchLogService.EnsureStarted();               // 对局日志全局钩子（幂等；AnyPublished 收口）
             MatchLogService.ClearAll();                    // 战报缓冲跨局不残留
             Network.NetEventProjector.EnsureStarted();     // 网络事件流投影（M1：与日志同款 AnyPublished 收口）
@@ -641,8 +616,6 @@ namespace CardCore
             CopyEffectsEngine.ClearAll();
             DurationTracker.ClearAll();
             ProphecySystem.Reset(); // 待验证预言跨局不残留
-            RitualSystem.Reset();   // 仪式任务与光环跨局不残留
-            RitualSystem.EnsureRuntime();  // 仪式运行时订阅（任务计数+奖励驱动），开局即挂载（展示记录等不漏采）
 
             // 回合开始重置拦截（2026-09-13 定案：冻结/沉睡无法重置）——组合根登记（幂等）
             RuleHooks.RegisterUntapBlockRule(SleepFreezeUntapBlockRule.Instance);

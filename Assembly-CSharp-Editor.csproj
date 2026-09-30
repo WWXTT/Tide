@@ -1334,6 +1334,10 @@
       <HintPath>Library\ScriptAssemblies\UnityEditor.TestRunner.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Unity.VisualEffectGraph.Editor">
+      <HintPath>Library\ScriptAssemblies\Unity.VisualEffectGraph.Editor.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Unity.Entities">
       <HintPath>Library\ScriptAssemblies\Unity.Entities.dll</HintPath>
       <Private>False</Private>
@@ -1598,6 +1602,10 @@
       <HintPath>Library\ScriptAssemblies\Unity.Serialization.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Unity.VisualEffectGraph.Runtime">
+      <HintPath>Library\ScriptAssemblies\Unity.VisualEffectGraph.Runtime.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Unity.Multiplayer.Center.Common">
       <HintPath>Library\ScriptAssemblies\Unity.Multiplayer.Center.Common.dll</HintPath>
       <Private>False</Private>
@@ -1681,10 +1689,12 @@
     <ProjectReference Include="MCPForUnity.Runtime.csproj" />
     <ProjectReference Include="Crest.Examples.csproj" />
     <ProjectReference Include="MCPForUnity.Editor.csproj" />
+    <ProjectReference Include="Unity.RenderPipelines.Core.Samples.Editor.csproj" />
     <ProjectReference Include="HexMap.ECS.csproj" />
     <ProjectReference Include="Unity.SmoothNormalTool.Runtime.csproj" />
     <ProjectReference Include="Tide.HotUpdate.csproj" />
     <ProjectReference Include="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
+    <ProjectReference Include="Unity.RenderPipelines.Core.Samples.Runtime.csproj" />
   </ItemGroup>
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
   <ItemGroup>

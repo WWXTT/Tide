@@ -7,12 +7,15 @@ batch 已脱皮，Unity 侧无需再压 batch 维）：
   输入（float32）
     rstate  (512,)   GRU 隐状态（局内逐步传递；新对局置零）
     cards   (80,65)  TideObservation.Cards
-    global  (36,)    TideObservation.Globals
-    actions (128,6)  LegalActionEnumerator.Features 补零到 128（valid=0 → 图内掩 -1e9）
+    global  (49,)    TideObservation.Globals（v2：36→49，契约 docs/action_space_v2_contract.md）
+    actions (512,8)  LegalActionEnumerator.Features 补零到 512（valid=0 → 图内掩 -1e9）
   输出（float32）
     rstate_next (512,)  写回状态，下一步作 rstate 输入
-    logits      (128,)  已含合法掩码（非法 = -1e9），argmax 即选动作
+    logits      (512,)  已含合法掩码（非法 = -1e9），argmax 即选动作
     value       (1,)    Critic 估值（部署可忽略，调试/评估用）
+
+v2 注意（2026-09-30 C 期）：源/target 槽位下标的归一化在**编码器内**（图内），
+C# 部署侧照旧喂原始特征（-1..79），部署与训练逐值同口径。
 
 用法（务必用隔离 venv，不动训练环境）：
   .venv-export/Scripts/python.exe export_onnx.py --ckpt logs/<run>/best/params.msgpack
@@ -46,7 +49,7 @@ from tide_agent import create_tide_agent
 from tide_features import (
     MAX_CARDS, N_CARD_FEATURES, N_GLOBAL_FEATURES,
     MAX_ACTIONS, N_ACTION_FEATURES, N_RNN_CHANNELS,
-    N_CARD_POOL, N_EFFECT_TYPES,
+    N_CARD_POOL, N_EFFECT_TYPES, LAYOUT_VERSION,
     sample_input, init_rstate,
 )
 
@@ -158,9 +161,10 @@ def build_case(seed: int, mask_from: int | None) -> dict:
     glob = rng.normal(size=N_GLOBAL_FEATURES).astype(np.float32)
     actions = rng.normal(size=(MAX_ACTIONS, N_ACTION_FEATURES)).astype(np.float32)
     actions[:, 0] = 1.0
-    actions[:, 1] = rng.integers(0, 6, MAX_ACTIONS)
+    actions[:, 1] = rng.integers(0, 12, MAX_ACTIONS)  # v2：type 值域 0..11（契约第 1 节）
     actions[:, 2] = rng.integers(-1, MAX_CARDS, MAX_ACTIONS)
     actions[:, 3] = rng.integers(-1, MAX_CARDS, MAX_ACTIONS)
+    actions[:, 7] = rng.integers(0, 4, MAX_ACTIONS)   # v2：targetKind 0..3
     if mask_from is not None:
         actions[mask_from:, 0] = 0.0
     rstate = rng.normal(size=N_RNN_CHANNELS).astype(np.float32) * 0.1
@@ -244,6 +248,7 @@ def main():
         "tide.channels": str(arch["channels"]),
         "tide.rnn_channels": str(arch["rnn_channels"]),
         "tide.rnn_type": arch["rnn_type"],
+        "tide.layout_version": str(LAYOUT_VERSION),
         "tide.obs_layout": f"cards({MAX_CARDS}x{N_CARD_FEATURES}) global({N_GLOBAL_FEATURES}) actions({MAX_ACTIONS}x{N_ACTION_FEATURES})",
         "tide.manifest_sha256": manifest_sha,
         "tide.ckpt": str(args.ckpt),

@@ -299,11 +299,6 @@ namespace CardCore
                     if (modes.Count > 0) card.ModeCostCache = modes; // 声明优先：只填缓存
                     return;
                 }
-                if ((card.Subtype & CardSubtype.Ritual) != 0)
-                {
-                    if (modes.Count > 0) card.ModeCostCache = modes; // 仪式保持空 Cost
-                    return;
-                }
 
                 var maxCost = MaxModeCost(modes);
                 if (maxCost.Count > 0)
@@ -316,7 +311,6 @@ namespace CardCore
             }
 
             if (card.Cost != null && card.Cost.Count > 0) return;      // 严格非空即返：禁止覆盖声明费用
-            if ((card.Subtype & CardSubtype.Ritual) != 0) return;      // 仪式：0 费说明书卡，保持空 Cost（打出免费）
 
             var suggested = DeriveSuggestedCost(card);
             if (suggested.Count == 0) return;

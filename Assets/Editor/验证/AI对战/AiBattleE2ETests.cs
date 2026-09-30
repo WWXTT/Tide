@@ -26,19 +26,5 @@ namespace CardCore.Editor.Tests
 
             Debug.Log($"[Test] 标准卡组：{(result.Completed ? $"完成，胜者 {AiBattleE2E.Name(result.Winner)}（{result.Reason}，{result.TotalTurns} 回合）" : $"到达回合上限（{result.TotalTurns} 回合）")}，播报 {result.AnnouncedLines} 行");
         }
-
-        [Test]
-        [Ignore("2026-09-13：仪式系统屏蔽期（整体挪拓展构想）——c207018 卡组重构后 TestCreatureCards 已无仪式卡，本测试卡组恒空必败。仪式恢复（RitualConfig 卡回池）后移除本忽略。")]
-        public void AiVsAi_全仪式卡组_整局无错()
-        {
-            // 压力口径：开局 6 张仪式占满手牌 → 连环顶替 → 小卡组快速耗尽 → 疲劳收尾
-            var result = new AiBattleDriver().RunFullGame(AiBattleE2E.LoadRitualHeavyDeck(), maxTurns: 100);
-
-            Assert.IsEmpty(result.Errors, "对局中出现异常:\n" + string.Join("\n", result.Errors));
-            Assert.IsTrue(result.Completed || result.TurnLimitReached,
-                $"既未结束也未到回合上限（当前回合 {result.TotalTurns}）");
-
-            Debug.Log($"[Test] 全仪式卡组：{(result.Completed ? $"完成，胜者 {AiBattleE2E.Name(result.Winner)}（{result.Reason}，{result.TotalTurns} 回合）" : $"到达回合上限（{result.TotalTurns} 回合）")}，播报 {result.AnnouncedLines} 行");
-        }
     }
 }

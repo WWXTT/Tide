@@ -199,7 +199,7 @@ namespace CardCore
         /// 付费与结算移交栈：双方 Pass 后 LIFO 结算，消费点 = ResolveCardCastAsync
         /// （扣费在响应窗口之后；软打断=没付、硬反制=付了但被否定、费用不退、不回卷）。
         /// targets：可选的预选目标（如指向性法术）；为空时由各原子效果按配置自动解析。
-        /// fromZone：出牌来源区（默认手牌；Graveyard = 归土仪典「墓地视手牌中使用」路径）。
+        /// fromZone：出牌来源区（默认手牌；Graveyard = IPlaySource「墓地视手牌中使用」路径）。
         /// </summary>
         public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets = null, Zone fromZone = Zone.Hand, int modeIndex = 0)
         {
@@ -325,8 +325,8 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 主阶段：从墓地使用一张牌，视为手牌中使用（归土仪典奖励）。
-        /// 每回合主要阶段一次（RitualEffects 配额）；法术结算后照常入墓、永久物入场。
+        /// 主阶段：从墓地使用一张牌，视为手牌中使用（引擎通用能力，经 IPlaySource 扩展点授权/计配额）。
+        /// 法术结算后照常入墓、永久物入场。
         /// </summary>
         public static bool PlayCardFromGraveyard(GameCore core, Player player, Card card, List<Entity> targets = null, int modeIndex = 0)
             => PlayCard(core, player, card, targets, Zone.Graveyard, modeIndex);
@@ -358,6 +358,8 @@ namespace CardCore
             // 获得黑/白（每回合封顶 1/色，AddMana 钳制）——无选择窗口、无减费通道；
             // 补偿先于代价执行（2026-09-13 排序保留：Payload 执行会膨胀模板身价，补偿按打出时点全价）。
             // 被「发动无效」只跳效果、已付代价与补偿不回卷；被打落则全免（上方 1 已拦）。
+            // 自动横置补足（2026-09-30 定案）：bank 不足时先自动横置地牌产出所需元素再扣款——
+            // 声明期门禁（CanAfford）按同一潜力口径放行，此处是实际横置点。
             var specialCosts = CollectCardSpecialCosts(card);
             var cost = GetCardCost(card, cast.ModeIndex);
             var costCtx = new CostContext
@@ -372,7 +374,7 @@ namespace CardCore
                 CastAbortToGraveyard(core, card, player, "代价流程异常（付费步失败，不回卷）");
                 return;
             }
-            if (!core.ElementPool.PayCost(cost, player))
+            if (!core.ElementPool.TryPayCostWithAutoTap(cost, player, core.ZoneManager))
             {
                 CastAbortToGraveyard(core, card, player, "费用不足（响应窗口后支付失败，不回卷）");
                 return;
@@ -428,7 +430,7 @@ namespace CardCore
         /// 永久物（生物等）cast 结算：经发动区入场。
         /// （触发式注册已收口到 TryMoveToBattlefield/TryAddToBattlefield 统一出口——
         /// 时点接线定案：任何来源进场的卡都注册自身触发式，入场事件发布前完成，
-        /// 保证入场卡自己的 OnPlay/OnSummon 能吃到自己的入场事件；仪式入场激活经 CardPutToBattlefieldEvent 事件驱动。）
+        /// 保证入场卡自己的 OnPlay/OnSummon 能吃到自己的入场事件。）
         /// </summary>
         private static void ResolvePermanentEntry(GameCore core, Player player, Card card)
         {
@@ -971,8 +973,13 @@ namespace CardCore
             var bill = ElementPaymentValidator.NormalizeBill(cost);
             foreach (var kv in ElementPaymentValidator.NormalizeBill(pending))
                 bill[kv.Key] = bill.TryGetValue(kv.Key, out var v) ? v + kv.Value : kv.Value;
-            return ElementPaymentValidator.CanPayBill(
-                bill, elementPool.GetPool(player).AvailableMana, elementPool.GetLandCap(player));
+            if (ElementPaymentValidator.CanPayBill(
+                    bill, elementPool.GetPool(player).AvailableMana, elementPool.GetLandCap(player)))
+                return true;
+
+            // 自动横置补足（2026-09-30 定案）：bank 不足但未横置地牌可产所需元素 → 放行，
+            // 付费步自动横置（纯预检不动状态——AI 驱动器回合初已全横置，行为不变）
+            return elementPool.CanPayCostWithAutoTap(bill, player);
         }
 
         /// <summary>

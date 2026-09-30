@@ -19,14 +19,9 @@ namespace CardCore.Editor.Tests
     public static class AiBattleE2E
     {
 
-        /// <summary>标准卡池（2026-09-21 数据层迁移）：Cards.json 全池非仪式卡
-        /// （TestDecks 已随主题卡组重构删除；仪式验证走全仪式压力口径，AI 对战测不到仪式）。</summary>
+        /// <summary>标准卡池（2026-09-21 数据层迁移）：Cards.json 全池。</summary>
         public static List<CardData> LoadStandardDeck()
-            => CardCatalog.LoadAll().Where(c => !RitualSystem.IsRitual(new CardWrapper(c))).ToList();
-
-        /// <summary>全仪式卡组（压力口径）：开局仪式占满手牌、连环顶替、小卡组疲劳收尾。</summary>
-        public static List<CardData> LoadRitualHeavyDeck()
-            => CardCatalog.LoadAll().Where(c => RitualSystem.IsRitual(new CardWrapper(c))).ToList();
+            => CardCatalog.LoadAll().ToList();
 
         internal static string Name(Entity e) => MatchLogRenderer.Name(e);
     }
