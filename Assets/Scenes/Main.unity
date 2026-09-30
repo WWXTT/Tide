@@ -580,13 +580,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 369751147}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.31598538, y: 0.3596048, z: -0.13088542, w: 0.8681629}
+  m_LocalRotation: {x: 0, y: 0.9396927, z: -0.3420201, w: 0}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 40, y: 45, z: 0}
+  m_LocalEulerAnglesHint: {x: 40, y: 180, z: 0}
 --- !u!1 &1080065510
 GameObject:
   m_ObjectHideFlags: 0
@@ -636,6 +636,125 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &1867977537
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 289775452322014629, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_RootOrder
+      value: 15
+      objectReference: {fileID: 0}
+    - target: {fileID: 289775452322014629, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -78
+      objectReference: {fileID: 0}
+    - target: {fileID: 289775452322014629, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 289775452322014629, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 289775452322014629, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 289775452322014629, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 289775452322014629, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 289775452322014629, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 289775452322014629, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 289775452322014629, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 289775452322014629, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3618557061197045520, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_text
+      value: "\nThis complex VFX is composed of several systems that are playing
+        with the <b>texIndex attribute</b> creatively. Time, noise, and even particle
+        position are used to control the </b>texIndex attribute</b> and give life
+        to this VFX.\n\n<b>Covered Aspects</b>:\n\u2022 Flipbook UVs\n\u2022 TexIndex
+        Attribute\n\u2022 Flipbook Player"
+      objectReference: {fileID: 0}
+    - target: {fileID: 3721953089920304497, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_text
+      value: TexIndex Advanced
+      objectReference: {fileID: 0}
+    - target: {fileID: 4632813927293726957, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_MotionVectors
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4932142436098444663, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_text
+      value: TexIndex Advanced
+      objectReference: {fileID: 0}
+    - target: {fileID: 6791087967887764379, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_text
+      value: TexIndex Advanced
+      objectReference: {fileID: 0}
+    - target: {fileID: 6791087967887764379, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_fontSize
+      value: 0.35
+      objectReference: {fileID: 0}
+    - target: {fileID: 8127228675792805945, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      propertyPath: m_Name
+      value: TexIndex Advanced
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2970326689406954863, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
+    - targetCorrespondingSourceObject: {fileID: 6710866123235894755, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
+    - targetCorrespondingSourceObject: {fileID: 8378227264030485935, guid: c31527918c314b74ab9528f8e8dc07c6,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
+  m_SourcePrefab: {fileID: 100100000, guid: c31527918c314b74ab9528f8e8dc07c6, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -644,5 +763,5 @@ SceneRoots:
   - {fileID: 369751150}
   - {fileID: 1080065512}
   - {fileID: 44048475}
-  - {fileID: 1654276058}
   - {fileID: 133147543}
+  - {fileID: 1867977537}

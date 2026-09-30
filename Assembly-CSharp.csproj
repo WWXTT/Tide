@@ -24,7 +24,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <NoWarn>0169;USG0001</NoWarn>
-    <DefineConstants>UNITY_6000_5_10;UNITY_6000_5;UNITY_6000;UNITY_5_3_OR_NEWER;UNITY_5_4_OR_NEWER;UNITY_5_5_OR_NEWER;UNITY_5_6_OR_NEWER;UNITY_2017_1_OR_NEWER;UNITY_2017_2_OR_NEWER;UNITY_2017_3_OR_NEWER;UNITY_2017_4_OR_NEWER;UNITY_2018_1_OR_NEWER;UNITY_2018_2_OR_NEWER;UNITY_2018_3_OR_NEWER;UNITY_2018_4_OR_NEWER;UNITY_2019_1_OR_NEWER;UNITY_2019_2_OR_NEWER;UNITY_2019_3_OR_NEWER;UNITY_2019_4_OR_NEWER;UNITY_2020_1_OR_NEWER;UNITY_2020_2_OR_NEWER;UNITY_2020_3_OR_NEWER;UNITY_2021_1_OR_NEWER;UNITY_2021_2_OR_NEWER;UNITY_2021_3_OR_NEWER;UNITY_2022_1_OR_NEWER;UNITY_2022_2_OR_NEWER;UNITY_2022_3_OR_NEWER;UNITY_2023_1_OR_NEWER;UNITY_2023_2_OR_NEWER;UNITY_2023_3_OR_NEWER;UNITY_6000_0_OR_NEWER;UNITY_6000_1_OR_NEWER;UNITY_6000_2_OR_NEWER;UNITY_6000_3_OR_NEWER;UNITY_6000_4_OR_NEWER;UNITY_6000_5_OR_NEWER;UNITY_INCLUDE_TESTS;ENABLE_AR;ENABLE_AUDIO;ENABLE_AUDIO_SCRIPTABLE_PIPELINE;ENABLE_CACHING;ENABLE_CLOTH;ENABLE_EVENT_QUEUE;ENABLE_MICROPHONE;ENABLE_MULTIPLE_DISPLAYS;ENABLE_PHYSICS;ENABLE_TEXTURE_STREAMING;ENABLE_LZMA;ENABLE_UNITYEVENTS;ENABLE_VR;ENABLE_WEBCAM;ENABLE_UNITYWEBREQUEST;ENABLE_WWW;ENABLE_CLOUD_SERVICES;ENABLE_CLOUD_SERVICES_ADS;ENABLE_CLOUD_SERVICES_USE_WEBREQUEST;ENABLE_UNITY_CONSENT;ENABLE_UNITY_CLOUD_IDENTIFIERS;ENABLE_CLOUD_SERVICES_CRASH_REPORTING;ENABLE_CLOUD_SERVICES_NATIVE_CRASH_REPORTING;ENABLE_CLOUD_SERVICES_PURCHASING;ENABLE_CLOUD_SERVICES_ANALYTICS;ENABLE_CLOUD_SERVICES_BUILD;ENABLE_EDITOR_GAME_SERVICES;ENABLE_UNITY_GAME_SERVICES_ANALYTICS_SUPPORT;ENABLE_CLOUD_LICENSE;ENABLE_EDITOR_HUB_LICENSE;ENABLE_WEBSOCKET_CLIENT;ENABLE_GENERATE_NATIVE_PLUGINS_FOR_ASSEMBLIES_API;ENABLE_DIRECTOR_AUDIO;ENABLE_DIRECTOR_TEXTURE;ENABLE_MANAGED_JOBS;ENABLE_MANAGED_TRANSFORM_JOBS;ENABLE_MANAGED_ANIMATION_JOBS;ENABLE_MANAGED_AUDIO_JOBS;ENABLE_ENGINE_CODE_STRIPPING;ENABLE_ONSCREEN_KEYBOARD;ENABLE_MANAGED_UNITYTLS;INCLUDE_DYNAMIC_GI;ENABLE_SCRIPTING_GC_WBARRIERS;PLATFORM_SUPPORTS_MONO;ENABLE_MARSHALLING_TESTS;ENABLE_VIDEO;ENABLE_NAVIGATION_OFFMESHLINK_TO_NAVMESHLINK;ENABLE_ACCELERATOR_CLIENT_DEBUGGING;ENABLE_ACCESSIBILITY_SCREEN_READER;ENABLE_ACCESSIBILITY_SETTINGS;TEXTCORE_1_0_OR_NEWER;EDITOR_ONLY_NAVMESH_BUILDER_DEPRECATED;PLATFORM_ANDROID;UNITY_ANDROID;UNITY_ANDROID_API;ENABLE_EGL;ENABLE_NETWORK;ENABLE_RUNTIME_GI;ENABLE_CRUNCH_TEXTURE_COMPRESSION;ENABLE_CLOUD_SERVICES_ENGINE_DIAGNOSTICS;ENABLE_FIREBASE_IDENTIFIERS;UNITY_CAN_SHOW_SPLASH_SCREEN;UNITY_HAS_GOOGLEVR;UNITY_HAS_TANGO;ENABLE_SPATIALTRACKING;ENABLE_ETC_COMPRESSION;PLATFORM_EXTENDS_VULKAN_DEVICE;PLATFORM_HAS_MULTIPLE_SWAPCHAINS;UNITY_ANDROID_SUPPORTS_SHADOWFILES;PLATFORM_UPDATES_TIME_OUTSIDE_OF_PLAYER_LOOP;PLATFORM_EXTENDS_VULKAN_PIPELINE_CACHE;PLATFORM_SUPPORTS_SPLIT_GRAPHICS_JOBS;PLATFORM_HAS_ADDITIONAL_API_CHECKS;PLATFORM_HAS_GRAPHICS_JOBS_SUPPORT_CHECK_OVERRIDE;PLATFORM_IMPLEMENTS_INSIGHTS_ANR;PLATFORM_SUPPORTS_INSIGHTS_DEVICE_INFO;ENABLE_ANDROID_ADVERTISING_IDS;PLATFORM_HAS_BUGGY_MSAA_RESOLVE;ENABLE_ANDROID_APP_SET_ID;ENABLE_INSIGHTS_PLATFORM_SPECIFIC_RESOURCES;PLATFORM_REQUIRES_TETHERED_VULKAN_COMMAND_POOL;ENABLE_UNITYADS_RUNTIME;UNITY_UNITYADS_API;ENABLE_MONO;NET_STANDARD_2_0;NET_STANDARD;NET_STANDARD_2_1;NETSTANDARD;NETSTANDARD2_1;ENABLE_PROFILER;DEBUG;TRACE;UNITY_ASSERTIONS;UNITY_EDITOR;UNITY_EDITOR_64;UNITY_EDITOR_WIN;ENABLE_UNITY_COLLECTIONS_CHECKS;ENABLE_BURST_AOT;UNITY_TEAM_LICENSE;ENABLE_CUSTOM_RENDER_TEXTURE;ENABLE_DIRECTOR;ENABLE_LOCALIZATION;ENABLE_SPRITES;ENABLE_TERRAIN;ENABLE_TILEMAP;ENABLE_TIMELINE;ENABLE_LEGACY_INPUT_MANAGER;TEXTCORE_FONT_ENGINE_1_5_OR_NEWER;TEXTCORE_TEXT_ENGINE_1_5_OR_NEWER;TEXTCORE_FONT_ENGINE_1_6_OR_NEWER;DOTWEEN;MIRROR;MIRROR_89_OR_NEWER;MIRROR_90_OR_NEWER;MIRROR_93_OR_NEWER;MIRROR_96_OR_NEWER;EDGEGAP_PLUGIN_SERVERS;SENTIS_ANALYTICS_ENABLED;CREST_OCEAN;APP_UI_EDITOR_ONLY;CSHARP_7_OR_LATER;CSHARP_7_3_OR_NEWER</DefineConstants>
+    <DefineConstants>UNITY_6000_5_10;UNITY_6000_5;UNITY_6000;UNITY_5_3_OR_NEWER;UNITY_5_4_OR_NEWER;UNITY_5_5_OR_NEWER;UNITY_5_6_OR_NEWER;UNITY_2017_1_OR_NEWER;UNITY_2017_2_OR_NEWER;UNITY_2017_3_OR_NEWER;UNITY_2017_4_OR_NEWER;UNITY_2018_1_OR_NEWER;UNITY_2018_2_OR_NEWER;UNITY_2018_3_OR_NEWER;UNITY_2018_4_OR_NEWER;UNITY_2019_1_OR_NEWER;UNITY_2019_2_OR_NEWER;UNITY_2019_3_OR_NEWER;UNITY_2019_4_OR_NEWER;UNITY_2020_1_OR_NEWER;UNITY_2020_2_OR_NEWER;UNITY_2020_3_OR_NEWER;UNITY_2021_1_OR_NEWER;UNITY_2021_2_OR_NEWER;UNITY_2021_3_OR_NEWER;UNITY_2022_1_OR_NEWER;UNITY_2022_2_OR_NEWER;UNITY_2022_3_OR_NEWER;UNITY_2023_1_OR_NEWER;UNITY_2023_2_OR_NEWER;UNITY_2023_3_OR_NEWER;UNITY_6000_0_OR_NEWER;UNITY_6000_1_OR_NEWER;UNITY_6000_2_OR_NEWER;UNITY_6000_3_OR_NEWER;UNITY_6000_4_OR_NEWER;UNITY_6000_5_OR_NEWER;PLATFORM_ARCH_64;UNITY_64;UNITY_INCLUDE_TESTS;ENABLE_AR;ENABLE_AUDIO;ENABLE_AUDIO_SCRIPTABLE_PIPELINE;ENABLE_CACHING;ENABLE_CLOTH;ENABLE_EVENT_QUEUE;ENABLE_MICROPHONE;ENABLE_MULTIPLE_DISPLAYS;ENABLE_PHYSICS;ENABLE_TEXTURE_STREAMING;ENABLE_VIRTUALTEXTURING;ENABLE_LZMA;ENABLE_UNITYEVENTS;ENABLE_VR;ENABLE_WEBCAM;ENABLE_UNITYWEBREQUEST;ENABLE_WWW;ENABLE_CLOUD_SERVICES;ENABLE_CLOUD_SERVICES_ADS;ENABLE_CLOUD_SERVICES_USE_WEBREQUEST;ENABLE_UNITY_CONSENT;ENABLE_UNITY_CLOUD_IDENTIFIERS;ENABLE_CLOUD_SERVICES_CRASH_REPORTING;ENABLE_CLOUD_SERVICES_NATIVE_CRASH_REPORTING;ENABLE_CLOUD_SERVICES_PURCHASING;ENABLE_CLOUD_SERVICES_ANALYTICS;ENABLE_CLOUD_SERVICES_BUILD;ENABLE_EDITOR_GAME_SERVICES;ENABLE_UNITY_GAME_SERVICES_ANALYTICS_SUPPORT;ENABLE_CLOUD_LICENSE;ENABLE_EDITOR_HUB_LICENSE;ENABLE_WEBSOCKET_CLIENT;ENABLE_GENERATE_NATIVE_PLUGINS_FOR_ASSEMBLIES_API;ENABLE_DIRECTOR_AUDIO;ENABLE_DIRECTOR_TEXTURE;ENABLE_MANAGED_JOBS;ENABLE_MANAGED_TRANSFORM_JOBS;ENABLE_MANAGED_ANIMATION_JOBS;ENABLE_MANAGED_AUDIO_JOBS;ENABLE_MANAGED_UNITYTLS;INCLUDE_DYNAMIC_GI;ENABLE_SCRIPTING_GC_WBARRIERS;PLATFORM_SUPPORTS_MONO;RENDER_SOFTWARE_CURSOR;ENABLE_MARSHALLING_TESTS;ENABLE_VIDEO;ENABLE_NAVIGATION_OFFMESHLINK_TO_NAVMESHLINK;ENABLE_ACCELERATOR_CLIENT_DEBUGGING;ENABLE_ACCESSIBILITY_SCREEN_READER;TEXTCORE_1_0_OR_NEWER;EDITOR_ONLY_NAVMESH_BUILDER_DEPRECATED;PLATFORM_STANDALONE_WIN;PLATFORM_STANDALONE;UNITY_STANDALONE_WIN;UNITY_STANDALONE;ENABLE_RUNTIME_GI;ENABLE_MOVIES;ENABLE_NETWORK;ENABLE_NVIDIA;ENABLE_AMD;ENABLE_CRUNCH_TEXTURE_COMPRESSION;ENABLE_CLOUD_SERVICES_ENGINE_DIAGNOSTICS;ENABLE_OUT_OF_PROCESS_CRASH_HANDLER;ENABLE_CLUSTER_SYNC;ENABLE_CLUSTERINPUT;PLATFORM_UPDATES_TIME_OUTSIDE_OF_PLAYER_LOOP;GFXDEVICE_WAITFOREVENT_MESSAGEPUMP;PLATFORM_USES_EXPLICIT_MEMORY_MANAGER_INITIALIZER;PLATFORM_SUPPORTS_WAIT_FOR_PRESENTATION;PLATFORM_SUPPORTS_SPLIT_GRAPHICS_JOBS;PLATFORM_USES_VULKAN_OLD_SWAPCHAIN;USE_READ_ASYNC_MANAGED_API;ENABLE_MONO;NET_STANDARD_2_0;NET_STANDARD;NET_STANDARD_2_1;NETSTANDARD;NETSTANDARD2_1;ENABLE_PROFILER;DEBUG;TRACE;UNITY_ASSERTIONS;UNITY_EDITOR;UNITY_EDITOR_64;UNITY_EDITOR_WIN;ENABLE_UNITY_COLLECTIONS_CHECKS;ENABLE_BURST_AOT;UNITY_TEAM_LICENSE;ENABLE_CUSTOM_RENDER_TEXTURE;ENABLE_DIRECTOR;ENABLE_LOCALIZATION;ENABLE_SPRITES;ENABLE_TERRAIN;ENABLE_TILEMAP;ENABLE_TIMELINE;ENABLE_LEGACY_INPUT_MANAGER;TEXTCORE_FONT_ENGINE_1_5_OR_NEWER;TEXTCORE_TEXT_ENGINE_1_5_OR_NEWER;TEXTCORE_FONT_ENGINE_1_6_OR_NEWER;ENABLE_HEX_DEBUG_LABEL;MIRROR_17_0_OR_NEWER;MIRROR_18_0_OR_NEWER;MIRROR_24_0_OR_NEWER;MIRROR_26_0_OR_NEWER;MIRROR_27_0_OR_NEWER;MIRROR_28_0_OR_NEWER;MIRROR_29_0_OR_NEWER;MIRROR_30_0_OR_NEWER;MIRROR_30_5_2_OR_NEWER;MIRROR_32_1_2_OR_NEWER;MIRROR_32_1_4_OR_NEWER;MIRROR_35_0_OR_NEWER;MIRROR_35_1_OR_NEWER;MIRROR_37_0_OR_NEWER;MIRROR_38_0_OR_NEWER;MIRROR_39_0_OR_NEWER;MIRROR_40_0_OR_NEWER;MIRROR_41_0_OR_NEWER;MIRROR_42_0_OR_NEWER;MIRROR_43_0_OR_NEWER;MIRROR_44_0_OR_NEWER;MIRROR_46_0_OR_NEWER;MIRROR_47_0_OR_NEWER;MIRROR_53_0_OR_NEWER;MIRROR_55_0_OR_NEWER;MIRROR_57_0_OR_NEWER;MIRROR_58_0_OR_NEWER;MIRROR_65_0_OR_NEWER;MIRROR_66_0_OR_NEWER;MIRROR_2022_9_OR_NEWER;MIRROR_2022_10_OR_NEWER;MIRROR_70_0_OR_NEWER;MIRROR_71_0_OR_NEWER;MIRROR_73_OR_NEWER;MIRROR_78_OR_NEWER;MIRROR_79_OR_NEWER;MIRROR_81_OR_NEWER;MIRROR_82_OR_NEWER;MIRROR_83_OR_NEWER;MIRROR_84_OR_NEWER;MIRROR_85_OR_NEWER;MIRROR_86_OR_NEWER;MIRROR_89_OR_NEWER;MIRROR_90_OR_NEWER;MIRROR_93_OR_NEWER;EDGEGAP_PLUGIN_SERVERS;DOTWEEN;MIRROR_96_OR_NEWER;SENTIS_ANALYTICS_ENABLED;CREST_OCEAN;APP_UI_EDITOR_ONLY;CSHARP_7_OR_LATER;CSHARP_7_3_OR_NEWER</DefineConstants>
     <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup>
@@ -39,42 +39,38 @@
     <UnityProjectGeneratorVersion>2.0.28</UnityProjectGeneratorVersion>
     <UnityProjectGeneratorStyle>SDK</UnityProjectGeneratorStyle>
     <UnityProjectType>Game:1</UnityProjectType>
-    <UnityBuildTarget>Android:13</UnityBuildTarget>
+    <UnityBuildTarget>StandaloneWindows64:19</UnityBuildTarget>
     <UnityVersion>6000.5.10f1</UnityVersion>
   </PropertyGroup>
   <ItemGroup>
-    <Analyzer Include="C:\Program Files\Microsoft Visual Studio\18\Enterprise\Common7\IDE\Extensions\Microsoft\Visual Studio Tools for Unity\Analyzers\Microsoft.Unity.Analyzers.dll" />
-    <Analyzer Include="E:\UnityProject\Tide\Assets\Packages\MemoryPack.Generator.1.21.4\analyzers\dotnet\cs\MemoryPack.Generator.dll" />
+    <Analyzer Include="C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\Extensions\Microsoft\Visual Studio Tools for Unity\Analyzers\Microsoft.Unity.Analyzers.dll" />
+    <Analyzer Include="C:\Users\Administrator\Desktop\UnityProject\Tide\Assets\Packages\MemoryPack.Generator.1.21.4\analyzers\dotnet\cs\MemoryPack.Generator.dll" />
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\Tools\BuildPipeline\Unity.SourceGenerators\Unity.SourceGenerators.dll" />
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\Tools\BuildPipeline\Unity.SourceGenerators\Unity.Properties.SourceGenerator.dll" />
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\Tools\BuildPipeline\Unity.SourceGenerators\Unity.UIToolkit.SourceGenerator.dll" />
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\Tools\BuildPipeline\Unity.Analyzers.Common\Unity.Analyzers.Common.dll" />
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\Tools\BuildPipeline\Unity.Analyzers.LongLiving\Unity.Analyzers.LongLiving.dll" />
-    <Analyzer Include="E:\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\JobEntityGenerator.dll" />
-    <Analyzer Include="E:\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\SystemGenerator.dll" />
-    <Analyzer Include="E:\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\Unity.Entities.Analyzer.dll" />
-    <Analyzer Include="E:\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\SystemGenerator.LambdaJobs.dll" />
-    <Analyzer Include="E:\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\SystemGenerator.SystemAPI.QueryBuilder.dll" />
-    <Analyzer Include="E:\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\SystemGenerator.SystemAPI.dll" />
-    <Analyzer Include="E:\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\SystemGenerator.SystemAPI.Query.dll" />
-    <Analyzer Include="E:\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\SystemGenerator.Common.dll" />
-    <Analyzer Include="E:\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\Common.dll" />
-    <Analyzer Include="E:\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\SystemGenerator.EntityQueryBulkOperations.dll" />
-    <Analyzer Include="E:\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\Unity.Entities.Analyzer.CodeFixes.dll" />
-    <Analyzer Include="E:\UnityProject\Tide\Library\PackageCache\com.unity.ai.inference@9a123aee5df7\Runtime\Core\SourceGenerator\SourceGenerators.dll" />
-    <Analyzer Include="E:\UnityProject\Tide\Library\PackageCache\com.unity.dt.app-ui@b097002a00c2\Runtime\SourceGenerators\netstandard2.0\EnumToLowerCase.dll" />
-    <Analyzer Include="E:\UnityProject\Tide\Library\PackageCache\com.unity.dt.app-ui@b097002a00c2\Runtime\MVVM\SourceGenerators\netstandard2.0\MVVMSourceGenerators.dll" />
+    <Analyzer Include="C:\Users\Administrator\Desktop\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\JobEntityGenerator.dll" />
+    <Analyzer Include="C:\Users\Administrator\Desktop\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\SystemGenerator.dll" />
+    <Analyzer Include="C:\Users\Administrator\Desktop\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\Unity.Entities.Analyzer.dll" />
+    <Analyzer Include="C:\Users\Administrator\Desktop\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\SystemGenerator.LambdaJobs.dll" />
+    <Analyzer Include="C:\Users\Administrator\Desktop\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\SystemGenerator.SystemAPI.QueryBuilder.dll" />
+    <Analyzer Include="C:\Users\Administrator\Desktop\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\SystemGenerator.SystemAPI.dll" />
+    <Analyzer Include="C:\Users\Administrator\Desktop\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\SystemGenerator.SystemAPI.Query.dll" />
+    <Analyzer Include="C:\Users\Administrator\Desktop\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\SystemGenerator.Common.dll" />
+    <Analyzer Include="C:\Users\Administrator\Desktop\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\Common.dll" />
+    <Analyzer Include="C:\Users\Administrator\Desktop\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\SystemGenerator.EntityQueryBulkOperations.dll" />
+    <Analyzer Include="C:\Users\Administrator\Desktop\UnityProject\Tide\Library\PackageCache\com.unity.entities@b6946e39a4db\Unity.Entities\SourceGenerators\Unity.Entities.Analyzer.CodeFixes.dll" />
+    <Analyzer Include="C:\Users\Administrator\Desktop\UnityProject\Tide\Library\PackageCache\com.unity.ai.inference@9a123aee5df7\Runtime\Core\SourceGenerator\SourceGenerators.dll" />
+    <Analyzer Include="C:\Users\Administrator\Desktop\UnityProject\Tide\Library\PackageCache\com.unity.dt.app-ui@b097002a00c2\Runtime\SourceGenerators\netstandard2.0\EnumToLowerCase.dll" />
+    <Analyzer Include="C:\Users\Administrator\Desktop\UnityProject\Tide\Library\PackageCache\com.unity.dt.app-ui@b097002a00c2\Runtime\MVVM\SourceGenerators\netstandard2.0\MVVMSourceGenerators.dll" />
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\BCLExtensions\TargetingPacks\netstandard2.1\analyzers\dotnet\roslyn4.0\cs\Microsoft.Extensions.Logging.Generators.dll" />
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\BCLExtensions\TargetingPacks\netstandard2.1\analyzers\dotnet\roslyn4.0\cs\System.Text.Json.SourceGeneration.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Scripts\ShowHide.cs" />
-    <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Scripts\FPSController.cs" />
+    <Compile Include="Assets\Scripts\TideUnityRuntime.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Resources\Interaction\PlantInteractionPhysics.cs" />
-    <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Scripts\ExtendedFlycam.cs" />
-    <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Scripts\RollingBallSpawner.cs" />
     <Compile Include="Assets\Scripts\Launch\Launch.cs" />
-    <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Scripts\MenuManager.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Resources\(TTFE) GLOBAL CONTROLLER\Scripts\TobyGlobalShadersController.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Resources\(TTFE) GLOBAL CONTROLLER\Scripts\TobyShaderValuesModel.cs" />
     <Compile Include="Assets\Scripts\Launch\PatchFlow.cs" />
@@ -82,8 +78,6 @@
     <Compile Include="Assets\Scripts\Launch\HotUpdateLoader.cs" />
     <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Resources\Interaction\PlantInteractionShader.cs" />
     <Compile Include="Assets\Scripts\Launch\PatchConsole.cs" />
-    <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Scripts\BaiscPlayerMovement.cs" />
-    <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Scripts\BoundedRollingBallSpawner.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Packages\Toby Fredson\Player Interaction Notes.txt" />
@@ -112,6 +106,7 @@
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\FoamAddFromTex.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\AnimWavesAddFromTex.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\Legacy\(TTFE) Uber Cliff.shader" />
+    <None Include="Assets\Samples\Scriptable Render Pipeline Core\17.5.0\Common\TextMesh Pro\Resources\Fonts &amp; Materials\TMP_Node.hlsl" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_Bitmap.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Uber Cliff Optimized.shader" />
     <None Include="Assets\Art\HexMap\Shaders\HexTerrainDebugCommon.hlsl" />
@@ -123,13 +118,11 @@
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\lib\netstandard2.0\System.Collections.Immutable.dll" />
     <None Include="Assets\Packages\Crest\Shaders\ShaderLibrary\Texture.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\AnimWavesSpectrum.shader" />
-    <None Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Prefabs\Prefabs_Vegetation - (SL)\(SL) - Season Locked Plants.txt" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\DynWavesSphereWaterInteraction.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\AnimWavesSetHeightToGeometry.shader" />
     <None Include="Assets\Configs\原子表字段参考.txt" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\FoamSplineGeometry.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\FlowAddFlowMap.shader" />
-    <None Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Prefabs\Prefabs_Vegetation\Trees\VTSpecies_Shrub_Season\1. (NR) = No roots.txt" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMPro_Mobile.cginc" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\AlbedoColor.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Helpers\URP\Core.hlsl" />
@@ -159,6 +152,7 @@
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeOcclusion.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\ClipSurfaceSignedDistance.shader" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Surface-Mobile.shader" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF SpaceWarp.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\FlowSplineGeometry.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Helpers\BIRP\Lighting.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\DepthSetBaseWaterHeightUsingGeometry.shader" />
@@ -168,12 +162,10 @@
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\FoamOverride.shader" />
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\OceanGraphConstants.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\ShaderLibrary\Common.hlsl" />
-    <None Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Textures\Textures_Example\TTFE_Texture Packing_ex.txt" />
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeVolumeEmission.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\OceanDepthsCache.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\AnimWavesGerstnerBatchGeometry.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanSurfaceAlpha.shader" />
-    <None Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Prefabs\Prefabs_Vegetation\Trees\VTSpecies_Shrub_Dry\1. (NR) = No roots.txt" />
     <None Include="Assets\Packages\Crest\Textures\WaveNormals\SOURCE.TXT" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\CrestNodeApplyUnderwaterEffect.hlsl" />
     <None Include="Assets\UI\Res\UXML\EffectComposer.uxml" />
@@ -212,12 +204,12 @@
     <None Include="Assets\Packages\Crest\Shaders\Helpers\BIRP\ScreenSpaceShadows.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\ClipSurfaceRemoveArea.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\UnderwaterMaskHorizonShared.hlsl" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile SpaceWarp.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanVertHelpers.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\Resources\ShapeCombine.compute" />
     <None Include="Assets\Packages\Crest\Shaders\GPUNoise\SOURCE.txt" />
     <None Include="Assets\Art\HexMap\Shaders\LightingLeafSSS.cginc" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\UnderwaterEffectSG.hlsl" />
-    <None Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Custom Shaders\Standard (Tessellation).shader" />
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeComputeSamplingData.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\ClipSurfaceRemoveAreaTexture.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\UnderwaterEffectShared.hlsl" />
@@ -244,11 +236,11 @@
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\DynWavesAddBump.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\DynWavesObjectInteraction.shader" />
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeApplyCaustics.hlsl" />
-    <None Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Custom Shaders\Default Ground.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Helpers\BIRP\Common.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\ShadergraphFramework\CrestNodeNormalMapping.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\Resources\ShapeCombine.shader" />
     <None Include="Assets\Packages\Toby Fredson\SRP Install Instructions.txt" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF SSD SpaceWarp.shader" />
     <None Include="Assets\Art\HexMap\Shaders\LeafFunctions.cginc" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\ClipSurfaceConvexHull.shader" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile Masking.shader" />
@@ -264,7 +256,6 @@
     <None Include="Assets\Packages\Crest\Shaders\OceanInputs\Resources\AnimWavesGerstner.shader" />
     <None Include="Assets\UI\Res\UXML\Match.uxml" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\Resources\UnderwaterMask.shader" />
-    <None Include="Assets\Packages\Toby Fredson\(TTFE)_Demo\Prefabs\Prefabs_Vegetation\Trees\VTSpecies_Shrub\1. (NR) = No roots.txt" />
     <None Include="Assets\UI\Res\Common.uss" />
     <None Include="Assets\Packages\TextMesh Pro\Fonts\LiberationSans - OFL.txt" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Roots.shader" />
@@ -272,10 +263,12 @@
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Underwater\Resources\UnderwaterEffectSG.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Terrain\(TTFE) Terrain Snow AddPass.shader" />
+    <None Include="Assets\Samples\Scriptable Render Pipeline Core\17.5.0\Common\TextMesh Pro\Resources\Fonts &amp; Materials\Inter-LICENSE.txt" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Terrain\(TTFE) Terrain Snow.shader" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Tree Billboard.shader" />
     <None Include="Assets\Art\HexMap\Shaders\HexWater.shader" />
     <None Include="Assets\Packages\Crest\Shaders\Resources\UpdateFoam.compute" />
+    <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile SSD SpaceWarp.shader" />
     <None Include="Assets\Packages\Crest\Shaders\OceanInputsDriven.hlsl" />
     <None Include="Assets\Packages\Crest\Shaders\OceanReflection.hlsl" />
     <None Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Default\(TTFE) Grass Foliage (Low-End).shader" />
@@ -333,6 +326,14 @@
     </Reference>
     <Reference Include="UnityEngine.ClothModule">
       <HintPath>C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\Managed\UnityEngine\UnityEngine.ClothModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ClusterInputModule">
+      <HintPath>C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\Managed\UnityEngine\UnityEngine.ClusterInputModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ClusterRendererModule">
+      <HintPath>C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\Managed\UnityEngine\UnityEngine.ClusterRendererModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.ContentLoadModule">
@@ -601,6 +602,10 @@
     </Reference>
     <Reference Include="UnityEngine.VideoModule">
       <HintPath>C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\Managed\UnityEngine\UnityEngine.VideoModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.VirtualTexturingModule">
+      <HintPath>C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\Managed\UnityEngine\UnityEngine.VirtualTexturingModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.WindModule">
@@ -1431,6 +1436,10 @@
       <HintPath>C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Data\BCLExtensions\TargetingPacks\netstandard2.1\ref\System.Text.Json.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Unity.VisualEffectGraph.Editor">
+      <HintPath>Library\ScriptAssemblies\Unity.VisualEffectGraph.Editor.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Unity.Entities">
       <HintPath>Library\ScriptAssemblies\Unity.Entities.dll</HintPath>
       <Private>False</Private>
@@ -1695,6 +1704,10 @@
       <HintPath>Library\ScriptAssemblies\Unity.Serialization.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Unity.VisualEffectGraph.Runtime">
+      <HintPath>Library\ScriptAssemblies\Unity.VisualEffectGraph.Runtime.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Unity.Multiplayer.Center.Common">
       <HintPath>Library\ScriptAssemblies\Unity.Multiplayer.Center.Common.dll</HintPath>
       <Private>False</Private>
@@ -1775,12 +1788,13 @@
     <ProjectReference Include="Unity.SmoothNormalTool.Editor.csproj" />
     <ProjectReference Include="Crest.csproj" />
     <ProjectReference Include="MCPForUnity.Runtime.csproj" />
-    <ProjectReference Include="Crest.Examples.csproj" />
     <ProjectReference Include="MCPForUnity.Editor.csproj" />
+    <ProjectReference Include="Unity.RenderPipelines.Core.Samples.Editor.csproj" />
     <ProjectReference Include="HexMap.ECS.csproj" />
     <ProjectReference Include="Unity.SmoothNormalTool.Runtime.csproj" />
     <ProjectReference Include="Tide.HotUpdate.csproj" />
     <ProjectReference Include="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
+    <ProjectReference Include="Unity.RenderPipelines.Core.Samples.Runtime.csproj" />
   </ItemGroup>
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
   <ItemGroup>

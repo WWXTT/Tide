@@ -1,19 +1,43 @@
-# Tide 项目提示词
+## CodeGraph
 
-## 必读 README（强制）
+In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the repo root), reach for it BEFORE grep/find or reading files when you need to understand or locate code.
+If there is no `.codegraph/` directory, skip CodeGraph entirely.
 
-凡涉及**卡牌 / 效果 / 费用 / 原子表 / 卡组 / 数据文件 / 对战规则**的任何工作（新增效果、调平衡、改计价、改数据格式、写验证断言、修 bug 前的语义判断），动手前**必须先通读一遍 `README.md`**——它是本项目的设计总纲，包含全部已定案规则（费用自动推导三层计价、代价栏限 1 费、地牌资格、触发上限计价范围、全域组合表达、抉择分支计槽、数据分层与三层 ID 引用链、颜色定位等）及其定案日期。
+- **MCP tool** (when available): `codegraph_explore` answers most code questions in one call — the relevant symbols' verbatim source plus the call paths between them, including dynamic-dispatch hops grep can't follow. Name a file or symbol in the query to read its current line-numbered source. If it's listed but deferred, load it by name via tool search.
+- **Shell** (always works): `codegraph explore "<symbol names or question>"` prints the same output.
 
-- 规则疑问以 `README.md` 为准，不要凭记忆或凭旧代码注释推断。
-- **README 与代码冲突时：先报告冲突点，再按最新定案（日期较新者）修改**——通常意味着代码落后于定案，需要改代码对齐，而不是把 README 改回旧行为。
-- 定案更新（用户拍板新规则）时，必须同步回写 `README.md` 对应小节并注明定案日期。
 
-## 数据文件铁律
 
-- **配置表**：`Assets/Configs/AttributeValueConfig.json`，原子效果表，唯一权威。
-- 三层引用链（卡组→卡 ID→effectIds→原子表 refId）不得倒退回内嵌格式。
+## UnityMCP
 
-## Unity 工作流（2026-09-27 定）
+When the UnityMCP server is connected (`mcp__UnityMCP__*` tools present), drive the Unity Editor with it instead of asking the user to do things by hand. Read state first — resources (`mcpforunity://editor/state`, `mcpforunity://project/info`, `mcpforunity://instances`, ...) and `read_console` — before mutating.
 
-- **禁止手写 `.meta` 文件**——新增/移动脚本与资产后由 Unity 编辑器自动刷新生成。资产 YAML 里要引用脚本 GUID（`m_Script`）时：先让 Unity 刷新、再读回 Unity 生成的 `.meta` 里的真实 GUID 回填，不要自造 GUID。
-- Unity MCP 桥（com.coplaydev.unity-mcp）常开：HTTP `127.0.0.1:8080/mcp`（JSON-RPC）。可用它触发资产刷新、读控制台编译错误等——**验证编译优先走 MCP 读控制台，不起 Unity 批处理**。
+Core tools (18 essentials, always on):
+
+- **Editor**: `read_console` · `manage_editor` (play/pause/stop, undo/redo, tags/layers) · `execute_menu_item` · `refresh_unity` (asset refresh + compile) · `batch_execute` (batch commands, prefer for repetitive multi-object ops)
+- **Assets/Project**: `manage_asset` · `manage_material` · `manage_prefabs` · `manage_packages` · `manage_build` · `manage_physics` · `manage_graphics` · `find_in_file`
+
+- **Helper code — prefer `execute_code`** (scripting_ext group): one-off editor utilities (inspect state, batch-fix, compute in-editor) go through `execute_code` — runs C# in the editor, creates no file. Only use `create_script` when the code must persist in the project.
+- **No Python/external-script layer over Unity**: never operate Unity through Python or any wrapper script — no Python that parses or rewrites `.unity`/`.prefab`/`.asset` YAML, batch-edits assets, or calls the MCP endpoint itself. All Unity-side logic runs as C# in the editor via `execute_code` (or a persisted editor script when it must be reused); file-level work goes through the UnityMCP asset tools (`manage_asset`, `manage_prefabs`, ...). If a task cannot be expressed through UnityMCP, report that instead of falling back to Python.
+- **If UnityMCP tools are missing at session start**, the bridge is down: check with `claude mcp list`, ask the user to start it (Unity: Window > MCP for Unity), Do not retry blindly.
+
+
+
+## Debugging & Self-Correction Guardrails
+
+Self-check is allowed only within an observable, falsifiable, reversible loop. Every iteration must produce new external evidence (log, stack trace, test result, console output, screenshot, request/response, runtime state). If there is no new evidence, do not keep editing code.
+
+Stop and request human intervention when any of these occur:
+
+- Two consecutive fix attempts produce no new evidence.
+- You start trying to prove why your implementation “should be correct” instead of testing what is actually happening.
+- Edits expand in scope without a verified hypothesis.
+- You cannot state a falsifiable hypothesis and a minimal verification experiment.
+- You resort to commenting out tests, swallowing exceptions, adding sleeps, hardcoding, or bypassing validation.
+- The same error recurs, or fixing one thing breaks another.
+- The issue may involve environment, deployment, data, concurrency, permissions, third-party services, or unclear acceptance criteria.
+
+When blocked, do NOT keep patching. Freeze the current state (commit/stash). Then output only:
+
+1. Observed facts: logs, errors, test results — no speculation.
+2. Recommended human intervention point, if any.
