@@ -1,22 +1,13 @@
 fileFormatVersion: 2
-<<<<<<<< HEAD:Packages/Dbdrp/DanbaidongRP-urp17/Textures/Sky/ProceduralToonSkyBrightTex.png.meta
 guid: 27ba59a0e433d3e4b967315a083bbd8a
-========
-guid: 2bf17b1d7445af843ad939d7527d8938
->>>>>>>> official-175:Packages/Dbdrp/DanbaidongRP-urp17/Shaders/FullscreenInvertColorsTemplate.png.meta
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
     mipMapMode: 0
-<<<<<<<< HEAD:Packages/Dbdrp/DanbaidongRP-urp17/Textures/Sky/ProceduralToonSkyBrightTex.png.meta
     enableMipMap: 1
     sRGBTexture: 0
-========
-    enableMipMap: 0
-    sRGBTexture: 1
->>>>>>>> official-175:Packages/Dbdrp/DanbaidongRP-urp17/Shaders/FullscreenInvertColorsTemplate.png.meta
     linearTexture: 0
     fadeOut: 0
     borderMipMap: 0
@@ -46,10 +37,10 @@ TextureImporter:
     filterMode: 1
     aniso: 1
     mipBias: 0
-    wrapU: 1
-    wrapV: 1
+    wrapU: 0
+    wrapV: 0
     wrapW: 0
-  nPOTScale: 0
+  nPOTScale: 1
   lightmap: 0
   compressionQuality: 50
   spriteMode: 0
@@ -61,9 +52,9 @@ TextureImporter:
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
-  alphaIsTransparency: 1
+  alphaIsTransparency: 0
   spriteTessellationDetail: -1
-  textureType: 2
+  textureType: 0
   textureShape: 1
   singleChannelComponent: 0
   flipbookRows: 1
@@ -116,8 +107,6 @@ TextureImporter:
     edges: []
     weights: []
     secondaryTextures: []
-    spriteCustomMetadata:
-      entries: []
     nameFileIdTable: {}
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
