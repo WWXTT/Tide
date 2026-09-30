@@ -1,5 +1,6 @@
 Pass
 {
+    Name "DepthNormals"
     Tags { "LightMode"="DepthNormals" }
 
     ZWrite On
@@ -8,6 +9,7 @@ Pass
     HLSLPROGRAM
     #define VFX_PASSDEPTH VFX_PASSDEPTH_ACTUAL
     #define WRITE_NORMAL_BUFFER
+    ${VFXPassDepthAdditionalPragma}
     ${VFXIncludeRP("Templates/ParticlePlanarPrimitivesLit/PassDepthOrMV.template")}
 
     ENDHLSL
