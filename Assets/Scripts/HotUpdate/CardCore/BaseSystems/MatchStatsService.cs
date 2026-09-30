@@ -13,14 +13,11 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 对局史计数服务（P2a 定案）——对局行为的全局累计，供三方共用查询：
-    /// ① 仪式任务进度（RitualTrackers 差值化消费）② 卡牌效果条件（ConditionType.Custom，
-    /// StringValue=statId）③ AI 决策。
+    /// 对局史计数服务（P2a 定案）——对局行为的全局累计，供共用查询：
+    /// ① 卡牌效果条件（ConditionType.Custom，StringValue=statId）② AI 决策。
     ///
     /// 形态仿 ResourceLedger：实例子系统（组合根注册 + Reset 清数据 + 幂等重挂订阅），
-    /// 构造即订阅（一次性挂载）；stat 词汇表与 RitualTrackers 的 7 个 kind 一一同源
-    /// （事件→计数归属口径逐条对齐，tracker 差值化后二者读同一份计数，无双份漂移）。
-    /// 「任务期间」语义不进本服务——归 tracker 的 baseline 窗口。
+    /// 构造即订阅（一次性挂载）。
     /// </summary>
     public class MatchStatsService
     {
@@ -42,14 +39,14 @@ namespace CardCore
             EnsureSubscribed();
         }
 
-        // ======================================== stat 词汇表（与 RitualTrackers kind 同源） ========================================
+        // ======================================== stat 词汇表 ========================================
 
-        public const string LifePaid = "LifePaid";                       // 通过代价支付生命值（血偿）
-        public const string HealOverflow = "HealOverflow";               // 角色治疗溢出（丰盈）
-        public const string CardsRevealed = "CardsRevealed";             // 展示对手手牌张数（窥渊，展示者视角）
-        public const string MilledSelf = "MilledSelf";                   // 自己卡组送墓张数（归土）
-        public const string NonDrawCardsGained = "NonDrawCardsGained";   // 非抽牌形式加入手牌张数（纳川）
-        public const string StandbySkipped = "StandbySkipped";           // 跳过自己准备阶段次数（疾风）
+        public const string LifePaid = "LifePaid";                       // 通过代价支付生命值
+        public const string HealOverflow = "HealOverflow";               // 角色治疗溢出
+        public const string CardsRevealed = "CardsRevealed";             // 展示对手手牌张数（展示者视角）
+        public const string MilledSelf = "MilledSelf";                   // 自己卡组送墓张数
+        public const string NonDrawCardsGained = "NonDrawCardsGained";   // 非抽牌形式加入手牌张数
+        public const string StandbySkipped = "StandbySkipped";           // 跳过自己准备阶段次数
         public const string CreaturesDied = "CreaturesDied";             // 己方随从死亡次数
         public const string CardsPlayed = "CardsPlayed";                 // 使用卡牌次数（使用宣言）
         public const string CardsPlayedFromHand = "CardsPlayedFromHand"; // 从手牌使用的卡牌次数（手牌序位引擎用；墓地视手牌等他源不算）
@@ -66,7 +63,7 @@ namespace CardCore
             var em = EventManager.Instance;
             em.Subscribe<TurnStartEvent>(OnTurnStart);
 
-            // —— 与 RitualTrackers 同源的 5 个累计口径 ——
+            // —— 累计口径 ——
             em.Subscribe<LifePaymentCostEvent>(e => Add(e?.Player, LifePaid, e?.Amount ?? 0));
             em.Subscribe<HealEvent>(e =>
             {
@@ -84,7 +81,7 @@ namespace CardCore
             });
             em.Subscribe<StandbySkippedEvent>(e => Add(e?.Player, StandbySkipped, 1));
 
-            // —— 扩展词汇（无仪式对应，供卡条件/AI） ——
+            // —— 扩展词汇（供卡条件/AI） ——
             em.Subscribe<CardDestroyEvent>(e =>
             {
                 if (e?.DestroyedCard is IHasSupertype st && st.Supertype == Cardtype.Creature)
@@ -177,7 +174,7 @@ namespace CardCore
             _turn.Clear();
             _standbyDrawn.Clear();
             // EventManager.ClearAll 会清光订阅且当前无人调用；若未来接入，幂等旗标在此复位保证重挂
-            //（订阅本身一次性挂载，与 RitualComponents 同模式）
+            //（订阅本身一次性挂载）
         }
 
         // ======================================== 内部 ========================================

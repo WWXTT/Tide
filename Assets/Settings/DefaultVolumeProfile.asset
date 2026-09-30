@@ -527,6 +527,9 @@ MonoBehaviour:
   edgeAvoidingWaveletBlur:
     m_OverrideState: 1
     m_Value: 1
+  indirectSpecularShadowOcclusion:
+    m_OverrideState: 1
+    m_Value: 1
 --- !u!114 &-2064493649535119418
 MonoBehaviour:
   m_ObjectHideFlags: 3

@@ -7,7 +7,8 @@
         "Unity.Collections",
         "Unity.InferenceEngine",
         "YooAsset",
-        "UniTask"
+        "UniTask",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

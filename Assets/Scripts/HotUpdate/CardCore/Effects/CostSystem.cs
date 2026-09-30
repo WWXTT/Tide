@@ -168,7 +168,8 @@ namespace CardCore
         {
             if (context.ElementPool == null || context.Payer == null) return false;
             var costDict = new Dictionary<int, float> { { (int)cost.ManaType, cost.Value } };
-            return context.ElementPool.CanPayCost(costDict, context.Payer);
+            // 自动横置补足（2026-09-30）：与 GameActions.CanAfford / 出牌付费同口径
+            return context.ElementPool.CanPayCostWithAutoTap(costDict, context.Payer);
         }
 
         public void Pay(CostInstance cost, CostContext context)
@@ -176,7 +177,7 @@ namespace CardCore
             var costDict = new Dictionary<int, float> { { (int)cost.ManaType, cost.Value } };
             // 战报来源标注（2026-09-21）：效果费挂在哪个来源（场上卡/角色）上
             string note = context?.Source != null ? "效果费·" + EffectText.Name(context.Source) : "效果费";
-            context.ElementPool.PayCost(costDict, context.Payer, note);
+            context.ElementPool.TryPayCostWithAutoTap(costDict, context.Payer, context.ZoneManager, note);
         }
 
         public string GetDescription(CostInstance cost)
@@ -186,13 +187,13 @@ namespace CardCore
     }
 
     // ================================================================
-    // 代价相关事件（域事件——发布方为原子 handler，消费方=对局统计/仪式组件）
+    // 代价相关事件（域事件——发布方为原子 handler，消费方=对局统计）
     // ================================================================
     // 2026-09-14 代价原子化：资源类代价处理器（弃牌/生命/沉睡/送墓/自紊乱/对手增益）随
     // CostOffset 抵消系统退役——资源支付改由**代价栏 Payload 原子**承载（付费步执行 +
     // 错边全价补偿黑/白）。下列域事件保留：改由对应原子 handler 发布——
     // MillCard（磨**自己**牌库=送墓语义）与 LifeLoss（流失**自己**生命上限=支付语义）
-    // 在归属==控制者时发布，MatchStatsService / RitualTrackers 等既有订阅零改动。
+    // 在归属==控制者时发布，MatchStatsService 等既有订阅零改动。
 
     /// <summary>送墓（自己牌库）事件：MillCard 原子磨自己牌库时发布（批量）。</summary>
     public class MillDeckCostEvent : GameEventBase
@@ -244,18 +245,22 @@ namespace CardCore
     /// </summary>
     public static class ElementCostPayment
     {
-        /// <summary>非破坏性预检：当前 bank 是否可支付全部元素代价。</summary>
+        /// <summary>非破坏性预检：当前 bank 是否可支付全部元素代价。
+        /// 自动横置补足（2026-09-30）：bank 不足但地牌可产所需元素亦视为可付（与出牌门禁同口径）。</summary>
         public static bool CanPay(List<CostInstance> elementCosts, CostContext ctx)
         {
             var need = AggregateNeed(elementCosts);
             if (need.Count == 0) return true;
             if (ctx?.Payer == null || ctx.ElementPool == null) return false;
-            return ElementPaymentValidator.CanPayBill(
-                need, ctx.ElementPool.GetPool(ctx.Payer).AvailableMana, GetPureColorCap(ctx));
+            if (ElementPaymentValidator.CanPayBill(
+                    need, ctx.ElementPool.GetPool(ctx.Payer).AvailableMana, GetPureColorCap(ctx)))
+                return true;
+            return ctx.ElementPool.CanPayCostWithAutoTap(need, ctx.Payer);
         }
 
         /// <summary>支付一组元素代价（原子：整账单一次规划，失败不动 bank）。失败返回 false（调用方中止结算）。
-        /// 支付事件携带实际货币组合（如红1 账单付 {黑1}）。</summary>
+        /// 支付事件携带实际货币组合（如红1 账单付 {黑1}）。
+        /// bank 不足时先自动横置地牌补足（2026-09-30 定案——声明期 CanPay 同口径放行，此处实际横置）。</summary>
         public static bool Pay(List<CostInstance> elementCosts, CostContext ctx)
         {
             var need = AggregateNeed(elementCosts);
@@ -264,7 +269,12 @@ namespace CardCore
 
             var avail = ctx.ElementPool.GetPool(ctx.Payer).AvailableMana;
             var plan = ElementPaymentValidator.GetBillPaymentPlan(need, avail, GetPureColorCap(ctx));
-            if (plan == null) return false;
+            if (plan == null)
+            {
+                if (!ctx.ElementPool.AutoTapForBill(need, ctx.Payer, ctx.ZoneManager)) return false;
+                plan = ElementPaymentValidator.GetBillPaymentPlan(need, avail, GetPureColorCap(ctx));
+                if (plan == null) return false;
+            }
 
             foreach (var kv in plan)
                 avail[kv.Key] -= kv.Value;

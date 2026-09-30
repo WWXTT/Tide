@@ -65,14 +65,10 @@ namespace CardCore.Editor
 
             var core = GameCore.Instance;
             // 构筑规则（定案）：卡组不重复（×1）。
-            // 仪式段屏蔽（2026-09-10）：仪式内容未就绪、夹具已去仪式——主卡组不再注入三相，
-            // 仪式相关段落暂不执行；恢复时取消本方法内三处注释即可。
             var deckData = new List<CardData>();
             if (cardsData.Count > 0)
             {
-                deckData.AddRange(cardsData.Where(c => !RitualSystem.IsRitual(new CardWrapper(c))));
-                // var trinity = cardsData.FirstOrDefault(c => c.CardName == "三相仪典");
-                // if (trinity != null) deckData.Add(trinity);
+                deckData.AddRange(cardsData);
             }
             var deck1 = deckData.Count > 0 ? CardLoader.BuildDeck(deckData, 1) : new List<Card>();
             var deck2 = deckData.Count > 0 ? CardLoader.BuildDeck(deckData, 1) : new List<Card>();
@@ -86,14 +82,10 @@ namespace CardCore.Editor
 
             if (cardsData.Count > 0)
             {
-                // 仪式开局入手断言（须在 TestLandEconomy 消耗手牌之前）——仪式段屏蔽（2026-09-10）
-                // TestRitualOpeningHand(core, cardsData);
-
                 // 统一计价：全表规则一巡检（声明档位 ≥ 推导价——2026-09-11 简化口径 D≤C）。
-                // 仪式豁免：0费说明书卡（保持空 Cost 打出免费），效果费不参校验。
                 Crumb("→规则一巡检 derive");
                 var offenders = cardsData
-                    .Where(c => !RitualSystem.IsRitual(new CardWrapper(c)) && !CardCostService.Derive(c).Conformant)
+                    .Where(c => !CardCostService.Derive(c).Conformant)
                     .ToList();
                 // 不符明细（一次性诊断输出：定位 S/K/E/f/挂载口/D/G 哪一环口径漂了）
                 foreach (var o in offenders)
@@ -105,7 +97,7 @@ namespace CardCore.Editor
                         + string.Join("\n  ", r.Breakdown.Select(l => $"[{l.Stage}] {l.Label} = {l.Value}")));
                 }
                 Assert(offenders.Count == 0,
-                       $"规则一巡检：全表 {cardsData.Count} 张（仪式除外）D≤C（不符 {offenders.Count}：{string.Join(",", offenders.Select(o => o.ID))}）");
+                       $"规则一巡检：全表 {cardsData.Count} 张 D≤C（不符 {offenders.Count}：{string.Join(",", offenders.Select(o => o.ID))}）");
 
                 // 双表装载（2026-09-14 引用化管线）：正式池非空 + effectIds 解析产物就绪
                 Assert(catalogCount > 0,
@@ -218,13 +210,6 @@ namespace CardCore.Editor
             BattlefieldVerifier.RunEmbedded(Assert);
             Crumb("all sections done");
 
-            // 仪式段屏蔽（2026-09-10）：内容未就绪
-            // if (cardsData.Count > 0)
-            // {
-            //     TestRituals(core, cardsData);
-            //     TestNewRituals(core, cardsData);
-            // }
-
             // P2b：对局日志按需导出（内存缓冲 → markdown 战报落盘）
             var verifyLog = MatchLogService.ExportMarkdown($"Logs/VerifyLog_{System.DateTime.Now:yyyyMMdd_HHmmss}.md");
             Debug.Log($"[Verify] 对局日志导出：{verifyLog ?? "无条目未导出"}");
@@ -304,14 +289,14 @@ namespace CardCore.Editor
             var hand1 = new List<Card>(core.ZoneManager.GetCards(p1, Zone.Hand));
             Assert(hand1.Count > 0, "p1 有手牌可放地牌");
 
-            // 地牌资格（定案）：只有卡组正式生物可作地牌——魔法/仪式等非生物、衍生物/副本临时卡拒绝
+            // 地牌资格（定案）：只有卡组正式生物可作地牌——魔法等非生物、衍生物/副本临时卡拒绝
             var creatures = hand1.Where(CardCore.ElementPoolSystem.CanServeAsLand).ToList();
             Assert(creatures.Count > 0, "p1 手牌有生物可放地牌");
             var nonCreature = hand1.FirstOrDefault(c => !CardCore.ElementPoolSystem.CanServeAsLand(c));
             var token = new Card { ID = "VERIFY_TOKEN" }; // 裸 Card = 效果生成的临时卡
             Assert(!core.ElementPool.AddCardToPool(token, p1), "地牌资格：衍生物/副本临时卡（裸 Card）拒绝");
             if (nonCreature != null)
-                Assert(!GameActions.AddToElementPool(core, p1, nonCreature), "地牌资格：魔法/仪式等非生物超类拒绝");
+                Assert(!GameActions.AddToElementPool(core, p1, nonCreature), "地牌资格：魔法等非生物超类拒绝");
 
             // T1 地牌选 ≥2 指示物的生物（总费用=指示物总量）：T3「回合开始恢复」断言要求
             // T1 地牌产一次后仍在池——1 指示物地产出即耗尽离池。2026-09-20 确定性修复：
@@ -1199,9 +1184,25 @@ namespace CardCore.Editor
                 Assert(paidRed && pool1.AvailableMana[ManaType.Gray] == 8,
                        "万用填充：红费缺口由灰垫（红链=红→灰→黑→白，灰先于黑白消耗）");
 
+                // 自动横置补足正例（2026-09-30 定案）：bank 全空但未横置地牌可产红 → 自动横置支付
+                pool1.PooledCards.Clear();
+                var autoTapLand = new PooledCard(
+                    core.ZoneManager.GetCards(p1, Zone.Deck)[0],
+                    new Dictionary<ManaType, int> { { ManaType.Red, 2 } });
+                pool1.PooledCards.Add(autoTapLand);
+                foreach (var t in AllManaTypes()) pool1.AvailableMana[t] = 0;
+                var redAuto = new List<CostInstance> { new CostInstance { Type = CostType.ElementConsume, Value = 1, ManaType = ManaType.Red } };
+                Assert(ElementCostPayment.Pay(redAuto, ctx5) && autoTapLand.IsTapped
+                       && pool1.AvailableMana[ManaType.Red] == 0,
+                       "自动横置补足：红费 bank 空+未横置红地 → 横置产红支付");
+
+                // 真负例（2026-09-30 自动横置口径更新）：红费全空 bank + **无未横置地牌可产** → 拒付
+                //（旧口径只清 bank——前段遗留地牌在新口径下会被自动横置垫付，负例不再是负例；
+                //  故清空地牌池保持「无地可产 → 拒付」的原意图）
+                pool1.PooledCards.Clear();
                 foreach (var t in AllManaTypes()) pool1.AvailableMana[t] = 0;
                 Assert(!ElementCostPayment.Pay(redNeed, ctx5),
-                       "真负例：红费且红灰黑白全空 → 拒付");
+                       "真负例：红费且红灰黑白全空+无未横置地 → 拒付");
 
                 // ---- 6. 流失改扣 MaxHealth：满血裁剪 / 受伤只扣上限 / 归零正常死亡 ----
                 var pl = new Player("VERIFY_BW_MAXHP", 30);
@@ -3515,338 +3516,6 @@ namespace CardCore.Editor
             CleanKeywords();
         }
 
-        // ======================================== 仪式系统（竞速任务卡） ========================================
-
-        /// <summary>开局入手断言：占卡组位（牌库留 2 副本）、不占起手数（额外入手）、双方各 1 张。</summary>
-        private static void TestRitualOpeningHand(GameCore core, List<CardData> cardsData)
-        {
-            // 测试主卡组：非仪式卡 + 单张三相仪典（构筑规则：卡组不重复、测试只带 1 张仪式）
-            if (!cardsData.Any(c => c.ID == "RITUAL_TRINITY_001")) return;
-
-            var p1 = core.Player1;
-            var p2 = core.Player2;
-
-            foreach (var p in new[] { p1, p2 })
-            {
-                var hand = core.ZoneManager.GetCards(p, Zone.Hand);
-                var ritualsInHand = hand.Count(c => RitualSystem.IsRitual(c)).ToString();
-                Assert(hand.Count(c => RitualSystem.IsRitual(c)) == 1,
-                       $"仪式占初始手牌位：{p.Name} 手牌恰含 1 张仪式（实际 {ritualsInHand}）");
-                Assert(core.ZoneManager.GetCards(p, Zone.Deck).Count(c => RitualSystem.IsRitual(c)) == 0,
-                       $"{p.Name} 牌库无仪式残留（单张已占位入手）");
-                // 总量断言按玩家区分：p1 已含首回合抽牌（6+1=7），p2 尚未开始回合（6）
-            }
-
-            // InitGame 已开 P1 回合（含首回合抽 1）：p1 = 6 + 1 = 7；p2 尚未开始回合 = 6
-            Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Count == 7, "p1 含首回合抽牌共 7");
-            Assert(core.ZoneManager.GetCards(p2, Zone.Hand).Count == 6, "p2 初始 6");
-        }
-
-        /// <summary>
-        /// 仪式全流程验证（末段执行，注入卡驱动，不重开对局）：
-        /// 0费打出/占格 → 全局唯一任务（同玩家第二张顶掉第一张）→ 竞速颜色断言（失败清零、3回合达标）
-        /// → 完成态（不灭+辟邪、光环独享）→ 血偿流（生命累计/支付转嫁/完成态不可破坏）
-        /// → 进行中破坏回手（手牌满则入墓）→ 完成态光环与新任务并存。
-        /// </summary>
-        private static void TestRituals(GameCore core, List<CardData> cardsData)
-        {
-            var trinityData = cardsData.FirstOrDefault(c => c.ID == "RITUAL_TRINITY_001");
-            var bloodData = cardsData.FirstOrDefault(c => c.ID == "RITUAL_BLOOD_002");
-            if (trinityData == null || bloodData == null)
-            {
-                Debug.LogWarning("[Verify] 跳过仪式段：卡表缺仪式卡");
-                return;
-            }
-
-            var p1 = core.Player1;
-            var p2 = core.Player2;
-            var pool1 = core.ElementPool.GetPool(p1);
-            var pool2 = core.ElementPool.GetPool(p2);
-
-            // 脚手架：起手改 6（含仪式）后手牌常满 7，回手类断言需要余位——双方裁到 5
-            foreach (var p in new[] { p1, p2 })
-            {
-                var handSnapshot = core.ZoneManager.GetCards(p, Zone.Hand).ToList();
-                foreach (var extra in handSnapshot.Skip(5))
-                    core.ZoneManager.MoveCard(extra, p, Zone.Hand, Zone.Graveyard);
-            }
-
-            // ---- 1. 0 费打出 + 占格 ----
-            var trinityA = InjectCard(core, p1, trinityData);
-            Assert(PlayCardSync(core, p1, trinityA), "仪式 0 费打出成功（无需任何元素）");
-            Assert(core.ZoneManager.GetCards(p1, Zone.Battlefield).Contains(trinityA), "仪式占战场格");
-            Assert(RitualSystem.Active != null && RitualSystem.Active.Card == trinityA
-                   && RitualSystem.Active.Definition.id == "RITUAL_TRINITY_001",
-                   "打出即激活为全局唯一任务");
-
-            // ---- 2. 全局唯一：同玩家第二张顶掉第一张 ----
-            var trinityB = InjectCard(core, p1, trinityData);
-            Assert(PlayCardSync(core, p1, trinityB), "第二张仪式打出成功");
-            Assert(RitualSystem.Active.Card == trinityB, "后发仪式成为唯一任务");
-            Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Contains(trinityA)
-                   && !core.ZoneManager.GetCards(p1, Zone.Battlefield).Contains(trinityA),
-                   "先发仪式被顶掉：进度作废并回手牌");
-
-            // ---- 3. 竞速颜色断言：红(过)→红(败清零)→蓝→绿→红 = 连续3回合达标 ----
-            foreach (var t in AllManaTypes()) pool1.AvailableMana[t] = 99;
-
-            bool firstRedChecked = false;
-            foreach (var color in new[] { ManaType.Red, ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Red })
-            {
-                var colored = InjectColoredCreature(core, p1, color);
-                Assert(PlayCardSync(core, p1, colored), $"竞速回合用 {color} 卡");
-                EndTurnPumped(core, p1);    // TurnEnd 断言结算
-                GameActions.SkipElementPool(core, p2);
-                EndTurnPumped(core, p2);    // p2 空过（p2 自己断言失败，不完成）
-                GameActions.SkipElementPool(core, p1);
-
-                // 仅首个红回合检查 streak==1（第二个红回合按规则清零，不在本断言范围）
-                if (color == ManaType.Red && !firstRedChecked && RitualSystem.Active != null)
-                {
-                    firstRedChecked = true;
-                    int s1 = RitualComponents.ColorStreak.GetStreak(p1);
-                    Assert(s1 == 1, $"首个红回合断言通过 streak=1（实际 {s1}）");
-                }
-            }
-
-            Assert(RitualSystem.Active == null && RitualSystem.CompletedAuras.Count == 1
-                   && RitualSystem.CompletedAuras[0].Completer == p1
-                   && RitualSystem.CompletedAuras[0].Card == trinityB,
-                   "连续 3 回合颜色断言达标 → p1 完成仪式，任务槽清空（对手进度作废）");
-            Assert(trinityB.HasKeyword(CardCore.Attribute.KeywordRules.Indestructible)
-                   && trinityB.HasKeyword(CardCore.Attribute.KeywordRules.Untargetable),
-                   "完成态：不可摧毁 + 不受其他卡效果影响");
-
-            // ---- 4. 三相光环：完成者付 3 纯色 → RGB 各 +1（守恒兑换，独享） ----
-            foreach (var t in AllManaTypes()) pool2.AvailableMana[t] = 99;
-            int r1 = pool1.AvailableMana[ManaType.Red], b1 = pool1.AvailableMana[ManaType.Blue], g1 = pool1.AvailableMana[ManaType.Green];
-            core.ElementPool.PayCost(new Dictionary<int, float> { [(int)ManaType.Red] = 3f }, p1);
-            Assert(pool1.AvailableMana[ManaType.Red] == r1 - 3 + 1
-                   && pool1.AvailableMana[ManaType.Blue] == b1 + 1
-                   && pool1.AvailableMana[ManaType.Green] == g1 + 1,
-                   "三相光环：完成者付 3 红 → 红/蓝/绿各 +1");
-
-            int r2b = pool2.AvailableMana[ManaType.Red], b2b = pool2.AvailableMana[ManaType.Blue];
-            core.ElementPool.PayCost(new Dictionary<int, float> { [(int)ManaType.Red] = 3f }, p2);
-            Assert(pool2.AvailableMana[ManaType.Red] == r2b - 3 && pool2.AvailableMana[ManaType.Blue] == b2b,
-                   "三相光环：对手消耗不转化（完成者独享）");
-
-            // 余数保留：再付 1 红（累计 4 → 第二次转化不触发，计数 1）
-            int r1c = pool1.AvailableMana[ManaType.Red];
-            core.ElementPool.PayCost(new Dictionary<int, float> { [(int)ManaType.Red] = 1f }, p1);
-            Assert(pool1.AvailableMana[ManaType.Red] == r1c - 1, "三相光环：余数保留（累计 4 只转化一次，余 1 不触发）");
-
-            // ---- 5. 血偿流：p2 打出（与完成态光环并存）→ 累计 30 命 → 完成 → 支付转嫁 ----
-            EndTurnPumped(core, p1);          // 颜色竞速后轮到 p2
-            GameActions.SkipElementPool(core, p2);
-            var blood = InjectCard(core, p2, bloodData);
-            Assert(PlayCardSync(core, p2, blood), "血偿仪典打出（0 费）");
-            Assert(RitualSystem.Active != null && RitualSystem.Active.Card == blood
-                   && RitualSystem.CompletedAuras.Count == 1,
-                   "完成态光环与进行中任务并存（光环占格存续，新仪式开新任务）");
-
-            p2.Life = 100; // 测试脚手架：保证 3×10 可付且不触发抵扣归零终局
-            // 2026-09-14 代价原子化：生命支付=LifeLoss 原子（流失自己→LifePaymentCostEvent，血偿进度照常计数）
-            for (int i = 0; i < 3; i++)
-            {
-                CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
-                    new AtomicEffectInstance { Type = AtomicEffectType.LifeLoss, Value = 10 },
-                    new EffectExecutionContext { Controller = p2, Source = p2, Targets = new List<Entity> { p2 } })
-                    .GetAwaiter().GetResult();
-                Assert(p2.MaxHealth == 30 - (i + 1) * 10,
-                       $"血偿任务：第 {i + 1} 次流失 10 上限（累计 {(i + 1) * 10}）");
-            }
-            Assert(RitualSystem.Active == null && RitualSystem.CompletedAuras.Count == 2
-                   && RitualSystem.CompletedAuras[1].Completer == p2,
-                   "累计支付 30 生命 → p2 完成血偿仪典");
-            Assert(blood.HasKeyword(CardCore.Attribute.KeywordRules.Indestructible), "血偿完成态：不可摧毁");
-
-            // ---- 6. 血偿光环转嫁：已随 LifePayment 代价处理器退役（2026-09-14 代价原子化）----
-            // 装饰器（包装代价处理器）无挂点可包；仪式复活时改挂 LifeLoss 原子执行口
-            // （流失自己=支付，见 LifeLossHandler 的 LifePaymentCostEvent 发布处）。
-
-            // ---- 7. 完成态不可破坏 ----
-            var onField = core.ZoneManager.GetCards(p2, Zone.Battlefield).Contains(blood);
-            DestroyViaEffect(core, p2, blood);
-            Assert(onField && core.ZoneManager.GetCards(p2, Zone.Battlefield).Contains(blood) && blood.IsAlive,
-                   "完成态仪式：Destroy 无效（不灭）");
-
-            // ---- 8. 进行中破坏 → 回手牌；手牌满 → 入墓 ----
-            // 脚手架：竞速 5 轮抽牌后 p2 手牌常已满 7，回手断言需要余位——裁到 5
-            var p2HandBeforeDestroy = core.ZoneManager.GetCards(p2, Zone.Hand).ToList();
-            foreach (var extra in p2HandBeforeDestroy.Skip(5))
-                core.ZoneManager.MoveCard(extra, p2, Zone.Hand, Zone.Graveyard);
-            var blood2 = InjectCard(core, p2, bloodData);
-            Assert(PlayCardSync(core, p2, blood2), "第二张血偿打出（新任务）");
-            DestroyViaEffect(core, p2, blood2);
-            Assert(core.ZoneManager.GetCards(p2, Zone.Hand).Contains(blood2)
-                   && !core.ZoneManager.GetCards(p2, Zone.Graveyard).Contains(blood2)
-                   && RitualSystem.Active == null,
-                   "进行中仪式被破坏 → 回手牌（非墓地），任务进度清空");
-
-            Assert(PlayCardSync(core, p2, blood2), "回手的仪式可再打出（进度重开）");
-            var container2 = core.ZoneManager.GetZoneContainer(p2);
-            // 脚手架：先裁再补到恰好 7（异步手牌上限弃牌可能已把手牌压到任意值）
-            var p2HandSnapshot = core.ZoneManager.GetCards(p2, Zone.Hand).ToList();
-            foreach (var extra in p2HandSnapshot.Skip(7))
-                container2.Move(extra, Zone.Hand, Zone.Graveyard);
-            while (core.ZoneManager.GetCards(p2, Zone.Hand).Count < 7)
-                container2.Add(new Card { ID = "VERIFY_RITUAL_FILLER" }, Zone.Hand);
-            Assert(core.ZoneManager.GetCards(p2, Zone.Hand).Count == 7, "测试脚手架：p2 手牌灌满 7");
-            DestroyViaEffect(core, p2, blood2);
-            Assert(core.ZoneManager.GetCards(p2, Zone.Graveyard).Contains(blood2)
-                   && !core.ZoneManager.GetCards(p2, Zone.Hand).Contains(blood2),
-                   "手牌已满时仪式被破坏 → 直接入墓地");
-        }
-
-        /// <summary>
-        /// 六轴扩展仪式验证（注入驱动，TestRituals 之后执行，不重开对局）：
-        /// 丰盈（治疗溢出 20 → 角色伤害封顶 5）/ 窥渊（展示对手手牌 10 → 回合开始锁定）/
-        /// 归土（自己送墓 30 → 墓地视手牌使用，每回合一次）/ 疾风（跳过准备阶段 ×2 → 额外回合 → 自毁）/
-        /// 纳川（非抽牌入手 15 → 手牌上限 15 + 免疲劳）。
-        /// </summary>
-        private static void TestNewRituals(GameCore core, List<CardData> cardsData)
-        {
-            CardData RitualData(string id) => cardsData.FirstOrDefault(c => c.ID == id);
-            var survival = RitualData("RITUAL_SURVIVAL_003");
-            var info = RitualData("RITUAL_INFO_004");
-            var resource = RitualData("RITUAL_RESOURCE_005");
-            var tempo = RitualData("RITUAL_TEMPO_006");
-            var handRitual = RitualData("RITUAL_HAND_007");
-            var creature = cardsData.FirstOrDefault(c => c.CardName == "古树守卫");
-            if (survival == null || info == null || resource == null || tempo == null || handRitual == null || creature == null)
-            {
-                Debug.LogWarning("[Verify] 跳过六轴仪式段：卡表缺新仪式卡或生物载体");
-                return;
-            }
-
-            var p1 = core.Player1;
-            var p2 = core.Player2;
-            var pool1 = core.ElementPool.GetPool(p1);
-            foreach (var t in AllManaTypes()) pool1.AvailableMana[t] = 99; // 脚手架：支付不设限
-
-            // ---- 1. 丰盈仪典：治疗溢出 20 → 完成 → 角色单次伤害封顶 5 ----
-            EnsureMainPhase(core, p1);
-            var survivalCard = InjectCard(core, p1, survival);
-            Assert(PlayCardSync(core, p1, survivalCard), "丰盈仪典 0 费打出（顶掉进行中任务）");
-
-            p1.Life = 29;
-            EventManager.Instance.Publish(new CardCore.Attribute.HealEvent { Target = p1, Amount = 12, Overfill = 11, Source = null });
-            EventManager.Instance.Publish(new CardCore.Attribute.HealEvent { Target = p1, Amount = 12, Overfill = 9, Source = null });
-            Assert(RitualSystem.Active == null && RitualSystem.CompletedAuras.Any(a => a.Card == survivalCard),
-                   "治疗溢出累计 20 → 丰盈完成");
-
-            p1.Life = 30;
-            CardCore.Attribute.KeywordRules.ApplyDamage(null, p1, 12, false);
-            Assert(p1.Life == 25, "丰盈光环：完成者单次伤害封顶 5（12 截断为 5）");
-            p2.Life = 30;
-            CardCore.Attribute.KeywordRules.ApplyDamage(null, p2, 12, false);
-            Assert(p2.Life == 18, "无光环对手照常全额受伤（12）");
-
-            // ---- 2. 窥渊仪典：展示对手手牌累计 10 → 每回合开始锁定 1 张 ----
-            var infoCard = InjectCard(core, p1, info);
-            Assert(PlayCardSync(core, p1, infoCard), "窥渊仪典打出");
-
-            while (core.ZoneManager.GetCards(p2, Zone.Hand).Count < 5)
-                InjectCard(core, p2, creature); // 脚手架：保证两次全场展示 ≥ 10 张
-            var p2Hand = core.ZoneManager.GetCards(p2, Zone.Hand).ToList();
-            var revealSource = InjectCard(core, p1, creature); // 展示方（Source 控制者 = p1）
-            EventManager.Instance.Publish(new CardCore.Attribute.RevealHandEvent { Player = p2, Cards = p2Hand, Source = revealSource });
-            EventManager.Instance.Publish(new CardCore.Attribute.RevealHandEvent { Player = p2, Cards = p2Hand, Source = revealSource });
-            Assert(RitualSystem.CompletedAuras.Any(a => a.Card == infoCard),
-                   $"展示对手手牌累计 {p2Hand.Count * 2} ≥ 10 → 窥渊完成");
-
-            var lockedCandidate = p2Hand[0];
-            EndTurnPumped(core, p1);                    // → p2 回合开始：无 UI 自动锁定首张已展示卡
-            Assert(LockRevealedAura.IsLockedThisTurn(lockedCandidate), "窥渊光环：回合开始锁定对手已展示卡");
-            GameActions.SkipElementPool(core, p2);
-            Assert(!PlayCardSync(core, p2, lockedCandidate), "被锁定的卡本回合不可使用");
-            EndTurnPumped(core, p2);                    // 回合结束 → 锁定清空
-            Assert(!LockRevealedAura.IsLockedThisTurn(lockedCandidate), "回合结束：锁定解除");
-
-            // ---- 3. 归土仪典：自己送墓 30 → 墓地视手牌使用（每回合一次）----
-            EnsureMainPhase(core, p1);
-            var resourceCard = InjectCard(core, p1, resource);
-            Assert(PlayCardSync(core, p1, resourceCard), "归土仪典打出");
-
-            // 2026-09-14 代价原子化：送墓=MillCard 原子（磨自己牌库→MillDeckCostEvent 批量计数）
-            int deckBeforeMill = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
-            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
-                new AtomicEffectInstance { Type = AtomicEffectType.MillCard, Value = 5 },
-                new EffectExecutionContext { Controller = p1, Source = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool })
-                .GetAwaiter().GetResult();
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBeforeMill - 5,
-                   "送墓原子执行：磨自己 5 张（MillDeckCostEvent 批量计数）");
-            for (int i = 0; i < 25; i++)
-                EventManager.Instance.Publish(new CardCore.Attribute.CardMillEvent { Player = p1, Source = null });
-            Assert(RitualSystem.CompletedAuras.Any(a => a.Card == resourceCard), "送墓累计 30 → 归土完成");
-
-            var graveCreature = InjectCard(core, p1, creature);
-            core.ZoneManager.MoveCard(graveCreature, p1, Zone.Hand, Zone.Graveyard);
-            var graveCreature2 = InjectCard(core, p1, creature);
-            core.ZoneManager.MoveCard(graveCreature2, p1, Zone.Hand, Zone.Graveyard);
-            Assert(PlayCardSync(core, p1, graveCreature, null, Zone.Graveyard), "墓地视手牌使用：第一张成功");
-            Assert(!PlayCardSync(core, p1, graveCreature2, null, Zone.Graveyard), "每回合限一次：第二张被拒");
-
-            // ---- 4. 疾风仪典：跳过准备阶段 ×2 → 额外回合 → 自毁 ----
-            EnsureMainPhase(core, p1);
-            var tempoCard = InjectCard(core, p1, tempo);
-            Assert(PlayCardSync(core, p1, tempoCard), "疾风仪典打出");
-
-            int handBeforeSkip = core.ZoneManager.GetCards(p1, Zone.Hand).Count;
-
-            RitualComponents.SkipStandby.Commit(p1);
-            EndTurnPumped(core, p1);          // → p2 回合（p1 池随全局推进 +1）
-            int idxAfterOpponentTurn = pool1.GlobalTurnIndex;
-            GameActions.SkipElementPool(core, p2);
-            EndTurnPumped(core, p2);          // → p1 回合开始：宣告消费，准备阶段整体跳过
-            // 断言意图而非精确快照：回合结束的异步手牌弃牌可能减手牌，故只断「不增」（未抽牌）
-            Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Count <= handBeforeSkip, "跳过准备阶段：本回合未抽牌（手牌不增）");
-            Assert(pool1.GlobalTurnIndex == idxAfterOpponentTurn, "跳过准备阶段：自己的回合不再推进地牌槽曲线");
-            int skip1 = RitualComponents.SkipStandby.GetSkipCount(p1);
-            Assert(skip1 == 1, "跳过计数 1");
-
-            GameActions.SkipElementPool(core, p1);  // 跳过后的准备阶段照常推进入主阶段
-            RitualComponents.SkipStandby.Commit(p1);
-            EndTurnPumped(core, p1);
-            GameActions.SkipElementPool(core, p2);
-            EndTurnPumped(core, p2);          // 第二次跳过 → 达标完成
-            Assert(RitualSystem.Active == null && RitualSystem.CompletedAuras.Any(a => a.Card == tempoCard),
-                   "跳过 ×2 → 疾风完成（一次性奖励，不形成常驻光环语义）");
-
-            GameActions.SkipElementPool(core, p1);  // 第二次跳过后的准备阶段 → 主阶段
-            EndTurnPumped(core, p1);          // 完成回合结束 → 授予额外回合
-            Assert(core.TurnEngine.TurnPlayer == p1, "完成的回合结束 → p1 获得额外回合（连续行动）");
-            GameActions.SkipElementPool(core, p1);
-            EndTurnPumped(core, p1);          // 额外回合结束 → 仪式自毁
-            Assert(core.ZoneManager.GetCards(p1, Zone.Graveyard).Contains(tempoCard)
-                   && !RitualSystem.CompletedAuras.Any(a => a.Card == tempoCard),
-                   "额外回合结束 → 疾风自毁入墓（光环移除）");
-
-            // ---- 5. 纳川仪典：非抽牌入手 15 → 手牌上限 15 + 免疲劳 ----
-            EnsureMainPhase(core, p1);
-            var handCard = InjectCard(core, p1, handRitual);
-            Assert(PlayCardSync(core, p1, handCard), "纳川仪典打出");
-
-            var shuttle = InjectCard(core, p1, creature);
-            core.ZoneManager.MoveCard(shuttle, p1, Zone.Hand, Zone.Graveyard);
-            for (int i = 0; i < 15; i++)
-            {
-                core.ZoneManager.MoveCard(shuttle, p1, Zone.Graveyard, Zone.Hand);   // 非抽牌入手 +1
-                if (i < 14) core.ZoneManager.MoveCard(shuttle, p1, Zone.Hand, Zone.Graveyard);
-            }
-            Assert(RitualSystem.CompletedAuras.Any(a => a.Card == handCard), "非抽牌入手累计 15 → 纳川完成");
-            Assert(RuleHooks.GetHandLimit(p1) == 15, "手牌上限 7 → 15");
-            Assert(HandLimitAura.HasFatigueImmunity(p1), "空库抽牌免疲劳");
-
-            foreach (var c in core.ZoneManager.GetCards(p1, Zone.Deck).ToList())
-                core.ZoneManager.MoveCard(c, p1, Zone.Deck, Zone.Graveyard);         // 清空牌库
-            int lifeBeforeFatigue = p1.Life;
-            ZoneManagerExtensions.DrawCard(core.ZoneManager, p1);
-            Assert(p1.Life == lifeBeforeFatigue && p1.FatigueCount == 0,
-                   "空库抽牌：免疲劳（无伤害、不计数）");
-        }
-
         /// <summary>推进回合直到 p1 处于主阶段（验证器节奏：EndTurn 折返后 SkipElementPool 入主阶段）。</summary>
         private static void EnsureMainPhase(GameCore core, Player p1)
         {
@@ -3909,7 +3578,7 @@ namespace CardCore.Editor
 
         /// <summary>
         /// 对目标执行一次"消灭"裁决（直连死亡决策表，DestroyEffect 死因）。
-        /// 毁灭原子已删除（2026-09-03）——仪式摧毁回手特例仍挂在 DestroyEffect 死因上，直连同路径。
+        /// 毁灭原子已删除（2026-09-03）——本 helper 直连同路径。
         /// </summary>
         private static void DestroyViaEffect(GameCore core, Player actor, Card target)
         {
@@ -4300,17 +3969,17 @@ namespace CardCore.Editor
 
             // ---- 跨边当量锚点已删（2026-09-10：改由 Polarity 错边折价承担，见 TestTargetDomainModel f 段）----
 
-            // ---- 溢出治疗转临时上限（2026-09-07 定案：走 LifeUp 指示物，ceil半入上限/floor半入当前）----
+            // ---- 溢出治疗转临时上限（2026-09-07 定案走 LifeUp 指示物；2026-09-30 改案：每次溢出固定+1层，剩余截断）----
             var overflowPlayer = new Player("VERIFY_OVERFLOW", 30);
             overflowPlayer.Heal(7);
-            Assert(overflowPlayer.MaxHealth == 34 && overflowPlayer.Life == 33
-                   && overflowPlayer.GetCounterCount(CardCore.Attribute.CounterRules.LifeUpCounter) == 4,
-                   "溢出治疗：满血30回复7 → LifeUp×4 → 34/33（用户定案例）");
+            Assert(overflowPlayer.MaxHealth == 31 && overflowPlayer.Life == 31
+                   && overflowPlayer.GetCounterCount(CardCore.Attribute.CounterRules.LifeUpCounter) == 1,
+                   "溢出治疗：满血30回复7 → LifeUp×1 → 31/31（2026-09-30 改案：溢出仅+1，剩余浪费）");
             var evenOverflow = new Player("VERIFY_OVERFLOW2", 30);
             evenOverflow.Heal(4);
-            Assert(evenOverflow.MaxHealth == 32 && evenOverflow.Life == 32
-                   && evenOverflow.GetCounterCount(CardCore.Attribute.CounterRules.LifeUpCounter) == 2,
-                   "溢出治疗：满血30回复4 → LifeUp×2 → 32/32（偶溢出均分仍满）");
+            Assert(evenOverflow.MaxHealth == 31 && evenOverflow.Life == 31
+                   && evenOverflow.GetCounterCount(CardCore.Attribute.CounterRules.LifeUpCounter) == 1,
+                   "溢出治疗：满血30回复4 → LifeUp×1 → 31/31（溢出量不影响力的档位数）");
             var partialHeal = new Player("VERIFY_OVERFLOW3", 30);
             partialHeal.Life = 28;
             partialHeal.Heal(2); // 恰好补满（28+2=30，无溢出）——原用 Heal(3) 实溢出1会按定案转层
@@ -4319,9 +3988,9 @@ namespace CardCore.Editor
                    "常规治疗：未溢出照旧封顶（不触发层）");
             var overflowCreature = new CardWrapper(MakeCostCard(Cardtype.Creature, 2, 5));
             overflowCreature.Heal(7);
-            Assert(overflowCreature.GetMaxLife() == 9 && overflowCreature.GetLife() == 8
-                   && overflowCreature.GetCounterCount(CardCore.Attribute.CounterRules.LifeUpCounter) == 4,
-                   "溢出治疗（生物）：满血5回7 → LifeUp×4 → 上限9当前8（层换区清除）");
+            Assert(overflowCreature.GetMaxLife() == 6 && overflowCreature.GetLife() == 6
+                   && overflowCreature.GetCounterCount(CardCore.Attribute.CounterRules.LifeUpCounter) == 1,
+                   "溢出治疗（生物）：满血5回7 → LifeUp×1 → 上限6当前6（层换区清除）");
 
             // ---- 永久类指示物（2026-09-07：max 再分一类，换区不删、净化可清——框架锚）----
             // 2026-09-13 修复：样例指示物 Awakening 已随 09-11 沉睡改造删除（未登记 id 落兜底档），
@@ -4445,7 +4114,6 @@ namespace CardCore.Editor
 
         /// <summary>
         /// 进场来源三通道（P0）：手牌打出 CastPlayed / 墓地复活 Revived / token 生成 TokenSpawned。
-        /// （墓地经 IPlaySource 打出的 FromZone=Graveyard 路径由仪式段（归土仪典）回归覆盖。）
         /// </summary>
         private static void TestEntrySources(GameCore core, Player p1, Player p2)
         {

@@ -8,8 +8,10 @@ Tide 编码器（路线 1：MLP/GRU actor-critic + 内容身份 embedding）。
      同一行；新参数值不再纯新 token。
   3) 参数块 [29..]（6 槽 × ATOM_PARAM_DIM 浮点）→ per-slot 共享 Dense 投影 masked-sum——
      数值插值通路，幅度变化可从已训参数外推。
-- 动作编码：6 维动作特征 + 按 source/targetIndex gather 的来源/目标卡编码 concat 后投影
-  ——动作打分能读到它指向的那张卡（对齐 ygo-agent 的 spec gather 思路）。
+- 动作编码：8 维动作特征（v2：+effectIdentity+targetKind）+ 按 source/targetIndex gather 的
+  来源/目标卡编码 concat 后投影——动作打分能读到它指向的那张卡（对齐 ygo-agent 的 spec gather 思路）。
+  source/target 槽位下标在编码器内归一化到 [0,1)（-1=无 → 0）；归一化必须在模型内做，
+  保证导出的 ONNX 与 C# 部署侧喂原始特征逐值一致（部署奇偶性铁律：特征变换只准在图内或 C# 侧）。
 - 状态特征（力量/费用/横置…）仍是扁平浮点 Dense 投影。
 复用 ygo-agent 的 PPO/GAE 损失与 obs-dict 契约。
 """
@@ -24,6 +26,9 @@ from tide_features import (
     N_CARD_FEATURES,
     N_GLOBAL_FEATURES,
     N_ACTION_FEATURES,
+    MAX_CARDS,
+    ACTION_F_SOURCE,
+    ACTION_F_TARGET,
     CARD_ID_START,
     N_ID_SLOTS,
     TYPE_ID_START,
@@ -129,9 +134,10 @@ class TideCardEncoder(nn.Module):
 
 class TideGlobalEncoder(nn.Module):
     """
-    全局状态编码器：直接 Dense 投影 (32,) → (channels,)。
+    全局状态编码器：直接 Dense 投影 (n_global,) → (channels,)。
 
     不做 YGO 的 LP/turn/phase/计数 分桶 embedding。
+    v2：n_global 49（追加英雄技能状态/栈上下文/决策上下文——见契约第 3 节），口径不变仍整体 Dense。
     """
     channels: int = 128
     dtype: Optional[jnp.dtype] = None
@@ -141,7 +147,7 @@ class TideGlobalEncoder(nn.Module):
     def __call__(self, x):
         """
         Args:
-            x: (batch, 32) 全局特征
+            x: (batch, n_global) 全局特征
 
         Returns:
             (batch, channels)
@@ -164,11 +170,12 @@ class TideGlobalEncoder(nn.Module):
 
 class TideActionEncoder(nn.Module):
     """
-    动作编码器：Dense 投影 (max_actions, 6 + 2*channels) → (max_actions, channels)。
+    动作编码器：Dense 投影 (max_actions, N_ACTION_FEATURES + 2*channels) → (max_actions, channels)。
 
-    输入 = 6 维动作特征 concat 来源/目标卡的编码（TideEncoder 按 sourceIndex/targetIndex
-    gather，-1 = 无来源/打脸 → 遮蔽为 0）——动作的表示包含它指向的卡的状态，
-    打分（Actor 点积）才有「这张攻击者/防守者」的特异性。
+    输入 = 8 维动作特征（v2 布局，含 effectIdentity/targetKind）concat 来源/目标卡的编码
+    （TideEncoder 按 sourceIndex/targetIndex gather，-1 = 无来源/玩家目标 → 遮蔽为 0；玩家
+    目标由 targetKind 区分）——动作的表示包含它指向的卡的状态，打分（Actor 点积）才有
+    「这张攻击者/防守者」的特异性。
     """
     channels: int = 128
     dtype: Optional[jnp.dtype] = None
@@ -178,7 +185,7 @@ class TideActionEncoder(nn.Module):
     def __call__(self, x):
         """
         Args:
-            x: (batch, max_actions, 6) 动作特征
+            x: (batch, max_actions, N_ACTION_FEATURES) 动作特征
 
         Returns:
             (batch, max_actions, channels)
@@ -215,8 +222,8 @@ class TideEncoder(nn.Module):
         Args:
             x: obs_dict = {
                 "cards_": (batch, 80, 65),
-                "global_": (batch, 32),
-                "actions_": (batch, max_actions, 6),
+                "global_": (batch, n_global),
+                "actions_": (batch, max_actions, N_ACTION_FEATURES),
                 "h_actions_": (batch, 32, 14) or None
             }
 
@@ -224,8 +231,8 @@ class TideEncoder(nn.Module):
             encoded: dict with encoded features
         """
         cards = x["cards_"]      # (batch, 80, 65)
-        global_ = x["global_"]   # (batch, 32)
-        actions = x["actions_"]  # (batch, max_actions, 6)
+        global_ = x["global_"]   # (batch, n_global)
+        actions = x["actions_"]  # (batch, max_actions, N_ACTION_FEATURES)
 
         # 编码
         card_encoder = TideCardEncoder(self.channels, self.dtype, self.param_dtype)
@@ -235,8 +242,17 @@ class TideEncoder(nn.Module):
         cards_enc, c_mask = card_encoder(cards)    # (batch, 80, channels), (batch, 80)
         global_enc = global_encoder(global_)       # (batch, channels)
 
-        # 动作打分能看见卡（P0-1）：按 sourceIndex/targetIndex gather 来源/目标卡编码，
-        # 与 6 维动作特征 concat 后投影。-1 = 无来源/目标为玩家 → gather 结果遮蔽为 0。
+        # 动作打分能看见卡：按 sourceIndex/targetIndex gather 来源/目标卡编码，与动作特征
+        # concat 后投影。-1 = 无来源/目标为玩家 → gather 结果遮蔽为 0（玩家目标语义由
+        # targetKind 特征承载）。v2：槽位下标归一化必须在**模型内**做（(idx+1)/(80+1) → [0,1)，
+        # -1→0）——导出的 ONNX 与 C# 部署侧喂原始特征才逐值一致（部署奇偶性：变换只准在图内）。
+        # jnp.asarray：obs 可能是 numpy 数组（.at[].set() 只对 jax 数组可用）
+        src_idx = jnp.asarray(actions[:, :, ACTION_F_SOURCE])
+        tgt_idx = jnp.asarray(actions[:, :, ACTION_F_TARGET])
+        actions_feat = jnp.asarray(actions)
+        actions_feat = actions_feat.at[..., ACTION_F_SOURCE].set((src_idx + 1.0) / (MAX_CARDS + 1.0))
+        actions_feat = actions_feat.at[..., ACTION_F_TARGET].set((tgt_idx + 1.0) / (MAX_CARDS + 1.0))
+
         def gather_card(idx):
             present = idx >= 0
             gi = jnp.clip(idx, 0, cards_enc.shape[1] - 1).astype(jnp.int32)
@@ -244,9 +260,9 @@ class TideEncoder(nn.Module):
             return jnp.where(present[..., None], gathered, 0.0)
 
         act_in = jnp.concatenate(
-            [actions, gather_card(actions[:, :, 2]), gather_card(actions[:, :, 3])],
+            [actions_feat, gather_card(src_idx), gather_card(tgt_idx)],
             axis=-1,
-        )  # (batch, max_actions, 6 + 2*channels)
+        )  # (batch, max_actions, N_ACTION_FEATURES + 2*channels)
         actions_enc = action_encoder(act_in)       # (batch, max_actions, channels)
 
         # 动作掩码：actions[:, :, 0] 是 valid 标记（1=合法，0=非法）

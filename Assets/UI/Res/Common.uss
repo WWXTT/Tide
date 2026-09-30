@@ -830,3 +830,30 @@
     padding: 2px 6px;
     margin-left: 6px;
 }
+
+/* ============================================================
+   UGUI 卡牌层占位槽（2026-09-30 方案2：SSO Canvas 压层——卡面=UGUI，
+   卡位=UITK 槽，CardOverlayController 每帧同步 worldBound）
+   ============================================================ */
+
+/* 手牌竖版槽（全信息卡面） */
+.battle-hand-slot {
+    width: 132px;
+    height: 184px;
+    margin: 3px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgb(60, 66, 78);
+    background-color: rgb(30, 33, 41);
+}
+
+/* 构筑卡组区卡槽 */
+.deck-card-slot {
+    width: 124px;
+    height: 172px;
+    margin: 4px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgb(60, 66, 78);
+    background-color: rgb(30, 33, 41);
+}

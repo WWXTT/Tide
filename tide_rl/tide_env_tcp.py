@@ -25,8 +25,37 @@ from tide_features import (
     N_ACTION_FEATURES,
     MAX_CARDS,
     MAX_ACTIONS,
+    LAYOUT_VERSION,
     pad_or_truncate_actions,
 )
+
+# v2 布局握手期望值（契约 docs/action_space_v2_contract.md 第 5 节）：
+# Unity reset 回显 layoutVersion/dims，与此处逐值断言——布局漂移在这里响亮失败，
+# 而不是等到 obs reshape 时炸出一个难查的形状错误（2026-09-14 N_GLOBAL 事故教训）。
+EXPECTED_DIMS = {
+    "nCard": N_CARD_FEATURES,
+    "nGlobal": N_GLOBAL_FEATURES,
+    "nAction": N_ACTION_FEATURES,
+    "maxActions": MAX_ACTIONS,
+}
+
+
+def _assert_layout(info):
+    """断言 Unity 侧回显的布局与本侧常量一致。不匹配立即抛错并指出两侧实际值。"""
+    version = info.get("layoutVersion")
+    if version != LAYOUT_VERSION:
+        raise RuntimeError(
+            f"布局版本不匹配：Unity layoutVersion={version}，Python LAYOUT_VERSION={LAYOUT_VERSION}。"
+            f"两侧代码不同代——先对齐 docs/action_space_v2_contract.md 再跑。"
+        )
+    dims = info.get("dims") or {}
+    for key, expected in EXPECTED_DIMS.items():
+        actual = dims.get(key)
+        if actual != expected:
+            raise RuntimeError(
+                f"维度不匹配 {key}: Unity={actual}，Python={expected}（layoutVersion={version}）。"
+                f"检查 TideObservation.cs / tide_features.py 与契约的同步。"
+            )
 
 
 class TideEnvTcp(gym.Env):
@@ -42,7 +71,7 @@ class TideEnvTcp(gym.Env):
         self,
         host: str = "localhost",
         port: int = 9999,
-        max_steps: int = 1000,
+        max_steps: int = 2000,
         reward_lambda: float = 0.02,
         opponent: str = "selfplay",
     ):
@@ -68,6 +97,9 @@ class TideEnvTcp(gym.Env):
         self.reader = None
         self.writer = None
         self.step_count = 0
+        # 最近一次 obs 的原始合法动作数（服务端上报、未截断）——audit_action_space 检测
+        # MAX_ACTIONS 截断事件用；>MAX_ACTIONS 即发生截断（模型看不到尾部动作行）
+        self.last_n_actions = 0
 
         # Observation space
         self.observation_space = spaces.Dict(
@@ -131,10 +163,15 @@ class TideEnvTcp(gym.Env):
 
         cards = np.array(data["cards"], dtype=np.float32).reshape(MAX_CARDS, N_CARD_FEATURES)
         global_ = np.array(data["globals"], dtype=np.float32)
-        actions = np.array(data["actions"], dtype=np.float32)  # (n, 6)
+        if global_.shape[0] != N_GLOBAL_FEATURES:
+            raise ValueError(
+                f"global_ 维度 {global_.shape[0]} != {N_GLOBAL_FEATURES}（C# NGlobal 不同步？）"
+            )
+        actions = np.array(data["actions"], dtype=np.float32)  # (n, N_ACTION_FEATURES)
 
         # Pad/truncate actions
         n_actions = data.get("nActions", len(data["actions"]) // N_ACTION_FEATURES)
+        self.last_n_actions = int(n_actions)
         actions = actions.reshape(-1, N_ACTION_FEATURES)[:n_actions]
         actions = pad_or_truncate_actions(actions, MAX_ACTIONS)
 
@@ -184,6 +221,8 @@ class TideEnvTcp(gym.Env):
 
         obs = self._parse_obs(response["obs"])
         info = response.get("info", {})
+        # v2 布局握手：Unity 回显 layoutVersion/dims，与本侧常量逐值断言（响亮失败替代 reshape 炸）
+        _assert_layout(info)
 
         # 重置状态
         self.step_count = 0

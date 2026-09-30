@@ -50,7 +50,7 @@ namespace CardCore.Editor
                 var deck = AiBattleE2E.LoadStandardDeck();
                 if (deck == null || deck.Count == 0)
                 {
-                    Debug.LogError("[NetVerify] 测试卡缺失（Cards.json 卡池为空——LoadStandardDeck=CardCatalog 全池非仪式卡），中止");
+                    Debug.LogError("[NetVerify] 测试卡缺失（Cards.json 卡池为空——LoadStandardDeck=CardCatalog 全池），中止");
                     return;
                 }
 
@@ -295,8 +295,27 @@ namespace CardCore.Editor
                 Assert(zoneCards.Cards.Length == live.Count,
                     $"区域 {zoneCards.Zone}(seat{zoneCards.Seat}) 卡数 {zoneCards.Cards.Length} == 活体 {live.Count}");
                 for (int i = 0; i < live.Count; i++)
-                    Assert(EqualCardState(zoneCards.Cards[i], SerializableRuntimeCardState.FromCard(live[i])),
+                {
+                    var expected = SerializableRuntimeCardState.FromCard(live[i]);
+                    // 元素池区（2026-09-30 地牌态修复）：地牌权威态在 PooledCard 包装（入池即清卡内字段）——
+                    // 快照按包装覆盖指示物/横置态，参照 DTO 同步覆盖后再比对
+                    if ((Zone)zoneCards.Zone == Zone.ElementPool)
+                    {
+                        var wrap = core.ElementPool.GetPooledCards(player)
+                            ?.FirstOrDefault(pc => pc != null && pc.SourceCard == live[i]);
+                        if (wrap != null)
+                        {
+                            expected.RemainingLandTokens = wrap.Tokens == null
+                                ? new ManaEntryDTO[0]
+                                : wrap.Tokens.Where(kv => kv.Value > 0)
+                                    .Select(kv => new ManaEntryDTO { ManaType = (int)kv.Key, Value = kv.Value })
+                                    .ToArray();
+                            expected.IsTapped = wrap.IsTapped;
+                        }
+                    }
+                    Assert(EqualCardState(zoneCards.Cards[i], expected),
                         $"区域 {zoneCards.Zone}[{i}] RuntimeId={live[i].RuntimeId} 卡状态与活体全等");
+                }
             }
 
             // 对账三：隐藏信息口径（己方手牌可见、对方只见数量；牌库只数量）

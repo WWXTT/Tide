@@ -3,9 +3,12 @@ Tide 特征维度常量与辅助函数（对应 ygo-agent 的 features.py）。
 
 TideObservation 产出的扁平特征向量：
 - cards_: (80, 65) — 每槽 65 维特征
-- global_: (36,) — 全局状态（2026-09-14 起 36 维：末尾 4 维黑白每回合获得余量）
-- actions_: (max_actions, 6) — 每动作 6 维特征
+- global_: (49,) — 全局状态（2026-09-30 v2 起 49 维：追加英雄技能状态×2 + 栈/决策上下文 5 维）
+- actions_: (max_actions, 8) — 每动作 8 维特征（v2：追加 effectIdentity + targetKind）
 - h_actions_: (32, 14) — 历史动作（暂未实现，传 None）
+
+v2 布局（2026-09-30 C 期）权威契约见 docs/action_space_v2_contract.md——
+改任何维度/下标前先改契约再改两侧代码；reset 时 TCP 握手逐值断言（tide_env_tcp）。
 """
 
 import numpy as np
@@ -40,16 +43,61 @@ N_CARD_POOL = 1024
 # 表冻结（表指纹已混入所有哈希）；表一旦变更 → 全体身份换血，需重训（容量≠免重训）。
 N_EFFECT_TYPES = 256
 MAX_CARDS = 80
-# 动作截断上限：攻击动作 = 攻击方 × (对方随从 + 玩家)，8v8 场面就 ~72 个，64 会截掉
-# 真实动作（含末位的 EndTurn——Unity 侧 MaxActionsPerTurn 强制收口兜底但不干净）；
-# 128 覆盖 10v10 以内（超出部分仅不可选，不影响正确性）。Unity 侧发全量无截断。
-MAX_ACTIONS = 128
-N_ACTION_FEATURES = 6
-N_GLOBAL_FEATURES = 36  # 2026-09-14 C# NGlobal 32→36（追加 g[32..35] 黑白每回合获得余量）——
-                        # Python 侧同步补齐（此前一直没跟上，模型 init 32 维 vs 实际 obs 36 维直接炸）
+# ---- v2 布局版本（2026-09-30 C 期：效果发动时机 + 目标选择进动作空间）----
+# 契约 = docs/action_space_v2_contract.md；C# 侧 TideHeadlessServer reset 回显同值，
+# 本侧 reset 逐值断言（防 2026-09-14 N_GLOBAL 32→36 那种静默漂移炸 reshape）。
+LAYOUT_VERSION = 2
+# 动作截断上限 v2 128→512：逐目标展开（出牌/发动 × 候选目标）+ 守卫/响应行后，
+# 攻击叉积 18×19≈342 就曾偶发超 128；512 覆盖最坏场面（截断只丢可选性，EndTurn/PassPriority
+# 恒排末位保证回合/窗口必然流动）。Unity 侧 OnnxTidePolicy.MaxActions 同值。
+MAX_ACTIONS = 512
+# 动作特征 v2 6→8 维：追加 [6] effectIdentity（效果定义注册下标/1024，区分同卡多效果行）
+# 与 [7] targetKind（0=无/1=卡/2=对方玩家/3=己方玩家，消除 targetIndex=-1 双义）。
+N_ACTION_FEATURES = 8
+# 全局特征 v2 36→49：追加 g[36..43] 双方英雄技能状态、g[44..46] 栈深度/栈顶来源/栈顶效果、
+# g[47] 决策上下文（0=己方Main/1=响应窗口）、g[48] 决策座次是否回合玩家。
+N_GLOBAL_FEATURES = 49
 N_HISTORY_ACTIONS = 32
 H_ACTIONS_FEATS = 14
 N_RNN_CHANNELS = 512
+
+# ---- 动作特征命名下标（与 C# LegalActionEnumerator.BuildFeatures 槽位一一对应）----
+ACTION_F_VALID = 0
+ACTION_F_TYPE = 1
+ACTION_F_SOURCE = 2
+ACTION_F_TARGET = 3
+ACTION_F_MODE = 4
+ACTION_F_COST = 5
+ACTION_F_EFFECT_ID = 6
+ACTION_F_TARGET_KIND = 7
+
+# ---- 全局特征命名下标（v2 追加段，契约第 3 节）----
+GLOBAL_F_SKILL_P1 = 36   # g[36..39] P1 英雄技能 [has, tapped, uses/10, upgraded]
+GLOBAL_F_SKILL_P2 = 40   # g[40..43] P2 同上
+GLOBAL_F_STACK_DEPTH = 44
+GLOBAL_F_STACK_TOP_SRC = 45
+GLOBAL_F_STACK_TOP_EFFECT = 46
+GLOBAL_F_DECISION_CONTEXT = 47  # 0=己方 Main，1=响应窗口
+GLOBAL_F_IS_TURN_PLAYER = 48    # 决策座次是否回合玩家
+
+# 动作类型对照（C# TideActionType；audit_action_space / 训练统计用）
+ACTION_TYPES = {
+    0: "PlayCard",
+    1: "PlayLand",
+    3: "Activate",
+    4: "Attack",
+    5: "EndTurn",
+    6: "HeroSkill",
+    7: "VoluntaryTrigger",
+    8: "PassPriority",
+    9: "RespondPlay",
+    10: "RespondActivate",
+    11: "Guard",
+}
+# v2 新增类型（C 期验收关注：这些行的出现率/采样率）
+NEW_ACTION_TYPES = (6, 7, 8, 9, 10, 11)
+# 带目标动作（targetKind=1 时 targetIndex 语义为 cards_ 槽位）
+TARGETED_ACTION_TYPES = (0, 3, 4, 9, 10, 11)
 
 H_ACTIONS_SHAPE = (N_HISTORY_ACTIONS, H_ACTIONS_FEATS)
 

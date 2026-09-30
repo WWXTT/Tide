@@ -139,6 +139,13 @@ def compute_advantages_simple(values, rewards, dones, next_value, gamma, gae_lam
     seats=None 走旧单代理口径（simpleai 训练 / quick 实验兼容；simpleai 模式下
     所有决策点都是模型座次，符号永不翻转，两条路径数值一致）。
 
+    v2 响应窗口（2026-09-30 C 期）：自对弈下决策点可在对方回合出现（守卫/响应出牌/
+    响应期自愿触发），toPlay 序列变为 回合方↔响应方 交错。本修正只依赖「逐步座次 +
+    换人翻号」，与决策点归属哪个回合无关——Main 多动作（同座次连续步）不翻号、
+    响应交错（换人）翻号，数学上仍是零和势能的符号变换，**无需为此改算法**。
+    前提：Unity 侧 info.toPlay 必须报真实决策座次（契约第 3 节），reward 归属
+    该座次（driver 现行 actor-centric 口径）。
+
     use_upgo（2026-09-29，仅座次修正口径生效）：UPGO「跟随赢家」优势项
     （ygo-agent truncated_gae_sep 默认开）——在符号修正空间反向递推
       U_t = r̂_t + γ·non_terminal·max(V̂_{t+1}, U_{t+1})

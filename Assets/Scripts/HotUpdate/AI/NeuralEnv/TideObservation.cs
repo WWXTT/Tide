@@ -40,27 +40,37 @@ namespace CardCore.AI.NeuralEnv
         // 2026-09-14 32→36：追加 4 维黑白每回合获得余量（双方×两色 = 1 - Black/WhiteGainedThisTurn，
         // 见 g[32..35]）——黑白万用化后这是 policy 估值错边收益的必要状态（每回合封顶 1/色）。
         // python 侧 N_GLOBAL_FEATURES 同步；ONNX 图输入随之重导出（随本批重训一起做）。
-        public const int NGlobal = 36;
-        public const int NAction = 6; // 动作特征槽：valid/type/sourceIndex/targetIndex/modeIndex/actionCost
+        // 2026-09-30 36→49（动作空间 v2 契约第 3 节）：g[36..43] 双方英雄技能块（P1/P2 绝对序）、
+        // g[44..46] 栈深度/栈顶来源/栈顶 effectIdentity、g[47] 决策上下文（0=己方Main/1=响应窗口）、
+        // g[48] 决策座次是否回合玩家。python 侧 N_GLOBAL_FEATURES 同步；旧 checkpoint/fixture 作废。
+        public const int NGlobal = 49;
+        public const int NAction = 8; // 动作特征槽：valid/type/sourceIndex/targetIndex/modeIndex/actionCost/effectIdentity/targetKind
 
         public float[] Cards = new float[MaxCardsTotal * NCard];
         public float[] Globals = new float[NGlobal];
 
         private Player _me;
 
-        /// <summary>从核心构建快照（me = 当前回合玩家）。</summary>
+        /// <summary>从核心构建快照（me = 当前回合玩家；Main 决策点视角——v2 视角参数化的兼容入口）。</summary>
         public static TideObservation Build(GameCore core)
+            => Build(core, core?.TurnEngine?.TurnPlayer, false);
+
+        /// <summary>从核心构建快照（v2 视角参数化，2026-09-30 契约）：seat = 当前决策座次——
+        /// Main 决策点 = 回合玩家；响应窗口停靠 = 优先权持有方（可能是非回合玩家）。
+        /// 隐藏信息（对方手牌）按该 seat 的对手计算；g[0..35] 全部相对 seat。
+        /// responseContext：停靠类型（g[47]，0=己方 Main / 1=响应窗口）。</summary>
+        public static TideObservation Build(GameCore core, Player seat, bool responseContext = false)
         {
             var obs = new TideObservation();
-            if (core == null || core.TurnEngine == null || core.TurnEngine.TurnPlayer == null)
+            if (core == null || core.TurnEngine == null || seat == null)
                 return obs;
-            obs._me = core.TurnEngine.TurnPlayer;
-            var opp = obs._me.Opponent;
+            var opp = seat.Opponent;
             if (opp == null) return obs;
+            obs._me = seat;
 
-            obs.WritePlayer(core, obs._me, 0, concealHand: false);
+            obs.WritePlayer(core, seat, 0, concealHand: false);
             obs.WritePlayer(core, opp, MaxCardsPerPlayer, concealHand: true);
-            obs.WriteGlobals(core, obs._me, opp);
+            obs.WriteGlobals(core, seat, opp, responseContext);
             return obs;
         }
 
@@ -70,6 +80,32 @@ namespace CardCore.AI.NeuralEnv
             if (!ZoneLayout(zone, out int off, out int cap) || indexInZone < 0 || indexInZone >= cap) return -1;
             int baseSlot = ReferenceEquals(controller, me) ? 0 : MaxCardsPerPlayer;
             return baseSlot + off + indexInZone;
+        }
+
+        /// <summary>卡实例 → cards_ 槽位下标（v2）：动作行目标/栈顶来源的反查——扫描双方四个已编码区
+        /// （未编码区如 FieldZone/Deck/Activation 返回 -1）。仅枚举/观测辅助用，非热路径权威。</summary>
+        public static int IndexOfCard(GameCore core, Player me, Card c)
+        {
+            if (core?.ZoneManager == null || me == null || c == null) return -1;
+            int slot = TryZoneSlot(core.ZoneManager, me, c, 0);
+            if (slot >= 0) return slot;
+            var opp = me.Opponent;
+            return opp != null ? TryZoneSlot(core.ZoneManager, opp, c, MaxCardsPerPlayer) : -1;
+        }
+
+        private static readonly Zone[] EncodedZones = { Zone.Battlefield, Zone.ElementPool, Zone.Hand, Zone.Graveyard };
+
+        private static int TryZoneSlot(ZoneManager zm, Player p, Card c, int baseSlot)
+        {
+            foreach (var zone in EncodedZones)
+            {
+                var cards = zm.GetCards(p, zone);
+                if (cards == null) continue;
+                int idx = cards.IndexOf(c);
+                if (idx >= 0 && ZoneLayout(zone, out int off, out int cap) && idx < cap)
+                    return baseSlot + off + idx;
+            }
+            return -1;
         }
 
         /// <summary>区域 → (槽位基址, 容量)（未编码区返回 false）。容量是防串护栏：
@@ -169,7 +205,7 @@ namespace CardCore.AI.NeuralEnv
                     Cards[b + ParamStart + e * dim + p] = atomParams[e * dim + p];
         }
 
-        private void WriteGlobals(GameCore core, Player me, Player opp)
+        private void WriteGlobals(GameCore core, Player me, Player opp, bool responseContext)
         {
             var g = Globals;
             var zm = core.ZoneManager;
@@ -179,7 +215,7 @@ namespace CardCore.AI.NeuralEnv
             g[1] = opp.GetLife();
             g[2] = core.TurnEngine.TurnNumber;
             g[3] = (int)(core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Standby); // 0/1/2
-            g[4] = 1f; // is_my_turn（快照恒为当前回合玩家视角）
+            g[4] = ReferenceEquals(me, core.TurnEngine.TurnPlayer) ? 1f : 0f; // is_my_turn（v2 视角参数化：响应窗口停靠时可为 0）
             g[5] = zm.GetCards(me, Zone.Hand).Count;
             g[6] = zm.GetCards(opp, Zone.Hand).Count;
             g[7] = zm.GetCards(me, Zone.Battlefield).Count;
@@ -192,7 +228,7 @@ namespace CardCore.AI.NeuralEnv
             g[14] = zm.GetCards(opp, Zone.Deck).Count;
             for (int i = 0; i < 6; i++) g[15 + i] = ep.GetPool(me).AvailableMana[(ManaType)i];
             for (int i = 0; i < 6; i++) g[21 + i] = ep.GetPool(opp).AvailableMana[(ManaType)i];
-            g[27] = core.StackEngine.IsEmpty ? 0f : 1f; // 栈占用（二值，v1 不逐层）
+            g[27] = core.StackEngine.IsEmpty ? 0f : 1f; // 栈占用（二值）
             g[28] = FieldValueReward.TotalValue(core, me);  // 己方全资源价值（战场 + 生命 + 法力 + 地牌 + 手牌）
             g[29] = FieldValueReward.TotalValue(core, opp); // 对方全资源价值
             g[30] = ep.GetLandCap(me);
@@ -202,6 +238,33 @@ namespace CardCore.AI.NeuralEnv
             g[33] = 1 - ep.GetPool(me).WhiteGainedThisTurn;
             g[34] = 1 - ep.GetPool(opp).BlackGainedThisTurn;
             g[35] = 1 - ep.GetPool(opp).WhiteGainedThisTurn;
+
+            // ---- v2 追加（2026-09-30 契约第 3 节）----
+            WriteHeroSkillBlock(core, core.Player1, 36);
+            WriteHeroSkillBlock(core, core.Player2, 40);
+
+            var stack = core.StackEngine.GetStackContents(); // Reverse 序（栈顶在末位）
+            g[44] = Math.Min(stack.Count, 16) / 16f;          // 栈深度（归一化 /16）
+            var top = stack.Count > 0 ? stack[stack.Count - 1] : null;
+            g[45] = top?.Source is Card topCard ? Math.Max(0, IndexOfCard(core, me, topCard)) / 80f : 0f;
+            g[46] = top?.Definition != null
+                ? TideCardIndex.IndexOfEffectDefinition(top.Definition) / 1024f
+                : 0f; // 同动作特征 [6] 口径（cast/攻击/SBA 栈顶无效果定义 = 0）
+            g[47] = responseContext ? 1f : 0f;                // 决策上下文（0=己方 Main / 1=响应窗口）
+            g[48] = ReferenceEquals(me, core.TurnEngine.TurnPlayer) ? 1f : 0f; // 决策座次是否回合玩家
+        }
+
+        /// <summary>英雄技能 4 维块（契约 g[36..39]=P1 / g[40..43]=P2，绝对座次序）：
+        /// [hasSkill, 本回合已用(tapped), 累计使用/10, 已升级]。</summary>
+        private void WriteHeroSkillBlock(GameCore core, Player p, int b)
+        {
+            var g = Globals;
+            bool has = p != null && p.HeroSkill != (int)HeroSkillId.None;
+            g[b] = has ? 1f : 0f;
+            var card = has ? HeroSkillSystem.ResolveSkillCard(core, p) : null;
+            g[b + 1] = card != null && card.IsTapped() ? 1f : 0f; // 本回合已用（准备阶段重置）
+            g[b + 2] = has ? HeroSkillSystem.GetTotalUses(core, p) / 10f : 0f;
+            g[b + 3] = has && HeroSkillSystem.IsUpgraded(core, p) ? 1f : 0f;
         }
 
         private static float Clamp(float v, float min, float max)
@@ -317,6 +380,35 @@ namespace CardCore.AI.NeuralEnv
         /// <summary>内容哈希 → 下标（未登记 = 0）。</summary>
         public static int IndexOf(ulong hash)
             => hash != 0UL && _map.TryGetValue(hash, out int idx) ? idx : 0;
+
+        /// <summary>哈希 → 下标，未登记则追加分配（v2 effectIdentity 用）。追加式口径同 Register：
+        /// 已分配下标永不改写、容量满记 0 静默降级、有清单绑定时落盘。</summary>
+        public static int IndexOfOrRegister(ulong hash)
+        {
+            if (hash == 0UL) return 0;
+            if (_map.TryGetValue(hash, out int idx)) return idx;
+            if (_map.Count >= Capacity - 1) return 0;
+            _map[hash] = ++_maxIndex;
+            if (_manifestPath != null) SaveManifest();
+            return _maxIndex;
+        }
+
+        /// <summary>效果定义 → 身份下标（v2 动作特征 [6] / globals g[46] 的 effectIdentity）：
+        /// 键 = EffectDefinition.Id（转换自卡表的内容哈希稳定键）的 FNV-1a 64 + 效果空间盐——
+        /// 与 CardIdentityService 的卡身份哈希族隔离（64 位空间 + 盐，碰撞概率可忽略；即撞也只共用行不崩）。
+        /// 追加式注册进同一 manifest（不动表指纹）；同一效果定义跨局同 Id → 同下标（embedding 不稀释）。
+        /// 空 Id（动态授予的效果）= 0（未登记信号）。</summary>
+        public static int IndexOfEffectDefinition(EffectDefinition def)
+        {
+            if (def == null || string.IsNullOrEmpty(def.Id)) return 0;
+            ulong h = 0x9E3779B97F4A7C15UL; // 效果定义空间盐（区别于卡身份哈希族）
+            foreach (var ch in def.Id)
+            {
+                h ^= ch;
+                h *= 1099511628211UL;
+            }
+            return IndexOfOrRegister(h);
+        }
 
         /// <summary>清单落盘（临时文件 + 替换，原子写）。格式：# 注释 / table 指纹 / 「哈希 下标」行。</summary>
         private static void SaveManifest()

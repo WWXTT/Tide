@@ -270,12 +270,18 @@ namespace SynergyUI
                 int x, z;
                 if (board != null && board.TryGetCell(land.SourceCard, out x, out z)) { view.X = x; view.Z = z; }
 
-                // 池包装的横置态/剩余指示物是权威（FromCard 读的是卡内字段）
-                var parts = land.Tokens?
+                // 池包装的横置态/剩余指示物是权威（FromCard 读的是卡内字段——入池时卡上余量
+                // 已清空转移进 PooledCard）。横置态与余量都必须覆写进 Runtime：
+                // 显示（横置标记/指示物文本）与点地牌产元素的选色（OnClickMyLand 读
+                // Runtime.RemainingLandTokens）同源，否则放入当回合点不出元素。
+                view.Runtime.RemainingLandTokens = land.Tokens?
                     .Where(kv => kv.Value > 0)
-                    .Select(kv => $"{ManaZh(kv.Key)}{kv.Value}").ToList();
-                if (parts != null && parts.Count > 0) view.LandTokensText = string.Join(" ", parts);
+                    .Select(kv => new ManaEntryDTO { ManaType = (int)kv.Key, Value = kv.Value })
+                    .ToArray() ?? Array.Empty<ManaEntryDTO>();
                 view.Runtime.IsTapped = land.IsTapped;
+                if (view.Runtime.RemainingLandTokens.Length > 0)
+                    view.LandTokensText = string.Join(" ", view.Runtime.RemainingLandTokens
+                        .Select(t => $"{ManaZh((ManaType)t.ManaType)}{t.Value}"));
 
                 list.Add(view);
             }
@@ -296,9 +302,10 @@ namespace SynergyUI
         }
 
         // ============================================================
-        // 网络模式构建（MsgGameStateSync 快照；格位=ZoneCards 列表序按
-        // BoardLayout.UnitCells/LandCells first-free 规则重建——与服务器
-        // BoardState.Resync 同源规则，逐格一致，零协议改动）
+        // 网络模式构建（MsgGameStateSync 快照；格位=ZoneCards 列表序 first-free
+        // 重建后**归一到观察者视角**（己方=P1 半场 z4/5/6、对手=P2 半场 z1/2/3）——
+        // 服务器 BoardState 是绝对坐标，直接渲染会让 1 号座位观察者战场全空
+        // （2026-09-30 修复；零协议改动）
         // ============================================================
         public static BattleViewData BuildNet(MsgGameStateSync snap)
         {
@@ -366,9 +373,12 @@ namespace SynergyUI
 
         private static void FillUnitsNet(List<BattleCardView> list, MsgGameStateSync snap, int seat, bool ownerIsOpponent)
         {
-            // 列表序 i → UnitCells(seat)[i]（与服务器 AssignCells 同规 first-free）
+            // 列表序 i → **观察者视角**格位：己方恒 P1 半场（z4/5）、对手恒 P2 半场（z2/3）。
+            // 服务器 BoardState.Resync 是绝对坐标（seat1 己方=z2/3）——若直接填绝对坐标，
+            // 1 号座位观察者的整片战场（双方单位+地牌）都落不进渲染行、恒空白（2026-09-30 修复）。
+            // 列表序与服务器 AssignCells first-free 逐格对应，观察者侧仅做半场归一。
             var units = ZoneCardsNet(snap, seat, Zone.Battlefield);
-            var cells = BoardLayout.UnitCells(seat);
+            var cells = BoardLayout.UnitCells(ownerIsOpponent ? 1 : 0);
             for (int i = 0; i < units.Length; i++)
             {
                 var view = FromRuntime(units[i], null, ownerIsOpponent);
@@ -379,8 +389,9 @@ namespace SynergyUI
 
         private static void FillLandsNet(List<BattleCardView> list, MsgGameStateSync snap, int seat, bool ownerIsOpponent)
         {
+            // 同 FillUnitsNet：观察者视角归一（己方地牌行 z6、对手 z1）
             var lands = ZoneCardsNet(snap, seat, Zone.ElementPool);
-            var cells = BoardLayout.LandCells(seat);
+            var cells = BoardLayout.LandCells(ownerIsOpponent ? 1 : 0);
             for (int i = 0; i < lands.Length; i++)
             {
                 var view = FromRuntime(lands[i], null, ownerIsOpponent);

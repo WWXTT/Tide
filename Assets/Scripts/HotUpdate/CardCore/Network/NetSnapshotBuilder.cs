@@ -148,11 +148,35 @@ namespace CardCore.Network
         private static NetZoneCards BuildZone(GameCore core, int seat, Player player, Zone zone)
         {
             var cards = core.ZoneManager.GetCards(player, zone) ?? new System.Collections.Generic.List<Card>();
+            var states = cards.Select(ToSortedCardState).ToArray();
+
+            // 地牌权威态在 PooledCard 包装（入池即清卡内字段，FromCard 读不到）：
+            // 指示物余量/横置态按包装覆盖——否则网络端恒显「耗尽」且点地牌无产色可横置（2026-09-30 联机修复）
+            if (zone == Zone.ElementPool && core.ElementPool != null)
+            {
+                var pooled = core.ElementPool.GetPooledCards(player);
+                if (pooled != null)
+                {
+                    foreach (var s in states)
+                    {
+                        var wrap = pooled.FirstOrDefault(pc => pc?.SourceCard != null
+                                                               && pc.SourceCard.RuntimeId == s.RuntimeId);
+                        if (wrap == null) continue;
+                        s.RemainingLandTokens = wrap.Tokens == null
+                            ? new ManaEntryDTO[0]
+                            : wrap.Tokens.Where(kv => kv.Value > 0)
+                                .Select(kv => new ManaEntryDTO { ManaType = (int)kv.Key, Value = kv.Value })
+                                .ToArray();
+                        s.IsTapped = wrap.IsTapped;
+                    }
+                }
+            }
+
             return new NetZoneCards
             {
                 Seat = seat,
                 Zone = (int)zone,
-                Cards = cards.Select(ToSortedCardState).ToArray(),
+                Cards = states,
             };
         }
 

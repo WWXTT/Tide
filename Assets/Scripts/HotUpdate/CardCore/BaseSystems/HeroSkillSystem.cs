@@ -291,8 +291,9 @@ namespace CardCore
                 return false; // 沉默：不可发动主动效果（永续魔法交互一致）
 
             var bill = new Dictionary<int, float> { { (int)def.CostColor, def.CostAmount } };
-            if (!core.ElementPool.CanPayCost(bill, player)) return false;
-            if (!core.ElementPool.PayCost(bill, player, "英雄技能·" + SkillName(skill))) return false;
+            // 自动横置补足（2026-09-30 定案）：bank 不足时自动横置地牌产出技能所需元素——与出牌付费同口径
+            if (!core.ElementPool.CanPayCostWithAutoTap(bill, player)) return false;
+            if (!core.ElementPool.TryPayCostWithAutoTap(bill, player, core.ZoneManager, "英雄技能·" + SkillName(skill))) return false;
 
             skillCard.Tap(); // 发动横置（一回合一次的实体闸门）
             // 发动计数 +1（随技能卡）；门在计数前抓拍——本次走哪档由「此前已发动次数」判
