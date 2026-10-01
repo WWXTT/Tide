@@ -25,6 +25,14 @@
 | Newtonsoft Json | Newtonsoft | MIT | TideServer 序列化 |
 | MCP for Unity | 第三方插件 | 待核实 | 编辑器工具链（编辑器插件，不随游戏分发） |
 | SmoothNormalTool | 待核实（Unity 官方工具?） | 待核实 | 美术工具 |
+| ygo-agent-main（仓库根目录 vendored） | github.com/sbl1996/ygo-agent（作者 sbl1996/Hastur） | MIT（Copyright (c) 2024 Hastur，已核仓库内 LICENSE） | 打牌 AI 研究参考对象（tide_rl 的谱系来源；ygoenv 基于 ygopro-core 生态）；纯研究用，不进构建不随包分发 |
+
+## 设计研究资料（内部使用，绝不分发）
+
+| 资料 | 数据源 | 性质与边界 |
+|---|---|---|
+| 万智牌_效果列表.md（4.6M）/ 炉石传说_效果列表.md（740K）/ 百闻牌_效果列表.md（324K），均在 Config/ | 各游戏官网公开卡牌数据整理（Wizards of the Coast / Blizzard / 网易） | 厂商版权文本的汇编。**仅限内部设计研究**（效果原子覆盖分析的输入）；游戏机制/规则思想不受版权保护，但卡牌文本与名称的表达受保护——本作卡牌为自有表达。不进构建、不进对外提交的仓库快照 |
+| Config/yugioh_data（14M，monster/spell/trap） | Yu-Gi-Oh 卡牌数据（Konami） | 同上：内部研究输入（原子分析与 tide_rl 动作空间设计），绝不分发 |
 
 ## 因无授权已删除（不分发）
 
