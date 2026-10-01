@@ -6,11 +6,12 @@
 |---|---|---|
 | Tide 规则引擎层 | LayerEngine / 事件单点分发 / 效果系统框架（配置驱动，见根目录设计文稿.md） | 自研卡牌游戏框架（中间件） |
 | 框架原型验证 | 赛期前在框架上做过的卡牌配置、效果实现与自动化测试（git 历史可见，如实申报为原型验证） | 原型，非参赛本体 |
+| 效果原子研究资料 | 三份官网效果列表（万智/炉石/百闻）+ Config/yugioh_data——效果原子覆盖分析与 tide_rl 动作空间设计的输入；数据源版权属各厂商/Konami，仅内部研究，不随作品分发（见 third-party.md） | 自研整理的研究资料（不分发） |
 | HexMap.ECS | 六角战场 ECS 层（对教程版架构的深度重写：ECS/Blob/Burst，全量自写；基础类型谱系源自 Catlike Coding 教程，MIT-0，见 third-party.md） | 自研重写（谱系第三方） |
 | dbdrp | 自定义渲染管线：本体=开源 DanbaidongRP（URP 6.3 二次开发，Unity Companion License），本工程自行升级至 URP 17.5，包身份/版本对齐官方 URP（VFX/ShaderGraph 免转换）；上游链 Unity URP → DanbaidongRP → 本工程 | 自研升级层（上游开源，见 third-party.md） |
 | TideServer | 独立权威服务器（网关 + 每局一进程）；比赛禁联机，参赛构建不启用 | 自研基础设施（不随包分发） |
 | 热更接入层 | 标准 HybridCLR + YooAsset 接入（包为第三方，见 third-party.md）；比赛禁联机，参赛构建不启用 | 自研接入层（不随包分发） |
-| tide_rl 训练管线 | RL 训练环境与动作空间设计（源自赛前 Yu-Gi-Oh 相关研究） | 自研研究管线 |
+| tide_rl 训练管线 | RL 训练环境与动作空间设计（赛前 Yu-Gi-Oh 研究；研究参考 = 开源 ygo-agent，MIT，见 third-party.md） | 自研研究管线 |
 
 ## RL 模型特别注意
 
