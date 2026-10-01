@@ -74,13 +74,11 @@
     <Compile Include="Assets\Editor\TextureTools\FTexture Edit Windows\FMeshPaintWindow.cs" />
     <Compile Include="Assets\Editor\检查\MissingReferenceChecker.cs" />
     <Compile Include="Assets\Editor\验证\NetSession\NetLobbyHost.cs" />
-    <Compile Include="Assets\Editor\检查\HexMap\HexWeatherVerifier.cs" />
     <Compile Include="Assets\Editor\EntityHierarchy\AuthoringTreeView.cs" />
     <Compile Include="Assets\Editor\验证\AI对战\AiBattleDeckWindow.cs" />
     <Compile Include="Assets\Editor\验证\AI对战\BattleDeckSources.cs" />
     <Compile Include="Assets\Editor\TextureTools\FTexture Edit Windows\FBlendToolWindow.cs" />
     <Compile Include="Assets\Editor\TextureTools\Other\MeshCreator.cs" />
-    <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Editor\Drawer\TTFE_DrawerDivider.cs" />
     <Compile Include="Assets\Editor\检查\RequiredAttribute.cs" />
     <Compile Include="Assets\Editor\验证\AI对战\ThemeDeckBuilder.cs" />
     <Compile Include="Assets\Editor\验证\NetProtocolLoopbackVerifier.cs" />
@@ -100,17 +98,14 @@
     <Compile Include="Assets\Editor\TextureTools\Other\TextureArrayGeneratorEditor.cs" />
     <Compile Include="Assets\Editor\TextureTools\FTexture Edit Windows\Core\Mesh Paint Brushes\FMeshPaintContinousBrush.cs" />
     <Compile Include="Assets\Editor\配置\RefreshMemoryPackOrder.cs" />
-    <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Editor\Drawer\TTFE_Drawer_SingleLineTexture.cs" />
     <Compile Include="Assets\Editor\TextureTools\FTexture Edit Windows\FBrightnessWindow.cs" />
     <Compile Include="Assets\Editor\TextureTools\RGBA Channel Tools\FChannelledGenerator.cs" />
     <Compile Include="Assets\Editor\TextureTools\FTexture Edit Windows\FColorCurvesWindow.cs" />
     <Compile Include="Assets\Editor\EntityHierarchy\AuthoringHierarchyWindow.cs" />
     <Compile Include="Assets\Editor\TextureTools\FTexture Edit Windows\Core\Mesh Paint Brushes\FMeshPaintBlurBrush.cs" />
     <Compile Include="Assets\Editor\EntityHierarchy\EntityScenePicking.cs" />
-    <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Resources\(TTFE) GLOBAL CONTROLLER\Scripts\Editor\TobyGlobalShadersController_Editor.cs" />
     <Compile Include="Assets\Editor\验证\AI对战\OnnxFixtureSelfCheck.cs" />
     <Compile Include="Assets\Editor\验证\AI对战\TideHeadlessServer.cs" />
-    <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Editor\Drawer\TTFE_DrawerFeatureBorder.cs" />
     <Compile Include="Assets\Editor\配置\HotUpdateSetupTool.cs" />
     <Compile Include="Assets\Editor\EntityHierarchy\EntityTreeViewItem.cs" />
     <Compile Include="Assets\Editor\检查\HexMap\HexMeshVerifier.cs" />
@@ -127,7 +122,6 @@
     <Compile Include="Assets\Editor\TextureTools\Utilities\FTextureEditorToolsMethods.cs" />
     <Compile Include="Assets\Editor\配置\CollectAllExceptLaunch.cs" />
     <Compile Include="Assets\Editor\TextureTools\Utilities\FTextureToolsGUIUtilities.cs" />
-    <Compile Include="Assets\Packages\Toby Fredson\(TTFE)_Core\Shaders\Editor\Drawer\TTFE_DrawerTitle.cs" />
     <Compile Include="Assets\Editor\TextureTools\FTexture Edit Windows\FSeamlessWindow.cs" />
     <Compile Include="Assets\Editor\TextureTools\Other\NoiseMapGenerator.cs" />
     <Compile Include="Assets\Editor\验证\AI对战\AiBattleE2ETests.cs" />
@@ -1683,18 +1677,14 @@
     <ProjectReference Include="Unity.RenderPipelines.Universal.Shaders.csproj" />
     <ProjectReference Include="Unity.RenderPipelines.Universal.Runtime.csproj" />
     <ProjectReference Include="Unity.RenderPipelines.Universal.Config.Runtime.csproj" />
-    <ProjectReference Include="Crest.Helpers.Editor.csproj" />
     <ProjectReference Include="Unity.RenderPipelines.Universal.Editor.csproj" />
     <ProjectReference Include="Unity.SmoothNormalTool.Editor.csproj" />
-    <ProjectReference Include="Crest.csproj" />
     <ProjectReference Include="MCPForUnity.Runtime.csproj" />
     <ProjectReference Include="MCPForUnity.Editor.csproj" />
-    <ProjectReference Include="Unity.RenderPipelines.Core.Samples.Editor.csproj" />
     <ProjectReference Include="HexMap.ECS.csproj" />
     <ProjectReference Include="Unity.SmoothNormalTool.Runtime.csproj" />
     <ProjectReference Include="Tide.HotUpdate.csproj" />
     <ProjectReference Include="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
-    <ProjectReference Include="Unity.RenderPipelines.Core.Samples.Runtime.csproj" />
   </ItemGroup>
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
   <ItemGroup>
