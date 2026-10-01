@@ -6,8 +6,12 @@
 
 | 资产 | 来源 | 生成方式 | 授权 | 用途 | 登记日 |
 |---|---|---|---|---|---|
-| Samples_BackdropFabric.mat 等 | Unity SRP Samples 17.5.0 | 第三方 | 待核实 | 演示/临时 | 2026-10-01 |
-| VFX Learning Templates（12 个 .vfx） | Unity VFX Graph Samples | 第三方 | 待核实 | 演示/临时 | 2026-10-01 |
+| Samples_BackdropFabric.mat 等 | Unity SRP Samples 17.5.0 | 第三方 | Unity Companion License | 演示/临时 | 2026-10-01 |
+| VFX Learning Templates（12 个 .vfx） | Unity VFX Graph Samples | 第三方 | Unity Companion License | 演示/临时 | 2026-10-01 |
+| 思源宋体SC-Heavy.otf（Assets/Packages/TextMesh Pro/Fonts/） | Adobe + Google（github.com/adobe-fonts/source-han-serif） | 第三方 | SIL OFL 1.1：免费商用、可嵌入游戏分发；随字体文件附 OFL 许可文本；修改版不得沿用保留字体名 | UI 正文字体 | 2026-10-01 |
+| 庞门正道标题体.ttf（同上目录） | 庞门正道 × 字游空间 公益字体 | 第三方 | 全社会免费商用（永久，无需书面授权/署名）；不得单独出售字体文件或冒充原创 | UI 标题字体 | 2026-10-01 |
+| LiberationSans.ttf | 随 TextMesh Pro 分发 | 第三方 | 待核实（Liberation 系列为开源字体） | TMP 默认字体 | 2026-10-01 |
+| Inter-Regular.otf | Unity SRP Samples | 第三方 | 待核实（Inter 为 OFL 1.1） | 样例资源 | 2026-10-01 |
 | （待补） | | | | | |
 
 ## 音乐/音效
