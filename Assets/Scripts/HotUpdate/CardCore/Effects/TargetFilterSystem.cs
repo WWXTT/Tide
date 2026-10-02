@@ -238,6 +238,20 @@ namespace CardCore
         }
     }
 
+    /// <summary>指示物筛选器（通用）：仅指持有指定指示物者（信息轴 2026-10-02：Exposed 等状态取件）</summary>
+    public class CounterFilter : ITargetFilter
+    {
+        private readonly string _counterId;
+        public string DisplayName => $"指示物:{_counterId}";
+
+        public CounterFilter(string counterId) { _counterId = counterId; }
+
+        public List<Entity> Filter(List<Entity> candidates, EffectExecutionContext context)
+        {
+            return candidates.Where(e => e.GetCounterCount(_counterId) > 0).ToList();
+        }
+    }
+
     // ================================================================
     // 组合筛选器
     // ================================================================
@@ -553,6 +567,10 @@ namespace CardCore
                         break;
                     case "Damaged":
                         filters.Add(new DamagedFilter());
+                        break;
+                    case "Exposed": // 仅指被展示者（信息轴 2026-10-02：展示指示物作筛选条件——
+                        // 「被展示的卡送入墓地/本回合不可使用/换费用减免」类设计的取件口）
+                        filters.Add(new CounterFilter(Attribute.CounterRules.ExposedCounter));
                         break;
                     case "Friendly":
                         filters.Add(new FriendlyFilter());

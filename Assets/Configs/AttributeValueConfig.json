@@ -1102,5 +1102,29 @@
     "TargetFilter": null,
     "Polarity": 0.0,
     "MountKinds": "0,4"
+  },
+  {
+    "ID": "c41a7e02",
+    "EnumName": "展示",
+    "DisplayName": "展示{target}（持续暴露，双方可查看，换区失效）",
+    "EffectColor": "Blue",
+    "BaseCost": 0.5,
+    "EffectType": "RevealCard",
+    "TargetKinds": "5,6,7,8",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "0,4"
+  },
+  {
+    "ID": "9d3f5b71",
+    "EnumName": "附加诅咒",
+    "DisplayName": "对{target}附加诅咒（抽到该卡时自动执行诅咒分支效果，一次性）",
+    "EffectColor": "Black",
+    "BaseCost": 1.0,
+    "EffectType": "AddCurse",
+    "TargetKinds": "8",
+    "TargetFilter": null,
+    "Polarity": -1.0,
+    "MountKinds": "0,2,4"
   }
 ]

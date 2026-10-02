@@ -31,12 +31,18 @@ namespace CardCore.Editor.NetSession
         }
 
         /// <summary>Play 模式进出自动起停（2026-09-26 定案）：运行=开服，停止=关服。
-        /// 端口被占（双编辑器实例联机：另一实例已是宿主）时静默退位——本实例作为纯客户端。</summary>
+        /// 端口被占（双编辑器实例联机：另一实例已是宿主）时静默退位——本实例作为纯客户端。
+        /// 比赛禁联机（NetGate，2026-10-01）：闸关时不再自启大厅（也不监听端口）。</summary>
         private static void OnPlayModeChanged(PlayModeStateChange state)
         {
             switch (state)
             {
                 case PlayModeStateChange.EnteredPlayMode:
+                    if (!NetGate.OnlineEnabled)
+                    {
+                        Debug.Log("[NetLobby] 联机已禁用");
+                        break;
+                    }
                     if (_server != null)
                     {
                         Debug.Log("[NetLobby] 沿用已在运行的大厅服务器（进入 Play 模式）");
@@ -91,9 +97,16 @@ namespace CardCore.Editor.NetSession
         /// batchmode 入口：阻塞自旋泵，外部终止退出。
         /// Unity.exe -batchmode -nographics -projectPath &lt;proj&gt;
         ///   -executeMethod CardCore.Editor.NetSession.NetLobbyHost.Main -netPort &lt;n&gt; -logFile &lt;path&gt;
+        /// 比赛禁联机（NetGate）：闸关时拒绝启动（防绕过 UI 用命令行宿主开服）。
         /// </summary>
         public static void Main()
         {
+            if (!NetGate.OnlineEnabled)
+            {
+                Debug.LogError("[NetLobby] 联机已禁用（NetGate，比赛禁联机）——batchmode 大厅宿主拒绝启动");
+                return;
+            }
+
             int port = DefaultPort;
             var argv = Environment.GetCommandLineArgs();
             for (int i = 0; i < argv.Length - 1; i++)

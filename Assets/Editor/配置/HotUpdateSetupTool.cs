@@ -1,3 +1,5 @@
+// 热更管线（HybridCLR+YooAsset）解除期：由 TIDE_HYBRID_YOO 宏整体启停，恢复步骤见项目根《热更插件解除与恢复.md》
+#if TIDE_HYBRID_YOO
 using System.IO;
 using System.Linq;
 using HybridCLR.Editor;
@@ -172,3 +174,4 @@ namespace Tide.HotUpdateTools
         }
     }
 }
+#endif

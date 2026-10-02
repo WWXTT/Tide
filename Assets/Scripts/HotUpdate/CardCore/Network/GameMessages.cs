@@ -50,6 +50,9 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MGSS_StackV2)]
         public StackItemDTO[] StackV2;
+
+        [MemoryPackOrder(TagTable.MGSS_RevealedZoneCards)]
+        public NetZoneCards[] RevealedZoneCards; // 展示卡（信息轴 2026-10-02）：隐藏区中被展示的卡——恒全量下发（双方可见），空区省略
     }
 
     /// <summary>玩家状态（公开面 + 己方私密面经 Hands 单独承载）。</summary>

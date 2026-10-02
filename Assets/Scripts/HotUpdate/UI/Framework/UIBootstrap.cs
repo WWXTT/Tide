@@ -1,92 +1,87 @@
 using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 using CardCore;
 
 namespace SynergyUI
 {
     /// <summary>
-    /// 运行时 UI 入口（2026-09-14 迁移 PanelRenderer——Unity 6000.5 起 UIDocument 移入 Legacy 菜单）。
-    /// 把本组件挂在场景中带 Panel Renderer 组件的 GameObject 上，按 Play 即可。
+    /// 运行时 UI 入口（2026-10-01 预制体化定案）：本组件独占 Canvas——挂在场景空对象上，
+    /// OnEnable 幂等补齐自身 Canvas(ScreenSpaceOverlay)+CanvasScaler(1920×1080)+GraphicRaycaster，
+    /// 挂载根=自身 RectTransform（UguiCanvas/ScreenRoot 两层中间包装已剃除，不再创建）。
+    /// 所有屏幕（含主菜单）统一生命周期：Show=实例化各自预制体、离屏=销毁自己的实例
+    /// （UIScreen.PrefabAssetPath 声明预制体，详见 UIManager/UIScreen）。
     ///
-    /// 装配流程（零 Inspector 手连）：
-    ///   1. OnEnable：确保 PanelSettings（Inspector 未指定则经 HotUpdateAssets 加载）；
-    ///   2. 注册 RegisterUIReloadCallback——PanelRenderer 的根节点不再经 rootVisualElement
-    ///      属性暴露，改经回调取得（UI 已装载时立即回调一次；编辑器 UXML 热重载/
-    ///      换 visualTreeAsset 时再回调）；
-    ///   3. 首次回调：建 UIManager 并进主菜单；再次回调（热重载）：换根并重建当前界面。
-    ///
-    /// 版本号守卫防重复初始化（回调偶发双发）。若进 Play 无 UI 且无报错，
-    /// 可给 Panel Renderer 的 visualTreeAsset 字段随便指一个 UXML（如 MainMenu）触发装载——
-    /// UIManager 装配时会清空根重建，不影响任何界面。
+    /// 编辑器域重载/重编译：OnEnable 以"组件有则复用"幂等重建（界面回到主菜单）。
     /// </summary>
-    [RequireComponent(typeof(PanelRenderer))]
     public sealed class UIBootstrap : MonoBehaviour
     {
-        // PanelSettings 的 YooAsset 地址（AddressByFileName）与编辑器兜底路径
-        // （2026-09-29 UI 资产迁出 Resources → Assets/UI/Res，改走 HotUpdateAssets 三级回落）。
-        private const string PanelSettingsAddress = "SynergyPanelSettings";
-        private const string PanelSettingsEditorPath = "Assets/UI/Res/SynergyPanelSettings.asset";
-
-        private PanelRenderer _renderer;
         private UIManager _manager;
-        private int _panelVersion = -1;
 
         private void OnEnable()
         {
-            _renderer = GetComponent<PanelRenderer>();
-
-            // 运行时确保 PanelSettings 已设置（若 Inspector 未指定则经 HotUpdateAssets 加载）。
-            if (_renderer.panelSettings == null)
+            //定死60帧
+            Application.targetFrameRate = 60;
+            // 幂等补齐 Canvas 体系（场景挂点通常只有本脚本；AddComponent<Canvas> 会自动带上 RectTransform）
+            var canvas = GetComponent<Canvas>();
+            if (canvas == null)
             {
-                var panelSettings = Tide.HotUpdate.HotUpdateAssets.Load<PanelSettings>(
-                    PanelSettingsAddress, PanelSettingsEditorPath);
-                if (panelSettings == null)
-                {
-                    Debug.LogError(
-                        $"[UIBootstrap] 找不到 PanelSettings: YooAsset[{PanelSettingsAddress}] / {PanelSettingsEditorPath}。" +
-                        "请确认 Tools/热更/2 收集器已配置且资产存在。");
-                    return;
-                }
-                _renderer.panelSettings = panelSettings;
+                canvas = gameObject.AddComponent<Canvas>();
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                canvas.sortingOrder = 0;
             }
 
-            _renderer.RegisterUIReloadCallback(OnUIReload);
-        }
-
-        private void OnDisable()
-        {
-            if (_renderer != null)
-                _renderer.UnregisterUIReloadCallback(OnUIReload);
-        }
-
-        /// <summary>UI 装载/重载回调（PanelRenderer 根节点唯一获取口）。</summary>
-        private void OnUIReload(PanelRenderer renderer, VisualElement root, int version)
-        {
-            if (version == _panelVersion) return; // 双发防重复初始化
-            _panelVersion = version;
-
-            if (_manager == null)
+            if (GetComponent<CanvasScaler>() == null)
             {
-                _manager = new UIManager(root);
+                var scaler = gameObject.AddComponent<CanvasScaler>();
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(1920f, 1080f);
+                scaler.matchWidthOrHeight = 0.5f;
+            }
+
+            if (GetComponent<GraphicRaycaster>() == null)
+                gameObject.AddComponent<GraphicRaycaster>();
+
+            EnsureEventSystem();
+
+            if (_manager == null || _manager.Current == null)
+            {
+                // 域重载/重编译防护：热重载会丢 _manager 引用但孤儿屏实例仍在根下
+                // （根下只可能有运行时屏实例，无烘焙内容）——重建前清一次再回主菜单。
+                var rootRect = (RectTransform)transform;
+                for (int i = rootRect.childCount - 1; i >= 0; i--)
+                    Destroy(rootRect.GetChild(i).gameObject);
+
+                _manager = new UIManager(rootRect);
                 _manager.Show<MainMenuScreen>();
             }
-            else
-            {
-                // 编辑器热重载：根节点被替换——UIManager 换根并重建当前界面（导航栈保持）
-                _manager.ReattachRoot(root);
-            }
+        }
+
+        /// <summary>全项目唯一 EventSystem（存在即复用）。</summary>
+        private static void EnsureEventSystem()
+        {
+            if (EventSystem.current != null) return;
+            var existing = FindFirstObjectByType<EventSystem>();
+            if (existing != null) return;
+            var go = new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
+            DontDestroyOnLoad(go);
         }
 
         /// <summary>
-        /// 每帧驱动引擎主循环（结算栈）。对战界面依赖它推进栈/触发结算；
-        /// 非对局进行中时 GameCore.Update 内部自检空转，无副作用。
-        /// 2026-09-24 双驱动闸：同进程宿主网络对局期间停驱——引擎由服务器泵独占驱动，
-        /// 此处再驱会双驱动（响应窗口/触发收集被两路交错管理）。
-        /// 2026-09-26 细化：大厅随 Play 模式自动常驻（NetLobbyHost），只在**对局托管期**
-        /// （HasLiveMatch=等卡组/对战中）停驱——非对局期本地 AI 对战照常由本处帧驱推进。
+        /// 每帧驱动引擎主循环（结算栈）——契约不变：
+        /// 对战界面依赖它推进栈/触发结算；非对局进行中时 GameCore.Update 内部自检空转，无副作用。
+        /// 双驱动闸：对局托管期（HasLiveMatch=等卡组/对战中）停驱——引擎由服务器泵独占驱动；
+        /// 会话服务器运行期同停。非对局期本地 AI 对战照常由本处帧驱推进。
         /// </summary>
         private void Update()
         {
+            // 比赛禁联机（NetGate）：闸关时不可能有服务器托管态，短路直驱引擎
+            if (!CardCore.Network.NetGate.OnlineEnabled)
+            {
+                GameCore.Instance?.Update();
+                return;
+            }
+
             var lobby = CardCore.Network.NetLobbyServer.Current;
             if (lobby != null && lobby.HasLiveMatch)
                 return;

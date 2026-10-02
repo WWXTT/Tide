@@ -70,16 +70,22 @@
   <ItemGroup>
     <Compile Include="Assets\Editor\TextureTools\FTexture Edit Windows\Core\Mesh Paint Brushes\FMeshPaintTexturedBrush.cs" />
     <Compile Include="Assets\Editor\TextureTools\Utilities\FTextureUtils_MenuItems.cs" />
+    <Compile Include="Assets\Editor\验证\UI\UguiHierarchyDump.cs" />
     <Compile Include="Assets\Editor\TextureTools\File Operations\FTex_AdditionalEncoders.cs" />
+    <Compile Include="Assets\Editor\验证\UI\UguiEffectSmoke.cs" />
     <Compile Include="Assets\Editor\TextureTools\FTexture Edit Windows\FMeshPaintWindow.cs" />
     <Compile Include="Assets\Editor\检查\MissingReferenceChecker.cs" />
     <Compile Include="Assets\Editor\验证\NetSession\NetLobbyHost.cs" />
+    <Compile Include="Assets\Editor\验证\UI\UiPrefabBatchReshape.cs" />
+    <Compile Include="Assets\Editor\验证\UI\UguiLayoutProbe.cs" />
     <Compile Include="Assets\Editor\EntityHierarchy\AuthoringTreeView.cs" />
     <Compile Include="Assets\Editor\验证\AI对战\AiBattleDeckWindow.cs" />
     <Compile Include="Assets\Editor\验证\AI对战\BattleDeckSources.cs" />
     <Compile Include="Assets\Editor\TextureTools\FTexture Edit Windows\FBlendToolWindow.cs" />
     <Compile Include="Assets\Editor\TextureTools\Other\MeshCreator.cs" />
     <Compile Include="Assets\Editor\检查\RequiredAttribute.cs" />
+    <Compile Include="Assets\Editor\验证\UI\UguiNavSmoke.cs" />
+    <Compile Include="Assets\Editor\验证\UI\UguiDeckSmoke.cs" />
     <Compile Include="Assets\Editor\验证\AI对战\ThemeDeckBuilder.cs" />
     <Compile Include="Assets\Editor\验证\NetProtocolLoopbackVerifier.cs" />
     <Compile Include="Assets\Editor\TextureTools\FTexture Edit Windows\FTextureEditWindows_MenuItems.cs" />
@@ -89,6 +95,7 @@
     <Compile Include="Assets\Editor\TextureTools\Resize Tools\FResizeTools_MenuItems.cs" />
     <Compile Include="Assets\Editor\验证\BattlefieldVerifier.cs" />
     <Compile Include="Assets\Editor\验证\AI对战\OnnxBatchBattle.cs" />
+    <Compile Include="Assets\Editor\验证\UI\UguiMatchSmoke.cs" />
     <Compile Include="Assets\Editor\验证\AI对战\AiBattleE2E.cs" />
     <Compile Include="Assets\Editor\TextureTools\File Operations\FTex_Methods.cs" />
     <Compile Include="Assets\Editor\TextureTools\FTexture Edit Windows\FHueSaturationCurvesWindow.cs" />
@@ -116,16 +123,19 @@
     <Compile Include="Assets\Editor\TextureTools\Resize Tools\FResizeWindow.cs" />
     <Compile Include="Assets\Editor\EntityHierarchy\EntitySelectionBridge.cs" />
     <Compile Include="Assets\Editor\TextureTools\RGBA Channel Tools\FChannelTools_MenuItems.cs" />
+    <Compile Include="Assets\Editor\验证\UI\UguiComposerSmoke.cs" />
     <Compile Include="Assets\Editor\配置\CreateConfig.cs" />
     <Compile Include="Assets\Editor\TextureTools\FTexture Edit Windows\FNormalToolWindow.cs" />
     <Compile Include="Assets\Editor\TextureTools\Utilities\FTextureQuickConverter.cs" />
     <Compile Include="Assets\Editor\TextureTools\Utilities\FTextureEditorToolsMethods.cs" />
     <Compile Include="Assets\Editor\配置\CollectAllExceptLaunch.cs" />
     <Compile Include="Assets\Editor\TextureTools\Utilities\FTextureToolsGUIUtilities.cs" />
+    <Compile Include="Assets\Editor\验证\UI\ConvertCardPrefabToTmp.cs" />
     <Compile Include="Assets\Editor\TextureTools\FTexture Edit Windows\FSeamlessWindow.cs" />
     <Compile Include="Assets\Editor\TextureTools\Other\NoiseMapGenerator.cs" />
     <Compile Include="Assets\Editor\验证\AI对战\AiBattleE2ETests.cs" />
     <Compile Include="Assets\Editor\EntityHierarchy\EntitySceneGizmos.cs" />
+    <Compile Include="Assets\Editor\验证\UI\UguiBattleSmoke.cs" />
     <Compile Include="Assets\Editor\TextureTools\FTexture Edit Windows\Core\Mesh Paint Brushes\FMeshPaintBrush.cs" />
     <Compile Include="Assets\Editor\TextureTools\Other\NoiseMapGeneratorWindow.cs" />
   </ItemGroup>
@@ -1461,16 +1471,16 @@
       <HintPath>Library\ScriptAssemblies\Unity.Entities.Build.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="UniTask.Linq">
-      <HintPath>Library\ScriptAssemblies\UniTask.Linq.dll</HintPath>
+    <Reference Include="Unity.AppUI">
+      <HintPath>Library\ScriptAssemblies\Unity.AppUI.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.InternalAPIEngineBridge.RenderPipelines.Core.Runtime.Shared">
       <HintPath>Library\ScriptAssemblies\Unity.InternalAPIEngineBridge.RenderPipelines.Core.Runtime.Shared.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Unity.AppUI">
-      <HintPath>Library\ScriptAssemblies\Unity.AppUI.dll</HintPath>
+    <Reference Include="UniTask.Linq">
+      <HintPath>Library\ScriptAssemblies\UniTask.Linq.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.RenderPipelines.Core.Editor.Shared">
@@ -1681,10 +1691,12 @@
     <ProjectReference Include="Unity.SmoothNormalTool.Editor.csproj" />
     <ProjectReference Include="MCPForUnity.Runtime.csproj" />
     <ProjectReference Include="MCPForUnity.Editor.csproj" />
+    <ProjectReference Include="Unity.RenderPipelines.Core.Samples.Editor.csproj" />
     <ProjectReference Include="HexMap.ECS.csproj" />
     <ProjectReference Include="Unity.SmoothNormalTool.Runtime.csproj" />
     <ProjectReference Include="Tide.HotUpdate.csproj" />
     <ProjectReference Include="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
+    <ProjectReference Include="Unity.RenderPipelines.Core.Samples.Runtime.csproj" />
   </ItemGroup>
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
   <ItemGroup>

@@ -19,12 +19,15 @@ namespace Tide.HotUpdate
         /// Assembly-CSharp，热更程序集无法反向引用只能双源常量：改包名两处一起改。</summary>
         public const string DefaultPackageName = "DefaultPackage";
 
+#if TIDE_HYBRID_YOO
         private static readonly List<YooAsset.AssetHandle> _keepAlive = new List<YooAsset.AssetHandle>();
+#endif
 
         /// <summary>按 YooAsset 地址加载资产（AddressByFileName=文件名不含扩展名）。
         /// editorAssetPath 为编辑器兜底的完整资产路径（"Assets/..."），仅编辑器生效。</summary>
         public static T Load<T>(string address, string editorAssetPath) where T : Object
         {
+#if TIDE_HYBRID_YOO
             // YooAsset：包未初始化/收集器未配置时抛异常或返回失败句柄，捕获后回落，
             // 不阻断编辑器直启流程（同 OnnxTidePolicy 口径）。
             try
@@ -47,6 +50,7 @@ namespace Tide.HotUpdate
             {
                 // 未配置 YooAsset（编辑器直启 Main），走兜底
             }
+#endif
 
 #if UNITY_EDITOR
             return UnityEditor.AssetDatabase.LoadAssetAtPath<T>(editorAssetPath);
@@ -60,6 +64,7 @@ namespace Tide.HotUpdate
         /// 不走资产缓存，保持"直改 JSON 后 Reload 免重启"的直读语义。</summary>
         public static string LoadText(string address, string editorJsonRelativePath)
         {
+#if TIDE_HYBRID_YOO
             try
             {
                 YooAsset.ResourcePackage package;
@@ -80,6 +85,7 @@ namespace Tide.HotUpdate
             {
                 // 未配置 YooAsset（编辑器直启 Main），走兜底
             }
+#endif
 
 #if UNITY_EDITOR
             string path = Path.Combine(Application.dataPath, editorJsonRelativePath);

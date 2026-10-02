@@ -6,8 +6,9 @@ using CardCore.Attribute;
 using CardCore.Network;
 using CardCore.Serialization;
 using Cysharp.Threading.Tasks;
-using HexMap;
-using UnityEngine.UIElements;
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 namespace SynergyUI
 {
@@ -38,18 +39,17 @@ namespace SynergyUI
     }
 
     /// <summary>
-    /// 对战界面（2026-09-24 阶段四重做，2D HUD 双模式）：
+    /// 对战界面（2026-10-01 预制体化：静态层级来自 Assets/Art/UI/BattleUI.prefab，Build 深度按名
+    /// 绑定；战场格子/手牌槽复用烘焙节点（按序对应棋盘 x 位），战报行/弹窗运行时构建）。
     /// 本地 AI（GameCore/GameActions 直连）与网络（MsgGameStateSync 快照全量渲染 +
     /// NetEventBatch 中文战报 + intent 上行 + SelectRequest 反问弹窗 + PassPriority 让行）。
     /// 战场格子化：13×8 棋盘的双方 2×9 单位区 + 1×9 地牌行按 z 序纵向铺开、奇数行
-    /// 半格偏移（odd-r 六角视觉）——箭头光环的位置语义可见；本地格位=BoardState 权威，
-    /// 网络=ZoneCards 列表序按 BoardLayout 同规重建（零协议改动）。
-    /// 交互语义沿用旧屏（模式选择时序/目标弹窗/攻击开窗/响应窗口），旧 Battle.uxml 不复用。
+    /// 半格偏移（odd-r 六角视觉）；本地格位=BoardState 权威，网络=ZoneCards 列表序
+    /// 按 BoardLayout 同规重建（零协议改动）。卡面=ACard.prefab 挂进槽位
+    /// （CardOverlayController 池化管理）。
     /// </summary>
     public sealed class BattleScreen : UIScreen
     {
-        public override string UxmlResourcePath => "UXML/Battle";
-
         private BattleController _ctrl;                 // 本地模式
         private NetGameClient _net;                     // 网络模式
         private BattleViewData _view;                   // 当前视图（渲染唯一输入）
@@ -61,13 +61,103 @@ namespace SynergyUI
         private bool _running;
         private bool _gameEnded;
 
-        // UGUI 卡牌层绑定（方案2：卡面=UGUI SSO Canvas 压 UITK；卡位=UITK 占位槽，RefreshView 全量重建）
+        // UGUI 卡牌层绑定（卡面挂屏内槽位；RefreshView 全量重建收集）
         private readonly List<CardOverlayBinding> _cardBindings = new List<CardOverlayBinding>();
+
+        // ---- 控件引用（Build 填充） ----
+        private TMP_Text _lblMode, _lblToast;
+        private TMP_Text _lblPhase, _lblStack, _lblPriority, _lblActivation;
+        private Button _btnGrave, _btnSkill, _btnPass, _btnEnd, _btnConcede;
+        private RectTransform _oppLands, _oppUnitsNear, _oppUnitsFar;
+        private RectTransform _selfUnitsFar, _selfUnitsNear, _selfLands;
+        private RectTransform _selfHand;
+        private UiKit.Scroll _logList;
+        private RectTransform _overlay, _selectorLayer;
+        private UiKit.Modal _modal;                     // 当前通用弹窗（选择/模式/响应/胜负）
+        private Button _overlayCancel;
+
+        // 信息栏动态文本（FillBar 刷新）
+        private TMP_Text _oppName, _oppLife, _oppDeck, _oppHand, _oppGrave, _oppFatigue, _oppBank;
+        private TMP_Text _selfName, _selfLife, _selfDeck, _selfHandCount, _selfGrave, _selfFatigue, _selfBank;
+        private TMP_Text _oppSkillLabel, _selfSkillLabel;
+        private CanvasGroup _oppSkillGroup, _selfSkillGroup;
 
         private bool IsNetwork => BattleEntry.Mode == BattleMode.Network;
         private GameCore Core => _ctrl?.Core;
         private Player P1 => _ctrl?.P1;
         private Player P2 => _ctrl?.P2;
+
+        // ======================================== 构建 ========================================
+
+        protected override string PrefabAddress => "BattleUI";
+        protected override string PrefabAssetPath => "Assets/Art/UI/BattleUI.prefab";
+        protected override string RootName => "battle";
+
+        protected override void Build()
+        {
+            _overlay = Find("overlay") ?? UiKit.Overlay("overlay", Root);
+            _selectorLayer = Find("selector-overlay") ?? UiKit.Overlay("selector-overlay", Root);
+
+            // ---- 工具栏 ----
+            BindButton("btn-back", OnBack);
+            _lblMode = FindText("lbl-mode");
+            _lblToast = FindText("lbl-toast");
+
+            // ---- 对手信息栏（上）----
+            _oppName = FindText("lbl-opp-name");
+            _oppLife = FindText("lbl-opp-life");
+            _oppDeck = FindText("lbl-opp-deck");
+            _oppHand = FindText("lbl-opp-hand");
+            _oppGrave = FindText("lbl-opp-grave");
+            _oppFatigue = FindText("lbl-opp-fatigue");
+            (_oppSkillLabel, _oppSkillGroup) = BindSkillChip("opp-skill");
+            _oppBank = FindText("lbl-opp-bank");
+
+            // ---- 战场六行（对手在上；odd-r 奇数行右偏半格）----
+            _oppLands = Find("opp-lands");
+            _oppUnitsNear = Find("opp-units-near");
+            _oppUnitsFar = Find("opp-units-far");
+
+            // ---- 中区：回合/阶段/栈/操作 ----
+            _lblPhase = FindText("lbl-phase");
+            _lblStack = FindText("lbl-stack");
+            _lblPriority = FindText("lbl-priority");
+            _lblActivation = FindText("lbl-activation");
+            _btnGrave = BindButton("btn-grave-play", OnGraveyardPlay);
+            _btnSkill = BindButton("btn-activate-skill", OnActivateSkill);
+            _btnPass = BindButton("btn-pass-priority", OnPassPriority);
+            _btnEnd = BindButton("btn-end-turn", OnEndTurn);
+            _btnConcede = BindButton("btn-concede", OnConcede);
+
+            _selfUnitsFar = Find("self-units-far");
+            _selfUnitsNear = Find("self-units-near");
+            _selfLands = Find("self-lands");
+
+            // ---- 我方信息栏（下）----
+            (_selfSkillLabel, _selfSkillGroup) = BindSkillChip("self-skill");
+            _selfBank = FindText("lbl-self-bank");
+            _selfFatigue = FindText("lbl-self-fatigue");
+            _selfGrave = FindText("lbl-self-grave");
+            _selfDeck = FindText("lbl-self-deck");
+            _selfHandCount = FindText("lbl-self-hand");
+            _selfLife = FindText("lbl-self-life");
+            _selfName = FindText("lbl-self-name");
+
+            // ---- 我方手牌条 / 战报栏（右）----
+            _selfHand = Find("self-hand");
+            _logList = FindScroll("log-list");
+        }
+
+        /// <summary>技能 chip 绑定（文本在子 label；CanvasGroup 缺失则补挂）。</summary>
+        private (TMP_Text label, CanvasGroup group) BindSkillChip(string name)
+        {
+            var rt = Find(name);
+            if (rt == null) return (null, null);
+            var lbl = rt.GetComponentInChildren<TMP_Text>(true);
+            var group = rt.GetComponent<CanvasGroup>();
+            if (group == null) group = rt.gameObject.AddComponent<CanvasGroup>();
+            return (lbl, group);
+        }
 
         // ======================================== 生命周期 ========================================
 
@@ -81,17 +171,17 @@ namespace SynergyUI
             _netRoomPhase = -1;
             _view = null;
             _running = true;
+            _modal = null;
 
-            UIBinder.BindButton(Root, "btn-back", OnBack);
-            UIBinder.BindButton(Root, "btn-grave-play", OnGraveyardPlay);
-            UIBinder.BindButton(Root, "btn-activate-skill", OnActivateSkill);
-            UIBinder.BindButton(Root, "btn-pass-priority", OnPassPriority);
-            UIBinder.BindButton(Root, "btn-end-turn", OnEndTurn);
-            UIBinder.BindButton(Root, "btn-concede", OnConcede);
-            UIBinder.BindButton(Root, "overlay-cancel", OnOverlayCancel);
+            // 比赛禁联机（NetGate）：网络模式入口已全部屏蔽，此处防御性回落——
+            // 万一 Mode 被残留置为 Network（如旧状态/外部注入），也按本地 AI 开局，绝不外连
+            if (IsNetwork && !NetGate.OnlineEnabled)
+                BattleEntry.Mode = BattleMode.LocalAI;
 
-            Q<Button>("btn-pass-priority").style.display = IsNetwork ? DisplayStyle.Flex : DisplayStyle.None;
-            Q<Label>("lbl-mode").text = IsNetwork ? $"网络 · {BattleEntry.Host}:{BattleEntry.Port}" : "本地 · AI";
+            if (_lblMode != null)
+                _lblMode.text = IsNetwork ? $"网络 · {BattleEntry.Host}:{BattleEntry.Port}" : "本地 · AI";
+            if (_btnPass != null)
+                _btnPass.gameObject.SetActive(IsNetwork);
 
             if (IsNetwork)
                 StartNetAsync().Forget();
@@ -115,7 +205,7 @@ namespace SynergyUI
             if (ResponseWindowService.HumanResponder == ShowResponsePopupAsync)
                 ResponseWindowService.HumanResponder = null;
 
-            // UGUI 卡牌层回收（卡面 GameObject 独立于 UITK 树，切屏必须显式清）
+            // UGUI 卡牌层回收（卡面独立于界面树池化，切屏必须显式清）
             CardOverlayController.ClearActive();
         }
 
@@ -146,7 +236,7 @@ namespace SynergyUI
             Subscribe<GameOverEvent>(OnGameOver);
 
             // 通用目标选择器（效果引擎结算期反问）
-            TargetSelectionService.Current = new UiTargetSelector(Root);
+            TargetSelectionService.Current = new UiTargetSelector(_selectorLayer);
             // 响应窗口（发动弹窗）：人类候选→简版选择弹窗
             ResponseWindowService.HumanResponder = ShowResponsePopupAsync;
 
@@ -170,8 +260,8 @@ namespace SynergyUI
         {
             _gameEnded = true;
             bool win = e.Winner == P1;
-            ShowOverlay(win ? "胜利" : "失败", $"{(win ? "我方" : "对手")}获胜（{e.Reason}）。", null, null);
-            Q<Button>("overlay-cancel").text = "返回主菜单";
+            ShowOverlay(win ? "胜利" : "失败", $"{(win ? "我方" : "对手")}获胜（{e.Reason}）。");
+            SetCancelText("返回主菜单");
             RefreshLocal();
         }
 
@@ -204,7 +294,7 @@ namespace SynergyUI
                 }
                 catch (Exception ex)
                 {
-                    ShowOverlay("连接失败", $"{BattleEntry.Host}:{BattleEntry.Port} — {ex.Message}", null, null);
+                    ShowOverlay("连接失败", $"{BattleEntry.Host}:{BattleEntry.Port} — {ex.Message}");
                     return;
                 }
 
@@ -269,6 +359,8 @@ namespace SynergyUI
             RefreshView();
         }
 
+        private int _lastViewerSeat;
+
         private void OnNetEventBatch(NetEvent[] events)
         {
             int viewer = _lastViewerSeat; // viewerSeat 以最新快照为准
@@ -288,13 +380,11 @@ namespace SynergyUI
                     var winnerRef = winnerParam != null && winnerParam.EntityRefs != null && winnerParam.EntityRefs.Length > 0
                         ? winnerParam.EntityRefs[0] : null;
                     bool win = winnerRef != null && winnerRef.IsPlayer && winnerRef.Seat == viewer;
-                    ShowOverlay(win ? "胜利" : "失败", "对局结束。", null, null);
-                    Q<Button>("overlay-cancel").text = "返回主菜单";
+                    ShowOverlay(win ? "胜利" : "失败", "对局结束。");
+                    SetCancelText("返回主菜单");
                 }
             }
         }
-
-        private int _lastViewerSeat;
 
         private void OnNetSelectRequest(MsgSelectRequest req)
         {
@@ -322,7 +412,7 @@ namespace SynergyUI
                     if (labels.Count == 0)
                         picked = new List<int>();
                     else
-                        picked = await new UiTargetSelector(Root).SelectIndicesAsync(
+                        picked = await new UiTargetSelector(_selectorLayer).SelectIndicesAsync(
                             labels, min, max,
                             string.IsNullOrEmpty(req.Title) ? "请选择" : req.Title,
                             req.Hint ?? "", req.AllowCancel,
@@ -352,119 +442,119 @@ namespace SynergyUI
             var d = _view;
             if (d == null) return;
 
-            _cardBindings.Clear(); // UGUI 卡牌层绑定随全量重建收集（BuildHexRow/BuildHand 填充）
+            _cardBindings.Clear(); // 卡牌层绑定随全量重建收集（BuildHexRow/BuildHand 填充）
 
             // 观众席记录（网络事件文本用）
             if (IsNetwork && _view.NetViewerSeat >= 0) _lastViewerSeat = _view.NetViewerSeat;
 
             // 信息栏
-            FillBar(d.Opp, "lbl-opp", "opp-skill", oppSide: true);
-            FillBar(d.Self, "lbl-self", "self-skill", oppSide: false);
+            FillBar(d.Opp, opp: true);
+            FillBar(d.Self, opp: false);
 
             // 战场（行序=棋盘 z 序；对手在上）
-            BuildHexRow(Q<VisualElement>("opp-lands"), d.OppLands, z: 1, mine: false, isLand: true);
-            BuildHexRow(Q<VisualElement>("opp-units-near"), d.OppUnits, z: 2, mine: false, isLand: false);
-            BuildHexRow(Q<VisualElement>("opp-units-far"), d.OppUnits, z: 3, mine: false, isLand: false);
-            BuildHexRow(Q<VisualElement>("self-units-far"), d.SelfUnits, z: 4, mine: true, isLand: false);
-            BuildHexRow(Q<VisualElement>("self-units-near"), d.SelfUnits, z: 5, mine: true, isLand: false);
-            BuildHexRow(Q<VisualElement>("self-lands"), d.SelfLands, z: 6, mine: true, isLand: true);
+            BuildHexRow(_oppLands, d.OppLands, z: 1, mine: false, isLand: true);
+            BuildHexRow(_oppUnitsNear, d.OppUnits, z: 2, mine: false, isLand: false);
+            BuildHexRow(_oppUnitsFar, d.OppUnits, z: 3, mine: false, isLand: false);
+            BuildHexRow(_selfUnitsFar, d.SelfUnits, z: 4, mine: true, isLand: false);
+            BuildHexRow(_selfUnitsNear, d.SelfUnits, z: 5, mine: true, isLand: false);
+            BuildHexRow(_selfLands, d.SelfLands, z: 6, mine: true, isLand: true);
 
             // 中栏
-            Q<Label>("lbl-phase").text = d.PhaseText;
-            Q<Label>("lbl-stack").text = string.Join(" ｜ ", d.StackLines);
-            Q<Label>("lbl-priority").text = d.StackNotEmpty && d.MyPriority ? "◇ 优先权在我（可响应/让行）" : "";
-            Q<Label>("lbl-activation").text = d.ActivationTexts.Count > 0 ? string.Join("；", d.ActivationTexts) : "";
+            _lblPhase.text = d.PhaseText;
+            _lblStack.text = string.Join(" ｜ ", d.StackLines);
+            _lblPriority.text = d.StackNotEmpty && d.MyPriority ? "◇ 优先权在我（可响应/让行）" : "";
+            _lblActivation.text = d.ActivationTexts.Count > 0 ? string.Join("；", d.ActivationTexts) : "";
 
             // 我方手牌
             BuildHand(d);
 
             UpdateButtons(d);
 
-            // UGUI 卡牌层重绑：卡位=本视图刚建好的占位槽；overlay/selector-overlay 任一可见
-            // 即整层隐藏（SSO 恒压 UITK——UITK 弹窗盖不过卡面，只能反向让层）
-            CardOverlayController.Instance.Bind(_cardBindings,
-                suppressors: new List<VisualElement> { Q<VisualElement>("overlay"), Q<VisualElement>("selector-overlay") });
+            // 卡牌层挂载：卡实例直接挂进本视图刚建好的槽位
+            CardOverlayController.Instance.Bind(_cardBindings);
         }
 
-        private void FillBar(BattlePlayerView p, string prefix, string skillName, bool oppSide)
+        private void FillBar(BattlePlayerView p, bool opp)
         {
             string aiTag = p.IsAI ? "（AI）" : "";
-            Q<Label>($"{prefix}-name").text = oppSide ? $"对手{aiTag}" : "我方";
-            Q<Label>($"{prefix}-life").text = $"生命 {p.Life}/{p.MaxHealth}";
-            Q<Label>($"{prefix}-deck").text = $"牌库 {p.DeckCount}";
-            Q<Label>($"{prefix}-hand").text = $"手牌 {p.HandCount}";
-            Q<Label>($"{prefix}-grave").text = $"墓地 {p.GraveyardCount}";
-            Q<Label>($"{prefix}-fatigue").text = p.FatigueCount > 0 ? $"疲劳 {p.FatigueCount}" : "";
-            Q<Label>($"{prefix}-bank").text = $"地牌上限 {p.LandCap} · 元素池 {p.BankText}";
-
-            var chip = Q<VisualElement>(skillName);
-            chip.Clear();
-            if (p.Skill != null)
+            if (opp)
             {
-                var lbl = new Label($"技能：{p.Skill.Name}{(p.Skill.IsTapped ? "（已横置）" : "")} {p.Skill.CostText}");
-                chip.Add(lbl);
-                if (p.Skill.IsTapped) chip.AddToClassList("skill-chip--tapped");
-                else chip.RemoveFromClassList("skill-chip--tapped");
+                _oppName.text = $"对手{aiTag}";
+                _oppLife.text = $"生命 {p.Life}/{p.MaxHealth}";
+                _oppDeck.text = $"牌库 {p.DeckCount}";
+                _oppHand.text = $"手牌 {p.HandCount}";
+                _oppGrave.text = $"墓地 {p.GraveyardCount}";
+                _oppFatigue.text = p.FatigueCount > 0 ? $"疲劳 {p.FatigueCount}" : "";
+                _oppBank.text = $"地牌上限 {p.LandCap} · 元素池 {p.BankText}";
+                if (_oppSkillLabel != null)
+                    _oppSkillLabel.text = p.Skill != null
+                        ? $"技能：{p.Skill.Name}{(p.Skill.IsTapped ? "（已横置）" : "")} {p.Skill.CostText}"
+                        : "技能：—";
+                if (_oppSkillGroup != null)
+                    _oppSkillGroup.alpha = p.Skill != null && p.Skill.IsTapped ? 0.45f : 1f;
             }
             else
             {
-                chip.Add(new Label("技能：—"));
+                _selfName.text = "我方";
+                _selfLife.text = $"生命 {p.Life}/{p.MaxHealth}";
+                _selfDeck.text = $"牌库 {p.DeckCount}";
+                _selfHandCount.text = $"手牌 {p.HandCount}";
+                _selfGrave.text = $"墓地 {p.GraveyardCount}";
+                _selfFatigue.text = p.FatigueCount > 0 ? $"疲劳 {p.FatigueCount}" : "";
+                _selfBank.text = $"地牌上限 {p.LandCap} · 元素池 {p.BankText}";
+                if (_selfSkillLabel != null)
+                    _selfSkillLabel.text = p.Skill != null
+                        ? $"技能：{p.Skill.Name}{(p.Skill.IsTapped ? "（已横置）" : "")} {p.Skill.CostText}"
+                        : "技能：—";
+                if (_selfSkillGroup != null)
+                    _selfSkillGroup.alpha = p.Skill != null && p.Skill.IsTapped ? 0.45f : 1f;
             }
         }
 
-        /// <summary>一行 9 格（x=2..10）；空格=底座，有卡嵌占位槽（卡面由 UGUI 层渲染）。</summary>
-        private void BuildHexRow(VisualElement row, List<BattleCardView> cards, int z, bool mine, bool isLand)
+        /// <summary>一行 9 格（x=2..10）：复用预制体烘焙 cell（按序对应 x，保留用户样式调整）；
+        /// 不足补建、多余销毁。空格=底座，有卡则卡实例挂满该格。</summary>
+        private void BuildHexRow(RectTransform row, List<BattleCardView> cards, int z, bool mine, bool isLand)
         {
-            row.Clear();
-            for (int x = 2; x <= 10; x++)
+            if (row == null) return;
+            float w = isLand ? 76f : 96f;
+            float h = isLand ? 62f : 74f;
+            EnsureChildCount(row, 9, "cell", w, h);
+
+            for (int i = 0; i < row.childCount; i++)
             {
-                var cell = new VisualElement();
-                cell.AddToClassList("hex-cell");
-                if (isLand) cell.AddToClassList("hex-cell--land");
+                var cell = (RectTransform)row.GetChild(i);
+                ClearChildren(cell); // 清烘焙残留；卡面实例随后由 CardOverlayController 挂入
 
-                var card = cards.FirstOrDefault(c => c.X == x && c.Z == z);
-                if (card != null)
+                var card = cards.FirstOrDefault(c => c.X == i + 2 && c.Z == z);
+                if (card == null) continue;
+
+                // 点击语义不变（我方单位=攻击开窗、我方地牌=产元素；对方卡不可点）
+                var captured = card;
+                _cardBindings.Add(new CardOverlayBinding
                 {
-                    var slot = MakeCardSlot(isLand, handSlot: false);
-                    cell.Add(slot);
-
-                    // 点击语义不变（我方单位=攻击开窗、我方地牌=产元素；对方卡不可点）
-                    var captured = card;
-                    _cardBindings.Add(new CardOverlayBinding
-                    {
-                        Slot = slot,
-                        Item = CardOverlayItem.FromBattle(captured,
-                            isLand ? CardOverlayLayout.Land : CardOverlayLayout.Compact),
-                        Layout = isLand ? CardOverlayLayout.Land : CardOverlayLayout.Compact,
-                        OnClick = mine
-                            ? (isLand ? (Action)(() => OnClickMyLand(captured)) : () => OnClickMyUnit(captured))
-                            : null,
-                    });
-                }
-
-                row.Add(cell);
+                    Slot = cell,
+                    Item = CardOverlayItem.FromBattle(captured,
+                        isLand ? CardOverlayLayout.Land : CardOverlayLayout.Compact),
+                    Layout = isLand ? CardOverlayLayout.Land : CardOverlayLayout.Compact,
+                    OnClick = mine
+                        ? (isLand ? (Action)(() => OnClickMyLand(captured)) : () => OnClickMyUnit(captured))
+                        : null,
+                });
             }
         }
 
-        /// <summary>卡位占位槽（UGUI 卡牌层）：只定几何——战场沿用 battle-card 尺寸、手牌竖版槽；
-        /// pickingMode=Ignore 防 UITK 双响应；名称/费用/箭头/标记等视觉全部由上层 UGUI 卡承担。</summary>
-        private VisualElement MakeCardSlot(bool isLand, bool handSlot)
-        {
-            var el = new VisualElement();
-            el.AddToClassList(handSlot ? "battle-hand-slot" : "battle-card");
-            if (isLand) el.style.width = Length.Percent(100);
-            el.pickingMode = PickingMode.Ignore;
-            return el;
-        }
-
+        /// <summary>手牌条：复用预制体烘焙 hand-slot（数量随手牌增删——不足补建、多余销毁）。</summary>
         private void BuildHand(BattleViewData d)
         {
-            var hand = Q<VisualElement>("self-hand");
-            hand.Clear();
-            foreach (var card in d.SelfHand)
+            if (_selfHand == null) return;
+            int count = d.SelfHand?.Count ?? 0;
+            EnsureChildCount(_selfHand, count, "hand-slot", 132f, 184f);
+
+            for (int i = 0; i < count; i++)
             {
-                var captured = card;
-                var slot = MakeCardSlot(isLand: false, handSlot: true);
+                var slot = (RectTransform)_selfHand.GetChild(i);
+                ClearChildren(slot);
+                var captured = d.SelfHand[i];
                 _cardBindings.Add(new CardOverlayBinding
                 {
                     Slot = slot,
@@ -472,7 +562,29 @@ namespace SynergyUI
                     Layout = CardOverlayLayout.Full,
                     OnClick = () => OnClickHandCard(captured),
                 });
-                hand.Add(slot);
+            }
+        }
+
+        /// <summary>子节点数量对齐（复用预制体烘焙子物体；多余摘父销毁、缺失代码补建默认样式）。</summary>
+        private static void EnsureChildCount(RectTransform parent, int count, string childName, float w, float h)
+        {
+            while (parent.childCount > count)
+            {
+                var last = parent.GetChild(parent.childCount - 1);
+                last.SetParent(null);
+                UnityEngine.Object.Destroy(last.gameObject);
+            }
+            while (parent.childCount < count)
+            {
+                var rt = UiKit.Node(childName, parent);
+                var img = rt.gameObject.AddComponent<Image>();
+                img.sprite = UiKit.RoundedSprite;
+                img.type = Image.Type.Sliced;
+                img.color = UiStyle.CellBg;
+                var ol = rt.gameObject.AddComponent<Outline>();
+                ol.effectColor = new Color(38f / 255f, 42f / 255f, 51f / 255f, 1f);
+                ol.effectDistance = Vector2.one;
+                UiKit.Size(rt, w: w, h: h);
             }
         }
 
@@ -480,15 +592,13 @@ namespace SynergyUI
         {
             bool myMain = d.MyTurn && d.Phase == PhaseType.Main && !_gameEnded;
 
-            SetEnabled("btn-grave-play", myMain && d.Self.GraveyardCount > 0);
+            _btnGrave.interactable = myMain && d.Self.GraveyardCount > 0;
             // 网络协议无技能 intent 通道（IntentActivateEffect 寻址卡面效果定义，技能卡不挂原子）——本地可用，网络暂禁
-            SetEnabled("btn-activate-skill", !IsNetwork && myMain && !_gameEnded);
-            SetEnabled("btn-pass-priority", IsNetwork && d.StackNotEmpty && d.MyPriority && !_gameEnded);
-            SetEnabled("btn-end-turn", d.MyTurn && !_gameEnded);
-            SetEnabled("btn-concede", !_gameEnded);
+            _btnSkill.interactable = !IsNetwork && myMain && !_gameEnded;
+            _btnPass.interactable = IsNetwork && d.StackNotEmpty && d.MyPriority && !_gameEnded;
+            _btnEnd.interactable = d.MyTurn && !_gameEnded;
+            _btnConcede.interactable = !_gameEnded;
         }
-
-        private void SetEnabled(string name, bool enabled) => Q<Button>(name).SetEnabled(enabled);
 
         // ======================================== 操作派发（本地直调 GameActions / 网络转 intent） ========================================
 
@@ -956,55 +1066,84 @@ namespace SynergyUI
 
         private void ShowPickOverlay(string title, string hint, List<Tuple<string, Action>> options)
         {
-            Q<Button>("overlay-cancel").text = "取消";
-            Q<Label>("overlay-title").text = title;
-            Q<Label>("overlay-hint").text = hint;
-            var list = Q<ScrollView>("overlay-list");
-            list.Clear();
+            _modal?.Close();
+            _modal = UiKit.ModalBox(_overlay, title, width: 460f, height: 460f);
+            UiKit.Label("hint", _modal.Panel, hint, UiStyle.SmallSize, UiStyle.TextDim, wrap: true);
+            var list = UiKit.ScrollColumn("list", _modal.Panel, spacing: 4f);
+            UiKit.Size(list.Rect.transform, fw: 1f, fh: 1f);
             foreach (var opt in options)
             {
-                var row = new VisualElement();
-                row.AddToClassList("list-row");
-                var label = new Label(opt.Item1);
-                label.AddToClassList("list-row__name");
-                row.Add(label);
                 var captured = opt;
-                row.RegisterCallback<ClickEvent>(_ => captured.Item2());
-                list.Add(row);
+                AddOverlayRow(list.Content, opt.Item1, () => { captured.Item2(); });
             }
-            Q<VisualElement>("overlay").style.display = DisplayStyle.Flex;
+            AddCancelButton();
         }
 
         private void ShowChoiceOverlay(string title, string hint, List<string> options, Action<int> onPick)
         {
-            var list = Q<ScrollView>("overlay-list");
-            Q<Button>("overlay-cancel").text = "取消";
-            Q<Label>("overlay-title").text = title;
-            Q<Label>("overlay-hint").text = hint;
-            list.Clear();
+            _modal?.Close();
+            _modal = UiKit.ModalBox(_overlay, title, width: 460f, height: 460f);
+            UiKit.Label("hint", _modal.Panel, hint, UiStyle.SmallSize, UiStyle.TextDim, wrap: true);
+            var list = UiKit.ScrollColumn("list", _modal.Panel, spacing: 4f);
+            UiKit.Size(list.Rect.transform, fw: 1f, fh: 1f);
             for (int i = 0; i < options.Count; i++)
             {
                 var idx = i;
-                var row = new VisualElement();
-                row.AddToClassList("list-row");
-                var label = new Label(options[idx]);
-                label.AddToClassList("list-row__name");
-                row.Add(label);
-                row.RegisterCallback<ClickEvent>(_ => onPick(idx));
-                list.Add(row);
+                AddOverlayRow(list.Content, options[idx], () => onPick(idx));
             }
-            Q<VisualElement>("overlay").style.display = DisplayStyle.Flex;
+            AddCancelButton();
         }
 
-        private void ShowOverlay(string title, string hint, List<Entity> unused, Action<Entity> unusedPick)
+        private void ShowOverlay(string title, string hint)
         {
-            Q<Label>("overlay-title").text = title;
-            Q<Label>("overlay-hint").text = hint;
-            Q<ScrollView>("overlay-list").Clear();
-            Q<VisualElement>("overlay").style.display = DisplayStyle.Flex;
+            _modal?.Close();
+            _modal = UiKit.ModalBox(_overlay, title, width: 460f, height: 260f);
+            UiKit.Label("hint", _modal.Panel, hint, UiStyle.SmallSize, UiStyle.TextDim, wrap: true);
+            AddCancelButton();
         }
 
-        private void CloseOverlay() => Q<VisualElement>("overlay").style.display = DisplayStyle.None;
+        private void AddCancelButton()
+        {
+            var bar = UiKit.Row("bar", _modal.Panel, spacing: 8f);
+            var spacer = UiKit.Label("spacer", bar, "");
+            UiKit.Size(spacer, fw: 1f);
+            _overlayCancel = UiKit.Button("overlay-cancel", bar, "取消", OnOverlayCancel, height: 34f);
+        }
+
+        private void SetCancelText(string text)
+        {
+            if (_overlayCancel != null)
+            {
+                var lbl = _overlayCancel.GetComponentInChildren<TMP_Text>();
+                if (lbl != null) lbl.text = text;
+                var le = _overlayCancel.GetComponent<LayoutElement>();
+                if (le != null) le.preferredWidth = lbl.preferredWidth + 28f;
+            }
+        }
+
+        private void AddOverlayRow(RectTransform content, string text, Action onClick)
+        {
+            var row = UiKit.Node("row", content);
+            var img = row.gameObject.AddComponent<Image>();
+            img.sprite = UiKit.RoundedSprite;
+            img.type = Image.Type.Sliced;
+            img.color = UiStyle.RowBg;
+            var lbl = UiKit.Label("label", row, text, UiStyle.BodySize, UiStyle.TextBody,
+                TextAnchor.MiddleLeft);
+            UiKit.StretchInset(lbl.rectTransform, 10f, 4f);
+            var btn = row.gameObject.AddComponent<Button>();
+            btn.transition = Selectable.Transition.None;
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(() => onClick());
+            UiKit.Size(row, h: 38f);
+        }
+
+        private void CloseOverlay()
+        {
+            _modal?.Close();
+            _modal = null;
+            _overlayCancel = null;
+        }
 
         private void OnOverlayCancel()
         {
@@ -1033,23 +1172,32 @@ namespace SynergyUI
             return c != null ? c.ToString() : "?";
         }
 
-        private void ShowToast(string message) => Q<Label>("lbl-toast").text = message;
+        private void ShowToast(string message) => _lblToast.text = message;
 
         // ======================================== 战报 ========================================
 
         private void AppendLog(string text, string cls)
         {
             if (string.IsNullOrEmpty(text)) return;
-            var list = Q<ScrollView>("log-list");
-            if (list == null) return;
+            if (_logList?.Content == null) return;
 
-            var line = new Label(text);
-            line.AddToClassList("log-line");
-            if (!string.IsNullOrEmpty(cls)) line.AddToClassList(cls);
-            list.Add(line);
+            var (color, style) = cls switch
+            {
+                "log-line--turn" => (UiStyle.LogTurn, FontStyle.Bold),
+                "log-line--combat" => (UiStyle.LogCombat, FontStyle.Normal),
+                "log-line--system" => (UiStyle.LogSystem, FontStyle.Normal),
+                _ => (UiStyle.LogBase, FontStyle.Normal),
+            };
+            var line = UiKit.Label("line", _logList.Content, text, UiStyle.MiniSize, color, style: style, wrap: true);
+            UiKit.Size(line, fw: 1f);
 
-            while (list.childCount > 300) list.RemoveAt(0);
-            list.ScrollTo(line);
+            while (_logList.Content.childCount > 300)
+            {
+                var first = _logList.Content.GetChild(0);
+                first.SetParent(null);
+                UnityEngine.Object.Destroy(first.gameObject);
+            }
+            _logList.ScrollToBottom();
         }
 
         // ======================================== 声明期目标原子（本地；沿用旧语义） ========================================
@@ -1101,6 +1249,17 @@ namespace SynergyUI
                 }
             }
             return labels;
+        }
+
+        /// <summary>清空容器（先摘父再 Destroy，防 Destroy 延迟导致的同帧占位）。</summary>
+        private static void ClearChildren(RectTransform container)
+        {
+            for (int i = container.childCount - 1; i >= 0; i--)
+            {
+                var child = container.GetChild(i);
+                child.SetParent(null);
+                UnityEngine.Object.Destroy(child.gameObject);
+            }
         }
     }
 }

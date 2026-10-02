@@ -4,13 +4,17 @@ using System.Linq;
 using CardCore;
 using CardCore.Attribute;
 using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEngine.UI;
+using TMPro;
+using UInputField = TMPro.TMP_InputField;
 
 namespace SynergyUI
 {
     /// <summary>
-    /// 卡牌合成界面（2026-09-24 重做）——三栏：左=卡池预览（生物/法术分组，颜色过滤+搜索+
-    /// 全局排序），中=卡牌表单（类型/攻血/耐久/代价栏/算费），右=挂载效果+关键词。
+    /// 卡牌合成界面（2026-10-01 预制体化：静态层级来自 Assets/Art/UI/CardUI.prefab，
+    /// Build 深度按名绑定+闭包接线；滚动列表行/动态表单/代价栏运行时重建）——三栏：
+    /// 左=卡池预览（生物/法术分组，颜色过滤+搜索+全局排序），中=卡牌表单（类型/攻血/耐久/代价栏/算费），
+    /// 右=挂载效果+关键词。
     ///
     /// 数据模型（2026-09-24 关键词引用化定案）：卡只做卡层增量（名称/类型/身材/耐久/声明费/代价栏），
     /// 效果与关键词全部走 effectIds 引用——**直接引用原子 refId=本体关键词**（本界面关键词区），
@@ -20,8 +24,9 @@ namespace SynergyUI
     /// </summary>
     public sealed class CardComposerScreen : UIScreen
     {
-        public override string UxmlResourcePath => "UXML/CardComposer";
-
+        protected override string PrefabAddress => "CardUI";
+        protected override string PrefabAssetPath => "Assets/Art/UI/CardUI.prefab";
+        protected override string RootName => "card-composer";
         // 业务类型（UI 维度，非裸 Cardtype）：法术分为瞬间（常规魔法）与结界（耐久体）。
         private enum CardKind { Creature, Spell, Enchantment }
 
@@ -44,55 +49,90 @@ namespace SynergyUI
         private CardKind _kind = CardKind.Creature;
         private UIColor _colorFilter = UIColor.All;
 
-        private ScrollView _poolList;
-        private ScrollView _attachedList;
-        private ScrollView _breakdownList;
-        private VisualElement _dynamicForm;
-        private VisualElement _payloadZone;
-        private VisualElement _keywordZone;
-        private VisualElement _poolFilter;
-        private Label _toast;
-        private Label _suggested;
-        private Label _costLabel;
-        private TextField _nameField;
-        private TextField _tagsField;
-        private TextField _searchField;
-        private DropdownField _cardtypeDropdown;
+        private UiKit.Scroll _poolList;
+        private UiKit.Scroll _attachedList;
+        private UiKit.Scroll _breakdownList;
+        private RectTransform _dynamicForm;
+        private RectTransform _payloadZone;
+        private RectTransform _keywordZone;
+        private RectTransform _effectLibraryZone;
+        private RectTransform _poolFilter;
+        private TMP_Text _toast;
+        private TMP_Text _suggested;
+        private TMP_Text _costLabel;
+        private UInputField _nameField;
+        private UInputField _tagsField;
+        private UInputField _searchField;
+        private UiKit.Dropdown _cardtypeDropdown;
+        private RectTransform _overlay;
+
+        // 卡池颜色过滤 chips（预制体烘焙，Build 一次绑定；激活态=Outline 开关）。
+        private readonly Dictionary<UIColor, UnityEngine.UI.Button> _filterChips = new Dictionary<UIColor, UnityEngine.UI.Button>();
 
         private Dictionary<int, float> _lastSuggestedCost;
 
-        public override void OnEnter()
+        protected override void Build()
         {
-            _poolList = Q<ScrollView>("list-pool");
-            _attachedList = Q<ScrollView>("list-attached");
-            _breakdownList = Q<ScrollView>("list-breakdown");
-            _dynamicForm = Q<VisualElement>("dynamic-form");
-            _payloadZone = Q<VisualElement>("payload-zone");
-            _keywordZone = Q<VisualElement>("keyword-zone");
-            _poolFilter = Q<VisualElement>("pool-filter");
-            _toast = Q<Label>("lbl-toast");
-            _suggested = Q<Label>("lbl-suggested");
-            _costLabel = Q<Label>("lbl-cost");
-            _nameField = Q<TextField>("field-card-name");
-            _tagsField = Q<TextField>("field-tags");
-            _searchField = Q<TextField>("field-search");
-            _cardtypeDropdown = Q<DropdownField>("dropdown-cardtype");
+            _overlay = Find("overlay") ?? UiKit.Overlay("overlay", Root);
 
-            UIBinder.BindButton(Root, "btn-back", () => Manager.Back());
-            UIBinder.BindButton(Root, "btn-save", OnSave);
-            UIBinder.BindButton(Root, "btn-adopt", OnAdoptCost);
-            UIBinder.BindButton(Root, "btn-new", OnNewCard);
-            UIBinder.BindButton(Root, "btn-new-effect", () =>
+            // ---- 工具栏 ----
+            BindButton("btn-back", () => Manager.Back());
+            _nameField = FindInput("field-card-name");
+            _tagsField = FindInput("field-tags");
+            BindButton("btn-new", OnNewCard);
+            BindButton("btn-save", OnSave);
+            _toast = FindText("lbl-toast");
+
+            // ---- 三栏容器/滚动区 ----
+            _poolFilter = Find("pool-filter");
+            _searchField = FindInput("field-search");
+            if (_searchField != null)
+                _searchField.onValueChanged.AddListener(_ => RefreshPool());
+            _poolList = FindScroll("list-pool");
+
+            // 类型下拉（绑定烘焙头部按钮）
+            var typeHead = Find("dropdown-cardtype");
+            var typeHeadBtn = typeHead != null ? typeHead.GetComponentInChildren<UnityEngine.UI.Button>(true) : null;
+            if (typeHeadBtn != null)
+            {
+                _cardtypeDropdown = new UiKit.Dropdown(typeHeadBtn, _overlay,
+                    KindNames.Select(k => k.name).ToList(), 0,
+                    onChanged: (idx, _) =>
+                    {
+                        if (idx >= 0 && idx < KindNames.Length)
+                        {
+                            _kind = KindNames[idx].kind;
+                            ApplyKindToCard();
+                            BuildDynamicForm();
+                            Recalculate();
+                        }
+                    });
+            }
+
+            _dynamicForm = Find("dynamic-form");
+            _payloadZone = Find("payload-zone");
+            _suggested = FindText("lbl-suggested");
+            _costLabel = FindText("lbl-cost");
+            BindButton("btn-adopt", OnAdoptCost);
+            _breakdownList = FindScroll("list-breakdown");
+            BindButton("btn-new-effect", () =>
             {
                 ComposerSession.BeginCardEdit(_card, -1); // -1 = 新建（保存时追加）
                 Manager.Show<EffectComposerScreen>();
             });
-            _searchField.RegisterValueChangedCallback(_ => RefreshPool());
 
+            _effectLibraryZone = Find("effect-library-zone");
+            _attachedList = FindScroll("list-attached");
+            _keywordZone = Find("keyword-zone");
+
+            BindPoolFilter();
+        }
+
+        public override void OnEnter()
+        {
             EnsureCardLists();
             _kind = MapKind(_card.Supertype);
-            BuildCardtypeDropdown();
-            BuildPoolFilter();
+            _cardtypeDropdown?.SetIndex(KindIndex(_kind));
             BuildDynamicForm();
             BuildPayloadZone(); // 代价栏（2026-09-23 上移卡组合层）
             BuildEffectLibraryZone();
@@ -114,46 +154,74 @@ namespace SynergyUI
 
         // ======================================== 左栏：卡池 ========================================
 
-        private void BuildPoolFilter()
+        /// <summary>过滤 chips 绑定（预制体烘焙 chip-{Color}，一次接线；颜色/文案由预制体烘焙）。</summary>
+        private void BindPoolFilter()
         {
-            _poolFilter.Clear();
+            if (_poolFilter == null) return;
             foreach (UIColor color in Enum.GetValues(typeof(UIColor)))
             {
                 var captured = color;
-                var chip = new Button { text = ColorFilter.DisplayName(color), name = $"chip-{captured}" };
-                chip.AddToClassList("chip");
-                if (captured == UIColor.All) chip.AddToClassList("chip--all");
-                else if (captured == UIColor.Red) chip.AddToClassList("chip--red");
-                else if (captured == UIColor.Blue) chip.AddToClassList("chip--blue");
-                else if (captured == UIColor.Green) chip.AddToClassList("chip--green");
-                else if (captured == UIColor.Gray) chip.AddToClassList("chip--gray");
-                if (captured == _colorFilter) chip.AddToClassList("chip--active");
-                chip.clicked += () =>
+                var chipRt = UiKit.FindDeep(_poolFilter, $"chip-{captured}");
+                var chip = chipRt != null ? chipRt.GetComponentInChildren<UnityEngine.UI.Button>(true) : null;
+                if (chip == null) continue; // 缺 chip 容错跳过
+                chip.onClick.AddListener(() =>
                 {
                     _colorFilter = captured;
-                    BuildPoolFilter(); // 重建以刷新激活态
+                    UpdatePoolFilter();
                     RefreshPool();
-                };
-                _poolFilter.Add(chip);
+                });
+                _filterChips[captured] = chip;
+            }
+            UpdatePoolFilter();
+        }
+
+        /// <summary>激活态切换：当前过滤色的 chip 加描边（预制体化后不重建行，只开关 Outline）。</summary>
+        private void UpdatePoolFilter()
+        {
+            foreach (var kv in _filterChips)
+            {
+                bool active = kv.Key == _colorFilter;
+                var ol = kv.Value.GetComponent<Outline>();
+                if (active && ol == null)
+                {
+                    ol = kv.Value.gameObject.AddComponent<Outline>();
+                    ol.effectColor = UiStyle.TextPrimary;
+                    ol.effectDistance = new Vector2(1.5f, -1.5f);
+                }
+                if (ol != null) ol.enabled = active;
             }
         }
 
+        private static (Color bg, Color fg) ChipColors(UIColor color)
+        {
+            switch (color)
+            {
+                case UIColor.Red: return (Rgb(150, 56, 56), Rgb(255, 235, 235));
+                case UIColor.Blue: return (Rgb(52, 84, 150), Rgb(232, 240, 255));
+                case UIColor.Green: return (Rgb(52, 120, 72), Rgb(232, 255, 240));
+                case UIColor.Gray: return (Rgb(80, 86, 98), Rgb(232, 235, 240));
+                default: return (UiStyle.BtnBg, UiStyle.TextBody); // All
+            }
+        }
+
+        private static Color Rgb(int r, int g, int b) => new Color(r / 255f, g / 255f, b / 255f, 1f);
+
         private void RefreshPool()
         {
-            _poolList.Clear();
+            ClearContent(_poolList.Content);
             IEnumerable<CardData> cards = CardCatalog.LoadAll();
             if (_colorFilter != UIColor.All)
                 cards = cards.Where(c => CardSorter.HasCostColor(c, _colorFilter));
-            string query = _searchField != null ? _searchField.value : null;
+            string query = _searchField != null ? _searchField.text : null;
             if (!string.IsNullOrWhiteSpace(query))
                 cards = cards.Where(c => (c.CardName ?? "").IndexOf(query, StringComparison.CurrentCultureIgnoreCase) >= 0);
 
             var sorted = CardSorter.Sort(cards).ToList();
             if (sorted.Count == 0)
             {
-                var empty = new Label("（无匹配卡牌）");
-                empty.AddToClassList("hint");
-                _poolList.Add(empty);
+                var empty = UiKit.Label("empty", _poolList.Content, "（无匹配卡牌）",
+                    UiStyle.SmallSize, UiStyle.TextHint);
+                UiKit.Size(empty, fw: 1f);
                 return;
             }
 
@@ -165,42 +233,30 @@ namespace SynergyUI
         private void AddPoolGroup(string title, List<CardData> cards)
         {
             if (cards.Count == 0) return;
-            var header = new Label($"{title}（{cards.Count}）");
-            header.AddToClassList("panel__header");
-            _poolList.Add(header);
+            var header = UiKit.Label("group", _poolList.Content, $"{title}（{cards.Count}）",
+                UiStyle.HeaderSize, UiStyle.TextSecondary, TextAnchor.LowerLeft, FontStyle.Bold);
+            UiKit.Size(header, fw: 1f);
             foreach (var card in cards)
-            {
-                var captured = card;
-                _poolList.Add(MakePoolRow(captured));
-            }
+                MakePoolRow(card);
         }
 
         /// <summary>卡池预览行：费用徽标+名称+类型/身材，次行=关键词+效果摘要（AtomText 单一来源）。</summary>
-        private VisualElement MakePoolRow(CardData card)
+        private void MakePoolRow(CardData card)
         {
-            var row = new VisualElement();
-            row.AddToClassList("list-row");
-            row.style.flexDirection = FlexDirection.Column;
-            if (!string.IsNullOrEmpty(_editingOriginalId) && card.ID == _editingOriginalId)
-                row.AddToClassList("list-row--selected");
+            var row = UiKit.Column("row", _poolList.Content, spacing: 2f, pad: 6f);
+            var bg = UiKit.BgRow(row);
+            bool selected = !string.IsNullOrEmpty(_editingOriginalId) && card.ID == _editingOriginalId;
+            if (selected) bg.color = UiStyle.SelectedRowBg;
+            bg.raycastTarget = true;
+            UiKit.Size(row, fw: 1f);
 
-            var top = new VisualElement();
-            top.style.flexDirection = FlexDirection.Row;
-            top.style.alignItems = Align.Center;
-
-            var cost = new Label(((int)card.TotalCost).ToString());
-            cost.AddToClassList("cost-badge");
-            top.Add(cost);
-
-            var name = new Label(string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName);
-            name.AddToClassList("list-row__name");
-            name.style.flexGrow = 1;
-            top.Add(name);
-
-            var meta = new Label(TypeStatLine(card));
-            meta.AddToClassList("list-row__meta");
-            top.Add(meta);
-            row.Add(top);
+            var top = UiKit.Row("top", row, spacing: 8f);
+            CostBadge("cost", top, ((int)card.TotalCost).ToString());
+            var name = UiKit.Label("name", top,
+                string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName,
+                UiStyle.BodySize, UiStyle.TextBody);
+            UiKit.Size(name, fw: 1f);
+            UiKit.Label("meta", top, TypeStatLine(card), UiStyle.SmallSize, UiStyle.TextFaint);
 
             var keywords = (card.Keywords ?? new List<string>())
                 .Select(k => KeywordZh(k)).Where(s => !string.IsNullOrEmpty(s)).ToList();
@@ -213,14 +269,15 @@ namespace SynergyUI
             if (summaries.Count > 0) detailParts.Add(string.Join("｜", summaries));
             if (detailParts.Count > 0)
             {
-                var detail = new Label(string.Join("｜", detailParts));
-                detail.AddToClassList("list-row__meta");
-                detail.AddToClassList("single-line");
-                row.Add(detail);
+                var detail = UiKit.Label("detail", row, string.Join("｜", detailParts),
+                    UiStyle.SmallSize, UiStyle.TextFaint, wrap: true);
+                UiKit.Size(detail, fw: 1f);
             }
 
-            row.RegisterCallback<ClickEvent>(_ => LoadCardForEdit(card));
-            return row;
+            var btn = row.gameObject.AddComponent<Button>();
+            btn.transition = Selectable.Transition.None;
+            btn.targetGraphic = bg;
+            btn.onClick.AddListener(() => LoadCardForEdit(card));
         }
 
         private static string TypeStatLine(CardData card)
@@ -245,7 +302,7 @@ namespace SynergyUI
         // ======================================== 载入编辑 / 新建 ========================================
 
         /// <summary>载入已有卡编辑（2026-09-24 定案：覆盖替换语义）。
-        /// 深拷贝容器、共享效果实例——效果合成器写回=整实例替换（EffectComposerScreen L2326）、
+        /// 深拷贝容器、共享效果实例——效果合成器写回=整实例替换（EffectComposerScreen）、
         /// 入口即深拷贝，不污染卡池缓存实例；保存前池中原件不动。</summary>
         private void LoadCardForEdit(CardData src)
         {
@@ -271,9 +328,9 @@ namespace SynergyUI
             _editingOriginalId = src.ID;
             _kind = MapKind(src.Supertype);
 
-            _nameField.SetValueWithoutNotify(_card.CardName ?? "");
-            _tagsField.SetValueWithoutNotify(string.Join(",", _card.Tags ?? new List<string>()));
-            _cardtypeDropdown.SetValueWithoutNotify(KindName(_kind));
+            _nameField.SetTextWithoutNotify(_card.CardName ?? "");
+            _tagsField.SetTextWithoutNotify(string.Join(",", _card.Tags ?? new List<string>()));
+            _cardtypeDropdown?.SetIndex(KindIndex(_kind));
             RebuildCardPanels();
             ShowToast($"编辑：{_card.CardName}（保存将覆盖替换旧卡）");
         }
@@ -299,9 +356,9 @@ namespace SynergyUI
             _editingOriginalId = null;
             _kind = CardKind.Creature;
 
-            _nameField.SetValueWithoutNotify("新卡牌");
-            _tagsField.SetValueWithoutNotify("");
-            _cardtypeDropdown.SetValueWithoutNotify(KindName(_kind));
+            _nameField.SetTextWithoutNotify("新卡牌");
+            _tagsField.SetTextWithoutNotify("");
+            _cardtypeDropdown?.SetIndex(KindIndex(_kind));
             RebuildCardPanels();
             ShowToast("已新建空白卡牌");
         }
@@ -319,31 +376,12 @@ namespace SynergyUI
 
         // ======================================== 中栏：表单 ========================================
 
-        private void BuildCardtypeDropdown()
-        {
-            _cardtypeDropdown.choices = KindNames.Select(k => k.name).ToList();
-            _cardtypeDropdown.index = KindIndex(_kind);
-            _cardtypeDropdown.RegisterValueChangedCallback(_ =>
-            {
-                int idx = _cardtypeDropdown.index;
-                if (idx >= 0 && idx < KindNames.Length)
-                {
-                    _kind = KindNames[idx].kind;
-                    ApplyKindToCard();
-                    BuildDynamicForm();
-                    Recalculate();
-                }
-            });
-        }
-
         private static int KindIndex(CardKind kind)
         {
             for (int i = 0; i < KindNames.Length; i++)
                 if (KindNames[i].kind == kind) return i;
             return 0;
         }
-
-        private static string KindName(CardKind kind) => KindNames[KindIndex(kind)].name;
 
         private static CardKind MapKind(Cardtype type)
         {
@@ -389,52 +427,31 @@ namespace SynergyUI
         // ---------- 动态表单（按类型切换字段） ----------
         private void BuildDynamicForm()
         {
-            _dynamicForm.Clear();
+            ClearChildren(_dynamicForm);
 
             // 攻 / 血
             if (HasStats)
             {
-                var statRow = new VisualElement();
-                statRow.AddToClassList("toolbar");
-                statRow.Add(MakeLabeledInt("攻击", _card.Power ?? 0, v => { _card.Power = v; Recalculate(); }));
-                statRow.Add(MakeLabeledInt("生命", _card.Life ?? 0, v => { _card.Life = v; Recalculate(); }));
-                _dynamicForm.Add(statRow);
+                var statRow = UiKit.Row("stats", _dynamicForm, spacing: 8f);
+                MakeLabeledInt(statRow, "攻击", _card.Power ?? 0, v => { _card.Power = v; Recalculate(); });
+                MakeLabeledInt(statRow, "生命", _card.Life ?? 0, v => { _card.Life = v; Recalculate(); });
             }
 
             // 等级
             if (HasLevel)
-            {
-                var lvlRow = new VisualElement();
-                lvlRow.AddToClassList("toolbar");
-                lvlRow.Add(MakeLabeledInt("等级", _card.Level ?? 1, v => _card.Level = v));
-                _dynamicForm.Add(lvlRow);
-            }
+                MakeLabeledInt(_dynamicForm, "等级", _card.Level ?? 1, v => _card.Level = v);
 
             // 耐久（结界专属，2026-09-24 定案：类似生物生命、被攻击每次仅损失 1 点）
             if (HasDurability)
-            {
-                var durRow = new VisualElement();
-                durRow.AddToClassList("toolbar");
-                durRow.Add(MakeLabeledInt("耐久", _card.Durability, v => { _card.Durability = v; Recalculate(); }));
-                _dynamicForm.Add(durRow);
-            }
+                MakeLabeledInt(_dynamicForm, "耐久", _card.Durability, v => { _card.Durability = v; Recalculate(); });
         }
 
         // 带标签的整数输入（横排）。
-        private VisualElement MakeLabeledInt(string label, int value, Action<int> onChanged)
+        private static void MakeLabeledInt(RectTransform parent, string label, int value, Action<int> onChanged)
         {
-            var wrap = new VisualElement();
-            wrap.AddToClassList("toolbar");
-            wrap.style.marginBottom = 0;
-            var lbl = new Label(label);
-            lbl.AddToClassList("field-label");
-            wrap.Add(lbl);
-            var field = new IntegerField();
-            field.AddToClassList("int-input");
-            field.SetValueWithoutNotify(value);
-            field.RegisterValueChangedCallback(evt => onChanged(evt.newValue));
-            wrap.Add(field);
-            return wrap;
+            var row = UiKit.Row("field", parent, spacing: 6f);
+            UiKit.Label("label", row, label, UiStyle.SmallSize, UiStyle.TextDim);
+            UiKit.IntField("field-" + label, row, label, value, onChanged, width: 70f);
         }
 
         // ---------- 代价栏（2026-09-23 定案：上移卡组合层）----------
@@ -443,35 +460,27 @@ namespace SynergyUI
 
         private void BuildPayloadZone()
         {
-            _payloadZone.Clear();
-            var header = new Label("代价（错侧作用·限 1 费·单卡单条）");
-            header.AddToClassList("panel__header");
-            _payloadZone.Add(header);
+            ClearChildren(_payloadZone);
+            var header = UiKit.Label("header", _payloadZone, "代价（错侧作用·限 1 费·单卡单条）",
+                UiStyle.HeaderSize, UiStyle.TextSecondary, TextAnchor.LowerLeft, FontStyle.Bold);
+            UiKit.Size(header, fw: 1f);
 
             var pe = _card.PayloadCost?.payload;
             if (pe != null && !string.IsNullOrEmpty(pe.refId))
             {
-                var row = new VisualElement();
-                row.AddToClassList("toolbar");
-                row.style.flexWrap = Wrap.Wrap;
-                var name = new Label(AtomText.RenderAtomEntry(pe));
-                name.AddToClassList("list-row__name");
-                row.Add(name);
-                var price = new Label(PayloadPriceText(pe));
-                price.AddToClassList("hint");
-                row.Add(price);
-                var del = new Button(() =>
+                var row = UiKit.Row("payload-row", _payloadZone, spacing: 8f);
+                var name = UiKit.Label("name", row, AtomText.RenderAtomEntry(pe),
+                    UiStyle.BodySize, UiStyle.TextBody, wrap: true);
+                UiKit.Size(name, fw: 1f);
+                var price = UiKit.Label("price", row, PayloadPriceText(pe),
+                    UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
+                UiKit.MiniButton("del", row, "移除", () =>
                 {
                     _card.PayloadCost = null;
                     _card.ResetCache();
                     BuildPayloadZone();
                     Recalculate();
-                }) { text = "移除" };
-                del.AddToClassList("btn");
-                del.AddToClassList("btn--mini");
-                del.AddToClassList("btn--danger");
-                row.Add(del);
-                _payloadZone.Add(row);
+                }, UiStyle.BtnDanger);
                 return;
             }
 
@@ -479,16 +488,12 @@ namespace SynergyUI
             var rows = PayloadCandidates().ToList();
             var choices = new List<string> { "（选择代价原子）" };
             choices.AddRange(rows.Select(r => r.DisplayName));
-            var dd = new DropdownField("填装") { choices = choices };
-            dd.AddToClassList("text-input");
-            dd.index = 0;
-            dd.RegisterValueChangedCallback(_ =>
+            new UiKit.Dropdown("dd-payload", _payloadZone, _overlay, choices, 0, (idx, _) =>
             {
-                int i = dd.index - 1;
+                int i = idx - 1;
                 if (i >= 0 && i < rows.Count)
                     FillPayloadCost(new AtomicEffectEntry { refId = rows[i].HashId, value = 1 });
-            });
-            _payloadZone.Add(dd);
+            }, width: 220f);
         }
 
         /// <summary>填装代价栏（自效果合成器 FillCostSlot 移植，2026-09-23）：**作用单位改写错侧 + 限 1 费**。
@@ -588,24 +593,16 @@ namespace SynergyUI
         /// <summary>效果库挂载下拉（2026-09-24 布局重做：大列表收成下拉，能力不减）。</summary>
         private void BuildEffectLibraryZone()
         {
-            var zone = Q<VisualElement>("effect-library-zone");
-            zone.Clear();
+            ClearChildren(_effectLibraryZone);
             var graphs = EffectLibrarySerializer.LoadAll();
             var choices = new List<string> { "（从效果库挂载）" };
             choices.AddRange(graphs.Select(g => string.IsNullOrEmpty(g.name) ? "(未命名)" : g.name));
-            var dd = new DropdownField("效果库") { choices = choices };
-            dd.AddToClassList("text-input");
-            dd.index = 0;
-            dd.RegisterValueChangedCallback(_ =>
+            new UiKit.Dropdown("dd-library", _effectLibraryZone, _overlay, choices, 0, (idx, _) =>
             {
-                int i = dd.index - 1;
+                int i = idx - 1;
                 if (i >= 0 && i < graphs.Count)
-                {
                     AttachEffect(graphs[i]);
-                    dd.SetValueWithoutNotify(choices[0]);
-                }
-            });
-            zone.Add(dd);
+            }, width: 240f);
         }
 
         private void AttachEffect(EffectGraphData graph)
@@ -684,13 +681,13 @@ namespace SynergyUI
 
         private void RefreshAttached()
         {
-            _attachedList.Clear();
+            ClearContent(_attachedList.Content);
             var effects = _card.Effects;
             for (int i = 0; i < effects.Count; i++)
             {
                 var index = i;
                 var label = string.IsNullOrEmpty(effects[i].DisplayName) ? $"效果 #{i + 1}" : effects[i].DisplayName;
-                var row = MakeAttachedRow(label, effects[i],
+                MakeAttachedRow(label, effects[i],
                     () => RemoveAttachedAt(index),
                     () =>
                     {
@@ -698,7 +695,6 @@ namespace SynergyUI
                         ComposerSession.BeginCardEdit(_card, index);
                         Manager.Show<EffectComposerScreen>();
                     });
-                _attachedList.Add(row);
             }
         }
 
@@ -716,90 +712,74 @@ namespace SynergyUI
         }
 
         /// <summary>挂载效果行：名称 + 组合摘要（AtomText）+ 编辑/移除。</summary>
-        private VisualElement MakeAttachedRow(string name, CardEffectData effect, Action onRemove, Action onEdit)
+        private void MakeAttachedRow(string name, CardEffectData effect, Action onRemove, Action onEdit)
         {
-            var row = new VisualElement();
-            row.AddToClassList("list-row");
-            row.style.flexWrap = UnityEngine.UIElements.Wrap.Wrap;
+            var row = UiKit.Column("row", _attachedList.Content, spacing: 2f, pad: 6f);
+            UiKit.BgRow(row);
+            UiKit.Size(row, fw: 1f);
 
-            var label = new Label(name);
-            label.AddToClassList("list-row__name");
-            row.Add(label);
+            var top = UiKit.Row("top", row, spacing: 6f);
+            var label = UiKit.Label("name", top, name, UiStyle.BodySize, UiStyle.TextBody);
+            UiKit.Size(label, fw: 1f);
+            UiKit.MiniButton("edit", top, "编辑", onEdit);
+            UiKit.MiniButton("remove", top, "移除", onRemove, UiStyle.BtnDanger);
 
             var graph = new EffectGraphData(name) { header = effect, steps = effect?.Steps };
-            var summary = new Label(AtomText.RenderEffectSummary(graph));
-            summary.AddToClassList("list-row__meta");
-            row.Add(summary);
-
-            var edit = new Button(onEdit) { text = "编辑" };
-            edit.AddToClassList("btn");
-            edit.AddToClassList("btn--mini");
-            row.Add(edit);
-
-            var btn = new Button(onRemove) { text = "移除" };
-            btn.AddToClassList("btn");
-            btn.AddToClassList("btn--mini");
-            btn.AddToClassList("btn--danger");
-            row.Add(btn);
-            return row;
+            var summary = UiKit.Label("summary", row, AtomText.RenderEffectSummary(graph),
+                UiStyle.SmallSize, UiStyle.TextFaint, wrap: true);
+            UiKit.Size(summary, fw: 1f);
         }
 
         // ======================================== 右栏：关键词（本体=直接引用原子） ========================================
 
         private void BuildKeywordZone()
         {
-            _keywordZone.Clear();
+            ClearChildren(_keywordZone);
             EnsureCardLists();
 
+            var header = UiKit.Label("header", _keywordZone, "本体关键词", UiStyle.HeaderSize,
+                UiStyle.TextSecondary, TextAnchor.LowerLeft, FontStyle.Bold);
+            UiKit.Size(header, fw: 1f);
+
             // 现有关键词 chips（颜色沿用效果组合界面的 chip 体系）
-            var chips = new VisualElement();
-            chips.AddToClassList("toolbar");
-            chips.style.flexWrap = Wrap.Wrap;
+            var chips = UiKit.Row("chips", _keywordZone, spacing: 4f);
             if (_card.Keywords.Count == 0)
             {
-                var none = new Label("（无本体关键词——直接引用原子效果即关键词）");
-                none.AddToClassList("hint");
-                chips.Add(none);
+                var none = UiKit.Label("none", chips, "（无本体关键词——直接引用原子效果即关键词）",
+                    UiStyle.SmallSize, UiStyle.TextHint);
+                UiKit.Size(none, fw: 1f);
             }
             else
             {
                 foreach (var kw in _card.Keywords.ToList())
                 {
                     var captured = kw;
-                    var chip = new VisualElement();
-                    chip.style.flexDirection = FlexDirection.Row;
-                    chip.style.alignItems = Align.Center;
-
-                    var label = new Label(KeywordZh(captured));
-                    label.AddToClassList("chip");
-                    label.AddToClassList(ChipClass(ColorFilter.OfKeyword(captured)));
-                    chip.Add(label);
-
-                    var del = new Button(() =>
+                    var (bg, fg) = ChipColors(ColorFilter.OfKeyword(captured));
+                    var chip = UiKit.Row("chip", chips, spacing: 2f, pad: 4f);
+                    var chipBg = chip.gameObject.AddComponent<Image>();
+                    chipBg.sprite = UiKit.RoundedSprite;
+                    chipBg.type = Image.Type.Sliced;
+                    chipBg.color = bg;
+                    var lbl = UiKit.Label("label", chip, KeywordZh(captured),
+                        UiStyle.SmallSize, fg, TextAnchor.MiddleCenter, FontStyle.Bold);
+                    UiKit.Size(chip, h: 26f);
+                    UiKit.MiniButton("del", chip, "✕", () =>
                     {
                         _card.Keywords.Remove(captured);
                         _card.ResetCache();
                         BuildKeywordZone();
                         Recalculate();
-                    }) { text = "✕" };
-                    del.AddToClassList("btn");
-                    del.AddToClassList("btn--mini");
-                    chip.Add(del);
-                    chips.Add(chip);
+                    }, fg: fg);
                 }
             }
-            _keywordZone.Add(chips);
 
             // 添加下拉（目录=Grant 族原子，中文名；赋予他人形态走效果合成器）
             var catalog = KeywordCatalog.LoadAll();
             var choices = new List<string> { "（添加本体关键词）" };
             choices.AddRange(catalog.Select(k => k.DisplayName));
-            var dd = new DropdownField("添加") { choices = choices };
-            dd.AddToClassList("text-input");
-            dd.index = 0;
-            dd.RegisterValueChangedCallback(_ =>
+            new UiKit.Dropdown("dd-keyword", _keywordZone, _overlay, choices, 0, (idx, _) =>
             {
-                int i = dd.index - 1;
+                int i = idx - 1;
                 if (i < 0 || i >= catalog.Count) return;
                 var kw = catalog[i];
                 if (_card.Keywords.Contains(kw.Id))
@@ -814,25 +794,12 @@ namespace SynergyUI
                 }
                 BuildKeywordZone();
                 Recalculate();
-            });
-            _keywordZone.Add(dd);
+            }, width: 240f);
 
-            var hint = new Label("关键词=卡直接引用原子（本体）；「赋予」类关键词经效果合成器组合后按效果挂载");
-            hint.AddToClassList("hint");
-            _keywordZone.Add(hint);
-        }
-
-        private static string ChipClass(UIColor color)
-        {
-            switch (color)
-            {
-                case UIColor.Red: return "chip--red";
-                case UIColor.Blue: return "chip--blue";
-                case UIColor.Green: return "chip--green";
-                case UIColor.Black: return "chip--black";
-                case UIColor.White: return "chip--white";
-                default: return "chip--gray";
-            }
+            var hint = UiKit.Label("hint", _keywordZone,
+                "关键词=卡直接引用原子（本体）；「赋予」类关键词经效果合成器组合后按效果挂载",
+                UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
+            UiKit.Size(hint, fw: 1f);
         }
 
         // ======================================== 自动算费 ========================================
@@ -842,20 +809,14 @@ namespace SynergyUI
             var result = CardCostCalculator.Calculate(_card);
             _lastSuggestedCost = result.CostDict;
 
-            _breakdownList.Clear();
+            ClearContent(_breakdownList.Content);
             foreach (var line in result.Breakdown)
             {
-                var row = new VisualElement();
-                row.AddToClassList("list-row");
-
-                var label = new Label(line.Label);
-                label.AddToClassList("list-row__name");
-                row.Add(label);
-
-                var value = new Label(line.Value.ToString("0.0"));
-                value.AddToClassList("list-row__meta");
-                row.Add(value);
-                _breakdownList.Add(row);
+                var row = UiKit.Row("row", _breakdownList.Content, spacing: 8f, pad: 4f);
+                UiKit.BgRow(row);
+                var label = UiKit.Label("label", row, line.Label, UiStyle.SmallSize, UiStyle.TextBody);
+                UiKit.Size(label, fw: 1f);
+                UiKit.Label("value", row, line.Value.ToString("0.0"), UiStyle.SmallSize, UiStyle.TextFaint);
             }
 
             // 超模校验已移除（2026-09-24 定案）：卡层只算减费与建议档位——展示 D 与黑白获得，不做合规判断
@@ -932,8 +893,8 @@ namespace SynergyUI
 
         private void ApplyTextLists()
         {
-            _card.CardName = string.IsNullOrWhiteSpace(_nameField.value) ? "新卡牌" : _nameField.value.Trim();
-            _card.Tags = SplitCsv(_tagsField.value);
+            _card.CardName = string.IsNullOrWhiteSpace(_nameField.text) ? "新卡牌" : _nameField.text.Trim();
+            _card.Tags = SplitCsv(_tagsField.text);
         }
 
         private static List<string> SplitCsv(string raw)
@@ -952,5 +913,33 @@ namespace SynergyUI
         {
             _toast.text = message;
         }
+
+        // ======================================== 通用 ========================================
+
+        /// <summary>费用徽标（蓝色小圆片+数字）。</summary>
+        private static void CostBadge(string name, RectTransform parent, string value)
+        {
+            var rt = UiKit.Node(name, parent);
+            var img = rt.gameObject.AddComponent<Image>();
+            img.sprite = UiKit.CircleSprite;
+            img.color = UiStyle.BtnPrimary;
+            var lbl = UiKit.Label("label", rt, value, UiStyle.SmallSize, UiStyle.White,
+                TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.StretchInset(lbl.rectTransform, 2f, 0f);
+            UiKit.Size(rt, w: 26f, h: 24f);
+        }
+
+        /// <summary>清空容器（先摘父再 Destroy，防 Destroy 延迟导致的同帧占位）。</summary>
+        private static void ClearChildren(RectTransform container)
+        {
+            for (int i = container.childCount - 1; i >= 0; i--)
+            {
+                var child = container.GetChild(i);
+                child.SetParent(null);
+                UnityEngine.Object.Destroy(child.gameObject);
+            }
+        }
+
+        private static void ClearContent(RectTransform content) => ClearChildren(content);
     }
 }

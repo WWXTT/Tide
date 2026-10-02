@@ -1562,6 +1562,11 @@ namespace CardCore
                 // 战斗底盘（2026-09-10 攻击/守卫效果化：1速/2速主动，注册完整性锚——战斗走 CombatSystem）
                 new AttackHandler(),
                 new GuardHandler(),
+
+                // 信息轴（2026-10-02 定案）：展示（挂展示指示物，双方可查看）/ 附加诅咒
+                // （对手抽到该卡时 CurseSystem 自动执行载荷分支并消层）
+                new RevealCardHandler(),
+                new AddCurseHandler(),
             };
             foreach (var handler in handlers)
                 EffectHandlerRegistry.Register(handler);

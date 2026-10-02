@@ -75,15 +75,15 @@
     <Compile Include="Assets\Scripts\Launch\PatchConsole.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Assets\Art\HexMap\Shaders\HexGrassInput.hlsl" />
+    <None Include="Assets\Art\Shaders\HexGrassInput.hlsl" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMPro.cginc" />
-    <None Include="Assets\UI\Res\UXML\DeckBuilder.uxml" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile Overlay.shader" />
-    <None Include="Assets\Art\HexMap\Shaders\HexTerrainForwardPass.hlsl" />
+    <None Include="Assets\Art\Shaders\HexTerrainForwardPass.hlsl" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile-2-Pass.shader" />
+    <None Include="Assets\Art\Shaders\ProceduralSky.hlsl" />
     <None Include="Assets\Samples\Scriptable Render Pipeline Core\17.5.0\Common\TextMesh Pro\Resources\Fonts &amp; Materials\TMP_Node.hlsl" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_Bitmap.shader" />
-    <None Include="Assets\Art\HexMap\Shaders\HexTerrainDebugCommon.hlsl" />
+    <None Include="Assets\Art\Shaders\HexTerrainDebugCommon.hlsl" />
     <None Include="Assets\Packages\MemoryPack.Generator.1.21.4\analyzers\dotnet\cs\MemoryPack.Generator.dll" />
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\lib\netstandard2.0\System.Collections.Immutable.dll" />
     <None Include="Assets\Configs\原子表字段参考.txt" />
@@ -91,17 +91,13 @@
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF SSD.shader" />
     <None Include="Assets\Packages\MemoryPack.Core.1.21.4\lib\netstandard2.1\MemoryPack.Core.xml" />
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\LICENSE.TXT" />
-    <None Include="Assets\UI\Res\UXML\Battle.uxml" />
     <None Include="Assets\Packages\MemoryPack.Core.1.21.4\lib\netstandard2.1\MemoryPack.Core.dll" />
     <None Include="Assets\Packages\TextMesh Pro\Fonts\txt.txt" />
-    <None Include="Assets\UI\Res\UXML\CardComposer.uxml" />
-    <None Include="Assets\Art\HexMap\Shaders\HexTerrainInput.hlsl" />
+    <None Include="Assets\Art\Shaders\HexTerrainInput.hlsl" />
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\lib\netstandard2.0\System.Collections.Immutable.xml" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Surface-Mobile.shader" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF SpaceWarp.shader" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\SDFFunctions.hlsl" />
-    <None Include="Assets\UI\Res\UXML\MainMenu.uxml" />
-    <None Include="Assets\UI\Res\UXML\EffectComposer.uxml" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Surface.shader" />
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\THIRD-PARTY-NOTICES.TXT" />
     <None Include="Assets\Packages\TextMesh Pro\Sprites\EmojiOne Attribution.txt" />
@@ -110,28 +106,25 @@
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile SSD.shader" />
     <None Include="Assets\Packages\TextMesh Pro\Resources\LineBreaking Leading Characters.txt" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMPro_Properties.cginc" />
-    <None Include="Assets\Art\HexMap\Shaders\HexWeather.hlsl" />
-    <None Include="Assets\UI\Res\UXML\Placeholder.uxml" />
+    <None Include="Assets\Art\Shaders\HexWeather.hlsl" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMPro_Surface.cginc" />
-    <None Include="Assets\Art\HexMap\Shaders\HexTerrain.shader" />
+    <None Include="Assets\Art\Shaders\HexTerrain.shader" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile SpaceWarp.shader" />
-    <None Include="Assets\Art\HexMap\Shaders\LightingLeafSSS.cginc" />
-    <None Include="Assets\UI\Res\UXML\HexMapEditorPanel.uxml" />
+    <None Include="Assets\Art\Shaders\LightingLeafSSS.cginc" />
     <None Include="Assets\Packages\TextMesh Pro\Resources\LineBreaking Following Characters.txt" />
-    <None Include="Assets\Art\HexMap\Shaders\HexGrass.shader" />
+    <None Include="Assets\Art\Shaders\HexGrass.shader" />
     <None Include="Assets\Packages\System.Collections.Immutable.6.0.0\useSharedDesignerContext.txt" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF SSD SpaceWarp.shader" />
-    <None Include="Assets\Art\HexMap\Shaders\LeafFunctions.cginc" />
+    <None Include="Assets\Art\Shaders\LeafFunctions.cginc" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile Masking.shader" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF Overlay.shader" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_Bitmap-Mobile.shader" />
-    <None Include="Assets\UI\Res\UXML\Match.uxml" />
-    <None Include="Assets\UI\Res\Common.uss" />
     <None Include="Assets\Packages\TextMesh Pro\Fonts\LiberationSans - OFL.txt" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile.shader" />
     <None Include="Assets\Samples\Scriptable Render Pipeline Core\17.5.0\Common\TextMesh Pro\Resources\Fonts &amp; Materials\Inter-LICENSE.txt" />
-    <None Include="Assets\Art\HexMap\Shaders\HexWater.shader" />
+    <None Include="Assets\Art\Shaders\HexWater.shader" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_SDF-Mobile SSD SpaceWarp.shader" />
+    <None Include="Assets\Art\Shaders\BlackHole.shader" />
     <None Include="Assets\Packages\TextMesh Pro\Shaders\TMP_Sprite.shader" />
   </ItemGroup>
   <ItemGroup>
@@ -1419,16 +1412,16 @@
       <HintPath>Library\ScriptAssemblies\Unity.Entities.Build.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="UniTask.Linq">
-      <HintPath>Library\ScriptAssemblies\UniTask.Linq.dll</HintPath>
+    <Reference Include="Unity.AppUI">
+      <HintPath>Library\ScriptAssemblies\Unity.AppUI.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.InternalAPIEngineBridge.RenderPipelines.Core.Runtime.Shared">
       <HintPath>Library\ScriptAssemblies\Unity.InternalAPIEngineBridge.RenderPipelines.Core.Runtime.Shared.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Unity.AppUI">
-      <HintPath>Library\ScriptAssemblies\Unity.AppUI.dll</HintPath>
+    <Reference Include="UniTask.Linq">
+      <HintPath>Library\ScriptAssemblies\UniTask.Linq.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.RenderPipelines.Core.Editor.Shared">

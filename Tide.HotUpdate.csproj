@@ -95,6 +95,7 @@
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\KeywordEffectMapper.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\CostDerivation.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Attribute\MorphSystem.cs" />
+    <Compile Include="Assets\Scripts\HotUpdate\UI\Framework\UiStyle.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\UI\Screens\DeckBuilderScreen.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Network\NetworkSerializer.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Network\NetEntities.cs" />
@@ -166,7 +167,7 @@
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Utility\TideLog.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Utility\TideDelay.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Attribute\Handlers\ThirdBatchEffectHandlers.cs" />
-    <Compile Include="Assets\Scripts\HotUpdate\UI\Screens\PlaceholderScreens.cs" />
+    <Compile Include="Assets\Scripts\HotUpdate\UI\Framework\ScreenStub.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\BaseSystems\ElementUnlockManager.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\UI\Data\EffectGraphData.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Attribute\AtomicEffectTable.cs" />
@@ -175,6 +176,7 @@
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Attribute\Handlers\FirstBatchEffectHandlers.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\UI\Data\KeywordCatalog.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Layers\TextChangeLayer.cs" />
+    <Compile Include="Assets\Scripts\HotUpdate\CardCore\NetSession\NetGate.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Effects\ActivationConditions.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Cards\Card.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\UI\Data\ColorFilter.cs" />
@@ -198,6 +200,7 @@
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\ValueSystem\ResourceCurveModel.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\BaseSystems\MatchLogService.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\AI\LandTapPolicy.cs" />
+    <Compile Include="Assets\Scripts\HotUpdate\UI\Framework\UiKit.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\NetSession\NetGameClient.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\Cards\Entity.cs" />
     <Compile Include="Assets\Scripts\HotUpdate\CardCore\GameCore\GameLoopController.cs" />
@@ -1445,6 +1448,10 @@
     </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>Library\ScriptAssemblies\UnityEngine.UI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>Library\ScriptAssemblies\Unity.TextMeshPro.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEditor.UI">

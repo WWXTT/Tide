@@ -208,8 +208,17 @@ namespace CardCore
         /// 即执行奖励、每次达标都触发；奖励预算=x（Value→EngineParam，x∈[1,9]）。</summary>
         BranchEngineManaSurplus,
         /// <summary>手牌序位主干（2026-09-22 定案）：此卡为本回合从手牌使用的第 x 张卡（EngineParam）时，
-        /// 施放结算中执行奖励；奖励预算=x（Value→EngineParam，x∈[1,9]）。</summary>
+        /// 施放结算中执行奖励；奖励预算=x（Value→EngineParam，x∈[1,9]）。枚举只可尾部追加。</summary>
         BranchEngineNthHandCard,
+
+        // ============ 信息轴（2026-10-02 定案）============
+        /// <summary>展示：为目标（隐藏区卡：己/对方手牌·牌库）挂「展示」指示物——持续暴露、双方可查看，
+        /// 换区即失效。可作筛选条件（TargetFilter "Exposed"）与后续费用减免挂点。枚举只可尾部追加。</summary>
+        RevealCard,
+        /// <summary>附加诅咒：为对手的卡挂「诅咒」指示物（Permanent）并登记载荷（str=Effects.json 条目 id，
+        /// SummonToken 模板同款引用先例）；对手抽到该卡时 CurseSystem 自动执行载荷分支效果并消层（一次性）。
+        /// 枚举只可尾部追加。</summary>
+        AddCurse,
     }
 
     /// <summary>

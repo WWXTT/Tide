@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: BlackHole
+  m_Shader: {fileID: 4800000, guid: 3f8e2a1b9c4d4e5f8a7b6c5d4e3f2a1b, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords:
+  - _BUDGET_CUT
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _BinaryPeriod: 60
+    - _BinaryPhase: 0
+    - _BinarySeparation: 7.22
+    - _BudgetCut: 1
+    - _DiskBrightness: 7.9
+    - _DiskDetail: 1
+    - _DiskFalloff: 3
+    - _DiskInnerRadius: 1.79
+    - _DiskOuterRadius: 5.07
+    - _DiskRotationSpeed: 1
+    - _DopplerStrength: 0
+    - _HorizonScale: 0.028
+    - _ParticleIntensity: 0
+    - _ParticleThreshold: 0
+    - _SecondaryDiskScale: 0.7
+    - _SecondaryDiskTilt: 0.08
+    - _SecondaryHorizonScale: 0.6
+    - _StepCount: 64
+    - _StepSize: 0.2
+    - _StreamBrightness: 0
+    - _StreamWidth: 0.1
+    m_Colors:
+    - _DiskColor: {r: 1, g: 0.2627451, b: 0, a: 1}
+    - _DiskHotColor: {r: 1, g: 0.17899318, b: 0.09019607, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

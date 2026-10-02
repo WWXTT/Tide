@@ -71,6 +71,7 @@ namespace CardCore.AI.NeuralEnv
         /// </summary>
         private static IE.ModelAsset LoadModelAsset(string resourcePath)
         {
+#if TIDE_HYBRID_YOO
             // YooAsset：包未初始化/收集器未配置时抛异常或返回失败句柄，捕获后回落，
             // 不阻断编辑器直启流程。成功路径的句柄不释放——worker 生命周期内保活。
             try
@@ -89,6 +90,7 @@ namespace CardCore.AI.NeuralEnv
             {
                 // 未配置 YooAsset（如编辑器直启 Main），走兜底
             }
+#endif
 
 #if UNITY_EDITOR
             var editorAsset = UnityEditor.AssetDatabase.LoadAssetAtPath<IE.ModelAsset>(

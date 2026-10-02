@@ -143,6 +143,15 @@ namespace CardCore.Attribute
         /// <summary>生命值减少（永久，每层 −1 上限，换区不清）</summary>
         public const string LifeDownPermanentCounter = "LifeDownPermanent";
 
+        // ---- 信息轴（2026-10-02 定案）----
+        /// <summary>展示：被展示的卡持续暴露——双方可点击对应区域查看（网络快照/事件流不隐藏），
+        /// 可作筛选条件（TargetFilter "Exposed"）与「本回合不可使用/送墓/换费用减免」类设计的挂点。
+        /// 换区清除（用户定案：离开被展示时所在区域即失效）。</summary>
+        public const string ExposedCounter = "Exposed";
+        /// <summary>诅咒（开放式分支）：附加到对手的卡上——Permanent（须活过牌库→手牌的换区清除），
+        /// 对手抽到该卡时由 CurseSystem 自动执行诅咒载荷分支效果并消层（一次性）。</summary>
+        public const string CurseCounter = "Curse";
+
         private static readonly Dictionary<string, CounterSpec> _registry =
             new Dictionary<string, CounterSpec>();
 
@@ -191,6 +200,12 @@ namespace CardCore.Attribute
             Register(new CounterSpec { Id = PowerDownPermanentCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "攻击力减少（永久）", StatKind = StatCounterKind.PowerDown });
             Register(new CounterSpec { Id = LifeUpPermanentCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "生命值增加（永久）", StatKind = StatCounterKind.LifeUp });
             Register(new CounterSpec { Id = LifeDownPermanentCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "生命值减少（永久）", StatKind = StatCounterKind.LifeDown });
+
+            // ---- 信息轴（2026-10-02 定案）----
+            // 展示：负面（信息暴露/使用限制挂点）；UntilLeaveBattlefield=换区清除（离开当前区域即失效）
+            Register(new CounterSpec { Id = ExposedCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "展示" });
+            // 诅咒：Permanent 是活过 Deck→Hand 换区清除的唯一档；触发与消耗由 CurseSystem 在抽牌时点驱动
+            Register(new CounterSpec { Id = CurseCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "诅咒" });
 
             // ---- 守护（2026-09-11 定案）----
             // 守护者/被守护者成对：被守护者指示物的来源=第一个守护者（多守护者仅第一个触发改写）；
