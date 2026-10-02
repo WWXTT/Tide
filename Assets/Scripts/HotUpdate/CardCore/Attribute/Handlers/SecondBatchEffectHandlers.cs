@@ -461,7 +461,9 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "获得额外回合";
     }
 
-    /// <summary>跳过回合</summary>
+    /// <summary>跳过回合（2026-10-02 D2 裁决：相位档位走代码侧 str 参数，表行只留整回合一档）：
+    /// str=""（默认）整回合作废顺延；str="Standby" 只跳其下回合准备阶段自动化（抽牌/重置/地牌推进，
+    /// 与 ITurnStartInterceptor 同口）；str="Main" 只跳主要阶段（准备后直进结束，无出牌/攻击窗口）。</summary>
     public class SkipTurnHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SkipTurn;
@@ -472,7 +474,14 @@ namespace CardCore.Attribute.Handlers
         {
             var player = (context.PrimaryTarget as Player) ?? context.Controller?.Opponent;
             if (player == null) return;
-            player.SkipNextTurn();
+            var engine = CardCore.GameCore.Instance?.TurnEngine;
+            if (engine == null) return;
+            switch (effect.StringValue)
+            {
+                case "Standby": engine.SkipNextTurnFor(player, TurnSkipMode.Standby); break;
+                case "Main": engine.SkipNextTurnFor(player, TurnSkipMode.Main); break;
+                default: engine.SkipNextTurnFor(player); break;
+            }
             PublishEvent(new SkipTurnEvent { Player = player, Source = context.Source });
         }
 

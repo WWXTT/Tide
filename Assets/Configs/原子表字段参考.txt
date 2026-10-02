@@ -2,8 +2,10 @@
 2026-09-22 重写：补 EffectType/ManaList/EffectTier 列、修正指纹与兜底描述、枚举清单对齐当前数据；改表前看一眼防错）
 ====================================================================
 
-当前表共 89 行（同枚举可多行=域/模板变体，各自中文短名：
-洗牌×2（洗回/洗入）、跳过回合×2、沉睡×2、额外元素×2、宣告胜利×2）。
+当前表共 93 行（2026-10-02 逐条审核后；同枚举可多行=域/模板变体，各自中文短名：
+洗牌×2（洗回/洗入）、跳过回合×2、沉睡×2、额外元素×2）。
+（2026-10-02 审核删除"胜利"行 24918cf4：handler 硬编码 winner=对手，"自己胜"方向
+运行时不可达且零引用——详见仓库根《原子表逐条审核报告_2026-10-02.md》）
 
 伤害族: DealDamage LifeLoss PierceDamage DrainLife Heal
 移动族: DrawCard DiscardCard ReturnToHand RecoverToHand Exile ShuffleIntoDeck SearchDeck

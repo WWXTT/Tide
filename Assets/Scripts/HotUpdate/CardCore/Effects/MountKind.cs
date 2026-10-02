@@ -9,7 +9,9 @@ namespace CardCore
     /// </summary>
     public enum MountKind
     {
-        /// <summary>可作为主动效果（效果栏原子：登场/触发/启动式）</summary>
+        /// <summary>效果栏挂载（登场/触发/启动式皆走此位——效果栏原子的通用准入，非"启动式资格"）。
+        /// 启动式资格另受关键词校验：纯自指 Grant 行（关键词型）不得作启动式原子（2026-10-02 定案，
+        /// 见 ComposerCatalog.IsKeywordStyleGrant——判定按目标域，不占本位语义）。</summary>
         ActiveEffect = 0,
         /// <summary>可作为关键词（卡面自带印刷，如剧毒/嘲讽/回响）</summary>
         Keyword = 1,

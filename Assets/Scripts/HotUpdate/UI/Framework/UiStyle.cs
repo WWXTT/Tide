@@ -61,6 +61,19 @@ namespace SynergyUI
         // ---------- 遮罩 ----------
         public static readonly Color OverlayDim = new Color(10f / 255f, 12f / 255f, 16f / 255f, 0.72f);
 
+        // ---------- 效果合成（2026-10-02 自 EffectComposerScreen 散落字面量归并） ----------
+        public static readonly Color ChipActiveBg = Rgb(58, 84, 120);     // 模式 chip 选中底
+        public static readonly Color ChipActiveText = Rgb(235, 240, 250); // chip 选中字
+        public static readonly Color ChipActiveEdge = Rgb(120, 150, 200); // chip 选中描边
+        public static readonly Color DropSlotBg = new Color(24f / 255f, 27f / 255f, 33f / 255f, 0.6f); // 原子槽底
+        public static readonly Color DropSlotEdge = Rgb(64, 70, 84);      // 原子槽边
+        public static readonly Color SlotTrunkEdge = Rgb(110, 130, 170);  // 自由分支主干槽边
+        public static readonly Color SlotRewardEdge = Rgb(120, 150, 110); // 奖励槽边
+        public static readonly Color ArrowActive = Rgb(148, 212, 255);    // 六向箭头选中
+        public static readonly Color ErrorText = Rgb(242, 126, 126);      // 校验红字
+        public static readonly Color DescStripBg = new Color(36f / 255f, 44f / 255f, 60f / 255f, 0.5f);
+        public static readonly Color DescStripBorder = Rgb(52, 62, 80);
+
         // ---------- 字号 ----------
         public const int TitleSize = 28;    // .screen__title
         public const int SubtitleSize = 14; // .screen__subtitle

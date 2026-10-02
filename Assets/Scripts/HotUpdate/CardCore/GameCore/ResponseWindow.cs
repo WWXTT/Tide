@@ -44,5 +44,14 @@ namespace CardCore
 
         /// <summary>AI 响应决策器：返回所选候选或 null（Pass）。缺省内置守卫启发（SimpleAI 同款）。</summary>
         public static Func<GameCore, Player, List<ResponseOption>, ResponseOption> AiResponder;
+
+        /// <summary>显式放弃响应哨兵（2026-10-02 教学固定局）：AiResponder 返回本对象=让过——
+        /// 返回 null 会回落内置守卫启发（GameActions 里 ?? DefaultAiRespond），"永不反制"的教学机器人
+        /// 必须走本哨兵；ApplyResponse 对未知类别回落 false → PassPriority，语义即 Pass。</summary>
+        public static readonly ResponseOption PassOption = new ResponseOption
+        {
+            Kind = (ResponseOption.ResponseKind)(-1),
+            Label = "让过",
+        };
     }
 }

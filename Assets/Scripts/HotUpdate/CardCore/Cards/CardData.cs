@@ -259,6 +259,13 @@ namespace CardCore
         private bool _surplusToSpeed;
         public bool SurplusToSpeed { get => _surplusToSpeed; set => _surplusToSpeed = value; }
 
+        [TideSerialized]
+        private int _refundColor = -1;
+        /// <summary>底盘退费落色（2026-10-02 定案：玩家自标）：-1=未声明 → 默认规则（先灰、
+        /// 灰不足逐点落最高费用色）；0..5（ManaType）= 退费逐点优先扣该色桶，该色桶尽后
+        /// 余点回落默认规则。作用于计价推导（建议档位/明细显示），不影响运行时支付。</summary>
+        public int RefundColor { get => _refundColor; set => _refundColor = value; }
+
         /// <summary>
         /// 总费用计算
         /// </summary>
@@ -611,10 +618,11 @@ namespace CardCore
         public int ArrowDirections;          // HexDirection Flags（int 序列化——JsonUtility 枚举同 int）
         public List<LinkAuraData> LinkAuras; // 光环条目（stat+value / keyword 二选一；非光环效果恒 null）
 
-        // 效果锚价缓存（2026-09-23 定案：效果组合阶段=纯表累加、无减免抵消）：合成期实时推导
-        // 随效果落盘（Effects.json cost 列），装载期逐效果还原于此——启动式/动态效果构筑期不占卡费、
-        // 运行时现付，其显示/预检读此（不靠整卡缓存——card.Cost/ModeCostCache 只覆盖非启动式效果）。
-        // 派生数据：不入内容哈希，原子表调价后重算即可。
+        // 效果锚价缓存（2026-09-23 定案；2026-10-02 口径修正）：合成期实时推导随效果落盘
+        //（Effects.json cost 列）、装载期逐效果还原于此——**参考快照，运行时无消费者**：
+        // 显示/预检/扣款一律实时重推导（CostDerivationService.DeriveElementCosts 同链），
+        /// 本列的意义是构筑资料与 Effects.json 的人类可读性。派生数据：不入内容哈希，
+        // 原子表调价后即陈旧（重算不换 id——运行时不受影响，快照下次保存时刷新）。
         public List<ElementCostRef> AnchorCost;
 
         public List<ActivationConditionData> ActivationConditions;

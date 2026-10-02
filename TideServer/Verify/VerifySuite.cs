@@ -73,6 +73,7 @@ namespace TideServer.Verify
                 new SectionDef { Id = "V6", Title = "6. 真实 socket 会话（进程内 M2 冒烟）", InQuick = true, Runner = SectionInproc.RunSocket },
                 new SectionDef { Id = "V7", Title = "7. 同种子对拍（M3 确定性）", InQuick = false, Runner = () => SectionInproc.RunDeterminism(deck) },
                 new SectionDef { Id = "V8", Title = "8. 网关/子进程（跨进程真实拓扑）", InQuick = true, Runner = () => SectionGateway.Run(quick) },
+                new SectionDef { Id = "V9", Title = "9. 引擎规则回归（三类卡型定案）", InQuick = true, Runner = SectionRules.Run },
             };
 
             Console.WriteLine($"[Verify] 开始：服务器端到端验证（{(quick ? "quick 档" : "全量档")}{(wanted != null ? $"，段过滤 {string.Join(",", wanted)}" : "")}）");

@@ -29,7 +29,7 @@ namespace Tide.验证
                 if (!ClickNamed("btn-effect")) { Fail("主菜单效果合成按钮缺失"); return; }
                 await Task.Delay(600);
 
-                int chips = CountNamed(t => t.name.StartsWith("mode-"));
+                int chips = CountNamed(t => t.name.StartsWith("mode-") && t.name != "mode-bar");
                 var nameLabel = ReadTextNamed("lbl-effect-name");
                 // 库行=原子库 content 下的 row（祖先链判据——对层级包装增删免疫）
                 int libRows = CountNamed(t => t.name == "row" && HasAncestor(t, "library-list") && HasAncestor(t, "content"));

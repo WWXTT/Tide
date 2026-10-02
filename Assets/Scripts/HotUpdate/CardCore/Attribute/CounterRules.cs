@@ -219,6 +219,51 @@ namespace CardCore.Attribute
             _registry[spec.Id] = spec;
         }
 
+        // ==================== 耐久公共路径（2026-10-02 结界实装定案） ====================
+
+        /// <summary>
+        /// 耐久消耗公共路径：结界与装备一套耐久语义（-N 层并播报；归零 → 直送墓 +
+        /// CardDestroyEvent(Smashed)——「无生命直毁」惯例，不经死亡决策表）。
+        /// 原实现自 EquipRules.LoseDurability 迁入（装备侧调用点转发至此）。
+        /// 无耐久层（cur ≤ 0，如持续型装备）不消耗。
+        /// </summary>
+        public static void LoseDurability(CardCore.GameCore core, Card durable, int amount, string reason)
+        {
+            if (core?.ZoneManager == null || durable == null || amount <= 0) return;
+            int cur = durable.GetCounterCount(DurabilityCounter);
+            if (cur <= 0) return;
+
+            durable.AddCounters(DurabilityCounter, -Math.Min(amount, cur));
+            EventManager.Instance.Publish(new KeywordAppliedEvent
+            {
+                Target = durable,
+                Keyword = DurabilityCounter,
+                Detail = $"耐久 -{amount}（{reason}；剩余 {Math.Max(0, cur - amount)}）",
+            });
+
+            if (durable.GetCounterCount(DurabilityCounter) <= 0)
+            {
+                var owner = durable.GetOwner() ?? durable.GetController();
+                if (owner != null)
+                {
+                    var from = durable.GetZone();
+                    if (from != Zone.Graveyard)
+                        core.ZoneManager.MoveCard(durable, owner, from, Zone.Graveyard);
+                }
+                EventManager.Instance.Publish(new CardDestroyEvent
+                {
+                    DestroyedCard = durable,
+                    Reason = DestroyReason.Smashed, // 耐久耗尽=摧毁口径（无生命直毁）
+                });
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = durable,
+                    Keyword = DurabilityCounter,
+                    Detail = "耐久归零——销毁入墓",
+                });
+            }
+        }
+
         /// <summary>查规格；未登记保守视为 正面/换区清除（不参与回合末清理——与既有行为一致）。
         /// **Permanent（永久类：换区不删，2026-09-07 定案）只属于显式登记的 id**——回退值不能用 Permanent，
         /// 否则拼错的层 id 会永久残留。</summary>

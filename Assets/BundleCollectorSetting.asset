@@ -38,19 +38,6 @@ MonoBehaviour:
         FilterRuleName: CollectAll
         AssetTags: 
         UserData: 
-    - GroupName: AotDll
-      GroupDesc: AotDll
-      AssetTags: 
-      ActiveRuleName: EnableGroup
-      Collectors:
-      - CollectPath: Assets/AotDlls
-        CollectorGUID: 8d32ff4434144724d8897e76b8e296ad
-        CollectorType: 0
-        AddressRuleName: AddressByFileName
-        PackRuleName: PackDirectory
-        FilterRuleName: CollectAll
-        AssetTags: 
-        UserData: 
     - GroupName: Scene
       GroupDesc: Scene
       AssetTags: 
@@ -82,7 +69,7 @@ MonoBehaviour:
       AssetTags: 
       ActiveRuleName: EnableGroup
       Collectors:
-      - CollectPath: Assets/UI/Res
+      - CollectPath: Assets/Art/UI
         CollectorGUID: 1fc5fd11defe247439a93949dd0b87bb
         CollectorType: 0
         AddressRuleName: AddressByFileName
@@ -108,7 +95,7 @@ MonoBehaviour:
       AssetTags: 
       ActiveRuleName: EnableGroup
       Collectors:
-      - CollectPath: Assets/Art/HexMap
+      - CollectPath: Assets/Art
         CollectorGUID: 515d130b280c4ccf8f20f28e13c9516f
         CollectorType: 1
         AddressRuleName: AddressByFileName

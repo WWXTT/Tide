@@ -94,6 +94,8 @@ namespace CardCore.Attribute.Handlers
             (AtomicEffectType.GrantDivineShield, "DivineShield", "获得圣盾"),
             (AtomicEffectType.GrantTaunt, "Taunt", "获得帷幕"),
             (AtomicEffectType.GrantPoisonSting, "PoisonSting", "获得毒刺（战斗伤害改为毒素）"),
+            // 冰晶/梦魇 2026-10-02 裁决表行退役（改写走分支组合）；Specs 保留——印刷关键词路径
+            // （Cards.json keywords 字段）与 KeywordRules 改写链仍靠此映射解析。
             (AtomicEffectType.GrantIceCrystal, "IceCrystal", "获得冰晶（战斗伤害改为冻结）"),
             (AtomicEffectType.GrantNightmare, "Nightmare", "获得梦魇（战斗伤害改为沉睡）"),
             (AtomicEffectType.GrantPathogen, "Pathogen", "获得病原体（战斗伤害改为剧毒）"),

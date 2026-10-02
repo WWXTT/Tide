@@ -28,7 +28,8 @@ namespace CardCore
         /// · 攻/守 = 速度0/速度1主动效果（2026-09-16）（不占槽位），生物默认自带（NoAttack/NoGuard opt-out 退额度）；
         /// · 法术无攻守（恒退 2：即「法术减两费」）；瞬间法术 SurplusToSpeed=true 时
         ///   盈余转 BaseSpeed+1（转换层授予，见 GameActions.GetCardEffectDefinitions），不退费（返回 0）。
-        /// · 效果槽按 CountEffectSlots 计（2026-09-21 抉择分支计槽）——一个效果含 N 分支 Choice = N 槽。
+        /// · 效果槽按 CountEffectSlots 计（2026-09-21 抉择分支计槽）——一个效果含 N 分支 Choice = N 槽；
+        ///   启动式照常计槽（2026-10-02 用户定案维持——AI 每卡原子数上限的可见性锚，只免元素锚价）。
         /// 退费落位（先灰、灰不足逐点退最高费用色）由 ApplyChassisRefund 承担。
         /// </summary>
         public static int ChassisAdjust(CardData card)
@@ -59,11 +60,26 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 底盘退费落位：先扣灰桶（≥1 才扣），灰不足（法术常无灰分量）逐点从最高费用色桶扣
+        /// 底盘退费落位（2026-10-02 定案：落色玩家自标）：正=退费、负=加价入灰（与
+        /// Derive/DeriveModeCosts/BuildCostAtTier 三处共用，防口径漂移）。
+        /// 退费扣桶顺序：**RefundColor 声明色优先**（逐点扣该色桶，桶尽余点回落默认规则）；
+        /// 未声明 → 默认规则：先扣灰桶（≥1 才扣），灰不足（法术常无灰分量）逐点从最高费用色桶扣
         /// （并列取枚举序靠前者）。全桶空则退无可退（免费卡）。
         /// </summary>
-        public static void ApplyChassisRefund(Dictionary<ManaType, int> mounted, int refund)
+        public static void ApplyChassisRefund(CardData card, Dictionary<ManaType, int> mounted, int refund)
         {
+            // 玩家自标落色（2026-10-02）：声明色优先逐点扣，桶尽余点走默认规则
+            if (refund > 0 && card != null
+                && card.RefundColor >= 0 && card.RefundColor <= (int)ManaType.White
+                && mounted.TryGetValue((ManaType)card.RefundColor, out var declared)
+                && declared > 0)
+            {
+                int take = Math.Min(refund, declared);
+                mounted[(ManaType)card.RefundColor] = declared - take;
+                refund -= take;
+                if (refund <= 0) return;
+            }
+
             for (int i = 0; i < refund; i++)
             {
                 if (mounted.TryGetValue(ManaType.Gray, out var g) && g >= 1)

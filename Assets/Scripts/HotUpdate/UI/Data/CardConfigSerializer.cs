@@ -132,6 +132,7 @@ namespace SynergyUI
                     ? new List<LinkAuraData>(card.LinkAuras)
                     : null, // 空表不写列（向后兼容旧 JSON）
                 durability = card.Durability,
+                refundColor = card.RefundColor, // 底盘退费落色（2026-10-02 玩家自标；-1=未声明）
             };
 
             if (card.Cost != null)

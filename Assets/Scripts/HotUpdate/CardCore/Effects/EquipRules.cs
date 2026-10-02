@@ -114,50 +114,18 @@ namespace CardCore
         public static bool IsEquipment(Card card)
             => card is IHasSupertype st && st.Supertype == Cardtype.Artifact;
 
-        /// <summary>消耗 N 点耐久；归零 → 销毁入墓（Smash 同款直毁路径 + 播报）。</summary>
+        /// <summary>消耗 N 点耐久；归零 → 销毁入墓（Smash 同款直毁路径 + 播报）。
+        /// 实现已迁 CounterRules.LoseDurability（2026-10-02 结界实装：装备/结界一套耐久语义），此处转发保调用点稳定。</summary>
         public static void LoseDurability(GameCore core, Card equipment, int amount, string reason)
-        {
-            if (core?.ZoneManager == null || equipment == null || amount <= 0) return;
-            int cur = equipment.GetCounterCount(CounterRules.DurabilityCounter);
-            if (cur <= 0) return; // 无耐久档（持续型装备）不消耗
+            => CounterRules.LoseDurability(core, equipment, amount, reason);
 
-            equipment.AddCounters(CounterRules.DurabilityCounter, -Math.Min(amount, cur));
-            EventManager.Instance.Publish(new KeywordAppliedEvent
-            {
-                Target = equipment,
-                Keyword = CounterRules.DurabilityCounter,
-                Detail = $"耐久 -{amount}（{reason}；剩余 {Math.Max(0, cur - amount)}）",
-            });
-
-            if (equipment.GetCounterCount(CounterRules.DurabilityCounter) <= 0)
-            {
-                var owner = equipment.GetOwner() ?? equipment.GetController();
-                if (owner != null)
-                {
-                    var from = equipment.GetZone();
-                    if (from != Zone.Graveyard)
-                        core.ZoneManager.MoveCard(equipment, owner, from, Zone.Graveyard);
-                }
-                EventManager.Instance.Publish(new CardDestroyEvent
-                {
-                    DestroyedCard = equipment,
-                    Reason = DestroyReason.Smashed, // 耐久耗尽=摧毁口径（无生命直毁）
-                });
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = equipment,
-                    Keyword = CounterRules.DurabilityCounter,
-                    Detail = "耐久归零——装备销毁",
-                });
-            }
-        }
-
-        /// <summary>入场初始化耐久（CardData.Durability > 0 时挂 N 层；由 CardPutToBattlefieldEvent 驱动）。</summary>
+        /// <summary>入场初始化耐久（CardData.Durability > 0 时挂 N 层；由 CardPutToBattlefieldEvent 驱动）。
+        /// 2026-10-02 结界实装：一切无生命单位（战场非生物卡——装备与结界）同走此初始化，一套耐久语义。</summary>
         public static void OnEnterBattlefield(Card card)
         {
             if (!(card is CardWrapper w)) return;
             var data = w.GetData();
-            if (data == null || !IsEquipment(card)) return;
+            if (data == null || !card.IsNonLivingUnit()) return;
             if (data.Durability > 0 && card.GetCounterCount(CounterRules.DurabilityCounter) <= 0)
                 card.AddCounters(CounterRules.DurabilityCounter, data.Durability);
         }

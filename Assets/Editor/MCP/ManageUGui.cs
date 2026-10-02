@@ -32,12 +32,44 @@ namespace Tide.Editor.Mcp
         // Command dispatch
         // ------------------------------------------------------------------
 
+        /// <summary>Root of a prefab opened via LoadPrefabContents, when operating in prefab mode.</summary>
+        private static GameObject _prefabRoot;
+
         public static object HandleCommand(JObject p)
         {
             string action = Str(p, "action")?.ToLowerInvariant();
             if (string.IsNullOrEmpty(action))
                 return new ErrorResponse("'action' is required.");
 
+            string prefabPath = Str(p, "prefab_path") ?? Str(p, "prefabPath");
+            if (string.IsNullOrEmpty(prefabPath))
+                return Dispatch(action, p);
+
+            // Prefab mode: load the asset's contents, run the action against the
+            // isolated hierarchy, then save back. Path lookups fall through to the
+            // prefab root (see FindByPath).
+            if (!System.IO.File.Exists(prefabPath))
+                return new ErrorResponse($"prefab_path '{prefabPath}' does not exist.");
+            if (action == "capture")
+                return new ErrorResponse(
+                    "'capture' targets scene objects; do not pass prefab_path (use instantiate to bring a prefab into the scene).");
+
+            _prefabRoot = PrefabUtility.LoadPrefabContents(prefabPath);
+            try
+            {
+                object result = Dispatch(action, p);
+                PrefabUtility.SaveAsPrefabAsset(_prefabRoot, prefabPath);
+                return result;
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(_prefabRoot);
+                _prefabRoot = null;
+            }
+        }
+
+        private static object Dispatch(string action, JObject p)
+        {
             try
             {
                 switch (action)
@@ -78,10 +110,20 @@ namespace Tide.Editor.Mcp
                     case "rename":
                         return RenameElement(p);
 
+                    case "remove_component":
+                        return RemoveComponent(p);
+
+                    case "instantiate":
+                        return InstantiatePrefab(p);
+
+                    case "invoke_button":
+                        return InvokeButton(p);
+
                     default:
                         return new ErrorResponse(
                             $"Unknown action '{action}'. Valid: create_element, set_rect, set_text, set_style, " +
-                            "set_layout, add_listener, remove_listener, get_hierarchy, capture, delete, rename, ping.");
+                            "set_layout, add_listener, remove_listener, get_hierarchy, capture, delete, rename, " +
+                            "remove_component, instantiate, ping.");
                 }
             }
             catch (Exception ex)
@@ -102,7 +144,8 @@ namespace Tide.Editor.Mcp
 
         private static object CreateElement(JObject p)
         {
-            string type = Str(p, "element_type")?.ToLowerInvariant();
+            // MCP 桥接层会把 snake_case 参数键统一转为 camelCase——一律双写读取保持两种拼写可用
+            string type = (Str(p, "element_type") ?? Str(p, "elementType"))?.ToLowerInvariant();
             if (string.IsNullOrEmpty(type) || !ElementTypes.Contains(type))
                 return new ErrorResponse(
                     $"element_type must be one of: {string.Join(", ", ElementTypes)}.");
@@ -184,6 +227,10 @@ namespace Tide.Editor.Mcp
             if (pos.HasValue && type != "canvas")
                 rt.anchoredPosition = pos.Value;
 
+            // 背景类元素需垫在既有子级之下（默认追加在最后会盖住兄弟）。
+            if (Bool(p, "first_sibling", Bool(p, "firstSibling", false)))
+                rt.SetAsFirstSibling();
+
             EditorUtility.SetDirty(go);
             return new SuccessResponse($"Created {type} '{GetPath(rt)}'.", new
             {
@@ -191,6 +238,19 @@ namespace Tide.Editor.Mcp
                 type,
                 rect = RectSummary(rt),
             });
+        }
+
+        /// <summary>模拟点击（与冒烟同事件路径：ExecuteEvents.pointerClickHandler）——
+        /// Play 态导航取证用；按钮是否生效看运行时点击日志。</summary>
+        private static object InvokeButton(JObject p)
+        {
+            RectTransform rt = FindRect(p);
+            var btn = rt.GetComponentInChildren<UnityEngine.UI.Button>(true);
+            if (btn == null)
+                return new ErrorResponse($"'{GetPath(rt)}' has no Button component.");
+            var ped = new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left };
+            ExecuteEvents.Execute(btn.gameObject, ped, ExecuteEvents.pointerClickHandler);
+            return new SuccessResponse($"Invoked click on '{GetPath(rt)}'.", new { path = GetPath(rt) });
         }
 
         private static Transform ResolveParent(JObject p, string type)
@@ -682,6 +742,20 @@ namespace Tide.Editor.Mcp
             if (p["raycast_target"] != null || p["raycastTarget"] != null)
                 graphic.raycastTarget = Bool(p, "raycast_target", graphic.raycastTarget);
 
+            // TMP 文本专属：字号与加粗（排版还原用——autosize 开启时 fontSize 同时是上限基准）
+            if (graphic is TMP_Text tmp)
+            {
+                if (p["font_size"] != null || p["fontSize"] != null)
+                    tmp.fontSize = Val(p, "font_size", tmp.fontSize);
+                if (p["font_bold"] != null || p["fontBold"] != null)
+                {
+                    bool bold = Bool(p, "font_bold", false);
+                    tmp.fontStyle = bold
+                        ? tmp.fontStyle | FontStyles.Bold
+                        : tmp.fontStyle & ~FontStyles.Bold;
+                }
+            }
+
             if (graphic is Image image)
             {
                 string spritePath = Str(p, "sprite_path") ?? Str(p, "spritePath");
@@ -882,9 +956,30 @@ namespace Tide.Editor.Mcp
             {
                 Transform t = FindByPath(canvasPath)
                     ?? throw new ArgumentException($"canvas_path '{canvasPath}' not found.");
-                Canvas c = t.GetComponent<Canvas>()
-                    ?? throw new ArgumentException($"'{canvasPath}' has no Canvas component.");
-                canvases = new[] { c };
+                Canvas c = t.GetComponent<Canvas>();
+                if (c != null)
+                {
+                    canvases = new[] { c };
+                }
+                else
+                {
+                    // Canvas-stripped screen prefab roots are still valid roots:
+                    // report the subtree with a synthesized entry instead of failing.
+                    return new SuccessResponse(
+                        $"Hierarchy of '{canvasPath}' (no Canvas — plain RectTransform root).",
+                        new
+                        {
+                            canvases = new List<JObject>
+                            {
+                                new JObject
+                                {
+                                    ["path"] = GetPath(t),
+                                    ["renderMode"] = "(none)",
+                                    ["children"] = BuildChildTree(t, 0, maxDepth),
+                                },
+                            },
+                        });
+                }
             }
             else
             {
@@ -998,6 +1093,7 @@ namespace Tide.Editor.Mcp
                 t.gameObject.layer = LayerMask.NameToLayer("UI");
             cam.cullingMask = 1 << LayerMask.NameToLayer("UI");
 
+            float oldScaleFactor = canvas.scaleFactor;
             try
             {
                 CanvasScaler scaler = canvas.GetComponent<CanvasScaler>();
@@ -1006,7 +1102,20 @@ namespace Tide.Editor.Mcp
                 int w = Mathf.Clamp(maxWidth, 128, 1920);
                 int h = Mathf.RoundToInt(w * refH / refW);
 
+                // CanvasScaler never ticks outside Play mode; drive the canvas scale
+                // manually so the reference-resolution layout maps onto the RT size.
+                if (scaler != null && scaler.uiScaleMode == CanvasScaler.ScaleMode.ScaleWithScreenSize)
+                    canvas.scaleFactor = w / refW;
+
                 RenderTexture rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32);
+                // Refresh layout before shooting — outside Play mode neither the
+                // Canvas scaler nor the layout groups tick, and a manual cam.Render()
+                // skips the player loop entirely. Force the canvas system to sync
+                // its ScreenSpaceCamera geometry, then rebuild layout, then sync
+                // again: without this ordering the capture renders collapsed.
+                Canvas.ForceUpdateCanvases();
+                LayoutRebuilder.ForceRebuildLayoutImmediate(canvas.transform as RectTransform);
+                Canvas.ForceUpdateCanvases();
                 cam.targetTexture = rt;
                 cam.Render();
 
@@ -1033,6 +1142,7 @@ namespace Tide.Editor.Mcp
             {
                 for (int i = 0; i < layerBackup.Count; i++)
                     layerBackup[i].gameObject.layer = oldLayers[i];
+                canvas.scaleFactor = oldScaleFactor;
                 canvas.renderMode = oldMode;
                 canvas.worldCamera = oldCam;
                 canvas.planeDistance = oldPlane;
@@ -1063,6 +1173,52 @@ namespace Tide.Editor.Mcp
             rt.name = newName;
             EditorUtility.SetDirty(rt.gameObject);
             return new SuccessResponse($"Renamed to '{GetPath(rt)}'.", new { path = GetPath(rt) });
+        }
+
+        private static object RemoveComponent(JObject p)
+        {
+            RectTransform rt = FindRect(p);
+            string componentName = Str(p, "component_type") ?? Str(p, "componentType") ?? Str(p, "component")
+                ?? throw new ArgumentException("component_type is required.");
+
+            Component match = rt.GetComponents<Component>()
+                .FirstOrDefault(c => c != null && c.GetType().Name.Equals(componentName, StringComparison.OrdinalIgnoreCase))
+                ?? throw new ArgumentException(
+                    $"Component '{componentName}' not found on '{GetPath(rt)}'. " +
+                    $"Present: {string.Join(", ", rt.GetComponents<Component>().Where(c => c != null).Select(c => c.GetType().Name))}");
+            if (match is RectTransform)
+                return new ErrorResponse("Cannot remove RectTransform from a UI element.");
+
+            // Undo teardown does not reliably reach components on LoadPrefabContents
+            // hierarchies (Canvas survived undo-destroy); prefab mode destroys
+            // directly — asset history is covered by version control anyway.
+            if (_prefabRoot != null)
+                UnityEngine.Object.DestroyImmediate(match);
+            else
+                Undo.DestroyObjectImmediate(match);
+            EditorUtility.SetDirty(rt.gameObject);
+            return new SuccessResponse($"Removed {componentName} from '{GetPath(rt)}'.");
+        }
+
+        private static object InstantiatePrefab(JObject p)
+        {
+            string path = Str(p, "prefab_path") ?? Str(p, "prefabPath")
+                ?? throw new ArgumentException("prefab_path is required.");
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (prefab == null)
+                return new ErrorResponse($"No prefab found at '{path}'.");
+
+            Transform parent = ResolveParent(p, "panel");
+            GameObject inst = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+            inst.name = prefab.name; // drop "(Clone)" so FindByPath sees the canonical name
+            Undo.RegisterCreatedObjectUndo(inst, "MCP Instantiate " + inst.name);
+            RectTransform rt = (RectTransform)inst.transform;
+            ApplyAnchor(rt, "stretch");
+            // LayoutGroups only run in Play mode by default; force a rebuild so the
+            // editor-state hierarchy (and capture) reflects the real layout.
+            LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+            return new SuccessResponse($"Instantiated '{path}' under '{GetPath(parent)}'.",
+                new { path = GetPath(rt), prefab = path, rect = RectSummary(rt) });
         }
 
         // ------------------------------------------------------------------
@@ -1145,13 +1301,21 @@ namespace Tide.Editor.Mcp
         {
             string[] parts = path.Split('/');
             Transform current = null;
-            foreach (Transform root in UnityEngine.SceneManagement.SceneManager
-                .GetActiveScene().GetRootGameObjects().Select(go => go.transform))
+
+            // Prefab mode: the loaded prefab root participates in lookup by name.
+            if (_prefabRoot != null && _prefabRoot.name == parts[0])
+                current = _prefabRoot.transform;
+
+            if (current == null)
             {
-                if (root.name == parts[0])
+                foreach (Transform root in UnityEngine.SceneManagement.SceneManager
+                    .GetActiveScene().GetRootGameObjects().Select(go => go.transform))
                 {
-                    current = root;
-                    break;
+                    if (root.name == parts[0])
+                    {
+                        current = root;
+                        break;
+                    }
                 }
             }
             if (current == null) return null;

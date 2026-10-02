@@ -156,6 +156,14 @@ namespace CardCore
             var targetController = target is Card tc ? tc.GetController() : target as Player;
             if (attackingPlayer == null || targetController != attackingPlayer.Opponent) return false;
 
+            // 2026-10-02 三类卡型定案：卡牌攻击目标=防守方**战场上**的卡（活体生物全额落血；
+            // 无生命结界经耐久管线每次 -1，反击力=0 天然单向）或防守方角色。
+            // 非战场卡（FieldZone 英雄技能卡等）不是合法攻击目标。
+            if (target is Card zc && targetController != null
+                && _zoneManager != null
+                && !_zoneManager.IsCardInZone(zc, targetController, Zone.Battlefield))
+                return false;
+
             // 潜行：不可被指定为攻击目标
             if (target is Card sc && sc.HasKeyword(KeywordRules.Stealth))
                 return false;

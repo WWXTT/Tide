@@ -17,7 +17,11 @@ namespace SynergyUI
     /// </summary>
     public sealed class BattleController
     {
-        private readonly SimpleAI _ai = new SimpleAI();
+        private IAiTurnDriver _ai = new SimpleAI(); // 缺省动作耗尽启发；教学局注入 ScriptedAi（剧本驱动）
+
+        // 教学固定局（2026-10-02）：机器人响应窗口全让过的静态接线前值（Shutdown 恢复防泄漏）
+        private bool _passiveResponderOn;
+        private Func<GameCore, Player, List<ResponseOption>, ResponseOption> _prevAiResponder;
 
         // 棋盘占用层（派生，单向读核心区域）：为碾压关键词提供邻接解析 + HUD 格位
         private GameBoard.BoardState _board;
@@ -35,8 +39,11 @@ namespace SynergyUI
         /// <summary>
         /// 组双方卡组并初始化对局。myDeck/aiDeck 缺省时从本地卡池随机抽取
         /// （不重复、每卡 1 张）；P2 由极简 AI 操作。
+        /// 教学局参数（2026-10-02）：aiDriver 注入 ScriptedAi（剧本驱动）；lockDeckOrder 锁牌库顺序
+        /// （卡组列表序=摸牌序列，起手=前 6 张）；rngSeed 钉效果随机——三者合成完全确定的教学局。
         /// </summary>
-        public void StartNewGame(List<CardData> myDeck = null, List<CardData> aiDeck = null)
+        public void StartNewGame(List<CardData> myDeck = null, List<CardData> aiDeck = null,
+            IAiTurnDriver aiDriver = null, bool lockDeckOrder = false, int? rngSeed = null)
         {
             var catalog = CardCatalog.LoadAll();
             // 变形目标形态解析器：组合根注入（CardCore 不依赖 UI 层）
@@ -44,8 +51,9 @@ namespace SynergyUI
 
             if (myDeck == null) myDeck = RandomDeckFrom(catalog);
             if (aiDeck == null) aiDeck = RandomDeckFrom(catalog);
+            if (aiDriver != null) _ai = aiDriver;
 
-            GameCore.Instance.InitGame(myDeck, aiDeck);
+            GameCore.Instance.InitGame(myDeck, aiDeck, rngSeed: rngSeed, lockDeckOrder: lockDeckOrder);
             // 标记 P2 为 AI：目标选择器对 AI 跳过弹窗、即时自动选择。
             if (GameCore.Instance.Player2 != null)
                 GameCore.Instance.Player2.IsAI = true;
@@ -76,7 +84,27 @@ namespace SynergyUI
         /// 静态扩展点不清理会指向已过期的占用层——同进程后续开验证器/headless 局时
         /// 碾压/光环会按旧棋盘结算（BattlefieldVerifier S5 生命周期断言锁定此口径）。
         /// </summary>
-        public void Shutdown() => DetachBoard();
+        public void Shutdown()
+        {
+            DetachBoard();
+            // 教学态静态接线还原（AiResponder 是全局委托——不还原会泄漏到后续普通局：机器人永不让守卫）
+            if (_passiveResponderOn)
+            {
+                _passiveResponderOn = false;
+                ResponseWindowService.AiResponder = _prevAiResponder;
+                _prevAiResponder = null;
+            }
+        }
+
+        /// <summary>教学局开关：机器人响应窗口全让过（永不反制/拦截玩家操作——教学必需）。
+        /// AiResponder 返回 null 会回落内置守卫启发，故走 PassOption 哨兵；Shutdown 恢复前值。</summary>
+        public void EnablePassiveAiResponder()
+        {
+            if (_passiveResponderOn) return;
+            _passiveResponderOn = true;
+            _prevAiResponder = ResponseWindowService.AiResponder;
+            ResponseWindowService.AiResponder = (core, holder, options) => ResponseWindowService.PassOption;
+        }
 
         private void DetachBoard()
         {
