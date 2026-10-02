@@ -8,7 +8,8 @@
         "Unity.InferenceEngine",
         "YooAsset",
         "UniTask",
-        "UnityEngine.UI"
+        "UnityEngine.UI",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

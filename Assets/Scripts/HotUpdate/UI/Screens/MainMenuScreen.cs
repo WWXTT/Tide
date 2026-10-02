@@ -1,33 +1,34 @@
+using UnityEngine;
+using CardCore.Network;
+
 namespace SynergyUI
 {
     /// <summary>
-    /// 主菜单 —— 进入四个子界面的入口。验证 UIManager 导航栈。
+    /// 主菜单 —— 子界面入口（2026-10-01 预制体化：层级来自 Assets/Art/UI/MainUI.prefab，
+    /// Build 只做按名绑定+闭包接线；title/subtitle 等静态文本由预制体烘焙）。
     /// </summary>
     public sealed class MainMenuScreen : UIScreen
     {
-        public override string UxmlResourcePath => "UXML/MainMenu";
+        protected override string PrefabAddress => "MainUI";
+        protected override string PrefabAssetPath => "Assets/Art/UI/MainUI.prefab";
+        protected override string RootName => "main-menu";
 
-        public override void OnEnter()
+        protected override void Build()
         {
-            UIBinder.BindButton(Root, "btn-effect", () => Manager.Show<EffectComposerScreen>());
-            UIBinder.BindButton(Root, "btn-card", () => Manager.Show<CardComposerScreen>());
-            UIBinder.BindButton(Root, "btn-deck", () => Manager.Show<DeckBuilderScreen>());
-            UIBinder.BindButton(Root, "btn-battle", () =>
+            BindButton("btn-battle", () =>
             {
                 BattleEntry.Mode = BattleMode.LocalAI; // 本地 vs AI（随机卡组开局）
                 Manager.Show<BattleScreen>();
             });
-            // 联机匹配入口（阶段三，2026-09-24）：大厅（房间列表/自动匹配/AI 填位）→ 接续对战界面
-            UIBinder.BindButton(Root, "btn-match", () => Manager.Show<MatchScreen>());
-            // 网络对战调试入口（2026-09-24 阶段四）：连接配置写死本机——ip/port 表单属
-            // 阶段三匹配界面职责，此按钮仅打通网络模式全链冒烟（MatchScreen 已就绪，保留作快速直连）。
-            UIBinder.BindButton(Root, "btn-battle-net", () =>
-            {
-                BattleEntry.Mode = BattleMode.Network;
-                BattleEntry.Host = "127.0.0.1";
-                BattleEntry.Port = 8090;
-                Manager.Show<BattleScreen>();
-            });
+
+            // 大厅入口（比赛禁联机——随 NetGate 总闸屏蔽；恢复=NetGate.OnlineEnabled 置 true）
+            BindButton("btn-match", () => Manager.Show<MatchScreen>());
+            var match = Find("btn-match");
+            if (match != null) match.gameObject.SetActive(NetGate.OnlineEnabled);
+
+            BindButton("btn-deck", () => Manager.Show<DeckBuilderScreen>());
+            BindButton("btn-card", () => Manager.Show<CardComposerScreen>());
+            BindButton("btn-effect", () => Manager.Show<EffectComposerScreen>());
         }
     }
 }

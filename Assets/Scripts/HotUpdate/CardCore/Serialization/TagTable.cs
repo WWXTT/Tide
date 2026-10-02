@@ -215,6 +215,7 @@ namespace CardCore.Serialization
         public const int MGSS_ZoneCards = 1095299921;
         public const int MGSS_Hands = 1371201158;
         public const int MGSS_StackV2 = 1464117104;
+        public const int MGSS_RevealedZoneCards = 612847093; // 展示卡（信息轴 2026-10-02：隐藏区中被展示的卡，双方可见）
 
         // ---- StackItemDTO ----
         public const int SID_Source = 887547856;

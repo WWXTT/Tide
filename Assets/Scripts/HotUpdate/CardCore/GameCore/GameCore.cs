@@ -623,6 +623,11 @@ namespace CardCore
             // 动态分支引擎（2026-09-13 分支体系正规化：倒计时/运势/拼点）——组合根登记（幂等）
             BranchEngines.EnsureRegistered();
 
+            // 诅咒系统（2026-10-02 信息轴定案：抽到被诅咒卡时自动执行载荷分支并消层）
+            // ——组合根登记（幂等）+ 载荷注册表跨局不残留（CurseSystem 在 CardCore 根命名空间，同 BranchEngines）
+            CurseSystem.EnsureRegistered();
+            CurseSystem.Reset();
+
             // 装备系统（2026-09-13 第二十一批：武器反伤/耐久扩展口接线）——组合根（幂等）
             EquipRules.EnsureAttached(this);
             // 订阅缓存委托（2026-09-24 泄漏修复）：lambda 每局 new 一个实例无法退订，

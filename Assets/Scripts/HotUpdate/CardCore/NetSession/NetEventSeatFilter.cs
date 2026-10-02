@@ -15,7 +15,8 @@ namespace CardCore.Network
     /// - 其余 Kind 不涉及实体引用，原样通过。
     /// - 零拷贝：无命中时返回原实例；有命中才克隆（共享投影缓冲不可原地改）。
     ///
-    /// 隐藏集口径（HiddenCardIds）：viewer 的**对方手牌** + **双方牌库**（对局中未公开区）。
+    /// 隐藏集口径（HiddenCardIds）：viewer 的**对方手牌** + **双方牌库**（对局中未公开区）；
+    /// **已展示（Exposed 指示物）的卡豁免**——持续暴露对双方可见（信息轴 2026-10-02 定案）。
     /// 按**出队时点**的当前区域判定——同 tick 内事件即发即滤，时点漂移窗口为一个泵周期。
     /// </summary>
     public static class NetEventSeatFilter
@@ -39,7 +40,7 @@ namespace CardCore.Network
             var cards = core.ZoneManager.GetCards(player, zone);
             if (cards == null) return;
             foreach (var card in cards)
-                if (card != null)
+                if (card != null && !Attribute.RevealRules.IsExposed(card)) // 已展示卡不隐藏（信息轴 2026-10-02 定案：持续暴露对双方可见）
                     hidden.Add(card.RuntimeId);
         }
 

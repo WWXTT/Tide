@@ -9,6 +9,8 @@ namespace CardCore.Network
     ///
     /// - 隐藏信息：己方手牌传 RuntimeId（CardHandInfo.OwnRuntimeIds）、对方只数量；
     ///   牌库只数量；坟场/除外/战场/元素池/发动区/场地区全量公开。
+    ///   例外（信息轴 2026-10-02 定案）：隐藏区中被展示（Exposed 指示物）的卡经 RevealedZoneCards
+    ///   恒全量下发——持续暴露对双方可见。
     /// - 字节稳定：Counters 按键排序后序列化（同状态两次序列化 byte[] 相等——确定性回归断言用）。
     /// - 时点约束（M1 记录、M2 服务器收口）：人局 EndTurn 后可能赶上半完成结算
     ///   （EnforceHandLimitAsync / PassPriority 内部 .Forget() 异步）——服务器侧快照
@@ -60,6 +62,11 @@ namespace CardCore.Network
                     zones.Add(BuildZone(core, seat, player, Zone.Hand));
             }
             snapshot.ZoneCards = zones.ToArray();
+
+            // 展示卡（信息轴 2026-10-02 定案）：隐藏区（手牌/牌库）中被展示（Exposed 指示物）的卡
+            // 对双方公开——恒全量下发（不受 viewer 座位约束；未启用时为空数组，空区省略条目）。
+            // UI「点击对方手牌/牌库查看被展示的卡」的数据源。
+            snapshot.RevealedZoneCards = BuildRevealedZoneCards(core);
 
             // 旧字段兼容填充（Battlefield 全量）
             snapshot.BattlefieldCards = snapshot.ZoneCards
@@ -187,6 +194,30 @@ namespace CardCore.Network
             if (dto.Counters != null && dto.Counters.Length > 1)
                 dto.Counters = dto.Counters.OrderBy(c => c.Key, StringComparer.Ordinal).ToArray();
             return dto;
+        }
+
+        /// <summary>隐藏区中被展示的卡（双方手牌+牌库过滤 Exposed 指示物；恒全量——信息轴 2026-10-02）。</summary>
+        private static NetZoneCards[] BuildRevealedZoneCards(GameCore core)
+        {
+            var revealed = new System.Collections.Generic.List<NetZoneCards>();
+            foreach (var seat in new[] { 0, 1 })
+            {
+                var player = NetEntityDirectory.SeatToPlayer(core, seat);
+                if (player == null) continue;
+
+                foreach (var zone in new[] { Zone.Hand, Zone.Deck })
+                {
+                    var exposed = Attribute.RevealRules.GetExposedCards(core.ZoneManager, player, zone);
+                    if (exposed.Count == 0) continue;
+                    revealed.Add(new NetZoneCards
+                    {
+                        Seat = seat,
+                        Zone = (int)zone,
+                        Cards = exposed.Select(ToSortedCardState).ToArray(),
+                    });
+                }
+            }
+            return revealed.ToArray();
         }
     }
 }

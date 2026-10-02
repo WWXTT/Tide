@@ -1,108 +1,27 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using CardCore;
 using CardCore.Attribute;
 using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEngine.UI;
+using TMPro;
+using UInputField = TMPro.TMP_InputField;
 
 namespace SynergyUI
 {
     /// <summary>
-    /// 效果合成界面（2026-09-14 合成器重做；当日二轮：顶栏重构 + 右栏双模式 + 内联编辑）——
-    /// 左=编辑栏（模式条+代价区+槽位区）/ 右=展示区（原子库 / 效果表双模式）。
-    /// 2026-09-21 定案：**拖拽已弃用（DragController 删除）**——全部交互走点击；
-    /// 同日交互重做：**槽位选中制**——左侧默认选中原子1（首个槽），右侧点击库行
-    /// =**替换选中槽的原子**（不再是顺序追加；点击左侧槽可切换选中；填入空槽后自动前进到下一空槽）。
-    /// 效果设置栏已移除（2026-09-21）——效果级编排字段（速度/触发上限/持续/选择模式/数量/落区）
-    /// 移入每个原子卡/主干卡的展开区编辑（整个效果共用）。
-    ///
-    /// 组合三态（用户定案，InferMode 推断防互串）：
-    ///   并列     = steps 里 1-3 个 kind=0 原子（无时序选项——全部按现行逐一结算，引擎零改动）；
-    ///   自由分支 = steps 空 + header.EngineKind/EngineParam（主干=拼点/运势/倒计时表行）+ AtomicEffects[0]=奖励；
-    ///   有限分支 = steps=[kind=0 主干, kind=1 分支（conditionId ∈ OutcomeGates，thenSteps=奖励单原子）]，
-    ///              门文本带【奖励x】，奖励推导费 ≤ x（添加时校验）。
-    ///
-    /// 顶栏（二轮定案）：
-    ///   - 效果名自动构成：中文名＋组合方式＋中文名（并列"＋"/分支"→"），只读展示；
-    ///   - 触发方式三态：主动（仅自己主阶段，隐藏触发时机）/ 自动（条件触发·弹窗询问）/ 强制（条件触发·不询问）；
-    ///     触发时机下拉全中文；
-    ///   - 读取/载入下拉删除；右上两按钮：读取原子表（AtomicEffectTable.Reload+回原子库）/ 读取效果表
-    ///     （右栏切效果表模式——点击效果载入左侧编辑，保存覆盖原名，自动改名清旧档）；
-    ///   - toast 移至左下角。
-    ///
-    /// 检查器已删（用户裁定）：原子参数编辑改为**槽内卡片点击展开**（Value/随机滑条/目标域/目标随机/
-    /// MountKinds 提示全部内联）；效果级编排字段在"效果设置"区（每个选项带说明）。
-    ///
-    /// 三轮追加（同日）：代价=**错边原子槽**（效果区禁错边/代价区只能错边，位于效果编辑上方）；
-    /// 自动名旁显示自动费用（ConvertOne+DeriveElementCosts 实时推导，含引擎机制费）；
-    /// 存储统一 StreamingAssets/Tide（CreatureCards=卡池+合成保存同文件；效果库 Effects/；卡组只存 ID 引用）。
-    /// 旧版分支/缺陷/维度档走 BranchConfigTable 的死路径（BranchConfig.json 已删）全部移除——
-    /// 有限分支条件目录用代码侧 ComposerCatalog；Drawbacks 已随减费归入代价体系退役（2026-09-16）。
-    ///
-    /// 2026-09-22 六项修订：
-    ///   ① 效果表模式对齐原子库三件套——共用右栏筛选（效果分类=内含原子名并集）+ 近似搜索（名∪id∪简称）+ 行色点；
-    ///   ② 锁定关键词移出原子库（不可组合），在关键词区"不可编辑"分组固定展示——攻击/守卫（生物卡默认携带）
-    ///      与拼点/运势/倒计时（固定引擎机制）；自由分支主干随之改为**主干槽内下拉直选**（不再经库行点击落槽）；
-    ///   ③ 效果表行单行化：去全部简化描述，只留 名+id 一行（.single-line 省略号截断）；
-    ///   ④ 代价槽纳入槽位选中制——**任何可挂载原子都能入代价**（2026-09-22 二轮语义修订：真正的区别是作用单位）：
-    ///      填入时作用域自动改写错侧（有益→对手 / 有害→己方 / 中性须表级单侧锁），形成 &gt;1 费拦截
-    ///     （口径同装载期 WrongSide/SideLock/PayloadUnitGrant）；代价卡内联编辑锁定作用域并实时显示全价。
-    ///   ⑤ 目标域/效果级"持续"下拉全汉化（原为枚举英文名）；
-    ///   ⑥ 下拉弹窗限高 300px（触发时机 27 项约见一半，纵向滚动；USS .unity-generic-menu）。
-    ///
-/// 2026-09-22 五轮（可用性收口）：
-///   ① 目标域下拉+目标随机合并一行；选项按 Polarity×槽位限选（效果区 p&gt;0 只己方侧/p&lt;0 只对方侧，
-///      代价区只错侧成员——与装载期内容契约同源）；改动即重渲——{target} 按实例域渲染（AtomText.TargetNoun）；
-///   ② 关键词恒为**他人赋予形态**（用户拍板只要他人：kinds={1,2}+Single+UntilEndOfTurn+RandomTarget=0，"自己"两态编辑器已删只留赋予持续三档）；可落并列+奖励槽
-///      （Grant 行位 4 ∩ 门预算）；库中 Grant 行点击同口径归一（EntryForEffectSlot：kinds/str=TryGetKeywordId 映射）；
-///   ③ 库/关键词面板按**当前选中槽过滤可用项**（CurrentSlotPredicate），库顶 lbl-lib-context 显示过滤口径，钩子=SelectSlot/FillCostSlot/DropGateTrunk/主干下拉回调。
-///
-/// 2026-09-23 三项（用户定案）：
-///   ① **校验实时化**：不合规设置=所在区域闪烁红边框（.zone--invalid + 500ms 翻转 .zones-flash-off）
-///      + 区域内红字提示（hint--error）；存在任何违规时**保存按钮禁用**（ValidateZones 单口，槽区/代价区/光环区各自注册）；
-///   ② **属性描述选中才出现**：可编辑控件的说明不再常驻——聚焦/点击时显示在左栏底部描述条
-///      （lbl-prop-desc，Described() 挂属性 + 根级 FocusIn/PointerDown 路由），拓宽可用 UI 面积；
-///   ③ **光环上移效果层**（修订 2026-09-22「光环=卡面字段」定案）：箭头+光环条目随**效果**合成
-///      （第四形态任意会话可用，不再限卡编辑会话）；效果挂到卡上时自动并集入卡面（多光环取并集，
-///      AggregateEffectAuras）；卡编辑界面不再编辑箭头。箭头选择器美术形式=**六向三角形围成一圈**
-    ///      （.arrow-picker/.arrow-hit/.arrow-tri——CSS 边框三角形，选中变蓝白）。
-    ///
-    /// 2026-09-23 八轮（右栏收口 + 箭头校准）：
-    ///   ① 六向箭头选择器整体顺时针旋（MakeArrowPicker gridAlignDeg；初版 22.5°，**十轮修正为 30°**）
-    ///      ——与实际地图网格的六邻接方向对齐；方位标签改棋盘真实方位（BoardMath.MapArrow：Up→右上/NE…）；
-    ///   ② 右栏关键词独立面板删除——关键词 Grant 行本就在原子库（源自原子效果表）按选中槽同口径过滤
-    ///      （并列=位 0/奖励=位 4∩预算/代价=CanBeCost 排除），点击统一走 QuickAdd→EntryForEffectSlot
-    ///      （他人赋予形态，与原 QuickAddKeyword 同口径）——不分"原子库/关键词"两段；
-    ///   ③ 锁定行（攻击/守卫 + 拼点/运势/倒计时等引擎行）直接隐藏——不再做"不可编辑"降透明度展示。
-    ///
-    /// 2026-09-23 九轮（计价分层定案：效果锚价落盘 + 代价上移卡层）：
-    ///   ① 效果组合阶段计价=**纯表累加、无减免抵消**——合成器费用预览（AutoCostText）即此口径；
-    ///      推导费随效果落盘 Effects.json cost 列（ElementCostRef——EffectLibrarySerializer.DeriveAnchorCost，
-    ///      装载期逐效果还原为 CardEffectData.AnchorCost 缓存，供启动式/动态效果运行时现付的显示/预检，
-    ///      不靠整卡缓存）；派生数据不入内容哈希（原子表调价重算不换效果 id）。
-    ///   ② **代价栏上移卡组合层**（CardData.PayloadCost 单卡单条）：效果层删除代价槽——
-    ///      SelKind.Cost/cost-zone/FillCostSlot/PayloadPriceText/CanBeCost/代价校验区全撤，
-    ///      错边原子点击只提示去向卡编辑界面；填装逻辑移植 CardComposerScreen.FillPayloadCost
-    ///     （错侧改写+1 费拦截同口径）。运行时 CollectCardSpecialCosts/CardCostService 读卡层
-    ///      PayloadCost，效果级 CardEffectData.Costs 为 legacy 兜底（卡层已填时跳过防双收）。
-    ///
-    /// 2026-09-23 十轮（光环两处修订，用户复测）：
-    ///   ① 箭头校准值修正 **22.5°→30°**（odd-r 尖顶六边形邻居方向=30°+k·60°——与 BoardMath 几何一致）；
-    ///   ② 光环条目改**右栏点击添加**（RefreshAuraLibrary：属性光环攻/血 + 关键词光环 AuraKeywordChoices
-    ///      位 10 数据驱动；近似搜索按名过滤，可连点重复添加），左栏只展示/编辑（类型/值/删除）——
-    ///      左栏"+"按钮组（+属性/+坚韧/+守护）删除。
-    ///
-    /// 2026-09-23 十一轮（箭头计价分层）：**箭头属卡面资产——效果层只预选、不计费**。
-    ///      光环费预览（AuraPreviewCard）ArrowDirections 恒 None——只显示条目平价；箭头累乘
-    ///      ×1.2^(n-1) 在挂卡并集（AggregateEffectAuras → 卡面 ArrowDirections）后由卡层计
-    ///     （效果锚价 cost 列本就不含光环——DeriveElementCosts 只计原子，零改动）。
+    /// 效果合成界面（2026-10-01 预制体化：静态层级来自 Assets/Art/UI/EffectUI.prefab，
+    /// Build 深度按名绑定+闭包接线；槽位区/原子库/效果表/光环面板运行时重建。
+    /// 交互/文案/校验语义与 UITK 版一一对应；完整修订史见 tag uitk-ui-final 版头注释）。
+    /// 左=编辑栏（模式条+槽位区）/ 右=展示区（原子库 / 效果表双模式）+ 筛选。
+    /// 核心定案：槽位选中制（右侧点击=替换选中槽）；组合三态（并列/自由分支/有限分支/光环，
+    /// InferMode 推断防互串）；校验实时化（区域闪烁红框+保存禁用）；属性描述选中才出现（描述条）；
+    /// 光环=箭头+条目随效果合成（挂卡并集，效果层只预选不计箭头费）；
+    /// 代价栏已上移卡组合层（错边原子在卡编辑界面填装）。
     /// </summary>
     public sealed class EffectComposerScreen : UIScreen
     {
-        public override string UxmlResourcePath => "UXML/EffectComposer";
-
         // ======================================== 组合形态 ========================================
 
         /// <summary>组合三态（UI/存读共用推断，防三种形态互串）。</summary>
@@ -111,7 +30,7 @@ namespace SynergyUI
         /// <summary>右栏双模式：原子库（点击装配）/ 效果表（点击载入编辑）。</summary>
         private enum RightMode { Atoms, Effects }
 
-        /// <summary>由数据推断组合形态：引擎通道优先 → 光环声明（2026-09-23 效果级）→ 含 kind=1 步骤=有限分支 → 其余并列。</summary>
+        /// <summary>由数据推断组合形态：引擎通道优先 → 光环声明 → 含 kind=1 步骤=有限分支 → 其余并列。</summary>
         public static ComposeMode InferMode(EffectGraphData g)
         {
             if (g?.header != null && g.header.EngineKind != (int)BranchEngineKind.None) return ComposeMode.FreeBranch;
@@ -126,12 +45,12 @@ namespace SynergyUI
         private ComposeMode _mode = ComposeMode.Parallel;
         private RightMode _rightMode = RightMode.Atoms;
 
-        // 槽内卡片展开状态（并列下标存 _selIndex；FreeTrunk 无下标；代价栏已上移卡组合层——2026-09-23）
+        // 槽内卡片展开状态（并列下标存 _selIndex；FreeTrunk 无下标；代价栏已上移卡组合层）
         private enum SelKind { None, Parallel, GateTrunk, GateReward, FreeTrunk, FreeReward }
         private SelKind _sel = SelKind.None;
         private int _selIndex = -1;
 
-        // 槽位选中（2026-09-21 交互重做）：右侧点击=替换选中槽；默认原子1（首个槽）
+        // 槽位选中：右侧点击=替换选中槽；默认原子1（首个槽）
         private SelKind _selSlot = SelKind.Parallel;
         private int _selSlotIndex = 0;
 
@@ -142,25 +61,27 @@ namespace SynergyUI
         // 从效果表载入的源效果 id（编辑换内容=换 id——保存后清旧档防重复；null=非效果表载入）
         private string _loadedFromLibraryId;
 
-        // ---- 校验区（2026-09-23 实时化）：不合规设置=区域闪烁红框+红字提示，保存按钮禁用 ----
-        // 槽区重建（RefreshSlots 清各自的），ValidateZones 统一收口
+        // ---- 校验区：不合规设置=区域闪烁红框+红字提示，保存按钮禁用 ----
         private sealed class ZoneEntry
         {
-            public VisualElement Zone;
+            public RectTransform Zone;
+            public Outline Outline;
+            public Color BaseColor;
             public Func<string> Check; // null/空=合规；否则=错误提示文本
-            public Label ErrLabel;
+            public TMP_Text ErrLabel;
+            public bool Invalid;
         }
         private readonly List<ZoneEntry> _slotZones = new List<ZoneEntry>();
         private Button _saveBtn;
         private bool _flashOn;
+        private float _flashAccumMs;
 
-        // ---- 属性描述条（2026-09-23）：描述只在控件选中时出现——不常驻 ----
-        private Label _descStrip;
-        // 控件→描述弱表（随控件回收自动释放——界面元素每次刷新重建，不用强字典防悬挂）
-        private readonly ConditionalWeakTable<VisualElement, string> _descMap = new ConditionalWeakTable<VisualElement, string>();
+        // ---- 属性描述条：描述只在控件选中时出现——不常驻 ----
+        private TMP_Text _descStrip;
+        private RectTransform _descStripNode;
 
-        // 光环箭头六向表（2026-09-23 三角选择器）：deg=自正上方顺时针角度（与 HexDirection 几何一致）；
-        // zh=棋盘实际方位名（BoardMath.MapArrow：Up→NE/UpperRight→E/…——三角形校准后指向的就是该方位）
+        // 光环箭头六向表：deg=自正上方顺时针角度（与 HexDirection 几何一致）；
+        // zh=棋盘实际方位名（BoardMath.MapArrow——三角形校准后指向的就是该方位）
         private static readonly (HexDirection dir, float deg, string zh)[] ArrowDirs =
         {
             (HexDirection.Up, 0f, "右上"), (HexDirection.UpperRight, 60f, "右"), (HexDirection.LowerRight, 120f, "右下"),
@@ -168,23 +89,23 @@ namespace SynergyUI
         };
 
         // ---- UI 引用 ----
-        private ScrollView _slotArea, _libraryList, _effectsList;
-        private VisualElement _modeBar, _atomPanel;
-        private Label _toast, _nameLabel, _costLabel, _activationHint, _timingLabel, _libContext;
-        private TextField _filterName;
-        private DropdownField _timingDropdown, _activationDropdown, _filterTypeDropdown;
+        private UiKit.Scroll _slotArea, _libraryList, _effectsList;
+        private RectTransform _modeBar, _atomPanel, _effectsPanel, _timingRow;
+        private TMP_Text _toast, _nameLabel, _costLabel, _libContext;
+        private UInputField _filterName;
+        private UiKit.Dropdown _timingDropdown, _activationDropdown, _filterTypeDropdown;
         private Button _reloadAtomsBtn, _loadEffectsBtn;
         private List<TriggerTiming> _timings;
+        private RectTransform _overlay;
 
-        // 筛选状态（2026-09-22 筛选栏两模式共用）：原子库=表行中文名；效果表=内含原子名。
-        // 近似搜索：原子库=中文名∪描述模板；效果表=名∪id∪组成简称。颜色筛选已删——圆点直读表色
+        // 筛选状态：原子库=表行中文名；效果表=内含原子名。近似搜索：原子库=中文名∪描述模板；效果表=名∪id∪组成简称
         private string _filterTypeZh; // null = 全部
         private List<string> _filterTypeChoices = new List<string> { "全部" };
 
-        // 发动方式：0=强制 1=自动 2=主动（EffectActivationType 同序）。说明走描述条（2026-09-23）。
+        // 发动方式：0=强制 1=自动 2=主动（EffectActivationType 同序）
         private static readonly string[] ActivationNames = { "强制", "自动", "主动" };
 
-        // 触发时机中文（多数取自 EffectDefinition 描述映射，登/召唤/他生物进场为补全；主动三档不入下拉）
+        // 触发时机中文（主动三档不入下拉）
         private static readonly Dictionary<TriggerTiming, string> TimingZh = new Dictionary<TriggerTiming, string>
         {
             { TriggerTiming.OnPlay, "登场时" },
@@ -227,9 +148,7 @@ namespace SynergyUI
             ("全取·多范围", (int)CardCore.SelectionMode.WholeUnion),
         };
 
-        // 目标域中文（2026-09-22 五轮公共化）：移至 AtomText.TargetKindZhMap（与 {target} 渲染单一来源）
-
-        // 效果级持续档中文（2026-09-22 汉化；按值映射，ForTurns 仅存于指示物时钟不提供）
+        // 效果级持续档中文（按值映射，ForTurns 仅存于指示物时钟不提供）
         private static readonly (string label, int value)[] DurationChoices =
         {
             ("一次性", (int)DurationType.Once),
@@ -240,14 +159,11 @@ namespace SynergyUI
             ("条件持续", (int)DurationType.WhileCondition),
         };
 
-        /// <summary>固定战斗原子（2026-09-22）：攻击/守卫=生物卡默认携带的主动能力
-        ///（README L2 底盘预算：免费额度覆盖 攻(1)+守(1)，NoAttack/NoGuard opt-out）——
-        /// 移出原子库不可组合（2026-09-23 起不再展示——锁定行直接隐藏）。</summary>
+        /// <summary>固定战斗原子：攻击/守卫=生物卡默认携带——移出原子库不可组合。</summary>
         private static bool IsFixedBattleAtom(string enumName)
             => enumName == "Attack" || enumName == "Guard";
 
-        // 固定引擎主干（2026-09-22）：拼点/运势/倒计时/死亡计数/元素充盈/手牌序位=不可修改关键词——移出原子库
-        // （2026-09-23 起直接隐藏，不再单独展示），自由分支主干在主干槽内下拉直选（表行中文名经 TrunkZh 取表 Display 名）
+        // 固定引擎主干（拼点/运势/倒计时/死亡计数/元素充盈/手牌序位=不可修改关键词）——移出原子库
         private static readonly BranchEngineKind[] TrunkEngines =
         {
             BranchEngineKind.None, BranchEngineKind.Clash, BranchEngineKind.LuckRoll, BranchEngineKind.Countdown,
@@ -255,15 +171,13 @@ namespace SynergyUI
         };
 
         private static bool IsEngineTrunkRow(AtomicEffectConfig r)
-            => ComposerCatalog.HasMountBit(r, MountKind.FreeBranchTrunk); // 位 9 数据驱动（2026-09-23）——锁定/移出库随表走
+            => ComposerCatalog.HasMountBit(r, MountKind.FreeBranchTrunk); // 位 9 数据驱动
 
-        /// <summary>锁定关键词行（移出原子库、不可组合、不展示）：攻击/守卫（无对应位，EnumName 特判）+ 位 9 引擎行。</summary>
+        /// <summary>锁定关键词行（移出原子库、不可组合、不展示）：攻击/守卫 + 位 9 引擎行。</summary>
         private static bool IsLockedKeywordRow(AtomicEffectConfig r)
             => r != null && (IsFixedBattleAtom(r.EnumName) || IsEngineTrunkRow(r));
 
-        /// <summary>目标域可选集（2026-09-22 五轮；2026-09-23 代价上移卡层后只余效果区口径）：
-        /// 按 Polarity 过滤表域——效果区：p&gt;0 只己方侧 / p&lt;0 只对方侧 / p=0 不限
-        ///（"表默认"=双侧域由调用方另附，合法）。空=无可选（不显示下拉）。
+        /// <summary>目标域可选集：按 Polarity 过滤表域——效果区：p&gt;0 只己方侧 / p&lt;0 只对方侧 / p=0 不限。
         /// 口径与装载期 WrongSide/SideLock 内容契约同源。</summary>
         private static List<int> AllowedTargetKinds(AtomicEffectConfig cfg, List<int> tableKinds)
         {
@@ -273,7 +187,88 @@ namespace SynergyUI
             return tableKinds.Where(k => TargetKindRules.IsEnemySide(k) != ownOnly).ToList();
         }
 
-        // ======================================== 生命周期 ========================================
+        // ======================================== 构建 ========================================
+
+        protected override string PrefabAddress => "EffectUI";
+        protected override string PrefabAssetPath => "Assets/Art/UI/EffectUI.prefab";
+        protected override string RootName => "effect-composer";
+
+        protected override void Build()
+        {
+            _overlay = Find("overlay") ?? UiKit.Overlay("overlay", Root);
+
+            // ---- 顶栏 ----
+            BindButton("btn-back", () => Manager.Back());
+            _nameLabel = FindText("lbl-effect-name");
+            _costLabel = FindText("lbl-effect-cost");
+            _activationDropdown = BindDropdown("dropdown-activation", _overlay, Find("topbar"),
+                ActivationNames.ToList(), 0, width: 90f);
+            _timingRow = Find("timing-row");
+            _timingDropdown = BindDropdown("dropdown-timing", _overlay, _timingRow,
+                new List<string> { "—" }, 0, width: 140f);
+            _toast = FindText("lbl-toast");
+            _reloadAtomsBtn = BindButton("btn-reload-atoms", OnReloadAtoms);
+            _loadEffectsBtn = BindButton("btn-load-effects", OnLoadEffectsTable);
+            _saveBtn = BindButton("btn-save", OnSave);
+
+            // ---- 主体 ----
+            _modeBar = Find("mode-bar");
+            _slotArea = FindScroll("slot-area");
+
+            // 描述条（左栏底部——选中才出现）
+            EnsureDescStrip();
+
+            // 右：展示区（双模式）
+            _atomPanel = Find("atom-panel");
+            _filterTypeDropdown = BindDropdown("dropdown-filter-type", _overlay, Find("filter-row"),
+                new List<string> { "全部" }, 0, width: 150f);
+            _filterName = FindInput("field-filter-name");
+            if (_filterName != null)
+                _filterName.onValueChanged.AddListener(_ =>
+                {
+                    RefreshLibrary();
+                    if (_rightMode == RightMode.Effects) RefreshEffectsList();
+                });
+            _libContext = FindText("lbl-lib-context");
+            _libraryList = FindScroll("library-list");
+
+            _effectsPanel = Find("effects-panel");
+            _effectsList = FindScroll("list-effects");
+            if (_effectsPanel != null) _effectsPanel.gameObject.SetActive(false);
+
+            // 校验红框闪烁 + 描述条路由 + 泵：挂在屏根（层级销毁自动失效）
+            UiKit.Updater.Attach(Root, Tick);
+            UiKit.DescRequested += OnDescRequested;
+        }
+
+        /// <summary>描述条绑定/补建（预制体烘焙优先；缺失时在左栏代码补建原样式）。</summary>
+        private void EnsureDescStrip()
+        {
+            _descStripNode = UiKit.FindDeep(Root, "desc-strip");
+            if (_descStripNode == null)
+            {
+                var left = UiKit.FindDeep(Root, "left") ?? Root;
+                _descStripNode = UiKit.Node("desc-strip", left);
+                var dsBg = _descStripNode.gameObject.AddComponent<Image>();
+                dsBg.sprite = UiKit.RoundedSprite;
+                dsBg.type = Image.Type.Sliced;
+                dsBg.color = new Color(36f / 255f, 44f / 255f, 60f / 255f, 0.5f);
+                var dsOl = _descStripNode.gameObject.AddComponent<Outline>();
+                dsOl.effectColor = new Color(52f / 255f, 62f / 255f, 80f / 255f, 1f);
+                dsOl.effectDistance = Vector2.one;
+                UiKit.Size(_descStripNode, fw: 1f, minH: 30f);
+            }
+
+            var lblRt = UiKit.FindDeep(_descStripNode, "lbl-prop-desc");
+            _descStrip = lblRt != null
+                ? lblRt.GetComponent<TMP_Text>()
+                : UiKit.Label("lbl-prop-desc", _descStripNode, "", UiStyle.MiniSize,
+                    UiStyle.DescStrip, TextAnchor.UpperLeft, wrap: true);
+            UiKit.StretchInset(_descStrip.rectTransform, 8f, 4f);
+            _descStripNode.gameObject.SetActive(false);
+        }
+
+        private RectTransform RootParent() => Parent;
 
         public override void OnEnter()
         {
@@ -285,49 +280,42 @@ namespace SynergyUI
             {
                 // OnEnter 中途异常会让槽位/原子库静默空白——打日志+toast 可见化
                 UnityEngine.Debug.LogException(e);
-                _toast ??= Q<Label>("lbl-toast");
                 if (_toast != null) _toast.text = "界面初始化异常：" + e.Message;
+            }
+        }
+
+        public override void OnExit()
+        {
+            UiKit.DescRequested -= OnDescRequested;
+        }
+
+        private void OnDescRequested(string desc)
+        {
+            if (_descStrip == null) return;
+            _descStrip.text = desc ?? "";
+            bool show = !string.IsNullOrEmpty(desc);
+            _descStripNode.gameObject.SetActive(show);
+        }
+
+        /// <summary>帧泵：500ms 翻转闪烁态——违规区红框双态切换（其余帧空转）。</summary>
+        private void Tick()
+        {
+            _flashAccumMs += Time.unscaledDeltaTime * 1000f;
+            if (_flashAccumMs < 500f) return;
+            _flashAccumMs = 0f;
+            _flashOn = !_flashOn;
+            foreach (var z in _slotZones)
+            {
+                if (z?.Zone == null || !z.Invalid || z.Outline == null) continue;
+                z.Outline.effectColor = _flashOn
+                    ? UiStyle.ErrorRed
+                    : new Color(UiStyle.ErrorRed.r, UiStyle.ErrorRed.g, UiStyle.ErrorRed.b, 0.28f);
             }
         }
 
         private void OnEnterInternal()
         {
-            _slotArea = Q<ScrollView>("slot-area");
-            _libraryList = Q<ScrollView>("library-list");
-            _effectsList = Q<ScrollView>("list-effects");
-            _modeBar = Q<VisualElement>("mode-bar");
-            _atomPanel = Q<VisualElement>("atom-panel");
-            _toast = Q<Label>("lbl-toast");
-            _nameLabel = Q<Label>("lbl-effect-name");
-            _costLabel = Q<Label>("lbl-effect-cost");
-            _activationHint = Q<Label>("lbl-activation-hint");
-            _timingLabel = Q<Label>("lbl-timing");
-            _libContext = Q<Label>("lbl-lib-context");
-            _filterName = Q<TextField>("field-filter-name");
-            _timingDropdown = Q<DropdownField>("dropdown-timing");
-            _activationDropdown = Q<DropdownField>("dropdown-activation");
-            _filterTypeDropdown = Q<DropdownField>("dropdown-filter-type");
-            _reloadAtomsBtn = Q<Button>("btn-reload-atoms");
-            _loadEffectsBtn = Q<Button>("btn-load-effects");
-            _saveBtn = Q<Button>("btn-save");
-            _descStrip = Q<Label>("lbl-prop-desc");
-
-            UIBinder.BindButton(Root, "btn-back", () => Manager.Back());
-            UIBinder.BindButton(Root, "btn-save", OnSave);
-            UIBinder.BindButton(Root, "btn-reload-atoms", OnReloadAtoms);
-            UIBinder.BindButton(Root, "btn-load-effects", OnLoadEffectsTable);
-
-            // 属性描述条路由（2026-09-23）：聚焦/点击任一控件 → 沿父链找 Described 挂的描述显示；
-            // 点到无描述处即清空（描述不常驻——拓宽可用 UI 面积）
-            Root.RegisterCallback<FocusInEvent>(e => ShowDescFor(e.target as VisualElement), TrickleDown.TrickleDown);
-            Root.RegisterCallback<PointerDownEvent>(e => ShowDescFor(e.target as VisualElement), TrickleDown.TrickleDown);
-
-            // 校验红框闪烁（2026-09-23）：500ms 翻转根类 .zones-flash-off——USS 双态切换边框色
-            Root.schedule.Execute(() =>
-            {
-                _flashOn = !_flashOn;
-                Root.EnableInClassList("zones-flash-off", _flashOn);
-            }).Every(500);
+            BuildFilterCallbacks(); // 分类下拉回调（Build 后一次；重读原子表只重建选项）
 
             // 卡编辑会话（一次性消费）：进入即改写 _graph 为该效果的深拷贝
             var (card, index) = ComposerSession.Take();
@@ -342,17 +330,16 @@ namespace SynergyUI
 
             BuildTimingDropdown();
             BuildActivationDropdown();
-            BuildFilterBar();
             _mode = InferMode(_graph);
             EnsureDefaultSelection();
             RefreshAll();
             SetRightMode(RightMode.Atoms);
-            ValidateZones(); // 初始校验（载入数据可能自带违规——如超预算奖励/超 1 费代价）
+            ValidateZones(); // 初始校验（载入数据可能自带违规——如超预算奖励）
 
             // 空库自诊断：正常应 ≥87 行——为空说明表未装载或初始化半途出错（查 Console）
-            int libCount = _libraryList?.contentContainer?.childCount ?? 0;
+            int libCount = _libraryList?.Content?.childCount ?? 0;
             if (libCount == 0)
-                ShowToast($"原子库为空（表加载失败或初始化异常——查 Console；分类项 {_filterTypeDropdown.choices?.Count ?? 0}）");
+                ShowToast($"原子库为空（表加载失败或初始化异常——查 Console；分类项 {_filterTypeChoices?.Count ?? 0}）");
         }
 
         // ======================================== 元信息（顶栏） ========================================
@@ -362,54 +349,48 @@ namespace SynergyUI
             // 全中文时机下拉（主动三档 Activate_* 不入——主动不设时机）
             _timings = TimingZh.Keys.ToList();
             var labels = _timings.Select(t => TimingZh[t]).ToList();
-            _timingDropdown.choices = labels;
+            _timingDropdown.SetOptions(labels, 0);
             SyncTimingDropdown();
-            _timingDropdown.RegisterValueChangedCallback(_ =>
+            _timingDropdown.Changed += (idx, _) =>
             {
-                int idx = _timingDropdown.index;
                 if (idx >= 0 && idx < _timings.Count) _graph.header.TriggerTiming = (int)_timings[idx];
-            });
-            // 2026-09-23：时机说明改选中才出现（描述条）——不再常驻
-            Described(_timingDropdown,
+            };
+            UiKit.Described(_timingDropdown.Root.GetComponent<Button>(),
                 "触发时机：效果在哪个时点自动入栈（条件发动不走速度，满足即入栈）；主动发动方式下不设时机");
         }
 
         private void SyncTimingDropdown()
         {
             int current = _timings.IndexOf((TriggerTiming)_graph.header.TriggerTiming);
-            _timingDropdown.index = current < 0 ? 0 : current;
+            _timingDropdown.SetIndex(current < 0 ? 0 : current);
         }
 
         private void BuildActivationDropdown()
         {
-            _activationDropdown.choices = ActivationNames.ToList();
             int act = _graph.header.ActivationType;
-            _activationDropdown.index = act >= 0 && act < ActivationNames.Length ? act : 0;
+            _activationDropdown.SetOptions(ActivationNames.ToList(), act >= 0 && act < ActivationNames.Length ? act : 0);
             SyncActivationVisibility();
-            // 2026-09-23：发动方式说明改选中才出现（描述条）——不再常驻顶栏
-            Described(_activationDropdown,
+            UiKit.Described(_activationDropdown.Root.GetComponent<Button>(),
                 "发动方式——强制：条件达成时不询问直接发动；自动：条件达成时弹窗询问是否发动；主动：只能在自己回合的主要阶段主动发动（不设触发时机）");
-            _activationDropdown.RegisterValueChangedCallback(_ =>
+            _activationDropdown.Changed += (idx, _) =>
             {
-                _graph.header.ActivationType = _activationDropdown.index;
+                _graph.header.ActivationType = idx;
                 SyncActivationVisibility();
-            });
+            };
         }
 
-        /// <summary>主动（=2）只在自己主阶段发动——隐藏触发时机；其余显示时机（语义见时机下拉描述条）。</summary>
+        /// <summary>主动（=2）只在自己主阶段发动——隐藏触发时机；其余显示时机。</summary>
         private void SyncActivationVisibility()
         {
+            if (_timingRow == null) return;
             bool voluntary = _graph.header.ActivationType == 2;
-            var display = voluntary ? DisplayStyle.None : DisplayStyle.Flex;
-            _timingDropdown.style.display = display;
-            if (_timingLabel != null) _timingLabel.style.display = display;
-            if (_activationHint != null) _activationHint.style.display = DisplayStyle.None; // 2026-09-23：常驻提示退役
+            _timingRow.gameObject.SetActive(!voluntary);
         }
 
         // ======================================== 效果名自动构成 ========================================
 
         /// <summary>自动名 = 中文名＋组合方式＋中文名（并列"＋"、两分支"→"；空槽以"…"占位；
-        /// 光环=条目列表×箭头数——2026-09-23 光环上移效果层）。</summary>
+        /// 光环=条目列表×箭头数）。</summary>
         private string AutoName()
         {
             var h = _graph.header;
@@ -448,7 +429,7 @@ namespace SynergyUI
             var cfg = AtomicEffectTable.GetByHashId(entry.refId);
             if (cfg == null) return entry.refId;
             string name = cfg.DisplayName ?? entry.refId;
-            // 关键词原子两态命名（2026-09-21）：赋予他人=主动效果——「赋予xx」；自己=关键词本体名
+            // 关键词原子两态命名：赋予他人=主动效果——「赋予xx」；自己=关键词本体名
             bool toOthers = entry.kinds != null && entry.kinds.Count > 0
                 && !(entry.kinds.Count == 1 && entry.kinds[0] == (int)TargetKind.Self);
             if (toOthers && MountKindExtensions.ParseCsv(cfg.MountKinds ?? "").Contains(MountKind.Keyword))
@@ -476,9 +457,8 @@ namespace SynergyUI
             _costLabel.text = "费用：" + AutoCostText();
         }
 
-        /// <summary>自动费用预览=**效果锚价**（2026-09-23 定案：效果组合阶段纯表累加、无减免抵消——
-        /// ConvertOne + DeriveElementCosts 实时推导，含改写门差价；代价不参与——代价栏已上移卡组合层；
-        /// 编辑中间态转换失败显示 —）。保存时同口径落盘 Effects.json cost 列。</summary>
+        /// <summary>自动费用预览=**效果锚价**（效果组合阶段纯表累加、无减免抵消——ConvertOne +
+        /// DeriveElementCosts 实时推导，含改写门差价；代价不参与——代价栏已上移卡组合层）。</summary>
         private string AutoCostText()
         {
             try
@@ -524,32 +504,32 @@ namespace SynergyUI
 
         private void RefreshModeBar()
         {
-            _modeBar.Clear();
-            _modeBar.Add(MakeModeChip("并列（1-3 原子）", ComposeMode.Parallel));
-            _modeBar.Add(MakeModeChip("自由分支（引擎条件）", ComposeMode.FreeBranch));
-            _modeBar.Add(MakeModeChip("有限分支（产出条件）", ComposeMode.OutcomeGate));
-            _modeBar.Add(MakeModeChip("光环（连接箭头）", ComposeMode.Aura));
+            ClearChildren(_modeBar);
+            MakeModeChip("并列（1-3 原子）", ComposeMode.Parallel);
+            MakeModeChip("自由分支（引擎条件）", ComposeMode.FreeBranch);
+            MakeModeChip("有限分支（产出条件）", ComposeMode.OutcomeGate);
+            MakeModeChip("光环（连接箭头）", ComposeMode.Aura);
 
             // 卡编辑模式提示
             if (_editingCard != null)
             {
-                var tag = new Label($"正在编辑：{_editingCard.CardName} #{_editingIndex + 1}");
-                tag.AddToClassList("hint");
-                _modeBar.Add(tag);
+                var tag = UiKit.Label("editing-tag", _modeBar,
+                    $"正在编辑：{_editingCard.CardName} #{_editingIndex + 1}",
+                    UiStyle.MiniSize, UiStyle.TextHint);
+                UiKit.Size(tag, w: 200f);
             }
         }
 
-        private VisualElement MakeModeChip(string label, ComposeMode mode)
+        private void MakeModeChip(string label, ComposeMode mode)
         {
-            var chip = new Button(() => SwitchMode(mode)) { text = label };
-            chip.AddToClassList("mode-chip");
-            if (mode == _mode) chip.AddToClassList("mode-chip--active");
-            return chip;
+            bool active = mode == _mode;
+            UiKit.MiniButton($"mode-{mode}", _modeBar, label, () => SwitchMode(mode),
+                active ? new Color(58f / 255f, 84f / 255f, 120f / 255f, 1f) : UiStyle.BtnBg,
+                active ? UiStyle.TextPrimary : new Color(200f / 255f, 205f / 255f, 214f / 255f, 1f));
         }
 
         /// <summary>形态切换：best-effort 数据搬运（原子尽量保留），切换后收起展开卡。
-        /// 光环字段（ArrowDirections/LinkAuras）只在光环形态存续——切出即清（2026-09-23），
-        /// 防止非光环效果夹带箭头落库。</summary>
+        /// 光环字段只在光环形态存续——切出即清，防止非光环效果夹带箭头落库。</summary>
         private void SwitchMode(ComposeMode newMode)
         {
             if (newMode == _mode) return;
@@ -615,8 +595,7 @@ namespace SynergyUI
                 }
                 case ComposeMode.Aura:
                 {
-                    // 光环（2026-09-23 定案：上移效果层）＝箭头+光环条目随效果合成——**任意会话可用**
-                    //（不再限卡编辑会话）；效果挂到卡上时自动并集入卡面（多光环取并集）。
+                    // 光环（效果层定案）＝箭头+光环条目随效果合成——任意会话可用；
                     // 作用对象不可指定（运行时 live-query 箭头指向格占据者）；原子数据清空防夹带。
                     h.EngineKind = (int)BranchEngineKind.None;
                     h.EngineParam = 0;
@@ -645,8 +624,8 @@ namespace SynergyUI
 
         private void RefreshSlots()
         {
-            _slotArea.Clear();
-            _slotZones.Clear(); // 槽区校验区随重建（2026-09-23）
+            ClearContent(_slotArea.Content);
+            _slotZones.Clear(); // 槽区校验区随重建
             ClampSelection();
             var h = _graph.header;
             _graph.steps ??= new List<EffectStepData>();
@@ -655,31 +634,30 @@ namespace SynergyUI
             {
                 case ComposeMode.Parallel:
                 {
-                    VisualElement firstEmptySlot = null;
+                    RectTransform firstEmptySlot = null;
                     for (int i = 0; i < 3; i++)
                     {
                         int idx = i;
-                        var slot = MakeSlot($"原子槽 {i + 1}", "drop-slot");
+                        var slot = MakeSlot($"原子槽 {i + 1}", SlotBorder(SelKind.Parallel));
                         MarkSelected(slot, SelKind.Parallel, i);
                         // 越过空档的槽不可选（保持无空档填充）
                         SelectOnClick(slot, SelKind.Parallel, i, i > _graph.steps.Count);
                         if (i < _graph.steps.Count)
                         {
                             var step = _graph.steps[i];
-                            if (step.kind == 0) slot.Add(MakeAtomCard(step.atomic, idx, SelKind.Parallel));
-                            else slot.Add(MakeReadonlyStepBadge(step)); // 抉择等只读
+                            if (step.kind == 0) MakeAtomCard(slot, step.atomic, idx, SelKind.Parallel);
+                            else MakeReadonlyStepBadge(slot, step); // 抉择等只读
                         }
                         else if (i == _graph.steps.Count)
                         {
-                            slot.Add(MakeHint("空槽——选中后点击右侧原子库填入"));
+                            MakeHint(slot, "空槽——选中后点击右侧原子库填入");
                             firstEmptySlot ??= slot;
                         }
-                        else slot.Add(MakeHint("（先填前面的槽）"));
-                        _slotArea.Add(slot);
+                        else MakeHint(slot, "（先填前面的槽）");
                     }
                     if (_graph.steps.Count >= 3)
-                        _slotArea.Add(MakeHint("已满 3 原子——点击槽选中后，右侧点击即替换"));
-                    // 校验（2026-09-23）：并列模式至少一个原子（只读抉择步计入内容——卡组成阶段产物）
+                        MakeHint(_slotArea.Content, "已满 3 原子——点击槽选中后，右侧点击即替换");
+                    // 校验：并列模式至少一个原子（只读抉择步计入内容——卡组成阶段产物）
                     if (firstEmptySlot != null)
                         _slotZones.Add(MakeZone(firstEmptySlot, () =>
                             !_graph.steps.Any(s => s != null && ((s.kind == 0 && s.atomic != null) || s.kind == 2))
@@ -688,21 +666,19 @@ namespace SynergyUI
                 }
                 case ComposeMode.FreeBranch:
                 {
-                    // 主干槽（引擎条件·2026-09-22 改下拉直选）：拼点/运势/倒计时=固定机制关键词，
-                    // 已移出原子库——不再经库行点击落槽，主干类型由槽内下拉直接选择
-                    var trunkSlot = MakeSlot("主干（条件引擎）", "drop-slot", "drop-slot--trunk");
+                    // 主干槽（引擎条件·下拉直选）：拼点/运势/倒计时=固定机制关键词，已移出原子库
+                    var trunkSlot = MakeSlot("主干（条件引擎）", Rgb(110, 130, 170));
                     var trunkLabels = TrunkEngines
                         .Select(e => e == BranchEngineKind.None ? "（未选择）" : TrunkZh(e)).ToList();
-                    var trunkDd = new DropdownField("主干类型") { choices = trunkLabels };
-                    trunkDd.AddToClassList("text-input");
-                    Described(trunkDd,
+                    var trunkDd = new UiKit.Dropdown("dd-trunk", trunkSlot, _overlay, trunkLabels, 0, onChanged: null, width: 220f);
+                    UiKit.Described(trunkDd.Root.GetComponent<Button>(),
                         "条件引擎——拼点：比双方牌库顶费用差 / 运势：2d6 双＞x / 倒计时：回合递减归零发奖 / "
                         + "死亡计数：本回合双方合计死亡≥x / 元素充盈：付费后 bank 最多色＞x / 手牌序位：此卡为本回合第 x 张；参数在主干卡展开区调");
                     int tcur = Array.IndexOf(TrunkEngines, (BranchEngineKind)h.EngineKind);
-                    trunkDd.index = tcur >= 0 ? tcur : 0;
-                    trunkDd.RegisterValueChangedCallback(_ =>
+                    trunkDd.SetIndex(tcur >= 0 ? tcur : 0);
+                    trunkDd.Changed += (idx, _) =>
                     {
-                        var engine = TrunkEngines[Mathf.Max(0, trunkDd.index)];
+                        var engine = TrunkEngines[Mathf.Max(0, idx)];
                         h.EngineKind = (int)engine;
                         h.EngineParam = engine == BranchEngineKind.None ? 0 : 1; // 倒计时 x=1（可改 0=自动换算）；拼点/运势默认 x=1
                         _sel = SelKind.FreeTrunk; // 展开主干卡便于调参
@@ -711,33 +687,27 @@ namespace SynergyUI
                             _selSlot = SelKind.FreeReward;
                         RefreshSlots();
                         RefreshName();
-                        RefreshRightPanels(); // 选中可能切到奖励槽——库重过滤（2026-09-22 五轮）
-                    });
-                    trunkSlot.Add(trunkDd);
+                        RefreshRightPanels();
+                    };
                     if (h.EngineKind != (int)BranchEngineKind.None)
-                    {
-                        trunkSlot.Add(MakeTrunkCard((BranchEngineKind)h.EngineKind, h.EngineParam));
-                    }
-                    else trunkSlot.Add(MakeHint("从上方下拉选择引擎；奖励在下方奖励槽（点击库行填入）"));
-                    _slotArea.Add(trunkSlot);
-                    // 校验（2026-09-23）：主干引擎必选
+                        MakeTrunkCard(trunkSlot, (BranchEngineKind)h.EngineKind, h.EngineParam);
+                    else MakeHint(trunkSlot, "从上方下拉选择引擎；奖励在下方奖励槽（点击库行填入）");
+                    // 校验：主干引擎必选
                     _slotZones.Add(MakeZone(trunkSlot, () => h.EngineKind == (int)BranchEngineKind.None
                         ? "未选择条件引擎——从上方下拉选择（拼点/运势/倒计时/死亡计数/元素充盈/手牌序位）" : null));
 
-                    var arrow = new Label("条件达成 →");
-                    arrow.AddToClassList("hint");
-                    arrow.style.unityTextAlign = TextAnchor.MiddleCenter;
-                    _slotArea.Add(arrow);
+                    var arrow = UiKit.Label("arrow", _slotArea.Content, "条件达成 →",
+                        UiStyle.MiniSize, UiStyle.TextHint, TextAnchor.MiddleCenter);
+                    UiKit.Size(arrow, fw: 1f);
 
-                    // 奖励槽（单原子；死亡计数/元素充盈带预算=x——2026-09-22 奖励预算制）
-                    var rewardSlot = MakeSlot("奖励（单原子）", "drop-slot", "drop-slot--reward");
+                    // 奖励槽（单原子；死亡计数/元素充盈带预算=x——奖励预算制）
+                    var rewardSlot = MakeSlot("奖励（单原子）", Rgb(120, 150, 110));
                     MarkSelected(rewardSlot, SelKind.FreeReward, 0);
                     SelectOnClick(rewardSlot, SelKind.FreeReward, 0, false);
                     var reward = h.AtomicEffects?.FirstOrDefault();
-                    if (reward != null) rewardSlot.Add(MakeAtomCard(reward, 0, SelKind.FreeReward));
-                    else rewardSlot.Add(MakeHint("选中后点击库中的奖励原子填入（须开放分支奖励挂载）"));
-                    _slotArea.Add(rewardSlot);
-                    // 校验（2026-09-23）：奖励必填 + 预算内
+                    if (reward != null) MakeAtomCard(rewardSlot, reward, 0, SelKind.FreeReward);
+                    else MakeHint(rewardSlot, "选中后点击库中的奖励原子填入（须开放分支奖励挂载）");
+                    // 校验：奖励必填 + 预算内
                     _slotZones.Add(MakeZone(rewardSlot, () =>
                     {
                         var r = h.AtomicEffects?.FirstOrDefault();
@@ -749,17 +719,12 @@ namespace SynergyUI
                     }));
 
                     if (ComposerCatalog.EngineRewardBudget((BranchEngineKind)h.EngineKind, h.EngineParam) > 0)
-                    {
-                        var bl = new Label(FreeRewardBudgetText());
-                        bl.AddToClassList("hint");
-                        _slotArea.Add(bl);
-                    }
+                        MakeHint(_slotArea.Content, FreeRewardBudgetText());
                     break;
                 }
                 case ComposeMode.Aura:
                 {
-                    // 光环（2026-09-23 上移效果层）：任意会话可用——箭头+条目随效果合成，挂卡并集
-                    _slotArea.Add(MakeAuraPanel());
+                    MakeAuraPanel(_slotArea.Content);
                     break;
                 }
                 case ComposeMode.OutcomeGate:
@@ -769,34 +734,33 @@ namespace SynergyUI
                     var branch = _graph.steps[1];
 
                     // 主干槽（产出原子）
-                    var trunkSlot = MakeSlot("主干（产出原子）", "drop-slot", "drop-slot--trunk");
+                    var trunkSlot = MakeSlot("主干（产出原子）", Rgb(110, 130, 170));
                     MarkSelected(trunkSlot, SelKind.GateTrunk, 0);
                     SelectOnClick(trunkSlot, SelKind.GateTrunk, 0, false);
-                    trunkSlot.Add(MakeAtomCard(trunk.atomic, 0, SelKind.GateTrunk));
-                    _slotArea.Add(trunkSlot);
-                    // 校验（2026-09-23）：主干原子必填
+                    MakeAtomCard(trunkSlot, trunk.atomic, 0, SelKind.GateTrunk);
+                    // 校验：主干原子必填
                     _slotZones.Add(MakeZone(trunkSlot, () => trunk.atomic == null
                         ? "主干为空——选中主干槽后点击库行选择原子（产出族或通用门主干）" : null));
 
-                    // 门行：条件下拉（中文+【奖励x】）内联——不再走检查器
-                    _slotArea.Add(MakeGateRow(branch));
+                    // 门行：条件下拉（中文+【奖励x】）内联
+                    MakeGateRow(_slotArea.Content, branch);
 
-                    // 改写门（2026-09-22 拦截式）：伤害不发生改为施加指示物——无奖励槽、无预算行
+                    // 改写门（拦截式）：伤害不发生改为施加指示物——无奖励槽、无预算行
                     if (CardCore.BranchConditionEvaluator.IsRewriteCondition(branch.conditionId))
                     {
-                        _slotArea.Add(MakeHint("改写门：该伤害原子的结算改为对目标施加对应指示物（固定 1 层，伤害不发生）——无奖励槽；差价自动计入卡费"));
+                        MakeHint(_slotArea.Content,
+                            "改写门：该伤害原子的结算改为对目标施加对应指示物（固定 1 层，伤害不发生）——无奖励槽；差价自动计入卡费");
                         break;
                     }
 
                     // 奖励槽（单原子 + 预算）
-                    var rewardSlot = MakeSlot("奖励（单原子·预算内）", "drop-slot", "drop-slot--reward");
+                    var rewardSlot = MakeSlot("奖励（单原子·预算内）", Rgb(120, 150, 110));
                     MarkSelected(rewardSlot, SelKind.GateReward, 0);
                     SelectOnClick(rewardSlot, SelKind.GateReward, 0, false);
                     var reward = branch.thenSteps?.FirstOrDefault();
-                    if (reward != null) rewardSlot.Add(MakeAtomCard(reward, 0, SelKind.GateReward));
-                    else rewardSlot.Add(MakeHint("选中后点击库中的奖励原子填入（推导费 ≤ 门预算）"));
-                    _slotArea.Add(rewardSlot);
-                    // 校验（2026-09-23）：奖励必填 + 门预算内
+                    if (reward != null) MakeAtomCard(rewardSlot, reward, 0, SelKind.GateReward);
+                    else MakeHint(rewardSlot, "选中后点击库中的奖励原子填入（推导费 ≤ 门预算）");
+                    // 校验：奖励必填 + 门预算内
                     _slotZones.Add(MakeZone(rewardSlot, () =>
                     {
                         var r = branch.thenSteps?.FirstOrDefault();
@@ -808,27 +772,48 @@ namespace SynergyUI
                         return cost > budget ? $"奖励超出门预算（{cost:0.#}/{budget}）——调低数值或换原子" : null;
                     }));
 
-                    _slotArea.Add(MakeGateBudgetLine(branch));
+                    MakeHint(_slotArea.Content, GateBudgetText(branch));
                     break;
                 }
             }
 
             RefreshName();
-            ValidateZones(); // 槽区重建后立即校验（2026-09-23）
+            ValidateZones(); // 槽区重建后立即校验
         }
+
+        private static Color SlotBorder(SelKind kind) => kind switch
+        {
+            SelKind.GateTrunk or SelKind.FreeTrunk => Rgb(110, 130, 170),
+            SelKind.GateReward or SelKind.FreeReward => Rgb(120, 150, 110),
+            _ => Rgb(64, 70, 84),
+        };
+
+        private static Color Rgb(int r, int g, int b) => new Color(r / 255f, g / 255f, b / 255f, 1f);
 
         // ======================================== 槽位选中（右侧点击=替换选中槽） ========================================
 
-        private void MarkSelected(VisualElement slot, SelKind kind, int index)
+        private void MarkSelected(RectTransform slot, SelKind kind, int index)
         {
             if (_selSlot == kind && _selSlotIndex == index)
-                slot.AddToClassList("drop-slot--selected");
+            {
+                var img = slot.GetComponent<Image>();
+                if (img != null) img.color = new Color(70f / 255f, 110f / 255f, 170f / 255f, 0.32f);
+                var ol = slot.GetComponent<Outline>();
+                if (ol != null) ol.effectColor = Rgb(126, 168, 255);
+            }
         }
 
         /// <summary>槽点击=选中（整槽可点；卡片摘要点击会冒泡到槽——选中和展开并存）。</summary>
-        private void SelectOnClick(VisualElement slot, SelKind kind, int index, bool disabled)
+        private void SelectOnClick(RectTransform slot, SelKind kind, int index, bool disabled)
         {
-            slot.RegisterCallback<ClickEvent>(_ =>
+            var btn = slot.gameObject.GetComponent<Button>();
+            if (btn == null)
+            {
+                btn = slot.gameObject.AddComponent<Button>();
+                btn.transition = Selectable.Transition.None;
+                btn.targetGraphic = slot.GetComponent<Image>();
+            }
+            btn.onClick.AddListener(() =>
             {
                 if (disabled) { ShowToast("请按顺序填入——先选前面的槽"); return; }
                 if (_selSlot == kind && _selSlotIndex == index) return;
@@ -841,17 +826,16 @@ namespace SynergyUI
             _selSlot = kind;
             _selSlotIndex = index;
             RefreshSlots();
-            RefreshRightPanels(); // 库按选中槽重过滤（2026-09-22 五轮）
+            RefreshRightPanels(); // 库按选中槽重过滤
         }
 
-        /// <summary>右栏列表刷新（2026-09-22 五轮）：选中槽/门变化后按可用性重过滤。</summary>
+        /// <summary>右栏列表刷新：选中槽/门变化后按可用性重过滤。</summary>
         private void RefreshRightPanels()
         {
             RefreshLibrary();
         }
 
-        /// <summary>进入/切模式/载入时的默认选中：并列=原子1；自由分支=奖励槽（主干已改下拉直选，
-        /// 库行点击唯一落点=奖励）；有限分支=主干；光环=无槽（库面板只读提示）。</summary>
+        /// <summary>进入/切模式/载入时的默认选中：并列=原子1；自由分支=奖励槽；有限分支=主干；光环=无槽。</summary>
         private void EnsureDefaultSelection()
         {
             switch (_mode)
@@ -861,14 +845,14 @@ namespace SynergyUI
                     _selSlotIndex = 0;
                     break;
                 case ComposeMode.FreeBranch:
-                    _selSlot = SelKind.FreeReward; // 主干=下拉直选（2026-09-22）——库行点击唯一落点=奖励槽
+                    _selSlot = SelKind.FreeReward; // 主干=下拉直选——库行点击唯一落点=奖励槽
                     _selSlotIndex = 0;
                     break;
                 case ComposeMode.OutcomeGate:
                     _selSlot = SelKind.GateTrunk;
                     break;
                 case ComposeMode.Aura:
-                    _selSlot = SelKind.None; // 光环无落槽交互（2026-09-23）
+                    _selSlot = SelKind.None;
                     _selSlotIndex = -1;
                     break;
             }
@@ -891,7 +875,7 @@ namespace SynergyUI
                 case ComposeMode.FreeBranch:
                     if (_selSlot != SelKind.FreeReward)
                     {
-                        _selSlot = SelKind.FreeReward; // 主干已改下拉直选——选中槽只余奖励
+                        _selSlot = SelKind.FreeReward;
                         _selSlotIndex = 0;
                     }
                     break;
@@ -900,7 +884,7 @@ namespace SynergyUI
                         _selSlot = SelKind.GateTrunk;
                     break;
                 case ComposeMode.Aura:
-                    _selSlot = SelKind.None; // 光环无槽交互（2026-09-23）
+                    _selSlot = SelKind.None;
                     _selSlotIndex = -1;
                     break;
             }
@@ -917,109 +901,112 @@ namespace SynergyUI
             _graph.steps[1].elseSteps ??= new List<AtomicEffectEntry>();
         }
 
-        private VisualElement MakeSlot(string title, params string[] classes)
+        private RectTransform MakeSlot(string title, Color border)
         {
-            var slot = new VisualElement();
-            slot.AddToClassList("drop-slot");
-            foreach (var c in classes) slot.AddToClassList(c);
-            var lbl = new Label(title);
-            lbl.AddToClassList("field-label");
-            slot.Add(lbl);
+            var slot = UiKit.Column("slot", _slotArea.Content, spacing: 6f, pad: 8f);
+            var img = slot.gameObject.AddComponent<Image>();
+            img.sprite = UiKit.RoundedSprite;
+            img.type = Image.Type.Sliced;
+            img.color = new Color(24f / 255f, 27f / 255f, 33f / 255f, 0.6f);
+            img.raycastTarget = true; // 槽整体可点（选中）
+            var ol = slot.gameObject.AddComponent<Outline>();
+            ol.effectColor = border;
+            ol.effectDistance = new Vector2(1.5f, -1.5f);
+            UiKit.Size(slot, fw: 1f);
+            var lbl = UiKit.Label("slot-title", slot, title, UiStyle.SmallSize, UiStyle.TextDim);
+            UiKit.Size(lbl, fw: 1f);
             return slot;
         }
 
-        private VisualElement MakeHint(string text)
+        private static void MakeHint(RectTransform parent, string text)
         {
-            var hint = new Label(text);
-            hint.AddToClassList("hint");
-            return hint;
+            var hint = UiKit.Label("hint", parent, text, UiStyle.MiniSize, UiStyle.TextHint, wrap: true);
+            UiKit.Size(hint, fw: 1f);
         }
 
         // 槽内原子卡：摘要行（描述+↑↓删除，点击展开）+ 展开态=内联参数编辑（原检查器内容）。
-        private VisualElement MakeAtomCard(AtomicEffectEntry atom, int index, SelKind selKind)
+        private void MakeAtomCard(RectTransform slot, AtomicEffectEntry atom, int index, SelKind selKind)
         {
-            var expanded = _sel == selKind
+            bool expanded = _sel == selKind
                 && (selKind != SelKind.Parallel || _selIndex == index)
                 && selKind != SelKind.FreeTrunk;
 
-            var card = new VisualElement();
-            card.AddToClassList("step-card");
-            card.AddToClassList("atom-card");
+            var card = UiKit.Column("atom-card", slot, spacing: 4f);
+            var cardBg = card.gameObject.AddComponent<Image>();
+            cardBg.sprite = UiKit.RoundedSprite;
+            cardBg.type = Image.Type.Sliced;
+            cardBg.color = UiStyle.PanelBg;
+            UiKit.Size(card, fw: 1f);
 
-            // ---- 摘要行 ----
-            var head = new VisualElement();
-            head.AddToClassList("list-row");
+            // ---- 摘要行（点击=展开/收起）----
+            var head = UiKit.Row("head", card, spacing: 6f, pad: 6f);
+            var headBg = head.gameObject.AddComponent<Image>();
+            headBg.sprite = UiKit.RoundedSprite;
+            headBg.type = Image.Type.Sliced;
+            headBg.color = UiStyle.RowBg;
+            headBg.raycastTarget = true;
+            UiKit.Size(head, fw: 1f, h: 34f);
 
-            var text = new Label((expanded ? "▼ " : "▶ ") + AtomText.RenderAtomEntry(atom));
-            text.AddToClassList("list-row__name");
-            head.Add(text);
+            var text = UiKit.Label("text", head,
+                (expanded ? "▼ " : "▶ ") + AtomText.RenderAtomEntry(atom),
+                UiStyle.SmallSize, UiStyle.TextBody);
+            UiKit.Size(text, fw: 1f);
 
             if (selKind == SelKind.Parallel)
             {
-                var up = new Button(() => MoveParallel(index, -1)) { text = "↑" };
-                var down = new Button(() => MoveParallel(index, 1)) { text = "↓" };
-                foreach (var b in new[] { up, down })
-                {
-                    b.AddToClassList("btn"); b.AddToClassList("btn--mini");
-                    head.Add(b);
-                }
+                UiKit.MiniButton("up", head, "↑", () => MoveParallel(index, -1), width: 26f);
+                UiKit.MiniButton("down", head, "↓", () => MoveParallel(index, 1), width: 26f);
             }
+            UiKit.MiniButton("del", head, "删除", () => RemoveAtom(selKind, index), UiStyle.BtnDanger);
 
-            var del = new Button(() => RemoveAtom(selKind, index)) { text = "删除" };
-            del.AddToClassList("btn"); del.AddToClassList("btn--mini"); del.AddToClassList("btn--danger");
-            head.Add(del);
-
-            text.RegisterCallback<ClickEvent>(_ => ToggleExpand(selKind, index));
-            card.Add(head);
+            var headBtn = head.gameObject.AddComponent<Button>();
+            headBtn.transition = Selectable.Transition.None;
+            headBtn.targetGraphic = headBg;
+            headBtn.onClick.AddListener(() => ToggleExpand(selKind, index));
 
             // ---- 展开态：内联编辑（原检查器的 MountKinds 驱动面）----
             if (expanded)
-                card.Add(MakeAtomEditorInline(atom, selKind, text, expanded));
-
-            return card;
+                MakeAtomEditorInline(card, atom, selKind, text, expanded);
         }
 
         /// <summary>原子内联编辑器（检查器移除后的替代——挂在卡片展开区）。
-        /// headLabel=卡片摘要行（值/随机改动原地重渲，不重建槽区——2026-09-21 修复滑条拖动中失焦）。</summary>
-        private VisualElement MakeAtomEditorInline(AtomicEffectEntry atom, SelKind selKind, Label headLabel, bool expanded)
+        /// headLabel=卡片摘要行（值/随机改动原地重渲，不重建槽区——修复滑条拖动中失焦）。</summary>
+        private void MakeAtomEditorInline(RectTransform card, AtomicEffectEntry atom, SelKind selKind, TMP_Text headLabel, bool expanded)
         {
-            var box = new VisualElement();
-            box.AddToClassList("sub-item");
+            var box = UiKit.Column("editor", card, spacing: 6f, pad: 8f);
+            UiKit.Size(box, fw: 1f);
 
             var cfg = AtomicEffectTable.GetByHashId(atom.refId);
             if (cfg == null || !Enum.TryParse<AtomicEffectType>(cfg.EnumName, out var type))
             {
-                box.Add(MakeHint($"（原子表引用缺失：{atom.refId ?? "空"}）"));
-                return box;
+                MakeHint(box, $"（原子表引用缺失：{atom.refId ?? "空"}）");
+                return;
             }
             var mounts = MountKindExtensions.ParseCsv(cfg?.MountKinds ?? "");
             bool hasValue = (cfg?.Description ?? "").Contains("{value}");
 
             // 实时描述行（值随机/目标随机动态渲染）
-            var desc = new Label(AtomText.Render(cfg, atom, _graph.header));
-            desc.AddToClassList("hint");
-            box.Add(desc);
+            var desc = UiKit.Label("desc", box, AtomText.Render(cfg, atom, _graph.header),
+                UiStyle.MiniSize, UiStyle.TextHint, wrap: true);
+            UiKit.Size(desc, fw: 1f);
 
-            // 原地刷新（2026-09-21）：值/随机改动只更新描述/摘要/顶栏——不再 RefreshSlots 整区重建
-            // （重建会销毁拖动中的滑条 → 拖动提前"失去选中"；顺带修复数值输入框逐字符失焦）
+            // 原地刷新：值/随机改动只更新描述/摘要/顶栏——不再 RefreshSlots 整区重建
             void RefreshTexts()
             {
                 desc.text = AtomText.Render(cfg, atom, _graph.header);
                 if (headLabel != null)
                     headLabel.text = (expanded ? "▼ " : "▶ ") + AtomText.RenderAtomEntry(atom);
                 RefreshName();
-                ValidateZones(); // 值/随机改动可能触发预算超限——原地复验（2026-09-23）
+                ValidateZones(); // 值/随机改动可能触发预算超限——原地复验
             }
 
-            // ---- 关键词类原子（MountKinds 含 Keyword 位）：系数全部固定于代码——只编辑「赋予持续」。
-            //      2026-09-22 五轮用户拍板：**只要他人赋予形态**（效果即赋予一个生物该关键词）——
-            //      "自己（永久）"本体两态已删（卡面自带关键词走卡牌关键词字段，不经效果合成）。
+            // ---- 关键词类原子（MountKinds 含 Keyword 位）：只要他人赋予形态——只编辑「赋予持续」
             if (mounts.Contains(MountKind.Keyword))
             {
                 if (selKind == SelKind.GateReward && _graph.steps.Count > 1)
-                    box.Add(MakeHint(GateBudgetText(_graph.steps[1])));
+                    MakeHint(box, GateBudgetText(_graph.steps[1]));
 
-                // 赋予持续三档（2026-09-21 收缩：1/2 回合同档=持续到自己回合结束）
+                // 赋予持续三档（1/2 回合同档=持续到自己回合结束）
                 var durChoices = new List<string> { "持续到自己回合结束", "离场清除", "永久" };
                 var durVals = new List<int>
                 {
@@ -1027,230 +1014,203 @@ namespace SynergyUI
                     (int)DurationType.UntilLeaveBattlefield,
                     (int)DurationType.Permanent,
                 };
-                var durDd = new DropdownField("赋予持续") { choices = durChoices };
-                durDd.AddToClassList("text-input");
                 int dcur = durVals.IndexOf(_graph.header.Duration);
-                durDd.index = dcur >= 0 ? dcur : 0;
-                durDd.RegisterValueChangedCallback(_ =>
+                var durDd = new UiKit.Dropdown("dd-dur", box, _overlay, durChoices, dcur >= 0 ? dcur : 0, (idx, _) =>
                 {
-                    _graph.header.Duration = durVals[Mathf.Max(0, durDd.index)];
+                    _graph.header.Duration = durVals[Mathf.Max(0, idx)];
                     RefreshTexts(); // 持续档影响计价折扣——费用随改随刷
-                });
-                Described(durDd,
+                }, width: 200f);
+                UiKit.Described(durDd.Root.GetComponent<Button>(),
                     "关键词=赋予一个生物该关键词（弹窗选一）；默认持续到自己回合结束，可改离场清除/永久——"
                     + "计价随档变化；卡面自带关键词不经效果合成（走卡牌关键词字段）");
-                box.Add(durDd);
-                return box; // 数值/随机/目标域/效果设置等编辑项一律不显示
+                return; // 数值/随机/目标域/效果设置等编辑项一律不显示
             }
 
             // Value（原子唯一可编辑数值；无 {value} 模板则只读说明）
             if (hasValue)
             {
-                var v = new IntegerField("数值") { value = atom.value };
-                v.AddToClassList("int-input");
-                v.RegisterValueChangedCallback(e =>
+                var v = UiKit.IntField("field-value", box, "数值", atom.value, val =>
                 {
-                    atom.value = e.newValue;
+                    atom.value = val;
                     RefreshTexts();
-                });
-                Described(v, "原子唯一可编辑数值（名义值——计价与描述按它渲染；结算读 ±随机掷值）");
-                box.Add(v);
+                }, width: 110f);
+                UiKit.Described(v, "原子唯一可编辑数值（名义值——计价与描述按它渲染；结算读 ±随机掷值）");
             }
             else
             {
-                box.Add(MakeHint("无数值参数（该原子 Value 不参与语义）"));
+                MakeHint(box, "无数值参数（该原子 Value 不参与语义）");
             }
 
             // MountKind 7：数值随机滑条（0-100% → RandomAmplitude；描述即时重渲）
             if (mounts.Contains(MountKind.RandomMount) && hasValue)
             {
-                var slider = new SliderInt("数值随机 %", 0, 100) { value = Mathf.RoundToInt(atom.amp * 100f) };
-                slider.AddToClassList("int-input");
-                slider.RegisterValueChangedCallback(e =>
-                {
-                    atom.amp = e.newValue / 100f;
-                    RefreshTexts();
-                });
-                Described(slider, "计价按名义数值——随机只影响结算分布（锚点不漂移）；span=round(|名义值|×幅度) 均匀随机");
-                box.Add(slider);
+                var slider = UiKit.IntSlider("slider-amp", box, "数值随机 %", 0, 100,
+                    Mathf.RoundToInt(atom.amp * 100f), val =>
+                    {
+                        atom.amp = val / 100f;
+                        RefreshTexts();
+                    });
+                UiKit.Described(slider.Slider,
+                    "计价按名义数值——随机只影响结算分布（锚点不漂移）；span=round(|名义值|×幅度) 均匀随机");
             }
 
-            // 目标域（2026-09-22 五轮重做）：下拉+目标随机合并**一行**；选项按 Polarity 限选；
-            // 改动即 RefreshTexts——{target} 按实例域渲染，描述实时反映作用对象。
-            // 限选口径与装载期内容契约同源：效果区禁错侧收窄（p>0 只己方侧 / p<0 只对方侧 /
-            // p=0 不限，"表默认"=双侧域合法保留）。代价栏已上移卡组合层（2026-09-23）——效果区无代价槽。
+            // 目标域：下拉+目标随机合并一行；选项按 Polarity 限选；改动即重渲——{target} 按实例域渲染
             var tableKinds = cfg?.GetTargetKindList() ?? new List<int>();
             var allowedKinds = AllowedTargetKinds(cfg, tableKinds);
             if (allowedKinds.Count > 0)
             {
-                var row = new VisualElement(); row.AddToClassList("toolbar");
+                var row = UiKit.Row("target-row", box, spacing: 6f);
                 var labels = new List<string> { "表默认" };
                 labels.AddRange(allowedKinds.Select(k => AtomText.TargetKindZhOf((TargetKind)k)));
 
-                var dd = new DropdownField("目标域") { choices = labels };
-                dd.AddToClassList("text-input");
                 int cur = atom.kinds != null && atom.kinds.Count == 1
                     ? 1 + allowedKinds.IndexOf(atom.kinds[0]) : 0;
-                dd.index = Mathf.Max(0, cur);
-                dd.RegisterValueChangedCallback(_ =>
+                var dd = new UiKit.Dropdown("dd-kinds", row, _overlay, labels, Mathf.Max(0, cur), (idx, _) =>
                 {
-                    int i = dd.index - 1;
+                    int i = idx - 1;
                     atom.kinds = i < 0 ? null : new List<int> { allowedKinds[i] };
                     RefreshTexts(); // {target} 随实例域变化——描述/摘要原地重渲
-                });
-                row.Add(dd);
-
-                // 目标随机（不弹窗·按种子随机选）——与目标域同一行
-                var rand = new Toggle("目标随机") { value = _graph.header.RandomTarget != 0 };
-                rand.RegisterValueChangedCallback(e =>
-                {
-                    // 2026-09-16 随机移出枚举为正交标志——只翻标志，不再覆写选择模式
-                    _graph.header.RandomTarget = e.newValue ? 1 : 0;
-                    RefreshTexts();
-                });
-                row.Add(rand);
-                Described(row,
+                }, width: 170f);
+                UiKit.Described(dd.Root.GetComponent<Button>(),
                     "目标域按极性限选：效果区有益只己方侧/有害只对方侧。"
                     + "改动即重渲——{target} 按实例域渲染。目标随机=不弹窗按种子从完整范围抽取（扰魔/潜行仍可被随机命中）");
-                box.Add(row);
+
+                // 目标随机（不弹窗·按种子随机选）——与目标域同一行
+                var rand = UiKit.Toggle("rand", row, "目标随机", _graph.header.RandomTarget != 0, val =>
+                {
+                    // 随机移出枚举为正交标志——只翻标志，不再覆写选择模式
+                    _graph.header.RandomTarget = val ? 1 : 0;
+                    RefreshTexts();
+                });
             }
 
             // 位 2：指示物持续提示
             if (mounts.Contains(MountKind.Counter))
-                box.Add(MakeHint("指示物原子：持续规则由指示物本身承载——效果级持续档仅供参考"));
+                MakeHint(box, "指示物原子：持续规则由指示物本身承载——效果级持续档仅供参考");
 
             // 位 8：触发上限锁定
             if (mounts.Contains(MountKind.TriggerCapImmutable))
-                box.Add(MakeHint("触发上限锁定：该原子恒无限（TriggerLimitPerTurn 被覆写，不可限）"));
+                MakeHint(box, "触发上限锁定：该原子恒无限（TriggerLimitPerTurn 被覆写，不可限）");
 
-            // DrawCard：抽牌减费缺陷已随减费归入代价体系退役（2026-09-16）——减负表达走代价栏 Payload 原子
+            // 检索按维度档计费提示
             if (type == AtomicEffectType.SearchDeck)
-            {
-                box.Add(MakeHint("检索按维度档计费：字符串字段填宣言卡名（ExactCard=3），空=单维度 1"));
-            }
+                MakeHint(box, "检索按维度档计费：字符串字段填宣言卡名（ExactCard=3），空=单维度 1");
 
             // 有限分支奖励：预算行
             if (selKind == SelKind.GateReward && _graph.steps.Count > 1)
-                box.Add(MakeHint(GateBudgetText(_graph.steps[1])));
+                MakeHint(box, GateBudgetText(_graph.steps[1]));
 
-            // 效果设置内联（2026-09-21 左栏移除）——效果级共用字段随卡展开编辑
-            box.Add(MakeEffectSettingsBox());
-
-            return box;
+            // 效果设置内联——效果级共用字段随卡展开编辑
+            MakeEffectSettingsBox(box);
         }
 
         // 自由分支主干卡：摘要行（引擎描述+移除）+ 展开态=参数编辑（header 通道无原子条目）。
-        private VisualElement MakeTrunkCard(BranchEngineKind engine, int param)
+        private void MakeTrunkCard(RectTransform slot, BranchEngineKind engine, int param)
         {
-            var expanded = _sel == SelKind.FreeTrunk;
-            var card = new VisualElement();
-            card.AddToClassList("step-card");
-            card.AddToClassList("atom-card");
+            bool expanded = _sel == SelKind.FreeTrunk;
+            var card = UiKit.Column("trunk-card", slot, spacing: 4f);
+            var cardBg = card.gameObject.AddComponent<Image>();
+            cardBg.sprite = UiKit.RoundedSprite;
+            cardBg.type = Image.Type.Sliced;
+            cardBg.color = UiStyle.PanelBg;
+            UiKit.Size(card, fw: 1f);
 
-            var head = new VisualElement();
-            head.AddToClassList("list-row");
-            var text = new Label((expanded ? "▼ " : "▶ ") + AtomText.TrunkText(engine, param));
-            text.AddToClassList("list-row__name");
-            head.Add(text);
+            var head = UiKit.Row("head", card, spacing: 6f, pad: 6f);
+            var headBg = head.gameObject.AddComponent<Image>();
+            headBg.sprite = UiKit.RoundedSprite;
+            headBg.type = Image.Type.Sliced;
+            headBg.color = UiStyle.RowBg;
+            headBg.raycastTarget = true;
+            UiKit.Size(head, fw: 1f, h: 34f);
 
-            var del = new Button(() =>
+            var text = UiKit.Label("text", head,
+                (expanded ? "▼ " : "▶ ") + AtomText.TrunkText(engine, param),
+                UiStyle.SmallSize, UiStyle.TextBody);
+            UiKit.Size(text, fw: 1f);
+
+            UiKit.MiniButton("del", head, "移除", () =>
             {
                 _graph.header.EngineKind = (int)BranchEngineKind.None;
                 _graph.header.EngineParam = 0;
                 _sel = SelKind.None;
                 RefreshSlots();
-            }) { text = "移除" };
-            del.AddToClassList("btn"); del.AddToClassList("btn--mini"); del.AddToClassList("btn--danger");
-            head.Add(del);
+            }, UiStyle.BtnDanger);
 
-            text.RegisterCallback<ClickEvent>(_ => ToggleExpand(SelKind.FreeTrunk, 0));
-            card.Add(head);
+            var headBtn = head.gameObject.AddComponent<Button>();
+            headBtn.transition = Selectable.Transition.None;
+            headBtn.targetGraphic = headBg;
+            headBtn.onClick.AddListener(() => ToggleExpand(SelKind.FreeTrunk, 0));
 
             if (expanded)
             {
-                var box = new VisualElement();
-                box.AddToClassList("sub-item");
+                var box = UiKit.Column("editor", card, spacing: 6f, pad: 8f);
+                UiKit.Size(box, fw: 1f);
                 ComposerCatalog.EngineParamRange(engine, out int pMin, out int pMax);
                 string label = engine == BranchEngineKind.Countdown ? "回合数（0=自动换算）" : $"参数 x（{pMin}-{pMax}）";
-                var field = new IntegerField(label) { value = _graph.header.EngineParam };
-                field.AddToClassList("int-input");
-                field.RegisterValueChangedCallback(e =>
+                var field = UiKit.IntField("field-param", box, label, _graph.header.EngineParam, val =>
                 {
                     _graph.header.EngineParam = engine == BranchEngineKind.Countdown
-                        ? Mathf.Max(0, e.newValue)
-                        : Mathf.Clamp(e.newValue, pMin, pMax);
-                    field.SetValueWithoutNotify(_graph.header.EngineParam);
+                        ? Mathf.Max(0, val)
+                        : Mathf.Clamp(val, pMin, pMax);
                     RefreshSlots();
-                });
-                Described(field,
+                }, width: 150f);
+                UiKit.Described(field,
                     "主干只是条件——奖励在下方奖励槽（单原子，不占卡费）。倒计时 0=按奖励推导费自动换算回合（1费=1回合）；"
                     + "死亡计数/元素充盈/手牌序位的奖励预算=x（数值越大门槛越高、预算越宽）");
-                box.Add(field);
-                box.Add(MakeEffectSettingsBox());
-                card.Add(box);
+                MakeEffectSettingsBox(box);
             }
-            return card;
         }
 
-        private VisualElement MakeReadonlyStepBadge(EffectStepData step)
+        private static void MakeReadonlyStepBadge(RectTransform slot, EffectStepData step)
         {
-            var badge = new VisualElement();
-            badge.AddToClassList("step-card");
-            var text = new Label(step.kind == 2
+            var badge = UiKit.Column("readonly", slot, spacing: 2f, pad: 6f);
+            var bg = badge.gameObject.AddComponent<Image>();
+            bg.sprite = UiKit.RoundedSprite;
+            bg.type = Image.Type.Sliced;
+            bg.color = UiStyle.PanelBg;
+            UiKit.Size(badge, fw: 1f);
+            var text = UiKit.Label("text", badge, step.kind == 2
                 ? $"抉择（{step.choices?.Count ?? 0} 模式）——卡组成阶段编辑，此处只读"
-                : $"步骤 kind={step.kind}（只读）");
-            text.AddToClassList("list-row__name");
-            badge.Add(text);
-            return badge;
+                : $"步骤 kind={step.kind}（只读）",
+                UiStyle.SmallSize, UiStyle.TextBody, wrap: true);
+            UiKit.Size(text, fw: 1f);
         }
 
         // 门行：条件下拉内联（中文标签带【奖励x】）。
-        private VisualElement MakeGateRow(EffectStepData branch)
+        private void MakeGateRow(RectTransform parent, EffectStepData branch)
         {
-            var row = new VisualElement();
-            row.AddToClassList("step-card");
-            var wrap = new VisualElement();
-            wrap.AddToClassList("toolbar");
-            var lbl = new Label("条件：");
-            lbl.AddToClassList("field-label");
-            wrap.Add(lbl);
+            var row = UiKit.Column("gate-row", parent, spacing: 4f, pad: 6f);
+            var bg = row.gameObject.AddComponent<Image>();
+            bg.sprite = UiKit.RoundedSprite;
+            bg.type = Image.Type.Sliced;
+            bg.color = UiStyle.PanelBg;
+            UiKit.Size(row, fw: 1f);
+
+            var wrap = UiKit.Row("bar", row, spacing: 6f);
+            UiKit.Label("label", wrap, "条件：", UiStyle.SmallSize, UiStyle.TextDim);
 
             var trunkType = ResolveType(_graph.steps[0].atomic);
             var gates = ComposerCatalog.GatesFor(trunkType).ToList();
             if (gates.Count == 0)
             {
-                wrap.Add(MakeHint("主干不是产出族原子——无法挂产出条件"));
+                MakeHint(row, "主干不是产出族原子——无法挂产出条件");
             }
             else
             {
                 var labels = gates.Select(ComposerCatalog.GateLabel).ToList();
-                var dd = new DropdownField { choices = labels };
-                dd.AddToClassList("text-input");
                 int cur = gates.FindIndex(g => g.Id == branch.conditionId);
                 if (cur < 0) { cur = 0; branch.conditionId = gates[0].Id; }
-                dd.index = cur;
-                dd.RegisterValueChangedCallback(_ =>
+                var dd = new UiKit.Dropdown("dd-gate", wrap, _overlay, labels, cur, (idx, _) =>
                 {
-                    int i = dd.index;
-                    if (i >= 0 && i < gates.Count)
+                    if (idx >= 0 && idx < gates.Count)
                     {
-                        branch.conditionId = gates[i].Id;
+                        branch.conditionId = gates[idx].Id;
                         if (CardCore.BranchConditionEvaluator.IsRewriteCondition(branch.conditionId))
                             branch.thenSteps?.Clear(); // 改写门无奖励槽——切换即清空遗留奖励
                         RefreshSlots(); // 预算行/奖励槽随门刷新
                     }
-                });
-                wrap.Add(dd);
+                }, width: 220f);
             }
-            row.Add(wrap);
-            return row;
-        }
-
-        private VisualElement MakeGateBudgetLine(EffectStepData branch)
-        {
-            var label = new Label(GateBudgetText(branch));
-            label.AddToClassList("hint");
-            return label;
         }
 
         private string GateBudgetText(EffectStepData branch)
@@ -1270,8 +1230,7 @@ namespace SynergyUI
             return $"【奖励{budget}】当前 {cost:0.#}/{budget}{state}";
         }
 
-        /// <summary>自由分支奖励预算文本（2026-09-22 奖励预算制）：死亡计数/元素充盈 预算=x；
-        /// 既有三引擎自平衡（拼点门槛/倒计时回合/运势概率）无上限。</summary>
+        /// <summary>自由分支奖励预算文本：死亡计数/元素充盈 预算=x；既有三引擎自平衡无上限。</summary>
         private string FreeRewardBudgetText()
         {
             var h = _graph.header;
@@ -1360,9 +1319,9 @@ namespace SynergyUI
             RefreshSlots();
         }
 
-        // ---- 落槽资格与写入（2026-09-21：点击替换选中槽） ----
+        // ---- 落槽资格与写入（点击替换选中槽） ----
 
-        // 并列槽可落：主动位原子（MountKinds 含 0）且**非错边**（内容契约：效果区禁错边——错边只能进代价槽）
+        // 并列槽可落：主动位原子且非错边（内容契约：效果区禁错边——错边只能进代价槽）
         private bool ParallelCanDrop(object payload)
             => payload is LibPayload lp && lp.CanBeActiveAtom && !lp.IsWrongSideOnly;
 
@@ -1401,89 +1360,76 @@ namespace SynergyUI
             if (branch.thenSteps == null || branch.thenSteps.Count == 0)
                 _selSlot = SelKind.GateReward;
             RefreshSlots();
-            RefreshRightPanels(); // 主干/门变化——库按新门预算重过滤（2026-09-22 五轮）
+            RefreshRightPanels(); // 主干/门变化——库按新门预算重过滤
         }
 
         private void DropGateReward(LibPayload lp)
         {
             _graph.steps[1].thenSteps = new List<AtomicEffectEntry> { EntryForEffectSlot(lp) };
-            if (lp.IsKeywordAtom) ApplyKeywordHeader(); // 关键词=他人赋予形态（2026-09-22 五轮）
+            if (lp.IsKeywordAtom) ApplyKeywordHeader(); // 关键词=他人赋予形态
             _sel = SelKind.GateReward;
             _selIndex = 0;
             _selSlot = SelKind.GateReward;
             RefreshSlots();
         }
 
-        // ======================================== 效果设置（2026-09-21 左栏移除——随卡片展开区内联） ========================================
+        // ======================================== 效果设置（随卡片展开区内联） ========================================
 
         /// <summary>效果级编排字段（速度/触发上限/持续/选择模式/数量/落区）——整个效果共用，
-        /// 在每个原子卡/主干卡的展开区编辑（写入同一 header）。
-        /// 2026-09-23：各项说明走描述条（选中才出现）——不再常驻六行 hint。</summary>
-        private VisualElement MakeEffectSettingsBox()
+        /// 在每个原子卡/主干卡的展开区编辑（写入同一 header）。</summary>
+        private void MakeEffectSettingsBox(RectTransform parent)
         {
-            var box = new VisualElement();
-            box.AddToClassList("sub-item");
+            var box = UiKit.Column("settings", parent, spacing: 6f, pad: 8f);
+            var bg = box.gameObject.AddComponent<Image>();
+            bg.sprite = UiKit.RoundedSprite;
+            bg.type = Image.Type.Sliced;
+            bg.color = UiStyle.ListBg;
+            UiKit.Size(box, fw: 1f);
             var h = _graph.header;
 
-            var title = new Label("效果设置（整个效果共用）");
-            title.AddToClassList("panel__header");
-            box.Add(title);
+            var title = UiKit.Label("title", box, "效果设置（整个效果共用）", UiStyle.HeaderSize,
+                UiStyle.TextSecondary, TextAnchor.LowerLeft, FontStyle.Bold);
+            UiKit.Size(title, fw: 1f);
 
-            var row0 = new VisualElement(); row0.AddToClassList("toolbar");
-            var speed = MakeIntField("速度", h.BaseSpeed, v => h.BaseSpeed = v);
-            Described(speed, "速度：0=只能自己回合的主阶段发动；1=瞬间基准（对手回合也能发动/响应）——可往上再调");
-            row0.Add(speed);
-            var limit = MakeIntField("触发上限", h.TriggerLimitPerTurn, v => h.TriggerLimitPerTurn = v);
-            Described(limit, "触发上限：触发式每回合次数——0=默认（一回合一次）；N=每回合 N 次（计价连乘 1.2^(N-1)）；-1=显式无限（×1.2³）");
-            // 位 8 数据驱动（2026-09-23）：任一挂载原子含 TriggerCapImmutable → 恒无限、锁输入——
-            // 与装载期覆写 -1 + 告警同口径（表说了算，输入只是摆设）
+            var row0 = UiKit.Row("row0", box, spacing: 6f);
+            var speed = UiKit.IntField("speed", row0, "速度", h.BaseSpeed, v => h.BaseSpeed = v, width: 100f);
+            UiKit.Described(speed, "速度：0=只能自己回合的主阶段发动；1=瞬间基准（对手回合也能发动/响应）——可往上再调");
+            var limit = UiKit.IntField("limit", row0, "触发上限", h.TriggerLimitPerTurn, v => h.TriggerLimitPerTurn = v, width: 100f);
+            UiKit.Described(limit, "触发上限：触发式每回合次数——0=默认（一回合一次）；N=每回合 N 次（计价连乘 1.2^(N-1)）；-1=显式无限（×1.2³）");
+            // 位 8 数据驱动：任一挂载原子含 TriggerCapImmutable → 恒无限、锁输入——表说了算
             if (EffectHasMountBit(MountKind.TriggerCapImmutable))
             {
-                limit.SetEnabled(false);
-                var lockHint = new Label("触发上限锁定：效果内含位 8 原子——表声明恒无限（装载期覆写 -1）");
-                lockHint.AddToClassList("hint");
-                row0.Add(lockHint);
+                limit.interactable = false;
+                MakeHint(row0, "触发上限锁定：效果内含位 8 原子——表声明恒无限（装载期覆写 -1）");
             }
-            row0.Add(limit);
-            box.Add(row0);
 
-            var row1 = new VisualElement(); row1.AddToClassList("toolbar");
-            // 持续档全中文（2026-09-22 汉化；按值映射——ForTurns 仅存于指示物时钟，效果级不提供）
-            var dur = new DropdownField("持续") { choices = DurationChoices.Select(d => d.label).ToList() };
-            dur.AddToClassList("text-input");
-            int dcur = Array.FindIndex(DurationChoices, d => d.value == h.Duration);
-            dur.index = dcur >= 0 ? dcur : 0;
-            dur.RegisterValueChangedCallback(_ => h.Duration = DurationChoices[Mathf.Max(0, dur.index)].value);
-            Described(dur, "持续：一次性效果选「一次性」；永久持续选「永久」；其余为限时/条件档（1/2 回合已并档）——计价随档折扣");
-            row1.Add(dur);
+            var row1 = UiKit.Row("row1", box, spacing: 6f);
+            // 持续档全中文
+            var dur = new UiKit.Dropdown("dd-dur", row1, _overlay,
+                DurationChoices.Select(d => d.label).ToList(),
+                Mathf.Max(0, Array.FindIndex(DurationChoices, d => d.value == h.Duration)),
+                (idx, _) => h.Duration = DurationChoices[Mathf.Max(0, idx)].value, width: 140f);
+            UiKit.Described(dur.Root.GetComponent<Button>(),
+                "持续：一次性效果选「一次性」；永久持续选「永久」；其余为限时/条件档（1/2 回合已并档）——计价随档折扣");
 
-            var modeChoices = SelectionModes.Select(m => m.label).ToList();
-            var sel = new DropdownField("选择模式") { choices = modeChoices };
-            sel.AddToClassList("text-input");
-            int selIdx = Mathf.Max(0, SelectionModes.ToList().FindIndex(m => m.value == h.SelectionMode));
-            sel.index = selIdx;
-            sel.RegisterValueChangedCallback(_ => h.SelectionMode = SelectionModes[sel.index].value);
-            Described(sel, "选择模式：目标怎么选——无目标=不弹窗；单/多范围=弹窗选；全取=不弹对域内全部结算（期望 4 计价）；多范围=多域并集");
-            row1.Add(sel);
-            box.Add(row1);
+            var sel = new UiKit.Dropdown("dd-sel", row1, _overlay,
+                SelectionModes.Select(m => m.label).ToList(),
+                Mathf.Max(0, SelectionModes.ToList().FindIndex(m => m.value == h.SelectionMode)),
+                (idx, _) => h.SelectionMode = SelectionModes[Mathf.Max(0, idx)].value, width: 130f);
+            UiKit.Described(sel.Root.GetComponent<Button>(),
+                "选择模式：目标怎么选——无目标=不弹窗；单/多范围=弹窗选；全取=不弹对域内全部结算（期望 4 计价）；多范围=多域并集");
 
-            var row2 = new VisualElement(); row2.AddToClassList("toolbar");
-            // -1=任意（2026-09-14 并入 DynamicTargetCount：玩家自选数量=原子计 0 费+整卡不可作地牌）
-            var count = MakeIntField("数量", h.TargetCount, v => h.TargetCount = v);
-            Described(count, "数量：固定选 N 个（0=全部、-1=任意=运行时自选个数——计费 0 且不可作地牌；-2=未声明回落表级）");
-            row2.Add(count);
+            var row2 = UiKit.Row("row2", box, spacing: 6f);
+            // -1=任意（玩家自选数量=原子计 0 费+整卡不可作地牌）
+            var count = UiKit.IntField("count", row2, "数量", h.TargetCount, v => h.TargetCount = v, width: 100f);
+            UiKit.Described(count, "数量：固定选 N 个（0=全部、-1=任意=运行时自选个数——计费 0 且不可作地牌；-2=未声明回落表级）");
 
             var dropChoices = new List<string> { "战场", "手牌", "牌库" };
             var dropVals = new List<int> { (int)Zone.Battlefield, (int)Zone.Hand, (int)Zone.Deck };
-            var drop = new DropdownField("落区") { choices = dropChoices };
-            drop.AddToClassList("text-input");
             int di = dropVals.IndexOf(h.SummonDropZone);
-            drop.index = di >= 0 ? di : 0;
-            drop.RegisterValueChangedCallback(_ => h.SummonDropZone = dropVals[Mathf.Max(0, drop.index)]);
-            Described(drop, "落区：衍生物（召唤）的生成位置——战场/手牌/牌库");
-            row2.Add(drop);
-            box.Add(row2);
-            return box;
+            var drop = new UiKit.Dropdown("dd-drop", row2, _overlay, dropChoices, di >= 0 ? di : 0,
+                (idx, _) => h.SummonDropZone = dropVals[Mathf.Max(0, idx)], width: 90f);
+            UiKit.Described(drop.Root.GetComponent<Button>(), "落区：衍生物（召唤）的生成位置——战场/手牌/牌库");
         }
 
         // ======================================== 右：双模式展示区 ========================================
@@ -1492,7 +1438,7 @@ namespace SynergyUI
         {
             AtomicEffectTable.Reload();
             SetRightMode(RightMode.Atoms); // 内含 RebuildFilterTypeChoices（重置"全部"）+ RefreshLibrary
-            int count = _libraryList?.contentContainer?.childCount ?? 0;
+            int count = _libraryList?.Content?.childCount ?? 0;
             ShowToast($"原子表已重读：{count} 行入列");
         }
 
@@ -1504,15 +1450,17 @@ namespace SynergyUI
         private void SetRightMode(RightMode mode)
         {
             _rightMode = mode;
-            _effectsList.style.display = mode == RightMode.Effects ? DisplayStyle.Flex : DisplayStyle.None;
-            _atomPanel.style.display = mode == RightMode.Atoms ? DisplayStyle.Flex : DisplayStyle.None;
+            _effectsPanel.gameObject.SetActive(mode == RightMode.Effects);
+            _atomPanel.gameObject.SetActive(mode == RightMode.Atoms);
 
-            // 筛选栏两模式共用（2026-09-22）：分类选项随模式重建（原子库=表行中文名；效果表=内含原子名并集）
+            // 筛选栏两模式共用：分类选项随模式重建（原子库=表行中文名；效果表=内含原子名并集）
             RebuildFilterTypeChoices();
 
             // 按钮态指示（当前模式高亮）
-            _reloadAtomsBtn.EnableInClassList("btn--primary", mode == RightMode.Atoms);
-            _loadEffectsBtn.EnableInClassList("btn--primary", mode == RightMode.Effects);
+            var imgAtoms = _reloadAtomsBtn.GetComponent<Image>();
+            var imgEffects = _loadEffectsBtn.GetComponent<Image>();
+            if (imgAtoms != null) imgAtoms.color = mode == RightMode.Atoms ? UiStyle.BtnPrimary : UiStyle.BtnBg;
+            if (imgEffects != null) imgEffects.color = mode == RightMode.Effects ? UiStyle.BtnPrimary : UiStyle.BtnBg;
 
             if (mode == RightMode.Effects) RefreshEffectsList();
             else RefreshLibrary();
@@ -1520,24 +1468,24 @@ namespace SynergyUI
 
         private void RefreshEffectsList()
         {
-            _effectsList.Clear();
-            EffectsLibrary.Reload(); // 2026-09-14：外部可能直改 Effects.json——进效果表即重读
+            ClearContent(_effectsList.Content);
+            EffectsLibrary.Reload(); // 外部可能直改 Effects.json——进效果表即重读
             var effects = EffectLibrarySerializer.LoadAll();
             if (effects.Count == 0)
             {
-                _effectsList.Add(MakeHint("效果库为空——左侧编辑后「保存」即入库"));
+                MakeHint(_effectsList.Content, "效果库为空——左侧编辑后「保存」即入库");
                 return;
             }
-            string q = _filterName.value;
+            string q = _filterName.text;
             foreach (var fx in effects)
             {
                 var captured = fx;
                 var parts = EffectAtomCfgs(captured); // 组成部分表行（分类/色点/简称检索共用）
 
-                // 效果分类（2026-09-22）：任一组成部分（主干/原子/奖励）的表行中文名命中即入选
+                // 效果分类：任一组成部分的表行中文名命中即入选
                 if (_filterTypeZh != null && !parts.Any(c => c?.DisplayName == _filterTypeZh)) continue;
 
-                // 近似检索（2026-09-22）：名 ∪ id ∪ 组成简称（内含原子中文名并串）
+                // 近似检索：名 ∪ id ∪ 组成简称
                 if (!string.IsNullOrEmpty(q))
                 {
                     string abbr = string.Concat(parts.Select(c => c?.DisplayName ?? ""));
@@ -1546,28 +1494,22 @@ namespace SynergyUI
                         && !abbr.Contains(q, StringComparison.OrdinalIgnoreCase)) continue;
                 }
 
-                var row = new VisualElement();
-                row.AddToClassList("list-row");
-                row.AddToClassList("library-row");
+                var row = UiKit.Row("row", _effectsList.Content, spacing: 8f, pad: 6f);
+                var bg = UiKit.BgRow(row);
+                bg.raycastTarget = true;
+                UiKit.Size(row, fw: 1f, h: 34f);
 
-                // 色点（2026-09-22）：首个组成部分的表色——与原子库行同口径（圆点直读表色）
-                var dot = new VisualElement();
-                dot.AddToClassList("color-dot");
-                dot.AddToClassList(ChipClass(ColorFilter.OfColorName(parts.FirstOrDefault()?.Tags)));
-                row.Add(dot);
+                // 色点：首个组成部分的表色
+                UiKit.Dot("dot", row, DotColor(ColorFilter.OfColorName(parts.FirstOrDefault()?.Tags)));
 
-                // 单行（2026-09-22）：去全部简化描述——只留 名+id 一行（超宽省略号截断）
-                var name = new Label(captured.name);
-                name.AddToClassList("list-row__name");
-                name.AddToClassList("single-line");
-                row.Add(name);
+                var name = UiKit.Label("name", row, captured.name, UiStyle.SmallSize, UiStyle.TextBody);
+                UiKit.Size(name, fw: 1f);
+                UiKit.Label("id", row, captured.id, UiStyle.MiniSize, UiStyle.TextFaint);
 
-                var id = new Label(captured.id);
-                id.AddToClassList("list-row__meta");
-                row.Add(id);
-
-                row.RegisterCallback<ClickEvent>(_ => LoadEffectFromLibrary(captured));
-                _effectsList.Add(row);
+                var btn = row.gameObject.AddComponent<Button>();
+                btn.transition = Selectable.Transition.None;
+                btn.targetGraphic = bg;
+                btn.onClick.AddListener(() => LoadEffectFromLibrary(captured));
             }
         }
 
@@ -1589,38 +1531,16 @@ namespace SynergyUI
             _selIndex = -1;
             EnsureDefaultSelection();
             SyncTimingDropdown();
-            _activationDropdown.index = Mathf.Clamp(_graph.header.ActivationType, 0, ActivationNames.Length - 1);
+            _activationDropdown.SetIndex(Mathf.Clamp(_graph.header.ActivationType, 0, ActivationNames.Length - 1));
             SyncActivationVisibility();
             RefreshAll();
             ShowToast($"已载入：{_graph.name}（编辑后保存覆盖）");
         }
 
-        // ---- 筛选栏（两模式共用：分类下拉选项随模式重建） ----
+        // ---- 筛选栏 ----
 
-        private void BuildFilterBar()
-        {
-            // 回调只注册一次（OnEnter 唯一调用；重读原子表只重建选项——防重复挂回调）
-            _filterTypeDropdown.RegisterValueChangedCallback(_ =>
-            {
-                int i = _filterTypeDropdown.index;
-                _filterTypeZh = i <= 0 ? null : _filterTypeChoices[Mathf.Max(0, i)];
-                RefreshLibrary();
-                if (_rightMode == RightMode.Effects) RefreshEffectsList();
-            });
-
-            // 近似搜索：原子库=中文名∪描述模板；效果表=名∪id∪组成简称（RefreshEffectsList 内判模式）
-            _filterName.RegisterValueChangedCallback(_ =>
-            {
-                RefreshLibrary();
-                if (_rightMode == RightMode.Effects) RefreshEffectsList();
-            });
-
-            RebuildFilterTypeChoices();
-        }
-
-        /// <summary>分类选项随模式重建并重置为"全部"：原子库=表行中文名（锁定关键词行除外——
-        /// 攻击/守卫/引擎行 2026-09-23 起直接隐藏）；效果表=库内效果的内含原子名并集
-        ///（2026-09-22 效果表对齐原子库三件套）。</summary>
+        /// <summary>分类选项随模式重建并重置为"全部"：原子库=表行中文名（锁定关键词行除外）；
+        /// 效果表=库内效果的内含原子名并集。</summary>
         private void RebuildFilterTypeChoices()
         {
             var types = new List<string> { "全部" };
@@ -1633,8 +1553,18 @@ namespace SynergyUI
                     .Distinct().OrderBy(n => n, StringComparer.CurrentCulture));
             _filterTypeChoices = types;
             _filterTypeZh = null;
-            _filterTypeDropdown.choices = types;
-            _filterTypeDropdown.index = 0; // "全部"（值未变不触发回调，上面已直置 null）
+            _filterTypeDropdown.SetOptions(types, 0);
+        }
+
+        /// <summary>OnEnter 里挂分类回调（Build 之后一次）。</summary>
+        private void BuildFilterCallbacks()
+        {
+            _filterTypeDropdown.Changed += (idx, _) =>
+            {
+                _filterTypeZh = idx <= 0 ? null : _filterTypeChoices[Mathf.Max(0, idx)];
+                RefreshLibrary();
+                if (_rightMode == RightMode.Effects) RefreshEffectsList();
+            };
         }
 
         /// <summary>效果分类名（效果表模式）：库内全部效果的内含原子中文名并集（引擎主干行计入）。</summary>
@@ -1682,8 +1612,8 @@ namespace SynergyUI
         private static IEnumerable<AtomicEffectConfig> AllTableRows()
             => AtomicEffectTable.GetAll().Where(r => r != null && !string.IsNullOrEmpty(r.EnumName));
 
-        /// <summary>当前选中槽的可放置性谓词（2026-09-22 五轮：库只展示可用项——与分类/搜索取交集，
-        /// 玩家不再逐个试错）。附带中文上下文（库顶标签显示）。</summary>
+        /// <summary>当前选中槽的可放置性谓词（库只展示可用项——与分类/搜索取交集）。
+        /// 附带中文上下文（库顶标签显示）。</summary>
         private Func<LibPayload, bool> CurrentSlotPredicate(out string contextZh)
         {
             switch (_mode)
@@ -1723,10 +1653,9 @@ namespace SynergyUI
 
         private void RefreshLibrary()
         {
-            _libraryList.Clear();
+            ClearContent(_libraryList.Content);
 
-            // 光环模式（2026-09-23 十轮用户定案）：右栏=光环条目库（点击添加）——
-            // 条目编辑在左栏（类型/值/删除），原子库按槽过滤的口径不适用
+            // 光环模式：右栏=光环条目库（点击添加）——条目编辑在左栏，原子库按槽过滤口径不适用
             if (_mode == ComposeMode.Aura)
             {
                 RefreshAuraLibrary();
@@ -1739,52 +1668,44 @@ namespace SynergyUI
             foreach (var row in AllTableRows())
             {
                 if (!Enum.TryParse<AtomicEffectType>(row.EnumName, out var type)) continue;
-                // 锁定关键词（2026-09-23 直接隐藏）：攻击/守卫 + 引擎行——不可组合成效果，
-                // 不再在关键词区做"不可编辑"展示（自由分支主干经主干槽下拉直选）
+                // 锁定关键词（攻击/守卫 + 引擎行）直接隐藏——不可组合成效果
                 if (IsLockedKeywordRow(row)) continue;
                 if (_filterTypeZh != null && row.DisplayName != _filterTypeZh) continue;
                 // 近似搜索：中文名 ∪ 描述模板 两列并集
-                if (!string.IsNullOrEmpty(_filterName.value)
-                    && !(row.DisplayName ?? "").Contains(_filterName.value, StringComparison.OrdinalIgnoreCase)
-                    && !(row.Description ?? "").Contains(_filterName.value, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!string.IsNullOrEmpty(_filterName.text)
+                    && !(row.DisplayName ?? "").Contains(_filterName.text, StringComparison.OrdinalIgnoreCase)
+                    && !(row.Description ?? "").Contains(_filterName.text, StringComparison.OrdinalIgnoreCase)) continue;
 
                 var payload = new LibPayload(type, row);
-                // 槽位可用性（2026-09-22 五轮）：与分类/搜索取交集——只展示当前选中槽真正可落的原子
+                // 槽位可用性：与分类/搜索取交集——只展示当前选中槽真正可落的原子
                 if (pred != null && !pred(payload)) continue;
-                _libraryList.Add(MakeLibraryRow(payload));
+                MakeLibraryRow(payload);
             }
         }
 
-        private VisualElement MakeLibraryRow(LibPayload payload)
+        private void MakeLibraryRow(LibPayload payload)
         {
-            var row = new VisualElement();
-            row.AddToClassList("list-row");
-            row.AddToClassList("library-row");
+            var row = UiKit.Row("row", _libraryList.Content, spacing: 8f, pad: 6f);
+            var bg = UiKit.BgRow(row);
+            bg.raycastTarget = true;
+            UiKit.Size(row, fw: 1f, h: 34f);
 
-            // 圆点直读表 EffectColor 列（config.Tags 承载颜色名）——不经 ElementAffinity 间接层
-            var dot = new VisualElement();
-            dot.AddToClassList("color-dot");
-            dot.AddToClassList(ChipClass(ColorFilter.OfColorName(payload.Cfg.Tags)));
-            row.Add(dot);
+            // 圆点直读表 EffectColor 列（config.Tags 承载颜色名）
+            UiKit.Dot("dot", row, DotColor(ColorFilter.OfColorName(payload.Cfg.Tags)));
 
-            var name = new Label(payload.Cfg.DisplayName);
-            name.AddToClassList("list-row__name");
-            row.Add(name);
+            var name = UiKit.Label("name", row, payload.Cfg.DisplayName, UiStyle.SmallSize, UiStyle.TextBody);
+            UiKit.Size(name, fw: 1f);
+            UiKit.Label("tpl", row, payload.Cfg.Description, UiStyle.MiniSize, UiStyle.TextFaint);
 
-            var tpl = new Label(payload.Cfg.Description);
-            tpl.AddToClassList("list-row__meta");
-            row.Add(tpl);
-
-            // 点击=追加到首个合格槽（QuickAdd）
-            row.RegisterCallback<ClickEvent>(_ => QuickAdd(payload));
-
-            return row;
+            // 点击=替换选中槽（QuickAdd）
+            var btn = row.gameObject.AddComponent<Button>();
+            btn.transition = Selectable.Transition.None;
+            btn.targetGraphic = bg;
+            btn.onClick.AddListener(() => QuickAdd(payload));
         }
 
-        /// <summary>右栏·光环条目库（2026-09-23 十轮用户定案：条目在右侧点击添加）：
-        /// 属性光环（攻击力/生命值）+ 关键词光环（AuraKeywordChoices——位 10 数据驱动，
-        /// 坚韧/守护+表行声明可挂）。点击追加到左栏条目列表（可重复——费随条目数与箭头累乘）；
-        /// 近似搜索按显示名过滤。左栏负责条目编辑（类型/值/删除）。</summary>
+        /// <summary>右栏·光环条目库（点击添加）：属性光环 + 关键词光环（位 10 数据驱动）。
+        /// 点击追加到左栏条目列表（可重复）；近似搜索按显示名过滤。</summary>
         private void RefreshAuraLibrary()
         {
             if (_libContext != null)
@@ -1792,26 +1713,23 @@ namespace SynergyUI
 
             void AddRow(string title, string meta, UIColor color, Action onAdd)
             {
-                if (!string.IsNullOrEmpty(_filterName.value)
-                    && !title.Contains(_filterName.value, StringComparison.OrdinalIgnoreCase)
-                    && !meta.Contains(_filterName.value, StringComparison.OrdinalIgnoreCase)) return;
-                var row = new VisualElement();
-                row.AddToClassList("list-row");
-                row.AddToClassList("library-row");
+                if (!string.IsNullOrEmpty(_filterName.text)
+                    && !title.Contains(_filterName.text, StringComparison.OrdinalIgnoreCase)
+                    && !meta.Contains(_filterName.text, StringComparison.OrdinalIgnoreCase)) return;
+                var row = UiKit.Row("row", _libraryList.Content, spacing: 8f, pad: 6f);
+                var bg = UiKit.BgRow(row);
+                bg.raycastTarget = true;
+                UiKit.Size(row, fw: 1f, h: 34f);
 
-                var dot = new VisualElement();
-                dot.AddToClassList("color-dot");
-                dot.AddToClassList(ChipClass(color));
-                row.Add(dot);
-                var name = new Label(title);
-                name.AddToClassList("list-row__name");
-                row.Add(name);
-                var tpl = new Label(meta);
-                tpl.AddToClassList("list-row__meta");
-                row.Add(tpl);
+                UiKit.Dot("dot", row, DotColor(color));
+                var name = UiKit.Label("name", row, title, UiStyle.SmallSize, UiStyle.TextBody);
+                UiKit.Size(name, fw: 1f);
+                UiKit.Label("meta", row, meta, UiStyle.MiniSize, UiStyle.TextFaint);
 
-                row.RegisterCallback<ClickEvent>(_ => onAdd());
-                _libraryList.Add(row);
+                var btn = row.gameObject.AddComponent<Button>();
+                btn.transition = Selectable.Transition.None;
+                btn.targetGraphic = bg;
+                btn.onClick.AddListener(() => onAdd());
             }
 
             void AddAura(LinkAuraData entry)
@@ -1834,13 +1752,11 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>点击库行 = **替换左侧选中槽的原子**（2026-09-21 交互重做：顺序填充→选中替换；
-        /// 选中槽不合适该原子时 toast 提示——点击左侧槽可切换选中）。
-        /// 2026-09-23 代价栏上移卡组合层：效果层不再有代价槽——错边原子不在效果区落位。</summary>
+        /// <summary>点击库行 = 替换左侧选中槽的原子；选中槽不合适该原子时 toast 提示。
+        /// 错边原子不在效果区落位（代价栏已上移卡组合层）。</summary>
         private void QuickAdd(LibPayload payload)
         {
-            // 表级错边原子（域锁错侧——如 弃牌/送墓 锁己方域）：效果区禁错边——
-            // 代价栏已上移卡组合层（2026-09-23），在卡编辑界面填装
+            // 表级错边原子（域锁错侧——如 弃牌/送墓 锁己方域）：效果区禁错边
             if (payload.IsWrongSideOnly)
             {
                 ShowToast("错边原子只能作代价——代价栏已移至卡编辑界面（效果层不组合代价）");
@@ -1855,7 +1771,7 @@ namespace SynergyUI
                     ReplaceParallel(EntryForEffectSlot(payload));
                     break;
                 case ComposeMode.FreeBranch:
-                    // 主干=槽内下拉直选（2026-09-22）——库行点击唯一落点=奖励槽；引擎行已移出库（防御兜底）
+                    // 主干=槽内下拉直选——库行点击唯一落点=奖励槽；引擎行已移出库（防御兜底）
                     if (payload.IsEngineTrunk) { ShowToast("引擎主干=固定机制——主干在主干槽下拉直选"); break; }
                     if (!RewardCanDrop(payload)) { ShowToast("选中槽=奖励——该原子不开放分支奖励挂载"); break; }
                     if (!FreeRewardWithinBudget(payload.Entry())) { ShowToast("选中槽=奖励——超出引擎奖励预算（奖励预算=x）"); break; }
@@ -1877,13 +1793,13 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>库行 → 效果槽条目：关键词类（Grant*）统一为**他人赋予形态**
-        ///（kinds={1,2}+str=运行时关键词 id——与关键词面板同口径；2026-09-22 五轮），其余原样。</summary>
+        /// <summary>库行 → 效果槽条目：关键词类（Grant*）统一为他人赋予形态
+        ///（kinds 按位 5/6 推导 + str=运行时关键词 id），其余原样。</summary>
         private static AtomicEffectEntry EntryForEffectSlot(LibPayload payload)
         {
             var entry = payload.Entry();
             if (!payload.IsKeywordAtom) return entry;
-            entry.kinds = GrantTargetKinds(payload.Cfg); // 授予目标域按位 5/6 推导（2026-09-23）
+            entry.kinds = GrantTargetKinds(payload.Cfg);
             // 关键词 id 与 CardLoader.LoadKeywords 同源：TryGetKeywordId 映射，否则枚举名去 Grant 前缀
             var enumName = payload.Cfg.EnumName;
             var kid = enumName;
@@ -1896,10 +1812,6 @@ namespace SynergyUI
             entry.str = kid;
             return entry;
         }
-
-        // 代价栏已上移卡组合层（2026-09-23 用户定案）：FillCostSlot（错侧改写+限1费拦截）/
-        // PayloadPriceText（全价实时行）随代价槽整体移出效果合成器——逻辑移植到卡编辑界面
-        //（CardComposerScreen.BuildPayloadZone，写 CardData.PayloadCost 单卡单条）。
 
         /// <summary>替换选中并列槽（空槽=追加并自动前进到下一空槽；满槽=原地换原子，选中不动）。</summary>
         private void ReplaceParallel(AtomicEffectEntry entry)
@@ -1927,12 +1839,7 @@ namespace SynergyUI
             RefreshSlots();
         }
 
-        // 关键词区独立面板已删（2026-09-23 用户定案）：关键词 Grant 行本就在原子库
-        // 源自原子效果表同列展示、按选中槽同口径过滤（位 0 主动/位 4 奖励∩预算/代价排除），
-        // 点击走 QuickAdd→EntryForEffectSlot（他人赋予形态，与原 QuickAddKeyword 完全同口径）；
-        // 锁定行（攻击/守卫+引擎行）直接隐藏，不再做"不可编辑"展示。
-
-        /// <summary>关键词授予惯例（2026-09-22 五轮：他人形态）：Single + 持续到自己回合结束（1/2 回合同档）。</summary>
+        /// <summary>关键词授予惯例（他人形态）：Single + 持续到自己回合结束（1/2 回合同档）。</summary>
         private void ApplyKeywordHeader()
         {
             _graph.header.SelectionMode = (int)CardCore.SelectionMode.Single;
@@ -1940,7 +1847,7 @@ namespace SynergyUI
             _graph.header.RandomTarget = 0; // 赋予目标由弹窗选一——不做随机
         }
 
-        /// <summary>当前效果任一挂载原子（并列/主干/奖励/引擎奖励）的表行是否声明了某挂载位（位 8 锁输入用——2026-09-23）。</summary>
+        /// <summary>当前效果任一挂载原子（并列/主干/奖励/引擎奖励）的表行是否声明了某挂载位（位 8 锁输入用）。</summary>
         private bool EffectHasMountBit(MountKind bit)
         {
             foreach (var s in _graph.steps ?? new List<EffectStepData>())
@@ -1956,9 +1863,9 @@ namespace SynergyUI
         private static bool AtomHasMountBit(AtomicEffectEntry a, MountKind bit)
             => ComposerCatalog.HasMountBit(CardCore.Attribute.AtomicEffectTable.GetByHashId(a?.refId), bit);
 
-        /// <summary>关键词授予目标域按 MountKinds 位 5/6 推导（2026-09-23）：
+        /// <summary>关键词授予目标域按 MountKinds 位 5/6 推导：
         /// 含 5（可赋予生物）→ 双方生物 {1,2}；只含 6（可赋予法术）→ null=表行默认域；
-        /// 两者皆无 → 沿用旧默认 {1,2}。以后调整授予面只改表 MountKinds。</summary>
+        /// 两者皆无 → 沿用旧默认 {1,2}。</summary>
         private static List<int> GrantTargetKinds(AtomicEffectConfig cfg)
         {
             var mounts = MountKindExtensions.ParseCsv(cfg?.MountKinds ?? "");
@@ -1967,51 +1874,57 @@ namespace SynergyUI
             return new List<int> { (int)TargetKind.OwnLivingUnit, (int)TargetKind.EnemyLivingUnit };
         }
 
-        // ======================================== 光环模式（2026-09-23 定案：上移效果层——箭头+条目随效果合成，挂卡并集） ========================================
+        // ======================================== 光环模式（箭头+条目随效果合成，挂卡并集） ========================================
+
+        // 光环费用/箭头计数标签（就地刷新防输入丢焦）
+        private TMP_Text _auraCostLabel;
+        private TMP_Text _arrowCountLabel;
 
         /// <summary>光环编辑面板：六向三角箭头选择器 + 光环条目（属性/关键词）+ 光环费用预览。
-        /// 任意会话可用（效果库/卡编辑）——效果挂到卡上时箭头/条目自动并集入卡面（多光环取并集）。
-        /// 作用对象**不可指定**——运行时 live-query 箭头指向格的当前占据者（断链/离场即失效）；
-        /// 每支命中箭头各享受一次声明（按箭头叠加）；箭头数进卡级累乘 ×1.2^(n-1)。</summary>
-        private VisualElement MakeAuraPanel()
+        /// 作用对象不可指定——运行时 live-query 箭头指向格的当前占据者。</summary>
+        private void MakeAuraPanel(RectTransform parent)
         {
-            var panel = new VisualElement();
             var h = _graph.header;
             h.LinkAuras ??= new List<LinkAuraData>();
-            panel.Add(MakeHint("光环＝连接箭头持续效果：作用对象=箭头指向格的当前占据者（断链/离场即失效）——不可指定作用对象。"));
+            MakeHint(parent, "光环＝连接箭头持续效果：作用对象=箭头指向格的当前占据者（断链/离场即失效）——不可指定作用对象。");
 
-            // ---- 连接箭头（六向三角选择器——2026-09-23 美术形式：三角形围成一圈，选中变蓝白）----
-            var arrowsBox = new VisualElement(); arrowsBox.AddToClassList("sub-item");
-            var headRow = new VisualElement(); headRow.AddToClassList("toolbar");
-            var ah = new Label("连接箭头"); ah.AddToClassList("panel__header"); ah.style.marginBottom = 0;
-            headRow.Add(ah);
-            _arrowCountLabel = new Label(ArrowCountText());
-            _arrowCountLabel.AddToClassList("hint"); _arrowCountLabel.style.marginBottom = 0;
-            headRow.Add(_arrowCountLabel);
-            arrowsBox.Add(headRow);
-            var picker = MakeArrowPicker();
-            Described(picker,
+            // ---- 连接箭头（六向三角选择器——三角形围成一圈，选中变蓝白）----
+            var arrowsBox = UiKit.Column("arrows", parent, spacing: 4f, pad: 8f);
+            var abBg = arrowsBox.gameObject.AddComponent<Image>();
+            abBg.sprite = UiKit.RoundedSprite;
+            abBg.type = Image.Type.Sliced;
+            abBg.color = UiStyle.ListBg;
+            UiKit.Size(arrowsBox, fw: 1f);
+
+            var headRow = UiKit.Row("head", arrowsBox, spacing: 8f);
+            var ah = UiKit.Label("title", headRow, "连接箭头", UiStyle.HeaderSize,
+                UiStyle.TextSecondary, TextAnchor.LowerLeft, FontStyle.Bold);
+            _arrowCountLabel = UiKit.Label("count", headRow, ArrowCountText(), UiStyle.MiniSize, UiStyle.TextHint);
+            var picker = MakeArrowPicker(arrowsBox);
+            UiKit.Described(picker.GetComponent<Button>() ?? picker.gameObject.AddComponent<Button>(),
                 "连接箭头（预选）：点击朝向切换选中（蓝白=选中）。箭头属卡面资产——效果挂到卡上时与其他光环"
                 + "**并集**后落卡面（箭头数取并集），箭头费 ×1.2^(n-1) 在卡层并集后计——效果层不计箭头费；"
                 + "方向按持有玩家视角声明，至少配一支");
-            arrowsBox.Add(picker);
-            panel.Add(arrowsBox);
-            // 校验（2026-09-23）：光环必须搭配至少一支箭头（无箭头=永无受益者）
+            // 校验：光环必须搭配至少一支箭头（无箭头=永无受益者）
             _slotZones.Add(MakeZone(arrowsBox, () => (HexDirection)h.ArrowDirections == HexDirection.None
                 ? "未选箭头——光环必须搭配至少一支箭头（无箭头=永无受益者）" : null));
 
-            // ---- 光环条目（2026-09-23 十轮：右栏点击添加，左栏只展示/编辑）----
-            var listBox = new VisualElement(); listBox.AddToClassList("sub-item");
-            var lh = new Label("光环条目（右栏点击添加——属性修正 stat+value / 关键词 keyword）");
-            lh.AddToClassList("panel__header");
-            listBox.Add(lh);
+            // ---- 光环条目（右栏点击添加，左栏只展示/编辑）----
+            var listBox = UiKit.Column("entries", parent, spacing: 4f, pad: 8f);
+            var lbBg = listBox.gameObject.AddComponent<Image>();
+            lbBg.sprite = UiKit.RoundedSprite;
+            lbBg.type = Image.Type.Sliced;
+            lbBg.color = UiStyle.ListBg;
+            UiKit.Size(listBox, fw: 1f);
+            var lh = UiKit.Label("title", listBox, "光环条目（右栏点击添加——属性修正 stat+value / 关键词 keyword）",
+                UiStyle.HeaderSize, UiStyle.TextSecondary, TextAnchor.LowerLeft, FontStyle.Bold);
+            UiKit.Size(lh, fw: 1f);
             for (int i = 0; i < h.LinkAuras.Count; i++)
-                listBox.Add(MakeAuraEntryRow(i));
+                MakeAuraEntryRow(listBox, i);
             if (h.LinkAuras.Count == 0)
-                listBox.Add(MakeHint("尚无条目——右侧光环条目库点击添加（属性/关键词，可重复）"));
-            listBox.Add(MakeHint("坚韧=绿1/条、守护=白1/条、属性=光环档 1.5/+1（效果层只计条目）；箭头费挂卡并集后由卡层计"));
-            panel.Add(listBox);
-            // 校验（2026-09-23）：至少一条有效光环条目 + 关键词条目须位 10 可挂（消耗型拦截——数据驱动）
+                MakeHint(listBox, "尚无条目——右侧光环条目库点击添加（属性/关键词，可重复）");
+            MakeHint(listBox, "坚韧=绿1/条、守护=白1/条、属性=光环档 1.5/+1（效果层只计条目）；箭头费挂卡并集后由卡层计");
+            // 校验：至少一条有效光环条目 + 关键词条目须位 10 可挂（消耗型拦截——数据驱动）
             _slotZones.Add(MakeZone(listBox, () =>
             {
                 if (ValidAuraCount(h.LinkAuras) == 0)
@@ -2026,46 +1939,58 @@ namespace SynergyUI
                 return null;
             }));
 
-            // ---- 费用预览（Stage A 行——CardCostService 光环计价同源；临时卡只喂箭头+条目）----
-            _auraCostLabel = new Label(AuraCostText());
-            _auraCostLabel.AddToClassList("hint");
-            panel.Add(_auraCostLabel);
-            return panel;
+            // ---- 费用预览（临时卡只喂箭头+条目——箭头恒 None 只显条目平价）----
+            _auraCostLabel = UiKit.Label("aura-cost", parent, AuraCostText(), UiStyle.MiniSize, UiStyle.TextHint, wrap: true);
+            UiKit.Size(_auraCostLabel, fw: 1f);
         }
 
-        /// <summary>光环费用预览标签（就地刷新防输入丢焦）/ 箭头计数标签（就地刷新防点击丢焦）。</summary>
-        private Label _auraCostLabel;
-        private Label _arrowCountLabel;
-
-        /// <summary>六向三角选择器（2026-09-23 美术形式）：六个 CSS 边框三角形围成一圈，选中变蓝白。
-        /// 命中区=三角形外更大的透明点击格（0 尺寸三角形自身不可点）；旋转角自正上方顺时针，
-        /// 与 HexDirection 几何一致（Up=0°/UpperRight=60°/…/UpperLeft=300°）。
-        /// 整体顺时针偏移 30°（2026-09-23 复测定案——初测 22.5°废弃）：odd-r 尖顶六边形邻居方向
-        /// =30°+k·60°（BoardMath.MapArrow：Up→NE…），偏移后三角形指向的即六邻接格真实方向。</summary>
-        private VisualElement MakeArrowPicker()
+        /// <summary>六向三角选择器：六个三角形围成一圈（自正上方顺时针），选中变蓝白；
+        /// 命中区=三角形外更大的透明点击格。整体顺时针偏移 30°（odd-r 尖顶六边形邻居方向=30°+k·60°，
+        /// BoardMath.MapArrow：Up→NE…——偏移后三角形指向的即六邻接格真实方向）。</summary>
+        private RectTransform MakeArrowPicker(RectTransform parent)
         {
             var h = _graph.header;
-            var picker = new VisualElement();
-            picker.AddToClassList("arrow-picker");
+            var picker = UiKit.Node("arrow-picker", parent);
+            // 绝对定位容器：固定 132x132、不走布局拉伸子节点
+            picker.anchorMin = picker.anchorMax = picker.pivot = new Vector2(0.5f, 0.5f);
+            picker.sizeDelta = new Vector2(132f, 132f);
+            UiKit.Size(picker, w: 132f, h: 132f);
             const float cx = 66f, cy = 66f, r = 47f;
-            // 地图网格校准（2026-09-23 复测修正 22.5°→30°）：odd-r 尖顶棋盘邻居方向=30°+k·60°
+            // 地图网格校准（复测定案 22.5°→30°）
             const float gridAlignDeg = 30f;
             foreach (var (dir, deg, zh) in ArrowDirs)
             {
                 float ang = deg + gridAlignDeg;
                 float rad = ang * Mathf.Deg2Rad;
-                var hit = new VisualElement();
-                hit.AddToClassList("arrow-hit");
-                hit.style.left = cx + Mathf.Sin(rad) * r - 15f;
-                hit.style.top = cy - Mathf.Cos(rad) * r - 15f;
-                hit.style.rotate = new Rotate(new Angle(ang));
-                hit.tooltip = zh;
-                var tri = new VisualElement();
-                tri.AddToClassList("arrow-tri");
-                hit.Add(tri);
-                void Sync() => hit.EnableInClassList("arrow-hit--on", ((HexDirection)h.ArrowDirections).HasFlag(dir));
+
+                var hit = UiKit.Node("hit-" + zh, picker);
+                hit.anchorMin = hit.anchorMax = hit.pivot = new Vector2(0.5f, 0.5f);
+                hit.anchoredPosition = new Vector2(cx + Mathf.Sin(rad) * r - 66f, cy - Mathf.Cos(rad) * r - 66f);
+                hit.sizeDelta = new Vector2(30f, 30f);
+                var hitImg = hit.gameObject.AddComponent<Image>();
+                hitImg.color = new Color(90f / 255f, 160f / 255f, 230f / 255f, 0.16f); // 选中底色（未选中淡）
+                hitImg.raycastTarget = true;
+                var hitBtn = hit.gameObject.AddComponent<Button>();
+                hitBtn.transition = Selectable.Transition.None;
+
+                var tri = UiKit.Node("tri", hit);
+                tri.anchorMin = tri.anchorMax = tri.pivot = new Vector2(0.5f, 0.5f);
+                tri.sizeDelta = new Vector2(20f, 26f);
+                tri.localRotation = Quaternion.Euler(0f, 0f, -ang); // UGUI Z 轴逆时针为正
+                var triImg = tri.gameObject.AddComponent<Image>();
+                triImg.sprite = UiKit.TriangleSprite;
+                triImg.raycastTarget = false;
+
+                void Sync()
+                {
+                    bool on = ((HexDirection)h.ArrowDirections).HasFlag(dir);
+                    triImg.color = on ? new Color(148f / 255f, 212f / 255f, 1f) : new Color(96f / 255f, 104f / 255f, 118f / 255f);
+                    hitImg.color = on
+                        ? new Color(90f / 255f, 160f / 255f, 230f / 255f, 0.16f)
+                        : new Color(0f, 0f, 0f, 0f);
+                }
                 Sync();
-                hit.RegisterCallback<ClickEvent>(_ =>
+                hitBtn.onClick.AddListener(() =>
                 {
                     var cur = (HexDirection)h.ArrowDirections;
                     h.ArrowDirections = (int)(cur.HasFlag(dir) ? cur & ~dir : cur | dir);
@@ -2075,7 +2000,6 @@ namespace SynergyUI
                     RefreshName();
                     ValidateZones();
                 });
-                picker.Add(hit);
             }
             return picker;
         }
@@ -2091,87 +2015,71 @@ namespace SynergyUI
             => auras?.Count(a => a != null && (!string.IsNullOrEmpty(a.stat) || !string.IsNullOrEmpty(a.keyword))) ?? 0;
 
         /// <summary>光环条目行：类型切换（属性/关键词）+ 对应编辑器 + 删除。</summary>
-        private VisualElement MakeAuraEntryRow(int index)
+        private void MakeAuraEntryRow(RectTransform parent, int index)
         {
             var aura = _graph.header.LinkAuras[index];
-            var row = new VisualElement();
-            row.AddToClassList("step-card");
+            var row = UiKit.Row("entry", parent, spacing: 6f);
+            UiKit.BgRow(row);
+            UiKit.Size(row, fw: 1f, h: 32f);
 
-            var bar = new VisualElement(); bar.AddToClassList("toolbar");
             bool isStat = !string.IsNullOrEmpty(aura.stat);
-            var type = new DropdownField("类型") { choices = new List<string> { "属性", "关键词" } };
-            type.AddToClassList("text-input");
-            type.index = isStat ? 0 : 1;
-            type.RegisterValueChangedCallback(_ =>
+            var type = new UiKit.Dropdown("dd-type", row, _overlay,
+                new List<string> { "属性", "关键词" }, isStat ? 0 : 1, (idx, _) =>
             {
-                if (type.index == 0) { aura.stat = "Power"; aura.keyword = null; }
+                if (idx == 0) { aura.stat = "Power"; aura.keyword = null; }
                 else { aura.stat = null; aura.keyword = CardCore.Attribute.KeywordRules.Armor; }
                 RefreshSlots();
-            });
-            bar.Add(type);
+            }, width: 90f);
 
             if (isStat)
             {
-                var stat = new DropdownField("属性") { choices = new List<string> { "攻击力", "生命值" } };
-                stat.AddToClassList("text-input");
-                stat.index = aura.stat.Equals("Life", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-                stat.RegisterValueChangedCallback(_ =>
-                {
-                    aura.stat = stat.index == 1 ? "Life" : "Power";
-                    RefreshAuraCost();
-                    RefreshName();
-                    ValidateZones();
-                });
-                bar.Add(stat);
-                var val = MakeIntField("值(±)", aura.value, v =>
+                var stat = new UiKit.Dropdown("dd-stat", row, _overlay,
+                    new List<string> { "攻击力", "生命值" },
+                    aura.stat.Equals("Life", StringComparison.OrdinalIgnoreCase) ? 1 : 0,
+                    (idx, _) =>
+                    {
+                        aura.stat = idx == 1 ? "Life" : "Power";
+                        RefreshAuraCost();
+                        RefreshName();
+                        ValidateZones();
+                    }, width: 90f);
+                var val = UiKit.IntField("field-val", row, "值(±)", aura.value, v =>
                 {
                     aura.value = v;
                     RefreshAuraCost();
-                    RefreshName(); // 自动名含 ±值——原地同步（2026-09-23）
+                    RefreshName(); // 自动名含 ±值——原地同步
                     ValidateZones();
-                });
-                Described(val, "属性光环档 1.5/+1（与换区移除档同锚）；±修正量，按箭头叠加（每支命中箭头各享受一次）");
-                bar.Add(val);
+                }, width: 80f);
+                UiKit.Described(val, "属性光环档 1.5/+1（与换区移除档同锚）；±修正量，按箭头叠加（每支命中箭头各享受一次）");
             }
             else
             {
-                // 位 10 数据驱动（2026-09-23）：只列光环可挂关键词（Armor/Guardian + 表行含位 10 的 Grant 行）；
-                // 消耗型（圣盾/复生/潜行/法术护盾）不声明位 10 → 不可选——名单在表里不在代码里
+                // 位 10 数据驱动：只列光环可挂关键词；消耗型不声明位 10 → 不可选——名单在表里不在代码里
                 var choices = ComposerCatalog.AuraKeywordChoices();
                 var labels = choices.Select(c => c.label).ToList();
-                var kw = new DropdownField("关键词") { choices = labels };
-                kw.AddToClassList("text-input");
                 int ci = choices.FindIndex(c => c.id == (aura.keyword ?? ""));
                 if (ci < 0 && !string.IsNullOrEmpty(aura.keyword))
                 {
                     labels.Add($"{aura.keyword}（不可挂）"); // 存量脏值占位可见——校验区标红促改
-                    kw.choices = labels;
                     ci = labels.Count - 1;
                 }
-                kw.index = Mathf.Max(0, ci);
-                kw.RegisterValueChangedCallback(_ =>
+                var kw = new UiKit.Dropdown("dd-kw", row, _overlay, labels, Mathf.Max(0, ci), (idx, _) =>
                 {
-                    int i = kw.index;
-                    if (i >= 0 && i < choices.Count) aura.keyword = choices[i].id; // 占位项越界不改值
+                    if (idx >= 0 && idx < choices.Count) aura.keyword = choices[idx].id; // 占位项越界不改值
                     RefreshAuraCost();
                     RefreshName();
                     ValidateZones();
-                });
-                Described(kw, "仅列光环可挂关键词（原子表 MountKinds 位 10）——消耗型关键词（移除即用掉，如圣盾/复生/潜行/法术护盾）"
+                }, width: 110f);
+                UiKit.Described(kw.Root.GetComponent<Button>(),
+                    "仅列光环可挂关键词（原子表 MountKinds 位 10）——消耗型关键词（移除即用掉，如圣盾/复生/潜行/法术护盾）"
                     + "与光环 live-query 持续语义冲突，表中不声明位 10 即不可挂；坚韧=绿1/条、守护=白1/条");
-                bar.Add(kw);
             }
 
-            var del = new Button(() => { _graph.header.LinkAuras.RemoveAt(index); RefreshSlots(); }) { text = "删除" };
-            del.AddToClassList("btn"); del.AddToClassList("btn--mini"); del.AddToClassList("btn--danger");
-            bar.Add(del);
-            row.Add(bar);
-            return row;
+            UiKit.MiniButton("del", row, "删除", () => { _graph.header.LinkAuras.RemoveAt(index); RefreshSlots(); }, UiStyle.BtnDanger);
         }
 
-        /// <summary>光环费用预览文本（2026-09-23 十一轮定案：**箭头属卡面资产——效果层只预选不计费**）。
-        /// 只显示条目平价（坚韧绿1/守护白1/属性光环档 1.5/+1）；箭头累乘 ×1.2^(n-1) 在挂卡
-        /// 并集（AggregateEffectAuras）后由卡层计——此处箭头数未定（多光环并集可变），不计入。</summary>
+        /// <summary>光环费用预览文本（箭头属卡面资产——效果层只预选不计费）。
+        /// 只显示条目平价；箭头累乘 ×1.2^(n-1) 在挂卡并集后由卡层计。</summary>
         private string AuraCostText()
         {
             try
@@ -2190,8 +2098,8 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>光环计价预览卡（2026-09-23 十一轮）：效果级光环无宿主卡——临时 CardData 只承条目；
-        /// **ArrowDirections 恒 None**（箭头=卡面资产，效果层预选不计费——卡层并集后才累乘）。</summary>
+        /// <summary>光环计价预览卡：效果级光环无宿主卡——临时 CardData 只承条目；
+        /// ArrowDirections 恒 None（箭头=卡面资产，效果层预选不计费）。</summary>
         private CardData AuraPreviewCard()
         {
             var h = _graph.header;
@@ -2218,11 +2126,19 @@ namespace SynergyUI
             return n;
         }
 
-        // ======================================== 校验区（2026-09-23：不合规=区域闪烁红框+提示，保存禁用） ========================================
+        // ======================================== 校验区（不合规=区域闪烁红框+提示，保存禁用） ========================================
 
         /// <summary>注册一个校验区（Zone=区域元素；Check 返回 null=合规，否则=错误提示文本）。</summary>
-        private static ZoneEntry MakeZone(VisualElement zone, Func<string> check)
-            => new ZoneEntry { Zone = zone, Check = check };
+        private ZoneEntry MakeZone(RectTransform zone, Func<string> check)
+        {
+            return new ZoneEntry
+            {
+                Zone = zone,
+                Outline = zone.GetComponent<Outline>(),
+                BaseColor = zone.GetComponent<Outline>()?.effectColor ?? UiStyle.Border,
+                Check = check,
+            };
+        }
 
         /// <summary>奖励原子推导费（校验/预算行共用口径）。</summary>
         private static float RewardCost(AtomicEffectEntry entry)
@@ -2239,8 +2155,8 @@ namespace SynergyUI
             return gates.FirstOrDefault(g => g.Id == branch.conditionId) ?? gates.FirstOrDefault();
         }
 
-        /// <summary>统一校验收口：违规区域挂 .zone--invalid（闪烁见 USS .zones-flash-off 翻转）+
-        /// 区域内红字提示；存在任何违规 → 保存按钮禁用。返回 true=全部合规。</summary>
+        /// <summary>统一校验收口：违规区域红框（500ms 闪烁见 Tick）+ 区域内红字提示；
+        /// 存在任何违规 → 保存按钮禁用。返回 true=全部合规。</summary>
         private bool ValidateZones()
         {
             bool any = false;
@@ -2250,61 +2166,43 @@ namespace SynergyUI
                 string err = null;
                 try { err = z.Check?.Invoke(); } catch { /* 校验异常按合规处理——不阻塞编辑 */ }
                 bool invalid = !string.IsNullOrEmpty(err);
-                z.Zone.EnableInClassList("zone--invalid", invalid);
+                z.Invalid = invalid;
+                if (z.Outline == null) z.Outline = z.Zone.GetComponent<Outline>();
                 if (invalid)
                 {
                     any = true;
-                    z.ErrLabel ??= NewZoneErrorLabel();
+                    if (z.Outline != null)
+                        z.Outline.effectColor = _flashOn ? UiStyle.ErrorRed
+                            : new Color(UiStyle.ErrorRed.r, UiStyle.ErrorRed.g, UiStyle.ErrorRed.b, 0.28f);
+                    if (z.ErrLabel == null)
+                    {
+                        z.ErrLabel = UiKit.Label("zone-error", z.Zone, "", UiStyle.MiniSize,
+                            new Color(242f / 255f, 126f / 255f, 126f / 255f, 1f), TextAnchor.UpperLeft, FontStyle.Bold, wrap: true);
+                        UiKit.Size(z.ErrLabel, fw: 1f);
+                    }
                     z.ErrLabel.text = "⚠ " + err;
-                    if (!z.Zone.Contains(z.ErrLabel)) z.Zone.Add(z.ErrLabel);
                 }
-                else if (z.ErrLabel != null && z.Zone.Contains(z.ErrLabel))
+                else
                 {
-                    z.ErrLabel.RemoveFromHierarchy();
+                    if (z.Outline != null) z.Outline.effectColor = z.BaseColor;
+                    if (z.ErrLabel != null)
+                    {
+                        var t = z.ErrLabel.transform;
+                        t.SetParent(null);
+                        UnityEngine.Object.Destroy(z.ErrLabel.gameObject);
+                        z.ErrLabel = null;
+                    }
                 }
             }
-            if (_saveBtn != null) _saveBtn.SetEnabled(!any);
+            if (_saveBtn != null) _saveBtn.interactable = !any;
             return !any;
-        }
-
-        private static Label NewZoneErrorLabel()
-        {
-            var l = new Label();
-            l.AddToClassList("hint");
-            l.AddToClassList("hint--error");
-            return l;
-        }
-
-        // ======================================== 属性描述条（2026-09-23：选中才出现——不常驻） ========================================
-
-        /// <summary>给控件挂属性描述（聚焦/点击时显示在左栏底部描述条）。</summary>
-        private VisualElement Described(VisualElement control, string desc)
-        {
-            if (control == null || string.IsNullOrEmpty(desc)) return control;
-            _descMap.Remove(control);
-            _descMap.Add(control, desc);
-            return control;
-        }
-
-        /// <summary>描述条路由：沿父链（≤5 层）找 Described 挂的描述——有则显示，无则清空。</summary>
-        private void ShowDescFor(VisualElement target)
-        {
-            if (_descStrip == null) return;
-            string d = null;
-            int depth = 0;
-            for (var ve = target; ve != null && ve != Root && depth < 5; ve = ve.parent, depth++)
-            {
-                if (_descMap.TryGetValue(ve, out var s) && !string.IsNullOrEmpty(s)) { d = s; break; }
-            }
-            _descStrip.text = d ?? "";
-            _descStrip.style.display = string.IsNullOrEmpty(d) ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
         // ======================================== 保存 ========================================
 
         private void OnSave()
         {
-            // 校验兜底（2026-09-23）：违规时保存按钮已禁用——此处防御性复查（防快捷键/焦点竞态）
+            // 校验兜底：违规时保存按钮已禁用——此处防御性复查
             if (!ValidateZones()) { ShowToast("存在不合规设置——红框区域按提示调整后再保存"); return; }
 
             // 效果名自动构成（中文名＋组合方式＋中文名；光环=条目×箭头数）——只读展示，保存时落账
@@ -2326,8 +2224,7 @@ namespace SynergyUI
                     _editingCard.Effects[_editingIndex] = effect;
                 else
                     _editingCard.Effects.Add(effect);
-                // 光环上移效果层（2026-09-23）：效果携带的箭头/条目并集入卡面（多光环取并集）——
-                // 重算式聚合（移除/替换效果后旧箭头同步回收），计价缓存随之失效
+                // 光环上移效果层：效果携带的箭头/条目并集入卡面（重算式聚合），计价缓存随之失效
                 _editingCard.AggregateEffectAuras(true);
                 _editingCard.ResetCache();
                 _editingCard = null;
@@ -2365,7 +2262,7 @@ namespace SynergyUI
         }
 
         /// <summary>编辑图 → 卡内效果（编排字段全量拷贝；引擎通道=header.EngineKind+AtomicEffects）。
-        /// 光环字段只在光环形态存续（2026-09-23）——其余形态防夹带清空。</summary>
+        /// 光环字段只在光环形态存续——其余形态防夹带清空。</summary>
         private CardEffectData BuildCardEffect()
         {
             var effect = JsonUtility.FromJson<CardEffectData>(JsonUtility.ToJson(_graph.header));
@@ -2403,29 +2300,34 @@ namespace SynergyUI
 
         // ======================================== 小工具 ========================================
 
-        private static VisualElement MakeIntField(string label, int value, Action<int> onChanged)
-        {
-            var field = new IntegerField(label) { value = value };
-            field.AddToClassList("int-input");
-            field.RegisterValueChangedCallback(evt => onChanged(evt.newValue));
-            return field;
-        }
-
-        private static string ChipClass(UIColor color)
+        private static Color DotColor(UIColor color)
         {
             return color switch
             {
-                UIColor.Red => "chip--red",
-                UIColor.Blue => "chip--blue",
-                UIColor.Green => "chip--green",
-                UIColor.Gray => "chip--gray",
-                UIColor.Black => "chip--black",
-                UIColor.White => "chip--white",
-                _ => "chip--all",
+                UIColor.Red => UiStyle.DotRed,
+                UIColor.Blue => UiStyle.DotBlue,
+                UIColor.Green => UiStyle.DotGreen,
+                UIColor.Gray => UiStyle.DotGray,
+                UIColor.Black => UiStyle.DotBlack,
+                UIColor.White => UiStyle.DotWhite,
+                _ => UiStyle.DotGray, // All
             };
         }
 
         private void ShowToast(string message) => _toast.text = message;
+
+        /// <summary>清空容器（先摘父再 Destroy，防 Destroy 延迟导致的同帧占位）。</summary>
+        private static void ClearChildren(RectTransform container)
+        {
+            for (int i = container.childCount - 1; i >= 0; i--)
+            {
+                var child = container.GetChild(i);
+                child.SetParent(null);
+                UnityEngine.Object.Destroy(child.gameObject);
+            }
+        }
+
+        private static void ClearContent(RectTransform content) => ClearChildren(content);
 
         // ======================================== 库行负载（表行 ↔ 落槽资格的唯一桥） ========================================
 
@@ -2448,14 +2350,14 @@ namespace SynergyUI
             private HashSet<MountKind> Mounts => MountKindExtensions.ParseCsv(Cfg?.MountKinds ?? "");
 
             /// <summary>关键词类原子（MountKinds 含 Keyword 位）——库行点击同关键词面板：
-            /// 恒为他人赋予形态（2026-09-22 五轮用户拍板）。</summary>
+            /// 恒为他人赋予形态。</summary>
             public bool IsKeywordAtom => Cfg != null && Mounts.Contains(MountKind.Keyword);
 
             public bool CanBeActiveAtom => !IsEngineTrunk && Mounts.Contains(MountKind.ActiveEffect);
             public bool CanBeBranchReward => !IsEngineTrunk && Mounts.Contains(MountKind.BranchReward);
 
             /// <summary>错边原子（内容契约：只能进代价栏）——p≠0 且表级域锁错侧，或 p=0 单侧域锁。
-            /// 与 CardEffectConverter 代价校验同口径（表级域判定；实例收窄后的运行时错边照发黑/白）。</summary>
+            /// 与 CardEffectConverter 代价校验同口径。</summary>
             public bool IsWrongSideOnly
             {
                 get
@@ -2467,9 +2369,6 @@ namespace SynergyUI
                     return CostDerivationService.SideLock(kinds) != 0;
                 }
             }
-
-            // 可否作代价（CanBeCost）已随代价栏上移卡组合层移除——2026-09-23；
-            // 判定逻辑在 CardComposerScreen.FillPayloadCost（与 FillCostSlot 同口径移植）。
 
             /// <summary>落槽生成的新原子条目（引用型：refId=表行ID，value=1）。</summary>
             public AtomicEffectEntry NewEntry() => Entry();

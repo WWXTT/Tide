@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace SynergyUI
 {
@@ -18,8 +19,8 @@ namespace SynergyUI
             { BattleView.ArrowNE, BattleView.ArrowE, BattleView.ArrowSE, BattleView.ArrowSW, BattleView.ArrowW, BattleView.ArrowNW };
 
         private Image _art;
-        private Text _name, _cost, _type, _stats, _keywords, _effect, _land;
-        private Text _markTapped, _markFrozen, _markDead, _btnRemove;
+        private TMP_Text _name, _cost, _type, _stats, _keywords, _effect, _land;
+        private TMP_Text _markTapped, _markFrozen, _markDead, _btnRemove;
         private readonly Dictionary<string, GameObject> _arrows = new Dictionary<string, GameObject>();
         private CanvasGroup _group;
 
@@ -29,19 +30,21 @@ namespace SynergyUI
         public void Bind()
         {
             _art = FindComponent<Image>("art");
-            _name = FindComponent<Text>("name");
-            _cost = FindComponent<Text>("cost");
-            _type = FindComponent<Text>("type");
-            _stats = FindComponent<Text>("stats");
-            _keywords = FindComponent<Text>("keywords");
-            _effect = FindComponent<Text>("effect");
-            _land = FindComponent<Text>("land");
-            _markTapped = FindComponent<Text>("mark-tapped");
-            _markFrozen = FindComponent<Text>("mark-frozen");
-            _markDead = FindComponent<Text>("mark-dead");
-            _btnRemove = FindComponent<Text>("btn-remove");
+            _name = FindComponent<TMP_Text>("name");
+            _cost = FindComponent<TMP_Text>("cost");
+            _type = FindComponent<TMP_Text>("type");
+            _stats = FindComponent<TMP_Text>("stats");
+            _keywords = FindComponent<TMP_Text>("keywords");
+            _effect = FindComponent<TMP_Text>("effect");
+            _land = FindComponent<TMP_Text>("land");
+            _markTapped = FindComponent<TMP_Text>("mark-tapped");
+            _markFrozen = FindComponent<TMP_Text>("mark-frozen");
+            _markDead = FindComponent<TMP_Text>("mark-dead");
+            _btnRemove = FindComponent<TMP_Text>("btn-remove");
             _group = GetComponent<CanvasGroup>();
             if (_group == null) _group = gameObject.AddComponent<CanvasGroup>();
+
+            // 字体已由预制体烘焙为 SC-Heavy SDF（批量整形脚本保证），运行时不再覆写。
 
             _arrows.Clear();
             foreach (var arrowName in ArrowNames)
@@ -119,9 +122,9 @@ namespace SynergyUI
             return t != null ? t.GetComponent<T>() : null;
         }
 
-        private static RectTransform Rt(Text t) => t != null ? t.rectTransform : null;
+        private static RectTransform Rt(TMP_Text t) => t != null ? t.rectTransform : null;
 
-        private static void SetText(Text t, string value, int fontSize)
+        private static void SetText(TMP_Text t, string value, int fontSize)
         {
             if (t == null) return;
             t.text = value ?? "";
