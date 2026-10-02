@@ -73,7 +73,7 @@ namespace SynergyUI
 
         protected override void Build()
         {
-            _overlay = Find("overlay") ?? UiKit.Overlay("overlay", Root);
+            _overlay = FindOptional("overlay") ?? UiKit.Overlay("overlay", Root);
 
             // ---- 工具栏 ----
             BindButton("btn-back", () => Manager.Back());

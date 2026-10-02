@@ -158,8 +158,20 @@ namespace TideServer.Verify
                 VerifySuite.Assert(zoneCards.Cards.Length == live.Count,
                     $"区域 {zoneCards.Zone}(seat{zoneCards.Seat}) 卡数 {zoneCards.Cards.Length} == 活体 {live.Count}");
                 for (int i = 0; i < live.Count; i++)
-                    VerifySuite.Assert(EqualCardState(zoneCards.Cards[i], SerializableRuntimeCardState.FromCard(live[i])),
+                {
+                    var truth = SerializableRuntimeCardState.FromCard(live[i]);
+                    // 元素池地牌的权威态在 PooledCard 包装（入池即清卡内字段——快照侧 BuildZone
+                    // 已按包装覆盖 IsTapped/余量，对账真值同口径，否则横置地牌恒误报）
+                    if ((Zone)zoneCards.Zone == Zone.ElementPool && core.ElementPool != null)
+                    {
+                        var wrap = core.ElementPool.GetPooledCards(player)?
+                            .FirstOrDefault(pc => pc?.SourceCard != null
+                                                  && pc.SourceCard.RuntimeId == live[i].RuntimeId);
+                        if (wrap != null) truth.IsTapped = wrap.IsTapped;
+                    }
+                    VerifySuite.Assert(EqualCardState(zoneCards.Cards[i], truth),
                         $"区域 {zoneCards.Zone}[{i}] RuntimeId={live[i].RuntimeId} 卡状态与活体全等");
+                }
             }
 
             // 对账三：隐藏信息口径（己方手牌可见、对方只见数量；牌库只数量）

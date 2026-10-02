@@ -19,6 +19,9 @@ namespace SynergyUI
         LocalAI,
         /// <summary>网络对局（快照渲染 + intent 上行）。</summary>
         Network,
+        /// <summary>教学固定局（2026-10-02）：双方卡组顺序=摸牌序列（锁牌库序）、机器人逐回合剧本演出
+        /// （ScriptedAi）、响应窗口全让过——渲染/交互与本地 AI 局完全同轨。</summary>
+        Tutorial,
     }
 
     /// <summary>
@@ -36,11 +39,17 @@ namespace SynergyUI
         /// <summary>匹配界面移交的现成连接（非空=已进房+已提交卡组，跳过连接与 JoinRoom，
         /// 一次性消费防跨局残留）。null=调试直连路径（本屏自建连接）。</summary>
         public static NetGameClient Client;
+
+        /// <summary>教学局关卡 id（TutorialLibrary 条目；缺省 "basics" 基础教学）。
+        /// 入口方接线：BattleEntry.Mode = BattleMode.Tutorial 后 Show&lt;BattleScreen&gt;。</summary>
+        public static string TutorialId = "basics";
     }
 
     /// <summary>
-    /// 对战界面（2026-10-01 预制体化：静态层级来自 Assets/Art/UI/BattleUI.prefab，Build 深度按名
-    /// 绑定；战场格子/手牌槽复用烘焙节点（按序对应棋盘 x 位），战报行/弹窗运行时构建）。
+    /// 对战界面（2026-10-02 战场定案 3D + 部分透明 UI 重做：旧 BattleUI.prefab 已删除、本屏为空屏桩，
+    /// 原绑定/对局逻辑封存待 3D 层重接）。
+    /// 历史口径（2026-10-01 预制体化，封存代码对照用）：静态层级来自 BattleUI.prefab，Build 深度按名
+    /// 绑定；战场格子/手牌槽复用烘焙节点（按序对应棋盘 x 位），战报行/弹窗运行时构建。
     /// 本地 AI（GameCore/GameActions 直连）与网络（MsgGameStateSync 快照全量渲染 +
     /// NetEventBatch 中文战报 + intent 上行 + SelectRequest 反问弹窗 + PassPriority 让行）。
     /// 战场格子化：13×8 棋盘的双方 2×9 单位区 + 1×9 地牌行按 z 序纵向铺开、奇数行
@@ -89,14 +98,23 @@ namespace SynergyUI
 
         // ======================================== 构建 ========================================
 
-        protected override string PrefabAddress => "BattleUI";
-        protected override string PrefabAssetPath => "Assets/Art/UI/BattleUI.prefab";
+        // 2026-10-02 定案：战场改为 3D + 部分透明 UI 重做，旧 uGUI 预制体已删除（不具指导意义）。
+        // 本屏退化为纯代码空屏桩（UIScreen 纯代码路径：Build 首行自建 Root）；
+        // 原预制体绑定逻辑封存于 BindLegacyPrefabNodes、对局启动/刷新链全部保留，待 3D 层重接。
         protected override string RootName => "battle";
 
         protected override void Build()
         {
-            _overlay = Find("overlay") ?? UiKit.Overlay("overlay", Root);
-            _selectorLayer = Find("selector-overlay") ?? UiKit.Overlay("selector-overlay", Root);
+            Root = UiKit.Screen(RootName, Parent);
+            UiKit.Button("btn-back", Root, "← 返回主菜单（战场 UI 待 3D 重做）", () => Manager.Back());
+        }
+
+        /// <summary>封存：2026-10-01 预制体化时代的 BattleUI.prefab 深度按名绑定（预制体已删）。
+        /// 保留供 3D 层重接时对照字段清单与接线口径，勿删。</summary>
+        private void BindLegacyPrefabNodes()
+        {
+            _overlay = FindOptional("overlay") ?? UiKit.Overlay("overlay", Root);
+            _selectorLayer = FindOptional("selector-overlay") ?? UiKit.Overlay("selector-overlay", Root);
 
             // ---- 工具栏 ----
             BindButton("btn-back", OnBack);
@@ -179,14 +197,16 @@ namespace SynergyUI
                 BattleEntry.Mode = BattleMode.LocalAI;
 
             if (_lblMode != null)
-                _lblMode.text = IsNetwork ? $"网络 · {BattleEntry.Host}:{BattleEntry.Port}" : "本地 · AI";
+                _lblMode.text = IsNetwork ? $"网络 · {BattleEntry.Host}:{BattleEntry.Port}"
+                    : BattleEntry.Mode == BattleMode.Tutorial ? $"教学 · {BattleEntry.TutorialId}"
+                    : "本地 · AI";
             if (_btnPass != null)
                 _btnPass.gameObject.SetActive(IsNetwork);
 
             if (IsNetwork)
-                StartNetAsync().Forget();
+                Debug.Log("[BattleScreen] 空屏桩（战场 UI 待 3D 重做，对局逻辑代码保留）——网络模式入口暂不可用");
             else
-                StartLocal();
+                Debug.Log("[BattleScreen] 空屏桩（战场 UI 待 3D 重做，对局逻辑代码保留）——本地模式未启动对局");
         }
 
         public override void OnExit()
@@ -216,7 +236,8 @@ namespace SynergyUI
         private void StartLocal()
         {
             _ctrl = new BattleController();
-            _ctrl.StartNewGame();
+            if (BattleEntry.Mode == BattleMode.Tutorial && !StartTutorialGame(_ctrl))
+                _ctrl.StartNewGame(); // 教学配置缺失等异常回落普通局（不炸界面）
 
             // 引擎事件多但刷新幂等：统一全量重建；战报行同时追加。
             Subscribe<TurnStartEvent>(e => { AppendLocal(e); RefreshLocal(); });
@@ -241,6 +262,30 @@ namespace SynergyUI
             ResponseWindowService.HumanResponder = ShowResponsePopupAsync;
 
             RefreshLocal();
+        }
+
+        /// <summary>教学固定局开局（2026-10-02）：TutorialConfig 指定双方卡组顺序（=摸牌序列，锁牌库序）
+        /// 与机器人逐回合剧本（ScriptedAi 按条演出），rngSeed 钉效果随机；机器人响应窗口全让过
+        /// （EnablePassiveAiResponder——永不反制玩家）。返回 false=配置缺失回落普通局。</summary>
+        private bool StartTutorialGame(BattleController ctrl)
+        {
+            var tutorial = TutorialLibrary.Get(BattleEntry.TutorialId);
+            if (tutorial == null)
+            {
+                ShowToast($"教学配置缺失：{BattleEntry.TutorialId}（回落本地 AI 局）");
+                return false;
+            }
+            var playerDeck = TutorialLibrary.BuildDeck(tutorial.playerDeck);
+            var aiDeck = TutorialLibrary.BuildDeck(tutorial.aiDeck);
+            if (playerDeck.Count < GameCore.OpeningHandSize || aiDeck.Count < GameCore.OpeningHandSize)
+            {
+                ShowToast("教学卡组配置不足（回落本地 AI 局）");
+                return false;
+            }
+            ctrl.StartNewGame(playerDeck, aiDeck, new ScriptedAi(tutorial),
+                lockDeckOrder: true, rngSeed: tutorial.rngSeed);
+            ctrl.EnablePassiveAiResponder();
+            return true;
         }
 
         private void AppendLocal(IGameEvent e)

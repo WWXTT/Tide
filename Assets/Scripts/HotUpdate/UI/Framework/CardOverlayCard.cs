@@ -44,7 +44,7 @@ namespace SynergyUI
             _group = GetComponent<CanvasGroup>();
             if (_group == null) _group = gameObject.AddComponent<CanvasGroup>();
 
-            // 字体已由预制体烘焙为 SC-Heavy SDF（批量整形脚本保证），运行时不再覆写。
+            // 字体已由预制体烘焙为庞门正道标题体 SDF（批量整形脚本保证），运行时不再覆写。
 
             _arrows.Clear();
             foreach (var arrowName in ArrowNames)

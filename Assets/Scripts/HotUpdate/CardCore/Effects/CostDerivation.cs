@@ -344,7 +344,7 @@ namespace CardCore
             //（构筑期显示 DeriveElementGrants / 运行时结算发放见 EffectExecutionEngine）。
             // 双侧域=玩家可选按最优边全价；无目标/p=0 不拆。
             float polarity = atom.Polarity;
-            if (polarity != 0f && WrongSide(polarity, domain))
+            if (polarity != 0f && !IsSelfSleepExempt(atom.Type, domain) && WrongSide(polarity, domain))
                 amount = (int)Math.Round(amount * (1f - Math.Abs(polarity)), MidpointRounding.AwayFromZero);
 
             // 固定数量：费用 ×N（N=组合层 TargetCount）；全部/任意语义无法在构建期确定——
@@ -500,6 +500,16 @@ namespace CardCore
             return (polarity > 0f && side == 1) || (polarity < 0f && side == -1);
         }
 
+        /// <summary>自我沉睡豁免（2026-10-02 苏醒退役配套）：Sleep 原子收窄域恰为 {Self} 不作错边——
+        /// 沉睡行合并后极性 -1，自我沉睡实例（灰时长/定长两模式）是既定效果栏机制，
+        /// 其"对自己有害"的代价语义由灰费豁免（GameActions.HasSelfSleepEffect：灰份额剥离转时长）
+        /// 替代承担——契约剔除与错边转化（计价 ×(1−|p|) 出计价 / 黑获得）双双跳过，
+        /// 自我沉睡按全价绿计、支付时仅剥离灰份额。消费点：CardEffectConverter 契约、
+        /// ComputeAtomCost 错边拆分、AccumulateElementGrant 黑白获得。</summary>
+        public static bool IsSelfSleepExempt(AtomicEffectType type, List<int> domain)
+            => type == AtomicEffectType.Sleep
+               && domain != null && domain.Count == 1 && domain[0] == (int)TargetKind.Self;
+
         /// <summary>
         /// 原子错边黑白获得量——**单目标份额**（未 ×N、未封顶；数量与原错边折价一致 = 单价×|p|）。
         /// 运行时结算发放用：单价 × 实际错边命中数，再按发放事件封顶（地牌上限）。
@@ -546,7 +556,7 @@ namespace CardCore
             if (def.TargetCount == -1) return;
 
             float polarity = atom.Polarity;
-            if (polarity != 0f && WrongSide(polarity, domain))
+            if (polarity != 0f && !IsSelfSleepExempt(atom.Type, domain) && WrongSide(polarity, domain))
             {
                 int unit = ComputeAtomUnitGrant(atom, def);
                 if (unit > 0)
@@ -637,6 +647,9 @@ namespace CardCore
         /// <summary>
         /// 效果槽位数（2026-09-21 抉择分支计槽定案）：每个效果 1 槽，Choice 步骤每多一个分支再 +1 槽
         /// （抉择装两个效果，收两次槽位费）。供 ChassisAdjust 底盘预算消费。
+        /// 启动式照常计槽（2026-10-02 用户定案：「不占费用，占技能挂载」维持——效果槽是 AI 侧
+        /// 每卡最大原子数限制的可见性锚，免槽会让 AI 看不见超限的启动式堆叠）；
+        /// 启动式占用的只是底盘免费额度抵扣位，元素锚价仍构筑期全免（运行时现付）。
         /// </summary>
         public static int CountEffectSlots(CardData card)
         {

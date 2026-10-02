@@ -244,7 +244,7 @@ namespace CardCore
         }
 
         /// <summary>初始手牌总量。</summary>
-        private const int OpeningHandSize = 6;
+        public const int OpeningHandSize = 6;
 
         /// <summary>装备入场接线委托（2026-09-24：Reset 重订阅用缓存实例——lambda 无法退订，
         /// 每局 new 会随 SubscribeCore 累积，装备入场效果同进程多局重复触发）。</summary>
@@ -321,7 +321,9 @@ namespace CardCore
             // 规则扩展点（OCP）：回合开始自动化拦截（ITurnStartInterceptor 声明跳过准备阶段——
             // 抽牌、地牌槽（元素浓度上限）推进、横置重置、场上卡准备阶段结算全跳；
             // 引擎簿记（栈优先权/全局回合计数/每回合一次计数）不在跳过范围——那是时钟不是结算）。
-            if (RuleHooks.ShouldSkipTurnStartAutomation(player))
+            // 2026-10-02 D2：SkipTurn 原子的 "Standby" 档（相位级跳过，代码侧表达）同口接入。
+            if (RuleHooks.ShouldSkipTurnStartAutomation(player)
+                || (TurnEngine != null && TurnEngine.ConsumePendingStandbySkip(player)))
             {
                 PublishEvent(new StandbySkippedEvent { Player = player, TurnNumber = e.TurnNumber });
                 return;
@@ -382,7 +384,9 @@ namespace CardCore
         /// </summary>
         /// <param name="deck1">玩家1的卡牌实例列表（牌库）</param>
         /// <param name="deck2">玩家2的卡牌实例列表（牌库）</param>
-        public void InitGame(List<Card> deck1, List<Card> deck2, int? rngSeed = null)
+        /// <param name="lockDeckOrder">锁牌库顺序（教学固定局）：跳过双方洗牌，牌库顺序=传入列表顺序——
+        /// 摸牌恒取牌库顶，故列表前 OpeningHandSize 张即起手、之后即逐回合摸牌序列。缺省 false 行为不变。</param>
+        public void InitGame(List<Card> deck1, List<Card> deck2, int? rngSeed = null, bool lockDeckOrder = false)
         {
             if (deck1 == null || deck2 == null)
                 throw new ArgumentNullException("卡组不能为null");
@@ -427,9 +431,13 @@ namespace CardCore
             HeroSkillSystem.AssignSkill(this, _player1, HeroSkillSystem.AutoSkillForDeck(deck1));
             HeroSkillSystem.AssignSkill(this, _player2, HeroSkillSystem.AutoSkillForDeck(deck2));
 
-            // 洗牌
-            ZoneManagerExtensions.ShuffleDeck(ZoneManager, _player1);
-            ZoneManagerExtensions.ShuffleDeck(ZoneManager, _player2);
+            // 洗牌（教学固定局 lockDeckOrder：跳过洗牌——牌库顺序=传入列表顺序，摸牌恒取牌库顶，
+            // 列表前 OpeningHandSize 张即起手、之后即逐回合摸牌序列）
+            if (!lockDeckOrder)
+            {
+                ZoneManagerExtensions.ShuffleDeck(ZoneManager, _player1);
+                ZoneManagerExtensions.ShuffleDeck(ZoneManager, _player2);
+            }
 
             // 起手抽牌
             for (int i = ZoneManager.GetCards(_player1, Zone.Hand).Count; i < OpeningHandSize; i++)
@@ -448,11 +456,12 @@ namespace CardCore
         /// <summary>
         /// 从CardData列表初始化游戏
         /// </summary>
-        public void InitGame(List<CardData> deck1Data, List<CardData> deck2Data, int copiesPerCard = 1)
+        public void InitGame(List<CardData> deck1Data, List<CardData> deck2Data, int copiesPerCard = 1,
+            int? rngSeed = null, bool lockDeckOrder = false)
         {
             var deck1 = CardLoader.BuildDeck(deck1Data, copiesPerCard);
             var deck2 = CardLoader.BuildDeck(deck2Data, copiesPerCard);
-            InitGame(deck1, deck2);
+            InitGame(deck1, deck2, rngSeed, lockDeckOrder);
         }
 
         /// <summary>

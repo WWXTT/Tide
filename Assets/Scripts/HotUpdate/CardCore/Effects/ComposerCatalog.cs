@@ -148,6 +148,21 @@ namespace CardCore
         public static HashSet<MountKind> RowMounts(AtomicEffectType t)
             => MountKindExtensions.ParseCsv(Attribute.AtomicEffectTable.GetByEnumName(t.ToString())?.MountKinds ?? "");
 
+        /// <summary>关键词型 Grant 判定（2026-10-02 定案）：Grant 行且表行目标域恰为 {Self}（纯自指）。
+        /// 关键词型原子 = 关键词的挂载形态（卡面印刷/登场/触发式如"自我沉睡"），**不得作为启动式
+        /// 效果的原子**——横置代价换静态身份无意义；域含其他目标 = 赋予型 Grant（"给目标加词"），
+        /// 可作启动式。行级判定即完备：实例 kinds 是收窄（交集），自指域收不出他人域、赋予域收不出自指域。
+        /// 消费方：装载校验（CardEffectConverter）与效果合成器 UI——同源防两套口径。</summary>
+        public static bool IsKeywordStyleGrant(AtomicEffectType t)
+        {
+            var name = t.ToString();
+            if (!name.StartsWith("Grant")) return false;
+            var row = Attribute.AtomicEffectTable.GetByEnumName(name);
+            if (row == null) return false;
+            var kinds = row.GetTargetKindList();
+            return kinds != null && kinds.Count == 1 && kinds[0] == (int)TargetKind.Self;
+        }
+
         /// <summary>关键词 id 是否可作连接光环条目（2026-09-23 定案·位 10 数据驱动）：
         /// 坚韧(Armor)/守护(Guardian) 无表行（Grant 行已退役、光环本体）——特判放行（与 CardCostService 计价特判同口径）；
         /// 其余经关键词定义 → Grant 原子表行 → MountKinds 含 LinkAura 位判定。

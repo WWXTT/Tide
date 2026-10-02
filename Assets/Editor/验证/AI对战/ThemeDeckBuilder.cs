@@ -189,11 +189,12 @@ namespace CardCore.Editor.Tests
             deck.Add(MakeSpell("活体盔甲", GreenTag, MakeEffect("G_LIFEUP_2",
                 AtomRefs.New(AtomicEffectType.AddLifeUp, 2, Kinds(1)))));
 
-            // —— 攒费（光合=得 1 绿元素；采掘=地牌换元素；苏醒=灰费转沉睡攒大生物）——
-            deck.Add(MakeSpell("光合滋养", GreenTag, MakeEffect("G_PHOTO",
-                AtomRefs.New(AtomicEffectType.AdditionalEnergy)))); // 反查末行=光合（得 1 绿）
-            deck.Add(MakeSpell("深林苏醒", GreenTag, MakeEffect("G_SLEEP_SAVE",
-                AtomRefs.New(AtomicEffectType.Sleep)))); // 反查末行=苏醒（自身灰费转沉睡）
+            // —— 攒费/干扰（2026-10-02 裁决：光合作用原子退役——违背费用规则；苏醒时长变体退役，
+            //    自我沉睡改经沉睡行域 0 实例收窄表达）——
+            deck.Add(MakeSpell("森林祝福", GreenTag, MakeEffect("G_PLUS1",
+                AtomRefs.New(AtomicEffectType.AddPlusOne, 1, Kinds(1))))); // +1/+1 增益（替代退役的光合）
+            deck.Add(MakeSpell("沉眠藤蔓", GreenTag, MakeEffect("G_SLEEP_FOE",
+                AtomRefs.New(AtomicEffectType.Sleep, 2, Kinds(2))))); // 敌方沉睡 2（原苏醒夹具改干扰向）
             deck.Add(MakeSpell("采掘", GreenTag, MakeEffect("G_MINE",
                 new AtomicEffectEntry { refId = "4fd4c954", value = 1 }))); // 手写行 ID：同枚举多行，AtomRefs 取末行拿不到采掘
 

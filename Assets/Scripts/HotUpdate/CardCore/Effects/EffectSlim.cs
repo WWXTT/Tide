@@ -83,8 +83,9 @@ namespace CardCore
         public int arrows;             // 光环形态（2026-09-23）：HexDirection Flags——箭头随效果合成，挂卡并集
         public List<LinkAuraData> linkAuras;  // 光环条目（非光环效果 null——空列不写，向后兼容）
         public List<ElementCostRef> cost;     // 效果锚价（2026-09-23）：合成期按表累加实时推导落盘——
-                                              // 装载期逐效果还原为 AnchorCost 缓存（启动式/动态效果运行时
-                                              // 现付的显示/预检口径）；派生数据不入内容哈希（表变更重算不换 id）
+                                              // 参考快照（2026-10-02 口径修正：运行时无消费者，显示/
+                                              // 预检/扣款一律实时重推导）；装载期逐效果还原为
+                                              // AnchorCost 缓存；派生数据不入内容哈希（表变更重算不换 id）
         public List<CostRef> costs;
         public List<StepRef> steps;
         public List<AtomicEffectEntry> rewards;  // 引擎奖励（engine≠0）

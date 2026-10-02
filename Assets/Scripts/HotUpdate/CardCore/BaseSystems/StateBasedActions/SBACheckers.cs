@@ -58,7 +58,9 @@ namespace CardCore
                 {
                     // 两类捕获：① 战场尸体（已标死但未离场——伤害致死路径只标死，送墓靠本检查器）；
                     // ② 活着但按层引擎计算的当前防御 ≤ 0（减益致死）。
-                    if (card is IHasLife && (!card.IsAlive ||
+                    // 2026-10-02 三类卡型定案：生命死亡管线只对活体单位（生物）生效——
+                    // 结界（无生命单位）的耐久归零走 CounterRules.LoseDurability 直毁（Smashed），不进本检查器。
+                    if (card.IsLivingUnit() && (!card.IsAlive ||
                         (card.IsAlive && gameCore.LayerEngine.CalculateToughness(card) <= 0)))
                     {
                         sba.AddAction(new SBAActionRecord

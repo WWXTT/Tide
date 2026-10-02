@@ -13,7 +13,9 @@ namespace SynergyUI
     /// <summary>
     /// 效果合成界面（2026-10-01 预制体化：静态层级来自 Assets/Art/UI/EffectUI.prefab，
     /// Build 深度按名绑定+闭包接线；槽位区/原子库/效果表/光环面板运行时重建。
-    /// 交互/文案/校验语义与 UITK 版一一对应；完整修订史见 tag uitk-ui-final 版头注释）。
+    /// 交互/文案/校验语义与历史 UITK 版对齐（修订史见 tag uitk-ui-final 版头注释）；
+    /// 2026-10-02 起 uGUI-native：排版按 25645c0^ 的 EffectComposer.uxml/Common.uss 历史稿还原，
+    /// 下拉弹层直接挂屏根（历史版无 overlay 挂载节点，勿再引入）。
     /// 左=编辑栏（模式条+槽位区）/ 右=展示区（原子库 / 效果表双模式）+ 筛选。
     /// 核心定案：槽位选中制（右侧点击=替换选中槽）；组合三态（并列/自由分支/有限分支/光环，
     /// InferMode 推断防互串）；校验实时化（区域闪烁红框+保存禁用）；属性描述选中才出现（描述条）；
@@ -96,7 +98,6 @@ namespace SynergyUI
         private UiKit.Dropdown _timingDropdown, _activationDropdown, _filterTypeDropdown;
         private Button _reloadAtomsBtn, _loadEffectsBtn;
         private List<TriggerTiming> _timings;
-        private RectTransform _overlay;
 
         // 筛选状态：原子库=表行中文名；效果表=内含原子名。近似搜索：原子库=中文名∪描述模板；效果表=名∪id∪组成简称
         private string _filterTypeZh; // null = 全部
@@ -195,16 +196,14 @@ namespace SynergyUI
 
         protected override void Build()
         {
-            _overlay = Find("overlay") ?? UiKit.Overlay("overlay", Root);
-
             // ---- 顶栏 ----
             BindButton("btn-back", () => Manager.Back());
             _nameLabel = FindText("lbl-effect-name");
             _costLabel = FindText("lbl-effect-cost");
-            _activationDropdown = BindDropdown("dropdown-activation", _overlay, Find("topbar"),
+            _activationDropdown = BindDropdown("dropdown-activation", Root, Find("topbar"),
                 ActivationNames.ToList(), 0, width: 90f);
             _timingRow = Find("timing-row");
-            _timingDropdown = BindDropdown("dropdown-timing", _overlay, _timingRow,
+            _timingDropdown = BindDropdown("dropdown-timing", Root, _timingRow,
                 new List<string> { "—" }, 0, width: 140f);
             _toast = FindText("lbl-toast");
             _reloadAtomsBtn = BindButton("btn-reload-atoms", OnReloadAtoms);
@@ -220,7 +219,7 @@ namespace SynergyUI
 
             // 右：展示区（双模式）
             _atomPanel = Find("atom-panel");
-            _filterTypeDropdown = BindDropdown("dropdown-filter-type", _overlay, Find("filter-row"),
+            _filterTypeDropdown = BindDropdown("dropdown-filter-type", Root, Find("filter-row"),
                 new List<string> { "全部" }, 0, width: 150f);
             _filterName = FindInput("field-filter-name");
             if (_filterName != null)
@@ -234,6 +233,19 @@ namespace SynergyUI
 
             _effectsPanel = Find("effects-panel");
             _effectsList = FindScroll("list-effects");
+
+            // 右栏框架配额（2026-10-02：转换烘焙的 LayoutElement 残留会给 VLG 喂假 preferred，
+            // 过滤行曾被拉到 876 高、列表塌成 0——运行时钉死：过滤行 30 高、说明行 18、列表占满其余）
+            if (_atomPanel != null)
+            {
+                var filterRow = UiKit.FindDeep(_atomPanel, "filter-row");
+                if (filterRow != null) UiKit.Size(filterRow, fw: 1f, h: 30f, minH: 30f);
+                var filterDrop = UiKit.FindDeep(_atomPanel, "dropdown-filter-type");
+                if (filterDrop != null) UiKit.Size(filterDrop, w: 200f, minW: 200f, h: 30f);
+                if (_filterName != null) UiKit.Size(_filterName.transform, w: 200f, minW: 200f, h: 30f);
+                if (_libContext != null) UiKit.Size(_libContext.transform, fw: 1f, h: 18f, minH: 0f);
+                if (_libraryList != null) UiKit.Size(_libraryList.Rect.transform, fw: 1f, fh: 1f);
+            }
             if (_effectsPanel != null) _effectsPanel.gameObject.SetActive(false);
 
             // 校验红框闪烁 + 描述条路由 + 泵：挂在屏根（层级销毁自动失效）
@@ -252,9 +264,9 @@ namespace SynergyUI
                 var dsBg = _descStripNode.gameObject.AddComponent<Image>();
                 dsBg.sprite = UiKit.RoundedSprite;
                 dsBg.type = Image.Type.Sliced;
-                dsBg.color = new Color(36f / 255f, 44f / 255f, 60f / 255f, 0.5f);
+                dsBg.color = UiStyle.DescStripBg;
                 var dsOl = _descStripNode.gameObject.AddComponent<Outline>();
-                dsOl.effectColor = new Color(52f / 255f, 62f / 255f, 80f / 255f, 1f);
+                dsOl.effectColor = UiStyle.DescStripBorder;
                 dsOl.effectDistance = Vector2.one;
                 UiKit.Size(_descStripNode, fw: 1f, minH: 30f);
             }
@@ -371,7 +383,7 @@ namespace SynergyUI
             _activationDropdown.SetOptions(ActivationNames.ToList(), act >= 0 && act < ActivationNames.Length ? act : 0);
             SyncActivationVisibility();
             UiKit.Described(_activationDropdown.Root.GetComponent<Button>(),
-                "发动方式——强制：条件达成时不询问直接发动；自动：条件达成时弹窗询问是否发动；主动：只能在自己回合的主要阶段主动发动（不设触发时机）");
+                "发动方式——强制：条件达成时不询问直接发动；自动：条件达成时弹窗询问是否发动（可选触发式）；主动：只能在自己回合的主要阶段主动发动（=启动式：构筑期不计元素锚价、发动时现付+横置，2026-10-02 定案）");
             _activationDropdown.Changed += (idx, _) =>
             {
                 _graph.header.ActivationType = idx;
@@ -379,11 +391,27 @@ namespace SynergyUI
             };
         }
 
-        /// <summary>主动（=2）只在自己主阶段发动——隐藏触发时机；其余显示时机。</summary>
+        /// <summary>主动（=2）只在自己主阶段发动——隐藏触发时机；其余显示时机。
+        /// 2026-10-02 定案：主动=启动式——主动档时机钉 Activate_Active（converter 对漏网数据双向钉死，
+        /// 此处保证写盘一致）；离开主动档若时机仍为 Activate_* → 回落 OnPlay（触发式默认档）。</summary>
         private void SyncActivationVisibility()
         {
             if (_timingRow == null) return;
             bool voluntary = _graph.header.ActivationType == 2;
+            int t = _graph.header.TriggerTiming;
+            if (voluntary)
+            {
+                if (t != (int)TriggerTiming.Activate_Active
+                    && t != (int)TriggerTiming.Activate_Instant
+                    && t != (int)TriggerTiming.Activate_Response)
+                    _graph.header.TriggerTiming = (int)TriggerTiming.Activate_Active;
+            }
+            else if (t == (int)TriggerTiming.Activate_Active
+                     || t == (int)TriggerTiming.Activate_Instant
+                     || t == (int)TriggerTiming.Activate_Response)
+            {
+                _graph.header.TriggerTiming = (int)TriggerTiming.OnPlay;
+            }
             _timingRow.gameObject.SetActive(!voluntary);
         }
 
@@ -524,8 +552,8 @@ namespace SynergyUI
         {
             bool active = mode == _mode;
             UiKit.MiniButton($"mode-{mode}", _modeBar, label, () => SwitchMode(mode),
-                active ? new Color(58f / 255f, 84f / 255f, 120f / 255f, 1f) : UiStyle.BtnBg,
-                active ? UiStyle.TextPrimary : new Color(200f / 255f, 205f / 255f, 214f / 255f, 1f));
+                active ? UiStyle.ChipActiveBg : UiStyle.BtnBg,
+                active ? UiStyle.ChipActiveText : UiStyle.TextBody);
         }
 
         /// <summary>形态切换：best-effort 数据搬运（原子尽量保留），切换后收起展开卡。
@@ -667,10 +695,10 @@ namespace SynergyUI
                 case ComposeMode.FreeBranch:
                 {
                     // 主干槽（引擎条件·下拉直选）：拼点/运势/倒计时=固定机制关键词，已移出原子库
-                    var trunkSlot = MakeSlot("主干（条件引擎）", Rgb(110, 130, 170));
+                    var trunkSlot = MakeSlot("主干（条件引擎）", UiStyle.SlotTrunkEdge);
                     var trunkLabels = TrunkEngines
                         .Select(e => e == BranchEngineKind.None ? "（未选择）" : TrunkZh(e)).ToList();
-                    var trunkDd = new UiKit.Dropdown("dd-trunk", trunkSlot, _overlay, trunkLabels, 0, onChanged: null, width: 220f);
+                    var trunkDd = new UiKit.Dropdown("dd-trunk", trunkSlot, Root, trunkLabels, 0, onChanged: null, width: 220f);
                     UiKit.Described(trunkDd.Root.GetComponent<Button>(),
                         "条件引擎——拼点：比双方牌库顶费用差 / 运势：2d6 双＞x / 倒计时：回合递减归零发奖 / "
                         + "死亡计数：本回合双方合计死亡≥x / 元素充盈：付费后 bank 最多色＞x / 手牌序位：此卡为本回合第 x 张；参数在主干卡展开区调");
@@ -701,7 +729,7 @@ namespace SynergyUI
                     UiKit.Size(arrow, fw: 1f);
 
                     // 奖励槽（单原子；死亡计数/元素充盈带预算=x——奖励预算制）
-                    var rewardSlot = MakeSlot("奖励（单原子）", Rgb(120, 150, 110));
+                    var rewardSlot = MakeSlot("奖励（单原子）", UiStyle.SlotRewardEdge);
                     MarkSelected(rewardSlot, SelKind.FreeReward, 0);
                     SelectOnClick(rewardSlot, SelKind.FreeReward, 0, false);
                     var reward = h.AtomicEffects?.FirstOrDefault();
@@ -734,7 +762,7 @@ namespace SynergyUI
                     var branch = _graph.steps[1];
 
                     // 主干槽（产出原子）
-                    var trunkSlot = MakeSlot("主干（产出原子）", Rgb(110, 130, 170));
+                    var trunkSlot = MakeSlot("主干（产出原子）", UiStyle.SlotTrunkEdge);
                     MarkSelected(trunkSlot, SelKind.GateTrunk, 0);
                     SelectOnClick(trunkSlot, SelKind.GateTrunk, 0, false);
                     MakeAtomCard(trunkSlot, trunk.atomic, 0, SelKind.GateTrunk);
@@ -754,7 +782,7 @@ namespace SynergyUI
                     }
 
                     // 奖励槽（单原子 + 预算）
-                    var rewardSlot = MakeSlot("奖励（单原子·预算内）", Rgb(120, 150, 110));
+                    var rewardSlot = MakeSlot("奖励（单原子·预算内）", UiStyle.SlotRewardEdge);
                     MarkSelected(rewardSlot, SelKind.GateReward, 0);
                     SelectOnClick(rewardSlot, SelKind.GateReward, 0, false);
                     var reward = branch.thenSteps?.FirstOrDefault();
@@ -783,12 +811,11 @@ namespace SynergyUI
 
         private static Color SlotBorder(SelKind kind) => kind switch
         {
-            SelKind.GateTrunk or SelKind.FreeTrunk => Rgb(110, 130, 170),
-            SelKind.GateReward or SelKind.FreeReward => Rgb(120, 150, 110),
-            _ => Rgb(64, 70, 84),
+            SelKind.GateTrunk or SelKind.FreeTrunk => UiStyle.SlotTrunkEdge,
+            SelKind.GateReward or SelKind.FreeReward => UiStyle.SlotRewardEdge,
+            _ => UiStyle.DropSlotEdge,
         };
 
-        private static Color Rgb(int r, int g, int b) => new Color(r / 255f, g / 255f, b / 255f, 1f);
 
         // ======================================== 槽位选中（右侧点击=替换选中槽） ========================================
 
@@ -797,9 +824,9 @@ namespace SynergyUI
             if (_selSlot == kind && _selSlotIndex == index)
             {
                 var img = slot.GetComponent<Image>();
-                if (img != null) img.color = new Color(70f / 255f, 110f / 255f, 170f / 255f, 0.32f);
+                if (img != null) img.color = new Color(70f / 255f, 110f / 255f, 170f / 255f, 0.32f); // 选中态底（USS .drop-slot--selected）
                 var ol = slot.GetComponent<Outline>();
-                if (ol != null) ol.effectColor = Rgb(126, 168, 255);
+                if (ol != null) ol.effectColor = UiStyle.ChipActiveEdge;
             }
         }
 
@@ -907,7 +934,7 @@ namespace SynergyUI
             var img = slot.gameObject.AddComponent<Image>();
             img.sprite = UiKit.RoundedSprite;
             img.type = Image.Type.Sliced;
-            img.color = new Color(24f / 255f, 27f / 255f, 33f / 255f, 0.6f);
+            img.color = UiStyle.DropSlotBg;
             img.raycastTarget = true; // 槽整体可点（选中）
             var ol = slot.gameObject.AddComponent<Outline>();
             ol.effectColor = border;
@@ -1015,7 +1042,7 @@ namespace SynergyUI
                     (int)DurationType.Permanent,
                 };
                 int dcur = durVals.IndexOf(_graph.header.Duration);
-                var durDd = new UiKit.Dropdown("dd-dur", box, _overlay, durChoices, dcur >= 0 ? dcur : 0, (idx, _) =>
+                var durDd = new UiKit.Dropdown("dd-dur", box, Root, durChoices, dcur >= 0 ? dcur : 0, (idx, _) =>
                 {
                     _graph.header.Duration = durVals[Mathf.Max(0, idx)];
                     RefreshTexts(); // 持续档影响计价折扣——费用随改随刷
@@ -1065,7 +1092,7 @@ namespace SynergyUI
 
                 int cur = atom.kinds != null && atom.kinds.Count == 1
                     ? 1 + allowedKinds.IndexOf(atom.kinds[0]) : 0;
-                var dd = new UiKit.Dropdown("dd-kinds", row, _overlay, labels, Mathf.Max(0, cur), (idx, _) =>
+                var dd = new UiKit.Dropdown("dd-kinds", row, Root, labels, Mathf.Max(0, cur), (idx, _) =>
                 {
                     int i = idx - 1;
                     atom.kinds = i < 0 ? null : new List<int> { allowedKinds[i] };
@@ -1200,7 +1227,7 @@ namespace SynergyUI
                 var labels = gates.Select(ComposerCatalog.GateLabel).ToList();
                 int cur = gates.FindIndex(g => g.Id == branch.conditionId);
                 if (cur < 0) { cur = 0; branch.conditionId = gates[0].Id; }
-                var dd = new UiKit.Dropdown("dd-gate", wrap, _overlay, labels, cur, (idx, _) =>
+                var dd = new UiKit.Dropdown("dd-gate", wrap, Root, labels, cur, (idx, _) =>
                 {
                     if (idx >= 0 && idx < gates.Count)
                     {
@@ -1405,14 +1432,14 @@ namespace SynergyUI
 
             var row1 = UiKit.Row("row1", box, spacing: 6f);
             // 持续档全中文
-            var dur = new UiKit.Dropdown("dd-dur", row1, _overlay,
+            var dur = new UiKit.Dropdown("dd-dur", row1, Root,
                 DurationChoices.Select(d => d.label).ToList(),
                 Mathf.Max(0, Array.FindIndex(DurationChoices, d => d.value == h.Duration)),
                 (idx, _) => h.Duration = DurationChoices[Mathf.Max(0, idx)].value, width: 140f);
             UiKit.Described(dur.Root.GetComponent<Button>(),
                 "持续：一次性效果选「一次性」；永久持续选「永久」；其余为限时/条件档（1/2 回合已并档）——计价随档折扣");
 
-            var sel = new UiKit.Dropdown("dd-sel", row1, _overlay,
+            var sel = new UiKit.Dropdown("dd-sel", row1, Root,
                 SelectionModes.Select(m => m.label).ToList(),
                 Mathf.Max(0, SelectionModes.ToList().FindIndex(m => m.value == h.SelectionMode)),
                 (idx, _) => h.SelectionMode = SelectionModes[Mathf.Max(0, idx)].value, width: 130f);
@@ -1427,7 +1454,7 @@ namespace SynergyUI
             var dropChoices = new List<string> { "战场", "手牌", "牌库" };
             var dropVals = new List<int> { (int)Zone.Battlefield, (int)Zone.Hand, (int)Zone.Deck };
             int di = dropVals.IndexOf(h.SummonDropZone);
-            var drop = new UiKit.Dropdown("dd-drop", row2, _overlay, dropChoices, di >= 0 ? di : 0,
+            var drop = new UiKit.Dropdown("dd-drop", row2, Root, dropChoices, di >= 0 ? di : 0,
                 (idx, _) => h.SummonDropZone = dropVals[Mathf.Max(0, idx)], width: 90f);
             UiKit.Described(drop.Root.GetComponent<Button>(), "落区：衍生物（召唤）的生成位置——战场/手牌/牌库");
         }
@@ -1984,7 +2011,7 @@ namespace SynergyUI
                 void Sync()
                 {
                     bool on = ((HexDirection)h.ArrowDirections).HasFlag(dir);
-                    triImg.color = on ? new Color(148f / 255f, 212f / 255f, 1f) : new Color(96f / 255f, 104f / 255f, 118f / 255f);
+                    triImg.color = on ? UiStyle.ArrowActive : new Color(96f / 255f, 104f / 255f, 118f / 255f);
                     hitImg.color = on
                         ? new Color(90f / 255f, 160f / 255f, 230f / 255f, 0.16f)
                         : new Color(0f, 0f, 0f, 0f);
@@ -2023,7 +2050,7 @@ namespace SynergyUI
             UiKit.Size(row, fw: 1f, h: 32f);
 
             bool isStat = !string.IsNullOrEmpty(aura.stat);
-            var type = new UiKit.Dropdown("dd-type", row, _overlay,
+            var type = new UiKit.Dropdown("dd-type", row, Root,
                 new List<string> { "属性", "关键词" }, isStat ? 0 : 1, (idx, _) =>
             {
                 if (idx == 0) { aura.stat = "Power"; aura.keyword = null; }
@@ -2033,7 +2060,7 @@ namespace SynergyUI
 
             if (isStat)
             {
-                var stat = new UiKit.Dropdown("dd-stat", row, _overlay,
+                var stat = new UiKit.Dropdown("dd-stat", row, Root,
                     new List<string> { "攻击力", "生命值" },
                     aura.stat.Equals("Life", StringComparison.OrdinalIgnoreCase) ? 1 : 0,
                     (idx, _) =>
@@ -2063,7 +2090,7 @@ namespace SynergyUI
                     labels.Add($"{aura.keyword}（不可挂）"); // 存量脏值占位可见——校验区标红促改
                     ci = labels.Count - 1;
                 }
-                var kw = new UiKit.Dropdown("dd-kw", row, _overlay, labels, Mathf.Max(0, ci), (idx, _) =>
+                var kw = new UiKit.Dropdown("dd-kw", row, Root, labels, Mathf.Max(0, ci), (idx, _) =>
                 {
                     if (idx >= 0 && idx < choices.Count) aura.keyword = choices[idx].id; // 占位项越界不改值
                     RefreshAuraCost();
@@ -2177,7 +2204,7 @@ namespace SynergyUI
                     if (z.ErrLabel == null)
                     {
                         z.ErrLabel = UiKit.Label("zone-error", z.Zone, "", UiStyle.MiniSize,
-                            new Color(242f / 255f, 126f / 255f, 126f / 255f, 1f), TextAnchor.UpperLeft, FontStyle.Bold, wrap: true);
+                            UiStyle.ErrorText, TextAnchor.UpperLeft, FontStyle.Bold, wrap: true);
                         UiKit.Size(z.ErrLabel, fw: 1f);
                     }
                     z.ErrLabel.text = "⚠ " + err;

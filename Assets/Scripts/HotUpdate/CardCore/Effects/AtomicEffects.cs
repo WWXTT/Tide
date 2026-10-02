@@ -82,6 +82,8 @@ namespace CardCore
         GrantArmor,
         GrantFirstStrike,
         GrantDisarm,
+        /// <summary>额外元素（原光合作用/蓄能）。2026-10-02 裁决：表行退役——凭空产元素违背费用规则；
+        /// AdditionalEnergyHandler 保留代码侧（枚举只可尾部追加不可删），写进表才生效。</summary>
         AdditionalEnergy,
         GrantVigilance,
         GrantRegeneration,
@@ -177,11 +179,15 @@ namespace CardCore
         /// 持有者自行选择一个**己方场上无生命单位**（结界等非生物持久物）直送墓地（DestroyReason.Abandoned）。
         /// 与牺牲（生物/效果死亡）成对；豁免帷幕（选择权在目标方——帷幕只约束对手的选择）。</summary>
         Abandon,
-        /// <summary>冰晶（2026-09-13 改写定案，蓝2）：造成战斗伤害时，改为对目标添加一个冻结指示物（伤害不发生）</summary>
+        /// <summary>冰晶（2026-09-13 改写定案，蓝2）：造成战斗伤害时，改为对目标添加一个冻结指示物（伤害不发生）。
+        /// 2026-10-02 裁决：表行退役——战斗伤害改冻结走分支组合（拦截式改写门 DmgRewriteFreeze），
+        /// 印刷关键词路径保留（KeywordRules 改写链 + GrantKeywordHandlerFactory.Specs）。</summary>
         GrantIceCrystal,
-        /// <summary>梦魇（2026-09-13 改写定案，黑2）：造成战斗伤害时，改为对目标添加一个沉睡指示物（伤害不发生）</summary>
+        /// <summary>梦魇（2026-09-13 改写定案，黑2）：造成战斗伤害时，改为对目标添加一个沉睡指示物（伤害不发生）。
+        /// 2026-10-02 裁决：表行退役——战斗伤害改沉睡走分支组合（DmgRewriteSleep），印刷关键词路径保留。</summary>
         GrantNightmare,
-        /// <summary>病原体（2026-09-13 改写定案，绿5）：造成战斗伤害时，改为对目标添加一个剧毒指示物（伤害不发生）</summary>
+        /// <summary>病原体（2026-09-13 改写定案，绿3——表 BaseCost=3.0 为计价真相源，2026-10-02 对齐）：
+        /// 造成战斗伤害时，改为对目标添加一个剧毒指示物（伤害不发生）</summary>
         GrantPathogen,
         /// <summary>禁魔石（2026-09-13 改写定案，白3）：受到的非战斗伤害变为 0</summary>
         GrantSpellban,

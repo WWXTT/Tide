@@ -41,6 +41,20 @@ namespace CardCore
                 ? (EffectActivationType)data.ActivationType
                 : TriggerTimingDefaults.GetDefaultActivationType(timing);
 
+            // 主动⇔启动式双向钉死（2026-10-02 定案）：发动方式三值——主动=启动式（玩家轮询发动，
+            // 横置+现付锚价）、自动=可选触发式（条件达成弹窗询问）、强制=无条件触发。
+            // 主动声明带触发时机（合成器旧 bug 只写 ActivationType 不写 Activate 时机/手写 JSON）
+            // → 告警并钉时机 Activate_Active（主阶段主动档；反向"启动式非主动"由下方对称校验收口）。
+            if (activationType == EffectActivationType.Voluntary
+                && timing != TriggerTiming.Activate_Active
+                && timing != TriggerTiming.Activate_Instant
+                && timing != TriggerTiming.Activate_Response)
+            {
+                TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 发动方式=主动但时机={timing}" +
+                                 "（主动即启动式——2026-10-02 定案），时机已钉 Activate_Active");
+                timing = TriggerTiming.Activate_Active;
+            }
+
             // 启动式（Activate_*，2026-09-08 定案）：构筑期不占卡费（L2 只占挂载口），
             // 元素锚价运行时现付——发动 = 横置 + 扣锚价元素 + 选定目标。
             // 非启动式（触发式）照旧：元素费已随卡牌档位费收讫，执行器跳过防双计。
@@ -76,6 +90,17 @@ namespace CardCore
                 SourceCardId = sourceCardId,
                 ElementCostPrepaid = !isActivated,
             };
+
+            // 关键词型原子不得作启动式（2026-10-02 定案）：启动式效果内的纯自指 Grant 原子
+            //（=给自己加关键词——横置换静态身份无意义）告警剔除（内容契约"错边剔除"同款先例）；
+            // 赋予型 Grant（域含其他目标）不受限。判定委托 ComposerCatalog.IsKeywordStyleGrant（与合成器 UI 同源）。
+            if (isActivated)
+            {
+                int removed = RemoveKeywordStyleGrants(data);
+                if (removed > 0)
+                    TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 为启动式：" +
+                                 $"已剔除 {removed} 个关键词型 Grant 原子（关键词不得作为主动效果；赋予型不受限）");
+            }
 
             // 转换原子效果列表
             if (data.AtomicEffects != null)
@@ -266,6 +291,45 @@ namespace CardCore
             return def;
         }
 
+        // ======================================== 关键词型原子启动式校验（2026-10-02 定案） ========================================
+
+        /// <summary>剔除启动式效果内的关键词型 Grant 条目：AtomicEffects（含引擎奖励落点）+ Steps 全树
+        ///（原子步骤整步移除、then/else 列表移除、抉择分支递归）。返回剔除数。</summary>
+        private static int RemoveKeywordStyleGrants(CardEffectData data)
+        {
+            if (data == null) return 0;
+            int removed = data.AtomicEffects?.RemoveAll(IsKeywordStyleEntry) ?? 0;
+            removed += RemoveKeywordStyleGrantsFromSteps(data.Steps);
+            return removed;
+        }
+
+        private static int RemoveKeywordStyleGrantsFromSteps(List<EffectStepData> steps)
+        {
+            if (steps == null) return 0;
+            int removed = steps.RemoveAll(s => s != null && s.kind == 0 && IsKeywordStyleEntry(s.atomic));
+            foreach (var step in steps)
+            {
+                if (step == null) continue;
+                removed += step.thenSteps?.RemoveAll(IsKeywordStyleEntry) ?? 0;
+                removed += step.elseSteps?.RemoveAll(IsKeywordStyleEntry) ?? 0;
+                if (step.choices == null) continue;
+                foreach (var choice in step.choices)
+                    removed += RemoveKeywordStyleGrantsFromSteps(choice?.steps);
+            }
+            return removed;
+        }
+
+        /// <summary>条目是否关键词型 Grant：refId → 表行 → 英文枚举名 → ComposerCatalog.IsKeywordStyleGrant
+        ///（与合成器 UI 同源）。行缺失/枚举解析失败不判关键词型（交由后续装载校验点名）。</summary>
+        private static bool IsKeywordStyleEntry(AtomicEffectEntry entry)
+        {
+            if (entry == null || string.IsNullOrEmpty(entry.refId)) return false;
+            var row = Attribute.AtomicEffectTable.GetByHashId(entry.refId);
+            if (row == null || string.IsNullOrEmpty(row.EnumName)) return false;
+            return Enum.TryParse<AtomicEffectType>(row.EnumName, out var type)
+                   && ComposerCatalog.IsKeywordStyleGrant(type);
+        }
+
         /// <summary>UI 编辑出口（2026-09-14 合成器重做）：原子条目 → 运行时实例（内容契约照常生效——
         /// 错边剔除/主干守卫同装载转换）。供合成器预算校验（RewardDerivedCost）与描述预览消费。</summary>
         public static AtomicEffectInstance ConvertAtomForUI(AtomicEffectEntry entry)
@@ -361,7 +425,10 @@ namespace CardCore
             // 内容契约（2026-09-11 定案）：效果栏（主动/被动效果）只能挂对自己有益或中性的原子——
             // 错边锁定（有益锁对方域 / 有害锁己方域 = 对自己有害或对对手有益）只能进代价栏（Payload）。
             // 中性（p=0）与双侧域不受限（双侧「同时作用双方」不支持——需要时制作专用原子，先不管）。
-            if (!allowWrongSide && polarity != 0f && CostDerivationService.WrongSide(polarity, kinds))
+            // 例外：自我沉睡豁免（2026-10-02 苏醒退役配套）——代价语义由灰费豁免机制替代承担。
+            if (!allowWrongSide && polarity != 0f
+                && !CostDerivationService.IsSelfSleepExempt(type, kinds)
+                && CostDerivationService.WrongSide(polarity, kinds))
             {
                 // 数据质量诊断（与 WarnCostNonConformance 同级）：错边原子被剔除——装载可见不炸
                 TideLog.Warn($"[CardEffectConverter] 原子 {type}（极性 {polarity:0.#}，域 [{string.Join(",", kinds)}]）" +

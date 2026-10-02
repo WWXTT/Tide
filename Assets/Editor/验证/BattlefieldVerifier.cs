@@ -346,16 +346,37 @@ namespace CardCore.Editor
             Assert(cellOf.Count == 5, $"S3 对拍场面就绪（5 张在场卡有格位，实际 {cellOf.Count}）");
             if (cellOf.Count == 0) return;
 
-            // 双视角快照 → 客户端重建格位：逐卡与权威全等（FillUnitsNet/FillLandsNet 列表序 first-free）
+            // 双视角快照 → 客户端重建格位：逐卡与「观察者归一化」的权威全等。
+            // BuildNet 2026-09-30 起把格位归一到观察者视角（己方恒 P1 半场 z4/5/6、对手恒 P2 半场
+            // z1/2/3——列表序 first-free 与服务器 AssignCells 逐格对应，仅半场标签按视角互换）；
+            // 权威侧同规则换算后再比对：校验快照区域列表与服务器区域列表成员+顺序一致、
+            // 归一化分格与服务器绝对分格同构（2026-10-02 修——旧断言直接比绝对坐标，视角1 恒误报）。
             for (int seat = 0; seat <= 1; seat++)
             {
                 var snap = NetSnapshotBuilder.Build(core, seat);
                 var view = BattleView.BuildNet(snap);
+                var expect = new Dictionary<uint, (int x, int z)>();
+                void MapHalf(Player owner, Zone zone, bool selfHalf)
+                {
+                    var cells = zone == Zone.Battlefield
+                        ? BoardLayout.UnitCells(selfHalf ? 0 : 1)
+                        : BoardLayout.LandCells(selfHalf ? 0 : 1);
+                    var list = core.ZoneManager.GetCards(owner, zone);
+                    for (int i = 0; i < list.Count && i < cells.Count; i++)
+                        expect[list[i].RuntimeId] = cells[i];
+                }
+                bool p1IsSelf = seat == 0;
+                MapHalf(p1, Zone.Battlefield, p1IsSelf);
+                MapHalf(p1, Zone.ElementPool, p1IsSelf);
+                MapHalf(p2, Zone.Battlefield, !p1IsSelf);
+                MapHalf(p2, Zone.ElementPool, !p1IsSelf);
+
                 var bad = new List<string>();
                 foreach (var v in view.SelfUnits.Concat(view.OppUnits).Concat(view.SelfLands).Concat(view.OppLands))
-                    if (cellOf.TryGetValue(v.RuntimeId, out var s) && (v.X != s.x || v.Z != s.z))
-                        bad.Add($"#{v.RuntimeId} 重建({v.X},{v.Z})≠权威({s.x},{s.z})");
-                Assert(bad.Count == 0, $"S3 客户端重建格位==服务器权威（视角{seat}；不符 {string.Join(";", bad)}）");
+                    if (!expect.TryGetValue(v.RuntimeId, out var s) || v.X != s.x || v.Z != s.z)
+                        bad.Add($"#{v.RuntimeId} 重建({v.X},{v.Z})≠权威({(expect.TryGetValue(v.RuntimeId, out var e2) ? $"{e2.x},{e2.z}" : "缺失")})");
+                Assert(expect.Count == 5 && bad.Count == 0,
+                       $"S3 客户端重建格位==权威（视角{seat}；覆盖 {expect.Count}/5；不符 {string.Join(";", bad)}）");
             }
 
             // 本地视图（BoardState 权威直读）与权威表自证

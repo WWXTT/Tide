@@ -541,7 +541,7 @@ namespace SynergyUI
                 TextAnchor.MiddleCenter, FontStyle.Bold);
             StretchInset(label.rectTransform, 8f, 2f);
 
-            if (onClick != null) btn.onClick.AddListener(onClick.Invoke);
+            if (onClick != null) btn.onClick.AddListener(() => { Debug.Log($"[UI点击] {name}"); onClick.Invoke(); });
             Size(rt, w: width ?? (label.preferredWidth + 28f), h: height, minW: 30f);
             return btn;
         }
@@ -887,6 +887,7 @@ namespace SynergyUI
             private void Open()
             {
                 if (_options.Count == 0 || _popupLayer == null) return;
+                Debug.Log($"[UI点击] 下拉展开：{(_head != null ? _head.name : "?")}");
 
                 // 捕获层：全屏透明，点它=收起
                 var catcher = Node("dropdown", _popupLayer);
@@ -912,7 +913,10 @@ namespace SynergyUI
                     RectTransformUtility.WorldToScreenPoint(null, Root.position),
                     null, out var local);
                 panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(0f, 1f);
-                panel.anchoredPosition = new Vector2(local.x, local.y - 32f);
+                // local 是以弹层 pivot（居中）为原点的坐标；anchoredPosition 以锚参考点（层左上角）为基准，
+                // 两者差半宽高——直接用 local 会把面板甩到屏幕左下角（2026-10-02 实测修正）
+                var half = _popupLayer.rect.size * 0.5f;
+                panel.anchoredPosition = new Vector2(local.x + half.x, local.y - half.y - 32f);
                 const float itemH = 30f;
                 float listW = Mathf.Max(280f, Root.rect.width + 48f);
                 float listH = Mathf.Min(300f, _options.Count * (itemH + 4f) + 12f);

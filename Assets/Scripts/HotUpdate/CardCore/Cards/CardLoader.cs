@@ -65,6 +65,9 @@ namespace CardCore
 
         // 结界耐久（2026-09-24 定案：结界=耐久体，被攻击每次仅损失 1 点，归零销毁；0=无）——生物不使用
         public int durability;
+
+        // 底盘退费落色（2026-10-02 定案：玩家自标）：-1=未声明（默认先灰后最高费用色）；0..5=ManaType
+        public int refundColor = -1;
     }
 
     /// <summary>
@@ -658,6 +661,9 @@ namespace CardCore
 
             // 结界耐久（2026-09-24 定案）：数据字段先行采集，战斗侧执行待做
             cardData.Durability = entry.durability;
+
+            // 底盘退费落色（2026-10-02 定案：玩家自标）——计价推导口径，不影响运行时支付
+            cardData.RefundColor = entry.refundColor;
 
             // 统一计价兜底：costList 缺省 → 写入建议档位分布（幂等，非空不动）
             CardCostService.EnsureCost(cardData);

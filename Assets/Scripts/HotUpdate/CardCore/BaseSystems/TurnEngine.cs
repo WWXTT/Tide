@@ -42,6 +42,18 @@ namespace CardCore
     }
 
     /// <summary>
+    /// 跳过档位（2026-10-02 D2 定案）：Whole=整回合作废顺延对手；Standby=只跳准备阶段自动化
+    /// （抽牌/横置重置/地牌槽推进，与 ITurnStartInterceptor 同口径）；Main=只跳主要阶段
+    /// （准备阶段后直进结束阶段，无出牌/攻击窗口）。相位级跳过在代码侧表达（SkipTurn 原子 str 参数），不占原子表行。
+    /// </summary>
+    public enum TurnSkipMode
+    {
+        Whole,
+        Standby,
+        Main
+    }
+
+    /// <summary>
     /// 回合引擎
     /// 负责阶段状态机、优先权窗口生成、主动玩家轮换、阶段开始/结束触发
     /// </summary>
@@ -58,6 +70,9 @@ namespace CardCore
         // 额外回合 / 跳过回合（由原子效果 TakeExtraTurn / SkipTurn 驱动）
         private int _extraTurnsForCurrent = 0;
         private readonly HashSet<Player> _skipNextTurn = new HashSet<Player>();
+        // 相位级跳过（2026-10-02 D2）：待定标记一次性消费
+        private readonly HashSet<Player> _skipNextStandby = new HashSet<Player>();
+        private readonly HashSet<Player> _skipNextMain = new HashSet<Player>();
         private List<PhaseType> _phaseOrder = new List<PhaseType>
         {
             PhaseType.Standby,
@@ -190,6 +205,13 @@ namespace CardCore
             if (_currentPhase?.Phase != PhaseType.Standby)
                 return;
             EndCurrentPhase();
+            // 跳过主要阶段（2026-10-02 D2）：待定标记一次性消费——准备阶段后直进结束阶段，
+            // 本回合无出牌/攻击窗口（阶段事件照发，玩家侧表现为主阶段被跳过）。
+            if (_turnPlayer != null && _skipNextMain.Remove(_turnPlayer))
+            {
+                StartPhase(PhaseType.End);
+                return;
+            }
             GoToNextPhase();
         }
 
@@ -324,13 +346,32 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 标记某玩家跳过其下一个回合
+        /// 标记某玩家跳过其下一个回合（整回合）
         /// </summary>
         public void SkipNextTurnFor(Player player)
         {
-            if (player != null)
-                _skipNextTurn.Add(player);
+            SkipNextTurnFor(player, TurnSkipMode.Whole);
         }
+
+        /// <summary>
+        /// 标记某玩家跳过其下一个回合的指定档位（2026-10-02 D2：Whole/Standby/Main）。
+        /// Standby 档由 GameCore.OnTurnStarted 经 ConsumePendingStandbySkip 消费（跳准备阶段自动化）；
+        /// Main 档在 AdvanceFromStandby 消费（准备阶段后直进结束阶段）。
+        /// </summary>
+        public void SkipNextTurnFor(Player player, TurnSkipMode mode)
+        {
+            if (player == null) return;
+            switch (mode)
+            {
+                case TurnSkipMode.Standby: _skipNextStandby.Add(player); break;
+                case TurnSkipMode.Main: _skipNextMain.Add(player); break;
+                default: _skipNextTurn.Add(player); break;
+            }
+        }
+
+        /// <summary>消费"跳过准备阶段自动化"待定标记（GameCore.OnTurnStarted 调用，与 ITurnStartInterceptor 同口）。</summary>
+        public bool ConsumePendingStandbySkip(Player player)
+            => player != null && _skipNextStandby.Remove(player);
 
         /// <summary>
         /// 计算 End→Standby 折返时的下一位回合玩家：

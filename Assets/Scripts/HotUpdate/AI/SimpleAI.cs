@@ -17,7 +17,7 @@ namespace SynergyUI
     /// （威胁降序——解场优先，2026-09-13 用户裁决）、有益类优先己方；无偏好回落引擎自动解析（targets=null）。
     /// 当前回合玩家即可驱动（AI 对 AI 验证用；BattleScreen 仍只对 P2 调用）。
     /// </summary>
-    public sealed class SimpleAI
+    public sealed class SimpleAI : IAiTurnDriver
     {
         private const int MaxActionRounds = 64;   // 动作耗尽循环硬上限（保险，防效果自我循环）
         private const int MaxSettleAttempts = 32; // 排干栈重试上限（保险）

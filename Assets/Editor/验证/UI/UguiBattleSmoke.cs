@@ -22,6 +22,13 @@ namespace Tide.验证
         [MenuItem(MenuPath)]
         public static async void Run()
         {
+            // 战场 UI 已删除（2026-10-02 定案：战场改 3D + 部分透明 UI 重做，旧 uGUI 预制体无指导意义，
+            // BattleScreen 现为空屏桩）——本冒烟 SKIP；待 3D 战场层就位后按新架构重写。
+            if (!System.IO.File.Exists("Assets/Art/UI/BattleUI.prefab"))
+            {
+                Debug.Log("[UguiBattleSmoke]\n  SKIP：战场 UI 已下线（3D 重做中），对战 HUD 冒烟停用");
+                return;
+            }
             var sb = new StringBuilder("[UguiBattleSmoke]\n");
             try
             {

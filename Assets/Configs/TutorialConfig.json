@@ -1,0 +1,119 @@
+{
+    "tutorials": [
+        {
+            "id": "basics",
+            "name": "基础教学",
+            "rngSeed": 20261002,
+            "_说明": "卡组顺序即摸牌序列（锁牌库序）：前 6 张为起手、之后每回合摸牌恒取牌库顶。aiScript 按机器人的第几个回合编排（turn 从 1 计）；R6 起无剧本=机器人直接结束回合（被动等玩家终结）。全卡池效果引用完好，白板灰卡为主（灰=万用色，纯灰产元素可垫任何红蓝绿灰费用，教学局不卡费）。机器人共对玩家造成 10 点脸伤（R2:2 + R3:3 + R4:5），30 起始生命下节奏安全。",
+            "playerDeck": [
+                "C_78A92563",
+                "C_9CBDD76F",
+                "C_A0AF544D",
+                "C_3C06E8E8",
+                "C_3244447D",
+                "C_79C89338",
+                "C_7B61EF2C",
+                "C_310866E0",
+                "C_A52EF97B",
+                "C_AEC7E2C9",
+                "C_D8A7891D",
+                "C_29D4958D",
+                "C_6C440748",
+                "C_289A18CA",
+                "C_8E06A0A7",
+                "C_AED82E7F",
+                "C_EF102C24",
+                "C_62BACD5E",
+                "C_0BE495BF",
+                "C_5804ECA9",
+                "C_1602F666",
+                "C_2FD32662",
+                "C_8CCECD5C",
+                "C_1C26FC4A",
+                "C_B5267F89",
+                "C_1BCE95D1",
+                "C_1C2F5A42",
+                "C_6514010C",
+                "C_863B0464",
+                "C_1C7B95EB"
+            ],
+            "_玩家节奏": "起手：苔壳龟(入池)/灰烬猎犬(打出)/火花哥布林/烬鳞蜥/焚风骑士/烈焰箭(教法术)。T1 抽寒潮术士(入池)，T2 抽熔岩突击兵(入池)，T3 抽森林贤者(入池)，T4 抽赤鬃掠夺者(打出)，T5 抽岩背巨龟。玩家按元素池→出随从→攻击→结束回合的节奏约 5-6 回合自然获胜。",
+            "aiDeck": [
+                "C_78A92563",
+                "C_9CBDD76F",
+                "C_7B61EF2C",
+                "C_3C06E8E8",
+                "C_A0AF544D",
+                "C_EB26C118",
+                "C_A52EF97B",
+                "C_AEC7E2C9",
+                "C_D8A7891D",
+                "C_29D4958D",
+                "C_6C440748",
+                "C_289A18CA",
+                "C_8E06A0A7",
+                "C_AED82E7F",
+                "C_EF102C24",
+                "C_62BACD5E",
+                "C_0BE495BF",
+                "C_5804ECA9",
+                "C_1602F666",
+                "C_2FD32662",
+                "C_8CCECD5C",
+                "C_1C26FC4A",
+                "C_B5267F89",
+                "C_1BCE95D1",
+                "C_1C2F5A42",
+                "C_6514010C",
+                "C_863B0464",
+                "C_1C7B95EB",
+                "C_3A052F9E",
+                "C_3244447D"
+            ],
+            "aiScript": [
+                {
+                    "turn": 1,
+                    "actions": [
+                        { "type": "element", "card": "C_78A92563" },
+                        { "type": "tap" },
+                        { "type": "play", "card": "C_9CBDD76F" }
+                    ]
+                },
+                {
+                    "turn": 2,
+                    "actions": [
+                        { "type": "element", "card": "C_7B61EF2C" },
+                        { "type": "tap" },
+                        { "type": "play", "card": "C_3C06E8E8" },
+                        { "type": "attack", "attacker": "C_9CBDD76F", "target": "hero" }
+                    ]
+                },
+                {
+                    "turn": 3,
+                    "actions": [
+                        { "type": "element", "card": "C_A0AF544D" },
+                        { "type": "tap" },
+                        { "type": "play", "card": "C_EB26C118" },
+                        { "type": "attack", "attacker": "C_3C06E8E8", "target": "hero" }
+                    ]
+                },
+                {
+                    "turn": 4,
+                    "actions": [
+                        { "type": "element", "card": "C_A52EF97B" },
+                        { "type": "tap" },
+                        { "type": "attack", "attacker": "C_EB26C118", "target": "hero" }
+                    ]
+                },
+                {
+                    "turn": 5,
+                    "actions": [
+                        { "type": "element", "card": "C_D8A7891D" },
+                        { "type": "tap" },
+                        { "type": "play", "card": "C_AEC7E2C9" }
+                    ]
+                }
+            ]
+        }
+    ]
+}

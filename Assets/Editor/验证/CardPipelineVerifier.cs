@@ -204,6 +204,10 @@ namespace CardCore.Editor
             core.InitGame(sbaDeck1, sbaDeck2);
             TestSbaWindow(core, core.Player1, core.Player2);
 
+            // 三类卡型定案回归（2026-10-02）：法术同折/结界耐久/域数据/攻击显式化——自开新局
+            Crumb("→TestThreeCardTypes");
+            TestThreeCardTypes(core, core.Player1, core.Player2);
+
             // 战场辅助检查（2026-09-26）：数学全量性质/事件驱动占用/格位三方对拍/容量边界/
             // 接线生命周期卫生——独立开新局不共享本 core，自归零静态扩展点（放最末）
             Crumb("→TestBattlefieldAux");
@@ -775,8 +779,8 @@ namespace CardCore.Editor
         {
             EnsureMainPhase(core, p1);
 
-            // ---- 0. 表行锚（2026-09-13 修正取法：_typeMap 同枚举多行后行覆盖——GetByType(Sleep)
-            // 实际返回苏醒行 bd2554f2（JSON 行序在后）；按中文短名精确取沉睡行 82f5ef6f） ----
+            // ---- 0. 表行锚（2026-10-02 裁决后：苏醒时长变体行退役——Sleep 仅剩沉睡行且域含 0，
+            // 自我沉睡经实例收窄 kinds={0} 组合表达，灰费豁免能力保留在 handler/组合层） ----
             var sleepCfg = CardCore.Attribute.AtomicEffectTable.GetAll()
                 .FirstOrDefault(c => c.EnumName == "Sleep" && c.DisplayName == "沉睡");
             Assert(sleepCfg != null && System.Math.Abs(sleepCfg.TotalUnitCost - 2f) < 1e-4 && sleepCfg.Polarity == -1f,
@@ -784,9 +788,9 @@ namespace CardCore.Editor
             Assert(ElementAffinities.GetAffinityForEffect(AtomicEffectType.Sleep).PrimaryColor == ManaType.Green,
                    "沉睡表色 Green");
             var sleepKinds = sleepCfg?.GetTargetKindList();
-            Assert(sleepKinds != null && sleepKinds.Count == 2
-                   && sleepKinds.Contains(1) && sleepKinds.Contains(2),
-                   "沉睡域 = {1,2}（双方单位域，2026-09-13 用户改表）");
+            Assert(sleepKinds != null && sleepKinds.Count == 3
+                   && sleepKinds.Contains(0) && sleepKinds.Contains(1) && sleepKinds.Contains(2),
+                   "沉睡域 = {0,1,2}（2026-10-02 裁决：苏醒退役后自我沉睡经域 0 收窄表达）");
             Assert(sleepCfg?.TargetFilter == "NoRole", "沉睡域滤 NoRole（角色不可沉睡）");
 
             var pool1 = core.ElementPool.GetPool(p1);
@@ -808,7 +812,7 @@ namespace CardCore.Editor
                     TriggerTiming = (int)TriggerTiming.OnPlay,
                     AtomicEffects = new List<AtomicEffectEntry>
                     {
-                        AtomRefs.New(AtomicEffectType.Sleep, value: 0), // 域={Self}，Value≤0=灰费时长模式（灰费豁免判定口径）
+                        AtomRefs.New(AtomicEffectType.Sleep, value: 0, kinds: new List<int> { 0 }), // 收窄域={Self}，Value≤0=灰费时长模式（灰费豁免判定口径）
                     },
                 });
                 sleepData.Effects.Add(new CardEffectData
@@ -878,7 +882,7 @@ namespace CardCore.Editor
                     TriggerTiming = (int)TriggerTiming.OnPlay,
                     AtomicEffects = new List<AtomicEffectEntry>
                     {
-                        AtomRefs.New(AtomicEffectType.Sleep, value: 2), // 域={Self} 定长 2
+                        AtomRefs.New(AtomicEffectType.Sleep, value: 2, kinds: new List<int> { 0 }), // 收窄域={Self} 定长 2
                     },
                 });
                 var fixedCard = InjectCard(core, p1, fixedData);
@@ -3657,11 +3661,11 @@ namespace CardCore.Editor
                    && CardCore.ComposerCatalog.IsAuraMountableKeyword("Lifesteal")
                    && CardCore.ComposerCatalog.IsAuraMountableKeyword("Taunt"),
                    "光环可挂判定：坚韧/守护（特判）+ 吸血/帷幕（表行含位 10）可挂");
-            // 位 10 数据存在性：19 条非消耗 Grant 行声明、四条消耗型未声明
+            // 位 10 数据存在性：18 条非消耗 Grant 行声明（2026-10-02 裁决：冰晶/梦魇退役 −2、连击补行 +1）、四条消耗型未声明
             var grantRows = CardCore.Attribute.AtomicEffectTable.GetAll()
                 .Where(r => r != null && !string.IsNullOrEmpty(r.EnumName) && r.EnumName.StartsWith("Grant")).ToList();
-            Assert(grantRows.Count(r => CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.LinkAura)) == 19,
-                   "位 10 数据：19 条 Grant 行声明可作光环");
+            Assert(grantRows.Count(r => CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.LinkAura)) == 18,
+                   "位 10 数据：18 条 Grant 行声明可作光环（2026-10-02：冰晶/梦魇退役、连击补行）");
             Assert(grantRows.Where(r => !CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.LinkAura))
                    .Select(r => r.EnumName).OrderBy(n => n).SequenceEqual(
                        new[] { "GrantDivineShield", "GrantReborn", "GrantSpellShield", "GrantStealth" }),
@@ -3890,14 +3894,21 @@ namespace CardCore.Editor
             Assert(CardCompositionCost.ChassisAdjust(choiceSlotData) == 1,
                    "计价锚：底盘 法术 2 槽（抉择装两个效果收两次槽位费）→ 3−2 = 退 1");
 
-            // ---- 法术不折：锚价全额；底盘退 2（法术无攻守）无灰落最高费用色 ----
-            // 2026-09-13 用户调表：DealDamage 0.5→1.0、DrawCard 1.0→2.0 → 锚价红4+蓝2，退2落红
+            // ---- 法术同折（2026-10-02 定案：法术不再豁免 f≡1）+ 减免落色自标（同日定案）----
+            // 锚价红4+蓝2（2026-09-13 表价）×f(未声明档=MaxTier)=0.75 → 取整总额5（最大余数法→红3蓝2）
+            // − 底盘退2：未声明落色 → 默认落最高费用色红 → 红1蓝2；自标蓝 → 退2尽落蓝 → 红3蓝0
             var fbEffect = MakeEffect("DealDamage", 4);
             fbEffect.AtomicEffects.Add(AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1));
             var fb = CardCostService.Derive(MakeCostCard(Cardtype.Spell, null, null, fbEffect));
-            Assert(fb.DerivedCost.GetValueOrDefault(ManaType.Red) == 2 && fb.DerivedCost.GetValueOrDefault(ManaType.Blue) == 2,
-                   "计价锚：法术 4伤+1抽 = 红2+蓝2（锚价全额红4蓝2 − 底盘退2 落最高色红）");
-            Assert(fb.Factor == 1f, "计价锚：法术 f=1（打出即生效，不折）");
+            Assert(fb.DerivedCost.GetValueOrDefault(ManaType.Red) == 1 && fb.DerivedCost.GetValueOrDefault(ManaType.Blue) == 2,
+                   "计价锚：法术 4伤+1抽（未声明档）= 红1+蓝2（锚价红4蓝2 ×0.75 取整5 − 底盘退2 默认落最高色红）");
+            Assert(System.Math.Abs(fb.Factor - 0.75f) < 1e-4f,
+                   "计价锚：法术未声明档 f=d(9)=0.75（同折定案——旧 f≡1 已废）");
+            var fbBlueCard = MakeCostCard(Cardtype.Spell, null, null, fbEffect);
+            fbBlueCard.RefundColor = (int)ManaType.Blue;
+            var fbBlue = CardCostService.Derive(fbBlueCard);
+            Assert(fbBlue.DerivedCost.GetValueOrDefault(ManaType.Red) == 3 && fbBlue.DerivedCost.GetValueOrDefault(ManaType.Blue) == 0,
+                   "计价锚：减免落色自标（2026-10-02）——底盘退2落蓝 → 红3+蓝0（玩家自标优先，桶尽回落默认）");
             Assert(DeriveTotal(MakeCostCard(Cardtype.Spell, null, null, MakeEffect("Heal", 2))) == 0,
                    "计价锚：回2命 = 0费（表价1 − 底盘退2 下限0）");
 
@@ -4620,6 +4631,211 @@ namespace CardCore.Editor
                 EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
                 RestoreBanks(core, p1, p2, banks3);
             }
+        }
+
+        /// <summary>
+        /// 三类卡型定案回归（2026-10-02，与 TideServer verify V9 段同口径）：
+        /// ①法术同折——f=d(声明档位) 对法术不再豁免（旧「打出即生效 f≡1」已废），与生物同口径；
+        /// ②域数据——伤害族开放无生命域 3,4（法术伤害可消耐久）；冻结域收紧 1,2（对结界无效）；
+        /// ③结界耐久战斗侧——入场初始化耐久、受击（战斗/法术同管线）恒 -1 不落血、
+        ///   归零直送墓（Smashed 直毁不经死亡决策表）、SBA 生命管线不扫无生命单位；
+        /// ④攻击目标显式化——结界=合法攻击目标；非战场卡（FieldZone 英雄技能卡）不可被攻击。
+        /// 自开新局（合成卡组），不依赖卡表数据。
+        /// </summary>
+        private static void TestThreeCardTypes(GameCore core, Player p1, Player p2)
+        {
+            // ---- ① 法术同折（纯函数） ----
+            CardCore.CardCostResult Probe(Cardtype type, int tier)
+            {
+                var d = new CardData { ID = $"TT_probe_{type}_{tier}", CardName = "三类定案折扣探针", Supertype = type };
+                if (type == Cardtype.Creature) { d.Power = 2; d.Life = 2; }
+                d.Cost = new Dictionary<int, float> { { (int)ManaType.Gray, tier } };
+                d.Effects.Add(new CardEffectData
+                {
+                    Id = "TT_probe_onplay",
+                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: 3) },
+                });
+                return CardCore.CardCostService.Derive(d);
+            }
+            var spell1 = Probe(Cardtype.Spell, 1);
+            var spell8 = Probe(Cardtype.Spell, 8);
+            var creature8 = Probe(Cardtype.Creature, 8);
+            Assert(Mathf.Approximately(spell1.Factor, 1f), $"三类定案：法术低档 f=d(1)={spell1.Factor:0.###}=1");
+            Assert(spell8.Factor < 0.99f && spell8.Factor > 0.7f,
+                   $"三类定案：法术高档同折 f=d(8)={spell8.Factor:0.###}（旧 f≡1 豁免已废）");
+            Assert(Mathf.Abs(spell8.Factor - creature8.Factor) < 1e-4f, "三类定案：法术与生物同档同折");
+            Assert(spell8.DerivedTotal < spell1.DerivedTotal,
+                   $"三类定案：高档推导价更低 D(8)={spell8.DerivedTotal} < D(1)={spell1.DerivedTotal}");
+
+            // ---- ② 域数据（表级） ----
+            void AssertKinds(AtomicEffectType type, int[] expect, string what)
+            {
+                var row = CardCore.Attribute.AtomicEffectTable.GetByType(type);
+                Assert(row != null, $"{what}：表行存在");
+                if (row == null) return;
+                var kinds = row.GetTargetKindList().OrderBy(x => x).ToArray();
+                Assert(kinds.SequenceEqual(expect.OrderBy(x => x)),
+                       $"{what}：TargetKinds=[{string.Join(",", kinds)}]");
+            }
+            AssertKinds(AtomicEffectType.DealDamage, new[] { 1, 2, 3, 4 }, "伤害族开放无生命域·造成伤害");
+            AssertKinds(AtomicEffectType.PierceDamage, new[] { 1, 2, 3, 4 }, "伤害族开放无生命域·穿透");
+            AssertKinds(AtomicEffectType.DrainLife, new[] { 1, 2, 3, 4 }, "伤害族开放无生命域·吸取");
+            AssertKinds(AtomicEffectType.Freeze, new[] { 1, 2 }, "冻结域收紧有生命域（对结界无效）");
+
+            // ---- ③④ 结界耐久全流程（自开新局，合成卡组） ----
+            var filler = Enumerable.Range(0, 8).Select(i => new CardData
+            {
+                ID = $"TT_fill_{i}", CardName = "三类填充" + i, Supertype = Cardtype.Creature, Power = 1, Life = 1,
+            }).ToList();
+            core.InitGame(CardLoader.BuildDeck(filler, 2), CardLoader.BuildDeck(filler, 2));
+            p1 = core.Player1;
+            p2 = core.Player2;
+            GameActions.SkipElementPool(core, p1);
+
+            var ench = InjectCard(core, p1, new CardData
+            {
+                ID = "TT_ench", CardName = "耐久结界", Supertype = Cardtype.Enchantment, Durability = 3,
+            });
+            Assert(GameActions.PlayCard(core, p1, ench), "结界从手牌发动（无效果免费卡）");
+            GameActions.DrainStack(core);
+            Assert(ench.GetZone() == Zone.Battlefield, "结界两步式：发动区→进入战场");
+            Assert(ench.GetCounterCount(CardCore.Attribute.CounterRules.DurabilityCounter) == 3,
+                   "结界入场初始化耐久=3（CardPutToBattlefieldEvent 驱动）");
+            core.SBAEngine.ExecuteAll();
+            Assert(ench.IsAlive && ench.GetZone() == Zone.Battlefield,
+                   "SBA 不扫无生命单位（旧「结界被当 0 防御送墓」bug 回归锚）");
+
+            int lifeBefore = core.LayerEngine.CalculateToughness(ench); // 公开口径读有效生命（internal _life 编辑器程序集不可见）
+            int dealt = CardCore.Attribute.KeywordRules.ApplyDamage(p2, ench, 5, isCombat: true);
+            Assert(dealt == 1, $"战斗伤害对结界有效伤害钳 1（实际 {dealt}）");
+            Assert(ench.GetCounterCount(CardCore.Attribute.CounterRules.DurabilityCounter) == 2,
+                   "5 点战斗伤害只掉 1 耐久");
+            Assert(core.LayerEngine.CalculateToughness(ench) == lifeBefore, "结界受击不落血（绕过生命管线）");
+            CardCore.Attribute.KeywordRules.ApplyDamage(p1, ench, 3, isCombat: false);
+            Assert(ench.GetCounterCount(CardCore.Attribute.CounterRules.DurabilityCounter) == 1,
+                   "法术伤害同耐久管线 -1");
+
+            CardCore.DestroyReason? reason = null;
+            System.Action<CardCore.CardDestroyEvent> onDest = e => { if (e.DestroyedCard == ench) reason = e.Reason; };
+            EventManager.Instance.Subscribe(onDest);
+            try
+            {
+                CardCore.Attribute.KeywordRules.ApplyDamage(p1, ench, 1, isCombat: false);
+                Assert(ench.GetZone() == Zone.Graveyard, "结界耐久归零直送墓");
+                Assert(reason == CardCore.DestroyReason.Smashed,
+                       $"死因=Smashed 无生命直毁（实际 {reason}），不经死亡决策表");
+            }
+            finally { EventManager.Instance.Unsubscribe(onDest); }
+
+            var attacker = new CardWrapper(new CardData
+            {
+                ID = "TT_atk", CardName = "三类攻击者", Supertype = Cardtype.Creature, Power = 2, Life = 2,
+            });
+            attacker.SetController(p2);
+            Assert(core.ZoneManager.TryAddToBattlefield(attacker, p2), "攻击者入场");
+            attacker.Untap();
+            var ench2 = new CardWrapper(new CardData
+            {
+                ID = "TT_ench2", CardName = "耐久结界2", Supertype = Cardtype.Enchantment, Durability = 2,
+            });
+            ench2.SetController(p1);
+            Assert(core.ZoneManager.TryAddToBattlefield(ench2, p1), "第二张结界入场");
+            Assert(core.CombatSystem.CanAttackTarget(attacker, ench2, p2), "结界=合法攻击目标");
+            foreach (var fc in core.ZoneManager.GetCards(p1, Zone.FieldZone))
+                Assert(!core.CombatSystem.CanAttackTarget(attacker, fc, p2), "非战场卡（技能卡）不可被攻击");
+
+            var victim = new CardWrapper(new CardData
+            {
+                ID = "TT_victim", CardName = "三类受害者", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+            });
+            victim.SetController(p1);
+            Assert(core.ZoneManager.TryAddToBattlefield(victim, p1), "受害者入场");
+            CardCore.Attribute.KeywordRules.ApplyDamage(attacker, victim, 1, isCombat: true);
+            Assert(!victim.IsAlive, "生物 1 伤致死：标死路径不变（回归锚）");
+            core.SBAEngine.ExecuteAll();
+            Assert(victim.GetZone() == Zone.Graveyard, "生物死亡经 SBA 送墓（回归锚）");
+
+            // ---- ⑤ 主动效果计价口径（2026-10-02 定案，与 TideServer V9.d 同口径） ----
+            var actCard = new CardData { ID = "TT_act", CardName = "启动式探针", Supertype = Cardtype.Creature, Power = 1, Life = 1 };
+            actCard.Effects.Add(new CardEffectData
+            {
+                Id = "TT_act_ab",
+                TriggerTiming = (int)TriggerTiming.Activate_Active,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: 2) },
+            });
+            Assert(CardCore.CardCostService.Derive(actCard).EAnchor == 0,
+                   "主动效果：启动式不进 E 桶（锚价运行时现付，2026-09-08 定案回归锚）");
+            var mixCard = new CardData { ID = "TT_mix", CardName = "混合探针", Supertype = Cardtype.Creature, Power = 1, Life = 1 };
+            mixCard.Effects.Add(new CardEffectData
+            {
+                Id = "TT_mix_act",
+                TriggerTiming = (int)TriggerTiming.Activate_Active,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: 2) },
+            });
+            mixCard.Effects.Add(new CardEffectData
+            {
+                Id = "TT_mix_onplay",
+                TriggerTiming = (int)TriggerTiming.OnPlay,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+            });
+            Assert(CardCore.CostDerivationService.CountEffectSlots(mixCard) == 2,
+                   "主动效果：启动式照常计效果槽（占用维持定案——AI 每卡原子数上限的可见性锚）");
+
+            Assert(ComposerCatalog.IsKeywordStyleGrant(AtomicEffectType.GrantLifesteal)
+                   && !ComposerCatalog.IsKeywordStyleGrant(AtomicEffectType.GrantMagnify),
+                   "主动效果：关键词型判定（自指域 Grant=关键词型；赋予型不受限）");
+            var kwAct = new CardEffectData
+            {
+                Id = "TT_kw_act",
+                TriggerTiming = (int)TriggerTiming.Activate_Instant,
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    AtomRefs.New(AtomicEffectType.GrantLifesteal),
+                    AtomRefs.New(AtomicEffectType.DealDamage, value: 1),
+                },
+            };
+            var kwDef = CardEffectConverter.ConvertOne(kwAct, "TT_src");
+            Assert(!kwDef.Effects.Any(a => a.Type == AtomicEffectType.GrantLifesteal)
+                   && kwDef.Effects.Any(a => a.Type == AtomicEffectType.DealDamage),
+                   "主动效果：启动式内关键词型 Grant 被剔除、非关键词原子保留");
+            var grantDef = CardEffectConverter.ConvertOne(new CardEffectData
+            {
+                Id = "TT_grant_act",
+                TriggerTiming = (int)TriggerTiming.Activate_Active,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.GrantMagnify, value: 1) },
+            }, "TT_src");
+            Assert(grantDef.Effects.Any(a => a.Type == AtomicEffectType.GrantMagnify),
+                   "主动效果：赋予型 Grant 做启动式放行（赋予关键词可以）");
+
+            // ---- ⑥ 发动方式钉死（2026-10-02 定案，与 TideServer V9.e 同口径） ----
+            var volBad = CardEffectConverter.ConvertOne(new CardEffectData
+            {
+                Id = "TT_vol_bad",
+                ActivationType = (int)EffectActivationType.Voluntary,
+                TriggerTiming = (int)TriggerTiming.OnPlay,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: 1) },
+            }, "TT_src");
+            Assert(volBad.TriggerTiming == TriggerTiming.Activate_Active && !volBad.ElementCostPrepaid,
+                   "发动方式钉死：主动+触发时机 → Activate_Active 且按启动式计费（锚价现付）");
+            var volInstant = CardEffectConverter.ConvertOne(new CardEffectData
+            {
+                Id = "TT_vol_inst",
+                ActivationType = (int)EffectActivationType.Voluntary,
+                TriggerTiming = (int)TriggerTiming.Activate_Instant,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: 1) },
+            }, "TT_src");
+            Assert(volInstant.TriggerTiming == TriggerTiming.Activate_Instant,
+                   "发动方式钉死：主动+Activate_Instant 合法组合原样保留");
+            var actMand = CardEffectConverter.ConvertOne(new CardEffectData
+            {
+                Id = "TT_act_mand",
+                ActivationType = (int)EffectActivationType.Mandatory,
+                TriggerTiming = (int)TriggerTiming.Activate_Active,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: 1) },
+            }, "TT_src");
+            Assert(actMand.ActivationType == EffectActivationType.Voluntary,
+                   "发动方式钉死：启动式+强制 → 覆写回主动（对称校验回归锚）");
         }
 
         /// <summary>原子三阶段统一路由（P0.2）：每阶段恰发布一次 + OnAtomicEffectResolution 触发式可达。</summary>

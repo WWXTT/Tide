@@ -49,7 +49,8 @@ namespace CardCore.Attribute
         public const string IceCrystal = "IceCrystal";
         /// <summary>梦魇（2026-09-13 改写定案，黑2）：造成战斗伤害时，改为对目标添加一个沉睡指示物</summary>
         public const string Nightmare = "Nightmare";
-        /// <summary>病原体（2026-09-13 改写定案，绿5）：造成战斗伤害时，改为对目标添加一个剧毒指示物</summary>
+        /// <summary>病原体（2026-09-13 改写定案，绿3——表 BaseCost=3.0 为计价真相源，2026-10-02 对齐）：
+        /// 造成战斗伤害时，改为对目标添加一个剧毒指示物</summary>
         public const string Pathogen = "Pathogen";
         /// <summary>禁魔石（2026-09-13 改写定案，白3）：受到的非战斗伤害变为 0</summary>
         public const string Spellban = "Spellban";
@@ -288,7 +289,10 @@ namespace CardCore.Attribute
             // 病原体→剧毒（绿5）。固定序取第一个命中（多关键词不叠加改写）；
             // 角色（打脸）也改写——毒素/剧毒落角色有效，冻结/沉睡对角色空转；穿透伤害不经防护层，恒可改写。
             // 施加口径收口 ApplyRewriteCounter（2026-09-22：与拦截式改写门共用，防两套漂移）。
-            if (isCombat && source != null && source.IsAlive)
+            // 2026-10-02 结界实装：改写只对活体/角色生效——无生命单位（结界）不是状态宿主
+            //（冻结/沉睡对其无效），改写命中等价"伤害被无效化"，故跳过改写走耐久管线。
+            if (isCombat && source != null && source.IsAlive
+                && !(target is Card rwCard && rwCard.IsNonLivingUnit()))
             {
                 string combatRewrite =
                     source.HasKeyword(PoisonSting) ? PoisonSting :
@@ -307,20 +311,33 @@ namespace CardCore.Attribute
             int oldLife = (target as Player)?.Life ?? 0; // 生命变化播报用
             if (target is Card card)
             {
-                card._life -= amount;
-                int auraLife = GameBoard.LinkAuraSystem.GetLifeBonus(card);
-                if (card._life + auraLife <= 0)
+                // 无生命单位（战场结界，2026-10-02 定案）：伤害不落血——受击恒 -1 耐久
+                //（战斗/法术伤害同口径，与替代/防护层串行：完全挡住=不受击）；归零直送墓在
+                // LoseDurability 内收口（Smashed 直毁，不经死亡决策表）。
+                // 有效伤害钳 1：DamageEvent/吸血/系命/返回值同源（耐久口径=每次受击 1 点）。
+                if (card.IsNonLivingUnit())
                 {
-                    card._life = 0;
-                    if (!DeathRules.IsShielded(card, DeathCause.DamageLethal))
+                    amount = 1;
+                    CounterRules.LoseDurability(CardCore.GameCore.Instance, card, 1,
+                        isCombat ? "战斗伤害" : "效果伤害");
+                }
+                else
+                {
+                    card._life -= amount;
+                    int auraLife = GameBoard.LinkAuraSystem.GetLifeBonus(card);
+                    if (card._life + auraLife <= 0)
                     {
-                        card._pendingDeathCause = DeathCause.DamageLethal;
-                        card._pendingDeathSource = source;
-                        card.IsAlive = false;
-                    }
-                    else if (auraLife > 0)
-                    {
-                        card._life = 1 - auraLife; // 护盾拦下：以有效生命 1 存活（无光环保持原样=0 存活）
+                        card._life = 0;
+                        if (!DeathRules.IsShielded(card, DeathCause.DamageLethal))
+                        {
+                            card._pendingDeathCause = DeathCause.DamageLethal;
+                            card._pendingDeathSource = source;
+                            card.IsAlive = false;
+                        }
+                        else if (auraLife > 0)
+                        {
+                            card._life = 1 - auraLife; // 护盾拦下：以有效生命 1 存活（无光环保持原样=0 存活）
+                        }
                     }
                 }
             }

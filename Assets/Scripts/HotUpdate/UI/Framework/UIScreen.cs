@@ -115,6 +115,10 @@ namespace SynergyUI
             return hit;
         }
 
+        /// <summary>在 Root 下深度按名查找节点；找不到静默返回 null（可选节点用——
+        /// 典型如弹层挂载点 overlay/selector-overlay：预制体不烘焙，缺失由 UiKit.Overlay 运行时补建）。</summary>
+        protected RectTransform FindOptional(string name) => UiKit.FindDeep(Root, name);
+
         /// <summary>深度查找 TMP 文本（文本在节点自身或其子级均可——兼容徽标/chip 的"节点+子label"烘焙结构）。</summary>
         protected TMP_Text FindText(string name)
         {
@@ -132,7 +136,7 @@ namespace SynergyUI
                 if (rt != null) Debug.LogError($"[{GetType().Name}] 节点无 Button 组件：{name}");
                 return null;
             }
-            btn.onClick.AddListener(() => onClick?.Invoke());
+            btn.onClick.AddListener(() => { Debug.Log($"[UI点击] {name}"); onClick?.Invoke(); });
             return btn;
         }
 
