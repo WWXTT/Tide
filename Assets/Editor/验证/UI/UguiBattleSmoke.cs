@@ -19,14 +19,18 @@ namespace Tide.验证
     {
         private const string MenuPath = "Tools/验证/UI对战冒烟";
 
+        /// <summary>旧对战 HUD 退役开关（true=SKIP）。战场 3D 重做中（2026-10-02 定案）；
+        /// 2026-10-03 BattleUI.prefab 已按「扇形手牌过渡面」重建（Tools/验证/对战UI/BattleUI预制体装配），
+        /// 本冒烟断言的旧 HUD（信息栏/六行战场/手牌槽/战报/投降）未回归——过渡面验证走手牌扇形冒烟。
+        /// 3D 战场层就位后按新架构重写本冒烟；临时复跑旧断言置 false。</summary>
+        private static bool LegacyHudRetired => true;
+
         [MenuItem(MenuPath)]
         public static async void Run()
         {
-            // 战场 UI 已删除（2026-10-02 定案：战场改 3D + 部分透明 UI 重做，旧 uGUI 预制体无指导意义，
-            // BattleScreen 现为空屏桩）——本冒烟 SKIP；待 3D 战场层就位后按新架构重写。
-            if (!System.IO.File.Exists("Assets/Art/UI/BattleUI.prefab"))
+            if (LegacyHudRetired)
             {
-                Debug.Log("[UguiBattleSmoke]\n  SKIP：战场 UI 已下线（3D 重做中），对战 HUD 冒烟停用");
+                Debug.Log("[UguiBattleSmoke]\n  SKIP：旧对战 HUD 冒烟停用（3D 重做中）；过渡面验证走 Tools/验证/手牌扇形冒烟");
                 return;
             }
             var sb = new StringBuilder("[UguiBattleSmoke]\n");

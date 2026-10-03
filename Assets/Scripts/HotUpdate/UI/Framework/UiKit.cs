@@ -27,6 +27,15 @@ namespace SynergyUI
     /// </summary>
     public static class UiKit
     {
+        // ================= 预制体寻址（单一声明点） =================
+
+        /// <summary>UI 预制体统一目录（YooAsset 收集器 UI 组 CollectPath 同址）。</summary>
+        public const string PrefabFolder = "Assets/Art/UI/";
+
+        /// <summary>预制体名（不含扩展名）→ 编辑器兜底 Assets 路径。
+        /// YooAsset 地址=同名（AddressByFileName）——路径/地址不再各处拼字符串。</summary>
+        public static string PrefabPath(string name) => $"{PrefabFolder}{name}.prefab";
+
         // ================= 帧驱动 =================
 
         /// <summary>
@@ -77,7 +86,10 @@ namespace SynergyUI
                 case Slider s:
                     s.onValueChanged.AddListener(_ => Report());
                     break;
-                // Dropdown（自绘）不是 Component——描述挂其头部按钮（Button 分支即覆盖）
+                case TMP_Dropdown d:
+                    d.onValueChanged.AddListener(_ => Report());
+                    break;
+                // 自绘 Dropdown 头=Button（Button 分支即覆盖）；真 TMP_Dropdown 走上面独立分支
             }
             return c;
         }
@@ -300,6 +312,19 @@ namespace SynergyUI
                 if (t != root && t.name == name) return t;
             }
             return null;
+        }
+
+        /// <summary>深度按名收集全部同名后代（含未激活）。预制体手工改造期可能出现新旧同名节点
+        /// 并存（如旧自绘下拉头未删+新 TMP 下拉同名），绑定侧按"含 TMP_Dropdown 优先"裁决。</summary>
+        public static List<RectTransform> FindDeepAll(RectTransform root, string name)
+        {
+            var hits = new List<RectTransform>();
+            if (root == null || string.IsNullOrEmpty(name)) return hits;
+            foreach (var t in root.GetComponentsInChildren<RectTransform>(true))
+            {
+                if (t != root && t.name == name) hits.Add(t);
+            }
+            return hits;
         }
 
         /// <summary>空节点（默认拉伸铺满父节点；进布局组后由布局接管，无需关心锚点）。</summary>
@@ -811,6 +836,7 @@ namespace SynergyUI
 
             private readonly List<string> _options = new List<string>();
             private readonly UButton _head;
+            private readonly TMP_Dropdown _tmp;
             private readonly RectTransform _popupLayer;
             private readonly float? _fixedWidth;
             private GameObject _open;
@@ -844,10 +870,39 @@ namespace SynergyUI
                 SetOptions(options, index);
             }
 
+            /// <summary>驱动预制体烘焙的真 TMP_Dropdown（2026-10-03 手改预制体定案：下拉以
+            /// TMP_Dropdown 形态挂在节点本体，选项/取值经本包装统一进出，弹层由 TMP 自理）。</summary>
+            public Dropdown(TMP_Dropdown tmp, IEnumerable<string> options, int index,
+                Action<int, string> onChanged = null)
+            {
+                _tmp = tmp;
+                Root = (RectTransform)_tmp.transform;
+                if (onChanged != null) Changed += onChanged;
+                _tmp.onValueChanged.AddListener(OnTmpChanged);
+                SetOptions(options, index);
+            }
+
+            private void OnTmpChanged(int i)
+            {
+                Index = i;
+                Value = i >= 0 && i < _options.Count ? _options[i] : "";
+                Debug.Log($"[UI点击] 下拉选择：{_tmp.name} → {Value}");
+                Changed?.Invoke(Index, Value);
+            }
+
+            /// <summary>挂属性描述（两种头通用：TMP 头挂 TMP_Dropdown，自绘头挂头部按钮）。</summary>
+            public void Describe(string text) =>
+                Described(_tmp != null ? (Component)_tmp : (Component)_head, text);
+
             public void SetOptions(IEnumerable<string> options, int index, bool notify = false)
             {
                 _options.Clear();
                 _options.AddRange(options);
+                if (_tmp != null)
+                {
+                    _tmp.ClearOptions();
+                    _tmp.AddOptions(new List<string>(_options));
+                }
                 SetIndex(index, notify);
             }
 
@@ -862,6 +917,13 @@ namespace SynergyUI
                 {
                     Index = Mathf.Clamp(index, 0, _options.Count - 1);
                     Value = _options[Index];
+                }
+                if (_tmp != null)
+                {
+                    _tmp.SetValueWithoutNotify(Index);
+                    _tmp.RefreshShownValue();
+                    if (notify) Changed?.Invoke(Index, Value);
+                    return;
                 }
                 var label = _head.GetComponentInChildren<TMP_Text>();
                 if (label != null)

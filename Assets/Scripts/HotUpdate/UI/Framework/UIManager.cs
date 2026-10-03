@@ -82,6 +82,7 @@ namespace SynergyUI
         private void Activate(UIScreen screen)
         {
             screen.Mount(this, _root); // Bind → 建/实例化 Root → Build（绑定）→ OnEnter
+            BattleStageDirector.OnScreenActivated(screen); // 舞台态：主菜单=黑洞 / 战场自装台 / 其它屏隐藏黑洞
         }
 
         private void Deactivate(UIScreen screen)

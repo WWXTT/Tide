@@ -659,7 +659,7 @@ namespace CardCore
             cardData.NoGuard = entry.noGuard;
             cardData.SurplusToSpeed = entry.surplusToSpeed;
 
-            // 结界耐久（2026-09-24 定案）：数据字段先行采集，战斗侧执行待做
+            // 结界耐久（2026-09-24 定案）：战斗侧已实装（CounterRules.LoseDurability + 零坚韧 SBA，TideServer V9.c 全流程回归）——本行只做数据采集
             cardData.Durability = entry.durability;
 
             // 底盘退费落色（2026-10-02 定案：玩家自标）——计价推导口径，不影响运行时支付

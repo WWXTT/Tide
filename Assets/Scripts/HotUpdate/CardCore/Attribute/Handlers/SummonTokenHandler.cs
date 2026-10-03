@@ -53,10 +53,11 @@ namespace CardCore.Attribute.Handlers
 
             for (int i = 0; i < count; i++)
             {
-                // 全参数工厂 + 对局临时实例 ID
+                // 全参数工厂 + 对局临时实例 ID（IsToken：衍生物不作地牌——2026-10-03 地牌资格定案）
                 var token = new CardWrapper(template)
                 {
-                    ID = $"{templateId}#{CardCore.TimestampSystem.NextSequence}"
+                    ID = $"{templateId}#{CardCore.TimestampSystem.NextSequence}",
+                    IsToken = true,
                 };
                 token.SetController(context.Controller);
 

@@ -14,7 +14,7 @@ namespace HexMap
     {
         private const float SmoothLambda = 0.1f;   // DP 目标的相邻项权重
 
-        public static void Generate(HexFeatureSnapshot snap, in HexRoadSettings cfg,
+        public static void Generate(HexFeatureSnapshot snap, in HexRoadSettings cfg, in HexBoardRegion board,
             List<HexPoiData> pois, HexFeatureState state)
         {
             var nodes = new List<(int2 Off, float Radius)>();
@@ -22,7 +22,8 @@ namespace HexMap
             {
                 foreach (var poi in pois)
                 {
-                    if (poi.Type == PoiType.RoadNode && snap.InBounds(poi.CellOffset))
+                    if (poi.Type == PoiType.RoadNode && snap.InBounds(poi.CellOffset) &&
+                        !InBoard(board, poi.CellOffset)) // 棋盘内不设路点
                         nodes.Add((poi.CellOffset, poi.Radius));
                 }
             }
@@ -30,10 +31,14 @@ namespace HexMap
                 return;   // 无路网点 → 跳过道路
 
             foreach (var (a, b) in SelectConnections(snap, cfg, nodes))
-                BuildRoad(snap, cfg, a, b, nodes, state);
+                BuildRoad(snap, cfg, board, a, b, nodes, state);
 
             BuildRoadDistanceMap(snap, state);
         }
+
+        /// <summary>棋盘矩形判定（2026-10-03）：矩形内不是路点也不可通过——道路绕棋盘外走。</summary>
+        private static bool InBoard(in HexBoardRegion b, int2 o)
+            => b.enabled && o.x >= b.minX && o.x <= b.maxX && o.y >= b.minZ && o.y <= b.maxZ;
 
         // ── 5.1 连接选择 ────────────────────────────────────────────
 
@@ -107,10 +112,10 @@ namespace HexMap
 
         // ── 5.2 Dijkstra 寻路 ───────────────────────────────────────
 
-        private static void BuildRoad(HexFeatureSnapshot snap, in HexRoadSettings cfg,
+        private static void BuildRoad(HexFeatureSnapshot snap, in HexRoadSettings cfg, in HexBoardRegion board,
             int a, int b, List<(int2 Off, float Radius)> nodes, HexFeatureState state)
         {
-            var path = FindPath(snap, cfg, nodes[a].Off, nodes[b].Off, nodes);
+            var path = FindPath(snap, cfg, board, nodes[a].Off, nodes[b].Off, nodes);
             if (path == null || path.Count < 2)
                 return;   // 寻路失败（图恒连通，理论不可达）→ 放弃该对
 
@@ -133,7 +138,7 @@ namespace HexMap
             });
         }
 
-        private static List<int2> FindPath(HexFeatureSnapshot snap, in HexRoadSettings cfg,
+        private static List<int2> FindPath(HexFeatureSnapshot snap, in HexRoadSettings cfg, in HexBoardRegion board,
             int2 start, int2 goal, List<(int2 Off, float Radius)> nodes)
         {
             int w = snap.CellCount.x, h = snap.CellCount.y;
@@ -187,8 +192,8 @@ namespace HexMap
                 for (int d = 0; d < 6; d++)
                 {
                     var n = HexBoundary.NeighborOffset(cur, (HexDirection)d);
-                    if (!snap.InBounds(n) || done[n.x, n.y])
-                        continue;
+                    if (!snap.InBounds(n) || done[n.x, n.y] || InBoard(board, n))
+                        continue;   // 棋盘格不可通过（硬约束：路不入棋盘）
 
                     int de = math.abs(snap.GetElev(n) - snap.GetElev(cur));
                     float cost = 1f

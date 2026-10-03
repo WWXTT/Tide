@@ -157,6 +157,8 @@ namespace HexMap
                 foreach (var kv in lookup)
                 {
                     var offset = kv.Key;
+                    if (HexMapTerrainMath.InBoardRect(ref blob, offset))
+                        continue;   // 棋盘矩形内无植被（2026-10-03 战场棋盘平整纯色）
                     var cell = em.GetComponentData<HexCellData>(kv.Value);
                     if (cell.Elevation < 0)
                         continue;

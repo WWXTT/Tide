@@ -1102,5 +1102,89 @@
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
     "MountKinds": "0,1,4,5,10"
+  },
+  {
+    "ID": "e4581ec4",
+    "EnumName": "三相仪典",
+    "DisplayName": "规则光环（双方生效）：自己每消耗3点同色纯元素，获得红/蓝/绿各1",
+    "EffectColor": "Blue",
+    "BaseCost": 3.0,
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "0"
+  },
+  {
+    "ID": "4219aaea",
+    "EnumName": "血偿仪典",
+    "DisplayName": "规则光环（双方生效）：自己支付的生命代价改由对手支付",
+    "EffectColor": "Black",
+    "BaseCost": 3.0,
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "0"
+  },
+  {
+    "ID": "914a59e3",
+    "EnumName": "丰盈仪典",
+    "DisplayName": "规则光环（双方生效）：角色单次受到的伤害不超过5点",
+    "EffectColor": "White",
+    "BaseCost": 3.0,
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "0"
+  },
+  {
+    "ID": "3b28df38",
+    "EnumName": "窥渊仪典",
+    "DisplayName": "规则光环（双方生效）：每回合开始时，回合玩家锁定对手一张已展示的卡至回合结束",
+    "EffectColor": "Blue",
+    "BaseCost": 2.0,
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "0"
+  },
+  {
+    "ID": "a1ea9962",
+    "EnumName": "归土仪典",
+    "DisplayName": "规则光环（双方生效）：每回合一次，可从自己墓地使用一张牌（视为手牌中使用）",
+    "EffectColor": "Green",
+    "BaseCost": 3.0,
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "0"
+  },
+  {
+    "ID": "d5dc90ed",
+    "EnumName": "疾风仪典",
+    "DisplayName": "规则光环（双方生效）：每个玩家连续进行两个回合",
+    "EffectColor": "Red",
+    "BaseCost": 5.0,
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "0"
+  },
+  {
+    "ID": "b6170161",
+    "EnumName": "纳川仪典",
+    "DisplayName": "规则光环（双方生效）：手牌上限提升至15，且免疫空库抽牌疲劳",
+    "EffectColor": "Blue",
+    "BaseCost": 2.0,
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "0"
   }
 ]

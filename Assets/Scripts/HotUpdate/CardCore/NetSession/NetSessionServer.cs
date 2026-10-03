@@ -48,6 +48,8 @@ namespace CardCore.Network
         {
             IsRunning = false;
             _host.Stop();
+            _room.TeardownIfActive(); // 2026-10-03：兑现「拆对局接线」——不再 Pump 观察不到断线，
+                                      // 反问桥若不在此卸载会残留全局（TargetSelectionService.Current）
             _log?.Invoke("[NetSession] 已停止");
         }
 

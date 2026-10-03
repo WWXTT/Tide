@@ -211,7 +211,8 @@ namespace CardCore.Attribute.Handlers
     /// 采掘（2026-09-08 新增原子）：以一张己方地牌（元素池）为目标——
     /// 去除 3 个同类型元素指示物，获得 1 点对应元素入 bank。
     /// 净效果 = 牺牲该色 2 个指示物换 1 个即时元素：突破「每地牌每回合产出一次」的节流提前变现，
-    /// 代价是加速耗尽（指示物扣完即进墓）。目标资格由表行 TargetFilter=ElementPool 保证（兜底校验区域）。
+    /// 代价是加速耗尽（指示物扣完即进墓）。目标资格由 handler 兜底校验保证（Execute 内 IsCardInZone
+    /// 元素池区判定；表行 TargetFilter=NoRole 与地牌域语义无交集，2026-10-02 审核观察）。
     /// 选色（同类型 ≥3 才可采）：剩余最多者，并列取枚举序靠前（与结束阶段自动产色同口径，确定性）。
     /// </summary>
     public class MineHandler : AtomicEffectHandlerBase
@@ -410,6 +411,35 @@ namespace CardCore.Attribute.Handlers
                 }
                 else if (target is Player player)
                 {
+                    // 血偿规则光环（2026-10-03 规则轴定案）：自己支付的生命代价改由对手支付——
+                    // 流失自己=支付的语义判定不变（下方 ReferenceEquals），仅扣款对象转嫁；
+                    // 支付统计（LifePaymentCostEvent）仍记原玩家（MatchStats 口径不变）。
+                    if (ReferenceEquals(player, context.Controller) && RuleAuraComponents.BloodPactRedirectActive)
+                    {
+                        var payer = player.Opponent;
+                        int payerOld = payer.Life;
+                        payer.DecreaseMaxHealth(amount);
+                        PublishEvent(new LifeChangeEvent
+                        {
+                            Player = payer,
+                            OldLife = payerOld,
+                            NewLife = payer.Life,
+                            Source = context.Source
+                        });
+                        PublishEvent(new LifePaymentCostEvent
+                        {
+                            Player = player,
+                            Amount = amount,
+                            Source = context.Source
+                        });
+                        PublishEvent(new AtomicDamageEvent
+                        {
+                            Source = context.Source, Target = payer, Damage = amount,
+                            IsCombatDamage = false, DamageType = DamageType.LifeLoss
+                        });
+                        continue; // 原玩家不扣（转嫁完成，跳过常规流失路径）
+                    }
+
                     int oldLife = player.Life;
                     player.DecreaseMaxHealth(amount);
                     PublishEvent(new LifeChangeEvent

@@ -186,7 +186,7 @@ namespace CardCore
 
         private static void AccumulateElementCost(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, Dictionary<ManaType, int> byColor)
         {
-            var cfg = AtomicEffectTable.GetByType(atom.Type);
+            var cfg = ResolvePricingConfig(atom); // 行身份（2026-10-03）：变体行按 RowHashId 取锚
 
             // 动态数量（组合层）：费用计 0（2026-09-21 定案：不再关联地牌资格——地牌只看生物身份）。
             if (def.TargetCount == -1)
@@ -350,7 +350,11 @@ namespace CardCore
             // 固定数量：费用 ×N（N=组合层 TargetCount）；全部/任意语义无法在构建期确定——
             // 按**期望目标数**计（2026-09-13 用户定案：期望 4，少了亏多了赚，前期难超 4 生物同场）；
             // 固有全域原子（类型伤害/全体治疗）范围溢价已含 BaseCost，数量恒 ×1。
+            // 无目标域（2026-10-03 规则光环配套）：期望 4 是目标数量语义，无目标可乘——恒 ×1
+            //（否则规则光环按表锚价虚高 4 倍）。
             int n = QuantityMultiplier(atom.Type, def);
+            if ((domain == null || domain.Count == 0) && n > 1)
+                n = 1;
             if (n > 1) amount *= n;
 
             // 触发上限计价（2026-09-13 定案）：多次触发连乘 1.2^(N-1)；显式无限(-1)=×1.2³
@@ -359,7 +363,34 @@ namespace CardCore
             if (triggerFactor > 1f)
                 amount = (int)Math.Round(amount * triggerFactor, MidpointRounding.AwayFromZero);
 
+            // 双方同时作用减半（2026-10-03 用户定案）：效果同时作用于双方——双侧域 + 全取档/显式多目标
+            //（双方全体恢复/双方各消灭一生物），或无目标域的规则光环（ModifyGameRule 语义即对双方）——
+            // 计费 ×0.5（对称面让利）；单侧锁/双侧域单体任选一侧不減。
+            if (IsSymmetricBothSides(atom, def, domain))
+                amount = (int)Math.Round(amount * SymmetricDiscountFactor, MidpointRounding.AwayFromZero);
+
             return amount;
+        }
+
+        /// <summary>双方同时作用减半系数（2026-10-03 用户定案）。</summary>
+        public const float SymmetricDiscountFactor = 0.5f;
+
+        /// <summary>
+        /// 是否「同时作用双方」（2026-10-03 用户定案减半口径）：
+        /// - 无目标域 + ModifyGameRule（规则光环——语义即对双方生效）；
+        /// - 双侧域（SideLock=0 且域非空）且 全取档（SelectionModeRules.IsTakeAll）或显式声明多目标
+        ///   （TargetCount≥2——哨兵 -2/0=未声明「任意」不算，防宽域单体卡误减）。
+        /// 单侧锁（可按最优边全价）与双侧域单体任选一侧均不減。
+        /// </summary>
+        public static bool IsSymmetricBothSides(AtomicEffectInstance atom, EffectDefinition def, List<int> domain)
+        {
+            if (atom != null && atom.Type == AtomicEffectType.ModifyGameRule
+                && (domain == null || domain.Count == 0))
+                return true;
+            if (domain == null || domain.Count == 0) return false;
+            if (SideLock(domain) != 0) return false;
+            return SelectionModeRules.IsTakeAll(def != null ? def.SelectionMode : 0)
+                   || (def != null && def.TargetCount >= 2);
         }
 
         /// <summary>
@@ -521,7 +552,7 @@ namespace CardCore
             float polarity = atom.Polarity;
             if (polarity == 0f) return 0;
 
-            var cfg = AtomicEffectTable.GetByType(atom.Type);
+            var cfg = ResolvePricingConfig(atom); // 行身份（2026-10-03）：变体行按 RowHashId 取锚
             int baseAmount = ComputeAtomBaseAmount(atom, def, cfg);
             if (baseAmount <= 0) return 0;
             return (int)Math.Round(baseAmount * Math.Abs(polarity), MidpointRounding.AwayFromZero);
@@ -535,7 +566,7 @@ namespace CardCore
             if (atom.Polarity != 0f)
                 return ComputeAtomUnitGrant(atom, PayloadGrantDef);
 
-            var cfg = AtomicEffectTable.GetByType(atom.Type);
+            var cfg = ResolvePricingConfig(atom); // 行身份（2026-10-03）：变体行按 RowHashId 取锚
             return ComputeAtomBaseAmount(atom, PayloadGrantDef, cfg);
         }
 
@@ -616,6 +647,20 @@ namespace CardCore
             if (own && !enemy) return -1;
             if (enemy && !own) return 1;
             return 0;
+        }
+
+        /// <summary>计价取行（2026-10-03 行身份修复）：同枚举多行（变体行各自锚价——如规则光环 7 行、
+        /// 洗回/洗入）时按实例来源行（RowHashId，converter 填）取锚；null/缺行回落 GetByType
+        ///（末行覆写，旧口径——手工构造实例与历史路径兼容）。</summary>
+        private static AtomicEffectConfig ResolvePricingConfig(AtomicEffectInstance atom)
+        {
+            if (atom == null) return null;
+            if (!string.IsNullOrEmpty(atom.RowHashId))
+            {
+                var byRow = AtomicEffectTable.GetByHashId(atom.RowHashId);
+                if (byRow != null) return byRow;
+            }
+            return AtomicEffectTable.GetByType(atom.Type);
         }
 
         /// <summary>卡牌是否含抉择（Choice）步骤（任一效果的 Steps 含 kind==2 且 choices≥2）。</summary>

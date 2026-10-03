@@ -23,15 +23,19 @@ namespace HexMap
         /// </summary>
         public const float RiverDepth = 0.35f;
 
-        public static void Generate(HexFeatureSnapshot snap, in HexRiverSettings cfg,
+        public static void Generate(HexFeatureSnapshot snap, in HexRiverSettings cfg, in HexBoardRegion board,
             List<HexPoiData> pois, HexFeatureState state)
         {
             var bedWater = new Dictionary<int2, float>();   // 已定稿河床格 → 水面（后继河流 JoinRiver 校验用）
-            foreach (var spring in SelectSprings(snap, cfg, pois))
-                WalkRiver(snap, cfg, spring, state, bedWater);
+            foreach (var spring in SelectSprings(snap, cfg, board, pois))
+                WalkRiver(snap, cfg, board, spring, state, bedWater);
 
             BuildRiverDistanceMap(snap, state);
         }
+
+        /// <summary>棋盘矩形判定（2026-10-03）：矩形内不选泉眼、不入行走、不作河岸、不被湖淹——棋盘绝对平整。</summary>
+        private static bool InBoard(in HexBoardRegion b, int2 o)
+            => b.enabled && o.x >= b.minX && o.x <= b.maxX && o.y >= b.minZ && o.y <= b.maxZ;
 
         // ── 4.1 泉眼选择 ────────────────────────────────────────────
 
@@ -41,14 +45,15 @@ namespace HexMap
         /// 按 (高程 desc, offset 字典序) 排序贪心取 ≤ maxSprings 个，两两/与手动 POI 间距 ≥ springMinSpacing。
         /// </summary>
         private static List<int2> SelectSprings(HexFeatureSnapshot snap, in HexRiverSettings cfg,
-            List<HexPoiData> pois)
+            in HexBoardRegion board, List<HexPoiData> pois)
         {
             var accepted = new List<int2>();
             if (pois != null)
             {
                 foreach (var poi in pois)
                 {
-                    if (poi.Type == PoiType.RiverSpring && snap.InBounds(poi.CellOffset))
+                    if (poi.Type == PoiType.RiverSpring && snap.InBounds(poi.CellOffset) &&
+                        !InBoard(board, poi.CellOffset)) // 棋盘内不放泉眼
                         accepted.Add(poi.CellOffset);
                 }
             }
@@ -63,6 +68,8 @@ namespace HexMap
                 for (int x = 0; x < snap.CellCount.x; x++)
                 {
                     var o = new int2(x, z);
+                    if (InBoard(board, o))
+                        continue;   // 棋盘内恒 elevation 0，本就够不到阈值；显式排除防御未来调阈值
                     int e = snap.GetElev(o);
                     if (e < threshold)
                         continue;
@@ -108,8 +115,8 @@ namespace HexMap
 
         // ── 4.2 河流行走 ────────────────────────────────────────────
 
-        private static void WalkRiver(HexFeatureSnapshot snap, in HexRiverSettings cfg, int2 spring,
-            HexFeatureState state, Dictionary<int2, float> bedWater)
+        private static void WalkRiver(HexFeatureSnapshot snap, in HexRiverSettings cfg, in HexBoardRegion board,
+            int2 spring, HexFeatureState state, Dictionary<int2, float> bedWater)
         {
             int riverId = state.Rivers.Count;
             var path = new List<int2> { spring };
@@ -137,7 +144,7 @@ namespace HexMap
                     break;
                 }
 
-                var cands = OrderCandidates(snap, cur, prevDir, visited, history);
+                var cands = OrderCandidates(snap, cur, prevDir, visited, history, board);
                 bool advanced = false;
 
                 foreach (var (dir, cand) in cands)
@@ -201,7 +208,7 @@ namespace HexMap
 
                     width = math.clamp(width + cfg.widthGrowPerStep, 0f, WidthMax);
                     if (width >= cfg.widthTwoCellThreshold)
-                        Widen(snap, cur, (HexDirection)dir, candElev, riverId, bankCells, bankBedIdx, stepIdx);
+                        Widen(snap, cur, (HexDirection)dir, candElev, riverId, bankCells, bankBedIdx, stepIdx, board);
 
                     advanced = true;
 
@@ -224,7 +231,7 @@ namespace HexMap
                     continue;
 
                 // 卡死 → 湖泊泛洪（4.3）
-                var lake = FloodLake(snap, cfg, cur, state);
+                var lake = FloodLake(snap, cfg, board, cur, state);
                 if (lake == null || !lake.HasSpill)
                 {
                     end = RiverEndKind.Lake;   // 封闭盆地 / 超限 / 合并既有湖 → 河终于湖（或并入）
@@ -321,7 +328,7 @@ namespace HexMap
 
         /// <summary>候选排序：转角锥（≤2，即 120°）内按高程最低、转角最小、方向序；锥空才允许掉头</summary>
         private static List<(int Dir, int2 Cand)> OrderCandidates(HexFeatureSnapshot snap,
-            int2 cur, int? prevDir, HashSet<int2> visited, Queue<int2> history)
+            int2 cur, int? prevDir, HashSet<int2> visited, Queue<int2> history, in HexBoardRegion board)
         {
             var hist = history.ToArray();   // 回路防护参考最近 6 格
             int histCheck = math.min(6, hist.Length);
@@ -332,8 +339,8 @@ namespace HexMap
             for (int d = 0; d < 6; d++)
             {
                 var cand = HexBoundary.NeighborOffset(cur, (HexDirection)d);
-                if (!snap.InBounds(cand) || visited.Contains(cand))
-                    continue;
+                if (!snap.InBounds(cand) || visited.Contains(cand) || InBoard(board, cand))
+                    continue;   // 棋盘内不可入（河绕行；绕不过即卡死成湖/干涸，外围完整性优先）
 
                 // 回路防护：候选靠近任何近格反而比当前更近 → 视为回头
                 bool loopsBack = false;
@@ -371,14 +378,15 @@ namespace HexMap
 
         /// <summary>加宽：A→B 共享边两侧相邻格标 riverBank，高程对齐河床，水面同值</summary>
         private static void Widen(HexFeatureSnapshot snap, int2 cur, HexDirection dir,
-            int bedElev, int riverId, List<int2> bankCells, List<int> bankBedIdx, int stepIdx)
+            int bedElev, int riverId, List<int2> bankCells, List<int> bankBedIdx, int stepIdx,
+            in HexBoardRegion board)
         {
             _ = riverId;   // 河岸格归属由整河验收决定（丢弃时回滚）
             foreach (var nd in new[] { dir.Previous(), dir.Next() })
             {
                 var b = HexBoundary.NeighborOffset(cur, nd);
-                if (!snap.InBounds(b))
-                    continue;
+                if (!snap.InBounds(b) || InBoard(board, b))
+                    continue;   // 棋盘格不做河岸（不被对齐河床高程）
                 if (snap.RiverBed[b.x, b.y] || snap.LakeCell[b.x, b.y] || snap.RiverBank[b.x, b.y])
                     continue;
 
@@ -418,7 +426,7 @@ namespace HexMap
         /// 湖不削地形（水 sitting on plates），水位 y=(L+0.5)×Step 覆盖 ≤L 板面且不淹 L+1。
         /// </summary>
         private static FloodResult FloodLake(HexFeatureSnapshot snap, in HexRiverSettings cfg,
-            int2 start, HexFeatureState state)
+            in HexBoardRegion board, int2 start, HexFeatureState state)
         {
             int L = snap.GetElev(start);
 
@@ -437,7 +445,7 @@ namespace HexMap
                     for (int d = 0; d < 6; d++)
                     {
                         var n = HexBoundary.NeighborOffset(c, (HexDirection)d);
-                        if (!snap.InBounds(n) || floodedSet.Contains(n) ||
+                        if (!snap.InBounds(n) || floodedSet.Contains(n) || InBoard(board, n) ||
                             snap.GetElev(n) > L || snap.LakeCell[n.x, n.y])
                             continue;
                         floodedSet.Add(n);

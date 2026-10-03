@@ -1,5 +1,6 @@
 using UnityEngine;
 using CardCore.Network;
+using Cysharp.Threading.Tasks;
 
 namespace SynergyUI
 {
@@ -9,8 +10,7 @@ namespace SynergyUI
     /// </summary>
     public sealed class MainMenuScreen : UIScreen
     {
-        protected override string PrefabAddress => "MainUI";
-        protected override string PrefabAssetPath => "Assets/Art/UI/MainUI.prefab";
+        protected override string PrefabName => "MainUI";
         protected override string RootName => "main-menu";
 
         protected override void Build()
@@ -18,14 +18,13 @@ namespace SynergyUI
             BindButton("btn-battle", () =>
             {
                 BattleEntry.Mode = BattleMode.LocalAI; // 本地 vs AI（随机卡组开局）
-                Manager.Show<BattleScreen>();
+                // 进战场过渡（2026-10-03 定案）：黑洞吞屏（光压 -20°→视界膨胀 0.5s）完成后再切屏，
+                // 屏内 OnEnter 继续装棋盘+日出（BattleStageDirector 四步链）
+                BattleStageDirector.SwallowToBattleAsync(() => Manager.Show<BattleScreen>()).Forget();
             });
 
-            // 大厅入口（比赛禁联机——随 NetGate 总闸屏蔽；恢复=NetGate.OnlineEnabled 置 true）
+            // 大厅入口
             BindButton("btn-match", () => Manager.Show<MatchScreen>());
-            var match = Find("btn-match");
-            if (match != null) match.gameObject.SetActive(NetGate.OnlineEnabled);
-
             BindButton("btn-deck", () => Manager.Show<DeckBuilderScreen>());
             BindButton("btn-card", () => Manager.Show<CardComposerScreen>());
             BindButton("btn-effect", () => Manager.Show<EffectComposerScreen>());

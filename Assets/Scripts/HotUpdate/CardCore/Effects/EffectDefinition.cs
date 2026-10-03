@@ -501,6 +501,9 @@ namespace CardCore
         /// 每目标独立掷 [Value−span, Value+span]（span=round(|Value|×幅度)）；计价按名义 Value（锚点不漂移）。</summary>
         public float RandomAmplitude;
         public string StringValue;
+        /// <summary>来源表行 ID（2026-10-03 计价行身份修复）：同枚举多行（变体行各自锚价，如规则光环 7 行）
+        /// 时计价按此行取锚——null/缺行回落 GetByType（末行，旧口径）。运行时字段，不入网络 DTO。</summary>
+        public string RowHashId;
 
         /// <summary>Mana 字典（与卡计费同款表达；无 Mana 参数的原子为 null）。</summary>
         public Dictionary<ManaType, float> Mana;

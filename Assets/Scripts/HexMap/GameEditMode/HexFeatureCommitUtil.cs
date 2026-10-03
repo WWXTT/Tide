@@ -174,11 +174,12 @@ namespace HexMap
                 foreach (var kv in lookup)
                 {
                     var cell = em.GetComponentData<HexCellData>(kv.Value);
-                    int elevation = HexMapTerrainMath.ElevationFromNoise(
-                        ref blob, cell.Position, out _);
+                    // 坐标感知公式（2026-10-03 棋盘矩形规则与生成 Job 同源，防重生成漂移）
+                    int elevation = HexMapTerrainMath.ElevationForOffset(
+                        ref blob, kv.Key, cell.Position, out _);
 
                     // 地块类型回到分带值（高程不变也要刷——旧存档可能是全 0 层）
-                    int terrain = HexMapTerrainMath.TerrainIndexFor(ref blob, elevation);
+                    int terrain = HexMapTerrainMath.TerrainIndexForOffset(ref blob, kv.Key, elevation);
                     bool terrainChanged = terrain != cell.TerrainIndex;
                     if (terrainChanged)
                     {

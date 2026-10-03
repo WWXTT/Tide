@@ -23,6 +23,8 @@ namespace SynergyUI
         private TMP_Text _markTapped, _markFrozen, _markDead, _btnRemove;
         private readonly Dictionary<string, GameObject> _arrows = new Dictionary<string, GameObject>();
         private CanvasGroup _group;
+        private GameObject _back;
+        private bool _faceUp = true;
 
         /// <summary>构筑区右上角×（按钮由控制器挂）。</summary>
         public GameObject RemoveButton => _btnRemove != null ? _btnRemove.gameObject : null;
@@ -41,6 +43,7 @@ namespace SynergyUI
             _markFrozen = FindComponent<TMP_Text>("mark-frozen");
             _markDead = FindComponent<TMP_Text>("mark-dead");
             _btnRemove = FindComponent<TMP_Text>("btn-remove");
+            _back = transform.Find("back")?.gameObject; // 卡背（手牌扇形对手面；缺失安全空转）
             _group = GetComponent<CanvasGroup>();
             if (_group == null) _group = gameObject.AddComponent<CanvasGroup>();
 
@@ -112,6 +115,20 @@ namespace SynergyUI
             }
 
             if (_group != null) _group.alpha = item.IsTapped ? 0.62f : 1f;
+            UpdateBack();
+        }
+
+        /// <summary>正/背面：false=显示卡背盖住正面（对手手牌；背面内容无所谓，被 back 覆盖）。</summary>
+        public void SetFaceUp(bool faceUp)
+        {
+            _faceUp = faceUp;
+            UpdateBack();
+        }
+
+        private void UpdateBack()
+        {
+            if (_back != null && _back.activeSelf == _faceUp)
+                _back.SetActive(!_faceUp);
         }
 
         public void SetRemoveVisible(bool visible) => SetActive(_btnRemove, visible);

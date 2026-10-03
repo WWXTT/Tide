@@ -39,11 +39,12 @@ public static class UiPrefabBatchReshape
     private const string TmpSettingsPath = "Assets/Packages/TextMesh Pro/Resources/TMP Settings.asset";
     private const string CollectorSettingPath = "Assets/BundleCollectorSetting.asset";
 
-    private static readonly string[] PrefabPaths =
-    {
-        "Assets/Art/UI/MainUI.prefab",
-        // BattleUI.prefab 已删除（2026-10-02 战场定案 3D 重做）
-        "Assets/Art/UI/CardUI.prefab",
+        private static readonly string[] PrefabPaths =
+        {
+            "Assets/Art/UI/MainUI.prefab",
+            // BattleUI.prefab 已重建（2026-10-03 过渡面）但由 BattleUiPrefabSetup 幂等装配、
+            // 勿纳入批量整形：btn-back 的尺寸 LE 非 ignoreLayout 会被第 2 步摘除（布局组下塌缩）
+            "Assets/Art/UI/CardUI.prefab",
         "Assets/Art/UI/DeckUI.prefab",
         "Assets/Art/UI/EffectUI.prefab",
         "Assets/Art/UI/ACard.prefab",

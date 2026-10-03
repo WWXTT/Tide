@@ -59,6 +59,55 @@ namespace HexMap
             return bands.Length > 0 ? bands[bands.Length - 1].terrainIndex : 0;
         }
 
+        // ---- 对战棋盘矩形共享规则（2026-10-03，战场地图专用；世界地图 min>max 哨兵恒假）----
+
+        /// <summary>棋盘矩形判定（offset 坐标，含边界）。全部棋盘规则唯一事实源：
+        /// 矩形内 → elevation 恒 0、y 恒 0、TerrainIndex 恒 BoardTerrainIndex、无植被、无变异。</summary>
+        public static bool InBoardRect(ref HexMapConfigBlob blob, int2 offset)
+        {
+            return blob.BoardRectMin.x <= blob.BoardRectMax.x
+                && blob.BoardRectMin.y <= blob.BoardRectMax.y
+                && math.all(offset >= blob.BoardRectMin)
+                && math.all(offset <= blob.BoardRectMax);
+        }
+
+        /// <summary>坐标感知高程：棋盘矩形内 → 0 且 y 精确 0（连高度扰动都不加，绝对平整）；
+        /// 矩形外 → 噪声公式。生成 Job 与重置路径必须共用本式——矩形规则漂移 = 重生成/流式重载不一致。</summary>
+        public static int ElevationForOffset(ref HexMapConfigBlob blob, int2 offset, float3 position, out float y)
+        {
+            if (InBoardRect(ref blob, offset))
+            {
+                y = 0f;
+                return 0;
+            }
+            return ElevationFromNoise(ref blob, position, out y);
+        }
+
+        /// <summary>坐标感知地块层：棋盘矩形内 → 恒 BoardTerrainIndex（纯色层）；矩形外 → 分带。</summary>
+        public static int TerrainIndexForOffset(ref HexMapConfigBlob blob, int2 offset, int elevation)
+        {
+            if (InBoardRect(ref blob, offset))
+                return blob.BoardTerrainIndex;
+            return TerrainIndexFor(ref blob, elevation);
+        }
+
+        /// <summary>从 blob 归一化出棋盘区域描述（blob 为唯一事实源；min>max 哨兵 → Disabled）。
+        /// 纯 C# 特征生成器（河/路）不持 blob，经此取矩形。</summary>
+        public static HexBoardRegion BoardRegionOf(ref HexMapConfigBlob blob)
+        {
+            if (blob.BoardRectMin.x > blob.BoardRectMax.x || blob.BoardRectMin.y > blob.BoardRectMax.y)
+                return HexBoardRegion.Disabled;
+            return new HexBoardRegion
+            {
+                enabled = true,
+                minX = blob.BoardRectMin.x,
+                minZ = blob.BoardRectMin.y,
+                maxX = blob.BoardRectMax.x,
+                maxZ = blob.BoardRectMax.y,
+                terrainIndex = blob.BoardTerrainIndex,
+            };
+        }
+
         /// <summary>
         /// 两个 offset 坐标的 hex 网格距离（轴坐标立方距离 (|dx|+|dy|+|dz|)/2）。
         /// 用于泉眼间距、回路防护、寻路启发。

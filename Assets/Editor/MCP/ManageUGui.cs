@@ -116,9 +116,6 @@ namespace Tide.Editor.Mcp
                     case "instantiate":
                         return InstantiatePrefab(p);
 
-                    case "invoke_button":
-                        return InvokeButton(p);
-
                     default:
                         return new ErrorResponse(
                             $"Unknown action '{action}'. Valid: create_element, set_rect, set_text, set_style, " +
@@ -227,10 +224,6 @@ namespace Tide.Editor.Mcp
             if (pos.HasValue && type != "canvas")
                 rt.anchoredPosition = pos.Value;
 
-            // 背景类元素需垫在既有子级之下（默认追加在最后会盖住兄弟）。
-            if (Bool(p, "first_sibling", Bool(p, "firstSibling", false)))
-                rt.SetAsFirstSibling();
-
             EditorUtility.SetDirty(go);
             return new SuccessResponse($"Created {type} '{GetPath(rt)}'.", new
             {
@@ -238,19 +231,6 @@ namespace Tide.Editor.Mcp
                 type,
                 rect = RectSummary(rt),
             });
-        }
-
-        /// <summary>模拟点击（与冒烟同事件路径：ExecuteEvents.pointerClickHandler）——
-        /// Play 态导航取证用；按钮是否生效看运行时点击日志。</summary>
-        private static object InvokeButton(JObject p)
-        {
-            RectTransform rt = FindRect(p);
-            var btn = rt.GetComponentInChildren<UnityEngine.UI.Button>(true);
-            if (btn == null)
-                return new ErrorResponse($"'{GetPath(rt)}' has no Button component.");
-            var ped = new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left };
-            ExecuteEvents.Execute(btn.gameObject, ped, ExecuteEvents.pointerClickHandler);
-            return new SuccessResponse($"Invoked click on '{GetPath(rt)}'.", new { path = GetPath(rt) });
         }
 
         private static Transform ResolveParent(JObject p, string type)
@@ -741,20 +721,6 @@ namespace Tide.Editor.Mcp
             }
             if (p["raycast_target"] != null || p["raycastTarget"] != null)
                 graphic.raycastTarget = Bool(p, "raycast_target", graphic.raycastTarget);
-
-            // TMP 文本专属：字号与加粗（排版还原用——autosize 开启时 fontSize 同时是上限基准）
-            if (graphic is TMP_Text tmp)
-            {
-                if (p["font_size"] != null || p["fontSize"] != null)
-                    tmp.fontSize = Val(p, "font_size", tmp.fontSize);
-                if (p["font_bold"] != null || p["fontBold"] != null)
-                {
-                    bool bold = Bool(p, "font_bold", false);
-                    tmp.fontStyle = bold
-                        ? tmp.fontStyle | FontStyles.Bold
-                        : tmp.fontStyle & ~FontStyles.Bold;
-                }
-            }
 
             if (graphic is Image image)
             {
