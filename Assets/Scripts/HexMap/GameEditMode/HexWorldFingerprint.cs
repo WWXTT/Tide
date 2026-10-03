@@ -55,6 +55,14 @@ namespace HexMap
                 }
             }
 
+            // 棋盘矩形（2026-10-03）：决定矩形内高程/地块的重建结果（旧存档会因新增字段警告一次，仅提示）
+            var br = s.boardRegion;
+            h = Fnv(h, br.enabled ? 1 : 0);
+            h = Fnv(h, br.minX);
+            h = Fnv(h, br.minZ);
+            h = Fnv(h, br.maxX);
+            h = Fnv(h, br.maxZ);
+
             // 四张噪声图：名字 + 尺寸 + 像素内容
             h = FnvTexture(h, s.heightNoise);
             h = FnvTexture(h, s.mountainNoise);

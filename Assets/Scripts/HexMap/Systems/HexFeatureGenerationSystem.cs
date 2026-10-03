@@ -110,12 +110,13 @@ namespace HexMap
             }
 
             var snapshot = HexFeatureSnapshot.Build(em, _streaming.CellLookup, ref blob);
+            var board = HexMapTerrainMath.BoardRegionOf(ref blob); // 棋盘矩形（blob 归一化；河/路不入）
 
             if (featureConfig.EnableRivers)
-                HexRiverGenerator.Generate(snapshot, settings.rivers, HexPoiRuntime.Pois, state);
+                HexRiverGenerator.Generate(snapshot, settings.rivers, board, HexPoiRuntime.Pois, state);
 
             if (featureConfig.EnableRoads)
-                HexRoadGenerator.Generate(snapshot, settings.roads, HexPoiRuntime.Pois, state);
+                HexRoadGenerator.Generate(snapshot, settings.roads, board, HexPoiRuntime.Pois, state);
 
             HexFeatureCommitUtil.CommitSnapshot(em, _streaming.CellLookup, snapshot, state, settings, ref blob);
             HexFeatureCommitUtil.BuildFeatureMeshes(World, em, snapshot, state, featureConfig, ref blob);

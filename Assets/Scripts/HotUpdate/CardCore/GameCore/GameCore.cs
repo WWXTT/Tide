@@ -608,6 +608,10 @@ namespace CardCore
 
             TurnEngine.Initialize(_player1);
             StackEngine.Initialize(_player1);
+            // 效果执行器使用跟踪器跨局回收（2026-10-03 修复）：EffectExecutor.Reset 此前无调用方，
+            // 限流计数只靠 OnNewTurn「回合号变化」兜底——新局回合号从 1 重来会撞上上一局同号计数，
+            // 同名效果（同进程多局夹具/无头驱动）在新局首次触发即被误拦
+            StackEngine.GetExecutor()?.Reset();
 
             LayerEngine.ClearAll();
             SBAEngine.ClearHistory();
@@ -636,6 +640,13 @@ namespace CardCore
             // ——组合根登记（幂等）+ 载荷注册表跨局不残留（CurseSystem 在 CardCore 根命名空间，同 BranchEngines）
             CurseSystem.EnsureRegistered();
             CurseSystem.Reset();
+
+            // 规则光环系统（2026-10-03 规则轴定案：ModifyGameRule 原子投放的全局唯一光环，
+            // 对双方生效、载体离场失效）——组合根登记（幂等）+ 槽位/状态跨局不残留
+            // + 状态无关替代件重挂（时序在 ReplacementEngine.ClearAll 之后）
+            RuleAuraSystem.EnsureRegistered();
+            RuleAuraSystem.Reset();
+            RuleAuraSystem.OnGameReset();
 
             // 装备系统（2026-09-13 第二十一批：武器反伤/耐久扩展口接线）——组合根（幂等）
             EquipRules.EnsureAttached(this);

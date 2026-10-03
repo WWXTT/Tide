@@ -30,19 +30,25 @@ namespace CardCore
             _usageTracker = new EffectUsageTracker();
         }
 
-        /// <summary>触发上限闸门（2026-09-13 定案）：触发式效果本回合触发数是否已达上限——
+        /// <summary>触发上限闸门（2026-09-13 定案；2026-10-03 键修正）：触发式效果本回合触发数是否已达上限——
         /// 触发式在 ProcessTriggeredEffects 入栈即记账（RecordQueuedActivation，防同批出队时
-        /// 第 1 个未结算导致第 2 个漏拦）；启动式结算记账走既有 RecordActivation
-        /// （启动/触发同台账，按 effect.Id 天然不互扰；OnNewTurn 清零）。
+        /// 第 1 个未结算导致第 2 个漏拦）；启动式结算记账走既有 RecordActivation。
+        /// 键 = **来源实例 + effect.Id**（2026-10-03 修正：此前全局按 Id——同 Id 不同实例互吞：
+        /// 回响临时复制与本体同回合各自 OnPlay 被吞、同名卡同回合打第二张同样被吞；
+        /// 现按卡实例独立限流，"同一张卡的同一效果每回合 N 次"语义不变）。
         /// 坚韧等不可修改原子（MountKinds 含 8）恒 TriggerLimitPerTurn=-1 不受限。</summary>
-        public bool TriggerCapReached(EffectDefinition effect)
+        public bool TriggerCapReached(EffectDefinition effect, Entity source = null)
             => effect != null && effect.TriggerLimitPerTurn > 0
-               && _usageTracker.GetTurnUsage(effect.Id) >= effect.TriggerLimitPerTurn;
+               && _usageTracker.GetTurnUsage(UsageKey(effect, source)) >= effect.TriggerLimitPerTurn;
 
         /// <summary>触发式入栈即记账（2026-09-13 修复：结算期记账在同批多触发下查账恒滞后一轮，
         /// "一回合一次"闸门失效）；结算处对触发式跳过 RecordActivation 防双记。</summary>
-        public void RecordQueuedActivation(EffectDefinition effect)
-            => _usageTracker.RecordActivation(effect.Id);
+        public void RecordQueuedActivation(EffectDefinition effect, Entity source = null)
+            => _usageTracker.RecordActivation(UsageKey(effect, source));
+
+        /// <summary>限流台账键：effect.Id + 来源实例（null 源回落纯 Id——启动式等无源语境）。</summary>
+        private static string UsageKey(EffectDefinition effect, Entity source)
+            => source != null ? effect.Id + "@" + source.RuntimeId : effect.Id;
 
         /// <summary>
         /// 检查效果是否可以发动
@@ -88,8 +94,8 @@ namespace CardCore
                 TurnNumber = turnNumber,
                 Source = source,
                 ZoneManager = _zoneManager,
-                ActivationsThisTurn = _usageTracker.GetTurnUsage(effect.Id),
-                ActivationsThisGame = _usageTracker.GetGameUsage(effect.Id)
+                ActivationsThisTurn = _usageTracker.GetTurnUsage(UsageKey(effect, source)),
+                ActivationsThisGame = _usageTracker.GetGameUsage(UsageKey(effect, source))
             };
             context.FillDamageAggregates(); // P2a：伤害聚合死条件修复（服务取本回合口径）
 
@@ -273,9 +279,10 @@ namespace CardCore
                 });
             }
 
-            // 记录使用次数（触发式已在 ProcessTriggeredEffects 入栈时记账，此处防双记）
+            // 记录使用次数（触发式已在 ProcessTriggeredEffects 入栈时记账，此处防双记；
+            // 键含来源实例（2026-10-03）——同名卡/临时复制各记各的）
             if (instance.TriggeringEvent == null)
-                _usageTracker.RecordActivation(effect.Id);
+                _usageTracker.RecordActivation(UsageKey(effect, instance.Source));
 
             // 触发效果结算事件（关联来源 Effect 与解析上下文）
             EventManager.Instance.Publish(new EffectResolveEvent
@@ -700,9 +707,12 @@ namespace CardCore
                 var next = _pendingQueue.GetNextEffect();
                 if (next == null) break;
 
-                // 触发上限闸门（2026-09-13 定案）：达到上限的触发式静默丢弃
-                //（GetNextEffect 已出队——丢弃即不回插；不可修改原子恒 -1 不受限）
-                if (_executor.TriggerCapReached(next.Effect)) continue;
+                // 触发上限闸门（2026-09-13 定案；2026-10-03 键修正=来源实例+Id）：达到上限的触发式静默丢弃
+                //（GetNextEffect 已出队——丢弃即不回插；不可修改原子恒 -1 不受限）。
+                // 登场族（OnPlay）豁免（2026-10-03 定案）：上限的自然单位是**施放**——弹回重打/
+                // 墓地收回重打每次施放都应触发登场效果，不走每回合上限闸门（记账照常，仅显示用）。
+                if (next.Effect == null || next.Effect.TriggerTiming != TriggerTiming.OnPlay)
+                    if (_executor.TriggerCapReached(next.Effect, next.Source)) continue;
 
                 var instance = EffectInstance.FromPendingEffect(next);
                 _stack.Push(instance);
@@ -710,7 +720,7 @@ namespace CardCore
 
                 // 触发上限记账提前到入栈时（2026-09-13 修复）：同批多个触发出队时，
                 // 结算期记账会让第 2 个及以后的触发绕过"一回合一次"闸门
-                _executor.RecordQueuedActivation(next.Effect);
+                _executor.RecordQueuedActivation(next.Effect, next.Source);
 
                 EventManager.Instance.Publish(new StackAddEvent
                 {
@@ -1567,6 +1577,10 @@ namespace CardCore
                 // （对手抽到该卡时 CurseSystem 自动执行载荷分支并消层）
                 new RevealCardHandler(),
                 new AddCurseHandler(),
+
+                // 规则轴（2026-10-03 定案，路线 B 转正）：规则光环投放（str=规则短名，
+                // 载体入场激活 RuleAuraSystem——对双方生效/全局唯一/载体离场失效）
+                new ModifyGameRuleHandler(),
             };
             foreach (var handler in handlers)
                 EffectHandlerRegistry.Register(handler);
@@ -1596,13 +1610,19 @@ namespace CardCore
 
         /// <summary>
         /// 注册完整性自检。
-        /// 当前设计中「暂不实现」的 ModifyGameRule / OverrideRestriction 以外的所有
-        /// AtomicEffectType 都应已注册；缺失则 LogError，便于尽早暴露长尾静默失败。
+        /// 「无处理器=设计态」以外（暂不实现 / 固有全域墓碑 / 表行退役墓碑）的所有
+        /// AtomicEffectType 都应已注册；缺失则告警，便于尽早暴露长尾静默失败。
         /// </summary>
         private static readonly HashSet<AtomicEffectType> _intentionallyUnimplemented = new HashSet<AtomicEffectType>
         {
-            AtomicEffectType.ModifyGameRule,
+            // 反规则效果残部：ModifyGameRule 已于 2026-10-03 转正（规则光环投放，见 RuleAuraSystem）；
+            // OverrideRestriction 仍暂不实现（规则轴提案 §6：可能被 ModifyGameRule(str) 完全覆盖）
             AtomicEffectType.OverrideRestriction,
+            // [Obsolete] 墓碑（2026-09-21 固有全域退役：枚举位保留、handler 已删，全域走 TargetKinds+全取档组合）
+#pragma warning disable CS0618 // 引用墓碑枚举位做白名单登记
+            AtomicEffectType.SweepDamage,
+            AtomicEffectType.SweepHeal,
+#pragma warning restore CS0618
         };
 
         private static void VerifyHandlerCoverage()

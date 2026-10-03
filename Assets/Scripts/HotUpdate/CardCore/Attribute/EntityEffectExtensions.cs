@@ -545,6 +545,16 @@ namespace CardCore
         /// 不可作地牌（CanServeAsLand 守卫）、自身不再触发微缩/放大（防自复制链；回响连锁除外——复制自带回响是设计）。</summary>
         public bool IsTemporary { get; set; } = false;
 
+        /// <summary>衍生物标记（2026-10-03 地牌资格定案）：SummonToken 生成的实例不作地牌
+        ///（CanServeAsLand 拒绝——衍生物=真实生物卡实例，CardWrapper 判定拦不住，需显式标记）。
+        /// 运行时标记不入序列化（身份/观测/计价全走真实卡数据——快照无需区分）。</summary>
+        public bool IsToken { get; set; } = false;
+
+        /// <summary>苏醒已发动（2026-10-03 苏醒改造）：在手牌中预立约后为 true——
+        /// 施放费用的灰色份额全免（转入场沉睡层数，GameActions.GetCardCost 闸门）；
+        /// 未发动=照常全价。修复旧「使用时生效」死循环（付不起→用不出→无减免）。</summary>
+        public bool AwakenCommitted { get; set; } = false;
+
         /// <summary>
         /// 召唤来源标记：是否经「正式召唤」入场（打出 / 效果召唤 / 复活）。
         /// 仅正式召唤过的随从死亡后才可被 ReturnFromGraveyard 复活；

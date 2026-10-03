@@ -26,9 +26,9 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _BinaryPeriod: 60
+    - _BinaryPeriod: 80
     - _BinaryPhase: 0
-    - _BinarySeparation: 7.22
+    - _BinarySeparation: 8
     - _BudgetCut: 1
     - _DiskBrightness: 7.9
     - _DiskDetail: 1
@@ -37,18 +37,18 @@ Material:
     - _DiskOuterRadius: 5.07
     - _DiskRotationSpeed: 1
     - _DopplerStrength: 0
-    - _HorizonScale: 0.028
+    - _HorizonScale: 0.02
     - _ParticleIntensity: 0
     - _ParticleThreshold: 0
-    - _SecondaryDiskScale: 0.7
-    - _SecondaryDiskTilt: 0.08
-    - _SecondaryHorizonScale: 0.6
+    - _SecondaryDiskScale: 0.615
+    - _SecondaryDiskTilt: 0
+    - _SecondaryHorizonScale: 0.7
     - _StepCount: 64
     - _StepSize: 0.2
     - _StreamBrightness: 0
     - _StreamWidth: 0.1
     m_Colors:
-    - _DiskColor: {r: 1, g: 0.2627451, b: 0, a: 1}
-    - _DiskHotColor: {r: 1, g: 0.17899318, b: 0.09019607, a: 1}
+    - _DiskColor: {r: 1, g: 0.3218644, b: 0, a: 1}
+    - _DiskHotColor: {r: 1, g: 0.40075806, b: 0.31132078, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

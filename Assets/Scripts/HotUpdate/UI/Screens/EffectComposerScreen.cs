@@ -190,8 +190,7 @@ namespace SynergyUI
 
         // ======================================== 构建 ========================================
 
-        protected override string PrefabAddress => "EffectUI";
-        protected override string PrefabAssetPath => "Assets/Art/UI/EffectUI.prefab";
+        protected override string PrefabName => "EffectUI";
         protected override string RootName => "effect-composer";
 
         protected override void Build()
@@ -202,9 +201,11 @@ namespace SynergyUI
             _costLabel = FindText("lbl-effect-cost");
             _activationDropdown = BindDropdown("dropdown-activation", Root, Find("topbar"),
                 ActivationNames.ToList(), 0, width: 90f);
-            _timingRow = Find("timing-row");
-            _timingDropdown = BindDropdown("dropdown-timing", Root, _timingRow,
+            _timingDropdown = BindDropdown("dropdown-timing", Root, Find("timing-row"),
                 new List<string> { "—" }, 0, width: 140f);
+            // 手改预制体后时机行并入 dropdown-timing 节点本体（TMP 挂节点上）——
+            // timing-row 不存在时"主动档隐藏时机"退回驱动下拉节点自身
+            _timingRow = Find("timing-row") ?? _timingDropdown?.Root;
             _toast = FindText("lbl-toast");
             _reloadAtomsBtn = BindButton("btn-reload-atoms", OnReloadAtoms);
             _loadEffectsBtn = BindButton("btn-load-effects", OnLoadEffectsTable);
@@ -234,11 +235,26 @@ namespace SynergyUI
             _effectsPanel = Find("effects-panel");
             _effectsList = FindScroll("list-effects");
 
-            // 右栏框架配额（2026-10-02：转换烘焙的 LayoutElement 残留会给 VLG 喂假 preferred，
-            // 过滤行曾被拉到 876 高、列表塌成 0——运行时钉死：过滤行 30 高、说明行 18、列表占满其余）
+            // 右栏结构修复（2026-10-02 对齐老版）：filter-row 移出 atom-panel 挂右栏直属——
+            // 老版右栏三兄弟 = filter-bar / list-effects / atom-panel（过滤行两模式共用常驻；
+            // 现 prefab 把 filter-row 烙进了 atom-panel，效果表模式下会被连带隐藏）。
+            // 运行时幂等搬移 + 面板让位（prefab 层不动，进屏自愈）。
             if (_atomPanel != null)
             {
-                var filterRow = UiKit.FindDeep(_atomPanel, "filter-row");
+                var filterRowRt = UiKit.FindDeep(Root, "filter-row");
+                if (filterRowRt != null && filterRowRt.parent != _atomPanel.parent)
+                {
+                    filterRowRt.SetParent(_atomPanel.parent, false);
+                    filterRowRt.anchorMin = filterRowRt.anchorMax = filterRowRt.pivot = new Vector2(0, 1);
+                    filterRowRt.anchoredPosition = _atomPanel.anchoredPosition;
+                    filterRowRt.sizeDelta = new Vector2(_atomPanel.rect.width, 30f);
+                    _atomPanel.anchoredPosition += Vector2.down * 36f;
+                    if (_effectsPanel != null) _effectsPanel.anchoredPosition = _atomPanel.anchoredPosition;
+                }
+
+                // 右栏框架配额（转换烘焙的 LayoutElement 残留会给布局组喂假 preferred——运行时钉死）
+                var rightColumn = (_atomPanel.parent as RectTransform) ?? Root;
+                var filterRow = UiKit.FindDeep(rightColumn, "filter-row") as RectTransform;
                 if (filterRow != null) UiKit.Size(filterRow, fw: 1f, h: 30f, minH: 30f);
                 var filterDrop = UiKit.FindDeep(_atomPanel, "dropdown-filter-type");
                 if (filterDrop != null) UiKit.Size(filterDrop, w: 200f, minW: 200f, h: 30f);
@@ -367,7 +383,7 @@ namespace SynergyUI
             {
                 if (idx >= 0 && idx < _timings.Count) _graph.header.TriggerTiming = (int)_timings[idx];
             };
-            UiKit.Described(_timingDropdown.Root.GetComponent<Button>(),
+            _timingDropdown.Describe(
                 "触发时机：效果在哪个时点自动入栈（条件发动不走速度，满足即入栈）；主动发动方式下不设时机");
         }
 
@@ -382,7 +398,7 @@ namespace SynergyUI
             int act = _graph.header.ActivationType;
             _activationDropdown.SetOptions(ActivationNames.ToList(), act >= 0 && act < ActivationNames.Length ? act : 0);
             SyncActivationVisibility();
-            UiKit.Described(_activationDropdown.Root.GetComponent<Button>(),
+            _activationDropdown.Describe(
                 "发动方式——强制：条件达成时不询问直接发动；自动：条件达成时弹窗询问是否发动（可选触发式）；主动：只能在自己回合的主要阶段主动发动（=启动式：构筑期不计元素锚价、发动时现付+横置，2026-10-02 定案）");
             _activationDropdown.Changed += (idx, _) =>
             {

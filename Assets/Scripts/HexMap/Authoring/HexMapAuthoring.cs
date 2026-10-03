@@ -16,7 +16,15 @@ namespace HexMap
         public static float InnerRadius;
         public static float OuterRadius;
 
+        // ---- 对战棋盘矩形（2026-10-03 战场地图专用；世界地图 min>max=禁用哨兵）----
+        public static int2 BoardRectMin;
+        public static int2 BoardRectMax;
+        public static int BoardTerrainIndex;
+
         public static bool IsValid => CellCount.x > 0 && CellCount.y > 0;
+
+        /// <summary>棋盘矩形启用且有效（min ≤ max）。</summary>
+        public static bool HasBoard => BoardRectMin.x <= BoardRectMax.x && BoardRectMin.y <= BoardRectMax.y;
     }
 
     /// <summary>
@@ -91,6 +99,17 @@ namespace HexMap
                         root.TerrainBands.Add(b);
                     }
                 }
+
+                // 对战棋盘矩形（2026-10-03）：启用时钳入地图边界；禁用/无效 → min>max 哨兵
+                var br = s.boardRegion;
+                bool boardOk = br.enabled && br.minX <= br.maxX && br.minZ <= br.maxZ;
+                root.BoardRectMin = boardOk
+                    ? math.clamp(new int2(br.minX, br.minZ), 0, new int2(s.cellCountX - 1, s.cellCountZ - 1))
+                    : new int2(0, 0);
+                root.BoardRectMax = boardOk
+                    ? math.clamp(new int2(br.maxX, br.maxZ), 0, new int2(s.cellCountX - 1, s.cellCountZ - 1))
+                    : new int2(-1, -1);
+                root.BoardTerrainIndex = math.max(0, br.terrainIndex);
 
                 // 噪声图像素（四张独立；缺图 → 尺寸 0，采样返回中性值 0.5）
                 // 注意：BlobBuilder 是 struct，必须 ref 传递——按值传副本会丢失分块账本，
@@ -250,6 +269,17 @@ namespace HexMap
             HexMapRuntime.CellCount = new int2(s.cellCountX, s.cellCountZ);
             HexMapRuntime.InnerRadius = HexMapConfigBuilder.InnerRadius;
             HexMapRuntime.OuterRadius = HexMapConfigBuilder.OuterRadius;
+
+            // 棋盘矩形镜像（HotUpdate 绑定层/装台取景便捷读取；与 blob 同源）
+            var br = s.boardRegion;
+            bool boardOk = br.enabled && br.minX <= br.maxX && br.minZ <= br.maxZ;
+            HexMapRuntime.BoardRectMin = boardOk
+                ? math.clamp(new int2(br.minX, br.minZ), 0, HexMapRuntime.CellCount - 1)
+                : new int2(0, 0);
+            HexMapRuntime.BoardRectMax = boardOk
+                ? math.clamp(new int2(br.maxX, br.maxZ), 0, HexMapRuntime.CellCount - 1)
+                : new int2(-1, -1);
+            HexMapRuntime.BoardTerrainIndex = math.max(0, br.terrainIndex);
 
             // 贴图平铺尺寸全局常量（HexTerrain shader 读取 _ChunkWorldSize 做世界空间 UV）。
             // 双保险：SubScene/Baker 路径由 HexMapShaderGlobalsSystem 兜底写入。

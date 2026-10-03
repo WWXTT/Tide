@@ -46,8 +46,11 @@ namespace SynergyUI
     }
 
     /// <summary>
-    /// 对战界面（2026-10-02 战场定案 3D + 部分透明 UI 重做：旧 BattleUI.prefab 已删除、本屏为空屏桩，
-    /// 原绑定/对局逻辑封存待 3D 层重接）。
+    /// 对战界面（2026-10-02 战场定案 3D + 部分透明 UI 重做：旧 BattleUI.prefab 已删除；
+    /// 2026-10-03 本地模式先以「双扇手牌 + 结束回合」过渡面运行——HandFanView 自原型屏移植接入，
+    /// 出牌交互与原绑定/对局逻辑封存待 3D 层重接；同日过渡面预制体化：静态层级回归
+    /// Assets/Art/UI/BattleUI.prefab（Tools/验证/对战UI/BattleUI预制体装配 幂等重建），
+    /// Build=按名绑定+缺失代码兜底（bind-or-create 双轨同构）。
     /// 历史口径（2026-10-01 预制体化，封存代码对照用）：静态层级来自 BattleUI.prefab，Build 深度按名
     /// 绑定；战场格子/手牌槽复用烘焙节点（按序对应棋盘 x 位），战报行/弹窗运行时构建。
     /// 本地 AI（GameCore/GameActions 直连）与网络（MsgGameStateSync 快照全量渲染 +
@@ -85,6 +88,10 @@ namespace SynergyUI
         private UiKit.Modal _modal;                     // 当前通用弹窗（选择/模式/响应/胜负）
         private Button _overlayCancel;
 
+        // ---- 手牌扇形过渡面（2026-10-03 本地对战接入：原型屏 HandFanScreen 移植为本屏本地呈现） ----
+        private HandFanView _selfFan, _oppFan;          // 双方手牌扇区（对账键=引擎卡 RuntimeId）
+        private Button _btnEndFan;                      // 结束回合（过渡面唯一操作；AI 随后跑完对手回合）
+
         // 信息栏动态文本（FillBar 刷新）
         private TMP_Text _oppName, _oppLife, _oppDeck, _oppHand, _oppGrave, _oppFatigue, _oppBank;
         private TMP_Text _selfName, _selfLife, _selfDeck, _selfHandCount, _selfGrave, _selfFatigue, _selfBank;
@@ -99,14 +106,85 @@ namespace SynergyUI
         // ======================================== 构建 ========================================
 
         // 2026-10-02 定案：战场改为 3D + 部分透明 UI 重做，旧 uGUI 预制体已删除（不具指导意义）。
-        // 本屏退化为纯代码空屏桩（UIScreen 纯代码路径：Build 首行自建 Root）；
+        // 2026-10-03 过渡面预制体化：静态层级回归 Assets/Art/UI/BattleUI.prefab
+        // （Tools/验证/对战UI/BattleUI预制体装配 幂等重建），Build=按名绑定+缺失代码兜底；
         // 原预制体绑定逻辑封存于 BindLegacyPrefabNodes、对局启动/刷新链全部保留，待 3D 层重接。
+        protected override string PrefabName => "BattleUI";
         protected override string RootName => "battle";
 
         protected override void Build()
         {
-            Root = UiKit.Screen(RootName, Parent);
-            UiKit.Button("btn-back", Root, "← 返回主菜单（战场 UI 待 3D 重做）", () => Manager.Back());
+            // 预制体缺失兜底（CreateRoot 已 LogError 并回落空屏根）：纯代码构建同构层级
+            if (Root == null) Root = UiKit.Screen(RootName, Parent);
+
+            // 战场=3D 棋盘可见（2026-10-03 定案：UI 不挡世界相机）——底图只留射线拦截语义，去不透明度
+            var bg = Root.GetComponent<Image>();
+            if (bg != null) bg.color = new Color(bg.color.r, bg.color.g, bg.color.b, 0f);
+
+            BindOrCreateButton("btn-back", "← 返回主菜单", () => Manager.Back());
+
+            // 终局弹窗层（沿用旧 ModalBox 口径；预制体不烘焙——UiKit.Overlay 运行时补建置顶）
+            _overlay = FindOptional("overlay") ?? UiKit.Overlay("overlay", Root);
+
+            // 结束回合：右下角独立锚点，逃逸屏根纵向布局（不占顶部）
+            _btnEndFan = BindOrCreateButton("btn-end-turn", "结束回合", OnEndTurnFan);
+            var endRt = (RectTransform)_btnEndFan.transform;
+            var endLe = endRt.GetComponent<LayoutElement>() ?? endRt.gameObject.AddComponent<LayoutElement>();
+            endLe.ignoreLayout = true;
+            endRt.anchorMin = endRt.anchorMax = new Vector2(1f, 0f);
+            endRt.anchoredPosition = new Vector2(-24f, 240f); // 手牌扇侧翼上方
+            var endLbl = _btnEndFan.GetComponentInChildren<TMP_Text>();
+            endRt.sizeDelta = new Vector2((endLbl != null ? endLbl.preferredWidth : 0f) + 28f, 36f);
+            _btnEndFan.gameObject.SetActive(false);           // 仅本地对局显示（OnEnter 开）
+
+            // 双方手牌扇区（配置承自原型屏：底部己方全正面拱形弧、顶部对手缩小卡背扇）
+            _selfFan = new HandFanView(FanLayer("self-fan-layer"), new HandFanView.Config
+            {
+                Center = new Vector2(0f, -375f), // 卡心离屏底 ~165px（悬停抬起后不越界）
+            });
+            _oppFan = new HandFanView(FanLayer("opp-fan-layer"), new HandFanView.Config
+            {
+                TopSide = true,
+                Center = new Vector2(0f, 375f),
+                BaseScale = 0.72f,
+                MaxFanWidth = 830f,
+            });
+
+            UiKit.Updater.Attach(Root, () =>
+            {
+                _selfFan?.Tick();
+                _oppFan?.Tick();
+            });
+        }
+
+        /// <summary>按钮按名绑定：预制体节点接线点击（含 [UI点击] 日志）并回写文案（防烘焙文案漂移）；
+        /// 节点缺失（纯代码兜底路径）时 UiKit 补建。节点在而无 Button=LogError 后照补不误。</summary>
+        private Button BindOrCreateButton(string name, string text, Action onClick)
+        {
+            var node = FindOptional(name);
+            var btn = node != null ? node.GetComponentInChildren<Button>(true) : null;
+            if (btn != null)
+            {
+                var lbl = btn.GetComponentInChildren<TMP_Text>(true);
+                if (lbl != null) lbl.text = text;
+                btn.onClick.AddListener(() => { Debug.Log($"[UI点击] {name}"); onClick(); });
+                return btn;
+            }
+            if (node != null)
+                Debug.LogError($"[{GetType().Name}] 预制体节点无 Button 组件：{name}（代码补建）");
+            return UiKit.Button(name, Root, text, onClick);
+        }
+
+        /// <summary>扇区挂载层：预制体按名绑定、缺失代码补建——全屏铺开做卡牌画布，
+        /// 逃逸屏根纵向布局（同 UiKit.Overlay 口径）。</summary>
+        private RectTransform FanLayer(string name)
+        {
+            var existing = FindOptional(name);
+            if (existing != null) return existing;
+            var rt = UiKit.Node(name, Root);
+            rt.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+            UiKit.Stretch(rt);
+            return rt;
         }
 
         /// <summary>封存：2026-10-01 预制体化时代的 BattleUI.prefab 深度按名绑定（预制体已删）。
@@ -203,10 +281,16 @@ namespace SynergyUI
             if (_btnPass != null)
                 _btnPass.gameObject.SetActive(IsNetwork);
 
+            _btnEndFan.gameObject.SetActive(!IsNetwork);
             if (IsNetwork)
+            {
                 Debug.Log("[BattleScreen] 空屏桩（战场 UI 待 3D 重做，对局逻辑代码保留）——网络模式入口暂不可用");
-            else
-                Debug.Log("[BattleScreen] 空屏桩（战场 UI 待 3D 重做，对局逻辑代码保留）——本地模式未启动对局");
+                return;
+            }
+
+            _btnEndFan.interactable = true;
+            StartLocalFan();
+            BattleStageDirector.MountBoardAndDawnAsync().Forget(); // 转场③④：装载棋盘 → 光源 -20°→45° 日出
         }
 
         public override void OnExit()
@@ -214,6 +298,14 @@ namespace SynergyUI
             _running = false;
             _net?.Close();
             _net = null;
+
+            // 手牌扇区实例回收（自持实例池，随挂载层销毁亦安全——显式清防重入）
+            _selfFan?.Dispose();
+            _oppFan?.Dispose();
+            _selfFan = _oppFan = null;
+
+            // 战场拆台：卸棋盘格子+销毁棋盘根（黑洞/光源/相机由菜单舞台钩子恢复）
+            BattleStageDirector.DismountBoard();
 
             // 本地局棋盘接线归零（静态扩展点不清理会跨界面残留——验证器 S5 锁定此口径）
             _ctrl?.Shutdown();
@@ -287,6 +379,91 @@ namespace SynergyUI
             ctrl.EnablePassiveAiResponder();
             return true;
         }
+
+        // ======================================== 本地对局（扇形手牌过渡面，2026-10-03 接入） ========================================
+
+        /// <summary>本地对局启动（原型屏 HandFanScreen 移植接入）：开局即建双扇手牌，引擎手牌事件
+        /// 幂等对账刷新。战场 3D 重做前的最小对战面——出牌交互暂缺，回合由「结束回合」推进。</summary>
+        private void StartLocalFan()
+        {
+            _ctrl = new BattleController();
+            if (BattleEntry.Mode == BattleMode.Tutorial && !StartTutorialGame(_ctrl))
+                _ctrl.StartNewGame();
+
+            // 引擎事件多但刷新幂等：统一对账重建（口径同原原型屏）
+            Subscribe<CardEnterHandEvent>(_ => RefreshFans());
+            Subscribe<CardPlayEvent>(_ => RefreshFans());
+            Subscribe<CardZoneChangeEvent>(_ => RefreshFans());
+            Subscribe<CardMoveEvent>(_ => RefreshFans());
+            Subscribe<CardDestroyEvent>(_ => RefreshFans());
+            Subscribe<CounterChangedEvent>(_ => RefreshFans()); // 「展示」指示物增减 → 对手卡翻面
+            Subscribe<RevealCardsEvent>(_ => RefreshFans());
+            Subscribe<GameOverEvent>(OnGameOverFan);
+
+            RefreshFans();
+            Debug.Log("[BattleScreen] 本地对局已启动（扇形手牌过渡面；战场 3D 重做中）");
+        }
+
+        /// <summary>结束己方回合并让 AI 跑完对手回合（手牌变化经事件链刷新扇区）。</summary>
+        private async void OnEndTurnFan()
+        {
+            if (_gameEnded || Core == null || _ctrl.TurnPlayer != P1) return;
+            GameActions.EndTurn(Core, P1);
+            if (!_gameEnded && _ctrl.TurnPlayer == P2)
+                await _ctrl.RunAiTurnAsync();
+        }
+
+        /// <summary>终局弹窗（扇形过渡面口径；旧链 OnGameOver 的 RefreshLocal 依赖已删预制体字段，不走）。</summary>
+        private void OnGameOverFan(GameOverEvent e)
+        {
+            _gameEnded = true;
+            _btnEndFan.interactable = false;
+            bool win = e.Winner == P1;
+            ShowOverlay(win ? "胜利" : "失败", $"{(win ? "我方" : "对手")}获胜（{e.Reason}）。");
+            SetCancelText("返回主菜单");
+        }
+
+        /// <summary>幂等全量对账：己方手牌全正面；对手手牌默认背面，带 Exposed 指示物的翻正面。</summary>
+        private void RefreshFans()
+        {
+            if (Core?.ZoneManager == null || P1 == null || P2 == null) return;
+
+            var self = new List<HandFanCardData>();
+            foreach (var card in Core.ZoneManager.GetCards(P1, Zone.Hand))
+            {
+                self.Add(new HandFanCardData
+                {
+                    RuntimeId = card.RuntimeId,
+                    Item = CardOverlayItem.FromBattle(BattleView.FromRuntime(
+                        SerializableRuntimeCardState.FromCard(card), card, ownerIsOpponent: false),
+                        CardOverlayLayout.Full),
+                    FaceUp = true,
+                });
+            }
+
+            var opp = new List<HandFanCardData>();
+            foreach (var card in Core.ZoneManager.GetCards(P2, Zone.Hand))
+            {
+                bool exposed = RevealRules.IsExposed(card); // 信息轴「展示」：对双方公开
+                opp.Add(new HandFanCardData
+                {
+                    RuntimeId = card.RuntimeId,
+                    Item = exposed
+                        ? CardOverlayItem.FromBattle(BattleView.FromRuntime(
+                            SerializableRuntimeCardState.FromCard(card), card, ownerIsOpponent: true),
+                            CardOverlayLayout.Full)
+                        : BlankBack(card.RuntimeId),
+                    FaceUp = exposed,
+                });
+            }
+
+            _selfFan.SetCards(self);
+            _oppFan.SetCards(opp);
+        }
+
+        /// <summary>背面卡的空内容（Key 仅为口径完整；文字被 back 覆盖不可见）。</summary>
+        private static CardOverlayItem BlankBack(uint runtimeId)
+            => new CardOverlayItem { Key = "R" + runtimeId };
 
         private void AppendLocal(IGameEvent e)
         {
@@ -1217,7 +1394,11 @@ namespace SynergyUI
             return c != null ? c.ToString() : "?";
         }
 
-        private void ShowToast(string message) => _lblToast.text = message;
+        private void ShowToast(string message)
+        {
+            if (_lblToast != null) _lblToast.text = message;
+            else Debug.Log($"[BattleScreen] {message}"); // 过渡面无 toast 控件（教学配置缺失等回落提示走日志）
+        }
 
         // ======================================== 战报 ========================================
 

@@ -32,6 +32,34 @@ namespace HexMap
     }
 
     /// <summary>
+    /// 对战棋盘矩形（2026-10-03，战场地图专用；世界大地图保持禁用）：
+    /// 矩形内格子强制平整（elevation=0、y 精确 0）、统一 terrainIndex（纯色层）、
+    /// 无植被散布、河流/道路不进入、无逐格变异——外围继续走地形生成规则填充可视范围。
+    /// 坐标系=地图 offset 坐标（与 BoardMath 逻辑棋盘同构：矩形尺寸通常 13×8）。
+    /// </summary>
+    [Serializable]
+    public struct HexBoardRegion
+    {
+        [Tooltip("启用棋盘矩形（世界大地图勿开）")]
+        public bool enabled;
+        [Tooltip("矩形最小角（地图 offset 坐标，含）")]
+        public int minX;
+        public int minZ;
+        [Tooltip("矩形最大角（含）")]
+        public int maxX;
+        public int maxZ;
+        [Tooltip("棋盘格统一贴图数组层（纯色层 index；层序表见类注释）")]
+        public int terrainIndex;
+
+        public static HexBoardRegion Disabled => new HexBoardRegion
+        {
+            enabled = false,
+            minX = 0, minZ = 0, maxX = -1, maxZ = -1, // min>max = 禁用哨兵（与 blob 口径一致）
+            terrainIndex = 0,
+        };
+    }
+
+    /// <summary>
     /// 地形网格参数（垂直侧壁 + 内缩阶梯 + 六边形单元变异）。
     /// 变异的取值逐格在 mesh 构建时按坐标哈希烘焙，这里只存范围与开关。
     /// ≤0 的距离项在 Build 内回退默认值，因此旧资产缺省序列化数据也能得到合理配置。
@@ -152,7 +180,8 @@ namespace HexMap
     ///
     /// TerrainIndex ↔ 贴图数组层序映射（全工程唯一表，扩层时同步更新此注释）：
     /// 0/1=现有两层 | 2=GrassGreen 3=GrassYellow 4=Dirt 5=CliffDark 6=Gravel
-    /// 7=Sand 8=SandCracks 9=Snow 10=CliffBright 11=CliffRed/Pink（预留）
+    /// 7=Sand 8=SandCracks 9=Snow | 10=BoardSolid 棋盘纯色层（2026-10-03 追加，
+    /// 由 Tools/验证/HexMap/追加纯色地形层 装配）| 11=CliffBright 12=CliffRed/Pink（预留）
     /// </summary>
     [CreateAssetMenu(menuName = "HexMap/Feature Settings", fileName = "HexMapFeatureSettings")]
     public class HexMapFeatureSettings : ScriptableObject
@@ -179,6 +208,9 @@ namespace HexMap
         [Header("地图尺寸 (cells)")]
         public int cellCountX = 10;
         public int cellCountZ = 20;
+
+        [Header("对战棋盘矩形（战场地图专用；世界地图保持禁用）")]
+        public HexBoardRegion boardRegion = HexBoardRegion.Disabled;
 
         [Header("地形生成")]
         public int maxElevation = 10;
@@ -287,6 +319,29 @@ namespace HexMap
                 b.terrainIndex = Mathf.Max(0, b.terrainIndex);
                 terrainBands[i] = b;
             }
+
+            // 棋盘矩形防呆：min>max 归为禁用；启用时钳入地图边界、索引非负
+            var br = boardRegion;
+            if (br.enabled)
+            {
+                if (br.minX > br.maxX || br.minZ > br.maxZ)
+                {
+                    br = HexBoardRegion.Disabled;
+                }
+                else
+                {
+                    br.minX = Mathf.Clamp(br.minX, 0, cellCountX - 1);
+                    br.maxX = Mathf.Clamp(br.maxX, 0, cellCountX - 1);
+                    br.minZ = Mathf.Clamp(br.minZ, 0, cellCountZ - 1);
+                    br.maxZ = Mathf.Clamp(br.maxZ, 0, cellCountZ - 1);
+                    br.terrainIndex = Mathf.Max(0, br.terrainIndex);
+                }
+            }
+            else
+            {
+                br.minX = 0; br.minZ = 0; br.maxX = -1; br.maxZ = -1; // 禁用哨兵口径统一
+            }
+            boardRegion = br;
         }
     }
 }

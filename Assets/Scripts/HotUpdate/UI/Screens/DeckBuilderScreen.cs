@@ -22,8 +22,7 @@ namespace SynergyUI
     /// </summary>
     public sealed class DeckBuilderScreen : UIScreen
     {
-        protected override string PrefabAddress => "DeckUI";
-        protected override string PrefabAssetPath => "Assets/Art/UI/DeckUI.prefab";
+        protected override string PrefabName => "DeckUI";
         protected override string RootName => "deck-builder";
 
         // 当前正在构筑的卡组（卡牌 ID 列表）。

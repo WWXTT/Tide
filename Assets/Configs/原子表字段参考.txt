@@ -1,34 +1,52 @@
 原子表 AttributeValueConfig.json 字段参考（2026-09-11 生成；2026-09-16 补 TargetKinds/MountKinds；
-2026-09-22 重写：补 EffectType/ManaList/EffectTier 列、修正指纹与兜底描述、枚举清单对齐当前数据；改表前看一眼防错）
+2026-09-22 重写：补 EffectType/ManaList/EffectTier 列、修正指纹与兜底描述、枚举清单对齐当前数据；
+2026-10-03 同步：行数/族清单/留白段对齐 f14151e 表态（92 行）；
+2026-10-03 规则轴：ModifyGameRule 转正进表（规则光环 7 行）→ 99 行；
+2026-10-03 二批定案：①计价——同时作用双方（双侧域+全取/多目标，或 ModifyGameRule 空域）×0.5；
+  无目标域不乘期望 N；同枚举变体行按实例 RowHashId 各自取锚（非末行）。②错边——效果栏放行
+  「有害锁己方」（负面指向自己，苏醒式自缚）；「有益锁对方」仍只进代价栏。③苏醒——手牌中立约
+  （CommitAwaken）后灰份全免转入场沉睡层数，未立约照常全价。④地牌资格——生物/法术/结界三型
+  可作地牌，衍生物(IsToken)/临时卡/已耗竭不可；改表前看一眼防错）
 ====================================================================
 
-当前表共 93 行（2026-10-02 逐条审核后；同枚举可多行=域/模板变体，各自中文短名：
-洗牌×2（洗回/洗入）、跳过回合×2、沉睡×2、额外元素×2）。
-（2026-10-02 审核删除"胜利"行 24918cf4：handler 硬编码 winner=对手，"自己胜"方向
-运行时不可达且零引用——详见仓库根《原子表逐条审核报告_2026-10-02.md》）
+当前表共 99 行（2026-10-03 规则轴转正后；同枚举可多行=域/模板变体：洗牌×2（洗回/洗入）、
+ModifyGameRule×7（规则光环——跳过回合×2/苏醒/光合作用等旧变体已退役）。
+f14151e 变更全录：删 胜利（"自己胜"方向运行时不可达且零引用）/光合作用/苏醒/冰晶/梦魇 五行、
+跳过回合×2 并一；采掘 EffectType 修正 AdditionalEnergy→Mine；补 送墓/弹回牌库顶/弹回牌库底/连击
+四行；展示/附加诅咒 重推 ID——详见仓库根《原子表逐条审核报告_2026-10-02.md》。
 
 伤害族: DealDamage LifeLoss PierceDamage DrainLife Heal
-移动族: DrawCard DiscardCard ReturnToHand RecoverToHand Exile ShuffleIntoDeck SearchDeck
-        ReturnFromGraveyard SummonToken Morph DiscoverCard
+移动族: DrawCard DiscardCard MillCard ReturnToHand RecoverToHand Exile ShuffleIntoDeck
+        SearchDeck BounceToTop BounceToBottom ReturnFromGraveyard SummonToken Morph DiscoverCard
 状态族: Untap SetPower SetLife SetCost ModifyPower ModifyLife ModifyCost Freeze Purify Sleep
 指示物族: Poison AddToxin AddArmor Silence AddNullify RushSickness AddVulnerable
         AddPowerUp AddPowerDown AddLifeUp AddLifeDown AddPlusOne AddMinusOne AddCostUp AddCostDown
-Grant族(域=0，23 行): GrantPoisonSting GrantLifesteal GrantStealth GrantDivineShield GrantOverwhelm
+Grant族(域=0，22 行): GrantPoisonSting GrantLifesteal GrantStealth GrantDivineShield GrantOverwhelm
         GrantVigilance GrantFirstStrike GrantSpellShield GrantCannotBeTargeted GrantReborn
         GrantIndestructible GrantLifelink GrantRegeneration GrantGrowth GrantDisarm GrantTaunt
-        GrantMiniature GrantMagnify GrantEcho GrantIceCrystal GrantNightmare GrantPathogen GrantSpellban
+        GrantMiniature GrantMagnify GrantEcho GrantPathogen GrantSpellban GrantDoubleStrike
 控制/反制族: GainControl ChangeOwner NegateActivation KnockDown
 消灭族: Sacrifice Devour Annihilate Smash Abandon
-信息/宣告族: LookAtTopCards ScryCards DeclareVictory
-资源/回合: AdditionalEnergy TakeExtraTurn SkipTurn
+信息轴(2026-10-02 定案): LookAtTopCards ScryCards RevealCard AddCurse DeclareVictory
+资源/回合: Mine TakeExtraTurn SkipTurn
 战斗底盘: Attack Guard（合成器锁定为不可编辑关键词——默认携带，不可组合）
-引擎主干(MountKinds=9): BranchEngineClash BranchEngineLuckRoll BranchEngineCountdown
+引擎主干(MountKinds=9，6 行): BranchEngineClash BranchEngineLuckRoll BranchEngineCountdown
+        BranchEngineDeathToll BranchEngineManaSurplus BranchEngineNthHandCard
         （合成器锁定为不可编辑关键词——主干槽下拉直选）
+规则光环族(域=空、p=0、MountKinds="0"，7 行——2026-10-03 定案): 三相仪典 血偿仪典 丰盈仪典
+        窥渊仪典 归土仪典 疾风仪典 纳川仪典（EffectType 全为 ModifyGameRule；
+        实例 str=规则短名——ElementConversion/BloodPact/DamageCap/LockRevealed/
+        GraveyardPlay/DoubleTurn/HandLimitNoFatigue；载体=结界登场效果，
+        RuleAuraSystem 承载：双方生效/全局唯一新换旧送墓/载体离场失效/永久、无箭头）
 
-枚举有、表无行（写进表才生效）: DealCombatDamage MillCard BounceToTop BounceToBottom Tap Weaken
-Inspire DeclareHand DeclareDeckTop DeclareArrow ProphecyNextCard RedirectTarget
-GrantDoubleStrike GrantArmor（后两者 GrantKeywordHandlerFactory.Specs 有映射但表无行）
-刻意不实现: ModifyGameRule OverrideRestriction
+枚举有、表无行——有意留白（写进表才生效）: DealCombatDamage Tap Weaken Inspire RedirectTarget
+        DeclareHand DeclareDeckTop DeclareArrow ProphecyNextCard（宣告/预言族）
+        GrantArmor GrantGuardian（GrantKeywordHandlerFactory.Specs 有映射但表无行）
+表行退役墓碑（2026-10-02；枚举位保留勿删）: AdditionalEnergy（handler 保留代码侧）
+        GrantIceCrystal GrantNightmare（印刷关键词路径保留）
+固有全域墓碑（2026-09-21）: SweepDamage SweepHeal
+刻意不实现: OverrideRestriction（ModifyGameRule 已于 2026-10-03 转正——见规则光环族；
+        OverrideRestriction 或被 ModifyGameRule(str) 完全覆盖，维持墓碑）
 
 【EffectType】解析键（2026-09-22 补）——**每行必填**：
   必须与 AtomicEffectType 枚举名完全一致（DealDamage/GrantTaunt/...英文）。
@@ -108,7 +126,7 @@ GrantDoubleStrike GrantArmor（后两者 GrantKeywordHandlerFactory.Specs 有映
   Stealth     = 仅潜行中         Untargetable = 仅辟邪持有者
   Untapped    = 未横置           Tapped       = 已横置
   Damaged     = 已受伤           Friendly / Enemy = 己方 / 对方
-  Player      = 仅角色（现为 no-op 保留位）
+  Player      = 仅角色（RoleOnlyFilter 2026-09-13 已启用，摒弃等原子在用）
   分区名 no-op 保留位：Hand Graveyard Deck Exile Battlefield Activation
   属性比较式：Power>5 / Life<=3 / Power=2 等格式
 ★ 新击杀效果 = 表行带 Mortal 即可，零引擎改动。
@@ -116,7 +134,7 @@ GrantDoubleStrike GrantArmor（后两者 GrantKeywordHandlerFactory.Specs 有映
 【费用构成三列（2026-09-22 补——迁移链务必看清）】
   ManaList   = **正式费用构成列**（2026-09-14 定案）：[{manaType,amount},…] 混合色数组。
                计价 = 各色 amount × Value；首色即主色（config.PrimaryColor）。
-               当前 89 行数据**尚未迁移**——ManaList 全空，走下行兜底。
+               当前 92 行数据**尚未迁移**——ManaList 全空，走下行兜底。
   EffectColor+BaseCost = **旧格式两列**（兜底合成）：仅当 ManaList 为空且 EffectColor
                可解析为 ManaType 且 BaseCost>0 时，BuildConfig 合成单条
                ManaList={EffectColor, BaseCost}。新行应直接写 ManaList（旧两列可留作对照）。
@@ -126,9 +144,9 @@ GrantDoubleStrike GrantArmor（后两者 GrantKeywordHandlerFactory.Specs 有映
 ★ 进表指纹的是 **ManaList**（排序后 type:amount）——旧数据下改 EffectColor/BaseCost
   会经合成 ManaList 间接动指纹；迁移到显式 ManaList 后旧两列不再影响任何东西。
 
-【EffectTier】（DTO 已支持、数据未迁移——预告位）：Atom/Keyword/Counter 三分类，
-  缺省 Atom。现零消费（关键词认 Grant 前缀、指示物认 CounterRules spec），
-  迁移前不要写进表。
+【EffectTier】（Atom/Keyword/Counter 三分类——**死列待裁决**）：运行时枚举 2026-09-10 已删
+  （零消费：关键词认 Grant 前缀、指示物认 CounterRules spec）；DTO 列仍在但 0/92 行填写。
+  删列或迁移定案前不要写进表。
 
 【其它字段】
   ID         = 行主键 8-hex：sha256(DisplayName 去首尾空格) 前 8 位——原子引用键

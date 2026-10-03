@@ -92,13 +92,15 @@ namespace HexMap
                 var position = cell.Position;
 
                 // 统一公式（HexMapTerrainMath）：全部 cell 按噪声（2026-09-21 起边界圈不再恒 0）。
-                // 与重生成重置/特征路径共用，公式漂移 = 重生成结果与初次生成不一致
-                int elevation = HexMapTerrainMath.ElevationFromNoise(
-                    ref blob, position, out float y);
+                // 与重生成重置/特征路径共用，公式漂移 = 重生成结果与初次生成不一致。
+                // 2026-10-03 棋盘矩形：坐标感知版本（矩形内恒平整/纯色层）
+                int2 offset = cell.Coordinates.ToOffsetCoordinates();
+                int elevation = HexMapTerrainMath.ElevationForOffset(
+                    ref blob, offset, position, out float y);
                 position.y = y;
 
                 cell.Elevation = elevation;
-                cell.TerrainIndex = HexMapTerrainMath.TerrainIndexFor(ref blob, elevation);
+                cell.TerrainIndex = HexMapTerrainMath.TerrainIndexForOffset(ref blob, offset, elevation);
                 cell.Position = position;
 
                 CellData[index] = cell;

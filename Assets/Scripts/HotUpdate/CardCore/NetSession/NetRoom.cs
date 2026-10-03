@@ -297,6 +297,13 @@ namespace CardCore.Network
             _board = null;
         }
 
+        /// <summary>停机强制收口（NetSessionServer.Stop 调用，2026-10-03）：兑现「拆对局接线」——
+        /// 正常链路靠 ResetIfEmpty（全员离场才 Teardown），但宿主直接 Stop 时不再 Pump、
+        /// 断线不被观察，反问桥（TargetSelectionService.Current）会残留全局静态——
+        /// 后续任何本地目标反问都挂死在死选择器上（网络人类 120s 超时后才自动代选）。
+        /// TeardownMatch 幂等，与 ResetIfEmpty 重复调用无副作用。</summary>
+        public void TeardownIfActive() => TeardownMatch();
+
         private static List<CardData> BuildDeck(string[] cardIds)
         {
             var deck = new List<CardData>(cardIds.Length);

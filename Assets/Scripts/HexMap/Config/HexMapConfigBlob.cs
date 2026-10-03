@@ -62,6 +62,15 @@ namespace HexMap
         /// </summary>
         public FixedList128Bytes<HexTerrainBand> TerrainBands;
 
+        // ---- 对战棋盘矩形（2026-10-03 战场地图专用；min>max=禁用哨兵）----
+        /// <summary>棋盘矩形最小角（地图 offset 坐标，含）。矩形内：elevation 恒 0、y 恒 0、
+        /// TerrainIndex 恒 BoardTerrainIndex、无植被、河/路不入、无逐格变异（见 HexMapTerrainMath 共享规则）。</summary>
+        public int2 BoardRectMin;
+        /// <summary>棋盘矩形最大角（含）。</summary>
+        public int2 BoardRectMax;
+        /// <summary>棋盘格统一贴图数组层。</summary>
+        public int BoardTerrainIndex;
+
         // ---- 地形网格（垂直侧壁 + 内缩阶梯）----
         /// <summary>阶梯带内缩宽度 L（世界单位）：高格板沿阶梯边内缩、带内造台阶（StairBandWidth 钳 5%~90%·IR）</summary>
         public float SlopeInset;

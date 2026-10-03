@@ -72,9 +72,10 @@ namespace HexMap
             ref var blob = ref Blob.Value;
             var metrics = HexMetrics.FromBlob(ref blob);
 
-            _cellVariation = blob.VariationEnabled != 0
-                ? HexMetrics.CellVariation(CellData.Coordinates.ToOffsetCoordinates(),
-                    blob.VariationSeed, blob.VariationScaleRange)
+            // 棋盘矩形内恒等变换（2026-10-03）：格子尺寸均一无抖动，棋盘视觉整齐
+            var offset = CellData.Coordinates.ToOffsetCoordinates();
+            _cellVariation = blob.VariationEnabled != 0 && !HexMapTerrainMath.InBoardRect(ref blob, offset)
+                ? HexMetrics.CellVariation(offset, blob.VariationSeed, blob.VariationScaleRange)
                 : new float4(1f, 0f, 0f, 0f); // 恒等变换
 
             TriangulateCell(CellData, ref metrics, ref blob);

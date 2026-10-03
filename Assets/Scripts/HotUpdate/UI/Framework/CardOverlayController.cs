@@ -25,8 +25,7 @@ namespace SynergyUI
     /// </summary>
     public sealed class CardOverlayController : MonoBehaviour
     {
-        private const string PrefabAddress = "ACard";
-        private const string PrefabAssetPath = "Assets/Art/UI/ACard.prefab";
+        private const string PrefabName = "ACard"; // 地址=文件名；路径由 UiKit.PrefabPath 派生
 
         private sealed class LiveCard
         {
@@ -113,9 +112,9 @@ namespace SynergyUI
         {
             if (_prefab == null)
             {
-                _prefab = Tide.HotUpdate.HotUpdateAssets.Load<GameObject>(PrefabAddress, PrefabAssetPath);
+                _prefab = Tide.HotUpdate.HotUpdateAssets.Load<GameObject>(PrefabName, UiKit.PrefabPath(PrefabName));
                 if (_prefab == null)
-                    Debug.LogError($"[CardOverlay] 卡面 prefab 缺失：{PrefabAssetPath}（卡面将只有底板，请先构建 prefab）");
+                    Debug.LogError($"[CardOverlay] 卡面 prefab 缺失：{UiKit.PrefabPath(PrefabName)}（卡面将只有底板，请先构建 prefab）");
             }
             var go = _prefab != null
                 ? Instantiate(_prefab, transform, false)

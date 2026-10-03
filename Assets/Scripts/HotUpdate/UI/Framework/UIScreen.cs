@@ -11,10 +11,12 @@ namespace SynergyUI
 {
     /// <summary>
     /// 所有运行时界面的抽象基类（2026-10-01 预制体化定案）：
-    /// 屏幕层级来自 Assets/Art/UI/ 下的预制体——子类 override PrefabAddress/PrefabAssetPath
-    /// 声明来源，Mount 时框架实例化预制体为 Root（实例根重命名为 RootName，保持按名断言口径），
+    /// 屏幕层级来自 Assets/Art/UI/ 下的预制体——子类 override PrefabName 声明来源
+    /// （文件名，不含扩展名；YooAsset 地址同名、兜底路径由 UiKit.PrefabPath 派生，
+    /// 2026-10-03 收敛为单一声明点），Mount 时框架实例化预制体为 Root
+    /// （实例根重命名为 RootName，保持按名断言口径），
     /// Build 只做"深度按名绑定 + 闭包接线"，不再构建静态层级。未声明预制体的屏
-    /// （RootName 回落）保持旧式纯代码构建：Build 首行自建 Root。
+    /// （PrefabName=null）保持旧式纯代码构建：Build 首行自建 Root。
     ///
     /// 生命周期：Activate = Bind（注入管理器与挂载父节点）→ CreateRoot（实例化预制体/
     /// null）→ Build（绑定+接线）→ OnEnter（数据填充/启动逻辑）；Deactivate =
@@ -37,11 +39,13 @@ namespace SynergyUI
         /// <summary>所属界面管理器，用于导航（Show/Back/Replace）。</summary>
         protected UIManager Manager { get; private set; }
 
-        /// <summary>本屏预制体的 YooAsset 地址（AddressByFileName）；null=无预制体（纯代码构建）。</summary>
-        protected virtual string PrefabAddress => null;
+        /// <summary>本屏预制体名（Assets/Art/UI/ 下、不含扩展名）；null=无预制体（纯代码构建）。
+        /// 唯一声明点——YooAsset 地址=同名（AddressByFileName），编辑器兜底路径由其派生。</summary>
+        protected virtual string PrefabName => null;
 
-        /// <summary>本屏预制体的编辑器兜底 Assets 路径；null=无预制体（纯代码构建）。</summary>
-        protected virtual string PrefabAssetPath => null;
+        protected string PrefabAddress => PrefabName;
+
+        protected string PrefabAssetPath => PrefabName == null ? null : UiKit.PrefabPath(PrefabName);
 
         /// <summary>屏根名（预制体实例根的重命名/纯代码屏的根节点名，沿用旧口径便于按名断言）。</summary>
         protected virtual string RootName => "screen";
@@ -165,20 +169,28 @@ namespace SynergyUI
             return new UiKit.Scroll { Rect = sr, Content = content };
         }
 
-        /// <summary>绑定预制体烘焙的下拉头部为 Dropdown（头部节点名=预设名）；
-        /// 缺节点时 LogError 并在 fallbackParent 代码补建。popupLayer=弹层挂载点（overlay）。</summary>
+        /// <summary>绑定预制体烘焙的下拉（头部节点名=预设名）：优先节点上的真 TMP_Dropdown
+        /// （2026-10-03 手改预制体定案），其次旧式自绘头部按钮；同名新旧节点并存时取含 TMP 的
+        /// 那个；全缺时 LogError 并在 fallbackParent 代码补建。popupLayer=自绘弹层挂载点。</summary>
         protected UiKit.Dropdown BindDropdown(string name, RectTransform popupLayer,
             RectTransform fallbackParent,
             System.Collections.Generic.IEnumerable<string> options, int index,
             Action<int, string> onChanged = null, float? width = null)
         {
             var layer = popupLayer != null ? popupLayer : Root;
-            var rt = UiKit.FindDeep(Root, name);
-            var head = rt != null ? rt.GetComponentInChildren<UButton>(true) : null;
+            foreach (var rt in UiKit.FindDeepAll(Root, name))
+            {
+                var tmp = rt.GetComponentInChildren<TMP_Dropdown>(true);
+                if (tmp != null)
+                    return new UiKit.Dropdown(tmp, options, index, onChanged);
+            }
+
+            var headNode = UiKit.FindDeep(Root, name);
+            var head = headNode != null ? headNode.GetComponentInChildren<UButton>(true) : null;
             if (head != null)
                 return new UiKit.Dropdown(head, layer, options, index, onChanged, width);
 
-            Debug.LogError($"[{GetType().Name}] 预制体缺下拉头部：{name}——代码补建");
+            Debug.LogError($"[{GetType().Name}] 预制体缺下拉（{name} 无 TMP_Dropdown 亦无头部按钮）——代码补建");
             return new UiKit.Dropdown(name, fallbackParent != null ? fallbackParent : Root, layer,
                 options, index, onChanged, width);
         }

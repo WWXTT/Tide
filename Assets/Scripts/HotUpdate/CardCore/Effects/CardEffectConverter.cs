@@ -422,17 +422,17 @@ namespace CardCore
 
             float polarity = Math.Clamp(config.Polarity, -1f, 1f);
 
-            // 内容契约（2026-09-11 定案）：效果栏（主动/被动效果）只能挂对自己有益或中性的原子——
-            // 错边锁定（有益锁对方域 / 有害锁己方域 = 对自己有害或对对手有益）只能进代价栏（Payload）。
-            // 中性（p=0）与双侧域不受限（双侧「同时作用双方」不支持——需要时制作专用原子，先不管）。
-            // 例外：自我沉睡豁免（2026-10-02 苏醒退役配套）——代价语义由灰费豁免机制替代承担。
-            if (!allowWrongSide && polarity != 0f
-                && !CostDerivationService.IsSelfSleepExempt(type, kinds)
-                && CostDerivationService.WrongSide(polarity, kinds))
+            // 内容契约（2026-09-11 定案；2026-10-03 用户定案收缩）：效果栏错边剔除只保留
+            // 「有益原子锁对方域」（对对手有益）——仍只能进代价栏（Payload）；
+            // 「有害原子锁己方域」（负面效果指向自己——苏醒式自缚设计）在效果栏放行，
+            // 错边限制完整保留在代价栏（ConvertPayloadForDisplay 的 allowWrongSide 路径）。
+            // 中性（p=0）与双侧域不受限（双侧「同时作用双方」由专用原子/组合表达）。
+            if (!allowWrongSide && polarity > 0f
+                && CostDerivationService.SideLock(kinds) == 1)
             {
                 // 数据质量诊断（与 WarnCostNonConformance 同级）：错边原子被剔除——装载可见不炸
                 TideLog.Warn($"[CardEffectConverter] 原子 {type}（极性 {polarity:0.#}，域 [{string.Join(",", kinds)}]）" +
-                               "违反内容契约：效果栏不可挂错边原子（对自己有害/对对手有益只能进代价栏），已剔除该效果");
+                               "违反内容契约：效果栏不可挂「有益锁对方域」原子（对对手有益只能进代价栏），已剔除该效果");
                 return null;
             }
 
@@ -442,6 +442,7 @@ namespace CardCore
                 Value = entry.value,
                 RandomAmplitude = Math.Clamp(entry.amp, 0f, 1f),
                 StringValue = entry.str ?? "",
+                RowHashId = entry.refId, // 来源行身份（2026-10-03：同枚举多行各自锚价——计价按行取锚）
                 Mana = null, // ManaList 已随彻底引用化删除（全数据 0 使用）
                 TargetKinds = kinds,
                 Filter = config.TargetFilter ?? "",

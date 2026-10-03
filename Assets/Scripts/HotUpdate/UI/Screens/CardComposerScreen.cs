@@ -24,8 +24,7 @@ namespace SynergyUI
     /// </summary>
     public sealed class CardComposerScreen : UIScreen
     {
-        protected override string PrefabAddress => "CardUI";
-        protected override string PrefabAssetPath => "Assets/Art/UI/CardUI.prefab";
+        protected override string PrefabName => "CardUI";
         protected override string RootName => "card-composer";
         // 业务类型（UI 维度，非裸 Cardtype）：法术分为瞬间（常规魔法）与结界（耐久体）。
         private enum CardKind { Creature, Spell, Enchantment }

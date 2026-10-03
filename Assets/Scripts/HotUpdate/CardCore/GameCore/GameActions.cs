@@ -879,6 +879,43 @@ namespace CardCore
             return true;
         }
 
+        /// <summary>
+        /// 苏醒：在手牌中发动（2026-10-03 用户定案——手牌区动作，无先例）：
+        /// 对带「自我沉睡登场效果」的卡预立约——此后施放费用中的**灰色份额全免**
+        /// （转入场沉睡层数，1 灰=1 层，GetCardCost 豁免闸门读 AwakenCommitted）。
+        /// 未发动=照常全价。定长沉睡（Value 显式）无灰豁免语义，发动无效果（拒绝）。
+        /// 门禁：自己回合主阶段 + 卡在自己手牌 + 含灰时长模式自我沉睡 + 未发动过（幂等拒绝）。
+        /// </summary>
+        public static bool CommitAwaken(GameCore core, Player player, Card card)
+            => CommitAwaken(core, player, card, out _);
+
+        /// <summary>同 <see cref="CommitAwaken(GameCore,Player,Card)"/>，附带精确拒绝原因。</summary>
+        public static bool CommitAwaken(GameCore core, Player player, Card card, out string rejectReason)
+        {
+            rejectReason = null;
+            if (core == null || player == null || card == null) { rejectReason = "内部错误：空参数"; return false; }
+            if (core.TurnEngine.TurnPlayer != player) { rejectReason = "现在不是你的回合"; return false; }
+            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main)
+            { rejectReason = $"苏醒只能在主阶段发动（当前：{core.TurnEngine.CurrentPhase?.Phase}）"; return false; }
+            var hand = core.ZoneManager.GetCards(player, Zone.Hand);
+            if (!hand.Contains(card)) { rejectReason = "卡不在你手上（快照过期？请重试）"; return false; }
+            if (card.AwakenCommitted) { rejectReason = "已发动过苏醒（一卡一次）"; return false; }
+
+            var data = card is CardWrapper wrapper ? wrapper.GetData() : null;
+            if (data == null || !HasSelfSleepEffect(data))
+            { rejectReason = "该卡没有灰时长模式的自我沉睡效果（定长沉睡无灰豁免语义）"; return false; }
+
+            card.AwakenCommitted = true;
+            core.PublishEvent(new KeywordAppliedEvent
+            {
+                Target = card,
+                Keyword = "苏醒",
+                Detail = "苏醒：在手牌中发动——施放费用的灰色份额全免，转为入场沉睡层数",
+                Source = player,
+            });
+            return true;
+        }
+
         // ======================================== 内部方法 ========================================
 
         /// <summary>
@@ -911,10 +948,12 @@ namespace CardCore
                 cost[(int)ManaType.Gray] = Math.Max(0, gray);
             }
 
-            // 自我沉睡的灰费豁免（2026-09-11 定案）：带「自我沉睡登场效果」的卡**使用时不扣灰色费用**，
-            // 灰份额转沉睡时长（暂存 card.PendingSleepGray，入场 Sleep 原子消费为沉睡指示物数）。
+            // 自我沉睡的灰费豁免（2026-09-11 定案；2026-10-03 苏醒改造）：**须先在手牌中发动苏醒**
+            //（card.AwakenCommitted——预立约）才豁免——灰份额转沉睡时长（暂存 card.PendingSleepGray，
+            // 入场 Sleep 原子消费为沉睡指示物数）。未发动=照常全价（修复旧「使用时生效」死循环：
+            // 付不起→用不出→无减免——现在穷时先在手牌立约，再以减免价施放）。
             // 预检/付费/pending/UI 均经本口——全消费面同口径；卡面声明 Cost 不动（地牌/素材口径照旧）。
-            if (data != null && HasSelfSleepEffect(data))
+            if (data != null && card.AwakenCommitted && HasSelfSleepEffect(data))
             {
                 int waived = cost.TryGetValue((int)ManaType.Gray, out var wg) ? (int)wg : 0;
                 if (waived > 0)
