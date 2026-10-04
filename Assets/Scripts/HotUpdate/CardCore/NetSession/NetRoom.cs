@@ -230,7 +230,7 @@ namespace CardCore.Network
             _board = new BoardState(core, core.Player1, core.Player2,
                 HalfFieldData.Flat(), HalfFieldData.Flat());
             _board.EnableAutoResync();
-            CombatSystem.AdjacentResolver = _board.Neighbors;
+            CombatSystem.AdjacentResolver = _board.FlankNeighbors; // 碾压=左右同排生物（2026-10-04 语义修订）
             GameBoard.LinkAuraSystem.Attach(_board);
 
             // 反问桥：SendAsync = 按 ChooserSeat 定向出队（返回已完成任务——实际字节由泵的出队段写）

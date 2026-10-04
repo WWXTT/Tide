@@ -75,7 +75,7 @@ namespace CardCore.Attribute
             card._power = target.Power ?? 0;
             card._life = target.Life ?? 1;
             card._maxLife = card._life;
-            card._baseCost = target.Cost != null ? (int)target.Cost.Values.Sum() : 0;
+            card._baseCost = (int)(target.Cost?.Total ?? 0f);
 
             card._keywords.Clear();
             card._keywordGrants.Clear();

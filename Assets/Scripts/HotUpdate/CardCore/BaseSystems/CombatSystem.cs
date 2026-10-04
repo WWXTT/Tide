@@ -68,15 +68,17 @@ namespace CardCore
     /// - 潜行：不可被指定为攻击目标；攻击后移除（发动效果后的移除在效果执行器）
     /// - 先攻/连击：先攻步先行结算（死者不反击）；连击两步均结算
     /// - 缴械：攻击结算时被攻击的目标无法反击（对角色目标同样生效——压制武器反伤）
-    /// - 碾压：对目标相邻 1 格随从各结算一次攻击
+        /// - 碾压：战斗伤害结算时对目标及其左右同排相邻生物各造成一次相同的战斗伤害
     /// - 剧毒/吸血/系命/圣盾/护甲/坚韧：伤害经 KeywordRules.ApplyDamage 统一结算
     /// </summary>
     public class CombatSystem
     {
         /// <summary>
-        /// 邻接解析扩展点（碾压）：目标随从 → 其相邻 1 格内的随从。
+        /// 邻接解析扩展点（碾压）：目标随从 → 其左右同排邻格的生物。
         /// 默认 null = 碾压只打主目标；棋盘层接线时注入 BoardState 邻接查询
         /// （保持核心 ↔ 棋盘单向依赖：核心定义扩展点，表现层注入实现）。
+        /// 2026-10-04 碾压语义修订：溅射域从「6 邻格随从」收窄为「左右同排生物」——
+        /// 后排斜邻与地牌行的地牌不入溅射域（接线方注入 BoardState.FlankNeighbors）。
         /// </summary>
         public static Func<Card, IEnumerable<Card>> AdjacentResolver;
 
@@ -319,8 +321,10 @@ namespace CardCore
                     OnPlayerCounterattackResolved?.Invoke(counterattacking);
             }
 
-            // ---- 碾压（2026-09-13 重定义，表行锚=红3）：攻击结算时对目标以及目标相邻 1 格随从
-            //      造成战斗伤害——目标经上方正常步结算，相邻同侧随从在此各受一次（额外受击不反击） ----
+            // ---- 碾压（2026-10-04 语义修订，表行锚=红3）：战斗伤害结算时对目标以及目标
+            //      **左右同排相邻生物**造成与主目标相同的战斗伤害（attackerPower，已锁力量）——
+            //      目标经上方正常步结算，左右相邻生物在此各受一次（额外受击不反击）；
+            //      结界等非生物单位不入溅射域（生物判定=IsLivingUnit） ----
             if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Overwhelm)
                 && target is Card pivot && AdjacentResolver != null)
             {
@@ -328,8 +332,10 @@ namespace CardCore
                 {
                     if (adjacent == null || adjacent == attacker || adjacent == target || !adjacent.IsAlive)
                         continue;
+                    if (!adjacent.IsLivingUnit())
+                        continue; // 只打生物：结界（耐久体）与地牌不吃碾压溅射
                     if (adjacent.GetController() != pivot.GetController())
-                        continue; // 只打目标同侧（防守方）的相邻随从
+                        continue; // 只打目标同侧（防守方）的相邻生物
                     DealCombatDamage(attacker, adjacent, attackerPower);
                 }
             }

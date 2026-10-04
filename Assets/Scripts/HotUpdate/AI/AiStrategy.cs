@@ -91,8 +91,11 @@ namespace CardCore.AI
             var total = new Dictionary<int, float>();
             if (deck != null)
                 foreach (var c in deck)
-                    foreach (var kv in c.Cost ?? new Dictionary<int, float>())
-                        total[kv.Key] = total.GetValueOrDefault(kv.Key) + kv.Value;
+                {
+                    if (c.Cost == null) continue;
+                    foreach (var color in c.Cost.NonzeroColors())
+                        total[(int)color] = total.GetValueOrDefault((int)color) + c.Cost[color];
+                }
             return ByMainColor(total);
         }
 

@@ -7,8 +7,8 @@ namespace CardCore
 {
     /// <summary>
     /// 费用自动推导服务 —— 效果「锚价」（即时价，法术定价：第 1 回合立刻打出来的价格）。
-    /// 由效果配置表（AttributeValueConfig.json 的 BaseCost/EffectColor）推导出「元素消耗代价」，
-    /// 使费用成为配置表唯一权威：费用 = round(BaseCost × CostMultiplier × 效果值) 个 EffectColor 元素。
+    /// 由效果配置表（AttributeValueConfig.json 的 ManaList 位置数组，下标=ManaType 枚举序号）推导出
+    /// 「元素消耗代价」，使费用成为配置表唯一权威：费用 = round(份额 × CostMultiplier × 效果值) 按色分配。
     /// 卡牌仍可在 effect.Costs 中声明效果型代价（Payload 原子——弃牌/送墓/流失等资源支付，付费步执行+补偿）。
     /// 生物挂载折扣（落地延迟 d(C) 与存活期望的额外回合折）不在此处 —— 在 CardCostService 的组合层计价。
     /// </summary>
@@ -22,37 +22,32 @@ namespace CardCore
         /// priceAsPermanent（三轨制 2026-09-09）：法术宿主置 true——魔法卡赋予全是设置类
         /// （永久直改），**计价按永久效果档估算**；运行时支付路径不传（默认 false，按实例持续）。
         /// </summary>
-        public static List<CostInstance> DeriveElementCosts(EffectDefinition effect, int modeIndex = 0)
+        public static ElementCost DeriveElementCosts(EffectDefinition effect, int modeIndex = 0)
         {
             var byColor = new Dictionary<ManaType, int>();
-            if (effect == null)
-                return new List<CostInstance>();
+            if (effect != null)
+            {
+                VisitBillableAtoms(effect, modeIndex,
+                    (atom, domain) => AccumulateElementCost(atom, effect, domain, byColor));
 
-            VisitBillableAtoms(effect, modeIndex,
-                (atom, domain) => AccumulateElementCost(atom, effect, domain, byColor));
+                // 分支计价（2026-09-15 用户定案，**废除 09-13 全部灰费**）：
+                // **有限分支（门）=纯校验上限，零计价**——门"预算"只是奖励锚价的放置上限（drop 硬校验），
+                // 奖励原子免费（条件性即折扣），分支整体贡献 0 费。
+                // **引擎=零计价**——拼点门槛=奖励锚价合计（运行时判差额 ≥ 门槛，见 BranchEngines），
+                // 奖励按声明值结算（门槛制）；运势 x=纯概率门槛（掷骰阈值）；倒计时延迟即付费。
+                // 引擎奖励原子免费（EnumerateMainSequenceAtoms 不含 RewardAtoms）。
+                // 例外（2026-09-22）：**改写门差价制**——拦截式改写改变效果本体（伤害→指示物），
+                // 不属"条件性即折扣"，按 max(0, 关键词锚价−主干伤害价) 真实入卡费。
+                AccumulateRewriteSurcharge(effect, modeIndex, byColor);
+            }
 
-            // 分支计价（2026-09-15 用户定案，**废除 09-13 全部灰费**）：
-            // **有限分支（门）=纯校验上限，零计价**——门"预算"只是奖励锚价的放置上限（drop 硬校验），
-            // 奖励原子免费（条件性即折扣），分支整体贡献 0 费。
-            // **引擎=零计价**——拼点门槛=奖励锚价合计（运行时判差额 ≥ 门槛，见 BranchEngines），
-            // 奖励按声明值结算（门槛制）；运势 x=纯概率门槛（掷骰阈值）；倒计时延迟即付费。
-            // 引擎奖励原子免费（EnumerateMainSequenceAtoms 不含 RewardAtoms）。
-            // 例外（2026-09-22）：**改写门差价制**——拦截式改写改变效果本体（伤害→指示物），
-            // 不属"条件性即折扣"，按 max(0, 关键词锚价−主干伤害价) 真实入卡费。
-            AccumulateRewriteSurcharge(effect, modeIndex, byColor);
-
-            var list = new List<CostInstance>();
+            // 2026-10-04 费用位置数组化：输出统一为 ElementCost（序数序天然确定，非零即入）
+            var result = new ElementCost();
             foreach (var kv in byColor)
             {
-                if (kv.Value <= 0) continue;
-                list.Add(new CostInstance
-                {
-                    Type = CostType.ElementConsume,
-                    Value = kv.Value,
-                    ManaType = kv.Key
-                });
+                if (kv.Value > 0) result[kv.Key] = kv.Value;
             }
-            return list;
+            return result;
         }
 
         /// <summary>
@@ -62,15 +57,18 @@ namespace CardCore
         /// 数量与原错边折价一致：×|p|（当前表 |p|=1 即全额）；固定数量 ×N 同计费口径。
         /// 动态数量原子构筑期不可知，不记（运行时实判）。
         /// </summary>
-        public static Dictionary<ManaType, int> DeriveElementGrants(EffectDefinition effect, int modeIndex = 0)
+        public static ElementCost DeriveElementGrants(EffectDefinition effect, int modeIndex = 0)
         {
             var grants = new Dictionary<ManaType, int>();
-            if (effect == null)
-                return grants;
-
-            VisitBillableAtoms(effect, modeIndex,
-                (atom, domain) => AccumulateElementGrant(atom, effect, domain, grants));
-            return grants;
+            if (effect != null)
+            {
+                VisitBillableAtoms(effect, modeIndex,
+                    (atom, domain) => AccumulateElementGrant(atom, effect, domain, grants));
+            }
+            var result = new ElementCost();
+            foreach (var kv in grants)
+                if (kv.Value > 0) result[kv.Key] = kv.Value;
+            return result;
         }
 
         /// <summary>
@@ -316,10 +314,7 @@ namespace CardCore
             var shim = new EffectDefinition { Id = "REWARD_SHIM", Duration = DurationType.Once,
                 TriggerLimitPerTurn = 1, TargetCount = 1 };
             shim.Effects = atoms;
-            float total = 0f;
-            foreach (var c in DeriveElementCosts(shim))
-                total += c.Value;
-            return total;
+            return DeriveElementCosts(shim).Total;
         }
 
         /// <summary>触发上限计价系数：触发式 N&gt;1 → 1.2^(N-1)（连乘）；显式无限(-1) → 1.2³；
@@ -476,45 +471,42 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 分色计价（2026-09-14 ManaList 定案）：**先按既有标量管线算总价**（ComputeAtomCost——
-        /// 含梯价/错边拆分/数量期望/触发连乘/缺陷减费/落区全部规则，一字不改），
-        /// 再按表行 ManaList 份额**比例拆分**到各色。单色行=行为与旧口径完全一致；
-        /// 混合色行=总价不变、构成按份额分布（余数归首色保总额）。
+        /// 分色计价（2026-09-14 ManaList 定案；2026-10-04 位置数组化）：**先按既有标量管线算总价**
+        /// （ComputeAtomCost——含梯价/错边拆分/数量期望/触发连乘/缺陷减费/落区全部规则，一字不改），
+        /// 再按表行费用构成份额**比例拆分**到各色（序数序）。单色行=行为与旧口径完全一致；
+        /// 混合色行=总价不变、构成按份额分布（余数归序数序末个非零色保总额）。
         /// </summary>
         public static Dictionary<ManaType, int> ComputeAtomCostByColor(AtomicEffectInstance atom, EffectDefinition def,
             List<int> domain, AtomicEffectConfig cfg)
         {
             var result = new Dictionary<ManaType, int>();
             int total = ComputeAtomCost(atom, def, domain, cfg);
-            if (total <= 0 || cfg?.ManaList == null || cfg.ManaList.Count == 0) return result;
+            var cost = cfg?.ManaList;
+            if (total <= 0 || cost == null || cost.IsZero) return result;
 
-            float unitSum = cfg.TotalUnitCost;
+            float unitSum = cost.Total;
             if (unitSum <= 0f)
             {
-                result[cfg.PrimaryColor] = total; // 份额退化（不应发生）——全额落主色
+                result[cost.PrimaryColor] = total; // 份额退化（不应发生）——全额落主色
                 return result;
             }
 
             int allocated = 0;
-            ManaType first = cfg.PrimaryColor;
-            int idx = 0;
-            foreach (var m in cfg.ManaList)
+            var colors = cost.NonzeroColors().ToList();
+            for (int i = 0; i < colors.Count; i++)
             {
-                if (m == null || m.amount <= 0f) continue;
-                var color = (ManaType)m.manaType;
-                if (idx == 0) first = color;
-                if (idx == cfg.ManaList.Count - 1)
+                var color = colors[i];
+                if (i == colors.Count - 1)
                 {
-                    // 末项吃余数——保证分配合计 == total（最大余数法的单行简化）
+                    // 末个非零色吃余数——保证分配合计 == total（最大余数法的单行简化）
                     result.TryGetValue(color, out var prevLast);
                     result[color] = prevLast + (total - allocated);
                     break;
                 }
-                int share = (int)Math.Round(total * (m.amount / unitSum), MidpointRounding.AwayFromZero);
+                int share = (int)Math.Round(total * (cost[color] / unitSum), MidpointRounding.AwayFromZero);
                 result.TryGetValue(color, out var prev);
                 result[color] = prev + share;
                 allocated += share;
-                idx++;
             }
             return result;
         }
@@ -529,6 +521,29 @@ namespace CardCore
         {
             int side = SideLock(domain);
             return (polarity > 0f && side == 1) || (polarity < 0f && side == -1);
+        }
+
+        /// <summary>代价栏有效域计算（2026-10-04 定案：任意单向效果·放入代价栏后逆转选择范围）。
+        /// p≠0 强制错误侧（p&lt;0→己方 / p&gt;0→对方）：表域双侧→收窄到错误侧成员；表域恰为整侧→免写(null)；
+        /// 表域无错误侧成员（单侧在正确侧）→<see cref="TargetKindRules.MirrorDomain"/> 镜像逆转；
+        /// 镜像后仍不满足装载契约（如 p&gt;0 纯 {Self} 域——Self 无对侧）= 不可入。
+        /// p=0 中性须表域单侧锁定（双侧/无目标=既非代价也非收益，拒）。
+        /// 返回 (kinds, eligible)：kinds=null 表示免写（表默认域同效）；合成器放置口与候选过滤共用本口。</summary>
+        public static (List<int> kinds, bool eligible) PayloadCostDomain(AtomicEffectConfig cfg)
+        {
+            if (cfg == null) return (null, false);
+            var kinds = cfg.GetTargetKindList();
+            float p = Math.Clamp(cfg.Polarity, -1f, 1f);
+            if (p == 0f)
+                return SideLock(kinds) != 0 ? (null, true) : (null, false);
+
+            bool wantEnemy = p > 0f;
+            var side = kinds.Where(k => TargetKindRules.IsEnemySide(k) == wantEnemy).ToList();
+            if (side.Count > 0)
+                return side.Count == kinds.Count ? (null, true) : (side, true);
+
+            var mirrored = TargetKindRules.MirrorDomain(kinds); // 正确侧单向 → 逆转
+            return WrongSide(p, mirrored) ? (mirrored, true) : (null, false);
         }
 
         /// <summary>自我沉睡豁免（2026-10-02 苏醒退役配套）：Sleep 原子收窄域恰为 {Self} 不作错边——

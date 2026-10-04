@@ -32,10 +32,10 @@ namespace CardCore
         public int SuggestedTier;
 
         /// <summary>推导价 D(C)，逐色 AwayFromZero 取整。</summary>
-        public Dictionary<ManaType, int> DerivedCost = new Dictionary<ManaType, int>();
+        public ElementCost DerivedCost = new ElementCost();
 
         /// <summary>建议采纳的费用分布 = D(Ĉ) 逐色取整（总和 ≤ Ĉ，按实际价值采纳不强行补齐）。</summary>
-        public Dictionary<ManaType, int> SuggestedCost = new Dictionary<ManaType, int>();
+        public ElementCost SuggestedCost = new ElementCost();
 
         /// <summary>身材费 S（灰桶）。</summary>
         public int S;
@@ -64,7 +64,7 @@ namespace CardCore
         /// <summary>黑白元素获得量（2026-09-11 定案）：域锁错边原子出计价转化的获得
         ///（黑=对自己负面 / 白=对对手正面，构筑期显示；运行时按实际命中发放并封顶地牌上限）。
         /// 按模式0（声明档）口径汇总。</summary>
-        public Dictionary<ManaType, int> Grants = new Dictionary<ManaType, int>();
+        public ElementCost Grants = new ElementCost();
 
         /// <summary>逐行明细（S / K 逐关键词 / E 逐效果 / f / d(C) / Req / G）。</summary>
         public List<CostBreakdownLine> Breakdown = new List<CostBreakdownLine>();
@@ -95,7 +95,7 @@ namespace CardCore
             var cc = cfg.CardCostConfig;
             var dd = cfg.DelayDiscountConfig;
 
-            result.DeclaredTier = TideMath.RoundToInt(card.Cost?.Values.Sum() ?? 0f);
+            result.DeclaredTier = TideMath.RoundToInt(card.Cost?.Total ?? 0f);
 
             // ---- 1) 身材费 S（灰桶；身材不是挂载效果，不参与 f）----
             float statValue = ComputeStatValue(card, cc, result.Breakdown);
@@ -133,12 +133,14 @@ namespace CardCore
                 }
 
                 float defTotal = 0f;
-                foreach (var cost in CostDerivationService.DeriveElementCosts(def, 0)) // 法术宿主永久档由迁移回填承载（Duration=Permanent）
+                var defCost = CostDerivationService.DeriveElementCosts(def, 0); // 法术宿主永久档由迁移回填承载（Duration=Permanent）
+                foreach (var color in defCost.NonzeroColors())
                 {
-                    effBuckets.TryGetValue(cost.ManaType, out var prev);
-                    effBuckets[cost.ManaType] = prev + cost.Value;
-                    effectTotal += cost.Value;
-                    defTotal += cost.Value;
+                    var amount = defCost[color];
+                    effBuckets.TryGetValue(color, out var prev);
+                    effBuckets[color] = prev + amount;
+                    effectTotal += amount;
+                    defTotal += amount;
                 }
                 result.Breakdown.Add(new CostBreakdownLine("E", $"效果 {def.DisplayName ?? def.Id} (锚价)", defTotal));
             }
@@ -177,7 +179,7 @@ namespace CardCore
             result.S = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
             result.K = (int)Math.Round(keywordTotal, MidpointRounding.AwayFromZero);
             result.EAnchor = (int)Math.Round(effectTotal, MidpointRounding.AwayFromZero);
-            result.DerivedTotal = result.DerivedCost.Values.Sum();
+            result.DerivedTotal = (int)result.DerivedCost.Total;
 
             // ---- 6) 规则一（2026-09-11 简化定案）：D ≤ C 直判 ----
             // 代价当量抵扣通道下线——代价补偿改发黑/白元素（运行时），不再压低声明费。
@@ -190,16 +192,17 @@ namespace CardCore
             foreach (var def in effectDefs)
             {
                 if (def == null || def.IsActivatedEffect) continue;
-                foreach (var kv in CostDerivationService.DeriveElementGrants(def, 0))
+                var defGrants = CostDerivationService.DeriveElementGrants(def, 0);
+                foreach (var color in defGrants.NonzeroColors())
                 {
-                    if (kv.Value <= 0) continue;
-                    result.Grants.TryGetValue(kv.Key, out var prevG);
-                    result.Grants[kv.Key] = prevG + kv.Value;
+                    var amount = (int)defGrants[color];
+                    if (amount <= 0) continue;
+                    result.Grants[color] = result.Grants[color] + amount;
                 }
             }
             // 代价栏：卡层 PayloadCost（2026-09-23 上移卡组合层）为正式口；legacy 效果级 Costs 兜底
-            //（卡层已填时跳过 legacy——防双收）。Payload **全量获得**（2026-09-21 定案：发放无钳制；
-            // 构筑期只允许装形成 1 费的代价，见 CardEffectConverter 限价警告——故 Grants 恒 ≤1；后续靠情况开放）。
+            //（卡层已填时跳过 legacy——防双收）。Payload **按全价获得**（2026-10-04 定案：任意单向效果
+            // 不限价、逆转选择范围——Grants 不再恒 ≤1；黑白获得受每回合地牌槽上限钳制，见 ElementPool.AddMana）。
             var payloadEntries = new List<AtomicEffectEntry>();
             if (card.PayloadCost?.payload != null && !string.IsNullOrEmpty(card.PayloadCost.payload.refId))
             {
@@ -223,36 +226,36 @@ namespace CardCore
                 int amount = CostDerivationService.PayloadUnitGrant(payload);
                 if (amount <= 0) continue;
                 var gColor = CostCompensationService.PayloadGrantColor(payload);
-                result.Grants.TryGetValue(gColor, out var prevC);
-                result.Grants[gColor] = prevC + amount;
+                result.Grants[gColor] = result.Grants[gColor] + amount;
             }
-            foreach (var kv in result.Grants)
+            foreach (var color in result.Grants.NonzeroColors())
             {
                 result.Breakdown.Add(new CostBreakdownLine("G",
-                    $"获得{ElementAffinity.Single(kv.Key).GetColorName()}{kv.Value}（打出/发动时全量发放；黑白获取每回合封顶 1/色·全来源）",
-                    kv.Value, kv.Key));
+                    $"获得{ElementAffinity.Single(color).GetColorName()}{(int)result.Grants[color]}（打出/发动时全量发放；黑白获取每回合封顶=地牌槽上限/色·全来源）",
+                    (int)result.Grants[color], color));
             }
 
             // ---- 7) 建议档位 Ĉ 与建议分布（含底盘预算——建议价与 D 同口径）----
             result.SuggestedTier = FindSuggestedTier(card, cc, dd, statValue, kwBuckets, effBuckets);
-            result.SuggestedCost = BuildCostAtTier(card, result.SuggestedTier, cc, dd, statValue, kwBuckets, effBuckets);
+            result.SuggestedCost = ToElementCost(
+                BuildCostAtTier(card, result.SuggestedTier, cc, dd, statValue, kwBuckets, effBuckets));
 
             // 自洽补齐（2026-09-10，取代「按实际价值采纳不强行补齐」）：D(Ĉ) 取整总和常 < Ĉ，
             // 而写回的 costList 总和即新声明档 C′——档位反馈（f=d(C′)，低档折价更小）会让
             // D(C′) 反超 C′（实测 6 卡：D(5)=4 写回 → C′=4 → D(4)=5 → 规则一永不符），
             // 升档迭代在反馈下震荡不收敛；唯一自洽解 = 差额补灰到 Ĉ
             // （声明档=Ĉ，D(Ĉ)≤Ĉ 由 FindSuggestedTier 的定义保证）。
-            int suggestedSum = result.SuggestedCost.Values.Sum();
+            int suggestedSum = (int)result.SuggestedCost.Total;
             if (suggestedSum < result.SuggestedTier)
             {
-                result.SuggestedCost.TryGetValue(ManaType.Gray, out var grayPrev);
-                result.SuggestedCost[ManaType.Gray] = grayPrev + (result.SuggestedTier - suggestedSum);
+                result.SuggestedCost[ManaType.Gray] =
+                    result.SuggestedCost[ManaType.Gray] + (result.SuggestedTier - suggestedSum);
             }
             return result;
         }
 
         /// <summary>缺省建议：建议档位 Ĉ 的多色分布（CardLoader 兜底 / 重生成菜单用）。</summary>
-        public static Dictionary<ManaType, int> DeriveSuggestedCost(CardData card)
+        public static ElementCost DeriveSuggestedCost(CardData card)
         {
             var r = Derive(card);
             return r.SuggestedCost;
@@ -292,14 +295,14 @@ namespace CardCore
             if (CostDerivationService.HasChoiceEffect(card))
             {
                 var modes = DeriveModeCosts(card);
-                if (card.Cost != null && card.Cost.Count > 0)
+                if (card.Cost != null && !card.Cost.IsZero)
                 {
                     if (modes.Count > 0) card.ModeCostCache = modes; // 声明优先：只填缓存
                     return;
                 }
 
                 var maxCost = MaxModeCost(modes);
-                if (maxCost.Count > 0)
+                if (!maxCost.IsZero)
                 {
                     card.Cost = maxCost;
                     card.ResetCache(); // 会清缓存，最后回填
@@ -308,12 +311,12 @@ namespace CardCore
                 return;
             }
 
-            if (card.Cost != null && card.Cost.Count > 0) return;      // 严格非空即返：禁止覆盖声明费用
+            if (card.Cost != null && !card.Cost.IsZero) return;      // 严格非空即返：禁止覆盖声明费用
 
             var suggested = DeriveSuggestedCost(card);
-            if (suggested.Count == 0) return;
+            if (suggested.IsZero) return;
 
-            card.Cost = suggested.ToDictionary(kv => (int)kv.Key, kv => (float)kv.Value);
+            card.Cost = suggested;
             card.ResetCache();
         }
 
@@ -324,16 +327,16 @@ namespace CardCore
         /// 两遍式：第一遍取各模式效果锚桶（未折未取整）——价差溢价与「模式0=最高消耗」契约都按原始锚价判；
         /// 第二遍组装（S/挂载口/价差入灰桶，与效果同吃 d(C)——整卡最后折）。无抉择卡返回空表。
         /// </summary>
-        public static List<Dictionary<int, float>> DeriveModeCosts(CardData card)
+        public static List<ElementCost> DeriveModeCosts(CardData card)
         {
-            var result = new List<Dictionary<int, float>>();
+            var result = new List<ElementCost>();
             int modeCount = CostDerivationService.GetModeCount(card);
             if (card == null || modeCount <= 1) return result;
 
             var cfg = ValueSystemConfigManager.Instance.GetOrCreateConfig();
             var cc = cfg.CardCostConfig;
             var dd = cfg.DelayDiscountConfig;
-            int declaredTier = TideMath.RoundToInt(card.Cost?.Values.Sum() ?? 0f);
+            int declaredTier = TideMath.RoundToInt(card.Cost?.Total ?? 0f);
 
             // 模式无关三块（与 Derive 共用助手，防口径漂移；无 breakdown 记录）
             float statValue = ComputeStatValue(card, cc, null);
@@ -365,10 +368,11 @@ namespace CardCore
                 {
                     if (def == null) continue;
                     if (def.IsActivatedEffect) continue;
-                    foreach (var cost in CostDerivationService.DeriveElementCosts(def, m)) // 法术宿主永久档由迁移回填承载（Duration=Permanent）
+                    var defCost = CostDerivationService.DeriveElementCosts(def, m); // 法术宿主永久档由迁移回填承载（Duration=Permanent）
+                    foreach (var color in defCost.NonzeroColors())
                     {
-                        effBuckets.TryGetValue(cost.ManaType, out var prev);
-                        effBuckets[cost.ManaType] = prev + cost.Value;
+                        effBuckets.TryGetValue(color, out var prev);
+                        effBuckets[color] = prev + defCost[color];
                     }
                 }
                 modeBuckets.Add(effBuckets);
@@ -394,7 +398,7 @@ namespace CardCore
             {
                 var mounted = ApportionMounted(modeBuckets[m], kwBuckets, kwMultiplier, factor, grayAdd);
                 ApplyChassis(card, mounted); // 底盘预算（2026-09-10）：退费先灰后最高色 / 加价入灰
-                result.Add(mounted.ToDictionary(kv => (int)kv.Key, kv => (float)kv.Value));
+                result.Add(ToElementCost(mounted));
             }
             return result;
         }
@@ -402,35 +406,45 @@ namespace CardCore
         /// <summary>
         /// 读取某模式的支付费用（构筑期缓存；缓存缺失时兜底重推导——正常路径 EnsureCost 已填）。
         /// 返回副本：调用方在其上叠加 CostUp/CostDown 指示物层，不污染缓存。
-        /// 空字典=该模式免费（推导为 0 是定价结果，不落 {Gray:1} 默认）。
+        /// 全零=该模式免费（推导为 0 是定价结果，不落 {Gray:1} 默认）。
         /// </summary>
-        public static Dictionary<int, float> GetModeCost(CardData card, int modeIndex)
+        public static ElementCost GetModeCost(CardData card, int modeIndex)
         {
-            if (card == null) return new Dictionary<int, float>();
+            if (card == null) return new ElementCost();
             if (card.ModeCostCache == null || card.ModeCostCache.Count == 0)
                 card.ModeCostCache = DeriveModeCosts(card); // 兜底：手构卡未走装载链
-            if (card.ModeCostCache.Count == 0) return new Dictionary<int, float>();
+            if (card.ModeCostCache.Count == 0) return new ElementCost();
 
             int idx = Math.Clamp(modeIndex, 0, card.ModeCostCache.Count - 1);
-            return new Dictionary<int, float>(card.ModeCostCache[idx]);
+            return card.ModeCostCache[idx].Clone();
         }
 
-        /// <summary>最大模式费（总额最高的那套分布；全空返回空字典）。地牌值/排序键用。</summary>
-        public static Dictionary<int, float> MaxModeCost(List<Dictionary<int, float>> modes)
+        /// <summary>最大模式费（总额最高的那套分布；全空返回全零）。地牌值/排序键用。</summary>
+        public static ElementCost MaxModeCost(List<ElementCost> modes)
         {
-            Dictionary<int, float> best = null;
+            ElementCost best = null;
             float bestTotal = -1f;
             foreach (var m in modes)
             {
-                float total = 0f;
-                foreach (var v in m.Values) total += v;
+                if (m == null) continue;
+                float total = m.Total;
                 if (total > bestTotal)
                 {
                     bestTotal = total;
                     best = m;
                 }
             }
-            return best != null ? new Dictionary<int, float>(best) : new Dictionary<int, float>();
+            return best?.Clone() ?? new ElementCost();
+        }
+
+        /// <summary>计价内部 int 桶 → ElementCost（组合层机械的边界口）。</summary>
+        private static ElementCost ToElementCost(Dictionary<ManaType, int> dict)
+        {
+            var c = new ElementCost();
+            if (dict == null) return c;
+            foreach (var kv in dict)
+                if (kv.Value != 0) c[kv.Key] = kv.Value;
+            return c;
         }
 
         // ======================================== 内部 ========================================
@@ -467,19 +481,23 @@ namespace CardCore
                     }
 
                     var atomCfg = AtomicEffectTable.GetByType(grantType);
-                    // ManaList 分色（2026-09-14）：关键词费=表行费用构成逐色入桶。
+                    // ManaList 分色（2026-09-14；2026-10-04 位置数组化）：关键词费=表行费用构成逐色入桶。
                     // 黑白照常进生物费用列表（2026-09-14 撤销「转启动式/不计费」定案）——
                     // 参杂黑白的生物可作地牌，地牌不从黑白份额产指示物（ElementPool 过滤），
                     // 黑白获取通道不变（=卡结算：错边/Payload 补偿）。
                     float baseCost = atomCfg?.TotalUnitCost ?? 0f;
-                    foreach (var m in atomCfg?.ManaList ?? new List<ManaAmountEntry>())
+                    var kwCost = atomCfg?.ManaList;
+                    if (kwCost != null)
                     {
-                        if (m == null || m.amount <= 0f) continue;
-                        var color = (ManaType)m.manaType;
-                        kwBuckets.TryGetValue(color, out var prev);
-                        kwBuckets[color] = prev + m.amount;
-                        keywordTotal += baseCost;
-                        breakdown?.Add(new CostBreakdownLine("K", $"关键词 {kwId} (Grant 固定费)", baseCost, color));
+                        foreach (var color in kwCost.NonzeroColors())
+                        {
+                            var amount = kwCost[color];
+                            if (amount <= 0f) continue;
+                            kwBuckets.TryGetValue(color, out var prev);
+                            kwBuckets[color] = prev + amount;
+                            keywordTotal += baseCost;
+                            breakdown?.Add(new CostBreakdownLine("K", $"关键词 {kwId} (Grant 固定费)", baseCost, color));
+                        }
                     }
                 }
             }
@@ -580,18 +598,21 @@ namespace CardCore
                 // 2026-09-10 持续上移后统一为满档 Permanent 锚（语义修正，随 R8 漂移已接受）。
                 float factor = singleTurn / Math.Max(0.0001f, attrCfg.GetDurationDiscount(DurationType.Permanent));
                 float mult = atomCfg.CostMultiplier > 0f ? atomCfg.CostMultiplier : 1f;
-                // ManaList 分色（2026-09-14）：光环费逐色入桶（首色承担明细则行）
+                // ManaList 分色（2026-09-14；2026-10-04 位置数组化）：光环费逐色入桶（首色承担明细则行）
                 float firstAmount = 0f;
                 ManaType firstColor = ManaType.Gray;
-                foreach (var m in atomCfg.ManaList)
+                var atomCost = atomCfg.ManaList;
+                if (atomCost != null)
                 {
-                    if (m == null || m.amount <= 0f) continue;
-                    var color = (ManaType)m.manaType;
-                    float amount = m.amount * mult * magnitude * factor;
-                    buckets.TryGetValue(color, out var prev);
-                    buckets[color] = prev + amount;
-                    auraTotal += amount;
-                    if (firstAmount == 0f) { firstAmount = amount; firstColor = color; }
+                    foreach (var color in atomCost.NonzeroColors())
+                    {
+                        float amount = atomCost[color] * mult * magnitude * factor;
+                        if (amount <= 0f) continue;
+                        buckets.TryGetValue(color, out var prev);
+                        buckets[color] = prev + amount;
+                        auraTotal += amount;
+                        if (firstAmount == 0f) { firstAmount = amount; firstColor = color; }
+                    }
                 }
                 breakdown?.Add(new CostBreakdownLine("A",
                     $"连接光环 {label}（单回合档 ×{factor:0.###}）", firstAmount, firstColor));

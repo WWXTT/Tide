@@ -176,11 +176,26 @@ namespace GameBoard
             return AttackDistance(ax, az, bx, bz) <= range;
         }
 
-        /// <summary>卡所在格的 6 邻格占用卡（碾压 AdjacentResolver 接线用；未落格 = 空枚举）</summary>
+        /// <summary>卡所在格的 6 邻格占用卡（通用邻接查询；未落格 = 空枚举）</summary>
         public IEnumerable<Card> Neighbors(Card card)
         {
             if (!TryGetCell(card, out int x, out int z)) yield break;
             foreach (BoardDirection dir in Enum.GetValues(typeof(BoardDirection)))
+            {
+                var (nx, nz) = BoardMath.Neighbor(x, z, dir);
+                var neighbor = CardAt(nx, nz);
+                if (neighbor != null && neighbor != card)
+                    yield return neighbor;
+            }
+        }
+
+        /// <summary>卡所在格左右同排（E/W 两向）邻格占用生物（碾压 AdjacentResolver 接线用；
+        /// 未落格 = 空枚举）。2026-10-04 碾压语义修订：溅射只打目标左右两侧生物——
+        /// 不再吃六邻格（后排斜邻/贴边地牌行的地牌不入溅射域）。</summary>
+        public IEnumerable<Card> FlankNeighbors(Card card)
+        {
+            if (!TryGetCell(card, out int x, out int z)) yield break;
+            foreach (var dir in new[] { BoardDirection.E, BoardDirection.W })
             {
                 var (nx, nz) = BoardMath.Neighbor(x, z, dir);
                 var neighbor = CardAt(nx, nz);

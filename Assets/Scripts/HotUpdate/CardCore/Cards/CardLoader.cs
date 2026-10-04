@@ -40,7 +40,10 @@ namespace CardCore
         public string supertype;
         public int power;
         public int life;
-        public List<CostJsonEntry> costList;
+
+        // 费用（2026-10-04 位置数组化）：下标=ManaType 枚举序号 [灰,红,蓝,绿,白,黑]，长度=枚举成员数；
+        // 旧 [{manaType,amount}] 对列表形态已随全表重推退役。
+        public List<float> costList;
         public List<string> keywords;
         public List<string> tags;
         public List<CardEffectData> effects;
@@ -70,15 +73,8 @@ namespace CardCore
         public int refundColor = -1;
     }
 
-    /// <summary>
-    /// 费用 JSON 条目
-    /// </summary>
-    [Serializable]
-    public class CostJsonEntry
-    {
-        public int manaType;
-        public float amount;
-    }
+    // CostJsonEntry（{manaType, amount} 对）已删除（2026-10-04 费用位置数组化）：
+    // costList 现为 float 位置数组（下标=ManaType 枚举序号）。
 
     /// <summary>
     /// 卡组配置
@@ -694,17 +690,11 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 解析费用列表
+        /// 解析费用位置数组（null → 空 ElementCost；短补零/长截断由 ElementCost 构造统一处理）
         /// </summary>
-        private static Dictionary<int, float> ParseCost(List<CostJsonEntry> costList)
+        private static ElementCost ParseCost(List<float> costList)
         {
-            var cost = new Dictionary<int, float>();
-            if (costList == null) return cost;
-            foreach (var entry in costList)
-            {
-                cost[entry.manaType] = entry.amount;
-            }
-            return cost;
+            return costList == null ? new ElementCost() : new ElementCost(costList.ToArray());
         }
     }
 }

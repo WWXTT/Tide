@@ -68,7 +68,7 @@ namespace SynergyUI
         // 卡池颜色过滤 chips（预制体烘焙，Build 一次绑定；激活态=Outline 开关）。
         private readonly Dictionary<UIColor, UnityEngine.UI.Button> _filterChips = new Dictionary<UIColor, UnityEngine.UI.Button>();
 
-        private Dictionary<int, float> _lastSuggestedCost;
+        private ElementCost _lastSuggestedCost;
 
         protected override void Build()
         {
@@ -315,7 +315,7 @@ namespace SynergyUI
             _card.Keywords = src.Keywords != null ? new List<string>(src.Keywords) : new List<string>();
             _card.Tags = src.Tags != null ? new List<string>(src.Tags) : new List<string>();
             _card.Effects = src.Effects != null ? new List<CardEffectData>(src.Effects) : new List<CardEffectData>();
-            _card.Cost = src.Cost != null ? new Dictionary<int, float>(src.Cost) : null;
+            _card.Cost = src.Cost != null ? src.Cost.Clone() : null;
             _card.PayloadCost = src.PayloadCost; // 单条 Payload：填装走整体替换
             _card.ArrowDirections = src.ArrowDirections;
             _card.LinkAuras = src.LinkAuras != null ? new List<LinkAuraData>(src.LinkAuras) : null;
@@ -453,14 +453,15 @@ namespace SynergyUI
             UiKit.IntField("field-" + label, row, label, value, onChanged, width: 70f);
         }
 
-        // ---------- 代价栏（2026-09-23 定案：上移卡组合层）----------
-        // 单卡单条 Payload：填装时作用域改写错侧（有益→对手 / 有害→己方），限 1 费；
+        // ---------- 代价栏（2026-09-23 定案：上移卡组合层；2026-10-04 规则改造）----------
+        // 单卡单条 Payload：任意单向效果不限价——填装时逆转选择范围到错误一侧
+        //（表域双侧收窄 / 正确侧单向镜像 / 恰为错误侧免写，统一口 CostDerivationService.PayloadCostDomain）；
         // cast 付费步强制执行并按全价补偿黑/白（CollectCardSpecialCosts 读 CardData.PayloadCost）。
 
         private void BuildPayloadZone()
         {
             ClearChildren(_payloadZone);
-            var header = UiKit.Label("header", _payloadZone, "代价（错侧作用·限 1 费·单卡单条）",
+            var header = UiKit.Label("header", _payloadZone, "代价（逆转错侧·单卡单条）",
                 UiStyle.HeaderSize, UiStyle.TextSecondary, TextAnchor.LowerLeft, FontStyle.Bold);
             UiKit.Size(header, fw: 1f);
 
@@ -483,7 +484,7 @@ namespace SynergyUI
                 return;
             }
 
-            // 未填装：候选下拉（与 FillPayloadCost 同口径的表级过滤——错边可达·默认 1 费）
+            // 未填装：候选下拉（与 FillPayloadCost 同口径的表级过滤——PayloadCostDomain 可入，不限价）
             var rows = PayloadCandidates().ToList();
             var choices = new List<string> { "（选择代价原子）" };
             choices.AddRange(rows.Select(r => r.DisplayName));
@@ -495,11 +496,11 @@ namespace SynergyUI
             }, width: 220f);
         }
 
-        /// <summary>填装代价栏（自效果合成器 FillCostSlot 移植，2026-09-23）：**作用单位改写错侧 + 限 1 费**。
-        /// 改写规则（与装载期 WrongSide/SideLock 同口径）：有益(p&gt;0)→实例域取表域的对手侧成员、
-        /// 有害(p&lt;0)→取己方侧成员（表域无该侧成员=该原子无法作用于错误对象，拒）；
-        /// 中性(p=0)须表域单侧锁定（双侧/无目标=既非代价也非收益，拒）。
-        /// 限价：PayloadUnitGrant &gt;1 放置口拦截（2026-09-21 定案）。</summary>
+        /// <summary>填装代价栏（2026-10-04 定案：任意单向效果·逆转选择范围·不限价）。
+        /// 有效域统一走 CostDerivationService.PayloadCostDomain：p≠0 强制错误侧——表域双侧收窄、
+        /// 正确侧单向**镜像逆转**（MirrorDomain）、恰为错误侧免写；p=0 须表域单侧锁定。
+        /// 不再限价（09-21「等价1」退役）——补偿按全价发放（PayloadUnitGrant），
+        /// 黑白获得受每回合地牌槽上限钳制（ElementPool.AddMana）。</summary>
         private void FillPayloadCost(AtomicEffectEntry entry)
         {
             var cfg = AtomicEffectTable.GetByHashId(entry?.refId);
@@ -512,47 +513,25 @@ namespace SynergyUI
             if (ComposerCatalog.HasMountBit(cfg, MountKind.Keyword))
             { ShowToast("关键词类原子不可作代价（代价位不出现关键词）"); return; }
 
-            var kinds = cfg.GetTargetKindList();
-            float p = Mathf.Clamp(cfg.Polarity, -1f, 1f);
-            if (p != 0f)
+            var (kinds, eligible) = CostDerivationService.PayloadCostDomain(cfg);
+            if (!eligible)
             {
-                bool wantEnemy = p > 0f; // 有益→对手侧 / 有害→己方侧
-                var side = kinds.Where(k => TargetKindRules.IsEnemySide(k) == wantEnemy).ToList();
-                if (side.Count == 0)
-                {
-                    ShowToast($"该原子的作用域没有{(wantEnemy ? "对手" : "己方")}侧单位——无法作用于错误对象，不可作代价");
-                    return;
-                }
-                entry.kinds = side.Count == kinds.Count ? null : side; // 表域恰为整侧=免写（表默认同效）
-            }
-            else
-            {
-                if (CostDerivationService.SideLock(kinds) == 0)
-                {
-                    ShowToast("中性原子须单侧域锁定才可作代价（双侧域/无目标=既非代价也非收益）");
-                    return;
-                }
-                entry.kinds = null; // 表默认即单侧锁
-            }
-
-            // 构筑期限价（2026-09-21 定案：只允许装形成 1 费的代价）——放置口拦截
-            var inst = CardEffectConverter.ConvertPayloadForDisplay(entry);
-            int price = inst != null ? CostDerivationService.PayloadUnitGrant(inst) : 0;
-            if (price > 1)
-            {
-                ShowToast($"该原子作代价将形成 {price} 费——构筑期只允许 1 费（调低数值或换原子）");
+                ShowToast("该原子无法逆转到错误一侧（纯自身域有益 / 中性双侧域）——不可作代价");
                 return;
             }
+            entry.kinds = kinds; // null=免写（表默认同效）；镜像域可超出表行域——逆转语义
 
             _card.PayloadCost = new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = entry };
             _card.ResetCache();
             BuildPayloadZone();
             Recalculate();
-            ShowToast($"已填装代价（{price} 费·错侧作用）——打出时付费步强制执行并按全价补偿黑/白");
+            var inst = CardEffectConverter.ConvertPayloadForDisplay(entry);
+            int price = inst != null ? CostDerivationService.PayloadUnitGrant(inst) : 0;
+            ShowToast($"已填装代价（{price} 费·逆转错侧）——打出时付费步强制执行并按全价补偿黑/白（每回合封顶=地牌槽上限）");
         }
 
-        /// <summary>代价候选行（表级）：非引擎/非关键词 + 错侧可达（p≠0 有错侧成员 / p=0 单侧锁）
-        /// + 默认值(value=1)全价 ≤1——下拉只列真正可装的原子。</summary>
+        /// <summary>代价候选行（表级，2026-10-04 新准入）：非引擎/非关键词 + PayloadCostDomain 可入
+        ///（p≠0 双侧收窄或正确侧镜像逆转 / p=0 单侧锁）——不限价，下拉只列真正可装的原子。</summary>
         private static IEnumerable<AtomicEffectConfig> PayloadCandidates()
         {
             foreach (var row in AtomicEffectTable.GetAll())
@@ -562,29 +541,17 @@ namespace SynergyUI
                 if (ComposerCatalog.IsEngineTrunk(type)) continue;
                 if (ComposerCatalog.HasMountBit(row, MountKind.Keyword)) continue;
 
-                var kinds = row.GetTargetKindList();
-                float p = Mathf.Clamp(row.Polarity, -1f, 1f);
-                bool sideOk = p != 0f
-                    ? kinds.Any(k => TargetKindRules.IsEnemySide(k) == (p > 0f))
-                    : CostDerivationService.SideLock(kinds) != 0;
-                if (!sideOk) continue;
-
-                var inst = CardEffectConverter.ConvertPayloadForDisplay(
-                    new AtomicEffectEntry { refId = row.HashId, value = 1 });
-                int price = inst != null ? CostDerivationService.PayloadUnitGrant(inst) : 0;
-                if (price > 1) continue;
+                if (!CostDerivationService.PayloadCostDomain(row).eligible) continue;
                 yield return row;
             }
         }
 
-        /// <summary>代价全价展示行（限 1 费——口径同装载期 PayloadUnitGrant）。</summary>
+        /// <summary>代价全价展示行（口径同装载期 PayloadUnitGrant；补偿按全价，每回合获得封顶=地牌槽上限）。</summary>
         private static string PayloadPriceText(AtomicEffectEntry entry)
         {
             var inst = CardEffectConverter.ConvertPayloadForDisplay(entry);
             int price = inst != null ? CostDerivationService.PayloadUnitGrant(inst) : 0;
-            return price <= 1
-                ? $"全价：{price} / 限 1 费"
-                : $"全价：{price}——超限（构筑期只允许 1 费代价，保存前请调低数值或换原子）";
+            return $"全价：{price}（付费补偿黑/白·每回合封顶=地牌槽上限）";
         }
 
         // ======================================== 右栏：效果挂载 ========================================
@@ -826,29 +793,28 @@ namespace SynergyUI
             RefreshCostLabel();
         }
 
-        // 采纳：整字典写入建议费用分布（多色）。
+        // 采纳：建议费用分布整组写入（位置数组）。
         private void OnAdoptCost()
         {
-            if (_lastSuggestedCost == null || _lastSuggestedCost.Count == 0)
+            if (_lastSuggestedCost == null || _lastSuggestedCost.IsZero)
             {
                 ShowToast("无建议费用可采纳（D=0 保持空，打出按默认灰 1 计）");
                 return;
             }
-            _card.Cost = new Dictionary<int, float>(_lastSuggestedCost);
+            _card.Cost = _lastSuggestedCost.Clone();
             _card.ResetCache();
             RefreshCostLabel();
-            ShowToast("已采纳建议分布：" + string.Join(" ", _lastSuggestedCost.Select(kv => $"{(ManaType)kv.Key}:{(int)kv.Value}")));
+            ShowToast("已采纳建议分布：" + _lastSuggestedCost.ToString());
         }
 
         private void RefreshCostLabel()
         {
-            if (_card.Cost == null || _card.Cost.Count == 0)
+            if (_card.Cost == null || _card.Cost.IsZero)
             {
                 _costLabel.text = "当前费用 (无)";
                 return;
             }
-            var parts = _card.Cost.Select(kv => $"{(ManaType)kv.Key}:{(int)kv.Value}");
-            _costLabel.text = "当前费用 " + string.Join(" ", parts);
+            _costLabel.text = "当前费用 " + _card.Cost.ToString();
         }
 
         // ======================================== 保存（覆盖替换） ========================================

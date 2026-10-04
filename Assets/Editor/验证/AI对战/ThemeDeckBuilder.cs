@@ -365,10 +365,10 @@ namespace CardCore.Editor.Tests
                 cardIds = cards.Select(c => "C_" + SynergyUI.ContentHasher.HashCard(c)).ToList(),
             };
             SynergyUI.DeckSerializer.Save(deck);
-            var curve = cards.Select(c => c.Cost != null ? (int)c.Cost.Values.Sum() : 0)
+            var curve = cards.Select(c => c.Cost != null ? (int)c.Cost.Total : 0)
                 .OrderBy(v => v).ToList();
             Debug.Log($"[主题卡组] {name}：{cards.Count} 张；费用曲线 {string.Join("/", curve)}；" +
-                      $"明细：{string.Join("、", cards.Select(c => $"{c.CardName}({(c.Cost != null && c.Cost.Count > 0 ? string.Join("+", c.Cost.Select(kv => $"{(ManaType)kv.Key}{kv.Value:0}")) : "0")})"))}");
+                      $"明细：{string.Join("、", cards.Select(c => $"{c.CardName}({(c.Cost != null && !c.Cost.IsZero ? string.Join("+", c.Cost.NonzeroColors().Select(m => $"{m}{c.Cost[m]:0}")) : "0")})"))}");
         }
     }
 }

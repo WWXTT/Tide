@@ -134,7 +134,7 @@ namespace CardCore
             var deck = zm.GetCards(player, Zone.Deck);
             if (deck == null || deck.Count == 0) return 0;
             var top = deck[0]; // 牌库顶（index 0 = 顶，ZoneContainer 容器约定；只读展示，不移不动）
-            float total = top is CardWrapper w ? (w.GetData()?.Cost?.Values.Sum() ?? 0f) : 0f;
+            float total = top is CardWrapper w ? (w.GetData()?.Cost?.Total ?? 0f) : 0f;
             return (int)Math.Round(total, MidpointRounding.AwayFromZero);
         }
 

@@ -922,14 +922,14 @@ namespace SynergyUI
             });
         }
 
-        private static Dictionary<int, float> LocalCostOf(BattleCardView card, int modeIndex)
+        private static ElementCost LocalCostOf(BattleCardView card, int modeIndex)
         {
             if (card.CoreCard == null) return null;
             return GameActions.GetCardCost(card.CoreCard, modeIndex);
         }
 
-        private static string CostText(Dictionary<int, float> cost)
-            => cost == null || cost.Count == 0 ? "0" : BattleView.CostTextOf(cost);
+        private static string CostText(ElementCost cost)
+            => cost == null || cost.IsZero ? "0" : BattleView.CostTextOf(cost);
 
         /// <summary>出牌终态：本地=声明期目标预选+PlayCard+响应窗口泵；网络=intent 上行（Targets=null 服务器反问）。</summary>
         private void PlayCardFinal(BattleCardView card, List<Entity> targets, int modeIndex, bool fromGrave)

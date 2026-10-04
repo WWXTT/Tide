@@ -86,15 +86,17 @@ namespace CardCore
         /// <summary>本回合产出次数（手动自选色 + 结束阶段自动灰色；每个全局回合重置）</summary>
         public int TapsThisTurn { get; set; }
 
-        // ===== 黑白每回合获得封顶（2026-09-14 定案）=====
-        // 黑白=万用色（可替代红蓝绿灰支付），若每回合可攒地牌上限个则效果分色失去意义——
-        // 每回合获得封顶各自 1，全来源累计（代价补偿/错边结算/一切 AddMana 路径），
-        // 余数不补；bank 跨回合无上限结转不受影响。钳制唯一咽喉=ElementPool.AddMana。
+        // ===== 黑白每回合获得封顶（2026-09-14 定案；2026-10-04 改口径）=====
+        // 黑白=万用色（可替代红蓝绿灰支付），获得量受每回合封顶钳制——
+        // 09-14 定案封顶固定 1；2026-10-04 代价栏不限价（任意单向效果·镜像逆转）配套：
+        // 封顶 = 地牌槽上限 GetLandCap（随全局回合 1→9，与出牌费用上限同曲线）。
+        // 全来源累计（代价补偿/错边结算/一切 AddMana 路径），余数不补；
+        // bank 跨回合无上限结转不受影响。钳制唯一咽喉=ElementPool.AddMana。
 
-        /// <summary>本回合已获得黑元素数（封顶 1；回合开始清零）</summary>
+        /// <summary>本回合已获得黑元素数（封顶=地牌槽上限；回合开始清零）</summary>
         public int BlackGainedThisTurn { get; set; }
 
-        /// <summary>本回合已获得白元素数（封顶 1；回合开始清零）</summary>
+        /// <summary>本回合已获得白元素数（封顶=地牌槽上限；回合开始清零）</summary>
         public int WhiteGainedThisTurn { get; set; }
 
         public PlayerElementPool()
@@ -386,8 +388,8 @@ namespace CardCore
         /// 向 bank 添加元素并发布产出事件（采掘 MineHandler / 黑白补偿与错边发放调用）。
         /// 与横置产出共用 ElementPoolGainEvent（FromCard = 来源卡）；不动地牌横置状态——
         /// 指示物的去除由调用方完成。Amount 默认 1（横置/采掘路径不传，兼容旧消费者）。
-        /// **黑白每回合获得封顶 1/色**（2026-09-14 定案）：本方法为唯一钳制咽喉——
-        /// 全来源累计、余数不补；钳到 0 时不入账也不发事件。返回实发量（钳后）。
+        /// **黑白每回合获得封顶=地牌槽上限/色**（2026-09-14 定案封顶 1；2026-10-04 代价不限价配套改口径）：
+        /// 本方法为唯一钳制咽喉——全来源累计、余数不补；钳到 0 时不入账也不发事件。返回实发量（钳后）。
         /// </summary>
         public int AddMana(Player player, ManaType type, Card fromCard, int amount = 1)
         {
@@ -397,7 +399,7 @@ namespace CardCore
             if (type == ManaType.Black || type == ManaType.White)
             {
                 int gained = type == ManaType.Black ? pool.BlackGainedThisTurn : pool.WhiteGainedThisTurn;
-                int allowed = Math.Min(amount, 1 - gained);
+                int allowed = Math.Min(amount, GetLandCap(player) - gained);
                 if (allowed <= 0) return 0; // 本回合该色已满：不入账、不发事件
                 amount = allowed;
                 if (type == ManaType.Black) pool.BlackGainedThisTurn += amount;
@@ -438,7 +440,7 @@ namespace CardCore
         /// 支付序=同色→灰→黑白（黑白万用垫四色缺口）；纯色需求量 > 地牌上限不论货币不可付；
         /// 每种货币（含灰）单次贡献 ≤ 地牌上限。出牌/效果费/AI 预检共用本口径。
         /// </summary>
-        public bool CanPayCost(Dictionary<int, float> cost, Player player)
+        public bool CanPayCost(ElementCost cost, Player player)
             => ElementPaymentValidator.CanPayBill(
                 ElementPaymentValidator.NormalizeBill(cost),
                 GetPool(player).AvailableMana,
@@ -451,7 +453,7 @@ namespace CardCore
         /// sourceNote（2026-09-21）：支付来源说明（英雄技能/打出卡名/效果费）——仅供战报渲染，
         /// 不参与任何规则判定。
         /// </summary>
-        public bool PayCost(Dictionary<int, float> cost, Player player, string sourceNote = null)
+        public bool PayCost(ElementCost cost, Player player, string sourceNote = null)
         {
             var pool = GetPool(player);
             var plan = ElementPaymentValidator.GetBillPaymentPlan(
@@ -482,7 +484,7 @@ namespace CardCore
         /// 黑白不由地牌产出：黑白本色费缺口不可补。跨回合支付（响应出牌）同样适用——
         /// 支付时无论轮到谁都可横置己方地牌取元素。
         /// </summary>
-        public bool CanPayCostWithAutoTap(Dictionary<int, float> cost, Player player)
+        public bool CanPayCostWithAutoTap(ElementCost cost, Player player)
             => CanPayCostWithAutoTap(ElementPaymentValidator.NormalizeBill(cost), player);
 
         /// <summary>同 CanPayCostWithAutoTap（已归一账单入口——GameActions.CanAfford 合并 pending 声明承诺后调用）。</summary>
@@ -498,7 +500,7 @@ namespace CardCore
         /// 支付并按需自动横置：bank 不足时先自动横置地牌补足再支付（付费步统一入口——
         /// 出牌施放结算 / 英雄技能 / 效果费）。返回 false = 补不足且 bank 原样未动。
         /// </summary>
-        public bool TryPayCostWithAutoTap(Dictionary<int, float> cost, Player player,
+        public bool TryPayCostWithAutoTap(ElementCost cost, Player player,
             ZoneManager zoneManager = null, string sourceNote = null)
         {
             if (PayCost(cost, player, sourceNote)) return true;
@@ -512,7 +514,7 @@ namespace CardCore
         /// 发 ElementPoolGainEvent（战报/网络投影可见）、计 TapsThisTurn、耗指示物/横置。
         /// 返回 false = 补不足（黑白本色费缺口/地牌耗尽等），此情况下**未横置任何地牌**（先纯规划后执行）。
         /// </summary>
-        public bool AutoTapForCost(Dictionary<int, float> cost, Player player)
+        public bool AutoTapForCost(ElementCost cost, Player player)
             => AutoTapForBill(ElementPaymentValidator.NormalizeBill(cost), player);
 
         /// <summary>同 AutoTapForCost（已归一账单入口——ElementCostPayment 聚合需求后调用）。
@@ -660,7 +662,7 @@ namespace CardCore
         /// <summary>
         /// 全局回合开始（GameCore.OnTurnStarted 调用，每回合一次，无论轮到谁）：
         /// 1. 地牌槽曲线按全局回合数推进（先手首回合 1，此后每回合开始 +1，最大 9 —— 对手首回合即为 2）
-        /// 2. 所有玩家的本回合产出计数与黑白获得计数清零（每回合封顶 1/色按全局回合重置）
+        /// 2. 所有玩家的本回合产出计数与黑白获得计数清零（每回合封顶=地牌槽上限/色，按全局回合重置）
         /// 3. 回合玩家（准备阶段）地牌全部解除横置
         /// </summary>
         public void OnTurnStart(Player turnPlayer, int globalTurnNumber)
@@ -803,26 +805,26 @@ namespace CardCore
                 var choiceData = choiceWrapper.GetData();
                 if (choiceData != null && CostDerivationService.HasChoiceEffect(choiceData))
                 {
-                    foreach (var kv in CardCostService.GetModeCost(choiceData, modeIndex))
+                    var modeCost = CardCostService.GetModeCost(choiceData, modeIndex);
+                    foreach (var type in modeCost.NonzeroColors())
                     {
-                        if (kv.Value <= 0) continue;
+                        int amount = (int)modeCost[type];
+                        if (amount <= 0) continue;
                         hadPositiveCost = true;
-                        var type = (ManaType)kv.Key;
                         if (type == ManaType.Black || type == ManaType.White) continue; // 黑白不产指示物
-                        tokens[type] = (int)kv.Value;
+                        tokens[type] = amount;
                     }
                     // 所选模式无正费用（或只剩黑白被过滤）→ 空表 → 调用方 sum==0 拒绝；不落 Gray 默认（免费模式不可白嫖地牌）
                     return tokens;
                 }
             }
 
-            // 从 IHasCost 接口读取费用
+            // 从 IHasCost 接口读取费用（序数序遍历）
             if (card is IHasCost hasCost && hasCost.Cost != null)
             {
-                foreach (var kvp in hasCost.Cost)
+                foreach (var type in hasCost.Cost.NonzeroColors())
                 {
-                    ManaType type = (ManaType)kvp.Key;
-                    int amount = (int)kvp.Value;
+                    int amount = (int)hasCost.Cost[type];
                     if (amount > 0)
                     {
                         hadPositiveCost = true;

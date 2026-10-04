@@ -24,10 +24,9 @@ namespace CardCore.AI
             foreach (var card in core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
             {
                 if (!(card is IHasCost hc) || hc.Cost == null) continue;
-                foreach (var kv in hc.Cost)
+                foreach (var color in hc.Cost.NonzeroColors())
                 {
-                    var color = (ManaType)kv.Key;
-                    int amount = (int)Math.Ceiling(kv.Value);
+                    int amount = (int)Math.Ceiling(hc.Cost[color]);
                     demand[color] = demand.TryGetValue(color, out var v) ? v + amount : amount;
                 }
             }

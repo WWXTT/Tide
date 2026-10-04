@@ -21,7 +21,8 @@ namespace SynergyUI
     {
         public string Key;              // 池化/增量刷新键（对战=RuntimeId；构筑=CardId）
         public string Name = "";
-        public string CostText = "";    // 如「红2 灰1」
+        public string CostText = "";    // 如「红2 灰1」（文本兜底——方格缺数据时卡面仍可显示）
+        public ElementCost Costs;       // 费用明细（2026-10-04 位置数组口径——卡面费用方格显示）
         public string StatsText = "";   // 如「3/2」「耐久2」
         public string TypeText = "";    // 生物/法术/结界…
         public string KeywordsText = "";
@@ -66,6 +67,8 @@ namespace SynergyUI
             if (string.IsNullOrEmpty(it.Name))
                 it.Name = string.IsNullOrEmpty(data.CardName) ? data.ID : data.CardName;
             if (string.IsNullOrEmpty(it.CostText)) it.CostText = BattleView.CostTextOf(data.Cost);
+            if (it.Costs == null && data.Cost != null && !data.Cost.IsZero)
+                it.Costs = data.Cost;
             if (string.IsNullOrEmpty(it.TypeText)) it.TypeText = BattleView.SupertypeZh(data.Supertype);
 
             if (!keepRuntimeStats)

@@ -82,10 +82,12 @@ namespace CardCore
         public int engineParam;
         public int arrows;             // 光环形态（2026-09-23）：HexDirection Flags——箭头随效果合成，挂卡并集
         public List<LinkAuraData> linkAuras;  // 光环条目（非光环效果 null——空列不写，向后兼容）
-        public List<ElementCostRef> cost;     // 效果锚价（2026-09-23）：合成期按表累加实时推导落盘——
-                                              // 参考快照（2026-10-02 口径修正：运行时无消费者，显示/
-                                              // 预检/扣款一律实时重推导）；装载期逐效果还原为
-                                              // AnchorCost 缓存；派生数据不入内容哈希（表变更重算不换 id）
+
+        // 效果锚价（2026-09-23；2026-10-04 位置数组化）：**float 位置数组**（下标=ManaType 枚举序号
+        // [灰,红,蓝,绿,白,黑]）——合成期按表累加实时推导落盘；参考快照（2026-10-02 口径修正：
+        // 运行时无消费者，显示/预检/扣款一律实时重推导）；装载期逐效果还原为 AnchorCost 缓存；
+        // 派生数据不入内容哈希（表变更重算不换 id）。旧 [{mana,value}] 对列表形态已随全表重推退役。
+        public List<float> cost;
         public List<CostRef> costs;
         public List<StepRef> steps;
         public List<AtomicEffectEntry> rewards;  // 引擎奖励（engine≠0）
@@ -257,8 +259,8 @@ namespace CardCore
                         && (!string.IsNullOrEmpty(a.stat) || !string.IsNullOrEmpty(a.keyword))).ToList()
                     : null, // 光环条目（2026-09-23 效果级）——无效条目装载期即丢弃
                 AnchorCost = dto.cost != null && dto.cost.Count > 0
-                    ? dto.cost.Where(c => c != null).Select(c => new ElementCostRef { mana = c.mana, value = c.value }).ToList()
-                    : null, // 锚价缓存（2026-09-23）——装载期逐效果建立
+                    ? new ElementCost(dto.cost.ToArray())
+                    : null, // 锚价缓存（2026-09-23；2026-10-04 位置数组）——装载期逐效果建立
                 Costs = ToCostEntries(dto.costs),
             };
             if (dto.engine != (int)BranchEngineKind.None)

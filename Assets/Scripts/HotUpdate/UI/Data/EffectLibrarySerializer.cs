@@ -194,8 +194,7 @@ namespace SynergyUI
                     LinkAuras = dto.linkAuras != null && dto.linkAuras.Count > 0
                         ? new List<LinkAuraData>(dto.linkAuras) : null,
                     AnchorCost = dto.cost != null && dto.cost.Count > 0
-                        ? dto.cost.Where(c => c != null)
-                            .Select(c => new ElementCostRef { mana = c.mana, value = c.value }).ToList() : null,
+                        ? new ElementCost(dto.cost.ToArray()) : null,
                     Costs = EffectSlim.ToCostEntries(dto.costs),
                 },
                 steps = dto.steps != null
@@ -210,12 +209,13 @@ namespace SynergyUI
             return graph;
         }
 
-        /// <summary>效果锚价（2026-09-23 定案）：**效果组合阶段=纯表累加、无减免抵消**——
-        /// ConvertOne+DeriveElementCosts 实时推导（与合成器费用预览 AutoCostText 同一口径），
+        /// <summary>效果锚价（2026-09-23 定案；2026-10-04 位置数组化）：**效果组合阶段=纯表累加、
+        /// 无减免抵消**——ConvertOne+DeriveElementCosts 实时推导（与合成器费用预览 AutoCostText 同一口径），
         /// 代价不参与（代价已上移卡组合层，效果层不存在费用减免抵消）。
+        /// 输出=float 位置数组（下标=ManaType 枚举序号；空费用返回 null 空列不写）。
         /// 派生数据不入内容哈希（HashEffect 不读 cost 列——原子表调价重算不换效果 id）。
         /// 编辑中间态转换失败/无费返回 null（空列不写）。</summary>
-        private static List<ElementCostRef> DeriveAnchorCost(EffectGraphData graph)
+        private static List<float> DeriveAnchorCost(EffectGraphData graph)
         {
             try
             {
@@ -228,11 +228,8 @@ namespace SynergyUI
                     : ProjectLinear(graph.steps);
                 var def = CardEffectConverter.ConvertOne(fx, "ANCHOR_COST_DERIVE");
                 var costs = def == null ? null : CostDerivationService.DeriveElementCosts(def, 0);
-                if (costs == null || costs.Count == 0) return null;
-                return costs
-                    .Where(c => c != null && c.Value > 0)
-                    .Select(c => new ElementCostRef { mana = (int)c.ManaType, value = (int)c.Value })
-                    .ToList();
+                if (costs == null || costs.IsZero) return null;
+                return costs.v.ToList();
             }
             catch
             {

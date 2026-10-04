@@ -3,932 +3,1410 @@
     "ID": "3057d8ac",
     "EnumName": "攻击",
     "DisplayName": "攻击{target}，结算战斗伤害后横置",
-    "EffectColor": "Gray",
-    "BaseCost": 1.0,
     "EffectType": "Attack",
     "TargetKinds": "2",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "0"
+    "MountKinds": "0",
+    "ManaList": [
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "1d703414",
     "EnumName": "守卫",
     "DisplayName": "横置并转移对手攻击目标，以此卡作为攻击对象",
-    "EffectColor": "Gray",
-    "BaseCost": 1.0,
     "EffectType": "Guard",
     "TargetKinds": "",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0"
+    "MountKinds": "0",
+    "ManaList": [
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "a4b823fc",
     "EnumName": "造成伤害",
     "DisplayName": "对{target}造成{value}点伤害",
-    "EffectColor": "Red",
-    "BaseCost": 1.0,
     "EffectType": "DealDamage",
     "TargetKinds": "1,2,3,4",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "0,3,4,7"
+    "MountKinds": "0,3,4,7",
+    "ManaList": [
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "599fcc9a",
     "EnumName": "回复生命",
     "DisplayName": "为{target}回复{value}点生命",
-    "EffectColor": "Green",
-    "BaseCost": 0.5,
     "EffectType": "Heal",
     "TargetKinds": "1,2",
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "0,3,4,7"
+    "MountKinds": "0,3,4,7",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.4,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "828060dd",
     "EnumName": "穿透伤害",
     "DisplayName": "对{target}造成{value}点穿透伤害（无视关键词与指示物）",
-    "EffectColor": "Red",
-    "BaseCost": 1.5,
     "EffectType": "PierceDamage",
     "TargetKinds": "1,2,3,4",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "0,3,4,7"
+    "MountKinds": "0,3,4,7",
+    "ManaList": [
+      0.0,
+      1.5,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "af7bd26e",
     "EnumName": "吸取",
     "DisplayName": "吸取{target}{value}点生命（造成伤害并回复生命）",
-    "EffectColor": "Black",
-    "BaseCost": 2.0,
     "EffectType": "DrainLife",
     "TargetKinds": "1,2,3,4",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "0,3,4,7"
+    "MountKinds": "0,3,4,7",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0
+    ]
   },
   {
     "ID": "cca3ed84",
     "EnumName": "剧毒",
     "DisplayName": "对{target}附加剧毒指示物（回合结束时死亡）",
-    "EffectColor": "Black",
-    "BaseCost": 3.0,
     "EffectType": "Poison",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4,2"
+    "MountKinds": "0,4,2",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      3.0
+    ]
   },
   {
     "ID": "120ad4d1",
     "EnumName": "抽卡",
     "DisplayName": "从卡组中抽{value}张卡",
-    "EffectColor": "Blue",
-    "BaseCost": 2.0,
     "EffectType": "DrawCard",
     "TargetKinds": "7,8",
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "bf06d56b",
     "EnumName": "弃牌",
     "DisplayName": "从手牌中自选弃掉{value}张牌",
-    "EffectColor": "Black",
-    "BaseCost": 2.0,
     "EffectType": "DiscardCard",
     "TargetKinds": "5,6",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0
+    ]
   },
   {
     "ID": "3e00ecd2",
     "EnumName": "弹回",
     "DisplayName": "将{target}单位从场上返回手牌",
-    "EffectColor": "Blue",
-    "BaseCost": 2.0,
     "EffectType": "ReturnToHand",
     "TargetKinds": "1,2,3,4",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "ae4c7937",
     "EnumName": "回收",
     "DisplayName": "将{target}卡从墓地返回手牌",
-    "EffectColor": "Blue",
-    "BaseCost": 3.0,
     "EffectType": "RecoverToHand",
     "TargetKinds": "9,10",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      3.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "0f5b8c17",
     "EnumName": "除外",
     "DisplayName": "将{target}单位从场上除外",
-    "EffectColor": "White",
-    "BaseCost": 5.0,
     "EffectType": "Exile",
     "TargetKinds": "1,2,3,4",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      5.0,
+      0.0
+    ]
   },
   {
     "ID": "219bdb9f",
     "EnumName": "洗回",
     "DisplayName": "将{target}单位从场上洗入牌库",
-    "EffectColor": "Blue",
-    "BaseCost": 3.0,
     "EffectType": "ShuffleIntoDeck",
     "TargetKinds": "1,2,3,4",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      3.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "557f95e5",
     "EnumName": "洗入",
     "DisplayName": "将{target}卡洗入牌库",
-    "EffectColor": "Blue",
-    "BaseCost": 1.0,
     "EffectType": "ShuffleIntoDeck",
     "TargetKinds": "9,10",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "c2abbd1f",
     "EnumName": "检索",
     "DisplayName": "宣言一个卡名，从牌库检索对应的卡",
-    "EffectColor": "Blue",
-    "BaseCost": 3.0,
     "EffectType": "SearchDeck",
     "TargetKinds": "7",
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      3.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "bde084f6",
     "EnumName": "苏生",
     "DisplayName": "苏生：从墓地返回{target}到己方战场",
-    "EffectColor": "White",
-    "BaseCost": 5.0,
     "EffectType": "ReturnFromGraveyard",
     "TargetKinds": "9,10",
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      5.0,
+      0.0
+    ]
   },
   {
     "ID": "4b1174b6",
     "EnumName": "占卜",
     "DisplayName": "查看自己牌库顶{value}张卡并任意排列",
-    "EffectColor": "Blue",
-    "BaseCost": 1.0,
     "EffectType": "LookAtTopCards",
     "TargetKinds": "7",
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "3b959efe",
     "EnumName": "刺探",
     "DisplayName": "查看对手牌库顶{value}张卡并任意排列",
-    "EffectColor": "Blue",
-    "BaseCost": 1.5,
     "EffectType": "ScryCards",
     "TargetKinds": "8",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      1.5,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "70034aee",
     "EnumName": "设置攻击力",
     "DisplayName": "将{target}攻击力设为{value}",
-    "EffectColor": "Green",
-    "BaseCost": 9.0,
     "EffectType": "SetPower",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": 0.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      9.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "38a43580",
     "EnumName": "设置生命值",
     "DisplayName": "将{target}生命值设为{value}",
-    "EffectColor": "Green",
-    "BaseCost": 9.0,
     "EffectType": "SetLife",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": 0.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      9.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "a9beb7b4",
     "EnumName": "设置费用",
     "DisplayName": "将{target}的费用设为{value}",
-    "EffectColor": "Blue",
-    "BaseCost": 9.0,
     "EffectType": "SetCost",
     "TargetKinds": "5,6",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      9.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "40af2c9c",
     "EnumName": "费用增加",
     "DisplayName": "为{target}添加{value}个费用增加指示物",
-    "EffectColor": "Blue",
-    "BaseCost": 1.0,
     "EffectType": "AddCostUp",
     "TargetKinds": "5,6",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "46ba80ca",
     "EnumName": "费用减少",
     "DisplayName": "为{target}添加{value}个费用减少指示物",
-    "EffectColor": "Blue",
-    "BaseCost": 1.0,
     "EffectType": "AddCostDown",
     "TargetKinds": "5,6",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "c01bcd8f",
     "EnumName": "攻击力增加",
     "DisplayName": "为{target}添加{value}个攻击力增加指示物",
-    "EffectColor": "Red",
-    "BaseCost": 1.0,
     "EffectType": "AddPowerUp",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "2650f270",
     "EnumName": "攻击力减少",
     "DisplayName": "为{target}添加{value}个攻击力减少指示物",
-    "EffectColor": "Red",
-    "BaseCost": 1.0,
     "EffectType": "AddPowerDown",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "4de69242",
     "EnumName": "生命值增加",
     "DisplayName": "为{target}添加{value}个生命值增加指示物",
-    "EffectColor": "Green",
-    "BaseCost": 1.0,
     "EffectType": "AddLifeUp",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "374445c6",
     "EnumName": "生命值减少",
     "DisplayName": "为{target}添加{value}个生命值减少指示物",
-    "EffectColor": "Green",
-    "BaseCost": 1.0,
     "EffectType": "AddLifeDown",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "f6afe078",
     "EnumName": "属性增加",
     "DisplayName": "为{target}添加{value}个属性增加指示物（+1/+1）",
-    "EffectColor": "White",
-    "BaseCost": 1.0,
     "EffectType": "AddPlusOne",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,2"
+    "MountKinds": "0,4,2",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
   },
   {
     "ID": "2d1b6adf",
     "EnumName": "属性减少",
     "DisplayName": "为{target}添加{value}个属性减少指示物（-1/-1）",
-    "EffectColor": "Black",
-    "BaseCost": 1.0,
     "EffectType": "AddMinusOne",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4,2"
+    "MountKinds": "0,4,2",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
   },
   {
     "ID": "58cf21a1",
     "EnumName": "毒刺",
     "DisplayName": "造成战斗伤害时，改为对{target}添加一个毒素指示物",
-    "EffectColor": "Green",
-    "BaseCost": 1.0,
     "EffectType": "GrantPoisonSting",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5,10"
+    "MountKinds": "0,4,1,5,10",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "9794b926",
     "EnumName": "吸血",
     "DisplayName": "造成伤害时，为自身恢复等量生命",
-    "EffectColor": "Black",
-    "BaseCost": 3.0,
     "EffectType": "GrantLifesteal",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5,10"
+    "MountKinds": "0,4,1,5,10",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      3.0
+    ]
   },
   {
     "ID": "d8de5946",
     "EnumName": "潜行",
     "DisplayName": "不会成为攻击和效果的{target}，发动效果后移除潜行",
-    "EffectColor": "Blue",
-    "BaseCost": 1.0,
     "EffectType": "GrantStealth",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5"
+    "MountKinds": "0,4,1,5",
+    "ManaList": [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "feab5d3b",
     "EnumName": "圣盾",
     "DisplayName": "受到的伤害变成0，同时移除圣盾",
-    "EffectColor": "White",
-    "BaseCost": 1.0,
     "EffectType": "GrantDivineShield",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5"
+    "MountKinds": "0,4,1,5",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
   },
   {
     "ID": "13b63a87",
     "EnumName": "碾压",
-    "DisplayName": "获得碾压：攻击结算时，对{target}以及{target}相邻单位造成战斗伤害",
-    "EffectColor": "Red",
-    "BaseCost": 3.0,
+    "DisplayName": "获得碾压：战斗伤害结算时，对{target}以及{target}相邻左右侧生物造成相同的战斗伤害",
     "EffectType": "GrantOverwhelm",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5,10"
+    "MountKinds": "0,4,1,5,10",
+    "ManaList": [
+      0.0,
+      3.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "465f51dc",
     "EnumName": "警戒",
     "DisplayName": "战斗结算时，横置状态也会触发战斗伤害",
-    "EffectColor": "Blue",
-    "BaseCost": 1.0,
     "EffectType": "GrantVigilance",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5,10"
+    "MountKinds": "0,4,1,5,10",
+    "ManaList": [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "0490b22c",
     "EnumName": "先攻",
     "DisplayName": "战斗结算时，先造成战斗伤害，如果{target}死亡，则无法反击",
-    "EffectColor": "Red",
-    "BaseCost": 1.0,
     "EffectType": "GrantFirstStrike",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5,10"
+    "MountKinds": "0,4,1,5,10",
+    "ManaList": [
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "2e6955f0",
     "EnumName": "法术护盾",
     "DisplayName": "{target}获得法术护盾",
-    "EffectColor": "Blue",
-    "BaseCost": 1.0,
     "EffectType": "GrantSpellShield",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5"
+    "MountKinds": "0,4,1,5",
+    "ManaList": [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "d7def412",
     "EnumName": "扰魔",
     "DisplayName": "不会成为效果{target}",
-    "EffectColor": "White",
-    "BaseCost": 2.0,
     "EffectType": "GrantCannotBeTargeted",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5,10"
+    "MountKinds": "0,4,1,5,10",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0
+    ]
   },
   {
     "ID": "376db582",
     "EnumName": "复生",
     "DisplayName": "送墓时将自身生命值改为一",
-    "EffectColor": "Black",
-    "BaseCost": 2.0,
     "EffectType": "GrantReborn",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5"
+    "MountKinds": "0,4,1,5",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0
+    ]
   },
   {
     "ID": "fd04d3c7",
     "EnumName": "不灭",
     "DisplayName": "不受消灭效果影响",
-    "EffectColor": "White",
-    "BaseCost": 2.0,
     "EffectType": "GrantIndestructible",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5,10"
+    "MountKinds": "0,4,1,5,10",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0
+    ]
   },
   {
     "ID": "2d46dbd4",
     "EnumName": "系命",
     "DisplayName": "造成伤害时，为角色恢复等量生命",
-    "EffectColor": "Green",
-    "BaseCost": 3.0,
     "EffectType": "GrantLifelink",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5,10"
+    "MountKinds": "0,4,1,5,10",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      3.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "5d59d89a",
     "EnumName": "再生",
     "DisplayName": "回合开始时自己恢复自身全部生命值",
-    "EffectColor": "Green",
-    "BaseCost": 3.0,
     "EffectType": "GrantRegeneration",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5,10"
+    "MountKinds": "0,4,1,5,10",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      3.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "baf2ff12",
     "EnumName": "成长",
     "DisplayName": "回合结束时，赋予自身+1+1指示物",
-    "EffectColor": "Green",
-    "BaseCost": 1.0,
     "EffectType": "GrantGrowth",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5,10"
+    "MountKinds": "0,4,1,5,10",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "2a7d3092",
     "EnumName": "护甲",
     "DisplayName": "为{target}添加{value}点护甲",
-    "EffectColor": "Green",
-    "BaseCost": 0.5,
     "EffectType": "AddArmor",
     "TargetKinds": "1,2",
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "0,4,2"
+    "MountKinds": "0,4,2",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "d2fbd616",
     "EnumName": "毒素",
     "DisplayName": "回合结束受1点伤害，持续{value}回合，可叠加",
-    "EffectColor": "Green",
-    "BaseCost": 0.5,
     "EffectType": "AddToxin",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4,2"
+    "MountKinds": "0,4,2",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "17dd3732",
     "EnumName": "沉默",
     "DisplayName": "对{target}附加沉默指示物（不可发动主动效果）",
-    "EffectColor": "White",
-    "BaseCost": 1.0,
     "EffectType": "Silence",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4,2"
+    "MountKinds": "0,4,2",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
   },
   {
     "ID": "f3a89899",
     "EnumName": "无响应",
     "DisplayName": "对{target}附加无响应指示物（非启动式能力无法响应）",
-    "EffectColor": "White",
-    "BaseCost": 2.0,
     "EffectType": "AddNullify",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": 0.0,
-    "MountKinds": "0,4,2"
+    "MountKinds": "0,4,2",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0
+    ]
   },
   {
     "ID": "efc6de8a",
     "EnumName": "激励",
     "DisplayName": "重置{target}单位横置状态",
-    "EffectColor": "Red",
-    "BaseCost": 1.0,
     "EffectType": "Untap",
     "TargetKinds": "1",
     "TargetFilter": "NoRole,Tapped",
     "Polarity": 1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "adb8456f",
     "EnumName": "缴械",
     "DisplayName": "攻击时{target}单位无法反击",
-    "EffectColor": "Red",
-    "BaseCost": 1.0,
     "EffectType": "GrantDisarm",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5,10"
+    "MountKinds": "0,4,1,5,10",
+    "ManaList": [
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "7b8c45bc",
     "EnumName": "生命流失",
     "DisplayName": "{target}失去{value}点生命（扣除生命上限）",
-    "EffectColor": "Black",
-    "BaseCost": 2.0,
     "EffectType": "LifeLoss",
     "TargetKinds": "1,2",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "0,4,7"
+    "MountKinds": "0,4,7",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0
+    ]
   },
   {
     "ID": "b80c2d73",
     "EnumName": "冻结",
     "DisplayName": "冻结{target}：横置并放置冻结指示物（负面，持续到回合结束）",
-    "EffectColor": "Blue",
-    "BaseCost": 1.0,
     "EffectType": "Freeze",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4,2,7"
+    "MountKinds": "0,4,2,7",
+    "ManaList": [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "20fa8bae",
     "EnumName": "紊乱",
     "DisplayName": "对{target}附加{value}回合紊乱指示物（不能以玩家为攻击，效果{target}）",
-    "EffectColor": "Black",
-    "BaseCost": 0.5,
     "EffectType": "RushSickness",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4,2,7"
+    "MountKinds": "0,4,2,7",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.5
+    ]
+  },
+  {
+    "ID": "14d8b289",
+    "EnumName": "锁定",
+    "DisplayName": "对{target}附加{value}回合锁定指示物（期间无法使用，持有者回合结束层数-1）",
+    "EffectType": "LockCard",
+    "TargetKinds": "5,6",
+    "TargetFilter": null,
+    "Polarity": -1.0,
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "60a09ef1",
     "EnumName": "易损",
     "DisplayName": "对{target}附加易损指示物（持续1回合，受到伤害时每层+1）",
-    "EffectColor": "Black",
-    "BaseCost": 1.0,
     "EffectType": "AddVulnerable",
     "TargetKinds": "1,2",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "0,4,2"
+    "MountKinds": "0,4,2",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
   },
   {
     "ID": "d1bb3d9e",
     "EnumName": "获得控制",
     "DisplayName": "获得{target}的控制权",
-    "EffectColor": "Black",
-    "BaseCost": 2.0,
     "EffectType": "GainControl",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0
+    ]
   },
   {
     "ID": "6559671a",
     "EnumName": "无效发动",
     "DisplayName": "无效化一次发动",
-    "EffectColor": "Black",
-    "BaseCost": 5.0,
     "EffectType": "NegateActivation",
     "TargetKinds": "15,16",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      5.0
+    ]
   },
   {
     "ID": "ceea9f38",
     "EnumName": "净化",
     "DisplayName": "净化{target}：移除其全部关键词与指示物",
-    "EffectColor": "White",
-    "BaseCost": 1.0,
     "EffectType": "Purify",
     "TargetKinds": "1,2",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
   },
   {
     "ID": "9eba4ee1",
     "EnumName": "额外回合",
     "DisplayName": "回合结束时，获得一个额外回合",
-    "EffectColor": "Blue",
-    "BaseCost": 9.0,
     "EffectType": "TakeExtraTurn",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      9.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "5b174fbf",
     "EnumName": "跳过回合",
     "DisplayName": "{target}跳过下个回合",
-    "EffectColor": "Blue",
-    "BaseCost": 6.0,
     "EffectType": "SkipTurn",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      6.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "131e6d94",
     "EnumName": "变形",
     "DisplayName": "此卡变形为另一个{target}单位",
-    "EffectColor": "Blue",
-    "BaseCost": 6.0,
     "EffectType": "Morph",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      6.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "15a34e8f",
     "EnumName": "吞噬",
     "DisplayName": "消灭{target}，并按其最大生命值回复等量生命",
-    "EffectColor": "Black",
-    "BaseCost": 5.0,
     "EffectType": "Devour",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole,Mortal",
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      5.0
+    ]
   },
   {
     "ID": "32e47cb1",
     "EnumName": "湮灭",
     "DisplayName": "消灭{target}并且赋予永久指示物无法苏生",
-    "EffectColor": "Black",
-    "BaseCost": 5.0,
     "EffectType": "Annihilate",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole,Mortal",
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      5.0
+    ]
   },
   {
     "ID": "009ffd35",
     "EnumName": "摧毁",
     "DisplayName": "摧毁{target}（无生命值单位：地牌/结界）",
-    "EffectColor": "Black",
-    "BaseCost": 3.0,
     "EffectType": "Smash",
     "TargetKinds": "3,4,13,14",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      3.0
+    ]
   },
   {
     "ID": "db0a05fa",
     "EnumName": "打落",
     "DisplayName": "将发动区的卡送至墓地",
-    "EffectColor": "Black",
-    "BaseCost": 3.0,
     "EffectType": "KnockDown",
     "TargetKinds": "15,16",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      3.0
+    ]
   },
   {
     "ID": "3a4aef82",
     "EnumName": "召唤衍生物",
     "DisplayName": "召唤{value}个衍生物至指定落区（{衍生物}=字符串参数指向一张真实生物卡，实例=该卡全参数复制）",
-    "EffectColor": "White",
-    "BaseCost": 1.0,
     "EffectType": "SummonToken",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
   },
   {
     "ID": "4fd4c954",
     "EnumName": "采掘",
     "DisplayName": "去除{target}地牌3个同类型元素指示物，获得1点对应元素",
-    "EffectColor": "Green",
-    "BaseCost": 1.0,
     "EffectType": "Mine",
     "TargetKinds": "13",
     "TargetFilter": "NoRole",
     "Polarity": 0.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "82f5ef6f",
     "EnumName": "沉睡",
     "DisplayName": "赋予{target}沉睡：持续{value}回合（沉睡期间无法重置，效果无效）",
-    "EffectColor": "Green",
-    "BaseCost": 2.0,
     "EffectType": "Sleep",
     "TargetKinds": "0,1,2",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4,2,7"
+    "MountKinds": "0,4,2,7",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "407eb771",
     "EnumName": "帷幕",
     "DisplayName": "获得帷幕：敌方效果只能指定帷幕单位",
-    "EffectColor": "White",
-    "BaseCost": 1.0,
     "EffectType": "GrantTaunt",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,1,4,5,10"
+    "MountKinds": "0,1,4,5,10",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
   },
   {
     "ID": "3c696cb0",
     "EnumName": "微缩",
     "DisplayName": "{target}获得微缩：你使用卡时，将一张同效果、1/1、费用1灰的临时卡加入手牌（回合结束移除）",
-    "EffectColor": "Blue",
-    "BaseCost": 3.0,
     "EffectType": "GrantMiniature",
     "TargetKinds": "1",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,1,4,5,10"
+    "MountKinds": "0,1,4,5,10",
+    "ManaList": [
+      0.0,
+      0.0,
+      3.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "a9cf639e",
     "EnumName": "放大",
     "DisplayName": "{target}获得放大：你使用卡时，将一张同效果、10/10、费用10灰的临时卡加入手牌（回合结束移除）",
-    "EffectColor": "Red",
-    "BaseCost": 3.0,
     "EffectType": "GrantMagnify",
     "TargetKinds": "1",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,1,4,5,10"
+    "MountKinds": "0,1,4,5,10",
+    "ManaList": [
+      0.0,
+      3.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "803898ac",
     "EnumName": "回响",
     "DisplayName": "使用后获得一张完全复制的临时卡，复制也带回响（回合结束移除）",
-    "EffectColor": "Blue",
-    "BaseCost": 1.0,
     "EffectType": "GrantEcho",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "1,5,6,10"
+    "MountKinds": "1,5,6,10",
+    "ManaList": [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "4e609e26",
     "EnumName": "发现",
     "DisplayName": "从牌库中随机展示{value}张牌（默认3），从中选择一张加入手牌；未选中的留在牌库原位",
-    "EffectColor": "Blue",
-    "BaseCost": 2.0,
     "EffectType": "DiscoverCard",
     "TargetKinds": "7",
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "33f21d4c",
     "EnumName": "牺牲",
     "DisplayName": "持有者选择一个生物牺牲（效果死亡，来源为持有者，无视不灭）",
-    "EffectColor": "Black",
-    "BaseCost": 3.0,
     "EffectType": "Sacrifice",
     "TargetKinds": "1,2",
     "TargetFilter": "Player",
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      3.0
+    ]
   },
   {
     "ID": "86180457",
     "EnumName": "摒弃",
     "DisplayName": "持有者选择一个己方场上无生命单位摒弃（直送墓地）",
-    "EffectColor": "Black",
-    "BaseCost": 3.0,
     "EffectType": "Abandon",
     "TargetKinds": "1,2",
     "TargetFilter": "Player",
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      3.0
+    ]
   },
   {
     "ID": "ff32deb5",
     "EnumName": "病原体",
     "DisplayName": "造成战斗伤害时，改为对{target}添加一个剧毒指示物",
-    "EffectColor": "Green",
-    "BaseCost": 3.0,
     "EffectType": "GrantPathogen",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5,10"
+    "MountKinds": "0,4,1,5,10",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      3.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "cc55f2ce",
     "EnumName": "禁魔石",
     "DisplayName": "受到的非战斗伤害变为0",
-    "EffectColor": "White",
-    "BaseCost": 3.0,
     "EffectType": "GrantSpellban",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,4,1,5,10"
+    "MountKinds": "0,4,1,5,10",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      3.0,
+      0.0
+    ]
   },
   {
     "ID": "50f99c1b",
     "EnumName": "改写持有者",
     "DisplayName": "改写{target}的持有者（永久换手含控制权——弹回洗回回新主卡组手牌，死亡去新主墓地）",
-    "EffectColor": "Black",
-    "BaseCost": 6.0,
     "EffectType": "ChangeOwner",
     "TargetKinds": "1,2",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      6.0
+    ]
   },
   {
     "ID": "7d701213",
     "EnumName": "对手胜利",
     "DisplayName": "效果控制者的对手获得胜利",
-    "EffectColor": "Black",
-    "BaseCost": 10.0,
     "EffectType": "DeclareVictory",
     "TargetKinds": "",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0"
+    "MountKinds": "0",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      10.0
+    ]
   },
   {
     "ID": "5bd8351a",
     "EnumName": "拼点",
     "DisplayName": "拼点主干（双方牌库顶费用总额差额制）",
-    "EffectColor": "Gray",
-    "BaseCost": 0.0,
     "EffectType": "BranchEngineClash",
     "TargetKinds": "",
     "TargetFilter": null,
@@ -939,8 +1417,6 @@
     "ID": "fb61e127",
     "EnumName": "运势",
     "DisplayName": "运势主干（掷骰门槛制）",
-    "EffectColor": "Gray",
-    "BaseCost": 0.0,
     "EffectType": "BranchEngineLuckRoll",
     "TargetKinds": "",
     "TargetFilter": null,
@@ -951,8 +1427,6 @@
     "ID": "b86516c0",
     "EnumName": "倒计时",
     "DisplayName": "倒计时主干（回合开始倒数归零发奖）",
-    "EffectColor": "Gray",
-    "BaseCost": 0.0,
     "EffectType": "BranchEngineCountdown",
     "TargetKinds": "",
     "TargetFilter": null,
@@ -963,8 +1437,6 @@
     "ID": "051891ba",
     "EnumName": "死亡计数",
     "DisplayName": "死亡计数主干（本回合双方合计生物死亡数≥x发奖，奖励预算x）",
-    "EffectColor": "Gray",
-    "BaseCost": 0.0,
     "EffectType": "BranchEngineDeathToll",
     "TargetKinds": "",
     "TargetFilter": null,
@@ -975,8 +1447,6 @@
     "ID": "36103e49",
     "EnumName": "元素充盈",
     "DisplayName": "元素充盈主干（出牌付费后bank最多色>x发奖，每次达标都触发，奖励预算x）",
-    "EffectColor": "Gray",
-    "BaseCost": 0.0,
     "EffectType": "BranchEngineManaSurplus",
     "TargetKinds": "",
     "TargetFilter": null,
@@ -987,8 +1457,6 @@
     "ID": "eb172c00",
     "EnumName": "手牌序位",
     "DisplayName": "手牌序位主干（此卡为本回合从手牌使用的第x张时发奖，奖励预算x）",
-    "EffectColor": "Gray",
-    "BaseCost": 0.0,
     "EffectType": "BranchEngineNthHandCard",
     "TargetKinds": "",
     "TargetFilter": null,
@@ -999,192 +1467,324 @@
     "ID": "2ac33fb6",
     "EnumName": "攻击力修改",
     "DisplayName": "修改{target}攻击力{value}",
-    "EffectColor": "Red",
-    "BaseCost": 0.5,
     "EffectType": "ModifyPower",
     "TargetKinds": "1,2",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.5,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "08cba511",
     "EnumName": "生命值修改",
     "DisplayName": "修改{target}生命值{value}",
-    "EffectColor": "Green",
-    "BaseCost": 0.5,
     "EffectType": "ModifyLife",
     "TargetKinds": "1,2",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "39168153",
     "EnumName": "费用修改",
     "DisplayName": "修改{target}费用{value}",
-    "EffectColor": "Blue",
-    "BaseCost": 0.5,
     "EffectType": "ModifyCost",
     "TargetKinds": "5,6",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "200a249b",
     "EnumName": "展示",
     "DisplayName": "展示{target}（持续暴露，双方可查看，换区失效）",
-    "EffectColor": "Blue",
-    "BaseCost": 0.5,
     "EffectType": "RevealCard",
     "TargetKinds": "5,6,7,8",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "7d704939",
     "EnumName": "附加诅咒",
     "DisplayName": "对{target}附加诅咒（抽到该卡时自动执行诅咒分支效果，一次性）",
-    "EffectColor": "Black",
-    "BaseCost": 1.0,
     "EffectType": "AddCurse",
     "TargetKinds": "8",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "0,2,4"
+    "MountKinds": "0,2,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
   },
   {
     "ID": "5a70eb97",
     "EnumName": "送墓",
     "DisplayName": "将{target}牌库顶{value}张牌送入墓地",
-    "EffectColor": "Blue",
-    "BaseCost": 1.0,
     "EffectType": "MillCard",
     "TargetKinds": "7,8",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "df31e8c5",
     "EnumName": "弹回牌库顶",
     "DisplayName": "将{target}放回持有者牌库顶",
-    "EffectColor": "Blue",
-    "BaseCost": 2.0,
     "EffectType": "BounceToTop",
     "TargetKinds": "1,2,3,4",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "6b323b0b",
     "EnumName": "弹回牌库底",
     "DisplayName": "将{target}放回持有者牌库底",
-    "EffectColor": "Blue",
-    "BaseCost": 1.5,
     "EffectType": "BounceToBottom",
     "TargetKinds": "1,2,3,4",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "0,4"
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "974b5090",
     "EnumName": "连击",
     "DisplayName": "{target}获得连击",
-    "EffectColor": "Red",
-    "BaseCost": 2.0,
     "EffectType": "GrantDoubleStrike",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "0,1,4,5,10"
+    "MountKinds": "0,1,4,5,10",
+    "ManaList": [
+      0.0,
+      3.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "e4581ec4",
     "EnumName": "三相仪典",
     "DisplayName": "规则光环（双方生效）：自己每消耗3点同色纯元素，获得红/蓝/绿各1",
-    "EffectColor": "Blue",
-    "BaseCost": 3.0,
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0"
+    "MountKinds": "0",
+    "ManaList": [
+      0.0,
+      0.0,
+      12.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "4219aaea",
     "EnumName": "血偿仪典",
-    "DisplayName": "规则光环（双方生效）：自己支付的生命代价改由对手支付",
-    "EffectColor": "Black",
-    "BaseCost": 3.0,
+    "DisplayName": "规则光环（双方生效）：己方回合中，你的角色受到的伤害改由对手角色承担",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0"
+    "MountKinds": "0",
+    "ManaList": [
+      0.0,
+      12.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "914a59e3",
     "EnumName": "丰盈仪典",
-    "DisplayName": "规则光环（双方生效）：角色单次受到的伤害不超过5点",
-    "EffectColor": "White",
-    "BaseCost": 3.0,
+    "DisplayName": "规则光环（双方生效）：回复生命的溢出转化为生命上限+1（每次溢出+1层，剩余截断）",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0"
+    "MountKinds": "0",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      6.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "a4ccc20d",
+    "EnumName": "蚕褪仪典",
+    "DisplayName": "规则光环（双方生效）：单次伤害超过5时改为5（生物与角色）",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "0",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      12.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "3b28df38",
     "EnumName": "窥渊仪典",
-    "DisplayName": "规则光环（双方生效）：每回合开始时，回合玩家锁定对手一张已展示的卡至回合结束",
-    "EffectColor": "Blue",
-    "BaseCost": 2.0,
+    "DisplayName": "规则光环（双方生效）：每回合开始时，随机展示对手一张手牌，并赋予对手被展示的卡一回合锁定指示物（期间无法使用）",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0"
+    "MountKinds": "0",
+    "ManaList": [
+      0.0,
+      0.0,
+      8.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "a1ea9962",
     "EnumName": "归土仪典",
     "DisplayName": "规则光环（双方生效）：每回合一次，可从自己墓地使用一张牌（视为手牌中使用）",
-    "EffectColor": "Green",
-    "BaseCost": 3.0,
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0"
+    "MountKinds": "0",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      8.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "5b0c8b74",
+    "EnumName": "疾风仪典",
+    "DisplayName": "规则光环（双方生效）：从手牌使用的卡发动速度+1",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "0",
+    "ManaList": [
+      0.0,
+      0.0,
+      6.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "d5dc90ed",
-    "EnumName": "疾风仪典",
+    "EnumName": "轮回仪典",
     "DisplayName": "规则光环（双方生效）：每个玩家连续进行两个回合",
-    "EffectColor": "Red",
-    "BaseCost": 5.0,
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0"
+    "MountKinds": "0",
+    "ManaList": [
+      0.0,
+      0.0,
+      12.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   {
     "ID": "b6170161",
     "EnumName": "纳川仪典",
     "DisplayName": "规则光环（双方生效）：手牌上限提升至15，且免疫空库抽牌疲劳",
-    "EffectColor": "Blue",
-    "BaseCost": 2.0,
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0"
+    "MountKinds": "0",
+    "ManaList": [
+      0.0,
+      0.0,
+      6.0,
+      0.0,
+      0.0,
+      0.0
+    ]
   }
 ]

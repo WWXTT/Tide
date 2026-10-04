@@ -46,9 +46,9 @@ namespace CardCore
             foreach (var cfg in AtomicEffectTable.GetAll().OrderBy(c => c.EnumName, StringComparer.Ordinal))
             {
                 // 2026-09-10 目标域模型：TargetKinds/SelectionMode 取代 TargetType/Scope；持续列已删（上移组合层）
+                // 2026-10-04 费用位置数组化：指纹按序数序拼串（下标=枚举序号，确定性——字典序/书写序不再参与）。
                 sb.Append(cfg.EnumName).Append('|')
-                  .Append(string.Join(";", (cfg.ManaList ?? new List<ManaAmountEntry>())
-                      .OrderBy(m => m.manaType).Select(m => m.manaType + ":" + m.amount.ToString("R", CultureInfo.InvariantCulture)))).Append('|')
+                  .Append(cfg.ManaList != null ? cfg.ManaList.ToString() : "-").Append('|')
                   .Append(TargetKindRules.Format(cfg.GetTargetKindList())).Append('|')
                   .Append(cfg.TargetFilter ?? string.Empty).Append('|')
                   .Append(cfg.Polarity.ToString("R", CultureInfo.InvariantCulture)).Append('\n');
@@ -143,13 +143,6 @@ namespace CardCore
               .Append(a.str ?? string.Empty).Append('|')
               .Append(TargetKindRules.Format(a.kinds ?? new List<int>())).Append('|')
               .Append(a.amp.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('\n');
-        }
-
-        /// <summary>Mana 规范串（按 ManaType 排序的 type:amount；空 = "-"）。</summary>
-        private static string FormatMana(List<ManaAmountEntry> list)
-        {
-            if (list == null || list.Count == 0) return "-";
-            return string.Join(";", list.OrderBy(m => m.manaType).Select(m => $"{m.manaType}:{m.amount.ToString("R", CultureInfo.InvariantCulture)}"));
         }
 
         /// <summary>按执行序展平一张卡全部效果树的原子（观测槽位按此顺序编码）。
@@ -305,11 +298,10 @@ namespace CardCore
               .Append(card.Level ?? -1).Append('|').Append((int)card.ArrowDirections).Append('\n');
             sb.Append("P").Append(card.Power ?? int.MinValue).Append('|')
               .Append(card.Life ?? int.MinValue).Append('\n');
-            if (card.Cost != null && card.Cost.Count > 0)
+            if (card.Cost != null && !card.Cost.IsZero)
             {
-                var parts = card.Cost.OrderBy(kv => kv.Key)
-                    .Select(kv => $"{kv.Key}:{kv.Value.ToString("0.###", CultureInfo.InvariantCulture)}");
-                sb.Append('C').Append(string.Join(";", parts)).Append('\n');
+                // 2026-10-04 位置数组化：序数序无损拼串（ToString=枚举名:R 值）
+                sb.Append('C').Append(card.Cost.ToString()).Append('\n');
             }
             if (card.Keywords != null && card.Keywords.Count > 0)
                 sb.Append('K').Append(string.Join(",", card.Keywords.OrderBy(k => k, StringComparer.Ordinal))).Append('\n');

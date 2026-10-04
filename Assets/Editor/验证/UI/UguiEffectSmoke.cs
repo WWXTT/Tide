@@ -32,13 +32,13 @@ namespace Tide.验证
                 int chips = CountNamed(t => t.name.StartsWith("mode-") && t.name != "mode-bar");
                 var nameLabel = ReadTextNamed("lbl-effect-name");
                 // 库行=原子库 content 下的 row（祖先链判据——对层级包装增删免疫）
-                int libRows = CountNamed(t => t.name == "row" && HasAncestor(t, "library-list") && HasAncestor(t, "content"));
+                int libRows = CountNamed(t => t.name == "row" && HasAncestor(t, "list-library") && HasAncestor(t, "content"));
                 sb.AppendLine($"  step1 进屏：模式chip={chips} 自动名=\"{nameLabel}\" 原子库行≈{libRows}");
                 if (chips != 4) { Fail("模式条 chip 数不对"); return; }
                 if (libRows < 10) { Fail($"原子库行过少（{libRows}）——表加载/过滤断"); return; }
 
                 // 2. 点首行库行（QuickAdd=替换选中槽=原子槽1）
-                var libRow = FindButtons(b => HasAncestor(b.transform, "library-list")).FirstOrDefault();
+                var libRow = FindButtons(b => HasAncestor(b.transform, "list-library")).FirstOrDefault();
                 if (libRow == null) { Fail("库行不可点"); return; }
                 string rowName = TextOf(libRow);
                 ClickButton(libRow);

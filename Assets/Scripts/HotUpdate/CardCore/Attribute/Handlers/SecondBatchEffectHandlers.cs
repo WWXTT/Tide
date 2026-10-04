@@ -411,35 +411,9 @@ namespace CardCore.Attribute.Handlers
                 }
                 else if (target is Player player)
                 {
-                    // 血偿规则光环（2026-10-03 规则轴定案）：自己支付的生命代价改由对手支付——
-                    // 流失自己=支付的语义判定不变（下方 ReferenceEquals），仅扣款对象转嫁；
-                    // 支付统计（LifePaymentCostEvent）仍记原玩家（MatchStats 口径不变）。
-                    if (ReferenceEquals(player, context.Controller) && RuleAuraComponents.BloodPactRedirectActive)
-                    {
-                        var payer = player.Opponent;
-                        int payerOld = payer.Life;
-                        payer.DecreaseMaxHealth(amount);
-                        PublishEvent(new LifeChangeEvent
-                        {
-                            Player = payer,
-                            OldLife = payerOld,
-                            NewLife = payer.Life,
-                            Source = context.Source
-                        });
-                        PublishEvent(new LifePaymentCostEvent
-                        {
-                            Player = player,
-                            Amount = amount,
-                            Source = context.Source
-                        });
-                        PublishEvent(new AtomicDamageEvent
-                        {
-                            Source = context.Source, Target = payer, Damage = amount,
-                            IsCombatDamage = false, DamageType = DamageType.LifeLoss
-                        });
-                        continue; // 原玩家不扣（转嫁完成，跳过常规流失路径）
-                    }
-
+                    // 血偿旧转嫁分支已删（2026-10-04 光环改造：血偿改为 DamageEvent 替代件
+                    // 「己方回合角色受伤→对手角色承担」，见 RuleAuraSystem.BloodPactDamageRedirectReplacement；
+                    // 代价流失恢复常规路径——流失自己=支付、扣自己上限）。
                     int oldLife = player.Life;
                     player.DecreaseMaxHealth(amount);
                     PublishEvent(new LifeChangeEvent

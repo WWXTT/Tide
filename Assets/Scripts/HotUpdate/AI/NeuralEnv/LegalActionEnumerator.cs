@@ -447,8 +447,7 @@ namespace CardCore.AI.NeuralEnv
             if (skillCard.GetCounterCount(CounterRules.SilenceCounter) > 0) return; // 沉默不可发动主动效果
 
             var (color, amount) = HeroSkillSystem.CostOf((HeroSkillId)me.HeroSkill);
-            if (amount > 0 && !GameActions.CanAfford(core, me,
-                    new Dictionary<int, float> { { (int)color, amount } })) return;
+            if (amount > 0 && !GameActions.CanAfford(core, me, ElementCost.FromValue(color, amount))) return;
 
             Actions.Add(new TideAction
             {
@@ -696,15 +695,11 @@ namespace CardCore.AI.NeuralEnv
             {
                 case TideActionType.PlayCard:
                 case TideActionType.RespondPlay:
-                    float s = 0f;
-                    foreach (var v in GameActions.GetCardCost(a.Card, a.ModeIndex).Values) s += v;
-                    return s;
+                    return GameActions.GetCardCost(a.Card, a.ModeIndex).Total;
                 case TideActionType.Activate:
                 case TideActionType.RespondActivate:
                 case TideActionType.VoluntaryTrigger:
-                    float e = 0f; // 效果费现推（启动式/自愿桶发动时现付——L1 现推口径）
-                    foreach (var c in CostDerivationService.DeriveElementCosts(a.Effect, 0)) e += c.Value;
-                    return e;
+                    return CostDerivationService.DeriveElementCosts(a.Effect, 0).Total; // 效果费现推（启动式/自愿桶发动时现付——L1 现推口径）
                 case TideActionType.HeroSkill:
                     return HeroSkillSystem.CostOf((HeroSkillId)a.ModeIndex).amount;
                 default:

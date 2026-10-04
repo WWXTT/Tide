@@ -177,7 +177,7 @@ namespace CardCore
                 ID = "HEROSKILL_" + skill,
                 CardName = SkillName(skill),
                 Supertype = Cardtype.Enchantment,
-                Cost = new Dictionary<int, float> { { (int)color, amount } },
+                Cost = ElementCost.FromValue(color, amount),
             };
             return new CardWrapper(data);
         }
@@ -222,8 +222,9 @@ namespace CardCore
                             else if (t == "ThemeGreen") green++;
                             else if (t == "ThemeBlue") blue++;
                         }
-                    foreach (var kv in data?.Cost ?? new Dictionary<int, float>())
-                        total[kv.Key] = total.GetValueOrDefault(kv.Key) + kv.Value;
+                    if (data?.Cost != null)
+                        foreach (var c in data.Cost.NonzeroColors())
+                            total[(int)c] = total.GetValueOrDefault((int)c) + data.Cost[c];
                 }
             if (red > green && red > blue) return HeroSkillId.RedFrenzy;
             if (green > red && green > blue) return HeroSkillId.GreenCultivate;
@@ -290,7 +291,7 @@ namespace CardCore
             if (skillCard.GetCounterCount(CounterRules.SilenceCounter) > 0)
                 return false; // 沉默：不可发动主动效果（永续魔法交互一致）
 
-            var bill = new Dictionary<int, float> { { (int)def.CostColor, def.CostAmount } };
+            var bill = ElementCost.FromValue((ManaType)def.CostColor, def.CostAmount);
             // 自动横置补足（2026-09-30 定案）：bank 不足时自动横置地牌产出技能所需元素——与出牌付费同口径
             if (!core.ElementPool.CanPayCostWithAutoTap(bill, player)) return false;
             if (!core.ElementPool.TryPayCostWithAutoTap(bill, player, core.ZoneManager, "英雄技能·" + SkillName(skill))) return false;

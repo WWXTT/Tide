@@ -327,6 +327,20 @@ namespace SynergyUI
             return hits;
         }
 
+        /// <summary>克隆父节点下的隐藏模板（不激活的直属子节点 tpl-XXX），克隆体去掉 tpl- 前缀命名并激活；
+        /// 模板不存在、或处于激活态（防误克隆活行）返回 null。动态子物体的布局样式由模板接管，代码只填数据。</summary>
+        public static RectTransform CloneTemplate(string templateName, RectTransform parent)
+        {
+            if (parent == null || string.IsNullOrEmpty(templateName)) return null;
+            var tpl = parent.Find(templateName);
+            if (tpl == null || tpl.gameObject.activeSelf) return null;
+            var go = UnityEngine.Object.Instantiate(tpl.gameObject, parent, false);
+            go.name = templateName.StartsWith("tpl-", StringComparison.Ordinal)
+                ? templateName.Substring(4) : templateName;
+            go.SetActive(true);
+            return (RectTransform)go.transform;
+        }
+
         /// <summary>空节点（默认拉伸铺满父节点；进布局组后由布局接管，无需关心锚点）。</summary>
         public static RectTransform Node(string name, RectTransform parent)
         {
@@ -575,6 +589,56 @@ namespace SynergyUI
         public static UButton MiniButton(string name, RectTransform parent, string text,
             Action onClick = null, Color? bg = null, Color? fg = null, float? width = null) =>
             Button(name, parent, text, onClick, bg, fg, width, UiStyle.MiniBtnHeight, UiStyle.SmallSize);
+
+        /// <summary>绑定/克隆/新建三段式按钮（2026-10-03 手改预制体约定）：
+        /// ① parent 子树深度按名找烘焙节点（不要求直接子级——嵌套包装层免疫）——接线点击+更新文本/态色，
+        /// 尺寸样式以节点为准；② 隐藏模板 tpl-&lt;name&gt;（parent 直属）克隆后同上；③ 都无走 Button 工厂
+        /// （建在 fallbackParent ?? parent，并 LogWarning 暴露断线）。
+        /// 刷新重入安全：先清运行时监听再挂（烘焙按钮勿带序列化 onClick，会被覆盖语义）。</summary>
+        public static UButton BindableButton(string name, RectTransform parent, string text,
+            Action onClick = null, Color? bg = null, Color? fg = null, RectTransform fallbackParent = null)
+        {
+            RectTransform node = parent != null ? UiKit.FindDeep(parent, name) : null;
+            if (node == null) node = CloneTemplate("tpl-" + name, parent);
+            if (node == null)
+            {
+                Debug.LogWarning($"[UiKit] BindableButton 未找到烘焙节点/模板：{name}——代码补建");
+                return Button(name, fallbackParent ?? parent, text, onClick, bg, fg);
+            }
+
+            var btn = node.GetComponent<UButton>();
+            if (btn == null) btn = node.gameObject.AddComponent<UButton>();
+            btn.onClick.RemoveAllListeners();
+            if (onClick != null)
+                btn.onClick.AddListener(() => { Debug.Log($"[UI点击] {name}"); onClick(); });
+            var t = node.GetComponentInChildren<TMP_Text>(true);
+            if (t != null)
+            {
+                if (text != null) t.text = text;
+                if (fg != null) t.color = fg.Value;
+            }
+            if (bg != null)
+            {
+                var img = node.GetComponent<Image>() ?? node.GetComponentInChildren<Image>(true);
+                if (img != null) img.color = bg.Value;
+            }
+            return btn;
+        }
+
+        /// <summary>绑定/克隆/新建三段式文本：parent 子树深度找同名烘焙节点/tpl- 模板——只更新文本
+        /// （样式以节点为准），都无走 Label 工厂。用于常驻提示位（editing-tag、切换钮标签位等）。</summary>
+        public static TMP_Text BindableLabel(string name, RectTransform parent, string text,
+            int size = UiStyle.BodySize, Color? color = null,
+            TextAnchor align = TextAnchor.MiddleLeft, FontStyle style = FontStyle.Normal, bool wrap = false)
+        {
+            RectTransform node = parent != null ? UiKit.FindDeep(parent, name) : null;
+            if (node == null) node = CloneTemplate("tpl-" + name, parent);
+            if (node == null) return Label(name, parent, text, size, color, align, style, wrap);
+            var t = node.GetComponentInChildren<TMP_Text>(true);
+            if (t == null) return Label("text", node, text, size, color, align, style, wrap);
+            t.text = text ?? "";
+            return t;
+        }
 
         /// <summary>列表行底座（对标 .list-row）：圆角深底——挂在已是 Row 的节点上（不挡点击）。</summary>
         public static Image BgRow(RectTransform row, Color? bg = null)

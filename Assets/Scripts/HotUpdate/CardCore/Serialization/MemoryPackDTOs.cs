@@ -54,8 +54,14 @@ namespace CardCore.Serialization
                 CreationTicks = data.CreationTime.Ticks,
             };
 
-            dto.Cost = data.Cost?.Select(kvp => new CostEntryDTO { ManaType = kvp.Key, Value = kvp.Value }).ToArray()
-                       ?? Array.Empty<CostEntryDTO>();
+            // 线上格式不变（MemoryPack 序号契约）：位置数组 → 逐色条目（边界适配，2026-10-04）
+            if (data.Cost != null)
+            {
+                dto.Cost = data.Cost.NonzeroColors()
+                    .Select(c => new CostEntryDTO { ManaType = (int)c, Value = data.Cost[c] }).ToArray();
+            }
+            else
+                dto.Cost = Array.Empty<CostEntryDTO>();
 
             dto.Effects = data.Effects?.Select(SerializableCardEffectData.FromCardEffectData).ToArray()
                           ?? Array.Empty<SerializableCardEffectData>();
@@ -81,9 +87,10 @@ namespace CardCore.Serialization
 
             if (Cost != null)
             {
-                data.Cost = new Dictionary<int, float>();
+                var cost = new ElementCost();
                 foreach (var entry in Cost)
-                    data.Cost[entry.ManaType] = entry.Value;
+                    cost[(ManaType)entry.ManaType] = entry.Value;
+                data.Cost = cost;
             }
 
             if (Effects != null)

@@ -31,13 +31,14 @@ namespace SynergyUI
         /// <summary>卡主色（排序/分组口径）：非灰费用额最高者，并列取红→蓝→绿→黑→白序；无彩色=灰。</summary>
         public static UIColor PrimaryColor(CardData card)
         {
-            if (card == null || card.Cost == null || card.Cost.Count == 0) return UIColor.Gray;
+            if (card == null || card.Cost == null || card.Cost.IsZero) return UIColor.Gray;
             UIColor best = UIColor.Gray;
             float bestAmount = 0f;
             // 迭代序即并列时的优先序；严格 > 保证同额取靠前的色
             foreach (var mana in RankOrder)
             {
-                if (card.Cost.TryGetValue((int)mana, out var amount) && amount > bestAmount)
+                var amount = card.Cost[mana];
+                if (amount > bestAmount)
                 {
                     best = UiOf(mana);
                     bestAmount = amount;
@@ -50,7 +51,7 @@ namespace SynergyUI
         public static bool HasCostColor(CardData card, UIColor color)
         {
             if (card == null || card.Cost == null || color == UIColor.All) return true;
-            return card.Cost.TryGetValue((int)ToMana(color), out var amount) && amount > 0f;
+            return card.Cost[ToMana(color)] > 0f;
         }
 
         /// <summary>全局统一排序：颜色（灰红蓝绿黑白）→ 费用小→大 → 名称（当前文化序）。</summary>

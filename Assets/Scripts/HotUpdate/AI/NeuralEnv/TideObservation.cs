@@ -37,8 +37,9 @@ namespace CardCore.AI.NeuralEnv
         public const int AtomIdSlots = 6;                                        // [15..20] 精确哈希槽
         public const int TypeIdStart = 23;                                       // [23..28] 类型下标槽
         public const int ParamStart = 29;                                        // [29..] 参数块
-        // 2026-09-14 32→36：追加 4 维黑白每回合获得余量（双方×两色 = 1 - Black/WhiteGainedThisTurn，
-        // 见 g[32..35]）——黑白万用化后这是 policy 估值错边收益的必要状态（每回合封顶 1/色）。
+        // 2026-09-14 32→36：追加 4 维黑白每回合获得余量（双方×两色，见 g[32..35]）——黑白万用化后
+        // 这是 policy 估值错边收益的必要状态。2026-10-04 封顶改口径：余量=地牌槽上限-已获得
+        //（原封顶 1/色 → 地牌槽上限/色），取值域 0/1 → 0..9，已训模型该维分布漂移（随下批重训吸收）。
         // python 侧 N_GLOBAL_FEATURES 同步；ONNX 图输入随之重导出（随本批重训一起做）。
         // 2026-09-30 36→49（动作空间 v2 契约第 3 节）：g[36..43] 双方英雄技能块（P1/P2 绝对序）、
         // g[44..46] 栈深度/栈顶来源/栈顶 effectIdentity、g[47] 决策上下文（0=己方Main/1=响应窗口）、
@@ -163,8 +164,7 @@ namespace CardCore.AI.NeuralEnv
             int b = slot * NCard;
             int power = layer.CalculatePower(c);
             int life = layer.CalculateToughness(c);
-            float cost = 0f;
-            foreach (var v in GameActions.GetCardCost(c).Values) cost += v;
+            float cost = GameActions.GetCardCost(c).Total;
 
             Cards[b + 0] = 1f; // valid
             Cards[b + 1] = ReferenceEquals(c.GetController(), _me) ? 0f : 1f; // controller
@@ -233,11 +233,11 @@ namespace CardCore.AI.NeuralEnv
             g[29] = FieldValueReward.TotalValue(core, opp); // 对方全资源价值
             g[30] = ep.GetLandCap(me);
             g[31] = ep.GetLandCap(opp);
-            // 黑白每回合获得余量（2026-09-14 定案：封顶 1/色）——policy 可见「本回合黑/白还能不能进账」
-            g[32] = 1 - ep.GetPool(me).BlackGainedThisTurn;
-            g[33] = 1 - ep.GetPool(me).WhiteGainedThisTurn;
-            g[34] = 1 - ep.GetPool(opp).BlackGainedThisTurn;
-            g[35] = 1 - ep.GetPool(opp).WhiteGainedThisTurn;
+            // 黑白每回合获得余量（2026-10-04：封顶=地牌槽上限/色）——policy 可见「本回合黑/白还能进账几个」
+            g[32] = Math.Max(0, ep.GetLandCap(me) - ep.GetPool(me).BlackGainedThisTurn);
+            g[33] = Math.Max(0, ep.GetLandCap(me) - ep.GetPool(me).WhiteGainedThisTurn);
+            g[34] = Math.Max(0, ep.GetLandCap(opp) - ep.GetPool(opp).BlackGainedThisTurn);
+            g[35] = Math.Max(0, ep.GetLandCap(opp) - ep.GetPool(opp).WhiteGainedThisTurn);
 
             // ---- v2 追加（2026-09-30 契约第 3 节）----
             WriteHeroSkillBlock(core, core.Player1, 36);

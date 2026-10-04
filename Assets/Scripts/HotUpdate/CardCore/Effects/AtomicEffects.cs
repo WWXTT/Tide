@@ -225,6 +225,10 @@ namespace CardCore
         /// SummonToken 模板同款引用先例）；对手抽到该卡时 CurseSystem 自动执行载荷分支效果并消层（一次性）。
         /// 枚举只可尾部追加。</summary>
         AddCurse,
+        /// <summary>锁定（2026-10-04 窥渊仪典原子化，蓝）：为一张手牌挂「锁定」指示物×{value}回合——
+        /// 持有期间该牌无法使用（打出/响应出牌/苏醒立约同门）；持有者回合结束层数−1
+        /// （手牌区与场上同样倒数，CounterRules 持有者侧结算域），归零解锁。枚举只可尾部追加。</summary>
+        LockCard,
     }
 
     /// <summary>

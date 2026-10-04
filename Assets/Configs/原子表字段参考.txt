@@ -7,10 +7,23 @@
   「有害锁己方」（负面指向自己，苏醒式自缚）；「有益锁对方」仍只进代价栏。③苏醒——手牌中立约
   （CommitAwaken）后灰份全免转入场沉睡层数，未立约照常全价。④地牌资格——生物/法术/结界三型
   可作地牌，衍生物(IsToken)/临时卡/已耗竭不可；改表前看一眼防错）
+2026-10-04 费用位置数组定案（全链统一）：EffectColor+BaseCost 两列**删除**、死列 EffectTier 删除，
+  ManaList 落地为 **float 位置数组**——下标=ManaType 枚举序号（现行序 [灰,红,蓝,绿,白,黑]，
+  99 行已全量迁移）；Cards.json costList / Effects.json cost 同款位置数组；运行时统一 ElementCost
+  （CardCore/Effects/ElementCost.cs）。扩色=枚举加成员，数组自动加长，表示层零改动。
+2026-10-04 窥渊原子化：新增「锁定」行（LockCard，蓝2，域=双方手牌 5,6——挂锁定指示物×{value}回合，
+  期间无法使用）；窥渊仪典=回合开始随机展示对手一张手牌+赋予被展示的卡一回合锁定指示物（锁定走
+  指示物，持有者回合末层数-1——手牌区与场上同样倒数；表 99→100 行）。
+2026-10-04 光环改造（规则光环族 7→9 行，表 100→102 行）：①血偿=己方回合角色受伤→对手角色承担
+  （DamageEvent 替代件，替代引擎新增承受者改写能力；旧"代价流失转嫁"退役）红12；②丰盈=回复溢出
+  →生命上限+1（收编旧写死基线，无光环时溢出纯浪费）绿6——生命恢复计价因此 0.8 优惠（Heal 绿0.5→0.4）；
+  ③蚕褪（新行）=承接原丰盈伤害帽并扩生物（单次>5→5，生物与角色）绿12；④疾风=从手牌使用的卡发动
+  速度+1（GetCardCastSpeed 单源）蓝6；⑤轮回（新行）=承接原疾风双人连两回合 蓝12；⑥归土 绿8；
+  ⑦纳川 蓝6。合成器发动方式去掉强制档（留系统自用，玩家仅 主动/自动）。
 ====================================================================
 
-当前表共 99 行（2026-10-03 规则轴转正后；同枚举可多行=域/模板变体：洗牌×2（洗回/洗入）、
-ModifyGameRule×7（规则光环——跳过回合×2/苏醒/光合作用等旧变体已退役）。
+当前表共 102 行（2026-10-04 光环改造：新增蚕褪/轮回两行；同枚举可多行=域/模板变体：洗牌×2（洗回/洗入）、
+ModifyGameRule×9（规则光环族）。
 f14151e 变更全录：删 胜利（"自己胜"方向运行时不可达且零引用）/光合作用/苏醒/冰晶/梦魇 五行、
 跳过回合×2 并一；采掘 EffectType 修正 AdditionalEnergy→Mine；补 送墓/弹回牌库顶/弹回牌库底/连击
 四行；展示/附加诅咒 重推 ID——详见仓库根《原子表逐条审核报告_2026-10-02.md》。
@@ -19,7 +32,7 @@ f14151e 变更全录：删 胜利（"自己胜"方向运行时不可达且零引
 移动族: DrawCard DiscardCard MillCard ReturnToHand RecoverToHand Exile ShuffleIntoDeck
         SearchDeck BounceToTop BounceToBottom ReturnFromGraveyard SummonToken Morph DiscoverCard
 状态族: Untap SetPower SetLife SetCost ModifyPower ModifyLife ModifyCost Freeze Purify Sleep
-指示物族: Poison AddToxin AddArmor Silence AddNullify RushSickness AddVulnerable
+指示物族: Poison AddToxin AddArmor Silence AddNullify RushSickness AddVulnerable LockCard
         AddPowerUp AddPowerDown AddLifeUp AddLifeDown AddPlusOne AddMinusOne AddCostUp AddCostDown
 Grant族(域=0，22 行): GrantPoisonSting GrantLifesteal GrantStealth GrantDivineShield GrantOverwhelm
         GrantVigilance GrantFirstStrike GrantSpellShield GrantCannotBeTargeted GrantReborn
@@ -33,11 +46,15 @@ Grant族(域=0，22 行): GrantPoisonSting GrantLifesteal GrantStealth GrantDivi
 引擎主干(MountKinds=9，6 行): BranchEngineClash BranchEngineLuckRoll BranchEngineCountdown
         BranchEngineDeathToll BranchEngineManaSurplus BranchEngineNthHandCard
         （合成器锁定为不可编辑关键词——主干槽下拉直选）
-规则光环族(域=空、p=0、MountKinds="0"，7 行——2026-10-03 定案): 三相仪典 血偿仪典 丰盈仪典
-        窥渊仪典 归土仪典 疾风仪典 纳川仪典（EffectType 全为 ModifyGameRule；
-        实例 str=规则短名——ElementConversion/BloodPact/DamageCap/LockRevealed/
-        GraveyardPlay/DoubleTurn/HandLimitNoFatigue；载体=结界登场效果，
+规则光环族(域=空、p=0、MountKinds="0"，9 行——2026-10-03 定案+2026-10-04 光环改造): 三相仪典
+        血偿仪典 丰盈仪典 蚕褪仪典 窥渊仪典 归土仪典 疾风仪典 轮回仪典 纳川仪典（EffectType 全为
+        ModifyGameRule；实例 str=规则短名——ElementConversion/BloodPact/HealOverflow/DamageCap/
+        LockRevealed/GraveyardPlay/CastSpeedUp/DoubleTurn/HandLimitNoFatigue；载体=结界登场效果，
         RuleAuraSystem 承载：双方生效/全局唯一新换旧送墓/载体离场失效/永久、无箭头）
+★ 窥渊仪典（2026-10-04 原子化+自给展示源）：回合开始=**随机展示对手一张未展示手牌**（RevealCard
+  同款口径，GameRng）+ 赋予对手**被展示的卡全部**一回合锁定指示物（LockCard 原子语义、无选择
+  窗口）——展示并锁定同回合生效。锁定走 LockCounter（层数=剩余回合，持有者回合末-1，
+  手牌区同样倒数；锁定独立于光环存续）。
 
 枚举有、表无行——有意留白（写进表才生效）: DealCombatDamage Tap Weaken Inspire RedirectTarget
         DeclareHand DeclareDeckTop DeclareArrow ProphecyNextCard（宣告/预言族）
@@ -131,22 +148,29 @@ Grant族(域=0，22 行): GrantPoisonSting GrantLifesteal GrantStealth GrantDivi
   属性比较式：Power>5 / Life<=3 / Power=2 等格式
 ★ 新击杀效果 = 表行带 Mortal 即可，零引擎改动。
 
-【费用构成三列（2026-09-22 补——迁移链务必看清）】
-  ManaList   = **正式费用构成列**（2026-09-14 定案）：[{manaType,amount},…] 混合色数组。
-               计价 = 各色 amount × Value；首色即主色（config.PrimaryColor）。
-               当前 92 行数据**尚未迁移**——ManaList 全空，走下行兜底。
-  EffectColor+BaseCost = **旧格式两列**（兜底合成）：仅当 ManaList 为空且 EffectColor
-               可解析为 ManaType 且 BaseCost>0 时，BuildConfig 合成单条
-               ManaList={EffectColor, BaseCost}。新行应直接写 ManaList（旧两列可留作对照）。
-  Tags       = **只读派生列（表里不写）**：BuildConfig 写入 ManaList 首色的颜色名字符串
+【费用构成 ManaList（2026-10-04 位置数组定案——唯一费用列）】
+  ManaList   = float 位置数组：**下标 = ManaType 枚举序号**，长度 = 枚举成员数（当前 6）。
+               现行枚举序（勿凭直觉，认枚举）：0=灰 Gray、1=红 Red、2=蓝 Blue、3=绿 Green、
+               4=白 White、5=黑 Black。例：攻击（灰1）= [1,0,0,0,0,0]——灰在序号 0；
+               碾压（红3）= [0,3,0,0,0,0]；时之枷锁锚价（蓝6）= [0,0,6,0,0,0]。
+               混合色=多位非零（未来能力，当前 99 行全是单色位）；null/空 = 不计价行。
+               计价 = 各色份额 × Value；首个非零下标色即主色（config.PrimaryColor）。
+  扩色口径   = ManaType 枚举尾部加成员，数组长度自动跟随（ElementCost.Length 读枚举数）——
+               后续扩色只改枚举，表/卡/效果/代码零改动；**枚举序号永不重排**（已序列化的
+               int 色键全链保序）。
+  落盘同款   = Cards.json costList / Effects.json cost 也是同口径位置数组（154 卡+104 锚价
+               已迁移）；运行时全链统一 ElementCost（原子表 config.ManaList / CardData.Cost /
+               推导输出 DeriveElementCosts / 支付入口同一类型）。
+  历史墓碑   = 旧 EffectColor+BaseCost 两列（2026-09-14 定案合并、2026-09-20 起兜底合成）
+               与死列 EffectTier 已于 2026-10-04 随全量数据迁移**从表删除**——BuildConfig
+               兜底分支同步移除，新行直接写 ManaList 位置数组即可。
+  Tags       = **只读派生列（表里不写）**：BuildConfig 写入首个非零下标色的颜色名字符串
                （"Red"/"Blue"/…）——UI 圆点/ElementAffinity 取色都读它。
-               旧数据下实质 = EffectColor 的迁移落点（2026-09-20 修复，此前从未写入全表退化）。
 ★ 进表指纹的是 **ManaList**（排序后 type:amount）——旧数据下改 EffectColor/BaseCost
   会经合成 ManaList 间接动指纹；迁移到显式 ManaList 后旧两列不再影响任何东西。
 
-【EffectTier】（Atom/Keyword/Counter 三分类——**死列待裁决**）：运行时枚举 2026-09-10 已删
-  （零消费：关键词认 Grant 前缀、指示物认 CounterRules spec）；DTO 列仍在但 0/92 行填写。
-  删列或迁移定案前不要写进表。
+【EffectTier】已删除（2026-10-04 随费用列迁移整表重写时清除）：三分类枚举 2026-09-10 已删
+  （零消费），DTO 列此前为死列，现已从 JSON 删除——表里不再出现该字段。
 
 【其它字段】
   ID         = 行主键 8-hex：sha256(DisplayName 去首尾空格) 前 8 位——原子引用键
@@ -158,12 +182,15 @@ Grant族(域=0，22 行): GrantPoisonSting GrantLifesteal GrantStealth GrantDivi
   Polarity   = 极性 [-1,1]：-1 有害（对敌释放有益）/ +1 有益（对己释放有益）/ 0 中性。
                进表指纹。合成器目标域限选、代价错侧改写、错边转化黑白补偿全由它驱动。
 
-【改表的连锁反应（2026-09-22 修正口径）】
+【改表的连锁反应（2026-10-04 费用位置数组化后口径）】
   · 表指纹（CardIdentityService.TableFingerprint）只哈希：
-      EnumName | ManaList(排序 type:amount) | TargetKinds | TargetFilter | Polarity
+      EnumName | ManaList(序数序无损文本) | TargetKinds | TargetFilter | Polarity
     改这五者任一 → 表指纹变 → 全体卡身份哈希换血 → manifest 作废 → 必须重训 + 重导出。
-    （改 BaseCost/EffectColor 在**旧数据**下经合成 ManaList 间接动指纹——等价于改计价；
-     迁移显式 ManaList 后旧两列怎么改都不动指纹；改 DisplayName/ID/MountKinds/EffectTier 不动指纹）
+    （改 ManaList 份额同时改计价与指纹——等价于改计价；改 DisplayName/ID/MountKinds 不动指纹。）
+  · 卡/效果 ID（ContentHasher）：**费用不入哈希**——改表价只改重推后的费用数值，不改卡 ID；
+    ID 漂移只来自 名字/类型/身材/关键词/光环/效果内容（效果 id 经 FX 段传导到卡 id）。
+    （2026-10-04 重推实测 5 张卡换 ID = 历史陈旧 ID 修正（身材/内容改后未重推），与费用无关。）
   · ID 列不用手写：跑 Tools/重推导测试卡表费用与ID 自动重推；
     DisplayName 撞名 → ID 撞号（工具会告警）
   · 改完表的标准动作：Tools/重推导测试卡表费用与ID → Tools/端到端验证
+    （只改费用不动身份时可用 Tools/仅重推正式卡费用（不动ID）——按现行表全盘重推费用数值。）

@@ -7,14 +7,12 @@
             "power": 2,
             "life": 2,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                2.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -29,7 +27,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_E7215E49",
@@ -38,14 +37,12 @@
             "power": 3,
             "life": 3,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 5.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                5.0
             ],
             "keywords": [],
             "tags": [],
@@ -60,7 +57,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_F67F2E56",
@@ -69,14 +67,12 @@
             "power": 2,
             "life": 1,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -91,7 +87,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_DDFBA890",
@@ -100,14 +97,12 @@
             "power": 2,
             "life": 2,
             "costList": [
-                {
-                    "manaType": 4,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                2.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -122,7 +117,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_E1731C63",
@@ -131,14 +127,12 @@
             "power": 4,
             "life": 2,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 5.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                5.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -153,7 +147,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_2606D275",
@@ -162,14 +157,12 @@
             "power": 2,
             "life": 3,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -184,7 +177,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_02FE797B",
@@ -193,14 +187,12 @@
             "power": 3,
             "life": 1,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -215,7 +207,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_82995BE3",
@@ -224,14 +217,12 @@
             "power": 1,
             "life": 3,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -246,7 +237,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_80E59E2E",
@@ -255,14 +247,12 @@
             "power": 1,
             "life": 3,
             "costList": [
-                {
-                    "manaType": 4,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                3.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -277,7 +267,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_8FEE3A39",
@@ -286,14 +277,12 @@
             "power": 3,
             "life": 2,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                3.0
             ],
             "keywords": [],
             "tags": [],
@@ -308,7 +297,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_3A67A03F",
@@ -317,14 +307,12 @@
             "power": 2,
             "life": 4,
             "costList": [
-                {
-                    "manaType": 4,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                3.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -339,7 +327,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_97E78114",
@@ -348,14 +337,12 @@
             "power": 3,
             "life": 5,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 5.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                0.0,
+                5.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -370,7 +357,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_BDEA55D7",
@@ -379,14 +367,12 @@
             "power": 4,
             "life": 6,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 4.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 5.0
-                }
+                5.0,
+                0.0,
+                0.0,
+                4.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -401,7 +387,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_157AB8A2",
@@ -410,14 +397,12 @@
             "power": 2,
             "life": 4,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                0.0,
+                2.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -432,7 +417,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_D28AD64E",
@@ -441,14 +427,12 @@
             "power": 2,
             "life": 1,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -463,7 +447,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_D3D90927",
@@ -472,14 +457,12 @@
             "power": 1,
             "life": 5,
             "costList": [
-                {
-                    "manaType": 4,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                2.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -494,7 +477,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_BD3A5156",
@@ -503,14 +487,12 @@
             "power": 2,
             "life": 2,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -525,23 +507,22 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
-            "id": "C_C2CB2582",
+            "id": "C_AE5BE286",
             "cardName": "冰晶",
             "supertype": "Creature",
             "power": 1,
             "life": 3,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [
                 "IceCrystal"
@@ -556,23 +537,22 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
-            "id": "C_A09A1EEA",
+            "id": "C_448BA8A4",
             "cardName": "梦魇",
             "supertype": "Creature",
             "power": 2,
             "life": 3,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [
                 "Nightmare"
@@ -587,7 +567,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_421D1F64",
@@ -596,14 +577,12 @@
             "power": 2,
             "life": 3,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 5.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                5.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -618,7 +597,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_A5CEB55A",
@@ -627,14 +607,12 @@
             "power": 1,
             "life": 4,
             "costList": [
-                {
-                    "manaType": 4,
-                    "amount": 5.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                5.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -649,7 +627,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_69D19A8F",
@@ -658,10 +637,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 3.0
-                }
+                0.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -676,7 +657,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_20B3EE3C",
@@ -685,14 +667,12 @@
             "power": 3,
             "life": 2,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -707,7 +687,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_A5A7B045",
@@ -716,14 +697,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -738,7 +717,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_B5267F89",
@@ -747,14 +727,12 @@
             "power": 2,
             "life": 2,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -769,7 +747,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_FA524C9D",
@@ -778,14 +757,12 @@
             "power": 4,
             "life": 4,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -800,7 +777,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_88B01747",
@@ -809,14 +787,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -831,7 +807,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_FAC7932F",
@@ -840,14 +817,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -862,7 +837,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_E41872E6",
@@ -871,14 +847,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -893,7 +867,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_60278BA0",
@@ -902,10 +877,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 3.0
-                }
+                0.0,
+                0.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -920,7 +897,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_772F7002",
@@ -929,10 +907,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                }
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -947,7 +927,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_E9FBDBF9",
@@ -956,14 +937,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -978,7 +957,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_0C84C4F4",
@@ -987,10 +967,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 3.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                3.0
             ],
             "keywords": [],
             "tags": [],
@@ -1005,7 +987,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_64502B88",
@@ -1014,10 +997,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 1.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0
             ],
             "keywords": [],
             "tags": [],
@@ -1032,7 +1017,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_FD40FA33",
@@ -1041,14 +1027,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1063,7 +1047,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_74A94F38",
@@ -1072,10 +1057,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 3.0
-                }
+                0.0,
+                0.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1090,23 +1077,22 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
-            "id": "C_94605A4F",
+            "id": "C_B34D02C4",
             "cardName": "时之枷锁",
             "supertype": "Spell",
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1115,13 +1101,14 @@
             "level": -1,
             "arrows": "None",
             "effectIds": [
-                "B46CA240"
+                "53E887E3"
             ],
             "linkAuras": [],
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_89A55164",
@@ -1130,10 +1117,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 6.0
-                }
+                0.0,
+                0.0,
+                6.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1148,7 +1137,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_D87CEE4D",
@@ -1157,14 +1147,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1179,7 +1167,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_7DED0FF9",
@@ -1188,14 +1177,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1210,7 +1197,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_00B00E25",
@@ -1219,14 +1207,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1241,7 +1227,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_41137D3C",
@@ -1250,14 +1237,12 @@
             "power": 2,
             "life": 4,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1272,7 +1257,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_5EECA31E",
@@ -1281,14 +1267,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 3,
-                    "amount": 3.0
-                }
+                0.0,
+                0.0,
+                1.0,
+                2.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1303,7 +1287,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_0AD64FA6",
@@ -1312,14 +1297,12 @@
             "power": 3,
             "life": 5,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                0.0,
+                2.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1334,7 +1317,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_8CCECD5C",
@@ -1343,14 +1327,12 @@
             "power": 2,
             "life": 6,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 4.0
-                }
+                4.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1365,7 +1347,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_2FD32662",
@@ -1374,14 +1357,12 @@
             "power": 2,
             "life": 3,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1396,7 +1377,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_91CC7BFE",
@@ -1405,14 +1387,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1427,7 +1407,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_C63022F6",
@@ -1436,14 +1417,12 @@
             "power": 2,
             "life": 4,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1458,23 +1437,22 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
-            "id": "C_B13B1495",
+            "id": "C_8A523D9B",
             "cardName": "古树幼苗",
             "supertype": "Creature",
             "power": 1,
             "life": 5,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1487,23 +1465,22 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
-            "id": "C_77B68590",
+            "id": "C_10124F21",
             "cardName": "冬眠兽",
             "supertype": "Creature",
             "power": 5,
             "life": 7,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 4.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 5.0
-                }
+                4.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1516,7 +1493,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_92B9FFD0",
@@ -1525,14 +1503,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                3.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1547,7 +1523,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_8FCD15F5",
@@ -1556,14 +1533,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 5,
-                    "amount": 1.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                1.0
             ],
             "keywords": [],
             "tags": [],
@@ -1578,7 +1553,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_4DB74F5D",
@@ -1587,10 +1563,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 5.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                5.0
             ],
             "keywords": [],
             "tags": [],
@@ -1605,7 +1583,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_1C0CAEF7",
@@ -1614,10 +1593,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 1.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0
             ],
             "keywords": [],
             "tags": [],
@@ -1632,7 +1613,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_5862DF31",
@@ -1641,10 +1623,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 3.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                3.0
             ],
             "keywords": [],
             "tags": [],
@@ -1659,7 +1643,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_BC1A791B",
@@ -1668,10 +1653,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 3.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                3.0
             ],
             "keywords": [],
             "tags": [],
@@ -1686,7 +1673,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_CD3A3838",
@@ -1695,10 +1683,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 1.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0
             ],
             "keywords": [],
             "tags": [],
@@ -1713,7 +1703,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_99A2CC09",
@@ -1722,14 +1713,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1744,7 +1733,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_2084AF74",
@@ -1753,10 +1743,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 12.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                12.0
             ],
             "keywords": [],
             "tags": [],
@@ -1771,7 +1763,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_F58B7DF2",
@@ -1780,10 +1773,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 1.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0
             ],
             "keywords": [],
             "tags": [],
@@ -1798,7 +1793,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_ADF5FAAD",
@@ -1807,14 +1803,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 4,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1829,7 +1823,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_82967A31",
@@ -1838,10 +1833,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 4,
-                    "amount": 1.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1856,7 +1853,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_C2F2778E",
@@ -1865,14 +1863,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 4,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1887,7 +1883,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_5C7889BF",
@@ -1896,10 +1893,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 4,
-                    "amount": 3.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                3.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1914,7 +1913,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_952B65B6",
@@ -1923,10 +1923,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 4,
-                    "amount": 3.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                3.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1941,7 +1943,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_427794BF",
@@ -1950,14 +1953,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 4,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1972,7 +1973,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_5BBD3AD3",
@@ -1981,10 +1983,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 6.0
-                }
+                0.0,
+                0.0,
+                6.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [],
@@ -1999,7 +2003,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_75886B2B",
@@ -2008,14 +2013,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 2,
-                    "amount": 3.0
-                }
+                0.0,
+                0.0,
+                3.0,
+                0.0,
+                0.0,
+                2.0
             ],
             "keywords": [],
             "tags": [],
@@ -2031,7 +2034,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_3D15895C",
@@ -2040,14 +2044,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 2,
-                    "amount": 2.0
-                }
+                0.0,
+                0.0,
+                2.0,
+                0.0,
+                0.0,
+                2.0
             ],
             "keywords": [],
             "tags": [],
@@ -2063,7 +2065,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_9CBDD76F",
@@ -2072,10 +2075,12 @@
             "power": 2,
             "life": 1,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2090,7 +2095,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_A0AF544D",
@@ -2099,10 +2105,12 @@
             "power": 3,
             "life": 1,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2117,7 +2125,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_3C06E8E8",
@@ -2126,10 +2135,12 @@
             "power": 3,
             "life": 2,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2144,7 +2155,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_29D4958D",
@@ -2153,14 +2165,12 @@
             "power": 2,
             "life": 1,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2177,7 +2187,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_8E06A0A7",
@@ -2186,14 +2197,12 @@
             "power": 3,
             "life": 1,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2210,7 +2219,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_1C2F5A42",
@@ -2219,14 +2229,12 @@
             "power": 4,
             "life": 2,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2243,7 +2251,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_89D4C76A",
@@ -2252,14 +2261,12 @@
             "power": 3,
             "life": 2,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                2.0
             ],
             "keywords": [],
             "tags": [
@@ -2276,7 +2283,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_AEC7E2C9",
@@ -2285,10 +2293,12 @@
             "power": 4,
             "life": 1,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2303,7 +2313,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_310866E0",
@@ -2312,10 +2323,12 @@
             "power": 5,
             "life": 2,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2330,7 +2343,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_1E925907",
@@ -2339,14 +2353,12 @@
             "power": 3,
             "life": 1,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                3.0
             ],
             "keywords": [],
             "tags": [
@@ -2363,7 +2375,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_3244447D",
@@ -2372,10 +2385,12 @@
             "power": 4,
             "life": 3,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2390,7 +2405,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_1BCE95D1",
@@ -2399,14 +2415,12 @@
             "power": 3,
             "life": 2,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2423,7 +2437,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_EB26C118",
@@ -2432,10 +2447,12 @@
             "power": 5,
             "life": 1,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2450,7 +2467,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_6514010C",
@@ -2459,14 +2477,12 @@
             "power": 4,
             "life": 2,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2483,7 +2499,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_289A18CA",
@@ -2492,14 +2509,12 @@
             "power": 3,
             "life": 1,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2516,7 +2531,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_6C440748",
@@ -2525,14 +2541,12 @@
             "power": 2,
             "life": 1,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2549,7 +2563,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_863B0464",
@@ -2558,14 +2573,12 @@
             "power": 4,
             "life": 2,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2582,7 +2595,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_14113CB5",
@@ -2591,14 +2605,12 @@
             "power": 4,
             "life": 3,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 4.0
-                }
+                4.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2615,7 +2627,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_5CEEF027",
@@ -2624,14 +2637,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2648,7 +2659,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_99E5A86F",
@@ -2657,14 +2669,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2681,7 +2691,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_220BEFBD",
@@ -2690,14 +2701,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2714,7 +2723,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_7223B8B2",
@@ -2723,10 +2733,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                }
+                0.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2743,7 +2755,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_8880C538",
@@ -2752,10 +2765,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                }
+                0.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2772,7 +2787,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_F8287719",
@@ -2781,14 +2797,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2805,7 +2819,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_984483F2",
@@ -2814,14 +2829,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 4,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2838,7 +2851,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_64B6E2DC",
@@ -2847,14 +2861,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 4,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2871,7 +2883,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_93405871",
@@ -2880,14 +2893,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2904,7 +2915,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_6945689D",
@@ -2913,10 +2925,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 1.0
-                }
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2933,7 +2947,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_0B7A1F9F",
@@ -2942,10 +2957,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                }
+                0.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2962,7 +2979,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_15F9F481",
@@ -2971,10 +2989,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 3.0
-                }
+                0.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -2991,7 +3011,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_78A92563",
@@ -3000,10 +3021,12 @@
             "power": 1,
             "life": 4,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3018,7 +3041,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_5804ECA9",
@@ -3027,14 +3051,12 @@
             "power": 2,
             "life": 4,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3051,7 +3073,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_A52EF97B",
@@ -3060,10 +3083,12 @@
             "power": 2,
             "life": 5,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3078,7 +3103,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_0BE495BF",
@@ -3087,14 +3113,12 @@
             "power": 2,
             "life": 3,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3111,7 +3135,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_22AAA83E",
@@ -3120,14 +3145,12 @@
             "power": 2,
             "life": 4,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                2.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3144,7 +3167,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_62154C72",
@@ -3153,10 +3177,12 @@
             "power": 3,
             "life": 6,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 4.0
-                }
+                4.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3171,7 +3197,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_1602F666",
@@ -3180,14 +3207,12 @@
             "power": 3,
             "life": 5,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3204,7 +3229,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_1C26FC4A",
@@ -3213,14 +3239,12 @@
             "power": 3,
             "life": 5,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                3.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3237,7 +3261,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_A6747CA5",
@@ -3246,10 +3271,12 @@
             "power": 5,
             "life": 5,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 4.0
-                }
+                4.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3264,7 +3291,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_D8A7891D",
@@ -3273,10 +3301,12 @@
             "power": 4,
             "life": 7,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 4.0
-                }
+                4.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3291,7 +3321,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_3B7D3424",
@@ -3300,14 +3331,12 @@
             "power": 5,
             "life": 6,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 5.0
-                }
+                5.0,
+                0.0,
+                0.0,
+                2.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3324,7 +3353,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_977E9E63",
@@ -3333,10 +3363,12 @@
             "power": 6,
             "life": 7,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 5.0
-                }
+                5.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3351,7 +3383,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_2612B8A4",
@@ -3360,14 +3393,12 @@
             "power": 6,
             "life": 8,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 5.0
-                }
+                5.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3384,7 +3415,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_98FA6E81",
@@ -3393,14 +3425,12 @@
             "power": 7,
             "life": 7,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 5.0
-                }
+                5.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3417,7 +3447,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_7EF407FA",
@@ -3426,14 +3457,12 @@
             "power": 7,
             "life": 8,
             "costList": [
-                {
-                    "manaType": 4,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 5.0
-                }
+                5.0,
+                0.0,
+                0.0,
+                0.0,
+                2.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3450,7 +3479,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_96023269",
@@ -3459,14 +3489,12 @@
             "power": 8,
             "life": 9,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 6.0
-                }
+                6.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3483,7 +3511,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_B3A2199A",
@@ -3492,18 +3521,12 @@
             "power": 9,
             "life": 9,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 4,
-                    "amount": 2.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 6.0
-                }
+                6.0,
+                2.0,
+                0.0,
+                0.0,
+                2.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3521,7 +3544,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_FE0329A0",
@@ -3530,14 +3554,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3554,7 +3576,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_8DC3062F",
@@ -3563,14 +3586,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3587,7 +3608,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_039E5102",
@@ -3596,10 +3618,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3616,7 +3640,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_5F09BE86",
@@ -3625,10 +3650,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 2.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                2.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3645,7 +3672,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_2735EB38",
@@ -3654,14 +3682,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3678,7 +3704,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_1D2C0BCB",
@@ -3687,14 +3714,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3711,7 +3736,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_D7CD28D3",
@@ -3720,10 +3746,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 1.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3740,7 +3768,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_7AAC143C",
@@ -3749,14 +3778,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3773,7 +3800,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_9191E659",
@@ -3782,14 +3810,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3806,7 +3832,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_055591BE",
@@ -3815,10 +3842,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 5.0
-                }
+                0.0,
+                5.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3835,7 +3864,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_AB60E7F8",
@@ -3844,10 +3874,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 1,
-                    "amount": 2.0
-                }
+                0.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3864,7 +3896,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_AED82E7F",
@@ -3873,14 +3906,12 @@
             "power": 2,
             "life": 3,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3897,7 +3928,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_7B61EF2C",
@@ -3906,10 +3938,12 @@
             "power": 2,
             "life": 4,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3924,7 +3958,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_EF102C24",
@@ -3933,14 +3968,12 @@
             "power": 2,
             "life": 4,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3957,7 +3990,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_62BACD5E",
@@ -3966,14 +4000,12 @@
             "power": 3,
             "life": 3,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 2.0
-                }
+                2.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -3990,7 +4022,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_1C7B95EB",
@@ -3999,14 +4032,12 @@
             "power": 3,
             "life": 4,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4023,7 +4054,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_3A052F9E",
@@ -4032,10 +4064,12 @@
             "power": 3,
             "life": 5,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4050,7 +4084,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_44D0DFFB",
@@ -4059,14 +4094,12 @@
             "power": 4,
             "life": 5,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4083,7 +4116,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_BA6AEC4E",
@@ -4092,10 +4126,12 @@
             "power": 4,
             "life": 6,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 4.0
-                }
+                4.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4110,7 +4146,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_9EB680C3",
@@ -4119,14 +4156,12 @@
             "power": 4,
             "life": 4,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4143,7 +4178,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_4E1D1D66",
@@ -4152,14 +4188,12 @@
             "power": 3,
             "life": 6,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4176,7 +4210,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_DCEC6BDC",
@@ -4185,10 +4220,12 @@
             "power": 5,
             "life": 5,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 4.0
-                }
+                4.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4203,7 +4240,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_7CD6085C",
@@ -4212,10 +4250,12 @@
             "power": 5,
             "life": 6,
             "costList": [
-                {
-                    "manaType": 0,
-                    "amount": 4.0
-                }
+                4.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4230,7 +4270,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_E597A139",
@@ -4239,14 +4280,12 @@
             "power": 3,
             "life": 4,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4263,7 +4302,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_2F3A0154",
@@ -4272,14 +4312,12 @@
             "power": 4,
             "life": 5,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 1.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 3.0
-                }
+                3.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4296,7 +4334,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_09618A48",
@@ -4305,10 +4344,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 1.0
-                }
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0
             ],
             "keywords": [],
             "tags": [
@@ -4325,7 +4366,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_386E701A",
@@ -4334,14 +4376,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4358,7 +4398,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_EB99C597",
@@ -4367,14 +4408,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 3,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4391,7 +4430,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_719DBEA4",
@@ -4400,14 +4440,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4424,7 +4462,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_9457A81D",
@@ -4433,14 +4472,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4457,7 +4494,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_85CEC904",
@@ -4466,14 +4504,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 4,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4490,7 +4526,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_4284F45B",
@@ -4499,14 +4536,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4523,7 +4558,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_ECB1B4CA",
@@ -4532,14 +4568,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4556,7 +4590,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_963C2A67",
@@ -4565,14 +4600,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4589,7 +4622,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_CEED63A0",
@@ -4598,14 +4632,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 5,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4622,7 +4654,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_259D5C54",
@@ -4631,14 +4664,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4655,7 +4686,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_C909F24D",
@@ -4664,14 +4696,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 0.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4688,7 +4718,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         },
         {
             "id": "C_D1EBAE08",
@@ -4697,14 +4728,12 @@
             "power": 0,
             "life": 0,
             "costList": [
-                {
-                    "manaType": 2,
-                    "amount": 3.0
-                },
-                {
-                    "manaType": 0,
-                    "amount": 1.0
-                }
+                1.0,
+                0.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0
             ],
             "keywords": [],
             "tags": [
@@ -4721,7 +4750,8 @@
             "noAttack": false,
             "noGuard": false,
             "surplusToSpeed": false,
-            "durability": 0
+            "durability": 0,
+            "refundColor": -1
         }
     ],
     "deckConfig": {

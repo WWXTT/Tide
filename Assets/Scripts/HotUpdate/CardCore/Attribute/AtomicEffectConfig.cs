@@ -27,25 +27,15 @@ namespace CardCore.Attribute
         /// <summary>效果描述模板</summary>
         public string Description;
 
-        /// <summary>费用构成（2026-09-14 ManaList 定案：EffectColor+BaseCost 两列合并——
-        /// 混合色原子的基础。计价 = 各色 amount × Value（随值缩放）；null/空 = 不计价行）。</summary>
-        public List<ManaAmountEntry> ManaList;
+        /// <summary>费用构成（2026-10-04 位置数组定案：下标=ManaType 枚举序号 [灰,红,蓝,绿,白,黑]，
+        /// 长度=枚举成员数，扩色自动加长；计价 = 各色份额 × Value（随值缩放）；null = 不计价行）。</summary>
+        public ElementCost ManaList;
 
-        /// <summary>主色（ManaList 首项；空=Gray）——UI 圆点等单色消费口。</summary>
-        public ManaType PrimaryColor
-            => ManaList != null && ManaList.Count > 0 ? (ManaType)ManaList[0].manaType : ManaType.Gray;
+        /// <summary>主色（首个非零下标色；null/全零=Gray）——UI 圆点等单色消费口。</summary>
+        public ManaType PrimaryColor => ManaList?.PrimaryColor ?? ManaType.Gray;
 
-        /// <summary>费用合计基数（各色 amount 之和）——原 BaseCost 的标量消费者过渡用。</summary>
-        public float TotalUnitCost
-        {
-            get
-            {
-                float sum = 0f;
-                if (ManaList == null) return 0f;
-                foreach (var m in ManaList) sum += m?.amount ?? 0f;
-                return sum;
-            }
-        }
+        /// <summary>费用合计基数（各色份额之和）——原 BaseCost 的标量消费者过渡用。</summary>
+        public float TotalUnitCost => ManaList?.Total ?? 0f;
 
         /// <summary>费用乘数（不同目标范围对费用的影响）</summary>
         public float CostMultiplier;

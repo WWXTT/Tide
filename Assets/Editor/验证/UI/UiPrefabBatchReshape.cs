@@ -264,7 +264,7 @@ public static class UiPrefabBatchReshape
                     + ClearChildren(root, "keyword-zone") + ClearScrollContent(root, "list-breakdown");
             else if (path.EndsWith("EffectUI.prefab"))
                 residueRemoved += ClearChildren(root, "mode-bar") + ClearScrollContent(root, "slot-area")
-                    + ClearScrollContent(root, "library-list");
+                    + ClearScrollContent(root, "list-library");
 
             // 13. TMP SubMesh 防回归：运行时 fallback 产物若被误烘焙进来则删（正常应为 0）
             int subMeshRemoved = 0;

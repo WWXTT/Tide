@@ -97,11 +97,11 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 具有费用的接口
+    /// 具有费用的接口（2026-10-04 位置数组化：ElementCost，下标=ManaType 枚举序号）
     /// </summary>
     public interface IHasCost
     {
-        Dictionary<int, float> Cost { get; set; }
+        ElementCost Cost { get; set; }
     }
 
     /// <summary>

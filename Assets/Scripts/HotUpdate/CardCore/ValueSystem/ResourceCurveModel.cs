@@ -183,8 +183,7 @@ namespace CardCore
                 if (card == null) continue;
                 float sum = 0f;
                 if (card is IHasCost hasCost && hasCost.Cost != null)
-                    foreach (var kvp in hasCost.Cost)
-                        sum += kvp.Value;
+                    sum = hasCost.Cost.Total;
                 result.Add(sum);
             }
             return result;

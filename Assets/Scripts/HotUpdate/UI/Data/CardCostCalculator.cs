@@ -36,11 +36,11 @@ namespace SynergyUI
             /// <summary>规则一缺口 Req = max(0, D_total − C_total)（2026-09-11 简化：D≤C 直判，无当量抵扣）。</summary>
             public int OffsetRequirement;
 
-            /// <summary>黑白元素获得（错边原子转化；结算时发放，封顶地牌上限）。</summary>
+            /// <summary>黑白元素获得（错边原子转化；结算时发放，封顶地牌上限）。键=枚举 int。</summary>
             public Dictionary<int, int> Grants = new Dictionary<int, int>();
 
-            /// <summary>建议采纳的费用分布（多色；已有声明时回显当前声明构成）。</summary>
-            public Dictionary<int, float> CostDict = new Dictionary<int, float>();
+            /// <summary>建议采纳的费用分布（2026-10-04 位置数组；已有声明时回显当前声明构成）。</summary>
+            public ElementCost CostDict = new ElementCost();
 
             public readonly List<BreakdownLine> Breakdown = new List<BreakdownLine>();
         }
@@ -53,10 +53,10 @@ namespace SynergyUI
                 Total = r.DerivedTotal,
                 ManaCost = r.DeclaredTier > 0 ? r.DeclaredTier : r.SuggestedTier,
                 OffsetRequirement = r.OffsetRequirement,
-                Grants = r.Grants.ToDictionary(kv => (int)kv.Key, kv => kv.Value),
-                CostDict = r.DeclaredTier > 0 && card != null && card.Cost != null
-                    ? card.Cost.Where(kv => kv.Value > 0f).ToDictionary(kv => kv.Key, kv => kv.Value)
-                    : r.SuggestedCost.ToDictionary(kv => (int)kv.Key, kv => (float)kv.Value),
+                Grants = r.Grants.ToColorDictInt().ToDictionary(kv => (int)kv.Key, kv => kv.Value),
+                CostDict = r.DeclaredTier > 0 && card != null && card.Cost != null && !card.Cost.IsZero
+                    ? card.Cost.Clone()
+                    : r.SuggestedCost.Clone(),
             };
 
             foreach (var line in r.Breakdown)

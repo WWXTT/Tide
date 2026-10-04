@@ -431,11 +431,11 @@ namespace SynergyUI
             UiKit.Size(name, fw: 1f);
             UiKit.Label("meta", head, TypeStatLine(card), UiStyle.SmallSize, UiStyle.TextFaint);
 
-            // 费用构成
-            if (card.Cost != null && card.Cost.Count > 0)
+            // 费用构成（2026-10-04 位置数组口径，序数序=枚举序）
+            if (card.Cost != null && !card.Cost.IsZero)
             {
                 var costLine = UiKit.Label("cost-line", _previewZone.Content, "费用：" + string.Join(" ",
-                    card.Cost.Select(kv => $"{(ManaType)kv.Key}×{kv.Value:0.#}")),
+                    card.Cost.NonzeroColors().Select(c => $"{c}×{card.Cost[c]:0.#}")),
                     UiStyle.SmallSize, UiStyle.TextDim, wrap: true);
                 UiKit.Size(costLine, fw: 1f);
             }
