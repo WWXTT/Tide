@@ -232,12 +232,18 @@ namespace CardCore.Attribute
             // 规则修改类效果（OCP）：伤害实例先经替代引擎取最终值（如伤害封顶），再走关键词管线。
             // 替代效果经 GameCore.ReplacementEngine 注册（状态无关、实时查询光环），本管线不点名任何具体系统。
             // 穿透伤害同样经此层（"受光环限制"）。
+            // 2026-10-04：替代件可改写**承受者**（Target）——血偿仪典「己方回合角色受伤→对手承担」先例；
+            // 改写后整条管线（防护层/落血/事件链）按新承受者走，DamageEvent 发布也用新目标。
             var routedEvent = new DamageEvent { Source = source, Target = target, Amount = amount };
             var engine = CardCore.GameCore.Instance?.ReplacementEngine;
             if (engine != null)
             {
                 if (engine.CheckReplacements(routedEvent).GetFinalEvent() is DamageEvent final)
+                {
                     amount = final.Amount;
+                    if (final.Target != null && !ReferenceEquals(final.Target, target))
+                        target = final.Target; // 替代件改写承受者（血偿转嫁）
+                }
                 if (amount <= 0) return 0;
             }
 

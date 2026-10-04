@@ -148,7 +148,7 @@ namespace CardCore.Editor.Tests
                 board = new GameBoard.BoardState(core, core.Player1, core.Player2,
                     GameBoard.HalfFieldData.Flat(), GameBoard.HalfFieldData.Flat());
                 board.EnableAutoResync();
-                CombatSystem.AdjacentResolver = board.Neighbors;
+                CombatSystem.AdjacentResolver = board.FlankNeighbors; // 碾压=左右同排生物（2026-10-04 语义修订）
                 GameBoard.LinkAuraSystem.Attach(board); // 连接光环（三轨制）——与碾压邻接同惯例接线
 
                 neural?.ResetEpisode(); // 新对局 GRU rstate 归零（镜像训练 env 复位口径）

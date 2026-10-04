@@ -54,7 +54,8 @@ namespace CardCore.Network
         }
 
         /// <summary>原子行内容指纹（行 ID 稳定，内容是平衡层可变——必须哈希内容本身）。
-        /// 覆盖费用构成/极性/目标域/可装载域/模板文案（客户端本地重渲染依赖文案，文案漂移也要拦）。</summary>
+        /// 覆盖费用构成/极性/目标域/可装载域/模板文案（客户端本地重渲染依赖文案，文案漂移也要拦）。
+        /// 2026-10-04 费用位置数组化：ManaSig 按序数序（下标=枚举序号）无损拼串。</summary>
         private static string RowSig(AtomicEffectConfig r)
         {
             return $"{r.HashId ?? ""}|{r.EnumName ?? ""}|{r.DisplayName ?? ""}|{r.Description ?? ""}"
@@ -63,10 +64,9 @@ namespace CardCore.Network
                 + $"|PO:{Float(r.Polarity)}|MK:{r.MountKinds ?? ""}|CM:{Float(r.CostMultiplier)}";
         }
 
-        private static string ManaSig(List<ManaAmountEntry> list)
+        private static string ManaSig(ElementCost cost)
         {
-            if (list == null || list.Count == 0) return "-";
-            return string.Join(",", list.Select(m => $"{m.manaType}:{Float(m.amount)}"));
+            return cost == null ? "-" : cost.ToString();
         }
 
         private static string Float(float v)

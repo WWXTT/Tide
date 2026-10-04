@@ -107,25 +107,15 @@ namespace CardCore.Attribute
                 // EnumName(中文短名) → DisplayName；DisplayName(模板) → Description
                 config.DisplayName = entry.EnumName;
                 config.Description = entry.DisplayName;
-                // ManaList 定案（2026-09-14）：EffectColor+BaseCost 两列合并为费用构成——混合色原子的基础。
-                // 旧两列兜底（2026-09-20 修复）：表数据仍在旧格式（2f0fcf4 解析器先迁、数据未迁）——
-                // 行内没有 ManaList 时由 EffectColor+BaseCost 合成单色构成，计价不落零。
-                config.ManaList = entry.ManaList;
-                if ((config.ManaList == null || config.ManaList.Count == 0)
-                    && !string.IsNullOrEmpty(entry.EffectColor) && entry.BaseCost > 0f
-                    && Enum.TryParse<ManaType>(entry.EffectColor, true, out var legacyColor))
-                {
-                    config.ManaList = new List<ManaAmountEntry>
-                    {
-                        new ManaAmountEntry { manaType = (int)legacyColor, amount = entry.BaseCost },
-                    };
-                }
+                // 费用构成（2026-09-14 EffectColor+BaseCost 两列合并定案；2026-10-04 位置数组迁移完成）：
+                // 下标 = ManaType 枚举序号 [灰,红,蓝,绿,白,黑]；旧两列与兜底合成（2f0fcf4 解析器先迁、
+                // 数据未迁的过渡态）已随全表数据迁移删除。null/空 = 不计价行。
+                config.ManaList = ParsePositionalMana(entry.ManaList);
 
-                // 表色回填（2026-09-20 修复）：ElementAffinities.GetAffinityForEffect 读 Tags 取色
-                //（旧 EffectColor 列的迁移落点）——BuildConfig 此前从未写入，全表退化为 Generic。
-                // 费用构成首色即表色（混合色原子取主导色）。
-                if (config.ManaList != null && config.ManaList.Count > 0)
-                    config.Tags = ((ManaType)config.ManaList[0].manaType).ToString();
+                // 表色回填：ElementAffinities.GetAffinityForEffect 读 Tags 取色——
+                // 费用构成首色（首个非零下标）即表色（混合色原子取序数序首个非零色）。
+                if (config.ManaList != null && !config.ManaList.IsZero)
+                    config.Tags = config.ManaList.PrimaryColor.ToString();
 
                 // targeting / 发动 / 三分类：配置驱动，解析失败保留上面的兜底。
                 // TargetKinds 列即真相：行内显式空（null/""）= 真无域（守卫/跳回合类被动，
@@ -141,10 +131,22 @@ namespace CardCore.Attribute
             {
                 config.DisplayName = type.ToString();
                 config.Description = "";
-                config.ManaList = new List<ManaAmountEntry> { new ManaAmountEntry { manaType = (int)ManaType.Gray, amount = 1f } };
+                config.ManaList = ElementCost.FromValue(ManaType.Gray, 1f);
             }
 
             return config;
+        }
+
+        /// <summary>位置数组解析（2026-10-04）：null/空 → null（不计价行）；短数组补零、
+        /// 长数组截断并告警（长度 = ManaType 枚举成员数，扩色自动跟随）。</summary>
+        private static ElementCost ParsePositionalMana(List<float> list)
+        {
+            if (list == null || list.Count == 0) return null;
+            if (list.Count > ElementCost.Length)
+                TideLog.Warn($"[AtomicEffectTable] ManaList 长度 {list.Count} 超过元素色数 {ElementCost.Length}，超出部分截断");
+            var arr = new float[Math.Min(list.Count, ElementCost.Length)];
+            for (int i = 0; i < arr.Length; i++) arr[i] = list[i];
+            return new ElementCost(arr);
         }
 
         /// <summary>解析 JSON（顶层为裸数组，JsonUtility 需包一层）</summary>
@@ -235,11 +237,12 @@ namespace CardCore.Attribute
         {
             public string EnumName;       // 中文短名（造成伤害）
             public string DisplayName;    // 展示模板（对{target}造成{value}点伤害）
-            public List<ManaAmountEntry> ManaList;  // 费用构成（2026-09-14：EffectColor+BaseCost 合并——混合色原子）
-            public string EffectColor;    // 旧列（单色）：ManaList 缺失时兜底合成用
-            public float BaseCost;        // 旧列（单色锚价）：同上
+
+            // 费用构成（2026-09-14 两列合并定案；2026-10-04 位置数组迁移完成）：
+            // 下标 = ManaType 枚举序号 [灰,红,蓝,绿,白,黑]，长度 = 枚举成员数（扩色自动加长）；
+            // null/空 = 不计价行。旧 EffectColor/BaseCost 两列与死列 EffectTier 已随数据迁移删除。
+            public List<float> ManaList;
             public string EffectType;     // 英文枚举名（DealDamage）→ AtomicEffectType
-            public string EffectTier;     // Atom / Keyword / Counter（三分类，缺省 Atom）
 
             // ---- targeting / 发动（2026-09-10 目标域模型：TargetKinds+SelectionMode 取代 TargetType/Scope；持续已上移组合层）----
             public string TargetKinds;    // 逗号分隔 TargetKind 序号（空 = 无目标原子）

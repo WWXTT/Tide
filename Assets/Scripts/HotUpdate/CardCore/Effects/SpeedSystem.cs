@@ -179,16 +179,19 @@ namespace CardCore
         /// 缺省 0 = 游戏王「普通」档（仅回合玩家主阶段可打）；瞬间类组合期调 1 以上
         /// 才能在对手回合打出/响应（非回合方门槛为严格大于记速器）。
         /// 裸 Card（衍生物/临时卡，非 CardWrapper）恒为 0。
+        /// 疾风仪典（2026-10-04 光环改造）：从手牌使用的卡发动速度+1——出牌/响应出牌/
+        /// AI 预检/速度门全经本口，单源生效（攻击/守卫/启动式不在此列）。
         /// </summary>
         public static int GetCardCastSpeed(Card card)
         {
             var data = (card as CardWrapper)?.GetData();
-            if (data?.Effects == null || data.Effects.Count == 0) return 0;
+            if (data?.Effects == null || data.Effects.Count == 0)
+                return RuleAuraComponents.CardCastSpeedBonus; // 裸卡基速 0 + 光环加成
             int max = 0;
             foreach (var effect in data.Effects)
                 if (effect != null && effect.BaseSpeed > max)
                     max = effect.BaseSpeed;
-            return max;
+            return max + RuleAuraComponents.CardCastSpeedBonus;
         }
     }
 }

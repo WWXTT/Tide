@@ -285,7 +285,7 @@ namespace SynergyUI
                 return false;
             }
             if (!TargetDomainService.HasPlayableTargets(core, me, card, 0)) return false;
-            if (card is IHasCost hc && hc.Cost != null && hc.Cost.Count > 0 &&
+            if (card is IHasCost hc && hc.Cost != null && !hc.Cost.IsZero &&
                 !core.ElementPool.CanPayCost(hc.Cost, me)) return false;
             return true;
         }
@@ -311,8 +311,7 @@ namespace SynergyUI
 
                 var atomic = FirstTargetingAtomic(card, i, out _);
                 bool harmful = atomic != null && HarmfulAtoms.Contains(atomic.Type);
-                float total = 0f;
-                foreach (var v in cost.Values) total += v;
+                float total = cost.Total;
 
                 float score = _strategy.ModeScore(harmful, total);
                 if (best < 0 || score > bestScore)
@@ -512,13 +511,12 @@ namespace SynergyUI
                 int modes = CostDerivationService.GetModeCount(modal.GetData());
                 for (int i = 0; i < modes; i++)
                 {
-                    float total = 0f;
-                    foreach (var v in GameActions.GetCardCost(card, i).Values) total += v;
+                    float total = GameActions.GetCardCost(card, i).Total;
                     if (total > max) max = total;
                 }
                 return max;
             }
-            return card is IHasCost hc && hc.Cost != null ? hc.Cost.Values.Sum() : 0f;
+            return card is IHasCost hc && hc.Cost != null ? hc.Cost.Total : 0f;
         }
 
         // ======================================== 战斗（2026-09-16 逐攻击开窗） ========================================

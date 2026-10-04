@@ -130,6 +130,19 @@ namespace CardCore
             || kind == (int)TargetKind.EnemyNonLivingUnit
             || (IsCardKind(kind) && (kind - (int)TargetKind.OwnHand) % 2 == 1);
 
+        /// <summary>镜像逆转到对侧种类（2026-10-04 代价栏定案）：己方↔对方成对互换
+        ///（单位 1↔2、3↔4；卡域自 OwnHand 起偶↔奇 ±1）；Self=0 无对侧（自己不可镜像，原样返回）。</summary>
+        public static int Mirror(int kind)
+        {
+            if (kind == (int)TargetKind.Self) return kind;
+            if (kind >= (int)TargetKind.OwnHand) return IsEnemySide(kind) ? kind - 1 : kind + 1;
+            return kind + (IsEnemySide(kind) ? -1 : 1); // 单位四种类两两相邻
+        }
+
+        /// <summary>整域镜像（去重升序——与 Format 同口径）。Self 经 Mirror 原样保留。</summary>
+        public static List<int> MirrorDomain(List<int> kinds)
+            => kinds == null ? new List<int>() : kinds.Select(Mirror).Distinct().OrderBy(k => k).ToList();
+
         /// <summary>卡种类 → (Zone, 是否己方)。单位种类返回 (None, false) 无意义值。</summary>
         public static (Zone zone, bool own) ZoneOf(int kind)
         {

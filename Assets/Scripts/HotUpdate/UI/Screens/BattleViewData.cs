@@ -104,13 +104,12 @@ namespace SynergyUI
         public static string PhaseZh(PhaseType p) => PhaseNames.TryGetValue(p, out var s) ? s : p.ToString();
         public static string ManaZh(ManaType m) => ManaNames.TryGetValue(m, out var s) ? s : m.ToString();
 
-        /// <summary>声明费用字典 → 中文（如「红2 灰1」；空=0）。</summary>
-        public static string CostTextOf(Dictionary<int, float> cost)
+        /// <summary>声明费用（位置数组）→ 中文（如「红2 灰1」；序数序=枚举序；空=0）。</summary>
+        public static string CostTextOf(ElementCost cost)
         {
-            if (cost == null || cost.Count == 0) return "0";
-            return string.Join(" ", cost
-                .Where(kv => kv.Value > 0)
-                .Select(kv => $"{ManaZh((ManaType)kv.Key)}{kv.Value:0.#}"));
+            if (cost == null || cost.IsZero) return "0";
+            return string.Join(" ", cost.NonzeroColors()
+                .Select(c => $"{ManaZh(c)}{cost[c]:0.#}"));
         }
 
         private static readonly Dictionary<Cardtype, string> SupertypeNames = new Dictionary<Cardtype, string>

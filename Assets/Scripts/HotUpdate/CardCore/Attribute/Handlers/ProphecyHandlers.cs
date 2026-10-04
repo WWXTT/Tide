@@ -74,7 +74,7 @@ namespace CardCore.Attribute.Handlers
                 case Color:
                     if (!(card is IHasCost hasCost) || hasCost.Cost == null) return false;
                     var color = ParseEnum<ManaType>(value);
-                    return hasCost.Cost.TryGetValue((int)color, out float amount) && amount > 0;
+                    return hasCost.Cost[color] > 0f;
 
                 case CostParity:
                 {
@@ -99,11 +99,7 @@ namespace CardCore.Attribute.Handlers
         private static int TotalCost(Card card)
         {
             if (card is IHasCost hasCost && hasCost.Cost != null)
-            {
-                int sum = 0;
-                foreach (var kv in hasCost.Cost) sum += (int)kv.Value;
-                return sum;
-            }
+                return (int)hasCost.Cost.Total;
             return 1;
         }
 

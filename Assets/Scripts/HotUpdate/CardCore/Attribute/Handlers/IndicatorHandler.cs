@@ -66,6 +66,38 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
+    /// 锁定原子（2026-10-04 窥渊仪典原子化定案，蓝2）：为一张手牌挂「锁定」指示物×{value}回合——
+    /// 层数=剩余回合，持有者回合结束 −1（手牌区与场上同样倒数），归零解锁；
+    /// 持有期间该牌无法使用（打出/响应出牌/苏醒立约同门——LockedCardRestriction + CommitAwaken 门）。
+    /// </summary>
+    public class LockCardHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.LockCard;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            // Value≤0 = 1 回合（缺省档，窥渊仪典按 1 回合赋予）
+            int turns = context.GetValueAfterModifiers(effect.Value);
+            if (turns <= 0) turns = 1;
+
+            foreach (var target in context.Targets)
+            {
+                if (target == null || !target.IsAlive) continue;
+                target.AddCounters(CounterRules.LockCounter, turns, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = target,
+                    CounterType = CounterRules.LockCounter,
+                    Amount = turns,
+                    Source = context.Source,
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加{value}回合锁定指示物（期间无法使用，持有者回合结束−1）";
+    }
+
+    /// <summary>
     /// 紊乱指示物（补入表——突袭生效的残留物此前只有运行时无原子）：持续到回合结束，
     /// 期间持有者不能以玩家为目标（攻击与效果发动同口径，TargetFilterSystem/CombatSystem 强制）。
     /// </summary>

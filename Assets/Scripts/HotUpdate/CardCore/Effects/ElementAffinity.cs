@@ -79,6 +79,19 @@ namespace CardCore
             return bill;
         }
 
+        /// <summary>ElementCost 账单归一为 ManaType→int（2026-10-04 位置数组化主入口；跳过 ≤0 项）。</summary>
+        public static Dictionary<ManaType, int> NormalizeBill(ElementCost cost)
+        {
+            var bill = new Dictionary<ManaType, int>();
+            if (cost == null) return bill;
+            foreach (var color in cost.NonzeroColors())
+            {
+                int amount = (int)cost[color];
+                if (amount > 0) bill[color] = amount;
+            }
+            return bill;
+        }
+
         /// <summary>填链：需求色的候选货币按支付序排列。红/蓝/绿=[本色,灰,黑,白]；灰=[灰,黑,白]；黑/白=[本色]（单向）。
         /// 公开给自动横置规划器（ElementPool.PlanAutoTaps）——产色候选须沿同一填链评估。</summary>
         public static ManaType[] ChainFor(ManaType need) => need switch

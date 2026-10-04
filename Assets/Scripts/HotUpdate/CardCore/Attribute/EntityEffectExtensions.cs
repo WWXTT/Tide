@@ -78,20 +78,22 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 治疗（2026-09-07 定案：溢出转生命上限，走 LifeUp 指示物；2026-09-30 改案：溢出不再折半）：
-        /// 每次溢出固定加 1 层「生命值增加」指示物（上限与当前同加——临时上限：
-        /// 生物换区清除、角色不换区按默认持续时间 max=整局），当前实得=新上限，剩余溢出直接截断。
-        /// 例：满血 30 回复 7 → LifeUp×1 → 上限 31、当前 31（溢出 6 点浪费）。
-        /// 角色与生物同口径；指示物持续/清除规则见 CounterRules（默认 max，特殊标记才有具体时长）。
+        /// 治疗（2026-10-04 丰盈仪典改造定案：溢出转化**收编为光环规则**——
+        /// RuleAuraSystem.IsActive(HealOverflow) 生效时保持旧基线：每次溢出固定加 1 层
+        /// 「生命值增加」指示物（上限与当前同加——生物换区清除、角色按默认持续时间 max），
+        /// 当前实得=新上限，剩余溢出直接截断（例：满血 30 回复 7 → 上限 31、当前 31）。
+        /// **无光环时溢出纯浪费**（生命钳在上限，不加上限——生命恢复计价因此享 0.8 系优惠，
+        /// Heal 原子行 绿0.5→0.4）。角色与生物同口径。
         /// </summary>
         public static void Heal(this Entity entity, int amount)
         {
+            bool overflowToMax = RuleAuraSystem.IsActive(RuleAuraComponents.HealOverflow);
             if (entity is Player player)
             {
                 int cap = player.MaxHealth;
                 int raw = player.Life + amount;
                 int over = raw - cap;
-                if (over > 0)
+                if (over > 0 && overflowToMax)
                 {
                     player.AddCounters(Attribute.CounterRules.LifeUpCounter, 1); // 层记录（默认持续时间 max）
                     player.IncreaseMaxHealth(1);                                  // 层效果：上限+当前同加
@@ -99,7 +101,7 @@ namespace CardCore
                 }
                 else
                 {
-                    player.Life = raw;
+                    player.Life = System.Math.Min(raw, cap); // 无光环：溢出纯浪费（钳上限）
                 }
             }
             else if (entity is Card card)
@@ -108,14 +110,14 @@ namespace CardCore
                 int cap = card._maxLife;
                 int raw = card._life + amount;
                 int over = raw - cap;
-                if (over > 0)
+                if (over > 0 && overflowToMax)
                 {
                     Attribute.CounterRules.AddStatCounter(card, Attribute.CounterRules.LifeUpCounter, 1);
                     card._life = card._maxLife; // AddStatCounter 已 +1/+1，实得=新上限，剩余溢出截断
                 }
                 else
                 {
-                    card._life = raw;
+                    card._life = System.Math.Min(raw, cap); // 无光环：溢出纯浪费（钳上限）
                 }
 
                 // SBA 窗口救回（2026-09-15）：战场标死卡（伤害致死未送墓）治疗回到有效生命 >0 → 撤销标死，

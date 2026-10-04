@@ -167,17 +167,17 @@ namespace CardCore
         public bool CanPay(CostInstance cost, CostContext context)
         {
             if (context.ElementPool == null || context.Payer == null) return false;
-            var costDict = new Dictionary<int, float> { { (int)cost.ManaType, cost.Value } };
+            var costArr = ElementCost.FromValue(cost.ManaType, cost.Value);
             // 自动横置补足（2026-09-30）：与 GameActions.CanAfford / 出牌付费同口径
-            return context.ElementPool.CanPayCostWithAutoTap(costDict, context.Payer);
+            return context.ElementPool.CanPayCostWithAutoTap(costArr, context.Payer);
         }
 
         public void Pay(CostInstance cost, CostContext context)
         {
-            var costDict = new Dictionary<int, float> { { (int)cost.ManaType, cost.Value } };
+            var costArr = ElementCost.FromValue(cost.ManaType, cost.Value);
             // 战报来源标注（2026-09-21）：效果费挂在哪个来源（场上卡/角色）上
             string note = context?.Source != null ? "效果费·" + EffectText.Name(context.Source) : "效果费";
-            context.ElementPool.TryPayCostWithAutoTap(costDict, context.Payer, context.ZoneManager, note);
+            context.ElementPool.TryPayCostWithAutoTap(costArr, context.Payer, context.ZoneManager, note);
         }
 
         public string GetDescription(CostInstance cost)
@@ -241,7 +241,7 @@ namespace CardCore
     /// 元素代价支付（纯支付，无兑换）：按颜色聚合需求 → 账单规划器一次出方案 → 扣款 + 支付事件。
     /// 2026-09-14 统一混付：与出牌（ElementPool.PayCost）共用 ElementPaymentValidator.GetBillPaymentPlan——
     /// 支付序=同色→灰→黑→白（黑白=万用色单向替代四色）；每种货币（**含灰**）单次贡献 ≤ 地牌槽上限；
-    /// 纯色需求量超上限不论货币不可付。黑白获取通道唯一=卡结算（错边/Payload 补偿，每回合封顶 1/色）。
+    /// 纯色需求量超上限不论货币不可付。黑白获取通道唯一=卡结算（错边/Payload 补偿，每回合封顶=地牌槽上限/色）。
     /// </summary>
     public static class ElementCostPayment
     {
@@ -258,12 +258,36 @@ namespace CardCore
             return ctx.ElementPool.CanPayCostWithAutoTap(need, ctx.Payer);
         }
 
+        /// <summary>同 CanPay（2026-10-04 位置数组口径——DeriveElementCosts 输出直付）。</summary>
+        public static bool CanPay(ElementCost elementCosts, CostContext ctx)
+        {
+            var need = ElementPaymentValidator.NormalizeBill(elementCosts);
+            if (need.Count == 0) return true;
+            if (ctx?.Payer == null || ctx.ElementPool == null) return false;
+            if (ElementPaymentValidator.CanPayBill(
+                    need, ctx.ElementPool.GetPool(ctx.Payer).AvailableMana, GetPureColorCap(ctx)))
+                return true;
+            return ctx.ElementPool.CanPayCostWithAutoTap(need, ctx.Payer);
+        }
+
         /// <summary>支付一组元素代价（原子：整账单一次规划，失败不动 bank）。失败返回 false（调用方中止结算）。
         /// 支付事件携带实际货币组合（如红1 账单付 {黑1}）。
         /// bank 不足时先自动横置地牌补足（2026-09-30 定案——声明期 CanPay 同口径放行，此处实际横置）。</summary>
         public static bool Pay(List<CostInstance> elementCosts, CostContext ctx)
         {
             var need = AggregateNeed(elementCosts);
+            return PayBill(need, ctx);
+        }
+
+        /// <summary>同 Pay（2026-10-04 位置数组口径——DeriveElementCosts 输出直付）。</summary>
+        public static bool Pay(ElementCost elementCosts, CostContext ctx)
+        {
+            var need = ElementPaymentValidator.NormalizeBill(elementCosts);
+            return PayBill(need, ctx);
+        }
+
+        private static bool PayBill(Dictionary<ManaType, int> need, CostContext ctx)
+        {
             if (need.Count == 0) return true;
             if (ctx?.Payer == null || ctx.ElementPool == null) return false;
 
@@ -316,12 +340,12 @@ namespace CardCore
 
     /// <summary>
     /// 代价补偿服务（2026-09-14 定案：**代价强制**——撤销 09-11 的「代价可选」三选一窗口；
-    /// 2026-09-21 定案：**全量获得**——构筑期只允许装形成 1 费的代价（CardEffectConverter 限价警告），
-    /// 发放侧无钳制）。
+    /// 2026-10-04 定案：**任意单向不限价**——「等价1」限价退役，任意单向效果可作 Payload
+    ///（放置口经 CostDerivationService.PayloadCostDomain 逆转选择范围），补偿按全价发放）。
     /// cast 付费步与启动式/动态效果统一走 PayWithCompensationAsync：
     /// Payload 原子**强制执行** + 按全价获得黑（己方侧）/白（对方侧）——无选择窗口、无减费通道。
     /// 补偿数量=Payload 原子全价（PayloadUnitGrant：按 Once/单目标/战场落区合成组合层计价，
-    /// 原子表为唯一锚）；**每回合获得封顶 1/色**由 ElementPool.AddMana 统一钳制（余数不补）——
+    /// 原子表为唯一锚）；**每回合获得封顶=地牌槽上限/色**由 ElementPool.AddMana 统一钳制（余数不补）——
     /// 那是全来源黑白经济护栏（错边原子转化等），非 payload 专属发放钳制。
     /// </summary>
     public static class CostCompensationService
@@ -348,7 +372,7 @@ namespace CardCore
         }
 
         /// <summary>单条代价的补偿发放（每条=一次发放事件）。Payload 按原子全价+极性色；
-        /// 每回合封顶 1/色在 ElementPool.AddMana 钳制（余数不补），此处不再二次封顶。</summary>
+        /// 每回合封顶（=地牌槽上限/色）在 ElementPool.AddMana 钳制（余数不补），此处不再二次封顶。</summary>
         private static void IssueGrant(CostInstance cost, CostContext ctx)
         {
             if (ctx?.Payer == null || ctx.ElementPool == null) return;

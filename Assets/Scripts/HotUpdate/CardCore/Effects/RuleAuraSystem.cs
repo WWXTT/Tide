@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using CardCore.Attribute;
-using Cysharp.Threading.Tasks;
 
 namespace CardCore
 {
@@ -107,13 +106,15 @@ namespace CardCore
     /// </summary>
     public static class RuleAuraComponents
     {
-        // ---- 规则短名（str 合法值——与原子表 7 行对应） ----
+        // ---- 规则短名（str 合法值——与原子表规则光环族行对应；2026-10-04 光环改造后 9 行） ----
         public const string ElementConversion = "ElementConversion"; // 三相仪典
-        public const string BloodPact = "BloodPact";                 // 血偿仪典
-        public const string DamageCap = "DamageCap";                 // 丰盈仪典
+        public const string BloodPact = "BloodPact";                 // 血偿仪典（2026-10-04 改造：己方回合角色受伤→对手角色承担）
+        public const string HealOverflow = "HealOverflow";           // 丰盈仪典（2026-10-04 改造：回复溢出→生命上限+1）
+        public const string DamageCap = "DamageCap";                 // 蚕褪仪典（2026-10-04 承接原丰盈：单次伤害>5→5，生物与角色）
         public const string LockRevealed = "LockRevealed";           // 窥渊仪典
         public const string GraveyardPlay = "GraveyardPlay";         // 归土仪典
-        public const string DoubleTurn = "DoubleTurn";               // 疾风仪典（改：双人连两回合）
+        public const string CastSpeedUp = "CastSpeedUp";             // 疾风仪典（2026-10-04 改造：从手牌使用的卡发动速度+1）
+        public const string DoubleTurn = "DoubleTurn";               // 轮回仪典（2026-10-04 承接原疾风：双人连两回合）
         public const string HandLimitNoFatigue = "HandLimitNoFatigue"; // 纳川仪典
 
         private static bool _registered;
@@ -121,22 +122,25 @@ namespace CardCore
         // 三相：各玩家各纯色的累计消耗（满 3 兑换；Player 键随局重置回收）
         private static readonly Dictionary<Player, Dictionary<ManaType, int>> _spendCounters
             = new Dictionary<Player, Dictionary<ManaType, int>>();
-        // 窥渊：本回合被锁定的卡（回合结束清）
-        private static readonly HashSet<Card> _lockedThisTurn = new HashSet<Card>();
-        // 窥渊：锁定的合法回合计数（人类异步提示跨回合竞态弃权用）
-        private static int _lockTurnNumber = -1;
+        // 窥渊（2026-10-04 原子化改造）：锁定不再走本类回合级 HashSet——回合开始直接赋予
+        // 对手被展示卡「锁定」指示物×1（LockCounter，层数=剩余回合，持有者回合末倒数；
+        // 手牌区同样结算——CounterRules 持有者侧结算域含手牌）。锁定独立于光环存续
+        //（载体离场不清既有指示物，自然倒数到归零）。
         // 归土：本回合已用掉墓地出牌配额的玩家（回合结束清）
         private static readonly HashSet<Player> _graveQuotaUsed = new HashSet<Player>();
         // 疾风：连击跟踪（最近回合玩家 + 其连续回合数）
         private static Player _doubleTurnLastPlayer;
         private static int _doubleTurnConsecutive;
 
-        /// <summary>卡是否本回合被窥渊锁定（不可使用）——出牌限制与 UI 共用查询口。</summary>
+        /// <summary>卡是否被锁定（不可使用）——出牌限制与 UI 共用查询口。
+        /// 2026-10-04 原子化：读锁定指示物（LockCounter&gt;0）——不再要求光环活跃
+        ///（锁定独立于载体存续，持有者回合末逐层倒数）。</summary>
         public static bool IsLockedThisTurn(Card card)
-            => card != null && RuleAuraSystem.IsActive(LockRevealed) && _lockedThisTurn.Contains(card);
+            => card != null && card.GetCounterCount(Attribute.CounterRules.LockCounter) > 0;
 
-        /// <summary>血偿转嫁是否生效（LifeLossHandler「流失自己=支付」口查询）。</summary>
-        public static bool BloodPactRedirectActive => RuleAuraSystem.IsActive(BloodPact);
+        /// <summary>从手牌使用的卡发动速度加成（疾风仪典 2026-10-04 改造）：+1 经
+        /// SpeedCalculator.GetCardCastSpeed 单源作用（出牌/响应出牌/AI 预检/速度门同口径）。</summary>
+        public static int CardCastSpeedBonus => RuleAuraSystem.IsActive(CastSpeedUp) ? 1 : 0;
 
         public static void EnsureRegistered()
         {
@@ -145,7 +149,7 @@ namespace CardCore
 
             // 三相：己方消耗累计（出牌支付与效果元素费两路发布的 ElementPoolPayEvent 都算）
             EventManager.Instance.Subscribe<ElementPoolPayEvent>(OnElementPaid);
-            // 窥渊：回合开始锁定；回合结束清锁/清配额 + 疾风第二回合授予（同订阅分发）
+            // 窥渊：回合开始赋予锁定指示物；回合结束清配额 + 疾风第二回合授予（同订阅分发）
             EventManager.Instance.Subscribe<TurnStartEvent>(OnTurnStart);
             EventManager.Instance.Subscribe<TurnEndEvent>(OnTurnEnd);
             // 归土：墓地作为出牌来源（PlayCard 来源区配额——TryBeginUse 扣，回合结束清）
@@ -159,11 +163,9 @@ namespace CardCore
         public static void Reset()
         {
             _spendCounters.Clear();
-            _lockedThisTurn.Clear();
             _graveQuotaUsed.Clear();
             _doubleTurnLastPlayer = null;
             _doubleTurnConsecutive = 0;
-            _lockTurnNumber = -1;
         }
 
         /// <summary>光环切换（Activate 转发）：疾风连击计数从头数（激活当下所在回合=该玩家第 1 回合）。</summary>
@@ -173,12 +175,14 @@ namespace CardCore
             _doubleTurnConsecutive = 0;
         }
 
-        /// <summary>对局重挂：状态无关替代件（ReplacementEngine.ClearAll 之后由 GameCore.Reset 调）。</summary>
+        /// <summary>对局重挂：状态无关替代件（ReplacementEngine.ClearAll 之后由 GameCore.Reset 调）。
+        /// 2026-10-04 光环改造：蚕褪（伤害帽，扩生物）+ 血偿（己方回合角色受伤转对手承担）入列。</summary>
         public static void OnGameReset()
         {
             var engine = GameCore.Instance?.ReplacementEngine;
             if (engine == null) return;
             engine.RegisterReplacementEffect(new DamageCapReplacement(), typeof(DamageEvent));
+            engine.RegisterReplacementEffect(new BloodPactDamageRedirectReplacement(), typeof(DamageEvent));
             engine.RegisterReplacementEffect(new FatigueImmunityReplacement(), typeof(FatigueEvent));
         }
 
@@ -229,7 +233,7 @@ namespace CardCore
             }
         }
 
-        // ============ 窥渊仪典：每回合开始，回合玩家锁定对手一张已展示的卡至回合结束 ============
+        // ============ 窥渊仪典：每回合开始，随机展示对手一张手牌 + 被展示的卡一回合锁定 ============
 
         private static void OnTurnStart(TurnStartEvent e)
         {
@@ -237,36 +241,60 @@ namespace CardCore
             var locker = e.TurnPlayer;
             var victim = locker?.Opponent;
             if (victim == null) return;
+            var zm = GameCore.Instance?.ZoneManager;
+            if (zm == null) return;
 
-            var candidates = RevealRules.GetExposedCards(GameCore.Instance?.ZoneManager, victim, Zone.Hand);
-            if (candidates.Count == 0) return;
+            var carrier = RuleAuraSystem.Active?.Carrier;
 
-            if (locker.IsAI || TargetSelectionService.Current == null)
+            // ① 随机展示对手一张**未展示**手牌（2026-10-04 追加：自给展示源——RevealCard 原子同款口径，
+            //    二值不叠层；全展示/空手 = 无新展示，锁定照常对既有被展示卡生效）
+            var unrevealed = zm.GetCards(victim, Zone.Hand)
+                .Where(c => c != null && c.IsAlive && c.GetCounterCount(Attribute.CounterRules.ExposedCounter) == 0)
+                .ToList();
+            if (unrevealed.Count > 0)
             {
-                _lockTurnNumber = e.TurnNumber;
-                _lockedThisTurn.Add(candidates[0]); // AI/无头：锁第一张
-                return;
+                var pick = unrevealed[GameRng.Next(0, unrevealed.Count)];
+                pick.AddCounters(Attribute.CounterRules.ExposedCounter, 1, carrier);
+                EventManager.Instance.Publish(new CounterChangedEvent
+                {
+                    Target = pick,
+                    CounterType = Attribute.CounterRules.ExposedCounter,
+                    Amount = 1,
+                    Source = carrier,
+                });
+                EventManager.Instance.Publish(new RevealCardsEvent
+                {
+                    Player = victim,
+                    Cards = new List<Card> { pick },
+                    Source = carrier,
+                });
             }
 
-            PromptLockAsync(locker, candidates, e.TurnNumber).Forget();
+            // ② 赋予对手被展示的卡一回合锁定指示物（含①刚展示的——同回合展示并锁定）。
+            // 原子化定案（2026-10-04）：被展示的卡**全部**锁定（无选择窗口——指示物即机制）。
+            // 层数=剩余回合：施放方回合内锁响应出牌 + 持有者整个回合锁使用，持有者回合末倒数归零。
+            var revealed = RevealRules.GetExposedCards(zm, victim, Zone.Hand);
+            if (revealed.Count == 0) return;
+
+            foreach (var card in revealed)
+            {
+                card.AddCounters(Attribute.CounterRules.LockCounter, 1, carrier);
+                EventManager.Instance.Publish(new CounterChangedEvent
+                {
+                    Target = card,
+                    CounterType = Attribute.CounterRules.LockCounter,
+                    Amount = 1,
+                    Source = carrier,
+                });
+            }
         }
 
-        private static async UniTask PromptLockAsync(Player locker, List<Card> candidates, int turnNumber)
-        {
-            var labels = new List<string> { "不指定" };
-            labels.AddRange(candidates.Select(c => c is IHasName named ? named.CardName : c.ToString()));
-            int idx = await TargetSelectionService.RequestOneIndexAsync(
-                locker, labels, "锁定对手一张已展示的卡（本回合不可使用）");
-            if (_lockTurnNumber != turnNumber) return; // 提示跨回合：弃权
-            if (idx >= 1 && idx <= candidates.Count)
-                _lockedThisTurn.Add(candidates[idx - 1]);
-        }
-
-        // ============ 回合结束：清锁/清配额 + 疾风（每个玩家连续进行两个回合） ============
+        // ============ 回合结束：清配额 + 疾风（每个玩家连续进行两个回合） ============
+        // 窥渊锁定不再在此清（2026-10-04 原子化）：指示物经 CounterRules.OnTurnEnd ③ 块
+        // 持有者回合末逐层倒数，自然消退。
 
         private static void OnTurnEnd(TurnEndEvent e)
         {
-            _lockedThisTurn.Clear();
             _graveQuotaUsed.Clear();
 
             if (!RuleAuraSystem.IsActive(DoubleTurn))
@@ -300,11 +328,12 @@ namespace CardCore
         }
 
         // ============ 窥渊锁定：出牌限制（PlayCard / PlayCardInResponse 同门） ============
+        // 2026-10-04 原子化：读锁定指示物（独立于光环存续——光环死了锁照常倒数到归零）
 
         private sealed class LockedCardRestriction : IPlayRestriction
         {
             public bool CanPlay(GameCore core, Player player, Card card, Zone fromZone)
-                => !_lockedThisTurn.Contains(card); // 锁定集只在规则活跃时有内容（回合结束全清）
+                => card == null || card.GetCounterCount(Attribute.CounterRules.LockCounter) == 0;
         }
 
         // ============ 纳川仪典：手牌上限 15 ============
@@ -315,7 +344,7 @@ namespace CardCore
                 => RuleAuraSystem.IsActive(HandLimitNoFatigue) ? 15 : currentLimit;
         }
 
-        // ============ 丰盈仪典：角色单次伤害封顶 5（替代件——逐局重挂） ============
+        // ============ 蚕褪仪典：单次伤害超过 5 时改为 5（生物与角色——2026-10-04 承接原丰盈并扩生物） ============
 
         private sealed class DamageCapReplacement : ReplacementEffectBase
         {
@@ -326,12 +355,38 @@ namespace CardCore
             public override bool CanReplace(IGameEvent e)
                 => e is DamageEvent d
                    && d.Amount > CapValue
-                   && d.Target is Player
+                   && (d.Target is Player
+                       || (d.Target is Card dc && dc.IsLivingUnit())) // 生物（活体单位）与角色同封
                    && RuleAuraSystem.IsActive(DamageCap);
 
             public override IGameEvent CreateReplacement(IGameEvent originalEvent, Effect sourceEffect)
                 => originalEvent is DamageEvent d
                     ? new DamageEvent { Source = d.Source, Target = d.Target, Amount = CapValue }
+                    : null;
+        }
+
+        // ============ 血偿仪典：己方回合中，回合方角色受到的伤害改由对手角色承担（2026-10-04 改造） ============
+        // 旧语义（自己支付的生命代价改由对手支付——LifeLossHandler 转嫁）已退役；
+        // 新语义=DamageEvent 替代件：任意来源伤害（战斗+效果），受伤者=当前回合玩家角色 → 同额改由其对手承担。
+
+        private sealed class BloodPactDamageRedirectReplacement : ReplacementEffectBase
+        {
+            public BloodPactDamageRedirectReplacement() : base(typeof(DamageEvent), "RuleAuraBloodPactRedirect") { }
+
+            public override bool CanReplace(IGameEvent e)
+            {
+                if (!RuleAuraSystem.IsActive(BloodPact)) return false;
+                if (!(e is DamageEvent d) || d.Amount <= 0) return false;
+                // 己方回合判定：受伤者=当前回合玩家的角色（对手回合打我=不转移，回合对称）
+                var core = GameCore.Instance;
+                return d.Target is Player victim
+                       && core?.TurnEngine?.TurnPlayer != null
+                       && ReferenceEquals(victim, core.TurnEngine.TurnPlayer);
+            }
+
+            public override IGameEvent CreateReplacement(IGameEvent originalEvent, Effect sourceEffect)
+                => originalEvent is DamageEvent d && d.Target is Player victim
+                    ? new DamageEvent { Source = d.Source, Target = victim.Opponent, Amount = d.Amount }
                     : null;
         }
 

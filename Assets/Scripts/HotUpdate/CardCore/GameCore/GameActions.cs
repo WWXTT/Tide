@@ -86,14 +86,29 @@ namespace CardCore
             var data = (creature as CardWrapper)?.GetData();
             var cost = data?.Cost;
             ManaType type = ManaType.Gray;
-            if (cost != null && cost.Count > 0)
+            if (cost != null && !cost.IsZero)
             {
-                foreach (var kv in cost)
-                    if (kv.Value > 0) { type = (ManaType)kv.Key; break; }
+                foreach (var color in cost.NonzeroColors())
+                {
+                    type = color; // 序数序首个有份额的颜色（多色取首色）
+                    break;
+                }
+            }
+
+            // 黑白首色受每回合获得封顶钳制（=地牌槽上限，2026-10-04 改口径）：预算耗尽则拒绝横置
+            //（不白扣横置状态）。计数/入账与 ElementPool.AddMana 同口径；事件仍走 core.PublishEvent
+            // 路由路径（Trigger/Layer 引擎可见——AddMana 直发 EventManager 会绕开，故不换路）。
+            var pool = core.ElementPool.GetPool(player);
+            if (type == ManaType.Black || type == ManaType.White)
+            {
+                int gained = type == ManaType.Black ? pool.BlackGainedThisTurn : pool.WhiteGainedThisTurn;
+                if (gained >= core.ElementPool.GetLandCap(player)) return false;
             }
 
             creature.Tap();
-            core.ElementPool.GetPool(player).AvailableMana[type]++;
+            pool.AvailableMana[type]++;
+            if (type == ManaType.Black) pool.BlackGainedThisTurn++;
+            else if (type == ManaType.White) pool.WhiteGainedThisTurn++;
             core.PublishEvent(new ElementPoolGainEvent
             {
                 Player = player,
@@ -377,7 +392,7 @@ namespace CardCore
 
             // 2. 付费（响应窗口之后）——抉择卡按声明期选定的模式付费（cast.ModeIndex）。
             // 代价强制（2026-09-14 撤销「代价可选」）：付费步强制执行全部 Payload 代价并按全价
-            // 获得黑/白（每回合封顶 1/色，AddMana 钳制）——无选择窗口、无减费通道；
+            // 获得黑/白（每回合封顶=地牌槽上限，AddMana 钳制）——无选择窗口、无减费通道；
             // 补偿先于代价执行（2026-09-13 排序保留：Payload 执行会膨胀模板身价，补偿按打出时点全价）。
             // 被「发动无效」只跳效果、已付代价与补偿不回卷；被打落则全免（上方 1 已拦）。
             // 自动横置补足（2026-09-30 定案）：bank 不足时先自动横置地牌产出所需元素再扣款——
@@ -490,9 +505,9 @@ namespace CardCore
         /// 玩家已声明、尚在栈上的整卡施放费用合计（cast 支付承诺）。
         /// 声明期费用预检用它防同笔 bank 超发——出多张牌时按「已声明未结算」累计。
         /// </summary>
-        public static Dictionary<int, float> GetPendingCastCosts(GameCore core, Player player)
+        public static ElementCost GetPendingCastCosts(GameCore core, Player player)
         {
-            var sum = new Dictionary<int, float>();
+            var sum = new ElementCost();
             if (core?.StackEngine == null || player == null) return sum;
 
             foreach (var obj in core.StackEngine.GetStackContents())
@@ -501,8 +516,7 @@ namespace CardCore
                 if (!(obj.Source is Card castCard)) continue;
 
                 var cost = GetCardCost(castCard, obj.ModeIndex); // 抉择：按各自声明的模式计承诺
-                foreach (var kv in cost)
-                    sum[kv.Key] = sum.TryGetValue(kv.Key, out var v) ? v + kv.Value : kv.Value;
+                sum.Add(cost);
             }
             return sum;
         }
@@ -900,6 +914,9 @@ namespace CardCore
             var hand = core.ZoneManager.GetCards(player, Zone.Hand);
             if (!hand.Contains(card)) { rejectReason = "卡不在你手上（快照过期？请重试）"; return false; }
             if (card.AwakenCommitted) { rejectReason = "已发动过苏醒（一卡一次）"; return false; }
+            // 锁定指示物（2026-10-04 窥渊原子化）：无法使用=打出/响应出牌/苏醒立约同门
+            if (card.GetCounterCount(Attribute.CounterRules.LockCounter) > 0)
+            { rejectReason = "该牌被锁定（锁定指示物期间无法使用）"; return false; }
 
             var data = card is CardWrapper wrapper ? wrapper.GetData() : null;
             if (data == null || !HasSelfSleepEffect(data))
@@ -920,32 +937,33 @@ namespace CardCore
 
         /// <summary>
         /// 从卡牌读取费用——出牌预检 / cast 付费 / pending 合计的唯一口径（public：UI/AI 声明期展示与预检同口径）。
+        /// 返回 ElementCost 副本（2026-10-04 位置数组化：下标=ManaType 枚举序号）：
         /// 抉择卡（HasChoiceEffect）走 per-mode 推导缓存（CardCostService.GetModeCost——构筑期推导存储，
-        /// 发动时只读不重推导）；推导为空=该模式免费（不落 {Gray:1} 默认——那是「无费用数据」的兜底）。
+        /// 发动时只读不重推导）；推导全零=该模式免费（不落 {Gray:1} 默认——那是「无费用数据」的兜底）。
         /// 声明 costList 在装载期写为最大模式费，仅供 UI/排序消费；支付与地牌产元素均按所选模式
         /// （GetModeCost / ElementPool.AddCardToPool modeIndex——2026-09-21 地牌自选模式定案）。
         /// 费用指示物层在此接入（定案：层带颜色，P1 恒灰）：灰色分量 += 费用增加层 − 费用减少层（下限 0），
         /// 逐模式独立套用。层在进入发动区时不清（ZoneContainer.OnCardMoved 发动区豁免——付费发生在发动区内），
         /// 结算离开发动区（入墓/入场）与离手时按真实移动清除。
         /// </summary>
-        public static Dictionary<int, float> GetCardCost(Card card, int modeIndex = 0)
+        public static ElementCost GetCardCost(Card card, int modeIndex = 0)
         {
-            Dictionary<int, float> cost;
+            ElementCost cost;
             var data = card is CardCore.CardWrapper wrapper ? wrapper.GetData() : null;
             if (data != null && CostDerivationService.HasChoiceEffect(data))
                 cost = CardCostService.GetModeCost(data, modeIndex); // 抉择：按所选模式（副本，指示物层叠加不污染缓存）
             else if (card is IHasCost hasCost && hasCost.Cost != null)
-                cost = new Dictionary<int, float>(hasCost.Cost);
+                cost = hasCost.Cost.Clone();
             else
-                cost = new Dictionary<int, float> { { (int)ManaType.Gray, 1 } }; // 默认费用：灰色1点
+                cost = ElementCost.FromValue(ManaType.Gray, 1); // 默认费用：灰色1点
 
             // 费用指示物层（P1 恒灰）：灰 += CostUp − CostDown，下限 0
             int costUp = card.GetCounterCount(Attribute.CounterRules.CostUpCounter);
             int costDown = card.GetCounterCount(Attribute.CounterRules.CostDownCounter);
             if (costUp != 0 || costDown != 0)
             {
-                int gray = (cost.TryGetValue((int)ManaType.Gray, out var g) ? (int)g : 0) + costUp - costDown;
-                cost[(int)ManaType.Gray] = Math.Max(0, gray);
+                int gray = (int)cost[ManaType.Gray] + costUp - costDown;
+                cost[ManaType.Gray] = Math.Max(0, gray);
             }
 
             // 自我沉睡的灰费豁免（2026-09-11 定案；2026-10-03 苏醒改造）：**须先在手牌中发动苏醒**
@@ -955,10 +973,10 @@ namespace CardCore
             // 预检/付费/pending/UI 均经本口——全消费面同口径；卡面声明 Cost 不动（地牌/素材口径照旧）。
             if (data != null && card.AwakenCommitted && HasSelfSleepEffect(data))
             {
-                int waived = cost.TryGetValue((int)ManaType.Gray, out var wg) ? (int)wg : 0;
+                int waived = (int)cost[ManaType.Gray];
                 if (waived > 0)
                 {
-                    cost.Remove((int)ManaType.Gray);
+                    cost[ManaType.Gray] = 0f;
                     card._pendingSleepGray = waived;
                 }
             }
@@ -1021,13 +1039,13 @@ namespace CardCore
         /// 2. 余量：账单+pending 合并后走账单规划器（同色→灰→黑白；黑白=万用色）；
         ///    pending = 同玩家已声明未结算的整卡施放费用（响应窗口内的支付承诺，一并占用）
         /// </summary>
-        public static bool CanAfford(GameCore core, Player player, Dictionary<int, float> cost)
+        public static bool CanAfford(GameCore core, Player player, ElementCost cost)
             => CanAfford(core?.ElementPool, cost, player, GetPendingCastCosts(core, player));
 
-        private static bool CanAfford(ElementPoolSystem elementPool, Dictionary<int, float> cost, Player player,
-            Dictionary<int, float> pending = null)
+        private static bool CanAfford(ElementPoolSystem elementPool, ElementCost cost, Player player,
+            ElementCost pending = null)
         {
-            if (cost.Values.Sum() > elementPool.GetLandCap(player))
+            if (cost.Total > elementPool.GetLandCap(player))
                 return false;
 
             // 合并声明承诺后统一混付规划（2026-09-14：原逐色精确余量检查退役）
@@ -1047,9 +1065,9 @@ namespace CardCore
         /// 费用拒绝的可读原因（2026-09-26 联机排查）：浓度上限（单次支付总贡献 ≤ 地牌槽上限，
         /// 前期大部分卡因此不可出——第 1 回合上限 1）与元素不足分列，供网络 Error 帧直读。
         /// </summary>
-        private static string CostRejectText(GameCore core, Player player, Dictionary<int, float> cost)
+        private static string CostRejectText(GameCore core, Player player, ElementCost cost)
         {
-            int total = (int)Math.Ceiling(cost.Values.Sum());
+            int total = (int)Math.Ceiling(cost.Total);
             int cap = core.ElementPool.GetLandCap(player);
             if (total > cap)
                 return $"费用 {CostText(cost)} 共 {total} 点，超过当前地牌槽上限 {cap}（浓度上限：前期地牌上限低，高费卡须等上限成长）";
@@ -1060,11 +1078,14 @@ namespace CardCore
             return $"元素不足——需 {CostText(cost)}，当前元素池：{(string.IsNullOrEmpty(bankText) ? "空" : bankText)}";
         }
 
-        private static string CostText(Dictionary<int, float> cost)
-            => cost == null || cost.Count == 0
-                ? "0"
-                : string.Join("", cost.Where(kv => kv.Value > 0)
-                    .Select(kv => $"{ManaZh((ManaType)kv.Key)}{kv.Value:0.#}"));
+        private static string CostText(ElementCost cost)
+        {
+            if (cost == null || cost.IsZero) return "0";
+            var sb = new System.Text.StringBuilder();
+            foreach (var color in cost.NonzeroColors())
+                sb.Append(ManaZh(color)).Append(cost[color].ToString("0.#"));
+            return sb.ToString();
+        }
 
         private static string ManaZh(ManaType type) => type switch
         {

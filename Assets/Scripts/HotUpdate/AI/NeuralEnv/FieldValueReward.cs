@@ -130,9 +130,7 @@ namespace CardCore.AI.NeuralEnv
                     return CardCostService.Derive(data).DerivedTotal;
             }
             // 裸 Card（token/复制）：回退声明费用和
-            float sum = 0f;
-            foreach (var v in GameActions.GetCardCost(card).Values) sum += v;
-            return sum;
+            return GameActions.GetCardCost(card).Total;
         }
 
         // ======================================== 资源价值 ========================================

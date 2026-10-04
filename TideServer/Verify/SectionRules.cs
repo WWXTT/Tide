@@ -30,6 +30,15 @@ namespace TideServer.Verify
     /// </summary>
     internal static class SectionRules
     {
+        /// <summary>测试费用构造（2026-10-04 位置数组化）：PosCost((Gray,3),(Green,1)) == [3,0,0,1,0,0]。</summary>
+        private static ElementCost PosCost(params (ManaType color, float amount)[] entries)
+        {
+            var c = new ElementCost();
+            foreach (var (color, amount) in entries)
+                c[color] = amount;
+            return c;
+        }
+
         public static void Run()
         {
             AtomicEffectTable.Reload(); // 幂等装载（V0 已装载则重读同源）；折扣/原子引用都依赖表
@@ -43,7 +52,7 @@ namespace TideServer.Verify
             {
                 var d = new CardData { ID = $"V9_probe_{type}_{tier}", CardName = "V9折扣探针", Supertype = type };
                 if (type == Cardtype.Creature) { d.Power = 2; d.Life = 2; }
-                d.Cost = new Dictionary<int, float> { { (int)ManaType.Gray, tier } };
+                d.Cost = ElementCost.FromValue(ManaType.Gray, tier);
                 d.Effects.Add(new CardEffectData
                 {
                     Id = "V9_probe_onplay",
@@ -80,15 +89,15 @@ namespace TideServer.Verify
             var fb = CardCostService.Derive(fbCard);
             VerifySuite.Assert(Math.Abs(fb.Factor - 0.75f) < 1e-4f,
                 $"法术未声明档 f=d(9)=0.75（实际 {fb.Factor:0.###}）——旧 f≡1 已废");
-            VerifySuite.Assert(fb.DerivedCost.GetValueOrDefault(ManaType.Red) == 1
-                              && fb.DerivedCost.GetValueOrDefault(ManaType.Blue) == 2,
-                $"法术 4伤+1抽 = 红1+蓝2（实际 红{fb.DerivedCost.GetValueOrDefault(ManaType.Red)}蓝{fb.DerivedCost.GetValueOrDefault(ManaType.Blue)}）");
+            VerifySuite.Assert((int)fb.DerivedCost[ManaType.Red] == 1
+                              && (int)fb.DerivedCost[ManaType.Blue] == 2,
+                $"法术 4伤+1抽 = 红1+蓝2（实际 红{(int)fb.DerivedCost[ManaType.Red]}蓝{(int)fb.DerivedCost[ManaType.Blue]}）");
             // 减免落色自标（2026-10-02 定案）：RefundColor=Blue → 底盘退2 尽落蓝 → 红3蓝0
             fbCard.RefundColor = (int)ManaType.Blue;
             var fbBlue = CardCostService.Derive(fbCard);
-            VerifySuite.Assert(fbBlue.DerivedCost.GetValueOrDefault(ManaType.Red) == 3
-                              && fbBlue.DerivedCost.GetValueOrDefault(ManaType.Blue) == 0,
-                $"减免落色自标：退2落蓝 → 红3蓝0（实际 红{fbBlue.DerivedCost.GetValueOrDefault(ManaType.Red)}蓝{fbBlue.DerivedCost.GetValueOrDefault(ManaType.Blue)}）");
+            VerifySuite.Assert((int)fbBlue.DerivedCost[ManaType.Red] == 3
+                              && (int)fbBlue.DerivedCost[ManaType.Blue] == 0,
+                $"减免落色自标：退2落蓝 → 红3蓝0（实际 红{(int)fbBlue.DerivedCost[ManaType.Red]}蓝{(int)fbBlue.DerivedCost[ManaType.Blue]}）");
 
             // ============================ V9.b 域数据（表级） ============================
 
@@ -338,7 +347,7 @@ namespace TideServer.Verify
             var ssData = new CardData
             {
                 ID = "V9F_SLEEP", CardName = "V9F沉睡者", Supertype = Cardtype.Creature, Power = 4, Life = 4,
-                Cost = new Dictionary<int, float> { { (int)ManaType.Gray, 3 }, { (int)ManaType.Green, 1 } },
+                Cost = PosCost((ManaType.Gray, 3), (ManaType.Green, 1)),
             };
             ssData.Effects.Add(new CardEffectData
             {
@@ -381,7 +390,7 @@ namespace TideServer.Verify
                 var ssDataU = new CardData
                 {
                     ID = "V9F_SLEEP_UNCOMMITTED", CardName = "V9F未立约沉睡者", Supertype = Cardtype.Creature, Power = 4, Life = 4,
-                    Cost = new Dictionary<int, float> { { (int)ManaType.Gray, 3 }, { (int)ManaType.Green, 1 } },
+                    Cost = PosCost((ManaType.Gray, 3), (ManaType.Green, 1)),
                 };
                 ssDataU.Effects.Add(new CardEffectData
                 {
@@ -446,7 +455,7 @@ namespace TideServer.Verify
                 var fixedData = new CardData
                 {
                     ID = "V9F_FIXED", CardName = "V9F定长沉睡", Supertype = Cardtype.Creature, Power = 3, Life = 3,
-                    Cost = new Dictionary<int, float> { { (int)ManaType.Gray, 2 }, { (int)ManaType.Green, 1 } },
+                    Cost = PosCost((ManaType.Gray, 2), (ManaType.Green, 1)),
                 };
                 fixedData.Effects.Add(new CardEffectData
                 {
@@ -706,6 +715,7 @@ namespace TideServer.Verify
             GameActions.SkipElementPool(icore, i1);
             foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
                 icore.ElementPool.GetPool(i1).AvailableMana[t] = 99; // 夹具卡免费用障碍（局即弃不还原）
+            icore.ElementPool.GetPool(i1).GlobalTurnIndex = 9; // 浓度上限放开到 9（2026-10-04 用户调价适配：仪典锚价×2/×4 后载体建议费超回合 1 上限）
 
             Card IToHand(Player owner, CardData data)
             {
@@ -738,10 +748,10 @@ namespace TideServer.Verify
                 return IToHand(i1, data);
             }
 
-            // ---- ① 激活 + 丰盈伤害帽（双方生效） ----
-            var capCarrier = MakeRuleCarrier("丰盈仪典", RuleAuraComponents.DamageCap, 9);
+            // ---- ① 激活 + 蚕褪伤害帽（2026-10-04 承接原丰盈并扩生物；双方生效） ----
+            var capCarrier = MakeRuleCarrier("蚕褪仪典", RuleAuraComponents.DamageCap, 9);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, capCarrier, null, Zone.Hand, 0, out var rejectI1),
-                $"丰盈载体打出（拒绝原因：{rejectI1 ?? "无"}）");
+                $"蚕褪载体打出（拒绝原因：{rejectI1 ?? "无"}）");
             GameActions.DrainStack(icore);
             VerifySuite.Assert(capCarrier.GetZone() == Zone.Battlefield && RuleAuraSystem.IsActive(RuleAuraComponents.DamageCap),
                 "载体入场 + 规则激活（IsActive 实时查询）");
@@ -749,17 +759,49 @@ namespace TideServer.Verify
             KeywordRules.ApplyDamage(i2, i1, 8, isCombat: false);
             KeywordRules.ApplyDamage(i1, i2, 8, isCombat: false);
             VerifySuite.Assert(i1.Life == i1LifeCap - 5 && i2.Life == i2LifeCap - 5,
-                $"伤害帽双方生效：两侧 8 伤均钳 5（p1 {i1LifeCap}→{i1.Life}，p2 {i2LifeCap}→{i2.Life}）");
+                $"伤害帽双方生效（角色）：两侧 8 伤均钳 5（p1 {i1LifeCap}→{i1.Life}，p2 {i2LifeCap}→{i2.Life}）");
+            var capCreature = new CardWrapper(new CardData
+            {
+                ID = "V9I_CAP_CR", CardName = "蚕褪生物探针", Supertype = Cardtype.Creature, Power = 1, Life = 10,
+            });
+            capCreature.SetController(i2);
+            KeywordRules.ApplyDamage(i1, capCreature, 8, isCombat: false);
+            VerifySuite.Assert(capCreature.GetLife() == 5,
+                $"伤害帽扩生物（2026-10-04 蚕褪）：单次 8 伤钳 5（实际余 {capCreature.GetLife()}）");
+
+            // ---- ①b 丰盈（2026-10-04 改造）：回复溢出→生命上限+1（收编旧写死基线） ----
+            var bloomCarrier = MakeRuleCarrier("丰盈仪典", RuleAuraComponents.HealOverflow, 9);
+            VerifySuite.Assert(GameActions.PlayCard(icore, i1, bloomCarrier, null, Zone.Hand, 0, out var rejectI1b),
+                $"丰盈载体打出（唯一槽换掉蚕褪；拒绝原因：{rejectI1b ?? "无"}）");
+            GameActions.DrainStack(icore);
+            VerifySuite.Assert(capCarrier.GetZone() == Zone.Graveyard && RuleAuraSystem.IsActive(RuleAuraComponents.HealOverflow),
+                "蚕褪送墓、丰盈（溢出转化）激活");
+            int i1MaxBloom = i1.MaxHealth;
+            i1.Life = i1.MaxHealth; // 满血基线（此前伤害帽扣过血）
+            i1.Heal(3);
+            VerifySuite.Assert(i1.MaxHealth == i1MaxBloom + 1 && i1.Life == i1.MaxHealth,
+                $"丰盈：满血回 3 → 上限+1、当前=新上限（实际 {i1MaxBloom}→{i1.MaxHealth}）");
+            // 溢出剩余截断：再回 5 仍只 +1
+            int i1MaxBloom2 = i1.MaxHealth;
+            i1.Heal(5);
+            VerifySuite.Assert(i1.MaxHealth == i1MaxBloom2 + 1,
+                $"丰盈：溢出不折半——每次溢出固定+1层（回 5 仍 {i1MaxBloom2}→{i1.MaxHealth}）");
 
             // ---- ② 全局唯一：新光环登场把旧载体送墓 ----
             var riverCarrier = MakeRuleCarrier("纳川仪典", RuleAuraComponents.HandLimitNoFatigue, 2);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, riverCarrier, null, Zone.Hand, 0, out var rejectI2),
                 $"纳川载体打出（拒绝原因：{rejectI2 ?? "无"}）");
             GameActions.DrainStack(icore);
-            VerifySuite.Assert(capCarrier.GetZone() == Zone.Graveyard, "全局唯一：新光环登场把旧载体送墓");
-            VerifySuite.Assert(!RuleAuraSystem.IsActive(RuleAuraComponents.DamageCap)
+            VerifySuite.Assert(bloomCarrier.GetZone() == Zone.Graveyard, "全局唯一：新光环登场把旧载体送墓");
+            VerifySuite.Assert(!RuleAuraSystem.IsActive(RuleAuraComponents.HealOverflow)
                               && RuleAuraSystem.IsActive(RuleAuraComponents.HandLimitNoFatigue),
                 "旧规则失效、新规则激活（单槽切换）");
+            // 丰盈离场即回基线：溢出纯浪费（生命钳上限，不加上限）
+            int i1MaxAfter = i1.MaxHealth;
+            i1.Life = i1.MaxHealth;
+            i1.Heal(4);
+            VerifySuite.Assert(i1.MaxHealth == i1MaxAfter && i1.Life == i1MaxAfter,
+                "无丰盈（2026-10-04 基线收编后）：溢出纯浪费（上限不动、生命钳上限）");
 
             // ---- ③ 纳川：手牌上限 15 + 疲劳免疫（双方） ----
             VerifySuite.Assert(RuleHooks.GetHandLimit(i1) == 15 && RuleHooks.GetHandLimit(i2) == 15,
@@ -787,10 +829,11 @@ namespace TideServer.Verify
             GameActions.SkipElementPool(icore, i1);
             foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
                 icore.ElementPool.GetPool(i1).AvailableMana[t] = 99;
+            icore.ElementPool.GetPool(i1).GlobalTurnIndex = 9; // InitGame 重置后重设（浓度上限放开，同段首）
             VerifySuite.Assert(RuleAuraSystem.Active == null, "新局光环槽位空（InitGame 含 Reset——跨局不残留）");
-            var capCarrier2 = MakeRuleCarrier("丰盈仪典", RuleAuraComponents.DamageCap, 2);
+            var capCarrier2 = MakeRuleCarrier("蚕褪仪典", RuleAuraComponents.DamageCap, 2);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, capCarrier2, null, Zone.Hand, 0, out var rejectI3),
-                $"重激活丰盈（拒绝原因：{rejectI3 ?? "无"}）");
+                $"重激活蚕褪（拒绝原因：{rejectI3 ?? "无"}）");
             GameActions.DrainStack(icore);
             VerifySuite.Assert(RuleAuraSystem.IsActive(RuleAuraComponents.DamageCap), "重激活成功（前置）");
             icore.Reset();
@@ -806,6 +849,7 @@ namespace TideServer.Verify
             GameActions.SkipElementPool(icore, i1);
             foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
                 icore.ElementPool.GetPool(i1).AvailableMana[t] = 99;
+            icore.ElementPool.GetPool(i1).GlobalTurnIndex = 9; // InitGame 重置后重设（浓度上限放开，同段首）
             var graveCarrier = MakeRuleCarrier("归土仪典", RuleAuraComponents.GraveyardPlay, 2);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, graveCarrier, null, Zone.Hand, 0, out var rejectI4),
                 $"归土载体打出（拒绝原因：{rejectI4 ?? "无"}）");
@@ -857,23 +901,61 @@ namespace TideServer.Verify
             var i2Exposed = RevealRules.GetExposedCards(icore.ZoneManager, i2, Zone.Hand);
             VerifySuite.Assert(i2Exposed.Count == 1, "对方手牌一张被展示（信息轴联动锚）");
 
+            // 展示源保险：i1 手牌补一张填充（保证 i2 回合开始的光环随机展示必有未展示候选）
+            IToHand(i1, new CardData { ID = "V9I_REVEAL_FILL", CardName = "展示填充", Supertype = Cardtype.Spell });
             GameActions.EndTurn(icore, i1);
-            icore.TurnEngine.CheckPhaseTransition();
-            GameActions.SkipElementPool(icore, i2); // i2 回合（锁定 i1 的展示卡——无，空转）
-            GameActions.EndTurn(icore, i2);
-            icore.TurnEngine.CheckPhaseTransition(); // → i1 回合开始：锁定 i2 那张已展示卡
-            GameActions.SkipElementPool(icore, i1);
-            var i2Locked = i2Exposed[0];
-            VerifySuite.Assert(RuleAuraComponents.IsLockedThisTurn(i2Locked),
-                "回合开始锁定对手已展示卡（无头自动锁第一张）");
-            VerifySuite.Assert(!RuleHooks.CanPlay(icore, i2, i2Locked, Zone.Hand),
-                "被锁定卡不可打出（IPlayRestriction——PlayCard/响应出牌同门）");
-            GameActions.EndTurn(icore, i1);
-            icore.TurnEngine.CheckPhaseTransition();
-            VerifySuite.Assert(!RuleAuraComponents.IsLockedThisTurn(i2Locked), "回合结束解锁（直到回合结束）");
+            icore.TurnEngine.CheckPhaseTransition(); // → i2 回合开始：光环随机展示 i1 一张手牌并锁定
+            VerifySuite.Assert(RevealRules.GetExposedCards(icore.ZoneManager, i1, Zone.Hand).Count == 1,
+                "光环随机展示：回合开始随机展示对手一张手牌（2026-10-04 追加——RevealCard 同款口径）");
             GameActions.SkipElementPool(icore, i2);
             GameActions.EndTurn(icore, i2);
+            icore.TurnEngine.CheckPhaseTransition(); // → i1 回合开始：随机展示 i2 一张 + 赋予被展示卡锁定×1
+            GameActions.SkipElementPool(icore, i1);
+            var i2Locked = i2Exposed[0];
+            VerifySuite.Assert(i2Locked.GetCounterCount(CounterRules.LockCounter) == 1,
+                "回合开始赋予对手被展示卡锁定指示物×1（2026-10-04 原子化——全部被展示卡，无选择窗口）");
+            VerifySuite.Assert(RevealRules.GetExposedCards(icore.ZoneManager, i2, Zone.Hand).Count >= 2,
+                "光环随机展示并锁定：i2 被展示卡含展示术一张+光环随机一张（同回合生效）");
+            VerifySuite.Assert(!RuleHooks.CanPlay(icore, i2, i2Locked, Zone.Hand),
+                "被锁定卡不可打出（IPlayRestriction——PlayCard/响应出牌同门）");
+            // 环境确定性：i2 手牌裁到只剩被锁定卡——后续多回合抽牌不触手牌上限弃牌
+            //（无头自动弃牌可能弃掉被展示卡→换区清展示→污染续锁断言）
+            foreach (var c in icore.ZoneManager.GetCards(i2, Zone.Hand).ToList())
+                if (c != i2Locked) icore.ZoneManager.MoveCard(c, i2, Zone.Hand, Zone.Graveyard);
+            GameActions.EndTurn(icore, i1);
             icore.TurnEngine.CheckPhaseTransition();
+            VerifySuite.Assert(RuleAuraComponents.IsLockedThisTurn(i2Locked),
+                "锁定持续到持有者回合结束（施放方回合末不清——指示物层数倒数制）");
+            GameActions.SkipElementPool(icore, i2);
+            GameActions.EndTurn(icore, i2); // 持有者 i2 回合结束：手牌指示物倒数 1→0
+            VerifySuite.Assert(i2Locked.GetCounterCount(CounterRules.LockCounter) == 0
+                              && RuleHooks.CanPlay(icore, i2, i2Locked, Zone.Hand),
+                "持有者回合结束锁定倒数归零（手牌区与场上同样结算）——解锁可打出");
+            icore.TurnEngine.CheckPhaseTransition(); // → i1 回合开始：卡仍被展示 → 光环续锁
+            VerifySuite.Assert(i2Locked.GetCounterCount(CounterRules.LockCounter) == 1,
+                "持续暴露续锁：每回合开始对仍被展示的卡再赋一回合锁定");
+
+            // ---- ⑦b 锁定原子直发（LockCard value=2）：层=剩余回合，直调两个持有者回合末倒数
+            //     （不经回合引擎推进——光环随机展示/续锁不再干扰层数口径；回合集成路径 ⑦ 已覆盖）----
+            var lockProbe = IToHand(i2, new CardData
+            {
+                ID = "V9I_LOCK2", CardName = "锁定探针", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+            });
+            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
+                new AtomicEffectInstance { Type = AtomicEffectType.LockCard, Value = 2 },
+                new EffectExecutionContext { Controller = i1, Source = i1, Targets = new List<Entity> { lockProbe } })
+                .GetAwaiter().GetResult();
+            VerifySuite.Assert(lockProbe.GetCounterCount(CounterRules.LockCounter) == 2
+                              && !RuleHooks.CanPlay(icore, i2, lockProbe, Zone.Hand),
+                "锁定原子（value=2）：挂 2 层锁定，期间无法使用");
+            CounterRules.OnTurnEnd(i2, icore.ZoneManager); // 持有者回合末 ①：2→1
+            VerifySuite.Assert(lockProbe.GetCounterCount(CounterRules.LockCounter) == 1
+                              && !RuleHooks.CanPlay(icore, i2, lockProbe, Zone.Hand),
+                "锁定×2 首个持有者回合末：2→1 仍锁定");
+            CounterRules.OnTurnEnd(i2, icore.ZoneManager); // 持有者回合末 ②：1→0
+            VerifySuite.Assert(lockProbe.GetCounterCount(CounterRules.LockCounter) == 0
+                              && RuleHooks.CanPlay(icore, i2, lockProbe, Zone.Hand),
+                "锁定×2 次个持有者回合末：1→0 解锁（手牌区倒数全程在场外结算）");
             GameActions.SkipElementPool(icore, i1); // 回合交还 i1（⑧-⑩ 同一主阶段连续驱动）
 
             // ---- ⑧ 三相：消耗 3 同色纯元素 → 红/蓝/绿各 1 ----
@@ -886,7 +968,7 @@ namespace TideServer.Verify
             var redCostData = new CardData
             {
                 ID = "V9I_RED3", CardName = "红费探针", Supertype = Cardtype.Creature, Power = 1, Life = 1,
-                Cost = new Dictionary<int, float> { { (int)ManaType.Red, 3 } },
+                Cost = PosCost((ManaType.Red, 3)),
             };
             var redCostCard = IToHand(i1, redCostData);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, redCostCard), "红3 费探针打出（触发 ElementPoolPayEvent）");
@@ -896,7 +978,8 @@ namespace TideServer.Verify
                               && iBank[ManaType.Green] == greenB + 1,
                 $"三相兑换：付红3 → 红/蓝/绿各+1（红 {redB}→{iBank[ManaType.Red]}，蓝 {blueB}→{iBank[ManaType.Blue]}，绿 {greenB}→{iBank[ManaType.Green]}）");
 
-            // ---- ⑨ 血偿：自己的生命代价改由对手支付（对照：无光环时自付） ----
+            // ---- ⑨ 血偿（2026-10-04 改造）：己方回合中，回合方角色受到的伤害改由对手角色承担 ----
+            // （旧语义"生命代价转嫁"退役——代价流失 LifeLoss 不走伤害管线，光环前后照常自付）
             // 探针场上生物清场，保证 LifeLoss kinds{1} 自结算唯一候选=己方角色（确定性）
             var i1Battlefield = icore.ZoneManager.GetCards(i1, Zone.Battlefield).ToList();
             var icz1 = icore.ZoneManager.GetZoneContainer(i1);
@@ -930,39 +1013,70 @@ namespace TideServer.Verify
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, bp1), "生命支付探针打出（无血偿——对照）");
             GameActions.DrainStack(icore);
             VerifySuite.Assert(i1.MaxHealth == i1MaxBefore - 2 && i2.MaxHealth == i2MaxBefore,
-                $"对照：无血偿自己付（i1 {i1MaxBefore}→{i1.MaxHealth}，i2 不变）");
+                $"对照：代价流失自己付（i1 {i1MaxBefore}→{i1.MaxHealth}，i2 不变）");
 
             var bloodCarrier = MakeRuleCarrier("血偿仪典", RuleAuraComponents.BloodPact, 2);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, bloodCarrier, null, Zone.Hand, 0, out var rejectI7),
                 $"血偿载体打出（拒绝原因：{rejectI7 ?? "无"}）");
             GameActions.DrainStack(icore);
+            // 回归锚：代价流失（LifeLoss 非伤害）不转嫁——改造后光环只改写 DamageEvent
             int i1MaxBefore2 = i1.MaxHealth, i2MaxBefore2 = i2.MaxHealth;
             var bp2 = MakeBloodPayCard("V9I_BP2");
-            VerifySuite.Assert(GameActions.PlayCard(icore, i1, bp2), "生命支付探针打出（血偿生效）");
+            VerifySuite.Assert(GameActions.PlayCard(icore, i1, bp2), "生命支付探针打出（血偿生效下——流失口径）");
             GameActions.DrainStack(icore);
-            VerifySuite.Assert(i1.MaxHealth == i1MaxBefore2 && i2.MaxHealth == i2MaxBefore2 - 2,
-                $"血偿转嫁：自己不扣、对手付（i1 {i1MaxBefore2}→{i1.MaxHealth}，i2 {i2MaxBefore2}→{i2.MaxHealth}）");
+            VerifySuite.Assert(i1.MaxHealth == i1MaxBefore2 - 2 && i2.MaxHealth == i2MaxBefore2,
+                "血偿不转嫁代价流失：LifeLoss 非伤害管线，照常自付（旧转嫁退役锚）");
+            // 新语义：i1 回合中，i1 角色受伤 → i2 角色承担（任意来源，效果伤害直测）
+            i1.Life = i1.MaxHealth; i2.Life = i2.MaxHealth; // 满血基线（此前流失扣过上限）
+            int i1LifeBP = i1.Life, i2LifeBP = i2.Life;
+            KeywordRules.ApplyDamage(i2, i1, 8, isCombat: false);
+            VerifySuite.Assert(i1.Life == i1LifeBP && i2.Life == i2LifeBP - 8,
+                $"血偿转移：己方回合角色受伤→对手承担（i1 {i1LifeBP}→{i1.Life}，i2 {i2LifeBP}→{i2.Life}）");
+            // 对照：伤害落在非回合方角色 → 不转移
+            int i2LifeBP2 = i2.Life;
+            KeywordRules.ApplyDamage(i1, i2, 5, isCombat: false);
+            VerifySuite.Assert(i2.Life == i2LifeBP2 - 5,
+                $"对照：非回合方角色受伤不转移（i2 {i2LifeBP2}→{i2.Life}）");
 
-            // ---- ⑩ 疾风（改版）：每个玩家连续进行两个回合（AABB） ----
-            var galeCarrier = MakeRuleCarrier("疾风仪典", RuleAuraComponents.DoubleTurn, 2);
-            VerifySuite.Assert(GameActions.PlayCard(icore, i1, galeCarrier, null, Zone.Hand, 0, out var rejectI8),
-                $"疾风载体打出（拒绝原因：{rejectI8 ?? "无"}）");
+            // ---- ⑩b 疾风（2026-10-04 改造）：从手牌使用的卡发动速度+1 ----
+            var speedData1 = new CardData { ID = "V9I_SPEED1", CardName = "速度探针1", Supertype = Cardtype.Spell };
+            speedData1.Effects.Add(new CardEffectData { Id = "V9I_SPEED1_EFF", BaseSpeed = 1 });
+            var speedProbe = IToHand(i1, speedData1);
+            var speedProbe0 = IToHand(i1, new CardData
+            {
+                ID = "V9I_SPEED0", CardName = "速度探针0", Supertype = Cardtype.Spell,
+            }); // 无效果=0 速档
+            VerifySuite.Assert(SpeedCalculator.GetCardCastSpeed(speedProbe) == 1
+                              && SpeedCalculator.GetCardCastSpeed(speedProbe0) == 0,
+                "对照（无疾风）：施放速度=卡面声明（1速/0速）");
+            var galeSpeedCarrier = MakeRuleCarrier("疾风仪典", RuleAuraComponents.CastSpeedUp, 2);
+            VerifySuite.Assert(GameActions.PlayCard(icore, i1, galeSpeedCarrier, null, Zone.Hand, 0, out var rejectI8b),
+                $"疾风载体打出（拒绝原因：{rejectI8b ?? "无"}）");
+            GameActions.DrainStack(icore);
+            VerifySuite.Assert(SpeedCalculator.GetCardCastSpeed(speedProbe) == 2
+                              && SpeedCalculator.GetCardCastSpeed(speedProbe0) == 1,
+                $"疾风：从手牌使用的卡发动速度+1（1速→2，0速→1；实际 {SpeedCalculator.GetCardCastSpeed(speedProbe)}/{SpeedCalculator.GetCardCastSpeed(speedProbe0)}）");
+
+            // ---- ⑩ 轮回（2026-10-04 承接原疾风）：每个玩家连续进行两个回合（AABB） ----
+            var samsaraCarrier = MakeRuleCarrier("轮回仪典", RuleAuraComponents.DoubleTurn, 2);
+            VerifySuite.Assert(GameActions.PlayCard(icore, i1, samsaraCarrier, null, Zone.Hand, 0, out var rejectI8),
+                $"轮回载体打出（拒绝原因：{rejectI8 ?? "无"}）");
             GameActions.DrainStack(icore);
             GameActions.EndTurn(icore, i1);
             icore.TurnEngine.CheckPhaseTransition();
-            VerifySuite.Assert(icore.TurnEngine.TurnPlayer == i1, "疾风：i1 连续第 2 回合（AABB 第一跳）");
+            VerifySuite.Assert(icore.TurnEngine.TurnPlayer == i1, "轮回：i1 连续第 2 回合（AABB 第一跳）");
             GameActions.SkipElementPool(icore, i1);
             GameActions.EndTurn(icore, i1);
             icore.TurnEngine.CheckPhaseTransition();
-            VerifySuite.Assert(icore.TurnEngine.TurnPlayer == i2, "疾风：轮到 i2（i1 两回合用尽）");
+            VerifySuite.Assert(icore.TurnEngine.TurnPlayer == i2, "轮回：轮到 i2（i1 两回合用尽）");
             GameActions.SkipElementPool(icore, i2);
             GameActions.EndTurn(icore, i2);
             icore.TurnEngine.CheckPhaseTransition();
-            VerifySuite.Assert(icore.TurnEngine.TurnPlayer == i2, "疾风：i2 连续第 2 回合");
+            VerifySuite.Assert(icore.TurnEngine.TurnPlayer == i2, "轮回：i2 连续第 2 回合");
             GameActions.SkipElementPool(icore, i2);
             GameActions.EndTurn(icore, i2);
             icore.TurnEngine.CheckPhaseTransition();
-            VerifySuite.Assert(icore.TurnEngine.TurnPlayer == i1, "疾风：回到 i1（AABB 交替成立）");
+            VerifySuite.Assert(icore.TurnEngine.TurnPlayer == i1, "轮回：回到 i1（AABB 交替成立）");
             GameActions.SkipElementPool(icore, i1);
 
             // ============================ V9.j 地牌资格（2026-10-03 用户定案：三型+三排除） ============================
@@ -974,7 +1088,7 @@ namespace TideServer.Verify
             var fillerJ = Enumerable.Range(0, 8).Select(i => new CardData
             {
                 ID = $"V9J_fill_{i}", CardName = "V9J填充" + i, Supertype = Cardtype.Creature, Power = 1, Life = 1,
-                Cost = new Dictionary<int, float> { { (int)ManaType.Gray, 1 } },
+                Cost = PosCost((ManaType.Gray, 1)),
             }).ToList();
             jcore.InitGame(CardLoader.BuildDeck(fillerJ, 2), CardLoader.BuildDeck(fillerJ, 2));
             var j1 = jcore.Player1;
@@ -1016,7 +1130,7 @@ namespace TideServer.Verify
             var spellLand = JToHand(j1, new CardData
             {
                 ID = "V9J_SPELL_LAND", CardName = "法术地", Supertype = Cardtype.Spell,
-                Cost = new Dictionary<int, float> { { (int)ManaType.Blue, 2 } },
+                Cost = PosCost((ManaType.Blue, 2)),
             });
             VerifySuite.Assert(jcore.ElementPool.AddCardToPool(spellLand, j1), "法术可作地牌（2026-10-03 新资格）");
             // 地牌槽上限按「自己回合开始数」涨（j1 已开始 2 个回合=上限 2，已占 2）——再推进一轮到 3
@@ -1029,7 +1143,7 @@ namespace TideServer.Verify
             var enchLand = JToHand(j1, new CardData
             {
                 ID = "V9J_ENCH_LAND", CardName = "结界地", Supertype = Cardtype.Enchantment,
-                Cost = new Dictionary<int, float> { { (int)ManaType.Green, 2 } }, // 黑白不产指示物（既有定案）——用可产色
+                Cost = PosCost((ManaType.Green, 2)), // 黑白不产指示物（既有定案）——用可产色
             });
             VerifySuite.Assert(jcore.ElementPool.AddCardToPool(enchLand, j1), "结界可作地牌（2026-10-03 新资格）");
 
@@ -1065,9 +1179,9 @@ namespace TideServer.Verify
             VerifySuite.Assert(dmgPickOne.DerivedTotal == dmgOwn.DerivedTotal,
                 $"双侧域单体任选不減（{dmgPickOne.DerivedTotal} == 单侧同款 {dmgOwn.DerivedTotal}）");
 
-            // ---- ③ 规则光环：空域不乘期望 N + 恒视为双方 ×0.5（锚价 3 → 2） ----
-            var capRow = AtomicEffectTable.GetAll().FirstOrDefault(r => r != null && r.DisplayName == "丰盈仪典");
-            VerifySuite.Assert(capRow != null, "丰盈仪典表行存在（计价锚前置）");
+            // ---- ③ 规则光环：空域不乘期望 N + 恒视为双方 ×0.5（2026-10-04 光环改造后锚价全动态读表） ----
+            var capRow = AtomicEffectTable.GetAll().FirstOrDefault(r => r != null && r.DisplayName == "蚕褪仪典");
+            VerifySuite.Assert(capRow != null, "蚕褪仪典表行存在（计价锚前置）");
             var auraData = new CardData { ID = "V9K_AURA", CardName = "V9K规则光环", Supertype = Cardtype.Enchantment };
             auraData.Effects.Add(new CardEffectData
             {
@@ -1080,26 +1194,30 @@ namespace TideServer.Verify
                 },
             });
             var auraCost = CardCostService.Derive(auraData);
-            VerifySuite.Assert(auraCost.DerivedTotal == Math.Max(0, (int)Math.Round(3 * 0.5f, MidpointRounding.AwayFromZero) - kChassisRefund),
-                $"规则光环整卡计价=round(锚3×0.5)−底盘退2（实际 {auraCost.DerivedTotal}）");
+            // 整卡链：锚×0.5（恒双方）× f(未声明档=d(9)=0.75) 取整 − 底盘退2（下限0）——锚价动态读表
+            int expectedAuraTotal = Math.Max(0, (int)Math.Round((capRow?.TotalUnitCost ?? 0f) * 0.5f * 0.75f,
+                MidpointRounding.AwayFromZero) - kChassisRefund);
+            VerifySuite.Assert(auraCost.DerivedTotal == expectedAuraTotal,
+                $"规则光环整卡计价=round(锚{capRow?.TotalUnitCost ?? 0f}×0.5×0.75)−底盘退2（实际 {auraCost.DerivedTotal}，期望 {expectedAuraTotal}）");
             // 无底盘干扰的纯原子口径（RewardDerivedCost：Once/单目标 shim）：
-            // 行身份（RowHashId→丰盈行锚 3）+ 空域不乘期望 N + ModifyGameRule 恒双方 → round(3×0.5)=2
+            // 行身份（RowHashId→蚕褪行锚）+ 空域不乘期望 N + ModifyGameRule 恒双方 → round(锚×0.5)
             var auraAtomCost = CostDerivationService.RewardDerivedCost(new List<AtomicEffectInstance>
             {
                 new AtomicEffectInstance { Type = AtomicEffectType.ModifyGameRule, Value = 1, StringValue = "DamageCap",
                     TargetKinds = new List<int>(), Polarity = 0f, RowHashId = capRow?.HashId },
             });
-            VerifySuite.Assert(Math.Abs(auraAtomCost - 2f) < 0.01f,
-                $"规则光环纯原子价=round(锚3×0.5)=2（实际 {auraAtomCost}——按行取锚/空域不乘期望 4/恒双方）");
-            // 行身份回归锚：同枚举不同行各自计价（疾风行锚 5 → round(2.5)=3；末行回落口径不再串行）
+            VerifySuite.Assert(Math.Abs(auraAtomCost - (int)Math.Round((capRow?.TotalUnitCost ?? 0f) * 0.5f, MidpointRounding.AwayFromZero)) < 0.01f,
+                $"规则光环纯原子价=round(锚{capRow?.TotalUnitCost ?? 0f}×0.5)（实际 {auraAtomCost}——按行取锚/空域不乘期望 4/恒双方；锚价动态读表）");
+            // 行身份回归锚：同枚举不同行各自计价（疾风=CastSpeedUp 蓝锚 vs 蚕褪锚——末行回落口径不再串行）
             var galeRow = AtomicEffectTable.GetAll().FirstOrDefault(r => r != null && r.DisplayName == "疾风仪典");
             var galeAtomCost = CostDerivationService.RewardDerivedCost(new List<AtomicEffectInstance>
             {
-                new AtomicEffectInstance { Type = AtomicEffectType.ModifyGameRule, Value = 1, StringValue = "DoubleTurn",
+                new AtomicEffectInstance { Type = AtomicEffectType.ModifyGameRule, Value = 1, StringValue = "CastSpeedUp",
                     TargetKinds = new List<int>(), Polarity = 0f, RowHashId = galeRow?.HashId },
             });
-            VerifySuite.Assert(Math.Abs(galeAtomCost - 3f) < 0.01f,
-                $"变体行各自计价：疾风行锚 5→round(2.5)=3（实际 {galeAtomCost}≠丰盈 2——RowHashId 行身份生效）");
+            VerifySuite.Assert(Math.Abs(galeAtomCost - (int)Math.Round((galeRow?.TotalUnitCost ?? 0f) * 0.5f, MidpointRounding.AwayFromZero)) < 0.01f
+                               && Math.Abs(galeAtomCost - auraAtomCost) > 0.01f,
+                $"变体行各自计价：疾风锚{galeRow?.TotalUnitCost ?? 0f}×0.5（实际 {galeAtomCost}≠蚕褪 {auraAtomCost}——RowHashId 行身份生效；锚价动态读表）");
 
             // ---- ④ 错边收缩：有害锁己方（负面指向自己）效果栏放行；有益锁对方仍剔除 ----
             var selfHarmDef = CardEffectConverter.ConvertOne(new CardEffectData
@@ -1237,7 +1355,7 @@ namespace TideServer.Verify
             var awakenData = new CardData
             {
                 ID = "V9L_AWAKEN", CardName = "V9L苏醒者", Supertype = Cardtype.Creature, Power = 3, Life = 3,
-                Cost = new Dictionary<int, float> { { (int)ManaType.Gray, 3 }, { (int)ManaType.Green, 1 } },
+                Cost = PosCost((ManaType.Gray, 3), (ManaType.Green, 1)),
             };
             awakenData.Effects.Add(new CardEffectData
             {
@@ -1276,6 +1394,7 @@ namespace TideServer.Verify
             GameActions.SkipElementPool(mcore, m1);
             foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
                 mcore.ElementPool.GetPool(m1).AvailableMana[t] = 99;
+            mcore.ElementPool.GetPool(m1).GlobalTurnIndex = 9; // 浓度上限放开（2026-10-04 调价适配，同 V9.i）
 
             var graveRow = AtomicEffectTable.GetAll().FirstOrDefault(r => r != null && r.DisplayName == "归土仪典");
             VerifySuite.Assert(graveRow != null, "归土仪典表行存在（前置）");

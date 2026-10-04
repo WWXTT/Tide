@@ -101,9 +101,9 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 尝试获取费用
+        /// 尝试获取费用（2026-10-04 位置数组化：ElementCost）
         /// </summary>
-        public static bool TryGetCost(this Card card, out Dictionary<int, float> cost)
+        public static bool TryGetCost(this Card card, out ElementCost cost)
         {
             cost = null;
             if (card is IHasCost hasCost)

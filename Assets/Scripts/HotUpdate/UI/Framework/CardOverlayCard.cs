@@ -21,6 +21,7 @@ namespace SynergyUI
         private Image _art;
         private TMP_Text _name, _cost, _type, _stats, _keywords, _effect, _land;
         private TMP_Text _markTapped, _markFrozen, _markDead, _btnRemove;
+        private CostSquaresView _costView; // 费用方格（2026-10-03：费用=彩色小方格，公用预制体）
         private readonly Dictionary<string, GameObject> _arrows = new Dictionary<string, GameObject>();
         private CanvasGroup _group;
         private GameObject _back;
@@ -34,6 +35,8 @@ namespace SynergyUI
             _art = FindComponent<Image>("art");
             _name = FindComponent<TMP_Text>("name");
             _cost = FindComponent<TMP_Text>("cost");
+            if (_cost != null)
+                _costView = CostSquaresView.Mount(_cost.rectTransform); // 方格挂 cost 节点内——Band 显隐随行
             _type = FindComponent<TMP_Text>("type");
             _stats = FindComponent<TMP_Text>("stats");
             _keywords = FindComponent<TMP_Text>("keywords");
@@ -63,7 +66,18 @@ namespace SynergyUI
             bool land = layout == CardOverlayLayout.Land;
 
             SetText(_name, item.Name, full ? 13 : land ? 10 : 11);
-            SetText(_cost, string.IsNullOrEmpty(item.CostText) ? "" : "费 " + item.CostText, full ? 10 : 10);
+            // 费用显示：明细在手 → 彩色方格（公用 CostSquares）；缺明细回落旧文本
+            if (_costView != null && item.Costs != null && !item.Costs.IsZero)
+            {
+                _costView.SquareSize = full ? 10f : land ? 8f : 7f;
+                _costView.SetCosts(item.Costs);
+                SetText(_cost, "", 10);
+            }
+            else
+            {
+                if (_costView != null) _costView.Clear();
+                SetText(_cost, string.IsNullOrEmpty(item.CostText) ? "" : "费 " + item.CostText, 10);
+            }
             SetText(_type, item.TypeText, 10);
             SetText(_keywords, item.KeywordsText, 10);
             SetText(_effect, item.EffectText, 10);

@@ -126,23 +126,17 @@ namespace CardCore
     public sealed class CostAddModification : ICharacteristicModification
     {
         public CharacteristicType TargetCharacteristic => CharacteristicType.Cost;
-        public Dictionary<int, float> CostDelta { get; }
+        public ElementCost CostDelta { get; }
 
-        public CostAddModification(Dictionary<int, float> costDelta)
+        public CostAddModification(ElementCost costDelta)
         {
             CostDelta = costDelta;
         }
 
-        public Dictionary<int, float> Apply(Dictionary<int, float> original)
+        public ElementCost Apply(ElementCost original)
         {
-            var result = new Dictionary<int, float>(original);
-            foreach (var kvp in CostDelta)
-            {
-                if (result.ContainsKey(kvp.Key))
-                    result[kvp.Key] += kvp.Value;
-                else
-                    result[kvp.Key] = kvp.Value;
-            }
+            var result = original.Clone();
+            result.Add(CostDelta);
             return result;
         }
     }
@@ -234,7 +228,7 @@ namespace CardCore
         /// <summary>
         /// 对费用特征应用修饰
         /// </summary>
-        public Dictionary<int, float> ApplyCostModification(Dictionary<int, float> original)
+        public ElementCost ApplyCostModification(ElementCost original)
         {
             if (!Modifications.TryGetValue(CharacteristicType.Cost, out var mod))
                 return original;
@@ -308,7 +302,7 @@ namespace CardCore
             public bool PTValid;
             public int Power;
             public int Toughness;
-            public Dictionary<int, float> Cost;
+            public ElementCost Cost;
             public List<ManaType> Colors;
         }
 
@@ -393,9 +387,9 @@ namespace CardCore
         /// <summary>
         /// 计算实体最终费用（带缓存）
         /// </summary>
-        public Dictionary<int, float> CalculateCost(Entity entity)
+        public ElementCost CalculateCost(Entity entity)
         {
-            if (entity == null) return new Dictionary<int, float>();
+            if (entity == null) return new ElementCost();
             if (!IsDirty(entity) && _cache.TryGetValue(entity, out var cached) && cached.Cost != null)
                 return cached.Cost;
 
@@ -477,7 +471,7 @@ namespace CardCore
             }
         }
 
-        private Dictionary<int, float> CalculateCostInternal(Entity entity)
+        private ElementCost CalculateCostInternal(Entity entity)
         {
             var baseValue = GetBaseCost(entity);
 
@@ -735,11 +729,11 @@ namespace CardCore
         /// <summary>
         /// 获取基础费用
         /// </summary>
-        private Dictionary<int, float> GetBaseCost(Entity entity)
+        private ElementCost GetBaseCost(Entity entity)
         {
             if (entity is IHasCost hasCost && hasCost.Cost != null)
-                return new Dictionary<int, float>(hasCost.Cost);
-            return new Dictionary<int, float>();
+                return hasCost.Cost.Clone();
+            return new ElementCost();
         }
 
         /// <summary>
@@ -750,9 +744,8 @@ namespace CardCore
             var result = new List<ManaType>();
             if (entity is IHasCost hasCost && hasCost.Cost != null)
             {
-                foreach (var key in hasCost.Cost.Keys)
+                foreach (var mt in hasCost.Cost.NonzeroColors())
                 {
-                    var mt = (ManaType)key;
                     if (mt != ManaType.Gray && !result.Contains(mt))
                         result.Add(mt);
                 }

@@ -100,7 +100,7 @@ namespace CardCore.Editor
                 Supertype = Cardtype.Creature,
                 Power = power,
                 Life = life,
-                Cost = new Dictionary<int, float> { { 0, 1.0f } }, // 灰1（同古树守卫）：T1 浓度上限内可付
+                Cost = CardCore.ElementCost.FromValue(ManaType.Gray, 1.0f), // 灰1（同古树守卫）：T1 浓度上限内可付
             };
 
         /// <summary>

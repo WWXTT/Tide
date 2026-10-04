@@ -68,7 +68,7 @@ namespace CardCore.Attribute
             }
             if (grayCost.HasValue)
             {
-                data.Cost = new Dictionary<int, float> { { (int)ManaType.Gray, grayCost.Value } };
+                data.Cost = ElementCost.FromValue(ManaType.Gray, grayCost.Value);
             }
 
             var card = new CardWrapper(data)

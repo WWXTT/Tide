@@ -157,7 +157,7 @@ namespace CardCore.AI.NeuralEnv
             _board = new GameBoard.BoardState(_core, _core.Player1, _core.Player2,
                 GameBoard.HalfFieldData.Flat(), GameBoard.HalfFieldData.Flat());
             _board.EnableAutoResync();
-            CombatSystem.AdjacentResolver = _board.Neighbors;
+            CombatSystem.AdjacentResolver = _board.FlankNeighbors; // 碾压=左右同排生物（2026-10-04 语义修订）
             GameBoard.LinkAuraSystem.Attach(_board); // 连接光环（三轨制）：箭头指向格占据者享受 linkAuras
 
             _gameOver = false;

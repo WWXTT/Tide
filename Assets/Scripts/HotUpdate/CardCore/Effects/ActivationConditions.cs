@@ -637,7 +637,9 @@ namespace CardCore
 
                 case ConditionType.CardHasManaType:
                     if (context.Source is Card c && c is IHasCost hasCost)
-                        return hasCost.Cost.ContainsKey((int)condition.ManaTypeParam);
+                        return hasCost.Cost != null
+                               && condition.ManaTypeParam.HasValue
+                               && hasCost.Cost[condition.ManaTypeParam.Value] > 0f;
                     return false;
 
                 case ConditionType.CardIsTapped:

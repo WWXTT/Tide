@@ -78,16 +78,17 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 法力消耗
+        /// 费用（2026-10-04 位置数组定案：ElementCost，下标=ManaType 枚举序号 [灰,红,蓝,绿,白,黑]；
+        /// 落盘 _costJson = 位置数组 JSON，如 "[0,3,0,0,0,0]"）
         /// </summary>
         [TideSerialized]
         private string _costJson;
-        public Dictionary<int, float> Cost { get; set; } = new Dictionary<int, float>();
+        public ElementCost Cost { get; set; } = new ElementCost();
 
         // 抉择（Choice）per-mode 费用缓存（2026-09-07 定案）：构筑/装载期由 CardCostService.DeriveModeCosts
         // 推导写入（发动时只读取不重推导）；声明 Cost 为最大模式费（地牌/素材/UI 消费面口径）。
         [NonSerialized]
-        internal List<Dictionary<int, float>> ModeCostCache;
+        internal List<ElementCost> ModeCostCache;
 
         // 自我沉睡判定缓存（2026-09-11 灰费豁免定案）：任一非启动式效果含 Sleep 原子且组合域={Self}。
         // GetCardCost 高频调用，转换结果缓存（ResetCache 失效，随 ModeCostCache 口径）。
@@ -276,14 +277,7 @@ namespace CardCore
             get
             {
                 if (_totalCost < 0)
-                {
-                    float total = 0;
-                    foreach (var cost in Cost.Values)
-                    {
-                        total += cost;
-                    }
-                    _totalCost = total;
-                }
+                    _totalCost = Cost?.Total ?? 0f;
                 return _totalCost;
             }
         }
@@ -348,39 +342,28 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 将 Cost 字典序列化为 JSON
+        /// 费用位置数组序列化（"[0,3,0,0,0,0]"——下标=ManaType 枚举序号，长度=枚举成员数）
         /// </summary>
         private string CostToJson()
         {
-            var costList = new List<CostEntry>();
-            foreach (var kvp in Cost)
-            {
-                costList.Add(new CostEntry { ManaType = kvp.Key, Value = kvp.Value });
-            }
-            return TideJson.ToJson(costList, true);
+            return TideJson.ToJson(Cost?.v ?? new float[0], true);
         }
 
         /// <summary>
-        /// 从 JSON 反序列化 Cost 字典
+        /// 从位置数组 JSON 反序列化费用（短数组补零、长数组截断；解析失败=空费用）
         /// </summary>
-        private Dictionary<int, float> JsonFromCost(string json)
+        private ElementCost JsonFromCost(string json)
         {
-            var result = new Dictionary<int, float>();
-            if (string.IsNullOrEmpty(json)) return result;
-
+            if (string.IsNullOrEmpty(json)) return new ElementCost();
             try
             {
-                var costList = TideJson.FromJson<CostEntryList>(json);
-                foreach (var entry in costList.entries)
-                {
-                    result[entry.ManaType] = entry.Value;
-                }
+                var arr = TideJson.FromJson<float[]>(json);
+                return new ElementCost(arr);
             }
             catch
             {
-                // 解析失败返回空字典
+                return new ElementCost(); // 解析失败返回空费用
             }
-            return result;
         }
 
         /// <summary>
@@ -421,24 +404,8 @@ namespace CardCore
             }
         }
 
-        /// <summary>
-        /// 成本条目
-        /// </summary>
-        [Serializable]
-        private class CostEntry
-        {
-            public int ManaType;
-            public float Value;
-        }
-
-        /// <summary>
-        /// 成本条目列表包装
-        /// </summary>
-        [Serializable]
-        private class CostEntryList
-        {
-            public List<CostEntry> entries;
-        }
+        // CostEntry/CostEntryList 私有序列化类已随 2026-10-04 费用位置数组化退役
+        //（_costJson 现为裸 float 位置数组，无包装结构）。
     }
 
     /// <summary>
@@ -482,13 +449,8 @@ namespace CardCore
         }
     }
 
-    /// <summary>Mana 字典条目（与卡 costList 的 {manaType, amount} 完全同款——键名一致）。</summary>
-    [Serializable]
-    public class ManaAmountEntry
-    {
-        public int manaType;
-        public float amount;
-    }
+    // ManaAmountEntry 已删除（2026-10-04 费用位置数组化）：原子表 ManaList 与卡 costList
+    // 统一为 ElementCost/float 位置数组，{manaType, amount} 对列表形态全链退役。
 
     /// <summary>
     /// 代价条目 —— 卡牌效果的费用配置。
@@ -618,12 +580,12 @@ namespace CardCore
         public int ArrowDirections;          // HexDirection Flags（int 序列化——JsonUtility 枚举同 int）
         public List<LinkAuraData> LinkAuras; // 光环条目（stat+value / keyword 二选一；非光环效果恒 null）
 
-        // 效果锚价缓存（2026-09-23 定案；2026-10-02 口径修正）：合成期实时推导随效果落盘
-        //（Effects.json cost 列）、装载期逐效果还原于此——**参考快照，运行时无消费者**：
+        // 效果锚价缓存（2026-09-23 定案；2026-10-02 口径修正；2026-10-04 位置数组化）：合成期实时推导
+        // 随效果落盘（Effects.json cost 列=位置数组）、装载期逐效果还原于此——**参考快照，运行时无消费者**：
         // 显示/预检/扣款一律实时重推导（CostDerivationService.DeriveElementCosts 同链），
         /// 本列的意义是构筑资料与 Effects.json 的人类可读性。派生数据：不入内容哈希，
         // 原子表调价后即陈旧（重算不换 id——运行时不受影响，快照下次保存时刷新）。
-        public List<ElementCostRef> AnchorCost;
+        public ElementCost AnchorCost;
 
         public List<ActivationConditionData> ActivationConditions;
         public List<ActivationConditionData> TriggerConditions;
@@ -670,7 +632,7 @@ namespace CardCore
         int IHasPower.Power { get; set; }
 
         // IHasCost
-        Dictionary<int, float> IHasCost.Cost { get; set; }
+        ElementCost IHasCost.Cost { get; set; }
 
         // IHasEffects
         List<Effect_table> IHasEffects.Effects { get; set; }
@@ -766,13 +728,10 @@ namespace CardCore
         /// </summary>
         public CardData GetData() => _data;
 
-        /// <summary>费用字典求和作为内部 _baseCost（用于 GetCost/ModifyCost 原语）</summary>
-        private static int ComputeBaseCost(Dictionary<int, float> cost)
+        /// <summary>费用合计（int 截断）作为内部 _baseCost（用于 GetCost/ModifyCost 原语）</summary>
+        private static int ComputeBaseCost(ElementCost cost)
         {
-            if (cost == null) return 0;
-            float total = 0f;
-            foreach (var kvp in cost) total += kvp.Value;
-            return (int)total;
+            return (int)(cost?.Total ?? 0f);
         }
     }
 
@@ -843,7 +802,7 @@ namespace CardCore
                 Life = DefaultLife,
                 Power = DefaultPower,
                 Effects = new List<CardEffectData>(DefaultEffects),
-                Cost = new Dictionary<int, float>()
+                Cost = new ElementCost()
             };
         }
     }

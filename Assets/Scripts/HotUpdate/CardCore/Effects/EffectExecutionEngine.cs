@@ -107,7 +107,7 @@ namespace CardCore
             var specialCosts = effect.Costs != null
                 ? effect.Costs.Where(c => c.Type != CostType.ElementConsume).ToList()
                 : new List<CostInstance>();
-            if (elementCosts.Count > 0 || specialCosts.Count > 0)
+            if (!elementCosts.IsZero || specialCosts.Count > 0)
             {
                 var costContext = new CostContext
                 {
@@ -120,7 +120,7 @@ namespace CardCore
                 if (specialCosts.Count > 0 && !CostHandlerRegistry.CanPayAll(specialCosts, costContext))
                     return false;
                 // 元素代价：当前 bank 可付（浓度上限口径；黑白获取只经卡结算，无兑换通道）
-                if (elementCosts.Count > 0 && !ElementCostPayment.CanPay(elementCosts, costContext))
+                if (!elementCosts.IsZero && !ElementCostPayment.CanPay(elementCosts, costContext))
                     return false;
             }
 
@@ -204,7 +204,7 @@ namespace CardCore
                 ? effect.Costs.Where(c => c.Type != CostType.ElementConsume).ToList()
                 : new List<CostInstance>();
 
-            if (elementCosts.Count > 0 || specialCosts.Count > 0)
+            if (!elementCosts.IsZero || specialCosts.Count > 0)
             {
                 var costContext = new CostContext
                 {
@@ -230,7 +230,7 @@ namespace CardCore
                     }
                 }
 
-                if (!skipElementCost && !effect.ElementCostPrepaid && elementCosts.Count > 0 &&
+                if (!skipElementCost && !effect.ElementCostPrepaid && !elementCosts.IsZero &&
                     !ElementCostPayment.Pay(elementCosts, costContext))
                 {
                     TideLog.Warn($"[EffectExecutor] 效果 {effect.Id} 元素费付不出——空转（不回滚不断链）");
@@ -457,7 +457,7 @@ namespace CardCore
 
         /// <summary>
         /// 按发放事件发放黑白：每个原子（含子效果各自）一次事件，
-        /// 量 = 单价 × 错边命中数——**每回合获得封顶 1/色**（2026-09-14 定案，与代价补偿全来源累计，
+        /// 量 = 单价 × 错边命中数——**每回合获得封顶=地牌槽上限/色**（与代价补偿全来源累计，
         /// 钳制在 ElementPool.AddMana 统一执行，余数不补）。
         /// </summary>
         private void FlushWrongSideGrants(Dictionary<AtomicEffectInstance, int> hits, EffectDefinition def,
@@ -1559,6 +1559,9 @@ namespace CardCore
 
                 // 无效指示物（蓝3）：拦非启动式能力（触发式+光环）——与沉默（拦启动式）对称
                 new AddNullifyHandler(),
+
+                // 锁定指示物（2026-10-04 窥渊原子化，蓝2）：手牌无法使用，持有者回合末层数−1
+                new LockCardHandler(),
 
                 // 沉睡（2026-09-11 改造，绿1 中性）：赋予沉睡指示物（效果/指示物分离——持续规则在指示物）
                 new SleepHandler(),

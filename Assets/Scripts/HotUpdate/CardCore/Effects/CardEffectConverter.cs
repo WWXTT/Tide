@@ -224,6 +224,9 @@ namespace CardCore
                     // 效果型代价（2026-09-11）：付费步强制执行的原子（执行与补偿在 CostCompensationService）。
                     // 内容契约：代价只能挂对自己有害 / 对对手有益——p≠0 必须错边；p=0 须单侧域锁定（方向随域）。
                     // 双侧域/无域 = 中性，既非代价也非收益 → 拒。
+                    // 2026-10-04 定案：任意单向效果不限价（09-21「等价1」退役）——合成器放置口经
+                    // CostDerivationService.PayloadCostDomain 逆转选择范围（双侧收窄/正确侧镜像），
+                    // 镜像域可超出表行域；装载期只校验上述错边契约（对镜像域天然成立），不再限价。
                     // 空 payload（refId 为空——非 Payload 代价的占位/迁移残留）不作 Payload 处理
                     if (costEntry.payload != null && !string.IsNullOrEmpty(costEntry.payload.refId))
                     {
@@ -237,14 +240,6 @@ namespace CardCore
                             TideLog.Error($"[CardEffectConverter] 卡 {sourceCardId} 代价栏 Payload 违反内容契约：" +
                                            "代价只能挂对自己有害或对对手有益的原子（错边），应当剔除该代价");
                             continue;
-                        }
-                        // 构筑期限价（2026-09-21 定案）：只允许装**形成 1 费**的代价——
-                        // 发放侧是全量获得（无钳制），限价在构筑期收口；后续靠情况开放。
-                        int payloadPrice = CostDerivationService.PayloadUnitGrant(payloadAtom);
-                        if (payloadPrice > 1)
-                        {
-                            TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 代价栏 Payload 形成 {payloadPrice} 费：" +
-                                             "构筑期只允许装形成 1 费的代价（2026-09-21 定案，后续靠情况开放）");
                         }
                         def.Costs.Add(new CostInstance
                         {
@@ -454,17 +449,6 @@ namespace CardCore
         /// 供 CardCostService 计算"获得白16"显示行）。</summary>
         public static AtomicEffectInstance ConvertPayloadForDisplay(AtomicEffectEntry entry)
             => entry == null ? null : ConvertAtomicEffect(entry, allowWrongSide: true);
-
-        /// <summary>ManaList（costList 同款条目）→ 字典；null/空 → null（无 Mana 参数语义）。</summary>
-        private static Dictionary<ManaType, float> BuildMana(List<ManaAmountEntry> list)
-        {
-            if (list == null || list.Count == 0) return null;
-            var dict = new Dictionary<ManaType, float>();
-            foreach (var m in list)
-                if (m.amount > 0)
-                    dict[(ManaType)m.manaType] = m.amount;
-            return dict.Count > 0 ? dict : null;
-        }
 
         /// <summary>
         /// 组合域预计算：主序列（含抉择 per-mode）原子域交集 + 组合属性 filter（成员 AND）。

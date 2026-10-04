@@ -12,7 +12,8 @@ namespace SynergyUI
     /// 输出严格匹配 CardLoader 的 schema：
     ///   外层 TestCardsConfigWrapper { cards:[CardConfigEntry], deckConfig:{copiesPerCard} }
     ///   每卡 CardConfigEntry（camelCase: id/cardName/supertype/power/life/costList/keywords/tags/effects）
-    ///   costList 项 { manaType:int, amount:float }；effects 项为 CardEffectData（PascalCase）。
+    ///   costList = float 位置数组（2026-10-04：下标=ManaType 枚举序号，长度=枚举成员数）；
+    ///   effects 项为 CardEffectData（PascalCase）。
     ///
     /// 落盘到 StreamingAssets/Card/Cards.json（2026-09-14 统一定案+效果引用化；2026-09-21 定案：
     /// 卡属用户数据，与效果/卡组同住 Card/ 目录。编辑器读取（CardCatalog 卡池）与 UI 保存同一文件——
@@ -120,7 +121,7 @@ namespace SynergyUI
                 supertype = card.Supertype.ToString(),
                 power = card.Power ?? 0,
                 life = card.Life ?? 0,
-                costList = new List<CostJsonEntry>(),
+                costList = new List<float>(), // 位置数组（2026-10-04：下标=ManaType 枚举序号），下方逐位回填
                 keywords = unmappedKeywords,
                 tags = card.Tags != null ? new List<string>(card.Tags) : new List<string>(),
                 effects = null, // 效果引用化（2026-09-14）：不内嵌——经 effectIds 引用 Effects.json
@@ -137,10 +138,9 @@ namespace SynergyUI
 
             if (card.Cost != null)
             {
-                foreach (var kv in card.Cost)
-                {
-                    entry.costList.Add(new CostJsonEntry { manaType = kv.Key, amount = kv.Value });
-                }
+                // 费用位置数组（2026-10-04）：整组回填（含 0 位——定长数组是装载/校验的统一形态）
+                for (int i = 0; i < card.Cost.v.Length; i++)
+                    entry.costList.Add(card.Cost.v[i]);
             }
             return entry;
         }

@@ -151,6 +151,11 @@ namespace CardCore.Attribute
         /// <summary>诅咒（开放式分支）：附加到对手的卡上——Permanent（须活过牌库→手牌的换区清除），
         /// 对手抽到该卡时由 CurseSystem 自动执行诅咒载荷分支效果并消层（一次性）。</summary>
         public const string CurseCounter = "Curse";
+        /// <summary>锁定（2026-10-04 窥渊仪典原子化定案）：层数=剩余回合，持有者回合结束 −1（手牌区
+        /// 与场上同样倒数——持有者侧结算域含手牌）；持有期间该牌无法使用（PlayCard/响应出牌/
+        /// 苏醒立约同门，LockedCardRestriction+CommitAwaken）。归零解锁。Permanent——消退不走
+        /// UntilEndOfTurn 整类清零，由本类逐层倒数承担。</summary>
+        public const string LockCounter = "Lock";
 
         private static readonly Dictionary<string, CounterSpec> _registry =
             new Dictionary<string, CounterSpec>();
@@ -206,6 +211,8 @@ namespace CardCore.Attribute
             Register(new CounterSpec { Id = ExposedCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "展示" });
             // 诅咒：Permanent 是活过 Deck→Hand 换区清除的唯一档；触发与消耗由 CurseSystem 在抽牌时点驱动
             Register(new CounterSpec { Id = CurseCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "诅咒" });
+            // 锁定（2026-10-04）：Permanent + 逐层倒数（OnTurnEnd ③ 块）——层=剩余回合，手牌区同样结算
+            Register(new CounterSpec { Id = LockCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "锁定" });
 
             // ---- 守护（2026-09-11 定案）----
             // 守护者/被守护者成对：被守护者指示物的来源=第一个守护者（多守护者仅第一个触发改写）；
@@ -495,17 +502,39 @@ namespace CardCore.Attribute
                     });
                 }
             }
+
+            // ── ③ 锁定逐层倒数（2026-10-04 窥渊原子化）：层=剩余回合，持有者回合结束 −1，归零解锁 ──
+            foreach (var card in AllEntities(turnPlayer, zoneManager).OfType<Card>())
+            {
+                int locks = card.GetCounterCount(LockCounter);
+                if (locks <= 0) continue;
+                card.AddCounters(LockCounter, -1);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = card,
+                    Keyword = LockCounter,
+                    Detail = locks - 1 > 0
+                        ? $"锁定倒数（持有者回合结束，余 {locks - 1} 回合）"
+                        : "锁定解除（持有者回合结束，层数归零）",
+                });
+            }
         }
 
-        /// <summary>回合方玩家 + 回合方战场卡（持有者侧结算域，2026-09-16 统一档定案：
+        /// <summary>回合方玩家 + 回合方战场/手牌卡（持有者侧结算域，2026-09-16 统一档定案：
         /// 指示物只在持有者回合末发作/到期——对手侧实体等对手回合末，此域不含对手）。
+        /// 2026-10-04 手牌区纳入（窥渊原子化定案：锁定指示物在手牌中同样回合末倒数——
+        /// 「像在场上一样」；手牌常驻指示物 CostUp/CostDown/Exposed=换区清、Curse=Permanent 均不受影响）。
         /// ToList 物化快照：剧毒死亡会在结算中把卡移出战场（容器列表变更），惰性遍历会炸。</summary>
         private static IEnumerable<Entity> AllEntities(Player turnPlayer, ZoneManager zoneManager)
         {
             var snapshot = new List<Entity> { turnPlayer };
             if (zoneManager != null)
+            {
                 foreach (var card in zoneManager.GetCards(turnPlayer, Zone.Battlefield).ToList())
                     if (card != null) snapshot.Add(card);
+                foreach (var card in zoneManager.GetCards(turnPlayer, Zone.Hand).ToList())
+                    if (card != null) snapshot.Add(card);
+            }
             return snapshot;
         }
 
