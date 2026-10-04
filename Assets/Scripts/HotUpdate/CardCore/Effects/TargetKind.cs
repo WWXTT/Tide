@@ -143,6 +143,17 @@ namespace CardCore
         public static List<int> MirrorDomain(List<int> kinds)
             => kinds == null ? new List<int>() : kinds.Select(Mirror).Distinct().OrderBy(k => k).ToList();
 
+        /// <summary>隐藏信息区（2026-10-04 相同目标定案）：对方手牌/双方牌库——域全落此类的原子
+        /// =区域自结算（handler 按域自理），不解析候选、不弹目标选择。</summary>
+        public static bool IsHiddenZone(int kind)
+            => kind == (int)TargetKind.EnemyHand
+            || kind == (int)TargetKind.OwnDeck
+            || kind == (int)TargetKind.EnemyDeck;
+
+        /// <summary>整域是否全为隐藏区（空域=false——空域判定由调用方先行）。</summary>
+        public static bool AllHiddenZone(List<int> kinds)
+            => kinds != null && kinds.Count > 0 && kinds.All(IsHiddenZone);
+
         /// <summary>卡种类 → (Zone, 是否己方)。单位种类返回 (None, false) 无意义值。</summary>
         public static (Zone zone, bool own) ZoneOf(int kind)
         {

@@ -378,9 +378,9 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 手动选择显示域（2026-09-13 扰魔/潜行定案）：从"选择"候选中隐藏对方侧扰魔/潜行单位——
-        /// 弹窗不显示、AI/无头代替选取（自动取前 N）同口径不可选；不改变范围本身
-        /// （Full/Random 从完整候选域结算，照常命中）。指名硬校验走 EffectTargeting.CanTarget。
+        /// 手动选择显示域（2026-09-13 扰魔/潜行定案；2026-10-04 隐密同口径）：从"选择"候选中隐藏
+        /// 对方侧扰魔/潜行/隐密单位——弹窗不显示、AI/无头代替选取（自动取前 N）同口径不可选；
+        /// 不改变范围本身（Full/Random 从完整候选域结算，照常命中）。指名硬校验走 EffectTargeting.CanTarget。
         /// </summary>
         public static List<Entity> ExcludeUnselectable(List<Entity> candidates, Player controller)
         {
@@ -390,7 +390,9 @@ namespace CardCore
                 if (!(c is Card card) || controller == null) return true;
                 var tc = card.GetController();
                 return tc == null || tc == controller
-                    || !(card.HasKeyword(KeywordRules.Untargetable) || card.HasKeyword(KeywordRules.Stealth));
+                    || !(card.HasKeyword(KeywordRules.Untargetable)
+                         || card.HasKeyword(KeywordRules.Stealth)
+                         || card.HasKeyword(KeywordRules.Concealed));
             }).ToList();
         }
 

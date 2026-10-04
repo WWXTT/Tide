@@ -86,17 +86,16 @@ namespace CardCore
         /// <summary>本回合产出次数（手动自选色 + 结束阶段自动灰色；每个全局回合重置）</summary>
         public int TapsThisTurn { get; set; }
 
-        // ===== 黑白每回合获得封顶（2026-09-14 定案；2026-10-04 改口径）=====
-        // 黑白=万用色（可替代红蓝绿灰支付），获得量受每回合封顶钳制——
-        // 09-14 定案封顶固定 1；2026-10-04 代价栏不限价（任意单向效果·镜像逆转）配套：
-        // 封顶 = 地牌槽上限 GetLandCap（随全局回合 1→9，与出牌费用上限同曲线）。
-        // 全来源累计（代价补偿/错边结算/一切 AddMana 路径），余数不补；
-        // bank 跨回合无上限结转不受影响。钳制唯一咽喉=ElementPool.AddMana。
+        // ===== 黑白获取台账（2026-10-04 使用侧定案：产出钳退役）=====
+        // 旧链：09-14 黑白每回合获得封顶 1 → 同日改地牌上限 → **2026-10-04 退役**——
+        // 「限制产出」改为「限制使用」：黑白获得全量入账（与其余色同口径，bank 囤积无上限），
+        // 使用（支付）时单次贡献 ≤ 地牌上限（GetBillPaymentPlan 浓度上限——代价产出的黑白
+        // 经统一支付管线，不能绕过地牌上限）。下方两计数保留为**纯台账**（观测/AI 特征）。
 
-        /// <summary>本回合已获得黑元素数（封顶=地牌槽上限；回合开始清零）</summary>
+        /// <summary>本回合已获得黑元素数（纯台账——2026-10-04 起不参与钳制；回合开始清零）</summary>
         public int BlackGainedThisTurn { get; set; }
 
-        /// <summary>本回合已获得白元素数（封顶=地牌槽上限；回合开始清零）</summary>
+        /// <summary>本回合已获得白元素数（纯台账——2026-10-04 起不参与钳制；回合开始清零）</summary>
         public int WhiteGainedThisTurn { get; set; }
 
         public PlayerElementPool()
@@ -391,20 +390,17 @@ namespace CardCore
         /// **黑白每回合获得封顶=地牌槽上限/色**（2026-09-14 定案封顶 1；2026-10-04 代价不限价配套改口径）：
         /// 本方法为唯一钳制咽喉——全来源累计、余数不补；钳到 0 时不入账也不发事件。返回实发量（钳后）。
         /// </summary>
+        /// <summary>效果发放（代价补偿/错边/采掘等 AddMana 路径）——2026-10-04 使用侧定案：
+        /// 黑白**产出不再钳制**（旧"每回合获得 ≤ 地牌上限"产出钳退役）——黑白与其余色同口径，
+        /// bank 囤积无上限；约束移到**使用侧**：支付时单次贡献 ≤ 地牌上限（GetBillPaymentPlan
+        /// 浓度上限——代价产出的黑白经统一支付管线，不能绕过）。GainedThisTurn 保留为纯台账。</summary>
         public int AddMana(Player player, ManaType type, Card fromCard, int amount = 1)
         {
             if (player == null || amount <= 0) return 0;
             var pool = GetPool(player);
 
-            if (type == ManaType.Black || type == ManaType.White)
-            {
-                int gained = type == ManaType.Black ? pool.BlackGainedThisTurn : pool.WhiteGainedThisTurn;
-                int allowed = Math.Min(amount, GetLandCap(player) - gained);
-                if (allowed <= 0) return 0; // 本回合该色已满：不入账、不发事件
-                amount = allowed;
-                if (type == ManaType.Black) pool.BlackGainedThisTurn += amount;
-                else pool.WhiteGainedThisTurn += amount;
-            }
+            if (type == ManaType.Black) pool.BlackGainedThisTurn += amount;
+            else if (type == ManaType.White) pool.WhiteGainedThisTurn += amount;
 
             pool.AvailableMana[type] += amount;
             PublishEvent(new ElementPoolGainEvent
@@ -567,9 +563,11 @@ namespace CardCore
 
         /// <summary>
         /// 挑下一张该横置的地牌与产色（分配轨迹与 GetBillPaymentPlan 同序同链）。
-        /// 产色候选序：① 缺口需求的本色（本色货币只进本色链，先花掉不吃亏）；
-        /// ② 为「用灰付掉的先序需求」产本色，释放灰给缺口（灰进全部四色链，留给最难垫的缺口）；
-        /// ③ 灰（垫任意四色缺口）。浓度上限：货币贡献已到帽再产无益，跳过。
+        /// 2026-10-04 支付链改向（黑白垫三色/三色垫灰/黑白不垫灰）后产色候选序：
+        /// ① 三色缺口 → 缺口本色地（黑白地牌不产，bank 黑白已在规划轨迹内计尽；
+        ///    灰地不再垫三色缺口）；
+        /// ② 灰缺口 → 灰地优先（本色货币只进本色链）→ 任一三色地（三色垫灰）。
+        /// 浓度上限：货币贡献已到帽再产无益，跳过。
         /// </summary>
         private static bool TryPickAutoTap(
             Dictionary<ManaType, int> bill, Dictionary<ManaType, int> bank,
@@ -584,7 +582,7 @@ namespace CardCore
                     && (!bank.TryGetValue(bw, out var bwHave) || bwHave < bwNeed))
                     return false;
 
-            // 复刻账单规划器的分配轨迹：定位首个失败需求 + 各货币用量 + 各需求的灰支付量
+            // 复刻账单规划器的分配轨迹：定位首个失败需求 + 各货币用量
             var working = new Dictionary<ManaType, int>(bank);
             var used = new Dictionary<ManaType, int>();
             foreach (ManaType c in Enum.GetValues(typeof(ManaType)))
@@ -592,7 +590,6 @@ namespace CardCore
                 used[c] = 0;
                 if (!working.ContainsKey(c)) working[c] = 0;
             }
-            var grayPaidBy = new Dictionary<ManaType, int>();
 
             ManaType failing = ManaType.Gray;
             foreach (var need in ElementPaymentValidator.FourColorOrder)
@@ -608,40 +605,34 @@ namespace CardCore
                     if (take <= 0) continue;
                     working[currency] = have - take;
                     used[currency] += take;
-                    if (currency == ManaType.Gray)
-                        grayPaidBy[need] = grayPaidBy.TryGetValue(need, out var g) ? g + take : take;
                     remaining -= take;
                 }
                 if (remaining > 0) { failing = need; break; }
             }
 
-            // ① 缺口本色（灰需求的本色即灰，归③）
-            if (failing != ManaType.Gray && used[failing] < cap
-                && TryFindLand(avail, failing, out landIdx))
+            if (failing != ManaType.Gray)
             {
-                color = failing;
-                return true;
-            }
-
-            // ② 为先序灰支付的需求产本色，释放灰给缺口
-            foreach (var kv in grayPaidBy)
-            {
-                if (kv.Value <= 0 || kv.Key == ManaType.Gray) continue;
-                if (used[kv.Key] >= cap) continue;
-                if (TryFindLand(avail, kv.Key, out landIdx))
+                // ① 三色缺口：只有本色地能补（灰地/他色地不入该链）
+                if (used[failing] < cap && TryFindLand(avail, failing, out landIdx))
                 {
-                    color = kv.Key;
+                    color = failing;
                     return true;
                 }
+                return false;
             }
 
-            // ③ 灰（垫任意四色缺口）
+            // ② 灰缺口：灰地优先（本色货币只进本色链），否则任一三色地（三色垫灰）
             if (used[ManaType.Gray] < cap && TryFindLand(avail, ManaType.Gray, out landIdx))
             {
                 color = ManaType.Gray;
                 return true;
             }
-
+            foreach (var rgb in new[] { ManaType.Red, ManaType.Green, ManaType.Blue })
+                if (used[rgb] < cap && TryFindLand(avail, rgb, out landIdx))
+                {
+                    color = rgb;
+                    return true;
+                }
             return false;
         }
 
@@ -662,7 +653,7 @@ namespace CardCore
         /// <summary>
         /// 全局回合开始（GameCore.OnTurnStarted 调用，每回合一次，无论轮到谁）：
         /// 1. 地牌槽曲线按全局回合数推进（先手首回合 1，此后每回合开始 +1，最大 9 —— 对手首回合即为 2）
-        /// 2. 所有玩家的本回合产出计数与黑白获得计数清零（每回合封顶=地牌槽上限/色，按全局回合重置）
+        /// 2. 所有玩家的本回合产出计数与黑白获得台账清零（2026-10-04 起纯观测，按全局回合重置）
         /// 3. 回合玩家（准备阶段）地牌全部解除横置
         /// </summary>
         public void OnTurnStart(Player turnPlayer, int globalTurnNumber)

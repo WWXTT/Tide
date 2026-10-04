@@ -10,8 +10,7 @@ namespace CardCore.Attribute.Handlers
     /// - token 有全套卡参数（模板 = CardData），与卡的核心区别是**不唯一**；
     /// - 实例 ID = 模板ID#序号（TimestampSystem.NextSequence，对局中临时赋值作索引，
     ///   先例 CopyEffectsEngine.GenerateCopyID；实例 ID 唯一化避免 TextChangeLayer._cardIdMap 同 ID 互覆）；
-    /// - 落区由组合层 context.SummonDropZone 指定（战场/手牌/牌组三档，费用按落区系数计价——
-    ///   注意 Zone.Hand==0：效果合成界面必须显式填落区，计费不做默认猜测）；
+    /// - 落区写死战场（2026-10-05 定案：衍生物恒落战场，组合层三档退役；计价同口径恒战场系数）；
     /// - 模板解析经静态委托 ResolveTemplate（组合根注入 CardCatalog.GetById，
     ///   仿 MorphSystem.ResolveMorphTarget；未注入时复用变形解析器——同为模板ID→CardData）。
     ///
@@ -49,7 +48,9 @@ namespace CardCore.Attribute.Handlers
             }
 
             int count = effect.Value <= 0 ? 1 : effect.Value;
-            var dropZone = context.SummonDropZone;
+            // 2026-10-05 落区写死定案：衍生物恒落战场（组合层 SummonDropZone 三档退役——
+            // 临时卡类落手牌、毁灭/除外/弹回/洗回去向原生固定，均不经组合层落区）
+            var dropZone = Zone.Battlefield;
 
             for (int i = 0; i < count; i++)
             {

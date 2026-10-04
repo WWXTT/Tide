@@ -157,6 +157,19 @@ namespace CardCore
         /// </summary>
         public bool IsResolved { get; set; }
 
+        /// <summary>发动层无效（2026-10-04 两层无效定案，NegateActivation 原子标记）：结算时净零成本跳过——
+        /// 启动式不扣费（横置为声明期代价不重置）、触发式不计发动次数（入栈记账退还）。
+        /// 强制桶（Mandatory）不可被标记（不受发动无效管制）。</summary>
+        public bool IsActivationNegated { get; set; }
+
+        /// <summary>效果层无效（NegateEffect 原子标记）：发动照常（计费/计次/潜行移除照走），效果不结算。
+        /// 强制桶同样可被标记（受效果无效管制）。</summary>
+        public bool IsEffectNegated { get; set; }
+
+        /// <summary>发动方式（FromPendingEffect 透传）：两层无效的管制面判定——
+        /// 强制桶不受发动无效管制、受效果无效管制。</summary>
+        public EffectActivationType ActivationType { get; set; }
+
         /// <summary>
         /// 执行完整文本（2026-09-16 描述接口化定案，效果级聚合）：栈结算完成时由执行器写入——
         /// 原子片段经 handler.GetDescription(atom, context) 逐个生成（含目标名与 LastOutcome 真实产出）
@@ -280,6 +293,7 @@ namespace CardCore
                 SourceEffect = null, // PendingEffect 基于 EffectDefinition，不是 Effect
                 Controller = pending.Controller,
                 ActivationSpeed = pending.ActivationSpeed,
+                ActivationType = pending.ActivationType, // 两层无效管制面判定（2026-10-04）
                 Targets = new List<Entity>(pending.SelectedTargets),
                 TriggeringEvent = pending.TriggeringEvent,
                 TimestampInfo = pending.TimestampInfo,

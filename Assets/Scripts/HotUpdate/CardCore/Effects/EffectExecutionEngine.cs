@@ -161,6 +161,22 @@ namespace CardCore
 
             var effect = instance.Definition;
 
+            // 发动层无效（2026-10-04 两层无效定案，NegateActivation 标记）：发动本身作废——净零成本跳过：
+            // 不移除潜行（未真正发动过效果）、不扣元素费/特殊代价（启动式=不扣费，横置为声明期代价不重置）、
+            // 不结算原子；触发式退还入栈时的发动次数记账（不计入发动次数）。
+            if (instance.IsActivationNegated)
+            {
+                instance.IsResolved = true;
+                if (instance.TriggeringEvent != null)
+                    _usageTracker.RefundActivation(UsageKey(effect, instance.Source));
+                EventManager.Instance.Publish(new EffectResolveEvent
+                {
+                    ResolvedEffect = instance.SourceEffect,
+                    Context = instance.EContext ?? new EffectResolutionContext()
+                });
+                return;
+            }
+
             // 潜行：发动效果后移除（攻击后的移除在 CombatSystem.DeclareAttack）
             if (instance.Source is Card sourceCard && sourceCard.HasKeyword(KeywordRules.Stealth))
             {
@@ -214,12 +230,24 @@ namespace CardCore
                     Source = instance.Source
                 };
 
+                // 顺序（2026-10-04 本轮对齐 GameActions.ResolveCardCastAsync）：**元素费先于代价补偿**——
+                // 元素池不足以支付时，将生成的代价黑白不提前计入（新生成黑白不垫本次支付）。
+                //
                 // 特殊代价（2026-09-14 代价强制定案：付代价=得黑/白，补偿跟代价走）：
                 // 卡牌 cast 的特殊代价已在付费步**强制支付并补偿**（ResolveCardCastAsync，ElementCostPrepaid 标记）；
-                // 启动式/动态效果在此现付+补偿（同为强制路径 PayWithCompensationAsync——无选择窗口）。
+                // 启动式/动态效果在此现付+补偿（同为强制路径 PayWithCompensationAsync——无选择窗口；
+                // 补偿后置：执行生效后按快照全价立即获得黑白；代价无有效目标→不执行不补偿）。
                 // 2026-09-16 结算失败口径定案：费用付不出/目标为0 → **空转+日志，不回滚不断链**
                 //（入栈期已过滤可付性，此处失败=窗口内状态变化；已付不退，结算链继续）——
                 // 旧 EffectResolutionException 会中断整条 ResolveStack，已退役。
+                if (!skipElementCost && !effect.ElementCostPrepaid && !elementCosts.IsZero &&
+                    !ElementCostPayment.Pay(elementCosts, costContext))
+                {
+                    TideLog.Warn($"[EffectExecutor] 效果 {effect.Id} 元素费付不出——空转（不回滚不断链）");
+                    instance.IsResolved = true;
+                    return;
+                }
+
                 if (specialCosts.Count > 0 && !effect.ElementCostPrepaid)
                 {
                     if (!await CostCompensationService.PayWithCompensationAsync(specialCosts, costContext))
@@ -229,14 +257,22 @@ namespace CardCore
                         return;
                     }
                 }
+            }
 
-                if (!skipElementCost && !effect.ElementCostPrepaid && !elementCosts.IsZero &&
-                    !ElementCostPayment.Pay(elementCosts, costContext))
+            // 效果层无效（2026-10-04 两层无效定案，NegateEffect 标记）：发动照常——计费已付（不返还）、
+            // 潜行已移除、横置不重置（声明期代价）；效果不结算，启动式发动次数照记
+            //（触发式入栈时已记、不退——计入发动次数）。强制桶同走此门（受效果无效管制）。
+            if (instance.IsEffectNegated)
+            {
+                instance.IsResolved = true;
+                if (instance.TriggeringEvent == null)
+                    _usageTracker.RecordActivation(UsageKey(effect, instance.Source));
+                EventManager.Instance.Publish(new EffectResolveEvent
                 {
-                    TideLog.Warn($"[EffectExecutor] 效果 {effect.Id} 元素费付不出——空转（不回滚不断链）");
-                    instance.IsResolved = true;
-                    return;
-                }
+                    ResolvedEffect = instance.SourceEffect,
+                    Context = resolution
+                });
+                return;
             }
 
             // 组合域统一目标解析（2026-09-10 目标域模型）：
@@ -761,7 +797,7 @@ namespace CardCore
 
         /// <summary>
         /// 整卡施放入栈（使用时点声明）：打出的卡已移入发动区，本对象代表「此卡被使用」，
-        /// 对手获得优先权——响应窗口内可经 GameActions.PlayCardInResponse 打出 打落/发动无效 等。
+        /// 对手获得优先权——响应窗口内可经 GameActions.PlayCardInResponse 打出 发动无效/效果无效 等。
         /// 2026-09-13 定案：整卡施放同为速度发动——速度=卡面声明（效果 BaseSpeed 最大值，缺省 0）；
         /// 门槛同 TryActivateEffect（回合方 ≥ / 非回合方严格大于），0 速卡无法在对手回合响应打出。
         /// 结算消费点见 GameActions.ResolveCardCastAsync（Option Y：扣费在响应窗口之后）。

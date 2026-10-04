@@ -48,12 +48,36 @@ namespace SynergyUI
         public static string TargetKindZhOf(TargetKind k)
             => TargetKindZhMap.TryGetValue(k, out var zh) ? zh : k.ToString();
 
-        /// <summary>{target} 占位的名词：单值实例域 → 中文名；null（表默认）/多值 → 「目标」。</summary>
-        public static string TargetNoun(AtomicEffectEntry atom)
+        /// <summary>{target} 占位的名词：单值实例域 → 中文名；null（表默认）/多值 → 「目标」。
+        /// 例外（2026-10-04 关键词行修复）：关键词行（MountKinds 含 Keyword 位）的 kinds=[Self]
+        /// 是「本体挂自己」存储态（合成器 AtomZh 两态命名、运行时自授予同源），而该行模板的
+        /// {target} 是叙事名次——受击对手或字面「目标」（"不会成为效果{target}"），不随域渲染，
+        /// 否则出"不会成为攻击和效果的自己"病句——回退「目标」。非关键词行（如沉睡 0,1,2 域）
+        /// 收窄到 Self 仍显「自己」，那是真实选择。</summary>
+        public static string TargetNoun(AtomicEffectConfig cfg, AtomicEffectEntry atom)
         {
             if (atom?.kinds != null && atom.kinds.Count == 1)
-                return TargetKindZhOf((TargetKind)atom.kinds[0]);
+            {
+                bool keywordSelf = (TargetKind)atom.kinds[0] == TargetKind.Self
+                    && cfg != null && MountKindExtensions.ParseCsv(cfg.MountKinds).Contains(MountKind.Keyword);
+                if (!keywordSelf)
+                    return TargetKindZhOf((TargetKind)atom.kinds[0]);
+            }
             return "目标";
+        }
+
+        /// <summary>效果级作用范围版（2026-10-04 相同目标定案）：header.TargetKinds 单值优先——
+        /// 并列全体原子共享同一作用范围，{target} 按效果级域渲染（关键词行 [Self] 存储态例外同口径）；
+        /// 未声明/多值回落实例域口径。</summary>
+        public static string TargetNoun(AtomicEffectConfig cfg, AtomicEffectEntry atom, CardEffectData header)
+        {
+            if (header?.TargetKinds != null && header.TargetKinds.Count == 1)
+            {
+                bool keywordSelf = (TargetKind)header.TargetKinds[0] == TargetKind.Self
+                    && cfg != null && MountKindExtensions.ParseCsv(cfg.MountKinds).Contains(MountKind.Keyword);
+                return keywordSelf ? "目标" : TargetKindZhOf((TargetKind)header.TargetKinds[0]);
+            }
+            return TargetNoun(cfg, atom);
         }
 
         /// <summary>渲染单原子描述。cfg 为空（无表行 fallback 原子）时回退 refId。</summary>
@@ -65,8 +89,10 @@ namespace SynergyUI
             int v = atom.value;
             int span = atom.amp > 0f ? TideMath.RoundToInt(Math.Abs(v) * atom.amp) : 0;
             string number = span > 0 ? $"{Math.Max(0, v - span)}至{v + span}" : v.ToString();
-            // {target} → 实例域名次（2026-09-22 五轮：单值域显作用对象；表默认/多值保持「目标」）
-            string body = tpl.Replace("{value}", number).Replace("{target}", TargetNoun(atom));
+            // {target} → 实例域名次（2026-09-22 五轮：单值域显作用对象；表默认/多值保持「目标」；
+            // 2026-10-04 补：关键词行 [Self] 存储态回退「目标」，见 TargetNoun；
+            // 2026-10-04 相同目标定案：header 效果级作用范围单值优先）
+            string body = tpl.Replace("{value}", number).Replace("{target}", TargetNoun(cfg, atom, header));
             if (span > 0) body = "随机 " + body;
             if (header != null && header.RandomTarget != 0)
                 body = "随机目标·" + body;
@@ -96,7 +122,7 @@ namespace SynergyUI
                 foreach (var s in graph.steps)
                 {
                     if (s == null) continue;
-                    if (s.kind == 0 && s.atomic != null) parts.Add(RenderAtomEntry(s.atomic));
+                    if (s.kind == 0 && s.atomic != null) parts.Add(RenderAtomEntry(s.atomic, h));
                     else if (s.kind == 1)
                     {
                         // 门条件中文（ComposerCatalog.GateLabel 同源——含改写门"伤害不发生"口径）
@@ -127,13 +153,21 @@ namespace SynergyUI
             return Render(AtomicEffectTable.GetByHashId(atom.refId), atom, null);
         }
 
+        /// <summary>条目级渲染·效果级作用范围版（2026-10-04 相同目标定案）：并列主序列原子传
+        /// header——{target} 按效果级域渲染；奖励原子目标各自解析，不传 header（用单参重载）。</summary>
+        public static string RenderAtomEntry(AtomicEffectEntry atom, CardEffectData header)
+        {
+            if (atom == null || string.IsNullOrEmpty(atom.refId)) return "原子";
+            return Render(AtomicEffectTable.GetByHashId(atom.refId), atom, header);
+        }
+
         /// <summary>引擎主干显示文本（header 通道无 AtomicEffectEntry——按引擎+参数生成）。</summary>
         public static string TrunkText(BranchEngineKind engine, int param)
         {
             switch (engine)
             {
                 case BranchEngineKind.Clash:
-                    return $"拼点：牌库顶费用总额差额 ≥ 奖励锚价合计时执行奖励（零计价·门槛制）";
+                    return $"拼点：随机生物攻击力差额 ≥ 奖励锚价合计时执行奖励（零计价·门槛制）";
                 case BranchEngineKind.LuckRoll:
                     return $"运势：2d6 两点均 > {param} 时执行奖励（零计价·概率门槛）";
                 case BranchEngineKind.Countdown:

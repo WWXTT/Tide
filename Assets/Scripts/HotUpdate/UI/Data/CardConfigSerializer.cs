@@ -134,6 +134,12 @@ namespace SynergyUI
                     : null, // 空表不写列（向后兼容旧 JSON）
                 durability = card.Durability,
                 refundColor = card.RefundColor, // 底盘退费落色（2026-10-02 玩家自标；-1=未声明）
+                // 代价栏（2026-10-04 持久化链）：卡层 PayloadCost → payload 原子引用
+                //（CostType/Value 规范常量装载端重建；refId 空=无代价不写语义）
+                payload = card.PayloadCost?.payload != null
+                          && !string.IsNullOrEmpty(card.PayloadCost.payload.refId)
+                    ? card.PayloadCost.payload
+                    : null,
             };
 
             if (card.Cost != null)

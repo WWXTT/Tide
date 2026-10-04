@@ -26,6 +26,11 @@ namespace TideServer.Verify
     ///   （双侧+全取/多目标）+ 错边收缩（负面指己放行）+ RowHashId 变体行计价。
     /// ⑨V9.l/V9.m 端到端四则——衍生物弹回手×地牌拒绝、临时卡真路径（回响/微缩）×地牌拒绝、
     ///   灰不足苏醒立约、归土×回响×唯一槽×墓地配额压力剧本（配额每回合 1 次，光环换任不刷新）。
+    /// 2026-10-04 代价栏规则改造增：
+    /// ⑪V9.n 任意单向效果·镜像逆转·黑白封顶=地牌上限——PayloadCostDomain 三路（双侧收窄/正确侧镜像/已错侧免写）单元锚 + 镜像端到端（激励逆转到对方侧）+ 大额补偿钳制 + 持久化读回。
+    /// 2026-10-04 两层无效定案增：
+    /// ⑫V9.o 发动无效（净零成本：施放扣费返还/启动式不扣费横置不重置/触发式不计发动次数/强制桶免疫）
+    ///   × 效果无效（扣费照付：施放费用不退/启动式扣费/触发式计入/强制桶受管制）——施放端到端+计数口径+混合批管制面。
     /// Unity 侧对应段落见 Assets/Editor/验证/CardPipelineVerifier.cs（编辑器内跑，口径同源）。
     /// </summary>
     internal static class SectionRules
@@ -604,10 +609,14 @@ namespace TideServer.Verify
                 && d.steps != null && d.steps.Count > 0
                 && d.steps.All(s => s != null && s.kind == 0 && s.atom != null)
                 && d.steps.Count(s => s.atom.refId == drawRow.HashId) == 1);
-            VerifySuite.Assert(payloadEntry != null, "Effects.json 存在「纯原子 steps+恰一抽卡」条目（诅咒载荷候选）");
-            var payloadDrawAtom = payloadEntry.steps.First(s => s.atom.refId == drawRow.HashId).atom;
-            var payloadId = payloadEntry.id;
-            int expectedDraws = Math.Max(1, payloadDrawAtom.value);
+            // Effects.json 2026-10-04 起为用户清空态（真效果入库前装载 0 属预期——记忆 effects-json-reset-real-content）：
+            // 载荷候选缺失时软跳过本夹具（Log 留痕不硬断言），后续 V9.i 光环段照常回归。
+            if (payloadEntry == null)
+                VerifySuite.Log("V9.h 跳过：Effects.json 无「纯原子 steps+恰一抽卡」载荷候选（真效果入库前预期态）");
+            var payloadDrawAtom = payloadEntry?.steps
+                .FirstOrDefault(s => s.atom != null && s.atom.refId == drawRow.HashId)?.atom;
+            var payloadId = payloadEntry?.id;
+            int expectedDraws = payloadDrawAtom != null ? Math.Max(1, payloadDrawAtom.value) : 0;
 
             Card MakeCurseSpell(string id, string payload)
             {
@@ -625,19 +634,23 @@ namespace TideServer.Verify
                 return HToHand(h1, data);
             }
 
-            // ---- ① 挂层 + 载荷登记 ----
-            var curseCard1 = MakeCurseSpell("V9H_CURSE_1", payloadId);
-            VerifySuite.Assert(GameActions.PlayCard(hcore, h1, curseCard1, null, Zone.Hand, 0, out var rejectH1),
-                $"诅咒术打出（拒绝原因：{rejectH1 ?? "无"}）");
-            GameActions.DrainStack(hcore);
-            var cursed = hcore.ZoneManager.GetCards(h2, Zone.Deck)
-                .FirstOrDefault(c => c.GetCounterCount(CounterRules.CurseCounter) > 0);
-            VerifySuite.Assert(cursed != null && cursed.GetCounterCount(CounterRules.CurseCounter) == 1,
-                "随机对方牌库一张挂 Curse=1（None 自结算）");
-            var registered = CurseSystem.GetCurses(cursed);
-            VerifySuite.Assert(registered.Count == 1
-                              && registered[0].effectId == payloadId && registered[0].caster == h1,
-                $"载荷登记完整（效果 id+施诅方；实际 {registered.Count} 条）");
+            // ---- ① 挂层 + 载荷登记 ----（载荷候选缺失=清空态：整段软跳过，cursed 恒 null → ②③ 顺位空转）
+            Card cursed = null;
+            if (payloadId != null)
+            {
+                var curseCard1 = MakeCurseSpell("V9H_CURSE_1", payloadId);
+                VerifySuite.Assert(GameActions.PlayCard(hcore, h1, curseCard1, null, Zone.Hand, 0, out var rejectH1),
+                    $"诅咒术打出（拒绝原因：{rejectH1 ?? "无"}）");
+                GameActions.DrainStack(hcore);
+                cursed = hcore.ZoneManager.GetCards(h2, Zone.Deck)
+                    .FirstOrDefault(c => c.GetCounterCount(CounterRules.CurseCounter) > 0);
+                VerifySuite.Assert(cursed != null && cursed.GetCounterCount(CounterRules.CurseCounter) == 1,
+                    "随机对方牌库一张挂 Curse=1（None 自结算）");
+                var registered = CurseSystem.GetCurses(cursed);
+                VerifySuite.Assert(registered.Count == 1
+                                  && registered[0].effectId == payloadId && registered[0].caster == h1,
+                    $"载荷登记完整（效果 id+施诅方；实际 {registered.Count} 条）");
+            }
 
             // ---- ② Permanent：换区不清（对比锚——V9.g Exposed 换区即清） ----
             if (cursed != null)
@@ -748,34 +761,41 @@ namespace TideServer.Verify
                 return IToHand(i1, data);
             }
 
-            // ---- ① 激活 + 蚕褪伤害帽（2026-10-04 承接原丰盈并扩生物；双方生效） ----
-            var capCarrier = MakeRuleCarrier("蚕褪仪典", RuleAuraComponents.DamageCap, 9);
+            // ---- ① 激活 + 离散伤害二值化（2026-10-04 蚕褪改版：>5→5、<5→3；生物与角色、双方生效） ----
+            var capCarrier = MakeRuleCarrier("离散仪典", RuleAuraComponents.DamageCap, 9);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, capCarrier, null, Zone.Hand, 0, out var rejectI1),
-                $"蚕褪载体打出（拒绝原因：{rejectI1 ?? "无"}）");
+                $"离散载体打出（拒绝原因：{rejectI1 ?? "无"}）");
             GameActions.DrainStack(icore);
             VerifySuite.Assert(capCarrier.GetZone() == Zone.Battlefield && RuleAuraSystem.IsActive(RuleAuraComponents.DamageCap),
                 "载体入场 + 规则激活（IsActive 实时查询）");
             int i1LifeCap = i1.Life, i2LifeCap = i2.Life;
             KeywordRules.ApplyDamage(i2, i1, 8, isCombat: false);
-            KeywordRules.ApplyDamage(i1, i2, 8, isCombat: false);
-            VerifySuite.Assert(i1.Life == i1LifeCap - 5 && i2.Life == i2LifeCap - 5,
-                $"伤害帽双方生效（角色）：两侧 8 伤均钳 5（p1 {i1LifeCap}→{i1.Life}，p2 {i2LifeCap}→{i2.Life}）");
+            KeywordRules.ApplyDamage(i1, i2, 4, isCombat: false);
+            VerifySuite.Assert(i1.Life == i1LifeCap - 5 && i2.Life == i2LifeCap - 3,
+                $"离散双方生效（角色）：8 伤改 5、4 伤改 3（p1 {i1LifeCap}→{i1.Life}，p2 {i2LifeCap}→{i2.Life}）");
             var capCreature = new CardWrapper(new CardData
             {
-                ID = "V9I_CAP_CR", CardName = "蚕褪生物探针", Supertype = Cardtype.Creature, Power = 1, Life = 10,
+                ID = "V9I_CAP_CR", CardName = "离散生物探针", Supertype = Cardtype.Creature, Power = 1, Life = 20,
             });
             capCreature.SetController(i2);
             KeywordRules.ApplyDamage(i1, capCreature, 8, isCombat: false);
-            VerifySuite.Assert(capCreature.GetLife() == 5,
-                $"伤害帽扩生物（2026-10-04 蚕褪）：单次 8 伤钳 5（实际余 {capCreature.GetLife()}）");
+            VerifySuite.Assert(capCreature.GetLife() == 15,
+                $"离散扩生物：单次 8 伤改 5（实际余 {capCreature.GetLife()}）");
+            KeywordRules.ApplyDamage(i1, capCreature, 1, isCombat: false);
+            KeywordRules.ApplyDamage(i1, capCreature, 3, isCombat: false);
+            VerifySuite.Assert(capCreature.GetLife() == 9,
+                $"离散低段抬底：1 伤改 3、3 伤恰值不动（20→15→12→9，实际 {capCreature.GetLife()}）");
+            KeywordRules.ApplyDamage(i1, capCreature, 5, isCombat: false);
+            VerifySuite.Assert(capCreature.GetLife() == 4,
+                $"离散恰 5 不改写（实际余 {capCreature.GetLife()}）");
 
             // ---- ①b 丰盈（2026-10-04 改造）：回复溢出→生命上限+1（收编旧写死基线） ----
             var bloomCarrier = MakeRuleCarrier("丰盈仪典", RuleAuraComponents.HealOverflow, 9);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, bloomCarrier, null, Zone.Hand, 0, out var rejectI1b),
-                $"丰盈载体打出（唯一槽换掉蚕褪；拒绝原因：{rejectI1b ?? "无"}）");
+                $"丰盈载体打出（唯一槽换掉离散；拒绝原因：{rejectI1b ?? "无"}）");
             GameActions.DrainStack(icore);
             VerifySuite.Assert(capCarrier.GetZone() == Zone.Graveyard && RuleAuraSystem.IsActive(RuleAuraComponents.HealOverflow),
-                "蚕褪送墓、丰盈（溢出转化）激活");
+                "离散送墓、丰盈（溢出转化）激活");
             int i1MaxBloom = i1.MaxHealth;
             i1.Life = i1.MaxHealth; // 满血基线（此前伤害帽扣过血）
             i1.Heal(3);
@@ -831,9 +851,9 @@ namespace TideServer.Verify
                 icore.ElementPool.GetPool(i1).AvailableMana[t] = 99;
             icore.ElementPool.GetPool(i1).GlobalTurnIndex = 9; // InitGame 重置后重设（浓度上限放开，同段首）
             VerifySuite.Assert(RuleAuraSystem.Active == null, "新局光环槽位空（InitGame 含 Reset——跨局不残留）");
-            var capCarrier2 = MakeRuleCarrier("蚕褪仪典", RuleAuraComponents.DamageCap, 2);
+            var capCarrier2 = MakeRuleCarrier("离散仪典", RuleAuraComponents.DamageCap, 2);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, capCarrier2, null, Zone.Hand, 0, out var rejectI3),
-                $"重激活蚕褪（拒绝原因：{rejectI3 ?? "无"}）");
+                $"重激活离散（拒绝原因：{rejectI3 ?? "无"}）");
             GameActions.DrainStack(icore);
             VerifySuite.Assert(RuleAuraSystem.IsActive(RuleAuraComponents.DamageCap), "重激活成功（前置）");
             icore.Reset();
@@ -875,7 +895,7 @@ namespace TideServer.Verify
                               && rejectGy2 != null,
                 $"每回合一次配额：第二张被拒（{rejectGy2}）");
 
-            // ---- ⑦ 窥渊：展示联动 + 回合开始锁定 + 出牌限制（信息轴×规则轴） ----
+            // ---- ⑦ 窥渊（2026-10-04 时机改版：回合开始→回合结束）：回合末随机展示 + 锁定落在指示物倒数之后 ----
             var lockCarrier = MakeRuleCarrier("窥渊仪典", RuleAuraComponents.LockRevealed, 2);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, lockCarrier, null, Zone.Hand, 0, out var rejectI5),
                 $"窥渊载体打出（唯一槽自动换掉归土；拒绝原因：{rejectI5 ?? "无"}）");
@@ -901,42 +921,34 @@ namespace TideServer.Verify
             var i2Exposed = RevealRules.GetExposedCards(icore.ZoneManager, i2, Zone.Hand);
             VerifySuite.Assert(i2Exposed.Count == 1, "对方手牌一张被展示（信息轴联动锚）");
 
-            // 展示源保险：i1 手牌补一张填充（保证 i2 回合开始的光环随机展示必有未展示候选）
+            // 展示源保险：i1 手牌补一张填充（保证 i2 回合末的光环随机展示必有未展示候选）
             IToHand(i1, new CardData { ID = "V9I_REVEAL_FILL", CardName = "展示填充", Supertype = Cardtype.Spell });
-            GameActions.EndTurn(icore, i1);
-            icore.TurnEngine.CheckPhaseTransition(); // → i2 回合开始：光环随机展示 i1 一张手牌并锁定
-            VerifySuite.Assert(RevealRules.GetExposedCards(icore.ZoneManager, i1, Zone.Hand).Count == 1,
-                "光环随机展示：回合开始随机展示对手一张手牌（2026-10-04 追加——RevealCard 同款口径）");
-            GameActions.SkipElementPool(icore, i2);
-            GameActions.EndTurn(icore, i2);
-            icore.TurnEngine.CheckPhaseTransition(); // → i1 回合开始：随机展示 i2 一张 + 赋予被展示卡锁定×1
-            GameActions.SkipElementPool(icore, i1);
+            GameActions.EndTurn(icore, i1); // i1 回合结束：光环随机展示 i2 一张 + 被展示的卡锁定×1（倒数后挂层）
             var i2Locked = i2Exposed[0];
-            VerifySuite.Assert(i2Locked.GetCounterCount(CounterRules.LockCounter) == 1,
-                "回合开始赋予对手被展示卡锁定指示物×1（2026-10-04 原子化——全部被展示卡，无选择窗口）");
-            VerifySuite.Assert(RevealRules.GetExposedCards(icore.ZoneManager, i2, Zone.Hand).Count >= 2,
-                "光环随机展示并锁定：i2 被展示卡含展示术一张+光环随机一张（同回合生效）");
-            VerifySuite.Assert(!RuleHooks.CanPlay(icore, i2, i2Locked, Zone.Hand),
-                "被锁定卡不可打出（IPlayRestriction——PlayCard/响应出牌同门）");
-            // 环境确定性：i2 手牌裁到只剩被锁定卡——后续多回合抽牌不触手牌上限弃牌
+            VerifySuite.Assert(RevealRules.GetExposedCards(icore.ZoneManager, i2, Zone.Hand).Count == 2,
+                "光环随机展示：回合结束随机展示对手一张手牌（RevealCard 同款口径）");
+            VerifySuite.Assert(i2Locked.GetCounterCount(CounterRules.LockCounter) == 1
+                              && !RuleHooks.CanPlay(icore, i2, i2Locked, Zone.Hand),
+                "回合结束赋予对手被展示卡锁定指示物×1（全部被展示卡，无选择窗口；期间无法使用）");
+            icore.TurnEngine.CheckPhaseTransition(); // → i2 回合
+            GameActions.SkipElementPool(icore, i2);
+            // 环境确定性：i2 手牌裁到只剩被锁定卡——回合末手牌上限弃牌不弃掉被展示卡污染断言
             //（无头自动弃牌可能弃掉被展示卡→换区清展示→污染续锁断言）
             foreach (var c in icore.ZoneManager.GetCards(i2, Zone.Hand).ToList())
                 if (c != i2Locked) icore.ZoneManager.MoveCard(c, i2, Zone.Hand, Zone.Graveyard);
-            GameActions.EndTurn(icore, i1);
-            icore.TurnEngine.CheckPhaseTransition();
-            VerifySuite.Assert(RuleAuraComponents.IsLockedThisTurn(i2Locked),
-                "锁定持续到持有者回合结束（施放方回合末不清——指示物层数倒数制）");
-            GameActions.SkipElementPool(icore, i2);
-            GameActions.EndTurn(icore, i2); // 持有者 i2 回合结束：手牌指示物倒数 1→0
+            GameActions.EndTurn(icore, i2); // i2 回合结束：③ 块倒数锁 1→0 解锁；其后光环随机展示 i1 一张并挂锁
             VerifySuite.Assert(i2Locked.GetCounterCount(CounterRules.LockCounter) == 0
                               && RuleHooks.CanPlay(icore, i2, i2Locked, Zone.Hand),
                 "持有者回合结束锁定倒数归零（手牌区与场上同样结算）——解锁可打出");
-            icore.TurnEngine.CheckPhaseTransition(); // → i1 回合开始：卡仍被展示 → 光环续锁
-            VerifySuite.Assert(i2Locked.GetCounterCount(CounterRules.LockCounter) == 1,
-                "持续暴露续锁：每回合开始对仍被展示的卡再赋一回合锁定");
+            var i1ExposedCards = RevealRules.GetExposedCards(icore.ZoneManager, i1, Zone.Hand);
+            VerifySuite.Assert(i1ExposedCards.Count == 1
+                              && i1ExposedCards[0].GetCounterCount(CounterRules.LockCounter) == 1,
+                "同回合末随机展示 i1 一张并挂锁——挂层落在指示物倒数之后（新锁不被本回合末吞层）");
+            icore.TurnEngine.CheckPhaseTransition(); // → i1 回合
+            GameActions.SkipElementPool(icore, i1);
 
             // ---- ⑦b 锁定原子直发（LockCard value=2）：层=剩余回合，直调两个持有者回合末倒数
-            //     （不经回合引擎推进——光环随机展示/续锁不再干扰层数口径；回合集成路径 ⑦ 已覆盖）----
+            //     （不经回合引擎推进——光环回合末展示/续锁不干扰层数口径；回合集成路径 ⑦ 已覆盖）----
             var lockProbe = IToHand(i2, new CardData
             {
                 ID = "V9I_LOCK2", CardName = "锁定探针", Supertype = Cardtype.Creature, Power = 1, Life = 1,
@@ -956,7 +968,15 @@ namespace TideServer.Verify
             VerifySuite.Assert(lockProbe.GetCounterCount(CounterRules.LockCounter) == 0
                               && RuleHooks.CanPlay(icore, i2, lockProbe, Zone.Hand),
                 "锁定×2 次个持有者回合末：1→0 解锁（手牌区倒数全程在场外结算）");
-            GameActions.SkipElementPool(icore, i1); // 回合交还 i1（⑧-⑩ 同一主阶段连续驱动）
+
+            GameActions.EndTurn(icore, i1); // i1 回合结束：③ 块倒数 i1 被展示卡锁 1→0；其后光环对 i2 仍被展示的卡续锁
+            VerifySuite.Assert(i2Locked.GetCounterCount(CounterRules.LockCounter) == 1,
+                "持续暴露续锁：每回合结束对仍被展示的卡再赋一回合锁定（倒数先、挂层后）");
+            icore.TurnEngine.CheckPhaseTransition(); // → i2 回合
+            GameActions.SkipElementPool(icore, i2);
+            GameActions.EndTurn(icore, i2); // 回合交还 i1（⑧-⑩ 同一主阶段连续驱动）
+            icore.TurnEngine.CheckPhaseTransition();
+            GameActions.SkipElementPool(icore, i1);
 
             // ---- ⑧ 三相：消耗 3 同色纯元素 → 红/蓝/绿各 1 ----
             var trinityCarrier = MakeRuleCarrier("三相仪典", RuleAuraComponents.ElementConversion, 2);
@@ -1180,8 +1200,8 @@ namespace TideServer.Verify
                 $"双侧域单体任选不減（{dmgPickOne.DerivedTotal} == 单侧同款 {dmgOwn.DerivedTotal}）");
 
             // ---- ③ 规则光环：空域不乘期望 N + 恒视为双方 ×0.5（2026-10-04 光环改造后锚价全动态读表） ----
-            var capRow = AtomicEffectTable.GetAll().FirstOrDefault(r => r != null && r.DisplayName == "蚕褪仪典");
-            VerifySuite.Assert(capRow != null, "蚕褪仪典表行存在（计价锚前置）");
+            var capRow = AtomicEffectTable.GetAll().FirstOrDefault(r => r != null && r.DisplayName == "离散仪典");
+            VerifySuite.Assert(capRow != null, "离散仪典表行存在（计价锚前置）");
             var auraData = new CardData { ID = "V9K_AURA", CardName = "V9K规则光环", Supertype = Cardtype.Enchantment };
             auraData.Effects.Add(new CardEffectData
             {
@@ -1200,7 +1220,7 @@ namespace TideServer.Verify
             VerifySuite.Assert(auraCost.DerivedTotal == expectedAuraTotal,
                 $"规则光环整卡计价=round(锚{capRow?.TotalUnitCost ?? 0f}×0.5×0.75)−底盘退2（实际 {auraCost.DerivedTotal}，期望 {expectedAuraTotal}）");
             // 无底盘干扰的纯原子口径（RewardDerivedCost：Once/单目标 shim）：
-            // 行身份（RowHashId→蚕褪行锚）+ 空域不乘期望 N + ModifyGameRule 恒双方 → round(锚×0.5)
+            // 行身份（RowHashId→离散行锚）+ 空域不乘期望 N + ModifyGameRule 恒双方 → round(锚×0.5)
             var auraAtomCost = CostDerivationService.RewardDerivedCost(new List<AtomicEffectInstance>
             {
                 new AtomicEffectInstance { Type = AtomicEffectType.ModifyGameRule, Value = 1, StringValue = "DamageCap",
@@ -1208,16 +1228,17 @@ namespace TideServer.Verify
             });
             VerifySuite.Assert(Math.Abs(auraAtomCost - (int)Math.Round((capRow?.TotalUnitCost ?? 0f) * 0.5f, MidpointRounding.AwayFromZero)) < 0.01f,
                 $"规则光环纯原子价=round(锚{capRow?.TotalUnitCost ?? 0f}×0.5)（实际 {auraAtomCost}——按行取锚/空域不乘期望 4/恒双方；锚价动态读表）");
-            // 行身份回归锚：同枚举不同行各自计价（疾风=CastSpeedUp 蓝锚 vs 蚕褪锚——末行回落口径不再串行）
-            var galeRow = AtomicEffectTable.GetAll().FirstOrDefault(r => r != null && r.DisplayName == "疾风仪典");
-            var galeAtomCost = CostDerivationService.RewardDerivedCost(new List<AtomicEffectInstance>
+            // 行身份回归锚：同枚举不同行各自计价（血偿=BloodPact 锚12 vs 离散锚6——2026-10-04 蚕褪改版红6 后
+            // 与疾风蓝6 同价撞等，对照行换 12 锚；末行回落口径不再串行）
+            var bloodRow = AtomicEffectTable.GetAll().FirstOrDefault(r => r != null && r.DisplayName == "血偿仪典");
+            var bloodAtomCost = CostDerivationService.RewardDerivedCost(new List<AtomicEffectInstance>
             {
-                new AtomicEffectInstance { Type = AtomicEffectType.ModifyGameRule, Value = 1, StringValue = "CastSpeedUp",
-                    TargetKinds = new List<int>(), Polarity = 0f, RowHashId = galeRow?.HashId },
+                new AtomicEffectInstance { Type = AtomicEffectType.ModifyGameRule, Value = 1, StringValue = "BloodPact",
+                    TargetKinds = new List<int>(), Polarity = 0f, RowHashId = bloodRow?.HashId },
             });
-            VerifySuite.Assert(Math.Abs(galeAtomCost - (int)Math.Round((galeRow?.TotalUnitCost ?? 0f) * 0.5f, MidpointRounding.AwayFromZero)) < 0.01f
-                               && Math.Abs(galeAtomCost - auraAtomCost) > 0.01f,
-                $"变体行各自计价：疾风锚{galeRow?.TotalUnitCost ?? 0f}×0.5（实际 {galeAtomCost}≠蚕褪 {auraAtomCost}——RowHashId 行身份生效；锚价动态读表）");
+            VerifySuite.Assert(Math.Abs(bloodAtomCost - (int)Math.Round((bloodRow?.TotalUnitCost ?? 0f) * 0.5f, MidpointRounding.AwayFromZero)) < 0.01f
+                               && Math.Abs(bloodAtomCost - auraAtomCost) > 0.01f,
+                $"变体行各自计价：血偿锚{bloodRow?.TotalUnitCost ?? 0f}×0.5（实际 {bloodAtomCost}≠离散 {auraAtomCost}——RowHashId 行身份生效；锚价动态读表）");
 
             // ---- ④ 错边收缩：有害锁己方（负面指向自己）效果栏放行；有益锁对方仍剔除 ----
             var selfHarmDef = CardEffectConverter.ConvertOne(new CardEffectData
@@ -1468,6 +1489,501 @@ namespace TideServer.Verify
             VerifySuite.Assert(!GameActions.PlayCard(mcore, m1, auraOriginal, null, Zone.Graveyard, 0, out var rejectM2)
                               && rejectM2 != null,
                 $"每回合一次配额：第二次墓地使用被拒（{rejectM2}——光环载体换来换去不刷新）");
+
+            // ============================ V9.n 代价栏规则改造（2026-10-04 定案配套） ============================
+
+            VerifySuite.Section("V9.n 代价栏：任意单向·镜像逆转·产出不封（使用侧=支付浓度上限）·全价地牌门槛·槽位计费·无目标回手·补偿后置·先扣卡费（2026-10-04 本轮）");
+            var pcore = GameCore.Instance;
+            pcore.Reset();
+            ZoneContainer.Reseed(20261004);
+            var fillerN = Enumerable.Range(0, 8).Select(i => new CardData
+            {
+                ID = $"V9N_fill_{i}", CardName = "V9N填充" + i, Supertype = Cardtype.Creature, Power = 1, Life = 1,
+            }).ToList();
+            pcore.InitGame(CardLoader.BuildDeck(fillerN, 2), CardLoader.BuildDeck(fillerN, 2));
+            var n1 = pcore.Player1;
+            var n2 = pcore.Player2;
+            GameActions.SkipElementPool(pcore, n1);
+            var npool = pcore.ElementPool.GetPool(n1);
+            foreach (ManaType t in Enum.GetValues(typeof(ManaType))) npool.AvailableMana[t] = 99;
+
+            // ---- ① PayloadCostDomain 三路单元锚（放置口/候选过滤共用口） ----
+            var attackRow = AtomicEffectTable.GetByType(AtomicEffectType.Attack);       // TK={2} 纯敌方 有害
+            var untapRow = AtomicEffectTable.GetByType(AtomicEffectType.Untap);         // TK={1} 纯己方 有益
+            var lifeRow = AtomicEffectTable.GetByType(AtomicEffectType.LifeLoss);       // TK={1,2} 双侧 有害
+            var dmgRow = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage);      // TK={1,2,3,4} 双侧 有害
+            var firstStrikeRow = AtomicEffectTable.GetByType(AtomicEffectType.GrantFirstStrike); // TK={0} 纯自身 有益
+            var summonRow = AtomicEffectTable.GetByType(AtomicEffectType.SummonToken);  // 空域 有益
+            var ruleRow = AtomicEffectTable.GetByType(AtomicEffectType.ModifyGameRule); // 空域 中性
+
+            var (attackKinds, attackOk) = CostDerivationService.PayloadCostDomain(attackRow);
+            VerifySuite.Assert(attackOk && attackKinds != null && attackKinds.Count == 1
+                              && attackKinds[0] == (int)TargetKind.OwnLivingUnit,
+                $"镜像逆转：纯敌方有害（攻击 {attackRow.HashId} 域{{2}}）→ 己方有生命单位 {{1}}（实际 [{string.Join(",", attackKinds ?? new List<int>())}]）");
+            var (untapKinds, untapOk) = CostDerivationService.PayloadCostDomain(untapRow);
+            VerifySuite.Assert(untapOk && untapKinds != null && untapKinds.Count == 1
+                              && untapKinds[0] == (int)TargetKind.EnemyLivingUnit,
+                $"镜像逆转：纯己方有益（激励 域{{1}}）→ 对方有生命单位 {{2}}（实际 [{string.Join(",", untapKinds ?? new List<int>())}]）");
+            var (lifeKinds, lifeOk) = CostDerivationService.PayloadCostDomain(lifeRow);
+            VerifySuite.Assert(lifeOk && lifeKinds != null && lifeKinds.Count == 1
+                              && lifeKinds[0] == (int)TargetKind.OwnLivingUnit,
+                "双侧域收窄（回归）：生命流失 {1,2} 有害 → 收窄到己方 {1}");
+            var (dmgKinds, dmgOk) = CostDerivationService.PayloadCostDomain(dmgRow);
+            VerifySuite.Assert(dmgOk && dmgKinds != null && dmgKinds.Count == 2
+                              && dmgKinds.Contains(1) && dmgKinds.Contains(3),
+                $"双侧域收窄：造成伤害 {{1,2,3,4}} 有害 → 己方侧成员 {{1,3}}（实际 [{string.Join(",", dmgKinds ?? new List<int>())}]）");
+            VerifySuite.Assert(!CostDerivationService.PayloadCostDomain(firstStrikeRow).eligible,
+                "防退化：纯 {Self} 有益域（先攻）无对侧可逆转——不可作代价");
+            VerifySuite.Assert(!CostDerivationService.PayloadCostDomain(summonRow).eligible,
+                "空域有益（召唤衍生物表行）无域可逆转——不可作代价（实例显式 kinds 指路不受影响）");
+            VerifySuite.Assert(!CostDerivationService.PayloadCostDomain(ruleRow).eligible,
+                "中性空域（规则光环）既非代价也非收益——不可作代价");
+
+            // ---- ② 端到端镜像：激励（有益·纯己方域）逆转到对方侧——对方横置单位被解除 + 我方得白 ----
+            var enemyUnit = new CardWrapper(new CardData
+            {
+                ID = "V9N_ENEMY", CardName = "V9n敌军单位", Supertype = Cardtype.Creature, Power = 2, Life = 2,
+            });
+            enemyUnit.SetController(n2);
+            pcore.ZoneManager.GetZoneContainer(n2).Add(enemyUnit, Zone.Battlefield);
+            enemyUnit.Tap();
+            VerifySuite.Assert(enemyUnit.IsTapped(), "前置：对方单位已横置");
+
+            npool.GlobalTurnIndex = 3; // 地牌上限 3
+            npool.AvailableMana[ManaType.White] = 0;
+            npool.WhiteGainedThisTurn = 0;
+            var mirrorPayload = AtomRefs.New(AtomicEffectType.Untap, value: 1, kinds: untapKinds); // 合成器同口径：镜像域随条目落盘
+            int untapGrant = CostDerivationService.PayloadUnitGrant(
+                CardEffectConverter.ConvertPayloadForDisplay(mirrorPayload));
+            VerifySuite.Assert(untapGrant >= 1, $"激励全价非零（实际 {untapGrant}——白补偿可观测前提）");
+            var mirrorCardData = new CardData { ID = "V9N_MIRROR", CardName = "V9n镜像代价卡", Supertype = Cardtype.Spell };
+            mirrorCardData.PayloadCost = new CostEntry
+            {
+                CostType = (int)CostType.Payload, Value = 1, payload = mirrorPayload,
+            }; // 卡层 PayloadCost（2026-09-23 正式口——CollectCardSpecialCosts 直读）
+            var mirrorCard = new CardWrapper(mirrorCardData);
+            mirrorCard.SetController(n1);
+            pcore.ZoneManager.GetZoneContainer(n1).Add(mirrorCard, Zone.Hand);
+            VerifySuite.Assert(GameActions.PlayCard(pcore, n1, mirrorCard), "镜像代价卡打出（卡层 PayloadCost 付费步）");
+            GameActions.DrainStack(pcore);
+            VerifySuite.Assert(!enemyUnit.IsTapped(),
+                "镜像执行：有益·纯己方域原子逆转到对方侧——对方横置单位被解除（代价=资敌；补偿后置：生效后发放）");
+            VerifySuite.Assert(npool.AvailableMana[ManaType.White] == untapGrant
+                              && npool.WhiteGainedThisTurn == untapGrant,
+                $"镜像补偿：得白 {npool.AvailableMana[ManaType.White]} = 全价 {untapGrant} 全量入账（2026-10-04 本轮：补偿后置+产出不封，旧 Min(全价,封顶) 退役公式清理）");
+
+            // ---- ③ 全价过地牌门槛（2026-10-04 本轮定案）：全价 > 地牌槽上限 → 整卡不可使用 ----
+            npool.GlobalTurnIndex = 2; // 地牌上限 2 —— 全价必超
+            npool.AvailableMana[ManaType.Black] = 0;
+            npool.BlackGainedThisTurn = 0;
+            var n1Battlefield = pcore.ZoneManager.GetCards(n1, Zone.Battlefield).ToList();
+            var ncz1 = pcore.ZoneManager.GetZoneContainer(n1);
+            foreach (var b in n1Battlefield) ncz1.Move(b, Zone.Battlefield, Zone.Graveyard); // 清场：kinds{1} 唯一候选=己方角色
+            var (lifeKinds2, _) = CostDerivationService.PayloadCostDomain(lifeRow);
+            var lifePayload = AtomRefs.New(AtomicEffectType.LifeLoss, value: 8, kinds: lifeKinds2);
+            int lifeGrant = CostDerivationService.PayloadUnitGrant(
+                CardEffectConverter.ConvertPayloadForDisplay(lifePayload));
+            VerifySuite.Assert(lifeGrant > 2, $"前置：生命流失全价 > 2（实际 {lifeGrant}——门槛拒绝可观测）");
+            int n1MaxBefore = n1.MaxHealth;
+            var drainCardData = new CardData { ID = "V9N_DRAIN", CardName = "V9n大额代价卡", Supertype = Cardtype.Spell };
+            drainCardData.PayloadCost = new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = lifePayload };
+            var drainCard = new CardWrapper(drainCardData);
+            drainCard.SetController(n1);
+            pcore.ZoneManager.GetZoneContainer(n1).Add(drainCard, Zone.Hand);
+            VerifySuite.Assert(!GameActions.PlayCard(pcore, n1, drainCard, null, Zone.Hand, 0, out var gateReject)
+                              && gateReject != null && gateReject.Contains("地牌槽上限")
+                              && pcore.ZoneManager.GetCards(n1, Zone.Hand).Contains(drainCard),
+                $"全价门槛：全价 {lifeGrant} > 上限 2 → 整卡拒发留手（实际原因「{gateReject}」）");
+            VerifySuite.Assert(n1.MaxHealth == n1MaxBefore && npool.AvailableMana[ManaType.Black] == 0,
+                "全价门槛拦截：走不到代价发动（上限未流失、无黑补偿）");
+
+            // ---- ③b 门槛放行 + 代价恒执行 + 补偿后置全额 ----
+            var smallPayload = AtomRefs.New(AtomicEffectType.LifeLoss, value: 1, kinds: lifeKinds2);
+            int smallGrant = CostDerivationService.PayloadUnitGrant(
+                CardEffectConverter.ConvertPayloadForDisplay(smallPayload));
+            VerifySuite.Assert(smallGrant >= 1 && smallGrant <= 9,
+                $"前置：小额代价全价 1..9（实际 {smallGrant}——门槛可在 cap≤9 内放行）");
+            npool.GlobalTurnIndex = smallGrant; // cap = 全价（门槛恰好过）
+            int n1MaxBefore2 = n1.MaxHealth;
+            var smallCardData = new CardData { ID = "V9N_SMALL", CardName = "V9n小额代价卡", Supertype = Cardtype.Spell };
+            smallCardData.PayloadCost = new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = smallPayload };
+            var smallCard = new CardWrapper(smallCardData);
+            smallCard.SetController(n1);
+            pcore.ZoneManager.GetZoneContainer(n1).Add(smallCard, Zone.Hand);
+            VerifySuite.Assert(GameActions.PlayCard(pcore, n1, smallCard), "门槛放行：全价 ≤ 地牌槽上限 → 可打出");
+            GameActions.DrainStack(pcore);
+            VerifySuite.Assert(n1.MaxHealth == n1MaxBefore2 - 1, $"代价恒执行：己方角色上限 -1（{n1MaxBefore2}→{n1.MaxHealth}）");
+            VerifySuite.Assert(npool.AvailableMana[ManaType.Black] == smallGrant && npool.BlackGainedThisTurn == smallGrant,
+                $"补偿后置全额：生效后立即得黑 {npool.AvailableMana[ManaType.Black]} = 全价 {smallGrant}（快照在执行前取）");
+
+            // ---- ④ 产出不封直测（2026-10-04 使用侧定案：旧产出钳退役）+ 使用侧约束 ----
+            var tpool = pcore.ElementPool.GetPool(n2);
+            tpool.GlobalTurnIndex = 2;
+            tpool.BlackGainedThisTurn = 0; tpool.WhiteGainedThisTurn = 0;
+            tpool.AvailableMana[ManaType.Black] = 0; tpool.AvailableMana[ManaType.White] = 0;
+            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.Black, null, 3) == 3
+                              && tpool.AvailableMana[ManaType.Black] == 3 && tpool.BlackGainedThisTurn == 3,
+                "产出不封：cap2（使用侧）时入黑 3 全额入账（旧「钳到 2」退役）");
+            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.Black, null, 1) == 1
+                              && tpool.AvailableMana[ManaType.Black] == 4,
+                "同回合再入黑照常入账（无产出帽）");
+            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.White, null, 5) == 5
+                              && tpool.WhiteGainedThisTurn == 5,
+                "白同口径全量：产出不封对黑白一致");
+            pcore.ElementPool.OnTurnStart(n2, 3);
+            VerifySuite.Assert(tpool.BlackGainedThisTurn == 0 && tpool.WhiteGainedThisTurn == 0,
+                "回合开始：黑白获得台账清零（纯观测）");
+            tpool.GlobalTurnIndex = 9;
+            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.Black, null, 15) == 15
+                              && tpool.AvailableMana[ManaType.Black] == 4 + 15 && tpool.BlackGainedThisTurn == 15,
+                "大额 15 全额入账（cap9 仅约束单次支付贡献，不约束获得）");
+            // 使用侧（支付）约束：bank 黑 19 但 cap2——黑3 需求 > cap → 拒付（代价产出的黑白不能绕过）
+            tpool.GlobalTurnIndex = 2;
+            VerifySuite.Assert(ElementPaymentValidator.GetBillPaymentPlan(
+                                  new Dictionary<ManaType, int> { { ManaType.Black, 3 } },
+                                  tpool.AvailableMana, 2) == null,
+                "使用侧封顶：bank 黑 19 · cap2 → 黑3 需求拒付（产出囤积不能绕过地牌上限）");
+            VerifySuite.Assert(ElementPaymentValidator.GetBillPaymentPlan(
+                                  new Dictionary<ManaType, int> { { ManaType.Black, 2 } },
+                                  tpool.AvailableMana, 2) != null,
+                "使用侧封顶：黑2 ≤ cap2 → 可付（上限=单次使用量约束）");
+
+            // ---- ⑤ 持久化读回：卡层 payload 字段 → CardData.PayloadCost（旧档无字段回落 null） ----
+            var persistJson = "{\"cards\":[{\"id\":\"V9N_PERSIST\",\"cardName\":\"V9n持久化代价卡\",\"supertype\":\"Spell\","
+                + "\"power\":0,\"life\":0,\"costList\":[1,0,0,0,0,0],"
+                + "\"payload\":{\"refId\":\"" + untapRow.HashId + "\",\"value\":1,\"kinds\":[2]}},"
+                + "{\"id\":\"V9N_LEGACY\",\"cardName\":\"V9n旧档卡\",\"supertype\":\"Spell\",\"power\":0,\"life\":0}],"
+                + "\"deckConfig\":{\"copiesPerCard\":3}}";
+            var loadedCards = CardLoader.LoadCardsFromText(persistJson);
+            var persistCard = loadedCards.FirstOrDefault(c => c.ID == "V9N_PERSIST");
+            var legacyCard = loadedCards.FirstOrDefault(c => c.ID == "V9N_LEGACY");
+            VerifySuite.Assert(persistCard?.PayloadCost != null
+                              && persistCard.PayloadCost.CostType == (int)CostType.Payload
+                              && persistCard.PayloadCost.payload?.refId == untapRow.HashId
+                              && persistCard.PayloadCost.payload?.kinds?.Count == 1
+                              && persistCard.PayloadCost.payload.kinds[0] == (int)TargetKind.EnemyLivingUnit,
+                "持久化读回：Cards.json payload 字段 → 卡层 PayloadCost（镜像域随条目还原）");
+            VerifySuite.Assert(legacyCard != null && legacyCard.PayloadCost == null,
+                "旧档兼容：无 payload 字段 → PayloadCost=null（legacy 效果级 Costs 兜底不受影响）");
+
+            // ---- ⑥ 代价栏计效果槽（2026-10-04 本轮定案：代价也是效果栏，不是特殊判——占 1 槽走底盘预算） ----
+            var slotCardData = new CardData { ID = "V9N_SLOT", CardName = "V9n槽位卡", Supertype = Cardtype.Creature, Power = 1, Life = 1 };
+            slotCardData.Effects.Add(new CardEffectData
+            {
+                Id = "V9N_SLOT_E1", TriggerTiming = (int)TriggerTiming.OnPlay,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+            });
+            VerifySuite.Assert(CostDerivationService.CountEffectSlots(slotCardData) == 1, "无代价：槽位=效果数（1）");
+            slotCardData.PayloadCost = new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = smallPayload };
+            VerifySuite.Assert(CostDerivationService.CountEffectSlots(slotCardData) == 2,
+                "代价栏计 1 效果槽（1 效果 + 1 代价 = 2——使用代价栏单独为效果栏付 1 费）");
+            VerifySuite.Assert(CardCompositionCost.ChassisAdjust(slotCardData) == 3 - (1 + 1 + 2),
+                "底盘同口径：攻1+守1+槽2 → 3−4 = −1（加价 1 灰——不是特殊判）");
+            var legacySlotData = new CardData { ID = "V9N_SLOT2", CardName = "V9n旧式槽位卡", Supertype = Cardtype.Spell };
+            legacySlotData.Effects.Add(new CardEffectData
+            {
+                Id = "V9N_SLOT2_E1", TriggerTiming = (int)TriggerTiming.OnPlay,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+                Costs = new List<CostEntry> { new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = smallPayload } },
+            });
+            VerifySuite.Assert(CostDerivationService.CountEffectSlots(legacySlotData) == 2,
+                "legacy 效果级 Costs 代价同计 1 槽（1 效果 + 1 代价 = 2）");
+
+            // ---- ⑦ 无有效目标回手（2026-10-04 本轮定案：响应窗口内目标全灭 → 发动失败回退手牌） ----
+            npool.GlobalTurnIndex = 9; // cap 放宽（门槛只看全价）
+            npool.AvailableMana[ManaType.White] = 0;
+            npool.WhiteGainedThisTurn = 0;
+            npool.AvailableMana[ManaType.Gray] = 1; // 恰好够默认灰1——回退则分文未扣
+            enemyUnit.Tap(); // 激励域=NoRole,Tapped——重横置使声明期有候选
+            var revertCardData = new CardData { ID = "V9N_REVERT", CardName = "V9n回退代价卡", Supertype = Cardtype.Spell };
+            revertCardData.Cost = ElementCost.FromValue(ManaType.Gray, 1); // 有费可扣——回退则分文未扣可观测
+            revertCardData.PayloadCost = new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = mirrorPayload };
+            var revertCard = new CardWrapper(revertCardData);
+            revertCard.SetController(n1);
+            pcore.ZoneManager.GetZoneContainer(n1).Add(revertCard, Zone.Hand);
+            VerifySuite.Assert(GameActions.PlayCard(pcore, n1, revertCard), "前置：预选目标在场——声明成功");
+            pcore.ZoneManager.GetZoneContainer(n2).Move(enemyUnit, Zone.Battlefield, Zone.Graveyard); // 响应窗口内目标离场
+            GameActions.DrainStack(pcore);
+            VerifySuite.Assert(pcore.ZoneManager.GetCards(n1, Zone.Hand).Contains(revertCard),
+                "代价无有效目标：发动失败回退手牌（走不到代价黑白元素生成）");
+            VerifySuite.Assert(npool.AvailableMana[ManaType.Gray] == 1 && npool.AvailableMana[ManaType.White] == 0,
+                $"回退不付费不补偿（灰仍 {npool.AvailableMana[ManaType.Gray]}、白仍 {npool.AvailableMana[ManaType.White]}）");
+
+            // ---- ⑦b 手牌域代价回手（域正确性锚：{5} 域目标在手牌，写死战场判区会误杀） ----
+            var discPayload = AtomRefs.New(AtomicEffectType.DiscardCard, value: 1, kinds: new List<int> { 5 });
+            var backCardData = new CardData { ID = "V9N_BACK", CardName = "V9n弃牌代价卡", Supertype = Cardtype.Spell };
+            backCardData.Cost = ElementCost.FromValue(ManaType.Gray, 1);
+            backCardData.PayloadCost = new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = discPayload };
+            var backCard = new CardWrapper(backCardData);
+            backCard.SetController(n1);
+            pcore.ZoneManager.GetZoneContainer(n1).Add(backCard, Zone.Hand);
+            var handSave7b = pcore.ZoneManager.GetCards(n1, Zone.Hand).Where(h => h != backCard).ToList();
+            VerifySuite.Assert(handSave7b.Count >= 1 && GameActions.PlayCard(pcore, n1, backCard),
+                "前置：手牌有弃牌目标——声明成功");
+            foreach (var h in handSave7b) pcore.ZoneManager.GetZoneContainer(n1).Move(h, Zone.Hand, Zone.Deck); // 窗口内排空其余手牌
+            GameActions.DrainStack(pcore);
+            VerifySuite.Assert(pcore.ZoneManager.GetCards(n1, Zone.Hand).Contains(backCard)
+                              && npool.AvailableMana[ManaType.Gray] == 1,
+                "手牌域代价无有效目标：发动失败回退手牌（非战场域按域重解析，不误杀；灰未扣）");
+            foreach (var h in handSave7b) pcore.ZoneManager.GetZoneContainer(n1).Move(h, Zone.Deck, Zone.Hand); // 还原
+
+            // ---- ⑧ 先扣卡费·不预计将生成的黑白（2026-10-04 本轮定案）：窗口内池恶化 → 支付失败入墓、代价不执行 ----
+            var orderCardData = new CardData { ID = "V9N_ORDER", CardName = "V9n顺序代价卡", Supertype = Cardtype.Spell };
+            orderCardData.Cost = ElementCost.FromValue(ManaType.Black, 3);
+            orderCardData.PayloadCost = new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = smallPayload };
+            var orderCard = new CardWrapper(orderCardData);
+            orderCard.SetController(n1);
+            pcore.ZoneManager.GetZoneContainer(n1).Add(orderCard, Zone.Hand);
+            npool.AvailableMana[ManaType.Black] = 3; // 恰好够黑3（未来将产的黑不计入——声明期只看当前池）
+            int n1MaxBefore3 = n1.MaxHealth;
+            VerifySuite.Assert(GameActions.PlayCard(pcore, n1, orderCard), "前置：黑3 池够——声明成功");
+            npool.AvailableMana[ManaType.Black] = 0; // 响应窗口内元素被耗尽
+            GameActions.DrainStack(pcore);
+            VerifySuite.Assert(pcore.ZoneManager.GetCards(n1, Zone.Graveyard).Contains(orderCard),
+                "先扣卡费：池恶化付不出 → 入墓不回卷（旧序「补偿先付垫本卡」退役）");
+            VerifySuite.Assert(n1.MaxHealth == n1MaxBefore3 && npool.AvailableMana[ManaType.Black] == 0,
+                "支付失败先于代价执行：上限未流失、无黑补偿垫付");
+
+            // ---- ⑨ 声明期不预计未来黑白：池差补偿量 → 拒发（元素不足口径） ----
+            var affordCardData = new CardData { ID = "V9N_AFFORD", CardName = "V9n余量代价卡", Supertype = Cardtype.Spell };
+            affordCardData.Cost = ElementCost.FromValue(ManaType.Black, 3);
+            affordCardData.PayloadCost = new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = smallPayload };
+            var affordCard = new CardWrapper(affordCardData);
+            affordCard.SetController(n1);
+            pcore.ZoneManager.GetZoneContainer(n1).Add(affordCard, Zone.Hand);
+            npool.AvailableMana[ManaType.Black] = 3 - smallGrant; // 差值恰好=将生成的黑
+            VerifySuite.Assert(!GameActions.PlayCard(pcore, n1, affordCard, null, Zone.Hand, 0, out var affordReject)
+                              && affordReject != null && affordReject.Contains("元素不足")
+                              && pcore.ZoneManager.GetCards(n1, Zone.Hand).Contains(affordCard),
+                $"声明期口径：将生成的黑（{smallGrant}）不提前计入——池不足拒发留手（实际「{affordReject}」）");
+
+            // ---- ⑩ 生命恢复目标须受伤（2026-10-04 本轮定案：Damaged 动态判定 hp<上限，无存储标志位） ----
+            var healCfg = AtomicEffectTable.GetByType(AtomicEffectType.Heal);
+            VerifySuite.Assert(healCfg != null && healCfg.TargetFilter == "Damaged",
+                "表行单源：回复生命 TargetFilter=Damaged（复用既有 DamagedFilter，动态判定）");
+            var hfull = new CardWrapper(new CardData { ID = "V9N_HFULL", CardName = "V9n满血单位", Supertype = Cardtype.Creature, Power = 1, Life = 3 });
+            var hhurt = new CardWrapper(new CardData { ID = "V9N_HHURT", CardName = "V9n受伤单位", Supertype = Cardtype.Creature, Power = 1, Life = 3 });
+            hfull.SetController(n1);
+            hhurt.SetController(n1);
+            pcore.ZoneManager.GetZoneContainer(n1).Add(hfull, Zone.Battlefield);
+            pcore.ZoneManager.GetZoneContainer(n1).Add(hhurt, Zone.Battlefield);
+            KeywordRules.ApplyDamage(n2, hhurt, 2, isCombat: false);
+            KeywordRules.ApplyDamage(n2, n1, 2, isCombat: false); // 角色掉血（动态判定对角色同口径）
+            var healCtx = new EffectExecutionContext
+            {
+                Controller = n1, Source = n1, ZoneManager = pcore.ZoneManager, ElementPool = pcore.ElementPool,
+            };
+            var healCandidates = global::CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(
+                healCfg.GetTargetKindList(), healCfg.TargetFilter, healCtx);
+            VerifySuite.Assert(healCandidates != null && healCandidates.Contains(hhurt) && !healCandidates.Contains(hfull),
+                $"Damaged 过滤：受伤单位在候选、满血单位不在（候选数 {healCandidates?.Count ?? -1}）");
+            VerifySuite.Assert(healCandidates != null && healCandidates.Contains(n1),
+                "Damaged 过滤：掉血角色在候选（hp<上限 动态判定，无受伤标志位）");
+            var healCardData = new CardData { ID = "V9N_HEALCARD", CardName = "V9n治疗卡", Supertype = Cardtype.Spell };
+            healCardData.Effects.Add(new CardEffectData
+            {
+                Id = "V9N_HEALCARD_E1", TriggerTiming = (int)TriggerTiming.OnPlay,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.Heal, value: 2, kinds: new List<int> { 1, 2 }) },
+            });
+            var healCard = new CardWrapper(healCardData);
+            healCard.SetController(n1);
+            pcore.ZoneManager.GetZoneContainer(n1).Add(healCard, Zone.Hand);
+            int hhurtLifeBefore = hhurt.GetLife();
+            VerifySuite.Assert(GameActions.PlayCard(pcore, n1, healCard, new List<Entity> { hhurt }),
+                "治疗卡可发动（存在受伤目标）");
+            GameActions.DrainStack(pcore);
+            VerifySuite.Assert(hhurt.GetLife() == Math.Min(3, hhurtLifeBefore + 2),
+                $"治疗结算：受伤单位回复（{hhurtLifeBefore}→{hhurt.GetLife()}，封顶 3）");
+
+            // ============================ V9.o 两层无效（2026-10-04 定案：发动无效=净零成本 / 效果无效=扣费照付） ============================
+
+            VerifySuite.Section("V9.o 两层无效：发动无效净零成本 / 效果无效扣费照付（施放·触发计数·强制桶面）");
+            var qcore = GameCore.Instance;
+            qcore.Reset();
+            ZoneContainer.Reseed(20261005);
+            var fillerO = Enumerable.Range(0, 8).Select(i => new CardData
+            {
+                ID = $"V9O_fill_{i}", CardName = "V9O填充" + i, Supertype = Cardtype.Creature, Power = 1, Life = 1,
+            }).ToList();
+            qcore.InitGame(CardLoader.BuildDeck(fillerO, 2), CardLoader.BuildDeck(fillerO, 2));
+            var o1 = qcore.Player1;
+            var o2 = qcore.Player2;
+            GameActions.SkipElementPool(qcore, o1);
+            var opool = qcore.ElementPool.GetPool(o1);
+            var opool2 = qcore.ElementPool.GetPool(o2);
+            foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
+            {
+                opool.AvailableMana[t] = 99;
+                opool2.AvailableMana[t] = 99;
+            }
+            opool.GlobalTurnIndex = 9;
+            opool2.GlobalTurnIndex = 9;
+
+            var naRow = AtomicEffectTable.GetByEnumName("NegateActivation"); // 表行「发动无效」（净零成本档）
+            var neRow = AtomicEffectTable.GetByEnumName("NegateEffect");     // 表行「效果无效」（扣费照付档）
+            VerifySuite.Assert(naRow != null && neRow != null && naRow.HashId != neRow.HashId,
+                "两层无效表行齐备（发动无效/效果无效——行 ID 各异）");
+
+            Card OSpell(string id, string name, int baseSpeed, CardCore.Attribute.AtomicEffectConfig atomRow, Player owner)
+            {
+                var data = new CardData { ID = id, CardName = name, Supertype = Cardtype.Spell };
+                data.Cost = PosCost((ManaType.Gray, 1));
+                data.Effects.Add(new CardEffectData
+                {
+                    Id = id + "_EFF",
+                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                    BaseSpeed = baseSpeed,
+                    SelectionMode = -1,
+                    AtomicEffects = new List<AtomicEffectEntry>
+                    {
+                        new AtomicEffectEntry { refId = atomRow.HashId, value = 1, kinds = new List<int> { 15, 16 } },
+                    },
+                });
+                var card = new CardWrapper(data);
+                card.SetController(owner);
+                qcore.ZoneManager.GetZoneContainer(owner).Add(card, Zone.Hand);
+                return card;
+            }
+
+            // ---- ① 施放×发动无效：扣费返还（不付费）、送墓、无效果 ----
+            var fbA = OSpell("V9O_FB_A", "V9o火球A", 0, AtomicEffectTable.GetByType(AtomicEffectType.DealDamage), o1);
+            var naCard = OSpell("V9O_NA", "V9o发动无效", 2, naRow, o2);
+            int o2LifeA = o2.Life, o1GrayA = opool.AvailableMana[ManaType.Gray];
+            VerifySuite.Assert(GameActions.PlayCard(qcore, o1, fbA, new List<Entity> { o2 }), "① 火球A打出（响应窗口开）");
+            VerifySuite.Assert(GameActions.PlayCardInResponse(qcore, o2, naCard, new List<Entity> { fbA }),
+                "① 响应窗口内打出发动无效（指向发动区火球）");
+            GameActions.DrainStack(qcore);
+            if (!qcore.StackEngine.IsEmpty) qcore.StackEngine.Clear(); // 段内 SBA 窗口收口（Unity 侧同款残留惯例）
+            VerifySuite.Assert(o2.Life == o2LifeA
+                              && opool.AvailableMana[ManaType.Gray] == o1GrayA
+                              && qcore.ZoneManager.GetCards(o1, Zone.Graveyard).Contains(fbA),
+                $"① 发动无效=净零成本：无伤害、不付费（净效果=扣费返还）、卡入墓（life {o2LifeA}→{o2.Life}，灰 {o1GrayA}→{opool.AvailableMana[ManaType.Gray]}）");
+
+            // ---- ② 施放×效果无效：扣费不返还、送墓、无效果 ----
+            var fbB = OSpell("V9O_FB_B", "V9o火球B", 0, AtomicEffectTable.GetByType(AtomicEffectType.DealDamage), o1);
+            var neCard = OSpell("V9O_NE", "V9o效果无效", 2, neRow, o2);
+            int o1GrayB = opool.AvailableMana[ManaType.Gray];
+            VerifySuite.Assert(GameActions.PlayCard(qcore, o1, fbB, new List<Entity> { o2 }), "② 火球B打出");
+            VerifySuite.Assert(GameActions.PlayCardInResponse(qcore, o2, neCard, new List<Entity> { fbB }),
+                "② 响应窗口内打出效果无效");
+            GameActions.DrainStack(qcore);
+            if (!qcore.StackEngine.IsEmpty) qcore.StackEngine.Clear();
+            VerifySuite.Assert(o2.Life == o2LifeA
+                              && opool.AvailableMana[ManaType.Gray] == o1GrayB - 1
+                              && qcore.ZoneManager.GetCards(o1, Zone.Graveyard).Contains(fbB),
+                $"② 效果无效=扣费照付：无伤害、费用实扣不返还（灰 {o1GrayB}→{opool.AvailableMana[ManaType.Gray]}）、卡入墓");
+
+            // ---- ③ 触发式计数口径：发动无效不计发动次数（记账退还）/ 效果无效计入（记账保留） ----
+            var executor = qcore.StackEngine.GetExecutor();
+            var trigSrc = new CardWrapper(new CardData
+            {
+                ID = "V9O_TRIG_SRC", CardName = "V9o触发源", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+            });
+            trigSrc.SetController(o1);
+            qcore.ZoneManager.GetZoneContainer(o1).Add(trigSrc, Zone.Battlefield);
+            var trigDef = CardEffectConverter.ConvertOne(new CardEffectData
+            {
+                Id = "V9O_TRIG",
+                ActivationType = (int)EffectActivationType.Automatic,
+                TriggerTiming = (int)TriggerTiming.OnTurnStart,
+                TriggerLimitPerTurn = 1, // 一回合一次——计数口径的观察窗
+                SelectionMode = -1,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: 1, kinds: new List<int> { 2 }) },
+            }, "V9O_TRIG_SRC");
+            PendingEffect TrigPending()
+            {
+                var p = PendingEffect.Create(trigDef, trigSrc, o1, o1, PhaseType.Main,
+                    triggeringEvent: new TurnStartEvent { TurnPlayer = o1, TurnNumber = 99 });
+                p.SelectedTargets = new List<Entity> { o2 };
+                return p;
+            }
+            int o2LifeC = o2.Life;
+            executor.RecordQueuedActivation(trigDef, trigSrc); // 触发式入栈记账（引擎口径）
+            VerifySuite.Assert(executor.TriggerCapReached(trigDef, trigSrc), "③ 前置：记账后达一回合一次上限");
+            var naInst = EffectInstance.FromPendingEffect(TrigPending());
+            naInst.IsActivationNegated = true;
+            executor.ExecuteAsync(naInst).GetAwaiter().GetResult();
+            VerifySuite.Assert(!executor.TriggerCapReached(trigDef, trigSrc) && o2.Life == o2LifeC,
+                "③ 发动无效：效果跳过 + 发动次数退还（上限解锁——同回合可再触发）");
+            executor.RecordQueuedActivation(trigDef, trigSrc); // 退还后再触发（重新入栈记账）
+            var okInst = EffectInstance.FromPendingEffect(TrigPending());
+            executor.ExecuteAsync(okInst).GetAwaiter().GetResult();
+            VerifySuite.Assert(executor.TriggerCapReached(trigDef, trigSrc) && o2.Life == o2LifeC - 1,
+                "③ 退还后再触发：正常结算（伤害 1 落地）且计数回到上限");
+            var neInst = EffectInstance.FromPendingEffect(TrigPending());
+            neInst.IsEffectNegated = true;
+            executor.ExecuteAsync(neInst).GetAwaiter().GetResult();
+            VerifySuite.Assert(executor.TriggerCapReached(trigDef, trigSrc) && o2.Life == o2LifeC - 1,
+                "③ 效果无效：效果不结算但**计入发动次数**（记账不退——上限仍锁）");
+
+            // ---- ④ 强制桶面：发动无效不管制强制效果、效果无效管制（混合批直调处理器 + 排干结算） ----
+            var mandSrc = new CardWrapper(new CardData
+            {
+                ID = "V9O_MAND_SRC", CardName = "V9o强制源", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+            });
+            mandSrc.SetController(o1);
+            qcore.ZoneManager.GetZoneContainer(o1).Add(mandSrc, Zone.Battlefield);
+            EffectDefinition OTrigDef(string id, EffectActivationType bucket, int dmg)
+                => CardEffectConverter.ConvertOne(new CardEffectData
+                {
+                    Id = id,
+                    ActivationType = (int)bucket,
+                    TriggerTiming = (int)TriggerTiming.OnTurnStart,
+                    TriggerLimitPerTurn = -1, // 显式无限（缺省 0=默认 1 次/回合——④ 两轮入队会被上限闸门吞）
+                    SelectionMode = -1,
+                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: dmg, kinds: new List<int> { 2 }) },
+                }, "V9O_MAND_SRC");
+            var autoDef = OTrigDef("V9O_AUTO", EffectActivationType.Automatic, 1);
+            // 强制效果直构（角色亡语同款先例）：CardEffectData.ActivationType=0（Mandatory 枚举值）
+            // 会被转换器当"未声明"回落默认桶——真实强制效果（光环类/宣判）均直构 EffectDefinition。
+            var mandDef = new EffectDefinition
+            {
+                Id = "V9O_MAND",
+                DisplayName = "V9o强制效果",
+                ActivationType = EffectActivationType.Mandatory,
+                TriggerTiming = TriggerTiming.OnTurnStart,
+                ElementCostPrepaid = true,
+                Effects = new List<AtomicEffectInstance>
+                {
+                    new AtomicEffectInstance { Type = AtomicEffectType.DealDamage, Value = 2, TargetKinds = new List<int> { 2 } },
+                },
+            };
+            int o2LifeD = o2.Life;
+            var autoP = PendingEffect.Create(autoDef, trigSrc, o1, o1, PhaseType.Main); // 自动桶（trigSrc 作源）
+            autoP.SelectedTargets = new List<Entity> { o2 };
+            qcore.StackEngine.AddPendingEffect(autoP);
+            var mandP = PendingEffect.Create(mandDef, mandSrc, o1, o1, PhaseType.Main); // 强制桶（mandSrc 作源）
+            mandP.SelectedTargets = new List<Entity> { o2 };
+            qcore.StackEngine.AddPendingEffect(mandP);
+            qcore.StackEngine.ProcessTriggeredEffects(); // 两桶入栈（含自动桶=开窗批）
+            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
+                new AtomicEffectInstance { Type = AtomicEffectType.NegateActivation, Value = 1 },
+                new EffectExecutionContext
+                {
+                    Controller = o2, Source = o2,
+                    ZoneManager = qcore.ZoneManager, ElementPool = qcore.ElementPool,
+                    Targets = new List<Entity> { mandSrc, trigSrc }, // 强制源+自动源同指：管制面分野可观测
+                }).GetAwaiter().GetResult();
+            GameActions.DrainStack(qcore);
+            if (!qcore.StackEngine.IsEmpty) qcore.StackEngine.Clear();
+            VerifySuite.Assert(o2.Life == o2LifeD - 2,
+                $"④ 发动无效不管制强制桶：强制源效果照常结算（伤害 2 落地）、自动源被净零跳过（未加 1——实际 {o2LifeD}→{o2.Life}）");
+            var mandP2 = PendingEffect.Create(mandDef, mandSrc, o1, o1, PhaseType.Main);
+            mandP2.SelectedTargets = new List<Entity> { o2 };
+            qcore.StackEngine.AddPendingEffect(mandP2);
+            qcore.StackEngine.ProcessTriggeredEffects();
+            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
+                new AtomicEffectInstance { Type = AtomicEffectType.NegateEffect, Value = 1 },
+                new EffectExecutionContext
+                {
+                    Controller = o2, Source = o2,
+                    ZoneManager = qcore.ZoneManager, ElementPool = qcore.ElementPool,
+                    Targets = new List<Entity> { mandSrc },
+                }).GetAwaiter().GetResult();
+            GameActions.DrainStack(qcore);
+            if (!qcore.StackEngine.IsEmpty) qcore.StackEngine.Clear();
+            VerifySuite.Assert(o2.Life == o2LifeD - 2,
+                "④ 效果无效管制强制桶：强制源效果被跳过（伤害 0 追加）");
 
             VerifySuite.Section("V9 引擎规则回归完成");
         }

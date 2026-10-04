@@ -69,7 +69,6 @@ namespace SynergyUI
             // 费用显示：明细在手 → 彩色方格（公用 CostSquares）；缺明细回落旧文本
             if (_costView != null && item.Costs != null && !item.Costs.IsZero)
             {
-                _costView.SquareSize = full ? 10f : land ? 8f : 7f;
                 _costView.SetCosts(item.Costs);
                 SetText(_cost, "", 10);
             }

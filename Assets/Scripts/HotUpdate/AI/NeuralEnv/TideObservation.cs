@@ -180,7 +180,7 @@ namespace CardCore.AI.NeuralEnv
             Cards[b + 11] = c.GetCounterCount(CounterRules.CostUpCounter)
                           - c.GetCounterCount(CounterRules.CostDownCounter); // 费用层净量
             Cards[b + 12] = c.HasKeyword(KeywordRules.Taunt) ? 1f : 0f;
-            Cards[b + 13] = c.HasKeyword(KeywordRules.Stealth) ? 1f : 0f;
+            Cards[b + 13] = (c.HasKeyword(KeywordRules.Stealth) || c.HasKeyword(KeywordRules.Concealed)) ? 1f : 0f;
             Cards[b + 14] = c.HasKeyword(DeathRules.DivineProtection) ? 1f : 0f;
             // 内容身份（原子级拆散，CardIdentityService 与费用同管线推导），三通路：
             // 1) 精确哈希 [15..20] 原子 + [21] 结构 + [22] 组合——内容寻址查表，同单元跨卡共享行；
@@ -233,11 +233,12 @@ namespace CardCore.AI.NeuralEnv
             g[29] = FieldValueReward.TotalValue(core, opp); // 对方全资源价值
             g[30] = ep.GetLandCap(me);
             g[31] = ep.GetLandCap(opp);
-            // 黑白每回合获得余量（2026-10-04：封顶=地牌槽上限/色）——policy 可见「本回合黑/白还能进账几个」
-            g[32] = Math.Max(0, ep.GetLandCap(me) - ep.GetPool(me).BlackGainedThisTurn);
-            g[33] = Math.Max(0, ep.GetLandCap(me) - ep.GetPool(me).WhiteGainedThisTurn);
-            g[34] = Math.Max(0, ep.GetLandCap(opp) - ep.GetPool(opp).BlackGainedThisTurn);
-            g[35] = Math.Max(0, ep.GetLandCap(opp) - ep.GetPool(opp).WhiteGainedThisTurn);
+            // 黑白本回合已获得台账（2026-10-04 使用侧定案：产出钳退役——获得不再封顶，
+            // 约束在使用侧=支付单次贡献≤地牌上限；此槽从「获得余量」改为「已获得量」观测）
+            g[32] = ep.GetPool(me).BlackGainedThisTurn;
+            g[33] = ep.GetPool(me).WhiteGainedThisTurn;
+            g[34] = ep.GetPool(opp).BlackGainedThisTurn;
+            g[35] = ep.GetPool(opp).WhiteGainedThisTurn;
 
             // ---- v2 追加（2026-09-30 契约第 3 节）----
             WriteHeroSkillBlock(core, core.Player1, 36);

@@ -41,20 +41,28 @@ namespace CardCore.AI
                     demand[color] -= Math.Min(have, demand[color]);
             }
 
-            // ③ 万用池（灰+黑+白 bank）抵四色剩余需求
-            int wildPool = (bank.TryGetValue(ManaType.Gray, out var gray) ? gray : 0)
-                         + (bank.TryGetValue(ManaType.Black, out var black) ? black : 0)
-                         + (bank.TryGetValue(ManaType.White, out var white) ? white : 0);
-            if (wildPool > 0)
+            // ③ 双单向池（2026-10-04 支付链改向：黑白垫三色、三色垫灰、黑白不垫灰）：
+            //    黑白 bank 池抵红蓝绿剩余需求；三色 bank 池抵灰剩余需求（灰不垫三色）
+            int bwPool = (bank.TryGetValue(ManaType.Black, out var black) ? black : 0)
+                       + (bank.TryGetValue(ManaType.White, out var white) ? white : 0);
+            if (bwPool > 0)
             {
-                foreach (var color in new[] { ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Gray })
+                foreach (var color in new[] { ManaType.Red, ManaType.Blue, ManaType.Green })
                 {
-                    if (wildPool <= 0) break;
+                    if (bwPool <= 0) break;
                     if (!demand.TryGetValue(color, out var need) || need <= 0) continue;
-                    int cut = Math.Min(wildPool, need);
+                    int cut = Math.Min(bwPool, need);
                     demand[color] -= cut;
-                    wildPool -= cut;
+                    bwPool -= cut;
                 }
+            }
+            int rgbPool = (bank.TryGetValue(ManaType.Red, out var red) ? red : 0)
+                        + (bank.TryGetValue(ManaType.Blue, out var blue) ? blue : 0)
+                        + (bank.TryGetValue(ManaType.Green, out var green) ? green : 0);
+            if (rgbPool > 0 && demand.TryGetValue(ManaType.Gray, out var grayNeed) && grayNeed > 0)
+            {
+                int cut = Math.Min(rgbPool, grayNeed);
+                demand[ManaType.Gray] -= cut;
             }
 
             // ④ 清零项移除

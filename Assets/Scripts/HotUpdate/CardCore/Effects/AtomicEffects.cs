@@ -46,7 +46,10 @@ namespace CardCore
 
         // ============ 控制相关 ============
         GainControl,
-        NegateActivation,
+        /// <summary>效果无效（2026-10-04 两层无效定案，承接旧 NegateActivation 标记实现）：
+        /// 发动照常、效果不结算——施放=扣费不返还入墓；启动式=扣费+横置不重置；触发式=计入发动次数；
+        /// 强制桶受管制（效果跳过）。枚举位承袭旧 NegateActivation（只可改名不可挪位）。</summary>
+        NegateEffect,
         Silence,
         RedirectTarget,
         ScryCards,
@@ -122,8 +125,11 @@ namespace CardCore
         Devour,
         Annihilate,
 
-        // ============ 反制原子（使用时点/响应窗口——指向发动区） ============
-        KnockDown,
+        // ============ 反制原子（使用时点/响应窗口——指向发动区；2026-10-04 两层无效定案） ============
+        /// <summary>发动无效（原打落 KnockDown 承接改名，枚举位不变）：无效化**发动**本身——净零成本。
+        /// 施放=扣费返还（发动区送墓，消费点不付费中止）；启动式=不扣费+横置不重置；触发式=不计发动次数
+        /// （入栈记账退还）；强制桶不受管制（不可标记）。表行「发动无效」。</summary>
+        NegateActivation,
 
         // ============ 衍生物生成（原 PutToBattlefield 枚举位已收编至此） ============
         SummonToken,
@@ -196,7 +202,7 @@ namespace CardCore
         // 主干不作为普通原子执行/计价（BaseCost=0、空域、极性 0）——表行 MountKinds="9"（FreeBranchTrunk）；
         // 落入合成器主干槽时 UI 直接写 header.EngineKind/EngineParam（奖励槽写 header.AtomicEffects），
         // converter 对误入普通步骤的主干原子做守卫剔除（见 ComposerCatalog.IsEngineTrunk）。
-        /// <summary>拼点主干：回合开始双方牌库顶各展示一张——自己费用 &gt; 对手费用 + x 时执行奖励；机制费=x 灰（x∈[1,5]，Value→EngineParam）</summary>
+        /// <summary>拼点主干：回合开始双方牌库各随机取样一张生物——自己生物攻击力 − 对手 ≥ 门槛（=奖励锚价合计推导）时执行奖励</summary>
         BranchEngineClash,
         /// <summary>运势主干：回合开始掷 2d6，两点均 &gt; x 时执行奖励；机制费=x 灰（x∈[1,5]，Value→EngineParam）</summary>
         BranchEngineLuckRoll,
@@ -229,6 +235,9 @@ namespace CardCore
         /// 持有期间该牌无法使用（打出/响应出牌/苏醒立约同门）；持有者回合结束层数−1
         /// （手牌区与场上同样倒数，CounterRules 持有者侧结算域），归零解锁。枚举只可尾部追加。</summary>
         LockCard,
+        /// <summary>隐密（2026-10-04，蓝5——潜行的持续版）：不可被攻击/效果指定，且**不因
+        /// 发动效果或受到伤害失效**（潜行蓝1 两个失效口都豁免）。枚举只可尾部追加。</summary>
+        GrantConcealed,
     }
 
     /// <summary>

@@ -59,7 +59,7 @@
     "DisplayName": "为{target}回复{value}点生命",
     "EffectType": "Heal",
     "TargetKinds": "1,2",
-    "TargetFilter": null,
+    "TargetFilter": "Damaged",
     "Polarity": 1.0,
     "MountKinds": "0,3,4,7",
     "ManaList": [
@@ -558,9 +558,9 @@
     ]
   },
   {
-    "ID": "d8de5946",
+    "ID": "a16f1e55",
     "EnumName": "潜行",
-    "DisplayName": "不会成为攻击和效果的{target}，发动效果后移除潜行",
+    "DisplayName": "不会成为攻击和效果的目标，发动效果或受到伤害后，移除潜行",
     "EffectType": "GrantStealth",
     "TargetKinds": "0",
     "TargetFilter": "NoRole",
@@ -570,6 +570,24 @@
       0.0,
       0.0,
       1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "ff236f3e",
+    "EnumName": "隐密",
+    "DisplayName": "不会成为攻击和效果的目标",
+    "EffectType": "GrantConcealed",
+    "TargetKinds": "0",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "0,4,1,5",
+    "ManaList": [
+      0.0,
+      0.0,
+      5.0,
       0.0,
       0.0,
       0.0
@@ -991,9 +1009,27 @@
   },
   {
     "ID": "6559671a",
-    "EnumName": "无效发动",
-    "DisplayName": "无效化一次发动",
+    "EnumName": "发动无效",
+    "DisplayName": "使{target}效果的发动无效化",
     "EffectType": "NegateActivation",
+    "TargetKinds": "15,16",
+    "TargetFilter": null,
+    "Polarity": -1.0,
+    "MountKinds": "0,4",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      3.0
+    ]
+  },
+  {
+    "ID": "4d25f64a",
+    "EnumName": "效果无效",
+    "DisplayName": "使{target}发动的效果无效化",
+    "EffectType": "NegateEffect",
     "TargetKinds": "15,16",
     "TargetFilter": null,
     "Polarity": -1.0,
@@ -1121,24 +1157,6 @@
     "DisplayName": "摧毁{target}（无生命值单位：地牌/结界）",
     "EffectType": "Smash",
     "TargetKinds": "3,4,13,14",
-    "TargetFilter": null,
-    "Polarity": -1.0,
-    "MountKinds": "0,4",
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      3.0
-    ]
-  },
-  {
-    "ID": "db0a05fa",
-    "EnumName": "打落",
-    "DisplayName": "将发动区的卡送至墓地",
-    "EffectType": "KnockDown",
-    "TargetKinds": "15,16",
     "TargetFilter": null,
     "Polarity": -1.0,
     "MountKinds": "0,4",
@@ -1404,9 +1422,9 @@
     ]
   },
   {
-    "ID": "5bd8351a",
+    "ID": "54a297c5",
     "EnumName": "拼点",
-    "DisplayName": "拼点主干（双方牌库顶费用总额差额制）",
+    "DisplayName": "拼点主干（随机生物攻击力差额制）",
     "EffectType": "BranchEngineClash",
     "TargetKinds": "",
     "TargetFilter": null,
@@ -1471,7 +1489,7 @@
     "TargetKinds": "1,2",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0,4",
+    "MountKinds": "0,4,11",
     "ManaList": [
       0.0,
       0.5,
@@ -1489,7 +1507,7 @@
     "TargetKinds": "1,2",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0,4",
+    "MountKinds": "0,4,11",
     "ManaList": [
       0.0,
       0.0,
@@ -1507,7 +1525,7 @@
     "TargetKinds": "5,6",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0,4",
+    "MountKinds": "0,4,11",
     "ManaList": [
       0.0,
       0.0,
@@ -1633,7 +1651,7 @@
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0",
+    "MountKinds": "10",
     "ManaList": [
       0.0,
       0.0,
@@ -1651,7 +1669,7 @@
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0",
+    "MountKinds": "10",
     "ManaList": [
       0.0,
       12.0,
@@ -1664,12 +1682,12 @@
   {
     "ID": "914a59e3",
     "EnumName": "丰盈仪典",
-    "DisplayName": "规则光环（双方生效）：回复生命的溢出转化为生命上限+1（每次溢出+1层，剩余截断）",
+    "DisplayName": "规则光环（双方生效）：回复生命的溢出转化为生命上限+1",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0",
+    "MountKinds": "10",
     "ManaList": [
       0.0,
       0.0,
@@ -1681,18 +1699,18 @@
   },
   {
     "ID": "a4ccc20d",
-    "EnumName": "蚕褪仪典",
-    "DisplayName": "规则光环（双方生效）：单次伤害超过5时改为5（生物与角色）",
+    "EnumName": "离散仪典",
+    "DisplayName": "规则光环：单次伤害超过5时改为5，低于5时改为3",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0",
+    "MountKinds": "10",
     "ManaList": [
       0.0,
+      6.0,
       0.0,
       0.0,
-      12.0,
       0.0,
       0.0
     ]
@@ -1700,12 +1718,12 @@
   {
     "ID": "3b28df38",
     "EnumName": "窥渊仪典",
-    "DisplayName": "规则光环（双方生效）：每回合开始时，随机展示对手一张手牌，并赋予对手被展示的卡一回合锁定指示物（期间无法使用）",
+    "DisplayName": "规则光环：回合结束时，随机展示对手一张手牌，并附加持续一回合的锁定指示物",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0",
+    "MountKinds": "10",
     "ManaList": [
       0.0,
       0.0,
@@ -1718,12 +1736,12 @@
   {
     "ID": "a1ea9962",
     "EnumName": "归土仪典",
-    "DisplayName": "规则光环（双方生效）：每回合一次，可从自己墓地使用一张牌（视为手牌中使用）",
+    "DisplayName": "规则光环：每回合一次，可从自己墓地使用一张牌（视为手牌中使用）",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0",
+    "MountKinds": "10",
     "ManaList": [
       0.0,
       0.0,
@@ -1736,12 +1754,12 @@
   {
     "ID": "5b0c8b74",
     "EnumName": "疾风仪典",
-    "DisplayName": "规则光环（双方生效）：从手牌使用的卡发动速度+1",
+    "DisplayName": "规则光环：手牌中的卡发动速度+1",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0",
+    "MountKinds": "10",
     "ManaList": [
       0.0,
       0.0,
@@ -1754,12 +1772,12 @@
   {
     "ID": "d5dc90ed",
     "EnumName": "轮回仪典",
-    "DisplayName": "规则光环（双方生效）：每个玩家连续进行两个回合",
+    "DisplayName": "规则光环：每个玩家连续进行两个回合",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0",
+    "MountKinds": "10",
     "ManaList": [
       0.0,
       0.0,
@@ -1772,12 +1790,12 @@
   {
     "ID": "b6170161",
     "EnumName": "纳川仪典",
-    "DisplayName": "规则光环（双方生效）：手牌上限提升至15，且免疫空库抽牌疲劳",
+    "DisplayName": "规则光环：手牌上限提升至15，且免疫抽牌疲劳",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "0",
+    "MountKinds": "10",
     "ManaList": [
       0.0,
       0.0,

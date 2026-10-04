@@ -128,6 +128,8 @@ namespace SynergyUI
                 selection = h.SelectionMode,
                 count = h.TargetCount,
                 random = h.RandomTarget,
+                kinds = h.TargetKinds != null && h.TargetKinds.Count > 0
+                    ? new List<int>(h.TargetKinds) : null, // 效果级作用范围（2026-10-04）——空表不写列
                 dropZone = h.SummonDropZone,
                 engine = h.EngineKind,
                 engineParam = h.EngineParam,
@@ -187,6 +189,8 @@ namespace SynergyUI
                     SelectionMode = dto.selection,
                     TargetCount = dto.count,
                     RandomTarget = dto.random,
+                    TargetKinds = dto.kinds != null && dto.kinds.Count > 0
+                        ? new List<int>(dto.kinds) : null,
                     SummonDropZone = dto.dropZone,
                     EngineKind = dto.engine,
                     EngineParam = dto.engineParam,

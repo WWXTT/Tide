@@ -82,6 +82,8 @@ namespace CardCore.Attribute.Handlers
             // 蓝色 - 规避/控制
             (AtomicEffectType.GrantVigilance, "Vigilance", "获得警戒"),
             (AtomicEffectType.GrantStealth, "Stealth", "获得潜行"),
+            // 隐密（2026-10-04，蓝5）：潜行的持续版——不因发动效果/受到伤害失效（两个移除口只查 Stealth）
+            (AtomicEffectType.GrantConcealed, "Concealed", "获得隐密"),
             (AtomicEffectType.GrantSpellShield, "SpellShield", "获得法术护盾"),
             (AtomicEffectType.GrantCannotBeTargeted, "Untargetable", "获得扰魔"),
 

@@ -80,6 +80,16 @@ namespace SynergyUI
                 sb.Append('|');
             }
 
+            // 代价栏（2026-10-04 持久化配套）：卡层 Payload 是功能字段——原子引用+逆转域参与卡身份；
+            // 空代价不写段（存量卡 id 零漂移）。费用 costList 不入哈希的定案不涉及——代价栏是功能内容非费用推导。
+            var payloadAtom = card.PayloadCost?.payload;
+            if (payloadAtom != null && !string.IsNullOrEmpty(payloadAtom.refId))
+            {
+                sb.Append("PC:");
+                AppendAtomic(sb, payloadAtom);
+                sb.Append('|');
+            }
+
             // FX 段 = 效果 id 序列（推导链中间层）：效果文本/参数/原子引用变更 → 效果 id 变 → 卡 id 变
             sb.Append("FX:");
             if (card.Effects != null)
@@ -153,6 +163,9 @@ namespace SynergyUI
             sb.Append("BS:").Append(h.BaseSpeed).Append('|');
             if (h.RandomTarget != 0)
                 sb.Append("RT:1|");
+            // TK 段（2026-10-04 效果级作用范围）：功能字段参与哈希；空声明不写段（存量效果 id 零漂移）
+            if (h.TargetKinds != null && h.TargetKinds.Count > 0)
+                sb.Append("TK:").Append(string.Join(",", h.TargetKinds.Distinct().OrderBy(k => k))).Append('|');
             // AE 段单源化（2026-09-14 v2）：仅 steps 为空（引擎形态——奖励原子唯一承载）时计入；
             // steps 形态的 AtomicEffects 是旧投影冗余，不再参与哈希（否则同一效果两种存储两套 id）
             if ((h.AtomicEffects != null && h.AtomicEffects.Count > 0)

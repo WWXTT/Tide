@@ -19,9 +19,6 @@ namespace SynergyUI
         public const string PrefabName = "CostSquares";
         public const string TemplateName = "tpl-square";
 
-        public float SquareSize = 14f;
-        public float Spacing = 2f;
-
         private RectTransform _template;
         private bool _codeTemplate; // 模板为代码自建（无烘焙）——克隆体才给默认尺寸，烘焙模板不碰布局
 
@@ -98,8 +95,6 @@ namespace SynergyUI
                     var sq = Instantiate(_template.gameObject, transform, false);
                     sq.name = "square";
                     sq.SetActive(true);
-                    if (_codeTemplate)
-                        ((RectTransform)sq.transform).sizeDelta = new Vector2(SquareSize, SquareSize);
                     var img = sq.GetComponent<Image>();
                     if (img != null)
                     {
@@ -124,7 +119,6 @@ namespace SynergyUI
             var go = new GameObject(TemplateName, typeof(RectTransform), typeof(Image));
             var rt = (RectTransform)go.transform;
             rt.SetParent(transform, false);
-            rt.sizeDelta = new Vector2(SquareSize, SquareSize);
             _codeTemplate = true;
             var img = go.GetComponent<Image>();
             img.color = Color.white;

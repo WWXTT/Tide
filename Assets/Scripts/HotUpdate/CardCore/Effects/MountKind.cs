@@ -41,6 +41,10 @@ namespace CardCore
         /// （不物化 → RemoveKeyword 空操作 → 等效永久持有）。合成期校验+装载期拦截均读本位，不硬编码名单。
         /// 坚韧(Armor)/守护(Guardian) 无表行（Grant 行已退役、光环本体）——代码特判放行。</summary>
         LinkAura = 10,
+        /// <summary>系统内部用（2026-10-04 定案）：声明该位的行**移出玩家合成器全部选择面**
+        /// （效果合成器原子库/分类、卡合成器代价候选）——引擎执行/计价代表原子/装载照常运转。
+        /// 首批：修改攻击力/修改生命值/修改费用（数值修改原语，系统侧计价与运行时消费）。</summary>
+        SystemInternal = 11,
     }
 
     /// <summary>MountKinds CSV 解析/判定辅助（AtomicEffectTable 与装载校验共用）。</summary>

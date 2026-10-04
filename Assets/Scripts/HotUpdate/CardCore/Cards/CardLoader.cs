@@ -71,6 +71,11 @@ namespace CardCore
 
         // 底盘退费落色（2026-10-02 定案：玩家自标）：-1=未声明（默认先灰后最高费用色）；0..5=ManaType
         public int refundColor = -1;
+
+        // 代价栏（2026-10-04 持久化链）：卡层 Payload 原子引用——CostType 恒 Payload、Value 恒 1，
+        // 装载时按规范常量重建 CostEntry；逆转后的镜像域存于 payload.kinds（可超出表行域）。
+        // refId 空/字段缺省 = 无代价（旧档兼容——JsonUtility 空对象回落同样由此守卫拦下）。
+        public AtomicEffectEntry payload;
     }
 
     // CostJsonEntry（{manaType, amount} 对）已删除（2026-10-04 费用位置数组化）：
@@ -355,6 +360,25 @@ namespace CardCore
                     if (atomCount > 2)
                         TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
                                        + $"主序列原子 {atomCount} 个超组合上限 2（抉择/条件奖励/并列三形式）");
+
+                    // 效果级作用范围越界（2026-10-04 相同目标定案）：声明域须落在主序列原子域交集内
+                    //（并列共享同一选中目标——越界目标对域外原子不合法）。交集空不判（下方断链告警覆盖）。
+                    if (eff.TargetKinds != null && eff.TargetKinds.Count > 0)
+                    {
+                        List<int> rawInter = null;
+                        foreach (var atom in mainAtoms)
+                        {
+                            if (atom?.TargetKinds == null || atom.TargetKinds.Count == 0) continue;
+                            rawInter = rawInter == null
+                                ? new List<int>(atom.TargetKinds)
+                                : TargetKindRules.Intersect(rawInter, atom.TargetKinds);
+                        }
+                        if (rawInter != null && rawInter.Count > 0
+                            && eff.TargetKinds.Any(k => !rawInter.Contains(k)))
+                            TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
+                                           + $"效果级作用范围 [{string.Join(",", eff.TargetKinds)}] 超出原子域交集 "
+                                           + $"[{TargetKindRules.Format(rawInter)}]——相同目标定案：作用范围须落在交集内");
+                    }
 
                     // 单范围域宽校验（2026-09-16 六值定案核心）：一个 {target} 只能从一个范围选择——
                     // 模式 0/1/2（Single/Multiple/Whole）要求组合域恰为单一 TargetKind，违反=数据错误
@@ -660,6 +684,19 @@ namespace CardCore
 
             // 底盘退费落色（2026-10-02 定案：玩家自标）——计价推导口径，不影响运行时支付
             cardData.RefundColor = entry.refundColor;
+
+            // 代价栏（2026-10-04 持久化链）：payload 原子引用 → 卡层 PayloadCost（正式口；
+            // legacy 效果级 Costs 兜底不变——卡层已填时 CollectCardSpecialCosts 跳过 legacy 防双收）。
+            // 须在 EnsureCost 前（单卡单条违约告警读 PayloadCost）。
+            if (entry.payload != null && !string.IsNullOrEmpty(entry.payload.refId))
+            {
+                cardData.PayloadCost = new CostEntry
+                {
+                    CostType = (int)CostType.Payload,
+                    Value = 1,
+                    payload = entry.payload,
+                };
+            }
 
             // 统一计价兜底：costList 缺省 → 写入建议档位分布（幂等，非空不动）
             CardCostService.EnsureCost(cardData);

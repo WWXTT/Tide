@@ -166,8 +166,8 @@ namespace CardCore
                 && !_zoneManager.IsCardInZone(zc, targetController, Zone.Battlefield))
                 return false;
 
-            // 潜行：不可被指定为攻击目标
-            if (target is Card sc && sc.HasKeyword(KeywordRules.Stealth))
+            // 潜行/隐密：不可被指定为攻击目标
+            if (target is Card sc && (sc.HasKeyword(KeywordRules.Stealth) || sc.HasKeyword(KeywordRules.Concealed)))
                 return false;
 
             // 突袭紊乱（负面指示物，持续一回合）：期间不准以玩家为目标——只能攻随从

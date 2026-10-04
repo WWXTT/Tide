@@ -62,6 +62,12 @@ namespace CardCore
 
         /// <summary>效果来源</summary>
         public Entity Source;
+
+        /// <summary>声明期预选的代价目标（出牌两阶段 2026-10-04 定案）：
+        /// 出牌声明期（PlayCard/PlayCardInResponse）预选、cast 结算付费步消费——
+        /// ExecutePayloadAsync 优先沿用，不在结算期重选（响应窗口内状态变化不重选，
+        /// 死亡/离场目标由各 handler 自行过滤）。null = 非出牌路径（启动式/动态效果），结算期照常解析。</summary>
+        public List<Entity> PreselectedCostTargets;
     }
 
     // ================================================================
@@ -241,7 +247,7 @@ namespace CardCore
     /// 元素代价支付（纯支付，无兑换）：按颜色聚合需求 → 账单规划器一次出方案 → 扣款 + 支付事件。
     /// 2026-09-14 统一混付：与出牌（ElementPool.PayCost）共用 ElementPaymentValidator.GetBillPaymentPlan——
     /// 支付序=同色→灰→黑→白（黑白=万用色单向替代四色）；每种货币（**含灰**）单次贡献 ≤ 地牌槽上限；
-    /// 纯色需求量超上限不论货币不可付。黑白获取通道唯一=卡结算（错边/Payload 补偿，每回合封顶=地牌槽上限/色）。
+    /// 纯色需求量超上限不论货币不可付。黑白获取通道唯一=卡结算（错边/Payload 补偿；2026-10-04 起产出不封，约束=支付单次贡献≤上限）。
     /// </summary>
     public static class ElementCostPayment
     {
@@ -345,14 +351,19 @@ namespace CardCore
     /// cast 付费步与启动式/动态效果统一走 PayWithCompensationAsync：
     /// Payload 原子**强制执行** + 按全价获得黑（己方侧）/白（对方侧）——无选择窗口、无减费通道。
     /// 补偿数量=Payload 原子全价（PayloadUnitGrant：按 Once/单目标/战场落区合成组合层计价，
-    /// 原子表为唯一锚）；**每回合获得封顶=地牌槽上限/色**由 ElementPool.AddMana 统一钳制（余数不补）——
-    /// 那是全来源黑白经济护栏（错边原子转化等），非 payload 专属发放钳制。
+    /// 原子表为唯一锚）。2026-10-04：产出不封·全量入账（旧 AddMana 每回合钳制退役——
+    /// 约束移到使用侧支付浓度上限）；本轮追加：**补偿后置**（执行生效后按快照全价立即获得）、
+    /// 代价无有效目标→不执行不补偿、全价在声明期过地牌门槛（GameActions.EvaluatePayloadGate）。
     /// </summary>
     public static class CostCompensationService
     {
         /// <summary>
         /// 强制支付一组代价并逐条发放补偿（cast 付费步与启动式/动态效果共用的唯一路径）。
         /// Payload 在此异步执行（恒可付=强制效果）。
+        /// 顺序（2026-10-04 本轮定案）：**补偿后置**——先快照全价（Payload 执行会膨胀模板身价，
+        /// 补偿按打出时点全价——09-13 护栏维持），执行**生效后**立即以快照值发放黑/白；
+        /// 代价没有作用于有效目标（无可用目标）→ 不执行、不发放（走不到代价黑白元素生成——
+        /// 整卡出牌路径的回退拦截在 GameActions.ResolveCardCastAsync 扣费前）。
         /// </summary>
         public static async Cysharp.Threading.Tasks.UniTask<bool> PayWithCompensationAsync(
             List<CostInstance> costs, CostContext ctx)
@@ -363,24 +374,21 @@ namespace CardCore
             foreach (var cost in costs)
             {
                 if (cost == null) continue;
-                // 2026-09-13 修复：补偿先于执行——Payload 执行经 CardWrapper 构造触发
-                // EnsureCost 补建议价，执行后算当量会按膨胀身价计。补偿按打出时点全价。
-                IssueGrant(cost, ctx);
-                await ExecutePayloadAsync(cost, ctx);
+                int grantAmount = CostDerivationService.PayloadUnitGrant(cost.Payload); // 快照：执行前全价
+                if (await ExecutePayloadAsync(cost, ctx))
+                    IssueGrant(cost, ctx, grantAmount); // 生效后立即获得黑白（快照值）
             }
             return true;
         }
 
         /// <summary>单条代价的补偿发放（每条=一次发放事件）。Payload 按原子全价+极性色；
-        /// 每回合封顶（=地牌槽上限/色）在 ElementPool.AddMana 钳制（余数不补），此处不再二次封顶。</summary>
-        private static void IssueGrant(CostInstance cost, CostContext ctx)
+        /// 2026-10-04 本轮：补偿后置——发放量=执行前快照（见 PayWithCompensationAsync），生效后立即入账；
+        /// 产出不封定案维持：全量入账（约束在使用侧支付浓度上限）。</summary>
+        private static void IssueGrant(CostInstance cost, CostContext ctx, int amount)
         {
-            if (ctx?.Payer == null || ctx.ElementPool == null) return;
+            if (ctx?.Payer == null || ctx.ElementPool == null || amount <= 0) return;
 
-            int amount = CostDerivationService.PayloadUnitGrant(cost.Payload);
             ManaType color = PayloadGrantColor(cost.Payload);
-            if (amount <= 0) return;
-
             ctx.ElementPool.AddMana(ctx.Payer, color, ctx.Source as Card, amount);
         }
 
@@ -394,13 +402,17 @@ namespace CardCore
 
         /// <summary>执行 Payload 原子：按其自身域解析目标（如「给对手召唤」→ 对方侧），无域以无目标执行。
         /// 受惠侧执行：对方域锁定的 payload 以**对手**为控制者执行——产出型原子（SummonToken 等）
-        /// 落在控制者侧，给对手的代价自然落在对手战场；己方/双侧以支付者执行。</summary>
-        private static async Cysharp.Threading.Tasks.UniTask ExecutePayloadAsync(CostInstance cost, CostContext ctx)
+        /// 落在控制者侧，给对手的代价自然落在对手战场；己方/双侧以支付者执行。
+        /// 返回是否**作用于有效目标**（2026-10-04 本轮定案）：有域而目标为空 → false（不执行、不补偿——
+        /// 走不到代价黑白元素生成）；无域（无目标语义）/正常执行 → true。</summary>
+        private static async Cysharp.Threading.Tasks.UniTask<bool> ExecutePayloadAsync(CostInstance cost, CostContext ctx)
         {
             var atom = cost.Payload;
-            if (atom == null) return;
+            if (atom == null) return true;
 
-            var executor = CostDerivationService.SideLock(atom.TargetKinds) == 1 && ctx.Payer.Opponent != null
+            bool hasDomain = atom.TargetKinds != null && atom.TargetKinds.Count > 0;
+
+            var executor = hasDomain && CostDerivationService.SideLock(atom.TargetKinds) == 1 && ctx.Payer.Opponent != null
                 ? ctx.Payer.Opponent
                 : ctx.Payer;
 
@@ -410,12 +422,22 @@ namespace CardCore
                 Source = ctx.Payer, // 来源=支付者角色（来源归因定案 2026-09-09）
                 ZoneManager = ctx.ZoneManager,
                 ElementPool = ctx.ElementPool,
-                Targets = new List<Entity>(),
                 Duration = DurationType.Once,          // 与 PayloadUnitGrant 计价同口径
                 SummonDropZone = Zone.Battlefield,
             };
 
-            if (atom.TargetKinds != null && atom.TargetKinds.Count > 0 && ctx.ZoneManager != null)
+            List<Entity> targets;
+            if (!hasDomain)
+            {
+                targets = new List<Entity>(); // 无域代价（无目标语义）：按无目标执行、照常补偿
+            }
+            else if (ctx.PreselectedCostTargets != null)
+            {
+                // 出牌两阶段（2026-10-04 定案）：声明期预选的代价目标优先沿用（不重选——
+                // 响应窗口内目标死亡/离场由各 handler 过滤；全灭拦截在 ResolveCardCastAsync 扣费前）。
+                targets = new List<Entity>(ctx.PreselectedCostTargets);
+            }
+            else
             {
                 // 目标域按**支付者视角**解析（2026-09-13 修复）：atom 的"对方域"以支付者为基准编写——
                 // 原以 executor（受惠侧控制者）视角解析，{2} 敌方被反解成支付者自己，产出落错侧。
@@ -427,12 +449,19 @@ namespace CardCore
                     ZoneManager = ctx.ZoneManager,
                     ElementPool = ctx.ElementPool,
                 };
-                var resolved = EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx);
-                if (resolved != null && resolved.Count > 0)
-                    ectx.Targets = resolved;
+                targets = EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx)
+                    ?? new List<Entity>();
             }
 
+            if (hasDomain && targets.Count == 0)
+            {
+                // 2026-10-04 本轮定案：代价没有作用于有效目标 → 不执行、不补偿
+                return false;
+            }
+
+            ectx.Targets = targets;
             await EffectHandlerRegistry.ExecuteEffectAsync(atom, ectx);
+            return true;
         }
     }
 

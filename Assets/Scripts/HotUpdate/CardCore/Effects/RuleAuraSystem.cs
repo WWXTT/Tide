@@ -11,7 +11,7 @@ namespace CardCore
     ///
     /// - 全局唯一槽：任一新规则光环激活时，旧光环的载体直送墓地（新的登场把旧的送墓——用户定案）。
     /// - 持续永久 + 载体可被摧毁/无效：活性=实时查询（载体在战场且存活）——载体送墓/被摧毁
-    ///   （结界耐久归零 Smashed，V9.c 管线）/被无效发动（不入场）即失效，无需注销逻辑
+    ///   （结界耐久归零 Smashed，V9.c 管线）/被效果无效（不入场）即失效，无需注销逻辑
     ///   （RuleHooks「状态无关件实时查询」惯例，同旧 RitualAuras 设计）。
     /// - 无方向箭头：不是 LinkAura（连接光环），规则光环不占连接位、不写 arrows。
     /// - 局重置回收（GameCore.Reset 组合根：槽位/各规则状态清空 + 替代件重挂——
@@ -96,6 +96,12 @@ namespace CardCore
         /// 状态无关替代件（伤害帽/疲劳免疫）逐局重注册。</summary>
         public static void OnGameReset()
             => RuleAuraComponents.OnGameReset();
+
+        /// <summary>窥渊回合末结算（GameCore.OnTurnEnded 于 CounterRules.OnTurnEnd 之后显式调）：
+        /// 2026-10-04 时机改版（回合开始→回合结束）——随机展示+锁定排在指示物倒数之后，
+        /// 同回合末新挂的锁不被 ③ 块倒数吞层。</summary>
+        public static void RevealAndLockAtTurnEnd(Player turnPlayer)
+            => RuleAuraComponents.RevealAndLockAtTurnEnd(turnPlayer);
     }
 
     /// <summary>
@@ -110,7 +116,7 @@ namespace CardCore
         public const string ElementConversion = "ElementConversion"; // 三相仪典
         public const string BloodPact = "BloodPact";                 // 血偿仪典（2026-10-04 改造：己方回合角色受伤→对手角色承担）
         public const string HealOverflow = "HealOverflow";           // 丰盈仪典（2026-10-04 改造：回复溢出→生命上限+1）
-        public const string DamageCap = "DamageCap";                 // 蚕褪仪典（2026-10-04 承接原丰盈：单次伤害>5→5，生物与角色）
+        public const string DamageCap = "DamageCap";                 // 离散仪典（2026-10-04 蚕褪改版：单次伤害>5→5、<5→3；短名承袭存量卡数据）
         public const string LockRevealed = "LockRevealed";           // 窥渊仪典
         public const string GraveyardPlay = "GraveyardPlay";         // 归土仪典
         public const string CastSpeedUp = "CastSpeedUp";             // 疾风仪典（2026-10-04 改造：从手牌使用的卡发动速度+1）
@@ -122,8 +128,8 @@ namespace CardCore
         // 三相：各玩家各纯色的累计消耗（满 3 兑换；Player 键随局重置回收）
         private static readonly Dictionary<Player, Dictionary<ManaType, int>> _spendCounters
             = new Dictionary<Player, Dictionary<ManaType, int>>();
-        // 窥渊（2026-10-04 原子化改造）：锁定不再走本类回合级 HashSet——回合开始直接赋予
-        // 对手被展示卡「锁定」指示物×1（LockCounter，层数=剩余回合，持有者回合末倒数；
+        // 窥渊（2026-10-04 原子化+时机改版）：锁定不走本类回合级 HashSet——回合结束（指示物倒数之后）
+        // 赋予对手被展示卡「锁定」指示物×1（LockCounter，层数=剩余回合，持有者回合末倒数；
         // 手牌区同样结算——CounterRules 持有者侧结算域含手牌）。锁定独立于光环存续
         //（载体离场不清既有指示物，自然倒数到归零）。
         // 归土：本回合已用掉墓地出牌配额的玩家（回合结束清）
@@ -149,8 +155,8 @@ namespace CardCore
 
             // 三相：己方消耗累计（出牌支付与效果元素费两路发布的 ElementPoolPayEvent 都算）
             EventManager.Instance.Subscribe<ElementPoolPayEvent>(OnElementPaid);
-            // 窥渊：回合开始赋予锁定指示物；回合结束清配额 + 疾风第二回合授予（同订阅分发）
-            EventManager.Instance.Subscribe<TurnStartEvent>(OnTurnStart);
+            // 回合结束清配额 + 疾风第二回合授予（同订阅分发）；
+            // 窥渊展示/锁定 2026-10-04 时机改版后不经此——由 GameCore.OnTurnEnded 在指示物倒数后显式调
             EventManager.Instance.Subscribe<TurnEndEvent>(OnTurnEnd);
             // 归土：墓地作为出牌来源（PlayCard 来源区配额——TryBeginUse 扣，回合结束清）
             RuleHooks.RegisterPlaySource(new GraveyardPlaySource());
@@ -176,7 +182,7 @@ namespace CardCore
         }
 
         /// <summary>对局重挂：状态无关替代件（ReplacementEngine.ClearAll 之后由 GameCore.Reset 调）。
-        /// 2026-10-04 光环改造：蚕褪（伤害帽，扩生物）+ 血偿（己方回合角色受伤转对手承担）入列。</summary>
+        /// 2026-10-04 光环改造：离散（原蚕褪：伤害二值离散）+ 血偿（己方回合角色受伤转对手承担）入列。</summary>
         public static void OnGameReset()
         {
             var engine = GameCore.Instance?.ReplacementEngine;
@@ -233,12 +239,14 @@ namespace CardCore
             }
         }
 
-        // ============ 窥渊仪典：每回合开始，随机展示对手一张手牌 + 被展示的卡一回合锁定 ============
+        // ============ 窥渊仪典（2026-10-04 时机改版）：每回合结束，随机展示对手一张手牌 + 被展示的卡一回合锁定 ============
+        // 触发口=GameCore.OnTurnEnded 组合根显式调，位于 CounterRules.OnTurnEnd 指示物倒数**之后**——
+        // 同回合末新挂的锁不被 ③ 块倒数吞层。不走事件订阅：订阅序相对 GameCore.OnTurnEnded 随局数漂移，先后无保证。
 
-        private static void OnTurnStart(TurnStartEvent e)
+        internal static void RevealAndLockAtTurnEnd(Player turnPlayer)
         {
             if (!RuleAuraSystem.IsActive(LockRevealed)) return;
-            var locker = e.TurnPlayer;
+            var locker = turnPlayer;
             var victim = locker?.Opponent;
             if (victim == null) return;
             var zm = GameCore.Instance?.ZoneManager;
@@ -246,7 +254,7 @@ namespace CardCore
 
             var carrier = RuleAuraSystem.Active?.Carrier;
 
-            // ① 随机展示对手一张**未展示**手牌（2026-10-04 追加：自给展示源——RevealCard 原子同款口径，
+            // ① 随机展示对手一张**未展示**手牌（自给展示源——RevealCard 原子同款口径，
             //    二值不叠层；全展示/空手 = 无新展示，锁定照常对既有被展示卡生效）
             var unrevealed = zm.GetCards(victim, Zone.Hand)
                 .Where(c => c != null && c.IsAlive && c.GetCounterCount(Attribute.CounterRules.ExposedCounter) == 0)
@@ -270,9 +278,9 @@ namespace CardCore
                 });
             }
 
-            // ② 赋予对手被展示的卡一回合锁定指示物（含①刚展示的——同回合展示并锁定）。
-            // 原子化定案（2026-10-04）：被展示的卡**全部**锁定（无选择窗口——指示物即机制）。
-            // 层数=剩余回合：施放方回合内锁响应出牌 + 持有者整个回合锁使用，持有者回合末倒数归零。
+            // ② 赋予对手被展示的卡一回合锁定指示物（含①刚展示的——同回合末展示并锁定）。
+            // 被展示的卡**全部**锁定（无选择窗口——指示物即机制）。
+            // 层数=剩余回合：持有者整个回合锁使用，持有者回合末倒数归零（倒数先于本挂层——新锁完整活一回合）。
             var revealed = RevealRules.GetExposedCards(zm, victim, Zone.Hand);
             if (revealed.Count == 0) return;
 
@@ -344,24 +352,32 @@ namespace CardCore
                 => RuleAuraSystem.IsActive(HandLimitNoFatigue) ? 15 : currentLimit;
         }
 
-        // ============ 蚕褪仪典：单次伤害超过 5 时改为 5（生物与角色——2026-10-04 承接原丰盈并扩生物） ============
+        // ============ 离散仪典（原蚕褪，2026-10-04 改版）：单次伤害二值离散——
+        // 超过 5 改为 5、低于 5 改为 3（恰为 3/5 不动；生物与角色同门） ============
 
         private sealed class DamageCapReplacement : ReplacementEffectBase
         {
             public const int CapValue = 5;
+            public const int FloorValue = 3;
 
             public DamageCapReplacement() : base(typeof(DamageEvent), "RuleAuraDamageCap") { }
 
             public override bool CanReplace(IGameEvent e)
                 => e is DamageEvent d
-                   && d.Amount > CapValue
+                   && d.Amount > 0
+                   && d.Amount != CapValue && d.Amount != FloorValue // 恰 3/5 不改写；1/2/4→3、6+→5
                    && (d.Target is Player
-                       || (d.Target is Card dc && dc.IsLivingUnit())) // 生物（活体单位）与角色同封
+                       || (d.Target is Card dc && dc.IsLivingUnit())) // 生物（活体单位）与角色同门
                    && RuleAuraSystem.IsActive(DamageCap);
 
             public override IGameEvent CreateReplacement(IGameEvent originalEvent, Effect sourceEffect)
                 => originalEvent is DamageEvent d
-                    ? new DamageEvent { Source = d.Source, Target = d.Target, Amount = CapValue }
+                    ? new DamageEvent
+                    {
+                        Source = d.Source,
+                        Target = d.Target,
+                        Amount = d.Amount > CapValue ? CapValue : FloorValue,
+                    }
                     : null;
         }
 

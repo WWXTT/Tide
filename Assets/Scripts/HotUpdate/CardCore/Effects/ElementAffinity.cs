@@ -58,7 +58,9 @@ namespace CardCore
         private static readonly ManaType[] PureColors =
             { ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Black, ManaType.White };
 
-        /// <summary>四色需求（红蓝绿灰——黑白万用可垫）的固定处理序。
+        /// <summary>四色需求（红蓝绿灰）的固定处理序。
+        /// 2026-10-04 支付链改向定案：**黑白垫三色、三色垫灰、黑白不垫灰、三色互不垫**——
+        /// 「万用」拆成两个单向池（黑白↔三色；三色→灰），不再有全色万用。
         /// 公开给自动横置规划器（ElementPool.PlanAutoTaps）——分配轨迹须与账单规划器同序。</summary>
         public static readonly ManaType[] FourColorOrder =
             { ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Gray };
@@ -92,21 +94,23 @@ namespace CardCore
             return bill;
         }
 
-        /// <summary>填链：需求色的候选货币按支付序排列。红/蓝/绿=[本色,灰,黑,白]；灰=[灰,黑,白]；黑/白=[本色]（单向）。
+        /// <summary>填链：需求色的候选货币按支付序排列（2026-10-04 支付链改向定案）：
+        /// 红/蓝/绿=[本色,黑,白]（黑白垫三色；灰不再垫三色）；灰=[灰,红,蓝,绿]（三色垫灰；
+        /// 黑白不再垫灰）；黑/白=[本色]（单向）。三色互不互垫、灰不产自黑白。
         /// 公开给自动横置规划器（ElementPool.PlanAutoTaps）——产色候选须沿同一填链评估。</summary>
         public static ManaType[] ChainFor(ManaType need) => need switch
         {
-            ManaType.Red => new[] { ManaType.Red, ManaType.Gray, ManaType.Black, ManaType.White },
-            ManaType.Blue => new[] { ManaType.Blue, ManaType.Gray, ManaType.Black, ManaType.White },
-            ManaType.Green => new[] { ManaType.Green, ManaType.Gray, ManaType.Black, ManaType.White },
-            ManaType.Gray => new[] { ManaType.Gray, ManaType.Black, ManaType.White },
+            ManaType.Red => new[] { ManaType.Red, ManaType.Black, ManaType.White },
+            ManaType.Blue => new[] { ManaType.Blue, ManaType.Black, ManaType.White },
+            ManaType.Green => new[] { ManaType.Green, ManaType.Black, ManaType.White },
+            ManaType.Gray => new[] { ManaType.Gray, ManaType.Red, ManaType.Blue, ManaType.Green },
             _ => new[] { need },
         };
 
         /// <summary>
         /// 整账单支付规划（非破坏——不改 availableMana）。
-        /// 处理序：黑→白（仅本色）**先行预留**（否则四色贪心会吃掉黑白本色费所需的货币），
-        /// 再按固定序处理红蓝绿灰，每需求沿填链（同色→灰→黑→白）扣减。
+        /// 处理序：黑→白（仅本色）**先行预留**（否则三色贪心会吃掉黑白本色费所需的货币），
+        /// 再按固定序处理红蓝绿灰，每需求沿填链（2026-10-04 改向：三色=[本色,黑,白]；灰=[灰,红,蓝,绿]）扣减。
         /// </summary>
         /// <returns>实际扣款组合（货币→数量）；null = 不可付。</returns>
         public static Dictionary<ManaType, int> GetBillPaymentPlan(

@@ -361,49 +361,94 @@ namespace CardCore.Attribute.Handlers
     // ---------------- 反制 / 沉默 ----------------
 
     /// <summary>
-    /// 打落（软打断）：把发动区中的卡直接送墓。该卡的 cast 结算时因「已不在发动区」中止——
-    /// 不付费、不结算（消费点在 GameActions.ResolveCardCastAsync，Option Y 定案）。
+    /// 发动无效（2026-10-04 两层无效定案；原打落 KnockDown 承接）：无效化**发动**本身——净零成本。
+    /// - 施放（发动区卡）：直接送墓 → cast 在消费点因「已不在发动区」中止：不付费、不结算（净效果=扣费返还）；
+    /// - 场上发动（启动式/触发式）：标记该源卡待结算栈条目「发动层无效」——结算时跳过：
+    ///   启动式不扣费（横置为声明期代价，不重置）、触发式退还发动次数（不计入）；
+    /// - 强制桶（Mandatory，如光环类强制效果）不受发动无效管制：不标记、无效果。
     /// </summary>
-    public class KnockDownHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.KnockDown;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            foreach (var target in context.Targets)
-            {
-                if (!(target is Card card)) continue;
-                var owner = card.GetController() ?? context.Controller;
-                if (!context.ZoneManager.IsCardInZone(card, owner, Zone.Activation)) continue;
-
-                context.ZoneManager.MoveCard(card, owner, Zone.Activation, Zone.Graveyard);
-                PublishEvent(new CardLeaveActivationEvent
-                {
-                    Card = card,
-                    Controller = owner,
-                    ToZone = Zone.Graveyard
-                });
-            }
-        }
-
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "把发动中的卡打落入墓（不付费即中止）";
-    }
-
-    /// <summary>无效发动（标记目标无效，IsActivation）</summary>
     public class NegateActivationHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.NegateActivation;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
+            var stack = GameCore.Instance?.StackEngine;
             foreach (var target in context.Targets)
             {
-                target.Negate();
-                PublishEvent(new NegateEvent { Target = target, IsActivation = true, Source = context.Source });
+                if (!(target is Card card)) continue;
+                var owner = card.GetController() ?? context.Controller;
+
+                // 施放路径：发动区卡送墓（cast 消费点中止——不付费不结算）
+                if (context.ZoneManager.IsCardInZone(card, owner, Zone.Activation))
+                {
+                    context.ZoneManager.MoveCard(card, owner, Zone.Activation, Zone.Graveyard);
+                    PublishEvent(new CardLeaveActivationEvent
+                    {
+                        Card = card,
+                        Controller = owner,
+                        ToZone = Zone.Graveyard
+                    });
+                    continue;
+                }
+
+                // 场上发动路径：标记该源卡**最晚入栈**的非强制条目（强制桶不受发动无效管制）
+                var entry = stack?.GetStackContents()
+                    .LastOrDefault(e => e != null && !e.IsCardCast && !e.IsSBA
+                                        && !e.IsAttackDeclaration && !e.IsGuardDeclaration
+                                        && ReferenceEquals(e.Source, card)
+                                        && e.ActivationType != EffectActivationType.Mandatory);
+                if (entry != null)
+                {
+                    entry.IsActivationNegated = true;
+                    PublishEvent(new NegateEvent { Target = card, IsActivation = true, Source = context.Source });
+                }
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "无效目标的发动";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "无效化目标的发动（不扣费、不计发动次数；强制效果不受管制）";
+    }
+
+    /// <summary>
+    /// 效果无效（2026-10-04 两层无效定案；承接旧 NegateActivation 标记实现）：发动照常、效果不结算。
+    /// - 施放：照常扣费（不返还）、卡入墓、跳过效果（消费点 _isNegated 路径）；
+    /// - 场上发动（启动式/触发式）：标记栈条目「效果层无效」——扣费照走、横置不重置、触发式计入发动次数；
+    /// - 强制桶（光环类强制效果）**同样受管制**：可标记、效果跳过。
+    /// </summary>
+    public class NegateEffectHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.NegateEffect;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var stack = GameCore.Instance?.StackEngine;
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card card)) continue;
+                var owner = card.GetController() ?? context.Controller;
+
+                // 施放路径：标记 _isNegated（ResolveCardCastAsync 步3：付费后入墓、费用不退）
+                if (context.ZoneManager.IsCardInZone(card, owner, Zone.Activation))
+                {
+                    card.Negate();
+                    PublishEvent(new NegateEvent { Target = card, IsActivation = true, Source = context.Source });
+                    continue;
+                }
+
+                // 场上发动路径：标记该源卡最晚入栈的待结算条目（含强制桶——受效果无效管制）
+                var entry = stack?.GetStackContents()
+                    .LastOrDefault(e => e != null && !e.IsCardCast && !e.IsSBA
+                                        && !e.IsAttackDeclaration && !e.IsGuardDeclaration
+                                        && ReferenceEquals(e.Source, card));
+                if (entry != null)
+                {
+                    entry.IsEffectNegated = true;
+                    PublishEvent(new NegateEvent { Target = card, IsActivation = true, Source = context.Source });
+                }
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "无效化目标的效果（扣费照付，效果不结算；强制效果同受管制）";
     }
 
     /// <summary>
@@ -537,9 +582,9 @@ namespace CardCore.Attribute.Handlers
                 // 摧毁（无生命值单位：地牌/结界）
                 new SmashHandler(),
 
-                // 反制 / 沉默
-                new KnockDownHandler(),
+                // 反制 / 沉默（2026-10-04 两层无效定案：发动无效=净零成本 / 效果无效=扣费照付）
                 new NegateActivationHandler(),
+                new NegateEffectHandler(),
                 new SilenceHandler(),
             };
         }
