@@ -11,8 +11,8 @@ namespace CardCore
     /// - **倒计时**：入场挂 Countdown 计数（层数=def.CountdownTurns=奖励推导费换算回合，1费=1回合；
     ///   UntilLeaveBattlefield 换区清）；控制者回合开始 -1，归零→执行奖励原子→重置回初值。
     /// - **运势**：控制者回合开始掷 2d6（GameRng），双 > x → 执行奖励（无状态，每回合独立判定；x=纯概率门槛）。
-    /// - **拼点**（2026-09-15 门槛制定案）：控制者回合开始双方牌库顶各展示一张（放回原位不改序，空库按费用 0）——
-    ///   比的是**费用总额**（数量，不计算颜色）；**差额 ≥ 奖励锚价合计**（大于等于）才触发，奖励按声明值结算。
+    /// - **拼点**（2026-10-04 改版）：控制者回合开始双方牌库各**随机**取样一张**生物**（只读展示，不移牌不改序，
+    ///   牌库无生物按攻击力 0）——比**攻击力**；**差额 ≥ 奖励锚价合计**（大于等于）才触发，奖励按声明值结算。
     /// - **死亡计数**（2026-09-22 定案）：本回合**双方合计**生物死亡数 ≥ x 时执行奖励（事件驱动——每次死亡事件后
     ///   复查；计数单调→每回合达标时刻唯一，天然一次/回合，回合作用域守卫集兜底）；奖励预算=x。
     /// - **元素充盈**（2026-09-22 定案）：自己出牌付费完成后判定（GameActions.PayCost 成功后回调 OnCardCostPaid）——
@@ -105,11 +105,11 @@ namespace CardCore
                             break;
 
                         case BranchEngineKind.Clash:
-                            // 2026-09-15 用户定案（门槛制）：比双方牌库顶**费用总额**（数量，不计算颜色）；
+                            // 2026-10-04 用户定案（改版）：双方牌库各随机取样一张**生物**，比**攻击力**；
                             // 门槛 = 奖励锚价合计（推导），**差额 ≥ 门槛**（大于等于）才触发，奖励按声明值结算。
                             // 灰机制费已废除——锚价既是门槛也是奖励的价，由差额支付。
-                            int mine = DeckTopCost(player, zm);
-                            int theirs = DeckTopCost(player.Opponent, zm);
+                            int mine = RandomCreaturePower(player, zm);
+                            int theirs = RandomCreaturePower(player.Opponent, zm);
                             int threshold = Math.Max(1, (int)Math.Round(
                                 CostDerivationService.RewardDerivedCost(def.RewardAtoms), MidpointRounding.AwayFromZero));
                             if (mine - theirs >= threshold)
@@ -117,7 +117,7 @@ namespace CardCore
                                 EventManager.Instance.Publish(new KeywordAppliedEvent
                                 {
                                     Target = card, Keyword = "拼点",
-                                    Detail = $"拼点 {mine} vs {theirs}（差额 {mine - theirs} ≥ 门槛 {threshold}）：执行奖励（展示牌已放回原位）",
+                                    Detail = $"拼点 {mine} vs {theirs}（差额 {mine - theirs} ≥ 门槛 {threshold}）：执行奖励（随机生物取样，牌库未动）",
                                 });
                                 FireRewards(def, card, player, core);
                             }
@@ -127,15 +127,15 @@ namespace CardCore
             }
         }
 
-        /// <summary>牌库顶卡的总费用（展示后放回原位不改序）；空库=0。</summary>
-        private static int DeckTopCost(Player player, ZoneManager zm)
+        /// <summary>牌库中随机一张生物的攻击力（只读取样，不移牌不改序）；牌库无生物=0。</summary>
+        private static int RandomCreaturePower(Player player, ZoneManager zm)
         {
             if (player == null || zm == null) return 0;
-            var deck = zm.GetCards(player, Zone.Deck);
-            if (deck == null || deck.Count == 0) return 0;
-            var top = deck[0]; // 牌库顶（index 0 = 顶，ZoneContainer 容器约定；只读展示，不移不动）
-            float total = top is CardWrapper w ? (w.GetData()?.Cost?.Total ?? 0f) : 0f;
-            return (int)Math.Round(total, MidpointRounding.AwayFromZero);
+            var creatures = zm.GetCards(player, Zone.Deck)
+                .Where(c => (c as CardWrapper)?.GetData()?.Supertype == Cardtype.Creature).ToList();
+            if (creatures.Count == 0) return 0;
+            var pick = creatures[GameRng.Next(0, creatures.Count)]; // GameRng 与运势同源，钉种子可复现
+            return (pick as CardWrapper)?.GetData()?.Power ?? 0;
         }
 
         // ======================================== 死亡计数 / 元素充盈（2026-09-22 定案） ========================================

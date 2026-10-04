@@ -61,6 +61,9 @@ namespace CardCore.Attribute
         public const string Lifelink = "Lifelink";
         public const string Vigilance = "Vigilance";
         public const string Stealth = "Stealth";
+        /// <summary>隐密（2026-10-04，蓝5）：潜行的持续版——同不可被攻击/效果指定（三处指定口同查
+        /// Stealth+Concealed），但不因**发动效果/攻击/受到伤害**失效（移除口只查 Stealth，天然豁免）。</summary>
+        public const string Concealed = "Concealed";
         /// <summary>帷幕（原"嘲讽"，2026-09-13 更名定案）：只吸引**效果**目标（选择层收窄见
         /// TargetResolver.ApplyTauntRestriction）；不拦攻击——攻击侧目标强制由守卫拦截承担。
         /// 运行时 id 仍为 Taunt（更名只改中文文案，同辟邪→扰魔先例）。</summary>
@@ -350,6 +353,21 @@ namespace CardCore.Attribute
             else if (target is Player player)
             {
                 player.Life -= amount;
+            }
+
+            // 潜行受伤失效（2026-10-04 弱化定案）：伤害**实际落定**（替代/改写/防护层之后仍有剩余
+            // 到达落血/耐久）才算「受到伤害」——圣盾/护甲/坚韧完全挡住、毒刺族改写替代（return 0）
+            // 均不触发。隐密（Concealed）不失效——不因受伤掉正是它的定价理由（蓝5 vs 蓝1）。
+            if (target is Card hurtCard && hurtCard.HasKeyword(Stealth))
+            {
+                hurtCard.RemoveKeyword(Stealth);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = hurtCard,
+                    Keyword = Stealth,
+                    Detail = "受到伤害后潜行失效",
+                    Source = source
+                });
             }
 
             // 结算后发布伤害事件链（实际值；替代已在管线前消费）。

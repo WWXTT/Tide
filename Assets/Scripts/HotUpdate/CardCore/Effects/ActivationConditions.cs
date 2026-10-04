@@ -838,6 +838,17 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 退还一次本回合发动记账（2026-10-04 两层无效定案）：发动无效的触发式**不计发动次数**——
+        /// ProcessTriggeredEffects 入栈时已记账，结算期发现发动层无效时回退此键。下限 0。
+        /// </summary>
+        public void RefundActivation(string effectId)
+        {
+            if (!_turnUsage.TryGetValue(effectId, out int n) || n <= 0) return;
+            if (n <= 1) _turnUsage.Remove(effectId);
+            else _turnUsage[effectId] = n - 1;
+        }
+
+        /// <summary>
         /// 获取本回合发动次数
         /// </summary>
         public int GetTurnUsage(string effectId)

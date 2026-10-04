@@ -202,7 +202,8 @@ namespace CardCore
             }
             // 代价栏：卡层 PayloadCost（2026-09-23 上移卡组合层）为正式口；legacy 效果级 Costs 兜底
             //（卡层已填时跳过 legacy——防双收）。Payload **按全价获得**（2026-10-04 定案：任意单向效果
-            // 不限价、逆转选择范围——Grants 不再恒 ≤1；黑白获得受每回合地牌槽上限钳制，见 ElementPool.AddMana）。
+            // 不限价、逆转选择范围——Grants 不再恒 ≤1；产出不封·使用侧受支付浓度上限约束。
+            // 本轮追加：代价栏占 1 效果槽（ChassisAdjust 经 CountEffectSlots 计入），全价另作地牌门槛——见 GameActions.EvaluatePayloadGate）。
             var payloadEntries = new List<AtomicEffectEntry>();
             if (card.PayloadCost?.payload != null && !string.IsNullOrEmpty(card.PayloadCost.payload.refId))
             {
@@ -231,7 +232,7 @@ namespace CardCore
             foreach (var color in result.Grants.NonzeroColors())
             {
                 result.Breakdown.Add(new CostBreakdownLine("G",
-                    $"获得{ElementAffinity.Single(color).GetColorName()}{(int)result.Grants[color]}（打出/发动时全量发放；黑白获取每回合封顶=地牌槽上限/色·全来源）",
+                    $"获得{ElementAffinity.Single(color).GetColorName()}{(int)result.Grants[color]}（打出/发动时全量发放；2026-10-04 起黑白产出不封，使用侧受支付浓度上限约束）",
                     (int)result.Grants[color], color));
             }
 

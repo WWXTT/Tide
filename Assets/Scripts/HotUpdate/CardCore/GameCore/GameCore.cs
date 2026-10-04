@@ -226,6 +226,11 @@ namespace CardCore
             // 对手的要等对手回合末；突袭的"不能以玩家为目标"限制随自己回合末解除
             Attribute.CounterRules.OnTurnEnd(e.TurnPlayer, ZoneManager);
 
+            // 窥渊仪典（2026-10-04 时机改版：回合开始→回合结束）：随机展示+锁定必须排在
+            // 指示物倒数之后——同回合末新挂的锁不被 ③ 块吞层。组合根显式调（不走事件订阅：
+            // 订阅序相对本方法随局数漂移，先后无保证）。
+            RuleAuraSystem.RevealAndLockAtTurnEnd(e.TurnPlayer);
+
             // Temp 轨关键词回合末到期（2026-09-13 定案：生物赋予的关键词固定持续 1 回合——
             // 魔法 Setting 轨与光环照旧不经此口）：每个回合末清双方战场 Temp 授予
             foreach (var pl in new[] { _player1, _player2 })

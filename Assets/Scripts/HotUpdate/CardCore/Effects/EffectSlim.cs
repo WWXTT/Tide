@@ -77,6 +77,7 @@ namespace CardCore
         public int selection;          // SelectionMode（-1=None；0-5=六值定案 2026-09-16）
         public int count;              // TargetCount（>0=N；0=全部；-1=任意[玩家自选数量=0费]；-2=未声明）
         public int random;             // RandomTarget（0/1——目标随机正交标志，与"选多少"无关）
+        public List<int> kinds;        // 效果级作用范围（2026-10-04 相同目标定案）：null=未声明（空列不写，向后兼容）
         public int dropZone;           // SummonDropZone
         public int engine;             // BranchEngineKind（≠0 时 rewards 有效、steps 恒空）
         public int engineParam;
@@ -250,6 +251,8 @@ namespace CardCore
                 SelectionMode = dto.selection,
                 TargetCount = dto.count,
                 RandomTarget = dto.random,
+                TargetKinds = dto.kinds != null && dto.kinds.Count > 0
+                    ? new List<int>(dto.kinds) : null, // 效果级作用范围（2026-10-04）——空列=未声明
                 SummonDropZone = dto.dropZone,
                 EngineKind = dto.engine,
                 EngineParam = dto.engineParam,

@@ -47,7 +47,8 @@ namespace SynergyUI
             // 妨碍/压制族
             AtomicEffectType.Tap, AtomicEffectType.Freeze, AtomicEffectType.Silence,
             AtomicEffectType.Purify, AtomicEffectType.AddNullify,
-            AtomicEffectType.NegateActivation, AtomicEffectType.KnockDown,
+            // 两层无效（2026-10-04 定案）：发动无效（净零成本）/效果无效（扣费照付）
+            AtomicEffectType.NegateEffect, AtomicEffectType.NegateActivation,
             // 夺取控制族
             AtomicEffectType.GainControl,
         };
@@ -70,7 +71,7 @@ namespace SynergyUI
             AtomicEffectType.GrantDoubleStrike,
             AtomicEffectType.GrantCannotBeTargeted, AtomicEffectType.GrantSpellShield,
             AtomicEffectType.GrantLifesteal,
-            AtomicEffectType.GrantStealth, AtomicEffectType.GrantTaunt,
+            AtomicEffectType.GrantStealth, AtomicEffectType.GrantConcealed, AtomicEffectType.GrantTaunt,
             AtomicEffectType.GrantDivineShield, AtomicEffectType.GrantOverwhelm, AtomicEffectType.GrantArmor,
             AtomicEffectType.GrantFirstStrike,
             AtomicEffectType.GrantVigilance, AtomicEffectType.GrantRegeneration,

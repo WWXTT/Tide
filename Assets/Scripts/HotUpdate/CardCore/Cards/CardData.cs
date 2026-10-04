@@ -564,6 +564,9 @@ namespace CardCore
         public int SelectionMode = -1; // SelectionMode 枚举值（-1=None 无目标哨兵；0-5=六值定案 2026-09-16）
         public int TargetCount = -2;   // >0=恰好 N 个；0=全部；**-1=任意（2026-09-14 并入 DynamicTargetCount：玩家自选数量——原子计 0 费；不关联地牌资格 2026-09-21）**；-2=未声明回落表级
         public int RandomTarget;       // 目标随机（0/1）：绕过选择从完整候选域按种子抽取——与"选多少"（SelectionMode）正交
+        // 效果级作用范围（2026-10-04 相同目标定案）：并列原子作用域交集内的统一选择——效果内
+        // 全部原子共享同一份选中目标；null=未声明→回落原子域交集推导（存量兼容）。
+        public List<int> TargetKinds;
         // 触发式每回合触发上限（2026-09-13）：0=未声明（原子含 TriggerCapImmutable→无限；否则默认 1）；
         // >0=每回合 N 次；-1=显式无限。仅对触发式生效；不可修改原子（含 8）声明上限被覆写+构筑告警。
         public int TriggerLimitPerTurn;

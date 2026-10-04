@@ -245,6 +245,7 @@ namespace CardCore.AI.NeuralEnv
             foreach (var c in hand)
             {
                 if (c == null || !RuleHooks.CanPlay(core, p, c, Zone.Hand)) continue;
+                if (GameActions.GetPayloadGateReject(core, p, c) != null) continue; // 代价门槛镜像（2026-10-04：全价过地牌上限/代价无目标）
                 if (!engine.SpeedCounter.CanActivate(
                         SpeedCalculator.GetCardCastSpeed(c), isTurn, EffectActivationType.Voluntary)) continue;
                 if (!IsSpell(c) && !zm.HasBattlefieldSpace(p)) continue;
@@ -344,6 +345,7 @@ namespace CardCore.AI.NeuralEnv
             {
                 var c = hand[i];
                 if (!RuleHooks.CanPlay(core, me, c, Zone.Hand)) continue;
+                if (GameActions.GetPayloadGateReject(core, me, c) != null) continue; // 代价门槛镜像（2026-10-04：全价过地牌上限/代价无目标）
 
                 int modes = ModeCount(c);
                 for (int m = 0; m < modes; m++)
@@ -508,7 +510,7 @@ namespace CardCore.AI.NeuralEnv
             };
         }
 
-        /// <summary>响应出牌行（v2）：手牌卡在响应窗口打出（打落/发动无效等反制）。
+        /// <summary>响应出牌行（v2）：手牌卡在响应窗口打出（发动无效/效果无效等反制）。
         /// 预检镜像 GameActions.PlayCardInResponse/PushCardCast：速度门（回合方 ≥ / 非回合方严格 &gt;
         /// 记速器）+ RuleHooks + 战场容量 + 费用（含 pending 承诺）+ 目标域；目标逐张展开。</summary>
         private void EnumerateRespondPlay(GameCore core, Player me)
@@ -520,6 +522,7 @@ namespace CardCore.AI.NeuralEnv
             {
                 var c = hand[i];
                 if (!RuleHooks.CanPlay(core, me, c, Zone.Hand)) continue;
+                if (GameActions.GetPayloadGateReject(core, me, c) != null) continue; // 代价门槛镜像（2026-10-04：全价过地牌上限/代价无目标）
                 if (!engine.SpeedCounter.CanActivate(
                         SpeedCalculator.GetCardCastSpeed(c), isTurn, EffectActivationType.Voluntary)) continue;
                 if (!IsSpell(c) && !core.ZoneManager.HasBattlefieldSpace(me)) continue;

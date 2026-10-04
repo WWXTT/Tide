@@ -286,12 +286,14 @@ MonoBehaviour:
     Style: 1
     Time: 2
     CustomCurve:
-      serializedVersion: 2
       m_Curve: []
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
   CustomBlends: {fileID: 0}
+  m_OutputCamera: {fileID: 63413617}
+  m_TargetOverride: {fileID: 0}
+  m_LastFrameUpdated: 2123
 --- !u!114 &63413620
 MonoBehaviour:
   m_ObjectHideFlags: 0

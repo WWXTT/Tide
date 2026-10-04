@@ -24,13 +24,6 @@ namespace Tide.验证
                 : BuildNew();
             try
             {
-                // 幂等修补：组件/模板缺失才补（不碰引用者对实例的烘焙调整）
-                if (contents.GetComponent<CostSquaresView>() == null)
-                {
-                    var v = contents.AddComponent<CostSquaresView>();
-                    v.SquareSize = 14f;
-                    v.Spacing = 2f;
-                }
                 if (contents.transform.Find(CostSquaresView.TemplateName) == null)
                     BuildTemplate((RectTransform)contents.transform);
                 PrefabUtility.SaveAsPrefabAsset(contents, PrefabPath);
@@ -47,9 +40,6 @@ namespace Tide.验证
             var root = new GameObject("cost-squares", typeof(RectTransform));
             var rt = (RectTransform)root.transform;
             rt.sizeDelta = new Vector2(0f, 14f);
-            var view = root.AddComponent<CostSquaresView>();
-            view.SquareSize = 14f;
-            view.Spacing = 2f;
             BuildTemplate(rt);
             return root;
         }

@@ -459,12 +459,13 @@ namespace CardCore
 
             int amount = (int)Math.Round(cfg.TotalUnitCost * multiplier * magnitude * durationFactor, MidpointRounding.AwayFromZero);
 
-            // 衍生物落区系数（P1 定案）：按落区分档计价（战场基准/手牌溢价/牌组微溢价）。
-            // 落区在组合层（def.SummonDropZone，显式三档——Zone.Hand==0 陷阱随显式声明消亡）。
+            // 衍生物落区系数（P1 定案）：按落区分档计价。
+            // 2026-10-05 落区写死定案：衍生物恒落战场——计价恒用战场基准系数
+            //（组合层 def.SummonDropZone 三档退役，与 SummonTokenHandler 同口径）。
             if (atom.Type == AtomicEffectType.SummonToken)
             {
                 var dropCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().SummonDropConfig;
-                amount = (int)Math.Round(amount * dropCfg.GetFactor(def.SummonDropZone), MidpointRounding.AwayFromZero);
+                amount = (int)Math.Round(amount * dropCfg.GetFactor(Zone.Battlefield), MidpointRounding.AwayFromZero);
             }
 
             return amount;
@@ -710,23 +711,45 @@ namespace CardCore
         /// 启动式照常计槽（2026-10-02 用户定案：「不占费用，占技能挂载」维持——效果槽是 AI 侧
         /// 每卡最大原子数限制的可见性锚，免槽会让 AI 看不见超限的启动式堆叠）；
         /// 启动式占用的只是底盘免费额度抵扣位，元素锚价仍构筑期全免（运行时现付）。
+        /// 代价栏计 1 槽（2026-10-04 定案：代价也是效果栏，不是特殊判——使用代价栏要单独为
+        /// 效果栏付 1 费，底盘 3 灰预算同口径扣槽，超出加价；全价不并入卡费，仅作门槛与补偿基准）。
+        /// 卡层 PayloadCost 与 legacy 效果级 Costs 同卡只计 1 槽（单卡单条契约）。
         /// </summary>
         public static int CountEffectSlots(CardData card)
         {
-            if (card?.Effects == null) return 0;
+            if (card == null) return 0;
             int slots = 0;
-            foreach (var eff in card.Effects)
+            if (card.Effects != null)
             {
-                if (eff == null) continue;
-                slots += 1;
-                if (eff.Steps == null) continue;
-                foreach (var step in eff.Steps)
+                foreach (var eff in card.Effects)
                 {
-                    if (step?.choices != null && step.choices.Count > 1)
-                        slots += step.choices.Count - 1;
+                    if (eff == null) continue;
+                    slots += 1;
+                    if (eff.Steps == null) continue;
+                    foreach (var step in eff.Steps)
+                    {
+                        if (step?.choices != null && step.choices.Count > 1)
+                            slots += step.choices.Count - 1;
+                    }
                 }
             }
+            if (HasPayloadEntry(card)) slots += 1;
             return slots;
+        }
+
+        /// <summary>卡上是否填装了代价（卡层 PayloadCost 正式口 / legacy 效果级 Costs 兜底，任一即真）。</summary>
+        private static bool HasPayloadEntry(CardData card)
+        {
+            if (card.PayloadCost?.payload != null && !string.IsNullOrEmpty(card.PayloadCost.payload.refId))
+                return true;
+            if (card.Effects == null) return false;
+            foreach (var eff in card.Effects)
+            {
+                if (eff?.Costs == null) continue;
+                foreach (var ce in eff.Costs)
+                    if (ce?.payload != null && !string.IsNullOrEmpty(ce.payload.refId)) return true;
+            }
+            return false;
         }
     }
 }

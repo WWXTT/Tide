@@ -143,9 +143,9 @@ namespace CardCore
             }
 
             // ---- 组合层域预计算（2026-09-10 目标域模型）----
-            // 主序列原子域交集 → TargetDomain（无 Choice）/ ChoiceDomains（per-mode）；
+            // 效果级作用范围（2026-10-04 相同目标定案）：header 声明优先，未声明回落原子域交集；
             // 组合 filter = 成员带域原子 Filter token 之 AND；TargetCount 哨兵 -2 回落表级。
-            PrecomputeDomains(def);
+            PrecomputeDomains(def, data.TargetKinds);
             // 动态分支引擎（2026-09-13 分支体系正规化）：主效果=条件引擎——
             // AtomicEffects 整批转存 RewardAtoms（不作即时主序列；计价 0：倒计时延迟即付费/运势机制费=灰x）。
             if (data.EngineKind != (int)BranchEngineKind.None)
@@ -189,6 +189,21 @@ namespace CardCore
                 : (data.TriggerLimitPerTurn == 0 ? 1 : data.TriggerLimitPerTurn);
 
             def.TargetCount = data.TargetCount != -2 ? data.TargetCount : FallbackTargetCount(def);
+
+            // SelectionMode 推导（2026-10-05 通用属性七项定案）：效果级作用范围已声明时，
+            // 选择模式不再独立生效——由 作用范围域宽 × 目标数 推导（随机目标=正交标志不入推导）：
+            // 域单值 → 单范围档（0/1/2）；域多值 → 多范围档（3/4/5）；数量 1=选一、N>1/任意(-1)=选多、0=全取。
+            // 未声明作用范围（存量数据）沿用存储值——两代数据同链共存。
+            if (data.TargetKinds != null && data.TargetKinds.Count > 0)
+            {
+                bool union = def.TargetDomain != null && def.TargetDomain.Count > 1;
+                if (def.TargetCount == 0)
+                    def.SelectionMode = union ? SelectionMode.WholeUnion : SelectionMode.Whole;
+                else if (def.TargetCount == 1)
+                    def.SelectionMode = union ? SelectionMode.SingleUnion : SelectionMode.Single;
+                else
+                    def.SelectionMode = union ? SelectionMode.MultipleUnion : SelectionMode.Multiple;
+            }
 
             // Self 域找回（2026-09-11；2026-09-16 Self 溶解为 Single）：组合域恰为 {Self}
             //（关键词/关键词型效果）且未显式声明选择模式 → 自动 Single（选一=源卡自身，不弹交互）。
@@ -451,12 +466,13 @@ namespace CardCore
             => entry == null ? null : ConvertAtomicEffect(entry, allowWrongSide: true);
 
         /// <summary>
-        /// 组合域预计算：主序列（含抉择 per-mode）原子域交集 + 组合属性 filter（成员 AND）。
+        /// 组合域预计算：效果级作用范围声明优先（2026-10-04 相同目标定案——并列全体原子共享），
+        /// 未声明回落主序列（含抉择 per-mode）原子域交集 + 组合属性 filter（成员 AND）。
         /// 无目标原子（域空）不参与约束；分支奖励原子不参与（奖励目标结算期各自解析）。
         /// </summary>
-        private static void PrecomputeDomains(EffectDefinition def)
+        private static void PrecomputeDomains(EffectDefinition def, List<int> headerKinds)
         {
-            def.TargetDomain = DomainOfMode(def, 0);
+            def.TargetDomain = DomainOfMode(def, 0, headerKinds);
             def.TargetFilter = CombinedFilterOfMode(def, 0);
 
             // 抉择卡：per-mode 域（与 Choices 平行）；无 Choice 时 ChoiceDomains 保持 null
@@ -473,7 +489,7 @@ namespace CardCore
             {
                 def.ChoiceDomains = new List<int>[modeCount];
                 for (int m = 0; m < modeCount; m++)
-                    def.ChoiceDomains[m] = DomainOfMode(def, m);
+                    def.ChoiceDomains[m] = DomainOfMode(def, m, headerKinds);
             }
         }
 
@@ -485,8 +501,17 @@ namespace CardCore
             return def.Effects;
         }
 
-        private static List<int> DomainOfMode(EffectDefinition def, int modeIndex)
+        private static List<int> DomainOfMode(EffectDefinition def, int modeIndex, List<int> headerKinds)
         {
+            // 效果级作用范围（2026-10-04 相同目标定案）：header 声明优先——并列全体原子共享同一份
+            // 选中目标；无效值滤除后为空视同未声明，回落原子域交集（存量兼容）。
+            if (headerKinds != null)
+            {
+                var declared = headerKinds
+                    .Where(k => Enum.IsDefined(typeof(TargetKind), k))
+                    .Distinct().OrderBy(k => k).ToList();
+                if (declared.Count > 0) return declared;
+            }
             List<int> domain = null;
             foreach (var atom in MainSequence(def, modeIndex))
             {

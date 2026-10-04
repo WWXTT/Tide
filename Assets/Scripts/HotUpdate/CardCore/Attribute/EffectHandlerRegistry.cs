@@ -147,7 +147,14 @@ namespace CardCore.Attribute
             }
             // 无目标效果（区域自结算类：抽卡/磨牌/看顶等，2026-09-11 语义修正）——
             // 域非空也不解析候选、不弹选（牌库是隐藏信息；handler 按域自结算）
-            if (def.SelectionMode == SelectionMode.None) return new List<Entity>();
+            // 相同目标定案（2026-10-04）：None 但组合域含**可见区**且调用方未预选目标（触发式）不再早退——
+            // 按选一共享解析一次：并列全体原子共享同一份选中目标（候选≤1 自动取；RandomTarget 随机 1），
+            // 消灭逐原子独立解析的退化兜底。域空/全隐藏区维持早退（隐藏区每原子兜底=首候选，不弹窗）。
+            // 施放路径声明期已预选目标（instance.Targets 非空），不进本函数——域校验口径不变。
+            if (def.SelectionMode == SelectionMode.None
+                && (domain == null || domain.Count == 0 || TargetKindRules.AllHiddenZone(domain)))
+                return new List<Entity>();
+            bool noneAsSingle = def.SelectionMode == SelectionMode.None; // None+可见域：按选一共享
             if (domain == null || domain.Count == 0) return new List<Entity>(); // 无目标效果
 
             var candidates = ResolveCandidates(domain, def.TargetFilter, context);
@@ -175,7 +182,7 @@ namespace CardCore.Attribute
             if (def.RandomTarget)
             {
                 var pool = TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt);
-                int take = SelectionModeRules.IsPickOne(def.SelectionMode) ? 1
+                int take = noneAsSingle || SelectionModeRules.IsPickOne(def.SelectionMode) ? 1
                     : (def.TargetCount > 0 ? def.TargetCount : pool.Count);
                 if (take >= pool.Count) return pool;
                 return GameRng.PickN(pool, take);
@@ -213,7 +220,7 @@ namespace CardCore.Attribute
                     Title = "选择目标（任意数量）",
                 });
             }
-            int need = def.TargetCount > 0 ? def.TargetCount : candidates.Count;
+            int need = noneAsSingle ? 1 : (def.TargetCount > 0 ? def.TargetCount : candidates.Count);
             if (candidates.Count <= need)
                 return candidates.Take(need).ToList();
             return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
@@ -252,7 +259,16 @@ namespace CardCore.Attribute
             if (effect == null || context == null) return new List<Entity>();
 
             var (kinds, filter, count) = GetEffectiveDomain(effect);
-            if (kinds.Count == 0) return new List<Entity>();
+            if (kinds.Count == 0) return new List<Entity>(); // 无目标原子
+
+            // 全隐藏区（2026-10-04 相同目标定案）：对方手牌/双方牌库=隐藏信息——不进交互选择，
+            // 自动取首候选（与 AI/无头代选同口径）：DrawCard 等自结算原子无视目标；
+            // RevealCard/AddCurse 等隐藏区消费原子拿首候选照常结算（防"从牌库选目标"弹窗）。
+            if (TargetKindRules.AllHiddenZone(kinds))
+            {
+                var hidden = ResolveCandidates(kinds, filter, context);
+                return hidden.Count > 0 ? new List<Entity> { hidden[0] } : new List<Entity>();
+            }
 
             var candidates = ResolveCandidates(kinds, filter, context);
             if (candidates.Count == 0) return candidates;

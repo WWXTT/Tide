@@ -453,15 +453,16 @@ namespace SynergyUI
             UiKit.IntField("field-" + label, row, label, value, onChanged, width: 70f);
         }
 
-        // ---------- 代价栏（2026-09-23 定案：上移卡组合层；2026-10-04 规则改造）----------
+        // ---------- 代价栏（2026-09-23 定案：上移卡组合层；2026-10-04 规则改造 + 本轮全套口径）----------
         // 单卡单条 Payload：任意单向效果不限价——填装时逆转选择范围到错误一侧
         //（表域双侧收窄 / 正确侧单向镜像 / 恰为错误侧免写，统一口 CostDerivationService.PayloadCostDomain）；
-        // cast 付费步强制执行并按全价补偿黑/白（CollectCardSpecialCosts 读 CardData.PayloadCost）。
+        // 代价也是效果栏：占 1 效果槽（底盘 3 灰同口径）；全价不并入卡费——使用时单独过地牌门槛
+        //（全价>地牌槽上限 → 整卡不可用）；打出时先扣卡费再强制执行，生效后按执行前快照全价补偿黑/白。
 
         private void BuildPayloadZone()
         {
             ClearChildren(_payloadZone);
-            var header = UiKit.Label("header", _payloadZone, "代价（逆转错侧·单卡单条）",
+            var header = UiKit.Label("header", _payloadZone, "代价（逆转错侧·单卡单条·占1效果槽）",
                 UiStyle.HeaderSize, UiStyle.TextSecondary, TextAnchor.LowerLeft, FontStyle.Bold);
             UiKit.Size(header, fw: 1f);
 
@@ -499,8 +500,8 @@ namespace SynergyUI
         /// <summary>填装代价栏（2026-10-04 定案：任意单向效果·逆转选择范围·不限价）。
         /// 有效域统一走 CostDerivationService.PayloadCostDomain：p≠0 强制错误侧——表域双侧收窄、
         /// 正确侧单向**镜像逆转**（MirrorDomain）、恰为错误侧免写；p=0 须表域单侧锁定。
-        /// 不再限价（09-21「等价1」退役）——补偿按全价发放（PayloadUnitGrant），
-        /// 黑白获得受每回合地牌槽上限钳制（ElementPool.AddMana）。</summary>
+        /// 不再限价（09-21「等价1」退役）——全价不并入卡费：占 1 效果槽（底盘同口径），
+        /// 使用时单独过地牌门槛（全价>上限整卡不可用），生效后按快照全价补偿黑/白（产出不封）。</summary>
         private void FillPayloadCost(AtomicEffectEntry entry)
         {
             var cfg = AtomicEffectTable.GetByHashId(entry?.refId);
@@ -510,6 +511,8 @@ namespace SynergyUI
                 return;
             }
             if (ComposerCatalog.IsEngineTrunk(type)) { ShowToast("引擎主干（拼点/运势/倒计时）不可作代价"); return; }
+            if (ComposerCatalog.HasMountBit(cfg, MountKind.SystemInternal))
+            { ShowToast("系统内部原子（数值修改原语）不可作代价"); return; }
             if (ComposerCatalog.HasMountBit(cfg, MountKind.Keyword))
             { ShowToast("关键词类原子不可作代价（代价位不出现关键词）"); return; }
 
@@ -527,10 +530,10 @@ namespace SynergyUI
             Recalculate();
             var inst = CardEffectConverter.ConvertPayloadForDisplay(entry);
             int price = inst != null ? CostDerivationService.PayloadUnitGrant(inst) : 0;
-            ShowToast($"已填装代价（{price} 费·逆转错侧）——打出时付费步强制执行并按全价补偿黑/白（每回合封顶=地牌槽上限）");
+            ShowToast($"已填装代价（全价 {price}·逆转错侧·占1效果槽）——打出时先扣卡费再强制执行，生效后按全价得黑/白；全价超过地牌槽上限时整卡不可用");
         }
 
-        /// <summary>代价候选行（表级，2026-10-04 新准入）：非引擎/非关键词 + PayloadCostDomain 可入
+        /// <summary>代价候选行（表级，2026-10-04 新准入）：非引擎/非关键词/非系统内部 + PayloadCostDomain 可入
         ///（p≠0 双侧收窄或正确侧镜像逆转 / p=0 单侧锁）——不限价，下拉只列真正可装的原子。</summary>
         private static IEnumerable<AtomicEffectConfig> PayloadCandidates()
         {
@@ -540,18 +543,19 @@ namespace SynergyUI
                 if (!Enum.TryParse<AtomicEffectType>(row.EnumName, out var type)) continue;
                 if (ComposerCatalog.IsEngineTrunk(type)) continue;
                 if (ComposerCatalog.HasMountBit(row, MountKind.Keyword)) continue;
+                if (ComposerCatalog.HasMountBit(row, MountKind.SystemInternal)) continue;
 
                 if (!CostDerivationService.PayloadCostDomain(row).eligible) continue;
                 yield return row;
             }
         }
 
-        /// <summary>代价全价展示行（口径同装载期 PayloadUnitGrant；补偿按全价，每回合获得封顶=地牌槽上限）。</summary>
+        /// <summary>代价全价展示行（口径同装载期 PayloadUnitGrant；全价作地牌门槛与补偿基准，不并入卡费）。</summary>
         private static string PayloadPriceText(AtomicEffectEntry entry)
         {
             var inst = CardEffectConverter.ConvertPayloadForDisplay(entry);
             int price = inst != null ? CostDerivationService.PayloadUnitGrant(inst) : 0;
-            return $"全价：{price}（付费补偿黑/白·每回合封顶=地牌槽上限）";
+            return $"全价：{price}（过地牌门槛·生效后补偿黑/白·占1效果槽）";
         }
 
         // ======================================== 右栏：效果挂载 ========================================

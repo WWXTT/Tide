@@ -516,6 +516,15 @@ namespace CardCore
         /// <summary>自我沉睡的灰费豁免量（支付时剥离→入场转沉睡指示物数）。</summary>
         public int PendingSleepGray => _pendingSleepGray;
 
+        // 出牌两阶段（2026-10-04 定案）：带代价的卡声明期先算代价——预选代价目标暂存于此，
+        // cast 结算付费步经 CostContext.PreselectedCostTargets 消费（响应窗口内不重选；消费后清空）。
+        // 代价无目标时 PlayCard 直接拒发（卡的发动无效）。运行时瞬态，不序列化。
+        internal List<Entity> _pendingCostTargets = null;
+
+        // 声明来源区（2026-10-04 本轮定案）：cast 结算期「代价无有效目标→发动失败回退」需要原路退回
+        //（手牌路径回手牌；墓地视手牌路径回墓地，不白赚挪区）。声明时写入，回退消费后清空。运行时瞬态，不序列化。
+        internal Zone _pendingCastFromZone = Zone.None;
+
         // 死亡归因留档（2026-09-07 定案）：伤害/流失路径只标死不送墓（落墓由 SBA 泵处理），
         // 死因与死亡来源随尸体留存，SBA/即时路径送墓时经 TryKill 消费并清档。
         // DamageLethal→伤害来源；LifeLoss→效果来源；null=减益/状态动作（无来源）。

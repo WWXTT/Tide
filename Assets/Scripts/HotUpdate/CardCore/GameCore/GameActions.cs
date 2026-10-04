@@ -95,15 +95,12 @@ namespace CardCore
                 }
             }
 
-            // 黑白首色受每回合获得封顶钳制（=地牌槽上限，2026-10-04 改口径）：预算耗尽则拒绝横置
-            //（不白扣横置状态）。计数/入账与 ElementPool.AddMana 同口径；事件仍走 core.PublishEvent
+            // 2026-10-04 使用侧定案：黑白**产出不再钳制**（旧每回合获得≤地牌上限的产出钳退役）——
+            // 黑白与其余色同口径：bank 囤积无上限，**使用（支付）时单次贡献 ≤ 地牌上限**
+            //（GetBillPaymentPlan 浓度上限——代价产出的黑白也经统一支付管线，不能再绕过）。
+            // GainedThisTurn 保留为纯台账（观测/AI 特征用，不参与钳制）；事件仍走 core.PublishEvent
             // 路由路径（Trigger/Layer 引擎可见——AddMana 直发 EventManager 会绕开，故不换路）。
             var pool = core.ElementPool.GetPool(player);
-            if (type == ManaType.Black || type == ManaType.White)
-            {
-                int gained = type == ManaType.Black ? pool.BlackGainedThisTurn : pool.WhiteGainedThisTurn;
-                if (gained >= core.ElementPool.GetLandCap(player)) return false;
-            }
 
             creature.Tap();
             pool.AvailableMana[type]++;
@@ -215,7 +212,7 @@ namespace CardCore
         /// （公开、可被指向——反制指向发动区）→ CardPlayEvent（使用宣言）→
         /// 「此卡被使用」作为整卡施放对象上 StackEngine（对手获得优先权 = 响应窗口）。
         /// 付费与结算移交栈：双方 Pass 后 LIFO 结算，消费点 = ResolveCardCastAsync
-        /// （扣费在响应窗口之后；软打断=没付、硬反制=付了但被否定、费用不退、不回卷）。
+        /// （扣费在响应窗口之后；发动无效=没付、效果无效=付了但被否定、费用不退、不回卷——两层无效定案 2026-10-04）。
         /// targets：可选的预选目标（如指向性法术）；为空时由各原子效果按配置自动解析。
         /// fromZone：出牌来源区（默认手牌；Graveyard = IPlaySource「墓地视手牌中使用」路径）。
         /// </summary>
@@ -243,6 +240,11 @@ namespace CardCore
             if (!TargetDomainService.HasPlayableTargets(core, player, card, modeIndex))
             { rejectReason = "无合法目标（当前场上没有该卡可选的对象）"; return false; }
 
+            // 出牌两阶段（2026-10-04 定案）：有代价的卡**先算代价**——声明期预选代价目标并验证可执行；
+            // 代价无目标 → 卡的发动无效（拒发）。无代价卡照常只过费用门禁。
+            if (!TryPrepareCardCostTargets(core, player, card, out var costGateReject))
+            { rejectReason = costGateReject; return false; }
+
             // 规则扩展点（OCP）：非手牌来源（如墓地视手牌使用）经注册表取得并占用配额
             if (fromZone != Zone.Hand)
             {
@@ -268,6 +270,7 @@ namespace CardCore
 
             // ---- 声明（使用时点）：设控制者 → 进发动区 → cast 上栈 → 使用宣言（对手获得响应窗口） ----
             card.SetController(player);
+            card._pendingCastFromZone = fromZone; // 回退锚（2026-10-04 本轮：代价无有效目标时原路退回）
 
             core.ZoneManager.MoveCard(card, player, fromZone, Zone.Activation);
             core.PublishEvent(new CardEnterActivationEvent
@@ -323,6 +326,10 @@ namespace CardCore
             if (!RuleHooks.CanPlay(core, player, card, Zone.Hand))
             { rejectReason = "出牌受限（规则锁定）"; return false; }
 
+            // 出牌两阶段（2026-10-04 定案）：有代价先算代价——响应出牌同门（代价无目标→拒发）
+            if (!TryPrepareCardCostTargets(core, player, card, out var costGateReject))
+            { rejectReason = costGateReject; return false; }
+
             bool isSpell = card.IsSpellCard();
             if (!isSpell && !core.ZoneManager.HasBattlefieldSpace(player))
             { rejectReason = "战场已满（永久物无处入场）"; return false; }
@@ -334,6 +341,7 @@ namespace CardCore
             { rejectReason = CostRejectText(core, player, cost); return false; }
 
             card.SetController(player);
+            card._pendingCastFromZone = Zone.Hand; // 回退锚（2026-10-04 本轮：代价无有效目标时原路退回；响应路径来源恒手牌）
 
             core.ZoneManager.MoveCard(card, player, Zone.Hand, Zone.Activation);
             core.PublishEvent(new CardEnterActivationEvent
@@ -372,9 +380,9 @@ namespace CardCore
 
         /// <summary>
         /// 整卡施放的栈结算——「此卡被使用」的消费点（Option Y 定案）：
-        /// 1. 卡已不在发动区（被「打落」送墓等）→ 中止：不付费、不结算（软打断达成）；
+        /// 1. 卡已不在发动区（被「发动无效」送墓等）→ 中止：不付费、不结算（发动层无效达成）；
         /// 2. 付费（扣费在响应窗口之后，从 bank 扣）；
-        /// 3. 卡 _isNegated（被「发动无效」置位）→ 移入墓地、跳过效果、费用不退（硬反制达成）；
+        /// 3. 卡 _isNegated（被「效果无效」置位）→ 移入墓地、跳过效果、费用不退（效果层无效达成）；
         /// 4. 否则结算卡效果并离开发动区（法术入墓 / 永久物入场）。
         /// 支付失败（窗口内其他支付挤占 bank，不回卷）→ 发动失败入墓。
         /// 由 StackEngine 结算整卡施放对象时调用（PlayCard / PlayCardInResponse 声明的消费端）。
@@ -386,31 +394,38 @@ namespace CardCore
             var player = cast?.Controller;
             if (core == null || card == null || player == null) return;
 
-            // 1. 打落中止：卡已不在发动区 → 不付费、不结算
+            // 1. 发动无效中止：卡已不在发动区 → 不付费、不结算（净效果=扣费返还）
             if (!core.ZoneManager.IsCardInZone(card, player, Zone.Activation))
                 return;
 
             // 2. 付费（响应窗口之后）——抉择卡按声明期选定的模式付费（cast.ModeIndex）。
-            // 代价强制（2026-09-14 撤销「代价可选」）：付费步强制执行全部 Payload 代价并按全价
-            // 获得黑/白（每回合封顶=地牌槽上限，AddMana 钳制）——无选择窗口、无减费通道；
-            // 补偿先于代价执行（2026-09-13 排序保留：Payload 执行会膨胀模板身价，补偿按打出时点全价）。
-            // 被「发动无效」只跳效果、已付代价与补偿不回卷；被打落则全免（上方 1 已拦）。
+            // 顺序（2026-10-04 本轮定案）：
+            // ① 代价目标存活校验（扣费前）——预选目标响应窗口内全灭/离场/不可指定 → 发动失败，
+            //    卡回退声明来源区（手牌路径回手牌），不付费、不执行、走不到代价黑白元素生成；
+            // ② 先扣卡费——元素池不足以支付卡的费用时，**将生成的代价黑白不提前计入**（声明期 CanAfford
+            //    与此处实际支付点同口径：新生成黑白不能垫本卡）；
+            // ③ 代价强制（2026-09-14 撤销「代价可选」）——Payload 原子强制执行、无选择窗口、无减费通道，
+            //    生效后**立即**按打出时点快照全价获得黑/白（快照在执行前取：Payload 执行会膨胀模板身价，
+            //    09-13 护栏维持；产出不封·全量入账，使用侧受支付浓度上限约束）。
+            // 被「效果无效」只跳效果、已付代价与补偿不回卷；被「发动无效」则全免（上方 1 已拦）。
             // 自动横置补足（2026-09-30 定案）：bank 不足时先自动横置地牌产出所需元素再扣款——
             // 声明期门禁（CanAfford）按同一潜力口径放行，此处是实际横置点。
             var specialCosts = CollectCardSpecialCosts(card);
             var cost = GetCardCost(card, cast.ModeIndex);
-            var costCtx = new CostContext
+            var preselected = card._pendingCostTargets;
+            card._pendingCostTargets = null; // 消费点即清空（防跨次使用泄漏；付费步一次性）
+
+            // ① 代价目标存活校验：有域代价的预选目标全部失效 → 发动失败回退声明来源区
+            if (PayloadTargetsAllLost(core, player, card, specialCosts, preselected))
             {
-                Payer = player,
-                ZoneManager = core.ZoneManager,
-                ElementPool = core.ElementPool,
-                Source = player // 来源=角色（来源归因定案 2026-09-09）
-            };
-            if (!await CostCompensationService.PayWithCompensationAsync(specialCosts, costCtx))
-            {
-                CastAbortToGraveyard(core, card, player, "代价流程异常（付费步失败，不回卷）");
+                var fromZone = card._pendingCastFromZone;
+                card._pendingCastFromZone = Zone.None;
+                CastAbortToOrigin(core, card, player, fromZone,
+                    "代价无有效目标——发动失败回退（走不到代价黑白元素生成）");
                 return;
             }
+
+            // ② 先扣卡费（不预计将生成的黑白）
             if (!core.ElementPool.TryPayCostWithAutoTap(cost, player, core.ZoneManager))
             {
                 CastAbortToGraveyard(core, card, player, "费用不足（响应窗口后支付失败，不回卷）");
@@ -419,13 +434,29 @@ namespace CardCore
 
             // 元素充盈引擎判定（2026-09-22 定案）：出牌付费完成后回调——引擎读付费后余量
             //（bank 最多色 > x 即发奖，每次达标都触发；效果费支付不走此口）。发动无效不回卷：费已实付，照判。
+            // 2026-10-04 本轮：代价补偿在引擎读数之后到账——将生成的黑白不计入「付费后余量」。
             BranchEngines.OnCardCostPaid(player);
 
-            // 3. 发动无效：付了但被否定 → 入墓、跳过效果、费用不退
+            // ③ 代价强制执行 + 补偿后置（PayWithCompensationAsync 内部：快照全价 → 执行 → 发放）
+            var costCtx = new CostContext
+            {
+                Payer = player,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+                Source = player, // 来源=角色（来源归因定案 2026-09-09）
+                PreselectedCostTargets = preselected, // 出牌两阶段（2026-10-04）：声明期预选代价目标沿用
+            };
+            if (!await CostCompensationService.PayWithCompensationAsync(specialCosts, costCtx))
+            {
+                CastAbortToGraveyard(core, card, player, "代价流程异常（付费步失败，不回卷）");
+                return;
+            }
+
+            // 3. 效果无效：付了但被否定 → 入墓、跳过效果、费用不退
             if (card._isNegated)
             {
                 card._isNegated = false; // 消费即复位（同一否定标记只拦一次）
-                CastAbortToGraveyard(core, card, player, "发动无效");
+                CastAbortToGraveyard(core, card, player, "效果无效");
                 return;
             }
 
@@ -461,6 +492,63 @@ namespace CardCore
                 Controller = player,
                 ToZone = Zone.Graveyard
             });
+        }
+
+        /// <summary>
+        /// cast 结算中止·回退声明来源区（2026-10-04 本轮定案：代价无有效目标 → 发动失败回手牌——
+        /// 手牌出牌路径即回手牌；墓地视手牌使用路径原路回墓地，不白赚挪区）。发生在扣费前：不付费、不补偿。
+        /// </summary>
+        private static void CastAbortToOrigin(GameCore core, Card card, Player player, Zone fromZone, string reason)
+        {
+            if (fromZone == Zone.None || fromZone == Zone.Activation) fromZone = Zone.Hand;
+            core.ZoneManager.MoveCard(card, player, Zone.Activation, fromZone);
+            core.PublishEvent(new CardActivationFailedEvent
+            {
+                Card = card,
+                Controller = player,
+                FromZone = Zone.Activation,
+                Reason = reason
+            });
+            core.PublishEvent(new CardLeaveActivationEvent
+            {
+                Card = card,
+                Controller = player,
+                ToZone = fromZone
+            });
+        }
+
+        /// <summary>
+        /// 结算期代价目标存活校验（2026-10-04 本轮定案）：有域代价的预选目标经响应窗口后
+        /// 全部失效（死亡/离场/不再满足过滤）→ true（发动失败回退）。口径：按**支付者视角**
+        /// 重解析当前合法域（与声明期 TryPrepareCardCostTargets 同口径的纯读——不重选，
+        /// 只验证预选目标是否仍有任一留在域内；手牌域 {5} 等非战场域同样正确）。
+        /// 无代价 / 无域代价 / 仍有有效目标 → false。
+        /// </summary>
+        private static bool PayloadTargetsAllLost(GameCore core, Player player, Card card,
+            List<CostInstance> specialCosts, List<Entity> preselected)
+        {
+            if (preselected == null) return false; // 无代价（无域代价为空表，由域判分支兜底）
+            CostInstance payloadCost = null;
+            foreach (var c in specialCosts)
+                if (c != null && c.Type == CostType.Payload && c.Payload != null) { payloadCost = c; break; }
+            if (payloadCost == null) return false;
+            var atom = payloadCost.Payload;
+            if (atom.TargetKinds == null || atom.TargetKinds.Count == 0) return false; // 无域代价：无目标语义照常执行
+
+            var resolveCtx = new EffectExecutionContext
+            {
+                Controller = player,
+                Source = player,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+            };
+            var current = Attribute.EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx);
+            if (current != null) current.RemoveAll(e => ReferenceEquals(e, card)); // 本卡已在发动区：不作代价目标
+            if (current == null || current.Count == 0) return true; // 域已空：必然全灭
+            foreach (var e in preselected)
+                if (e != null && e.IsAlive && current.Contains(e))
+                    return false; // 仍有有效目标：照常执行（其余死亡目标由各 handler 过滤）
+            return true;
         }
 
         /// <summary>
@@ -806,6 +894,80 @@ namespace CardCore
                 }
             }
             return result;
+        }
+
+        /// <summary>
+        /// 出牌两阶段·第一阶段（2026-10-04 定案）：有代价的卡声明期先算代价——预选代价目标。
+        /// 代价也是完整效果：按其自身域以**支付者视角**解析候选（与结算期 ExecutePayloadAsync 同口径），
+        /// 候选存 <see cref="Card._pendingCostTargets"/> 供 cast 付费步沿用（响应窗口内不重选）。
+        /// 代价全价过地牌门槛（2026-10-04 本轮定案）：全价 &gt; 地牌槽上限 → 整卡不可使用（走不到代价发动）；
+        /// 代价无目标（无法执行）→ 返回 false，卡的发动无效。无代价卡直接放行（只走费用门禁）。
+        /// </summary>
+        private static bool TryPrepareCardCostTargets(GameCore core, Player player, Card card, out string rejectReason)
+        {
+            rejectReason = EvaluatePayloadGate(core, player, card, out var payloadCost, out var candidates);
+            if (rejectReason != null)
+            {
+                card._pendingCostTargets = null;
+                return false;
+            }
+            if (payloadCost == null)
+            {
+                card._pendingCostTargets = null; // 无代价：两阶段退化为一阶段（费用门禁）
+                return true;
+            }
+            bool hasDomain = payloadCost.Payload.TargetKinds != null && payloadCost.Payload.TargetKinds.Count > 0;
+            card._pendingCostTargets = hasDomain ? candidates : new List<Entity>(); // 无域代价（无目标语义）：空表可发动
+            return true;
+        }
+
+        /// <summary>代价门槛纯检（AI LegalActionEnumerator 共用，不动卡状态）：null=通过，非 null=拒绝原因。</summary>
+        public static string GetPayloadGateReject(GameCore core, Player player, Card card)
+            => EvaluatePayloadGate(core, player, card, out _, out _);
+
+        /// <summary>
+        /// 代价门槛评估（2026-10-04 本轮定案，声明期与 AI 枚举同口）：
+        /// ① 全价门槛——代价全价（PayloadUnitGrant，与补偿同锚、不受减免）&gt; 地牌槽上限 → 整卡不可使用；
+        /// ② 目标门槛——有域代价以支付者视角解析候选（剔除本卡），无候选 → 发动无效。
+        /// 无域代价两门槛中只过①（可发动，结算按无目标执行）。
+        /// </summary>
+        private static string EvaluatePayloadGate(GameCore core, Player player, Card card,
+            out CostInstance payloadCost, out List<Entity> candidates)
+        {
+            payloadCost = null;
+            candidates = null;
+
+            var specialCosts = CollectCardSpecialCosts(card);
+            foreach (var c in specialCosts)
+                if (c != null && c.Type == CostType.Payload && c.Payload != null) { payloadCost = c; break; }
+            if (payloadCost == null) return null; // 无代价：两阶段退化为一阶段（费用门禁）
+
+            var atom = payloadCost.Payload;
+
+            // ① 全价门槛：全价不并入卡费、装载不受减免——使用时单独过地牌门槛（例：上限3、全价4 → 整卡卡死）
+            int fullPrice = CostDerivationService.PayloadUnitGrant(atom);
+            int landCap = core.ElementPool.GetLandCap(player);
+            if (fullPrice > landCap)
+                return $"代价全价 {fullPrice} 超过当前地牌槽上限 {landCap}——整卡无法使用（走不到代价发动）";
+
+            if (atom.TargetKinds == null || atom.TargetKinds.Count == 0)
+                return null; // 无域代价（无目标语义）：可发动
+
+            // ② 目标门槛：按支付者视角解析候选（与结算期 ExecutePayloadAsync 同口径）
+            var resolveCtx = new EffectExecutionContext
+            {
+                Controller = player,
+                Source = player,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+            };
+            var resolved = Attribute.EffectHandlerRegistry.ResolveCandidates(atom.TargetKinds, atom.Filter, resolveCtx);
+            // 出牌两阶段（2026-10-04 定案）原文：代价也是一个完整效果，先选定其目标；代价无法执行（无目标）→ 发动无效。
+            if (resolved != null) resolved.RemoveAll(e => ReferenceEquals(e, card)); // 声明期本卡尚在手：不作代价目标
+            candidates = resolved ?? new List<Entity>();
+            if (candidates.Count == 0)
+                return "代价无目标（无法执行）——卡的发动无效";
+            return null;
         }
 
         /// <summary>

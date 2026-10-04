@@ -15,7 +15,7 @@ namespace CardCore
     /// </summary>
     public enum TriggerTiming
     {
-        /// <summary>登场：经过发动区三关后进入战场之时（付费失败/被打落/被反制不进战场则不触发；横置非触发代价）</summary>
+        /// <summary>登场：经过发动区三关后进入战场之时（付费失败/被无效化（发动无效/效果无效）不进战场则不触发；横置非触发代价）</summary>
         OnPlay = 0,
         /// <summary>死亡时（亡语 / 进墓地时）</summary>
         OnDeath = 1,
