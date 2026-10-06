@@ -87,9 +87,20 @@ namespace SynergyUI
             };
         }
 
-        /// <summary>表 EffectColor 列颜色名（"Red"/"Blue"/"Green"/"Gray"/"Black"/"White"）→ UIColor。
+        /// <summary>表行 Tags 色名（2026-10-06 中文化：追加中文色名，词表=ManaTypeNames）→ UIColor。
         /// 2026-09-14：原子库圆点直读表行颜色（此前经 ElementAffinity 间接取色，含兜底失真）。</summary>
         public static UIColor OfColorName(string colorName) => FromColorName(colorName);
+
+        /// <summary>表行 Tags 整串（多标签 CSV，如「伤害产出族,红」）→ UIColor：取首个色名标签；
+        /// 无色名标签（纯族标签/空）落 Gray。2026-10-06 修复：此前整串直传反查必失败落灰。</summary>
+        public static UIColor OfTagsCsv(string tagsCsv)
+        {
+            if (!string.IsNullOrEmpty(tagsCsv))
+                foreach (var tok in tagsCsv.Split(','))
+                    if (ManaTypeNames.TryParseZh(tok.Trim(), out var m))
+                        return FromManaType(m);
+            return UIColor.Gray;
+        }
 
         private static UIColor FromColorName(string colorName)
         {
@@ -101,13 +112,11 @@ namespace SynergyUI
             {
                 return FromManaType(mana);
             }
-            return colorName switch
-            {
-                "红" => UIColor.Red,
-                "蓝" => UIColor.Blue,
-                "绿" => UIColor.Green,
-                _ => UIColor.Gray,
-            };
+            // 中文色名（完整六色——2026-10-06 前只认红/蓝/绿，白/黑/灰静默落灰的隐患已修）。
+            // 词表外（如族标签「伤害产出族」）落 Gray。
+            return CardCore.ManaTypeNames.TryParseZh(colorName, out var zh)
+                ? FromManaType(zh)
+                : UIColor.Gray;
         }
     }
 }

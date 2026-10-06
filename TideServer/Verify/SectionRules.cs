@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using CardCore;
 using CardCore.Attribute;
@@ -31,6 +32,11 @@ namespace TideServer.Verify
     /// 2026-10-04 两层无效定案增：
     /// ⑫V9.o 发动无效（净零成本：施放扣费返还/启动式不扣费横置不重置/触发式不计发动次数/强制桶免疫）
     ///   × 效果无效（扣费照付：施放费用不退/启动式扣费/触发式计入/强制桶受管制）——施放端到端+计数口径+混合批管制面。
+    /// 2026-10-05 两槽定案重锚：
+    /// ⑬构造形态从「header.EngineKind+AtomicEffects 奖励」改为「槽级原子 branch 载荷」（BranchEntryData/
+    ///   BranchPayload）——V9.d 关键词型剔除改判平铺主干 def.Effects；V9.p 目录锚走 OutcomeConditions/
+    ///   SituationGates/CurseGateId；Grant 引擎解体=无分支槽原子+效果级持续档计价；诅咒门=branch 载荷
+    ///  （Gate·CurseOnDraw）；附两槽装载校验轻锚（主序列主干 ≤2 / 域交集空 → 构筑期 Error）。
     /// Unity 侧对应段落见 Assets/Editor/验证/CardPipelineVerifier.cs（编辑器内跑，口径同源）。
     /// </summary>
     internal static class SectionRules
@@ -150,7 +156,11 @@ namespace TideServer.Verify
                 ID = "V9_ench", CardName = "耐久结界", Supertype = Cardtype.Enchantment, Durability = 3,
             };
             var ench = ToHand(p1, enchData);
-            VerifySuite.Assert(GameActions.PlayCard(core, p1, ench), "结界从手牌发动（无效果免费卡）");
+            // 耐久计价（2026-10-05 定案 0.5 灰/点）：3 耐久=1.5→取整 2 灰——备灰并放开浓度上限后打出
+            var v9cPool = core.ElementPool.GetPool(p1);
+            v9cPool.AvailableMana[ManaType.Gray] = 2;
+            v9cPool.GlobalTurnIndex = 9;
+            VerifySuite.Assert(GameActions.PlayCard(core, p1, ench), "结界从手牌发动（耐久费 2 灰——2026-10-05 耐久计价）");
             GameActions.DrainStack(core);
             VerifySuite.Assert(ench.GetZone() == Zone.Battlefield, "两步式：发动区宣告→付费→进入战场");
             VerifySuite.Assert(ench.GetCounterCount(CounterRules.DurabilityCounter) == 3,
@@ -256,10 +266,11 @@ namespace TideServer.Verify
                 "启动式照常计效果槽（1 启动式 + 1 登场 = 2 槽——占用维持定案回归锚）");
 
             // ③ 关键词型 Grant（自指域 {0}）做启动式 → converter 剔除（2026-10-02 定案）
-            //（GrantIceCrystal 行已于 2026-10-02 苏醒迁移同日退役——改用存续的 GrantPoisonSting/GrantStealth）
-            VerifySuite.Assert(ComposerCatalog.IsKeywordStyleGrant(AtomicEffectType.GrantPoisonSting)
+            //（GrantIceCrystal 行已于 2026-10-02 退役；GrantPoisonSting/GrantPathogen 行已随改写光环化删除
+            //  2026-10-05——正例改用存续的 GrantRegeneration/GrantStealth）
+            VerifySuite.Assert(ComposerCatalog.IsKeywordStyleGrant(AtomicEffectType.GrantRegeneration)
                               && ComposerCatalog.IsKeywordStyleGrant(AtomicEffectType.GrantStealth),
-                "关键词型判定：自指域 Grant 行（毒刺/潜行授予）= 关键词型");
+                "关键词型判定：自指域 Grant 行（再生/潜行授予）= 关键词型");
             VerifySuite.Assert(!ComposerCatalog.IsKeywordStyleGrant(AtomicEffectType.GrantMagnify)
                               && !ComposerCatalog.IsKeywordStyleGrant(AtomicEffectType.DealDamage),
                 "关键词型判定：赋予型（放大，域含他人）与非 Grant 行不受限");
@@ -270,11 +281,14 @@ namespace TideServer.Verify
                 TriggerTiming = (int)TriggerTiming.Activate_Instant,
                 AtomicEffects = new List<AtomicEffectEntry>
                 {
-                    AtomRefs.New(AtomicEffectType.GrantPoisonSting),              // 关键词型 → 应剔除
+                    AtomRefs.New(AtomicEffectType.GrantRegeneration),              // 关键词型 → 应剔除
                     AtomRefs.New(AtomicEffectType.DealDamage, value: 1),
                 },
                 Steps = new List<EffectStepData>
                 {
+                    // 门步前置存活主干（2026-10-05 两槽定案：无 Choice 的步骤平铺折叠，门折入前一个
+                    // 原子的 Branch 载荷——留一个非关键词主干供下方观测「Then 空→门步整体丢弃」）
+                    new EffectStepData { kind = 0, atomic = AtomRefs.New(AtomicEffectType.DealDamage, value: 1) },
                     new EffectStepData { kind = 0, atomic = AtomRefs.New(AtomicEffectType.GrantStealth) }, // 步骤内 → 整步剔除
                     new EffectStepData
                     {
@@ -284,18 +298,19 @@ namespace TideServer.Verify
                 },
             };
             var kwDef = CardEffectConverter.ConvertOne(kwAct, "V9_src");
+            // 剔除断言改判平铺主干 def.Effects（两槽定案：关键词型剔除作用于 AtomicEffects+Steps 全树，
+            // 无 Choice 的步骤随后平铺折入主序列——kwDef.Steps 恒空）
             var kwFlat = kwDef.Effects.Select(a => a.Type).ToList();
-            VerifySuite.Assert(!kwFlat.Contains(AtomicEffectType.GrantPoisonSting),
-                "启动式扁平列表：关键词型 Grant（毒刺）被剔除");
-            VerifySuite.Assert(kwFlat.Contains(AtomicEffectType.DealDamage), "启动式扁平列表：非关键词原子保留");
-            var stepTypes = (kwDef.Steps ?? new List<RuntimeEffectStep>())
-                .Where(s => s.Kind == RuntimeStepKind.Atomic && s.Atomic != null).Select(s => s.Atomic.Type).ToList();
-            VerifySuite.Assert(!stepTypes.Contains(AtomicEffectType.GrantStealth),
-                "启动式步骤：关键词型原子步骤被整步剔除");
-            var branchThen = (kwDef.Steps ?? new List<RuntimeEffectStep>())
-                .Where(s => s.Kind == RuntimeStepKind.Branch).SelectMany(s => s.Then).Select(a => a.Type).ToList();
-            VerifySuite.Assert(!branchThen.Contains(AtomicEffectType.GrantLifesteal),
-                "启动式分支奖励：关键词型（吸血授予）被剔除");
+            VerifySuite.Assert(!kwFlat.Contains(AtomicEffectType.GrantRegeneration),
+                "启动式平铺主干：关键词型 Grant（再生）被剔除");
+            VerifySuite.Assert(kwFlat.Contains(AtomicEffectType.DealDamage), "启动式平铺主干：非关键词原子保留");
+            VerifySuite.Assert(!kwFlat.Contains(AtomicEffectType.GrantStealth),
+                "启动式平铺主干：关键词型原子步骤被整步剔除（GrantStealth 步折平后不出现）");
+            var kwThenTypes = kwDef.Effects.Where(a => a.Branch != null)
+                .SelectMany(a => a.Branch.Then).Select(a => a.Type).ToList();
+            VerifySuite.Assert(!kwThenTypes.Contains(AtomicEffectType.GrantLifesteal)
+                              && kwDef.Effects.All(a => a.Branch == null),
+                "启动式分支奖励：关键词型（吸血授予）被剔除——Then 空→门步整体丢弃（不产 Branch 载荷）");
 
             // ④ 赋予型 Grant 做启动式 → 放行（赋予关键词可以）
             var grantAct = new CardEffectData
@@ -601,13 +616,14 @@ namespace TideServer.Verify
                 return card;
             }
 
-            // 载荷 = Effects.json 现成条目（纯原子 steps、恰一个抽卡原子、无分支——发作时施诅方
-            // 抽 N 张可观测；条件分支类载荷的评估路径不走此夹具——抽牌时点无上游产出，门恒否）
+            // 载荷 = Effects.json 现成条目（纯原子 steps、恰一个抽卡原子、无分支载荷——发作时施诅方
+            // 抽 N 张可观测；两槽定案后瘦条目无引擎头字段（engine 已删），分支挂原子 branch；
+            // 条件分支类载荷的评估路径不走此夹具——抽牌时点无上游产出，门恒否）
             var drawRow = AtomicEffectTable.GetByType(AtomicEffectType.DrawCard);
             VerifySuite.Assert(drawRow != null, "抽卡表行存在");
-            var payloadEntry = EffectsLibrary.GetAll().FirstOrDefault(d => d != null && d.engine == 0
+            var payloadEntry = EffectsLibrary.GetAll().FirstOrDefault(d => d != null
                 && d.steps != null && d.steps.Count > 0
-                && d.steps.All(s => s != null && s.kind == 0 && s.atom != null)
+                && d.steps.All(s => s != null && s.kind == 0 && s.atom != null && s.atom.branch == null)
                 && d.steps.Count(s => s.atom.refId == drawRow.HashId) == 1);
             // Effects.json 2026-10-04 起为用户清空态（真效果入库前装载 0 属预期——记忆 effects-json-reset-real-content）：
             // 载荷候选缺失时软跳过本夹具（Log 留痕不硬断言），后续 V9.i 光环段照常回归。
@@ -1185,13 +1201,13 @@ namespace TideServer.Verify
                 return d;
             }
 
-            // ---- ① 双侧+全取 → ×0.5（对照=同款己方全取全价；底盘退费 2 同折于两侧，比较面只差减半） ----
+            // ---- ① 双侧+全取 → ×0.5（2026-10-05 档位化后卡层曲线非线性，闭式期望退役——
+            //      改半量锚同管线对照：己方全取 v4（×全部档3=12）对称减半=6 ≡ 己方全取 v2（2×3=6）） ----
             var healOwn = CardCostService.Derive(KCard("V9K_HEAL_OWN", new List<int> { 1 }, 2, AtomicEffectType.Heal, value: 4));
             var healBoth = CardCostService.Derive(KCard("V9K_HEAL_BOTH", new List<int> { 1, 2 }, 5, AtomicEffectType.Heal, value: 4));
-            const int kChassisRefund = 2; // 法术底盘退费（攻守默认退 2——V9.a 同口径）
-            int expectedHalf = Math.Max(0, (int)Math.Round((healOwn.DerivedTotal + kChassisRefund) * 0.5f, MidpointRounding.AwayFromZero) - kChassisRefund);
-            VerifySuite.Assert(healBoth.DerivedTotal == expectedHalf,
-                $"双方全体恢复减半：己方全取 {healOwn.DerivedTotal} → 双方全取 {healBoth.DerivedTotal}（期望 {expectedHalf} = round((总量+退2)×0.5)−退2）");
+            var healHalfRef = CardCostService.Derive(KCard("V9K_HEAL_HALF", new List<int> { 1 }, 2, AtomicEffectType.Heal, value: 2));
+            VerifySuite.Assert(healBoth.DerivedTotal == healHalfRef.DerivedTotal,
+                $"双方全体恢复减半：己方全取 {healOwn.DerivedTotal} → 双方全取 {healBoth.DerivedTotal}（期望=半量锚同管线 {healHalfRef.DerivedTotal}）");
 
             // ---- ② 双侧域单体任选一侧 → 不减（宽域选一≠同时作用双方） ----
             var dmgPickOne = CardCostService.Derive(KCard("V9K_DMG_PICK1", new List<int> { 1, 2 }, 3, AtomicEffectType.DealDamage, targetCount: 1));
@@ -1214,6 +1230,7 @@ namespace TideServer.Verify
                 },
             });
             var auraCost = CardCostService.Derive(auraData);
+            const int kChassisRefund = 2; // 法术底盘退费（攻守默认退 2——V9.a 同口径）
             // 整卡链：锚×0.5（恒双方）× f(未声明档=d(9)=0.75) 取整 − 底盘退2（下限0）——锚价动态读表
             int expectedAuraTotal = Math.Max(0, (int)Math.Round((capRow?.TotalUnitCost ?? 0f) * 0.5f * 0.75f,
                 MidpointRounding.AwayFromZero) - kChassisRefund);
@@ -1616,33 +1633,33 @@ namespace TideServer.Verify
             VerifySuite.Assert(npool.AvailableMana[ManaType.Black] == smallGrant && npool.BlackGainedThisTurn == smallGrant,
                 $"补偿后置全额：生效后立即得黑 {npool.AvailableMana[ManaType.Black]} = 全价 {smallGrant}（快照在执行前取）");
 
-            // ---- ④ 产出不封直测（2026-10-04 使用侧定案：旧产出钳退役）+ 使用侧约束 ----
+            // ---- ④ 黑白获得双限制直测（2026-10-05 定案，取代 2026-10-04「产出不封」）+ 使用侧约束 ----
             var tpool = pcore.ElementPool.GetPool(n2);
             tpool.GlobalTurnIndex = 2;
             tpool.BlackGainedThisTurn = 0; tpool.WhiteGainedThisTurn = 0;
             tpool.AvailableMana[ManaType.Black] = 0; tpool.AvailableMana[ManaType.White] = 0;
-            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.Black, null, 3) == 3
-                              && tpool.AvailableMana[ManaType.Black] == 3 && tpool.BlackGainedThisTurn == 3,
-                "产出不封：cap2（使用侧）时入黑 3 全额入账（旧「钳到 2」退役）");
-            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.Black, null, 1) == 1
-                              && tpool.AvailableMana[ManaType.Black] == 4,
-                "同回合再入黑照常入账（无产出帽）");
-            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.White, null, 5) == 5
-                              && tpool.WhiteGainedThisTurn == 5,
-                "白同口径全量：产出不封对黑白一致");
+            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.Black, null, 3) == 2
+                              && tpool.AvailableMana[ManaType.Black] == 2 && tpool.BlackGainedThisTurn == 2,
+                "单次钳制：cap2 时单次入黑 3 → 实发 2（单次获得 ≤ 浓度上限）");
+            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.Black, null, 1) == 0
+                              && tpool.AvailableMana[ManaType.Black] == 2 && tpool.BlackGainedThisTurn == 2,
+                "回合总量钳制：本回合黑已满 2 → 再入 1 实发 0（单回合获得总量 ≤ 浓度上限）");
+            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.White, null, 5) == 2
+                              && tpool.WhiteGainedThisTurn == 2,
+                "白同口径：黑白各自独立计单次/回合总量（白 5 → 实发 2）");
             pcore.ElementPool.OnTurnStart(n2, 3);
             VerifySuite.Assert(tpool.BlackGainedThisTurn == 0 && tpool.WhiteGainedThisTurn == 0,
-                "回合开始：黑白获得台账清零（纯观测）");
+                "回合开始：黑白获得台账清零（总量钳制按新回合重计）");
             tpool.GlobalTurnIndex = 9;
-            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.Black, null, 15) == 15
-                              && tpool.AvailableMana[ManaType.Black] == 4 + 15 && tpool.BlackGainedThisTurn == 15,
-                "大额 15 全额入账（cap9 仅约束单次支付贡献，不约束获得）");
-            // 使用侧（支付）约束：bank 黑 19 但 cap2——黑3 需求 > cap → 拒付（代价产出的黑白不能绕过）
+            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.Black, null, 15) == 9
+                              && tpool.AvailableMana[ManaType.Black] == 2 + 9 && tpool.BlackGainedThisTurn == 9,
+                "大额 15 · cap9 → 实发 9（单次与回合总量同受浓度上限约束）");
+            // 使用侧（支付）约束不变：bank 黑 11 · cap2——黑3 需求 > cap → 拒付（获得钳制不改变支付侧口径）
             tpool.GlobalTurnIndex = 2;
             VerifySuite.Assert(ElementPaymentValidator.GetBillPaymentPlan(
                                   new Dictionary<ManaType, int> { { ManaType.Black, 3 } },
                                   tpool.AvailableMana, 2) == null,
-                "使用侧封顶：bank 黑 19 · cap2 → 黑3 需求拒付（产出囤积不能绕过地牌上限）");
+                "使用侧封顶：bank 黑 11 · cap2 → 黑3 需求拒付（单次支付贡献 ≤ 地牌上限）");
             VerifySuite.Assert(ElementPaymentValidator.GetBillPaymentPlan(
                                   new Dictionary<ManaType, int> { { ManaType.Black, 2 } },
                                   tpool.AvailableMana, 2) != null,
@@ -1984,6 +2001,641 @@ namespace TideServer.Verify
             if (!qcore.StackEngine.IsEmpty) qcore.StackEngine.Clear();
             VerifySuite.Assert(o2.Life == o2LifeD - 2,
                 "④ 效果无效管制强制桶：强制源效果被跳过（伤害 0 追加）");
+
+            // ============================ V9.p 改版回归（2026-10-05：改写光环/成长翻倍/赋予主干/诅咒有限分支） ============================
+
+            VerifySuite.Section("V9.p 改写仪典（仅持有者）+成长翻倍+赋予主干+诅咒 CurseOnDraw");
+            var wcore = GameCore.Instance;
+            wcore.Reset();
+            ZoneContainer.Reseed(20261012);
+            var fillerP = Enumerable.Range(0, 8).Select(i => new CardData
+            {
+                ID = $"V9P_fill_{i}", CardName = "V9P填充" + i, Supertype = Cardtype.Creature, Power = 1, Life = 1,
+            }).ToList();
+            wcore.InitGame(CardLoader.BuildDeck(fillerP, 2), CardLoader.BuildDeck(fillerP, 2));
+            var w1 = wcore.Player1;
+            var w2 = wcore.Player2;
+            GameActions.SkipElementPool(wcore, w1);
+            foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
+                wcore.ElementPool.GetPool(w1).AvailableMana[t] = 99;
+            wcore.ElementPool.GetPool(w1).GlobalTurnIndex = 9;
+
+            // ---- ① 目录退役锚：改写门四条已删、诅咒门唯一、预算=2 ----
+            VerifySuite.Assert(ComposerCatalog.OutcomeConditions.Concat(ComposerCatalog.SituationGates)
+                              .All(g => !g.Id.StartsWith("DmgRewrite")),
+                "改写门四条已从条件目录退役（迁唯一光环）");
+            VerifySuite.Assert(!BranchConditionEvaluator.IsKnownCondition("DmgRewriteToxin")
+                              && BranchConditionEvaluator.IsKnownCondition(ComposerCatalog.CurseGateId),
+                "改写条件 id 已注销、诅咒门已登记");
+            VerifySuite.Assert(ComposerCatalog.CurseGateId == "CurseOnDraw"
+                              && !ComposerCatalog.IsSituationCondition(ComposerCatalog.CurseGateId)
+                              && !ComposerCatalog.IsOutcomeCondition(ComposerCatalog.CurseGateId)
+                              && AtomicEffectTable.GetByType(AtomicEffectType.AddCurse)?.GetTagList()
+                                     .Contains(ComposerCatalog.CurseProducerTag) == true,
+                "诅咒门=有限分支 Gate 特例（不在通用局面/产出目录——仅 AddCurse 主干可挂，Tags=诅咒产出族 迁表中文化口径）");
+            VerifySuite.Assert(CostDerivationService.GatePremium.TryGetValue(ComposerCatalog.CurseGateId, out var curseBudget)
+                              && curseBudget == 2,
+                $"诅咒门预算=2（奖励=抽到时的专属载荷；实际 {curseBudget}）");
+
+            // ---- ② 毒蚀仪典：光环控制者的生物战斗伤害改写（伤害不发生）；对手生物与非战斗伤害不改 ----
+            //（2026-10-05 统一标记定案：改写族回表——与九仪典同挂 RuleAura 位；光环库三源=位6连接条目+位9仪典族）
+            var rewriteRows = AtomicEffectTable.GetAll()
+                .Where(r => r != null && r.DisplayName is "毒蚀仪典" or "霜蚀仪典" or "眠蚀仪典" or "疫蚀仪典")
+                .ToList();
+            VerifySuite.Assert(rewriteRows.Count == 4
+                              && rewriteRows.All(r => MountKindExtensions.ParseCsv(r.MountKinds).Contains(MountKind.RuleAura)),
+                "改写四仪典已回表并统一挂 RuleAura 位（2026-10-05 统一标记定案——光环库三源统一展示）");
+            var toxinCarrier = new CardWrapper(new CardData
+            {
+                ID = "V9P_TOXIN", CardName = "V9P毒蚀载体", Supertype = Cardtype.Enchantment, Durability = 9,
+            });
+            toxinCarrier.SetController(w1);
+            var zcP1 = wcore.ZoneManager.GetZoneContainer(w1);
+            zcP1.Add(toxinCarrier, Zone.Battlefield);
+            RuleAuraSystem.Activate(RuleAuraComponents.CombatToxin, toxinCarrier, w1);
+            VerifySuite.Assert(RuleAuraSystem.IsActive(RuleAuraComponents.CombatToxin)
+                              && RuleAuraSystem.HolderRewriteFor(toxinCarrier) == KeywordRules.PoisonSting,
+                "毒蚀激活（直调 Activate=ModifyGameRuleHandler 同口）；持有者侧查询=控制者匹配（命中面=控制者全部生物）");
+
+            var mineCr = new CardWrapper(new CardData
+            {
+                ID = "V9P_MINE", CardName = "V9P己方生物", Supertype = Cardtype.Creature, Power = 2, Life = 5,
+            });
+            mineCr.SetController(w1);
+            zcP1.Add(mineCr, Zone.Battlefield);
+            var foeCr = new CardWrapper(new CardData
+            {
+                ID = "V9P_FOE", CardName = "V9P对方生物", Supertype = Cardtype.Creature, Power = 2, Life = 20,
+            });
+            foeCr.SetController(w2);
+            wcore.ZoneManager.GetZoneContainer(w2).Add(foeCr, Zone.Battlefield);
+
+            int foeLife0 = foeCr.GetLife();
+            int dealtA = KeywordRules.ApplyDamage(mineCr, foeCr, 3, isCombat: true);
+            VerifySuite.Assert(dealtA == 0 && foeCr.GetLife() == foeLife0
+                              && foeCr.GetCounterCount(CounterRules.ToxinCounter) == 1,
+                $"持有者生物战斗伤害→毒素×1（伤害不发生；实际伤害 {dealtA}，毒素层 {foeCr.GetCounterCount(CounterRules.ToxinCounter)}）");
+            int mineLife0 = mineCr.GetLife();
+            int dealtB = KeywordRules.ApplyDamage(foeCr, mineCr, 3, isCombat: true);
+            VerifySuite.Assert(dealtB == 3 && mineCr.GetLife() == mineLife0 - 3
+                              && mineCr.GetCounterCount(CounterRules.ToxinCounter) == 0,
+                $"对手生物不改写（仅持有者生效；实际伤害 {dealtB}，余 {mineCr.GetLife()}）");
+            int dealtC = KeywordRules.ApplyDamage(mineCr, foeCr, 2, isCombat: false);
+            VerifySuite.Assert(dealtC == 2 && foeCr.GetCounterCount(CounterRules.ToxinCounter) == 1,
+                "非战斗伤害不改写（战斗改写口径——伤害照常、层不增）");
+
+            // ---- ③ 成长改版：持有者回合结束属性指示物翻倍；回合开始 +1/+1 退役 ----
+            mineCr.AddKeyword(KeywordRules.Growth, KeywordLane.Printed, mineCr);
+            CounterRules.AddStatCounter(mineCr, CounterRules.PowerUpCounter, 2, mineCr);
+            CounterRules.AddStatCounter(mineCr, CounterRules.PlusOneCounter, 1, mineCr);
+            int gw0 = mineCr.GetPower(), gl0 = mineCr.GetLife();
+            GameActions.EndTurn(wcore, w1);          // w1 回合结束：限时层消退 → 成长翻倍
+            wcore.TurnEngine.CheckPhaseTransition(); // → w2 回合
+            VerifySuite.Assert(mineCr.GetCounterCount(CounterRules.PowerUpCounter) == 4
+                              && mineCr.GetCounterCount(CounterRules.PlusOneCounter) == 2,
+                $"成长翻倍：PowerUp 2→4、+1/+1 1→2（实际 {mineCr.GetCounterCount(CounterRules.PowerUpCounter)}/{mineCr.GetCounterCount(CounterRules.PlusOneCounter)}）");
+            VerifySuite.Assert(mineCr.GetPower() == gw0 + 3 && mineCr.GetLife() == gl0 + 1,
+                $"翻倍回写攻血（攻 {gw0}→{mineCr.GetPower()}：+2攻层翻倍+1/+1层翻倍；生 {gl0}→{mineCr.GetLife()}）");
+            GameActions.EndTurn(wcore, w2);          // w2 回合结束：w1 生物不动
+            wcore.TurnEngine.CheckPhaseTransition(); // → w1 回合（开始不 +1/+1——旧口径退役锚）
+            VerifySuite.Assert(mineCr.GetCounterCount(CounterRules.PlusOneCounter) == 2
+                              && mineCr.GetCounterCount(CounterRules.PowerUpCounter) == 4,
+                "持有者回合结束才翻倍：他人回合末不动、己方回合开始不再 +1/+1");
+
+            // ---- ④ 赋予主干（Grant=7 引擎解体 2026-10-05）：无分支槽原子 + 效果级持续档计价 ----
+            //（旧「header.EngineKind=Grant + 原子搬 RewardAtoms」形态退役——Grant 梯计价保留，
+            //  原子留主序列照常计价，持续档从效果级 Duration 读）
+            var grantData = new CardEffectData
+            {
+                Id = "V9P_GRANT",
+                Duration = (int)DurationType.UntilEndOfTurn,
+                SelectionMode = -1,
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    AtomRefs.New(AtomicEffectType.GrantStealth, value: 1, kinds: new List<int> { 1, 2 }, str: "Stealth"),
+                    AtomRefs.New(AtomicEffectType.AddPowerUp, value: 2, kinds: new List<int> { 1, 2 }),
+                },
+            };
+            var v9pGrantDef = CardEffectConverter.ConvertOne(grantData, "V9P_src");
+            VerifySuite.Assert(v9pGrantDef != null
+                              && v9pGrantDef.Effects.Count == 2
+                              && v9pGrantDef.Effects.All(a => a.Branch == null),
+                "赋予主干：原子留主序列照常计价（无分支槽原子——不再搬奖励载荷）");
+            var grantCostUet = CostDerivationService.DeriveElementCosts(v9pGrantDef);
+            VerifySuite.Assert(grantCostUet.Total > 0,
+                $"赋予主干计价>0（实际 {grantCostUet.Total}——关键词 Grant 梯×1.2 + 属性指示物锚梯）");
+            grantData.Duration = (int)DurationType.Permanent;
+            var grantPermDef = CardEffectConverter.ConvertOne(grantData, "V9P_src");
+            var grantCostPerm = CostDerivationService.DeriveElementCosts(grantPermDef);
+            VerifySuite.Assert(grantCostPerm.Total > grantCostUet.Total,
+                $"持续档驱动计价：永久档 > 回合结束档（{grantCostPerm.Total} > {grantCostUet.Total}——涨幅来自 Grant 关键词梯）");
+
+            // ---- ④' 三轨统一定案（2026-10-05 指示物并梯）：属性指示物单价=锚×CounterSpec 持久档，
+            //      不读效果持续档（运行时 handler 不传持续时间——声明 Once/UET 低价买换区清层的漏洞堵死）。
+            VerifySuite.Assert(Math.Abs(CostDerivationService.StatCounterTierPrice(AtomicEffectType.AddPowerUp) - 1.5f) < 0.001f
+                              && Math.Abs(CostDerivationService.StatCounterTierPrice(AtomicEffectType.AddPlusOne) - 2.0f) < 0.001f
+                              && Math.Abs(CostDerivationService.StatCounterTierPrice(AtomicEffectType.AddCostUp) - 1.5f) < 0.001f,
+                "属性指示物并梯：换区清层 1.5/点（攻/血/费同 Modify 换区档）、±1/±1 永久点包 2.0/层");
+            var counterOnly = new CardEffectData
+            {
+                Id = "V9P_COUNTER_ONLY",
+                Duration = (int)DurationType.UntilEndOfTurn,
+                SelectionMode = -1,
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    AtomRefs.New(AtomicEffectType.AddPowerUp, value: 2, kinds: new List<int> { 1, 2 }),
+                },
+            };
+            var counterUetCost = CostDerivationService.DeriveElementCosts(CardEffectConverter.ConvertOne(counterOnly, "V9P_src"));
+            counterOnly.Duration = (int)DurationType.Permanent;
+            var counterPermCost = CostDerivationService.DeriveElementCosts(CardEffectConverter.ConvertOne(counterOnly, "V9P_src"));
+            VerifySuite.Assert(counterUetCost.Total > 0 && counterUetCost.Total == counterPermCost.Total,
+                $"指示物计价不读效果持续档（UET {counterUetCost.Total} = Perm {counterPermCost.Total}——档=CounterSpec 换区清）");
+
+            // ---- ⑤ 诅咒有限分支端到端：CurseOnDraw 门 Then=槽级 branch 载荷（AddCurseHandler 消费→抽到发作） ----
+            var curseGateData = new CardData
+            {
+                ID = "V9P_CURSE_CARD", CardName = "V9P诅咒术", Supertype = Cardtype.Spell,
+            };
+            curseGateData.Effects.Add(new CardEffectData
+            {
+                Id = "V9P_CURSE_EFF",
+                TriggerTiming = (int)TriggerTiming.OnPlay,
+                SelectionMode = -1, // None 自结算=随机对方牌库一张/次
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    // 两槽定案构造形态：settle=1 有限分支（Gate 特例）直接挂主干原子 branch 载荷
+                    new AtomicEffectEntry
+                    {
+                        refId = AtomicEffectTable.GetByType(AtomicEffectType.AddCurse)?.HashId,
+                        value = 1, kinds = new List<int> { 8 },
+                        branch = new BranchEntryData
+                        {
+                            settle = (int)BranchSettleKind.Gate,
+                            gateId = ComposerCatalog.CurseGateId,
+                            then = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+                        },
+                    },
+                },
+            });
+            var curseGateDef = CardEffectConverter.ConvertOne(curseGateData.Effects[0], "V9P_src");
+            var trunkAtom = curseGateDef.Effects.FirstOrDefault(a => a.Type == AtomicEffectType.AddCurse);
+            VerifySuite.Assert(trunkAtom != null
+                              && trunkAtom.Branch != null
+                              && trunkAtom.Branch.Settle == BranchSettleKind.Gate
+                              && trunkAtom.Branch.GateId == ComposerCatalog.CurseGateId
+                              && trunkAtom.Branch.Then.Count == 1
+                              && trunkAtom.Branch.Then[0].Type == AtomicEffectType.DrawCard,
+                "诅咒门配对：branch 载荷挂主干原子（Gate·CurseOnDraw·Then=抽1——AddCurseHandler 消费，≤2 费由合成器预算校验）");
+
+            var curseHand = new CardWrapper(curseGateData);
+            curseHand.SetController(w1);
+            wcore.ZoneManager.GetZoneContainer(w1).Add(curseHand, Zone.Hand);
+            VerifySuite.Assert(GameActions.PlayCard(wcore, w1, curseHand, null, Zone.Hand, 0, out var rejectP1),
+                $"诅咒术打出（拒绝原因：{rejectP1 ?? "无"}）");
+            GameActions.DrainStack(wcore);
+            var cursedP = wcore.ZoneManager.GetCards(w2, Zone.Deck)
+                .FirstOrDefault(c => c.GetCounterCount(CounterRules.CurseCounter) > 0);
+            VerifySuite.Assert(cursedP != null && cursedP.GetCounterCount(CounterRules.CurseCounter) == 1,
+                "诅咒门版打出：随机对方牌库一张挂 Curse=1");
+            VerifySuite.Assert(CurseSystem.GetCurses(cursedP).Count == 1,
+                "inline 载荷登记（无 Effects.json 外挂条目）");
+            int p1HandBefore = wcore.ZoneManager.GetCards(w1, Zone.Hand).Count;
+            for (int i = 0; i < 64 && cursedP.GetZone() == Zone.Deck; i++)
+            {
+                if (wcore.ZoneManager.DrawCard(w2) == null) break;
+            }
+            VerifySuite.Assert(cursedP.GetZone() == Zone.Hand
+                              && cursedP.GetCounterCount(CounterRules.CurseCounter) == 0
+                              && CurseSystem.GetCurses(cursedP).Count == 0,
+                "抽到发作+一次性消耗（inline 载荷同口）");
+            VerifySuite.Assert(wcore.ZoneManager.GetCards(w1, Zone.Hand).Count - p1HandBefore == 1,
+                $"inline 载荷落地：施诅方抽 1（{p1HandBefore}→{wcore.ZoneManager.GetCards(w1, Zone.Hand).Count}——Controller=施诅方）");
+
+            // ---- ⑥ 两槽装载校验轻锚（2026-10-05 定案）：主序列主干原子 ≤2 / 域交集空 → 构筑期 Error ----
+            //（可见不炸口径：经 TideLog.Sink 捕获 Error 断言——ValidateComboDomains 走 LoadCardsFromText 公共口）
+            var sinkErrors = new List<string>();
+            var prevSink = TideLog.Sink;
+            TideLog.Sink = (level, text) => { if (level == TideLogLevel.Error) sinkErrors.Add(text); };
+            try
+            {
+                string ddHash = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage)?.HashId;
+                // 断链对：DealDamage 锁己方 {1} + 锁对方 {2}（有害原子双侧各自合法——错边不剔除，域交集空）
+                var twoSlotJson = "{\"cards\":["
+                    + "{\"id\":\"V9P_TRUNK3\",\"cardName\":\"V9p三主干\",\"supertype\":\"Spell\",\"power\":0,\"life\":0,"
+                    + "\"effects\":[{\"id\":\"V9P_TRUNK3_EFF\",\"triggerTiming\":" + (int)TriggerTiming.OnPlay + ",\"selectionMode\":-1,"
+                    + "\"atomicEffects\":["
+                    + "{\"refId\":\"" + ddHash + "\",\"value\":1},"
+                    + "{\"refId\":\"" + ddHash + "\",\"value\":1},"
+                    + "{\"refId\":\"" + ddHash + "\",\"value\":1}]}]},"
+                    + "{\"id\":\"V9P_CHAIN\",\"cardName\":\"V9p断链\",\"supertype\":\"Spell\",\"power\":0,\"life\":0,"
+                    + "\"effects\":[{\"id\":\"V9P_CHAIN_EFF\",\"triggerTiming\":" + (int)TriggerTiming.OnPlay + ",\"selectionMode\":-1,"
+                    + "\"atomicEffects\":["
+                    + "{\"refId\":\"" + ddHash + "\",\"value\":1,\"kinds\":[1]},"
+                    + "{\"refId\":\"" + ddHash + "\",\"value\":1,\"kinds\":[2]}]}]}"
+                    + "],\"deckConfig\":{\"copiesPerCard\":3}}";
+                var twoSlotCards = CardLoader.LoadCardsFromText(twoSlotJson);
+                VerifySuite.Assert(twoSlotCards.Count == 2, "两槽校验夹具装载成功（2 卡——Error 可见不炸）");
+                VerifySuite.Assert(sinkErrors.Any(e => e.Contains("V9P_TRUNK3") && e.Contains("超两槽上限")),
+                    $"主序列主干原子 >2 → Error（实际命中 {sinkErrors.Count(e => e.Contains("超两槽上限"))} 条）");
+                VerifySuite.Assert(sinkErrors.Any(e => e.Contains("V9P_CHAIN") && e.Contains("目标域交集为空")),
+                    "主序列原子域交集空 → Error（断链构筑期拦截——Then 奖励/光环条目不计入主干）");
+            }
+            finally
+            {
+                TideLog.Sink = prevSink;
+            }
+
+            // ============================ V9.q 门槛对赌 + 引擎主干回表（2026-10-05 晚间定案） ============================
+
+            VerifySuite.Section("V9.q 门槛对赌（局面门逆转惩罚）+引擎主干回表");
+            var bcore = GameCore.Instance;
+            bcore.Reset();
+            ZoneContainer.Reseed(20261013);
+            var bFill = Enumerable.Range(0, 8).Select(i => new CardData
+            {
+                ID = $"V9Q_fill_{i}", CardName = "V9Q填充" + i, Supertype = Cardtype.Creature, Power = 1, Life = 1,
+            }).ToList();
+            bcore.InitGame(CardLoader.BuildDeck(bFill, 2), CardLoader.BuildDeck(bFill, 2));
+            var b1x = bcore.Player1;
+            var b2x = bcore.Player2;
+            GameActions.SkipElementPool(bcore, b1x);
+            foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
+                bcore.ElementPool.GetPool(b1x).AvailableMana[t] = 99;
+
+            // ---- ① 目录锚：产出条件五项（DeclareMiss/ProphecyHit/Miss 已归自由分支）+ 引擎主干行回表 ----
+            VerifySuite.Assert(ComposerCatalog.OutcomeConditions.Select(g => g.Id).SequenceEqual(
+                    new[] { "DmgKillsTarget", "DeclareHit", "DeclareMiss", "ProphecyHit", "ProphecyMiss" }),
+                "产出条件目录五项（伤害击杀/宣言命中落空/预言命中落空——TargetSurvived 等 4 项已删）");
+            var bEnginePairs = new Dictionary<AtomicEffectType, BranchEngineKind>
+            {
+                { AtomicEffectType.EngineCountdown, BranchEngineKind.Countdown },
+                { AtomicEffectType.EngineLuckRoll, BranchEngineKind.LuckRoll },
+                { AtomicEffectType.EngineClash, BranchEngineKind.Clash },
+                { AtomicEffectType.EngineDeathToll, BranchEngineKind.DeathToll },
+                { AtomicEffectType.EngineManaSurplus, BranchEngineKind.ManaSurplus },
+                { AtomicEffectType.EngineNthHandCard, BranchEngineKind.NthHandCard },
+            };
+            foreach (var kv in bEnginePairs)
+            {
+                var row = AtomicEffectTable.GetByType(kv.Key);
+                VerifySuite.Assert(row != null && ComposerCatalog.IsEngineTrunkRow(row)
+                                   && !ComposerCatalog.HasMountBit(row, MountKind.ActiveEffect)
+                                   && ComposerCatalog.EngineKindOf(kv.Key) == kv.Value,
+                    $"引擎主干行回表：{kv.Key}（位 8、无主动位、映射 {kv.Value}）");
+            }
+
+            // ---- ② 引擎行装载：载荷挂主干原子、Then 零计价、主序列执行跳过（无处理器告警=漏跳证据） ----
+            var bEngineCard = new CardData { ID = "V9Q_ENGINE", CardName = "V9Q引擎卡", Supertype = Cardtype.Spell };
+            bEngineCard.Effects.Add(new CardEffectData
+            {
+                Id = "V9Q_ENGINE_EFF",
+                TriggerTiming = (int)TriggerTiming.OnPlay,
+                SelectionMode = -1,
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    new AtomicEffectEntry
+                    {
+                        refId = AtomicEffectTable.GetByType(AtomicEffectType.EngineClash)?.HashId,
+                        value = 1,
+                        branch = new BranchEntryData
+                        {
+                            settle = (int)BranchSettleKind.Engine,
+                            engine = (int)BranchEngineKind.Clash,
+                            engineParam = 2,
+                            then = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+                        },
+                    },
+                },
+            });
+            var bEngineDef = CardEffectConverter.ConvertOne(bEngineCard.Effects[0], "V9Q_src");
+            VerifySuite.Assert(bEngineDef != null && bEngineDef.Effects.Count == 1
+                               && bEngineDef.Effects[0].Branch != null
+                               && bEngineDef.Effects[0].Branch.Settle == BranchSettleKind.Engine
+                               && bEngineDef.Effects[0].Branch.EngineKind == BranchEngineKind.Clash
+                               && bEngineDef.Effects[0].Branch.Then.Count == 1,
+                "引擎行装载：branch 载荷（Settle=Engine·Clash·Then=抽1）挂主干原子");
+            VerifySuite.Assert(CostDerivationService.DeriveElementCosts(bEngineDef).Total == 0f,
+                "引擎行零锚价 + Then 零计价（回表后计价不变——机制自平衡）");
+
+            // ---- ③ 局面门对赌端到端：首卡达成得奖励 / 次卡未达成奖励逆转强制执行 ----
+            var bMine = new CardWrapper(new CardData
+            {
+                ID = "V9Q_MINE", CardName = "V9Q己方生物", Supertype = Cardtype.Creature, Power = 1, Life = 9,
+            });
+            bMine.SetController(b1x);
+            bcore.ZoneManager.GetZoneContainer(b1x).Add(bMine, Zone.Battlefield);
+            var bFoe = new CardWrapper(new CardData
+            {
+                ID = "V9Q_FOE", CardName = "V9Q对方生物", Supertype = Cardtype.Creature, Power = 1, Life = 9,
+            });
+            bFoe.SetController(b2x);
+            bcore.ZoneManager.GetZoneContainer(b2x).Add(bFoe, Zone.Battlefield);
+            bMine.SetLife(5);
+            bFoe.SetLife(5);
+
+            CardData BetCard(string id) => new CardData
+            {
+                ID = id, CardName = "V9Q对赌术", Supertype = Cardtype.Spell,
+            };
+            void AddBetEffect(CardData c)
+            {
+                c.Effects.Add(new CardEffectData
+                {
+                    Id = c.ID + "_EFF",
+                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                    SelectionMode = -1,
+                    AtomicEffects = new List<AtomicEffectEntry>
+                    {
+                        new AtomicEffectEntry
+                        {
+                            refId = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage)?.HashId,
+                            value = 1,
+                            kinds = new List<int> { 2 }, // 主干：对对方生物 1 伤
+                            branch = new BranchEntryData
+                            {
+                                settle = (int)BranchSettleKind.Gate,
+                                gateId = "FirstCardThisTurn", // 本回合首卡=达成；次卡=未达成
+                                then = new List<AtomicEffectEntry>
+                                {
+                                    // 奖励=治疗 2（实例收窄己方生物 {1}——奖励路径单候选确定；
+                                    // 逆转按行域 [1,2] 收窄到对方侧 [2] → 强制治疗对方生物）
+                                    AtomRefs.New(AtomicEffectType.Heal, value: 2, kinds: new List<int> { 1 }),
+                                },
+                            },
+                        },
+                    },
+                });
+            }
+            var betDef = CardEffectConverter.ConvertOne(
+                new CardEffectData
+                {
+                    Id = "V9Q_BET_PRICE",
+                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                    SelectionMode = -1,
+                    AtomicEffects = new List<AtomicEffectEntry>
+                    {
+                        AtomRefs.New(AtomicEffectType.DealDamage, value: 1, kinds: new List<int> { 2 }),
+                    },
+                }, "V9Q_src");
+            var betCardPrice = CostDerivationService.DeriveElementCosts(betDef).Total;
+            var bet1 = BetCard("V9Q_BET1");
+            AddBetEffect(bet1);
+            var betDef1 = CardEffectConverter.ConvertOne(bet1.Effects[0], "V9Q_src");
+            VerifySuite.Assert(betDef1.Effects[0].Branch != null
+                               && betDef1.Effects[0].Branch.Settle == BranchSettleKind.Gate
+                               && Math.Abs(CostDerivationService.DeriveElementCosts(betDef1).Total - betCardPrice) < 1e-4f,
+                $"对赌零加价：Then 零计价维持（带门 {CostDerivationService.DeriveElementCosts(betDef1).Total:0.##} = 纯主干 {betCardPrice:0.##}）");
+
+            var betHand1 = new CardWrapper(bet1);
+            betHand1.SetController(b1x);
+            bcore.ZoneManager.GetZoneContainer(b1x).Add(betHand1, Zone.Hand);
+            VerifySuite.Assert(GameActions.PlayCard(bcore, b1x, betHand1, null, Zone.Hand, 0, out var rejB1),
+                $"对赌卡1（达成面）打出（拒绝原因：{rejB1 ?? "无"}）");
+            GameActions.DrainStack(bcore);
+            VerifySuite.Assert(bMine.GetLife() == 7 && bFoe.GetLife() == 4,
+                $"门达成→奖励照旧：主干打对方 5→4、Then 治疗（单候选直取=己方生物；2026-10-07 起多候选=GameRng 随机）5→7（实际 己{bMine.GetLife()}/敌{bFoe.GetLife()}）");
+
+            var bet2 = BetCard("V9Q_BET2");
+            AddBetEffect(bet2);
+            var betHand2 = new CardWrapper(bet2);
+            betHand2.SetController(b1x);
+            bcore.ZoneManager.GetZoneContainer(b1x).Add(betHand2, Zone.Hand);
+            VerifySuite.Assert(GameActions.PlayCard(bcore, b1x, betHand2, null, Zone.Hand, 0, out var rejB2),
+                $"对赌卡2（未达成面）打出（拒绝原因：{rejB2 ?? "无"}）");
+            GameActions.DrainStack(bcore);
+            VerifySuite.Assert(bMine.GetLife() == 7 && bFoe.GetLife() == 5,
+                $"门未达成→逆转惩罚：主干打对方 4→3、奖励逆转（Heal 收窄对方侧 [2]）强制治疗对方 3→5，己方不动（实际 己{bMine.GetLife()}/敌{bFoe.GetLife()}）");
+
+            // ---- ④ 产出条件纯奖励：未达成无动作（不对赌） ----
+            var ocCard = BetCard("V9Q_OUTCOME");
+            ocCard.Effects.Add(new CardEffectData
+            {
+                Id = "V9Q_OUTCOME_EFF",
+                TriggerTiming = (int)TriggerTiming.OnPlay,
+                SelectionMode = -1,
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    new AtomicEffectEntry
+                    {
+                        refId = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage)?.HashId,
+                        value = 1,
+                        kinds = new List<int> { 2 },
+                        branch = new BranchEntryData
+                        {
+                            settle = (int)BranchSettleKind.Outcome,
+                            outcomeId = "DmgKillsTarget", // 1 伤杀不死 5 血生物 → 未达成
+                            then = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.Heal, value: 2) },
+                        },
+                    },
+                },
+            });
+            var ocHand = new CardWrapper(ocCard);
+            ocHand.SetController(b1x);
+            bcore.ZoneManager.GetZoneContainer(b1x).Add(ocHand, Zone.Hand);
+            VerifySuite.Assert(GameActions.PlayCard(bcore, b1x, ocHand, null, Zone.Hand, 0, out var rejO),
+                $"产出条件卡打出（拒绝原因：{rejO ?? "无"}）");
+            GameActions.DrainStack(bcore);
+            VerifySuite.Assert(bMine.GetLife() == 7 && bFoe.GetLife() == 4,
+                $"产出条件未达成→无奖励也无惩罚（纯奖励语义；主干 5→4，双侧不动——实际 己{bMine.GetLife()}/敌{bFoe.GetLife()}）");
+
+            // ---- ⑤ 引擎主序列执行跳过（出牌放末位——不占本回合首卡计数）：
+            //      无处理器告警=漏跳证据 ----
+            var bSink = new List<string>();
+            var bPrevSink = TideLog.Sink;
+            TideLog.Sink = (level, text) => { bSink.Add(text); };
+            try
+            {
+                var bEngineHand = new CardWrapper(bEngineCard);
+                bEngineHand.SetController(b1x);
+                bcore.ZoneManager.GetZoneContainer(b1x).Add(bEngineHand, Zone.Hand);
+                VerifySuite.Assert(GameActions.PlayCard(bcore, b1x, bEngineHand, null, Zone.Hand, 0, out var rejE),
+                    $"纯引擎卡打出（拒绝原因：{rejE ?? "无"}）");
+                GameActions.DrainStack(bcore);
+                VerifySuite.Assert(!bSink.Any(t => t.Contains("未注册的效果处理器")),
+                    "引擎主干不进主序列执行（无处理器告警=漏跳证据）");
+            }
+            finally { TideLog.Sink = bPrevSink; }
+
+            // ---- ⑥ 局面门奖励不可逆转 → converter 剔除（对赌惩罚落点校验，装载可见不炸） ----
+            var bSink2 = new List<string>();
+            TideLog.Sink = (level, text) => { bSink2.Add(text); };
+            try
+            {
+                var badBet = BetCard("V9Q_BADBET");
+                badBet.Effects.Add(new CardEffectData
+                {
+                    Id = "V9Q_BADBET_EFF",
+                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                    SelectionMode = -1,
+                    AtomicEffects = new List<AtomicEffectEntry>
+                    {
+                        new AtomicEffectEntry
+                        {
+                            refId = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage)?.HashId,
+                            value = 1,
+                            kinds = new List<int> { 2 },
+                            branch = new BranchEntryData
+                            {
+                                settle = (int)BranchSettleKind.Gate,
+                                gateId = "LifeBelowOpp",
+                                then = new List<AtomicEffectEntry>
+                                {
+                                    // Guard：p=0 且域空——不可逆转（惩罚无从执行）
+                                    new AtomicEffectEntry
+                                    {
+                                        refId = AtomicEffectTable.GetByType(AtomicEffectType.Guard)?.HashId,
+                                        value = 1,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                });
+                var badDef = CardEffectConverter.ConvertOne(badBet.Effects[0], "V9Q_src");
+                VerifySuite.Assert(badDef.Effects[0].Branch == null
+                                   && bSink2.Any(t => t.Contains("不可逆转")),
+                    "局面门奖励不可逆转 → Warn 剔除（Then 空→门载荷整体折叠为无分支）");
+            }
+            finally { TideLog.Sink = bPrevSink; }
+
+            // ============================ V9.r 原子表工坊 + 挑战模式（2026-10-06） ============================
+            VerifySuite.Section("V9.r 原子表工坊（改价边界/占比分摊/overlay 幂等/强制重推）+挑战模式（曲线/起手）");
+
+            // ---- ① 改价边界：0 与 9 永远设不进；0.5 网格；未知行/不计价行拒收 ----
+            var rDmg = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage);
+            VerifySuite.Assert(rDmg != null && !string.IsNullOrEmpty(rDmg.HashId) && rDmg.ManaList != null,
+                "DealDamage 行在表（带 hashId、计价行）");
+            var rHash = rDmg.HashId;
+            var rBaseTotal = rDmg.ManaList.Total;
+            var rBaseShares = new Dictionary<ManaType, float>();
+            foreach (ManaType m in Enum.GetValues(typeof(ManaType)))
+                if (rDmg.ManaList[m] > 0f) rBaseShares[m] = rDmg.ManaList[m];
+
+            VerifySuite.Assert(!AtomicEffectTable.IsEditableTotal(0f) && !AtomicEffectTable.IsEditableTotal(9f)
+                               && !AtomicEffectTable.IsEditableTotal(0.4f) && !AtomicEffectTable.IsEditableTotal(9.5f)
+                               && !AtomicEffectTable.IsEditableTotal(8.6f),
+                "可编辑性边界：0/9/越界/非 0.5 网格值全部拒收");
+            VerifySuite.Assert(AtomicEffectTable.IsEditableTotal(0.5f) && AtomicEffectTable.IsEditableTotal(4f)
+                               && AtomicEffectTable.IsEditableTotal(8.5f),
+                "可编辑性边界：0.5/4/8.5 放行");
+            VerifySuite.Assert(!AtomicEffectTable.TrySetRowTotal(rHash, 0f)
+                               && !AtomicEffectTable.TrySetRowTotal(rHash, 9f)
+                               && !AtomicEffectTable.TrySetRowTotal(rHash, 8.75f)
+                               && !AtomicEffectTable.TrySetRowTotal("deadbeef", 1f),
+                "行改写拒收：0/9/非网格/未知 hashId（表内容不动）");
+            VerifySuite.Assert(AtomicEffectTable.OrderedRows.Count >= AtomicEffectTable.Count
+                               && AtomicEffectTable.OrderedRows.Select(r => r.Id).Distinct().Count()
+                                   == AtomicEffectTable.OrderedRows.Count,
+                "OrderedRows 全行保序无重（行数 ≥ 去重类型数）");
+            var rNullRow = AtomicEffectTable.OrderedRows.FirstOrDefault(r => r != null && !string.IsNullOrEmpty(r.HashId)
+                && r.ManaList == null);
+            if (rNullRow != null)
+                VerifySuite.Assert(!AtomicEffectTable.TrySetRowTotal(rNullRow.HashId, 1f), "不计价行不可编辑");
+
+            // ---- ② 等比分摊：占比不动、总额精确；Version 跳变 ----
+            var rVersion0 = AtomicEffectTable.Version;
+            VerifySuite.Assert(AtomicEffectTable.TrySetRowTotal(rHash, 2.5f), "改价 2.5 写入成功");
+            VerifySuite.Assert(AtomicEffectTable.Version == rVersion0 + 1, "成功改价 Version+1（缓存失效判据）");
+            var rNew = AtomicEffectTable.GetByHashId(rHash);
+            VerifySuite.Assert(Math.Abs(rNew.ManaList.Total - 2.5f) < 1e-4f, "改价后总额=2.5（精确）");
+            var rShareOk = true;
+            foreach (var kv in rBaseShares)
+                if (Math.Abs(rNew.ManaList[kv.Key] / 2.5f - kv.Value / rBaseTotal) > 1e-3f) rShareOk = false;
+            foreach (ManaType m in Enum.GetValues(typeof(ManaType)))
+                if (!rBaseShares.ContainsKey(m) && rNew.ManaList[m] > 1e-6f) rShareOk = false;
+            VerifySuite.Assert(rShareOk, "六色占比不变（按原份额分摊，零色仍为零）");
+            VerifySuite.Assert(Math.Abs(rNew.Polarity - rDmg.Polarity) < 1e-6f && rNew.HashId == rHash,
+                "行身份字段不动（Polarity/HashId——转换器快照不过期）");
+
+            // ---- ③ overlay 幂等：落表→同代际不重放→Reload 回基线→重放恢复 ----
+            var rOverlayPath = Path.Combine(Path.GetTempPath(), $"V9R_overlay_{Guid.NewGuid():N}.json");
+            try
+            {
+                var rOverlay = AtomicTableOverlay.CreateForVerification(rOverlayPath);
+                VerifySuite.Assert(!rOverlay.Enabled && rOverlay.Rows.Count == 0, "缺档=空覆盖层（基线）");
+                rOverlay.SetEnabled(true);
+                rOverlay.SetRow(rHash, 2.5f);
+                rOverlay.ApplyToTable();
+                VerifySuite.Assert(Math.Abs(AtomicEffectTable.GetByHashId(rHash).ManaList.Total - 2.5f) < 1e-4f,
+                    "overlay 落表（独立存档不碰真实档）");
+                var rVersionApplied = AtomicEffectTable.Version;
+                rOverlay.EnsureApplied();
+                VerifySuite.Assert(AtomicEffectTable.Version == rVersionApplied, "同代际 EnsureApplied 幂等（不重放）");
+                AtomicEffectTable.Reload();
+                VerifySuite.Assert(Math.Abs(AtomicEffectTable.GetByHashId(rHash).ManaList.Total - rBaseTotal) < 1e-4f,
+                    "Reload 回基线（合成器切表口径）");
+                rOverlay.EnsureApplied();
+                VerifySuite.Assert(Math.Abs(AtomicEffectTable.GetByHashId(rHash).ManaList.Total - 2.5f) < 1e-4f,
+                    "Reload 后 EnsureApplied 重放恢复改价（版本跳变驱动）");
+            }
+            finally
+            {
+                try { File.Delete(rOverlayPath); } catch { /* 临时档清理失败不判 */ }
+            }
+
+            // ---- ④ 强制重推：改价→卡费覆写；幂等；往返一致（注意：进入本节时表=2.5——③ overlay 已重放） ----
+            var rCard = new CardData { ID = "V9R_RC", CardName = "V9R重推卡", Supertype = Cardtype.Spell };
+            rCard.Effects.Add(new CardEffectData
+            {
+                Id = "V9R_RC_EFF",
+                TriggerTiming = (int)TriggerTiming.OnPlay,
+                SelectionMode = -1,
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    new AtomicEffectEntry { refId = rHash, value = 3, kinds = new List<int> { 2 } },
+                },
+            });
+            CardCostService.EnsureCost(rCard); // 无声明费 → 建议费（当前表=2.5 价口径）
+            var rCostAtHigh = rCard.Cost != null ? rCard.Cost.Total : 0f;
+            VerifySuite.Assert(rCostAtHigh > 0f, $"高价表（2.5）建议费非零（{rCostAtHigh:0.##}）");
+            AtomicEffectTable.Reload(); // 回基线（1.0 价）
+            var rLines = CardCostService.ReforceSuggestedCosts(new[] { rCard });
+            VerifySuite.Assert(rLines.Count == 1 && rLines[0].CardId == "V9R_RC" && rCard.Cost.Total < rCostAtHigh,
+                $"回基线重推费↓且覆写声明优先（{rCostAtHigh:0.##} → {rCard.Cost.Total:0.##}）");
+            var rCostAtBase = rCard.Cost.Total;
+            var rLines2 = CardCostService.ReforceSuggestedCosts(new[] { rCard });
+            VerifySuite.Assert(rLines2.Count == 0 && Math.Abs(rCard.Cost.Total - rCostAtBase) < 1e-4f,
+                "重推幂等（同表二推零变化、费用不动）");
+            VerifySuite.Assert(AtomicEffectTable.TrySetRowTotal(rHash, 2.5f), "复设 2.5（往返验证准备）");
+            var rLines3 = CardCostService.ReforceSuggestedCosts(new[] { rCard });
+            VerifySuite.Assert(rLines3.Count == 1 && Math.Abs(rCard.Cost.Total - rCostAtHigh) < 1e-4f,
+                $"改价往返一致：2.5 重推回到高价口径（{rCard.Cost.Total:0.##} = {rCostAtHigh:0.##}）");
+            AtomicEffectTable.Reload(); // 收尾回基线
+            CardIdentityService.InvalidateTableCache();
+
+            // ---- ⑤ 挑战曲线纯函数：CapAt(t)=min(t+N, 9+N)；bonus=0 与标准曲线等价 ----
+            var rCurve = ResourceCurve.ChallengeLandCurve(3);
+            var rCurveOk = true;
+            for (int t = 1; t <= 30; t++)
+                if (rCurve.CapAt(t) != Math.Min(t + 3, 12)) rCurveOk = false;
+            VerifySuite.Assert(rCurveOk, "挑战曲线(3)：CapAt(t)=min(t+3, 12)——开局 4、封顶 12");
+            var rCurve0 = ResourceCurve.ChallengeLandCurve(0);
+            VerifySuite.Assert(rCurve0.CapAt(1) == 1 && rCurve0.CapAt(9) == 9 && rCurve0.CapAt(99) == 9
+                               && ResourceCurve.ChallengeLandCurve(9).CapAt(1) == 10
+                               && ResourceCurve.ChallengeLandCurve(9).CapAt(50) == 18,
+                "挑战曲线边界：bonus=0 等价标准曲线；bonus=9 开局 10、封顶 18");
+
+            // ---- ⑥ 挑战局端到端：InitGame 加成（P2 曲线上移 + 起手加抽，P1 不动） ----
+            var ccore = GameCore.Instance;
+            ccore.Reset();
+            var cFill = Enumerable.Range(0, 8).Select(i => new CardData
+            {
+                ID = $"V9R_fill_{i}", CardName = "V9R填充" + i, Supertype = Cardtype.Creature, Power = 1, Life = 1,
+            }).ToList();
+            ccore.InitGame(CardLoader.BuildDeck(cFill, 2), CardLoader.BuildDeck(cFill, 2), rngSeed: 20261014,
+                p2LandCapBonus: 3, p2ExtraOpeningDraws: 4);
+            VerifySuite.Assert(ccore.ElementPool.GetLandCap(ccore.Player1) == 1,
+                "挑战局 P1 首回合地牌槽=1（标准曲线不动）");
+            VerifySuite.Assert(ccore.ElementPool.GetLandCap(ccore.Player2) == 4,
+                "挑战局 P2 首回合地牌槽=1+3（额外初始槽位）");
+            var cHand1 = ccore.ZoneManager.GetCards(ccore.Player1, Zone.Hand).Count;
+            var cHand2 = ccore.ZoneManager.GetCards(ccore.Player2, Zone.Hand).Count;
+            VerifySuite.Assert(cHand1 == GameCore.OpeningHandSize + 1 && cHand2 == GameCore.OpeningHandSize + 4,
+                $"起手张数：玩家 {cHand1}（6 起手+首回合抽 1） vs 电脑 {cHand2}（6+4 额外抽，无截断）");
+            VerifySuite.Assert(AtomicEffectTable.GetByHashId(rHash).ManaList.Total - rBaseTotal < 1e-4f
+                               && AtomicEffectTable.GetByHashId(rHash).ManaList.Total - rBaseTotal > -1e-4f,
+                "对局装载不依赖改价（本节收尾表=基线）");
 
             VerifySuite.Section("V9 引擎规则回归完成");
         }

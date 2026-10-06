@@ -89,10 +89,8 @@ namespace CardCore.Network
                         refIds.Add(cost.payload.refId);
 
                 CollectStepRefIds(dto.steps, refIds);
-
-                foreach (var reward in dto.rewards ?? new List<AtomicEffectEntry>())
-                    if (reward != null && !string.IsNullOrEmpty(reward.refId))
-                        refIds.Add(reward.refId);
+                // 2026-10-05 两槽定案：引擎奖励 rewards 头字段已退役——奖励原子随
+                // StepRef.atom.branch.then 往返（收集在 CollectStepRefIds kind=0 分支内完成）
             }
         }
 
@@ -105,6 +103,10 @@ namespace CardCore.Network
                 if (sr.kind == 0)
                 {
                     if (sr.atom != null && !string.IsNullOrEmpty(sr.atom.refId)) refIds.Add(sr.atom.refId);
+                    // 槽级分支载荷的 Then 奖励（两槽定案）——引用闭环同收集
+                    if (sr.atom?.branch?.then != null)
+                        foreach (var a in sr.atom.branch.then)
+                            if (a != null && !string.IsNullOrEmpty(a.refId)) refIds.Add(a.refId);
                 }
                 else if (sr.kind == 1)
                 {
@@ -202,9 +204,7 @@ namespace CardCore.Network
                     if (cost?.payload != null) CheckAtom(cost.payload, missing);
 
                 WalkSteps(dto.steps, missing);
-
-                foreach (var reward in dto.rewards ?? new List<AtomicEffectEntry>())
-                    CheckAtom(reward, missing);
+                // 2026-10-05 两槽定案：rewards 头字段已退役——Then 奖励随 atom.branch（WalkSteps kind=0 分支内检查）
             }
         }
 
@@ -214,7 +214,13 @@ namespace CardCore.Network
             foreach (var sr in steps)
             {
                 if (sr == null) continue;
-                if (sr.kind == 0) CheckAtom(sr.atom, missing);
+                if (sr.kind == 0)
+                {
+                    CheckAtom(sr.atom, missing);
+                    // 槽级分支载荷的 Then 奖励（两槽定案）——闭环同检查
+                    if (sr.atom?.branch?.then != null)
+                        foreach (var a in sr.atom.branch.then) CheckAtom(a, missing);
+                }
                 else if (sr.kind == 1)
                 {
                     foreach (var a in sr.then ?? new List<AtomicEffectEntry>()) CheckAtom(a, missing);

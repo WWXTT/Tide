@@ -190,19 +190,13 @@ namespace CardCore
             var config = CardCore.Attribute.AtomicEffectTable.GetByType(effectType);
             if (config == null) return Generic;
 
+            // 2026-10-06 中文化：表色由 BuildConfig 追加中文色名（ManaTypeNames 词表），扫描改走
+            // TryParseZh 反查（白/黑/灰全覆盖，词表外 token 忽略）。黑白转正（2026-09-11）口径不变：
+            // 黑白不由地牌产出，获取通道唯一=卡结算（错边原子/代价补偿），见 CostDerivation/EffectExecutionEngine。
             foreach (var tag in config.GetTagList())
             {
-                switch (tag)
-                {
-                    case "Red": return ElementAffinity.Single(ManaType.Red);
-                    case "Blue": return ElementAffinity.Single(ManaType.Blue);
-                    case "Green": return ElementAffinity.Single(ManaType.Green);
-                    // 黑白转正（2026-09-11）：表内 White/Black 行计价/支付落回本色，不再归一为灰。
-                    // 黑白不由地牌产出，获取通道唯一=卡结算（错边原子/代价补偿），见 CostDerivation/EffectExecutionEngine。
-                    case "White": return ElementAffinity.Single(ManaType.White);
-                    case "Black": return ElementAffinity.Single(ManaType.Black);
-                    case "Gray": return ElementAffinity.Generic;
-                }
+                if (ManaTypeNames.TryParseZh(tag, out var color))
+                    return color == ManaType.Gray ? Generic : ElementAffinity.Single(color);
             }
             return Generic;
         }

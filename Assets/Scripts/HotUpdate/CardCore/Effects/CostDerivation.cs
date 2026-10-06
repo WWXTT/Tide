@@ -30,15 +30,14 @@ namespace CardCore
                 VisitBillableAtoms(effect, modeIndex,
                     (atom, domain) => AccumulateElementCost(atom, effect, domain, byColor));
 
-                // 分支计价（2026-09-15 用户定案，**废除 09-13 全部灰费**）：
-                // **有限分支（门）=纯校验上限，零计价**——门"预算"只是奖励锚价的放置上限（drop 硬校验），
-                // 奖励原子免费（条件性即折扣），分支整体贡献 0 费。
-                // **引擎=零计价**——拼点门槛=奖励锚价合计（运行时判差额 ≥ 门槛，见 BranchEngines），
+                // 分支计价（2026-09-15 用户定案，**废除 09-13 全部灰费**；2026-10-05 两槽载荷化）：
+                // **有限分支（局面门）与产出条件（Outcome）=纯校验上限，零计价**——条件"预算"只是
+                // Then 奖励锚价的放置上限（drop 硬校验），奖励原子免费（条件性即折扣），
+                // 分支整体贡献 0 费（诅咒门同口径：Then=抽到时的专属载荷）。
+                // **引擎（Engine 载荷）=零计价**——拼点门槛=奖励锚价合计（运行时判差额 ≥ 门槛，见 BranchEngines），
                 // 奖励按声明值结算（门槛制）；运势 x=纯概率门槛（掷骰阈值）；倒计时延迟即付费。
-                // 引擎奖励原子免费（EnumerateMainSequenceAtoms 不含 RewardAtoms）。
-                // 例外（2026-09-22）：**改写门差价制**——拦截式改写改变效果本体（伤害→指示物），
-                // 不属"条件性即折扣"，按 max(0, 关键词锚价−主干伤害价) 真实入卡费。
-                AccumulateRewriteSurcharge(effect, modeIndex, byColor);
+                // Then 奖励原子免费（VisitBillableAtoms 只扫主序列主干，Branch 载荷不进遍历）。
+                // 赋予引擎（Grant）已解体——无条件赋予=无分支槽原子照常主序列计费（×持续档）。
             }
 
             // 2026-10-04 费用位置数组化：输出统一为 ElementCost（序数序天然确定，非零即入）
@@ -121,61 +120,7 @@ namespace CardCore
             }
         }
 
-        /// <summary>
-        /// 改写门差价计价（2026-09-22 定案）：配对的 [伤害主干原子 + 拦截式改写门] 步骤对——
-        /// 加价 = max(0, round(改写关键词锚价 × 数量N) − 主干伤害原子计费合计)，颜色取改写关键词主色。
-        /// 防套利：低价伤害换高价指示物（如 1 费伤害→剧毒）补差；伤害价已高则为自选降级、不加价。
-        /// 数量N 与主干计费同乘数（QuantityMultiplier）——改写按 per-target 施加指示物，比较面一致。
-        /// </summary>
-        private static void AccumulateRewriteSurcharge(EffectDefinition effect, int modeIndex,
-            Dictionary<ManaType, int> byColor)
-        {
-            if (effect?.Steps == null || effect.Steps.Count == 0) return;
-            var domain = ResolveVisitDomain(effect, modeIndex);
-            AccumulateRewriteSurcharge(effect.Steps, modeIndex, effect, domain, byColor);
-        }
-
-        private static void AccumulateRewriteSurcharge(List<RuntimeEffectStep> steps, int modeIndex,
-            EffectDefinition effect, List<int> domain, Dictionary<ManaType, int> byColor)
-        {
-            for (int i = 0; i < steps.Count; i++)
-            {
-                var step = steps[i];
-                if (step == null) continue;
-                if (step.Kind == RuntimeStepKind.Choice)
-                {
-                    var chosen = step.Choices != null && step.Choices.Count > 0
-                        ? step.Choices[Math.Max(0, Math.Min(modeIndex, step.Choices.Count - 1))]
-                        : null;
-                    if (chosen != null)
-                        AccumulateRewriteSurcharge(chosen, modeIndex, effect, domain, byColor);
-                    continue;
-                }
-                if (step.Kind != RuntimeStepKind.Branch
-                    || !BranchConditionEvaluator.IsRewriteCondition(step.ConditionId)) continue;
-
-                // 前一步须为配对的伤害主干（converter 守卫保证；此处防御性跳过失配）
-                if (i == 0 || steps[i - 1]?.Kind != RuntimeStepKind.Atomic || steps[i - 1].Atomic == null) continue;
-                var trunk = steps[i - 1].Atomic;
-
-                if (!RewriteConditionGrant.TryGetValue(step.ConditionId, out var grantType)) continue;
-                var grantCfg = AtomicEffectTable.GetByType(grantType);
-                var trunkCfg = AtomicEffectTable.GetByType(trunk.Type);
-                if (grantCfg == null || trunkCfg == null) continue;
-
-                int n = QuantityMultiplier(trunk.Type, effect);
-                float rewriteValue = grantCfg.TotalUnitCost * Math.Max(1, n);
-                int trunkBilled = ComputeAtomCostByColor(trunk, effect, domain, trunkCfg).Values.Sum();
-                int surcharge = (int)Math.Round(rewriteValue, MidpointRounding.AwayFromZero) - trunkBilled;
-                if (surcharge <= 0) continue;
-
-                var color = grantCfg.PrimaryColor;
-                byColor.TryGetValue(color, out var prev);
-                byColor[color] = prev + surcharge;
-            }
-        }
-
-        /// <summary>计价访问域（per-mode 优先回落主序列域——VisitBillableAtoms 与改写差价共用）。</summary>
+        /// <summary>计价访问域（per-mode 优先回落主序列域——VisitBillableAtoms 共用）。</summary>
         private static List<int> ResolveVisitDomain(EffectDefinition effect, int modeIndex)
             => effect.ChoiceDomains != null && modeIndex >= 0 && modeIndex < effect.ChoiceDomains.Length
                && effect.ChoiceDomains[modeIndex] != null && effect.ChoiceDomains[modeIndex].Count > 0
@@ -222,27 +167,28 @@ namespace CardCore
         /// </summary>
         /// <summary>全部档（TargetCount≤0）的期望目标数（2026-09-13 用户定案：少了亏多了赚，
         /// 前期很难超过 4 个生物同时存活）。</summary>
-        public const int FullModeExpectedTargets = 4;
-
         // 固有全域原子（SweepDamage/SweepHeal）2026-09-21 退役——全域语义由组合期
-        // TargetKinds+全取档表达，计价统一走期望 4，无 ×1 特判。
+        // TargetKinds+全取档表达，计价统一走"全部"档系数，无 ×1 特判。
 
-        /// <summary>数量乘数：SummonToken=1（数量已含在量级 max(count,模板费)）；
-        /// 全取档（Whole/WholeUnion，2026-09-16 六值迁移）按期望 4（TargetCount 是 converter 兜底噪声，不代表真实目标数）；
-        /// 其余显式 TargetCount&gt;1 用之；任意（≤0）按期望 4。</summary>
-        private static int QuantityMultiplier(AtomicEffectType type, EffectDefinition def)
+        /// <summary>计价档位系数（表 Category=PricingTier，ValueSystemConfig.json）——目标数量/作用次数
+        /// 增量系数统一配置（2026-10-05 档位化：数量 1:1/2:1.5/3:2/全部:3；次数 1:1/2:1.5/3:2/无上限:4）；
+        /// 文件缺失/未灌入走字段初始化器默认（与表同值）。</summary>
+        private static PricingTierConfig Tiers =>
+            ValueSystemConfigManager.Instance.GetOrCreateConfig().PricingTierConfig;
+
+        /// <summary>数量系数（2026-10-05 档位化，表 PricingTier）：SummonToken=1（数量已含在量级
+        /// max(count,模板费)）；全取档（Whole/WholeUnion，2026-09-16 六值迁移）按"全部"档
+        /// （TargetCount 是 converter 兜底噪声，不代表真实目标数）；其余按 TargetCount 档
+        /// （-1 任意同全部档；-2 未声明=单目标基准）。原"整数 ×N / 期望 4"口径退役。</summary>
+        private static float QuantityFactor(AtomicEffectType type, EffectDefinition def)
         {
-            if (type == AtomicEffectType.SummonToken) return 1;
-            if (SelectionModeRules.IsTakeAll(def.SelectionMode)) return FullModeExpectedTargets;
-            int n = def.TargetCount;
-            return n > 0 ? n : FullModeExpectedTargets;
+            if (type == AtomicEffectType.SummonToken) return 1f;
+            if (SelectionModeRules.IsTakeAll(def.SelectionMode)) return Tiers.TargetCountFactor(0);
+            return Tiers.TargetCountFactor(def.TargetCount);
         }
 
-        /// <summary>多次触发连乘基（2026-09-13 定案）。</summary>
-        public const float TriggerExtraCostFactor = 1.2f;
-
-        /// <summary>属性锚（2026-09-13 定案）：+1 攻/+1 生命 = 0.5（攻血同锚）。</summary>
-        public const float StatAnchor = 0.5f;
+        /// <summary>属性锚（2026-09-13 定案；2026-10-05 迁表 CardCost.StatAnchor）：+1 攻/+1 生命 = 0.5（攻血同锚）。</summary>
+        public static float StatAnchor => ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig.StatAnchor;
 
         /// <summary>
         /// 属性价梯（2026-09-13 定案）：返回该原子在当前持续档的每 +1 单价；非属性原子返回 0（走通用公式）。
@@ -254,32 +200,76 @@ namespace CardCore
             bool isSet = type == AtomicEffectType.SetPower || type == AtomicEffectType.SetLife;
             bool isModify = type == AtomicEffectType.ModifyPower || type == AtomicEffectType.ModifyLife;
             // 费用修改两档（2026-09-13 定案）：指示物档（CostUp/Down 计数——仅手牌离手消失=换区语义）1.5/+1；
-            // 永久改写 3.0/+1（Permanent=直改本体）。
+            // 永久改写 3.0/+1（Permanent=直改本体）。乘数 2026-10-05 迁表 CardCost。
+            var cc = ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig;
             if (type == AtomicEffectType.ModifyCost)
-                return def.Duration == DurationType.Permanent ? 3f : StatAnchor * 3f;
+                return def.Duration == DurationType.Permanent ? cc.StatRewriteFlatCost : StatAnchor * cc.StatSustainMultiplier;
             if (!isSet && !isModify) return 0f;
-            if (isSet) return 3f; // 改写档（设置直改视同本体）恒 3.0/+1
+            if (isSet) return cc.StatRewriteFlatCost; // 改写档（设置直改视同本体）恒 3.0/+1
 
             float per = StatAnchor;
             switch (def.Duration)
             {
                 case DurationType.UntilEndOfTurn: return per;                    // 固定1回合 0.5
                 case DurationType.UntilNextTurn: return per;                     // ≡1回合（2026-09-16 统一档：限时指示物两档合一，费用按1回合计）
-                case DurationType.UntilLeaveBattlefield: return per * 3f;        // 换区移除 1.5
-                case DurationType.WhileCondition: return per * 3f;               // 条件持续≈换区档
-                case DurationType.Permanent: return per * 4f;                    // 换区不移除 2.0
+                case DurationType.UntilLeaveBattlefield: return per * cc.StatSustainMultiplier;  // 换区移除 1.5
+                case DurationType.WhileCondition: return per * cc.StatSustainMultiplier;         // 条件持续≈换区档
+                case DurationType.Permanent: return per * cc.StatPermanentMultiplier;            // 换区不移除 2.0
                 default: return per; // Once 等瞬态兜底（属性 grant 不应出现）
+            }
+        }
+
+        /// <summary>属性指示物原子 → 指示物 id（镜像各 Handler 的 CounterId，两侧同改防漂移）。
+        /// Weaken/Inspire 是 ±1/±1 点包的同型原子（曾无表行 → 零计价孤儿，2026-10-05 补行并梯）。</summary>
+        private static readonly Dictionary<AtomicEffectType, string> StatCounterAtomIds =
+            new Dictionary<AtomicEffectType, string>
+        {
+            { AtomicEffectType.AddPowerUp, CounterRules.PowerUpCounter },
+            { AtomicEffectType.AddPowerDown, CounterRules.PowerDownCounter },
+            { AtomicEffectType.AddLifeUp, CounterRules.LifeUpCounter },
+            { AtomicEffectType.AddLifeDown, CounterRules.LifeDownCounter },
+            { AtomicEffectType.AddCostUp, CounterRules.CostUpCounter },
+            { AtomicEffectType.AddCostDown, CounterRules.CostDownCounter },
+            { AtomicEffectType.AddPlusOne, CounterRules.PlusOneCounter },
+            { AtomicEffectType.AddMinusOne, CounterRules.MinusOneCounter },
+            { AtomicEffectType.Weaken, CounterRules.MinusOneCounter },
+            { AtomicEffectType.Inspire, CounterRules.PlusOneCounter },
+        };
+
+        /// <summary>属性指示物单价（2026-10-05 三轨统一定案）：锚 × CounterSpec 持久档乘数，**不读 def.Duration**
+        /// ——运行时 handler 不传持续时间（StatCounterAtomHandlerBase），指示物持久由 CounterSpec 固定，
+        /// 声明 Once/UET 低价买换区清层的漏洞随之堵死。换区清层（攻/血/费）=锚×StatSustainMultiplier（1.5/层）；
+        /// 永久层（±1/±1、Weaken/Inspire——双点点包）=锚×StatPermanentMultiplier（2.0/层，捆绑让利一半）。
+        /// 非属性指示物原子返回 0（走通用公式）。</summary>
+        public static float StatCounterTierPrice(AtomicEffectType type)
+        {
+            if (!StatCounterAtomIds.TryGetValue(type, out var counterId)) return 0f;
+            var cc = ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig;
+            switch (CounterRules.Find(counterId).Duration)
+            {
+                case DurationType.UntilLeaveBattlefield:
+                case DurationType.WhileCondition:
+                    return StatAnchor * cc.StatSustainMultiplier;
+                case DurationType.Permanent:
+                    return StatAnchor * cc.StatPermanentMultiplier;
+                default:
+                    return StatAnchor; // 限时档兜底（现行属性指示物 spec 无此档）
             }
         }
 
         /// <summary>固定分支门预算表（2026-09-14 定案：门=纯校验上限，零计价——奖励原子维持 0 费，
         /// 预算只是放置上限；"造成伤害时"门已随战斗伤害改写族上线而移除）。
         /// 2026-09-22 新增局面状态族 8 门（通用门，预算 1）——零计价口径不变。
-        /// 改写门（DmgRewrite*）不入本表：无奖励槽，计价走差价制（RewriteSurcharge）。</summary>
+        /// 2026-10-05 新增诅咒门（CurseOnDraw，预算 2）——Then 原子=抽到时的专属载荷。
+        /// 改写门（DmgRewrite*）已随四条改写迁唯一光环退役。</summary>
         public static readonly Dictionary<string, int> GatePremium = new Dictionary<string, int>
         {
             { "DmgKillsTarget", 2 }, // 消灭目标时
             { "DeclareHit", 2 },     // 宣言结果一致时
+            // ---- 产出条件·补录（2026-10-05 改归自由分支·产出条件族）----
+            { "DeclareMiss", 2 },    // 宣言落空时（与命中对称）
+            { "ProphecyHit", 2 },    // 预言命中时（延迟验证：对手下回合首张出牌结算）
+            { "ProphecyMiss", 2 },   // 预言落空时（延迟验证，语义反转）
             // ---- 局面状态族（2026-09-22，预算 1）----
             { "DrawnInStandbyThisTurn", 1 }, // 本回合准备阶段抽到的卡
             { "LifeBelowOpp", 1 },           // 生命值低于对手
@@ -293,21 +283,14 @@ namespace CardCore
             { "LandsGe7", 2 },               // 操控地数量≥7
             { "HandEmpty", 2 },              // 手牌数量=0
             { "LifeLe7", 2 },                // 生命值≤7
-        };
-
-        /// <summary>改写门 → 对应改写关键词原子（指示物施加口径共用；锚价取表行 TotalUnitCost）。</summary>
-        public static readonly Dictionary<string, AtomicEffectType> RewriteConditionGrant = new Dictionary<string, AtomicEffectType>
-        {
-            { "DmgRewriteToxin",  AtomicEffectType.GrantPoisonSting },
-            { "DmgRewriteFreeze", AtomicEffectType.GrantIceCrystal },
-            { "DmgRewriteSleep",  AtomicEffectType.GrantNightmare },
-            { "DmgRewriteVenom",  AtomicEffectType.GrantPathogen },
+            // ---- 诅咒门（2026-10-05 定案）----
+            { "CurseOnDraw", 2 },            // 抽到该卡时（时机固定）——诅咒载荷 ≤2 费
         };
 
         /// <summary>奖励原子的推导费合计（2026-09-14 自 CardEffectConverter 上移——倒计时回合换算与
         /// 合成器【奖励x】预算校验共用同一口径）：单次/单目标锚价——Once、TargetCount=1、
-        /// TriggerLimitPerTurn=1 的 shim（防字段默认 -1 被 TriggerCostFactor 当"显式无限"×1.2³、
-        /// TargetCount=0 落"任意档"×期望4 的膨胀——2026-09-13 修复口径固化于此）。</summary>
+        /// TriggerLimitPerTurn=1 的 shim（防字段默认 -1 被 TriggerCostFactor 当"无上限"档、
+        /// TargetCount=0 落"全部"档的膨胀——2026-09-13 修复口径固化于此）。</summary>
         public static float RewardDerivedCost(List<AtomicEffectInstance> atoms)
         {
             if (atoms == null || atoms.Count == 0) return 0f;
@@ -317,16 +300,13 @@ namespace CardCore
             return DeriveElementCosts(shim).Total;
         }
 
-        /// <summary>触发上限计价系数：触发式 N&gt;1 → 1.2^(N-1)（连乘）；显式无限(-1) → 1.2³；
-        /// N=1 / 非触发式（启动式现付、光环静态）不乘。只对触发式生效（IsTriggeredEffect 守卫）。</summary>
+        /// <summary>触发上限计价系数（2026-10-05 档位化，表 PricingTier：1:1 / 2:1.5 / 3:2 / 无上限:4；
+        /// 原 1.2^(N-1) 连乘 / ×1.2³ 口径退役）。N&gt;3 视同无上限；N=1 / 非触发式（启动式现付、光环静态）不乘。
+        /// 只对触发式生效（IsTriggeredEffect 守卫）。</summary>
         public static float TriggerCostFactor(EffectDefinition def)
         {
             if (def == null || !def.IsTriggeredEffect) return 1f;
-            if (def.TriggerLimitPerTurn > 1)
-                return (float)Math.Pow(TriggerExtraCostFactor, def.TriggerLimitPerTurn - 1);
-            if (def.TriggerLimitPerTurn == -1)
-                return (float)Math.Pow(TriggerExtraCostFactor, 3);
-            return 1f;
+            return Tiers.TriggerLimitFactor(def.TriggerLimitPerTurn);
         }
 
         private static int ComputeAtomCost(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, AtomicEffectConfig cfg)
@@ -342,18 +322,19 @@ namespace CardCore
             if (polarity != 0f && !IsSelfSleepExempt(atom.Type, domain) && WrongSide(polarity, domain))
                 amount = (int)Math.Round(amount * (1f - Math.Abs(polarity)), MidpointRounding.AwayFromZero);
 
-            // 固定数量：费用 ×N（N=组合层 TargetCount）；全部/任意语义无法在构建期确定——
-            // 按**期望目标数**计（2026-09-13 用户定案：期望 4，少了亏多了赚，前期难超 4 生物同场）；
+            // 目标数量计价（2026-10-05 档位化，表 PricingTier：1:1 / 2:1.5 / 3:2 / 全部:3）；
+            // 全部/任意语义无法在构建期确定——按"全部"档计（原期望 4 口径退役）。
             // 固有全域原子（类型伤害/全体治疗）范围溢价已含 BaseCost，数量恒 ×1。
-            // 无目标域（2026-10-03 规则光环配套）：期望 4 是目标数量语义，无目标可乘——恒 ×1
-            //（否则规则光环按表锚价虚高 4 倍）。
-            int n = QuantityMultiplier(atom.Type, def);
-            if ((domain == null || domain.Count == 0) && n > 1)
-                n = 1;
-            if (n > 1) amount *= n;
+            // 无目标域（2026-10-03 规则光环配套）：数量是目标数量语义，无目标可乘——恒 ×1
+            //（否则规则光环按表锚价虚高"全部"档倍数）。
+            float n = QuantityFactor(atom.Type, def);
+            if ((domain == null || domain.Count == 0) && n > 1f)
+                n = 1f;
+            if (n > 1f)
+                amount = (int)Math.Round(amount * n, MidpointRounding.AwayFromZero);
 
-            // 触发上限计价（2026-09-13 定案）：多次触发连乘 1.2^(N-1)；显式无限(-1)=×1.2³
-            //（与 Full 期望 4 同智，曲线连续）；N=1 / 非触发式 / 光环不乘。
+            // 触发上限计价（2026-10-05 档位化，表 PricingTier：1:1 / 2:1.5 / 3:2 / 无上限:4；
+            // 原 1.2 连乘口径退役）；N=1 / 非触发式 / 光环不乘。
             float triggerFactor = TriggerCostFactor(def);
             if (triggerFactor > 1f)
                 amount = (int)Math.Round(amount * triggerFactor, MidpointRounding.AwayFromZero);
@@ -367,8 +348,8 @@ namespace CardCore
             return amount;
         }
 
-        /// <summary>双方同时作用减半系数（2026-10-03 用户定案）。</summary>
-        public const float SymmetricDiscountFactor = 0.5f;
+        /// <summary>双方同时作用减半系数（2026-10-03 用户定案；2026-10-05 迁表 CardCost.SymmetricDiscountFactor）。</summary>
+        public static float SymmetricDiscountFactor => ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig.SymmetricDiscountFactor;
 
         /// <summary>
         /// 是否「同时作用双方」（2026-10-03 用户定案减半口径）：
@@ -406,6 +387,13 @@ namespace CardCore
             float statTier = StatTierPrice(atom.Type, def);
             if (statTier > 0f)
                 return (int)Math.Round(statTier * Math.Abs(atom.Value), MidpointRounding.AwayFromZero);
+
+            // 属性指示物梯（2026-10-05 三轨统一定案）：Add* 指示物并入锚价梯，档按 CounterSpec 真实持久、
+            // 不读 def.Duration——与修改族同结果同价（AddPowerUp 与 ModifyPower 换区档均 1.5/点；
+            // ±1/±1 永久点包 2.0/层）。ManaList 在此族只定色份额，量级不再读表行 TotalUnitCost。
+            float counterTier = StatCounterTierPrice(atom.Type);
+            if (counterTier > 0f)
+                return (int)Math.Round(counterTier * Math.Abs(atom.Value), MidpointRounding.AwayFromZero);
 
             // 控制权三档（2026-09-13 定案）：回合级临时（UET/UNT/ForTurns≤2）×1.2 /
             // 持续到离场（ULB/WhileCondition）×1.6 / 改写持有者（Permanent——控制+owner 换写，
@@ -608,10 +596,9 @@ namespace CardCore
                 int unit = ComputeAtomUnitGrant(atom, def);
                 if (unit > 0)
                 {
-                    // 固定数量同计费口径 ×N（构筑显示的声明意图；运行时按实际命中数；
-                    // 全部档按期望 4 / 触发连乘——与 ComputeAtomCost 同口径）
-                    int n = QuantityMultiplier(atom.Type, def);
-                    if (n > 1) unit *= n;
+                    // 固定数量同计费口径（2026-10-05 档位化 / 触发档位——与 ComputeAtomCost 同口径）
+                    float n = QuantityFactor(atom.Type, def);
+                    if (n > 1f) unit = (int)Math.Round(unit * n, MidpointRounding.AwayFromZero);
                     float gtf = TriggerCostFactor(def);
                     if (gtf > 1f) unit = (int)Math.Round(unit * gtf, MidpointRounding.AwayFromZero);
 

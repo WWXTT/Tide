@@ -11,7 +11,7 @@
                 "C_A0AF544D",
                 "C_3C06E8E8",
                 "C_3244447D",
-                "C_79C89338",
+                "C_A5A7B045",
                 "C_7B61EF2C",
                 "C_310866E0",
                 "C_A52EF97B",
@@ -113,6 +113,229 @@
                         { "type": "play", "card": "C_AEC7E2C9" }
                     ]
                 }
+            ]
+        },
+        {
+            "id": "scenario-demo",
+            "name": "预设场面验证（临时）",
+            "rngSeed": 20261006,
+            "_说明": "教学直入管线验证条目（2026-10-06，正式教学目标给定后由各课条目取代）：不从第 1 回合开局，直接站在第 4 回合玩家主阶段——双方生命/地牌/单位/手牌/牌库已就位。deck 字段仅备用（scenario 组卡=双方场面并集）；aiScript 的 turn 从机器人自己的第 1 个回合计（=全局回合 5）。",
+            "playerDeck": [],
+            "aiDeck": [],
+            "scenario": {
+                "startTurn": 4,
+                "firstPlayer": "P1",
+                "player": {
+                    "life": 24,
+                    "fatigue": 0,
+                    "bank": [2, 0, 0, 0, 0, 0],
+                    "lands": [
+                        { "card": "C_78A92563", "tapped": false },
+                        { "card": "C_7B61EF2C", "tapped": true, "tokens": 2, "tokenType": "Gray" }
+                    ],
+                    "units": [
+                        { "card": "C_9CBDD76F", "power": 3, "life": 2, "tapped": false, "x": 4, "z": 4 },
+                        { "card": "C_3C06E8E8", "tapped": true, "x": 6, "z": 4 }
+                    ],
+                    "hand": ["C_A52EF97B", "C_AEC7E2C9", "C_D8A7891D"],
+                    "deck": ["C_29D4958D", "C_6C440748", "C_289A18CA", "C_8E06A0A7"],
+                    "grave": ["C_310866E0"]
+                },
+                "ai": {
+                    "life": 18,
+                    "fatigue": 0,
+                    "bank": [1, 0, 0, 0, 0, 0],
+                    "lands": [
+                        { "card": "C_78A92563", "tapped": false }
+                    ],
+                    "units": [
+                        { "card": "C_9CBDD76F", "tapped": true },
+                        { "card": "C_EB26C118", "tapped": false }
+                    ],
+                    "hand": ["C_AEC7E2C9"],
+                    "deck": ["C_A52EF97B", "C_D8A7891D"],
+                    "grave": []
+                }
+            },
+            "aiScript": [
+                {
+                    "turn": 1,
+                    "actions": [
+                        { "type": "element", "card": "C_AEC7E2C9" },
+                        { "type": "tap" },
+                        { "type": "attack", "attacker": "C_EB26C118", "target": "hero" }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "tianji",
+            "name": "田忌赛马·攻防取舍",
+            "rngSeed": 20261006,
+            "_说明": "第一课·第三轮剧本（2026-10-06）：场面铺满 5v5，双方无手牌无地牌空牌库（疲劳=背景时钟，玩家生命 15/机器人 22）。两回合强制演示：①引导主将(6/6)攻岩甲兽(3/9)——唯一能交换伤害的目标（双方各掉血不死），其余目标一律被闸拒绝；②强制结束回合；③对手回合：狼打已横置的主将（单向受伤演示，此窗口守卫被置空自动放行）、巨兽打脸引导用最小的卒守卫（单向受伤演示，卒牺牲）。第三回合起自由操作：主将仅剩 1 血、卒已亡，必须田忌赛马（壁垒/援军守大放小、清横置生物白嫖）并放狼3 的 2 点进脸（选择性承受）才能获胜。解线=全局 11 回合胜、终局生命 3；贪线（不守卫）R2 五只 15 点即死；龟线（只守不攻）R3 守卫耗尽亡。教学卡 tags=教学，不进普通随机卡池。",
+            "playerDeck": [],
+            "aiDeck": [],
+            "scenario": {
+                "startTurn": 3,
+                "firstPlayer": "P1",
+                "player": {
+                    "life": 15,
+                    "fatigue": 0,
+                    "bank": [0, 0, 0, 0, 0, 0],
+                    "lands": [],
+                    "units": [
+                        { "card": "C_7E5A1001", "power": -1, "life": -1, "tapped": false, "x": 5, "z": 5 },
+                        { "card": "C_7E5A1002", "power": -1, "life": -1, "tapped": false, "x": 3, "z": 5 },
+                        { "card": "C_7E5A1003", "power": -1, "life": -1, "tapped": false, "x": 7, "z": 5 },
+                        { "card": "C_7E5A1004", "power": -1, "life": -1, "tapped": false, "x": 4, "z": 4 },
+                        { "card": "C_7E5A100A", "power": -1, "life": -1, "tapped": false, "x": 6, "z": 4 }
+                    ],
+                    "hand": [],
+                    "deck": [],
+                    "grave": []
+                },
+                "ai": {
+                    "life": 22,
+                    "fatigue": 0,
+                    "bank": [0, 0, 0, 0, 0, 0],
+                    "lands": [],
+                    "units": [
+                        { "card": "C_7E5A1008", "power": -1, "life": -1, "tapped": false, "x": 5, "z": 2 },
+                        { "card": "C_7E5A1005", "power": -1, "life": -1, "tapped": false, "x": 3, "z": 2 },
+                        { "card": "C_7E5A1006", "power": -1, "life": -1, "tapped": false, "x": 7, "z": 2 },
+                        { "card": "C_7E5A1007", "power": -1, "life": -1, "tapped": false, "x": 4, "z": 3 },
+                        { "card": "C_7E5A1009", "power": -1, "life": -1, "tapped": false, "x": 6, "z": 3 }
+                    ],
+                    "hand": [],
+                    "deck": [],
+                    "grave": []
+                }
+            },
+            "guide": [
+                {
+                    "type": "attack",
+                    "attacker": "C_7E5A1001",
+                    "target": "C_7E5A1008",
+                    "hint": "用最大的主将攻击对面的岩甲兽——看双方交换伤害（它打别的目标都会被拒绝）"
+                },
+                {
+                    "type": "end",
+                    "hint": "伤害交换完毕——结束回合，看对手怎么进攻"
+                },
+                {
+                    "type": "guard",
+                    "attacker": "C_7E5A1005",
+                    "guarder": "C_7E5A1003",
+                    "hint": "对手的巨兽直冲你来！用最小的卒守卫拦截（单向受伤——卒会牺牲，但护住了你）"
+                }
+            ],
+            "aiScript": [
+                {
+                    "turn": 1,
+                    "actions": [
+                        { "type": "attack", "attacker": "C_7E5A1006", "target": "C_7E5A1001" },
+                        { "type": "attack", "attacker": "C_7E5A1005", "target": "hero" }
+                    ]
+                },
+                {
+                    "turn": 2,
+                    "actions": [
+                        { "type": "attack", "attacker": "C_7E5A1008", "target": "hero" },
+                        { "type": "attack", "attacker": "C_7E5A1005", "target": "hero" },
+                        { "type": "attack", "attacker": "C_7E5A1006", "target": "hero" },
+                        { "type": "attack", "attacker": "C_7E5A1007", "target": "hero" },
+                        { "type": "attack", "attacker": "C_7E5A1009", "target": "hero" }
+                    ]
+                },
+                {
+                    "turn": 3,
+                    "actions": [
+                        { "type": "attack", "attacker": "C_7E5A1008", "target": "hero" },
+                        { "type": "attack", "attacker": "C_7E5A1005", "target": "hero" },
+                        { "type": "attack", "attacker": "C_7E5A1006", "target": "hero" },
+                        { "type": "attack", "attacker": "C_7E5A1007", "target": "hero" },
+                        { "type": "attack", "attacker": "C_7E5A1009", "target": "hero" }
+                    ]
+                },
+                {
+                    "turn": 4,
+                    "actions": [
+                        { "type": "attack", "attacker": "C_7E5A1008", "target": "hero" },
+                        { "type": "attack", "attacker": "C_7E5A1005", "target": "hero" },
+                        { "type": "attack", "attacker": "C_7E5A1006", "target": "hero" },
+                        { "type": "attack", "attacker": "C_7E5A1007", "target": "hero" },
+                        { "type": "attack", "attacker": "C_7E5A1009", "target": "hero" }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "lunzhuan",
+            "name": "资源流转·末日降临",
+            "rngSeed": 20261006,
+            "_说明": "第二课改版（2026-10-06 第三轮）：回合一机器人使用一张不存在的幻卡——清空它自己的手牌与牌库、释放一张纳川仪典（双方免疲劳，无疲劳时钟）、召唤末日降临（30/30，费用=装载期费用推导自动回填，玩家同样可拼出）、赋予其 15 回合长档紊乱（引擎拦它打脸，引导期间不痛不痒）、并塞给玩家一张归土仪典（每回合一次墓地视手牌中使用——后续轮转核心）。回合二到玩家时开始引导，引导牌按抽牌序排在卡组前面（教学不洗牌）：放红苗为地→横置产红→灰苗产灰→打出白源/黑源（LandTrait 生物，横置产白/黑=黑白获取唯一通道）→打出三色斗士（红费红付、白垫蓝、黑垫绿=黑白替三色）→蓝苗/绿苗产蓝绿（6 色获取齐）。bank 预置白1黑1（幻卡余波——白黑费用生物的可施法底金）。引导全部完成后自由操作：末日降临存活期间玩家不可攻击对方角色（heroLock 课规，亡即解锁）；怎么杀、后续卡组与 boss 细节由用户填。双方角色 30 生命。",
+            "playerDeck": [],
+            "aiDeck": [],
+            "heroLockCard": "C_7E5A2001",
+            "scenario": {
+                "startTurn": 2,
+                "firstPlayer": "P1",
+                "player": {
+                    "life": 30,
+                    "fatigue": 0,
+                    "bank": [0, 0, 0, 0, 1, 1],
+                    "lands": [],
+                    "units": [],
+                    "hand": ["C_7E5A200B", "C_7E5A2004"],
+                    "deck": ["C_7E5A2008", "C_7E5A2002", "C_7E5A2003", "C_7E5A2007", "C_7E5A2005", "C_7E5A2006"],
+                    "grave": []
+                },
+                "ai": {
+                    "life": 30,
+                    "fatigue": 0,
+                    "bank": [0, 0, 0, 0, 0, 0],
+                    "lands": [],
+                    "units": [
+                        { "card": "C_7E5A2001", "power": -1, "life": -1, "tapped": false, "x": 5, "z": 2,
+                          "counters": [ { "key": "RushSicknessSustained", "value": 15 } ] },
+                        { "card": "C_7E5A200C", "power": -1, "life": -1, "tapped": false, "x": 3, "z": 2, "activateRuleAura": "HandLimitNoFatigue" }
+                    ],
+                    "hand": [],
+                    "deck": [],
+                    "grave": []
+                }
+            },
+            "guide": [
+                { "type": "element", "card": "C_7E5A2004", "hint": "把手牌里的红苗放入元素池当土地（任何生物都能当地）" },
+                { "type": "tap", "land": "C_7E5A2004", "color": "Red", "hint": "横置红苗地产出 1 点红色元素" },
+                { "type": "end", "hint": "资源流转第一课——结束回合看对手（它被紊乱锁着动不了你）" },
+                { "type": "element", "card": "C_7E5A2008", "hint": "把抽到的灰苗放入元素池当土地" },
+                { "type": "tap", "land": "C_7E5A2008", "color": "Gray", "hint": "横置灰苗产出灰色元素" },
+                { "type": "end", "hint": "结束回合" },
+                { "type": "play", "card": "C_7E5A2002", "hint": "打出白源（白费）——带地牌特性的生物能横置产色（生物横置入场，下回合才能产）" },
+                { "type": "end", "hint": "结束回合等白源就位" },
+                { "type": "tapcreature", "card": "C_7E5A2002", "hint": "横置白源产出白色元素（黑白获取的唯一通道）" },
+                { "type": "play", "card": "C_7E5A2003", "hint": "打出黑源（黑费）" },
+                { "type": "end", "hint": "结束回合" },
+                { "type": "tapcreature", "card": "C_7E5A2003", "hint": "横置黑源产出黑色元素" },
+                { "type": "play", "card": "C_7E5A2007", "hint": "打出三色斗士——红费红付、白垫蓝、黑垫绿（黑白可替代三色）" },
+                { "type": "end", "hint": "结束回合" },
+                { "type": "element", "card": "C_7E5A2005", "hint": "把抽到的蓝苗放入元素池当土地" },
+                { "type": "tap", "land": "C_7E5A2005", "color": "Blue", "hint": "横置蓝苗产出蓝色元素" },
+                { "type": "end", "hint": "结束回合" },
+                { "type": "element", "card": "C_7E5A2006", "hint": "把抽到的绿苗放入元素池当土地" },
+                { "type": "tap", "land": "C_7E5A2006", "color": "Green", "hint": "横置绿苗产出绿色元素——六种元素你都会获取了" },
+                { "type": "end", "hint": "引导结束——接下来自由操作，想办法解决末日降临" }
+            ],
+            "aiScript": [
+                { "turn": 1, "actions": [ { "type": "attack", "attacker": "C_7E5A2001", "target": "hero" } ] },
+                { "turn": 2, "actions": [ { "type": "attack", "attacker": "C_7E5A2001", "target": "hero" } ] },
+                { "turn": 3, "actions": [ { "type": "attack", "attacker": "C_7E5A2001", "target": "hero" } ] },
+                { "turn": 4, "actions": [ { "type": "attack", "attacker": "C_7E5A2001", "target": "hero" } ] },
+                { "turn": 5, "actions": [ { "type": "attack", "attacker": "C_7E5A2001", "target": "hero" } ] },
+                { "turn": 6, "actions": [ { "type": "attack", "attacker": "C_7E5A2001", "target": "hero" } ] },
+                { "turn": 7, "actions": [ { "type": "attack", "attacker": "C_7E5A2001", "target": "hero" } ] },
+                { "turn": 8, "actions": [ { "type": "attack", "attacker": "C_7E5A2001", "target": "hero" } ] }
             ]
         }
     ]

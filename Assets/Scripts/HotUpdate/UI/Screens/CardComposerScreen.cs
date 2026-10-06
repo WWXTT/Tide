@@ -208,7 +208,7 @@ namespace SynergyUI
         private void RefreshPool()
         {
             ClearContent(_poolList.Content);
-            IEnumerable<CardData> cards = CardCatalog.LoadAll();
+            IEnumerable<CardData> cards = CardCatalog.LoadPlayPool(); // 教学专用卡不进编辑器卡池预览（2026-10-06 隔离）
             if (_colorFilter != UIColor.All)
                 cards = cards.Where(c => CardSorter.HasCostColor(c, _colorFilter));
             string query = _searchField != null ? _searchField.text : null;
@@ -510,7 +510,6 @@ namespace SynergyUI
                 ShowToast("原子表引用缺失——无法作代价");
                 return;
             }
-            if (ComposerCatalog.IsEngineTrunk(type)) { ShowToast("引擎主干（拼点/运势/倒计时）不可作代价"); return; }
             if (ComposerCatalog.HasMountBit(cfg, MountKind.SystemInternal))
             { ShowToast("系统内部原子（数值修改原语）不可作代价"); return; }
             if (ComposerCatalog.HasMountBit(cfg, MountKind.Keyword))
@@ -533,7 +532,7 @@ namespace SynergyUI
             ShowToast($"已填装代价（全价 {price}·逆转错侧·占1效果槽）——打出时先扣卡费再强制执行，生效后按全价得黑/白；全价超过地牌槽上限时整卡不可用");
         }
 
-        /// <summary>代价候选行（表级，2026-10-04 新准入）：非引擎/非关键词/非系统内部 + PayloadCostDomain 可入
+        /// <summary>代价候选行（表级，2026-10-04 新准入）：非关键词/非系统内部 + PayloadCostDomain 可入
         ///（p≠0 双侧收窄或正确侧镜像逆转 / p=0 单侧锁）——不限价，下拉只列真正可装的原子。</summary>
         private static IEnumerable<AtomicEffectConfig> PayloadCandidates()
         {
@@ -541,7 +540,6 @@ namespace SynergyUI
             {
                 if (row == null || string.IsNullOrEmpty(row.EnumName)) continue;
                 if (!Enum.TryParse<AtomicEffectType>(row.EnumName, out var type)) continue;
-                if (ComposerCatalog.IsEngineTrunk(type)) continue;
                 if (ComposerCatalog.HasMountBit(row, MountKind.Keyword)) continue;
                 if (ComposerCatalog.HasMountBit(row, MountKind.SystemInternal)) continue;
 
@@ -585,13 +583,11 @@ namespace SynergyUI
             Recalculate();
         }
 
-        // 效果图 → 卡内嵌效果（2026-09-14 修复：编排字段全量拷贝——此前漏 SelectionMode/TargetCount/
-        // Duration/DurationValue/TriggerLimitPerTurn/EngineKind 等上移字段；引擎通道 AtomicEffects
-        // 原被 ProjectLinear(steps) 清空（自由分支 steps 为空）——现按形态分路）。
+        // 效果图 → 卡内嵌效果（2026-09-14 修复：编排字段全量拷贝；2026-10-05 两槽定案：引擎通道载荷化——
+        // branch 载荷随步骤原子走，快照不再分路）。
         private static CardEffectData SnapshotEffect(EffectGraphData graph)
         {
             var src = graph.header ?? new CardEffectData();
-            var isEngine = src.EngineKind != (int)BranchEngineKind.None;
             return new CardEffectData
             {
                 Id = src.Id,
@@ -607,8 +603,6 @@ namespace SynergyUI
                 TargetCount = src.TargetCount,
                 RandomTarget = src.RandomTarget,
                 TriggerLimitPerTurn = src.TriggerLimitPerTurn,
-                EngineKind = src.EngineKind,
-                EngineParam = src.EngineParam,
                 ArrowDirections = src.ArrowDirections, // 光环上移效果层（2026-09-23）——箭头随效果快照
                 LinkAuras = src.LinkAuras != null && src.LinkAuras.Count > 0
                     ? new List<LinkAuraData>(src.LinkAuras) : null,
@@ -616,11 +610,8 @@ namespace SynergyUI
                 TriggerConditions = src.TriggerConditions,
                 Costs = src.Costs,
                 Tags = src.Tags,
-                Steps = isEngine ? null : (graph.steps != null ? new List<EffectStepData>(graph.steps) : null),
-                // 引擎通道：奖励原子来自 header.AtomicEffects；其余形态线性投影（converter 双通道兼容）
-                AtomicEffects = isEngine
-                    ? (src.AtomicEffects != null ? new List<AtomicEffectEntry>(src.AtomicEffects) : null)
-                    : ProjectLinear(graph.steps),
+                Steps = graph.steps != null ? new List<EffectStepData>(graph.steps) : null,
+                AtomicEffects = ProjectLinear(graph.steps),
             };
         }
 
@@ -852,6 +843,7 @@ namespace SynergyUI
                 return;
             }
             CardCatalog.Invalidate();
+            TutorialCreationFlow.NotifyCardsChanged(); // 第三课走查步检测（未开课零行为）
 
             ShowToast(replacing
                 ? $"已覆盖替换：{_card.CardName}（{_editingOriginalId} → {newId}）"

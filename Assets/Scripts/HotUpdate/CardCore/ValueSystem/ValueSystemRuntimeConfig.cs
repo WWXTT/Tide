@@ -14,16 +14,12 @@ namespace CardCore
     [Serializable]
     public class ValueSystemRuntimeConfig
     {
-        public TimingModifierConfig TimingModifierConfig = new TimingModifierConfig();
-        public CostValueConfig CostValueConfig = new CostValueConfig();
-        public EffectValueConfig EffectValueConfig = new EffectValueConfig();
-        public TriggerValueConfig TriggerValueConfig = new TriggerValueConfig();
         public AttributeValueConfig AttributeValueConfig = new AttributeValueConfig();
-        public CardTypeValueConfig CardTypeValueConfig = new CardTypeValueConfig();
         public CardCostConfig CardCostConfig = new CardCostConfig();
         public DelayDiscountConfig DelayDiscountConfig = new DelayDiscountConfig();
         public SummonDropConfig SummonDropConfig = new SummonDropConfig();
         public CardCompositionConfig CardCompositionConfig = new CardCompositionConfig();
+        public PricingTierConfig PricingTierConfig = new PricingTierConfig();
     }
 
     /// <summary>
@@ -61,18 +57,6 @@ namespace CardCore
     [Serializable]
     public class CardCompositionConfig
     {
-        /// <summary>抉择价差溢价步长：可选模式最高/最低费用每差此值 → 整体 +1（相等 +0）。</summary>
-        public float ChoiceSpreadStep = 3f;
-        /// <summary>抉择价差溢价封顶（相差 Step×Cap 及以上 → 整体 +Cap 封顶）。</summary>
-        public float ChoiceSpreadCap = 2f;
-        /// <summary>效果挂载口基线：默认每卡含此数量的挂载口（不满退费、超出加价）。
-        /// （2026-09-10 攻/守效果化后由 ChassisBudget 取代，保留兼容旧配置读取。）</summary>
-        public float MountBaseline = 2f;
-        /// <summary>每超出 1 口挂载的加价（例：1-1 挂三效果 → 原有基础 +1）。（已被 ChassisItemRate 取代）</summary>
-        public float MountExtraRate = 1f;
-        /// <summary>每空置 1 口挂载的退费（例：2-2 白板两口全空 → −2，恰为 0 费）。（已被 ChassisItemRate 取代）</summary>
-        public float MountUnusedRate = 1f;
-
         /// <summary>底盘预算（2026-09-10 攻/守效果化）：免费额度覆盖 攻+守+1 效果槽（默认 3）。</summary>
         public float ChassisBudget = 3f;
         /// <summary>底盘单项费率：攻/守/每个效果槽各占 1。</summary>
@@ -80,119 +64,53 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 时机修正配置（表 Category=TimingModifier）
+    /// 计价档位系数（表 Category=PricingTier，2026-10-05 用户定案）——目标数量/作用次数的增量系数统一：
+    /// 数量 1:1 / 2:1.5 / 3:2 / 全部:3；次数 1:1 / 2:1.5 / 3:2 / 无上限:4。
+    /// 消费方 CostDerivation（QuantityFactor / TriggerCostFactor）；原 整数×N/期望4/1.2 连乘 口径退役。
     /// </summary>
     [Serializable]
-    public class TimingModifierConfig
+    public class PricingTierConfig
     {
-        public float Instant = 1.0f;
-        public float SorcerySpeed = 0.9f;
-        public float Triggered = 0.8f;
-        public float Passive = 0.7f;
+        public float TargetCount1 = 1.0f;        // 目标数量 1：基准
+        public float TargetCount2 = 1.5f;        // 目标数量 2
+        public float TargetCount3 = 2.0f;        // 目标数量 3
+        public float TargetCountAll = 3.0f;      // 目标数量 全部（0=域内全取；-1 任意同此档）
+        public float TriggerLimit1 = 1.0f;       // 作用次数 1：基准（未声明 0 亦按此）
+        public float TriggerLimit2 = 1.5f;       // 作用次数 2
+        public float TriggerLimit3 = 2.0f;       // 作用次数 3
+        public float TriggerLimitInfinite = 4.0f; // 作用次数 无上限（-1；N>3 视同此档）
 
-        public float GetTimingModifier(TriggerTiming timing)
+        /// <summary>目标数量→计价系数。越界口径：N&gt;3 视同全部；-1（任意·运行时自选）同全部；-2/其他未声明=单目标基准。</summary>
+        public float TargetCountFactor(int count)
         {
-            return timing switch
+            switch (count)
             {
-                TriggerTiming.Activate_Instant => Instant,
-                TriggerTiming.Activate_Active => SorcerySpeed,
-                _ => Triggered
-            };
-        }
-
-        public float GetConditionModifier(List<string> conditions)
-        {
-            if (conditions == null || conditions.Count == 0) return 1.0f;
-            // 每个条件减少5%价值（条件越严格，价值越低）
-            return Math.Max(0.5f, 1.0f - conditions.Count * 0.05f);
-        }
-
-        public float GetCombinedModifier(float timing, float condition, float trigger)
-        {
-            return timing * condition * trigger;
-        }
-    }
-
-    /// <summary>
-    /// 代价价值配置（表 Category=CostValue）
-    /// </summary>
-    [Serializable]
-    public class CostValueConfig
-    {
-        public float Mana = 1.0f;
-        public float Life = 2.0f;
-        public float Tap = 0.3f;
-        public float Sacrifice = 1.5f;
-        public float Discard = 1.2f;
-
-    }
-
-    /// <summary>
-    /// 效果价值配置（表 Category=EffectValue）。
-    /// 注意：这几项是占位——原子基础价值实际委托原子表 BaseCost（见 GetAtomicEffectBaseValue），
-    /// 保留字段仅为对齐表结构与后续非委托场景。
-    /// </summary>
-    [Serializable]
-    public class EffectValueConfig
-    {
-        public float BaseDamage = 1.0f;
-        public float BaseHeal = 0.8f;
-        public float BaseDraw = 1.5f;
-        public float BaseDestroy = 2.0f;
-
-        public float GetAtomicEffectBaseValue(AtomicEffectType type, int value = 1, bool applyValue = true)
-        {
-            // 基础价值来自配置表（AttributeValueConfig.json 的 BaseCost），不再维护第二份硬编码
-            float baseValue = AtomicEffectTable.GetByType(type)?.TotalUnitCost ?? 1.0f;
-
-            if (applyValue && value > 0)
-            {
-                // 数值型效果：基础价值 * 数值，但有边际递减
-                return baseValue * (float)Math.Log(1 + value, 2);
+                case 1: return TargetCount1;
+                case 2: return TargetCount2;
+                case 3: return TargetCount3;
+                case 0: return TargetCountAll;
+                case -1: return TargetCountAll;
+                default: return count > 3 ? TargetCountAll : TargetCount1;
             }
-
-            return baseValue;
         }
-    }
 
-    /// <summary>
-    /// 触发价值配置（表 Category=TriggerValue）
-    /// </summary>
-    [Serializable]
-    public class TriggerValueConfig
-    {
-        public float FrequencyUnlimited = 1.0f;
-        public float FrequencyOncePerTurn = 0.8f;
-        public float FrequencyOncePerGame = 0.6f;
-
-        // 时机系数（原为 switch 内硬编码，现已接表，代码值兜底）
-        public float TimingOnAttackDeclare = 0.9f;
-        public float TimingOnDeath = 0.7f;
-        public float TimingOnTurnStart = 0.8f;
-        public float TimingOnTurnEnd = 0.7f;
-
-        public float GetTriggerValue(TriggerTiming timing, TriggerFrequency frequency)
+        /// <summary>作用次数→计价系数。N&gt;3 视同无上限；0（未声明=一回合一次）=基准。</summary>
+        public float TriggerLimitFactor(int limit)
         {
-            float timingValue = timing switch
+            switch (limit)
             {
-                TriggerTiming.OnAttack => TimingOnAttackDeclare,
-                TriggerTiming.OnDeath => TimingOnDeath,
-                TriggerTiming.OnTurnStart => TimingOnTurnStart,
-                TriggerTiming.OnTurnEnd => TimingOnTurnEnd,
-                _ => 0.8f
-            };
-
-            float frequencyValue = frequency switch
-            {
-                TriggerFrequency.Unlimited => FrequencyUnlimited,
-                TriggerFrequency.OncePerTurn => FrequencyOncePerTurn,
-                TriggerFrequency.OncePerGame => FrequencyOncePerGame,
-                _ => FrequencyUnlimited
-            };
-
-            return timingValue * frequencyValue;
+                case 1: return TriggerLimit1;
+                case 2: return TriggerLimit2;
+                case 3: return TriggerLimit3;
+                case -1: return TriggerLimitInfinite;
+                default: return limit > 3 ? TriggerLimitInfinite : TriggerLimit1;
+            }
         }
     }
+
+    // 注：TimingModifier / CostValue / EffectValue / TriggerValue / CardTypeValue 五类配置
+    // 已于 2026-10-05 删除——全仓无消费方（时机轴未接入计价、EffectValue 委托原子表后无人调用、
+    // CardTypeValue 对应的卡型价值未使用）；ValueSystemConfig.json 同批清理 33 行死行。
 
     /// <summary>
     /// 属性价值配置
@@ -200,10 +118,6 @@ namespace CardCore
     [Serializable]
     public class AttributeValueConfig
     {
-        public float PowerValue = 0.5f;
-        public float LifeValue = 0.4f;
-        public float PermanentBonus = 1.2f;
-
         // ==== 持续时间折扣（时间换费用：持续越短越便宜，曲线为凹函数——每多 1 回合的增量递减）====
         // 用法为「相对折扣」：CostDerivation 按 D(实际持续)/D(表内默认) 计价，
         // 保证既有锚点（1 伤害 = 1 元素，伤害原子表默认 Once）不因接入而漂移。
@@ -217,16 +131,6 @@ namespace CardCore
         public float ForTurnsBase = 0.7f;                  // N=2 基准（与 UntilNextTurn 对齐）
         public float ForTurnsStep = 0.04f;                 // 每多 1 回合的增量（< 相邻锚点差 → 凹）
         public float ForTurnsCap = 0.9f;                   // 渐近上限
-
-        public float CalculateStatValue(int power, int life, bool isPermanent = false)
-        {
-            float value = power * PowerValue + life * LifeValue;
-            if (isPermanent)
-            {
-                value *= PermanentBonus;
-            }
-            return value;
-        }
 
         /// <summary>
         /// 持续时间折扣（绝对系数）。2026-09-14 收缩：效果级 DurationValue 删除（ForTurns 档
@@ -250,32 +154,6 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 卡牌类型价值配置
-    /// </summary>
-    [Serializable]
-    public class CardTypeValueConfig
-    {
-        public float CreatureBaseValue = 1.0f;
-        public float SpellBaseValue = 0.5f;
-        public float ArtifactBaseValue = 0.8f;
-        public float EnchantmentBaseValue = 0.7f;
-        public float LandBaseValue = 0.0f;
-
-        public float GetSupertypeBaseValue(Cardtype supertype)
-        {
-            return supertype switch
-            {
-                Cardtype.Creature => CreatureBaseValue,
-                Cardtype.Spell => SpellBaseValue,
-                Cardtype.Artifact => ArtifactBaseValue,
-                Cardtype.Enchantment => EnchantmentBaseValue,
-                Cardtype.Land => LandBaseValue,
-                _ => 0.5f
-            };
-        }
-    }
-
-    /// <summary>
     /// 卡牌计价配置（表 Category=CardCost，ValueSystemConfig.json）——规则一·平衡的统一推导参数。
     /// 代价当量表已删（2026-09-14 代价原子化）：弃牌/送墓/流失等资源支付的补偿一律按
     /// Payload 原子全价（原子表唯一锚），不再有第二套当量。
@@ -286,6 +164,18 @@ namespace CardCore
         public float StatUnit = 2f;                     // 1费=StatUnit点属性（攻血各 1/StatUnit 元素，灰）
         public bool KeywordsShareDelayDiscount = true;  // 关键词是否同享挂载折扣（关键词=Grant原子=挂载效果）
         public int MaxTier = 9;                         // 档位上限（=地牌槽曲线上限）
+        /// <summary>属性锚：+1 攻/+1 生命 = 0.5（攻血同锚；2026-10-05 自 CostDerivation 常量迁表）。</summary>
+        public float StatAnchor = 0.5f;
+        /// <summary>修改族持续档乘数：换区移除/条件持续 = 锚×3（=1.5/+1）；连接光环档同此乘数。</summary>
+        public float StatSustainMultiplier = 3f;
+        /// <summary>修改族永久档乘数：换区不移除 = 锚×4（=2.0/+1）。</summary>
+        public float StatPermanentMultiplier = 4f;
+        /// <summary>改写族恒价：Set*/费用永久直改 = 3.0/+1。</summary>
+        public float StatRewriteFlatCost = 3f;
+        /// <summary>双方同时作用减半系数（双侧全取/规则光环 ×0.5；2026-10-05 迁表）。</summary>
+        public float SymmetricDiscountFactor = 0.5f;
+        /// <summary>耐久单价：0.5 灰/点（2026-10-05 定案——耐久体随身材费计价）。</summary>
+        public float DurabilityUnitCost = 0.5f;
     }
 
     /// <summary>

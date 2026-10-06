@@ -1,143 +1,5 @@
 [
   {
-    "Category": "TimingModifier",
-    "Key": "Instant",
-    "Value": 1.0,
-    "Des": "瞬发（基准 1.0）"
-  },
-  {
-    "Category": "TimingModifier",
-    "Key": "SorcerySpeed",
-    "Value": 0.9,
-    "Des": "主阶段主动发动（巫速）"
-  },
-  {
-    "Category": "TimingModifier",
-    "Key": "Triggered",
-    "Value": 0.8,
-    "Des": "触发式"
-  },
-  {
-    "Category": "TimingModifier",
-    "Key": "Passive",
-    "Value": 0.7,
-    "Des": "被动/静态"
-  },
-  {
-    "Category": "CostValue",
-    "Key": "Mana",
-    "Value": 1.0,
-    "Des": "1 元素的价值（锚：1 费=1 元素）"
-  },
-  {
-    "Category": "CostValue",
-    "Key": "Life",
-    "Value": 2.0,
-    "Des": "1 点生命的价值（流失抵消 2 命/费 同源）"
-  },
-  {
-    "Category": "CostValue",
-    "Key": "Tap",
-    "Value": 0.3,
-    "Des": "横置 1 次的价值"
-  },
-  {
-    "Category": "CostValue",
-    "Key": "Sacrifice",
-    "Value": 1.5,
-    "Des": "牺牲 1 个生物的价值"
-  },
-  {
-    "Category": "CostValue",
-    "Key": "Discard",
-    "Value": 1.2,
-    "Des": "弃 1 张手牌的价值（弃牌抵消 1 张/费 同源）"
-  },
-  {
-    "Category": "EffectValue",
-    "Key": "BaseDamage",
-    "Value": 1.0,
-    "Des": "占位：运行时实际委托原子表 BaseCost（DealDamage）"
-  },
-  {
-    "Category": "EffectValue",
-    "Key": "BaseHeal",
-    "Value": 0.8,
-    "Des": "占位：运行时实际委托原子表 BaseCost（Heal）"
-  },
-  {
-    "Category": "EffectValue",
-    "Key": "BaseDraw",
-    "Value": 1.5,
-    "Des": "占位：运行时实际委托原子表 BaseCost（DrawCard）"
-  },
-  {
-    "Category": "EffectValue",
-    "Key": "BaseDestroy",
-    "Value": 2.0,
-    "Des": "占位：运行时实际委托原子表 BaseCost（Destroy）"
-  },
-  {
-    "Category": "TriggerValue",
-    "Key": "FrequencyUnlimited",
-    "Value": 1.0,
-    "Des": "触发频率=无限（基准 1.0）"
-  },
-  {
-    "Category": "TriggerValue",
-    "Key": "FrequencyOncePerTurn",
-    "Value": 0.8,
-    "Des": "触发频率=每回合一次"
-  },
-  {
-    "Category": "TriggerValue",
-    "Key": "FrequencyOncePerGame",
-    "Value": 0.6,
-    "Des": "触发频率=每局一次"
-  },
-  {
-    "Category": "TriggerValue",
-    "Key": "TimingOnAttackDeclare",
-    "Value": 0.9,
-    "Des": "时机=攻击宣言（现为代码内硬编码，接配置需补字段）"
-  },
-  {
-    "Category": "TriggerValue",
-    "Key": "TimingOnDeath",
-    "Value": 0.7,
-    "Des": "时机=死亡（现为代码内硬编码，接配置需补字段）"
-  },
-  {
-    "Category": "TriggerValue",
-    "Key": "TimingOnTurnStart",
-    "Value": 0.8,
-    "Des": "时机=回合开始（现为代码内硬编码，接配置需补字段）"
-  },
-  {
-    "Category": "TriggerValue",
-    "Key": "TimingOnTurnEnd",
-    "Value": 0.7,
-    "Des": "时机=回合结束（现为代码内硬编码，接配置需补字段）"
-  },
-  {
-    "Category": "AttributeValue",
-    "Key": "PowerValue",
-    "Value": 0.5,
-    "Des": "1 点攻击力的价值"
-  },
-  {
-    "Category": "AttributeValue",
-    "Key": "LifeValue",
-    "Value": 0.4,
-    "Des": "1 点生命值的价值"
-  },
-  {
-    "Category": "AttributeValue",
-    "Key": "PermanentBonus",
-    "Value": 1.2,
-    "Des": "永久属性加成倍率"
-  },
-  {
     "Category": "AttributeValue",
     "Key": "OnceDiscount",
     "Value": 0.5,
@@ -190,36 +52,6 @@
     "Key": "ForTurnsCap",
     "Value": 0.9,
     "Des": "ForTurns(N) 渐近上限"
-  },
-  {
-    "Category": "CardTypeValue",
-    "Key": "CreatureBaseValue",
-    "Value": 1.0,
-    "Des": "生物卡基础价值（基准 1.0）"
-  },
-  {
-    "Category": "CardTypeValue",
-    "Key": "SpellBaseValue",
-    "Value": 0.5,
-    "Des": "法术卡基础价值"
-  },
-  {
-    "Category": "CardTypeValue",
-    "Key": "ArtifactBaseValue",
-    "Value": 0.8,
-    "Des": "神器卡基础价值"
-  },
-  {
-    "Category": "CardTypeValue",
-    "Key": "EnchantmentBaseValue",
-    "Value": 0.7,
-    "Des": "永续/结界卡基础价值"
-  },
-  {
-    "Category": "CardTypeValue",
-    "Key": "LandBaseValue",
-    "Value": 0.0,
-    "Des": "地牌基础价值"
   },
   {
     "Category": "DelayDiscount",
@@ -276,6 +108,60 @@
     "Des": "d(9)=0.75（最大折25%；9费及以上钳此值——原 d(9)=0 全免已废，2026-09-07）"
   },
   {
+    "Category": "CardCost",
+    "Key": "StatUnit",
+    "Value": 2.0,
+    "Des": "1费=StatUnit点属性（攻血各 1/StatUnit 元素，灰）"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "KeywordsShareDelayDiscount",
+    "Value": 1.0,
+    "Des": "关键词是否同享挂载折扣（1=true）"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "MaxTier",
+    "Value": 9.0,
+    "Des": "档位上限（=地牌槽曲线上限）"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "StatAnchor",
+    "Value": 0.5,
+    "Des": "属性锚：+1攻/+1生命=0.5（攻血同锚；2026-10-05 迁表）"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "StatSustainMultiplier",
+    "Value": 3.0,
+    "Des": "修改族持续档乘数：换区/条件=锚×3（1.5/+1）；连接光环档同此"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "StatPermanentMultiplier",
+    "Value": 4.0,
+    "Des": "修改族永久档乘数：锚×4（2.0/+1）"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "StatRewriteFlatCost",
+    "Value": 3.0,
+    "Des": "改写族恒价：Set*/费用永久直改=3.0/+1"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "SymmetricDiscountFactor",
+    "Value": 0.5,
+    "Des": "双方同时作用减半系数（2026-10-05 迁表）"
+  },
+  {
+    "Category": "CardCost",
+    "Key": "DurabilityUnitCost",
+    "Value": 0.5,
+    "Des": "耐久单价 0.5 灰/点（2026-10-05 定案，随身材费计价）"
+  },
+  {
     "Category": "SummonDrop",
     "Key": "BattlefieldFactor",
     "Value": 1.0,
@@ -295,32 +181,62 @@
   },
   {
     "Category": "CardComposition",
-    "Key": "ChoiceSpreadStep",
+    "Key": "ChassisBudget",
     "Value": 3.0,
-    "Des": "抉择价差溢价步长：最高/最低模式费每差3费整体+1（相等+0）——卡层组合费用，防高费当地牌实战用低费套利"
+    "Des": "底盘预算（2026-09-10 攻/守效果化）：免费额度覆盖 攻(1)+守(1)+效果槽(1/个)——原挂载口基线与抉择价差溢价已废"
   },
   {
     "Category": "CardComposition",
-    "Key": "ChoiceSpreadCap",
-    "Value": 2.0,
-    "Des": "抉择价差溢价封顶：相差6费以上整体+2（卡层灵活税上限）"
-  },
-  {
-    "Category": "CardComposition",
-    "Key": "MountBaseline",
-    "Value": 2.0,
-    "Des": "效果挂载口基线：每卡默认2口（不满退费、超出加价）——原ExtraActivationSlope选发折已删（与本规则重复）"
-  },
-  {
-    "Category": "CardComposition",
-    "Key": "MountExtraRate",
+    "Key": "ChassisItemRate",
     "Value": 1.0,
-    "Des": "每超出1口挂载的加价（例：1-1挂三效果→原有基础+1费）"
+    "Des": "底盘单项费率：攻/守/每个效果槽各占 1"
   },
   {
-    "Category": "CardComposition",
-    "Key": "MountUnusedRate",
+    "Category": "PricingTier",
+    "Key": "TargetCount1",
     "Value": 1.0,
-    "Des": "每空置1口挂载的退费（例：2-2白板两口全空→−2，恰为0费）"
+    "Des": "目标数量1：计价基准（2026-10-05 档位化，CostDerivation.QuantityFactor 消费）"
+  },
+  {
+    "Category": "PricingTier",
+    "Key": "TargetCount2",
+    "Value": 1.5,
+    "Des": "目标数量2：×1.5"
+  },
+  {
+    "Category": "PricingTier",
+    "Key": "TargetCount3",
+    "Value": 2.0,
+    "Des": "目标数量3：×2"
+  },
+  {
+    "Category": "PricingTier",
+    "Key": "TargetCountAll",
+    "Value": 3.0,
+    "Des": "目标数量全部（0=域内全取；-1任意同此档）：×3"
+  },
+  {
+    "Category": "PricingTier",
+    "Key": "TriggerLimit1",
+    "Value": 1.0,
+    "Des": "作用次数1：计价基准（未声明0亦按此；CostDerivation.TriggerCostFactor 消费）"
+  },
+  {
+    "Category": "PricingTier",
+    "Key": "TriggerLimit2",
+    "Value": 1.5,
+    "Des": "作用次数2：×1.5"
+  },
+  {
+    "Category": "PricingTier",
+    "Key": "TriggerLimit3",
+    "Value": 2.0,
+    "Des": "作用次数3：×2"
+  },
+  {
+    "Category": "PricingTier",
+    "Key": "TriggerLimitInfinite",
+    "Value": 4.0,
+    "Des": "作用次数无上限（-1；N>3视同此档）：×4"
   }
 ]

@@ -34,6 +34,51 @@ namespace CardCore.Editor
         static CardCore.Attribute.AtomicEffectConfig Cfg(AtomicEffectType type)
             => CardCore.Attribute.AtomicEffectTable.GetByType(type);
 
+        // ======================================== 槽级分支载荷夹具（2026-10-05 两槽定案） ========================================
+
+        /// <summary>主干原子 + 槽级 Branch 载荷（settle=3 事件引擎；then=条件达成的奖励原子）。</summary>
+        static AtomicEffectEntry EngineAtom(AtomicEffectType trunk, int value,
+            CardCore.BranchEngineKind engine, int engineParam, params AtomicEffectEntry[] then)
+        {
+            var e = AtomRefs.New(trunk, value);
+            e.branch = new CardCore.BranchEntryData
+            {
+                settle = (int)CardCore.BranchSettleKind.Engine,
+                engine = (int)engine,
+                engineParam = engineParam,
+                then = then.ToList(),
+            };
+            return e;
+        }
+
+        /// <summary>主干原子 + 槽级 Branch 载荷（settle=2 产出条件；如 DmgKillsTarget 读主干 per-target 产出）。</summary>
+        static AtomicEffectEntry OutcomeAtom(AtomicEffectType trunk, int value,
+            string outcomeId, params AtomicEffectEntry[] then)
+        {
+            var e = AtomRefs.New(trunk, value);
+            e.branch = new CardCore.BranchEntryData
+            {
+                settle = (int)CardCore.BranchSettleKind.Outcome,
+                outcomeId = outcomeId,
+                then = then.ToList(),
+            };
+            return e;
+        }
+
+        /// <summary>主干原子 + 槽级 Branch 载荷（settle=1 局面状态门；效果结算时评估一次）。</summary>
+        static AtomicEffectEntry GateAtom(AtomicEffectType trunk, int value,
+            string gateId, params AtomicEffectEntry[] then)
+        {
+            var e = AtomRefs.New(trunk, value);
+            e.branch = new CardCore.BranchEntryData
+            {
+                settle = (int)CardCore.BranchSettleKind.Gate,
+                gateId = gateId,
+                then = then.ToList(),
+            };
+            return e;
+        }
+
         [MenuItem("Tools/端到端验证")]
         public static void RunVerification()
         {
@@ -558,61 +603,70 @@ namespace CardCore.Editor
         }
 
         /// <summary>
-        /// 分支卡经 PlayCard 的端到端（法术执行链修复的回归锚）：
-        /// Steps 法术打出 → 发动区 → 步骤遍历 + OutcomeGate 即时分支 → 命中奖励抽牌 → 入墓；
+        /// 分支卡经 PlayCard 的端到端（法术执行链回归锚；2026-10-05 两槽定案改原子 Branch 载荷形态）：
+        /// 伤害主干 + DmgKillsTarget 产出条件载荷 → 法术打出 → 扁平路径 per-target 评估 →
+        /// 击杀命中 Then 奖励抽牌（ExecuteThenRewardsAsync——奖励目标隐藏区自结算/无头自动选首）→ 入墓；
         /// 元素费只扣一次（执行器 skipElementCost 防双计）。
+        /// （旧「读心预言」Steps+宣言门夹具随 DeclareHand 无表行缺位退役——产出条件路径改由本段覆盖。）
         /// </summary>
         private static void TestSpellBranch(GameCore core, Player p1, Player p2, List<CardData> cardsData)
         {
-            var data = cardsData.FirstOrDefault(c => c.CardName == "读心预言");
-            // 2026-09-14 引用化缺口：宣言族原子（DeclareHand）无表行——refId 无从指起，夹具不可装载。
-            // 补表行后自 c50822b 历史恢复读心预言夹具与本段断言。
-            if (data == null)
+            // 合成分支法术：3 伤主干（锁对方单位域）+ 击杀产出条件载荷（Then=抽1）
+            var data = new CardData
             {
-                Debug.LogWarning("[Verify] 读心预言夹具缺位（DeclareHand 无表行）——TestSpellBranch 跳过");
-                return;
-            }
+                ID = "VERIFY_BRANCH_SPELL", CardName = "击杀奖励试作", Supertype = Cardtype.Spell,
+                Cost = CostOf((ManaType.Red, 1f)),
+            };
+            data.Effects.Add(new CardEffectData
+            {
+                Id = "VERIFY_BRANCH_MAIN",
+                SelectionMode = (int)CardCore.SelectionMode.Single,
+                TargetCount = 1,
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    OutcomeAtom(AtomicEffectType.DealDamage, 3, "DmgKillsTarget",
+                        AtomRefs.New(AtomicEffectType.DrawCard, value: 1)),
+                },
+            });
+            // 载荷形态断言（converter）：settle=2 产出条件折入主干原子 Branch，Then 奖励转存
+            var payloadDef = CardEffectConverter.ConvertOne(data.Effects[0], data.ID);
+            Assert(payloadDef != null && payloadDef.Effects.Count == 1
+                   && payloadDef.Effects[0].Branch != null
+                   && payloadDef.Effects[0].Branch.Settle == CardCore.BranchSettleKind.Outcome
+                   && payloadDef.Effects[0].Branch.OutcomeId == "DmgKillsTarget"
+                   && payloadDef.Effects[0].Branch.Then.Count == 1,
+                   "分支载荷转换：产出条件（DmgKillsTarget）+ Then 奖励折入主干原子 Branch 槽");
 
-            // 确定性：向 p2 手牌注入一张已知生物（宣言 类型:Creature 必命中）
-            var markerData = new CardData { ID = "VERIFY_BRANCH_MARKER", CardName = "分支标记生物" };
-            markerData.Supertype = Cardtype.Creature;
-            var marker = new CardWrapper(markerData);
-            marker.SetController(p2);
-            core.ZoneManager.GetZoneContainer(p2).Add(marker, Zone.Hand);
-            // 单张验证确定性：选位器指定注入的标记卡（缺省取手牌第一张，会受真实手牌干扰）
-            CardCore.Attribute.Handlers.ProphecyHandlerUtil.PositionPicker =
-                (_, cands) => cands.Contains(marker) ? marker : cands[0];
-
-            var declare = new CardWrapper(data);
-            declare.SetController(p1);
-            core.ZoneManager.GetZoneContainer(p1).Add(declare, Zone.Hand);
+            // 确定性：p2 场上置 2 血生物（3 伤必杀 → 产出条件必命中）
+            var victim = SpawnTier(core, p2, 2, 2);
 
             var pool1 = core.ElementPool.GetPool(p1);
-            // 2026-09-13 修复：卡现价=蓝1+灰2（门费连锁后），只加蓝会因缺灰被 CanAfford 拒绝
-            //（TestSpell 同款四连坐）；按卡组声明费自适应供能 + 浓度门槛放开
-            pool1.GlobalTurnIndex = 9;
-            foreach (var color in data.Cost.NonzeroColors())
-                pool1.AvailableMana[color] += (int)System.Math.Ceiling(data.Cost[color]);
+            pool1.GlobalTurnIndex = 9; // 费用门槛/浓度放开
+            pool1.AvailableMana[ManaType.Red] += 4;
             int deckBefore = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
-            int blueBefore = pool1.AvailableMana[ManaType.Blue];
-            int handBefore = core.ZoneManager.GetCards(p1, Zone.Hand).Count;
+            int redBefore = pool1.AvailableMana[ManaType.Red];
+            var branchSpell = InjectCard(core, p1, data);
 
-            Assert(PlayCardSync(core, p1, declare), "宣言分支卡成功打出");
+            Assert(PlayCardSync(core, p1, branchSpell, new List<Entity> { victim }), "分支载荷法术成功打出");
 
-            // 无 UI 的结算链同步完成：打出 −1 + 分支命中抽 1 = 手牌数不变
-            Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Count == handBefore,
-                   "打出 −1 且宣言命中抽 +1（分支经 PlayCard 真实触发）");
-            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBefore - 1, "奖励抽牌来自牌库顶");
-            Assert(core.ZoneManager.GetCards(p1, Zone.Graveyard).Contains(declare), "分支法术结算后入墓地");
+            Assert(!victim.IsAlive, "主干伤害击杀目标（3 伤 vs 2 血）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBefore - 1,
+                   "产出条件命中 → Then 奖励抽 1（扁平路径 per-target 评估，经 PlayCard 真实触发）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Graveyard).Contains(branchSpell), "分支法术结算后入墓地");
             Assert(core.ZoneManager.GetCards(p1, Zone.Activation).Count == 0, "结算完成后发动区清空");
-            // 期望扣费从声明费用动态取值（卡表调价不再牵动断言）；skipElementCost=true 保证执行器
-            // 不再对派生元素费二次扣款——实际扣费恰为声明值即证明"只扣一次"
-            var declaredBlue = (int)GameActions.GetCardCost(declare, 0)[ManaType.Blue];
-            Assert(pool1.AvailableMana[ManaType.Blue] == blueBefore - declaredBlue,
-                   $"元素费只扣一次（skipElementCost 防执行器双计费；声明费蓝 {declaredBlue}，实际扣 {blueBefore - pool1.AvailableMana[ManaType.Blue]}）");
+            // skipElementCost=true 保证执行器不再对派生元素费二次扣款——实际扣费恰为声明值即证明"只扣一次"
+            Assert(pool1.AvailableMana[ManaType.Red] == redBefore - 1,
+                   $"元素费只扣一次（skipElementCost 防执行器双计费；声明费红 1，实际扣 {redBefore - pool1.AvailableMana[ManaType.Red]}）");
 
-            core.ZoneManager.GetZoneContainer(p2).Remove(marker, Zone.Hand);
-            CardCore.Attribute.Handlers.ProphecyHandlerUtil.PositionPicker = null; // 还原缺省选位器
+            // 对照组：不击杀（3 伤 vs 5 血）→ 产出条件不命中 → 无奖励
+            var survivor = SpawnTier(core, p2, 3, 5);
+            deckBefore = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
+            var branchSpell2 = InjectCard(core, p1, data);
+            Assert(PlayCardSync(core, p1, branchSpell2, new List<Entity> { survivor }), "分支载荷法术第二次打出（不击杀对照）");
+            Assert(survivor.IsAlive && survivor.GetLife() == 2,
+                   "对照组：3 伤不致死（产出条件不命中）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBefore,
+                   "未击杀 → Then 不结算（条件奖励只在产出达成时强制结算）");
         }
 
         // ======================================== 目标域模型（2026-09-10 M1 重构定案） ========================================
@@ -667,7 +721,8 @@ namespace CardCore.Editor
             Assert(dd != null && string.IsNullOrEmpty(dd.TargetFilter),
                 "DealDamage 表默认 filter 为空（可指角色，直伤打脸合法——review 定案）");
 
-            // d) 双路径一致：同原子组 flat 与 Steps 两版的组合域相等
+            // d) 双路径一致（两槽定案新语义）：无抉择 Steps → 平铺折叠进 def.Effects（域与扁平一致）；
+            //    含抉择（kind=2）→ 保留 Steps 结构（执行引擎步骤遍历）
             var entry = AtomRefs.New(AtomicEffectType.DealDamage, value: 2);
             var flat = new CardEffectData { Id = "VERIFY_TDM_FLAT", AtomicEffects = new List<AtomicEffectEntry> { entry } };
             var stepped = new CardEffectData
@@ -677,9 +732,31 @@ namespace CardCore.Editor
             };
             var flatDef = CardEffectConverter.ConvertOne(flat, "VERIFY_TDM");
             var stepDef = CardEffectConverter.ConvertOne(stepped, "VERIFY_TDM");
+            Assert(stepDef.Steps.Count == 0 && stepDef.Effects.Count == 1
+                   && stepDef.Effects[0].Type == AtomicEffectType.DealDamage,
+                   "无抉择 Steps：平铺折叠进 def.Effects（原子步落主干序列，Steps 清空）");
             Assert(TargetKindRules.Format(flatDef.TargetDomain) == TargetKindRules.Format(stepDef.TargetDomain)
                 && flatDef.TargetDomain.Count > 0,
                 $"扁平与 Steps 路径组合域一致（{TargetKindRules.Format(flatDef.TargetDomain)}）");
+            var choiced = CardEffectConverter.ConvertOne(new CardEffectData
+            {
+                Id = "VERIFY_TDM_CHOICE",
+                Steps = new List<EffectStepData>
+                {
+                    new EffectStepData
+                    {
+                        kind = 2,
+                        choices = new List<EffectChoiceData>
+                        {
+                            new EffectChoiceData { steps = new List<EffectStepData> { new EffectStepData { kind = 0, atomic = entry } } },
+                            new EffectChoiceData { steps = new List<EffectStepData> { new EffectStepData { kind = 0, atomic = AtomRefs.New(AtomicEffectType.DrawCard, value: 1) } } },
+                        },
+                    },
+                },
+            }, "VERIFY_TDM");
+            Assert(choiced.Steps.Count == 1 && choiced.Steps[0].Kind == CardCore.RuntimeStepKind.Choice
+                   && choiced.Effects.Count == 0,
+                   "含抉择 Steps：保留步骤结构不折叠（def.Effects 空——抉择 per-mode 执行/计价）");
 
             // e) 候选空不可发动：清场后 NoRole 原子（激励：{0}+NoRole,Tapped）不可打——
             //    角色被 NoRole 滤除、生物清空 → 候选空。（DealDamage 定案 filter 空=可打脸，
@@ -978,33 +1055,37 @@ namespace CardCore.Editor
 
                 int bwCap = core.ElementPool.GetLandCap(p1);
                 int dmg4Unit = UnitGrantOf(AtomicEffectType.DealDamage, 4);
-                int expectBlack1 = dmg4Unit; // 产出不封：全量入账（可超使用侧 cap——支付时才受约束）
+                int expectBlack1 = System.Math.Min(dmg4Unit, bwCap); // 2026-10-05 双限制：单次获得 ≤ cap
                 int lifeBefore = p1.Life;
                 Assert(GameActions.PlayCard(core, p1, selfHarm, new List<Entity> { p1 }), "打出自伤法术（双域指自己=实际错边）");
                 GameActions.DrainStack(core);
                 Assert(p1.Life == lifeBefore - 4, "自伤结算：扣 4 当前生命");
                 Assert(pool1.AvailableMana[ManaType.Black] == expectBlack1 && pool1.BlackGainedThisTurn == expectBlack1,
-                       $"结算发放（产出不封）：得黑 {expectBlack1} 全额入账（单价{dmg4Unit}·使用侧上限{bwCap}仅约束支付；实际 {pool1.AvailableMana[ManaType.Black]}）");
+                       $"结算发放（单次钳制）：得黑 {expectBlack1}（单价{dmg4Unit}·cap{bwCap}；实际 {pool1.AvailableMana[ManaType.Black]}）");
 
-                // 同回合二次施放：产出仍不封顶（全量累计）
+                // 同回合二次施放：受回合总量钳制（本回合获得累计封顶 cap）
                 var selfHarm2 = InjectCard(core, p1, SpellData("VERIFY_BW_SELFHARM2", "验证自伤2",
                     Atom(AtomicEffectType.DealDamage.ToString(), 1)));
-                int expectBlack2 = expectBlack1 + UnitGrantOf(AtomicEffectType.DealDamage, 1);
+                int gain2 = System.Math.Max(0, System.Math.Min(UnitGrantOf(AtomicEffectType.DealDamage, 1), bwCap - expectBlack1));
+                int expectBlack2 = expectBlack1 + gain2;
                 Assert(GameActions.PlayCard(core, p1, selfHarm2, new List<Entity> { p1 }), "同回合再打一张自伤");
                 GameActions.DrainStack(core);
                 Assert(pool1.AvailableMana[ManaType.Black] == expectBlack2 && pool1.BlackGainedThisTurn == expectBlack2,
-                       $"产出不封顶：同回合第二张全额进账（黑 {expectBlack1}→{expectBlack2}，无产出帽）");
+                       $"回合总量钳制：本回合黑封顶 {bwCap}（黑 {expectBlack1}→{expectBlack2}，二次实发 {gain2}）");
 
-                // 翻回合：台账清零，再施放照常全量
+                // 翻回合：台账清零，总量按新回合 cap 重计
                 core.ElementPool.OnTurnStart(p1, pool1.GlobalTurnIndex + 1);
-                Assert(pool1.BlackGainedThisTurn == 0 && pool1.WhiteGainedThisTurn == 0, "回合开始：黑白获得台账清零（纯观测）");
-                int expectBlack3 = expectBlack2 + UnitGrantOf(AtomicEffectType.DealDamage, 2);
+                Assert(pool1.BlackGainedThisTurn == 0 && pool1.WhiteGainedThisTurn == 0, "回合开始：黑白获得台账清零（总量按新回合重计）");
+                int dmg2Unit = UnitGrantOf(AtomicEffectType.DealDamage, 2);
+                int capNew = core.ElementPool.GetLandCap(p1);
+                int gain3 = System.Math.Min(dmg2Unit, capNew);
+                int expectBlack3 = expectBlack2 + gain3;
                 var selfHarm3 = InjectCard(core, p1, SpellData("VERIFY_BW_SELFHARM3", "验证自伤3",
                     Atom(AtomicEffectType.DealDamage.ToString(), 2)));
                 Assert(GameActions.PlayCard(core, p1, selfHarm3, new List<Entity> { p1 }), "新回合再打自伤");
                 GameActions.DrainStack(core);
                 Assert(pool1.AvailableMana[ManaType.Black] == expectBlack3,
-                       $"翻回合后再施放：+{expectBlack3 - expectBlack2} 黑全额（bank 累计 {expectBlack3}，产出无帽；实际 {pool1.AvailableMana[ManaType.Black]}）");
+                       $"翻回合后再施放：+{gain3} 黑（新cap{capNew}·bank 累计 {expectBlack3}；实际 {pool1.AvailableMana[ManaType.Black]}）");
 
                 // ---- 2. 黑白支付侧：本色费 / 浓度上限 / 灰混付 ----
                 var drainDef = CardEffectConverter.ConvertOne(new CardEffectData
@@ -1479,15 +1560,25 @@ namespace CardCore.Editor
                        "并发组合：抽1=抽牌表价并入总费（费用取总）");
             }
 
-            var declareData = cardsData.FirstOrDefault(c => c.CardName == "读心预言");
-            if (declareData != null)
+            // ②条件奖励免费（2026-10-05 两槽定案载荷口径）：主干计价 vs 主干+Then 载荷全量——
+            // Then 奖励不进 VisitBillableAtoms（分支整体零计价，预算只是放置上限）
             {
-                var def = CardEffectConverter.ConvertAll(declareData.Effects, declareData.ID)[0];
-                var stripped = new EffectDefinition { Steps = def.Steps.Where(s => s.Kind != RuntimeStepKind.Branch).ToList() };
-                int totalAll = (int)CostDerivationService.DeriveElementCosts(def).Total;
-                int totalNoBranch = (int)CostDerivationService.DeriveElementCosts(stripped).Total;
-                Assert(totalAll == totalNoBranch + 2,
-                       "条件奖励不计费（宣言门附加费 2 灰计入，then/else 原子免计价——2026-09-13 定案）");
+                CardCore.EffectDefinition BranchPlain(bool withPayload)
+                {
+                    var trunk = withPayload
+                        ? OutcomeAtom(AtomicEffectType.DealDamage, 3, "DmgKillsTarget",
+                            AtomRefs.New(AtomicEffectType.DrawCard, value: 1))
+                        : AtomRefs.New(AtomicEffectType.DealDamage, value: 3);
+                    return CardEffectConverter.ConvertOne(new CardEffectData
+                    {
+                        Id = "VERIFY_MODAL_GATE" + (withPayload ? "_B" : "_P"),
+                        AtomicEffects = new List<AtomicEffectEntry> { trunk },
+                    }, "VERIFY_MODAL_GATE");
+                }
+                int totalPlain = (int)CostDerivationService.DeriveElementCosts(BranchPlain(false)).Total;
+                int totalBranched = (int)CostDerivationService.DeriveElementCosts(BranchPlain(true)).Total;
+                Assert(totalPlain > 0 && totalBranched == totalPlain,
+                       $"条件奖励不计费：主干+Then 载荷全量 = 主干计价（{totalBranched} vs {totalPlain}——Then 不进 VisitBillableAtoms）");
             }
 
             // ---- 1. 抉择卡数据/转换/判据 ----
@@ -3783,46 +3874,28 @@ namespace CardCore.Editor
         // ======================================== 合成器模型（2026-09-14 合成器重做） ========================================
 
         /// <summary>
-        /// 合成器重做模型断言（纯模型层——UI 交互留 Unity 手测）：
-        /// ①三主干表行（MountKinds=9/BaseCost=0/空域）；②converter 主干守卫；③自由分支 header 通道端到端
-        /// （RewardAtoms 转存/机制费/CountdownTurns 换算）；④有限分支预算（RewardDerivedCost vs GatePremium）；
-        /// ⑤并列保序；⑥描述动态渲染（值随机区间文本）；⑦哈希口径（amp/EngineKind 参与去重）。
+        /// 合成器重做模型断言（纯模型层——UI 交互留 Unity 手测；2026-10-05 两槽定案重锚）：
+        /// ①MountKind 8 值重排 + 引擎参数/预算锚（引擎=槽级 Branch 载荷，主干行已删）；
+        /// ②挂载位数据驱动（位 6 光环/位 7 系统内部/生物·法术可赋予行=TargetFilter 语义）；
+        /// ③槽级载荷端到端（settle=3 引擎：Then 转存/零计价/倒计时换算——合成器产出形态=TestBranchEngines 数据形态）；
+        /// ④条件目录三族（产出条件/局面门/诅咒门）与预算口径；⑤并列保序（Steps 平铺折叠）；
+        /// ⑥描述动态渲染（值随机区间文本）；⑦哈希口径（amp/br{} 载荷段参与去重）。
         /// </summary>
         private static void TestComposerModel()
         {
-            // ---- 1. 主干表行（2026-09-22 +死亡计数/元素充盈/手牌序位）----
-            foreach (var name in new[] { "BranchEngineClash", "BranchEngineLuckRoll", "BranchEngineCountdown",
-                                         "BranchEngineDeathToll", "BranchEngineManaSurplus", "BranchEngineNthHandCard" })
-            {
-                var row = CardCore.Attribute.AtomicEffectTable.GetByEnumName(name);
-                Assert(row != null, $"主干表行存在：{name}");
-                Assert(row.MountKinds == "9", $"{name} MountKinds=\"9\"（空会被兜底混入主动原子）");
-                Assert(row.TotalUnitCost == 0f && string.IsNullOrEmpty(row.TargetKinds) && row.Polarity == 0f,
-                       $"{name} 主干不计价/无域/零极性");
-            }
-            Assert(System.Enum.IsDefined(typeof(CardCore.MountKind), 9), "MountKind 含 9=FreeBranchTrunk");
-            Assert(CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.BranchEngineClash)
-                   && CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.BranchEngineLuckRoll)
-                   && CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.BranchEngineCountdown)
-                   && CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.BranchEngineDeathToll)
-                   && CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.BranchEngineManaSurplus)
-                   && CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.BranchEngineNthHandCard)
-                   && !CardCore.ComposerCatalog.IsEngineTrunk(CardCore.AtomicEffectType.DealDamage),
-                   "ComposerCatalog.IsEngineTrunk 判定（六主干在内/普通原子不在）");
-            Assert(CardCore.ComposerCatalog.TrunkToEngine(CardCore.AtomicEffectType.BranchEngineClash)
-                       == CardCore.BranchEngineKind.Clash
-                   && CardCore.ComposerCatalog.TrunkToEngine(CardCore.AtomicEffectType.BranchEngineDeathToll)
-                       == CardCore.BranchEngineKind.DeathToll
-                   && CardCore.ComposerCatalog.TrunkToEngine(CardCore.AtomicEffectType.BranchEngineManaSurplus)
-                       == CardCore.BranchEngineKind.ManaSurplus
-                   && CardCore.ComposerCatalog.TrunkToEngine(CardCore.AtomicEffectType.BranchEngineNthHandCard)
-                       == CardCore.BranchEngineKind.NthHandCard
-                   && CardCore.ComposerCatalog.TrunkToEngine(CardCore.AtomicEffectType.DealDamage)
-                       == CardCore.BranchEngineKind.None,
-                   "TrunkToEngine 映射（含 2026-09-22 新引擎）");
-            // 引擎参数范围与奖励预算（2026-09-22 定案：奖励预算制——死亡计数/元素充盈 预算=x）
+            // ---- 1. MountKind 8 值重排 + 引擎参数/预算锚（引擎主干表行已随载荷化删除）----
+            Assert(System.Linq.Enumerable.Range(0, 8).All(v => System.Enum.IsDefined(typeof(CardCore.MountKind), v))
+                   && !System.Enum.IsDefined(typeof(CardCore.MountKind), 8),
+                   "MountKind 重排为 8 值 0..7（旧 9/10/11 位已收编：改写门/主干位/光环位随两槽定案重排）");
+            Assert((int)CardCore.MountKind.TriggerCapImmutable == 5
+                   && (int)CardCore.MountKind.LinkAura == 6
+                   && (int)CardCore.MountKind.SystemInternal == 7,
+                   "MountKind 位锚：TriggerCapImmutable=5 / LinkAura=6 / SystemInternal=7");
+            // 引擎参数范围与奖励预算（2026-09-22 定案：奖励预算制——死亡计数/元素充盈/手牌序位 预算=x）
             CardCore.ComposerCatalog.EngineParamRange(CardCore.BranchEngineKind.DeathToll, out int rMin, out int rMax);
             Assert(rMin == 1 && rMax == 9, "引擎参数范围：死亡计数 x∈[1,9]");
+            CardCore.ComposerCatalog.EngineParamRange(CardCore.BranchEngineKind.LuckRoll, out int rMin2, out int rMax2);
+            Assert(rMin2 == 1 && rMax2 == 5, "引擎参数范围：运势 x∈[1,5]（双 6 才中=1/36）");
             Assert(CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.DeathToll, 3) == 3
                    && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.ManaSurplus, 2) == 2
                    && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.NthHandCard, 2) == 2
@@ -3831,108 +3904,100 @@ namespace CardCore.Editor
                    && CardCore.ComposerCatalog.EngineRewardBudget(CardCore.BranchEngineKind.LuckRoll, 1) == -1,
                    "引擎奖励预算：死亡计数/元素充盈/手牌序位=x；既有三引擎自平衡（-1 无上限）");
 
-            // ---- 1b. MountKinds 数据驱动（2026-09-23 定案：可挂范围唯一权威——合成器/装载逐位兑现）----
-            Assert(System.Enum.IsDefined(typeof(CardCore.MountKind), 10), "MountKind 含 10=LinkAura（可作连接光环条目）");
-            // 光环关键词资格：四消耗型（移除即用掉）不可挂；坚韧/守护（无表行——光环本体特判）与普通授予可挂
+            // ---- 1b. MountKinds 数据驱动（位 6=LinkAura——可作连接光环条目）----
+            // 光环关键词资格：消耗型（移除即用掉）不可挂；坚韧/守护（无表行——光环本体特判）与普通授予可挂
             Assert(!CardCore.ComposerCatalog.IsAuraMountableKeyword("DivineShield")
                    && !CardCore.ComposerCatalog.IsAuraMountableKeyword("Stealth")
                    && !CardCore.ComposerCatalog.IsAuraMountableKeyword("Reborn")
                    && !CardCore.ComposerCatalog.IsAuraMountableKeyword("SpellShield"),
-                   "光环可挂判定：圣盾/潜行/复生/法术护盾（消耗型）不可挂——名单在表（无位 10）不在代码");
+                   "光环可挂判定：圣盾/潜行/复生/法术护盾（消耗型）不可挂——名单在表（无位 6）不在代码");
             Assert(CardCore.ComposerCatalog.IsAuraMountableKeyword("Armor")
                    && CardCore.ComposerCatalog.IsAuraMountableKeyword("Guardian")
                    && CardCore.ComposerCatalog.IsAuraMountableKeyword("Lifesteal")
                    && CardCore.ComposerCatalog.IsAuraMountableKeyword("Taunt"),
-                   "光环可挂判定：坚韧/守护（特判）+ 吸血/帷幕（表行含位 10）可挂");
-            // 位 10 数据存在性：18 条非消耗 Grant 行声明（2026-10-02 裁决：冰晶/梦魇退役 −2、连击补行 +1）、四条消耗型未声明
+                   "光环可挂判定：坚韧/守护（特判）+ 吸血/帷幕（表行含位 6）可挂");
+            // 位 6 数据存在性：16 条 Grant 行声明（2026-10-05 表重排后口径）；五条消耗/一次性型未声明
             var grantRows = CardCore.Attribute.AtomicEffectTable.GetAll()
                 .Where(r => r != null && !string.IsNullOrEmpty(r.EnumName) && r.EnumName.StartsWith("Grant")).ToList();
-            Assert(grantRows.Count(r => CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.LinkAura)) == 18,
-                   "位 10 数据：18 条 Grant 行声明可作光环（2026-10-02：冰晶/梦魇退役、连击补行）");
+            Assert(grantRows.Count(r => CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.LinkAura)) == 16,
+                   $"位 6 数据：16 条 Grant 行声明可作光环（实际 {grantRows.Count(r => CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.LinkAura))}）");
             Assert(grantRows.Where(r => !CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.LinkAura))
                    .Select(r => r.EnumName).OrderBy(n => n).SequenceEqual(
-                       new[] { "GrantDivineShield", "GrantReborn", "GrantSpellShield", "GrantStealth" }),
-                   "位 10 数据：恰为四消耗型未声明（圣盾/复生/法术护盾/潜行）");
-            // 主干资格位 3 声明制：产出族四行走位 3；无 0 无 3 的行（回响=1,5,6,10）不可作主干；位 0 通用门通道照常
-            Assert(CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.DealDamage)
-                   && CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.Heal)
-                   && CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.DrainLife),
-                   "主干资格位 3 声明制：伤害/治疗产出族（表行含位 3）可作主干");
-            Assert(!CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.GrantEcho),
-                   "主干资格：回响（1,5,6,10——无位 0/位 3）不可作主干（数据说了算）");
-            Assert(CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.GrantLifesteal),
-                   "主干资格：位 0 通用门通道（吸血=0,4,1,5,10 含主动位——通用门可挂）");
-            // 位 9 数据驱动锁定：六引擎行均只写 9（UI 锁定判定读表）
-            foreach (var name in new[] { "BranchEngineClash", "BranchEngineLuckRoll", "BranchEngineCountdown",
-                                         "BranchEngineDeathToll", "BranchEngineManaSurplus", "BranchEngineNthHandCard" })
-            {
-                var engineRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName(name);
-                Assert(CardCore.ComposerCatalog.HasMountBit(engineRow, CardCore.MountKind.FreeBranchTrunk),
-                       $"位 9 数据驱动：{name} 含 FreeBranchTrunk 位（合成器锁定判定读表）");
-            }
-            // 光环关键词下拉数据源：坚韧/守护 + 位 10 行（不含四消耗型）
+                       new[] { "GrantConcealed", "GrantDivineShield", "GrantReborn", "GrantSpellShield", "GrantStealth" }),
+                   "位 6 数据：未声明恰为五条（隐密/圣盾/复生/法术护盾/潜行——消耗·一次性型不可挂光环）");
+            // 生物/法术可赋予行（原挂载位 5/6 语义迁 TargetFilter token——2026-10-05）
+            var echoRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName("GrantEcho");
+            Assert(echoRow != null && CardCore.ComposerCatalog.IsSpellGrantRow(echoRow)
+                   && !CardCore.ComposerCatalog.IsCreatureGrantRow(echoRow),
+                   "法术侧可赋予：回响行 TargetFilter 含 Spell（不含 NoRole）——法术卡专属关键词");
+            Assert(CardCore.ComposerCatalog.IsCreatureGrantRow(
+                       CardCore.Attribute.AtomicEffectTable.GetByEnumName("GrantTaunt")),
+                   "生物侧可赋予：Grant 行 TargetFilter 含 NoRole（仅生物）");
+            // 光环关键词下拉数据源：坚韧/守护 + 位 6 行（不含消耗型）
             var auraChoices = CardCore.ComposerCatalog.AuraKeywordChoices();
             Assert(auraChoices.Any(c => c.id == "Armor") && auraChoices.Any(c => c.id == "Guardian")
                    && !auraChoices.Any(c => c.id == "DivineShield" || c.id == "Stealth" || c.id == "Reborn" || c.id == "SpellShield"),
                    "光环关键词下拉：坚韧/守护在列、四消耗型不在列");
 
-            // ---- 1c. 位 11 SystemInternal（2026-10-04 定案：数值修改原语留系统用，移出玩家选择面）----
-            Assert(System.Enum.IsDefined(typeof(CardCore.MountKind), 11), "MountKind 含 11=SystemInternal（系统内部用）");
+            // ---- 1c. 位 7 SystemInternal（2026-10-04 定案：数值修改原语留系统用，移出玩家选择面）----
             var internalRows = CardCore.Attribute.AtomicEffectTable.GetAll()
                 .Where(r => r != null && CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.SystemInternal)).ToList();
             Assert(internalRows.Count == 3
                    && new HashSet<string>(internalRows.Select(r => r.EnumName))
-                       .SetEquals(new[] { "修改生命值", "修改攻击力", "修改费用" }),
-                   "位 11 数据：恰为修改攻击力/生命值/费用三行（其余行不得声明）");
+                       .SetEquals(new[] { "ModifyPower", "ModifyLife", "ModifyCost" }),
+                   "位 7 数据：恰为修改攻击力/生命值/费用三行（其余行不得声明）");
             foreach (var row in internalRows)
                 Assert(CardCore.ComposerCatalog.HasMountBit(row, CardCore.MountKind.ActiveEffect)
                        && CardCore.ComposerCatalog.HasMountBit(row, CardCore.MountKind.BranchReward),
-                       $"位 11 行 {row.EnumName} 保留位 0/4（与位 9 不同——系统内部行维持挂载语义，仅 UI 不暴露）");
+                       $"位 7 行 {row.EnumName} 保留位 0/3（系统内部行维持挂载语义，仅 UI 不暴露）");
 
-            // ---- 2. converter 主干守卫：trunk 塞普通步骤 → ConvertAtomicEffect 剔除（null）----
-            var trunkDef = CardCore.CardEffectConverter.ConvertOne(new CardCore.CardEffectData
-            {
-                Id = "VERIFY_TRUNK_GUARD",
-                AtomicEffects = new List<CardCore.AtomicEffectEntry>
-                {
-                    Atom("BranchEngineClash", 2),
-                },
-            }, "VERIFY_TRUNK_GUARD");
-            Assert(trunkDef.Effects.Count == 0,
-                   "主干守卫：trunk 原子塞进普通序列被 converter 剔除（自由分支经 header.EngineKind 声明）");
-
-            // ---- 3. 自由分支 header 通道端到端（合成器产出形态 = TestBranchEngines 数据形态）----
+            // ---- 2. 槽级载荷端到端（合成器产出形态 = TestBranchEngines 数据形态）----
+            // 引擎载荷（settle=3）：任意主干原子可挂，EngineKind/Then 转存进原子 Branch 槽
             var freeDef = CardCore.CardEffectConverter.ConvertOne(new CardCore.CardEffectData
             {
                 Id = "VERIFY_COMPOSER_FREE",
-                EngineKind = (int)CardCore.BranchEngineKind.Clash,
-                EngineParam = 2,
                 AtomicEffects = new List<CardCore.AtomicEffectEntry>
                 {
-                    Atom("DrawCard", 1),
+                    EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, CardCore.BranchEngineKind.Clash, 2,
+                        AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)),
                 },
             }, "VERIFY_COMPOSER_FREE");
-            Assert(freeDef.EngineKind == CardCore.BranchEngineKind.Clash && freeDef.RewardAtoms.Count == 1
-                   && freeDef.Effects.Count == 0,
-                   "自由分支：header 通道 → EngineKind=Clash，奖励原子转存 RewardAtoms（主序列空）");
+            var plainDef = CardCore.CardEffectConverter.ConvertOne(new CardCore.CardEffectData
+            {
+                Id = "VERIFY_COMPOSER_PLAIN",
+                AtomicEffects = new List<CardCore.AtomicEffectEntry>
+                {
+                    AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1),
+                },
+            }, "VERIFY_COMPOSER_PLAIN");
+            Assert(freeDef.Effects.Count == 1
+                   && freeDef.Effects[0].Branch != null
+                   && freeDef.Effects[0].Branch.Settle == CardCore.BranchSettleKind.Engine
+                   && freeDef.Effects[0].Branch.EngineKind == CardCore.BranchEngineKind.Clash
+                   && freeDef.Effects[0].Branch.EngineParam == 2
+                   && freeDef.Effects[0].Branch.Then.Count == 1,
+                   "引擎载荷：主干原子 Branch 槽 → Settle=Engine/Clash，奖励原子转存 Then（主序列=主干本体）");
             var freeCosts = CardCore.CostDerivationService.DeriveElementCosts(freeDef);
-            Assert(freeCosts[CardCore.ManaType.Gray] <= 0,
-                   "自由分支计价（2026-09-15 废灰费）：引擎零计价（拼点门槛=奖励锚价，运行时判）");
+            var plainCosts = CardCore.CostDerivationService.DeriveElementCosts(plainDef);
+            Assert(freeCosts[CardCore.ManaType.Gray] <= 0
+                   && (int)freeCosts.Total == (int)plainCosts.Total,
+                   "引擎零计价：载荷/Then 不入 DeriveElementCosts（主干照常计价，拼点门槛=奖励锚价运行时判）");
 
+            // 倒计时载荷（settle=3·Countdown）：初值 = Then 推导费换算回合（1费=1回合；声明 0=自动）
             var countdownDef = CardCore.CardEffectConverter.ConvertOne(new CardCore.CardEffectData
             {
                 Id = "VERIFY_COMPOSER_COUNTDOWN",
-                EngineKind = (int)CardCore.BranchEngineKind.Countdown,
-                EngineParam = 0, // 0 = 按奖励推导费自动换算
                 AtomicEffects = new List<CardCore.AtomicEffectEntry>
                 {
-                    Atom("DrawCard", 1), // 锚价 2 → 2 回合
+                    EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, CardCore.BranchEngineKind.Countdown, 0,
+                        AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)), // 锚价 2 → 2 回合
                 },
             }, "VERIFY_COMPOSER_COUNTDOWN");
-            Assert(countdownDef.CountdownTurns == 2,
-                   $"倒计时自动换算：奖励锚价 2 → 2 回合（实际 {countdownDef.CountdownTurns}）");
+            Assert(countdownDef.Effects[0]?.Branch?.EngineKind == CardCore.BranchEngineKind.Countdown
+                   && countdownDef.Effects[0].Branch.CountdownTurns == 2,
+                   $"倒计时自动换算：奖励锚价 2 → 2 回合（实际 {countdownDef.Effects[0]?.Branch?.CountdownTurns}）");
 
-            // ---- 4. 有限分支预算：RewardDerivedCost vs GatePremium ----
+            // ---- 3. 条件目录三族（产出条件/局面门）与预算口径 ----
             float drawCost = CardCore.CostDerivationService.RewardDerivedCost(new List<CardCore.AtomicEffectInstance>
             {
                 CardCore.CardEffectConverter.ConvertAtomForUI(
@@ -3945,21 +4010,26 @@ namespace CardCore.Editor
             });
             Assert(drawCost == 2f, $"预算口径：抽1 锚价 2（≤2 过，实际 {drawCost}）");
             Assert(dmgCost == 3f, $"预算口径：3伤 锚价 3（>2 拒，实际 {dmgCost}）");
-            var gate = System.Linq.Enumerable.First(CardCore.ComposerCatalog.GatesFor(CardCore.AtomicEffectType.DealDamage));
+            var gate = System.Linq.Enumerable.First(CardCore.ComposerCatalog.OutcomeConditionsFor(CardCore.AtomicEffectType.DealDamage));
             Assert(gate.Id == "DmgKillsTarget" && CardCore.ComposerCatalog.GateBudget(gate) == 2
                    && CardCore.ComposerCatalog.GateLabel(gate).Contains("【奖励2】"),
-                   "有限分支目录：伤害主干 → 消灭门【奖励2】（premium 与 GatePremium 同源）");
-            // ---- 4b. 局面状态门目录（2026-09-22 定案：通用门，预算 1，任意主动原子可挂）----
-            var drawGates = CardCore.ComposerCatalog.GatesFor(CardCore.AtomicEffectType.DrawCard).ToList();
-            Assert(drawGates.Any(g => g.Id == "FirstCardThisTurn") && drawGates.Any(g => g.Id == "DrawnInStandbyThisTurn")
+                   "产出条件目录：伤害产出族 → 消灭门【奖励2】（premium 与 GatePremium 同源）");
+            Assert(!CardCore.ComposerCatalog.OutcomeConditionsFor(CardCore.AtomicEffectType.DrawCard).Any(),
+                   "产出条件族匹配：抽牌非产出族 → 不可挂产出条件（空目录）");
+            // ---- 3b. 局面状态门目录（任意原子可挂——有限分支与产出无关）----
+            var drawGates = CardCore.ComposerCatalog.SituationGates;
+            Assert(drawGates.Length == 11 && drawGates.All(g => g.ProducerTag == null)
+                   && drawGates.Any(g => g.Id == "FirstCardThisTurn") && drawGates.Any(g => g.Id == "DrawnInStandbyThisTurn")
                    && drawGates.Any(g => g.Id == "LifeBelowOpp") && drawGates.Any(g => g.Id == "CreaturesAboveOpp")
                    && drawGates.Any(g => g.Id == "LandsGe7") && drawGates.Any(g => g.Id == "HandEmpty")
                    && drawGates.Any(g => g.Id == "LifeLe7"),
-                   "通用门：非产出族原子（抽牌）可挂局面状态门（含二批三门）");
-            Assert(CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.DrawCard),
-                   "2026-09-22 通用门口径：任意可作主效果原子可做有限分支主干（旧「非产出族不可」口径废止）");
-            Assert(!CardCore.ComposerCatalog.CanBeGateTrunk(CardCore.AtomicEffectType.BranchEngineClash),
-                   "引擎主干原子不可做有限分支主干");
+                   "局面门目录：11 门与产出无关（任意主干原子可挂，含二批三门）");
+            Assert(CardCore.ComposerCatalog.IsOutcomeCondition("DmgKillsTarget")
+                   && CardCore.ComposerCatalog.IsOutcomeCondition("DeclareHit")
+                   && !CardCore.ComposerCatalog.IsOutcomeCondition("LifeBelowOpp")
+                   && CardCore.ComposerCatalog.IsSituationCondition("LifeBelowOpp")
+                   && !CardCore.ComposerCatalog.IsSituationCondition("DmgKillsTarget"),
+                   "条件族归类判定（converter 折叠遗留门步骤同源：产出族→Outcome、局面族→Gate）");
             Assert(CardCore.CostDerivationService.GatePremium.TryGetValue("FirstCardThisTurn", out var sb) && sb == 1
                    && CardCore.CostDerivationService.GatePremium.TryGetValue("LifeBelowOpp", out var lb) && lb == 1,
                    "状态门预算=1（零计价——预算只是放置上限）");
@@ -3967,20 +4037,12 @@ namespace CardCore.Editor
                    && CardCore.CostDerivationService.GatePremium.TryGetValue("HandEmpty", out var he) && he == 2
                    && CardCore.CostDerivationService.GatePremium.TryGetValue("LifeLe7", out var ll) && ll == 2,
                    "状态门二批预算=2（操控地≥7/手牌=0/生命≤7）");
-            // 改写门目录（2026-09-22 拦截式）：伤害族限定、无奖励槽、GateLabel 不带【奖励x】
-            var dmgGates = CardCore.ComposerCatalog.GatesFor(CardCore.AtomicEffectType.DealDamage).ToList();
-            var venomGate = dmgGates.FirstOrDefault(g => g.Id == "DmgRewriteVenom");
-            Assert(venomGate != null && !CardCore.ComposerCatalog.GateLabel(venomGate).Contains("【奖励")
-                   && CardCore.ComposerCatalog.GateBudget(venomGate) == 0,
-                   "改写门：伤害主干可挂、无奖励预算（GateLabel 不带【奖励x】）");
-            Assert(!CardCore.ComposerCatalog.GatesFor(CardCore.AtomicEffectType.DrawCard).Any(
-                       g => CardCore.BranchConditionEvaluator.IsRewriteCondition(g.Id)),
-                   "改写门不挂非伤害主干（产出族限定）");
-            Assert(!CardCore.ComposerCatalog.GatesFor(CardCore.AtomicEffectType.DeclareHand).Any(
-                       g => CardCore.BranchConditionEvaluator.IsRewriteCondition(g.Id)),
-                   "改写门不挂宣言族主干");
+            // 改写门目录（2026-10-05 退役）：拦截式改写族已迁唯一光环——三族目录全清
+            Assert(CardCore.ComposerCatalog.OutcomeConditions.All(g => !g.Id.StartsWith("DmgRewrite"))
+                   && CardCore.ComposerCatalog.SituationGates.All(g => !g.Id.StartsWith("DmgRewrite")),
+                   "改写门四条已从分支目录退役（迁唯一光环；差价计价/配对守卫同批废除）");
 
-            // ---- 5. 并列保序：三原子 Steps → def.Steps 顺序一致 ----
+            // ---- 4. 并列保序：无抉择 Steps 平铺折叠进 def.Effects（两槽定案）----
             var parDef = CardCore.CardEffectConverter.ConvertOne(new CardCore.CardEffectData
             {
                 Id = "VERIFY_COMPOSER_PAR",
@@ -3991,13 +4053,51 @@ namespace CardCore.Editor
                     new CardCore.EffectStepData { kind = 0, atomic = Atom("Heal", 2) },
                 },
             }, "VERIFY_COMPOSER_PAR");
-            Assert(parDef.Steps.Count == 3
-                   && parDef.Steps[0].Atomic.Type == CardCore.AtomicEffectType.DealDamage
-                   && parDef.Steps[1].Atomic.Type == CardCore.AtomicEffectType.DrawCard
-                   && parDef.Steps[2].Atomic.Type == CardCore.AtomicEffectType.Heal,
-                   "并列：三原子步骤保序转换");
+            Assert(parDef.Steps.Count == 0 && parDef.Effects.Count == 3
+                   && parDef.Effects[0].Type == CardCore.AtomicEffectType.DealDamage
+                   && parDef.Effects[1].Type == CardCore.AtomicEffectType.DrawCard
+                   && parDef.Effects[2].Type == CardCore.AtomicEffectType.Heal,
+                   "并列：三原子步骤平铺折叠保序（Steps 仅承载 Choice——无抉择即落主干序列）");
+            // 折叠配对（converter 遗留门步骤→载荷）：产出条件归 Outcome、局面门归 Gate、elseSteps 丢弃
+            var foldDef = CardCore.CardEffectConverter.ConvertOne(new CardCore.CardEffectData
+            {
+                Id = "VERIFY_COMPOSER_FOLD",
+                Steps = new List<CardCore.EffectStepData>
+                {
+                    new CardCore.EffectStepData { kind = 0, atomic = Atom("DealDamage", 3) },
+                    new CardCore.EffectStepData
+                    {
+                        kind = 1, conditionId = "DmgKillsTarget",
+                        thenSteps = new List<CardCore.AtomicEffectEntry> { Atom("DrawCard", 1) },
+                        elseSteps = new List<CardCore.AtomicEffectEntry> { Atom("Heal", 2) },
+                    },
+                },
+            }, "VERIFY_COMPOSER_FOLD");
+            Assert(foldDef.Steps.Count == 0 && foldDef.Effects.Count == 1
+                   && foldDef.Effects[0].Branch != null
+                   && foldDef.Effects[0].Branch.Settle == CardCore.BranchSettleKind.Outcome
+                   && foldDef.Effects[0].Branch.OutcomeId == "DmgKillsTarget"
+                   && foldDef.Effects[0].Branch.Then.Count == 1,
+                   "遗留门步骤折叠：产出条件折入前原子 Branch（Outcome 族），else 奖励丢弃（无 Else 语义）");
+            var foldGateDef = CardCore.CardEffectConverter.ConvertOne(new CardCore.CardEffectData
+            {
+                Id = "VERIFY_COMPOSER_FOLDG",
+                Steps = new List<CardCore.EffectStepData>
+                {
+                    new CardCore.EffectStepData { kind = 0, atomic = Atom("DrawCard", 1) },
+                    new CardCore.EffectStepData
+                    {
+                        kind = 1, conditionId = "LifeBelowOpp",
+                        thenSteps = new List<CardCore.AtomicEffectEntry> { Atom("DrawCard", 1) },
+                    },
+                },
+            }, "VERIFY_COMPOSER_FOLDG");
+            Assert(foldGateDef.Effects.Count == 1 && foldGateDef.Effects[0].Branch != null
+                   && foldGateDef.Effects[0].Branch.Settle == CardCore.BranchSettleKind.Gate
+                   && foldGateDef.Effects[0].Branch.GateId == "LifeBelowOpp",
+                   "遗留门步骤折叠：局面门折入前原子 Branch（Gate 族）");
 
-            // ---- 6. 描述动态渲染（AtomText——SynergyUI 侧）----
+            // ---- 5. 描述动态渲染（AtomText——SynergyUI 侧）----
             var cfg = CardCore.Attribute.AtomicEffectTable.GetByType(CardCore.AtomicEffectType.DealDamage);
             var atom = Atom("DealDamage", 3, amp: 1f);
             string rendered = SynergyUI.AtomText.Render(cfg, atom, null);
@@ -4005,8 +4105,19 @@ namespace CardCore.Editor
                    $"描述动态渲染：3±100% → 「随机 对目标造成0至6点伤害」（实际 「{rendered}」）");
             atom.amp = 0f;
             Assert(SynergyUI.AtomText.Render(cfg, atom, null) == "对目标造成3点伤害", "描述渲染：amp=0 → 原模板");
+            // 槽级载荷后缀（两槽定案）：引擎/产出条件/局面门三族「[条件]→奖励」文本
+            var engineSuffix = SynergyUI.AtomText.BranchSuffix(
+                EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, CardCore.BranchEngineKind.DeathToll, 2,
+                    Atom("DrawCard", 1)));
+            Assert(engineSuffix.Contains("[死亡计数") && engineSuffix.Contains("→")
+                   && engineSuffix.Contains("抽"),
+                   $"载荷后缀（引擎）：「{engineSuffix}」——条件+首奖励文本");
+            var gateSuffix = SynergyUI.AtomText.BranchSuffix(
+                GateAtom(CardCore.AtomicEffectType.DrawCard, 1, "LifeBelowOpp", Atom("DrawCard", 1)));
+            Assert(gateSuffix.Contains("[生命值低于对手") && gateSuffix.Contains("【奖励1】"),
+                   $"载荷后缀（局面门）：「{gateSuffix}」——显示名+预算同源 GateLabel");
 
-            // ---- 7. 哈希口径：amp / EngineKind 参与 HashEffect（去重不失真） ----
+            // ---- 6. 哈希口径：amp / br{} 载荷段参与 HashEffect（去重不失真） ----
             var g1 = new SynergyUI.EffectGraphData("H") { header = new CardCore.CardEffectData() };
             g1.steps.Add(new CardCore.EffectStepData
             {
@@ -4021,16 +4132,34 @@ namespace CardCore.Editor
             });
             Assert(SynergyUI.ContentHasher.HashEffect(g1) != SynergyUI.ContentHasher.HashEffect(g2),
                    "哈希口径：RandomAmplitude 不同 → HashEffect 不同");
+            CardCore.AtomicEffectEntry HostGraph(int engine) =>
+                EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, (CardCore.BranchEngineKind)engine, 2,
+                    Atom("DrawCard", 1));
             var g3 = new SynergyUI.EffectGraphData("H")
             {
-                header = new CardCore.CardEffectData { EngineKind = (int)CardCore.BranchEngineKind.Clash, EngineParam = 2 },
+                header = new CardCore.CardEffectData
+                {
+                    AtomicEffects = new List<CardCore.AtomicEffectEntry> { HostGraph((int)CardCore.BranchEngineKind.Clash) },
+                },
             };
             var g4 = new SynergyUI.EffectGraphData("H")
             {
-                header = new CardCore.CardEffectData { EngineKind = (int)CardCore.BranchEngineKind.LuckRoll, EngineParam = 2 },
+                header = new CardCore.CardEffectData
+                {
+                    AtomicEffects = new List<CardCore.AtomicEffectEntry> { HostGraph((int)CardCore.BranchEngineKind.LuckRoll) },
+                },
             };
             Assert(SynergyUI.ContentHasher.HashEffect(g3) != SynergyUI.ContentHasher.HashEffect(g4),
-                   "哈希口径：EngineKind 不同 → HashEffect 不同");
+                   "哈希口径：槽级 branch 载荷（br{} 段）——引擎不同 → HashEffect 不同");
+            var g5 = new SynergyUI.EffectGraphData("H")
+            {
+                header = new CardCore.CardEffectData
+                {
+                    AtomicEffects = new List<CardCore.AtomicEffectEntry> { Atom("DrawCard", 1) },
+                },
+            };
+            Assert(SynergyUI.ContentHasher.HashEffect(g3) != SynergyUI.ContentHasher.HashEffect(g5),
+                   "哈希口径：有无 branch 载荷 → HashEffect 不同（载荷是功能字段）");
         }
 
         private static void TestCostAnchors()
@@ -4926,7 +5055,10 @@ namespace CardCore.Editor
             {
                 ID = "TT_ench", CardName = "耐久结界", Supertype = Cardtype.Enchantment, Durability = 3,
             });
-            Assert(GameActions.PlayCard(core, p1, ench), "结界从手牌发动（无效果免费卡）");
+            // 耐久计价（2026-10-05 定案 0.5 灰/点）：3 耐久=1.5→取整 2 灰——备灰并放开浓度上限后打出
+            core.ElementPool.GetPool(p1).AvailableMana[ManaType.Gray] = 2;
+            core.ElementPool.GetPool(p1).GlobalTurnIndex = 9;
+            Assert(GameActions.PlayCard(core, p1, ench), "结界从手牌发动（耐久费 2 灰——2026-10-05 耐久计价）");
             GameActions.DrainStack(core);
             Assert(ench.GetZone() == Zone.Battlefield, "结界两步式：发动区→进入战场");
             Assert(ench.GetCounterCount(CardCore.Attribute.CounterRules.DurabilityCounter) == 3,
@@ -6245,8 +6377,9 @@ namespace CardCore.Editor
         // ======================================== 触发上限（2026-09-13 定案） ========================================
 
         /// <summary>
-        /// 触发式每回合上限端到端：①表锚——坚韧（bd623d85）标 MountKinds=8（不可修改=无限）；
-        /// ②converter 默认口径——普通原子未声明=1（一回合一次）、显式 N 采纳、含 8 原子恒 -1（声明被覆写）；
+        /// 触发式每回合上限端到端：①表锚——坚韧行已退役（2026-09-13 光环化），触发上限不可修改位
+        /// =MountKind.TriggerCapImmutable（2026-10-05 重排值 5；旧裸"8"位引用随重排废止）；
+        /// ②converter 默认口径——普通原子未声明=1（一回合一次）、显式 N 采纳、含不可修改位原子恒 -1（声明被覆写）；
         /// ③运行时闸门——同一效果一回合第 2 次触发被静默丢弃；坚韧类（-1）不受限。
         /// 记账走既有 EffectUsageTracker（RecordActivation 全量结算记账，OnNewTurn 清零）。
         /// </summary>
@@ -6254,9 +6387,9 @@ namespace CardCore.Editor
         {
             EnsureMainPhase(core, p1);
 
-            // ---- 1. 表锚：GrantArmor 行已退役（2026-09-13 坚韧光环化）——8 机制保留待新样本 ----
+            // ---- 1. 表锚：GrantArmor 行已退役（2026-09-13 坚韧光环化）——TriggerCapImmutable 机制保留待新样本 ----
             Assert(CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.GrantArmor) == null,
-                   "触发上限表锚：坚韧行已退役（坚韧=连接箭头光环，绿1×箭头数；MountKinds=8 机制保留）");
+                   "触发上限表锚：坚韧行已退役（坚韧=连接箭头光环，绿1×箭头数；不可修改位=MountKind.TriggerCapImmutable 值 5）");
 
             // ---- 2. converter 默认口径 ----
             CardCore.EffectDefinition Convert(CardEffectData d) => CardEffectConverter.ConvertOne(d, "VERIFY_CAP");
@@ -6290,12 +6423,13 @@ namespace CardCore.Editor
             {
                 Id = "VERIFY_CAP_4",
                 TriggerTiming = (int)TriggerTiming.OnDraw,
-                TriggerLimitPerTurn = -1, // 可修改原子的显式无限（计价 ×1.2³）
+                TriggerLimitPerTurn = -1, // 可修改原子的显式无限（计价 ×4 无上限档）
                 AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
             });
             Assert(unlimitedDeclared.TriggerLimitPerTurn == -1, "可修改：组合期显式无限（-1）采纳");
 
-            // ---- 2b. 触发上限计价（2026-09-13 定案）：N>1 连乘 1.2^(N-1)；显式无限 ×1.2³ ----
+            // ---- 2b. 触发上限计价（2026-10-05 档位化，表 PricingTier：1:1 / 2:1.5 / 3:2 / 无上限:4；
+            //      原 1.2^(N-1) 连乘口径退役）----
             CardCore.EffectDefinition TrigDef(int limit) => CardEffectConverter.ConvertOne(new CardEffectData
             {
                 Id = $"VERIFY_CAP_P{limit}",
@@ -6305,9 +6439,9 @@ namespace CardCore.Editor
             }, "VERIFY_CAP_P");
             int RedCostOf(CardCore.EffectDefinition d) => (int)CardCore.CostDerivationService.DeriveElementCosts(d)[CardCore.ManaType.Red];
             Assert(RedCostOf(TrigDef(1)) == 5, "触发计价：N=1 不乘（红5）");
-            Assert(RedCostOf(TrigDef(2)) == 6, "触发计价：N=2 ×1.2（5→6）");
-            Assert(RedCostOf(TrigDef(3)) == 7, "触发计价：N=3 ×1.44（5→7.2→7）");
-            Assert(RedCostOf(TrigDef(-1)) == 9, "触发计价：显式无限 ×1.2³（5→8.64→9）");
+            Assert(RedCostOf(TrigDef(2)) == 8, "触发计价：N=2 ×1.5（5→7.5→8）");
+            Assert(RedCostOf(TrigDef(3)) == 10, "触发计价：N=3 ×2（5→10）");
+            Assert(RedCostOf(TrigDef(-1)) == 20, "触发计价：显式无限 ×4（5→20）");
 
             // ---- 3. 运行时闸门：同回合第 2 次触发丢弃；无限档不受限 ----
             var src = SpawnCapSource(core, p1);
@@ -6365,38 +6499,39 @@ namespace CardCore.Editor
         {
             EnsureMainPhase(core, p1);
 
-            // ---- 1. 固定分支门附加费 ----
+            // ---- 1. 固定分支门附加费（2026-10-05 载荷口径：槽级 Branch 载荷承载条件+Then）----
             CardCore.EffectDefinition GateDef(string gateId)
             {
                 var data = new CardEffectData
                 {
                     Id = "VERIFY_GATE_" + gateId,
-                    Steps = new List<EffectStepData>
+                    AtomicEffects = new List<AtomicEffectEntry>
                     {
-                        new EffectStepData { kind = 0, atomic = AtomRefs.New(CardCore.AtomicEffectType.DealDamage, value: 3) },
-                        new EffectStepData { kind = 1, conditionId = gateId,
-                            thenSteps = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) } },
+                        // 产出条件族（DmgKillsTarget/DeclareHit）走 Outcome 载荷——与 converter 折叠归类同源
+                        CardCore.ComposerCatalog.IsOutcomeCondition(gateId)
+                            ? OutcomeAtom(CardCore.AtomicEffectType.DealDamage, 3, gateId,
+                                AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1))
+                            : GateAtom(CardCore.AtomicEffectType.DealDamage, 3, gateId,
+                                AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)),
                     },
                 };
                 return CardEffectConverter.ConvertOne(data, "VERIFY_GATE");
             }
             int GrayOf(CardCore.EffectDefinition d) => (int)CardCore.CostDerivationService.DeriveElementCosts(d)[CardCore.ManaType.Gray];
             int BlueOf(CardCore.EffectDefinition d) => (int)CardCore.CostDerivationService.DeriveElementCosts(d)[CardCore.ManaType.Blue];
-            // DamageDealt 门已移除（2026-09-13 战斗伤害改写族上线——"造成伤害时"分支由毒刺/冰晶/梦魇/病原体改写承载）
-            // 2026-09-14 用户口径定案（废除 09-13 灰费）：有限分支=纯校验上限，零计价——奖励免费，门不产生任何费用
-            Assert(GrayOf(GateDef("DmgKillsTarget")) == 0, "有限分支零计价：击杀门不产生灰费（奖励免费）");
-            Assert(GrayOf(GateDef("DeclareHit")) == 0, "有限分支零计价：宣言门不产生灰费");
-            Assert(BlueOf(GateDef("DmgKillsTarget")) == 0, "有限分支奖励免费：then 抽1（锚蓝2）不计入费用");
+            // 2026-09-14 用户口径定案（废除 09-13 灰费）：分支=纯校验上限，零计价——奖励免费，条件不产生任何费用
+            Assert(GrayOf(GateDef("DmgKillsTarget")) == 0, "产出条件零计价：击杀门不产生灰费（奖励免费）");
+            Assert(GrayOf(GateDef("DeclareHit")) == 0, "产出条件零计价：宣言门不产生灰费");
+            Assert(BlueOf(GateDef("DmgKillsTarget")) == 0, "条件奖励免费：then 抽1（锚蓝2）不计入费用");
             CardCore.EffectDefinition SubGateDef()
             {
                 var data = new CardEffectData
                 {
                     Id = "VERIFY_GATE_SUB",
-                    Steps = new List<EffectStepData>
+                    AtomicEffects = new List<AtomicEffectEntry>
                     {
-                        new EffectStepData { kind = 0, atomic = AtomRefs.New(CardCore.AtomicEffectType.DealDamage, value: 3) },
-                        new EffectStepData { kind = 1, conditionId = "DmgKillsTarget",
-                            thenSteps = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.Heal, value: 2) } }, // 锚1（回2命=1费）< 门预算2，合法
+                        OutcomeAtom(CardCore.AtomicEffectType.DealDamage, 3, "DmgKillsTarget",
+                            AtomRefs.New(CardCore.AtomicEffectType.Heal, value: 2)), // 锚1（回2命=1费）< 门预算2，合法
                     },
                 };
                 return CardEffectConverter.ConvertOne(data, "VERIFY_GATE_SUB");
@@ -6450,49 +6585,72 @@ namespace CardCore.Editor
             Assert(wardUnit.GetLife() == wardLife - 3, "禁魔石对照：战斗伤害照常");
             RetireCards(core, p1, wardUnit);
 
-            // ---- 2. 倒计时：奖励推导费换算回合；归零发奖并重置 ----
+            // ---- 2. 倒计时（槽级载荷）：奖励推导费换算回合；归零发奖并重置 ----
+            // 引擎宿主用真实生物（0/0 结界会在 DrainStack 的 SBA 泵里被"防御归零"送墓——死亡计数段同款教训）
             var cdData = new CardData
             {
-                ID = "VERIFY_ENGINE_CD", CardName = "验证倒计时", Supertype = Cardtype.Enchantment, Power = 0, Life = 0,
+                ID = "VERIFY_ENGINE_CD", CardName = "验证倒计时", Supertype = Cardtype.Creature, Power = 3, Life = 3,
             };
             cdData.Effects.Add(new CardEffectData
             {
                 Id = "VERIFY_CD_MAIN",
-                EngineKind = (int)CardCore.BranchEngineKind.Countdown,
-                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
+                // 启动式时机=主干不随施放/入场自动结算（激活式轮询制）——引擎宿主惰性化：
+                // BranchEngines 只扫 def.Effects 的 Branch 载荷，主干 DrawCard 不在场外偷跑
+                TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active,
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    // 主干=抽1（宿主原子，不入场不结算）；倒计时载荷 Then=抽1（锚价 2 → 2 回合）
+                    EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, CardCore.BranchEngineKind.Countdown, 0,
+                        AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)),
+                },
             });
             var cdCard = new CardWrapper(cdData);
             cdCard.SetController(p1);
-            Assert(core.ZoneManager.TryAddToBattlefield(cdCard, p1), "倒计时：结界入场");
+            Assert(core.ZoneManager.TryAddToBattlefield(cdCard, p1), "倒计时：引擎宿主入场");
 
             int deckBefore = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
-            // 奖励=抽1张 → 倒计时回合=奖励推导费换算（DrawCard 新表价 2.0 → 2 回合）：
-            // 入场挂 N → 每回合开始 -1 → 归零发奖（抽1）→ 重置回 N
+            // 入场挂 2 层（奖励锚价 2 → 2 回合）→ 每回合开始 -1 → 归零发奖（抽1）→ 重置回 2。
+            // 拦截器跳过回合自动化（防回合抽牌污染牌库读数——拼点段同款口径）
             {
                 var cdDef = CardEffectConverter.ConvertAll(cdData.Effects, cdData.ID)
-                    .FirstOrDefault(d => d?.EngineKind == CardCore.BranchEngineKind.Countdown);
-                Crumb($"cd debug: CountdownTurns={cdDef?.CountdownTurns} counterAtStart={cdCard.GetCounterCount(CardCore.Attribute.CounterRules.CountdownCounter)} deck={deckBefore}");
+                    .FirstOrDefault(d => d?.Effects != null && d.Effects.Any(a =>
+                        a?.Branch?.EngineKind == CardCore.BranchEngineKind.Countdown));
+                Crumb($"cd debug: CountdownTurns={cdDef?.Effects.FirstOrDefault(a => a?.Branch != null)?.Branch.CountdownTurns} counterAtStart={cdCard.GetCounterCount(CardCore.Attribute.CounterRules.CountdownCounter)} deck={deckBefore}");
             }
-            EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 400 });
-            Crumb($"cd after t1: counter={cdCard.GetCounterCount(CardCore.Attribute.CounterRules.CountdownCounter)} deckNow={core.ZoneManager.GetCards(p1, Zone.Deck).Count}");
+            var cdShield = new TurnStartAutomationShield();
+            RuleHooks.RegisterTurnStartInterceptor(cdShield);
+            try
+            {
+                EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 400 });
+                GameActions.DrainStack(core);
+                Crumb($"cd after t1: counter={cdCard.GetCounterCount(CardCore.Attribute.CounterRules.CountdownCounter)} deckNow={core.ZoneManager.GetCards(p1, Zone.Deck).Count}");
+                Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBefore
+                       && cdCard.GetCounterCount(CardCore.Attribute.CounterRules.CountdownCounter) == 1,
+                       "倒计时：首回合 2→1 未归零不发奖（回合自动化被隔离，牌库只受引擎影响）");
+                EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 401 });
+                GameActions.DrainStack(core);
+            }
+            finally { RuleHooks.UnregisterTurnStartInterceptor(cdShield); }
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBefore - 1,
                    "倒计时：奖励费换算回合归零发奖（抽 1）");
-            Assert(cdCard.GetCounterCount(CardCore.Attribute.CounterRules.CountdownCounter) == 1,
-                   "倒计时：归零后重置回初值（1 层）");
-            GameActions.DrainStack(core);
+            Assert(cdCard.GetCounterCount(CardCore.Attribute.CounterRules.CountdownCounter) == 2,
+                   "倒计时：归零后重置回初值（2 层——奖励锚价 2 换算）");
             core.ZoneManager.MoveCard(cdCard, p1, Zone.Battlefield, Zone.Graveyard); // 清场（换区清计数）
 
-            // ---- 3. 运势：2d6 双 > x；x 费灰；x=1 钉种子 20 回合内必中 ----
+            // ---- 3. 运势（槽级载荷）：2d6 双 > x；x 费灰；x=1 钉种子 20 回合内必中 ----
             var luckData = new CardData
             {
-                ID = "VERIFY_ENGINE_LUCK", CardName = "验证运势", Supertype = Cardtype.Enchantment, Power = 0, Life = 0,
+                ID = "VERIFY_ENGINE_LUCK", CardName = "验证运势", Supertype = Cardtype.Creature, Power = 3, Life = 3,
             };
             luckData.Effects.Add(new CardEffectData
             {
                 Id = "VERIFY_LUCK_MAIN",
-                EngineKind = (int)CardCore.BranchEngineKind.LuckRoll,
-                EngineParam = 1,
-                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
+                TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active, // 引擎宿主惰性化（同倒计时段注）
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, CardCore.BranchEngineKind.LuckRoll, 1,
+                        AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)),
+                },
             });
             var luckDef = CardEffectConverter.ConvertOne(luckData.Effects[0], luckData.ID);
             int luckGray = (int)CardCore.CostDerivationService.DeriveElementCosts(luckDef)[CardCore.ManaType.Gray];
@@ -6500,30 +6658,39 @@ namespace CardCore.Editor
 
             var luckCard = new CardWrapper(luckData);
             luckCard.SetController(p1);
-            Assert(core.ZoneManager.TryAddToBattlefield(luckCard, p1), "运势：结界入场");
+            Assert(core.ZoneManager.TryAddToBattlefield(luckCard, p1), "运势：引擎宿主入场");
             deckBefore = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
             GameRng.Reseed(20260913);
             bool luckHit = false;
-            for (int i = 0; i < 20; i++)
+            var luckShield = new TurnStartAutomationShield();
+            RuleHooks.RegisterTurnStartInterceptor(luckShield); // 隔离回合抽牌——只测引擎自身发奖
+            try
             {
-                EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 500 + i });
-                GameActions.DrainStack(core);
-                if (core.ZoneManager.GetCards(p1, Zone.Deck).Count < deckBefore) { luckHit = true; break; }
+                for (int i = 0; i < 20; i++)
+                {
+                    EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = p1, TurnNumber = 500 + i });
+                    GameActions.DrainStack(core);
+                    if (core.ZoneManager.GetCards(p1, Zone.Deck).Count < deckBefore) { luckHit = true; break; }
+                }
             }
+            finally { RuleHooks.UnregisterTurnStartInterceptor(luckShield); }
             Assert(luckHit, "运势运行时：x=1（25/36 命中）钉种子 20 回合内至少中一次并执行奖励");
             core.ZoneManager.MoveCard(luckCard, p1, Zone.Battlefield, Zone.Graveyard);
 
-            // ---- 4. 拼点：双方牌库各随机取样一张生物，攻击力差 ≥ 门槛；只读取样；无生物=0 ----
+            // ---- 4. 拼点（槽级载荷）：双方牌库各随机取样一张生物，攻击力差 ≥ 门槛；只读取样；无生物=0 ----
             var clashData = new CardData
             {
-                ID = "VERIFY_ENGINE_CLASH", CardName = "验证拼点", Supertype = Cardtype.Enchantment, Power = 0, Life = 0,
+                ID = "VERIFY_ENGINE_CLASH", CardName = "验证拼点", Supertype = Cardtype.Creature, Power = 3, Life = 3,
             };
             clashData.Effects.Add(new CardEffectData
             {
                 Id = "VERIFY_CLASH_MAIN",
-                EngineKind = (int)CardCore.BranchEngineKind.Clash,
-                EngineParam = 1,
-                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
+                TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active, // 引擎宿主惰性化（同倒计时段注）
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, CardCore.BranchEngineKind.Clash, 1,
+                        AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)),
+                },
             });
             var clashDef = CardEffectConverter.ConvertOne(clashData.Effects[0], clashData.ID);
             int clashGray = (int)CardCore.CostDerivationService.DeriveElementCosts(clashDef)[CardCore.ManaType.Gray];
@@ -6545,7 +6712,7 @@ namespace CardCore.Editor
 
             var clashCard = new CardWrapper(clashData);
             clashCard.SetController(p1);
-            Assert(core.ZoneManager.TryAddToBattlefield(clashCard, p1), "拼点：结界入场");
+            Assert(core.ZoneManager.TryAddToBattlefield(clashCard, p1), "拼点：引擎宿主入场");
             deckBefore = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
             System.Func<Card, int> powerOf = c => (c as CardWrapper)?.GetData()?.Power ?? 0;
             Crumb($"clash pre: p1deck={deckBefore} myCreature={powerOf(core.ZoneManager.GetCards(p1, Zone.Deck).First())} "
@@ -6585,19 +6752,25 @@ namespace CardCore.Editor
             tollData.Effects.Add(new CardEffectData
             {
                 Id = "VERIFY_TOLL_MAIN",
-                EngineKind = (int)CardCore.BranchEngineKind.DeathToll,
-                EngineParam = 2,
-                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
+                TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active, // 引擎宿主惰性化（同倒计时段注）
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, CardCore.BranchEngineKind.DeathToll, 2,
+                        AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)),
+                },
             });
             var tollDef = CardEffectConverter.ConvertOne(tollData.Effects[0], tollData.ID);
-            Assert(tollDef.EngineKind == CardCore.BranchEngineKind.DeathToll && tollDef.RewardAtoms.Count == 1,
-                   "死亡计数：header 通道 → EngineKind/RewardAtoms 转存");
+            Assert(tollDef.Effects.Count == 1 && tollDef.Effects[0].Branch != null
+                   && tollDef.Effects[0].Branch.Settle == CardCore.BranchSettleKind.Engine
+                   && tollDef.Effects[0].Branch.EngineKind == CardCore.BranchEngineKind.DeathToll
+                   && tollDef.Effects[0].Branch.Then.Count == 1,
+                   "死亡计数：槽级载荷 → 主干原子 Branch 引擎 + Then 奖励转存");
             int tollGray = (int)CardCore.CostDerivationService.DeriveElementCosts(tollDef)[CardCore.ManaType.Gray];
             Assert(tollGray == 0, "死亡计数计价：引擎零计价（奖励预算=x 只是合成器放置上限，非收费）");
 
             var tollCard = new CardWrapper(tollData);
             tollCard.SetController(p1);
-            Assert(core.ZoneManager.TryAddToBattlefield(tollCard, p1), "死亡计数：结界入场");
+            Assert(core.ZoneManager.TryAddToBattlefield(tollCard, p1), "死亡计数：引擎宿主入场");
 
             var tollA = SpawnTier(core, p2, 1, 1);
             var tollB = SpawnTier(core, p1, 1, 1);
@@ -6634,13 +6807,16 @@ namespace CardCore.Editor
             surgeData.Effects.Add(new CardEffectData
             {
                 Id = "VERIFY_SURGE_MAIN",
-                EngineKind = (int)CardCore.BranchEngineKind.ManaSurplus,
-                EngineParam = 1,
-                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
+                TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active, // 引擎宿主惰性化（同倒计时段注）
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, CardCore.BranchEngineKind.ManaSurplus, 1,
+                        AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)),
+                },
             });
             var surgeCard = new CardWrapper(surgeData);
             surgeCard.SetController(p1);
-            Assert(core.ZoneManager.TryAddToBattlefield(surgeCard, p1), "元素充盈：结界入场");
+            Assert(core.ZoneManager.TryAddToBattlefield(surgeCard, p1), "元素充盈：引擎宿主入场");
 
             // bank 清零后注红 5（其他色残留会干扰"最多色"判定——直接写池字典保证确定性）
             var surgePool = core.ElementPool.GetPool(p1);
@@ -6794,57 +6970,9 @@ namespace CardCore.Editor
             foreach (var land in addedLands)
                 core.ElementPool.RemoveCardFromPool(land, p1);
 
-            // ---- 8. 拦截式改写门：伤害不发生改为指示物；差价计价；converter 守卫 ----
-            // 差价：DealDamage value1（红1 锚）+ 剧毒改写（病原体锚3）→ 补差绿2，主干照常红1
-            CardCore.EffectDefinition RewriteDef(int dmgValue, string gateId) => CardEffectConverter.ConvertOne(new CardEffectData
-            {
-                Id = "VERIFY_REWRITE_" + gateId,
-                Steps = new List<EffectStepData>
-                {
-                    new EffectStepData { kind = 0, atomic = AtomRefs.New(CardCore.AtomicEffectType.DealDamage, value: dmgValue) },
-                    new EffectStepData { kind = 1, conditionId = gateId },
-                },
-            }, "VERIFY_REWRITE");
-            int ColorOf(CardCore.EffectDefinition d, ManaType t) => (int)CardCore.CostDerivationService.DeriveElementCosts(d)[t];
-
-            var rwCheap = RewriteDef(1, "DmgRewriteVenom");
-            Assert(ColorOf(rwCheap, ManaType.Red) == 1 && ColorOf(rwCheap, ManaType.Green) == 2,
-                   "改写差价：1费伤害→剧毒（锚3）补差绿2（主干伤害照常计红1）——防低价换高价套利");
-            var rwBig = RewriteDef(5, "DmgRewriteVenom");
-            Assert(ColorOf(rwBig, ManaType.Red) == 5 && ColorOf(rwBig, ManaType.Green) == 0,
-                   "改写差价：伤害价 5 ≥ 关键词价 3 → 不加价（自选降级）");
-
-            // converter 守卫：改写门不紧跟伤害主干 → 剔除
-            var rwMis = CardEffectConverter.ConvertOne(new CardEffectData
-            {
-                Id = "VERIFY_REWRITE_MISPAIR",
-                Steps = new List<EffectStepData>
-                {
-                    new EffectStepData { kind = 0, atomic = AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
-                    new EffectStepData { kind = 1, conditionId = "DmgRewriteToxin" },
-                },
-            }, "VERIFY_REWRITE_MISPAIR");
-            Assert(rwMis.Steps.Count == 1,
-                   "改写门守卫：非伤害主干（抽牌）紧跟 → 门步骤被剔除");
-
-            // 运行时：伤害原子被拦截——目标不落血、改冻结×1、无击杀
-            var rwTgt = SpawnTier(core, p2, 3, 5);
-            int rwLife = rwTgt.GetLife();
-            var rwRun = RewriteDef(3, "DmgRewriteFreeze");
-            Assert(rwRun.Steps.Count == 2, "改写门：伤害主干配对保留");
-            core.StackEngine.GetExecutor().ExecuteAsync(new EffectInstance
-            {
-                Definition = rwRun,
-                Source = p1,
-                Controller = p1,
-                Targets = new List<Entity> { rwTgt },
-            }, skipElementCost: true).Forget();
-            GameActions.DrainStack(core);
-            Assert(rwTgt.GetLife() == rwLife && rwTgt.IsTapped()
-                   && rwTgt.GetCounterCount(CardCore.Attribute.KeywordRules.FreezeCounter) == 1
-                   && rwTgt.IsAlive,
-                   "改写门运行时：效果伤害不发生——目标改冻结×1（横置）、无落血、无击杀（效果伤害首次可改写）");
-            RetireCards(core, p2, rwTgt);
+            // ---- 8. 拦截式改写门断言已删（2026-10-05：DmgRewrite* 四门随四条改写迁唯一光环退役——
+            //      差价计价 / converter 配对守卫 / 效果伤害拦截三路同批废除，无头侧锚见 V9.p；
+            //      战斗伤害改写族=关键词侧（毒刺/冰晶等），另测未动）----
 
             // ---- 9. 手牌序位：此卡=本回合从手牌使用的第 x 张卡 → 施放结算时发奖 ----
             // 回合层清零（序位统计与本回合手牌使用计数归零；shield 隔离自动化副作用）
@@ -6870,20 +6998,26 @@ namespace CardCore.Editor
                     Supertype = Cardtype.Creature, Power = 2, Life = 2,
                     Cost = CostOf((ManaType.Red, 1f)),
                 };
+                // 主干=抽1（启动式惰性宿主——打出不自动结算，防主干抽牌污染序位断言）
+                // + 手牌序位引擎载荷（序位==x 时施放结算发奖抽 1）
                 d.Effects.Add(new CardEffectData
                 {
                     Id = "VERIFY_NTH_MAIN" + x,
-                    EngineKind = (int)CardCore.BranchEngineKind.NthHandCard,
-                    EngineParam = x,
-                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1) },
+                    TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active,
+                    AtomicEffects = new List<AtomicEffectEntry>
+                    {
+                        EngineAtom(CardCore.AtomicEffectType.DrawCard, 1, CardCore.BranchEngineKind.NthHandCard, x,
+                            AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)),
+                    },
                 });
                 return d;
             }
             var nthDef = CardEffectConverter.ConvertAll(NthCard(2).Effects, "VERIFY_NTH")
-                .FirstOrDefault(d => d?.EngineKind == CardCore.BranchEngineKind.NthHandCard);
-            Assert(nthDef != null && nthDef.RewardAtoms.Count == 1
-                   && CardCore.CostDerivationService.DeriveElementCosts(nthDef).IsZero,
-                   "手牌序位：header 通道转存 RewardAtoms 且引擎零计价（预算=x 只是放置上限）");
+                .FirstOrDefault(d => d?.Effects != null && d.Effects.Any(a =>
+                    a?.Branch?.EngineKind == CardCore.BranchEngineKind.NthHandCard));
+            Assert(nthDef != null && nthDef.Effects[0].Branch.Then.Count == 1
+                   && CardCore.CostDerivationService.DeriveElementCosts(nthDef)[CardCore.ManaType.Gray] == 0,
+                   "手牌序位：槽级载荷转存 Then 且引擎零计价（预算=x 只是放置上限）");
 
             int deckAtNth = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
             // 出牌并断言（拒因探针嵌消息——一次运行定位 PlayCard 门禁失败点）
@@ -6902,7 +7036,7 @@ namespace CardCore.Editor
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtNth,
                    "手牌序位：垫子无引擎不抽牌（序位 1 占位）");
 
-            // 第 2 张：x=2 引擎卡 → 序位 2 == x → 发奖（抽 1）
+            // 第 2 张：x=2 引擎卡 → 序位 2 == x → 发奖（抽 1；主干启动式不结算）
             NthPlay(NthCard(2), "手牌序位：第 2 张（x=2 引擎卡）打出");
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtNth - 1,
                    "手牌序位：此卡为第 2 张手牌使用 = x=2 → 执行奖励（抽 1）");

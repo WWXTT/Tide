@@ -29,6 +29,14 @@ namespace CardCore
             var hand = core.ZoneManager.GetCards(player, Zone.Hand);
             if (!hand.Contains(card)) return false;
 
+            // 教学引导闸（2026-10-06 第二课）：放地步骤语义优先（非引导卡拒绝）
+            var guideReject = RuleHooks.TutorialElementGate?.Invoke(player, card);
+            if (guideReject != null)
+            {
+                TideLog.Warn($"[GameActions] 放地被教学引导拒绝：{guideReject}");
+                return false;
+            }
+
             // 放入元素池（张数 ≤ 地牌槽上限；抉择卡按所选模式产指示物）
             var elementPool = core.ElementPool;
             if (!elementPool.AddCardToPool(card, player, modeIndex))
@@ -39,6 +47,7 @@ namespace CardCore
             // 立即读到正确占用，棋盘地牌行不滞后）
             core.ZoneManager.MoveCard(card, player, Zone.Hand, Zone.ElementPool);
             elementPool.PublishPoolAdd(card, player);
+            RuleHooks.OnTutorialElementPlaced?.Invoke(player, card);
 
             return true;
         }
@@ -53,12 +62,21 @@ namespace CardCore
             if (core.TurnEngine.TurnPlayer != player) return false;
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
 
+            // 教学引导闸（2026-10-06 第二课）：tap 步骤语义优先（非引导地/非引导色拒绝）
+            var guideReject = RuleHooks.TutorialTapGate?.Invoke(player, land, type);
+            if (guideReject != null)
+            {
+                TideLog.Warn($"[GameActions] 地牌产色被教学引导拒绝：{guideReject}");
+                return false;
+            }
+
             var elementPool = core.ElementPool;
             if (!elementPool.GainElementFromToken(land, type, player))
                 return false;
 
             // 产出导致耗尽的地牌移入墓地
             elementPool.CheckDepletedCards(player, core.ZoneManager);
+            RuleHooks.OnTutorialManaGained?.Invoke(player, land.SourceCard, type);
 
             return true;
         }
@@ -82,6 +100,14 @@ namespace CardCore
             if (!creature.IsAlive || creature.IsTapped()) return false;
             if (!creature.HasKeyword(Attribute.KeywordRules.LandTrait)) return false;
             if (creature.GetController() != player) return false;
+
+            // 教学引导闸（2026-10-06 第二课）：tapcreature 步骤语义优先（非引导生物拒绝）
+            var guideReject = RuleHooks.TutorialTapCreatureGate?.Invoke(player, creature);
+            if (guideReject != null)
+            {
+                TideLog.Warn($"[GameActions] 生物产色被教学引导拒绝：{guideReject}");
+                return false;
+            }
 
             var data = (creature as CardWrapper)?.GetData();
             var cost = data?.Cost;
@@ -112,6 +138,7 @@ namespace CardCore
                 GainedType = type,
                 FromCard = creature,
             });
+            RuleHooks.OnTutorialCreatureTapped?.Invoke(player, creature);
             return true;
         }
 
@@ -228,6 +255,19 @@ namespace CardCore
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main)
             { rejectReason = $"出牌只能在你的主阶段（当前：{core.TurnEngine.CurrentPhase?.Phase}）"; return false; }
 
+            // 教学引导闸（2026-10-06 第二课）：play 步骤语义优先（非引导卡拒绝）——
+            // 只闸玩家手牌打出（墓地视手牌使用属自由段轮转手段，不闸）
+            if (fromZone == Zone.Hand)
+            {
+                var guideReject = RuleHooks.TutorialPlayGate?.Invoke(player, card);
+                if (guideReject != null)
+                {
+                    rejectReason = $"教学引导：{guideReject}";
+                    TideLog.Warn($"[GameActions] 出牌被教学引导拒绝：{guideReject}");
+                    return false;
+                }
+            }
+
             // 检查卡牌在来源区
             var sourceZone = core.ZoneManager.GetCards(player, fromZone);
             if (!sourceZone.Contains(card)) { rejectReason = $"卡不在{fromZone}（快照过期？请重试）"; return false; }
@@ -296,6 +336,7 @@ namespace CardCore
                 FromZone = fromZone,
                 ModeIndex = modeIndex // 抉择：宣言即公开所选模式（对手响应窗口可见）
             });
+            RuleHooks.OnTutorialCardPlayed?.Invoke(player, card);
 
             return true;
         }
@@ -680,6 +721,10 @@ namespace CardCore
                 break; // 响应最先宣言的攻击（LIFO 顶层由后续窗口轮次覆盖）
             }
 
+            // 教学引导闸（2026-10-06）：守卫候选过滤（此刻 options 只含守卫项，自愿效果在下方追加）
+            if (options.Count > 0 && RuleHooks.TutorialGuardFilter != null)
+                options = RuleHooks.TutorialGuardFilter(p, options) ?? options;
+
             // ② 待发自愿效果（速度门已过）+ 可付性过滤（启动式走 executor.CanActivate：费用+代价+条件）
             var executor = engine.GetExecutor();
             foreach (var pe in engine.GetActivatableVoluntaryEffects(p))
@@ -983,11 +1028,21 @@ namespace CardCore
             if (!core.TurnEngine.CanCombatAction()) return false;
             if (core.TurnEngine.TurnPlayer != player) return false;
 
+            // 教学引导闸（2026-10-06）：先于常规资格——引导步骤语义优先（错误目标/锁定生物在此拒绝）
+            var guideReject = RuleHooks.TutorialAttackGate?.Invoke(player, attacker, target);
+            if (guideReject != null)
+            {
+                TideLog.Warn($"[GameActions] 攻击被教学引导拒绝：{guideReject}");
+                return false;
+            }
+
             var combat = core.CombatSystem;
             if (!combat.CanDeclareAttack(attacker, player)) return false;
             if (!combat.CanAttackTarget(attacker, target, player)) return false;
 
-            return core.StackEngine.PushAttackDeclaration(attacker, target, player);
+            if (!core.StackEngine.PushAttackDeclaration(attacker, target, player)) return false;
+            RuleHooks.OnTutorialAttackDeclared?.Invoke(player, attacker, target);
+            return true;
         }
 
         // ======================================== 回合控制 ========================================
@@ -1000,7 +1055,16 @@ namespace CardCore
             if (core == null || player == null) return false;
             if (core.TurnEngine.TurnPlayer != player) return false;
 
+            // 教学引导闸（2026-10-06）：引导步骤未完成时钉住回合（必须先做引导动作）
+            var guideReject = RuleHooks.TutorialEndTurnGate?.Invoke(player);
+            if (guideReject != null)
+            {
+                TideLog.Warn($"[GameActions] 结束回合被教学引导拒绝：{guideReject}");
+                return false;
+            }
+
             core.TurnEngine.EndTurn();
+            RuleHooks.OnTutorialTurnEnded?.Invoke(player);
             return true;
         }
 

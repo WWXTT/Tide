@@ -374,6 +374,21 @@ namespace CardCore
             => player != null && _skipNextStandby.Remove(player);
 
         /// <summary>
+        /// 教学预设场面回合起跳（2026-10-06）：把下一回合钉到 turnNumber、并让 first 的回合开始
+        /// 跳过准备阶段自动化（ConsumePendingStandbySkip 口径——不抽回合牌/不推进地牌槽曲线/不解横置，
+        /// StartNewTurn 仍正常落到 Main，玩家直接站在起跳回合的操作环节）。
+        /// 时序契约：InitGame(deferStart=true) 后、StartGame 前调用，且先于本调用完成场面注入——
+        /// 被跳过的推进量（GlobalTurnIndex/地牌横置/每回合计数）由注入器自行预置。
+        /// </summary>
+        public void PrepareScenarioStart(int turnNumber, Player first)
+        {
+            if (turnNumber < 1) turnNumber = 1;
+            _turnNumber = turnNumber - 1; // StartNewTurn 先自增再发事件 → 首个 TurnStartEvent 携带 turnNumber
+            if (first != null)
+                SkipNextTurnFor(first, TurnSkipMode.Standby);
+        }
+
+        /// <summary>
         /// 计算 End→Standby 折返时的下一位回合玩家：
         /// 优先消耗当前玩家的额外回合，再按被跳过标记顺延到对手。
         /// </summary>

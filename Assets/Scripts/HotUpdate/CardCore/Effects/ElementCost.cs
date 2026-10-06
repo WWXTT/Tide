@@ -173,4 +173,40 @@ namespace CardCore
 
         public override string ToString() => DebugText();
     }
+
+    /// <summary>ManaType 中文名与反查（2026-10-06 单一来源定案）：原子表 Tags 表色追加/
+    /// ElementAffinity 色名扫描/UI ColorFilter 共用。既有四处展示映射（ElementAffinity.GetColorName
+    /// 的 Gray=「通用」、ColorFilter/GameActions/HeroSkillSystem 的「灰」）属各自展示语境不强制归一——
+    /// **表列词表统一用本表的「灰」**。</summary>
+    public static class ManaTypeNames
+    {
+        /// <summary>中文名（下标=枚举序 [灰,红,蓝,绿,白,黑]，扩色须同步补名）。</summary>
+        private static readonly string[] ZhNames =
+        {
+            "灰", // Gray
+            "红", // Red
+            "蓝", // Blue
+            "绿", // Green
+            "白", // White
+            "黑", // Black
+        };
+
+        /// <summary>中文名（越界回退枚举名）。</summary>
+        public static string ZhNameOf(ManaType m)
+        {
+            int i = (int)m;
+            return i >= 0 && i < ZhNames.Length ? ZhNames[i] : m.ToString();
+        }
+
+        /// <summary>中文反查（词表外返回 false——不静默落灰）。</summary>
+        public static bool TryParseZh(string name, out ManaType m)
+        {
+            m = default;
+            if (string.IsNullOrEmpty(name)) return false;
+            int i = Array.IndexOf(ZhNames, name.Trim());
+            if (i < 0) return false;
+            m = (ManaType)i;
+            return true;
+        }
+    }
 }

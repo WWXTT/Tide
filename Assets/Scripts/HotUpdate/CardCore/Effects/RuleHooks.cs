@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace CardCore
@@ -177,5 +178,61 @@ namespace CardCore
                     return;
                 }
         }
+
+        // ======================================== 教学引导闸（2026-10-06 第一课改版） ========================================
+
+        // 瞬态扩展点（单局 Begin/End 成对装卸），区别于上方常驻注册式规则——教学局由 SynergyUI.TutorialGuide
+        // 注入：暂停引导的语义 = 引导步骤未完成时把对局钉住（攻击只放行引导动作、结束回合禁走、
+        // 守卫候选只留引导守卫者）。全部 null=无教学局，引擎行为与原先逐位一致。
+
+        /// <summary>攻击宣言闸：(player, attacker, target) → 拒绝原因（非 null 即拒绝）；null=放行。
+        /// 在常规资格检查之前（教学语义优先——错误目标/锁定生物在此拦下）。</summary>
+        public static Func<Player, Entity, Entity, string> TutorialAttackGate;
+
+        /// <summary>结束回合闸：player → 拒绝原因；null=放行（引导步骤未完成时钉住回合）。</summary>
+        public static Func<Player, string> TutorialEndTurnGate;
+
+        /// <summary>守卫候选过滤：(holder, 当批守卫候选) → 过滤后的候选（null=原样）。
+        /// 调用时候选列表只含守卫项（效果项在其后追加）。</summary>
+        public static Func<Player, List<ResponseOption>, List<ResponseOption>> TutorialGuardFilter;
+
+        /// <summary>攻击宣言成功探针（引导步骤完成的信号；非教学局攻击也会经过——订阅方自行过滤）。</summary>
+        public static Action<Player, Entity, Entity> OnTutorialAttackDeclared;
+
+        /// <summary>攻击结算/取消探针：(attacker, 最终目标——被守卫改写后)。守卫步骤的漏守兜底信号。</summary>
+        public static Action<Entity, Entity> OnTutorialAttackResolved;
+
+        /// <summary>守卫拦截结算探针：(guarder, 被拦截的攻击宣言)。</summary>
+        public static Action<Card, EffectInstance> OnTutorialGuardResolved;
+
+        /// <summary>结束回合成功探针（end 引导步骤的完成信号；非教学局结束回合也会经过——订阅方自行过滤）。</summary>
+        public static Action<Player> OnTutorialTurnEnded;
+
+        // ---- 资源流转闸（2026-10-06 第二课）：放地/横置产地/横置生物产色/出牌四动作的教学闸与探针 ——
+        // 语义同上组：null=无教学局行为不变；闸先于常规资格（教学语义优先）；探针在成功路径发射。
+
+        /// <summary>放地闸（手牌卡入元素池）：(player, card) → 拒绝原因；null=放行。</summary>
+        public static Func<Player, Card, string> TutorialElementGate;
+
+        /// <summary>地牌横置产色闸：(player, land, type) → 拒绝原因；null=放行。</summary>
+        public static Func<Player, PooledCard, ManaType, string> TutorialTapGate;
+
+        /// <summary>生物横置产色闸（LandTrait 特性产元素）：(player, creature) → 拒绝原因；null=放行。</summary>
+        public static Func<Player, Card, string> TutorialTapCreatureGate;
+
+        /// <summary>出牌闸（手牌打出）：(player, card) → 拒绝原因；null=放行。</summary>
+        public static Func<Player, Card, string> TutorialPlayGate;
+
+        /// <summary>放地成功探针（element 引导步骤完成信号）。</summary>
+        public static Action<Player, Card> OnTutorialElementPlaced;
+
+        /// <summary>地牌产色成功探针：(player, 地牌源卡, 产出的颜色)——tap 步骤完成信号。</summary>
+        public static Action<Player, Card, ManaType> OnTutorialManaGained;
+
+        /// <summary>生物横置产色成功探针（tapcreature 步骤完成信号）。</summary>
+        public static Action<Player, Card> OnTutorialCreatureTapped;
+
+        /// <summary>出牌宣言成功探针（play 步骤完成信号）。</summary>
+        public static Action<Player, Card> OnTutorialCardPlayed;
     }
 }

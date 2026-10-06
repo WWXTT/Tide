@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
+using CardCore.AI;
 using CardCore.Attribute;
 using CardCore.Network;
 using CardCore.Serialization;
@@ -22,6 +23,9 @@ namespace SynergyUI
         /// <summary>教学固定局（2026-10-02）：双方卡组顺序=摸牌序列（锁牌库序）、机器人逐回合剧本演出
         /// （ScriptedAi）、响应窗口全让过——渲染/交互与本地 AI 局完全同轨。</summary>
         Tutorial,
+        /// <summary>挑战模式（2026-10-06）：玩家自选卡组，电脑按难度 N 获得非对称优势——
+        /// 地牌槽上限 9+N、起手 6+N（InitGame 加成参数）。渲染/交互与本地 AI 局同轨。</summary>
+        Challenge,
     }
 
     /// <summary>
@@ -43,6 +47,20 @@ namespace SynergyUI
         /// <summary>教学局关卡 id（TutorialLibrary 条目；缺省 "basics" 基础教学）。
         /// 入口方接线：BattleEntry.Mode = BattleMode.Tutorial 后 Show&lt;BattleScreen&gt;。</summary>
         public static string TutorialId = "basics";
+
+        /// <summary>镜像局卡组（2026-10-06 最后一课/考核局）：非空=双方同用这份卡组开局
+        /// （AI 操纵玩家卡组的镜像）。一次性消费防跨局残留（StartLocalFan 开局即置空）。
+        /// 注入方=TutorialCreationFlow/TutorialFlow（Mode=LocalAI + 本字段）。</summary>
+        public static List<CardData> MirrorDeck;
+
+        /// <summary>挑战模式难度（2026-10-06，1..9 单值联动）：电脑地牌槽上限 9+N、起手 6+N。
+        /// 与 TutorialId 同口径：注入方设值后保持到终局（ReportBattleResult 读取落档），
+        /// 每次进挑战模式都会重设，无跨局残留问题。</summary>
+        public static int ChallengeDifficulty = 1;
+
+        /// <summary>挑战模式玩家卡组（2026-10-06）：null=随机卡组（RandomDeckFrom 兜底）。
+        /// 一次性消费防跨局残留（StartLocalFan 开局即置空）。</summary>
+        public static List<CardData> ChallengeDeck;
     }
 
     /// <summary>
@@ -277,6 +295,7 @@ namespace SynergyUI
             if (_lblMode != null)
                 _lblMode.text = IsNetwork ? $"网络 · {BattleEntry.Host}:{BattleEntry.Port}"
                     : BattleEntry.Mode == BattleMode.Tutorial ? $"教学 · {BattleEntry.TutorialId}"
+                    : BattleEntry.Mode == BattleMode.Challenge ? $"挑战 · 难度{BattleEntry.ChallengeDifficulty}"
                     : "本地 · AI";
             if (_btnPass != null)
                 _btnPass.gameObject.SetActive(IsNetwork);
@@ -298,6 +317,9 @@ namespace SynergyUI
             _running = false;
             _net?.Close();
             _net = null;
+            TutorialFlow.ClearAssessment(); // 考核标记防跨局残留（未终局退出路径）
+            TutorialGuide.End();            // 引导闸卸载防跨局残留
+            AtomicTableWorkshop.ExitTutorialBaseline(); // 教学基线退出：恢复玩家改价重放+卡费重推（若进入过）
 
             // 手牌扇区实例回收（自持实例池，随挂载层销毁亦安全——显式清防重入）
             _selfFan?.Dispose();
@@ -358,7 +380,9 @@ namespace SynergyUI
 
         /// <summary>教学固定局开局（2026-10-02）：TutorialConfig 指定双方卡组顺序（=摸牌序列，锁牌库序）
         /// 与机器人逐回合剧本（ScriptedAi 按条演出），rngSeed 钉效果随机；机器人响应窗口全让过
-        /// （EnablePassiveAiResponder——永不反制玩家）。返回 false=配置缺失回落普通局。</summary>
+        /// （EnablePassiveAiResponder——永不反制玩家）。返回 false=配置缺失回落普通局。
+        /// 预设场面（2026-10-06 教学直入）：scenario 非 null=组卡取双方场面并集、
+        /// 不走起手/摸牌序列断言，TutorialScenarioSeeder 直入起跳回合。</summary>
         private bool StartTutorialGame(BattleController ctrl)
         {
             var tutorial = TutorialLibrary.Get(BattleEntry.TutorialId);
@@ -367,6 +391,17 @@ namespace SynergyUI
                 ShowToast($"教学配置缺失：{BattleEntry.TutorialId}（回落本地 AI 局）");
                 return false;
             }
+            if (tutorial.scenario != null)
+            {
+                AtomicTableWorkshop.EnterTutorialBaseline(); // 教学钉死数学：玩家改价不进教学局（回基线）
+                var playerCards = TutorialLibrary.BuildDeck(TutorialScenario.DeckIdsOf(tutorial.scenario.player));
+                var aiCards = TutorialLibrary.BuildDeck(TutorialScenario.DeckIdsOf(tutorial.scenario.ai));
+                ctrl.StartNewGame(playerCards, aiCards, new ScriptedAi(tutorial),
+                    rngSeed: tutorial.rngSeed, scenario: tutorial.scenario);
+                ctrl.EnablePassiveAiResponder();
+                TutorialGuide.Begin(tutorial); // 暂停引导（2026-10-06）：guide 为空时内部不激活
+                return true;
+            }
             var playerDeck = TutorialLibrary.BuildDeck(tutorial.playerDeck);
             var aiDeck = TutorialLibrary.BuildDeck(tutorial.aiDeck);
             if (playerDeck.Count < GameCore.OpeningHandSize || aiDeck.Count < GameCore.OpeningHandSize)
@@ -374,9 +409,11 @@ namespace SynergyUI
                 ShowToast("教学卡组配置不足（回落本地 AI 局）");
                 return false;
             }
+            AtomicTableWorkshop.EnterTutorialBaseline(); // 教学钉死数学：玩家改价不进教学局（回基线）
             ctrl.StartNewGame(playerDeck, aiDeck, new ScriptedAi(tutorial),
                 lockDeckOrder: true, rngSeed: tutorial.rngSeed);
             ctrl.EnablePassiveAiResponder();
+            TutorialGuide.Begin(tutorial);
             return true;
         }
 
@@ -387,7 +424,23 @@ namespace SynergyUI
         private void StartLocalFan()
         {
             _ctrl = new BattleController();
-            if (BattleEntry.Mode == BattleMode.Tutorial && !StartTutorialGame(_ctrl))
+            var mirrorDeck = BattleEntry.MirrorDeck; // 一次性消费（防跨局残留，同 Client 口径）
+            BattleEntry.MirrorDeck = null;
+            var challengeDeck = BattleEntry.ChallengeDeck; // 一次性消费（挑战模式玩家卡组）
+            BattleEntry.ChallengeDeck = null;
+            if (mirrorDeck != null)
+                _ctrl.StartNewGame(mirrorDeck, mirrorDeck); // 最后一课/考核镜像局：AI 打同卡组
+            else if (BattleEntry.Mode == BattleMode.Challenge)
+            {
+                // 挑战模式（2026-10-06 单值联动）：难度 N = 电脑地牌槽 9+N、起手 6+N；
+                // AI 卡组缺省随机 30 张，策略按卡组主色自适配（AutoMatch：标签优先回落费用主色）
+                var difficulty = Mathf.Clamp(BattleEntry.ChallengeDifficulty, 1, ChallengeProgressManager.MaxDifficulty);
+                BattleEntry.ChallengeDifficulty = difficulty;
+                var aiDeck = BattleController.RandomDeckFrom(CardCatalog.LoadAll());
+                _ctrl.StartNewGame(challengeDeck, aiDeck, new SimpleAI(AiStrategy.AutoMatch(aiDeck)),
+                    aiLandCapBonus: difficulty, aiExtraOpeningDraws: difficulty);
+            }
+            else if (BattleEntry.Mode == BattleMode.Tutorial && !StartTutorialGame(_ctrl))
                 _ctrl.StartNewGame();
 
             // 引擎事件多但刷新幂等：统一对账重建（口径同原原型屏）
@@ -419,6 +472,7 @@ namespace SynergyUI
             _gameEnded = true;
             _btnEndFan.interactable = false;
             bool win = e.Winner == P1;
+            TutorialFlow.ReportBattleResult(BattleEntry.Mode, win); // 教学逻辑层：考核局/教学局结果落档
             ShowOverlay(win ? "胜利" : "失败", $"{(win ? "我方" : "对手")}获胜（{e.Reason}）。");
             SetCancelText("返回主菜单");
         }

@@ -119,6 +119,34 @@ namespace SynergyUI
                     if (ok) GameActions.DrainStack(core);
                     return LogResult(action, ok, "英雄技能被拒（费用/横置/沉默/已用）");
                 }
+                case "tapland":
+                {
+                    // 横置指定地牌产指定色（教学资源流转演示的精确动作；TapAllLands 之外的可控产色口）
+                    var pooled = core.ElementPool.GetPooledCards(me)
+                        .FirstOrDefault(pc => pc.SourceCard != null && pc.SourceCard.ID == action.card);
+                    if (pooled == null) return LogResult(action, false, $"元素池无 {action.card}");
+                    ManaType color = Enum.TryParse<ManaType>(action.target, true, out var t) ? t : ManaType.Gray;
+                    return LogResult(action, GameActions.GainElementFromToken(core, me, pooled, color),
+                        "地牌产色被拒（横置/无该色指示物/引导闸）");
+                }
+                case "tapcreature":
+                {
+                    var creature = FindOnBattlefield(core, me, action.card);
+                    if (creature == null) return LogResult(action, false, $"场上无 {action.card}");
+                    return LogResult(action, GameActions.TapCreatureForElement(core, me, creature),
+                        "生物产色被拒（横置/无地牌特性/引导闸）");
+                }
+                case "playgrave":
+                {
+                    // 墓地视手牌中使用（归土仪典轮转核心——PlayCard FromZone=Graveyard 走配额）
+                    var card = FindInZone(core, me, Zone.Graveyard, action.card);
+                    if (card == null) return LogResult(action, false, $"墓地无 {action.card}");
+                    LandTapPolicy.TapAllLands(core, me); // 付费前置（镜像 play）
+                    bool ok = GameActions.PlayCardFromGraveyard(core, me, card, ResolveTargets(core, me, action.targets));
+                    if (!ok) return LogResult(action, false, "墓地使用被拒（配额/费用/目标）");
+                    GameActions.DrainStack(core);
+                    return true;
+                }
                 default:
                     TideLog.Warn($"[ScriptedAi] 未知动作类型：{action.type}（机器人回合 {_aiTurnCount}）");
                     return false;

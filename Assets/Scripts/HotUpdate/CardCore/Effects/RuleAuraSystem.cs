@@ -41,6 +41,25 @@ namespace CardCore
                && _active.Carrier.IsAlive
                && _active.Carrier.GetZone() == Zone.Battlefield;
 
+        /// <summary>战斗改写仪典的持有者侧命中查询（2026-10-05 定案，仅持有者生效）：
+        /// 当前激活的改写光环存活、且 source 是**光环控制者**的卡 → 返回对应改写关键词 id
+        ///（施加/审计复用 KeywordRules 口径）；否则 null。固定序=毒&gt;冻&gt;眠&gt;疫由常量唯一性天然保证
+        ///（全局唯一槽同一时刻至多一条改写光环）。</summary>
+        public static string HolderRewriteFor(Card source)
+        {
+            if (_active == null || source == null || !IsActive(_active.RuleId)) return null;
+            var owner = source.GetController();
+            if (owner == null || !ReferenceEquals(owner, _active.Controller)) return null;
+            switch (_active.RuleId)
+            {
+                case RuleAuraComponents.CombatToxin: return Attribute.KeywordRules.PoisonSting;
+                case RuleAuraComponents.CombatFreeze: return Attribute.KeywordRules.IceCrystal;
+                case RuleAuraComponents.CombatSleep: return Attribute.KeywordRules.Nightmare;
+                case RuleAuraComponents.CombatVenom: return Attribute.KeywordRules.Pathogen;
+                default: return null;
+            }
+        }
+
         /// <summary>
         /// 激活规则光环（ModifyGameRuleHandler 调）：全局唯一——旧载体送墓（DestroyReason.Destroyed）
         /// 再登记新槽。同一载体重复激活不触发替换（幂等重登记）。
@@ -72,7 +91,7 @@ namespace CardCore
             {
                 Target = carrier,
                 Keyword = "规则光环",
-                Detail = $"规则光环激活：{ruleId}（对双方生效；新光环登场会把旧光环载体送墓）",
+                Detail = $"规则光环激活：{ruleId}（{RuleAuraScopeZh(ruleId)}；新光环登场会把旧光环载体送墓）",
                 Source = controller,
             });
         }
@@ -99,9 +118,13 @@ namespace CardCore
 
         /// <summary>窥渊回合末结算（GameCore.OnTurnEnded 于 CounterRules.OnTurnEnd 之后显式调）：
         /// 2026-10-04 时机改版（回合开始→回合结束）——随机展示+锁定排在指示物倒数之后，
-        /// 同回合末新挂的锁不被 ③ 块倒数吞层。</summary>
+        /// 同回合末新挂的锁不被 ③ 块吞层。</summary>
         public static void RevealAndLockAtTurnEnd(Player turnPlayer)
             => RuleAuraComponents.RevealAndLockAtTurnEnd(turnPlayer);
+
+        /// <summary>规则光环作用域中文（播报/UI 共用）：改写仪典四条=仅持有者生效；其余=对双方生效。</summary>
+        public static string RuleAuraScopeZh(string ruleId)
+            => RuleAuraComponents.IsHolderScoped(ruleId) ? "仅持有者生效" : "对双方生效";
     }
 
     /// <summary>
@@ -122,6 +145,20 @@ namespace CardCore
         public const string CastSpeedUp = "CastSpeedUp";             // 疾风仪典（2026-10-04 改造：从手牌使用的卡发动速度+1）
         public const string DoubleTurn = "DoubleTurn";               // 轮回仪典（2026-10-04 承接原疾风：双人连两回合）
         public const string HandLimitNoFatigue = "HandLimitNoFatigue"; // 纳川仪典
+
+        // ---- 战斗改写仪典（2026-10-05 定案：四条改写从有限分支改写门迁唯一光环；仅持有者生效——
+        // 与既有 9 条"对双方生效"不同，首个单侧语义：只改写光环控制者的生物造成的战斗伤害。
+        // 命中查询收口 RuleAuraSystem.HolderRewriteFor；施加口径复用 KeywordRules.ApplyRewriteCounter。）----
+        public const string CombatToxin = "CombatToxin";             // 毒蚀仪典（毒素指示物）
+        public const string CombatFreeze = "CombatFreeze";           // 霜蚀仪典（冻结指示物）
+        public const string CombatSleep = "CombatSleep";             // 眠蚀仪典（沉睡指示物）
+        public const string CombatVenom = "CombatVenom";             // 疫蚀仪典（剧毒指示物）
+
+        /// <summary>是否"仅持有者生效"的规则光环（战斗改写仪典四条；其余=对双方生效）。
+        /// UI 标签与播报文案按此区分。</summary>
+        public static bool IsHolderScoped(string ruleId)
+            => ruleId == CombatToxin || ruleId == CombatFreeze
+               || ruleId == CombatSleep || ruleId == CombatVenom;
 
         private static bool _registered;
 

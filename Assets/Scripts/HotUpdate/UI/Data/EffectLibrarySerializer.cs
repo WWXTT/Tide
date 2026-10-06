@@ -111,7 +111,7 @@ namespace SynergyUI
 
         // ======================================== 图 ↔ 瘦 DTO（EffectGraphData 在 UI 层——转换在本地） ========================================
 
-        /// <summary>图 → 瘦 DTO（steps 单源；引擎形态奖励进 rewards；锚价合成期推导落盘）。</summary>
+        /// <summary>图 → 瘦 DTO（steps 单源——原子 branch 载荷随 StepRef.atom 往返；锚价合成期推导落盘）。</summary>
         private static EffectSlimDto ToDto(EffectGraphData graph)
         {
             if (graph?.header == null) return null;
@@ -131,8 +131,6 @@ namespace SynergyUI
                 kinds = h.TargetKinds != null && h.TargetKinds.Count > 0
                     ? new List<int>(h.TargetKinds) : null, // 效果级作用范围（2026-10-04）——空表不写列
                 dropZone = h.SummonDropZone,
-                engine = h.EngineKind,
-                engineParam = h.EngineParam,
                 arrows = h.ArrowDirections,
                 linkAuras = h.LinkAuras != null && h.LinkAuras.Count > 0
                     ? new List<LinkAuraData>(h.LinkAuras) : null, // 空表不写列（2026-09-23 向后兼容）
@@ -140,37 +138,28 @@ namespace SynergyUI
                 costs = h.Costs != null && h.Costs.Count > 0
                     ? h.Costs.Select(EffectSlim.ToCostRef).Where(c => c != null).ToList() : null,
                 steps = new List<StepRef>(),
-                rewards = null,
             };
 
-            if (h.EngineKind != (int)BranchEngineKind.None)
+            foreach (var st in graph.steps ?? new List<EffectStepData>())
             {
-                dto.rewards = h.AtomicEffects != null && h.AtomicEffects.Count > 0
-                    ? h.AtomicEffects.Select(EffectSlim.ToRef).Where(r => r != null).ToList() : new List<AtomicEffectEntry>();
+                var sr = EffectSlim.ToStepRef(st);
+                if (sr != null) dto.steps.Add(sr);
             }
-            else
+            // 扁平原子投影（2026-09-21 修复：白板卡根因）——Steps 空而 AtomicEffects 非空时
+            // 逐原子投影为 kind=0 步骤：此前直接丢弃，凡以扁平形态构建的效果（主题卡构建器等）
+            // 落盘后原子全失，打出只付费不结算。读回方向 ToCardEffect 天然支持 Steps 还原。
+            if (dto.steps.Count == 0 && h.AtomicEffects != null && h.AtomicEffects.Count > 0)
             {
-                foreach (var st in graph.steps ?? new List<EffectStepData>())
+                foreach (var atom in h.AtomicEffects)
                 {
-                    var sr = EffectSlim.ToStepRef(st);
-                    if (sr != null) dto.steps.Add(sr);
-                }
-                // 扁平原子投影（2026-09-21 修复：白板卡根因）——Steps 空而 AtomicEffects 非空时
-                // 逐原子投影为 kind=0 步骤：此前直接丢弃，凡以扁平形态构建的效果（主题卡构建器等）
-                // 落盘后原子全失，打出只付费不结算。读回方向 ToCardEffect 天然支持 Steps 还原。
-                if (dto.steps.Count == 0 && h.AtomicEffects != null && h.AtomicEffects.Count > 0)
-                {
-                    foreach (var atom in h.AtomicEffects)
-                    {
-                        var ar = EffectSlim.ToRef(atom);
-                        if (ar != null) dto.steps.Add(new StepRef { kind = 0, atom = ar });
-                    }
+                    var ar = EffectSlim.ToRef(atom);
+                    if (ar != null) dto.steps.Add(new StepRef { kind = 0, atom = ar });
                 }
             }
             return dto;
         }
 
-        /// <summary>瘦 DTO → 图（引擎形态奖励还原为 header.AtomicEffects、steps 清空）。</summary>
+        /// <summary>瘦 DTO → 图（原子 branch 载荷随步骤原子还原；引擎头字段已退役）。</summary>
         private static EffectGraphData ToGraph(EffectSlimDto dto)
         {
             if (dto == null) return null;
@@ -192,8 +181,6 @@ namespace SynergyUI
                     TargetKinds = dto.kinds != null && dto.kinds.Count > 0
                         ? new List<int>(dto.kinds) : null,
                     SummonDropZone = dto.dropZone,
-                    EngineKind = dto.engine,
-                    EngineParam = dto.engineParam,
                     ArrowDirections = dto.arrows,
                     LinkAuras = dto.linkAuras != null && dto.linkAuras.Count > 0
                         ? new List<LinkAuraData>(dto.linkAuras) : null,
@@ -205,17 +192,15 @@ namespace SynergyUI
                     ? dto.steps.Select(EffectSlim.ToStep).Where(st => st != null).ToList()
                     : new List<EffectStepData>(),
             };
-            if (dto.engine != (int)BranchEngineKind.None)
-            {
-                graph.header.AtomicEffects = EffectSlim.ToEntries(dto.rewards);
-                graph.steps = new List<EffectStepData>();
-            }
             return graph;
         }
 
         /// <summary>效果锚价（2026-09-23 定案；2026-10-04 位置数组化）：**效果组合阶段=纯表累加、
         /// 无减免抵消**——ConvertOne+DeriveElementCosts 实时推导（与合成器费用预览 AutoCostText 同一口径），
         /// 代价不参与（代价已上移卡组合层，效果层不存在费用减免抵消）。
+        /// 光环条目费（2026-10-05 补）：条目存 header.LinkAuras——原子口径不经过；并入
+        /// CardCostService Stage A（与合成器 AuraCostText 同口径：箭头恒 None，条目平价），
+        /// 否则光环形态效果存库 cost 恒空 → 效果表行费用方格不生成。
         /// 输出=float 位置数组（下标=ManaType 枚举序号；空费用返回 null 空列不写）。
         /// 派生数据不入内容哈希（HashEffect 不读 cost 列——原子表调价重算不换效果 id）。
         /// 编辑中间态转换失败/无费返回 null（空列不写）。</summary>
@@ -224,15 +209,27 @@ namespace SynergyUI
             try
             {
                 var h = graph.header;
-                // 与合成器 BuildCardEffect 同构：Steps 优先、引擎形态走 AtomicEffects、并列扁平投影
+                // 与合成器 BuildCardEffect 同构：Steps 优先、并列扁平投影
                 var fx = JsonUtility.FromJson<CardEffectData>(JsonUtility.ToJson(h));
                 fx.Steps = graph.steps != null && graph.steps.Count > 0 ? graph.steps : null;
-                fx.AtomicEffects = h.EngineKind != (int)BranchEngineKind.None
-                    ? h.AtomicEffects
-                    : ProjectLinear(graph.steps);
+                fx.AtomicEffects = ProjectLinear(graph.steps);
                 var def = CardEffectConverter.ConvertOne(fx, "ANCHOR_COST_DERIVE");
-                var costs = def == null ? null : CostDerivationService.DeriveElementCosts(def, 0);
-                if (costs == null || costs.IsZero) return null;
+                var costs = def != null ? CostDerivationService.DeriveElementCosts(def, 0) : null;
+                costs ??= new ElementCost();
+                if (h.LinkAuras != null && h.LinkAuras.Count > 0)
+                {
+                    var preview = new CardData
+                    {
+                        CardName = "ANCHOR_AURA_PREVIEW",
+                        Supertype = Cardtype.Enchantment,
+                        ArrowDirections = HexDirection.None,
+                        LinkAuras = new List<LinkAuraData>(h.LinkAuras),
+                    };
+                    foreach (var line in CardCostService.Derive(preview).Breakdown)
+                        if (line != null && line.Stage == "A" && line.Color.HasValue)
+                            costs[line.Color.Value] += line.Value;
+                }
+                if (costs.IsZero) return null;
                 return costs.v.ToList();
             }
             catch

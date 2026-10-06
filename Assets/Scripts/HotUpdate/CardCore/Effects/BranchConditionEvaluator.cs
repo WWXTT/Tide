@@ -4,13 +4,15 @@ using CardCore.Attribute;
 namespace CardCore
 {
     /// <summary>
-    /// OutcomeGate 运行时条件评估器。
-    /// 仅服务「分支步骤」，三族：
-    /// ① 产出族（宣言/伤害/治疗）读当前目标的 EffectOutcome 即时判定；
+    /// 分支条件运行时评估器。两族：
+    /// ① 产出条件族（自由分支·Outcome，2026-10-05 定案收敛五项）：DmgKillsTarget/DeclareHit/DeclareMiss
+    ///   读当前目标的 EffectOutcome 即时判定；ProphecyHit/Miss 为延迟验证——引擎拦截为 PendingProphecy，
+    ///   由 ProphecySystem 在验证时刻结算（此处兜底恒假）。
     /// ② 局面状态族（2026-09-22）读 EffectExecutionContext（生命/卡组/生物对比、准备阶段抽牌、首张出牌）——
     ///   通用门，任意主效果原子可挂，per-target 结果恒同；
-    /// ③ 改写族（2026-09-22 拦截式）不走内联评估——执行引擎在主干原子执行前拦截（IsRewriteCondition）。
-    /// FilterPrecision（检索按维度计费）不走此路径（抽牌减费缺陷 Drawback 已随减费归入代价体系退役 2026-09-16）。
+    /// ③ 诅咒门（2026-10-05）施放时恒假——分支只是载荷声明，抽到时由 CurseSystem 结算。
+    /// 产出族其余条件（TargetSurvived/Overkill/TargetStillWounded/Overheal）已删（2026-10-05 用户定案）。
+    /// 拦截式改写族（DmgRewrite*）已随四条改写迁往唯一光环退役（2026-10-05）。
     /// </summary>
     public static class BranchConditionEvaluator
     {
@@ -27,18 +29,8 @@ namespace CardCore
             switch (conditionId)
             {
                 // ---- 伤害族 ----
-                case "TargetSurvived":
-                    return outcome.AnySurvived;
                 case "DmgKillsTarget":
                     return outcome.AnyKilled;
-                case "Overkill":
-                    return outcome.DamageDealt - outcome.TargetLifeBefore > 0;
-
-                // ---- 治疗族 ----
-                case "TargetStillWounded":
-                    return outcome.AffectedTargets.Any(t => t != null && t.GetLife() < t.GetMaxLife());
-                case "Overheal":
-                    return outcome.OverhealAmount > 0;
 
                 // ---- 信息族：宣言（即时验证，读产出） ----
                 case "DeclareHit":
@@ -47,8 +39,8 @@ namespace CardCore
                     return !outcome.DeclareHit;
 
                 // ---- 信息族：预言（延迟验证）----
-                // 不应被内联评估：执行引擎在 ApplyGateRewardsAsync 拦截为 PendingProphecy，
-                // 由 ProphecySystem 在验证时刻结算。此处为防御性兜底（未命中）。
+                // 不应被内联评估：执行引擎拦截为 PendingProphecy，由 ProphecySystem 在验证时刻结算。
+                // 此处为防御性兜底（未命中）。
                 case "ProphecyHit":
                 case "ProphecyMiss":
                     return false;
@@ -84,13 +76,10 @@ namespace CardCore
                 case "LifeLe7":    // 角色生命值 ≤ 7
                     return context?.Controller != null && context.Controller.GetLife() <= 7;
 
-                // ---- 改写族（2026-09-22 拦截式改写门）----
-                // 不走内联评估：执行引擎在主干原子执行**前**拦截（伤害不发生，改为施加指示物）——
-                // 见 EffectExecutionEngine.ExecuteStepSequenceAsync 与 IsRewriteCondition。
-                case "DmgRewriteToxin":
-                case "DmgRewriteFreeze":
-                case "DmgRewriteSleep":
-                case "DmgRewriteVenom":
+                // ---- 诅咒门（2026-10-05 诅咒有限分支定案）：施放时恒假不结算——
+                // 分支只是载荷声明（converter 把 Then 原子抽取挂 AddCurse 主干原子的 CursePayload），
+                // 真正的触发点=对手抽到该卡（CurseSystem.OnCardDrawn 驱动）。----
+                case "CurseOnDraw":
                     return false;
 
                 default:
@@ -119,11 +108,7 @@ namespace CardCore
         {
             switch (conditionId)
             {
-                case "TargetSurvived":
                 case "DmgKillsTarget":
-                case "Overkill":
-                case "TargetStillWounded":
-                case "Overheal":
                 case "DeclareHit":
                 case "DeclareMiss":
                 case "ProphecyHit":
@@ -141,28 +126,8 @@ namespace CardCore
                 case "LandsGe7":
                 case "HandEmpty":
                 case "LifeLe7":
-                // 改写族（2026-09-22，拦截式——不走内联评估）
-                case "DmgRewriteToxin":
-                case "DmgRewriteFreeze":
-                case "DmgRewriteSleep":
-                case "DmgRewriteVenom":
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        /// <summary>是否为拦截式改写门（2026-09-22 定案）：执行引擎据此在主干原子执行**前**拦截——
-        /// 跳过伤害、对目标施加对应指示物（固定 1 层，同改写族关键词口径）；
-        /// 无 then/else 奖励槽（改写本身就是分支效果）。挂载限定伤害族主干（converter 守卫）。</summary>
-        public static bool IsRewriteCondition(string conditionId)
-        {
-            switch (conditionId)
-            {
-                case "DmgRewriteToxin":
-                case "DmgRewriteFreeze":
-                case "DmgRewriteSleep":
-                case "DmgRewriteVenom":
+                // 诅咒门（2026-10-05，施放时恒假——载荷声明，抽到时由 CurseSystem 结算）
+                case "CurseOnDraw":
                     return true;
                 default:
                     return false;

@@ -321,6 +321,39 @@ namespace CardCore
             card.ResetCache();
         }
 
+        /// <summary>重推单行记录（工坊差异预览/日志）：旧费与新费的文本快照（ElementCost.ToString 口径）。</summary>
+        public sealed class ReforceLine
+        {
+            public string CardId;
+            public string CardName;
+            public string OldText;
+            public string NewText;
+        }
+
+        /// <summary>
+        /// 强制重推（原子表工坊 2026-10-06 玩家改价）：无视「声明优先」惯例，清空 Cost/ModeCostCache 后
+        /// 走 EnsureCost 新鲜推导口径（与装载期同管线：建议档/抉择最大模式费/身份重算全部一致），
+        /// 把按当前原子表推导的费用直接覆写回卡。返回发生变化的行为清单（旧→新文本）。
+        /// 幂等：同一张表重复重推结果不变。教学局禁用（调用方负责先回基线）。
+        /// </summary>
+        public static List<ReforceLine> ReforceSuggestedCosts(IEnumerable<CardData> cards)
+        {
+            var lines = new List<ReforceLine>();
+            if (cards == null) return lines;
+            foreach (var card in cards)
+            {
+                if (card == null) continue;
+                var oldText = card.Cost != null && !card.Cost.IsZero ? card.Cost.ToString() : "（无费用）";
+                card.Cost = null;          // 模拟「无声明费」的新鲜装载态——推导口径与 CardLoader 装载期完全一致
+                card.ModeCostCache = null; // 旧价模式缓存一并作废（EnsureCost 会重填）
+                EnsureCost(card);
+                var newText = card.Cost != null && !card.Cost.IsZero ? card.Cost.ToString() : "（无费用）";
+                if (oldText != newText)
+                    lines.Add(new ReforceLine { CardId = card.ID, CardName = card.CardName, OldText = oldText, NewText = newText });
+            }
+            return lines;
+        }
+
         // ======================================== 抉择 per-mode 计价 ========================================
 
         /// <summary>
@@ -452,12 +485,19 @@ namespace CardCore
 
         // —— 模式无关的三块（Derive 与 DeriveModeCosts 共用，防口径漂移；breakdown 传 null 则不记行）——
 
-        /// <summary>身材费 S：statPoints / StatUnit（灰桶，不参与 f）。</summary>
+        /// <summary>身材费 S：statPoints / StatUnit（灰桶，不参与 f）；
+        /// 耐久体另计 耐久 × DurabilityUnitCost（2026-10-05 定案 0.5 灰/点——结界/装备，0=无耐久档不计）。</summary>
         private static float ComputeStatValue(CardData card, CardCostConfig cc, List<CostBreakdownLine> breakdown)
         {
             int statPoints = (card.Power ?? 0) + (card.Life ?? 0);
             float statValue = statPoints / Math.Max(1f, cc.StatUnit);
             breakdown?.Add(new CostBreakdownLine("S", $"身材费 (攻{card.Power ?? 0}/血{card.Life ?? 0})", statValue, ManaType.Gray));
+            if (card.Durability > 0)
+            {
+                float durValue = card.Durability * cc.DurabilityUnitCost;
+                statValue += durValue;
+                breakdown?.Add(new CostBreakdownLine("S", $"耐久费 (耐久{card.Durability})", durValue, ManaType.Gray));
+            }
             return statValue;
         }
 
@@ -549,8 +589,10 @@ namespace CardCore
                     rep = isLife ? AtomicEffectType.ModifyLife : AtomicEffectType.ModifyPower;
                     magnitude = System.Math.Max(1, System.Math.Abs(aura.value));
                     label = $"{aura.stat}{(aura.value >= 0 ? "+" : "")}{aura.value}";
-                    // 属性价梯（2026-09-13 定案）：光环档=1.5/+1（对齐换区移除指示物档；攻血同锚 0.5）
-                    float statAuraCost = CostDerivationService.StatAnchor * 3f * magnitude;
+                    // 属性价梯（2026-09-13 定案）：光环档=1.5/+1（对齐换区移除指示物档；乘数 2026-10-05 迁表 CardCost.StatSustainMultiplier）
+                    float statAuraCost = CostDerivationService.StatAnchor
+                        * ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig.StatSustainMultiplier
+                        * magnitude;
                     var statColor = ElementAffinities.GetAffinityForEffect(rep).PrimaryColor;
                     buckets.TryGetValue(statColor, out var scPrev);
                     buckets[statColor] = scPrev + statAuraCost;
@@ -564,6 +606,8 @@ namespace CardCore
                     // 光环化关键词（2026-09-13 定案，原 Grant 原子行退役、锚价内联、**×箭头数量**——
                     // 每箭头一个受益面；不走单回合折算）：
                     // 坚韧（受伤-1/箭头，按箭头叠加）=绿1；守护（指向格占据者伤害改由源承受）=白1。
+                    // 2026-10-05 坚韧/守护已入表（GrantArmor/GrantGuardian 行）——本特判保留：
+                    // 条目平价 1/条 ≠ 下方通用关键词单回合折算口径；先于 def 反查 continue，不与表行双重计费。
                     string auraName = null;
                     ManaType auraColor = ManaType.Gray;
                     if (aura.keyword == Attribute.KeywordRules.Armor) { auraName = "坚韧"; auraColor = ManaType.Green; }

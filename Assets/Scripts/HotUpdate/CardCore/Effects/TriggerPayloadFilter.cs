@@ -67,6 +67,12 @@ namespace CardCore
                            ReferenceEquals(t.Target, registered.Source);
 
                 // ---- 战斗族 ----
+                case TriggerTiming.OnAttack:
+                    // 攻方（被指方用 OnAttacked）：宣言的攻击者==自己——
+                    // 无此自检时 default 放行会让 OnAttack 效果在任何人的攻击宣言上都触发
+                    return gameEvent is AttackDeclarationEvent atk &&
+                           ReferenceEquals(atk.Attacker, registered.Source);
+
                 case TriggerTiming.OnAttacked:
                     // 被指方（攻方用 OnAttack）
                     return gameEvent is AttackDeclarationEvent a &&

@@ -34,6 +34,6 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"规则光环：{effect.StringValue}（对双方生效，载体离场失效）";
+            => $"规则光环：{effect.StringValue}（{RuleAuraSystem.RuleAuraScopeZh(effect.StringValue)}，载体离场失效）";
     }
 }

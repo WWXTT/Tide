@@ -6,6 +6,7 @@
     "com.github-glitchenzo.nugetforunity": "https://github.com/GlitchEnzo/NuGetForUnity.git?path=/src/NuGetForUnity",
     "com.oddworm.texture2darrayimportpipeline": "https://github.com/pschraut/UnityTexture2DArrayImportPipeline.git#1.6.0",
     "com.tuyoogame.yooasset": "https://github.com/tuyoogame/YooAsset.git?path=Assets/YooAsset#3.0.6",
+    "com.unity.2d.sprite": "1.0.0",
     "com.unity.ai.inference": "2.6.1",
     "com.unity.editorcoroutines": "1.1.0",
     "com.unity.entities": "6.5.0",

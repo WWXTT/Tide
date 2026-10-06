@@ -213,6 +213,15 @@ namespace CardCore.Attribute
             Register(new CounterSpec { Id = CurseCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "诅咒" });
             // 锁定（2026-10-04）：Permanent + 逐层倒数（OnTurnEnd ③ 块）——层=剩余回合，手牌区同样结算
             Register(new CounterSpec { Id = LockCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "锁定" });
+            // 长档紊乱（2026-10-06）：Permanent + 逐层倒数（同 ③ 模式）——跨回合长期「不能以玩家为目标」，
+            // 与 RushSickness 同判（KeywordRules.HasRushSickness 合并查询）；净化可清。通用原语。
+            Register(new CounterSpec
+            {
+                Id = KeywordRules.SustainedRushSicknessCounter,
+                Polarity = CounterPolarity.Negative,
+                Duration = DurationType.Permanent,
+                DisplayName = "紊乱（长档）",
+            });
 
             // ---- 守护（2026-09-11 定案）----
             // 守护者/被守护者成对：被守护者指示物的来源=第一个守护者（多守护者仅第一个触发改写）；
@@ -359,6 +368,32 @@ namespace CardCore.Attribute
             }
         }
 
+        /// <summary>成长翻倍（2026-10-05 改版）：实体上全部属性指示物（攻/血/费±、±1/±1、含永久层）
+        /// 每种现有 n 层再补 n 层——走 AddStatCounter 同款回写（字段+计数+事件）。
+        /// 含减益类一并翻倍（"自身属性指示物层数翻倍"字面口径）。返回=新增层数合计（0=无可翻倍）。</summary>
+        public static int DoubleStatCounters(Card card, Entity source = null)
+        {
+            if (card == null || !card.IsAlive) return 0;
+            int added = 0;
+            foreach (var id in StatCounterIds)
+            {
+                int n = card.GetCounterCount(id);
+                if (n <= 0) continue;
+                AddStatCounter(card, id, n, source);
+                added += n;
+            }
+            return added;
+        }
+
+        /// <summary>属性指示物 id 全集（DoubleStatCounters 遍历用——单向粒度 + ±1/±1 + 永久层）。</summary>
+        private static readonly string[] StatCounterIds =
+        {
+            PowerUpCounter, PowerDownCounter, LifeUpCounter, LifeDownCounter,
+            CostUpCounter, CostDownCounter, PlusOneCounter, MinusOneCounter,
+            PowerUpPermanentCounter, PowerDownPermanentCounter,
+            LifeUpPermanentCounter, LifeDownPermanentCounter,
+        };
+
         /// <summary>按当前计数反向回写属性指示物（不清计数——按规格 StatKind 驱动，含永久层 id）。</summary>
         private static void RevertStat(Card card, string id, StatCounterKind kind)
         {
@@ -503,21 +538,29 @@ namespace CardCore.Attribute
                 }
             }
 
-            // ── ③ 锁定逐层倒数（2026-10-04 窥渊原子化）：层=剩余回合，持有者回合结束 −1，归零解锁 ──
+            // ── ③ 逐层倒数（锁定 2026-10-04 窥渊原子化；长档紊乱 2026-10-06 同模式接入）：
+            //    层=剩余回合，持有者回合结束 −1，归零解除 ──
             foreach (var card in AllEntities(turnPlayer, zoneManager).OfType<Card>())
             {
-                int locks = card.GetCounterCount(LockCounter);
-                if (locks <= 0) continue;
-                card.AddCounters(LockCounter, -1);
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = card,
-                    Keyword = LockCounter,
-                    Detail = locks - 1 > 0
-                        ? $"锁定倒数（持有者回合结束，余 {locks - 1} 回合）"
-                        : "锁定解除（持有者回合结束，层数归零）",
-                });
+                TickLayeredCounter(card, LockCounter, "锁定");
+                TickLayeredCounter(card, KeywordRules.SustainedRushSicknessCounter, "紊乱（长档）");
             }
+        }
+
+        /// <summary>层=剩余回合计数的 Permanent 指示物通用倒数（持有者回合结束 −1，归零解除并播报）。</summary>
+        private static void TickLayeredCounter(Card card, string counterId, string displayName)
+        {
+            int layers = card.GetCounterCount(counterId);
+            if (layers <= 0) return;
+            card.AddCounters(counterId, -1);
+            EventManager.Instance.Publish(new KeywordAppliedEvent
+            {
+                Target = card,
+                Keyword = counterId,
+                Detail = layers - 1 > 0
+                    ? $"{displayName}倒数（持有者回合结束，余 {layers - 1} 回合）"
+                    : $"{displayName}解除（持有者回合结束，层数归零）",
+            });
         }
 
         /// <summary>回合方玩家 + 回合方战场/手牌卡（持有者侧结算域，2026-09-16 统一档定案：

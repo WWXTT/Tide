@@ -293,7 +293,7 @@ namespace CardCore.Network
         /// </summary>
         private void SpawnAiFiller(string nickname)
         {
-            var deckIds = SynergyUI.CardCatalog.LoadAll().Select(c => c.ID).Distinct().Take(30).ToArray();
+            var deckIds = SynergyUI.CardCatalog.LoadPlayPool().Select(c => c.ID).Distinct().Take(30).ToArray(); // 教学专用卡不入 AI 填位卡组（2026-10-06 隔离）
             if (deckIds.Length == 0)
             {
                 _log?.Invoke("[NetLobby] AI 填位失败：本地卡表为空");

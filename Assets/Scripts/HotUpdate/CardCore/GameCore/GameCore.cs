@@ -226,6 +226,22 @@ namespace CardCore
             // 对手的要等对手回合末；突袭的"不能以玩家为目标"限制随自己回合末解除
             Attribute.CounterRules.OnTurnEnd(e.TurnPlayer, ZoneManager);
 
+            // 成长（2026-10-05 改版定案：关键词效果——持有者回合结束时，自身属性指示物层数翻倍；
+            // 原"回合开始+1/+1"退役）：排在指示物消退**之后**——限时层先清、只翻留存的；
+            // 含减益类一并翻倍（层数翻倍字面口径）。回合维护类不走触发引擎（不被无效/沉默拦）。
+            foreach (var card in ZoneManager.GetCards(e.TurnPlayer, Zone.Battlefield).ToList())
+            {
+                if (!card.IsAlive || !card.HasKeyword(KeywordRules.Growth)) continue;
+                int doubled = Attribute.CounterRules.DoubleStatCounters(card, card);
+                if (doubled > 0)
+                    PublishEvent(new KeywordAppliedEvent
+                    {
+                        Target = card,
+                        Keyword = KeywordRules.Growth,
+                        Detail = $"成长：属性指示物层数翻倍（新增 {doubled} 层）",
+                    });
+            }
+
             // 窥渊仪典（2026-10-04 时机改版：回合开始→回合结束）：随机展示+锁定必须排在
             // 指示物倒数之后——同回合末新挂的锁不被 ③ 块吞层。组合根显式调（不走事件订阅：
             // 订阅序相对本方法随局数漂移，先后无保证）。
@@ -351,18 +367,8 @@ namespace CardCore
                     PublishEvent(new Attribute.HealEvent { Target = card, Amount = regenAmount });
                 }
 
-                // 成长：回合开始 +1/+1 指示物（固定值）
-                if (card.IsAlive && card.HasKeyword(KeywordRules.Growth))
-                {
-                    card.AddCounters("+1/+1", 1);
-                    Attribute.Handlers.HandlerHelpers.ApplyCounterStat(card, "+1/+1", 1);
-                    EventManager.Instance.Publish(new KeywordAppliedEvent
-                    {
-                        Target = card,
-                        Keyword = KeywordRules.Growth,
-                        Detail = "成长：+1/+1"
-                    });
-                }
+                // 成长已改版（2026-10-05）：回合开始 +1/+1 退役——改为回合结束属性指示物层数翻倍
+                //（OnTurnEnded 内、指示物消退之后结算，见上方）
 
                 // 横置恢复（2026-09-13 定案）：冻结/沉睡期间均**无法重置**——
                 // 谁被禁、被禁期间状态如何推进（沉睡扣层/苏醒重置）由 RuleHooks.IUntapBlockRule
@@ -391,7 +397,19 @@ namespace CardCore
         /// <param name="deck2">玩家2的卡牌实例列表（牌库）</param>
         /// <param name="lockDeckOrder">锁牌库顺序（教学固定局）：跳过双方洗牌，牌库顺序=传入列表顺序——
         /// 摸牌恒取牌库顶，故列表前 OpeningHandSize 张即起手、之后即逐回合摸牌序列。缺省 false 行为不变。</param>
-        public void InitGame(List<Card> deck1, List<Card> deck2, int? rngSeed = null, bool lockDeckOrder = false)
+        /// <param name="skipOpeningDraw">跳过起手抽牌（教学预设场面 2026-10-06）：手牌完全交由调用方注入，
+        /// 引擎不补到 OpeningHandSize。缺省 false 行为不变。</param>
+        /// <param name="deferStart">不自动 StartGame（教学预设场面 2026-10-06）：调用方在 StartGame 前
+        /// 完成场面注入（TutorialScenarioSeeder）+ 回合起跳预置（TurnEngine.PrepareScenarioStart）。
+        /// 缺省 false 行为不变。</param>
+        /// <param name="p2LandCapBonus">P2 地牌槽加成（挑战模式 2026-10-06 难度 N 单值联动）：
+        /// P2 曲线换 ChallengeLandCurve(bonus)=[1+bonus..9+bonus]，开局即有额外槽、封顶同步抬高；
+        /// P1 保持标准曲线。缺省 0 双方对称，行为不变。</param>
+        /// <param name="p2ExtraOpeningDraws">P2 起手额外抽牌数（挑战模式）：对称起手填完后追加，
+        /// 手牌无上限截断（HAND_SIZE_LIMIT 无强制点，已核实）。缺省 0 行为不变。</param>
+        public void InitGame(List<Card> deck1, List<Card> deck2, int? rngSeed = null, bool lockDeckOrder = false,
+            bool skipOpeningDraw = false, bool deferStart = false,
+            int p2LandCapBonus = 0, int p2ExtraOpeningDraws = 0)
         {
             if (deck1 == null || deck2 == null)
                 throw new ArgumentNullException("卡组不能为null");
@@ -416,8 +434,11 @@ namespace CardCore
 
             // 地牌槽曲线注入（固定 [1..9]：起始 1，回合开始 +1，最大 9；
             // 卡组涌现曲线 DeckCurveCompiler 保留为分析工具，不再作为局内执行依据）
+            // 挑战模式（2026-10-06）：P2 按难度换上移曲线（开局即有额外槽），P1 恒标准曲线
             ElementPool.SetCurve(_player1, ResourceCurve.StandardLandCurve(), "InitGame:固定地牌槽曲线");
-            ElementPool.SetCurve(_player2, ResourceCurve.StandardLandCurve(), "InitGame:固定地牌槽曲线");
+            ElementPool.SetCurve(_player2,
+                p2LandCapBonus > 0 ? ResourceCurve.ChallengeLandCurve(p2LandCapBonus) : ResourceCurve.StandardLandCurve(),
+                p2LandCapBonus > 0 ? $"InitGame:挑战曲线(+{p2LandCapBonus})" : "InitGame:固定地牌槽曲线");
 
             // 将卡牌加入牌库区域，设置控制者
             foreach (var card in deck1)
@@ -444,29 +465,41 @@ namespace CardCore
                 ZoneManagerExtensions.ShuffleDeck(ZoneManager, _player2);
             }
 
-            // 起手抽牌
-            for (int i = ZoneManager.GetCards(_player1, Zone.Hand).Count; i < OpeningHandSize; i++)
+            // 起手抽牌（教学预设场面 skipOpeningDraw：手牌完全交由调用方注入，不补满）
+            if (!skipOpeningDraw)
             {
-                ZoneManagerExtensions.DrawCard(ZoneManager, _player1);
-            }
-            for (int i = ZoneManager.GetCards(_player2, Zone.Hand).Count; i < OpeningHandSize; i++)
-            {
-                ZoneManagerExtensions.DrawCard(ZoneManager, _player2);
+                for (int i = ZoneManager.GetCards(_player1, Zone.Hand).Count; i < OpeningHandSize; i++)
+                {
+                    ZoneManagerExtensions.DrawCard(ZoneManager, _player1);
+                }
+                for (int i = ZoneManager.GetCards(_player2, Zone.Hand).Count; i < OpeningHandSize; i++)
+                {
+                    ZoneManagerExtensions.DrawCard(ZoneManager, _player2);
+                }
+                // 挑战模式（2026-10-06）：P2 起手额外抽 p2ExtraOpeningDraws 张（难度 N=+N）
+                for (int i = 0; i < p2ExtraOpeningDraws; i++)
+                {
+                    ZoneManagerExtensions.DrawCard(ZoneManager, _player2);
+                }
             }
 
-            // 开始游戏
-            StartGame();
+            // 开始游戏（deferStart：教学预设场面注入器接管——seed 完成后调用方自行 StartGame）
+            if (!deferStart)
+                StartGame();
         }
 
         /// <summary>
         /// 从CardData列表初始化游戏
         /// </summary>
         public void InitGame(List<CardData> deck1Data, List<CardData> deck2Data, int copiesPerCard = 1,
-            int? rngSeed = null, bool lockDeckOrder = false)
+            int? rngSeed = null, bool lockDeckOrder = false,
+            bool skipOpeningDraw = false, bool deferStart = false,
+            int p2LandCapBonus = 0, int p2ExtraOpeningDraws = 0)
         {
             var deck1 = CardLoader.BuildDeck(deck1Data, copiesPerCard);
             var deck2 = CardLoader.BuildDeck(deck2Data, copiesPerCard);
-            InitGame(deck1, deck2, rngSeed, lockDeckOrder);
+            InitGame(deck1, deck2, rngSeed, lockDeckOrder, skipOpeningDraw, deferStart,
+                p2LandCapBonus, p2ExtraOpeningDraws);
         }
 
         /// <summary>

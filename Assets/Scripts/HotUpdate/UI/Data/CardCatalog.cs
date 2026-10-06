@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using CardCore;
 
 namespace SynergyUI
@@ -86,5 +87,17 @@ namespace SynergyUI
             _cache = null;
             _byId = null;
         }
+
+        // ======================================== 教学卡隔离（2026-10-06 第一课起） ========================================
+
+        /// <summary>教学专用卡判定（tags 含「教学」）：不进玩家侧卡池面——随机组卡/卡组构筑/
+        /// 卡牌编辑器预览/联机 AI 填位一律排除；教学局按 id 组卡（TutorialLibrary.BuildDeck→GetById）
+        /// 不经此判定，教学卡照常可取。卡名约定：教学卡不带语义名（教学生物N 编号），名字留给玩家。</summary>
+        public static bool IsTeachingCard(CardData card)
+            => card?.Tags != null && card.Tags.Contains("教学");
+
+        /// <summary>玩家可用卡池：LoadAll 去除教学专用卡（各消费面统一走此口，勿各自手写 tag 判断）。</summary>
+        public static List<CardData> LoadPlayPool()
+            => LoadAll().Where(c => !IsTeachingCard(c)).ToList();
     }
 }

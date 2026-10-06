@@ -69,7 +69,6 @@ namespace SynergyUI
         public static readonly Color DropSlotEdge = Rgb(64, 70, 84);      // 原子槽边
         public static readonly Color SlotTrunkEdge = Rgb(110, 130, 170);  // 自由分支主干槽边
         public static readonly Color SlotRewardEdge = Rgb(120, 150, 110); // 奖励槽边
-        public static readonly Color ArrowActive = Rgb(148, 212, 255);    // 六向箭头选中
         public static readonly Color ErrorText = Rgb(242, 126, 126);      // 校验红字
         public static readonly Color DescStripBg = new Color(36f / 255f, 44f / 255f, 60f / 255f, 0.5f);
         public static readonly Color DescStripBorder = Rgb(52, 62, 80);

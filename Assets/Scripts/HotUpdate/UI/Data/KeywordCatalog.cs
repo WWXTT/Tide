@@ -33,10 +33,10 @@ namespace SynergyUI
                 {
                     continue;
                 }
-                // 面板资格=MountKinds 位 5（可赋予生物，2026-09-23 数据驱动）——
-                // 取代旧"Grant 前缀"隐式口径；以后增删可赋关键词只改原子表 MountKinds
+                // 面板资格=表行 TargetFilter 含 "NoRole"（仅生物可赋予，2026-10-05 两槽定案自 MountKinds 位5 迁移）
+                // ——目标侧语义归目标过滤；以后增删可赋关键词只改原子表 TargetFilter
                 var row = CardCore.Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect);
-                if (!ComposerCatalog.HasMountBit(row, MountKind.GrantOnCreature)) continue;
+                if (!ComposerCatalog.IsCreatureGrantRow(row)) continue;
                 result.Add(new KeywordCatalogEntry
                 {
                     Id = def.id,

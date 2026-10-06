@@ -40,7 +40,8 @@ namespace CardCore.Attribute
         /// <summary>费用乘数（不同目标范围对费用的影响）</summary>
         public float CostMultiplier;
 
-        /// <summary>目标种类集（表 TargetKinds 列：逗号分隔 TargetKind 序号；空 = 无目标原子）。
+        /// <summary>目标种类集（表 TargetKinds 列：逗号分隔 TargetKind **中文名**（2026-10-06 中文化，
+        /// 解析双轨兼容序号）；空 = 无目标原子）。
         /// 2026-09-10 目标域模型：取代旧 TargetType+分区 filter token——组合层取成员原子域的交集。</summary>
         public string TargetKinds;
 
@@ -52,8 +53,9 @@ namespace CardCore.Attribute
         /// 0=中性。表级列（EffectType 固有语义，实例不可覆盖）。配合 TargetKind 域侧别做错边折价（CostDerivation）。</summary>
         public float Polarity;
 
-        /// <summary>可装载范围（2026-09-11 定案）：CSV MountKind 序号（0 主动/1 关键词/2 指示物/
-        /// 3 分支主干/4 分支奖励/5 赋予生物/6 赋予法术）。空 = 未声明兜底不限。显性化装载位，
+        /// <summary>可装载范围（2026-09-11 定案；2026-10-06 中文化）：CSV MountKind **中文名**
+        ///（主动/关键词/指示物/分支奖励/随机幅度/上限锁定/连接光环/系统/引擎主干/规则光环，
+        /// 解析双轨兼容序号）。空 = 未声明兜底不限。显性化装载位，
         /// 取代用 TargetKinds 反推主动/关键词/指示物的隐式口径。</summary>
         public string MountKinds;
 
@@ -69,7 +71,8 @@ namespace CardCore.Attribute
         /// <summary>结算优先级（0-100，值越高越先结算）</summary>
         public int Priority;
 
-        /// <summary>效果标签（逗号分隔）</summary>
+        /// <summary>效果标签（逗号分隔；2026-10-06 中文化——产出族词表：伤害产出族/宣言产出族/
+        /// 预言产出族/诅咒产出族，表色由加载器追加中文色名）</summary>
         public string Tags;
 
         /// <summary>可选触发时机（逗号分隔的 TriggerTiming 枚举名，空表示无触发配置）</summary>

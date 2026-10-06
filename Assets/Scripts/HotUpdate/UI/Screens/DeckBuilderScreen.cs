@@ -137,7 +137,7 @@ namespace SynergyUI
         private void RefreshCatalog()
         {
             ClearContent(_catalogList.Content);
-            IEnumerable<CardData> cards = CardCatalog.LoadAll();
+            IEnumerable<CardData> cards = CardCatalog.LoadPlayPool(); // 教学专用卡不进构筑卡池（2026-10-06 隔离）
             if (_colorFilter != UIColor.All)
                 cards = cards.Where(c => CardSorter.HasCostColor(c, _colorFilter));
             string query = _searchField != null ? _searchField.text : null;
@@ -525,6 +525,7 @@ namespace SynergyUI
 
             var deck = new DeckData(name) { cardIds = new List<string>(_deckCardIds) };
             var path = DeckSerializer.Save(deck);
+            if (path != null) TutorialCreationFlow.NotifyDecksChanged(); // 第三课走查步检测（未开课零行为）
             ShowToast(path == null ? "保存失败" : $"已保存：{name}");
             RefreshDecksDropdown();
             if (_decksDropdown != null)

@@ -22,6 +22,14 @@ namespace CardCore.Attribute
         private static Dictionary<string, AtomicEffectConfig> _enumNameMap;
         private static Dictionary<AtomicEffectType, AtomicEffectConfig> _typeMap;
 
+        // 保序全行（2026-10-06 原子表工坊）：_idMap.Values 是字典序（加行不删行时恰为插入序，
+        // 但不保证）；工坊 UI 逐行展示需要确定顺序，装载序即表书写序。
+        private static List<AtomicEffectConfig> _orderedRows;
+
+        /// <summary>表内容代际（2026-10-06 原子表工坊）：Reload 重建或 TrySetRowTotal 改行成功各 +1。
+        /// 消费方（overlay 重放、缓存失效判断）凭代际判断「我上次看到的表现在还作不作数」。</summary>
+        public static int Version { get; private set; }
+
         static AtomicEffectTable()
         {
             Initialize();
@@ -33,6 +41,8 @@ namespace CardCore.Attribute
             _hashIdMap = new Dictionary<string, AtomicEffectConfig>();
             _enumNameMap = new Dictionary<string, AtomicEffectConfig>();
             _typeMap = new Dictionary<AtomicEffectType, AtomicEffectConfig>();
+            _orderedRows = new List<AtomicEffectConfig>();
+            Version++;
 
             int loaded = 0;
             try
@@ -92,7 +102,7 @@ namespace CardCore.Attribute
                 Stackable = true,
                 Priority = 50,
                 // ---- 安全兜底（仅当 entry 缺失或字段解析失败时生效）----
-                TargetKinds = "0,1",                        // 双方有生命单位（最宽域）
+                TargetKinds = "己方单位,对方单位",           // 双方有生命单位（最宽域）
                 TargetFilter = null,                        // 无过滤（旧常量 "Creature" 已废：token 改名 NoRole，
                                                               // 死 token 顶替 null 会让「review 定案 filter=(空)」失真）
             };
@@ -112,10 +122,18 @@ namespace CardCore.Attribute
                 // 数据未迁的过渡态）已随全表数据迁移删除。null/空 = 不计价行。
                 config.ManaList = ParsePositionalMana(entry.ManaList);
 
+                // 表 Tags 列（2026-10-06 产出族迁表 + 中文化）先入，表色随后追加（逗号连接）——
+                // GetTagList() 两侧消费：ComposerCatalog.OutcomeConditionsFor 族匹配（伤害产出族 等）、
+                // ElementAffinities.GetAffinityForEffect 色名匹配（中文色名，族标签与色名不冲突）。
+                config.Tags = entry.Tags;
+
                 // 表色回填：ElementAffinities.GetAffinityForEffect 读 Tags 取色——
                 // 费用构成首色（首个非零下标）即表色（混合色原子取序数序首个非零色）。
                 if (config.ManaList != null && !config.ManaList.IsZero)
-                    config.Tags = config.ManaList.PrimaryColor.ToString();
+                {
+                    var color = ManaTypeNames.ZhNameOf(config.ManaList.PrimaryColor);
+                    config.Tags = string.IsNullOrEmpty(config.Tags) ? color : config.Tags + "," + color;
+                }
 
                 // targeting / 发动 / 三分类：配置驱动，解析失败保留上面的兜底。
                 // TargetKinds 列即真相：行内显式空（null/""）= 真无域（守卫/跳回合类被动，
@@ -124,8 +142,8 @@ namespace CardCore.Attribute
                 if (!string.IsNullOrEmpty(entry.TargetFilter)) config.TargetFilter = entry.TargetFilter;
                 config.Polarity = Math.Clamp(entry.Polarity, -1f, 1f);
 
-                // 可装载范围（2026-09-11）：空 = 未声明 → 兜底 "不限"（向后兼容存量行，逐步收紧）
-                config.MountKinds = string.IsNullOrEmpty(entry.MountKinds) ? "0,1,2,3,4,5,6" : entry.MountKinds;
+                // 可装载范围（2026-09-11；2026-10-06 中文化）：空 = 未声明 → 兜底 "不限"（向后兼容存量行，逐步收紧）
+                config.MountKinds = string.IsNullOrEmpty(entry.MountKinds) ? "主动,关键词,指示物,分支奖励,随机幅度,上限锁定,连接光环" : entry.MountKinds;
             }
             else
             {
@@ -169,6 +187,7 @@ namespace CardCore.Attribute
             _enumNameMap[config.EnumName] = config;
             if (Enum.TryParse<AtomicEffectType>(config.EnumName, out var type))
                 _typeMap[type] = config;
+            _orderedRows.Add(config);
         }
 
         /// <summary>通过表 ID 列（8-hex）获取配置（原子引用键——无则 null）。</summary>
@@ -230,6 +249,50 @@ namespace CardCore.Attribute
         /// <summary>已加载的配置总数（供诊断/验证用）</summary>
         public static int Count => _typeMap?.Count ?? 0;
 
+        // ======================================== 原子表工坊（2026-10-06 玩家改价） ========================================
+
+        /// <summary>玩家可编辑的总价下界（0.5 步进网格起点）。0 = 白嫖，禁设。</summary>
+        public const float MinEditableTotal = 0.5f;
+
+        /// <summary>玩家可编辑的总价上界（0.5 步进网格终点）。9 = 顶格档，禁设。</summary>
+        public const float MaxEditableTotal = 8.5f;
+
+        /// <summary>全行保序枚举（表书写序；工坊 UI 逐行展示用）。</summary>
+        public static IReadOnlyList<AtomicEffectConfig> OrderedRows => _orderedRows;
+
+        /// <summary>
+        /// 工坊编辑合法性（UI 预检与写入共用同一口径，禁双轨）：
+        /// 总价落在 [0.5, 8.5] 且为 0.5 整倍数——0（白嫖）与 9（顶格档）永远设不进。
+        /// </summary>
+        public static bool IsEditableTotal(float total)
+        {
+            if (total < MinEditableTotal || total > MaxEditableTotal) return false;
+            return Math.Abs(total * 2f - Math.Round(total * 2f)) < 1e-3f;
+        }
+
+        /// <summary>
+        /// 行级总价改写（原子表工坊）：按 hashId 定位行，把 ManaList 整只替换为
+        /// 「原六色占比 × 新总价」的等比分摊——占比不动 ⇒ 表色/Tags/Polarity/HashId 全不变，
+        /// 转换器实例快照（Polarity/RowHashId）与 ResolveRowId 反查全部不过期；
+        /// 四张字典持同一对象引用，改字段即全映射生效。
+        /// 不计价行（ManaList=null）与非法值拒绝并返回 false。成功后 Version+1。
+        /// </summary>
+        public static bool TrySetRowTotal(string hashId, float total)
+        {
+            if (string.IsNullOrEmpty(hashId) || !IsEditableTotal(total)) return false;
+            if (!_hashIdMap.TryGetValue(hashId, out var row) || row == null) return false;
+            var old = row.ManaList;
+            if (old == null || old.IsZero || old.Total <= 0f) return false; // 不计价行不可编辑
+
+            var scale = total / old.Total;
+            var arr = new float[ElementCost.Length];
+            for (int i = 0; i < ElementCost.Length && i < old.v.Length; i++)
+                arr[i] = old.v[i] * scale;
+            row.ManaList = new ElementCost(arr);
+            Version++;
+            return true;
+        }
+
         // ======================================== JSON DTO（薄 5+1 列）========================================
 
         [Serializable]
@@ -245,12 +308,14 @@ namespace CardCore.Attribute
             public string EffectType;     // 英文枚举名（DealDamage）→ AtomicEffectType
 
             // ---- targeting / 发动（2026-09-10 目标域模型：TargetKinds+SelectionMode 取代 TargetType/Scope；持续已上移组合层）----
-            public string TargetKinds;    // 逗号分隔 TargetKind 序号（空 = 无目标原子）
+            public string TargetKinds;    // 逗号分隔 TargetKind 中文名（2026-10-06 中文化，解析双轨兼容序号；空 = 无目标原子）
             public string TargetFilter;   // 逗号分隔属性 token（Creature/Player/Untapped/...）
             public float Polarity;        // 极性 [-1,1]：-1=对对手释放有益 / +1=对己方释放有益 / 0=中性
 
-            // ---- 可装载范围（2026-09-11 定案）：主动效果/关键词/指示物/分支位置/赋予目标，显性化 ----
-            public string MountKinds;     // 逗号分隔 MountKind 序号（空 = 未声明，消费方兜底=不限）
+            // ---- 可装载范围（2026-09-11 定案；2026-10-06 中文化）：主动效果/关键词/指示物/分支位置/赋予目标，显性化 ----
+            public string MountKinds;     // 逗号分隔 MountKind 中文名（解析双轨兼容序号；空 = 未声明，消费方兜底=不限）
+            public string Tags;           // 逗号分隔中文标签（2026-10-06 产出族迁表中文化：伤害产出族/诅咒产出族 等；
+                                          // 表色由 BuildConfig 在标签后追加中文色名，ElementAffinity 扫标签取色）
         public string ID;             // 表首列：8 位 hex 描述哈希（原子引用键——EffectSlim.AtomRef.refId）
         }
 

@@ -144,16 +144,14 @@ namespace SynergyUI
         }
 
         /// <summary>
-        /// 效果级编排字段（2026-09-14 合成器重做扩展）：引擎通道（EngineKind/EngineParam+奖励原子）、
-        /// 选择编排（SelectionMode/TargetCount/RandomTarget）、持续/落区/触发上限/速度。
-        /// 此前这些字段均不参与哈希——合成器可编辑它们后去重会失真（同名不同功能视为重复）。
-        /// AE: 段条件追加：非引擎效果（AtomicEffects 空）不写段，保旧哈希尽量少漂移。
-        /// RT: 段条件追加（2026-09-16）：仅 RandomTarget 置位时写——现网数据零漂移；
-        /// Drawbacks（DB 段）已随减费归入代价体系退役。
+        /// 效果级编排字段（2026-10-05 两槽定案）：选择编排（SelectionMode/TargetCount/RandomTarget）、
+        /// 持续/落区/触发上限/速度。此前这些字段均不参与哈希——合成器可编辑它们后去重会失真。
+        /// AE: 段条件追加：扁平形态（AtomicEffects 非空且 steps 空）不写段，保旧哈希尽量少漂移。
+        /// RT: 段条件追加（2026-09-16）：仅 RandomTarget 置位时写——现网数据零漂移。
+        /// 引擎通道 EK 段已随载荷化退役——槽级 branch 载荷随原子入哈希（AppendAtomic）。
         /// </summary>
         private static void AppendOrchestration(StringBuilder sb, CardEffectData h, List<EffectStepData> graphSteps)
         {
-            sb.Append("EK:").Append(h.EngineKind).Append('/').Append(h.EngineParam).Append('|');
             // 2026-09-14 收缩：SM 去 DynamicTargetCount 段（并入 TargetCount=-1）、DU 去 DurationValue 段（ForTurns 退役）
             sb.Append("SM:").Append(h.SelectionMode).Append('/')
               .Append(h.TargetCount).Append('|');
@@ -234,7 +232,8 @@ namespace SynergyUI
                 return;
             }
             // 2026-09-14 彻底引用化：原子=表行引用+增量——哈希直接组引用形态（不查表，确定性；
-            // 表行内容变化不改变卡/效果 id——表是平衡层，引用是身份层）
+            // 表行内容变化不改变卡/效果 id——表是平衡层，引用是身份层）。
+            // 2026-10-05 两槽定案：槽级 branch 载荷是功能字段（条件+Then 奖励），随原子入哈希。
             sb.Append('[')
               .Append(a.refId).Append(',')
               .Append(a.value).Append(',')
@@ -242,6 +241,23 @@ namespace SynergyUI
               .Append(string.Join(",", (a.kinds ?? new System.Collections.Generic.List<int>()).Distinct().OrderBy(k => k)))
               .Append(",amp=").Append(a.amp.ToString("R", System.Globalization.CultureInfo.InvariantCulture))
               .Append(']');
+            AppendBranch(sb, a.branch);
+        }
+
+        /// <summary>槽级分支载荷哈希（两槽定案）：条件三族 + Then 奖励原子（顺序敏感）。</summary>
+        private static void AppendBranch(StringBuilder sb, BranchEntryData b)
+        {
+            if (b == null) return;
+            sb.Append("br{").Append(b.settle).Append('/')
+              .Append(b.gateId ?? "").Append('/').Append(b.gateParam).Append('/').Append(b.gateStr ?? "")
+              .Append('#').Append(b.outcomeId ?? "")
+              .Append('#').Append(b.engine).Append('/').Append(b.engineParam)
+              .Append(";then[");
+            if (b.then != null)
+            {
+                foreach (var r in b.then) AppendAtomic(sb, r);
+            }
+            sb.Append("]}");
         }
 
         private static void AppendCondition(StringBuilder sb, ActivationConditionData c)

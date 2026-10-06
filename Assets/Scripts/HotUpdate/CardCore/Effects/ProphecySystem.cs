@@ -132,7 +132,9 @@ namespace CardCore
             if (GameCore.Instance != null) GameCore.Instance.PublishEvent(resolved);
             else EventManager.Instance.Publish(resolved);
 
-            var rewards = hit ? p.Then : p.Else;
+            // ProphecyMiss 语义反转：验证未命中才走 Then（两槽载荷路径 Else 恒空——不反转则 Miss 的 Then 永不结算）
+            bool conditionMet = p.ConditionId == "ProphecyMiss" ? !hit : hit;
+            var rewards = conditionMet ? p.Then : p.Else;
             if (rewards == null || rewards.Count == 0) return;
 
             var context = new EffectExecutionContext
