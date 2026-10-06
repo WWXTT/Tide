@@ -426,6 +426,27 @@ namespace CardCore
         public string str;            // 字符串参数（token 模板 ID、关键词 id、宣言卡名）
         public float amp;             // 数值随机幅度 0..1（0=off；span=round(|value|×amp)）
         public List<int> kinds;       // 实例域收窄（TargetKind 序号；null=表行默认域）
+        public BranchEntryData branch; // 槽级分支载荷（2026-10-05 两槽定案）：null=无分支
+    }
+
+    /// <summary>
+    /// 槽级分支载荷条目（2026-10-05 两槽定案）：条件在主干中 + then 奖励——
+    /// settle=1 有限分支（gateId 局面状态门，效果结算时评估一次，任意原子可挂）；
+    /// settle=2 自由分支·产出条件（outcomeId 读主干 per-target 产出，如 DmgKillsTarget）；
+    /// settle=3 自由分支·事件引擎（engine，参数 engineParam）。
+    /// then=条件达成后强制结算的奖励原子（有目标域则结算前依次弹选）。JsonUtility 可序列化。
+    /// </summary>
+    [Serializable]
+    public class BranchEntryData
+    {
+        public int settle;             // BranchSettleKind 枚举值
+        public string gateId;          // settle==1：局面条件 id（含诅咒特例 CurseOnDraw）
+        public int gateParam;
+        public string gateStr;
+        public string outcomeId;       // settle==2：产出条件 id
+        public int engine;             // settle==3：BranchEngineKind 枚举值
+        public int engineParam;        // 引擎参数 x（倒计时 0=按 then 推导费自动换算）
+        public List<AtomicEffectEntry> then; // 奖励原子列表
     }
 
     /// <summary>
@@ -560,6 +581,9 @@ namespace CardCore
         public int Duration;           // 整体效果的 DurationType（2026-09-10 重构激活：持续唯一真相在效果级；-1=迁移哨兵=未声明）
         // ---- 组合层编排属性（2026-09-10 重构 P1：自原子层上移；2026-09-14 收缩：DurationValue 删除——
         //      持续档收缩后 ForTurns(1/2)≡专档同义词，回合数走指示物自减，效果级不再携带）----
+        /// <summary>ForTurns 持续回合数 N（2026-10-06 复挂：光环持续回合数编辑还原——仅 Duration=ForTurns
+        /// 时有意义，0 视为 1；2026-09-14 曾收缩删除，光环类持续效果按回合到期需要 N 可编）。</summary>
+        public int DurationValue;
         public int SummonDropZone;    // SummonToken 落区（Zone 枚举：战场/手牌/牌库三档）
         public int SelectionMode = -1; // SelectionMode 枚举值（-1=None 无目标哨兵；0-5=六值定案 2026-09-16）
         public int TargetCount = -2;   // >0=恰好 N 个；0=全部；**-1=任意（2026-09-14 并入 DynamicTargetCount：玩家自选数量——原子计 0 费；不关联地牌资格 2026-09-21）**；-2=未声明回落表级
@@ -568,13 +592,10 @@ namespace CardCore
         // 全部原子共享同一份选中目标；null=未声明→回落原子域交集推导（存量兼容）。
         public List<int> TargetKinds;
         // 触发式每回合触发上限（2026-09-13）：0=未声明（原子含 TriggerCapImmutable→无限；否则默认 1）；
-        // >0=每回合 N 次；-1=显式无限。仅对触发式生效；不可修改原子（含 8）声明上限被覆写+构筑告警。
+        // >0=每回合 N 次；-1=显式无限。仅对触发式生效；不可修改原子声明上限被覆写+构筑告警。
         public int TriggerLimitPerTurn;
-        // 动态分支引擎（2026-09-13 分支体系正规化）：0=无/1=倒计时/2=运势（BranchEngineKind）。
-        // 引擎模式下 AtomicEffects=奖励原子（不占卡费：倒计时延迟即付费/运势机制费=EngineParam 灰）。
-        public int EngineKind;
-        // 引擎参数：运势阈值 x（[1,5]）；倒计时缺省 0=奖励推导费自动换算回合（1费=1回合）。
-        public int EngineParam;
+        // 动态分支引擎头字段（EngineKind/EngineParam）已随 2026-10-05 两槽定案载荷化退役——
+        // 引擎条件挂槽级原子 branch 载荷（BranchEntryData.engine/engineParam）。
 
         // 光环上移效果层（2026-09-23 定案）：光环形态效果自带连接箭头+光环条目——
         // 效果挂到卡上时并集入卡面（多光环取并集，CardData.AggregateEffectAuras）；

@@ -210,6 +210,8 @@ namespace CardCore
                 Attacker = attack.Source,
                 BlockingPlayer = guard.Controller
             });
+
+            RuleHooks.OnTutorialGuardResolved?.Invoke(guarder as Card, attack); // 教学探针：守卫步骤完成信号
         }
 
         /// <summary>
@@ -237,6 +239,7 @@ namespace CardCore
                     OriginalTarget = target,
                     AttackingPlayer = attack.Controller
                 });
+                RuleHooks.OnTutorialAttackResolved?.Invoke(attacker, target); // 教学探针：守卫步骤漏守兜底（取消路径）
                 return;
             }
 
@@ -261,6 +264,8 @@ namespace CardCore
 
             // ② 战斗结算（攻击方强制竖直参战特判在 ResolvePair：横置不查攻击方、不削输出）
             ResolvePair(attacker, target);
+
+            RuleHooks.OnTutorialAttackResolved?.Invoke(attacker, target); // 教学探针：守卫步骤漏守兜底（结算路径，目标=改写后）
         }
 
         /// <summary>结算一次攻击配对（含先攻/连击/碾压；剧毒吸血圣盾护甲坚韧在 KeywordRules 内）</summary>

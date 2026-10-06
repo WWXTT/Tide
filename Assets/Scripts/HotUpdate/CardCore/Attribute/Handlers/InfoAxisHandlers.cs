@@ -66,10 +66,11 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 诅咒原子（信息轴，2026-10-02 定案，开放式分支）：为对手的卡附加「诅咒」指示物
+    /// 诅咒原子（信息轴，2026-10-02 定案；2026-10-05 有限分支定案）：为对手的卡附加「诅咒」指示物
     /// （CurseCounter，Permanent——活过牌库→手牌的换区清除）并登记载荷（CurseSystem.Attach）。
-    /// 对手抽到该卡时自动执行载荷分支效果并消层（一次性，CurseSystem 驱动）。
-    /// str = 载荷效果 id（Effects.json 条目引用——SummonToken 的 str=模板同款先例）；
+    /// 对手抽到该卡时自动执行载荷分支效果并消层（一次性，CurseSystem 驱动；时机固定=抽到时）。
+    /// 载荷两形态：①inline——槽级 Branch 载荷（有限分支 Gate 特例 CurseOnDraw，Then 原子 ≤2 费预算，
+    /// 优先消费）；②str = 载荷效果 id（Effects.json 条目引用——手写数据兼容）。
     /// Value = 附加数量（≤0 取 1）；目标已预选则逐卡附加（如点名已展示的对手手牌卡——信息轴联动），
     /// None 自结算 = 随机对手牌库一张/次（炉石式——不给施放者看对方牌库）。
     /// 效果/指示物分离定案：本原子只负责投放，分支规则由指示物 + CurseSystem 承载。
@@ -78,14 +79,24 @@ namespace CardCore.Attribute.Handlers
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddCurse;
 
+        /// <summary>inline 载荷 = 槽级 CurseOnDraw 门（有限分支特例）的 Then 原子列。</summary>
+        private static List<AtomicEffectInstance> InlinePayloadOf(AtomicEffectInstance effect)
+            => effect.Branch != null
+               && effect.Branch.Settle == BranchSettleKind.Gate
+               && effect.Branch.GateId == ComposerCatalog.CurseGateId
+               && effect.Branch.Then != null && effect.Branch.Then.Count > 0
+                ? effect.Branch.Then
+                : null;
+
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             if (context.ZoneManager == null || context.Controller == null) return;
 
+            var inlineSteps = InlinePayloadOf(effect);
             string payloadId = effect.StringValue;
-            if (string.IsNullOrEmpty(payloadId))
+            if (inlineSteps == null && string.IsNullOrEmpty(payloadId))
             {
-                TideLog.Warn("[AddCurseHandler] 缺少载荷效果 id（str 应为 Effects.json 条目 id），空转");
+                TideLog.Warn("[AddCurseHandler] 缺少载荷（CurseOnDraw 门 Then 空且 str 未引用 Effects.json 条目），空转");
                 return;
             }
 
@@ -109,7 +120,8 @@ namespace CardCore.Attribute.Handlers
             {
                 if (card == null || !card.IsAlive) continue;
                 card.AddCounters(CounterRules.CurseCounter, 1, context.Controller);
-                CurseSystem.Attach(card, payloadId, context.Controller, sourceCard);
+                if (inlineSteps != null) CurseSystem.Attach(card, inlineSteps, context.Controller, sourceCard);
+                else CurseSystem.Attach(card, payloadId, context.Controller, sourceCard);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = card,
@@ -128,6 +140,8 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"附加诅咒（抽到该卡时执行分支效果：{effect.StringValue}）";
+            => InlinePayloadOf(effect) != null
+                ? $"附加诅咒（抽到该卡时执行 ≤2 费专属载荷，一次性）"
+                : $"附加诅咒（抽到该卡时执行分支效果：{effect.StringValue}）";
     }
 }

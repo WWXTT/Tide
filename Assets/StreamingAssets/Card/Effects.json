@@ -1,0 +1,282 @@
+{
+    "items": [
+        {
+            "id": "2F1FDE66",
+            "name": "造成伤害",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "kinds": [],
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                0.0,
+                5.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a4b823fc",
+                        "value": 5,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "ET2060001",
+            "name": "灼烧：对目标造成4点伤害",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "kinds": [],
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a4b823fc",
+                        "value": 4,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "ET2060002",
+            "name": "净化：移除目标全部临时关键词与指示物",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "kinds": [],
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "ceea9f38",
+                        "value": 0,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "ET2060003",
+            "name": "巨壁的自我激励：攻击宣言时+1/+1",
+            "timing": 7,
+            "activation": 1,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "kinds": [],
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "8f4d22b3",
+                        "value": 1,
+                        "str": "",
+                        "amp": 0.0,
+                        "kinds": [
+                            0
+                        ]
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "ET2060004",
+            "name": "归土仪典投放：每回合一次墓地视手牌中使用",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "kinds": [],
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "a1ea9962",
+                        "value": 0,
+                        "str": "GraveyardPlay",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        },
+        {
+            "id": "ET2060005",
+            "name": "纳川仪典投放：手牌上限15+免疫疲劳",
+            "timing": 0,
+            "activation": 0,
+            "speed": 0,
+            "limit": 0,
+            "duration": 0,
+            "selection": -1,
+            "count": -2,
+            "random": 0,
+            "kinds": [],
+            "dropZone": 0,
+            "engine": 0,
+            "engineParam": 0,
+            "arrows": 0,
+            "linkAuras": [],
+            "cost": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "costs": [],
+            "steps": [
+                {
+                    "kind": 0,
+                    "atom": {
+                        "refId": "b6170161",
+                        "value": 0,
+                        "str": "HandLimitNoFatigue",
+                        "amp": 0.0,
+                        "kinds": []
+                    },
+                    "gid": "",
+                    "gparam": 0,
+                    "gstr": "",
+                    "then": [],
+                    "els": [],
+                    "choices": []
+                }
+            ],
+            "rewards": []
+        }
+    ]
+}

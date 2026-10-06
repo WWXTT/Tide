@@ -100,9 +100,18 @@ namespace CardCore.Attribute
         /// </summary>
         public const string RushSicknessCounter = "RushSickness";
 
+        /// <summary>
+        /// 长档紊乱指示物名（负面，Permanent + 层=剩余回合、持有者回合末逐层倒数——锁定指示物同模式）：
+        /// 与 RushSickness 同判（HasRushSickness 合并查询），但可跨回合长期锁定「不能以玩家为目标」。
+        /// 净化可清（Permanent 类走净化口径全清）。通用原语——非教学专用。
+        /// </summary>
+        public const string SustainedRushSicknessCounter = "RushSicknessSustained";
+
         /// <summary>是否处于突袭紊乱（负面指示物存在期间不能以玩家为目标；消退走 CounterRules）。</summary>
         public static bool HasRushSickness(Entity entity)
-            => entity is Card c && c.GetCounterCount(RushSicknessCounter) > 0;
+            => entity is Card c
+               && (c.GetCounterCount(RushSicknessCounter) > 0
+                   || c.GetCounterCount(SustainedRushSicknessCounter) > 0);
 
         // ==================== 关键词轨别台账（三轨制定案 2026-09-09） ====================
 
@@ -297,9 +306,11 @@ namespace CardCore.Attribute
             // 毒刺→毒素1层（绿1，带3回合时钟）/ 冰晶→冻结1层（蓝2，横置）/ 梦魇→沉睡1层（黑2，横置）/
             // 病原体→剧毒（绿3——表 BaseCost=3.0 为计价真相源，2026-10-02 对齐）。固定序取第一个命中（多关键词不叠加改写）；
             // 角色（打脸）也改写——毒素/剧毒落角色有效，冻结/沉睡对角色空转；穿透伤害不经防护层，恒可改写。
-            // 施加口径收口 ApplyRewriteCounter（2026-09-22：与拦截式改写门共用，防两套漂移）。
+            // 施加口径收口 ApplyRewriteCounter（拦截式改写门路径已退役 2026-10-05，战斗/光环两路共用此口）。
             // 2026-10-02 结界实装：改写只对活体/角色生效——无生命单位（结界）不是状态宿主
             //（冻结/沉睡对其无效），改写命中等价"伤害被无效化"，故跳过改写走耐久管线。
+            // 2026-10-05 唯一光环路径：毒蚀/霜蚀/眠蚀/疫蚀仪典（仅持有者=光环控制者的全部生物生效，
+            // 定案）——关键词链未命中时按同序（毒刺>冰晶>梦魇>病原体）查光环命中。
             if (isCombat && source != null && source.IsAlive
                 && !(target is Card rwCard && rwCard.IsNonLivingUnit()))
             {
@@ -308,7 +319,15 @@ namespace CardCore.Attribute
                     source.HasKeyword(IceCrystal) ? IceCrystal :
                     source.HasKeyword(Nightmare) ? Nightmare :
                     source.HasKeyword(Pathogen) ? Pathogen : null;
-                if (combatRewrite != null && ApplyRewriteCounter(combatRewrite, target, source, CombatRewriteDetail(combatRewrite)))
+                bool fromAura = false;
+                if (combatRewrite == null && source is Card auraSrc)
+                {
+                    combatRewrite = RuleAuraSystem.HolderRewriteFor(auraSrc);
+                    fromAura = combatRewrite != null;
+                }
+                if (combatRewrite != null
+                    && ApplyRewriteCounter(combatRewrite, target, source,
+                        fromAura ? AuraRewriteDetail(combatRewrite) : CombatRewriteDetail(combatRewrite)))
                     return 0;
             }
 
@@ -462,7 +481,8 @@ namespace CardCore.Attribute
             return true;
         }
 
-        /// <summary>战斗改写路径的审计文案（与 2026-09-13 原文案逐字一致）。</summary>
+        /// <summary>战斗改写路径的审计文案（关键词路径；与 2026-09-13 原文案逐字一致）。
+        /// 改写门路径已随拦截式改写门退役删除（2026-10-05 迁唯一光环）。</summary>
         private static string CombatRewriteDetail(string keywordId)
         {
             switch (keywordId)
@@ -475,30 +495,17 @@ namespace CardCore.Attribute
             }
         }
 
-        /// <summary>拦截式改写门（2026-09-22 定案）条件 id → 改写关键词 id。
-        /// 与 BranchConditionEvaluator.IsRewriteCondition 的 4 个 id 同步。</summary>
-        public static string RewriteGateKeyword(string conditionId)
+        /// <summary>唯一光环路径的审计文案（2026-10-05：毒蚀/霜蚀/眠蚀/疫蚀仪典——仅持有者生效）。
+        /// keywordId 复用四条印刷关键词 id（施加口径同源），文案按仪典名播报。</summary>
+        private static string AuraRewriteDetail(string keywordId)
         {
-            switch (conditionId)
+            switch (keywordId)
             {
-                case "DmgRewriteToxin": return PoisonSting;
-                case "DmgRewriteFreeze": return IceCrystal;
-                case "DmgRewriteSleep": return Nightmare;
-                case "DmgRewriteVenom": return Pathogen;
-                default: return null;
-            }
-        }
-
-        /// <summary>拦截式改写门的审计文案。</summary>
-        public static string RewriteGateDetail(string conditionId)
-        {
-            switch (conditionId)
-            {
-                case "DmgRewriteToxin": return "改写门：伤害改为毒素指示物×1（伤害未发生）";
-                case "DmgRewriteFreeze": return "改写门：伤害改为冻结指示物×1（伤害未发生）";
-                case "DmgRewriteSleep": return "改写门：伤害改为沉睡指示物×1（伤害未发生）";
-                case "DmgRewriteVenom": return "改写门：伤害改为剧毒指示物×1（伤害未发生）";
-                default: return "改写门：伤害改写为指示物（伤害未发生）";
+                case PoisonSting: return "毒蚀仪典：战斗伤害改为毒素指示物×1（伤害不发生，仅持有者生物生效）";
+                case IceCrystal: return "霜蚀仪典：战斗伤害改为冻结指示物×1（伤害不发生，仅持有者生物生效）";
+                case Nightmare: return "眠蚀仪典：战斗伤害改为沉睡指示物×1（伤害不发生，仅持有者生物生效）";
+                case Pathogen: return "疫蚀仪典：战斗伤害改为剧毒指示物×1（伤害不发生，仅持有者生物生效）";
+                default: return "规则光环：战斗伤害改为指示物（伤害不发生）";
             }
         }
 

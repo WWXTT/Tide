@@ -41,11 +41,18 @@ namespace SynergyUI
         /// （不重复、每卡 1 张）；P2 由极简 AI 操作。
         /// 教学局参数（2026-10-02）：aiDriver 注入 ScriptedAi（剧本驱动）；lockDeckOrder 锁牌库顺序
         /// （卡组列表序=摸牌序列，起手=前 6 张）；rngSeed 钉效果随机——三者合成完全确定的教学局。
+        /// 预设场面（2026-10-06 教学直入）：scenario 非 null=双方卡组（并集）先全部入牌库、跳起手抽取、
+        /// 不自动开局，TutorialScenarioSeeder 静默注入场面后再 StartGame——玩家直接站在起跳回合主阶段。
+        /// 挑战模式（2026-10-06）：aiLandCapBonus/aiExtraOpeningDraws 直通 InitGame（P2 曲线上移+起手加抽）。
+        /// 原子表工坊（2026-10-06）：装载卡池后 EnsureBattleCosts——overlay 启用时全卡池强制重推改价。
         /// </summary>
         public void StartNewGame(List<CardData> myDeck = null, List<CardData> aiDeck = null,
-            IAiTurnDriver aiDriver = null, bool lockDeckOrder = false, int? rngSeed = null)
+            IAiTurnDriver aiDriver = null, bool lockDeckOrder = false, int? rngSeed = null,
+            TutorialScenario scenario = null, int aiLandCapBonus = 0, int aiExtraOpeningDraws = 0)
         {
             var catalog = CardCatalog.LoadAll();
+            // 原子表工坊改价生效点：教学基线在位时内部自动跳过（教学局用声明费）
+            AtomicTableWorkshop.EnsureBattleCosts();
             // 变形目标形态解析器：组合根注入（CardCore 不依赖 UI 层）
             CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
 
@@ -53,17 +60,34 @@ namespace SynergyUI
             if (aiDeck == null) aiDeck = RandomDeckFrom(catalog);
             if (aiDriver != null) _ai = aiDriver;
 
-            GameCore.Instance.InitGame(myDeck, aiDeck, rngSeed: rngSeed, lockDeckOrder: lockDeckOrder);
+            if (scenario != null)
+            {
+                GameCore.Instance.InitGame(myDeck, aiDeck, rngSeed: rngSeed, lockDeckOrder: true,
+                    skipOpeningDraw: true, deferStart: true);
+                // 标记 P2 为 AI：目标选择器对 AI 跳过弹窗、即时自动选择。
+                if (GameCore.Instance.Player2 != null)
+                    GameCore.Instance.Player2.IsAI = true;
+                AttachBoard(); // 棋盘先于注入：单位显式落位（PinCard 钉子）需要 BoardState 在场
+                TutorialScenarioSeeder.Apply(GameCore.Instance, scenario, _board);
+                GameCore.Instance.StartGame(); // TurnEngine 已预置起跳回合 → StartNewTurn 落到 startTurn/Main
+                return;
+            }
+
+            GameCore.Instance.InitGame(myDeck, aiDeck, rngSeed: rngSeed, lockDeckOrder: lockDeckOrder,
+                p2LandCapBonus: aiLandCapBonus, p2ExtraOpeningDraws: aiExtraOpeningDraws);
             // 标记 P2 为 AI：目标选择器对 AI 跳过弹窗、即时自动选择。
             if (GameCore.Instance.Player2 != null)
                 GameCore.Instance.Player2.IsAI = true;
             AttachBoard();
         }
 
-        /// <summary>随机卡组：卡池洗牌取前 N 张不重复（Guid 序——非对拍用途，无需钉种子）。</summary>
+        /// <summary>随机卡组：卡池洗牌取前 N 张不重复（Guid 序——非对拍用途，无需钉种子）。
+        /// 教学专用卡不进普通随机局/联机测试局（CardCatalog.IsTeachingCard 统一口径，2026-10-06 隔离）
+        /// ——教学局按 id 组卡（TutorialLibrary.BuildDeck），不经本过滤。</summary>
         public static List<CardData> RandomDeckFrom(List<CardData> catalog)
         {
-            return catalog.OrderBy(_ => Guid.NewGuid()).Take(RandomDeckSize).ToList();
+            return catalog.Where(c => !CardCatalog.IsTeachingCard(c))
+                .OrderBy(_ => Guid.NewGuid()).Take(RandomDeckSize).ToList();
         }
 
         /// <summary>棋盘占用层接线：注入碾压 AdjacentResolver + 连接光环 LinkAuraSystem（核心不绑棋盘，由宿主组装）。</summary>

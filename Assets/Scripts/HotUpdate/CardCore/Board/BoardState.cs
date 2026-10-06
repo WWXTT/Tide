@@ -45,6 +45,11 @@ namespace GameBoard
         private readonly Dictionary<int, Card> _occupant = new Dictionary<int, Card>(); // cellIndex -> 卡（单位/地牌）
         private readonly Dictionary<Card, int> _cellOf = new Dictionary<Card, int>();   // 反向
 
+        // 落位钉子（2026-10-06 教学直入）：卡 → 指定格 index。Resync 时带钉卡优先占钉格
+        // （钉格须属其所在区的格集，否则按无钉顺延），其余卡按区域列表序填空——无人调钉时
+        // 分配与原「列表序位」逐位一致。卡离场（不再落格）钉子在 Resync 尾自动清除。
+        private readonly Dictionary<Card, int> _pinnedCells = new Dictionary<Card, int>();
+
         // 发动格叠放（= 栈的物理呈现）：Phase A 暂态在单次 PlayCard 内，通常为空；
         // StackEngine 路径接入后此处承载多张待结算卡
         private readonly List<Card> _activation0 = new List<Card>();
@@ -83,6 +88,15 @@ namespace GameBoard
 
             AppendActivation(_p1, _activation0);
             AppendActivation(_p2, _activation1);
+
+            // 落位钉子清理：本轮未落格的卡（离场/换区）钉子不保留
+            if (_pinnedCells.Count > 0)
+            {
+                var stale = new List<Card>();
+                foreach (var card in _pinnedCells.Keys)
+                    if (!_cellOf.ContainsKey(card)) stale.Add(card);
+                foreach (var card in stale) _pinnedCells.Remove(card);
+            }
         }
 
         private void AssignCells(Player player, Zone zone, IReadOnlyList<(int x, int z)> cells)
@@ -90,13 +104,50 @@ namespace GameBoard
             var cards = SafeGetCards(player, zone);
             if (cards == null) return;
 
-            int n = Math.Min(cards.Count, cells.Count);
-            for (int i = 0; i < n; i++)
+            // 落位钉子优先：本批带合法钉的卡占住钉格；其余卡按列表序填剩余空格（原口径）
+            var cellIndex = new HashSet<int>();
+            foreach (var c in cells) cellIndex.Add(BoardMath.Index(c.x, c.z));
+
+            var pinned = new Dictionary<int, Card>(); // cellIdx -> 卡（同批先到先得）
+            var unpinned = new List<Card>();
+            foreach (var card in cards)
             {
-                int idx = BoardMath.Index(cells[i].x, cells[i].z);
-                _occupant[idx] = cards[i];
-                _cellOf[cards[i]] = idx;
+                if (_pinnedCells.TryGetValue(card, out int idx)
+                    && cellIndex.Contains(idx) && !pinned.ContainsKey(idx))
+                    pinned[idx] = card;
+                else
+                    unpinned.Add(card);
             }
+
+            var free = new Queue<int>();
+            foreach (var c in cells)
+            {
+                int idx = BoardMath.Index(c.x, c.z);
+                if (!pinned.ContainsKey(idx)) free.Enqueue(idx);
+            }
+
+            foreach (var card in unpinned)
+            {
+                if (free.Count == 0) break; // 容量外（控制权迁移等边缘）不落格、不抛错（原口径）
+                int idx = free.Dequeue();
+                _occupant[idx] = card;
+                _cellOf[card] = idx;
+            }
+            foreach (var kv in pinned)
+            {
+                _occupant[kv.Key] = kv.Value;
+                _cellOf[kv.Value] = kv.Key;
+            }
+        }
+
+        /// <summary>教学落位钉子（2026-10-06 教学直入）：钉住一张卡的 Resync 落位格——
+        /// 该卡之后每次重建优先回到钉格（须属其所在区格集，否则按无钉顺延），其余卡填空；
+        /// 卡离场钉子自动清除。供 TutorialScenarioSeeder 预设场面用；正常对局无人调钉，行为不变。</summary>
+        public void PinCard(Card card, int x, int z)
+        {
+            if (card == null || !BoardMath.InBounds(x, z)) return;
+            _pinnedCells[card] = BoardMath.Index(x, z);
+            Resync();
         }
 
         private void AppendActivation(Player player, List<Card> pile)

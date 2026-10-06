@@ -26,6 +26,21 @@ namespace SynergyUI
         /// <summary>机器人脚本：turn=机器人的第几个回合（从 1 计，与引擎全局回合号无关）。</summary>
         public List<TutorialTurnScript> aiScript;
 
+        /// <summary>预设场面（2026-10-06 教学直入）：非 null=不从第 1 回合空场开局，按场面直接站在
+        /// startTurn 回合的操作环节（TutorialScenarioSeeder 静默注入；deck 字段此时只是备用——
+        /// 组卡取 scenario 双方并集）。null=旧口径（deck 顺序=摸牌序列，从第 1 回合正常开局）。</summary>
+        public TutorialScenario scenario;
+
+        /// <summary>暂停引导步骤（2026-10-06 第一课改版）：非空=TutorialGuide 装闸——步骤未完成时
+        /// 攻击/结束回合被钉住（错误目标与锁定生物拒绝、守卫候选只留引导守卫者），完成即推进，
+        /// 全部完成引导退场。UI 高亮/提示后续接 OnStepAdvanced；本字段纯逻辑生效。</summary>
+        public List<TutorialGuideStepSpec> guide;
+
+        /// <summary>课规（2026-10-06 第二课）：该卡（对手场上卡 id）存活期间，玩家以对方角色为目标的
+        /// 攻击宣言被教学闸拒绝（「先解决拦路巨兽」）——卡亡即解锁；法术直伤不在此列。
+        /// 独立于引导步骤存活（步骤完成后仍生效，直到 TutorialGuide.End）。</summary>
+        public string heroLockCard;
+
         /// <summary>取机器人第 aiTurn 回合的剧本（无则 null——ScriptedAi 直接结束回合）。</summary>
         public TutorialTurnScript GetAiTurn(int aiTurn)
             => aiScript?.FirstOrDefault(t => t != null && t.turn == aiTurn);

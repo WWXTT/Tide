@@ -250,6 +250,31 @@ namespace CardCore.Attribute
         }
 
         /// <summary>
+        /// 分支 Then 奖励的目标解析（两槽定案 2026-10-05；2026-10-07 奖励目标定案=合法范围内随机）：
+        /// 奖励有目标域时不弹选——候选经帷幕收窄后 GameRng 抽 1（组合层 RandomTarget 同口径：
+        /// 帷幕约束随机选择；扰魔/潜行/隐密挡不住随机）；隐藏区域/无域=空列表
+        /// （调用方按单次 null 目标执行——handler 自结算）。
+        /// </summary>
+        public static UniTask<List<Entity>> ResolveRewardTargetsAsync(
+            AtomicEffectInstance reward, EffectExecutionContext context)
+            => UniTask.FromResult(ResolveRewardTargets(reward, context));
+
+        /// <summary>同步实现：随机抽取无交互（GameRng 与数值随机同口——verify 可钉种子做确定性断言）。</summary>
+        private static List<Entity> ResolveRewardTargets(
+            AtomicEffectInstance reward, EffectExecutionContext context)
+        {
+            if (reward == null || context == null) return new List<Entity>();
+            var kinds = reward.TargetKinds ?? new List<int>();
+            if (kinds.Count == 0 || TargetKindRules.AllHiddenZone(kinds))
+                return new List<Entity>(); // 无目标/隐藏区自结算
+
+            var pool = TargetResolver.ApplyTauntRestriction(
+                ResolveCandidates(kinds, reward.Filter ?? "", context), context);
+            if (pool.Count <= 1) return pool.Take(1).ToList();
+            return GameRng.PickN(pool, 1);
+        }
+
+        /// <summary>
         /// 异步目标解析（分支奖励等免编排路径）：候选 > 需求数时弹选择。
         /// 动态数量已上移组合层——原子级路径恒为固定数量（表级 TargetCount）。
         /// AI / 无头 / 超时由 Service 自动取前 N。

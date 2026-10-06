@@ -329,7 +329,10 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 扁平线性结算（旧路径，无分支）：保持原三阶段事件语义与逐原子执行。
+        /// 扁平主序列结算（两槽定案 2026-10-05 主路径）：主干原子平铺（构筑校验 ≤2）——
+        /// 带 Outcome 载荷的主干按 per-target 粒度执行并逐目标评估产出条件（对齐旧步骤路径粒度，
+        /// 三阶段事件 per-target 发布，不进全局收尾发布）；其余主干整列表一次执行（旧扁平口径保持）；
+        /// Gate（局面门）载荷在主干执行完毕后评估一次——CurseOnDraw 恒跳过（声明由 CurseSystem 消费）。
         /// </summary>
         private async UniTask ExecuteFlatAsync(EffectDefinition effect, EffectExecutionContext context,
             List<string> fragments)
@@ -337,29 +340,80 @@ namespace CardCore
             if (effect.Effects == null || effect.Effects.Count == 0)
                 return;
 
-            // 三阶段事件：发动
+            bool HasOutcome(AtomicEffectInstance a) => a?.Branch?.Settle == BranchSettleKind.Outcome;
+            // 引擎主干行（2026-10-05 回表）：条件载体，非效果——不执行、不发三阶段事件。
+            // 行级判定（EngineKindOf）兜底载荷被折叠（Then 空转）的引擎原子
+            bool IsEngineTrunk(AtomicEffectInstance a)
+                => a != null && (a.Branch?.Settle == BranchSettleKind.Engine
+                                 || ComposerCatalog.EngineKindOf(a.Type) != BranchEngineKind.None);
+
+            // 三阶段事件：发动（全体）
             foreach (var atomicEffect in effect.Effects)
             {
+                if (IsEngineTrunk(atomicEffect)) continue;
                 PublishPhase(atomicEffect, AtomicEffectPhase.Activation, context);
             }
 
-            // 三阶段事件：开始作用
-            PublishPhase(effect.Effects[0], AtomicEffectPhase.StartApplying, context);
+            // 三阶段事件：开始作用（首个非产出条件主干；产出条件主干 per-target 发布）
+            var firstPlain = effect.Effects.FirstOrDefault(a => a != null && !HasOutcome(a) && !IsEngineTrunk(a));
+            if (firstPlain != null)
+                PublishPhase(firstPlain, AtomicEffectPhase.StartApplying, context);
 
-            // 执行效果
+            // 组合目标序列（快照防遍历中被改；无目标效果 = 单次 null 目标执行）。
+            // originalTargets=施放/解析期原始目标——产出条件原子改写 context.Targets 后，
+            // 后续普通主干按它恢复（旧扁平口径：普通原子整列表一次执行）。
+            var originalTargets = context.Targets != null ? new List<Entity>(context.Targets) : new List<Entity>();
+            var compositionTargets = originalTargets.Count > 0
+                ? new List<Entity>(originalTargets)
+                : new List<Entity> { null };
+
             foreach (var atomicEffect in effect.Effects)
             {
-                await EffectHandlerRegistry.ExecuteEffectAsync(atomicEffect, context);
-                CaptureDescription(atomicEffect, context, fragments);
-                // 错边黑白发放（2026-09-11 定案）：原子结算后按实际命中侧别判定，每原子一次发放事件
-                var flatHits = new Dictionary<AtomicEffectInstance, int>();
-                CollectWrongSideHits(atomicEffect, context.Controller, context.Targets, flatHits);
-                FlushWrongSideGrants(flatHits, effect, context);
+                if (atomicEffect == null) continue;
+                if (IsEngineTrunk(atomicEffect)) continue; // 引擎主干=条件载体（BranchEngines 事件驱动），不在主序列执行
+                var payload = atomicEffect.Branch;
+
+                if (HasOutcome(atomicEffect))
+                {
+                    // 产出条件（自由分支·Outcome）：per-target 执行 + 逐目标评估（LastOutcome 按目标重置）
+                    var wrongHits = new Dictionary<AtomicEffectInstance, int>();
+                    foreach (var target in compositionTargets)
+                    {
+                        context.Targets = target != null ? new List<Entity> { target } : new List<Entity>();
+                        context.LastOutcome.Reset();
+                        bool wasAlive = target == null || target is Player || target.IsAlive;
+
+                        PublishPhase(atomicEffect, AtomicEffectPhase.StartApplying, context);
+                        await EffectHandlerRegistry.ExecuteEffectAsync(atomicEffect, context);
+                        CaptureDescription(atomicEffect, context, fragments);
+                        PublishPhase(atomicEffect, AtomicEffectPhase.ResolutionComplete, context);
+
+                        if (wasAlive)
+                            CollectWrongSideHits(atomicEffect, context.Controller, context.Targets, wrongHits);
+
+                        await ApplyOutcomeRewardsAsync(payload, context, fragments);
+                    }
+                    FlushWrongSideGrants(wrongHits, effect, context);
+                }
+                else
+                {
+                    context.Targets = new List<Entity>(originalTargets); // 恢复原始目标（产出条件原子可能改写）
+                    await EffectHandlerRegistry.ExecuteEffectAsync(atomicEffect, context);
+                    CaptureDescription(atomicEffect, context, fragments);
+                    // 错边黑白发放（2026-09-11 定案）：原子结算后按实际命中侧别判定，每原子一次发放事件
+                    var flatHits = new Dictionary<AtomicEffectInstance, int>();
+                    CollectWrongSideHits(atomicEffect, context.Controller, context.Targets, flatHits);
+                    FlushWrongSideGrants(flatHits, effect, context);
+
+                    if (payload != null && payload.Settle == BranchSettleKind.Gate)
+                        await ApplySituationGateAsync(payload, context, fragments);
+                }
             }
 
-            // 三阶段事件：结算完成
+            // 三阶段事件：结算完成（产出条件主干已 per-target 发布，跳过）
             foreach (var atomicEffect in effect.Effects)
             {
+                if (HasOutcome(atomicEffect) || IsEngineTrunk(atomicEffect)) continue;
                 PublishPhase(atomicEffect, AtomicEffectPhase.ResolutionComplete, context);
             }
         }
@@ -416,11 +470,6 @@ namespace CardCore
                         ? steps[i + 1]
                         : null;
 
-                // 拦截式改写门（2026-09-22 定案）：配对门为改写门 → 伤害原子**不执行**，
-                // 改为对目标施加对应指示物（固定 1 层，共用 KeywordRules.ApplyRewriteCounter 口径）；
-                // 无 then/else 奖励槽（改写即分支效果）、不计错边命中（无伤害发生）。
-                bool rewriteGate = gate != null && BranchConditionEvaluator.IsRewriteCondition(gate.ConditionId);
-
                 // 错边黑白发放（2026-09-11 定案）：逐目标累计命中（执行前存活才算命中），
                 // 整原子=一次发放事件，循环后统一封顶发放（见 FlushWrongSideGrants）。
                 var wrongHits = new Dictionary<AtomicEffectInstance, int>();
@@ -433,21 +482,14 @@ namespace CardCore
 
                     PublishPhase(atomic, AtomicEffectPhase.Activation, context);
                     PublishPhase(atomic, AtomicEffectPhase.StartApplying, context);
-                    if (rewriteGate)
-                    {
-                        ApplyRewriteGate(gate, target, context);
-                    }
-                    else
-                    {
-                        await EffectHandlerRegistry.ExecuteEffectAsync(atomic, context);
-                        CaptureDescription(atomic, context, fragments);
-                    }
+                    await EffectHandlerRegistry.ExecuteEffectAsync(atomic, context);
+                    CaptureDescription(atomic, context, fragments);
                     PublishPhase(atomic, AtomicEffectPhase.ResolutionComplete, context);
 
-                    if (wasAlive && !rewriteGate)
+                    if (wasAlive)
                         CollectWrongSideHits(atomic, context.Controller, context.Targets, wrongHits);
 
-                    if (gate != null && !rewriteGate)
+                    if (gate != null)
                         await ApplyGateRewardsAsync(gate, context, fragments);
                 }
 
@@ -526,27 +568,12 @@ namespace CardCore
             return owner == controller ? -1 : (owner == controller.Opponent ? 1 : 0);
         }
 
-        /// <summary>拦截式改写门施加（2026-09-22 定案）：跳过伤害原子执行，对目标施加对应指示物
-        ///（固定 1 层，共用 KeywordRules.ApplyRewriteCounter——与战斗关键词改写同口径）；
-        /// 产出记 Rewritten（无伤害无击杀——下游门 DmgKillsTarget 等自然判否），目标计入受影响面。</summary>
-        private static void ApplyRewriteGate(RuntimeEffectStep gate, Entity target, EffectExecutionContext context)
-        {
-            string keyword = KeywordRules.RewriteGateKeyword(gate.ConditionId);
-            if (keyword == null) return;
-
-            KeywordRules.ApplyRewriteCounter(keyword, target, context.Source, KeywordRules.RewriteGateDetail(gate.ConditionId));
-
-            var outcome = context.LastOutcome;
-            outcome.Rewritten = true;
-            if (target != null) outcome.AffectedTargets.Add(target);
-            if (target == null || target.IsAlive) outcome.AnySurvived = true;
-        }
-
         /// <summary>
-        /// 评估 OutcomeGate 条件并执行对应的 then/else 奖励（免费、各自解析目标）。
+        /// [遗留步骤路径专用] 评估 OutcomeGate 条件并执行对应的 then/else 奖励（免费、各自解析目标）。
         /// 评估读取的是「当前目标」刚写入的 LastOutcome。
         /// 预言族条件（延迟验证）在此拦截：不即时评估，把分支打包成 PendingProphecy
         /// 注册到 ProphecySystem——对手下回合首张出牌时验证，到期未验证作未命中走 else。
+        /// 诅咒门（CurseOnDraw）恒假：分支只是载荷声明——真正的触发点=对手抽到该卡（CurseSystem）。
         /// </summary>
         private async UniTask ApplyGateRewardsAsync(RuntimeEffectStep gate, EffectExecutionContext context,
             List<string> fragments)
@@ -577,10 +604,114 @@ namespace CardCore
             if (rewards == null || rewards.Count == 0)
                 return;
 
-            foreach (var reward in rewards)
+            await ExecuteThenRewardsAsync(rewards, context, fragments);
+        }
+
+        // ======================================== 槽级分支载荷评估（两槽定案 2026-10-05） ========================================
+
+        /// <summary>产出条件评估（自由分支·Outcome）：读当前目标 LastOutcome（per-target 调用）——
+        /// 预言族（延迟验证）拦截为 PendingProphecy（ProphecySystem 在验证时刻结算，Else 恒空）；
+        /// 命中 → Then 奖励强制结算（依次弹选目标）。</summary>
+        private static async UniTask ApplyOutcomeRewardsAsync(BranchPayload payload,
+            EffectExecutionContext context, List<string> fragments)
+        {
+            if (BranchConditionEvaluator.IsDelayedCondition(payload.OutcomeId))
             {
-                context.Targets = new List<Entity>();
-                var rTargets = EffectHandlerRegistry.ResolveTargets(reward, context);
+                ProphecySystem.Register(new PendingProphecy
+                {
+                    Declarer = context.Controller,
+                    Source = context.Source,
+                    Declaration = context.LastOutcome.Declaration ?? payload.GateStringParam,
+                    ConditionId = payload.OutcomeId,
+                    ConditionParam = payload.GateParam,
+                    ConditionStringParam = payload.GateStringParam,
+                    Then = payload.Then,
+                    Else = null,
+                    ZoneManager = context.ZoneManager,
+                    ElementPool = context.ElementPool,
+                });
+                return;
+            }
+
+            bool pass = BranchConditionEvaluator.Evaluate(
+                payload.OutcomeId, context.LastOutcome, payload.GateParam, payload.GateStringParam, context);
+            if (!pass) return;
+            await ExecuteThenRewardsAsync(payload.Then, context, fragments);
+        }
+
+        /// <summary>局面门评估（有限分支·Gate）：与原子产出无关，效果结算时评估一次；
+        /// 对赌（2026-10-05 定案）：达成 → Then 奖励照旧；未达成 → 奖励逆转作用区域强制执行（代价形式）。
+        /// 诅咒门（CurseOnDraw）恒跳过——载荷声明由 AddCurseHandler/CurseSystem 在"抽到该卡"时消费。</summary>
+        private static async UniTask ApplySituationGateAsync(BranchPayload payload,
+            EffectExecutionContext context, List<string> fragments)
+        {
+            if (payload.GateId == ComposerCatalog.CurseGateId) return;
+            if (BranchConditionEvaluator.IsDelayedCondition(payload.GateId)) return; // 预言族不在局面门目录——防御
+            bool pass = BranchConditionEvaluator.Evaluate(
+                payload.GateId, context.LastOutcome, payload.GateParam, payload.GateStringParam, context);
+            if (pass)
+                await ExecuteThenRewardsAsync(payload.Then, context, fragments);
+            else
+                await ExecuteReversedPenaltyAsync(payload.Then, context, fragments);
+        }
+
+        /// <summary>局面门对赌惩罚（2026-10-05 定案，仅局面门——产出条件/预言/引擎/诅咒豁免）：
+        /// 条件未达成 → Then 奖励**逆转作用区域**强制执行（无奖励的代价形式）：
+        /// 逆转口径与代价栏同源（CostDerivationService.PayloadCostDomain 三路：收窄/免写/镜像）；
+        /// 以对赌者（施放者）视角解析全部候选、无选择窗口；有域而无有效目标 → 该原子不执行（代价栏同口径）；
+        /// 无黑白补偿（惩罚不是付费）。</summary>
+        private static async UniTask ExecuteReversedPenaltyAsync(List<AtomicEffectInstance> then,
+            EffectExecutionContext context, List<string> fragments)
+        {
+            if (then == null || then.Count == 0) return;
+            var saved = context.Targets != null ? new List<Entity>(context.Targets) : new List<Entity>();
+            foreach (var reward in then)
+            {
+                if (reward == null) continue;
+                var row = CardCore.Attribute.AtomicEffectTable.GetByHashId(reward.RowHashId)
+                          ?? CardCore.Attribute.AtomicEffectTable.GetByType(reward.Type);
+                var (kinds, eligible) = CostDerivationService.PayloadCostDomain(row);
+                if (!eligible) continue; // 不可逆转奖励——装载层已滤（防御兜底）
+
+                var reversed = new AtomicEffectInstance
+                {
+                    Type = reward.Type,
+                    Value = reward.Value,
+                    RandomAmplitude = reward.RandomAmplitude,
+                    StringValue = reward.StringValue,
+                    RowHashId = reward.RowHashId,
+                    Mana = reward.Mana,
+                    Branch = reward.Branch,
+                    TargetKinds = kinds ?? reward.TargetKinds, // 免写(null)=中性/域已处逆转侧，照原域
+                    Filter = reward.Filter,
+                    Polarity = reward.Polarity,
+                };
+                bool hasDomain = reversed.TargetKinds != null && reversed.TargetKinds.Count > 0;
+                var targets = hasDomain
+                    ? EffectHandlerRegistry.ResolveCandidates(reversed.TargetKinds, reversed.Filter ?? "", context)
+                      ?? new List<Entity>()
+                    : new List<Entity>();
+                if (hasDomain && targets.Count == 0) continue; // 无有效目标 → 不执行（代价栏同口径）
+
+                context.Targets = targets;
+                await EffectHandlerRegistry.ExecuteEffectAsync(reversed, context);
+                CaptureDescription(reversed, context, fragments);
+            }
+            context.Targets = saved;
+        }
+
+        /// <summary>Then 奖励强制结算（两槽定案，槽级载荷/Gate/引擎共用）：依次执行——
+        /// 有目标域的奖励按合法范围内随机抽取目标（2026-10-07 定案，GameRng 可钉种子）；
+        /// 无域/隐藏区按单次 null 目标执行（handler 自结算）。执行完恢复原目标列表。</summary>
+        public static async UniTask ExecuteThenRewardsAsync(List<AtomicEffectInstance> then,
+            EffectExecutionContext context, List<string> fragments)
+        {
+            if (then == null || then.Count == 0) return;
+            var saved = context.Targets != null ? new List<Entity>(context.Targets) : new List<Entity>();
+            foreach (var reward in then)
+            {
+                if (reward == null) continue;
+                var rTargets = await EffectHandlerRegistry.ResolveRewardTargetsAsync(reward, context);
                 var rIter = rTargets.Count > 0 ? rTargets : new List<Entity> { null };
                 foreach (var rt in rIter)
                 {
@@ -589,6 +720,7 @@ namespace CardCore
                     CaptureDescription(reward, context, fragments);
                 }
             }
+            context.Targets = saved;
         }
 
         /// <summary>
@@ -1649,19 +1781,24 @@ namespace CardCore
 
         /// <summary>
         /// 注册完整性自检。
-        /// 「无处理器=设计态」以外（暂不实现 / 固有全域墓碑 / 表行退役墓碑）的所有
-        /// AtomicEffectType 都应已注册；缺失则告警，便于尽早暴露长尾静默失败。
+        /// 「无处理器=设计态」以外（暂不实现）的所有 AtomicEffectType 都应已注册；缺失则告警，
+        /// 便于尽早暴露长尾静默失败。（固有全域墓碑 SweepDamage/SweepHeal 与 7 个 BranchEngine* 主干原子
+        /// 已随 2026-10-05 墓碑清理实删——白名单不再登记。）
         /// </summary>
         private static readonly HashSet<AtomicEffectType> _intentionallyUnimplemented = new HashSet<AtomicEffectType>
         {
             // 反规则效果残部：ModifyGameRule 已于 2026-10-03 转正（规则光环投放，见 RuleAuraSystem）；
             // OverrideRestriction 仍暂不实现（规则轴提案 §6：可能被 ModifyGameRule(str) 完全覆盖）
             AtomicEffectType.OverrideRestriction,
-            // [Obsolete] 墓碑（2026-09-21 固有全域退役：枚举位保留、handler 已删，全域走 TargetKinds+全取档组合）
-#pragma warning disable CS0618 // 引用墓碑枚举位做白名单登记
-            AtomicEffectType.SweepDamage,
-            AtomicEffectType.SweepHeal,
-#pragma warning restore CS0618
+
+            // 引擎主干行（2026-10-05 回表）：条件载体非效果——主序列执行按 Branch.Settle==Engine 跳过，
+            // 引擎条件由 BranchEngines 事件驱动，无需（也不应有）处理器
+            AtomicEffectType.EngineCountdown,
+            AtomicEffectType.EngineLuckRoll,
+            AtomicEffectType.EngineClash,
+            AtomicEffectType.EngineDeathToll,
+            AtomicEffectType.EngineManaSurplus,
+            AtomicEffectType.EngineNthHandCard,
         };
 
         private static void VerifyHandlerCoverage()

@@ -168,19 +168,13 @@ namespace CardCore
         /// 炉石发现池=全收藏，本项目卡池难以估计——收窄为牌库内。未选中的牌留在牌库原位。
         /// 结算期选择走 TargetSelectionService（AI/无头自动选首张）。</summary>
         DiscoverCard,
-        /// <summary>守护（2026-09-11，白1，关键词型）：登场时选择一个己方单位成为被守护者——
-        /// 其获得被守护者指示物（来源=第一个守护者），施加者获得守护者指示物。
-        /// 被守护者受到的伤害改由第一个守护者承受（多守护者仅第一个触发改写；单跳不链式）。
-        /// 改写在 KeywordRules.ApplyDamage 咽喉；守护者离场/死亡=保护失效。</summary>
+        /// <summary>守护（2026-09-11，白1；2026-10-05 简化定案：登场选目标机制废弃，改光环条目型）：
+        /// 守护箭头指向的生物——被守护者（箭头指向格占据者）受到的伤害改由第一个存活守护来源承受
+        /// （多守护取第一个存活者，单跳不链式）。live-query 纯光环（LinkAuraSystem 读 LinkAuras 条目，
+        /// 挂词形态无效——表行仅声明位 6）；改写在 KeywordRules.ApplyDamage 咽喉，守护者离场/断链=保护失效。</summary>
         GrantGuardian,
-        // ============ 固有全域原子（2026-09-21 退役墓碑，勿用） ============
-        // 全域语义改由组合期表达：TargetKinds 定域 + SelectionMode 全取档（期望 4 计价）。
-        // 枚举以 int 数值经 MemoryPack 序列化（EffectDefinitionDTO.AEI_Type）且"只可尾部追加"——
-        // 中段删除会移位破坏旧档，故保留槽位；表行/Handler/计价特判已全部移除。
-        [System.Obsolete("固有全域原子 2026-09-21 退役——全域用 TargetKinds+全取档组合表达")]
-        SweepDamage,
-        [System.Obsolete("固有全域原子 2026-09-21 退役——全域用 TargetKinds+全取档组合表达")]
-        SweepHeal,
+        // 固有全域原子（SweepDamage/SweepHeal）已随 2026-10-05 墓碑清理实删——
+        // 全域语义由组合期 TargetKinds+全取档表达（2026-09-21 退役定案，此番连墓碑一并清除）。
         /// <summary>摒弃（2026-09-13，黑2，edict 原子）：作用对象=双方角色（filter "Player"）——
         /// 持有者自行选择一个**己方场上无生命单位**（结界等非生物持久物）直送墓地（DestroyReason.Abandoned）。
         /// 与牺牲（生物/效果死亡）成对；豁免帷幕（选择权在目标方——帷幕只约束对手的选择）。</summary>
@@ -198,32 +192,14 @@ namespace CardCore
         /// <summary>禁魔石（2026-09-13 改写定案，白3）：受到的非战斗伤害变为 0</summary>
         GrantSpellban,
 
-        // ============ 自由分支主干（2026-09-14 合成器重做：引擎型条件作为可拖拽条目入表）============
-        // 主干不作为普通原子执行/计价（BaseCost=0、空域、极性 0）——表行 MountKinds="9"（FreeBranchTrunk）；
-        // 落入合成器主干槽时 UI 直接写 header.EngineKind/EngineParam（奖励槽写 header.AtomicEffects），
-        // converter 对误入普通步骤的主干原子做守卫剔除（见 ComposerCatalog.IsEngineTrunk）。
-        /// <summary>拼点主干：回合开始双方牌库各随机取样一张生物——自己生物攻击力 − 对手 ≥ 门槛（=奖励锚价合计推导）时执行奖励</summary>
-        BranchEngineClash,
-        /// <summary>运势主干：回合开始掷 2d6，两点均 &gt; x 时执行奖励；机制费=x 灰（x∈[1,5]，Value→EngineParam）</summary>
-        BranchEngineLuckRoll,
-        /// <summary>倒计时主干：入场挂 N 回合倒计时，归零执行奖励并重置（Value→EngineParam；0=按奖励推导费自动换算 1费=1回合）</summary>
-        BranchEngineCountdown,
+        // 自由分支主干原子（BranchEngine*，7 枚举）已随 2026-10-05 两槽定案实删——
+        // 引擎条件不再是原子（槽级 BranchPayload.EngineKind 载荷声明），表内 6 行主干行同步删除。
+        // 枚举中段墓碑（SweepDamage/SweepHeal）同批实删——效果库空置期整体破弃存储形状，无存量 int 依赖。
 
         /// <summary>宣告胜利（2026-09-15，终局原子）：效果控制者的对手获得游戏胜利——
         /// 亡语「对手获得胜利」等终局效果载体。枚举只可尾部追加。</summary>
         DeclareVictory,
 
-        /// <summary>死亡计数主干（2026-09-22 定案）：本回合双方合计生物死亡数 ≥ x（EngineParam）时执行奖励；
-        /// 奖励预算=x（Value→EngineParam，x∈[1,9]）。枚举只可尾部追加。</summary>
-        BranchEngineDeathToll,
-        /// <summary>元素充盈主干（2026-09-22 定案）：自己出牌付费完成后，bank 最多色（全六色）&gt; x（EngineParam）
-        /// 即执行奖励、每次达标都触发；奖励预算=x（Value→EngineParam，x∈[1,9]）。</summary>
-        BranchEngineManaSurplus,
-        /// <summary>手牌序位主干（2026-09-22 定案）：此卡为本回合从手牌使用的第 x 张卡（EngineParam）时，
-        /// 施放结算中执行奖励；奖励预算=x（Value→EngineParam，x∈[1,9]）。枚举只可尾部追加。</summary>
-        BranchEngineNthHandCard,
-
-        // ============ 信息轴（2026-10-02 定案）============
         /// <summary>展示：为目标（隐藏区卡：己/对方手牌·牌库）挂「展示」指示物——持续暴露、双方可查看，
         /// 换区即失效。可作筛选条件（TargetFilter "Exposed"）与后续费用减免挂点。枚举只可尾部追加。</summary>
         RevealCard,
@@ -238,6 +214,25 @@ namespace CardCore
         /// <summary>隐密（2026-10-04，蓝5——潜行的持续版）：不可被攻击/效果指定，且**不因
         /// 发动效果或受到伤害失效**（潜行蓝1 两个失效口都豁免）。枚举只可尾部追加。</summary>
         GrantConcealed,
+        // 赋予主干（BranchEngineGrant）已随 2026-10-05 两槽定案解体实删——
+        // 无条件赋予=无分支槽原子（关键词∪指示物）+效果级持续档计价（Grant 梯沿用）。
+
+        // ---- 引擎主干行（2026-10-05 晚间回表定案：玩家直接在原子表选引擎，填槽即自由分支）----
+        // 六行为"条件载体"而非效果：零锚价（ManaList=null）、零域、MountKinds=位8（EngineTrunk）；
+        // 不入主序列执行（ExecuteFlatAsync/枚举口按 Branch.Settle==Engine 跳过）、无处理器（白名单登记）；
+        // 引擎条件与参数存槽级 BranchPayload（Settle=Engine），行本身只作填充入口与身份锚。
+        /// <summary>引擎主干·倒计时：回合开始计数-1，归零触发奖励并重置（延迟即付费）。枚举只可尾部追加。</summary>
+        EngineCountdown,
+        /// <summary>引擎主干·运势：回合开始掷 2d6，双＞x 触发奖励。枚举只可尾部追加。</summary>
+        EngineLuckRoll,
+        /// <summary>引擎主干·拼点：双方各随机取样生物比攻击力，差额≥门槛（=奖励锚价）触发奖励。枚举只可尾部追加。</summary>
+        EngineClash,
+        /// <summary>引擎主干·死亡计数：双方生物死亡累计≥x 触发奖励（预算=x）。枚举只可尾部追加。</summary>
+        EngineDeathToll,
+        /// <summary>引擎主干·元素充盈：己方元素池最多色＞x 触发奖励（预算=x）。枚举只可尾部追加。</summary>
+        EngineManaSurplus,
+        /// <summary>引擎主干·手牌序位：本回合第 x 张使用的手牌发动时触发奖励（预算=x）。枚举只可尾部追加。</summary>
+        EngineNthHandCard,
     }
 
     /// <summary>

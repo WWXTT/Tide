@@ -22,31 +22,10 @@ namespace SynergyUI
     /// </summary>
     public static class AtomText
     {
-        /// <summary>TargetKind 中文（2026-09-22 公共化：合成器目标域下拉与 {target} 渲染单一来源）。</summary>
-        public static readonly Dictionary<TargetKind, string> TargetKindZhMap = new Dictionary<TargetKind, string>
-        {
-            { TargetKind.Self, "自己" },
-            { TargetKind.OwnLivingUnit, "己方单位" },
-            { TargetKind.EnemyLivingUnit, "对方单位" },
-            { TargetKind.OwnNonLivingUnit, "己方无生命单位" },
-            { TargetKind.EnemyNonLivingUnit, "对方无生命单位" },
-            { TargetKind.OwnHand, "己方手牌" },
-            { TargetKind.EnemyHand, "对方手牌" },
-            { TargetKind.OwnDeck, "己方牌库" },
-            { TargetKind.EnemyDeck, "对方牌库" },
-            { TargetKind.OwnGraveyard, "己方墓地" },
-            { TargetKind.EnemyGraveyard, "对方墓地" },
-            { TargetKind.OwnExile, "己方除外区" },
-            { TargetKind.EnemyExile, "对方除外区" },
-            { TargetKind.OwnElementPool, "己方元素池" },
-            { TargetKind.EnemyElementPool, "对方元素池" },
-            { TargetKind.OwnActivation, "己方发动区" },
-            { TargetKind.EnemyActivation, "对方发动区" },
-        };
-
-        /// <summary>TargetKind → 中文名（无映射回退枚举名）。</summary>
+        /// <summary>TargetKind → 中文名（2026-10-06 单一来源迁 CardCore：TargetKindRules.ZhNameOf——
+        /// 表列 TargetKinds 中文 CSV 与 UI 显示同源，防两套口径）。</summary>
         public static string TargetKindZhOf(TargetKind k)
-            => TargetKindZhMap.TryGetValue(k, out var zh) ? zh : k.ToString();
+            => TargetKindRules.ZhNameOf(k);
 
         /// <summary>{target} 占位的名词：单值实例域 → 中文名；null（表默认）/多值 → 「目标」。
         /// 例外（2026-10-04 关键词行修复）：关键词行（MountKinds 含 Keyword 位）的 kinds=[Self]
@@ -103,47 +82,74 @@ namespace SynergyUI
         public static string Render(AtomicEffectEntry atom, CardEffectData header)
             => Render(AtomicEffectTable.GetByHashId(atom?.refId), atom, header);
 
-        /// <summary>效果整体预览：并列=逐原子分号连接；自由分支=主干模板+奖励；有限分支=主干+门+奖励。</summary>
+        /// <summary>效果整体预览（两槽定案）：并列主序列=逐原子分号连接，原子带槽级 branch 载荷时
+        /// 追加分支后缀（产出条件=「，如果…，奖励」自然句；引擎/局面门=「[条件]→奖励」记法）；
+        /// 遗留 kind=1 门步骤与抉择步骤照旧渲染。</summary>
         public static string RenderEffectSummary(EffectGraphData graph)
         {
             if (graph?.header == null) return "";
             var h = graph.header;
-            if (h.EngineKind != (int)BranchEngineKind.None)
-            {
-                string trunk = TrunkText((BranchEngineKind)h.EngineKind, h.EngineParam);
-                string reward = h.AtomicEffects != null && h.AtomicEffects.Count > 0
-                    ? RenderAtomEntry(h.AtomicEffects[0])
-                    : "（未设奖励）";
-                return $"{trunk} → 奖励：{reward}";
-            }
             var parts = new System.Collections.Generic.List<string>();
             if (graph.steps != null)
             {
                 foreach (var s in graph.steps)
                 {
                     if (s == null) continue;
-                    if (s.kind == 0 && s.atomic != null) parts.Add(RenderAtomEntry(s.atomic, h));
+                    if (s.kind == 0 && s.atomic != null)
+                    {
+                        string body = RenderAtomEntry(s.atomic, h);
+                        var suffix = BranchSuffix(s.atomic);
+                        parts.Add(suffix.Length > 0 ? $"{body}{suffix}" : body);
+                    }
                     else if (s.kind == 1)
                     {
-                        // 门条件中文（ComposerCatalog.GateLabel 同源——含改写门"伤害不发生"口径）
-                        var spec = ComposerCatalog.OutcomeGates.FirstOrDefault(g => g.Id == s.conditionId);
+                        // 遗留门步骤：条件中文（ComposerCatalog 同源；诅咒门 Then=抽到时的专属载荷）
+                        var spec = ComposerCatalog.OutcomeConditions.FirstOrDefault(g => g.Id == s.conditionId)
+                                   ?? ComposerCatalog.SituationGates.FirstOrDefault(g => g.Id == s.conditionId);
                         string gate = spec != null ? ComposerCatalog.GateLabel(spec)
                             : (string.IsNullOrEmpty(s.conditionId) ? "?" : s.conditionId);
-                        if (CardCore.BranchConditionEvaluator.IsRewriteCondition(s.conditionId))
-                        {
-                            parts.Add(gate); // 改写门无奖励（伤害不发生，改写即分支效果）
-                        }
-                        else
-                        {
-                            string reward = s.thenSteps != null && s.thenSteps.Count > 0
-                                ? RenderAtomEntry(s.thenSteps[0]) : "（未设奖励）";
-                            parts.Add($"[{gate}]→{reward}");
-                        }
+                        string reward = s.thenSteps != null && s.thenSteps.Count > 0
+                            ? RenderAtomEntry(s.thenSteps[0]) : "（未设奖励）";
+                        parts.Add($"[{gate}]→{reward}");
                     }
                     else if (s.kind == 2) parts.Add($"抉择（{s.choices?.Count ?? 0} 模式）");
                 }
             }
             return string.Join("；", parts);
+        }
+
+        /// <summary>槽级 branch 载荷的后缀文本（两槽定案）：无载荷返回空串。
+        /// 产出条件（Outcome）=自然句式「，如果消灭了目标，{奖励}」（2026-10-05 文本表述定案）；
+        /// 引擎/局面门沿用「[条件]→奖励」记法（引擎参数与对赌逆转是结构信息，句式承载不了）。</summary>
+        public static string BranchSuffix(AtomicEffectEntry atom)
+        {
+            var b = atom?.branch;
+            if (b == null) return "";
+            string reward = b.then != null && b.then.Count > 0
+                ? RenderAtomEntry(b.then[0]) : "（未设奖励）";
+            string cond;
+            switch ((BranchSettleKind)b.settle)
+            {
+                case BranchSettleKind.Engine:
+                    cond = TrunkText((BranchEngineKind)b.engine, b.engineParam);
+                    break;
+                case BranchSettleKind.Outcome:
+                    var oc = ComposerCatalog.OutcomeConditions.FirstOrDefault(g => g.Id == b.outcomeId);
+                    string clause;
+                    if (oc != null)
+                        clause = string.IsNullOrEmpty(oc.IfClause) ? oc.DisplayName.TrimEnd('时') : oc.IfClause;
+                    else
+                        clause = string.IsNullOrEmpty(b.outcomeId) ? "？" : b.outcomeId;
+                    return $"，如果{clause}，{reward}";
+                default:
+                    if (b.gateId == ComposerCatalog.CurseGateId) return "→附加诅咒（抽到该卡时执行专属载荷）";
+                    var sc = ComposerCatalog.SituationGates.FirstOrDefault(g => g.Id == b.gateId);
+                    cond = sc != null ? ComposerCatalog.GateLabel(sc)
+                        : (string.IsNullOrEmpty(b.gateId) ? "?" : b.gateId);
+                    cond += "，未达成→逆转为代价"; // 局面门对赌（2026-10-05）：奖励逆转作用区域强制执行
+                    break;
+            }
+            return $"[{cond}]→{reward}";
         }
 
         /// <summary>条目级渲染（refId → 表行 → Render；行缺失回退 refId）。</summary>

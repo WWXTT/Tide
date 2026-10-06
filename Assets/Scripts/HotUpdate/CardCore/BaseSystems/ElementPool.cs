@@ -331,17 +331,30 @@ namespace CardCore
             if (!land.HasToken(type)) return false;   // 只能取该地牌自身构成的颜色
 
             land.RemoveToken(type);
-            pool.AvailableMana[type]++;
             pool.TapsThisTurn++;
             land.IsTapped = true;
 
-            PublishEvent(new ElementPoolGainEvent
+            // 黑白获得双限制（2026-10-05）：手动横置产色同受单次/回合总量钳制——
+            // 钳零时地牌周期照常消耗（不入账不发事件）。
+            int allowed = 1;
+            if (type == ManaType.Black || type == ManaType.White)
             {
-                Player = player,
-                GainedType = type,
-                FromCard = land.SourceCard,
-                Source = GainSource.Tap,
-            });
+                int gained = type == ManaType.Black ? pool.BlackGainedThisTurn : pool.WhiteGainedThisTurn;
+                allowed = Math.Min(1, GetLandCap(player) - gained);
+            }
+            if (allowed > 0)
+            {
+                pool.AvailableMana[type] += allowed;
+                if (type == ManaType.Black) pool.BlackGainedThisTurn += allowed;
+                else if (type == ManaType.White) pool.WhiteGainedThisTurn += allowed;
+                PublishEvent(new ElementPoolGainEvent
+                {
+                    Player = player,
+                    GainedType = type,
+                    FromCard = land.SourceCard,
+                    Source = GainSource.Tap,
+                });
+            }
 
             return true;
         }
@@ -364,17 +377,29 @@ namespace CardCore
                 if (type == null) continue;           // 无剩余指示物，交给耗尽清理
 
                 pc.RemoveToken(type.Value);
-                pool.AvailableMana[type.Value]++;
                 pool.TapsThisTurn++;
                 pc.IsTapped = true;
 
-                PublishEvent(new ElementPoolGainEvent
+                // 黑白获得双限制（2026-10-05）：结束阶段自动产色同受钳制——钳零时周期照常消耗。
+                int allowed = 1;
+                if (type == ManaType.Black || type == ManaType.White)
                 {
-                    Player = turnPlayer,
-                    GainedType = type.Value,
-                    FromCard = pc.SourceCard,
-                    Source = GainSource.Tap,
-                });
+                    int gained = type == ManaType.Black ? pool.BlackGainedThisTurn : pool.WhiteGainedThisTurn;
+                    allowed = Math.Min(1, GetLandCap(turnPlayer) - gained);
+                }
+                if (allowed > 0)
+                {
+                    pool.AvailableMana[type.Value] += allowed;
+                    if (type == ManaType.Black) pool.BlackGainedThisTurn += allowed;
+                    else if (type == ManaType.White) pool.WhiteGainedThisTurn += allowed;
+                    PublishEvent(new ElementPoolGainEvent
+                    {
+                        Player = turnPlayer,
+                        GainedType = type.Value,
+                        FromCard = pc.SourceCard,
+                        Source = GainSource.Tap,
+                    });
+                }
             }
 
             if (zoneManager != null)
@@ -383,24 +408,24 @@ namespace CardCore
                 CheckDepletedCards(turnPlayer);
         }
 
-        /// <summary>
-        /// 向 bank 添加元素并发布产出事件（采掘 MineHandler / 黑白补偿与错边发放调用）。
-        /// 与横置产出共用 ElementPoolGainEvent（FromCard = 来源卡）；不动地牌横置状态——
-        /// 指示物的去除由调用方完成。Amount 默认 1（横置/采掘路径不传，兼容旧消费者）。
-        /// **黑白每回合获得封顶=地牌槽上限/色**（2026-09-14 定案封顶 1；2026-10-04 代价不限价配套改口径）：
-        /// 本方法为唯一钳制咽喉——全来源累计、余数不补；钳到 0 时不入账也不发事件。返回实发量（钳后）。
-        /// </summary>
-        /// <summary>效果发放（代价补偿/错边/采掘等 AddMana 路径）——2026-10-04 使用侧定案：
-        /// 黑白**产出不再钳制**（旧"每回合获得 ≤ 地牌上限"产出钳退役）——黑白与其余色同口径，
-        /// bank 囤积无上限；约束移到**使用侧**：支付时单次贡献 ≤ 地牌上限（GetBillPaymentPlan
-        /// 浓度上限——代价产出的黑白经统一支付管线，不能绕过）。GainedThisTurn 保留为纯台账。</summary>
+        /// <summary>效果发放（代价补偿/错边/采掘等 AddMana 路径）——**黑白获得双限制**（2026-10-05 定案，
+        /// 取代 2026-10-04「产出不封」）：单次获得 ≤ 地牌槽上限，且本回合获得总量 ≤ 地牌槽上限
+        /// （黑/白各自计，横置产色路径同受钳制）；三色/灰不钳。钳掉部分不入账不发事件。
+        /// 使用侧约束不变：支付时单次贡献 ≤ 地牌上限（GetBillPaymentPlan）。返回实发量（钳后）。</summary>
         public int AddMana(Player player, ManaType type, Card fromCard, int amount = 1)
         {
             if (player == null || amount <= 0) return 0;
             var pool = GetPool(player);
 
-            if (type == ManaType.Black) pool.BlackGainedThisTurn += amount;
-            else if (type == ManaType.White) pool.WhiteGainedThisTurn += amount;
+            if (type == ManaType.Black || type == ManaType.White)
+            {
+                int cap = GetLandCap(player);
+                int gained = type == ManaType.Black ? pool.BlackGainedThisTurn : pool.WhiteGainedThisTurn;
+                amount = Math.Min(amount, Math.Min(cap, cap - gained));
+                if (amount <= 0) return 0;
+                if (type == ManaType.Black) pool.BlackGainedThisTurn += amount;
+                else pool.WhiteGainedThisTurn += amount;
+            }
 
             pool.AvailableMana[type] += amount;
             PublishEvent(new ElementPoolGainEvent

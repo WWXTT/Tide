@@ -79,8 +79,6 @@ namespace CardCore
         public int random;             // RandomTarget（0/1——目标随机正交标志，与"选多少"无关）
         public List<int> kinds;        // 效果级作用范围（2026-10-04 相同目标定案）：null=未声明（空列不写，向后兼容）
         public int dropZone;           // SummonDropZone
-        public int engine;             // BranchEngineKind（≠0 时 rewards 有效、steps 恒空）
-        public int engineParam;
         public int arrows;             // 光环形态（2026-09-23）：HexDirection Flags——箭头随效果合成，挂卡并集
         public List<LinkAuraData> linkAuras;  // 光环条目（非光环效果 null——空列不写，向后兼容）
 
@@ -91,7 +89,8 @@ namespace CardCore
         public List<float> cost;
         public List<CostRef> costs;
         public List<StepRef> steps;
-        public List<AtomicEffectEntry> rewards;  // 引擎奖励（engine≠0）
+        // 引擎通道（engine/engineParam/rewards 头字段）已随 2026-10-05 两槽定案载荷化退役——
+        // 引擎条件挂原子 branch 载荷（AtomicEffectEntry.branch，随 StepRef.atom 往返）。
     }
 
     /// <summary>瘦 DTO ↔ 运行时模型转换（2026-09-14 彻底引用化后原子零转换——本体即引用；
@@ -254,8 +253,6 @@ namespace CardCore
                 TargetKinds = dto.kinds != null && dto.kinds.Count > 0
                     ? new List<int>(dto.kinds) : null, // 效果级作用范围（2026-10-04）——空列=未声明
                 SummonDropZone = dto.dropZone,
-                EngineKind = dto.engine,
-                EngineParam = dto.engineParam,
                 ArrowDirections = dto.arrows,
                 LinkAuras = dto.linkAuras != null && dto.linkAuras.Count > 0
                     ? dto.linkAuras.Where(a => a != null
@@ -265,17 +262,9 @@ namespace CardCore
                     ? new ElementCost(dto.cost.ToArray())
                     : null, // 锚价缓存（2026-09-23；2026-10-04 位置数组）——装载期逐效果建立
                 Costs = ToCostEntries(dto.costs),
+                Steps = dto.steps != null
+                    ? dto.steps.Select(ToStep).Where(st => st != null).ToList() : null,
             };
-            if (dto.engine != (int)BranchEngineKind.None)
-            {
-                fx.AtomicEffects = ToEntries(dto.rewards);
-                fx.Steps = null;
-            }
-            else
-            {
-                fx.Steps = dto.steps != null
-                    ? dto.steps.Select(ToStep).Where(st => st != null).ToList() : null;
-            }
             return fx;
         }
     }

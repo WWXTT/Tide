@@ -12,10 +12,9 @@ namespace CardCore
     /// 对手抽到该卡时（CardDrawEvent——ZoneManagerExtensions.DrawCard 统一发布口）自动执行
     /// 载荷的分支效果并消层（一次性，用户定案）。
     ///
-    /// - 载荷 = 开放式分支效果：Effects.json 条目（AddCurse.str 引用 id）的 Steps——
-    ///   Atomic 原子 + 条件分支（Then/Else，条件走 BranchConditionEvaluator 局面状态族门；
-    ///   抽牌时点无上游产出，产出族门恒否——设计载荷时应使用局面状态族条件）；
-    ///   Steps 空 时退化为扁平 AtomicEffects（与执行器同款向后兼容口径）。
+    /// - 载荷两形态（2026-10-05 诅咒有限分支定案）：①**inline 原子列**——合成器 CurseOnDraw 门的
+    ///   Then 原子（≤2 费预算）经 converter 抽取挂 AddCurse 原子的 CursePayload，Attach 直接携带；
+    ///   ②Effects.json 条目引用——AddCurse.str 引用 id（手写数据兼容），Steps 支持 Atomic+条件分支。
     /// - 执行上下文：Controller=施诅方（载荷的相对域以施诅方视角解析——「敌方」=被诅玩家），
     ///   Targets/CastCard=被抽到的卡，TriggeringEvent=CardDrawEvent；原子各自解析目标（免编排路径）。
     /// - 消耗前置（先消层摘载荷、再结算）：现网原子抽牌路径 CardDrawEvent 双发
@@ -28,7 +27,8 @@ namespace CardCore
     {
         private class CursePayload
         {
-            public string EffectId;   // 载荷效果 id（Effects.json 条目）
+            public string EffectId;   // 载荷效果 id（Effects.json 条目；inline 形态为 null）
+            public List<AtomicEffectInstance> InlineSteps; // inline 载荷原子列（合成器 CurseOnDraw 门 Then）
             public Player Caster;     // 施诅方（载荷控制者）
             public Card SourceCard;   // 施咒来源卡（可 null——归因用，卡可能已离场）
         }
@@ -47,7 +47,8 @@ namespace CardCore
             EventManager.Instance.Subscribe<CardDrawEvent>(OnCardDrawn);
         }
 
-        /// <summary>登记一条诅咒（AddCurseHandler 调用）：目标卡 + 载荷 + 施诅方。</summary>
+        /// <summary>登记一条诅咒（AddCurseHandler 调用）：目标卡 + 载荷 + 施诅方。
+        /// effectId=Effects.json 条目引用（手写数据兼容）。</summary>
         public static void Attach(Card target, string effectId, Player caster, Card sourceCard)
         {
             if (target == null || string.IsNullOrEmpty(effectId)) return;
@@ -57,6 +58,19 @@ namespace CardCore
                 _curses[target] = list;
             }
             list.Add(new CursePayload { EffectId = effectId, Caster = caster, SourceCard = sourceCard });
+        }
+
+        /// <summary>登记一条 inline 诅咒（2026-10-05 合成器路径）：载荷=CurseOnDraw 门 Then 原子列
+        ///（≤2 费预算由合成器校验）——每次 Attach 各自携带，天然"不同诅咒触发不同效果"。</summary>
+        public static void Attach(Card target, List<AtomicEffectInstance> inlineSteps, Player caster, Card sourceCard)
+        {
+            if (target == null || inlineSteps == null || inlineSteps.Count == 0) return;
+            if (!_curses.TryGetValue(target, out var list))
+            {
+                list = new List<CursePayload>();
+                _curses[target] = list;
+            }
+            list.Add(new CursePayload { InlineSteps = inlineSteps, Caster = caster, SourceCard = sourceCard });
         }
 
         /// <summary>查询卡上挂着的诅咒载荷（UI 展示用：载荷效果 id + 施诅方）。</summary>
@@ -114,18 +128,12 @@ namespace CardCore
                 await ExecutePayloadAsync(payload, drawnCard, trigger, core);
         }
 
-        /// <summary>执行一条诅咒载荷：按 Steps 遍历（Atomic→注册表执行；Branch→局面门评估选 Then/Else）；
+        /// <summary>执行一条诅咒载荷：inline 形态=原子列逐个执行（合成器 CurseOnDraw 门 Then）；
+        /// 引用形态=按 Steps 遍历（Atomic→注册表执行；Branch→局面门评估选 Then/Else），
         /// Steps 空退化为扁平 Effects。原子各自解析目标（BranchEngines.FireRewards 同款免编排路径）。</summary>
         private static async UniTask ExecutePayloadAsync(
             CursePayload payload, Card drawnCard, CardDrawEvent trigger, GameCore core)
         {
-            var def = ResolveDef(payload.EffectId);
-            if (def == null)
-            {
-                TideLog.Warn($"[CurseSystem] 诅咒载荷缺失: {payload.EffectId}（Effects.json 无此条，层已消耗）");
-                return;
-            }
-
             var ctx = new EffectExecutionContext
             {
                 Source = (Entity)payload.SourceCard ?? payload.Caster,
@@ -136,6 +144,22 @@ namespace CardCore
                 ElementPool = core?.ElementPool,
                 CastCard = drawnCard,
             };
+
+            // inline 载荷（2026-10-05）：合成器门的 Then 原子列——逐个执行（原子各自解析目标）
+            if (payload.InlineSteps != null)
+            {
+                foreach (var atom in payload.InlineSteps)
+                    if (atom != null)
+                        await EffectHandlerRegistry.ExecuteEffectAsync(atom, ctx);
+                return;
+            }
+
+            var def = ResolveDef(payload.EffectId);
+            if (def == null)
+            {
+                TideLog.Warn($"[CurseSystem] 诅咒载荷缺失: {payload.EffectId}（Effects.json 无此条，层已消耗）");
+                return;
+            }
 
             if (def.Steps != null && def.Steps.Count > 0)
             {

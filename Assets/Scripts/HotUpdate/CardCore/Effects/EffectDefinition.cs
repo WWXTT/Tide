@@ -101,18 +101,9 @@ namespace CardCore
         /// 默认口径——原子含 MountKind.TriggerCapImmutable（少数，如坚韧）→ 恒 -1（不可修改、声明被覆写）；
         /// 其余原子 → 未声明=1（一回合一次），组合期可改 N 或 -1。启动式不消费本字段（费用现付自限）。</summary>
         public int TriggerLimitPerTurn = -1;
-        /// <summary>动态分支引擎（2026-09-13 定案：主效果=条件引擎，奖励原子不占卡费）：
-        /// None=普通效果；Countdown=倒计时（回合开始-1，归零发奖并重置——初值=奖励推导费换算回合，1费=1回合）；
-        /// LuckRoll=运势（回合开始掷 2d6 双&gt;EngineParam 发奖——机制费=x 灰，x∈[1,5]）。
-        /// AtomicEffects 在引擎模式下转存 RewardAtoms（不作即时主序列）。</summary>
-        public BranchEngineKind EngineKind = BranchEngineKind.None;
-        /// <summary>引擎参数：运势阈值 x（[1,5]）；倒计时缺省 0=按奖励推导费自动换算。</summary>
-        public int EngineParam;
-        /// <summary>动态分支的奖励原子（converter 从 AtomicEffects 转存；计价 0——倒计时延迟即付费/运势走机制费）。</summary>
-        public List<AtomicEffectInstance> RewardAtoms = new List<AtomicEffectInstance>();
-        /// <summary>倒计时初值回合数（converter 换算：奖励推导费 1费=1回合，向上取整下限 1；引擎运行时归零重置回此值）。</summary>
-        public int CountdownTurns;
-        /// <summary>预计算组合目标域：主序列原子 TargetKinds 交集（converter 填；构筑期校验用）。</summary>
+        // 动态分支引擎 def 级字段（EngineKind/EngineParam/RewardAtoms/CountdownTurns）已随 2026-10-05
+        // 两槽定案载荷化退役——引擎条件与 Then 奖励挂槽级原子 Branch 载荷（见 AtomicEffectInstance.Branch）。
+        /// <summary>预计算组合目标域：主序列主干原子 TargetKinds 交集（converter 填；构筑期校验用）。</summary>
         public List<int> TargetDomain;
         /// <summary>组合域内属性过滤（成员带域原子的 Filter token 之 AND；converter 预计算）。</summary>
         public string TargetFilter;
@@ -120,8 +111,9 @@ namespace CardCore
         public List<int>[] ChoiceDomains;
 
         /// <summary>
-        /// 节点化效果步骤（原子 + 单层 per-target 条件分支）。
-        /// 非空时执行引擎走步骤遍历；为空时退化为扁平 Effects 线性结算（向后兼容）。
+        /// 节点化效果步骤（遗留+光环专用，2026-10-05 两槽定案后）：
+        /// 分支/引擎不再写入 Steps（槽级 Branch 载荷承载）；光环形态的规则光环原子步与
+        /// 存量抉择（Choice）步骤仍走此路径。非空且无光环/抉择时按原子步平铺执行（向后兼容）。
         /// </summary>
         public List<RuntimeEffectStep> Steps = new List<RuntimeEffectStep>();
         #endregion
@@ -425,23 +417,21 @@ namespace CardCore
 
     /// <summary>
     /// 条件族判别：
-    /// OutcomeGate（伤害/治疗/信息→读产出，达成走 then 免费奖励），
+    /// OutcomeGate（产出/局面→读产出或局面状态），
     /// FilterPrecision（检索→筛选即条件，按维度计费）。
-    /// Drawback（抽牌减费缺陷）已随减费归入代价体系退役（2026-09-16）——值 1 留空洞保号不重排。
-    /// 分支步骤（Kind==Branch）当前仅承载 OutcomeGate。
+    /// Drawback 空洞已随 2026-10-05 墓碑清理实删重排（效果库空置期，无存量 int 依赖）。
     /// </summary>
     public enum BranchConditionKind
     {
         OutcomeGate = 0,
-        FilterPrecision = 2,
+        FilterPrecision = 1,
     }
 
     /// <summary>
-    /// 运行时效果步骤。Kind==Atomic 时执行 Atomic；
-    /// Kind==Branch 时为 OutcomeGate 分支：评估 ConditionId 对当前目标的产出，
-    /// 真走 Then、假走 Else（单层、扁平原子列表，奖励免费）；
-    /// Kind==Choice 时为抉择：按 EffectInstance.ModeIndex 只执行 Choices 中所选模式的
-    /// 子步骤序列（单层不可嵌套，converter 已拒；模式费用 per-mode 独立推导）。
+    /// 运行时效果步骤（遗留结构，2026-10-05 两槽定案后仅承载：光环形态的规则光环原子步
+    /// 与存量抉择步骤）。Kind==Branch 的产出门步骤已由槽级 BranchPayload（Outcome）取代，
+    /// converter 对存量 Branch 步骤做载荷折叠兼容。抉择（Choice）：按 EffectInstance.ModeIndex
+    /// 只执行 Choices 中所选模式的子步骤序列（单层不可嵌套，converter 已拒；模式费用 per-mode 独立推导）。
     /// </summary>
     [Serializable]
     public class RuntimeEffectStep
@@ -466,13 +456,60 @@ namespace CardCore
 
     #endregion
 
+    #region 槽级分支载荷（两槽定案 2026-10-05）
+
+    /// <summary>分支结算方式（两槽定案）：条件族三分——
+    /// Gate=有限分支条件（局面状态门，与原子产出无关，效果结算时评估一次）；
+    /// Outcome=自由分支·产出条件（读主干 per-target 产出，如"伤害击杀 Then xx"——producer 匹配挂条件上）；
+    /// Engine=自由分支·事件引擎（倒计时/拼点等，条件时机内生于引擎事件）。</summary>
+    public enum BranchSettleKind
+    {
+        Gate = 1,
+        Outcome = 2,
+        Engine = 3,
+    }
+
+    /// <summary>
+    /// 槽级分支载荷：条件在主干中 + Then 奖励。Then=条件达成后**强制结算**的奖励原子
+    /// （无发动时机；有目标域的奖励在结算前依次弹目标选择）；计价 0——预算制
+    ///（Gate/Outcome=条件 premium；Engine=机制费/引擎预算口径）。奖励目标各自解析，不与主序列共享。
+    /// </summary>
+    [Serializable]
+    public class BranchPayload
+    {
+        public BranchSettleKind Settle;
+
+        /// <summary>Settle==Gate：局面状态条件 id（BranchConditionEvaluator 目录，如 "LifeBelowOpp"）。
+        /// 诅咒特例 GateId="CurseOnDraw"：时机固定"抽到该卡时"，CurseSystem 驱动，施放时恒假不结算。</summary>
+        public string GateId;
+        public int GateParam;
+        public string GateStringParam;
+
+        /// <summary>Settle==Outcome：产出条件 id（如 "DmgKillsTarget"/"DeclareHit"——原 OutcomeGate 产出族）。</summary>
+        public string OutcomeId;
+
+        /// <summary>Settle==Engine：事件引擎。</summary>
+        public BranchEngineKind EngineKind;
+        /// <summary>引擎参数 x（运势阈值/死亡计数阈值等；倒计时缺省 0=按 Then 推导费自动换算）。</summary>
+        public int EngineParam;
+        /// <summary>倒计时初值回合数（converter 换算：Then 推导费 1费=1回合，向上取整下限 1；
+        /// 引擎运行时归零重置回此值）。仅 EngineKind==Countdown 有语义。</summary>
+        public int CountdownTurns;
+
+        /// <summary>条件达成的奖励原子（≤预算；结算期依次弹选/解析目标）。</summary>
+        public List<AtomicEffectInstance> Then = new List<AtomicEffectInstance>();
+    }
+
+    #endregion
+
     #region 原子效果实例
 
     [Serializable]
-    /// <summary>动态分支引擎（2026-09-13 分支体系正规化定案）。</summary>
+    /// <summary>事件引擎（原"动态分支引擎"，2026-10-05 两槽定案载荷化——自由分支条件族的事件子族）。
+    /// 条件时机内生于引擎事件（回合开始/死亡事件/付费后/施放序位），不强制固定发动时点。</summary>
     public enum BranchEngineKind : int
     {
-        /// <summary>普通效果（无引擎）</summary>
+        /// <summary>无引擎</summary>
         None = 0,
         /// <summary>倒计时：回合开始计数-1，归零→执行奖励并重置；初值=奖励推导费换算回合（1费=1回合）——延迟即付费</summary>
         Countdown = 1,
@@ -491,6 +528,8 @@ namespace CardCore
         /// <summary>手牌序位（2026-09-22 定案）：**此卡**为本回合从手牌使用的第 x 张卡（含自身，按使用宣言序，
         /// 响应出牌同计；墓地视手牌等其他来源不算）→ 施放结算时执行奖励（发动无效则跳过）；奖励预算=x。x∈[1,9]</summary>
         NthHandCard = 6,
+        // 值 7（Grant 赋予引擎）已随 2026-10-05 两槽定案解体实删——"无条件主干"化为无分支槽原子+效果级
+        // 持续档计价（Grant 梯沿用），枚举尾删安全（无存量 int 序列化依赖）。
     }
 
     public class AtomicEffectInstance
@@ -504,6 +543,12 @@ namespace CardCore
         /// <summary>来源表行 ID（2026-10-03 计价行身份修复）：同枚举多行（变体行各自锚价，如规则光环 7 行）
         /// 时计价按此行取锚——null/缺行回落 GetByType（末行，旧口径）。运行时字段，不入网络 DTO。</summary>
         public string RowHashId;
+        /// <summary>槽级分支载荷（2026-10-05 两槽定案）：条件在主干中 + Then 奖励——
+        /// Gate=有限分支（局面状态门，效果结算时评估一次，任意原子可挂）；
+        /// Outcome/Engine=自由分支（Outcome 读主干 per-target 产出；Engine 事件驱动，时机内生于引擎）。
+        /// null=无分支。诅咒=Gate 特例（GateId="CurseOnDraw"，时机固定"抽到该卡时"，CurseSystem 驱动）。
+        /// 运行时字段，不入网络 DTO。</summary>
+        public BranchPayload Branch;
 
         /// <summary>Mana 字典（与卡计费同款表达；无 Mana 参数的原子为 null）。</summary>
         public Dictionary<ManaType, float> Mana;

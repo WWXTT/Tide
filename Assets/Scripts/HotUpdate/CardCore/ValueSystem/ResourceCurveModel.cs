@@ -69,6 +69,20 @@ namespace CardCore
             return new ResourceCurve(caps, CurveShape.Rising, 0.5f);
         }
 
+        /// <summary>
+        /// 挑战模式电脑曲线（2026-10-06 定案：难度 N 单值联动）= 标准曲线整体上移 bonus：
+        /// [1+bonus, 2+bonus, …, 9+bonus]——开局即有额外初始地牌槽，封顶也抬高 bonus。
+        /// 第 T 全局回合上限 = min(T + bonus, 9 + bonus)。只注入给 P2（电脑），玩家侧保持标准曲线。
+        /// bonus=0 时与 StandardLandCurve() 等价（InitGame 按此短路，不换曲线）。
+        /// </summary>
+        public static ResourceCurve ChallengeLandCurve(int bonus)
+        {
+            bonus = Math.Max(0, bonus);
+            var caps = new int[Math.Max(1, 9)];
+            for (int i = 0; i < caps.Length; i++) caps[i] = i + 1 + bonus;
+            return new ResourceCurve(caps, CurveShape.Rising, 0.5f);
+        }
+
         /// <summary>调试/软提示用：曲线各回合上限的快照</summary>
         public IReadOnlyList<int> Caps => _caps;
 

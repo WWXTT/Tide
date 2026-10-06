@@ -82,8 +82,9 @@ namespace CardCore
                 BaseSpeed = data.BaseSpeed,
                 IsOptional = data.IsOptional,
                 // 持续唯一真相在效果级（2026-09-10 上移定案）：卡数据显式携带（0=Once），
-                // 哨兵 -1=未声明回退 Once（绝对计价锚）
+                // 哨兵 -1=未声明回退 Once（绝对计价锚）；ForTurns 回合数 N 随行（2026-10-06 复挂）
                 Duration = data.Duration >= 0 ? (DurationType)data.Duration : DurationType.Once,
+                DurationValue = data.DurationValue,
                 SummonDropZone = (Zone)data.SummonDropZone,
                 SelectionMode = data.SelectionMode >= 0 ? (SelectionMode)data.SelectionMode : SelectionMode.None,
                 RandomTarget = data.RandomTarget != 0,
@@ -102,8 +103,13 @@ namespace CardCore
                                  $"已剔除 {removed} 个关键词型 Grant 原子（关键词不得作为主动效果；赋予型不受限）");
             }
 
-            // 转换原子效果列表
-            if (data.AtomicEffects != null)
+            // 主序列通道裁决（2026-10-05 双通道翻倍修复）：Steps 非空=节点化主序列为唯一来源——
+            // AtomicEffects 只是它的扁平投影（合成器 BuildCardEffect 同源双写），两通道并载时
+            // 下方折叠会把主干原子再 Add 一遍 → 计价/执行双倍。Steps 空（纯扁平旧卡）才走 AtomicEffects。
+            bool stepsOwnMainSequence = data.Steps != null && data.Steps.Count > 0;
+
+            // 转换原子效果列表（两槽定案 2026-10-05：主序列=平铺主干原子，各可带槽级 Branch 载荷）
+            if (!stepsOwnMainSequence && data.AtomicEffects != null)
             {
                 foreach (var entry in data.AtomicEffects)
                 {
@@ -111,54 +117,40 @@ namespace CardCore
                     if (instance != null)
                         def.Effects.Add(instance);
                 }
-            }
-
-            // 转换节点化步骤（原子 + per-target 条件分支）。
-            // 非空时执行引擎走步骤遍历；为空时退化为扁平 Effects（向后兼容）。
-            if (data.Steps != null && data.Steps.Count > 0)
-            {
-                foreach (var step in data.Steps)
+                // 倒计时载荷换算：初值=Then 推导费 1费=1回合（声明 0/缺省时）
+                foreach (var atom in def.Effects)
                 {
-                    var runtimeStep = ConvertStep(step);
-                    if (runtimeStep != null)
-                        def.Steps.Add(runtimeStep);
+                    if (atom?.Branch?.EngineKind == BranchEngineKind.Countdown && atom.Branch.CountdownTurns <= 0)
+                        atom.Branch.CountdownTurns = Math.Max(1, (int)Math.Ceiling(
+                            CostDerivationService.RewardDerivedCost(atom.Branch.Then)));
                 }
             }
 
-            // 拦截式改写门配对守卫（2026-09-22 定案）：改写门（DmgRewrite*）必须紧跟伤害族主干原子
-            //（DealDamage/PierceDamage/DrainLife）——失配（手写 JSON/旧数据）告警剔除，
-            // 防改写拦截在非伤害原子上空转。倒序遍历防索引漂移。
-            for (int i = def.Steps.Count - 1; i >= 0; i--)
+            // 转换节点化步骤（遗留路径）。含抉择（kind==2）→ 保留 Steps 结构（执行引擎步骤遍历）；
+            // 纯原子/分支步骤 → 平铺折叠进 def.Effects（kind=1 门折入前一个原子的 Branch 载荷——
+            // 产出条件族归 Outcome、局面/诅咒门归 Gate；光环形态的规则光环原子步同样平铺执行）。
+            if (stepsOwnMainSequence)
             {
-                var s = def.Steps[i];
-                if (s?.Kind != RuntimeStepKind.Branch || !BranchConditionEvaluator.IsRewriteCondition(s.ConditionId))
-                    continue;
-                bool paired = i > 0 && def.Steps[i - 1]?.Kind == RuntimeStepKind.Atomic
-                              && Array.IndexOf(ComposerCatalog.DamageProducers,
-                                  def.Steps[i - 1].Atomic?.Type.ToString() ?? "") >= 0;
-                if (paired) continue;
-                TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 改写门 {s.ConditionId}" +
-                                 " 未紧跟伤害族主干原子，已剔除（改写门只挂 DealDamage/PierceDamage/DrainLife）");
-                def.Steps.RemoveAt(i);
+                if (data.Steps.Any(s => s != null && s.kind == 2))
+                {
+                    foreach (var step in data.Steps)
+                    {
+                        var runtimeStep = ConvertStep(step);
+                        if (runtimeStep != null)
+                            def.Steps.Add(runtimeStep);
+                    }
+                }
+                else
+                {
+                    FoldBranchSteps(data.Steps, def, sourceCardId);
+                }
             }
 
             // ---- 组合层域预计算（2026-09-10 目标域模型）----
             // 效果级作用范围（2026-10-04 相同目标定案）：header 声明优先，未声明回落原子域交集；
             // 组合 filter = 成员带域原子 Filter token 之 AND；TargetCount 哨兵 -2 回落表级。
+            // （引擎头字段通道已随两槽定案退役——引擎条件挂槽级原子 Branch 载荷，倒计时换算见上方。）
             PrecomputeDomains(def, data.TargetKinds);
-            // 动态分支引擎（2026-09-13 分支体系正规化）：主效果=条件引擎——
-            // AtomicEffects 整批转存 RewardAtoms（不作即时主序列；计价 0：倒计时延迟即付费/运势机制费=灰x）。
-            if (data.EngineKind != (int)BranchEngineKind.None)
-            {
-                def.EngineKind = (BranchEngineKind)data.EngineKind;
-                def.EngineParam = data.EngineParam;
-                def.RewardAtoms = def.Effects;
-                def.Effects = new List<AtomicEffectInstance>();
-                if (def.EngineKind == BranchEngineKind.Countdown)
-                    def.CountdownTurns = data.EngineParam > 0
-                        ? data.EngineParam
-                        : Math.Max(1, (int)Math.Ceiling(CostDerivationService.RewardDerivedCost(def.RewardAtoms)));
-            }
 
             // 胜利宣判闸（2026-09-16 定案）：含 DeclareVictory 原子的效果一律强制——纯强制批
             // 合成双 Pass 直接结算（宣判即终局，见 StackEngine.FinishResolution 拆轮）。
@@ -181,9 +173,9 @@ namespace CardCore
             // 触发上限解析（2026-09-13 定案）：含 TriggerCapImmutable(8) 原子（少数，如坚韧）→ 恒 -1
             //（不可修改——声明被覆写，CardLoader 同步告警）；其余原子 → 未声明(0)=1（一回合一次，默认可修改）。
             bool capImmutable =
-                def.Effects.Any(a => a != null && MountHasFlag(a.Type, (int)MountKind.TriggerCapImmutable))
+                def.Effects.Any(a => a != null && MountHasFlag(a.Type, MountKind.TriggerCapImmutable))
                 || (def.Steps != null && EnumerateMainSequenceAtoms(def.Steps, 0)
-                        .Any(a => a != null && MountHasFlag(a.Type, (int)MountKind.TriggerCapImmutable)));
+                        .Any(a => a != null && MountHasFlag(a.Type, MountKind.TriggerCapImmutable)));
             def.TriggerLimitPerTurn = capImmutable
                 ? -1
                 : (data.TriggerLimitPerTurn == 0 ? 1 : data.TriggerLimitPerTurn);
@@ -345,20 +337,16 @@ namespace CardCore
         public static AtomicEffectInstance ConvertAtomForUI(AtomicEffectEntry entry)
             => ConvertAtomicEffect(entry);
 
-        /// <summary>原子表 MountKinds 是否含指定位（触发上限解析用）。</summary>
-        private static bool MountHasFlag(AtomicEffectType type, int flag)
-        {
-            var csv = Attribute.AtomicEffectTable.GetByType(type)?.MountKinds ?? "";
-            foreach (var tok in csv.Split(','))
-                if (tok.Trim() == flag.ToString()) return true;
-            return false;
-        }
+        /// <summary>原子表 MountKinds 是否含指定位（触发上限解析用；2026-10-06 中文化：
+        /// 走 ParseCsv 统一双轨解析，不再自拆 CSV 比对数字）。</summary>
+        private static bool MountHasFlag(AtomicEffectType type, MountKind flag)
+            => MountKindExtensions.ParseCsv(Attribute.AtomicEffectTable.GetByType(type)?.MountKinds).Contains(flag);
 
-        /// <summary>胜利宣判闸扫描：主序列原子 / 步骤全形态（原子+分支 Then/Else+抉择全模式）/
-        /// 引擎奖励原子中是否含指定类型（SubEffects 递归）。</summary>
+        /// <summary>胜利宣判闸扫描：主序列原子 / 载荷 Then 奖励 / 步骤全形态（原子+抉择全模式）中
+        /// 是否含指定类型（SubEffects 递归）。</summary>
         private static bool ContainsAtom(EffectDefinition def, AtomicEffectType type)
         {
-            if (AtomsContain(def.Effects, type) || AtomsContain(def.RewardAtoms, type)) return true;
+            if (AtomsContain(def.Effects, type)) return true;
             if (def.Steps == null) return false;
             foreach (var step in def.Steps)
                 if (StepContainsAtom(step, type)) return true;
@@ -395,11 +383,13 @@ namespace CardCore
         {
             if (atom == null) return false;
             if (atom.Type == type) return true;
+            if (AtomsContain(atom.Branch?.Then, type)) return true;
             return AtomsContain(atom.SubEffects, type);
         }
 
         /// <summary>引用型唯一转换口（2026-09-14 彻底引用化）：refId → 表行 → 运行时实例。
-        /// 枚举/默认域/Filter/极性/MountKinds 全部从行解析；增量只读 value/str/amp/kinds。</summary>
+        /// 枚举/默认域/Filter/极性/MountKinds 全部从行解析；增量只读 value/str/amp/kinds/branch。
+        /// branch 载荷递归转换（Then 奖励同引用化口径；引擎倒计时初值换算在 ConvertOne 收口）。</summary>
         private static AtomicEffectInstance ConvertAtomicEffect(AtomicEffectEntry entry, bool allowWrongSide = false)
         {
             if (entry == null || string.IsNullOrEmpty(entry.refId))
@@ -412,16 +402,6 @@ namespace CardCore
             if (config == null || !Enum.TryParse<AtomicEffectType>(config.EnumName, out var type))
             {
                 TideLog.Warn($"[CardEffectConverter] 原子表引用缺失: {entry.refId}（表无此行或枚举错名），跳过");
-                return null;
-            }
-
-            // 引擎主干守卫（2026-09-14 合成器重做）：自由分支主干经 header.EngineKind 声明——
-            // 不可作为普通原子/分支奖励/payload 挂载（表行 MountKinds 漏配或手写 JSON 误用在此拦截）。
-            if (ComposerCatalog.IsEngineTrunk(type))
-            {
-                // 数据质量诊断（主干守卫是既定拦截，负面测试会故意触发——告警级与契约剔除同级）
-                TideLog.Warn($"[CardEffectConverter] 引擎主干原子 {type} 不可作为普通原子挂载" +
-                               "（自由分支经 header.EngineKind 声明），已剔除");
                 return null;
             }
 
@@ -457,7 +437,81 @@ namespace CardCore
                 TargetKinds = kinds,
                 Filter = config.TargetFilter ?? "",
                 Polarity = polarity,
+                Branch = ConvertBranchPayload(entry.branch),
             };
+        }
+
+        /// <summary>槽级分支载荷转换（两槽定案）：条目 → BranchPayload；Then 奖励递归引用化。
+        /// settle 越界/条件空 → 告警丢弃（防幽灵载荷空转）。</summary>
+        private static BranchPayload ConvertBranchPayload(BranchEntryData data)
+        {
+            if (data == null) return null;
+            var settle = (BranchSettleKind)data.settle;
+            if (!Enum.IsDefined(typeof(BranchSettleKind), settle))
+            {
+                TideLog.Warn($"[CardEffectConverter] 分支载荷 settle={data.settle} 越界，已丢弃");
+                return null;
+            }
+
+            var payload = new BranchPayload { Settle = settle };
+            switch (settle)
+            {
+                case BranchSettleKind.Gate:
+                    if (string.IsNullOrEmpty(data.gateId))
+                    {
+                        TideLog.Warn("[CardEffectConverter] 有限分支载荷缺局面条件 id（gateId），已丢弃");
+                        return null;
+                    }
+                    payload.GateId = data.gateId;
+                    payload.GateParam = data.gateParam;
+                    payload.GateStringParam = data.gateStr ?? "";
+                    break;
+                case BranchSettleKind.Outcome:
+                    if (string.IsNullOrEmpty(data.outcomeId))
+                    {
+                        TideLog.Warn("[CardEffectConverter] 自由分支·产出条件载荷缺条件 id（outcomeId），已丢弃");
+                        return null;
+                    }
+                    payload.OutcomeId = data.outcomeId;
+                    break;
+                case BranchSettleKind.Engine:
+                    var engine = (BranchEngineKind)data.engine;
+                    if (!Enum.IsDefined(typeof(BranchEngineKind), engine) || engine == BranchEngineKind.None)
+                    {
+                        TideLog.Warn($"[CardEffectConverter] 自由分支·引擎载荷 engine={data.engine} 越界，已丢弃");
+                        return null;
+                    }
+                    payload.EngineKind = engine;
+                    payload.EngineParam = data.engineParam;
+                    payload.CountdownTurns = data.engineParam; // 声明初值；0=ConvertOne 按 Then 推导换算
+                    break;
+            }
+
+            if (data.then != null)
+            {
+                // 局面门对赌（2026-10-05 定案，诅咒门豁免）：未达成→逆转惩罚——奖励必须可逆转
+                //（三路口径同代价栏：PayloadCostDomain），不可逆转者剔除（Then 空→整体折叠无分支兜底在 return 处）
+                bool gateBet = settle == BranchSettleKind.Gate && data.gateId != ComposerCatalog.CurseGateId;
+                foreach (var reward in data.then)
+                {
+                    var inst = ConvertAtomicEffect(reward);
+                    if (inst == null) continue;
+                    if (gateBet)
+                    {
+                        var row = Attribute.AtomicEffectTable.GetByHashId(inst.RowHashId)
+                                  ?? Attribute.AtomicEffectTable.GetByType(inst.Type);
+                        var (_, eligible) = CostDerivationService.PayloadCostDomain(row);
+                        if (!eligible)
+                        {
+                            TideLog.Warn($"[CardEffectConverter] 局面门奖励原子 {inst.Type} 不可逆转" +
+                                           "（无对侧域/中性双侧——惩罚无从执行），已剔除");
+                            continue;
+                        }
+                    }
+                    payload.Then.Add(inst);
+                }
+            }
+            return payload.Then.Count > 0 ? payload : null; // 无 Then 的条件空转——折叠为无分支
         }
 
         /// <summary>构筑期显示用：代价栏 Payload 条目 → 原子实例（允许错边——契约校验在代价转换处；
@@ -549,7 +603,8 @@ namespace CardCore
 
         /// <summary>
         /// 主序列原子枚举（声明期目标扫描用，UI/AI 共用）：直行原子 + 抉择步骤所选模式内的原子。
-        /// 分支奖励原子不扫——主序列才在声明期选目标，奖励目标由结算期各自解析。
+        /// 分支奖励原子不扫——主序列才在声明期选目标，奖励目标由结算期各自解析；
+        /// 引擎主干原子（Settle==Engine）为条件载体非效果，同样跳过（2026-10-05 回表）。
         /// </summary>
         public static IEnumerable<AtomicEffectInstance> EnumerateMainSequenceAtoms(
             List<RuntimeEffectStep> steps, int modeIndex)
@@ -559,6 +614,10 @@ namespace CardCore
                 if (step == null) continue;
                 if (step.Kind == RuntimeStepKind.Atomic && step.Atomic != null)
                 {
+                    // 引擎主干行（行级+载荷级双判）：条件载体非效果，不进声明期目标扫描
+                    if (step.Atomic.Branch?.Settle == BranchSettleKind.Engine
+                        || ComposerCatalog.EngineKindOf(step.Atomic.Type) != BranchEngineKind.None)
+                        continue;
                     yield return step.Atomic;
                 }
                 else if (step.Kind == RuntimeStepKind.Choice)
@@ -574,9 +633,59 @@ namespace CardCore
             }
         }
 
-        private static RuntimeEffectStep ConvertStep(EffectStepData step)
+        /// <summary>遗留步骤平铺折叠（两槽定案 2026-10-05）：kind=0 原子步 → def.Effects 主干；
+        /// kind=1 门步 → 折入前一个原子的 Branch 载荷——产出条件族（DmgKillsTarget/DeclareHit 等）归
+        /// 自由分支 Outcome，局面/诅咒门归有限分支 Gate。落单门步（无前置原子）告警剔除；
+        /// elseSteps 无新模型对应（条件不达成不发奖励）——非空告警丢弃。</summary>
+        private static void FoldBranchSteps(List<EffectStepData> steps, EffectDefinition def, string sourceCardId)
         {
-            if (step == null) return null;
+            AtomicEffectInstance prev = null;
+            foreach (var step in steps)
+            {
+                if (step == null) continue;
+                if (step.kind == 0)
+                {
+                    var atom = step.atomic != null ? ConvertAtomicEffect(step.atomic) : null;
+                    if (atom == null) { prev = null; continue; }
+                    def.Effects.Add(atom);
+                    prev = atom;
+                }
+                else if (step.kind == 1)
+                {
+                    if (prev == null)
+                    {
+                        TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 分支步骤无前置主干原子，已剔除");
+                        continue;
+                    }
+                    if (step.elseSteps != null && step.elseSteps.Count > 0)
+                        TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 分支步骤携带 else 奖励" +
+                                     "（两槽定案：条件不达成不发奖励），else 已丢弃");
+
+                    bool outcome = ComposerCatalog.IsOutcomeCondition(step.conditionId);
+                    var payload = new BranchPayload
+                    {
+                        Settle = outcome ? BranchSettleKind.Outcome : BranchSettleKind.Gate,
+                        OutcomeId = outcome ? step.conditionId : null,
+                        GateId = outcome ? null : step.conditionId,
+                        GateParam = step.conditionParam,
+                        GateStringParam = step.conditionStringParam ?? "",
+                    };
+                    if (step.thenSteps != null)
+                    {
+                        foreach (var entry in step.thenSteps)
+                        {
+                            var inst = ConvertAtomicEffect(entry);
+                            if (inst != null) payload.Then.Add(inst);
+                        }
+                    }
+                    // 倒计时引擎经由载荷声明（新数据不走 steps）；门载荷不涉及 CountdownTurns
+                    prev.Branch = payload.Then.Count > 0 ? payload : null;
+                }
+            }
+        }
+
+        private static RuntimeEffectStep ConvertStep(EffectStepData step)
+        {            if (step == null) return null;
 
             // kind: 0=原子, 1=条件分支, 2=抉择
             if (step.kind == 0)

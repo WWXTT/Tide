@@ -210,14 +210,54 @@ namespace CardCore
             return kinds.ToArray();
         }
 
-        /// <summary>逗号分隔 int 串解析（表列/UI 用）；null/空 = 空 集。</summary>
+        /// <summary>TargetKind 中文名（2026-10-06 单一来源定案：自 UI 层 AtomText.TargetKindZhMap 迁入，
+        /// 下标=枚举序，新增成员须同步补名）。表列 TargetKinds 已迁中文 CSV（原子表开放给玩家）；
+        /// 措辞「墓地」（枚举注释「坟场」为历史措辞，展示口径统一墓地）。</summary>
+        private static readonly string[] ZhNames =
+        {
+            "自己",           // 0 Self
+            "己方单位",       // 1 OwnLivingUnit
+            "对方单位",       // 2 EnemyLivingUnit
+            "己方无生命单位", // 3 OwnNonLivingUnit
+            "对方无生命单位", // 4 EnemyNonLivingUnit
+            "己方手牌",       // 5 OwnHand
+            "对方手牌",       // 6 EnemyHand
+            "己方牌库",       // 7 OwnDeck
+            "对方牌库",       // 8 EnemyDeck
+            "己方墓地",       // 9 OwnGraveyard
+            "对方墓地",       // 10 EnemyGraveyard
+            "己方除外区",     // 11 OwnExile
+            "对方除外区",     // 12 EnemyExile
+            "己方元素池",     // 13 OwnElementPool
+            "对方元素池",     // 14 EnemyElementPool
+            "己方发动区",     // 15 OwnActivation
+            "对方发动区",     // 16 EnemyActivation
+        };
+
+        /// <summary>成员中文名（越界回退枚举名）——UI 显示与表列中文 CSV 共用。</summary>
+        public static string ZhNameOf(TargetKind kind)
+        {
+            int i = (int)kind;
+            return i >= 0 && i < ZhNames.Length ? ZhNames[i] : kind.ToString();
+        }
+
+        /// <summary>逗号分隔串解析（双轨：中文优先，序号数字回退——2026-10-06 表数据已迁中文，
+        /// 数字轨供效果级 int 数组拼串/验证器夹具兼容）；null/空 = 空 集。</summary>
         public static List<int> Parse(string csv)
         {
             var result = new List<int>();
             if (string.IsNullOrEmpty(csv)) return result;
             foreach (var token in csv.Split(','))
             {
-                if (int.TryParse(token.Trim(), out var kind) && Enum.IsDefined(typeof(TargetKind), kind))
+                var t = token.Trim();
+                if (t.Length == 0) continue;
+                int zh = Array.IndexOf(ZhNames, t);
+                if (zh >= 0 && Enum.IsDefined(typeof(TargetKind), zh))
+                {
+                    result.Add(zh);
+                    continue;
+                }
+                if (int.TryParse(t, out var kind) && Enum.IsDefined(typeof(TargetKind), kind))
                     result.Add(kind);
             }
             return result;

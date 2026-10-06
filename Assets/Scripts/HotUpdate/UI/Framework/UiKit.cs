@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
 using Tide.HotUpdate;
@@ -61,37 +62,70 @@ namespace SynergyUI
         /// <summary>控件交互时的描述上报（EffectComposer 描述条订阅；静态事件——屏 OnEnter 挂/OnExit 摘）。</summary>
         public static event Action<string> DescRequested;
 
-        /// <summary>描述挂载组件：随控件销毁自动释放（替代 UITK ConditionalWeakTable）。</summary>
-        public sealed class DescTag : MonoBehaviour
+        /// <summary>描述挂载组件：随控件销毁自动释放（替代 UITK ConditionalWeakTable）。
+        /// 2026-10-05 触发改版：IPointerDownHandler 按下即上报——Selectable 禁用（interactable=false，
+        /// 如锁死的作用次数下拉、无效组合下的保存）不拦射线与事件分发，点中照样显示其功能说明；
+        /// 也不再依赖 onClick/值变更（禁用态永远不触发那些事件）。</summary>
+        public sealed class DescTag : MonoBehaviour, IPointerDownHandler
         {
             public string Text;
+
+            public void OnPointerDown(PointerEventData eventData) => DescRequested?.Invoke(Text);
         }
 
-        /// <summary>给控件挂属性描述：交互（点击/输入/拖动）时经 DescRequested 上报显示。</summary>
+        /// <summary>给控件挂属性描述：按下控件（含禁用态）时经 DescRequested 上报显示；
+        /// 同物体重复挂载幂等（后写覆盖文本——重建重绑场景不叠标签）。</summary>
         public static T Described<T>(T c, string desc) where T : Component
         {
             if (c == null || string.IsNullOrEmpty(desc)) return c;
-            var tag = c.gameObject.AddComponent<DescTag>();
+            var tag = c.GetComponent<DescTag>() ?? c.gameObject.AddComponent<DescTag>();
             tag.Text = desc;
-            void Report() => DescRequested?.Invoke(tag.Text);
-            switch (c)
-            {
-                case UButton b:
-                    b.onClick.AddListener(Report);
-                    break;
-                case UInputField f:
-                    f.onValueChanged.AddListener(_ => Report());
-                    f.onEndEdit.AddListener(_ => Report());
-                    break;
-                case Slider s:
-                    s.onValueChanged.AddListener(_ => Report());
-                    break;
-                case TMP_Dropdown d:
-                    d.onValueChanged.AddListener(_ => Report());
-                    break;
-                // 自绘 Dropdown 头=Button（Button 分支即覆盖）；真 TMP_Dropdown 走上面独立分支
-            }
             return c;
+        }
+
+        /// <summary>TMP_Dropdown 两段式描述（2026-10-05 定案——档位下拉等直挂 TMP 的场景）：
+        /// 头部按下＝总述一句话；换选＝选中项介绍（optionDesc 返回 null/空＝保持总述）。</summary>
+        public static void DescribedOptions(TMP_Dropdown dd, string overview, Func<int, string> optionDesc)
+        {
+            if (dd == null) return;
+            Described(dd, overview);
+            if (optionDesc == null) return;
+            dd.onValueChanged.AddListener(i =>
+            {
+                var d = optionDesc(i);
+                if (!string.IsNullOrEmpty(d)) DescRequested?.Invoke(d);
+            });
+        }
+
+        // ================= 引导高亮框材质（SynergyUI/GuideFrame——shader 自驱闪烁） =================
+
+        private static Material _guideFrameSrc;
+        private static bool _guideFrameWarned;
+
+        /// <summary>引导/校验高亮框共享材质源（Assets/Art/Shaders/GuideFrame.shader——红边脉冲由 _Time
+        /// 驱动，无 C# 逐帧控制）。逐框 Instantiate 实例后写 _HalfSize；shader 缺失（未导入/未打包）时
+        /// 回退 UI/Default 静态红块（可见但不闪）并警告一次。</summary>
+        public static Material GuideFrameMaterial()
+        {
+            if (_guideFrameSrc == null)
+            {
+                var shader = Shader.Find("SynergyUI/GuideFrame");
+                if (shader != null)
+                {
+                    _guideFrameSrc = new Material(shader);
+                }
+                else
+                {
+                    if (!_guideFrameWarned)
+                    {
+                        _guideFrameWarned = true;
+                        Debug.LogWarning("[UiKit] SynergyUI/GuideFrame shader 未找到（未导入/未随包收录）——"
+                            + "高亮框回退静态红块；shader 在 Assets/Art/Shaders/GuideFrame.shader");
+                    }
+                    _guideFrameSrc = new Material(Shader.Find("UI/Default"));
+                }
+            }
+            return _guideFrameSrc;
         }
 
         // ================= 整型滑条 =================
@@ -147,48 +181,6 @@ namespace SynergyUI
         {
             public Slider Slider;
             public TMP_Text Label;
-        }
-
-        // ================= 三角 sprite（箭头选择器） =================
-
-        private static Sprite _triangle;
-
-        /// <summary>实心三角（尖朝上，AA 边缘）——光环六向箭头选择器用。</summary>
-        public static Sprite TriangleSprite =>
-            _triangle != null ? _triangle : (_triangle = MakeTriangle(32));
-
-        private static Sprite MakeTriangle(int size)
-        {
-            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                hideFlags = HideFlags.DontSave,
-            };
-            var px = new Color32[size * size];
-            // 顶点（uv）：顶 (0.5,0.93)，底左 (0.07,0.1)，底右 (0.93,0.1)
-            var a = new Vector2(0.5f, 0.93f);
-            var b = new Vector2(0.07f, 0.10f);
-            var c = new Vector2(0.93f, 0.10f);
-            for (int y = 0; y < size; y++)
-            {
-                for (int x = 0; x < size; x++)
-                {
-                    var p = new Vector2((x + 0.5f) / size, (y + 0.5f) / size);
-                    // 三条边的符号距离（内正外负），取最小——1px 线性过渡抗锯齿
-                    float d = Mathf.Min(Edge(p, a, b), Mathf.Min(Edge(p, b, c), Edge(p, c, a)));
-                    float alpha = Mathf.Clamp01(0.5f - d * size);
-                    px[y * size + x] = new Color32(255, 255, 255, (byte)(alpha * 255f));
-                }
-            }
-            tex.SetPixels32(px);
-            tex.Apply();
-            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
-
-            static float Edge(Vector2 p, Vector2 from, Vector2 to)
-            {
-                var n = new Vector2(to.y - from.y, from.x - to.x).normalized; // 内法线
-                return Vector2.Dot(p - from, n);
-            }
         }
 
         // ================= 字体 =================
@@ -329,10 +321,15 @@ namespace SynergyUI
 
         /// <summary>克隆父节点下的隐藏模板（不激活的直属子节点 tpl-XXX），克隆体去掉 tpl- 前缀命名并激活；
         /// 模板不存在、或处于激活态（防误克隆活行）返回 null。动态子物体的布局样式由模板接管，代码只填数据。</summary>
-        public static RectTransform CloneTemplate(string templateName, RectTransform parent)
+        public static RectTransform CloneTemplate(string templateName, RectTransform parent) =>
+            CloneTemplateFrom(parent, templateName, parent);
+
+        /// <summary>跨级克隆隐藏模板（2026-10-05）：模板按名在 templateRoot 直属查找（tpl-XXX 隐藏约定同上），
+        /// 克隆体实例化到 parent 下——用于模板与克隆目标不同父的场景（如 content 直属模板克隆进槽内）。</summary>
+        public static RectTransform CloneTemplateFrom(RectTransform templateRoot, string templateName, RectTransform parent)
         {
             if (parent == null || string.IsNullOrEmpty(templateName)) return null;
-            var tpl = parent.Find(templateName);
+            var tpl = templateRoot != null ? templateRoot.Find(templateName) : null;
             if (tpl == null || tpl.gameObject.activeSelf) return null;
             var go = UnityEngine.Object.Instantiate(tpl.gameObject, parent, false);
             go.name = templateName.StartsWith("tpl-", StringComparison.Ordinal)
@@ -957,6 +954,19 @@ namespace SynergyUI
             /// <summary>挂属性描述（两种头通用：TMP 头挂 TMP_Dropdown，自绘头挂头部按钮）。</summary>
             public void Describe(string text) =>
                 Described(_tmp != null ? (Component)_tmp : (Component)_head, text);
+
+            /// <summary>两段式描述（2026-10-05 定案：总述＋选项介绍）：头部按下＝总述一句话；
+            /// 换选选项＝该项介绍（optionDesc 返回 null/空＝保持总述不覆盖）。</summary>
+            public void Describe(string overview, Func<int, string> optionDesc)
+            {
+                Describe(overview);
+                if (optionDesc == null) return;
+                Changed += (i, _) =>
+                {
+                    var d = optionDesc(i);
+                    if (!string.IsNullOrEmpty(d)) DescRequested?.Invoke(d);
+                };
+            }
 
             public void SetOptions(IEnumerable<string> options, int index, bool notify = false)
             {

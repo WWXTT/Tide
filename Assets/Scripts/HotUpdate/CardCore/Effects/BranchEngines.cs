@@ -7,8 +7,9 @@ using CardCore.Attribute;
 namespace CardCore
 {
     /// <summary>
-    /// 动态分支引擎运行时（2026-09-13 分支体系正规化；2026-09-15 灰费全废）：主效果=条件引擎，奖励原子不占卡费。
-    /// - **倒计时**：入场挂 Countdown 计数（层数=def.CountdownTurns=奖励推导费换算回合，1费=1回合；
+    /// 自由分支·事件引擎运行时（2026-09-13 分支体系正规化；2026-10-05 两槽定案载荷化）：
+    /// 引擎条件挂槽级原子 Branch 载荷（Settle==Engine），Then 奖励不占卡费（机制费/预算口径）。
+    /// - **倒计时**：入场挂 Countdown 计数（层数=payload.CountdownTurns=Then 推导费换算回合，1费=1回合；
     ///   UntilLeaveBattlefield 换区清）；控制者回合开始 -1，归零→执行奖励原子→重置回初值。
     /// - **运势**：控制者回合开始掷 2d6（GameRng），双 > x → 执行奖励（无状态，每回合独立判定；x=纯概率门槛）。
     /// - **拼点**（2026-10-04 改版）：控制者回合开始双方牌库各**随机**取样一张**生物**（只读展示，不移牌不改序，
@@ -20,7 +21,7 @@ namespace CardCore
     ///   上限，多张引擎卡各自触发）；判定读付费后余量。效果费支付不触发。
     /// - **手牌序位**（2026-09-22 定案）：**此卡**为本回合从手牌使用的第 x 张卡（含自身，宣言序抓拍；响应出牌同计、
     ///   墓地视手牌等他源不算）→ 施放结算中执行奖励（发动无效跳过；回调 OnCardCastResolved）。
-    /// 组合根 EnsureRegistered（GameCore.Reset，幂等）；奖励原子各自解析目标（ExecuteEffectAsync）。
+    /// 组合根 EnsureRegistered（GameCore.Reset，幂等）；Then 奖励目标=合法范围内随机（EffectExecutor.ExecuteThenRewardsAsync）。
     /// </summary>
     public static class BranchEngines
     {
@@ -41,16 +42,31 @@ namespace CardCore
             EventManager.Instance.Subscribe<CardPlayEvent>(OnCardPlayed);
         }
 
+        /// <summary>卡上全部指定引擎的槽级载荷（两槽定案：def.Effects 主干原子的 Branch 载荷）。</summary>
+        private static IEnumerable<BranchPayload> EnginePayloadsOf(Card card, BranchEngineKind kind)
+        {
+            foreach (var def in DefsOf(card))
+            {
+                if (def?.Effects == null) continue;
+                foreach (var atom in def.Effects)
+                {
+                    var payload = atom?.Branch;
+                    if (payload != null && payload.Settle == BranchSettleKind.Engine && payload.EngineKind == kind)
+                        yield return payload;
+                }
+            }
+        }
+
         private static void OnEnterBattlefield(CardPutToBattlefieldEvent e)
         {
             var card = e?.Card;
             if (card == null || !card.IsAlive) return;
-            foreach (var def in DefsOf(card))
+            foreach (var payload in EnginePayloadsOf(card, BranchEngineKind.Countdown))
             {
-                if (def?.EngineKind == BranchEngineKind.Countdown && def.CountdownTurns > 0
+                if (payload.CountdownTurns > 0
                     && card.GetCounterCount(Attribute.CounterRules.CountdownCounter) <= 0)
                 {
-                    card.AddCounters(Attribute.CounterRules.CountdownCounter, def.CountdownTurns);
+                    card.AddCounters(Attribute.CounterRules.CountdownCounter, payload.CountdownTurns);
                     break;
                 }
             }
@@ -71,57 +87,62 @@ namespace CardCore
                 if (card == null || !card.IsAlive) continue;
                 foreach (var def in DefsOf(card))
                 {
-                    if (def == null) continue;
-                    switch (def.EngineKind)
+                    if (def?.Effects == null) continue;
+                    foreach (var atom in def.Effects)
                     {
-                        case BranchEngineKind.Countdown:
-                            if (card.GetCounterCount(Attribute.CounterRules.CountdownCounter) <= 0)
-                                card.AddCounters(Attribute.CounterRules.CountdownCounter, Math.Max(1, def.CountdownTurns)); // 兜底重挂
-                            card.AddCounters(Attribute.CounterRules.CountdownCounter, -1);
-                            if (card.GetCounterCount(Attribute.CounterRules.CountdownCounter) <= 0)
-                            {
-                                FireRewards(def, card, player, core);
-                                card.AddCounters(Attribute.CounterRules.CountdownCounter, Math.Max(1, def.CountdownTurns)); // 归零发奖并重置
-                                EventManager.Instance.Publish(new KeywordAppliedEvent
+                        var payload = atom?.Branch;
+                        if (payload == null || payload.Settle != BranchSettleKind.Engine) continue;
+                        switch (payload.EngineKind)
+                        {
+                            case BranchEngineKind.Countdown:
+                                if (card.GetCounterCount(Attribute.CounterRules.CountdownCounter) <= 0)
+                                    card.AddCounters(Attribute.CounterRules.CountdownCounter, Math.Max(1, payload.CountdownTurns)); // 兜底重挂
+                                card.AddCounters(Attribute.CounterRules.CountdownCounter, -1);
+                                if (card.GetCounterCount(Attribute.CounterRules.CountdownCounter) <= 0)
                                 {
-                                    Target = card, Keyword = "倒计时",
-                                    Detail = $"倒计时归零：执行奖励并重置（{Math.Max(1, def.CountdownTurns)} 回合）",
-                                });
-                            }
-                            break;
+                                    FireRewards(payload, card, player, core);
+                                    card.AddCounters(Attribute.CounterRules.CountdownCounter, Math.Max(1, payload.CountdownTurns)); // 归零发奖并重置
+                                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                                    {
+                                        Target = card, Keyword = "倒计时",
+                                        Detail = $"倒计时归零：执行奖励并重置（{Math.Max(1, payload.CountdownTurns)} 回合）",
+                                    });
+                                }
+                                break;
 
-                        case BranchEngineKind.LuckRoll:
-                            int x = Math.Max(1, Math.Min(5, def.EngineParam));
-                            int d1 = GameRng.Next(1, 7), d2 = GameRng.Next(1, 7);
-                            if (d1 > x && d2 > x)
-                            {
-                                EventManager.Instance.Publish(new KeywordAppliedEvent
+                            case BranchEngineKind.LuckRoll:
+                                int x = Math.Max(1, Math.Min(5, payload.EngineParam));
+                                int d1 = GameRng.Next(1, 7), d2 = GameRng.Next(1, 7);
+                                if (d1 > x && d2 > x)
                                 {
-                                    Target = card, Keyword = "运势",
-                                    Detail = $"运势 {d1}+{d2} > {x}×2：执行奖励",
-                                });
-                                FireRewards(def, card, player, core);
-                            }
-                            break;
+                                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                                    {
+                                        Target = card, Keyword = "运势",
+                                        Detail = $"运势 {d1}+{d2} > {x}×2：执行奖励",
+                                    });
+                                    FireRewards(payload, card, player, core);
+                                }
+                                break;
 
-                        case BranchEngineKind.Clash:
-                            // 2026-10-04 用户定案（改版）：双方牌库各随机取样一张**生物**，比**攻击力**；
-                            // 门槛 = 奖励锚价合计（推导），**差额 ≥ 门槛**（大于等于）才触发，奖励按声明值结算。
-                            // 灰机制费已废除——锚价既是门槛也是奖励的价，由差额支付。
-                            int mine = RandomCreaturePower(player, zm);
-                            int theirs = RandomCreaturePower(player.Opponent, zm);
-                            int threshold = Math.Max(1, (int)Math.Round(
-                                CostDerivationService.RewardDerivedCost(def.RewardAtoms), MidpointRounding.AwayFromZero));
-                            if (mine - theirs >= threshold)
-                            {
-                                EventManager.Instance.Publish(new KeywordAppliedEvent
+                            case BranchEngineKind.Clash:
+                                // 2026-10-04 用户定案（改版）：双方牌库各随机取样一张**生物**，比**攻击力**；
+                                // 门槛 = 奖励锚价合计（推导），**差额 ≥ 门槛**（大于等于）才触发，奖励按声明值结算。
+                                // 灰机制费已废除——锚价既是门槛也是奖励的价，由差额支付。
+                                int mine = RandomCreaturePower(player, zm);
+                                int theirs = RandomCreaturePower(player.Opponent, zm);
+                                int threshold = Math.Max(1, (int)Math.Round(
+                                    CostDerivationService.RewardDerivedCost(payload.Then), MidpointRounding.AwayFromZero));
+                                if (mine - theirs >= threshold)
                                 {
-                                    Target = card, Keyword = "拼点",
-                                    Detail = $"拼点 {mine} vs {theirs}（差额 {mine - theirs} ≥ 门槛 {threshold}）：执行奖励（随机生物取样，牌库未动）",
-                                });
-                                FireRewards(def, card, player, core);
-                            }
-                            break;
+                                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                                    {
+                                        Target = card, Keyword = "拼点",
+                                        Detail = $"拼点 {mine} vs {theirs}（差额 {mine - theirs} ≥ 门槛 {threshold}）：执行奖励（随机生物取样，牌库未动）",
+                                    });
+                                    FireRewards(payload, card, player, core);
+                                }
+                                break;
+                        }
                     }
                 }
             }
@@ -169,11 +190,10 @@ namespace CardCore
             foreach (var card in zm.GetCards(player, Zone.Battlefield).ToList())
             {
                 if (card == null || !card.IsAlive || _deathTollFiredThisTurn.Contains(card)) continue;
-                foreach (var def in DefsOf(card))
+                foreach (var payload in EnginePayloadsOf(card, BranchEngineKind.DeathToll))
                 {
-                    if (def?.EngineKind != BranchEngineKind.DeathToll) continue;
                     ComposerCatalog.EngineParamRange(BranchEngineKind.DeathToll, out int min, out int max);
-                    int x = Math.Max(min, Math.Min(max, def.EngineParam));
+                    int x = Math.Max(min, Math.Min(max, payload.EngineParam));
                     if (totalDeaths < x) continue;
 
                     _deathTollFiredThisTurn.Add(card);
@@ -182,8 +202,8 @@ namespace CardCore
                         Target = card, Keyword = "死亡计数",
                         Detail = $"本回合双方合计 {totalDeaths} 个生物死亡 ≥ {x}：执行奖励",
                     });
-                    FireRewards(def, card, player, core);
-                    break; // 同卡单效果触发一次
+                    FireRewards(payload, card, player, core);
+                    break; // 同卡单载荷触发一次
                 }
             }
         }
@@ -200,11 +220,10 @@ namespace CardCore
             foreach (var card in zm.GetCards(player, Zone.Battlefield).ToList())
             {
                 if (card == null || !card.IsAlive) continue;
-                foreach (var def in DefsOf(card))
+                foreach (var payload in EnginePayloadsOf(card, BranchEngineKind.ManaSurplus))
                 {
-                    if (def?.EngineKind != BranchEngineKind.ManaSurplus) continue;
                     ComposerCatalog.EngineParamRange(BranchEngineKind.ManaSurplus, out int min, out int max);
-                    int x = Math.Max(min, Math.Min(max, def.EngineParam));
+                    int x = Math.Max(min, Math.Min(max, payload.EngineParam));
                     int maxColor = core.ElementPool?.GetMaxManaCount(player) ?? 0;
                     if (maxColor <= x) continue;
 
@@ -213,8 +232,8 @@ namespace CardCore
                         Target = card, Keyword = "元素充盈",
                         Detail = $"出牌付费后 bank 最多色 {maxColor} > {x}：执行奖励",
                     });
-                    FireRewards(def, card, player, core);
-                    break; // 同卡单效果单次付费只触发一次
+                    FireRewards(payload, card, player, core);
+                    break; // 同卡单载荷单次付费只触发一次
                 }
             }
         }
@@ -240,11 +259,10 @@ namespace CardCore
             if (card == null || player == null || core == null) return;
             if (!_handCardOrdinalThisTurn.TryGetValue(card, out int ordinal)) return; // 非手牌来源使用 → 恒不触发
 
-            foreach (var def in DefsOf(card))
+            foreach (var payload in EnginePayloadsOf(card, BranchEngineKind.NthHandCard))
             {
-                if (def?.EngineKind != BranchEngineKind.NthHandCard) continue;
                 ComposerCatalog.EngineParamRange(BranchEngineKind.NthHandCard, out int min, out int max);
-                int x = Math.Max(min, Math.Min(max, def.EngineParam));
+                int x = Math.Max(min, Math.Min(max, payload.EngineParam));
                 if (ordinal != x) continue;
 
                 EventManager.Instance.Publish(new KeywordAppliedEvent
@@ -252,7 +270,7 @@ namespace CardCore
                     Target = card, Keyword = "手牌序位",
                     Detail = $"此卡为本回合从手牌使用的第 {ordinal} 张卡 = x：执行奖励",
                 });
-                FireRewards(def, card, player, core);
+                FireRewards(payload, card, player, core);
                 break;
             }
         }
@@ -261,23 +279,20 @@ namespace CardCore
         private static int StatOf(GameCore core, Player player, string statId)
             => core?.MatchStats?.GetStat(player, statId, StatScope.ThisTurn) ?? 0;
 
-        /// <summary>执行奖励原子（各自解析目标——引擎无当前目标，per 原子独立上下文）。</summary>
-        private static void FireRewards(EffectDefinition def, Card source, Player controller, GameCore core)
+        /// <summary>执行 Then 奖励原子（依次弹选目标——两槽定案；无头/AI 自动选首保 verify 确定性）。
+        /// per 原子独立上下文（引擎无当前目标）。</summary>
+        private static void FireRewards(BranchPayload payload, Card source, Player controller, GameCore core)
         {
-            if (def.RewardAtoms == null || def.RewardAtoms.Count == 0) return;
-            foreach (var atom in def.RewardAtoms)
+            if (payload?.Then == null || payload.Then.Count == 0) return;
+            var ctx = new EffectExecutionContext
             {
-                if (atom == null) continue;
-                var ctx = new EffectExecutionContext
-                {
-                    Source = source,
-                    Controller = controller,
-                    ZoneManager = core.ZoneManager,
-                    ElementPool = core.ElementPool,
-                    ModeIndex = -1,
-                };
-                EffectHandlerRegistry.ExecuteEffectAsync(atom, ctx).Forget();
-            }
+                Source = source,
+                Controller = controller,
+                ZoneManager = core.ZoneManager,
+                ElementPool = core.ElementPool,
+                ModeIndex = -1,
+            };
+            EffectExecutor.ExecuteThenRewardsAsync(payload.Then, ctx, null).Forget();
         }
 
         private static IEnumerable<EffectDefinition> DefsOf(Card card)
