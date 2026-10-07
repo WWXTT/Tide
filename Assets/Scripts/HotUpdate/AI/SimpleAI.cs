@@ -175,16 +175,11 @@ namespace SynergyUI
 
         // ======================================== 动作耗尽循环的动作源 ========================================
 
-        /// <summary>英雄技能（2026-09-21 永续魔法化）：一回合一次闸门=技能卡横置态，
-        /// 由 HeroSkillSystem.ActivateAsync 统一守卫（在场/未横置/未沉默）——此处只做策略筛选。
-        /// 升级=抉择式条件分支（2026-09-22）：门状态（已发动 ≥7）读技能卡计数。</summary>
+        /// <summary>英雄技能（2026-10-07 卡牌化：技能=构筑标记的结界卡）：在场/未横置/未沉默/
+        /// 费用可付由 HeroSkillSystem.ActivateAsync 统一守卫（含 lazy 回填）——此处只做策略筛选。</summary>
         private bool UseHeroSkill(GameCore core, Player me)
         {
-            if (me.HeroSkill == (int)HeroSkillId.None) return false;
-            // 技能卡在场/未横置/未沉默由 HeroSkillSystem.ActivateAsync 统一守卫（含 lazy 回填）
-
-            if (!_strategy.WantHeroSkill(core, me, (HeroSkillId)me.HeroSkill,
-                    HeroSkillSystem.IsUpgraded(core, me)))
+            if (!_strategy.WantHeroSkill(core, me))
                 return false;
 
             var ok = GameActions.ActivateHeroSkill(core, me).GetAwaiter().GetResult();

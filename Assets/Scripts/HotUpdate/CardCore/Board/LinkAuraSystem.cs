@@ -42,6 +42,8 @@ namespace GameBoard
             public int Power;
             public int Life;
             public readonly List<string> Keywords = new List<string>();
+            /// <summary>关键词→值求和（2026-10-07 深夜坚韧值化）：每条命中条目 value 之和（0 视为 1）。</summary>
+            public readonly Dictionary<string, int> KeywordSums = new Dictionary<string, int>();
         }
 
         private static readonly HexDirection[] ArrowBits =
@@ -122,6 +124,14 @@ namespace GameBoard
             return n;
         }
 
+        /// <summary>光环关键词值求和（2026-10-07 深夜坚韧值化）：每条命中条目 value 之和
+        ///（value=0 视为 1）——坚韧光环减伤走此口（KeywordRules.ApplyPreventionLayers）。</summary>
+        public static int GetAuraKeywordSum(Card card, string keyword)
+        {
+            var bonus = BonusOf(card);
+            return bonus != null && bonus.KeywordSums.TryGetValue(keyword, out int v) ? v : 0;
+        }
+
         /// <summary>守护光环源查询（2026-09-13 守护光环化定案）：覆盖该单位的「守护」光环来源列表
         /// （存活在场、未被无效）。伤害改写取第一个存活源——live-query 天然递补（源离场/断链/被无效
         /// 下次命中自动落到下一个覆盖源，无需事件换源）。罕见查询，直查不走缓存。</summary>
@@ -153,10 +163,26 @@ namespace GameBoard
             return result;
         }
 
-        /// <summary>source 的任一箭头是否指向 beneficiary 所在格（对手视角镜像同 AccumulateFrom 口径）。</summary>
+        /// <summary>方向档命中（2026-10-07）：beneficiary 一侧是否在 source 光环方向内
+        ///（1=己方：源控制者一侧；2=双方；3=对方：源控制者的对手一侧）。</summary>
+        private static bool ScopeHit(Card source, Card beneficiary, int scope)
+        {
+            if (scope < 1 || scope > 3) return false;
+            var sc = source.GetController();
+            var bc = beneficiary.GetController();
+            if (sc == null || bc == null) return false;
+            if (scope == 2) return true;
+            return scope == 1 ? ReferenceEquals(sc, bc) : !ReferenceEquals(sc, bc);
+        }
+
+        /// <summary>source 的光环是否命中 beneficiary（箭头几何或方向档——2026-10-07 连接光环方向化：
+        /// 方向档 1=己方（源控制者一侧）/2=双方/3=对方（源控制者的对手一侧），不经箭头几何）。</summary>
         private static bool ArrowsHit(Card source, (int x, int z) bCell, Card beneficiary)
         {
-            var arrows = ((source as CardWrapper)?.GetData()?.ArrowDirections) ?? HexDirection.None;
+            var data0 = (source as CardWrapper)?.GetData();
+            var scope = data0?.AuraScope ?? 0;
+            if (scope > 0) return ScopeHit(source, beneficiary, scope);
+            var arrows = data0?.ArrowDirections ?? HexDirection.None;
             if (arrows == HexDirection.None) return false;
             var sCell = TryGetCellOf(source);
             if (!sCell.HasValue) return false;
@@ -237,9 +263,18 @@ namespace GameBoard
             if (source == null || !source.IsAlive || ReferenceEquals(source, beneficiary)) return;
 
             var data = (source as CardWrapper)?.GetData();
-            var arrows = data?.ArrowDirections ?? HexDirection.None;
-            if (arrows == HexDirection.None || data == null) return;
+            if (data == null) return;
             if (source.GetCounterCount(CounterRules.NullifyCounter) > 0) return; // 无效=唯一能压光环的口
+
+            // 方向档（2026-10-07 连接光环方向化）：选方向=不设箭头——受光环面=方向侧全体，不经箭头几何
+            var scope = data.AuraScope;
+            if (scope > 0)
+            {
+                if (ScopeHit(source, beneficiary, scope)) Accumulate(bonus, data.LinkAuras);
+                return;
+            }
+            var arrows = data.ArrowDirections;
+            if (arrows == HexDirection.None) return;
 
             var sCell = TryGetCellOf(source);
             if (!sCell.HasValue) return; // 来源未落格（不在场）自然无贡献
@@ -268,12 +303,22 @@ namespace GameBoard
                 {
                     if (aura.stat.Equals("Power", StringComparison.OrdinalIgnoreCase)) bonus.Power += aura.value;
                     else if (aura.stat.Equals("Life", StringComparison.OrdinalIgnoreCase)) bonus.Life += aura.value;
+                    else if (aura.stat.Equals("Both", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // 属性光环（2026-10-07 深夜六类）：攻生同值修正——「属性增加/减少」源行天然 ±1/±1
+                        bonus.Power += aura.value;
+                        bonus.Life += aura.value;
+                    }
                 }
                 else if (!string.IsNullOrEmpty(aura.keyword))
                 {
                     // 2026-09-13 按箭头叠加定案：关键词不去重——每条命中箭头×每条声明各计一次
-                    //（Boolean 查询 HasAuraKeyword 用 Contains 不受影响；计数查询 GetAuraKeywordCount）
+                    //（Boolean 查询 HasAuraKeyword 用 Contains 不受影响；计数查询 GetAuraKeywordCount）；
+                    // 值求和口 GetAuraKeywordSum（2026-10-07 深夜坚韧值化：value=0 视为 1）
                     bonus.Keywords.Add(aura.keyword);
+                    int kwv = aura.value != 0 ? aura.value : 1;
+                    bonus.KeywordSums.TryGetValue(aura.keyword, out int prev);
+                    bonus.KeywordSums[aura.keyword] = prev + kwv;
                 }
             }
         }

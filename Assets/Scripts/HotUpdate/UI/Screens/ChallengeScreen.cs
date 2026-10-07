@@ -148,6 +148,7 @@ namespace SynergyUI
         private void OnStart()
         {
             List<CardData> deck = null;
+            string skillCardId = null; // 玩家卡组的英雄技能标记（2026-10-07 卡牌化；随机兜底=null）
             if (_selectedDeckName != null)
             {
                 var data = DeckSerializer.Load(_selectedDeckName);
@@ -158,11 +159,14 @@ namespace SynergyUI
                     TideLog.Warn($"[ChallengeScreen] 卡组 {_selectedDeckName} 不可用（缺卡/张数不足）——回落随机卡组");
                     deck = null;
                 }
+                else
+                    skillCardId = data.skillCardId;
             }
 
             BattleEntry.Mode = BattleMode.Challenge;
             BattleEntry.ChallengeDifficulty = _difficulty;
             BattleEntry.ChallengeDeck = deck; // null=StartLocalFan 兜底随机
+            BattleEntry.ChallengeSkillCardId = skillCardId;
             BattleStageDirector.SwallowToBattleAsync(() => Manager.Show<BattleScreen>()).Forget();
         }
 

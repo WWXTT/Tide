@@ -268,6 +268,11 @@ namespace CardCore
                 }
             }
 
+            // 同名仪典唯一闸（2026-10-07 定案：异名共存、同名禁止——同名规则光环在场（不分敌我、
+            // 不同范围也算同名）时不可再打出；直投/直调路径由 RuleAuraSystem.Activate 拒绝兜底）
+            if (RuleAuraSystem.BlocksDuplicatePlay(card))
+            { rejectReason = "场上已存在同名规则光环（同名仪典不可重复——载体离场前不能再打出）"; return false; }
+
             // 检查卡牌在来源区
             var sourceZone = core.ZoneManager.GetCards(player, fromZone);
             if (!sourceZone.Contains(card)) { rejectReason = $"卡不在{fromZone}（快照过期？请重试）"; return false; }
@@ -366,6 +371,10 @@ namespace CardCore
             // 规则扩展点（OCP）：出牌限制经注册表询问（响应出牌同样受限，如信息轴锁定）
             if (!RuleHooks.CanPlay(core, player, card, Zone.Hand))
             { rejectReason = "出牌受限（规则锁定）"; return false; }
+
+            // 同名仪典唯一闸（同 PlayCard——响应出牌同门，2026-10-07 唯一性定案）
+            if (RuleAuraSystem.BlocksDuplicatePlay(card))
+            { rejectReason = "场上已存在同名规则光环（同名仪典不可重复——载体离场前不能再打出）"; return false; }
 
             // 出牌两阶段（2026-10-04 定案）：有代价先算代价——响应出牌同门（代价无目标→拒发）
             if (!TryPrepareCardCostTargets(core, player, card, out var costGateReject))
@@ -1083,9 +1092,11 @@ namespace CardCore
             if (core.TurnEngine.TurnPlayer != player) return false;
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
 
-            // 横置代价权威校验（仅启动式）：战场上的源卡已横置 → 不可发动（手牌/墓地施放不适用）
+            // 横置代价权威校验（仅启动式）：战场/技能栏（FieldZone）的源卡已横置 → 不可发动
+            //（手牌/墓地施放不适用；FieldZone=英雄技能卡 2026-10-07 卡牌化——横置=一回合一次闸门）
             if (effect.IsActivatedEffect && source != null && source.IsTapped()
-                && core.ZoneManager.IsCardInZone(source, source.GetController(), Zone.Battlefield))
+                && (core.ZoneManager.IsCardInZone(source, source.GetController(), Zone.Battlefield)
+                    || core.ZoneManager.IsCardInZone(source, source.GetController(), Zone.FieldZone)))
                 return false;
 
             var pending = PendingEffect.Create(

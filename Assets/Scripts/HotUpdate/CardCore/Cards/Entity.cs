@@ -115,12 +115,17 @@ namespace CardCore
         Status,
     }
 
-    /// <summary>关键词授予台账条目：_keywords 是真身，本台账只记轨别与来源供清除口径消费。</summary>
+    /// <summary>关键词授予台账条目：_keywords 是真身，本台账只记轨别与来源供清除口径消费。
+    /// 2026-10-07 深夜参数化定案：Value=实例值（坚韧=受伤减多少；其余关键词无值语义恒 1）、
+    /// Limit=生效次数/回合（1/2/3，-1=无限——随授予效果的次数档传入；坚韧减伤/守护改写两处消费）。
+    /// 字段默认 1/1：旧构造点（印刷装载/形态复制）与旧档自动兜底。</summary>
     public class KeywordGrant
     {
         public string Keyword;
         public KeywordLane Lane;
         public Entity Source;
+        public int Value = 1;
+        public int Limit = 1;
     }
 
     /// <summary>
@@ -201,17 +206,13 @@ namespace CardCore
         // FatigueCount 已进 PlayerState DTO（M1 网络协议 2026-09-10，GetTagDefinitions 已登记）。
         public int FatigueCount { get; set; }
 
-        // ===== 英雄技能（2026-09-13 第二十批；2026-09-21 改造：技能=初始在场永续魔法）=====
-        /// <summary>英雄技能 id（HeroSkillId；InitGame 按卡组主色指派，黑白暂无技能=None）。</summary>
-        public int HeroSkill { get; set; }
-        /// <summary>技能卡实体（2026-09-21 定案：技能=Enchantment 永续魔法，开局入 FieldZone——
-        /// 原额外卡组退役后的空缺槽位；发动=横置本卡（一回合一次=准备阶段重置），
-        /// 交互与一般永续魔法一致（可被沉默/无效/摧毁/弹回）。运行时引用，每局 InitGame 重建。</summary>
+        // ===== 英雄技能（2026-10-07 卡牌化改版：技能=构筑标记的结界卡，旧三色硬编码技能退役）=====
+        /// <summary>技能卡实体：开局由 InitGame 从牌库抽出放入 FieldZone（英雄技能栏），
+        /// 发动=横置本卡（一回合一次=回合开始重置），走通用启动式路径（入栈可被响应）。
+        /// 资格/抽取/落位见 HeroSkillSystem（CanBeSkillCard/ExtractSkillCard/AssignSkill）。
+        /// 运行时引用，每局 InitGame 重建；快照恢复后由 ResolveSkillCard 惰性回填。</summary>
         public Card HeroSkillCard;
-        // 发动计数/升级态已随 2026-09-22「升级=抉择式条件分支」定案迁至技能卡：
-        // 计数=技能卡 SkillUse 指示物（换卡归零）；升级门/是否已升级读
-        // HeroSkillSystem.GetTotalUses / IsUpgraded（玩家级共享字段已删）。
-        // 本回合一次闸门权威=技能卡横置态（HeroSkillUsesThisTurn 兼容口径同步删除）。
+        // 玩家级 HeroSkill id 字段已删（卡牌化后无枚举可指）；发动计数=技能卡 SkillUse 指示物。
 
         /// <summary>重置疲劳计数（新对局开始时调用）。</summary>
         public void ResetFatigueCount()

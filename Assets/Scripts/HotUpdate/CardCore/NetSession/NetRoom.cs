@@ -30,6 +30,9 @@ namespace CardCore.Network
         private readonly NetClientConnection[] _chairs = new NetClientConnection[2];
         private readonly List<NetClientConnection> _spectators = new List<NetClientConnection>();
         private readonly string[][] _deckIds = new string[2][];
+        // 英雄技能标记卡（2026-10-07 卡牌化）：按椅位随卡组提交存；开局前宽松校验
+        //（须 ∈ CardIds 且 HeroSkillSystem.CanBeSkillCard——否则置 null 按无技能开局，不拒握手）
+        private readonly string[] _skillIds = new string[2];
 
         private int _firstSeat = -1;          // 本局先手椅位（未开局 -1）
         private bool _roomStateDirty = true;  // RoomState 待广播
@@ -176,8 +179,28 @@ namespace CardCore.Network
             }
 
             _deckIds[conn.ChairSeat] = submit.CardIds;
+            _skillIds[conn.ChairSeat] = SanitizeSkillCardId(submit.SkillCardId, submit.CardIds, conn.ChairSeat);
             if (_deckIds[0] != null && _deckIds[1] != null)
                 StartMatch();
+        }
+
+        /// <summary>技能标记宽松校验（2026-10-07 卡牌化）：非空须 ∈ CardIds 且为合格技能结界；
+        /// 不合格置 null 按无技能开局（摘要口径不含技能标记，不构成拒握手理由）。</summary>
+        private string SanitizeSkillCardId(string skillCardId, string[] cardIds, int seat)
+        {
+            if (string.IsNullOrEmpty(skillCardId)) return null;
+            if (cardIds == null || !cardIds.Contains(skillCardId))
+            {
+                TideLog.Warn($"[NetRoom] 座位 {seat} 技能标记 {skillCardId} 不在卡组——按无技能开局");
+                return null;
+            }
+            var data = CardCatalog.GetById(skillCardId);
+            if (data == null || !HeroSkillSystem.CanBeSkillCard(data))
+            {
+                TideLog.Warn($"[NetRoom] 座位 {seat} 技能标记 {skillCardId} 资格不符（非唯一主动效果结界）——按无技能开局");
+                return null;
+            }
+            return skillCardId;
         }
 
         private void HandleSelectResponse(NetClientConnection conn, NetworkMessage msg)
@@ -220,7 +243,8 @@ namespace CardCore.Network
             MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
             var deckFirst = BuildDeck(_deckIds[_firstSeat]);
             var deckSecond = BuildDeck(_deckIds[1 - _firstSeat]);
-            core.InitGame(CardLoader.BuildDeck(deckFirst, 1), CardLoader.BuildDeck(deckSecond, 1), _seed);
+            core.InitGame(CardLoader.BuildDeck(deckFirst, 1), CardLoader.BuildDeck(deckSecond, 1), _seed,
+                skillCardId1: _skillIds[_firstSeat], skillCardId2: _skillIds[1 - _firstSeat]);
             core.Player1.IsAI = false; // 人类在环：反问走 NetworkTargetSelector
             core.Player2.IsAI = false;
 
@@ -339,6 +363,8 @@ namespace CardCore.Network
                     // 缺员退回等进房：另一座位的提交作废（卡组对局必须双座位同批提交）
                     _deckIds[0] = null;
                     _deckIds[1] = null;
+                    _skillIds[0] = null;
+                    _skillIds[1] = null;
                     _phase = NetRoomPhase.Waiting;
                     break;
 
@@ -364,6 +390,8 @@ namespace CardCore.Network
             _phase = NetRoomPhase.Waiting;
             _deckIds[0] = null;
             _deckIds[1] = null;
+            _skillIds[0] = null;
+            _skillIds[1] = null;
             _firstSeat = -1;
             _gameOver = false;
             _roomStateDirty = false; // 无成员：无需广播

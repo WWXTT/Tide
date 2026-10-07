@@ -44,9 +44,8 @@ namespace CardCore
                     return $"{Name(pay.Player)} 支付 {DescribeCost(pay.PaidCost)}" +
                            (string.IsNullOrEmpty(pay.SourceNote) ? "" : $"（{pay.SourceNote}）");
                 case HeroSkillActivatedEvent skill:
-                    // 技能=永续魔法实体（2026-09-21）：发动=横置技能卡——行内呈现横置语义
-                    return $"〔技能〕{Name(skill.Player)} 发动 {HeroSkillSystem.SkillName(skill.Skill)}" +
-                           (skill.Upgraded ? "（已升级）" : "") + "，横置技能卡";
+                    // 技能=构筑标记的结界卡（2026-10-07 卡牌化）：发动=横置技能卡、效果入栈
+                    return $"〔技能〕{Name(skill.Player)} 发动英雄技能「{Name(skill.SkillCard)}」，横置技能卡（入栈）";
                 case StackEmptyEvent:
                     return null; // 高频低信息
                 case GameOverEvent over:

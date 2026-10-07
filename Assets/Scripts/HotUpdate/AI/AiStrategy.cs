@@ -178,31 +178,19 @@ namespace CardCore.AI
             return null;
         }
 
-        /// <summary>英雄技能是否发动（2026-09-22 单方效果版）：蓝=牌库非空（空库抽牌=疲劳）；
-        /// 绿=按升级态牌库/墓地有可入池生物且地牌槽未满；红=战场有空位（满场 token 入墓=白费）。</summary>
-        public virtual bool WantHeroSkill(GameCore core, Player me, HeroSkillId skill, bool upgraded)
+        /// <summary>英雄技能是否发动（2026-10-07 卡牌化：技能=构筑标记的结界卡）：
+        /// 技能卡在场、未横置、未被沉默，且唯一主动效果的派生费用可付（含自动横置地牌）→ 发动。
+        /// 效果语义不再按技能特判——旧三色 heuristics 随硬编码技能退役，目标域非空等
+        /// 由 HeroSkillSystem.ActivateAsync 的 CanActivate 预检统一守卫。</summary>
+        public virtual bool WantHeroSkill(GameCore core, Player me)
         {
-            bool LandCandidate(Card c)
-                => ElementPoolSystem.CanServeAsLand(c) && core.ElementPool.CanPoolProduceTokens(c);
-
-            switch (skill)
-            {
-                case HeroSkillId.BlueInsight:
-                    return core.ZoneManager.GetCards(me, Zone.Deck).Count > 0;
-
-                case HeroSkillId.GreenCultivate:
-                    if (core.ElementPool.GetPooledCards(me).Count >= core.ElementPool.GetLandCap(me))
-                        return false; // 地牌槽满：入池会被拒，白付绿3
-                    return upgraded
-                        ? core.ZoneManager.GetCards(me, Zone.Graveyard).Any(c => c.IsAlive && LandCandidate(c))
-                        : core.ZoneManager.GetCards(me, Zone.Deck).Any(LandCandidate);
-
-                case HeroSkillId.RedFrenzy:
-                    return core.ZoneManager.HasBattlefieldSpace(me);
-
-                default:
-                    return false;
-            }
+            var skillCard = HeroSkillSystem.ResolveSkillCard(core, me);
+            if (skillCard == null || skillCard.IsTapped()) return false;
+            if (skillCard.GetCounterCount(CounterRules.SilenceCounter) > 0) return false;
+            var effect = HeroSkillSystem.SkillEffectOf(skillCard);
+            if (effect == null) return false;
+            var cost = CostDerivationService.DeriveElementCosts(effect);
+            return cost.IsZero || core.ElementPool.CanPayCostWithAutoTap(cost, me);
         }
 
         // ======================================== 共用小工具（策略实现用） ========================================

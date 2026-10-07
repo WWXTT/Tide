@@ -185,13 +185,15 @@ namespace CardCore
         public static int GetCardCastSpeed(Card card)
         {
             var data = (card as CardWrapper)?.GetData();
+            // 疾风加成按出牌者一侧判（2026-10-07 范围化；裸卡无控制者 → null=不命中）
+            var caster = card?.GetController();
             if (data?.Effects == null || data.Effects.Count == 0)
-                return RuleAuraComponents.CardCastSpeedBonus; // 裸卡基速 0 + 光环加成
+                return RuleAuraComponents.CardCastSpeedBonus(caster); // 裸卡基速 0 + 光环加成
             int max = 0;
             foreach (var effect in data.Effects)
                 if (effect != null && effect.BaseSpeed > max)
                     max = effect.BaseSpeed;
-            return max + RuleAuraComponents.CardCastSpeedBonus;
+            return max + RuleAuraComponents.CardCastSpeedBonus(caster);
         }
     }
 }

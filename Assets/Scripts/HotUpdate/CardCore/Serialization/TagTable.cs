@@ -296,6 +296,7 @@ namespace CardCore.Serialization
         public const int MDS_DeckName = 1095059584;
         public const int MDS_CardIds = 339936047;
         public const int MDS_Digest = 216745245;
+        public const int MDS_SkillCardId = 1739402857; // 英雄技能标记卡（2026-10-07 卡牌化；不参与 Digest）
 
         // ---- MsgMatchManifest ----
         public const int MMM_OwnSeat = 2014680492;

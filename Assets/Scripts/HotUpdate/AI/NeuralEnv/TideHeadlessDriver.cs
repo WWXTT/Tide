@@ -143,7 +143,11 @@ namespace CardCore.AI.NeuralEnv
             CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
 
             _core = GameCore.Instance;
-            _core.InitGame(CardLoader.BuildDeck(deck1, 1), CardLoader.BuildDeck(deck2, 1));
+            // RL 环境（2026-10-07 卡牌化口径）：双方 deck 自动挑一张合格结界充当技能
+            //（与挑战模式 AI 随机卡组同口径——deck 无构筑标记）
+            _core.InitGame(CardLoader.BuildDeck(deck1, 1), CardLoader.BuildDeck(deck2, 1),
+                skillCardId1: HeroSkillSystem.AutoPickSkillCard(deck1),
+                skillCardId2: HeroSkillSystem.AutoPickSkillCard(deck2));
             _core.Player1.IsAI = true; // 目标/范围选择自动应答（不弹窗，异步同步完成）
             _core.Player2.IsAI = true;
             _modelPlayer = modelIsP1.HasValue ? (modelIsP1.Value ? _core.Player1 : _core.Player2) : null;

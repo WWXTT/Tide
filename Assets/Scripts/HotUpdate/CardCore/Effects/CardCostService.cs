@@ -585,45 +585,19 @@ namespace CardCore
                 string label;
                 if (!string.IsNullOrEmpty(aura.stat))
                 {
-                    bool isLife = aura.stat.Equals("Life", System.StringComparison.OrdinalIgnoreCase);
-                    rep = isLife ? AtomicEffectType.ModifyLife : AtomicEffectType.ModifyPower;
+                    // 属性光环=一般效果「属性增加/减少」的光环化（2026-10-07 深夜定案）：光源行按
+                    // value 符号取（+→属性增加 白1 / −→属性减少 黑1），走下方通用光环化计价
+                    //（行 ManaList × mult × magnitude × 单回合折算；Both 不加倍——源行天然 ±1/±1）。
+                    // 旧 StatAnchor×3.0「光环档 1.5/+1」特判随之退役。
+                    rep = aura.value >= 0 ? AtomicEffectType.AddPlusOne : AtomicEffectType.AddMinusOne;
                     magnitude = System.Math.Max(1, System.Math.Abs(aura.value));
-                    label = $"{aura.stat}{(aura.value >= 0 ? "+" : "")}{aura.value}";
-                    // 属性价梯（2026-09-13 定案）：光环档=1.5/+1（对齐换区移除指示物档；乘数 2026-10-05 迁表 CardCost.StatSustainMultiplier）
-                    float statAuraCost = CostDerivationService.StatAnchor
-                        * ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig.StatSustainMultiplier
-                        * magnitude;
-                    var statColor = ElementAffinities.GetAffinityForEffect(rep).PrimaryColor;
-                    buckets.TryGetValue(statColor, out var scPrev);
-                    buckets[statColor] = scPrev + statAuraCost;
-                    auraTotal += statAuraCost;
-                    breakdown?.Add(new CostBreakdownLine("A",
-                        $"连接光环 {label}（光环档 1.5/+1）", statAuraCost, statColor));
-                    continue;
+                    label = $"{(aura.stat.Equals("Both", System.StringComparison.OrdinalIgnoreCase) ? "属性" : aura.stat)}{(aura.value >= 0 ? "+" : "")}{aura.value}";
                 }
                 else if (!string.IsNullOrEmpty(aura.keyword))
                 {
-                    // 光环化关键词（2026-09-13 定案，原 Grant 原子行退役、锚价内联、**×箭头数量**——
-                    // 每箭头一个受益面；不走单回合折算）：
-                    // 坚韧（受伤-1/箭头，按箭头叠加）=绿1；守护（指向格占据者伤害改由源承受）=白1。
-                    // 2026-10-05 坚韧/守护已入表（GrantArmor/GrantGuardian 行）——本特判保留：
-                    // 条目平价 1/条 ≠ 下方通用关键词单回合折算口径；先于 def 反查 continue，不与表行双重计费。
-                    string auraName = null;
-                    ManaType auraColor = ManaType.Gray;
-                    if (aura.keyword == Attribute.KeywordRules.Armor) { auraName = "坚韧"; auraColor = ManaType.Green; }
-                    else if (aura.keyword == Attribute.KeywordRules.Guardian) { auraName = "守护"; auraColor = ManaType.White; }
-                    if (auraName != null)
-                    {
-                        // 2026-09-13 修订：条目平价（1/条）——箭头数不再逐条乘（卡级 1.2 累乘统一计，见方法尾）
-                        // 黑白光环照常计费（2026-09-14 撤销「黑白不计费」豁免，同关键词口径）。
-                        float auraCost = 1.0f;
-                        buckets.TryGetValue(auraColor, out var acPrev);
-                        buckets[auraColor] = acPrev + auraCost;
-                        auraTotal += auraCost;
-                        breakdown?.Add(new CostBreakdownLine("A",
-                            $"连接光环 {auraName}（条目平价；箭头卡级累乘）", auraCost, auraColor));
-                        continue;
-                    }
+                    // 光环化关键词（2026-09-13 定案；2026-10-07 深夜统一：坚韧/守护回归关键词族，
+                    // 平价特判退役——与通用关键词同口径：行 ManaList × mult × magnitude × 单回合折算，
+                    // 生效次数恒无限 → 乘 TriggerLimitInfinite=4.0 档，见下方 countFactor）。
                     var def = CardLoader.GetKeywordDefinition(aura.keyword);
                     if (def == null || string.IsNullOrEmpty(def.atomicEffect)
                         || !System.Enum.TryParse<AtomicEffectType>(def.atomicEffect, out rep))
@@ -632,6 +606,8 @@ namespace CardCore
                         continue;
                     }
                     label = aura.keyword;
+                    // 关键词条目值化（2026-10-07 深夜）：magnitude=|value|（坚韧=减伤额；Boolean 关键词 value=0 恒 1）
+                    magnitude = System.Math.Max(1, System.Math.Abs(aura.value));
                 }
                 else continue;
 
@@ -643,6 +619,13 @@ namespace CardCore
                 // 2026-09-10 持续上移后统一为满档 Permanent 锚（语义修正，随 R8 漂移已接受）。
                 float factor = singleTurn / Math.Max(0.0001f, attrCfg.GetDurationDiscount(DurationType.Permanent));
                 float mult = atomCfg.CostMultiplier > 0f ? atomCfg.CostMultiplier : 1f;
+                // 生效次数档（2026-10-07 深夜定案）：坚韧/守护作为光环时次数恒无限制——乘无限档
+                //（PricingTier.TriggerLimitInfinite=4.0，与效果级次数档同表同口径）；Boolean 关键词
+                // 无次数语义不乘。
+                float countFactor = (aura.keyword == Attribute.KeywordRules.Armor
+                                     || aura.keyword == Attribute.KeywordRules.Guardian)
+                    ? ValueSystemConfigManager.Instance.GetOrCreateConfig().PricingTierConfig.TriggerLimitInfinite
+                    : 1f;
                 // ManaList 分色（2026-09-14；2026-10-04 位置数组化）：光环费逐色入桶（首色承担明细则行）
                 float firstAmount = 0f;
                 ManaType firstColor = ManaType.Gray;
@@ -651,7 +634,7 @@ namespace CardCore
                 {
                     foreach (var color in atomCost.NonzeroColors())
                     {
-                        float amount = atomCost[color] * mult * magnitude * factor;
+                        float amount = atomCost[color] * mult * magnitude * factor * countFactor;
                         if (amount <= 0f) continue;
                         buckets.TryGetValue(color, out var prev);
                         buckets[color] = prev + amount;
@@ -660,12 +643,15 @@ namespace CardCore
                     }
                 }
                 breakdown?.Add(new CostBreakdownLine("A",
-                    $"连接光环 {label}（单回合档 ×{factor:0.###}）", firstAmount, firstColor));
+                    $"连接光环 {label}（单回合档 ×{factor:0.###}{(countFactor > 1f ? $" ×无限次数{countFactor:0.#}" : "")}）",
+                    firstAmount, firstColor));
             }
 
             // 卡级箭头累乘（2026-09-13 定案）：箭头数单独按 1.2 系数累乘——×1.2^(箭头-1)，
             // 各光环条目不再逐条乘箭头（防重复计费）；无箭头（=无光环受益面）不乘。
+            // 方向档（2026-10-07 连接光环方向化）：选方向=不设箭头——按 4 箭头计费；作用双方减半=2 箭头档。
             int arrows = CountArrowBits(card.ArrowDirections);
+            if (card.AuraScope > 0) arrows = card.AuraScope == 2 ? 2 : 4;
             if (arrows > 1 && auraTotal > 0f)
             {
                 float arrowFactor = (float)Math.Pow(1.2f, arrows - 1);
@@ -676,10 +662,17 @@ namespace CardCore
                 float beforeArrow = auraTotal;
                 auraTotal *= arrowFactor;
                 breakdown?.Add(new CostBreakdownLine("A",
-                    $"箭头×{arrows} 累乘 ×1.2^{arrows - 1}（卡级，条目不重复计）", beforeArrow * (arrowFactor - 1f), ManaType.Gray));
+                    card.AuraScope > 0
+                        ? $"方向档（{ScopeCodeZh(card.AuraScope)}）按{arrows}箭头累乘 ×1.2^{arrows - 1}（4箭头计费·双方减半）"
+                        : $"箭头×{arrows} 累乘 ×1.2^{arrows - 1}（卡级，条目不重复计）",
+                    beforeArrow * (arrowFactor - 1f), ManaType.Gray));
             }
             return buckets;
         }
+
+        /// <summary>光环方向档中文（CardCostService 计费明细用；编码同 CardData.AuraScope）。</summary>
+        private static string ScopeCodeZh(int scope)
+            => scope == 1 ? "己方" : scope == 2 ? "双方" : scope == 3 ? "对方" : "箭头";
 
         /// <summary>挂载折扣 f = d(C) 三类卡型统一（2026-10-02 定案：法术不再豁免"打出即生效"旧口径）。
         /// （原 ExtraActivationSlope×(N_active−1) 已删——效果多→贵由卡层挂载口规则统一承担，不再经 f 重复折。）</summary>

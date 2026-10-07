@@ -120,7 +120,7 @@ namespace SynergyUI
         }
 
         /// <summary>在 Root 下深度按名查找节点；找不到静默返回 null（可选节点用——
-        /// 典型如弹层挂载点 overlay/selector-overlay：预制体不烘焙，缺失由 UiKit.Overlay 运行时补建）。</summary>
+        /// 2026-10-07 兜底退役后，可选≠缺失可补建：缺失即缺失，由调用方自行决定是否提示）。</summary>
         protected RectTransform FindOptional(string name) => UiKit.FindDeep(Root, name);
 
         /// <summary>深度查找 TMP 文本（文本在节点自身或其子级均可——兼容徽标/chip 的"节点+子label"烘焙结构）。</summary>
@@ -169,30 +169,21 @@ namespace SynergyUI
             return new UiKit.Scroll { Rect = sr, Content = content };
         }
 
-        /// <summary>绑定预制体烘焙的下拉（头部节点名=预设名）：优先节点上的真 TMP_Dropdown
-        /// （2026-10-03 手改预制体定案），其次旧式自绘头部按钮；同名新旧节点并存时取含 TMP 的
-        /// 那个；全缺时 LogError 并在 fallbackParent 代码补建。popupLayer=自绘弹层挂载点。</summary>
-        protected UiKit.Dropdown BindDropdown(string name, RectTransform popupLayer,
-            RectTransform fallbackParent,
+        /// <summary>绑定预制体烘焙的 TMP 下拉（2026-10-07 单名精确绑定·兜底退役）：节点名=下拉名，
+        /// TMP_Dropdown 挂节点自身或其子级；缺节点/缺组件 LogError 返回 null——
+        /// 旧式自绘头部按钮与代码补建路径退役。</summary>
+        protected UiKit.Dropdown BindDropdown(string name,
             System.Collections.Generic.IEnumerable<string> options, int index,
-            Action<int, string> onChanged = null, float? width = null)
+            Action<int, string> onChanged = null)
         {
-            var layer = popupLayer != null ? popupLayer : Root;
-            foreach (var rt in UiKit.FindDeepAll(Root, name))
+            var rt = Find(name);
+            var tmp = rt != null ? rt.GetComponentInChildren<TMP_Dropdown>(true) : null;
+            if (tmp == null)
             {
-                var tmp = rt.GetComponentInChildren<TMP_Dropdown>(true);
-                if (tmp != null)
-                    return new UiKit.Dropdown(tmp, options, index, onChanged);
+                if (rt != null) Debug.LogError($"[{GetType().Name}] 节点无 TMP_Dropdown：{name}");
+                return null;
             }
-
-            var headNode = UiKit.FindDeep(Root, name);
-            var head = headNode != null ? headNode.GetComponentInChildren<UButton>(true) : null;
-            if (head != null)
-                return new UiKit.Dropdown(head, layer, options, index, onChanged, width);
-
-            Debug.LogError($"[{GetType().Name}] 预制体缺下拉（{name} 无 TMP_Dropdown 亦无头部按钮）——代码补建");
-            return new UiKit.Dropdown(name, fallbackParent != null ? fallbackParent : Root, layer,
-                options, index, onChanged, width);
+            return new UiKit.Dropdown(tmp, options, index, onChanged);
         }
 
         // ================= 生命周期 =================

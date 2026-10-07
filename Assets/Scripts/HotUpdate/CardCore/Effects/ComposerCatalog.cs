@@ -36,7 +36,7 @@ namespace CardCore
             }
         }
 
-        /// <summary>表行是否引擎主干行（MountKinds 位 8）。</summary>
+        /// <summary>表行是否引擎主干行（MountKinds 位 7）。</summary>
         public static bool IsEngineTrunkRow(Attribute.AtomicEffectConfig row)
             => HasMountBit(row, MountKind.EngineTrunk);
 
@@ -169,16 +169,37 @@ namespace CardCore
             return false;
         }
 
-        /// <summary>生物侧可赋予行（原 MountKinds 位5 语义，2026-10-05 迁移）：
-        /// 表行 TargetFilter 含 "NoRole"（仅生物）——消费方：关键词面板资格（KeywordCatalog）、
-        /// 合成器授予目标域推导（GrantTargetKinds）。</summary>
+        /// <summary>生物侧可赋予行：表行 TargetFilter 含 "NoRole"（仅生物）——
+        /// 消费方：关键词面板资格（KeywordCatalog，另叠加关键词位门槛）。
+        /// （2026-10-05 自 MountKinds 位5 迁移；2026-10-07 回响改普通效果后 Spell token 退役，
+        /// 法术侧可赋予行判定 IsSpellGrantRow 随之删除。）</summary>
         public static bool IsCreatureGrantRow(Attribute.AtomicEffectConfig row)
             => HasFilterToken(row, "NoRole");
 
-        /// <summary>法术侧可赋予行（原 MountKinds 位6 语义，2026-10-05 迁移）：
-        /// 表行 TargetFilter 含 "Spell"（仅法术，如回响）。</summary>
-        public static bool IsSpellGrantRow(Attribute.AtomicEffectConfig row)
-            => HasFilterToken(row, "Spell");
+        /// <summary>行级「可否作连接光环条目」统一判定（2026-10-07 深夜终版：光环库/装载拦截/保存校验共用）：
+        /// 位 8 不可作为连接光环（消耗型黑名单）一票否决 → 位 1 指示物硬拒（永不可无例外——防误标）
+        /// → 位 0 关键词默认可（坚韧/守护回归关键词族）→ 其余看位 3 可以作为连接光环
+        ///（一般效果行光环化源——属性增加/减少）。位 7 仅可已删（IsAuraOnlyRow 随之退役）。</summary>
+        public static bool CanMountAsAura(Attribute.AtomicEffectConfig row)
+        {
+            if (row == null) return false;
+            if (HasMountBit(row, MountKind.NoLinkAura)) return false;
+            if (HasMountBit(row, MountKind.Counter)) return false;
+            if (HasMountBit(row, MountKind.Keyword)) return true;
+            return HasMountBit(row, MountKind.LinkAura);
+        }
+
+        /// <summary>主干槽可落资格（2026-10-07 位 0「入效果栏」删除后派生，合成器 LibPayload 与装载校验共用）：
+        /// 非规则光环即可（位 7 仅可随坚韧/守护回归关键词族删除，2026-10-07 深夜）。引擎行经 EngineTrunk
+        /// 位进主干槽（填槽即自由分支）；系统/攻守行有资格但被合成器库过滤隐藏；关键词/指示物行以授予形态落槽。</summary>
+        public static bool CanBeTrunkRow(Attribute.AtomicEffectConfig row)
+            => row != null && !HasMountBit(row, MountKind.RuleAura);
+
+        /// <summary>槽内 Then 奖励资格（2026-10-07 位 3「分支奖励」删除后派生）：
+        /// 派生主干资格 ∩ 非引擎行（引擎行=条件载体零域，不作奖励）。
+        /// 预算/可逆转/非错边过滤在调用点照旧。</summary>
+        public static bool CanBeRewardRow(Attribute.AtomicEffectConfig row)
+            => CanBeTrunkRow(row) && !HasMountBit(row, MountKind.EngineTrunk);
 
         /// <summary>关键词型 Grant 判定（2026-10-02 定案）：Grant 行且表行目标域恰为 {Self}（纯自指）。
         /// 关键词型原子 = 关键词的挂载形态（卡面印刷/登场/触发式如"自我沉睡"），**不得作为启动式
@@ -195,22 +216,20 @@ namespace CardCore
             return kinds != null && kinds.Count == 1 && kinds[0] == (int)TargetKind.Self;
         }
 
-        /// <summary>关键词 id 是否可作连接光环条目（2026-09-23 定案·位 6 数据驱动，2026-10-05 重排；
-        /// 2026-10-05 坚韧/守护入表——特判放行退役，全走表行位 6）：
-        /// 经关键词定义 → Grant 原子表行 → MountKinds 含 LinkAura 位判定。
-        /// 消耗型关键词（圣盾/复生/潜行/法术护盾）在表中不声明位 6 即不可挂——名单不在代码里。</summary>
+        /// <summary>关键词 id 是否可作连接光环条目（2026-09-23 定案·数据驱动；2026-10-07 晚默认翻转）：
+        /// 经关键词定义 → Grant 原子表行 → CanMountAsAura——关键词**默认可**，真消耗型
+        /// （潜行/圣盾/复生/法术护盾）表标位 8 拉黑（生效后移除与光环 live-query 持续语义冲突）——名单在表不在代码。</summary>
         public static bool IsAuraMountableKeyword(string keywordId)
         {
             if (string.IsNullOrEmpty(keywordId)) return false;
             var def = CardLoader.LoadKeywords().TryGetValue(keywordId, out var d) ? d : null;
             if (def == null || string.IsNullOrEmpty(def.atomicEffect)) return false;
-            var row = Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect);
-            return HasMountBit(row, MountKind.LinkAura);
+            return CanMountAsAura(Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect));
         }
 
-        /// <summary>光环关键词下拉数据源（UI 用）：全部位 6 声明的 Grant 行（坚韧/守护已入表，
-        /// 与其他关键词同路）。desc=条目效果说明（2026-10-05：光环库行不再用统一"live-query"
-        /// 术语文案——逐条给真实效果，{target} 模板代词按光环语义换写为「连接的单位」）。</summary>
+        /// <summary>光环关键词下拉数据源（UI 用）：全部可作光环条目的 Grant 行（CanMountAsAura——
+        /// 关键词默认可−消耗型拉黑，坚韧/守护经位 7）。desc=条目效果说明（2026-10-05：光环库行不再用
+        /// 统一"live-query"术语文案——逐条给真实效果，{target} 模板代词按光环语义换写为「连接的单位」）。</summary>
         public static List<(string id, string label, string desc)> AuraKeywordChoices()
         {
             var list = new List<(string, string, string)>();
@@ -219,7 +238,7 @@ namespace CardCore
                 var def = kv.Value;
                 if (def == null || string.IsNullOrEmpty(def.id)) continue;
                 var row = Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect);
-                if (!HasMountBit(row, MountKind.LinkAura)) continue;
+                if (!CanMountAsAura(row)) continue;
                 string desc = (def.description ?? "")
                     .Replace("{target}", "连接的单位").Replace("{value}", "×N");
                 list.Add((def.id, string.IsNullOrEmpty(def.nameZh) ? def.id : def.nameZh, desc));

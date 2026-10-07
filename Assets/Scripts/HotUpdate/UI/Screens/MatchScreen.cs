@@ -255,6 +255,7 @@ namespace SynergyUI
                     DeckName = deck.name,
                     CardIds = ids,
                     Digest = NetMatchHandshake.ComputeDeckDigest(ids),
+                    SkillCardId = deck.skillCardId, // 英雄技能标记（2026-10-07 卡牌化；服务器宽松校验）
                 });
                 _deckSent = true;
                 ShowToast($"已提交卡组「{deck.name}」（{ids.Length} 张）——等待对手/开局");

@@ -170,15 +170,9 @@ namespace CardCore
                 }
             }
 
-            // 触发上限解析（2026-09-13 定案）：含 TriggerCapImmutable(8) 原子（少数，如坚韧）→ 恒 -1
-            //（不可修改——声明被覆写，CardLoader 同步告警）；其余原子 → 未声明(0)=1（一回合一次，默认可修改）。
-            bool capImmutable =
-                def.Effects.Any(a => a != null && MountHasFlag(a.Type, MountKind.TriggerCapImmutable))
-                || (def.Steps != null && EnumerateMainSequenceAtoms(def.Steps, 0)
-                        .Any(a => a != null && MountHasFlag(a.Type, MountKind.TriggerCapImmutable)));
-            def.TriggerLimitPerTurn = capImmutable
-                ? -1
-                : (data.TriggerLimitPerTurn == 0 ? 1 : data.TriggerLimitPerTurn);
+            // 触发上限解析（2026-09-13 定案）：未声明(0)=1（一回合一次，组合期可改）。
+            //（恒无限覆写位 TriggerCapImmutable 已于 2026-10-07 删除——坚韧族光环化后表内零声明行。）
+            def.TriggerLimitPerTurn = data.TriggerLimitPerTurn == 0 ? 1 : data.TriggerLimitPerTurn;
 
             def.TargetCount = data.TargetCount != -2 ? data.TargetCount : FallbackTargetCount(def);
 
@@ -336,11 +330,6 @@ namespace CardCore
         /// 错边剔除/主干守卫同装载转换）。供合成器预算校验（RewardDerivedCost）与描述预览消费。</summary>
         public static AtomicEffectInstance ConvertAtomForUI(AtomicEffectEntry entry)
             => ConvertAtomicEffect(entry);
-
-        /// <summary>原子表 MountKinds 是否含指定位（触发上限解析用；2026-10-06 中文化：
-        /// 走 ParseCsv 统一双轨解析，不再自拆 CSV 比对数字）。</summary>
-        private static bool MountHasFlag(AtomicEffectType type, MountKind flag)
-            => MountKindExtensions.ParseCsv(Attribute.AtomicEffectTable.GetByType(type)?.MountKinds).Contains(flag);
 
         /// <summary>胜利宣判闸扫描：主序列原子 / 载荷 Then 奖励 / 步骤全形态（原子+抉择全模式）中
         /// 是否含指定类型（SubEffects 递归）。</summary>

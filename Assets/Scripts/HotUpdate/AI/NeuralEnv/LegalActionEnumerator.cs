@@ -17,7 +17,7 @@ namespace CardCore.AI.NeuralEnv
         Activate = 3,            // 效果发动：战场卡的激活式（Activate_*）能力（含目标展开）
         Attack = 4,              // 攻击宣言（attacker → 对方随从 / 对方玩家）
         EndTurn = 5,             // 结束回合
-        HeroSkill = 6,           // 己方回合主阶段发动英雄技能（ModeIndex 承载 HeroSkillId 1/2/3）
+        HeroSkill = 6,           // 己方回合主阶段发动英雄技能（2026-10-07 卡牌化：技能=结界卡，Card 承载）
         VoluntaryTrigger = 7,    // 发动自愿桶待发效果（触发式可选项；响应窗口内同类型复用）
         PassPriority = 8,        // 响应窗口让过/放弃（仅响应窗口出现，Main 阶段不出现）
         RespondPlay = 9,         // 响应出牌（带目标展开；速度门/费用/优先权全检）
@@ -36,7 +36,7 @@ namespace CardCore.AI.NeuralEnv
         public Entity Target;             // 攻击目标（=Targets[0] 的兼容别名）；其余为 null
         public List<Entity> Targets;      // 展开的目标组合（null = 无目标/随机/任意数量 → 引擎自动解析）
         public EffectDefinition Effect;   // Activate/RespondActivate/VoluntaryTrigger 的效果定义
-        public int ModeIndex;             // 抉择模式下标（非抉择恒 0；HeroSkill 行 = HeroSkillId）
+        public int ModeIndex;             // 抉择模式下标（非抉择恒 0；HeroSkill 行恒 0——技能卡在 Card 上）
         public PendingEffect Pending;     // VoluntaryTrigger/RespondActivate 的待发对象（引擎队列实例）
         public EffectInstance AttackInstance; // Guard 行：被拦截的攻击宣言栈对象
 
@@ -437,25 +437,30 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
-        /// <summary>英雄技能行（2026-09-30 v2）：回合玩家 + Main + 技能卡在场/未横置/未沉默 + 费用可付
-        /// （ActivateAsync 统一守卫的预检镜像）。ModeIndex=HeroSkillId；技能卡在 FieldZone（未编码区）
-        /// → SourceIndex=-1。单行（技能无目标选择）。</summary>
+        /// <summary>英雄技能行（2026-10-07 卡牌化：技能=构筑标记的结界卡）：技能卡在场/未横置/
+        /// 未沉默 + 唯一主动效果 CanActivate 预检（时点/费用可付/目标域——ActivateAsync 守卫镜像）。
+        /// ModeIndex=0（卡牌化后无技能枚举可编码）；技能卡在 FieldZone（未编码区）→ SourceIndex=-1。
+        /// 单行（目标选择在结算期解析）。</summary>
         private void EnumerateHeroSkill(GameCore core, Player me)
         {
-            if (me.HeroSkill == (int)HeroSkillId.None) return;
             var skillCard = HeroSkillSystem.ResolveSkillCard(core, me);
-            if (skillCard == null) return;                        // 不在场（被摧毁/弹回）→ 无技能
-            if (skillCard.IsTapped()) return;                     // 一回合一次闸门（准备阶段重置）
+            if (skillCard == null) return;                        // 不在场（未标记/被摧毁/弹回）→ 无技能
+            if (!core.ZoneManager.GetCards(me, Zone.FieldZone).Contains(skillCard)) return;
+            if (skillCard.IsTapped()) return;                     // 一回合一次闸门（回合开始重置）
             if (skillCard.GetCounterCount(CounterRules.SilenceCounter) > 0) return; // 沉默不可发动主动效果
+            var effect = HeroSkillSystem.SkillEffectOf(skillCard);
+            if (effect == null) return;
 
-            var (color, amount) = HeroSkillSystem.CostOf((HeroSkillId)me.HeroSkill);
-            if (amount > 0 && !GameActions.CanAfford(core, me, ElementCost.FromValue(color, amount))) return;
+            var executor = core.StackEngine.GetExecutor();
+            if (executor == null || !executor.CanActivate(effect, skillCard, me, me,
+                    core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Standby,
+                    core.TurnEngine.TurnNumber)) return;
 
             Actions.Add(new TideAction
             {
                 Type = TideActionType.HeroSkill,
                 Card = skillCard,
-                ModeIndex = me.HeroSkill,
+                ModeIndex = 0,
                 SourceIndex = -1, // FieldZone 未编码区
                 TargetIndex = -1,
             });
@@ -704,7 +709,10 @@ namespace CardCore.AI.NeuralEnv
                 case TideActionType.VoluntaryTrigger:
                     return CostDerivationService.DeriveElementCosts(a.Effect, 0).Total; // 效果费现推（启动式/自愿桶发动时现付——L1 现推口径）
                 case TideActionType.HeroSkill:
-                    return HeroSkillSystem.CostOf((HeroSkillId)a.ModeIndex).amount;
+                    // 卡牌化（2026-10-07）：技能=结界卡唯一主动效果——效果费现推（与 Activate 同口径）
+                    return a.Card != null && HeroSkillSystem.SkillEffectOf(a.Card) is { } fx
+                        ? CostDerivationService.DeriveElementCosts(fx, 0).Total
+                        : 0f;
                 default:
                     return 0f;
             }

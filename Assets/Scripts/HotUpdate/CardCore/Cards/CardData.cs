@@ -216,6 +216,17 @@ namespace CardCore
             set => _arrowDirections = value;
         }
 
+        /// <summary>光环方向档（2026-10-07 连接光环方向化）：0=箭头模式（未选方向，走箭头几何）；
+        /// 1=己方 / 2=双方 / 3=对方（受光环面=该侧全体生物，不经箭头——选方向即不设箭头）。
+        /// 并集自各效果（多效果取末个非零）；计价=按 4 箭头、作用双方减半=2 箭头档（CardCostService）。</summary>
+        [TideSerialized]
+        private int _auraScope;
+        public int AuraScope
+        {
+            get => _auraScope;
+            set => _auraScope = value;
+        }
+
         /// <summary>
         /// 连接光环声明（三轨制定案 2026-09-09）：箭头指向格的当前占据者享受的持续效果——
         /// 属性修正（stat="Power"|"Life" + value）或关键词（keyword=id），与 stat 二选一。
@@ -378,9 +389,10 @@ namespace CardCore
         }
 
         /// <summary>效果层光环聚合（2026-09-23 定案：箭头/光环随效果合成，卡面=聚合缓存）——
-        /// 把各效果携带的 ArrowDirections/LinkAuras 并集入卡面（多光环取并集）。
+        /// 把各效果携带的 ArrowDirections/LinkAuras/AuraScope 并集入卡面（多光环取并集）。
         /// recompute=false 与卡面已有值并集（装载期：兼容旧卡面直书数据）；
         /// true 以效果声明为准重算（编辑期：移除效果后箭头同步回收）。
+        /// 方向档并集=取末个非零（多效果各自选向属病态组合，校验层兜底）。
         /// 须在 CardCostService.EnsureCost 前调用（光环费/箭头累乘进计价）。</summary>
         public void AggregateEffectAuras(bool recompute)
         {
@@ -388,6 +400,7 @@ namespace CardCore
             {
                 _arrowDirections = HexDirection.None;
                 _linkAuras = new List<LinkAuraData>();
+                _auraScope = 0;
             }
             if (_effects == null) return;
             foreach (var fx in _effects)
@@ -395,6 +408,8 @@ namespace CardCore
                 if (fx == null) continue;
                 if (fx.ArrowDirections != 0)
                     _arrowDirections |= (HexDirection)fx.ArrowDirections;
+                if (fx.AuraScope != 0)
+                    _auraScope = fx.AuraScope;
                 if (fx.LinkAuras == null) continue;
                 foreach (var aura in fx.LinkAuras)
                 {
@@ -591,8 +606,8 @@ namespace CardCore
         // 效果级作用范围（2026-10-04 相同目标定案）：并列原子作用域交集内的统一选择——效果内
         // 全部原子共享同一份选中目标；null=未声明→回落原子域交集推导（存量兼容）。
         public List<int> TargetKinds;
-        // 触发式每回合触发上限（2026-09-13）：0=未声明（原子含 TriggerCapImmutable→无限；否则默认 1）；
-        // >0=每回合 N 次；-1=显式无限。仅对触发式生效；不可修改原子声明上限被覆写+构筑告警。
+        // 触发式每回合触发上限（2026-09-13）：0=未声明→默认 1；>0=每回合 N 次；-1=显式无限。
+        // 仅对触发式生效。（恒无限覆写位 TriggerCapImmutable 已于 2026-10-07 删除——坚韧族光环化。）
         public int TriggerLimitPerTurn;
         // 动态分支引擎头字段（EngineKind/EngineParam）已随 2026-10-05 两槽定案载荷化退役——
         // 引擎条件挂槽级原子 branch 载荷（BranchEntryData.engine/engineParam）。
@@ -601,8 +616,10 @@ namespace CardCore
         // 效果挂到卡上时并集入卡面（多光环取并集，CardData.AggregateEffectAuras）；
         // 卡编辑界面不再编辑箭头（组合只发生在效果合成界面第四形态，任意会话可用）。
         // 运行时/计价照旧读卡面聚合值（CardLoader 装载聚合，LinkAuraSystem 零改动）。
+        // AuraScope（2026-10-07 方向档）：选方向=不设箭头——效果层选方向时 ArrowDirections 已清零。
         public int ArrowDirections;          // HexDirection Flags（int 序列化——JsonUtility 枚举同 int）
         public List<LinkAuraData> LinkAuras; // 光环条目（stat+value / keyword 二选一；非光环效果恒 null）
+        public int AuraScope;                // 光环方向档（0=箭头模式；1=己方/2=双方/3=对方——2026-10-07）
 
         // 效果锚价缓存（2026-09-23 定案；2026-10-02 口径修正；2026-10-04 位置数组化）：合成期实时推导
         // 随效果落盘（Effects.json cost 列=位置数组）、装载期逐效果还原于此——**参考快照，运行时无消费者**：

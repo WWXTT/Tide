@@ -28,33 +28,35 @@ namespace SynergyUI
             => TargetKindRules.ZhNameOf(k);
 
         /// <summary>{target} 占位的名词：单值实例域 → 中文名；null（表默认）/多值 → 「目标」。
-        /// 例外（2026-10-04 关键词行修复）：关键词行（MountKinds 含 Keyword 位）的 kinds=[Self]
+        /// 例外（2026-10-04 关键词行修复，2026-10-07 扩指示物行）：关键词/指示物行的 kinds=[Self]
         /// 是「本体挂自己」存储态（合成器 AtomZh 两态命名、运行时自授予同源），而该行模板的
         /// {target} 是叙事名次——受击对手或字面「目标」（"不会成为效果{target}"），不随域渲染，
-        /// 否则出"不会成为攻击和效果的自己"病句——回退「目标」。非关键词行（如沉睡 0,1,2 域）
-        /// 收窄到 Self 仍显「自己」，那是真实选择。</summary>
+        /// 否则出"不会成为攻击和效果的自己"病句——回退「目标」。非授予类行（如沉睡复合域收窄到 Self）
+        /// 仍显「自己」，那是真实选择。</summary>
         public static string TargetNoun(AtomicEffectConfig cfg, AtomicEffectEntry atom)
         {
             if (atom?.kinds != null && atom.kinds.Count == 1)
             {
-                bool keywordSelf = (TargetKind)atom.kinds[0] == TargetKind.Self
-                    && cfg != null && MountKindExtensions.ParseCsv(cfg.MountKinds).Contains(MountKind.Keyword);
-                if (!keywordSelf)
+                var m = MountKindExtensions.ParseCsv(cfg?.MountKinds ?? "");
+                bool selfStorage = (TargetKind)atom.kinds[0] == TargetKind.Self
+                    && (m.Contains(MountKind.Keyword) || m.Contains(MountKind.Counter));
+                if (!selfStorage)
                     return TargetKindZhOf((TargetKind)atom.kinds[0]);
             }
             return "目标";
         }
 
         /// <summary>效果级作用范围版（2026-10-04 相同目标定案）：header.TargetKinds 单值优先——
-        /// 并列全体原子共享同一作用范围，{target} 按效果级域渲染（关键词行 [Self] 存储态例外同口径）；
+        /// 并列全体原子共享同一作用范围，{target} 按效果级域渲染（关键词/指示物行 [Self] 存储态例外同口径）；
         /// 未声明/多值回落实例域口径。</summary>
         public static string TargetNoun(AtomicEffectConfig cfg, AtomicEffectEntry atom, CardEffectData header)
         {
             if (header?.TargetKinds != null && header.TargetKinds.Count == 1)
             {
-                bool keywordSelf = (TargetKind)header.TargetKinds[0] == TargetKind.Self
-                    && cfg != null && MountKindExtensions.ParseCsv(cfg.MountKinds).Contains(MountKind.Keyword);
-                return keywordSelf ? "目标" : TargetKindZhOf((TargetKind)header.TargetKinds[0]);
+                var m = MountKindExtensions.ParseCsv(cfg?.MountKinds ?? "");
+                bool selfStorage = (TargetKind)header.TargetKinds[0] == TargetKind.Self
+                    && (m.Contains(MountKind.Keyword) || m.Contains(MountKind.Counter));
+                return selfStorage ? "目标" : TargetKindZhOf((TargetKind)header.TargetKinds[0]);
             }
             return TargetNoun(cfg, atom);
         }

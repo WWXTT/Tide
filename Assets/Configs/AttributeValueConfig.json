@@ -1,43 +1,5 @@
 [
   {
-    "ID": "3057d8ac",
-    "EnumName": "攻击",
-    "DisplayName": "攻击{target}，结算战斗伤害后横置",
-    "EffectType": "Attack",
-    "TargetKinds": "对方单位",
-    "TargetFilter": null,
-    "Polarity": -1.0,
-    "MountKinds": "主动",
-    "Tags": null,
-    "ManaList": [
-      1.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "1d703414",
-    "EnumName": "守卫",
-    "DisplayName": "横置并转移对手攻击目标，以此卡作为攻击对象",
-    "EffectType": "Guard",
-    "TargetKinds": "",
-    "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "主动",
-    "Tags": null,
-    "ManaList": [
-      1.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
     "ID": "a4b823fc",
     "EnumName": "造成伤害",
     "DisplayName": "对{target}造成{value}点伤害",
@@ -45,7 +7,7 @@
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励,随机幅度",
+    "MountKinds": "",
     "Tags": "伤害产出族",
     "ManaList": [
       0.0,
@@ -64,7 +26,7 @@
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "Damaged",
     "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,随机幅度",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -83,7 +45,7 @@
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励,随机幅度",
+    "MountKinds": "",
     "Tags": "伤害产出族",
     "ManaList": [
       0.0,
@@ -102,7 +64,7 @@
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励,随机幅度",
+    "MountKinds": "",
     "Tags": "伤害产出族",
     "ManaList": [
       0.0,
@@ -114,25 +76,6 @@
     ]
   },
   {
-    "ID": "cca3ed84",
-    "EnumName": "剧毒",
-    "DisplayName": "对{target}附加剧毒指示物（回合结束时死亡）",
-    "EffectType": "Poison",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励,指示物",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      3.0
-    ]
-  },
-  {
     "ID": "120ad4d1",
     "EnumName": "抽卡",
     "DisplayName": "从卡组中抽{value}张卡",
@@ -140,7 +83,7 @@
     "TargetKinds": "己方牌库,对方牌库",
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -159,7 +102,7 @@
     "TargetKinds": "己方手牌,对方手牌",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -167,7 +110,7 @@
       0.0,
       0.0,
       0.0,
-      2.0
+      3.0
     ]
   },
   {
@@ -178,12 +121,12 @@
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
       0.0,
-      2.0,
+      3.0,
       0.0,
       0.0,
       0.0
@@ -195,9 +138,9 @@
     "DisplayName": "将{target}卡从墓地返回手牌",
     "EffectType": "RecoverToHand",
     "TargetKinds": "己方墓地,对方墓地",
-    "TargetFilter": "NoRole",
+    "TargetFilter": "",
     "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -216,7 +159,7 @@
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -230,17 +173,17 @@
   {
     "ID": "219bdb9f",
     "EnumName": "洗回",
-    "DisplayName": "将{target}单位从场上洗入牌库",
+    "DisplayName": "将{target}卡从场上洗入牌库",
     "EffectType": "ShuffleIntoDeck",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
       0.0,
-      3.0,
+      5.0,
       0.0,
       0.0,
       0.0
@@ -249,17 +192,17 @@
   {
     "ID": "557f95e5",
     "EnumName": "洗入",
-    "DisplayName": "将{target}卡洗入牌库",
+    "DisplayName": "将{target}卡从墓地洗入牌库",
     "EffectType": "ShuffleIntoDeck",
     "TargetKinds": "己方墓地,对方墓地",
-    "TargetFilter": "NoRole",
+    "TargetFilter": "",
     "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
       0.0,
-      1.0,
+      3.0,
       0.0,
       0.0,
       0.0
@@ -273,12 +216,12 @@
     "TargetKinds": "己方牌库",
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
       0.0,
-      3.0,
+      5.0,
       0.0,
       0.0,
       0.0
@@ -287,12 +230,12 @@
   {
     "ID": "bde084f6",
     "EnumName": "苏生",
-    "DisplayName": "苏生：从墓地返回{target}到己方战场",
+    "DisplayName": "{target}生物从墓地返回到己方战场",
     "EffectType": "ReturnFromGraveyard",
     "TargetKinds": "己方墓地,对方墓地",
-    "TargetFilter": null,
+    "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -311,12 +254,12 @@
     "TargetKinds": "己方牌库",
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
       0.0,
       0.0,
-      1.0,
+      2.0,
       0.0,
       0.0,
       0.0
@@ -330,69 +273,12 @@
     "TargetKinds": "对方牌库",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
       0.0,
       0.0,
-      1.5,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "70034aee",
-    "EnumName": "设置攻击力",
-    "DisplayName": "将{target}攻击力设为{value}",
-    "EffectType": "SetPower",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": 0.0,
-    "MountKinds": "主动,分支奖励",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      9.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "38a43580",
-    "EnumName": "设置生命值",
-    "DisplayName": "将{target}生命值设为{value}",
-    "EffectType": "SetLife",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": 0.0,
-    "MountKinds": "主动,分支奖励",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      9.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "a9beb7b4",
-    "EnumName": "设置费用",
-    "DisplayName": "将{target}的费用设为{value}",
-    "EffectType": "SetCost",
-    "TargetKinds": "己方手牌,对方手牌",
-    "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "主动,分支奖励",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      9.0,
+      3.0,
       0.0,
       0.0,
       0.0
@@ -405,15 +291,15 @@
     "EffectType": "AddCostUp",
     "TargetKinds": "己方手牌,对方手牌",
     "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "主动,分支奖励",
+    "Polarity": -1.0,
+    "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
       0.0,
       0.0,
-      0.5,
       0.0,
       0.0,
+      1.0,
       0.0
     ]
   },
@@ -424,16 +310,16 @@
     "EffectType": "AddCostDown",
     "TargetKinds": "己方手牌,对方手牌",
     "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "主动,分支奖励",
+    "Polarity": 1.0,
+    "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
       0.0,
       0.0,
-      0.5,
       0.0,
       0.0,
-      0.0
+      0.0,
+      1.0
     ]
   },
   {
@@ -444,7 +330,7 @@
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -463,7 +349,7 @@
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -482,7 +368,7 @@
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -501,7 +387,7 @@
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -520,7 +406,7 @@
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,指示物",
+    "MountKinds": "可以作为连接光环,不可随机",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -539,7 +425,7 @@
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励,指示物",
+    "MountKinds": "可以作为连接光环,不可随机",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -548,424 +434,6 @@
       0.0,
       0.0,
       1.0
-    ]
-  },
-  {
-    "ID": "7c3e11a2",
-    "EnumName": "虚弱",
-    "DisplayName": "为{target}施加{value}个属性减少（-1/-1）",
-    "EffectType": "Weaken",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励,指示物",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0
-    ]
-  },
-  {
-    "ID": "8f4d22b3",
-    "EnumName": "鼓舞",
-    "DisplayName": "为{target}施加{value}个属性增加（+1/+1）",
-    "EffectType": "Inspire",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,指示物",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "9794b926",
-    "EnumName": "吸血",
-    "DisplayName": "造成伤害时，为自身恢复等量生命",
-    "EffectType": "GrantLifesteal",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词,连接光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      3.0
-    ]
-  },
-  {
-    "ID": "a16f1e55",
-    "EnumName": "潜行",
-    "DisplayName": "不会成为攻击和效果的目标，发动效果或受到伤害后，移除潜行",
-    "EffectType": "GrantStealth",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      1.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "ff236f3e",
-    "EnumName": "隐密",
-    "DisplayName": "不会成为攻击和效果的目标",
-    "EffectType": "GrantConcealed",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      5.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "feab5d3b",
-    "EnumName": "圣盾",
-    "DisplayName": "受到的伤害变成0，同时移除圣盾",
-    "EffectType": "GrantDivineShield",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "13b63a87",
-    "EnumName": "碾压",
-    "DisplayName": "获得碾压：战斗伤害结算时，对{target}以及{target}相邻左右侧生物造成相同的战斗伤害",
-    "EffectType": "GrantOverwhelm",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词,连接光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      3.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "465f51dc",
-    "EnumName": "警戒",
-    "DisplayName": "战斗结算时，横置状态也会触发战斗伤害",
-    "EffectType": "GrantVigilance",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词,连接光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      1.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "0490b22c",
-    "EnumName": "先攻",
-    "DisplayName": "战斗结算时，先造成战斗伤害，如果{target}死亡，则无法反击",
-    "EffectType": "GrantFirstStrike",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词,连接光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      1.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "2e6955f0",
-    "EnumName": "法术护盾",
-    "DisplayName": "{target}获得法术护盾",
-    "EffectType": "GrantSpellShield",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      1.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "d7def412",
-    "EnumName": "扰魔",
-    "DisplayName": "不会成为效果{target}",
-    "EffectType": "GrantCannotBeTargeted",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词,连接光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "376db582",
-    "EnumName": "复生",
-    "DisplayName": "死亡送墓时，将自身生命值改为1，从而避免死亡",
-    "EffectType": "GrantReborn",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0
-    ]
-  },
-  {
-    "ID": "fd04d3c7",
-    "EnumName": "不灭",
-    "DisplayName": "不受消灭效果影响",
-    "EffectType": "GrantIndestructible",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词,连接光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "2d46dbd4",
-    "EnumName": "系命",
-    "DisplayName": "造成伤害时，为角色恢复等量生命",
-    "EffectType": "GrantLifelink",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词,连接光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      3.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "b1000001",
-    "EnumName": "坚韧",
-    "DisplayName": "受到的每次伤害-1（重复坚韧叠加）",
-    "EffectType": "GrantArmor",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词,连接光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      1.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "5d59d89a",
-    "EnumName": "再生",
-    "DisplayName": "回合开始时自己恢复自身全部生命值",
-    "EffectType": "GrantRegeneration",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词,连接光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      3.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "b1000002",
-    "EnumName": "守护",
-    "DisplayName": "守护箭头指向的生物：其受到的伤害改由自己承受（多守护取第一个存活者）",
-    "EffectType": "GrantGuardian",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "连接光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "baf2ff12",
-    "EnumName": "成长",
-    "DisplayName": "回合结束时，自身属性指示物数量翻倍",
-    "EffectType": "GrantGrowth",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词,连接光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      6.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "2a7d3092",
-    "EnumName": "护甲",
-    "DisplayName": "为{target}添加{value}点护甲",
-    "EffectType": "AddArmor",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": null,
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,指示物",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.5,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "d2fbd616",
-    "EnumName": "毒素",
-    "DisplayName": "对{target}附加一层毒素指示物（回合结束时受1点伤害，持续3回合，重复施加叠加层数并刷新持续时间）",
-    "EffectType": "AddToxin",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励,指示物",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.5,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "17dd3732",
-    "EnumName": "沉默",
-    "DisplayName": "对{target}附加沉默指示物（不可发动主动效果）",
-    "EffectType": "Silence",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励,指示物",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "f3a89899",
-    "EnumName": "无响应",
-    "DisplayName": "对{target}附加无响应指示物（非启动式能力无法响应）",
-    "EffectType": "AddNullify",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": 0.0,
-    "MountKinds": "主动,分支奖励,指示物",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0,
-      0.0
     ]
   },
   {
@@ -976,26 +444,7 @@
     "TargetKinds": "己方单位",
     "TargetFilter": "NoRole,Tapped",
     "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      1.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "adb8456f",
-    "EnumName": "缴械",
-    "DisplayName": "攻击时{target}单位无法反击",
-    "EffectType": "GrantDisarm",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词,连接光环",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1014,7 +463,7 @@
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励,随机幅度",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1026,52 +475,14 @@
     ]
   },
   {
-    "ID": "b80c2d73",
-    "EnumName": "冻结",
-    "DisplayName": "冻结{target}：横置并放置冻结指示物（负面，持续到回合结束）",
-    "EffectType": "Freeze",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励,指示物,随机幅度",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      1.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "20fa8bae",
-    "EnumName": "紊乱",
-    "DisplayName": "对{target}附加{value}回合紊乱指示物（不能以玩家为攻击，效果{target}）",
-    "EffectType": "RushSickness",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励,指示物,随机幅度",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.5
-    ]
-  },
-  {
-    "ID": "14d8b289",
+    "ID": "f77ff81b",
     "EnumName": "锁定",
     "DisplayName": "对{target}附加{value}回合锁定指示物（期间无法使用，持有者回合结束层数-1）",
     "EffectType": "LockCard",
     "TargetKinds": "己方手牌,对方手牌",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1083,25 +494,6 @@
     ]
   },
   {
-    "ID": "60a09ef1",
-    "EnumName": "易损",
-    "DisplayName": "对{target}附加易损指示物（持续1回合，受到伤害时每层+1）",
-    "EffectType": "AddVulnerable",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": null,
-    "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励,指示物",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0
-    ]
-  },
-  {
     "ID": "d1bb3d9e",
     "EnumName": "获得控制",
     "DisplayName": "获得{target}的控制权",
@@ -1109,7 +501,7 @@
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1121,14 +513,14 @@
     ]
   },
   {
-    "ID": "6559671a",
+    "ID": "c3d65a3d",
     "EnumName": "发动无效",
     "DisplayName": "使{target}效果的发动无效化",
     "EffectType": "NegateActivation",
-    "TargetKinds": "己方发动区,对方发动区",
+    "TargetKinds": "己方发动区,对方发动区,己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1140,14 +532,14 @@
     ]
   },
   {
-    "ID": "4d25f64a",
+    "ID": "f1cf5ce6",
     "EnumName": "效果无效",
     "DisplayName": "使{target}发动的效果无效化",
     "EffectType": "NegateEffect",
-    "TargetKinds": "己方发动区,对方发动区",
+    "TargetKinds": "己方发动区,对方发动区,己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1164,9 +556,9 @@
     "DisplayName": "净化{target}：移除其全部关键词与指示物",
     "EffectType": "Purify",
     "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": null,
+    "TargetFilter": "NoRole",
     "Polarity": 0.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1178,25 +570,6 @@
     ]
   },
   {
-    "ID": "9eba4ee1",
-    "EnumName": "额外回合",
-    "DisplayName": "回合结束时，获得一个额外回合",
-    "EffectType": "TakeExtraTurn",
-    "TargetKinds": null,
-    "TargetFilter": null,
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      9.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
     "ID": "5b174fbf",
     "EnumName": "跳过回合",
     "DisplayName": "{target}跳过下个回合",
@@ -1204,12 +577,12 @@
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
       0.0,
-      6.0,
+      15.0,
       0.0,
       0.0,
       0.0
@@ -1223,7 +596,7 @@
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1242,7 +615,7 @@
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole,Mortal",
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1261,7 +634,7 @@
     "TargetKinds": "己方无生命单位,对方无生命单位,己方元素池,对方元素池",
     "TargetFilter": null,
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1269,7 +642,7 @@
       0.0,
       0.0,
       0.0,
-      3.0
+      5.0
     ]
   },
   {
@@ -1280,14 +653,14 @@
     "TargetKinds": null,
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
       0.0,
       0.0,
       0.0,
-      1.0,
+      0.0,
       0.0
     ]
   },
@@ -1299,7 +672,7 @@
     "TargetKinds": "己方元素池",
     "TargetFilter": "NoRole",
     "Polarity": 0.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1311,98 +684,22 @@
     ]
   },
   {
-    "ID": "82f5ef6f",
-    "EnumName": "沉睡",
-    "DisplayName": "赋予{target}沉睡：持续{value}回合（沉睡期间无法重置，效果无效）",
-    "EffectType": "Sleep",
-    "TargetKinds": "自己,己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励,指示物,随机幅度",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      2.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "407eb771",
-    "EnumName": "帷幕",
-    "DisplayName": "获得帷幕：敌方效果只能指定帷幕单位",
-    "EffectType": "GrantTaunt",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,关键词,分支奖励,连接光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "3c696cb0",
-    "EnumName": "微缩",
-    "DisplayName": "{target}获得微缩：你使用卡时，将一张同效果、1/1、费用1灰的临时卡加入手牌（回合结束移除）",
-    "EffectType": "GrantMiniature",
-    "TargetKinds": "己方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,关键词,分支奖励,连接光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      3.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "a9cf639e",
-    "EnumName": "放大",
-    "DisplayName": "{target}获得放大：你使用卡时，将一张同效果、10/10、费用10灰的临时卡加入手牌（回合结束移除）",
-    "EffectType": "GrantMagnify",
-    "TargetKinds": "己方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,关键词,分支奖励,连接光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      3.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "803898ac",
+    "ID": "1d40277d",
     "EnumName": "回响",
-    "DisplayName": "从手牌使用时，将一张完全复制的临时卡加入手牌",
-    "EffectType": "GrantEcho",
-    "TargetKinds": "自己",
-    "TargetFilter": "Spell",
-    "Polarity": 1.0,
-    "MountKinds": "关键词",
+    "DisplayName": "将此卡的临时复制加入手牌",
+    "EffectType": "EchoCopy",
+    "TargetKinds": "",
+    "TargetFilter": null,
+    "Polarity": 1,
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
-      0.0,
-      0.0,
-      1.0,
-      0.0,
-      0.0,
-      0.0
+      0,
+      0,
+      2,
+      0,
+      0,
+      0
     ]
   },
   {
@@ -1413,7 +710,7 @@
     "TargetKinds": "己方牌库",
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1425,14 +722,14 @@
     ]
   },
   {
-    "ID": "33f21d4c",
+    "ID": "bb0b020a",
     "EnumName": "牺牲",
     "DisplayName": "持有者选择一个生物效果死亡，来源为持有者，无视不灭",
     "EffectType": "Sacrifice",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "Player",
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1444,14 +741,14 @@
     ]
   },
   {
-    "ID": "86180457",
+    "ID": "c4917f6e",
     "EnumName": "舍弃",
     "DisplayName": "持有者选择一个己方场上无生命单位送入墓地",
     "EffectType": "Abandon",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "Player",
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1463,33 +760,14 @@
     ]
   },
   {
-    "ID": "cc55f2ce",
-    "EnumName": "禁魔石",
-    "DisplayName": "受到的非战斗伤害变为0",
-    "EffectType": "GrantSpellban",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "主动,分支奖励,关键词,连接光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      3.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "50f99c1b",
+    "ID": "6a11e693",
     "EnumName": "改写持有者",
     "DisplayName": "改写{target}的持有者。永久换手含控制权——弹回洗回回新主卡组手牌，死亡去新主墓地",
     "EffectType": "ChangeOwner",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1501,82 +779,6 @@
     ]
   },
   {
-    "ID": "7d701213",
-    "EnumName": "对手胜利",
-    "DisplayName": "效果控制者的对手获得胜利",
-    "EffectType": "DeclareVictory",
-    "TargetKinds": "",
-    "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "主动",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      10.0
-    ]
-  },
-  {
-    "ID": "2ac33fb6",
-    "EnumName": "攻击力修改",
-    "DisplayName": "修改{target}攻击力{value}",
-    "EffectType": "ModifyPower",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "主动,分支奖励,系统",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.5,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "08cba511",
-    "EnumName": "生命值修改",
-    "DisplayName": "修改{target}生命值{value}",
-    "EffectType": "ModifyLife",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "主动,分支奖励,系统",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.5,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "39168153",
-    "EnumName": "费用修改",
-    "DisplayName": "修改{target}费用{value}",
-    "EffectType": "ModifyCost",
-    "TargetKinds": "己方手牌,对方手牌",
-    "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "主动,分支奖励,系统",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.5,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
     "ID": "200a249b",
     "EnumName": "展示",
     "DisplayName": "展示{target}（持续暴露，双方可查看，换区失效）",
@@ -1584,7 +786,7 @@
     "TargetKinds": "己方手牌,对方手牌,己方牌库,对方牌库",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1593,25 +795,6 @@
       0.0,
       0.0,
       0.0
-    ]
-  },
-  {
-    "ID": "7d704939",
-    "EnumName": "附加诅咒",
-    "DisplayName": "对{target}附加诅咒（抽到该卡时自动执行诅咒分支效果，一次性）",
-    "EffectType": "AddCurse",
-    "TargetKinds": "对方牌库",
-    "TargetFilter": null,
-    "Polarity": -1.0,
-    "MountKinds": "主动,指示物,分支奖励",
-    "Tags": "诅咒产出族",
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0
     ]
   },
   {
@@ -1622,7 +805,7 @@
     "TargetKinds": "己方牌库,对方牌库",
     "TargetFilter": null,
     "Polarity": 0.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1641,7 +824,7 @@
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1660,7 +843,7 @@
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
-    "MountKinds": "主动,分支奖励",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1671,15 +854,92 @@
       0.0
     ]
   },
+
   {
-    "ID": "974b5090",
-    "EnumName": "连击",
-    "DisplayName": "{target}获得连击",
-    "EffectType": "GrantDoubleStrike",
+    "ID": "9794b926",
+    "EnumName": "吸血",
+    "DisplayName": "造成伤害时，为自身恢复等量生命",
+    "EffectType": "GrantLifesteal",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "主动,关键词,分支奖励,连接光环",
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      3.0
+    ]
+  },
+  {
+    "ID": "a16f1e55",
+    "EnumName": "潜行",
+    "DisplayName": "不会成为攻击和效果的目标，发动效果或受到伤害后，移除潜行",
+    "EffectType": "GrantStealth",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词,不可作为连接光环",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "ec65d1c8",
+    "EnumName": "隐密",
+    "DisplayName": "不会成为攻击和效果的目标",
+    "EffectType": "GrantConcealed",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      5.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "feab5d3b",
+    "EnumName": "圣盾",
+    "DisplayName": "受到的伤害变成0，同时移除圣盾",
+    "EffectType": "GrantDivineShield",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词,不可作为连接光环",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "0fcf93db",
+    "EnumName": "碾压",
+    "DisplayName": "获得碾压：战斗伤害结算时，对{target}以及{target}相邻左右侧生物造成相同的战斗伤害",
+    "EffectType": "GrantOverwhelm",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1691,37 +951,37 @@
     ]
   },
   {
-    "ID": "e4581ec4",
-    "EnumName": "三相仪典",
-    "DisplayName": "规则光环（双方生效）：自己每消耗3点同色纯元素，获得红/蓝/绿各1",
-    "EffectType": "ModifyGameRule",
-    "TargetKinds": null,
-    "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "规则光环",
+    "ID": "465f51dc",
+    "EnumName": "警戒",
+    "DisplayName": "战斗结算时，横置状态也会触发战斗伤害",
+    "EffectType": "GrantVigilance",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
       0.0,
       0.0,
-      12.0,
+      1.0,
       0.0,
       0.0,
       0.0
     ]
   },
   {
-    "ID": "4219aaea",
-    "EnumName": "血偿仪典",
-    "DisplayName": "规则光环（双方生效）：己方回合中，你的角色受到的伤害改由对手角色承担",
-    "EffectType": "ModifyGameRule",
-    "TargetKinds": null,
-    "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "规则光环",
+    "ID": "0490b22c",
+    "EnumName": "先攻",
+    "DisplayName": "战斗结算时，先造成战斗伤害，如果{target}死亡，则无法反击",
+    "EffectType": "GrantFirstStrike",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
       0.0,
-      12.0,
+      1.0,
       0.0,
       0.0,
       0.0,
@@ -1729,14 +989,166 @@
     ]
   },
   {
-    "ID": "914a59e3",
-    "EnumName": "丰盈仪典",
-    "DisplayName": "规则光环（双方生效）：回复生命的溢出转化为生命上限+1",
-    "EffectType": "ModifyGameRule",
-    "TargetKinds": null,
+    "ID": "2e6955f0",
+    "EnumName": "法术护盾",
+    "DisplayName": "{target}获得法术护盾",
+    "EffectType": "GrantSpellShield",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词,不可作为连接光环",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "d7def412",
+    "EnumName": "扰魔",
+    "DisplayName": "不会成为效果{target}",
+    "EffectType": "GrantCannotBeTargeted",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "502be10d",
+    "EnumName": "复生",
+    "DisplayName": "死亡送墓时，将自身生命值改为1，从而避免死亡",
+    "EffectType": "GrantReborn",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词,不可作为连接光环",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0
+    ]
+  },
+  {
+    "ID": "fd04d3c7",
+    "EnumName": "不灭",
+    "DisplayName": "不受消灭效果影响",
+    "EffectType": "GrantIndestructible",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "2d46dbd4",
+    "EnumName": "系命",
+    "DisplayName": "造成伤害时，为角色恢复等量生命",
+    "EffectType": "GrantLifelink",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      3.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "05485f65",
+    "EnumName": "坚韧",
+    "DisplayName": "受到的每次伤害减{value}（每回合前{limit}次，可无限）",
+    "EffectType": "GrantArmor",
+    "TargetKinds": "自己",
     "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "规则光环",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "5d59d89a",
+    "EnumName": "再生",
+    "DisplayName": "回合开始时自己恢复自身全部生命值",
+    "EffectType": "GrantRegeneration",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      3.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "37b43139",
+    "EnumName": "守护",
+    "DisplayName": "{target}受到伤害改写为自己受到等量伤害（每回合前{limit}次，可无限）",
+    "EffectType": "GrantGuardian",
+    "TargetKinds": "自己",
+    "TargetFilter": null,
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "611f7516",
+    "EnumName": "成长",
+    "DisplayName": "回合结束时，自身属性指示物数量翻倍",
+    "EffectType": "GrantGrowth",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1748,7 +1160,370 @@
     ]
   },
   {
-    "ID": "a4ccc20d",
+    "ID": "adb8456f",
+    "EnumName": "缴械",
+    "DisplayName": "攻击时被攻击单位无法反击",
+    "EffectType": "GrantDisarm",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "407eb771",
+    "EnumName": "帷幕",
+    "DisplayName": "获得帷幕：敌方效果只能指定帷幕单位",
+    "EffectType": "GrantTaunt",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "3c696cb0",
+    "EnumName": "微缩",
+    "DisplayName": "{target}获得微缩：你使用卡时，将一张同效果、1/1、费用1灰的临时卡加入手牌（回合结束移除）",
+    "EffectType": "GrantMiniature",
+    "TargetKinds": "己方单位",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      3.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "a9cf639e",
+    "EnumName": "放大",
+    "DisplayName": "{target}获得放大：你使用卡时，将一张同效果、10/10、费用10灰的临时卡加入手牌（回合结束移除）",
+    "EffectType": "GrantMagnify",
+    "TargetKinds": "己方单位",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      3.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "cc55f2ce",
+    "EnumName": "禁魔石",
+    "DisplayName": "受到的非战斗伤害变为0",
+    "EffectType": "GrantSpellban",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      3.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "974b5090",
+    "EnumName": "连击",
+    "DisplayName": "{target}获得连击",
+    "EffectType": "GrantDoubleStrike",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      3.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+
+  {
+    "ID": "cca3ed84",
+    "EnumName": "剧毒",
+    "DisplayName": "对{target}附加剧毒指示物（回合结束时死亡）",
+    "EffectType": "Poison",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0,
+    "MountKinds": "指示物",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      3.0
+    ]
+  },
+  {
+    "ID": "2a7d3092",
+    "EnumName": "护甲",
+    "DisplayName": "为{target}添加{value}点护甲",
+    "EffectType": "AddArmor",
+    "TargetKinds": "自己",
+    "TargetFilter": null,
+    "Polarity": 1.0,
+    "MountKinds": "指示物",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "50b364df",
+    "EnumName": "毒素",
+    "DisplayName": "对{target}附加一层毒素指示物（回合结束时受1点伤害，持续3回合，重复施加叠加层数并刷新持续时间）",
+    "EffectType": "AddToxin",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0,
+    "MountKinds": "指示物",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "17dd3732",
+    "EnumName": "沉默",
+    "DisplayName": "对{target}附加沉默指示物（不可发动主动效果）",
+    "EffectType": "Silence",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0,
+    "MountKinds": "指示物",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "f3a89899",
+    "EnumName": "无响应",
+    "DisplayName": "对{target}附加无响应指示物（非启动式能力无法响应）",
+    "EffectType": "AddNullify",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 0.0,
+    "MountKinds": "指示物",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "b80c2d73",
+    "EnumName": "冻结",
+    "DisplayName": "冻结{target}：横置并放置冻结指示物（负面，持续到回合结束）",
+    "EffectType": "Freeze",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0,
+    "MountKinds": "指示物",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "20fa8bae",
+    "EnumName": "紊乱",
+    "DisplayName": "对{target}附加{value}回合紊乱指示物（不能以玩家为攻击，效果{target}）",
+    "EffectType": "RushSickness",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0,
+    "MountKinds": "指示物",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.5
+    ]
+  },
+  {
+    "ID": "60a09ef1",
+    "EnumName": "易损",
+    "DisplayName": "对{target}附加易损指示物（持续1回合，受到伤害时每层+1）",
+    "EffectType": "AddVulnerable",
+    "TargetKinds": "自己",
+    "TargetFilter": null,
+    "Polarity": -1.0,
+    "MountKinds": "指示物",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  },
+  {
+    "ID": "82f5ef6f",
+    "EnumName": "沉睡",
+    "DisplayName": "赋予{target}沉睡：持续{value}回合（沉睡期间无法重置，效果无效）",
+    "EffectType": "Sleep",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0,
+    "MountKinds": "指示物",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "7d704939",
+    "EnumName": "附加诅咒",
+    "DisplayName": "对{target}附加诅咒（抽到该卡时自动执行诅咒分支效果，一次性）",
+    "EffectType": "AddCurse",
+    "TargetKinds": "自己",
+    "TargetFilter": null,
+    "Polarity": -1.0,
+    "MountKinds": "指示物",
+    "Tags": "诅咒产出族",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  },
+
+  {
+    "ID": "afaab664",
+    "EnumName": "三相仪典",
+    "DisplayName": "规则光环：己方回合中，自己每消耗3点同色纯元素，获得红/蓝/绿各1",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 1.0,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      12.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "22973c66",
+    "EnumName": "苦痛仪典",
+    "DisplayName": "规则光环：己方回合中，角色受到的伤害改由对手角色承担",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 1.0,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      12.0
+    ]
+  },
+  {
+    "ID": "05fa2989",
+    "EnumName": "丰盈仪典",
+    "DisplayName": "规则光环：回复生命的溢出转化为生命上限+1",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 1.0,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      6.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "2f525db4",
     "EnumName": "离散仪典",
     "DisplayName": "规则光环：单次伤害超过5时改为5，低于5时改为3",
     "EffectType": "ModifyGameRule",
@@ -1759,21 +1534,21 @@
     "Tags": null,
     "ManaList": [
       0.0,
-      6.0,
       0.0,
       0.0,
       0.0,
+      8.0,
       0.0
     ]
   },
   {
-    "ID": "3b28df38",
+    "ID": "001cdfb8",
     "EnumName": "窥渊仪典",
     "DisplayName": "规则光环：回合结束时，随机展示对手一张手牌，并附加持续一回合的锁定指示物",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 1.0,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
@@ -1786,13 +1561,13 @@
     ]
   },
   {
-    "ID": "a1ea9962",
+    "ID": "8387b77b",
     "EnumName": "归土仪典",
     "DisplayName": "规则光环：每回合一次，可从自己墓地使用一张牌（视为手牌中使用）",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 1.0,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
@@ -1805,13 +1580,13 @@
     ]
   },
   {
-    "ID": "5b0c8b74",
+    "ID": "839e6136",
     "EnumName": "疾风仪典",
     "DisplayName": "规则光环：手牌中的卡发动速度+1",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 1.0,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
@@ -1824,32 +1599,32 @@
     ]
   },
   {
-    "ID": "d5dc90ed",
-    "EnumName": "轮回仪典",
-    "DisplayName": "规则光环：每个玩家连续进行两个回合",
+    "ID": "7461cec1",
+    "EnumName": "时光仪典",
+    "DisplayName": "规则光环：回合结束时获得额外回合，额外回合不触发此效果",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 1.0,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
       0.0,
       0.0,
+      0.0,
+      0.0,
       12.0,
-      0.0,
-      0.0,
       0.0
     ]
   },
   {
-    "ID": "b6170161",
+    "ID": "1b257704",
     "EnumName": "纳川仪典",
     "DisplayName": "规则光环：手牌上限提升至15，且免疫抽牌疲劳",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": 1.0,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
@@ -1862,32 +1637,32 @@
     ]
   },
   {
-    "ID": "c1a00001",
+    "ID": "f3a7489e",
     "EnumName": "毒蚀仪典",
-    "DisplayName": "规则光环（仅持有者生效）：持有者生物的战斗伤害改为毒素指示物×1（伤害不发生）",
+    "DisplayName": "受光环影响的生物受到伤害后叠加一层毒素指示物",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": -1.0,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
       0.0,
       0.0,
       0.0,
-      6.0,
+      8.0,
       0.0,
       0.0
     ]
   },
   {
-    "ID": "c1a00002",
+    "ID": "97c7eec6",
     "EnumName": "霜蚀仪典",
-    "DisplayName": "规则光环（仅持有者生效）：持有者生物的战斗伤害改为冻结指示物×1（伤害不发生）",
+    "DisplayName": "受光环影响的生物攻击后附加一个冻结指示物",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": -1.0,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
@@ -1900,28 +1675,47 @@
     ]
   },
   {
-    "ID": "c1a00003",
+    "ID": "610c02c7",
     "EnumName": "眠蚀仪典",
-    "DisplayName": "规则光环（仅持有者生效）：持有者生物的战斗伤害改为沉睡指示物×1（伤害不发生）",
+    "DisplayName": "受光环影响的生物的发动主动效果时，附加一个沉睡指示物",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
-    "Polarity": 0.0,
+    "Polarity": -1.0,
     "MountKinds": "规则光环",
     "Tags": null,
     "ManaList": [
       0.0,
       0.0,
       0.0,
-      6.0,
+      0.0,
+      0.0,
+      12.0
+    ]
+  },
+  {
+    "ID": "f666ee4a",
+    "EnumName": "疫蚀仪典",
+    "DisplayName": "受光环影响的生物对角色造成伤害后，附加一个剧毒指示物",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1.0,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      8.0,
       0.0,
       0.0
     ]
   },
   {
-    "ID": "c1a00004",
-    "EnumName": "疫蚀仪典",
-    "DisplayName": "规则光环（仅持有者生效）：持有者生物的战斗伤害改为剧毒指示物×1（伤害不发生）",
+    "ID": "e11e2be3",
+    "EnumName": "舍身仪典",
+    "DisplayName": "受光环影响的生物造成战斗伤害时，改为对对手角色造成等量伤害（战斗伤害不发生）",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1930,15 +1724,188 @@
     "Tags": null,
     "ManaList": [
       0.0,
+      4.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+
+  {
+    "ID": "3057d8ac",
+    "EnumName": "攻击",
+    "DisplayName": "攻击{target}，结算战斗伤害后横置",
+    "EffectType": "Attack",
+    "TargetKinds": "对方单位",
+    "TargetFilter": null,
+    "Polarity": -1.0,
+    "MountKinds": "系统",
+    "Tags": null,
+    "ManaList": [
+      1.0,
       0.0,
       0.0,
       0.0,
       0.0,
-      6.0
+      0.0
     ]
   },
   {
-    "ID": "a1000001",
+    "ID": "1d703414",
+    "EnumName": "守卫",
+    "DisplayName": "横置并转移对手攻击目标，以此卡作为攻击对象",
+    "EffectType": "Guard",
+    "TargetKinds": "",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "系统",
+    "Tags": null,
+    "ManaList": [
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "70034aee",
+    "EnumName": "设置攻击力",
+    "DisplayName": "将{target}攻击力设为{value}",
+    "EffectType": "SetPower",
+    "TargetKinds": "",
+    "TargetFilter": "",
+    "Polarity": 0.0,
+    "MountKinds": "系统",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "38a43580",
+    "EnumName": "设置生命值",
+    "DisplayName": "将{target}生命值设为{value}",
+    "EffectType": "SetLife",
+    "TargetKinds": "",
+    "TargetFilter": "",
+    "Polarity": 0.0,
+    "MountKinds": "系统",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "a9beb7b4",
+    "EnumName": "设置费用",
+    "DisplayName": "将{target}的费用设为{value}",
+    "EffectType": "SetCost",
+    "TargetKinds": "己方手牌,对方手牌",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "系统",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "7d701213",
+    "EnumName": "对手胜利",
+    "DisplayName": "效果控制者的对手获得胜利",
+    "EffectType": "DeclareVictory",
+    "TargetKinds": "",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "系统",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      10.0
+    ]
+  },
+  {
+    "ID": "2ac33fb6",
+    "EnumName": "攻击力修改",
+    "DisplayName": "修改{target}攻击力{value}",
+    "EffectType": "ModifyPower",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "系统,不可随机",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.5,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "08cba511",
+    "EnumName": "生命值修改",
+    "DisplayName": "修改{target}生命值{value}",
+    "EffectType": "ModifyLife",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "系统,不可随机",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "39168153",
+    "EnumName": "费用修改",
+    "DisplayName": "修改{target}费用{value}",
+    "EffectType": "ModifyCost",
+    "TargetKinds": "己方手牌,对方手牌",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "系统,不可随机",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+
+  {
+    "ID": "01e6dad1",
     "EnumName": "倒计时",
     "DisplayName": "自由分支·倒计时：回合开始计数-1，归零触发奖励并重置",
     "EffectType": "EngineCountdown",
@@ -1950,7 +1917,7 @@
     "ManaList": null
   },
   {
-    "ID": "a1000002",
+    "ID": "9f6e4f49",
     "EnumName": "运势",
     "DisplayName": "自由分支·运势：回合开始掷 2d6，双＞x 触发奖励",
     "EffectType": "EngineLuckRoll",
@@ -1962,7 +1929,7 @@
     "ManaList": null
   },
   {
-    "ID": "a1000003",
+    "ID": "163a99d1",
     "EnumName": "拼点",
     "DisplayName": "自由分支·拼点：双方各随机取样生物比攻击力，差额≥门槛触发奖励",
     "EffectType": "EngineClash",
@@ -1974,7 +1941,7 @@
     "ManaList": null
   },
   {
-    "ID": "a1000004",
+    "ID": "b61a539c",
     "EnumName": "死亡计数",
     "DisplayName": "自由分支·死亡计数：双方生物死亡累计≥x 触发奖励",
     "EffectType": "EngineDeathToll",
@@ -1986,7 +1953,7 @@
     "ManaList": null
   },
   {
-    "ID": "a1000005",
+    "ID": "b6f9b492",
     "EnumName": "元素充盈",
     "DisplayName": "自由分支·元素充盈：己方元素池最多色＞x 触发奖励",
     "EffectType": "EngineManaSurplus",
@@ -1998,7 +1965,7 @@
     "ManaList": null
   },
   {
-    "ID": "a1000006",
+    "ID": "e7f6707f",
     "EnumName": "手牌序位",
     "DisplayName": "自由分支·手牌序位：本回合第 x 张使用的手牌发动时触发奖励",
     "EffectType": "EngineNthHandCard",

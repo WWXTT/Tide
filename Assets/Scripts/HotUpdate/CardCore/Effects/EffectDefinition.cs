@@ -98,8 +98,8 @@ namespace CardCore
         /// <summary>动态数量：运行时玩家自选个数（0..候选数）；费用计 0（2026-09-21 定案：不关联地牌资格）。</summary>
         public bool DynamicTargetCount;
         /// <summary>触发式每回合触发上限（2026-09-13 定案）：&gt;0=每回合最多 N 次；-1=无限。
-        /// 默认口径——原子含 MountKind.TriggerCapImmutable（少数，如坚韧）→ 恒 -1（不可修改、声明被覆写）；
-        /// 其余原子 → 未声明=1（一回合一次），组合期可改 N 或 -1。启动式不消费本字段（费用现付自限）。</summary>
+        /// 未声明=1（一回合一次），组合期可改 N 或 -1。启动式不消费本字段（费用现付自限）。
+        ///（恒 -1 覆写位 TriggerCapImmutable 已于 2026-10-07 删除——坚韧族光环化后零声明行。）</summary>
         public int TriggerLimitPerTurn = -1;
         // 动态分支引擎 def 级字段（EngineKind/EngineParam/RewardAtoms/CountdownTurns）已随 2026-10-05
         // 两槽定案载荷化退役——引擎条件与 Then 奖励挂槽级原子 Branch 载荷（见 AtomicEffectInstance.Branch）。

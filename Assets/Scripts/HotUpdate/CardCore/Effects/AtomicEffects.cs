@@ -161,17 +161,19 @@ namespace CardCore
         GrantMiniature,
         /// <summary>放大（2026-09-11，红）：同微缩，临时卡为 10/10、费用10灰。</summary>
         GrantMagnify,
-        /// <summary>回响（2026-09-11，蓝）：瞬间法术专用关键词——使用时（宣言时点）获得一张本体完全复制
-        /// （属性/费用/效果不变）的临时卡，复制也带回响（可连锁，回合结束移除兜底）。被反制时复制已入手。</summary>
-        GrantEcho,
+        /// <summary>回响（2026-10-07 关键词→普通效果改版，蓝2）：将此卡的临时复制加入手牌——完全复制
+        ///（属性/费用/效果不变），复制带效果栏（连锁天然保留），回合结束移除兜底。
+        /// 时点=结算期（旧宣言时点关键词形态退役——两层无效将对复制生效：发动无效=无复制）。</summary>
+        EchoCopy,
         /// <summary>发现（2026-09-11，蓝2）：从牌库中随机展示 {value} 张牌（默认 3），从中选一张加入手牌。
         /// 炉石发现池=全收藏，本项目卡池难以估计——收窄为牌库内。未选中的牌留在牌库原位。
         /// 结算期选择走 TargetSelectionService（AI/无头自动选首张）。</summary>
         DiscoverCard,
-        /// <summary>守护（2026-09-11，白1；2026-10-05 简化定案：登场选目标机制废弃，改光环条目型）：
-        /// 守护箭头指向的生物——被守护者（箭头指向格占据者）受到的伤害改由第一个存活守护来源承受
-        /// （多守护取第一个存活者，单跳不链式）。live-query 纯光环（LinkAuraSystem 读 LinkAuras 条目，
-        /// 挂词形态无效——表行仅声明位 6）；改写在 KeywordRules.ApplyDamage 咽喉，守护者离场/断链=保护失效。</summary>
+        /// <summary>守护（白1；2026-10-07 深夜关键词族回归+三形态定案）：效果文本
+        /// 「{target}受到伤害改写为自己受到等量伤害」——关键词形态 {target}=己方角色（印刷/授予，
+        /// 每回合前 ΣLimit 次改写，无限实例恒改写）；连接光环形态=箭头指向的场上单位（live-query 不限次）；
+        /// 方向档（己方/双方，极性门控）=范围内全部单位。改写在 KeywordRules.ApplyDamage 咽喉，
+        /// 单跳不链式（guardRerouted）。</summary>
         GrantGuardian,
         // 固有全域原子（SweepDamage/SweepHeal）已随 2026-10-05 墓碑清理实删——
         // 全域语义由组合期 TargetKinds+全取档表达（2026-09-21 退役定案，此番连墓碑一并清除）。
@@ -344,6 +346,9 @@ namespace CardCore
         //      2026-09-14 收缩：DurationValue 删除——持续档收缩后回合数走指示物自减，效果级不再携带）----
         /// <summary>持续（效果级唯一真相；原子 handler 从此读，不再读 effect.Duration）。</summary>
         public DurationType Duration;
+        /// <summary>生效次数档（2026-10-07 深夜：随执行下发——Grant 关键词把它传进台账 Limit，
+        /// 0=未声明→按 1；-1=无限。主构造口 EffectExecutionEngine 复制；旁路上下文缺省 0）。</summary>
+        public int TriggerLimitPerTurn;
         /// <summary>SummonToken 落区（战场/手牌/牌库）。</summary>
         public Zone SummonDropZone;
 

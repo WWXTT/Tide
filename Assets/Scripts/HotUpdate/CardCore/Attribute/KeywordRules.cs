@@ -82,8 +82,7 @@ namespace CardCore.Attribute
         public const string Miniature = "Miniature";
         /// <summary>放大：同微缩，临时卡 10/10 费10灰。</summary>
         public const string Magnify = "Magnify";
-        /// <summary>回响：瞬间法术专用——使用时获得带回响的完全复制临时卡。</summary>
-        public const string Echo = "Echo";
+        // 回响关键词常量已删（2026-10-07 改普通效果 EchoCopy——宣言时点分支随之退役）
         /// <summary>守护（2026-09-11）：被守护者受到的伤害改由第一个守护者承受（改写在 ApplyDamage 咽喉）。</summary>
         public const string Guardian = "Guardian";
 
@@ -231,6 +230,36 @@ namespace CardCore.Attribute
             return entity is Card card ? card.GetKeywordCount(keyword) : (entity.HasKeyword(keyword) ? 1 : 0);
         }
 
+        // ==================== 生效次数闸（2026-10-07 深夜定案） ====================
+        // 关键词实例运行时行为（坚韧减伤/守护改写）每回合前 ΣLimit 次生效（任一无限实例→不限）。
+        // 懒回合标记：存回合号，跨回合自动归零——无需 GameCore 钩子；光环形态不设闸（恒无限）。
+        private sealed class KeywordActivationCounter { public int Turn; public int Used; }
+        private static readonly Dictionary<(uint runtimeId, string keyword), KeywordActivationCounter> _keywordActivations
+            = new Dictionary<(uint runtimeId, string keyword), KeywordActivationCounter>();
+
+        private static int CurrentTurnNumber => CardCore.GameCore.Instance?.TurnEngine?.TurnNumber ?? 0;
+
+        /// <summary>尝试消耗一次关键词生效额度（本回合）：无限（Limit 和 <0）恒过；额度尽返回 false。
+        /// 消耗式判定——与生效同点调用；额度随授予动态增长（再授予即扩容）。</summary>
+        public static bool TryConsumeKeywordActivation(Entity holder, string keyword)
+        {
+            int limit = holder.GetKeywordLimitSum(keyword);
+            if (limit < 0) return true;
+            if (limit == 0) return false;
+            var key = (holder.RuntimeId, keyword);
+            if (!_keywordActivations.TryGetValue(key, out var counter) || counter.Turn != CurrentTurnNumber)
+            {
+                counter = new KeywordActivationCounter { Turn = CurrentTurnNumber };
+                _keywordActivations[key] = counter;
+            }
+            if (counter.Used >= limit) return false;
+            counter.Used++;
+            return true;
+        }
+
+        /// <summary>次数闸重置（新局/对拍重放——EffectExecutor.Reset 调用）。</summary>
+        public static void ResetKeywordActivations() => _keywordActivations.Clear();
+
         /// <summary>
         /// 统一伤害结算：修正并施加伤害，返回实际造成的伤害量。
         /// 只改状态不发事件——DamageEvent/CombatDamageEvent 等由调用方按路径发布。
@@ -289,6 +318,40 @@ namespace CardCore.Attribute
                 }
             }
 
+            // 守护关键词形态（2026-10-07 深夜三形态定案）：{target}=己方角色——伤害改写为己方首个
+            // 存活守护关键词单位承受等量（次数闸：每回合前 ΣLimit 次，无限实例恒改写；「无效」压制跳过；
+            // 单跳 guardRerouted；仅拦伤害路径，生命支付不走此口）。箭头/方向档形态见上段光环改写。
+            if (!guardRerouted && target is Player roleTarget)
+            {
+                var core = CardCore.GameCore.Instance;
+                var battlefield = core?.ZoneManager?.GetCards(roleTarget, Zone.Battlefield);
+                if (battlefield != null)
+                {
+                    Card roleGuardian = null;
+                    for (int i = 0; i < battlefield.Count; i++)
+                    {
+                        var g = battlefield[i];
+                        if (g == null || !g.IsAlive) continue;
+                        if (g.GetKeywordValueSum(Guardian) <= 0) continue;
+                        if (g.GetCounterCount(CounterRules.NullifyCounter) > 0) continue; // 无效=压制口
+                        if (!TryConsumeKeywordActivation(g, Guardian)) continue; // 次数尽→试下一守护者
+                        roleGuardian = g;
+                        break;
+                    }
+                    if (roleGuardian != null)
+                    {
+                        core.PublishEvent(new KeywordAppliedEvent
+                        {
+                            Target = roleTarget,
+                            Keyword = "守护",
+                            Detail = $"守护改写：伤害转由 {roleGuardian} 承受",
+                            Source = roleGuardian,
+                        });
+                        return ApplyDamage(source, roleGuardian, amount, isCombat, pierce, guardRerouted: true);
+                    }
+                }
+            }
+
             // 0. 易损指示物（定案）：受到伤害时每层使受到的伤害 +1——
             //    替代结算后、防护层前生效（圣盾/护甲吸收的是放大后的量；穿透伤害同样被放大）
             int vulnerable = target.GetCounterCount(CounterRules.VulnerableCounter);
@@ -302,15 +365,16 @@ namespace CardCore.Attribute
             }
 
             // 战斗伤害改写（2026-09-13 定案修订：**防护层之后、落血之前**——只有"将要成功造成的伤害"
-            // 才改写：圣盾/护甲/坚韧完全挡住 → 不触发；部分吸收后仍有剩余 → 剩余改写为指示物，不再落血）。
-            // 毒刺→毒素1层（绿1，带3回合时钟）/ 冰晶→冻结1层（蓝2，横置）/ 梦魇→沉睡1层（黑2，横置）/
-            // 病原体→剧毒（绿3——表 BaseCost=3.0 为计价真相源，2026-10-02 对齐）。固定序取第一个命中（多关键词不叠加改写）；
+            // 才改写：圣盾/护甲/坚韧完全挡住 → 不触发；部分吸收后仍有剩余 → 剩余改写，不再落血）。
+            // 毒刺→毒素1层（绿1）/ 冰晶→冻结1层（蓝2，横置）/ 梦魇→沉睡1层（黑2，横置）/
+            // 病原体→剧毒（绿3）。固定序取第一个命中（多关键词不叠加改写）；
             // 角色（打脸）也改写——毒素/剧毒落角色有效，冻结/沉睡对角色空转；穿透伤害不经防护层，恒可改写。
-            // 施加口径收口 ApplyRewriteCounter（拦截式改写门路径已退役 2026-10-05，战斗/光环两路共用此口）。
-            // 2026-10-02 结界实装：改写只对活体/角色生效——无生命单位（结界）不是状态宿主
-            //（冻结/沉睡对其无效），改写命中等价"伤害被无效化"，故跳过改写走耐久管线。
-            // 2026-10-05 唯一光环路径：毒蚀/霜蚀/眠蚀/疫蚀仪典（仅持有者=光环控制者的全部生物生效，
-            // 定案）——关键词链未命中时按同序（毒刺>冰晶>梦魇>病原体）查光环命中。
+            // 施加口径收口 ApplyRewriteCounter。改写只对活体/角色生效——无生命单位（结界）不是状态宿主，
+            // 改写命中等价"伤害被无效化"，故跳过改写走耐久管线。
+            // 2026-10-07 改写回归·单映射：原毒/冻/眠/疫四光环改写退役（负面光环化——挂层走 DamageEvent 订阅）；
+            // 唯一光环改写=舍身仪典（CombatRedirect）——受光环影响的生物造成战斗伤害时，
+            // 改为对**光环控制者的对手角色**等量伤害（非战斗路径递归：不再触发舍身；毒蚀只看卡受击、
+            // 疫蚀照常命中"对角色造成伤害"）。
             if (isCombat && source != null && source.IsAlive
                 && !(target is Card rwCard && rwCard.IsNonLivingUnit()))
             {
@@ -319,16 +383,31 @@ namespace CardCore.Attribute
                     source.HasKeyword(IceCrystal) ? IceCrystal :
                     source.HasKeyword(Nightmare) ? Nightmare :
                     source.HasKeyword(Pathogen) ? Pathogen : null;
-                bool fromAura = false;
-                if (combatRewrite == null && source is Card auraSrc)
+                if (combatRewrite != null)
                 {
-                    combatRewrite = RuleAuraSystem.HolderRewriteFor(auraSrc);
-                    fromAura = combatRewrite != null;
+                    if (ApplyRewriteCounter(combatRewrite, target, source, CombatRewriteDetail(combatRewrite)))
+                        return 0;
                 }
-                if (combatRewrite != null
-                    && ApplyRewriteCounter(combatRewrite, target, source,
-                        fromAura ? AuraRewriteDetail(combatRewrite) : CombatRewriteDetail(combatRewrite)))
-                    return 0;
+                else if (source is Card redirectSrc
+                         && RuleAuraSystem.HolderRewriteFor(redirectSrc) == RuleAuraComponents.CombatRedirect)
+                {
+                    // 转投目标=施伤生物控制者的对手角色（2026-10-07 用户定案：相对施伤方——
+                    // 己方生物打对方主公、受光环的对方生物打我方主公、双方档=两侧对轰；
+                    // 不随光环控制者取固定侧，否则"作用于对方"=对手自伤无敌）
+                    var redirectVictim = redirectSrc.GetController()?.Opponent;
+                    if (redirectVictim != null)
+                    {
+                        EventManager.Instance.Publish(new KeywordAppliedEvent
+                        {
+                            Target = redirectSrc,
+                            Keyword = RuleAuraComponents.CombatRedirect,
+                            Detail = $"舍身光环：{EffectText.Name(redirectSrc)} 的战斗伤害转投对手角色（原目标免受 {amount} 点）",
+                            Source = RuleAuraSystem.CarrierOf(RuleAuraComponents.CombatRedirect),
+                        });
+                        ApplyDamage(redirectSrc, redirectVictim, amount, isCombat: false);
+                        return 0;
+                    }
+                }
             }
 
             // 4. 落血（Card 到 0 标记死亡；Player 直接扣）。
@@ -554,13 +633,15 @@ namespace CardCore.Attribute
                 }
             }
 
-            // 3. 坚韧：每次受到的最终伤害 −1 × 持有次数（叠加 = 重复叠加强化）。
-            //    坚韧光环（2026-09-13 定案：坚韧改为连接箭头光环，绿1×箭头数）——箭头指向格占据者
-            //    每条覆盖箭头各 -1（按箭头叠加），无触发上限（静态替代非触发式）；断链/来源被无效即失效。
-            int toughness = KeywordCount(target, Armor)
-                + (target is Card auraHolder
-                    ? GameBoard.LinkAuraSystem.GetAuraKeywordCount(auraHolder, Armor)
-                    : 0);
+            // 3. 坚韧（2026-10-07 深夜值化+限次定案）：关键词份额=台账 Value 之和、每回合前 ΣLimit 次
+            //    （无限实例恒生效；台账缺失兜底=持有份数×1）；光环份额=每条命中条目 value 之和
+            //    （0 视为 1，live-query 不限次）。份额独立结算——次数闸只作用于关键词份额。
+            int kwToughness = target.GetKeywordValueSum(Armor);
+            if (kwToughness > 0 && !TryConsumeKeywordActivation(target, Armor)) kwToughness = 0;
+            int auraToughness = target is Card auraHolder
+                ? GameBoard.LinkAuraSystem.GetAuraKeywordSum(auraHolder, Armor)
+                : 0;
+            int toughness = kwToughness + auraToughness;
             if (toughness > 0)
             {
                 amount = Math.Max(0, amount - toughness);

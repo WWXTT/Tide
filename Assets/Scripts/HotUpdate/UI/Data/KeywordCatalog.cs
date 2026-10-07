@@ -33,9 +33,12 @@ namespace SynergyUI
                 {
                     continue;
                 }
-                // 面板资格=表行 TargetFilter 含 "NoRole"（仅生物可赋予，2026-10-05 两槽定案自 MountKinds 位5 迁移）
-                // ——目标侧语义归目标过滤；以后增删可赋关键词只改原子表 TargetFilter
+                // 面板资格双门（2026-10-07 仅可定案）：
+                // ①关键词位——守护/坚韧等仅连接光环节点退出面板（此前仅凭 TargetFilter 拦不住）；
+                // ②表行 TargetFilter 含 "NoRole"（仅生物可赋予）
+                // ——目标侧语义归目标过滤；以后增删可赋关键词只改原子表
                 var row = CardCore.Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect);
+                if (!ComposerCatalog.HasMountBit(row, MountKind.Keyword)) continue;
                 if (!ComposerCatalog.IsCreatureGrantRow(row)) continue;
                 result.Add(new KeywordCatalogEntry
                 {

@@ -87,9 +87,10 @@ namespace CardCore
         /// </summary>
         public static void Heal(this Entity entity, int amount)
         {
-            bool overflowToMax = RuleAuraSystem.IsActive(RuleAuraComponents.HealOverflow);
             if (entity is Player player)
             {
+                // 丰盈范围化（2026-10-07）：按受疗方一侧判命中（缺省双方=旧行为）
+                bool overflowToMax = RuleAuraSystem.ScopeHits(RuleAuraComponents.HealOverflow, player);
                 int cap = player.MaxHealth;
                 int raw = player.Life + amount;
                 int over = raw - cap;
@@ -106,6 +107,7 @@ namespace CardCore
             }
             else if (entity is Card card)
             {
+                bool overflowToMax = RuleAuraSystem.ScopeHits(RuleAuraComponents.HealOverflow, card.GetController());
                 if (card._maxLife < card._life) card._maxLife = card._life; // 未初始化兜底：先对齐再判溢出
                 int cap = card._maxLife;
                 int raw = card._life + amount;
@@ -296,6 +298,55 @@ namespace CardCore
             if (entity == null) return;
             entity._keywords.Add(keyword);
             entity._keywordGrants.Add(new KeywordGrant { Keyword = keyword, Lane = lane, Source = source });
+        }
+
+        /// <summary>参数化添加关键词（2026-10-07 深夜坚韧/守护定案）：实例值与生效次数入台账
+        ///（Value≤0 兜底 1；Limit 1/2/3，-1=无限）；_keywords 真身与去重口径同主重载。</summary>
+        public static void AddKeyword(this Entity entity, string keyword, KeywordLane lane, Entity source, int value, int limit)
+        {
+            if (entity == null) return;
+            if (!entity._keywords.Contains(keyword))
+                entity._keywords.Add(keyword);
+            entity._keywordGrants.Add(new KeywordGrant
+            {
+                Keyword = keyword, Lane = lane, Source = source,
+                Value = value <= 0 ? 1 : value, Limit = limit,
+            });
+        }
+
+        /// <summary>关键词实例值求和（2026-10-07 深夜值化定案）：台账同名条目 Value 之和——
+        /// 坚韧减伤、守护在持判定走此口；台账缺失（旧档/直改 _keywords）按份数×1；
+        /// 裸 _keywords 多于台账条数（融合继承路径）时差额按 1/份补足。</summary>
+        public static int GetKeywordValueSum(this Entity entity, string keyword)
+        {
+            if (entity == null) return 0;
+            int sum = 0, ledgerEntries = 0;
+            foreach (var g in entity._keywordGrants)
+                if (g != null && g.Keyword == keyword) { ledgerEntries++; sum += g.Value <= 0 ? 1 : g.Value; }
+            int raw = entity._keywords.Count(k => k == keyword);
+            if (ledgerEntries == 0) return raw;
+            if (raw > ledgerEntries) sum += raw - ledgerEntries;
+            return sum;
+        }
+
+        /// <summary>关键词实例生效次数上限/回合（2026-10-07 深夜次数闸）：台账同名条目 Limit 之和，
+        /// 任一 -1（无限）→ -1；台账缺失兜底 = _keywords 计数×1，裸差额同样按 1/份补足。
+        /// 光环形态不设闸（恒无限）。</summary>
+        public static int GetKeywordLimitSum(this Entity entity, string keyword)
+        {
+            if (entity == null) return 0;
+            int sum = 0, ledgerEntries = 0;
+            foreach (var g in entity._keywordGrants)
+                if (g != null && g.Keyword == keyword)
+                {
+                    ledgerEntries++;
+                    if (g.Limit < 0) return -1;
+                    sum += g.Limit;
+                }
+            int raw = entity._keywords.Count(k => k == keyword);
+            if (ledgerEntries == 0) return raw;
+            if (raw > ledgerEntries) sum += raw - ledgerEntries;
+            return sum;
         }
 
         /// <summary>

@@ -263,6 +263,7 @@ namespace SynergyUI
         private void OnMirrorBattle()
         {
             List<CardData> deck = null;
+            string skillCardId = null; // 镜像局技能标记（2026-10-07 卡牌化，双方同用；默认回落=null）
             var name = SelectedDeckName();
             if (name != null)
             {
@@ -274,12 +275,15 @@ namespace SynergyUI
                     ShowToast($"卡组 {name} 不可用（缺卡/张数不足）——回落默认镜像");
                     deck = null;
                 }
+                else
+                    skillCardId = data.skillCardId;
             }
             if (deck == null)
                 deck = TutorialCreationFlow.ResolveDefaultMirrorDeck();
 
             BattleEntry.Mode = BattleMode.LocalAI;
             BattleEntry.MirrorDeck = deck;
+            BattleEntry.MirrorSkillCardId = skillCardId;
             BattleStageDirector.SwallowToBattleAsync(() => Manager.Show<BattleScreen>()).Forget();
         }
 

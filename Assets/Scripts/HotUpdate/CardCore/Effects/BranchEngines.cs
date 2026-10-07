@@ -21,7 +21,7 @@ namespace CardCore
     ///   上限，多张引擎卡各自触发）；判定读付费后余量。效果费支付不触发。
     /// - **手牌序位**（2026-09-22 定案）：**此卡**为本回合从手牌使用的第 x 张卡（含自身，宣言序抓拍；响应出牌同计、
     ///   墓地视手牌等他源不算）→ 施放结算中执行奖励（发动无效跳过；回调 OnCardCastResolved）。
-    /// 组合根 EnsureRegistered（GameCore.Reset，幂等）；Then 奖励目标=合法范围内随机（EffectExecutor.ExecuteThenRewardsAsync）。
+    /// 组合根 EnsureRegistered（GameCore.Reset，幂等）；Then 奖励目标=合法范围内弹选（EffectExecutor.ExecuteThenRewardsAsync，2026-10-07 晚定案：AI/无头自动选首）。
     /// </summary>
     public static class BranchEngines
     {
