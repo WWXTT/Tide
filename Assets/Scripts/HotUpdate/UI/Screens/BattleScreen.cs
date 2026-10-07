@@ -53,6 +53,10 @@ namespace SynergyUI
         /// 注入方=TutorialCreationFlow/TutorialFlow（Mode=LocalAI + 本字段）。</summary>
         public static List<CardData> MirrorDeck;
 
+        /// <summary>镜像局技能标记卡 ID（2026-10-07 卡牌化）：与 MirrorDeck 成对一次性消费——
+        /// 双方同用（镜像口径）；null=镜像局无技能。</summary>
+        public static string MirrorSkillCardId;
+
         /// <summary>挑战模式难度（2026-10-06，1..9 单值联动）：电脑地牌槽上限 9+N、起手 6+N。
         /// 与 TutorialId 同口径：注入方设值后保持到终局（ReportBattleResult 读取落档），
         /// 每次进挑战模式都会重设，无跨局残留问题。</summary>
@@ -61,6 +65,10 @@ namespace SynergyUI
         /// <summary>挑战模式玩家卡组（2026-10-06）：null=随机卡组（RandomDeckFrom 兜底）。
         /// 一次性消费防跨局残留（StartLocalFan 开局即置空）。</summary>
         public static List<CardData> ChallengeDeck;
+
+        /// <summary>挑战模式玩家技能标记卡 ID（2026-10-07 卡牌化）：与 ChallengeDeck 成对
+        /// 一次性消费；null=无技能。AI 侧随机卡组在 StartLocalFan 自动挑合格结界。</summary>
+        public static string ChallengeSkillCardId;
     }
 
     /// <summary>
@@ -68,7 +76,7 @@ namespace SynergyUI
     /// 2026-10-03 本地模式先以「双扇手牌 + 结束回合」过渡面运行——HandFanView 自原型屏移植接入，
     /// 出牌交互与原绑定/对局逻辑封存待 3D 层重接；同日过渡面预制体化：静态层级回归
     /// Assets/Art/UI/BattleUI.prefab（Tools/验证/对战UI/BattleUI预制体装配 幂等重建），
-    /// Build=按名绑定+缺失代码兜底（bind-or-create 双轨同构）。
+    /// Build=按名绑定（2026-10-07 兜底退役：缺节点 LogError 跳过，不代码补建）。
     /// 历史口径（2026-10-01 预制体化，封存代码对照用）：静态层级来自 BattleUI.prefab，Build 深度按名
     /// 绑定；战场格子/手牌槽复用烘焙节点（按序对应棋盘 x 位），战报行/弹窗运行时构建。
     /// 本地 AI（GameCore/GameActions 直连）与网络（MsgGameStateSync 快照全量渲染 +
@@ -125,48 +133,52 @@ namespace SynergyUI
 
         // 2026-10-02 定案：战场改为 3D + 部分透明 UI 重做，旧 uGUI 预制体已删除（不具指导意义）。
         // 2026-10-03 过渡面预制体化：静态层级回归 Assets/Art/UI/BattleUI.prefab
-        // （Tools/验证/对战UI/BattleUI预制体装配 幂等重建），Build=按名绑定+缺失代码兜底；
+        // （Tools/验证/对战UI/BattleUI预制体装配 幂等重建），Build=按名绑定（2026-10-07 起缺节点不补建）；
         // 原预制体绑定逻辑封存于 BindLegacyPrefabNodes、对局启动/刷新链全部保留，待 3D 层重接。
         protected override string PrefabName => "BattleUI";
         protected override string RootName => "battle";
 
         protected override void Build()
         {
-            // 预制体缺失兜底（CreateRoot 已 LogError 并回落空屏根）：纯代码构建同构层级
-            if (Root == null) Root = UiKit.Screen(RootName, Parent);
-
             // 战场=3D 棋盘可见（2026-10-03 定案：UI 不挡世界相机）——底图只留射线拦截语义，去不透明度
             var bg = Root.GetComponent<Image>();
             if (bg != null) bg.color = new Color(bg.color.r, bg.color.g, bg.color.b, 0f);
 
-            BindOrCreateButton("btn-back", "← 返回主菜单", () => Manager.Back());
+            BindBattleButton("btn-back", "← 返回主菜单", () => Manager.Back());
 
-            // 终局弹窗层（沿用旧 ModalBox 口径；预制体不烘焙——UiKit.Overlay 运行时补建置顶）
-            _overlay = FindOptional("overlay") ?? UiKit.Overlay("overlay", Root);
+            // 终局弹窗层（2026-10-07 兜底退役：prefab 烘焙 overlay；缺失 LogError——各弹窗直接跳过）
+            _overlay = Find("overlay");
 
             // 结束回合：右下角独立锚点，逃逸屏根纵向布局（不占顶部）
-            _btnEndFan = BindOrCreateButton("btn-end-turn", "结束回合", OnEndTurnFan);
-            var endRt = (RectTransform)_btnEndFan.transform;
-            var endLe = endRt.GetComponent<LayoutElement>() ?? endRt.gameObject.AddComponent<LayoutElement>();
-            endLe.ignoreLayout = true;
-            endRt.anchorMin = endRt.anchorMax = new Vector2(1f, 0f);
-            endRt.anchoredPosition = new Vector2(-24f, 240f); // 手牌扇侧翼上方
-            var endLbl = _btnEndFan.GetComponentInChildren<TMP_Text>();
-            endRt.sizeDelta = new Vector2((endLbl != null ? endLbl.preferredWidth : 0f) + 28f, 36f);
-            _btnEndFan.gameObject.SetActive(false);           // 仅本地对局显示（OnEnter 开）
+            _btnEndFan = BindBattleButton("btn-end-turn", "结束回合", OnEndTurnFan);
+            if (_btnEndFan != null)
+            {
+                var endRt = (RectTransform)_btnEndFan.transform;
+                var endLe = endRt.GetComponent<LayoutElement>() ?? endRt.gameObject.AddComponent<LayoutElement>();
+                endLe.ignoreLayout = true;
+                endRt.anchorMin = endRt.anchorMax = new Vector2(1f, 0f);
+                endRt.anchoredPosition = new Vector2(-24f, 240f); // 手牌扇侧翼上方
+                var endLbl = _btnEndFan.GetComponentInChildren<TMP_Text>();
+                endRt.sizeDelta = new Vector2((endLbl != null ? endLbl.preferredWidth : 0f) + 28f, 36f);
+                _btnEndFan.gameObject.SetActive(false);           // 仅本地对局显示（OnEnter 开）
+            }
 
             // 双方手牌扇区（配置承自原型屏：底部己方全正面拱形弧、顶部对手缩小卡背扇）
-            _selfFan = new HandFanView(FanLayer("self-fan-layer"), new HandFanView.Config
-            {
-                Center = new Vector2(0f, -375f), // 卡心离屏底 ~165px（悬停抬起后不越界）
-            });
-            _oppFan = new HandFanView(FanLayer("opp-fan-layer"), new HandFanView.Config
-            {
-                TopSide = true,
-                Center = new Vector2(0f, 375f),
-                BaseScale = 0.72f,
-                MaxFanWidth = 830f,
-            });
+            var selfLayer = FanLayer("self-fan-layer");
+            if (selfLayer != null)
+                _selfFan = new HandFanView(selfLayer, new HandFanView.Config
+                {
+                    Center = new Vector2(0f, -375f), // 卡心离屏底 ~165px（悬停抬起后不越界）
+                });
+            var oppLayer = FanLayer("opp-fan-layer");
+            if (oppLayer != null)
+                _oppFan = new HandFanView(oppLayer, new HandFanView.Config
+                {
+                    TopSide = true,
+                    Center = new Vector2(0f, 375f),
+                    BaseScale = 0.72f,
+                    MaxFanWidth = 830f,
+                });
 
             UiKit.Updater.Attach(Root, () =>
             {
@@ -175,35 +187,26 @@ namespace SynergyUI
             });
         }
 
-        /// <summary>按钮按名绑定：预制体节点接线点击（含 [UI点击] 日志）并回写文案（防烘焙文案漂移）；
-        /// 节点缺失（纯代码兜底路径）时 UiKit 补建。节点在而无 Button=LogError 后照补不误。</summary>
-        private Button BindOrCreateButton(string name, string text, Action onClick)
+        /// <summary>按钮按名绑定（2026-10-07 兜底退役）：预制体节点接线点击（含 [UI点击] 日志）并回写文案
+        ///（防烘焙文案漂移）；缺节点/缺 Button 组件 LogError 返回 null——不再代码补建。</summary>
+        private Button BindBattleButton(string name, string text, Action onClick)
         {
-            var node = FindOptional(name);
+            var node = Find(name);
             var btn = node != null ? node.GetComponentInChildren<Button>(true) : null;
-            if (btn != null)
+            if (btn == null)
             {
-                var lbl = btn.GetComponentInChildren<TMP_Text>(true);
-                if (lbl != null) lbl.text = text;
-                btn.onClick.AddListener(() => { Debug.Log($"[UI点击] {name}"); onClick(); });
-                return btn;
+                if (node != null) Debug.LogError($"[{GetType().Name}] 预制体节点无 Button 组件：{name}");
+                return null; // 缺节点已由 Find 另报
             }
-            if (node != null)
-                Debug.LogError($"[{GetType().Name}] 预制体节点无 Button 组件：{name}（代码补建）");
-            return UiKit.Button(name, Root, text, onClick);
+            var lbl = btn.GetComponentInChildren<TMP_Text>(true);
+            if (lbl != null) lbl.text = text;
+            btn.onClick.AddListener(() => { Debug.Log($"[UI点击] {name}"); onClick(); });
+            return btn;
         }
 
-        /// <summary>扇区挂载层：预制体按名绑定、缺失代码补建——全屏铺开做卡牌画布，
-        /// 逃逸屏根纵向布局（同 UiKit.Overlay 口径）。</summary>
-        private RectTransform FanLayer(string name)
-        {
-            var existing = FindOptional(name);
-            if (existing != null) return existing;
-            var rt = UiKit.Node(name, Root);
-            rt.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-            UiKit.Stretch(rt);
-            return rt;
-        }
+        /// <summary>扇区挂载层单名绑定（2026-10-07 兜底退役）：全屏铺开做卡牌画布（烘焙态已定）；
+        /// 缺层 LogError 返回 null——对应手牌扇不渲染（Tick/SetCards 已空引用安全）。</summary>
+        private RectTransform FanLayer(string name) => Find(name);
 
         /// <summary>封存：2026-10-01 预制体化时代的 BattleUI.prefab 深度按名绑定（预制体已删）。
         /// 保留供 3D 层重接时对照字段清单与接线口径，勿删。</summary>
@@ -300,14 +303,14 @@ namespace SynergyUI
             if (_btnPass != null)
                 _btnPass.gameObject.SetActive(IsNetwork);
 
-            _btnEndFan.gameObject.SetActive(!IsNetwork);
+            _btnEndFan?.gameObject.SetActive(!IsNetwork);
             if (IsNetwork)
             {
                 Debug.Log("[BattleScreen] 空屏桩（战场 UI 待 3D 重做，对局逻辑代码保留）——网络模式入口暂不可用");
                 return;
             }
 
-            _btnEndFan.interactable = true;
+            if (_btnEndFan != null) _btnEndFan.interactable = true;
             StartLocalFan();
             BattleStageDirector.MountBoardAndDawnAsync().Forget(); // 转场③④：装载棋盘 → 光源 -20°→45° 日出
         }
@@ -426,19 +429,28 @@ namespace SynergyUI
             _ctrl = new BattleController();
             var mirrorDeck = BattleEntry.MirrorDeck; // 一次性消费（防跨局残留，同 Client 口径）
             BattleEntry.MirrorDeck = null;
+            var mirrorSkill = BattleEntry.MirrorSkillCardId;
+            BattleEntry.MirrorSkillCardId = null;
             var challengeDeck = BattleEntry.ChallengeDeck; // 一次性消费（挑战模式玩家卡组）
             BattleEntry.ChallengeDeck = null;
+            var challengeSkill = BattleEntry.ChallengeSkillCardId;
+            BattleEntry.ChallengeSkillCardId = null;
             if (mirrorDeck != null)
-                _ctrl.StartNewGame(mirrorDeck, mirrorDeck); // 最后一课/考核镜像局：AI 打同卡组
+                // 最后一课/考核镜像局：AI 打同卡组（技能标记双方同用——镜像口径）
+                _ctrl.StartNewGame(mirrorDeck, mirrorDeck,
+                    mySkillCardId: mirrorSkill, aiSkillCardId: mirrorSkill);
             else if (BattleEntry.Mode == BattleMode.Challenge)
             {
                 // 挑战模式（2026-10-06 单值联动）：难度 N = 电脑地牌槽 9+N、起手 6+N；
                 // AI 卡组缺省随机 30 张，策略按卡组主色自适配（AutoMatch：标签优先回落费用主色）
+                // 技能（2026-10-07 卡牌化）：玩家=卡组标记；AI 随机卡组自动挑一张合格结界
                 var difficulty = Mathf.Clamp(BattleEntry.ChallengeDifficulty, 1, ChallengeProgressManager.MaxDifficulty);
                 BattleEntry.ChallengeDifficulty = difficulty;
                 var aiDeck = BattleController.RandomDeckFrom(CardCatalog.LoadAll());
                 _ctrl.StartNewGame(challengeDeck, aiDeck, new SimpleAI(AiStrategy.AutoMatch(aiDeck)),
-                    aiLandCapBonus: difficulty, aiExtraOpeningDraws: difficulty);
+                    aiLandCapBonus: difficulty, aiExtraOpeningDraws: difficulty,
+                    mySkillCardId: challengeSkill,
+                    aiSkillCardId: HeroSkillSystem.AutoPickSkillCard(aiDeck));
             }
             else if (BattleEntry.Mode == BattleMode.Tutorial && !StartTutorialGame(_ctrl))
                 _ctrl.StartNewGame();
@@ -470,7 +482,7 @@ namespace SynergyUI
         private void OnGameOverFan(GameOverEvent e)
         {
             _gameEnded = true;
-            _btnEndFan.interactable = false;
+            if (_btnEndFan != null) _btnEndFan.interactable = false;
             bool win = e.Winner == P1;
             TutorialFlow.ReportBattleResult(BattleEntry.Mode, win); // 教学逻辑层：考核局/教学局结果落档
             ShowOverlay(win ? "胜利" : "失败", $"{(win ? "我方" : "对手")}获胜（{e.Reason}）。");
@@ -511,8 +523,8 @@ namespace SynergyUI
                 });
             }
 
-            _selfFan.SetCards(self);
-            _oppFan.SetCards(opp);
+            _selfFan?.SetCards(self);
+            _oppFan?.SetCards(opp);
         }
 
         /// <summary>背面卡的空内容（Key 仅为口径完整；文字被 back 覆盖不可见）。</summary>
@@ -825,8 +837,9 @@ namespace SynergyUI
             if (_selfHand == null) return;
             int count = d.SelfHand?.Count ?? 0;
             EnsureChildCount(_selfHand, count, "hand-slot", 132f, 184f);
+            int slots = Mathf.Min(count, _selfHand.childCount); // 缺额不补建——按现有槽渲染
 
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < slots; i++)
             {
                 var slot = (RectTransform)_selfHand.GetChild(i);
                 ClearChildren(slot);
@@ -841,7 +854,8 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>子节点数量对齐（复用预制体烘焙子物体；多余摘父销毁、缺失代码补建默认样式）。</summary>
+        /// <summary>子节点数量对齐（2026-10-07 兜底退役）：多余摘父销毁；不足只 LogError 不补建——
+        /// 预制体须烘焙满额（六行 9 cell/手牌条满手牌数），缺额部分本帧不渲染。</summary>
         private static void EnsureChildCount(RectTransform parent, int count, string childName, float w, float h)
         {
             while (parent.childCount > count)
@@ -850,18 +864,8 @@ namespace SynergyUI
                 last.SetParent(null);
                 UnityEngine.Object.Destroy(last.gameObject);
             }
-            while (parent.childCount < count)
-            {
-                var rt = UiKit.Node(childName, parent);
-                var img = rt.gameObject.AddComponent<Image>();
-                img.sprite = UiKit.RoundedSprite;
-                img.type = Image.Type.Sliced;
-                img.color = UiStyle.CellBg;
-                var ol = rt.gameObject.AddComponent<Outline>();
-                ol.effectColor = new Color(38f / 255f, 42f / 255f, 51f / 255f, 1f);
-                ol.effectDistance = Vector2.one;
-                UiKit.Size(rt, w: w, h: h);
-            }
+            if (parent.childCount < count)
+                Debug.LogError($"[BattleScreen] 预制体烘焙 {childName} 不足（{parent.childCount}/{count}）——缺额不补建；检查 BattleUI.prefab");
         }
 
         private void UpdateButtons(BattleViewData d)
@@ -869,7 +873,8 @@ namespace SynergyUI
             bool myMain = d.MyTurn && d.Phase == PhaseType.Main && !_gameEnded;
 
             _btnGrave.interactable = myMain && d.Self.GraveyardCount > 0;
-            // 网络协议无技能 intent 通道（IntentActivateEffect 寻址卡面效果定义，技能卡不挂原子）——本地可用，网络暂禁
+            // 网络协议无技能 intent 通道（2026-10-07 卡牌化后技能卡已挂真实效果定义，
+            // 理论可走 IntentActivateEffect 寻址，但通道/验签未做——本地可用，网络暂禁）
             _btnSkill.interactable = !IsNetwork && myMain && !_gameEnded;
             _btnPass.interactable = IsNetwork && d.StackNotEmpty && d.MyPriority && !_gameEnded;
             _btnEnd.interactable = d.MyTurn && !_gameEnded;
@@ -1342,6 +1347,7 @@ namespace SynergyUI
 
         private void ShowPickOverlay(string title, string hint, List<Tuple<string, Action>> options)
         {
+            if (_overlay == null) return; // 预制体缺 overlay（Build 已报）——弹窗跳过（2026-10-07 兜底退役）
             _modal?.Close();
             _modal = UiKit.ModalBox(_overlay, title, width: 460f, height: 460f);
             UiKit.Label("hint", _modal.Panel, hint, UiStyle.SmallSize, UiStyle.TextDim, wrap: true);
@@ -1357,6 +1363,7 @@ namespace SynergyUI
 
         private void ShowChoiceOverlay(string title, string hint, List<string> options, Action<int> onPick)
         {
+            if (_overlay == null) return; // 预制体缺 overlay（Build 已报）——弹窗跳过（2026-10-07 兜底退役）
             _modal?.Close();
             _modal = UiKit.ModalBox(_overlay, title, width: 460f, height: 460f);
             UiKit.Label("hint", _modal.Panel, hint, UiStyle.SmallSize, UiStyle.TextDim, wrap: true);
@@ -1372,6 +1379,7 @@ namespace SynergyUI
 
         private void ShowOverlay(string title, string hint)
         {
+            if (_overlay == null) return; // 预制体缺 overlay（Build 已报）——弹窗跳过（2026-10-07 兜底退役）
             _modal?.Close();
             _modal = UiKit.ModalBox(_overlay, title, width: 460f, height: 260f);
             UiKit.Label("hint", _modal.Panel, hint, UiStyle.SmallSize, UiStyle.TextDim, wrap: true);

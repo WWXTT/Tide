@@ -17,6 +17,17 @@ namespace CardCore
     /// - 局重置回收（GameCore.Reset 组合根：槽位/各规则状态清空 + 替代件重挂——
     ///   ReplacementEngine.ClearAll 之后）。
     /// </summary>
+    /// <summary>规则光环作用范围（2026-10-07 极性门控定案）：存 ModifyGameRule 原子步 entry.value；
+    /// 己方=仅光环控制者一侧，对方=仅其对手一侧，双方=两侧（缺省 1=双方，兼容存量仪典步 value=1）。
+    /// 合成器选项按表行 Polarity 门控：+1 只 {己方,双方}、-1 只 {对方,双方}、0 三选；
+    /// 计价沿用双方让利口径（CostDerivation.IsSymmetricBothSides）：双方 ×0.5、单侧全价。</summary>
+    public enum RuleAuraScope
+    {
+        Own = 0,      // 仅己方（光环控制者一侧）
+        Both = 1,     // 双方（缺省）
+        Opponent = 2, // 仅对方（光环控制者的对手一侧）
+    }
+
     public static class RuleAuraSystem
     {
         /// <summary>当前激活的规则光环（查询口：UI/战报展示；null=无）。</summary>
@@ -25,75 +36,118 @@ namespace CardCore
             public string RuleId;
             public Card Carrier;
             public Player Controller;
+            public int Scope = (int)RuleAuraScope.Both; // RuleAuraScope 序（激活时由原子步 Value 传入）
         }
 
-        private static ActiveRuleAura _active;
+        private static readonly System.Collections.Generic.Dictionary<string, ActiveRuleAura> _active
+            = new System.Collections.Generic.Dictionary<string, ActiveRuleAura>();
         private static bool _registered;
 
-        public static ActiveRuleAura Active => _active;
+        /// <summary>当前激活的规则光环（查询口：验证夹具/战报展示；每条仪典各一槽——异名共存）。</summary>
+        public static System.Collections.Generic.IReadOnlyList<ActiveRuleAura> ActiveRules
+            => _active.Values.ToList();
 
-        /// <summary>规则是否生效（实时查询：槽位匹配 + 载体在战场且存活）。</summary>
+        /// <summary>指定仪典的活跃载体（null=未激活/已失效；窥渊展示源等按规则取载体）。</summary>
+        public static Card CarrierOf(string ruleId)
+            => IsActive(ruleId) ? _active[ruleId].Carrier : null;
+
+        /// <summary>指定仪典的活跃控制者（null=未激活；舍身转投目标=其 Opponent）。</summary>
+        public static Player ControllerOf(string ruleId)
+            => IsActive(ruleId) ? _active[ruleId].Controller : null;
+
+        /// <summary>槽位活性（ruleId 匹配 + 载体在战场且存活——离场/死亡自然失效，无需显式移除）。</summary>
+        private static bool Matches(ActiveRuleAura s, string ruleId)
+            => s != null && s.RuleId == ruleId && s.Carrier != null && s.Carrier.IsAlive
+               && s.Carrier.GetZone() == Zone.Battlefield;
+
+        /// <summary>规则是否生效（实时查询；2026-10-07 唯一性改版：异名共存——按 ruleId 各自独立槽）。</summary>
         public static bool IsActive(string ruleId)
-            => _active != null
-               && !string.IsNullOrEmpty(ruleId)
-               && _active.RuleId == ruleId
-               && _active.Carrier != null
-               && _active.Carrier.IsAlive
-               && _active.Carrier.GetZone() == Zone.Battlefield;
+            => !string.IsNullOrEmpty(ruleId)
+               && _active.TryGetValue(ruleId, out var s) && Matches(s, ruleId);
 
-        /// <summary>战斗改写仪典的持有者侧命中查询（2026-10-05 定案，仅持有者生效）：
-        /// 当前激活的改写光环存活、且 source 是**光环控制者**的卡 → 返回对应改写关键词 id
-        ///（施加/审计复用 KeywordRules 口径）；否则 null。固定序=毒&gt;冻&gt;眠&gt;疫由常量唯一性天然保证
-        ///（全局唯一槽同一时刻至多一条改写光环）。</summary>
+        /// <summary>作用范围命中（2026-10-07 范围化）：规则活跃且 p 一侧在生效范围内。
+        /// 各规则消费点按「规则作用于谁」传对应玩家——三相=支付者、轮回=回合玩家、
+        /// 离散/丰盈=受击/受疗方、血偿=受伤回合方、疾风=出牌者、负面光环族=受咒方。</summary>
+        public static bool ScopeHits(string ruleId, Player p)
+        {
+            if (p == null || !IsActive(ruleId)) return false;
+            var s = _active[ruleId];
+            var scope = (RuleAuraScope)s.Scope;
+            if (scope == RuleAuraScope.Both) return true;
+            var ctrl = s.Controller;
+            return ctrl == null ? false
+                : scope == RuleAuraScope.Opponent
+                    ? ReferenceEquals(p, ctrl.Opponent)
+                    : ReferenceEquals(p, ctrl);
+        }
+
+        /// <summary>战斗伤害改写命中查询（2026-10-07 舍身仪典定案——原毒/冻/眠/疫四改写映射随
+        /// 负面光环化退役，改写管线收敛为舍身单映射）：舍身光环存活、且 source 一侧在生效范围
+        ///（ScopeHits）→ 返回 CombatRedirect；否则 null。消费方：KeywordRules.ApplyDamage 战斗分支
+        ///（改为对光环控制者的对手角色等量伤害）。</summary>
         public static string HolderRewriteFor(Card source)
         {
-            if (_active == null || source == null || !IsActive(_active.RuleId)) return null;
+            if (source == null || !IsActive(RuleAuraComponents.CombatRedirect)) return null;
             var owner = source.GetController();
-            if (owner == null || !ReferenceEquals(owner, _active.Controller)) return null;
-            switch (_active.RuleId)
-            {
-                case RuleAuraComponents.CombatToxin: return Attribute.KeywordRules.PoisonSting;
-                case RuleAuraComponents.CombatFreeze: return Attribute.KeywordRules.IceCrystal;
-                case RuleAuraComponents.CombatSleep: return Attribute.KeywordRules.Nightmare;
-                case RuleAuraComponents.CombatVenom: return Attribute.KeywordRules.Pathogen;
-                default: return null;
-            }
+            if (!ScopeHits(RuleAuraComponents.CombatRedirect, owner)) return null;
+            return RuleAuraComponents.CombatRedirect;
         }
 
         /// <summary>
-        /// 激活规则光环（ModifyGameRuleHandler 调）：全局唯一——旧载体送墓（DestroyReason.Destroyed）
-        /// 再登记新槽。同一载体重复激活不触发替换（幂等重登记）。
+        /// 激活规则光环（ModifyGameRuleHandler 调；2026-10-07 唯一性改版：**同名禁止、异名共存**——
+        /// 同 ruleId 光环已活跃（载体在场）→ 拒绝激活（告警空转，不送墓任何旧光环）；
+        /// 异名 → 各自独立槽登记。scope=RuleAuraScope 序（缺省双方）。
+        /// 打出侧拦截见 GameActions 同名仪典闸；直投路径（教学 Seeder）由本拒绝兜底。
         /// </summary>
-        public static void Activate(string ruleId, Card carrier, Player controller)
+        public static void Activate(string ruleId, Card carrier, Player controller,
+            int scope = (int)RuleAuraScope.Both)
         {
             if (string.IsNullOrEmpty(ruleId) || carrier == null) return;
 
-            var old = _active;
-            if (old != null && old.Carrier != null && !ReferenceEquals(old.Carrier, carrier))
+            // 清扫失效槽（载体离场/死亡残留——活性本就可推导，清扫防字典膨胀）
+            System.Collections.Generic.List<string> dead = null;
+            foreach (var kv in _active)
+                if (!Matches(kv.Value, kv.Key))
+                    (dead ??= new System.Collections.Generic.List<string>()).Add(kv.Key);
+            if (dead != null)
+                foreach (var k in dead) _active.Remove(k);
+
+            if (IsActive(ruleId))
             {
-                var oldOwner = old.Carrier.GetController();
-                var core = GameCore.Instance;
-                if (core?.ZoneManager != null && oldOwner != null
-                    && old.Carrier.GetZone() == Zone.Battlefield)
-                    core.ZoneManager.MoveCard(old.Carrier, oldOwner, Zone.Battlefield, Zone.Graveyard);
-                EventManager.Instance.Publish(new CardDestroyEvent
-                {
-                    DestroyedCard = old.Carrier,
-                    Reason = DestroyReason.Destroyed,
-                    Source = carrier
-                });
+                TideLog.Warn($"[RuleAuraSystem] 同名规则光环已在场（{ruleId}）——不重复激活"
+                             + "（2026-10-07 唯一性定案：同名禁止、异名共存，不再送墓替换）");
+                return;
             }
 
-            _active = new ActiveRuleAura { RuleId = ruleId, Carrier = carrier, Controller = controller };
+            _active[ruleId] = new ActiveRuleAura { RuleId = ruleId, Carrier = carrier, Controller = controller, Scope = scope };
             RuleAuraComponents.OnAuraChanged();
 
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
                 Target = carrier,
                 Keyword = "规则光环",
-                Detail = $"规则光环激活：{ruleId}（{RuleAuraScopeZh(ruleId)}；新光环登场会把旧光环载体送墓）",
+                Detail = $"规则光环激活：{ruleId}（{RuleAuraScopeZh(scope)}；同名在场时不可再打出，载体离场即失效）",
                 Source = controller,
             });
+        }
+
+        /// <summary>同名仪典打出闸（GameActions.PlayCard/PlayCardInResponse 消费，2026-10-07 唯一性定案）：
+        /// 卡的任一原子步 str 指向当前活跃规则光环（同名在场）→ true=禁止打出；异名不受限。</summary>
+        public static bool BlocksDuplicatePlay(Card card)
+        {
+            var data = (card as CardWrapper)?.GetData();
+            if (data?.Effects == null || _active.Count == 0) return false;
+            foreach (var fx in data.Effects)
+            {
+                if (fx == null) continue;
+                if (fx.AtomicEffects != null)
+                    foreach (var a in fx.AtomicEffects)
+                        if (a != null && IsActive(a.str)) return true;
+                if (fx.Steps != null)
+                    foreach (var s in fx.Steps)
+                        if (s?.kind == 0 && s.atomic != null && IsActive(s.atomic.str)) return true;
+            }
+            return false;
         }
 
         /// <summary>组合根登记（GameCore.Reset 调，幂等）：规则组件一次性挂各自钩子（进程 lifetime）。</summary>
@@ -107,7 +161,7 @@ namespace CardCore
         /// <summary>局重置（GameCore.Reset 调）：槽位与各规则状态跨局不残留。</summary>
         public static void Reset()
         {
-            _active = null;
+            _active.Clear();
             RuleAuraComponents.Reset();
         }
 
@@ -122,9 +176,16 @@ namespace CardCore
         public static void RevealAndLockAtTurnEnd(Player turnPlayer)
             => RuleAuraComponents.RevealAndLockAtTurnEnd(turnPlayer);
 
-        /// <summary>规则光环作用域中文（播报/UI 共用）：改写仪典四条=仅持有者生效；其余=对双方生效。</summary>
+        /// <summary>规则光环作用范围中文（播报/UI 共用，2026-10-07 范围化定案）：按激活时选择的范围。
+        ///（原改写仪典"仅持有者生效"硬编码口径退役——运行时一律 ScopeHits 按范围判定。）</summary>
+        public static string RuleAuraScopeZh(int scope)
+            => scope == (int)RuleAuraScope.Own ? "仅己方生效"
+             : scope == (int)RuleAuraScope.Opponent ? "仅对方生效" : "对双方生效";
+
+        /// <summary>旧签名（按规则 id 报文）——合成器 AutoName 存量调用兼容；
+        /// 无范围数据时按改写族=己方、其余=双方（与范围化前行为一致）。新代码走 RuleAuraScopeZh(int)。</summary>
         public static string RuleAuraScopeZh(string ruleId)
-            => RuleAuraComponents.IsHolderScoped(ruleId) ? "仅持有者生效" : "对双方生效";
+            => RuleAuraComponents.IsHolderScoped(ruleId) ? "仅己方生效" : "对双方生效";
     }
 
     /// <summary>
@@ -146,16 +207,21 @@ namespace CardCore
         public const string DoubleTurn = "DoubleTurn";               // 轮回仪典（2026-10-04 承接原疾风：双人连两回合）
         public const string HandLimitNoFatigue = "HandLimitNoFatigue"; // 纳川仪典
 
-        // ---- 战斗改写仪典（2026-10-05 定案：四条改写从有限分支改写门迁唯一光环；仅持有者生效——
-        // 与既有 9 条"对双方生效"不同，首个单侧语义：只改写光环控制者的生物造成的战斗伤害。
-        // 命中查询收口 RuleAuraSystem.HolderRewriteFor；施加口径复用 KeywordRules.ApplyRewriteCounter。）----
-        public const string CombatToxin = "CombatToxin";             // 毒蚀仪典（毒素指示物）
-        public const string CombatFreeze = "CombatFreeze";           // 霜蚀仪典（冻结指示物）
-        public const string CombatSleep = "CombatSleep";             // 眠蚀仪典（沉睡指示物）
-        public const string CombatVenom = "CombatVenom";             // 疫蚀仪典（剧毒指示物）
+        // ---- 四负面光环仪典（2026-10-07 负面化定案：原"战斗伤害改写为指示物"语义退役，
+        // 改持续型挂层——受光环影响的生物按各自触发点叠对应指示物；钩子在本类，代码侧实现）：
+        // 毒蚀=受到伤害后叠毒素；霜蚀=攻击后冻结；眠蚀=启动式主动发动后叠沉睡（仅启动式——用户定案）；
+        // 疫蚀=对角色造成伤害后叠剧毒。改写管线收敛为舍身仪典（CombatRedirect）单映射。----
+        public const string CombatToxin = "CombatToxin";             // 毒蚀仪典（受到伤害→毒素）
+        public const string CombatFreeze = "CombatFreeze";           // 霜蚀仪典（攻击后→冻结）
+        public const string CombatSleep = "CombatSleep";             // 眠蚀仪典（启动式发动→沉睡）
+        public const string CombatVenom = "CombatVenom";             // 疫蚀仪典（对角色伤害→剧毒）
 
-        /// <summary>是否"仅持有者生效"的规则光环（战斗改写仪典四条；其余=对双方生效）。
-        /// UI 标签与播报文案按此区分。</summary>
+        // ---- 战斗伤害改写仪典（2026-10-07 舍身定案：受光环影响的生物造成战斗伤害时，
+        // 改为对光环控制者的对手角色等量伤害——战斗伤害不发生。唯一改写映射，见 HolderRewriteFor。）----
+        public const string CombatRedirect = "CombatRedirect";       // 舍身仪典（伤害转投对手角色）
+
+        /// <summary>是否四负面光环族（毒/冻/眠/疫）。缺省范围与极性驱动（负→对方）；
+        /// 运行时判定走 ScopeHits，不再读本口（保留供展示/分类）。</summary>
         public static bool IsHolderScoped(string ruleId)
             => ruleId == CombatToxin || ruleId == CombatFreeze
                || ruleId == CombatSleep || ruleId == CombatVenom;
@@ -181,9 +247,11 @@ namespace CardCore
         public static bool IsLockedThisTurn(Card card)
             => card != null && card.GetCounterCount(Attribute.CounterRules.LockCounter) > 0;
 
-        /// <summary>从手牌使用的卡发动速度加成（疾风仪典 2026-10-04 改造）：+1 经
-        /// SpeedCalculator.GetCardCastSpeed 单源作用（出牌/响应出牌/AI 预检/速度门同口径）。</summary>
-        public static int CardCastSpeedBonus => RuleAuraSystem.IsActive(CastSpeedUp) ? 1 : 0;
+        /// <summary>从手牌使用的卡发动速度加成（疾风仪典 2026-10-04 改造；2026-10-07 范围化：
+        /// 按出牌者一侧判命中）：+1 经 SpeedCalculator.GetCardCastSpeed 单源作用
+        ///（出牌/响应出牌/AI 预检/速度门同口径）。</summary>
+        public static int CardCastSpeedBonus(Player caster)
+            => RuleAuraSystem.ScopeHits(CastSpeedUp, caster) ? 1 : 0;
 
         public static void EnsureRegistered()
         {
@@ -201,6 +269,87 @@ namespace CardCore
             RuleHooks.RegisterPlayRestriction(new LockedCardRestriction());
             // 纳川：手牌上限 7→15（修改链，实时查询）
             RuleHooks.RegisterHandLimitModifier(new HandLimitModifier());
+            // 四负面光环（2026-10-07 负面化定案）：毒蚀/疫蚀走 DamageEvent 分流、
+            // 霜蚀走 AttackResolvedEvent（CombatSystem 攻击结算完成发布）、
+            // 眠蚀走 EffectExecutionEngine 启动式结算点直调（OnActivatedForSleepAura）
+            EventManager.Instance.Subscribe<DamageEvent>(OnDamageForNegativeAuras);
+            EventManager.Instance.Subscribe<AttackResolvedEvent>(OnAttackResolvedForFreeze);
+        }
+
+        // ============ 四负面光环（2026-10-07 负面化定案：持续型挂层，代码侧实现） ============
+
+        /// <summary>毒蚀/疫蚀分流钩（DamageEvent）：
+        /// 毒蚀=受光环影响的生物受到伤害 → 受击者叠 1 层毒素（回合末每层 1 伤后清空；
+        /// 毒素自身的回合末伤害会再触发叠层——文本字面语义，递增螺旋）；
+        /// 疫蚀=受光环影响的生物对角色造成伤害 → 施伤者自身叠 1 层剧毒（回合末死亡裁决）。</summary>
+        private static void OnDamageForNegativeAuras(DamageEvent e)
+        {
+            if (e?.Target == null || e.Amount <= 0) return;
+            if (e.Target is Player && e.Source is Card venomSrc && venomSrc.IsAlive)
+            {
+                var owner = venomSrc.GetController();
+                if (!RuleAuraSystem.ScopeHits(CombatVenom, owner)) return;
+                var carrier = RuleAuraSystem.CarrierOf(CombatVenom);
+                venomSrc.AddCounters(Attribute.CounterRules.PoisonCounter, 1, carrier);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = venomSrc,
+                    Keyword = CombatVenom,
+                    Detail = $"疫蚀光环：{EffectText.Name(venomSrc)} 对角色造成伤害 → 叠加一层剧毒（回合末死亡裁决）",
+                    Source = carrier,
+                });
+            }
+            else if (e.Target is Card toxinTarget && toxinTarget.IsAlive)
+            {
+                var owner = toxinTarget.GetController();
+                if (!RuleAuraSystem.ScopeHits(CombatToxin, owner)) return;
+                var carrier = RuleAuraSystem.CarrierOf(CombatToxin);
+                toxinTarget.AddCounters(Attribute.CounterRules.ToxinCounter, 1, carrier);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = toxinTarget,
+                    Keyword = CombatToxin,
+                    Detail = $"毒蚀光环：{EffectText.Name(toxinTarget)} 受到伤害 → 叠加一层毒素（回合末每层 1 伤）",
+                    Source = carrier,
+                });
+            }
+        }
+
+        /// <summary>霜蚀钩（AttackResolvedEvent）：受光环影响的生物攻击结算后冻结 1 层
+        ///（横置+封锁重置，持有者回合末消退——攻击后横置等于锁过下一回合的重置）。</summary>
+        private static void OnAttackResolvedForFreeze(AttackResolvedEvent e)
+        {
+            if (!(e?.Attacker is Card attacker) || !attacker.IsAlive) return;
+            var owner = attacker.GetController();
+            if (!RuleAuraSystem.ScopeHits(CombatFreeze, owner)) return;
+            var carrier = RuleAuraSystem.CarrierOf(CombatFreeze);
+            attacker.Freeze(DurationType.UntilEndOfTurn, 1);
+            EventManager.Instance.Publish(new KeywordAppliedEvent
+            {
+                Target = attacker,
+                Keyword = CombatFreeze,
+                Detail = $"霜蚀光环：{EffectText.Name(attacker)} 攻击后冻结（横置锁，持有者回合末消退）",
+                Source = carrier,
+            });
+        }
+
+        /// <summary>眠蚀钩（EffectExecutionEngine 启动式结算完成点直调，2026-10-07 用户定案）：
+        /// 受光环影响的生物**仅启动式主动发动**后叠 1 层沉睡（触发式/登场不算——
+        /// 沉睡层自身拦截后续启动式发动+跳过重置，形成自我累积迟滞）。</summary>
+        public static void OnActivatedForSleepAura(Card activator)
+        {
+            if (activator == null || !activator.IsAlive) return;
+            var owner = activator.GetController();
+            if (!RuleAuraSystem.ScopeHits(CombatSleep, owner)) return;
+            var carrier = RuleAuraSystem.CarrierOf(CombatSleep);
+            activator.AddCounters(Attribute.KeywordRules.SleepCounter, 1, carrier);
+            EventManager.Instance.Publish(new KeywordAppliedEvent
+            {
+                Target = activator,
+                Keyword = CombatSleep,
+                Detail = $"眠蚀光环：{EffectText.Name(activator)} 启动式发动 → 叠加一层沉睡（拦截后续启动式+跳过重置）",
+                Source = carrier,
+            });
         }
 
         public static void Reset()
@@ -235,7 +384,7 @@ namespace CardCore
         {
             var core = GameCore.Instance;
             if (core == null || e?.Player == null || e.PaidCost == null) return;
-            if (!RuleAuraSystem.IsActive(ElementConversion)) return;
+            if (!RuleAuraSystem.ScopeHits(ElementConversion, e.Player)) return;
 
             if (!_spendCounters.TryGetValue(e.Player, out var perColor))
             {
@@ -271,7 +420,7 @@ namespace CardCore
                     Player = player,
                     ManaType = color,
                     Amount = 1,
-                    Source = RuleAuraSystem.Active?.Carrier,
+                    Source = RuleAuraSystem.CarrierOf(ElementConversion),
                 });
             }
         }
@@ -282,14 +431,14 @@ namespace CardCore
 
         internal static void RevealAndLockAtTurnEnd(Player turnPlayer)
         {
-            if (!RuleAuraSystem.IsActive(LockRevealed)) return;
+            if (!RuleAuraSystem.ScopeHits(LockRevealed, turnPlayer)) return;
             var locker = turnPlayer;
             var victim = locker?.Opponent;
             if (victim == null) return;
             var zm = GameCore.Instance?.ZoneManager;
             if (zm == null) return;
 
-            var carrier = RuleAuraSystem.Active?.Carrier;
+            var carrier = RuleAuraSystem.CarrierOf(LockRevealed);
 
             // ① 随机展示对手一张**未展示**手牌（自给展示源——RevealCard 原子同款口径，
             //    二值不叠层；全展示/空手 = 无新展示，锁定照常对既有被展示卡生效）
@@ -342,7 +491,7 @@ namespace CardCore
         {
             _graveQuotaUsed.Clear();
 
-            if (!RuleAuraSystem.IsActive(DoubleTurn))
+            if (!RuleAuraSystem.ScopeHits(DoubleTurn, e.TurnPlayer))
             {
                 _doubleTurnLastPlayer = null;
                 _doubleTurnConsecutive = 0;
@@ -366,8 +515,8 @@ namespace CardCore
         private sealed class GraveyardPlaySource : IPlaySource
         {
             public Zone SourceZone => Zone.Graveyard;
-            // 对双方生效：规则活着=双方可用地来源（配额各自独立——TryBeginUse 扣）
-            public bool CanUse(Player player) => RuleAuraSystem.IsActive(GraveyardPlay);
+            // 生效范围（2026-10-07 范围化——缺省双方）：范围内的玩家可用地来源（配额各自独立——TryBeginUse 扣）
+            public bool CanUse(Player player) => RuleAuraSystem.ScopeHits(GraveyardPlay, player);
             public bool TryBeginUse(Player player)
                 => CanUse(player) && !_graveQuotaUsed.Contains(player) && _graveQuotaUsed.Add(player);
         }
@@ -386,7 +535,7 @@ namespace CardCore
         private sealed class HandLimitModifier : IHandLimitModifier
         {
             public int Modify(Player player, int currentLimit)
-                => RuleAuraSystem.IsActive(HandLimitNoFatigue) ? 15 : currentLimit;
+                => RuleAuraSystem.ScopeHits(HandLimitNoFatigue, player) ? 15 : currentLimit;
         }
 
         // ============ 离散仪典（原蚕褪，2026-10-04 改版）：单次伤害二值离散——
@@ -405,7 +554,8 @@ namespace CardCore
                    && d.Amount != CapValue && d.Amount != FloorValue // 恰 3/5 不改写；1/2/4→3、6+→5
                    && (d.Target is Player
                        || (d.Target is Card dc && dc.IsLivingUnit())) // 生物（活体单位）与角色同门
-                   && RuleAuraSystem.IsActive(DamageCap);
+                   && RuleAuraSystem.ScopeHits(DamageCap,
+                       d.Target is Player tp ? tp : (d.Target as Card)?.GetController()); // 受击方一侧在范围内
 
             public override IGameEvent CreateReplacement(IGameEvent originalEvent, Effect sourceEffect)
                 => originalEvent is DamageEvent d
@@ -430,9 +580,11 @@ namespace CardCore
             {
                 if (!RuleAuraSystem.IsActive(BloodPact)) return false;
                 if (!(e is DamageEvent d) || d.Amount <= 0) return false;
-                // 己方回合判定：受伤者=当前回合玩家的角色（对手回合打我=不转移，回合对称）
+                // 己方回合判定：受伤者=当前回合玩家的角色（对手回合打我=不转移，回合对称）；
+                // 范围化（2026-10-07）：受伤回合方一侧须在生效范围内（缺省双方=旧行为）
                 var core = GameCore.Instance;
                 return d.Target is Player victim
+                       && RuleAuraSystem.ScopeHits(BloodPact, victim)
                        && core?.TurnEngine?.TurnPlayer != null
                        && ReferenceEquals(victim, core.TurnEngine.TurnPlayer);
             }
@@ -453,7 +605,7 @@ namespace CardCore
                 => e is FatigueEvent f
                    && f.Damage > 0
                    && f.Player != null
-                   && RuleAuraSystem.IsActive(HandLimitNoFatigue);
+                   && RuleAuraSystem.ScopeHits(HandLimitNoFatigue, f.Player);
 
             public override IGameEvent CreateReplacement(IGameEvent originalEvent, Effect sourceEffect)
                 => originalEvent is FatigueEvent f

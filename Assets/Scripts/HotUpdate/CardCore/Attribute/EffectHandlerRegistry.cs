@@ -250,28 +250,32 @@ namespace CardCore.Attribute
         }
 
         /// <summary>
-        /// 分支 Then 奖励的目标解析（两槽定案 2026-10-05；2026-10-07 奖励目标定案=合法范围内随机）：
-        /// 奖励有目标域时不弹选——候选经帷幕收窄后 GameRng 抽 1（组合层 RandomTarget 同口径：
-        /// 帷幕约束随机选择；扰魔/潜行/隐密挡不住随机）；隐藏区域/无域=空列表
-        /// （调用方按单次 null 目标执行——handler 自结算）。
+        /// 分支 Then 奖励的目标解析（两槽定案 2026-10-05；2026-10-07 晚定案=合法范围内弹窗选 1）：
+        /// 候选按手动选择口径两道过滤（帷幕收窄 + 弹窗显示域滤对方侧扰魔/潜行/隐密）后
+        /// 由 Chooser=效果控制者（自己）弹选 1；候选≤1 自动取不弹（AI/无头由 Service 自动选首）；
+        /// 隐藏区域/无域=空列表（调用方按单次 null 目标执行——handler 自结算）。
         /// </summary>
-        public static UniTask<List<Entity>> ResolveRewardTargetsAsync(
-            AtomicEffectInstance reward, EffectExecutionContext context)
-            => UniTask.FromResult(ResolveRewardTargets(reward, context));
-
-        /// <summary>同步实现：随机抽取无交互（GameRng 与数值随机同口——verify 可钉种子做确定性断言）。</summary>
-        private static List<Entity> ResolveRewardTargets(
-            AtomicEffectInstance reward, EffectExecutionContext context)
+        public static async UniTask<List<Entity>> ResolveRewardTargetsAsync(
+            AtomicEffectInstance reward, EffectExecutionContext context, string title = "选择奖励目标")
         {
             if (reward == null || context == null) return new List<Entity>();
             var kinds = reward.TargetKinds ?? new List<int>();
             if (kinds.Count == 0 || TargetKindRules.AllHiddenZone(kinds))
                 return new List<Entity>(); // 无目标/隐藏区自结算
 
-            var pool = TargetResolver.ApplyTauntRestriction(
-                ResolveCandidates(kinds, reward.Filter ?? "", context), context);
+            var pool = TargetResolver.ExcludeUnselectable(
+                TargetResolver.ApplyTauntRestriction(
+                    ResolveCandidates(kinds, reward.Filter ?? "", context), context),
+                context.Controller);
             if (pool.Count <= 1) return pool.Take(1).ToList();
-            return GameRng.PickN(pool, 1);
+            return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+            {
+                Candidates = pool,
+                MinCount = 1,
+                MaxCount = 1,
+                Chooser = context.Controller,
+                Title = title,
+            });
         }
 
         /// <summary>

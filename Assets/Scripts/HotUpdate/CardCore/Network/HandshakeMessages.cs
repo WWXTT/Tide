@@ -35,7 +35,9 @@ namespace CardCore.Network
     }
 
     /// <summary>上行：卡组提交（对局开始前）。CardIds 为 Cards.json 卡 ID（C_ 前缀内容哈希）；
-    /// Digest 为提交方本地按同一卡组计算的原子行摘要，服务器与自身计算结果比对。</summary>
+    /// Digest 为提交方本地按同一卡组计算的原子行摘要，服务器与自身计算结果比对。
+    /// SkillCardId（2026-10-07 卡牌化）：英雄技能标记卡 ID——服务器宽松校验（须 ∈ CardIds
+    /// 且为合格技能结界，否则按无技能开局），不参与 Digest 摘要口径。</summary>
     [MemoryPackable]
     public partial class MsgDeckSubmit
     {
@@ -47,6 +49,9 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.MDS_Digest)]
         public NetDeckDigest Digest;
+
+        [MemoryPackOrder(TagTable.MDS_SkillCardId)]
+        public string SkillCardId;
     }
 
     /// <summary>下行：对局清单（双座位 DeckSubmit 校验通过后下发）。

@@ -3,10 +3,11 @@ using CardCore.Attribute;
 namespace CardCore.Attribute.Handlers
 {
     /// <summary>
-    /// 规则光环投放原子（规则轴路线 B，2026-10-03 定案；ModifyGameRule 转正）：
-    /// str=规则短名（RuleAuraComponents 的七常量——与原子表 7 行一一对应），
-    /// Value 无用（规则参数由各规则自持）。挂在结界卡登场效果上——载体（CastCard）入场结算时
-    /// 激活 RuleAuraSystem：对双方生效、持续永久、全局唯一（新换旧送墓）、载体离场失效、
+    /// 规则光环投放原子（规则轴路线 B，2026-10-03 定案；ModifyGameRule 转正；2026-10-07 作用范围化）：
+    /// str=规则短名（RuleAuraComponents 常量——与原子表规则光环族行一一对应），
+    /// Value=作用范围序（RuleAuraScope：0=己方/1=双方（缺省）/2=对方——合成器按表行 Polarity 门控可选项，
+    /// 计价双方档 ×0.5 单侧全价）。挂在结界卡登场效果上——载体（CastCard）入场结算时
+    /// 激活 RuleAuraSystem：持续永久、全局唯一（新换旧送墓）、载体离场失效、
     /// 无方向箭头（非连接光环）。效果/指示物分离定案延续：本原子只负责投放，
     /// 规则体由 RuleAuraSystem/RuleHooks/ReplacementEngine 承载。
     /// </summary>
@@ -30,10 +31,10 @@ namespace CardCore.Attribute.Handlers
                 return;
             }
 
-            RuleAuraSystem.Activate(ruleId, carrier, context.Controller);
+            RuleAuraSystem.Activate(ruleId, carrier, context.Controller, effect.Value);
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"规则光环：{effect.StringValue}（{RuleAuraSystem.RuleAuraScopeZh(effect.StringValue)}，载体离场失效）";
+            => $"规则光环：{effect.StringValue}（{RuleAuraSystem.RuleAuraScopeZh(effect.Value)}，载体离场失效）";
     }
 }

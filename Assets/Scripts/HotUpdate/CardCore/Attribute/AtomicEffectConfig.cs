@@ -54,7 +54,7 @@ namespace CardCore.Attribute
         public float Polarity;
 
         /// <summary>可装载范围（2026-09-11 定案；2026-10-06 中文化）：CSV MountKind **中文名**
-        ///（主动/关键词/指示物/分支奖励/随机幅度/上限锁定/连接光环/系统/引擎主干/规则光环，
+        ///（入效果栏/关键词/指示物/分支奖励/随机幅度/连接光环/系统/引擎主干/规则光环，
         /// 解析双轨兼容序号）。空 = 未声明兜底不限。显性化装载位，
         /// 取代用 TargetKinds 反推主动/关键词/指示物的隐式口径。</summary>
         public string MountKinds;

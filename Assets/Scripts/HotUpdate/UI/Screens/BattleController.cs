@@ -48,7 +48,8 @@ namespace SynergyUI
         /// </summary>
         public void StartNewGame(List<CardData> myDeck = null, List<CardData> aiDeck = null,
             IAiTurnDriver aiDriver = null, bool lockDeckOrder = false, int? rngSeed = null,
-            TutorialScenario scenario = null, int aiLandCapBonus = 0, int aiExtraOpeningDraws = 0)
+            TutorialScenario scenario = null, int aiLandCapBonus = 0, int aiExtraOpeningDraws = 0,
+            string mySkillCardId = null, string aiSkillCardId = null)
         {
             var catalog = CardCatalog.LoadAll();
             // 原子表工坊改价生效点：教学基线在位时内部自动跳过（教学局用声明费）
@@ -56,14 +57,21 @@ namespace SynergyUI
             // 变形目标形态解析器：组合根注入（CardCore 不依赖 UI 层）
             CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
 
+            bool myRandom = myDeck == null, aiRandom = aiDeck == null;
             if (myDeck == null) myDeck = RandomDeckFrom(catalog);
             if (aiDeck == null) aiDeck = RandomDeckFrom(catalog);
             if (aiDriver != null) _ai = aiDriver;
 
+            // 英雄技能标记（2026-10-07 卡牌化）：显式卡组未带标记=无技能；
+            // 随机兜底卡组自动挑一张合格结界（与挑战 AI/RL 环境同口径）
+            string mySkill = mySkillCardId ?? (myRandom ? HeroSkillSystem.AutoPickSkillCard(myDeck) : null);
+            string aiSkill = aiSkillCardId ?? (aiRandom ? HeroSkillSystem.AutoPickSkillCard(aiDeck) : null);
+
             if (scenario != null)
             {
                 GameCore.Instance.InitGame(myDeck, aiDeck, rngSeed: rngSeed, lockDeckOrder: true,
-                    skipOpeningDraw: true, deferStart: true);
+                    skipOpeningDraw: true, deferStart: true,
+                    skillCardId1: mySkill, skillCardId2: aiSkill);
                 // 标记 P2 为 AI：目标选择器对 AI 跳过弹窗、即时自动选择。
                 if (GameCore.Instance.Player2 != null)
                     GameCore.Instance.Player2.IsAI = true;
@@ -74,7 +82,8 @@ namespace SynergyUI
             }
 
             GameCore.Instance.InitGame(myDeck, aiDeck, rngSeed: rngSeed, lockDeckOrder: lockDeckOrder,
-                p2LandCapBonus: aiLandCapBonus, p2ExtraOpeningDraws: aiExtraOpeningDraws);
+                p2LandCapBonus: aiLandCapBonus, p2ExtraOpeningDraws: aiExtraOpeningDraws,
+                skillCardId1: mySkill, skillCardId2: aiSkill);
             // 标记 P2 为 AI：目标选择器对 AI 跳过弹窗、即时自动选择。
             if (GameCore.Instance.Player2 != null)
                 GameCore.Instance.Player2.IsAI = true;

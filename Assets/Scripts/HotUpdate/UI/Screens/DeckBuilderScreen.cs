@@ -28,6 +28,10 @@ namespace SynergyUI
         // 当前正在构筑的卡组（卡牌 ID 列表）。
         private readonly List<string> _deckCardIds = new List<string>();
 
+        // 英雄技能标记卡 ID（2026-10-07 卡牌化：标记一张「恰好一个主动效果的结界」为技能，
+        // 开局从牌库抽出落技能栏；null = 无技能）。资格校验=HeroSkillSystem.CanBeSkillCard。
+        private string _skillCardId;
+
         // UGUI 卡牌层绑定（卡组区=卡槽网格 + UGUI 卡面；RefreshAll 全量重建）。
         private readonly List<CardOverlayBinding> _deckBindings = new List<CardOverlayBinding>();
 
@@ -51,7 +55,7 @@ namespace SynergyUI
 
         protected override void Build()
         {
-            _overlay = FindOptional("overlay") ?? UiKit.Overlay("overlay", Root);
+            _overlay = Find("overlay"); // 2026-10-07 兜底退役：缺节点 LogError——下拉弹层挂载点不可用
 
             // ---- 工具栏 ----
             BindButton("btn-back", () => Manager.Back());
@@ -232,6 +236,12 @@ namespace SynergyUI
         {
             if (index >= 0 && index < _deckCardIds.Count)
             {
+                // 移除的是技能标记卡 → 标记随卡清除（技能卡必须在卡组内）
+                if (_deckCardIds[index] == _skillCardId)
+                {
+                    _skillCardId = null;
+                    ShowToast("技能标记卡已移除——标记清除");
+                }
                 _deckCardIds.RemoveAt(index);
                 RefreshAll();
             }
@@ -291,7 +301,7 @@ namespace SynergyUI
             BuildCostCurve(cards);
             BuildColorDistribution(cards);
             BuildTypeRatio(cards);
-            BuildHeroSkillPreview(cards);
+            BuildHeroSkillPreview();
         }
 
         /// <summary>费用曲线：1-9 档（>9 并入 9+）条形分布。</summary>
@@ -372,33 +382,47 @@ namespace SynergyUI
             UiKit.Size(line, fw: 1f);
         }
 
-        /// <summary>英雄技能预览：按当前卡组自动指派（Theme 标签优先、再费用主色，灰不参选——同开局口径）。</summary>
-        private void BuildHeroSkillPreview(List<CardData> cards)
+        /// <summary>英雄技能预览（2026-10-07 卡牌化）：显示构筑标记的技能结界（发动费用=唯一
+        /// 主动效果的派生元素价，非卡面费用）；未标记=对局无英雄技能。</summary>
+        private void BuildHeroSkillPreview()
         {
-            UiKit.Label("skill-header", _statsZone, "英雄技能（开局自动指派）", UiStyle.HeaderSize,
+            UiKit.Label("skill-header", _statsZone, "英雄技能（构筑标记）", UiStyle.HeaderSize,
                 UiStyle.TextSecondary, TextAnchor.LowerLeft, FontStyle.Bold);
 
-            var skill = HeroSkillSystem.AutoSkillForDeck(
-                cards.Select(c => (Card)new CardWrapper(c)).ToList());
-            if (skill == HeroSkillId.None)
+            var marked = string.IsNullOrEmpty(_skillCardId) ? null : CardCatalog.GetById(_skillCardId);
+            if (marked == null)
             {
-                var none = UiKit.Label("none", _statsZone, "无主色（灰不参选）——开局不指派英雄技能",
+                var none = UiKit.Label("none", _statsZone,
+                    "未标记——对局无英雄技能（需恰好一个主动效果的结界；点击卡组中的卡，在预览里标记）",
                     UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
                 UiKit.Size(none, fw: 1f);
                 return;
             }
 
-            var title = UiKit.Label("skill-name", _statsZone, HeroSkillSystem.SkillName(skill),
+            var title = UiKit.Label("skill-name", _statsZone,
+                string.IsNullOrEmpty(marked.CardName) ? marked.ID : marked.CardName,
                 UiStyle.BodySize, UiStyle.TextBody);
             UiKit.Size(title, fw: 1f);
 
-            var baseLine = UiKit.Label("skill-base", _statsZone, "基础：" + HeroSkillSystem.Describe(skill, false),
+            var fx = HeroSkillSystem.SkillEffectOf(marked);
+            var cost = fx != null ? CostDerivationService.DeriveElementCosts(fx) : null;
+            var costLine = UiKit.Label("skill-cost", _statsZone,
+                cost == null || cost.IsZero
+                    ? "发动费用：无（每回合一次，横置发动）"
+                    : "发动费用：" + string.Join(" ",
+                        cost.NonzeroColors().Select(c => $"{c}×{cost[c]:0.#}")) + "（每回合一次，横置发动）",
                 UiStyle.SmallSize, UiStyle.TextDim, wrap: true);
-            UiKit.Size(baseLine, fw: 1f);
+            UiKit.Size(costLine, fw: 1f);
 
-            var upLine = UiKit.Label("skill-up", _statsZone, "升级（第 8 次发动起）：" + HeroSkillSystem.Describe(skill, true),
-                UiStyle.SmallSize, UiStyle.TextDim, wrap: true);
-            UiKit.Size(upLine, fw: 1f);
+            if (marked.Effects != null)
+                foreach (var eff in marked.Effects)
+                {
+                    if (eff == null) continue;
+                    var graph = new EffectGraphData(eff.DisplayName) { header = eff, steps = eff.Steps };
+                    var body = UiKit.Label("skill-body", _statsZone, AtomText.RenderEffectSummary(graph),
+                        UiStyle.SmallSize, UiStyle.TextDim, wrap: true);
+                    UiKit.Size(body, fw: 1f);
+                }
         }
 
         // ======================================== 左栏：效果预览 ========================================
@@ -487,6 +511,47 @@ namespace SynergyUI
                     "标签：" + string.Join("·", card.Tags), UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
                 UiKit.Size(tagLine, fw: 1f);
             }
+
+            // 英雄技能标记（2026-10-07 卡牌化）：仅卡组内的卡可标记；资格=恰好一个主动效果的结界
+            if (_deckCardIds.Contains(card.ID))
+            {
+                bool marked = _skillCardId == card.ID;
+                bool eligible = HeroSkillSystem.CanBeSkillCard(card);
+                var markRow = UiKit.Row("skill-mark", _previewZone.Content, spacing: 8f);
+                var markBtn = UiKit.MiniButton("btn-skill-mark", markRow,
+                    marked ? "取消英雄技能标记" : "标记为英雄技能", () => ToggleSkillMark(card));
+                markBtn.interactable = eligible || marked; // 已标记的总是可取消
+                if (!eligible)
+                {
+                    var why = UiKit.Label("skill-why", markRow,
+                        "不可标记：" + HeroSkillSystem.SkillIneligibleReason(card),
+                        UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
+                    UiKit.Size(why, fw: 1f);
+                }
+            }
+        }
+
+        /// <summary>切换英雄技能标记（2026-10-07 卡牌化）：标记卡=开局从牌库抽出落技能栏的结界；
+        /// 不合格（非结界/效果数≠1/唯一效果非主动）拦截并 toast 原因。</summary>
+        private void ToggleSkillMark(CardData card)
+        {
+            if (_skillCardId == card.ID)
+            {
+                _skillCardId = null;
+                ShowToast("已取消英雄技能标记");
+            }
+            else
+            {
+                var reason = HeroSkillSystem.SkillIneligibleReason(card);
+                if (reason != null)
+                {
+                    ShowToast("不可标记：" + reason);
+                    return;
+                }
+                _skillCardId = card.ID;
+                ShowToast($"已标记「{card.CardName}」为英雄技能——开局落技能栏，发动不消耗耐久");
+            }
+            RefreshAll();
         }
 
         private static string KeywordZh(string keywordId)
@@ -523,7 +588,23 @@ namespace SynergyUI
                 return;
             }
 
-            var deck = new DeckData(name) { cardIds = new List<string>(_deckCardIds) };
+            // 技能标记自愈（2026-10-07 卡牌化）：标记卡不在卡组/资格失效 → 清标记（仍可保存=无技能卡组）
+            if (!string.IsNullOrEmpty(_skillCardId))
+            {
+                var markedCard = CardCatalog.GetById(_skillCardId);
+                if (markedCard == null || !_deckCardIds.Contains(_skillCardId)
+                    || !HeroSkillSystem.CanBeSkillCard(markedCard))
+                {
+                    _skillCardId = null;
+                    ShowToast("技能标记已清除（卡不在卡组或资格失效）——按无技能卡组保存");
+                }
+            }
+
+            var deck = new DeckData(name)
+            {
+                cardIds = new List<string>(_deckCardIds),
+                skillCardId = _skillCardId,
+            };
             var path = DeckSerializer.Save(deck);
             if (path != null) TutorialCreationFlow.NotifyDecksChanged(); // 第三课走查步检测（未开课零行为）
             ShowToast(path == null ? "保存失败" : $"已保存：{name}");
@@ -553,6 +634,15 @@ namespace SynergyUI
             if (deck.cardIds != null)
             {
                 _deckCardIds.AddRange(deck.cardIds);
+            }
+            // 技能标记读取 + 自愈（旧档 null / 卡不在卡组 / 资格失效 → 清）
+            _skillCardId = null;
+            if (!string.IsNullOrEmpty(deck.skillCardId)
+                && deck.cardIds != null && deck.cardIds.Contains(deck.skillCardId)
+                && CardCatalog.GetById(deck.skillCardId) is { } skill
+                && HeroSkillSystem.CanBeSkillCard(skill))
+            {
+                _skillCardId = deck.skillCardId;
             }
             _nameField.SetTextWithoutNotify(deck.name);
             RefreshAll();

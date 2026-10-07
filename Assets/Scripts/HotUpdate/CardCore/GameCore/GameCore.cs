@@ -178,7 +178,8 @@ namespace CardCore
             EventManager.Instance.Subscribe<TurnEndEvent>(OnTurnEnded);
             EventManager.Instance.Subscribe<PhaseEndEvent>(OnPhaseEnded);
 
-            // 微缩/放大/回响——临时复制卡（2026-09-11）：使用卡宣言时点发复制（静态无状态，跨局无残留）
+            // 微缩/放大——临时复制卡（2026-09-11；回响 2026-10-07 改普通效果 EchoCopy 退出订阅）：
+            // 使用卡宣言时点发复制（静态无状态，跨局无残留）
             EventManager.Instance.Subscribe<CardPlayEvent>(Attribute.TempCopyRules.OnCardPlayed);
 
             // 资源台账（P0c）：必须在 TurnStart/TurnEnd 订阅之后创建，
@@ -407,9 +408,13 @@ namespace CardCore
         /// P1 保持标准曲线。缺省 0 双方对称，行为不变。</param>
         /// <param name="p2ExtraOpeningDraws">P2 起手额外抽牌数（挑战模式）：对称起手填完后追加，
         /// 手牌无上限截断（HAND_SIZE_LIMIT 无强制点，已核实）。缺省 0 行为不变。</param>
+        /// <param name="skillCardId1">P1 英雄技能标记卡 ID（2026-10-07 卡牌化改版）：从牌库抽出
+        /// 落 FieldZone；未标记/找不到/不合格（非结界或效果数≠1）= 本局无技能。缺省 null。</param>
+        /// <param name="skillCardId2">P2 英雄技能标记卡 ID，同上。</param>
         public void InitGame(List<Card> deck1, List<Card> deck2, int? rngSeed = null, bool lockDeckOrder = false,
             bool skipOpeningDraw = false, bool deferStart = false,
-            int p2LandCapBonus = 0, int p2ExtraOpeningDraws = 0)
+            int p2LandCapBonus = 0, int p2ExtraOpeningDraws = 0,
+            string skillCardId1 = null, string skillCardId2 = null)
         {
             if (deck1 == null || deck2 == null)
                 throw new ArgumentNullException("卡组不能为null");
@@ -440,6 +445,11 @@ namespace CardCore
                 p2LandCapBonus > 0 ? ResourceCurve.ChallengeLandCurve(p2LandCapBonus) : ResourceCurve.StandardLandCurve(),
                 p2LandCapBonus > 0 ? $"InitGame:挑战曲线(+{p2LandCapBonus})" : "InitGame:固定地牌槽曲线");
 
+            // 英雄技能（2026-10-07 卡牌化改版）：填牌库前先抽出构筑标记的结界
+            //（牌库相应少一张；未标记/不合格=无技能——旧三色自动指派已随卡牌化退役）
+            var skill1 = HeroSkillSystem.ExtractSkillCard(deck1, skillCardId1);
+            var skill2 = HeroSkillSystem.ExtractSkillCard(deck2, skillCardId2);
+
             // 将卡牌加入牌库区域，设置控制者
             foreach (var card in deck1)
             {
@@ -452,10 +462,9 @@ namespace CardCore
                 ZoneManager.GetZoneContainer(_player2).Add(card, Zone.Deck);
             }
 
-            // 英雄技能指派（2026-09-21 永续魔法化）：按卡组费用主色自动指派（红/蓝/绿），
-            // 技能卡=Enchantment 实体开局入 FieldZone（原额外卡组空缺槽位）
-            HeroSkillSystem.AssignSkill(this, _player1, HeroSkillSystem.AutoSkillForDeck(deck1));
-            HeroSkillSystem.AssignSkill(this, _player2, HeroSkillSystem.AutoSkillForDeck(deck2));
+            // 技能卡落 FieldZone（英雄技能栏）——落位不触发入场事件、不初始化耐久
+            HeroSkillSystem.AssignSkill(this, _player1, skill1);
+            HeroSkillSystem.AssignSkill(this, _player2, skill2);
 
             // 洗牌（教学固定局 lockDeckOrder：跳过洗牌——牌库顺序=传入列表顺序，摸牌恒取牌库顶，
             // 列表前 OpeningHandSize 张即起手、之后即逐回合摸牌序列）
@@ -494,12 +503,13 @@ namespace CardCore
         public void InitGame(List<CardData> deck1Data, List<CardData> deck2Data, int copiesPerCard = 1,
             int? rngSeed = null, bool lockDeckOrder = false,
             bool skipOpeningDraw = false, bool deferStart = false,
-            int p2LandCapBonus = 0, int p2ExtraOpeningDraws = 0)
+            int p2LandCapBonus = 0, int p2ExtraOpeningDraws = 0,
+            string skillCardId1 = null, string skillCardId2 = null)
         {
             var deck1 = CardLoader.BuildDeck(deck1Data, copiesPerCard);
             var deck2 = CardLoader.BuildDeck(deck2Data, copiesPerCard);
             InitGame(deck1, deck2, rngSeed, lockDeckOrder, skipOpeningDraw, deferStart,
-                p2LandCapBonus, p2ExtraOpeningDraws);
+                p2LandCapBonus, p2ExtraOpeningDraws, skillCardId1, skillCardId2);
         }
 
         /// <summary>
@@ -633,15 +643,9 @@ namespace CardCore
                 player.ResetFatigueCount();
                 player.IsAI = false;
 
-                // 英雄技能跨局不残留（2026-09-13；2026-09-21 永续魔法化）：指派/技能卡复位
-                //（发动计数挂在技能卡上，随下方陈旧技能卡清除一并消失——2026-09-22 升级=抉择式条件分支）
-                player.HeroSkill = (int)HeroSkillId.None;
+                // 英雄技能跨局不残留（2026-10-07 卡牌化）：技能卡已随上方区域 Clear 消失，
+                // 只复位运行时引用（旧 HEROSKILL_ 前缀清理随三色硬编码技能退役删除）
                 player.HeroSkillCard = null;
-                var staleSkillCards = ZoneManager.GetCards(player, Zone.FieldZone)
-                    .Where(c => c is CardWrapper w && w.GetData()?.ID?.StartsWith("HEROSKILL_") == true)
-                    .ToList();
-                foreach (var stale in staleSkillCards)
-                    ZoneManager.GetZoneContainer(player).Remove(stale, Zone.FieldZone);
             }
 
             TurnEngine.Initialize(_player1);

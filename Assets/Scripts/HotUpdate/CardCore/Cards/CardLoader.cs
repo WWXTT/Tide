@@ -210,15 +210,14 @@ namespace CardCore
                     {
                         var atomType = TypeOf(atom);
                         if (atom == null || atomType == null) continue;
-                        if (atomType == AtomicEffectType.GrantMiniature || atomType == AtomicEffectType.GrantMagnify
-                            || atomType == AtomicEffectType.GrantGuardian)
+                        if (atomType == AtomicEffectType.GrantMiniature || atomType == AtomicEffectType.GrantMagnify)
                         {
                             if (!card.HasCombatStats)
                                 TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})："
-                                             + $"微缩/放大/守护为登场效果，宿主不具备属性（Power/Life）——构筑期拦截");
+                                             + $"微缩/放大为登场效果，宿主不具备属性（Power/Life）——构筑期拦截");
                         }
-                        // 回响（2026-09-13 用户定案：生物和法术通用）——不再限制宿主类型，
-                        // 旧"须为瞬间法术"拦截已废除
+                        // 守护（2026-10-07 仅可转换）：收为仅连接光环节点，不再作登场 Grant 原子
+                        // ——宿主属性校验随之退役；结界守护走耐久、生物守护走生命（伤害改写天然分叉）。
                         else if (atomType == AtomicEffectType.SummonToken)
                         {
                             if (string.IsNullOrEmpty(atom.str))
@@ -254,9 +253,9 @@ namespace CardCore
                     && card.ArrowDirections == HexDirection.None)
                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：声明了连接光环但未配箭头（arrows 为空）——构筑期拦截（生物/结界同规）");
 
-                // 光环关键词条目须可挂（2026-09-23 定案·位 10 数据驱动）：消耗型关键词
+                // 光环关键词条目须可挂（2026-10-07 晚终版：关键词默认可−消耗型拉黑）：真消耗型
                 //（圣盾/复生/潜行/法术护盾——移除即用掉）与光环 live-query 持续语义冲突
-                //（不物化 → RemoveKeyword 空操作 → 等效永久持有），表中不声明位 10 即不可挂
+                //（不物化 → RemoveKeyword 空操作 → 等效永久持有），表标「不可作为连接光环」拉黑
                 if (card.LinkAuras != null)
                 {
                     foreach (var aura in card.LinkAuras)
@@ -264,7 +263,8 @@ namespace CardCore
                         if (aura == null || string.IsNullOrEmpty(aura.keyword)) continue;
                         if (!ComposerCatalog.IsAuraMountableKeyword(aura.keyword))
                             TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：光环关键词「{aura.keyword}」"
-                                         + "不可作光环（原子表 Grant 行未声明 MountKinds 位 10——消耗型关键词移除即用掉，与光环持续语义冲突）——构筑期拦截");
+                                         + "不可作光环（原子表 Grant 行标「不可作为连接光环」——真消耗型生效后移除，"
+                                         + "与光环 live-query 持续语义冲突）——构筑期拦截");
                     }
                 }
             }
@@ -435,19 +435,9 @@ namespace CardCore
 
                     // 固有全域原子告警块已删（2026-09-21 退役——全域用 TargetKinds+全取档组合表达）
 
-                    // 触发上限不可修改原子（2026-09-13，TriggerCapImmutable 位——少数，如坚韧）：
-                    // 声明 TriggerLimitPerTurn 属数据错误——converter 已覆写为无限（-1）
-                    bool HasCap8(AtomicEffectEntry a)
-                        => a != null && ComposerCatalog.HasMountBit(
-                            Attribute.AtomicEffectTable.GetByHashId(a.refId), MountKind.TriggerCapImmutable);
-                    bool hasCap8 = (eff.AtomicEffects ?? new List<AtomicEffectEntry>()).Any(HasCap8)
-                        || (eff.Steps ?? new List<EffectStepData>()).Any(s => s != null && HasCap8(s.atomic));
-                    if (hasCap8 && eff.TriggerLimitPerTurn != 0)
-                        TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
-                                       + "含触发上限不可修改原子（TriggerCapImmutable，如坚韧）——声明的 TriggerLimitPerTurn 被覆写为无限");
-
-                    // 槽级分支载荷校验（2026-10-05 两槽定案）：Then 奖励须开放分支奖励挂载
-                    ///（BranchReward 位）；引擎参数按 EngineParamRange 钳制口径诊断
+                    // 槽级分支载荷校验（2026-10-05 两槽定案；2026-10-07 奖励资格派生化）：
+                    // Then 奖励须有派生奖励资格（CanBeRewardRow——非规则光环/非仅连接光环/非引擎行）；
+                    /// 引擎参数按 EngineParamRange 钳制口径诊断
                     void CheckBranchPayload(AtomicEffectEntry atom, string where)
                     {
                         var b = atom?.branch;
@@ -461,9 +451,9 @@ namespace CardCore
                             {
                                 if (r == null) continue;
                                 var row = Attribute.AtomicEffectTable.GetByHashId(r.refId);
-                                if (!ComposerCatalog.HasMountBit(row, MountKind.BranchReward))
+                                if (!ComposerCatalog.CanBeRewardRow(row))
                                     TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
-                                                   + $"Then 奖励原子 {r.refId} 未开放分支奖励挂载（MountKinds 不含 BranchReward）");
+                                                   + $"Then 奖励原子 {r.refId} 无派生奖励资格（规则光环/仅连接光环/引擎行不可作奖励）");
                                 else if (gateBet && !CostDerivationService.PayloadCostDomain(row).eligible)
                                     TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
                                                    + $"局面门奖励原子 {r.refId} 不可逆转（对赌惩罚无从执行，converter 将剔除）");
@@ -508,13 +498,13 @@ namespace CardCore
                         if (atom.amp < 0f || atom.amp > 1f)
                             TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
                                            + $"amp={atom.amp:0.###} 越界 [0,1]（converter 已夹取）");
-                        // 挂载位校验（RandomMount 位）：未开放的原子配幅度 → 告警
+                        // 挂载位校验（2026-10-07 黑名单翻转）：标「不可随机」的行配幅度 → 告警
                         if (atom.amp > 0f)
                         {
                             var row = CardCore.Attribute.AtomicEffectTable.GetByHashId(atom.refId);
-                            if (!ComposerCatalog.HasMountBit(row, MountKind.RandomMount))
+                            if (ComposerCatalog.HasMountBit(row, MountKind.NoRandom))
                                 TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
-                                               + "配了随机幅度但表未开放可挂载随机（MountKinds 不含 RandomMount）");
+                                               + "配了随机幅度但表标不可随机（MountKinds 含 NoRandom）");
                         }
                         CheckBranchPayload(atom, where);
                     }

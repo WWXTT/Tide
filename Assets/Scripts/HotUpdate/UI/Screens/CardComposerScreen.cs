@@ -72,7 +72,7 @@ namespace SynergyUI
 
         protected override void Build()
         {
-            _overlay = FindOptional("overlay") ?? UiKit.Overlay("overlay", Root);
+            _overlay = Find("overlay"); // 2026-10-07 兜底退役：缺节点 LogError——下拉弹层挂载点不可用
 
             // ---- 工具栏 ----
             BindButton("btn-back", () => Manager.Back());

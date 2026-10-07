@@ -592,15 +592,16 @@ namespace SynergyUI
         /// 尺寸样式以节点为准；② 隐藏模板 tpl-&lt;name&gt;（parent 直属）克隆后同上；③ 都无走 Button 工厂
         /// （建在 fallbackParent ?? parent，并 LogWarning 暴露断线）。
         /// 刷新重入安全：先清运行时监听再挂（烘焙按钮勿带序列化 onClick，会被覆盖语义）。</summary>
+        /// <summary>烘焙按钮单名精确绑定（2026-10-07 兜底退役）：按名深找节点→绑 UButton/回写文案与配色；
+        /// 缺节点 LogError 返回 null——不再克隆 tpl- 模板、不再代码补建。</summary>
         public static UButton BindableButton(string name, RectTransform parent, string text,
-            Action onClick = null, Color? bg = null, Color? fg = null, RectTransform fallbackParent = null)
+            Action onClick = null, Color? bg = null, Color? fg = null)
         {
             RectTransform node = parent != null ? UiKit.FindDeep(parent, name) : null;
-            if (node == null) node = CloneTemplate("tpl-" + name, parent);
             if (node == null)
             {
-                Debug.LogWarning($"[UiKit] BindableButton 未找到烘焙节点/模板：{name}——代码补建");
-                return Button(name, fallbackParent ?? parent, text, onClick, bg, fg);
+                Debug.LogError($"[UiKit] BindableButton 未找到烘焙节点：{name}（不补建——检查预制体）");
+                return null;
             }
 
             var btn = node.GetComponent<UButton>();

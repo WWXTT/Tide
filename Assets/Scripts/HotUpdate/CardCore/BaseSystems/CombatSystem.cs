@@ -265,6 +265,14 @@ namespace CardCore
             // ② 战斗结算（攻击方强制竖直参战特判在 ResolvePair：横置不查攻击方、不削输出）
             ResolvePair(attacker, target);
 
+            // 攻击结算完成（2026-10-07 霜蚀光环配套：取消路径不发——取消不算"攻击后"）
+            EventManager.Instance.Publish(new AttackResolvedEvent
+            {
+                Attacker = attacker,
+                Target = target,
+                AttackingPlayer = attack.Controller
+            });
+
             RuleHooks.OnTutorialAttackResolved?.Invoke(attacker, target); // 教学探针：守卫步骤漏守兜底（结算路径，目标=改写后）
         }
 

@@ -256,16 +256,17 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>英雄技能 4 维块（契约 g[36..39]=P1 / g[40..43]=P2，绝对座次序）：
-        /// [hasSkill, 本回合已用(tapped), 累计使用/10, 已升级]。</summary>
+        /// [hasSkill, 本回合已用(tapped), 累计使用/10, 预留(恒0)]。卡牌化（2026-10-07）：
+        /// hasSkill=技能卡在场；升级维随旧升级机制退役恒 0（张量形状不变，Python 契约不动）。</summary>
         private void WriteHeroSkillBlock(GameCore core, Player p, int b)
         {
             var g = Globals;
-            bool has = p != null && p.HeroSkill != (int)HeroSkillId.None;
+            var card = p != null ? HeroSkillSystem.ResolveSkillCard(core, p) : null;
+            bool has = card != null;
             g[b] = has ? 1f : 0f;
-            var card = has ? HeroSkillSystem.ResolveSkillCard(core, p) : null;
-            g[b + 1] = card != null && card.IsTapped() ? 1f : 0f; // 本回合已用（准备阶段重置）
+            g[b + 1] = has && card.IsTapped() ? 1f : 0f; // 本回合已用（回合开始重置）
             g[b + 2] = has ? HeroSkillSystem.GetTotalUses(core, p) / 10f : 0f;
-            g[b + 3] = has && HeroSkillSystem.IsUpgraded(core, p) ? 1f : 0f;
+            g[b + 3] = 0f;
         }
 
         private static float Clamp(float v, float min, float max)

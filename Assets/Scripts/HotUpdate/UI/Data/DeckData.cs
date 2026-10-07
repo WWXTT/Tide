@@ -18,6 +18,11 @@ namespace SynergyUI
         public string name;
         public List<string> cardIds = new List<string>();
 
+        /// <summary>英雄技能标记卡 ID（2026-10-07 卡牌化改版）：须为 cardIds 内一张
+        /// 「恰好一个主动效果的结界」（HeroSkillSystem.CanBeSkillCard 资格）；开局从牌库
+        /// 抽出落技能栏。null/空 = 对局无英雄技能。旧档缺省 null 天然兼容。</summary>
+        public string skillCardId;
+
         public DeckData() { }
 
         public DeckData(string name)

@@ -112,7 +112,7 @@ namespace TideServer.Verify
 
             // ============================ V9.b 域数据（表级） ============================
 
-            VerifySuite.Section("V9.b 域数据（伤害族开放 3,4；冻结收紧 1,2）");
+            VerifySuite.Section("V9.b 域数据（伤害族开放 3,4；冻结=指示物行存储态自己）");
             void AssertKinds(AtomicEffectType type, int[] expect, string what)
             {
                 var row = AtomicEffectTable.GetByType(type);
@@ -125,7 +125,8 @@ namespace TideServer.Verify
             AssertKinds(AtomicEffectType.DealDamage, new[] { 1, 2, 3, 4 }, "造成伤害（开放无生命域）");
             AssertKinds(AtomicEffectType.PierceDamage, new[] { 1, 2, 3, 4 }, "穿透伤害（开放无生命域）");
             AssertKinds(AtomicEffectType.DrainLife, new[] { 1, 2, 3, 4 }, "吸取（开放无生命域）");
-            AssertKinds(AtomicEffectType.Freeze, new[] { 1, 2 }, "冻结（收紧为有生命域——对结界无效）");
+            AssertKinds(AtomicEffectType.Freeze, new[] { 0 },
+                "冻结（2026-10-07 指示物同型化：存储态=自己——旧表级收紧 1,2 退役，授予域由合成器覆写 {1..8} 后按极性收窄）");
 
             // ============================ V9.c 结界耐久全流程（对局内） ============================
 
@@ -805,13 +806,15 @@ namespace TideServer.Verify
             VerifySuite.Assert(capCreature.GetLife() == 4,
                 $"离散恰 5 不改写（实际余 {capCreature.GetLife()}）");
 
-            // ---- ①b 丰盈（2026-10-04 改造）：回复溢出→生命上限+1（收编旧写死基线） ----
+            // ---- ①b 丰盈（2026-10-04 改造）：回复溢出→生命上限+1（收编旧写死基线）----
             var bloomCarrier = MakeRuleCarrier("丰盈仪典", RuleAuraComponents.HealOverflow, 9);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, bloomCarrier, null, Zone.Hand, 0, out var rejectI1b),
-                $"丰盈载体打出（唯一槽换掉离散；拒绝原因：{rejectI1b ?? "无"}）");
+                $"丰盈载体打出（异名共存；拒绝原因：{rejectI1b ?? "无"}）");
             GameActions.DrainStack(icore);
-            VerifySuite.Assert(capCarrier.GetZone() == Zone.Graveyard && RuleAuraSystem.IsActive(RuleAuraComponents.HealOverflow),
-                "离散送墓、丰盈（溢出转化）激活");
+            VerifySuite.Assert(capCarrier.GetZone() == Zone.Battlefield
+                              && RuleAuraSystem.IsActive(RuleAuraComponents.HealOverflow)
+                              && RuleAuraSystem.IsActive(RuleAuraComponents.DamageCap),
+                "异名共存（2026-10-07 唯一性改版）：离散在场不送墓，丰盈照常激活（多槽并存）");
             int i1MaxBloom = i1.MaxHealth;
             i1.Life = i1.MaxHealth; // 满血基线（此前伤害帽扣过血）
             i1.Heal(3);
@@ -823,15 +826,24 @@ namespace TideServer.Verify
             VerifySuite.Assert(i1.MaxHealth == i1MaxBloom2 + 1,
                 $"丰盈：溢出不折半——每次溢出固定+1层（回 5 仍 {i1MaxBloom2}→{i1.MaxHealth}）");
 
-            // ---- ② 全局唯一：新光环登场把旧载体送墓 ----
+            // ---- ② 同名禁止 + 异名共存（2026-10-07 唯一性改版：同名在场不可再打出、异名多槽并存）----
+            var bloomDup = MakeRuleCarrier("丰盈仪典", RuleAuraComponents.HealOverflow, 9);
+            VerifySuite.Assert(!GameActions.PlayCard(icore, i1, bloomDup, null, Zone.Hand, 0, out var rejectI2)
+                              && rejectI2 != null,
+                $"同名禁止：丰盈在场→第二张丰盈被拒（{rejectI2}——不分范围/敌我）");
             var riverCarrier = MakeRuleCarrier("纳川仪典", RuleAuraComponents.HandLimitNoFatigue, 2);
-            VerifySuite.Assert(GameActions.PlayCard(icore, i1, riverCarrier, null, Zone.Hand, 0, out var rejectI2),
-                $"纳川载体打出（拒绝原因：{rejectI2 ?? "无"}）");
+            VerifySuite.Assert(GameActions.PlayCard(icore, i1, riverCarrier, null, Zone.Hand, 0, out var rejectI2b),
+                $"纳川载体打出（异名共存；拒绝原因：{rejectI2b ?? "无"}）");
             GameActions.DrainStack(icore);
-            VerifySuite.Assert(bloomCarrier.GetZone() == Zone.Graveyard, "全局唯一：新光环登场把旧载体送墓");
-            VerifySuite.Assert(!RuleAuraSystem.IsActive(RuleAuraComponents.HealOverflow)
+            VerifySuite.Assert(bloomCarrier.GetZone() == Zone.Battlefield
+                              && RuleAuraSystem.IsActive(RuleAuraComponents.HealOverflow)
                               && RuleAuraSystem.IsActive(RuleAuraComponents.HandLimitNoFatigue),
-                "旧规则失效、新规则激活（单槽切换）");
+                "异名共存：丰盈不送墓、纳川照常激活（多槽并存）");
+            // 丰盈载体被摧毁（耐久 9 逐点——结界无生命单位不走离散改写/伤害帽）→ 溢出回落基线
+            for (int d = 0; d < 9; d++) KeywordRules.ApplyDamage(i2, bloomCarrier, 1, isCombat: true);
+            VerifySuite.Assert(bloomCarrier.GetZone() == Zone.Graveyard
+                              && !RuleAuraSystem.IsActive(RuleAuraComponents.HealOverflow),
+                "丰盈载体被摧毁送墓 → 规则失效（载体离场自然失效）");
             // 丰盈离场即回基线：溢出纯浪费（生命钳上限，不加上限）
             int i1MaxAfter = i1.MaxHealth;
             i1.Life = i1.MaxHealth;
@@ -866,14 +878,14 @@ namespace TideServer.Verify
             foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
                 icore.ElementPool.GetPool(i1).AvailableMana[t] = 99;
             icore.ElementPool.GetPool(i1).GlobalTurnIndex = 9; // InitGame 重置后重设（浓度上限放开，同段首）
-            VerifySuite.Assert(RuleAuraSystem.Active == null, "新局光环槽位空（InitGame 含 Reset——跨局不残留）");
+            VerifySuite.Assert(RuleAuraSystem.ActiveRules.Count == 0, "新局光环槽位空（InitGame 含 Reset——跨局不残留）");
             var capCarrier2 = MakeRuleCarrier("离散仪典", RuleAuraComponents.DamageCap, 2);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, capCarrier2, null, Zone.Hand, 0, out var rejectI3),
                 $"重激活离散（拒绝原因：{rejectI3 ?? "无"}）");
             GameActions.DrainStack(icore);
             VerifySuite.Assert(RuleAuraSystem.IsActive(RuleAuraComponents.DamageCap), "重激活成功（前置）");
             icore.Reset();
-            VerifySuite.Assert(RuleAuraSystem.Active == null
+            VerifySuite.Assert(RuleAuraSystem.ActiveRules.Count == 0
                               && !RuleAuraSystem.IsActive(RuleAuraComponents.DamageCap)
                               && RuleHooks.GetHandLimit(i1) == RuleHooks.DefaultHandLimit,
                 "局重置：光环槽位回收、全部规则失效（修改链/替代件实时查询自然回落）");
@@ -914,11 +926,11 @@ namespace TideServer.Verify
             // ---- ⑦ 窥渊（2026-10-04 时机改版：回合开始→回合结束）：回合末随机展示 + 锁定落在指示物倒数之后 ----
             var lockCarrier = MakeRuleCarrier("窥渊仪典", RuleAuraComponents.LockRevealed, 2);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, lockCarrier, null, Zone.Hand, 0, out var rejectI5),
-                $"窥渊载体打出（唯一槽自动换掉归土；拒绝原因：{rejectI5 ?? "无"}）");
+                $"窥渊载体打出（异名共存；拒绝原因：{rejectI5 ?? "无"}）");
             GameActions.DrainStack(icore);
-            VerifySuite.Assert(graveCarrier.GetZone() == Zone.Graveyard
+            VerifySuite.Assert(graveCarrier.GetZone() == Zone.Battlefield
                               && RuleAuraSystem.IsActive(RuleAuraComponents.LockRevealed),
-                "唯一槽切换：归土载体送墓、窥渊激活");
+                "异名共存：归土载体不送墓、窥渊照常激活");
 
             var iRevealData = new CardData { ID = "V9I_REVEAL", CardName = "V9I展示术", Supertype = Cardtype.Spell };
             iRevealData.Effects.Add(new CardEffectData
@@ -1051,7 +1063,7 @@ namespace TideServer.Verify
             VerifySuite.Assert(i1.MaxHealth == i1MaxBefore - 2 && i2.MaxHealth == i2MaxBefore,
                 $"对照：代价流失自己付（i1 {i1MaxBefore}→{i1.MaxHealth}，i2 不变）");
 
-            var bloodCarrier = MakeRuleCarrier("血偿仪典", RuleAuraComponents.BloodPact, 2);
+            var bloodCarrier = MakeRuleCarrier("苦痛仪典", RuleAuraComponents.BloodPact, 2);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, bloodCarrier, null, Zone.Hand, 0, out var rejectI7),
                 $"血偿载体打出（拒绝原因：{rejectI7 ?? "无"}）");
             GameActions.DrainStack(icore);
@@ -1094,7 +1106,7 @@ namespace TideServer.Verify
                 $"疾风：从手牌使用的卡发动速度+1（1速→2，0速→1；实际 {SpeedCalculator.GetCardCastSpeed(speedProbe)}/{SpeedCalculator.GetCardCastSpeed(speedProbe0)}）");
 
             // ---- ⑩ 轮回（2026-10-04 承接原疾风）：每个玩家连续进行两个回合（AABB） ----
-            var samsaraCarrier = MakeRuleCarrier("轮回仪典", RuleAuraComponents.DoubleTurn, 2);
+            var samsaraCarrier = MakeRuleCarrier("时光仪典", RuleAuraComponents.DoubleTurn, 2);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, samsaraCarrier, null, Zone.Hand, 0, out var rejectI8),
                 $"轮回载体打出（拒绝原因：{rejectI8 ?? "无"}）");
             GameActions.DrainStack(icore);
@@ -1245,9 +1257,9 @@ namespace TideServer.Verify
             });
             VerifySuite.Assert(Math.Abs(auraAtomCost - (int)Math.Round((capRow?.TotalUnitCost ?? 0f) * 0.5f, MidpointRounding.AwayFromZero)) < 0.01f,
                 $"规则光环纯原子价=round(锚{capRow?.TotalUnitCost ?? 0f}×0.5)（实际 {auraAtomCost}——按行取锚/空域不乘期望 4/恒双方；锚价动态读表）");
-            // 行身份回归锚：同枚举不同行各自计价（血偿=BloodPact 锚12 vs 离散锚6——2026-10-04 蚕褪改版红6 后
-            // 与疾风蓝6 同价撞等，对照行换 12 锚；末行回落口径不再串行）
-            var bloodRow = AtomicEffectTable.GetAll().FirstOrDefault(r => r != null && r.DisplayName == "血偿仪典");
+            // 行身份回归锚：同枚举不同行各自计价（苦痛=BloodPact 锚12 vs 离散锚8——2026-10-07 用户调价
+            // 离散红6→8；对照行 12 锚；末行回落口径不再串行）
+            var bloodRow = AtomicEffectTable.GetAll().FirstOrDefault(r => r != null && r.DisplayName == "苦痛仪典");
             var bloodAtomCost = CostDerivationService.RewardDerivedCost(new List<AtomicEffectInstance>
             {
                 new AtomicEffectInstance { Type = AtomicEffectType.ModifyGameRule, Value = 1, StringValue = "BloodPact",
@@ -1255,7 +1267,7 @@ namespace TideServer.Verify
             });
             VerifySuite.Assert(Math.Abs(bloodAtomCost - (int)Math.Round((bloodRow?.TotalUnitCost ?? 0f) * 0.5f, MidpointRounding.AwayFromZero)) < 0.01f
                                && Math.Abs(bloodAtomCost - auraAtomCost) > 0.01f,
-                $"变体行各自计价：血偿锚{bloodRow?.TotalUnitCost ?? 0f}×0.5（实际 {bloodAtomCost}≠离散 {auraAtomCost}——RowHashId 行身份生效；锚价动态读表）");
+                $"变体行各自计价：苦痛锚{bloodRow?.TotalUnitCost ?? 0f}×0.5（实际 {bloodAtomCost}≠离散 {auraAtomCost}——RowHashId 行身份生效；锚价动态读表）");
 
             // ---- ④ 错边收缩：有害锁己方（负面指向自己）效果栏放行；有益锁对方仍剔除 ----
             var selfHarmDef = CardEffectConverter.ConvertOne(new CardEffectData
@@ -1353,18 +1365,26 @@ namespace TideServer.Verify
                 CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = prevResolver;
             }
 
-            // ---- ② 临时卡真路径（回响宣言复制 + 微缩复制）→ 不能作地牌（放大同微缩管线不重复驱动） ----
+            // ---- ② 临时卡真路径（回响效果复制 + 微缩复制）→ 不能作地牌（放大同微缩管线不重复驱动） ----
+            // 2026-10-07 回响改版：印刷关键词→EchoCopy 普通效果（结算期复制，发动无效=无复制）
             var echoData = new CardData
             {
                 ID = "V9L_ECHO", CardName = "V9L回响术", Supertype = Cardtype.Spell,
-                Keywords = new List<string> { KeywordRules.Echo }, // 印刷关键词（构造回灌 Printed 轨）
             };
+            echoData.Effects.Add(new CardEffectData
+            {
+                Id = "V9L_ECHO_EFF",
+                TriggerTiming = (int)TriggerTiming.OnPlay,
+                SelectionMode = -1,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.EchoCopy, value: 1) },
+            });
             var echoCard = LToHand(l1, echoData);
-            VerifySuite.Assert(GameActions.PlayCard(lcore, l1, echoCard), "回响术打出");
+            VerifySuite.Assert(GameActions.PlayCard(lcore, l1, echoCard, null, Zone.Hand, 0, out var rejectEcho),
+                $"回响术打出（拒绝原因：{rejectEcho ?? "无"}）");
             GameActions.DrainStack(lcore);
             var echoCopy = lcore.ZoneManager.GetCards(l1, Zone.Hand)
                 .FirstOrDefault(c => c.IsTemporary && c.ID != null && c.ID.StartsWith("V9L_ECHO#t"));
-            VerifySuite.Assert(echoCopy != null, "回响宣言时点获得临时复制（TempCopyRules 真路径）");
+            VerifySuite.Assert(echoCopy != null, "回响结算期获得临时复制（EchoCopy 普通效果真路径）");
             VerifySuite.Assert(!lcore.ElementPool.AddCardToPool(echoCopy, l1), "回响临时卡不能作为地牌");
 
             var miniHost = new CardWrapper(new CardData
@@ -1419,7 +1439,7 @@ namespace TideServer.Verify
 
             // ============================ V9.m 归土×回响×唯一槽×墓地配额（压力剧本） ============================
 
-            VerifySuite.Section("V9.m 归土回响乒乓：唯一槽新换旧/墓地使用/临时归土/配额不随换任刷新");
+            VerifySuite.Section("V9.m 归土回响：同名禁止/墓地使用/回响连锁/配额不刷新（2026-10-07 唯一性改版）");
             var mcore = GameCore.Instance;
             mcore.Reset();
             ZoneContainer.Reseed(20261010);
@@ -1441,7 +1461,6 @@ namespace TideServer.Verify
                 var d = new CardData
                 {
                     ID = id, CardName = "V9M回响归土", Supertype = Cardtype.Enchantment, Durability = 9,
-                    Keywords = new List<string> { KeywordRules.Echo }, // 回响随复制连锁
                 };
                 d.Effects.Add(new CardEffectData
                 {
@@ -1451,6 +1470,8 @@ namespace TideServer.Verify
                     AtomicEffects = new List<AtomicEffectEntry>
                     {
                         new AtomicEffectEntry { refId = graveRow?.HashId, value = 1, str = RuleAuraComponents.GraveyardPlay },
+                        // 回响随复制连锁（2026-10-07 改版：EchoCopy 普通效果——复制带效果栏）
+                        AtomRefs.New(AtomicEffectType.EchoCopy, value: 1),
                     },
                 });
                 return d;
@@ -1471,41 +1492,60 @@ namespace TideServer.Verify
             GameActions.DrainStack(mcore);
             VerifySuite.Assert(auraOriginal.GetZone() == Zone.Battlefield
                               && RuleAuraSystem.IsActive(RuleAuraComponents.GraveyardPlay)
-                              && ReferenceEquals(RuleAuraSystem.Active.Carrier, auraOriginal),
+                              && ReferenceEquals(RuleAuraSystem.CarrierOf(RuleAuraComponents.GraveyardPlay), auraOriginal),
                 "原版归土入场并激活规则光环（载体=原版）");
-            VerifySuite.Assert(MTemps().Count == 1, $"宣言时点回响复制 ×1（实际 {MTemps().Count}）");
+            VerifySuite.Assert(MTemps().Count == 1, $"回响结算复制 ×1（实际 {MTemps().Count}——EchoCopy 效果真路径）");
 
-            // ---- ② 打出临时归土①：唯一槽把原版送墓（载体换临时）----
+            // ---- ② 同名禁止（2026-10-07 唯一性改版）：归土在场 → 临时归土①打出被拒 ----
             var tempGui1 = MTemps()[0];
-            VerifySuite.Assert(GameActions.PlayCard(mcore, m1, tempGui1), "临时归土①打出（回响连锁再得临时②）");
-            GameActions.DrainStack(mcore);
-            VerifySuite.Assert(auraOriginal.GetZone() == Zone.Graveyard
-                              && ReferenceEquals(RuleAuraSystem.Active.Carrier, tempGui1),
-                "唯一槽：第二张归土把第一张（原版）送墓，载体换为临时①");
-            VerifySuite.Assert(MTemps().Count == 1, $"连锁中（手上临时归土②；实际 {MTemps().Count}）");
+            VerifySuite.Assert(!GameActions.PlayCard(mcore, m1, tempGui1, null, Zone.Hand, 0, out var rejectM0)
+                              && rejectM0 != null,
+                $"同名禁止：临时归土①被拒（{rejectM0}——同名在场不可再打出）");
+            VerifySuite.Assert(ReferenceEquals(RuleAuraSystem.CarrierOf(RuleAuraComponents.GraveyardPlay), auraOriginal)
+                              && MTemps().Count == 1,
+                "拒绝无副作用：载体不变、临时①仍在手");
 
-            // ---- ③ 归土规则：从墓地使用刚送墓的原版 → 原版再入场，临时载体被顶替送墓（配额第 1 次消耗）----
-            VerifySuite.Assert(GameActions.PlayCard(mcore, m1, auraOriginal, null, Zone.Graveyard, 0, out var rejectM1),
-                $"从墓地使用原版归土（拒绝原因：{rejectM1 ?? "无"}——配额第 1 次）");
+            // ---- ③ 归土规则活体期间：墓地视手牌使用（配额第 1 次；墓地施放的回响卡也回响）----
+            //（新模型下"载体死→规则死→墓地使用入口死"——同名仪式无法经墓地重打，剧本改用普通回响卡）
+            Card MGraveResident(string id)
+            {
+                var data = new CardData
+                {
+                    ID = id, CardName = "V9M墓地回响生物", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                };
+                data.Effects.Add(new CardEffectData
+                {
+                    Id = id + "_EFF",
+                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                    SelectionMode = -1,
+                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.EchoCopy, value: 1) },
+                });
+                var c = new CardWrapper(data);
+                c.SetController(m1);
+                mcore.ZoneManager.GetZoneContainer(m1).Add(c, Zone.Graveyard);
+                return c;
+            }
+            var graveResident = MGraveResident("V9M_RES");
+            VerifySuite.Assert(GameActions.PlayCard(mcore, m1, graveResident, null, Zone.Graveyard, 0, out var rejectM1),
+                $"墓地生物视手牌打出（拒绝原因：{rejectM1 ?? "无"}——配额第 1 次）");
             GameActions.DrainStack(mcore);
-            VerifySuite.Assert(auraOriginal.GetZone() == Zone.Battlefield
-                              && ReferenceEquals(RuleAuraSystem.Active.Carrier, auraOriginal),
-                "原版归土再生效（墓地使用→再入场→唯一槽把临时①送墓=临时归土消失）");
-            VerifySuite.Assert(tempGui1.GetZone() == Zone.Graveyard, "临时归土①被顶替进墓（消失于场）");
-            VerifySuite.Assert(MTemps().Count == 2, $"原版墓地施放也回响（手上临时②③；实际 {MTemps().Count}）");
+            VerifySuite.Assert(graveResident.GetZone() == Zone.Battlefield,
+                "墓地生物成功入场（归土规则活体期间——CanUse 实时查询）");
+            VerifySuite.Assert(MTemps().Count == 2, $"墓地施放也回响（归土临时①+生物复制；实际 {MTemps().Count}）");
 
-            // ---- ④ 打出手里第二张临时归土：唯一槽再把原版送墓 ----
-            var tempGui2 = MTemps()[0];
-            VerifySuite.Assert(GameActions.PlayCard(mcore, m1, tempGui2), "临时归土②打出");
-            GameActions.DrainStack(mcore);
-            VerifySuite.Assert(auraOriginal.GetZone() == Zone.Graveyard
-                              && ReferenceEquals(RuleAuraSystem.Active.Carrier, tempGui2),
-                "唯一槽再换任：原版再入墓、载体=临时②");
+            // ---- ④ 同名禁止（再验）：归土原版在场 → 临时归土②打出被拒 ----
+            var tempGui2 = MTemps().FirstOrDefault(c => (c as CardWrapper)?.GetData()?.CardName == "V9M回响归土");
+            string rejectM2a = null;
+            VerifySuite.Assert(tempGui2 != null
+                              && !GameActions.PlayCard(mcore, m1, tempGui2, null, Zone.Hand, 0, out rejectM2a)
+                              && rejectM2a != null,
+                $"同名禁止（再验）：归土临时②被拒（{rejectM2a}——同名在场不可再打出）");
 
-            // ---- ⑤ 配额判定：本回合已用过墓地使用——再试拒绝（光环换任不刷新配额）----
-            VerifySuite.Assert(!GameActions.PlayCard(mcore, m1, auraOriginal, null, Zone.Graveyard, 0, out var rejectM2)
+            // ---- ⑤ 配额判定：本回合已用过墓地使用——再试拒绝 ----
+            var graveResident2 = MGraveResident("V9M_RES2");
+            VerifySuite.Assert(!GameActions.PlayCard(mcore, m1, graveResident2, null, Zone.Graveyard, 0, out var rejectM2)
                               && rejectM2 != null,
-                $"每回合一次配额：第二次墓地使用被拒（{rejectM2}——光环载体换来换去不刷新）");
+                $"每回合一次配额：第二次墓地使用被拒（{rejectM2}）");
 
             // ============================ V9.n 代价栏规则改造（2026-10-04 定案配套） ============================
 
@@ -2004,7 +2044,7 @@ namespace TideServer.Verify
 
             // ============================ V9.p 改版回归（2026-10-05：改写光环/成长翻倍/赋予主干/诅咒有限分支） ============================
 
-            VerifySuite.Section("V9.p 改写仪典（仅持有者）+成长翻倍+赋予主干+诅咒 CurseOnDraw");
+            VerifySuite.Section("V9.p 四负面光环（毒/霜/眠/疫）+舍身仪典+成长翻倍+赋予主干+诅咒 CurseOnDraw");
             var wcore = GameCore.Instance;
             wcore.Reset();
             ZoneContainer.Reseed(20261012);
@@ -2037,32 +2077,39 @@ namespace TideServer.Verify
                               && curseBudget == 2,
                 $"诅咒门预算=2（奖励=抽到时的专属载荷；实际 {curseBudget}）");
 
-            // ---- ② 毒蚀仪典：光环控制者的生物战斗伤害改写（伤害不发生）；对手生物与非战斗伤害不改 ----
-            //（2026-10-05 统一标记定案：改写族回表——与九仪典同挂 RuleAura 位；光环库三源=位6连接条目+位9仪典族）
+            // ---- ② 四负面光环 + 舍身仪典（2026-10-07 负面化定案：原"战斗伤害改写为指示物"退役，
+            // 改持续型挂层——代码侧事件钩子；改写管线收敛为舍身单映射：战斗伤害转投对手角色）----
             var rewriteRows = AtomicEffectTable.GetAll()
                 .Where(r => r != null && r.DisplayName is "毒蚀仪典" or "霜蚀仪典" or "眠蚀仪典" or "疫蚀仪典")
                 .ToList();
             VerifySuite.Assert(rewriteRows.Count == 4
-                              && rewriteRows.All(r => MountKindExtensions.ParseCsv(r.MountKinds).Contains(MountKind.RuleAura)),
-                "改写四仪典已回表并统一挂 RuleAura 位（2026-10-05 统一标记定案——光环库三源统一展示）");
-            var toxinCarrier = new CardWrapper(new CardData
+                              && rewriteRows.All(r => MountKindExtensions.ParseCsv(r.MountKinds).Contains(MountKind.RuleAura))
+                              && rewriteRows.All(r => r.Polarity < 0),
+                "四负面光环挂规则光环位（2026-10-07 负面化定案——极性负、范围缺省对方）");
+
+            Card NegCarrier(string id)
             {
-                ID = "V9P_TOXIN", CardName = "V9P毒蚀载体", Supertype = Cardtype.Enchantment, Durability = 9,
-            });
-            toxinCarrier.SetController(w1);
-            var zcP1 = wcore.ZoneManager.GetZoneContainer(w1);
-            zcP1.Add(toxinCarrier, Zone.Battlefield);
-            RuleAuraSystem.Activate(RuleAuraComponents.CombatToxin, toxinCarrier, w1);
-            VerifySuite.Assert(RuleAuraSystem.IsActive(RuleAuraComponents.CombatToxin)
-                              && RuleAuraSystem.HolderRewriteFor(toxinCarrier) == KeywordRules.PoisonSting,
-                "毒蚀激活（直调 Activate=ModifyGameRuleHandler 同口）；持有者侧查询=控制者匹配（命中面=控制者全部生物）");
+                var c = new CardWrapper(new CardData
+                {
+                    ID = id, CardName = id, Supertype = Cardtype.Enchantment, Durability = 9,
+                });
+                c.SetController(w1);
+                wcore.ZoneManager.GetZoneContainer(w1).Add(c, Zone.Battlefield);
+                return c;
+            }
+
+            var toxinCarrier = NegCarrier("V9P_TOXIN");
+            // 范围=对方（负面族缺省）：受光环影响的生物=光环控制者对手（w2）一侧
+            RuleAuraSystem.Activate(RuleAuraComponents.CombatToxin, toxinCarrier, w1, (int)RuleAuraScope.Opponent);
+            VerifySuite.Assert(RuleAuraSystem.IsActive(RuleAuraComponents.CombatToxin),
+                "毒蚀激活（直调 Activate=ModifyGameRuleHandler 同口）；范围=对方");
 
             var mineCr = new CardWrapper(new CardData
             {
                 ID = "V9P_MINE", CardName = "V9P己方生物", Supertype = Cardtype.Creature, Power = 2, Life = 5,
             });
             mineCr.SetController(w1);
-            zcP1.Add(mineCr, Zone.Battlefield);
+            wcore.ZoneManager.GetZoneContainer(w1).Add(mineCr, Zone.Battlefield);
             var foeCr = new CardWrapper(new CardData
             {
                 ID = "V9P_FOE", CardName = "V9P对方生物", Supertype = Cardtype.Creature, Power = 2, Life = 20,
@@ -2070,19 +2117,97 @@ namespace TideServer.Verify
             foeCr.SetController(w2);
             wcore.ZoneManager.GetZoneContainer(w2).Add(foeCr, Zone.Battlefield);
 
+            // 毒蚀：对方生物受到伤害 → 叠毒素（伤害照常发生）；己方生物受击不叠（范围=对方）
             int foeLife0 = foeCr.GetLife();
-            int dealtA = KeywordRules.ApplyDamage(mineCr, foeCr, 3, isCombat: true);
-            VerifySuite.Assert(dealtA == 0 && foeCr.GetLife() == foeLife0
+            int dealtA = KeywordRules.ApplyDamage(mineCr, foeCr, 3, isCombat: false);
+            VerifySuite.Assert(dealtA == 3 && foeCr.GetLife() == foeLife0 - 3
                               && foeCr.GetCounterCount(CounterRules.ToxinCounter) == 1,
-                $"持有者生物战斗伤害→毒素×1（伤害不发生；实际伤害 {dealtA}，毒素层 {foeCr.GetCounterCount(CounterRules.ToxinCounter)}）");
+                $"毒蚀：对方生物受击叠毒素×1（伤害照常；毒素层 {foeCr.GetCounterCount(CounterRules.ToxinCounter)}）");
             int mineLife0 = mineCr.GetLife();
-            int dealtB = KeywordRules.ApplyDamage(foeCr, mineCr, 3, isCombat: true);
-            VerifySuite.Assert(dealtB == 3 && mineCr.GetLife() == mineLife0 - 3
+            int dealtB = KeywordRules.ApplyDamage(foeCr, mineCr, 2, isCombat: false);
+            VerifySuite.Assert(dealtB == 2 && mineCr.GetLife() == mineLife0 - 2
                               && mineCr.GetCounterCount(CounterRules.ToxinCounter) == 0,
-                $"对手生物不改写（仅持有者生效；实际伤害 {dealtB}，余 {mineCr.GetLife()}）");
-            int dealtC = KeywordRules.ApplyDamage(mineCr, foeCr, 2, isCombat: false);
-            VerifySuite.Assert(dealtC == 2 && foeCr.GetCounterCount(CounterRules.ToxinCounter) == 1,
-                "非战斗伤害不改写（战斗改写口径——伤害照常、层不增）");
+                $"毒蚀范围过滤：己方生物受击不叠（实际伤害 {dealtB}，毒素层 {mineCr.GetCounterCount(CounterRules.ToxinCounter)}）");
+
+            // 同名禁止（直投兜底 + 打出闸数据面）：毒蚀在场 → 同 str 原子的卡被拦、Activate 拒绝载体不变
+            var toxinDupData = new CardData
+            {
+                ID = "V9P_TOXIN2", CardName = "V9P毒蚀重复", Supertype = Cardtype.Enchantment, Durability = 9,
+            };
+            toxinDupData.Effects.Add(new CardEffectData
+            {
+                Id = "V9P_TOXIN2_EFF", TriggerTiming = (int)TriggerTiming.OnPlay, SelectionMode = -1,
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    new AtomicEffectEntry { refId = rewriteRows[0]?.HashId, value = 2, str = RuleAuraComponents.CombatToxin },
+                },
+            });
+            var toxinDup = new CardWrapper(toxinDupData);
+            toxinDup.SetController(w1);
+            VerifySuite.Assert(RuleAuraSystem.BlocksDuplicatePlay(toxinDup),
+                "同名仪典打出闸：毒蚀在场→含同 str 原子的卡命中拦截（异名/普通卡不拦）");
+            var toxinSecond = NegCarrier("V9P_TOXIN_B");
+            RuleAuraSystem.Activate(RuleAuraComponents.CombatToxin, toxinSecond, w1, (int)RuleAuraScope.Opponent);
+            VerifySuite.Assert(ReferenceEquals(RuleAuraSystem.CarrierOf(RuleAuraComponents.CombatToxin), toxinCarrier),
+                "同名 Activate 直调拒绝：载体不变（直投路径兜底——不送墓不换任）");
+
+            // 疫蚀：对方生物对角色造成伤害 → 施伤者自身叠剧毒；己方生物对角色伤害不叠
+            RuleAuraSystem.Activate(RuleAuraComponents.CombatVenom, NegCarrier("V9P_VENOM"), w1, (int)RuleAuraScope.Opponent);
+            int w1Life0 = w1.Life;
+            KeywordRules.ApplyDamage(foeCr, w1, 2, isCombat: false);
+            VerifySuite.Assert(w1.Life == w1Life0 - 2
+                              && foeCr.GetCounterCount(CounterRules.PoisonCounter) == 1,
+                $"疫蚀：对方生物对角色伤害→施伤者叠剧毒×1（层 {foeCr.GetCounterCount(CounterRules.PoisonCounter)}）");
+            KeywordRules.ApplyDamage(mineCr, w1, 1, isCombat: false);
+            VerifySuite.Assert(mineCr.GetCounterCount(CounterRules.PoisonCounter) == 0,
+                "疫蚀范围过滤：己方生物对角色伤害不叠");
+
+            // 霜蚀：攻击结算事件 → 对方生物冻结（横置+层）；己方生物攻击后不冻结
+            RuleAuraSystem.Activate(RuleAuraComponents.CombatFreeze, NegCarrier("V9P_FREEZE"), w1, (int)RuleAuraScope.Opponent);
+            EventManager.Instance.Publish(new AttackResolvedEvent { Attacker = foeCr, Target = mineCr, AttackingPlayer = w2 });
+            VerifySuite.Assert(foeCr.IsTapped() && foeCr.GetCounterCount(KeywordRules.FreezeCounter) >= 1,
+                "霜蚀：对方生物攻击后冻结（横置+冻结层）");
+            bool mineTapped0 = mineCr.IsTapped();
+            EventManager.Instance.Publish(new AttackResolvedEvent { Attacker = mineCr, Target = foeCr, AttackingPlayer = w1 });
+            VerifySuite.Assert(mineCr.IsTapped() == mineTapped0 && mineCr.GetCounterCount(KeywordRules.FreezeCounter) == 0,
+                "霜蚀范围过滤：己方生物攻击后不冻结");
+
+            // 眠蚀：启动式发动钩（EffectExecutionEngine 结算点同口）→ 对方生物叠沉睡；己方不叠
+            RuleAuraSystem.Activate(RuleAuraComponents.CombatSleep, NegCarrier("V9P_SLEEP"), w1, (int)RuleAuraScope.Opponent);
+            RuleAuraComponents.OnActivatedForSleepAura(foeCr);
+            RuleAuraComponents.OnActivatedForSleepAura(mineCr);
+            VerifySuite.Assert(foeCr.GetCounterCount(KeywordRules.SleepCounter) == 1
+                              && mineCr.GetCounterCount(KeywordRules.SleepCounter) == 0,
+                "眠蚀：启动式发动后叠沉睡×1（范围=对方过滤——沉睡层拦截后续启动式+跳重置）");
+
+            // 舍身（范围=己方）：己方生物战斗伤害转投施伤方对手角色（原目标免伤）；对方生物不转投
+            var redirectCarrierOwn = NegCarrier("V9P_REDIRECT");
+            RuleAuraSystem.Activate(RuleAuraComponents.CombatRedirect, redirectCarrierOwn, w1, (int)RuleAuraScope.Own);
+            int foeLifeR0 = foeCr.GetLife(); int w2LifeR0 = w2.Life;
+            int dealtR = KeywordRules.ApplyDamage(mineCr, foeCr, 3, isCombat: true);
+            VerifySuite.Assert(dealtR == 0 && foeCr.GetLife() == foeLifeR0 && w2.Life == w2LifeR0 - 3,
+                $"舍身：己方生物战斗伤害转投对手角色（返 {dealtR}，目标余 {foeCr.GetLife()}，w2 {w2LifeR0}→{w2.Life}）");
+            int mineLifeR0 = mineCr.GetLife();
+            int dealtR2 = KeywordRules.ApplyDamage(foeCr, mineCr, 2, isCombat: true);
+            VerifySuite.Assert(dealtR2 == 2 && mineCr.GetLife() == mineLifeR0 - 2,
+                $"舍身范围过滤：对方生物战斗伤害照常不转投（实际 {dealtR2}，余 {mineCr.GetLife()}）");
+
+            // 舍身对向（2026-10-07 用户定案：转投目标=施伤生物控制者的对手——作用于对方时对手生物打我方主公）：
+            // 载体直接移墓（耐久归零的 SBA 送墓在直调路径不泵——活性=在场实时查，移墓即失效）→ 换范围=对方重激活
+            wcore.ZoneManager.MoveCard(redirectCarrierOwn, w1, Zone.Battlefield, Zone.Graveyard);
+            VerifySuite.Assert(redirectCarrierOwn.GetZone() == Zone.Graveyard
+                              && !RuleAuraSystem.IsActive(RuleAuraComponents.CombatRedirect), "舍身载体移墓→规则失效（换范围重激活前置）");
+            RuleAuraSystem.Activate(RuleAuraComponents.CombatRedirect, NegCarrier("V9P_REDIRECT2"), w1, (int)RuleAuraScope.Opponent);
+            VerifySuite.Assert(RuleAuraSystem.IsActive(RuleAuraComponents.CombatRedirect)
+                              && RuleAuraSystem.HolderRewriteFor(foeCr) == RuleAuraComponents.CombatRedirect,
+                $"舍身重激活探针：Active={RuleAuraSystem.IsActive(RuleAuraComponents.CombatRedirect)}"
+                + $" Rewrite={RuleAuraSystem.HolderRewriteFor(foeCr)}"
+                + $" foeCtrlIsW2={ReferenceEquals(foeCr.GetController(), w2)}"
+                + $" w1OppIsW2={ReferenceEquals(w1.Opponent, w2)}");
+            int w1LifeR0 = w1.Life; int mineLifeR1 = mineCr.GetLife();
+            int dealtR3 = KeywordRules.ApplyDamage(foeCr, mineCr, 2, isCombat: true);
+            VerifySuite.Assert(dealtR3 == 0 && mineCr.GetLife() == mineLifeR1 && w1.Life == w1LifeR0 - 2,
+                $"舍身对向：范围=对方时对手生物战斗伤害转投我方角色（返 {dealtR3}，目标余 {mineCr.GetLife()}，w1 {w1LifeR0}→{w1.Life}）");
 
             // ---- ③ 成长改版：持有者回合结束属性指示物翻倍；回合开始 +1/+1 退役 ----
             mineCr.AddKeyword(KeywordRules.Growth, KeywordLane.Printed, mineCr);
@@ -2280,9 +2405,8 @@ namespace TideServer.Verify
             {
                 var row = AtomicEffectTable.GetByType(kv.Key);
                 VerifySuite.Assert(row != null && ComposerCatalog.IsEngineTrunkRow(row)
-                                   && !ComposerCatalog.HasMountBit(row, MountKind.ActiveEffect)
                                    && ComposerCatalog.EngineKindOf(kv.Key) == kv.Value,
-                    $"引擎主干行回表：{kv.Key}（位 8、无主动位、映射 {kv.Value}）");
+                    $"引擎主干行回表：{kv.Key}（位 5 引擎主干、映射 {kv.Value}——2026-10-07 位 0 删除后主干资格派生，引擎行互斥由 CanBeRewardRow 排除）");
             }
 
             // ---- ② 引擎行装载：载荷挂主干原子、Then 零计价、主序列执行跳过（无处理器告警=漏跳证据） ----
@@ -2394,7 +2518,7 @@ namespace TideServer.Verify
                 $"对赌卡1（达成面）打出（拒绝原因：{rejB1 ?? "无"}）");
             GameActions.DrainStack(bcore);
             VerifySuite.Assert(bMine.GetLife() == 7 && bFoe.GetLife() == 4,
-                $"门达成→奖励照旧：主干打对方 5→4、Then 治疗（单候选直取=己方生物；2026-10-07 起多候选=GameRng 随机）5→7（实际 己{bMine.GetLife()}/敌{bFoe.GetLife()}）");
+                $"门达成→奖励照旧：主干打对方 5→4、Then 治疗（候选[己方生物,己方角色] 无头自动选首=己方生物；2026-10-07 晚起多候选=弹选/AI 与无头选首）5→7（实际 己{bMine.GetLife()}/敌{bFoe.GetLife()}）");
 
             var bet2 = BetCard("V9Q_BET2");
             AddBetEffect(bet2);
@@ -2405,7 +2529,7 @@ namespace TideServer.Verify
                 $"对赌卡2（未达成面）打出（拒绝原因：{rejB2 ?? "无"}）");
             GameActions.DrainStack(bcore);
             VerifySuite.Assert(bMine.GetLife() == 7 && bFoe.GetLife() == 5,
-                $"门未达成→逆转惩罚：主干打对方 4→3、奖励逆转（Heal 收窄对方侧 [2]）强制治疗对方 3→5，己方不动（实际 己{bMine.GetLife()}/敌{bFoe.GetLife()}）");
+                $"门未达成→逆转惩罚：主干打对方 4→3、奖励逆转（Heal 收窄对方侧 [2]）对手弹选落点（无头自动选首=对方生物）治疗 3→5，己方不动（实际 己{bMine.GetLife()}/敌{bFoe.GetLife()}）");
 
             // ---- ④ 产出条件纯奖励：未达成无动作（不对赌） ----
             var ocCard = BetCard("V9Q_OUTCOME");

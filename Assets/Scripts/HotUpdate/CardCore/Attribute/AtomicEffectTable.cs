@@ -142,8 +142,9 @@ namespace CardCore.Attribute
                 if (!string.IsNullOrEmpty(entry.TargetFilter)) config.TargetFilter = entry.TargetFilter;
                 config.Polarity = Math.Clamp(entry.Polarity, -1f, 1f);
 
-                // 可装载范围（2026-09-11；2026-10-06 中文化）：空 = 未声明 → 兜底 "不限"（向后兼容存量行，逐步收紧）
-                config.MountKinds = string.IsNullOrEmpty(entry.MountKinds) ? "主动,关键词,指示物,分支奖励,随机幅度,上限锁定,连接光环" : entry.MountKinds;
+                // 可装载范围（2026-09-11；2026-10-06 中文化；2026-10-07 仅可转换）：
+                // 空 = 未声明 = 普通行（无特殊位——主干/奖励资格走派生谓词，不再兜底全开）
+                config.MountKinds = entry.MountKinds ?? "";
             }
             else
             {

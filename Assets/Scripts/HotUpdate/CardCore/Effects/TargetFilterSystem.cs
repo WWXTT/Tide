@@ -540,10 +540,7 @@ namespace CardCore
                     case "NoRole": // 仅生物（排除角色）——2026-09-10 自 Creature 改名（语义自解释）
                         filters.Add(new CardTypeFilter(Cardtype.Creature));
                         break;
-                    case "Spell": // 仅法术（2026-10-05 两槽定案：原 MountKinds 位6 GrantOnSpell 迁移——
-                        // 法术侧可赋予语义归目标过滤，如回响（瞬间法术专用关键词））
-                        filters.Add(new CardTypeFilter(Cardtype.Spell));
-                        break;
+                    // "Spell" token 已删（2026-10-07 回响改普通效果——全表唯一使用行随之退役）
                     case "Mortal": // 凡躯：滤除神佑持有者（神佑的 TargetFilter 实现，2026-09-10）
                         filters.Add(new MortalFilter());
                         break;

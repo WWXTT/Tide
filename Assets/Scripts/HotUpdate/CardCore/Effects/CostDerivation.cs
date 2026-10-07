@@ -176,8 +176,8 @@ namespace CardCore
         private static PricingTierConfig Tiers =>
             ValueSystemConfigManager.Instance.GetOrCreateConfig().PricingTierConfig;
 
-        /// <summary>数量系数（2026-10-05 档位化，表 PricingTier）：SummonToken=1（数量已含在量级
-        /// max(count,模板费)）；全取档（Whole/WholeUnion，2026-09-16 六值迁移）按"全部"档
+        /// <summary>数量系数（2026-10-05 档位化，表 PricingTier）：SummonToken=1（2026-10-07 表价清零：
+        /// 专项计价=模板费×数量，数量不外乘）；全取档（Whole/WholeUnion，2026-09-16 六值迁移）按"全部"档
         /// （TargetCount 是 converter 兜底噪声，不代表真实目标数）；其余按 TargetCount 档
         /// （-1 任意同全部档；-2 未声明=单目标基准）。原"整数 ×N / 期望 4"口径退役。</summary>
         private static float QuantityFactor(AtomicEffectType type, EffectDefinition def)
@@ -339,9 +339,10 @@ namespace CardCore
             if (triggerFactor > 1f)
                 amount = (int)Math.Round(amount * triggerFactor, MidpointRounding.AwayFromZero);
 
-            // 双方同时作用减半（2026-10-03 用户定案）：效果同时作用于双方——双侧域 + 全取档/显式多目标
-            //（双方全体恢复/双方各消灭一生物），或无目标域的规则光环（ModifyGameRule 语义即对双方）——
-            // 计费 ×0.5（对称面让利）；单侧锁/双侧域单体任选一侧不減。
+            // 双方同时作用减半（2026-10-03 用户定案；2026-10-07 规则光环范围化）：效果同时作用于双方——
+            // 双侧域 + 全取档/显式多目标（双方全体恢复/双方各消灭一生物），或规则光环的作用范围=双方
+            //（ModifyGameRule 的 Value=RuleAuraScope.Both）——计费 ×0.5（对称面让利）；
+            // 规则光环选己方/对方单侧=单侧锁口径不減；双侧域单体任选一侧同不減。
             if (IsSymmetricBothSides(atom, def, domain))
                 amount = (int)Math.Round(amount * SymmetricDiscountFactor, MidpointRounding.AwayFromZero);
 
@@ -352,8 +353,9 @@ namespace CardCore
         public static float SymmetricDiscountFactor => ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig.SymmetricDiscountFactor;
 
         /// <summary>
-        /// 是否「同时作用双方」（2026-10-03 用户定案减半口径）：
-        /// - 无目标域 + ModifyGameRule（规则光环——语义即对双方生效）；
+        /// 是否「同时作用双方」（2026-10-03 用户定案减半口径；2026-10-07 规则光环范围化）：
+        /// - 无目标域 + ModifyGameRule（规则光环）——仅当作用范围=双方（Value==RuleAuraScope.Both；
+        ///   己方/对方单侧=单侧锁口径全价）；
         /// - 双侧域（SideLock=0 且域非空）且 全取档（SelectionModeRules.IsTakeAll）或显式声明多目标
         ///   （TargetCount≥2——哨兵 -2/0=未声明「任意」不算，防宽域单体卡误减）。
         /// 单侧锁（可按最优边全价）与双侧域单体任选一侧均不減。
@@ -362,7 +364,7 @@ namespace CardCore
         {
             if (atom != null && atom.Type == AtomicEffectType.ModifyGameRule
                 && (domain == null || domain.Count == 0))
-                return true;
+                return atom.Value == (int)RuleAuraScope.Both;
             if (domain == null || domain.Count == 0) return false;
             if (SideLock(domain) != 0) return false;
             return SelectionModeRules.IsTakeAll(def != null ? def.SelectionMode : 0)
@@ -378,6 +380,21 @@ namespace CardCore
             // 检索：按筛选维度档计费，替代通用公式。维度档存于 atom.StringValue（默认单一维度）。
             if (atom.Type == AtomicEffectType.SearchDeck)
                 return FilterPrecisionCost(atom);
+
+            // 召唤衍生物（2026-10-07 表价清零定案）：单价随模板——衍生物卡自身费用×召唤数量，
+            // 表行 ManaList 已清零不再携带锚价（置于零价守卫之前，恒出模板价）。
+            // 模板不可解析/零费=0（构筑期校验拦截、运行时 handler 兜底拒绝）；
+            // 数量/持续档不乘（量级即最终口径），触发档仍由外层统一乘。
+            if (atom.Type == AtomicEffectType.SummonToken)
+            {
+                var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate ?? Attribute.MorphSystem.ResolveMorphTarget;
+                var template = string.IsNullOrEmpty(atom.StringValue) ? null : resolver?.Invoke(atom.StringValue);
+                if (template == null || template.TotalCost <= 0f) return 0;
+                int count = Math.Max(1, atom.Value);
+                var dropCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().SummonDropConfig;
+                return (int)Math.Round(template.TotalCost * count * dropCfg.GetFactor(Zone.Battlefield),
+                    MidpointRounding.AwayFromZero);
+            }
 
             // 属性价梯（2026-09-13 定案：攻/血同锚 0.5/+1，按持续档定价——取代通用公式与持续折扣）：
             // 修改族（ModifyPower/ModifyLife）档价：固定1回合（UntilEndOfTurn/UntilNextTurn）0.5
@@ -427,36 +444,28 @@ namespace CardCore
             if (cfg == null || cfg.TotalUnitCost <= 0f)
                 return 0;
 
+            // 规则光环（2026-10-07 范围化）：Value=作用范围序（RuleAuraScope）非量级——不乘 magnitude，
+            // 恒单价×成本乘数×持续档（与旧口径 value=1 等价）；双方让利由 IsSymmetricBothSides 统一裁决
+            //（含四负面光环与舍身——2026-10-07 改写降级回滚，改写族 4 箭头计价口径退役）。
+            if (atom.Type == AtomicEffectType.ModifyGameRule)
+            {
+                float ruleMult = cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f;
+                var ruleAttr = ValueSystemConfigManager.Instance.GetOrCreateConfig().AttributeValueConfig;
+                return (int)Math.Round(cfg.TotalUnitCost * ruleMult
+                                       * ruleAttr.GetDurationDiscount(def.Duration)
+                                       / ruleAttr.GetDurationDiscount(DurationType.Once),
+                    MidpointRounding.AwayFromZero);
+            }
+
             // CostMultiplier 在表加载时默认 1.0；目标范围等可在配置中放大费用。
             float multiplier = cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f;
             int magnitude = Math.Max(1, atom.Value);
-
-            // 召唤衍生物（2026-09-11 定案）：{衍生物}=真实生物卡指针——量级取 max(数量, 模板卡总费用)，
-            // 高价值生物的复制按其身价计价（构筑期可解析模板时；不可解析回落数量，运行时 handler 兜底拒绝）。
-            if (atom.Type == AtomicEffectType.SummonToken && !string.IsNullOrEmpty(atom.StringValue))
-            {
-                var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate ?? Attribute.MorphSystem.ResolveMorphTarget;
-                var template = resolver?.Invoke(atom.StringValue);
-                if (template != null && template.TotalCost > magnitude)
-                    magnitude = (int)Math.Round(template.TotalCost, MidpointRounding.AwayFromZero);
-            }
 
             var attrCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().AttributeValueConfig;
             float durationFactor = attrCfg.GetDurationDiscount(def.Duration)
                                    / attrCfg.GetDurationDiscount(DurationType.Once);
 
-            int amount = (int)Math.Round(cfg.TotalUnitCost * multiplier * magnitude * durationFactor, MidpointRounding.AwayFromZero);
-
-            // 衍生物落区系数（P1 定案）：按落区分档计价。
-            // 2026-10-05 落区写死定案：衍生物恒落战场——计价恒用战场基准系数
-            //（组合层 def.SummonDropZone 三档退役，与 SummonTokenHandler 同口径）。
-            if (atom.Type == AtomicEffectType.SummonToken)
-            {
-                var dropCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().SummonDropConfig;
-                amount = (int)Math.Round(amount * dropCfg.GetFactor(Zone.Battlefield), MidpointRounding.AwayFromZero);
-            }
-
-            return amount;
+            return (int)Math.Round(cfg.TotalUnitCost * multiplier * magnitude * durationFactor, MidpointRounding.AwayFromZero);
         }
 
         /// <summary>
@@ -464,6 +473,7 @@ namespace CardCore
         /// （ComputeAtomCost——含梯价/错边拆分/数量期望/触发连乘/缺陷减费/落区全部规则，一字不改），
         /// 再按表行费用构成份额**比例拆分**到各色（序数序）。单色行=行为与旧口径完全一致；
         /// 混合色行=总价不变、构成按份额分布（余数归序数序末个非零色保总额）。
+        /// 例外：召唤衍生物（2026-10-07 表价清零）构成随模板卡费用，表行不再携带份额。
         /// </summary>
         public static Dictionary<ManaType, int> ComputeAtomCostByColor(AtomicEffectInstance atom, EffectDefinition def,
             List<int> domain, AtomicEffectConfig cfg)
@@ -471,6 +481,13 @@ namespace CardCore
             var result = new Dictionary<ManaType, int>();
             int total = ComputeAtomCost(atom, def, domain, cfg);
             var cost = cfg?.ManaList;
+            // 召唤衍生物（2026-10-07 表价清零）：表行构成已清零——分色换轨随模板卡费用构成
+            if (atom.Type == AtomicEffectType.SummonToken)
+            {
+                var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate ?? Attribute.MorphSystem.ResolveMorphTarget;
+                var template = string.IsNullOrEmpty(atom.StringValue) ? null : resolver?.Invoke(atom.StringValue);
+                if (template != null && !template.Cost.IsZero) cost = template.Cost;
+            }
             if (total <= 0 || cost == null || cost.IsZero) return result;
 
             float unitSum = cost.Total;

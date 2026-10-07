@@ -64,9 +64,11 @@ namespace CardCore
             // 0. 横置代价预检（2026-09-08 定案）：只有启动式能力（Activate_*）以横置为发动代价
             //    （与攻击同价的固定代价，发动成功时经 KeywordRules.ShouldTap 统一支付——恒横置，警戒不抵扣）；
             //    触发式（登场/死亡/离场/受攻击等）发动不横置，已横置的源也不受阻。
+            //    战场与技能栏（FieldZone 英雄技能卡，2026-10-07 卡牌化）同受横置闸门。
             if (effect.IsActivatedEffect
                 && source is Card activateCard && activateCard.IsTapped()
-                && _zoneManager.IsCardInZone(activateCard, activateCard.GetController(), Zone.Battlefield))
+                && (_zoneManager.IsCardInZone(activateCard, activateCard.GetController(), Zone.Battlefield)
+                    || _zoneManager.IsCardInZone(activateCard, activateCard.GetController(), Zone.FieldZone)))
                 return false;
 
             // 0.5 沉默指示物（定案）：持有者不可发动主动效果（激活式能力路径；
@@ -206,6 +208,7 @@ namespace CardCore
                 ElementPool = _elementPool,
                 ModeIndex = instance.ModeIndex, // 抉择：执行引擎按声明期选定的模式分派
                 Duration = effect.Duration,               // 组合层编排属性随 context 下发（参照 ModeIndex 先例）
+                TriggerLimitPerTurn = effect.TriggerLimitPerTurn, // 次数档随授予传入关键词台账（2026-10-07 深夜）
                 SummonDropZone = effect.SummonDropZone,
                 CastCard = instance.CastCard, // 施放链路宿主卡（状态门 DrawnInStandbyThisTurn 用）
             };
@@ -319,6 +322,13 @@ namespace CardCore
             // 键含来源实例（2026-10-03）——同名卡/临时复制各记各的）
             if (instance.TriggeringEvent == null)
                 _usageTracker.RecordActivation(UsageKey(effect, instance.Source));
+
+            // 眠蚀光环（2026-10-07 负面化定案）：受光环影响的生物**启动式主动发动**结算后叠一层沉睡
+            //（仅启动式——触发式/登场不算，用户定案；沉睡层自身拦截后续启动式+跳过重置）
+            if (instance.TriggeringEvent == null
+                && instance.ActivationType == EffectActivationType.Voluntary
+                && instance.Source is Card sleepSrc && sleepSrc.IsAlive)
+                RuleAuraComponents.OnActivatedForSleepAura(sleepSrc);
 
             // 触发效果结算事件（关联来源 Effect 与解析上下文）
             EventManager.Instance.Publish(new EffectResolveEvent
@@ -640,7 +650,8 @@ namespace CardCore
         }
 
         /// <summary>局面门评估（有限分支·Gate）：与原子产出无关，效果结算时评估一次；
-        /// 对赌（2026-10-05 定案）：达成 → Then 奖励照旧；未达成 → 奖励逆转作用区域强制执行（代价形式）。
+        /// 对赌（2026-10-05 定案；2026-10-07 晚改版）：达成 → Then 奖励（**自己**弹选目标）；
+        /// 未达成 → 奖励逆转作用区域（**对手**弹选惩罚落点，代价形式）。
         /// 诅咒门（CurseOnDraw）恒跳过——载荷声明由 AddCurseHandler/CurseSystem 在"抽到该卡"时消费。</summary>
         private static async UniTask ApplySituationGateAsync(BranchPayload payload,
             EffectExecutionContext context, List<string> fragments)
@@ -650,16 +661,17 @@ namespace CardCore
             bool pass = BranchConditionEvaluator.Evaluate(
                 payload.GateId, context.LastOutcome, payload.GateParam, payload.GateStringParam, context);
             if (pass)
-                await ExecuteThenRewardsAsync(payload.Then, context, fragments);
+                await ExecuteThenRewardsAsync(payload.Then, context, fragments, "对赌达成：选择奖励目标");
             else
                 await ExecuteReversedPenaltyAsync(payload.Then, context, fragments);
         }
 
         /// <summary>局面门对赌惩罚（2026-10-05 定案，仅局面门——产出条件/预言/引擎/诅咒豁免）：
-        /// 条件未达成 → Then 奖励**逆转作用区域**强制执行（无奖励的代价形式）：
+        /// 条件未达成 → Then 奖励**逆转作用区域**执行（无奖励的代价形式）：
         /// 逆转口径与代价栏同源（CostDerivationService.PayloadCostDomain 三路：收窄/免写/镜像）；
-        /// 以对赌者（施放者）视角解析全部候选、无选择窗口；有域而无有效目标 → 该原子不执行（代价栏同口径）；
-        /// 无黑白补偿（惩罚不是付费）。</summary>
+        /// 惩罚落点（2026-10-07 晚定案）=施放者视角合法范围（帷幕收窄+不可选两道过滤）内
+        /// 由【对手】弹选 1 个（AI/无头自动选首；全隐藏区免弹取首候选——隐藏信息不进选择）；
+        /// 有域而无有效目标 → 该原子不执行（代价栏同口径）；无黑白补偿（惩罚不是付费）。</summary>
         private static async UniTask ExecuteReversedPenaltyAsync(List<AtomicEffectInstance> then,
             EffectExecutionContext context, List<string> fragments)
         {
@@ -687,11 +699,47 @@ namespace CardCore
                     Polarity = reward.Polarity,
                 };
                 bool hasDomain = reversed.TargetKinds != null && reversed.TargetKinds.Count > 0;
-                var targets = hasDomain
-                    ? EffectHandlerRegistry.ResolveCandidates(reversed.TargetKinds, reversed.Filter ?? "", context)
-                      ?? new List<Entity>()
-                    : new List<Entity>();
-                if (hasDomain && targets.Count == 0) continue; // 无有效目标 → 不执行（代价栏同口径）
+                if (!hasDomain)
+                {
+                    context.Targets = new List<Entity>(); // 免写无域奖励：handler 自结算
+                    await EffectHandlerRegistry.ExecuteEffectAsync(reversed, context);
+                    CaptureDescription(reversed, context, fragments);
+                    continue;
+                }
+
+                List<Entity> targets;
+                if (TargetKindRules.AllHiddenZone(reversed.TargetKinds))
+                {
+                    // 全隐藏区（对方手牌/双方牌库）：隐藏信息不进选择——自动取首候选
+                    var hidden = EffectHandlerRegistry.ResolveCandidates(
+                        reversed.TargetKinds, reversed.Filter ?? "", context);
+                    targets = hidden != null && hidden.Count > 0
+                        ? new List<Entity> { hidden[0] }
+                        : new List<Entity>();
+                }
+                else
+                {
+                    // 合法范围=施放者视角手动选择口径两道过滤（己方潜行不躲自己赌输的惩罚；
+                    // 对方侧扰魔/潜行/隐密照常受保护、帷幕照常收窄）
+                    var pool = TargetResolver.ExcludeUnselectable(
+                        TargetResolver.ApplyTauntRestriction(
+                            EffectHandlerRegistry.ResolveCandidates(
+                                reversed.TargetKinds, reversed.Filter ?? "", context), context),
+                        context.Controller);
+                    if (pool.Count == 0) continue; // 无有效目标 → 不执行（代价栏同口径）
+                    targets = pool.Count == 1
+                        ? pool
+                        : await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                        {
+                            Candidates = pool,
+                            MinCount = 1,
+                            MaxCount = 1,
+                            Chooser = context.Controller != null ? context.Controller.Opponent : null, // 输了=对手弹选
+                            Title = "对赌失败：选择惩罚目标",
+                            Hint = "对手的赌注未达成，由你决定惩罚落点",
+                        });
+                }
+                if (targets == null || targets.Count == 0) continue; // 兜底防御（Service 超时自动代选不至此）
 
                 context.Targets = targets;
                 await EffectHandlerRegistry.ExecuteEffectAsync(reversed, context);
@@ -701,17 +749,17 @@ namespace CardCore
         }
 
         /// <summary>Then 奖励强制结算（两槽定案，槽级载荷/Gate/引擎共用）：依次执行——
-        /// 有目标域的奖励按合法范围内随机抽取目标（2026-10-07 定案，GameRng 可钉种子）；
+        /// 有目标域的奖励按合法范围弹窗选 1（2026-10-07 晚定案：Chooser=效果控制者，AI/无头自动选首）；
         /// 无域/隐藏区按单次 null 目标执行（handler 自结算）。执行完恢复原目标列表。</summary>
         public static async UniTask ExecuteThenRewardsAsync(List<AtomicEffectInstance> then,
-            EffectExecutionContext context, List<string> fragments)
+            EffectExecutionContext context, List<string> fragments, string title = "选择奖励目标")
         {
             if (then == null || then.Count == 0) return;
             var saved = context.Targets != null ? new List<Entity>(context.Targets) : new List<Entity>();
             foreach (var reward in then)
             {
                 if (reward == null) continue;
-                var rTargets = await EffectHandlerRegistry.ResolveRewardTargetsAsync(reward, context);
+                var rTargets = await EffectHandlerRegistry.ResolveRewardTargetsAsync(reward, context, title);
                 var rIter = rTargets.Count > 0 ? rTargets : new List<Entity> { null };
                 foreach (var rt in rIter)
                 {
@@ -768,6 +816,7 @@ namespace CardCore
         public void Reset()
         {
             _usageTracker.Reset();
+            Attribute.KeywordRules.ResetKeywordActivations(); // 关键词生效次数闸（2026-10-07 深夜）
         }
 
         private bool CheckTiming(
@@ -1665,6 +1714,8 @@ namespace CardCore
             {
                 new DealDamageHandler(),
                 new DrawCardHandler(),
+                // 回响（2026-10-07 关键词→普通效果改版）：复制施放卡入手（完全复制，连锁保留）
+                new EchoCopyHandler(),
                 new ReturnToHandHandler(),
                 new FreezeHandler(),
                 new HealHandler(),

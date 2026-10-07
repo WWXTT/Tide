@@ -120,13 +120,8 @@ namespace SynergyUI
 
         public static string SupertypeZh(Cardtype t) => SupertypeNames.TryGetValue(t, out var s) ? s : t.ToString();
 
-        // 英雄技能卡中文名（ID=HEROSKILL_+枚举名；引擎内置生成不进卡表）
-        private static readonly Dictionary<string, string> SkillChipNames = new Dictionary<string, string>
-        {
-            { "HEROSKILL_BlueInsight", "蓝·洞察" },
-            { "HEROSKILL_GreenCultivate", "绿·培育" },
-            { "HEROSKILL_RedFrenzy", "红·狂热" },
-        };
+        // 英雄技能卡中文名映射已删（2026-10-07 卡牌化）：技能=构筑标记的真实结界卡，
+        // 名字/费用走 CardCatalog 正常解析（旧 HEROSKILL_* 合成 ID 随三色硬编码技能退役）。
 
         // ---- 箭头：卡面六向（HexDirection）→ 屏幕六向位 ----
         // 位序：NE=1 E=2 SE=4 SW=8 W=16 NW=32（我方视角=棋盘绝对方向）。
@@ -167,12 +162,6 @@ namespace SynergyUI
                 v.CostText = CostTextOf(data.Cost);
                 v.SupertypeText = SupertypeZh(data.Supertype);
                 v.ArrowFlags = ScreenArrowBits(data.ArrowDirections, ownerIsOpponent);
-            }
-            else if (!string.IsNullOrEmpty(s.ID) && s.ID.StartsWith("HEROSKILL_"))
-            {
-                // 英雄技能卡（引擎内置生成，不在 Cards.json）：ID 直译中文名
-                v.Name = SkillChipNames.TryGetValue(s.ID, out var zh) ? zh : s.ID;
-                v.SupertypeText = "结界";
             }
             else
             {
@@ -246,7 +235,12 @@ namespace SynergyUI
 
             var skill = HeroSkillSystem.ResolveSkillCard(core, p);
             if (skill != null)
+            {
                 v.Skill = FromRuntime(SerializableRuntimeCardState.FromCard(skill), skill, core.Player2 == p);
+                // 技能栏费用=唯一主动效果的派生发动价（非卡面费用——卡面费是打出价，2026-10-07 卡牌化）
+                var fx = HeroSkillSystem.SkillEffectOf(skill);
+                v.Skill.CostText = fx != null ? CostTextOf(CostDerivationService.DeriveElementCosts(fx)) : "0";
+            }
         }
 
         private static BattleCardView UnitViewLocal(GameCore core, BoardState board, Card card, bool ownerIsOpponent)

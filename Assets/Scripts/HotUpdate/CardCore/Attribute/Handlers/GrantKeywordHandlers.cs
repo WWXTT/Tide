@@ -37,7 +37,10 @@ namespace CardCore.Attribute.Handlers
                     ? KeywordLane.Setting
                     : KeywordLane.Temp;
 
-                target.AddKeyword(_keywordId, lane, context.Source);
+                // 参数化（2026-10-07 深夜定案）：实例值=原子 value（坚韧=受伤减多少；≤0 兜底 1）、
+                // 生效次数=承载效果次数档（0→1；-1=无限）随授予入台账——仅坚韧/守护消费。
+                target.AddKeyword(_keywordId, lane, context.Source,
+                    effect.GetRolledValue(), context.TriggerLimitPerTurn == 0 ? 1 : context.TriggerLimitPerTurn);
                 PublishEvent(new KeywordEvent
                 {
                     Target = target,
@@ -93,6 +96,9 @@ namespace CardCore.Attribute.Handlers
             (AtomicEffectType.GrantRegeneration, "Regeneration", "获得再生"),
             (AtomicEffectType.GrantGrowth, "Growth", "获得成长"),
             (AtomicEffectType.GrantArmor, "Armor", "获得坚韧"),
+            // 守护（2026-10-07 深夜关键词族回归）：关键词形态=己方角色伤害改写为自己承受
+            //（次数档随授予传入；箭头/方向档光环形态经 LinkAuras live-query 不限次）
+            (AtomicEffectType.GrantGuardian, "Guardian", "获得守护"),
             (AtomicEffectType.GrantDivineShield, "DivineShield", "获得圣盾"),
             (AtomicEffectType.GrantTaunt, "Taunt", "获得帷幕"),
             (AtomicEffectType.GrantPoisonSting, "PoisonSting", "获得毒刺（战斗伤害改为毒素）"),
@@ -105,10 +111,9 @@ namespace CardCore.Attribute.Handlers
             (AtomicEffectType.GrantReborn, "Reborn", "获得复生"),
             (AtomicEffectType.GrantIndestructible, "Indestructible", "获得不灭"),
 
-            // 临时复制卡族（2026-09-11；回响=瞬间法术自带/可赋予法术）
+            // 临时复制卡族（2026-09-11；回响 2026-10-07 改普通效果 EchoCopy 退出关键词族）
             (AtomicEffectType.GrantMiniature, "Miniature", "获得微缩"),
             (AtomicEffectType.GrantMagnify, "Magnify", "获得放大"),
-            (AtomicEffectType.GrantEcho, "Echo", "获得回响"),
         };
 
         /// <summary>
