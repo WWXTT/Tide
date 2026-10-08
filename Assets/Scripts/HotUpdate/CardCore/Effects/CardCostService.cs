@@ -545,7 +545,7 @@ namespace CardCore
             return kwBuckets;
         }
 
-        /// <summary>箭头位数（CardData.ArrowDirections 六向 Flags 计位；坚韧光环计价=绿1×箭头数用）。</summary>
+        /// <summary>箭头位数（CardData.ArrowDirections 六向 Flags 计位；连接光环箭头档按单位数计价用）。</summary>
         private static int CountArrowBits(HexDirection arrows)
         {
             int n = 0;
@@ -595,9 +595,9 @@ namespace CardCore
                 }
                 else if (!string.IsNullOrEmpty(aura.keyword))
                 {
-                    // 光环化关键词（2026-09-13 定案；2026-10-07 深夜统一：坚韧/守护回归关键词族，
-                    // 平价特判退役——与通用关键词同口径：行 ManaList × mult × magnitude × 单回合折算，
-                    // 生效次数恒无限 → 乘 TriggerLimitInfinite=4.0 档，见下方 countFactor）。
+                    // 光环化关键词（2026-09-13 定案；2026-10-07 深夜统一：与通用关键词同口径——
+                    // 行 ManaList × mult × magnitude × 单回合折算。坚韧 2026-10-08 指示物化退出光环族
+                    //（表行位 1 硬拒），无限次数档乘数 countFactor 随之整条退役）。
                     var def = CardLoader.GetKeywordDefinition(aura.keyword);
                     if (def == null || string.IsNullOrEmpty(def.atomicEffect)
                         || !System.Enum.TryParse<AtomicEffectType>(def.atomicEffect, out rep))
@@ -606,7 +606,7 @@ namespace CardCore
                         continue;
                     }
                     label = aura.keyword;
-                    // 关键词条目值化（2026-10-07 深夜）：magnitude=|value|（坚韧=减伤额；Boolean 关键词 value=0 恒 1）
+                    // 关键词条目值化（2026-10-07 深夜）：magnitude=|value|（Boolean 关键词 value=0 恒 1）
                     magnitude = System.Math.Max(1, System.Math.Abs(aura.value));
                 }
                 else continue;
@@ -619,13 +619,20 @@ namespace CardCore
                 // 2026-09-10 持续上移后统一为满档 Permanent 锚（语义修正，随 R8 漂移已接受）。
                 float factor = singleTurn / Math.Max(0.0001f, attrCfg.GetDurationDiscount(DurationType.Permanent));
                 float mult = atomCfg.CostMultiplier > 0f ? atomCfg.CostMultiplier : 1f;
-                // 生效次数档（2026-10-07 深夜定案）：坚韧/守护作为光环时次数恒无限制——乘无限档
-                //（PricingTier.TriggerLimitInfinite=4.0，与效果级次数档同表同口径）；Boolean 关键词
-                // 无次数语义不乘。
-                float countFactor = (aura.keyword == Attribute.KeywordRules.Armor
-                                     || aura.keyword == Attribute.KeywordRules.Guardian)
-                    ? ValueSystemConfigManager.Instance.GetOrCreateConfig().PricingTierConfig.TriggerLimitInfinite
-                    : 1f;
+                // 无限次数档乘数 countFactor 已删（2026-10-08 坚韧指示物化）：唯一适用对象是坚韧光环，
+                // 坚韧退出关键词/光环族后无值语义条目——光环关键词恒按单次档计（守护已先行退出光环族）。
+                const float countFactor = 1f;
+                // 条目级作用面累乘（2026-10-08 actuating-range 定案，取代旧卡级箭头块）：箭头档=卡面箭头数
+                //（效果层预览箭头恒 None=不乘——箭头=卡面资产，预选不计费，沿旧口径）；作用面档按单位数
+                //——己/对方=4 档、双方减半=2 档；条目声明含角色 +1 单位=5 档（双方 8+2=10 减半同 5）。
+                // role 仅关键词条目生效（属性增加不作用于角色——UI 已隐藏，此处防御忽略）；
+                // 且仅非 NoRole 行（2026-10-08 角色通道门：仅生物关键词运行时不投递，计价同口径忽略）。
+                bool roleUnits = aura.role && string.IsNullOrEmpty(aura.stat)
+                    && !ComposerCatalog.RoleChannelBlocked(aura.keyword);
+                int ladder = aura.scope > 0
+                    ? (roleUnits ? 5 : (aura.scope == 2 ? 2 : 4))
+                    : CountArrowBits(card.ArrowDirections);
+                float surface = ladder > 1 ? (float)Math.Pow(1.2f, ladder - 1) : 1f;
                 // ManaList 分色（2026-09-14；2026-10-04 位置数组化）：光环费逐色入桶（首色承担明细则行）
                 float firstAmount = 0f;
                 ManaType firstColor = ManaType.Gray;
@@ -634,7 +641,7 @@ namespace CardCore
                 {
                     foreach (var color in atomCost.NonzeroColors())
                     {
-                        float amount = atomCost[color] * mult * magnitude * factor * countFactor;
+                        float amount = atomCost[color] * mult * magnitude * factor * countFactor * surface;
                         if (amount <= 0f) continue;
                         buckets.TryGetValue(color, out var prev);
                         buckets[color] = prev + amount;
@@ -642,31 +649,14 @@ namespace CardCore
                         if (firstAmount == 0f) { firstAmount = amount; firstColor = color; }
                     }
                 }
+                string surfaceZh = aura.scope > 0
+                    ? $"，作用面{ScopeCodeZh(aura.scope)}{(roleUnits ? "·含角色" : "")}按{ladder}单位 ×1.2^{Math.Max(0, ladder - 1)}"
+                    : (ladder > 1 ? $"，箭头×{ladder} ×1.2^{ladder - 1}" : "");
                 breakdown?.Add(new CostBreakdownLine("A",
-                    $"连接光环 {label}（单回合档 ×{factor:0.###}{(countFactor > 1f ? $" ×无限次数{countFactor:0.#}" : "")}）",
+                    $"连接光环 {label}（单回合档 ×{factor:0.###}{surfaceZh}）",
                     firstAmount, firstColor));
             }
 
-            // 卡级箭头累乘（2026-09-13 定案）：箭头数单独按 1.2 系数累乘——×1.2^(箭头-1)，
-            // 各光环条目不再逐条乘箭头（防重复计费）；无箭头（=无光环受益面）不乘。
-            // 方向档（2026-10-07 连接光环方向化）：选方向=不设箭头——按 4 箭头计费；作用双方减半=2 箭头档。
-            int arrows = CountArrowBits(card.ArrowDirections);
-            if (card.AuraScope > 0) arrows = card.AuraScope == 2 ? 2 : 4;
-            if (arrows > 1 && auraTotal > 0f)
-            {
-                float arrowFactor = (float)Math.Pow(1.2f, arrows - 1);
-                var scaled = new Dictionary<ManaType, float>();
-                foreach (var kv in buckets) scaled[kv.Key] = kv.Value * arrowFactor;
-                buckets.Clear();
-                foreach (var kv in scaled) buckets[kv.Key] = kv.Value;
-                float beforeArrow = auraTotal;
-                auraTotal *= arrowFactor;
-                breakdown?.Add(new CostBreakdownLine("A",
-                    card.AuraScope > 0
-                        ? $"方向档（{ScopeCodeZh(card.AuraScope)}）按{arrows}箭头累乘 ×1.2^{arrows - 1}（4箭头计费·双方减半）"
-                        : $"箭头×{arrows} 累乘 ×1.2^{arrows - 1}（卡级，条目不重复计）",
-                    beforeArrow * (arrowFactor - 1f), ManaType.Gray));
-            }
             return buckets;
         }
 

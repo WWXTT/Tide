@@ -279,9 +279,10 @@ namespace CardCore
         // ============ 四负面光环（2026-10-07 负面化定案：持续型挂层，代码侧实现） ============
 
         /// <summary>毒蚀/疫蚀分流钩（DamageEvent）：
-        /// 毒蚀=受光环影响的生物受到伤害 → 受击者叠 1 层毒素（回合末每层 1 伤后清空；
-        /// 毒素自身的回合末伤害会再触发叠层——文本字面语义，递增螺旋）；
-        /// 疫蚀=受光环影响的生物对角色造成伤害 → 施伤者自身叠 1 层剧毒（回合末死亡裁决）。</summary>
+        /// 毒蚀=受光环影响的生物受到伤害 → 受击者叠 1 层毒素（每回合末受=层数的伤害后减半；
+        /// 毒素自身的回合末伤害会再触发叠层——文本字面语义，递增螺旋受减半衰减钳制）；
+        /// 疫蚀=受光环影响的生物对角色造成伤害 → 施伤者自身叠 1 层毒素（2026-10-08 剧毒转关键词：
+        /// 原剧毒指示物取消，疫=毒域贴新毒素语义——施伤者受持续递减毒伤）。</summary>
         private static void OnDamageForNegativeAuras(DamageEvent e)
         {
             if (e?.Target == null || e.Amount <= 0) return;
@@ -290,12 +291,12 @@ namespace CardCore
                 var owner = venomSrc.GetController();
                 if (!RuleAuraSystem.ScopeHits(CombatVenom, owner)) return;
                 var carrier = RuleAuraSystem.CarrierOf(CombatVenom);
-                venomSrc.AddCounters(Attribute.CounterRules.PoisonCounter, 1, carrier);
+                venomSrc.AddCounters(Attribute.CounterRules.ToxinCounter, 1, carrier);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = venomSrc,
                     Keyword = CombatVenom,
-                    Detail = $"疫蚀光环：{EffectText.Name(venomSrc)} 对角色造成伤害 → 叠加一层剧毒（回合末死亡裁决）",
+                    Detail = $"疫蚀光环：{EffectText.Name(venomSrc)} 对角色造成伤害 → 叠加一层毒素（每回合末受毒伤后减半）",
                     Source = carrier,
                 });
             }
@@ -309,7 +310,7 @@ namespace CardCore
                 {
                     Target = toxinTarget,
                     Keyword = CombatToxin,
-                    Detail = $"毒蚀光环：{EffectText.Name(toxinTarget)} 受到伤害 → 叠加一层毒素（回合末每层 1 伤）",
+                    Detail = $"毒蚀光环：{EffectText.Name(toxinTarget)} 受到伤害 → 叠加一层毒素（每回合末受毒伤后减半）",
                     Source = carrier,
                 });
             }
@@ -323,7 +324,7 @@ namespace CardCore
             var owner = attacker.GetController();
             if (!RuleAuraSystem.ScopeHits(CombatFreeze, owner)) return;
             var carrier = RuleAuraSystem.CarrierOf(CombatFreeze);
-            attacker.Freeze(DurationType.UntilEndOfTurn, 1);
+            attacker.Freeze(1, carrier);
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
                 Target = attacker,

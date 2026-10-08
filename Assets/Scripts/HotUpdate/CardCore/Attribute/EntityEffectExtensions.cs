@@ -20,6 +20,9 @@ namespace CardCore
         {
             if (entity is Unit unit) return unit.BaseAttack;
             if (entity is Card card) return card._power + GameBoard.LinkAuraSystem.GetPowerBonus(card);
+            // 角色（2026-10-07 弹药原子定案）：攻击力=角色攻击指示物层数（无光环成分、无减益参与）——
+            // 攻击/反击结算后烧除（CounterRules.RemoveHeroAttackAmmo），读数 0 即无攻击资格。
+            if (entity is Player player) return Math.Max(0, player.GetCounterCount(Attribute.CounterRules.HeroAttackCounter));
             return 0;
         }
 
@@ -63,7 +66,7 @@ namespace CardCore
 
         /// <summary>
         /// 受到伤害（关键词管线）：经 KeywordRules 结算——圣盾挡一次、护甲指示物逐点吸收、
-        /// 坚韧 −持有次数、剧毒致死、吸血（恢复自身）/系命（回复角色）。
+        /// 坚韧指示物每层 −1（不消耗）、剧毒致死、吸血（恢复自身）/系命（回复角色）。
         /// 事件链（DamageEvent/CombatDamageEvent/LifeChangeEvent/吸血系命）由管线统一按时序发布。
         /// </summary>
         public static void TakeDamage(this Entity entity, int amount, Entity source, bool isCombat = false)
@@ -71,7 +74,7 @@ namespace CardCore
             Attribute.KeywordRules.ApplyDamage(source, entity, amount, isCombat);
         }
 
-        /// <summary>关键词持有次数（List 计数——重复叠加：双坚韧计 2）</summary>
+        /// <summary>关键词持有份数（不叠加定案后正常路径恒 0/1；List 保留兼容直加旧档）</summary>
         public static int GetKeywordCount(this Entity entity, string keyword)
         {
             return entity is Card card ? card._keywords.Count(k => k == keyword) : 0;
@@ -80,7 +83,7 @@ namespace CardCore
         /// <summary>
         /// 治疗（2026-10-04 丰盈仪典改造定案：溢出转化**收编为光环规则**——
         /// RuleAuraSystem.IsActive(HealOverflow) 生效时保持旧基线：每次溢出固定加 1 层
-        /// 「生命值增加」指示物（上限与当前同加——生物换区清除、角色按默认持续时间 max），
+        /// 「生命值增加」指示物（上限与当前同加——生物换区清除、角色无换区概念即常驻），
         /// 当前实得=新上限，剩余溢出直接截断（例：满血 30 回复 7 → 上限 31、当前 31）。
         /// **无光环时溢出纯浪费**（生命钳在上限，不加上限——生命恢复计价因此享 0.8 系优惠，
         /// Heal 原子行 绿0.5→0.4）。角色与生物同口径。
@@ -96,7 +99,7 @@ namespace CardCore
                 int over = raw - cap;
                 if (over > 0 && overflowToMax)
                 {
-                    player.AddCounters(Attribute.CounterRules.LifeUpCounter, 1); // 层记录（默认持续时间 max）
+                    player.AddCounters(Attribute.CounterRules.LifeUpCounter, 1); // 层记录（换区清除型；角色无换区即常驻）
                     player.IncreaseMaxHealth(1);                                  // 层效果：上限+当前同加
                     player.Life = player.MaxHealth;                                // 实得=新上限，剩余溢出截断
                 }
@@ -278,35 +281,26 @@ namespace CardCore
             => AddKeyword(entity, keyword, KeywordLane.Temp);
 
         /// <summary>
-        /// 添加关键词（新咽喉，带轨别）：_keywords 仍是运行时唯一真身（Contains 去重、幂等），
-        /// 台账恒记录——轨别各自计数：同一关键词被多轨授予时清掉一条轨，其余轨仍在则 _keywords 保留。
+        /// 添加关键词（带轨别咽喉）：_keywords 唯一真身（Contains 去重、幂等）；
+        /// 台账按（关键词, 轨）唯一——不叠加定案（2026-10-08）：同轨重复授予=新实例取代旧实例
+        /// （值/次数/来源刷新）；跨轨并存（卡面文本 + 战中附加状态两份可同时持有）。
         /// </summary>
         public static void AddKeyword(this Entity entity, string keyword, KeywordLane lane, Entity source = null)
-        {
-            if (entity == null) return;
-            if (!entity._keywords.Contains(keyword))
-                entity._keywords.Add(keyword);
-            entity._keywordGrants.Add(new KeywordGrant { Keyword = keyword, Lane = lane, Source = source });
-        }
+            => AddKeyword(entity, keyword, lane, source, 1, 1);
 
-        /// <summary>
-        /// 叠加式添加关键词（重复叠加通道，定案：强化只走重复叠加）：不去重——
-        /// 重复坚韧计 2（GetKeywordCount 按 List 计数），每份各记一条台账（清除按轨逐份撤）。
-        /// </summary>
-        public static void AddKeywordStack(this Entity entity, string keyword, KeywordLane lane, Entity source = null)
-        {
-            if (entity == null) return;
-            entity._keywords.Add(keyword);
-            entity._keywordGrants.Add(new KeywordGrant { Keyword = keyword, Lane = lane, Source = source });
-        }
-
-        /// <summary>参数化添加关键词（2026-10-07 深夜坚韧/守护定案）：实例值与生效次数入台账
-        ///（Value≤0 兜底 1；Limit 1/2/3，-1=无限）；_keywords 真身与去重口径同主重载。</summary>
+        /// <summary>参数化添加关键词（2026-10-07 值化 + 2026-10-08 不叠加定案）：实例值与生效次数入台账
+        ///（Value≤0 兜底 1；Limit 1/2/3，-1=无限）；同轨重复授予=取代（旧条目移除、新条目入账，不叠加）。</summary>
         public static void AddKeyword(this Entity entity, string keyword, KeywordLane lane, Entity source, int value, int limit)
         {
             if (entity == null) return;
             if (!entity._keywords.Contains(keyword))
                 entity._keywords.Add(keyword);
+            for (int i = entity._keywordGrants.Count - 1; i >= 0; i--)
+            {
+                var g = entity._keywordGrants[i];
+                if (g.Keyword == keyword && g.Lane == lane)
+                    entity._keywordGrants.RemoveAt(i); // 取代制：同关键词同轨旧实例移除
+            }
             entity._keywordGrants.Add(new KeywordGrant
             {
                 Keyword = keyword, Lane = lane, Source = source,
@@ -314,49 +308,44 @@ namespace CardCore
             });
         }
 
-        /// <summary>关键词实例值求和（2026-10-07 深夜值化定案）：台账同名条目 Value 之和——
-        /// 坚韧减伤、守护在持判定走此口；台账缺失（旧档/直改 _keywords）按份数×1；
-        /// 裸 _keywords 多于台账条数（融合继承路径）时差额按 1/份补足。</summary>
-        public static int GetKeywordValueSum(this Entity entity, string keyword)
+        /// <summary>关键词实例值（不叠加定案 2026-10-08）：跨轨并存取各实例 Value 最大值；
+        /// 台账缺失（旧档/直改 _keywords）持有即 1。运行时消费者已清零（坚韧 2026-10-08
+        /// 指示物化、守护配对制无限次）——留作不叠加台账读数。</summary>
+        public static int GetKeywordValue(this Entity entity, string keyword)
         {
             if (entity == null) return 0;
-            int sum = 0, ledgerEntries = 0;
+            if (!entity._keywords.Contains(keyword)) return 0;
+            int best = 0;
             foreach (var g in entity._keywordGrants)
-                if (g != null && g.Keyword == keyword) { ledgerEntries++; sum += g.Value <= 0 ? 1 : g.Value; }
-            int raw = entity._keywords.Count(k => k == keyword);
-            if (ledgerEntries == 0) return raw;
-            if (raw > ledgerEntries) sum += raw - ledgerEntries;
-            return sum;
+                if (g != null && g.Keyword == keyword && g.Value > best)
+                    best = g.Value;
+            return best > 0 ? best : 1;
         }
 
-        /// <summary>关键词实例生效次数上限/回合（2026-10-07 深夜次数闸）：台账同名条目 Limit 之和，
-        /// 任一 -1（无限）→ -1；台账缺失兜底 = _keywords 计数×1，裸差额同样按 1/份补足。
-        /// 光环形态不设闸（恒无限）。</summary>
-        public static int GetKeywordLimitSum(this Entity entity, string keyword)
+        /// <summary>关键词实例生效次数上限/回合（不叠加定案 2026-10-08）：跨轨并存取各实例 Limit
+        /// 最大值，任一 -1（无限）→ -1；台账缺失兜底=持有即 1。光环形态不设闸（恒无限）。</summary>
+        public static int GetKeywordLimit(this Entity entity, string keyword)
         {
             if (entity == null) return 0;
-            int sum = 0, ledgerEntries = 0;
+            if (!entity._keywords.Contains(keyword)) return 0;
+            int best = 0;
             foreach (var g in entity._keywordGrants)
-                if (g != null && g.Keyword == keyword)
-                {
-                    ledgerEntries++;
-                    if (g.Limit < 0) return -1;
-                    sum += g.Limit;
-                }
-            int raw = entity._keywords.Count(k => k == keyword);
-            if (ledgerEntries == 0) return raw;
-            if (raw > ledgerEntries) sum += raw - ledgerEntries;
-            return sum;
+            {
+                if (g == null || g.Keyword != keyword) continue;
+                if (g.Limit < 0) return -1;
+                if (g.Limit > best) best = g.Limit;
+            }
+            return best > 0 ? best : 1;
         }
 
         /// <summary>
-        /// 移除关键词：_keywords 移除一次 + 台账同步移除一条同名条目（任意轨，倒序取最近授予——
-        /// 消耗型关键词不与多轨共存，计数偏差可忽略的已知近似）。
+        /// 移除关键词（消耗型）：撤掉最近一条台账实例（任意轨，倒序取最近授予）；
+        /// 仅当无任何轨再持有时才移除 _keywords 本体占用——文本与附加状态并存时消耗一份、
+        /// 另一份仍生效（圣盾双份挡两次）。
         /// </summary>
         public static void RemoveKeyword(this Entity entity, string keyword)
         {
             if (entity == null) return;
-            entity._keywords.Remove(keyword);
             for (int i = entity._keywordGrants.Count - 1; i >= 0; i--)
             {
                 if (entity._keywordGrants[i].Keyword == keyword)
@@ -365,15 +354,23 @@ namespace CardCore
                     break;
                 }
             }
+            bool stillHeld = false;
+            foreach (var g in entity._keywordGrants)
+                if (g.Keyword == keyword) { stillHeld = true; break; }
+            if (!stillHeld)
+                entity._keywords.RemoveAll(k => k == keyword);
         }
 
         /// <summary>检查是否有关键词（角色默认带神佑 DivineProtection；连接光环关键词=光环期间视为持有，
-        /// 不进 _keywords、不参与 GetKeywordCount 重复叠加计数）</summary>
+        /// 不进 _keywords、不参与 GetKeywordCount 重复叠加计数）。角色同走连接光环读数
+        /// （2026-10-07 定案：关键词光环可经箭头指向角色格投递；属性光环钉死生物专用）。</summary>
         public static bool HasKeyword(this Entity entity, string keyword)
         {
             if (entity == null) return false;
             if (entity._keywords.Contains(keyword)) return true;
-            return entity is Card card && GameBoard.LinkAuraSystem.HasAuraKeyword(card, keyword);
+            if (entity is Card card) return GameBoard.LinkAuraSystem.HasAuraKeyword(card, keyword);
+            if (entity is Player player) return GameBoard.LinkAuraSystem.HasAuraKeyword(player, keyword);
+            return false;
         }
 
         #endregion
@@ -383,15 +380,10 @@ namespace CardCore
         /// <summary>
         /// 添加指示物（Entity 级：角色/卡牌同构）。amount 可为负（攻/血/费指示物带符号）。
         /// source = 施加方（指示物来源定案：正量登记，净量归零丢弃；GetCounterSource 查询）。
+        /// 回合时钟重载已删（2026-10-08 死路径清理）：限时持续由 CounterSpec 的
+        /// Duration/TickPolicy 声明驱动，不再随施加传 turns。
         /// </summary>
         public static void AddCounters(this Entity entity, string counterType, int amount, Entity source = null)
-            => AddCounters(entity, counterType, amount, -1, source);
-
-        /// <summary>
-        /// 添加指示物并附带回合时钟（turns &gt; 0 时每层进 _counterClocks，
-        /// 由 CounterRules.OnTurnEnd 逐回合末递减，到期层回收并从计数扣除——毒素层=3）。
-        /// </summary>
-        public static void AddCounters(this Entity entity, string counterType, int amount, int turns, Entity source = null)
         {
             if (entity == null) return;
             if (!entity._counters.ContainsKey(counterType))
@@ -403,13 +395,6 @@ namespace CardCore
                 entity._counterSources[counterType] = source;
             else if (entity._counters[counterType] <= 0)
                 entity._counterSources.Remove(counterType);
-
-            if (turns > 0 && amount > 0)
-                entity._counterClocks.Add(new CounterInstance { Id = counterType, Amount = amount, RemainingTurns = turns });
-
-            // 净量归零时丢弃该类指示物的全部时钟（已无对应层）
-            if (entity._counters[counterType] <= 0 && entity._counterClocks.Count > 0)
-                entity._counterClocks.RemoveAll(c => c.Id == counterType);
         }
 
         /// <summary>查询指示物施加方（最后施加的来源；无来源/未登记返回 null）</summary>
@@ -430,8 +415,6 @@ namespace CardCore
             if (entity != null && entity._counters.TryGetValue(counterType, out var count))
             {
                 entity._counters[counterType] = Math.Max(0, count - amount);
-                if (entity._counters[counterType] == 0 && entity._counterClocks.Count > 0)
-                    entity._counterClocks.RemoveAll(c => c.Id == counterType);
             }
         }
 
@@ -440,17 +423,17 @@ namespace CardCore
         #region 特殊状态
 
         /// <summary>
-        /// 冻结（2026-09-13 定案）：强制横置（一次性动作）+ 放置冻结指示物——**默认 1 回合、可叠加**：
-        /// 对已冻结目标施加冻结 = 持续回合数 +1（每层一回合，回合末 CounterRules 倒数 -1）；
-        /// 持有期间无法重置（SleepFreezeUntapBlockRule）。duration 参数 vestigial（层数模型取代持续档）。
-        /// layers：指示物层数（2026-09-13 指示物数量随机——Value 掷值，缺省 1）。
+        /// 冻结（2026-09-13 定案；2026-10-08 层即持续定案）：强制横置（一次性动作）+ 放置冻结指示物——
+        /// 层=持续回合数，持有者回合末 −1、归零解除（叠加=延长）；持有期间无法重置（BlocksUntap）。
+        /// layers：指示物层数=回合数（Value 掷值，缺省 1）。
+        /// source = 施加方（2026-10-08 source 补齐：霜蚀光环经此口传 carrier）。
         /// </summary>
-        public static void Freeze(this Entity entity, DurationType duration, int layers = 1)
+        public static void Freeze(this Entity entity, int layers = 1, Entity source = null)
         {
             if (entity is Card card)
             {
                 card._isTapped = true;
-                card.AddCounters(Attribute.KeywordRules.FreezeCounter, System.Math.Max(1, layers));
+                card.AddCounters(Attribute.KeywordRules.FreezeCounter, System.Math.Max(1, layers), source);
             }
         }
 
@@ -460,15 +443,13 @@ namespace CardCore
             return entity is Card card && card.GetCounterCount(Attribute.KeywordRules.FreezeCounter) > 0;
         }
 
-        /// <summary>移除所有减益：清空全部负面指示物（CounterRules 极性口径；横置不在此恢复）+ 减益关键词。</summary>
+        /// <summary>移除所有减益：清空全部负面指示物（CounterRules 极性口径；横置不在此恢复）。
+        /// 旧 Silenced/Weakened 减益关键词死行已删（2026-10-08）——负面状态统一走指示物（沉默=SilenceCounter）。</summary>
         public static void RemoveAllDebuffs(this Entity entity)
         {
             if (entity is Card card)
             {
                 Attribute.CounterRules.ClearNegative(card);
-                // 移除其他减益关键词
-                card._keywords.Remove("Silenced");
-                card._keywords.Remove("Weakened");
             }
         }
 
@@ -589,9 +570,10 @@ namespace CardCore
         internal EffectTargetFlags _targetFlags = EffectTargetFlags.CanBeTargetedByAll;
 
         // 关键词和指示物。
-        // _keywords 与 _counters/_counterClocks 均已上移至 Entity 基类（角色=普通生物单位的
+        // _keywords 与 _counters 均已上移至 Entity 基类（角色=普通生物单位的
         // 世界观定案：Player 同构持有，角色默认带神佑；剧毒/毒素指示物可指向玩家）。
-        // List 而非 HashSet：重复叠加允许（双坚韧 = −2），
+        // List 而非 HashSet：重复叠加允许（历史例：双坚韧——2026-10-08 指示物化后坚韧走指示物叠加，
+        // 关键词份数叠加留给消耗型计数），
         // 普通授予路径的「唯一性」由 AddKeyword 的 Contains 检查保证。
 
         // ===== 战斗状态（关键词行为；核心规则字段，非棋盘坐标） =====

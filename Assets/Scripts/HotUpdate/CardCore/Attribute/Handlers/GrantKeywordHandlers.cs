@@ -37,16 +37,21 @@ namespace CardCore.Attribute.Handlers
                     ? KeywordLane.Setting
                     : KeywordLane.Temp;
 
-                // 参数化（2026-10-07 深夜定案）：实例值=原子 value（坚韧=受伤减多少；≤0 兜底 1）、
-                // 生效次数=承载效果次数档（0→1；-1=无限）随授予入台账——仅坚韧/守护消费。
+                // 参数化（2026-10-07 值化定案；2026-10-08 不叠加定案）：实例值=原子 value、
+                // 生效次数=承载效果次数档（0→1；-1=无限）随授予入台账——同轨重复授予=取代
+                //（值/次数刷新不叠加）。运行时消费者已清零：坚韧 2026-10-08 指示物化（ToughnessCounter）、
+                // 守护配对制无限次改写——台账 Value/Limit 现仅作不叠加账目，无行为读数。
                 target.AddKeyword(_keywordId, lane, context.Source,
                     effect.GetRolledValue(), context.TriggerLimitPerTurn == 0 ? 1 : context.TriggerLimitPerTurn);
+                // 守护授予即选（2026-10-08 定案）：落到已在场的卡立即弹选保护目标
+                //（印刷入场走 GuardianRules.OnEnterBattlefield 入场事件，不经此口——无双选）。
+                if (_keywordId == KeywordRules.Guardian && target is Card grantedCard)
+                    GuardianRules.OnGrantedInPlay(grantedCard);
                 PublishEvent(new KeywordEvent
                 {
                     Target = target,
                     Keyword = _keywordId,
                     IsAdd = true,
-                    Duration = DurationType.Permanent,
                     Source = context.Source
                 });
             }
@@ -84,31 +89,38 @@ namespace CardCore.Attribute.Handlers
 
             // 蓝色 - 规避/控制
             (AtomicEffectType.GrantVigilance, "Vigilance", "获得警戒"),
-            (AtomicEffectType.GrantStealth, "Stealth", "获得潜行"),
-            // 隐密（2026-10-04，蓝5）：潜行的持续版——不因发动效果/受到伤害失效（两个移除口只查 Stealth）
+            // 潜行已移出关键词族（2026-10-08 指示物化）：GrantStealth 原子改由 GrantStealthHandler
+            // 执行（挂 StealthCounter 层，EffectExecutionEngine 指示物原子区注册）——refId 已重推
+            // a16f1e55→8f84641e（2026-10-08 全量 ID 重推·卡数据随后重建）
+            // 隐密（2026-10-04，蓝5）：潜行的持续版——不因发动效果/受到伤害失效（三个失效口只消耗潜行层）
             (AtomicEffectType.GrantConcealed, "Concealed", "获得隐密"),
             (AtomicEffectType.GrantSpellShield, "SpellShield", "获得法术护盾"),
             (AtomicEffectType.GrantCannotBeTargeted, "Untargetable", "获得扰魔"),
 
-            // 绿色 - 续航/成长
+            // 绿色 - 续航
             (AtomicEffectType.GrantLifesteal, "Lifesteal", "获得吸血"),
             (AtomicEffectType.GrantLifelink, "Lifelink", "获得系命"),
             (AtomicEffectType.GrantRegeneration, "Regeneration", "获得再生"),
-            (AtomicEffectType.GrantGrowth, "Growth", "获得成长"),
-            (AtomicEffectType.GrantArmor, "Armor", "获得坚韧"),
-            // 守护（2026-10-07 深夜关键词族回归）：关键词形态=己方角色伤害改写为自己承受
-            //（次数档随授予传入；箭头/方向档光环形态经 LinkAuras live-query 不限次）
+            // 坚韧已移出关键词族（2026-10-08 指示物化）：GrantToughness 原子（原 GrantArmor 同日更名）
+            // 改由 GrantToughnessHandler 执行（挂 ToughnessCounter 层，EffectExecutionEngine 指示物原子区注册）
+            //——refId 已重推 05485f65→a312b8b0（2026-10-08 全量 ID 重推·卡数据随后重建）
+            // 守护（2026-10-08 配对制改版，退出连接光环族——表行位 8 拉黑）：登场/授予时弹选一个
+            // 己方目标（单位或角色），其受伤改写为守护者承受（GuardianRules 配对表；无限次直到守护者离场）
             (AtomicEffectType.GrantGuardian, "Guardian", "获得守护"),
-            (AtomicEffectType.GrantDivineShield, "DivineShield", "获得圣盾"),
+            // 圣盾已移出关键词族（2026-10-08 指示物化）：GrantDivineShield 原子改由 GrantDivineShieldHandler
+            // 执行（挂 DivineShieldCounter 层）——refId 已重推 feab5d3b→c8624e6a（2026-10-08 全量 ID 重推）
             (AtomicEffectType.GrantTaunt, "Taunt", "获得帷幕"),
             (AtomicEffectType.GrantPoisonSting, "PoisonSting", "获得毒刺（战斗伤害改为毒素）"),
             // 冰晶/梦魇 2026-10-02 裁决表行退役（改写走分支组合）；Specs 保留——印刷关键词路径
             // （Cards.json keywords 字段）与 KeywordRules 改写链仍靠此映射解析。
             (AtomicEffectType.GrantIceCrystal, "IceCrystal", "获得冰晶（战斗伤害改为冻结）"),
             (AtomicEffectType.GrantNightmare, "Nightmare", "获得梦魇（战斗伤害改为沉睡）"),
-            (AtomicEffectType.GrantPathogen, "Pathogen", "获得病原体（战斗伤害改为剧毒）"),
+            // 剧毒（2026-10-08 指示物转关键词·落定追加式）：受到其战斗伤害的生物被消灭；
+            // 表行 20c06d52（原 Poison 原子）改挂 GrantVenom——病原体（改写挂剧毒指示物）随之退役
+            (AtomicEffectType.GrantVenom, "Venom", "获得剧毒（受到其战斗伤害的生物被消灭）"),
             (AtomicEffectType.GrantSpellban, "Spellban", "获得禁魔石（非战斗伤害为0）"),
-            (AtomicEffectType.GrantReborn, "Reborn", "获得复生"),
+            // 复生已移出关键词族（2026-10-08 指示物化）：GrantReborn 原子改由 GrantRebornHandler
+            // 执行（挂 RebornCounter 层）——refId 已重推 502be10d→94f6a32d（2026-10-08 全量 ID 重推）
             (AtomicEffectType.GrantIndestructible, "Indestructible", "获得不灭"),
 
             // 临时复制卡族（2026-09-11；回响 2026-10-07 改普通效果 EchoCopy 退出关键词族）

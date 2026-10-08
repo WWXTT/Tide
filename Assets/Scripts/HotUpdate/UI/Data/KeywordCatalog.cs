@@ -34,7 +34,8 @@ namespace SynergyUI
                     continue;
                 }
                 // 面板资格双门（2026-10-07 仅可定案）：
-                // ①关键词位——守护/坚韧等仅连接光环节点退出面板（此前仅凭 TargetFilter 拦不住）；
+                // ①关键词位——坚韧 2026-10-08 指示物化后连关键词目录都不入（GrantToughness 行
+                //   未登记 Specs，LoadKeywords 直接跳过——指示物族面板另走原子库）；
                 // ②表行 TargetFilter 含 "NoRole"（仅生物可赋予）
                 // ——目标侧语义归目标过滤；以后增删可赋关键词只改原子表
                 var row = CardCore.Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect);

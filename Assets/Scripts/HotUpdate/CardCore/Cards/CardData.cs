@@ -389,11 +389,12 @@ namespace CardCore
         }
 
         /// <summary>效果层光环聚合（2026-09-23 定案：箭头/光环随效果合成，卡面=聚合缓存）——
-        /// 把各效果携带的 ArrowDirections/LinkAuras/AuraScope 并集入卡面（多光环取并集）。
+        /// 把各效果携带的 ArrowDirections/LinkAuras 并集入卡面（多光环取并集）。
         /// recompute=false 与卡面已有值并集（装载期：兼容旧卡面直书数据）；
         /// true 以效果声明为准重算（编辑期：移除效果后箭头同步回收）。
-        /// 方向档并集=取末个非零（多效果各自选向属病态组合，校验层兜底）。
-        /// 须在 CardCostService.EnsureCost 前调用（光环费/箭头累乘进计价）。</summary>
+        /// 2026-10-08 条目级作用面：范围随 LinkAuraData.scope 走（每条目独立）；
+        /// 旧数据效果级 fx.AuraScope 迁移盖戳到 scope==0 的条目（此后卡级 _auraScope 不再权威，
+        /// 运行时/计价只读条目）。须在 CardCostService.EnsureCost 前调用（光环费/作用面累乘进计价）。</summary>
         public void AggregateEffectAuras(bool recompute)
         {
             if (recompute)
@@ -408,8 +409,12 @@ namespace CardCore
                 if (fx == null) continue;
                 if (fx.ArrowDirections != 0)
                     _arrowDirections |= (HexDirection)fx.ArrowDirections;
-                if (fx.AuraScope != 0)
-                    _auraScope = fx.AuraScope;
+                if (fx.AuraScope != 0 && fx.LinkAuras != null)
+                {
+                    // 旧→新迁移（2026-10-08）：效果级方向档盖戳到未声明条目；新合成器恒写 0 不触发
+                    foreach (var aura in fx.LinkAuras)
+                        if (aura != null && aura.scope == 0) aura.scope = fx.AuraScope;
+                }
                 if (fx.LinkAuras == null) continue;
                 foreach (var aura in fx.LinkAuras)
                 {
@@ -570,12 +575,20 @@ namespace CardCore
     [Serializable]
     public class LinkAuraData
     {
-        /// <summary>属性名："Power" 或 "Life"（空 = 关键词条目）</summary>
+        /// <summary>属性名："Power"/"Life"/"Both"（攻生同值 ±1/±1；空 = 关键词条目）</summary>
         public string stat;
-        /// <summary>数值幅度（stat 条目的 ±修正量）</summary>
+        /// <summary>数值幅度（stat 条目的 ±修正量；关键词条目现无值语义读数——
+        /// 坚韧值化已随 2026-10-08 指示物化退役，字段留存兼容旧数据）</summary>
         public int value;
         /// <summary>关键词 id（与 stat 二选一；光环期间 HasKeyword=true，不进 _keywords）</summary>
         public string keyword;
+        /// <summary>条目级作用范围（2026-10-08 actuating-range 定案）：0=连接方向（随卡面箭头几何）；
+        /// 1=己方/2=双方/3=对方（作用面档，不经箭头）。旧数据 0=未声明——效果级 header.AuraScope
+        /// 由 AggregateEffectAuras 迁移盖戳。</summary>
+        public int scope;
+        /// <summary>是否包含角色（2026-10-08 定案）：作用面档下关键词条目可投递角色（scope==0 箭头
+        /// 模式与属性条目恒 false——属性增加不作用于角色，角色只吃角色攻击力原子）。</summary>
+        public bool role;
     }
 
     /// <summary>
@@ -756,9 +769,11 @@ namespace CardCore
             _runtimeEffects = new List<IEffect>();
 
             // 注入关键词到 Card._keywords（与 EntityEffectExtensions 统一）——
-            // 轨别=Printed（卡面本体：净化/换区都不清，三轨制定案）
+            // 轨别=Printed（卡面本体：净化/换区都不清，三轨制定案）。
+            // 不叠加定案（2026-10-08）：卡面重复同名=单份（Contains 去重，台账同轨唯一）
             foreach (var kw in data.Keywords)
             {
+                if (string.IsNullOrEmpty(kw) || _keywords.Contains(kw)) continue;
                 _keywords.Add(kw);
                 _keywordGrants.Add(new KeywordGrant { Keyword = kw, Lane = KeywordLane.Printed });
             }

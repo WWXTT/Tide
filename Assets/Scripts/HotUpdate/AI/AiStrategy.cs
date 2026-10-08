@@ -363,9 +363,9 @@ namespace CardCore.AI
             bool oppHasBoard = me.Opponent != null
                 && core.ZoneManager.GetCards(me.Opponent, Zone.Battlefield).Any(c => c.IsAlive);
 
-            // 控制轴：指示物（剧毒/毒素/冻结/沉默/紊乱/易损）与解场（弹回）——有目标才值钱
+            // 控制轴：指示物（毒素/冻结/沉默/紊乱/易损）与解场（弹回）——有目标才值钱（剧毒已转关键词）
             if (oppHasBoard && CardHasAtom(core, card,
-                AtomicEffectType.Poison, AtomicEffectType.AddToxin, AtomicEffectType.Freeze,
+                AtomicEffectType.AddToxin, AtomicEffectType.Freeze,
                 AtomicEffectType.Silence, AtomicEffectType.RushSickness, AtomicEffectType.AddVulnerable,
                 AtomicEffectType.ReturnToHand))
                 score += 350f;

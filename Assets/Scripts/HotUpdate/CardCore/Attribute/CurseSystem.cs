@@ -8,33 +8,38 @@ namespace CardCore
 {
     /// <summary>
     /// 诅咒系统（信息轴，2026-10-02 定案；订阅式引擎，仿 BranchEngines）：
-    /// AddCurse 原子为对手的卡附加「诅咒」指示物（CurseCounter，Permanent）并在此登记载荷；
-    /// 对手抽到该卡时（CardDrawEvent——ZoneManagerExtensions.DrawCard 统一发布口）自动执行
+    /// 为牌库中的卡附加「诅咒/祝福」指示物（Exception 生效自减档——换区不清，活过牌库→手牌）并在此登记载荷；
+    /// 该卡被抽到时（CardDrawEvent——ZoneManagerExtensions.DrawCard 统一发布口）自动执行
     /// 载荷的分支效果并消层（一次性，用户定案）。
     ///
-    /// - 载荷两形态（2026-10-05 诅咒有限分支定案）：①**inline 原子列**——合成器 CurseOnDraw 门的
-    ///   Then 原子（≤2 费预算）经 converter 抽取挂 AddCurse 原子的 CursePayload，Attach 直接携带；
-    ///   ②Effects.json 条目引用——AddCurse.str 引用 id（手写数据兼容），Steps 支持 Atomic+条件分支。
-    /// - 执行上下文：Controller=施诅方（载荷的相对域以施诅方视角解析——「敌方」=被诅玩家），
-    ///   Targets/CastCard=被抽到的卡，TriggeringEvent=CardDrawEvent；原子各自解析目标（免编排路径）。
+    /// - 2026-10-08 引擎主干化：主投放口=自由分支·引擎主干行（附加诅咒→对手牌库/附加祝福→自己牌库，
+    ///   BranchEngines.OnCardCastResolved 施放结算时部署，Then=引擎奖励原子列——结算走
+    ///   EffectExecutor.ExecuteThenRewardsAsync 弹选口径，与六引擎 FireRewards 同款）；
+    ///   指示物（诅咒/祝福）归系统，不设玩家表行。旧 AddCurse 原子路径（表行已退役）保留代码侧
+    ///   兼容手写数据：①inline 原子列（CurseOnDraw 门 Then ≤2 费预算）；②Effects.json 条目引用（str）。
+    /// - 执行上下文：Controller=施加方（载荷的相对域以施加方视角解析——「敌方」=被诅玩家）；
+    ///   引擎载荷 Source=来源卡（弹选/免编排）；legacy 载荷 Targets/CastCard=被抽到的卡，
+    ///   TriggeringEvent=CardDrawEvent，原子各自解析目标。
     /// - 消耗前置（先消层摘载荷、再结算）：现网原子抽牌路径 CardDrawEvent 双发
     ///   （DrawCardHandler 与 ZoneManagerExtensions.DrawCard 各发一次）——第一次已消耗、第二次自然空转，
-    ///   亦防载荷再抽牌的重入双触发。
-    /// - 净化（PurgeAll 清 Curse 指示物）后残留的载荷注册为死重：抽到时计数=0 直接空转，局重置统一回收。
+    ///   亦防载荷再抽牌的重入双触发。诅咒/祝福各自独立消耗（同一卡可同时持两类载荷，互不代扣）。
+    /// - 净化（PurgeAll 清指示物）后残留的载荷注册为死重：抽到时计数=0 直接空转，局重置统一回收。
     /// - 组合根 EnsureRegistered/Reset（GameCore.Reset，幂等；跨局不残留）。
     /// </summary>
     public static class CurseSystem
     {
         private class CursePayload
         {
-            public string EffectId;   // 载荷效果 id（Effects.json 条目；inline 形态为 null）
-            public List<AtomicEffectInstance> InlineSteps; // inline 载荷原子列（合成器 CurseOnDraw 门 Then）
-            public Player Caster;     // 施诅方（载荷控制者）
-            public Card SourceCard;   // 施咒来源卡（可 null——归因用，卡可能已离场）
+            public string CounterId;  // 载荷归属指示物（CurseCounter/BlessingCounter——2026-10-08 祝福并入）
+            public string EffectId;   // 载荷效果 id（Effects.json 条目；inline/引擎形态为 null）
+            public List<AtomicEffectInstance> InlineSteps; // 载荷原子列（legacy CurseOnDraw 门 Then / 引擎 Then 共用载体）
+            public bool FromEngine;   // 引擎主干行载荷（2026-10-08）——结算走 ExecuteThenRewardsAsync 弹选口径
+            public Player Caster;     // 施加方（载荷控制者）
+            public Card SourceCard;   // 来源卡（可 null——归因用，卡可能已离场）
         }
 
         private static bool _registered;
-        private static readonly Dictionary<Card, List<CursePayload>> _curses =
+        private static readonly Dictionary<Card, List<CursePayload>> _payloads =
             new Dictionary<Card, List<CursePayload>>();
         // 载荷效果定义缓存（含负缓存——缺失告警一次）
         private static readonly Dictionary<string, EffectDefinition> _defCache =
@@ -47,36 +52,66 @@ namespace CardCore
             EventManager.Instance.Subscribe<CardDrawEvent>(OnCardDrawn);
         }
 
-        /// <summary>登记一条诅咒（AddCurseHandler 调用）：目标卡 + 载荷 + 施诅方。
-        /// effectId=Effects.json 条目引用（手写数据兼容）。</summary>
+        /// <summary>登记一条诅咒（legacy AddCurseHandler 调用，表行已退役——手写数据兼容）：
+        /// 目标卡 + 载荷效果 id + 施诅方。</summary>
         public static void Attach(Card target, string effectId, Player caster, Card sourceCard)
         {
             if (target == null || string.IsNullOrEmpty(effectId)) return;
-            if (!_curses.TryGetValue(target, out var list))
+            AddPayload(target, new CursePayload
             {
-                list = new List<CursePayload>();
-                _curses[target] = list;
-            }
-            list.Add(new CursePayload { EffectId = effectId, Caster = caster, SourceCard = sourceCard });
+                CounterId = Attribute.CounterRules.CurseCounter,
+                EffectId = effectId,
+                Caster = caster,
+                SourceCard = sourceCard,
+            });
         }
 
-        /// <summary>登记一条 inline 诅咒（2026-10-05 合成器路径）：载荷=CurseOnDraw 门 Then 原子列
+        /// <summary>登记一条 inline 诅咒（legacy 2026-10-05 合成器路径）：载荷=CurseOnDraw 门 Then 原子列
         ///（≤2 费预算由合成器校验）——每次 Attach 各自携带，天然"不同诅咒触发不同效果"。</summary>
         public static void Attach(Card target, List<AtomicEffectInstance> inlineSteps, Player caster, Card sourceCard)
         {
             if (target == null || inlineSteps == null || inlineSteps.Count == 0) return;
-            if (!_curses.TryGetValue(target, out var list))
+            AddPayload(target, new CursePayload
             {
-                list = new List<CursePayload>();
-                _curses[target] = list;
-            }
-            list.Add(new CursePayload { InlineSteps = inlineSteps, Caster = caster, SourceCard = sourceCard });
+                CounterId = Attribute.CounterRules.CurseCounter,
+                InlineSteps = inlineSteps,
+                Caster = caster,
+                SourceCard = sourceCard,
+            });
         }
 
-        /// <summary>查询卡上挂着的诅咒载荷（UI 展示用：载荷效果 id + 施诅方）。</summary>
+        /// <summary>登记一条引擎主干行载荷（2026-10-08 自由分支化主投放口）：
+        /// BranchEngines.OnCardCastResolved 部署调用——counterId 区分诅咒/祝福，
+        /// then=引擎 Then 奖励原子列（发作时走 ExecuteThenRewardsAsync 弹选口径）。Then 空=只挂层不登记。</summary>
+        public static void AttachEngine(Card target, string counterId,
+            List<AtomicEffectInstance> then, Player caster, Card sourceCard)
+        {
+            if (target == null || then == null || then.Count == 0) return;
+            AddPayload(target, new CursePayload
+            {
+                CounterId = counterId,
+                InlineSteps = then,
+                FromEngine = true,
+                Caster = caster,
+                SourceCard = sourceCard,
+            });
+        }
+
+        private static void AddPayload(Card target, CursePayload payload)
+        {
+            if (target == null) return;
+            if (!_payloads.TryGetValue(target, out var list))
+            {
+                list = new List<CursePayload>();
+                _payloads[target] = list;
+            }
+            list.Add(payload);
+        }
+
+        /// <summary>查询卡上挂着的载荷（UI 展示用：载荷效果 id + 施加方——引擎/inline 形态 effectId=null）。</summary>
         public static IReadOnlyList<(string effectId, Player caster)> GetCurses(Card card)
         {
-            if (card == null || !_curses.TryGetValue(card, out var list) || list == null)
+            if (card == null || !_payloads.TryGetValue(card, out var list) || list == null)
                 return Array.Empty<(string, Player)>();
             return list.Select(p => (p.EffectId, p.Caster)).ToArray();
         }
@@ -84,7 +119,7 @@ namespace CardCore
         /// <summary>局重置（GameCore.Reset）：载荷注册表与定义缓存跨局不残留。</summary>
         public static void Reset()
         {
-            _curses.Clear();
+            _payloads.Clear();
             _defCache.Clear();
         }
 
@@ -92,28 +127,38 @@ namespace CardCore
         {
             var card = e?.DrawnCard;
             if (card == null) return;
-            int layers = card.GetCounterCount(Attribute.CounterRules.CurseCounter);
-            if (layers <= 0) return;
-            if (!_curses.TryGetValue(card, out var payloads) || payloads == null || payloads.Count == 0) return;
+            // 诅咒/祝福各自独立结算（同一卡两类并存互不代扣；先后=登记口径：诅咒先）
+            ProcessOnDraw(card, Attribute.CounterRules.CurseCounter, "诅咒", e);
+            ProcessOnDraw(card, Attribute.CounterRules.BlessingCounter, "祝福", e);
+        }
 
-            // 快照 → 先消耗（消全部层+摘全部载荷——一次抽牌一次结算；层多载荷少时多余层一并作废，
-            // 用户定案一次性消耗，不留「回牌库再抽再触发」的残留）→ 播报 → 再结算
-            var due = payloads.Take(layers).ToList();
-            _curses.Remove(card);
-            card.RemoveCounters(Attribute.CounterRules.CurseCounter, layers);
+        /// <summary>单指示物发作：快照 → 先消耗（消全部层+摘同类载荷——一次抽牌一次结算；
+        /// 层多载荷少时多余层一并作废，用户定案一次性消耗，不留「回牌库再抽再触发」的残留；
+        /// 有层无载荷=异态不白吃层）→ 播报 → 再结算。</summary>
+        private static void ProcessOnDraw(Card card, string counterId, string keyword, CardDrawEvent e)
+        {
+            int layers = card.GetCounterCount(counterId);
+            if (layers <= 0) return;
+            if (!_payloads.TryGetValue(card, out var all) || all == null || all.Count == 0) return;
+
+            var due = all.Where(p => p.CounterId == counterId).Take(layers).ToList();
+            if (due.Count == 0) return;
+            foreach (var p in due) all.Remove(p);
+            if (all.Count == 0) _payloads.Remove(card);
+            card.RemoveCounters(counterId, layers);
 
             EventManager.Instance.Publish(new Attribute.CounterChangedEvent
             {
                 Target = card,
-                CounterType = Attribute.CounterRules.CurseCounter,
+                CounterType = counterId,
                 Amount = 0,
                 Source = null,
             });
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
                 Target = card,
-                Keyword = "诅咒",
-                Detail = $"诅咒发作：抽到该卡，执行诅咒分支效果（消耗 {due.Count} 层）",
+                Keyword = keyword,
+                Detail = $"{keyword}发作：抽到该卡，执行{keyword}分支效果（消耗 {due.Count} 层）",
             });
 
             var core = GameCore.Instance;
@@ -128,12 +173,29 @@ namespace CardCore
                 await ExecutePayloadAsync(payload, drawnCard, trigger, core);
         }
 
-        /// <summary>执行一条诅咒载荷：inline 形态=原子列逐个执行（合成器 CurseOnDraw 门 Then）；
-        /// 引用形态=按 Steps 遍历（Atomic→注册表执行；Branch→局面门评估选 Then/Else），
-        /// Steps 空退化为扁平 Effects。原子各自解析目标（BranchEngines.FireRewards 同款免编排路径）。</summary>
+        /// <summary>执行一条载荷：引擎形态（2026-10-08）=Then 奖励原子列走 ExecuteThenRewardsAsync
+        /// 弹选口径（BranchEngines.FireRewards 同款——AI/无头自动选首；await 进结算链保同步续行可断言）；
+        /// legacy inline 形态=原子列逐个执行（CurseOnDraw 门 Then）；
+        /// legacy 引用形态=按 Steps 遍历（Atomic→注册表执行；Branch→局面门评估选 Then/Else），
+        /// Steps 空退化为扁平 Effects。legacy 原子各自解析目标（免编排路径）。</summary>
         private static async UniTask ExecutePayloadAsync(
             CursePayload payload, Card drawnCard, CardDrawEvent trigger, GameCore core)
         {
+            // 引擎主干行载荷（2026-10-08）：Then=奖励原子列——per 原子弹选目标（无头自动选首）
+            if (payload.FromEngine)
+            {
+                var engCtx = new EffectExecutionContext
+                {
+                    Source = (Entity)payload.SourceCard ?? payload.Caster,
+                    Controller = payload.Caster,
+                    ZoneManager = core?.ZoneManager,
+                    ElementPool = core?.ElementPool,
+                    ModeIndex = -1,
+                };
+                await EffectExecutor.ExecuteThenRewardsAsync(payload.InlineSteps, engCtx, null);
+                return;
+            }
+
             var ctx = new EffectExecutionContext
             {
                 Source = (Entity)payload.SourceCard ?? payload.Caster,
@@ -145,7 +207,7 @@ namespace CardCore
                 CastCard = drawnCard,
             };
 
-            // inline 载荷（2026-10-05）：合成器门的 Then 原子列——逐个执行（原子各自解析目标）
+            // inline 载荷（legacy 2026-10-05）：合成器门的 Then 原子列——逐个执行（原子各自解析目标）
             if (payload.InlineSteps != null)
             {
                 foreach (var atom in payload.InlineSteps)

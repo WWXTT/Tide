@@ -142,45 +142,9 @@ namespace CardCore
             return true;
         }
 
-        /// <summary>
-        /// 主阶段：武器主动攻击（2026-09-13 装备系统定案——一回合一次、须已驱动、耐久-1）。
-        /// 以武器 Power 对目标造成**战斗伤害**（走 ApplyDamage 战斗管线：易损/圣盾/护甲/坚韧/改写族全适用）。
-        /// 简化版：一次直接结算不上栈（与 TapCreatureForElement 同口径的主阶段动作）。
-        /// </summary>
-        public static bool AttackWithWeapon(GameCore core, Player player, Card weapon, Entity target)
-        {
-            if (core == null || player == null || weapon == null || target == null) return false;
-            if (core.TurnEngine.TurnPlayer != player) return false;
-            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
-            if (!core.ZoneManager.IsCardInZone(weapon, player, Zone.Battlefield)) return false;
-            if (!(weapon is CardWrapper w) || w.GetData()?.IsWeapon != true) return false;
-            if (!EquipRules.IsDriven(core, weapon)) return false; // 须驱动完成
-            if (!target.IsAlive) return false;
-
-            // 一回合一次闸门（本回合使用追踪）
-            if (weapon.GetCounterCount("__WeaponUsedThisTurn") > 0) return false;
-            weapon.AddCounters("__WeaponUsedThisTurn", 1);
-            // 回合开始清（订阅一次性挂——简单做法：临时计数，回合事件在验证器直接驱动）
-
-            int power = Math.Max(0, weapon.GetPower());
-            if (power <= 0) return false;
-
-            // 目标合法性：走战斗 CanAttackTarget（帷幕/守卫拦截照常——从"我"视角）
-            var combat = core.CombatSystem;
-            if (combat != null && !combat.CanAttackTarget(weapon, target, player)) return false;
-
-            Attribute.KeywordRules.ApplyDamage(player, target, power, true);
-            core.PublishEvent(new KeywordAppliedEvent
-            {
-                Target = target,
-                Keyword = "武器攻击",
-                Detail = $"{player.Name} 以 {weapon} 主动攻击：{power} 点战斗伤害",
-                Source = player,
-            });
-
-            EquipRules.LoseDurability(core, weapon, 1, "主动攻击");
-            return true;
-        }
+        // 武器主动攻击（AttackWithWeapon）已随武器系统退役删除（2026-10-07）——
+        // 角色主动攻击改走标准攻击宣言栈（GameActions.DeclareAttack，Player 攻击者），
+        // 攻击力=HeroAttackCounter 弹药读数（攻击/反击结算后烧除，弹药即闸门）。
 
         /// <summary>
         /// 主阶段：转移装备（2026-09-13 装备系统定案——移到己方空位+修改箭头方向，耐久-1）。

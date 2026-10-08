@@ -19,8 +19,13 @@ namespace CardCore
     /// - **元素充盈**（2026-09-22 定案）：自己出牌付费完成后判定（GameActions.PayCost 成功后回调 OnCardCostPaid）——
     ///   bank 数量最多的颜色（全六色，并列取枚举序首个）> x 即执行奖励；**每次达标都触发**（用户定案，无每回合
     ///   上限，多张引擎卡各自触发）；判定读付费后余量。效果费支付不触发。
-    /// - **手牌序位**（2026-09-22 定案）：**此卡**为本回合从手牌使用的第 x 张卡（含自身，宣言序抓拍；响应出牌同计、
-    ///   墓地视手牌等他源不算）→ 施放结算中执行奖励（发动无效跳过；回调 OnCardCastResolved）。
+        /// - **手牌序位**（2026-09-22 定案）：**此卡**为本回合从手牌使用的第 x 张卡（含自身，宣言序抓拍；响应出牌同计、
+        ///   墓地视手牌等他源不算）→ 施放结算中执行奖励（发动无效跳过；回调 OnCardCastResolved）。
+        /// - **附加诅咒**（2026-10-08 自由分支化，自有限分支 CurseOnDraw 门接棒）：施放结算时给对手牌库
+        ///   随机 x 张卡挂「诅咒」+登记 Then 载荷（CurseSystem）——对手抽到该卡时执行奖励并消层（一次性；
+        ///   x∈[1,3]=附加张数，延迟与不确定性即代价，预算不设上限）。
+        /// - **附加祝福**（2026-10-08）：同附加诅咒，作用面=自己牌库、指示物=「祝福」。两引擎用到的
+        ///   指示物归系统（无玩家表行），投放/触发/消耗全在本类与 CurseSystem 内部。
     /// 组合根 EnsureRegistered（GameCore.Reset，幂等）；Then 奖励目标=合法范围内弹选（EffectExecutor.ExecuteThenRewardsAsync，2026-10-07 晚定案：AI/无头自动选首）。
     /// </summary>
     public static class BranchEngines
@@ -251,12 +256,21 @@ namespace CardCore
         }
 
         /// <summary>施放结算回调（GameActions.ResolveCardCastAsync 在发动无效裁决**之后**调用）：
+        /// 附加诅咒/附加祝福（2026-10-08 引擎主干化）——此卡施放结算时部署：诅咒=对手牌库随机 x 张卡、
+        /// 祝福=自己牌库随机 x 张卡，各挂 1 层系统指示物+登记 Then 载荷（CurseSystem）；触发时点=该卡
+        /// 被抽到（CurseSystem.OnCardDrawn），与引擎卡此后去向无关（法术入墓/永久物离场载荷均存续）。
         /// 手牌序位引擎——**此卡**为本回合从手牌使用的第 x 张卡（含自身）时执行奖励。
         /// 评估对象=正在施放的这张卡本身（自指条件），非场上其他引擎卡；发动无效已在上游跳过（不结算效果）。</summary>
         public static void OnCardCastResolved(Card card, Player player)
         {
             var core = GameCore.Instance;
             if (card == null || player == null || core == null) return;
+
+            DeployOnDrawEngines(card, player, BranchEngineKind.CurseOnDraw,
+                Attribute.CounterRules.CurseCounter, "诅咒", enemyDeck: true, core);
+            DeployOnDrawEngines(card, player, BranchEngineKind.BlessingOnDraw,
+                Attribute.CounterRules.BlessingCounter, "祝福", enemyDeck: false, core);
+
             if (!_handCardOrdinalThisTurn.TryGetValue(card, out int ordinal)) return; // 非手牌来源使用 → 恒不触发
 
             foreach (var payload in EnginePayloadsOf(card, BranchEngineKind.NthHandCard))
@@ -271,6 +285,43 @@ namespace CardCore
                     Detail = $"此卡为本回合从手牌使用的第 {ordinal} 张卡 = x：执行奖励",
                 });
                 FireRewards(payload, card, player, core);
+                break;
+            }
+        }
+
+        /// <summary>附加诅咒/附加祝福部署（2026-10-08 引擎主干化）：施放结算时一次性投放——
+        /// 随机 x 张（GameRng，不给施放者看牌库——炉石式随机即结果）各挂 1 层 + CurseSystem.AttachEngine
+        /// 登记 Then 载荷；空库=本次施放空转（不部署不登记）。同卡多载荷取首个部署（倒计时入场同款口径）；
+        /// 同一张目标卡被重复命中=多层多载荷，一次抽牌一并消耗（CurseSystem 一次性定案）。</summary>
+        private static void DeployOnDrawEngines(Card card, Player player, BranchEngineKind kind,
+            string counterId, string keyword, bool enemyDeck, GameCore core)
+        {
+            foreach (var payload in EnginePayloadsOf(card, kind))
+            {
+                ComposerCatalog.EngineParamRange(kind, out int min, out int max);
+                int n = Math.Max(min, Math.Min(max, payload.EngineParam));
+                var deckOwner = enemyDeck ? player.Opponent : player;
+                var deck = core.ZoneManager.GetCards(deckOwner, Zone.Deck);
+                if (deck == null || deck.Count == 0) break;
+
+                for (int i = 0; i < n; i++)
+                {
+                    var target = deck[GameRng.Next(0, deck.Count)];
+                    target.AddCounters(counterId, 1, player);
+                    CurseSystem.AttachEngine(target, counterId, payload.Then, player, card);
+                    EventManager.Instance.Publish(new Attribute.CounterChangedEvent
+                    {
+                        Target = target,
+                        CounterType = counterId,
+                        Amount = 1,
+                        Source = player,
+                    });
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    {
+                        Target = target, Keyword = keyword,
+                        Detail = $"{keyword}附加：抽到该卡时自动执行{keyword}分支效果（一次性）",
+                    });
+                }
                 break;
             }
         }

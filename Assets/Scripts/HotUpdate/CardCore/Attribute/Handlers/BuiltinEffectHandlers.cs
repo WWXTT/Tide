@@ -162,24 +162,20 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            var duration = context.Duration != DurationType.Once
-                ? context.Duration
-                : DurationType.UntilEndOfTurn;
-
             foreach (var target in context.Targets)
             {
-                // Freeze 统一档（2026-09-16）：持续恒=持有者回合结束（原叠层延展模型退役）——
-                // 层数仅累计显示，不再延长持续；强制横置 + 持有期间无法重置不变。
-                // 指示物数量随机：Value>0 时本次叠加层数掷值（每目标独立，≤0 = 空过），缺省 1 层
+                // 冻结（衰退类，2026-10-08 层即持续定案）：层=持续回合数——强制横置 + 持有期间无法重置
+                //（BlocksUntap），持有者回合末 −1、归零解除（叠加=延长）。效果级持续档不参与
+                //（旧 duration 死参数已随层即持续定案删除）。
+                // 指示物数量随机：Value>0 时本次层数（=回合数）掷值（每目标独立，≤0 = 空过），缺省 1 层
                 int layers = effect.Value > 0
                     ? context.GetValueAfterModifiers(effect.GetRolledValue())
                     : 1;
                 if (layers <= 0) continue;
-                target.Freeze(duration, layers);
+                target.Freeze(layers, context.Source);
                 PublishEvent(new FreezeEvent
                 {
                     Target = target,
-                    Duration = duration,
                     Source = context.Source
                 });
             }
@@ -192,7 +188,7 @@ namespace CardCore.Attribute.Handlers
     }
 
     // ================================================================
-    // 绿色效果 - 成长与恢复
+    // 绿色效果 - 恢复（成长机制 2026-10-08 已删除，本区仅剩治疗）
     // ================================================================
 
     /// <summary>治疗</summary>
@@ -227,10 +223,8 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 修改攻击力（三轨制定案 2026-09-09）：按来源经 StatGrantRouter 分轨——
-    /// 生物来源=指示物（Duration=Permanent 走 Permanent 层换区不清，否则换区清层
-    /// 「攻击力增加/减少」加时回写、离场反向回写）；魔法卡来源（=角色）=设置类永久直改
-    /// （跨区保留、净化不清，视同本体）。
+    /// 修改攻击力（2026-10-08 来源分轨退役）：经 StatGrantRouter 直改 _power——永久、
+    /// 跨区保留、净化不清（视同本体）。临时层（换区清）用 AddPowerUp/AddPowerDown。
     /// </summary>
     public class ModifyPowerHandler : AtomicEffectHandlerBase
     {
@@ -243,7 +237,7 @@ namespace CardCore.Attribute.Handlers
             {
                 if (!(target is Card card) || !card.IsAlive) continue;
                 int oldPower = card.GetPower();
-                StatGrantRouter.ModifyPower(card, amount, context.Source, context.Duration);
+                StatGrantRouter.ModifyPower(card, amount, context.Source);
                 PublishEvent(new StatModifyEvent
                 {
                     Target = target,
@@ -251,7 +245,6 @@ namespace CardCore.Attribute.Handlers
                     OldValue = oldPower,
                     NewValue = target.GetPower(),
                     Delta = amount,
-                    Duration = context.Duration,
                     Source = context.Source
                 });
             }
@@ -262,6 +255,95 @@ namespace CardCore.Attribute.Handlers
             string sign = effect.Value >= 0 ? "+" : "";
             return $"攻击力 {sign}{effect.Value}";
         }
+    }
+
+    /// <summary>
+    /// 永久属性增加（2026-10-08 恢复开放，表行 9256b41a）：+{value}/+{value} 双属性**直写字段**
+    ///（复用 CounterRules.ApplyStatDelta 的 PlusOnePlusOne 直写分支，不挂计数层）——本局游戏
+    /// 永久、跨区保留、净化不清（视同本体），与来源无关。临时层（换区清）用 AddPlusOne。
+    /// </summary>
+    public class AddPermanentPlusOneHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPermanentPlusOne;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            int amount = context.GetValueAfterModifiers(effect.Value);
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card card) || !card.IsAlive) continue;
+                int oldPower = card.GetPower();
+                int oldLife = card.GetLife();
+                CounterRules.ApplyStatDelta(card,
+                    amount >= 0 ? StatCounterKind.PlusOnePlusOne : StatCounterKind.MinusOneMinusOne,
+                    amount >= 0 ? amount : -amount, context.Source);
+                PublishEvent(new StatModifyEvent
+                {
+                    Target = card,
+                    StatType = StatType.Power,
+                    OldValue = oldPower,
+                    NewValue = card.GetPower(),
+                    Delta = amount,
+                    Source = context.Source
+                });
+                PublishEvent(new StatModifyEvent
+                {
+                    Target = card,
+                    StatType = StatType.Life,
+                    OldValue = oldLife,
+                    NewValue = card.GetLife(),
+                    Delta = amount,
+                    Source = context.Source
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"属性永久+{effect.Value}/+{effect.Value}";
+    }
+
+    /// <summary>
+    /// 永久属性减少（表行 e5da6dd9）：−{value}/−{value} 双属性直写字段（上限削至 0 止、
+    /// 有效生命归零标死交 SBA——死亡来源=施加方）；跨区保留、净化不清，与来源无关。
+    /// </summary>
+    public class AddPermanentMinusOneHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPermanentMinusOne;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            int amount = context.GetValueAfterModifiers(effect.Value);
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card card) || !card.IsAlive) continue;
+                int oldPower = card.GetPower();
+                int oldLife = card.GetLife();
+                CounterRules.ApplyStatDelta(card,
+                    amount >= 0 ? StatCounterKind.MinusOneMinusOne : StatCounterKind.PlusOnePlusOne,
+                    amount >= 0 ? amount : -amount, context.Source);
+                PublishEvent(new StatModifyEvent
+                {
+                    Target = card,
+                    StatType = StatType.Power,
+                    OldValue = oldPower,
+                    NewValue = card.GetPower(),
+                    Delta = -amount,
+                    Source = context.Source
+                });
+                PublishEvent(new StatModifyEvent
+                {
+                    Target = card,
+                    StatType = StatType.Life,
+                    OldValue = oldLife,
+                    NewValue = card.GetLife(),
+                    Delta = -amount,
+                    Source = context.Source
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"属性永久−{effect.Value}/−{effect.Value}";
     }
 
     // ================================================================

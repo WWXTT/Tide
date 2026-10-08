@@ -191,15 +191,16 @@ namespace CardCore
         public static float StatAnchor => ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig.StatAnchor;
 
         /// <summary>
-        /// 属性价梯（2026-09-13 定案）：返回该原子在当前持续档的每 +1 单价；非属性原子返回 0（走通用公式）。
-        /// 修改族 0.5/1.0/1.5/2.0（固定1回合/固定2回合/换区移除/换区不移除）；
-        /// 改写族（Set* 设置直改）恒 3.0；光环档（1.5）在 CardCostService.ComputeLinkAuraBuckets 对齐。
+        /// 属性价梯（修改/改写族——ModifyPower/ModifyLife/ModifyCost/Set*，非指示物原子）：
+        /// 返回该原子在当前持续档的每 +1 单价；非本族返回 0（走通用公式/指示物统一计价）。
+        /// 修改族 0.5/1.5（固定1回合/换区档）；改写族（Set* 设置直改）恒 3.0；
+        /// 指示物原子（Add* 等）不走此梯——2026-10-08 层改造定案：基础费用×赋予层数（见 ComputeAtomBaseAmount）。
         /// </summary>
         public static float StatTierPrice(AtomicEffectType type, EffectDefinition def)
         {
             bool isSet = type == AtomicEffectType.SetPower || type == AtomicEffectType.SetLife;
             bool isModify = type == AtomicEffectType.ModifyPower || type == AtomicEffectType.ModifyLife;
-            // 费用修改两档（2026-09-13 定案）：指示物档（CostUp/Down 计数——仅手牌离手消失=换区语义）1.5/+1；
+            // 费用修改两档（2026-09-13 定案）：指示物档（CostUp/Down 计数——仅手牌离手消失=换区语义）；
             // 永久改写 3.0/+1（Permanent=直改本体）。乘数 2026-10-05 迁表 CardCost。
             var cc = ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig;
             if (type == AtomicEffectType.ModifyCost)
@@ -211,51 +212,22 @@ namespace CardCore
             switch (def.Duration)
             {
                 case DurationType.UntilEndOfTurn: return per;                    // 固定1回合 0.5
-                case DurationType.UntilNextTurn: return per;                     // ≡1回合（2026-09-16 统一档：限时指示物两档合一，费用按1回合计）
+                case DurationType.UntilNextTurn: return per;                     // ≡1回合（2026-09-16 统一档）
                 case DurationType.UntilLeaveBattlefield: return per * cc.StatSustainMultiplier;  // 换区移除 1.5
                 case DurationType.WhileCondition: return per * cc.StatSustainMultiplier;         // 条件持续≈换区档
-                case DurationType.Permanent: return per * cc.StatPermanentMultiplier;            // 换区不移除 2.0
+                case DurationType.Permanent: return per * cc.StatPermanentMultiplier;            // 设置轨直写档 2.0
                 default: return per; // Once 等瞬态兜底（属性 grant 不应出现）
             }
         }
 
-        /// <summary>属性指示物原子 → 指示物 id（镜像各 Handler 的 CounterId，两侧同改防漂移）。
-        /// Weaken/Inspire 是 ±1/±1 点包的同型原子（曾无表行 → 零计价孤儿，2026-10-05 补行并梯）。</summary>
-        private static readonly Dictionary<AtomicEffectType, string> StatCounterAtomIds =
-            new Dictionary<AtomicEffectType, string>
-        {
-            { AtomicEffectType.AddPowerUp, CounterRules.PowerUpCounter },
-            { AtomicEffectType.AddPowerDown, CounterRules.PowerDownCounter },
-            { AtomicEffectType.AddLifeUp, CounterRules.LifeUpCounter },
-            { AtomicEffectType.AddLifeDown, CounterRules.LifeDownCounter },
-            { AtomicEffectType.AddCostUp, CounterRules.CostUpCounter },
-            { AtomicEffectType.AddCostDown, CounterRules.CostDownCounter },
-            { AtomicEffectType.AddPlusOne, CounterRules.PlusOneCounter },
-            { AtomicEffectType.AddMinusOne, CounterRules.MinusOneCounter },
-            { AtomicEffectType.Weaken, CounterRules.MinusOneCounter },
-            { AtomicEffectType.Inspire, CounterRules.PlusOneCounter },
-        };
+        /// <summary>指示物行为三型标签（2026-10-08 层改造定案——原子表 Tags 携带，与 CounterSpec.Class 同源）。
+        /// 计价判定用：携带任一标签的原子=指示物族，走「基础费用×赋予层数」统一计价。</summary>
+        private static readonly HashSet<string> CounterBehaviorTags =
+            new HashSet<string> { "衰退型", "换区清除型", "生效自减型" };
 
-        /// <summary>属性指示物单价（2026-10-05 三轨统一定案）：锚 × CounterSpec 持久档乘数，**不读 def.Duration**
-        /// ——运行时 handler 不传持续时间（StatCounterAtomHandlerBase），指示物持久由 CounterSpec 固定，
-        /// 声明 Once/UET 低价买换区清层的漏洞随之堵死。换区清层（攻/血/费）=锚×StatSustainMultiplier（1.5/层）；
-        /// 永久层（±1/±1、Weaken/Inspire——双点点包）=锚×StatPermanentMultiplier（2.0/层，捆绑让利一半）。
-        /// 非属性指示物原子返回 0（走通用公式）。</summary>
-        public static float StatCounterTierPrice(AtomicEffectType type)
-        {
-            if (!StatCounterAtomIds.TryGetValue(type, out var counterId)) return 0f;
-            var cc = ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig;
-            switch (CounterRules.Find(counterId).Duration)
-            {
-                case DurationType.UntilLeaveBattlefield:
-                case DurationType.WhileCondition:
-                    return StatAnchor * cc.StatSustainMultiplier;
-                case DurationType.Permanent:
-                    return StatAnchor * cc.StatPermanentMultiplier;
-                default:
-                    return StatAnchor; // 限时档兜底（现行属性指示物 spec 无此档）
-            }
-        }
+        /// <summary>是否指示物族原子（表行 Tags 携带行为三型之一）。</summary>
+        internal static bool IsCounterAtom(AtomicEffectConfig cfg)
+            => cfg != null && cfg.GetTagList().Any(CounterBehaviorTags.Contains);
 
         /// <summary>固定分支门预算表（2026-09-14 定案：门=纯校验上限，零计价——奖励原子维持 0 费，
         /// 预算只是放置上限；"造成伤害时"门已随战斗伤害改写族上线而移除）。
@@ -405,12 +377,13 @@ namespace CardCore
             if (statTier > 0f)
                 return (int)Math.Round(statTier * Math.Abs(atom.Value), MidpointRounding.AwayFromZero);
 
-            // 属性指示物梯（2026-10-05 三轨统一定案）：Add* 指示物并入锚价梯，档按 CounterSpec 真实持久、
-            // 不读 def.Duration——与修改族同结果同价（AddPowerUp 与 ModifyPower 换区档均 1.5/点；
-            // ±1/±1 永久点包 2.0/层）。ManaList 在此族只定色份额，量级不再读表行 TotalUnitCost。
-            float counterTier = StatCounterTierPrice(atom.Type);
-            if (counterTier > 0f)
-                return (int)Math.Round(counterTier * Math.Abs(atom.Value), MidpointRounding.AwayFromZero);
+            // 指示物统一计价（2026-10-08 层改造定案）：**基础费用 × 赋予层数**（线性，砍档位梯）——
+            // 基础费用=表行 ManaList 锚（即 1 层价，量级回归表行）；层数=max(1,|value|)
+            //（未开放 value 的行统一按 1 层计）。判定=表行 Tags 行为三型（衰退型/换区清除型/生效自减型，
+            // 与 CounterSpec.Class 同源）——原属性指示物锚梯（StatCounterTierPrice 1.5/层）随之退役。
+            if (IsCounterAtom(cfg))
+                return (int)Math.Round(cfg.TotalUnitCost * Math.Max(1, Math.Abs(atom.Value)),
+                    MidpointRounding.AwayFromZero);
 
             // 控制权三档（2026-09-13 定案）：回合级临时（UET/UNT/ForTurns≤2）×1.2 /
             // 持续到离场（ULB/WhileCondition）×1.6 / 改写持有者（Permanent——控制+owner 换写，
@@ -425,7 +398,7 @@ namespace CardCore
 
             // Grant 关键词梯（2026-09-13 定案；2026-09-16 统一档：UNT≡UET 计价并入 1.2 档）：
             // 一次性（Once，圣盾/复生式消耗）×1.0 / 临时（UET/UNT——持续到持有者回合结束）×1.2 /
-            // 换区持续（ULB/WhileCondition）×1.6 / 永久（GrantedPermanent/Setting）×2.0。
+            // 换区持续（ULB/WhileCondition）×1.6 / 永久（Permanent——Setting 回填）×2.0。
             if (atom.Type.ToString().StartsWith("Grant"))
             {
                 float grantMult;

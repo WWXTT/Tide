@@ -113,7 +113,9 @@ namespace CardCore
         /// 加载关键词定义 —— 关键词本身即原子效果（GrantXxx，作用默认指向自身），不单独开表：
         /// 直接从原子效果表（AtomicEffectTable ← AttributeValueConfig.json）的 Grant* 条目合成。
         /// 中文名/描述/颜色取自表内字段；id 取 GrantKeywordHandlerFactory 登记的运行时关键词 id
-        /// （与写入 IHasKeywords 的字符串同源，如 GrantReborn → Reborn），未登记退化为去 Grant 前缀。
+        /// （与写入 IHasKeywords 的字符串同源，如 GrantReborn → Reborn）。
+        /// 未登记 Specs 的 Grant 行**跳过**（2026-10-08 坚韧指示物化：GrantToughness 行已非关键词——
+        /// 防止退化拼出幽灵目录条目）；旧「去 Grant 前缀」兜底随之退役。
         /// 触发式关键词（triggerTiming）表内暂无来源，统一按被动处理。
         /// （2026-09-08 冲锋/突袭已去关键词化：GrantHaste/GrantRush 删除，改由登场效果表达。）
         /// </summary>
@@ -129,9 +131,8 @@ namespace CardCore
                     continue;
                 if (!Enum.TryParse<AtomicEffectType>(atom.EnumName, out var type))
                     continue;
-
                 if (!GrantKeywordHandlerFactory.TryGetKeywordId(type, out var keywordId))
-                    keywordId = atom.EnumName.Substring("Grant".Length);
+                    continue; // 未登记=非关键词族 Grant 行（如指示物化的坚韧），不进关键词目录
 
                 _keywordCache[keywordId] = new KeywordDefinition
                 {
@@ -253,9 +254,9 @@ namespace CardCore
                     && card.ArrowDirections == HexDirection.None)
                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：声明了连接光环但未配箭头（arrows 为空）——构筑期拦截（生物/结界同规）");
 
-                // 光环关键词条目须可挂（2026-10-07 晚终版：关键词默认可−消耗型拉黑）：真消耗型
-                //（圣盾/复生/潜行/法术护盾——移除即用掉）与光环 live-query 持续语义冲突
-                //（不物化 → RemoveKeyword 空操作 → 等效永久持有），表标「不可作为连接光环」拉黑
+                // 光环关键词条目须可挂（2026-10-07 晚终版：关键词默认可−位 8 黑名单拉黑）：
+                // 名单在表（现值：守护/法术护盾/再生/禁魔石）——与光环 live-query 持续语义冲突
+                //（消耗型不物化 → RemoveKeyword 空操作 → 等效永久持有；守护=配对制弹选）
                 if (card.LinkAuras != null)
                 {
                     foreach (var aura in card.LinkAuras)
@@ -263,7 +264,7 @@ namespace CardCore
                         if (aura == null || string.IsNullOrEmpty(aura.keyword)) continue;
                         if (!ComposerCatalog.IsAuraMountableKeyword(aura.keyword))
                             TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：光环关键词「{aura.keyword}」"
-                                         + "不可作光环（原子表 Grant 行标「不可作为连接光环」——真消耗型生效后移除，"
+                                         + "不可作光环（原子表 Grant 行标「不可作为连接光环」位 8 黑名单——"
                                          + "与光环 live-query 持续语义冲突）——构筑期拦截");
                     }
                 }

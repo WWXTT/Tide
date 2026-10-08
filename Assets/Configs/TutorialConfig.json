@@ -297,7 +297,7 @@
                     "lands": [],
                     "units": [
                         { "card": "C_7E5A2001", "power": -1, "life": -1, "tapped": false, "x": 5, "z": 2,
-                          "counters": [ { "key": "RushSicknessSustained", "value": 15 } ] },
+                          "counters": [ { "key": "RushSickness", "value": 15 } ] },
                         { "card": "C_7E5A200C", "power": -1, "life": -1, "tapped": false, "x": 3, "z": 2, "activateRuleAura": "HandLimitNoFatigue" }
                     ],
                     "hand": [],

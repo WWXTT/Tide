@@ -11,22 +11,31 @@ namespace CardCore.Attribute
     {
         /// <summary>正面（增益/资源类：护甲、+1/+1 等）</summary>
         Positive,
-        /// <summary>负面（减益/妨害类：剧毒、毒素、冻结、沉默、突袭紊乱、-1/-1 等）</summary>
+        /// <summary>负面（减益/妨害类：毒素、冻结、沉默、突袭紊乱、-1/-1 等）</summary>
         Negative,
     }
 
     /// <summary>
-    /// 回合结束时指示物触发的效果类别（指示物=不可编辑、效果固定）：
-    /// 剧毒=持有者死亡；毒素=每层 1 伤。
+    /// 指示物分类（2026-10-08 终版定案；同日晚补裁决：换区口径按型翻转）——主轴，注册行必须显式选择：
+    /// Resident 常驻=不随时间衰退，**换区清**（技能计数/耐久等消费型由各自事件消耗）；
+    /// Decay 自然衰退=**层即剩余回合**，持有者回合结束 −1 层、归零即消失，**换区清**（战场减益不跟卡走）；
+    /// Exception 生效自减=生效时自减消耗（护甲吸收/圣盾挡伤/复生替死/潜行失效/毒素发作减半/
+    /// 角色攻击烧光/诅咒祝福抽到消层），**换区不清**（跨区存活——诅咒须活过牌库→手牌正依赖此档）；
+    /// System 系统=引擎主干（BranchEngines）内部投放与消耗，不给玩家用（倒计时——换区清，
+    /// 重入场经引擎兜底重挂）。
+    /// 【Duration 轴已全灭（2026-10-08）】"持续时间"概念由层数全面取代；换区清与否由分类表达
+    /// （Resident/Decay/System 清，Exception 不清），对应原子表 Tags 行为三型。
     /// </summary>
-    public enum CounterTurnEndEffect
+    public enum CounterClass
     {
-        /// <summary>无回合结束效果</summary>
-        None,
-        /// <summary>剧毒：回合结束时持有者死亡（效果死亡、无伤害来源；神佑经 DeathRules 裁决拦截）</summary>
-        PoisonDeath,
-        /// <summary>毒素：回合结束时持有者每层受到 1 点伤害（可叠加）</summary>
-        DamagePerStack,
+        /// <summary>常驻：不随时间衰退；换区清（消费型由事件消耗：技能计数/耐久）</summary>
+        Resident,
+        /// <summary>自然衰退：层=剩余回合，持有者回合末 −1，归零消失，换区清</summary>
+        Decay,
+        /// <summary>生效自减：生效时自减消耗，换区不清（护甲/圣盾/复生/潜行/毒素/角色攻击/诅咒/祝福）</summary>
+        Exception,
+        /// <summary>系统：引擎主干内部驱动，不给玩家用（倒计时）；换区清（引擎重挂兜底）</summary>
+        System,
     }
 
     /// <summary>属性指示物对应的字段类别（附加时即时回写、清除时反向回写）。
@@ -47,69 +56,138 @@ namespace CardCore.Attribute
         CostUp,
         /// <summary>费用减少（每层 −1 费，仅手牌生效，离手消失）</summary>
         CostDown,
-        /// <summary>+1/+1 属性增加（成长产物，历史 id）</summary>
+        /// <summary>+1/+1 属性增加（历史 id）</summary>
         PlusOnePlusOne,
         /// <summary>-1/-1 属性减少（历史 id，SBA 与 +1/+1 对消）</summary>
         MinusOneMinusOne,
     }
 
-    /// <summary>指示物规格：id → 极性 + 默认持续时间 + 回合结束效果 + 属性回写类别。</summary>
+    /// <summary>
+    /// 指示物层语义：一"层"在该指示物上意味着什么（Decay 类恒为 Clock——层即持续）：
+    /// Strength=强度（每层一份效果：属性层每层 ±1、护甲每层吸收 1 点、毒素每层 1 点伤害基数）；
+    /// Clock=时钟（层=剩余回合：冻结/易损/紊乱/沉睡/锁定）；
+    /// Display=纯显示（层仅累计展示，效果与层数无关的门槛指示物：沉默/展示类）；
+    /// Reading=读数（层本身就是数值：角色攻击力、技能发动计数）。
+    /// </summary>
+    public enum CounterLayerRole
+    {
+        /// <summary>强度：每层一份效果（可叠加生效）</summary>
+        Strength,
+        /// <summary>时钟：层=剩余回合（倒数消耗）</summary>
+        Clock,
+        /// <summary>显示：层仅累计展示，效果与层数无关</summary>
+        Display,
+        /// <summary>读数：层本身就是数值</summary>
+        Reading,
+    }
+
+    /// <summary>
+    /// 指示物消退驱动（机制轴；主分类见 CounterClass）：谁来推进消退/消耗——
+    /// None=无自动消退（Resident 常驻）；TurnEndTickDown=持有者回合末逐层倒数（=Decay 类，
+    /// ③块按此遍历）；External=外部系统驱动（例外例程、引擎主干、伤害管线吸收/装备消耗）。
+    /// </summary>
+    public enum CounterTickPolicy
+    {
+        /// <summary>无自动消退（常驻）</summary>
+        None,
+        /// <summary>持有者回合末逐层倒数（归零解除）</summary>
+        TurnEndTickDown,
+        /// <summary>外部系统驱动消退/消耗</summary>
+        External,
+    }
+
+    /// <summary>指示物规格：id → 极性 + 分类 + 层语义 + 消退驱动 + 重置拦截 + 属性回写类别。
+    /// 注册行即行为全景（2026-10-08 终版：Duration 轴删除，持续=层）。</summary>
     public class CounterSpec
     {
         public string Id;
         public CounterPolarity Polarity;
-        /// <summary>
-        /// 默认持续：Permanent = 常驻（消耗型/叠加型）；
-        /// UntilEndOfTurn = 回合结束消退；UntilLeaveBattlefield = 换区清除（未写持续时间的默认）；
-        /// ForTurns = 按回合末计数 N 回合（Turns 字段）。
-        /// </summary>
-        public DurationType Duration;
+        /// <summary>分类主轴（Resident/Decay/Exception/System）</summary>
+        public CounterClass Class = CounterClass.Resident;
+        /// <summary>层语义（Strength/Clock/Display/Reading；Decay 类恒 Clock）</summary>
+        public CounterLayerRole LayerRole = CounterLayerRole.Display;
+        /// <summary>消退驱动（None/TurnEndTickDown/External）</summary>
+        public CounterTickPolicy TickPolicy = CounterTickPolicy.None;
+        /// <summary>持有期间无法重置（Decay 类专属标记：冻结/沉睡；倒数统一在回合末③块）</summary>
+        public bool BlocksUntap;
         /// <summary>播报显示名（消退播报用）</summary>
         public string DisplayName;
-        /// <summary>回合结束效果（默认无）</summary>
-        public CounterTurnEndEffect TurnEndEffect = CounterTurnEndEffect.None;
-        /// <summary>ForTurns 的回合数（毒素=3；-1=不适用）</summary>
-        public int Turns = -1;
         /// <summary>属性回写类别（None=非属性指示物）</summary>
         public StatCounterKind StatKind = StatCounterKind.None;
     }
 
     /// <summary>
-    /// 指示物统一管理（定案）：按正面/负面登记规格，持续到期走回合结束统一清理。
+    /// 指示物统一管理（2026-10-08 终版：四分类 + 层即持续 + 换区口径按型）。
     ///
     /// 【设计原则】
-    /// - 指示物不可编辑、效果固定、有持续时间、自动移除；**未写持续时间 = 持续到移动所属区域才消除**
-    ///   （ZoneContainer.Move 统一调 ClearAll——属性指示物先反向回写再清空）。
-    /// - 回合结束口径（定案）：**每个回合结束都结算**（双方回合末各一次；剧毒在最近的回合末死亡，
-    ///   毒素 3 层时钟=3 个回合末）——效果型指示物与 ForTurns 时钟遍历全部实体，非仅回合玩家。
-    /// - UntilEndOfTurn 整类清零保持"回合玩家战场"范围（冻结/突袭紊乱既有语义不变）。
-    /// - 重置例外经 RuleHooks.IUntapBlockRule 接入（2026-09-13 定案：冻结/沉睡期间无法重置），
+    /// - 时间行为只有两种：Decay 类=持有者回合末 −1 层（层=剩余回合，归零消失）；其余=不降层。
+    ///   Duration 概念已由层数全面取代（UntilEndOfTurn 整清/永久档/三轨永久层均已退役）。
+    /// - 换区口径按型（2026-10-08 晚补裁决）：Resident/Decay/System **换区清**（战场减益与常驻层
+    ///   不跟卡走；倒计时引擎重挂兜底）；Exception 生效自减**换区不清**（护甲/圣盾/复生/潜行/毒素/
+    ///   角色攻击/诅咒/祝福跨区存活——诅咒活过牌库→手牌正依赖此档）。
+    /// - 清除口收敛为四：换区 ClearAll（清非 Exception）｜净化 PurgeAll（全清）｜
+    ///   解减益 ClearNegative（极性口径）｜Decay 自然归零。
+    /// - 消耗型（Exception 全员 + Resident 的技能计数/耐久）由各自事件消耗（TickPolicy=External 标注归属）。
+    /// - 重置拦截经 RuleHooks.IUntapBlockRule 接入（BlocksUntap 标记：冻结/沉睡持有期间无法重置），
     ///   其余指示物不改回合规则（回合开始横置重置照常）。
-    /// - 新指示物 = 此处登记一条（OCP：不改引擎热点）；未登记 id 保守视为 正面/Permanent（不参与清理）。
+    /// - 新指示物 = 此处登记一条（OCP：不改引擎热点）；未登记 id 保守视为 正面/常驻换区清。
     /// </summary>
     public static class CounterRules
     {
         // ---- 指示物 id 常量（新指示物 = 一条常量 + 一条 spec）----
-        /// <summary>剧毒：持续 1 回合，回合结束时持有者死亡（效果死亡，无伤害来源）</summary>
-        public const string PoisonCounter = "Poison";
-        /// <summary>毒素：持续到持有者回合结束，回合结束时持有者每层受 1 点伤害后清层（2026-09-16 统一档）</summary>
+        /// <summary>毒素（生效自减类）：无持续时间、只有层数——持有者每回合结束受到=层数的伤害，
+        /// 随后层数减半（向下取整，0.5→0）。**换区不清**、净化可清。施加口=AddToxinHandler/毒刺改写/毒蚀·疫蚀光环。</summary>
         public const string ToxinCounter = "Toxin";
-        /// <summary>沉默：持有者不可发动主动效果（未写持续时间=换区清除）</summary>
+        /// <summary>沉默：持有者不可发动主动效果（换区清）</summary>
         public const string SilenceCounter = "Silence";
         /// <summary>
         /// 无效（2026-09-09 定案，蓝3）：目标的**非启动式**能力无法发动——拦全部触发式（含登场 OnPlay）
         /// + 拦光环静态能力（连接箭头来源被无效压制，是唯一能压光环的口）；
-        /// 坚韧/圣盾等伤害管线被动与再生/成长等回合维护不是「能力发动」，不拦。换区清除。
+        /// 坚韧/圣盾等伤害管线被动与再生等回合维护不是「能力发动」，不拦。换区清除。
         /// </summary>
         public const string NullifyCounter = "Nullify";
-        /// <summary>易损：持续1回合，受到伤害时每层使受到的伤害+1（每个回合末到期）</summary>
+        /// <summary>易损（衰退类）：层=剩余回合；持续期间受到伤害时每层使伤害 +1（层随回合递减，
+        /// 放大量同步递减——N 层=N 回合、第 k 回合放大 N-k+1）。</summary>
         public const string VulnerableCounter = "Vulnerable";
-        /// <summary>倒计时（2026-09-13 动态分支引擎）：层数=剩余回合，控制者回合开始 -1，归零发奖并重置；
-        /// 换区清除（重入场经 CardPutToBattlefieldEvent 重挂初值）。</summary>
-        public const string CountdownCounter = "Countdown";
+        /// <summary>
+        /// 坚韧（2026-10-08 指示物化定案，表行 a312b8b0/GrantToughness）：每层使每次受到的伤害 −1，
+        /// 不随受伤消耗（易损的正面镜像：受伤+层 vs 受伤−层）；可叠加。
+        /// Entity 级（角色可持有——旧关键词形态 is Card 死线随之消解）；换区清除、净化可清。
+        /// 施加口=GrantToughnessHandler；减免口=KeywordRules.ApplyPreventionLayers 第 3 层。
+        /// </summary>
+        public const string ToughnessCounter = "Toughness";
+        /// <summary>
+        /// 圣盾（2026-10-08 指示物化，表行 c8624e6a/GrantDivineShield）：每层抵挡一次任意伤害
+        ///（战斗+效果，吸收的是易损放大后的量）并消耗 1 层；可叠加（每层一份）。
+        /// Entity 级（角色可持有）；穿透伤害全越（KeywordRules.ApplyPreventionLayers 三层一并跳过）。
+        /// 挡下口=ApplyPreventionLayers 第 1 层；换区不清（生效自减档）、净化可清。
+        /// </summary>
+        public const string DivineShieldCounter = "DivineShield";
+        /// <summary>
+        /// 复生（2026-10-08 指示物化，表行 94f6a32d/GrantReborn）：每层一次死亡替代——
+        /// 不进墓不离场、生命变 1、横置，消耗 1 层；湮灭不可救。
+        /// 消耗口=KeywordRules.TryReborn（死亡路径送墓前调用）；换区不清（生效自减档）、净化可清。
+        /// </summary>
+        public const string RebornCounter = "Reborn";
+        /// <summary>
+        /// 潜行（2026-10-08 指示物化，表行 8f84641e/GrantStealth）：持有层数 &gt;0 期间不可被
+        /// 攻击/效果指定（三指定口：CombatSystem.CanAttackTarget / EffectTargeting.CanTarget /
+        /// TargetFilterSystem.ExcludeUnselectable，与隐密 Concealed 关键词同查）；
+        /// 攻击宣言/发动效果/实际受到伤害各消耗 1 层（逐份撤口径，承自旧台账消耗型语义）；
+        /// 换区不清（生效自减档）、净化可清。
+        /// 隐密（Concealed）仍是关键词——不因生效消耗，是潜行的持续版。
+        /// </summary>
+        public const string StealthCounter = "Stealth";
         /// <summary>耐久（2026-09-13 装备系统）：武器/效果装备的使用期限——反伤/主动攻击/转移/主动效果各 -1，
-        /// 归零销毁入墓（Smash 同款直毁）。正面/Permanent（净化可削——对位手段）。</summary>
+        /// 归零销毁入墓（Smash 同款直毁）。正面常驻（净化可削——对位手段）。</summary>
         public const string DurabilityCounter = "Durability";
+        /// <summary>
+        /// 角色攻击（2026-10-07 角色参战定案·弹药原子，例外类）：层数=角色攻击力读数（GetPower(Player) 直读）。
+        /// 角色攻击或反击结算后**全部移除**（RemoveHeroAttackAmmo）——攻击与反击共用同一份弹药，
+        /// 弹药即闸门；持有期间常驻（计价档=与生物攻击力增加同价；角色不换区，
+        /// 实际只经攻击/反击消耗与净化清除）。
+        /// </summary>
+        public const string HeroAttackCounter = "HeroAttack";
         /// <summary>攻击力增加指示物（每层 +1 攻，仅场上）</summary>
         public const string PowerUpCounter = "PowerUp";
         /// <summary>攻击力减少指示物（每层 −1 攻，仅场上）</summary>
@@ -123,38 +201,37 @@ namespace CardCore.Attribute
         /// <summary>费用减少指示物（每层 −1 费，仅手牌，离手消失）</summary>
         public const string CostDownCounter = "CostDown";
         /// <summary>技能发动计数（2026-09-22 升级=抉择式条件分支定案）：挂在技能卡上，每发动 +1；
-        /// 升级门读它（此前已发动 ≥7 次 → 走升级档）。Permanent——随技能卡存续，
+        /// 升级门读它（此前已发动 ≥7 次 → 走升级档）。常驻——随技能卡存续，
         /// 换技能卡=新卡计数归零；净化可清（极端交互，接受）。</summary>
         public const string SkillUseCounter = "SkillUse";
-        /// <summary>+1/+1（成长产物，历史 id 保留）</summary>
+        /// <summary>+1/+1（历史 id 保留；2026-10-08 永久档退役后与换区清层同语义）</summary>
         public const string PlusOneCounter = "+1/+1";
         /// <summary>-1/-1（历史 id，SBA 对消）</summary>
         public const string MinusOneCounter = "-1/-1";
+        // ---- 三轨制·生物轨永久档已退役（2026-10-08 Duration 轴删除）：四永久 id 删除，
+        //     生物赋属性一律落换区清层（跨区永久只剩魔法/设置轨直写）----
 
-        // ---- 三轨制·生物轨永久档（2026-09-09 定案）----
-        // 生物赋予的**永久**属性=Permanent 层（换区不清、净化清）；非永久走上方换区清层。
-        // 单属性粒度（区别于 ±1/±1 双属性层）——StatGrantRouter 按 Duration=Permanent 路由到此。
-        /// <summary>攻击力增加（永久，每层 +1 攻，换区不清）</summary>
-        public const string PowerUpPermanentCounter = "PowerUpPermanent";
-        /// <summary>攻击力减少（永久，每层 −1 攻，换区不清）</summary>
-        public const string PowerDownPermanentCounter = "PowerDownPermanent";
-        /// <summary>生命值增加（永久，每层 +1 上限与当前，换区不清）</summary>
-        public const string LifeUpPermanentCounter = "LifeUpPermanent";
-        /// <summary>生命值减少（永久，每层 −1 上限，换区不清）</summary>
-        public const string LifeDownPermanentCounter = "LifeDownPermanent";
-
-        // ---- 信息轴（2026-10-02 定案）----
         /// <summary>展示：被展示的卡持续暴露——双方可点击对应区域查看（网络快照/事件流不隐藏），
         /// 可作筛选条件（TargetFilter "Exposed"）与「本回合不可使用/送墓/换费用减免」类设计的挂点。
         /// 换区清除（用户定案：离开被展示时所在区域即失效）。</summary>
         public const string ExposedCounter = "Exposed";
-        /// <summary>诅咒（开放式分支）：附加到对手的卡上——Permanent（须活过牌库→手牌的换区清除），
-        /// 对手抽到该卡时由 CurseSystem 自动执行诅咒载荷分支效果并消层（一次性）。</summary>
+
+        // ---- 系统指示物（2026-10-08 定案：引擎主干行用到的指示物归系统，不设玩家可组合的指示物表行
+        //      ——投放/触发/消耗全部由引擎（BranchEngines/CurseSystem）内部驱动。诅咒/祝福后经
+        //      2026-10-08 晚补裁决移入 Exception 生效自减（换区不清——跨区存活是机制必需），系统类仅剩倒计时）----
+        /// <summary>倒计时：引擎主干·倒计时的计数层——控制者回合开始 −1，归零触发奖励并重置。
+        /// 仅由引擎投放（BranchEngines.OnEnterBattlefield），无玩家表行；换区清（引擎重挂兜底）。</summary>
+        public const string CountdownCounter = "Countdown";
+        /// <summary>诅咒（2026-10-08 引擎主干化；生效自减类）：由引擎主干·附加诅咒施放时投放到对手牌库的卡上——
+        /// 跨区存活（须活过牌库→手牌的换区清除），对手抽到该卡时 CurseSystem 自动执行诅咒分支效果
+        /// 并消层（一次性）。无玩家表行。</summary>
         public const string CurseCounter = "Curse";
-        /// <summary>锁定（2026-10-04 窥渊仪典原子化定案）：层数=剩余回合，持有者回合结束 −1（手牌区
-        /// 与场上同样倒数——持有者侧结算域含手牌）；持有期间该牌无法使用（PlayCard/响应出牌/
-        /// 苏醒立约同门，LockedCardRestriction+CommitAwaken）。归零解锁。Permanent——消退不走
-        /// UntilEndOfTurn 整类清零，由本类逐层倒数承担。</summary>
+        /// <summary>祝福（2026-10-08；生效自减类）：同诅咒，作用面=自己牌库——由引擎主干·附加祝福投放，
+        /// 抽到该卡时执行祝福分支效果并消层（一次性）。无玩家表行。</summary>
+        public const string BlessingCounter = "Blessing";
+        /// <summary>锁定（2026-10-04 窥渊仪典原子化定案，衰退类）：层数=剩余回合，持有者回合结束 −1
+        ///（手牌区与场上同样倒数——持有者侧结算域含手牌）；持有期间该牌无法使用（PlayCard/响应出牌/
+        /// 苏醒立约同门，LockedCardRestriction+CommitAwaken）。归零解锁。</summary>
         public const string LockCounter = "Lock";
 
         private static readonly Dictionary<string, CounterSpec> _registry =
@@ -162,70 +239,65 @@ namespace CardCore.Attribute
 
         static CounterRules()
         {
-            // ---- 正面（常驻）----
-            Register(new CounterSpec { Id = KeywordRules.ArmorCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "护甲" });
-            Register(new CounterSpec { Id = PlusOneCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "+1/+1", StatKind = StatCounterKind.PlusOnePlusOne });
-            // Awakening（觉醒倒计时）已删（2026-09-11 沉睡改造：统一走 SleepCounter 指示物模型）
+            // ---- 生效自减（Exception：生效时自减消耗，**换区不清**——2026-10-08 晚补裁决统一口径）----
+            // 护甲：伤害管线逐点吸收（每层 1 点）
+            Register(new CounterSpec { Id = KeywordRules.ArmorCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "护甲" });
+            // 圣盾/复生/潜行（2026-10-08 指示物化，生效自减类）：每层一份效果、由各自事件消耗 1 层
+            //（圣盾挡伤/复生替死/潜行失效口各 −1；External），换区不清、净化可清
+            Register(new CounterSpec { Id = DivineShieldCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "圣盾" });
+            Register(new CounterSpec { Id = RebornCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "复生" });
+            Register(new CounterSpec { Id = StealthCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "潜行" });
+            // 毒素：层=伤害基数——持有者每回合末受到=层数的伤害，随后层数减半（floor）。
+            // 例程在 OnTurnEnd ①（ProcessToxinException）；换区不清、净化可清
+            Register(new CounterSpec { Id = ToxinCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "毒素" });
+            // 角色攻击：弹药读数，攻击/反击结算后全烧（RemoveHeroAttackAmmo）
+            Register(new CounterSpec { Id = HeroAttackCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Reading, TickPolicy = CounterTickPolicy.External, DisplayName = "角色攻击" });
+            // 诅咒/祝福（生效自减·引擎投放——无玩家表行；抽到触发一次性消层；换区不清是跨区存活必需）
+            Register(new CounterSpec { Id = CurseCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.External, DisplayName = "诅咒" });
+            Register(new CounterSpec { Id = BlessingCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.External, DisplayName = "祝福" });
 
-            // ---- 负面 ----
-            // 常驻（SBA 与 +1/+1 对消）
-            Register(new CounterSpec { Id = MinusOneCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "-1/-1", StatKind = StatCounterKind.MinusOneMinusOne });
-            // 冻结（2026-09-16 统一档：原层数模型退役——叠加不再延长持续；持续恒=持有者回合结束，
-            // 回合末整类清零；持有期间无法重置（SleepFreezeUntapBlockRule）。层数仅累计显示）
-            Register(new CounterSpec { Id = KeywordRules.FreezeCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "冻结" });
-            Register(new CounterSpec { Id = KeywordRules.RushSicknessCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "突袭紊乱" });
-            // 沉睡（2026-09-11 定案）：持有期间无法重置（回合开始扣 1 层代替重置，扣完即醒）+ 效果无效。
-            // 持续=Permanent（消退不走 CounterRules 回合末回收——由回合开始重置拦截的逐层倒数承担）。
-            Register(new CounterSpec { Id = KeywordRules.SleepCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "沉睡" });
-
-            // ---- 原子表整体修正新增（2026-09-03 定案）----
-            Register(new CounterSpec { Id = PoisonCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "剧毒", TurnEndEffect = CounterTurnEndEffect.PoisonDeath });
-            Register(new CounterSpec { Id = ToxinCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "毒素", TurnEndEffect = CounterTurnEndEffect.DamagePerStack });
-            Register(new CounterSpec { Id = SilenceCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "沉默" });
-            Register(new CounterSpec { Id = NullifyCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "无响应" });
-            Register(new CounterSpec { Id = VulnerableCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilEndOfTurn, DisplayName = "易损" });
-            // 倒计时（2026-09-13 动态分支引擎）：换区清（UntilLeaveBattlefield）；消退不走回合末回收——BranchEngines 逐回合倒数
-            Register(new CounterSpec { Id = CountdownCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "倒计时" });
+            // ---- 常驻（Resident：不随时间衰退，换区清；消费型标 External 注明归属）----
+            // 坚韧（2026-10-08 指示物化）：护甲之后的第二防护层——护甲逐点吸收（消耗），
+            // 坚韧每层每次 −1（不消耗）；换区清、净化可清
+            Register(new CounterSpec { Id = ToughnessCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "坚韧" });
+            Register(new CounterSpec { Id = PlusOneCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "+1/+1", StatKind = StatCounterKind.PlusOnePlusOne });
+            Register(new CounterSpec { Id = MinusOneCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "-1/-1", StatKind = StatCounterKind.MinusOneMinusOne });
+            Register(new CounterSpec { Id = SilenceCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.None, DisplayName = "沉默" });
+            Register(new CounterSpec { Id = NullifyCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.None, DisplayName = "无响应" });
             // 耐久（2026-09-13 装备系统）：常驻层——使用消耗（EquipRules.LoseDurability），归零销毁
-            Register(new CounterSpec { Id = DurabilityCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "耐久" });
-            Register(new CounterSpec { Id = PowerUpCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "攻击力增加", StatKind = StatCounterKind.PowerUp });
-            Register(new CounterSpec { Id = PowerDownCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "攻击力减少", StatKind = StatCounterKind.PowerDown });
-            Register(new CounterSpec { Id = LifeUpCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "生命值增加", StatKind = StatCounterKind.LifeUp });
-            Register(new CounterSpec { Id = LifeDownCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "生命值减少", StatKind = StatCounterKind.LifeDown });
+            Register(new CounterSpec { Id = DurabilityCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "耐久" });
+            Register(new CounterSpec { Id = PowerUpCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "攻击力增加", StatKind = StatCounterKind.PowerUp });
+            Register(new CounterSpec { Id = PowerDownCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "攻击力减少", StatKind = StatCounterKind.PowerDown });
+            Register(new CounterSpec { Id = LifeUpCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "生命值增加", StatKind = StatCounterKind.LifeUp });
+            Register(new CounterSpec { Id = LifeDownCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "生命值减少", StatKind = StatCounterKind.LifeDown });
             // 费用层定案：层带颜色（将来按色增减各色分量），P1 恒作用于灰色分量——
             // 出牌链唯一口径 GameActions.GetCardCost 在此套层（预检/付费/pending 三处同源）；
             // 进发动区不清（发动区豁免），结算离开发动区与离手时清除。
-            Register(new CounterSpec { Id = CostUpCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "费用增加", StatKind = StatCounterKind.CostUp });
-            Register(new CounterSpec { Id = CostDownCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "费用减少", StatKind = StatCounterKind.CostDown });
-            // 技能发动计数（2026-09-22）：Permanent 常驻（随技能卡存续；换技能卡=新卡归零）
-            Register(new CounterSpec { Id = SkillUseCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "技能发动计数" });
+            Register(new CounterSpec { Id = CostUpCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用增加", StatKind = StatCounterKind.CostUp });
+            Register(new CounterSpec { Id = CostDownCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.None, DisplayName = "费用减少", StatKind = StatCounterKind.CostDown });
+            // 技能发动计数（2026-09-22）：常驻（随技能卡存续；换技能卡=新卡归零）
+            Register(new CounterSpec { Id = SkillUseCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Reading, TickPolicy = CounterTickPolicy.None, DisplayName = "技能发动计数" });
+            // 展示：负面（信息暴露/使用限制挂点）；换区清（离开当前区域即失效）
+            Register(new CounterSpec { Id = ExposedCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.None, DisplayName = "展示" });
 
-            // ---- 三轨制·生物轨永久档（2026-09-09）----
-            Register(new CounterSpec { Id = PowerUpPermanentCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "攻击力增加（永久）", StatKind = StatCounterKind.PowerUp });
-            Register(new CounterSpec { Id = PowerDownPermanentCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "攻击力减少（永久）", StatKind = StatCounterKind.PowerDown });
-            Register(new CounterSpec { Id = LifeUpPermanentCounter, Polarity = CounterPolarity.Positive, Duration = DurationType.Permanent, DisplayName = "生命值增加（永久）", StatKind = StatCounterKind.LifeUp });
-            Register(new CounterSpec { Id = LifeDownPermanentCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "生命值减少（永久）", StatKind = StatCounterKind.LifeDown });
+            // ---- 自然衰退（Decay：层=剩余回合，持有者回合末 −1 归零消失，**换区清**——战场减益不跟卡走）----
+            // 冻结：持有期间无法重置（BlocksUntap）；层=持续回合（叠加=延长，2026-10-08 层即持续定案）
+            Register(new CounterSpec { Id = KeywordRules.FreezeCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, BlocksUntap = true, DisplayName = "冻结" });
+            // 突袭紊乱（长档已并入：同一机制不同量——层=回合数，教学长档 15 层即 15 回合）
+            Register(new CounterSpec { Id = KeywordRules.RushSicknessCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, DisplayName = "突袭紊乱" });
+            // 沉睡：持有期间无法重置+效果无效；层=持续回合，倒数在回合末（2026-10-08 从回合开始挪回合末，
+            // 苏醒特判随之退役——层归零后下回合开始自然恢复重置）
+            Register(new CounterSpec { Id = KeywordRules.SleepCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, BlocksUntap = true, DisplayName = "沉睡" });
+            // 易损：层=持续回合；期间受到伤害时每层 +1（放大随层递减）
+            Register(new CounterSpec { Id = VulnerableCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, DisplayName = "易损" });
+            // 锁定：层=剩余回合，手牌区同样倒数（窥渊只锁手牌——被锁卡无法打出故不换区，与换区清无冲突）
+            Register(new CounterSpec { Id = LockCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Decay, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.TurnEndTickDown, DisplayName = "锁定" });
 
-            // ---- 信息轴（2026-10-02 定案）----
-            // 展示：负面（信息暴露/使用限制挂点）；UntilLeaveBattlefield=换区清除（离开当前区域即失效）
-            Register(new CounterSpec { Id = ExposedCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.UntilLeaveBattlefield, DisplayName = "展示" });
-            // 诅咒：Permanent 是活过 Deck→Hand 换区清除的唯一档；触发与消耗由 CurseSystem 在抽牌时点驱动
-            Register(new CounterSpec { Id = CurseCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "诅咒" });
-            // 锁定（2026-10-04）：Permanent + 逐层倒数（OnTurnEnd ③ 块）——层=剩余回合，手牌区同样结算
-            Register(new CounterSpec { Id = LockCounter, Polarity = CounterPolarity.Negative, Duration = DurationType.Permanent, DisplayName = "锁定" });
-            // 长档紊乱（2026-10-06）：Permanent + 逐层倒数（同 ③ 模式）——跨回合长期「不能以玩家为目标」，
-            // 与 RushSickness 同判（KeywordRules.HasRushSickness 合并查询）；净化可清。通用原语。
-            Register(new CounterSpec
-            {
-                Id = KeywordRules.SustainedRushSicknessCounter,
-                Polarity = CounterPolarity.Negative,
-                Duration = DurationType.Permanent,
-                DisplayName = "紊乱（长档）",
-            });
+            // ---- 系统（System：引擎主干投放/消耗，不给玩家用；换区清——引擎重挂兜底）----
+            Register(new CounterSpec { Id = CountdownCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.System, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.External, DisplayName = "倒计时" });
 
-            // ---- 守护（2026-09-11 定案）----
-            // 守护者/被守护者成对：被守护者指示物的来源=第一个守护者（多守护者仅第一个触发改写）；
-            // 改写在 KeywordRules.ApplyDamage 咽喉（单跳不链式），守护者须存活在战场。
+            // ---- 剧毒指示物已退役（2026-10-08 转关键词 Venom：消灭受到其战斗伤害的生物，
+            //     施加口 GrantVenom/落定点 KeywordRules.ApplyDamage 尾部）----
         }
 
         /// <summary>登记指示物规格（新指示物=新登记，OCP）。</summary>
@@ -280,15 +352,12 @@ namespace CardCore.Attribute
             }
         }
 
-        /// <summary>查规格；未登记保守视为 正面/换区清除（不参与回合末清理——与既有行为一致）。
-        /// **Permanent（永久类：换区不删，2026-09-07 定案）只属于显式登记的 id**——回退值不能用 Permanent，
-        /// 否则拼错的层 id 会永久残留。</summary>
+        /// <summary>查规格；未登记保守视为 正面/常驻（换区清——与既有行为一致）。</summary>
         public static CounterSpec Find(string id)
             => _registry.TryGetValue(id, out var spec) ? spec
-               : new CounterSpec { Id = id, Polarity = CounterPolarity.Positive, Duration = DurationType.UntilLeaveBattlefield, DisplayName = id };
+               : new CounterSpec { Id = id, Polarity = CounterPolarity.Positive, DisplayName = id };
 
         public static bool IsNegative(string id) => Find(id).Polarity == CounterPolarity.Negative;
-        public static bool IsUntilEndOfTurn(string id) => Find(id).Duration == DurationType.UntilEndOfTurn;
 
         // ==================== 属性指示物（加时回写 / 清时反写） ====================
 
@@ -298,15 +367,13 @@ namespace CardCore.Attribute
         /// 加时即写、清除（换区/净化）时反向回写——数值=字段+指示物，战斗直读字段的路径零改动。
         /// source = 施加方（指示物来源定案）：随计数登记，削减类归零标死时作为死亡来源归因。
         /// </summary>
-        public static void AddStatCounter(Card card, string id, int amount, Entity source = null, int turns = 0)
+        public static void AddStatCounter(Card card, string id, int amount, Entity source = null)
         {
             if (card == null || amount == 0) return;
             var spec = Find(id);
             if (spec.StatKind == StatCounterKind.None) return;
             card.AddCounters(id, amount, source);
             ApplyStatDelta(card, spec.StatKind, amount, source);
-            if (turns > 0)
-                card._counterClocks.Add(new CounterInstance { Id = id, Amount = amount, RemainingTurns = turns });
             EventManager.Instance.Publish(new CounterChangedEvent
             {
                 Target = card,
@@ -368,33 +435,7 @@ namespace CardCore.Attribute
             }
         }
 
-        /// <summary>成长翻倍（2026-10-05 改版）：实体上全部属性指示物（攻/血/费±、±1/±1、含永久层）
-        /// 每种现有 n 层再补 n 层——走 AddStatCounter 同款回写（字段+计数+事件）。
-        /// 含减益类一并翻倍（"自身属性指示物层数翻倍"字面口径）。返回=新增层数合计（0=无可翻倍）。</summary>
-        public static int DoubleStatCounters(Card card, Entity source = null)
-        {
-            if (card == null || !card.IsAlive) return 0;
-            int added = 0;
-            foreach (var id in StatCounterIds)
-            {
-                int n = card.GetCounterCount(id);
-                if (n <= 0) continue;
-                AddStatCounter(card, id, n, source);
-                added += n;
-            }
-            return added;
-        }
-
-        /// <summary>属性指示物 id 全集（DoubleStatCounters 遍历用——单向粒度 + ±1/±1 + 永久层）。</summary>
-        private static readonly string[] StatCounterIds =
-        {
-            PowerUpCounter, PowerDownCounter, LifeUpCounter, LifeDownCounter,
-            CostUpCounter, CostDownCounter, PlusOneCounter, MinusOneCounter,
-            PowerUpPermanentCounter, PowerDownPermanentCounter,
-            LifeUpPermanentCounter, LifeDownPermanentCounter,
-        };
-
-        /// <summary>按当前计数反向回写属性指示物（不清计数——按规格 StatKind 驱动，含永久层 id）。</summary>
+        /// <summary>按当前计数反向回写属性指示物（不清计数——按规格 StatKind 驱动）。</summary>
         private static void RevertStat(Card card, string id, StatCounterKind kind)
         {
             int n = card.GetCounterCount(id);
@@ -432,30 +473,31 @@ namespace CardCore.Attribute
             }
         }
 
-        // ==================== 换区清除（定案默认持续） ====================
+        // ==================== 清除口（四口定案：换区 / 净化 / 解减益 / 衰退自然归零） ====================
 
         /// <summary>
-        /// 换区清除：未写具体持续时间的指示物（默认 max）一律持续到移动所属区域——移动时属性指示物
-        /// 先反向回写，再清空计数与时钟（攻/血指示物离场消失、费用指示物离手消失皆走此处）。
-        /// **永久类（Duration=Permanent，2026-09-07 定案：max 再分出的一类，增益长在实体身上）
-        /// 换区不删**——只有净化等效果级移除（PurgeAll）才清除。由 ZoneContainer.Move 调用。
+        /// 换区清除（ZoneContainer.Move 调用；发动区豁免由调用方保证）：清**非 Exception** 类
+        ///（Resident 常驻 / Decay 衰减 / System 倒计时——属性层先反向回写；战场减益不跟卡走）；
+        /// **Exception 生效自减不清**（护甲/圣盾/复生/潜行/毒素/角色攻击/诅咒/祝福跨区存活——
+        /// 诅咒活过牌库→手牌正依赖此档）。
         /// </summary>
-        public static void ClearAll(Card card) => ClearCounters(card, includePermanent: false);
+        public static void ClearAll(Card card) => ClearCounters(card, purgeAll: false);
 
         /// <summary>
-        /// 清除核心（规格驱动）：逐 id 按 CounterSpec 判定——永久类在 includePermanent=false 时跳过
-        /// （保留计数与其属性效果）；被清的属性层先反向回写。includePermanent=true 为净化口径（全清）。
+        /// 清除核心（分类驱动）：purgeAll=false 为换区口径（保留 Exception）；
+        /// purgeAll=true 为净化口径（全清——效果级移除是跨区类的唯一强清口）。
+        /// 被清的属性层先反向回写。
         /// </summary>
-        private static void ClearCounters(Card card, bool includePermanent)
+        private static void ClearCounters(Card card, bool purgeAll)
         {
-            if (card == null || (card._counters.Count == 0 && card._counterClocks.Count == 0)) return;
+            if (card == null || card._counters.Count == 0) return;
 
             var removed = new List<string>();
             foreach (var kv in card._counters)
             {
                 var spec = Find(kv.Key);
-                if (!includePermanent && spec.Duration == DurationType.Permanent)
-                    continue; // 永久类：换区不删（净化路径 includePermanent=true 会走到清除）
+                if (!purgeAll && spec.Class == CounterClass.Exception)
+                    continue; // 生效自减类跨区存活
                 RevertStat(card, kv.Key, spec.StatKind);
                 removed.Add(kv.Key);
             }
@@ -464,7 +506,6 @@ namespace CardCore.Attribute
             foreach (var id in removed)
             {
                 card._counters.Remove(id);
-                card._counterClocks.RemoveAll(c => c.Id == id); // 永久类无时钟；随层清除孤儿时钟
             }
             EventManager.Instance.Publish(new CounterChangedEvent
             {
@@ -476,17 +517,16 @@ namespace CardCore.Attribute
         }
 
         /// <summary>
-        /// 净化口径：清除目标全部指示物（属性先反向回写，**含永久类**——效果级移除是永久层的唯一清除口，
-        /// 这正是统一指示物的交互点）。与清空关键词（含神佑）配套，由 PurifyHandler 调用。
+        /// 净化口径：清除目标全部指示物（属性先反向回写，含 Decay/System——效果级移除是
+        /// 跨区类的唯一强清口，这正是统一指示物的交互点）。与清空关键词配套，由 PurifyHandler 调用。
         /// </summary>
         public static void PurgeAll(Entity entity)
         {
-            if (entity is Card card) ClearCounters(card, includePermanent: true);
+            if (entity is Card card) ClearCounters(card, purgeAll: true);
             else if (entity != null)
             {
-                // Player：无属性回写，直接清计数与时钟（剧毒/毒素/护甲可指向玩家）
+                // Player：无属性回写，直接清计数（毒素/护甲可指向玩家）
                 entity._counters.Clear();
-                entity._counterClocks.Clear();
                 EventManager.Instance.Publish(new CounterChangedEvent
                 {
                     Target = entity,
@@ -497,57 +537,80 @@ namespace CardCore.Attribute
             }
         }
 
+        /// <summary>
+        /// 烧除角色攻击弹药（2026-10-07 角色参战定案，例外类）：角色攻击或反击结算后调用——
+        /// 全量移除角色攻击指示物（攻击与反击共用同一份弹药，烧完即止，弹药即闸门）。
+        /// 读数为 0 时无操作（无弹药不反击、不烧）。
+        /// </summary>
+        public static void RemoveHeroAttackAmmo(Player player)
+        {
+            if (player == null) return;
+            int amount = player.GetCounterCount(HeroAttackCounter);
+            if (amount <= 0) return;
+            player.RemoveCounters(HeroAttackCounter, amount);
+            EventManager.Instance.Publish(new CounterChangedEvent
+            {
+                Target = player,
+                CounterType = HeroAttackCounter,
+                Amount = -amount,
+                Source = null,
+            });
+        }
+
         // ==================== 回合结束处理 ====================
 
         /// <summary>
-        /// 回合结束处理（由 GameCore.OnTurnEnd 调用，与 DurationTracker / TextChangeLayer 同链）。
-        /// 2026-09-16 统一档定案：限时指示物（两个时长档合一）一律**持续到持有者回合结束**——
-        /// 只结算回合方侧（回合方玩家 + 回合方战场卡）；对手实体上的指示物不碰，
-        /// 等对手自己回合结束时才发作/消退：
-        /// ① 效果型指示物（剧毒/毒素/易损）发作 + 回合时钟到期回收（不再多回合倒数）；
-        /// ② UntilEndOfTurn 整类清零（冻结/突袭紊乱/毒素层等）。
+        /// 回合结束处理（由 GameCore.OnTurnEnd 调用）。只结算**持有者侧**（回合方玩家+战场+手牌卡；
+        /// 对手实体上的指示物等对手自己回合末）：
+        /// ① 毒素例外例程（每回合末受到=层数的伤害，随后层数减半 floor）；
+        /// ③ 衰退族逐层倒数（Class=Decay：层=剩余回合，持有者回合末 −1，归零解除——冻结/易损/紊乱/
+        ///    沉睡/锁定；窥渊挂锁必须排在倒数之后，时序契约见 GameCore.OnTurnEnded）。
         /// </summary>
         public static void OnTurnEnd(Player turnPlayer, ZoneManager zoneManager)
         {
             if (turnPlayer == null) return;
 
-            // ── ① 效果型指示物 + 回合时钟（持有者侧） ──
+            // ── ① 毒素例外例程（持有者侧） ──
             foreach (var entity in AllEntities(turnPlayer, zoneManager))
             {
-                ProcessTurnEndEffects(entity, zoneManager);
-                TickClocks(entity);
+                ProcessToxinException(entity);
             }
 
-            // ── ② UntilEndOfTurn 整类清零（持有者侧） ──
-            if (zoneManager == null) return;
+            // ── ③ 衰退族逐层倒数（spec 驱动）：TickPolicy=TurnEndTickDown（=Decay 类），
+            //    层=剩余回合，持有者回合结束 −1，归零解除（新同类指示物=登记即用） ──
+            var tickDownIds = _registry.Values
+                .Where(s => s.TickPolicy == CounterTickPolicy.TurnEndTickDown)
+                .Select(s => (s.Id, s.DisplayName))
+                .ToList();
             foreach (var card in AllEntities(turnPlayer, zoneManager).OfType<Card>())
             {
-                var expiring = card._counters
-                    .Where(kv => kv.Value > 0 && IsUntilEndOfTurn(kv.Key))
-                    .Select(kv => kv.Key)
-                    .ToList();
-                foreach (var id in expiring)
-                {
-                    card.AddCounters(id, -card.GetCounterCount(id));
-                    EventManager.Instance.Publish(new KeywordAppliedEvent
-                    {
-                        Target = card,
-                        Keyword = id,
-                        Detail = $"{Find(id).DisplayName}消退（持有者回合结束）"
-                    });
-                }
-            }
-
-            // ── ③ 逐层倒数（锁定 2026-10-04 窥渊原子化；长档紊乱 2026-10-06 同模式接入）：
-            //    层=剩余回合，持有者回合结束 −1，归零解除 ──
-            foreach (var card in AllEntities(turnPlayer, zoneManager).OfType<Card>())
-            {
-                TickLayeredCounter(card, LockCounter, "锁定");
-                TickLayeredCounter(card, KeywordRules.SustainedRushSicknessCounter, "紊乱（长档）");
+                foreach (var (id, displayName) in tickDownIds)
+                    TickLayeredCounter(card, id, displayName);
             }
         }
 
-        /// <summary>层=剩余回合计数的 Permanent 指示物通用倒数（持有者回合结束 −1，归零解除并播报）。</summary>
+        /// <summary>
+        /// 毒素例外例程（2026-10-08 定案：无持续时间、只有层数）——持有者每回合结束受到
+        /// 等于层数的伤害（null 来源——毒素自身不是伤害来源实体，吸血/系命无从触发），
+        /// 随后层数减半（向下取整：1 层余 0、3 层余 1）。伤害过程中的叠层（毒蚀光环）不影响
+        /// 本次基数（先快照再结算）。
+        /// </summary>
+        private static void ProcessToxinException(Entity entity)
+        {
+            int layers = entity.GetCounterCount(ToxinCounter);
+            if (layers <= 0 || !entity.IsAlive) return;
+            KeywordRules.ApplyDamage(null, entity, layers, false);
+            int halved = layers / 2; // 向下取整（0.5 → 0）
+            entity.AddCounters(ToxinCounter, -(layers - halved));
+            EventManager.Instance.Publish(new KeywordAppliedEvent
+            {
+                Target = entity,
+                Keyword = ToxinCounter,
+                Detail = $"毒素发作（{layers} 层，受到 {layers} 点伤害，余 {halved} 层）",
+            });
+        }
+
+        /// <summary>层=剩余回合计数的衰退指示物通用倒数（持有者回合结束 −1，归零解除并播报）。</summary>
         private static void TickLayeredCounter(Card card, string counterId, string displayName)
         {
             int layers = card.GetCounterCount(counterId);
@@ -563,11 +626,9 @@ namespace CardCore.Attribute
             });
         }
 
-        /// <summary>回合方玩家 + 回合方战场/手牌卡（持有者侧结算域，2026-09-16 统一档定案：
-        /// 指示物只在持有者回合末发作/到期——对手侧实体等对手回合末，此域不含对手）。
-        /// 2026-10-04 手牌区纳入（窥渊原子化定案：锁定指示物在手牌中同样回合末倒数——
-        /// 「像在场上一样」；手牌常驻指示物 CostUp/CostDown/Exposed=换区清、Curse=Permanent 均不受影响）。
-        /// ToList 物化快照：剧毒死亡会在结算中把卡移出战场（容器列表变更），惰性遍历会炸。</summary>
+        /// <summary>回合方玩家 + 回合方战场/手牌卡（持有者侧结算域：指示物只在持有者回合末
+        /// 发作/倒数——对手侧实体等对手回合末，此域不含对手；手牌区纳入=锁定/沉睡在手牌
+        /// 「像在场上一样」倒数）。ToList 物化快照：结算中移卡（容器列表变更）会炸惰性遍历。</summary>
         private static IEnumerable<Entity> AllEntities(Player turnPlayer, ZoneManager zoneManager)
         {
             var snapshot = new List<Entity> { turnPlayer };
@@ -579,115 +640,6 @@ namespace CardCore.Attribute
                     if (card != null) snapshot.Add(card);
             }
             return snapshot;
-        }
-
-        /// <summary>效果型指示物：剧毒=回合结束死亡（无伤害来源）；毒素=每层 1 伤（null 来源）。</summary>
-        private static void ProcessTurnEndEffects(Entity entity, ZoneManager zoneManager)
-        {
-            // 剧毒：持续 1 回合——先消计数（无论是否被拦下，本回合末即到期），再裁决死亡。
-            // 死亡来源=施加方（消计数前取——净量归零会连同来源一起丢弃）。
-            int poison = entity.GetCounterCount(PoisonCounter);
-            if (poison > 0)
-            {
-                var poisonSource = entity.GetCounterSource(PoisonCounter);
-                entity.AddCounters(PoisonCounter, -poison);
-                if (!DeathRules.IsShielded(entity, DeathCause.Poison))
-                {
-                    if (entity is Card card)
-                    {
-                        DeathRules.TryKill(card, DeathCause.Poison, poisonSource, zoneManager);
-                    }
-                    else if (entity is Player player)
-                    {
-                        // 角色：无神佑即被剧毒杀死——生命归零，交由生命判定收尾
-                        player.Life = 0;
-                    }
-                }
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = entity,
-                    Keyword = PoisonCounter,
-                    Detail = "剧毒发作（回合结束）"
-                });
-            }
-
-            // 毒素：持续到持有者回合结束——每层 1 点伤害（null 来源——毒素自身不是伤害来源实体，
-            // 吸血/系命无从触发）后整层清空（2026-09-16 统一档：原 ForTurns=3 时钟退役）
-            int toxin = entity.GetCounterCount(ToxinCounter);
-            if (toxin > 0 && entity.IsAlive)
-            {
-                KeywordRules.ApplyDamage(null, entity, toxin, false);
-                entity.AddCounters(ToxinCounter, -toxin);
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = entity,
-                    Keyword = ToxinCounter,
-                    Detail = $"毒素发作（{toxin} 层，持有者回合结束清空）"
-                });
-            }
-
-            // 易损：持续 1 回合（定案口径=每个回合末到期，无论归属）——毒素结算后清层
-            int vulnerable = entity.GetCounterCount(VulnerableCounter);
-            if (vulnerable > 0)
-            {
-                entity.AddCounters(VulnerableCounter, -vulnerable);
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = entity,
-                    Keyword = VulnerableCounter,
-                    Detail = "易损消退（持续1回合）"
-                });
-            }
-        }
-
-        /// <summary>ForTurns 时钟递减：每个回合结束减一，到期层回收并从计数扣除（发消退播报）。</summary>
-        /// <summary>按层数反向回写属性增量（时钟到期部分回收用——n=到期层数；
-        /// 与 RevertStat（全量按当前计数）互补，处理"一个时钟到期、其余仍在"的部分回收）。</summary>
-        internal static void RevertStatDelta(Card card, StatCounterKind kind, int n)
-        {
-            if (card == null || n <= 0) return;
-            switch (kind)
-            {
-                case StatCounterKind.PowerUp: card._power -= n; break;
-                case StatCounterKind.PowerDown: card._power += n; break;
-                case StatCounterKind.LifeUp:
-                    card._maxLife -= n;
-                    if (card._life > card._maxLife) card._life = card._maxLife;
-                    break;
-                case StatCounterKind.LifeDown: card._maxLife += n; break;
-                case StatCounterKind.CostUp: card._costModifier -= n; break;
-                case StatCounterKind.CostDown: card._costModifier += n; break;
-                case StatCounterKind.PlusOnePlusOne:
-                    card._power -= n; card._maxLife -= n;
-                    if (card._life > card._maxLife) card._life = card._maxLife;
-                    break;
-                case StatCounterKind.MinusOneMinusOne: card._power += n; card._maxLife += n; break;
-            }
-        }
-
-        /// <summary>回合时钟到期回收（2026-09-16 统一档：不再多回合倒数——clock 层一律在
-        /// **持有者**回合末到期，计数扣除 + 属性反写 + 播报后全清）。</summary>
-        private static void TickClocks(Entity entity)
-        {
-            if (entity._counterClocks.Count == 0) return;
-            var expired = new List<CounterInstance>(entity._counterClocks);
-            foreach (var clock in expired)
-            {
-                entity._counters.TryGetValue(clock.Id, out var cur);
-                entity._counters[clock.Id] = Math.Max(0, cur - clock.Amount);
-                // 2026-09-13 修复：属性指示物到期回写——此前 TickClocks 只减计数不还原 _power/_maxLife，
-                // 属性层到期后残留（缺口首次被英雄技能红 buff 暴露）。
-                var spec = Find(clock.Id);
-                if (entity is Card statCard && spec.StatKind != StatCounterKind.None)
-                    RevertStatDelta(statCard, spec.StatKind, clock.Amount);
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = entity,
-                    Keyword = clock.Id,
-                    Detail = $"{spec.DisplayName}消退（持有者回合结束）"
-                });
-            }
-            entity._counterClocks.Clear();
         }
 
         /// <summary>清空目标全部负面指示物（解减益类效果的统一口径；横置状态不在此恢复）。</summary>
@@ -704,10 +656,11 @@ namespace CardCore.Attribute
     }
 
     /// <summary>
-    /// 冻结/沉睡的重置拦截（2026-09-13 定案：两者持有期间均**无法重置**）。
-    /// 沉睡：回合开始扣 1 层代替重置，末层耗尽的当次直接苏醒（重置）；
-    /// 冻结：层数累计（不延展持续——2026-09-16 统一档），保持横置至持有者回合末整类清零。
-    /// 登记于 GameCore.Reset（组合根例外，幂等）——重置循环经 RuleHooks 只认接口。
+    /// 重置拦截（2026-09-13 定案；2026-10-08 终版改 BlocksUntap 标记驱动）：持有 BlocksUntap
+    /// 指示物（冻结/沉睡）的卡持有期间**无法重置**。拦而不扣——衰退族倒数统一在 OnTurnEnd
+    ///（持有者回合末 −1 层）；层归零后下回合开始 BlocksUntap 自然为 false，走正常重置。
+    /// 登记于 GameCore.Reset（组合根例外，幂等）——重置循环经 RuleHooks 只认接口；
+    /// 新增同类指示物=CounterSpec 勾 BlocksUntap，本规则零改动。
     /// </summary>
     public sealed class SleepFreezeUntapBlockRule : IUntapBlockRule
     {
@@ -717,21 +670,11 @@ namespace CardCore.Attribute
 
         public bool BlocksUntap(Card card)
             => card != null
-            && (card.GetCounterCount(KeywordRules.SleepCounter) > 0
-                || card.GetCounterCount(KeywordRules.FreezeCounter) > 0);
+               && card._counters.Any(kv => kv.Value > 0 && CounterRules.Find(kv.Key).BlocksUntap);
 
         public void OnUntapBlocked(GameCore core, Card card)
         {
-            // 冻结：不推进，保持横置至回合末消退
-            int sleep = card.GetCounterCount(KeywordRules.SleepCounter);
-            if (sleep <= 0) return;
-
-            card.RemoveCounters(KeywordRules.SleepCounter, 1);
-            if (sleep - 1 <= 0)
-            {
-                card.Untap(); // 苏醒：最后一层耗尽的当次回合开始即重置
-                core?.PublishEvent(new UntapEvent { UntappedEntity = card });
-            }
+            // 拦而不扣：保持横置；倒数在 CounterRules.OnTurnEnd（持有者回合末）
         }
     }
 }

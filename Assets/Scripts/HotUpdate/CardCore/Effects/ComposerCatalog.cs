@@ -20,7 +20,7 @@ namespace CardCore
     {
         // ======================================== 自由分支·事件引擎 ========================================
 
-        /// <summary>引擎主干行 → BranchEngineKind 映射（2026-10-05 回表定案）：
+        /// <summary>引擎主干行 → BranchEngineKind 映射（2026-10-05 回表定案；2026-10-08 附加诅咒/附加祝福入列）：
         /// 表行 EffectType 名（EngineCountdown 等）→ 引擎枚举；非引擎行返回 None。</summary>
         public static BranchEngineKind EngineKindOf(AtomicEffectType type)
         {
@@ -32,6 +32,8 @@ namespace CardCore
                 case AtomicEffectType.EngineDeathToll: return BranchEngineKind.DeathToll;
                 case AtomicEffectType.EngineManaSurplus: return BranchEngineKind.ManaSurplus;
                 case AtomicEffectType.EngineNthHandCard: return BranchEngineKind.NthHandCard;
+                case AtomicEffectType.EngineCurseOnDraw: return BranchEngineKind.CurseOnDraw;
+                case AtomicEffectType.EngineBlessingOnDraw: return BranchEngineKind.BlessingOnDraw;
                 default: return BranchEngineKind.None;
             }
         }
@@ -49,12 +51,15 @@ namespace CardCore
                 case BranchEngineKind.DeathToll: min = 1; max = 9; break;     // 双方合计死亡阈值
                 case BranchEngineKind.ManaSurplus: min = 1; max = 9; break;   // bank 最多色阈值
                 case BranchEngineKind.NthHandCard: min = 1; max = 9; break;   // 本回合手牌使用序位
+                case BranchEngineKind.CurseOnDraw: min = 1; max = 3; break;   // 附加诅咒：附加张数（每张各自完整载荷）
+                case BranchEngineKind.BlessingOnDraw: min = 1; max = 3; break; // 附加祝福：附加张数（同上）
                 default: min = 0; max = 99; break;                            // Countdown：0=按奖励推导费自动换算
             }
         }
 
         /// <summary>引擎奖励预算（Then 原子锚价合计上限；2026-09-22 定案=奖励预算制）：死亡计数/元素充盈/手牌序位
-        /// 预算=x（EngineParam）；既有三引擎维持无上限自平衡（拼点门槛=锚价、倒计时回合=锚价、运势概率制）→ -1。</summary>
+        /// 预算=x（EngineParam）；既有三引擎维持无上限自平衡（拼点门槛=锚价、倒计时回合=锚价、运势概率制）；
+        /// 附加诅咒/附加祝福（2026-10-08）同无上限——延迟与抽到的不确定性即代价 → -1。</summary>
         public static int EngineRewardBudget(BranchEngineKind kind, int engineParam)
         {
             switch (kind)
@@ -145,12 +150,13 @@ namespace CardCore
 
         // ======================================== 诅咒门（Gate 特例） ========================================
 
-        /// <summary>诅咒门（有限分支特例，2026-10-05 定案）：主干=附加诅咒（AddCurse）唯一门——
-        /// 时机固定"抽到该卡时"（CurseSystem 驱动，施放时恒假不结算），Then 原子=该诅咒专属载荷
-        /// （预算 2，converter 折入主干原子 Branch 载荷）。</summary>
+        /// <summary>诅咒门（legacy，2026-10-05 有限分支定案；2026-10-08 表行退役）：主干=附加诅咒（AddCurse，
+        /// 表行已删——自由分支·引擎主干行 EngineCurseOnDraw 接棒）唯一门——时机固定"抽到该卡时"
+        /// （CurseSystem 驱动，施放时恒假不结算），Then 原子=该诅咒专属载荷（预算 2，converter 折入主干原子
+        /// Branch 载荷）。保留供手写数据兼容，合成器已不可达（AddCurse 行不在原子库）。</summary>
         public const string CurseGateId = "CurseOnDraw";
 
-        /// <summary>诅咒门族标签（AddCurse 行 Tags 携带——仅其可挂诅咒门）。</summary>
+        /// <summary>诅咒门族标签（legacy——AddCurse 行已随 2026-10-08 引擎主干化退役，无携带行）。</summary>
         public const string CurseProducerTag = "诅咒产出族";
 
         // ======================================== 可挂范围判定（MountKinds=唯一权威，合成器/装载共用） ========================================
@@ -177,8 +183,8 @@ namespace CardCore
             => HasFilterToken(row, "NoRole");
 
         /// <summary>行级「可否作连接光环条目」统一判定（2026-10-07 深夜终版：光环库/装载拦截/保存校验共用）：
-        /// 位 8 不可作为连接光环（消耗型黑名单）一票否决 → 位 1 指示物硬拒（永不可无例外——防误标）
-        /// → 位 0 关键词默认可（坚韧/守护回归关键词族）→ 其余看位 3 可以作为连接光环
+        /// 位 8 不可作为连接光环（消耗型黑名单）一票否决 → 位 1 指示物硬拒（永不可无例外——防误标；
+        /// 坚韧 2026-10-08 指示物化即经此位退出光环族）→ 位 0 关键词默认可 → 其余看位 3 可以作为连接光环
         ///（一般效果行光环化源——属性增加/减少）。位 7 仅可已删（IsAuraOnlyRow 随之退役）。</summary>
         public static bool CanMountAsAura(Attribute.AtomicEffectConfig row)
         {
@@ -190,7 +196,7 @@ namespace CardCore
         }
 
         /// <summary>主干槽可落资格（2026-10-07 位 0「入效果栏」删除后派生，合成器 LibPayload 与装载校验共用）：
-        /// 非规则光环即可（位 7 仅可随坚韧/守护回归关键词族删除，2026-10-07 深夜）。引擎行经 EngineTrunk
+        /// 非规则光环即可（位 7 仅可已删）。引擎行经 EngineTrunk
         /// 位进主干槽（填槽即自由分支）；系统/攻守行有资格但被合成器库过滤隐藏；关键词/指示物行以授予形态落槽。</summary>
         public static bool CanBeTrunkRow(Attribute.AtomicEffectConfig row)
             => row != null && !HasMountBit(row, MountKind.RuleAura);
@@ -217,8 +223,8 @@ namespace CardCore
         }
 
         /// <summary>关键词 id 是否可作连接光环条目（2026-09-23 定案·数据驱动；2026-10-07 晚默认翻转）：
-        /// 经关键词定义 → Grant 原子表行 → CanMountAsAura——关键词**默认可**，真消耗型
-        /// （潜行/圣盾/复生/法术护盾）表标位 8 拉黑（生效后移除与光环 live-query 持续语义冲突）——名单在表不在代码。</summary>
+        /// 经关键词定义 → Grant 原子表行 → CanMountAsAura——关键词**默认可**，
+        /// 黑名单表标位 8（现值：守护/法术护盾/再生/禁魔石——与光环 live-query 持续语义冲突）——名单在表不在代码。</summary>
         public static bool IsAuraMountableKeyword(string keywordId)
         {
             if (string.IsNullOrEmpty(keywordId)) return false;
@@ -227,8 +233,22 @@ namespace CardCore
             return CanMountAsAura(Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect));
         }
 
+        /// <summary>角色通道门（2026-10-08 定案）：关键词的 Grant 表行 TargetFilter 含 "NoRole"
+        /// （仅生物）时，该关键词禁止经连接光环投递角色——运行时投递（LinkAuraSystem 作用面档+
+        /// 箭头档两路）、合成器"是否包含角色"开关、计价 roleUnits 三处共用本判定（单源）。
+        /// 目录/表行缺失（未知关键词）放行——与 AuraKeywordChoices 同口径；表政策现状：
+        /// NoRole 覆盖除守护外的全部关键词行（坚韧 2026-10-08 指示物化退出关键词族，
+        /// 表行位 1 指示物已不可作光环条目——角色通道现仅守护等未过滤行可达）。</summary>
+        public static bool RoleChannelBlocked(string keyword)
+        {
+            if (string.IsNullOrEmpty(keyword)) return false;
+            var def = CardLoader.LoadKeywords().TryGetValue(keyword, out var d) ? d : null;
+            if (def == null || string.IsNullOrEmpty(def.atomicEffect)) return false;
+            return IsCreatureGrantRow(Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect));
+        }
+
         /// <summary>光环关键词下拉数据源（UI 用）：全部可作光环条目的 Grant 行（CanMountAsAura——
-        /// 关键词默认可−消耗型拉黑，坚韧/守护经位 7）。desc=条目效果说明（2026-10-05：光环库行不再用
+        /// 关键词默认可−消耗型拉黑）。desc=条目效果说明（2026-10-05：光环库行不再用
         /// 统一"live-query"术语文案——逐条给真实效果，{target} 模板代词按光环语义换写为「连接的单位」）。</summary>
         public static List<(string id, string label, string desc)> AuraKeywordChoices()
         {

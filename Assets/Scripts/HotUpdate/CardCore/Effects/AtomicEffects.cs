@@ -52,6 +52,8 @@ namespace CardCore
         NegateEffect,
         Silence,
         RedirectTarget,
+        /// <summary>刺探——2026-10-08 表行并入占卜（LookAtTopCards 实例域锁 {8} 承接对手侧）：
+        /// 枚举保序不删（只可尾部追加）；handler 已删（2026-10-08 无墓碑清理——无表行无调用者）。</summary>
         ScryCards,
 
         // ============ 保护相关（关键词） ============
@@ -82,7 +84,9 @@ namespace CardCore
         GrantTaunt,
         GrantDivineShield,
         GrantOverwhelm,
-        GrantArmor,
+        /// <summary>坚韧（2026-10-08 指示物化；同日更名——原 GrantArmor 与护甲 AddArmor 命名倒挂纠正）：
+        /// 对目标附加 {value} 层坚韧指示物（ToughnessCounter）——每层使每次受到的伤害 −1，不随受伤消耗。</summary>
+        GrantToughness,
         GrantFirstStrike,
         GrantDisarm,
         /// <summary>额外元素（原光合作用/蓄能）。2026-10-02 裁决：表行退役——凭空产元素违背费用规则；
@@ -90,7 +94,7 @@ namespace CardCore
         AdditionalEnergy,
         GrantVigilance,
         GrantRegeneration,
-        GrantGrowth,
+        // GrantGrowth（成长）已删（2026-10-08 机制删除 + 全量底层改造不留墓碑）
 
         // ============ 控制补充 ============
         TakeExtraTurn,
@@ -108,7 +112,6 @@ namespace CardCore
         GrantLifelink,
         AddArmor,
         AddToxin,
-        Poison,
         RushSickness,
         AddVulnerable,
         AddPowerUp,
@@ -169,11 +172,11 @@ namespace CardCore
         /// 炉石发现池=全收藏，本项目卡池难以估计——收窄为牌库内。未选中的牌留在牌库原位。
         /// 结算期选择走 TargetSelectionService（AI/无头自动选首张）。</summary>
         DiscoverCard,
-        /// <summary>守护（白1；2026-10-07 深夜关键词族回归+三形态定案）：效果文本
-        /// 「{target}受到伤害改写为自己受到等量伤害」——关键词形态 {target}=己方角色（印刷/授予，
-        /// 每回合前 ΣLimit 次改写，无限实例恒改写）；连接光环形态=箭头指向的场上单位（live-query 不限次）；
-        /// 方向档（己方/双方，极性门控）=范围内全部单位。改写在 KeywordRules.ApplyDamage 咽喉，
-        /// 单跳不链式（guardRerouted）。</summary>
+        /// <summary>守护（2026-10-08 配对制改版，白1；表行 MountKinds=关键词,不可作为连接光环）：
+        /// 登场/授予时弹选一个己方目标（单位或角色，TargetSelectionService——AI/无头自动选首候选），
+        /// 其受到的伤害改写为守护者自身承受（GuardianRules 配对表；改写在 KeywordRules.ApplyDamage
+        /// 咽喉，单跳不链式 guardRerouted）。无限次直到守护者死亡/离场——离场断链，
+        /// 墓地复活=新入场重新弹选（旧关系不残留）；复生原地留场配对保持。</summary>
         GrantGuardian,
         // 固有全域原子（SweepDamage/SweepHeal）已随 2026-10-05 墓碑清理实删——
         // 全域语义由组合期 TargetKinds+全取档表达（2026-09-21 退役定案，此番连墓碑一并清除）。
@@ -188,9 +191,6 @@ namespace CardCore
         /// <summary>梦魇（2026-09-13 改写定案，黑2）：造成战斗伤害时，改为对目标添加一个沉睡指示物（伤害不发生）。
         /// 2026-10-02 裁决：表行退役——战斗伤害改沉睡走分支组合（DmgRewriteSleep），印刷关键词路径保留。</summary>
         GrantNightmare,
-        /// <summary>病原体（2026-09-13 改写定案，绿3——表 BaseCost=3.0 为计价真相源，2026-10-02 对齐）：
-        /// 造成战斗伤害时，改为对目标添加一个剧毒指示物（伤害不发生）</summary>
-        GrantPathogen,
         /// <summary>禁魔石（2026-09-13 改写定案，白3）：受到的非战斗伤害变为 0</summary>
         GrantSpellban,
 
@@ -205,8 +205,11 @@ namespace CardCore
         /// <summary>展示：为目标（隐藏区卡：己/对方手牌·牌库）挂「展示」指示物——持续暴露、双方可查看，
         /// 换区即失效。可作筛选条件（TargetFilter "Exposed"）与后续费用减免挂点。枚举只可尾部追加。</summary>
         RevealCard,
-        /// <summary>附加诅咒：为对手的卡挂「诅咒」指示物（Permanent）并登记载荷（str=Effects.json 条目 id，
-        /// SummonToken 模板同款引用先例）；对手抽到该卡时 CurseSystem 自动执行载荷分支效果并消层（一次性）。
+        /// <summary>附加诅咒：为对手的卡挂「诅咒」指示物（Exception 生效自减档——换区不清）并登记载荷
+        /// （str=Effects.json 条目 id，SummonToken 模板同款引用先例）；对手抽到该卡时 CurseSystem
+        /// 自动执行载荷分支效果并消层（一次性）。
+        /// 2026-10-08 表行退役（指示物档删除——自由分支·引擎主干行 EngineCurseOnDraw 接棒，CurseCounter
+        /// 随之归系统指示物）；handler 保留代码侧，无表行不生效（手写数据兼容，AdditionalEnergy 同款先例）。
         /// 枚举只可尾部追加。</summary>
         AddCurse,
         /// <summary>锁定（2026-10-04 窥渊仪典原子化，蓝）：为一张手牌挂「锁定」指示物×{value}回合——
@@ -220,9 +223,11 @@ namespace CardCore
         // 无条件赋予=无分支槽原子（关键词∪指示物）+效果级持续档计价（Grant 梯沿用）。
 
         // ---- 引擎主干行（2026-10-05 晚间回表定案：玩家直接在原子表选引擎，填槽即自由分支）----
-        // 六行为"条件载体"而非效果：零锚价（ManaList=null）、零域、MountKinds=位8（EngineTrunk）；
+        // 各行为"条件载体"而非效果：零锚价（ManaList=null）、零域、MountKinds=引擎主干（EngineTrunk）；
         // 不入主序列执行（ExecuteFlatAsync/枚举口按 Branch.Settle==Engine 跳过）、无处理器（白名单登记）；
         // 引擎条件与参数存槽级 BranchPayload（Settle=Engine），行本身只作填充入口与身份锚。
+        // 2026-10-08 附加诅咒/附加祝福入列（八行）——引擎用到的指示物（诅咒/倒计时/祝福）归系统，
+        // 不设玩家可组合的指示物表行。
         /// <summary>引擎主干·倒计时：回合开始计数-1，归零触发奖励并重置（延迟即付费）。枚举只可尾部追加。</summary>
         EngineCountdown,
         /// <summary>引擎主干·运势：回合开始掷 2d6，双＞x 触发奖励。枚举只可尾部追加。</summary>
@@ -235,6 +240,36 @@ namespace CardCore
         EngineManaSurplus,
         /// <summary>引擎主干·手牌序位：本回合第 x 张使用的手牌发动时触发奖励（预算=x）。枚举只可尾部追加。</summary>
         EngineNthHandCard,
+
+        /// <summary>角色攻击力增加（2026-10-07 角色参战定案，弹药原子）：给己方角色附加 {value} 层
+        /// 角色攻击指示物（HeroAttackCounter）——角色攻击力读数=层数；**攻击或反击结算后全部移除**
+        ///（攻击与反击共用同一份弹药，烧完即止——弹药即闸门，无专用次数计数器）。
+        /// 一般效果原子（可挂主动/被动/奖励任意时机，"回合开始"只是示例挂载）；不走光环。
+        /// 枚举只可尾部追加。</summary>
+        AddHeroAttack,
+
+        /// <summary>引擎主干·附加诅咒（2026-10-08 自由分支化）：此卡施放结算时给对手牌库随机 x 张卡
+        /// 各挂 1 层「诅咒」指示物并登记 Then 载荷（CurseSystem）——对手抽到该卡时执行诅咒分支效果
+        /// 并消层（一次性；触发与引擎卡此后去向无关）。x∈[1,3]=附加张数；延迟与不确定性即代价
+        /// （Then 预算不设上限）。枚举只可尾部追加。</summary>
+        EngineCurseOnDraw,
+        /// <summary>引擎主干·附加祝福（2026-10-08）：同附加诅咒，作用面=自己牌库、指示物=「祝福」——
+        /// 抽到该卡时执行祝福分支效果并消层（一次性）。枚举只可尾部追加。</summary>
+        EngineBlessingOnDraw,
+
+        /// <summary>剧毒（2026-10-08 指示物转关键词·落定追加式）：获得剧毒——受到其战斗伤害的
+        /// 生物被消灭（战斗伤害照常结算、实际落定 &gt;0 触发；对角色照常落血；不灭/神佑可拦）。
+        /// 表行 20c06d52（原 Poison 原子行）改挂本枚举。枚举只可尾部追加。</summary>
+        GrantVenom,
+
+        /// <summary>永久属性增加（2026-10-08 来源分轨退役定案）：+{value}/+{value} 双属性**直写字段**
+        ///（复用 CounterRules.ApplyStatDelta 直写分支，不挂计数层）——本局游戏永久、跨区保留、
+        /// 净化不清（视同本体），与来源无关。临时层（换区清）用 AddPlusOne。表行 9256b41a。
+        /// 枚举只可尾部追加。</summary>
+        AddPermanentPlusOne,
+        /// <summary>永久属性减少（2026-10-08）：−{value}/−{value} 直写字段（有效生命归零标死交 SBA），
+        /// 跨区保留、净化不清，与来源无关。表行 e5da6dd9。枚举只可尾部追加。</summary>
+        AddPermanentMinusOne,
     }
 
     /// <summary>

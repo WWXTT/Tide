@@ -152,12 +152,12 @@ namespace CardCore.Editor.Tests
 
             // —— 前中期墙与回血生物 ——
             Creature("苔壳龟", 1, 4);
-            Creature("藤蔓守望者", 2, 4, "Growth");
+            Creature("藤蔓守望者", 2, 4);
             Creature("森林贤者", 2, 5);
-            Creature("春藤蔓延者", 2, 3, "Growth");
+            Creature("春藤蔓延者", 2, 3);
             Creature("蜜露祭司", 2, 4, "Lifelink");
             Creature("古木卫士", 3, 6);
-            Creature("荆棘树妖", 3, 5, "Growth");
+            Creature("荆棘树妖", 3, 5);
             Creature("沼泽医者", 3, 5, "Lifelink");
             Creature("苍翠巨熊", 5, 5);
             Creature("岩背巨龟", 4, 7);
@@ -235,8 +235,8 @@ namespace CardCore.Editor.Tests
             Creature("潮汐守护者", 4, 5, "Vigilance");
 
             // —— 有害指示物（策略 BlueControl 对面有生物时最高优先；目标=威胁降序=大生物）——
-            deck.Add(MakeSpell("剧毒之触", BlueTag, MakeEffect("B_POISON",
-                AtomRefs.New(AtomicEffectType.Poison, 1, Kinds(2)))));       // 剧毒：回合末死亡（灭大生物）
+            deck.Add(MakeSpell("剧毒之触", BlueTag, MakeEffect("B_VENOM",
+                AtomRefs.New(AtomicEffectType.GrantVenom, 1, Kinds(1)))));  // 剧毒关键词：受其战斗伤害的生物被消灭（2026-10-08 转关键词）
             deck.Add(MakeSpell("蔓延毒雾", BlueTag, MakeEffect("B_TOXIN_2",
                 AtomRefs.New(AtomicEffectType.AddToxin, 2, Kinds(2)))));
             deck.Add(MakeSpell("蚀骨毒潭", BlueTag, MakeEffect("B_TOXIN_3",

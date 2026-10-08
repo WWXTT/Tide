@@ -52,48 +52,9 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => $"送墓：牌库顶 {effect.Value} 张入墓地";
     }
 
-    /// <summary>
-    /// 占卜（2026-09-11 排列实现）：查看对手牌库顶 {value} 张并任意排列（排列者=发动方）。
-    /// 主路径 ExecuteAsync：排列交互逐张单选（先选的在最顶），整段写回对手牌库新顶序；
-    /// AI/无头/超时自动取剩余首张 = 维持原序（训练确定性）。
-    /// 同步 Execute 仅查看播报（旧同步/触发路径兼容，不弹排列）。
-    /// </summary>
-    public class ScryCardsHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.ScryCards;
-
-        public override bool CanExecute(AtomicEffectInstance effect, EffectExecutionContext context) => context != null;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            var owner = DeckArrangeHelper.ResolveDeckOwner(effect, context);
-            var top = DeckArrangeHelper.PeekTop(effect, context, owner);
-            if (top.Count > 0)
-                PublishEvent(new ScryEvent { Player = owner, Cards = top, Source = context.Source });
-        }
-
-        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            var owner = DeckArrangeHelper.ResolveDeckOwner(effect, context);
-            var top = DeckArrangeHelper.PeekTop(effect, context, owner);
-            if (top.Count == 0) return;
-
-            var final = top;
-            if (top.Count > 1)
-            {
-                var ordered = await DeckArrangeHelper.ArrangeAsync(top, context.Controller,
-                    enemyDeck: owner != context.Controller);
-                if (ordered != null && ordered.Count == top.Count)
-                {
-                    context.ZoneManager.GetZoneContainer(owner).ReorderTop(Zone.Deck, ordered);
-                    final = ordered;
-                }
-            }
-            PublishEvent(new ScryEvent { Player = owner, Cards = final, Source = context.Source });
-        }
-
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"占卜：查看对手牌库顶 {effect.Value} 张并任意排列";
-    }
+    // ScryCardsHandler 已删（2026-10-08 无墓碑清理）：占卜/刺探合并后唯一活跃路径=
+    // LookAtTopCardsHandler（对手侧=实例域锁 {8}），本 handler 无表行无调用者——
+    // 枚举槽位保序保留（见 AtomicEffects.cs）。
 
     /// <summary>改写持有者（2026-09-13 定案升级，黑2 锚 ×3.0）：永久换手 + owner 改写——
     /// 经 HandlerHelpers.ChangeControl(permanent:true) 迁场换控并改写 owner；
@@ -465,7 +426,7 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                target.AddCounters(CounterRules.SilenceCounter, 1);
+                target.AddCounters(CounterRules.SilenceCounter, 1, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
@@ -569,7 +530,6 @@ namespace CardCore.Attribute.Handlers
             {
                 // 牌库
                 new MillCardHandler(),
-                new ScryCardsHandler(),
                 new ChangeOwnerHandler(),
                 new DiscoverCardHandler(),
 

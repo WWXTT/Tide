@@ -175,12 +175,12 @@ namespace CardCore.AI.NeuralEnv
             Cards[b + 6] = c.IsTapped() ? 1f : 0f;
             Cards[b + 7] = (!c.IsTapped() && power > 0) ? 1f : 0f;           // 可攻击粗判
             Cards[b + 8] = KeywordRules.HasRushSickness(c) ? 1f : 0f;        // 召唤失调
-            Cards[b + 9] = c.GetCounterCount(CounterRules.PoisonCounter);
+            Cards[b + 9] = c.GetCounterCount(CounterRules.ToxinCounter);   // 毒素层数（剧毒已转关键词 Venom，指示物取消）
             Cards[b + 10] = c.GetCounterCount(CounterRules.SilenceCounter) > 0 ? 1f : 0f;
             Cards[b + 11] = c.GetCounterCount(CounterRules.CostUpCounter)
                           - c.GetCounterCount(CounterRules.CostDownCounter); // 费用层净量
             Cards[b + 12] = c.HasKeyword(KeywordRules.Taunt) ? 1f : 0f;
-            Cards[b + 13] = (c.HasKeyword(KeywordRules.Stealth) || c.HasKeyword(KeywordRules.Concealed)) ? 1f : 0f;
+            Cards[b + 13] = (c.GetCounterCount(CounterRules.StealthCounter) > 0 || c.HasKeyword(KeywordRules.Concealed)) ? 1f : 0f; // 潜行已指示物化
             Cards[b + 14] = c.HasKeyword(DeathRules.DivineProtection) ? 1f : 0f;
             // 内容身份（原子级拆散，CardIdentityService 与费用同管线推导），三通路：
             // 1) 精确哈希 [15..20] 原子 + [21] 结构 + [22] 组合——内容寻址查表，同单元跨卡共享行；

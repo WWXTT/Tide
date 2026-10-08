@@ -813,11 +813,12 @@ namespace CardCore.Editor.Tests
                     return;
                 }
 
-                // 幻卡效果核验：末日降临携带 15 层长档紊乱（引擎拦打脸=引导期不痛不痒）
-                Require(errors, boss.GetCounterCount(KeywordRules.SustainedRushSicknessCounter) == 15,
-                    $"S7 闸门线: 末日降临长档紊乱层数 {boss.GetCounterCount(KeywordRules.SustainedRushSicknessCounter)} != 15");
+                // 幻卡效果核验：末日降临携带 15 层紊乱（层=持续回合；引擎拦打脸=引导期不痛不痒。
+                // 长档 id 已并入 RushSickness——2026-10-08 层即持续统一）
+                Require(errors, boss.GetCounterCount(KeywordRules.RushSicknessCounter) == 15,
+                    $"S7 闸门线: 末日降临紊乱层数 {boss.GetCounterCount(KeywordRules.RushSicknessCounter)} != 15");
                 Require(errors, !GameActions.DeclareAttack(core, core.Player2, boss, core.Player1),
-                    "S7 闸门线: 长档紊乱持有期间末日降临打脸未被引擎拒绝");
+                    "S7 闸门线: 紊乱持有期间末日降临打脸未被引擎拒绝");
 
                 // element 步骤：放错卡（归土）/出牌/结束回合全拒；引导放地（红苗）放行并推进
                 Require(errors, !GameActions.AddToElementPool(core, core.Player1, guitool),

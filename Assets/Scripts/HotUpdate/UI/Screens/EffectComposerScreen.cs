@@ -26,6 +26,7 @@ namespace SynergyUI
         /// 2026-10-07 兜底构建全退（全屏统一）：缺节点只 LogError 不代码创建（槽/奖励区/条目卡/gate-row/
         /// row 模板/guide-frame/描述条）；复合检索退役（BindDropdown 单名 TMP、BindableButton 单名、
         /// row 模板单名、FillRowParts 按名不按位、费用/计数不再父级回退）。
+        /// 2026-10-08 右栏行定案不显示名字：FillRowParts 只填 meta 单列（name 节点绑定与 title 形参退役）。
     /// 2026-10-05 两槽定案：形态只余 并列（两槽）/光环——自由分支·事件引擎、有限分支·产出条件
     /// 折叠进并列形态的每槽分支编辑区（槽级 atomic.branch 载荷：结算方式下拉+条件/引擎参数+Then 奖励槽）。
     /// 核心定案：槽位选中制（右侧点击=替换选中槽）；组合形态由 InferMode 推断防互串；
@@ -290,15 +291,16 @@ namespace SynergyUI
         private static bool IsFixedBattleAtom(string enumName)
             => enumName == "Attack" || enumName == "Guard";
 
-        // 分支事件引擎六引擎（2026-10-05 两槽定案：Grant 已删除——无条件赋予=无分支槽原子；
-        // 引擎表行已随载荷化删除，显示名代码侧维护）
+        // 分支事件引擎（2026-10-05 两槽定案：Grant 已删除——无条件赋予=无分支槽原子；
+        // 2026-10-08 附加诅咒/附加祝福入列=八引擎；显示名代码侧维护）
         private static readonly BranchEngineKind[] BranchEngines =
         {
             BranchEngineKind.Countdown, BranchEngineKind.LuckRoll, BranchEngineKind.Clash,
             BranchEngineKind.DeathToll, BranchEngineKind.ManaSurplus, BranchEngineKind.NthHandCard,
+            BranchEngineKind.CurseOnDraw, BranchEngineKind.BlessingOnDraw,
         };
 
-        /// <summary>引擎中文名（槽内引擎下拉/预算行共用——表行已删，代码侧单一来源）。</summary>
+        /// <summary>引擎中文名（槽内引擎下拉/预算行共用——代码侧单一来源）。</summary>
         private static string EngineZh(BranchEngineKind engine) => engine switch
         {
             BranchEngineKind.Countdown => "倒计时",
@@ -307,6 +309,8 @@ namespace SynergyUI
             BranchEngineKind.DeathToll => "死亡计数",
             BranchEngineKind.ManaSurplus => "元素充盈",
             BranchEngineKind.NthHandCard => "手牌序位",
+            BranchEngineKind.CurseOnDraw => "附加诅咒",
+            BranchEngineKind.BlessingOnDraw => "附加祝福",
             _ => engine.ToString(),
         };
 
@@ -587,21 +591,32 @@ namespace SynergyUI
                 }
                 if (ruleParts.Count > 0) return string.Join("；", ruleParts);
 
-                // 连接条目：统一「受光环影响的…」句式（2026-10-07）；方向档=【范围】前缀，箭头档=×N箭头尾缀
-                var auraParts = new List<string>();
+                // 连接条目：统一「受光环影响的…」句式（2026-10-07）；2026-10-08 条目级作用面：
+                // 作用面条目=【范围】前缀（关键词条目含角色尾注），连接方向档条目归尾组×N箭头
+                var scopedParts = new List<string>();
+                var arrowParts = new List<string>();
                 foreach (var a in h.LinkAuras ?? new List<LinkAuraData>())
                 {
                     if (a == null) continue;
+                    string body;
                     if (!string.IsNullOrEmpty(a.stat))
-                        auraParts.Add($"受光环影响的生物{(a.stat.Equals("Life", StringComparison.OrdinalIgnoreCase) ? "生命" : "攻击")}{a.value:+0;-0}");
-                    else if (!string.IsNullOrEmpty(a.keyword)) auraParts.Add($"受光环影响的生物获得{KeywordZh(a.keyword)}");
+                        body = $"受光环影响的生物{StatZhOf(a.stat)}{a.value:+0;-0}";
+                    else if (!string.IsNullOrEmpty(a.keyword))
+                        body = $"受光环影响的生物获得{KeywordZh(a.keyword)}";
+                    else continue;
+                    if (a.scope > 0)
+                        scopedParts.Add($"【{LinkScopeZh(a.scope)}】{body}{(a.role && !string.IsNullOrEmpty(a.keyword) ? "（含角色）" : "")}");
+                    else arrowParts.Add(body);
                 }
-                if (auraParts.Count > 0)
+                if (scopedParts.Count > 0 || arrowParts.Count > 0)
                 {
-                    if (h.AuraScope > 0)
-                        return $"【{RuleAuraSystem.RuleAuraScopeZh(h.AuraScope - 1)}】{string.Join("，", auraParts)}";
-                    int n = CountArrowBits((HexDirection)h.ArrowDirections);
-                    return $"{string.Join("，", auraParts)}×{n}箭头";
+                    var all = new List<string>(scopedParts);
+                    if (arrowParts.Count > 0)
+                    {
+                        int n = CountArrowBits((HexDirection)h.ArrowDirections);
+                        all.Add(n > 0 ? $"{string.Join("，", arrowParts)}×{n}箭头" : string.Join("，", arrowParts));
+                    }
+                    return string.Join("；", all);
                 }
             }
             // 并列：逐槽 主干描述+分支后缀（BranchSuffix 无载荷返回空串）
@@ -616,7 +631,8 @@ namespace SynergyUI
             return parts.Count == 0 ? "（空）" : string.Join("＋", parts);
         }
 
-        /// <summary>光环关键词中文名（坚韧/守护特判，其余原样返回 id）。</summary>
+        /// <summary>光环关键词中文名（守护特判；"Armor"→坚韧为旧数据兼容显示——2026-10-08
+        /// 指示物化后 Armor 已不入光环库，仅存量脏值经此映射；其余原样返回 id）。</summary>
         private static string KeywordZh(string keywordId) => keywordId switch
         {
             "Armor" => "坚韧",
@@ -624,6 +640,15 @@ namespace SynergyUI
             null or "" => "？",
             _ => keywordId,
         };
+
+        /// <summary>条目 stat 短名（Both=属性——攻生同值 ±1/±1，2026-10-07 深夜三档）。</summary>
+        private static string StatZhOf(string stat)
+            => stat.Equals("Life", StringComparison.OrdinalIgnoreCase) ? "生命"
+             : stat.Equals("Both", StringComparison.OrdinalIgnoreCase) ? "属性" : "攻击";
+
+        /// <summary>条目级作用范围短名（2026-10-08 actuating-range：0=连接方向/1己/2双/3对）。</summary>
+        private static string LinkScopeZh(int scope)
+            => scope == 1 ? "己方" : scope == 2 ? "双方" : scope == 3 ? "对方" : "连接方向";
 
         private void RefreshName()
         {
@@ -821,7 +846,7 @@ namespace SynergyUI
             // 不清重建：模式片按名绑定烘焙节点（mode-Parallel/mode-Aura；无则建一次），刷新只更新文本/态色/接线
             MakeModeChip("并列（两槽）", ComposeMode.Parallel,
                 "并列形态：最多两个槽，各放一颗原子组成效果；每个槽还可以加分支条件（条件成立才有奖励）。");
-            MakeModeChip("光环（连接箭头）", ComposeMode.Aura,
+            MakeModeChip("光环（连接/作用面）", ComposeMode.Aura,
                 "光环形态：效果挂在卡上持续生效，作用于连接箭头指向的单位；在下方配条目（属性/关键词）。");
 
             // 卡编辑模式提示（常驻节点按名绑定——非编辑时隐藏；新建才定宽，烘焙宽以节点为准）
@@ -1213,7 +1238,9 @@ namespace SynergyUI
 
         /// <summary>赋予类持续行绑定（2026-10-07 预制体化：atom-card/reward-slot 烘焙 aura-duration 行
         /// ——「持续时间」标签 + aura-kinds TMP 下拉；代码生成 dd-dur 与光环槽持续回合数行退役）。
-        /// 仅赋予类显示：MountKinds 含关键词（位 1）或指示物（位 2）＝给目标添加关键词/指示物。
+        /// 仅关键词授予类显示：MountKinds 含关键词（位 1）＝给目标添加关键词——效果级持续档
+        /// 参与计价（Grant 梯 1.2/1.6/2.0）。指示物原子（位 2）持续由 CounterSpec 四分类承载、
+        /// 计价=表行锚×max(1,层数)——2026-10-08 起不再显示本行（旧「或指示物」口径随层即持续定案退役）。
         /// 持续档=效果级唯一真相（header.Duration 三档；1/2 回合同档=持续到自己回合结束，
         /// 文案「换区清除」=UntilLeaveBattlefield）——改动走 RefreshSlots 全量重绑（各行同步显真值）。</summary>
         private void BindGrantDurationRow(RectTransform host, AtomicEffectEntry atom)
@@ -1227,7 +1254,7 @@ namespace SynergyUI
             }
             var cfg = AtomicEffectTable.GetByHashId(atom?.refId);
             var mounts = MountKindExtensions.ParseCsv(cfg?.MountKinds ?? "");
-            bool grant = mounts.Contains(MountKind.Keyword) || mounts.Contains(MountKind.Counter);
+            bool grant = mounts.Contains(MountKind.Keyword); // 仅关键词授予类（指示物原子持续档不生效，隐藏）
             row.gameObject.SetActive(grant); // 非赋予类（含空奖励槽）整行隐藏
             if (!grant) return;
 
@@ -1374,9 +1401,10 @@ namespace SynergyUI
 
             // 原子级目标域下拉/目标随机已上移设置盒（2026-10-05 并列相同目标定案——作用范围升级效果级 TargetKinds）
 
-            // 位 2：指示物持续提示（2026-10-05 并梯后：计价也不读效果级持续档——档=CounterSpec 真实持久）
+            // 位 2：指示物持续提示（2026-10-08 层即持续定案：持续与计价均由指示物规格承载——
+            //     计价=表行锚×max(1,层数)，效果级持续档不生效）
             if (mounts.Contains(MountKind.Counter))
-                MakeHint(inject, "指示物原子：持续与计价均由指示物规格承载（换区清 1.5/层、永久点包 2.0/层）——效果级持续档不生效");
+                MakeHint(inject, "指示物原子：持续与计价均由指示物规格承载（表行锚×max(1,层数)，四分类见 Tags）——效果级持续档不生效");
 
             // 检索按维度档计费提示
             if (type == AtomicEffectType.SearchDeck)
@@ -1426,7 +1454,9 @@ namespace SynergyUI
                 UiKit.Described(pf,
                     "参数：这个分支的判定条件——运势＝要掷出的点数线；死亡计数＝双方累计死亡数；"
                     + "元素充盈＝元素盈余量；手牌序位＝本回合打出的第几张牌；倒计时＝还剩几回合。"
-                    + "倒计时填 0 表示按奖励费用自动换算回合数（1 费＝1 回合，至少 1 回合）。");
+                    + "倒计时填 0 表示按奖励费用自动换算回合数（1 费＝1 回合，至少 1 回合）。"
+                    + "附加诅咒/附加祝福＝往牌库里投放的卡数（诅咒进对手牌库、祝福进自己牌库——"
+                    + "抽到该卡的玩家触发分支效果并移除指示物，一次性）。");
                 if ((BranchEngineKind)b.engine == BranchEngineKind.Countdown)
                     MakeHint(slot, "倒计时参数 0=按 Then 奖励推导费自动换算回合（1费=1回合，向上取整下限 1）");
 
@@ -1576,7 +1606,7 @@ namespace SynergyUI
             {
                 if (text != null)
                     text.text = reward != null
-                        ? (free ? (expanded ? "▼ " : "▶ ") : "") + AtomText.RenderAtomEntry(reward)
+                        ? (free ? (expanded ? "▼ " : "▶ ") : "") + AtomText.RenderRewardAtomEntry(reward) // 「新的目标」口径（2026-10-08）：奖励结算=合法范围重选
                         : "选中后点击库中的奖励原子填入（推导费 ≤ 分支预算）";
                 RefreshName();
                 ValidateZones(); // 参数/预算变化原地复验
@@ -2039,15 +2069,13 @@ namespace SynergyUI
             _ => false,
         };
 
-        /// <summary>光环形态设置盒（2026-10-07 范围化·方向档）：仅「作用范围」一行（复用 dd-kinds 下拉）。
-        /// 仪典/改写投放步→写步 value（RuleAuraScope 序）；连接光环条目→写 header.AuraScope
-        ///（0=箭头模式/1己方/2双方/3对方——选方向即清箭头、箭头盒隐藏）。
-        /// 选项按极性门控（+1→{己方,双方}；-1→{对方,双方}；0→三选；属性光环恒+1），多来源取交集；
-        /// 条目存在时前插「箭头」档。计价：仪典双方×0.5；连接/改写按 4 箭头、双方减半=2 箭头档。</summary>
+        /// <summary>光环形态设置盒（2026-10-07 范围化；2026-10-08 收敛仪典专用）：仅「作用范围」一行
+        ///（复用 dd-kinds 下拉）。仪典/改写投放步→写步 value（RuleAuraScope 序=方向码−1）；
+        /// 连接光环条目的作用面已迁至条目卡 actuating-range 行（条目级，2026-10-08 定案）——
+        /// hasEntries 路径退役，header.AuraScope 恒 0（由条目 scope 承载）。
+        /// 选项按投放步极性门控（+1→{己方,双方}；-1→{对方,双方}；0→三选）。</summary>
         private void BindAuraScopeSettings(RectTransform settings)
         {
-            var h = _graph.header;
-
             // 光环投放步定位（仪典/改写——全局唯一槽，混合多行时校验区已提醒，取首条）
             EffectStepData step = null;
             AtomicEffectConfig cfg = null;
@@ -2060,8 +2088,7 @@ namespace SynergyUI
                 cfg = c;
                 break;
             }
-            bool hasEntries = ValidAuraCount(h.LinkAuras) > 0;
-            if (step == null && !hasEntries) return;
+            if (step == null) return; // 无仪典步不出设置盒（条目作用面在条目卡编辑）
 
             foreach (var hidden in new[] { "speed", "limit", "dd-num", "rand" })
                 UiKit.FindDeep(settings, hidden)?.gameObject.SetActive(false);
@@ -2070,77 +2097,38 @@ namespace SynergyUI
             var dd = node != null ? DdOf(node) : null;
             if (dd == null) return;
 
-            // 极性门控（2026-10-07 定案）：+1→{己方,双方}；-1→{对方,双方}；0→三选——
-            // 投放步行极性、属性光环恒 +1、关键词光环取 Grant 行极性；多来源取交集。
-            List<int> allowed = new List<int> { 1, 2, 3 };
-            void Intersect(List<int> src)
-            {
-                for (int i = allowed.Count - 1; i >= 0; i--)
-                    if (!src.Contains(allowed[i])) allowed.RemoveAt(i);
-            }
-            List<int> OfPolarity(float p)
-                => p >= 0.5f ? new List<int> { 1, 2 } : p <= -0.5f ? new List<int> { 2, 3 } : new List<int> { 1, 2, 3 };
-            if (cfg != null) Intersect(OfPolarity(cfg.Polarity));
-            if (hasEntries)
-            {
-                foreach (var a in h.LinkAuras)
-                {
-                    if (a == null) continue;
-                        if (!string.IsNullOrEmpty(a.stat))
-                        {
-                            // 属性条目极性=value 符号（2026-10-07 深夜）：正=增益（己方/双方）、负=减益（双方/对方）
-                            Intersect(OfPolarity(a.value >= 0 ? 1f : -1f));
-                            continue;
-                        }
-                    if (string.IsNullOrEmpty(a.keyword)) continue;
-                    var krow = AtomicEffectTable.GetByEnumName(
-                        CardLoader.GetKeywordDefinition(a.keyword)?.atomicEffect ?? "");
-                    if (krow != null) Intersect(OfPolarity(krow.Polarity));
-                }
-            }
-            if (allowed.Count == 0) allowed = new List<int> { 2 }; // 病态交集兜底：双方恒合法
-
-            // 可选值：条目存在前插「箭头」档（0=箭头模式，方向几何）；仅投放步=纯方向三档
-            var opts = new List<int>();
-            if (hasEntries) opts.Add(0);
-            opts.AddRange(allowed);
-
-            // 当前值：条目→header.AuraScope（0=箭头）；仅步→步 value+1（RuleAuraScope→方向码）
-            int cur = hasEntries ? h.AuraScope : step.atomic.value + 1;
+            var opts = AllowedScopesOfPolarity(cfg.Polarity);
+            int cur = step.atomic.value + 1; // RuleAuraScope 序 → 方向码
             if (!opts.Contains(cur)) cur = opts.Contains(2) ? 2 : opts[opts.Count - 1];
-            if (hasEntries) h.AuraScope = cur;
-            if (step != null && cur > 0) step.atomic.value = cur - 1;
+            step.atomic.value = cur - 1;
 
-            string Zh(int v) => v == 0 ? "箭头" : v == 1 ? "己方" : v == 2 ? "双方" : "对方";
             dd.ClearOptions();
-            dd.AddOptions(opts.Select(Zh).ToList());
+            dd.AddOptions(opts.Select(LinkScopeZh).ToList());
             dd.SetValueWithoutNotify(Mathf.Max(0, opts.IndexOf(cur)));
             dd.RefreshShownValue();
             dd.onValueChanged.RemoveAllListeners();
             dd.onValueChanged.AddListener(i =>
             {
                 int v = opts[Mathf.Clamp(i, 0, opts.Count - 1)];
-                if (hasEntries)
-                {
-                    h.AuraScope = v;
-                    if (v > 0) h.ArrowDirections = 0; // 选方向=不设箭头（2026-10-07 定案）
-                }
-                if (step != null && v > 0) step.atomic.value = v - 1;
+                if (v > 0) step.atomic.value = v - 1;
                 RefreshName(); // 范围影响计价——费用预览随改随刷
-                RefreshSlots(); // 箭头盒显隐随方向档切换（选方向隐藏、回箭头恢复）
             });
             UiKit.DescribedOptions(dd,
-                "作用范围：光环对哪一侧生效——可选项由极性决定；连接光环可选「箭头」逐向指定。",
+                "作用范围：仪典对哪一侧生效——可选项由极性决定。",
                 i =>
                 {
                     if (i < 0 || i >= opts.Count) return null;
                     int v = opts[i];
-                    return v == 0 ? "箭头：逐向指定连接箭头，作用对象=箭头指向格的占据者。"
-                        : v == 1 ? "己方：只为你（光环控制者）一侧生效。"
+                    return v == 1 ? "己方：只为你（光环控制者）一侧生效。"
                         : v == 3 ? "对方：只为对手一侧生效。"
                         : "双方：两侧都生效——费用减半（对称让利）。";
                 });
         }
+
+        /// <summary>极性→合法作用面方向码（2026-10-07 门控口径）：+1→{己方,双方}；-1→{对方,双方}；
+        /// 0→三选。仪典设置盒与条目卡 actuating-range 下拉共用。</summary>
+        private static List<int> AllowedScopesOfPolarity(float p)
+            => p >= 0.5f ? new List<int> { 1, 2 } : p <= -0.5f ? new List<int> { 2, 3 } : new List<int> { 1, 2, 3 };
 
         /// <summary>档位下拉静态绑定（两段式描述）：desc=头部总述；optionDesc=选中项介绍
         ///（index→文本，null/空＝保持总述）。标签由档位值生成（默认 -1/0=「全部」；速度档传 labelOf
@@ -2298,7 +2286,7 @@ namespace SynergyUI
                         && !abbr.Contains(q, StringComparison.OrdinalIgnoreCase)) continue;
                 }
 
-                var row = MakeListRow(_effectsList.Content, captured.name, "meta",
+                MakeListRow(_effectsList.Content,
                     AtomText.RenderEffectSummary(captured), // 完整效果描述（2026-10-03 定案：不再简写）
                     DotColor(ColorFilter.OfTagsCsv(parts.FirstOrDefault()?.Tags)),
                     captured.header?.AnchorCost,
@@ -2481,7 +2469,7 @@ namespace SynergyUI
         }
 
         private void MakeLibraryRow(LibPayload payload) =>
-            MakeListRow(_libraryList.Content, payload.Cfg.DisplayName, "tpl", payload.Cfg.Description,
+            MakeListRow(_libraryList.Content, payload.Cfg.Description, // 2026-10-08 定案：原子行不显示名字——描述独占 meta 单列
                 DotColor(ColorFilter.OfTagsCsv(payload.Cfg.Tags)), AtomCosts(payload.Cfg), () => QuickAdd(payload));
 
         /// <summary>原子单价 → 方格明细（费用构成各色份额取整；序数序=枚举序；null=不计价行）。</summary>
@@ -2494,10 +2482,11 @@ namespace SynergyUI
 
         /// <summary>右栏列表行（原子库/效果表/光环库三处共用，2026-10-03 模板约定；2026-10-04 费用=位置数组）：
         /// content 直属不激活模板「row」克隆填充（2026-10-07 单名定案——tpl-row 别名与代码建行退役；
-        /// 文本按名绑定，行内费用=模板换入的 CostSquares 实例（按组件找），无实例回落 dot 色点染色；
-        /// 行点击 Button），布局样式全以模板为准；缺模板 LogError 返回 null。</summary>
-        private RectTransform MakeListRow(RectTransform content, string title,
-            string secondChild, string secondText, Color dot, ElementCost costs, Action onClick)
+        /// 2026-10-08 定案：行不显示名字——文本只有 meta 单列，name 节点绑定退役；行内费用=模板换入的
+        /// CostSquares 实例（按组件找），无实例回落 dot 色点染色；行点击 Button），布局样式全以模板为准；
+        /// 缺模板 LogError 返回 null。</summary>
+        private RectTransform MakeListRow(RectTransform content, string metaText,
+            Color dot, ElementCost costs, Action onClick)
         {
             var tpl = UiKit.CloneTemplate("row", content);
             if (tpl == null)
@@ -2506,7 +2495,7 @@ namespace SynergyUI
                 return null;
             }
 
-            FillRowParts(tpl, title, secondChild, secondText);
+            FillRowParts(tpl, metaText);
             // 行内费用方格（模板换入的 CostSquares 实例，按组件找）；无实例回落旧 dot 染色
             var rowView = tpl.GetComponentInChildren<CostSquaresView>(true);
             if (rowView != null)
@@ -2534,18 +2523,17 @@ namespace SynergyUI
             return tpl;
         }
 
-        /// <summary>模板行文本填充（2026-10-07 单名定案）：name 节点=主文本、secondChild 约定名节点=第二列
-        ///（meta-only 模板只烘焙 meta 名节点即只吃第二列文本）；缺名节点跳过该列——不再按位置序兜底。</summary>
-        private static void FillRowParts(RectTransform row, string title, string secondChild, string secondText)
+        /// <summary>模板行文本填充（2026-10-08 定案）：行不显示名字——唯一文本列=meta 节点
+        ///（name 节点绑定退役，不再按位置序兜底）；缺节点 LogError。</summary>
+        private static void FillRowParts(RectTransform row, string metaText)
         {
-            var nameT = UiKit.FindDeep(row, "name")?.GetComponentInChildren<TMP_Text>(true);
-            if (nameT != null) nameT.text = title ?? "";
-            TMP_Text secondT = null;
-            if (secondChild != null)
-                secondT = UiKit.FindDeep(row, secondChild)?.GetComponentInChildren<TMP_Text>(true);
-            if (secondT != null) secondT.text = secondText ?? "";
-            if (nameT == null && secondT == null)
-                Debug.LogError("[EffectComposer] row 模板缺 name/meta 文本节点——本行文本丢失；检查 EffectUI.prefab");
+            var metaT = UiKit.FindDeep(row, "meta")?.GetComponentInChildren<TMP_Text>(true);
+            if (metaT == null)
+            {
+                Debug.LogError("[EffectComposer] row 模板缺 meta 文本节点——本行文本丢失；检查 EffectUI.prefab");
+                return;
+            }
+            metaT.text = metaText ?? "";
         }
 
         private static void SetPartColor(RectTransform row, string child, Color color)
@@ -2564,7 +2552,7 @@ namespace SynergyUI
                 if (!string.IsNullOrEmpty(_filterName.text)
                     && !title.Contains(_filterName.text, StringComparison.OrdinalIgnoreCase)
                     && !meta.Contains(_filterName.text, StringComparison.OrdinalIgnoreCase)) return;
-                MakeListRow(_libraryList.Content, title, "meta", meta, DotColor(color), null, onAdd);
+                MakeListRow(_libraryList.Content, meta, DotColor(color), null, onAdd);
             }
 
             void AddAura(LinkAuraData entry)
@@ -2585,23 +2573,29 @@ namespace SynergyUI
                     str = RuleAuraIds.TryGetValue(cfg.DisplayName, out var r) ? r : cfg.DisplayName });
             }
 
-            // 属性光环（2026-10-07 深夜改源）：一般效果「属性增加/属性减少」的光环化——原子表位 3 行
-            //（自指示物类重分类）；AddPlusOne→属性+ / AddMinusOne→属性−，默认 stat=Both（攻/生同值），
-            // 条目卡上可切换 攻/生/属性 与正负值；计价按符号取源行（白1/黑1）走通用光环化公式。
+            // 属性光环（2026-10-07 深夜改源；2026-10-08 库行细分定案）：一般效果「属性增加/属性减少」
+            //（原子表位 3 行）的光环化——每源行拆 攻/生/属性 三行（卡面种类下拉已随 actuating-range
+            // 改版退役，种类=库行结构即语义）；计价按符号取源行（白1/黑1）走通用光环化公式。
             foreach (var r in AllTableRows())
             {
                 var cfg = r;
                 if (IsRuleAuraRow(cfg) || !ComposerCatalog.HasMountBit(cfg, MountKind.LinkAura)) continue;
                 if (!Enum.TryParse<AtomicEffectType>(cfg.EnumName, out var st)) continue;
-                string stat; UIColor color; int v;
+                int sign; UIColor color;
                 switch (st)
                 {
-                    case AtomicEffectType.AddPlusOne: stat = "Both"; color = UIColor.White; v = 1; break;
-                    case AtomicEffectType.AddMinusOne: stat = "Both"; color = UIColor.Black; v = -1; break;
+                    case AtomicEffectType.AddPlusOne: sign = 1; color = UIColor.White; break;
+                    case AtomicEffectType.AddMinusOne: sign = -1; color = UIColor.Black; break;
                     default: continue; // 位 3 非属性行不进光环面
                 }
-                AddRow($"属性光环·{cfg.DisplayName}", "属性修正 stat+value——源行光环化计价，按箭头叠加", color,
-                    () => AddAura(new LinkAuraData { stat = stat, value = v }));
+                foreach (var (statZh, statId) in new[]
+                     { ("攻击力", "Power"), ("生命值", "Life"), ("属性", "Both") })
+                {
+                    string zh = statZh, sid = statId;
+                    AddRow($"属性光环·{zh}{(sign > 0 ? "+" : "−")}1",
+                        $"{zh}{(sign > 0 ? "+" : "−")}1——源行光环化计价；作用面在条目卡选（含角色=5 单位档），属性只作用于生物",
+                        color, () => AddAura(new LinkAuraData { stat = sid, value = sign }));
+                }
             }
             foreach (var c in ComposerCatalog.AuraKeywordChoices())
             {
@@ -2766,11 +2760,12 @@ namespace SynergyUI
             }
             else
             {
-                MakeHint(parent, "光环＝连接箭头持续效果：作用对象=箭头指向格的当前占据者（断链/离场即失效）——不可指定作用对象。");
+                MakeHint(parent, "光环＝持续效果：连接方向档作用对象=箭头指向格的当前占据者（断链/离场即失效）；"
+                    + "作用面档（己方/对方/双方）=整侧生物，关键词条目可选「是否包含角色」（计费按 5 单位档）。");
             }
 
-            // ---- 连接箭头（prefab 烘焙 arrows 盒克隆——仅普通光环箭头档；规则级/改写/方向档关闭） ----
-            if (!hasRule && _graph.header.AuraScope == 0)
+            // ---- 连接箭头（prefab 烘焙 arrows 盒克隆——存在连接方向档条目才显示；规则级/作用面档关闭） ----
+            if (!hasRule && AnyArrowModeEntry(h))
             {
                 var arrowsBox = UiKit.CloneTemplate("tpl-arrows", parent);
                 if (arrowsBox == null)
@@ -2824,7 +2819,7 @@ namespace SynergyUI
                     MakeAuraEntryCard(slot, i);
                 if (h.LinkAuras.Count == 0 && !hasRule)
                     MakeHint(slot, "尚无条目——右侧光环条目库点击添加（属性/关键词/规则级，可重复）");
-                MakeHint(slot, "坚韧=绿1/条、守护=白1/条、属性=光环档 1.5/+1（效果层只计条目）；箭头费挂卡并集后由卡层计");
+                MakeHint(slot, "条目费=源行光环化×单回合档；作用面累乘在条目：己/对方=4 单位、双方=2、含角色=5（×1.2 累乘）");
                 // 校验：至少一条有效光环内容（条目或槽内规则原子）+ 关键词条目须位 5 可挂 + 多仪典全局唯一提醒
                 _slotZones.Add(MakeZone(slot, () =>
                 {
@@ -2838,6 +2833,8 @@ namespace SynergyUI
                         if (!ComposerCatalog.IsAuraMountableKeyword(a.keyword))
                             return $"关键词「{a.keyword}」不可作光环——表行标「不可作为连接光环」"
                                  + "（真消耗型生效后移除，与光环 live-query 持续语义冲突）；请改选下拉中的可挂关键词";
+                        if (a.role && ComposerCatalog.RoleChannelBlocked(a.keyword))
+                            return $"关键词「{a.keyword}」仅生物（表行 NoRole）——不可声明含角色（2026-10-08 定案）";
                     }
                     return null;
                 }));
@@ -2852,6 +2849,11 @@ namespace SynergyUI
                 if (s?.kind == 0 && s.atomic != null && IsRuleAuraRow(AtomicEffectTable.GetByHashId(s.atomic.refId))) n++;
             return n;
         }
+
+        /// <summary>是否存在连接方向档条目（2026-10-08 条目级作用面）：箭头盒显隐与箭头校验的适用条件
+        ///——全部条目走作用面档时无箭头语义（空条目表=默认箭头档，保旧默认视图）。</summary>
+        private static bool AnyArrowModeEntry(CardEffectData h)
+            => h.LinkAuras == null || h.LinkAuras.All(a => a == null || a.scope == 0);
 
         /// <summary>六向箭头绑定（2026-10-06 arrow-picker 预制体化）：按钮名 T/D/L/R=上/下/左/右
         ///（L-T=左上…R-D=右下——见 ArrowButtons 表）；三角朝向/间距/底格由预制体烘焙，代码只挂
@@ -2946,14 +2948,16 @@ namespace SynergyUI
             var delNode = head != null ? UiKit.FindDeep(head, "del") : null;
             if (delNode == null) Debug.LogError("[EffectComposer] aura-card 缺 del——仪典不可删；检查 EffectUI.prefab");
             else BindCardButton(delNode, "删除", true, () => RemoveAtom(SelKind.Parallel, 0));
-            UiKit.FindDeep(card, "field-value")?.gameObject.SetActive(false);   // 仪典无数值
-            UiKit.FindDeep(card, "aura-duration")?.gameObject.SetActive(false); // 仪典作用域按表行——不可改
+            UiKit.FindDeep(card, "field-value")?.gameObject.SetActive(false);       // 仪典无数值
+            UiKit.FindDeep(card, "actuating-range")?.gameObject.SetActive(false);   // 仪典作用域按表行——条目级范围行不适用
         }
 
-        /// <summary>光环条目卡（2026-10-07 光环专用卡）：aura-card 直编辑——head 摘要+删除；
-        /// field-value=属性数值（关键词条目隐藏）；aura-duration 行的 aura-kinds=条目种类下拉
-        ///（属性条目=攻击力/生命值→stat；关键词条目=位 5 可挂关键词→keyword）。类型不再卡上切换
-        ///——属性↔关键词走右栏库重加（结构即语义）。</summary>
+        /// <summary>光环条目卡（2026-10-07 光环专用卡；2026-10-08 作用面改版）：aura-card 直编辑——
+        /// head 摘要+删除；field-value=属性数值（关键词条目隐藏）；actuating-range 行（原 aura-duration
+        /// 更名）=条目级作用范围——aura-kinds 下拉填 连接方向/己方/对方/双方（极性门控），连接方向档
+        /// 才显示槽外箭头盒；作用面档显示 player Toggle=是否包含角色（仅关键词条目——属性增加不作用于
+        /// 角色，角色只吃角色攻击力原子且该原子不可作光环）。条目种类（攻/生/属性、关键词选择）随
+        /// 2026-10-08 定案迁右栏库行细分——卡面不再有种类下拉。</summary>
         private void MakeAuraEntryCard(RectTransform slot, int index)
         {
             var aura = _graph.header.LinkAuras[index];
@@ -2997,8 +3001,9 @@ namespace SynergyUI
                         input.onEndEdit.RemoveAllListeners();
                         input.onEndEdit.AddListener(_ =>
                         {
-                            if (int.TryParse(input.text, out var v)) { aura.value = v; RefreshText(); }
+                            if (int.TryParse(input.text, out var v)) { aura.value = v; RefreshSlots(); }
                             else input.text = aura.value.ToString();
+                            // RefreshSlots 全量重建：数值正负翻转改变极性门控的可选作用面
                         });
                         UiKit.Described(input,
                             "数值：光环给范围内单位的属性增减——正数加强、负数削弱，数值越大费用越高。"
@@ -3007,61 +3012,87 @@ namespace SynergyUI
                 }
             }
 
-            // ---- 条目种类（aura-duration 行容器承载——烘焙结构沿用；placeholder=行标签）----
-            var kindsRow = UiKit.FindDeep(card, "aura-duration");
-            var kindsDd = kindsRow != null ? UiKit.FindDeep(kindsRow, "aura-kinds")?.GetComponent<TMP_Dropdown>() : null;
-            var kindsLbl = kindsRow != null ? UiKit.FindDeep(kindsRow, "placeholder")?.GetComponent<TMP_Text>() : null;
-            if (kindsDd == null)
-                Debug.LogError("[EffectComposer] aura-card 缺 aura-kinds 种类下拉——检查 EffectUI.prefab");
-            else if (isStat)
+            // ---- 作用范围（actuating-range 行——2026-10-08 条目级定案；placeholder 行标签已烘焙「作用范围」）----
+            var rangeRow = UiKit.FindDeep(card, "actuating-range");
+            var rangeDd = rangeRow != null ? UiKit.FindDeep(rangeRow, "aura-kinds")?.GetComponent<TMP_Dropdown>() : null;
+            if (rangeDd == null)
+                Debug.LogError("[EffectComposer] aura-card 缺 actuating-range 行或 aura-kinds 下拉——检查 EffectUI.prefab");
+            else
             {
-                if (kindsLbl != null) kindsLbl.text = "属性种类";
-                // 三档（2026-10-07 深夜）：攻/生/属性（Both=攻生同值——「属性增加/减少」源行天然 ±1/±1）
-                bool isBoth = aura.stat.Equals("Both", StringComparison.OrdinalIgnoreCase);
-                new UiKit.Dropdown(kindsDd, new List<string> { "攻击力", "生命值", "属性" },
-                    isBoth ? 2 : (aura.stat.Equals("Life", StringComparison.OrdinalIgnoreCase) ? 1 : 0),
-                    (idx, _) => { aura.stat = idx == 2 ? "Both" : idx == 1 ? "Life" : "Power"; RefreshText(); })
-                    .Describe("属性种类：光环修正的是哪一项属性。",
-                        idx => idx == 2 ? "属性：攻击力与生命值同值修正（+1/+1 或 -1/-1）。"
-                             : idx == 1 ? "生命值：影响生物的生存能力。"
-                             : "攻击力：影响生物的战斗输出。");
+                // 极性门控（口径沿 2026-10-07）：增益→{己方,双方}、减益→{双方,对方}、中性→三选；
+                // 连接方向档恒可选。当前值越门控（数值翻号残留）收敛到首个合法作用面档。
+                float pol = isStat
+                    ? (aura.value >= 0 ? 1f : -1f)
+                    : (AtomicEffectTable.GetByEnumName(
+                           CardLoader.GetKeywordDefinition(aura.keyword ?? "")?.atomicEffect ?? "")?.Polarity ?? 0f);
+                var allowed = AllowedScopesOfPolarity(pol);
+                if (aura.scope > 0 && !allowed.Contains(aura.scope)) aura.scope = allowed[0];
+                var optVals = new List<int> { 0 };
+                optVals.AddRange(allowed);
+                int cur = Math.Max(0, optVals.IndexOf(aura.scope));
+                new UiKit.Dropdown(rangeDd, optVals.Select(LinkScopeZh).ToList(), cur, (idx, _) =>
+                {
+                    aura.scope = optVals[idx];
+                    if (aura.scope == 0) aura.role = false; // 连接方向档的角色通道=箭头实际指向角色格（独立机制）
+                    RefreshSlots(); // 箭头盒显隐/player 行/费用/校验随档位重建
+                }).Describe(
+                    "作用范围：这条光环向哪里投射。连接方向=随卡面箭头指向的格子（箭头在上方盒中选）；"
+                    + "己方/对方/双方=整侧生物。属性增加只作用于生物——角色只吃角色攻击力原子（该原子不可作光环）。",
+                    idx =>
+                    {
+                        int v = optVals[Mathf.Clamp(idx, 0, optVals.Count - 1)];
+                        return v == 0 ? "连接方向：作用对象=箭头指向格的当前占据者——在上方「连接箭头」盒逐向点亮。"
+                            : v == 1 ? "己方：只为你（光环控制者）一侧的生物生效。"
+                            : v == 3 ? "对方：只为对手一侧的生物生效。"
+                            : "双方：两侧生物都生效——费用减半（对称让利）。";
+                    });
+            }
+
+            // ---- 是否包含角色（player Toggle——仅作用面档·关键词条目；属性条目恒隐藏）----
+            var playerNode = rangeRow != null ? UiKit.FindDeep(rangeRow, "player") : null;
+            var playerTg = playerNode != null
+                ? playerNode.GetComponent<Toggle>() ?? playerNode.GetComponentInChildren<Toggle>(true)
+                : null;
+            bool roleEditable = aura.scope > 0 && !isStat
+                && !ComposerCatalog.RoleChannelBlocked(aura.keyword); // NoRole 行=仅生物，无角色选项
+            if (!roleEditable && aura.role) aura.role = false; // 收敛残留：切关键词/翻档后旧 role=true 不可达即清除
+            if (playerTg == null)
+            {
+                if (roleEditable)
+                    Debug.LogError("[EffectComposer] aura-card 缺 player Toggle（是否包含角色）——检查 EffectUI.prefab");
             }
             else
             {
-                if (kindsLbl != null) kindsLbl.text = "关键词";
-                // 位 5 数据驱动：只列光环可挂关键词；消耗型不声明位 5 → 不可选——名单在表里不在代码里
-                var choices = ComposerCatalog.AuraKeywordChoices();
-                var labels = choices.Select(c => c.label).ToList();
-                int ci = choices.FindIndex(c => c.id == (aura.keyword ?? ""));
-                if (ci < 0 && !string.IsNullOrEmpty(aura.keyword))
+                playerNode.gameObject.SetActive(roleEditable);
+                if (roleEditable)
                 {
-                    labels.Add($"{aura.keyword}（不可挂）"); // 存量脏值占位可见——校验区标红促改
-                    ci = labels.Count - 1;
+                    playerTg.SetIsOnWithoutNotify(aura.role);
+                    playerTg.onValueChanged.RemoveAllListeners();
+                    playerTg.onValueChanged.AddListener(on =>
+                    {
+                        aura.role = on;
+                        RefreshName(); // 含角色按 5 单位档计费——顶栏费用随开关刷新
+                        ValidateZones();
+                    });
+                    UiKit.Described(playerTg,
+                        "是否包含角色：开启后这条关键词条目同时作用于该侧角色（计费按 5 个单位）。"
+                        + "属性条目无此选项——属性增加只作用于生物，角色攻击力走专用弹药原子。"
+                        + "仅生物关键词（表行 NoRole，如再生/禁魔石）同样无此选项（2026-10-08 定案）。");
                 }
-                var kw = new UiKit.Dropdown(kindsDd, labels, Mathf.Max(0, ci), (idx, _) =>
-                {
-                    if (idx >= 0 && idx < choices.Count) aura.keyword = choices[idx].id; // 占位项越界不改值
-                    RefreshText();
-                });
-                kw.Describe(
-                    "关键词：光环持续赋予的战斗关键词——点选项看各关键词效果；用掉就消失的（圣盾、潜行类）不能当光环。",
-                    idx => idx >= 0 && idx < choices.Count
-                        ? $"{choices[idx].label}：{choices[idx].desc}"
-                        : "当前关键词不可挂（存量旧值）——请改选下拉中的可挂关键词。");
             }
         }
 
-        /// <summary>条目摘要：属性=「属性：攻击力 +1」；关键词=「关键词：坚韧」（库外脏值直显 id）。</summary>
+        /// <summary>条目摘要（2026-10-08 作用面版）：作用面档=【范围】前缀（关键词条目含角色尾注）；
+        /// 属性=「属性：攻击 +1」（Both=属性——攻生同值 ±1/±1）；关键词=「关键词：帷幕」（库外脏值直显 id）。</summary>
         private static string AuraEntryText(LinkAuraData aura)
         {
             if (aura == null) return "（空条目）";
+            string scopeZh = aura.scope > 0 ? $"【{LinkScopeZh(aura.scope)}】" : "";
             if (!string.IsNullOrEmpty(aura.stat))
-            {
-                string statZh = aura.stat.Equals("Life", StringComparison.OrdinalIgnoreCase) ? "生命值" : "攻击力";
-                return $"属性：{statZh} {(aura.value >= 0 ? "+" : "")}{aura.value}";
-            }
+                return $"{scopeZh}属性：{StatZhOf(aura.stat)} {(aura.value >= 0 ? "+" : "")}{aura.value}";
             var c = ComposerCatalog.AuraKeywordChoices().FirstOrDefault(k => k.id == aura.keyword);
-            return $"关键词：{c.label ?? aura.keyword ?? "？"}";
+            string roleZh = aura.scope > 0 && aura.role ? "（含角色）" : "";
+            return $"{scopeZh}关键词：{c.label ?? aura.keyword ?? "？"}{roleZh}";
         }
 
         /// <summary>光环计价预览卡：效果级光环无宿主卡——临时 CardData 只承条目；
@@ -3279,6 +3310,17 @@ namespace SynergyUI
             }
             g.header.AtomicEffects = null;
 
+            // 旧→新迁移（2026-10-08 条目级作用面）：效果级 AuraScope 盖戳到 scope==0 的条目，
+            // header 恒清零（作用面编辑在条目卡 actuating-range——保存侧不再写非零）
+            if (g.header.AuraScope != 0)
+            {
+                int stamped = 0;
+                foreach (var a in g.header.LinkAuras ?? new List<LinkAuraData>())
+                    if (a != null && a.scope == 0) { a.scope = g.header.AuraScope; stamped++; }
+                g.header.AuraScope = 0;
+                if (stamped > 0) notes.Add($"光环作用面已迁至条目卡（{stamped} 条盖戳）");
+            }
+
             // 遗留 kind=1 门步骤折叠（同 converter FoldBranchSteps 口径）
             var folded = new List<EffectStepData>();
             EffectStepData prev = null;
@@ -3459,7 +3501,7 @@ namespace SynergyUI
             public bool IsEngineTrunk => Mounts.Contains(MountKind.EngineTrunk);
 
             /// <summary>主干槽可落（2026-10-07 位 0 删除后派生，单一来源=ComposerCatalog.CanBeTrunkRow）：
-            /// 非规则光环 ∪ 非仅连接光环（守护/坚韧）；引擎行经位 5 走主干槽，
+            /// 非规则光环即可（守护/坚韧已先后退出可挂面——配对制/指示物化）；引擎行经位 5 走主干槽，
             /// 系统/攻守行有资格但被库过滤（IsLockedKeywordRow）隐藏。</summary>
             public bool CanBeTrunk => ComposerCatalog.CanBeTrunkRow(Cfg);
 

@@ -82,33 +82,8 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => $"吸取 {effect.Value} 点生命";
     }
 
-    /// <summary>
-    /// 剧毒指示物（定案，原"剧毒伤害"改语义）：对目标附加剧毒指示物——
-    /// 持续 1 回合，回合结束时持有者死亡（效果死亡、无伤害来源，CounterRules 统一裁决；
-    /// 神佑经决策表拦截，指示物照常到期消失）。不再造成即时伤害。
-    /// </summary>
-    public class PoisonHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Poison;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            foreach (var target in context.Targets)
-            {
-                if (target == null || !target.IsAlive) continue;
-                target.AddCounters(CounterRules.PoisonCounter, 1);
-                PublishEvent(new CounterChangedEvent
-                {
-                    Target = target,
-                    CounterType = CounterRules.PoisonCounter,
-                    Amount = 1,
-                    Source = context.Source
-                });
-            }
-        }
-
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加剧毒指示物（回合结束时死亡）";
-    }
+    // PoisonHandler（剧毒指示物原子）已删（2026-10-08 剧毒转关键词 GrantVenom·落定追加式消灭）——
+    // 表行 20c06d52 改挂 GrantVenom，回合末死亡裁决随 CounterRules.PoisonCounter 一并退役。
 
     // ---------------- 卡牌移动 / 牌库操作 ----------------
 
@@ -342,7 +317,8 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 观星（2026-09-11 排列实现）：查看自己牌库顶 {value} 张并任意排列。
+    /// 占卜（2026-09-11 排列实现；2026-10-08 并入刺探为单行）：查看牌库顶 {value} 张并任意排列——
+    /// 域锁对方(8)看对手牌库，其余（7/双域默认）看自己（排列者恒为发动方）。
     /// 主路径 ExecuteAsync：排列交互逐张单选（先选的在最顶），整段写回新顶序；
     /// AI/无头/超时自动取剩余首张 = 维持原序（训练确定性）。
     /// 同步 Execute 仅查看播报（旧同步/触发路径兼容，不弹排列）。
@@ -379,7 +355,7 @@ namespace CardCore.Attribute.Handlers
             PublishEvent(new ScryEvent { Player = owner, Cards = final, Source = context.Source });
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"观星：查看自己牌库顶 {effect.Value} 张并任意排列";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"占卜：查看牌库顶 {effect.Value} 张并任意排列（域锁对方则看对手）";
     }
 
     // 展示手牌原子已删除（2026-09-03 原子表整体修正）——
@@ -388,10 +364,10 @@ namespace CardCore.Attribute.Handlers
     // ---------------- 状态变更 ----------------
 
     /// <summary>
-    /// 修改生命值（三轨制定案 2026-09-09）：按来源经 StatGrantRouter 分轨——
-    /// 生物来源=指示物（Permanent 层换区不清 / 换区清层：增=上限当前同加、减=减上限归零标死交 SBA）；
-    /// 魔法卡来源（=角色）=设置类永久直改（Card 走 ApplyStatDelta 直写、Player 走 IncreaseMaxHealth
-    /// /扣血+LifeChangeEvent——角色=生物单位世界观）。修正旧账：此前漏传 source（减益致死归因丢失）。
+    /// 修改生命值（2026-10-08 来源分轨退役）：经 StatGrantRouter 设置轨直写——Card 走
+    /// ApplyStatDelta 字段直写（减=削上限、有效生命归零标死交 SBA）、Player 走
+    /// IncreaseMaxHealth/扣血+LifeChangeEvent。永久、跨区保留、净化不清；
+    /// 临时层（换区清）用 AddLifeUp/AddLifeDown。
     /// </summary>
     public class ModifyLifeHandler : AtomicEffectHandlerBase
     {
@@ -404,7 +380,7 @@ namespace CardCore.Attribute.Handlers
             {
                 if (target == null || !target.IsAlive) continue;
                 int oldLife = target.GetLife();
-                StatGrantRouter.ModifyLife(target, amount, context.Source, context.Duration);
+                StatGrantRouter.ModifyLife(target, amount, context.Source);
                 PublishEvent(new StatModifyEvent
                 {
                     Target = target,
@@ -412,7 +388,6 @@ namespace CardCore.Attribute.Handlers
                     OldValue = oldLife,
                     NewValue = target.GetLife(),
                     Delta = amount,
-                    Duration = context.Duration,
                     Source = context.Source
                 });
             }
@@ -426,10 +401,10 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>设置攻击力</summary>
-    // ==================== 设置系（2026-09-09 三轨制重建复活） ====================
-    // 定案落定：同文本赋予按来源分轨——生物=指示物（两档）/ 魔法卡=设置类（永久直改）/ 连接箭头=光环。
+    // ==================== 设置系（2026-09-09 三轨制重建复活；2026-10-08 来源分轨退役改口径） ====================
     // Set 族是**显式设置原子**：天然=设置类（不参与来源路由，任何来源都直改）；
-    // 与 Modify 族的设置轨（StatGrantRouter 分流）同语义——跨区保留、净化不清（视同本体）。
+    // 与 Modify 族（StatGrantRouter 设置轨直写）同语义——跨区保留、净化不清（视同本体）。
+    // 临时层（换区清）一律由指示物原子族（AddPlusOne/AddLifeUp 等）显式表达，与来源无关。
     public class SetPowerHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.SetPower;
@@ -527,11 +502,9 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 修改费用（三轨制定案 2026-09-09）：按来源经 StatGrantRouter 分轨——
-    /// 生物来源=指示物（CostUp/CostDown 换区清层：加时回写 _costModifier，
-    /// GetCost = _baseCost + _costModifier，仅手牌生效、离手消失）；
-    /// 魔法卡来源（=角色）=设置类直改 _baseCost（跨区保留——与「设置费用」同口径）。
-    /// 目标门禁=手牌（表过滤承担）。修正旧账：此前漏传 source。
+    /// 修改费用（2026-10-08 来源分轨退役）：经 StatGrantRouter 直改 _baseCost（跨区保留，
+    /// 与「设置费用」同口径）；仅手牌生效的临时轨用 AddCostUp/AddCostDown 指示物族。
+    /// 目标门禁=手牌（表过滤承担）。
     /// </summary>
     public class ModifyCostHandler : AtomicEffectHandlerBase
     {
@@ -544,7 +517,7 @@ namespace CardCore.Attribute.Handlers
             {
                 if (!(target is Card card) || card.GetZone() != Zone.Hand) continue; // 费用目标门禁=手牌
                 int oldCost = target.GetCost();
-                StatGrantRouter.ModifyCost(card, amount, context.Source, context.Duration);
+                StatGrantRouter.ModifyCost(card, amount, context.Source);
                 PublishEvent(new CostModifyEvent
                 {
                     Target = target,

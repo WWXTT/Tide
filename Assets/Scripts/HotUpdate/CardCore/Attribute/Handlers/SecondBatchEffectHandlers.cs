@@ -32,23 +32,8 @@ namespace CardCore.Attribute.Handlers
             return e.GetPower();
         }
 
-        /// <summary>+1/+1 与 -1/-1 指示物对基础 P/T 的即时影响（成长等路径复用；清除时由 CounterRules 反向回写）</summary>
-        internal static void ApplyCounterStat(Entity target, string counterType, int amount)
-        {
-            if (!(target is Card card) || amount == 0) return;
-            if (counterType == "+1/+1")
-            {
-                card._power += amount;
-                card._life += amount;
-                if (amount > 0) card._maxLife += amount;
-            }
-            else if (counterType == "-1/-1")
-            {
-                card._power -= amount;
-                card._life -= amount;
-                if (card._life <= 0) card.IsAlive = false;
-            }
-        }
+        // ApplyCounterStat（±1/±1 指示物直改 P/T）已删（2026-10-08 零调用死代码：
+        // 属性层即时影响统一走 CounterRules.ApplyStatDelta，成长机制同日删除）。
 
         /// <summary>
         /// 变更控制者：跨玩家迁移战场容器 + 改写控制者 + 发布事件。
@@ -105,7 +90,7 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 观星/占卜共用辅助（2026-09-11 排列实现；跨批：FirstBatch 观星 / ThirdBatch 占卜）。
+    /// 占卜排列辅助（2026-09-11 排列实现；2026-10-08 占卜/刺探合并后仅 LookAtTopCards 一条活跃路径）。
     /// 隐藏域（7/8 牌库）的组合目标不解析（ResolveCompositionTargetsAsync 对
     /// SelectionMode=None 返回空、不弹选——牌库是隐藏信息），牌库侧别由原子有效域判定；
     /// 排列交互 = 逐张单选（从顶到底），AI/无头由 TargetSelectionService 自动取剩余首张
@@ -115,7 +100,9 @@ namespace CardCore.Attribute.Handlers
     {
         /// <summary>
         /// 按原子有效域解析牌库归属：目标已解析为玩家则用之（Manual 域例外路径）；
-        /// 域含对方牌库(8)归对手，否则（7/默认）归控制者。
+        /// 域锁对方牌库(8)归对手，其余（7/双域/默认）归控制者——与送墓 SideLock 同口径
+        /// （2026-10-08 占卜/刺探合并：双域 {7,8} 默认看自己，实例域锁 {8} 才看对手；
+        /// 旧「含 8 即对手」对合并双域恒判对手，与送墓约定相反）。
         /// </summary>
         internal static Player ResolveDeckOwner(AtomicEffectInstance effect, EffectExecutionContext context)
         {
@@ -125,7 +112,7 @@ namespace CardCore.Attribute.Handlers
             var kinds = effect.TargetKinds != null && effect.TargetKinds.Count > 0
                 ? effect.TargetKinds
                 : AtomicEffectTable.GetByType(effect.Type)?.GetTargetKindList();
-            if (kinds != null && kinds.Contains((int)TargetKind.EnemyDeck))
+            if (kinds != null && CostDerivationService.SideLock(kinds) == 1)
                 return context.Controller.Opponent;
             return context.Controller;
         }
@@ -325,8 +312,8 @@ namespace CardCore.Attribute.Handlers
     /// <summary>
     /// 净化（2026-09-09 语义重定义：变回生物原有状态）：
     /// 保留卡面本体关键词（Printed）与设置类（Setting——设置后即「原本属性效果」）；
-    /// 清除临时关键词（Temp）、生物赋的永久关键词（GrantedPermanent）、可移除状态（Status），
-    /// 以及全部指示物（CounterRules.PurgeAll 含永久层，属性先反向回写）。
+    /// 清除战中附加关键词（Temp 等其余轨），
+    /// 以及全部指示物（CounterRules.PurgeAll——含 Exception 生效自减层，属性层先反向回写）。
     /// 神佑对净化有抗性（PurgeProtectedKeywords 豁免）——净化剥神佑+剧毒的组合无法计价平衡，
     /// 移除神佑留给未来专用效果。事件：CleanseEvent。
     /// </summary>
@@ -341,7 +328,7 @@ namespace CardCore.Attribute.Handlers
                 if (target == null) continue;
 
                 KeywordRules.PurifyKeywords(target); // 关键词按轨别清（保留 Printed/Setting，豁免神佑）
-                CounterRules.PurgeAll(target);       // 指示物全清（含永久类，属性层先反向回写）
+                CounterRules.PurgeAll(target);       // 指示物全清（含生效自减层，属性层先反向回写）
 
                 // 净化总是播报（即使目标本就干净，也确认净化时点）
                 PublishEvent(new CleanseEvent

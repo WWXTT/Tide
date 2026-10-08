@@ -35,8 +35,7 @@ namespace CardCore
         /// 第 1 个未结算导致第 2 个漏拦）；启动式结算记账走既有 RecordActivation。
         /// 键 = **来源实例 + effect.Id**（2026-10-03 修正：此前全局按 Id——同 Id 不同实例互吞：
         /// 回响临时复制与本体同回合各自 OnPlay 被吞、同名卡同回合打第二张同样被吞；
-        /// 现按卡实例独立限流，"同一张卡的同一效果每回合 N 次"语义不变）。
-        /// 坚韧等不可修改原子（MountKinds 含 8）恒 TriggerLimitPerTurn=-1 不受限。</summary>
+        /// 现按卡实例独立限流，"同一张卡的同一效果每回合 N 次"语义不变）。</summary>
         public bool TriggerCapReached(EffectDefinition effect, Entity source = null)
             => effect != null && effect.TriggerLimitPerTurn > 0
                && _usageTracker.GetTurnUsage(UsageKey(effect, source)) >= effect.TriggerLimitPerTurn;
@@ -179,15 +178,15 @@ namespace CardCore
                 return;
             }
 
-            // 潜行：发动效果后移除（攻击后的移除在 CombatSystem.DeclareAttack）
-            if (instance.Source is Card sourceCard && sourceCard.HasKeyword(KeywordRules.Stealth))
+            // 潜行：发动效果后消耗 1 层（2026-10-08 指示物化；攻击后的消耗在 CombatSystem.ResolveAttackDeclaration）
+            if (instance.Source is Card sourceCard && sourceCard.GetCounterCount(Attribute.CounterRules.StealthCounter) > 0)
             {
-                sourceCard.RemoveKeyword(KeywordRules.Stealth);
+                sourceCard.AddCounters(Attribute.CounterRules.StealthCounter, -1);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = sourceCard,
-                    Keyword = KeywordRules.Stealth,
-                    Detail = "发动效果后潜行失效",
+                    Keyword = Attribute.CounterRules.StealthCounter,
+                    Detail = "发动效果后潜行失效（消耗 1 层）",
                     Source = instance.Source
                 });
             }
@@ -816,7 +815,7 @@ namespace CardCore
         public void Reset()
         {
             _usageTracker.Reset();
-            Attribute.KeywordRules.ResetKeywordActivations(); // 关键词生效次数闸（2026-10-07 深夜）
+            // 关键词生效次数闸已随坚韧指示物化（2026-10-08）整体退役——无全局关键词态需清
         }
 
         private bool CheckTiming(
@@ -1615,7 +1614,8 @@ namespace CardCore
 
                 // 无效指示物（2026-09-09 定案）：拦全部触发式（事件匹配后、上栈前）——
                 // 含登场 OnPlay 族触发；只拦「注册来源自身」的能力。与沉默（拦启动式，CanActivate）对称。
-                // 伤害管线被动（坚韧/圣盾）与回合维护（再生/成长，GameCore 直连）不经此，天然不拦。
+                // 伤害管线被动（坚韧/圣盾/护甲——指示物与圣盾走 ApplyDamage 管线）与回合维护
+                // （再生，GameCore 直连）不经此，天然不拦。
                 if (registered.Source != null
                     && registered.Source.GetCounterCount(CardCore.Attribute.CounterRules.NullifyCounter) > 0)
                     continue;
@@ -1728,7 +1728,7 @@ namespace CardCore
                 // 第一批补齐 — 伤害类
                 new PierceDamageHandler(),
                 new DrainLifeHandler(),
-                new PoisonHandler(),
+                // PoisonHandler 已删（2026-10-08 剧毒转关键词 GrantVenom）
 
                 // 第一批补齐 — 卡牌移动 / 牌库
                 new DiscardCardHandler(),
@@ -1756,9 +1756,17 @@ namespace CardCore
                 new DeclareArrowHandler(),
                 new ProphecyNextCardHandler(),
 
-                // 指示物原子（护甲/毒素——Entity 级，角色可持有）
+                // 指示物原子（护甲/坚韧/毒素——Entity 级，角色可持有；坚韧 2026-10-08 指示物化：
+                // GrantToughness 原子（原 GrantArmor）与 refId 不变，执行改挂 ToughnessCounter 层，退出关键词处理器族）
                 new AddArmorHandler(),
+                new GrantToughnessHandler(),
                 new AddToxinHandler(),
+
+                // 圣盾/复生/潜行（2026-10-08 指示物化）：GrantXxx 原子类型与 refId 不变，
+                // 执行改挂对应指示物层（每层一份、事件消耗），退出关键词处理器族
+                new GrantDivineShieldHandler(),
+                new GrantRebornHandler(),
+                new GrantStealthHandler(),
 
                 // 状态原子（虚弱/鼓舞——施加 ±1/+1 属性指示物）
                 new WeakenHandler(),
@@ -1773,8 +1781,15 @@ namespace CardCore
                 new AddLifeDownHandler(),
                 new AddPlusOneHandler(),
                 new AddMinusOneHandler(),
+                // 永久属性原子（2026-10-08 来源分轨退役）：±X/±X 直写字段——跨区保留、净化不清
+                new AddPermanentPlusOneHandler(),
+                new AddPermanentMinusOneHandler(),
                 new AddCostUpHandler(),
                 new AddCostDownHandler(),
+
+                // 角色攻击弹药（2026-10-07 角色参战定案，Entity 级）：给角色附加攻击指示物，
+                // 攻击/反击结算后烧除（CounterRules.RemoveHeroAttackAmmo）
+                new AddHeroAttackHandler(),
 
                 // 无效指示物（蓝3）：拦非启动式能力（触发式+光环）——与沉默（拦启动式）对称
                 new AddNullifyHandler(),
@@ -1842,14 +1857,16 @@ namespace CardCore
             // OverrideRestriction 仍暂不实现（规则轴提案 §6：可能被 ModifyGameRule(str) 完全覆盖）
             AtomicEffectType.OverrideRestriction,
 
-            // 引擎主干行（2026-10-05 回表）：条件载体非效果——主序列执行按 Branch.Settle==Engine 跳过，
-            // 引擎条件由 BranchEngines 事件驱动，无需（也不应有）处理器
+            // 引擎主干行（2026-10-05 回表；2026-10-08 附加诅咒/附加祝福入列）：条件载体非效果——
+            // 主序列执行按 Branch.Settle==Engine 跳过，引擎条件由 BranchEngines 事件驱动，无需（也不应有）处理器
             AtomicEffectType.EngineCountdown,
             AtomicEffectType.EngineLuckRoll,
             AtomicEffectType.EngineClash,
             AtomicEffectType.EngineDeathToll,
             AtomicEffectType.EngineManaSurplus,
             AtomicEffectType.EngineNthHandCard,
+            AtomicEffectType.EngineCurseOnDraw,
+            AtomicEffectType.EngineBlessingOnDraw,
         };
 
         private static void VerifyHandlerCoverage()
