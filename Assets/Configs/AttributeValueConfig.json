@@ -32,7 +32,7 @@
       0.0,
       0.0,
       0.0,
-      0.4,
+      0.5,
       0.0,
       0.0
     ]
@@ -76,6 +76,25 @@
     ]
   },
   {
+    "ID": "acaac2a0",
+    "EnumName": "角色攻击力增加",
+    "DisplayName": "为{target}附加{value}点攻击力（攻击或反击后移除）",
+    "EffectType": "AddHeroAttack",
+    "TargetKinds": "己方单位",
+    "TargetFilter": "Player",
+    "Polarity": 1.0,
+    "MountKinds": "",
+    "Tags": "生效自减型",
+    "ManaList": [
+      0.0,
+      0.5,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
     "ID": "120ad4d1",
     "EnumName": "抽卡",
     "DisplayName": "从卡组中抽{value}张卡",
@@ -83,7 +102,7 @@
     "TargetKinds": "己方牌库,对方牌库",
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "不可随机",
+    "MountKinds": "",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -166,12 +185,12 @@
       0.0,
       0.0,
       0.0,
-      5.0,
-      0.0
+      0.0,
+      5.0
     ]
   },
   {
-    "ID": "219bdb9f",
+    "ID": "a555d85f",
     "EnumName": "洗回",
     "DisplayName": "将{target}卡从场上洗入牌库",
     "EffectType": "ShuffleIntoDeck",
@@ -190,7 +209,7 @@
     ]
   },
   {
-    "ID": "557f95e5",
+    "ID": "b24f68ac",
     "EnumName": "洗入",
     "DisplayName": "将{target}卡从墓地洗入牌库",
     "EffectType": "ShuffleIntoDeck",
@@ -228,7 +247,7 @@
     ]
   },
   {
-    "ID": "bde084f6",
+    "ID": "61fcd31b",
     "EnumName": "苏生",
     "DisplayName": "{target}生物从墓地返回到己方战场",
     "EffectType": "ReturnFromGraveyard",
@@ -251,28 +270,9 @@
     "EnumName": "占卜",
     "DisplayName": "查看自己牌库顶{value}张卡并任意排列",
     "EffectType": "LookAtTopCards",
-    "TargetKinds": "己方牌库",
+    "TargetKinds": "己方牌库,对方牌库",
     "TargetFilter": null,
     "Polarity": 1.0,
-    "MountKinds": "不可随机",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      2.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "3b959efe",
-    "EnumName": "刺探",
-    "DisplayName": "查看对手牌库顶{value}张卡并任意排列",
-    "EffectType": "ScryCards",
-    "TargetKinds": "对方牌库",
-    "TargetFilter": null,
-    "Polarity": -1.0,
     "MountKinds": "不可随机",
     "Tags": null,
     "ManaList": [
@@ -282,158 +282,6 @@
       0.0,
       0.0,
       0.0
-    ]
-  },
-  {
-    "ID": "40af2c9c",
-    "EnumName": "费用增加",
-    "DisplayName": "为{target}添加{value}个费用增加指示物",
-    "EffectType": "AddCostUp",
-    "TargetKinds": "己方手牌,对方手牌",
-    "TargetFilter": null,
-    "Polarity": -1.0,
-    "MountKinds": "不可随机",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "46ba80ca",
-    "EnumName": "费用减少",
-    "DisplayName": "为{target}添加{value}个费用减少指示物",
-    "EffectType": "AddCostDown",
-    "TargetKinds": "己方手牌,对方手牌",
-    "TargetFilter": null,
-    "Polarity": 1.0,
-    "MountKinds": "不可随机",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0
-    ]
-  },
-  {
-    "ID": "c01bcd8f",
-    "EnumName": "攻击力增加",
-    "DisplayName": "为{target}添加{value}个攻击力增加指示物",
-    "EffectType": "AddPowerUp",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "不可随机",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.5,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "2650f270",
-    "EnumName": "攻击力减少",
-    "DisplayName": "为{target}添加{value}个攻击力减少指示物",
-    "EffectType": "AddPowerDown",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": -1.0,
-    "MountKinds": "不可随机",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.5,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "4de69242",
-    "EnumName": "生命值增加",
-    "DisplayName": "为{target}添加{value}个生命值增加指示物",
-    "EffectType": "AddLifeUp",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "不可随机",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.5,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "374445c6",
-    "EnumName": "生命值减少",
-    "DisplayName": "为{target}添加{value}个生命值减少指示物",
-    "EffectType": "AddLifeDown",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": -1.0,
-    "MountKinds": "不可随机",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.5,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "f6afe078",
-    "EnumName": "属性增加",
-    "DisplayName": "为{target}添加{value}个属性增加指示物（+1/+1）",
-    "EffectType": "AddPlusOne",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "可以作为连接光环,不可随机",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "2d1b6adf",
-    "EnumName": "属性减少",
-    "DisplayName": "为{target}添加{value}个属性减少指示物（-1/-1）",
-    "EffectType": "AddMinusOne",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": -1.0,
-    "MountKinds": "可以作为连接光环,不可随机",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0
     ]
   },
   {
@@ -483,7 +331,7 @@
     "TargetFilter": null,
     "Polarity": -1.0,
     "MountKinds": "不可随机",
-    "Tags": null,
+    "Tags": "衰退型",
     "ManaList": [
       0.0,
       0.0,
@@ -646,9 +494,9 @@
     ]
   },
   {
-    "ID": "3a4aef82",
+    "ID": "5fd20895",
     "EnumName": "召唤衍生物",
-    "DisplayName": "召唤{value}个衍生物至指定落区（{衍生物}=字符串参数指向一张真实生物卡，实例=该卡全参数复制）",
+    "DisplayName": "召唤{value}层衍生物至指定落区（{衍生物}=字符串参数指向一张真实生物卡，实例=该卡全参数复制）",
     "EffectType": "SummonToken",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -787,7 +635,7 @@
     "TargetFilter": null,
     "Polarity": 0.0,
     "MountKinds": "",
-    "Tags": null,
+    "Tags": "换区清除型",
     "ManaList": [
       0.0,
       0.0,
@@ -856,9 +704,9 @@
   },
 
   {
-    "ID": "9794b926",
+    "ID": "f7119394",
     "EnumName": "吸血",
-    "DisplayName": "造成伤害时，为自身恢复等量生命",
+    "DisplayName": "获得吸血：造成伤害时，为自身恢复等量生命",
     "EffectType": "GrantLifesteal",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
@@ -875,15 +723,15 @@
     ]
   },
   {
-    "ID": "a16f1e55",
+    "ID": "8f84641e",
     "EnumName": "潜行",
-    "DisplayName": "不会成为攻击和效果的目标，发动效果或受到伤害后，移除潜行",
+    "DisplayName": "对{target}附加{value}层潜行指示物【可叠加】，持有期间不可被攻击和效果指定，攻击、发动效果或受到伤害后消耗1层",
     "EffectType": "GrantStealth",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "关键词,不可作为连接光环",
-    "Tags": null,
+    "MountKinds": "指示物",
+    "Tags": "生效自减型",
     "ManaList": [
       0.0,
       0.0,
@@ -894,9 +742,9 @@
     ]
   },
   {
-    "ID": "ec65d1c8",
+    "ID": "ed308353",
     "EnumName": "隐密",
-    "DisplayName": "不会成为攻击和效果的目标",
+    "DisplayName": "获得隐密：不会成为攻击和效果的目标",
     "EffectType": "GrantConcealed",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
@@ -913,15 +761,15 @@
     ]
   },
   {
-    "ID": "feab5d3b",
+    "ID": "c8624e6a",
     "EnumName": "圣盾",
-    "DisplayName": "受到的伤害变成0，同时移除圣盾",
+    "DisplayName": "对{target}附加{value}层圣盾指示物【可叠加】，每层抵挡一次任意伤害（伤害变为0）后消耗",
     "EffectType": "GrantDivineShield",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "关键词,不可作为连接光环",
-    "Tags": null,
+    "MountKinds": "指示物",
+    "Tags": "生效自减型",
     "ManaList": [
       0.0,
       0.0,
@@ -932,9 +780,28 @@
     ]
   },
   {
-    "ID": "0fcf93db",
+    "ID": "91535cec",
+    "EnumName": "守护",
+    "DisplayName": "获得守护：登场时选择一个目标，其受到伤害时改写为自己受到等量伤害",
+    "EffectType": "GrantGuardian",
+    "TargetKinds": "自己",
+    "TargetFilter": null,
+    "Polarity": 1.0,
+    "MountKinds": "关键词,不可作为连接光环",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      3.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "956e7b92",
     "EnumName": "碾压",
-    "DisplayName": "获得碾压：战斗伤害结算时，对{target}以及{target}相邻左右侧生物造成相同的战斗伤害",
+    "DisplayName": "获得碾压：战斗伤害结算时，对{target}以及目标相邻左右侧生物造成相同的战斗伤害",
     "EffectType": "GrantOverwhelm",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
@@ -951,9 +818,9 @@
     ]
   },
   {
-    "ID": "465f51dc",
+    "ID": "4cf22304",
     "EnumName": "警戒",
-    "DisplayName": "战斗结算时，横置状态也会触发战斗伤害",
+    "DisplayName": "获得警戒：战斗结算时，横置状态也会触发战斗伤害",
     "EffectType": "GrantVigilance",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
@@ -963,16 +830,16 @@
     "ManaList": [
       0.0,
       0.0,
-      1.0,
+      3.0,
       0.0,
       0.0,
       0.0
     ]
   },
   {
-    "ID": "0490b22c",
+    "ID": "073f18c7",
     "EnumName": "先攻",
-    "DisplayName": "战斗结算时，先造成战斗伤害，如果{target}死亡，则无法反击",
+    "DisplayName": "获得先攻：战斗结算时，先造成战斗伤害，如果目标死亡，则无法反击",
     "EffectType": "GrantFirstStrike",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
@@ -981,7 +848,7 @@
     "Tags": null,
     "ManaList": [
       0.0,
-      1.0,
+      2.0,
       0.0,
       0.0,
       0.0,
@@ -989,9 +856,9 @@
     ]
   },
   {
-    "ID": "2e6955f0",
+    "ID": "a3ad6a04",
     "EnumName": "法术护盾",
-    "DisplayName": "{target}获得法术护盾",
+    "DisplayName": "获得法术护盾：成为对手效果目标时，抵消该效果对自身的作用并移除。",
     "EffectType": "GrantSpellShield",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
@@ -1001,16 +868,16 @@
     "ManaList": [
       0.0,
       0.0,
-      1.0,
       0.0,
       0.0,
+      2.0,
       0.0
     ]
   },
   {
-    "ID": "d7def412",
+    "ID": "09cb6c7b",
     "EnumName": "扰魔",
-    "DisplayName": "不会成为效果{target}",
+    "DisplayName": "获得扰魔：不会成为效果目标",
     "EffectType": "GrantCannotBeTargeted",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
@@ -1027,28 +894,28 @@
     ]
   },
   {
-    "ID": "502be10d",
+    "ID": "94f6a32d",
     "EnumName": "复生",
-    "DisplayName": "死亡送墓时，将自身生命值改为1，从而避免死亡",
+    "DisplayName": "对{target}附加{value}层复生指示物【可叠加】，每层在死亡结算时以1生命留场复活一次（不进墓地）",
     "EffectType": "GrantReborn",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "关键词,不可作为连接光环",
-    "Tags": null,
+    "MountKinds": "指示物",
+    "Tags": "生效自减型",
     "ManaList": [
       0.0,
       0.0,
       0.0,
       0.0,
-      0.0,
-      2.0
+      3.0,
+      0.0
     ]
   },
   {
-    "ID": "fd04d3c7",
+    "ID": "fe714786",
     "EnumName": "不灭",
-    "DisplayName": "不受消灭效果影响",
+    "DisplayName": "获得不灭：不受消灭效果影响",
     "EffectType": "GrantIndestructible",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
@@ -1060,14 +927,14 @@
       0.0,
       0.0,
       0.0,
-      2.0,
+      5.0,
       0.0
     ]
   },
   {
-    "ID": "2d46dbd4",
+    "ID": "1e60cb92",
     "EnumName": "系命",
-    "DisplayName": "造成伤害时，为角色恢复等量生命",
+    "DisplayName": "获得系命：造成伤害时，为角色恢复等量生命",
     "EffectType": "GrantLifelink",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
@@ -1084,71 +951,14 @@
     ]
   },
   {
-    "ID": "05485f65",
-    "EnumName": "坚韧",
-    "DisplayName": "受到的每次伤害减{value}（每回合前{limit}次，可无限）",
-    "EffectType": "GrantArmor",
-    "TargetKinds": "自己",
-    "TargetFilter": null,
-    "Polarity": 1.0,
-    "MountKinds": "关键词",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "5d59d89a",
+    "ID": "c2565884",
     "EnumName": "再生",
-    "DisplayName": "回合开始时自己恢复自身全部生命值",
+    "DisplayName": "获得再生：回合开始时恢复自身全部生命值",
     "EffectType": "GrantRegeneration",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "关键词",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      3.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "37b43139",
-    "EnumName": "守护",
-    "DisplayName": "{target}受到伤害改写为自己受到等量伤害（每回合前{limit}次，可无限）",
-    "EffectType": "GrantGuardian",
-    "TargetKinds": "自己",
-    "TargetFilter": null,
-    "Polarity": 1.0,
-    "MountKinds": "关键词",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "611f7516",
-    "EnumName": "成长",
-    "DisplayName": "回合结束时，自身属性指示物数量翻倍",
-    "EffectType": "GrantGrowth",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "关键词",
+    "MountKinds": "关键词,不可作为连接光环",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1160,9 +970,9 @@
     ]
   },
   {
-    "ID": "adb8456f",
+    "ID": "c253788f",
     "EnumName": "缴械",
-    "DisplayName": "攻击时被攻击单位无法反击",
+    "DisplayName": "获得缴械：攻击时被攻击单位无法反击",
     "EffectType": "GrantDisarm",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
@@ -1171,7 +981,7 @@
     "Tags": null,
     "ManaList": [
       0.0,
-      1.0,
+      3.0,
       0.0,
       0.0,
       0.0,
@@ -1193,14 +1003,14 @@
       0.0,
       0.0,
       0.0,
-      1.0,
+      3.0,
       0.0
     ]
   },
   {
-    "ID": "3c696cb0",
+    "ID": "da6dbd24",
     "EnumName": "微缩",
-    "DisplayName": "{target}获得微缩：你使用卡时，将一张同效果、1/1、费用1灰的临时卡加入手牌（回合结束移除）",
+    "DisplayName": "获得微缩：使用此卡时，将一张同效果、1/1、费用1灰的临时卡加入手牌（回合结束移除）",
     "EffectType": "GrantMiniature",
     "TargetKinds": "己方单位",
     "TargetFilter": "NoRole",
@@ -1217,9 +1027,9 @@
     ]
   },
   {
-    "ID": "a9cf639e",
+    "ID": "b465e749",
     "EnumName": "放大",
-    "DisplayName": "{target}获得放大：你使用卡时，将一张同效果、10/10、费用10灰的临时卡加入手牌（回合结束移除）",
+    "DisplayName": "获得放大：使用此卡时，将一张同效果、10/10、费用10灰的临时卡加入手牌（回合结束移除）",
     "EffectType": "GrantMagnify",
     "TargetKinds": "己方单位",
     "TargetFilter": "NoRole",
@@ -1236,14 +1046,14 @@
     ]
   },
   {
-    "ID": "cc55f2ce",
+    "ID": "6a486d99",
     "EnumName": "禁魔石",
-    "DisplayName": "受到的非战斗伤害变为0",
+    "DisplayName": "获得禁魔石：受到的非战斗伤害变为0",
     "EffectType": "GrantSpellban",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
-    "MountKinds": "关键词",
+    "MountKinds": "关键词,不可作为连接光环",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1255,9 +1065,9 @@
     ]
   },
   {
-    "ID": "974b5090",
+    "ID": "8c988c18",
     "EnumName": "连击",
-    "DisplayName": "{target}获得连击",
+    "DisplayName": "获得连击：先额外造成一次战斗伤害，再进行正常的战斗结算",
     "EffectType": "GrantDoubleStrike",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
@@ -1273,16 +1083,224 @@
       0.0
     ]
   },
-
   {
-    "ID": "cca3ed84",
-    "EnumName": "剧毒",
-    "DisplayName": "对{target}附加剧毒指示物（回合结束时死亡）",
-    "EffectType": "Poison",
-    "TargetKinds": "自己",
+    "ID": "ff9874a4",
+    "EnumName": "费用增加",
+    "DisplayName": "为{target}添加{value}层费用增加指示物",
+    "EffectType": "AddCostUp",
+    "TargetKinds": "己方手牌,对方手牌",
+    "TargetFilter": null,
+    "Polarity": -1.0,
+    "MountKinds": "指示物,不可随机",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "1470b983",
+    "EnumName": "费用减少",
+    "DisplayName": "为{target}添加{value}层费用减少指示物",
+    "EffectType": "AddCostDown",
+    "TargetKinds": "己方手牌,对方手牌",
+    "TargetFilter": null,
+    "Polarity": 1.0,
+    "MountKinds": "指示物,不可随机",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  },
+  {
+    "ID": "39a3106c",
+    "EnumName": "攻击力增加",
+    "DisplayName": "为{target}添加{value}层攻击力增加指示物",
+    "EffectType": "AddPowerUp",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "指示物,可以作为连接光环,不可随机",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0.0,
+      0.5,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "d00b4a7d",
+    "EnumName": "攻击力减少",
+    "DisplayName": "为{target}添加{value}层攻击力减少指示物",
+    "EffectType": "AddPowerDown",
+    "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
+    "MountKinds": "指示物,可以作为连接光环,不可随机",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0.0,
+      0.5,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "7a97f666",
+    "EnumName": "生命值增加",
+    "DisplayName": "为{target}添加{value}层生命值增加指示物",
+    "EffectType": "AddLifeUp",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "指示物,可以作为连接光环,不可随机",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "d3d792bb",
+    "EnumName": "生命值减少",
+    "DisplayName": "为{target}添加{value}层生命值减少指示物",
+    "EffectType": "AddLifeDown",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0,
+    "MountKinds": "指示物,可以作为连接光环,不可随机",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "8bc5b925",
+    "EnumName": "属性增加",
+    "DisplayName": "为{target}添加{value}层属性增加指示物（+1/+1）",
+    "EffectType": "AddPlusOne",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "指示物,可以作为连接光环,不可随机",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "9864d6df",
+    "EnumName": "属性减少",
+    "DisplayName": "为{target}添加{value}层属性减少指示物（-1/-1）",
+    "EffectType": "AddMinusOne",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0,
+    "MountKinds": "指示物,可以作为连接光环,不可随机",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  },
+  {
+    "ID": "9256b41a",
+    "EnumName": "永久属性增加",
+    "DisplayName": "修改目标的文本级属性，本局游戏中属性永久增加{value}",
+    "EffectType": "AddPermanentPlusOne",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "不可作为连接光环,不可随机",
+    "Tags": "",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      5.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "e5da6dd9",
+    "EnumName": "永久属性减少",
+    "DisplayName": "修改目标的文本级属性，本局游戏中属性永久减少{value}",
+    "EffectType": "AddPermanentMinusOne",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "NoRole",
+    "Polarity": -1.0,
+    "MountKinds": "不可作为连接光环,不可随机",
+    "Tags": "",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      5.0
+    ]
+  },
+  {
+    "ID": "a312b8b0",
+    "EnumName": "坚韧",
+    "DisplayName": "对{target}附加{value}层坚韧指示物【可叠加】，（每层使每次受到的伤害减1，不随受伤消耗）",
+    "EffectType": "GrantToughness",
+    "TargetKinds": "自己",
+    "TargetFilter": null,
+    "Polarity": 1.0,
     "MountKinds": "指示物",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "20c06d52",
+    "EnumName": "剧毒",
+    "DisplayName": "获得剧毒：受到其战斗伤害的生物被消灭",
+    "EffectType": "GrantVenom",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
     "Tags": null,
     "ManaList": [
       0.0,
@@ -1294,15 +1312,15 @@
     ]
   },
   {
-    "ID": "2a7d3092",
+    "ID": "d7bf6675",
     "EnumName": "护甲",
-    "DisplayName": "为{target}添加{value}点护甲",
+    "DisplayName": "为{target}添加护甲指示物（受到伤害时逐点吸收，不随回合消退）",
     "EffectType": "AddArmor",
     "TargetKinds": "自己",
     "TargetFilter": null,
     "Polarity": 1.0,
     "MountKinds": "指示物",
-    "Tags": null,
+    "Tags": "生效自减型",
     "ManaList": [
       0.0,
       0.0,
@@ -1313,15 +1331,15 @@
     ]
   },
   {
-    "ID": "50b364df",
+    "ID": "c0f4aea0",
     "EnumName": "毒素",
-    "DisplayName": "对{target}附加一层毒素指示物（回合结束时受1点伤害，持续3回合，重复施加叠加层数并刷新持续时间）",
+    "DisplayName": "对{target}附加{value}层毒素指示物（每回合结束受到等于层数的伤害后层数减半，无持续时间）",
     "EffectType": "AddToxin",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
     "MountKinds": "指示物",
-    "Tags": null,
+    "Tags": "生效自减型",
     "ManaList": [
       0.0,
       0.0,
@@ -1340,26 +1358,7 @@
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
     "MountKinds": "指示物",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "f3a89899",
-    "EnumName": "无响应",
-    "DisplayName": "对{target}附加无响应指示物（非启动式能力无法响应）",
-    "EffectType": "AddNullify",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 0.0,
-    "MountKinds": "指示物",
-    "Tags": null,
+    "Tags": "换区清除型",
     "ManaList": [
       0.0,
       0.0,
@@ -1370,15 +1369,34 @@
     ]
   },
   {
-    "ID": "b80c2d73",
+    "ID": "bfdd9037",
+    "EnumName": "迟钝",
+    "DisplayName": "对{target}附加迟钝指示物（自动触发的能力无法响应发动）",
+    "EffectType": "AddNullify",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 0.0,
+    "MountKinds": "指示物",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      3.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "3c192774",
     "EnumName": "冻结",
-    "DisplayName": "冻结{target}：横置并放置冻结指示物（负面，持续到回合结束）",
+    "DisplayName": "冻结{target}：横置并放置冻结指示物（负面，层=持续回合数，持有者回合末倒数）",
     "EffectType": "Freeze",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
     "MountKinds": "指示物",
-    "Tags": null,
+    "Tags": "衰退型",
     "ManaList": [
       0.0,
       0.0,
@@ -1389,15 +1407,15 @@
     ]
   },
   {
-    "ID": "20fa8bae",
+    "ID": "3fbb1686",
     "EnumName": "紊乱",
-    "DisplayName": "对{target}附加{value}回合紊乱指示物（不能以玩家为攻击，效果{target}）",
+    "DisplayName": "对{target}附加{value}层紊乱指示物（持续{value}回合，期间不能以玩家为目标）",
     "EffectType": "RushSickness",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
     "MountKinds": "指示物",
-    "Tags": null,
+    "Tags": "衰退型",
     "ManaList": [
       0.0,
       0.0,
@@ -1408,15 +1426,15 @@
     ]
   },
   {
-    "ID": "60a09ef1",
+    "ID": "819e2363",
     "EnumName": "易损",
-    "DisplayName": "对{target}附加易损指示物（持续1回合，受到伤害时每层+1）",
+    "DisplayName": "对{target}附加{value}层易损指示物（持续{value}回合，期间受到伤害每层+1）",
     "EffectType": "AddVulnerable",
     "TargetKinds": "自己",
     "TargetFilter": null,
     "Polarity": -1.0,
     "MountKinds": "指示物",
-    "Tags": null,
+    "Tags": "衰退型",
     "ManaList": [
       0.0,
       0.0,
@@ -1435,7 +1453,7 @@
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
     "MountKinds": "指示物",
-    "Tags": null,
+    "Tags": "衰退型",
     "ManaList": [
       0.0,
       0.0,
@@ -1445,26 +1463,6 @@
       0.0
     ]
   },
-  {
-    "ID": "7d704939",
-    "EnumName": "附加诅咒",
-    "DisplayName": "对{target}附加诅咒（抽到该卡时自动执行诅咒分支效果，一次性）",
-    "EffectType": "AddCurse",
-    "TargetKinds": "自己",
-    "TargetFilter": null,
-    "Polarity": -1.0,
-    "MountKinds": "指示物",
-    "Tags": "诅咒产出族",
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      1.0
-    ]
-  },
-
   {
     "ID": "afaab664",
     "EnumName": "三相仪典",
@@ -1694,9 +1692,9 @@
     ]
   },
   {
-    "ID": "f666ee4a",
+    "ID": "5d7af6ec",
     "EnumName": "疫蚀仪典",
-    "DisplayName": "受光环影响的生物对角色造成伤害后，附加一个剧毒指示物",
+    "DisplayName": "受光环影响的生物对角色造成伤害后，附加一个毒素指示物",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1847,64 +1845,6 @@
     ]
   },
   {
-    "ID": "2ac33fb6",
-    "EnumName": "攻击力修改",
-    "DisplayName": "修改{target}攻击力{value}",
-    "EffectType": "ModifyPower",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "系统,不可随机",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.5,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "08cba511",
-    "EnumName": "生命值修改",
-    "DisplayName": "修改{target}生命值{value}",
-    "EffectType": "ModifyLife",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "系统,不可随机",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.5,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "39168153",
-    "EnumName": "费用修改",
-    "DisplayName": "修改{target}费用{value}",
-    "EffectType": "ModifyCost",
-    "TargetKinds": "己方手牌,对方手牌",
-    "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "系统,不可随机",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.5,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-
-  {
     "ID": "01e6dad1",
     "EnumName": "倒计时",
     "DisplayName": "自由分支·倒计时：回合开始计数-1，归零触发奖励并重置",
@@ -1974,6 +1914,30 @@
     "Polarity": 0.0,
     "MountKinds": "引擎主干",
     "Tags": null,
+    "ManaList": null
+  },
+  {
+    "ID": "90ba9782",
+    "EnumName": "附加诅咒",
+    "DisplayName": "自由分支·附加诅咒：给对手牌库中的卡附加诅咒指示物，抽到该卡时自动执行诅咒分支效果，并移除诅咒指示物",
+    "EffectType": "EngineCurseOnDraw",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1.0,
+    "MountKinds": "引擎主干",
+    "Tags": "生效自减型",
+    "ManaList": null
+  },
+  {
+    "ID": "e829f7af",
+    "EnumName": "附加祝福",
+    "DisplayName": "自由分支·附加祝福：给自己牌库中的卡附加祝福指示物，抽到该卡时自动执行祝福分支效果，并移除祝福指示物",
+    "EffectType": "EngineBlessingOnDraw",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 1.0,
+    "MountKinds": "引擎主干",
+    "Tags": "生效自减型",
     "ManaList": null
   }
 ]

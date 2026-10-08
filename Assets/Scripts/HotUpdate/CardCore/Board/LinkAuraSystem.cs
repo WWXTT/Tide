@@ -21,6 +21,12 @@ namespace GameBoard
     /// 接线（CombatSystem.AdjacentResolver 同惯例）：组合根 Attach(BoardState) 注入占用查询
     /// 并订阅失效事件；未注入（纯核心测试/headless 无棋盘）时 Enabled=false，全部查询 O(1) 早退=无光环。
     /// 计价按单回合指示物档（来源须持续在场的折价，见 CardCostService.ComputeLinkAuraBuckets）。
+    ///
+    /// 角色通道（2026-10-07 角色参战定案；2026-10-08 作用面含角色档）：**仅关键词**条目可投递角色
+    /// ——箭头落格=本方角色格（BoardLayout.CharacterCell）时投递该角色；条目级作用面（scope 己/双/对方）
+    /// 在条目声明 role 时同样投递对应侧角色。属性（攻/血）条目与未声明 role 的作用面条目钉死生物专用。
+    /// 角色攻击力不走光环（HeroAttackCounter 弹药原子，见 CounterRules——角色攻击力增加原子表内
+    /// 无连接位，不可作光环）。
     /// </summary>
     public static class LinkAuraSystem
     {
@@ -28,12 +34,15 @@ namespace GameBoard
         public static Func<Card, (int x, int z)?> TryGetCellOf { get; private set; }
         public static Func<int, int, Card> CardAt { get; private set; }
         public static Func<Card, int> OwnerIndexOf { get; private set; }
+        /// <summary>玩家序号查询（2026-10-07 角色光环通道）：角色格=BoardLayout.CharacterCell(idx)，
+        /// 关键词光环箭头指向角色格时投递给该角色。</summary>
+        public static Func<Player, int> PlayerIndexOf { get; private set; }
 
         /// <summary>是否已注入棋盘（未注入 = 无光环，所有查询 O(1) 早退）</summary>
-        public static bool Enabled => TryGetCellOf != null && CardAt != null && OwnerIndexOf != null;
+        public static bool Enabled => TryGetCellOf != null && CardAt != null && OwnerIndexOf != null && PlayerIndexOf != null;
 
         private static int _version; // 失效版本号（事件驱动 +1；缓存按版本号判脏）
-        private static readonly Dictionary<Card, CachedBonus> _cache = new Dictionary<Card, CachedBonus>();
+        private static readonly Dictionary<Entity, CachedBonus> _cache = new Dictionary<Entity, CachedBonus>();
         private static readonly List<IDisposable> _subs = new List<IDisposable>();
 
         private sealed class CachedBonus
@@ -41,9 +50,10 @@ namespace GameBoard
             public int Version;
             public int Power;
             public int Life;
+            // 关键词值求和表 KeywordSums 已删（2026-10-08 坚韧指示物化）：唯一消费者是坚韧光环减伤，
+            // 坚韧退出关键词/光环族后无值语义关键词条目——只剩 Boolean（HasAuraKeyword）与计数
+            //（GetAuraKeywordCount，按箭头叠加）两种读数
             public readonly List<string> Keywords = new List<string>();
-            /// <summary>关键词→值求和（2026-10-07 深夜坚韧值化）：每条命中条目 value 之和（0 视为 1）。</summary>
-            public readonly Dictionary<string, int> KeywordSums = new Dictionary<string, int>();
         }
 
         private static readonly HexDirection[] ArrowBits =
@@ -70,6 +80,7 @@ namespace GameBoard
                 var controller = card?.GetController();
                 return controller == null ? -1 : board.PlayerIndex(controller);
             };
+            PlayerIndexOf = board.PlayerIndex;
 
             Hook<CardPutToBattlefieldEvent>();
             Hook<CardLeaveBattlefieldEvent>();
@@ -89,34 +100,40 @@ namespace GameBoard
             TryGetCellOf = null;
             CardAt = null;
             OwnerIndexOf = null;
+            PlayerIndexOf = null;
             foreach (var sub in _subs) sub.Dispose();
             _subs.Clear();
             _cache.Clear();
         }
 
         // ======================================== 查询 API（受益者单视角） ========================================
+        // 属性三口（GetPowerBonus/GetLifeBonus/GetMaxLifeBonus）钉死 Card 签名——属性光环只对生物生效
+        //（2026-10-07 定案：角色攻击力走 HeroAttackCounter 弹药原子，不走光环；生命光环同理不到角色）。
+        // 关键词三口 Entity 签名——关键词条目可投递角色（箭头指向角色格，或条目级作用面+含角色声明）。
 
-        /// <summary>攻击力光环加成（含减益，可为负）</summary>
+        /// <summary>攻击力光环加成（含减益，可为负；仅生物）</summary>
         public static int GetPowerBonus(Card card) => BonusOf(card)?.Power ?? 0;
 
-        /// <summary>生命光环加成（上限与有效生命同加；可为负）</summary>
+        /// <summary>生命光环加成（上限与有效生命同加；可为负；仅生物）</summary>
         public static int GetLifeBonus(Card card) => BonusOf(card)?.Life ?? 0;
 
-        /// <summary>最大生命光环加成（与 GetLifeBonus 同值——生命光环上限当前同加）</summary>
+        /// <summary>最大生命光环加成（与 GetLifeBonus 同值——生命光环上限当前同加；仅生物）</summary>
         public static int GetMaxLifeBonus(Card card) => BonusOf(card)?.Life ?? 0;
 
-        /// <summary>光环关键词（Boolean 语义：光环期间视为持有，不参与 GetKeywordCount 重复叠加计数）</summary>
-        public static bool HasAuraKeyword(Card card, string keyword)
+        /// <summary>光环关键词（Boolean 语义：光环期间视为持有，不参与 GetKeywordCount 重复叠加计数）。
+        /// Entity 签名（2026-10-07）：角色经箭头指向角色格的关键词光环同样命中。</summary>
+        public static bool HasAuraKeyword(Entity entity, string keyword)
         {
-            var bonus = BonusOf(card);
+            var bonus = BonusOf(entity);
             return bonus != null && bonus.Keywords.Contains(keyword);
         }
 
         /// <summary>光环关键词覆盖数（2026-09-13 按箭头叠加定案）：N 条箭头（×每源声明条数）
-        /// 覆盖同一单位 → N。坚韧光环（受伤-1/箭头）等数值语义走此口；Boolean 走 HasAuraKeyword。</summary>
-        public static int GetAuraKeywordCount(Card card, string keyword)
+        /// 覆盖同一单位 → N。纯计数读数（值求和口 GetAuraKeywordSum 已随 2026-10-08 坚韧指示物化删除
+        /// ——值语义关键词已不存在）；Boolean 走 HasAuraKeyword。</summary>
+        public static int GetAuraKeywordCount(Entity entity, string keyword)
         {
-            var bonus = BonusOf(card);
+            var bonus = BonusOf(entity);
             if (bonus == null) return 0;
             int n = 0;
             foreach (var kw in bonus.Keywords)
@@ -124,46 +141,14 @@ namespace GameBoard
             return n;
         }
 
-        /// <summary>光环关键词值求和（2026-10-07 深夜坚韧值化）：每条命中条目 value 之和
-        ///（value=0 视为 1）——坚韧光环减伤走此口（KeywordRules.ApplyPreventionLayers）。</summary>
-        public static int GetAuraKeywordSum(Card card, string keyword)
-        {
-            var bonus = BonusOf(card);
-            return bonus != null && bonus.KeywordSums.TryGetValue(keyword, out int v) ? v : 0;
-        }
+        // 值求和口 GetAuraKeywordSum 已删（2026-10-08 坚韧指示物化）：唯一消费者是
+        // KeywordRules.ApplyPreventionLayers 的坚韧光环份额——坚韧改挂 ToughnessCounter 指示物，
+        // 不再经关键词光环投递（表行 a312b8b0 MountKinds=指示物，CanMountAsAura 位 1 硬拒）。
 
-        /// <summary>守护光环源查询（2026-09-13 守护光环化定案）：覆盖该单位的「守护」光环来源列表
-        /// （存活在场、未被无效）。伤害改写取第一个存活源——live-query 天然递补（源离场/断链/被无效
-        /// 下次命中自动落到下一个覆盖源，无需事件换源）。罕见查询，直查不走缓存。</summary>
-        public static List<Card> GetGuardianAuraSources(Card beneficiary)
-        {
-            var result = new List<Card>();
-            if (beneficiary == null || !Enabled) return result;
-            var bCell = TryGetCellOf(beneficiary);
-            if (!bCell.HasValue) return result;
-            var core = GameCore.Instance;
-            if (core?.ZoneManager == null) return result;
+        // 守护光环源查询（GetGuardianAuraSources）已随 2026-10-08 配对制改版退役——
+        // 守护退出连接光环族（表行 MountKinds 位 8 拉黑），改写走 GuardianRules 配对表（KeywordRules.ApplyDamage）。
 
-            foreach (var player in new[] { core.Player1, core.Player2 })
-            {
-                if (player == null) continue;
-                foreach (var source in core.ZoneManager.GetCards(player, Zone.Battlefield))
-                {
-                    if (source == null || source == beneficiary || !source.IsAlive) continue;
-                    if (source.GetCounterCount(CounterRules.NullifyCounter) > 0) continue; // 无效=唯一能压光环的口
-                    var data = (source as CardWrapper)?.GetData();
-                    if (data?.LinkAuras == null) continue;
-                    bool hasGuardianAura = false;
-                    foreach (var aura in data.LinkAuras)
-                        if (aura != null && aura.keyword == KeywordRules.Guardian) { hasGuardianAura = true; break; }
-                    if (!hasGuardianAura) continue;
-                    if (ArrowsHit(source, bCell.Value, beneficiary)) result.Add(source);
-                }
-            }
-            return result;
-        }
-
-        /// <summary>方向档命中（2026-10-07）：beneficiary 一侧是否在 source 光环方向内
+        /// <summary>方向档命中·生物（2026-10-07）：beneficiary 一侧是否在 source 光环方向内
         ///（1=己方：源控制者一侧；2=双方；3=对方：源控制者的对手一侧）。</summary>
         private static bool ScopeHit(Card source, Card beneficiary, int scope)
         {
@@ -175,13 +160,22 @@ namespace GameBoard
             return scope == 1 ? ReferenceEquals(sc, bc) : !ReferenceEquals(sc, bc);
         }
 
-        /// <summary>source 的光环是否命中 beneficiary（箭头几何或方向档——2026-10-07 连接光环方向化：
-        /// 方向档 1=己方（源控制者一侧）/2=双方/3=对方（源控制者的对手一侧），不经箭头几何）。</summary>
-        private static bool ArrowsHit(Card source, (int x, int z) bCell, Card beneficiary)
+        /// <summary>方向档命中·角色（2026-10-08 含角色定案）：作用面档条目声明 role 时按侧别投递
+        ///（1=源控制者本人的角色/2=双方角色/3=对手角色）。</summary>
+        private static bool ScopeHitRole(Card source, Player role, int scope)
+        {
+            if (scope < 1 || scope > 3) return false;
+            var sc = source.GetController();
+            if (sc == null || role == null) return false;
+            if (scope == 2) return true;
+            return scope == 1 ? ReferenceEquals(sc, role) : ReferenceEquals(sc.Opponent, role);
+        }
+
+        /// <summary>source 卡面箭头几何是否命中 beneficiary（keywordsOnly=false：占据者同一=认格不认主；
+        /// true：坐标即身份——角色格永无卡占据者，落格即命中本方角色格）。</summary>
+        private static bool ArrowsGeoHit(Card source, (int x, int z) bCell, Entity beneficiary, bool keywordsOnly)
         {
             var data0 = (source as CardWrapper)?.GetData();
-            var scope = data0?.AuraScope ?? 0;
-            if (scope > 0) return ScopeHit(source, beneficiary, scope);
             var arrows = data0?.ArrowDirections ?? HexDirection.None;
             if (arrows == HexDirection.None) return false;
             var sCell = TryGetCellOf(source);
@@ -196,7 +190,10 @@ namespace GameBoard
                 if (owner == 1) abs = BoardMath.Opposite(abs);
                 var (nx, nz) = BoardMath.Neighbor(sCell.Value.x, sCell.Value.z, abs);
                 if (!BoardMath.InBounds(nx, nz)) continue;
-                if (ReferenceEquals(CardAt(nx, nz), beneficiary)) return true;
+                if (keywordsOnly
+                    ? (nx == bCell.x && nz == bCell.z)
+                    : ReferenceEquals(CardAt(nx, nz), beneficiary))
+                    return true;
             }
             return false;
         }
@@ -208,9 +205,10 @@ namespace GameBoard
         /// </summary>
         public static void InvalidateCache()
         {
+            // 生命回落兜底只对生物受益者有意义（角色路径 Life 恒 0——属性光环不投递角色）
             var before = new List<(Card card, int lifeBonus)>(_cache.Count);
             foreach (var kv in _cache)
-                before.Add((kv.Key, kv.Value.Life));
+                if (kv.Key is Card c) before.Add((c, kv.Value.Life));
 
             _version++;
             _cache.Clear();
@@ -233,93 +231,106 @@ namespace GameBoard
 
         // ======================================== 内部：live-query 计算 ========================================
 
-        private static CachedBonus BonusOf(Card beneficiary)
+        private static CachedBonus BonusOf(Entity beneficiary)
         {
             if (beneficiary == null || !Enabled) return null;
             if (_cache.TryGetValue(beneficiary, out var cached) && cached.Version == _version)
                 return cached;
 
             var bonus = new CachedBonus { Version = _version };
-            var core = GameCore.Instance;
-            var zoneManager = core?.ZoneManager;
-            var bCell = TryGetCellOf(beneficiary);
-            if (zoneManager != null && bCell.HasValue)
+            if (beneficiary is Card card)
             {
-                foreach (var player in new[] { core.Player1, core.Player2 })
-                {
-                    if (player == null) continue;
-                    var battlefield = zoneManager.GetCards(player, Zone.Battlefield);
-                    for (int i = 0; i < battlefield.Count; i++)
-                        AccumulateFrom(battlefield[i], beneficiary, bCell.Value, bonus);
-                }
+                var bCell = TryGetCellOf(card);
+                if (bCell.HasValue)
+                    AccumulateSources(beneficiary, bCell.Value, bonus, keywordsOnly: false);
+            }
+            else if (beneficiary is Player role)
+            {
+                // 角色通道（2026-10-07 定案）：受益格=本方角色格（BoardLayout.CharacterCell）；
+                // 只收关键词条目（keywordsOnly）——属性光环钉死生物专用、作用面档永不投递角色。
+                int idx = PlayerIndexOf(role);
+                if (idx >= 0)
+                    AccumulateSources(role, BoardLayout.CharacterCell(idx), bonus, keywordsOnly: true);
             }
 
             _cache[beneficiary] = bonus; // 负缓存也入表（无光环卡读一次后 O(1)）
             return bonus;
         }
 
-        private static void AccumulateFrom(Card source, Card beneficiary, (int x, int z) bCell, CachedBonus bonus)
+        private static void AccumulateSources(Entity beneficiary, (int x, int z) bCell, CachedBonus bonus, bool keywordsOnly)
+        {
+            var core = GameCore.Instance;
+            var zoneManager = core?.ZoneManager;
+            if (zoneManager == null) return;
+            foreach (var player in new[] { core.Player1, core.Player2 })
+            {
+                if (player == null) continue;
+                var battlefield = zoneManager.GetCards(player, Zone.Battlefield);
+                for (int i = 0; i < battlefield.Count; i++)
+                    AccumulateFrom(battlefield[i], beneficiary, bCell, bonus, keywordsOnly);
+            }
+        }
+
+        private static void AccumulateFrom(Card source, Entity beneficiary, (int x, int z) bCell, CachedBonus bonus, bool keywordsOnly)
         {
             if (source == null || !source.IsAlive || ReferenceEquals(source, beneficiary)) return;
 
             var data = (source as CardWrapper)?.GetData();
-            if (data == null) return;
+            if (data?.LinkAuras == null || data.LinkAuras.Count == 0) return;
             if (source.GetCounterCount(CounterRules.NullifyCounter) > 0) return; // 无效=唯一能压光环的口
 
-            // 方向档（2026-10-07 连接光环方向化）：选方向=不设箭头——受光环面=方向侧全体，不经箭头几何
-            var scope = data.AuraScope;
-            if (scope > 0)
-            {
-                if (ScopeHit(source, beneficiary, scope)) Accumulate(bonus, data.LinkAuras);
-                return;
-            }
+            // 条目级作用面（2026-10-08 actuating-range 定案）：scope==0 随卡面箭头几何（生物=占据者同一/
+            // 角色=落格即本方角色格）；作用面档（1=己方/2=双方/3=对方）按侧别命中，条目声明 role 时
+            // 关键词同样投递对应侧角色（属性条目与未声明 role 恒生物专用）。旧卡级方向档已由
+            // AggregateEffectAuras 迁移盖戳到条目，此处不再读 data.AuraScope。
+            // 角色通道 NoRole 硬闸（2026-10-08 定案）：Grant 表行 TargetFilter 含 NoRole 的关键词
+            // （仅生物——再生/禁魔石等 20 行）不投递角色，作用面档与箭头档两路同拦——旧数据/手写
+            // role=true 一并兜底；表政策豁免=守护/坚韧。
             var arrows = data.ArrowDirections;
-            if (arrows == HexDirection.None) return;
-
-            var sCell = TryGetCellOf(source);
-            if (!sCell.HasValue) return; // 来源未落格（不在场）自然无贡献
-            int owner = OwnerIndexOf(source);
-            if (owner < 0) return;
-
-            foreach (var bit in ArrowBits)
+            bool geoComputed = false, geoHit = false; // 惰性：存在箭头档条目才算几何
+            foreach (var aura in data.LinkAuras)
             {
-                if ((arrows & bit) == 0) continue;
-                var abs = BoardMath.MapArrow(bit);
-                if (owner == 1) abs = BoardMath.Opposite(abs); // 对手视角镜像（双方棋盘 180° 对称）
-                var (nx, nz) = BoardMath.Neighbor(sCell.Value.x, sCell.Value.z, abs);
-                if (!BoardMath.InBounds(nx, nz)) continue;
-                if (!ReferenceEquals(CardAt(nx, nz), beneficiary)) continue;
-                Accumulate(bonus, data.LinkAuras);
+                if (aura == null) continue;
+                if (aura.scope > 0)
+                {
+                    if (keywordsOnly)
+                    {
+                        if (aura.role && beneficiary is Player pr && ScopeHitRole(source, pr, aura.scope)
+                            && !ComposerCatalog.RoleChannelBlocked(aura.keyword))
+                            Accumulate(bonus, aura, keywordsOnly);
+                    }
+                    else if (beneficiary is Card bCard && ScopeHit(source, bCard, aura.scope))
+                        Accumulate(bonus, aura, keywordsOnly);
+                    continue;
+                }
+                if (arrows == HexDirection.None) continue;
+                if (!geoComputed) { geoHit = ArrowsGeoHit(source, bCell, beneficiary, keywordsOnly); geoComputed = true; }
+                if (geoHit && !(beneficiary is Player && ComposerCatalog.RoleChannelBlocked(aura.keyword)))
+                    Accumulate(bonus, aura, keywordsOnly);
             }
         }
 
-        private static void Accumulate(CachedBonus bonus, List<LinkAuraData> auras)
+        private static void Accumulate(CachedBonus bonus, LinkAuraData aura, bool keywordsOnly)
         {
-            if (auras == null) return;
-            foreach (var aura in auras)
+            if (aura == null) return;
+            if (!string.IsNullOrEmpty(aura.stat))
             {
-                if (aura == null) continue;
-                if (!string.IsNullOrEmpty(aura.stat))
+                if (keywordsOnly) return; // 属性光环只对生物生效（2026-10-07 定案：角色攻击力走弹药原子）
+                if (aura.stat.Equals("Power", StringComparison.OrdinalIgnoreCase)) bonus.Power += aura.value;
+                else if (aura.stat.Equals("Life", StringComparison.OrdinalIgnoreCase)) bonus.Life += aura.value;
+                else if (aura.stat.Equals("Both", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (aura.stat.Equals("Power", StringComparison.OrdinalIgnoreCase)) bonus.Power += aura.value;
-                    else if (aura.stat.Equals("Life", StringComparison.OrdinalIgnoreCase)) bonus.Life += aura.value;
-                    else if (aura.stat.Equals("Both", StringComparison.OrdinalIgnoreCase))
-                    {
-                        // 属性光环（2026-10-07 深夜六类）：攻生同值修正——「属性增加/减少」源行天然 ±1/±1
-                        bonus.Power += aura.value;
-                        bonus.Life += aura.value;
-                    }
+                    // 属性光环（2026-10-07 深夜六类）：攻生同值修正——「属性增加/减少」源行天然 ±1/±1
+                    bonus.Power += aura.value;
+                    bonus.Life += aura.value;
                 }
-                else if (!string.IsNullOrEmpty(aura.keyword))
-                {
-                    // 2026-09-13 按箭头叠加定案：关键词不去重——每条命中箭头×每条声明各计一次
-                    //（Boolean 查询 HasAuraKeyword 用 Contains 不受影响；计数查询 GetAuraKeywordCount）；
-                    // 值求和口 GetAuraKeywordSum（2026-10-07 深夜坚韧值化：value=0 视为 1）
-                    bonus.Keywords.Add(aura.keyword);
-                    int kwv = aura.value != 0 ? aura.value : 1;
-                    bonus.KeywordSums.TryGetValue(aura.keyword, out int prev);
-                    bonus.KeywordSums[aura.keyword] = prev + kwv;
-                }
+            }
+            else if (!string.IsNullOrEmpty(aura.keyword))
+            {
+                // 2026-09-13 按箭头叠加定案：关键词不去重——每条命中箭头×每条声明各计一次
+                //（Boolean 查询 HasAuraKeyword 用 Contains；计数查询 GetAuraKeywordCount；
+                // 值求和口已随 2026-10-08 坚韧指示物化删除——aura.value 对关键词条目不再有读数方）
+                bonus.Keywords.Add(aura.keyword);
             }
         }
 

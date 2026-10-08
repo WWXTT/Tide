@@ -391,7 +391,7 @@ namespace CardCore
                 var tc = card.GetController();
                 return tc == null || tc == controller
                     || !(card.HasKeyword(KeywordRules.Untargetable)
-                         || card.HasKeyword(KeywordRules.Stealth)
+                         || card.GetCounterCount(Attribute.CounterRules.StealthCounter) > 0
                          || card.HasKeyword(KeywordRules.Concealed));
             }).ToList();
         }
@@ -544,8 +544,8 @@ namespace CardCore
                     case "Mortal": // 凡躯：滤除神佑持有者（神佑的 TargetFilter 实现，2026-09-10）
                         filters.Add(new MortalFilter());
                         break;
-                    case "Stealth": // 仅指潜行中（状态类过滤定案：仅指持有该状态者）
-                        filters.Add(new KeywordFilter(KeywordRules.Stealth, true));
+                    case "Stealth": // 仅指潜行中（状态类过滤定案：仅指持有该状态者；2026-10-08 指示物化改层数口径）
+                        filters.Add(new CounterFilter(Attribute.CounterRules.StealthCounter));
                         break;
                     case "Untargetable": // 仅指免疫（辟邪）持有者
                         filters.Add(new KeywordFilter(KeywordRules.Untargetable, true));

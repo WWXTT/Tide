@@ -227,22 +227,6 @@ namespace CardCore
             // 对手的要等对手回合末；突袭的"不能以玩家为目标"限制随自己回合末解除
             Attribute.CounterRules.OnTurnEnd(e.TurnPlayer, ZoneManager);
 
-            // 成长（2026-10-05 改版定案：关键词效果——持有者回合结束时，自身属性指示物层数翻倍；
-            // 原"回合开始+1/+1"退役）：排在指示物消退**之后**——限时层先清、只翻留存的；
-            // 含减益类一并翻倍（层数翻倍字面口径）。回合维护类不走触发引擎（不被无效/沉默拦）。
-            foreach (var card in ZoneManager.GetCards(e.TurnPlayer, Zone.Battlefield).ToList())
-            {
-                if (!card.IsAlive || !card.HasKeyword(KeywordRules.Growth)) continue;
-                int doubled = Attribute.CounterRules.DoubleStatCounters(card, card);
-                if (doubled > 0)
-                    PublishEvent(new KeywordAppliedEvent
-                    {
-                        Target = card,
-                        Keyword = KeywordRules.Growth,
-                        Detail = $"成长：属性指示物层数翻倍（新增 {doubled} 层）",
-                    });
-            }
-
             // 窥渊仪典（2026-10-04 时机改版：回合开始→回合结束）：随机展示+锁定必须排在
             // 指示物倒数之后——同回合末新挂的锁不被 ③ 块吞层。组合根显式调（不走事件订阅：
             // 订阅序相对本方法随局数漂移，先后无保证）。
@@ -368,9 +352,6 @@ namespace CardCore
                     PublishEvent(new Attribute.HealEvent { Target = card, Amount = regenAmount });
                 }
 
-                // 成长已改版（2026-10-05）：回合开始 +1/+1 退役——改为回合结束属性指示物层数翻倍
-                //（OnTurnEnded 内、指示物消退之后结算，见上方）
-
                 // 横置恢复（2026-09-13 定案）：冻结/沉睡期间均**无法重置**——
                 // 谁被禁、被禁期间状态如何推进（沉睡扣层/苏醒重置）由 RuleHooks.IUntapBlockRule
                 // 注册方自理（OCP：重置循环不点名具体指示物）。
@@ -383,6 +364,16 @@ namespace CardCore
                     card.Untap();
                     PublishEvent(new UntapEvent { UntappedEntity = card });
                 }
+            }
+
+            // 再生（角色侧 2026-10-08 引擎统一）：回合玩家角色持有再生——回合开始恢复全部生命，
+            // 与卡侧同口径。再生表行已标 NoRole——光环通道被 RoleChannelBlocked 拦（太强禁投角色），
+            // 本路径为物化授予等通道保留（休眠）；表上撤掉 NoRole 即经光环可达。
+            int roleRegen = player.GetMaxLife() - player.Life;
+            if (roleRegen > 0 && player.HasKeyword(KeywordRules.Regeneration))
+            {
+                player.Heal(roleRegen);
+                PublishEvent(new Attribute.HealEvent { Target = player, Amount = roleRegen });
             }
 
             // 抽一张牌（回合抽 = 本回合首次抽牌，抽卡时点对触发可见）
@@ -635,7 +626,6 @@ namespace CardCore
 
                 player.ResetVitals(InitialLife);
                 player._counters.Clear();
-                player._counterClocks.Clear();
                 player._counterSources.Clear();
                 player._keywords.Clear();
                 player._keywordGrants.Clear();
@@ -690,8 +680,13 @@ namespace CardCore
             RuleAuraSystem.Reset();
             RuleAuraSystem.OnGameReset();
 
-            // 装备系统（2026-09-13 第二十一批：武器反伤/耐久扩展口接线）——组合根（幂等）
-            EquipRules.EnsureAttached(this);
+            // 守护配对（2026-10-08 配对制改版）：入场弹选保护目标/离场断链——组合根登记（幂等，
+            // 先退再订防多局重复订阅）+ 配对表跨局不残留（被守护者引用跨局失效）
+            Attribute.GuardianRules.EnsureSubscribed();
+            Attribute.GuardianRules.Reset();
+
+            // 装备入场耐久初始化（2026-09-13 起；2026-10-07 武器反伤扩展口随武器系统退役删除，
+            // 角色参战改走 HeroAttackCounter 弹药原子）——组合根（幂等）
             // 订阅缓存委托（2026-09-24 泄漏修复）：lambda 每局 new 一个实例无法退订，
             // SubscribeCore 不去重 → 同进程连开多局时装备入场效果重复触发（先退再订，幂等）
             EventManager.Instance.Unsubscribe(_equipEnterHandler);

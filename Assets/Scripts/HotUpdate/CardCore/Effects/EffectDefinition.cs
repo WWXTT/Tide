@@ -530,6 +530,13 @@ namespace CardCore
         NthHandCard = 6,
         // 值 7（Grant 赋予引擎）已随 2026-10-05 两槽定案解体实删——"无条件主干"化为无分支槽原子+效果级
         // 持续档计价（Grant 梯沿用），枚举尾删安全（无存量 int 序列化依赖）。
+        /// <summary>附加诅咒（2026-10-08 自由分支化，自有限分支 CurseOnDraw 门接棒）：此卡施放结算时
+        /// 给对手牌库随机 x 张卡挂「诅咒」指示物+登记 Then 载荷（CurseSystem）——对手抽到该卡时执行
+        /// 奖励并消层（一次性；触发与引擎卡去向无关）。x∈[1,3]=附加张数；延迟与不确定性即代价（预算不设上限）。</summary>
+        CurseOnDraw = 8,
+        /// <summary>附加祝福（2026-10-08）：同 CurseOnDraw，作用面=自己牌库、指示物=「祝福」——
+        /// 抽到该卡时执行祝福分支效果并消层（一次性）。x∈[1,3]。</summary>
+        BlessingOnDraw = 9,
     }
 
     public class AtomicEffectInstance

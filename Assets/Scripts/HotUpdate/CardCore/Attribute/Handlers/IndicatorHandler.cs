@@ -3,10 +3,9 @@ using CardCore.Attribute;
 namespace CardCore.Attribute.Handlers
 {
     /// <summary>
-    /// 护甲原子：为目标添加 N 点护甲指示物（counter：KeywordRules.ArmorCounter，Entity 级——角色可持有）。
-    /// 伤害结算时先逐点吸收护甲，再走坚韧减免、最后扣生命。
-    /// 这是参数化原子（{value}），与固定 −1 的坚韧关键词互补（用户定案）。
-    /// 指示物无持续时间 → 换区清除（CounterRules.ClearAll 统一口径）。
+    /// 护甲原子（生效自减类）：为目标添加 {value} 层护甲指示物（KeywordRules.ArmorCounter，Entity 级——
+    /// 角色可持有）。伤害结算时先逐点吸收护甲（每层 1 点，吸收即消耗），再走坚韧指示物减免、最后扣生命。
+    /// 层改造定案（2026-10-08）：未开放 value 的行统一赋 1 层；计价=基础费用×层数（线性）。
     /// </summary>
     public class AddArmorHandler : AtomicEffectHandlerBase
     {
@@ -15,7 +14,7 @@ namespace CardCore.Attribute.Handlers
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             int amount = context.GetValueAfterModifiers(effect.Value);
-            if (amount <= 0) return;
+            if (amount <= 0) amount = 1; // 未声明层数=统一 1 层（2026-10-08 定案，与计价 max(1,|value|) 同口径）
 
             foreach (var target in context.Targets)
             {
@@ -31,12 +30,150 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}点护甲";
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"添加{(effect.Value > 0 ? effect.Value : 1)}层护甲指示物";
     }
 
     /// <summary>
-    /// 毒素原子（新增）：对目标附加毒素指示物——持续 3 回合，回合结束时持有者每层受 1 点伤害，可叠加。
-    /// 层带独立回合时钟（CounterRules.ToxinCounter，ForTurns=3，CounterRules.OnTurnEnd 统一计时）。
+    /// 坚韧原子（2026-10-08 指示物化定案，表行 a312b8b0——原子类型 GrantToughness，原 GrantArmor 同日更名；
+    /// refId 已重推 05485f65→a312b8b0，2026-10-08 全量 ID 重推·卡数据随后重建）：
+    /// 对目标附加 {value} 层坚韧指示物（CounterRules.ToughnessCounter）——每层使每次受到的伤害 −1，
+    /// 不随受伤消耗、可叠加；Entity 级（角色可持有）；换区清除、净化可清。
+    /// 取代旧 GrantKeywordHandler 关键词路径（台账 Value/Limit+次数闸+光环份额随之退役）。
+    /// </summary>
+    public class GrantToughnessHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GrantToughness;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            int stacks = context.GetValueAfterModifiers(effect.Value);
+            if (stacks <= 0) stacks = 1;
+
+            foreach (var target in context.Targets)
+            {
+                if (target == null || !target.IsAlive) continue;
+                target.AddCounters(CounterRules.ToughnessCounter, stacks, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = target,
+                    CounterType = CounterRules.ToughnessCounter,
+                    Amount = stacks,
+                    Source = context.Source,
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"附加{effect.Value}层坚韧指示物（每层使每次受到的伤害减1，可叠加）";
+    }
+
+    /// <summary>
+    /// 圣盾原子（2026-10-08 指示物化，表行 c8624e6a——原子类型沿用 GrantDivineShield；
+    /// refId 已重推 feab5d3b→c8624e6a，2026-10-08 全量 ID 重推·卡数据随后重建）：
+    /// 对目标附加 {value} 层圣盾指示物（CounterRules.DivineShieldCounter）——每层抵挡一次任意伤害
+    ///（战斗+效果）并消耗 1 层；可叠加（每层一份）；Entity 级（角色可持有）；
+    /// 换区不清（生效自减档·2026-10-08 晚补裁决）、净化可清。
+    /// 取代旧 GrantKeywordHandler 关键词路径（同轨取代制台账随之失效）。
+    /// </summary>
+    public class GrantDivineShieldHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GrantDivineShield;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            int stacks = context.GetValueAfterModifiers(effect.Value);
+            if (stacks <= 0) stacks = 1;
+
+            foreach (var target in context.Targets)
+            {
+                if (target == null || !target.IsAlive) continue;
+                target.AddCounters(CounterRules.DivineShieldCounter, stacks, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = target,
+                    CounterType = CounterRules.DivineShieldCounter,
+                    Amount = stacks,
+                    Source = context.Source,
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"附加{effect.Value}层圣盾指示物（每层抵挡一次任意伤害后消耗）";
+    }
+
+    /// <summary>
+    /// 复生原子（2026-10-08 指示物化，表行 94f6a32d——原子类型沿用 GrantReborn；
+    /// refId 已重推 502be10d→94f6a32d，2026-10-08 全量 ID 重推·卡数据随后重建）：
+    /// 对目标附加 {value} 层复生指示物（CounterRules.RebornCounter）——每层一次死亡替代
+    ///（1 血回场横置，TryReborn 消耗 1 层）；可叠加；换区不清（生效自减档）、净化可清。
+    /// </summary>
+    public class GrantRebornHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GrantReborn;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            int stacks = context.GetValueAfterModifiers(effect.Value);
+            if (stacks <= 0) stacks = 1;
+
+            foreach (var target in context.Targets)
+            {
+                if (target == null || !target.IsAlive) continue;
+                target.AddCounters(CounterRules.RebornCounter, stacks, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = target,
+                    CounterType = CounterRules.RebornCounter,
+                    Amount = stacks,
+                    Source = context.Source,
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"附加{effect.Value}层复生指示物（每层死亡时以1生命留场复活一次）";
+    }
+
+    /// <summary>
+    /// 潜行原子（2026-10-08 指示物化，表行 8f84641e——原子类型沿用 GrantStealth；
+    /// refId 已重推 a16f1e55→8f84641e，2026-10-08 全量 ID 重推·卡数据随后重建）：
+    /// 对目标附加 {value} 层潜行指示物（CounterRules.StealthCounter）——持有期间不可被攻击/效果
+    /// 指定（三指定口与隐密关键词同查）；攻击宣言/发动效果/实际受到伤害各消耗 1 层（逐份撤）。
+    /// 换区不清（生效自减档）、净化可清。注意：隐密（Concealed）仍是关键词（持续版，不消耗）。
+    /// </summary>
+    public class GrantStealthHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GrantStealth;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            int stacks = context.GetValueAfterModifiers(effect.Value);
+            if (stacks <= 0) stacks = 1;
+
+            foreach (var target in context.Targets)
+            {
+                if (target == null || !target.IsAlive) continue;
+                target.AddCounters(CounterRules.StealthCounter, stacks, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = target,
+                    CounterType = CounterRules.StealthCounter,
+                    Amount = stacks,
+                    Source = context.Source,
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"附加{effect.Value}层潜行指示物（不可被攻击和效果指定；攻击、发动效果或受到伤害后消耗1层）";
+    }
+
+    /// <summary>
+    /// 毒素原子（例外类，2026-10-08 终版定案）：对目标附加 {value} 层毒素指示物——无持续时间、只有层数；
+    /// 持有者每回合结束受到=层数的伤害，随后层数减半（向下取整，0.5→0）。层数可叠加（留存层持续伤害）。
+    /// 例程在 CounterRules.OnTurnEnd ①（ProcessToxinException）；换区清、净化可清。
     /// </summary>
     public class AddToxinHandler : AtomicEffectHandlerBase
     {
@@ -50,8 +187,7 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                var spec = CounterRules.Find(CounterRules.ToxinCounter);
-                target.AddCounters(CounterRules.ToxinCounter, stacks, spec.Turns, context.Source);
+                target.AddCounters(CounterRules.ToxinCounter, stacks, context.Source);
                 PublishEvent(new CounterChangedEvent
                 {
                     Target = target,
@@ -62,7 +198,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加毒素指示物（回合结束1伤，持续3回合，可叠加）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加{value}层毒素指示物（每回合结束受到等于层数的伤害后减半，无持续时间）";
     }
 
     /// <summary>
@@ -98,8 +234,9 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 紊乱指示物（补入表——突袭生效的残留物此前只有运行时无原子）：持续到回合结束，
+    /// 紊乱指示物（衰退类，2026-10-08 层即持续定案）：层=持续回合数，持有者回合末 −1、归零解除；
     /// 期间持有者不能以玩家为目标（攻击与效果发动同口径，TargetFilterSystem/CombatSystem 强制）。
+    /// 长档紊乱已并入（同一机制不同量——教学 15 层即 15 回合）。
     /// </summary>
     public class RushSicknessHandler : AtomicEffectHandlerBase
     {
@@ -110,7 +247,7 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (target == null || !target.IsAlive) continue;
-                // 2026-09-13 指示物数量随机：Value>0 时层数掷值（每目标独立，掷到 ≤0 = 空过），缺省 1 层
+                // 层数=持续回合数：Value>0 时掷值（每目标独立，掷到 ≤0 = 空过），缺省 1 层
                 int layers = effect.Value > 0
                     ? context.GetValueAfterModifiers(effect.GetRolledValue())
                     : 1;
@@ -126,12 +263,13 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加紊乱指示物（持续到回合结束，期间不能以玩家为目标）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加{value}回合紊乱指示物（期间不能以玩家为目标，持有者回合末倒数）";
     }
 
     /// <summary>
-    /// 易损指示物：持续 1 回合（每个回合末到期），受到伤害时每层使受到的伤害 +1
-    /// （KeywordRules.ApplyDamage 第 0 步放大——圣盾/护甲吸收放大后的量）。
+    /// 易损指示物（衰退类，2026-10-08 层即持续定案）：层=持续回合数（N 层=N 回合，持有者回合末 −1）；
+    /// 期间受到伤害时每层使伤害 +1（KeywordRules.ApplyDamage 第 0 步放大——放大随层递减：
+    /// N 层第 1 回合 +N、第 2 回合 +(N−1)…；圣盾/护甲吸收放大后的量）。
     /// </summary>
     public class AddVulnerableHandler : AtomicEffectHandlerBase
     {
@@ -156,7 +294,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加易损指示物（持续1回合，受到伤害时每层+1）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加{value}层易损指示物（持续{value}回合，期间受到伤害每层+1）";
     }
 
     /// <summary>
@@ -189,6 +327,41 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个攻击力增加指示物";
     }
 
+    /// <summary>
+    /// 角色攻击力增加（2026-10-07 角色参战定案·弹药原子，Entity 级，生效自减类）：给己方角色附加 {value} 层
+    /// 角色攻击指示物（HeroAttackCounter）——角色攻击力读数=层数（GetPower(Player) 直读），
+    /// **攻击或反击结算后全部移除**（CounterRules.RemoveHeroAttackAmmo：攻击与反击共用同一份
+    /// 弹药，烧完即止——弹药即闸门）。一般效果原子（任意时机挂载，"回合开始"是示例挂载）；
+    /// 计价=指示物统一口径：基础费用×层数（2026-10-08 层改造定案）。
+    /// 非 Player 目标跳过（表行 TargetFilter "Player" 收敛候选，此处防御双保险）。
+    /// </summary>
+    public class AddHeroAttackHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddHeroAttack;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            int stacks = context.GetValueAfterModifiers(effect.Value);
+            if (stacks <= 0) stacks = 1;
+
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Player role) || !role.IsAlive) continue;
+                role.AddCounters(CounterRules.HeroAttackCounter, stacks, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = role,
+                    CounterType = CounterRules.HeroAttackCounter,
+                    Amount = stacks,
+                    Source = context.Source,
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"给角色附加{effect.Value}点攻击力（攻击或反击后移除）";
+    }
+
     /// <summary>攻击力减少指示物（每层 −1 攻）</summary>
     public class AddPowerDownHandler : StatCounterAtomHandlerBase
     {
@@ -213,7 +386,7 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => $"添加{effect.Value}个生命值减少指示物";
     }
 
-    /// <summary>属性增加指示物（+1/+1，成长同款）</summary>
+    /// <summary>属性增加指示物（每层 +1/+1，换区清除型）</summary>
     public class AddPlusOneHandler : StatCounterAtomHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AddPlusOne;
@@ -300,9 +473,10 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 沉睡原子（2026-09-11 定案，绿1 中性）：赋予目标沉睡指示物（持有期间无法重置+效果无效）并横置。
+    /// 沉睡原子（2026-09-11 定案，绿1 中性；2026-10-08 层即持续定案）：赋予目标沉睡指示物并横置——
+    /// 层=持续回合数，持有者回合末 −1、归零解除（无法重置+效果无效期间持续）。
     /// 效果/指示物分离原则：本原子只负责**赋予指示物**——持续规则由指示物自身承载
-    /// （GameCore 回合开始逐层倒数代替重置；TriggerEngine/CanActivate 拦效果）。
+    ///（CounterRules.OnTurnEnd ③块倒数；TriggerEngine/CanActivate 拦效果）。
     /// 自我沉睡的灰费转时长：目标=来源卡自身且 Value 未显式 → 数量=PendingSleepGray
     /// （打出时灰份额豁免量，GetCardCost 剥离暂存，消费即清）。
     /// </summary>

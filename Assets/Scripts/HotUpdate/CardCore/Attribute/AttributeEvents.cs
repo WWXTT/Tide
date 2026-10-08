@@ -31,7 +31,7 @@ namespace CardCore.Attribute
         public Entity Source { get; set; }
     }
 
-    /// <summary>指示物增减事件（护甲吸收池、成长 +1/+1 等）</summary>
+    /// <summary>指示物增减事件（护甲吸收池、±1/±1 层等）</summary>
     public class CounterChangedEvent : GameEventBase
     {
         public Entity Target { get; set; }
@@ -105,7 +105,6 @@ namespace CardCore.Attribute
         public int OldValue { get; set; }
         public int NewValue { get; set; }
         public int Delta { get; set; }
-        public DurationType Duration { get; set; }
         public Entity Source { get; set; }
     }
 
@@ -146,7 +145,6 @@ namespace CardCore.Attribute
         public Entity Target { get; set; }
         public string Keyword { get; set; }
         public bool IsAdd { get; set; }
-        public DurationType Duration { get; set; }
         public Entity Source { get; set; }
     }
 
@@ -154,7 +152,6 @@ namespace CardCore.Attribute
     public class FreezeEvent : GameEventBase
     {
         public Entity Target { get; set; }
-        public DurationType Duration { get; set; }
         public Entity Source { get; set; }
     }
 
@@ -193,7 +190,6 @@ namespace CardCore.Attribute
     {
         public Entity Target { get; set; }
         public int Amount { get; set; }
-        public DurationType Duration { get; set; }
         public Entity Source { get; set; }
     }
 
@@ -319,7 +315,6 @@ namespace CardCore.Attribute
         Normal,
         Combat,
         LifeLoss,
-        Poison,
         Fire,
         Cold,
         Lightning

@@ -7,7 +7,7 @@ namespace CardCore.Attribute.Handlers
     /// <summary>
     /// 展示原子（信息轴，2026-10-02 定案）：为目标的卡挂「展示」指示物（CounterRules.ExposedCounter）——
     /// 被展示的卡持续暴露，双方可点击对应区域查看（UI 读快照 RevealedZoneCards / RevealRules 查询口）；
-    /// 换区即失效（UntilLeaveBattlefield，CounterRules 换区清除统一口径）。
+    /// 换区即失效（CounterRules 换区清统一口径——二值状态不走层计时）。
     /// 作用域四域全开：己/对方手牌（5/6）、己/对方牌库（7/8）——表行默认，卡设计可收窄。
     /// 目标已预选（组合层解析，如点名自己手牌/已展示的对手手牌卡）则逐卡展示；
     /// None 自结算按原子域取卡：牌库=顶一张（index 0 = 顶，容器约定）、手牌=随机一张
@@ -66,9 +66,11 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 诅咒原子（信息轴，2026-10-02 定案；2026-10-05 有限分支定案）：为对手的卡附加「诅咒」指示物
-    /// （CurseCounter，Permanent——活过牌库→手牌的换区清除）并登记载荷（CurseSystem.Attach）。
-    /// 对手抽到该卡时自动执行载荷分支效果并消层（一次性，CurseSystem 驱动；时机固定=抽到时）。
+    /// 诅咒原子（信息轴，2026-10-02 定案；2026-10-05 有限分支定案；**2026-10-08 表行退役**——
+    /// 附加诅咒改走自由分支·引擎主干行 EngineCurseOnDraw（BranchEngines 施放结算部署，指示物归系统），
+    /// 本 handler 保留代码侧兼容手写数据（无表行不生效，AdditionalEnergy 同款先例）：
+    /// 为对手的卡附加「诅咒」指示物（CurseCounter——Exception 生效自减档，活过牌库→手牌的换区清除）
+    /// 并登记载荷（CurseSystem.Attach）。对手抽到该卡时自动执行载荷分支效果并消层（一次性，CurseSystem 驱动）。
     /// 载荷两形态：①inline——槽级 Branch 载荷（有限分支 Gate 特例 CurseOnDraw，Then 原子 ≤2 费预算，
     /// 优先消费）；②str = 载荷效果 id（Effects.json 条目引用——手写数据兼容）。
     /// Value = 附加数量（≤0 取 1）；目标已预选则逐卡附加（如点名已展示的对手手牌卡——信息轴联动），

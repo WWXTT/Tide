@@ -54,7 +54,7 @@ namespace CardCore
     /// 横置在**结算时**支付（确定进入战斗才横置——到点重查，宣言期零支付）。
     ///
     /// 战斗为双向结算（定案）：随从互殴双方同时互致伤害；角色（玩家）被攻击同样有反伤——
-    /// 反伤力量与耐久消耗走武器系统扩展点（见 PlayerCounterattackPower，系统未实现前角色反伤为 0）。
+    /// 反伤力=角色攻击指示物层数（2026-10-07 弹药定案，武器系统退役；见类内"角色参战"块注释）。
     ///
     /// 关键词行为（定案；2026-09-16 攻/守效果化修订）：
     /// - 可用性统一走横置：随从一律横置入场；冲锋/突袭一次性生效 = 解除横置 + 消耗关键词
@@ -65,9 +65,10 @@ namespace CardCore
     ///   结算期横置 → 结算按横置单向受伤（被动代价不对称：攻击方强制竖直参战）
     /// - 警戒：横置也能造成战斗伤害（横置目标持警戒仍反击，见 ResolvePair）
     /// - 帷幕（原嘲讽，2026-09-13 更名）：不拦攻击（只吸引效果目标）；攻击侧目标强制由守卫拦截承担
-    /// - 潜行：不可被指定为攻击目标；攻击后移除（发动效果后的移除在效果执行器）
+    /// - 潜行（2026-10-08 指示物化）：不可被指定为攻击/效果目标（三指定口读潜行层数>0）；
+    ///   攻击/发动效果/实际受伤各消耗 1 层（三个失效口，逐份撤）
     /// - 先攻/连击：先攻步先行结算（死者不反击）；连击两步均结算
-    /// - 缴械：攻击结算时被攻击的目标无法反击（对角色目标同样生效——压制武器反伤）
+    /// - 缴械：攻击结算时被攻击的目标无法反击（对角色目标同样生效——压制角色反伤）
         /// - 碾压：战斗伤害结算时对目标及其左右同排相邻生物各造成一次相同的战斗伤害
     /// - 剧毒/吸血/系命/圣盾/护甲/坚韧：伤害经 KeywordRules.ApplyDamage 统一结算
     /// </summary>
@@ -82,19 +83,13 @@ namespace CardCore
         /// </summary>
         public static Func<Card, IEnumerable<Card>> AdjacentResolver;
 
-        // ======================= 武器系统扩展点（定案预留，系统未实现） =======================
-        // 【武器系统 TODO】战斗为双向结算：角色（玩家）被攻击时同样有反伤——
-        //   反伤力量 = 当前装备武器的攻击力；每次反伤结算消耗 1 点武器耐久，耐久归零武器销毁。
-        // 接线方式（同 AdjacentResolver 惯例：核心定义扩展点，武器系统注入实现）：
-        //   PlayerCounterattackPower —— 查询玩家反伤力量（无武器/扩展点未接线 = 0，不反伤）；
-        //   OnPlayerCounterattackResolved —— 反伤结算完成回调（武器系统在此扣 1 耐久）。
-        // 在武器系统落地前，角色反伤为 0（当前对局播报中打脸为单方面伤害即此原因）。
-
-        /// <summary>角色反伤力量查询（武器系统注入：返回装备武器攻击力；null = 无武器不反伤）。</summary>
-        public static Func<Player, int> PlayerCounterattackPower;
-
-        /// <summary>角色反伤结算完成回调（武器系统注入：消耗 1 点武器耐久）。</summary>
-        public static Action<Player> OnPlayerCounterattackResolved;
+        // ======================= 角色参战（2026-10-07 弹药定案，武器系统退役） =======================
+        // 战斗为双向结算：角色（玩家）被攻击同样有反伤——反伤力=GetPower(player)
+        //（=HeroAttackCounter 层数，EntityEffectExtensions.GetPower Player 分支）。
+        // 攻击与反击结算后烧除全部弹药（CounterRules.RemoveHeroAttackAmmo）：攻击与反击共用
+        // 同一份弹药，烧完即止——弹药即闸门（主动攻击一回合一发、同回合后续受击反伤归 0），
+        // 无专用次数计数器。旧武器扩展点（PlayerCounterattackPower/OnPlayerCounterattackResolved）
+        // 已随武器系统退役删除。
 
         private ZoneManager _zoneManager;
         private LayerEngine _layerEngine;
@@ -140,8 +135,10 @@ namespace CardCore
             if (attacker.IsTapped())
                 return false;
 
-            // 检查是否有攻击力（按层引擎计算的当前力量）
-            if (attacker is IHasPower && GetPower(attacker) <= 0)
+            // 检查是否有攻击力（按层引擎计算的当前力量）。角色同门（2026-10-07 弹药定案）：
+            // 角色攻击力=HeroAttackCounter 层数——读数 0 即无攻击资格；攻击/反击结算后烧除全部弹药
+            //（弹药即闸门——烧完读数归 0，本回合不可再宣，无需专用次数计数器）。
+            if (GetPower(attacker) <= 0)
                 return false;
 
             return true;
@@ -166,8 +163,9 @@ namespace CardCore
                 && !_zoneManager.IsCardInZone(zc, targetController, Zone.Battlefield))
                 return false;
 
-            // 潜行/隐密：不可被指定为攻击目标
-            if (target is Card sc && (sc.HasKeyword(KeywordRules.Stealth) || sc.HasKeyword(KeywordRules.Concealed)))
+            // 潜行/隐密：不可被指定为攻击目标（潜行 2026-10-08 指示物化——层数>0 即持有）
+            if (target is Card sc && (sc.GetCounterCount(Attribute.CounterRules.StealthCounter) > 0
+                                      || sc.HasKeyword(KeywordRules.Concealed)))
                 return false;
 
             // 突袭紊乱（负面指示物，持续一回合）：期间不准以玩家为目标——只能攻随从
@@ -247,15 +245,15 @@ namespace CardCore
             if (KeywordRules.ShouldTap(attacker))
                 attacker.Tap();
 
-            // 潜行：攻击后移除；台账 +1（取消/落空的攻击不计数）
-            if (attacker is Card attackerCard && attackerCard.HasKeyword(KeywordRules.Stealth))
+            // 潜行：攻击后消耗 1 层（2026-10-08 指示物化；取消/落空的攻击不计数）
+            if (attacker is Card attackerCard && attackerCard.GetCounterCount(Attribute.CounterRules.StealthCounter) > 0)
             {
-                attackerCard.RemoveKeyword(KeywordRules.Stealth);
+                attackerCard.AddCounters(Attribute.CounterRules.StealthCounter, -1);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = attackerCard,
-                    Keyword = KeywordRules.Stealth,
-                    Detail = "攻击后潜行失效",
+                    Keyword = Attribute.CounterRules.StealthCounter,
+                    Detail = "攻击后潜行失效（消耗 1 层）",
                     Source = attacker
                 });
             }
@@ -264,6 +262,11 @@ namespace CardCore
 
             // ② 战斗结算（攻击方强制竖直参战特判在 ResolvePair：横置不查攻击方、不削输出）
             ResolvePair(attacker, target);
+
+            // 角色主动攻击结算完成 → 烧除全部攻击弹药（2026-10-07 弹药定案：与反击共用同一份；
+            // 重检落空/取消路径不走此处——宣言被无效化弹药保留）
+            if (attacker is Player heroAttacker)
+                CounterRules.RemoveHeroAttackAmmo(heroAttacker);
 
             // 攻击结算完成（2026-10-07 霜蚀光环配套：取消路径不发——取消不算"攻击后"）
             EventManager.Instance.Publish(new AttackResolvedEvent
@@ -280,10 +283,10 @@ namespace CardCore
         private void ResolvePair(Entity attacker, Entity target)
         {
             int attackerPower = GetPower(attacker);
-            // 双向结算：随从目标按层引擎力量反击；角色（玩家）目标反伤走武器扩展点
-            //（无武器/未接线 = 0，不反伤——见类头武器系统 TODO 注释）
+            // 双向结算：随从目标按层引擎力量反击；角色（玩家）目标反伤直读 GetPower
+            //（2026-10-07 弹药定案：反伤力=HeroAttackCounter 层数，武器扩展点已退役）
             int targetPower = target is Card ? GetPower(target)
-                            : target is Player defender ? PlayerCounterattackPower?.Invoke(defender) ?? 0
+                            : target is Player defender ? GetPower(defender)
                             : 0;
 
             bool attackerFirst = attacker.HasKeyword(KeywordRules.FirstStrike)
@@ -294,7 +297,7 @@ namespace CardCore
             bool targetDouble = target.HasKeyword(KeywordRules.DoubleStrike);
 
             // 缴械（定案）：攻击结算时，被攻击的目标无法反击（先攻步/普通步的目标伤害均不结算；
-            // 对角色目标同样生效——武器反伤也被缴械压制）。目标无反击力量时不播报。
+            // 对角色目标同样生效——角色反伤也被缴械压制）。目标无反击力量时不播报。
             bool disarmed = attacker.HasKeyword(KeywordRules.Disarm);
             if (disarmed && targetPower > 0)
             {
@@ -312,7 +315,7 @@ namespace CardCore
             // **攻击方强制竖直参战（2026-09-16 显式特判，原隐式注释"结算按竖直参战"显式化）**：
             // 攻击方在结算期支付横置后强制按竖直参战——横置不削输出、不失去参战资格；
             // 双方横置 = 攻击单向伤害（目标侧 targetCanCounter=false）。
-            // 角色目标无横置概念（恒视为未横置）——武器反伤照常。
+            // 角色目标无横置概念（恒视为未横置）——角色反伤照常。
             bool targetCanCounter = !target.IsTapped()
                                     || (target is Card vc && vc.HasKeyword(KeywordRules.Vigilance));
 
@@ -320,7 +323,12 @@ namespace CardCore
             if (attackerFirst)
                 DealCombatDamage(attacker, target, attackerPower);
             if (targetFirst && !disarmed && targetCanCounter)
+            {
                 DealCombatDamage(target, attacker, targetPower);
+                // 角色先攻反伤同烧弹药（2026-10-07：攻击与反击共用同一份，任一反伤步结算后烧光）
+                if (targetPower > 0 && target is Player counterFirst)
+                    CounterRules.RemoveHeroAttackAmmo(counterFirst);
+            }
 
             // ---- 普通步（存活者；连击者在两步各结算一次） ----
             if (attacker.IsAlive && (!attackerFirst || attackerDouble))
@@ -328,10 +336,11 @@ namespace CardCore
             if (!disarmed && targetCanCounter && target != attacker && target.IsAlive && (!targetFirst || targetDouble))
             {
                 DealCombatDamage(target, attacker, targetPower);
-                // 角色（玩家）反伤结算完成 → 武器耐久回调（武器系统落地后在此扣 1 耐久；
-                // 力量为 0 时无反伤不消耗）。攻击已锁力量，被圣盾/护甲抵挡不退还耐久。
+                // 角色（玩家）反伤结算完成 → 烧除全部攻击弹药（2026-10-07 弹药定案：烧完即止，
+                // 同回合后续受击反伤力归 0；力量为 0 时无反伤不烧）。攻击已锁力量，
+                // 被圣盾/护甲抵挡不退还。
                 if (targetPower > 0 && target is Player counterattacking)
-                    OnPlayerCounterattackResolved?.Invoke(counterattacking);
+                    CounterRules.RemoveHeroAttackAmmo(counterattacking);
             }
 
             // ---- 碾压（2026-10-04 语义修订，表行锚=红3）：战斗伤害结算时对目标以及目标
@@ -370,8 +379,6 @@ namespace CardCore
         /// 造成战斗伤害（对实体/玩家统一）：经 KeywordRules 关键词管线结算
         /// （圣盾/护甲指示物/坚韧/吸血/系命）。事件链（DamageEvent/CombatDamageEvent/
         /// LifeChangeEvent/吸血系命）由 ApplyDamage 按统一时序发布，此处不补发。
-        /// 毒刺（定案）：攻击者持有毒刺且目标受击后存活 → 目标附着一个毒素指示物
-        /// （持续3回合，回合结束每层1伤——CounterRules 统一计时）。
         /// </summary>
         private void DealCombatDamage(Entity source, Entity target, int amount)
         {
@@ -379,8 +386,8 @@ namespace CardCore
 
             KeywordRules.ApplyDamage(source, target, amount, true);
 
-            // 毒刺改写（2026-09-13 定案）已上移 KeywordRules.ApplyDamage 战斗伤害改写口——
-            // 造成战斗伤害时"改为"添加指示物（伤害不发生），此处不再附加处理。
+            // 毒刺/冰晶/梦魇改写与毒素语义（层=伤害、回合末减半）已上移
+            // KeywordRules.ApplyDamage 战斗伤害改写口与 CounterRules.OnTurnEnd——此处不再附加处理。
         }
 
         // EndCombat/CancelCombat/阻挡阶段（SelectBlocker/DeclareBlock/EndBlockDeclaration/

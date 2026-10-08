@@ -63,6 +63,8 @@ namespace CardCore.Attribute
                     Keyword = g.Keyword,
                     Lane = g.Lane,
                     Source = g.Source,
+                    Value = g.Value,
+                    Limit = g.Limit,
                 }).ToList(),
             };
 
@@ -81,9 +83,10 @@ namespace CardCore.Attribute
             card._keywordGrants.Clear();
             if (target.Keywords != null)
             {
-                // 目标形态关键词落 Printed 轨（形态=本体；直加不去重，保持 AddRange 既有行为）
-                foreach (var kw in target.Keywords)
+                // 目标形态关键词落 Printed 轨（形态=本体）；不叠加定案：Distinct 单份+台账唯一
+                foreach (var kw in target.Keywords.Distinct())
                 {
+                    if (string.IsNullOrEmpty(kw) || card._keywords.Contains(kw)) continue;
                     card._keywords.Add(kw);
                     card._keywordGrants.Add(new KeywordGrant { Keyword = kw, Lane = KeywordLane.Printed });
                 }
@@ -119,6 +122,8 @@ namespace CardCore.Attribute
                     Keyword = g.Keyword,
                     Lane = g.Lane,
                     Source = g.Source,
+                    Value = g.Value,
+                    Limit = g.Limit,
                 }));
 
             return true;

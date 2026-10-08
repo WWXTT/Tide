@@ -63,6 +63,16 @@ namespace SynergyUI
 
         /// <summary>渲染单原子描述。cfg 为空（无表行 fallback 原子）时回退 refId。</summary>
         public static string Render(AtomicEffectConfig cfg, AtomicEffectEntry atom, CardEffectData header)
+            => RenderCore(cfg, atom, header, false);
+
+        /// <summary>奖励原子渲染（2026-10-08 定案）：Then 奖励结算在合法范围重新弹选目标
+        /// （ExecuteThenRewardsAsync→ResolveRewardTargetsAsync，2026-10-07 晚定案），不沿用主干目标——
+        /// {target} 名次冠「新的」与主干目标区分（"对新的目标造成2点伤害"）；模板无 {target} 不受影响。</summary>
+        public static string RenderReward(AtomicEffectConfig cfg, AtomicEffectEntry atom)
+            => RenderCore(cfg, atom, null, true);
+
+        private static string RenderCore(AtomicEffectConfig cfg, AtomicEffectEntry atom, CardEffectData header,
+            bool newTargetNoun)
         {
             if (atom == null || string.IsNullOrEmpty(atom.refId)) return "原子效果";
             string tpl = cfg != null && !string.IsNullOrEmpty(cfg.Description) ? cfg.Description : atom.refId;
@@ -72,8 +82,11 @@ namespace SynergyUI
             string number = span > 0 ? $"{Math.Max(0, v - span)}至{v + span}" : v.ToString();
             // {target} → 实例域名次（2026-09-22 五轮：单值域显作用对象；表默认/多值保持「目标」；
             // 2026-10-04 补：关键词行 [Self] 存储态回退「目标」，见 TargetNoun；
-            // 2026-10-04 相同目标定案：header 效果级作用范围单值优先）
-            string body = tpl.Replace("{value}", number).Replace("{target}", TargetNoun(cfg, atom, header));
+            // 2026-10-04 相同目标定案：header 效果级作用范围单值优先；
+            // 2026-10-08 奖励口径：名次冠「新的」——奖励目标合法范围重选，非主干目标）
+            string noun = TargetNoun(cfg, atom, header);
+            if (newTargetNoun) noun = "新的" + noun;
+            string body = tpl.Replace("{value}", number).Replace("{target}", noun);
             if (span > 0) body = "随机 " + body;
             if (header != null && header.RandomTarget != 0)
                 body = "随机目标·" + body;
@@ -111,7 +124,7 @@ namespace SynergyUI
                         string gate = spec != null ? ComposerCatalog.GateLabel(spec)
                             : (string.IsNullOrEmpty(s.conditionId) ? "?" : s.conditionId);
                         string reward = s.thenSteps != null && s.thenSteps.Count > 0
-                            ? RenderAtomEntry(s.thenSteps[0]) : "（未设奖励）";
+                            ? RenderRewardAtomEntry(s.thenSteps[0]) : "（未设奖励）";
                         parts.Add($"[{gate}]→{reward}");
                     }
                     else if (s.kind == 2) parts.Add($"抉择（{s.choices?.Count ?? 0} 模式）");
@@ -128,7 +141,7 @@ namespace SynergyUI
             var b = atom?.branch;
             if (b == null) return "";
             string reward = b.then != null && b.then.Count > 0
-                ? RenderAtomEntry(b.then[0]) : "（未设奖励）";
+                ? RenderRewardAtomEntry(b.then[0]) : "（未设奖励）";
             string cond;
             switch ((BranchSettleKind)b.settle)
             {
@@ -167,6 +180,14 @@ namespace SynergyUI
         {
             if (atom == null || string.IsNullOrEmpty(atom.refId)) return "原子";
             return Render(AtomicEffectTable.GetByHashId(atom.refId), atom, header);
+        }
+
+        /// <summary>条目级奖励渲染（2026-10-08「新的目标」定案）：分支 Then 奖励统一走此口径——
+        /// 产出条件/局面门/引擎/遗留门步骤的奖励文案与运行时弹选语义对齐（合法范围另选目标）。</summary>
+        public static string RenderRewardAtomEntry(AtomicEffectEntry atom)
+        {
+            if (atom == null || string.IsNullOrEmpty(atom.refId)) return "原子";
+            return RenderReward(AtomicEffectTable.GetByHashId(atom.refId), atom);
         }
 
         /// <summary>引擎主干显示文本（header 通道无 AtomicEffectEntry——按引擎+参数生成）。</summary>

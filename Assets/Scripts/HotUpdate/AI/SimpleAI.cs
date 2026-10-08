@@ -33,8 +33,8 @@ namespace SynergyUI
             // 伤害族（穿透伤害也偏好打脸——越过多层防护直击）
             AtomicEffectType.DealDamage, AtomicEffectType.DealCombatDamage, AtomicEffectType.LifeLoss,
             AtomicEffectType.DrainLife, AtomicEffectType.PierceDamage,
-            // 指示物妨害族（剧毒/毒素：回合结束发作的延迟威胁；易损：受伤+1/层）
-            AtomicEffectType.Poison, AtomicEffectType.AddToxin, AtomicEffectType.AddVulnerable,
+            // 指示物妨害族（毒素：回合末持续毒伤；易损：受伤+1/层；剧毒已转关键词 GrantVenom）
+            AtomicEffectType.GrantVenom, AtomicEffectType.AddToxin, AtomicEffectType.AddVulnerable,
             // 单向属性削弱（攻击力/生命值/±1/费用增加——目标偏好对方）
             AtomicEffectType.AddPowerDown, AtomicEffectType.AddLifeDown, AtomicEffectType.AddMinusOne,
             AtomicEffectType.AddCostUp, AtomicEffectType.Weaken, AtomicEffectType.RushSickness,
@@ -72,11 +72,11 @@ namespace SynergyUI
             AtomicEffectType.GrantCannotBeTargeted, AtomicEffectType.GrantSpellShield,
             AtomicEffectType.GrantLifesteal,
             AtomicEffectType.GrantStealth, AtomicEffectType.GrantConcealed, AtomicEffectType.GrantTaunt,
-            AtomicEffectType.GrantDivineShield, AtomicEffectType.GrantOverwhelm, AtomicEffectType.GrantArmor,
+            AtomicEffectType.GrantDivineShield, AtomicEffectType.GrantOverwhelm, AtomicEffectType.GrantToughness,
             AtomicEffectType.GrantFirstStrike,
             AtomicEffectType.GrantVigilance, AtomicEffectType.GrantRegeneration,
             AtomicEffectType.AdditionalEnergy,
-            AtomicEffectType.GrantGrowth, AtomicEffectType.GrantReborn, AtomicEffectType.GrantIndestructible,
+            AtomicEffectType.GrantReborn, AtomicEffectType.GrantIndestructible,
             AtomicEffectType.GrantLifelink,
             AtomicEffectType.GrantMiniature, AtomicEffectType.GrantMagnify,
             AtomicEffectType.DiscoverCard, AtomicEffectType.GrantGuardian,

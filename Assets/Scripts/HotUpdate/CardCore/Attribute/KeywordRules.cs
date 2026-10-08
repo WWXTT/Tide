@@ -7,18 +7,22 @@ namespace CardCore.Attribute
     /// <summary>
     /// 关键词战斗/伤害行为的唯一实现点。
     ///
-    /// 【设计原则（定案）】表内关键词零参数、效果固定（坚韧恒 −1、再生恒 +2）——
-    /// 强化只走重复叠加（重复坚韧 = −N）。
+    /// 【设计原则（2026-10-08 不叠加定案）】关键词不叠加：卡面（合成器/印刷）=文本效果，
+    /// 对战中赋予=附加状态（台账挂载，类似指示物形式），文本与附加状态并存；
+    /// 同轨重复授予=新实例取代旧实例（值/次数刷新），跨轨并存时值/次数取最大。
     /// 参数化效果走原子（AddArmor 护甲 N 点指示物）。
+    /// 【坚韧指示物化（2026-10-08 定案）】坚韧退出关键词族——表行 a312b8b0（GrantToughness 原子，
+    /// 原 GrantArmor 同日更名）执行改挂 ToughnessCounter 层（GrantToughnessHandler）：每层每次受到的伤害 −1、
+    /// 不随受伤消耗、可叠加；角色可持有（旧关键词形态 is Card 死线消解）；换区清、净化可清。
     ///
     /// 伤害管线（效果 TakeDamage 与战斗 CombatSystem 两条路径都经 ApplyDamage）：
-    /// 替代引擎（光环层——穿透伤害也受其限制）→ 圣盾（挡一次任意伤害，消耗）→
-    /// 护甲指示物（逐点吸收）→ 坚韧（−持有次数）→ 落血；
+    /// 替代引擎（光环层——穿透伤害也受其限制）→ 圣盾指示物（每层挡一次任意伤害，消耗 1 层）→
+    /// 护甲指示物（逐点吸收）→ 坚韧指示物（每层每次 −1，不消耗）→ 落血；
     /// 吸血（恢复随从自身）/系命（回复角色）。
     /// 【穿透伤害（pierce=true）】越过关键词和指示物计算伤害——跳过圣盾/护甲/坚韧三层，
     /// 替代引擎与落血/事件链/吸血照走。
-    /// 【剧毒】已从关键词伤害改为指示物（CounterRules.PoisonCounter，回合结束时持有者死亡，
-    /// 无伤害来源）；毒刺关键词改为战斗伤害后附加毒素指示物（挂 CombatSystem）。
+    /// 【剧毒 Venom】2026-10-08 指示物转关键词（落定追加式）：受到其战斗伤害的生物在结算后被消灭
+    ///（见管线尾部 TryKill 消灭口径；对角色照常落血）；毒刺关键词=战斗伤害改为附加毒素指示物（见改写段）。
     /// 事件链统一在管线尾部按时序发布：DamageEvent（触发器）→ CombatDamageEvent（战斗）→
     /// LifeChangeEvent（角色）→ 吸血/系命（伤害的后果）。
     /// 生命流失（LifeLoss 类）不经此管线——圣盾/护甲不挡流失。
@@ -29,29 +33,32 @@ namespace CardCore.Attribute
         public const string ArmorCounter = "Armor";
 
         /// <summary>
-        /// 冻结指示物名（定案）：冻结 = 强制横置（一次性动作）+ 负面指示物（持续到回合结束）。
-        /// 不修改回合规则（回合开始横置重置照常）；消退走 CounterRules 统一清理。
+        /// 冻结指示物名（衰退类，2026-10-08 层即持续定案）：冻结 = 强制横置（一次性动作）
+        /// + 负面指示物——层=剩余回合，持有者回合末 −1、归零解除；持有期间无法重置（BlocksUntap）。
+        /// 不修改回合规则（回合开始横置重置照常）。
         /// </summary>
         public const string FreezeCounter = "Freeze";
 
         /// <summary>
-        /// 沉睡指示物名（2026-09-11 定案）：沉睡期间无法重置（回合开始改扣 1 层指示物而非重置，
-        /// 扣完即醒）、效果无效（拦触发式+启动式，与无效/沉默合流为三口）。
+        /// 沉睡指示物名（2026-09-11 定案；2026-10-08 层即持续定案）：沉睡期间无法重置
+        ///（BlocksUntap）、效果无效（拦触发式+启动式，与无效/沉默合流为三口）；
+        /// 层=剩余回合，持有者回合末 −1、归零解除（下回合开始自然恢复重置）。
         /// 效果/指示物分离原则：Sleep 原子（绿1 中性）只负责赋予指示物——持续规则由指示物自身承载。
         /// </summary>
         public const string SleepCounter = "Sleeping";
 
         // ---- 关键词 id（与 GrantKeywordHandlerFactory.Specs 的运行时字符串同源） ----
-        public const string DivineShield = "DivineShield";
-        public const string Armor = "Armor";
+        // 圣盾关键词 id "DivineShield" 已删（2026-10-08 指示物化）：改走 CounterRules.DivineShieldCounter
+        //（GrantDivineShieldHandler 挂层；挡下口=ApplyPreventionLayers 第 1 层，每层挡一次消耗一层）
         public const string PoisonSting = "PoisonSting";
         /// <summary>冰晶（2026-09-13 改写定案，蓝2）：造成战斗伤害时，改为对目标添加一个冻结指示物</summary>
         public const string IceCrystal = "IceCrystal";
         /// <summary>梦魇（2026-09-13 改写定案，黑2）：造成战斗伤害时，改为对目标添加一个沉睡指示物</summary>
         public const string Nightmare = "Nightmare";
-        /// <summary>病原体（2026-09-13 改写定案，绿3——表 BaseCost=3.0 为计价真相源，2026-10-02 对齐）：
-        /// 造成战斗伤害时，改为对目标添加一个剧毒指示物</summary>
-        public const string Pathogen = "Pathogen";
+        /// <summary>剧毒（2026-10-08 指示物转关键词定案，落定追加式）：受到其战斗伤害的生物被消灭
+        ///（战斗伤害照常结算，实际落定 &gt;0 且目标为生物 → DeathRules.TryKill 消灭口径，不灭/神佑可拦；
+        /// 对角色照常落血）。表行 20c06d52（原 Poison 原子行）改挂 GrantVenom。</summary>
+        public const string Venom = "Venom";
         /// <summary>禁魔石（2026-09-13 改写定案，白3）：受到的非战斗伤害变为 0</summary>
         public const string Spellban = "Spellban";
         /// <summary>地牌特性（2026-09-13 英雄技能·培育）：持有者可横置产 1 元素（色随自身费用构成）。
@@ -60,9 +67,10 @@ namespace CardCore.Attribute
         public const string Lifesteal = "Lifesteal";
         public const string Lifelink = "Lifelink";
         public const string Vigilance = "Vigilance";
-        public const string Stealth = "Stealth";
+        // 潜行关键词 id "Stealth" 已删（2026-10-08 指示物化）：改走 CounterRules.StealthCounter
+        //（GrantStealthHandler 挂层；三指定口查层数>0，攻击/发动效果/受伤各消耗 1 层）
         /// <summary>隐密（2026-10-04，蓝5）：潜行的持续版——同不可被攻击/效果指定（三处指定口同查
-        /// Stealth+Concealed），但不因**发动效果/攻击/受到伤害**失效（移除口只查 Stealth，天然豁免）。</summary>
+        /// 潜行指示物+Concealed），但不因**发动效果/攻击/受到伤害**失效（三个失效口只消耗潜行层，天然豁免）。</summary>
         public const string Concealed = "Concealed";
         /// <summary>帷幕（原"嘲讽"，2026-09-13 更名定案）：只吸引**效果**目标（选择层收窄见
         /// TargetResolver.ApplyTauntRestriction）；不拦攻击——攻击侧目标强制由守卫拦截承担。
@@ -72,10 +80,10 @@ namespace CardCore.Attribute
         public const string DoubleStrike = "DoubleStrike";
         public const string Disarm = "Disarm";
         public const string Overwhelm = "Overwhelm";
-        public const string Reborn = "Reborn";
+        // 复生关键词 id "Reborn" 已删（2026-10-08 指示物化）：改走 CounterRules.RebornCounter
+        //（GrantRebornHandler 挂层；TryReborn 每层一次死亡替代，消耗 1 层）
         public const string Indestructible = "Indestructible";
         public const string Regeneration = "Regeneration";
-        public const string Growth = "Growth";
         public const string SpellShield = "SpellShield";
         public const string Untargetable = "Untargetable";
         /// <summary>微缩（2026-09-11）：使用卡时获得同效果 1/1 费1灰临时卡。行为见 TempCopyRules。</summary>
@@ -83,34 +91,28 @@ namespace CardCore.Attribute
         /// <summary>放大：同微缩，临时卡 10/10 费10灰。</summary>
         public const string Magnify = "Magnify";
         // 回响关键词常量已删（2026-10-07 改普通效果 EchoCopy——宣言时点分支随之退役）
-        /// <summary>守护（2026-09-11）：被守护者受到的伤害改由第一个守护者承受（改写在 ApplyDamage 咽喉）。</summary>
+        /// <summary>守护（2026-10-08 配对制改版）：登场选目标，其受伤改写为守护者承受（GuardianRules 配对表；无限次直到守护者离场）。</summary>
         public const string Guardian = "Guardian";
 
         // ---- 一次性关键词概念已彻底删除（2026-09-08 定案：错误设计）----
         // 关键词都是持续性特征，无「一次性生效后消失/重新入场刷新」的说法：
         // · 冲锋/突袭：改由卡的登场效果表达（OnPlay+激励自己解除横置，突袭另自上紊乱指示物
         //   作代价减费——见 CostDerivationService 的 Self 紊乱对冲）；
-        // · 复生：死亡替代结算时移除关键词（TryReborn 内的效果性移除），无自动刷新。
+        // · 「生效后移除」型（圣盾/复生/潜行）：2026-10-08 全部指示物化——每层一份、事件消耗
+        //   1 层（CounterRules 三常量），关键词族不再有消耗型成员（仅剩法术护盾 SpellShield）。
 
         /// <summary>
-        /// 突袭紊乱指示物名（负面，持续到回合结束）：持有期间不能以玩家为目标
-        /// （攻击与效果发动同口径）；消退走 CounterRules 统一清理。
-        /// 来源：突袭的登场效果自上（代价减费），或紊乱原子直接施加给敌方。
+        /// 突袭紊乱指示物名（衰退类，2026-10-08 层即持续定案）：持有期间不能以玩家为目标
+        /// （攻击与效果发动同口径）；层=剩余回合，持有者回合末 −1、归零解除。
+        /// 来源：突袭的登场效果自上（代价减费），或紊乱原子直接施加给敌方（长档=多层数，
+        /// 长档紊乱 id 已并入本 id——教学 15 层即 15 回合）。
         /// </summary>
         public const string RushSicknessCounter = "RushSickness";
+        // 长档紊乱 id "RushSicknessSustained" 已删（2026-10-08 层即持续统一：同一机制不同量，并入 RushSickness）
 
-        /// <summary>
-        /// 长档紊乱指示物名（负面，Permanent + 层=剩余回合、持有者回合末逐层倒数——锁定指示物同模式）：
-        /// 与 RushSickness 同判（HasRushSickness 合并查询），但可跨回合长期锁定「不能以玩家为目标」。
-        /// 净化可清（Permanent 类走净化口径全清）。通用原语——非教学专用。
-        /// </summary>
-        public const string SustainedRushSicknessCounter = "RushSicknessSustained";
-
-        /// <summary>是否处于突袭紊乱（负面指示物存在期间不能以玩家为目标；消退走 CounterRules）。</summary>
+        /// <summary>是否处于突袭紊乱（负面指示物存在期间不能以玩家为目标；持有者回合末逐层倒数）。</summary>
         public static bool HasRushSickness(Entity entity)
-            => entity is Card c
-               && (c.GetCounterCount(RushSicknessCounter) > 0
-                   || c.GetCounterCount(SustainedRushSicknessCounter) > 0);
+            => entity is Card c && c.GetCounterCount(RushSicknessCounter) > 0;
 
         // ==================== 关键词轨别台账（三轨制定案 2026-09-09） ====================
 
@@ -132,7 +134,8 @@ namespace CardCore.Attribute
         /// <summary>
         /// 净化清关键词（净化语义重定义 2026-09-09：净化=变回生物原有状态）：
         /// 保留 Printed（卡面本体）与 Setting（设置类视同本体——设置后即「原本属性效果」）；
-        /// 清除 Temp / GrantedPermanent / Status 轨（PurgeProtectedKeywords 豁免——神佑等抗净化状态保留）。
+        /// 清除 Temp / Status 轨（PurgeProtectedKeywords 豁免——神佑等抗净化状态保留；
+        /// GrantedPermanent 车道已删 2026-10-08，运行时无写入者）。
         /// 与 CounterRules.PurgeAll（指示物全清）配套，由 PurifyHandler 调用。
         /// </summary>
         public static void PurifyKeywords(Entity entity)
@@ -141,35 +144,19 @@ namespace CardCore.Attribute
                                       && !PurgeProtectedKeywords.Contains(g.Keyword));
 
         /// <summary>
-        /// 形态复制（定案⑨：临时不随形态）——只复制 from 的 Printed+Setting 轨关键词，
-        /// 落到 to 按 toLane 记账（吞噬继承=Setting：吸收后视同本体）。
-        /// 台账缺失（重连/旧档）时保守按 from._keywords 全量去重复制。
-        /// </summary>
-        public static void CopyFormKeywords(Card from, Card to, KeywordLane toLane = KeywordLane.Setting)
-        {
-            if (from == null || to == null) return;
-            var formGrants = from._keywordGrants
-                .Where(g => g.Lane == KeywordLane.Printed || g.Lane == KeywordLane.Setting)
-                .Select(g => g.Keyword)
-                .Distinct()
-                .ToList();
-            if (formGrants.Count == 0 && from._keywords.Count > 0)
-                formGrants = from._keywords.Distinct().ToList();
-            foreach (var kw in formGrants)
-                to.AddKeyword(kw, toLane);
-        }
-
-        /// <summary>
-        /// 入场刷新（2026-09-09 定案）：**真实入场**时对 Printed 轨做卡面差集补齐——
-        /// 卡面（CardData.Keywords）有而该实例 Printed 轨没有的关键词补回，恢复到卡面份数。
+        /// 入场刷新（2026-09-09 定案；2026-10-08 不叠加改单份）：**真实入场**时对 Printed 轨做
+        /// 卡面差集补齐——卡面（CardData.Keywords）有而该实例 Printed 轨没有的关键词补回一份
+        ///（卡面重复同名=单份，不叠加）；**指示物化印刷项**（圣盾/复生/潜行——2026-10-08）不走台账，
+        /// 层数=0 时补 1 层对应指示物（生效自减档换区不清——未消耗层跨区保留，>0 不补防重复；
+        /// 消耗归零后经真实入场恢复卡面份）。
         ///
         /// 挂载红线：只挂在 TryMoveToBattlefield / TryAddToBattlefield 统一出口（真换区才算入场）——
-        /// · 复生（TryReborn）是死亡替代原地留场，不经出口 → 消耗掉的复生不会自我补回（无无限复生）；
+        /// · 复生（TryReborn）是死亡替代原地留场，不经出口 → 消耗掉的复生层不会自我补回（无无限复生）；
         /// · 控制权变更（ChangeControl）走容器直移 + 补发 CardPutToBattlefieldEvent——
         ///   ⚠ 因此**绝不能**把刷新挂到 CardPutToBattlefieldEvent 事件上（偷取不刷新消耗项）。
         ///
-        /// 差集安全性：Printed 轨目前只能被**消耗型移除**（圣盾/复生/潜行/法术护盾——移除即用掉）；
-        /// 净化保留本体、无任何效果可剥 Printed——差集补回的必然只是被消耗项。
+        /// 差集安全性：Printed 轨的消耗型移除只剩法术护盾（SpellShield——移除即用掉）；圣盾/复生/潜行
+        /// 已指示物化（差集=层数>0 判断）；净化保留本体、无任何效果可剥 Printed——差集补回的必然只是被消耗项。
         /// </summary>
         public static void RefreshPrintedKeywordsOnEntry(Card card)
         {
@@ -181,25 +168,35 @@ namespace CardCore.Attribute
             {
                 if (string.IsNullOrEmpty(kw)) continue;
 
-                int faceCount = 0;
-                foreach (var k in face)
-                    if (k == kw) faceCount++;
-
-                int printedCount = 0;
-                foreach (var g in card._keywordGrants)
-                    if (g.Keyword == kw && g.Lane == KeywordLane.Printed)
-                        printedCount++;
-
-                for (int i = printedCount; i < faceCount; i++)
+                // 指示物化印刷项（2026-10-08）：补 1 层指示物（Distinct 单份；消耗后层数=0 才需补）
+                if (kw == CounterRules.DivineShieldCounter
+                    || kw == CounterRules.RebornCounter
+                    || kw == CounterRules.StealthCounter)
                 {
-                    card.AddKeywordStack(kw, KeywordLane.Printed); // 叠加补齐（_keywords 与台账同补一份）
-                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    if (card.GetCounterCount(kw) > 0) continue;
+                    card.AddCounters(kw, 1);
+                    EventManager.Instance.Publish(new CounterChangedEvent
                     {
                         Target = card,
-                        Keyword = kw,
-                        Detail = "入场刷新：补回卡面本体关键词（消耗项随真实入场恢复）"
+                        CounterType = kw,
+                        Amount = 1,
+                        Source = null,
                     });
+                    continue;
                 }
+
+                bool printedHeld = false;
+                foreach (var g in card._keywordGrants)
+                    if (g.Keyword == kw && g.Lane == KeywordLane.Printed) { printedHeld = true; break; }
+
+                if (printedHeld) continue;
+                card.AddKeyword(kw, KeywordLane.Printed); // 差集补齐单份（取代制口径内同轨唯一）
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = card,
+                    Keyword = kw,
+                    Detail = "入场刷新：补回卡面本体关键词（消耗项随真实入场恢复）"
+                });
             }
         }
 
@@ -216,49 +213,15 @@ namespace CardCore.Attribute
             entity._keywordGrants.RemoveAll(g => predicate(g));
             foreach (var kw in affected)
             {
-                // 叠加语义：本体占用份数归一到台账剩余份数（无台账条目的关键词不在 affected，不受波及）
-                int remaining = entity._keywordGrants.Count(g => g.Keyword == kw);
-                int have = entity._keywords.RemoveAll(k => k == kw);
-                for (int i = 0; i < Math.Min(have, remaining); i++)
-                    entity._keywords.Add(kw);
+                // 不叠加定案：无任何轨再持有才移除本体占用（跨轨并存时其余轨仍在）
+                if (entity._keywordGrants.All(g => g.Keyword != kw))
+                    entity._keywords.RemoveAll(k => k == kw);
             }
         }
 
-        /// <summary>持有某关键词的次数（重复叠加：双坚韧计 2）</summary>
-        public static int KeywordCount(Entity entity, string keyword)
-        {
-            return entity is Card card ? card.GetKeywordCount(keyword) : (entity.HasKeyword(keyword) ? 1 : 0);
-        }
-
-        // ==================== 生效次数闸（2026-10-07 深夜定案） ====================
-        // 关键词实例运行时行为（坚韧减伤/守护改写）每回合前 ΣLimit 次生效（任一无限实例→不限）。
-        // 懒回合标记：存回合号，跨回合自动归零——无需 GameCore 钩子；光环形态不设闸（恒无限）。
-        private sealed class KeywordActivationCounter { public int Turn; public int Used; }
-        private static readonly Dictionary<(uint runtimeId, string keyword), KeywordActivationCounter> _keywordActivations
-            = new Dictionary<(uint runtimeId, string keyword), KeywordActivationCounter>();
-
-        private static int CurrentTurnNumber => CardCore.GameCore.Instance?.TurnEngine?.TurnNumber ?? 0;
-
-        /// <summary>尝试消耗一次关键词生效额度（本回合）：无限（Limit 和 <0）恒过；额度尽返回 false。
-        /// 消耗式判定——与生效同点调用；额度随授予动态增长（再授予即扩容）。</summary>
-        public static bool TryConsumeKeywordActivation(Entity holder, string keyword)
-        {
-            int limit = holder.GetKeywordLimitSum(keyword);
-            if (limit < 0) return true;
-            if (limit == 0) return false;
-            var key = (holder.RuntimeId, keyword);
-            if (!_keywordActivations.TryGetValue(key, out var counter) || counter.Turn != CurrentTurnNumber)
-            {
-                counter = new KeywordActivationCounter { Turn = CurrentTurnNumber };
-                _keywordActivations[key] = counter;
-            }
-            if (counter.Used >= limit) return false;
-            counter.Used++;
-            return true;
-        }
-
-        /// <summary>次数闸重置（新局/对拍重放——EffectExecutor.Reset 调用）。</summary>
-        public static void ResetKeywordActivations() => _keywordActivations.Clear();
+        // ==================== 生效次数闸已退役（2026-10-08 坚韧指示物化） ====================
+        // 唯一消费者是坚韧关键词减伤；坚韧改挂 ToughnessCounter 层（不消耗、天然无限次）后，
+        // 台账 Limit/值求和/每回合次数闸整链删除（Guardian 2026-10-08 配对制已先行作废其记账）。
 
         /// <summary>
         /// 统一伤害结算：修正并施加伤害，返回实际造成的伤害量。
@@ -296,59 +259,24 @@ namespace CardCore.Attribute
                 return 0;
             }
 
-            // 守护改写（2026-09-13 光环化定案）：守护=连接箭头光环（keyword "Guardian"，白1×箭头数）——
-            // 被守护者（箭头指向格占据者）受到的伤害改由第一个存活光环源承受。live-query：
-            // 源离场/断链/被无效自动失效，多源覆盖取第一个存活者（天然递补，无事件换源）。
-            // 单跳（guardRerouted 防链式改写）；替代路由之后、易损/防护层之前。
-            if (!guardRerouted && target is Card guarded)
+            // 守护改写（2026-10-08 配对制改版，替代旧箭头光环/扫场护角色两形态）：登场时选定目标的
+            // 受伤改写为配对守护者承受（GuardianRules.FindGuardian 活性实时校验——存活/在场/未被无效；
+            // 无限次直到守护者死亡/离场，次数闸对守护作废）。单跳（guardRerouted 防链式改写）；
+            // 替代路由之后、易损/防护层之前；守卫者承受时自身防护层照走（递归收口）。
+            if (!guardRerouted)
             {
-                var guardian = GameBoard.LinkAuraSystem.GetGuardianAuraSources(guarded)
-                    .FirstOrDefault(g => g != guarded && g.IsAlive);
-                if (guardian != null)
+                var guardian = GuardianRules.FindGuardian(target);
+                if (guardian != null && !ReferenceEquals(guardian, target))
                 {
                     if (CardCore.GameCore.Instance != null)
                         CardCore.GameCore.Instance.PublishEvent(new KeywordAppliedEvent
                         {
-                            Target = guarded,
-                            Keyword = "守护",
+                            Target = target,
+                            Keyword = Guardian,
                             Detail = $"守护改写：伤害转由 {guardian} 承受",
                             Source = guardian,
                         });
                     return ApplyDamage(source, guardian, amount, isCombat, pierce, guardRerouted: true);
-                }
-            }
-
-            // 守护关键词形态（2026-10-07 深夜三形态定案）：{target}=己方角色——伤害改写为己方首个
-            // 存活守护关键词单位承受等量（次数闸：每回合前 ΣLimit 次，无限实例恒改写；「无效」压制跳过；
-            // 单跳 guardRerouted；仅拦伤害路径，生命支付不走此口）。箭头/方向档形态见上段光环改写。
-            if (!guardRerouted && target is Player roleTarget)
-            {
-                var core = CardCore.GameCore.Instance;
-                var battlefield = core?.ZoneManager?.GetCards(roleTarget, Zone.Battlefield);
-                if (battlefield != null)
-                {
-                    Card roleGuardian = null;
-                    for (int i = 0; i < battlefield.Count; i++)
-                    {
-                        var g = battlefield[i];
-                        if (g == null || !g.IsAlive) continue;
-                        if (g.GetKeywordValueSum(Guardian) <= 0) continue;
-                        if (g.GetCounterCount(CounterRules.NullifyCounter) > 0) continue; // 无效=压制口
-                        if (!TryConsumeKeywordActivation(g, Guardian)) continue; // 次数尽→试下一守护者
-                        roleGuardian = g;
-                        break;
-                    }
-                    if (roleGuardian != null)
-                    {
-                        core.PublishEvent(new KeywordAppliedEvent
-                        {
-                            Target = roleTarget,
-                            Keyword = "守护",
-                            Detail = $"守护改写：伤害转由 {roleGuardian} 承受",
-                            Source = roleGuardian,
-                        });
-                        return ApplyDamage(source, roleGuardian, amount, isCombat, pierce, guardRerouted: true);
-                    }
                 }
             }
 
@@ -366,23 +294,23 @@ namespace CardCore.Attribute
 
             // 战斗伤害改写（2026-09-13 定案修订：**防护层之后、落血之前**——只有"将要成功造成的伤害"
             // 才改写：圣盾/护甲/坚韧完全挡住 → 不触发；部分吸收后仍有剩余 → 剩余改写，不再落血）。
-            // 毒刺→毒素1层（绿1）/ 冰晶→冻结1层（蓝2，横置）/ 梦魇→沉睡1层（黑2，横置）/
-            // 病原体→剧毒（绿3）。固定序取第一个命中（多关键词不叠加改写）；
-            // 角色（打脸）也改写——毒素/剧毒落角色有效，冻结/沉睡对角色空转；穿透伤害不经防护层，恒可改写。
+            // 毒刺→毒素1层（绿1）/ 冰晶→冻结1层（蓝2，横置）/ 梦魇→沉睡1层（黑2，横置）。
+            // 固定序取第一个命中（多关键词不叠加改写）；
+            // 角色（打脸）也改写——毒素落角色有效，冻结/沉睡对角色空转；穿透伤害不经防护层，恒可改写。
             // 施加口径收口 ApplyRewriteCounter。改写只对活体/角色生效——无生命单位（结界）不是状态宿主，
             // 改写命中等价"伤害被无效化"，故跳过改写走耐久管线。
             // 2026-10-07 改写回归·单映射：原毒/冻/眠/疫四光环改写退役（负面光环化——挂层走 DamageEvent 订阅）；
             // 唯一光环改写=舍身仪典（CombatRedirect）——受光环影响的生物造成战斗伤害时，
             // 改为对**光环控制者的对手角色**等量伤害（非战斗路径递归：不再触发舍身；毒蚀只看卡受击、
-            // 疫蚀照常命中"对角色造成伤害"）。
+            // 疫蚀改叠毒素照常命中"对角色造成伤害"）。
+            // 病原体（→剧毒指示物）已随 2026-10-08 剧毒转关键词退役；剧毒=落定追加式消灭（见管线尾部）。
             if (isCombat && source != null && source.IsAlive
                 && !(target is Card rwCard && rwCard.IsNonLivingUnit()))
             {
                 string combatRewrite =
                     source.HasKeyword(PoisonSting) ? PoisonSting :
                     source.HasKeyword(IceCrystal) ? IceCrystal :
-                    source.HasKeyword(Nightmare) ? Nightmare :
-                    source.HasKeyword(Pathogen) ? Pathogen : null;
+                    source.HasKeyword(Nightmare) ? Nightmare : null;
                 if (combatRewrite != null)
                 {
                     if (ApplyRewriteCounter(combatRewrite, target, source, CombatRewriteDetail(combatRewrite)))
@@ -453,17 +381,18 @@ namespace CardCore.Attribute
                 player.Life -= amount;
             }
 
-            // 潜行受伤失效（2026-10-04 弱化定案）：伤害**实际落定**（替代/改写/防护层之后仍有剩余
-            // 到达落血/耐久）才算「受到伤害」——圣盾/护甲/坚韧完全挡住、毒刺族改写替代（return 0）
-            // 均不触发。隐密（Concealed）不失效——不因受伤掉正是它的定价理由（蓝5 vs 蓝1）。
-            if (target is Card hurtCard && hurtCard.HasKeyword(Stealth))
+            // 潜行受伤失效（2026-10-04 弱化定案；2026-10-08 指示物化）：伤害**实际落定**（替代/改写/
+            // 防护层之后仍有剩余到达落血/耐久）才算「受到伤害」——圣盾/护甲/坚韧完全挡住、毒刺族改写
+            // 替代（return 0）均不触发；触发即消耗 1 层潜行指示物（逐份撤口径）。
+            // 隐密（Concealed）不失效——不因受伤掉正是它的定价理由（蓝5 vs 蓝1）。
+            if (target is Card hurtCard && hurtCard.GetCounterCount(CounterRules.StealthCounter) > 0)
             {
-                hurtCard.RemoveKeyword(Stealth);
+                hurtCard.AddCounters(CounterRules.StealthCounter, -1);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = hurtCard,
-                    Keyword = Stealth,
-                    Detail = "受到伤害后潜行失效",
+                    Keyword = CounterRules.StealthCounter,
+                    Detail = "受到伤害后潜行失效（消耗 1 层）",
                     Source = source
                 });
             }
@@ -526,6 +455,18 @@ namespace CardCore.Attribute
                 }
             }
 
+            // 7. 剧毒（2026-10-08 指示物转关键词·落定追加式）：受到其战斗伤害的**生物**被消灭——
+            //    伤害照常结算（圣盾/护甲/坚韧正常吸收，实际落定 amount>0 才触发；改写式 return 0
+            //    早已出管线）；对角色照常落血不消灭（Deathtouch 口径）；无生命单位走耐久不是生物。
+            //    消灭走 TryKill 消灭口径（不灭/神佑经 DeathRules 裁决拦截）；伤害本身已致死的不再重复。
+            if (isCombat && amount > 0 && source != null && source.IsAlive
+                && target is Card venomTarget && venomTarget.IsAlive && !venomTarget.IsNonLivingUnit()
+                && source.HasKeyword(Venom))
+            {
+                DeathRules.TryKill(venomTarget, DeathCause.DestroyEffect, source,
+                    CardCore.GameCore.Instance?.ZoneManager);
+            }
+
             return amount;
         }
 
@@ -539,19 +480,16 @@ namespace CardCore.Attribute
             switch (keywordId)
             {
                 case PoisonSting:
-                    target.AddCounters(CounterRules.ToxinCounter, 1,
-                        CounterRules.Find(CounterRules.ToxinCounter).Turns, source);
+                    target.AddCounters(CounterRules.ToxinCounter, 1, source);
                     break;
                 case IceCrystal:
-                    target.Freeze(DurationType.Permanent, 1); // 层数模型：1 层=1 回合（对角色空转）
+                    target.Freeze(1, source); // 层数模型：1 层=1 回合（对角色空转）
                     break;
                 case Nightmare:
                     if (target is Card sleeper) sleeper.Tap();
                     target.AddCounters(SleepCounter, 1, source);
                     break;
-                case Pathogen:
-                    target.AddCounters(CounterRules.PoisonCounter, 1, source);
-                    break;
+                // Pathogen（→剧毒指示物）分支已删：剧毒 2026-10-08 转关键词（Venom 落定追加式消灭）
                 default:
                     return false;
             }
@@ -560,49 +498,37 @@ namespace CardCore.Attribute
             return true;
         }
 
-        /// <summary>战斗改写路径的审计文案（关键词路径；与 2026-09-13 原文案逐字一致）。
+        /// <summary>战斗改写路径的审计文案（关键词路径）。
         /// 改写门路径已随拦截式改写门退役删除（2026-10-05 迁唯一光环）。</summary>
         private static string CombatRewriteDetail(string keywordId)
         {
             switch (keywordId)
             {
-                case PoisonSting: return "毒刺：战斗伤害改为毒素指示物×1（3 回合时钟）";
+                case PoisonSting: return "毒刺：战斗伤害改为毒素指示物×1（层数留存逐回合减半）";
                 case IceCrystal: return "冰晶：战斗伤害改为冻结指示物×1";
                 case Nightmare: return "梦魇：战斗伤害改为沉睡指示物×1";
-                case Pathogen: return "病原体：战斗伤害改为剧毒指示物×1";
                 default: return "战斗伤害改写";
             }
         }
 
-        /// <summary>唯一光环路径的审计文案（2026-10-05：毒蚀/霜蚀/眠蚀/疫蚀仪典——仅持有者生效）。
-        /// keywordId 复用四条印刷关键词 id（施加口径同源），文案按仪典名播报。</summary>
-        private static string AuraRewriteDetail(string keywordId)
-        {
-            switch (keywordId)
-            {
-                case PoisonSting: return "毒蚀仪典：战斗伤害改为毒素指示物×1（伤害不发生，仅持有者生物生效）";
-                case IceCrystal: return "霜蚀仪典：战斗伤害改为冻结指示物×1（伤害不发生，仅持有者生物生效）";
-                case Nightmare: return "眠蚀仪典：战斗伤害改为沉睡指示物×1（伤害不发生，仅持有者生物生效）";
-                case Pathogen: return "疫蚀仪典：战斗伤害改为剧毒指示物×1（伤害不发生，仅持有者生物生效）";
-                default: return "规则光环：战斗伤害改为指示物（伤害不发生）";
-            }
-        }
-
         /// <summary>
-        /// 防护层（非穿透伤害）：圣盾（挡一次任意伤害，消耗）→ 护甲指示物（逐点吸收）→ 坚韧（−持有次数）。
+        /// 防护层（非穿透伤害）：圣盾指示物（每层挡一次任意伤害，消耗 1 层）→ 护甲指示物（逐点吸收）→
+        /// 坚韧指示物（每层每次 −1，不消耗）。
         /// amount 按 ref 递减；归零即全部挡下。穿透伤害跳过本方法全部三层。
         /// </summary>
         private static void ApplyPreventionLayers(Entity source, Entity target, ref int amount)
         {
-            // 1. 圣盾：挡下一次任意伤害（战斗+效果），消耗
-            if (target.HasKeyword(DivineShield))
+            // 1. 圣盾指示物（2026-10-08 指示物化）：每层挡下一次任意伤害（战斗+效果），消耗 1 层
+            //    （Entity 级——角色可持有）；多层并存=逐层各挡一次。
+            int shieldLayers = target.GetCounterCount(CounterRules.DivineShieldCounter);
+            if (shieldLayers > 0)
             {
-                target.RemoveKeyword(DivineShield);
+                target.AddCounters(CounterRules.DivineShieldCounter, -1);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = target,
-                    Keyword = DivineShield,
-                    Detail = $"圣盾抵挡 {amount} 点伤害",
+                    Keyword = CounterRules.DivineShieldCounter,
+                    Detail = $"圣盾抵挡 {amount} 点伤害（消耗 1 层，余 {shieldLayers - 1} 层）",
                     Source = source
                 });
                 amount = 0;
@@ -633,22 +559,17 @@ namespace CardCore.Attribute
                 }
             }
 
-            // 3. 坚韧（2026-10-07 深夜值化+限次定案）：关键词份额=台账 Value 之和、每回合前 ΣLimit 次
-            //    （无限实例恒生效；台账缺失兜底=持有份数×1）；光环份额=每条命中条目 value 之和
-            //    （0 视为 1，live-query 不限次）。份额独立结算——次数闸只作用于关键词份额。
-            int kwToughness = target.GetKeywordValueSum(Armor);
-            if (kwToughness > 0 && !TryConsumeKeywordActivation(target, Armor)) kwToughness = 0;
-            int auraToughness = target is Card auraHolder
-                ? GameBoard.LinkAuraSystem.GetAuraKeywordSum(auraHolder, Armor)
-                : 0;
-            int toughness = kwToughness + auraToughness;
+            // 3. 坚韧指示物（2026-10-08 指示物化定案）：每层使本次受到的伤害 −1，不随受伤消耗
+            //    （易损的正面镜像）；可叠加；Entity 级——角色读数同走此口（旧关键词 is Card 死线消解）。
+            //    施加口=GrantToughnessHandler（GrantToughness 原子，表行 a312b8b0）；换区清、净化可清。
+            int toughness = target.GetCounterCount(CounterRules.ToughnessCounter);
             if (toughness > 0)
             {
                 amount = Math.Max(0, amount - toughness);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = target,
-                    Keyword = Armor,
+                    Keyword = CounterRules.ToughnessCounter,
                     Detail = $"坚韧减免 {toughness} 点",
                     Source = source
                 });
@@ -669,15 +590,16 @@ namespace CardCore.Attribute
         }
 
         /// <summary>
-        /// 复生结算（死亡替代定案）：死亡时的送墓效果被替代——不进墓地、不离场，
-        /// 生命值变成 1、横置（本回合不可用），消耗一次性关键词。
+        /// 复生结算（死亡替代定案；2026-10-08 指示物化）：死亡时的送墓效果被替代——不进墓地、不离场，
+        /// 生命值变成 1、横置（本回合不可用），消耗 1 层复生指示物（多层=多次死亡替代）。
         /// 由死亡路径（SBA 零防御 / 摧毁效果）在送墓前调用；true = 已复生（留在战场）。
         /// </summary>
         public static bool TryReborn(Card card)
         {
-            if (card == null || !card.HasKeyword(Reborn)) return false;
+            int layers = card?.GetCounterCount(CounterRules.RebornCounter) ?? 0;
+            if (layers <= 0) return false;
 
-            card.RemoveKeyword(Reborn);
+            card.AddCounters(CounterRules.RebornCounter, -1);
             card._life = 1;
             if (card._maxLife < 1) card._maxLife = 1;
             card.IsAlive = true;
@@ -685,8 +607,8 @@ namespace CardCore.Attribute
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
                 Target = card,
-                Keyword = Reborn,
-                Detail = "复生：死亡替代——生命变 1 留场（横置，不进墓）"
+                Keyword = CounterRules.RebornCounter,
+                Detail = $"复生：死亡替代——生命变 1 留场（横置，不进墓；余 {layers - 1} 层）"
             });
             return true;
         }

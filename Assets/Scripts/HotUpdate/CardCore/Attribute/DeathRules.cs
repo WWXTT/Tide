@@ -13,8 +13,8 @@ namespace CardCore.Attribute
     /// · 状态动作：防御归零 / 战场尸体清理
     ///
     /// ── 效果死亡族（神佑全拦；不灭拦其中的"消灭"类）────────────────
-    /// · 剧毒：指示物（持续1回合），回合结束时持有者死亡——效果死亡，无伤害来源
     /// · 消灭：效果中消灭一个生物的描述；没有额外说明的都是进墓
+    ///   （剧毒 Venom=消灭口径：受到其战斗伤害的生物在结算后被消灭，2026-10-08 转关键词）
     /// · 牺牲：玩家主动将自己场上生物置入坟墓场，视为死亡，来源是控制者
     /// · 吞噬：一个生物消灭另一个并获得其能力/生命等，死亡，来源是吞噬者
     /// · 湮灭：彻底移除，死亡，不可被复活，直接送到除外区
@@ -38,8 +38,7 @@ namespace CardCore.Attribute
         ZeroToughness,
 
         // ── 效果死亡族（神佑全拦；湮灭另改葬除外区）──
-        /// <summary>剧毒：效果死亡，来源=剧毒效果来源</summary>
-        Poison,
+        // DeathCause.Poison 已删（2026-10-08 剧毒指示物转关键词 Venom：消灭走 DestroyEffect，全量底层改造不留墓碑）
         /// <summary>消灭：效果死亡，默认进墓（不灭拦）</summary>
         DestroyEffect,
         /// <summary>牺牲：玩家主动置入坟墓场，来源=控制者</summary>
@@ -57,14 +56,14 @@ namespace CardCore.Attribute
     /// 使其免疫各种效果的是默认持有的【神佑】状态（可被效果移除的真实状态，非硬编码）——
     /// 只接受生命值归零的死亡。
     ///
-    /// 护盾×死因 矩阵（稀疏，缺省=不拦截）：
-    /// ┌─────────────┬──────────────┬───────┬──────────────┬──────────┬──────────┬──────────┬───────────┐
-    /// │ 护盾＼死因    │ DamageLethal │ Poison │ DestroyEffect │ Sacrifice │ Devour  │ Annihilate│ 归零族其余 │
-    /// ├─────────────┼──────────────┼───────┼──────────────┼──────────┼──────────┼──────────┼───────────┤
-    /// │ 不灭          │      ✗       │   ✗   │      ✓       │     ✗    │    ✓     │    ✗     │     ✗     │
-    /// │ 神佑(角色默认) │      ✗       │   ✓   │      ✓       │     ✓    │    ✓     │    ✓     │     ✗     │
-    /// │ 复生（替代）   │      所有死因消耗回场；唯湮灭不可复活                        │          │
-    /// └─────────────┴──────────────┴───────┴──────────────┴──────────┴──────────┴──────────┴───────────┘
+    /// 护盾×死因 矩阵（稀疏，缺省=不拦截；DeathCause.Poison 列已随 2026-10-08 剧毒转关键词删除）：
+    /// ┌─────────────┬──────────────┬──────────────┬──────────┬──────────┬──────────┬───────────┐
+    /// │ 护盾＼死因    │ DamageLethal │ DestroyEffect │ Sacrifice │ Devour  │ Annihilate│ 归零族其余 │
+    /// ├─────────────┼──────────────┼──────────────┼──────────┼──────────┼──────────┼───────────┤
+    /// │ 不灭          │      ✗       │      ✓       │     ✗    │    ✓     │    ✗     │     ✗     │
+    /// │ 神佑(角色默认) │      ✗       │      ✓       │     ✓    │    ✓     │    ✓     │     ✗     │
+    /// │ 复生（替代）   │      所有死因消耗回场；唯湮灭不可复活                        │
+    /// └─────────────┴──────────────┴──────────────┴──────────┴──────────┴──────────┴───────────┘
     ///
     /// 新护盾/新死因 = 加一行/一列注册，不改既有代码（OCP）；
     /// 每格定案对应验证器一条断言（TestKeywords 惯例）。
@@ -77,7 +76,6 @@ namespace CardCore.Attribute
         /// <summary>效果死亡族（神佑拦截的死因集合）——正常死亡族（归零）不在其中。</summary>
         private static readonly HashSet<DeathCause> EffectDeathCauses = new HashSet<DeathCause>
         {
-            DeathCause.Poison,
             DeathCause.DestroyEffect,
             DeathCause.Sacrifice,
             DeathCause.Devour,
@@ -119,7 +117,7 @@ namespace CardCore.Attribute
             card._pendingDeathCause = null;
             card._pendingDeathSource = null;
 
-            // 复生：死亡替代（1 血回场 + 横置 + 失调，消耗关键词）——湮灭不可被复活
+            // 复生：死亡替代（1 血回场 + 横置，消耗 1 层复生指示物——多层=多次替代）——湮灭不可被复活
             if (cause != DeathCause.Annihilate && KeywordRules.TryReborn(card))
                 return false;
 
@@ -161,7 +159,7 @@ namespace CardCore.Attribute
                 case DeathCause.Annihilate:
                     return DestroyReason.Annihilated;
                 default:
-                    return DestroyReason.Combat; // 归零族：伤害致死/剧毒/状态动作
+                    return DestroyReason.Combat; // 归零族：伤害致死/状态动作（剧毒走消灭口径不经此臂）
             }
         }
     }

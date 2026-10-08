@@ -15,24 +15,24 @@ namespace CardCore
         private TimestampInfo _timestamp;
         private bool _isAlive = true;
 
-        // 关键词存储（List 而非 HashSet：重复叠加允许（双坚韧=−2）；唯一性由 AddKeyword 的 Contains 保证）
+        // 关键词存储（不叠加定案 2026-10-08：Contains 去重——同一关键词至多一份；
+        // 文本（印刷/设置）与战中附加状态跨轨并存，消耗按台账逐份撤）
         internal List<string> _keywords = new List<string>();
 
         // 指示物存储（上移 Entity：角色/卡牌同构——剧毒/毒素可指向玩家；对齐 _keywords 先例）。
-        // 计数模型：_counters 字典存净量（带符号——攻/血/费指示物可 ±）；
-        // 回合时钟：_counterClocks 收限时层（2026-09-16 统一档：不倒数——持有者回合末一律到期，
-        // 由 CounterRules.OnTurnEnd 回收并从计数中扣除）。
+        // 计数模型：_counters 字典存净量（带符号——攻/血/费指示物可 ±）。
+        // 回合时钟 _counterClocks 已删（2026-10-08 死路径清理：限时档一律 UntilEndOfTurn
+        // 回合末整清或 TickPolicy 逐层倒数，无多回合时钟消费者）。
         internal Dictionary<string, int> _counters = new Dictionary<string, int>();
-        internal List<CounterInstance> _counterClocks = new List<CounterInstance>();
 
         // 指示物来源（2026-09-07 定案：增益/减益经指示物承载，指示物也带来源）：
         // 与 _counters 同粒度——每类 id 记最后施加方，计数归零即丢弃（GetCounterSource 查询）。
         // 消费方：剧毒死亡来源、减益致死归因；毒素回合末伤害保持 null（定案：毒素不是伤害来源实体）。
         internal Dictionary<string, Entity> _counterSources = new Dictionary<string, Entity>();
 
-        // 关键词轨别台账（2026-09-09 三轨制定案）：_keywords 仍是运行时唯一真身（HasKeyword/GetKeywordCount
-        // 消费面零改动），台账只服务清除口径——换区清（ClearZoneKeywords：Temp）、净化清
-        // （PurifyKeywords：Temp+Status+GrantedPermanent，豁免 PurgeProtectedKeywords、保留 Printed+Setting）。
+        // 关键词轨别台账（2026-09-09 三轨制定案；2026-10-08 不叠加定案）：_keywords 是真身，
+        // 台账按（关键词, 轨）唯一——同轨重复授予=取代；只服务清除口径与值/次数读数
+        //（换区清 Temp、净化清 Temp+Status，豁免 PurgeProtectedKeywords、保留 Printed+Setting）。
         internal List<KeywordGrant> _keywordGrants = new List<KeywordGrant>();
 
         public TimestampInfo TimestampInfo => _timestamp;
@@ -88,17 +88,6 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 指示物层实例：一个带独立回合时钟的指示物"层"（ toxins 可叠加、每层各自倒计时）。
-    /// Amount=该层份数；RemainingTurns=剩余回合末次数（-1=无回合计时，靠换区/消耗移除）。
-    /// </summary>
-    public class CounterInstance
-    {
-        public string Id;
-        public int Amount;
-        public int RemainingTurns = -1;
-    }
-
-    /// <summary>
     /// 关键词轨别（三轨制定案 2026-09-09）：同文本赋予按来源分轨后的清除口径。
     /// </summary>
     public enum KeywordLane
@@ -107,8 +96,8 @@ namespace CardCore
         Printed,
         /// <summary>设置类（魔法卡赋予，视同本体；净化/换区都不清）</summary>
         Setting,
-        /// <summary>生物赋予的永久关键词（换区不清、净化清）</summary>
-        GrantedPermanent,
+        // GrantedPermanent（生物赋的永久关键词）车道已删（2026-10-08 死车道清理：
+        // GrantKeywordHandler 判轨只有 Setting/Temp，运行时无任何写入者——轨制收敛）。
         /// <summary>临时关键词（换区清、净化清）</summary>
         Temp,
         /// <summary>可移除状态（净化清；神佑另享净化豁免——PurgeProtectedKeywords）</summary>
@@ -116,9 +105,9 @@ namespace CardCore
     }
 
     /// <summary>关键词授予台账条目：_keywords 是真身，本台账只记轨别与来源供清除口径消费。
-    /// 2026-10-07 深夜参数化定案：Value=实例值（坚韧=受伤减多少；其余关键词无值语义恒 1）、
-    /// Limit=生效次数/回合（1/2/3，-1=无限——随授予效果的次数档传入；坚韧减伤/守护改写两处消费）。
-    /// 字段默认 1/1：旧构造点（印刷装载/形态复制）与旧档自动兜底。</summary>
+    /// 2026-10-07 深夜参数化定案：Value=实例值、Limit=生效次数/回合（随授予效果的次数档传入）——
+    /// 运行时消费已清零（坚韧 2026-10-08 指示物化、守护配对制无限次改写），现仅作
+    /// 不叠加（同轨取代）台账账目。字段默认 1/1：旧构造点（印刷装载/形态复制）与旧档自动兜底。</summary>
     public class KeywordGrant
     {
         public string Keyword;
