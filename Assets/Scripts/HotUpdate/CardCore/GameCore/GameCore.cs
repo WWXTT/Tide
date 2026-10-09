@@ -367,8 +367,9 @@ namespace CardCore
             }
 
             // 再生（角色侧 2026-10-08 引擎统一）：回合玩家角色持有再生——回合开始恢复全部生命，
-            // 与卡侧同口径。再生表行已标 NoRole——光环通道被 RoleChannelBlocked 拦（太强禁投角色），
-            // 本路径为物化授予等通道保留（休眠）；表上撤掉 NoRole 即经光环可达。
+            // 与卡侧同口径。再生表行已拉黑「不可作为连接光环」（太强+持续语义冲突，2026-10-09
+            // 角色通道开放后仍不可经光环投角色）——本路径为物化授予等通道保留（休眠）；
+            // 表上撤掉拉黑即经光环可达。
             int roleRegen = player.GetMaxLife() - player.Life;
             if (roleRegen > 0 && player.HasKeyword(KeywordRules.Regeneration))
             {

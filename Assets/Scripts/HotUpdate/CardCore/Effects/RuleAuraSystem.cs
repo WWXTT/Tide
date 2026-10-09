@@ -207,24 +207,24 @@ namespace CardCore
         public const string DoubleTurn = "DoubleTurn";               // 轮回仪典（2026-10-04 承接原疾风：双人连两回合）
         public const string HandLimitNoFatigue = "HandLimitNoFatigue"; // 纳川仪典
 
-        // ---- 四负面光环仪典（2026-10-07 负面化定案：原"战斗伤害改写为指示物"语义退役，
+        // ---- 三负面光环仪典（2026-10-07 负面化定案：原"战斗伤害改写为指示物"语义退役，
         // 改持续型挂层——受光环影响的生物按各自触发点叠对应指示物；钩子在本类，代码侧实现）：
-        // 毒蚀=受到伤害后叠毒素；霜蚀=攻击后冻结；眠蚀=启动式主动发动后叠沉睡（仅启动式——用户定案）；
-        // 疫蚀=对角色造成伤害后叠剧毒。改写管线收敛为舍身仪典（CombatRedirect）单映射。----
+        // 毒蚀=受到伤害后叠毒素；霜蚀=攻击后冻结；眠蚀=启动式主动发动后叠沉睡（仅启动式——用户定案）。
+        // 疫蚀仪典已删（2026-10-09 剧毒指示物删除后无独立存在意义）。
+        // 改写管线收敛为舍身仪典（CombatRedirect）单映射。----
         public const string CombatToxin = "CombatToxin";             // 毒蚀仪典（受到伤害→毒素）
         public const string CombatFreeze = "CombatFreeze";           // 霜蚀仪典（攻击后→冻结）
         public const string CombatSleep = "CombatSleep";             // 眠蚀仪典（启动式发动→沉睡）
-        public const string CombatVenom = "CombatVenom";             // 疫蚀仪典（对角色伤害→剧毒）
 
         // ---- 战斗伤害改写仪典（2026-10-07 舍身定案：受光环影响的生物造成战斗伤害时，
         // 改为对光环控制者的对手角色等量伤害——战斗伤害不发生。唯一改写映射，见 HolderRewriteFor。）----
         public const string CombatRedirect = "CombatRedirect";       // 舍身仪典（伤害转投对手角色）
 
-        /// <summary>是否四负面光环族（毒/冻/眠/疫）。缺省范围与极性驱动（负→对方）；
+        /// <summary>是否三负面光环族（毒/冻/眠）。缺省范围与极性驱动（负→对方）；
         /// 运行时判定走 ScopeHits，不再读本口（保留供展示/分类）。</summary>
         public static bool IsHolderScoped(string ruleId)
             => ruleId == CombatToxin || ruleId == CombatFreeze
-               || ruleId == CombatSleep || ruleId == CombatVenom;
+               || ruleId == CombatSleep;
 
         private static bool _registered;
 
@@ -269,51 +269,32 @@ namespace CardCore
             RuleHooks.RegisterPlayRestriction(new LockedCardRestriction());
             // 纳川：手牌上限 7→15（修改链，实时查询）
             RuleHooks.RegisterHandLimitModifier(new HandLimitModifier());
-            // 四负面光环（2026-10-07 负面化定案）：毒蚀/疫蚀走 DamageEvent 分流、
+            // 三负面光环（2026-10-07 负面化定案）：毒蚀走 DamageEvent 分流、
             // 霜蚀走 AttackResolvedEvent（CombatSystem 攻击结算完成发布）、
             // 眠蚀走 EffectExecutionEngine 启动式结算点直调（OnActivatedForSleepAura）
             EventManager.Instance.Subscribe<DamageEvent>(OnDamageForNegativeAuras);
             EventManager.Instance.Subscribe<AttackResolvedEvent>(OnAttackResolvedForFreeze);
         }
 
-        // ============ 四负面光环（2026-10-07 负面化定案：持续型挂层，代码侧实现） ============
+        // ============ 三负面光环（2026-10-07 负面化定案：持续型挂层，代码侧实现） ============
 
-        /// <summary>毒蚀/疫蚀分流钩（DamageEvent）：
-        /// 毒蚀=受光环影响的生物受到伤害 → 受击者叠 1 层毒素（每回合末受=层数的伤害后减半；
-        /// 毒素自身的回合末伤害会再触发叠层——文本字面语义，递增螺旋受减半衰减钳制）；
-        /// 疫蚀=受光环影响的生物对角色造成伤害 → 施伤者自身叠 1 层毒素（2026-10-08 剧毒转关键词：
-        /// 原剧毒指示物取消，疫=毒域贴新毒素语义——施伤者受持续递减毒伤）。</summary>
+        /// <summary>毒蚀钩（DamageEvent）：受光环影响的生物受到伤害 → 受击者叠 1 层毒素
+        ///（每回合末受=层数的伤害后减半；毒素自身的回合末伤害会再触发叠层——文本字面语义，
+        /// 递增螺旋受减半衰减钳制）。疫蚀分支已删（2026-10-09 剧毒指示物删除后随行退役）。</summary>
         private static void OnDamageForNegativeAuras(DamageEvent e)
         {
-            if (e?.Target == null || e.Amount <= 0) return;
-            if (e.Target is Player && e.Source is Card venomSrc && venomSrc.IsAlive)
+            if (!(e?.Target is Card toxinTarget) || !toxinTarget.IsAlive || e.Amount <= 0) return;
+            var owner = toxinTarget.GetController();
+            if (!RuleAuraSystem.ScopeHits(CombatToxin, owner)) return;
+            var carrier = RuleAuraSystem.CarrierOf(CombatToxin);
+            toxinTarget.AddCounters(Attribute.CounterRules.ToxinCounter, 1, carrier);
+            EventManager.Instance.Publish(new KeywordAppliedEvent
             {
-                var owner = venomSrc.GetController();
-                if (!RuleAuraSystem.ScopeHits(CombatVenom, owner)) return;
-                var carrier = RuleAuraSystem.CarrierOf(CombatVenom);
-                venomSrc.AddCounters(Attribute.CounterRules.ToxinCounter, 1, carrier);
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = venomSrc,
-                    Keyword = CombatVenom,
-                    Detail = $"疫蚀光环：{EffectText.Name(venomSrc)} 对角色造成伤害 → 叠加一层毒素（每回合末受毒伤后减半）",
-                    Source = carrier,
-                });
-            }
-            else if (e.Target is Card toxinTarget && toxinTarget.IsAlive)
-            {
-                var owner = toxinTarget.GetController();
-                if (!RuleAuraSystem.ScopeHits(CombatToxin, owner)) return;
-                var carrier = RuleAuraSystem.CarrierOf(CombatToxin);
-                toxinTarget.AddCounters(Attribute.CounterRules.ToxinCounter, 1, carrier);
-                EventManager.Instance.Publish(new KeywordAppliedEvent
-                {
-                    Target = toxinTarget,
-                    Keyword = CombatToxin,
-                    Detail = $"毒蚀光环：{EffectText.Name(toxinTarget)} 受到伤害 → 叠加一层毒素（每回合末受毒伤后减半）",
-                    Source = carrier,
-                });
-            }
+                Target = toxinTarget,
+                Keyword = CombatToxin,
+                Detail = $"毒蚀光环：{EffectText.Name(toxinTarget)} 受到伤害 → 叠加一层毒素（每回合末受毒伤后减半）",
+                Source = carrier,
+            });
         }
 
         /// <summary>霜蚀钩（AttackResolvedEvent）：受光环影响的生物攻击结算后冻结 1 层

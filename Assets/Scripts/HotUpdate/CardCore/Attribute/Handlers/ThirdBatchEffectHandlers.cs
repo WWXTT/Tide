@@ -74,12 +74,13 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "改写目标的持有者（含控制权；弹回/洗回/死亡均归新主）";
     }
 
-    // ---------------- 死亡原子（牺牲 / 吞噬 / 湮灭） ----------------
+    // ---------------- 死亡原子（消灭 / 湮灭；牺牲 2026-10-09 转直送非死亡） ----------------
 
-    /// <summary>牺牲（2026-09-13 定案，黑2，edict 形态）：作用对象=**双方角色**（表 filter "Player" 仅角色）——
-    /// 目标玩家（持有者）**自行选择**一个己方生物效果死亡；死亡来源=持有者（其控制者，非施法者——
-    /// 己方/敌方击杀触发分流正确）；不灭不拦牺牲（DeathRules 只拦{消灭,吞噬}）。
-    /// 同步路径（触发式/headless）：自动选持有者战场首个生物（TargetSelectionService 代替选取同口径）。</summary>
+    /// <summary>牺牲（2026-10-09 舍弃并档定案，黑5，edict 形态）：作用对象=**角色**（表 filter "Player"）——
+    /// 目标玩家（持有者）**自行选择**一个己方战场单位（生物+无生命单位，摒弃并池）**直送墓地**。
+    /// 裁定：**非效果死亡**——不经 DeathRules、不发 CardDestroyEvent（OnDeath/亡语/消灭替代/击杀统计
+    /// 全不触发），不灭/神佑/复生无从拦截（非死亡路径天然绕过）；送墓归属=卡牌持有者。
+    /// 同步路径（触发式/headless）：自动选持有者战场首个单位（TargetSelectionService 代替选取同口径）。</summary>
     public class SacrificeHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Sacrifice;
@@ -87,7 +88,12 @@ namespace CardCore.Attribute.Handlers
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
             foreach (var target in context.Targets)
-                SacrificeOne(target, context);
+            {
+                if (!(target is Player holder)) continue; // 作用对象=角色
+                var board = BoardUnits(holder, context);
+                if (board.Count == 0) continue; // 空场空转
+                SendToGrave(board[0], context);
+            }
         }
 
         public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
@@ -95,7 +101,7 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (!(target is Player holder)) continue; // 作用对象=角色
-                var board = BoardCreatures(holder, context);
+                var board = BoardUnits(holder, context);
                 if (board.Count == 0) continue; // 空场空转
 
                 Card chosen = board[0];
@@ -107,154 +113,64 @@ namespace CardCore.Attribute.Handlers
                         MinCount = 1,
                         MaxCount = 1,
                         Chooser = holder, // 持有者自行选择（对手的牺牲对手挑）
-                        Title = $"{holder.Name}：选择一个生物牺牲",
+                        Title = $"{holder.Name}：选择一个单位送入墓地",
                     });
                     if (picked != null && picked.Count > 0 && picked[0] is Card pc) chosen = pc;
                 }
 
-                DeathRules.TryKill(chosen, DeathCause.Sacrifice, holder, context.ZoneManager);
+                SendToGrave(chosen, context);
             }
         }
 
-        /// <summary>同步结算（触发式/headless）：持有者战场首个生物效果死亡。</summary>
-        private static void SacrificeOne(Entity target, EffectExecutionContext context)
-        {
-            if (!(target is Player holder)) return;
-            var board = BoardCreatures(holder, context);
-            if (board.Count == 0) return; // 空场空转
-            DeathRules.TryKill(board[0], DeathCause.Sacrifice, holder, context.ZoneManager);
-        }
-
-        private static List<Card> BoardCreatures(Player holder, EffectExecutionContext context)
-        {
-            if (holder == null || context.ZoneManager == null) return new List<Card>();
-            // 牺牲=生物（含衍生物——召唤定案下衍生物=真实生物卡的 CardWrapper 实例，同过此滤）
-            return context.ZoneManager.GetCards(holder, Zone.Battlefield)
-                .Where(c => c.IsAlive && c is IHasSupertype st && st.Supertype == Cardtype.Creature)
-                .ToList();
-        }
-
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "持有者选择一个己方生物牺牲（效果死亡，来源为持有者，无视不灭）";
-    }
-
-    /// <summary>摒弃（2026-09-13，黑2，edict 原子——牺牲的无生命等价）：作用对象=双方角色（filter "Player"）——
-    /// 持有者自行选择一个己方场上**无生命单位**（结界等非生物持久物）直送墓地（DestroyReason.Abandoned）。
-    /// 与牺牲同款：交互 Chooser=持有者（headless/同步自动选首个）、豁免帷幕（选择权在目标方）。</summary>
-    public class AbandonHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Abandon;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            foreach (var target in context.Targets)
-                AbandonOne(target, context);
-        }
-
-        public override async UniTask ExecuteAsync(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            foreach (var target in context.Targets)
-            {
-                if (!(target is Player holder)) continue; // 作用对象=角色
-                var board = BoardNonLiving(holder, context);
-                if (board.Count == 0) continue; // 无无生命单位空转
-
-                Card chosen = board[0];
-                if (board.Count > 1)
-                {
-                    var picked = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
-                    {
-                        Candidates = new List<Entity>(board),
-                        MinCount = 1,
-                        MaxCount = 1,
-                        Chooser = holder, // 持有者自行选择
-                        Title = $"{holder.Name}：选择一个场上无生命单位摒弃",
-                    });
-                    if (picked != null && picked.Count > 0 && picked[0] is Card pc) chosen = pc;
-                }
-
-                AbandonCard(chosen, holder, context);
-            }
-        }
-
-        /// <summary>同步结算（触发式/headless）：持有者场上首个无生命单位摒弃。</summary>
-        private void AbandonOne(Entity target, EffectExecutionContext context)
-        {
-            if (!(target is Player holder)) return;
-            var board = BoardNonLiving(holder, context);
-            if (board.Count == 0) return;
-            AbandonCard(board[0], holder, context);
-        }
-
-        /// <summary>直送墓地 + 摒弃播报（无生命单位不走 DeathRules，同 Smash 直毁路径惯例；
-        /// 地牌来源先出池再移动——与 Smash 同款）。</summary>
-        private void AbandonCard(Card card, Player holder, EffectExecutionContext context)
+        /// <summary>直送墓地（非死亡）：仅落死档 + 按持有者归属入墓——不发 CardDestroyEvent
+        /// （死亡时点/消灭替代/统计不触发）；换区清理（指示物/守护断链/变形解除/临时关键词）
+        /// 由 ZoneContainer.OnCardMoved 统一承担，与死亡落葬同款。</summary>
+        private static void SendToGrave(Card card, EffectExecutionContext context)
         {
             var owner = card.GetOwner() ?? card.GetController();
             if (owner == null) return;
-
-            // 地牌（元素池来源）：先出池（余量写回卡上，由拥有者的池持有），再入墓
-            if (context.ElementPool != null && card.GetZone() == Zone.ElementPool)
-                context.ElementPool.RemoveCardFromPool(card, owner);
-
+            card.IsAlive = false;
             if (context.ZoneManager != null)
             {
                 var from = card.GetZone();
                 if (from != Zone.Graveyard)
                     context.ZoneManager.MoveCard(card, owner, from, Zone.Graveyard);
             }
-            PublishEvent(new CardDestroyEvent
-            {
-                DestroyedCard = card,
-                Reason = DestroyReason.Abandoned,
-            });
         }
 
-        /// <summary>摒弃候选（2026-09-13 定案：与摧毁 Smash 同覆盖）= 己方场上无生命单位（结界等）
-        /// + 己方元素池地牌。对手对应区域无卡 → 跳过该目标（外层 continue，不空发整卡）。</summary>
-        private static List<Card> BoardNonLiving(Player holder, EffectExecutionContext context)
+        /// <summary>牺牲候选 = 持有者战场全部存活单位（生物+无生命单位——2026-10-09 摒弃并池；
+        /// 元素池地牌非"单位"不入池）。含衍生物（召唤定案下衍生物=真实生物卡的 CardWrapper 实例）。
+        /// 空场跳过该目标（外层 continue，不空发整卡）。</summary>
+        private static List<Card> BoardUnits(Player holder, EffectExecutionContext context)
         {
             var result = new List<Card>();
             if (holder == null || context.ZoneManager == null) return result;
             foreach (var c in context.ZoneManager.GetCards(holder, Zone.Battlefield))
-                if (c.IsAlive && c is IHasSupertype st && st.Supertype != Cardtype.Creature)
+                if (c != null && c.IsAlive)
                     result.Add(c);
-            // 地牌：元素池区的卡（持有者自选一张摒弃——出池入墓）
-            foreach (var c in context.ZoneManager.GetCards(holder, Zone.ElementPool))
-                if (c != null) result.Add(c);
             return result;
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "持有者选择一个己方场上无生命单位摒弃（直送墓地）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "以角色为目标，使其自行选择一个单位效果送墓（非效果死亡，不触发死亡时点）";
     }
 
-    /// <summary>吞噬（2026-09-13 简化定案）：只是**消灭** + 吞噬者按被消灭单位的**最大生命值**恢复生命——
-    /// 删除关键词吸收与按当前生命回复。消灭裁决先行（不灭/复生替代拦下即无回复，DeathRules 定案不变）。</summary>
+    /// <summary>消灭（2026-10-09 吞噬机制移除定案：原吞噬行改名，EffectType 沿用 Devour 枚举位）——
+    /// 纯消灭：效果死亡（DestroyEffect 死因），无回复无吸收。不灭拦（消灭类）、复生可替代、
+    /// 神佑拦角色（表 filter NoRole,Mortal 已在目标层先滤）；来源=效果来源。</summary>
     public class DevourHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Devour;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            var devourer = context.Source as Card;
             foreach (var target in context.Targets)
             {
-                if (!(target is Card victim) || victim == devourer) continue;
-
-                int maxLife = victim.GetMaxLife(); // 消灭前取（回复量=最大生命值，非当前）
-
-                // 消灭裁决先行：被不灭拦下 / 复生替代 → 无回复（护盾矩阵拦 Devour，DeathRules 内定案）
-                if (!DeathRules.TryKill(victim, DeathCause.Devour, context.Source, context.ZoneManager))
-                    continue;
-
-                if (devourer != null)
-                {
-                    devourer.Heal(maxLife);
-                    PublishEvent(new Attribute.HealEvent { Target = devourer, Amount = maxLife, Source = context.Source });
-                }
+                if (!(target is Card victim)) continue;
+                DeathRules.TryKill(victim, DeathCause.DestroyEffect, context.Source, context.ZoneManager);
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "吞噬：消灭目标并按其最大生命值恢复";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "消灭目标生物（效果死亡；不灭可拦、复生可替代）";
     }
 
     /// <summary>湮灭：彻底移除，直送除外区，不可复生（DeathRules 内定案）</summary>
@@ -275,10 +191,12 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 摧毁（新增原子，红3）：与"消灭"的区别——作用于**无生命值单位**（地牌/结界）。
+    /// 摧毁（黑5）：与"消灭"的区别——作用于**无生命值单位**（地牌/结界）。
     /// 地牌 = 双方元素池中的卡（Zone.ElementPool）：先出池（余量写回卡，不设耗尽标记——
     /// 摧毁≠资源枯竭，回收后可再作地牌），再直送拥有者墓地；结界 = 战场非生物持久物。
     /// 不经死亡决策表（无生命值者无"死亡"），发 CardDestroyEvent（Reason=Smashed）。
+    /// 不灭免疫（2026-10-09 裁定：剧毒/消灭/摧毁三口全可被不灭拦）——显式走护盾矩阵消灭类
+    /// 判定（IsShielded/DestroyEffect），拦下即整跳（不出池不入墓不发事件）。
     /// </summary>
     public class SmashHandler : AtomicEffectHandlerBase
     {
@@ -289,6 +207,9 @@ namespace CardCore.Attribute.Handlers
             foreach (var target in context.Targets)
             {
                 if (!(target is Card card)) continue;
+
+                // 不灭免疫（2026-10-09 三口同拦裁定）：消灭类护盾判定，拦下即整跳
+                if (DeathRules.IsShielded(card, DeathCause.DestroyEffect)) continue;
 
                 // 出池：从双方元素池移除（余量写回卡上，由拥有者的池持有）
                 if (context.ElementPool != null)
@@ -533,9 +454,8 @@ namespace CardCore.Attribute.Handlers
                 new ChangeOwnerHandler(),
                 new DiscoverCardHandler(),
 
-                // 死亡原子
+                // 死亡原子（牺牲=直送非死亡；Devour=消灭（2026-10-09 吞噬机制移除）；湮灭）
                 new SacrificeHandler(),
-                new AbandonHandler(),
                 new DevourHandler(),
                 new AnnihilateHandler(),
 

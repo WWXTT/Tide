@@ -15,8 +15,8 @@ namespace CardCore
         private TimestampInfo _timestamp;
         private bool _isAlive = true;
 
-        // 关键词存储（不叠加定案 2026-10-08：Contains 去重——同一关键词至多一份；
-        // 文本（印刷/设置）与战中附加状态跨轨并存，消耗按台账逐份撤）
+        // 关键词存储（不叠加定案 2026-10-08；2026-10-09 全轨取代修订：Contains 去重——同一关键词至多一份；
+        // 文本（印刷/设置）与战中附加状态**互不补充**——新授予全轨取代旧实例，消耗=整词撤除无跨轨回补）
         internal List<string> _keywords = new List<string>();
 
         // 指示物存储（上移 Entity：角色/卡牌同构——剧毒/毒素可指向玩家；对齐 _keywords 先例）。
@@ -30,9 +30,10 @@ namespace CardCore
         // 消费方：剧毒死亡来源、减益致死归因；毒素回合末伤害保持 null（定案：毒素不是伤害来源实体）。
         internal Dictionary<string, Entity> _counterSources = new Dictionary<string, Entity>();
 
-        // 关键词轨别台账（2026-09-09 三轨制定案；2026-10-08 不叠加定案）：_keywords 是真身，
-        // 台账按（关键词, 轨）唯一——同轨重复授予=取代；只服务清除口径与值/次数读数
-        //（换区清 Temp、净化清 Temp+Status，豁免 PurgeProtectedKeywords、保留 Printed+Setting）。
+        // 关键词轨别台账（2026-09-09 三轨制定案；2026-10-08 不叠加；2026-10-09 全轨取代修订）：
+        // _keywords 是真身，台账按关键词全轨唯一——新授予无论轨别取代旧实例；
+        // 只服务清除口径与值/次数读数（换区清 Temp、净化清 Temp+Status，
+        // 豁免 PurgeProtectedKeywords、保留 Printed+Setting）。
         internal List<KeywordGrant> _keywordGrants = new List<KeywordGrant>();
 
         public TimestampInfo TimestampInfo => _timestamp;
@@ -107,7 +108,7 @@ namespace CardCore
     /// <summary>关键词授予台账条目：_keywords 是真身，本台账只记轨别与来源供清除口径消费。
     /// 2026-10-07 深夜参数化定案：Value=实例值、Limit=生效次数/回合（随授予效果的次数档传入）——
     /// 运行时消费已清零（坚韧 2026-10-08 指示物化、守护配对制无限次改写），现仅作
-    /// 不叠加（同轨取代）台账账目。字段默认 1/1：旧构造点（印刷装载/形态复制）与旧档自动兜底。</summary>
+    /// 不叠加（2026-10-09 全轨取代）台账账目。字段默认 1/1：旧构造点（印刷装载/形态复制）与旧档自动兜底。</summary>
     public class KeywordGrant
     {
         public string Keyword;

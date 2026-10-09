@@ -162,24 +162,6 @@
     "Des": "耐久单价 0.5 灰/点（2026-10-05 定案，随身材费计价）"
   },
   {
-    "Category": "SummonDrop",
-    "Key": "BattlefieldFactor",
-    "Value": 1.0,
-    "Des": "衍生物落战场=基准（即时场面）"
-  },
-  {
-    "Category": "SummonDrop",
-    "Key": "HandFactor",
-    "Value": 1.2,
-    "Des": "衍生物落手牌=即时弹性资源（溢价）"
-  },
-  {
-    "Category": "SummonDrop",
-    "Key": "DeckFactor",
-    "Value": 1.1,
-    "Des": "衍生物落牌组=检索稀释后延迟可得（微溢价）"
-  },
-  {
     "Category": "CardComposition",
     "Key": "ChassisBudget",
     "Value": 3.0,

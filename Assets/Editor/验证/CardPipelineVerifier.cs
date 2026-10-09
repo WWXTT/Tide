@@ -170,6 +170,8 @@ namespace CardCore.Editor
                 TestSpellModal(core, p1, p2, cardsData);
                 Crumb("→TestTargetDomainModel");
                 TestTargetDomainModel(core, p1, p2, cardsData);
+                Crumb("→TestPerAtomTargeting");
+                TestPerAtomTargeting(core, p1, p2);
                 Crumb("→TestBlackWhiteEconomy");
                 TestBlackWhiteEconomy(core, p1, p2);
                 Crumb("→TestSleep");
@@ -703,11 +705,12 @@ namespace CardCore.Editor
                     if (anyKind && (def.TargetDomain == null || def.TargetDomain.Count == 0))
                     {
                         emptyDomain++;
-                        Assert(false, $"卡 {card.ID}({card.CardName}) 效果 {def.Id}：带域原子存在但组合域交集为空");
+                        Assert(false, $"卡 {card.ID}({card.CardName}) 效果 {def.Id}：带域原子存在但组合域为空"
+                                     + "（逐原子口径域=并集，带域原子存在则并集必非空——converter 断链）");
                     }
                 }
             }
-            Assert(emptyDomain == 0, $"全部效果组合域非空（空域 {emptyDomain} 个）");
+            Assert(emptyDomain == 0, $"全部效果组合域非空（空域 {emptyDomain} 个——逐原子口径=并集）");
             Assert(atomTotal > 10 && kindAtoms > 10,
                 $"原子域解析覆盖（原子 {atomTotal}，带域 {kindAtoms}——现行 5 卡夹具 ~13 原子；阈值随夹具缩放）");
             Debug.Log($"[Verify] 目标域：{effectsChecked} 效果 / {atomTotal} 原子（带域 {kindAtoms}）");
@@ -851,6 +854,201 @@ namespace CardCore.Editor
             CardCostService.EnsureCost(bwCards[0]);
             Assert(bwCards[0].Cost[ManaType.White] > 0f || bwCards[0].Cost[ManaType.Black] > 0f,
                    "生物建议费用含黑白份额（黑白进费用列表；地牌侧由入池过滤兜住，不从黑白产元素）");
+        }
+
+        // ======================================== 逐原子目标制（2026-10-09 定案） ========================================
+
+        /// <summary>
+        /// 逐原子目标制端到端（2026-10-09 定案：并列组合无效果级作用范围声明 → 各原子按自身
+        /// 极性过滤域独立解析，弹窗全部落结算期连续等待，数量档/随机档各原子各自生效；
+        /// 单条效果作用域并集上限 4）：
+        /// ①判别与域：无 header=PerAtomTargets+并集域；header 声明=共享口径不回归；
+        /// ②极性过滤助手锚（TargetKindRules.PolarityFilter）；
+        /// ③行为端到端：域不交的 DealDamage（对方侧）+永久属性增加（己方侧）同卡并列——
+        ///   旧交集口径下不可构筑的组合，现各自独立解析结算（无头连弹自动代选不挂起）；
+        /// ④无域原子（DrawCard）与有域原子并列自结算共存；
+        /// ⑤强制类无窗口=逐原子自动全取；
+        /// ⑥并集 >4 装载兜底拦截（合成器加入门的 backstop）。
+        /// </summary>
+        private static void TestPerAtomTargeting(GameCore core, Player p1, Player p2)
+        {
+            EnsureMainPhase(core, p1);
+
+            // ---- 1. 判别与域 ----
+            var dmgEntry = AtomRefs.New(CardCore.AtomicEffectType.DealDamage, value: 2);          // p=-1 域{1,2}→{2}
+            var plusEntry = AtomRefs.New(CardCore.AtomicEffectType.AddPermanentPlusOne, value: 1); // p=+1 域{1,2}→{1}
+            var perAtomDef = CardEffectConverter.ConvertOne(new CardEffectData
+            {
+                Id = "VERIFY_PA",
+                AtomicEffects = new List<AtomicEffectEntry> { dmgEntry, plusEntry },
+            }, "VERIFY_PA");
+            Assert(perAtomDef.PerAtomTargets
+                   && TargetKindRules.Format(perAtomDef.TargetDomain) == "1,2,3,4",
+                $"无 header=逐原子模式+并集域（实际 flag={perAtomDef.PerAtomTargets} "
+                + $"域=[{TargetKindRules.Format(perAtomDef.TargetDomain)}]）");
+            var sharedDef = CardEffectConverter.ConvertOne(new CardEffectData
+            {
+                Id = "VERIFY_PA_SHARED",
+                TargetKinds = new List<int> { 2 }, // 旧数据：效果级作用范围声明（共享单选）
+                AtomicEffects = new List<AtomicEffectEntry> { dmgEntry },
+            }, "VERIFY_PA_SHARED");
+            Assert(!sharedDef.PerAtomTargets && TargetKindRules.Format(sharedDef.TargetDomain) == "2",
+                "header 声明=共享口径不回归（PerAtomTargets=false、域=声明值）");
+
+            // ---- 2. Union 助手（逐原子组合域=并集来源；运行时不做极性过滤——双域原子可选两侧、
+            //     跨侧命中走错边黑白发放经济，与旧共享口径一致；极性收窄是合成器 UI 的选择集口径） ----
+            Assert(TargetKindRules.Format(TargetKindRules.Union(new List<int> { 2, 1 }, new List<int> { 3, 2 })) == "1,2,3"
+                   && TargetKindRules.Format(TargetKindRules.Union(null, new List<int> { 5 })) == "5",
+                "Union：并集升序去重、null 成员不参与");
+
+            // ---- 3/4. 行为端到端：域不交双原子并列 + 无域原子共存（无头连弹自动代选） ----
+            int seq = 0;
+            Card Spawn(Player owner, int power, int life)
+            {
+                var data = new CardData
+                {
+                    ID = "VERIFY_PA_" + (++seq), CardName = "PA" + seq,
+                    Supertype = Cardtype.Creature, Power = power, Life = life,
+                };
+                var card = new CardWrapper(data);
+                card.SetController(owner);
+                Assert(core.ZoneManager.TryAddToBattlefield(card, owner), $"逐原子段合成随从入场（{data.CardName}）");
+                card.Untap();
+                return card;
+            }
+
+            var saveP1Field = new List<Card>(core.ZoneManager.GetCards(p1, Zone.Battlefield));
+            var saveP2Field = new List<Card>(core.ZoneManager.GetCards(p2, Zone.Battlefield));
+            foreach (var c in saveP1Field) core.ZoneManager.MoveCard(c, p1, Zone.Battlefield, Zone.Graveyard);
+            foreach (var c in saveP2Field) core.ZoneManager.MoveCard(c, p2, Zone.Battlefield, Zone.Graveyard);
+            var pool1 = core.ElementPool.GetPool(p1);
+            var snap = new Dictionary<ManaType, int>(pool1.AvailableMana);
+            try
+            {
+                foreach (var t in AllManaTypes()) pool1.AvailableMana[t] = 99;
+                var a = Spawn(p1, 2, 5);
+                var b = Spawn(p2, 2, 5);
+                int p1Deck = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
+                Assert(p1Deck > 0, "逐原子段前提：牌库非空（DrawCard 自结算观察点）");
+
+                var paCardData = new CardData
+                {
+                    ID = "VERIFY_PA_CR", CardName = "逐原子验证", Supertype = Cardtype.Spell,
+                    Cost = CostOf((ManaType.Gray, 1f)),
+                };
+                paCardData.Effects.Add(new CardEffectData
+                {
+                    Id = "VERIFY_PA_ONPLAY",
+                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                    AtomicEffects = new List<AtomicEffectEntry>
+                    {
+                        // 显式域收窄（逐原子卡的标准形态：每原子声明自己的作用范围）——对方单位 {2}/己方单位 {1}
+                        AtomRefs.New(CardCore.AtomicEffectType.DealDamage, value: 2, kinds: new List<int> { 2 }),
+                        AtomRefs.New(CardCore.AtomicEffectType.AddPermanentPlusOne, value: 1, kinds: new List<int> { 1 }),
+                    },
+                });
+                var paCard = InjectCard(core, p1, paCardData);
+                Assert(GameActions.PlayCard(core, p1, paCard), "打出域不交逐原子组合（旧交集口径不可构筑）");
+                GameActions.DrainStack(core);
+                Assert(b.GetLife() == 3 && a.GetPower() == 3,
+                    $"逐原子独立解析：DealDamage 落对方生物（b 生 {b.GetLife()}=3）、"
+                    + $"永久+1 落己方生物（a 攻 {a.GetPower()}=3）——两原子域不交各自结算");
+
+                var paDrawData = new CardData
+                {
+                    ID = "VERIFY_PA_DRAW", CardName = "逐原子抽卡", Supertype = Cardtype.Spell,
+                    Cost = CostOf((ManaType.Gray, 1f)),
+                };
+                paDrawData.Effects.Add(new CardEffectData
+                {
+                    Id = "VERIFY_PA_DRAW_ONPLAY",
+                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                    AtomicEffects = new List<AtomicEffectEntry>
+                    {
+                        AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1),             // 隐藏区（牌库）自结算
+                        AtomRefs.New(CardCore.AtomicEffectType.AddPermanentPlusOne, value: 1, kinds: new List<int> { 1 }),
+                    },
+                });
+                var paDrawCard = InjectCard(core, p1, paDrawData);
+                Assert(GameActions.PlayCard(core, p1, paDrawCard), "打出无域+有域并列组合");
+                GameActions.DrainStack(core);
+                Assert(a.GetPower() == 4
+                       && core.ZoneManager.GetCards(p1, Zone.Deck).Count == p1Deck - 1,
+                    "无域原子自结算共存：DrawCard 抽 1（牌库 -1）、永久+1 照常落己方生物（a 攻 4）");
+
+                // ---- 5. 强制类无窗口：逐原子自动全取（不弹选，全域命中）——
+                //      直构 def（CardData.ActivationType=0 会被转换器当未声明回落默认桶，
+                //      V9.o ④ 强制桶同款先例）；PerAtomTargets 手动置位（绕过 converter） ----
+                var mandDef = new CardCore.EffectDefinition
+                {
+                    Id = "VERIFY_PA_MAND",
+                    DisplayName = "强制逐原子",
+                    ActivationType = CardCore.EffectActivationType.Mandatory,
+                    TriggerTiming = TriggerTiming.OnPlay,
+                    ElementCostPrepaid = true,
+                    PerAtomTargets = true,
+                    Effects = new List<CardCore.AtomicEffectInstance>
+                    {
+                        new CardCore.AtomicEffectInstance
+                        {
+                            Type = CardCore.AtomicEffectType.DealDamage, Value = 1,
+                            TargetKinds = new List<int> { 2 }, Polarity = -1f,
+                            RowHashId = CardCore.Attribute.AtomicEffectTable.GetByType(CardCore.AtomicEffectType.DealDamage)?.HashId,
+                        },
+                    },
+                };
+                int ubLife0 = b.GetLife(), p2Life0 = p2.Life;
+                core.StackEngine.GetExecutor().ExecuteAsync(new EffectInstance
+                {
+                    Definition = mandDef,
+                    Source = p1,
+                    Controller = p1,
+                    Targets = new List<Entity>(),
+                }).GetAwaiter().GetResult();
+                Assert(b.GetLife() == ubLife0 - 1 && p2.Life == p2Life0 - 1,
+                    $"强制类自动全取：对方生物与角色各受 1（{ubLife0}→{b.GetLife()}、角色 {p2Life0}→{p2.Life}）——不弹选全域命中");
+            }
+            finally
+            {
+                foreach (var kv in snap) pool1.AvailableMana[kv.Key] = kv.Value;
+                var kill = new List<Card>(core.ZoneManager.GetCards(p1, Zone.Battlefield).Concat(
+                    core.ZoneManager.GetCards(p2, Zone.Battlefield)));
+                foreach (var c in kill) core.ZoneManager.MoveCard(c, c.GetController(), Zone.Battlefield, Zone.Graveyard);
+                foreach (var c in saveP1Field) core.ZoneManager.MoveCard(c, p1, Zone.Graveyard, Zone.Battlefield);
+                foreach (var c in saveP2Field) core.ZoneManager.MoveCard(c, p2, Zone.Graveyard, Zone.Battlefield);
+            }
+            // ---- 6. 并集 >4 装载兜底（合成器加入门的 backstop） ----
+            var ddHash = CardCore.Attribute.AtomicEffectTable.GetByType(CardCore.AtomicEffectType.DealDamage)?.HashId;
+            var prevSink = TideLog.Sink;
+            var errs = new List<string>();
+            TideLog.Sink = (level, msg) =>
+            {
+                if (level == TideLogLevel.Error) errs.Add(msg);
+                prevSink?.Invoke(level, msg);
+            };
+            try
+            {
+                var overJson = "{\"cards\":[{\"id\":\"VERIFY_PA_OVER\",\"cardName\":\"并集超限\","
+                             + "\"supertype\":\"Spell\",\"effects\":[{\"id\":\"E1\",\"atomicEffects\":[{\"refId\":\""
+                             + ddHash + "\",\"value\":1,\"kinds\":[2,4,6,8,10]"
+                             + "}]}]}]}";
+                CardLoader.LoadCardsFromText(overJson); // p=-1 全对方侧 5 域 → 并集 5 > 4
+                Assert(errs.Any(e => e.Contains("并集") && e.Contains("超上限")),
+                    "并集 >4 装载兜底：TideLog Error 点名超上限（逐原子单条效果限 4 个作用范围）");
+
+                errs.Clear();
+                var okJson = "{\"cards\":[{\"id\":\"VERIFY_PA_OK\",\"cardName\":\"并集合规\","
+                           + "\"supertype\":\"Spell\",\"effects\":[{\"id\":\"E1\",\"atomicEffects\":[{\"refId\":\""
+                           + ddHash + "\",\"value\":1,\"kinds\":[2,4]"
+                           + "}]}]}]}";
+                CardLoader.LoadCardsFromText(okJson);
+                Assert(!errs.Any(e => e.Contains("超上限")),
+                    "并集 ≤4 合规装载：无超上限报错（并集恰 4 为合法上限内）");
+            }
+            finally
+            {
+                TideLog.Sink = prevSink;
+            }
         }
 
         // ======================================== 沉睡（2026-09-11 改造） ========================================
@@ -1997,13 +2195,12 @@ namespace CardCore.Editor
             }
         }
 
-        // ======================================== 死亡原子（牺牲/吞噬/湮灭） ========================================
+        // ======================================== 死亡原子（牺牲/消灭/湮灭） ========================================
 
         /// <summary>
         /// 死亡原子端到端（DeathRules 死因的原子层落地；合成随从驱动，不依赖卡表）：
-        /// - 牺牲：己方生物经 Sacrifice 死因入墓；
-        /// - 吞噬：消灭裁决成功才吸收——复制目标全部关键词 + 回复目标当前生命；
-        ///   不灭拦 Devour（消灭类），拦下即无吸收；
+        /// - 牺牲（2026-10-09 舍弃并档定案）：持有者自选单位直送墓——非效果死亡，不发 CardDestroyEvent；
+        /// - 消灭（2026-10-09 吞噬机制移除）：纯效果死亡入墓，无回复无吸收——不灭拦（消灭类）；
         /// - 湮灭：直送除外区、复生不可救；不灭不拦（非消灭类，照常湮灭）。
         /// </summary>
         private static void TestDeathAtoms(GameCore core, Player p1, Player p2)
@@ -2056,37 +2253,40 @@ namespace CardCore.Editor
 
             try
             {
-                // ---- 牺牲：己方生物入墓 ----
+                // ---- 牺牲（2026-10-09 舍弃并档定案）：直送墓·非死亡（不发 CardDestroyEvent=死亡时点不触发）----
                 var victim = Make(p1, 2, 3);
-                // 2026-09-13 修复：Sacrifice 已改 edict 语义——作用对象=角色（Player），持有者再自选生物；
-                // 直塞生物目标会被 handler 空转（TestSacrificeAtom 段 Targets={p2,p1} 口径）
+                int destroyEvents = 0;
+                void OnDeathAtomDestroy(CardDestroyEvent e) => destroyEvents++;
+                EventManager.Instance.Subscribe<CardDestroyEvent>(OnDeathAtomDestroy);
                 Atom(AtomicEffectType.Sacrifice, p1, p1, p1);
+                EventManager.Instance.Unsubscribe<CardDestroyEvent>(OnDeathAtomDestroy);
                 Assert(!victim.IsAlive && core.ZoneManager.GetCards(p1, Zone.Graveyard).Contains(victim),
-                       "牺牲：生物经 Sacrifice 死因入墓");
+                       "牺牲：持有者自选单位直送墓（非死亡定案）");
+                Assert(destroyEvents == 0,
+                       "牺牲非死亡：不发 CardDestroyEvent（OnDeath/亡语/消灭替代/统计全不触发）");
 
-                // ---- 吞噬（2026-09-13 简化）：消灭 + 按被消灭单位最大生命值回复（关键词吸收已删）----
-                var devourer = Make(p1, 3, 6);
-                Atom(AtomicEffectType.DealDamage, p1, p1, devourer, 4); // 先受伤留回复缺口
-                Assert(devourer.GetLife() == 2, "吞噬者先受伤至 2（留回复缺口）");
+                // ---- 消灭（2026-10-09 吞噬机制移除）：纯效果死亡，无回复无吸收 ----
+                var slayer = Make(p1, 3, 6);
+                Atom(AtomicEffectType.DealDamage, p1, p1, slayer, 4); // 先受伤至 2——验证消灭不再回复
+                Assert(slayer.GetLife() == 2, "消灭段：施法单位先受伤至 2（回复缺口）");
 
                 var prey = Make(p2, 1, 3, CardCore.Attribute.KeywordRules.Taunt);
-                Atom(AtomicEffectType.DealDamage, p2, p2, prey, 2); // 猎物受伤至 1——最大3≠当前1，区分回复口径
-                Atom(AtomicEffectType.Devour, p1, devourer, prey);
+                int killEvents = 0;
+                void OnKillDestroy(CardDestroyEvent e) => killEvents++;
+                EventManager.Instance.Subscribe<CardDestroyEvent>(OnKillDestroy);
+                Atom(AtomicEffectType.Devour, p1, slayer, prey); // 消灭（原吞噬行改名，EffectType 沿用）
+                EventManager.Instance.Unsubscribe<CardDestroyEvent>(OnKillDestroy);
                 Assert(!prey.IsAlive && core.ZoneManager.GetCards(p2, Zone.Graveyard).Contains(prey),
-                       "吞噬：猎物经 Devour 死因入墓");
-                Assert(!devourer.HasKeyword(CardCore.Attribute.KeywordRules.Taunt), "吞噬：不再复制关键词（吸收已删）");
-                Assert(devourer.GetLife() == 5, "吞噬：按被消灭单位最大生命值回复（2+3=5，非当前生命1）");
+                       "消灭：目标生物经 DestroyEffect 死因入墓");
+                Assert(slayer.GetLife() == 2, "消灭无吞噬：不按目标生命回复（机制已删）");
+                Assert(killEvents == 1, "消灭=效果死亡：恰发一次 CardDestroyEvent（与牺牲直送相对）");
 
-                // 不灭拦 Devour（消灭类）：拦下即无回复（潜行已指示物化——Make 印刷路径入场挂 1 层）
+                // 不灭拦消灭（消灭类死因）：拦下即无事发生
                 var rock = Make(p2, 0, 5, CardCore.Attribute.KeywordRules.Indestructible,
                                 CardCore.Attribute.CounterRules.StealthCounter);
-                int lifeBefore = devourer.GetLife();
-                Atom(AtomicEffectType.Devour, p1, devourer, rock);
+                Atom(AtomicEffectType.Devour, p1, p1, rock);
                 Assert(rock.IsAlive && core.ZoneManager.GetCards(p2, Zone.Battlefield).Contains(rock),
-                       "不灭拦下吞噬（消灭类死因）");
-                Assert(devourer.GetCounterCount(CardCore.Attribute.CounterRules.StealthCounter) == 0
-                       && devourer.GetLife() == lifeBefore,
-                       "拦下即无回复（无吸收语义——指示物层同样不复制）");
+                       "不灭拦下消灭（消灭类死因）");
 
                 // ---- 湮灭：直送除外 + 复生不可救 + 不灭不拦 ----
                 var phoenix = Make(p2, 2, 2, CardCore.Attribute.CounterRules.RebornCounter);
@@ -2327,18 +2527,20 @@ namespace CardCore.Editor
                 Assert(statBen.GetPower() == 4 && statBen.GetLife() == 7 && statBen.GetMaxLife() == 7,
                        "属性+光环（Both）：攻生同值加成（3→1+3 / 4+3）");
 
-                // ---- 4d. 坚韧指示物（2026-10-08 指示物化定案：每层 −1、不随受伤消耗；值/limit 台账与次数闸已退役）----
+                // ---- 4d. 坚韧指示物（2026-10-09 生效自减改版，同毒素档）：受伤每层 −1，实际拦到即生效
+                //      ——生效后层数减半（floor）；值/limit 台账与次数闸已退役 ----
                 var toughBen = MakePlain(p1, 3, 9);
                 toughBen.AddCounters(CardCore.Attribute.CounterRules.ToughnessCounter, 2, null); // 2 层
                 int tLife = toughBen.GetLife();
                 Attribute.KeywordRules.ApplyDamage(null, toughBen, 5, false);
                 Assert(toughBen.GetLife() == tLife - 3
-                       && toughBen.GetCounterCount(CardCore.Attribute.CounterRules.ToughnessCounter) == 2,
-                       "坚韧指示物：2 层 → 5 伤实扣 3，层不随受伤消耗");
+                       && toughBen.GetCounterCount(CardCore.Attribute.CounterRules.ToughnessCounter) == 1,
+                       "坚韧指示物：2 层 → 5 伤实扣 3，生效减半（2→1）");
                 tLife = toughBen.GetLife();
                 Attribute.KeywordRules.ApplyDamage(null, toughBen, 5, false);
-                Assert(toughBen.GetLife() == tLife - 3,
-                       "坚韧不消耗：第二次受伤仍减 2（易损镜像；旧 value/limit 台账与次数闸已随指示物化退役）");
+                Assert(toughBen.GetLife() == tLife - 4
+                       && toughBen.GetCounterCount(CardCore.Attribute.CounterRules.ToughnessCounter) == 0,
+                       "坚韧生效自减：第二击余 1 层减 1，层清零（易损镜像；旧 value/limit 台账与次数闸已随指示物化退役）");
 
                 // ---- 4e. 守护配对制（2026-10-08 改版）：扫场护角色+次数闸形态退役——
                 //      裸持有不建配对不挡刀；登场/授予弹选才建配对（行为全量锚见 TestGuardianRelay 六段）----
@@ -2405,7 +2607,7 @@ namespace CardCore.Editor
                 Assert(armorRow != null
                        && ComposerCatalog.HasMountBit(armorRow, CardCore.MountKind.Counter)
                        && !ComposerCatalog.CanMountAsAura(armorRow),
-                       "坚韧表行（a312b8b0）：指示物族（位1）→ 不可作连接光环条目");
+                       "坚韧表行（2b1e3700）：指示物族（位1）→ 不可作连接光环条目");
                 Assert(!CardLoader.LoadKeywords().ContainsKey("Armor"),
                        "坚韧不入关键词目录（GrantToughness 未登记 Specs——LoadKeywords 跳过未登记 Grant 行）");
 
@@ -2978,6 +3180,14 @@ namespace CardCore.Editor
             Assert(!CardCore.Attribute.Handlers.GrantKeywordHandlerFactory.TryGetKeywordId(AtomicEffectType.GrantReborn, out rebornId)
                    && CardCore.Attribute.CounterRules.RebornCounter == "Reborn",
                    "复生已退关键词族：工厂不再登记（指示物处理器接管，counter id 承接运行时字符串）");
+            // 法术护盾 2026-10-09 指示物化：同口径收官——行存续（refId 重推 a3ad6a04→7270df35）退关键词工厂
+            string spellShieldId;
+            Assert(!CardCore.Attribute.Handlers.GrantKeywordHandlerFactory.TryGetKeywordId(AtomicEffectType.GrantSpellShield, out spellShieldId)
+                   && CardCore.Attribute.CounterRules.SpellShieldCounter == "SpellShield",
+                   "法术护盾已退关键词族：工厂不再登记（指示物处理器接管，counter id 承接运行时字符串）");
+            var spellShieldRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName("GrantSpellShield");
+            Assert(spellShieldRow != null && spellShieldRow.HashId == "7270df35",
+                   "法术护盾行 refId 重推：a3ad6a04→7270df35（指示物化随文案换号）");
 
             // ---- 2. 横置可用性 / 冲锋 / 突袭（2026-09-08 定案：一律横置入场；冲锋/突袭=登场效果，无入场豁免） ----
             var tappedUnit = Make(p1, 3, 3);
@@ -3304,12 +3514,16 @@ namespace CardCore.Editor
             var hitter = Make(p1, 4, 9);
             GameActions.DeclareAttack(core, p1, hitter, tough);
             GameActions.DrainStack(core);
-            Assert(tough.GetLife() == 6, "坚韧：最终伤害 −1（9 −3 = 6）");
+            Assert(tough.GetLife() == 6
+                   && tough.GetCounterCount(CardCore.Attribute.CounterRules.ToughnessCounter) == 0,
+                   "坚韧：最终伤害 −1（9 −3 = 6），1 层生效一次即清零（减半 floor）");
 
-            // 叠加：再挂一层（2026-10-08 指示物化——可叠加口径）
-            tough.AddCounters(CardCore.Attribute.CounterRules.ToughnessCounter, 1);
-            CardCore.Attribute.KeywordRules.ApplyDamage(p1, tough, 4, false);
-            Assert(tough.GetLife() == 4, "双坚韧（叠加 2 层）：伤害 −2");
+            // 重挂 2 层（可叠加口径；上一击已将 1 层清零）
+            tough.AddCounters(CardCore.Attribute.CounterRules.ToughnessCounter, 2);
+            Attribute.KeywordRules.ApplyDamage(p1, tough, 4, false);
+            Assert(tough.GetLife() == 4
+                   && tough.GetCounterCount(CardCore.Attribute.CounterRules.ToughnessCounter) == 1,
+                   "双坚韧（叠加 2 层）：伤害 −2，生效后减半余 1 层");
 
             var plated = Make(p2, 1, 5);
             plated.AddCounters(CardCore.Attribute.KeywordRules.ArmorCounter, 3);
@@ -3451,11 +3665,28 @@ namespace CardCore.Editor
                    && CardCore.EffectTargetValidator.CanTarget(hermit, hermit, AtomicEffectType.AddArmor),
                    "辟邪：对手效果不可指定，友方可以");
 
-            var warded = Make(p2, 2, 5, "SpellShield");
+            var warded = Make(p2, 2, 5, CardCore.Attribute.CounterRules.SpellShieldCounter); // 印刷路径入场挂 1 层
             var targets = new List<Entity> { warded, p2 };
             CardCore.Attribute.KeywordRules.ConsumeSpellShields(targets, foe1);
-            Assert(targets.Count == 1 && targets[0] == p2 && !warded.HasKeyword("SpellShield"),
-                   "法术护盾：首次成为对手效果目标时移出目标并消耗");
+            Assert(targets.Count == 1 && targets[0] == p2
+                   && warded.GetCounterCount(CardCore.Attribute.CounterRules.SpellShieldCounter) == 0,
+                   "法术护盾：成为对手效果目标时移出目标并消耗 1 层（印刷份=1 层归零）");
+
+            warded.AddCounters(CardCore.Attribute.CounterRules.SpellShieldCounter, 2); // 追加 2 层（多层=多次抵消）
+            var volley = new List<Entity> { warded };
+            CardCore.Attribute.KeywordRules.ConsumeSpellShields(volley, foe1);
+            CardCore.Attribute.KeywordRules.ConsumeSpellShields(volley, foe1);
+            CardCore.Attribute.KeywordRules.ConsumeSpellShields(volley, foe1);
+            Assert(volley.Count == 1
+                   && warded.GetCounterCount(CardCore.Attribute.CounterRules.SpellShieldCounter) == 0,
+                   "法术护盾多层：每层抵消一次——2 层恰挡 2 次，第 3 次照常作用");
+
+            warded.AddCounters(CardCore.Attribute.CounterRules.SpellShieldCounter, 1);
+            var friendly = new List<Entity> { warded };
+            CardCore.Attribute.KeywordRules.ConsumeSpellShields(friendly, warded);
+            Assert(friendly.Count == 1
+                   && warded.GetCounterCount(CardCore.Attribute.CounterRules.SpellShieldCounter) == 1,
+                   "法术护盾：友方效果不消耗（仅对手效果触发）");
 
             // ---- 18. 单向属性指示物：加时回写、换区清除时反向回写 ----
             ResetField(); // 段界清场
@@ -3482,19 +3713,23 @@ namespace CardCore.Editor
             Assert(pmTwin.GetPower() == 1 && pmTwin.GetMaxLife() == 3,
                    "±1 层对消共存：-1/-1×2 与 +1/+1×1（净 -1/-1）");
 
-            // ---- 18d. 易损：受到伤害每层 +1（防护层吸收放大后的量）；层=持续回合（持有者回合末 −1） ----
-            var brittle = Make(p2, 2, 9);
-            brittle.AddCounters(CardCore.Attribute.CounterRules.VulnerableCounter, 2);
-            CardCore.Attribute.KeywordRules.ApplyDamage(p1, brittle, 3, false);
-            Assert(brittle.GetLife() == 4, "易损：3 伤 + 2 层 = 5 伤（防护层前放大）");
-            CardCore.Attribute.CounterRules.OnTurnEnd(p2, core.ZoneManager);
-            Assert(brittle.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 1,
-                   "易损：持有者回合末 −1（2 层=2 回合；施加方回合末不结算）");
-            CardCore.Attribute.KeywordRules.ApplyDamage(p1, brittle, 3, false);
-            Assert(brittle.GetLife() == 2, "易损递减：第二回合剩 1 层（3 伤 +1 = 4 伤）");
-            CardCore.Attribute.CounterRules.OnTurnEnd(p2, core.ZoneManager);
-            Assert(brittle.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 0,
-                   "易损：层归零解除（层即持续——放大随层同步递减）");
+                // ---- 18d. 易损（2026-10-09 生效自减改版，同毒素档）：受到伤害每层 +1（防护层前放大），
+                //      生效后层数减半（floor）；退出衰退族（无回合末倒数） ----
+                var brittle = Make(p2, 2, 15);
+                brittle.AddCounters(CardCore.Attribute.CounterRules.VulnerableCounter, 2);
+                Attribute.KeywordRules.ApplyDamage(p1, brittle, 3, false);
+                Assert(brittle.GetLife() == 10
+                       && brittle.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 1,
+                       "易损：3 伤 + 2 层 = 5 伤（防护层前放大），生效后减半（2→1）");
+                CardCore.Attribute.CounterRules.OnTurnEnd(p2, core.ZoneManager);
+                Assert(brittle.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 1,
+                       "易损：持有者回合末不倒数（生效自减档——已退出衰退族；施加方回合末同样不结算）");
+                Attribute.KeywordRules.ApplyDamage(p1, brittle, 3, false);
+                Assert(brittle.GetLife() == 6
+                       && brittle.GetCounterCount(CardCore.Attribute.CounterRules.VulnerableCounter) == 0,
+                       "易损第二击：余 1 层 → 3 伤 +1 = 4 伤，层清零");
+                Attribute.KeywordRules.ApplyDamage(p1, brittle, 3, false);
+                Assert(brittle.GetLife() == 3, "易损层耗尽后裸伤（无放大）");
 
             // ---- 18e. 紊乱原子：附加后不能以玩家为目标（攻击与效果同口径） ----
             var dizzy = Make(p2, 2, 5);
@@ -3769,6 +4004,43 @@ namespace CardCore.Editor
                 Debug.LogWarning("[Verify] 跳过摧毁段：p2 无可用地牌（池空且手牌无可入池生物）");
             }
 
+            // ---- 21b. 摧毁×不灭（2026-10-09 三口裁定：剧毒/消灭/摧毁全可被不灭拦）----
+            var enchantData = new CardData
+            {
+                ID = "VERIFY_SMASH_ENCH", CardName = "摧毁标的结界", Supertype = Cardtype.Enchantment, Power = 0, Life = 0,
+            };
+            var normalEnchant = new CardWrapper(enchantData);
+            normalEnchant.SetController(p2);
+            Assert(core.ZoneManager.TryAddToBattlefield(normalEnchant, p2), "摧毁段：普通结界入场");
+
+            var rockEnchantData = new CardData
+            {
+                ID = "VERIFY_SMASH_ROCK", CardName = "不灭结界", Supertype = Cardtype.Enchantment, Power = 0, Life = 0,
+            };
+            rockEnchantData.Keywords.Add(CardCore.Attribute.KeywordRules.Indestructible);
+            var rockEnchant = new CardWrapper(rockEnchantData);
+            rockEnchant.SetController(p2);
+            Assert(core.ZoneManager.TryAddToBattlefield(rockEnchant, p2), "摧毁段：不灭结界入场");
+
+            var smashDef2 = new EffectDefinition
+            {
+                Id = "VERIFY_SMASH_INDESTRUCTIBLE",
+                TriggerTiming = TriggerTiming.Activate_Active,
+                Effects = new List<AtomicEffectInstance> { new AtomicEffectInstance { Type = AtomicEffectType.Smash } },
+            };
+            executor.ExecuteAsync(new EffectInstance
+            {
+                Definition = smashDef2,
+                Source = p1,
+                Controller = p1,
+                Targets = new List<Entity> { normalEnchant, rockEnchant },
+            }, skipElementCost: true).Forget();
+            Assert(core.ZoneManager.IsCardInZone(normalEnchant, p2, Zone.Graveyard),
+                   "摧毁：普通无生命单位直送墓");
+            Assert(rockEnchant.IsAlive && core.ZoneManager.IsCardInZone(rockEnchant, p2, Zone.Battlefield),
+                   "摧毁×不灭：不灭无生命单位免疫摧毁（三口同拦裁定）");
+            RetireCards(core, p2, rockEnchant);
+
             // ---- 22. 费用指示物端到端：减费作用于预检与付费全程；层在发动区存活；结算后清除 ----
             EnsureMainPhase(core, p1);
             CardData GraySpellData(int gray, string id, string name)
@@ -3949,14 +4221,15 @@ namespace CardCore.Editor
                    "引擎奖励预算：死亡计数/元素充盈/手牌序位=x；既有三引擎自平衡（-1 无上限）");
 
             // ---- 1b. MountKinds 数据驱动（2026-10-07 晚终版：关键词默认可−消耗型拉黑；位3=属性变更；位7=光环专属）----
-            // 光环关键词资格：关键词**默认可**（隐密无移除口=持续型，默认可）；真消耗型已指示物化（2026-10-08：
-            // 圣盾/潜行/复生改位 1 指示物行——指示物行硬拒光环挂载），关键词族仅剩法术护盾表标位 8 拉黑
+            // 光环关键词资格：关键词**默认可**（隐密无移除口=持续型，默认可）；真消耗型已全部指示物化
+            //（2026-10-08 圣盾/潜行/复生、2026-10-09 法术护盾收官——改位 1 指示物行，指示物行硬拒光环挂载，
+            // 目录不收），关键词族位 8 拉黑现值仅守护/再生/禁魔石
             Assert(!CardCore.ComposerCatalog.IsAuraMountableKeyword("DivineShield")
                    && !CardCore.ComposerCatalog.IsAuraMountableKeyword("Stealth")
                    && !CardCore.ComposerCatalog.IsAuraMountableKeyword("Reborn")
                    && !CardCore.ComposerCatalog.IsAuraMountableKeyword("SpellShield")
                    && !CardCore.ComposerCatalog.IsAuraMountableKeyword("Guardian"),
-                   "光环可挂判定：圣盾/潜行/复生（已指示物化，目录不收）+法术护盾/守护（位 8 拉黑）不可挂");
+                   "光环可挂判定：圣盾/潜行/复生/法术护盾（已指示物化，目录不收）+守护（位 8 拉黑）不可挂");
             Assert(CardCore.ComposerCatalog.IsAuraMountableKeyword("Lifesteal")
                    && CardCore.ComposerCatalog.IsAuraMountableKeyword("Taunt")
                    && CardCore.ComposerCatalog.IsAuraMountableKeyword("Concealed")
@@ -3974,13 +4247,13 @@ namespace CardCore.Editor
                    && grantRows.Where(r => CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.NoLinkAura))
                                .All(r => !CardCore.ComposerCatalog.CanMountAsAura(r)),
                    "默认翻转：关键词行（未拉黑）全部可作光环；拉黑行全部不可（CanMountAsAura 统一判定）");
-            var convertedAuraExits = new[] { "GrantStealth", "GrantDivineShield", "GrantReborn" }
+            var convertedAuraExits = new[] { "GrantStealth", "GrantDivineShield", "GrantReborn", "GrantSpellShield" }
                 .Select(n => CardCore.Attribute.AtomicEffectTable.GetByEnumName(n)).ToList();
             Assert(convertedAuraExits.All(r => r != null)
                    && convertedAuraExits.All(r => !CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.NoLinkAura))
                    && convertedAuraExits.All(r => !CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.Keyword))
                    && convertedAuraExits.All(r => CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.Counter)),
-                   "圣盾/复生/潜行指示物化：三行退出关键词族（无位 0/位 8）改位 1 指示物——光环挂载由指示物位硬拒");
+                   "圣盾/复生/潜行（2026-10-08）/法术护盾（2026-10-09）指示物化：四行退出关键词族（无位 0/位 8）改位 1 指示物——光环挂载由指示物位硬拒");
             var guardianKwRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName("GrantGuardian");
             Assert(guardianKwRow != null
                    && CardCore.ComposerCatalog.HasMountBit(guardianKwRow, CardCore.MountKind.Keyword)
@@ -4024,17 +4297,13 @@ namespace CardCore.Editor
             Assert(CardCore.ComposerCatalog.IsCreatureGrantRow(
                        CardCore.Attribute.AtomicEffectTable.GetByEnumName("GrantTaunt")),
                    "生物侧可赋予：Grant 行 TargetFilter 含 NoRole（仅生物）");
-            // NoRole 角色通道门（2026-10-08 定案）：仅生物关键词禁经光环投递角色——
-            // 运行时投递/合成器开关/计价三处共用 RoleChannelBlocked；光环条目库的豁免集=表政策锚。
-            // 2026-10-08 晚现状：坚韧行指示物化、守护行配对制拉黑——两豁免行先后退出光环条目库，
-            // 角色通道当前无豁免行（后续重新放开某行时此断言随表同步）
-            var roleExempt = CardCore.ComposerCatalog.AuraKeywordChoices()
-                .Where(c => !CardCore.ComposerCatalog.RoleChannelBlocked(c.id)).ToList();
-            Assert(roleExempt.Count == 0,
-                   "NoRole 角色通道门：光环条目库角色豁免当前为空（坚韧已指示物化、守护已配对制拉黑——2026-10-08）");
-            Assert(CardCore.ComposerCatalog.RoleChannelBlocked(CardCore.Attribute.KeywordRules.Regeneration)
-                   && CardCore.ComposerCatalog.RoleChannelBlocked(CardCore.Attribute.KeywordRules.Spellban),
-                   "NoRole 角色通道门：再生/禁魔石（NoRole 行）判定禁投（关闭角色非战斗伤害免疫洞）");
+            // 角色通道（2026-10-09 裁定）：关键词光环一律可作用角色——不能用光环表达的行由表
+            // 「不可作为连接光环」位拉黑（守护/再生/禁魔石：配对制/角色回满太强/角色免疫洞），
+            // 通道不再设防（RoleChannelBlocked 与逐条目 role 声明整体退役；属性条目仍恒仅生物）。
+            Assert(!CardCore.ComposerCatalog.IsAuraMountableKeyword(CardCore.Attribute.KeywordRules.Regeneration)
+                   && !CardCore.ComposerCatalog.IsAuraMountableKeyword(CardCore.Attribute.KeywordRules.Spellban)
+                   && !CardCore.ComposerCatalog.IsAuraMountableKeyword(CardCore.Attribute.KeywordRules.Guardian),
+                   "光环黑名单：再生/禁魔石/守护不可作光环（角色通道开放的边界——限制单源于表拉黑位）");
             // 回响行（2026-10-07 关键词→普通效果改版）：EchoCopy 普通行——退出 Grant 族（关键词目录不再合成）、
             // 无 Spell token、无挂载位声明（主干资格派生）、蓝 2
             var echoRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName("EchoCopy");
@@ -4048,7 +4317,7 @@ namespace CardCore.Editor
             // 指示物行（2026-10-08 圣盾/复生/潜行指示物化入组；全组总数归并行表改面漂移中——
             // 本锚只钉三行：位 1 指示物 + 存储态 TargetKinds=自己（效果作用自身，
             // 赋予域由合成器 GrantTargetKinds 覆写任意卡 {1..8}））
-            var convertedRows = new[] { "GrantDivineShield", "GrantReborn", "GrantStealth" }
+            var convertedRows = new[] { "GrantDivineShield", "GrantReborn", "GrantStealth", "GrantSpellShield" }
                 .Select(n => CardCore.Attribute.AtomicEffectTable.GetByEnumName(n)).ToList();
             Assert(convertedRows.All(r => r != null)
                    && convertedRows.All(r => CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.Counter))
@@ -4057,12 +4326,12 @@ namespace CardCore.Editor
                        var k = r.GetTargetKindList();
                        return k != null && k.Count == 1 && k[0] == (int)CardCore.TargetKind.Self;
                    }),
-                   "圣盾/复生/潜行指示物行：位 1 指示物 + 存储态=自己（关键词型自指域定案随行保留）");
-            // 光环关键词下拉数据源：位 6 行（不含消耗型；坚韧/圣盾/复生/潜行已指示物化、守护已配对制拉黑）
+                   "圣盾/复生/潜行/法术护盾指示物行：位 1 指示物 + 存储态=自己（关键词型自指域定案随行保留）");
+            // 光环关键词下拉数据源：位 6 行（不含消耗型；坚韧/圣盾/复生/潜行/法术护盾已指示物化、守护已配对制拉黑）
             var auraChoices = CardCore.ComposerCatalog.AuraKeywordChoices();
             Assert(!auraChoices.Any(c => c.id == "Armor") && !auraChoices.Any(c => c.id == "Guardian")
                    && !auraChoices.Any(c => c.id == "DivineShield" || c.id == "Stealth" || c.id == "Reborn" || c.id == "SpellShield"),
-                   "光环关键词下拉：坚韧/圣盾/复生/潜行（指示物化）/守护（配对制拉黑）/法术护盾均不在列");
+                   "光环关键词下拉：坚韧/圣盾/复生/潜行/法术护盾（指示物化）/守护（配对制拉黑）均不在列");
 
             // ---- 1c. 不可随机黑名单（2026-10-07 位 4 翻转；总数归表改面漂移不锚——只钉性质+下方七行白名单）；
             // 七个可随机行（伤害族4+回复生命+紊乱+沉睡）不标——含{value}默认可随机 ----
@@ -6261,13 +6530,14 @@ namespace CardCore.Editor
             RetireCards(core, p2, b1, b2);
         }
 
-        // ======================================== 牺牲原子（2026-09-13 edict 定案） ========================================
+        // ======================================== 牺牲原子（2026-10-09 舍弃并档定案） ========================================
 
         /// <summary>
-        /// 牺牲原子端到端：①表行锚（黑3 Polarity=-1 域 1,2 filter "Player"=仅角色）；
-        /// ②候选域=双方角色（生物不入候选——Player 过滤激活）；③行为：目标玩家（持有者）自行选择
-        /// 一个己方生物效果死亡（headless 自动选首个；多生物时走交互 Chooser=持有者）；
-        /// ④不灭不拦牺牲（DeathRules 只拦{消灭,吞噬}——绕不灭的解场口）；来源=持有者。
+        /// 牺牲原子端到端：①表行锚（黑5 Polarity=-1 域 1,2,3,4 filter "Player"=仅角色）；
+        /// ②候选域=双方角色（单位不入候选——Player 过滤激活）；③行为：目标玩家（持有者）自行选择
+        /// 一个己方战场单位（生物+无生命单位，摒弃并池）**直送墓地**——非效果死亡：
+        /// 不发 CardDestroyEvent（死亡时点/消灭替代/击杀统计不触发），不灭/神佑无从拦
+        ///（非死亡路径；headless 自动选首个；多单位时走交互 Chooser=持有者）。
         /// </summary>
         private static void TestSacrificeAtom(GameCore core, Player p1, Player p2)
         {
@@ -6275,13 +6545,13 @@ namespace CardCore.Editor
 
             // ---- 1. 表行锚 ----
             var cfg = CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.Sacrifice);
-            Assert(cfg != null && cfg.TotalUnitCost == 3f && cfg.Polarity == -1f
-                   && cfg.GetTargetKindList().SequenceEqual(new[] { 1, 2 })
+            Assert(cfg != null && cfg.TotalUnitCost == 5f && cfg.Polarity == -1f
+                   && cfg.GetTargetKindList().SequenceEqual(new[] { 1, 2, 3, 4 })
                    && (cfg.TargetFilter ?? "") == "Player"
                    && ElementAffinities.GetAffinityForEffect(AtomicEffectType.Sacrifice).PrimaryColor == ManaType.Black,
-                   "牺牲表行：黑3 Polarity=-1 域={1,2} filter=Player（仅角色；2026-09-13 用户调价 2→3）");
+                   "牺牲表行：黑5 Pol=-1 域={1,2,3,4} filter=Player（仅角色；2026-10-09 舍弃并档调价 3→5）");
 
-            // ---- 2. 候选域=仅角色（Player 过滤激活） ----
+            // ---- 2. 候选域=仅角色（Player 过滤激活；域=战场四单位类） ----
             var ctx = new EffectExecutionContext
             {
                 Source = p1,
@@ -6290,12 +6560,13 @@ namespace CardCore.Editor
                 ElementPool = core.ElementPool,
             };
             var candidates = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(
-                new List<int> { (int)CardCore.TargetKind.OwnLivingUnit, (int)CardCore.TargetKind.EnemyLivingUnit },
+                new List<int> { (int)CardCore.TargetKind.OwnLivingUnit, (int)CardCore.TargetKind.EnemyLivingUnit,
+                                (int)CardCore.TargetKind.OwnNonLivingUnit, (int)CardCore.TargetKind.EnemyNonLivingUnit },
                 "Player", ctx);
             Assert(candidates.Contains(p1) && candidates.Contains(p2) && candidates.All(c => c is Player),
-                   "牺牲候选域：仅双方角色（Player 过滤滤除生物）");
+                   "牺牲候选域：仅双方角色（Player 过滤滤除单位）");
 
-            // ---- 3. 行为：持有者交出一个生物（含不灭——牺牲绕不灭） ----
+            // ---- 3. 行为：持有者交出一个单位（直送非死亡；不灭无从拦） ----
             int seq = 0;
             Card Spawn(Player owner, int power, int life, params string[] keywords)
             {
@@ -6312,26 +6583,31 @@ namespace CardCore.Editor
                 return card;
             }
 
-            var foeIndestructible = Spawn(p2, 3, 3, Attribute.KeywordRules.Indestructible); // 唯一生物=不灭——自动选它
-            var mine = Spawn(p1, 2, 2); // p1 唯一生物
+            var foeIndestructible = Spawn(p2, 3, 3, Attribute.KeywordRules.Indestructible); // 唯一单位=不灭——自动选它
+            var mine = Spawn(p1, 2, 2); // p1 唯一单位
 
             var atom = new CardCore.AtomicEffectInstance { Type = AtomicEffectType.Sacrifice, Value = 1 };
             var execCtx = new EffectExecutionContext
             {
                 Source = p1,
-                Controller = p1, // 施法者=p1；死亡来源应=持有者（各自）
+                Controller = p1, // 施法者=p1；送墓归属=各自持有者
                 ZoneManager = core.ZoneManager,
                 ElementPool = core.ElementPool,
                 Targets = new List<Entity> { p2, p1 }, // 作用对象=双方角色
             };
+            int sacDestroyEvents = 0;
+            void OnSacDestroy(CardDestroyEvent e) => sacDestroyEvents++;
+            EventManager.Instance.Subscribe<CardDestroyEvent>(OnSacDestroy);
             Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(atom, execCtx), "牺牲原子执行（作用对象=双方角色）");
+            EventManager.Instance.Unsubscribe<CardDestroyEvent>(OnSacDestroy);
 
             Assert(!foeIndestructible.IsAlive && core.ZoneManager.IsCardInZone(foeIndestructible, p2, Zone.Graveyard),
-                   "牺牲：对手持有者交出唯一生物（不灭不拦——绕不灭的解场口）");
+                   "牺牲：对手持有者交出唯一单位（直送非死亡——不灭无从拦）");
             Assert(!mine.IsAlive && core.ZoneManager.IsCardInZone(mine, p1, Zone.Graveyard),
-                   "牺牲：己方持有者同批交出（来源=各自持有者）");
+                   "牺牲：己方持有者同批交出（送墓归属=各自持有者）");
+            Assert(sacDestroyEvents == 0, "牺牲非死亡：全批不发 CardDestroyEvent（死亡时点不触发）");
 
-            // ---- 4. 帷幕豁免：牺牲/摒弃选择权在目标方——帷幕只约束对手的选择 ----
+            // ---- 4. 帷幕豁免：牺牲类选择权在目标方——帷幕只约束对手的选择 ----
             var curtain = Spawn(p2, 2, 5, Attribute.KeywordRules.Taunt);
             var p1Second = Spawn(p1, 2, 2);
             var sacDef = CardEffectConverter.ConvertOne(new CardEffectData
@@ -6361,61 +6637,41 @@ namespace CardCore.Editor
             RetireCards(core, p1, p1Second);
             RetireCards(core, p2, curtain);
 
-            // ---- 5. 摒弃：无生命等价（持有者选己方场上无生命单位直送墓） ----
-            var abjCfg = CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.Abandon);
-            Assert(abjCfg != null && abjCfg.TotalUnitCost == 3f && abjCfg.Polarity == -1f
-                   && (abjCfg.TargetFilter ?? "") == "Player"
-                   && ElementAffinities.GetAffinityForEffect(AtomicEffectType.Abandon).PrimaryColor == ManaType.Black,
-                   "摒弃表行：黑3 Pol=-1 filter=Player（仅角色；2026-09-13 用户调价 2→3）");
-
+            // ---- 5. 摒弃并池（2026-10-09 舍弃并档）：无生命单位入牺牲池，直送墓 ----
             var p2Enchant = new CardData
             {
-                ID = "VERIFY_ABJ_ENCH", CardName = "摒弃标的结界", Supertype = Cardtype.Enchantment, Power = 0, Life = 0,
+                ID = "VERIFY_SAC_ENCH", CardName = "牺牲标的结界", Supertype = Cardtype.Enchantment, Power = 0, Life = 0,
             };
             var enchant = new CardWrapper(p2Enchant);
             enchant.SetController(p2);
-            Assert(core.ZoneManager.TryAddToBattlefield(enchant, p2), "摒弃段：结界入场");
-            var p2Creature = Spawn(p2, 3, 3); // 生物在场——摒弃只吃无生命单位
-
-            var abandonAtom = new CardCore.AtomicEffectInstance { Type = AtomicEffectType.Abandon, Value = 1 };
-            var abjCtx = new EffectExecutionContext
+            Assert(core.ZoneManager.TryAddToBattlefield(enchant, p2), "牺牲段：结界入场（无生命单位）");
+            var sacCtx2 = new EffectExecutionContext
             {
                 Source = p1,
                 Controller = p1,
                 ZoneManager = core.ZoneManager,
                 ElementPool = core.ElementPool,
-                Targets = new List<Entity> { p2 },
+                Targets = new List<Entity> { p2 }, // p2 唯一单位=结界——自动选它
             };
-            Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(abandonAtom, abjCtx), "摒弃原子执行（作用对象=角色）");
-            Assert(core.ZoneManager.IsCardInZone(enchant, p2, Zone.Graveyard) && p2Creature.IsAlive,
-                   "摒弃：持有者交出唯一无生命单位（生物不受摒弃影响）");
-            RetireCards(core, p2, p2Creature);
+            Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(atom, sacCtx2), "牺牲原子再执行（作用对象=对方角色）");
+            Assert(core.ZoneManager.IsCardInZone(enchant, p2, Zone.Graveyard),
+                   "牺牲并池：持有者交出唯一无生命单位（结界直送墓——摒弃覆盖并入牺牲）");
 
-            // ---- 6. 摒弃扩地牌（与摧毁同覆盖：无生命单位+元素池地牌）；对手区域空 → 跳过 ----
+            // ---- 6. 地牌退役（2026-10-09）：元素池地牌非"单位"——不入牺牲候选，空场空转 ----
             var landData = new CardData
             {
-                ID = "VERIFY_ABJ_LAND", CardName = "摒弃标的地", Supertype = Cardtype.Creature, Power = 0, Life = 1,
+                ID = "VERIFY_SAC_LAND", CardName = "牺牲外之地", Supertype = Cardtype.Creature, Power = 0, Life = 1,
             };
             var land = new CardWrapper(landData);
             land.SetController(p2);
-            // 2026-09-13 修复：正式放地路径（GameActions.AddToElementPool）是双写——
-            // AddCardToPool 挂池私有列表 + MoveCard 进 Zone.ElementPool 容器（Abandon/Smash
-            // 的地牌候选从容器读）。夹具此前只做前一半 → 摒弃候选恒空。补容器登记。
-            Assert(core.ElementPool.AddCardToPool(land, p2), "摒弃段：地牌入池");
+            // 正式放地路径（GameActions.AddToElementPool）是双写（池私有列表 + ElementPool 容器）——
+            // 沿旧摒弃段夹具口径补容器登记
+            Assert(core.ElementPool.AddCardToPool(land, p2), "牺牲段：地牌入池");
             core.ZoneManager.GetZoneContainer(p2).Add(land, Zone.ElementPool);
-
-            var abjCtx2 = new EffectExecutionContext
-            {
-                Source = p1,
-                Controller = p1,
-                ZoneManager = core.ZoneManager,
-                ElementPool = core.ElementPool,
-                Targets = new List<Entity> { p2, p1 }, // p1 场上/池内全空——应跳过不空发
-            };
-            Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(abandonAtom, abjCtx2), "摒弃再执行（含空侧目标）");
-            Assert(core.ZoneManager.IsCardInZone(land, p2, Zone.Graveyard)
-                   && !core.ZoneManager.GetCards(p2, Zone.ElementPool).Contains(land),
-                   "摒弃地牌：持有者交出唯一地牌（出池入墓）——摒弃覆盖=无生命单位+地牌（同摧毁）");
+            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(atom, sacCtx2); // p2 战场空·仅池内地牌——空转
+            Assert(!core.ZoneManager.GetCards(p2, Zone.Graveyard).Contains(land)
+                   && core.ZoneManager.GetCards(p2, Zone.ElementPool).Contains(land),
+                   "牺牲候选=战场单位：地牌（元素池）不入池——旧摒弃地牌覆盖随并档退役");
         }
 
         // ======================================== 守护配对（2026-10-08 配对制改版） ========================================
@@ -7068,7 +7324,7 @@ namespace CardCore.Editor
             var dctxEffect = new EffectExecutionContext
             { Controller = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool, CastCard = effectDrawn };
             Assert(CardCore.BranchConditionEvaluator.Evaluate("DrawnInStandbyThisTurn", new CardCore.EffectOutcome(), 0, null, dctxStandby),
-                   "状态门：本回合准备阶段抽到的卡（FirstDrawOfTurn 自然抽）→ 真");
+                   "状态门：本回合第一张抽到的卡（FirstDrawOfTurn 自然抽）→ 真");
             Assert(!CardCore.BranchConditionEvaluator.Evaluate("DrawnInStandbyThisTurn", new CardCore.EffectOutcome(), 0, null, dctxEffect),
                    "状态门：效果抽牌（非准备阶段）→ 假");
 

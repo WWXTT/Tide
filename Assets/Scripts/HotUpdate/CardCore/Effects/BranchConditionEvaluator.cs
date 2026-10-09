@@ -47,7 +47,7 @@ namespace CardCore
 
                 // ---- 局面状态族（2026-09-22 定案：读 context 而非产出，通用门——任意主效果原子可挂）----
                 // per-target 评估结果恒同（幂等读局面），沿用逐目标评估无害。
-                case "DrawnInStandbyThisTurn": // 本回合准备阶段抽到的卡（宿主卡身份，效果抽牌不算）
+                case "DrawnInStandbyThisTurn": // 本回合第一张抽到的卡（宿主卡身份，效果抽牌不算）
                     return HostCard(context) != null
                         && MatchStatsService.Instance?.WasDrawnInStandbyThisTurn(context.Controller, HostCard(context)) == true;
                 case "LifeBelowOpp":   // 生命低于对手

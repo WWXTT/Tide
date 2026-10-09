@@ -89,7 +89,7 @@ namespace CardCore
 
     /// <summary>仅角色（TargetFilter token "Player"，2026-09-13 启用：原休眠 no-op）——
     /// 滤除全部非 Player 实体（生物等卡）。"以角色为作用对象"的效果用（如牺牲原子：
-    /// 目标=双方角色，持有者自行选择一个生物效果死亡）。</summary>
+    /// 目标=角色，持有者自行选择一个单位效果直送墓地）。</summary>
     public class RoleOnlyFilter : ITargetFilter
     {
         public string DisplayName => "仅角色";
@@ -396,17 +396,18 @@ namespace CardCore
             }).ToList();
         }
 
-        /// <summary>edict 原子（2026-09-13）：选择权在目标方——作用对象=角色、持有者自行选择自家单位结算
-        /// （牺牲=生物/摒弃=无生命单位）。**豁免帷幕**：帷幕只约束对手的选择，不管目标方自己选（用户定案）。</summary>
+        /// <summary>edict 原子（2026-09-13；2026-10-09 摒弃并档后唯一成员=牺牲）：选择权在目标方——
+        /// 作用对象=角色、持有者自行选择自家单位结算（牺牲池=生物+无生命单位）。**豁免帷幕**：
+        /// 帷幕只约束对手的选择，不管目标方自己选（用户定案）。</summary>
         public static bool IsEdict(AtomicEffectType type)
-            => type == AtomicEffectType.Sacrifice || type == AtomicEffectType.Abandon;
+            => type == AtomicEffectType.Sacrifice;
 
         /// <summary>
         /// 帷幕收窄（2026-09-13 更名定案：原"嘲讽"→帷幕，**只吸引效果目标**、不拦攻击）——
         /// 选择层口径：施放者对手的战场有存活帷幕卡时，对方侧候选（角色/随从/结界）收窄为帷幕卡；
         /// 己方侧不动；全域/范围波及**不受限**
         /// （"只能以…作为目标"约束的是指定与随机选择，不约束范围）。
-        /// edictExempt：牺牲/摒弃类（选择权在目标方）豁免——帷幕=对手无法选择，不包括持有者自选。
+        /// edictExempt：牺牲类（选择权在目标方）豁免——帷幕=对手无法选择，不包括持有者自选。
         /// 攻击侧由守卫拦截承担（CombatSystem），帷幕不经此口。
         /// 碾压已重定义为攻击溅射（2026-09-13），不再无视帷幕。
         /// </summary>
@@ -434,7 +435,7 @@ namespace CardCore
         /// 外给目标硬校验收口（2026-09-13 定案修复）：声明期由 UI/AI 直接给定的目标不经候选解析——
         /// 此处补两道与解析路径同口径的检查：①源紊乱不可指角色（与 GetCandidates 域层一致）；
         /// ②对手有帷幕卡时对方侧仅帷幕卡可指（帷幕只吸引效果目标，不拦攻击；
-        /// edictExempt=牺牲/摒弃类豁免——选择权在目标方，帷幕不管持有者自选）。
+        /// edictExempt=牺牲类豁免——选择权在目标方，帷幕不管持有者自选）。
         /// 非法目标剔除（效果对其空转），不整卡拒绝。
         /// </summary>
         public static List<Entity> FilterPreselectedTargets(List<Entity> targets, Entity source, Player controller, ZoneManager zoneManager, bool edictExempt = false)
@@ -551,7 +552,7 @@ namespace CardCore
                         filters.Add(new KeywordFilter(KeywordRules.Untargetable, true));
                         break;
                     case "Player":
-                        // 仅角色（2026-09-13 启用，原休眠 no-op）：滤除生物等卡——牺牲原子（持有者选生物牺牲）等以角色为作用对象的效果
+                        // 仅角色（2026-09-13 启用，原休眠 no-op）：滤除生物等卡——牺牲原子（持有者选单位送墓）等以角色为作用对象的效果
                         filters.Add(new RoleOnlyFilter());
                         break;
                     case "Hand":

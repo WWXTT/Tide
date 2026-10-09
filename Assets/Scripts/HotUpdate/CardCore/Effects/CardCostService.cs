@@ -321,39 +321,6 @@ namespace CardCore
             card.ResetCache();
         }
 
-        /// <summary>重推单行记录（工坊差异预览/日志）：旧费与新费的文本快照（ElementCost.ToString 口径）。</summary>
-        public sealed class ReforceLine
-        {
-            public string CardId;
-            public string CardName;
-            public string OldText;
-            public string NewText;
-        }
-
-        /// <summary>
-        /// 强制重推（原子表工坊 2026-10-06 玩家改价）：无视「声明优先」惯例，清空 Cost/ModeCostCache 后
-        /// 走 EnsureCost 新鲜推导口径（与装载期同管线：建议档/抉择最大模式费/身份重算全部一致），
-        /// 把按当前原子表推导的费用直接覆写回卡。返回发生变化的行为清单（旧→新文本）。
-        /// 幂等：同一张表重复重推结果不变。教学局禁用（调用方负责先回基线）。
-        /// </summary>
-        public static List<ReforceLine> ReforceSuggestedCosts(IEnumerable<CardData> cards)
-        {
-            var lines = new List<ReforceLine>();
-            if (cards == null) return lines;
-            foreach (var card in cards)
-            {
-                if (card == null) continue;
-                var oldText = card.Cost != null && !card.Cost.IsZero ? card.Cost.ToString() : "（无费用）";
-                card.Cost = null;          // 模拟「无声明费」的新鲜装载态——推导口径与 CardLoader 装载期完全一致
-                card.ModeCostCache = null; // 旧价模式缓存一并作废（EnsureCost 会重填）
-                EnsureCost(card);
-                var newText = card.Cost != null && !card.Cost.IsZero ? card.Cost.ToString() : "（无费用）";
-                if (oldText != newText)
-                    lines.Add(new ReforceLine { CardId = card.ID, CardName = card.CardName, OldText = oldText, NewText = newText });
-            }
-            return lines;
-        }
-
         // ======================================== 抉择 per-mode 计价 ========================================
 
         /// <summary>
@@ -605,7 +572,8 @@ namespace CardCore
                         breakdown?.Add(new CostBreakdownLine("A", $"连接光环 {aura.keyword}（未登记 Grant 原子，计 0）", 0f));
                         continue;
                     }
-                    label = aura.keyword;
+                    // 明细 label 用表中文短名（def.nameZh——2026-10-09 与合成器文案同口径；空回落 id）
+                    label = string.IsNullOrEmpty(def.nameZh) ? aura.keyword : def.nameZh;
                     // 关键词条目值化（2026-10-07 深夜）：magnitude=|value|（Boolean 关键词 value=0 恒 1）
                     magnitude = System.Math.Max(1, System.Math.Abs(aura.value));
                 }
@@ -624,11 +592,9 @@ namespace CardCore
                 const float countFactor = 1f;
                 // 条目级作用面累乘（2026-10-08 actuating-range 定案，取代旧卡级箭头块）：箭头档=卡面箭头数
                 //（效果层预览箭头恒 None=不乘——箭头=卡面资产，预选不计费，沿旧口径）；作用面档按单位数
-                //——己/对方=4 档、双方减半=2 档；条目声明含角色 +1 单位=5 档（双方 8+2=10 减半同 5）。
-                // role 仅关键词条目生效（属性增加不作用于角色——UI 已隐藏，此处防御忽略）；
-                // 且仅非 NoRole 行（2026-10-08 角色通道门：仅生物关键词运行时不投递，计价同口径忽略）。
-                bool roleUnits = aura.role && string.IsNullOrEmpty(aura.stat)
-                    && !ComposerCatalog.RoleChannelBlocked(aura.keyword);
+                //——己/对方=4 档、双方减半=2 档；关键词条目恒含角色（2026-10-09 裁定：不可作光环的行
+                // 已拉黑、通道无条件开放）=5 档（双方 8+2=10 减半同 5）；属性增加不作用于角色——仍 4/2 档。
+                bool roleUnits = string.IsNullOrEmpty(aura.stat);
                 int ladder = aura.scope > 0
                     ? (roleUnits ? 5 : (aura.scope == 2 ? 2 : 4))
                     : CountArrowBits(card.ArrowDirections);

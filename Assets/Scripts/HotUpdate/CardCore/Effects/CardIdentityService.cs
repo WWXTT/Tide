@@ -37,8 +37,8 @@ namespace CardCore
         private static ulong? _tableFingerprint;
         private static Dictionary<string, int> _typeIndexMap;
 
-        /// <summary>表侧缓存失效（原子表工坊 2026-10-06）：指纹与下标映射都锚定「表冻结」假设静态缓存，
-        /// 工坊改价/Reload 后必须显式置空，下次 TableFingerprint/AtomTypeIndex 按新表重算——
+        /// <summary>表侧缓存失效：指纹与下标映射都锚定「表冻结」假设静态缓存，
+        /// Reload 重读表后必须显式置空，下次 TableFingerprint/AtomTypeIndex 按新表重算——
         /// 全体身份随表指纹换血（本类头注释的既定语义）。幂等。</summary>
         public static void InvalidateTableCache()
         {

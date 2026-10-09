@@ -42,6 +42,7 @@ namespace CardCore
         Purify,
         Weaken,
         Inspire,
+        /// <summary>摧毁（无生命直毁——2026-10-09 起可被不灭拦，见 SmashHandler）。</summary>
         Smash,
 
         // ============ 控制相关 ============
@@ -84,8 +85,9 @@ namespace CardCore
         GrantTaunt,
         GrantDivineShield,
         GrantOverwhelm,
-        /// <summary>坚韧（2026-10-08 指示物化；同日更名——原 GrantArmor 与护甲 AddArmor 命名倒挂纠正）：
-        /// 对目标附加 {value} 层坚韧指示物（ToughnessCounter）——每层使每次受到的伤害 −1，不随受伤消耗。</summary>
+        /// <summary>坚韧（2026-10-08 指示物化；同日更名——原 GrantArmor 与护甲 AddArmor 命名倒挂纠正；
+        /// 2026-10-09 生效自减改版）：对目标附加 {value} 层坚韧指示物（ToughnessCounter）——
+        /// 每次受到的伤害每层 −1，实际拦到即生效，生效后层数减半（floor）。</summary>
         GrantToughness,
         GrantFirstStrike,
         GrantDisarm,
@@ -123,8 +125,10 @@ namespace CardCore
         AddCostUp,
         AddCostDown,
 
-        // ============ 死亡原子（DeathRules 死因已有，补原子层） ============
+        // ============ 死亡原子（DeathRules 死因已有，补原子层；牺牲 2026-10-09 转直送非死亡——见 SacrificeHandler） ============
         Sacrifice,
+        /// <summary>消灭（2026-10-09 吞噬机制移除改名：表行 EnumName=消灭，EffectType 沿用本位；
+        /// 纯消灭无回复——DestroyEffect 死因，见 DevourHandler）。</summary>
         Devour,
         Annihilate,
 
@@ -180,9 +184,8 @@ namespace CardCore
         GrantGuardian,
         // 固有全域原子（SweepDamage/SweepHeal）已随 2026-10-05 墓碑清理实删——
         // 全域语义由组合期 TargetKinds+全取档表达（2026-09-21 退役定案，此番连墓碑一并清除）。
-        /// <summary>摒弃（2026-09-13，黑2，edict 原子）：作用对象=双方角色（filter "Player"）——
-        /// 持有者自行选择一个**己方场上无生命单位**（结界等非生物持久物）直送墓地（DestroyReason.Abandoned）。
-        /// 与牺牲（生物/效果死亡）成对；豁免帷幕（选择权在目标方——帷幕只约束对手的选择）。</summary>
+        /// <summary>【墓碑 2026-10-09】摒弃——舍弃并档牺牲：牺牲池已含无生命单位（直送非死亡），本原子退役。
+        /// 枚举位保留防 AEI_Type int 位序重编号（同 GrantGrowth 惯例）；表行/处理器/IsEdict 成员已删。</summary>
         Abandon,
         /// <summary>冰晶（2026-09-13 改写定案，蓝2）：造成战斗伤害时，改为对目标添加一个冻结指示物（伤害不发生）。
         /// 2026-10-02 裁决：表行退役——战斗伤害改冻结走分支组合（拦截式改写门 DmgRewriteFreeze），
@@ -270,6 +273,12 @@ namespace CardCore
         /// <summary>永久属性减少（2026-10-08）：−{value}/−{value} 直写字段（有效生命归零标死交 SBA），
         /// 跨区保留、净化不清，与来源无关。表行 e5da6dd9。枚举只可尾部追加。</summary>
         AddPermanentMinusOne,
+        /// <summary>敌方全体伤害（2026-10-09 全体对象独立原子定案）：对敌方全体生物各造成 {value} 点伤害
+        ///（域={对方单位}+NoRole——排除角色与无生命单位）。
+        /// 无域原子（表行 TargetKinds 空=自结算，单次执行不逐目标 Reset）——杀数聚合入 LastOutcome：
+        /// 击杀门槛 DmgKillsTarget=至少击杀一个即过、奖励只结算一次。基准红 3（范围溢价含 BaseCost，
+        /// 空域数量恒 ×1）。取代旧「DealDamage+全取档」表达全体伤害的口径（SweepDamage 2026-09-21 退役的复归）。</summary>
+        DealDamageAllEnemies,
     }
 
     /// <summary>
@@ -391,7 +400,7 @@ namespace CardCore
         public ElementPoolSystem ElementPool { get; set; }
 
         /// <summary>施放中的宿主卡（2026-09-22 定案）：出牌结算链路上的卡实例——
-        /// 魔法卡效果 Source=角色（来源归因定案），状态门（如「本回合准备阶段抽到的卡」）
+        /// 魔法卡效果 Source=角色（来源归因定案），状态门（如「本回合第一张抽到的卡」）
         /// 需要卡身份时先读本字段、退回 Source as Card。仅 GameActions 施放路径填充。</summary>
         public Card CastCard { get; set; }
 

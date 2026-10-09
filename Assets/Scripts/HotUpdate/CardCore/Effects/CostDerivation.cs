@@ -88,7 +88,7 @@ namespace CardCore
                 {
                     if (step == null) continue;
                     if (step.Kind == RuntimeStepKind.Atomic && step.Atomic != null)
-                        visit(step.Atomic, domain);
+                        visit(step.Atomic, PricingDomain(effect, step.Atomic, domain));
                     // Kind==Branch：OutcomeGate 奖励免费，不计费。
                     else if (step.Kind == RuntimeStepKind.Choice)
                     {
@@ -103,7 +103,7 @@ namespace CardCore
                             {
                                 if (s == null) continue;
                                 if (s.Kind == RuntimeStepKind.Atomic && s.Atomic != null)
-                                    visit(s.Atomic, domain);
+                                    visit(s.Atomic, PricingDomain(effect, s.Atomic, domain));
                                 // choice 内 Kind==Branch：奖励免费（converter 已拒嵌套 Choice）
                             }
                         }
@@ -115,7 +115,7 @@ namespace CardCore
                 foreach (var atom in effect.Effects)
                 {
                     if (atom == null) continue;
-                    visit(atom, domain);
+                    visit(atom, PricingDomain(effect, atom, domain));
                 }
             }
         }
@@ -127,12 +127,21 @@ namespace CardCore
                 ? effect.ChoiceDomains[modeIndex]
                 : effect.TargetDomain;
 
+        /// <summary>计价域（2026-10-09 逐原子目标制）：逐原子模式按**该原子自身域**计价——
+        /// 错边拆分/对称减半/无目标数量豁免都吃域侧别，喂共享并集会让单侧原子误判成双侧（虚减半）；
+        /// 共享口径（header 声明）照旧用组合域。域原样不极性过滤（与解析域/旧单原子口径一致）。</summary>
+        private static List<int> PricingDomain(EffectDefinition effect, AtomicEffectInstance atom, List<int> shared)
+            => effect != null && effect.PerAtomTargets
+                ? atom?.TargetKinds ?? new List<int>()
+                : shared;
+
         private static void AccumulateElementCost(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, Dictionary<ManaType, int> byColor)
         {
             var cfg = ResolvePricingConfig(atom); // 行身份（2026-10-03）：变体行按 RowHashId 取锚
 
-            // 动态数量（组合层）：费用计 0（2026-09-21 定案：不再关联地牌资格——地牌只看生物身份）。
-            if (def.TargetCount == -1)
+            // 动态数量（组合层；2026-10-09 每原子口径：该原子有效数量=任意才零费）：
+            // 费用计 0（2026-09-21 定案：不再关联地牌资格——地牌只看生物身份）。
+            if (atom != null && atom.EffectiveTargetCount(def) == -1)
             {
                 AccumulateSubEffects(atom, def, domain, byColor);
                 return;
@@ -176,15 +185,16 @@ namespace CardCore
         private static PricingTierConfig Tiers =>
             ValueSystemConfigManager.Instance.GetOrCreateConfig().PricingTierConfig;
 
-        /// <summary>数量系数（2026-10-05 档位化，表 PricingTier）：SummonToken=1（2026-10-07 表价清零：
-        /// 专项计价=模板费×数量，数量不外乘）；全取档（Whole/WholeUnion，2026-09-16 六值迁移）按"全部"档
-        /// （TargetCount 是 converter 兜底噪声，不代表真实目标数）；其余按 TargetCount 档
-        /// （-1 任意同全部档；-2 未声明=单目标基准）。原"整数 ×N / 期望 4"口径退役。</summary>
-        private static float QuantityFactor(AtomicEffectType type, EffectDefinition def)
+        /// <summary>数量系数（2026-10-05 档位化，表 PricingTier；2026-10-09 每原子下沉）：
+        /// SummonToken=1（2026-10-07 表价清零：专项计价=模板费×数量，数量不外乘）；
+        /// 全取档（Whole/WholeUnion，2026-09-16 六值迁移）按"全部"档（TargetCount 是 converter
+        /// 兜底噪声，不代表真实目标数）；其余按**该原子有效数量档**（实例声明优先，未声明回落效果级；
+        /// -1 任意同全部档；-2 未声明=单目标基准）。原"整数 ×N / 期望 4"口径退役。</summary>
+        private static float QuantityFactor(AtomicEffectInstance atom, EffectDefinition def)
         {
-            if (type == AtomicEffectType.SummonToken) return 1f;
+            if (atom != null && atom.Type == AtomicEffectType.SummonToken) return 1f;
             if (SelectionModeRules.IsTakeAll(def.SelectionMode)) return Tiers.TargetCountFactor(0);
-            return Tiers.TargetCountFactor(def.TargetCount);
+            return Tiers.TargetCountFactor(atom != null ? atom.EffectiveTargetCount(def) : def.TargetCount);
         }
 
         /// <summary>属性锚（2026-09-13 定案；2026-10-05 迁表 CardCost.StatAnchor）：+1 攻/+1 生命 = 0.5（攻血同锚）。</summary>
@@ -242,8 +252,8 @@ namespace CardCore
             { "DeclareMiss", 2 },    // 宣言落空时（与命中对称）
             { "ProphecyHit", 2 },    // 预言命中时（延迟验证：对手下回合首张出牌结算）
             { "ProphecyMiss", 2 },   // 预言落空时（延迟验证，语义反转）
-            // ---- 局面状态族（2026-09-22，预算 1）----
-            { "DrawnInStandbyThisTurn", 1 }, // 本回合准备阶段抽到的卡
+            // ---- 局面状态族（2026-09-22，预算 1；DrawnInStandbyThisTurn 2026-10-09 调 3）----
+            { "DrawnInStandbyThisTurn", 3 }, // 本回合第一张抽到的卡
             { "LifeBelowOpp", 1 },           // 生命值低于对手
             { "LifeAboveOpp", 1 },           // 生命值高于对手
             { "DeckBelowOpp", 1 },           // 卡组剩余低于对手
@@ -272,6 +282,17 @@ namespace CardCore
             return DeriveElementCosts(shim).Total;
         }
 
+        /// <summary>拼点门槛（2026-10-09 抽公共——运行时判定与 UI 短文案同源，防显示≠判定）：
+        /// 奖励锚价合计四舍五入（AwayFromZero）、下限 1——门槛随 Then 奖励实时变。</summary>
+        public static int ClashThreshold(List<AtomicEffectInstance> then)
+            => Math.Max(1, (int)Math.Round(RewardDerivedCost(then), MidpointRounding.AwayFromZero));
+
+        /// <summary>倒计时初值回合（与 converter 换算同源）：声明 param&gt;0 用声明值；
+        /// 缺省 0=按 Then 推导费自动换算（1费=1回合，向上取整下限 1）。</summary>
+        public static int CountdownTurnsOf(int param, List<AtomicEffectInstance> then)
+            => param > 0 ? param
+            : Math.Max(1, (int)Math.Ceiling(RewardDerivedCost(then)));
+
         /// <summary>触发上限计价系数（2026-10-05 档位化，表 PricingTier：1:1 / 2:1.5 / 3:2 / 无上限:4；
         /// 原 1.2^(N-1) 连乘 / ×1.2³ 口径退役）。N&gt;3 视同无上限；N=1 / 非触发式（启动式现付、光环静态）不乘。
         /// 只对触发式生效（IsTriggeredEffect 守卫）。</summary>
@@ -279,6 +300,15 @@ namespace CardCore
         {
             if (def == null || !def.IsTriggeredEffect) return 1f;
             return Tiers.TriggerLimitFactor(def.TriggerLimitPerTurn);
+        }
+
+        /// <summary>发动速度计价系数（2026-10-09 速度入价定案，表 PricingTier：0 普通 ×1 / 1 瞬间 ×1.5 / 2 高速 ×2）。
+        /// 仅主动效果消费——响应权越强越贵；自动/强制/光环（速度组不显、数据携带无效）恒 ×1。
+        /// 只进费用侧（ComputeAtomCost）——错边黑白获得（ComputeAtomUnitGrant）不乘：出手快不改变发放资源量。</summary>
+        public static float SpeedCostFactor(EffectDefinition def)
+        {
+            if (def == null || def.ActivationType != EffectActivationType.Voluntary) return 1f;
+            return Tiers.SpeedFactor(def.BaseSpeed);
         }
 
         private static int ComputeAtomCost(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, AtomicEffectConfig cfg)
@@ -294,12 +324,13 @@ namespace CardCore
             if (polarity != 0f && !IsSelfSleepExempt(atom.Type, domain) && WrongSide(polarity, domain))
                 amount = (int)Math.Round(amount * (1f - Math.Abs(polarity)), MidpointRounding.AwayFromZero);
 
-            // 目标数量计价（2026-10-05 档位化，表 PricingTier：1:1 / 2:1.5 / 3:2 / 全部:3）；
+            // 目标数量计价（2026-10-05 档位化，表 PricingTier：1:1 / 2:1.5 / 3:2 / 全部:3；
+            // 2026-10-09 每原子下沉——按该原子有效数量档计）；
             // 全部/任意语义无法在构建期确定——按"全部"档计（原期望 4 口径退役）。
             // 固有全域原子（类型伤害/全体治疗）范围溢价已含 BaseCost，数量恒 ×1。
             // 无目标域（2026-10-03 规则光环配套）：数量是目标数量语义，无目标可乘——恒 ×1
             //（否则规则光环按表锚价虚高"全部"档倍数）。
-            float n = QuantityFactor(atom.Type, def);
+            float n = QuantityFactor(atom, def);
             if ((domain == null || domain.Count == 0) && n > 1f)
                 n = 1f;
             if (n > 1f)
@@ -310,6 +341,12 @@ namespace CardCore
             float triggerFactor = TriggerCostFactor(def);
             if (triggerFactor > 1f)
                 amount = (int)Math.Round(amount * triggerFactor, MidpointRounding.AwayFromZero);
+
+            // 发动速度计价（2026-10-09 定案入价，表 PricingTier）：主动效果 0 普通 ×1 / 1 瞬间 ×1.5 / 2 高速 ×2
+            //——速度是效果头效果级参数，逐原子分账（shim 克隆 BaseSpeed）随主干同乘。
+            float speedFactor = SpeedCostFactor(def);
+            if (speedFactor > 1f)
+                amount = (int)Math.Round(amount * speedFactor, MidpointRounding.AwayFromZero);
 
             // 双方同时作用减半（2026-10-03 用户定案；2026-10-07 规则光环范围化）：效果同时作用于双方——
             // 双侧域 + 全取档/显式多目标（双方全体恢复/双方各消灭一生物），或规则光环的作用范围=双方
@@ -325,11 +362,17 @@ namespace CardCore
         public static float SymmetricDiscountFactor => ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig.SymmetricDiscountFactor;
 
         /// <summary>
-        /// 是否「同时作用双方」（2026-10-03 用户定案减半口径；2026-10-07 规则光环范围化）：
+        /// 是否「同时作用双方」（2026-10-03 用户定案减半口径；2026-10-07 规则光环范围化；
+        /// 2026-10-09 逐原子目标制修订）：
         /// - 无目标域 + ModifyGameRule（规则光环）——仅当作用范围=双方（Value==RuleAuraScope.Both；
         ///   己方/对方单侧=单侧锁口径全价）；
-        /// - 双侧域（SideLock=0 且域非空）且 全取档（SelectionModeRules.IsTakeAll）或显式声明多目标
-        ///   （TargetCount≥2——哨兵 -2/0=未声明「任意」不算，防宽域单体卡误减）。
+        /// - 双侧域（SideLock=0 且域非空）且 全取档（SelectionModeRules.IsTakeAll）——域内全收
+        ///   必然覆盖双方，让利成立；
+        /// - 旧共享目标数据（PerAtomTargets=false，header 声明作用范围）保留显式多目标减半臂
+        ///   （有效数量≥2——「双方各一」语义）。
+        /// 逐原子目标制（PerAtomTargets=true，2026-10-09）数量 1/2/3=弹窗任选 N 个——是否跨侧
+        /// 运行时才知，**不再按数量≥2 判对称减半**（旧口径曾令双侧域伤害 1/2/3 档经 ×1.5/×2 再 ×0.5
+        /// 后费用全等——目标数量计价失效根因）。
         /// 单侧锁（可按最优边全价）与双侧域单体任选一侧均不減。
         /// </summary>
         public static bool IsSymmetricBothSides(AtomicEffectInstance atom, EffectDefinition def, List<int> domain)
@@ -339,12 +382,13 @@ namespace CardCore
                 return atom.Value == (int)RuleAuraScope.Both;
             if (domain == null || domain.Count == 0) return false;
             if (SideLock(domain) != 0) return false;
-            return SelectionModeRules.IsTakeAll(def != null ? def.SelectionMode : 0)
-                   || (def != null && def.TargetCount >= 2);
+            if (SelectionModeRules.IsTakeAll(def != null ? def.SelectionMode : 0)) return true;
+            return def != null && !def.PerAtomTargets
+                   && (atom != null ? atom.EffectiveTargetCount(def) : def.TargetCount) >= 2;
         }
 
         /// <summary>
-        /// 原子基础量（错边拆分/×N/抽牌缺陷之前的单价）：检索按筛选维度档，其余通用公式，含衍生物落区系数。
+        /// 原子基础量（错边拆分/×N/抽牌缺陷之前的单价）：检索按筛选维度档，其余通用公式。
         /// 计费（ComputeAtomCost）与黑白获得（ComputeAtomUnitGrant）共用，保证同源不漂移。
         /// </summary>
         private static int ComputeAtomBaseAmount(AtomicEffectInstance atom, EffectDefinition def, AtomicEffectConfig cfg)
@@ -357,15 +401,15 @@ namespace CardCore
             // 表行 ManaList 已清零不再携带锚价（置于零价守卫之前，恒出模板价）。
             // 模板不可解析/零费=0（构筑期校验拦截、运行时 handler 兜底拒绝）；
             // 数量/持续档不乘（量级即最终口径），触发档仍由外层统一乘。
+            // 落区系数已删（2026-10-09）：原子落区内生（衍生物恒战场/临时卡恒手牌），
+            // 落区价值已含在模板卡/原子自身费用里，不再外乘分档系数。
             if (atom.Type == AtomicEffectType.SummonToken)
             {
                 var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate ?? Attribute.MorphSystem.ResolveMorphTarget;
                 var template = string.IsNullOrEmpty(atom.StringValue) ? null : resolver?.Invoke(atom.StringValue);
                 if (template == null || template.TotalCost <= 0f) return 0;
                 int count = Math.Max(1, atom.Value);
-                var dropCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().SummonDropConfig;
-                return (int)Math.Round(template.TotalCost * count * dropCfg.GetFactor(Zone.Battlefield),
-                    MidpointRounding.AwayFromZero);
+                return (int)Math.Round(template.TotalCost * count, MidpointRounding.AwayFromZero);
             }
 
             // 属性价梯（2026-09-13 定案：攻/血同锚 0.5/+1，按持续档定价——取代通用公式与持续折扣）：
@@ -419,7 +463,7 @@ namespace CardCore
 
             // 规则光环（2026-10-07 范围化）：Value=作用范围序（RuleAuraScope）非量级——不乘 magnitude，
             // 恒单价×成本乘数×持续档（与旧口径 value=1 等价）；双方让利由 IsSymmetricBothSides 统一裁决
-            //（含四负面光环与舍身——2026-10-07 改写降级回滚，改写族 4 箭头计价口径退役）。
+            //（含负面光环与舍身——2026-10-07 改写降级回滚，改写族箭头计价口径退役）。
             if (atom.Type == AtomicEffectType.ModifyGameRule)
             {
                 float ruleMult = cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f;
@@ -564,13 +608,12 @@ namespace CardCore
             return ComputeAtomBaseAmount(atom, PayloadGrantDef, cfg);
         }
 
-        /// <summary>Payload 计价合成组合层（Duration=Once、TargetCount=1、战场落区基准）。</summary>
+        /// <summary>Payload 计价合成组合层（Duration=Once、TargetCount=1）。</summary>
         private static readonly EffectDefinition PayloadGrantDef = new EffectDefinition
         {
             Id = "COST_PAYLOAD",
             Duration = DurationType.Once,
             TargetCount = 1,
-            SummonDropZone = Zone.Battlefield,
         };
 
         /// <summary>构筑期 grant 累计（DeriveElementGrants 的访问器）：域锁错边原子入桶，子效果同口径递归。</summary>
@@ -578,7 +621,7 @@ namespace CardCore
             Dictionary<ManaType, int> grants)
         {
             // 动态数量：构筑期不可知（计费同口径为 0），运行时按实际命中发放。
-            if (def.TargetCount == -1) return;
+            if (atom.EffectiveTargetCount(def) == -1) return;
 
             float polarity = atom.Polarity;
             if (polarity != 0f && !IsSelfSleepExempt(atom.Type, domain) && WrongSide(polarity, domain))
@@ -587,7 +630,7 @@ namespace CardCore
                 if (unit > 0)
                 {
                     // 固定数量同计费口径（2026-10-05 档位化 / 触发档位——与 ComputeAtomCost 同口径）
-                    float n = QuantityFactor(atom.Type, def);
+                    float n = QuantityFactor(atom, def);
                     if (n > 1f) unit = (int)Math.Round(unit * n, MidpointRounding.AwayFromZero);
                     float gtf = TriggerCostFactor(def);
                     if (gtf > 1f) unit = (int)Math.Round(unit * gtf, MidpointRounding.AwayFromZero);

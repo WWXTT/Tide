@@ -255,8 +255,8 @@ namespace CardCore
                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：声明了连接光环但未配箭头（arrows 为空）——构筑期拦截（生物/结界同规）");
 
                 // 光环关键词条目须可挂（2026-10-07 晚终版：关键词默认可−位 8 黑名单拉黑）：
-                // 名单在表（现值：守护/法术护盾/再生/禁魔石）——与光环 live-query 持续语义冲突
-                //（消耗型不物化 → RemoveKeyword 空操作 → 等效永久持有；守护=配对制弹选）
+                // 名单在表（现值：守护/再生/禁魔石）——与光环 live-query 持续语义冲突
+                //（守护=配对制弹选；法术护盾 2026-10-09 指示物化退出关键词族，目录不收）
                 if (card.LinkAuras != null)
                 {
                     foreach (var aura in card.LinkAuras)
@@ -305,6 +305,11 @@ namespace CardCore
         {
             if (step == null) yield break;
             if (!string.IsNullOrEmpty(step.atomic?.refId)) yield return step.atomic;
+            // 槽级分支 Then 奖励（2026-10-09 全局唯一规则配套）：作者形态的奖励挂在 atomic.branch.then
+            //——装载校验（宿主/查重）与 thenSteps 展开形态一并枚举
+            if (step.atomic?.branch?.then != null)
+                foreach (var r in step.atomic.branch.then)
+                    if (!string.IsNullOrEmpty(r?.refId)) yield return r;
             if (step.choices != null)
                 foreach (var c in step.choices)
                     if (c?.steps != null)
@@ -338,6 +343,16 @@ namespace CardCore
                     var def = CardEffectConverter.ConvertOne(eff, card.ID);
                     if (def == null) continue;
 
+                    // 全局唯一规则（2026-10-09 定案）：同一原子（refId=表行身份）在一个组合效果中
+                    // 只出现一次——主序列/抉择/Then 奖励均计入（并列与奖励同规；合成期已拦，此处构筑期兜底）
+                    var seenRefIds = new HashSet<string>();
+                    var dupRefIds = new HashSet<string>();
+                    foreach (var a in EnumerateAtomEntries(eff))
+                        if (!string.IsNullOrEmpty(a?.refId) && !seenRefIds.Add(a.refId)) dupRefIds.Add(a.refId);
+                    if (dupRefIds.Count > 0)
+                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}：重复效果 "
+                                       + $"[{string.Join(",", dupRefIds)}]——全局规则：一个组合效果中同一效果只能出现一次（并列与奖励均计入）");
+
                     // 组合上限（2026-10-05 两槽定案）：主序列（Steps 优先，扁平兜底）主干原子计数 ≤ 2——
                     // 并列缩为两槽（Then 奖励/光环条目不计入），超限=构筑期拦截
                     var mainAtoms = def.Steps != null && def.Steps.Count > 0
@@ -370,7 +385,8 @@ namespace CardCore
                     // 单范围域宽校验（2026-09-16 六值定案核心）：一个 {target} 只能从一个范围选择——
                     // 模式 0/1/2（Single/Multiple/Whole）要求组合域恰为单一 TargetKind，违反=数据错误
                     //（converter 已覆写的强制 WholeUnion 不受影响；域空=无目标效果不在此列）。
-                    if (SelectionModeRules.IsSingleScope(def.SelectionMode))
+                    // 逐原子目标制（2026-10-09）：组合域=并集仅作展示/预检，宽度不限——不在此校验。
+                    if (!def.PerAtomTargets && SelectionModeRules.IsSingleScope(def.SelectionMode))
                     {
                         var modeDomains = new List<List<int>> { def.TargetDomain };
                         if (def.ChoiceDomains != null)
@@ -401,17 +417,28 @@ namespace CardCore
                                            + $"全取档（{def.SelectionMode}）显式声明 TargetCount={eff.TargetCount}——全取不按数量，多余声明被忽略");
                     }
 
+                    // 逐原子目标制（2026-10-09）：无 header 声明=各原子按自身域独立解析，交集断链退役——
+                    // 改为单条效果作用域上限兜底：主序列原子极性过滤域**并集 ≤4 个不同 TargetKind**
+                    //（合成器加入门的装载期兜底；无域原子不计数）。
+                    if (def.PerAtomTargets)
+                    {
+                        var unionKinds = new HashSet<int>();
+                        foreach (var atom in mainAtoms)
+                        {
+                            if (atom == null) continue;
+                            foreach (var k in atom.TargetKinds ?? new List<int>())
+                                unionKinds.Add(k);
+                        }
+                        if (unionKinds.Count > 4)
+                            TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
+                                           + $"主序列原子作用域并集 {unionKinds.Count} 个超上限 4"
+                                           + $"（{TargetKindRules.Format(unionKinds.ToList())}）——逐原子目标制单条效果限 4 个作用范围");
+                        continue;
+                    }
+
+                    // 共享口径（header 声明）域非空恒过；域空=全无目标原子（无断链可断——
+                    // 旧「带域原子交集空=断链」拦截已随逐原子目标制退役：域不交的组合现按各原子自解析，合法）。
                     if (def.TargetDomain == null || def.TargetDomain.Count > 0) continue;
-                    // 域空且并非"全无目标原子"（存在带域原子但交集空）才是断链
-                    var hasKindAtom = false;
-                    foreach (var atom in CardEffectConverter.EnumerateMainSequenceAtoms(def.Steps, 0))
-                        if (atom?.TargetKinds != null && atom.TargetKinds.Count > 0) { hasKindAtom = true; break; }
-                    if (def.Steps == null || def.Steps.Count == 0)
-                        foreach (var atom in def.Effects)
-                            if (atom?.TargetKinds != null && atom.TargetKinds.Count > 0) { hasKindAtom = true; break; }
-                    if (hasKindAtom)
-                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
-                                     + $"主序列原子目标域交集为空——组合不可作用任何对象，构筑期拦截（检查各原子 TargetKinds）");
                 }
             }
         }

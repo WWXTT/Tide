@@ -42,6 +42,21 @@ namespace CardCore
         public static bool IsEngineTrunkRow(Attribute.AtomicEffectConfig row)
             => HasMountBit(row, MountKind.EngineTrunk);
 
+        /// <summary>引擎中文名（2026-10-09 代码侧单一来源——AtomText 短文案「自由分支·{名}{x}」消费；
+        /// 原界面侧 EngineZh 已随引擎标识行退役删除）。</summary>
+        public static string EngineZhOf(BranchEngineKind engine) => engine switch
+        {
+            BranchEngineKind.Countdown => "倒计时",
+            BranchEngineKind.LuckRoll => "运势",
+            BranchEngineKind.Clash => "拼点",
+            BranchEngineKind.DeathToll => "死亡计数",
+            BranchEngineKind.ManaSurplus => "元素充盈",
+            BranchEngineKind.NthHandCard => "手牌序位",
+            BranchEngineKind.CurseOnDraw => "附加诅咒",
+            BranchEngineKind.BlessingOnDraw => "附加祝福",
+            _ => engine.ToString(),
+        };
+
         /// <summary>引擎参数 x 的钳制范围（UI 输入框与运行时判定共用）。</summary>
         public static void EngineParamRange(BranchEngineKind kind, out int min, out int max)
         {
@@ -128,8 +143,8 @@ namespace CardCore
         /// <summary>有限分支条件全集（局面状态族）：不读主干产出、任意原子可挂，效果结算时评估一次。</summary>
         public static readonly GateSpec[] SituationGates =
         {
-            // ---- 局面状态族·一批（通用门，预算 1）----
-            new GateSpec { Id = "DrawnInStandbyThisTurn", DisplayName = "本回合准备阶段抽到的卡" },
+            // ---- 局面状态族·一批（通用门，预算 1；DrawnInStandbyThisTurn 2026-10-09 调 3）----
+            new GateSpec { Id = "DrawnInStandbyThisTurn", DisplayName = "本回合第一张抽到的卡" },
             new GateSpec { Id = "LifeBelowOpp",    DisplayName = "生命值低于对手" },
             new GateSpec { Id = "LifeAboveOpp",    DisplayName = "生命值高于对手" },
             new GateSpec { Id = "DeckBelowOpp",    DisplayName = "卡组剩余低于对手" },
@@ -224,27 +239,14 @@ namespace CardCore
 
         /// <summary>关键词 id 是否可作连接光环条目（2026-09-23 定案·数据驱动；2026-10-07 晚默认翻转）：
         /// 经关键词定义 → Grant 原子表行 → CanMountAsAura——关键词**默认可**，
-        /// 黑名单表标位 8（现值：守护/法术护盾/再生/禁魔石——与光环 live-query 持续语义冲突）——名单在表不在代码。</summary>
+        /// 黑名单表标位 8（现值：守护/再生/禁魔石——与光环 live-query 持续语义冲突）——名单在表不在代码。
+        /// 指示物化关键词（圣盾/潜行/复生 2026-10-08、法术护盾 10-09）已退出关键词目录，恒 false。</summary>
         public static bool IsAuraMountableKeyword(string keywordId)
         {
             if (string.IsNullOrEmpty(keywordId)) return false;
             var def = CardLoader.LoadKeywords().TryGetValue(keywordId, out var d) ? d : null;
             if (def == null || string.IsNullOrEmpty(def.atomicEffect)) return false;
             return CanMountAsAura(Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect));
-        }
-
-        /// <summary>角色通道门（2026-10-08 定案）：关键词的 Grant 表行 TargetFilter 含 "NoRole"
-        /// （仅生物）时，该关键词禁止经连接光环投递角色——运行时投递（LinkAuraSystem 作用面档+
-        /// 箭头档两路）、合成器"是否包含角色"开关、计价 roleUnits 三处共用本判定（单源）。
-        /// 目录/表行缺失（未知关键词）放行——与 AuraKeywordChoices 同口径；表政策现状：
-        /// NoRole 覆盖除守护外的全部关键词行（坚韧 2026-10-08 指示物化退出关键词族，
-        /// 表行位 1 指示物已不可作光环条目——角色通道现仅守护等未过滤行可达）。</summary>
-        public static bool RoleChannelBlocked(string keyword)
-        {
-            if (string.IsNullOrEmpty(keyword)) return false;
-            var def = CardLoader.LoadKeywords().TryGetValue(keyword, out var d) ? d : null;
-            if (def == null || string.IsNullOrEmpty(def.atomicEffect)) return false;
-            return IsCreatureGrantRow(Attribute.AtomicEffectTable.GetByEnumName(def.atomicEffect));
         }
 
         /// <summary>光环关键词下拉数据源（UI 用）：全部可作光环条目的 Grant 行（CanMountAsAura——

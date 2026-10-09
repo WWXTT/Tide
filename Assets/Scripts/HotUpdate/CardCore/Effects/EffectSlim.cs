@@ -110,6 +110,7 @@ namespace CardCore
                 return null;
             }
             ar.amp = Math.Clamp(ar.amp, 0f, 1f);
+            if (BranchEntryRules.IsPhantom(ar.branch)) ar.branch = null; // JsonUtility 物化的 settle=0 幽灵分支——读档剥离（主干/then 奖励原子统一过此口）
             return ar;
         }
 

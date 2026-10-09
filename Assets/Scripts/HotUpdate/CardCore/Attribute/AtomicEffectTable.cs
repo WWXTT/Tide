@@ -22,14 +22,6 @@ namespace CardCore.Attribute
         private static Dictionary<string, AtomicEffectConfig> _enumNameMap;
         private static Dictionary<AtomicEffectType, AtomicEffectConfig> _typeMap;
 
-        // 保序全行（2026-10-06 原子表工坊）：_idMap.Values 是字典序（加行不删行时恰为插入序，
-        // 但不保证）；工坊 UI 逐行展示需要确定顺序，装载序即表书写序。
-        private static List<AtomicEffectConfig> _orderedRows;
-
-        /// <summary>表内容代际（2026-10-06 原子表工坊）：Reload 重建或 TrySetRowTotal 改行成功各 +1。
-        /// 消费方（overlay 重放、缓存失效判断）凭代际判断「我上次看到的表现在还作不作数」。</summary>
-        public static int Version { get; private set; }
-
         static AtomicEffectTable()
         {
             Initialize();
@@ -41,8 +33,6 @@ namespace CardCore.Attribute
             _hashIdMap = new Dictionary<string, AtomicEffectConfig>();
             _enumNameMap = new Dictionary<string, AtomicEffectConfig>();
             _typeMap = new Dictionary<AtomicEffectType, AtomicEffectConfig>();
-            _orderedRows = new List<AtomicEffectConfig>();
-            Version++;
 
             int loaded = 0;
             try
@@ -188,7 +178,6 @@ namespace CardCore.Attribute
             _enumNameMap[config.EnumName] = config;
             if (Enum.TryParse<AtomicEffectType>(config.EnumName, out var type))
                 _typeMap[type] = config;
-            _orderedRows.Add(config);
         }
 
         /// <summary>通过表 ID 列（8-hex）获取配置（原子引用键——无则 null）。</summary>
@@ -249,50 +238,6 @@ namespace CardCore.Attribute
 
         /// <summary>已加载的配置总数（供诊断/验证用）</summary>
         public static int Count => _typeMap?.Count ?? 0;
-
-        // ======================================== 原子表工坊（2026-10-06 玩家改价） ========================================
-
-        /// <summary>玩家可编辑的总价下界（0.5 步进网格起点）。0 = 白嫖，禁设。</summary>
-        public const float MinEditableTotal = 0.5f;
-
-        /// <summary>玩家可编辑的总价上界（0.5 步进网格终点）。9 = 顶格档，禁设。</summary>
-        public const float MaxEditableTotal = 8.5f;
-
-        /// <summary>全行保序枚举（表书写序；工坊 UI 逐行展示用）。</summary>
-        public static IReadOnlyList<AtomicEffectConfig> OrderedRows => _orderedRows;
-
-        /// <summary>
-        /// 工坊编辑合法性（UI 预检与写入共用同一口径，禁双轨）：
-        /// 总价落在 [0.5, 8.5] 且为 0.5 整倍数——0（白嫖）与 9（顶格档）永远设不进。
-        /// </summary>
-        public static bool IsEditableTotal(float total)
-        {
-            if (total < MinEditableTotal || total > MaxEditableTotal) return false;
-            return Math.Abs(total * 2f - Math.Round(total * 2f)) < 1e-3f;
-        }
-
-        /// <summary>
-        /// 行级总价改写（原子表工坊）：按 hashId 定位行，把 ManaList 整只替换为
-        /// 「原六色占比 × 新总价」的等比分摊——占比不动 ⇒ 表色/Tags/Polarity/HashId 全不变，
-        /// 转换器实例快照（Polarity/RowHashId）与 ResolveRowId 反查全部不过期；
-        /// 四张字典持同一对象引用，改字段即全映射生效。
-        /// 不计价行（ManaList=null）与非法值拒绝并返回 false。成功后 Version+1。
-        /// </summary>
-        public static bool TrySetRowTotal(string hashId, float total)
-        {
-            if (string.IsNullOrEmpty(hashId) || !IsEditableTotal(total)) return false;
-            if (!_hashIdMap.TryGetValue(hashId, out var row) || row == null) return false;
-            var old = row.ManaList;
-            if (old == null || old.IsZero || old.Total <= 0f) return false; // 不计价行不可编辑
-
-            var scale = total / old.Total;
-            var arr = new float[ElementCost.Length];
-            for (int i = 0; i < ElementCost.Length && i < old.v.Length; i++)
-                arr[i] = old.v[i] * scale;
-            row.ManaList = new ElementCost(arr);
-            Version++;
-            return true;
-        }
 
         // ======================================== JSON DTO（薄 5+1 列）========================================
 
