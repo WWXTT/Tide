@@ -279,6 +279,17 @@ namespace CardCore
             return a.Where(b.Contains).OrderBy(k => k).ToList();
         }
 
+        /// <summary>域并集（升序去重）：null/空集成员不参与。逐原子模式组合域（展示/预检/AI）来源。</summary>
+        public static List<int> Union(List<int> a, List<int> b)
+        {
+            var result = a == null ? new List<int>() : new List<int>(a);
+            if (b != null)
+                foreach (var k in b)
+                    if (!result.Contains(k)) result.Add(k);
+            result.Sort();
+            return result;
+        }
+
         /// <summary>全部有生命单位（双方角色+生物）——旧 Creature/Creature,Player/Player 域的迁移落点。</summary>
         public static int[] AllLivingUnits()
             => new[] { (int)TargetKind.OwnLivingUnit, (int)TargetKind.EnemyLivingUnit };

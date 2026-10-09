@@ -94,7 +94,8 @@ namespace CardCore
         Combat,
 
         /// <summary>
-        /// 祭祀
+        /// 【墓碑 2026-10-09】祭祀——牺牲转直送非死亡（不发 CardDestroyEvent），本值无生产方；
+        /// 枚举位保留防位序重编号。
         /// </summary>
         Sacrificed,
 
@@ -109,7 +110,7 @@ namespace CardCore
         Smashed,
 
         /// <summary>
-        /// 摒弃（2026-09-13：牺牲的无生命等价——持有者自行选择一个己方场上无生命单位，直送墓地）
+        /// 【墓碑 2026-10-09】摒弃——舍弃并档牺牲后无生产方（牺牲直送不发本事件）；枚举位保留防位序重编号。
         /// </summary>
         Abandoned,
 

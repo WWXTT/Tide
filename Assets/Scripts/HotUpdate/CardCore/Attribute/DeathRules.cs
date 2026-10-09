@@ -14,12 +14,15 @@ namespace CardCore.Attribute
     ///
     /// ── 效果死亡族（神佑全拦；不灭拦其中的"消灭"类）────────────────
     /// · 消灭：效果中消灭一个生物的描述；没有额外说明的都是进墓
-    ///   （剧毒 Venom=消灭口径：受到其战斗伤害的生物在结算后被消灭，2026-10-08 转关键词）
-    /// · 牺牲：玩家主动将自己场上生物置入坟墓场，视为死亡，来源是控制者
-    /// · 吞噬：一个生物消灭另一个并获得其能力/生命等，死亡，来源是吞噬者
+    ///   （剧毒 Venom=消灭口径：受到其战斗伤害的生物在结算后被消灭，2026-10-08 转关键词；
+    ///   原「吞噬」行 2026-10-09 改纯消灭——消灭原子（EffectType=Devour）同走本死因；
+    ///   摧毁 Smash=无生命直毁不经本表，但处理器显式走 IsShielded 同拦——
+    ///   2026-10-09 三口裁定：不灭免疫=剧毒/消灭/摧毁）
     /// · 湮灭：彻底移除，死亡，不可被复活，直接送到除外区
     ///
     /// ── 非死亡移除族（不触发死亡，不经本决策表）────────────────────
+    /// · 牺牲（2026-10-09 舍弃并档定案）：以角色为目标，持有者自选一个单位效果
+    ///   直送墓地（SacrificeHandler）——非效果死亡，不发 CardDestroyEvent
     /// · 弹回：移回手牌        · 变形：变成其他卡
     /// · 放逐：移动到除外区    · 相位：暂移除外区，回归时无格则触发死亡
     /// · 封印：翻面覆盖占格，效果无效，卡不可成为目标、封印格可作为目标
@@ -41,9 +44,11 @@ namespace CardCore.Attribute
         // DeathCause.Poison 已删（2026-10-08 剧毒指示物转关键词 Venom：消灭走 DestroyEffect，全量底层改造不留墓碑）
         /// <summary>消灭：效果死亡，默认进墓（不灭拦）</summary>
         DestroyEffect,
-        /// <summary>牺牲：玩家主动置入坟墓场，来源=控制者</summary>
+        /// <summary>【墓碑 2026-10-09】牺牲死因——牺牲转直送非死亡（SacrificeHandler 不经本表），
+        /// 无调用方；枚举位保留防 Devour/Annihilate 位序重编号。</summary>
         Sacrifice,
-        /// <summary>吞噬：被吞噬消灭（吞噬者获得其能力/生命），来源=吞噬者</summary>
+        /// <summary>【墓碑 2026-10-09】吞噬死因——吞噬机制移除（Devour 行改纯消灭走 DestroyEffect），
+        /// 无调用方；枚举位保留防 Annihilate 位序重编号。</summary>
         Devour,
         /// <summary>湮灭：彻底移除，死亡，不可被复活，直送除外区</summary>
         Annihilate,
@@ -56,14 +61,15 @@ namespace CardCore.Attribute
     /// 使其免疫各种效果的是默认持有的【神佑】状态（可被效果移除的真实状态，非硬编码）——
     /// 只接受生命值归零的死亡。
     ///
-    /// 护盾×死因 矩阵（稀疏，缺省=不拦截；DeathCause.Poison 列已随 2026-10-08 剧毒转关键词删除）：
-    /// ┌─────────────┬──────────────┬──────────────┬──────────┬──────────┬──────────┬───────────┐
-    /// │ 护盾＼死因    │ DamageLethal │ DestroyEffect │ Sacrifice │ Devour  │ Annihilate│ 归零族其余 │
-    /// ├─────────────┼──────────────┼──────────────┼──────────┼──────────┼──────────┼───────────┤
-    /// │ 不灭          │      ✗       │      ✓       │     ✗    │    ✓     │    ✗     │     ✗     │
-    /// │ 神佑(角色默认) │      ✗       │      ✓       │     ✓    │    ✓     │    ✓     │     ✗     │
-    /// │ 复生（替代）   │      所有死因消耗回场；唯湮灭不可复活                        │
-    /// └─────────────┴──────────────┴──────────────┴──────────┴──────────┴──────────┴───────────┘
+    /// 护盾×死因 矩阵（稀疏，缺省=不拦截；DeathCause.Poison 列已随 2026-10-08 剧毒转关键词删除；
+    /// DeathCause.Sacrifice 列已随 2026-10-09 牺牲转直送非死亡退役、Devour 列随吞噬机制移除退役——均无调用方）：
+    /// ┌─────────────┬──────────────┬──────────────┬───────────┬───────────┐
+    /// │ 护盾＼死因    │ DamageLethal │ DestroyEffect │ Annihilate│ 归零族其余 │
+    /// ├─────────────┼──────────────┼──────────────┼───────────┼───────────┤
+    /// │ 不灭          │      ✗       │      ✓       │     ✗     │     ✗     │
+    /// │ 神佑(角色默认) │      ✗       │      ✓       │     ✓     │     ✗     │
+    /// │ 复生（替代）   │      所有死因消耗回场；唯湮灭不可复活              │
+    /// └─────────────┴──────────────┴──────────────┴───────────┴───────────┘
     ///
     /// 新护盾/新死因 = 加一行/一列注册，不改既有代码（OCP）；
     /// 每格定案对应验证器一条断言（TestKeywords 惯例）。
@@ -77,8 +83,6 @@ namespace CardCore.Attribute
         private static readonly HashSet<DeathCause> EffectDeathCauses = new HashSet<DeathCause>
         {
             DeathCause.DestroyEffect,
-            DeathCause.Sacrifice,
-            DeathCause.Devour,
             DeathCause.Annihilate,
         };
 
@@ -86,8 +90,9 @@ namespace CardCore.Attribute
         private static readonly Dictionary<string, HashSet<DeathCause>> ShieldMatrix =
             new Dictionary<string, HashSet<DeathCause>>
             {
-                // 不灭：不会被消灭（消灭/吞噬等"消灭类"路径；湮灭非消灭、照常生效）
-                { KeywordRules.Indestructible, new HashSet<DeathCause> { DeathCause.DestroyEffect, DeathCause.Devour } },
+                // 不灭：不会被消灭（2026-10-09 三口裁定：剧毒/消灭/摧毁全拦——摧毁为 Smash 处理器
+                // 显式走本判定；湮灭非消灭、照常生效）
+                { KeywordRules.Indestructible, new HashSet<DeathCause> { DeathCause.DestroyEffect } },
                 // 神佑：免疫一切效果死亡，只接受生命值归零（角色默认持有）
                 { DivineProtection, EffectDeathCauses },
             };
@@ -146,16 +151,14 @@ namespace CardCore.Attribute
             return true;
         }
 
-        /// <summary>死因 → CardDestroyEvent.Reason：消灭/吞噬=Destroyed，牺牲=Sacrificed，湮灭=Annihilated，归零族=Combat。</summary>
+        /// <summary>死因 → CardDestroyEvent.Reason：消灭=Destroyed，湮灭=Annihilated，归零族=Combat
+        ///（Sacrifice/Devour 臂已随 2026-10-09 牺牲直送化/吞噬移除退役）。</summary>
         private static DestroyReason ToReason(DeathCause cause)
         {
             switch (cause)
             {
                 case DeathCause.DestroyEffect:
-                case DeathCause.Devour:
                     return DestroyReason.Destroyed;
-                case DeathCause.Sacrifice:
-                    return DestroyReason.Sacrificed;
                 case DeathCause.Annihilate:
                     return DestroyReason.Annihilated;
                 default:

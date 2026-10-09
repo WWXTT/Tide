@@ -446,6 +446,8 @@ namespace CardCore
         public string str;            // 字符串参数（token 模板 ID、关键词 id、宣言卡名）
         public float amp;             // 数值随机幅度 0..1（0=off；span=round(|value|×amp)）
         public List<int> kinds;       // 实例域收窄（TargetKind 序号；null=表行默认域）
+        public int count = -2;        // 每原子目标数量（2026-10-09：档 1/2/3；-2=未声明回落效果级 TargetCount）
+        public int rand = -1;         // 每原子目标随机（2026-10-09：1=随机抽不弹窗/0=弹窗；-1=未声明回落效果级 RandomTarget）
         public BranchEntryData branch; // 槽级分支载荷（2026-10-05 两槽定案）：null=无分支
     }
 
@@ -586,9 +588,8 @@ namespace CardCore
         /// 1=己方/2=双方/3=对方（作用面档，不经箭头）。旧数据 0=未声明——效果级 header.AuraScope
         /// 由 AggregateEffectAuras 迁移盖戳。</summary>
         public int scope;
-        /// <summary>是否包含角色（2026-10-08 定案）：作用面档下关键词条目可投递角色（scope==0 箭头
-        /// 模式与属性条目恒 false——属性增加不作用于角色，角色只吃角色攻击力原子）。</summary>
-        public bool role;
+        // 逐条目「是否包含角色」已退役（2026-10-09 裁定）：关键词光环一律可作用角色——不能用光环
+        // 表达的行（守护/再生/禁魔石）由表「不可作为连接光环」位拉黑；属性条目仍恒仅生物。
     }
 
     /// <summary>

@@ -103,8 +103,14 @@ namespace CardCore
         public int TriggerLimitPerTurn = -1;
         // 动态分支引擎 def 级字段（EngineKind/EngineParam/RewardAtoms/CountdownTurns）已随 2026-10-05
         // 两槽定案载荷化退役——引擎条件与 Then 奖励挂槽级原子 Branch 载荷（见 AtomicEffectInstance.Branch）。
-        /// <summary>预计算组合目标域：主序列主干原子 TargetKinds 交集（converter 填；构筑期校验用）。</summary>
+        /// <summary>预计算组合目标域（2026-10-09 逐原子目标制）：共享口径（header 声明）=主序列原子域交集；
+        /// 逐原子口径（PerAtomTargets）=并集——仅供展示/预检/AI，结算期各原子按自身极性过滤域独立解析。</summary>
         public List<int> TargetDomain;
+        /// <summary>逐原子目标制（2026-10-09 定案）：无效果级作用范围声明（header.TargetKinds 空）时置位——
+        /// 结算期主序列每个原子从自身有效域（极性过滤后）独立解析目标，数量档/随机档对各原子各自生效，
+        /// 弹窗全部落结算期连续等待（AI/无头由 TargetSelectionService 自动代选）；强制类无窗口自动全取。
+        /// header 声明的旧数据保持共享单选语义（两代同链共存）。</summary>
+        public bool PerAtomTargets;
         /// <summary>组合域内属性过滤（成员带域原子的 Filter token 之 AND；converter 预计算）。</summary>
         public string TargetFilter;
         /// <summary>per-mode 组合域（与 Choices 平行；无抉择为 null——用 TargetDomain）。</summary>
@@ -469,6 +475,16 @@ namespace CardCore
         Engine = 3,
     }
 
+    /// <summary>槽级分支载荷判定（UI/存储侧共用）。</summary>
+    public static class BranchEntryRules
+    {
+        /// <summary>幽灵分支（2026-10-09）：JsonUtility 落盘会把 null 的 BranchEntryData 物化成
+        /// 默认对象（settle=0——非枚举定义值），读档/深拷贝后以此剥离——渲染、奖励槽还原、内容哈希
+        /// 都不得把幽灵分支当真分支（运行时执行侧 CardEffectConverter 同口径丢弃越界 settle）。</summary>
+        public static bool IsPhantom(BranchEntryData b)
+            => b == null || !Enum.IsDefined(typeof(BranchSettleKind), b.settle);
+    }
+
     /// <summary>
     /// 槽级分支载荷：条件在主干中 + Then 奖励。Then=条件达成后**强制结算**的奖励原子
     /// （无发动时机；有目标域的奖励在结算前依次弹目标选择）；计价 0——预算制
@@ -561,6 +577,20 @@ namespace CardCore
         public Dictionary<ManaType, float> Mana;
         /// <summary>解析后有效目标域（entry 显式收窄 ?? 表级默认；converter 填）。</summary>
         public List<int> TargetKinds;
+        /// <summary>每原子目标数量覆盖（2026-10-09：entry.count；-2=未声明回落效果级 def.TargetCount）。
+        /// 解析/定价读 EffectiveTargetCount(def) 取有效值。</summary>
+        public int TargetCount = -2;
+        /// <summary>每原子目标随机覆盖（2026-10-09：entry.rand；-1=未声明回落效果级 def.RandomTarget）。
+        /// 解析读 EffectiveRandomTarget(def) 取有效值。</summary>
+        public int RandomTarget = -1;
+
+        /// <summary>每原子有效目标数量（2026-10-09）：实例声明（1/2/3）优先；-2 未声明回落效果级 def.TargetCount。</summary>
+        public int EffectiveTargetCount(EffectDefinition def)
+            => TargetCount != -2 ? TargetCount : (def != null ? def.TargetCount : 1);
+
+        /// <summary>每原子有效目标随机（2026-10-09）：实例声明优先（1=随机抽不弹窗/0=弹窗）；-1 未声明回落效果级 def.RandomTarget。</summary>
+        public bool EffectiveRandomTarget(EffectDefinition def)
+            => RandomTarget != -1 ? RandomTarget == 1 : def != null && def.RandomTarget;
         /// <summary>域内属性过滤 token（表级 TargetFilter；converter 解析存实例）。</summary>
         public string Filter;
         /// <summary>极性（表级解析：-1=对对手释放有益 / +1=对己方释放有益 / 0=中性；错边折价输入）。</summary>

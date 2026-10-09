@@ -277,11 +277,14 @@ namespace CardCore
                 return;
             }
 
-            // 组合域统一目标解析（2026-09-10 目标域模型）：
-            // cast 声明期已预选目标（instance.Targets 非空）则沿用；否则按 def 预计算域
-            // + SelectionMode 三态一次解析，效果内全部原子共享同一份目标（Steps/扁平两路径语义统一）。
-            if (context.Targets == null || context.Targets.Count == 0)
+            // 逐原子目标制（2026-10-09）：PerAtomTargets=无效果级作用范围声明——不做组合级共享解析；
+            // 声明期预选目标保留透传（响应窗口指向性卡/教学与 AI 预选），由各原子在自身域内择取归属
+            //（域外原子结算期自解析弹窗/AI 代选——见两路径循环与 ResolveAtomTargetsAsync 预选归属段）。
+            if (!effect.PerAtomTargets
+                && (context.Targets == null || context.Targets.Count == 0))
+            {
                 context.Targets = await EffectHandlerRegistry.ResolveCompositionTargetsAsync(effect, context);
+            }
 
             // 节点化步骤非空 → per-target 步骤遍历（含 OutcomeGate 分支）；
             // 为空 → 退化为扁平 Effects 线性结算（向后兼容）。
@@ -382,11 +385,23 @@ namespace CardCore
                 if (IsEngineTrunk(atomicEffect)) continue; // 引擎主干=条件载体（BranchEngines 事件驱动），不在主序列执行
                 var payload = atomicEffect.Branch;
 
+                // 逐原子目标制（2026-10-09）：该原子按自身极性过滤域独立解析（弹窗/AI 代选落结算期）；
+                // 声明期预选目标（originalTargets）先经该原子域归属过滤（域内沿用/域外自解析）；
+                // 解析空（无域/全隐藏区/无候选）=空目标自结算（ExecuteEffectAsync 内原子级兜底，与奖励口径同）。
+                // 共享口径照旧吃组合目标快照（originalTargets/compositionTargets）。
+                List<Entity> ownTargets = null;
+                if (effect.PerAtomTargets)
+                    ownTargets = await EffectHandlerRegistry.ResolveAtomTargetsAsync(
+                        effect, atomicEffect, context, originalTargets);
+
                 if (HasOutcome(atomicEffect))
                 {
                     // 产出条件（自由分支·Outcome）：per-target 执行 + 逐目标评估（LastOutcome 按目标重置）
                     var wrongHits = new Dictionary<AtomicEffectInstance, int>();
-                    foreach (var target in compositionTargets)
+                    var loopTargets = effect.PerAtomTargets
+                        ? (ownTargets.Count > 0 ? ownTargets : new List<Entity> { null }) // 空解析=单次 null 自结算
+                        : compositionTargets;
+                    foreach (var target in loopTargets)
                     {
                         context.Targets = target != null ? new List<Entity> { target } : new List<Entity>();
                         context.LastOutcome.Reset();
@@ -406,7 +421,10 @@ namespace CardCore
                 }
                 else
                 {
-                    context.Targets = new List<Entity>(originalTargets); // 恢复原始目标（产出条件原子可能改写）
+                    // 逐原子模式：目标=该原子自身解析结果（空=自结算）；共享口径恢复原始目标
+                    context.Targets = effect.PerAtomTargets
+                        ? new List<Entity>(ownTargets)
+                        : new List<Entity>(originalTargets); // 恢复原始目标（产出条件原子可能改写）
                     await EffectHandlerRegistry.ExecuteEffectAsync(atomicEffect, context);
                     CaptureDescription(atomicEffect, context, fragments);
                     // 错边黑白发放（2026-09-11 定案）：原子结算后按实际命中侧别判定，每原子一次发放事件
@@ -483,7 +501,20 @@ namespace CardCore
                 // 整原子=一次发放事件，循环后统一封顶发放（见 FlushWrongSideGrants）。
                 var wrongHits = new Dictionary<AtomicEffectInstance, int>();
 
-                foreach (var target in compositionTargets)
+                // 逐原子目标制（2026-10-09）：该原子按自身极性过滤域独立解析（弹窗/AI 代选落结算期）；
+                // 声明期预选目标（组合快照非 {null} 占位）先经域归属过滤；空解析=单次 null 目标自结算。
+                var stepTargets = compositionTargets;
+                if (effect.PerAtomTargets)
+                {
+                    var preselected = compositionTargets.Count == 1 && compositionTargets[0] == null
+                        ? null
+                        : compositionTargets;
+                    var resolved = await EffectHandlerRegistry.ResolveAtomTargetsAsync(
+                        effect, atomic, context, preselected);
+                    stepTargets = resolved.Count > 0 ? resolved : new List<Entity> { null };
+                }
+
+                foreach (var target in stepTargets)
                 {
                     context.Targets = target != null ? new List<Entity> { target } : new List<Entity>();
                     context.LastOutcome.Reset();
@@ -1713,6 +1744,8 @@ namespace CardCore
             var handlers = new IAtomicEffectHandler[]
             {
                 new DealDamageHandler(),
+                // 敌方全体伤害（2026-10-09 全体对象独立原子）：无域自结算，杀数聚合（击杀门槛一次结算）
+                new DealDamageAllEnemiesHandler(),
                 new DrawCardHandler(),
                 // 回响（2026-10-07 关键词→普通效果改版）：复制施放卡入手（完全复制，连锁保留）
                 new EchoCopyHandler(),
@@ -1767,6 +1800,9 @@ namespace CardCore
                 new GrantDivineShieldHandler(),
                 new GrantRebornHandler(),
                 new GrantStealthHandler(),
+                // 法术护盾（2026-10-09 指示物化收官）：同上——执行改挂 SpellShieldCounter 层，
+                // ConsumeSpellShields 效果执行前置过滤逐层消耗
+                new GrantSpellShieldHandler(),
 
                 // 状态原子（虚弱/鼓舞——施加 ±1/+1 属性指示物）
                 new WeakenHandler(),

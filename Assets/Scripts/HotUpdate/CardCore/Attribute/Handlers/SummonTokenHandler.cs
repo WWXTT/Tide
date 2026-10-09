@@ -10,7 +10,8 @@ namespace CardCore.Attribute.Handlers
     /// - token 有全套卡参数（模板 = CardData），与卡的核心区别是**不唯一**；
     /// - 实例 ID = 模板ID#序号（TimestampSystem.NextSequence，对局中临时赋值作索引，
     ///   先例 CopyEffectsEngine.GenerateCopyID；实例 ID 唯一化避免 TextChangeLayer._cardIdMap 同 ID 互覆）；
-    /// - 落区写死战场（2026-10-05 定案：衍生物恒落战场，组合层三档退役；计价同口径恒战场系数）；
+    /// - 落区写死战场（2026-10-05 定案：衍生物恒落战场，组合层三档退役；落区系数亦于 2026-10-09
+    ///   随之内生化退役——计价=模板费×数量，不再外乘分档系数）；
     /// - 模板解析经静态委托 ResolveTemplate（组合根注入 CardCatalog.GetById，
     ///   仿 MorphSystem.ResolveMorphTarget；未注入时复用变形解析器——同为模板ID→CardData）。
     ///

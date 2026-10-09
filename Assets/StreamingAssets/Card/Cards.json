@@ -1,0 +1,47 @@
+{
+  "cards": [
+    {
+      "id": "token_0_1",
+      "cardName": "衍生物·0/1",
+      "supertype": "Creature",
+      "power": 0,
+      "life": 1,
+      "keywords": [],
+      "tags": ["衍生物"],
+      "effects": []
+    },
+    {
+      "id": "token_1_1",
+      "cardName": "衍生物·1/1",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 1,
+      "keywords": [],
+      "tags": ["衍生物"],
+      "effects": []
+    },
+    {
+      "id": "token_2_2",
+      "cardName": "衍生物·2/2",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "keywords": [],
+      "tags": ["衍生物"],
+      "effects": []
+    },
+    {
+      "id": "token_3_3",
+      "cardName": "衍生物·3/3",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 3,
+      "keywords": [],
+      "tags": ["衍生物"],
+      "effects": []
+    }
+  ],
+  "deckConfig": {
+    "copiesPerCard": 1
+  }
+}

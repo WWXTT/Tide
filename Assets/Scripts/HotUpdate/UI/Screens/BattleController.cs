@@ -44,7 +44,6 @@ namespace SynergyUI
         /// 预设场面（2026-10-06 教学直入）：scenario 非 null=双方卡组（并集）先全部入牌库、跳起手抽取、
         /// 不自动开局，TutorialScenarioSeeder 静默注入场面后再 StartGame——玩家直接站在起跳回合主阶段。
         /// 挑战模式（2026-10-06）：aiLandCapBonus/aiExtraOpeningDraws 直通 InitGame（P2 曲线上移+起手加抽）。
-        /// 原子表工坊（2026-10-06）：装载卡池后 EnsureBattleCosts——overlay 启用时全卡池强制重推改价。
         /// </summary>
         public void StartNewGame(List<CardData> myDeck = null, List<CardData> aiDeck = null,
             IAiTurnDriver aiDriver = null, bool lockDeckOrder = false, int? rngSeed = null,
@@ -52,8 +51,6 @@ namespace SynergyUI
             string mySkillCardId = null, string aiSkillCardId = null)
         {
             var catalog = CardCatalog.LoadAll();
-            // 原子表工坊改价生效点：教学基线在位时内部自动跳过（教学局用声明费）
-            AtomicTableWorkshop.EnsureBattleCosts();
             // 变形目标形态解析器：组合根注入（CardCore 不依赖 UI 层）
             CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
 

@@ -37,9 +37,10 @@ namespace CardCore.Attribute.Handlers
                     ? KeywordLane.Setting
                     : KeywordLane.Temp;
 
-                // 参数化（2026-10-07 值化定案；2026-10-08 不叠加定案）：实例值=原子 value、
-                // 生效次数=承载效果次数档（0→1；-1=无限）随授予入台账——同轨重复授予=取代
-                //（值/次数刷新不叠加）。运行时消费者已清零：坚韧 2026-10-08 指示物化（ToughnessCounter）、
+                // 参数化（2026-10-07 值化定案；2026-10-08 不叠加；2026-10-09 全轨取代修订）：
+                // 实例值=原子 value、生效次数=承载效果次数档（0→1；-1=无限）随授予入台账——
+                // 重复授予=全轨取代（值/次数刷新不叠加；顶掉文本份/附加份均算取代）。
+                // 运行时消费者已清零：坚韧 2026-10-08 指示物化（ToughnessCounter）、
                 // 守护配对制无限次改写——台账 Value/Limit 现仅作不叠加账目，无行为读数。
                 target.AddKeyword(_keywordId, lane, context.Source,
                     effect.GetRolledValue(), context.TriggerLimitPerTurn == 0 ? 1 : context.TriggerLimitPerTurn);
@@ -94,7 +95,9 @@ namespace CardCore.Attribute.Handlers
             // a16f1e55→8f84641e（2026-10-08 全量 ID 重推·卡数据随后重建）
             // 隐密（2026-10-04，蓝5）：潜行的持续版——不因发动效果/受到伤害失效（三个失效口只消耗潜行层）
             (AtomicEffectType.GrantConcealed, "Concealed", "获得隐密"),
-            (AtomicEffectType.GrantSpellShield, "SpellShield", "获得法术护盾"),
+            // 法术护盾已移出关键词族（2026-10-09 指示物化）：GrantSpellShield 原子改由 GrantSpellShieldHandler
+            // 执行（挂 SpellShieldCounter 层，EffectExecutionEngine 指示物原子区注册）——refId 已重推
+            // a3ad6a04→7270df35（2026-10-09 指示物化随文案换号）
             (AtomicEffectType.GrantCannotBeTargeted, "Untargetable", "获得扰魔"),
 
             // 绿色 - 续航
@@ -103,7 +106,7 @@ namespace CardCore.Attribute.Handlers
             (AtomicEffectType.GrantRegeneration, "Regeneration", "获得再生"),
             // 坚韧已移出关键词族（2026-10-08 指示物化）：GrantToughness 原子（原 GrantArmor 同日更名）
             // 改由 GrantToughnessHandler 执行（挂 ToughnessCounter 层，EffectExecutionEngine 指示物原子区注册）
-            //——refId 已重推 05485f65→a312b8b0（2026-10-08 全量 ID 重推·卡数据随后重建）
+            //——refId 迁移 05485f65→a312b8b0→758a74e0（同日哈希对齐）→2b1e3700（2026-10-09 生效自减改版随文案换号）
             // 守护（2026-10-08 配对制改版，退出连接光环族——表行位 8 拉黑）：登场/授予时弹选一个
             // 己方目标（单位或角色），其受伤改写为守护者承受（GuardianRules 配对表；无限次直到守护者离场）
             (AtomicEffectType.GrantGuardian, "Guardian", "获得守护"),

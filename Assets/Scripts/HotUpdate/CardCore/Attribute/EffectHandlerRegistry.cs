@@ -102,7 +102,8 @@ namespace CardCore.Attribute
                 context.Targets = ResolveTargets(effect, context);
             }
 
-            // 法术护盾：首次成为对手效果目标时该效果对其无效（移出目标 + 消耗护盾）
+            // 法术护盾（2026-10-09 指示物化）：每层抵消一次对手效果对自身的作用
+            //（移出目标 + 消耗 1 层法术护盾指示物；多层=多次抵消）
             KeywordRules.ConsumeSpellShields(context.Targets, context.Source);
 
             if (!handler.CanExecute(effect, context))
@@ -119,9 +120,10 @@ namespace CardCore.Attribute
         /// 多目标需求由组合层 TargetCount 声明）。</summary>
         private static (List<int> kinds, string filter, int count) GetEffectiveDomain(AtomicEffectInstance effect)
         {
+            // 免编排路径无 def 可回落：实例每原子声明优先（2026-10-09），未声明恒 1（旧口径）
             return (effect.TargetKinds ?? new List<int>(),
                     effect.Filter ?? "",
-                    1);
+                    effect.TargetCount != -2 ? effect.TargetCount : 1);
         }
 
         /// <summary>
@@ -168,7 +170,7 @@ namespace CardCore.Attribute
                 return candidates;
             }
 
-            // edict 豁免（2026-09-13）：牺牲/摒弃类选择权在目标方——帷幕只约束对手的选择，不管持有者自选
+            // edict 豁免（2026-09-13）：牺牲类选择权在目标方——帷幕只约束对手的选择，不管持有者自选
             bool edictExempt = def.Effects != null
                 && def.Effects.Any(a => a != null && TargetResolver.IsEdict(a.Type));
 
@@ -250,9 +252,11 @@ namespace CardCore.Attribute
         }
 
         /// <summary>
-        /// 分支 Then 奖励的目标解析（两槽定案 2026-10-05；2026-10-07 晚定案=合法范围内弹窗选 1）：
+        /// 分支 Then 奖励的目标解析（两槽定案 2026-10-05；2026-10-07 晚定案=合法范围内弹窗选 1；
+        /// 2026-10-09 每原子下沉：奖励原子声明数量档→弹选 N、随机档→帷幕收窄完整候选池种子抽取
+        /// 「扰魔/潜行可命中」；未声明（-2/-1）维持弹选 1）。
         /// 候选按手动选择口径两道过滤（帷幕收窄 + 弹窗显示域滤对方侧扰魔/潜行/隐密）后
-        /// 由 Chooser=效果控制者（自己）弹选 1；候选≤1 自动取不弹（AI/无头由 Service 自动选首）；
+        /// 由 Chooser=效果控制者（自己）弹选；候选≤需求自动取不弹（AI/无头由 Service 自动选首）；
         /// 隐藏区域/无域=空列表（调用方按单次 null 目标执行——handler 自结算）。
         /// </summary>
         public static async UniTask<List<Entity>> ResolveRewardTargetsAsync(
@@ -263,16 +267,19 @@ namespace CardCore.Attribute
             if (kinds.Count == 0 || TargetKindRules.AllHiddenZone(kinds))
                 return new List<Entity>(); // 无目标/隐藏区自结算
 
-            var pool = TargetResolver.ExcludeUnselectable(
-                TargetResolver.ApplyTauntRestriction(
-                    ResolveCandidates(kinds, reward.Filter ?? "", context), context),
-                context.Controller);
-            if (pool.Count <= 1) return pool.Take(1).ToList();
+            int need = reward.TargetCount > 0 ? reward.TargetCount : 1; // 未声明=弹选 1（2026-10-07 口径）
+            var full = TargetResolver.ApplyTauntRestriction(
+                ResolveCandidates(kinds, reward.Filter ?? "", context), context);
+            if (reward.RandomTarget == 1)
+                return need >= full.Count ? full : GameRng.PickN(full, need); // 随机=完整候选池抽取
+
+            var pool = TargetResolver.ExcludeUnselectable(full, context.Controller);
+            if (pool.Count <= need) return pool.Take(need).ToList();
             return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
             {
                 Candidates = pool,
-                MinCount = 1,
-                MaxCount = 1,
+                MinCount = need,
+                MaxCount = need,
                 Chooser = context.Controller,
                 Title = title,
             });
@@ -308,7 +315,7 @@ namespace CardCore.Attribute
                 return candidates.Take(need).ToList();
 
             // 选择层两道过滤（2026-09-13）：帷幕收窄 + 弹窗显示域（扰魔/潜行隐藏）——
-            // 全域/随机不经此处（随机池在组合层收窄）；edict 原子（牺牲/摒弃）豁免帷幕
+            // 全域/随机不经此处（随机池在组合层收窄）；edict 原子（牺牲类）豁免帷幕
             candidates = TargetResolver.ExcludeUnselectable(
                 TargetResolver.ApplyTauntRestriction(candidates, context, TargetResolver.IsEdict(effect.Type)), context.Controller);
             if (candidates.Count == 0) return candidates;
@@ -320,6 +327,109 @@ namespace CardCore.Attribute
                 MaxCount = need,
                 Chooser = context.Controller,
                 Title = "选择目标",
+            });
+        }
+
+        /// <summary>
+        /// 逐原子目标解析（2026-10-09 逐原子目标制定案，PerAtomTargets 主序列专用）：
+        /// 域=该原子实例域**原样**（表默认或显式收窄——运行时不做极性侧别过滤：与旧共享口径一致，
+        /// 双域原子可选两侧、跨侧命中走错边黑白发放经济；极性收窄是合成器 UI 的选择集口径，
+        /// 「苏醒式自缚」类显式锁己域数据照常生效）；数量档/随机档为**每原子声明**
+        ///（2026-10-09 下沉：未声明 -2/-1 回落效果级 def，效果级对未声明原子统一生效）。
+        /// 声明期预选目标归属：preselected 落在该原子合法候选内 → 直接沿用（响应窗口指向性卡
+        ///（发动区反制）/教学与 AI 预选保活）；预选全落域外 → 该原子回落自解析。
+        /// 行为口径与组合层解析（ResolveCompositionTargetsAsync）对齐：
+        /// 全隐藏区=自结算空列表（隐藏信息不进选择）；全取档/数量"全部"=候选全取不弹窗；
+        /// 强制类（Mandatory）无选择窗口=自动全取；随机=帷幕收窄池内种子抽取（扰魔/潜行可命中）；
+        /// 选一/选多=两道过滤（帷幕收窄+显示域）后候选≤需求自动取、否则弹窗（AI/无头 Service 代选）。
+        /// 无域原子返回空列表（调用方按单次 null 目标自结算执行）。
+        /// </summary>
+        public static async UniTask<List<Entity>> ResolveAtomTargetsAsync(
+            EffectDefinition def, AtomicEffectInstance atom, EffectExecutionContext context,
+            List<Entity> preselected = null, string title = "选择目标")
+        {
+            if (def == null || atom == null || context == null) return new List<Entity>();
+
+            var kinds = atom.TargetKinds ?? new List<int>();
+            if (kinds.Count == 0) return new List<Entity>(); // 无域原子：handler 自结算
+
+            // 预选归属：预选目标 ∈ 该原子合法候选 → 沿用（域外原子不消费预选，回落自解析）。
+            // 先于隐藏区早退——「点名已展示的对方手牌卡」等信息轴联动依赖预选透传。
+            if (preselected != null && preselected.Count > 0)
+            {
+                var pool = ResolveCandidates(kinds, atom.Filter ?? "", context);
+                var kept = preselected.Where(pool.Contains).ToList();
+                if (kept.Count > 0) return kept;
+            }
+
+            // 全隐藏区（对方手牌/双方牌库）：隐藏信息不进选择——自结算（与组合层早退口径一致）
+            if (TargetKindRules.AllHiddenZone(kinds)) return new List<Entity>();
+
+            var candidates = ResolveCandidates(kinds, atom.Filter ?? "", context);
+            GameActions.Crumb($"atom-targets {def.Id}/{atom.Type} kinds={TargetKindRules.Format(kinds)} "
+                + $"pre={preselected?.Count ?? 0} cands={candidates.Count} mode={def.SelectionMode} cnt={atom.EffectiveTargetCount(def)}");
+            if (candidates.Count == 0) return candidates;
+
+            bool edictExempt = TargetResolver.IsEdict(atom.Type);
+            bool noWindow = def.ActivationType == EffectActivationType.Mandatory; // 强制类无目标选择窗口
+            bool noneAsSingle = def.SelectionMode == SelectionMode.None; // 未声明模式=按选一（与组合层同口径）
+            int effCount = atom.EffectiveTargetCount(def); // 每原子有效数量（未声明=效果级）
+
+            // 全取：候选全取——扰魔/潜行照常命中，不受帷幕收窄；强制类无窗口同走全取（构筑期目标明确）
+            if (SelectionModeRules.IsTakeAll(def.SelectionMode) || effCount == 0 || noWindow)
+                return candidates;
+
+            // 目标随机：不弹窗，帷幕收窄后的完整候选域按种子抽取
+            if (atom.EffectiveRandomTarget(def))
+            {
+                var pool = TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt);
+                int take = noneAsSingle || SelectionModeRules.IsPickOne(def.SelectionMode) ? 1
+                    : (effCount > 0 ? effCount : pool.Count);
+                if (take >= pool.Count) return pool;
+                return GameRng.PickN(pool, take);
+            }
+
+            // 选一/选多：交互选取——两道过滤（帷幕收窄 + 弹窗显示域；AI/无头自动取前 N 同口径）
+            candidates = TargetResolver.ExcludeUnselectable(
+                TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt), context.Controller);
+            if (candidates.Count == 0) return candidates;
+
+            if (noneAsSingle || SelectionModeRules.IsPickOne(def.SelectionMode))
+            {
+                // 选一个：候选≤1 自动取（域={Self} 的关键词效果即此路——唯一候选=源卡自身）
+                if (candidates.Count <= 1) return candidates.Take(1).ToList();
+                return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                {
+                    Candidates = candidates,
+                    MinCount = 1,
+                    MaxCount = 1,
+                    Chooser = context.Controller,
+                    Title = title,
+                });
+            }
+
+            // 选多个（Multiple/MultipleUnion）
+            if (effCount == -1) // 任意：玩家自选数量
+            {
+                return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                {
+                    Candidates = candidates,
+                    MinCount = 0,
+                    MaxCount = candidates.Count,
+                    Chooser = context.Controller,
+                    Title = title + "（任意数量）",
+                });
+            }
+            int need = effCount > 0 ? effCount : candidates.Count;
+            if (candidates.Count <= need)
+                return candidates.Take(need).ToList();
+            return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+            {
+                Candidates = candidates,
+                MinCount = need,
+                MaxCount = need,
+                Chooser = context.Controller,
+                Title = title,
             });
         }
 

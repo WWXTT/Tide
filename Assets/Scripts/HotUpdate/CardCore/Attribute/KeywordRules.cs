@@ -7,17 +7,19 @@ namespace CardCore.Attribute
     /// <summary>
     /// 关键词战斗/伤害行为的唯一实现点。
     ///
-    /// 【设计原则（2026-10-08 不叠加定案）】关键词不叠加：卡面（合成器/印刷）=文本效果，
-    /// 对战中赋予=附加状态（台账挂载，类似指示物形式），文本与附加状态并存；
-    /// 同轨重复授予=新实例取代旧实例（值/次数刷新），跨轨并存时值/次数取最大。
+    /// 【设计原则（2026-10-08 不叠加定案；2026-10-09 修订彻底不叠加·全轨取代）】关键词不叠加：
+    /// 卡面（合成器/印刷）=文本效果，对战中赋予=附加状态（台账挂载，类似指示物形式）；
+    /// 同关键词**无论轨别**新实例取代旧实例（值/次数刷新）——跨轨不并存、互不补充
+    ///（附加份不补文本份、文本份不补附加份；双轨只承载存储/清除语义，不是两份可各自消耗的存量）。
     /// 参数化效果走原子（AddArmor 护甲 N 点指示物）。
-    /// 【坚韧指示物化（2026-10-08 定案）】坚韧退出关键词族——表行 a312b8b0（GrantToughness 原子，
-    /// 原 GrantArmor 同日更名）执行改挂 ToughnessCounter 层（GrantToughnessHandler）：每层每次受到的伤害 −1、
-    /// 不随受伤消耗、可叠加；角色可持有（旧关键词形态 is Card 死线消解）；换区清、净化可清。
+    /// 【坚韧指示物化（2026-10-08 定案；2026-10-09 生效自减改版）】坚韧退出关键词族——表行 2b1e3700
+    ///（GrantToughness 原子，原 GrantArmor 2026-10-08 更名）执行改挂 ToughnessCounter 层
+    ///（GrantToughnessHandler）：每次受到的伤害每层 −1、实际拦到即生效——生效后层数减半（floor）、可叠加；
+    /// 角色可持有（旧关键词形态 is Card 死线消解）；换区不清（生效自减档）、净化可清。
     ///
     /// 伤害管线（效果 TakeDamage 与战斗 CombatSystem 两条路径都经 ApplyDamage）：
     /// 替代引擎（光环层——穿透伤害也受其限制）→ 圣盾指示物（每层挡一次任意伤害，消耗 1 层）→
-    /// 护甲指示物（逐点吸收）→ 坚韧指示物（每层每次 −1，不消耗）→ 落血；
+    /// 护甲指示物（逐点吸收）→ 坚韧指示物（每层 −1，生效后层数减半）→ 落血；
     /// 吸血（恢复随从自身）/系命（回复角色）。
     /// 【穿透伤害（pierce=true）】越过关键词和指示物计算伤害——跳过圣盾/护甲/坚韧三层，
     /// 替代引擎与落血/事件链/吸血照走。
@@ -84,7 +86,8 @@ namespace CardCore.Attribute
         //（GrantRebornHandler 挂层；TryReborn 每层一次死亡替代，消耗 1 层）
         public const string Indestructible = "Indestructible";
         public const string Regeneration = "Regeneration";
-        public const string SpellShield = "SpellShield";
+        // 法术护盾关键词 id "SpellShield" 已删（2026-10-09 指示物化）：改走 CounterRules.SpellShieldCounter
+        //（GrantSpellShieldHandler 挂层；ConsumeSpellShields 每层抵消一次对手效果，消耗 1 层）
         public const string Untargetable = "Untargetable";
         /// <summary>微缩（2026-09-11）：使用卡时获得同效果 1/1 费1灰临时卡。行为见 TempCopyRules。</summary>
         public const string Miniature = "Miniature";
@@ -98,8 +101,8 @@ namespace CardCore.Attribute
         // 关键词都是持续性特征，无「一次性生效后消失/重新入场刷新」的说法：
         // · 冲锋/突袭：改由卡的登场效果表达（OnPlay+激励自己解除横置，突袭另自上紊乱指示物
         //   作代价减费——见 CostDerivationService 的 Self 紊乱对冲）；
-        // · 「生效后移除」型（圣盾/复生/潜行）：2026-10-08 全部指示物化——每层一份、事件消耗
-        //   1 层（CounterRules 三常量），关键词族不再有消耗型成员（仅剩法术护盾 SpellShield）。
+        // · 「生效后移除」型（圣盾/复生/潜行/法术护盾）：2026-10-08 起指示物化（法术护盾 10-09 收官）——
+        //   每层一份、事件消耗 1 层（CounterRules 四常量），关键词族不再有消耗型成员。
 
         /// <summary>
         /// 突袭紊乱指示物名（衰退类，2026-10-08 层即持续定案）：持有期间不能以玩家为目标
@@ -146,8 +149,8 @@ namespace CardCore.Attribute
         /// <summary>
         /// 入场刷新（2026-09-09 定案；2026-10-08 不叠加改单份）：**真实入场**时对 Printed 轨做
         /// 卡面差集补齐——卡面（CardData.Keywords）有而该实例 Printed 轨没有的关键词补回一份
-        ///（卡面重复同名=单份，不叠加）；**指示物化印刷项**（圣盾/复生/潜行——2026-10-08）不走台账，
-        /// 层数=0 时补 1 层对应指示物（生效自减档换区不清——未消耗层跨区保留，>0 不补防重复；
+        ///（卡面重复同名=单份，不叠加）；**指示物化印刷项**（圣盾/复生/潜行/法术护盾——2026-10-08/09）
+        /// 不走台账，层数=0 时补 1 层对应指示物（生效自减档换区不清——未消耗层跨区保留，>0 不补防重复；
         /// 消耗归零后经真实入场恢复卡面份）。
         ///
         /// 挂载红线：只挂在 TryMoveToBattlefield / TryAddToBattlefield 统一出口（真换区才算入场）——
@@ -155,8 +158,9 @@ namespace CardCore.Attribute
         /// · 控制权变更（ChangeControl）走容器直移 + 补发 CardPutToBattlefieldEvent——
         ///   ⚠ 因此**绝不能**把刷新挂到 CardPutToBattlefieldEvent 事件上（偷取不刷新消耗项）。
         ///
-        /// 差集安全性：Printed 轨的消耗型移除只剩法术护盾（SpellShield——移除即用掉）；圣盾/复生/潜行
-        /// 已指示物化（差集=层数>0 判断）；净化保留本体、无任何效果可剥 Printed——差集补回的必然只是被消耗项。
+        /// 差集安全性：Printed 轨已无消耗型移除（法术护盾 2026-10-09 指示物化后清零）；
+        /// 圣盾/复生/潜行/法术护盾走指示物差集（层数>0 判断）；净化保留本体、无任何效果可剥
+        /// Printed——差集补回的必然只是被消耗项。
         /// </summary>
         public static void RefreshPrintedKeywordsOnEntry(Card card)
         {
@@ -168,10 +172,12 @@ namespace CardCore.Attribute
             {
                 if (string.IsNullOrEmpty(kw)) continue;
 
-                // 指示物化印刷项（2026-10-08）：补 1 层指示物（Distinct 单份；消耗后层数=0 才需补）
+                // 指示物化印刷项（2026-10-08 圣盾/复生/潜行；10-09 法术护盾）：补 1 层指示物
+                //（Distinct 单份；消耗后层数=0 才需补）
                 if (kw == CounterRules.DivineShieldCounter
                     || kw == CounterRules.RebornCounter
-                    || kw == CounterRules.StealthCounter)
+                    || kw == CounterRules.StealthCounter
+                    || kw == CounterRules.SpellShieldCounter)
                 {
                     if (card.GetCounterCount(kw) > 0) continue;
                     card.AddCounters(kw, 1);
@@ -190,7 +196,7 @@ namespace CardCore.Attribute
                     if (g.Keyword == kw && g.Lane == KeywordLane.Printed) { printedHeld = true; break; }
 
                 if (printedHeld) continue;
-                card.AddKeyword(kw, KeywordLane.Printed); // 差集补齐单份（取代制口径内同轨唯一）
+                card.AddKeyword(kw, KeywordLane.Printed); // 差集补齐单份（取代制口径内全轨唯一——若现挂 Setting/Temp 份即被此 Printed 份取代）
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = card,
@@ -213,14 +219,16 @@ namespace CardCore.Attribute
             entity._keywordGrants.RemoveAll(g => predicate(g));
             foreach (var kw in affected)
             {
-                // 不叠加定案：无任何轨再持有才移除本体占用（跨轨并存时其余轨仍在）
+                // 不叠加定案（2026-10-09 全轨取代）：条目清空即移除本体占用
+                //（全轨唯一下无「其余轨仍在」；此兜底检查仅服务旧档多份残留）
                 if (entity._keywordGrants.All(g => g.Keyword != kw))
                     entity._keywords.RemoveAll(k => k == kw);
             }
         }
 
         // ==================== 生效次数闸已退役（2026-10-08 坚韧指示物化） ====================
-        // 唯一消费者是坚韧关键词减伤；坚韧改挂 ToughnessCounter 层（不消耗、天然无限次）后，
+        // 唯一消费者是坚韧关键词减伤；坚韧改挂 ToughnessCounter 层后（消耗语义 2026-10-09 起为
+        // 生效自减——拦减后层数减半，非「天然无限次」），
         // 台账 Limit/值求和/每回合次数闸整链删除（Guardian 2026-10-08 配对制已先行作废其记账）。
 
         /// <summary>
@@ -280,11 +288,23 @@ namespace CardCore.Attribute
                 }
             }
 
-            // 0. 易损指示物（定案）：受到伤害时每层使受到的伤害 +1——
-            //    替代结算后、防护层前生效（圣盾/护甲吸收的是放大后的量；穿透伤害同样被放大）
+            // 0. 易损指示物（2026-10-09 生效自减定案，同毒素档）：受到伤害时每层使受到的伤害 +1，
+            //    生效后层数减半（floor，1 层生效一次即清零）——替代结算后、防护层前生效
+            //   （圣盾/护甲吸收的是放大后的量；穿透伤害同样被放大——凡放大即生效，毒素同口径）。
             int vulnerable = target.GetCounterCount(CounterRules.VulnerableCounter);
             if (vulnerable > 0)
+            {
                 amount += vulnerable;
+                int vulnHalved = vulnerable / 2;
+                target.AddCounters(CounterRules.VulnerableCounter, -(vulnerable - vulnHalved));
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = target,
+                    Keyword = CounterRules.VulnerableCounter,
+                    Detail = $"易损放大 +{vulnerable} 点（生效减半，余 {vulnHalved} 层）",
+                    Source = source
+                });
+            }
 
             if (!pierce)
             {
@@ -301,8 +321,7 @@ namespace CardCore.Attribute
             // 改写命中等价"伤害被无效化"，故跳过改写走耐久管线。
             // 2026-10-07 改写回归·单映射：原毒/冻/眠/疫四光环改写退役（负面光环化——挂层走 DamageEvent 订阅）；
             // 唯一光环改写=舍身仪典（CombatRedirect）——受光环影响的生物造成战斗伤害时，
-            // 改为对**光环控制者的对手角色**等量伤害（非战斗路径递归：不再触发舍身；毒蚀只看卡受击、
-            // 疫蚀改叠毒素照常命中"对角色造成伤害"）。
+            // 改为对**光环控制者的对手角色**等量伤害（非战斗路径递归：不再触发舍身；毒蚀只看卡受击）。
             // 病原体（→剧毒指示物）已随 2026-10-08 剧毒转关键词退役；剧毒=落定追加式消灭（见管线尾部）。
             if (isCombat && source != null && source.IsAlive
                 && !(target is Card rwCard && rwCard.IsNonLivingUnit()))
@@ -513,7 +532,7 @@ namespace CardCore.Attribute
 
         /// <summary>
         /// 防护层（非穿透伤害）：圣盾指示物（每层挡一次任意伤害，消耗 1 层）→ 护甲指示物（逐点吸收）→
-        /// 坚韧指示物（每层每次 −1，不消耗）。
+        /// 坚韧指示物（每层 −1，实际拦到即生效——生效后层数减半 floor）。
         /// amount 按 ref 递减；归零即全部挡下。穿透伤害跳过本方法全部三层。
         /// </summary>
         private static void ApplyPreventionLayers(Entity source, Entity target, ref int amount)
@@ -559,18 +578,21 @@ namespace CardCore.Attribute
                 }
             }
 
-            // 3. 坚韧指示物（2026-10-08 指示物化定案）：每层使本次受到的伤害 −1，不随受伤消耗
-            //    （易损的正面镜像）；可叠加；Entity 级——角色读数同走此口（旧关键词 is Card 死线消解）。
-            //    施加口=GrantToughnessHandler（GrantToughness 原子，表行 a312b8b0）；换区清、净化可清。
+            // 3. 坚韧指示物（2026-10-09 生效自减改版）：每层使本次受到的伤害 −1，实际拦到伤害即生效
+            //    ——生效后层数减半（floor，易损的正面镜像）；可叠加；Entity 级——角色读数同走此口。
+            //    圣盾/护甲全挡提前 return（坚韧未触及→不减半）；穿透跳过防护层同理不减半。
+            //    施加口=GrantToughnessHandler（GrantToughness 原子，表行 2b1e3700）；换区不清、净化可清。
             int toughness = target.GetCounterCount(CounterRules.ToughnessCounter);
             if (toughness > 0)
             {
                 amount = Math.Max(0, amount - toughness);
+                int toughHalved = toughness / 2;
+                target.AddCounters(CounterRules.ToughnessCounter, -(toughness - toughHalved));
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = target,
                     Keyword = CounterRules.ToughnessCounter,
-                    Detail = $"坚韧减免 {toughness} 点",
+                    Detail = $"坚韧减免 {toughness} 点（生效减半，余 {toughHalved} 层）",
                     Source = source
                 });
             }
@@ -614,7 +636,8 @@ namespace CardCore.Attribute
         }
 
         /// <summary>
-        /// 法术护盾结算：目标列表中带护盾的对手随从——该效果对其无效（移出目标）并消耗护盾。
+        /// 法术护盾结算（2026-10-09 指示物化，表行 7270df35）：目标列表中带护盾的对手随从——
+        /// 该效果对其无效（移出目标）并消耗 1 层法术护盾指示物（多层=多次抵消）。
         /// 在效果执行前置过滤（候选/查询阶段不消耗——只在真正执行时挡）。
         /// </summary>
         public static void ConsumeSpellShields(List<Entity> targets, Entity source)
@@ -628,15 +651,16 @@ namespace CardCore.Attribute
                 var targetController = shielded.GetController();
                 if (sourceController == null || targetController == null || sourceController == targetController)
                     continue;
-                if (!shielded.HasKeyword(SpellShield)) continue;
+                int layers = shielded.GetCounterCount(CounterRules.SpellShieldCounter);
+                if (layers <= 0) continue;
 
-                shielded.RemoveKeyword(SpellShield);
+                shielded.AddCounters(CounterRules.SpellShieldCounter, -1);
                 targets.RemoveAt(i);
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = shielded,
-                    Keyword = SpellShield,
-                    Detail = "法术护盾使效果对其无效",
+                    Keyword = CounterRules.SpellShieldCounter,
+                    Detail = $"法术护盾使效果对其无效（消耗 1 层，余 {layers - 1} 层）",
                     Source = source
                 });
             }

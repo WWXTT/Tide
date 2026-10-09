@@ -66,7 +66,7 @@ namespace CardCore
 
         /// <summary>
         /// 受到伤害（关键词管线）：经 KeywordRules 结算——圣盾挡一次、护甲指示物逐点吸收、
-        /// 坚韧指示物每层 −1（不消耗）、剧毒致死、吸血（恢复自身）/系命（回复角色）。
+        /// 坚韧指示物每层 −1（拦到即生效——层数减半）、剧毒致死、吸血（恢复自身）/系命（回复角色）。
         /// 事件链（DamageEvent/CombatDamageEvent/LifeChangeEvent/吸血系命）由管线统一按时序发布。
         /// </summary>
         public static void TakeDamage(this Entity entity, int amount, Entity source, bool isCombat = false)
@@ -282,14 +282,17 @@ namespace CardCore
 
         /// <summary>
         /// 添加关键词（带轨别咽喉）：_keywords 唯一真身（Contains 去重、幂等）；
-        /// 台账按（关键词, 轨）唯一——不叠加定案（2026-10-08）：同轨重复授予=新实例取代旧实例
-        /// （值/次数/来源刷新）；跨轨并存（卡面文本 + 战中附加状态两份可同时持有）。
+        /// 台账按关键词全轨唯一——不叠加定案（2026-10-08；2026-10-09 修订彻底不叠加）：
+        /// 新实例取代旧实例（值/次数/来源/轨别刷新），**跨轨不并存、互不补充**
+        /// （附加状态不补文本份、文本份不补附加份——取代制下双轨只承载存储/清除语义，
+        /// 不是两份可各自消耗的存量）。
         /// </summary>
         public static void AddKeyword(this Entity entity, string keyword, KeywordLane lane, Entity source = null)
             => AddKeyword(entity, keyword, lane, source, 1, 1);
 
-        /// <summary>参数化添加关键词（2026-10-07 值化 + 2026-10-08 不叠加定案）：实例值与生效次数入台账
-        ///（Value≤0 兜底 1；Limit 1/2/3，-1=无限）；同轨重复授予=取代（旧条目移除、新条目入账，不叠加）。</summary>
+        /// <summary>参数化添加关键词（2026-10-07 值化 + 2026-10-08 不叠加 + 2026-10-09 全轨取代）：
+        /// 实例值与生效次数入台账（Value≤0 兜底 1；Limit 1/2/3，-1=无限）；
+        /// 同关键词**无论轨别**新实例取代旧实例（旧条目移除、新条目入账，不叠加）。</summary>
         public static void AddKeyword(this Entity entity, string keyword, KeywordLane lane, Entity source, int value, int limit)
         {
             if (entity == null) return;
@@ -298,8 +301,8 @@ namespace CardCore
             for (int i = entity._keywordGrants.Count - 1; i >= 0; i--)
             {
                 var g = entity._keywordGrants[i];
-                if (g.Keyword == keyword && g.Lane == lane)
-                    entity._keywordGrants.RemoveAt(i); // 取代制：同关键词同轨旧实例移除
+                if (g.Keyword == keyword)
+                    entity._keywordGrants.RemoveAt(i); // 取代制（2026-10-09 全轨）：同关键词旧实例全移除，不限轨别
             }
             entity._keywordGrants.Add(new KeywordGrant
             {
@@ -308,9 +311,9 @@ namespace CardCore
             });
         }
 
-        /// <summary>关键词实例值（不叠加定案 2026-10-08）：跨轨并存取各实例 Value 最大值；
-        /// 台账缺失（旧档/直改 _keywords）持有即 1。运行时消费者已清零（坚韧 2026-10-08
-        /// 指示物化、守护配对制无限次）——留作不叠加台账读数。</summary>
+        /// <summary>关键词实例值（不叠加定案 2026-10-08；2026-10-09 全轨取代）：同关键词全轨仅一实例，
+        /// 读当前实例 Value（多实例循环仅兜底旧档，非并存取 Max）；台账缺失（旧档/直改 _keywords）持有即 1。
+        /// 运行时消费者已清零（坚韧 2026-10-08 指示物化、守护配对制无限次）——留作不叠加台账读数。</summary>
         public static int GetKeywordValue(this Entity entity, string keyword)
         {
             if (entity == null) return 0;
@@ -322,8 +325,9 @@ namespace CardCore
             return best > 0 ? best : 1;
         }
 
-        /// <summary>关键词实例生效次数上限/回合（不叠加定案 2026-10-08）：跨轨并存取各实例 Limit
-        /// 最大值，任一 -1（无限）→ -1；台账缺失兜底=持有即 1。光环形态不设闸（恒无限）。</summary>
+        /// <summary>关键词实例生效次数上限/回合（不叠加定案 2026-10-08；2026-10-09 全轨取代）：
+        /// 读当前实例 Limit（-1=无限；多实例循环仅兜底旧档，非并存取 Max）；台账缺失兜底=持有即 1。
+        /// 光环形态不设闸（恒无限）。</summary>
         public static int GetKeywordLimit(this Entity entity, string keyword)
         {
             if (entity == null) return 0;
@@ -339,9 +343,9 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 移除关键词（消耗型）：撤掉最近一条台账实例（任意轨，倒序取最近授予）；
-        /// 仅当无任何轨再持有时才移除 _keywords 本体占用——文本与附加状态并存时消耗一份、
-        /// 另一份仍生效（圣盾双份挡两次）。
+        /// 移除关键词（消耗型）：撤掉台账实例（2026-10-09 全轨取代制下同关键词仅剩单份，
+        /// 倒序取最近授予兼容旧档多份）；消耗即整词撤除，**无跨轨回补**
+        ///（文本份不补附加份、附加份不补文本份——再次生效须有新授予=全新实例，非存量接续）。
         /// </summary>
         public static void RemoveKeyword(this Entity entity, string keyword)
         {

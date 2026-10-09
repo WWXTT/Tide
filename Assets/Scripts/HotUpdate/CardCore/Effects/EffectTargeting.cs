@@ -459,17 +459,6 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 授予法术护盾（一次性免疫）
-        /// </summary>
-        public static void GrantSpellShield(Entity target)
-        {
-            if (target is Card card && card is IHasEffectImmunityEx immunityEx)
-            {
-                immunityEx.AddSpellShield();
-            }
-        }
-
-        /// <summary>
         /// 授予不可被指定（魔免）
         /// </summary>
         public static void GrantCannotBeTargeted(Entity target, int duration = -1)
@@ -483,6 +472,8 @@ namespace CardCore
 
     /// <summary>
     /// 扩展效果免疫接口（支持临时免疫）
+    /// 法术护盾两成员已删（2026-10-09 指示物化）：改走 CounterRules.SpellShieldCounter 层
+    ///（GrantSpellShieldHandler 挂层 / ConsumeSpellShields 消耗）——本接口自始无实现者，随迁清理。
     /// </summary>
     public interface IHasEffectImmunityEx : IHasEffectImmunity
     {
@@ -490,11 +481,6 @@ namespace CardCore
         /// 添加临时免疫
         /// </summary>
         void AddTemporaryImmunity(EffectTargetFlags immunityType, int duration);
-
-        /// <summary>
-        /// 添加法术护盾
-        /// </summary>
-        void AddSpellShield();
 
         /// <summary>
         /// 设置临时不可被指定
@@ -505,12 +491,6 @@ namespace CardCore
         /// 回合开始时更新免疫状态
         /// </summary>
         void OnTurnStart();
-
-        /// <summary>
-        /// 消耗法术护盾
-        /// </summary>
-        /// <returns>是否有护盾被消耗</returns>
-        bool ConsumeSpellShield();
     }
 
     #endregion

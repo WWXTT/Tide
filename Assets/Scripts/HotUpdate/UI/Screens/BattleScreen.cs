@@ -322,7 +322,6 @@ namespace SynergyUI
             _net = null;
             TutorialFlow.ClearAssessment(); // 考核标记防跨局残留（未终局退出路径）
             TutorialGuide.End();            // 引导闸卸载防跨局残留
-            AtomicTableWorkshop.ExitTutorialBaseline(); // 教学基线退出：恢复玩家改价重放+卡费重推（若进入过）
 
             // 手牌扇区实例回收（自持实例池，随挂载层销毁亦安全——显式清防重入）
             _selfFan?.Dispose();
@@ -396,7 +395,6 @@ namespace SynergyUI
             }
             if (tutorial.scenario != null)
             {
-                AtomicTableWorkshop.EnterTutorialBaseline(); // 教学钉死数学：玩家改价不进教学局（回基线）
                 var playerCards = TutorialLibrary.BuildDeck(TutorialScenario.DeckIdsOf(tutorial.scenario.player));
                 var aiCards = TutorialLibrary.BuildDeck(TutorialScenario.DeckIdsOf(tutorial.scenario.ai));
                 ctrl.StartNewGame(playerCards, aiCards, new ScriptedAi(tutorial),
@@ -412,7 +410,6 @@ namespace SynergyUI
                 ShowToast("教学卡组配置不足（回落本地 AI 局）");
                 return false;
             }
-            AtomicTableWorkshop.EnterTutorialBaseline(); // 教学钉死数学：玩家改价不进教学局（回基线）
             ctrl.StartNewGame(playerDeck, aiDeck, new ScriptedAi(tutorial),
                 lockDeckOrder: true, rngSeed: tutorial.rngSeed);
             ctrl.EnablePassiveAiResponder();

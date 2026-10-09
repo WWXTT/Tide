@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using CardCore.Attribute;
 
 namespace CardCore.Attribute.Handlers
@@ -41,6 +42,44 @@ namespace CardCore.Attribute.Handlers
 
     // 固有全域原子（SweepDamage/SweepHeal）2026-09-21 退役——全域改由组合期 TargetKinds+全取档表达；
     // Handler 与注册已删（枚举槽位保留作序列化墓碑，见 AtomicEffects.cs）。
+    // 2026-10-09 复归改道：全体对象不再走「全取档」（选取歧义），改独立原子——见 DealDamageAllEnemiesHandler。
+
+    /// <summary>
+    /// 敌方全体伤害（2026-10-09 全体对象独立原子定案，红3基准）：对敌方全体生物各造成 {value} 点伤害。
+    /// 无域原子（表行 TargetKinds 空）——handler 自结算：域={对方单位}+NoRole 过滤（排除角色与无生命单位，
+    /// 恰=敌方全体生物），单次执行、LastOutcome 不逐目标 Reset——杀数聚合：
+    /// 击杀门槛 DmgKillsTarget=至少击杀一个即过、分支奖励只结算一次。
+    /// 每单位独立掷值、走 TakeDamage 关键词管线（与 DealDamageHandler 同款结算）。
+    /// </summary>
+    public class DealDamageAllEnemiesHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.DealDamageAllEnemies;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var opp = context.Controller?.Opponent;
+            if (opp == null) return;
+
+            var targets = EffectHandlerRegistry.ResolveCandidates(
+                new List<int> { (int)TargetKind.EnemyLivingUnit }, "NoRole", context);
+            foreach (var target in targets)
+            {
+                // 每单位独立掷（掷值在修饰链前——与 DealDamageHandler 逐目标口径一致）
+                int dmg = context.GetValueAfterModifiers(effect.GetRolledValue());
+                int lifeBefore = target.GetLife();
+                target.TakeDamage(dmg, context.Source); // 关键词管线：圣盾/护甲/坚韧/吸血
+                int actual = System.Math.Max(0, lifeBefore - target.GetLife());
+                context.LastOutcome.RecordDamage(target, lifeBefore, actual);
+                PublishEvent(new AtomicDamageEvent
+                {
+                    Source = context.Source,
+                    Target = target,
+                    Damage = dmg,
+                    IsCombatDamage = false
+                });
+            }
+        }
+    }
 
     /// <summary>
     /// 宣告胜利（2026-09-15 终局原子，黑）：效果控制者的对手获得游戏胜利——

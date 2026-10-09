@@ -78,7 +78,9 @@ namespace Tide.验证
                 { Fail("引擎主干槽不应出现 gate-row（填入即自由分支）"); return; }
                 if (CountNamed(t => t.name == "field-engine-param") != 1)
                 { Fail("引擎主干槽应直出参数行（field-engine-param）"); return; }
-                sb.AppendLine("  step3c 引擎主干落槽：无 gate-row、参数行直出 OK");
+                if (CountNamed(t => t.name == "branch-engine") != 0)
+                { Fail("引擎标识行应已退役（branch-engine）"); return; }
+                sb.AppendLine("  step3c 引擎主干落槽：无 gate-row、参数行直出、标识行已退役 OK");
 
                 // 4. 切光环形态（2026-10-06 箭头预制体化+槽共用重锚）：arrows 盒（arrow-picker 实例·
                 //    6 按钮 R-T/R/R-D/L-D/L/L-T）+ 两共用原子槽 + 设置盒不克隆

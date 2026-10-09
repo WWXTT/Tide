@@ -135,8 +135,7 @@ namespace CardCore
                                 // 灰机制费已废除——锚价既是门槛也是奖励的价，由差额支付。
                                 int mine = RandomCreaturePower(player, zm);
                                 int theirs = RandomCreaturePower(player.Opponent, zm);
-                                int threshold = Math.Max(1, (int)Math.Round(
-                                    CostDerivationService.RewardDerivedCost(payload.Then), MidpointRounding.AwayFromZero));
+                                int threshold = CostDerivationService.ClashThreshold(payload.Then); // 公式与 UI 短文案同源
                                 if (mine - theirs >= threshold)
                                 {
                                     EventManager.Instance.Publish(new KeywordAppliedEvent

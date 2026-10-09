@@ -28,8 +28,8 @@ namespace CardCore
             new Dictionary<Player, Dictionary<string, int>>();
         private readonly Dictionary<Player, Dictionary<string, int>> _turn =
             new Dictionary<Player, Dictionary<string, int>>();
-        /// <summary>本回合「准备阶段抽到的卡」实例集（2026-09-22 状态门 DrawnInStandbyThisTurn 用；
-        /// FirstDrawOfTurn==true 只有准备阶段自然抽牌一个置位点——效果抽牌不进集）。TurnStart 清零。</summary>
+        /// <summary>本回合「第一张抽到的卡」实例集（2026-09-22 状态门 DrawnInStandbyThisTurn 用；
+        /// FirstDrawOfTurn==true 只有回合开始自然抽牌一个置位点——效果抽牌不进集）。TurnStart 清零。</summary>
         private readonly Dictionary<Player, HashSet<Card>> _standbyDrawn =
             new Dictionary<Player, HashSet<Card>>();
         private bool _subscribed;
@@ -108,7 +108,7 @@ namespace CardCore
                 Add(e.Player, ElementsSpent, (int)e.PaidCost.Values.Sum(v => Math.Max(0f, v)));
             });
 
-            // —— 本回合准备阶段抽到的卡（实例集，2026-09-22 状态门用） ——
+            // —— 本回合第一张抽到的卡（实例集，2026-09-22 状态门用） ——
             em.Subscribe<CardDrawEvent>(e =>
             {
                 if (e?.Player == null || e.DrawnCard == null || !e.FirstDrawOfTurn) return;
@@ -161,7 +161,7 @@ namespace CardCore
                 : new Dictionary<string, int>();
         }
 
-        /// <summary>该卡是否为本回合准备阶段抽到的（2026-09-22 状态门 DrawnInStandbyThisTurn；
+        /// <summary>该卡是否为本回合第一张抽到的（2026-09-22 状态门 DrawnInStandbyThisTurn；
         /// 效果抽牌不算——只有 FirstDrawOfTurn 自然抽牌入集）</summary>
         public bool WasDrawnInStandbyThisTurn(Player player, Card card)
             => player != null && card != null

@@ -96,8 +96,14 @@ namespace SynergyUI
         public static bool IsTeachingCard(CardData card)
             => card?.Tags != null && card.Tags.Contains("教学");
 
-        /// <summary>玩家可用卡池：LoadAll 去除教学专用卡（各消费面统一走此口，勿各自手写 tag 判断）。</summary>
+        /// <summary>衍生物模板卡判定（2026-10-09 tags 含「衍生物」）：不进玩家侧卡池面（同教学卡口径）
+        /// ——随机组卡/卡组构筑/卡牌编辑器预览/联机 AI 填位排除；仅作 SummonToken 召唤模板存在，
+        /// 按 ID 解析照常（GetById/装载校验不受影响）。</summary>
+        public static bool IsTokenCard(CardData card)
+            => card?.Tags != null && card.Tags.Contains("衍生物");
+
+        /// <summary>玩家可用卡池：LoadAll 去除教学专用卡与衍生物模板卡（各消费面统一走此口，勿各自手写 tag 判断）。</summary>
         public static List<CardData> LoadPlayPool()
-            => LoadAll().Where(c => !IsTeachingCard(c)).ToList();
+            => LoadAll().Where(c => !IsTeachingCard(c) && !IsTokenCard(c)).ToList();
     }
 }

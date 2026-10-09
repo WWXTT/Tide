@@ -851,7 +851,7 @@ namespace CardCore
                         Controller = player,
                         Targets = targets != null ? new List<Entity>(targets) : new List<Entity>(),
                         ModeIndex = modeIndex,
-                        CastCard = card, // 施放宿主卡（状态门「本回合准备阶段抽到的卡」需要卡身份）
+                        CastCard = card, // 施放宿主卡（状态门「本回合第一张抽到的卡」需要卡身份）
                     }, skipElementCost: true);
                 }
             }

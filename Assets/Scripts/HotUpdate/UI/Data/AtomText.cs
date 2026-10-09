@@ -12,9 +12,10 @@ namespace SynergyUI
     /// 模板源 = 原子表 DisplayName 列（装载后落在 config.Description——注意 config.DisplayName
     /// 是 EnumName 列的中文短名，见 AtomicEffectTable.BuildConfig）。模板含 {value} 占位：
     ///   - 普通渲染：{value} → Value；
-    ///   - 数值随机（RandomAmplitude&gt;0）：前缀「随机 」+ {value} → 区间文本
-    ///     （span=round(|Value|×幅度)，3 伤 ±100% → "随机 对目标造成0至6点伤害"）；
-    ///   - 目标随机（header.RandomTarget，2026-09-16 自 SelectionMode 移出为正交标志）：前缀「随机目标·」。
+    ///   - 数值随机（RandomAmplitude&gt;0）：{value} → 区间文本「x至x」即随机语义
+    ///     （span=round(|Value|×幅度)，3 伤 ±100% → "对目标造成0至6点伤害"——2026-10-09 句式定案不加前缀）；
+    ///   - 目标随机（header.RandomTarget，2026-09-16 自 SelectionMode 移出为正交标志）：
+    ///     正文第一个「目标」前插「随机」（"对随机目标造成3点伤害"；域名次冠名次前）。
     /// 计价/构筑读名义 Value 不变——此处只做展示层渲染（口径对齐 2026-09-13 两个随机定案）。
     ///
     /// {target} 占位（2026-09-22 五轮）：按实例域 kinds 推导——null/多值 → 「目标」；
@@ -87,9 +88,29 @@ namespace SynergyUI
             string noun = TargetNoun(cfg, atom, header);
             if (newTargetNoun) noun = "新的" + noun;
             string body = tpl.Replace("{value}", number).Replace("{target}", noun);
-            if (span > 0) body = "随机 " + body;
-            if (header != null && header.RandomTarget != 0)
-                body = "随机目标·" + body;
+            // {衍生物} → 模板卡名（2026-10-09 衍生物召唤配套）：SummonToken 的 str 指向真实生物卡——
+            // 未填/未解析显「未指定模板」/原样 ID；表行括注「{衍生物}=字符串参数指向…」整段折叠为卡名
+            if (body.Contains("{衍生物}"))
+            {
+                var tplCard = CardCatalog.GetById(atom.str);
+                string tokenName = tplCard != null ? tplCard.CardName
+                    : string.IsNullOrEmpty(atom.str) ? "未指定模板" : atom.str;
+                body = body.Replace("{衍生物}=字符串参数指向一张真实生物卡，实例=该卡全参数复制", tokenName)
+                           .Replace("{衍生物}", tokenName);
+            }
+            // 数值随机（RandomAmplitude&gt;0）：区间文本「x至x」已表达随机语义（2026-10-09 句式定案）——不再冠「随机」前缀
+            // 目标随机（2026-10-09 下沉每原子+句式定案）：条目声明优先（1=随机抽/0=弹窗），
+            // 未声明回落效果级 RandomTarget；奖励渲染（header=null）=条目声明直接生效。
+            // 渲染=在正文第一个「目标」前插「随机」（"对随机目标造成3点伤害"）；域名次（己方单位等）
+            // 无「目标」字样时冠在名次前（"对随机己方单位…"）；无名次可冠的行不加（原文照旧）
+            bool rand = atom.rand != -1 ? atom.rand == 1
+                : (header != null && header.RandomTarget != 0);
+            if (rand)
+            {
+                int idx = body.IndexOf("目标", StringComparison.Ordinal);
+                if (idx < 0 && noun.Length > 0) idx = body.IndexOf(noun, StringComparison.Ordinal);
+                if (idx >= 0) body = body.Insert(idx, "随机");
+            }
             return body;
         }
 
@@ -98,8 +119,8 @@ namespace SynergyUI
             => Render(AtomicEffectTable.GetByHashId(atom?.refId), atom, header);
 
         /// <summary>效果整体预览（两槽定案）：并列主序列=逐原子分号连接，原子带槽级 branch 载荷时
-        /// 追加分支后缀（产出条件=「，如果…，奖励」自然句；引擎/局面门=「[条件]→奖励」记法）；
-        /// 遗留 kind=1 门步骤与抉择步骤照旧渲染。</summary>
+        /// 追加分支后缀（产出条件=「，如果…，奖励」自然句；引擎=正文短式「自由分支·{名}{x}」+「→奖励」；
+        /// 局面门=「[条件]→奖励」记法）；遗留 kind=1 门步骤与抉择步骤照旧渲染。</summary>
         public static string RenderEffectSummary(EffectGraphData graph)
         {
             if (graph?.header == null) return "";
@@ -112,7 +133,8 @@ namespace SynergyUI
                     if (s == null) continue;
                     if (s.kind == 0 && s.atomic != null)
                     {
-                        string body = RenderAtomEntry(s.atomic, h);
+                        // 引擎主干行短式正文（2026-10-09 八引擎定案「自由分支·{名}{x}」）；非引擎行照表行模板
+                        string body = EngineShortBody(s.atomic) ?? RenderAtomEntry(s.atomic, h);
                         var suffix = BranchSuffix(s.atomic);
                         parts.Add(suffix.Length > 0 ? $"{body}{suffix}" : body);
                     }
@@ -135,19 +157,20 @@ namespace SynergyUI
 
         /// <summary>槽级 branch 载荷的后缀文本（两槽定案）：无载荷返回空串。
         /// 产出条件（Outcome）=自然句式「，如果消灭了目标，{奖励}」（2026-10-05 文本表述定案）；
-        /// 引擎/局面门沿用「[条件]→奖励」记法（引擎参数与对赌逆转是结构信息，句式承载不了）。</summary>
+        /// 引擎（2026-10-09 短式化）=「→{奖励}」——引擎身份+参数在正文「自由分支·{名}{x}」（EngineShortBody）；
+        /// 局面门沿用「[条件]→奖励」记法（对赌逆转是结构信息，句式承载不了）。</summary>
         public static string BranchSuffix(AtomicEffectEntry atom)
         {
             var b = atom?.branch;
-            if (b == null) return "";
+            if (BranchEntryRules.IsPhantom(b)) return ""; // 含 null；JsonUtility 幽灵分支（settle=0）不当真分支
             string reward = b.then != null && b.then.Count > 0
                 ? RenderRewardAtomEntry(b.then[0]) : "（未设奖励）";
             string cond;
             switch ((BranchSettleKind)b.settle)
             {
                 case BranchSettleKind.Engine:
-                    cond = TrunkText((BranchEngineKind)b.engine, b.engineParam);
-                    break;
+                    // 引擎身份+参数已在正文短式（自由分支·{名}{x}）——后缀只接奖励
+                    return $"→{reward}";
                 case BranchSettleKind.Outcome:
                     var oc = ComposerCatalog.OutcomeConditions.FirstOrDefault(g => g.Id == b.outcomeId);
                     string clause;
@@ -190,28 +213,44 @@ namespace SynergyUI
             return RenderReward(AtomicEffectTable.GetByHashId(atom.refId), atom);
         }
 
-        /// <summary>引擎主干显示文本（header 通道无 AtomicEffectEntry——按引擎+参数生成）。</summary>
-        public static string TrunkText(BranchEngineKind engine, int param)
+        /// <summary>引擎主干行短式正文（2026-10-09 八引擎统一定案）：「自由分支·{中文名}{x}」——
+        /// 拼点 x=奖励锚价推导门槛、倒计时声明 0 时 x=按奖励费换算回合（两者随 Then 奖励实时变，
+        /// 公式经 CostDerivationService 与运行时判定同源）；其余引擎 x=engineParam（EngineParamRange 钳制显示）。
+        /// 非引擎行/引擎身份未定义返回 null（调用方回退表行长模板——原子库列表行长文案保留完整玩法说明）。</summary>
+        private static string EngineShortBody(AtomicEffectEntry atom)
         {
-            switch (engine)
+            var cfg = AtomicEffectTable.GetByHashId(atom.refId);
+            if (!ComposerCatalog.IsEngineTrunkRow(cfg)) return null;
+            var kind = BranchEngineKind.None;
+            if (atom.branch != null && Enum.IsDefined(typeof(BranchEngineKind), atom.branch.engine))
+                kind = (BranchEngineKind)atom.branch.engine;
+            if (kind == BranchEngineKind.None
+                && Enum.TryParse<AtomicEffectType>(cfg.EnumName, out var t))
+                kind = ComposerCatalog.EngineKindOf(t);
+            if (kind == BranchEngineKind.None) return null;
+
+            var then = atom.branch?.then;
+            int x;
+            switch (kind)
             {
                 case BranchEngineKind.Clash:
-                    return $"拼点：随机生物攻击力差额 ≥ 奖励锚价合计时执行奖励（零计价·门槛制）";
-                case BranchEngineKind.LuckRoll:
-                    return $"运势：2d6 两点均 > {param} 时执行奖励（零计价·概率门槛）";
+                    x = CostDerivationService.ClashThreshold(ToInstances(then));
+                    break;
                 case BranchEngineKind.Countdown:
-                    return param > 0
-                        ? $"倒计时 {param} 回合，归零执行奖励并重置"
-                        : "倒计时：按奖励推导费自动换算回合（1费=1回合）";
-                case BranchEngineKind.DeathToll:
-                    return $"死亡计数：本回合双方合计 {param} 个生物死亡时执行奖励（预算 {param}）";
-                case BranchEngineKind.ManaSurplus:
-                    return $"元素充盈：出牌付费后 bank 最多色 > {param} 时执行奖励（每次达标都触发，预算 {param}）";
-                case BranchEngineKind.NthHandCard:
-                    return $"手牌序位：此卡为本回合从手牌使用的第 {param} 张卡时执行奖励（预算 {param}）";
+                    x = CostDerivationService.CountdownTurnsOf(atom.branch?.engineParam ?? 0, ToInstances(then));
+                    break;
                 default:
-                    return "";
+                    ComposerCatalog.EngineParamRange(kind, out var mn, out var mx);
+                    x = Math.Clamp(atom.branch?.engineParam ?? mn, mn, mx);
+                    break;
             }
+            return $"自由分支·{ComposerCatalog.EngineZhOf(kind)}{x}";
         }
+
+        /// <summary>UI 奖励原子 → 运行时实例（与 EffectComposerScreen.RewardCost 同口径：
+        /// ConvertAtomForUI 逐原子转换，行缺失/转换失败剔除）。</summary>
+        private static List<AtomicEffectInstance> ToInstances(List<AtomicEffectEntry> then)
+            => then?.Select(CardEffectConverter.ConvertAtomForUI).Where(i => i != null).ToList()
+               ?? new List<AtomicEffectInstance>();
     }
 }

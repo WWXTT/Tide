@@ -143,7 +143,7 @@ namespace GameBoard
 
         // 值求和口 GetAuraKeywordSum 已删（2026-10-08 坚韧指示物化）：唯一消费者是
         // KeywordRules.ApplyPreventionLayers 的坚韧光环份额——坚韧改挂 ToughnessCounter 指示物，
-        // 不再经关键词光环投递（表行 a312b8b0 MountKinds=指示物，CanMountAsAura 位 1 硬拒）。
+        // 不再经关键词光环投递（表行 2b1e3700 MountKinds=指示物，CanMountAsAura 位 1 硬拒）。
 
         // 守护光环源查询（GetGuardianAuraSources）已随 2026-10-08 配对制改版退役——
         // 守护退出连接光环族（表行 MountKinds 位 8 拉黑），改写走 GuardianRules 配对表（KeywordRules.ApplyDamage）。
@@ -280,12 +280,11 @@ namespace GameBoard
             if (source.GetCounterCount(CounterRules.NullifyCounter) > 0) return; // 无效=唯一能压光环的口
 
             // 条目级作用面（2026-10-08 actuating-range 定案）：scope==0 随卡面箭头几何（生物=占据者同一/
-            // 角色=落格即本方角色格）；作用面档（1=己方/2=双方/3=对方）按侧别命中，条目声明 role 时
-            // 关键词同样投递对应侧角色（属性条目与未声明 role 恒生物专用）。旧卡级方向档已由
+            // 角色=落格即本方角色格）；作用面档（1=己方/2=双方/3=对方）按侧别命中。旧卡级方向档已由
             // AggregateEffectAuras 迁移盖戳到条目，此处不再读 data.AuraScope。
-            // 角色通道 NoRole 硬闸（2026-10-08 定案）：Grant 表行 TargetFilter 含 NoRole 的关键词
-            // （仅生物——再生/禁魔石等 20 行）不投递角色，作用面档与箭头档两路同拦——旧数据/手写
-            // role=true 一并兜底；表政策豁免=守护/坚韧。
+            // 角色通道（2026-10-09 裁定）：关键词光环**一律可作用角色**——不能用光环表达的行
+            // （守护/再生/禁魔石）已由表「不可作为连接光环」位拉黑，通道不再设防；逐条目 role 声明
+            // 与 NoRole 硬闸（RoleChannelBlocked）整体退役；属性条目恒仅生物（2026-10-07 定案不变）。
             var arrows = data.ArrowDirections;
             bool geoComputed = false, geoHit = false; // 惰性：存在箭头档条目才算几何
             foreach (var aura in data.LinkAuras)
@@ -295,8 +294,7 @@ namespace GameBoard
                 {
                     if (keywordsOnly)
                     {
-                        if (aura.role && beneficiary is Player pr && ScopeHitRole(source, pr, aura.scope)
-                            && !ComposerCatalog.RoleChannelBlocked(aura.keyword))
+                        if (beneficiary is Player pr && ScopeHitRole(source, pr, aura.scope))
                             Accumulate(bonus, aura, keywordsOnly);
                     }
                     else if (beneficiary is Card bCard && ScopeHit(source, bCard, aura.scope))
@@ -305,7 +303,7 @@ namespace GameBoard
                 }
                 if (arrows == HexDirection.None) continue;
                 if (!geoComputed) { geoHit = ArrowsGeoHit(source, bCell, beneficiary, keywordsOnly); geoComputed = true; }
-                if (geoHit && !(beneficiary is Player && ComposerCatalog.RoleChannelBlocked(aura.keyword)))
+                if (geoHit)
                     Accumulate(bonus, aura, keywordsOnly);
             }
         }

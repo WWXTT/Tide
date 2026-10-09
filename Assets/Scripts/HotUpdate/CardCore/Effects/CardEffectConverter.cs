@@ -121,8 +121,8 @@ namespace CardCore
                 foreach (var atom in def.Effects)
                 {
                     if (atom?.Branch?.EngineKind == BranchEngineKind.Countdown && atom.Branch.CountdownTurns <= 0)
-                        atom.Branch.CountdownTurns = Math.Max(1, (int)Math.Ceiling(
-                            CostDerivationService.RewardDerivedCost(atom.Branch.Then)));
+                        atom.Branch.CountdownTurns = CostDerivationService.CountdownTurnsOf(
+                            atom.Branch.EngineParam, atom.Branch.Then); // 公式与 UI 短文案同源
                 }
             }
 
@@ -179,7 +179,9 @@ namespace CardCore
             // SelectionMode 推导（2026-10-05 通用属性七项定案）：效果级作用范围已声明时，
             // 选择模式不再独立生效——由 作用范围域宽 × 目标数 推导（随机目标=正交标志不入推导）：
             // 域单值 → 单范围档（0/1/2）；域多值 → 多范围档（3/4/5）；数量 1=选一、N>1/任意(-1)=选多、0=全取。
-            // 未声明作用范围（存量数据）沿用存储值——两代数据同链共存。
+            // 未声明作用范围（存量数据）沿用存储值——两代数据同链共存；
+            // 逐原子目标制（2026-10-09）：未声明=逐原子解析，存储值仅作该模式档位提示
+            //（全取档→各原子全取；None→按选一），实际目标由各原子自身域解析。
             if (data.TargetKinds != null && data.TargetKinds.Count > 0)
             {
                 bool union = def.TargetDomain != null && def.TargetDomain.Count > 1;
@@ -424,6 +426,8 @@ namespace CardCore
                 RowHashId = entry.refId, // 来源行身份（2026-10-03：同枚举多行各自锚价——计价按行取锚）
                 Mana = null, // ManaList 已随彻底引用化删除（全数据 0 使用）
                 TargetKinds = kinds,
+                TargetCount = entry.count,   // 每原子数量覆盖（-2=未声明回落效果级）
+                RandomTarget = entry.rand,   // 每原子随机覆盖（-1=未声明回落效果级）
                 Filter = config.TargetFilter ?? "",
                 Polarity = polarity,
                 Branch = ConvertBranchPayload(entry.branch),
@@ -509,12 +513,16 @@ namespace CardCore
             => entry == null ? null : ConvertAtomicEffect(entry, allowWrongSide: true);
 
         /// <summary>
-        /// 组合域预计算：效果级作用范围声明优先（2026-10-04 相同目标定案——并列全体原子共享），
-        /// 未声明回落主序列（含抉择 per-mode）原子域交集 + 组合属性 filter（成员 AND）。
-        /// 无目标原子（域空）不参与约束；分支奖励原子不参与（奖励目标结算期各自解析）。
+        /// 组合域预计算：效果级作用范围声明优先（2026-10-04 相同目标定案——并列全体原子共享）；
+        /// 未声明（2026-10-09 逐原子目标制）=逐原子模式——组合域改为主序列原子域**并集**
+        /// （含抉择 per-mode），仅供展示/可发动预检/AI；结算期各原子按自身极性过滤域独立解析。
+        /// 无目标原子（域空）不参与并集；分支奖励原子不参与（奖励目标结算期各自解析）。
         /// </summary>
         private static void PrecomputeDomains(EffectDefinition def, List<int> headerKinds)
         {
+            // 逐原子判别（2026-10-09）：header 无有效声明 → 逐原子目标制；声明的旧数据保持共享单选
+            def.PerAtomTargets = headerKinds == null
+                                 || !headerKinds.Any(k => Enum.IsDefined(typeof(TargetKind), k));
             def.TargetDomain = DomainOfMode(def, 0, headerKinds);
             def.TargetFilter = CombinedFilterOfMode(def, 0);
 
@@ -547,7 +555,8 @@ namespace CardCore
         private static List<int> DomainOfMode(EffectDefinition def, int modeIndex, List<int> headerKinds)
         {
             // 效果级作用范围（2026-10-04 相同目标定案）：header 声明优先——并列全体原子共享同一份
-            // 选中目标；无效值滤除后为空视同未声明，回落原子域交集（存量兼容）。
+            // 选中目标；无效值滤除后为空视同未声明，回落原子域并集（2026-10-09 逐原子目标制——
+            // 旧交集口径随断链拦截退役；并集仅供展示/预检/AI，结算期逐原子自解析）。
             if (headerKinds != null)
             {
                 var declared = headerKinds
@@ -559,9 +568,7 @@ namespace CardCore
             foreach (var atom in MainSequence(def, modeIndex))
             {
                 if (atom?.TargetKinds == null || atom.TargetKinds.Count == 0) continue;
-                domain = domain == null
-                    ? new List<int>(atom.TargetKinds)
-                    : TargetKindRules.Intersect(domain, atom.TargetKinds);
+                domain = TargetKindRules.Union(domain, atom.TargetKinds);
             }
             return domain ?? new List<int>();
         }

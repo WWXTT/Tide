@@ -17,33 +17,13 @@ namespace CardCore
         public AttributeValueConfig AttributeValueConfig = new AttributeValueConfig();
         public CardCostConfig CardCostConfig = new CardCostConfig();
         public DelayDiscountConfig DelayDiscountConfig = new DelayDiscountConfig();
-        public SummonDropConfig SummonDropConfig = new SummonDropConfig();
         public CardCompositionConfig CardCompositionConfig = new CardCompositionConfig();
         public PricingTierConfig PricingTierConfig = new PricingTierConfig();
     }
 
-    /// <summary>
-    /// 衍生物落区系数（表 Category=SummonDrop）——SummonToken 原子按落区分档计价：
-    /// 落手牌=即时弹性资源（溢价）；落牌组=检索稀释后延迟可得（微溢价）；落战场=基准。
-    /// 取值 = 实例级 atom.ZoneParam（注意 Zone.Hand==0：合成界面必须显式填落区）。
-    /// </summary>
-    [Serializable]
-    public class SummonDropConfig
-    {
-        public float BattlefieldFactor = 1.0f;
-        public float HandFactor = 1.2f;
-        public float DeckFactor = 1.1f;
-
-        public float GetFactor(Zone zone)
-        {
-            switch (zone)
-            {
-                case Zone.Hand: return HandFactor;
-                case Zone.Deck: return DeckFactor;
-                default: return BattlefieldFactor;
-            }
-        }
-    }
+    // 注：SummonDropConfig（衍生物落区系数，表 Category=SummonDrop）已删除（2026-10-09）——
+    // 原子落区内生：衍生物恒落战场、临时卡恒入手牌，落区价值已含在模板卡/原子自身费用里，
+    // 不再按落区外乘分档系数。
 
     // 注：TargetModifier（按目标范围/AOE 的计价乘数）已删除——计价只看目标数量（固定 N ×N，见
     // CostDerivationService.EffectiveTargetCountForCost）；范围/Scope 仅是目标选取元数据，不参与计价。
@@ -64,9 +44,9 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 计价档位系数（表 Category=PricingTier，2026-10-05 用户定案）——目标数量/作用次数的增量系数统一：
-    /// 数量 1:1 / 2:1.5 / 3:2 / 全部:3；次数 1:1 / 2:1.5 / 3:2 / 无上限:4。
-    /// 消费方 CostDerivation（QuantityFactor / TriggerCostFactor）；原 整数×N/期望4/1.2 连乘 口径退役。
+    /// 计价档位系数（表 Category=PricingTier，2026-10-05 用户定案）——目标数量/作用次数/发动速度的增量系数统一：
+    /// 数量 1:1 / 2:1.5 / 3:2 / 全部:3；次数 1:1 / 2:1.5 / 3:2 / 无上限:4；速度 0:1 / 1:1.5 / 2:2（2026-10-09 入价）。
+    /// 消费方 CostDerivation（QuantityFactor / TriggerCostFactor / SpeedCostFactor）；原 整数×N/期望4/1.2 连乘 口径退役。
     /// </summary>
     [Serializable]
     public class PricingTierConfig
@@ -79,6 +59,9 @@ namespace CardCore
         public float TriggerLimit2 = 1.5f;       // 作用次数 2
         public float TriggerLimit3 = 2.0f;       // 作用次数 3
         public float TriggerLimitInfinite = 4.0f; // 作用次数 无上限（-1；N>3 视同此档）
+        public float SpeedTier0 = 1.0f;          // 发动速度 0 普通档：基准（2026-10-09 速度入价定案）
+        public float SpeedTier1 = 1.5f;          // 发动速度 1 瞬间档（可当响应打出）
+        public float SpeedTier2 = 2.0f;          // 发动速度 2 高速档（可响应 1 速）
 
         /// <summary>目标数量→计价系数。越界口径：N&gt;3 视同全部；-1（任意·运行时自选）同全部；-2/其他未声明=单目标基准。</summary>
         public float TargetCountFactor(int count)
@@ -104,6 +87,19 @@ namespace CardCore
                 case 3: return TriggerLimit3;
                 case -1: return TriggerLimitInfinite;
                 default: return limit > 3 ? TriggerLimitInfinite : TriggerLimit1;
+            }
+        }
+
+        /// <summary>发动速度→计价系数（仅主动效果消费——越快响应权越强越贵）。
+        /// 越界口径：&lt;0 视同普通档；N&gt;2 视同高速档。</summary>
+        public float SpeedFactor(int speed)
+        {
+            switch (speed)
+            {
+                case 0: return SpeedTier0;
+                case 1: return SpeedTier1;
+                case 2: return SpeedTier2;
+                default: return speed > 2 ? SpeedTier2 : SpeedTier0;
             }
         }
     }

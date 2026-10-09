@@ -35,10 +35,10 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 坚韧原子（2026-10-08 指示物化定案，表行 a312b8b0——原子类型 GrantToughness，原 GrantArmor 同日更名；
-    /// refId 已重推 05485f65→a312b8b0，2026-10-08 全量 ID 重推·卡数据随后重建）：
-    /// 对目标附加 {value} 层坚韧指示物（CounterRules.ToughnessCounter）——每层使每次受到的伤害 −1，
-    /// 不随受伤消耗、可叠加；Entity 级（角色可持有）；换区清除、净化可清。
+    /// 坚韧原子（2026-10-08 指示物化定案，表行 2b1e3700——原子类型 GrantToughness，原 GrantArmor 同日更名；
+    /// refId 迁移 05485f65→a312b8b0→758a74e0（同日哈希对齐）→2b1e3700，2026-10-09 生效自减改版随文案换号）：
+    /// 对目标附加 {value} 层坚韧指示物（CounterRules.ToughnessCounter）——每次受到的伤害每层 −1，
+    /// 实际拦到即生效、生效后层数减半（floor）、可叠加；Entity 级（角色可持有）；换区不清、净化可清。
     /// 取代旧 GrantKeywordHandler 关键词路径（台账 Value/Limit+次数闸+光环份额随之退役）。
     /// </summary>
     public class GrantToughnessHandler : AtomicEffectHandlerBase
@@ -65,7 +65,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"附加{effect.Value}层坚韧指示物（每层使每次受到的伤害减1，可叠加）";
+            => $"附加{effect.Value}层坚韧指示物（每次受到的伤害减{effect.Value}，生效后层数减半，可叠加）";
     }
 
     /// <summary>
@@ -171,6 +171,40 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
+    /// 法术护盾原子（2026-10-09 指示物化，表行 7270df35——原子类型沿用 GrantSpellShield；
+    /// refId 已重推 a3ad6a04→7270df35，随指示物化文案换号）：对目标附加 {value} 层法术护盾指示物
+    ///（CounterRules.SpellShieldCounter）——每层抵消一次对手效果对自身的作用（该效果执行时被移出
+    /// 目标列表，ConsumeSpellShields 前置过滤消耗 1 层）；可叠加（每层一份）；
+    /// 换区不清（生效自减档）、净化可清。取代旧 GrantKeywordHandler 关键词路径。
+    /// </summary>
+    public class GrantSpellShieldHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GrantSpellShield;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            int stacks = context.GetValueAfterModifiers(effect.Value);
+            if (stacks <= 0) stacks = 1;
+
+            foreach (var target in context.Targets)
+            {
+                if (target == null || !target.IsAlive) continue;
+                target.AddCounters(CounterRules.SpellShieldCounter, stacks, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = target,
+                    CounterType = CounterRules.SpellShieldCounter,
+                    Amount = stacks,
+                    Source = context.Source,
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"附加{effect.Value}层法术护盾指示物（成为对手效果目标时抵消该效果并消耗1层）";
+    }
+
+    /// <summary>
     /// 毒素原子（例外类，2026-10-08 终版定案）：对目标附加 {value} 层毒素指示物——无持续时间、只有层数；
     /// 持有者每回合结束受到=层数的伤害，随后层数减半（向下取整，0.5→0）。层数可叠加（留存层持续伤害）。
     /// 例程在 CounterRules.OnTurnEnd ①（ProcessToxinException）；换区清、净化可清。
@@ -267,9 +301,9 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 易损指示物（衰退类，2026-10-08 层即持续定案）：层=持续回合数（N 层=N 回合，持有者回合末 −1）；
-    /// 期间受到伤害时每层使伤害 +1（KeywordRules.ApplyDamage 第 0 步放大——放大随层递减：
-    /// N 层第 1 回合 +N、第 2 回合 +(N−1)…；圣盾/护甲吸收放大后的量）。
+    /// 易损指示物（2026-10-09 生效自减定案，同毒素档，自 Decay 迁入）：无持续时间、只有层数——
+    /// 每次受到伤害时每层使伤害 +1，生效后层数减半（floor，1 层生效一次即清零；KeywordRules.ApplyDamage
+    /// 第 0 步放大+减半——圣盾/护甲吸收放大后的量）；换区不清、净化/解减益可清。
     /// </summary>
     public class AddVulnerableHandler : AtomicEffectHandlerBase
     {
@@ -294,7 +328,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加{value}层易损指示物（持续{value}回合，期间受到伤害每层+1）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加{value}层易损指示物（每次受到伤害每层+1，生效后层数减半）";
     }
 
     /// <summary>
