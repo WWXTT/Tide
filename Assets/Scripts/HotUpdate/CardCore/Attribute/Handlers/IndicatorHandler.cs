@@ -396,6 +396,98 @@ namespace CardCore.Attribute.Handlers
             => $"给角色附加{effect.Value}点攻击力（攻击或反击后移除）";
     }
 
+    /// <summary>
+    /// 反疗原子（2026-10-09，黑2，表行 6b9c4b90；原名堕落·仅角色，同日用户改名放开）：
+    /// 对{target}附加 {value} 层反疗指示物（DepravityCounter，Exception 生效自减）——
+    /// 任意有生命单位（生物+角色，双方；表行 TargetKinds=己方单位,对方单位·无 Filter）下一次
+    /// 受到的治疗改写为等量伤害并消耗 1 层（改写口=EntityEffectExtensions.Heal 咽喉；
+    /// 满血可选=DamagedFilter 豁免）。
+    /// </summary>
+    public class GrantDepravityHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GrantDepravity;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            int stacks = context.GetValueAfterModifiers(effect.Value);
+            if (stacks <= 0) stacks = 1;
+
+            foreach (var target in context.Targets)
+            {
+                if (target == null || !target.IsAlive) continue;
+                target.AddCounters(CounterRules.DepravityCounter, stacks, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = target,
+                    CounterType = CounterRules.DepravityCounter,
+                    Amount = stacks,
+                    Source = context.Source,
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"附加{effect.Value}层反疗指示物（下一次受到的治疗改写为等量伤害并消耗一层）";
+    }
+
+    /// <summary>
+    /// 重放原子（2026-10-09，白4，表行 b70a8a42）：对场上单位附加 {value} 层重放指示物
+    ///（ReplayCounter，Exception 生效自减）——该单位效果发动结算后自动消耗 1 层并再次发动一次
+    ///（重放不触发重放；消耗口=EffectExecutor.ExecuteAsync 结算段）。
+    /// 换区不清——预挂手牌/牌库的卡登场后生效；非卡目标跳过（表行 TargetFilter "NoRole"）。
+    /// </summary>
+    public class GrantReplayHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GrantReplay;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            int stacks = context.GetValueAfterModifiers(effect.Value);
+            if (stacks <= 0) stacks = 1;
+
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card unit) || !unit.IsAlive) continue;
+                unit.AddCounters(CounterRules.ReplayCounter, stacks, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = unit,
+                    CounterType = CounterRules.ReplayCounter,
+                    Amount = stacks,
+                    Source = context.Source,
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"附加{effect.Value}层重放指示物（效果发动结算后自动消耗一层再次发动，重放不触发重放）";
+    }
+
+    /// <summary>
+    /// 地牌槽提升原子（2026-10-09，绿2，表行 6b674df2，资源族）：自己的地牌槽上限翻倍、封顶 18
+    ///（每地牌格可叠两张——ElementPool.AddLandCapBoost，GetLandCap 单点生效：地牌张数/支付浓度/
+    /// 出牌费用门槛/黑白获得封顶同随）。无目标原子（作用=效果控制者）；重复使用幂等（已提升则无效）。
+    /// </summary>
+    public class IncreaseLandCapHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.IncreaseLandCap;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var player = context.Controller;
+            var pool = context.ElementPool ?? GameCore.Instance?.ElementPool;
+            if (player == null || pool == null)
+            {
+                TideLog.Warn("[IncreaseLandCap] 无效果控制者或元素池，空转");
+                return;
+            }
+            pool.AddLandCapBoost(player);
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => "地牌槽上限翻倍（封顶18，每格可叠放两张地牌；重复使用无效）";
+    }
+
     /// <summary>攻击力减少指示物（每层 −1 攻）</summary>
     public class AddPowerDownHandler : StatCounterAtomHandlerBase
     {

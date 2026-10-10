@@ -423,7 +423,7 @@ namespace CardCore
 
     /// <summary>
     /// 条件族判别：
-    /// OutcomeGate（产出/局面→读产出或局面状态），
+    /// OutcomeGate（产出条件→读主干 per-target 产出），
     /// FilterPrecision（检索→筛选即条件，按维度计费）。
     /// Drawback 空洞已随 2026-10-05 墓碑清理实删重排（效果库空置期，无存量 int 依赖）。
     /// </summary>
@@ -465,9 +465,11 @@ namespace CardCore
     #region 槽级分支载荷（两槽定案 2026-10-05）
 
     /// <summary>分支结算方式（两槽定案）：条件族三分——
-    /// Gate=有限分支条件（局面状态门，与原子产出无关，效果结算时评估一次）；
+    /// Gate=有限分支条件（局面状态门，与原子产出无关，效果结算时评估一次；达标→Then 奖励，
+    /// 不达标→不奖励也不惩罚——2026-10-09 定案，原对赌惩罚面不还原）；
     /// Outcome=自由分支·产出条件（读主干 per-target 产出，如"伤害击杀 Then xx"——producer 匹配挂条件上）；
-    /// Engine=自由分支·事件引擎（倒计时/拼点等，条件时机内生于引擎事件）。</summary>
+    /// Engine=自由分支·事件引擎（倒计时/拼点等，条件时机内生于引擎事件）。
+    /// 枚举值即落盘 settle 序列化值；未定义值一律按幽灵分支剥离（BranchEntryRules.IsPhantom）。</summary>
     public enum BranchSettleKind
     {
         Gate = 1,
@@ -495,14 +497,14 @@ namespace CardCore
     {
         public BranchSettleKind Settle;
 
-        /// <summary>Settle==Gate：局面状态条件 id（BranchConditionEvaluator 目录，如 "LifeBelowOpp"）。
-        /// 诅咒特例 GateId="CurseOnDraw"：时机固定"抽到该卡时"，CurseSystem 驱动，施放时恒假不结算。</summary>
+        /// <summary>Settle==Gate：局面状态条件 id（BranchConditionEvaluator 局面族目录，如 "LifeBelowOpp"）。
+        /// 局面条件均无参数（ConditionParam/ConditionStringParam 不消费）。</summary>
         public string GateId;
-        public int GateParam;
-        public string GateStringParam;
 
-        /// <summary>Settle==Outcome：产出条件 id（如 "DmgKillsTarget"/"DeclareHit"——原 OutcomeGate 产出族）。</summary>
+        /// <summary>Settle==Outcome：产出条件 id（如 "DmgKillsTarget"/"DeclareHit"）及其参数。</summary>
         public string OutcomeId;
+        public int ConditionParam;
+        public string ConditionStringParam;
 
         /// <summary>Settle==Engine：事件引擎。</summary>
         public BranchEngineKind EngineKind;

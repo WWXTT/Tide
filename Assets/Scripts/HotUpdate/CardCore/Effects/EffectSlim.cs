@@ -2,15 +2,20 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore.Attribute;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace CardCore
 {
     // ================================================================
-    // 效果瘦存储 DTO（2026-09-14 效果引用化 v2·大修定案）：
+    // 效果瘦存储 DTO（2026-09-14 效果引用化 v2·大修定案；2026-10-09 写侧修订）：
     //
     // 原子不内嵌六字段全量——**引用原子表行 ID**（表首列 8-hex）+ 只存增量：
     //   原子=AtomicEffectEntry { refId(表行ID), value, str, amp, kinds }（本体即引用型）
-    // 默认值字段（amp=0/kinds=null/str=""）JsonUtility 仍会写出——字段数恒 5，语义=引用+增量。
+    // 2026-10-09 写侧按值省略定案（修订 09-14「字段数恒 5」条）：落盘只写**偏离默认的增量**——
+    //   默认值列（value=1/str=""/amp=0/kinds 空/count=-2/rand=-1/幽灵 branch/各 0 档 header 列）
+    //   一律不写；读侧（JsonUtility/TideJson）对缺失字段回落**字段初始值**——哨兵初始值即语义默认，
+    //   旧全量文件与新紧凑文件共存互读（EmitCompact 统一发射口）。
     //
     // 步骤单源：steps 形态只存 steps（不再写 header.AtomicEffects 投影——148/155 旧条目的
     // AtomicEffects 即该投影冗余）；引擎形态（engine≠0）AtomicEffects=奖励原子，经
@@ -74,8 +79,8 @@ namespace CardCore
         public int speed;              // BaseSpeed
         public int limit;              // TriggerLimitPerTurn
         public int duration;           // DurationType
-        public int selection;          // SelectionMode（-1=None；0-5=六值定案 2026-09-16）
-        public int count;              // TargetCount（>0=N；0=全部；-1=任意[玩家自选数量=0费]；-2=未声明）
+        public int selection = -1;     // SelectionMode（-1=None；0-5=六值定案 2026-09-16）——初始值=省略哨兵
+        public int count = -2;         // TargetCount（>0=N；0=全部；-1=任意[玩家自选数量=0费]；-2=未声明）——初始值=省略哨兵
         public int random;             // RandomTarget（0/1——目标随机正交标志，与"选多少"无关）
         public List<int> kinds;        // 效果级作用范围（2026-10-04 相同目标定案）：null=未声明（空列不写，向后兼容）
         public int dropZone;           // SummonDropZone
@@ -267,6 +272,170 @@ namespace CardCore
                     ? dto.steps.Select(ToStep).Where(st => st != null).ToList() : null,
             };
             return fx;
+        }
+
+        // ======================================== 紧凑发射（2026-10-09 写侧按值省略定案） ========================================
+
+        /// <summary>瘦格式紧凑落盘文本（{"items":[…]} 缩进 JSON）：只写偏离默认的增量列——
+        /// 读侧 JsonUtility/TideJson 对缺失字段回落字段初始值（哨兵初始值=语义默认），
+        /// 旧全量文件共存互读；内容哈希在内存图上计算（EffectLibrarySerializer.Save 前置），
+        /// 发射不触碰内存值——id 零漂移。发射器居 CardCore=Unity/TideServer 双端同源（无头往返可测）。</summary>
+        public static string EmitCompact(List<EffectSlimDto> items)
+        {
+            var arr = new JArray();
+            if (items != null)
+                foreach (var dto in items)
+                {
+                    var o = EmitEffect(dto);
+                    if (o != null) arr.Add(o);
+                }
+            return new JObject { ["items"] = arr }.ToString(Formatting.Indented);
+        }
+
+        private static JObject EmitEffect(EffectSlimDto d)
+        {
+            if (d == null) return null;
+            var o = new JObject { ["id"] = d.id, ["name"] = d.name };
+            if (d.timing != 0) o["timing"] = d.timing;
+            if (d.activation != 0) o["activation"] = d.activation;
+            if (d.speed != 0) o["speed"] = d.speed;
+            if (d.limit != 0) o["limit"] = d.limit;
+            if (d.duration != 0) o["duration"] = d.duration;
+            if (d.selection != -1) o["selection"] = d.selection;
+            if (d.count != -2) o["count"] = d.count;
+            if (d.random != 0) o["random"] = d.random;
+            if (d.dropZone != 0) o["dropZone"] = d.dropZone;
+            if (d.arrows != 0) o["arrows"] = d.arrows;
+            if (d.kinds != null && d.kinds.Count > 0) o["kinds"] = new JArray(d.kinds);
+            if (d.linkAuras != null && d.linkAuras.Count > 0)
+            {
+                var auras = new JArray(d.linkAuras.Where(a => a != null).Select(EmitLinkAura).Where(x => x != null));
+                if (auras.Count > 0) o["linkAuras"] = auras;
+            }
+            if (d.cost != null && d.cost.Count > 0)
+                o["cost"] = new JArray(d.cost.Select(v => Math.Round((double)v, 3))); // float32 尾噪截断（显示快照列）
+            if (d.costs != null && d.costs.Count > 0)
+            {
+                var costs = new JArray(d.costs.Where(c => c != null).Select(EmitCost).Where(x => x != null));
+                if (costs.Count > 0) o["costs"] = costs;
+            }
+            if (d.steps != null && d.steps.Count > 0)
+            {
+                var steps = new JArray(d.steps.Where(s => s != null).Select(EmitStep).Where(x => x != null));
+                if (steps.Count > 0) o["steps"] = steps;
+            }
+            return o;
+        }
+
+        /// <summary>光环条目：stat/keyword 双空=无效条目不写；value/scope 非零才写。</summary>
+        private static JObject EmitLinkAura(LinkAuraData a)
+        {
+            if (string.IsNullOrEmpty(a.stat) && string.IsNullOrEmpty(a.keyword)) return null;
+            var o = new JObject();
+            if (!string.IsNullOrEmpty(a.stat)) o["stat"] = a.stat;
+            if (a.value != 0) o["value"] = a.value;
+            if (!string.IsNullOrEmpty(a.keyword)) o["keyword"] = a.keyword;
+            if (a.scope != 0) o["scope"] = a.scope;
+            return o;
+        }
+
+        /// <summary>代价条目（稀有列）：type/value/manaType/turns 四整数恒写（0 可能是合法枚举位——不做按值省略）。</summary>
+        private static JObject EmitCost(CostRef c)
+        {
+            var o = new JObject
+            {
+                ["type"] = c.type,
+                ["value"] = c.value,
+                ["manaType"] = c.manaType,
+                ["turns"] = c.turns,
+            };
+            var p = EmitAtom(c.payload);
+            if (p != null) o["payload"] = p;
+            return o;
+        }
+
+        private static JObject EmitStep(StepRef s)
+        {
+            var o = new JObject { ["kind"] = s.kind };
+            switch (s.kind)
+            {
+                case 0:
+                    var a = EmitAtom(s.atom);
+                    if (a == null) return null; // 空引用原子（行缺失已被 ToStepRef 拒）——兜底不写
+                    o["atom"] = a;
+                    break;
+                case 1:
+                    if (string.IsNullOrEmpty(s.gid)) return null; // 无条件 id 的门步骤=无效载荷
+                    o["gid"] = s.gid;
+                    if (s.gparam != 0) o["gparam"] = s.gparam;
+                    if (!string.IsNullOrEmpty(s.gstr)) o["gstr"] = s.gstr;
+                    var then = EmitAtoms(s.then);
+                    if (then.Count > 0) o["then"] = then;
+                    var els = EmitAtoms(s.els);
+                    if (els.Count > 0) o["els"] = els;
+                    break;
+                case 2:
+                    if (s.choices == null || s.choices.Count == 0) return null;
+                    var choices = new JArray(s.choices.Where(c => c != null).Select(EmitChoice).Where(x => x != null));
+                    if (choices.Count == 0) return null;
+                    o["choices"] = choices;
+                    break;
+                default:
+                    return null; // 越界 kind 不落盘
+            }
+            return o;
+        }
+
+        private static JObject EmitChoice(ChoiceRef c)
+        {
+            var o = new JObject();
+            if (!string.IsNullOrEmpty(c.label)) o["label"] = c.label;
+            if (c.steps != null && c.steps.Count > 0)
+            {
+                var steps = new JArray(c.steps.Where(s => s != null).Select(EmitStep).Where(x => x != null));
+                if (steps.Count > 0) o["steps"] = steps;
+            }
+            return o;
+        }
+
+        private static JArray EmitAtoms(List<AtomicEffectEntry> atoms)
+        {
+            var arr = new JArray();
+            if (atoms == null) return arr;
+            foreach (var a in atoms)
+            {
+                var o = EmitAtom(a);
+                if (o != null) arr.Add(o);
+            }
+            return arr;
+        }
+
+        /// <summary>原子紧凑发射：恒写 refId；增量只在偏离默认时写（value≠1 / str 非空 / amp≠0 /
+        /// kinds 非空 / count≠-2 / rand≠-1）。branch=null 或幽灵（settle 越界——JsonUtility 物化残渣）
+        /// 一律不写；非幽灵 branch 恒带 then 数组（空数组也写——读侧/UI 就地 Add 不判 null）。</summary>
+        private static JObject EmitAtom(AtomicEffectEntry a)
+        {
+            if (a == null || string.IsNullOrEmpty(a.refId)) return null;
+            var o = new JObject { ["refId"] = a.refId };
+            if (a.value != 1) o["value"] = a.value;
+            if (!string.IsNullOrEmpty(a.str)) o["str"] = a.str;
+            if (a.amp != 0f) o["amp"] = a.amp;
+            if (a.kinds != null && a.kinds.Count > 0) o["kinds"] = new JArray(a.kinds);
+            if (a.count != -2) o["count"] = a.count;
+            if (a.rand != -1) o["rand"] = a.rand;
+            if (!BranchEntryRules.IsPhantom(a.branch))
+            {
+                var b = new JObject { ["settle"] = a.branch.settle };
+                if (!string.IsNullOrEmpty(a.branch.gateId)) b["gateId"] = a.branch.gateId;
+                if (!string.IsNullOrEmpty(a.branch.outcomeId)) b["outcomeId"] = a.branch.outcomeId;
+                if (a.branch.condParam != 0) b["condParam"] = a.branch.condParam;
+                if (!string.IsNullOrEmpty(a.branch.condStr)) b["condStr"] = a.branch.condStr;
+                if (a.branch.engine != 0) b["engine"] = a.branch.engine;
+                if (a.branch.engineParam != 0) b["engineParam"] = a.branch.engineParam;
+                b["then"] = EmitAtoms(a.branch.then);
+                o["branch"] = b;
+            }
+            return o;
         }
     }
 }

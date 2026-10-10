@@ -1,47 +1,203 @@
 {
-  "cards": [
-    {
-      "id": "token_0_1",
-      "cardName": "衍生物·0/1",
-      "supertype": "Creature",
-      "power": 0,
-      "life": 1,
-      "keywords": [],
-      "tags": ["衍生物"],
-      "effects": []
-    },
-    {
-      "id": "token_1_1",
-      "cardName": "衍生物·1/1",
-      "supertype": "Creature",
-      "power": 1,
-      "life": 1,
-      "keywords": [],
-      "tags": ["衍生物"],
-      "effects": []
-    },
-    {
-      "id": "token_2_2",
-      "cardName": "衍生物·2/2",
-      "supertype": "Creature",
-      "power": 2,
-      "life": 2,
-      "keywords": [],
-      "tags": ["衍生物"],
-      "effects": []
-    },
-    {
-      "id": "token_3_3",
-      "cardName": "衍生物·3/3",
-      "supertype": "Creature",
-      "power": 3,
-      "life": 3,
-      "keywords": [],
-      "tags": ["衍生物"],
-      "effects": []
+    "cards": [
+        {
+            "id": "C_7E7D5DD6",
+            "cardName": "衍生物·0/1",
+            "supertype": "Creature",
+            "power": 0,
+            "life": 1,
+            "costList": [
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "keywords": [],
+            "tags": [
+                "衍生物"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false,
+            "durability": 0,
+            "refundColor": -1,
+            "payload": {
+                "refId": "",
+                "value": 1,
+                "str": "",
+                "amp": 0.0,
+                "kinds": [],
+                "count": -2,
+                "rand": -1,
+                "branch": {
+                    "settle": 0,
+                    "gateId": "",
+                    "outcomeId": "",
+                    "condParam": 0,
+                    "condStr": "",
+                    "engine": 0,
+                    "engineParam": 0,
+                    "then": []
+                }
+            }
+        },
+        {
+            "id": "C_DD8BDB51",
+            "cardName": "衍生物·1/1",
+            "supertype": "Creature",
+            "power": 1,
+            "life": 1,
+            "costList": [
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "keywords": [],
+            "tags": [
+                "衍生物"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false,
+            "durability": 0,
+            "refundColor": -1,
+            "payload": {
+                "refId": "",
+                "value": 1,
+                "str": "",
+                "amp": 0.0,
+                "kinds": [],
+                "count": -2,
+                "rand": -1,
+                "branch": {
+                    "settle": 0,
+                    "gateId": "",
+                    "outcomeId": "",
+                    "condParam": 0,
+                    "condStr": "",
+                    "engine": 0,
+                    "engineParam": 0,
+                    "then": []
+                }
+            }
+        },
+        {
+            "id": "C_856BF2D3",
+            "cardName": "衍生物·2/2",
+            "supertype": "Creature",
+            "power": 2,
+            "life": 2,
+            "costList": [
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "keywords": [],
+            "tags": [
+                "衍生物"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false,
+            "durability": 0,
+            "refundColor": -1,
+            "payload": {
+                "refId": "",
+                "value": 1,
+                "str": "",
+                "amp": 0.0,
+                "kinds": [],
+                "count": -2,
+                "rand": -1,
+                "branch": {
+                    "settle": 0,
+                    "gateId": "",
+                    "outcomeId": "",
+                    "condParam": 0,
+                    "condStr": "",
+                    "engine": 0,
+                    "engineParam": 0,
+                    "then": []
+                }
+            }
+        },
+        {
+            "id": "C_37A8F7E7",
+            "cardName": "衍生物·3/3",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 3,
+            "costList": [
+                2.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "keywords": [],
+            "tags": [
+                "衍生物"
+            ],
+            "effects": [],
+            "subtype": "",
+            "level": -1,
+            "arrows": "None",
+            "effectIds": [],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "surplusToSpeed": false,
+            "durability": 0,
+            "refundColor": -1,
+            "payload": {
+                "refId": "",
+                "value": 1,
+                "str": "",
+                "amp": 0.0,
+                "kinds": [],
+                "count": -2,
+                "rand": -1,
+                "branch": {
+                    "settle": 0,
+                    "gateId": "",
+                    "outcomeId": "",
+                    "condParam": 0,
+                    "condStr": "",
+                    "engine": 0,
+                    "engineParam": 0,
+                    "then": []
+                }
+            }
+        }
+    ],
+    "deckConfig": {
+        "copiesPerCard": 1
     }
-  ],
-  "deckConfig": {
-    "copiesPerCard": 1
-  }
 }

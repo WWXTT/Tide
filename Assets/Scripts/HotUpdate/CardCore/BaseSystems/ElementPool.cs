@@ -83,6 +83,11 @@ namespace CardCore
         /// <summary>个人回合数（自己回合开始时 +1；台账行标识）</summary>
         public int PersonalTurnIndex { get; set; }
 
+        /// <summary>地牌槽上限已翻倍（2026-10-09 地牌槽提升原子定案，绿2 表行 6b674df2）：
+        /// GetLandCap 输出 ×2 封顶 MaxStackedLandCap=18（每地牌格叠两张）。幂等标记——
+        /// 重复使用不叠加（×2 的 ×2 无意义且封顶钳制）；Reset/新局清零。</summary>
+        public bool LandCapBoosted { get; set; }
+
         /// <summary>本回合产出次数（手动自选色 + 结束阶段自动灰色；每个全局回合重置）</summary>
         public int TapsThisTurn { get; set; }
 
@@ -125,6 +130,10 @@ namespace CardCore
 
         /// <summary>地牌槽上限的最大值（曲线末端值；卡费用上限同为 9）</summary>
         public const int MAX_POOL_SIZE = 9;
+
+        /// <summary>地牌槽翻倍后的硬顶（2026-10-09 地牌槽提升原子）：9 格 × 每格叠两张 = 18。
+        /// 挑战模式 P2 加成曲线（9+bonus）再翻倍同样受此钳制。</summary>
+        public const int MaxStackedLandCap = 18;
 
         private Dictionary<Player, PlayerElementPool> _playerPools =
             new Dictionary<Player, PlayerElementPool>();
@@ -303,15 +312,39 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 地牌槽上限翻倍（2026-10-09 地牌槽提升原子 IncreaseLandCapHandler 调，绿2）：幂等——
+        /// 已翻倍返回 false。翻倍口径=当前曲线上限 ×2 封顶 MaxStackedLandCap（18，每地牌格叠两张），
+        /// 作用于 GetLandCap 单点：地牌张数上限/支付浓度上限/出牌费用门槛/黑白获得封顶/AI/快照同随。
+        /// </summary>
+        public bool AddLandCapBoost(Player player)
+        {
+            if (player == null) return false;
+            var pool = GetPool(player);
+            if (pool.LandCapBoosted) return false; // 幂等（重复使用无效——表行文案已注明）
+            pool.LandCapBoosted = true;
+            PublishRouted(new CurveShiftEvent
+            {
+                Player = player,
+                NewCurve = pool.Curve, // 曲线对象未换——事件仅作 Trigger/Layer 可见的通知载体
+                Reason = "IncreaseLandCap:地牌槽上限翻倍（封顶18）",
+            });
+            return true;
+        }
+
+        /// <summary>
         /// 玩家当前的地牌槽上限（场上地牌张数上限，也是本回合可出卡的费用上限）。
         /// 标准曲线 = min(全局回合数, 9)（先手首回合 1，对手首回合 2）；无曲线时按同一公式兜底。
+        /// 地牌槽提升原子（2026-10-09）：LandCapBoosted → 上限 ×2 封顶 18（每地牌格叠两张）。
         /// </summary>
         public int GetLandCap(Player player)
         {
             var pool = GetPool(player);
+            int cap;
             if (pool.Curve != null)
-                return pool.Curve.CapAt(pool.GlobalTurnIndex);
-            return Math.Max(1, Math.Min(pool.GlobalTurnIndex, MAX_POOL_SIZE));
+                cap = pool.Curve.CapAt(pool.GlobalTurnIndex);
+            else
+                cap = Math.Max(1, Math.Min(pool.GlobalTurnIndex, MAX_POOL_SIZE));
+            return pool.LandCapBoosted ? Math.Min(cap * 2, MaxStackedLandCap) : cap;
         }
 
         // ======================================== 产出元素（主阶段手动 / 结束阶段自动） ========================================
@@ -872,6 +905,7 @@ namespace CardCore
                 pool.TapsThisTurn = 0;
                 pool.BlackGainedThisTurn = 0;
                 pool.WhiteGainedThisTurn = 0;
+                pool.LandCapBoosted = false;
                 foreach (ManaType mana in Enum.GetValues(typeof(ManaType)))
                 {
                     pool.AvailableMana[mana] = 0;

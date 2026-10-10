@@ -90,6 +90,11 @@ namespace CardCore
         /// </summary>
         public static void Heal(this Entity entity, int amount)
         {
+            // 反疗改写（2026-10-09 暗牧仪典+反疗指示物，先于丰盈溢出判定）：治疗改写为等量伤害
+            //——改写口/重入闸/光源归因见 RuleAuraComponents.TryRewriteHealAsDamage；
+            // 治疗五入口（Heal 原子/吸血/吸取/再生双路）全经此咽喉，一处收口全覆盖。
+            if (amount > 0 && RuleAuraComponents.TryRewriteHealAsDamage(entity, amount)) return;
+
             if (entity is Player player)
             {
                 // 丰盈范围化（2026-10-07）：按受疗方一侧判命中（缺省双方=旧行为）

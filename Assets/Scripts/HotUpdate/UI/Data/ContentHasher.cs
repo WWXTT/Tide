@@ -244,13 +244,14 @@ namespace SynergyUI
             AppendBranch(sb, a.branch);
         }
 
-        /// <summary>槽级分支载荷哈希（两槽定案）：条件三族 + Then 奖励原子（顺序敏感）。</summary>
+        /// <summary>槽级分支载荷哈希（两槽定案）：条件三族（有限分支/产出条件/引擎）+ Then 奖励原子（顺序敏感）。
+        /// 幽灵 settle 由调用侧剥离（IsPhantom）——未定义值不进哈希。</summary>
         private static void AppendBranch(StringBuilder sb, BranchEntryData b)
         {
             if (b == null) return;
             sb.Append("br{").Append(b.settle).Append('/')
-              .Append(b.gateId ?? "").Append('/').Append(b.gateParam).Append('/').Append(b.gateStr ?? "")
-              .Append('#').Append(b.outcomeId ?? "")
+              .Append(b.gateId ?? "").Append('#')
+              .Append(b.outcomeId ?? "").Append('/').Append(b.condParam).Append('/').Append(b.condStr ?? "")
               .Append('#').Append(b.engine).Append('/').Append(b.engineParam)
               .Append(";then[");
             if (b.then != null)

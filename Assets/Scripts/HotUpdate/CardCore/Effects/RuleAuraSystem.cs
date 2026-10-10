@@ -220,6 +220,14 @@ namespace CardCore
         // 改为对光环控制者的对手角色等量伤害——战斗伤害不发生。唯一改写映射，见 HolderRewriteFor。）----
         public const string CombatRedirect = "CombatRedirect";       // 舍身仪典（伤害转投对手角色）
 
+        // ---- 治疗改写仪典（2026-10-09，黑8，表行 9dfed4f8，用户命名「暗牧仪典」）：
+        // 受光环影响一方的单位与角色受到的治疗改写为等量伤害
+        //（改写口=EntityEffectExtensions.Heal 咽喉→TryRewriteHealAsDamage；
+        // 范围按受疗方一侧判 ScopeHits——同丰盈/离散的"受疗方"口径）。配套的实体级姊妹机制=
+        // 反疗指示物（DepravityCounter，任意有生命单位·消耗层），
+        // 共用 IsHealInverted/TryRewriteHealAsDamage。----
+        public const string HealInversion = "HealInversion";         // 暗牧仪典（治疗转伤害）
+
         /// <summary>是否三负面光环族（毒/冻/眠）。缺省范围与极性驱动（负→对方）；
         /// 运行时判定走 ScopeHits，不再读本口（保留供展示/分类）。</summary>
         public static bool IsHolderScoped(string ruleId)
@@ -332,6 +340,70 @@ namespace CardCore
                 Detail = $"眠蚀光环：{EffectText.Name(activator)} 启动式发动 → 叠加一层沉睡（拦截后续启动式+跳过重置）",
                 Source = carrier,
             });
+        }
+
+        // ============ 反疗改写（2026-10-09 暗牧仪典 HealInversion + 反疗指示物 DepravityCounter 共用单源） ============
+
+        /// <summary>反疗命中查询（只读）：目标持反疗层（任意有生命单位）或暗牧光环活跃且受疗方一侧
+        /// 在范围内。消费方：TargetFilterSystem.DamagedFilter（满血候选豁免）与引擎错边豁免快照
+        ///（执行前取——改写会消耗反疗层，执行后查不回）。改写本体见 TryRewriteHealAsDamage。</summary>
+        public static bool IsHealInverted(Entity target)
+        {
+            if (target == null || !target.IsAlive) return false;
+            if (target.GetCounterCount(Attribute.CounterRules.DepravityCounter) > 0)
+                return true;
+            var side = target is Player p ? p : (target as Card)?.GetController();
+            return side != null && RuleAuraSystem.ScopeHits(HealInversion, side);
+        }
+
+        // 重入闸：改写产生的伤害若再触发治疗（吸血等回环），嵌套治疗不再改写——封死自递归
+        private static bool _inHealRewrite;
+
+        /// <summary>反疗改写口（EntityEffectExtensions.Heal 咽喉最前调用）：治疗改写为等量伤害。
+        /// ① 反疗指示物（实体级优先，任意有生命单位）：消耗 1 层，伤害光源=施加方（GetCounterSource）；
+        /// ② 暗牧仪典（光环级）：受疗方一侧 ScopeHits 命中，伤害光源=光环载体。
+        /// 伤害走 KeywordRules.ApplyDamage 全管线（圣盾/护甲/坚韧/易损/离散伤害帽自然参与）；
+        /// 与丰盈溢出同侧时反疗优先（治疗不发生、无溢出）。命中返回 true（调用方短路）。幂等安全：
+        /// 反疗层>0 恒改写一次，光环持续期间恒改写（无层可耗）。</summary>
+        public static bool TryRewriteHealAsDamage(Entity target, int amount)
+        {
+            if (_inHealRewrite || target == null || !target.IsAlive || amount <= 0) return false;
+
+            if (target.GetCounterCount(Attribute.CounterRules.DepravityCounter) > 0)
+            {
+                var src = target.GetCounterSource(Attribute.CounterRules.DepravityCounter);
+                target.RemoveCounters(Attribute.CounterRules.DepravityCounter, 1);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = target,
+                    Keyword = Attribute.CounterRules.DepravityCounter,
+                    Detail = $"反疗发作：{EffectText.Name(target)} 受到的治疗改写为 {amount} 点伤害（消耗 1 层）",
+                    Source = src,
+                });
+                _inHealRewrite = true;
+                try { target.TakeDamage(amount, src); }
+                finally { _inHealRewrite = false; }
+                return true;
+            }
+
+            var side = target is Player p2 ? p2 : (target as Card)?.GetController();
+            if (side != null && RuleAuraSystem.ScopeHits(HealInversion, side))
+            {
+                var carrier = RuleAuraSystem.CarrierOf(HealInversion);
+                EventManager.Instance.Publish(new KeywordAppliedEvent
+                {
+                    Target = target,
+                    Keyword = HealInversion,
+                    Detail = $"暗牧光环：{EffectText.Name(target)} 受到的治疗改写为 {amount} 点伤害",
+                    Source = carrier,
+                });
+                _inHealRewrite = true;
+                try { target.TakeDamage(amount, carrier); }
+                finally { _inHealRewrite = false; }
+                return true;
+            }
+
+            return false;
         }
 
         public static void Reset()

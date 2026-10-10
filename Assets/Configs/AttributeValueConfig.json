@@ -551,6 +551,25 @@
     ]
   },
   {
+    "ID": "6b674df2",
+    "EnumName": "地牌槽提升",
+    "DisplayName": "自己的地牌槽上限翻倍（封顶18，每个地牌格可叠放两张地牌，重复使用无效）",
+    "EffectType": "IncreaseLandCap",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": 1.0,
+    "MountKinds": "",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
     "ID": "1d40277d",
     "EnumName": "回响",
     "DisplayName": "将此卡的临时复制加入手牌",
@@ -683,7 +702,6 @@
       0.0
     ]
   },
-
   {
     "ID": "f7119394",
     "EnumName": "吸血",
@@ -1065,25 +1083,6 @@
     ]
   },
   {
-    "ID": "200a249b",
-    "EnumName": "展示",
-    "DisplayName": "展示{target}（持续暴露，双方可查看，换区失效）",
-    "EffectType": "RevealCard",
-    "TargetKinds": "己方手牌,对方手牌,己方牌库,对方牌库",
-    "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "指示物",
-    "Tags": "换区清除型",
-    "ManaList": [
-      0.0,
-      0.0,
-      0.5,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
     "ID": "ff9874a4",
     "EnumName": "费用增加",
     "DisplayName": "为{target}添加{value}层费用增加指示物",
@@ -1274,7 +1273,7 @@
     ]
   },
   {
-    "ID": "2b1e3700",
+    "ID": "a8f7f476",
     "EnumName": "坚韧",
     "DisplayName": "对{target}附加{value}层坚韧指示物【可叠加】，每次受到伤害每层使伤害减1，生效后层数减半（向下取整）",
     "EffectType": "GrantToughness",
@@ -1331,7 +1330,7 @@
     ]
   },
   {
-    "ID": "c0f4aea0",
+    "ID": "3d68a8bf",
     "EnumName": "毒素",
     "DisplayName": "对{target}附加{value}层毒素指示物，每回合结束受到等于层数的伤害，生效后层数减半（向下取整）",
     "EffectType": "AddToxin",
@@ -1426,7 +1425,7 @@
     ]
   },
   {
-    "ID": "e83505b8",
+    "ID": "d545a1df",
     "EnumName": "易损",
     "DisplayName": "对{target}附加{value}层易损指示物【可叠加】，每次受到伤害每层使受到的伤害加1，生效后层数减半（向下取整）",
     "EffectType": "AddVulnerable",
@@ -1442,6 +1441,44 @@
       0.0,
       0.0,
       1.0
+    ]
+  },
+  {
+    "ID": "254693c1",
+    "EnumName": "放血",
+    "DisplayName": "对{target}附加{value}层放血指示物【可叠加】，其下一次受到的治疗改写为等量伤害并消耗一层",
+    "EffectType": "GrantDepravity",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "",
+    "Polarity": -1.0,
+    "MountKinds": "指示物",
+    "Tags": "生效自减型",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0
+    ]
+  },
+  {
+    "ID": "b70a8a42",
+    "EnumName": "重放",
+    "DisplayName": "对{target}附加{value}层重放指示物【可叠加】，该单位效果发动结算后自动消耗一层并再次发动一次（重放不触发重放）",
+    "EffectType": "GrantReplay",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "指示物",
+    "Tags": "生效自减型",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      4.0,
+      0.0
     ]
   },
   {
@@ -1710,7 +1747,44 @@
       0.0
     ]
   },
-
+  {
+    "ID": "9dfed4f8",
+    "EnumName": "暗牧仪典",
+    "DisplayName": "规则光环：受光环影响一方的单位与角色受到的治疗改写为等量伤害",
+    "EffectType": "ModifyGameRule",
+    "TargetKinds": null,
+    "TargetFilter": null,
+    "Polarity": -1.0,
+    "MountKinds": "规则光环",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      8.0
+    ]
+  },
+  {
+    "ID": "842f2a26",
+    "EnumName": "展示",
+    "DisplayName": "给目标添加一层展示指示物，持续期间，双方可查看",
+    "EffectType": "RevealCard",
+    "TargetKinds": "己方手牌,对方手牌,己方牌库,对方牌库",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "系统,指示物",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
   {
     "ID": "3057d8ac",
     "EnumName": "攻击",
@@ -1826,9 +1900,9 @@
     ]
   },
   {
-    "ID": "01e6dad1",
+    "ID": "74066ce9",
     "EnumName": "倒计时",
-    "DisplayName": "自由分支·倒计时：回合开始计数-1，归零触发奖励并重置",
+    "DisplayName": "自由分支·倒计时：回合开始计数-1，x 归零触发奖励并重置",
     "EffectType": "EngineCountdown",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1850,9 +1924,9 @@
     "ManaList": null
   },
   {
-    "ID": "163a99d1",
+    "ID": "21c3a99e",
     "EnumName": "拼点",
-    "DisplayName": "自由分支·拼点：双方各随机取样生物比攻击力，差额≥门槛触发奖励",
+    "DisplayName": "自由分支·拼点：双方各随机展示生物卡，比攻击力，差额≥x 触发奖励",
     "EffectType": "EngineClash",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1874,9 +1948,9 @@
     "ManaList": null
   },
   {
-    "ID": "b6f9b492",
+    "ID": "fb8a41c9",
     "EnumName": "元素充盈",
-    "DisplayName": "自由分支·元素充盈：己方元素池最多色＞x 触发奖励",
+    "DisplayName": "自由分支·元素充盈：己方元素池三色取最大值＞x 触发奖励",
     "EffectType": "EngineManaSurplus",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1886,9 +1960,9 @@
     "ManaList": null
   },
   {
-    "ID": "e7f6707f",
+    "ID": "b951e72f",
     "EnumName": "手牌序位",
-    "DisplayName": "自由分支·手牌序位：本回合第 x 张使用的手牌发动时触发奖励",
+    "DisplayName": "自由分支·手牌序位：此卡是本回合第 x 张使用的手牌发动时触发奖励",
     "EffectType": "EngineNthHandCard",
     "TargetKinds": null,
     "TargetFilter": null,

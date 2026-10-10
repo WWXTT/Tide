@@ -472,9 +472,6 @@ namespace CardCore
                         if (b == null) return;
                         if (b.then != null)
                         {
-                            // 局面门对赌（2026-10-05 定案，诅咒门豁免）：奖励须可逆转——未达成逆转惩罚才有落点
-                            bool gateBet = (BranchSettleKind)b.settle == BranchSettleKind.Gate
-                                           && b.gateId != ComposerCatalog.CurseGateId;
                             foreach (var r in b.then)
                             {
                                 if (r == null) continue;
@@ -482,18 +479,20 @@ namespace CardCore
                                 if (!ComposerCatalog.CanBeRewardRow(row))
                                     TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
                                                    + $"Then 奖励原子 {r.refId} 无派生奖励资格（规则光环/仅连接光环/引擎行不可作奖励）");
-                                else if (gateBet && !CostDerivationService.PayloadCostDomain(row).eligible)
-                                    TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
-                                                   + $"局面门奖励原子 {r.refId} 不可逆转（对赌惩罚无从执行，converter 将剔除）");
                             }
                         }
                         if ((BranchSettleKind)b.settle == BranchSettleKind.Engine)
                         {
+                            // 2026-10-09 Self-balancing unification: derived threshold engines (Showdown/Death Count/Elemental Surge/Hand Position) read the Then anchor price derivation threshold —
+                            // engineParam is dead data (carried along from old system), no longer participates in range diagnostics
                             var kind = (BranchEngineKind)b.engine;
-                            ComposerCatalog.EngineParamRange(kind, out int min, out int max);
-                            if (kind != BranchEngineKind.Countdown && (b.engineParam < min || b.engineParam > max))
-                                TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
-                                               + $"引擎参数 x={b.engineParam} 越界 [{min},{max}]（运行时夹取）");
+                            if (!ComposerCatalog.IsDerivedThresholdEngine(kind))
+                            {
+                                ComposerCatalog.EngineParamRange(kind, out int min, out int max);
+                                if (kind != BranchEngineKind.Countdown && (b.engineParam < min || b.engineParam > max))
+                                    TideLog.Warn($"[CardLoader] Card {card.ID}({card.CardName}) Effect {eff.Id} Atom {atom.refId}({where})："
+                                                   + $"Engine parameter x={b.engineParam} out of bounds [{min},{max}] (runtime clamped)");
+                            }
                         }
                     }
 

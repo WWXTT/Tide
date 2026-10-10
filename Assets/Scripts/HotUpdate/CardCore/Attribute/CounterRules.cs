@@ -244,6 +244,21 @@ namespace CardCore.Attribute
         ///（手牌区与场上同样倒数——持有者侧结算域含手牌）；持有期间该牌无法使用（PlayCard/响应出牌/
         /// 苏醒立约同门，LockedCardRestriction+CommitAwaken）。归零解锁。</summary>
         public const string LockCounter = "Lock";
+        /// <summary>
+        /// 反疗（2026-10-09，黑2，表行 6b9c4b90/GrantDepravity；原名堕落·仅角色，同日用户改名放开）：
+        /// 任意有生命单位（生物+角色，双方）可持——该目标下一次受到的治疗改写为等量伤害并消耗 1 层
+        ///（改写口=EntityEffectExtensions.Heal 咽喉，伤害光源=施加方 GetCounterSource）。
+        /// 生效自减档（换区不清）；多层=逐次各拦一次治疗；满血可选性=TargetFilterSystem.Damaged
+        /// 豁免口。净化可清（生物侧 ClearNegative 负面极性；角色无净化通道——只能被消耗）。
+        /// </summary>
+        public const string DepravityCounter = "Depravity";
+        /// <summary>
+        /// 重放（2026-10-09，白4，表行 b70a8a42/GrantReplay）：挂场上单位——该单位效果发动结算后
+        /// 自动消耗 1 层并再次发动一次（重放轮不再消耗层——「重放不触发重放」；
+        /// 消耗口=EffectExecutor.ExecuteAsync 结算段）。生效自减档（换区不清——离场休眠、
+        /// 再入场（含预挂手牌/牌库的卡登场）仍可生效）。
+        /// </summary>
+        public const string ReplayCounter = "Replay";
 
         private static readonly Dictionary<string, CounterSpec> _registry =
             new Dictionary<string, CounterSpec>();
@@ -275,6 +290,13 @@ namespace CardCore.Attribute
             // 诅咒/祝福（生效自减·引擎投放——无玩家表行；抽到触发一次性消层；换区不清是跨区存活必需）
             Register(new CounterSpec { Id = CurseCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.External, DisplayName = "诅咒" });
             Register(new CounterSpec { Id = BlessingCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.External, DisplayName = "祝福" });
+            // 反疗（2026-10-09，黑2，原名堕落·仅角色，同日放开为任意有生命单位）：
+            // 下一次受到的治疗改写为等量伤害并消耗 1 层（改写口=EntityEffectExtensions.Heal 咽喉）；
+            // 换区不清、生物侧净化可清（角色无净化通道）
+            Register(new CounterSpec { Id = DepravityCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "反疗" });
+            // 重放（2026-10-09，白4）：单位效果发动结算后消耗 1 层并再次发动一次（重放不触发重放；
+            // 消耗口=EffectExecutor.ExecuteAsync）；换区不清（离场休眠、再入场仍生效）
+            Register(new CounterSpec { Id = ReplayCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "重放" });
 
             // ---- 常驻（Resident：不随时间衰退，换区清；消费型标 External 注明归属）----
             //（坚韧 2026-10-09 迁入 Exception 生效自减——受伤拦减后层数减半，见上区块）

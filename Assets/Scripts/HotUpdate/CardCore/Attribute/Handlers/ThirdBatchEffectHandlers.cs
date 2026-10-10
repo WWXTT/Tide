@@ -405,6 +405,21 @@ namespace CardCore.Attribute.Handlers
                 pool.RemoveAt(i);
             }
 
+            // 2026-10-09 展示链路定案：展示即状态——被展示牌挂 Exposed（双方可查看，换区清除）：
+            // 未选中留库=不换区保持展示；选中入手=deck→hand 换区即消（ZoneContainer 换区清统一承担）。
+            foreach (var card in shown)
+            {
+                if (card.GetCounterCount(CounterRules.ExposedCounter) > 0) continue; // 二值不叠层
+                card.AddCounters(CounterRules.ExposedCounter, 1, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = card,
+                    CounterType = CounterRules.ExposedCounter,
+                    Amount = 1,
+                    Source = context.Source,
+                });
+            }
+
             List<Entity> chosen;
             if (shown.Count <= 1)
             {
