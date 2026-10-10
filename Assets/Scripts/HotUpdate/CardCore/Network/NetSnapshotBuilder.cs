@@ -107,6 +107,7 @@ namespace CardCore.Network
                     ElementBank = bank.ToArray(),
                     GraveyardCount = core.ZoneManager.GetCards(player, Zone.Graveyard)?.Count ?? 0,
                     ExileCount = core.ZoneManager.GetCards(player, Zone.Exile)?.Count ?? 0,
+                    Counters = ToSortedCounters(player),
                 });
             }
             return players.ToArray();
@@ -185,6 +186,18 @@ namespace CardCore.Network
                 Zone = (int)zone,
                 Cards = states,
             };
+        }
+
+        /// <summary>玩家指示物投影（2026-10-10 角色参战遗留收口）：键排序保证字节稳定
+        ///（同 ToSortedCardState 口径；空=空数组同卡侧 FromCard）。</summary>
+        private static CounterEntryDTO[] ToSortedCounters(Player player)
+        {
+            if (player._counters == null || player._counters.Count == 0)
+                return Array.Empty<CounterEntryDTO>();
+            return player._counters
+                .OrderBy(kv => kv.Key, StringComparer.Ordinal)
+                .Select(kv => new CounterEntryDTO { Key = kv.Key, Value = kv.Value })
+                .ToArray();
         }
 
         /// <summary>FromCard + Counters 键排序（字典迭代序不定，排序保证同状态字节稳定）。</summary>

@@ -159,7 +159,7 @@ namespace CardCore
     {
         public float StatUnit = 2f;                     // 1费=StatUnit点属性（攻血各 1/StatUnit 元素，灰）
         public bool KeywordsShareDelayDiscount = true;  // 关键词是否同享挂载折扣（关键词=Grant原子=挂载效果）
-        public int MaxTier = 9;                         // 档位上限（=地牌槽曲线上限）
+        public int MaxTier = 18;                        // 档位上限（2026-10-10 对齐地牌槽封顶 18：>9 带可达）
         /// <summary>属性锚：+1 攻/+1 生命 = 0.5（攻血同锚；2026-10-05 自 CostDerivation 常量迁表）。</summary>
         public float StatAnchor = 0.5f;
         /// <summary>修改族持续档乘数：换区移除/条件持续 = 锚×3（=1.5/+1）；连接光环档同此乘数。</summary>
@@ -170,37 +170,41 @@ namespace CardCore
         public float StatRewriteFlatCost = 3f;
         /// <summary>双方同时作用减半系数（双侧全取/规则光环 ×0.5；2026-10-05 迁表）。</summary>
         public float SymmetricDiscountFactor = 0.5f;
-        /// <summary>耐久单价：0.5 灰/点（2026-10-05 定案——耐久体随身材费计价）。</summary>
-        public float DurabilityUnitCost = 0.5f;
+        /// <summary>耐久单价：1 灰/点（2026-10-10 提价定案——耐久即次数池：受伤/被动触发/主动发动
+        /// 三重消耗同池同价，燃料身份重估；2026-10-05 的 0.5 灰/点口径退役）。</summary>
+        public float DurabilityUnitCost = 1f;
     }
 
     /// <summary>
     /// 挂载延迟折扣配置（表 Category=DelayDiscount；2026-09-07 第三层重定案）。
-    /// d(C)：费用 C=最早第 C 回合落地（地牌曲线 [1..9] 锁定）→ 按落地延迟对**整卡**
-    /// （S+E+K+卡层调整）在组合完成后**最后一步**打折。d(1)=全价，线性降到 d(9)=0.75，
-    /// **9 费及以上钳在 0.75**（最大折 25%——原 d(9)=0「9费挂载全免」已废）。
-    /// 三类卡型统一适用（2026-10-02 定案：法术不再豁免，旧"法术不折 f≡1"口径已废）。
-    /// （原 ExtraActivationSlope「选发每多1回合发动的额外折」已删——与卡层挂载口计价重复。）
+    /// d(C)：费用 C=最早第 C 回合落地 → 按落地延迟对**整卡**（S+E+K）在组合完成后**最后一步**打折。
+    /// 2026-10-10 分段曲线定案：C 1-3 不折扣（f=1）；C 4-9 线性 1→0.8（f=1−(C−3)/30）；
+    /// C≥10 恒 0.75（新增地牌上限带——地牌槽封顶 18 使 >9 费可达，9→10 存在 0.05 阶梯为照字面定案）。
+    /// 取代旧 C1..C9 线性 1→0.75 曲线（1−0.25×(C−1)/8）。
+    /// 三类卡型统一适用（2026-10-02 定案：法术不豁免）。
     /// </summary>
     [Serializable]
     public class DelayDiscountConfig
     {
         public float C1 = 1.00000f;   // d(1)=全价（几乎即时）
-        public float C2 = 0.96875f;
-        public float C3 = 0.93750f;
-        public float C4 = 0.90625f;
-        public float C5 = 0.87500f;   // d(5)=八七五折
-        public float C6 = 0.84375f;
-        public float C7 = 0.81250f;
-        public float C8 = 0.78125f;
-        public float C9 = 0.75000f;   // d(9)=0.75（最大折 25%；9费及以上钳此值）
+        public float C2 = 1.00000f;   // 1-3 档不折扣（2026-10-10 分段定案）
+        public float C3 = 1.00000f;
+        public float C4 = 0.96667f;   // 4-9 线性 1→0.8：f=1−(C−3)/30
+        public float C5 = 0.93333f;
+        public float C6 = 0.90000f;
+        public float C7 = 0.86667f;
+        public float C8 = 0.83333f;
+        public float C9 = 0.80000f;   // d(9)=0.8
+        /// <summary>C≥10 恒 0.75（新增地牌上限带；9→10 有 0.05 阶梯——分段定案照字面）。</summary>
+        public float C10Plus = 0.75000f;
 
         public float At(int tier)
         {
+            if (tier >= 10) return C10Plus;
             return tier switch
             {
                 1 => C1, 2 => C2, 3 => C3, 4 => C4, 5 => C5,
-                6 => C6, 7 => C7, 8 => C8, _ => C9 // 9 及以上钳 C9
+                6 => C6, 7 => C7, 8 => C8, _ => C9 // 9 钳 C9；<1 退 C9（上游三口已 Clamp 1..MaxTier）
             };
         }
     }

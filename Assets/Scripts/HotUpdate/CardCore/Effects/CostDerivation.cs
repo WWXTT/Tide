@@ -463,19 +463,20 @@ namespace CardCore
             if (atom.Type == AtomicEffectType.SearchDeck)
                 return FilterPrecisionCost(atom);
 
-            // 召唤衍生物（2026-10-07 表价清零定案）：单价随模板——衍生物卡自身费用×召唤数量，
-            // 表行 ManaList 已清零不再携带锚价（置于零价守卫之前，恒出模板价）。
-            // 模板不可解析/零费=0（构筑期校验拦截、运行时 handler 兜底拒绝）；
+            // 召唤衍生物（2026-10-07 表价清零定案）：单价随模板，表行 ManaList 已清零不再携带锚价
+            //（置于零价守卫之前，恒出模板价）。模板不可解析/零费=0（构筑期校验拦截、运行时 handler 兜底拒绝）；
             // 数量/持续档不乘（量级即最终口径），触发档仍由外层统一乘。
-            // 落区系数已删（2026-10-09）：原子落区内生（衍生物恒战场/临时卡恒手牌），
-            // 落区价值已含在模板卡/原子自身费用里，不再外乘分档系数。
+            // 内容全价（2026-10-10 无底盘定案，取代同日早间「声明费+ChassisAdjust 回加」案）：
+            // 衍生物没走「入组 1+抽牌 2」，吃不到 3 点底盘——单价 = 模板内容全价
+            //（S含耐久+K+E，不乘 d(C)）+ 结构费全额（攻/守/槽×1，无预算抵扣）= ContentPriceOf。
             if (atom.Type == AtomicEffectType.SummonToken)
             {
                 var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate ?? Attribute.MorphSystem.ResolveMorphTarget;
                 var template = string.IsNullOrEmpty(atom.StringValue) ? null : resolver?.Invoke(atom.StringValue);
-                if (template == null || template.TotalCost <= 0f) return 0;
+                int unit = template == null ? 0 : CardCostService.ContentPriceOf(template);
+                if (unit <= 0) return 0;
                 int count = Math.Max(1, atom.Value);
-                return (int)Math.Round(template.TotalCost * count, MidpointRounding.AwayFromZero);
+                return unit * count;
             }
 
             // 属性价梯（2026-09-13 定案：攻/血同锚 0.5/+1，按持续档定价——取代通用公式与持续折扣）：
@@ -564,12 +565,20 @@ namespace CardCore
             var result = new Dictionary<ManaType, int>();
             int total = ComputeAtomCost(atom, def, domain, cfg);
             var cost = cfg?.ManaList;
-            // 召唤衍生物（2026-10-07 表价清零）：表行构成已清零——分色换轨随模板卡费用构成
+            // 召唤衍生物（2026-10-07 表价清零）：表行构成已清零——分色换轨随模板**内容全价构成**
+            //（2026-10-10 无底盘定案：ContentPriceByColor = 内容逐色 + 结构费入灰；总价含外层
+            // 速度/触发档乘数，按内容构成份额比例分摊——单色模板即全额该色）
             if (atom.Type == AtomicEffectType.SummonToken)
             {
                 var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate ?? Attribute.MorphSystem.ResolveMorphTarget;
                 var template = string.IsNullOrEmpty(atom.StringValue) ? null : resolver?.Invoke(atom.StringValue);
-                if (template != null && !template.Cost.IsZero) cost = template.Cost;
+                if (template != null)
+                {
+                    var content = new ElementCost();
+                    foreach (var kv in CardCostService.ContentPriceByColor(template))
+                        if (kv.Value != 0) content[kv.Key] = kv.Value;
+                    if (!content.IsZero) cost = content;
+                }
             }
             if (total <= 0 || cost == null || cost.IsZero) return result;
 
@@ -599,6 +608,147 @@ namespace CardCore
             }
             return result;
         }
+
+        // ======================================== 费用预览公式展开（2026-10-10 合成器「参与变量写全」） ========================================
+
+        /// <summary>计价访问域（费用预览公式展开用）：per-mode 域优先回落主序列域、逐原子目标制
+        /// 换该原子自身域——与 DeriveElementCosts 内部同口径，防公式与数值两口各算各的。</summary>
+        public static List<int> PricingVisitDomain(EffectDefinition effect, AtomicEffectInstance atom, int modeIndex = 0)
+            => PricingDomain(effect, atom, ResolveVisitDomain(effect, modeIndex));
+
+        /// <summary>单原子计价公式展开（效果合成器顶栏费用预览——把参与变量写全，如
+        /// 「基准1红×5×速度档2」）：数值真源仍是 ComputeAtomCost，本口只展开显示构成——
+        /// 基准量＋逐段系数链（系数=1 不列），分档判定复用同一批 primitives
+        ///（BaseExprOf 各分档 / QuantityFactor / TriggerCostFactor / SpeedCostFactor /
+        /// IsSymmetricBothSides / WrongSide），不另立计价口径。系数顺序与 ComputeAtomCost
+        /// 管线一致：基准内系（量级/表乘数/持续/控制/赋予档）→错边→数量档→触发档→速度档→双方减半。
+        /// 基准内的乘法在数值侧折叠为一次 round（ComputeAtomBaseAmount），展开链只作显示——
+        /// 末端结果由调用方取 DeriveElementCosts 实值，不重算。</summary>
+        public static (string baseExpr, List<string> factorExprs) AtomCostFormula(
+            AtomicEffectInstance atom, EffectDefinition def, List<int> domain)
+        {
+            var factors = new List<string>();
+            if (atom == null) return ("基准0", factors);
+
+            string baseExpr = BaseExprOf(atom, def, ResolvePricingConfig(atom), factors);
+
+            // 管线系数（ComputeAtomCost 同序同条件）
+            float polarity = atom.Polarity;
+            if (polarity != 0f && !IsSelfSleepExempt(atom.Type, domain) && WrongSide(polarity, domain))
+                AddFactor(factors, "错边", 1f - Math.Abs(polarity));
+            float n = QuantityFactor(atom, def);
+            if ((domain == null || domain.Count == 0) && n > 1f) n = 1f; // 无目标域不乘数量（同 ComputeAtomCost）
+            AddFactor(factors, "数量档", n);
+            AddFactor(factors, "触发档", TriggerCostFactor(def));
+            AddFactor(factors, "速度档", SpeedCostFactor(def));
+            if (IsSymmetricBothSides(atom, def, domain))
+                AddFactor(factors, "双方减半", SymmetricDiscountFactor);
+            return (baseExpr, factors);
+        }
+
+        /// <summary>系数入链（数值=1 不列；label 空=裸量级乘数，如 ×5）。</summary>
+        private static void AddFactor(List<string> factors, string label, float v)
+        {
+            if (Math.Abs(v - 1f) > 0.001f)
+                factors.Add(string.IsNullOrEmpty(label) ? $"{v:0.##}" : $"{label}{v:0.##}");
+        }
+
+        /// <summary>基准量文案（ComputeAtomBaseAmount 各分档的显示面）：基准内乘数（量级/表乘数/
+        /// 持续/控制/赋予档）以系数续在基准后——取值与数值侧同一表达式，防两口漂移。</summary>
+        private static string BaseExprOf(AtomicEffectInstance atom, EffectDefinition def,
+            AtomicEffectConfig cfg, List<string> factors)
+        {
+            if (atom.Type == AtomicEffectType.SearchDeck)
+                return $"检索精度{FilterPrecisionCost(atom)}";
+
+            if (atom.Type == AtomicEffectType.SummonToken)
+            {
+                var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate ?? Attribute.MorphSystem.ResolveMorphTarget;
+                var template = string.IsNullOrEmpty(atom.StringValue) ? null : resolver?.Invoke(atom.StringValue);
+                AddFactor(factors, "", Math.Max(1, atom.Value));
+                var content = new ElementCost();
+                if (template != null)
+                    foreach (var kv in CardCostService.ContentPriceByColor(template))
+                        if (kv.Value != 0) content[kv.Key] = kv.Value;
+                return $"模板全价{AnchorZh(content)}";
+            }
+
+            float statTier = StatTierPrice(atom.Type, def);
+            if (statTier > 0f)
+            {
+                AddFactor(factors, "", Math.Abs(atom.Value));
+                return $"属性档{statTier:0.##}/点";
+            }
+
+            if (IsCounterAtom(cfg))
+            {
+                AddFactor(factors, "", Math.Max(1, Math.Abs(atom.Value)));
+                return $"基准{AnchorZh(cfg?.ManaList)}";
+            }
+
+            if (atom.Type == AtomicEffectType.GainControl || atom.Type == AtomicEffectType.ChangeOwner)
+            {
+                float ctrlMult = def.Duration == DurationType.Permanent || atom.Type == AtomicEffectType.ChangeOwner ? 3f
+                    : (def.Duration == DurationType.UntilLeaveBattlefield || def.Duration == DurationType.WhileCondition) ? 1.6f : 1.2f;
+                AddFactor(factors, "控制档", ctrlMult);
+                return $"基准{AnchorZh(cfg?.ManaList)}";
+            }
+
+            if (atom.Type.ToString().StartsWith("Grant"))
+            {
+                float grantMult;
+                switch (def.Duration)
+                {
+                    case DurationType.Once: grantMult = 1.0f; break;
+                    case DurationType.UntilEndOfTurn:
+                    case DurationType.UntilNextTurn: grantMult = 1.2f; break;
+                    case DurationType.UntilLeaveBattlefield:
+                    case DurationType.WhileCondition: grantMult = 1.6f; break;
+                    default: grantMult = 2.0f; break;
+                }
+                AddFactor(factors, "持续档", grantMult);
+                return $"基准{AnchorZh(cfg?.ManaList)}";
+            }
+
+            if (cfg == null || cfg.TotalUnitCost <= 0f)
+                return "基准0";
+
+            var attrCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().AttributeValueConfig;
+            float durationFactor = attrCfg.GetDurationDiscount(def.Duration)
+                                   / attrCfg.GetDurationDiscount(DurationType.Once);
+            if (atom.Type == AtomicEffectType.ModifyGameRule)
+            {
+                AddFactor(factors, "表乘数", cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f);
+                AddFactor(factors, "持续档", durationFactor);
+                return $"基准{AnchorZh(cfg.ManaList)}";
+            }
+
+            AddFactor(factors, "表乘数", cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f);
+            AddFactor(factors, "", Math.Max(1, atom.Value));
+            AddFactor(factors, "持续档", durationFactor);
+            return $"基准{AnchorZh(cfg.ManaList)}";
+        }
+
+        /// <summary>锚价构成文案（序数序拼「N色」——表行 ManaList / 模板内容价共用）。</summary>
+        private static string AnchorZh(ElementCost cost)
+        {
+            if (cost == null || cost.IsZero) return "0";
+            var parts = new List<string>();
+            foreach (var c in cost.NonzeroColors())
+                parts.Add($"{(int)cost[c]}{ColorZh(c)}");
+            return string.Join("", parts);
+        }
+
+        private static string ColorZh(ManaType m) => m switch
+        {
+            ManaType.Red => "红",
+            ManaType.Blue => "蓝",
+            ManaType.Green => "绿",
+            ManaType.Gray => "灰",
+            ManaType.Black => "黑",
+            ManaType.White => "白",
+            _ => m.ToString(),
+        };
 
         // ======================================== 黑白元素获得（2026-09-11 定案） ========================================
         /// <summary>错边判定的极性→获得颜色：有害原子(p&lt;0)命中己方→黑；有益原子(p&gt;0)命中对方→白。</summary>
@@ -793,7 +943,7 @@ namespace CardCore
 
         /// <summary>
         /// 效果槽位数（2026-09-21 抉择分支计槽定案）：每个效果 1 槽，Choice 步骤每多一个分支再 +1 槽
-        /// （抉择装两个效果，收两次槽位费）。供 ChassisAdjust 底盘预算消费。
+        /// （抉择装两个效果，收两次槽位费）。供 CardCompositionCost 底盘结构项消费。
         /// 启动式照常计槽（2026-10-02 用户定案：「不占费用，占技能挂载」维持——效果槽是 AI 侧
         /// 每卡最大原子数限制的可见性锚，免槽会让 AI 看不见超限的启动式堆叠）；
         /// 启动式占用的只是底盘免费额度抵扣位，元素锚价仍构筑期全免（运行时现付）。

@@ -61,7 +61,7 @@
     "EnumName": "穿透伤害",
     "DisplayName": "对{target}造成{value}点穿透伤害（无视关键词与指示物）",
     "EffectType": "PierceDamage",
-    "TargetKinds": "己方单位,对方单位",
+    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": null,
     "Polarity": -1.0,
     "MountKinds": "",
@@ -80,7 +80,7 @@
     "EnumName": "吸取",
     "DisplayName": "吸取{target}{value}点生命（造成伤害并回复生命）",
     "EffectType": "DrainLife",
-    "TargetKinds": "己方单位,对方单位",
+    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": null,
     "Polarity": -1.0,
     "MountKinds": "",
@@ -116,9 +116,9 @@
   {
     "ID": "120ad4d1",
     "EnumName": "抽卡",
-    "DisplayName": "从卡组中抽{value}张卡",
+    "DisplayName": "从卡组顶部抽{value}张卡",
     "EffectType": "DrawCard",
-    "TargetKinds": "己方牌库,对方牌库",
+    "TargetKinds": "己方牌库",
     "TargetFilter": null,
     "Polarity": 1.0,
     "MountKinds": "",
@@ -240,7 +240,7 @@
     "ManaList": [
       0.0,
       0.0,
-      3.0,
+      2.0,
       0.0,
       0.0,
       0.0
@@ -287,7 +287,7 @@
   {
     "ID": "4b1174b6",
     "EnumName": "占卜",
-    "DisplayName": "查看自己牌库顶{value}张卡并任意排列",
+    "DisplayName": "查看牌库顶{value}张卡并任意排列",
     "EffectType": "LookAtTopCards",
     "TargetKinds": "己方牌库,对方牌库",
     "TargetFilter": null,
@@ -297,7 +297,7 @@
     "ManaList": [
       0.0,
       0.0,
-      3.0,
+      2.0,
       0.0,
       0.0,
       0.0
@@ -362,7 +362,7 @@
   },
   {
     "ID": "327f1014",
-    "EnumName": "获得控制",
+    "EnumName": "控制",
     "DisplayName": "获得{target}的临时控制权，持续到回合结束",
     "EffectType": "GainControl",
     "TargetKinds": "己方单位,对方单位",
@@ -458,7 +458,7 @@
   {
     "ID": "563c389d",
     "EnumName": "变形",
-    "DisplayName": "此卡变形为另一个{target}单位（复制目标生物的属性，关键词和指示物）",
+    "DisplayName": "此卡变形为另一个{target}，复制目标生物的属性，关键词和指示物",
     "EffectType": "Morph",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
@@ -486,7 +486,7 @@
     "Tags": null,
     "ManaList": [
       0.0,
-      5.0,
+      3.0,
       0.0,
       0.0,
       0.0,
@@ -509,7 +509,26 @@
       0.0,
       0.0,
       0.0,
-      5.0
+      4.0
+    ]
+  },
+  {
+    "ID": "fbe5ad81",
+    "EnumName": "抹除",
+    "DisplayName": "将目标从本局游戏中除去",
+    "EffectType": "Erase",
+    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位,己方元素池,对方元素池",
+    "TargetFilter": "NotRole",
+    "Polarity": -1.0,
+    "MountKinds": "",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      6.0,
+      0.0
     ]
   },
   {
@@ -537,7 +556,7 @@
     "DisplayName": "去除{target}地牌3个同类型元素指示物，获得1点对应元素",
     "EffectType": "Mine",
     "TargetKinds": "己方元素池",
-    "TargetFilter": "NoRole",
+    "TargetFilter": "",
     "Polarity": 0.0,
     "MountKinds": "",
     "Tags": null,
@@ -551,9 +570,9 @@
     ]
   },
   {
-    "ID": "6b674df2",
-    "EnumName": "地牌槽提升",
-    "DisplayName": "自己的地牌槽上限翻倍（封顶18，每个地牌格可叠放两张地牌，重复使用无效）",
+    "ID": "6d2e40b6",
+    "EnumName": "灵气复苏",
+    "DisplayName": "地牌槽上限+1，每个地牌格最多可叠放两张地牌，双方共享元素浓度提升",
     "EffectType": "IncreaseLandCap",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -564,15 +583,15 @@
       0.0,
       0.0,
       0.0,
-      2.0,
+      1.0,
       0.0,
       0.0
     ]
   },
   {
-    "ID": "1d40277d",
+    "ID": "b44286ba",
     "EnumName": "回响",
-    "DisplayName": "将此卡的临时复制加入手牌",
+    "DisplayName": "将此卡的具有一层遗忘指示物的复制加入手牌",
     "EffectType": "EchoCopy",
     "TargetKinds": "",
     "TargetFilter": null,
@@ -612,7 +631,7 @@
     "EnumName": "牺牲",
     "DisplayName": "以角色为目标，使其自行选择一个单位效果送墓，送墓的效果来源为持有者",
     "EffectType": "Sacrifice",
-    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
+    "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "Player",
     "Polarity": -1.0,
     "MountKinds": "",
@@ -628,7 +647,7 @@
   },
   {
     "ID": "5848518e",
-    "EnumName": "改写持有者",
+    "EnumName": "操控",
     "DisplayName": "改写{target}的持有者。永久改写控制权——弹回洗回回新主卡组手牌，死亡去新主墓地",
     "EffectType": "ChangeOwner",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
@@ -642,7 +661,7 @@
       0.0,
       0.0,
       0.0,
-      9.0
+      6.0
     ]
   },
   {
@@ -821,8 +840,8 @@
     "EnumName": "法术护盾",
     "DisplayName": "对{target}附加{value}层法术护盾指示物【可叠加】，成为对手效果目标时抵消该效果对自身的作用并消耗1层",
     "EffectType": "GrantSpellShield",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
+    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
+    "TargetFilter": "",
     "Polarity": 1.0,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
@@ -869,7 +888,7 @@
       0.0,
       0.0,
       0.0,
-      3.0,
+      2.0,
       0.0
     ]
   },
@@ -950,44 +969,6 @@
     ]
   },
   {
-    "ID": "da6dbd24",
-    "EnumName": "微缩",
-    "DisplayName": "获得微缩：使用此卡时，将一张同效果、1/1、费用1灰的临时卡加入手牌（回合结束移除）",
-    "EffectType": "GrantMiniature",
-    "TargetKinds": "己方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "关键词",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      3.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "b465e749",
-    "EnumName": "放大",
-    "DisplayName": "获得放大：使用此卡时，将一张同效果、10/10、费用10灰的临时卡加入手牌（回合结束移除）",
-    "EffectType": "GrantMagnify",
-    "TargetKinds": "己方单位",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "关键词",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      3.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
     "ID": "6a486d99",
     "EnumName": "禁魔石",
     "DisplayName": "获得禁魔石：受到的非战斗伤害变为0",
@@ -1026,11 +1007,30 @@
     ]
   },
   {
+    "ID": "20c06d52",
+    "EnumName": "剧毒",
+    "DisplayName": "获得剧毒：受到其战斗伤害的生物被消灭",
+    "EffectType": "GrantVenom",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      3.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
     "ID": "94f6a32d",
     "EnumName": "复生",
     "DisplayName": "对{target}附加{value}层复生指示物【可叠加】，每层在死亡结算时以1生命留场复活一次（不进墓地）",
     "EffectType": "GrantReborn",
-    "TargetKinds": "自己",
+    "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
     "MountKinds": "指示物",
@@ -1049,7 +1049,7 @@
     "EnumName": "圣盾",
     "DisplayName": "对{target}附加{value}层圣盾指示物【可叠加】，抵挡一次任意伤害（伤害变为0）后消耗一层",
     "EffectType": "GrantDivineShield",
-    "TargetKinds": "自己",
+    "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
     "MountKinds": "指示物",
@@ -1068,7 +1068,7 @@
     "EnumName": "潜行",
     "DisplayName": "对{target}附加{value}层潜行指示物【可叠加】，持有期间不可被攻击和效果指定，攻击、发动效果或受到伤害后消耗1层",
     "EffectType": "GrantStealth",
-    "TargetKinds": "自己",
+    "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
     "MountKinds": "指示物",
@@ -1277,7 +1277,7 @@
     "EnumName": "坚韧",
     "DisplayName": "对{target}附加{value}层坚韧指示物【可叠加】，每次受到伤害每层使伤害减1，生效后层数减半（向下取整）",
     "EffectType": "GrantToughness",
-    "TargetKinds": "自己",
+    "TargetKinds": "己方单位,对方单位",
     "TargetFilter": null,
     "Polarity": 1.0,
     "MountKinds": "指示物",
@@ -1292,31 +1292,12 @@
     ]
   },
   {
-    "ID": "20c06d52",
-    "EnumName": "剧毒",
-    "DisplayName": "获得剧毒：受到其战斗伤害的生物被消灭",
-    "EffectType": "GrantVenom",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "关键词",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      3.0
-    ]
-  },
-  {
     "ID": "ff8922af",
     "EnumName": "护甲",
     "DisplayName": "为{target}添加护甲指示物，受到伤害时每吸收一点伤害消耗一层护甲",
     "EffectType": "AddArmor",
-    "TargetKinds": "自己",
-    "TargetFilter": null,
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "",
     "Polarity": 1.0,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
@@ -1334,8 +1315,8 @@
     "EnumName": "毒素",
     "DisplayName": "对{target}附加{value}层毒素指示物，每回合结束受到等于层数的伤害，生效后层数减半（向下取整）",
     "EffectType": "AddToxin",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "",
     "Polarity": -1.0,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
@@ -1353,8 +1334,8 @@
     "EnumName": "沉默",
     "DisplayName": "对{target}附加沉默指示物（不可发动主动效果）",
     "EffectType": "Silence",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
+    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位,己方元素池,对方元素池",
+    "TargetFilter": "",
     "Polarity": -1.0,
     "MountKinds": "指示物",
     "Tags": "换区清除型",
@@ -1372,9 +1353,9 @@
     "EnumName": "迟钝",
     "DisplayName": "对{target}附加迟钝指示物（自动触发的能力无法响应发动）",
     "EffectType": "AddNullify",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 0.0,
+    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位,己方元素池,对方元素池",
+    "TargetFilter": "",
+    "Polarity": -1.0,
     "MountKinds": "指示物",
     "Tags": "换区清除型",
     "ManaList": [
@@ -1391,7 +1372,7 @@
     "EnumName": "冻结",
     "DisplayName": "冻结{target}：横置并放置一层冻结指示物，持有者回合末自动解除一层冻结",
     "EffectType": "Freeze",
-    "TargetKinds": "自己",
+    "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
     "MountKinds": "指示物",
@@ -1410,8 +1391,8 @@
     "EnumName": "紊乱",
     "DisplayName": "对{target}附加{value}层紊乱指示物，期间不能以玩家为目标，持有者回合末自动解除一层紊乱",
     "EffectType": "RushSickness",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "",
     "Polarity": -1.0,
     "MountKinds": "指示物",
     "Tags": "衰退型",
@@ -1429,8 +1410,8 @@
     "EnumName": "易损",
     "DisplayName": "对{target}附加{value}层易损指示物【可叠加】，每次受到伤害每层使受到的伤害加1，生效后层数减半（向下取整）",
     "EffectType": "AddVulnerable",
-    "TargetKinds": "自己",
-    "TargetFilter": null,
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": "",
     "Polarity": -1.0,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
@@ -1467,8 +1448,8 @@
     "EnumName": "重放",
     "DisplayName": "对{target}附加{value}层重放指示物【可叠加】，该单位效果发动结算后自动消耗一层并再次发动一次（重放不触发重放）",
     "EffectType": "GrantReplay",
-    "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole",
+    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
+    "TargetFilter": "",
     "Polarity": 1.0,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
@@ -1482,11 +1463,30 @@
     ]
   },
   {
+    "ID": "1d974eda",
+    "EnumName": "遗忘",
+    "DisplayName": "对{target}附加{value}层遗忘指示物【可叠加】，持有者回合结束时该卡不在战场则从游戏中移除，在战场则衰退一层",
+    "EffectType": "GrantTemporary",
+    "TargetKinds": "己方手牌,对方手牌,己方牌库,对方牌库,己方墓地,对方墓地,己方除外区,对方除外区",
+    "TargetFilter": "",
+    "Polarity": -1.0,
+    "MountKinds": "指示物",
+    "Tags": "衰退型",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0
+    ]
+  },
+  {
     "ID": "a62b2df1",
     "EnumName": "沉睡",
     "DisplayName": "赋予{target}一层沉睡，沉睡期间无法重置，不能发动启动式和触发式效果，持有者回合末自动解除一层沉睡",
     "EffectType": "Sleep",
-    "TargetKinds": "自己",
+    "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
     "Polarity": -1.0,
     "MountKinds": "指示物",

@@ -14,6 +14,9 @@ namespace CardCore.Attribute.Handlers
     ///   随之内生化退役——计价=模板费×数量，不再外乘分档系数）；
     /// - 模板解析经静态委托 ResolveTemplate（组合根注入 CardCatalog.GetById，
     ///   仿 MorphSystem.ResolveMorphTarget；未注入时复用变形解析器——同为模板ID→CardData）。
+    /// - 生成后完全按生物规则（2026-10-10 定案）：横置入场/回合重置/攻守能力/触发式/被指/苏生资格
+    ///   全同普通生物（苏生闸=生物类型——正式召唤登记已随游戏王额外区移除同日拆除，死因不再区分）；
+    ///   唯一保留差异=不作地牌（CanServeAsLand 拒绝 IsToken——2026-10-03 反白嫖定案，弹回手牌也不可入元素池）。
     ///
     /// 落战场的进场事件（Source=TokenSpawned）与触发式注册由 TryAddToBattlefield 统一出口承担；
     /// 入手走区域容器（禁止 Player.AddToHand 旧列表），非抽牌入手（IsDraw=false）喂 NonDrawDrawAccum。

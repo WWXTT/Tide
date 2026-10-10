@@ -53,10 +53,8 @@ namespace SynergyUI
             var sb = new StringBuilder();
             sb.Append("NM:").Append(card.CardName ?? "").Append('|');
             sb.Append("ST:").Append((int)card.Supertype).Append('|');
-            sb.Append("SUB:").Append((int)card.Subtype).Append('|');
             sb.Append("P:").Append(card.Power ?? 0).Append('|');
             sb.Append("L:").Append(card.Life ?? 0).Append('|');
-            sb.Append("LV:").Append(card.Level ?? -1).Append('|');
             sb.Append("AR:").Append((int)card.ArrowDirections).Append('|');
 
             sb.Append("KW:");

@@ -178,9 +178,8 @@ namespace CardCore
             EventManager.Instance.Subscribe<TurnEndEvent>(OnTurnEnded);
             EventManager.Instance.Subscribe<PhaseEndEvent>(OnPhaseEnded);
 
-            // 微缩/放大——临时复制卡（2026-09-11；回响 2026-10-07 改普通效果 EchoCopy 退出订阅）：
-            // 使用卡宣言时点发复制（静态无状态，跨局无残留）
-            EventManager.Instance.Subscribe<CardPlayEvent>(Attribute.TempCopyRules.OnCardPlayed);
+            // 临时复制卡订阅已删（2026-10-10 微缩/放大退役）：回响走 EchoCopyHandler 结算期
+            // 直调 TempCopyRules.CreateTemporaryCopy，无事件订阅；回合末移除仍由 OnTurnEnded 承担。
 
             // 资源台账（P0c）：必须在 TurnStart/TurnEnd 订阅之后创建，
             // 保证开行时读到的回合数/地牌槽上限已是本回合新值、封行前已收到全部产出事件
@@ -241,9 +240,9 @@ namespace CardCore
                     Attribute.KeywordRules.ClearZoneKeywords(c);
             }
 
-            // 临时卡移除（2026-09-11 时序定案）：先移除微缩/放大/回响的临时卡，再做手牌上限弃牌——
-            // 8 张手牌含 2 临时 → 移除后 6 张，不触发上限弃牌
-            Attribute.TempCopyRules.PurgeTemporaryHandCards(e.TurnPlayer, ZoneManager);
+            // 临时卡（2026-10-10 指示物化）：PurgeTemporaryHandCards 退役——回合末口统一为
+            // CounterRules.OnTurnEnd ②临时例程（全区域扫描，见上方调用）——不在战场的挂标卡
+            // 从游戏中移除；「先移除临时卡、再看手牌上限弃牌」时序不变（例程已先行）
 
             // 手牌上限：超出部分由玩家选弃（AI/超时自动弃先头）
             EnforceHandLimitAsync(e.TurnPlayer).Forget();
@@ -320,9 +319,10 @@ namespace CardCore
             if (player == null)
                 return;
 
-            // 英雄技能一回合一次闸门（2026-09-13；2026-09-21 永续魔法化）：
-            // 权威闸门=技能卡横置态——回合开始重置（与地牌/随从同规则）；引用丢失时 lazy 回填
-            HeroSkillSystem.ResolveSkillCard(this, player)?.Untap();
+            // 英雄技能耐久回充（2026-10-10 耐久池定案）：技能=单主动结界的耐久池——
+            // 发动 −1+元素费现付、归零休眠不销毁、回合开始 +1（封顶初始耐久，RechargeSkill）；
+            // 旧「横置一回合一次闸门（Untap 重置）」随结界全区域耐久经济退役；引用丢失时 lazy 回填。
+            HeroSkillSystem.RechargeSkill(this, player);
 
             // 规则扩展点（OCP）：回合开始自动化拦截（ITurnStartInterceptor 声明跳过准备阶段——
             // 抽牌、地牌槽（元素浓度上限）推进、横置重置、场上卡准备阶段结算全跳；

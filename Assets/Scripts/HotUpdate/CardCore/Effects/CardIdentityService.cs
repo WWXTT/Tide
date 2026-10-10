@@ -303,8 +303,7 @@ namespace CardCore
         public static string ContentId(CardData card)
         {
             var sb = new StringBuilder();
-            sb.Append(card.Supertype).Append('|').Append((int)card.Subtype).Append('|')
-              .Append(card.Level ?? -1).Append('|').Append((int)card.ArrowDirections).Append('\n');
+            sb.Append(card.Supertype).Append('|').Append((int)card.ArrowDirections).Append('\n');
             sb.Append("P").Append(card.Power ?? int.MinValue).Append('|')
               .Append(card.Life ?? int.MinValue).Append('\n');
             if (card.Cost != null && !card.Cost.IsZero)

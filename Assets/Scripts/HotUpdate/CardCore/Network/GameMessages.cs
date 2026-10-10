@@ -98,6 +98,12 @@ namespace CardCore.Network
 
         [MemoryPackOrder(TagTable.PS_ExileCount)]
         public int ExileCount;
+
+        /// <summary>角色指示物（2026-10-10 角色参战遗留收口）：角色攻击弹药等 Player 层指示物——
+        /// 卡上指示物走卡快照 Counters，此处补角色层（客户端无引擎不回灌，仅供视图模型）。
+        /// 键排序后序列化（字节稳定，同卡侧 ToSortedCardState 口径）。</summary>
+        [MemoryPackOrder(TagTable.PS_Counters)]
+        public CounterEntryDTO[] Counters;
     }
 
     /// <summary>栈条目：栈上是 EffectInstance（源卡+目标+modeIndex），不是效果定义。

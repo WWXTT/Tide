@@ -26,12 +26,15 @@ namespace SynergyUI
     {
         protected override string PrefabName => "CardUI";
         protected override string RootName => "card-composer";
-        // 业务类型（UI 维度，非裸 Cardtype）：法术分为瞬间（常规魔法）与结界（耐久体）。
+        // 业务类型（UI 维度，非裸 Cardtype）：生物 / 法术（一次性单发）/ 结界（耐久体）。
+        // 术语（2026-10-10 发数经济定案收口）：原「瞬间」改口「法术」——速度档是效果自带参数，
+        // 卡型不发速度补贴（2026-10-10 可支配底盘：法术 SpeedBonus 提速份额/结界 SurplusToDurability
+        // 由数据层承载，本屏控件后补——UI 侧用户自理）。
         private enum CardKind { Creature, Spell, Enchantment }
 
         private static readonly (CardKind kind, string name)[] KindNames =
         {
-            (CardKind.Creature, "生物"), (CardKind.Spell, "瞬间"), (CardKind.Enchantment, "结界"),
+            (CardKind.Creature, "生物"), (CardKind.Spell, "法术"), (CardKind.Enchantment, "结界"),
         };
 
         private readonly CardData _card = new CardData
@@ -309,8 +312,6 @@ namespace SynergyUI
             _card.Supertype = src.Supertype;
             _card.Power = src.Power;
             _card.Life = src.Life;
-            _card.Level = src.Level;
-            _card.Subtype = src.Subtype;
             _card.Durability = src.Durability;
             _card.Keywords = src.Keywords != null ? new List<string>(src.Keywords) : new List<string>();
             _card.Tags = src.Tags != null ? new List<string>(src.Tags) : new List<string>();
@@ -321,7 +322,8 @@ namespace SynergyUI
             _card.LinkAuras = src.LinkAuras != null ? new List<LinkAuraData>(src.LinkAuras) : null;
             _card.NoAttack = src.NoAttack;
             _card.NoGuard = src.NoGuard;
-            _card.SurplusToSpeed = src.SurplusToSpeed;
+            _card.SpeedBonus = src.SpeedBonus;
+            _card.SurplusToDurability = src.SurplusToDurability;
             _card.ResetCache();
             _card.AggregateEffectAuras(true);
             _editingOriginalId = src.ID;
@@ -340,8 +342,6 @@ namespace SynergyUI
             _card.Supertype = Cardtype.Creature;
             _card.Power = 0;
             _card.Life = 0;
-            _card.Level = null;
-            _card.Subtype = CardSubtype.None;
             _card.Durability = 0;
             _card.Keywords = new List<string>();
             _card.Tags = new List<string>();
@@ -350,7 +350,8 @@ namespace SynergyUI
             _card.PayloadCost = null;
             _card.ArrowDirections = default;
             _card.LinkAuras = null;
-            _card.NoAttack = _card.NoGuard = _card.SurplusToSpeed = false;
+            _card.NoAttack = _card.NoGuard = _card.SurplusToDurability = false;
+            _card.SpeedBonus = 0;
             _card.ResetCache();
             _editingOriginalId = null;
             _kind = CardKind.Creature;
@@ -393,12 +394,9 @@ namespace SynergyUI
         }
 
         // ---------- 业务类型 → 后端字段 ----------
-        // 设置 Supertype + Subtype；清掉与新类型无关的额外字段（保持模型干净）。
+        // 设置 Supertype；清掉与新类型无关的额外字段（保持模型干净）。
         private void ApplyKindToCard()
         {
-            _card.Subtype = CardSubtype.None;
-            _card.Level = null;
-
             switch (_kind)
             {
                 case CardKind.Creature:
@@ -420,7 +418,6 @@ namespace SynergyUI
         }
 
         private bool HasStats => _kind == CardKind.Creature;
-        private bool HasLevel => _kind == CardKind.Creature;
         private bool HasDurability => _kind == CardKind.Enchantment;
 
         // ---------- 动态表单（按类型切换字段） ----------
@@ -435,10 +432,6 @@ namespace SynergyUI
                 MakeLabeledInt(statRow, "攻击", _card.Power ?? 0, v => { _card.Power = v; Recalculate(); });
                 MakeLabeledInt(statRow, "生命", _card.Life ?? 0, v => { _card.Life = v; Recalculate(); });
             }
-
-            // 等级
-            if (HasLevel)
-                MakeLabeledInt(_dynamicForm, "等级", _card.Level ?? 1, v => _card.Level = v);
 
             // 耐久（结界专属，2026-09-24 定案：类似生物生命、被攻击每次仅损失 1 点）
             if (HasDurability)
@@ -818,6 +811,18 @@ namespace SynergyUI
         {
             ApplyTextLists();
             EnsureCardLists();
+
+            // 法术形态拦截（2026-10-10 三类卡=发数经济定案）：法术=单个施放效果（一次性单发）；
+            // 启动式依赖战场源卡，法术结算即离场——挂了永无发动口。装载侧同口（CardLoader.ValidateSpellShape）。
+            if (_kind == CardKind.Spell)
+            {
+                int count = _card.Effects?.Count ?? 0;
+                if (count > 1)
+                {
+                    ShowToast($"法术只能挂 1 个效果（现 {count} 个——整卡一次性单发）");
+                    return;
+                }
+            }
 
             var newId = "C_" + ContentHasher.HashCard(_card);
             bool replacing = !string.IsNullOrEmpty(_editingOriginalId) && _editingOriginalId != newId;

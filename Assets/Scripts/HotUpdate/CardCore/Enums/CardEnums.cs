@@ -57,53 +57,6 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 卡牌子类型（种族/职业/怪兽种类）
-    /// 使用 Flags 支持多子类型组合
-    /// </summary>
-    [Flags]
-    public enum CardSubtype
-    {
-        None = 0,
-
-        // ===== 通用种族（跨游戏） =====
-        Beast = 1 << 0,      // 野兽
-        Dragon = 1 << 1,     // 龙
-        Warrior = 1 << 2,    // 战士
-        Mage = 1 << 3,       // 法师
-        Demon = 1 << 4,      // 恶魔
-        Undead = 1 << 5,     // 亡灵
-        Elf = 1 << 6,        // 精灵
-        Human = 1 << 7,      // 人类
-        Mech = 1 << 8,       // 机械
-        Elemental = 1 << 9,  // 元素
-        Beastman = 1 << 10,  // 兽人
-        Insect = 1 << 11,    // 昆虫
-        Plant = 1 << 12,     // 植物
-        Fish = 1 << 13,      // 鱼
-        Bird = 1 << 14,      // 鸟
-        Giant = 1 << 15,     // 巨人
-
-        // ===== YGO 特有子类型 =====
-        Toon = 1 << 26,      // 卡通
-        Spirit = 1 << 27,    // 灵魂
-        Gemini = 1 << 28,    // 二重
-        Flip = 1 << 29,      // 反转
-        Union = 1 << 30,     // 联合
-        // 注意：1 << 31 会溢出为负数，需要小心
-
-        // ===== 魔法/陷阱子类型 =====
-        QuickPlay = 1 << 16,   // 速攻魔法
-        Continuous = 1 << 17,  // 永续
-        Equip = 1 << 18,       // 装备
-        Normal = 1 << 29,      // 通常
-        Counter = unchecked((int)0x80000000),  // 反制（使用最高位，long存储）
-
-        // ===== 常用组合 =====
-        AllCreatureTypes = Beast | Dragon | Warrior | Mage | Demon | Undead | Elf | Human | Mech | Elemental,
-    }
-
-
-    /// <summary>
     /// 来源游戏
     /// </summary>
     public enum SourceGame

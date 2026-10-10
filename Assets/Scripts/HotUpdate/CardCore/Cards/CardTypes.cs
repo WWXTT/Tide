@@ -134,15 +134,6 @@ namespace CardCore
     // ============================================ 扩展卡牌属性接口（三游戏统一） ============================================
 
     /// <summary>
-    /// 具有子类型的接口（种族/职业）
-    /// </summary>
-    public interface IHasSubtypes
-    {
-        CardSubtype Subtypes { get; }
-        bool HasSubtype(CardSubtype subtype) => (Subtypes & subtype) != 0;
-    }
-
-    /// <summary>
     /// 具有颜色认同的接口（MTG 颜色饼）
     /// </summary>
     public interface IHasColorIdentity

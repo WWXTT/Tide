@@ -46,6 +46,9 @@ namespace CardCore.AI.NeuralEnv
         public int TargetIndex;
         /// <summary>目标类别特征（动作特征 [7]）：0=无/区域自结算，1=卡目标，2=对方玩家，3=己方玩家。</summary>
         public int TargetKindCode;
+        /// <summary>攻击者=自己角色（2026-10-10 角色参战遗留收口）：Card 恒 null、SourceIndex 恒 -1，
+        /// Apply 分流 DeclareAttack(core, me, me, target)——弹药结算后引擎烧光。</summary>
+        public bool HeroAttacker;
         /// <summary>响应窗口动作（签名区分上下文：同一动作在 Main 与响应窗口不互相摘除）。</summary>
         public bool ResponseContext;
 
@@ -207,7 +210,9 @@ namespace CardCore.AI.NeuralEnv
                 case TideActionType.RespondActivate:
                     return ActivateWithTargets(core, me, a.Effect, a.Card, a.Targets);
                 case TideActionType.Attack:
-                    return GameActions.DeclareAttack(core, me, a.Card, a.Target);
+                    return a.HeroAttacker
+                        ? GameActions.DeclareAttack(core, me, me, a.Target) // 角色=攻击者（弹药即攻击力）
+                        : GameActions.DeclareAttack(core, me, a.Card, a.Target);
                 case TideActionType.EndTurn:
                     return GameActions.EndTurn(core, me);
                 case TideActionType.HeroSkill:
@@ -321,8 +326,9 @@ namespace CardCore.AI.NeuralEnv
 
         private void EnumeratePlayLand(GameCore core, Player me, ZoneManager zm)
         {
+            // 2026-10-10 共享地牌槽：占用=双方地牌合计（与 AddCardToPool 权威校验同口径）
             int cap = core.ElementPool.GetLandCap(me);
-            if (core.ElementPool.GetPooledCards(me).Count >= cap) return;
+            if (core.ElementPool.GetTotalPooledCount() >= cap) return;
             var hand = zm.GetCards(me, Zone.Hand);
             for (int i = 0; i < hand.Count; i++)
             {
@@ -430,6 +436,41 @@ namespace CardCore.AI.NeuralEnv
                         Card = atk,
                         Target = opp, // 对方玩家（无卡槽 → TargetIndex = -1）
                         SourceIndex = TideObservation.CardIndex(me, me, Zone.Battlefield, i),
+                        TargetIndex = -1,
+                        TargetKindCode = 2,
+                    });
+                }
+            }
+
+            // 角色攻击行（2026-10-10 角色参战遗留收口）：弹药=HeroAttackCounter 层数（CanDeclareAttack
+            // 的 GetPower 分支同门），无卡槽 → Card=null/SourceIndex=-1；Apply 按 HeroAttacker 分流。
+            if (core.CombatSystem.CanDeclareAttack(me, me))
+            {
+                for (int j = 0; j < oppBf.Count; j++)
+                {
+                    var t = oppBf[j];
+                    if (!core.CombatSystem.CanAttackTarget(me, t, me)) continue;
+                    Actions.Add(new TideAction
+                    {
+                        Type = TideActionType.Attack,
+                        Card = null,
+                        HeroAttacker = true,
+                        Target = t,
+                        SourceIndex = -1,
+                        TargetIndex = TideObservation.CardIndex(me, opp, Zone.Battlefield, j),
+                        TargetKindCode = 1,
+                    });
+                }
+
+                if (core.CombatSystem.CanAttackTarget(me, opp, me))
+                {
+                    Actions.Add(new TideAction
+                    {
+                        Type = TideActionType.Attack,
+                        Card = null,
+                        HeroAttacker = true,
+                        Target = opp,
+                        SourceIndex = -1,
                         TargetIndex = -1,
                         TargetKindCode = 2,
                     });

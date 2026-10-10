@@ -764,8 +764,6 @@ namespace CardCore
                     return CharacteristicDefiningType.DefinesColor;
                 case CharacteristicType.Supertype:
                     return CharacteristicDefiningType.DefinesType;
-                case CharacteristicType.Subtype:
-                    return CharacteristicDefiningType.DefinesSubtype;
                 case CharacteristicType.Power:
                 case CharacteristicType.Toughness:
                     return CharacteristicDefiningType.DefinesStats;
@@ -780,7 +778,6 @@ namespace CardCore
             {
                 case CharacteristicDefiningType.DefinesColor: return CharacteristicType.Color;
                 case CharacteristicDefiningType.DefinesType: return CharacteristicType.Supertype;
-                case CharacteristicDefiningType.DefinesSubtype: return CharacteristicType.Subtype;
                 default: return CharacteristicType.Power;
             }
         }
@@ -844,8 +841,7 @@ namespace CardCore
                 case CharacteristicType.Toughness: type = StateChangeType.Toughness; return true;
                 case CharacteristicType.Color: type = StateChangeType.Color; return true;
                 case CharacteristicType.Text: type = StateChangeType.Text; return true;
-                case CharacteristicType.Supertype:
-                case CharacteristicType.Subtype: type = StateChangeType.Type; return true;
+                case CharacteristicType.Supertype: type = StateChangeType.Type; return true;
                 default: type = StateChangeType.Power; return false; // Cost 等无对应事件类型
             }
         }

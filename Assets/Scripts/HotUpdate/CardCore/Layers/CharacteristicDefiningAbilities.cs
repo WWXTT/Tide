@@ -273,7 +273,6 @@ namespace CardCore
             {
                 case CharacteristicDefiningType.DefinesColor: return StateChangeType.Color;
                 case CharacteristicDefiningType.DefinesType: return StateChangeType.Type;
-                case CharacteristicDefiningType.DefinesSubtype: return StateChangeType.Type;
                 case CharacteristicDefiningType.DefinesStats: return StateChangeType.Power;
                 default: return StateChangeType.Power;
             }

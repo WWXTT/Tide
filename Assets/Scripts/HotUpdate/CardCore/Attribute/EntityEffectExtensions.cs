@@ -594,9 +594,8 @@ namespace CardCore
         /// CardPipelineVerifier 激励再攻锚消费此计数；己方回合开始清零）</summary>
         public int AttacksThisTurn { get; set; } = 0;
 
-        /// <summary>临时卡标记（2026-09-11 微缩/放大/回响定案）：复制生成的临时卡回合结束时从手牌移除、
-        /// 不可作地牌（CanServeAsLand 守卫）、自身不再触发微缩/放大（防自复制链；回响连锁除外——复制自带回响是设计）。</summary>
-        public bool IsTemporary { get; set; } = false;
+        // IsTemporary 已删（2026-10-10 回响临时指示物化）：临时卡=持 1 层 CounterRules.TempCounter
+        //（临时指示物）——回合末例程/地牌资格守卫一律读指示物（GetCounterCount(TempCounter) > 0）。
 
         /// <summary>衍生物标记（2026-10-03 地牌资格定案）：SummonToken 生成的实例不作地牌
         ///（CanServeAsLand 拒绝——衍生物=真实生物卡实例，CardWrapper 判定拦不住，需显式标记）。
@@ -607,13 +606,6 @@ namespace CardCore
         /// 施放费用的灰色份额全免（转入场沉睡层数，GameActions.GetCardCost 闸门）；
         /// 未发动=照常全价。修复旧「使用时生效」死循环（付不起→用不出→无减免）。</summary>
         public bool AwakenCommitted { get; set; } = false;
-
-        /// <summary>
-        /// 召唤来源标记：是否经「正式召唤」入场（打出 / 效果召唤 / 复活）。
-        /// 仅正式召唤过的随从死亡后才可被 ReturnFromGraveyard 复活；
-        /// 被弃牌 / 送墓（本组）等「非正式入墓」的随从该标记为 false，不可复活。
-        /// </summary>
-        public bool WasFormallySummoned { get; set; } = false;
 
         // ===== 地牌状态（状态跟随卡：指示物余量记在卡上，回手再入池保留剩余）=====
 

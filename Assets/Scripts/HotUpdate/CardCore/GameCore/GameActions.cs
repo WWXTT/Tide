@@ -15,7 +15,8 @@ namespace CardCore
 
         /// <summary>
         /// 主阶段：将手牌以可用（未横置）状态作为地牌放入元素池。
-        /// 不限张数/次数，张数由地牌槽上限约束（min(全局回合数, 9)）；
+        /// 不限张数/次数；地牌槽上限为全场公用计数器（2026-10-10 共享定案，min(全局回合数, 9)）——
+        /// 双方场上地牌合计超限即拒；
         /// 本回合即可手动横置产出。
         /// 抉择卡（2026-09-21 定案）：modeIndex 玩家自选（与出牌同口径），指示物按所选模式生成。
         /// </summary>
@@ -574,10 +575,7 @@ namespace CardCore
         private static void ResolvePermanentEntry(GameCore core, Player player, Card card)
         {
             // 发动通过 → 入场（声明期预检已过；满则入墓的兜底在 helper 内）
-            if (core.ZoneManager.TryMoveToBattlefield(card, player, Zone.Activation))
-            {
-                card.WasFormallySummoned = true; // 普通召唤正式入场
-            }
+            core.ZoneManager.TryMoveToBattlefield(card, player, Zone.Activation);
         }
 
         /// <summary>
@@ -1045,10 +1043,11 @@ namespace CardCore
 
         /// <summary>
         /// 速度发动：玩家主动发动一个效果。
-        /// 启动式能力的发动代价（2026-09-08 定案）：只有启动式（Activate_*）= 横置源卡 + 现付元素锚价 +
-        /// 选定目标（元素费经 ElementCostPrepaid=false 由执行器结算路径扣除；CanActivate 预检可付性）；
-        /// 只能在自己的主要阶段以速度1使用（记速器须低于1，即栈空）。触发式效果不走本入口的横置与付费。
-        /// 横置为固定代价（警戒不抵扣——2026-09-10 重定义为「横置也能反击」）；预检在 EffectExecutionEngine.CanActivate。
+        /// 启动式能力的发动代价（2026-09-08 定案；2026-10-10 发数经济改版）：只有启动式（Activate_*）=
+        /// 发动代价 + 现付元素锚价 + 选定目标（元素费经 ElementCostPrepaid=false 由执行器结算路径扣除；
+        /// CanActivate 预检可付性）；只能在自己的主要阶段以速度1使用（记速器须低于1，即栈空）。
+        /// 触发式效果不走本入口的代价与付费。发动代价按宿主分域（耐久即次数池定案）：
+        /// 结界（战场/技能栏）= 耐久−1（无横置，一回合可连发）；生物 = 横置（恒横置，警戒不抵扣）。
         /// </summary>
         public static bool ActivateEffect(GameCore core, Player player, EffectDefinition effect, Card source, int paidBoost = 0)
         {
@@ -1056,12 +1055,21 @@ namespace CardCore
             if (core.TurnEngine.TurnPlayer != player) return false;
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
 
-            // 横置代价权威校验（仅启动式）：战场/技能栏（FieldZone）的源卡已横置 → 不可发动
-            //（手牌/墓地施放不适用；FieldZone=英雄技能卡 2026-10-07 卡牌化——横置=一回合一次闸门）
-            if (effect.IsActivatedEffect && source != null && source.IsTapped()
+            // 发动代价预检（仅启动式；战场/技能栏源卡，手牌/墓地施放不适用）：
+            // 结界=耐久>0（2026-10-10 耐久即次数池定案——主动发动=耐久−1+元素费现付，
+            // 无横置闸，一回合可连发、耐久自限）；其余（生物）=未横置（横置=一回合一次闸门）。
+            if (effect.IsActivatedEffect && source != null
                 && (core.ZoneManager.IsCardInZone(source, source.GetController(), Zone.Battlefield)
                     || core.ZoneManager.IsCardInZone(source, source.GetController(), Zone.FieldZone)))
-                return false;
+            {
+                if (Attribute.CounterRules.UsesDurabilityEconomy(source))
+                {
+                    if (source.GetCounterCount(Attribute.CounterRules.DurabilityCounter) <= 0)
+                        return false; // 耐久空=不可发动（战场=将销毁、技能栏=休眠）
+                }
+                else if (source.IsTapped())
+                    return false;
+            }
 
             var pending = PendingEffect.Create(
                 effect,
@@ -1073,9 +1081,15 @@ namespace CardCore
 
             var activated = core.StackEngine.PlayerActivateVoluntary(pending);
 
-            // 发动成功 → 消耗横置（仅启动式；固定代价，不发不扣）
-            if (activated && effect.IsActivatedEffect && source != null && Attribute.KeywordRules.ShouldTap(source))
-                source.Tap();
+            // 发动成功 → 消耗发动代价（仅启动式；固定代价，不发不扣）：结界=耐久−1
+            //（归零分域在 LoseDurability：战场销毁入墓/技能栏休眠）；其余=横置（恒横置，警戒不抵扣）。
+            if (activated && effect.IsActivatedEffect && source != null)
+            {
+                if (Attribute.CounterRules.UsesDurabilityEconomy(source))
+                    Attribute.CounterRules.LoseDurability(core, source, 1, "主动发动（耐久即次数池）");
+                else if (Attribute.KeywordRules.ShouldTap(source))
+                    source.Tap();
+            }
 
             return activated;
         }
@@ -1309,11 +1323,12 @@ namespace CardCore
             {
                 var cardData = wrapper.GetData();
                 var defs = CardEffectConverter.ConvertAll(cardData.Effects, cardData.ID);
-                // 瞬间富余转速度（2026-09-10 攻/守效果化）：无攻守法术的底盘盈余 2 灰构筑时
-                // 自由分配——SurplusToSpeed=true → 全部效果 BaseSpeed+1（计价侧不退费，见 ChassisAdjust）
-                if (cardData.SurplusToSpeed && cardData.Supertype == Cardtype.Spell)
+                // 法术底盘剩余 → 提速（2026-10-10 可支配底盘定案）：SpeedBonus 卡级附加速度增量，
+                // 与全部效果 BaseSpeed **加和**（构筑期 k 点提速=放弃 k 点抵价，计价侧不收这笔钱）；
+                // 仅法术可 >0——生物速度只由效果组合阶段 BaseSpeed 决定（无提速通道）。
+                if (cardData.Supertype == Cardtype.Spell && cardData.SpeedBonus != 0)
                     foreach (var def in defs)
-                        if (def != null) def.BaseSpeed += 1;
+                        if (def != null) def.BaseSpeed += cardData.SpeedBonus;
                 return defs;
             }
             return new List<EffectDefinition>();

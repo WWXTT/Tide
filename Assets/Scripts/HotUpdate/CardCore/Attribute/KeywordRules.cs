@@ -89,10 +89,7 @@ namespace CardCore.Attribute
         // 法术护盾关键词 id "SpellShield" 已删（2026-10-09 指示物化）：改走 CounterRules.SpellShieldCounter
         //（GrantSpellShieldHandler 挂层；ConsumeSpellShields 每层抵消一次对手效果，消耗 1 层）
         public const string Untargetable = "Untargetable";
-        /// <summary>微缩（2026-09-11）：使用卡时获得同效果 1/1 费1灰临时卡。行为见 TempCopyRules。</summary>
-        public const string Miniature = "Miniature";
-        /// <summary>放大：同微缩，临时卡 10/10 费10灰。</summary>
-        public const string Magnify = "Magnify";
+        // 微缩/放大关键词 id 已删（2026-10-10 照抄炉石机制退役）：临时复制卡族仅余回响（普通效果 EchoCopy）
         // 回响关键词常量已删（2026-10-07 改普通效果 EchoCopy——宣言时点分支随之退役）
         /// <summary>守护（2026-10-08 配对制改版）：登场选目标，其受伤改写为守护者承受（GuardianRules 配对表；无限次直到守护者离场）。</summary>
         public const string Guardian = "Guardian";

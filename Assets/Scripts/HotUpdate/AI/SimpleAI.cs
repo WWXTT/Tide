@@ -78,7 +78,6 @@ namespace SynergyUI
             AtomicEffectType.AdditionalEnergy,
             AtomicEffectType.GrantReborn, AtomicEffectType.GrantIndestructible,
             AtomicEffectType.GrantLifelink,
-            AtomicEffectType.GrantMiniature, AtomicEffectType.GrantMagnify,
             AtomicEffectType.DiscoverCard, AtomicEffectType.GrantGuardian,
             // 展开族
             AtomicEffectType.TakeExtraTurn,
@@ -164,7 +163,8 @@ namespace SynergyUI
             int cap = core.ElementPool.GetLandCap(me);
             foreach (var card in unaffordable)
             {
-                if (core.ElementPool.GetPooledCards(me).Count >= cap) break;
+                // 2026-10-10 共享地牌槽：占用=双方地牌合计（对手占满同样拦我拍地）
+                if (core.ElementPool.GetTotalPooledCount() >= cap) break;
                 GameActions.AddToElementPool(core, me, card);
             }
         }
@@ -534,6 +534,41 @@ namespace SynergyUI
                 if (!GameActions.DeclareAttack(core, me, unit, target)) continue;
                 await GameActions.SettleResponseWindowAsync(core); // 窗口+结算（含级联触发/SBA 轮）
             }
+
+            // 角色攻击（2026-10-10 角色参战遗留收口）：弹药>0 即宣言——攻击力=HeroAttackCounter 层数，
+            // 结算后引擎烧光弹药（CombatSystem）；目标走角色专用启发式（PickAttackTarget 收 Card 不通用）。
+            if (!core.IsGameOver && core.CombatSystem.CanDeclareAttack(me, me))
+            {
+                var heroTarget = PickHeroAttackTarget(core, me, opp);
+                if (heroTarget != null && GameActions.DeclareAttack(core, me, me, heroTarget))
+                    await GameActions.SettleResponseWindowAsync(core);
+            }
+        }
+
+        /// <summary>角色攻击目标（镜像 PickAttackTarget 清场口径，弹药一次烧光的简化版）：
+        /// 致死打脸 ＞ 弹药打得死的最高威胁随从（打不死不白送）＞ 打脸兜底。</summary>
+        private Entity PickHeroAttackTarget(GameCore core, Player me, Player opp)
+        {
+            var combat = core.CombatSystem;
+            int power = me.GetPower(); // Player 分支=弹药层数钳非负
+            if (power >= opp.Life && combat.CanAttackTarget(me, opp, me)) return opp;
+
+            var oppField = core.ZoneManager.GetCards(opp, Zone.Battlefield) ?? new List<Card>();
+            Card pick = null;
+            int pickThreat = int.MinValue;
+            foreach (var enemy in oppField)
+            {
+                if (!enemy.IsAlive || !combat.CanAttackTarget(me, enemy, me)) continue;
+                if (power < enemy.GetLife()) continue; // 打不死——不白送弹药，交还打脸
+                int threat = core.LayerEngine.CalculatePower(enemy);
+                if (pick == null || threat > pickThreat)
+                {
+                    pick = enemy;
+                    pickThreat = threat;
+                }
+            }
+            if (pick != null) return pick;
+            return combat.CanAttackTarget(me, opp, me) ? (Entity)opp : null;
         }
 
         // 攻击目标决策已上移 AiStrategy.PickAttackTarget（2026-09-21 策略模式；

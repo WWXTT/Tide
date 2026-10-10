@@ -60,15 +60,23 @@ namespace CardCore
             PhaseType currentPhase,
             int turnNumber)
         {
-            // 0. 横置代价预检（2026-09-08 定案）：只有启动式能力（Activate_*）以横置为发动代价
-            //    （与攻击同价的固定代价，发动成功时经 KeywordRules.ShouldTap 统一支付——恒横置，警戒不抵扣）；
-            //    触发式（登场/死亡/离场/受攻击等）发动不横置，已横置的源也不受阻。
-            //    战场与技能栏（FieldZone 英雄技能卡，2026-10-07 卡牌化）同受横置闸门。
+            // 0. 发动代价预检（仅启动式）：按宿主分货币（2026-10-10 耐久即次数池定案）——
+            //    结界（战场/技能栏 FieldZone）= 耐久>0（主动发动消耗耐久而非横置，可一回合连发、耐久自限）；
+            //    其余（生物）= 未横置（横置为固定代价，发动成功经 KeywordRules.ShouldTap 支付——恒横置，警戒不抵扣）。
+            //    触发式发动不消耗横置/耐久也不受此闸（触发消耗在入栈口，见 ProcessTriggeredEffects）。
             if (effect.IsActivatedEffect
-                && source is Card activateCard && activateCard.IsTapped()
+                && source is Card activateCard
                 && (_zoneManager.IsCardInZone(activateCard, activateCard.GetController(), Zone.Battlefield)
                     || _zoneManager.IsCardInZone(activateCard, activateCard.GetController(), Zone.FieldZone)))
-                return false;
+            {
+                if (Attribute.CounterRules.UsesDurabilityEconomy(activateCard))
+                {
+                    if (activateCard.GetCounterCount(Attribute.CounterRules.DurabilityCounter) <= 0)
+                        return false;
+                }
+                else if (activateCard.IsTapped())
+                    return false;
+            }
 
             // 0.5 沉默指示物（定案）：持有者不可发动主动效果（激活式能力路径；
             //     PlayCard 出牌不受限——那是"打出"而非"发动"）。换区清除。
@@ -218,6 +226,22 @@ namespace CardCore
             // 卡牌的 effect.Costs 仅保留非元素的特殊代价（Payload 原子），走付费步异步执行+补偿。
             // 抉择卡按所选模式推导（per-mode 独立计价定案）。
             var elementCosts = CostDerivationService.DeriveElementCosts(effect, instance.ModeIndex);
+            // 结界底盘剩余 → 发动费抵扣（2026-10-10 可支配底盘定案）：未转耐久的结界，其全部
+            // 启动式效果**每次发动**现付元素锚价逐点扣（先灰后最高费用色、只扣整点桶、永久）——
+            // 免卡价的剩余去向之一（另一向 = 入场耐久 +N，见 EquipRules/HeroSkillSystem）。
+            if (effect.IsActivatedEffect && !elementCosts.IsZero && instance.Source is CardWrapper srcW)
+            {
+                int feeOffset = CardCompositionCost.ActivationFeeOffsetOf(srcW.GetData());
+                for (int i = 0; i < feeOffset && !elementCosts.IsZero; i++)
+                {
+                    if (elementCosts[ManaType.Gray] >= 1f) { elementCosts[ManaType.Gray] -= 1f; continue; }
+                    ManaType best = ManaType.Gray; float bestV = 0f;
+                    foreach (var c in elementCosts.NonzeroColors())
+                        if (c != ManaType.Gray && elementCosts[c] > bestV) { bestV = elementCosts[c]; best = c; }
+                    if (bestV < 1f) break; // 无整点桶可扣（残余零头无支付意义）
+                    elementCosts[best] -= 1f;
+                }
+            }
             var specialCosts = effect.Costs != null
                 ? effect.Costs.Where(c => c.Type != CostType.ElementConsume).ToList()
                 : new List<CostInstance>();
@@ -916,6 +940,12 @@ namespace CardCore
             _currentPhase = phase;
         }
 
+        /// <summary>登场族时机（2026-10-10 耐久即次数池定案配套）：入场结算属出牌/入场流程，
+        /// 不消耗耐久——OnPlay=打出登场、OnSummon=任意进场超集（含效果召唤/复活/token）、
+        /// OnReturnFromGraveyard=墓地回场。</summary>
+        private static bool IsEntranceTiming(TriggerTiming t)
+            => t == TriggerTiming.OnPlay || t == TriggerTiming.OnSummon || t == TriggerTiming.OnReturnFromGraveyard;
+
         /// <summary>
         /// 处理条件发动效果（强制/自动，不走速度，自动入栈）
         /// 每轮轮询前调用；2026-09-13 定案：条件发动不参与速度比较、不抬升记速器
@@ -941,6 +971,20 @@ namespace CardCore
                 // 触发上限记账提前到入栈时（2026-09-13 修复）：同批多个触发出队时，
                 // 结算期记账会让第 2 个及以后的触发绕过"一回合一次"闸门
                 _executor.RecordQueuedActivation(next.Effect, next.Source);
+
+                // 结界被动触发消耗（2026-10-10 耐久即次数池定案）：战场结界的触发式效果
+                // 每次入栈 −1 耐久（非光环被动的次数上限就是耐久，计费侧已剥离次数档防双重计费）。
+                // 豁免：登场族（OnPlay/OnSummon/OnReturnFromGraveyard——入场结算属出牌/入场流程，
+                // 仪典载体不受影响）；光环条目=存在经济常驻，不经触发路径；离场族触发时源卡已离场
+                //（下方战场判定不过）→ 自然不消耗，兼防"耗尽→销毁→亡语→再耗"递归。
+                if (next.Effect != null
+                    && next.Source is Card trigCard
+                    && Attribute.CounterRules.UsesDurabilityEconomy(trigCard)
+                    && trigCard.GetZone() == Zone.Battlefield
+                    && !IsEntranceTiming(next.Effect.TriggerTiming))
+                {
+                    Attribute.CounterRules.LoseDurability(GameCore.Instance, trigCard, 1, "被动触发（耐久即次数池）");
+                }
 
                 EventManager.Instance.Publish(new StackAddEvent
                 {
@@ -1806,6 +1850,11 @@ namespace CardCore
                 // 重放（2026-10-09，白4）：单位效果发动结算后消耗 1 层并再次发动一次
                 //（重放不触发重放；消耗口=EffectExecutor.ExecuteAsync 结算段）
                 new GrantReplayHandler(),
+
+                // 临时指示物（2026-10-10 回响临时指示物化，白2）：复制卡的「临时」标记——
+                // 持有者回合末不在战场→从游戏中移除、在战场→衰退一层
+                //（例程=CounterRules.OnTurnEnd ②块；回响复制体恒带 1 层=TempCopyRules 施加口）
+                new GrantTemporaryHandler(),
 
                 // 无效指示物（蓝3）：拦非启动式能力（触发式+光环）——与沉默（拦启动式）对称
                 new AddNullifyHandler(),

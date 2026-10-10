@@ -1,5 +1,6 @@
 // 此文件由 Tools/刷新MemoryPackOrder 自动生成，请勿手动修改
 // 如需添加新属性，请修改 RefreshMemoryPackOrder.cs 中的 GetTagDefinitions()
+// 手工定值标签登记 GetRawTagDefinitions()（只改 TagTable.cs 的手改区会被下次重生成冲掉）
 
 namespace CardCore.Serialization
 {
@@ -181,9 +182,7 @@ namespace CardCore.Serialization
         public const int PS_ElementBank = 3481387;
         public const int PS_GraveyardCount = 1652629631;
         public const int PS_ExileCount = 1217138263;
-        // 退役保留位（2026-09-14 抵消系统退役——字段已删，值保留防字段 ID 复用歧义）
-        public const int PS_OffsetOpponentDrawUsed = 1443501556;
-        public const int PS_OffsetOpponentHealUsed = 1301472982;
+        public const int PS_Counters = 497079627;
 
         // ---- NetworkMessage ----
         public const int NM_ProtocolVersion = 965419062;
@@ -215,14 +214,11 @@ namespace CardCore.Serialization
         public const int MGSS_ZoneCards = 1095299921;
         public const int MGSS_Hands = 1371201158;
         public const int MGSS_StackV2 = 1464117104;
-        public const int MGSS_RevealedZoneCards = 612847093; // 展示卡（信息轴 2026-10-02：隐藏区中被展示的卡，双方可见）
 
         // ---- StackItemDTO ----
         public const int SID_Source = 887547856;
         public const int SID_IsCardCast = 6974238;
         public const int SID_EffectId = 1282903965;
-        // 退役保留位（2026-09-22 线上去文本删除——值保留防字段 ID 复用歧义）
-        public const int SID_EffectDisplayName = 2014314126;
         public const int SID_ModeIndex = 982635335;
         public const int SID_Targets = 1694824900;
         public const int SID_ActivationSpeed = 548007896;
@@ -296,7 +292,6 @@ namespace CardCore.Serialization
         public const int MDS_DeckName = 1095059584;
         public const int MDS_CardIds = 339936047;
         public const int MDS_Digest = 216745245;
-        public const int MDS_SkillCardId = 1739402857; // 英雄技能标记卡（2026-10-07 卡牌化；不参与 Digest）
 
         // ---- MsgMatchManifest ----
         public const int MMM_OwnSeat = 2014680492;
@@ -326,12 +321,14 @@ namespace CardCore.Serialization
         public const int MRSI_Nickname = 807757571;
         public const int MRSI_Connected = 531597507;
 
-        // ---- 大厅层消息（L1，2026-09-24：MsgLobbyHello/State/RoomInfo/CreateRoom/JoinRoom/AddAi）----
+        // ---- MsgLobbyHello ----
         public const int MLH_Nickname = 1532381561;
 
+        // ---- MsgLobbyState ----
         public const int MLS_Rooms = 1570248777;
         public const int MLS_QueuedCount = 124003943;
 
+        // ---- MsgLobbyRoomInfo ----
         public const int MLRI_RoomId = 1765793158;
         public const int MLRI_Name = 1340740691;
         public const int MLRI_Phase = 96593306;
@@ -339,19 +336,22 @@ namespace CardCore.Serialization
         public const int MLRI_Nicknames = 304988505;
         public const int MLRI_SpectatorCount = 207819560;
 
+        // ---- MsgLobbyCreateRoom ----
         public const int MLCR_RoomName = 921235863;
 
+        // ---- MsgLobbyJoinRoom ----
         public const int MLJR_RoomId = 815627303;
 
+        // ---- MsgLobbyAddAi ----
         public const int MLAA_RoomId = 97705085;
         public const int MLAA_Nickname = 1153192151;
 
         // ---- 手工定值保留位（历史手工分配的值，哈希公式推不出；改值=线格式字段 ID 变更，勿动）----
-        // SerializableAtomicEffectEntry.amp 专用（复用 AEI_ 前缀命名；2026-09-13 数值随机）
         public const int AEI_Amplitude = 1052954154; // SerializableAtomicEffectEntry.amp（数值随机 RandomAmplitude）
-        // 抉择卡放地模式（2026-09-21：与出牌同口径），紧邻 CardRuntimeId=713270002 手工递增
         public const int MsgIntentAddToElementPool_ModeIndex = 713270003; // MsgIntentAddToElementPool.ModeIndex（抉择放地）
+        public const int MGSS_RevealedZoneCards = 612847093; // MsgGameStateSync.RevealedZoneCards（展示卡·信息轴 2026-10-02）
+        public const int MDS_SkillCardId = 1739402857; // MsgDeckSubmit.SkillCardId（英雄技能标记卡 2026-10-07 卡牌化；不参与 Digest）
 
-        // 共 241 个标签（含 2 个手工定值保留位）
+        // 共 241 个标签（含 4 个手工定值保留位）
     }
 }

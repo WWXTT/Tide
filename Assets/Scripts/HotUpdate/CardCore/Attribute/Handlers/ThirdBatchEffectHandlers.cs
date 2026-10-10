@@ -240,6 +240,58 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "摧毁目标（无生命值单位：地牌/结界）";
     }
 
+    /// <summary>
+    /// 抹除（白5，2026-10-10）：将目标（场上生物/结界/地牌——表域六类 + NotRole 滤角色）
+    /// 从本局游戏中除去——同遗忘指示物到期移除口径（CounterRules.OnTurnEnd ② 例程）：
+    /// **不走换区、直接消失**（不进墓/不进除外区），不发 CardDestroyEvent（死亡时点/
+    /// 亡语/击杀统计全不触发），不灭/神佑/复生无从拦截（非死亡路径天然绕过）。
+    /// 地牌先出池（余量写回卡，同摧毁口）再消失；战场单位容器直删后补发离场事件
+    ///（守护断链/棋盘位/UI 扇面同步），CardMoveEvent To=None 作「消失」信号。
+    /// </summary>
+    public class EraseHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Erase;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card card)) continue;
+                var owner = card.GetOwner() ?? card.GetController();
+                if (owner == null) continue;
+                var from = card.GetZone();
+
+                // 地牌：先出池（余量写回卡、清池内记录——区域移动由下方直删完成）
+                if (from == Zone.ElementPool)
+                    context.ElementPool?.RemoveCardFromPool(card, owner);
+
+                // 直接消失：容器删除（无目标区）；战场单位落死档（牺牲非死亡直送同款）
+                context.ZoneManager?.GetZoneContainer(owner)?.Remove(card, from);
+                if (from == Zone.Battlefield)
+                {
+                    card.IsAlive = false;
+                    PublishEvent(new CardLeaveBattlefieldEvent
+                    {
+                        Card = card,
+                        Controller = owner,
+                        Destination = Zone.None,
+                    });
+                }
+                PublishEvent(new CardMoveEvent
+                {
+                    MovedCard = card,
+                    From = from,
+                    To = Zone.None,
+                    Controller = owner,
+                });
+                context.LastOutcome.AffectedTargets.Add(card);
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect) =>
+            "将目标从本局游戏中除去（不走换区直接消失；不触发死亡时点，不灭/神佑无从拦截）";
+    }
+
     // ---------------- 反制 / 沉默 ----------------
 
     /// <summary>
@@ -476,6 +528,9 @@ namespace CardCore.Attribute.Handlers
 
                 // 摧毁（无生命值单位：地牌/结界）
                 new SmashHandler(),
+
+                // 抹除（从本局游戏中除去——非死亡直接消失，同遗忘到期移除口径）
+                new EraseHandler(),
 
                 // 反制 / 沉默（2026-10-04 两层无效定案：发动无效=净零成本 / 效果无效=扣费照付）
                 new NegateActivationHandler(),

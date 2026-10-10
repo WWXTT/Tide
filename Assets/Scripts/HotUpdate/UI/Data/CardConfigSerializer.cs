@@ -126,14 +126,13 @@ namespace SynergyUI
                 tags = card.Tags != null ? new List<string>(card.Tags) : new List<string>(),
                 effects = null, // 效果引用化（2026-09-14）：不内嵌——经 effectIds 引用 Effects.json
                 effectIds = effectIds,
-                subtype = card.Subtype == CardSubtype.None ? "" : card.Subtype.ToString(),
-                level = card.Level ?? -1,
                 arrows = card.ArrowDirections.ToString(),
                 linkAuras = card.LinkAuras != null && card.LinkAuras.Count > 0
                     ? new List<LinkAuraData>(card.LinkAuras)
                     : null, // 空表不写列（向后兼容旧 JSON）
                 durability = card.Durability,
-                refundColor = card.RefundColor, // 底盘退费落色（2026-10-02 玩家自标；-1=未声明）
+                speedBonus = card.SpeedBonus, // 底盘剩余→法术提速份额（2026-10-10 可支配底盘；0=纯抵价）
+                surplusToDurability = card.SurplusToDurability, // 底盘剩余→结界转耐久开关（false=抵发动费）
                 // 代价栏（2026-10-04 持久化链）：卡层 PayloadCost → payload 原子引用
                 //（CostType/Value 规范常量装载端重建；refId 空=无代价不写语义）
                 payload = card.PayloadCost?.payload != null

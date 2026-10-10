@@ -357,11 +357,6 @@ namespace CardCore
         Supertype,
 
         /// <summary>
-        /// 子类型
-        /// </summary>
-        Subtype,
-
-        /// <summary>
         /// 攻击力
         /// </summary>
         Power,
@@ -396,11 +391,6 @@ namespace CardCore
         /// 定义类型
         /// </summary>
         DefinesType,
-
-        /// <summary>
-        /// 定义子类型
-        /// </summary>
-        DefinesSubtype,
 
         /// <summary>
         /// 定义数值（攻击/生命）

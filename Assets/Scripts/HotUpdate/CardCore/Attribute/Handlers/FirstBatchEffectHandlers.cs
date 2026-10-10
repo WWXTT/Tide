@@ -272,9 +272,11 @@ namespace CardCore.Attribute.Handlers
             if (context.ZoneManager == null || context.Controller == null) return;
 
             int count = effect.Value > 0 ? context.GetValueAfterModifiers(effect.Value) : 1;
-            // 仅「正式召唤过」的随从可被复活；被弃/送墓的不可复活。
+            // 正式召唤闸已拆（2026-10-10：游戏王额外区适配遗物——额外区全面移除后死因不再区分）：
+            // 墓地生物一律可回场（打出/弃置/送墓/衍生物同规）；类型闸=生物（表行「{target}生物从墓地
+            // 返回到己方战场」——墓地混有法术/结界，不可裸取前 N 张）。
             var revivable = context.ZoneManager.GetCards(context.Controller, Zone.Graveyard)
-                .Where(c => c.WasFormallySummoned)
+                .Where(c => c is IHasSupertype ht && ht.Supertype == Cardtype.Creature)
                 .ToList();
             for (int i = 0; i < count && i < revivable.Count; i++)
             {
@@ -283,7 +285,6 @@ namespace CardCore.Attribute.Handlers
                 if (!context.ZoneManager.TryMoveToBattlefield(card, context.Controller, Zone.Graveyard))
                     continue;
                 card.SetController(context.Controller);
-                card.WasFormallySummoned = true; // 复活也是一次正式入场
             }
         }
 
