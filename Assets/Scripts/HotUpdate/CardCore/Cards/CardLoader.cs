@@ -48,9 +48,7 @@ namespace CardCore
         public List<string> tags;
         public List<CardEffectData> effects;
 
-        // 子类型 / 扩展字段（缺省 → 旧行为，向后兼容）
-        public string subtype;     // 逗号分隔的 CardSubtype Flags 名，如 "Dragon"
-        public int level = -1;     // 等级，-1 = 无
+        // 扩展字段（缺省 → 旧行为，向后兼容）
         public string arrows;      // 逗号分隔的 HexDirection Flags 名，如 "Up,LowerRight"
 
         // 效果引用（2026-09-14 效果引用化）：效果定义统一在 Tide/Effects.json（EffectsLibrary），
@@ -61,16 +59,15 @@ namespace CardCore
         // 连接光环声明（三轨制 2026-09-09）：箭头指向格占据者享受的持续效果（stat/keyword 二选一）
         public List<LinkAuraData> linkAuras;
 
-        // 战斗底盘（2026-09-10 攻/守效果化）：opt-out 缺省 false=自带攻守；瞬间富余转速度缺省 false=退费
+        // 战斗底盘（2026-09-10 攻/守效果化）：opt-out 缺省 false=自带攻守；
+        // 可支配底盘（2026-10-10）：法术提速份额 speedBonus 缺省 0、结界转耐久 surplusToDurability 缺省 false=抵发动费
         public bool noAttack;
         public bool noGuard;
-        public bool surplusToSpeed;
+        public int speedBonus;
+        public bool surplusToDurability;
 
         // 结界耐久（2026-09-24 定案：结界=耐久体，被攻击每次仅损失 1 点，归零销毁；0=无）——生物不使用
         public int durability;
-
-        // 底盘退费落色（2026-10-02 定案：玩家自标）：-1=未声明（默认先灰后最高费用色）；0..5=ManaType
-        public int refundColor = -1;
 
         // 代价栏（2026-10-04 持久化链）：卡层 Payload 原子引用——CostType 恒 Payload、Value 恒 1，
         // 装载时按规范常量重建 CostEntry；逆转后的镜像域存于 payload.kinds（可超出表行域）。
@@ -189,16 +186,39 @@ namespace CardCore
             ValidateComboDomains(result);
             ValidateMountHosts(result);
             ValidateRandomParams(result);
+            ValidateSpellShape(result);
 
             return result;
         }
 
+        /// <summary>法术形态校验（2026-10-10 三类卡=发数经济定案，可见不炸——坏卡点名）：
+        /// 法术=单个施放效果（整卡一次性，1 次总池）；且不得挂启动式（Activate_* 依赖
+        /// 战场源卡发动，法术结算即离场——挂了永无发动口）。</summary>
+        private static void ValidateSpellShape(List<CardData> cards)
+        {
+            foreach (var card in cards)
+            {
+                if (card?.Supertype != Cardtype.Spell || card.Effects == null) continue;
+                if (card.Effects.Count > 1)
+                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术只能挂 1 个效果" +
+                                  $"（现 {card.Effects.Count} 个——法术=一次性单发）——构筑期拦截");
+                foreach (var e in card.Effects)
+                {
+                    int t = e?.TriggerTiming ?? -1;
+                    if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
+                        || t == (int)TriggerTiming.Activate_Response)
+                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术效果 {e.Id} 为启动式" +
+                                      "（法术结算即离场，启动式永无发动口）——构筑期拦截");
+                }
+            }
+        }
+
         /// <summary>
         /// 构筑期装载宿主校验（2026-09-11 MountKinds 定案配套的硬约束，可见不炸——坏卡点名）：
-        /// - 微缩/放大（MountKinds=0,5，登场效果）：宿主须具备属性（Power/Life）——无属性生物不可承载；
         /// - 回响（MountKinds=1,5,6）：2026-09-13 定案生物和法术通用——宿主类型不限制；
         /// - 召唤衍生物：字符串参数（条目 ID）必须指向一张真实生物卡（非空、非自指、可解析且为生物）。
         /// 后续 MountKinds 全面收紧时，通用装载位校验在此扩展。
+        ///（微缩/放大宿主属性拦截已随两原子删除退役，2026-10-10。）
         /// </summary>
         private static void ValidateMountHosts(List<CardData> cards)
         {
@@ -211,15 +231,9 @@ namespace CardCore
                     {
                         var atomType = TypeOf(atom);
                         if (atom == null || atomType == null) continue;
-                        if (atomType == AtomicEffectType.GrantMiniature || atomType == AtomicEffectType.GrantMagnify)
-                        {
-                            if (!card.HasCombatStats)
-                                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})："
-                                             + $"微缩/放大为登场效果，宿主不具备属性（Power/Life）——构筑期拦截");
-                        }
                         // 守护（2026-10-07 仅可转换）：收为仅连接光环节点，不再作登场 Grant 原子
                         // ——宿主属性校验随之退役；结界守护走耐久、生物守护走生命（伤害改写天然分叉）。
-                        else if (atomType == AtomicEffectType.SummonToken)
+                        if (atomType == AtomicEffectType.SummonToken)
                         {
                             if (string.IsNullOrEmpty(atom.str))
                             {
@@ -648,7 +662,6 @@ namespace CardCore
                 Keywords = entry.keywords ?? new List<string>(),
                 Tags = entry.tags ?? new List<string>(),
                 Effects = entry.effects ?? new List<CardEffectData>(),
-                Subtype = ParseFlags<CardSubtype>(entry.subtype),
                 ArrowDirections = ParseFlags<HexDirection>(entry.arrows),
             };
 
@@ -683,8 +696,6 @@ namespace CardCore
                 cardData.Effects = resolved;
             }
 
-            if (entry.level >= 0) cardData.Level = entry.level;
-
             // 连接光环声明（三轨制）：无效条目（stat/keyword 双空）装载期即丢弃
             if (entry.linkAuras != null)
                 cardData.LinkAuras = entry.linkAuras
@@ -695,16 +706,16 @@ namespace CardCore
             //（与卡面直书值并集——兼容旧数据）；须在 EnsureCost 前完成（光环费/箭头累乘进计价）
             cardData.AggregateEffectAuras(false);
 
-            // 战斗底盘（2026-09-10 攻/守效果化）：opt-out 与瞬间盈余分配，缺省全 false（自带攻守、退费）
+            // 战斗底盘（2026-09-10 攻/守效果化）：opt-out 与可支配底盘分配
+            //（2026-10-10：法术 speedBonus 提速份额 / 结界 surplusToDurability 转耐久开关；
+            //  旧 surplusToSpeed 整体转速度与 refundColor 落色自标已随定案退役，残留列按未知字段忽略）
             cardData.NoAttack = entry.noAttack;
             cardData.NoGuard = entry.noGuard;
-            cardData.SurplusToSpeed = entry.surplusToSpeed;
+            cardData.SpeedBonus = entry.speedBonus;
+            cardData.SurplusToDurability = entry.surplusToDurability;
 
             // 结界耐久（2026-09-24 定案）：战斗侧已实装（CounterRules.LoseDurability + 零坚韧 SBA，TideServer V9.c 全流程回归）——本行只做数据采集
             cardData.Durability = entry.durability;
-
-            // 底盘退费落色（2026-10-02 定案：玩家自标）——计价推导口径，不影响运行时支付
-            cardData.RefundColor = entry.refundColor;
 
             // 代价栏（2026-10-04 持久化链）：payload 原子引用 → 卡层 PayloadCost（正式口；
             // legacy 效果级 Costs 兜底不变——卡层已填时 CollectCardSpecialCosts 跳过 legacy 防双收）。

@@ -97,7 +97,7 @@ namespace CardCore
 
             result.DeclaredTier = TideMath.RoundToInt(card.Cost?.Total ?? 0f);
 
-            // ---- 1) 身材费 S（灰桶；身材不是挂载效果，不参与 f）----
+            // ---- 1) 身材费 S（灰桶——经 ApportionMounted 整卡折同吃 d(C)，2026-09-07 整卡最后折定案）----
             float statValue = ComputeStatValue(card, cc, result.Breakdown);
 
             // ---- 2) 关键词费 K（Grant 原子固定费，无 value 缩放）----
@@ -133,6 +133,11 @@ namespace CardCore
                 }
 
                 float defTotal = 0f;
+                // 次数轴归宿主（2026-10-10 三类卡=发数经济定案）：法术=整卡只施放一次（次数分量
+                // 坍缩 ×1）、结界=耐久即次数池（次数由耐久在卡层计价，效果侧剥离次数分量防双重
+                // 计费）；生物=原生档（合成器裸价即挂载价）。只归一计价转换件——ConvertAll 逐次
+                // 新造无缓存，运行时触发上限不受影响。
+                if (card.Supertype != Cardtype.Creature) def.TriggerLimitPerTurn = 1;
                 var defCost = CostDerivationService.DeriveElementCosts(def, 0); // 法术宿主永久档由迁移回填承载（Duration=Permanent）
                 foreach (var color in defCost.NonzeroColors())
                 {
@@ -162,11 +167,35 @@ namespace CardCore
             // 退费先灰后最高色（法术常无灰分量），加价入灰。
             var kwMultiplier = cc.KeywordsShareDelayDiscount ? factor : 1f;
             int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
-            int chassis = CardCompositionCost.ChassisAdjust(card);
-            if (chassis != 0)
+            // 底盘（2026-10-10 可支配定案，取代「剩余作废」案）：超槽加价入灰（不吃 d(C)）+
+            // 剩余按卡型支配——抵价在 ApplyChassis 落位（先灰后最高色）；法术提速占用份额、
+            // 结界剩余走运行时二向（发动费抵扣/耐久+N），均不动卡价。
+            int surcharge = CardCompositionCost.StructuralSurcharge(card);
+            if (surcharge > 0)
                 result.Breakdown.Add(new CostBreakdownLine("C",
-                    $"底盘预算 3 − 攻{(!card.NoAttack && card.Supertype == Cardtype.Creature ? 1 : 0)} − 守{(!card.NoGuard && card.Supertype == Cardtype.Creature ? 1 : 0)} − 效果{card.Effects?.Count ?? 0} → {(chassis > 0 ? $"退费 {chassis}" : $"加价 {-chassis}")}",
-                    chassis, ManaType.Gray));
+                    $"结构加价 结构{CardCompositionCost.ChassisItems(card)}×1 − 预算3 → +{surcharge} 入灰（不吃 d(C)）",
+                    surcharge, ManaType.Gray));
+            int surplus = CardCompositionCost.SurplusOf(card);
+            if (surplus > 0)
+            {
+                if (card.Supertype == Cardtype.Enchantment)
+                    result.Breakdown.Add(new CostBreakdownLine("C",
+                        card.SurplusToDurability
+                            ? $"底盘剩余 {surplus} → 入场耐久 +{surplus}（免卡价；EquipRules/HeroSkillSystem 落位）"
+                            : $"底盘剩余 {surplus} → 启动式发动费每次 −{surplus}（免卡价；结算期落位）", 0f));
+                else if (card.Supertype == Cardtype.Spell)
+                {
+                    int bonus = Math.Clamp(card.SpeedBonus, 0, surplus);
+                    result.Breakdown.Add(new CostBreakdownLine("C",
+                        bonus > 0
+                            ? $"底盘剩余 {surplus}（提速 {bonus} 档 + 抵价 {surplus - bonus}）"
+                            : $"底盘剩余 {surplus} → 抵价 {surplus}（先灰后最高色）",
+                        -(surplus - bonus)));
+                }
+                else
+                    result.Breakdown.Add(new CostBreakdownLine("C",
+                        $"底盘剩余 {surplus} → 抵价 {surplus}（先灰后最高色）", -surplus));
+            }
 
             var mounted = ApportionMounted(effBuckets, kwBuckets, kwMultiplier, factor, statGray);
             ApplyChassis(card, mounted);
@@ -203,7 +232,7 @@ namespace CardCore
             // 代价栏：卡层 PayloadCost（2026-09-23 上移卡组合层）为正式口；legacy 效果级 Costs 兜底
             //（卡层已填时跳过 legacy——防双收）。Payload **按全价获得**（2026-10-04 定案：任意单向效果
             // 不限价、逆转选择范围——Grants 不再恒 ≤1；产出不封·使用侧受支付浓度上限约束。
-            // 本轮追加：代价栏占 1 效果槽（ChassisAdjust 经 CountEffectSlots 计入），全价另作地牌门槛——见 GameActions.EvaluatePayloadGate）。
+            // 本轮追加：代价栏占 1 效果槽（结构项经 CountEffectSlots 计入），全价另作地牌门槛——见 GameActions.EvaluatePayloadGate）。
             var payloadEntries = new List<AtomicEffectEntry>();
             if (card.PayloadCost?.payload != null && !string.IsNullOrEmpty(card.PayloadCost.payload.refId))
             {
@@ -260,6 +289,67 @@ namespace CardCore
         {
             var r = Derive(card);
             return r.SuggestedCost;
+        }
+
+        // ======================================== 衍生物内容全价（2026-10-10 无底盘定案） ========================================
+
+        /// <summary>
+        /// 衍生物内容全价（总量）：S（含耐久）+ K + E 逐色口径**不乘 d(C)**，再 + 结构费全额
+        /// （攻/守/槽 × ChassisItemRate，无 3 点预算抵扣）——衍生物没走「入组 1 + 抽牌 2」通道，
+        /// 吃不到底盘，SummonToken 单价 = 本值（CostDerivation 消费）。
+        /// 口径与 Derive 同源：非生物次数归一（TriggerLimitPerTurn=1）；启动式不进 E 桶
+        /// （运行时现付——衍生物持续在场时同规则，槽位费已由结构费全额承担）；
+        /// 取整同法（一次 AwayFromZero + 最大余数分色，结构费取整后入灰）。
+        /// </summary>
+        public static int ContentPriceOf(CardData card)
+        {
+            int total = 0;
+            foreach (var v in ContentPriceByColor(card).Values) total += v;
+            return total;
+        }
+
+        /// <summary>衍生物内容全价（逐色分布；SummonToken 分色计价同构成）。白板模板 = 灰（S+结构费）。</summary>
+        public static Dictionary<ManaType, int> ContentPriceByColor(CardData card)
+        {
+            var empty = new Dictionary<ManaType, int>();
+            if (card == null) return empty;
+
+            var cfg = ValueSystemConfigManager.Instance.GetOrCreateConfig();
+            var cc = cfg.CardCostConfig;
+            float statValue = ComputeStatValue(card, cc, null);
+
+            float keywordTotal;
+            var kwBuckets = ComputeKeywordBuckets(card, null, out keywordTotal);
+            float auraTotal;
+            foreach (var kv in ComputeLinkAuraBuckets(card, null, out auraTotal))
+            {
+                kwBuckets.TryGetValue(kv.Key, out var prevKw);
+                kwBuckets[kv.Key] = prevKw + kv.Value;
+            }
+
+            var effBuckets = new Dictionary<ManaType, float>();
+            foreach (var def in CardEffectConverter.ConvertAll(card.Effects, card.ID))
+            {
+                if (def == null || def.IsActivatedEffect) continue;
+                if (card.Supertype != Cardtype.Creature) def.TriggerLimitPerTurn = 1;
+                var defCost = CostDerivationService.DeriveElementCosts(def, 0);
+                foreach (var color in defCost.NonzeroColors())
+                {
+                    effBuckets.TryGetValue(color, out var prev);
+                    effBuckets[color] = prev + defCost[color];
+                }
+            }
+
+            // f=1（不乘 d(C)）+ 结构费全额入灰——不走 ApplyChassis（衍生物无底盘，无剩余可支配）
+            int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
+            var mounted = ApportionMounted(effBuckets, kwBuckets, 1f, 1f, statGray);
+            int structureFee = CardCompositionCost.StructureFeeFull(card);
+            if (structureFee > 0)
+            {
+                mounted.TryGetValue(ManaType.Gray, out var g);
+                mounted[ManaType.Gray] = g + structureFee;
+            }
+            return mounted;
         }
 
         /// <summary>
@@ -369,6 +459,9 @@ namespace CardCore
                 {
                     if (def == null) continue;
                     if (def.IsActivatedEffect) continue;
+                    // 次数轴归宿主（2026-10-10 三类卡=发数经济定案）：法术=单发坍缩 ×1、
+                    // 结界=剥离次数分量（耐久在卡层计价）；生物=原生档。同 Derive 主入口。
+                    if (card.Supertype != Cardtype.Creature) def.TriggerLimitPerTurn = 1;
                     var defCost = CostDerivationService.DeriveElementCosts(def, m); // 法术宿主永久档由迁移回填承载（Duration=Permanent）
                     foreach (var color in defCost.NonzeroColors())
                     {
@@ -391,14 +484,14 @@ namespace CardCore
                 TideLog.Warn($"[CardCostService] 抉择卡 {card.ID} 模式0非最高消耗（{rawTotals[0]} < {tierMax}）——违反数据契约（编辑界面应把最高消耗放在序号0）");
 
             // 卡层组合费用：抉择价差溢价已废（2026-09-21）——灰桶只入身材费；
-            // 抉择的弹性费在 ChassisAdjust 分支计槽（每分支一个效果槽），对模式均匀。
+            // 抉择的弹性费在结构项计槽（每分支一个效果槽，CountEffectSlots），对模式均匀。
             float grayAdd = statGray;
 
             // ---- 第二遍：L2 组合 + L3 整卡折（与 Derive 的 ApportionMounted 同口径）----
             for (int m = 0; m < modeCount; m++)
             {
                 var mounted = ApportionMounted(modeBuckets[m], kwBuckets, kwMultiplier, factor, grayAdd);
-                ApplyChassis(card, mounted); // 底盘预算（2026-09-10）：退费先灰后最高色 / 加价入灰
+                ApplyChassis(card, mounted); // 底盘（2026-10-10 可支配）：超槽加价入灰 / 剩余抵价（先灰后最高色）
                 result.Add(ToElementCost(mounted));
             }
             return result;
@@ -453,7 +546,8 @@ namespace CardCore
         // —— 模式无关的三块（Derive 与 DeriveModeCosts 共用，防口径漂移；breakdown 传 null 则不记行）——
 
         /// <summary>身材费 S：statPoints / StatUnit（灰桶，不参与 f）；
-        /// 耐久体另计 耐久 × DurabilityUnitCost（2026-10-05 定案 0.5 灰/点——结界/装备，0=无耐久档不计）。</summary>
+        /// 耐久体另计 耐久 × DurabilityUnitCost（2026-10-10 提价定案 1 灰/点——耐久即次数池：
+        /// 受伤/被动触发/主动发动三重消耗同池同价；0.5 灰/点 2026-10-05 口径退役。结界/装备，0=无耐久档不计）。</summary>
         private static float ComputeStatValue(CardData card, CardCostConfig cc, List<CostBreakdownLine> breakdown)
         {
             int statPoints = (card.Power ?? 0) + (card.Life ?? 0);
@@ -675,17 +769,20 @@ namespace CardCore
             return mounted;
         }
 
-        /// <summary>底盘预算落位（取整后）：正=退费（先灰后最高费用色），负=加价入灰。
-/// 与 Derive/DeriveModeCosts/BuildCostAtTier 三处共用，防口径漂移。</summary>
+        /// <summary>底盘落位（取整后，2026-10-10 可支配定案）：超槽 → 加价入灰（不吃 d(C)）；
+        /// 剩余 → 抵价（PriceOffsetOf：法术扣除提速份额、结界 0=运行时二向、其余全额；
+        /// ReduceBuckets 先灰后最高色）。与 Derive/DeriveModeCosts/BuildCostAtTier 三处共用，防口径漂移。</summary>
         private static void ApplyChassis(CardData card, Dictionary<ManaType, int> mounted)
         {
-            int chassis = CardCompositionCost.ChassisAdjust(card);
-            if (chassis > 0) CardCompositionCost.ApplyChassisRefund(card, mounted, chassis);
-            else if (chassis < 0)
+            int surcharge = CardCompositionCost.StructuralSurcharge(card);
+            if (surcharge > 0)
             {
                 mounted.TryGetValue(ManaType.Gray, out var g);
-                mounted[ManaType.Gray] = g - chassis; // 负值 → 加价
+                mounted[ManaType.Gray] = g + surcharge; // 加价入灰（取整后，不吃 d(C)）
+                return;
             }
+            int offset = CardCompositionCost.PriceOffsetOf(card);
+            if (offset > 0) CardCompositionCost.ReduceBuckets(mounted, offset);
         }
 
         /// <summary>

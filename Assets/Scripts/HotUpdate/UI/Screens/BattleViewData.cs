@@ -52,6 +52,7 @@ namespace SynergyUI
         public string BankText = "—";
         public BattleCardView Skill; // 英雄技能卡（FieldZone）
         public bool IsAI;
+        public int HeroAttack; // 角色攻击力=HeroAttackCounter 弹药层数（2026-10-10 角色参战收口：0=无攻击资格，3D HUD 消费）
     }
 
     /// <summary>对战整局视图。</summary>
@@ -233,6 +234,7 @@ namespace SynergyUI
             v.FatigueCount = p.FatigueCount;
             v.LandCap = core.ElementPool.GetLandCap(p);
             v.BankText = BankTextLocal(core, p);
+            v.HeroAttack = p.GetPower(); // Player 分支=弹药层数钳非负（EntityEffectExtensions）
 
             var skill = HeroSkillSystem.ResolveSkillCard(core, p);
             if (skill != null)
@@ -360,6 +362,7 @@ namespace SynergyUI
             v.FatigueCount = ps.FatigueCount;
             v.LandCap = ps.LandCap;
             v.IsAI = ps.IsAI;
+            v.HeroAttack = Math.Max(0, ps.Counters?.FirstOrDefault(c => c.Key == CardCore.Attribute.CounterRules.HeroAttackCounter)?.Value ?? 0);
             v.BankText = ps.ElementBank == null || ps.ElementBank.Length == 0 ? "—"
                 : string.Join(" ", ps.ElementBank
                     .Where(e => e.Value > 0)

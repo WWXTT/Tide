@@ -143,7 +143,8 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>回响（2026-10-07 关键词→普通效果改版，蓝2）：将施放卡的临时复制加入手牌——
-    /// 完全复制（null 覆盖：属性/费用/效果不变），临时标记+回合末清理由 TempCopyRules 承载，
+    /// 完全复制（null 覆盖：属性/费用/效果不变），临时性=1 层临时指示物（TempCounter，2026-10-10
+    /// 指示物化——回合末口=CounterRules.OnTurnEnd ②块：不在战场从游戏中移除、在战场衰退转正），
     /// 复制带效果栏（连锁天然保留）。时点=结算期（旧宣言时点关键词形态退役——发动无效=无复制）。</summary>
     public class EchoCopyHandler : AtomicEffectHandlerBase
     {

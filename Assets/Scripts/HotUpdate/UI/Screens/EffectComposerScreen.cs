@@ -410,6 +410,7 @@ namespace SynergyUI
                 _editingIndex = index;
                 _graph = CardEffectToGraph(index >= 0 && index < card.Effects?.Count ? card.Effects[index] : null,
                     out var note);
+                NormalizeLimitForHost(); // 宿主非生物：次数档隐藏前先归一落盘值（旧数据可能带 2/3/-1）
                 _loadedFromLibraryId = null;
                 string msg = index >= 0 ? $"编辑效果 #{index + 1}（保存写回卡牌）" : "新建效果（保存追加到卡牌）";
                 if (note != null) msg += $"——载入归一化：{note}"; // 两槽定案：遗留门步骤折叠/主干截断可见化
@@ -539,8 +540,24 @@ namespace SynergyUI
         {
             bool aura = _mode == ComposeMode.Aura;
             bool voluntary = !aura && _graph.header.ActivationType == (int)EffectActivationType.Voluntary;
+            // 次数轴归宿主（2026-10-10 发数经济）：非生物宿主（结界=耐久即次数池/法术=一次性）的
+            // 次数档不参与卡价——下拉隐藏、落盘值由 NormalizeLimitForHost 归一；效果库模式无宿主保持可编辑
+            bool limitHosted = _editingCard == null || _editingCard.Supertype == Cardtype.Creature;
             if (_speedGroup != null) _speedGroup.gameObject.SetActive(voluntary);
-            if (_limitGroup != null) _limitGroup.gameObject.SetActive(!aura && !voluntary);
+            if (_limitGroup != null) _limitGroup.gameObject.SetActive(!aura && !voluntary && limitHosted);
+        }
+
+        /// <summary>作用次数宿主归一（2026-10-10 发数经济）：非生物卡型——结界归 -1（耐久即次数池，
+        /// 不留每回合闸——EffectExecutionEngine 非光环被动口径）、其余（法术等一次性）归 1。
+        /// 生物=原生档、效果库模式（无宿主）、引擎锁定态（预设钉值，主干零计价）不动。
+        /// 计价侧 CardCostService 对非生物另有"强制归 1 防双重计费"（只动计价转换件）——与本落盘归一分工。</summary>
+        private void NormalizeLimitForHost()
+        {
+            var h = _graph?.header;
+            if (h == null || _editingCard == null || _editingCard.Supertype == Cardtype.Creature) return;
+            if (EngineKindOfGraph() != null) return;
+            int pinned = _editingCard.Supertype == Cardtype.Enchantment ? -1 : 1;
+            if (h.TriggerLimitPerTurn != pinned) h.TriggerLimitPerTurn = pinned;
         }
 
         /// <summary>activate-bar 组内下拉绑定（2026-10-09 prefab 重排：组名 → 子节点 dropdown）。</summary>
@@ -787,16 +804,37 @@ namespace SynergyUI
 
         /// <summary>并列效果费用构成（效果锚价口径：ConvertOne+DeriveElementCosts 纯表累加、
         /// 无减免抵消；代价不参与——代价栏已上移卡组合层）。逐原子贡献=同头单原子 shim 单独推导
-        /// （与 RewardDerivedCost 同手法；DeriveElementCosts 按原子独立累加，shim 分账与整效果推导一致）。</summary>
+        /// （与 RewardDerivedCost 同手法；DeriveElementCosts 按原子独立累加，shim 分账与整效果推导一致）。
+        /// 2026-10-10 参与变量写全：逐原子不再只报数——展开「基准×系数链＝结果」
+        ///（AtomCostFormula 与 ComputeAtomCost 同批判定原语，如 造成伤害5：基准1红×5×速度档2＝10红）。</summary>
         private string ParallelCostText()
         {
             var def = CardEffectConverter.ConvertOne(BuildCardEffect(), "COMPOSER_COST_PREVIEW");
             if (def == null) return "";
+            // 镜像 CardCostService 非生物口径（次数分量剥离防双重计费）：结界落盘 -1 在此按 1 计——
+            // 预览价/公式链与真实卡价同源（真实次数池=耐久）
+            if (_editingCard != null && _editingCard.Supertype != Cardtype.Creature)
+                def.TriggerLimitPerTurn = 1;
             var total = CostDerivationService.DeriveElementCosts(def, 0);
 
             var parts = new List<string>();
             foreach (var atom in BillableAtomsOf(def))
-                parts.Add($"{AtomPartLabel(atom)}＝{CostZh(CostDerivationService.DeriveElementCosts(PricingShim(def, atom), 0))}");
+            {
+                var shim = PricingShim(def, atom);
+                var atomCost = CostZh(CostDerivationService.DeriveElementCosts(shim, 0));
+                var (baseExpr, factors) = CostDerivationService.AtomCostFormula(atom, shim,
+                    CostDerivationService.PricingVisitDomain(shim, atom));
+                var chain = factors.Count == 0 ? baseExpr : baseExpr + "×" + string.Join("×", factors);
+                // 引擎附加费（附加诅咒/祝福分支减半入价）非乘法链——尾注展开，防「公式≠结果」
+                var b = atom.Branch;
+                if (b != null && b.Settle == BranchSettleKind.Engine
+                    && (b.EngineKind == BranchEngineKind.CurseOnDraw || b.EngineKind == BranchEngineKind.BlessingOnDraw))
+                {
+                    float half = CostDerivationService.EngineBranchSurchargeHalf(b.Then);
+                    if (half > 0f) chain += $"＋附加减半{half:0.#}";
+                }
+                parts.Add($"{AtomPartLabel(atom)}：{chain}＝{atomCost}");
+            }
             var text = parts.Count == 0 ? "" : "费用：" + string.Join("＋", parts) + $"｜合计 {CostZh(total)}";
 
             // 错边原子出计价转黑白获得（构筑期口径；运行时按实际命中发放）
@@ -2096,7 +2134,7 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>每原子衍生物行（derivative：InputField=模板卡 ID str、num=召唤数量 1-5 value）——
+        /// <summary>每原子衍生物行（derivative：InputField=模板卡 ID str、num=召唤数量 1-3 value）——
         /// 仅召唤衍生物（SummonToken）原子显示（2026-10-09 迁自设置盒——原全局扫描 FindSummonTokenAtom 退役）。
         /// 槽卡与奖励卡共用。</summary>
         private void BindAtomDerivativeRow(RectTransform host, AtomicEffectEntry atom)
@@ -2131,10 +2169,18 @@ namespace SynergyUI
             if (numDd == null) Debug.LogError("[EffectComposer] derivative 行缺 num 下拉——召唤数量不可编；检查 EffectUI.prefab");
             else
             {
-                var tiers = new List<int> { 1, 2, 3, 4, 5 };
+                // 档位收窄 1-3（2026-10-10 定案，原 1-5）：旧档 4/5 落数据绑定时归一（>3 收 3、
+                // 其余非法值落 1），显示与数据一致后才挂监听
+                var tiers = new List<int> { 1, 2, 3 };
+                int idx = tiers.IndexOf(atom.value);
+                if (idx < 0)
+                {
+                    atom.value = atom.value > 3 ? 3 : 1;
+                    idx = tiers.IndexOf(atom.value);
+                }
                 numDd.ClearOptions();
                 numDd.AddOptions(tiers.Select(v => v.ToString()).ToList());
-                numDd.SetValueWithoutNotify(Mathf.Clamp(tiers.IndexOf(Mathf.Max(1, atom.value)), 0, tiers.Count - 1));
+                numDd.SetValueWithoutNotify(idx);
                 numDd.RefreshShownValue();
                 numDd.onValueChanged.RemoveAllListeners();
                 numDd.onValueChanged.AddListener(i =>
@@ -2142,7 +2188,7 @@ namespace SynergyUI
                     atom.value = tiers[Mathf.Clamp(i, 0, tiers.Count - 1)];
                     RefreshSlots();
                 });
-                UiKit.Described(numDd, "召唤数量：一次召唤几个衍生物——每个都是独立实例，战场满位时后续入墓。");
+                UiKit.Described(numDd, "召唤数量（1-3）：一次召唤几个衍生物——每个都是独立实例，战场满位时后续入墓。");
             }
         }
 
@@ -3512,6 +3558,7 @@ namespace SynergyUI
         /// 光环字段只在光环形态存续——其余形态防夹带清空。</summary>
         private CardEffectData BuildCardEffect()
         {
+            NormalizeLimitForHost(); // 预览/写盘两用口：非生物宿主的次数档在建 effect 前归一
             var effect = JsonUtility.FromJson<CardEffectData>(JsonUtility.ToJson(_graph.header));
             effect.DisplayName = _graph.name;
             // 防御：UI 恒载荷形态（载入已归一化）——此处仍滤掉任何残留 kind=1 门步骤与空步

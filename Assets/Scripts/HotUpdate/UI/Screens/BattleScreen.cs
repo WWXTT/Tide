@@ -106,6 +106,7 @@ namespace SynergyUI
         private TMP_Text _lblMode, _lblToast;
         private TMP_Text _lblPhase, _lblStack, _lblPriority, _lblActivation;
         private Button _btnGrave, _btnSkill, _btnPass, _btnEnd, _btnConcede;
+        private Button _btnHero; // 角色攻击入口（2026-10-10 角色参战遗留收口：弹药>0 弹目标选择）
         private RectTransform _oppLands, _oppUnitsNear, _oppUnitsFar;
         private RectTransform _selfUnitsFar, _selfUnitsNear, _selfLands;
         private RectTransform _selfHand;
@@ -161,6 +162,20 @@ namespace SynergyUI
                 var endLbl = _btnEndFan.GetComponentInChildren<TMP_Text>();
                 endRt.sizeDelta = new Vector2((endLbl != null ? endLbl.preferredWidth : 0f) + 28f, 36f);
                 _btnEndFan.gameObject.SetActive(false);           // 仅本地对局显示（OnEnter 开）
+            }
+
+            // 角色攻击（2026-10-10 角色参战遗留收口）：与结束回合对称的左下角锚点——本地对局专用
+            _btnHero = BindBattleButton("btn-self-hero", "角色攻击", OnClickSelfHero);
+            if (_btnHero != null)
+            {
+                var heroRt = (RectTransform)_btnHero.transform;
+                var heroLe = heroRt.GetComponent<LayoutElement>() ?? heroRt.gameObject.AddComponent<LayoutElement>();
+                heroLe.ignoreLayout = true;
+                heroRt.anchorMin = heroRt.anchorMax = new Vector2(0f, 0f);
+                heroRt.anchoredPosition = new Vector2(24f, 240f); // 手牌扇左翼上方（与结束回合右翼对称）
+                var heroLbl = _btnHero.GetComponentInChildren<TMP_Text>();
+                heroRt.sizeDelta = new Vector2((heroLbl != null ? heroLbl.preferredWidth : 0f) + 28f, 36f);
+                _btnHero.gameObject.SetActive(false);             // 仅本地对局显示（OnEnter 开）
             }
 
             // 双方手牌扇区（配置承自原型屏：底部己方全正面拱形弧、顶部对手缩小卡背扇）
@@ -304,6 +319,7 @@ namespace SynergyUI
                 _btnPass.gameObject.SetActive(IsNetwork);
 
             _btnEndFan?.gameObject.SetActive(!IsNetwork);
+            _btnHero?.gameObject.SetActive(!IsNetwork);
             if (IsNetwork)
             {
                 Debug.Log("[BattleScreen] 空屏桩（战场 UI 待 3D 重做，对局逻辑代码保留）——网络模式入口暂不可用");
@@ -770,7 +786,7 @@ namespace SynergyUI
                 _oppHand.text = $"手牌 {p.HandCount}";
                 _oppGrave.text = $"墓地 {p.GraveyardCount}";
                 _oppFatigue.text = p.FatigueCount > 0 ? $"疲劳 {p.FatigueCount}" : "";
-                _oppBank.text = $"地牌上限 {p.LandCap} · 元素池 {p.BankText}";
+                _oppBank.text = $"地牌上限（全场共享）{p.LandCap} · 元素池 {p.BankText}";
                 if (_oppSkillLabel != null)
                     _oppSkillLabel.text = p.Skill != null
                         ? $"技能：{p.Skill.Name}{(p.Skill.IsTapped ? "（已横置）" : "")} {p.Skill.CostText}"
@@ -786,7 +802,7 @@ namespace SynergyUI
                 _selfHandCount.text = $"手牌 {p.HandCount}";
                 _selfGrave.text = $"墓地 {p.GraveyardCount}";
                 _selfFatigue.text = p.FatigueCount > 0 ? $"疲劳 {p.FatigueCount}" : "";
-                _selfBank.text = $"地牌上限 {p.LandCap} · 元素池 {p.BankText}";
+                _selfBank.text = $"地牌上限（全场共享）{p.LandCap} · 元素池 {p.BankText}";
                 if (_selfSkillLabel != null)
                     _selfSkillLabel.text = p.Skill != null
                         ? $"技能：{p.Skill.Name}{(p.Skill.IsTapped ? "（已横置）" : "")} {p.Skill.CostText}"
@@ -896,6 +912,7 @@ namespace SynergyUI
             // 网络协议无技能 intent 通道（2026-10-07 卡牌化后技能卡已挂真实效果定义，
             // 理论可走 IntentActivateEffect 寻址，但通道/验签未做——本地可用，网络暂禁）
             _btnSkill.interactable = !IsNetwork && myMain && !_gameEnded;
+            if (_btnHero != null) _btnHero.interactable = myMain && !_gameEnded; // 弹药门禁在点击时 toast（无弹药常态可见）
             _btnPass.interactable = IsNetwork && d.StackNotEmpty && d.MyPriority && !_gameEnded;
             _btnEnd.interactable = d.MyTurn && !_gameEnded;
             _btnConcede.interactable = !_gameEnded;
@@ -1221,6 +1238,40 @@ namespace SynergyUI
             }
 
             ShowPickOverlay("选择攻击目标", $"用 {card.Name} 攻击：", options);
+        }
+
+        /// <summary>点角色攻击（2026-10-10 角色参战遗留收口）：弹药>0 弹目标选择（对手角色+对方单位）→
+        /// 角色攻击宣言——引擎侧 Player 攻击者已全面支持（CanDeclareAttack 弹药同门、结算后烧光弹药）。
+        /// 网络模式 intent 已支持 IsPlayer 攻击者，但网络 UI 是空屏桩——同技能按钮先例 toast 拒绝。</summary>
+        private void OnClickSelfHero()
+        {
+            if (!GateMyMain()) return;
+            if (IsNetwork) { ShowToast("网络模式角色攻击暂未开放"); return; }
+            var core = Core;
+            if (core == null || P1 == null) return;
+            int ammo = P1.GetPower(); // Player 分支=HeroAttackCounter 弹药层数钳非负
+            if (ammo <= 0) { ShowToast("角色无弹药（攻击力 0）"); return; }
+
+            var targets = new List<Entity> { P2 };
+            targets.AddRange(core.ZoneManager.GetCards(P2, Zone.Battlefield).Cast<Entity>());
+            var options = new List<Tuple<string, Action>>();
+            foreach (var entity in targets)
+            {
+                var captured = entity;
+                options.Add(Tuple.Create<string, Action>(EntityDisplay(captured), () =>
+                {
+                    CloseOverlay();
+                    if (!_ctrl.DeclareAttack(P1, P1, captured))
+                    {
+                        ShowToast("无法对该目标攻击");
+                        RefreshLocal();
+                        return;
+                    }
+                    _ctrl.SettleResponseWindow().Forget();
+                    RefreshLocal();
+                }));
+            }
+            ShowPickOverlay("选择攻击目标", $"用 角色（弹药 {ammo}）攻击：", options);
         }
 
         private int MyNetSeat => _view != null && _view.NetViewerSeat >= 0 ? _view.NetViewerSeat : 0;

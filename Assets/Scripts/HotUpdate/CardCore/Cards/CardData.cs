@@ -187,26 +187,6 @@ namespace CardCore
             set => _keywords = value;
         }
 
-        /// <summary>
-        /// 卡牌子类型（种族 / 怪兽种类 / 魔法陷阱种类），Flags 组合。
-        /// </summary>
-        [TideSerialized]
-        private CardSubtype _subtype = CardSubtype.None;
-        public CardSubtype Subtype
-        {
-            get => _subtype;
-            set => _subtype = value;
-        }
-
-        /// <summary>等级（生物），可空。</summary>
-        [TideSerialized]
-        private int _level = -1;
-        public int? Level
-        {
-            get => _level < 0 ? (int?)null : _level;
-            set => _level = value ?? -1;
-        }
-
         /// <summary>连接箭头方向（连接光环/指向用），Flags 组合。</summary>
         [TideSerialized]
         private HexDirection _arrowDirections = HexDirection.None;
@@ -244,7 +224,7 @@ namespace CardCore
 
         // ---- 战斗底盘（2026-09-10 攻击/守卫效果化）----
         // 攻/守 = 速度0/速度1主动效果（2026-09-16；各 1 灰，不占槽位），生物默认自带；opt-out 退底盘额度。
-        // 计价见 CardCompositionCost.ChassisAdjust；资格见 CombatSystem（NoAttack 卡不能攻击）。
+        // 计价见 CardCompositionCost（2026-10-10 可支配底盘）；资格见 CombatSystem（NoAttack 卡不能攻击）。
         [TideSerialized]
         private bool _noAttack;
         public bool NoAttack { get => _noAttack; set => _noAttack = value; }
@@ -265,18 +245,20 @@ namespace CardCore
         /// <summary>初始耐久（0=无耐久档——持续型装备）；归零=销毁入墓。</summary>
         public int Durability { get => _durability; set => _durability = value; }
 
-        /// <summary>瞬间法术的底盘盈余（无攻无守省下的 2 灰）构筑时自由分配：
-        /// true = 转 BaseSpeed+1（不退费）；false（缺省）= 退费（灰不足落最高费用色）。</summary>
+        /// <summary>法术底盘剩余点的提速份额（2026-10-10 可支配底盘定案）：k∈0..剩余N——
+        /// k 点提速 = 放弃 k 点抵价；运行时与全部效果 BaseSpeed **加和**
+        ///（GameActions.GetCardEffectDefinitions），计价侧不收这笔钱（占的是抵价额度）。
+        /// 仅法术可 >0（生物速度只由效果组合阶段 BaseSpeed 决定）；抵价落色=先灰后最高色自动规则。</summary>
         [TideSerialized]
-        private bool _surplusToSpeed;
-        public bool SurplusToSpeed { get => _surplusToSpeed; set => _surplusToSpeed = value; }
+        private int _speedBonus;
+        public int SpeedBonus { get => _speedBonus; set => _speedBonus = value; }
 
+        /// <summary>结界底盘剩余点去向开关（2026-10-10 可支配底盘定案）：true = 入场耐久 +N
+        ///（免费，EquipRules/HeroSkillSystem 初始化落位）；false（缺省）= 该结界全部启动式效果
+        /// 每次发动现付元素费永久 −N（EffectExecutionEngine 结算期逐点扣、下限 0）。</summary>
         [TideSerialized]
-        private int _refundColor = -1;
-        /// <summary>底盘退费落色（2026-10-02 定案：玩家自标）：-1=未声明 → 默认规则（先灰、
-        /// 灰不足逐点落最高费用色）；0..5（ManaType）= 退费逐点优先扣该色桶，该色桶尽后
-        /// 余点回落默认规则。作用于计价推导（建议档位/明细显示），不影响运行时支付。</summary>
-        public int RefundColor { get => _refundColor; set => _refundColor = value; }
+        private bool _surplusToDurability;
+        public bool SurplusToDurability { get => _surplusToDurability; set => _surplusToDurability = value; }
 
         /// <summary>
         /// 总费用计算

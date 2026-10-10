@@ -434,7 +434,8 @@ namespace CardCore.Attribute.Handlers
     /// 重放原子（2026-10-09，白4，表行 b70a8a42）：对场上单位附加 {value} 层重放指示物
     ///（ReplayCounter，Exception 生效自减）——该单位效果发动结算后自动消耗 1 层并再次发动一次
     ///（重放不触发重放；消耗口=EffectExecutor.ExecuteAsync 结算段）。
-    /// 换区不清——预挂手牌/牌库的卡登场后生效；非卡目标跳过（表行 TargetFilter "NoRole"）。
+    /// 换区不清——预挂手牌/牌库的卡登场后生效；非卡目标跳过（2026-10-10 表行域=战场四类单位、
+    /// filter 空——旧「自己」域与 NoRole 已随指示物目标域复核清除）。
     /// </summary>
     public class GrantReplayHandler : AtomicEffectHandlerBase
     {
@@ -464,9 +465,46 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 地牌槽提升原子（2026-10-09，绿2，表行 6b674df2，资源族）：自己的地牌槽上限翻倍、封顶 18
-    ///（每地牌格可叠两张——ElementPool.AddLandCapBoost，GetLandCap 单点生效：地牌张数/支付浓度/
-    /// 出牌费用门槛/黑白获得封顶同随）。无目标原子（作用=效果控制者）；重复使用幂等（已提升则无效）。
+    /// 临时指示物原子（2026-10-10 回响临时指示物化，白2，表行 GrantTemporary）：对{target}附加
+    /// {value} 层临时指示物（TempCounter，Exception 换区不清——标记跟卡跨区；回合末例程=
+    /// CounterRules.OnTurnEnd ②块）——持有者回合结束时该卡**不在战场则从游戏中移除**（消失，
+    /// 不进墓）；**在战场则衰退一层**（归零即净）。任意卡区（手牌/牌库/墓地/除外区，双方——
+    /// 2026-10-10 表行域口径，例程扫描范围同步含除外区；角色非卡不可中）；墓地卡可中（死亡→出局
+    /// 的反复活用法，故不做 IsAlive 过滤）；非卡目标跳过。回响复制体恒带 1 层（TempCopyRules 施加口，不走本 handler）。
+    /// </summary>
+    public class GrantTemporaryHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GrantTemporary;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            int stacks = context.GetValueAfterModifiers(effect.Value);
+            if (stacks <= 0) stacks = 1;
+
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card card)) continue; // 墓地/手牌卡可中；角色非卡跳过（IsAlive 不查——墓地卡合法落点）
+                card.AddCounters(CounterRules.TempCounter, stacks, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = card,
+                    CounterType = CounterRules.TempCounter,
+                    Amount = stacks,
+                    Source = context.Source,
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"附加{effect.Value}层临时指示物（持有者回合结束时不在战场则从游戏中移除，在战场则衰退一层）";
+    }
+
+    /// <summary>
+    /// 地牌槽提升原子（2026-10-09 绿2；2026-10-10 共享化+降绿1，表行 50af1b3a，资源族）：
+    /// 地牌槽上限翻倍、封顶 18（每地牌格可叠两张——ElementPool.AddLandCapBoost，GetLandCap 单点生效：
+    /// 地牌张数/支付浓度/出牌费用门槛/黑白获得封顶同随）。2026-10-10 共享定案：上限为全场公用计数器
+    ///（双方地牌合计占用），任一方使用本原子都使**双方**上限翻倍（世界容量公共，好处外溢故降绿1）。
+    /// 无目标原子（作用=效果控制者）；重复使用幂等（已提升则无效）。
     /// </summary>
     public class IncreaseLandCapHandler : AtomicEffectHandlerBase
     {
@@ -485,7 +523,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "地牌槽上限翻倍（封顶18，每格可叠放两张地牌；重复使用无效）";
+            => "地牌槽上限翻倍（封顶18，每格可叠放两张地牌，双方共享此上限；重复使用无效）";
     }
 
     /// <summary>攻击力减少指示物（每层 −1 攻）</summary>

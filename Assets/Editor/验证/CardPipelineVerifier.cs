@@ -1772,16 +1772,16 @@ namespace CardCore.Editor
                    "转换：Steps[0] 为 Choice 且双模式（choices≥2 有效）");
 
             // ---- 2. per-mode 计价（构筑期推导存储；2026-09-21：价差溢价已废、抉择分支计槽——
-            //      1 效果含 2 分支 = 2 槽 → 法术底盘退 3−2=1，退费落最高费用色）----
+            //      1 效果含 2 分支 = 2 槽 → 法术底盘剩余 3−2=1，抵价落最高费用色，2026-10-10 可支配底盘）----
             var mode0 = CardCostService.GetModeCost(data, 0);
             var mode1 = CardCostService.GetModeCost(data, 1);
             Assert(System.Math.Abs(mode0[ManaType.Red] - 3f) < 0.01f,
-                   "模式0计价：4伤锚红4 − 底盘退1（2 槽）= 红3（无价差溢价）");
+                   "模式0计价：4伤锚红4 − 底盘剩余抵价1（2 槽）= 红3（无价差溢价）");
             var modalDrawColor = CardCore.ElementAffinities.GetAffinityForEffect(AtomicEffectType.DrawCard).PrimaryColor;
             var modalDrawPrice = (int)System.Math.Round(Cfg(AtomicEffectType.DrawCard).TotalUnitCost,
                 System.MidpointRounding.AwayFromZero);
             Assert(System.Math.Abs(mode1[modalDrawColor] - System.Math.Max(0, modalDrawPrice - 1)) < 0.01f,
-                   "模式1计价：抽牌表价 − 底盘退1（下限 0，桶空截断）——per-mode 独立不求和");
+                   "模式1计价：抽牌表价 − 底盘剩余抵价1（下限 0，桶空截断）——per-mode 独立不求和");
             Assert(mode1.Total < mode0.Total,
                    "两模式费用独立（红4 ≠ 蓝" + modalDrawPrice + "，未取总）");
             float maxTotal = System.Math.Max(mode0.Total, mode1.Total);
@@ -1910,7 +1910,7 @@ namespace CardCore.Editor
         ///   LIFO 先结算——横置支付+攻击目标变更；
         /// - 警戒守卫：横置仍造成战斗伤害（结算资格看目标横置，警戒例外）；
         /// - 速度门槛：标准速度门（0≥计数器）——连锁开启时攻击不可宣言；
-        /// - 瞬间富余转速度：SurplusToSpeed 法术全部效果 BaseSpeed+1。
+        /// - 法术底盘剩余提速（2026-10-10 可支配底盘）：SpeedBonus 卡级增量与全部效果 BaseSpeed 加和。
         /// </summary>
         private static void TestAttackGuard(GameCore core, Player p1, Player p2)
         {
@@ -2017,11 +2017,11 @@ namespace CardCore.Editor
             Assert(GameActions.DeclareAttack(core, p1, runner, p2), "速度门槛：连锁闭合后攻击恢复（0≥0）");
             GameActions.DrainStack(core);                    // 攻击收口（3 攻打脸）
 
-            // ---- 4. 瞬间富余转速度：SurplusToSpeed → 全效果 BaseSpeed+1 ----
+            // ---- 4. 法术底盘剩余提速（2026-10-10 可支配底盘）：SpeedBonus → 全效果 BaseSpeed 加和 ----
             var swiftData = new CardData
             {
                 ID = "VERIFY_AG_SWIFT", CardName = "疾风术", Supertype = Cardtype.Spell,
-                SurplusToSpeed = true,
+                SpeedBonus = 1,
                 Effects = new List<CardEffectData>
                 {
                     new CardEffectData
@@ -2034,14 +2034,22 @@ namespace CardCore.Editor
             var swift = new CardWrapper(swiftData);
             var swiftDefs = GameActions.GetCardEffectDefinitions(swift);
             Assert(swiftDefs.Count == 1 && swiftDefs[0].BaseSpeed == 1,
-                   $"瞬间富余转速度：BaseSpeed 0→1（实际 {swiftDefs[0].BaseSpeed}）");
+                   $"法术提速增量：BaseSpeed 0+SpeedBonus1=1（实际 {swiftDefs[0].BaseSpeed}）");
             var plainData = new CardData
             {
                 ID = "VERIFY_AG_PLAIN", CardName = "平风术", Supertype = Cardtype.Spell,
                 Effects = new List<CardEffectData> { swiftData.Effects[0] },
             };
             Assert(GameActions.GetCardEffectDefinitions(new CardWrapper(plainData))[0].BaseSpeed == 0,
-                   "瞬间富余缺省：不转速度（BaseSpeed 0，退费走计价侧）");
+                   "法术缺省：不提速（BaseSpeed 0——剩余默认走计价侧抵价）");
+            var bioSwiftData = new CardData
+            {
+                ID = "VERIFY_AG_BIO_SWIFT", CardName = "疾风兽", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                SpeedBonus = 1, // 脏数据探针：生物带 SpeedBonus 也不得生效
+                Effects = new List<CardEffectData> { swiftData.Effects[0] },
+            };
+            Assert(GameActions.GetCardEffectDefinitions(new CardWrapper(bioSwiftData))[0].BaseSpeed == 0,
+                   "生物无提速通道：SpeedBonus 仅法术生效（生物速度只由效果组合阶段 BaseSpeed 决定）");
 
             RetireCards(core, p1, wall, hitter, striker, raider, charger2, runner, a1, a2);
             RetireCards(core, p2, shield, valiant, pacifist, gatekeeper);
@@ -4109,9 +4117,9 @@ namespace CardCore.Editor
 
         /// <summary>
         /// 统一计价锚点验证（纯函数，不依赖卡表/对局）：
-        /// 表值（Heal 0.5 / White→Gray / d(C)）、身材 1费=2属性、法术不折、回2命=1费、
-        /// 9费挂3费全免（d(9)=0）、卡层组合费用（挂载口两向 + 抉择价差——2026-09-07 新层，
-        /// 原「选发额外折」已删）、构筑代价抵消（无"超模"态）、关键词同享 d(C)、缺省档位 Ĉ。
+        /// 表值（GrantTaunt White / d(C) 分段曲线）、身材 1费=2属性、法术同折、回2命=0费、
+        /// 卡层组合费用（可支配底盘 2026-10-10：超槽加价+剩余抵价/提速/结界二向——原「选发额外折」
+        /// 与「剩余作废」均已废）、构筑代价抵消（无"超模"态）、关键词同享 d(C)、缺省档位 Ĉ。
         /// </summary>
         // ======================================== 合成器模型（2026-09-14 合成器重做） ========================================
 
@@ -4538,37 +4546,50 @@ namespace CardCore.Editor
             Assert(ElementAffinities.GetAffinityForEffect(AtomicEffectType.GrantTaunt).PrimaryColor == ManaType.White,
                    "计价锚：GrantTaunt 表 White（2026-09-13 用户改表——白色防御系，与守护/禁魔石同族；锚原按 Green 已过期）");
             var dd = ValueSystemConfigManager.Instance.GetOrCreateConfig().DelayDiscountConfig;
-            Assert(System.Math.Abs(dd.At(1) - 1f) < 1e-4 && System.Math.Abs(dd.At(5) - 0.875f) < 1e-4
-                   && System.Math.Abs(dd.At(9) - 0.75f) < 1e-4 && System.Math.Abs(dd.At(12) - 0.75f) < 1e-4,
-                   "计价锚：d(C) 整卡最后折 d(1)=1 / d(5)=0.875 / d(9)=0.75 / 9费及以上钳0.75");
+            Assert(System.Math.Abs(dd.At(1) - 1f) < 1e-4 && System.Math.Abs(dd.At(3) - 1f) < 1e-4
+                   && System.Math.Abs(dd.At(5) - 0.93333f) < 1e-3
+                   && System.Math.Abs(dd.At(9) - 0.8f) < 1e-4 && System.Math.Abs(dd.At(12) - 0.75f) < 1e-4,
+                   "计价锚：d(C) 分段折 d(1)=d(3)=1（C1-3 不折）/ d(5)=0.9333（4-9 线性1→0.8）/ d(9)=0.8 / ≥10 恒0.75（2026-10-10 分段定案）");
 
-            // ---- 身材：1费 = 2点属性（灰）；底盘预算（2026-09-10 攻/守效果化）：
-            //      3 − 攻1 − 守1 − 效果数，白板生物退 1（旧两口径曲线已废）----
-            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 1, 1)) == 0, "计价锚：1/1 白板 D=0（S1 − 底盘退1）");
+            // ---- 身材：1费 = 2点属性（灰）；可支配底盘（2026-10-10）：
+            //      结构项（攻1+守1+槽N）占 3 点额度，剩余抵价（先灰后最高色）——白板生物抵 1 ----
+            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 1, 1)) == 0, "计价锚：1/1 白板 D=0（S1×0.75→1 − 剩余抵价1）");
             Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 0, 2)) == 0, "计价锚：0/2 白板 D=0（同上）");
-            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 2, 2)) == 1, "计价锚：2/2 白板 D=1（S2 − 底盘退1）");
-            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 3, 2)) == 1, "计价锚：3/2 白板 D=1（S2.5→3 ×0.75→2 − 退1）");
+            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 2, 2)) == 1, "计价锚：2/2 白板 D=1（S2×0.75→2 − 抵1）");
+            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 3, 2)) == 1, "计价锚：3/2 白板 D=1（S2.5→3 ×0.75→2 − 抵1）");
 
-            // ---- 底盘预算纯函数：3 − 攻在 − 守在 − 效果数（生物默认攻守全在）----
-            Assert(CardCompositionCost.ChassisAdjust(MakeCostCard(Cardtype.Creature, 1, 1)) == 1,
-                   "计价锚：底盘 0 效果生物 → 退 1（攻守占 2）");
-            Assert(CardCompositionCost.ChassisAdjust(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1))) == 0,
-                   "计价锚：底盘 1 效果生物 → ±0（用户例：无守卫卡 攻+两槽=3 同耗尽口径）");
-            Assert(CardCompositionCost.ChassisAdjust(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1), MakeEffect("Heal", 1))) == -1,
-                   "计价锚：底盘 2 效果生物 → +1（超 1 槽）");
-            Assert(CardCompositionCost.ChassisAdjust(MakeCostCard(Cardtype.Creature, 1, 1,
-                       MakeEffect("Heal", 1), MakeEffect("Heal", 1), MakeEffect("Heal", 1))) == -2,
-                   "计价锚：底盘 3 效果生物 → +2");
+            // ---- 底盘纯函数（2026-10-10 可支配定案）：SurplusOf=剩余（抵价/提速池）、
+            //      StructuralSurcharge=超槽加价（互斥）——生物默认攻守全在 ----
+            Assert(CardCompositionCost.SurplusOf(MakeCostCard(Cardtype.Creature, 1, 1)) == 1
+                   && CardCompositionCost.StructuralSurcharge(MakeCostCard(Cardtype.Creature, 1, 1)) == 0,
+                   "计价锚：底盘 0 效果生物 → 剩余 1（攻守占 2）全额抵价");
+            Assert(CardCompositionCost.SurplusOf(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1))) == 0,
+                   "计价锚：底盘 1 效果生物 → 剩余 0（攻+守+槽=3 恰耗尽，无抵价无加价）");
+            Assert(CardCompositionCost.StructuralSurcharge(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1), MakeEffect("Heal", 1))) == 1,
+                   "计价锚：底盘 2 效果生物 → 超槽加价 1");
+            Assert(CardCompositionCost.StructuralSurcharge(MakeCostCard(Cardtype.Creature, 1, 1,
+                       MakeEffect("Heal", 1), MakeEffect("Heal", 1), MakeEffect("Heal", 1))) == 2,
+                   "计价锚：底盘 3 效果生物 → 超槽加价 2");
             var noAtk = MakeCostCard(Cardtype.Creature, 1, 1);
             noAtk.NoAttack = true;
-            Assert(CardCompositionCost.ChassisAdjust(noAtk) == 2,
-                   "计价锚：底盘无攻白板 → 退 2（opt-out 逐项退）");
+            Assert(CardCompositionCost.SurplusOf(noAtk) == 2,
+                   "计价锚：底盘无攻白板 → 剩余 2（opt-out 逐项释放）");
             var spell1 = MakeCostCard(Cardtype.Spell, null, null, MakeEffect("DealDamage", 2));
-            Assert(CardCompositionCost.ChassisAdjust(spell1) == 2,
-                   "计价锚：底盘法术 1 效果 → 退 2（法术减两费）");
-            spell1.SurplusToSpeed = true;
-            Assert(CardCompositionCost.ChassisAdjust(spell1) == 0,
-                   "计价锚：底盘瞬间富余转速度 → 不退费");
+            Assert(CardCompositionCost.SurplusOf(spell1) == 2 && CardCompositionCost.PriceOffsetOf(spell1) == 2,
+                   "计价锚：底盘法术 1 效果 → 剩余 2 全额抵价（法术减两费的机制形态）");
+            spell1.SpeedBonus = 2;
+            Assert(CardCompositionCost.PriceOffsetOf(spell1) == 0 && CardCompositionCost.SurplusOf(spell1) == 2,
+                   "计价锚：法术剩余全额提速（SpeedBonus=2）→ 抵价 0（k 点提速=放弃 k 点抵价）");
+            var ench1 = MakeCostCard(Cardtype.Enchantment, null, null, MakeEffect("Heal", 1));
+            ench1.Durability = 3;
+            Assert(CardCompositionCost.PriceOffsetOf(ench1) == 0
+                   && CardCompositionCost.ActivationFeeOffsetOf(ench1) == 2
+                   && CardCompositionCost.DurabilityBonusOf(ench1) == 0,
+                   "计价锚：结界剩余 2 → 不抵卡价；缺省=启动式发动费每次抵 2（运行时二向之一）");
+            ench1.SurplusToDurability = true;
+            Assert(CardCompositionCost.ActivationFeeOffsetOf(ench1) == 0
+                   && CardCompositionCost.DurabilityBonusOf(ench1) == 2,
+                   "计价锚：结界转耐久 → 发动费抵扣关、入场耐久 +2（运行时二向之二）");
 
             // ---- 抉择分支计槽（2026-09-21：价差溢价已废）——一个效果含 2 分支 Choice = 2 槽 ----
             var choiceSlotData = MakeCostCard(Cardtype.Spell, null, null, MakeEffect("Heal", 1));
@@ -4584,57 +4605,57 @@ namespace CardCore.Editor
             });
             Assert(CostDerivationService.CountEffectSlots(choiceSlotData) == 2,
                    "计价锚：抉择分支计槽——1 效果含 2 分支 Choice = 2 槽");
-            Assert(CardCompositionCost.ChassisAdjust(choiceSlotData) == 1,
-                   "计价锚：底盘 法术 2 槽（抉择装两个效果收两次槽位费）→ 3−2 = 退 1");
+            Assert(CardCompositionCost.SurplusOf(choiceSlotData) == 1,
+                   "计价锚：底盘 法术 2 槽（抉择装两个效果收两次槽位费）→ 剩余 1 抵价");
 
-            // ---- 法术同折（2026-10-02 定案：法术不再豁免 f≡1）+ 减免落色自标（同日定案）----
-            // 锚价红4+蓝2（2026-09-13 表价）×f(未声明档=MaxTier)=0.75 → 取整总额5（最大余数法→红3蓝2）
-            // − 底盘退2：未声明落色 → 默认落最高费用色红 → 红1蓝2；自标蓝 → 退2尽落蓝 → 红3蓝0
+            // ---- 法术同折（2026-10-02 定案）+ 可支配底盘（2026-10-10 定案：RefundColor 自标已删）----
+            // 锚价红4+蓝2（2026-09-13 表价）×f(未声明档=MaxTier18)=0.75 → 取整总额5（最大余数法→红3蓝2）
+            // − 底盘剩余抵价2：先灰（无）后最高费用色红 → 红1蓝2；全额提速（SpeedBonus=2）→ 不抵价红3蓝2
             var fbEffect = MakeEffect("DealDamage", 4);
             fbEffect.AtomicEffects.Add(AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1));
             var fb = CardCostService.Derive(MakeCostCard(Cardtype.Spell, null, null, fbEffect));
             Assert((int)fb.DerivedCost[ManaType.Red] == 1 && (int)fb.DerivedCost[ManaType.Blue] == 2,
-                   "计价锚：法术 4伤+1抽（未声明档）= 红1+蓝2（锚价红4蓝2 ×0.75 取整5 − 底盘退2 默认落最高色红）");
+                   "计价锚：法术 4伤+1抽（未声明档）= 红1+蓝2（锚价红4蓝2 ×0.75 取整5 − 剩余抵价2 默认落最高色红）");
             Assert(System.Math.Abs(fb.Factor - 0.75f) < 1e-4f,
-                   "计价锚：法术未声明档 f=d(9)=0.75（同折定案——旧 f≡1 已废）");
-            var fbBlueCard = MakeCostCard(Cardtype.Spell, null, null, fbEffect);
-            fbBlueCard.RefundColor = (int)ManaType.Blue;
-            var fbBlue = CardCostService.Derive(fbBlueCard);
-            Assert((int)fbBlue.DerivedCost[ManaType.Red] == 3 && (int)fbBlue.DerivedCost[ManaType.Blue] == 0,
-                   "计价锚：减免落色自标（2026-10-02）——底盘退2落蓝 → 红3+蓝0（玩家自标优先，桶尽回落默认）");
+                   "计价锚：法术未声明档 f=d(18)=0.75（同折定案——旧 f≡1 已废）");
+            var fbSpeedCard = MakeCostCard(Cardtype.Spell, null, null, fbEffect);
+            fbSpeedCard.SpeedBonus = 2;
+            var fbSpeed = CardCostService.Derive(fbSpeedCard);
+            Assert((int)fbSpeed.DerivedCost[ManaType.Red] == 3 && (int)fbSpeed.DerivedCost[ManaType.Blue] == 2,
+                   "计价锚：剩余全额提速（SpeedBonus=2）——不抵价 → 红3+蓝2");
             Assert(DeriveTotal(MakeCostCard(Cardtype.Spell, null, null, MakeEffect("Heal", 2))) == 0,
-                   "计价锚：回2命 = 0费（表价1 − 底盘退2 下限0）");
+                   "计价锚：回2命 = 0费（表价1 ×0.75→1 − 抵价2 → 下限0）");
 
-            // ---- 9费档：整卡最后折 f=d(9)=0.75（原 d(9)=0 全免已废）----
+            // ---- 9费档：整卡最后折 f=d(9)=0.8（C4-9 线性带末端；原 d(9)=0 全免已废）----
             var bigBody = MakeCostCard(Cardtype.Creature, 9, 9, MakeEffect("DealDamage", 3));
             bigBody.Cost[(int)ManaType.Gray] = 9;
             var big = CardCostService.Derive(bigBody);
-            Assert(System.Math.Abs(big.Factor - 0.75f) < 1e-4 && big.DerivedTotal == 9 && big.OffsetRequirement == 0,
-                   "计价锚：9费 9/9 挂3伤 → 整卡(9+3)×0.75=9 → D=9，Req=0（1 效果生物底盘 ±0）");
+            Assert(System.Math.Abs(big.Factor - 0.8f) < 1e-4 && big.DerivedTotal == 10 && big.OffsetRequirement == 1,
+                   "计价锚：9费 9/9 挂3伤 → f=d(9)=0.8 整卡(9+3)×0.8=9.6→D=10，Req=1（1 效果生物底盘恰耗尽）");
             var midTier = MakeCostCard(Cardtype.Creature, 9, 9, MakeEffect("DealDamage", 3));
             midTier.Cost[(int)ManaType.Gray] = 5;
             var mid = CardCostService.Derive(midTier);
             Assert(mid.DerivedTotal == 11 && mid.OffsetRequirement == 6 && !mid.Conformant,
-                   "计价锚：同卡声明 5 费档 → f=d(5)=0.875，整卡(9+3)×0.875=10.5→D=11，Req=6 无代价不符规则一");
+                   "计价锚：同卡声明 5 费档 → f=d(5)=0.9333，整卡(9+3)×0.9333=11.2→D=11，Req=6 无代价不符规则一");
 
-            // ---- 两效果=超 1 槽（底盘 3−2−2=−1 加灰）；f=d(C) ----
-            // 2026-09-13 新表价：E=红3+蓝2=5 → 整卡(2+5)×0.90625=6.34→6，超1槽+1灰 → D=7
+            // ---- 两效果=超 1 槽（结构项4>3 加灰）；f=d(C) ----
+            // 新曲线：E=红3+蓝2=5 → 整卡(2+5)×0.96667=6.77→7，超1槽+1灰 → D=8
             var chooser = MakeCostCard(Cardtype.Creature, 2, 2, MakeEffect("DealDamage", 3), MakeEffect("DrawCard", 1));
             chooser.Cost[(int)ManaType.Gray] = 4;
             var ch = CardCostService.Derive(chooser);
-            Assert(System.Math.Abs(ch.Factor - 0.90625f) < 1e-4 && ch.DerivedTotal == 7 && ch.OffsetRequirement == 3,
-                   "计价锚：两效果 f=d(4)=0.90625 整卡(2+5)×f=6.34→6，超1槽+1灰 → D=7");
+            Assert(System.Math.Abs(ch.Factor - 0.96667f) < 1e-4 && ch.DerivedTotal == 8 && ch.OffsetRequirement == 4,
+                   "计价锚：两效果 f=d(4)=0.96667 整卡(2+5)×f=6.77→7，超1槽+1灰 → D=8");
 
-            // ---- 超槽加价入灰（1-1 挂三效果 9费档：新表价 E=3×蓝2=6 → (1+6)×0.75=5.25→5，超2槽+2灰 → D=7）----
+            // ---- 超槽加价入灰（1-1 挂三效果 9费档：E=3×蓝2=6 → (1+6)×0.8=5.6→6，超2槽+2灰 → D=8）----
             var tripleMount = MakeCostCard(Cardtype.Creature, 1, 1,
                 MakeEffect("DrawCard", 1), MakeEffect("DrawCard", 1), MakeEffect("DrawCard", 1));
             tripleMount.Cost[(int)ManaType.Gray] = 9;
             var tm = CardCostService.Derive(tripleMount);
-            Assert(tm.DerivedTotal == 7,
-                   "计价锚：1/1 挂三效果 9费档 → 整卡(S1+E6)×0.75=5，超2槽+2灰 → D=7");
+            Assert(tm.DerivedTotal == 8,
+                   "计价锚：1/1 挂三效果 9费档 → 整卡(S1+E6)×0.8=5.6→6，超2槽+2灰 → D=8");
 
             // ---- 规则一简化（2026-09-11）：D≤C 直判，代价不再提供抵扣当量 ----
-            // 2026-09-13 新表价：E=红3+蓝2=5 → f=d(3)=0.9375，(2+5)×f=6.56→7，超1槽+1灰 → D=8
+            // E=红3+蓝2=5 → f=d(3)=1（C1-3 不折），(2+5)×1=7，超1槽+1灰 → D=8
             var overBaseline = MakeCostCard(Cardtype.Creature, 2, 2, MakeEffect("DealDamage", 3), MakeEffect("DrawCard", 1));
             overBaseline.Cost[(int)ManaType.Gray] = 3; // 3费声明：缺口 5
             var ov = CardCostService.Derive(overBaseline);
@@ -4655,7 +4676,7 @@ namespace CardCore.Editor
             // 2026-10-09 清理：关键词计价两锚（嘲讽绿桶时代口径）删除——表色已迁 White（上方现行断言已锚），
             // 关键词计价现行=行锚×max(1,层数)（2026-10-08 关键词不叠加定案）
 
-            // ---- 缺省档位 Ĉ：5/5 挂 3伤（1 效果底盘±0）→ (5+3)×d(7)=6.5→7 ≤ 7 → Ĉ=7 ----
+            // ---- 缺省档位 Ĉ：5/5 挂 3伤（1 效果底盘恰耗尽）→ (5+3)×d(7)=0.8667→6.93→7 ≤ 7 → Ĉ=7 ----
             var noCost = MakeCostCard(Cardtype.Creature, 5, 5, MakeEffect("DealDamage", 3));
             var nc = CardCostService.Derive(noCost);
             Assert(nc.SuggestedTier == 7, $"计价锚：缺省档位 Ĉ=7（实际 {nc.SuggestedTier}）");
@@ -5494,7 +5515,7 @@ namespace CardCore.Editor
                    "主动效果：启动式照常计效果槽（占用维持定案——AI 每卡原子数上限的可见性锚）");
 
             Assert(ComposerCatalog.IsKeywordStyleGrant(AtomicEffectType.GrantLifesteal)
-                   && !ComposerCatalog.IsKeywordStyleGrant(AtomicEffectType.GrantMagnify),
+                   && !ComposerCatalog.IsKeywordStyleGrant(AtomicEffectType.GrantDepravity),
                    "主动效果：关键词型判定（自指域 Grant=关键词型；赋予型不受限）");
             var kwAct = new CardEffectData
             {
@@ -5514,10 +5535,10 @@ namespace CardCore.Editor
             {
                 Id = "TT_grant_act",
                 TriggerTiming = (int)TriggerTiming.Activate_Active,
-                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.GrantMagnify, value: 1) },
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.GrantDepravity, value: 1) },
             }, "TT_src");
-            Assert(grantDef.Effects.Any(a => a.Type == AtomicEffectType.GrantMagnify),
-                   "主动效果：赋予型 Grant 做启动式放行（赋予关键词可以）");
+            Assert(grantDef.Effects.Any(a => a.Type == AtomicEffectType.GrantDepravity),
+                   "主动效果：赋予型 Grant 做启动式放行（赋予指示物可以；正例=反疗，微缩/放大已删 2026-10-10）");
 
             // ---- ⑥ 发动方式钉死（2026-10-02 定案，与 TideServer V9.e 同口径） ----
             var volBad = CardEffectConverter.ConvertOne(new CardEffectData

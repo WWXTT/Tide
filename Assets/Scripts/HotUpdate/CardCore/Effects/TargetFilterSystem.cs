@@ -100,6 +100,19 @@ namespace CardCore
         }
     }
 
+    /// <summary>非角色（token "NotRole"，2026-10-10 抹除域启用）：排除 Player 实体、保留一切卡
+    ///（生物/结界/地牌）。与 NoRole（仅生物）的差别：不收窄卡类型——混合域（单位+元素池地牌）
+    /// 要剔除角色而不丢无生命目标时用。</summary>
+    public class NotRoleFilter : ITargetFilter
+    {
+        public string DisplayName => "非角色";
+
+        public List<Entity> Filter(List<Entity> candidates, EffectExecutionContext context)
+        {
+            return candidates.Where(e => !(e is Player)).ToList();
+        }
+    }
+
     /// <summary>属性比较筛选器（攻击力/生命值大于/小于/等于阈值）</summary>
     public class StatComparisonFilter : ITargetFilter
     {
@@ -207,24 +220,6 @@ namespace CardCore
         public List<Entity> Filter(List<Entity> candidates, EffectExecutionContext context)
         {
             return candidates.Where(e => e.IsTapped()).ToList();
-        }
-    }
-
-    /// <summary>生物类型筛选器</summary>
-    public class SubtypeFilter : ITargetFilter
-    {
-        private readonly CardSubtype _subtype;
-        public string DisplayName => $"种族:{_subtype}";
-
-        public SubtypeFilter(CardSubtype subtype) { _subtype = subtype; }
-
-        public List<Entity> Filter(List<Entity> candidates, EffectExecutionContext context)
-        {
-            return candidates.Where(e =>
-            {
-                if (e is IHasSubtypes hasSubtypes) return hasSubtypes.Subtypes.HasFlag(_subtype);
-                return false;
-            }).ToList();
         }
     }
 
@@ -544,6 +539,9 @@ namespace CardCore
                 {
                     case "NoRole": // 仅生物（排除角色）——2026-09-10 自 Creature 改名（语义自解释）
                         filters.Add(new CardTypeFilter(Cardtype.Creature));
+                        break;
+                    case "NotRole": // 非角色：排除 Player 实体、保留一切卡——抹除混合域（生物+结界+地牌）剔角色用
+                        filters.Add(new NotRoleFilter());
                         break;
                     // "Spell" token 已删（2026-10-07 回响改普通效果——全表唯一使用行随之退役）
                     case "Mortal": // 凡躯：滤除神佑持有者（神佑的 TargetFilter 实现，2026-09-10）

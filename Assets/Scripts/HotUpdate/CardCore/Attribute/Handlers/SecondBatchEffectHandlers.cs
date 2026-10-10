@@ -199,7 +199,7 @@ namespace CardCore.Attribute.Handlers
     /// 去除 3 个同类型元素指示物，获得 1 点对应元素入 bank。
     /// 净效果 = 牺牲该色 2 个指示物换 1 个即时元素：突破「每地牌每回合产出一次」的节流提前变现，
     /// 代价是加速耗尽（指示物扣完即进墓）。目标资格由 handler 兜底校验保证（Execute 内 IsCardInZone
-    /// 元素池区判定；表行 TargetFilter=NoRole 与地牌域语义无交集，2026-10-02 审核观察）。
+    /// 元素池区判定；2026-10-10 表行 filter 已清空——旧 NoRole 滤光地牌候选的死组合就此解决）。
     /// 选色（同类型 ≥3 才可采）：剩余最多者，并列取枚举序靠前（与结束阶段自动产色同口径，确定性）。
     /// </summary>
     public class MineHandler : AtomicEffectHandlerBase

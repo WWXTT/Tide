@@ -9,7 +9,7 @@ namespace CardCore.Tools
 {
     public static class RefreshMemoryPackOrder
     {
-        private const string OUTPUT_PATH = "Assets/Scripts/CardCore/Serialization/TagTable.cs";
+        private const string OUTPUT_PATH = "Assets/Scripts/HotUpdate/CardCore/Serialization/TagTable.cs"; // 热更重组后实际位置（旧 Assets/Scripts/CardCore 已不存在，2026-10-10 修正）
         private const uint SYNERGY_TAG_SEED = 0x53796E67;
 
         [MenuItem("Tools/刷新属性排序（新增序列化字段时使用）")]
@@ -71,6 +71,10 @@ namespace CardCore.Tools
             ("AEI_Amplitude", 1052954154, "SerializableAtomicEffectEntry.amp（数值随机 RandomAmplitude）"),
             // 抉择卡放地模式（2026-09-21：与出牌同口径），紧邻 CardRuntimeId=713270002 手工递增
             ("MsgIntentAddToElementPool_ModeIndex", 713270003, "MsgIntentAddToElementPool.ModeIndex（抉择放地）"),
+            // 手工定值追补（2026-10-10 对账找回：此前只写进 TagTable.cs 手改区未登记，
+            // 被一次重生成冲掉触发 CS0117——现按原值登记透传）
+            ("MGSS_RevealedZoneCards", 612847093, "MsgGameStateSync.RevealedZoneCards（展示卡·信息轴 2026-10-02）"),
+            ("MDS_SkillCardId", 1739402857, "MsgDeckSubmit.SkillCardId（英雄技能标记卡 2026-10-07 卡牌化；不参与 Digest）"),
         };
 
         private static (string className, string propName, int tag)[] GetTagDefinitions()
@@ -183,8 +187,8 @@ namespace CardCore.Tools
                 ("PlayerState", "Seat"), ("PlayerState", "IsAI"), ("PlayerState", "FatigueCount"),
                 ("PlayerState", "LandCap"), ("PlayerState", "ElementBank"),
                 ("PlayerState", "GraveyardCount"), ("PlayerState", "ExileCount"),
-                // 退役保留位（2026-09-14 抵消系统退役——字段已删，值保留防字段 ID 复用歧义）
-                ("PlayerState", "OffsetOpponentDrawUsed"), ("PlayerState", "OffsetOpponentHealUsed"),
+                // 角色指示物（2026-10-10 角色参战遗留收口：角色攻击弹药等 Player 层指示物同步）
+                ("PlayerState", "Counters"),
 
                 // ---- M1 网络协议（2026-09-10，详见 根目录 网络协议.md）----
 
@@ -208,11 +212,9 @@ namespace CardCore.Tools
                 ("MsgGameStateSync", "PrioritySeat"), ("MsgGameStateSync", "ZoneCards"),
                 ("MsgGameStateSync", "Hands"), ("MsgGameStateSync", "StackV2"),
 
-                // ---- StackItemDTO（栈条目：EffectInstance 投影。EffectDisplayName 已删——2026-09-22
-                //      线上去文本，显示名客户端按 EffectId 查表；旧 Stack=SerializableEffectDefinition[] 字段同日删除。
-                //      EffectDisplayName 值留保留位防字段 ID 复用歧义）----
+                // ---- StackItemDTO（栈条目：EffectInstance 投影。EffectDisplayName/旧 Stack 字段
+                //      已删（2026-09-22 线上去文本，墓碑 2026-10-10 清理）；显示名客户端按 EffectId 查表）----
                 ("StackItemDTO", "Source"), ("StackItemDTO", "IsCardCast"), ("StackItemDTO", "EffectId"),
-                ("StackItemDTO", "EffectDisplayName"),
                 ("StackItemDTO", "ModeIndex"),
                 ("StackItemDTO", "Targets"), ("StackItemDTO", "ActivationSpeed"),
                 ("StackItemDTO", "StackObjectType"),

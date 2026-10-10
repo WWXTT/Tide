@@ -32,14 +32,16 @@ namespace CardCore
             => CounterRules.LoseDurability(core, equipment, amount, reason);
 
         /// <summary>入场初始化耐久（CardData.Durability > 0 时挂 N 层；由 CardPutToBattlefieldEvent 驱动）。
-        /// 2026-10-02 结界实装：一切无生命单位（战场非生物卡——装备与结界）同走此初始化，一套耐久语义。</summary>
+        /// 2026-10-02 结界实装：一切无生命单位（战场非生物卡——装备与结界）同走此初始化，一套耐久语义。
+        /// 2026-10-10 可支配底盘：结界剩余点转耐久（SurplusToDurability）在此 +N（免费，不加价）。</summary>
         public static void OnEnterBattlefield(Card card)
         {
             if (!(card is CardWrapper w)) return;
             var data = w.GetData();
             if (data == null || !card.IsNonLivingUnit()) return;
             if (data.Durability > 0 && card.GetCounterCount(CounterRules.DurabilityCounter) <= 0)
-                card.AddCounters(CounterRules.DurabilityCounter, data.Durability);
+                card.AddCounters(CounterRules.DurabilityCounter,
+                    data.Durability + CardCompositionCost.DurabilityBonusOf(data));
         }
     }
 }

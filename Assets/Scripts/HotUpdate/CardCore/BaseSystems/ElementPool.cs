@@ -66,7 +66,7 @@ namespace CardCore
     /// </summary>
     public class PlayerElementPool
     {
-        /// <summary>场上地牌（带指示物）。张数受地牌槽上限约束（见 GetLandCap）。</summary>
+        /// <summary>场上地牌（带指示物）。2026-10-10 共享地牌槽定案：**双方地牌合计**受公用上限约束（见 GetLandCap）。</summary>
         public List<PooledCard> PooledCards { get; } = new List<PooledCard>();
 
         /// <summary>积攒的费用（bank）：地牌产出（主阶段手动自选色 / 结束阶段自动灰色）+ 临时效果添加。跨回合保留，无上限。</summary>
@@ -83,9 +83,10 @@ namespace CardCore
         /// <summary>个人回合数（自己回合开始时 +1；台账行标识）</summary>
         public int PersonalTurnIndex { get; set; }
 
-        /// <summary>地牌槽上限已翻倍（2026-10-09 地牌槽提升原子定案，绿2 表行 6b674df2）：
-        /// GetLandCap 输出 ×2 封顶 MaxStackedLandCap=18（每地牌格叠两张）。幂等标记——
-        /// 重复使用不叠加（×2 的 ×2 无意义且封顶钳制）；Reset/新局清零。</summary>
+        /// <summary>地牌槽上限已翻倍（2026-10-09 地牌槽提升原子；2026-10-10 共享化 + 计价绿2→绿1）：
+        /// 标记挂在用过者的池上，但 GetLandCap 读**任一方**标记——世界容量扩张对双方生效（公用计数器语义，
+        /// 好处外溢给对手，故降为绿1）。输出 ×2 封顶 MaxStackedLandCap=18（每地牌格叠两张）。
+        /// 幂等标记——重复使用不叠加（×2 的 ×2 无意义且封顶钳制）；Reset/新局清零。</summary>
         public bool LandCapBoosted { get; set; }
 
         /// <summary>本回合产出次数（手动自选色 + 结束阶段自动灰色；每个全局回合重置）</summary>
@@ -115,14 +116,16 @@ namespace CardCore
     /// <summary>
     /// 元素池系统
     /// 核心费用体系（地牌 = 场上有限电池，bank = 积攒的费用）：
-    /// 1. 地牌槽上限 = min(全局回合数, 9)：先手首个回合为 1，此后每个回合开始 +1（对手首回合即 2），最大 9；只限场上地牌张数
+    /// 1. 地牌槽上限 = min(全局回合数, 9)：先手首个回合为 1，此后每个回合开始 +1（对手首回合即 2），最大 9。
+    ///    2026-10-10 共享定案（「灵气复苏」口径）：此上限是**全场公用计数器**（同记速器性质的公共状态，
+    ///    每回合+1）——双方场上地牌**合计**受它约束，先占先得（先后手借此互相牵制）。
     /// 2. 准备阶段：己方横置地牌全部自动恢复（解除横置）
-    /// 3. 主阶段：以可用（未横置）状态补充地牌，不限张数/次数（受槽上限）；手动横置地牌产 1 个自选颜色元素入 bank
+    /// 3. 主阶段：以可用（未横置）状态补充地牌，不限张数/次数（受公用槽上限，双方合计）；手动横置地牌产 1 个自选颜色元素入 bank
     ///    —— 自选颜色范围 = 该地牌剩余指示物的颜色集合（由卡本身费用构成决定）
     /// 4. 结束阶段：未横置的地牌自动横置，产 1 个剩余最多色元素入 bank（消耗剩余最多颜色的 1 个指示物）
     /// 5. bank（AvailableMana）跨回合保留、无上限；出牌时自动从 bank 支付
-    /// 6. 出牌门槛：卡总费用不得超过当前地牌槽上限（费用上限 9 由此隐含）
-    /// 7. 指示物耗尽 → 地牌进墓地 → 可用手牌补充到当前上限
+    /// 6. 出牌门槛：卡总费用不得超过当前地牌槽上限（公用计数器读数；费用上限 9 由此隐含）
+    /// 7. 指示物耗尽 → 地牌进墓地 → 全场合计占用下降，可用手牌补充
     /// </summary>
     public class ElementPoolSystem
     {
@@ -183,13 +186,14 @@ namespace CardCore
 
         /// <summary>
         /// 地牌资格（2026-10-03 用户定案修订）：卡组正式 生物/法术/结界 三型可作地牌——
-        /// 衍生物（IsToken，SummonToken 实例）、临时复制卡（微缩/放大/回响，IsTemporary）不可
-        /// （否则 1/1 费1灰副本成免费地牌）；耗尽过的卡由 WasDepletedAsLand 永久拒绝（AddCardToPool）。
+        /// 衍生物（IsToken，SummonToken 实例）、临时复制卡（回响——持临时指示物 TempCounter，
+        /// 2026-10-10 指示物化；微缩/放大同日退役）不可（否则副本成免费地牌）；
+        /// 耗尽过的卡由 WasDepletedAsLand 永久拒绝（AddCardToPool）。
         /// UI/AI 预检与 AddCardToPool 权威校验共用此判据。
         /// </summary>
         public static bool CanServeAsLand(Card card)
             => card is CardWrapper
-               && !card.IsTemporary
+               && card.GetCounterCount(Attribute.CounterRules.TempCounter) <= 0 // 临时复制卡（临时指示物标记）
                && !card.IsToken
                && card is IHasSupertype ht
                && (ht.Supertype == Cardtype.Creature
@@ -198,7 +202,7 @@ namespace CardCore
 
         /// <summary>
         /// 将手牌作为地牌放入元素池（主阶段调用，可用/未横置状态入场，不限张数/次数）。
-        /// 张数受地牌槽上限约束（min(全局回合数, 9)）；指示物基于卡牌费用构成。
+        /// 双方合计张数受公用槽上限约束（2026-10-10 共享定案，min(全局回合数, 9)）；指示物基于卡牌费用构成。
         /// 抉择卡（2026-09-21 定案）：modeIndex 由玩家自选（与出牌同口径），指示物按所选模式生成；
         /// 所选模式 0 费 → 无指示物 → 拒绝入池。
         /// 状态跟随卡：耗尽过的卡（WasDepletedAsLand）永久拒绝；
@@ -221,8 +225,8 @@ namespace CardCore
 
             var pool = GetPool(owner);
 
-            // 地牌槽上限：只限场上地牌张数（起始 1，回合开始 +1，最大 9）
-            if (pool.PooledCards.Count >= GetLandCap(owner))
+            // 地牌槽上限（2026-10-10 共享定案）：公用计数器——双方场上地牌合计超限即拒（先占先得）
+            if (GetTotalPooledCount() >= GetLandCap(owner))
                 return false;
 
             // 指示物来源：优先用地牌余量状态（回手再入池保留剩余），否则按费用构成（抉择卡按所选模式）
@@ -312,9 +316,11 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 地牌槽上限翻倍（2026-10-09 地牌槽提升原子 IncreaseLandCapHandler 调，绿2）：幂等——
-        /// 已翻倍返回 false。翻倍口径=当前曲线上限 ×2 封顶 MaxStackedLandCap（18，每地牌格叠两张），
+        /// 地牌槽上限翻倍（2026-10-09 地牌槽提升原子 IncreaseLandCapHandler 调；2026-10-10 共享化+计价绿2→绿1）：
+        /// 幂等——已翻倍返回 false。翻倍口径=当前曲线上限 ×2 封顶 MaxStackedLandCap（18，每地牌格叠两张），
         /// 作用于 GetLandCap 单点：地牌张数上限/支付浓度上限/出牌费用门槛/黑白获得封顶/AI/快照同随。
+        /// 共享语义：标记挂在自己池上，但任一方标记都使**双方**上限翻倍（世界容量公共，
+        /// 好处外溢给对手——故计价降为绿1）。
         /// </summary>
         public bool AddLandCapBoost(Player player)
         {
@@ -326,15 +332,17 @@ namespace CardCore
             {
                 Player = player,
                 NewCurve = pool.Curve, // 曲线对象未换——事件仅作 Trigger/Layer 可见的通知载体
-                Reason = "IncreaseLandCap:地牌槽上限翻倍（封顶18）",
+                Reason = "IncreaseLandCap:地牌槽上限翻倍（封顶18，双方共享）",
             });
             return true;
         }
 
         /// <summary>
-        /// 玩家当前的地牌槽上限（场上地牌张数上限，也是本回合可出卡的费用上限）。
+        /// 当前的地牌槽上限（2026-10-10 共享定案：**全场公用计数器**，同记速器性质的公共状态——
+        /// 双方场上地牌合计受它约束；卡总费用门槛/支付浓度上限/黑白获得封顶读同一值）。
         /// 标准曲线 = min(全局回合数, 9)（先手首回合 1，对手首回合 2）；无曲线时按同一公式兜底。
-        /// 地牌槽提升原子（2026-10-09）：LandCapBoosted → 上限 ×2 封顶 18（每地牌格叠两张）。
+        /// 挑战模式 P2 加成曲线仍按各自池推导（共用计数、各按己方曲线口径）。
+        /// 地牌槽提升原子：任一方 LandCapBoosted → 上限 ×2 封顶 18（世界容量扩张对双方生效）。
         /// </summary>
         public int GetLandCap(Player player)
         {
@@ -344,8 +352,16 @@ namespace CardCore
                 cap = pool.Curve.CapAt(pool.GlobalTurnIndex);
             else
                 cap = Math.Max(1, Math.Min(pool.GlobalTurnIndex, MAX_POOL_SIZE));
-            return pool.LandCapBoosted ? Math.Min(cap * 2, MaxStackedLandCap) : cap;
+            return IsLandCapBoosted() ? Math.Min(cap * 2, MaxStackedLandCap) : cap;
         }
+
+        /// <summary>全场地牌总数（2026-10-10 共享上限占用口径）：双方元素池内地牌张数合计。</summary>
+        public int GetTotalPooledCount()
+            => _playerPools.Values.Sum(p => p.PooledCards.Count);
+
+        /// <summary>任一方已用地牌槽提升原子（共享上限：世界容量扩张对双方生效）。</summary>
+        private bool IsLandCapBoosted()
+            => _playerPools.Values.Any(p => p.LandCapBoosted);
 
         // ======================================== 产出元素（主阶段手动 / 结束阶段自动） ========================================
 
@@ -362,6 +378,13 @@ namespace CardCore
             if (!pool.PooledCards.Contains(land)) return false;
             if (land.IsTapped) return false;          // 本回合周期已产出
             if (!land.HasToken(type)) return false;   // 只能取该地牌自身构成的颜色
+
+            // 沉默闸（2026-10-10 定案：地牌横置换元素=主动效果，沉默/迟钝表行已补元素池域）：
+            // 挂沉默指示物的地牌不可手动横置换元素（沉默锁主动发动；UI/AI/支付自动横置全经此咽喉）。
+            // 迟钝不拦手动——迟钝只锁自动触发，见 OnTurnEnd 自动产色闸。
+            if (land.SourceCard != null
+                && land.SourceCard.GetCounterCount(Attribute.CounterRules.SilenceCounter) > 0)
+                return false;
 
             land.RemoveToken(type);
             pool.TapsThisTurn++;
@@ -406,6 +429,11 @@ namespace CardCore
             foreach (var pc in pool.PooledCards.ToList())
             {
                 if (pc.IsTapped) continue;
+                // 迟钝闸（2026-10-10）：挂迟钝指示物的地牌结束阶段不自动产色（迟钝锁自动触发）——
+                // 地牌保持未横置、指示物不减，下回合仍可手动横置换元素（沉默才拦手动，两闸分管主动/自动）。
+                if (pc.SourceCard != null
+                    && pc.SourceCard.GetCounterCount(Attribute.CounterRules.NullifyCounter) > 0)
+                    continue;
                 var type = PickProduceColor(pc);
                 if (type == null) continue;           // 无剩余指示物，交给耗尽清理
 
@@ -916,7 +944,7 @@ namespace CardCore
         public string GetStatusString(Player player)
         {
             var pool = GetPool(player);
-            var result = $"元素池 (地牌 {pool.PooledCards.Count}/{GetLandCap(player)}):\n";
+            var result = $"元素池 (地牌 {pool.PooledCards.Count}，全场 {GetTotalPooledCount()}/{GetLandCap(player)}):\n";
 
             foreach (var pc in pool.PooledCards)
             {

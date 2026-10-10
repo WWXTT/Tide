@@ -259,6 +259,14 @@ namespace CardCore.Attribute
         /// 再入场（含预挂手牌/牌库的卡登场）仍可生效）。
         /// </summary>
         public const string ReplayCounter = "Replay";
+        /// <summary>
+        /// 临时（2026-10-10 回响临时指示物化，白2，表行 GrantTemporary）：复制卡的「临时」标记——
+        /// 持有者回合结束时该卡**不在战场则从游戏中移除**（消失，不进墓）；**在战场则衰退 −1 层**
+        /// （归零即净，场上副本转正）。Exception 档换区不清——标记须跟卡进墓地/牌库，回合末检查才可及
+        /// （复制体沉墓/洗回牌库同样到期出局）；回合末例程=OnTurnEnd ②块（不进 ③通用倒数——避免双扣）。
+        /// 施加口=TempCopyRules.CreateTemporaryCopy（回响复制体恒 1 层）+ GrantTemporaryHandler（白2/层）。
+        /// </summary>
+        public const string TempCounter = "Temp";
 
         private static readonly Dictionary<string, CounterSpec> _registry =
             new Dictionary<string, CounterSpec>();
@@ -297,6 +305,11 @@ namespace CardCore.Attribute
             // 重放（2026-10-09，白4）：单位效果发动结算后消耗 1 层并再次发动一次（重放不触发重放；
             // 消耗口=EffectExecutor.ExecuteAsync）；换区不清（离场休眠、再入场仍生效）
             Register(new CounterSpec { Id = ReplayCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "重放" });
+            // 临时（2026-10-10 回响临时指示物化，白2）：持有者回合末不在战场→从游戏中移除、
+            // 在战场→衰退 −1 层（例程=OnTurnEnd ②块，不进 ③通用倒数）；Exception 换区不清——
+            // 标记跟卡跨区（沉墓/洗牌库的复制体同样到期出局）；负面极性——净化/解减益可清
+            //（净化救临时卡=统一指示物的交互点）
+            Register(new CounterSpec { Id = TempCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.External, DisplayName = "临时" });
 
             // ---- 常驻（Resident：不随时间衰退，换区清；消费型标 External 注明归属）----
             //（坚韧 2026-10-09 迁入 Exception 生效自减——受伤拦减后层数减半，见上区块）
@@ -348,11 +361,20 @@ namespace CardCore.Attribute
 
         // ==================== 耐久公共路径（2026-10-02 结界实装定案） ====================
 
+        /// <summary>是否耐久经济体（2026-10-10 三类卡=发数经济定案）：结界（战场或技能栏）的
+        /// 一切发动以耐久为次数池——主动=耐久−1+元素费现付（横置退役）、场上非光环被动触发=每次−1；
+        /// 生物维持横置经济（KeywordRules.ShouldTap），法术一次性（施放即发动）。
+        /// 归零语义分域：战场=销毁入墓（本方法）、技能栏=休眠待回充（HeroSkillSystem.RechargeSkill）。</summary>
+        public static bool UsesDurabilityEconomy(Card card)
+            => card is IHasSupertype st && st.Supertype == Cardtype.Enchantment;
+
         /// <summary>
         /// 耐久消耗公共路径：结界与装备一套耐久语义（-N 层并播报；归零 → 直送墓 +
         /// CardDestroyEvent(Smashed)——「无生命直毁」惯例，不经死亡决策表）。
         /// 原实现自 EquipRules.LoseDurability 迁入（装备侧调用点转发至此）。
         /// 无耐久层（cur ≤ 0，如持续型装备）不消耗。
+        /// 归零分域（2026-10-10 技能耐久池定案）：技能栏（FieldZone）归零**不销毁**——地板 0 休眠，
+        /// 回合开始 +1 回充（封顶初始耐久）；销毁语义只属战场无生命单位。
         /// </summary>
         public static void LoseDurability(CardCore.GameCore core, Card durable, int amount, string reason)
         {
@@ -370,6 +392,16 @@ namespace CardCore.Attribute
 
             if (durable.GetCounterCount(DurabilityCounter) <= 0)
             {
+                if (durable.GetZone() == Zone.FieldZone)
+                {
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    {
+                        Target = durable,
+                        Keyword = DurabilityCounter,
+                        Detail = "耐久归零——技能休眠（不销毁，回合开始回充 +1）",
+                    });
+                    return;
+                }
                 var owner = durable.GetOwner() ?? durable.GetController();
                 if (owner != null)
                 {
@@ -602,6 +634,8 @@ namespace CardCore.Attribute
         /// 回合结束处理（由 GameCore.OnTurnEnd 调用）。只结算**持有者侧**（回合方玩家+战场+手牌卡；
         /// 对手实体上的指示物等对手自己回合末）：
         /// ① 毒素例外例程（每回合末受到=层数的伤害，随后层数减半 floor）；
+        /// ② 临时指示物例程（2026-10-10 回响临时指示物化）：全区域扫描——不在战场的挂标卡
+        ///    从游戏中移除（消失，不进墓）；在战场的衰退 −1 层（归零即净，场上副本转正）；
         /// ③ 衰退族逐层倒数（Class=Decay：层=剩余回合，持有者回合末 −1，归零解除——冻结/紊乱/
         ///    沉睡/锁定（易损 2026-10-09 迁生效自减档，已退出倒数）；窥渊挂锁必须排在倒数之后，
         ///    时序契约见 GameCore.OnTurnEnded）。
@@ -614,6 +648,38 @@ namespace CardCore.Attribute
             foreach (var entity in AllEntities(turnPlayer, zoneManager))
             {
                 ProcessToxinException(entity);
+            }
+
+            // ── ② 临时指示物例程（2026-10-10 回响临时指示物化）：持有者全区域扫描——
+            //    不在战场的挂标卡从游戏中移除（消失，不进墓、不触发死亡）；在战场的照常衰退 −1 层。
+            //    自带倒数（不走 ③通用倒数——TempCounter 登记 External，避免双扣） ──
+            foreach (var card in AllZoneCards(turnPlayer, zoneManager))
+            {
+                if (card.GetCounterCount(TempCounter) <= 0) continue;
+                if (card.GetZone() != Zone.Battlefield)
+                {
+                    var owner = card.GetOwner() ?? card.GetController();
+                    var from = card.GetZone();
+                    if (owner != null) zoneManager?.GetZoneContainer(owner)?.Remove(card, from);
+                    else card._zone = Zone.None;
+                    EventManager.Instance.Publish(new CardMoveEvent
+                    {
+                        MovedCard = card,
+                        From = from,
+                        To = Zone.None,
+                        Controller = owner,
+                    });
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    {
+                        Target = card,
+                        Keyword = TempCounter,
+                        Detail = "临时到期——不在战场，从游戏中移除",
+                    });
+                }
+                else
+                {
+                    TickLayeredCounter(card, TempCounter, "临时");
+                }
             }
 
             // ── ③ 衰退族逐层倒数（spec 驱动）：TickPolicy=TurnEndTickDown（=Decay 类），
@@ -664,6 +730,23 @@ namespace CardCore.Attribute
                     ? $"{displayName}倒数（持有者回合结束，余 {layers - 1} 回合）"
                     : $"{displayName}解除（持有者回合结束，层数归零）",
             });
+        }
+
+        /// <summary>临时例程结算域（2026-10-10）：持有者手牌/战场/墓地/牌库/技能栏/除外区快照——
+        /// 临时标记（TempCounter）换区不清、须扫全区域，从游戏中移除检查才可及沉墓/洗牌库的卡。
+        /// 发动区豁免（回合末不在结算路径）；除外区纳入（2026-10-10 定案：临时移除=从游戏中直接
+        /// 消失的独立出去手段、非区域转换——除外区挂标卡同样到期消失）；元素池不扫（表域未含）。
+        /// ToList 物化快照：结算中移卡（容器列表变更）会炸惰性遍历。</summary>
+        private static IEnumerable<Card> AllZoneCards(Player turnPlayer, ZoneManager zoneManager)
+        {
+            var snapshot = new List<Card>();
+            if (zoneManager == null) return snapshot;
+            foreach (var zone in new[] { Zone.Hand, Zone.Battlefield, Zone.Graveyard, Zone.Deck, Zone.FieldZone, Zone.Exile })
+            {
+                foreach (var card in zoneManager.GetCards(turnPlayer, zone).ToList())
+                    if (card != null) snapshot.Add(card);
+            }
+            return snapshot;
         }
 
         /// <summary>回合方玩家 + 回合方战场/手牌卡（持有者侧结算域：指示物只在持有者回合末

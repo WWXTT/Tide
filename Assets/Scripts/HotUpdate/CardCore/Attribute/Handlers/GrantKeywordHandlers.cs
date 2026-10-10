@@ -79,7 +79,8 @@ namespace CardCore.Attribute.Handlers
         // 无「一次性生效后消失」的说法；冲锋/突袭改由登场效果表达（OnPlay+激励自己，突袭另自上紊乱指示物）。
         // 2026-09-11：嘲讽还原（GrantTaunt）；辟邪更名扰魔（运行时 id 仍 Untargetable）；
         // 2026-09-13：嘲讽更名帷幕（只吸引效果目标、不拦攻击；运行时 id 仍 Taunt）；
-        // 新增微缩/放大/回响（临时复制卡族，行为见 TempCopyRules，装载范围见原子表 MountKinds 列）。
+        // 微缩/放大已删（2026-10-10 照抄炉石机制退役）——临时复制卡族仅余回响（普通效果 EchoCopy，
+        // 复制/移除逻辑见 TempCopyRules）。
         private static readonly (AtomicEffectType type, string keywordId, string description)[] Specs =
         {
             // 红色 - 攻击性
@@ -125,10 +126,6 @@ namespace CardCore.Attribute.Handlers
             // 复生已移出关键词族（2026-10-08 指示物化）：GrantReborn 原子改由 GrantRebornHandler
             // 执行（挂 RebornCounter 层）——refId 已重推 502be10d→94f6a32d（2026-10-08 全量 ID 重推）
             (AtomicEffectType.GrantIndestructible, "Indestructible", "获得不灭"),
-
-            // 临时复制卡族（2026-09-11；回响 2026-10-07 改普通效果 EchoCopy 退出关键词族）
-            (AtomicEffectType.GrantMiniature, "Miniature", "获得微缩"),
-            (AtomicEffectType.GrantMagnify, "Magnify", "获得放大"),
         };
 
         /// <summary>
