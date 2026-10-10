@@ -27,17 +27,29 @@ namespace CardCore
             var byColor = new Dictionary<ManaType, int>();
             if (effect != null)
             {
-                VisitBillableAtoms(effect, modeIndex,
-                    (atom, domain) => AccumulateElementCost(atom, effect, domain, byColor));
+                VisitBillableAtoms(effect, modeIndex, (atom, domain) =>
+                {
+                    AccumulateElementCost(atom, effect, domain, byColor);
 
-                // 分支计价（2026-09-15 用户定案，**废除 09-13 全部灰费**；2026-10-05 两槽载荷化）：
-                // **有限分支（局面门）与产出条件（Outcome）=纯校验上限，零计价**——条件"预算"只是
-                // Then 奖励锚价的放置上限（drop 硬校验），奖励原子免费（条件性即折扣），
-                // 分支整体贡献 0 费（诅咒门同口径：Then=抽到时的专属载荷）。
-                // **引擎（Engine 载荷）=零计价**——拼点门槛=奖励锚价合计（运行时判差额 ≥ 门槛，见 BranchEngines），
-                // 奖励按声明值结算（门槛制）；运势 x=纯概率门槛（掷骰阈值）；倒计时延迟即付费。
-                // Then 奖励原子免费（VisitBillableAtoms 只扫主序列主干，Branch 载荷不进遍历）。
-                // 赋予引擎（Grant）已解体——无条件赋予=无分支槽原子照常主序列计费（×持续档）。
+                    // 分支计价（2026-09-15 用户定案，**废除 09-13 全部灰费**；2026-10-05 两槽载荷化）：
+                    // **有限分支（局面门）与产出条件（Outcome）=纯校验上限，零计价**——条件"预算"只是
+                    // Then 奖励锚价的放置上限（drop 硬校验），奖励原子免费（条件性即折扣），
+                    // 分支整体贡献 0 费（不达标不奖励也不惩罚——纯条件奖励）。
+                    // **引擎（Engine 载荷）=零计价**——拼点门槛=奖励锚价合计（运行时判差额 ≥ 门槛，见 BranchEngines），
+                    // 奖励按声明值结算（门槛制）；运势 x=纯概率门槛（掷骰阈值）；倒计时延迟即付费。
+                    // Then 奖励原子免费（VisitBillableAtoms 只扫主序列主干，Branch 载荷不进遍历）。
+                    // 赋予引擎（Grant）已解体——无条件赋予=无分支槽原子照常主序列计费（×持续档）。
+                    // **例外（2026-10-09 附加指示物定案）**：附加诅咒/附加祝福分支**不奖励免费**——
+                    // 按分支实际填入的诅咒/祝福费用减半向上取整入卡价（EngineBranchSurcharge）。
+                    if (atom.Branch != null && atom.Branch.Settle == BranchSettleKind.Engine
+                        && (atom.Branch.EngineKind == BranchEngineKind.CurseOnDraw
+                            || atom.Branch.EngineKind == BranchEngineKind.BlessingOnDraw))
+                    {
+                        var surcharge = EngineBranchSurcharge(atom.Branch);
+                        foreach (var c in surcharge.NonzeroColors())
+                            byColor[c] = byColor.TryGetValue(c, out var v) ? v + (int)surcharge[c] : (int)surcharge[c];
+                    }
+                });
             }
 
             // 2026-10-04 费用位置数组化：输出统一为 ElementCost（序数序天然确定，非零即入）
@@ -239,16 +251,16 @@ namespace CardCore
         internal static bool IsCounterAtom(AtomicEffectConfig cfg)
             => cfg != null && cfg.GetTagList().Any(CounterBehaviorTags.Contains);
 
-        /// <summary>固定分支门预算表（2026-09-14 定案：门=纯校验上限，零计价——奖励原子维持 0 费，
-        /// 预算只是放置上限；"造成伤害时"门已随战斗伤害改写族上线而移除）。
-        /// 2026-09-22 新增局面状态族 8 门（通用门，预算 1）——零计价口径不变。
-        /// 2026-10-05 新增诅咒门（CurseOnDraw，预算 2）——Then 原子=抽到时的专属载荷。
-        /// 改写门（DmgRewrite*）已随四条改写迁唯一光环退役。</summary>
+        /// <summary>固定分支条件预算表（2026-09-14 定案：条件=纯校验上限，零计价——奖励原子维持 0 费，
+        /// 预算只是放置上限）。
+        /// 产出条件五项（消灭/宣言命中落空/预言命中落空）预算 2；
+        /// 局面状态族 11 门（有限分支，2026-10-09 还原——达标奖励/不达标无事，纯条件奖励）：
+        /// 一批预算 1（DrawnInStandbyThisTurn 调 3）、二批预算 2。
+        /// 改写门（DmgRewrite*）已随四条改写迁唯一光环退役；诅咒门不还原（引擎主干行接棒）。</summary>
         public static readonly Dictionary<string, int> GatePremium = new Dictionary<string, int>
         {
             { "DmgKillsTarget", 2 }, // 消灭目标时
             { "DeclareHit", 2 },     // 宣言结果一致时
-            // ---- 产出条件·补录（2026-10-05 改归自由分支·产出条件族）----
             { "DeclareMiss", 2 },    // 宣言落空时（与命中对称）
             { "ProphecyHit", 2 },    // 预言命中时（延迟验证：对手下回合首张出牌结算）
             { "ProphecyMiss", 2 },   // 预言落空时（延迟验证，语义反转）
@@ -265,8 +277,6 @@ namespace CardCore
             { "LandsGe7", 2 },               // 操控地数量≥7
             { "HandEmpty", 2 },              // 手牌数量=0
             { "LifeLe7", 2 },                // 生命值≤7
-            // ---- 诅咒门（2026-10-05 定案）----
-            { "CurseOnDraw", 2 },            // 抽到该卡时（时机固定）——诅咒载荷 ≤2 费
         };
 
         /// <summary>奖励原子的推导费合计（2026-09-14 自 CardEffectConverter 上移——倒计时回合换算与
@@ -274,17 +284,57 @@ namespace CardCore
         /// TriggerLimitPerTurn=1 的 shim（防字段默认 -1 被 TriggerCostFactor 当"无上限"档、
         /// TargetCount=0 落"全部"档的膨胀——2026-09-13 修复口径固化于此）。</summary>
         public static float RewardDerivedCost(List<AtomicEffectInstance> atoms)
+            => RewardDerivedCostByColor(atoms).Total;
+
+        /// <summary>RewardDerivedCost 的色费版（2026-10-09 附加诅咒/祝福分支附加费配套）：
+        /// 同 shim 口径，返回各色份额（附加费色分配的占比基底）。</summary>
+        public static ElementCost RewardDerivedCostByColor(List<AtomicEffectInstance> atoms)
         {
-            if (atoms == null || atoms.Count == 0) return 0f;
+            if (atoms == null || atoms.Count == 0) return new ElementCost();
             var shim = new EffectDefinition { Id = "REWARD_SHIM", Duration = DurationType.Once,
                 TriggerLimitPerTurn = 1, TargetCount = 1 };
             shim.Effects = atoms;
-            return DeriveElementCosts(shim).Total;
+            return DeriveElementCosts(shim);
         }
 
-        /// <summary>拼点门槛（2026-10-09 抽公共——运行时判定与 UI 短文案同源，防显示≠判定）：
-        /// 奖励锚价合计四舍五入（AwayFromZero）、下限 1——门槛随 Then 奖励实时变。</summary>
-        public static int ClashThreshold(List<AtomicEffectInstance> then)
+        /// <summary>附加诅咒/附加祝福分支附加费（2026-10-09 定案：这两引擎的 Then 奖励**不再免费**——
+        /// 按分支实际填入的诅咒/祝福的费用**减半、向上取整**）：色分配=奖励推导色费按原色占比分摊
+        /// 减半总额（最大余数法）。其余引擎照旧零计价（条件性即折扣——倒计时延迟即付费、拼点差额付门槛）。</summary>
+        public static ElementCost EngineBranchSurcharge(BranchPayload payload)
+        {
+            var result = new ElementCost();
+            var full = RewardDerivedCostByColor(payload?.Then);
+            float total = full.Total;
+            if (total <= 0f) return result;
+            int half = (int)Math.Ceiling(total / 2f);
+            var colors = full.NonzeroColors().ToList();
+            var alloc = new Dictionary<ManaType, int>();
+            int assigned = 0;
+            foreach (var c in colors)
+            {
+                int a = (int)Math.Floor(half * full[c] / total);
+                alloc[c] = a;
+                assigned += a;
+            }
+            foreach (var c in colors.OrderByDescending(c => half * full[c] / total - alloc[c]))
+            {
+                if (assigned >= half) break;
+                alloc[c]++;
+                assigned++;
+            }
+            foreach (var kv in alloc)
+                if (kv.Value > 0) result[kv.Key] = kv.Value;
+            return result;
+        }
+
+        /// <summary>附加诅咒/祝福分支附加费标量（合成器分支段预览文本用）：Then 奖励推导费 ceil 减半。</summary>
+        public static float EngineBranchSurchargeHalf(List<AtomicEffectInstance> then)
+            => (float)Math.Ceiling(RewardDerivedCost(then) / 2f);
+
+        /// <summary>自平衡门槛（原拼点门槛 2026-10-09 抽公共；同日四引擎统一——运行时判定与 UI 短文案同源，
+        /// 防显示≠判定）：拼点/死亡计数/元素充盈/手牌序位共用——奖励锚价合计四舍五入（AwayFromZero）、
+        /// 下限 1，门槛随 Then 奖励实时变（奖励越贵门槛越高，玩家在合成器 1-5 费区间内调奖励即调门槛）。</summary>
+        public static int RewardThreshold(List<AtomicEffectInstance> then)
             => Math.Max(1, (int)Math.Round(RewardDerivedCost(then), MidpointRounding.AwayFromZero));
 
         /// <summary>倒计时初值回合（与 converter 换算同源）：声明 param&gt;0 用声明值；
@@ -299,7 +349,23 @@ namespace CardCore
         public static float TriggerCostFactor(EffectDefinition def)
         {
             if (def == null || !def.IsTriggeredEffect) return 1f;
+            if (HasEnginePayload(def)) return 1f; // 引擎载荷效果：重复性属引擎通道（Then 自平衡门槛付费），主干部署单发不乘次数档
             return Tiers.TriggerLimitFactor(def.TriggerLimitPerTurn);
+        }
+
+        /// <summary>效果是否携带引擎载荷（settle=Engine——扁平 Effects 与节点化 Steps 双扫）。
+        /// 引擎效果头被 EngineHeaderPresetOf 归一为无限档（-1），但主干原子部署单发、奖励由引擎
+        /// 自平衡付费——触发上限系数（无限=×4）不适用，防非引擎行主干被重定价（2026-10-09 修复）。</summary>
+        private static bool HasEnginePayload(EffectDefinition def)
+        {
+            bool Of(AtomicEffectInstance a) => a?.Branch != null && a.Branch.Settle == BranchSettleKind.Engine;
+            if (def.Effects != null)
+                foreach (var a in def.Effects)
+                    if (Of(a)) return true;
+            if (def.Steps != null)
+                foreach (var s in def.Steps)
+                    if (Of(s?.Atomic)) return true;
+            return false;
         }
 
         /// <summary>发动速度计价系数（2026-10-09 速度入价定案，表 PricingTier：0 普通 ×1 / 1 瞬间 ×1.5 / 2 高速 ×2）。

@@ -33,6 +33,7 @@ namespace SynergyUI
 
         // 派生显示
         public int X = -1, Z = -1;  // 棋盘格位（-1=未落格）
+        public bool Stacked;        // 地牌叠层（2026-10-09 地牌槽提升）：所在格第二层——渲染错位叠放
         public string LandTokensText;
         public bool IsDead;         // 战场尸体（标死未收）
 
@@ -261,7 +262,12 @@ namespace SynergyUI
                 if (land?.SourceCard == null) continue;
                 var view = FromRuntime(SerializableRuntimeCardState.FromCard(land.SourceCard), land.SourceCard, ownerIsOpponent);
                 int x, z;
-                if (board != null && board.TryGetCell(land.SourceCard, out x, out z)) { view.X = x; view.Z = z; }
+                if (board != null && board.TryGetCell(land.SourceCard, out x, out z))
+                {
+                    view.X = x;
+                    view.Z = z;
+                    view.Stacked = board.IsStackedLand(land.SourceCard); // 叠层第二张（每格两张）
+                }
 
                 // 池包装的横置态/剩余指示物是权威（FromCard 读的是卡内字段——入池时卡上余量
                 // 已清空转移进 PooledCard）。横置态与余量都必须覆写进 Runtime：
@@ -382,13 +388,21 @@ namespace SynergyUI
 
         private static void FillLandsNet(List<BattleCardView> list, MsgGameStateSync snap, int seat, bool ownerIsOpponent)
         {
-            // 同 FillUnitsNet：观察者视角归一（己方地牌行 z6、对手 z1）
+            // 同 FillUnitsNet：观察者视角归一（己方地牌行 z6、对手 z1）。
+            // 叠层（2026-10-09 地牌槽提升）：列表序与服务器 AssignCells 同构——前 9 张占首层，
+            // 第 10 张起叠回同格第二层（i%9 同格、Stacked 标记错位渲染）。
             var lands = ZoneCardsNet(snap, seat, Zone.ElementPool);
             var cells = BoardLayout.LandCells(ownerIsOpponent ? 1 : 0);
             for (int i = 0; i < lands.Length; i++)
             {
                 var view = FromRuntime(lands[i], null, ownerIsOpponent);
-                if (i < cells.Count) { view.X = cells[i].x; view.Z = cells[i].z; }
+                if (i < cells.Count * BoardLayout.LandStackPerCell)
+                {
+                    var cell = cells[i % cells.Count];
+                    view.X = cell.x;
+                    view.Z = cell.z;
+                    view.Stacked = i >= cells.Count;
+                }
                 list.Add(view);
             }
         }

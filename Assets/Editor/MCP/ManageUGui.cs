@@ -25,9 +25,33 @@ namespace Tide.Editor.Mcp
     [McpForUnityTool(
         "manage_ugui",
         Group = "ui",
-        Description = "Create and edit uGUI (Canvas) hierarchies: elements (panel/button/text/image/inputfield/toggle/slider/dropdown/scrollview), semantic rect anchors, text styles, layout groups (vertical/horizontal/grid), persistent event listeners, hierarchy query, and inline Canvas screenshots for visual iteration.")]
+        Description = "Create and edit uGUI (Canvas) hierarchies: elements (panel/button/text/image/inputfield/toggle/slider/dropdown/scrollview), semantic rect anchors, text styles, layout groups (vertical/horizontal/grid), persistent event listeners, hierarchy query, and inline Canvas screenshots for visual iteration. Pass per-action parameters as a flat JSON object in `params` (merged into the command root); `prefab_path` targets a prefab asset instead of the scene.")]
     public static class ManageUGui
     {
+        // ------------------------------------------------------------------
+        // Schema parameter declaration (ToolDiscoveryService reflection)
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// Schema 声明被 ToolDiscoveryService.ExtractParameters 反射收集（嵌套类名必须是
+        /// Parameters、实例属性+[ToolParameter]），经 get_tool_states 上报，Python 侧
+        /// FastMCP 据此生成工具 schema。动作参数面太宽，schema 只声明极小的信封三件：
+        /// 各动作的实际参数走 `params` 对象袋（HandleCommand 开头合并到命令根），
+        /// 扁平直传（batch_execute）不受影响。属性名即 MCP 参数名，必须保持
+        /// action/params/prefab_path 原样（不做命名转换）。
+        /// </summary>
+        public class Parameters
+        {
+            [ToolParameter("Action: ping | create_element | set_rect | set_text | set_style | set_layout | add_listener | remove_listener | get_hierarchy | capture | delete | rename | remove_component | instantiate")]
+            public string action { get; }
+
+            [ToolParameter("Flat parameter bag: per-action parameters (e.g. {name, element_type, parent, text, anchors, colors, ...}) merged into the command root before dispatch", Required = false)]
+            public object @params { get; }
+
+            [ToolParameter("Prefab asset mode: operate on this prefab path (load contents, dispatch, save back) instead of the scene", Required = false)]
+            public string prefab_path { get; }
+        }
+
         // ------------------------------------------------------------------
         // Command dispatch
         // ------------------------------------------------------------------
@@ -37,6 +61,17 @@ namespace Tide.Editor.Mcp
 
         public static object HandleCommand(JObject p)
         {
+            // 信封形态：schema 只声明 action/params/prefab_path 三件，各动作的实际参数
+            // 由调用方装进 params{}；这里合并到命令根后再按扁平形态分发，两种写法同源。
+            if (p["params"] is JObject envelope)
+            {
+                foreach (var kv in envelope)
+                {
+                    if (!string.IsNullOrEmpty(kv.Key) && p[kv.Key] == null)
+                        p[kv.Key] = kv.Value;
+                }
+            }
+
             string action = Str(p, "action")?.ToLowerInvariant();
             if (string.IsNullOrEmpty(action))
                 return new ErrorResponse("'action' is required.");

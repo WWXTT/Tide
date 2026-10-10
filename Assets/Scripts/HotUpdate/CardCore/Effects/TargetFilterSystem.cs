@@ -234,7 +234,11 @@ namespace CardCore
         public string DisplayName => "已受伤";
         public List<Entity> Filter(List<Entity> candidates, EffectExecutionContext context)
         {
-            return candidates.Where(e => e.GetLife() < e.GetMaxLife()).ToList();
+            // 反疗豁免（2026-10-09 暗牧仪典+反疗指示物）：命中反疗改写的候选（治疗将改写为伤害）
+            // 跳过"已受伤"要求——常态满血的目标（如敌方角色）也可选为"治疗"目标。
+            // Damaged token 仅 Heal 行消费，无外溢。
+            return candidates.Where(e => e.GetLife() < e.GetMaxLife()
+                                         || RuleAuraComponents.IsHealInverted(e)).ToList();
         }
     }
 

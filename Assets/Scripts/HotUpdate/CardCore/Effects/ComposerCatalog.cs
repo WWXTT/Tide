@@ -11,6 +11,7 @@ namespace CardCore
     ///
     /// 三条件族（BranchSettleKind）：
     /// - 有限分支（Gate）＝局面状态门：与原子产出无关、任意主干原子可挂，效果结算时评估一次；
+    ///   达标→Then 奖励，不达标→不奖励也不惩罚（2026-10-09 定案——原对赌惩罚面不还原）；
     /// - 自由分支·产出条件（Outcome）＝读主干 per-target 产出（"伤害击杀 Then xx"），producer 匹配挂条件上；
     /// - 自由分支·事件引擎（Engine）＝倒计时/拼点等，条件时机内生于引擎事件（参数/预算见 EngineParamRange）。
     /// 条件评估真源仍是 BranchConditionEvaluator（运行时）；此处只暴露「用户可拼」目录与定价（GatePremium）。
@@ -57,36 +58,71 @@ namespace CardCore
             _ => engine.ToString(),
         };
 
-        /// <summary>引擎参数 x 的钳制范围（UI 输入框与运行时判定共用）。</summary>
+        /// <summary>引擎参数 x 的钳制范围（UI 输入框与运行时判定共用）。
+        /// 2026-10-09 自平衡统一：死亡计数/元素充盈/手牌序位并入拼点式派生门槛（IsDerivedThresholdEngine）
+        /// ——参数区间随「预算=x」旧制一并退役（落入 default；合成器不再出参数行，运行时读推导门槛）。</summary>
         public static void EngineParamRange(BranchEngineKind kind, out int min, out int max)
         {
             switch (kind)
             {
                 case BranchEngineKind.LuckRoll: min = 1; max = 5; break;      // 概率门槛（双 6 才中=1/36）
-                case BranchEngineKind.DeathToll: min = 1; max = 9; break;     // 双方合计死亡阈值
-                case BranchEngineKind.ManaSurplus: min = 1; max = 9; break;   // bank 最多色阈值
-                case BranchEngineKind.NthHandCard: min = 1; max = 9; break;   // 本回合手牌使用序位
                 case BranchEngineKind.CurseOnDraw: min = 1; max = 3; break;   // 附加诅咒：附加张数（每张各自完整载荷）
                 case BranchEngineKind.BlessingOnDraw: min = 1; max = 3; break; // 附加祝福：附加张数（同上）
                 default: min = 0; max = 99; break;                            // Countdown：0=按奖励推导费自动换算
             }
         }
 
-        /// <summary>引擎奖励预算（Then 原子锚价合计上限；2026-09-22 定案=奖励预算制）：死亡计数/元素充盈/手牌序位
-        /// 预算=x（EngineParam）；既有三引擎维持无上限自平衡（拼点门槛=锚价、倒计时回合=锚价、运势概率制）；
-        /// 附加诅咒/附加祝福（2026-10-08）同无上限——延迟与抽到的不确定性即代价 → -1。</summary>
+        /// <summary>引擎奖励预算（Then 原子锚价合计上限）。2026-10-09 自平衡统一：全引擎 -1 无上限——
+        /// 拼点/倒计时/运势本就无上限；死亡计数/元素充盈/手牌序位原「预算=x（EngineParam）」旧制退役
+        /// （门槛与预算同源于 Then 锚价推导，见 CostDerivationService.RewardThreshold）；
+        /// 可实现费用上限由 UI 侧 RewardFilterCap 统一封顶 5。</summary>
         public static int EngineRewardBudget(BranchEngineKind kind, int engineParam)
+            => -1;
+
+        /// <summary>派生门槛引擎（2026-10-09 自平衡统一单源）：拼点/死亡计数/元素充盈/手牌序位——
+        /// 门槛 x=Then 奖励锚价实时推导（RewardThreshold），无手填参数、无独立预算。
+        /// 消费：合成器参数行门控（EffectComposerScreen）、装载诊断跳参（CardLoader）、
+        /// 短文案 x 口径（AtomText）与运行时判定（BranchEngines）。</summary>
+        public static bool IsDerivedThresholdEngine(BranchEngineKind kind) => kind switch
         {
-            switch (kind)
-            {
-                case BranchEngineKind.DeathToll:
-                case BranchEngineKind.ManaSurplus:
-                case BranchEngineKind.NthHandCard:
-                    return Math.Max(1, engineParam);
-                default:
-                    return -1;
-            }
+            BranchEngineKind.Clash => true,
+            BranchEngineKind.DeathToll => true,
+            BranchEngineKind.ManaSurplus => true,
+            BranchEngineKind.NthHandCard => true,
+            _ => false,
+        };
+
+        /// <summary>引擎效果头固定档（2026-10-09 自由分支九项定案）：引擎=单原子形态效果，发动方式/时机/
+        /// 速度/生效次数由引擎内生触发事件决定——效果头四值按引擎钉死：合成器锁定不可改（ApplyEngineHeaderLock），
+        /// 转换期（ConvertOne）对旧数据/手写数据兜底归一。引擎运行时本就无视效果头（BranchEngines 自订阅
+        /// 事件）——此表保证显示/计价/数据三面与引擎真实语义一致。</summary>
+        public readonly struct EngineHeaderPreset
+        {
+            public readonly EffectActivationType Activation;
+            public readonly TriggerTiming Timing;
+            public readonly int Speed;
+            public readonly int Limit; // 生效次数：-1=无限
+
+            public EngineHeaderPreset(EffectActivationType activation, TriggerTiming timing, int speed, int limit)
+            { Activation = activation; Timing = timing; Speed = speed; Limit = limit; }
         }
+
+        /// <summary>各引擎固定档（null=非引擎）：倒计时/运势=自动·回合开始·无限（倒计时归零重挂循环）；
+        /// 死亡计数=自动·登场·每回合一发；拼点=自动·攻击宣言·无限（2026-10-09 改版——仅攻击方结算）；
+        /// 元素充盈/手牌序位=自动·使用卡牌时（从手牌使用；放置地牌非使用）·无限；
+        /// 附加诅咒/祝福=主动·启动式钉档·速度 0（部署点=施放结算，主动打出即生效）。</summary>
+        public static EngineHeaderPreset? EngineHeaderPresetOf(BranchEngineKind kind) => kind switch
+        {
+            BranchEngineKind.Countdown => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnTurnStart, 0, -1),
+            BranchEngineKind.LuckRoll => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnTurnStart, 0, -1),
+            BranchEngineKind.DeathToll => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnPlay, 0, 1),
+            BranchEngineKind.Clash => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnAttack, 0, -1),
+            BranchEngineKind.ManaSurplus => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnCardPlayed, 0, -1),
+            BranchEngineKind.NthHandCard => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnCardPlayed, 0, -1),
+            BranchEngineKind.CurseOnDraw => new EngineHeaderPreset(EffectActivationType.Voluntary, TriggerTiming.Activate_Active, 0, 1),
+            BranchEngineKind.BlessingOnDraw => new EngineHeaderPreset(EffectActivationType.Voluntary, TriggerTiming.Activate_Active, 0, 1),
+            _ => (EngineHeaderPreset?)null,
+        };
 
         // ======================================== 自由分支·产出条件目录 ========================================
 
@@ -98,7 +134,7 @@ namespace CardCore
             /// <summary>中文名（UI 显示）。</summary>
             public string DisplayName;
             /// <summary>适用产出族标签（2026-10-06 迁表+中文化定案）：原子表行 Tags 列携带的中文族标签
-            /// （如 "伤害产出族"）；null = 局面门（与产出无关，任意主干可挂）。</summary>
+            /// （如 "伤害产出族"）；null = 非产出条件。</summary>
             public string ProducerTag;
             /// <summary>「如果」句式从句（2026-10-05 文本表述定案）：产出条件摘要走自然句
             /// 「{主干}，如果{IfClause}，{奖励}」（如"消灭了目标"）——与 DisplayName（"消灭目标时"）
@@ -140,7 +176,9 @@ namespace CardCore
 
         // ======================================== 有限分支（局面状态门）目录 ========================================
 
-        /// <summary>有限分支条件全集（局面状态族）：不读主干产出、任意原子可挂，效果结算时评估一次。</summary>
+        /// <summary>有限分支条件全集（局面状态族）：不读主干产出、任意原子可挂，效果结算时评估一次——
+        /// 达标→Then 奖励，不达标→不奖励也不惩罚（2026-10-09 定案，纯条件奖励）。
+        /// 诅咒门（CurseOnDraw）不在列——诅咒通道=引擎主干行 EngineCurseOnDraw（2026-10-08 接棒）。</summary>
         public static readonly GateSpec[] SituationGates =
         {
             // ---- 局面状态族·一批（通用门，预算 1；DrawnInStandbyThisTurn 2026-10-09 调 3）----
@@ -159,20 +197,9 @@ namespace CardCore
             new GateSpec { Id = "LifeLe7",    DisplayName = "生命值≤7" },
         };
 
-        /// <summary>是否局面状态门 id。</summary>
+        /// <summary>是否局面状态门 id（converter 折叠遗留门步骤时按此归类 Gate）。</summary>
         public static bool IsSituationCondition(string conditionId)
             => SituationGates.Any(g => g.Id == conditionId);
-
-        // ======================================== 诅咒门（Gate 特例） ========================================
-
-        /// <summary>诅咒门（legacy，2026-10-05 有限分支定案；2026-10-08 表行退役）：主干=附加诅咒（AddCurse，
-        /// 表行已删——自由分支·引擎主干行 EngineCurseOnDraw 接棒）唯一门——时机固定"抽到该卡时"
-        /// （CurseSystem 驱动，施放时恒假不结算），Then 原子=该诅咒专属载荷（预算 2，converter 折入主干原子
-        /// Branch 载荷）。保留供手写数据兼容，合成器已不可达（AddCurse 行不在原子库）。</summary>
-        public const string CurseGateId = "CurseOnDraw";
-
-        /// <summary>诅咒门族标签（legacy——AddCurse 行已随 2026-10-08 引擎主干化退役，无携带行）。</summary>
-        public const string CurseProducerTag = "诅咒产出族";
 
         // ======================================== 可挂范围判定（MountKinds=唯一权威，合成器/装载共用） ========================================
 

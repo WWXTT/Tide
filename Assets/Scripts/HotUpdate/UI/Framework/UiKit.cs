@@ -906,6 +906,18 @@ namespace SynergyUI
             /// <summary>选中项变化（Index, Value）。</summary>
             public event Action<int, string> Changed;
 
+            /// <summary>禁用/启用整个下拉（2026-10-09 引擎效果头锁定配套）：TMP 头=TMP_Dropdown.interactable；
+            /// 自绘头=头部按钮 interactable（禁用后仍显示当前值，不可展开改选）。</summary>
+            public bool Interactable
+            {
+                get => _tmp != null ? _tmp.interactable : _head != null && _head.interactable;
+                set
+                {
+                    if (_tmp != null) _tmp.interactable = value;
+                    else if (_head != null) _head.interactable = value;
+                }
+            }
+
             public Dropdown(string name, RectTransform parent, RectTransform popupLayer,
                 IEnumerable<string> options, int index, Action<int, string> onChanged = null,
                 float? width = null)

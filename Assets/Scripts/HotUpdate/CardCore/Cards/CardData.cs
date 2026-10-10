@@ -453,7 +453,8 @@ namespace CardCore
 
     /// <summary>
     /// 槽级分支载荷条目（2026-10-05 两槽定案）：条件在主干中 + then 奖励——
-    /// settle=1 有限分支（gateId 局面状态门，效果结算时评估一次，任意原子可挂）；
+    /// settle=1 有限分支（gateId 局面状态门，效果结算时评估一次，任意原子可挂；
+    /// 达标→奖励，不达标→不奖不惩——2026-10-09 定案）；
     /// settle=2 自由分支·产出条件（outcomeId 读主干 per-target 产出，如 DmgKillsTarget）；
     /// settle=3 自由分支·事件引擎（engine，参数 engineParam）。
     /// then=条件达成后强制结算的奖励原子（有目标域则结算前依次弹选）。JsonUtility 可序列化。
@@ -462,10 +463,10 @@ namespace CardCore
     public class BranchEntryData
     {
         public int settle;             // BranchSettleKind 枚举值
-        public string gateId;          // settle==1：局面条件 id（含诅咒特例 CurseOnDraw）
-        public int gateParam;
-        public string gateStr;
+        public string gateId;          // settle==1：局面条件 id（局面条件无参数）
         public string outcomeId;       // settle==2：产出条件 id
+        public int condParam;          // settle==2：条件参数（产出条件通用）
+        public string condStr;         // settle==2：条件字符串参数
         public int engine;             // settle==3：BranchEngineKind 枚举值
         public int engineParam;        // 引擎参数 x（倒计时 0=按 then 推导费自动换算）
         public List<AtomicEffectEntry> then; // 奖励原子列表

@@ -198,6 +198,20 @@ namespace CardCore.Attribute.Handlers
         {
             // 翻开：永久已展示 + 按张发布（订阅方按张计数）
             picked._isRevealed = true;
+            // 2026-10-09 展示链路统一：翻开的卡同时挂 Exposed 当前展示态（换区清）——两态分工：
+            // _isRevealed=宣言族永久记忆（防重复确认自用）；Exposed=UI 快照/窥渊锁定/TargetFilter/
+            // 点名预选共用的公开口径。窥渊①「未展示」筛选从此看见宣言翻过的卡，不再重复翻
+            if (picked.GetCounterCount(CounterRules.ExposedCounter) == 0)
+            {
+                picked.AddCounters(CounterRules.ExposedCounter, 1, context.Source);
+                EventManager.Instance.Publish(new CounterChangedEvent
+                {
+                    Target = picked,
+                    CounterType = CounterRules.ExposedCounter,
+                    Amount = 1,
+                    Source = context.Source,
+                });
+            }
             EventManager.Instance.Publish(new RevealHandEvent
             {
                 Player = context.Controller?.Opponent,

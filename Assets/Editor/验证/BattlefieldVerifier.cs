@@ -415,9 +415,9 @@ namespace CardCore.Editor
                    $"S4 满 18 单位：单位格全部占用且无重复（占用 {occupied}、去重 {distinct}）");
             Assert(fillers.All(f => board.TryGetCell(f, out _, out _)), "S4 每个 filler 都获得单位格");
 
-            // 地牌行溢出：容器层面强塞 10 张（绕过 LandCap 的结构性压力测试）——
-            // Min-clamp 前 9 张落格、第 10 张不落格不抛错、索引仍一致
-            for (int i = 0; i < BoardLayout.LandCellsPerPlayer + 1; i++)
+            // 地牌行满载+溢出（2026-10-09 地牌叠放定案：每格两层）：容器层面强塞 9×2+1=19 张
+            // （绕过 LandCap 的结构性压力测试）——铺满 9 格首层+叠满第二层、第 19 张不落格不抛错、索引仍一致
+            for (int i = 0; i < BoardLayout.LandCellsPerPlayer * BoardLayout.LandStackPerCell + 1; i++)
             {
                 var l = new Card { ID = "BFVERIFY_LAND_OVERFLOW" };
                 l.SetController(p1);
@@ -428,9 +428,9 @@ namespace CardCore.Editor
             var extras = core.ZoneManager.GetCards(p1, Zone.ElementPool)
                 .Where(c => !board.TryGetCell(c, out _, out _)).ToList();
             Assert(landOccupied == BoardLayout.LandCellsPerPlayer,
-                   $"S4 地牌溢出 Min-clamp：恰好 {BoardLayout.LandCellsPerPlayer} 格占用（实际 {landOccupied}）");
+                   $"S4 地牌满载叠放：恰好 {BoardLayout.LandCellsPerPlayer} 格全占（首层+叠层；实际 {landOccupied}）");
             Assert(extras.Count == 1, $"S4 溢出地牌恰 1 张不落格（实际 {extras.Count}）");
-            Assert(board.IsConsistent(), "S4 溢出后占用双向索引仍一致（不抛错）");
+            Assert(board.IsConsistent(), "S4 溢出后占用双向索引仍一致（叠层表计入；不抛错）");
 
             board.Dispose();
         }

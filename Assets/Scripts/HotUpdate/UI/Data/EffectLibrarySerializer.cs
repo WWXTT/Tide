@@ -8,8 +8,10 @@ using UnityEngine;
 namespace SynergyUI
 {
     /// <summary>
-    /// 效果库 JSON 读写（2026-09-14 v2·大修）：**单文件瘦格式** StreamingAssets/Card/Effects.json
-    /// （{items:[EffectSlimDto]}——原子=表行 ID 引用+增量，见 EffectSlim.cs）。
+    /// 效果库 JSON 读写（2026-09-14 v2·大修；2026-10-09 写侧修订）：**单文件瘦格式**
+    /// StreamingAssets/Card/Effects.json（{items:[EffectSlimDto]}——原子=表行 ID 引用+增量，见 EffectSlim.cs）。
+    /// 读=JsonUtility 全字段容错（旧全量/新紧凑共存）；**写=EffectSlim.EmitCompact 紧凑发射**——
+    /// 只落偏离默认的增量列（默认值/幽灵 branch 一律不写）。
     /// 效果属用户数据（2026-09-21 定案）：与卡/卡组同住 Card/ 目录（EffectsLibrary.cs 同源同路径）。
     ///
     /// 效果 id = ContentHasher.HashEffect（单源化：AE 段仅 steps 空时计入）。Save=按 id upsert；
@@ -61,7 +63,7 @@ namespace SynergyUI
             else wrapper.items.Add(dto);
 
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath));
-            File.WriteAllText(FilePath, JsonUtility.ToJson(wrapper, true));
+            File.WriteAllText(FilePath, EffectSlim.EmitCompact(wrapper.items)); // 紧凑发射（2026-10-09 按值省略定案）
             return FilePath;
         }
 
@@ -72,7 +74,7 @@ namespace SynergyUI
             var wrapper = ReadWrapper();
             if (wrapper?.items == null) return;
             wrapper.items.RemoveAll(i => i != null && i.id == id);
-            File.WriteAllText(FilePath, JsonUtility.ToJson(wrapper, true));
+            File.WriteAllText(FilePath, EffectSlim.EmitCompact(wrapper.items)); // 删除重写=顺带压缩存量全量条目
         }
 
         /// <summary>效果列表 → 引用 id 列表（逐个 upsert 落库后取 id）。供卡表保存写 effectIds。</summary>

@@ -42,8 +42,13 @@ namespace GameBoard
         private readonly Player _p2; // 布局归属 1（上半场）
 
         // 占用索引：单写入口（Resync），双向成对维护
-        private readonly Dictionary<int, Card> _occupant = new Dictionary<int, Card>(); // cellIndex -> 卡（单位/地牌）
+        private readonly Dictionary<int, Card> _occupant = new Dictionary<int, Card>(); // cellIndex -> 卡（单位/地牌首层）
         private readonly Dictionary<Card, int> _cellOf = new Dictionary<Card, int>();   // 反向
+
+        // 地牌叠层（2026-10-09 地牌槽提升·每格两张）：cellIndex -> 第二层地牌。
+        // 仅地牌行（Zone.ElementPool）使用；两层共用 _cellOf 反查（同格坐标），
+        // 视图层经 IsStackedLand 区分错位渲染。单位行恒一层，不入此表。
+        private readonly Dictionary<int, Card> _stackOccupant = new Dictionary<int, Card>();
 
         // 落位钉子（2026-10-06 教学直入）：卡 → 指定格 index。Resync 时带钉卡优先占钉格
         // （钉格须属其所在区的格集，否则按无钉顺延），其余卡按区域列表序填空——无人调钉时
@@ -78,6 +83,7 @@ namespace GameBoard
         {
             _occupant.Clear();
             _cellOf.Clear();
+            _stackOccupant.Clear();
             _activation0.Clear();
             _activation1.Clear();
 
@@ -119,19 +125,32 @@ namespace GameBoard
                     unpinned.Add(card);
             }
 
-            var free = new Queue<int>();
-            foreach (var c in cells)
-            {
-                int idx = BoardMath.Index(c.x, c.z);
-                if (!pinned.ContainsKey(idx)) free.Enqueue(idx);
-            }
+            // 每格容量（2026-10-09 地牌槽提升·叠放定案）：地牌行每格两张（第 10~18 张地牌
+            // 叠入已有格第二层，上限 18=9格×2 与 ElementPool.MaxStackedLandCap 对应）；
+            // 其余行恒 1（行为与原 free 队列逐位一致）。usage 预计钉子占层——叠层可叠上钉格。
+            int capacity = zone == Zone.ElementPool ? BoardLayout.LandStackPerCell : 1;
+            var usage = new Dictionary<int, int>();
+            foreach (var kv in pinned) usage[kv.Key] = 1;
 
             foreach (var card in unpinned)
             {
-                if (free.Count == 0) break; // 容量外（控制权迁移等边缘）不落格、不抛错（原口径）
-                int idx = free.Dequeue();
-                _occupant[idx] = card;
-                _cellOf[card] = idx;
+                // 铺满再叠（2026-10-09 修正）：首层空位优先——先铺满整行（与 BattleViewData.FillLandsNet
+                // i%9 同格、服务器 AssignCells 同构），无空位才叠第二层；原「顺格贪心叠两连张」错位。
+                int empty = -1, stackable = -1;
+                foreach (var c in cells)
+                {
+                    int idx = BoardMath.Index(c.x, c.z);
+                    usage.TryGetValue(idx, out int used);
+                    if (used == 0) { empty = idx; break; }
+                    if (used < capacity && stackable < 0) stackable = idx;
+                }
+                int placed = empty >= 0 ? empty : stackable;
+                if (placed < 0) break; // 容量外（控制权迁移等边缘）不落格、不抛错（原口径）
+                usage.TryGetValue(placed, out int layer);
+                if (layer == 0) _occupant[placed] = card;
+                else _stackOccupant[placed] = card;
+                usage[placed] = layer + 1;
+                _cellOf[card] = placed;
             }
             foreach (var kv in pinned)
             {
@@ -139,6 +158,12 @@ namespace GameBoard
                 _cellOf[kv.Value] = kv.Key;
             }
         }
+
+        /// <summary>地牌叠层查询（2026-10-09 地牌槽提升）：卡是否为所在格的第二层（叠放张）——
+        /// 视图层据此对叠放张错位渲染。未落格/首层/单位行恒 false。</summary>
+        public bool IsStackedLand(Card card)
+            => card != null && _cellOf.TryGetValue(card, out int idx)
+               && _stackOccupant.TryGetValue(idx, out var top) && top == card;
 
         /// <summary>教学落位钉子（2026-10-06 教学直入）：钉住一张卡的 Resync 落位格——
         /// 该卡之后每次重建优先回到钉格（须属其所在区格集，否则按无钉顺延），其余卡填空；
@@ -260,8 +285,13 @@ namespace GameBoard
         /// <summary>占用双向索引是否成对一致、无悬挂（TestBoard 的核心断言之一）</summary>
         public bool IsConsistent()
         {
-            if (_occupant.Count != _cellOf.Count) return false;
+            // 叠层表计入（2026-10-09 地牌叠放）：首层+第二层卡数合计与反向索引对账
+            if (_occupant.Count + _stackOccupant.Count != _cellOf.Count) return false;
             foreach (var kv in _occupant)
+            {
+                if (!_cellOf.TryGetValue(kv.Value, out int idx) || idx != kv.Key) return false;
+            }
+            foreach (var kv in _stackOccupant)
             {
                 if (!_cellOf.TryGetValue(kv.Value, out int idx) || idx != kv.Key) return false;
             }

@@ -23,6 +23,42 @@ namespace SynergyUI
     /// </summary>
     public static class AtomText
     {
+        /// <summary>TriggerTiming → 中文短名（全量表·单一来源，2026-10-09 时机前缀定案）——
+        /// 效果描述开头前缀与合成器时机下拉共用；含系统自用时点（OnAtomicEffect*/OnSummon/OnPhase*，
+        /// 下拉侧过滤不开放玩家选择）与主动三档以外的全部枚举值。</summary>
+        public static readonly Dictionary<TriggerTiming, string> TimingZh = new Dictionary<TriggerTiming, string>
+        {
+            { TriggerTiming.OnPlay, "登场时" },
+            { TriggerTiming.OnDeath, "死亡时" },
+            { TriggerTiming.OnDraw, "抽牌时" },
+            { TriggerTiming.OnDealDamage, "造成伤害时" },
+            { TriggerTiming.OnTakeDamage, "受到伤害时" },
+            { TriggerTiming.OnTurnStart, "回合开始时" },
+            { TriggerTiming.OnTurnEnd, "回合结束时" },
+            { TriggerTiming.OnAttack, "攻击宣言时" },
+            { TriggerTiming.OnAttacked, "被攻击时" },
+            { TriggerTiming.OnSummon, "召唤进场时" },
+            { TriggerTiming.OnTargeted, "被指定为目标时" },
+            { TriggerTiming.OnOtherCreatureEnter, "其他生物进场时" },
+            { TriggerTiming.OnSpellCast, "施放法术时" },
+            { TriggerTiming.OnTap, "横置时" },
+            { TriggerTiming.OnUntap, "重置时" },
+            { TriggerTiming.OnDestroy, "破坏时" },
+            { TriggerTiming.OnExile, "除外时" },
+            { TriggerTiming.OnReturnFromGraveyard, "从墓地回到战场时" },
+            { TriggerTiming.OnLeaveBattlefield, "离场时" },
+            { TriggerTiming.OnPhaseStart, "阶段开始时" },
+            { TriggerTiming.OnPhaseEnd, "阶段结束时" },
+            { TriggerTiming.OnBlockDeclare, "阻拦宣言时" },
+            { TriggerTiming.OnCardPlayed, "使用卡牌时" },
+            { TriggerTiming.OnGameStart, "游戏开始时" },
+            { TriggerTiming.OnAtomicEffectActivation, "原子效果发动时" },
+            { TriggerTiming.OnAtomicEffectStartApplying, "原子效果开始作用时" },
+            { TriggerTiming.OnAtomicEffectResolution, "原子效果结算完成时" },
+            { TriggerTiming.OnOtherCreatureDeath, "其他生物死亡时" },
+            { TriggerTiming.OnRoleDeath, "角色死亡时" },
+        };
+
         /// <summary>TargetKind → 中文名（2026-10-06 单一来源迁 CardCore：TargetKindRules.ZhNameOf——
         /// 表列 TargetKinds 中文 CSV 与 UI 显示同源，防两套口径）。</summary>
         public static string TargetKindZhOf(TargetKind k)
@@ -101,17 +137,44 @@ namespace SynergyUI
             // 数值随机（RandomAmplitude&gt;0）：区间文本「x至x」已表达随机语义（2026-10-09 句式定案）——不再冠「随机」前缀
             // 目标随机（2026-10-09 下沉每原子+句式定案）：条目声明优先（1=随机抽/0=弹窗），
             // 未声明回落效果级 RandomTarget；奖励渲染（header=null）=条目声明直接生效。
-            // 渲染=在正文第一个「目标」前插「随机」（"对随机目标造成3点伤害"）；域名次（己方单位等）
-            // 无「目标」字样时冠在名次前（"对随机己方单位…"）；无名次可冠的行不加（原文照旧）
+            // 双侧域收缩侧词（2026-10-09 定案）：域同时含己方+对方作用面且极性≠0 → 按极性收缩
+            //（有益→己方/有害→对方），冠于「随机/目标」前（"对对方随机目标造成3点伤害"）。
+            // 渲染=侧词在前、「随机」随后，插在正文第一个「目标」前（"对目标造成…"→"对己方随机目标…"）；
+            // 域名次（己方单位等）无「目标」字样时冠在名次前；无名次可冠的行不加（原文照旧）。
+            // 纯文本口径——运行时候选域不随之过滤（逐原子目标制「禁极性过滤」定案照旧）。
             bool rand = atom.rand != -1 ? atom.rand == 1
                 : (header != null && header.RandomTarget != 0);
-            if (rand)
+            string side = DualSideScopeWord(cfg, atom);
+            if (rand || side != null)
             {
                 int idx = body.IndexOf("目标", StringComparison.Ordinal);
                 if (idx < 0 && noun.Length > 0) idx = body.IndexOf(noun, StringComparison.Ordinal);
-                if (idx >= 0) body = body.Insert(idx, "随机");
+                if (idx >= 0)
+                {
+                    if (side != null) body = body.Insert(idx, side);
+                    if (rand) body = body.Insert(idx + (side != null ? side.Length : 0), "随机");
+                }
             }
             return body;
+        }
+
+        /// <summary>双侧域×极性≠0 的收缩侧词（2026-10-09 文本定案）：有效域（条目收窄 ?? 表行默认）
+        /// 同时含己方与对方作用面时，按极性收缩——有益(+1)→「己方」/有害(-1)→「对方」；
+        /// 单侧域/无域/中性（p=0）返回 null（单侧域名次本就自显作用面）。</summary>
+        private static string DualSideScopeWord(AtomicEffectConfig cfg, AtomicEffectEntry atom)
+        {
+            float p = cfg?.Polarity ?? 0f;
+            if (p == 0f) return null;
+            var kinds = atom?.kinds != null && atom.kinds.Count > 0 ? atom.kinds : cfg?.GetTargetKindList();
+            if (kinds == null || kinds.Count == 0) return null;
+            bool own = false, enemy = false;
+            foreach (var k in kinds)
+            {
+                if (TargetKindRules.IsEnemySide(k)) enemy = true;
+                else if (k != (int)TargetKind.Self) own = true;
+            }
+            if (!own || !enemy) return null;
+            return p > 0f ? "己方" : "对方";
         }
 
         /// <summary>按引用取表行渲染（便捷重载——refId 直查）。</summary>
@@ -119,8 +182,10 @@ namespace SynergyUI
             => Render(AtomicEffectTable.GetByHashId(atom?.refId), atom, header);
 
         /// <summary>效果整体预览（两槽定案）：并列主序列=逐原子分号连接，原子带槽级 branch 载荷时
-        /// 追加分支后缀（产出条件=「，如果…，奖励」自然句；引擎=正文短式「自由分支·{名}{x}」+「→奖励」；
-        /// 局面门=「[条件]→奖励」记法）；遗留 kind=1 门步骤与抉择步骤照旧渲染。</summary>
+        /// 追加分支后缀（产出条件/局面门=「，如果…，奖励」自然句；引擎=正文短式「自由分支·{名}{x}」+「→奖励」）；
+        /// 遗留 kind=1 门步骤与抉择步骤照旧渲染。
+        /// 开头时机前缀（2026-10-09 定案）：非主动=「{时机}，」（"登场时，…"）；主动=「速度x，」
+        ///（x=BaseSpeed 0/1/2）；空效果不加前缀；时机不在中文表（主动三档等异常组合）无前缀。</summary>
         public static string RenderEffectSummary(EffectGraphData graph)
         {
             if (graph?.header == null) return "";
@@ -140,7 +205,7 @@ namespace SynergyUI
                     }
                     else if (s.kind == 1)
                     {
-                        // 遗留门步骤：条件中文（ComposerCatalog 同源；诅咒门 Then=抽到时的专属载荷）
+                        // 遗留门步骤：条件中文（ComposerCatalog 同源——产出条件 ∪ 局面门）；未知条件回退原 id
                         var spec = ComposerCatalog.OutcomeConditions.FirstOrDefault(g => g.Id == s.conditionId)
                                    ?? ComposerCatalog.SituationGates.FirstOrDefault(g => g.Id == s.conditionId);
                         string gate = spec != null ? ComposerCatalog.GateLabel(spec)
@@ -152,25 +217,40 @@ namespace SynergyUI
                     else if (s.kind == 2) parts.Add($"抉择（{s.choices?.Count ?? 0} 模式）");
                 }
             }
-            return string.Join("；", parts);
+            string joined = string.Join("；", parts);
+            return joined.Length == 0 ? "" : ActivationPrefix(h) + joined;
+        }
+
+        /// <summary>效果描述开头前缀（2026-10-09 定案）：主动=「速度{BaseSpeed}，」；
+        /// 非主动（强制/自动）=「{时机中文}，」——时机查 TimingZh 全量表（含系统自用时点）。</summary>
+        private static string ActivationPrefix(CardEffectData h)
+        {
+            if (h.ActivationType == (int)EffectActivationType.Voluntary)
+                return $"速度{h.BaseSpeed}，";
+            return TimingZh.TryGetValue((TriggerTiming)h.TriggerTiming, out var zh) ? zh + "，" : "";
         }
 
         /// <summary>槽级 branch 载荷的后缀文本（两槽定案）：无载荷返回空串。
-        /// 产出条件（Outcome）=自然句式「，如果消灭了目标，{奖励}」（2026-10-05 文本表述定案）；
-        /// 引擎（2026-10-09 短式化）=「→{奖励}」——引擎身份+参数在正文「自由分支·{名}{x}」（EngineShortBody）；
-        /// 局面门沿用「[条件]→奖励」记法（对赌逆转是结构信息，句式承载不了）。</summary>
+        /// 产出条件（Outcome）与局面门（Gate，2026-10-09 还原）=自然句式「，如果{从句}，{奖励}」
+        /// （2026-10-05 文本表述定案；局面门不达标无事——纯条件奖励，无逆转句）；
+        /// 引擎（2026-10-09 短式化）=「→{奖励}」——引擎身份+参数在正文「自由分支·{名}{x}」（EngineShortBody）。</summary>
         public static string BranchSuffix(AtomicEffectEntry atom)
         {
             var b = atom?.branch;
-            if (BranchEntryRules.IsPhantom(b)) return ""; // 含 null；JsonUtility 幽灵分支（settle=0）不当真分支
+            if (BranchEntryRules.IsPhantom(b)) return ""; // 含 null；JsonUtility 幽灵 settle 不当真分支
             string reward = b.then != null && b.then.Count > 0
                 ? RenderRewardAtomEntry(b.then[0]) : "（未设奖励）";
-            string cond;
             switch ((BranchSettleKind)b.settle)
             {
                 case BranchSettleKind.Engine:
                     // 引擎身份+参数已在正文短式（自由分支·{名}{x}）——后缀只接奖励
                     return $"→{reward}";
+                case BranchSettleKind.Gate:
+                    // 局面门（有限分支）：DisplayName 即自然从句（如"生命值低于对手"）
+                    var sc = ComposerCatalog.SituationGates.FirstOrDefault(g => g.Id == b.gateId);
+                    string scond = sc != null ? sc.DisplayName
+                        : (string.IsNullOrEmpty(b.gateId) ? "？" : b.gateId);
+                    return $"，如果{scond}，{reward}";
                 case BranchSettleKind.Outcome:
                     var oc = ComposerCatalog.OutcomeConditions.FirstOrDefault(g => g.Id == b.outcomeId);
                     string clause;
@@ -180,14 +260,8 @@ namespace SynergyUI
                         clause = string.IsNullOrEmpty(b.outcomeId) ? "？" : b.outcomeId;
                     return $"，如果{clause}，{reward}";
                 default:
-                    if (b.gateId == ComposerCatalog.CurseGateId) return "→附加诅咒（抽到该卡时执行专属载荷）";
-                    var sc = ComposerCatalog.SituationGates.FirstOrDefault(g => g.Id == b.gateId);
-                    cond = sc != null ? ComposerCatalog.GateLabel(sc)
-                        : (string.IsNullOrEmpty(b.gateId) ? "?" : b.gateId);
-                    cond += "，未达成→逆转为代价"; // 局面门对赌（2026-10-05）：奖励逆转作用区域强制执行
-                    break;
+                    return ""; // 越界 settle——IsPhantom 已滤，防御兜底
             }
-            return $"[{cond}]→{reward}";
         }
 
         /// <summary>条目级渲染（refId → 表行 → Render；行缺失回退 refId）。</summary>
@@ -206,7 +280,7 @@ namespace SynergyUI
         }
 
         /// <summary>条目级奖励渲染（2026-10-08「新的目标」定案）：分支 Then 奖励统一走此口径——
-        /// 产出条件/局面门/引擎/遗留门步骤的奖励文案与运行时弹选语义对齐（合法范围另选目标）。</summary>
+        /// 产出条件/引擎/遗留门步骤的奖励文案与运行时弹选语义对齐（合法范围另选目标）。</summary>
         public static string RenderRewardAtomEntry(AtomicEffectEntry atom)
         {
             if (atom == null || string.IsNullOrEmpty(atom.refId)) return "原子";
@@ -214,9 +288,13 @@ namespace SynergyUI
         }
 
         /// <summary>引擎主干行短式正文（2026-10-09 八引擎统一定案）：「自由分支·{中文名}{x}」——
-        /// 拼点 x=奖励锚价推导门槛、倒计时声明 0 时 x=按奖励费换算回合（两者随 Then 奖励实时变，
-        /// 公式经 CostDerivationService 与运行时判定同源）；其余引擎 x=engineParam（EngineParamRange 钳制显示）。
+        /// 派生门槛引擎（拼点/死亡计数/元素充盈/手牌序位，自平衡统一）x=奖励锚价推导门槛、倒计时声明 0 时
+        /// x=按奖励费换算回合（均随 Then 奖励实时变，公式经 CostDerivationService 与运行时判定同源）；
+        /// 其余引擎（运势/附加诅咒/祝福）x=engineParam（EngineParamRange 钳制显示）。
         /// 非引擎行/引擎身份未定义返回 null（调用方回退表行长模板——原子库列表行长文案保留完整玩法说明）。</summary>
+        /// <summary>引擎短文案公开口（验证器锚定用；合成器摘要走 Render 主路径消费同函数）。</summary>
+        public static string EngineShortBodyFor(AtomicEffectEntry atom) => EngineShortBody(atom);
+
         private static string EngineShortBody(AtomicEffectEntry atom)
         {
             var cfg = AtomicEffectTable.GetByHashId(atom.refId);
@@ -233,13 +311,21 @@ namespace SynergyUI
             int x;
             switch (kind)
             {
+                // 派生门槛引擎（IsDerivedThresholdEngine 单源：拼点/死亡计数/元素充盈/手牌序位）
+                // ——2026-10-09 自平衡统一：x=Then 奖励锚价推导，随奖励计费实时变
+                case BranchEngineKind.DeathToll:
+                    // 2026-10-09 文案定案：死亡计数条件句改为完整句（类似死亡=CardDestroyEvent 生物：
+                    // 战斗死亡+消灭；牺牲直送非死亡无事件不计）
+                    return $"本回合中，类似死亡的生物数量大于等于{CostDerivationService.RewardThreshold(ToInstances(then))}";
                 case BranchEngineKind.Clash:
-                    x = CostDerivationService.ClashThreshold(ToInstances(then));
+                case BranchEngineKind.ManaSurplus:
+                case BranchEngineKind.NthHandCard:
+                    x = CostDerivationService.RewardThreshold(ToInstances(then));
                     break;
                 case BranchEngineKind.Countdown:
                     x = CostDerivationService.CountdownTurnsOf(atom.branch?.engineParam ?? 0, ToInstances(then));
                     break;
-                default:
+                default: // 运势点数线/附加诅咒·祝福张数——手填参数（EngineParamRange 钳制显示）
                     ComposerCatalog.EngineParamRange(kind, out var mn, out var mx);
                     x = Math.Clamp(atom.branch?.engineParam ?? mn, mn, mx);
                     break;

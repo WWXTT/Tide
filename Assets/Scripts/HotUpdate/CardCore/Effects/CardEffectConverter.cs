@@ -128,7 +128,7 @@ namespace CardCore
 
             // 转换节点化步骤（遗留路径）。含抉择（kind==2）→ 保留 Steps 结构（执行引擎步骤遍历）；
             // 纯原子/分支步骤 → 平铺折叠进 def.Effects（kind=1 门折入前一个原子的 Branch 载荷——
-            // 产出条件族归 Outcome、局面/诅咒门归 Gate；光环形态的规则光环原子步同样平铺执行）。
+            // 产出条件族归 Outcome、局面门归 Gate；光环形态的规则光环原子步同样平铺执行）。
             if (stepsOwnMainSequence)
             {
                 if (data.Steps.Any(s => s != null && s.kind == 2))
@@ -286,7 +286,43 @@ namespace CardCore
             if (data.Tags != null)
                 def.Tags = new List<string>(data.Tags);
 
+            // 引擎效果头兜底归一（2026-10-09 自由分支九项定案）：效果含引擎载荷（引擎=单原子形态）→
+            // 发动方式/时机/速度/生效次数按 ComposerCatalog.EngineHeaderPresetOf 钉死——合成器已锁定，
+            // 此处收口旧数据/手写数据（引擎运行时本就无视效果头，自订阅事件；归一保证显示/计价/数据三面一致）。
+            var engineKind = EngineKindOfDefinition(def);
+            if (ComposerCatalog.EngineHeaderPresetOf(engineKind) is { } ehp)
+            {
+                def.ActivationType = ehp.Activation;
+                def.TriggerTiming = ehp.Activation == EffectActivationType.Voluntary
+                    ? TriggerTiming.Activate_Active : ehp.Timing;
+                def.BaseSpeed = ehp.Speed;
+                def.TriggerLimitPerTurn = ehp.Limit;
+                def.ElementCostPrepaid = !(def.TriggerTiming == TriggerTiming.Activate_Active
+                                           || def.TriggerTiming == TriggerTiming.Activate_Instant
+                                           || def.TriggerTiming == TriggerTiming.Activate_Response);
+            }
+
             return def;
+        }
+
+        /// <summary>效果内首个引擎载荷种类（扁平 Effects 与节点化 Steps 原子双扫；无=None）。</summary>
+        private static BranchEngineKind EngineKindOfDefinition(EffectDefinition def)
+        {
+            BranchEngineKind KindOf(AtomicEffectInstance atom)
+            {
+                var b = atom?.Branch;
+                return b != null && b.Settle == BranchSettleKind.Engine ? b.EngineKind : BranchEngineKind.None;
+            }
+            if (def.Effects != null)
+                foreach (var atom in def.Effects)
+                    if (KindOf(atom) != BranchEngineKind.None) return KindOf(atom);
+            if (def.Steps != null)
+                foreach (var step in def.Steps)
+                {
+                    var k = KindOf(step?.Atomic);
+                    if (k != BranchEngineKind.None) return k;
+                }
+            return BranchEngineKind.None;
         }
 
         // ======================================== 关键词型原子启动式校验（2026-10-02 定案） ========================================
@@ -456,8 +492,6 @@ namespace CardCore
                         return null;
                     }
                     payload.GateId = data.gateId;
-                    payload.GateParam = data.gateParam;
-                    payload.GateStringParam = data.gateStr ?? "";
                     break;
                 case BranchSettleKind.Outcome:
                     if (string.IsNullOrEmpty(data.outcomeId))
@@ -466,6 +500,8 @@ namespace CardCore
                         return null;
                     }
                     payload.OutcomeId = data.outcomeId;
+                    payload.ConditionParam = data.condParam;
+                    payload.ConditionStringParam = data.condStr ?? "";
                     break;
                 case BranchSettleKind.Engine:
                     var engine = (BranchEngineKind)data.engine;
@@ -482,26 +518,10 @@ namespace CardCore
 
             if (data.then != null)
             {
-                // 局面门对赌（2026-10-05 定案，诅咒门豁免）：未达成→逆转惩罚——奖励必须可逆转
-                //（三路口径同代价栏：PayloadCostDomain），不可逆转者剔除（Then 空→整体折叠无分支兜底在 return 处）
-                bool gateBet = settle == BranchSettleKind.Gate && data.gateId != ComposerCatalog.CurseGateId;
                 foreach (var reward in data.then)
                 {
                     var inst = ConvertAtomicEffect(reward);
-                    if (inst == null) continue;
-                    if (gateBet)
-                    {
-                        var row = Attribute.AtomicEffectTable.GetByHashId(inst.RowHashId)
-                                  ?? Attribute.AtomicEffectTable.GetByType(inst.Type);
-                        var (_, eligible) = CostDerivationService.PayloadCostDomain(row);
-                        if (!eligible)
-                        {
-                            TideLog.Warn($"[CardEffectConverter] 局面门奖励原子 {inst.Type} 不可逆转" +
-                                           "（无对侧域/中性双侧——惩罚无从执行），已剔除");
-                            continue;
-                        }
-                    }
-                    payload.Then.Add(inst);
+                    if (inst != null) payload.Then.Add(inst);
                 }
             }
             return payload.Then.Count > 0 ? payload : null; // 无 Then 的条件空转——折叠为无分支
@@ -631,8 +651,9 @@ namespace CardCore
 
         /// <summary>遗留步骤平铺折叠（两槽定案 2026-10-05）：kind=0 原子步 → def.Effects 主干；
         /// kind=1 门步 → 折入前一个原子的 Branch 载荷——产出条件族（DmgKillsTarget/DeclareHit 等）归
-        /// 自由分支 Outcome，局面/诅咒门归有限分支 Gate。落单门步（无前置原子）告警剔除；
-        /// elseSteps 无新模型对应（条件不达成不发奖励）——非空告警丢弃。</summary>
+        /// 自由分支 Outcome，局面门（SituationGates）归有限分支 Gate（达标奖励/不达标无事）；
+        /// 其余条件 id——告警剔除。落单门步（无前置原子）告警剔除；
+        /// elseSteps 无新模型对应（条件不达成不发奖励也不惩罚）——非空告警丢弃。</summary>
         private static void FoldBranchSteps(List<EffectStepData> steps, EffectDefinition def, string sourceCardId)
         {
             AtomicEffectInstance prev = null;
@@ -656,15 +677,22 @@ namespace CardCore
                     if (step.elseSteps != null && step.elseSteps.Count > 0)
                         TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 分支步骤携带 else 奖励" +
                                      "（两槽定案：条件不达成不发奖励），else 已丢弃");
-
                     bool outcome = ComposerCatalog.IsOutcomeCondition(step.conditionId);
+                    bool situation = ComposerCatalog.IsSituationCondition(step.conditionId);
+                    if (!outcome && !situation)
+                    {
+                        TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 分支步骤条件 {step.conditionId}" +
+                                     " 非产出/局面条件，已剔除");
+                        continue;
+                    }
+
                     var payload = new BranchPayload
                     {
                         Settle = outcome ? BranchSettleKind.Outcome : BranchSettleKind.Gate,
                         OutcomeId = outcome ? step.conditionId : null,
                         GateId = outcome ? null : step.conditionId,
-                        GateParam = step.conditionParam,
-                        GateStringParam = step.conditionStringParam ?? "",
+                        ConditionParam = step.conditionParam,
+                        ConditionStringParam = step.conditionStringParam ?? "",
                     };
                     if (step.thenSteps != null)
                     {

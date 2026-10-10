@@ -8,11 +8,12 @@ namespace CardCore
     /// ① 产出条件族（自由分支·Outcome，2026-10-05 定案收敛五项）：DmgKillsTarget/DeclareHit/DeclareMiss
     ///   读当前目标的 EffectOutcome 即时判定；ProphecyHit/Miss 为延迟验证——引擎拦截为 PendingProphecy，
     ///   由 ProphecySystem 在验证时刻结算（此处兜底恒假）。
-    /// ② 局面状态族（2026-09-22）读 EffectExecutionContext（生命/卡组/生物对比、准备阶段抽牌、首张出牌）——
-    ///   通用门，任意主效果原子可挂，per-target 结果恒同；
-    /// ③ 诅咒门（2026-10-05）施放时恒假——分支只是载荷声明，抽到时由 CurseSystem 结算。
+    /// ② 局面状态族（有限分支·Gate，2026-09-22）读 EffectExecutionContext（生命/卡组/生物对比、准备阶段
+    ///   抽牌、首张出牌）——通用门，任意主效果原子可挂，per-target 结果恒同。
+    /// 有限分支语义（2026-10-09 定案）：达标 → Then 奖励；不达标 → 不奖励也不惩罚（纯条件奖励）。
     /// 产出族其余条件（TargetSurvived/Overkill/TargetStillWounded/Overheal）已删（2026-10-05 用户定案）。
     /// 拦截式改写族（DmgRewrite*）已随四条改写迁往唯一光环退役（2026-10-05）。
+    /// 诅咒门（CurseOnDraw）不还原——诅咒通道=引擎主干行 EngineCurseOnDraw（2026-10-08 接棒）。
     /// </summary>
     public static class BranchConditionEvaluator
     {
@@ -45,7 +46,7 @@ namespace CardCore
                 case "ProphecyMiss":
                     return false;
 
-                // ---- 局面状态族（2026-09-22 定案：读 context 而非产出，通用门——任意主效果原子可挂）----
+                // ---- 局面状态族（有限分支·Gate，2026-09-22 定案：读 context 而非产出，通用门——任意主效果原子可挂）----
                 // per-target 评估结果恒同（幂等读局面），沿用逐目标评估无害。
                 case "DrawnInStandbyThisTurn": // 本回合第一张抽到的卡（宿主卡身份，效果抽牌不算）
                     return HostCard(context) != null
@@ -76,14 +77,8 @@ namespace CardCore
                 case "LifeLe7":    // 角色生命值 ≤ 7
                     return context?.Controller != null && context.Controller.GetLife() <= 7;
 
-                // ---- 诅咒门（2026-10-05 诅咒有限分支定案）：施放时恒假不结算——
-                // 分支只是载荷声明（converter 把 Then 原子抽取挂 AddCurse 主干原子的 CursePayload），
-                // 真正的触发点=对手抽到该卡（CurseSystem.OnCardDrawn 驱动）。----
-                case "CurseOnDraw":
-                    return false;
-
                 default:
-                    return false;
+                    return false; // 未知条件 id 恒假
             }
         }
 
@@ -113,7 +108,7 @@ namespace CardCore
                 case "DeclareMiss":
                 case "ProphecyHit":
                 case "ProphecyMiss":
-                // 局面状态族（2026-09-22）
+                // 局面状态族（有限分支·Gate，2026-09-22）
                 case "DrawnInStandbyThisTurn":
                 case "LifeBelowOpp":
                 case "LifeAboveOpp":
@@ -126,8 +121,6 @@ namespace CardCore
                 case "LandsGe7":
                 case "HandEmpty":
                 case "LifeLe7":
-                // 诅咒门（2026-10-05，施放时恒假——载荷声明，抽到时由 CurseSystem 结算）
-                case "CurseOnDraw":
                     return true;
                 default:
                     return false;

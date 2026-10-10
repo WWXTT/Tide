@@ -12,15 +12,19 @@ namespace CardCore
     /// - **倒计时**：入场挂 Countdown 计数（层数=payload.CountdownTurns=Then 推导费换算回合，1费=1回合；
     ///   UntilLeaveBattlefield 换区清）；控制者回合开始 -1，归零→执行奖励原子→重置回初值。
     /// - **运势**：控制者回合开始掷 2d6（GameRng），双 > x → 执行奖励（无状态，每回合独立判定；x=纯概率门槛）。
-    /// - **拼点**（2026-10-04 改版）：控制者回合开始双方牌库各**随机**取样一张**生物**（只读展示，不移牌不改序，
-    ///   牌库无生物按攻击力 0）——比**攻击力**；**差额 ≥ 奖励锚价合计**（大于等于）才触发，奖励按声明值结算。
-    /// - **死亡计数**（2026-09-22 定案）：本回合**双方合计**生物死亡数 ≥ x 时执行奖励（事件驱动——每次死亡事件后
-    ///   复查；计数单调→每回合达标时刻唯一，天然一次/回合，回合作用域守卫集兜底）；奖励预算=x。
-    /// - **元素充盈**（2026-09-22 定案）：自己出牌付费完成后判定（GameActions.PayCost 成功后回调 OnCardCostPaid）——
-    ///   bank 数量最多的颜色（全六色，并列取枚举序首个）> x 即执行奖励；**每次达标都触发**（用户定案，无每回合
-    ///   上限，多张引擎卡各自触发）；判定读付费后余量。效果费支付不触发。
-        /// - **手牌序位**（2026-09-22 定案）：**此卡**为本回合从手牌使用的第 x 张卡（含自身，宣言序抓拍；响应出牌同计、
-        ///   墓地视手牌等他源不算）→ 施放结算中执行奖励（发动无效跳过；回调 OnCardCastResolved）。
+    /// - **拼点**（2026-10-04 改版；2026-10-09 触发改版）：**攻击宣言时**（仅攻击方——攻击宣言者战场上的
+    ///   引擎卡，OnAttackDeclared）双方牌库各**随机**取样一张**生物**（只读展示，不移牌不改序，
+    ///   牌库无生物按攻击力 0）——比**攻击力**；**差额 ≥ 奖励锚价合计**（大于等于）才触发，奖励按声明值结算；
+    ///   **无限次**（每次攻击宣言独立判定，无每回合 guard）。
+    /// - **死亡计数**（2026-09-22 定案；2026-10-09 自平衡统一）：本回合**双方合计**生物死亡数 ≥ 门槛时执行奖励
+    ///   （事件驱动——每次死亡事件后复查；计数单调→每回合达标时刻唯一，天然一次/回合，回合作用域守卫集兜底）；
+    ///   门槛=Then 奖励锚价推导（原「预算=x 手填」旧制退役）。
+    /// - **元素充盈**（2026-09-22 定案；同上自平衡统一）：自己出牌付费完成后判定（GameActions.PayCost 成功后回调
+    ///   OnCardCostPaid）——bank 数量最多的颜色（全六色，并列取枚举序首个）> 门槛即执行奖励；**每次达标都触发**
+    ///   （用户定案，无每回合上限，多张引擎卡各自触发）；判定读付费后余量；门槛=Then 锚价推导。效果费支付不触发。
+        /// - **手牌序位**（2026-09-22 定案；同上自平衡统一）：**此卡**为本回合从手牌使用的第 门槛 张卡（含自身，
+        ///   宣言序抓拍；响应出牌同计、墓地视手牌等他源不算）→ 施放结算中执行奖励（发动无效跳过；回调
+        ///   OnCardCastResolved）；门槛=Then 锚价推导。
         /// - **附加诅咒**（2026-10-08 自由分支化，自有限分支 CurseOnDraw 门接棒）：施放结算时给对手牌库
         ///   随机 x 张卡挂「诅咒」+登记 Then 载荷（CurseSystem）——对手抽到该卡时执行奖励并消层（一次性；
         ///   x∈[1,3]=附加张数，延迟与不确定性即代价，预算不设上限）。
@@ -45,6 +49,7 @@ namespace CardCore
             EventManager.Instance.Subscribe<TurnStartEvent>(OnTurnStarted);
             EventManager.Instance.Subscribe<CardDestroyEvent>(OnCreatureDestroyed);
             EventManager.Instance.Subscribe<CardPlayEvent>(OnCardPlayed);
+            EventManager.Instance.Subscribe<AttackDeclarationEvent>(OnAttackDeclared); // 拼点（2026-10-09 触发改版）
         }
 
         /// <summary>卡上全部指定引擎的槽级载荷（两槽定案：def.Effects 主干原子的 Branch 载荷）。</summary>
@@ -128,25 +133,39 @@ namespace CardCore
                                     FireRewards(payload, card, player, core);
                                 }
                                 break;
-
-                            case BranchEngineKind.Clash:
-                                // 2026-10-04 用户定案（改版）：双方牌库各随机取样一张**生物**，比**攻击力**；
-                                // 门槛 = 奖励锚价合计（推导），**差额 ≥ 门槛**（大于等于）才触发，奖励按声明值结算。
-                                // 灰机制费已废除——锚价既是门槛也是奖励的价，由差额支付。
-                                int mine = RandomCreaturePower(player, zm);
-                                int theirs = RandomCreaturePower(player.Opponent, zm);
-                                int threshold = CostDerivationService.ClashThreshold(payload.Then); // 公式与 UI 短文案同源
-                                if (mine - theirs >= threshold)
-                                {
-                                    EventManager.Instance.Publish(new KeywordAppliedEvent
-                                    {
-                                        Target = card, Keyword = "拼点",
-                                        Detail = $"拼点 {mine} vs {theirs}（差额 {mine - theirs} ≥ 门槛 {threshold}）：执行奖励（随机生物取样，牌库未动）",
-                                    });
-                                    FireRewards(payload, card, player, core);
-                                }
-                                break;
                         }
+                    }
+                }
+            }
+        }
+
+        /// <summary>拼点引擎评估（2026-10-09 触发改版：回合开始→攻击宣言，仅攻击方·无限次）：
+        /// 攻击宣言事件结算**攻击方**战场引擎卡（与回合开始只遍历当前回合玩家同口径）；
+        /// 判定式沿 2026-10-04 改版——双方牌库各随机取样一张生物比攻击力，差额 ≥ 门槛（Then 锚价推导）
+        /// 执行奖励。</summary>
+        private static void OnAttackDeclared(AttackDeclarationEvent e)
+        {
+            var player = e?.AttackingPlayer;
+            var core = GameCore.Instance;
+            var zm = core?.ZoneManager;
+            if (player == null || zm == null) return;
+
+            foreach (var card in zm.GetCards(player, Zone.Battlefield).ToList())
+            {
+                if (card == null || !card.IsAlive) continue;
+                foreach (var payload in EnginePayloadsOf(card, BranchEngineKind.Clash))
+                {
+                    int mine = RandomCreaturePower(player, zm);
+                    int theirs = RandomCreaturePower(player.Opponent, zm);
+                    int threshold = CostDerivationService.RewardThreshold(payload.Then); // 公式与 UI 短文案同源
+                    if (mine - theirs >= threshold)
+                    {
+                        EventManager.Instance.Publish(new KeywordAppliedEvent
+                        {
+                            Target = card, Keyword = "拼点",
+                            Detail = $"拼点 {mine} vs {theirs}（差额 {mine - theirs} ≥ 门槛 {threshold}）：执行奖励（随机生物取样，牌库未动）",
+                        });
+                        FireRewards(payload, card, player, core);
                     }
                 }
             }
@@ -196,8 +215,8 @@ namespace CardCore
                 if (card == null || !card.IsAlive || _deathTollFiredThisTurn.Contains(card)) continue;
                 foreach (var payload in EnginePayloadsOf(card, BranchEngineKind.DeathToll))
                 {
-                    ComposerCatalog.EngineParamRange(BranchEngineKind.DeathToll, out int min, out int max);
-                    int x = Math.Max(min, Math.Min(max, payload.EngineParam));
+                    // 2026-10-09 自平衡统一：门槛=Then 奖励锚价推导（与拼点同式）——奖励越贵需死亡越多
+                    int x = CostDerivationService.RewardThreshold(payload.Then);
                     if (totalDeaths < x) continue;
 
                     _deathTollFiredThisTurn.Add(card);
@@ -226,8 +245,8 @@ namespace CardCore
                 if (card == null || !card.IsAlive) continue;
                 foreach (var payload in EnginePayloadsOf(card, BranchEngineKind.ManaSurplus))
                 {
-                    ComposerCatalog.EngineParamRange(BranchEngineKind.ManaSurplus, out int min, out int max);
-                    int x = Math.Max(min, Math.Min(max, payload.EngineParam));
+                    // 2026-10-09 自平衡统一：门槛=Then 奖励锚价推导（与拼点同式）——奖励越贵需盈余越多
+                    int x = CostDerivationService.RewardThreshold(payload.Then);
                     int maxColor = core.ElementPool?.GetMaxManaCount(player) ?? 0;
                     if (maxColor <= x) continue;
 
@@ -274,8 +293,8 @@ namespace CardCore
 
             foreach (var payload in EnginePayloadsOf(card, BranchEngineKind.NthHandCard))
             {
-                ComposerCatalog.EngineParamRange(BranchEngineKind.NthHandCard, out int min, out int max);
-                int x = Math.Max(min, Math.Min(max, payload.EngineParam));
+                // 2026-10-09 自平衡统一：门槛=Then 奖励锚价推导（与拼点同式）——奖励越贵此卡须打得越深
+                int x = CostDerivationService.RewardThreshold(payload.Then);
                 if (ordinal != x) continue;
 
                 EventManager.Instance.Publish(new KeywordAppliedEvent

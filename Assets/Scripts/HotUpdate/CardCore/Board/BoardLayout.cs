@@ -71,7 +71,8 @@ namespace GameBoard
         public const int P1CharX = 11,  P1CharZ = 6;
 
         public const int UnitCellsPerPlayer = 18; // 2×9 —— 须与 CardCore.ZoneManager.BattlefieldCapacityPerPlayer 一致
-        public const int LandCellsPerPlayer = 9;  // 1×9 —— 与地牌槽上限 9 一致
+        public const int LandCellsPerPlayer = 9;  // 1×9 —— 地牌行格数（槽上限 9 × 每格 2 层=18，见 LandStackPerCell）
+        public const int LandStackPerCell = 2;    // 每地牌格叠放层数（2026-10-09 地牌槽提升定案：上限翻倍封顶 18=9格×2层）
 
         // ---- 表（静态构造一次）----
         private static readonly CellRole[] _roles = new CellRole[Width * Height];

@@ -797,7 +797,9 @@ namespace SynergyUI
         }
 
         /// <summary>一行 9 格（x=2..10）：复用预制体烘焙 cell（按序对应 x，保留用户样式调整）；
-        /// 不足补建、多余销毁。空格=底座，有卡则卡实例挂满该格。</summary>
+        /// 不足补建、多余销毁。空格=底座，有卡则卡实例挂满该格。
+        /// 地牌叠层（2026-10-09 地牌槽提升·每格两张）：第二张（Stacked）经内嵌 wrapper 错位小卡
+        /// 渲染（CardOverlay 对 Slot stretch 填满——偏移与缩放由 wrapper 承载），两层各可点击产元素。</summary>
         private void BuildHexRow(RectTransform row, List<BattleCardView> cards, int z, bool mine, bool isLand)
         {
             if (row == null) return;
@@ -808,13 +810,16 @@ namespace SynergyUI
             for (int i = 0; i < row.childCount; i++)
             {
                 var cell = (RectTransform)row.GetChild(i);
-                ClearChildren(cell); // 清烘焙残留；卡面实例随后由 CardOverlayController 挂入
+                ClearChildren(cell); // 清烘焙残留（含上帧 stack wrapper）；卡面实例随后由 CardOverlayController 挂入
 
-                var card = cards.FirstOrDefault(c => c.X == i + 2 && c.Z == z);
-                if (card == null) continue;
+                var cellCards = cards.Where(c => c.X == i + 2 && c.Z == z).ToList();
+                if (cellCards.Count == 0) continue;
+
+                var primary = cellCards.FirstOrDefault(c => !c.Stacked) ?? cellCards[0];
+                var stacked = cellCards.FirstOrDefault(c => c.Stacked && c != primary);
 
                 // 点击语义不变（我方单位=攻击开窗、我方地牌=产元素；对方卡不可点）
-                var captured = card;
+                var captured = primary;
                 _cardBindings.Add(new CardOverlayBinding
                 {
                     Slot = cell,
@@ -825,6 +830,24 @@ namespace SynergyUI
                         ? (isLand ? (Action)(() => OnClickMyLand(captured)) : () => OnClickMyUnit(captured))
                         : null,
                 });
+
+                // 叠层第二张（仅地牌行出现——BoardState 地牌格容量 2）
+                if (stacked != null)
+                {
+                    var wrap = new GameObject("stack", typeof(RectTransform)).GetComponent<RectTransform>();
+                    wrap.SetParent(cell, false);
+                    wrap.anchorMin = wrap.anchorMax = new Vector2(0.5f, 0.5f);
+                    wrap.sizeDelta = new Vector2(w * 0.78f, h * 0.78f);
+                    wrap.anchoredPosition = new Vector2(w * 0.18f, h * 0.18f);
+                    var s = stacked;
+                    _cardBindings.Add(new CardOverlayBinding
+                    {
+                        Slot = wrap,
+                        Item = CardOverlayItem.FromBattle(s, CardOverlayLayout.Land),
+                        Layout = CardOverlayLayout.Land,
+                        OnClick = mine ? (Action)(() => OnClickMyLand(s)) : null,
+                    });
+                }
             }
         }
 

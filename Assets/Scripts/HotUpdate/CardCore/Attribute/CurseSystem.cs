@@ -16,7 +16,7 @@ namespace CardCore
     ///   BranchEngines.OnCardCastResolved 施放结算时部署，Then=引擎奖励原子列——结算走
     ///   EffectExecutor.ExecuteThenRewardsAsync 弹选口径，与六引擎 FireRewards 同款）；
     ///   指示物（诅咒/祝福）归系统，不设玩家表行。旧 AddCurse 原子路径（表行已退役）保留代码侧
-    ///   兼容手写数据：①inline 原子列（CurseOnDraw 门 Then ≤2 费预算）；②Effects.json 条目引用（str）。
+    ///   兼容手写数据：Effects.json 条目引用（str）。
     /// - 执行上下文：Controller=施加方（载荷的相对域以施加方视角解析——「敌方」=被诅玩家）；
     ///   引擎载荷 Source=来源卡（弹选/免编排）；legacy 载荷 Targets/CastCard=被抽到的卡，
     ///   TriggeringEvent=CardDrawEvent，原子各自解析目标。
@@ -32,7 +32,7 @@ namespace CardCore
         {
             public string CounterId;  // 载荷归属指示物（CurseCounter/BlessingCounter——2026-10-08 祝福并入）
             public string EffectId;   // 载荷效果 id（Effects.json 条目；inline/引擎形态为 null）
-            public List<AtomicEffectInstance> InlineSteps; // 载荷原子列（legacy CurseOnDraw 门 Then / 引擎 Then 共用载体）
+            public List<AtomicEffectInstance> InlineSteps; // 载荷原子列（引擎 Then——AttachEngine 部署）
             public bool FromEngine;   // 引擎主干行载荷（2026-10-08）——结算走 ExecuteThenRewardsAsync 弹选口径
             public Player Caster;     // 施加方（载荷控制者）
             public Card SourceCard;   // 来源卡（可 null——归因用，卡可能已离场）
@@ -61,20 +61,6 @@ namespace CardCore
             {
                 CounterId = Attribute.CounterRules.CurseCounter,
                 EffectId = effectId,
-                Caster = caster,
-                SourceCard = sourceCard,
-            });
-        }
-
-        /// <summary>登记一条 inline 诅咒（legacy 2026-10-05 合成器路径）：载荷=CurseOnDraw 门 Then 原子列
-        ///（≤2 费预算由合成器校验）——每次 Attach 各自携带，天然"不同诅咒触发不同效果"。</summary>
-        public static void Attach(Card target, List<AtomicEffectInstance> inlineSteps, Player caster, Card sourceCard)
-        {
-            if (target == null || inlineSteps == null || inlineSteps.Count == 0) return;
-            AddPayload(target, new CursePayload
-            {
-                CounterId = Attribute.CounterRules.CurseCounter,
-                InlineSteps = inlineSteps,
                 Caster = caster,
                 SourceCard = sourceCard,
             });
@@ -175,8 +161,7 @@ namespace CardCore
 
         /// <summary>执行一条载荷：引擎形态（2026-10-08）=Then 奖励原子列走 ExecuteThenRewardsAsync
         /// 弹选口径（BranchEngines.FireRewards 同款——AI/无头自动选首；await 进结算链保同步续行可断言）；
-        /// legacy inline 形态=原子列逐个执行（CurseOnDraw 门 Then）；
-        /// legacy 引用形态=按 Steps 遍历（Atomic→注册表执行；Branch→局面门评估选 Then/Else），
+        /// legacy 引用形态=按 Steps 遍历（Atomic→注册表执行；Branch→产出条件评估选 Then/Else），
         /// Steps 空退化为扁平 Effects。legacy 原子各自解析目标（免编排路径）。</summary>
         private static async UniTask ExecutePayloadAsync(
             CursePayload payload, Card drawnCard, CardDrawEvent trigger, GameCore core)
@@ -206,15 +191,6 @@ namespace CardCore
                 ElementPool = core?.ElementPool,
                 CastCard = drawnCard,
             };
-
-            // inline 载荷（legacy 2026-10-05）：合成器门的 Then 原子列——逐个执行（原子各自解析目标）
-            if (payload.InlineSteps != null)
-            {
-                foreach (var atom in payload.InlineSteps)
-                    if (atom != null)
-                        await EffectHandlerRegistry.ExecuteEffectAsync(atom, ctx);
-                return;
-            }
 
             var def = ResolveDef(payload.EffectId);
             if (def == null)

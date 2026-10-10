@@ -279,6 +279,25 @@ namespace CardCore
         /// 击杀门槛 DmgKillsTarget=至少击杀一个即过、奖励只结算一次。基准红 3（范围溢价含 BaseCost，
         /// 空域数量恒 ×1）。取代旧「DealDamage+全取档」表达全体伤害的口径（SweepDamage 2026-09-21 退役的复归）。</summary>
         DealDamageAllEnemies,
+
+        /// <summary>反疗（2026-10-09，黑2，表行 6b9c4b90；原名堕落·仅角色，同日用户改名放开）：
+        /// 对任意有生命单位（生物+角色，双方）附加 {value} 层反疗指示物
+        ///（DepravityCounter，Exception 生效自减——换区不清）——该目标下一次受到的
+        /// 治疗改写为等量伤害并消耗 1 层（改写口=EntityEffectExtensions.Heal 咽喉，光源=施加方）。
+        /// 枚举只可尾部追加。</summary>
+        GrantDepravity,
+
+        /// <summary>地牌槽提升（2026-10-09，绿2，表行 6b674df2）：自己的地牌槽上限翻倍、封顶 18
+        ///（每地牌格叠两张——ElementPool.LandCapBoosted，GetLandCap 单点生效：地牌张数/支付浓度/
+        /// 出牌费用门槛/黑白获得封顶同随）。无目标原子（作用=效果控制者）；重复使用幂等。枚举只可尾部追加。</summary>
+        IncreaseLandCap,
+
+        /// <summary>重放（2026-10-09，白4，表行 b70a8a42）：对场上单位附加 {value} 层重放指示物
+        ///（ReplayCounter，Exception 生效自减——换区不清，离场休眠、再入场仍可生效）——该单位
+        /// 效果发动结算后自动消耗 1 层并**再次发动一次**（重放轮不再消耗层——「重放不触发重放」；
+        /// 消耗口=EffectExecutor.ExecuteAsync 结算段，费用/记账/结算事件只走一次）。
+        /// 枚举只可尾部追加。</summary>
+        GrantReplay,
     }
 
     /// <summary>

@@ -36,11 +36,12 @@ namespace TideServer.Verify
     /// 2026-10-05 两槽定案重锚：
     /// ⑬构造形态从「header.EngineKind+AtomicEffects 奖励」改为「槽级原子 branch 载荷」（BranchEntryData/
     ///   BranchPayload）——V9.d 关键词型剔除改判平铺主干 def.Effects；V9.p 目录锚走 OutcomeConditions/
-    ///   SituationGates/CurseGateId；Grant 引擎解体=无分支槽原子+效果级持续档计价；附两槽装载校验轻锚
+    ///   SituationGates（有限分支 2026-10-09 还原：达标奖励/不达标无事）；
+    ///   Grant 引擎解体=无分支槽原子+效果级持续档计价；附两槽装载校验轻锚
     ///  （主序列主干 ≤2 / 域交集空 → 构筑期 Error）。
     /// 2026-10-08 附加诅咒/附加祝福引擎主干化：
     /// ⑭V9.h 重写为引擎路径（EngineCurseOnDraw/EngineBlessingOnDraw 施放结算部署→抽到发作→一次性消耗），
-    ///   旧 AddCurse 指示物行退役（CurseGateId 转 legacy）；诅咒/倒计时/祝福指示物归系统（无玩家表行）。
+    ///   旧 AddCurse 指示物行退役；诅咒/倒计时/祝福指示物归系统（无玩家表行）。
     /// 2026-10-08 关键词不叠加定案增（2026-10-09 修订为彻底不叠加·全轨取代）：
     /// ⑮V9.t 台账取代制——同关键词**无论轨别**（文本轨=印刷/设置 vs 附加状态轨=临时），
     ///   新实例取代旧实例（值/次数刷新；跨轨不并存、互不补充：附加份不补文本份、文本份不补附加份）；
@@ -620,6 +621,33 @@ namespace TideServer.Verify
                 "换区即失效（UntilLeaveBattlefield：Exposed 清零）");
             VerifySuite.Assert(!RevealedContains(NetSnapshotBuilder.Build(gcore, 0)),
                 "失效后快照 RevealedZoneCards 不再含该卡");
+
+            // ---- ⑥ 发现挂展示（2026-10-09 展示链路补全定案）：被展示牌即挂 Exposed（双方可查看）；
+            // 未选中留库=不换区保持展示；选中入手=换区即消（ClearAll 换区口径统一承担）。
+            // 直执 handler 夹具（PlayCard 受浓度上限拦高费——展示链路与出牌链无关） ----
+            var discInst = CardEffectConverter.ConvertAtomForUI(AtomRefs.New(AtomicEffectType.DiscoverCard, value: 2));
+            var discSrc = new CardWrapper(new CardData
+            { ID = "V9G_DISCOVER_SRC", CardName = "V9G发现源", Supertype = Cardtype.Spell });
+            discSrc.SetController(g1);
+            int g1HandPre = gcore.ZoneManager.GetCards(g1, Zone.Hand).Count;
+            int g1DeckExposedPre = gcore.ZoneManager.GetCards(g1, Zone.Deck)
+                .Count(c => c.GetCounterCount(CounterRules.ExposedCounter) > 0);
+            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(discInst, new EffectExecutionContext
+            {
+                Controller = g1,
+                Source = discSrc,
+                ZoneManager = gcore.ZoneManager,
+                ElementPool = gcore.ElementPool,
+            }).GetAwaiter().GetResult();
+            var g1HandNow = gcore.ZoneManager.GetCards(g1, Zone.Hand);
+            int g1DeckExposedNow = gcore.ZoneManager.GetCards(g1, Zone.Deck)
+                .Count(c => c.GetCounterCount(CounterRules.ExposedCounter) > 0);
+            VerifySuite.Assert(g1HandNow.Count == g1HandPre + 1,
+                $"发现选入 1（直执无打出消耗：{g1HandPre}→{g1HandNow.Count}）");
+            VerifySuite.Assert(g1DeckExposedNow == g1DeckExposedPre + 1,
+                $"未选中留库保持展示（库内 Exposed {g1DeckExposedPre}→{g1DeckExposedNow}——展示即状态）");
+            VerifySuite.Assert(g1HandNow.All(c => c.GetCounterCount(CounterRules.ExposedCounter) == 0),
+                "选中入手换区即消（含选入卡——到手牌的展示态被换区清擦除）");
 
             // ============================ V9.h 附加诅咒/附加祝福（2026-10-08 引擎主干化） ============================
 
@@ -2108,22 +2136,27 @@ namespace TideServer.Verify
                 wcore.ElementPool.GetPool(w1).AvailableMana[t] = 99;
             wcore.ElementPool.GetPool(w1).GlobalTurnIndex = 9;
 
-            // ---- ① 目录退役锚：改写门四条已删、诅咒门转 legacy、附加诅咒/祝福引擎主干化 ----
-            VerifySuite.Assert(ComposerCatalog.OutcomeConditions.Concat(ComposerCatalog.SituationGates)
+            // ---- ① 目录锚：改写门四条已删、诅咒通道=引擎主干行、附加诅咒/祝福引擎主干化、
+            //      有限分支（局面门）2026-10-09 还原——达标奖励/不达标无事 ----
+            VerifySuite.Assert(ComposerCatalog.OutcomeConditions
+                              .Concat(ComposerCatalog.SituationGates)
                               .All(g => !g.Id.StartsWith("DmgRewrite")),
                 "改写门四条已从条件目录退役（迁唯一光环）");
             VerifySuite.Assert(!BranchConditionEvaluator.IsKnownCondition("DmgRewriteToxin")
-                              && BranchConditionEvaluator.IsKnownCondition(ComposerCatalog.CurseGateId),
-                "改写条件 id 已注销、诅咒门已登记（legacy——手写数据兼容）");
-            // 2026-10-08 引擎主干化：旧 AddCurse 指示物行退役（原子库不可达），CurseGateId/预算保留 legacy；
+                              && !BranchConditionEvaluator.IsKnownCondition("CurseOnDraw"),
+                "改写条件 id 已注销、CurseOnDraw 不在评估器（诅咒通道=引擎主干行）");
+            // 2026-10-08 引擎主干化：旧 AddCurse 指示物行退役（原子库不可达）；
             // 接棒=引擎主干行 EngineCurseOnDraw/EngineBlessingOnDraw（行级锚在 V9.q bEnginePairs，e2e 在 V9.h）
             VerifySuite.Assert(AtomicEffectTable.GetByType(AtomicEffectType.AddCurse) == null
                               && AtomicEffectTable.GetByType(AtomicEffectType.EngineCurseOnDraw) != null
                               && AtomicEffectTable.GetByType(AtomicEffectType.EngineBlessingOnDraw) != null,
                 "附加诅咒自由分支化：旧 AddCurse 指示物行退役、引擎主干行 EngineCurseOnDraw/EngineBlessingOnDraw 入表（诅咒/祝福指示物归系统，无玩家表行）");
-            VerifySuite.Assert(CostDerivationService.GatePremium.TryGetValue(ComposerCatalog.CurseGateId, out var curseBudget)
-                              && curseBudget == 2,
-                $"诅咒门预算=2 保留（legacy 载荷口径；实际 {curseBudget}）");
+            VerifySuite.Assert(!CostDerivationService.GatePremium.ContainsKey("CurseOnDraw")
+                              && CostDerivationService.GatePremium.Count == 16
+                              && CostDerivationService.GatePremium["LifeBelowOpp"] == 1
+                              && CostDerivationService.GatePremium["LifeLe7"] == 2
+                              && CostDerivationService.GatePremium["DrawnInStandbyThisTurn"] == 3,
+                "条件预算表=产出五项+局面门 11 项（有限分支还原；诅咒门不还原）");
 
             // ---- ② 三负面光环 + 舍身仪典（2026-10-07 负面化定案：原"战斗伤害改写为指示物"退役，
             // 改持续型挂层——代码侧事件钩子；改写管线收敛为舍身单映射：战斗伤害转投对手角色。
@@ -2369,9 +2402,9 @@ namespace TideServer.Verify
                 TideLog.Sink = prevSink;
             }
 
-            // ============================ V9.q 门槛对赌 + 引擎主干回表（2026-10-05 晚间定案） ============================
+            // ============================ V9.q 有限分支（达标奖励/不达标无事）+ 产出条件纯奖励 + 引擎主干回表 ============================
 
-            VerifySuite.Section("V9.q 门槛对赌（局面门逆转惩罚）+引擎主干回表");
+            VerifySuite.Section("V9.q 有限分支还原 + 产出条件纯奖励 + 引擎主干回表");
             var bcore = GameCore.Instance;
             bcore.Reset();
             ZoneContainer.Reseed(20261013);
@@ -2442,7 +2475,174 @@ namespace TideServer.Verify
             VerifySuite.Assert(CostDerivationService.DeriveElementCosts(bEngineDef).Total == 0f,
                 "引擎行零锚价 + Then 零计价（回表后计价不变——机制自平衡）");
 
-            // ---- ③ 局面门对赌端到端：首卡达成得奖励 / 次卡未达成奖励逆转强制执行 ----
+            // ---- ②b 引擎效果头预设兜底（2026-10-09 自由分支九项定案：数据声明被归一到引擎内生语义） ----
+            VerifySuite.Assert(bEngineDef.ActivationType == EffectActivationType.Automatic
+                               && bEngineDef.TriggerTiming == TriggerTiming.OnAttack
+                               && bEngineDef.BaseSpeed == 0
+                               && bEngineDef.TriggerLimitPerTurn == -1,
+                $"拼点效果头预设：自动/攻击宣言/无限（数据声明 OnPlay 已兜底归一——实际 " +
+                $"{bEngineDef.ActivationType}/{bEngineDef.TriggerTiming}/{bEngineDef.TriggerLimitPerTurn}）");
+            var bCurseCard = new CardData { ID = "V9Q_CURSE", CardName = "V9Q诅咒引擎", Supertype = Cardtype.Spell };
+            bCurseCard.Effects.Add(new CardEffectData
+            {
+                Id = "V9Q_CURSE_EFF",
+                TriggerTiming = (int)TriggerTiming.OnTurnStart, // 故意错声明——预设应归一为主动/启动式
+                SelectionMode = -1,
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    new AtomicEffectEntry
+                    {
+                        refId = AtomicEffectTable.GetByType(AtomicEffectType.EngineCurseOnDraw)?.HashId,
+                        value = 1,
+                        branch = new BranchEntryData
+                        {
+                            settle = (int)BranchSettleKind.Engine,
+                            engine = (int)BranchEngineKind.CurseOnDraw,
+                            engineParam = 1,
+                            then = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+                        },
+                    },
+                },
+            });
+            var bCurseDef = CardEffectConverter.ConvertOne(bCurseCard.Effects[0], "V9Q_src");
+            VerifySuite.Assert(bCurseDef.ActivationType == EffectActivationType.Voluntary
+                               && bCurseDef.TriggerTiming == TriggerTiming.Activate_Active
+                               && bCurseDef.BaseSpeed == 0
+                               && bCurseDef.TriggerLimitPerTurn == 1,
+                "附加诅咒/祝福效果头预设：主动/启动式钉档/速度0/1次（部署点=施放结算不变）");
+
+            // ---- ②c 附加诅咒/祝福分支附加费（Then 奖励不再免费：ceil 减半；其余引擎照旧零计价见②） ----
+            var bThenCost = CostDerivationService.RewardDerivedCost(bCurseDef.Effects[0].Branch.Then);
+            var bCursePrice = CostDerivationService.DeriveElementCosts(bCurseDef).Total;
+            VerifySuite.Assert(bCursePrice > 0f
+                               && Math.Abs(bCursePrice - Math.Ceiling(bThenCost / 2f)) < 1e-4f,
+                $"附加诅咒分支费减半向上取整：卡价 {bCursePrice:0.##} = ceil(Then {bThenCost:0.##}/2)——拼点锚仍 {CostDerivationService.DeriveElementCosts(bEngineDef).Total:0.##}");
+
+            // ---- ②d 拼点触发事件迁移回归锚（2026-10-09：回合开始→攻击宣言·仅攻击方·无限） ----
+            var bEngineUnit = new CardWrapper(bEngineCard);
+            bEngineUnit.SetController(b1x);
+            bcore.ZoneManager.GetZoneContainer(b1x).Add(bEngineUnit, Zone.Battlefield);
+            foreach (var side in new[] { b1x, b2x }) // 双方牌库清空后各注已知生物（随机取样确定化）
+            {
+                foreach (var c in bcore.ZoneManager.GetCards(side, Zone.Deck).ToList())
+                    bcore.ZoneManager.GetZoneContainer(side).Move(c, Zone.Deck, Zone.Graveyard);
+            }
+            // 回合开始 SBA 会抽 1 张——注入多张同能力生物：抽走一张后随机取样仍确定（己方 9/对方 1）
+            for (int i = 0; i < 3; i++)
+            {
+                var bDeckA = new CardWrapper(new CardData
+                { ID = $"V9Q_DECK_A_{i}", CardName = "V9Q己方库生物", Supertype = Cardtype.Creature, Power = 9, Life = 1 });
+                bDeckA.SetController(b1x);
+                bcore.ZoneManager.GetZoneContainer(b1x).Add(bDeckA, Zone.Deck);
+            }
+            for (int i = 0; i < 2; i++)
+            {
+                var bDeckB = new CardWrapper(new CardData
+                { ID = $"V9Q_DECK_B_{i}", CardName = "V9Q对方库生物", Supertype = Cardtype.Creature, Power = 1, Life = 1 });
+                bDeckB.SetController(b2x);
+                bcore.ZoneManager.GetZoneContainer(b2x).Add(bDeckB, Zone.Deck);
+            }
+
+            int clashEvents = 0;
+            string clashDetail = null;
+            EventManager.Instance.Subscribe<KeywordAppliedEvent>(
+                e => { if (e.Keyword == "拼点" && e.Target == bEngineUnit) { clashEvents++; clashDetail = e.Detail; } });
+            int bThreshold = CostDerivationService.RewardThreshold(bEngineDef.Effects[0].Branch.Then);
+            EventManager.Instance.Publish(new TurnStartEvent { TurnPlayer = b1x, TurnNumber = 99 });
+            VerifySuite.Assert(clashEvents == 0,
+                "拼点不再回合开始触发（2026-10-09 触发改版回归锚——TurnStart 零拼点播报）");
+            EventManager.Instance.Publish(new AttackDeclarationEvent { AttackingPlayer = b1x });
+            VerifySuite.Assert(clashEvents == 1 && clashDetail != null && clashDetail.Contains("拼点"),
+                $"攻击宣言触发拼点（仅攻击方：9 vs 1 差额 8 ≥ 门槛 {bThreshold}——实际 {clashEvents} 次：{clashDetail ?? "无"}）");
+            int clashAfterDefender = clashEvents;
+            EventManager.Instance.Publish(new AttackDeclarationEvent { AttackingPlayer = b2x });
+            VerifySuite.Assert(clashEvents == clashAfterDefender,
+                "对方攻击宣言不触发我方拼点引擎（仅攻击方结算——守方引擎卡零播报）");
+
+            // ---- ③ 条件体系现状锚：有限分支（Gate）2026-10-09 还原 + settle 越界丢弃 ----
+            CardData BetCard(string id) => new CardData
+            {
+                ID = id, CardName = "V9Q条件术", Supertype = Cardtype.Spell,
+            };
+            VerifySuite.Assert(CardCore.BranchEntryRules.IsPhantom(new BranchEntryData { settle = 0 })
+                              && !CardCore.BranchEntryRules.IsPhantom(new BranchEntryData { settle = 1 }),
+                "settle=0 幽灵剥离；settle=1=有限分支（Gate，2026-10-09 还原）为有效值");
+            VerifySuite.Assert(BranchConditionEvaluator.IsKnownCondition("LifeBelowOpp")
+                              && BranchConditionEvaluator.IsKnownCondition("FirstCardThisTurn")
+                              && BranchConditionEvaluator.IsKnownCondition("DmgKillsTarget")
+                              && !BranchConditionEvaluator.IsKnownCondition("CurseOnDraw"),
+                "评估器登记产出五项+局面门 11 项（CurseOnDraw 不在——诅咒通道=引擎主干行）");
+            var gatePureDef = CardEffectConverter.ConvertOne(
+                new CardEffectData
+                {
+                    Id = "V9Q_GATE_PRICE",
+                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                    SelectionMode = -1,
+                    AtomicEffects = new List<AtomicEffectEntry>
+                    {
+                        AtomRefs.New(AtomicEffectType.DealDamage, value: 1, kinds: new List<int> { 2 }),
+                    },
+                }, "V9Q_src");
+            var gatePurePrice = CostDerivationService.DeriveElementCosts(gatePureDef).Total;
+            var gateCard = BetCard("V9Q_GATE");
+            gateCard.Effects.Add(new CardEffectData
+            {
+                Id = "V9Q_GATE_EFF",
+                TriggerTiming = (int)TriggerTiming.OnPlay,
+                SelectionMode = -1,
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    new AtomicEffectEntry
+                    {
+                        refId = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage)?.HashId,
+                        value = 1,
+                        kinds = new List<int> { 2 }, // 主干：对对方生物 1 伤
+                        branch = new BranchEntryData
+                        {
+                            settle = (int)BranchSettleKind.Gate,
+                            gateId = "LifeBelowOpp", // 有限分支：生命低于对手
+                            then = new List<AtomicEffectEntry>
+                            {
+                                // 奖励=治疗 2（己方生物——无头自动选首=bMine）
+                                AtomRefs.New(AtomicEffectType.Heal, value: 2, kinds: new List<int> { 1 }),
+                            },
+                        },
+                    },
+                },
+            });
+            var gateDef = CardEffectConverter.ConvertOne(gateCard.Effects[0], "V9Q_src");
+            VerifySuite.Assert(gateDef.Effects.Count == 1 && gateDef.Effects[0].Branch != null
+                               && gateDef.Effects[0].Branch.Settle == BranchSettleKind.Gate
+                               && gateDef.Effects[0].Branch.GateId == "LifeBelowOpp"
+                               && Math.Abs(CostDerivationService.DeriveElementCosts(gateDef).Total - gatePurePrice) < 1e-4f,
+                $"有限分支零加价：settle=1+gateId → Gate 载荷（达标奖励/不达标无事），Then 零计价维持（带门 {CostDerivationService.DeriveElementCosts(gateDef).Total:0.##} = 纯主干 {gatePurePrice:0.##}）");
+            var junkBet = BetCard("V9Q_JUNK");
+            junkBet.Effects.Add(new CardEffectData
+            {
+                Id = "V9Q_JUNK_EFF",
+                TriggerTiming = (int)TriggerTiming.OnPlay,
+                SelectionMode = -1,
+                AtomicEffects = new List<AtomicEffectEntry>
+                {
+                    new AtomicEffectEntry
+                    {
+                        refId = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage)?.HashId,
+                        value = 1,
+                        kinds = new List<int> { 2 },
+                        branch = new BranchEntryData
+                        {
+                            settle = 99, // 真越界值——converter 告警丢弃
+                            gateId = "LifeBelowOpp",
+                            then = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.Heal, value: 2) },
+                        },
+                    },
+                },
+            });
+            var junkDef = CardEffectConverter.ConvertOne(junkBet.Effects[0], "V9Q_src");
+            VerifySuite.Assert(junkDef.Effects.Count == 1 && junkDef.Effects[0].Branch == null,
+                "settle 越界分支载荷装载即丢弃（主干原子保留、无分支——装载可见不炸）");
+
+            // ---- ④ 产出条件纯奖励：未达成无动作 ----
             var bMine = new CardWrapper(new CardData
             {
                 ID = "V9Q_MINE", CardName = "V9Q己方生物", Supertype = Cardtype.Creature, Power = 1, Life = 9,
@@ -2458,80 +2658,6 @@ namespace TideServer.Verify
             bMine.SetLife(5);
             bFoe.SetLife(5);
 
-            CardData BetCard(string id) => new CardData
-            {
-                ID = id, CardName = "V9Q对赌术", Supertype = Cardtype.Spell,
-            };
-            void AddBetEffect(CardData c)
-            {
-                c.Effects.Add(new CardEffectData
-                {
-                    Id = c.ID + "_EFF",
-                    TriggerTiming = (int)TriggerTiming.OnPlay,
-                    SelectionMode = -1,
-                    AtomicEffects = new List<AtomicEffectEntry>
-                    {
-                        new AtomicEffectEntry
-                        {
-                            refId = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage)?.HashId,
-                            value = 1,
-                            kinds = new List<int> { 2 }, // 主干：对对方生物 1 伤
-                            branch = new BranchEntryData
-                            {
-                                settle = (int)BranchSettleKind.Gate,
-                                gateId = "FirstCardThisTurn", // 本回合首卡=达成；次卡=未达成
-                                then = new List<AtomicEffectEntry>
-                                {
-                                    // 奖励=治疗 2（实例收窄己方生物 {1}——奖励路径单候选确定；
-                                    // 逆转按行域 [1,2] 收窄到对方侧 [2] → 强制治疗对方生物）
-                                    AtomRefs.New(AtomicEffectType.Heal, value: 2, kinds: new List<int> { 1 }),
-                                },
-                            },
-                        },
-                    },
-                });
-            }
-            var betDef = CardEffectConverter.ConvertOne(
-                new CardEffectData
-                {
-                    Id = "V9Q_BET_PRICE",
-                    TriggerTiming = (int)TriggerTiming.OnPlay,
-                    SelectionMode = -1,
-                    AtomicEffects = new List<AtomicEffectEntry>
-                    {
-                        AtomRefs.New(AtomicEffectType.DealDamage, value: 1, kinds: new List<int> { 2 }),
-                    },
-                }, "V9Q_src");
-            var betCardPrice = CostDerivationService.DeriveElementCosts(betDef).Total;
-            var bet1 = BetCard("V9Q_BET1");
-            AddBetEffect(bet1);
-            var betDef1 = CardEffectConverter.ConvertOne(bet1.Effects[0], "V9Q_src");
-            VerifySuite.Assert(betDef1.Effects[0].Branch != null
-                               && betDef1.Effects[0].Branch.Settle == BranchSettleKind.Gate
-                               && Math.Abs(CostDerivationService.DeriveElementCosts(betDef1).Total - betCardPrice) < 1e-4f,
-                $"对赌零加价：Then 零计价维持（带门 {CostDerivationService.DeriveElementCosts(betDef1).Total:0.##} = 纯主干 {betCardPrice:0.##}）");
-
-            var betHand1 = new CardWrapper(bet1);
-            betHand1.SetController(b1x);
-            bcore.ZoneManager.GetZoneContainer(b1x).Add(betHand1, Zone.Hand);
-            VerifySuite.Assert(GameActions.PlayCard(bcore, b1x, betHand1, null, Zone.Hand, 0, out var rejB1),
-                $"对赌卡1（达成面）打出（拒绝原因：{rejB1 ?? "无"}）");
-            GameActions.DrainStack(bcore);
-            VerifySuite.Assert(bMine.GetLife() == 7 && bFoe.GetLife() == 4,
-                $"门达成→奖励照旧：主干打对方 5→4、Then 治疗（候选[己方生物,己方角色] 无头自动选首=己方生物；2026-10-07 晚起多候选=弹选/AI 与无头选首）5→7（实际 己{bMine.GetLife()}/敌{bFoe.GetLife()}）");
-
-            var bet2 = BetCard("V9Q_BET2");
-            AddBetEffect(bet2);
-            var betHand2 = new CardWrapper(bet2);
-            betHand2.SetController(b1x);
-            bcore.ZoneManager.GetZoneContainer(b1x).Add(betHand2, Zone.Hand);
-            VerifySuite.Assert(GameActions.PlayCard(bcore, b1x, betHand2, null, Zone.Hand, 0, out var rejB2),
-                $"对赌卡2（未达成面）打出（拒绝原因：{rejB2 ?? "无"}）");
-            GameActions.DrainStack(bcore);
-            VerifySuite.Assert(bMine.GetLife() == 7 && bFoe.GetLife() == 5,
-                $"门未达成→逆转惩罚：主干打对方 4→3、奖励逆转（Heal 收窄对方侧 [2]）对手弹选落点（无头自动选首=对方生物）治疗 3→5，己方不动（实际 己{bMine.GetLife()}/敌{bFoe.GetLife()}）");
-
-            // ---- ④ 产出条件纯奖励：未达成无动作（不对赌） ----
             var ocCard = BetCard("V9Q_OUTCOME");
             ocCard.Effects.Add(new CardEffectData
             {
@@ -2560,8 +2686,31 @@ namespace TideServer.Verify
             VerifySuite.Assert(GameActions.PlayCard(bcore, b1x, ocHand, null, Zone.Hand, 0, out var rejO),
                 $"产出条件卡打出（拒绝原因：{rejO ?? "无"}）");
             GameActions.DrainStack(bcore);
-            VerifySuite.Assert(bMine.GetLife() == 7 && bFoe.GetLife() == 4,
+            VerifySuite.Assert(bMine.GetLife() == 5 && bFoe.GetLife() == 4,
                 $"产出条件未达成→无奖励也无惩罚（纯奖励语义；主干 5→4，双侧不动——实际 己{bMine.GetLife()}/敌{bFoe.GetLife()}）");
+
+            // ---- ④b 有限分支（Gate）端到端：达标→Then 奖励；不达标→不奖励也不惩罚 ----
+            var betHand1 = new CardWrapper(gateCard);
+            betHand1.SetController(b1x);
+            bcore.ZoneManager.GetZoneContainer(b1x).Add(betHand1, Zone.Hand);
+            b1x.Life = 10; b2x.Life = 20; // 生命低于对手=达成面
+            VerifySuite.Assert(GameActions.PlayCard(bcore, b1x, betHand1, null, Zone.Hand, 0, out var rejG1),
+                $"有限分支卡1（达成面）打出（拒绝原因：{rejG1 ?? "无"}）");
+            GameActions.DrainStack(bcore);
+            VerifySuite.Assert(bMine.GetLife() == 7 && bFoe.GetLife() == 3,
+                $"门达成→奖励照旧：主干打对方生物 4→3、Then 治疗己方生物（候选[己方生物,己方角色] 无头自动选首=己方生物）5→7（实际 己{bMine.GetLife()}/敌{bFoe.GetLife()}）");
+            var betCard2 = BetCard("V9Q_GATE2");
+            betCard2.Effects.Add(gateCard.Effects[0]);
+            var betHand2 = new CardWrapper(betCard2);
+            betHand2.SetController(b1x);
+            bcore.ZoneManager.GetZoneContainer(b1x).Add(betHand2, Zone.Hand);
+            b1x.Life = 30; // 生命高于对手=未达成面
+            int mine2 = bMine.GetLife(), foe2 = bFoe.GetLife(), oppLife2 = b2x.Life;
+            VerifySuite.Assert(GameActions.PlayCard(bcore, b1x, betHand2, null, Zone.Hand, 0, out var rejG2),
+                $"有限分支卡2（未达成面）打出（拒绝原因：{rejG2 ?? "无"}）");
+            GameActions.DrainStack(bcore);
+            VerifySuite.Assert(bMine.GetLife() == mine2 && bFoe.GetLife() == foe2 - 1 && b2x.Life == oppLife2,
+                $"门未达成→不奖励也不惩罚：只结算主干伤害（敌 {foe2}→{foe2 - 1}），双侧无任何额外动作——逆转惩罚面不还原（实际 己{bMine.GetLife()}/敌{bFoe.GetLife()}/对{b2x.Life}）");
 
             // ---- ⑤ 引擎主序列执行跳过（出牌放末位——不占本回合首卡计数）：
             //      无处理器告警=漏跳证据 ----
@@ -2581,45 +2730,71 @@ namespace TideServer.Verify
             }
             finally { TideLog.Sink = bPrevSink; }
 
-            // ---- ⑥ 局面门奖励不可逆转 → converter 剔除（对赌惩罚落点校验，装载可见不炸） ----
+            // ---- ⑥ 遗留门步骤折叠：产出条件→Outcome、局面门→Gate、未知条件剔除（装载可见不炸） ----
             var bSink2 = new List<string>();
             TideLog.Sink = (level, text) => { bSink2.Add(text); };
             try
             {
-                var badBet = BetCard("V9Q_BADBET");
-                badBet.Effects.Add(new CardEffectData
+                var legacyGate = new CardData { ID = "V9Q_LEGACYG", CardName = "V9Q遗留门", Supertype = Cardtype.Spell };
+                legacyGate.Effects.Add(new CardEffectData
                 {
-                    Id = "V9Q_BADBET_EFF",
+                    Id = "V9Q_LEGACYG_EFF",
                     TriggerTiming = (int)TriggerTiming.OnPlay,
                     SelectionMode = -1,
-                    AtomicEffects = new List<AtomicEffectEntry>
+                    Steps = new List<CardCore.EffectStepData>
                     {
-                        new AtomicEffectEntry
+                        new CardCore.EffectStepData
                         {
-                            refId = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage)?.HashId,
-                            value = 1,
-                            kinds = new List<int> { 2 },
-                            branch = new BranchEntryData
+                            kind = 0,
+                            atomic = new AtomicEffectEntry
                             {
-                                settle = (int)BranchSettleKind.Gate,
-                                gateId = "LifeBelowOpp",
-                                then = new List<AtomicEffectEntry>
-                                {
-                                    // Guard：p=0 且域空——不可逆转（惩罚无从执行）
-                                    new AtomicEffectEntry
-                                    {
-                                        refId = AtomicEffectTable.GetByType(AtomicEffectType.Guard)?.HashId,
-                                        value = 1,
-                                    },
-                                },
+                                refId = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage)?.HashId,
+                                value = 1,
                             },
+                        },
+                        new CardCore.EffectStepData
+                        {
+                            kind = 1, conditionId = "LifeBelowOpp", // 非产出条件 id
+                            thenSteps = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
                         },
                     },
                 });
-                var badDef = CardEffectConverter.ConvertOne(badBet.Effects[0], "V9Q_src");
-                VerifySuite.Assert(badDef.Effects[0].Branch == null
-                                   && bSink2.Any(t => t.Contains("不可逆转")),
-                    "局面门奖励不可逆转 → Warn 剔除（Then 空→门载荷整体折叠为无分支）");
+                var legacyDef = CardEffectConverter.ConvertOne(legacyGate.Effects[0], "V9Q_src");
+                VerifySuite.Assert(legacyDef.Steps.Count == 0 && legacyDef.Effects.Count == 1
+                                   && legacyDef.Effects[0].Branch != null
+                                   && legacyDef.Effects[0].Branch.Settle == BranchSettleKind.Gate
+                                   && legacyDef.Effects[0].Branch.GateId == "LifeBelowOpp"
+                                   && !bSink2.Any(t => t.Contains("非产出/局面条件")),
+                    "遗留门步骤折叠：局面门折入前原子 Branch（Gate 族——达标奖励/不达标无事）");
+                var junkGate = new CardData { ID = "V9Q_JUNKG", CardName = "V9Q未知门", Supertype = Cardtype.Spell };
+                junkGate.Effects.Add(new CardEffectData
+                {
+                    Id = "V9Q_JUNKG_EFF",
+                    TriggerTiming = (int)TriggerTiming.OnPlay,
+                    SelectionMode = -1,
+                    Steps = new List<CardCore.EffectStepData>
+                    {
+                        new CardCore.EffectStepData
+                        {
+                            kind = 0,
+                            atomic = new AtomicEffectEntry
+                            {
+                                refId = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage)?.HashId,
+                                value = 1,
+                            },
+                        },
+                        new CardCore.EffectStepData
+                        {
+                            kind = 1, conditionId = "NotACondition", // 未知条件 id
+                            thenSteps = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+                        },
+                    },
+                });
+                var junkGateDef = CardEffectConverter.ConvertOne(junkGate.Effects[0], "V9Q_src");
+                VerifySuite.Assert(junkGateDef.Steps.Count == 0 && junkGateDef.Effects.Count == 1
+                                   && junkGateDef.Effects[0].Branch == null
+                                   && bSink2.Any(t => t.Contains("非产出/局面条件")),
+                    "遗留门步骤折叠：未知条件剔除（主干原子保留、无分支——Then 不落地）");
             }
             finally { TideLog.Sink = bPrevSink; }
 
