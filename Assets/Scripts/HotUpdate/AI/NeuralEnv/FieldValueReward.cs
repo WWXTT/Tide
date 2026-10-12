@@ -144,26 +144,23 @@ namespace CardCore.AI.NeuralEnv
             // 1) 生命
             value += player.GetLife() * LifeWeight;
 
-            // 2) bank 法力（已积攒待用；黑白=万用色按 WildManaWeight 估值）
+            // 2) 临时钱包（2026-10-11 现取现用：bank 退役；黑白只垫灰，按 WildManaWeight 估值）
             var pool = core.ElementPool.GetPool(player);
             if (pool != null)
             {
-                foreach (var kv in pool.AvailableMana)
+                foreach (var kv in pool.TempElements)
                     value += kv.Value * (kv.Key == ManaType.Black || kv.Key == ManaType.White
                         ? WildManaWeight : ManaWeight);
             }
 
-            // 3) 地牌剩余指示物（未来产出价值）
+            // 3) 地牌（永久产线：每块按 LandTokenWeight 估值——锁色不耗竭，未横置=当回合仍可支付）
             var pooledCards = core.ElementPool.GetPooledCards(player);
             if (pooledCards != null)
             {
                 foreach (var pc in pooledCards)
                 {
-                    if (pc != null && pc.Tokens != null)
-                    {
-                        foreach (var tokenCount in pc.Tokens.Values)
-                            value += tokenCount * LandTokenWeight;
-                    }
+                    if (pc == null) continue;
+                    value += (pc.IsTapped ? 0 : 1) * LandTokenWeight;
                 }
             }
 

@@ -14,22 +14,31 @@ namespace SynergyUI
     /// 卡组构建界面（2026-10-01 预制体化：静态层级来自 Assets/Art/UI/DeckUI.prefab，
     /// Build 深度按名绑定+闭包接线；滚动列表行/统计区/预览内容运行时重建）——三栏：
     /// 左=效果预览（点击行显示），中=当前卡组+统计（费用曲线/颜色分布/类型比例/英雄技能预览），
-    /// 右=卡牌列表（颜色过滤+搜索+全局排序，已添加卡的添加按钮禁用）。
+    /// 右=卡牌列表（颜色过滤+搜索+全局排序，可重复添加）。
     ///
-    /// 合法性规则（2026-09-24 定案）：**只查重复**（每卡 1 张）——不设张数硬规则；
-    /// 重复由 UI 禁用按钮天然防住，保存口兜底拦截。超模检查已随 2026-09-24 定案移除。
-    /// 卡组区=UGUI 卡网格（ScrollGrid+卡实例挂槽位）。
+    /// 构筑规则（2026-10-11 定案，取代 2026-09-24「每卡 1 张」限制）：
+    /// ① 必须标记英雄技能（资格=恰好一个主动效果的结界）——未标记不可保存；
+    /// ② 唯一效果（唯一门命运一抽【唯一】/同名仪典规则光环）每卡组限 1 张——添加口+保存口
+    /// 双拦截，同卡重复与异卡同名都算冲突（不同名仪典可共存，镜像运行时异名共存）；
+    /// ③ 卡组 30-60 张、卡可重复任意张（唯一门槛落地后放开——硬凑 30 张不同卡是玩家负担）。
+    /// 超模检查仍移除（2026-09-24 定案）。卡组区=UGUI 卡网格（ScrollGrid+卡实例挂槽位）。
     /// </summary>
     public sealed class DeckBuilderScreen : UIScreen
     {
         protected override string PrefabName => "DeckUI";
         protected override string RootName => "deck-builder";
 
+        // 构筑张数上下限（2026-10-11 定案规则③）：30-60 张、卡可重复任意张——
+        // 旧「每卡 1 张」限制随唯一效果门槛落地而废止。
+        private const int MinDeckCards = 30;
+        private const int MaxDeckCards = 60;
+
         // 当前正在构筑的卡组（卡牌 ID 列表）。
         private readonly List<string> _deckCardIds = new List<string>();
 
         // 英雄技能标记卡 ID（2026-10-07 卡牌化：标记一张「恰好一个主动效果的结界」为技能，
-        // 开局从牌库抽出落技能栏；null = 无技能）。资格校验=HeroSkillSystem.CanBeSkillCard。
+        // 开局从牌库抽出落技能栏；null = 未标记——2026-10-11 构筑规则①：未标记不可保存）。
+        // 资格校验=HeroSkillSystem.CanBeSkillCard。
         private string _skillCardId;
 
         // UGUI 卡牌层绑定（卡组区=卡槽网格 + UGUI 卡面；RefreshAll 全量重建）。
@@ -159,14 +168,13 @@ namespace SynergyUI
             foreach (var card in sorted)
             {
                 var captured = card;
-                MakeListRow(captured, "添加",
-                    onAdd: () => AddCard(captured.ID),
-                    added: _deckCardIds.Contains(captured.ID));
+                MakeListRow(captured, "添加", onAdd: () => AddCard(captured.ID));
             }
         }
 
-        /// <summary>名称行（2026-09-24 定案）：费用徽标+名称+类型/身材，行点击=预览，行尾按钮=添加/移除。</summary>
-        private void MakeListRow(CardData card, string action, Action onAdd, bool added)
+        /// <summary>名称行：费用徽标+名称+类型/身材，行点击=预览，行尾按钮=添加——
+        /// 可重复添加（2026-10-11 放开「每卡 1 张」限制；唯一效果冲突由 AddCard toast 拦截）。</summary>
+        private void MakeListRow(CardData card, string action, Action onAdd)
         {
             var row = UiKit.Row("row", _catalogList.Content, spacing: 8f, pad: 6f);
             var rowBg = UiKit.BgRow(row);
@@ -180,7 +188,6 @@ namespace SynergyUI
             UiKit.Size(name, fw: 1f);
             var meta = UiKit.Label("meta", row, TypeStatLine(card), UiStyle.SmallSize, UiStyle.TextFaint);
             var btn = UiKit.MiniButton("action", row, action, onAdd);
-            btn.interactable = !added; // 已在卡组——添加按钮禁用（重复由 UI 天然防住）
 
             // 行点击=预览（透明覆盖按钮防误触行内按钮：只挂在行背景上会与行内按钮争抢——
             // UGUI Button 事件由最上层 Graphic 接收，行内按钮在上层，点击它们不会触发行）
@@ -223,26 +230,61 @@ namespace SynergyUI
 
         private void AddCard(string id)
         {
-            if (_deckCardIds.Contains(id))
+            // 构筑规则③（2026-10-11）：30-60 张内重复任意张——上限在添加口即时反馈
+            if (_deckCardIds.Count >= MaxDeckCards)
             {
-                ShowToast("该卡已在卡组（每卡 1 张）");
+                ShowToast($"卡组已达上限 {MaxDeckCards} 张");
                 return;
+            }
+            // 构筑规则②（2026-10-11）：唯一门/同名仪典每卡组限 1 张——同卡第二张与异卡同名
+            // 都算冲突（不排除自身 id），冲突走 toast 反馈
+            var card = CardCatalog.GetById(id);
+            if (card != null)
+            {
+                foreach (var slot in ComposerCatalog.DeckUniqueSlots(card))
+                {
+                    var holder = DeckCardHoldingKey(slot.Key);
+                    if (holder != null)
+                    {
+                        ShowToast($"「{slot.Display}」每卡组限 1 张——已有 {NameOf(holder)}");
+                        return;
+                    }
+                }
             }
             _deckCardIds.Add(id);
             RefreshAll();
         }
 
+        /// <summary>卡组内已持有指定构筑唯一键的卡（无=null）——添加拦截用。
+        /// 键源=ComposerCatalog.DeckUniqueSlots（唯一门+同名仪典）；含同 id 已入组册数
+        ///（2026-10-11 可重复：同卡第二张同样互斥）。</summary>
+        private CardData DeckCardHoldingKey(string key)
+        {
+            foreach (var id in _deckCardIds)
+            {
+                var c = CardCatalog.GetById(id);
+                if (c != null && ComposerCatalog.DeckUniqueSlots(c).Any(u => u.Key == key))
+                    return c;
+            }
+            return null;
+        }
+
+        private static string NameOf(CardData card)
+            => card == null ? "?" : string.IsNullOrEmpty(card.CardName) ? card.ID : card.CardName;
+
         private void RemoveCardAt(int index)
         {
             if (index >= 0 && index < _deckCardIds.Count)
             {
-                // 移除的是技能标记卡 → 标记随卡清除（技能卡必须在卡组内）
-                if (_deckCardIds[index] == _skillCardId)
+                // 移除的是技能标记卡 → 标记随「最后一册」清除（技能卡必须在卡组内；
+                // 2026-10-11 可重复：仍有余册则标记保留）
+                var removedId = _deckCardIds[index];
+                _deckCardIds.RemoveAt(index);
+                if (removedId == _skillCardId && !_deckCardIds.Contains(_skillCardId))
                 {
                     _skillCardId = null;
                     ShowToast("技能标记卡已移除——标记清除");
                 }
-                _deckCardIds.RemoveAt(index);
                 RefreshAll();
             }
         }
@@ -285,7 +327,7 @@ namespace SynergyUI
                 var card = CardCatalog.GetById(id);
                 if (card != null) totalCost += card.TotalCost;
             }
-            _summary.text = $"卡数 {_deckCardIds.Count} · 合计费用 {(int)totalCost}";
+            _summary.text = $"卡数 {_deckCardIds.Count}（需 {MinDeckCards}-{MaxDeckCards}） · 合计费用 {(int)totalCost}";
         }
 
         // ======================================== 统计区 ========================================
@@ -393,7 +435,7 @@ namespace SynergyUI
             if (marked == null)
             {
                 var none = UiKit.Label("none", _statsZone,
-                    "未标记——对局无英雄技能（需恰好一个主动效果的结界；点击卡组中的卡，在预览里标记）",
+                    "未标记——保存前必须标记英雄技能（需恰好一个主动效果的结界；点击卡组中的卡，在预览里标记）",
                     UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
                 UiKit.Size(none, fw: 1f);
                 return;
@@ -408,9 +450,9 @@ namespace SynergyUI
             var cost = fx != null ? CostDerivationService.DeriveElementCosts(fx) : null;
             var costLine = UiKit.Label("skill-cost", _statsZone,
                 cost == null || cost.IsZero
-                    ? "发动费用：无（每回合一次，横置发动）"
+                    ? "发动费用：无（发动扣耐久，回合开始回充+1）"
                     : "发动费用：" + string.Join(" ",
-                        cost.NonzeroColors().Select(c => $"{c}×{cost[c]:0.#}")) + "（每回合一次，横置发动）",
+                        cost.NonzeroColors().Select(c => $"{c}×{cost[c]:0.#}")) + "（发动扣耐久，回合开始回充+1）",
                 UiStyle.SmallSize, UiStyle.TextDim, wrap: true);
             UiKit.Size(costLine, fw: 1f);
 
@@ -549,7 +591,7 @@ namespace SynergyUI
                     return;
                 }
                 _skillCardId = card.ID;
-                ShowToast($"已标记「{card.CardName}」为英雄技能——开局落技能栏，发动不消耗耐久");
+                ShowToast($"已标记「{card.CardName}」为英雄技能——开局落技能栏，发动扣耐久（回合开始+1回充）");
             }
             RefreshAll();
         }
@@ -580,15 +622,32 @@ namespace SynergyUI
         {
             var name = string.IsNullOrWhiteSpace(_nameField.text) ? "新卡组" : _nameField.text.Trim();
 
-            // 合法性（2026-09-24 定案：只查重复，每卡 1 张）
-            var dupes = _deckCardIds.GroupBy(id => id).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
-            if (dupes.Count > 0)
+            // 构筑规则③（2026-10-11）：卡组 30-60 张（卡可重复任意张——旧「每卡 1 张」限制废止）
+            if (_deckCardIds.Count < MinDeckCards || _deckCardIds.Count > MaxDeckCards)
             {
-                ShowToast($"存在重复卡（{dupes.Count} 种）——卡组不重复（每卡 1 张），请先移除重复项");
+                ShowToast($"卡组须 {MinDeckCards}-{MaxDeckCards} 张（当前 {_deckCardIds.Count} 张）");
                 return;
             }
 
-            // 技能标记自愈（2026-10-07 卡牌化）：标记卡不在卡组/资格失效 → 清标记（仍可保存=无技能卡组）
+            // 构筑唯一键校验（2026-10-11 构筑规则②）：唯一门/同名仪典每卡组限 1 张——
+            // 同卡重复与异卡同名都算冲突（添加口已拦，此处兜底旧档载入/卡数据热改）
+            var seenKeys = new HashSet<string>();
+            foreach (var id in _deckCardIds)
+            {
+                var card = CardCatalog.GetById(id);
+                if (card == null) continue;
+                foreach (var slot in ComposerCatalog.DeckUniqueSlots(card))
+                {
+                    if (!seenKeys.Add(slot.Key))
+                    {
+                        ShowToast($"「{slot.Display}」每卡组限 1 张（{NameOf(card)} 冲突）——请先移除多余的一张");
+                        return;
+                    }
+                }
+            }
+
+            // 技能标记自愈（2026-10-07 卡牌化）：标记卡不在卡组/资格失效 → 清标记；
+            // 构筑规则①（2026-10-11）：未标记不可保存——自愈后落下方必选拦截
             if (!string.IsNullOrEmpty(_skillCardId))
             {
                 var markedCard = CardCatalog.GetById(_skillCardId);
@@ -596,8 +655,13 @@ namespace SynergyUI
                     || !HeroSkillSystem.CanBeSkillCard(markedCard))
                 {
                     _skillCardId = null;
-                    ShowToast("技能标记已清除（卡不在卡组或资格失效）——按无技能卡组保存");
+                    ShowToast("技能标记已清除（卡不在卡组或资格失效）——请重新标记英雄技能");
                 }
+            }
+            if (string.IsNullOrEmpty(_skillCardId))
+            {
+                ShowToast("必须选英雄技能（恰好一个主动效果的结界）——点击卡组中的卡，在预览里标记");
+                return;
             }
 
             var deck = new DeckData(name)

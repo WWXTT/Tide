@@ -29,19 +29,10 @@ namespace CardCore.Network
         public int ModeIndex;
     }
 
-    /// <summary>横置一张己方未横置地牌产 1 元素（颜色是玩家决策——ManaType 必填）。</summary>
-    [MemoryPackable]
-    public partial class MsgIntentTapForElement
-    {
-        [MemoryPackOrder(TagTable.MsgIntentTapForElement_CardRuntimeId)]
-        public uint CardRuntimeId;
+    // MsgIntentTapForElement 已删（2026-10-11 现取现用：无手动横置意图）——枚举值 101 留洞
 
-        [MemoryPackOrder(TagTable.MsgIntentTapForElement_ManaType)]
-        public int ManaType;
-    }
-
-    /// <summary>放地进元素池（主阶段，不限次数，地牌槽上限约束）。
-    /// 抉择卡（2026-09-21）：ModeIndex 玩家自选，指示物按所选模式生成（与出牌同口径）。</summary>
+    /// <summary>放地进元素池（主阶段，不限次数，各自地牌槽上限约束）。
+    /// 2026-10-11 锁色定案：ModeIndex 复用为锁色选择（-1=缺省主色，否则=ManaType 枚举值）。</summary>
     [MemoryPackable]
     public partial class MsgIntentAddToElementPool
     {

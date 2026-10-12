@@ -195,8 +195,6 @@ namespace CardCore.Editor.Tests
                 AtomRefs.New(AtomicEffectType.AddPlusOne, 1, Kinds(1))))); // +1/+1 增益（替代退役的光合）
             deck.Add(MakeSpell("沉眠藤蔓", GreenTag, MakeEffect("G_SLEEP_FOE",
                 AtomRefs.New(AtomicEffectType.Sleep, 2, Kinds(2))))); // 敌方沉睡 2（原苏醒夹具改干扰向）
-            deck.Add(MakeSpell("采掘", GreenTag, MakeEffect("G_MINE",
-                new AtomicEffectEntry { refId = "4fd4c954", value = 1 }))); // 手写行 ID：同枚举多行，AtomRefs 取末行拿不到采掘
 
             // —— 清场（大生物站稳后收掉对面铺场；费用须 ≤ 地牌上限 9，超出即死卡）——
             deck.Add(MakeSpell("荆棘风暴", GreenTag, MakeEffect("G_SWEEP_2",

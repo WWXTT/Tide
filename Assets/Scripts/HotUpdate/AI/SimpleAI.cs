@@ -60,8 +60,8 @@ namespace SynergyUI
             AtomicEffectType.Heal,
             AtomicEffectType.ReturnToHand, AtomicEffectType.SummonToken,
             AtomicEffectType.ReturnFromGraveyard, AtomicEffectType.RecoverToHand,
-            // 资源族
-            AtomicEffectType.Untap, AtomicEffectType.AddArmor, AtomicEffectType.Mine,
+            // 资源族（2026-10-11：Mine 已删、AdditionalEnergy 已换 Photosynthesis）
+            AtomicEffectType.Untap, AtomicEffectType.AddArmor, AtomicEffectType.GrantPhotosynthesis,
             // 强化族（GrantX 关键词与数值强化；单向属性增益——攻击力/生命值/±1/费用减少）
             AtomicEffectType.ModifyPower, AtomicEffectType.ModifyLife,
             // 设置系复活（2026-09-09 三轨制重建）——有益直改
@@ -75,7 +75,6 @@ namespace SynergyUI
             AtomicEffectType.GrantDivineShield, AtomicEffectType.GrantOverwhelm, AtomicEffectType.GrantToughness,
             AtomicEffectType.GrantFirstStrike,
             AtomicEffectType.GrantVigilance, AtomicEffectType.GrantRegeneration,
-            AtomicEffectType.AdditionalEnergy,
             AtomicEffectType.GrantReborn, AtomicEffectType.GrantIndestructible,
             AtomicEffectType.GrantLifelink,
             AtomicEffectType.DiscoverCard, AtomicEffectType.GrantGuardian,
@@ -97,9 +96,9 @@ namespace SynergyUI
             // 0. 准备阶段：跳过产元素阶段进入主阶段
             GameActions.SkipElementPool(core, me);
 
-            // 1. 资源准备：补地到槽上限（费用最高的生物优先——打不出的当地产元素）→ 横置全部（产色匹配手牌费用需求）
+            // 1. 资源准备：补地到槽上限（费用最高的生物优先——打不出的当地产元素）。
+            //    2026-10-11 现取现用：无回合初横置步骤——付费时系统按账单自动横置。
             PlayLands(core, me);
-            TapAllLands(core, me);
 
             // 2. 动作耗尽主循环：各类动作每轮各试一遍（非短路 |），任一成功即继续轮询；
             //    出口 = 无进展：费用花完 / 手牌打空 / 无可发动效果
@@ -146,9 +145,9 @@ namespace SynergyUI
 
         /// <summary>
         /// 补地（定案策略）：只放"暂时打不出来"的生物（能付起的留手打出）——
-        /// 付不起的里挑总费用最高的先放：作为地牌产元素不闲置，耗尽进墓后可经墓地回收再打出。
-        /// 全部付得起时不放（保护手里的关键词/高费随从上场面）。
-        /// 地牌资格（正式生物，非魔法/衍生物）由引擎权威校验，此处预检跳过无效尝试。
+        /// 付不起的里挑总费用最高的先放：作为地牌持续产元素（2026-10-11 锁色定案：不耗竭，
+        /// 缺省锁主色）。全部付得起时不放（保护手里的关键词/高费随从上场面）。
+        /// 地牌资格（正式三型，非衍生物/临时卡）由引擎权威校验，此处预检跳过无效尝试。
         /// </summary>
         private static void PlayLands(GameCore core, Player me)
         {
@@ -160,18 +159,13 @@ namespace SynergyUI
                                     .ToList();
             // 兜底：手牌有生物但全部付得起——不放（留手打出，最大化场面交互）
             if (unaffordable.Count == 0) return;
-            int cap = core.ElementPool.GetLandCap(me);
             foreach (var card in unaffordable)
             {
-                // 2026-10-10 共享地牌槽：占用=双方地牌合计（对手占满同样拦我拍地）
-                if (core.ElementPool.GetTotalPooledCount() >= cap) break;
+                // 各自地牌槽上限（2026-10-11：个人曲线；缺省锁色=主色份额最多色）
+                if (!core.ElementPool.CanAddLand(me)) break;
                 GameActions.AddToElementPool(core, me, card);
             }
         }
-
-        /// <summary>横置全部地牌（2026-09-14 收敛到共享 LandTapPolicy——混付感知产色）。</summary>
-        private static void TapAllLands(GameCore core, Player me)
-            => LandTapPolicy.TapAllLands(core, me);
 
         // ======================================== 动作耗尽循环的动作源 ========================================
 
@@ -277,12 +271,12 @@ namespace SynergyUI
             {
                 int modes = CostDerivationService.GetModeCount(modal.GetData());
                 for (int i = 0; i < modes; i++)
-                    if (core.ElementPool.CanPayCost(GameActions.GetCardCost(card, i), me)) return true;
+                    if (GameActions.CanAffordCast(core, me, card, i)) return true;
                 return false;
             }
             if (!TargetDomainService.HasPlayableTargets(core, me, card, 0)) return false;
-            if (card is IHasCost hc && hc.Cost != null && !hc.Cost.IsZero &&
-                !core.ElementPool.CanPayCost(hc.Cost, me)) return false;
+            if (card is IHasCost hc && hc.Cost != null && !hc.Cost.IsZero
+                && !GameActions.CanAffordCast(core, me, card, 0)) return false;
             return true;
         }
 
@@ -302,7 +296,7 @@ namespace SynergyUI
             for (int i = 0; i < modeCount; i++)
             {
                 var cost = GameActions.GetCardCost(card, i);
-                if (!core.ElementPool.CanPayCost(cost, me)) continue;
+                if (!GameActions.CanAffordCast(core, me, card, i)) continue;
                 if (!ModeHasValidTarget(core, me, card, i)) continue;
 
                 var atomic = FirstTargetingAtomic(card, i, out _);

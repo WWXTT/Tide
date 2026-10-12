@@ -45,11 +45,13 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 元素支付验证器（2026-09-14 统一混付定案）：**账单级规划器**——出牌（ElementPool.CanPayCost/PayCost）
-    /// 与效果费（ElementCostPayment）共用同一算法，消灭「出牌精确扣款/效果混付」双轨。
-    /// 统一支付序：同色 → 灰 → 黑 → 白（黑白=万用色，可替代红蓝绿灰；黑先于白，确定性）。
-    /// 单向：红蓝绿灰不可付黑白费，黑不可付白费（反之亦然）。
-    /// 浓度上限：每种货币（**含灰**与作万用的黑白）单次支付总贡献 ≤ cap；
+    /// 元素支付验证器（2026-09-14 统一混付定案）：**账单级规划器**——出牌与效果费
+    /// （ElementCostPayment）共用同一算法。2026-10-11 现取现用重做：主规划器移驻
+    /// ElementPool.PlanBill（钱包+地牌横置合成模型），本类保留纯函数账单规划（钱包口径）
+    /// 供预检/校验复用，链定义同源。
+    /// 支付链（2026-10-11 收窄定案）：红/蓝/绿**仅本色**；灰=[灰,黑,白,红,蓝,绿]
+    /// （黑白只垫灰、三色垫灰沿用；黑先于白，确定性）。单向：红蓝绿灰不可付黑白费。
+    /// 浓度上限：每种货币（**含灰**与作垫色的黑白）单次支付总贡献 ≤ cap；
     /// 纯色**需求量** > cap 时不论货币直接不可付（灰需求无需求侧帽）。
     /// </summary>
     public static class ElementPaymentValidator
@@ -59,9 +61,7 @@ namespace CardCore
             { ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Black, ManaType.White };
 
         /// <summary>四色需求（红蓝绿灰）的固定处理序。
-        /// 2026-10-04 支付链改向定案：**黑白垫三色、三色垫灰、黑白不垫灰、三色互不垫**——
-        /// 「万用」拆成两个单向池（黑白↔三色；三色→灰），不再有全色万用。
-        /// 公开给自动横置规划器（ElementPool.PlanAutoTaps）——分配轨迹须与账单规划器同序。</summary>
+        /// 公开给 ElementPool.PlanBill（现取现用统一规划器）——分配轨迹须与账单规划器同序。</summary>
         public static readonly ManaType[] FourColorOrder =
             { ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Gray };
 
@@ -94,23 +94,24 @@ namespace CardCore
             return bill;
         }
 
-        /// <summary>填链：需求色的候选货币按支付序排列（2026-10-04 支付链改向定案）：
-        /// 红/蓝/绿=[本色,黑,白]（黑白垫三色；灰不再垫三色）；灰=[灰,红,蓝,绿]（三色垫灰；
-        /// 黑白不再垫灰）；黑/白=[本色]（单向）。三色互不互垫、灰不产自黑白。
-        /// 公开给自动横置规划器（ElementPool.PlanAutoTaps）——产色候选须沿同一填链评估。</summary>
+        /// <summary>填链：需求色的候选货币按支付序排列（2026-10-11 收窄定案）：
+        /// 红/蓝/绿=[本色]（黑白不再垫三色、灰本就不垫三色——三色缺口只有本色能付）；
+        /// 灰=[灰,黑,白,红,蓝,绿]（黑白只垫灰；三色垫灰沿用；黑先于白，确定性）；
+        /// 黑/白=[本色]（单向）。
+        /// 公开给 ElementPool.PlanBill——横置产色候选须沿同一填链评估。</summary>
         public static ManaType[] ChainFor(ManaType need) => need switch
         {
-            ManaType.Red => new[] { ManaType.Red, ManaType.Black, ManaType.White },
-            ManaType.Blue => new[] { ManaType.Blue, ManaType.Black, ManaType.White },
-            ManaType.Green => new[] { ManaType.Green, ManaType.Black, ManaType.White },
-            ManaType.Gray => new[] { ManaType.Gray, ManaType.Red, ManaType.Blue, ManaType.Green },
+            ManaType.Red => new[] { ManaType.Red },
+            ManaType.Blue => new[] { ManaType.Blue },
+            ManaType.Green => new[] { ManaType.Green },
+            ManaType.Gray => new[] { ManaType.Gray, ManaType.Black, ManaType.White, ManaType.Red, ManaType.Blue, ManaType.Green },
             _ => new[] { need },
         };
 
         /// <summary>
-        /// 整账单支付规划（非破坏——不改 availableMana）。
-        /// 处理序：黑→白（仅本色）**先行预留**（否则三色贪心会吃掉黑白本色费所需的货币），
-        /// 再按固定序处理红蓝绿灰，每需求沿填链（2026-10-04 改向：三色=[本色,黑,白]；灰=[灰,红,蓝,绿]）扣减。
+        /// 整账单支付规划（非破坏——不改 availableMana；纯钱包口径，地牌横置参与的综合规划在
+        /// ElementPool.PlanBill）。处理序：黑→白（仅本色）**先行预留**（否则贪心会吃掉黑白本色费
+        /// 所需的货币），再按固定序处理红蓝绿灰，每需求沿填链扣减。
         /// </summary>
         /// <returns>实际扣款组合（货币→数量）；null = 不可付。</returns>
         public static Dictionary<ManaType, int> GetBillPaymentPlan(

@@ -15,12 +15,12 @@ namespace CardCore
 
         /// <summary>
         /// 主阶段：将手牌以可用（未横置）状态作为地牌放入元素池。
-        /// 不限张数/次数；地牌槽上限为全场公用计数器（2026-10-10 共享定案，min(全局回合数, 9)）——
-        /// 双方场上地牌合计超限即拒；
-        /// 本回合即可手动横置产出。
-        /// 抉择卡（2026-09-21 定案）：modeIndex 玩家自选（与出牌同口径），指示物按所选模式生成。
+        /// 不限张数/次数；张数受**各自**地牌槽上限约束（2026-10-11 定案：个人曲线
+        /// min(个人回合,9)+成长加值封顶18——10-10 全场共享计数器废止）。
+        /// colorChoice（2026-10-11 锁色定案）：从卡费颜色（红/蓝/绿/灰）中自选锁定产色，
+        /// null=缺省主色（份额最多色）；后续生成固定，付费时系统按账单自动横置。
         /// </summary>
-        public static bool AddToElementPool(GameCore core, Player player, Card card, int modeIndex = 0)
+        public static bool AddToElementPool(GameCore core, Player player, Card card, ManaType? colorChoice = null)
         {
             if (core == null || player == null || card == null) return false;
             if (core.TurnEngine.TurnPlayer != player) return false;
@@ -38,9 +38,9 @@ namespace CardCore
                 return false;
             }
 
-            // 放入元素池（张数 ≤ 地牌槽上限；抉择卡按所选模式产指示物）
+            // 放入元素池（各自张数 ≤ 地牌上限；锁色自选/缺省主色）
             var elementPool = core.ElementPool;
-            if (!elementPool.AddCardToPool(card, player, modeIndex))
+            if (!elementPool.AddCardToPool(card, player, colorChoice))
                 return false;
 
             // 从手牌移到元素池区域，然后发布入池事件（时序定案 2026-09-26：
@@ -53,34 +53,9 @@ namespace CardCore
             return true;
         }
 
-        /// <summary>
-        /// 主阶段：横置一张己方未横置地牌，自选颜色产 1 个元素入 bank。
-        /// 自选颜色范围 = 该地牌剩余指示物的颜色集合（卡本身费用构成决定）。
-        /// </summary>
-        public static bool GainElementFromToken(GameCore core, Player player, PooledCard land, ManaType type)
-        {
-            if (core == null || player == null || land == null) return false;
-            if (core.TurnEngine.TurnPlayer != player) return false;
-            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
-
-            // 教学引导闸（2026-10-06 第二课）：tap 步骤语义优先（非引导地/非引导色拒绝）
-            var guideReject = RuleHooks.TutorialTapGate?.Invoke(player, land, type);
-            if (guideReject != null)
-            {
-                TideLog.Warn($"[GameActions] 地牌产色被教学引导拒绝：{guideReject}");
-                return false;
-            }
-
-            var elementPool = core.ElementPool;
-            if (!elementPool.GainElementFromToken(land, type, player))
-                return false;
-
-            // 产出导致耗尽的地牌移入墓地
-            elementPool.CheckDepletedCards(player, core.ZoneManager);
-            RuleHooks.OnTutorialManaGained?.Invoke(player, land.SourceCard, type);
-
-            return true;
-        }
+        // 手动横置产元素入口已删（2026-10-11 现取现用定案）：地牌横置=付费时系统自动的
+        // 强制动作（无速度交互），不再有玩家手动产色操作；产色口收敛到
+        // ElementPool.TryPayCostWithAutoTap / TryPayBillWithAutoTap。
 
         /// <summary>
         /// 主阶段：发动英雄技能（2026-09-13 第二十批——一回合一次、付色费、7 次升级）。
@@ -122,23 +97,26 @@ namespace CardCore
                 }
             }
 
-            // 2026-10-04 使用侧定案：黑白**产出不再钳制**（旧每回合获得≤地牌上限的产出钳退役）——
-            // 黑白与其余色同口径：bank 囤积无上限，**使用（支付）时单次贡献 ≤ 地牌上限**
-            //（GetBillPaymentPlan 浓度上限——代价产出的黑白也经统一支付管线，不能再绕过）。
-            // GainedThisTurn 保留为纯台账（观测/AI 特征用，不参与钳制）；事件仍走 core.PublishEvent
+            // 2026-10-11 定案：产色落**临时钱包**（任一回合结束清空）；黑白合计每回合生成 ≤
+            // 地牌上限（单钳——钳零则不入账不发事件，生物横置照常消耗）。事件走 core.PublishEvent
             // 路由路径（Trigger/Layer 引擎可见——AddMana 直发 EventManager 会绕开，故不换路）。
             var pool = core.ElementPool.GetPool(player);
 
             creature.Tap();
-            pool.AvailableMana[type]++;
-            if (type == ManaType.Black) pool.BlackGainedThisTurn++;
-            else if (type == ManaType.White) pool.WhiteGainedThisTurn++;
-            core.PublishEvent(new ElementPoolGainEvent
+            int allowed = core.ElementPool.PreviewGrantAmount(player, type, 1);
+            if (allowed > 0)
             {
-                Player = player,
-                GainedType = type,
-                FromCard = creature,
-            });
+                pool.TempElements[type] += allowed;
+                if (type == ManaType.Black) pool.BlackGainedThisTurn += allowed;
+                else if (type == ManaType.White) pool.WhiteGainedThisTurn += allowed;
+                core.PublishEvent(new ElementPoolGainEvent
+                {
+                    Player = player,
+                    GainedType = type,
+                    FromCard = creature,
+                    Amount = allowed,
+                });
+            }
             RuleHooks.OnTutorialCreatureTapped?.Invoke(player, creature);
             return true;
         }
@@ -273,9 +251,11 @@ namespace CardCore
             // 费用预检（不支付——扣费在响应窗口之后的 cast 结算；抉择卡按所选模式取费——先选择再定费用）。
             // 2026-09-14 代价强制：撤销「按最大减免放行」——声明期即按**原价账单**预检，
             // 混付口径与结算一致（同色→灰→黑白，见 ElementPool.CanPayCost）；
-            // 同玩家已声明的施放费用一并计入，防同笔 bank 超发——结算付不出只入墓、不回卷）
+            // 同玩家已声明的施放费用一并计入，防同笔 bank 超发——结算付不出只入墓、不回卷；
+            // 2026-10-11 补偿先付垫本卡：CanAffordCast 把该卡代价的有效补偿量虚拟并入 bank
+            //（替代色垫卡费——与结算步「先执行代价再扣费」同口径）
             var cost = GetCardCost(card, modeIndex);
-            if (!CanAfford(core.ElementPool, cost, player, GetPendingCastCosts(core, player)))
+            if (!CanAffordCast(core, player, card, modeIndex))
             { rejectReason = CostRejectText(core, player, cost); return false; }
 
             // ---- 声明（使用时点）：设控制者 → 进发动区 → cast 上栈 → 使用宣言（对手获得响应窗口） ----
@@ -350,9 +330,10 @@ namespace CardCore
             { rejectReason = "战场已满（永久物无处入场）"; return false; }
 
             // 费用预检（含本玩家已声明的施放承诺；不支付——cast 结算时才扣；抉择按所选模式；
-            // 2026-09-14 代价强制：原价账单预检，混付口径同 PlayCard）
+            // 2026-09-14 代价强制：原价账单预检，混付口径同 PlayCard；
+            // 2026-10-11 补偿先付垫本卡：同 PlayCard 走 CanAffordCast——代价补偿垫色计入）
             var cost = GetCardCost(card, modeIndex);
-            if (!CanAfford(core.ElementPool, cost, player, GetPendingCastCosts(core, player)))
+            if (!CanAffordCast(core, player, card, modeIndex))
             { rejectReason = CostRejectText(core, player, cost); return false; }
 
             card.SetController(player);
@@ -414,17 +395,16 @@ namespace CardCore
                 return;
 
             // 2. 付费（响应窗口之后）——抉择卡按声明期选定的模式付费（cast.ModeIndex）。
-            // 顺序（2026-10-04 本轮定案）：
-            // ① 代价目标存活校验（扣费前）——预选目标响应窗口内全灭/离场/不可指定 → 发动失败，
+            // 顺序（2026-10-11 定案「补偿先付垫本卡」——回调 2026-10-04「先扣卡费」旧序）：
+            // ① 代价目标存活校验——预选目标响应窗口内全灭/离场/不可指定 → 发动失败，
             //    卡回退声明来源区（手牌路径回手牌），不付费、不执行、走不到代价黑白元素生成；
-            // ② 先扣卡费——元素池不足以支付卡的费用时，**将生成的代价黑白不提前计入**（声明期 CanAfford
-            //    与此处实际支付点同口径：新生成黑白不能垫本卡）；
-            // ③ 代价强制（2026-09-14 撤销「代价可选」）——Payload 原子强制执行、无选择窗口、无减费通道，
-            //    生效后**立即**按打出时点快照全价获得黑/白（快照在执行前取：Payload 执行会膨胀模板身价，
-            //    09-13 护栏维持；产出不封·全量入账，使用侧受支付浓度上限约束）。
+            // ② 代价强制执行+补偿立即入池（2026-09-14 撤销「代价可选」；快照在执行前取：
+            //    Payload 执行会膨胀模板身价，09-13 护栏维持）——生成的黑/白**可垫本卡支付**
+            //    （声明期 CanAffordCast 按同一口径虚拟计入：池+代价有效补偿量 ≥ 卡费才放行）；
+            // ③ 扣卡费——bank（含刚入池的代价补偿）不足时自动横置补足（2026-09-30 定案），
+            //    付不出 → 入墓不回卷（已执行的代价与已入池的补偿保留——声明门槛已计入垫色，
+            //    此失败仅剩响应窗口内池被抽干的窄口）。
             // 被「效果无效」只跳效果、已付代价与补偿不回卷；被「发动无效」则全免（上方 1 已拦）。
-            // 自动横置补足（2026-09-30 定案）：bank 不足时先自动横置地牌产出所需元素再扣款——
-            // 声明期门禁（CanAfford）按同一潜力口径放行，此处是实际横置点。
             var specialCosts = CollectCardSpecialCosts(card);
             var cost = GetCardCost(card, cast.ModeIndex);
             var preselected = card._pendingCostTargets;
@@ -440,19 +420,8 @@ namespace CardCore
                 return;
             }
 
-            // ② 先扣卡费（不预计将生成的黑白）
-            if (!core.ElementPool.TryPayCostWithAutoTap(cost, player, core.ZoneManager))
-            {
-                CastAbortToGraveyard(core, card, player, "费用不足（响应窗口后支付失败，不回卷）");
-                return;
-            }
-
-            // 元素充盈引擎判定（2026-09-22 定案）：出牌付费完成后回调——引擎读付费后余量
-            //（bank 最多色 > x 即发奖，每次达标都触发；效果费支付不走此口）。发动无效不回卷：费已实付，照判。
-            // 2026-10-04 本轮：代价补偿在引擎读数之后到账——将生成的黑白不计入「付费后余量」。
-            BranchEngines.OnCardCostPaid(player);
-
-            // ③ 代价强制执行 + 补偿后置（PayWithCompensationAsync 内部：快照全价 → 执行 → 发放）
+            // ② 代价强制执行 + 补偿立即入临时钱包（PayWithCompensationAsync 内部：快照全价 → 执行 → 发放；
+            //    AddMana 黑白合计单钳：黑+白 本回合 ≤ 浓度）
             var costCtx = new CostContext
             {
                 Payer = player,
@@ -466,6 +435,19 @@ namespace CardCore
                 CastAbortToGraveyard(core, card, player, "代价流程异常（付费步失败，不回卷）");
                 return;
             }
+
+            // ③ 扣卡费（现取现用：钱包优先消耗+系统自动横置地牌；垫本卡——刚入钱包的代价补偿
+            //    黑/白可垫灰费。横置=无速度交互的强制系统动作，发动无效无从介入）
+            if (!core.ElementPool.TryPayCostWithAutoTap(cost, player, $"打出:{(card as IHasName)?.CardName}"))
+            {
+                CastAbortToGraveyard(core, card, player, "费用不足（响应窗口后支付失败，不回卷——已执行代价与补偿保留）");
+                return;
+            }
+
+            // 元素充盈引擎判定（2026-09-22 定案；2026-10-11 判据重定义）：出牌付费完成后回调——
+            // 引擎读**未横置地牌最多同色数**（GetMaxManaCount——bank 退役）> x 即发奖，每次达标都触发；
+            // 效果费支付不走此口。发动无效不回卷：费已实付，照判。
+            BranchEngines.OnCardCostPaid(player);
 
             // 3. 效果无效：付了但被否定 → 入墓、跳过效果、费用不退
             if (card._isNegated)
@@ -1257,23 +1239,55 @@ namespace CardCore
         public static bool CanAfford(GameCore core, Player player, ElementCost cost)
             => CanAfford(core?.ElementPool, cost, player, GetPendingCastCosts(core, player));
 
+        /// <summary>
+        /// 出一张卡的可付性（2026-10-11「补偿先付垫本卡」定案）：CanAfford + 该卡代价的
+        /// **有效补偿量虚拟并入 bank**（替代色垫卡费——与结算步「先执行代价再扣费」同口径）。
+        /// 出牌声明预检（PlayCard/PlayCardInResponse）与 AI 枚举（LegalActionEnumerator）共用单源。
+        /// </summary>
+        public static bool CanAffordCast(GameCore core, Player player, Card card, int modeIndex)
+        {
+            if (core == null || player == null || card == null) return false;
+            return CanAfford(core.ElementPool, GetCardCost(card, modeIndex), player,
+                GetPendingCastCosts(core, player), GetPayloadGrantPreview(core, player, card));
+        }
+
+        /// <summary>卡代价的补偿预览（2026-10-11）：CollectCardSpecialCosts 逐条 payload 按
+        /// PayloadGrantColor 定色 + PayloadUnitGrant 全价，经 ElementPool.PreviewGrantAmount
+        /// 镜像黑白合计单钳（黑+白 本回合 ≤ 浓度）得有效量——
+        /// 不虚估（全价被钳掉的部分垫不了卡费）。无代价卡返回 null。</summary>
+        private static Dictionary<ManaType, int> GetPayloadGrantPreview(GameCore core, Player player, Card card)
+        {
+            var costs = CollectCardSpecialCosts(card);
+            if (costs == null || costs.Count == 0) return null;
+            Dictionary<ManaType, int> seed = null;
+            foreach (var c in costs)
+            {
+                var atom = c?.Payload;
+                if (atom == null) continue;
+                int full = CostDerivationService.PayloadUnitGrant(atom);
+                if (full <= 0) continue;
+                var color = CostCompensationService.PayloadGrantColor(atom);
+                int effective = core.ElementPool.PreviewGrantAmount(player, color, full);
+                if (effective <= 0) continue;
+                seed ??= new Dictionary<ManaType, int>();
+                seed.TryGetValue(color, out int have);
+                seed[color] = have + effective;
+            }
+            return seed;
+        }
+
         private static bool CanAfford(ElementPoolSystem elementPool, ElementCost cost, Player player,
-            ElementCost pending = null)
+            ElementCost pending = null, Dictionary<ManaType, int> seed = null)
         {
             if (cost.Total > elementPool.GetLandCap(player))
                 return false;
 
-            // 合并声明承诺后统一混付规划（2026-09-14：原逐色精确余量检查退役）
+            // 合并声明承诺后统一规划（2026-10-11 现取现用）：临时钱包+seed 虚拟并入+未横置地牌
+            // 合成模型一次性判定（纯预检不动状态——PlanBill 内部先钱包后横置，口径与付费步一致）
             var bill = ElementPaymentValidator.NormalizeBill(cost);
             foreach (var kv in ElementPaymentValidator.NormalizeBill(pending))
                 bill[kv.Key] = bill.TryGetValue(kv.Key, out var v) ? v + kv.Value : kv.Value;
-            if (ElementPaymentValidator.CanPayBill(
-                    bill, elementPool.GetPool(player).AvailableMana, elementPool.GetLandCap(player)))
-                return true;
-
-            // 自动横置补足（2026-09-30 定案）：bank 不足但未横置地牌可产所需元素 → 放行，
-            // 付费步自动横置（纯预检不动状态——AI 驱动器回合初已全横置，行为不变）
-            return elementPool.CanPayCostWithAutoTap(bill, player);
+            return elementPool.CanPayCostWithAutoTap(bill, player, seed);
         }
 
         /// <summary>
@@ -1287,10 +1301,13 @@ namespace CardCore
             if (total > cap)
                 return $"费用 {CostText(cost)} 共 {total} 点，超过当前地牌槽上限 {cap}（浓度上限：前期地牌上限低，高费卡须等上限成长）";
 
-            var bank = core.ElementPool.GetPool(player).AvailableMana;
-            string bankText = string.Join("、", bank.Where(kv => kv.Value > 0)
+            var wallet = core.ElementPool.GetPool(player).TempElements;
+            string bankText = string.Join("、", wallet.Where(kv => kv.Value > 0)
                 .Select(kv => $"{ManaZh(kv.Key)}{kv.Value}"));
-            return $"元素不足——需 {CostText(cost)}，当前元素池：{(string.IsNullOrEmpty(bankText) ? "空" : bankText)}";
+            var untapped = core.ElementPool.GetPool(player).PooledCards.Count(pc => !pc.IsTapped);
+            return $"元素不足——需 {CostText(cost)}，临时元素：{(string.IsNullOrEmpty(bankText) ? "空" : bankText)}，"
+                + $"未横置地牌 {untapped} 张（现取现用：付费时系统自动横置）"
+                + "（已计入代价补偿垫付后仍不足）";
         }
 
         private static string CostText(ElementCost cost)

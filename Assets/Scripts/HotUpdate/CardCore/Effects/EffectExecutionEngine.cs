@@ -256,24 +256,17 @@ namespace CardCore
                     Source = instance.Source
                 };
 
-                // 顺序（2026-10-04 本轮对齐 GameActions.ResolveCardCastAsync）：**元素费先于代价补偿**——
-                // 元素池不足以支付时，将生成的代价黑白不提前计入（新生成黑白不垫本次支付）。
+                // 顺序（2026-10-11 对齐 GameActions.ResolveCardCastAsync「补偿先付垫本卡」——
+                // 回调 2026-10-04「元素费先于代价补偿」旧序）：**代价先于元素费**——
+                // 生成的黑/白立即入池、可垫本次支付（声明期门槛同口径计入）。
                 //
                 // 特殊代价（2026-09-14 代价强制定案：付代价=得黑/白，补偿跟代价走）：
                 // 卡牌 cast 的特殊代价已在付费步**强制支付并补偿**（ResolveCardCastAsync，ElementCostPrepaid 标记）；
                 // 启动式/动态效果在此现付+补偿（同为强制路径 PayWithCompensationAsync——无选择窗口；
-                // 补偿后置：执行生效后按快照全价立即获得黑白；代价无有效目标→不执行不补偿）。
+                // 快照在执行前取、生效后立即获得黑白；代价无有效目标→不执行不补偿）。
                 // 2026-09-16 结算失败口径定案：费用付不出/目标为0 → **空转+日志，不回滚不断链**
                 //（入栈期已过滤可付性，此处失败=窗口内状态变化；已付不退，结算链继续）——
                 // 旧 EffectResolutionException 会中断整条 ResolveStack，已退役。
-                if (!skipElementCost && !effect.ElementCostPrepaid && !elementCosts.IsZero &&
-                    !ElementCostPayment.Pay(elementCosts, costContext))
-                {
-                    TideLog.Warn($"[EffectExecutor] 效果 {effect.Id} 元素费付不出——空转（不回滚不断链）");
-                    instance.IsResolved = true;
-                    return;
-                }
-
                 if (specialCosts.Count > 0 && !effect.ElementCostPrepaid)
                 {
                     if (!await CostCompensationService.PayWithCompensationAsync(specialCosts, costContext))
@@ -282,6 +275,14 @@ namespace CardCore
                         instance.IsResolved = true;
                         return;
                     }
+                }
+
+                if (!skipElementCost && !effect.ElementCostPrepaid && !elementCosts.IsZero &&
+                    !ElementCostPayment.Pay(elementCosts, costContext))
+                {
+                    TideLog.Warn($"[EffectExecutor] 效果 {effect.Id} 元素费付不出——空转（不回滚不断链）");
+                    instance.IsResolved = true;
+                    return;
                 }
             }
 
@@ -1868,9 +1869,9 @@ namespace CardCore
                 // 衍生物生成（落区三档：战场/手牌/牌组，费用按落区系数计价）
                 new SummonTokenHandler(),
 
-                // 资源族 — 采掘（地牌指示物转化：去3同类型指示物换1点对应元素入 bank）
-                new MineHandler(),
-                // 资源族 — 地牌槽提升（2026-10-09，绿2）：上限翻倍封顶 18（每格叠两张；幂等）
+                // 关键词族 — 光合作用（2026-10-11：采掘退役接替者，绿3 Grant 行，回合开始+临时绿元素）
+                new GrantPhotosynthesisHandler(),
+                // 资源族 — 成长（2026-10-11：灵气复苏改+1，绿3，各自池可重复封顶18）
                 new IncreaseLandCapHandler(),
 
                 // 战斗底盘（2026-09-10 攻击/守卫效果化：1速/2速主动，注册完整性锚——战斗走 CombatSystem）

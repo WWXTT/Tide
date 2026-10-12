@@ -551,28 +551,9 @@
     ]
   },
   {
-    "ID": "4fd4c954",
-    "EnumName": "采掘",
-    "DisplayName": "去除{target}地牌3个同类型元素指示物，获得1点对应元素",
-    "EffectType": "Mine",
-    "TargetKinds": "己方元素池",
-    "TargetFilter": "",
-    "Polarity": 0.0,
-    "MountKinds": "",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "6d2e40b6",
-    "EnumName": "灵气复苏",
-    "DisplayName": "地牌槽上限+1，每个地牌格最多可叠放两张地牌，双方共享元素浓度提升",
+    "ID": "8806ce7d",
+    "EnumName": "成长",
+    "DisplayName": "地牌上限+1（地牌上限为18，超出上限无效）",
     "EffectType": "IncreaseLandCap",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -583,7 +564,7 @@
       0.0,
       0.0,
       0.0,
-      1.0,
+      3.0,
       0.0,
       0.0
     ]
@@ -717,6 +698,25 @@
       0.0,
       5.0,
       0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "daf9f307",
+    "EnumName": "光合",
+    "DisplayName": "回合开始时：获得1个临时绿色元素（回合结束消失）",
+    "EffectType": "GrantPhotosynthesis",
+    "TargetKinds": "自己",
+    "TargetFilter": "NoRole",
+    "Polarity": 1.0,
+    "MountKinds": "关键词",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      3.0,
       0.0,
       0.0
     ]
@@ -1334,7 +1334,7 @@
     "EnumName": "沉默",
     "DisplayName": "对{target}附加沉默指示物（不可发动主动效果）",
     "EffectType": "Silence",
-    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位,己方元素池,对方元素池",
+    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "",
     "Polarity": -1.0,
     "MountKinds": "指示物",
@@ -1353,7 +1353,7 @@
     "EnumName": "迟钝",
     "DisplayName": "对{target}附加迟钝指示物（自动触发的能力无法响应发动）",
     "EffectType": "AddNullify",
-    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位,己方元素池,对方元素池",
+    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "",
     "Polarity": -1.0,
     "MountKinds": "指示物",

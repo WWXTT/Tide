@@ -194,8 +194,8 @@ namespace TideServer.Verify
             var ench = ToHand(p1, enchData);
             // 耐久计价（2026-10-10 提价定案 1 灰/点）：3 耐久=3 灰（无折扣口径）——备 3 灰并放开浓度上限后打出
             var v9cPool = core.ElementPool.GetPool(p1);
-            v9cPool.AvailableMana[ManaType.Gray] = 3;
-            v9cPool.GlobalTurnIndex = 9;
+            v9cPool.TempElements[ManaType.Gray] = 3;
+            v9cPool.PersonalTurnIndex = 9;
             VerifySuite.Assert(GameActions.PlayCard(core, p1, ench), "结界从手牌发动（耐久费 3 灰——2026-10-10 耐久计价 1 灰/点）");
             GameActions.DrainStack(core);
             VerifySuite.Assert(ench.GetZone() == Zone.Battlefield, "两步式：发动区宣告→付费→进入战场");
@@ -430,10 +430,10 @@ namespace TideServer.Verify
             var f1 = fs.Player1;
             GameActions.SkipElementPool(fs, f1);
             var bankF = fs.ElementPool.GetPool(f1);
-            var bankSnap = new Dictionary<ManaType, int>(bankF.AvailableMana);
+            var bankSnap = new Dictionary<ManaType, int>(bankF.TempElements);
             try
             {
-                foreach (ManaType t in Enum.GetValues(typeof(ManaType))) bankF.AvailableMana[t] = 99;
+                foreach (ManaType t in Enum.GetValues(typeof(ManaType))) bankF.TempElements[t] = 99;
 
                 Card ToHandF(Player owner, CardData data)
                 {
@@ -471,18 +471,19 @@ namespace TideServer.Verify
                 VerifySuite.Assert(!GameActions.CommitAwaken(fs, f1, plainFiller, out var rejectAwaken3)
                                   && rejectAwaken3 != null,
                     $"非自我沉睡卡立约拒绝（{rejectAwaken3}）");
-                int grayBefore = bankF.AvailableMana[ManaType.Gray];
+                int grayBefore = bankF.TempElements[ManaType.Gray];
                 VerifySuite.Assert(GameActions.PlayCard(fs, f1, sleepCard), "立约沉睡卡打出（灰豁免后仅需绿1）");
                 GameActions.DrainStack(fs);
-                VerifySuite.Assert(bankF.AvailableMana[ManaType.Gray] == grayBefore, "灰费豁免：3 灰未扣（转沉睡时长）");
+                VerifySuite.Assert(bankF.TempElements[ManaType.Gray] == grayBefore, "灰费豁免：3 灰未扣（转沉睡时长）");
                 VerifySuite.Assert(sleepCard.GetCounterCount(KeywordRules.SleepCounter) == 3,
                     $"入场沉睡 3 层（=豁免灰量；实际 {sleepCard.GetCounterCount(KeywordRules.SleepCounter)}）");
                 VerifySuite.Assert(sleepCard.IsTapped(), "横置进沉睡");
 
-                // ---- ① 未立约（对照）：总费 4 受浓度上限压制——推进到回合 5（上限 5）后照扣全价 ----
-                // （立约卡②回合 1 即可出 vs 未立约①须等上限成长——苏醒死循环的修复对照）
+                // ---- ① 未立约（对照）：总费 4 受浓度上限压制——推进到 f1 第 4 个回合（个人曲线上限 4）后照扣全价 ----
+                // （立约卡②回合 1 即可出 vs 未立约①须等上限成长——苏醒死循环的修复对照；
+                //   2026-10-11 现取现用：个人曲线口径 + 回合末清空临时钱包——循环后重播种）
                 var f1u = fs.Player2;
-                for (int turnCycle = 0; turnCycle < 2; turnCycle++)
+                for (int turnCycle = 0; turnCycle < 3; turnCycle++)
                 {
                     GameActions.EndTurn(fs, f1);
                     fs.TurnEngine.CheckPhaseTransition();
@@ -491,12 +492,13 @@ namespace TideServer.Verify
                     fs.TurnEngine.CheckPhaseTransition();
                     GameActions.SkipElementPool(fs, f1);
                 }
-                int grayUncommittedBefore = bankF.AvailableMana[ManaType.Gray];
+                foreach (ManaType t in Enum.GetValues(typeof(ManaType))) bankF.TempElements[t] = 99; // 回合末清空后重播种
+                int grayUncommittedBefore = bankF.TempElements[ManaType.Gray];
                 VerifySuite.Assert(GameActions.PlayCard(fs, f1, uncommittedCard, null, Zone.Hand, 0, out var rejectF1),
                     $"未立约沉睡卡照常打出（付全价；拒绝原因：{rejectF1 ?? "无"}）");
                 GameActions.DrainStack(fs);
-                VerifySuite.Assert(bankF.AvailableMana[ManaType.Gray] == grayUncommittedBefore - 3,
-                    $"未立约对照：灰照扣 3（{grayUncommittedBefore}→{bankF.AvailableMana[ManaType.Gray]}——豁免须先手牌立约）");
+                VerifySuite.Assert(bankF.TempElements[ManaType.Gray] == grayUncommittedBefore - 3,
+                    $"未立约对照：灰照扣 3（{grayUncommittedBefore}→{bankF.TempElements[ManaType.Gray]}——豁免须先手牌立约）");
 
                 // ---- ③ 定长沉睡照付（不变：显式层数不走灰豁免，立约与否同价） ----
 
@@ -508,6 +510,7 @@ namespace TideServer.Verify
                 GameActions.EndTurn(fs, f2);
                 fs.TurnEngine.CheckPhaseTransition();
                 GameActions.SkipElementPool(fs, f1);
+                foreach (ManaType t in Enum.GetValues(typeof(ManaType))) bankF.TempElements[t] = 99; // 回合末清空后重播种
 
                 var fixedData = new CardData
                 {
@@ -524,17 +527,17 @@ namespace TideServer.Verify
                     },
                 });
                 var fixedCard = ToHandF(f1, fixedData);
-                int grayBefore2 = bankF.AvailableMana[ManaType.Gray];
+                int grayBefore2 = bankF.TempElements[ManaType.Gray];
                 VerifySuite.Assert(GameActions.PlayCard(fs, f1, fixedCard), "定长沉睡卡打出");
                 GameActions.DrainStack(fs);
-                VerifySuite.Assert(bankF.AvailableMana[ManaType.Gray] == grayBefore2 - 2,
+                VerifySuite.Assert(bankF.TempElements[ManaType.Gray] == grayBefore2 - 2,
                     "定长沉睡不走灰豁免：照扣 2 灰");
                 VerifySuite.Assert(fixedCard.GetCounterCount(KeywordRules.SleepCounter) == 2,
                     $"定长沉睡 2 层（实际 {fixedCard.GetCounterCount(KeywordRules.SleepCounter)}）");
             }
             finally
             {
-                foreach (var kv in bankSnap) bankF.AvailableMana[kv.Key] = kv.Value;
+                foreach (var kv in bankSnap) bankF.TempElements[kv.Key] = kv.Value;
             }
 
             // ============================ V9.g 展示（RevealCard，信息轴 2026-10-02 定案） ============================
@@ -553,7 +556,7 @@ namespace TideServer.Verify
             GameActions.SkipElementPool(gcore, g1);
             // 夹具卡未声明 Cost——出牌链按效果推导费（蓝等色），灌满银行保证可付（夹具局即弃，不还原）
             foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
-                gcore.ElementPool.GetPool(g1).AvailableMana[t] = 99;
+                gcore.ElementPool.GetPool(g1).TempElements[t] = 99;
 
             Card GToHand(Player owner, CardData data)
             {
@@ -670,7 +673,7 @@ namespace TideServer.Verify
             GameActions.SkipElementPool(hcore, h1);
             // 夹具卡未声明 Cost——出牌链按效果推导费，灌满银行保证可付（夹具局即弃，不还原）
             foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
-                hcore.ElementPool.GetPool(h1).AvailableMana[t] = 99;
+                hcore.ElementPool.GetPool(h1).TempElements[t] = 99;
 
             Card HToHand(Player owner, CardData data)
             {
@@ -819,8 +822,8 @@ namespace TideServer.Verify
             var i2 = icore.Player2;
             GameActions.SkipElementPool(icore, i1);
             foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
-                icore.ElementPool.GetPool(i1).AvailableMana[t] = 99; // 夹具卡免费用障碍（局即弃不还原）
-            icore.ElementPool.GetPool(i1).GlobalTurnIndex = 9; // 浓度上限放开到 9（2026-10-04 用户调价适配：仪典锚价×2/×4 后载体建议费超回合 1 上限）
+                icore.ElementPool.GetPool(i1).TempElements[t] = 99; // 夹具卡免费用障碍（局即弃不还原）
+            icore.ElementPool.GetPool(i1).PersonalTurnIndex = 9; // 浓度上限放开到 9（2026-10-04 用户调价适配：仪典锚价×2/×4 后载体建议费超回合 1 上限）
 
             Card IToHand(Player owner, CardData data)
             {
@@ -955,8 +958,8 @@ namespace TideServer.Verify
             i2 = icore.Player2;
             GameActions.SkipElementPool(icore, i1);
             foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
-                icore.ElementPool.GetPool(i1).AvailableMana[t] = 99;
-            icore.ElementPool.GetPool(i1).GlobalTurnIndex = 9; // InitGame 重置后重设（浓度上限放开，同段首）
+                icore.ElementPool.GetPool(i1).TempElements[t] = 99;
+            icore.ElementPool.GetPool(i1).PersonalTurnIndex = 9; // InitGame 重置后重设（浓度上限放开，同段首）
             VerifySuite.Assert(RuleAuraSystem.ActiveRules.Count == 0, "新局光环槽位空（InitGame 含 Reset——跨局不残留）");
             var capCarrier2 = MakeRuleCarrier("离散仪典", RuleAuraComponents.DamageCap, 2);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, capCarrier2, null, Zone.Hand, 0, out var rejectI3),
@@ -975,8 +978,8 @@ namespace TideServer.Verify
             i2 = icore.Player2;
             GameActions.SkipElementPool(icore, i1);
             foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
-                icore.ElementPool.GetPool(i1).AvailableMana[t] = 99;
-            icore.ElementPool.GetPool(i1).GlobalTurnIndex = 9; // InitGame 重置后重设（浓度上限放开，同段首）
+                icore.ElementPool.GetPool(i1).TempElements[t] = 99;
+            icore.ElementPool.GetPool(i1).PersonalTurnIndex = 9; // InitGame 重置后重设（浓度上限放开，同段首）
             var graveCarrier = MakeRuleCarrier("归土仪典", RuleAuraComponents.GraveyardPlay, 2);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, graveCarrier, null, Zone.Hand, 0, out var rejectI4),
                 $"归土载体打出（拒绝原因：{rejectI4 ?? "无"}）");
@@ -1084,13 +1087,16 @@ namespace TideServer.Verify
             GameActions.EndTurn(icore, i2); // 回合交还 i1（⑧-⑩ 同一主阶段连续驱动）
             icore.TurnEngine.CheckPhaseTransition();
             GameActions.SkipElementPool(icore, i1);
+            // 2026-10-11 现取现用：⑦ 段多轮 EndTurn 已清空临时钱包——⑧-⑩ 前重播种（夹具免费用障碍）
+            foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
+                icore.ElementPool.GetPool(i1).TempElements[t] = 99;
 
             // ---- ⑧ 三相：消耗 3 同色纯元素 → 红/蓝/绿各 1 ----
             var trinityCarrier = MakeRuleCarrier("三相仪典", RuleAuraComponents.ElementConversion, 2);
             VerifySuite.Assert(GameActions.PlayCard(icore, i1, trinityCarrier, null, Zone.Hand, 0, out var rejectI6),
                 $"三相载体打出（拒绝原因：{rejectI6 ?? "无"}）");
             GameActions.DrainStack(icore);
-            var iBank = icore.ElementPool.GetPool(i1).AvailableMana;
+            var iBank = icore.ElementPool.GetPool(i1).TempElements;
             int redB = iBank[ManaType.Red], blueB = iBank[ManaType.Blue], greenB = iBank[ManaType.Green];
             var redCostData = new CardData
             {
@@ -1240,10 +1246,28 @@ namespace TideServer.Verify
             tempCard.AddCounters(CardCore.Attribute.CounterRules.TempCounter, 1); // 临时卡=临时指示物标记（2026-10-10 指示物化）
             jcore.ZoneManager.GetZoneContainer(j1).Add(tempCard, Zone.Hand);
             VerifySuite.Assert(!jcore.ElementPool.AddCardToPool(tempCard, j1), "临时卡不可作地牌（临时指示物——回归锚）");
-            var depletedCard = new CardWrapper(fillerJ[2]) { ID = "V9J_DEPLETED", WasDepletedAsLand = true };
-            depletedCard.SetController(j1);
-            jcore.ZoneManager.GetZoneContainer(j1).Add(depletedCard, Zone.Hand);
-            VerifySuite.Assert(!jcore.ElementPool.AddCardToPool(depletedCard, j1), "已耗竭卡不可作地牌（回归锚——资源枯竭不可逆）");
+            // 2026-10-11 锁色定案：耗竭标记 WasDepletedAsLand 退役（地牌不耗竭）；
+            // 新排除类=无可锁颜色：0 费卡与纯黑白费卡（锁色候选空 → 拒绝入池）
+            var zeroCostData = new CardData
+            {
+                ID = "V9J_ZERO", CardName = "零费排除", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                Cost = new ElementCost(),
+            };
+            var zeroCostCard = new CardWrapper(zeroCostData);
+            // ⚠ 双写（V9.l 同款陷阱）：构造器会把建议费快照进 IHasCost.Cost——须显式清零，否则
+            // 锁色候选非空、0 费卡被放行（占掉回合 1 的唯一地牌格）
+            ((CardCore.IHasCost)zeroCostCard).Cost = new ElementCost();
+            zeroCostCard.SetController(j1);
+            jcore.ZoneManager.GetZoneContainer(j1).Add(zeroCostCard, Zone.Hand);
+            VerifySuite.Assert(!jcore.ElementPool.AddCardToPool(zeroCostCard, j1), "0 费卡不可作地牌（无锁色候选——2026-10-11 定案）");
+            var bwOnlyCard = new CardWrapper(new CardData
+            {
+                ID = "V9J_BW", CardName = "纯黑白排除", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                Cost = PosCost((ManaType.Black, 1), (ManaType.White, 1)),
+            });
+            bwOnlyCard.SetController(j1);
+            jcore.ZoneManager.GetZoneContainer(j1).Add(bwOnlyCard, Zone.Hand);
+            VerifySuite.Assert(!jcore.ElementPool.AddCardToPool(bwOnlyCard, j1), "纯黑白费卡不可作地牌（黑白不由地牌产出——回归锚）");
 
             // ---- 三型放行（地牌槽上限：回合1=1，推进两回合到 3） ----
             var creatureLand = JToHand(j1, fillerJ[3]);
@@ -1394,7 +1418,7 @@ namespace TideServer.Verify
             var l1 = lcore.Player1;
             var l2 = lcore.Player2;
             GameActions.SkipElementPool(lcore, l1);
-            var lbank = lcore.ElementPool.GetPool(l1).AvailableMana;
+            var lbank = lcore.ElementPool.GetPool(l1).TempElements;
             foreach (ManaType t in Enum.GetValues(typeof(ManaType))) lbank[t] = 99;
             // 注：本段不抬 GlobalTurnIndex（保持浓度上限 1）——③ 灰不足段依赖「4 费卡超上限1被拒」
             // 的原始基线；① 召唤术的无底盘适配改走单卡显式声明费（见下）。
@@ -1515,7 +1539,7 @@ namespace TideServer.Verify
             VerifySuite.Assert(tempRow != null && tempRow.TotalUnitCost == 2f && tempRow.PrimaryColor == ManaType.White,
                 "临时指示物表行存在（白2 锚，极性-1/衰退型）");
             lbank[ManaType.Gray] = 99; // ③ 灰耗尽剧本后复位，④ 出牌不受限
-            lcore.ElementPool.GetPool(l1).GlobalTurnIndex = 9; // 浓度上限放开（同 V9.i/m 手法）
+            lcore.ElementPool.GetPool(l1).PersonalTurnIndex = 9; // 浓度上限放开（同 V9.i/m 手法）
             var gtHost = new CardWrapper(new CardData
             {
                 ID = "V9L_GT_HOST", CardName = "临时宿主", Supertype = Cardtype.Creature, Power = 2, Life = 2,
@@ -1556,8 +1580,8 @@ namespace TideServer.Verify
             var m1 = mcore.Player1;
             GameActions.SkipElementPool(mcore, m1);
             foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
-                mcore.ElementPool.GetPool(m1).AvailableMana[t] = 99;
-            mcore.ElementPool.GetPool(m1).GlobalTurnIndex = 9; // 浓度上限放开（2026-10-04 调价适配，同 V9.i）
+                mcore.ElementPool.GetPool(m1).TempElements[t] = 99;
+            mcore.ElementPool.GetPool(m1).PersonalTurnIndex = 9; // 浓度上限放开（2026-10-04 调价适配，同 V9.i）
 
             var graveRow = AtomicEffectTable.GetAll().FirstOrDefault(r => r != null && r.DisplayName == "归土仪典");
             VerifySuite.Assert(graveRow != null, "归土仪典表行存在（前置）");
@@ -1657,7 +1681,7 @@ namespace TideServer.Verify
 
             // ============================ V9.n 代价栏规则改造（2026-10-04 定案配套） ============================
 
-            VerifySuite.Section("V9.n 代价栏：任意单向·镜像逆转·产出不封（使用侧=支付浓度上限）·全价地牌门槛·槽位计费·无目标回手·补偿后置·先扣卡费（2026-10-04 本轮）");
+            VerifySuite.Section("V9.n 代价栏：任意单向·镜像逆转·黑白获得三重钳制·全价地牌门槛·槽位计费·无目标回手·补偿先付垫本卡（2026-10-11 回调 10-04 先扣卡费旧序）");
             var pcore = GameCore.Instance;
             pcore.Reset();
             ZoneContainer.Reseed(20261004);
@@ -1670,7 +1694,7 @@ namespace TideServer.Verify
             var n2 = pcore.Player2;
             GameActions.SkipElementPool(pcore, n1);
             var npool = pcore.ElementPool.GetPool(n1);
-            foreach (ManaType t in Enum.GetValues(typeof(ManaType))) npool.AvailableMana[t] = 99;
+            foreach (ManaType t in Enum.GetValues(typeof(ManaType))) npool.TempElements[t] = 99;
 
             // ---- ① PayloadCostDomain 三路单元锚（放置口/候选过滤共用口） ----
             var attackRow = AtomicEffectTable.GetByType(AtomicEffectType.Attack);       // TK={2} 纯敌方 有害
@@ -1714,8 +1738,8 @@ namespace TideServer.Verify
             enemyUnit.Tap();
             VerifySuite.Assert(enemyUnit.IsTapped(), "前置：对方单位已横置");
 
-            npool.GlobalTurnIndex = 3; // 地牌上限 3
-            npool.AvailableMana[ManaType.White] = 0;
+            npool.PersonalTurnIndex = 3; // 地牌上限 3
+            npool.TempElements[ManaType.White] = 0;
             npool.WhiteGainedThisTurn = 0;
             var mirrorPayload = AtomRefs.New(AtomicEffectType.Untap, value: 1, kinds: untapKinds); // 合成器同口径：镜像域随条目落盘
             int untapGrant = CostDerivationService.PayloadUnitGrant(
@@ -1733,13 +1757,13 @@ namespace TideServer.Verify
             GameActions.DrainStack(pcore);
             VerifySuite.Assert(!enemyUnit.IsTapped(),
                 "镜像执行：有益·纯己方域原子逆转到对方侧——对方横置单位被解除（代价=资敌；补偿后置：生效后发放）");
-            VerifySuite.Assert(npool.AvailableMana[ManaType.White] == untapGrant
+            VerifySuite.Assert(npool.TempElements[ManaType.White] == untapGrant
                               && npool.WhiteGainedThisTurn == untapGrant,
-                $"镜像补偿：得白 {npool.AvailableMana[ManaType.White]} = 全价 {untapGrant} 全量入账（2026-10-04 本轮：补偿后置+产出不封，旧 Min(全价,封顶) 退役公式清理）");
+                $"镜像补偿：得白 {npool.TempElements[ManaType.White]} = 全价 {untapGrant} 全量入账（2026-10-04 本轮：补偿后置+产出不封，旧 Min(全价,封顶) 退役公式清理）");
 
             // ---- ③ 全价过地牌门槛（2026-10-04 本轮定案）：全价 > 地牌槽上限 → 整卡不可使用 ----
-            npool.GlobalTurnIndex = 2; // 地牌上限 2 —— 全价必超
-            npool.AvailableMana[ManaType.Black] = 0;
+            npool.PersonalTurnIndex = 2; // 地牌上限 2 —— 全价必超
+            npool.TempElements[ManaType.Black] = 0;
             npool.BlackGainedThisTurn = 0;
             var n1Battlefield = pcore.ZoneManager.GetCards(n1, Zone.Battlefield).ToList();
             var ncz1 = pcore.ZoneManager.GetZoneContainer(n1);
@@ -1759,7 +1783,7 @@ namespace TideServer.Verify
                               && gateReject != null && gateReject.Contains("地牌槽上限")
                               && pcore.ZoneManager.GetCards(n1, Zone.Hand).Contains(drainCard),
                 $"全价门槛：全价 {lifeGrant} > 上限 2 → 整卡拒发留手（实际原因「{gateReject}」）");
-            VerifySuite.Assert(n1.MaxHealth == n1MaxBefore && npool.AvailableMana[ManaType.Black] == 0,
+            VerifySuite.Assert(n1.MaxHealth == n1MaxBefore && npool.TempElements[ManaType.Black] == 0,
                 "全价门槛拦截：走不到代价发动（上限未流失、无黑补偿）");
 
             // ---- ③b 门槛放行 + 代价恒执行 + 补偿后置全额 ----
@@ -1768,7 +1792,8 @@ namespace TideServer.Verify
                 CardEffectConverter.ConvertPayloadForDisplay(smallPayload));
             VerifySuite.Assert(smallGrant >= 1 && smallGrant <= 9,
                 $"前置：小额代价全价 1..9（实际 {smallGrant}——门槛可在 cap≤9 内放行）");
-            npool.GlobalTurnIndex = smallGrant; // cap = 全价（门槛恰好过）
+            npool.PersonalTurnIndex = smallGrant; // cap = 全价（门槛恰好过）
+            npool.BlackGainedThisTurn = 0; npool.WhiteGainedThisTurn = 0; // 新回合模拟（真实局回合推进清台账——隔离②的本回合白获得，合计钳不误伤）
             int n1MaxBefore2 = n1.MaxHealth;
             var smallCardData = new CardData { ID = "V9N_SMALL", CardName = "V9n小额代价卡", Supertype = Cardtype.Spell };
             smallCardData.PayloadCost = new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = smallPayload };
@@ -1778,39 +1803,43 @@ namespace TideServer.Verify
             VerifySuite.Assert(GameActions.PlayCard(pcore, n1, smallCard), "门槛放行：全价 ≤ 地牌槽上限 → 可打出");
             GameActions.DrainStack(pcore);
             VerifySuite.Assert(n1.MaxHealth == n1MaxBefore2 - 1, $"代价恒执行：己方角色上限 -1（{n1MaxBefore2}→{n1.MaxHealth}）");
-            VerifySuite.Assert(npool.AvailableMana[ManaType.Black] == smallGrant && npool.BlackGainedThisTurn == smallGrant,
-                $"补偿后置全额：生效后立即得黑 {npool.AvailableMana[ManaType.Black]} = 全价 {smallGrant}（快照在执行前取）");
+            VerifySuite.Assert(npool.TempElements[ManaType.Black] == smallGrant && npool.BlackGainedThisTurn == smallGrant,
+                $"补偿全额：生效后立即得黑 {npool.TempElements[ManaType.Black]} = 全价 {smallGrant}（快照在执行前取）");
 
-            // ---- ④ 黑白获得双限制直测（2026-10-05 定案，取代 2026-10-04「产出不封」）+ 使用侧约束 ----
+            // ---- ④ 黑白获得三重钳制直测（2026-10-05 双限制 + 2026-10-11 黑白合计钳）+ 使用侧约束 ----
             var tpool = pcore.ElementPool.GetPool(n2);
-            tpool.GlobalTurnIndex = 2;
+            tpool.PersonalTurnIndex = 2;
             tpool.BlackGainedThisTurn = 0; tpool.WhiteGainedThisTurn = 0;
-            tpool.AvailableMana[ManaType.Black] = 0; tpool.AvailableMana[ManaType.White] = 0;
+            tpool.TempElements[ManaType.Black] = 0; tpool.TempElements[ManaType.White] = 0;
             VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.Black, null, 3) == 2
-                              && tpool.AvailableMana[ManaType.Black] == 2 && tpool.BlackGainedThisTurn == 2,
+                              && tpool.TempElements[ManaType.Black] == 2 && tpool.BlackGainedThisTurn == 2,
                 "单次钳制：cap2 时单次入黑 3 → 实发 2（单次获得 ≤ 浓度上限）");
             VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.Black, null, 1) == 0
-                              && tpool.AvailableMana[ManaType.Black] == 2 && tpool.BlackGainedThisTurn == 2,
-                "回合总量钳制：本回合黑已满 2 → 再入 1 实发 0（单回合获得总量 ≤ 浓度上限）");
-            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.White, null, 5) == 2
-                              && tpool.WhiteGainedThisTurn == 2,
-                "白同口径：黑白各自独立计单次/回合总量（白 5 → 实发 2）");
+                              && tpool.TempElements[ManaType.Black] == 2 && tpool.BlackGainedThisTurn == 2,
+                "回合总量钳制：本回合黑已满 2 → 再入 1 实发 0（单回合单色获得总量 ≤ 浓度上限）");
+            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.White, null, 5) == 0
+                              && tpool.TempElements[ManaType.White] == 0 && tpool.WhiteGainedThisTurn == 0,
+                "黑白合计钳（2026-10-11）：黑已 2/2 → 白 5 实发 0（黑白生成总数 ≤ 浓度——旧「各自独立计」退役）");
             pcore.ElementPool.OnTurnStart(n2, 3);
             VerifySuite.Assert(tpool.BlackGainedThisTurn == 0 && tpool.WhiteGainedThisTurn == 0,
-                "回合开始：黑白获得台账清零（总量钳制按新回合重计）");
-            tpool.GlobalTurnIndex = 9;
-            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.Black, null, 15) == 9
-                              && tpool.AvailableMana[ManaType.Black] == 2 + 9 && tpool.BlackGainedThisTurn == 9,
-                "大额 15 · cap9 → 实发 9（单次与回合总量同受浓度上限约束）");
-            // 使用侧（支付）约束不变：bank 黑 11 · cap2——黑3 需求 > cap → 拒付（获得钳制不改变支付侧口径）
-            tpool.GlobalTurnIndex = 2;
+                "回合开始：黑白获得台账清零（合计钳按新回合重计）");
+            tpool.PersonalTurnIndex = 2;
+            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.White, null, 5) == 2
+                              && tpool.TempElements[ManaType.White] == 2 && tpool.WhiteGainedThisTurn == 2,
+                "新回合白 5 · cap2 → 实发 2（台账已清——单色钳口径不变）");
+            tpool.PersonalTurnIndex = 9;
+            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.Black, null, 15) == 7
+                              && tpool.TempElements[ManaType.Black] == 2 + 7 && tpool.BlackGainedThisTurn == 7,
+                "合计钳跨色：本回合白已 2 · cap9 → 黑 15 实发 7（黑+白生成总数 ≤ 浓度上限）");
+            // 使用侧（支付）约束不变：bank 黑 9 · cap2——黑3 需求 > cap → 拒付（获得钳制不改变支付侧口径）
+            tpool.PersonalTurnIndex = 2;
             VerifySuite.Assert(ElementPaymentValidator.GetBillPaymentPlan(
                                   new Dictionary<ManaType, int> { { ManaType.Black, 3 } },
-                                  tpool.AvailableMana, 2) == null,
-                "使用侧封顶：bank 黑 11 · cap2 → 黑3 需求拒付（单次支付贡献 ≤ 地牌上限）");
+                                  tpool.TempElements, 2) == null,
+                "使用侧封顶：bank 黑 9 · cap2 → 黑3 需求拒付（单次支付贡献 ≤ 地牌上限）");
             VerifySuite.Assert(ElementPaymentValidator.GetBillPaymentPlan(
                                   new Dictionary<ManaType, int> { { ManaType.Black, 2 } },
-                                  tpool.AvailableMana, 2) != null,
+                                  tpool.TempElements, 2) != null,
                 "使用侧封顶：黑2 ≤ cap2 → 可付（上限=单次使用量约束）");
 
             // ---- ⑤ 持久化读回：卡层 payload 字段 → CardData.PayloadCost（旧档无字段回落 null） ----
@@ -1857,10 +1886,10 @@ namespace TideServer.Verify
                 "legacy 效果级 Costs 代价同计 1 槽（1 效果 + 1 代价 = 2）");
 
             // ---- ⑦ 无有效目标回手（2026-10-04 本轮定案：响应窗口内目标全灭 → 发动失败回退手牌） ----
-            npool.GlobalTurnIndex = 9; // cap 放宽（门槛只看全价）
-            npool.AvailableMana[ManaType.White] = 0;
+            npool.PersonalTurnIndex = 9; // cap 放宽（门槛只看全价）
+            npool.TempElements[ManaType.White] = 0;
             npool.WhiteGainedThisTurn = 0;
-            npool.AvailableMana[ManaType.Gray] = 1; // 恰好够默认灰1——回退则分文未扣
+            npool.TempElements[ManaType.Gray] = 1; // 恰好够默认灰1——回退则分文未扣
             enemyUnit.Tap(); // 激励域=NoRole,Tapped——重横置使声明期有候选
             var revertCardData = new CardData { ID = "V9N_REVERT", CardName = "V9n回退代价卡", Supertype = Cardtype.Spell };
             revertCardData.Cost = ElementCost.FromValue(ManaType.Gray, 1); // 有费可扣——回退则分文未扣可观测
@@ -1873,8 +1902,8 @@ namespace TideServer.Verify
             GameActions.DrainStack(pcore);
             VerifySuite.Assert(pcore.ZoneManager.GetCards(n1, Zone.Hand).Contains(revertCard),
                 "代价无有效目标：发动失败回退手牌（走不到代价黑白元素生成）");
-            VerifySuite.Assert(npool.AvailableMana[ManaType.Gray] == 1 && npool.AvailableMana[ManaType.White] == 0,
-                $"回退不付费不补偿（灰仍 {npool.AvailableMana[ManaType.Gray]}、白仍 {npool.AvailableMana[ManaType.White]}）");
+            VerifySuite.Assert(npool.TempElements[ManaType.Gray] == 1 && npool.TempElements[ManaType.White] == 0,
+                $"回退不付费不补偿（灰仍 {npool.TempElements[ManaType.Gray]}、白仍 {npool.TempElements[ManaType.White]}）");
 
             // ---- ⑦b 手牌域代价回手（域正确性锚：{5} 域目标在手牌，写死战场判区会误杀） ----
             var discPayload = AtomRefs.New(AtomicEffectType.DiscardCard, value: 1, kinds: new List<int> { 5 });
@@ -1890,39 +1919,47 @@ namespace TideServer.Verify
             foreach (var h in handSave7b) pcore.ZoneManager.GetZoneContainer(n1).Move(h, Zone.Hand, Zone.Deck); // 窗口内排空其余手牌
             GameActions.DrainStack(pcore);
             VerifySuite.Assert(pcore.ZoneManager.GetCards(n1, Zone.Hand).Contains(backCard)
-                              && npool.AvailableMana[ManaType.Gray] == 1,
+                              && npool.TempElements[ManaType.Gray] == 1,
                 "手牌域代价无有效目标：发动失败回退手牌（非战场域按域重解析，不误杀；灰未扣）");
             foreach (var h in handSave7b) pcore.ZoneManager.GetZoneContainer(n1).Move(h, Zone.Deck, Zone.Hand); // 还原
 
-            // ---- ⑧ 先扣卡费·不预计将生成的黑白（2026-10-04 本轮定案）：窗口内池恶化 → 支付失败入墓、代价不执行 ----
+            // ---- ⑧ 补偿先付垫本卡·支付失败（2026-10-11 定案，回调 10-04「先扣卡费」旧序）：
+            //      窗口内池恶化 → 代价已执行、补偿已入池保留，支付失败入墓不回卷 ----
             var orderCardData = new CardData { ID = "V9N_ORDER", CardName = "V9n顺序代价卡", Supertype = Cardtype.Spell };
             orderCardData.Cost = ElementCost.FromValue(ManaType.Black, 3);
             orderCardData.PayloadCost = new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = smallPayload };
             var orderCard = new CardWrapper(orderCardData);
             orderCard.SetController(n1);
             pcore.ZoneManager.GetZoneContainer(n1).Add(orderCard, Zone.Hand);
-            npool.AvailableMana[ManaType.Black] = 3; // 恰好够黑3（未来将产的黑不计入——声明期只看当前池）
+            npool.BlackGainedThisTurn = 0; npool.WhiteGainedThisTurn = 0; // 新回合模拟：台账清零隔离观测
+            npool.TempElements[ManaType.Black] = 3; // 声明期池够（代价黑也可垫——黑白本色费黑3 只黑付）
             int n1MaxBefore3 = n1.MaxHealth;
             VerifySuite.Assert(GameActions.PlayCard(pcore, n1, orderCard), "前置：黑3 池够——声明成功");
-            npool.AvailableMana[ManaType.Black] = 0; // 响应窗口内元素被耗尽
+            npool.TempElements[ManaType.Black] = 0; // 响应窗口内元素被耗尽
             GameActions.DrainStack(pcore);
             VerifySuite.Assert(pcore.ZoneManager.GetCards(n1, Zone.Graveyard).Contains(orderCard),
-                "先扣卡费：池恶化付不出 → 入墓不回卷（旧序「补偿先付垫本卡」退役）");
-            VerifySuite.Assert(n1.MaxHealth == n1MaxBefore3 && npool.AvailableMana[ManaType.Black] == 0,
-                "支付失败先于代价执行：上限未流失、无黑补偿垫付");
+                "补偿先付：池恶化付不出 → 入墓不回卷（代价已执行、补偿保留——旧序「先扣卡费」2026-10-11 回调退役）");
+            VerifySuite.Assert(n1.MaxHealth == n1MaxBefore3 - 1
+                              && npool.TempElements[ManaType.Black] == smallGrant,
+                $"代价先于扣费执行：上限已 -1、黑补偿 {smallGrant} 已入池保留（黑白不互垫——黑3 付不出）");
 
-            // ---- ⑨ 声明期不预计未来黑白：池差补偿量 → 拒发（元素不足口径） ----
+            // ---- ⑨ 声明期计入代价垫色（2026-10-11「补偿先付垫本卡」）：池差=补偿量 → 放行且垫本卡支付成功 ----
             var affordCardData = new CardData { ID = "V9N_AFFORD", CardName = "V9n余量代价卡", Supertype = Cardtype.Spell };
             affordCardData.Cost = ElementCost.FromValue(ManaType.Black, 3);
             affordCardData.PayloadCost = new CostEntry { CostType = (int)CostType.Payload, Value = 1, payload = smallPayload };
             var affordCard = new CardWrapper(affordCardData);
             affordCard.SetController(n1);
             pcore.ZoneManager.GetZoneContainer(n1).Add(affordCard, Zone.Hand);
-            npool.AvailableMana[ManaType.Black] = 3 - smallGrant; // 差值恰好=将生成的黑
-            VerifySuite.Assert(!GameActions.PlayCard(pcore, n1, affordCard, null, Zone.Hand, 0, out var affordReject)
-                              && affordReject != null && affordReject.Contains("元素不足")
-                              && pcore.ZoneManager.GetCards(n1, Zone.Hand).Contains(affordCard),
-                $"声明期口径：将生成的黑（{smallGrant}）不提前计入——池不足拒发留手（实际「{affordReject}」）");
+            npool.BlackGainedThisTurn = 0; npool.WhiteGainedThisTurn = 0; // 新回合模拟
+            npool.TempElements[ManaType.Black] = 3 - smallGrant; // 池差恰好=将生成的黑——垫色后可付
+            int n1MaxBefore4 = n1.MaxHealth;
+            VerifySuite.Assert(GameActions.PlayCard(pcore, n1, affordCard),
+                $"声明期口径：将生成的黑（{smallGrant}）计入垫色——池+补偿 ≥ 卡费 → 放行（旧「不提前计入拒发」2026-10-11 退役）");
+            GameActions.DrainStack(pcore);
+            VerifySuite.Assert(n1.MaxHealth == n1MaxBefore4 - 1
+                              && npool.TempElements[ManaType.Black] == 0
+                              && npool.BlackGainedThisTurn == smallGrant,
+                $"垫本卡支付：代价执行得黑 {smallGrant} → 与池余 {3 - smallGrant} 合并付黑3 → 结算成功余 0");
 
             // ---- ⑩ 生命恢复目标须受伤（2026-10-04 本轮定案：Damaged 动态判定 hp<上限，无存储标志位） ----
             var healCfg = AtomicEffectTable.GetByType(AtomicEffectType.Heal);
@@ -1980,11 +2017,11 @@ namespace TideServer.Verify
             var opool2 = qcore.ElementPool.GetPool(o2);
             foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
             {
-                opool.AvailableMana[t] = 99;
-                opool2.AvailableMana[t] = 99;
+                opool.TempElements[t] = 99;
+                opool2.TempElements[t] = 99;
             }
-            opool.GlobalTurnIndex = 9;
-            opool2.GlobalTurnIndex = 9;
+            opool.PersonalTurnIndex = 9;
+            opool2.PersonalTurnIndex = 9;
 
             var naRow = AtomicEffectTable.GetByEnumName("NegateActivation"); // 表行「发动无效」（净零成本档）
             var neRow = AtomicEffectTable.GetByEnumName("NegateEffect");     // 表行「效果无效」（扣费照付档）
@@ -2020,30 +2057,30 @@ namespace TideServer.Verify
             var ddRowO = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage);
             var fbA = OSpell("V9O_FB_A", "V9o火球A", 0, ddRowO, o1, new List<int> { 1, 2 });
             var naCard = OSpell("V9O_NA", "V9o发动无效", 2, naRow, o2);
-            int o2LifeA = o2.Life, o1GrayA = opool.AvailableMana[ManaType.Gray];
+            int o2LifeA = o2.Life, o1GrayA = opool.TempElements[ManaType.Gray];
             VerifySuite.Assert(GameActions.PlayCard(qcore, o1, fbA, new List<Entity> { o2 }), "① 火球A打出（响应窗口开）");
             VerifySuite.Assert(GameActions.PlayCardInResponse(qcore, o2, naCard, new List<Entity> { fbA }),
                 "① 响应窗口内打出发动无效（指向发动区火球）");
             GameActions.DrainStack(qcore);
             if (!qcore.StackEngine.IsEmpty) qcore.StackEngine.Clear(); // 段内 SBA 窗口收口（Unity 侧同款残留惯例）
             VerifySuite.Assert(o2.Life == o2LifeA
-                              && opool.AvailableMana[ManaType.Gray] == o1GrayA
+                              && opool.TempElements[ManaType.Gray] == o1GrayA
                               && qcore.ZoneManager.GetCards(o1, Zone.Graveyard).Contains(fbA),
-                $"① 发动无效=净零成本：无伤害、不付费（净效果=扣费返还）、卡入墓（life {o2LifeA}→{o2.Life}，灰 {o1GrayA}→{opool.AvailableMana[ManaType.Gray]}）");
+                $"① 发动无效=净零成本：无伤害、不付费（净效果=扣费返还）、卡入墓（life {o2LifeA}→{o2.Life}，灰 {o1GrayA}→{opool.TempElements[ManaType.Gray]}）");
 
             // ---- ② 施放×效果无效：扣费不返还、送墓、无效果 ----
             var fbB = OSpell("V9O_FB_B", "V9o火球B", 0, ddRowO, o1, new List<int> { 1, 2 });
             var neCard = OSpell("V9O_NE", "V9o效果无效", 2, neRow, o2);
-            int o1GrayB = opool.AvailableMana[ManaType.Gray];
+            int o1GrayB = opool.TempElements[ManaType.Gray];
             VerifySuite.Assert(GameActions.PlayCard(qcore, o1, fbB, new List<Entity> { o2 }), "② 火球B打出");
             VerifySuite.Assert(GameActions.PlayCardInResponse(qcore, o2, neCard, new List<Entity> { fbB }),
                 "② 响应窗口内打出效果无效");
             GameActions.DrainStack(qcore);
             if (!qcore.StackEngine.IsEmpty) qcore.StackEngine.Clear();
             VerifySuite.Assert(o2.Life == o2LifeA
-                              && opool.AvailableMana[ManaType.Gray] == o1GrayB - 1
+                              && opool.TempElements[ManaType.Gray] == o1GrayB - 1
                               && qcore.ZoneManager.GetCards(o1, Zone.Graveyard).Contains(fbB),
-                $"② 效果无效=扣费照付：无伤害、费用实扣不返还（灰 {o1GrayB}→{opool.AvailableMana[ManaType.Gray]}）、卡入墓");
+                $"② 效果无效=扣费照付：无伤害、费用实扣不返还（灰 {o1GrayB}→{opool.TempElements[ManaType.Gray]}）、卡入墓");
 
             // ---- ③ 触发式计数口径：发动无效不计发动次数（记账退还）/ 效果无效计入（记账保留） ----
             var executor = qcore.StackEngine.GetExecutor();
@@ -2172,8 +2209,8 @@ namespace TideServer.Verify
             var w2 = wcore.Player2;
             GameActions.SkipElementPool(wcore, w1);
             foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
-                wcore.ElementPool.GetPool(w1).AvailableMana[t] = 99;
-            wcore.ElementPool.GetPool(w1).GlobalTurnIndex = 9;
+                wcore.ElementPool.GetPool(w1).TempElements[t] = 99;
+            wcore.ElementPool.GetPool(w1).PersonalTurnIndex = 9;
 
             // ---- ① 目录锚：改写门四条已删、诅咒通道=引擎主干行、附加诅咒/祝福引擎主干化、
             //      有限分支（局面门）2026-10-09 还原——达标奖励/不达标无事 ----
@@ -2456,7 +2493,7 @@ namespace TideServer.Verify
             var b2x = bcore.Player2;
             GameActions.SkipElementPool(bcore, b1x);
             foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
-                bcore.ElementPool.GetPool(b1x).AvailableMana[t] = 99;
+                bcore.ElementPool.GetPool(b1x).TempElements[t] = 99;
 
             // ---- ① 目录锚：产出条件五项（DeclareMiss/ProphecyHit/Miss 已归自由分支）+ 引擎主干行回表 ----
             VerifySuite.Assert(ComposerCatalog.OutcomeConditions.Select(g => g.Id).SequenceEqual(
@@ -3304,10 +3341,10 @@ namespace TideServer.Verify
                 foreach (var c in uField1) ucore.ZoneManager.MoveCard(c, u1, Zone.Battlefield, Zone.Graveyard);
                 foreach (var c in uField2) ucore.ZoneManager.MoveCard(c, u2, Zone.Battlefield, Zone.Graveyard);
                 var uPool = ucore.ElementPool.GetPool(u1);
-                var uSnap = new Dictionary<ManaType, int>(uPool.AvailableMana);
+                var uSnap = new Dictionary<ManaType, int>(uPool.TempElements);
                 try
                 {
-                    foreach (ManaType t in Enum.GetValues(typeof(ManaType))) uPool.AvailableMana[t] = 99;
+                    foreach (ManaType t in Enum.GetValues(typeof(ManaType))) uPool.TempElements[t] = 99;
 
                     Card USpawn(Player owner, int power, int life)
                     {
@@ -3408,7 +3445,7 @@ namespace TideServer.Verify
                 }
                 finally
                 {
-                    foreach (var kv in uSnap) uPool.AvailableMana[kv.Key] = kv.Value;
+                    foreach (var kv in uSnap) uPool.TempElements[kv.Key] = kv.Value;
                     var uKill = new List<Card>(ucore.ZoneManager.GetCards(u1, Zone.Battlefield).Concat(
                         ucore.ZoneManager.GetCards(u2, Zone.Battlefield)));
                     foreach (var c in uKill) ucore.ZoneManager.MoveCard(c, c.GetController(), Zone.Battlefield, Zone.Graveyard);
@@ -3465,7 +3502,7 @@ namespace TideServer.Verify
                 var v2 = vcore.Player2;
                 GameActions.SkipElementPool(vcore, v1);
                 foreach (ManaType t in Enum.GetValues(typeof(ManaType)))
-                    vcore.ElementPool.GetPool(v1).AvailableMana[t] = 99;
+                    vcore.ElementPool.GetPool(v1).TempElements[t] = 99;
                 var vField1 = new List<Card>(vcore.ZoneManager.GetCards(v1, Zone.Battlefield));
                 var vField2 = new List<Card>(vcore.ZoneManager.GetCards(v2, Zone.Battlefield));
                 foreach (var c in vField1) vcore.ZoneManager.MoveCard(c, v1, Zone.Battlefield, Zone.Graveyard);
@@ -3655,83 +3692,10 @@ namespace TideServer.Verify
                 }
             }
 
-            // ============================ V9.x 地牌沉默/迟钝闸（2026-10-10 指示物目标域定案） ============================
-
-            VerifySuite.Section("V9.x 地牌沉默/迟钝闸：沉默锁手动横置换元素；迟钝锁结束阶段自动产色");
-            var xcore = GameCore.Instance;
-            xcore.Reset();
-            ZoneContainer.Reseed(20261010);
-            var fillerX = Enumerable.Range(0, 4).Select(i => new CardData
-            {
-                ID = $"V9X_fill_{i}", CardName = "V9X填充" + i, Supertype = Cardtype.Creature, Power = 1, Life = 1,
-            }).ToList();
-            xcore.InitGame(CardLoader.BuildDeck(fillerX, 2), CardLoader.BuildDeck(fillerX, 2));
-            var x1 = xcore.Player1;
-            GameActions.SkipElementPool(xcore, x1);
-
-            Card XToHand(CardData data)
-            {
-                var card = new CardWrapper(data);
-                card.SetController(x1);
-                xcore.ZoneManager.GetZoneContainer(x1).Add(card, Zone.Hand);
-                return card;
-            }
-            var xLandCard = XToHand(new CardData
-            {
-                ID = "V9X_LAND", CardName = "V9X红地", Supertype = Cardtype.Spell,
-                Cost = PosCost((ManaType.Red, 3)), // 产 3 红指示物（黑白不产——同 V9.j 口径）
-            });
-            VerifySuite.Assert(xcore.ElementPool.AddCardToPool(xLandCard, x1), "地牌入池（前置）");
-            var xPooled = xcore.ElementPool.GetPooledCards(x1).First(pc => pc.SourceCard == xLandCard);
-            var xBank = xcore.ElementPool.GetPool(x1);
-
-            // ---- ① 沉默闸：挂沉默地牌不可手动横置换元素（周期/指示物/bank 三不动） ----
-            xLandCard.AddCounters(CardCore.Attribute.CounterRules.SilenceCounter, 1);
-            int xRedBefore = xBank.AvailableMana[ManaType.Red];
-            VerifySuite.Assert(!xcore.ElementPool.GainElementFromToken(xPooled, ManaType.Red, x1),
-                "沉默闸：挂沉默地牌手动横置换元素被拦（GainElementFromToken false）");
-            VerifySuite.Assert(!xPooled.IsTapped
-                               && xBank.AvailableMana[ManaType.Red] == xRedBefore
-                               && xPooled.HasToken(ManaType.Red),
-                "沉默闸：周期未消耗（未横置）、指示物不减、bank 不增");
-            xLandCard.RemoveCounters(CardCore.Attribute.CounterRules.SilenceCounter, 1);
-
-            // ---- ② 对照：去沉默后同地牌可正常横置换元素 ----
-            VerifySuite.Assert(xcore.ElementPool.GainElementFromToken(xPooled, ManaType.Red, x1),
-                "对照：无指示物地牌手动横置换元素放行");
-            VerifySuite.Assert(xPooled.IsTapped && xBank.AvailableMana[ManaType.Red] == xRedBefore + 1,
-                "对照：横置消耗周期并 +1 红");
-
-            // ---- ③ 迟钝闸：挂迟钝地牌结束阶段不自动产色（保持未横置、指示物不减） ----
-            // 地牌槽上限按自己回合数涨（1 已占）——推进两回合到上限 2 再入第二张（同 V9.j 手法）
-            GameActions.EndTurn(xcore, x1);
-            xcore.TurnEngine.CheckPhaseTransition();
-            GameActions.SkipElementPool(xcore, xcore.Player2);
-            GameActions.EndTurn(xcore, xcore.Player2);
-            xcore.TurnEngine.CheckPhaseTransition();
-            GameActions.SkipElementPool(xcore, x1);
-            var xLand2 = XToHand(new CardData
-            {
-                ID = "V9X_LAND2", CardName = "V9X红地2", Supertype = Cardtype.Spell,
-                Cost = PosCost((ManaType.Red, 3)),
-            });
-            VerifySuite.Assert(xcore.ElementPool.AddCardToPool(xLand2, x1), "第二张地牌入池（前置）");
-            var xPooled2 = xcore.ElementPool.GetPooledCards(x1).First(pc => pc.SourceCard == xLand2);
-            // 回合切换已重置第一张的横置态——先手动横置消耗掉，隔离第二张的自动产色观测
-            xcore.ElementPool.GainElementFromToken(xPooled, ManaType.Red, x1);
-            xLand2.AddCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1);
-            int xRed2Before = xBank.AvailableMana[ManaType.Red];
-            xPooled2.Tokens.TryGetValue(ManaType.Red, out int xTokens2Before);
-            xcore.ElementPool.OnTurnEnd(x1);
-            xPooled2.Tokens.TryGetValue(ManaType.Red, out int xTokens2After);
-            VerifySuite.Assert(!xPooled2.IsTapped
-                               && xBank.AvailableMana[ManaType.Red] == xRed2Before
-                               && xTokens2After == xTokens2Before,
-                $"迟钝闸：结束阶段不自动产色（未横置、指示物不减、bank 不增）——实际 tapped={xPooled2.IsTapped} red={xBank.AvailableMana[ManaType.Red]}/{xRed2Before} tokens={xTokens2After}/{xTokens2Before}");
-            xLand2.RemoveCounters(CardCore.Attribute.CounterRules.NullifyCounter, 1);
-            xcore.ElementPool.OnTurnEnd(x1);
-            VerifySuite.Assert(xPooled2.IsTapped && xBank.AvailableMana[ManaType.Red] == xRed2Before + 1,
-                $"对照：去迟钝后结束阶段自动产色恢复（横置并 +1 红）——实际 tapped={xPooled2.IsTapped} red={xBank.AvailableMana[ManaType.Red]}/{xRed2Before + 1}");
+            // ============================ V9.x 已删（2026-10-11 资源重做） ============================
+            // 旧段=地牌沉默/迟钝闸（横置换元素=主动效果口径）——现取现用后地牌横置=付费步系统
+            // 强制动作，两闸拦截对象消失，沉默/迟钝表行已去元素池域（TargetKinds）。地牌的移除轴
+            // =摧毁/抹除（原子既有、handler 出池支持既有），无需另立新锚。
 
             VerifySuite.Section("V9 引擎规则回归完成");
         }

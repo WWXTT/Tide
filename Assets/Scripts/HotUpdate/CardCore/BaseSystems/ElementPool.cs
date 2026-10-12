@@ -5,59 +5,26 @@ using System.Linq;
 namespace CardCore
 {
     /// <summary>
-    /// 元素池中的卡牌（地牌，带指示物）
-    /// 基于卡牌的费用构成放置对应数量的元素指示物
-    /// 主阶段可手动横置产 1 个自选颜色元素；回合结束未横置的自动横置产 1 个剩余最多色元素
-    /// 每回合周期恰好消耗 1 个指示物；耗尽后卡牌进入墓地
+    /// 元素池中的卡牌（地牌，锁色产色体）——2026-10-11 资源系统重做定案：
+    /// 指示物整套退役。入池时从卡牌费用颜色（红/蓝/绿/灰）中自选锁定一个产色，后续生成固定；
+    /// 地牌不消耗、不耗竭、不入墓（移除口=摧毁/抹除效果）。
+    /// 付费时系统按账单自动横置（强制系统动作，无速度交互，自己/对手回合都一样），
+    /// 每地牌每回合周期恰好横置一次，产 1 个锁定色元素**直接支付**（不入库）。
     /// </summary>
     public class PooledCard
     {
         public Card SourceCard { get; }
 
-        /// <summary>剩余指示物 {Red:2, Gray:1}</summary>
-        public Dictionary<ManaType, int> Tokens { get; private set; }
+        /// <summary>入池时锁定的产色（红/蓝/绿/灰——黑白不由地牌产出）</summary>
+        public ManaType LockedColor { get; }
 
-        /// <summary>初始指示物数量（用于显示）</summary>
-        public Dictionary<ManaType, int> TotalTokens { get; }
-
-        /// <summary>是否已横置（本回合周期已产过 1 个元素）。己方回合开始时恢复（解除横置）。</summary>
+        /// <summary>本回合周期已横置（已为某次支付贡献过 1 个元素）。己方回合开始时恢复（解除横置）。</summary>
         public bool IsTapped { get; set; }
 
-        public PooledCard(Card card, Dictionary<ManaType, int> tokens)
+        public PooledCard(Card card, ManaType lockedColor)
         {
             SourceCard = card;
-            Tokens = new Dictionary<ManaType, int>(tokens);
-            TotalTokens = new Dictionary<ManaType, int>(tokens);
-        }
-
-        public bool HasToken(ManaType type)
-        {
-            return Tokens.ContainsKey(type) && Tokens[type] > 0;
-        }
-
-        /// <summary>是否所有指示物已耗尽</summary>
-        public bool IsDepleted => Tokens.Values.Sum() == 0;
-
-        /// <summary>获取指示物总数</summary>
-        public int TotalTokenCount => Tokens.Values.Sum();
-
-        /// <summary>
-        /// 移除一个指定颜色的指示物
-        /// </summary>
-        /// <returns>true 表示该卡已耗尽</returns>
-        public bool RemoveToken(ManaType type)
-        {
-            if (!HasToken(type))
-                throw new InvalidOperationException($"PooledCard 没有颜色 {type} 的指示物");
-
-            Tokens[type]--;
-            return IsDepleted;
-        }
-
-        /// <summary>获取所有有剩余指示物的颜色</summary>
-        public List<ManaType> GetAvailableColors()
-        {
-            return Tokens.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToList();
+            LockedColor = lockedColor;
         }
     }
 
@@ -66,87 +33,76 @@ namespace CardCore
     /// </summary>
     public class PlayerElementPool
     {
-        /// <summary>场上地牌（带指示物）。2026-10-10 共享地牌槽定案：**双方地牌合计**受公用上限约束（见 GetLandCap）。</summary>
+        /// <summary>场上地牌（锁色产色体）。张数受各自地牌槽上限约束（见 GetLandCap）——
+        /// 2026-10-11 定案：10-10 的全场共享计数器废止，回归各自上限。</summary>
         public List<PooledCard> PooledCards { get; } = new List<PooledCard>();
 
-        /// <summary>积攒的费用（bank）：地牌产出（主阶段手动自选色 / 结束阶段自动灰色）+ 临时效果添加。跨回合保留，无上限。</summary>
-        public Dictionary<ManaType, int> AvailableMana { get; } = new Dictionary<ManaType, int>();
+        /// <summary>临时钱包（2026-10-11 定案：bank 退役）：效果授予的元素（代价补偿黑白/错边转化/
+        /// 光合作用/带地牌特性生物产色）落这里，**任一回合结束清空**。付费时与地牌横置一起被规划消耗。</summary>
+        public Dictionary<ManaType, int> TempElements { get; } = new Dictionary<ManaType, int>();
 
-        // ===== 地牌槽曲线（Cap 管场上地牌张数，按全局回合数索引；bank 无上限地积累）=====
+        // ===== 地牌槽曲线（Cap 管场上地牌张数）=====
 
         /// <summary>该玩家的资源曲线（由 GameCore.InitGame 注入固定地牌槽曲线；变速效果经 SetCurve 修改）</summary>
         public ResourceCurve Curve { get; set; }
 
-        /// <summary>最近的全局回合数（地牌槽曲线 CapAt 的索引：上限 = min(全局回合数, 9)，双方同步推进）</summary>
+        /// <summary>最近的全局回合数（纯台账/观测用——2026-10-11 起上限改读 PersonalTurnIndex）</summary>
         public int GlobalTurnIndex { get; set; }
 
-        /// <summary>个人回合数（自己回合开始时 +1；台账行标识）</summary>
+        /// <summary>个人回合数（自己回合开始时 +1；地牌槽曲线 CapAt 的索引——2026-10-11 定案：
+        /// 自己的回合开始地牌上限 +1，个人口径）</summary>
         public int PersonalTurnIndex { get; set; }
 
-        /// <summary>地牌槽上限已翻倍（2026-10-09 地牌槽提升原子；2026-10-10 共享化 + 计价绿2→绿1）：
-        /// 标记挂在用过者的池上，但 GetLandCap 读**任一方**标记——世界容量扩张对双方生效（公用计数器语义，
-        /// 好处外溢给对手，故降为绿1）。输出 ×2 封顶 MaxStackedLandCap=18（每地牌格叠两张）。
-        /// 幂等标记——重复使用不叠加（×2 的 ×2 无意义且封顶钳制）；Reset/新局清零。</summary>
-        public bool LandCapBoosted { get; set; }
+        /// <summary>「成长」原子累积的地牌上限加值（2026-10-11 定案：灵气复苏×2翻倍改成长+1，
+        /// 可重复使用，各自池生效不共享；GetLandCap 输出封顶 MaxStackedLandCap=18）。</summary>
+        public int LandCapBonus { get; set; }
 
-        /// <summary>本回合产出次数（手动自选色 + 结束阶段自动灰色；每个全局回合重置）</summary>
+        /// <summary>本回合系统横置次数（付费自动横置；每个全局回合重置——纯观测）</summary>
         public int TapsThisTurn { get; set; }
 
-        // ===== 黑白获取台账（2026-10-04 使用侧定案：产出钳退役）=====
-        // 旧链：09-14 黑白每回合获得封顶 1 → 同日改地牌上限 → **2026-10-04 退役**——
-        // 「限制产出」改为「限制使用」：黑白获得全量入账（与其余色同口径，bank 囤积无上限），
-        // 使用（支付）时单次贡献 ≤ 地牌上限（GetBillPaymentPlan 浓度上限——代价产出的黑白
-        // 经统一支付管线，不能绕过地牌上限）。下方两计数保留为**纯台账**（观测/AI 特征）。
-
-        /// <summary>本回合已获得黑元素数（纯台账——2026-10-04 起不参与钳制；回合开始清零）</summary>
+        /// <summary>本回合已获得黑元素数（黑白合计生成钳制台账：黑+白 ≤ 地牌上限）</summary>
         public int BlackGainedThisTurn { get; set; }
 
-        /// <summary>本回合已获得白元素数（纯台账——2026-10-04 起不参与钳制；回合开始清零）</summary>
+        /// <summary>本回合已获得白元素数（同上）</summary>
         public int WhiteGainedThisTurn { get; set; }
 
         public PlayerElementPool()
         {
             foreach (ManaType mana in Enum.GetValues(typeof(ManaType)))
             {
-                AvailableMana[mana] = 0;
+                TempElements[mana] = 0;
             }
         }
     }
 
     /// <summary>
-    /// 元素池系统
-    /// 核心费用体系（地牌 = 场上有限电池，bank = 积攒的费用）：
-    /// 1. 地牌槽上限 = min(全局回合数, 9)：先手首个回合为 1，此后每个回合开始 +1（对手首回合即 2），最大 9。
-    ///    2026-10-10 共享定案（「灵气复苏」口径）：此上限是**全场公用计数器**（同记速器性质的公共状态，
-    ///    每回合+1）——双方场上地牌**合计**受它约束，先占先得（先后手借此互相牵制）。
-    /// 2. 准备阶段：己方横置地牌全部自动恢复（解除横置）
-    /// 3. 主阶段：以可用（未横置）状态补充地牌，不限张数/次数（受公用槽上限，双方合计）；手动横置地牌产 1 个自选颜色元素入 bank
-    ///    —— 自选颜色范围 = 该地牌剩余指示物的颜色集合（由卡本身费用构成决定）
-    /// 4. 结束阶段：未横置的地牌自动横置，产 1 个剩余最多色元素入 bank（消耗剩余最多颜色的 1 个指示物）
-    /// 5. bank（AvailableMana）跨回合保留、无上限；出牌时自动从 bank 支付
-    /// 6. 出牌门槛：卡总费用不得超过当前地牌槽上限（公用计数器读数；费用上限 9 由此隐含）
-    /// 7. 指示物耗尽 → 地牌进墓地 → 全场合计占用下降，可用手牌补充
+    /// 元素池系统——2026-10-11 资源系统重做定案（现取现用）：
+    /// 1. 地牌 = 锁色产色体：入池时自选卡费颜色之一锁定；不消耗不耗竭；移除口=摧毁/抹除效果。
+    /// 2. 地牌上限 = 自己回合开始 +1（个人曲线 CapAt(PersonalTurnIndex)，标准曲线 min(个人回合,9)）；
+    ///    「成长」原子 +1/次封顶 18。各自上限管各自地牌张数（共享计数器废止）。
+    /// 3. 付费 = 现取现用：按账单规划「临时钱包余额 + 未横置地牌横置」组合，钱包优先消耗（回合末即逝），
+    ///    地牌横置=系统自动的强制动作（无速度交互），自己/对手回合都一样（跨回合支付不变）。
+    /// 4. 支付链（2026-10-11 收窄）：红/蓝/绿仅本色；灰=[灰,黑,白,红,蓝,绿]（黑白只垫灰、三色垫灰沿用）；
+    ///    黑白本色费只有黑白元素能付（单向不变）。浓度上限维持：每货币单次贡献 ≤ 地牌上限、纯色需求超帽拒付。
+    /// 5. 临时钱包：效果授予元素的唯一归宿，任一回合结束清空；黑白合计每回合生成 ≤ 地牌上限（单钳，
+    ///    旧三重钳退役）。
+    /// 6. 黑白不由地牌产出（锁定色不含黑白）；获取通道=代价补偿/错边转化等卡结算路径。
+    /// 7. 发动无效与地牌零交互（净零靠付费在响应窗之后，本就无退款路径）；地牌的交互面只有摧毁/抹除。
     /// </summary>
     public class ElementPoolSystem
     {
-        private const int HAND_SIZE_LIMIT = 7;
-
         /// <summary>地牌槽上限的最大值（曲线末端值；卡费用上限同为 9）</summary>
         public const int MAX_POOL_SIZE = 9;
 
-        /// <summary>地牌槽翻倍后的硬顶（2026-10-09 地牌槽提升原子）：9 格 × 每格叠两张 = 18。
-        /// 挑战模式 P2 加成曲线（9+bonus）再翻倍同样受此钳制。</summary>
+        /// <summary>地牌上限硬顶（成长原子叠加的封顶值）：9 格 × 每格叠两层 = 18。
+        /// 挑战模式 P2 加成曲线（9+bonus）再叠加同样受此钳制。</summary>
         public const int MaxStackedLandCap = 18;
 
         private Dictionary<Player, PlayerElementPool> _playerPools =
             new Dictionary<Player, PlayerElementPool>();
 
-        /// <summary>耗尽卡牌时用于移动到墓地</summary>
-        public event Action<Card, Player> OnCardDepleted;
-
-        // ===== 曲线事件路由（P0b）=====
-        // 新事件（CurveShiftEvent）经 GameCore 统一路由发布，保证 Trigger/Layer 引擎可见；
-        // 旧元素池事件仍直发 EventManager（历史路径，保持兼容）。
+        // ===== 曲线事件路由 =====
+        // 新事件（CurveShiftEvent）经 GameCore 统一路由发布，保证 Trigger/Layer 引擎可见。
         private Action<IGameEvent> _eventRouter;
 
         // ======================================== 初始化 ========================================
@@ -182,13 +138,12 @@ namespace CardCore
             return _playerPools[player];
         }
 
-        // ======================================== 放卡进元素池 ========================================
+        // ======================================== 地牌资格与入池 ========================================
 
         /// <summary>
-        /// 地牌资格（2026-10-03 用户定案修订）：卡组正式 生物/法术/结界 三型可作地牌——
-        /// 衍生物（IsToken，SummonToken 实例）、临时复制卡（回响——持临时指示物 TempCounter，
-        /// 2026-10-10 指示物化；微缩/放大同日退役）不可（否则副本成免费地牌）；
-        /// 耗尽过的卡由 WasDepletedAsLand 永久拒绝（AddCardToPool）。
+        /// 地牌资格（2026-10-03 定案沿用）：卡组正式 生物/法术/结界 三型可作地牌——
+        /// 衍生物（IsToken，SummonToken 实例）、临时复制卡（回响——持临时指示物 TempCounter）不可
+        /// （否则副本成免费地牌，2026-10-11 维持禁令）。
         /// UI/AI 预检与 AddCardToPool 权威校验共用此判据。
         /// </summary>
         public static bool CanServeAsLand(Card card)
@@ -201,57 +156,78 @@ namespace CardCore
                    || ht.Supertype == Cardtype.Enchantment);
 
         /// <summary>
-        /// 将手牌作为地牌放入元素池（主阶段调用，可用/未横置状态入场，不限张数/次数）。
-        /// 双方合计张数受公用槽上限约束（2026-10-10 共享定案，min(全局回合数, 9)）；指示物基于卡牌费用构成。
-        /// 抉择卡（2026-09-21 定案）：modeIndex 由玩家自选（与出牌同口径），指示物按所选模式生成；
-        /// 所选模式 0 费 → 无指示物 → 拒绝入池。
-        /// 状态跟随卡：耗尽过的卡（WasDepletedAsLand）永久拒绝；
-        /// 离池未耗尽的卡再入池按其记录的余量生成指示物，而非重新按费用满额生成。
+        /// 地牌可锁定的产色候选（2026-10-11 定案）：卡牌**声明费用**中的红/蓝/绿/灰颜色集合
+        /// （黑白不由地牌产出；抉择卡按声明费用取色，不再按所选模式）。
+        /// 按费用份额降序排列（并列取枚举序靠前者）——缺省锁色（colorChoice=null）取首位=主色。
+        /// 空候选（0 费卡/纯黑白费卡）不可入池。
         /// </summary>
-        public bool AddCardToPool(Card card, Player owner, int modeIndex = 0)
+        public static List<ManaType> GetLandColorChoices(Card card)
+            => card is IHasCost hasCost ? GetLandColorChoices(hasCost) : new List<ManaType>();
+
+        /// <summary>同 GetLandColorChoices（IHasCost 重载——CardData 同接口，UI 网络侧无引擎对象时直用卡数据）。</summary>
+        public static List<ManaType> GetLandColorChoices(IHasCost hasCost)
+        {
+            var pairs = new List<(ManaType color, int amount)>();
+            if (hasCost?.Cost != null)
+            {
+                foreach (var type in hasCost.Cost.NonzeroColors())
+                {
+                    int amount = (int)hasCost.Cost[type];
+                    if (amount > 0 && type != ManaType.Black && type != ManaType.White)
+                        pairs.Add((type, amount));
+                }
+            }
+            return pairs
+                .OrderByDescending(p => p.amount)
+                .ThenBy(p => (int)p.color)
+                .Select(p => p.color)
+                .ToList();
+        }
+
+        /// <summary>入池预检（UI/AI 共用单点）：资格由 CanServeAsLand 另查；这里只看各自上限余位。</summary>
+        public bool CanAddLand(Player owner)
+            => GetPool(owner).PooledCards.Count < GetLandCap(owner);
+
+        /// <summary>
+        /// 将手牌作为地牌放入元素池（主阶段调用，可用/未横置状态入场，不限张数/次数）。
+        /// 张数受**各自**地牌槽上限约束（2026-10-11：个人曲线 min(个人回合,9)+成长加值，封顶 18）。
+        /// colorChoice：从 GetLandColorChoices 中自选锁定产色；null=缺省主色（份额最多色）。
+        /// 地牌不消耗不耗竭；离池（弹回手等）后可再入池重新选色。
+        /// </summary>
+        public bool AddCardToPool(Card card, Player owner, ManaType? colorChoice = null)
         {
             if (card == null || owner == null) return false;
 
-            // 地牌资格：只有卡组正式生物（非生物超类/衍生物/副本临时卡不可）
+            // 地牌资格：卡组正式三型（衍生物/临时复制卡不可）
             if (!CanServeAsLand(card))
                 return false;
 
-            // 资源枯竭不可逆：耗尽进过墓地的卡不可再次作为地牌
-            if (card.WasDepletedAsLand)
-                return false;
-
-            // 地牌资格只看生物身份（2026-09-21 定案）——与效果内容（如动态数量）无关；
-            // 纯 0 费卡入池由下方 sum==0 校验自然拦截。
-
             var pool = GetPool(owner);
 
-            // 地牌槽上限（2026-10-10 共享定案）：公用计数器——双方场上地牌合计超限即拒（先占先得）
-            if (GetTotalPooledCount() >= GetLandCap(owner))
+            // 地牌槽上限（各自口径）
+            if (pool.PooledCards.Count >= GetLandCap(owner))
                 return false;
 
-            // 指示物来源：优先用地牌余量状态（回手再入池保留剩余），否则按费用构成（抉择卡按所选模式）
-            var cost = card.HasLandTokenState
-                ? card.GetRemainingLandTokens()
-                : GetCardCostAsTokens(card, modeIndex);
-            if (cost.Values.Sum() == 0)
+            // 锁色候选：卡费颜色（去黑白）；空候选（0费/纯黑白）拒绝入池
+            var choices = GetLandColorChoices(card);
+            if (choices.Count == 0)
                 return false;
 
-            // 创建带指示物的池卡
-            var pooledCard = new PooledCard(card, cost);
-            pool.PooledCards.Add(pooledCard);
+            // 显式锁色必须在候选内（非法选择拒绝——UI 只给有效项，AI/夹具传错即拒）
+            if (colorChoice.HasValue && !choices.Contains(colorChoice.Value))
+                return false;
 
-            // 状态已转移到 PooledCard，清除卡上的余量记录
-            card.SetRemainingLandTokens(null);
+            var color = colorChoice ?? choices[0]; // 缺省=主色（份额最多色）
 
-            // 事件发布延后（2026-09-26 时序定案）：入池事件不再在此发——调用方完成
-            // Zone.ElementPool 区域移动后调 PublishPoolAdd。旧时序在移区前发事件，
-            // 区域派生观察者（BoardState.AutoResync/表现层）读到未落定的区域列表，
-            // 棋盘地牌行滞后到下一次无关事件才补上（BattlefieldVerifier S2 锁定）。
+            pool.PooledCards.Add(new PooledCard(card, color));
+
+            // 事件发布延后（2026-09-26 时序定案沿用）：入池事件不在此发——调用方完成
+            // Zone.ElementPool 区域移动后调 PublishPoolAdd。
             return true;
         }
 
         /// <summary>发布地牌入池事件：调用方在 Zone.ElementPool 区域移动完成后调用
-        /// （AddCardToPool 本体不发——见其尾注；事件携带的 Tokens 取池内该卡当前余量）。</summary>
+        /// （AddCardToPool 本体不发——见其尾注；事件携带锁定产色）。</summary>
         public void PublishPoolAdd(Card card, Player owner)
         {
             var pooled = GetPool(owner).PooledCards.FirstOrDefault(pc => pc.SourceCard == card);
@@ -259,22 +235,12 @@ namespace CardCore
             {
                 Player = owner,
                 AddedCard = card,
-                Tokens = pooled?.Tokens
+                LockedColor = pooled?.LockedColor ?? ManaType.Gray,
             });
         }
 
         /// <summary>
-        /// 预检：卡作为地牌入池是否会产生至少 1 个指示物（英雄技能候选筛选/AI 预检用，
-        /// 2026-09-22）。资格（CanServeAsLand）与地牌槽上限不在内——由 AddCardToPool 权威校验。
-        /// </summary>
-        public bool CanPoolProduceTokens(Card card, int modeIndex = 0)
-            => (card.HasLandTokenState
-                   ? card.GetRemainingLandTokens()
-                   : GetCardCostAsTokens(card, modeIndex)).Values.Sum() > 0;
-
-        /// <summary>
-        /// 将未耗尽的池内地牌移出元素池（弹回手等效果使用）。
-        /// 剩余指示物写回卡上的地牌余量状态，再入池时按余量继续，不重新满额。
+        /// 将池内地牌移出元素池（弹回手等效果使用）。地牌无余量状态——再入池重新选色。
         /// 只移除池内记录，不动区域 —— 区域移动由调用方完成。
         /// </summary>
         public bool RemoveCardFromPool(Card card, Player owner)
@@ -285,11 +251,6 @@ namespace CardCore
             var pooledCard = pool.PooledCards.FirstOrDefault(pc => pc.SourceCard == card);
             if (pooledCard == null)
                 return false;
-
-            // 未耗尽 → 余量写回卡；耗尽态由耗尽路径处理，不会走到这里
-            card.SetRemainingLandTokens(pooledCard.IsDepleted
-                ? null
-                : new Dictionary<ManaType, int>(pooledCard.Tokens));
 
             pool.PooledCards.Remove(pooledCard);
             return true;
@@ -316,163 +277,48 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 地牌槽上限翻倍（2026-10-09 地牌槽提升原子 IncreaseLandCapHandler 调；2026-10-10 共享化+计价绿2→绿1）：
-        /// 幂等——已翻倍返回 false。翻倍口径=当前曲线上限 ×2 封顶 MaxStackedLandCap（18，每地牌格叠两张），
-        /// 作用于 GetLandCap 单点：地牌张数上限/支付浓度上限/出牌费用门槛/黑白获得封顶/AI/快照同随。
-        /// 共享语义：标记挂在自己池上，但任一方标记都使**双方**上限翻倍（世界容量公共，
-        /// 好处外溢给对手——故计价降为绿1）。
+        /// 「成长」原子（2026-10-11 定案：灵气复苏 ×2 翻倍改成长 +1）：地牌上限 +1，
+        /// 各自池生效不共享、可重复使用；输出封顶 MaxStackedLandCap（18，每地牌格叠两层）。
+        /// 已到硬顶返回 false。作用于 GetLandCap 单点：入池闸/支付浓度/费用门槛/黑白钳/AI/快照同随。
         /// </summary>
-        public bool AddLandCapBoost(Player player)
+        public bool AddLandCapBonus(Player player)
         {
             if (player == null) return false;
             var pool = GetPool(player);
-            if (pool.LandCapBoosted) return false; // 幂等（重复使用无效——表行文案已注明）
-            pool.LandCapBoosted = true;
+            if (GetLandCap(player) >= MaxStackedLandCap) return false; // 封顶钳制
+            pool.LandCapBonus++;
             PublishRouted(new CurveShiftEvent
             {
                 Player = player,
                 NewCurve = pool.Curve, // 曲线对象未换——事件仅作 Trigger/Layer 可见的通知载体
-                Reason = "IncreaseLandCap:地牌槽上限翻倍（封顶18，双方共享）",
+                Reason = "成长:地牌上限+1（封顶18）",
             });
             return true;
         }
 
         /// <summary>
-        /// 当前的地牌槽上限（2026-10-10 共享定案：**全场公用计数器**，同记速器性质的公共状态——
-        /// 双方场上地牌合计受它约束；卡总费用门槛/支付浓度上限/黑白获得封顶读同一值）。
-        /// 标准曲线 = min(全局回合数, 9)（先手首回合 1，对手首回合 2）；无曲线时按同一公式兜底。
-        /// 挑战模式 P2 加成曲线仍按各自池推导（共用计数、各按己方曲线口径）。
-        /// 地牌槽提升原子：任一方 LandCapBoosted → 上限 ×2 封顶 18（世界容量扩张对双方生效）。
+        /// 当前的地牌槽上限（2026-10-11 定案：**个人曲线**——自己回合开始 +1，读 PersonalTurnIndex；
+        /// 10-10 全场共享计数器废止，各自上限管各自地牌张数）。
+        /// 标准曲线 = min(个人回合数, 9)；成长原子加值 LandCapBonus 封顶 18。
+        /// 无曲线时按同一公式兜底。挑战模式 P2 加成曲线照常各自注入。
         /// </summary>
         public int GetLandCap(Player player)
         {
             var pool = GetPool(player);
             int cap;
             if (pool.Curve != null)
-                cap = pool.Curve.CapAt(pool.GlobalTurnIndex);
+                cap = pool.Curve.CapAt(pool.PersonalTurnIndex);
             else
-                cap = Math.Max(1, Math.Min(pool.GlobalTurnIndex, MAX_POOL_SIZE));
-            return IsLandCapBoosted() ? Math.Min(cap * 2, MaxStackedLandCap) : cap;
+                cap = Math.Max(1, Math.Min(pool.PersonalTurnIndex, MAX_POOL_SIZE));
+            return Math.Min(cap + pool.LandCapBonus, MaxStackedLandCap);
         }
 
-        /// <summary>全场地牌总数（2026-10-10 共享上限占用口径）：双方元素池内地牌张数合计。</summary>
-        public int GetTotalPooledCount()
-            => _playerPools.Values.Sum(p => p.PooledCards.Count);
+        // ======================================== 临时钱包（效果授予元素） ========================================
 
-        /// <summary>任一方已用地牌槽提升原子（共享上限：世界容量扩张对双方生效）。</summary>
-        private bool IsLandCapBoosted()
-            => _playerPools.Values.Any(p => p.LandCapBoosted);
-
-        // ======================================== 产出元素（主阶段手动 / 结束阶段自动） ========================================
-
-        /// <summary>
-        /// 主阶段手动横置地牌：产 1 个自选颜色元素入 bank。
-        /// 自选颜色范围 = 该地牌剩余指示物的颜色集合（卡本身费用构成决定）；
-        /// 每地牌每回合周期一次；回合/阶段校验在 GameActions 层。
-        /// 若因此耗尽，由随后的 CheckDepletedCards 统一移入墓地。
-        /// </summary>
-        public bool GainElementFromToken(PooledCard land, ManaType type, Player player)
-        {
-            if (land == null || player == null) return false;
-            var pool = GetPool(player);
-            if (!pool.PooledCards.Contains(land)) return false;
-            if (land.IsTapped) return false;          // 本回合周期已产出
-            if (!land.HasToken(type)) return false;   // 只能取该地牌自身构成的颜色
-
-            // 沉默闸（2026-10-10 定案：地牌横置换元素=主动效果，沉默/迟钝表行已补元素池域）：
-            // 挂沉默指示物的地牌不可手动横置换元素（沉默锁主动发动；UI/AI/支付自动横置全经此咽喉）。
-            // 迟钝不拦手动——迟钝只锁自动触发，见 OnTurnEnd 自动产色闸。
-            if (land.SourceCard != null
-                && land.SourceCard.GetCounterCount(Attribute.CounterRules.SilenceCounter) > 0)
-                return false;
-
-            land.RemoveToken(type);
-            pool.TapsThisTurn++;
-            land.IsTapped = true;
-
-            // 黑白获得双限制（2026-10-05）：手动横置产色同受单次/回合总量钳制——
-            // 钳零时地牌周期照常消耗（不入账不发事件）。
-            int allowed = 1;
-            if (type == ManaType.Black || type == ManaType.White)
-            {
-                int gained = type == ManaType.Black ? pool.BlackGainedThisTurn : pool.WhiteGainedThisTurn;
-                allowed = Math.Min(1, GetLandCap(player) - gained);
-            }
-            if (allowed > 0)
-            {
-                pool.AvailableMana[type] += allowed;
-                if (type == ManaType.Black) pool.BlackGainedThisTurn += allowed;
-                else if (type == ManaType.White) pool.WhiteGainedThisTurn += allowed;
-                PublishEvent(new ElementPoolGainEvent
-                {
-                    Player = player,
-                    GainedType = type,
-                    FromCard = land.SourceCard,
-                    Source = GainSource.Tap,
-                });
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// 回合结束阶段：未横置的地牌自动横置，产 1 个剩余最多色元素入 bank。
-        /// 消耗「剩余最多颜色」的 1 个指示物（并列取枚举序靠前者，确定性）；
-        /// 由此每张地牌每回合周期恰好消耗 1 个指示物（手动产色或结束产灰）。
-        /// 耗尽地牌随后统一移入墓地。
-        /// </summary>
-        public void OnTurnEnd(Player turnPlayer, ZoneManager zoneManager = null)
-        {
-            if (turnPlayer == null) return;
-            var pool = GetPool(turnPlayer);
-
-            foreach (var pc in pool.PooledCards.ToList())
-            {
-                if (pc.IsTapped) continue;
-                // 迟钝闸（2026-10-10）：挂迟钝指示物的地牌结束阶段不自动产色（迟钝锁自动触发）——
-                // 地牌保持未横置、指示物不减，下回合仍可手动横置换元素（沉默才拦手动，两闸分管主动/自动）。
-                if (pc.SourceCard != null
-                    && pc.SourceCard.GetCounterCount(Attribute.CounterRules.NullifyCounter) > 0)
-                    continue;
-                var type = PickProduceColor(pc);
-                if (type == null) continue;           // 无剩余指示物，交给耗尽清理
-
-                pc.RemoveToken(type.Value);
-                pool.TapsThisTurn++;
-                pc.IsTapped = true;
-
-                // 黑白获得双限制（2026-10-05）：结束阶段自动产色同受钳制——钳零时周期照常消耗。
-                int allowed = 1;
-                if (type == ManaType.Black || type == ManaType.White)
-                {
-                    int gained = type == ManaType.Black ? pool.BlackGainedThisTurn : pool.WhiteGainedThisTurn;
-                    allowed = Math.Min(1, GetLandCap(turnPlayer) - gained);
-                }
-                if (allowed > 0)
-                {
-                    pool.AvailableMana[type.Value] += allowed;
-                    if (type == ManaType.Black) pool.BlackGainedThisTurn += allowed;
-                    else if (type == ManaType.White) pool.WhiteGainedThisTurn += allowed;
-                    PublishEvent(new ElementPoolGainEvent
-                    {
-                        Player = turnPlayer,
-                        GainedType = type.Value,
-                        FromCard = pc.SourceCard,
-                        Source = GainSource.Tap,
-                    });
-                }
-            }
-
-            if (zoneManager != null)
-                CheckDepletedCards(turnPlayer, zoneManager);
-            else
-                CheckDepletedCards(turnPlayer);
-        }
-
-        /// <summary>效果发放（代价补偿/错边/采掘等 AddMana 路径）——**黑白获得双限制**（2026-10-05 定案，
-        /// 取代 2026-10-04「产出不封」）：单次获得 ≤ 地牌槽上限，且本回合获得总量 ≤ 地牌槽上限
-        /// （黑/白各自计，横置产色路径同受钳制）；三色/灰不钳。钳掉部分不入账不发事件。
-        /// 使用侧约束不变：支付时单次贡献 ≤ 地牌上限（GetBillPaymentPlan）。返回实发量（钳后）。</summary>
+        /// <summary>效果发放（代价补偿/错边/光合作用/带地牌特性生物产色等 AddMana 路径）——
+        /// 落**临时钱包**（任一回合结束清空）。黑白合计生成钳制（2026-10-11 定案：旧三重钳退役，
+        /// 只留单钳）：本回合黑+白合计获得 ≤ 地牌上限，钳掉部分不入账不发事件；三色/灰不钳。
+        /// 返回实发量（钳后）。</summary>
         public int AddMana(Player player, ManaType type, Card fromCard, int amount = 1)
         {
             if (player == null || amount <= 0) return 0;
@@ -480,15 +326,13 @@ namespace CardCore
 
             if (type == ManaType.Black || type == ManaType.White)
             {
-                int cap = GetLandCap(player);
-                int gained = type == ManaType.Black ? pool.BlackGainedThisTurn : pool.WhiteGainedThisTurn;
-                amount = Math.Min(amount, Math.Min(cap, cap - gained));
+                amount = PreviewGrantAmount(player, type, amount);
                 if (amount <= 0) return 0;
                 if (type == ManaType.Black) pool.BlackGainedThisTurn += amount;
                 else pool.WhiteGainedThisTurn += amount;
             }
 
-            pool.AvailableMana[type] += amount;
+            pool.TempElements[type] += amount;
             PublishEvent(new ElementPoolGainEvent
             {
                 Player = player,
@@ -499,247 +343,188 @@ namespace CardCore
             return amount;
         }
 
-        /// <summary>自动消耗选色：剩余指示物最多的颜色（并列取枚举序靠前者）</summary>
-        private static ManaType? PickProduceColor(PooledCard land)
+        /// <summary>有效获得量预览（代价垫色门槛用）：镜像 AddMana 的黑白合计钳制纯函数
+        /// （黑+白 本回合合计 ≤ 地牌上限），不动任何状态；三色/灰原样返回。
+        /// 声明期 CanAffordCast 以此虚拟并入钱包——不虚估（被钳部分垫不了卡费）。</summary>
+        public int PreviewGrantAmount(Player player, ManaType type, int amount)
         {
-            ManaType? best = null;
-            int bestCount = 0;
-            foreach (ManaType type in Enum.GetValues(typeof(ManaType)))
-            {
-                if (land.Tokens.TryGetValue(type, out int n) && n > bestCount)
-                {
-                    bestCount = n;
-                    best = type;
-                }
-            }
-            return best;
+            if (player == null || amount <= 0) return 0;
+            if (type != ManaType.Black && type != ManaType.White) return amount;
+            var pool = GetPool(player);
+            int cap = GetLandCap(player);
+            int combined = pool.BlackGainedThisTurn + pool.WhiteGainedThisTurn; // 黑白合计（2026-10-11 单钳）
+            return Math.Max(0, Math.Min(amount, cap - combined));
         }
 
-        // ======================================== 支付费用 ========================================
+        // ======================================== 支付（现取现用统一规划器） ========================================
+
+        /// <summary>支付规划结果：钱包扣减 + 横置地牌清单 + 实付组合（事件用）。</summary>
+        private sealed class PaymentPlan
+        {
+            public readonly Dictionary<ManaType, int> WalletUse = new Dictionary<ManaType, int>();
+            public readonly List<PooledCard> Taps = new List<PooledCard>();
+            public readonly Dictionary<ManaType, int> TotalPaid = new Dictionary<ManaType, int>();
+        }
 
         /// <summary>
-        /// 检查是否可以支付指定费用（2026-09-14 统一混付：委托账单规划器非破坏预检）。
-        /// 支付序=同色→灰→黑白（黑白万用垫四色缺口）；纯色需求量 > 地牌上限不论货币不可付；
-        /// 每种货币（含灰）单次贡献 ≤ 地牌上限。出牌/效果费/AI 预检共用本口径。
+        /// 支付预检（声明期门禁用，纯函数不动状态）：临时钱包（+seed 虚拟并入）加未横置地牌
+        /// 能否覆盖账单。seed（2026-10-11 代价垫色沿用）：代价补偿的声明期门槛用，不实际入池。
         /// </summary>
-        public bool CanPayCost(ElementCost cost, Player player)
-            => ElementPaymentValidator.CanPayBill(
-                ElementPaymentValidator.NormalizeBill(cost),
-                GetPool(player).AvailableMana,
-                GetLandCap(player));
+        public bool CanPayCostWithAutoTap(ElementCost cost, Player player)
+            => CanPayCostWithAutoTap(ElementPaymentValidator.NormalizeBill(cost), player);
 
-        /// <summary>
-        /// 支付费用（出牌时调用；2026-09-14 统一混付：按规划器实际货币组合扣款）。
-        /// ElementPoolPayEvent.PaidCost 携带**实际扣款组合**（如红1 账单付 {红1} 或 {灰1}/{黑1}）——
-        /// Trinity 光环/台账按真实货币计数。
-        /// sourceNote（2026-09-21）：支付来源说明（英雄技能/打出卡名/效果费）——仅供战报渲染，
-        /// 不参与任何规则判定。
-        /// </summary>
-        public bool PayCost(ElementCost cost, Player player, string sourceNote = null)
+        /// <summary>同 CanPayCostWithAutoTap（已归一账单入口——GameActions.CanAfford 合并 pending 声明承诺后调用）。</summary>
+        public bool CanPayCostWithAutoTap(Dictionary<ManaType, int> bill, Player player,
+            Dictionary<ManaType, int> seed = null)
         {
             var pool = GetPool(player);
-            var plan = ElementPaymentValidator.GetBillPaymentPlan(
-                ElementPaymentValidator.NormalizeBill(cost),
-                pool.AvailableMana,
-                GetLandCap(player));
+            var wallet = SnapshotWallet(pool);
+            if (seed != null && seed.Count > 0)
+                foreach (var kv in seed)
+                    wallet[kv.Key] = wallet.TryGetValue(kv.Key, out var v) ? v + kv.Value : kv.Value;
+            return PlanBill(bill, wallet, UntappedLands(pool), GetLandCap(player)) != null;
+        }
+
+        /// <summary>
+        /// 支付费用（付费步统一入口——出牌施放结算 / 英雄技能 / 效果费）：
+        /// 按账单规划「钱包消耗 + 系统自动横置」并原子执行（现取现用——元素不落库直接付）。
+        /// 地牌横置=系统强制动作（无速度交互，自己/对手回合都一样；每地牌每回合一次）。
+        /// 返回 false = 规划失败（钱包+可横置地牌补不足），此情况下**不动任何状态**（先纯规划后执行）。
+        /// </summary>
+        public bool TryPayCostWithAutoTap(ElementCost cost, Player player, string sourceNote = null)
+            => TryPayBillWithAutoTap(ElementPaymentValidator.NormalizeBill(cost), player, sourceNote);
+
+        /// <summary>同 TryPayCostWithAutoTap（已归一账单入口——ElementCostPayment 聚合需求后调用）。</summary>
+        public bool TryPayBillWithAutoTap(Dictionary<ManaType, int> bill, Player player, string sourceNote = null)
+        {
+            var pool = GetPool(player);
+            var plan = PlanBill(bill, SnapshotWallet(pool), UntappedLands(pool), GetLandCap(player));
             if (plan == null) return false;
 
-            foreach (var kv in plan)
-                pool.AvailableMana[kv.Key] -= kv.Value;
+            foreach (var kv in plan.WalletUse)
+                pool.TempElements[kv.Key] -= kv.Value;
 
+            foreach (var land in plan.Taps)
+            {
+                land.IsTapped = true;
+                pool.TapsThisTurn++;
+            }
+
+            // PaidCost 携带实付组合（钱包+横置合计口径）——三相光环/台账按真实货币计数
             PublishEvent(new ElementPoolPayEvent
             {
                 Player = player,
-                PaidCost = plan.ToDictionary(kv => (int)kv.Key, kv => (float)kv.Value),
+                PaidCost = plan.TotalPaid.ToDictionary(kv => (int)kv.Key, kv => (float)kv.Value),
                 SourceNote = sourceNote,
             });
 
             return true;
         }
 
-        // ======================================== 自动横置补足（2026-09-30 定案） ========================================
-
-        /// <summary>
-        /// 支付预检（含自动横置潜力，2026-09-30 定案）：bank 不足以支付账单、但未横置地牌可产出
-        /// 所需元素时视为可付——出牌/技能/效果费的**声明期门禁**用本口径（纯预检，不动任何状态）；
-        /// 实际横置发生在付费步（TryPayCostWithAutoTap / AutoTapForCost）。
-        /// 黑白不由地牌产出：黑白本色费缺口不可补。跨回合支付（响应出牌）同样适用——
-        /// 支付时无论轮到谁都可横置己方地牌取元素。
-        /// </summary>
-        public bool CanPayCostWithAutoTap(ElementCost cost, Player player)
-            => CanPayCostWithAutoTap(ElementPaymentValidator.NormalizeBill(cost), player);
-
-        /// <summary>同 CanPayCostWithAutoTap（已归一账单入口——GameActions.CanAfford 合并 pending 声明承诺后调用）。</summary>
-        public bool CanPayCostWithAutoTap(Dictionary<ManaType, int> bill, Player player)
-        {
-            var pool = GetPool(player);
-            if (ElementPaymentValidator.CanPayBill(bill, pool.AvailableMana, GetLandCap(player)))
-                return true;
-            return PlanAutoTaps(bill, SnapshotBank(pool), UntappedLands(pool), GetLandCap(player)) != null;
-        }
-
-        /// <summary>
-        /// 支付并按需自动横置：bank 不足时先自动横置地牌补足再支付（付费步统一入口——
-        /// 出牌施放结算 / 英雄技能 / 效果费）。返回 false = 补不足且 bank 原样未动。
-        /// </summary>
-        public bool TryPayCostWithAutoTap(ElementCost cost, Player player,
-            ZoneManager zoneManager = null, string sourceNote = null)
-        {
-            if (PayCost(cost, player, sourceNote)) return true;
-            if (!AutoTapForCost(cost, player)) return false;
-            if (zoneManager != null) CheckDepletedCards(player, zoneManager);
-            return PayCost(cost, player, sourceNote);
-        }
-
-        /// <summary>
-        /// 自动横置地牌直到账单可付（只横置不支付）：逐张走 GainElementFromToken——
-        /// 发 ElementPoolGainEvent（战报/网络投影可见）、计 TapsThisTurn、耗指示物/横置。
-        /// 返回 false = 补不足（黑白本色费缺口/地牌耗尽等），此情况下**未横置任何地牌**（先纯规划后执行）。
-        /// </summary>
-        public bool AutoTapForCost(ElementCost cost, Player player)
-            => AutoTapForBill(ElementPaymentValidator.NormalizeBill(cost), player);
-
-        /// <summary>同 AutoTapForCost（已归一账单入口——ElementCostPayment 聚合需求后调用）。
-        /// zoneManager 传入时顺带做耗尽清理（横置耗尽的地牌送墓）。</summary>
-        public bool AutoTapForBill(Dictionary<ManaType, int> bill, Player player, ZoneManager zoneManager = null)
-        {
-            var pool = GetPool(player);
-            var untapped = UntappedLands(pool);
-            var plan = PlanAutoTaps(bill, SnapshotBank(pool), untapped, GetLandCap(player));
-            if (plan == null) return false;
-
-            foreach (var tap in plan)
-                GainElementFromToken(tap.land, tap.color, player); // 快照口径下必真，防御性忽略个别失败
-
-            if (zoneManager != null) CheckDepletedCards(player, zoneManager);
-            return true;
-        }
-
-        /// <summary>未横置且有剩余指示物的地牌（自动横置候选）。</summary>
+        /// <summary>未横置的地牌（本回合周期尚可为支付贡献 1 个锁定色元素）。</summary>
         private static List<PooledCard> UntappedLands(PlayerElementPool pool)
-            => pool.PooledCards.Where(pc => pc != null && !pc.IsTapped && !pc.IsDepleted).ToList();
+            => pool.PooledCards.Where(pc => pc != null && !pc.IsTapped).ToList();
 
-        private static Dictionary<ManaType, int> SnapshotBank(PlayerElementPool pool)
-            => new Dictionary<ManaType, int>(pool.AvailableMana);
+        private static Dictionary<ManaType, int> SnapshotWallet(PlayerElementPool pool)
+            => new Dictionary<ManaType, int>(pool.TempElements);
 
         /// <summary>
-        /// 自动横置规划（纯函数、非破坏）：求一组 (地牌, 产色) 使账单可付；null = 无法补足。
-        /// 每轮先按当前模拟 bank 试整账单规划，失败则挑一张最有助于支付的地牌横置（每地牌每回合一次）。
+        /// 账单支付规划（纯函数、非破坏）：求「钱包扣减 + 地牌横置」组合使账单可付；null = 无法补足。
+        /// 口径与旧 GetBillPaymentPlan+PlanAutoTaps 两段合一（2026-10-11 现取现用定案）：
+        /// ① 需求侧浓度上限——纯色（红蓝绿黑白）需求 &gt; cap 直接不可付；
+        /// ② 黑白本色费先行预留（黑白只来自钱包——地牌锁定色不含黑白）；
+        /// ③ 按 FourColorOrder×ChainFor 贪心扣减（支付链 2026-10-11 收窄：三色仅本色；灰=灰→黑→白→三色）；
+        /// ④ 每货币（含灰）单次贡献 ≤ cap；同货币先扣钱包（临时元素回合末即逝，优先消耗）再横置地牌。
         /// </summary>
-        private static List<(PooledCard land, ManaType color)> PlanAutoTaps(
-            Dictionary<ManaType, int> bill, Dictionary<ManaType, int> bank,
+        private static PaymentPlan PlanBill(
+            Dictionary<ManaType, int> bill, Dictionary<ManaType, int> wallet,
             List<PooledCard> untapped, int cap)
         {
-            var bankSim = new Dictionary<ManaType, int>(bank);
-            // 每地牌本回合可选产色（横置一次产一色；快照后不清指示物数——一回合只能横置一次）
-            var avail = untapped.Select(l => l.GetAvailableColors()).ToList();
-            var taps = new List<(PooledCard land, ManaType color)>();
+            if (bill == null || bill.Count == 0) return new PaymentPlan();
 
-            while (ElementPaymentValidator.GetBillPaymentPlan(bill, bankSim, cap) == null)
-            {
-                if (!TryPickAutoTap(bill, bankSim, avail, cap, out int idx, out var color))
+            // ① 需求侧浓度上限：纯色需求量超帽，混付也救不了（灰需求无需求侧帽，沿用旧口径）
+            foreach (var kv in bill)
+                if (kv.Key != ManaType.Gray && kv.Value > cap)
                     return null;
-                avail[idx] = new List<ManaType>();
-                bankSim.TryGetValue(color, out int have);
-                bankSim[color] = have + 1;
-                taps.Add((untapped[idx], color));
-            }
-            return taps;
-        }
 
-        /// <summary>
-        /// 挑下一张该横置的地牌与产色（分配轨迹与 GetBillPaymentPlan 同序同链）。
-        /// 2026-10-04 支付链改向（黑白垫三色/三色垫灰/黑白不垫灰）后产色候选序：
-        /// ① 三色缺口 → 缺口本色地（黑白地牌不产，bank 黑白已在规划轨迹内计尽；
-        ///    灰地不再垫三色缺口）；
-        /// ② 灰缺口 → 灰地优先（本色货币只进本色链）→ 任一三色地（三色垫灰）。
-        /// 浓度上限：货币贡献已到帽再产无益，跳过。
-        /// </summary>
-        private static bool TryPickAutoTap(
-            Dictionary<ManaType, int> bill, Dictionary<ManaType, int> bank,
-            List<List<ManaType>> avail, int cap, out int landIdx, out ManaType color)
-        {
-            landIdx = -1;
-            color = default(ManaType);
-
-            // 黑白本色费：bank 不足即无解（地牌不产黑白，黑白获取通道唯一=卡结算）
-            foreach (var bw in new[] { ManaType.Black, ManaType.White })
-                if (bill.TryGetValue(bw, out var bwNeed) && bwNeed > 0
-                    && (!bank.TryGetValue(bw, out var bwHave) || bwHave < bwNeed))
-                    return false;
-
-            // 复刻账单规划器的分配轨迹：定位首个失败需求 + 各货币用量
-            var working = new Dictionary<ManaType, int>(bank);
+            var walletSim = new Dictionary<ManaType, int>();
+            var landsOf = new Dictionary<ManaType, Queue<PooledCard>>();
             var used = new Dictionary<ManaType, int>();
             foreach (ManaType c in Enum.GetValues(typeof(ManaType)))
             {
+                walletSim[c] = wallet.TryGetValue(c, out var v) ? v : 0;
                 used[c] = 0;
-                if (!working.ContainsKey(c)) working[c] = 0;
+            }
+            foreach (var land in untapped)
+            {
+                if (!landsOf.TryGetValue(land.LockedColor, out var queue))
+                    landsOf[land.LockedColor] = queue = new Queue<PooledCard>();
+                queue.Enqueue(land);
             }
 
-            ManaType failing = ManaType.Gray;
+            var plan = new PaymentPlan();
+
+            void Record(ManaType currency, int take, PooledCard land)
+            {
+                used[currency] += take;
+                plan.TotalPaid[currency] = plan.TotalPaid.TryGetValue(currency, out var prev) ? prev + take : take;
+                if (land == null)
+                {
+                    walletSim[currency] -= take;
+                    plan.WalletUse[currency] = plan.WalletUse.TryGetValue(currency, out var w) ? w + take : take;
+                }
+                else
+                {
+                    plan.Taps.Add(land);
+                }
+            }
+
+            // ② 黑白本色费先行预留（防后续贪心吃掉黑白货币；黑白不垫任何色——单向）
+            foreach (var bw in new[] { ManaType.Black, ManaType.White })
+            {
+                if (!bill.TryGetValue(bw, out var bwNeed) || bwNeed <= 0) continue;
+                if (walletSim[bw] < bwNeed) return null;
+                Record(bw, bwNeed, null);
+            }
+
+            // ③④ 四色需求按固定序×填链贪心：钱包优先、后横置地牌
             foreach (var need in ElementPaymentValidator.FourColorOrder)
             {
                 if (!bill.TryGetValue(need, out var remaining) || remaining <= 0) continue;
                 foreach (var currency in ElementPaymentValidator.ChainFor(need))
                 {
                     if (remaining <= 0) break;
-                    int have = working[currency];
-                    if (have <= 0) continue;
                     int room = cap - used[currency];
+                    int have = walletSim[currency];
                     int take = Math.Min(Math.Min(have, remaining), room);
-                    if (take <= 0) continue;
-                    working[currency] = have - take;
-                    used[currency] += take;
-                    remaining -= take;
+                    if (take > 0)
+                    {
+                        Record(currency, take, null);
+                        remaining -= take;
+                        room -= take;
+                    }
+                    if (remaining > 0 && landsOf.TryGetValue(currency, out var queue))
+                    {
+                        while (remaining > 0 && queue.Count > 0 && room > 0)
+                        {
+                            Record(currency, 1, queue.Dequeue());
+                            remaining--;
+                            room--;
+                        }
+                    }
                 }
-                if (remaining > 0) { failing = need; break; }
+                if (remaining > 0) return null;
             }
 
-            if (failing != ManaType.Gray)
-            {
-                // ① 三色缺口：只有本色地能补（灰地/他色地不入该链）
-                if (used[failing] < cap && TryFindLand(avail, failing, out landIdx))
-                {
-                    color = failing;
-                    return true;
-                }
-                return false;
-            }
-
-            // ② 灰缺口：灰地优先（本色货币只进本色链），否则任一三色地（三色垫灰）
-            if (used[ManaType.Gray] < cap && TryFindLand(avail, ManaType.Gray, out landIdx))
-            {
-                color = ManaType.Gray;
-                return true;
-            }
-            foreach (var rgb in new[] { ManaType.Red, ManaType.Green, ManaType.Blue })
-                if (used[rgb] < cap && TryFindLand(avail, rgb, out landIdx))
-                {
-                    color = rgb;
-                    return true;
-                }
-            return false;
-        }
-
-        private static bool TryFindLand(List<List<ManaType>> avail, ManaType color, out int landIdx)
-        {
-            for (int i = 0; i < avail.Count; i++)
-                if (avail[i].Contains(color))
-                {
-                    landIdx = i;
-                    return true;
-                }
-            landIdx = -1;
-            return false;
+            return plan;
         }
 
         // ======================================== 回合管理 ========================================
 
         /// <summary>
         /// 全局回合开始（GameCore.OnTurnStarted 调用，每回合一次，无论轮到谁）：
-        /// 1. 地牌槽曲线按全局回合数推进（先手首回合 1，此后每回合开始 +1，最大 9 —— 对手首回合即为 2）
-        /// 2. 所有玩家的本回合产出计数与黑白获得台账清零（2026-10-04 起纯观测，按全局回合重置）
+        /// 1. 回合玩家个人回合数 +1（地牌上限曲线推进——2026-10-11 个人口径）
+        /// 2. 全局回合台账同步、所有玩家本回合产出/黑白获得台账清零
         /// 3. 回合玩家（准备阶段）地牌全部解除横置
         /// </summary>
         public void OnTurnStart(Player turnPlayer, int globalTurnNumber)
@@ -763,161 +548,51 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 检查并移除所有耗尽的卡牌到墓地
+        /// 回合结束（GameCore.OnTurnEnded 调用）：**临时钱包清空**（2026-10-11 定案：任一回合结束，
+        /// 未消耗的效果授予元素即逝——现取现用）。地牌无耗竭清理（旧自动产色/耗尽送墓已随指示物退役）。
         /// </summary>
-        public void CheckDepletedCards(Player player)
+        public void OnTurnEnd(Player turnPlayer)
         {
-            var pool = GetPool(player);
-            var depleted = pool.PooledCards.Where(pc => pc.IsDepleted).ToList();
-
-            foreach (var pc in depleted)
+            if (turnPlayer == null) return;
+            foreach (var pool in _playerPools.Values)
             {
-                MoveDepletedCard(pc, player);
-            }
-        }
-
-        /// <summary>
-        /// 检查并移除所有耗尽的卡牌到墓地（含区域移动）
-        /// </summary>
-        public void CheckDepletedCards(Player player, ZoneManager zoneManager)
-        {
-            var pool = GetPool(player);
-            var depleted = pool.PooledCards.Where(pc => pc.IsDepleted).ToList();
-
-            foreach (var pc in depleted)
-            {
-                pool.PooledCards.Remove(pc);
-
-                // 资源枯竭不可逆：耗尽标记永久跟随卡（回收后不可再作地牌）
-                pc.SourceCard.WasDepletedAsLand = true;
-                pc.SourceCard.SetRemainingLandTokens(null);
-
-                // 将耗尽卡牌移到墓地（先移区后发事件——同 AddCardToPool/PublishPoolAdd 的
-                // 时序定案：区域派生观察者读到落定后的区域列表，不留幽灵地牌）
-                if (zoneManager != null)
-                    zoneManager.MoveCard(pc.SourceCard, player, Zone.ElementPool, Zone.Graveyard);
-
-                PublishEvent(new ElementPoolDepleteEvent
-                {
-                    Player = player,
-                    DepletedCard = pc.SourceCard
-                });
-
-                OnCardDepleted?.Invoke(pc.SourceCard, player);
+                foreach (ManaType mana in Enum.GetValues(typeof(ManaType)))
+                    pool.TempElements[mana] = 0;
             }
         }
 
         // ======================================== 查询 ========================================
 
+        /// <summary>临时钱包中指定颜色的数量（快照/观测用——网络 ElementBank 字段的新数据源）。</summary>
         public int GetAvailableManaCount(ManaType type, Player player)
         {
             var pool = GetPool(player);
-            return pool.AvailableMana.ContainsKey(type) ? pool.AvailableMana[type] : 0;
+            return pool.TempElements.ContainsKey(type) ? pool.TempElements[type] : 0;
         }
 
         public int GetTotalAvailableMana(Player player)
         {
-            return GetPool(player).AvailableMana.Values.Sum();
+            return GetPool(player).TempElements.Values.Sum();
         }
 
-        /// <summary>bank 中数量最多的颜色计数（2026-09-22 元素充盈引擎用）：全六色（红蓝绿黑白灰）参与，
-        /// 并列取枚举序靠前者（Gray 最前——与 PickProduceColor 同口径）。付费后调用读到的即扣费后余量。</summary>
+        /// <summary>未横置地牌中数量最多的同色数（2026-10-11 重定义——元素充盈引擎判据：
+        /// 旧「bank 最多色」随 bank 退役；并列取枚举序靠前者）。</summary>
         public int GetMaxManaCount(Player player)
         {
-            var mana = GetPool(player).AvailableMana;
+            var counts = new Dictionary<ManaType, int>();
+            foreach (ManaType m in Enum.GetValues(typeof(ManaType)))
+                counts[m] = 0;
+            foreach (var pc in GetPool(player).PooledCards)
+                if (!pc.IsTapped) counts[pc.LockedColor]++;
             int best = 0;
-            foreach (ManaType type in Enum.GetValues(typeof(ManaType)))
-            {
-                if (mana.TryGetValue(type, out int n) && n > best)
-                    best = n;
-            }
+            foreach (var kv in counts)
+                if (kv.Value > best) best = kv.Value;
             return best;
         }
 
         public List<PooledCard> GetPooledCards(Player player)
         {
             return GetPool(player).PooledCards.ToList();
-        }
-
-        public int GetTotalTokensInPool(Player player)
-        {
-            return GetPool(player).PooledCards.Sum(pc => pc.TotalTokenCount);
-        }
-
-        // ======================================== 内部方法 ========================================
-
-        private void MoveDepletedCard(PooledCard pooledCard, Player player)
-        {
-            var pool = GetPool(player);
-            pool.PooledCards.Remove(pooledCard);
-
-            // 资源枯竭不可逆：耗尽标记永久跟随卡（回收后不可再作地牌）
-            pooledCard.SourceCard.WasDepletedAsLand = true;
-            pooledCard.SourceCard.SetRemainingLandTokens(null);
-
-            PublishEvent(new ElementPoolDepleteEvent
-            {
-                Player = player,
-                DepletedCard = pooledCard.SourceCard
-            });
-
-            OnCardDepleted?.Invoke(pooledCard.SourceCard, player);
-        }
-
-        /// <summary>
-        /// 从卡牌读取费用，转换为指示物。
-        /// 黑白不由地牌产出（2026-09-11 定案）：黑白份额不生成指示物——
-        /// 纯黑白费用的卡过滤后为空，AddCardToPool 的 sum==0 校验自然拒绝其入池。
-        /// 抉择卡（2026-09-21 定案）：按玩家所选模式（modeIndex，与出牌同口径）取 per-mode 费用——
-        /// 声明 costList 只是缺省=最大模式费的 UI/排序口径，不用于产指示物；所选模式 0 费 → 空表 → 拒绝入池。
-        /// </summary>
-        private Dictionary<ManaType, int> GetCardCostAsTokens(Card card, int modeIndex = 0)
-        {
-            var tokens = new Dictionary<ManaType, int>();
-            bool hadPositiveCost = false;
-
-            // 抉择卡：per-mode 费用（GetModeCost 内部 Clamp；缓存缺失时兜底重推导）
-            if (card is CardWrapper choiceWrapper)
-            {
-                var choiceData = choiceWrapper.GetData();
-                if (choiceData != null && CostDerivationService.HasChoiceEffect(choiceData))
-                {
-                    var modeCost = CardCostService.GetModeCost(choiceData, modeIndex);
-                    foreach (var type in modeCost.NonzeroColors())
-                    {
-                        int amount = (int)modeCost[type];
-                        if (amount <= 0) continue;
-                        hadPositiveCost = true;
-                        if (type == ManaType.Black || type == ManaType.White) continue; // 黑白不产指示物
-                        tokens[type] = amount;
-                    }
-                    // 所选模式无正费用（或只剩黑白被过滤）→ 空表 → 调用方 sum==0 拒绝；不落 Gray 默认（免费模式不可白嫖地牌）
-                    return tokens;
-                }
-            }
-
-            // 从 IHasCost 接口读取费用（序数序遍历）
-            if (card is IHasCost hasCost && hasCost.Cost != null)
-            {
-                foreach (var type in hasCost.Cost.NonzeroColors())
-                {
-                    int amount = (int)hasCost.Cost[type];
-                    if (amount > 0)
-                    {
-                        hadPositiveCost = true;
-                        if (type == ManaType.Black || type == ManaType.White) continue; // 黑白不产指示物
-                        tokens[type] = amount;
-                    }
-                }
-            }
-
-            // 只有「本无费用」才给默认灰色指示物；只有黑白费用（hadPositiveCost 但被过滤空）保持空 → 拒绝入池
-            if (!hadPositiveCost)
-            {
-                tokens[ManaType.Gray] = 1;
-            }
-
-            return tokens;
         }
 
         // ======================================== 重置/工具 ========================================
@@ -933,10 +608,10 @@ namespace CardCore
                 pool.TapsThisTurn = 0;
                 pool.BlackGainedThisTurn = 0;
                 pool.WhiteGainedThisTurn = 0;
-                pool.LandCapBoosted = false;
+                pool.LandCapBonus = 0;
                 foreach (ManaType mana in Enum.GetValues(typeof(ManaType)))
                 {
-                    pool.AvailableMana[mana] = 0;
+                    pool.TempElements[mana] = 0;
                 }
             }
         }
@@ -944,20 +619,19 @@ namespace CardCore
         public string GetStatusString(Player player)
         {
             var pool = GetPool(player);
-            var result = $"元素池 (地牌 {pool.PooledCards.Count}，全场 {GetTotalPooledCount()}/{GetLandCap(player)}):\n";
+            var result = $"元素池 (地牌 {pool.PooledCards.Count}/{GetLandCap(player)}):\n";
 
             foreach (var pc in pool.PooledCards)
             {
                 var name = (pc.SourceCard as IHasName)?.CardName ?? pc.SourceCard.ID;
-                var tokenStr = string.Join(", ", pc.Tokens.Where(kv => kv.Value > 0).Select(kv => $"{kv.Key}:{kv.Value}"));
                 var tapStr = pc.IsTapped ? "（已横置）" : "";
-                result += $"  [{name}]{tapStr} 指示物: {tokenStr}\n";
+                result += $"  [{name}]{tapStr} 锁色: {pc.LockedColor}\n";
             }
 
-            var manaStr = string.Join(", ", pool.AvailableMana.Where(kv => kv.Value > 0).Select(kv => $"{kv.Key}:{kv.Value}"));
-            result += $"积攒费用(bank): {manaStr}\n";
+            var walletStr = string.Join(", ", pool.TempElements.Where(kv => kv.Value > 0).Select(kv => $"{kv.Key}:{kv.Value}"));
+            result += $"临时钱包(本回合): {walletStr}\n";
             result += $"黑白获得(本回合): 黑{pool.BlackGainedThisTurn}/白{pool.WhiteGainedThisTurn}\n";
-            result += $"本回合产出: {pool.TapsThisTurn}";
+            result += $"本回合系统横置: {pool.TapsThisTurn}";
 
             return result;
         }
@@ -974,15 +648,17 @@ namespace CardCore
     {
         public Player Player { get; set; }
         public Card AddedCard { get; set; }
-        public Dictionary<ManaType, int> Tokens { get; set; }
+        /// <summary>入池锁定的产色（2026-10-11：指示物 Tokens 退役，改单色字段）。</summary>
+        public ManaType LockedColor { get; set; }
     }
 
-    /// <summary>元素入账来源（2026-09-14）：台账只把 Tap 计入「拍地次数」，补偿/采掘等发放不虚增。</summary>
+    /// <summary>元素入账来源：缺省=效果发放（AddMana 临时钱包路径）。
+    /// Tap 位保留枚举序兼容——付费系统横置不发 GainEvent（实付组合走 ElementPoolPayEvent.PaidCost）。</summary>
     public enum GainSource
     {
-        /// <summary>效果发放（代价补偿/错边/采掘等 AddMana 路径）——缺省值，兼容旧消费者</summary>
+        /// <summary>效果发放（代价补偿/错边/光合作用/生物特性产色等 AddMana 路径）——缺省值</summary>
         Grant = 0,
-        /// <summary>地牌横置产出（手动选色 / 回合结束自动）</summary>
+        /// <summary>地牌横置产出（2026-10-11 退役：现取现用，横置直接支付不发本事件）</summary>
         Tap = 1,
     }
 
@@ -991,9 +667,9 @@ namespace CardCore
         public Player Player { get; set; }
         public ManaType GainedType { get; set; }
         public Card FromCard { get; set; }
-        /// <summary>本次产出数量（2026-09-11 黑白结算发放可 >1；横置/采掘路径默认 1）。</summary>
+        /// <summary>本次产出数量。</summary>
         public int Amount { get; set; } = 1;
-        /// <summary>入账来源（2026-09-14）：缺省 Grant；横置路径标 Tap。</summary>
+        /// <summary>入账来源：缺省 Grant（临时钱包路径）。</summary>
         public GainSource Source { get; set; } = GainSource.Grant;
     }
 
@@ -1001,25 +677,20 @@ namespace CardCore
     {
         public Player Player { get; set; }
         public Dictionary<int, float> PaidCost { get; set; }
-        /// <summary>支付来源说明（2026-09-21 战报补上下文）：英雄技能/出牌/效果费——null=未标注（旧口径）。</summary>
+        /// <summary>支付来源说明（英雄技能/打出卡名/效果费）——仅供战报渲染，不参与规则判定。
+        /// PaidCost=实付组合（临时钱包+系统横置地牌合计口径）。</summary>
         public string SourceNote { get; set; }
     }
 
-    public class ElementPoolDepleteEvent : GameEventBase
-    {
-        public Player Player { get; set; }
-        public Card DepletedCard { get; set; }
-    }
-
     /// <summary>
-    /// 资源曲线变更事件（设置/变速效果修改曲线时发布）。
-    /// 经 GameCore 统一路由，Trigger/Layer 引擎可见 —— 未来变速卡牌的挂点。
+    /// 资源曲线变更事件（设置/变速效果修改曲线时发布；成长原子 +1 也经此通知）。
+    /// 经 GameCore 统一路由，Trigger/Layer 引擎可见。
     /// </summary>
     public class CurveShiftEvent : GameEventBase
     {
         public Player Player { get; set; }
         public ResourceCurve NewCurve { get; set; }
-        /// <summary>变更原因（InitGame / 变速效果 ID 等，调试用）</summary>
+        /// <summary>变更原因（InitGame / 成长 / 变速效果 ID 等，调试用）</summary>
         public string Reason { get; set; }
     }
 

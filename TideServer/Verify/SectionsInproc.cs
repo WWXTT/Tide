@@ -208,14 +208,8 @@ namespace TideServer.Verify
                         banned.Clear();
                     }
 
-                    // 横置产元素：经 intent（颜色=首个可用色；驱动侧镜像 SimpleAI.TapAllLands 职责）
-                    foreach (var pooled in core.ElementPool.GetPooledCards(me).Where(p => !p.IsTapped).ToList())
-                    {
-                        var color = pooled.GetAvailableColors().FirstOrDefault();
-                        if (color == default && !pooled.GetAvailableColors().Any()) continue;
-                        ApplyIntent(seat, NetworkMessageType.IntentTapForElement,
-                            new MsgIntentTapForElement { CardRuntimeId = pooled.SourceCard.RuntimeId, ManaType = (int)color });
-                    }
+                    // 2026-10-11 现取现用：横置产元素 intent 已删——付费时服务器自动横置，
+                    // intent 驱动回合初不再有 TapAllLands 职责
 
                     // 动作循环：枚举 → 选型 → 映射 intent → 分派（拒绝即本回合拉黑重枚举）
                     bool landPlayedThisTurn = false;

@@ -183,7 +183,7 @@ namespace CardCore
             var costArr = ElementCost.FromValue(cost.ManaType, cost.Value);
             // 战报来源标注（2026-09-21）：效果费挂在哪个来源（场上卡/角色）上
             string note = context?.Source != null ? "效果费·" + EffectText.Name(context.Source) : "效果费";
-            context.ElementPool.TryPayCostWithAutoTap(costArr, context.Payer, context.ZoneManager, note);
+            context.ElementPool.TryPayCostWithAutoTap(costArr, context.Payer, note);
         }
 
         public string GetDescription(CostInstance cost)
@@ -244,23 +244,19 @@ namespace CardCore
     // ================================================================
 
     /// <summary>
-    /// 元素代价支付（纯支付，无兑换）：按颜色聚合需求 → 账单规划器一次出方案 → 扣款 + 支付事件。
-    /// 2026-09-14 统一混付：与出牌（ElementPool.PayCost）共用 ElementPaymentValidator.GetBillPaymentPlan——
-    /// 支付序=同色→灰→黑→白（黑白=万用色单向替代四色）；每种货币（**含灰**）单次贡献 ≤ 地牌槽上限；
-    /// 纯色需求量超上限不论货币不可付。黑白获取通道唯一=卡结算（错边/Payload 补偿；2026-10-04 起产出不封，约束=支付单次贡献≤上限）。
+    /// 元素代价支付（纯支付，无兑换）：按颜色聚合需求 → 统一规划器一次出方案（现取现用）。
+    /// 2026-10-11 重做：与出牌共用 ElementPool.PlanBill（临时钱包+未横置地牌合成模型）——
+    /// 支付链=三色仅本色、灰=[灰,黑,白,三色]（黑白只垫灰）；每种货币（**含灰**）单次贡献 ≤ 地牌槽上限；
+    /// 纯色需求量超上限不论货币不可付。黑白获取通道唯一=卡结算（错边/Payload 补偿），落临时钱包。
     /// </summary>
     public static class ElementCostPayment
     {
-        /// <summary>非破坏性预检：当前 bank 是否可支付全部元素代价。
-        /// 自动横置补足（2026-09-30）：bank 不足但地牌可产所需元素亦视为可付（与出牌门禁同口径）。</summary>
+        /// <summary>非破坏性预检：临时钱包+可横置地牌能否支付全部元素代价（与出牌门禁同口径）。</summary>
         public static bool CanPay(List<CostInstance> elementCosts, CostContext ctx)
         {
             var need = AggregateNeed(elementCosts);
             if (need.Count == 0) return true;
             if (ctx?.Payer == null || ctx.ElementPool == null) return false;
-            if (ElementPaymentValidator.CanPayBill(
-                    need, ctx.ElementPool.GetPool(ctx.Payer).AvailableMana, GetPureColorCap(ctx)))
-                return true;
             return ctx.ElementPool.CanPayCostWithAutoTap(need, ctx.Payer);
         }
 
@@ -270,15 +266,11 @@ namespace CardCore
             var need = ElementPaymentValidator.NormalizeBill(elementCosts);
             if (need.Count == 0) return true;
             if (ctx?.Payer == null || ctx.ElementPool == null) return false;
-            if (ElementPaymentValidator.CanPayBill(
-                    need, ctx.ElementPool.GetPool(ctx.Payer).AvailableMana, GetPureColorCap(ctx)))
-                return true;
             return ctx.ElementPool.CanPayCostWithAutoTap(need, ctx.Payer);
         }
 
-        /// <summary>支付一组元素代价（原子：整账单一次规划，失败不动 bank）。失败返回 false（调用方中止结算）。
-        /// 支付事件携带实际货币组合（如红1 账单付 {黑1}）。
-        /// bank 不足时先自动横置地牌补足（2026-09-30 定案——声明期 CanPay 同口径放行，此处实际横置）。</summary>
+        /// <summary>支付一组元素代价（原子：整账单一次规划，失败不动任何状态）。失败返回 false（调用方中止结算）。
+        /// 支付事件携带实际货币组合（临时钱包+系统横置地牌合计口径）。</summary>
         public static bool Pay(List<CostInstance> elementCosts, CostContext ctx)
         {
             var need = AggregateNeed(elementCosts);
@@ -297,27 +289,8 @@ namespace CardCore
             if (need.Count == 0) return true;
             if (ctx?.Payer == null || ctx.ElementPool == null) return false;
 
-            var avail = ctx.ElementPool.GetPool(ctx.Payer).AvailableMana;
-            var plan = ElementPaymentValidator.GetBillPaymentPlan(need, avail, GetPureColorCap(ctx));
-            if (plan == null)
-            {
-                if (!ctx.ElementPool.AutoTapForBill(need, ctx.Payer, ctx.ZoneManager)) return false;
-                plan = ElementPaymentValidator.GetBillPaymentPlan(need, avail, GetPureColorCap(ctx));
-                if (plan == null) return false;
-            }
-
-            foreach (var kv in plan)
-                avail[kv.Key] -= kv.Value;
-
-            if (plan.Count > 0)
-            {
-                EventManager.Instance.Publish(new ElementPoolPayEvent
-                {
-                    Player = ctx.Payer,
-                    PaidCost = plan.ToDictionary(kv => (int)kv.Key, kv => (float)kv.Value)
-                });
-            }
-            return true;
+            // 现取现用（2026-10-11）：统一规划「钱包消耗+系统横置」并原子执行
+            return ctx.ElementPool.TryPayBillWithAutoTap(need, ctx.Payer, "效果费");
         }
 
         private static Dictionary<ManaType, int> AggregateNeed(List<CostInstance> elementCosts)
@@ -332,12 +305,6 @@ namespace CardCore
             }
             return need;
         }
-
-        /// <summary>当前浓度上限（= 支付者地牌槽上限；灰与万用黑白同受此约束）；上下文不全时退化为不限制。</summary>
-        private static int? GetPureColorCap(CostContext ctx)
-            => ctx?.ElementPool != null && ctx.Payer != null
-                ? ctx.ElementPool.GetLandCap(ctx.Payer)
-                : (int?)null;
     }
 
     // ================================================================

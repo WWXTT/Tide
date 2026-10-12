@@ -325,7 +325,8 @@ namespace GameBoard
             Hook<CardLeaveActivationEvent>();
             Hook<CardActivationFailedEvent>();
             Hook<ElementPoolAddEvent>();
-            Hook<ElementPoolDepleteEvent>();
+            // ElementPoolDepleteEvent 已删（2026-10-11 指示物/耗竭退役）——地牌离池改由
+            // 摧毁/抹除 handler 发 CardDestroyEvent/CardMoveEvent，AutoResync 经常规钩子同步
             Hook<TokenCreatedEvent>();
 
             Resync();

@@ -47,11 +47,10 @@ namespace CardCore.Serialization
         [MemoryPackOrder(TagTable.RCS_Counters)]
         public CounterEntryDTO[] Counters;
 
-        [MemoryPackOrder(TagTable.RCS_WasDepletedAsLand)]
-        public bool WasDepletedAsLand;
-
-        [MemoryPackOrder(TagTable.RCS_RemainingLandTokens)]
-        public ManaEntryDTO[] RemainingLandTokens;
+        /// <summary>地牌锁定产色（2026-10-11 资源重做：指示物/耗竭字段退役）。
+        /// -1=非地牌/未锁色；地牌权威态在 PooledCard 包装，入池即由快照侧覆盖（FromCard 恒写 -1）。</summary>
+        [MemoryPackOrder(TagTable.RCS_LockedColor)]
+        public int LockedColor = -1;
 
         // ---- M1 网络快照扩展（2026-09-10）：单向导出字段，ApplyToCard 不回灌 ----
         // RuntimeId 只读（Entity 构造期分配）；ControllerSeat 经 SetController 走 Player 对象（DTO 无核心上下文）；
@@ -81,19 +80,15 @@ namespace CardCore.Serialization
                 IsNullified = card._isNullified,
                 Zone = (int)card._zone,
                 TargetFlags = (int)card._targetFlags,
-                WasDepletedAsLand = card.WasDepletedAsLand,
                 RuntimeId = card.RuntimeId,
                 ControllerSeat = SeatOfController(card),
                 IsFrozen = card.IsFrozen(),
+                LockedColor = -1, // 地牌锁色权威态在 PooledCard 包装——快照侧 BuildZone 覆盖
             };
 
             dto.Keywords = card._keywords?.ToArray() ?? Array.Empty<string>();
             dto.Counters = card._counters?.Select(kvp => new CounterEntryDTO { Key = kvp.Key, Value = kvp.Value }).ToArray()
                            ?? Array.Empty<CounterEntryDTO>();
-            dto.RemainingLandTokens = card._remainingLandTokens?
-                .Where(kv => kv.Value > 0)
-                .Select(kv => new ManaEntryDTO { ManaType = (int)kv.Key, Value = kv.Value }).ToArray()
-                ?? Array.Empty<ManaEntryDTO>();
 
             return dto;
         }
@@ -136,12 +131,6 @@ namespace CardCore.Serialization
                 foreach (var c in Counters)
                     card._counters[c.Key] = c.Value;
             }
-
-            card.WasDepletedAsLand = WasDepletedAsLand;
-            card._remainingLandTokens = RemainingLandTokens == null || RemainingLandTokens.Length == 0
-                ? null
-                : RemainingLandTokens.Where(e => e.Value > 0)
-                    .ToDictionary(e => (ManaType)e.ManaType, e => e.Value);
         }
     }
 

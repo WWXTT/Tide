@@ -96,8 +96,10 @@ namespace CardCore
                 LandCap = _elementPool.GetLandCap(player),
                 TapsTaken = 0,
                 ElementsPaid = 0,
+                // 2026-10-11 现取现用：BankStart=临时钱包期初（回合开始清台账后/上回合末清空，通常 0）；
+                // PoolTokensRemaining 已随指示物退役——改记未横置地牌数（可支付潜力）
                 BankStart = _elementPool.GetTotalAvailableMana(player),
-                PoolTokensRemaining = _elementPool.GetTotalTokensInPool(player),
+                PoolTokensRemaining = pool.PooledCards.Count(pc => !pc.IsTapped),
                 LandsInPool = pool.PooledCards.Count,
             };
 
@@ -130,7 +132,12 @@ namespace CardCore
             if (e.Player == null || !_openRecords.TryGetValue(e.Player, out var rec))
                 return;
             if (e.PaidCost != null)
+            {
+                // 2026-10-11 现取现用：TapsTaken 改从支付事件计——PaidCost 含系统横置贡献
+                //（横置不发 GainEvent），以 ElementsPaid 同源口径近似（每次支付≈一次系统横置批）
                 rec.ElementsPaid += (int)e.PaidCost.Values.Sum();
+                rec.TapsTaken++;
+            }
         }
 
         // ======================================== 内部 ========================================

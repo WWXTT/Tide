@@ -786,7 +786,7 @@ namespace SynergyUI
                 _oppHand.text = $"手牌 {p.HandCount}";
                 _oppGrave.text = $"墓地 {p.GraveyardCount}";
                 _oppFatigue.text = p.FatigueCount > 0 ? $"疲劳 {p.FatigueCount}" : "";
-                _oppBank.text = $"地牌上限（全场共享）{p.LandCap} · 元素池 {p.BankText}";
+                _oppBank.text = $"地牌上限 {p.LandCap} · 临时元素 {p.BankText}";
                 if (_oppSkillLabel != null)
                     _oppSkillLabel.text = p.Skill != null
                         ? $"技能：{p.Skill.Name}{(p.Skill.IsTapped ? "（已横置）" : "")} {p.Skill.CostText}"
@@ -802,7 +802,7 @@ namespace SynergyUI
                 _selfHandCount.text = $"手牌 {p.HandCount}";
                 _selfGrave.text = $"墓地 {p.GraveyardCount}";
                 _selfFatigue.text = p.FatigueCount > 0 ? $"疲劳 {p.FatigueCount}" : "";
-                _selfBank.text = $"地牌上限（全场共享）{p.LandCap} · 元素池 {p.BankText}";
+                _selfBank.text = $"地牌上限 {p.LandCap} · 临时元素 {p.BankText}";
                 if (_selfSkillLabel != null)
                     _selfSkillLabel.text = p.Skill != null
                         ? $"技能：{p.Skill.Name}{(p.Skill.IsTapped ? "（已横置）" : "")} {p.Skill.CostText}"
@@ -948,12 +948,12 @@ namespace SynergyUI
 
             if (isCreature)
             {
-                ShowChoiceOverlay("使用生物", $"{card.Name}：作为单位打出，或横置放入元素池（地牌）？",
+                ShowChoiceOverlay("使用生物", $"{card.Name}：作为单位打出，或放入元素池当地牌（入池自选锁定产色）？",
                     new List<string> { "作为单位打出", "放入元素池（地牌）" }, idx =>
                     {
                         CloseOverlay();
                         if (idx == 0) PlayCardFinal(card, null, 0, fromGrave: false);
-                        else LandFinal(card, 0);
+                        else LandFlow(card);
                     });
                 return;
             }
@@ -1115,39 +1115,27 @@ namespace SynergyUI
             RefreshLocal();
         }
 
-        /// <summary>放地入元素池（生物地牌资格；抉择模式产指示物口径 MVP 取 0 档）。</summary>
-        private void LandFinal(BattleCardView card, int modeIndex)
+        /// <summary>放地入元素池（2026-10-11 锁色定案）：入池时从卡费颜色（红/蓝/绿/灰）自选锁定产色——
+        /// 单色卡直接落，多色卡弹选色窗。后续生成固定；付费时系统按账单自动横置（无手动产色）。</summary>
+        private void LandFlow(BattleCardView card)
         {
-            if (IsNetwork)
+            List<ManaType> colors;
+            if (card.CoreCard != null)
+                colors = ElementPoolSystem.GetLandColorChoices(card.CoreCard);
+            else
             {
-                _net?.Send(NetworkMessageType.IntentAddToElementPool, new MsgIntentAddToElementPool
-                {
-                    CardRuntimeId = card.RuntimeId,
-                    ModeIndex = modeIndex,
-                });
+                // 网络侧：卡数据直取（CardData 同 IHasCost 接口）
+                var data = DataOf(card) as CardCore.IHasCost;
+                colors = data != null ? ElementPoolSystem.GetLandColorChoices(data) : new List<ManaType>();
+            }
+            if (colors.Count == 0)
+            {
+                ShowToast("该卡无费用颜色可锁定（0费/纯黑白不可作地牌）");
                 return;
             }
-            bool ok = Core != null && GameActions.AddToElementPool(Core, P1, card.CoreCard, modeIndex);
-            if (!ok) ShowToast("无法放入元素池（上限/资格）");
-            RefreshLocal();
-        }
-
-        /// <summary>点我方地牌：横置产元素（多色指示物弹选色）。</summary>
-        private void OnClickMyLand(BattleCardView card)
-        {
-            if (!GateMyMain()) return;
-            if (card.IsTapped) { ShowToast("该地牌已横置"); return; }
-
-            var colors = (card.Runtime?.RemainingLandTokens ?? Array.Empty<ManaEntryDTO>())
-                .Where(t => t.Value > 0)
-                .Select(t => (ManaType)t.ManaType)
-                .Distinct()
-                .ToList();
-            if (colors.Count == 0) { ShowToast("该地牌已无指示物"); return; }
-
             if (colors.Count == 1)
             {
-                TapLandFinal(card, colors[0]);
+                LandFinal(card, colors[0]);
                 return;
             }
 
@@ -1155,34 +1143,40 @@ namespace SynergyUI
             foreach (var c in colors)
             {
                 var captured = c;
-                options.Add(Tuple.Create<string, Action>($"产出 {BattleView.ManaZh(captured)} 元素", () =>
+                options.Add(Tuple.Create<string, Action>($"锁定 {BattleView.ManaZh(captured)} 产色", () =>
                 {
                     CloseOverlay();
-                    TapLandFinal(card, captured);
+                    LandFinal(card, captured);
                 }));
             }
-            ShowPickOverlay("横置地牌", $"{card.Name}：选择要产出的元素颜色：", options);
+            ShowPickOverlay("选择地牌产色", $"{card.Name}：入池后固定产出此色（不可更改）：", options);
         }
 
-        private void TapLandFinal(BattleCardView card, ManaType type)
+        /// <summary>放地终态：本地=AddToElementPool(锁色)；网络=intent 上行（ModeIndex 复用为锁色枚举值）。</summary>
+        private void LandFinal(BattleCardView card, ManaType color)
         {
             if (IsNetwork)
             {
-                _net?.Send(NetworkMessageType.IntentTapForElement, new MsgIntentTapForElement
+                _net?.Send(NetworkMessageType.IntentAddToElementPool, new MsgIntentAddToElementPool
                 {
                     CardRuntimeId = card.RuntimeId,
-                    ManaType = (int)type,
+                    ModeIndex = (int)color,
                 });
                 return;
             }
-            var core = Core;
-            if (core == null) return;
-            var pooled = core.ElementPool.GetPooledCards(P1)?
-                .FirstOrDefault(l => l?.SourceCard == card.CoreCard);
-            if (pooled == null) { ShowToast("找不到该地牌"); return; }
-            if (!GameActions.GainElementFromToken(core, P1, pooled, type))
-                ShowToast("无法横置产元素");
+            bool ok = Core != null && GameActions.AddToElementPool(Core, P1, card.CoreCard, color);
+            if (!ok) ShowToast("无法放入元素池（上限/资格）");
             RefreshLocal();
+        }
+
+        /// <summary>点我方地牌（2026-10-11 现取现用）：手动横置产元素已退役——地牌由付费步系统
+        /// 按账单自动横置（强制系统动作，无速度交互）。点击仅作信息提示。</summary>
+        private void OnClickMyLand(BattleCardView card)
+        {
+            if (!GateMyMain()) return;
+            ShowToast(card.IsTapped
+                ? $"{card.Name}：已横置（本回合已为支付贡献过元素，回合开始恢复）"
+                : $"{card.Name}：付费时自动横置产元素，无需手动操作");
         }
 
         /// <summary>点我方单位：攻击目标选择（对手角色+对方单位）→ 攻击宣言。</summary>

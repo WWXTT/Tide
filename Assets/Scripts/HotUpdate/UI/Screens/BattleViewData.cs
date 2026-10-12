@@ -170,12 +170,9 @@ namespace SynergyUI
                 v.Name = s.ID; // 查表 miss（如临时卡/token）退化为 ID
             }
 
-            if (s.RemainingLandTokens != null && s.RemainingLandTokens.Length > 0)
-            {
-                var parts = s.RemainingLandTokens.Where(t => t.Value > 0)
-                    .Select(t => $"{ManaZh((ManaType)t.ManaType)}{t.Value}").ToList();
-                if (parts.Count > 0) v.LandTokensText = string.Join(" ", parts);
-            }
+            // 2026-10-11 锁色定案：指示物余量→锁定产色（-1=非地牌）
+            if (s.LockedColor >= 0)
+                v.LandTokensText = $"锁:{ManaZh((ManaType)s.LockedColor)}";
 
             v.IsDead = s.Life <= 0;
             return v;
@@ -271,18 +268,10 @@ namespace SynergyUI
                     view.Stacked = board.IsStackedLand(land.SourceCard); // 叠层第二张（每格两张）
                 }
 
-                // 池包装的横置态/剩余指示物是权威（FromCard 读的是卡内字段——入池时卡上余量
-                // 已清空转移进 PooledCard）。横置态与余量都必须覆写进 Runtime：
-                // 显示（横置标记/指示物文本）与点地牌产元素的选色（OnClickMyLand 读
-                // Runtime.RemainingLandTokens）同源，否则放入当回合点不出元素。
-                view.Runtime.RemainingLandTokens = land.Tokens?
-                    .Where(kv => kv.Value > 0)
-                    .Select(kv => new ManaEntryDTO { ManaType = (int)kv.Key, Value = kv.Value })
-                    .ToArray() ?? Array.Empty<ManaEntryDTO>();
+                // 池包装的锁色/横置态是权威（卡上无地牌字段）：覆写进 Runtime（显示与快照同源）
+                view.Runtime.LockedColor = (int)land.LockedColor;
                 view.Runtime.IsTapped = land.IsTapped;
-                if (view.Runtime.RemainingLandTokens.Length > 0)
-                    view.LandTokensText = string.Join(" ", view.Runtime.RemainingLandTokens
-                        .Select(t => $"{ManaZh((ManaType)t.ManaType)}{t.Value}"));
+                view.LandTokensText = $"锁:{ManaZh(land.LockedColor)}";
 
                 list.Add(view);
             }

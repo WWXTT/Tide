@@ -500,11 +500,10 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 地牌槽提升原子（2026-10-09 绿2；2026-10-10 共享化+降绿1，表行 50af1b3a，资源族）：
-    /// 地牌槽上限翻倍、封顶 18（每地牌格可叠两张——ElementPool.AddLandCapBoost，GetLandCap 单点生效：
-    /// 地牌张数/支付浓度/出牌费用门槛/黑白获得封顶同随）。2026-10-10 共享定案：上限为全场公用计数器
-    ///（双方地牌合计占用），任一方使用本原子都使**双方**上限翻倍（世界容量公共，好处外溢故降绿1）。
-    /// 无目标原子（作用=效果控制者）；重复使用幂等（已提升则无效）。
+    /// 「成长」原子（2026-10-11 资源重做定案：灵气复苏 ×2 翻倍改成长 +1，绿3，资源族）：
+    /// 效果控制者的地牌槽上限 +1（各自池生效不共享），可重复使用，输出封顶 18
+    /// （ElementPool.AddLandCapBonus → GetLandCap 单点：地牌张数/支付浓度/出牌费用门槛/黑白钳同随）。
+    /// 无目标原子（作用=效果控制者）。
     /// </summary>
     public class IncreaseLandCapHandler : AtomicEffectHandlerBase
     {
@@ -519,11 +518,11 @@ namespace CardCore.Attribute.Handlers
                 TideLog.Warn("[IncreaseLandCap] 无效果控制者或元素池，空转");
                 return;
             }
-            pool.AddLandCapBoost(player);
+            pool.AddLandCapBonus(player);
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "地牌槽上限翻倍（封顶18，每格可叠放两张地牌，双方共享此上限；重复使用无效）";
+            => "地牌上限+1（封顶18，可重复使用）";
     }
 
     /// <summary>攻击力减少指示物（每层 −1 攻）</summary>

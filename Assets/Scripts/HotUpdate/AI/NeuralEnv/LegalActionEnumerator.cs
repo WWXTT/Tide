@@ -205,7 +205,9 @@ namespace CardCore.AI.NeuralEnv
                 case TideActionType.PlayCard:
                     return GameActions.PlayCard(core, me, a.Card, a.Targets, Zone.Hand, a.ModeIndex);
                 case TideActionType.PlayLand:
-                    return GameActions.AddToElementPool(core, me, a.Card);
+                    // ModeIndex 复用为锁色选择（2026-10-11：-1=缺省主色，否则=ManaType 枚举值）
+                    return GameActions.AddToElementPool(core, me, a.Card,
+                        a.ModeIndex >= 0 ? (ManaType)a.ModeIndex : (ManaType?)null);
                 case TideActionType.Activate:
                 case TideActionType.RespondActivate:
                     return ActivateWithTargets(core, me, a.Effect, a.Card, a.Targets);
@@ -256,7 +258,7 @@ namespace CardCore.AI.NeuralEnv
                 if (!IsSpell(c) && !zm.HasBattlefieldSpace(p)) continue;
                 int modes = ModeCount(c);
                 for (int m = 0; m < modes; m++)
-                    if (GameActions.CanAfford(core, p, GameActions.GetCardCost(c, m))) return true;
+                    if (GameActions.CanAffordCast(core, p, c, m)) return true;
             }
             return false;
         }
@@ -326,21 +328,26 @@ namespace CardCore.AI.NeuralEnv
 
         private void EnumeratePlayLand(GameCore core, Player me, ZoneManager zm)
         {
-            // 2026-10-10 共享地牌槽：占用=双方地牌合计（与 AddCardToPool 权威校验同口径）
-            int cap = core.ElementPool.GetLandCap(me);
-            if (core.ElementPool.GetTotalPooledCount() >= cap) return;
+            // 各自地牌槽上限（2026-10-11：个人曲线，共享计数器废止——与 AddCardToPool 权威校验同口径）
+            if (!core.ElementPool.CanAddLand(me)) return;
             var hand = zm.GetCards(me, Zone.Hand);
             for (int i = 0; i < hand.Count; i++)
             {
                 var c = hand[i];
                 if (!ElementPoolSystem.CanServeAsLand(c)) continue;
-                Actions.Add(new TideAction
+                // 锁色维度展开（2026-10-11）：每候选色一行（单色卡=1 行不变；ModeIndex=锁色枚举值）
+                var colors = ElementPoolSystem.GetLandColorChoices(c);
+                foreach (var color in colors)
                 {
-                    Type = TideActionType.PlayLand,
-                    Card = c,
-                    SourceIndex = TideObservation.CardIndex(me, me, Zone.Hand, i),
-                    TargetIndex = -1,
-                });
+                    Actions.Add(new TideAction
+                    {
+                        Type = TideActionType.PlayLand,
+                        Card = c,
+                        SourceIndex = TideObservation.CardIndex(me, me, Zone.Hand, i),
+                        TargetIndex = -1,
+                        ModeIndex = (int)color,
+                    });
+                }
             }
         }
 
@@ -356,7 +363,7 @@ namespace CardCore.AI.NeuralEnv
                 int modes = ModeCount(c);
                 for (int m = 0; m < modes; m++)
                 {
-                    if (!GameActions.CanAfford(core, me, GameActions.GetCardCost(c, m))) continue;
+                    if (!GameActions.CanAffordCast(core, me, c, m)) continue;
                     if (!IsSpell(c) && !zm.HasBattlefieldSpace(me)) continue;
                     if (!TargetDomainService.HasPlayableTargets(core, me, c, m)) continue; // 域空不可出（镜像 PlayCard 预检）
 
@@ -576,7 +583,7 @@ namespace CardCore.AI.NeuralEnv
                 int modes = ModeCount(c);
                 for (int m = 0; m < modes; m++)
                 {
-                    if (!GameActions.CanAfford(core, me, GameActions.GetCardCost(c, m))) continue;
+                    if (!GameActions.CanAffordCast(core, me, c, m)) continue;
                     if (!TargetDomainService.HasPlayableTargets(core, me, c, m)) continue;
 
                     int src = TideObservation.CardIndex(me, me, Zone.Hand, i);

@@ -226,8 +226,9 @@ namespace CardCore.AI.NeuralEnv
             g[12] = zm.GetCards(opp, Zone.Graveyard).Count;
             g[13] = zm.GetCards(me, Zone.Deck).Count;
             g[14] = zm.GetCards(opp, Zone.Deck).Count;
-            for (int i = 0; i < 6; i++) g[15 + i] = ep.GetPool(me).AvailableMana[(ManaType)i];
-            for (int i = 0; i < 6; i++) g[21 + i] = ep.GetPool(opp).AvailableMana[(ManaType)i];
+            // g[15..26] 临时钱包（2026-10-11 现取现用：bank 退役——效果授予元素，回合末清空）
+            for (int i = 0; i < 6; i++) g[15 + i] = ep.GetPool(me).TempElements[(ManaType)i];
+            for (int i = 0; i < 6; i++) g[21 + i] = ep.GetPool(opp).TempElements[(ManaType)i];
             g[27] = core.StackEngine.IsEmpty ? 0f : 1f; // 栈占用（二值）
             g[28] = FieldValueReward.TotalValue(core, me);  // 己方全资源价值（战场 + 生命 + 法力 + 地牌 + 手牌）
             g[29] = FieldValueReward.TotalValue(core, opp); // 对方全资源价值

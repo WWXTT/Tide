@@ -10,9 +10,9 @@ namespace SynergyUI
     /// attack——玩家须用 attacker 宣言攻击 target（"hero"=对方角色 / 卡 id=场上单位）；
     /// guard——对手 attacker 宣言攻击时玩家须用 guarder 守卫拦截；
     /// end——强制结束回合（此步进行中一切攻击被拒）；
-    /// element——玩家须把 card（手牌）放入元素池当地牌（第二课资源流转）；
-    /// tap——玩家须横置 land（元素池内地牌源卡 id）产出 color 一点；
-    /// tapcreature——玩家须横置 card（带 LandTrait 的生物）产色；
+    /// element——玩家须把 card（手牌）放入元素池当地牌（target 可选=锁定产色名，2026-10-11 锁色定案）；
+    /// tap——已退役（2026-10-11 现取现用：地牌横置=付费步系统自动动作，无手动产色步骤）；
+    /// tapcreature——玩家须横置 card（带 LandTrait 的生物）产色（临时元素）；
     /// play——玩家须从手牌打出 card。
     /// hint=引导提示文案（UI 高亮/弹窗后续接，逻辑层只透传）。
     /// </summary>

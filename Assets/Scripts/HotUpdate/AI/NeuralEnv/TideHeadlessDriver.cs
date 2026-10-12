@@ -350,7 +350,6 @@ namespace CardCore.AI.NeuralEnv
                 if (phase == PhaseType.Standby)
                 {
                     GameActions.SkipElementPool(_core, turnPlayer);
-                    TapAllLands(turnPlayer);
                     continue;
                 }
                 if (phase == PhaseType.End)
@@ -457,11 +456,5 @@ namespace CardCore.AI.NeuralEnv
             };
         }
 
-        // ===================================================== 地牌横置（复刻 SimpleAI 色匹配启发式） =====================================================
-
-        /// <summary>回合初横置全部未横置地牌：产色按手牌费用需求匹配，无需求色回落剩余指示物最多的颜色。</summary>
-        /// <summary>横置全部地牌（2026-09-14 收敛到共享 LandTapPolicy——混付感知产色）。</summary>
-        private void TapAllLands(Player me)
-            => LandTapPolicy.TapAllLands(_core, me);
     }
 }
