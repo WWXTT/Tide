@@ -607,18 +607,22 @@ namespace CardCore
 
                 case ConditionType.MinManaAvailable:
                     {
+                        // 2026-10-11 现取现用：资源可用性=临时钱包总量+未横置地牌张数（bank 退役重定义）
                         var pool = context.ElementPool?.GetPool(context.Activator);
                         if (pool == null) return false;
-                        int total = pool.AvailableMana.Values.Sum();
+                        int total = pool.TempElements.Values.Sum()
+                                    + pool.PooledCards.Count(pc => !pc.IsTapped);
                         return total >= condition.Value;
                     }
 
                 case ConditionType.SpecificManaTypeAvailable:
                     {
+                        // 2026-10-11 现取现用：单色可用性=临时钱包该色+未横置地牌中该锁色张数
                         var pool = context.ElementPool?.GetPool(context.Activator);
                         if (pool == null) return false;
-                        if (!pool.AvailableMana.TryGetValue(condition.ManaTypeParam ?? ManaType.Gray, out int count))
-                            return false;
+                        var color = condition.ManaTypeParam ?? ManaType.Gray;
+                        pool.TempElements.TryGetValue(color, out int count);
+                        count += pool.PooledCards.Count(pc => !pc.IsTapped && pc.LockedColor == color);
                         return count >= condition.Value;
                     }
                 #endregion

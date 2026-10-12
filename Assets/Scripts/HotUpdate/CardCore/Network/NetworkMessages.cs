@@ -31,7 +31,7 @@ namespace CardCore.Network
 
         // ---- 上行 intent（客户端→服务器，payload 见 IntentMessages.cs）----
         IntentPlayCard = 100,        // 三路合一：FromZone=Hand/Graveyard；服务器按"栈非空且持优先权"分派 PlayCardInResponse
-        IntentTapForElement = 101,   // 横置产元素（颜色是玩家决策）
+        // IntentTapForElement = 101 已删（2026-10-11 现取现用：无手动横置）——枚举值留洞保序
         IntentAddToElementPool = 102,// 放地进元素池
         IntentSkipStandby = 103,     // 跳过准备阶段
         IntentDeclareAttack = 104,

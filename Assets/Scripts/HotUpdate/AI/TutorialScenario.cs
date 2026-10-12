@@ -85,13 +85,14 @@ namespace SynergyUI
         /// <summary>是否已横置（本回合已产过元素）。</summary>
         public bool tapped;
 
-        /// <summary>剩余指示物数量（缺省 0=按费用满额生成）。</summary>
+        /// <summary>已退役（2026-10-11 指示物删除）——保留字段兼容旧配置，读取忽略。</summary>
         public int tokens;
 
-        /// <summary>指示物颜色（"Gray"缺省/"Red"/"Blue"/"Green"/"White"/"Black"）。</summary>
+        /// <summary>锁定产色（"Red"/"Blue"/"Green"/"Gray"；空=缺省主色。2026-10-11：
+        /// 原指示物颜色字段复用为锁色）。</summary>
         public string tokenType;
 
-        /// <summary>抉择卡入池模式序号（缺省 0）。</summary>
+        /// <summary>已退役（2026-10-11：抉择卡按声明费用取色）——保留字段兼容旧配置，读取忽略。</summary>
         public int mode;
     }
 
@@ -178,8 +179,9 @@ namespace SynergyUI
 
             if (side.bank != null)
             {
+                // 2026-10-11 现取现用：bank 字段预置临时钱包（效果授予元素——回合末清空）
                 for (int i = 0; i < side.bank.Length && i < 6; i++)
-                    pool.AvailableMana[(ManaType)i] = side.bank[i];
+                    pool.TempElements[(ManaType)i] = side.bank[i];
             }
 
             var container = core.ZoneManager.GetZoneContainer(owner);
@@ -224,7 +226,8 @@ namespace SynergyUI
                 }
             }
 
-            // 地牌（官方入池路径：资格/上限/指示物按费用；横置与余量随后覆写）
+            // 地牌（官方入池路径：资格/各自上限；锁色随 tokenType 覆写、横置态随后覆写——
+            // 2026-10-11 锁色定案：无指示物，tokenType=锁定产色、tokens 字段退役忽略）
             foreach (var land in side.lands ?? new List<TutorialLandSpec>())
             {
                 if (land == null || string.IsNullOrEmpty(land.card)) continue;
@@ -235,7 +238,10 @@ namespace SynergyUI
                     continue;
                 }
                 card.SetController(owner);
-                if (!core.ElementPool.AddCardToPool(card, owner, land.mode))
+                ManaType? lockColor = string.IsNullOrEmpty(land.tokenType)
+                    ? (ManaType?)null
+                    : ParseMana(land.tokenType);
+                if (!core.ElementPool.AddCardToPool(card, owner, lockColor))
                 {
                     TideLog.Warn($"[TutorialScenarioSeeder] {land.card} 入元素池被拒（上限/资格）——退回牌库底");
                     container.Add(card, Zone.Deck);
@@ -245,15 +251,7 @@ namespace SynergyUI
                 core.ElementPool.PublishPoolAdd(card, owner);
                 var pooled = pool.PooledCards.FirstOrDefault(pc => pc.SourceCard == card);
                 if (pooled != null)
-                {
                     pooled.IsTapped = land.tapped;
-                    if (land.tokens > 0)
-                    {
-                        var type = ParseMana(land.tokenType);
-                        pooled.Tokens.Clear();
-                        pooled.Tokens[type] = land.tokens;
-                    }
-                }
             }
         }
 

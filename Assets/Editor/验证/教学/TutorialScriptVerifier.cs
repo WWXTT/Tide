@@ -342,9 +342,10 @@ namespace CardCore.Editor.Tests
             var pool = core.ElementPool.GetPool(p);
             if (side.bank != null)
             {
+                // 2026-10-11 现取现用：bank 字段预置临时钱包（回合末清空——断言在装载时点，不受影响）
                 for (int i = 0; i < 6; i++)
-                    Require(errors, pool.AvailableMana[(ManaType)i] == side.bank[i],
-                        $"{prefix}bank[{i}] {pool.AvailableMana[(ManaType)i]} != 预设 {side.bank[i]}");
+                    Require(errors, pool.TempElements[(ManaType)i] == side.bank[i],
+                        $"{prefix}bank[{i}] {pool.TempElements[(ManaType)i]} != 预设 {side.bank[i]}");
             }
 
             SeqEqual(errors, ZoneIds(core, p, Zone.Hand), side.hand, $"{prefix}手牌");
@@ -387,11 +388,13 @@ namespace CardCore.Editor.Tests
                 }
                 Require(errors, pc.IsTapped == spec.tapped,
                     $"{prefix}地牌 {spec.card} 横置态 {pc.IsTapped} != 预设 {spec.tapped}");
-                if (spec.tokens > 0)
-                    Require(errors, pc.TotalTokenCount == spec.tokens,
-                        $"{prefix}地牌 {spec.card} 余量 {pc.TotalTokenCount} != 预设 {spec.tokens}");
-                else
-                    Require(errors, pc.TotalTokenCount > 0, $"{prefix}地牌 {spec.card} 未按费用生成指示物");
+                // 2026-10-11 锁色定案：指示物余量断言退役——tokenType 非空时校验锁色一致
+                if (!string.IsNullOrEmpty(spec.tokenType))
+                {
+                    ManaType expect = System.Enum.TryParse<ManaType>(spec.tokenType, true, out var lc) ? lc : ManaType.Gray;
+                    Require(errors, pc.LockedColor == expect,
+                        $"{prefix}地牌 {spec.card} 锁色 {pc.LockedColor} != 预设 {expect}");
+                }
             }
         }
 
@@ -832,15 +835,25 @@ namespace CardCore.Editor.Tests
                 Require(errors, TutorialGuide.StepIndex == 1,
                     $"S7 闸门线: element 步骤完成后未推进（StepIndex={TutorialGuide.StepIndex}）");
 
-                // tap 步骤：结束回合仍被钉；引导产色（红苗地→红）放行并推进到 end 步骤
+                // play 步骤（白源）：结束回合仍被钉；引导出牌（预置白临时元素支付）放行并推进
+                // （2026-10-11 现取现用：手动横置产色已退役——tap 步骤随之消失，产色教学改
+                //   tapcreature 生物产色 + 付费步系统自动横置，闸门线覆盖到 end 放行为止）
                 Require(errors, !GameActions.EndTurn(core, core.Player1),
-                    "S7 闸门线: tap 步骤未完成时结束回合未被钉住");
-                var redLand = core.ElementPool.GetPooledCards(core.Player1)
-                    .FirstOrDefault(pc => pc.SourceCard != null && pc.SourceCard.ID == L2RedSeed);
-                Require(errors, redLand != null && GameActions.GainElementFromToken(core, core.Player1, redLand, ManaType.Red),
-                    "S7 闸门线: 引导产色（红苗→红）未被放行");
-                Require(errors, TutorialGuide.StepIndex == 2 && TutorialGuide.Current?.type == "end",
-                    $"S7 闸门线: tap 步骤完成后应推进到 end 步骤（StepIndex={TutorialGuide.StepIndex}）");
+                    "S7 闸门线: play 步骤未完成时结束回合未被钉住");
+                var whiteSource = hand.FirstOrDefault(c => c.ID == L2White);
+                string rejectW = null;
+                Require(errors, whiteSource != null
+                              && GameActions.PlayCard(core, core.Player1, whiteSource, null, Zone.Hand, 0, out rejectW),
+                    $"S7 闸门线: 引导出牌（白源·预置白支付）未被放行（{rejectW ?? "无"}）");
+                Require(errors, TutorialGuide.StepIndex == 2 && TutorialGuide.Current?.type == "play",
+                    $"S7 闸门线: 白源步骤完成后应推进到黑源步骤（StepIndex={TutorialGuide.StepIndex}）");
+                var blackSource = hand.FirstOrDefault(c => c.ID == "C_7E5A2003");
+                string rejectB = null;
+                Require(errors, blackSource != null
+                              && GameActions.PlayCard(core, core.Player1, blackSource, null, Zone.Hand, 0, out rejectB),
+                    $"S7 闸门线: 引导出牌（黑源·预置黑支付）未被放行（{rejectB ?? "无"}）");
+                Require(errors, TutorialGuide.StepIndex == 3 && TutorialGuide.Current?.type == "end",
+                    $"S7 闸门线: 黑源步骤完成后应推进到 end 步骤（StepIndex={TutorialGuide.StepIndex}）");
                 Require(errors, GameActions.EndTurn(core, core.Player1),
                     "S7 闸门线: end 步骤的结束回合未被放行");
                 Debug.Log("[教学验证] S7 闸门线: 资源步骤闸/紊乱 15 层拦截 断言通过 ✔");
@@ -911,7 +924,7 @@ namespace CardCore.Editor.Tests
                     {
                         var traceCard = FindOnBoard(core, core.Player2, traceId);
                         var bank = core.ElementPool.GetPool(core.Player1);
-                        var bankText = string.Join("/", Enumerable.Range(0, 6).Select(i => bank.AvailableMana[(ManaType)i]));
+                        var bankText = string.Join("/", Enumerable.Range(0, 6).Select(i => bank.TempElements[(ManaType)i]));
                         Debug.Log($"[教学验证] S7 追踪 回合{core.TurnEngine.TurnNumber}: boss=" +
                                   (traceCard == null ? "已亡" : $"{traceCard.GetPower()}/{traceCard.GetLife()}{(traceCard.IsTapped() ? "T" : "")}") +
                                   $"、P2生命{core.Player2.Life}、P1生命{core.Player1.Life}、bank[{bankText}]、" +

@@ -54,18 +54,8 @@ namespace CardCore.Network
                         reason, out error);
                 }
 
-                case NetworkMessageType.IntentTapForElement:
-                {
-                    var intent = MemoryPackSerializer.Deserialize<MsgIntentTapForElement>(msg.Payload);
-                    if (intent == null) { error = "IntentTapForElement 载荷损坏"; return false; }
-
-                    // PooledCard 是元素池的包装器（非 Card 子类）：按源卡 RuntimeId 反查包装
-                    var pooled = core.ElementPool.GetPooledCards(player)
-                        .FirstOrDefault(pc => pc.SourceCard != null && pc.SourceCard.RuntimeId == intent.CardRuntimeId);
-                    if (pooled == null) { error = $"地牌不在元素池 RuntimeId={intent.CardRuntimeId}"; return false; }
-
-                    return Ok(GameActions.GainElementFromToken(core, player, pooled, (ManaType)intent.ManaType), out error);
-                }
+                // IntentTapForElement 已删（2026-10-11 现取现用：地牌横置=付费时系统自动动作，
+                // 无手动产色意图；效果授予走临时钱包由结算管线自动完成）
 
                 case NetworkMessageType.IntentAddToElementPool:
                 {
@@ -75,7 +65,9 @@ namespace CardCore.Network
                     var card = NetEntityDirectory.ResolveCard(core, intent.CardRuntimeId);
                     if (card == null) { error = $"卡不存在 RuntimeId={intent.CardRuntimeId}"; return false; }
 
-                    return Ok(GameActions.AddToElementPool(core, player, card, intent.ModeIndex), out error);
+                    // ModeIndex 字段复用为锁色选择（2026-10-11：-1=缺省主色，否则=ManaType 枚举值）
+                    var colorChoice = intent.ModeIndex >= 0 ? (ManaType?)intent.ModeIndex : null;
+                    return Ok(GameActions.AddToElementPool(core, player, card, colorChoice), out error);
                 }
 
                 case NetworkMessageType.IntentSkipStandby:

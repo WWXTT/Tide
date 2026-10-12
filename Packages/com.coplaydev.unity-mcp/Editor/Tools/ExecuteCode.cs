@@ -88,6 +88,10 @@ namespace MCPForUnity.Editor.Tools
             if (string.IsNullOrWhiteSpace(code))
                 return new ErrorResponse("Required parameter 'code' is missing or empty.");
 
+            // Defensively drop a leading BOM: some client layers serialize the code string with
+            // UTF-8 BOM and the compiler treats U+FEFF as an invalid token.
+            code = code.TrimStart('\uFEFF');
+
             if (code.Length > MaxCodeLength)
                 return new ErrorResponse($"Code exceeds maximum length of {MaxCodeLength} characters.");
 
@@ -281,10 +285,17 @@ namespace MCPForUnity.Editor.Tools
             // Route references through a response file (@responsefile is supported by both mcs and
             // Roslyn csc) so we pass exactly one short argument regardless of reference count.
             string responseFilePath = Path.Combine(Path.GetTempPath(), $"mcp-codedom-{Guid.NewGuid():N}.rsp");
+            // All compiler-input files must be written BOM-less: Encoding.UTF8 emits a UTF-8 BOM,
+            // and the csc/mcs response-file and source parsers choke on it, surfacing as the
+            // bare "Line 1: <U+FEFF>" compile error. Same reason we don't use
+            // CompileAssemblyFromSource (it writes its temp .cs with a BOM internally).
+            var bomlessUtf8 = new UTF8Encoding(false);
+            string sourceFilePath = Path.Combine(Path.GetTempPath(), $"mcp-codedom-{Guid.NewGuid():N}.cs");
+            string outputDllPath = Path.Combine(Path.GetTempPath(), $"mcp-codedom-{Guid.NewGuid():N}.dll");
 
             try
             {
-                using (var writer = new StreamWriter(responseFilePath, append: false, Encoding.UTF8))
+                using (var writer = new StreamWriter(responseFilePath, append: false, bomlessUtf8))
                 {
                     foreach (var path in filtered)
                     {
@@ -294,17 +305,37 @@ namespace MCPForUnity.Editor.Tools
                     }
                 }
 
+                using (var writer = new StreamWriter(sourceFilePath, append: false, bomlessUtf8))
+                {
+                    writer.Write(source);
+                }
+
                 using (var provider = new CSharpCodeProvider())
                 {
                     var parameters = new CompilerParameters
                     {
-                        GenerateInMemory = true,
+                        GenerateInMemory = false,
                         GenerateExecutable = false,
                         TreatWarningsAsErrors = false,
+                        OutputAssembly = outputDllPath,
                         CompilerOptions = "@\"" + responseFilePath + "\"",
                     };
 
-                    var results = provider.CompileAssemblyFromSource(parameters, source);
+                    var results = provider.CompileAssemblyFromFile(parameters, sourceFilePath);
+
+                    // Mono's mcs prefixes its stdout with a UTF-8 BOM. Mono's CodeDom output
+                    // parser turns that stray BOM-only line into a phantom CompilerError
+                    // (empty file/line/error-number, text == U+FEFF) even when mcs exited 0.
+                    // Strip the artifact before judging the result.
+                    for (int i = results.Errors.Count - 1; i >= 0; i--)
+                    {
+                        var err = (CompilerError)results.Errors[i];
+                        if (err.Line == 0 && string.IsNullOrEmpty(err.ErrorNumber) &&
+                            string.IsNullOrWhiteSpace(err.ErrorText.Replace("\uFEFF", string.Empty)))
+                        {
+                            results.Errors.RemoveAt(i);
+                        }
+                    }
 
                     if (results.Errors.HasErrors)
                     {
@@ -319,12 +350,27 @@ namespace MCPForUnity.Editor.Tools
                         return null;
                     }
 
-                    return results.CompiledAssembly;
+                    // mcs succeeded (possibly with warnings only). Because the phantom-error
+                    // parse above can make Mono skip loading the assembly, load it ourselves
+                    // from the explicit OutputAssembly path.
+                    try
+                    {
+                        return Assembly.Load(File.ReadAllBytes(outputDllPath));
+                    }
+                    catch (Exception e)
+                    {
+                        errors.Add($"Compiled assembly failed to load: {e.Message}");
+                        return null;
+                    }
                 }
             }
             finally
             {
                 try { if (File.Exists(responseFilePath)) File.Delete(responseFilePath); }
+                catch { /* best effort */ }
+                try { if (File.Exists(sourceFilePath)) File.Delete(sourceFilePath); }
+                catch { /* best effort */ }
+                try { if (File.Exists(outputDllPath)) File.Delete(outputDllPath); }
                 catch { /* best effort */ }
             }
         }

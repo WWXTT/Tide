@@ -194,99 +194,30 @@ namespace CardCore.Attribute.Handlers
 
     // ======================= 资源转化 =======================
 
+    // 采掘（Mine）已删（2026-10-11 资源重做：指示物退役，「去 3 指示物换 1 元素」语义无载体）——
+    // 枚举位 AtomicEffectType.Mine 留洞保序，表行 4fd4c954 同批删除；接替者=光合作用（下）。
+
     /// <summary>
-    /// 采掘（2026-09-08 新增原子）：以一张己方地牌（元素池）为目标——
-    /// 去除 3 个同类型元素指示物，获得 1 点对应元素入 bank。
-    /// 净效果 = 牺牲该色 2 个指示物换 1 个即时元素：突破「每地牌每回合产出一次」的节流提前变现，
-    /// 代价是加速耗尽（指示物扣完即进墓）。目标资格由 handler 兜底校验保证（Execute 内 IsCardInZone
-    /// 元素池区判定；2026-10-10 表行 filter 已清空——旧 NoRole 滤光地牌候选的死组合就此解决）。
-    /// 选色（同类型 ≥3 才可采）：剩余最多者，并列取枚举序靠前（与结束阶段自动产色同口径，确定性）。
+    /// 光合作用（2026-10-11 资源重做新增，绿3·关键词族 Grant 行）：回合开始时宿主控制者获得
+    /// {value} 个**临时绿色元素**（默认 1）——落临时钱包（任一回合结束清空），当回合内可付
+    /// 绿色费/垫灰费。触发时点由效果声明的 TriggerTiming=OnTurnStart 决定（通用触发通道），
+    /// handler 零特判——不感知时机/挂载，只管入账。
     /// </summary>
-    public class MineHandler : AtomicEffectHandlerBase
+    public class GrantPhotosynthesisHandler : AtomicEffectHandlerBase
     {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Mine;
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GrantPhotosynthesis;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            if (context.ElementPool == null || context.ZoneManager == null) return;
-
-            foreach (var target in context.Targets)
-            {
-                if (!(target is Card land)) continue;
-                var owner = land.GetController() ?? context.Controller;
-                if (owner == null) continue;
-                if (!context.ZoneManager.IsCardInZone(land, owner, Zone.ElementPool)) continue; // 兜底：非地牌区不可采
-
-                var pooled = context.ElementPool.GetPooledCards(owner)
-                    .FirstOrDefault(pc => pc.SourceCard == land);
-                if (pooled == null) continue;
-
-                // 选色：指示物 ≥3 的颜色中取剩余最多（并列取枚举序靠前）
-                ManaType? pick = null;
-                int best = 2; // 阈值 3 个（> 2）
-                foreach (ManaType type in Enum.GetValues(typeof(ManaType)))
-                {
-                    if (pooled.Tokens.TryGetValue(type, out int n) && n > best)
-                    {
-                        best = n;
-                        pick = type;
-                    }
-                }
-                if (pick == null) continue; // 无同类型 3 个指示物：本目标不可采（目标层已过滤的兜底）
-
-                for (int i = 0; i < 3; i++) pooled.RemoveToken(pick.Value);
-                context.ElementPool.AddMana(owner, pick.Value, land);
-            }
-
-            // 采掘导致的耗尽统一移入墓地（与 GameActions.GainElementFromToken 同口径）
-            var owners = context.Targets
-                .OfType<Card>()
-                .Select(t => t.GetController() ?? context.Controller)
-                .Where(p => p != null)
-                .Distinct();
-            foreach (var owner in owners)
-                context.ElementPool.CheckDepletedCards(owner, context.ZoneManager);
-        }
-
-        protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "采掘地牌：去除3个同类型元素指示物，获得1点对应元素";
-    }
-
-    /// <summary>
-    /// 光合作用（原蓄能，2026-09-08 更名改造，绿3）：横置自身（固定代价；已横置 = 代价不可支付，不产元素），
-    /// 控制者获得 {value} 点绿色元素（默认 1）。可重复的产元素引擎——
-    /// 代价 = 该单位本回合不可攻/不可发动启动式能力。
-    /// </summary>
-    public class AdditionalEnergyHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.AdditionalEnergy;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            if (context.Controller == null) return;
+            if (context.Controller == null || context.ElementPool == null) return;
             int amount = context.GetValueAfterModifiers(effect.Value > 0 ? effect.Value : 1);
-            foreach (var target in context.Targets)
-            {
-                if (!(target is Card unit) || !unit.IsAlive) continue;
-                if (unit.IsTapped()) continue; // 已横置：代价不可支付
-                if (KeywordRules.ShouldTap(unit))
-                    unit.Tap();
-
-                var pool = context.ElementPool?.GetPool(context.Controller);
-                if (pool == null) continue;
-                pool.AvailableMana[ManaType.Green] =
-                    pool.AvailableMana.TryGetValue(ManaType.Green, out var green) ? green + amount : amount;
-                PublishEvent(new ElementPoolGainEvent
-                {
-                    Player = context.Controller,
-                    FromCard = unit,
-                    GainedType = ManaType.Green,
-                });
-            }
+            if (amount <= 0) return;
+            var from = context.Source as Card ?? context.CastCard as Card;
+            context.ElementPool.AddMana(context.Controller, ManaType.Green, from, amount);
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"光合作用：横置自身获得 {(effect.Value > 0 ? effect.Value : 1)} 点绿色元素";
+            => $"光合作用：回合开始时获得 {(effect.Value > 0 ? effect.Value : 1)} 个临时绿色元素（回合结束消失）";
     }
 
     // ======================= 控制相关 =======================
@@ -486,10 +417,10 @@ namespace CardCore.Attribute.Handlers
         {
             return new IAtomicEffectHandler[]
             {
-                // 状态
+                // 状态（旧 AdditionalEnergyHandler 已随 2026-10-11 资源重做退役——
+                // 新 PhotosynthesisHandler 注册在 EffectExecutionEngine 资源族批次，勿在此重复）
                 new TapHandler(),
                 new UntapHandler(),
-                new AdditionalEnergyHandler(),
 
                 // 控制
                 new GainControlHandler(),

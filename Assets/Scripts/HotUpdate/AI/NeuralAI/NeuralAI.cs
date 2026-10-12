@@ -41,9 +41,8 @@ namespace CardCore.AI.NeuralEnv
             if (core == null || me == null || me != core.TurnEngine.TurnPlayer) return;
             _bannedThisTurn.Clear();
 
-            // 回合准备：跳过产元素阶段 → 回合初横置全部地牌（训练时由 driver 代办，不建模）
+            // 回合准备：跳过产元素阶段（2026-10-11 现取现用：无回合初横置——付费时系统自动横置）
             GameActions.SkipElementPool(core, me);
-            TapAllLands(core, me);
 
             for (int step = 0; step < MaxActionsPerTurn && !core.IsGameOver; step++)
             {
@@ -83,11 +82,5 @@ namespace CardCore.AI.NeuralEnv
             if (!core.IsGameOver) GameActions.EndTurn(core, me);
         }
 
-        // ======================================== 地牌横置（复刻 TideHeadlessDriver 启发式） ========================================
-
-        /// <summary>回合初横置全部未横置地牌：产色按手牌费用需求匹配，无需求色回落剩余指示物最多的颜色。</summary>
-        /// <summary>横置全部地牌（2026-09-14 收敛到共享 LandTapPolicy——混付感知产色）。</summary>
-        private static void TapAllLands(GameCore core, Player me)
-            => LandTapPolicy.TapAllLands(core, me);
     }
 }

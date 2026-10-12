@@ -182,7 +182,7 @@ namespace CardCore
         public static readonly GateSpec[] SituationGates =
         {
             // ---- 局面状态族·一批（通用门，预算 1；DrawnInStandbyThisTurn 2026-10-09 调 3）----
-            new GateSpec { Id = "DrawnInStandbyThisTurn", DisplayName = "本回合第一张抽到的卡" },
+            new GateSpec { Id = "DrawnInStandbyThisTurn", DisplayName = "命运一抽【唯一】" },
             new GateSpec { Id = "LifeBelowOpp",    DisplayName = "生命值低于对手" },
             new GateSpec { Id = "LifeAboveOpp",    DisplayName = "生命值高于对手" },
             new GateSpec { Id = "DeckBelowOpp",    DisplayName = "卡组剩余低于对手" },
@@ -200,6 +200,88 @@ namespace CardCore
         /// <summary>是否局面状态门 id（converter 折叠遗留门步骤时按此归类 Gate）。</summary>
         public static bool IsSituationCondition(string conditionId)
             => SituationGates.Any(g => g.Id == conditionId);
+
+        // ======================================== 构筑唯一键（每卡组限 1 张） ========================================
+
+        /// <summary>唯一门（2026-10-11 命运一抽起）：显示名带「【唯一】」后缀的局面门——使用该门的卡
+        /// 每个卡组限 1 张（不同卡 id 也互斥）。单一事实源=SituationGates 显示名后缀，
+        /// 后续门加后缀即生效（构筑 UI 拦截/随机组卡过滤自动跟进）。</summary>
+        public static bool IsUniqueGate(string gateId)
+            => !string.IsNullOrEmpty(gateId)
+               && SituationGates.Any(g => g.Id == gateId
+                   && g.DisplayName != null && g.DisplayName.EndsWith("【唯一】", StringComparison.Ordinal));
+
+        /// <summary>唯一门显示名（未知名回退 id 本身——提示文案用）。</summary>
+        public static string UniqueGateDisplayName(string gateId)
+            => SituationGates.FirstOrDefault(g => g.Id == gateId)?.DisplayName ?? gateId;
+
+        /// <summary>构筑唯一槽（2026-10-11 构筑规则②）：卡的「每卡组限 1 张」身份。</summary>
+        public sealed class DeckUniqueSlot
+        {
+            /// <summary>身份键（族前缀+id：「gate:{局面门 id}」/「aura:{仪典短名}」）——同键不同卡互斥。</summary>
+            public string Key;
+            /// <summary>提示用显示名（如 命运一抽【唯一】/ 苦痛仪典）。</summary>
+            public string Display;
+        }
+
+        /// <summary>卡携带的构筑唯一槽全集（消费方：DeckBuilderScreen 添加/保存拦截、
+        /// BattleController.RandomDeckFrom 随机组卡过滤）。两族：
+        /// ① 唯一门——槽级 branch 载荷（settle=Gate）gateId 命中 IsUniqueGate；
+        /// ② 规则光环仪典——ModifyGameRule 原子步（表行 MountKinds 含 RuleAura 位）str=规则短名，
+        /// 同名仪典每卡组限 1 张（镜像运行时「异名共存、同名禁止」，不同仪典可共存）。
+        /// 扫描全部效果步骤（含抉择嵌套与旧版 then/else 扁平列）与扁平 AtomicEffects。</summary>
+        public static List<DeckUniqueSlot> DeckUniqueSlots(CardData card)
+        {
+            var slots = new List<DeckUniqueSlot>();
+            if (card?.Effects == null) return slots;
+            foreach (var fx in card.Effects)
+            {
+                if (fx == null) continue;
+                CollectDeckUniqueSlots(fx.Steps, slots);
+                CollectDeckUniqueSlots(fx.AtomicEffects, slots);
+            }
+            return slots;
+        }
+
+        private static void CollectDeckUniqueSlots(List<EffectStepData> steps, List<DeckUniqueSlot> slots)
+        {
+            if (steps == null) return;
+            foreach (var step in steps)
+            {
+                if (step == null) continue;
+                CollectDeckUniqueSlot(step.atomic, slots);
+                CollectDeckUniqueSlots(step.thenSteps, slots);
+                CollectDeckUniqueSlots(step.elseSteps, slots);
+                if (step.choices == null) continue;
+                foreach (var choice in step.choices)
+                    CollectDeckUniqueSlots(choice?.steps, slots);
+            }
+        }
+
+        private static void CollectDeckUniqueSlots(List<AtomicEffectEntry> atoms, List<DeckUniqueSlot> slots)
+        {
+            if (atoms == null) return;
+            foreach (var atom in atoms)
+                CollectDeckUniqueSlot(atom, slots);
+        }
+
+        private static void CollectDeckUniqueSlot(AtomicEffectEntry atom, List<DeckUniqueSlot> slots)
+        {
+            if (atom == null) return;
+            var b = atom.branch;
+            if (b != null && (BranchSettleKind)b.settle == BranchSettleKind.Gate && IsUniqueGate(b.gateId))
+                AddDeckUniqueSlot(slots, "gate:" + b.gateId, UniqueGateDisplayName(b.gateId));
+            var row = AtomicEffectTable.GetByHashId(atom.refId);
+            if (!string.IsNullOrEmpty(atom.str) && HasMountBit(row, MountKind.RuleAura))
+                AddDeckUniqueSlot(slots, "aura:" + atom.str, row?.DisplayName ?? atom.str);
+        }
+
+        private static void AddDeckUniqueSlot(List<DeckUniqueSlot> slots, string key, string display)
+        {
+            foreach (var s in slots)
+                if (s.Key == key) return; // 同卡同键去重
+            slots.Add(new DeckUniqueSlot { Key = key, Display = display });
+        }
 
         // ======================================== 可挂范围判定（MountKinds=唯一权威，合成器/装载共用） ========================================
 

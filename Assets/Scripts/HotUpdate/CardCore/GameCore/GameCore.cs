@@ -213,8 +213,9 @@ namespace CardCore
         /// </summary>
         private void OnTurnEnded(TurnEndEvent e)
         {
-            // 结束阶段：未横置地牌自动横置，产 1 灰色元素入 bank（先于台账封行）
-            ElementPool.OnTurnEnd(e.TurnPlayer, ZoneManager);
+            // 2026-10-11 现取现用定案：临时钱包清空（任一回合结束，效果授予元素即逝）；
+            // 旧「未横置地牌自动横置产色+耗尽清理」已随指示物退役（先于台账封行）
+            ElementPool.OnTurnEnd(e.TurnPlayer);
 
             DurationTracker.OnTurnEnd(e.TurnPlayer, e.TurnNumber);
             TextChangeLayer.OnTurnEnd(e.TurnPlayer, e.TurnNumber);

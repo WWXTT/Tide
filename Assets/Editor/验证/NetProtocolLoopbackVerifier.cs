@@ -297,19 +297,15 @@ namespace CardCore.Editor
                 for (int i = 0; i < live.Count; i++)
                 {
                     var expected = SerializableRuntimeCardState.FromCard(live[i]);
-                    // 元素池区（2026-09-30 地牌态修复）：地牌权威态在 PooledCard 包装（入池即清卡内字段）——
-                    // 快照按包装覆盖指示物/横置态，参照 DTO 同步覆盖后再比对
+                    // 元素池区（2026-09-30 地牌态修复；2026-10-11 锁色化）：地牌权威态在 PooledCard
+                    // 包装——快照按包装覆盖锁色/横置态，参照 DTO 同步覆盖后再比对
                     if ((Zone)zoneCards.Zone == Zone.ElementPool)
                     {
                         var wrap = core.ElementPool.GetPooledCards(player)
                             ?.FirstOrDefault(pc => pc != null && pc.SourceCard == live[i]);
                         if (wrap != null)
                         {
-                            expected.RemainingLandTokens = wrap.Tokens == null
-                                ? new ManaEntryDTO[0]
-                                : wrap.Tokens.Where(kv => kv.Value > 0)
-                                    .Select(kv => new ManaEntryDTO { ManaType = (int)kv.Key, Value = kv.Value })
-                                    .ToArray();
+                            expected.LockedColor = (int)wrap.LockedColor;
                             expected.IsTapped = wrap.IsTapped;
                         }
                     }
@@ -425,14 +421,7 @@ namespace CardCore.Editor
                             + $" lands0={core.ElementPool.GetPooledCards(core.Player1).Count}"
                             + $" lands1={core.ElementPool.GetPooledCards(core.Player2).Count}");
 
-                    // 横置产元素：经 intent（颜色=首个可用色；驱动侧镜像 SimpleAI.TapAllLands 职责）
-                    foreach (var pooled in core.ElementPool.GetPooledCards(me).Where(p => !p.IsTapped).ToList())
-                    {
-                        var color = pooled.GetAvailableColors().FirstOrDefault();
-                        if (color == default && !pooled.GetAvailableColors().Any()) continue;
-                        ApplyIntent(seat, NetworkMessageType.IntentTapForElement,
-                            new MsgIntentTapForElement { CardRuntimeId = pooled.SourceCard.RuntimeId, ManaType = (int)color });
-                    }
+                    // 2026-10-11 现取现用：横置产元素 intent 已删——付费时服务器自动横置，无回合初产色职责
 
                     // 动作循环：枚举 → 选型 → 映射 intent → 分派（拒绝即本回合拉黑重枚举）
                     bool landPlayedThisTurn = false;

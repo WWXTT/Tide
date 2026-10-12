@@ -158,8 +158,8 @@ namespace CardCore.Network
             var cards = core.ZoneManager.GetCards(player, zone) ?? new System.Collections.Generic.List<Card>();
             var states = cards.Select(ToSortedCardState).ToArray();
 
-            // 地牌权威态在 PooledCard 包装（入池即清卡内字段，FromCard 读不到）：
-            // 指示物余量/横置态按包装覆盖——否则网络端恒显「耗尽」且点地牌无产色可横置（2026-09-30 联机修复）
+            // 地牌权威态在 PooledCard 包装（锁色/横置不在卡字段上）：按包装覆盖——
+            // 否则网络端恒显「未锁色」且横置态丢失（2026-09-30 联机修复同位；2026-10-11 锁色化）
             if (zone == Zone.ElementPool && core.ElementPool != null)
             {
                 var pooled = core.ElementPool.GetPooledCards(player);
@@ -170,11 +170,7 @@ namespace CardCore.Network
                         var wrap = pooled.FirstOrDefault(pc => pc?.SourceCard != null
                                                                && pc.SourceCard.RuntimeId == s.RuntimeId);
                         if (wrap == null) continue;
-                        s.RemainingLandTokens = wrap.Tokens == null
-                            ? new ManaEntryDTO[0]
-                            : wrap.Tokens.Where(kv => kv.Value > 0)
-                                .Select(kv => new ManaEntryDTO { ManaType = (int)kv.Key, Value = kv.Value })
-                                .ToArray();
+                        s.LockedColor = (int)wrap.LockedColor;
                         s.IsTapped = wrap.IsTapped;
                     }
                 }

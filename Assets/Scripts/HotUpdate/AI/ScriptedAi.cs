@@ -83,23 +83,24 @@ namespace SynergyUI
                 case "element":
                 {
                     var card = FindInZone(core, me, Zone.Hand, action.card);
-                    return LogResult(action, card != null && GameActions.AddToElementPool(core, me, card),
-                        card == null ? $"手牌无 {action.card}" : "入元素池被拒（上限/资格）");
-                }
-                case "tap":
-                {
-                    LandTapPolicy.TapAllLands(core, me); // 共享横置策略（SimpleAI/Neural/训练同源，产色匹配手牌）
-                    return true;
+                    if (card == null) return LogResult(action, false, $"手牌无 {action.card}");
+                    // 2026-10-11 锁色定案：action.target 可选填产色名（红/蓝/绿/灰，缺省=主色）
+                    ManaType? color = null;
+                    if (!string.IsNullOrEmpty(action.target)
+                        && System.Enum.TryParse<ManaType>(action.target, true, out var lockColor))
+                        color = lockColor;
+                    return LogResult(action, GameActions.AddToElementPool(core, me, card, color),
+                        "入元素池被拒（上限/资格/无锁色候选）");
                 }
                 case "play":
                 {
                     var card = FindInZone(core, me, Zone.Hand, action.card);
                     if (card == null) return LogResult(action, false, $"手牌无 {action.card}");
-                    LandTapPolicy.TapAllLands(core, me); // 付费前置（镜像 SimpleAI：出牌前横置全部元素）
                     bool ok = GameActions.PlayCard(core, me, card, ResolveTargets(core, me, action.targets),
                         Zone.Hand, action.mode, out var reason);
                     if (!ok) return LogResult(action, false, $"出牌被拒：{reason}");
-                    GameActions.DrainStack(core); // cast 已上栈：双 Pass 结算付费（AI 无响应）
+                    GameActions.DrainStack(core); // cast 已上栈：双 Pass 结算付费（AI 无响应；
+                                                   // 付费步系统自动横置地牌——2026-10-11 现取现用）
                     return true;
                 }
                 case "attack":
@@ -119,16 +120,8 @@ namespace SynergyUI
                     if (ok) GameActions.DrainStack(core);
                     return LogResult(action, ok, "英雄技能被拒（费用/横置/沉默/已用）");
                 }
-                case "tapland":
-                {
-                    // 横置指定地牌产指定色（教学资源流转演示的精确动作；TapAllLands 之外的可控产色口）
-                    var pooled = core.ElementPool.GetPooledCards(me)
-                        .FirstOrDefault(pc => pc.SourceCard != null && pc.SourceCard.ID == action.card);
-                    if (pooled == null) return LogResult(action, false, $"元素池无 {action.card}");
-                    ManaType color = Enum.TryParse<ManaType>(action.target, true, out var t) ? t : ManaType.Gray;
-                    return LogResult(action, GameActions.GainElementFromToken(core, me, pooled, color),
-                        "地牌产色被拒（横置/无该色指示物/引导闸）");
-                }
+                // "tap"/"tapland" 已删（2026-10-11 现取现用：地牌横置=付费步系统自动动作，
+                // 教学脚本不再演示手动产色；"tapcreature" 保留——带地牌特性生物的产色仍是主动能力）
                 case "tapcreature":
                 {
                     var creature = FindOnBattlefield(core, me, action.card);
@@ -141,7 +134,6 @@ namespace SynergyUI
                     // 墓地视手牌中使用（归土仪典轮转核心——PlayCard FromZone=Graveyard 走配额）
                     var card = FindInZone(core, me, Zone.Graveyard, action.card);
                     if (card == null) return LogResult(action, false, $"墓地无 {action.card}");
-                    LandTapPolicy.TapAllLands(core, me); // 付费前置（镜像 play）
                     bool ok = GameActions.PlayCardFromGraveyard(core, me, card, ResolveTargets(core, me, action.targets));
                     if (!ok) return LogResult(action, false, "墓地使用被拒（配额/费用/目标）");
                     GameActions.DrainStack(core);

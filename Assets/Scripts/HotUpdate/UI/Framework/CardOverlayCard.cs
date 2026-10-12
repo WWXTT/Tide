@@ -81,7 +81,7 @@ namespace SynergyUI
             SetText(_keywords, item.KeywordsText, 10);
             SetText(_effect, item.EffectText, 10);
             SetText(_stats, item.StatsText, full ? 12 : 11);
-            SetText(_land, string.IsNullOrEmpty(item.LandTokensText) ? "（耗尽）" : item.LandTokensText, 11);
+            SetText(_land, string.IsNullOrEmpty(item.LandTokensText) ? "" : item.LandTokensText, 11);
 
             if (full)
             {

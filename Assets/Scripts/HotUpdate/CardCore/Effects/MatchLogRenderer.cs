@@ -39,7 +39,7 @@ namespace CardCore
                 case CombatDamageEvent combat:
                     return $"⚔ {Name(combat.Attacker)} → {Name(combat.Defender)}，造成 {combat.Damage} 伤害";
                 case ElementPoolAddEvent add:
-                    return $"{Name(add.Player)} 放地牌 {Name(add.AddedCard)}（{DescribeTokens(add.Tokens)}）";
+                    return $"{Name(add.Player)} 放地牌 {Name(add.AddedCard)}（锁色 {ManaZh(add.LockedColor)}）";
                 case ElementPoolPayEvent pay:
                     return $"{Name(pay.Player)} 支付 {DescribeCost(pay.PaidCost)}" +
                            (string.IsNullOrEmpty(pay.SourceNote) ? "" : $"（{pay.SourceNote}）");
@@ -71,7 +71,8 @@ namespace CardCore
                     if (heal.Source != null) return null; // 原子治疗由〔结算〕行呈现，不重复
                     return $"〔回复〕{Name(heal.Target)} 回复 {heal.Amount} 生命";
                 case ElementPoolGainEvent gain:
-                    return $"{Name(gain.Player)} 横置 {Name(gain.FromCard)} 产出 {gain.GainedType}";
+                    // 2026-10-11 现取现用：GainEvent 只剩效果授予（临时钱包）——地牌横置并入支付行
+                    return $"{Name(gain.Player)} 获得 {gain.Amount} 个{ManaZh(gain.GainedType)}临时元素（来自 {Name(gain.FromCard)}）";
                 case KeywordAppliedEvent kw:
                     return $"〔关键词〕{Name(kw.Target)}：{kw.Detail}";
                 case TokenCreatedEvent token:
@@ -110,11 +111,16 @@ namespace CardCore
         /// <summary>实体清单（转发 EffectText）</summary>
         public static string DescribeEntities(List<Entity> list) => EffectText.DescribeEntities(list);
 
-        public static string DescribeTokens(Dictionary<ManaType, int> tokens)
+        /// <summary>元素中文名（2026-10-11：随指示物 DescribeTokens 退役新增——锁色/临时元素战报用）</summary>
+        public static string ManaZh(ManaType type) => type switch
         {
-            if (tokens == null || tokens.Count == 0) return "无指示物";
-            return string.Join("", tokens.Where(kv => kv.Value > 0).Select(kv => $"{kv.Key}×{kv.Value}"));
-        }
+            ManaType.Red => "红",
+            ManaType.Blue => "蓝",
+            ManaType.Green => "绿",
+            ManaType.White => "白",
+            ManaType.Black => "黑",
+            _ => "灰",
+        };
 
         public static string DescribeCost(Dictionary<int, float> cost)
         {

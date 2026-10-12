@@ -461,14 +461,15 @@ namespace CardCore
             }
         }
 
-        /// <summary>红/蓝/绿各 +1 入 bank（AddManaHandler 先例：直写 AvailableMana + 发 AddManaEvent）。</summary>
+        /// <summary>红/蓝/绿各 +1 入**临时钱包**（2026-10-11 现取现用：直写 TempElements + 发 AddManaEvent；
+        /// 三色不受黑白钳约束，回合末随钱包清空）。</summary>
         private static void GrantTrinity(GameCore core, Player player)
         {
-            var bank = core.ElementPool.GetPool(player).AvailableMana;
+            var wallet = core.ElementPool.GetPool(player).TempElements;
             foreach (var color in new[] { ManaType.Red, ManaType.Blue, ManaType.Green })
             {
-                bank.TryGetValue(color, out var cur);
-                bank[color] = cur + 1;
+                wallet.TryGetValue(color, out var cur);
+                wallet[color] = cur + 1;
                 EventManager.Instance.Publish(new AddManaEvent
                 {
                     Player = player,

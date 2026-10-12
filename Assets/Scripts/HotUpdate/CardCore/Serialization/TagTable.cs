@@ -86,8 +86,9 @@ namespace CardCore.Serialization
         public const int RCS_TargetFlags = 1780752744;
         public const int RCS_Keywords = 804741910;
         public const int RCS_Counters = 292357109;
-        public const int RCS_WasDepletedAsLand = 1050182078;
-        public const int RCS_RemainingLandTokens = 1749050713;
+        // 2026-10-11 资源重做：WasDepletedAsLand/RemainingLandTokens 两字段退役，
+        // 换地牌锁定产色（-1=非地牌/未锁色；地牌权威态在 PooledCard 包装，快照侧覆盖）
+        public const int RCS_LockedColor = 233742023;
 
         // ---- CounterEntryDTO ----
         public const int CounterEntryDTO_Key = 524926912;

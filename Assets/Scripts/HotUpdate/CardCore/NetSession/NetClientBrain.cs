@@ -130,21 +130,8 @@ namespace CardCore.Network
 
             if (phase != PhaseType.Main) return;
 
-            // ④-1 横置地：己方元素池区未横置且有剩余指示物的地牌，产色=指示物首色（枚举序）
-            var pooled = ZoneCards(snap, MyEngineSeat, Zone.ElementPool);
-            var land = pooled.FirstOrDefault(c => !c.IsTapped && HasTokens(c));
-            if (land != null)
-            {
-                MarkActed();
-                channel.Send(NetworkMessageType.IntentTapForElement, new MsgIntentTapForElement
-                {
-                    CardRuntimeId = land.RuntimeId,
-                    ManaType = (int)FirstTokenColor(land),
-                });
-                return;
-            }
-
-            // ④-2 放地（每回合 1 张）：手牌首张生物（地牌资格=卡组正式生物）
+            // ④-1 横置产色已删（2026-10-11 现取现用：付费时服务器自动横置，bot 无此意图）
+            // ④-2 放地（每回合 1 张）：手牌首张生物（地牌资格=卡组正式生物）；锁色走缺省主色
             var hand = ZoneCards(snap, MyEngineSeat, Zone.Hand);
             if (!_landDropped)
             {
@@ -210,18 +197,6 @@ namespace CardCore.Network
         private static SerializableRuntimeCardState[] ZoneCards(MsgGameStateSync snap, int seat, Zone zone)
             => snap.ZoneCards.FirstOrDefault(z => z.Seat == seat && (Zone)z.Zone == zone)?.Cards
                ?? Array.Empty<SerializableRuntimeCardState>();
-
-        private static bool HasTokens(SerializableRuntimeCardState card)
-            => card.RemainingLandTokens != null && card.RemainingLandTokens.Any(t => t.Value > 0);
-
-        private static ManaType FirstTokenColor(SerializableRuntimeCardState card)
-        {
-            var best = card.RemainingLandTokens
-                .Where(t => t.Value > 0)
-                .OrderBy(t => t.ManaType)
-                .First();
-            return (ManaType)best.ManaType;
-        }
 
         private bool IsCreature(SerializableRuntimeCardState card)
             => _cardById.TryGetValue(card.ID, out var data) && data.Supertype == Cardtype.Creature;

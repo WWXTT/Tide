@@ -12,8 +12,8 @@ PlayerSettings:
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
-  companyName: Xzy
-  productName: Synergy
+  companyName: WwtT
+  productName: Tide
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0, g: 0, b: 0, a: 1}
@@ -169,7 +169,7 @@ PlayerSettings:
   androidMaxAspectRatio: 2.4
   androidMinAspectRatio: 1
   applicationIdentifier:
-    Android: com.Xzy.Synergy
+    Android: com.WwtT.Tide
     Standalone: com.gamevanilla.CCGKit
     Tizen: com.Company.ProductName
     iPhone: com.Company.ProductName

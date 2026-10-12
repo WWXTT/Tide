@@ -128,7 +128,7 @@ namespace CardCore.Editor
             {
                 var bank = core.ElementPool.GetPool(p);
                 foreach (ManaType t in System.Enum.GetValues(typeof(ManaType)))
-                    bank.AvailableMana[t] = 99;
+                    bank.TempElements[t] = 99;
             }
         }
 

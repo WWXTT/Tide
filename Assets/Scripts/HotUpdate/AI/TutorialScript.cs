@@ -19,7 +19,7 @@ namespace SynergyUI
         public string id;
         public string name;
         public int rngSeed;
-        /// <summary>玩家卡组（30 个卡 id，按摸牌顺序；每卡 1 张不重复——卡组定案口径）。</summary>
+        /// <summary>玩家卡组（30 个卡 id，按摸牌顺序；教学脚本组卡口径：每卡 1 张不重复）。</summary>
         public List<string> playerDeck;
         /// <summary>机器人卡组（同上）。</summary>
         public List<string> aiDeck;
@@ -56,8 +56,9 @@ namespace SynergyUI
 
     /// <summary>
     /// 脚本动作（type 区分，全部经 GameActions 正规入口、引擎权威校验）：
-    /// element——card 入元素池（横置放置，当回合不产元素，次回合起横置恢复后可产）；
-    /// tap——横置全部元素（LandTapPolicy 产色自动匹配手牌需求）；
+    /// element——card 入元素池（2026-10-11 锁色：target 可选=锁定产色名，缺省主色；
+    ///           地牌不耗竭，付费时系统按账单自动横置）；
+    /// tap——已删（2026-10-11 现取现用：无回合初横置动作）；
     /// play——出 card（mode=抉择模式序号；targets=逗号分隔目标串，"hero"=对方英雄/卡 id=场上单位，
     /// 缺省或 "auto"=引擎自动解析）；
     /// attack——attacker（场上卡 id）宣言攻击 target（"hero"=对方英雄/卡 id=场上单位）；

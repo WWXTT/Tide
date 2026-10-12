@@ -607,29 +607,7 @@ namespace CardCore
         /// 未发动=照常全价。修复旧「使用时生效」死循环（付不起→用不出→无减免）。</summary>
         public bool AwakenCommitted { get; set; } = false;
 
-        // ===== 地牌状态（状态跟随卡：指示物余量记在卡上，回手再入池保留剩余）=====
-
-        /// <summary>作为地牌离池（未耗尽）时的剩余指示物余量；null = 从未离池过</summary>
-        internal Dictionary<ManaType, int> _remainingLandTokens = null;
-
-        /// <summary>
-        /// 耗尽永久标记：作为地牌产完指示物进墓地后置位。
-        /// 置位后任何途径（含墓地回收回手）都不可再次作为地牌产元素 —— 资源枯竭不可逆。
-        /// </summary>
-        public bool WasDepletedAsLand { get; set; } = false;
-
-        /// <summary>是否有地牌余量状态（离池未耗尽时为 true）</summary>
-        public bool HasLandTokenState =>
-            _remainingLandTokens != null && _remainingLandTokens.Values.Sum() > 0;
-
-        /// <summary>读取地牌余量副本（无状态时返回 null）</summary>
-        public Dictionary<ManaType, int> GetRemainingLandTokens() =>
-            _remainingLandTokens == null ? null : new Dictionary<ManaType, int>(_remainingLandTokens);
-
-        /// <summary>写入地牌余量状态（离池时由 ElementPoolSystem 调用）</summary>
-        internal void SetRemainingLandTokens(Dictionary<ManaType, int> tokens)
-        {
-            _remainingLandTokens = tokens == null ? null : new Dictionary<ManaType, int>(tokens);
-        }
+        // ===== 地牌状态三件套已删（2026-10-11 资源重做：指示物/耗竭/回手余量随锁色定案退役）——
+        // 地牌权威态只在 ElementPool.PooledCard（LockedColor+IsTapped），卡上无持久字段 =====
     }
 }

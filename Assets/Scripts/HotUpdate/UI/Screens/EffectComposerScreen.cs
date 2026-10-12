@@ -317,7 +317,7 @@ namespace SynergyUI
             BindActivateBarTiers(); // 速度/生效次数（静态一次绑定——写入走当前 _graph.header）
             // 表切换按钮（原 btn-reload-atoms/btn-load-effects 两钮合并）：按下在 原子库↔效果表 间切换，
             // 标签常显"将切到哪边"。烘焙节点名 btn-switch-table（prefab 接管后删旧两钮）。
-            UiKit.Described(UiKit.BindableButton("btn-switch-table", Root, "显示效果表", SwitchTable,
+            UiKit.Described(UiKit.BindableButton("btn-switch-table", Root, "切换效果表", SwitchTable,
                 UiStyle.BtnPrimary, UiStyle.White),
                 "切换右栏显示：原子库 ↔ 效果表（效果表里点击一条可载入继续编辑）。");
             _tableToggleLabel = UiKit.FindDeep(Root, "btn-switch-table")?.GetComponentInChildren<TMP_Text>(true);
@@ -2342,7 +2342,7 @@ namespace SynergyUI
 
             // 合并切换按钮标签：常显"将切到哪边"
             if (_tableToggleLabel != null)
-                _tableToggleLabel.text = mode == RightMode.Atoms ? "显示效果表" : "显示原子表";
+                _tableToggleLabel.text = mode == RightMode.Atoms ? "切换效果表" : "切换原子表";
 
             if (mode == RightMode.Effects) RefreshEffectsList();
             else RefreshLibrary();

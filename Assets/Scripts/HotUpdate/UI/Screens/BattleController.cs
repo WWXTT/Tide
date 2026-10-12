@@ -33,12 +33,13 @@ namespace SynergyUI
         public bool IsPlayerTurn => TurnPlayer != null && TurnPlayer == P1;
         public GameBoard.BoardState Board => _board;
 
-        /// <summary>测试期随机卡组张数（卡组构成定案：30 张每卡 1 张不重复）。</summary>
+        /// <summary>测试期随机卡组张数（2026-10-11 卡组定案：30-60 张、可重复——随机局仍取
+        /// 不重复 30 张=新规下的合法卡组；卡池不足 30 时自然少于 30，现状口径不变）。</summary>
         public const int RandomDeckSize = 30;
 
         /// <summary>
         /// 组双方卡组并初始化对局。myDeck/aiDeck 缺省时从本地卡池随机抽取
-        /// （不重复、每卡 1 张）；P2 由极简 AI 操作。
+        /// （随机局仍不重复、每卡 1 张——新规下的合法卡组）；P2 由极简 AI 操作。
         /// 教学局参数（2026-10-02）：aiDriver 注入 ScriptedAi（剧本驱动）；lockDeckOrder 锁牌库顺序
         /// （卡组列表序=摸牌序列，起手=前 6 张）；rngSeed 钉效果随机——三者合成完全确定的教学局。
         /// 预设场面（2026-10-06 教学直入）：scenario 非 null=双方卡组（并集）先全部入牌库、跳起手抽取、
@@ -89,11 +90,22 @@ namespace SynergyUI
 
         /// <summary>随机卡组：卡池洗牌取前 N 张不重复（Guid 序——非对拍用途，无需钉种子）。
         /// 教学专用卡不进普通随机局/联机测试局（CardCatalog.IsTeachingCard 统一口径，2026-10-06 隔离）
-        /// ——教学局按 id 组卡（TutorialLibrary.BuildDeck），不经本过滤。</summary>
+        /// ——教学局按 id 组卡（TutorialLibrary.BuildDeck），不经本过滤。
+        /// 构筑唯一键（命运一抽【唯一】/同名仪典）每卡组限 1 张（2026-10-11 构筑规则②）——随机组卡同口径。</summary>
         public static List<CardData> RandomDeckFrom(List<CardData> catalog)
         {
-            return catalog.Where(c => !CardCatalog.IsTeachingCard(c))
-                .OrderBy(_ => Guid.NewGuid()).Take(RandomDeckSize).ToList();
+            var takenKeys = new HashSet<string>();
+            var deck = new List<CardData>(RandomDeckSize);
+            foreach (var c in catalog.Where(c => !CardCatalog.IsTeachingCard(c))
+                       .OrderBy(_ => Guid.NewGuid()))
+            {
+                var slots = ComposerCatalog.DeckUniqueSlots(c);
+                if (slots.Any(u => takenKeys.Contains(u.Key))) continue;
+                foreach (var u in slots) takenKeys.Add(u.Key);
+                deck.Add(c);
+                if (deck.Count == RandomDeckSize) break;
+            }
+            return deck;
         }
 
         /// <summary>棋盘占用层接线：注入碾压 AdjacentResolver + 连接光环 LinkAuraSystem（核心不绑棋盘，由宿主组装）。</summary>
