@@ -68,27 +68,30 @@ namespace CardCore
         private static bool IsPureColor(ManaType type)
             => PureColors.Contains(type);
 
-        /// <summary>int/float 账单归一为 ManaType→int（跳过 ≤0 项）。</summary>
+        /// <summary>int/float 账单归一为 ManaType→int（跳过 ≤0 项）。
+        /// 2026-10-12 小数直通定案：效果级费用带小数（如锚 0.6绿），此处=支付终点——
+        /// 四舍五入（约等于），原 (int) 截断会把 0.x 账单变成免费。</summary>
         public static Dictionary<ManaType, int> NormalizeBill(Dictionary<int, float> cost)
         {
             var bill = new Dictionary<ManaType, int>();
             if (cost == null) return bill;
             foreach (var kv in cost)
             {
-                int amount = (int)kv.Value;
+                int amount = (int)Math.Round(kv.Value, MidpointRounding.AwayFromZero);
                 if (amount > 0) bill[(ManaType)kv.Key] = amount;
             }
             return bill;
         }
 
-        /// <summary>ElementCost 账单归一为 ManaType→int（2026-10-04 位置数组化主入口；跳过 ≤0 项）。</summary>
+        /// <summary>ElementCost 账单归一为 ManaType→int（2026-10-04 位置数组化主入口；跳过 ≤0 项）。
+        /// 取整口径同上——支付终点约等于。</summary>
         public static Dictionary<ManaType, int> NormalizeBill(ElementCost cost)
         {
             var bill = new Dictionary<ManaType, int>();
             if (cost == null) return bill;
             foreach (var color in cost.NonzeroColors())
             {
-                int amount = (int)cost[color];
+                int amount = (int)Math.Round(cost[color], MidpointRounding.AwayFromZero);
                 if (amount > 0) bill[color] = amount;
             }
             return bill;

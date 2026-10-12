@@ -1450,6 +1450,7 @@ namespace TideServer.Verify
             };
             var prevResolver = CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate;
             CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = id => id == tokenTpl.ID ? tokenTpl : null;
+            Card bouncedToken = null; // ④ 段 EndTurn 后断言其随遗忘出局（2026-10-12 挂遗忘改稿）
             try
             {
                 var summonCard = LSpell("V9L_SUMMON", AtomicEffectType.SummonToken, str: tokenTpl.ID);
@@ -1467,6 +1468,8 @@ namespace TideServer.Verify
                 var summoned = lcore.ZoneManager.GetCards(l1, Zone.Battlefield)
                     .FirstOrDefault(c => c.IsToken && c.ID != null && c.ID.StartsWith(tokenTpl.ID + "#"));
                 VerifySuite.Assert(summoned != null, "衍生物入场且带 IsToken 标记");
+                VerifySuite.Assert(summoned.GetCounterCount(CardCore.Attribute.CounterRules.TempCounter) == 1,
+                    "衍生物入场即挂 1 层遗忘（2026-10-12 表行文案兑现——推翻完全生物口径）");
                 var bounceCard = LSpell("V9L_BOUNCE", AtomicEffectType.ReturnToHand);
                 VerifySuite.Assert(GameActions.PlayCard(lcore, l1, bounceCard,
                     new List<Entity> { summoned }, Zone.Hand, 0), "弹回术打出（预选目标=衍生物）");
@@ -1474,6 +1477,7 @@ namespace TideServer.Verify
                 VerifySuite.Assert(summoned.GetZone() == Zone.Hand, "衍生物被弹回手牌");
                 VerifySuite.Assert(!lcore.ElementPool.AddCardToPool(summoned, l1),
                     "弹回手牌的衍生物不能作为地牌（IsToken——2026-10-03 守卫）");
+                bouncedToken = summoned;
             }
             finally
             {
@@ -1533,11 +1537,12 @@ namespace TideServer.Verify
             VerifySuite.Assert(lbank[ManaType.Gray] == 0 && awakenCard.GetCounterCount(KeywordRules.SleepCounter) == 3,
                 $"立约结算：灰仍为 0、沉睡 3 层（实际层 {awakenCard.GetCounterCount(KeywordRules.SleepCounter)}）");
 
-            // ---- ④ 临时指示物化（2026-10-10 回响改版）：复制体带 1 层；回合末不在战场→从游戏中移除、在战场→衰退 ----
+            // ---- ④ 临时指示物化（2026-10-10 回响改版；2026-10-12 生效自减改稿）：复制体带 1 层；
+            //      回合末不在战场→从游戏中移除、在战场→不生效不倒数（层保留，转正退役） ----
             var tempRow = AtomicEffectTable.GetAll()
                 .FirstOrDefault(r => r != null && r.EnumName == nameof(AtomicEffectType.GrantTemporary));
             VerifySuite.Assert(tempRow != null && tempRow.TotalUnitCost == 2f && tempRow.PrimaryColor == ManaType.White,
-                "临时指示物表行存在（白2 锚，极性-1/衰退型）");
+                "临时指示物表行存在（白2 锚，极性-1/生效自减型）");
             lbank[ManaType.Gray] = 99; // ③ 灰耗尽剧本后复位，④ 出牌不受限
             lcore.ElementPool.GetPool(l1).PersonalTurnIndex = 9; // 浓度上限放开（同 V9.i/m 手法）
             var gtHost = new CardWrapper(new CardData
@@ -1562,9 +1567,13 @@ namespace TideServer.Verify
                               && !lcore.ZoneManager.GetCards(l1, Zone.Graveyard).Contains(echoCopy)
                               && !lcore.ZoneManager.GetCards(l1, Zone.Deck).Contains(echoCopy),
                 "回合末：手牌临时复制从游戏中移除（不进墓、不洗牌库——CounterRules.OnTurnEnd ②例程）");
+            VerifySuite.Assert(bouncedToken != null && bouncedToken.GetZone() == Zone.None
+                              && !lcore.ZoneManager.GetCards(l1, Zone.Hand).Contains(bouncedToken)
+                              && !lcore.ZoneManager.GetCards(l1, Zone.Graveyard).Contains(bouncedToken),
+                "回合末：弹回手牌的衍生物随遗忘出局（挂标离场即出局——同 ② 例程，不滞留墓地）");
             VerifySuite.Assert(gtHost.GetZone() == Zone.Battlefield
-                              && gtHost.GetCounterCount(CardCore.Attribute.CounterRules.TempCounter) == 0,
-                "回合末：在战场的挂标卡衰退一层归零、生物留场（转正）");
+                              && gtHost.GetCounterCount(CardCore.Attribute.CounterRules.TempCounter) == 1,
+                "回合末：在战场不生效不倒数（生效自减——层保留、生物留场，转正退役）");
 
             // ============================ V9.m 归土×回响×唯一槽×墓地配额（压力剧本） ============================
 
@@ -2390,16 +2399,18 @@ namespace TideServer.Verify
             // ---- ④' 指示物统一计价（2026-10-08 层改造定案）：基础费用×赋予层数（线性，砍档位梯）——
             //      基础费用=表行 ManaList 锚（1 层价，量级回归表行）；层数=max(1,|value|)。
             //      判定=表行 Tags 行为三型；原属性指示物锚梯（StatCounterTierPrice 1.5/层）退役。
+            //      2026-10-12 小数直通：不再逐原子取整——期望=行锚×层数真值（毒素 0.5×3=1.5），
+            //      约等于只在合成卡 L3 / 支付归一两个终点。
             var puRow = AtomicEffectTable.GetByType(AtomicEffectType.AddPowerUp);
             var toxinRow = AtomicEffectTable.GetByType(AtomicEffectType.AddToxin);
             float ExpectLayers(CardCore.Attribute.AtomicEffectConfig row, int n)
-                => (float)Math.Round(row.TotalUnitCost * Math.Max(1, n), MidpointRounding.AwayFromZero);
+                => row.TotalUnitCost * Math.Max(1, n);
             VerifySuite.Assert(puRow != null && toxinRow != null
                               && Math.Abs(DeriveAtomTotal(puRow, 2, 1) - ExpectLayers(puRow, 2)) < 0.01f
                               && Math.Abs(DeriveAtomTotal(toxinRow, 3, 2) - ExpectLayers(toxinRow, 3)) < 0.01f
                               && Math.Abs(DeriveAtomTotal(puRow, 0, 1) - ExpectLayers(puRow, 0)) < 0.01f,
                 $"指示物统一计价：行锚×层数（攻增 {puRow?.TotalUnitCost}×2={DeriveAtomTotal(puRow, 2, 1)}；" +
-                $"毒素 {toxinRow?.TotalUnitCost}×3={DeriveAtomTotal(toxinRow, 3, 2)}；未声明层数=1 层；期望含每原子取整）");
+                $"毒素 {toxinRow?.TotalUnitCost}×3={DeriveAtomTotal(toxinRow, 3, 2)}；未声明层数=1 层；小数直通不取整）");
 
             // ---- ④'' 层行为标签（2026-10-08 显性化）：指示物行 Tags 携带行为型三值——
             //      衰退型（层=剩余回合，回合末倒数）/ 换区清除型（常驻）/ 生效自减型（生效后自减），
@@ -3619,9 +3630,11 @@ namespace TideServer.Verify
 
             // ============================ V9.w 衍生物计价无底盘（2026-10-10 定案） ============================
             // 衍生物没走「入组 1 + 抽牌 2」通道，吃不到 3 点底盘——召唤原子单价 = 模板内容全价
-            //（S含耐久+K+E，**不乘 d(C)**）+ 结构费全额（攻/守/槽×1，**无预算抵扣**）= ContentPriceOf。
+            //（S含耐久+K+E，**不乘 d(C)**）+ 结构费全额（攻/守/槽×1，**无预算抵扣**）= ContentPriceOf；
+            // 2026-10-12 负面指示物补偿（表驱动）：召唤自带一层遗忘——单价再 − 遗忘行 GrantTemporary
+            // 单层锚价/只（白2，下限 0）；原写死 −1 灰同日退役，后续遗忘改价自动跟随。
             //（同日早间「声明费+ChassisAdjust 回加」案被本口径取代——模板声明费与召唤价彻底脱钩。）
-            VerifySuite.Section("V9.w 衍生物计价无底盘：单价=内容全价+结构全额，数量线性外乘");
+            VerifySuite.Section("V9.w 衍生物计价无底盘：单价=内容全价+结构全额−负面补偿（遗忘锚·表驱动），数量线性外乘");
 
             {
                 // 白板模板（攻+守、零效果）：内容 S=(2+2)/2=2 + 结构2 → 4 灰；
@@ -3670,19 +3683,21 @@ namespace TideServer.Verify
                     }, "V9W_SUMMON1");
                     var wCost2 = CostDerivationService.DeriveElementCosts(wSummon2);
                     var wCost1 = CostDerivationService.DeriveElementCosts(wSummon1);
-                    // 白板：单价 = 内容全价 4，×2 层 → 全灰 8
-                    VerifySuite.Assert(Math.Abs(wCost2.Total - 4 * 2) < 1e-4f
-                                       && Math.Abs(wCost2[ManaType.Gray] - 8) < 1e-4f,
-                        $"无底盘计价：白板×2层 → 8 灰（S2+结构2=4/只，实际 Total {wCost2.Total:0.##} 灰{wCost2[ManaType.Gray]:0.##}）");
-                    // 单效果：单价 = 7（灰5蓝2）——E 按内容构成分色
-                    VerifySuite.Assert(Math.Abs(wCost1.Total - 7) < 1e-4f
-                                       && Math.Abs(wCost1[ManaType.Gray] - 5) < 1e-4f
-                                       && Math.Abs(wCost1[ManaType.Blue] - 2) < 1e-4f,
-                        $"内容全价分色：单效果×1层 → 7=灰5+蓝2（实际 Total {wCost1.Total:0.##} 灰{wCost1[ManaType.Gray]:0.##}蓝{wCost1[ManaType.Blue]:0.##}）");
+                    // 白板：单价 = 内容全价 4 −1 补偿 = 3，×2 层 → 全灰 6
+                    VerifySuite.Assert(Math.Abs(wCost2.Total - (4 - 2) * 2) < 1e-4f
+                                       && Math.Abs(wCost2[ManaType.Gray] - 4) < 1e-4f,
+                        $"无底盘计价：白板×2层 → 4 灰（S2+结构2=4−负面补偿2=2/只，实际 Total {wCost2.Total:0.##} 灰{wCost2[ManaType.Gray]:0.##}）");
+                    // 单效果：内容 灰5蓝2，白锚 2 无白可扣 → 转扣灰 → 补偿后桶 **灰3蓝2**（精确落位，
+                    // 不再比例分摊）。2026-10-12 裁决：负面补偿=遗忘行 GrantTemporary 单层锚（白2·表驱动）
+                    // ——白优先补白、无白自动转灰；同日小数直通（分色不取整，终点才约等于）。
+                    VerifySuite.Assert(Math.Abs(wCost1.Total - 5) < 1e-4f
+                                       && Math.Abs(wCost1[ManaType.Gray] - 3) < 1e-3f
+                                       && Math.Abs(wCost1[ManaType.Blue] - 2) < 1e-3f,
+                        $"内容全价分色：单效果×1层 → 灰5蓝2−白锚转灰2=灰3+蓝2（实际 Total {wCost1.Total:0.##} 灰{wCost1[ManaType.Gray]:0.##}蓝{wCost1[ManaType.Blue]:0.##}）");
                     // 声明费脱钩回归锚（取代旧「底盘中性」锚）：改模板声明费 → 召唤价不动
                     wSlotted.Cost = PosCost((ManaType.Gray, 99f));
                     var wCost1b = CostDerivationService.DeriveElementCosts(wSummon1);
-                    VerifySuite.Assert(Math.Abs(wCost1b.Total - 7) < 1e-4f,
+                    VerifySuite.Assert(Math.Abs(wCost1b.Total - 5) < 1e-4f,
                         $"声明费脱钩：模板声明费 3→99 后召唤价仍 {wCost1b.Total:0.##}（旧口径随声明费漂移，已废）");
                     wSlotted.Cost = PosCost((ManaType.Gray, 3f));
                 }

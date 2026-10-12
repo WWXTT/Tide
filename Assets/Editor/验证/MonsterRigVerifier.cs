@@ -464,7 +464,9 @@ namespace CardCore.Editor
                             && (rootTr.localScale - d.Bones[0].RestLocalScale).magnitude > 0.01f) clampOk = false;
                     }
                     Check(clampOk, $"{tag}: 任意 t 骨骼偏移 ≤ 模块上限+1.5°、根缩放不变");
-                    Check(movedSamples >= 45, $"{tag}: 采样大部分有动作（{movedSamples}/50）");
+                    // 2026-10-13 蛇 idle=精确 rest 定案后，slither 代表 idle 只有根浮动在动
+                    // （约 43-46/50 样本）；45→40 仍能抓死 rig（死=0/50）
+                    Check(movedSamples >= 40, $"{tag}: 采样大部分有动作（{movedSamples}/50）");
 
                     // 整周期确定性（无目标/无反应=纯 t 函数）
                     var snapshot = new List<Quaternion>();

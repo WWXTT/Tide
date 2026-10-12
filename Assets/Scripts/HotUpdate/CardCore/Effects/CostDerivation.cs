@@ -24,7 +24,10 @@ namespace CardCore
         /// </summary>
         public static ElementCost DeriveElementCosts(EffectDefinition effect, int modeIndex = 0)
         {
-            var byColor = new Dictionary<ManaType, int>();
+            // 2026-10-12 小数直通定案（用户）：效果级组合全程小数（计算/显示/存储），逐步取整退役——
+            // 约等于只发生在两处终点：合成卡（CardCostService.Derive L3 整卡一次取整）与
+            // 运行时支付（ElementPaymentValidator.NormalizeBill 四舍五入）。
+            var byColor = new Dictionary<ManaType, float>();
             if (effect != null)
             {
                 VisitBillableAtoms(effect, modeIndex, (atom, domain) =>
@@ -47,7 +50,7 @@ namespace CardCore
                     {
                         var surcharge = EngineBranchSurcharge(atom.Branch);
                         foreach (var c in surcharge.NonzeroColors())
-                            byColor[c] = byColor.TryGetValue(c, out var v) ? v + (int)surcharge[c] : (int)surcharge[c];
+                            byColor[c] = byColor.TryGetValue(c, out var v) ? v + surcharge[c] : surcharge[c];
                     }
                 });
             }
@@ -147,7 +150,7 @@ namespace CardCore
                 ? atom?.TargetKinds ?? new List<int>()
                 : shared;
 
-        private static void AccumulateElementCost(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, Dictionary<ManaType, int> byColor)
+        private static void AccumulateElementCost(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, Dictionary<ManaType, float> byColor)
         {
             var cfg = ResolvePricingConfig(atom); // 行身份（2026-10-03）：变体行按 RowHashId 取锚
 
@@ -177,13 +180,14 @@ namespace CardCore
 
         /// <summary>
         /// 单个原子的元素费用：
-        /// 检索＝筛选维度系数；其余＝round(BaseCost×CostMultiplier×max(1,Value)×持续折扣)，
+        /// 检索＝筛选维度系数；其余＝BaseCost×CostMultiplier×max(1,Value)×持续折扣
+        ///（2026-10-12 小数直通：逐步 round 退役——真值带小数直传，终点约等于见 DeriveElementCosts 头注），
         /// 固定数量再 ×N（减费已归代价 Payload 体系——抽牌缺陷累减 2026-09-16 退役）。
         ///
         /// 持续时间计价（2026-09-10 上移定案后）：持续唯一真相在组合层（def.Duration），
         /// 折扣 = D(def.Duration)/D(Once)——**Once 为绝对锚**（Once 族系数恒 1，
         /// 锚点 1 伤害=1 元素不漂移）；配置表数值不动，比值的分母从「各原子表默认」
-        /// 固定为 Once（旧相对口径随表 DurationType 列消亡）。
+        /// 固定为 Once（旧相对口径随表 Duration 列消亡）。
         /// 法术宿主永久档语义由迁移回填承载（赋予族效果 Duration=Permanent）。
         /// </summary>
         /// <summary>全部档（TargetCount≤0）的期望目标数（2026-09-13 用户定案：少了亏多了赚，
@@ -377,10 +381,12 @@ namespace CardCore
             return Tiers.SpeedFactor(def.BaseSpeed);
         }
 
-        private static int ComputeAtomCost(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, AtomicEffectConfig cfg)
+        private static float ComputeAtomCost(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, AtomicEffectConfig cfg)
         {
-            int amount = ComputeAtomBaseAmount(atom, def, cfg);
-            if (amount <= 0) return 0;
+            // 2026-10-12 小数直通：系数链全程不取整（各步 (int)Math.Round 退役）——
+            // 效果级真值带小数，终点取整见 DeriveElementCosts 头注。
+            float amount = ComputeAtomBaseAmount(atom, def, cfg);
+            if (amount <= 0f) return 0f;
 
             // 错边拆分（2026-09-11 定案，取代错边折价）：有益原子(p>0)锁对方域 / 有害原子(p<0)锁己方域
             // → 计费份额 ×(1−|p|)（当前表 |p|=1 即全额出计价），grant 份额 ×|p| 改发黑/白元素
@@ -388,7 +394,7 @@ namespace CardCore
             // 双侧域=玩家可选按最优边全价；无目标/p=0 不拆。
             float polarity = atom.Polarity;
             if (polarity != 0f && !IsSelfSleepExempt(atom.Type, domain) && WrongSide(polarity, domain))
-                amount = (int)Math.Round(amount * (1f - Math.Abs(polarity)), MidpointRounding.AwayFromZero);
+                amount *= 1f - Math.Abs(polarity);
 
             // 目标数量计价（2026-10-05 档位化，表 PricingTier：1:1 / 2:1.5 / 3:2 / 全部:3；
             // 2026-10-09 每原子下沉——按该原子有效数量档计）；
@@ -400,26 +406,26 @@ namespace CardCore
             if ((domain == null || domain.Count == 0) && n > 1f)
                 n = 1f;
             if (n > 1f)
-                amount = (int)Math.Round(amount * n, MidpointRounding.AwayFromZero);
+                amount *= n;
 
             // 触发上限计价（2026-10-05 档位化，表 PricingTier：1:1 / 2:1.5 / 3:2 / 无上限:4；
             // 原 1.2 连乘口径退役）；N=1 / 非触发式 / 光环不乘。
             float triggerFactor = TriggerCostFactor(def);
             if (triggerFactor > 1f)
-                amount = (int)Math.Round(amount * triggerFactor, MidpointRounding.AwayFromZero);
+                amount *= triggerFactor;
 
             // 发动速度计价（2026-10-09 定案入价，表 PricingTier）：主动效果 0 普通 ×1 / 1 瞬间 ×1.5 / 2 高速 ×2
             //——速度是效果头效果级参数，逐原子分账（shim 克隆 BaseSpeed）随主干同乘。
             float speedFactor = SpeedCostFactor(def);
             if (speedFactor > 1f)
-                amount = (int)Math.Round(amount * speedFactor, MidpointRounding.AwayFromZero);
+                amount *= speedFactor;
 
             // 双方同时作用减半（2026-10-03 用户定案；2026-10-07 规则光环范围化）：效果同时作用于双方——
             // 双侧域 + 全取档/显式多目标（双方全体恢复/双方各消灭一生物），或规则光环的作用范围=双方
             //（ModifyGameRule 的 Value=RuleAuraScope.Both）——计费 ×0.5（对称面让利）；
             // 规则光环选己方/对方单侧=单侧锁口径不減；双侧域单体任选一侧同不減。
             if (IsSymmetricBothSides(atom, def, domain))
-                amount = (int)Math.Round(amount * SymmetricDiscountFactor, MidpointRounding.AwayFromZero);
+                amount *= SymmetricDiscountFactor;
 
             return amount;
         }
@@ -453,11 +459,55 @@ namespace CardCore
                    && (atom != null ? atom.EffectiveTargetCount(def) : def.TargetCount) >= 2;
         }
 
+        /// <summary>遗忘行（GrantTemporary·极性−1·白2）——衍生物召唤「负面指示物补偿」的表驱动真源
+        ///（2026-10-12 裁决：补偿=该行**单层基准费用**/只，原写死 −1灰 退役；后续遗忘改价自动跟随；
+        /// 行缺失=null → 补偿 0）。计价与公式展开（ComputeAtomBaseAmount / BaseExprOf）共用此口。</summary>
+        private static Attribute.AtomicEffectConfig ForgetRow => AtomicEffectTable.GetByType(AtomicEffectType.GrantTemporary);
+
+        /// <summary>召唤负面补偿的**按色落位**（2026-10-12 裁决）：补偿锚（遗忘行 ManaList·现行白2）
+        /// 逐色**同色优先扣模板同色分量**——白色锚优先补偿白色，模板无该色（或不足）的溢出量
+        /// 自动转为**扣灰色**（灰亦不足按可得计，各桶下限 0）。返回补偿后的模板逐色桶 +
+        /// 实际落位文案（「2白」「2灰」「1白1灰」）。计价标量（ComputeAtomBaseAmount）/
+        /// 分色（ComputeAtomCostByColor）/公式展开（BaseExprOf）三口共用，防漂移。</summary>
+        private static Dictionary<ManaType, float> SummonCompensatedBuckets(CardData template, out string compZh)
+        {
+            var buckets = new Dictionary<ManaType, float>();
+            if (template != null)
+                foreach (var kv in CardCostService.ContentPriceByColor(template))
+                    buckets[kv.Key] = kv.Value;
+
+            var applied = new Dictionary<ManaType, float>();
+            float overflow = 0f;
+            var anchor = ForgetRow?.ManaList;
+            if (anchor != null)
+            {
+                foreach (var color in anchor.NonzeroColors())
+                {
+                    if (color == ManaType.Gray) continue; // 灰锚分量并入溢出——灰=兜底色最后扣
+                    buckets.TryGetValue(color, out float have);
+                    float part = Math.Min(anchor[color], have);
+                    if (part > 0f) { buckets[color] = have - part; applied[color] = part; }
+                    overflow += anchor[color] - part;
+                }
+            }
+            buckets.TryGetValue(ManaType.Gray, out float gray);
+            float grayPart = Math.Min(overflow, gray);
+            if (grayPart > 0f) { buckets[ManaType.Gray] = gray - grayPart; applied[ManaType.Gray] = grayPart; }
+
+            var parts = new List<string>();
+            foreach (var kv in applied)
+                if (kv.Value > 0f) parts.Add($"{kv.Value:0.##}{ColorZh(kv.Key)}");
+            compZh = parts.Count == 0 ? "0" : string.Join("", parts);
+            return buckets;
+        }
+
         /// <summary>
         /// 原子基础量（错边拆分/×N/抽牌缺陷之前的单价）：检索按筛选维度档，其余通用公式。
         /// 计费（ComputeAtomCost）与黑白获得（ComputeAtomUnitGrant）共用，保证同源不漂移。
+        /// 2026-10-12 小数直通：本口与 ComputeAtomCost 全程不取整（各分档 Math.Round 退役）——
+        /// 效果级真值带小数（如 回复生命 锚 0.5绿/点），终点取整见 DeriveElementCosts 头注。
         /// </summary>
-        private static int ComputeAtomBaseAmount(AtomicEffectInstance atom, EffectDefinition def, AtomicEffectConfig cfg)
+        private static float ComputeAtomBaseAmount(AtomicEffectInstance atom, EffectDefinition def, AtomicEffectConfig cfg)
         {
             // 检索：按筛选维度档计费，替代通用公式。维度档存于 atom.StringValue（默认单一维度）。
             if (atom.Type == AtomicEffectType.SearchDeck)
@@ -469,12 +519,19 @@ namespace CardCore
             // 内容全价（2026-10-10 无底盘定案，取代同日早间「声明费+ChassisAdjust 回加」案）：
             // 衍生物没走「入组 1+抽牌 2」，吃不到 3 点底盘——单价 = 模板内容全价
             //（S含耐久+K+E，不乘 d(C)）+ 结构费全额（攻/守/槽×1，无预算抵扣）= ContentPriceOf。
+            // 负面补偿（2026-10-12 裁定表驱动化＋按色落位）：召唤自带一层遗忘指示物（表行 DisplayName
+            // 同口径），单价再 − 遗忘行（GrantTemporary）**单层基准费用**/只——白色锚优先补偿模板白色
+            // 分量、无白自动转扣灰色（落位单源 SummonCompensatedBuckets，各桶下限 0）。原写死 −1 灰
+            // 退役，后续遗忘行改价补偿自动跟随（行缺失=0 不补偿）。计费与错边黑白获得共用本口（同源不漂移）。
             if (atom.Type == AtomicEffectType.SummonToken)
             {
                 var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate ?? Attribute.MorphSystem.ResolveMorphTarget;
                 var template = string.IsNullOrEmpty(atom.StringValue) ? null : resolver?.Invoke(atom.StringValue);
-                int unit = template == null ? 0 : CardCostService.ContentPriceOf(template);
-                if (unit <= 0) return 0;
+                if (template == null) return 0f;
+                float unit = 0f;
+                foreach (var kv in SummonCompensatedBuckets(template, out _))
+                    unit += kv.Value;
+                if (unit <= 0f) return 0f;
                 int count = Math.Max(1, atom.Value);
                 return unit * count;
             }
@@ -486,15 +543,14 @@ namespace CardCore
             // 改写族（SetPower/SetLife=设置直改，视同本体）3.0。
             float statTier = StatTierPrice(atom.Type, def);
             if (statTier > 0f)
-                return (int)Math.Round(statTier * Math.Abs(atom.Value), MidpointRounding.AwayFromZero);
+                return statTier * Math.Abs(atom.Value);
 
             // 指示物统一计价（2026-10-08 层改造定案）：**基础费用 × 赋予层数**（线性，砍档位梯）——
             // 基础费用=表行 ManaList 锚（即 1 层价，量级回归表行）；层数=max(1,|value|)
             //（未开放 value 的行统一按 1 层计）。判定=表行 Tags 行为三型（衰退型/换区清除型/生效自减型，
             // 与 CounterSpec.Class 同源）——原属性指示物锚梯（StatCounterTierPrice 1.5/层）随之退役。
             if (IsCounterAtom(cfg))
-                return (int)Math.Round(cfg.TotalUnitCost * Math.Max(1, Math.Abs(atom.Value)),
-                    MidpointRounding.AwayFromZero);
+                return cfg.TotalUnitCost * Math.Max(1, Math.Abs(atom.Value));
 
             // 控制权三档（2026-09-13 定案）：回合级临时（UET/UNT/ForTurns≤2）×1.2 /
             // 持续到离场（ULB/WhileCondition）×1.6 / 改写持有者（Permanent——控制+owner 换写，
@@ -504,7 +560,7 @@ namespace CardCore
                 float ctrlMult = def.Duration == DurationType.Permanent || atom.Type == AtomicEffectType.ChangeOwner ? 3f
                     : (def.Duration == DurationType.UntilLeaveBattlefield || def.Duration == DurationType.WhileCondition) ? 1.6f
                     : 1.2f;
-                return (int)Math.Round(cfg.TotalUnitCost * ctrlMult, MidpointRounding.AwayFromZero);
+                return cfg.TotalUnitCost * ctrlMult;
             }
 
             // Grant 关键词梯（2026-09-13 定案；2026-09-16 统一档：UNT≡UET 计价并入 1.2 档）：
@@ -522,11 +578,11 @@ namespace CardCore
                     case DurationType.WhileCondition: grantMult = 1.6f; break;
                     default: grantMult = 2.0f; break; // Permanent（含魔法 Setting 回填）
                 }
-                return (int)Math.Round(cfg.TotalUnitCost * grantMult, MidpointRounding.AwayFromZero);
+                return cfg.TotalUnitCost * grantMult;
             }
 
             if (cfg == null || cfg.TotalUnitCost <= 0f)
-                return 0;
+                return 0f;
 
             // 规则光环（2026-10-07 范围化）：Value=作用范围序（RuleAuraScope）非量级——不乘 magnitude，
             // 恒单价×成本乘数×持续档（与旧口径 value=1 等价）；双方让利由 IsSymmetricBothSides 统一裁决
@@ -535,10 +591,9 @@ namespace CardCore
             {
                 float ruleMult = cfg.CostMultiplier > 0f ? cfg.CostMultiplier : 1f;
                 var ruleAttr = ValueSystemConfigManager.Instance.GetOrCreateConfig().AttributeValueConfig;
-                return (int)Math.Round(cfg.TotalUnitCost * ruleMult
-                                       * ruleAttr.GetDurationDiscount(def.Duration)
-                                       / ruleAttr.GetDurationDiscount(DurationType.Once),
-                    MidpointRounding.AwayFromZero);
+                return cfg.TotalUnitCost * ruleMult
+                       * ruleAttr.GetDurationDiscount(def.Duration)
+                       / ruleAttr.GetDurationDiscount(DurationType.Once);
             }
 
             // CostMultiplier 在表加载时默认 1.0；目标范围等可在配置中放大费用。
@@ -549,7 +604,7 @@ namespace CardCore
             float durationFactor = attrCfg.GetDurationDiscount(def.Duration)
                                    / attrCfg.GetDurationDiscount(DurationType.Once);
 
-            return (int)Math.Round(cfg.TotalUnitCost * multiplier * magnitude * durationFactor, MidpointRounding.AwayFromZero);
+            return cfg.TotalUnitCost * multiplier * magnitude * durationFactor;
         }
 
         /// <summary>
@@ -559,28 +614,42 @@ namespace CardCore
         /// 混合色行=总价不变、构成按份额分布（余数归序数序末个非零色保总额）。
         /// 例外：召唤衍生物（2026-10-07 表价清零）构成随模板卡费用，表行不再携带份额。
         /// </summary>
-        public static Dictionary<ManaType, int> ComputeAtomCostByColor(AtomicEffectInstance atom, EffectDefinition def,
+        public static Dictionary<ManaType, float> ComputeAtomCostByColor(AtomicEffectInstance atom, EffectDefinition def,
             List<int> domain, AtomicEffectConfig cfg)
         {
-            var result = new Dictionary<ManaType, int>();
-            int total = ComputeAtomCost(atom, def, domain, cfg);
+            // 2026-10-12 小数直通：总价与分色份额均不再取整（旧「末色吃余数」的 int 保额逻辑随之
+            // 退役——float 比例拆分天然保额）；约等于只在合成卡/支付两终点。
+            var result = new Dictionary<ManaType, float>();
+            float total = ComputeAtomCost(atom, def, domain, cfg);
             var cost = cfg?.ManaList;
-            // 召唤衍生物（2026-10-07 表价清零）：表行构成已清零——分色换轨随模板**内容全价构成**
-            //（2026-10-10 无底盘定案：ContentPriceByColor = 内容逐色 + 结构费入灰；总价含外层
-            // 速度/触发档乘数，按内容构成份额比例分摊——单色模板即全额该色）
+            // 召唤衍生物（2026-10-07 表价清零）：分色不走通用比例分摊——**补偿后逐色桶**直出
+            //（2026-10-12 裁决按色落位：白色锚优先扣模板白分量、无白转扣灰——落位单源
+            // SummonCompensatedBuckets）；外层系数（触发/速度等）按比例缩放各桶，总额与标量口径一致。
             if (atom.Type == AtomicEffectType.SummonToken)
             {
                 var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate ?? Attribute.MorphSystem.ResolveMorphTarget;
                 var template = string.IsNullOrEmpty(atom.StringValue) ? null : resolver?.Invoke(atom.StringValue);
                 if (template != null)
                 {
-                    var content = new ElementCost();
-                    foreach (var kv in CardCostService.ContentPriceByColor(template))
-                        if (kv.Value != 0) content[kv.Key] = kv.Value;
-                    if (!content.IsZero) cost = content;
+                    var unitBuckets = SummonCompensatedBuckets(template, out _);
+                    float bucketSum = 0f;
+                    foreach (var kv in unitBuckets) bucketSum += kv.Value;
+                    if (bucketSum > 0f && total > 0f)
+                    {
+                        // 逐桶缩放入 result（保总额==total）
+                        float scale = total / bucketSum;
+                        foreach (var kv in unitBuckets)
+                        {
+                            if (kv.Value <= 0f) continue;
+                            result.TryGetValue(kv.Key, out var prev);
+                            result[kv.Key] = prev + kv.Value * scale;
+                        }
+                        return result;
+                    }
                 }
+                return result;
             }
-            if (total <= 0 || cost == null || cost.IsZero) return result;
+            if (total <= 0f || cost == null || cost.IsZero) return result;
 
             float unitSum = cost.Total;
             if (unitSum <= 0f)
@@ -589,22 +658,11 @@ namespace CardCore
                 return result;
             }
 
-            int allocated = 0;
-            var colors = cost.NonzeroColors().ToList();
-            for (int i = 0; i < colors.Count; i++)
+            foreach (var color in cost.NonzeroColors())
             {
-                var color = colors[i];
-                if (i == colors.Count - 1)
-                {
-                    // 末个非零色吃余数——保证分配合计 == total（最大余数法的单行简化）
-                    result.TryGetValue(color, out var prevLast);
-                    result[color] = prevLast + (total - allocated);
-                    break;
-                }
-                int share = (int)Math.Round(total * (cost[color] / unitSum), MidpointRounding.AwayFromZero);
+                float share = total * (cost[color] / unitSum);
                 result.TryGetValue(color, out var prev);
                 result[color] = prev + share;
-                allocated += share;
             }
             return result;
         }
@@ -665,12 +723,17 @@ namespace CardCore
             {
                 var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate ?? Attribute.MorphSystem.ResolveMorphTarget;
                 var template = string.IsNullOrEmpty(atom.StringValue) ? null : resolver?.Invoke(atom.StringValue);
-                AddFactor(factors, "", Math.Max(1, atom.Value));
+                // 2026-10-12 句式改版：按个计显式化——单价构成入【】、数量恒列（用户要点：
+                // （模板【x】−负面指示物补偿【1】）×召唤数量【x】）。模板解析不到时明示，
+                // 不再展示误导性的「模板全价0」。
+                factors.Add($"召唤数量【{Math.Max(1, atom.Value)}】");
+                if (template == null)
+                    return "（模板【未解析·计0】）"; // 数值在 ComputeAtomBaseAmount（unit=0）
                 var content = new ElementCost();
-                if (template != null)
-                    foreach (var kv in CardCostService.ContentPriceByColor(template))
-                        if (kv.Value != 0) content[kv.Key] = kv.Value;
-                return $"模板全价{AnchorZh(content)}";
+                foreach (var kv in CardCostService.ContentPriceByColor(template))
+                    if (kv.Value != 0) content[kv.Key] = kv.Value;
+                SummonCompensatedBuckets(template, out string compZh); // 落位单源：白优先白、无白转灰（显示实际落位色）
+                return $"（模板【{AnchorZh(content)}】−负面补偿【{compZh}】）"; // −遗忘行单层锚价/只（按色落位，数值在 ComputeAtomBaseAmount）
             }
 
             float statTier = StatTierPrice(atom.Type, def);
@@ -732,10 +795,11 @@ namespace CardCore
         /// <summary>锚价构成文案（序数序拼「N色」——表行 ManaList / 模板内容价共用）。</summary>
         private static string AnchorZh(ElementCost cost)
         {
+            // 2026-10-12 小数直通：锚价按真值显示（如 回复生命 0.6绿——整数不带小数位）
             if (cost == null || cost.IsZero) return "0";
             var parts = new List<string>();
             foreach (var c in cost.NonzeroColors())
-                parts.Add($"{(int)cost[c]}{ColorZh(c)}");
+                parts.Add($"{cost[c]:0.##}{ColorZh(c)}");
             return string.Join("", parts);
         }
 
@@ -807,8 +871,9 @@ namespace CardCore
             if (polarity == 0f) return 0;
 
             var cfg = ResolvePricingConfig(atom); // 行身份（2026-10-03）：变体行按 RowHashId 取锚
-            int baseAmount = ComputeAtomBaseAmount(atom, def, cfg);
-            if (baseAmount <= 0) return 0;
+            // 2026-10-12 小数直通：基准不取整，末尾一次性约等于（发放是整数元素）
+            float baseAmount = ComputeAtomBaseAmount(atom, def, cfg);
+            if (baseAmount <= 0f) return 0;
             return (int)Math.Round(baseAmount * Math.Abs(polarity), MidpointRounding.AwayFromZero);
         }
 
@@ -821,7 +886,7 @@ namespace CardCore
                 return ComputeAtomUnitGrant(atom, PayloadGrantDef);
 
             var cfg = ResolvePricingConfig(atom); // 行身份（2026-10-03）：变体行按 RowHashId 取锚
-            return ComputeAtomBaseAmount(atom, PayloadGrantDef, cfg);
+            return (int)Math.Round(ComputeAtomBaseAmount(atom, PayloadGrantDef, cfg), MidpointRounding.AwayFromZero); // 2026-10-12 小数直通：末尾一次约等于
         }
 
         /// <summary>Payload 计价合成组合层（Duration=Once、TargetCount=1）。</summary>
@@ -875,7 +940,7 @@ namespace CardCore
             return tier != null ? tier.Cost : 3;
         }
 
-        private static void AccumulateSubEffects(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, Dictionary<ManaType, int> byColor)
+        private static void AccumulateSubEffects(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, Dictionary<ManaType, float> byColor)
         {
             // 元/复合效果的子效果同样计入费用。
             if (atom.SubEffects == null) return;

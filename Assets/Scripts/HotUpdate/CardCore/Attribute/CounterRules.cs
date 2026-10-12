@@ -261,10 +261,12 @@ namespace CardCore.Attribute
         public const string ReplayCounter = "Replay";
         /// <summary>
         /// 临时（2026-10-10 回响临时指示物化，白2，表行 GrantTemporary）：复制卡的「临时」标记——
-        /// 持有者回合结束时该卡**不在战场则从游戏中移除**（消失，不进墓）；**在战场则衰退 −1 层**
-        /// （归零即净，场上副本转正）。Exception 档换区不清——标记须跟卡进墓地/牌库，回合末检查才可及
-        /// （复制体沉墓/洗回牌库同样到期出局）；回合末例程=OnTurnEnd ②块（不进 ③通用倒数——避免双扣）。
-        /// 施加口=TempCopyRules.CreateTemporaryCopy（回响复制体恒 1 层）+ GrantTemporaryHandler（白2/层）。
+        /// 持有者回合结束时该卡**不在战场则从游戏中移除**（消失，不进墓）。2026-10-12 生效自减改稿：
+        /// 在战场**不生效也不倒数**（旧「衰退−1层转正」路径退役——挂标卡在场持续保有遗忘，
+        /// 一旦离场即于回合末出局，永不转为可入元素池的真卡）。Exception 档换区不清——标记须跟卡
+        /// 进墓地/牌库，回合末检查才可及（复制体沉墓/洗回牌库同样到期出局）；回合末例程=OnTurnEnd ②块
+        /// （不进 ③通用倒数——避免双扣）。施加口=TempCopyRules.CreateTemporaryCopy（回响复制体恒 1 层）
+        /// + GrantTemporaryHandler（白2/层）。
         /// </summary>
         public const string TempCounter = "Temp";
 
@@ -305,11 +307,12 @@ namespace CardCore.Attribute
             // 重放（2026-10-09，白4）：单位效果发动结算后消耗 1 层并再次发动一次（重放不触发重放；
             // 消耗口=EffectExecutor.ExecuteAsync）；换区不清（离场休眠、再入场仍生效）
             Register(new CounterSpec { Id = ReplayCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "重放" });
-            // 临时（2026-10-10 回响临时指示物化，白2）：持有者回合末不在战场→从游戏中移除、
-            // 在战场→衰退 −1 层（例程=OnTurnEnd ②块，不进 ③通用倒数）；Exception 换区不清——
+            // 临时（2026-10-10 回响临时指示物化，白2）：持有者回合末不在战场→从游戏中移除；
+            // 2026-10-12 生效自减改稿——在战场不生效也不倒数（旧 Clock 场上倒数/转正退役，
+            // 同档对齐圣盾/复生等「生效才消耗」形状）；Exception 换区不清——
             // 标记跟卡跨区（沉墓/洗牌库的复制体同样到期出局）；负面极性——净化/解减益可清
             //（净化救临时卡=统一指示物的交互点）
-            Register(new CounterSpec { Id = TempCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.External, DisplayName = "临时" });
+            Register(new CounterSpec { Id = TempCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "临时" });
 
             // ---- 常驻（Resident：不随时间衰退，换区清；消费型标 External 注明归属）----
             //（坚韧 2026-10-09 迁入 Exception 生效自减——受伤拦减后层数减半，见上区块）
@@ -634,8 +637,9 @@ namespace CardCore.Attribute
         /// 回合结束处理（由 GameCore.OnTurnEnd 调用）。只结算**持有者侧**（回合方玩家+战场+手牌卡；
         /// 对手实体上的指示物等对手自己回合末）：
         /// ① 毒素例外例程（每回合末受到=层数的伤害，随后层数减半 floor）；
-        /// ② 临时指示物例程（2026-10-10 回响临时指示物化）：全区域扫描——不在战场的挂标卡
-        ///    从游戏中移除（消失，不进墓）；在战场的衰退 −1 层（归零即净，场上副本转正）；
+        /// ② 临时指示物例程（2026-10-10 回响临时指示物化；2026-10-12 生效自减改稿）：全区域扫描——
+        ///    不在战场的挂标卡从游戏中移除（消失，不进墓）；**在战场不生效也不倒数**（层保留——
+        ///    旧场上衰退/转正路径退役）；
         /// ③ 衰退族逐层倒数（Class=Decay：层=剩余回合，持有者回合末 −1，归零解除——冻结/紊乱/
         ///    沉睡/锁定（易损 2026-10-09 迁生效自减档，已退出倒数）；窥渊挂锁必须排在倒数之后，
         ///    时序契约见 GameCore.OnTurnEnded）。
@@ -650,36 +654,31 @@ namespace CardCore.Attribute
                 ProcessToxinException(entity);
             }
 
-            // ── ② 临时指示物例程（2026-10-10 回响临时指示物化）：持有者全区域扫描——
-            //    不在战场的挂标卡从游戏中移除（消失，不进墓、不触发死亡）；在战场的照常衰退 −1 层。
-            //    自带倒数（不走 ③通用倒数——TempCounter 登记 External，避免双扣） ──
+            // ── ② 临时指示物例程（2026-10-10 回响临时指示物化；2026-10-12 生效自减改稿）：
+            //    持有者全区域扫描——不在战场的挂标卡从游戏中移除（消失，不进墓、不触发死亡）；
+            //    在战场的**不生效也不倒数**（生效自减形状——层保留，旧「衰退−1 层转正」退役；
+            //    不走 ③通用倒数——TempCounter 登记 External，避免双扣） ──
             foreach (var card in AllZoneCards(turnPlayer, zoneManager))
             {
                 if (card.GetCounterCount(TempCounter) <= 0) continue;
-                if (card.GetZone() != Zone.Battlefield)
+                if (card.GetZone() == Zone.Battlefield) continue;
+                var owner = card.GetOwner() ?? card.GetController();
+                var from = card.GetZone();
+                if (owner != null) zoneManager?.GetZoneContainer(owner)?.Remove(card, from);
+                else card._zone = Zone.None;
+                EventManager.Instance.Publish(new CardMoveEvent
                 {
-                    var owner = card.GetOwner() ?? card.GetController();
-                    var from = card.GetZone();
-                    if (owner != null) zoneManager?.GetZoneContainer(owner)?.Remove(card, from);
-                    else card._zone = Zone.None;
-                    EventManager.Instance.Publish(new CardMoveEvent
-                    {
-                        MovedCard = card,
-                        From = from,
-                        To = Zone.None,
-                        Controller = owner,
-                    });
-                    EventManager.Instance.Publish(new KeywordAppliedEvent
-                    {
-                        Target = card,
-                        Keyword = TempCounter,
-                        Detail = "临时到期——不在战场，从游戏中移除",
-                    });
-                }
-                else
+                    MovedCard = card,
+                    From = from,
+                    To = Zone.None,
+                    Controller = owner,
+                });
+                EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
-                    TickLayeredCounter(card, TempCounter, "临时");
-                }
+                    Target = card,
+                    Keyword = TempCounter,
+                    Detail = "临时到期——不在战场，从游戏中移除",
+                });
             }
 
             // ── ③ 衰退族逐层倒数（spec 驱动）：TickPolicy=TurnEndTickDown（=Decay 类），

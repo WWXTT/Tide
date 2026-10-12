@@ -41,9 +41,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.502528667,
+            "x": -0.5025286,
             "y": 0.0,
-            "z": 0.864560544
+            "z": 0.8645606
           },
           "amplitudeDeg": 10.0
         },
@@ -54,7 +54,7 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.649133,
+            "x": 0.6491331,
             "y": 0.0,
             "z": -0.7606749
           },
@@ -67,49 +67,14 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.622566938,
+            "x": 0.622567,
             "y": 0.0,
-            "z": 0.7825666
+            "z": 0.782566547
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "AbyssFlower",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [
-        {
-          "bones": [
-            "stem",
-            "stem2",
-            "stem3",
-            "stem4",
-            "stem5"
-          ],
-          "phase": 0.0,
-          "side": 1
-        }
-      ],
       "headForward": {
         "x": 0.0,
         "y": 0.0,
@@ -270,7 +235,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.619411945,
+            "x": -0.6194119,
             "y": 0.0,
             "z": -0.7850662
           },
@@ -279,9 +244,9 @@
       ],
       "soft": [],
       "headForward": {
-        "x": 0.213636041,
+        "x": 0.213636085,
         "y": 0.0,
-        "z": 0.976913333
+        "z": 0.9769133
       },
       "yawOffsetDeg": 12.335516
     },
@@ -487,9 +452,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.05996062,
+            "x": -0.5457427,
             "y": 0.0,
-            "z": 0.9982007
+            "z": 0.837952852
           },
           "amplitudeDeg": 10.0
         },
@@ -500,20 +465,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.9276274,
+            "x": 0.6215587,
             "y": 0.0,
-            "z": 0.373507023
+            "z": 0.7833676
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": -0.638122141,
+        "x": -0.9353812,
         "y": 0.0,
-        "z": 0.769935131
+        "z": 0.353641033
       },
-      "yawOffsetDeg": -39.6519356
+      "yawOffsetDeg": -69.28982
     },
     {
       "name": "AmphibiousBugroth",
@@ -620,29 +585,6 @@
       "yawOffsetDeg": 49.5944672
     },
     {
-      "name": "AncientJar",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "AncientLizardWarrior",
       "moveType": "Biped",
       "manual": false,
@@ -707,50 +649,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.07437182,
+        "x": 0.9903409,
         "y": 0.0,
-        "z": 0.9972306
+        "z": 0.138654113
       },
-      "yawOffsetDeg": -4.26512337
-    },
-    {
-      "name": "AncientTreeOfEnlightenment",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [
-        {
-          "bones": [
-            "trunk",
-            "branch",
-            "branch2",
-            "branch3",
-            "branch4",
-            "branch5",
-            "branch6",
-            "branch7",
-            "branch8"
-          ],
-          "phase": 0.0,
-          "side": 1
-        }
-      ],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": 82.03003
     },
     {
       "name": "Ansatsu",
@@ -966,7 +869,7 @@
           "hingeAxis": {
             "x": -0.6631425,
             "y": 0.0,
-            "z": 0.748493135
+            "z": 0.7484932
           },
           "amplitudeDeg": 10.0
         },
@@ -987,11 +890,11 @@
       ],
       "soft": [],
       "headForward": {
-        "x": 0.614785731,
+        "x": 0.6147837,
         "y": 0.0,
-        "z": 0.788694143
+        "z": 0.788695753
       },
-      "yawOffsetDeg": 37.936348
+      "yawOffsetDeg": 37.9362068
     },
     {
       "name": "AquaMadoor",
@@ -1082,17 +985,17 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.887158453,
+        "x": -0.271770269,
         "y": 0.0,
-        "z": 0.461464942
+        "z": 0.9623621
       },
-      "yawOffsetDeg": -62.518322
+      "yawOffsetDeg": -15.7696333
     },
     {
       "name": "ArchfiendMarmotOfNefariousness",
       "moveType": "Flight",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -1146,9 +1049,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.555744231,
+            "x": 0.7988934,
             "y": 0.0,
-            "z": 0.8313533
+            "z": 0.6014727
           },
           "amplitudeDeg": 10.0
         },
@@ -1159,9 +1062,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.5325663,
+            "x": -0.874911,
             "y": 0.0,
-            "z": -0.84638834
+            "z": 0.484283775
           },
           "amplitudeDeg": 10.0
         }
@@ -1289,7 +1192,7 @@
       "name": "Armaill",
       "moveType": "Slither",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -1337,11 +1240,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -1.0,
+        "x": 0.0,
         "y": 0.0,
-        "z": 0.0
+        "z": 1.0
       },
-      "yawOffsetDeg": -90.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "ArmedNinja",
@@ -1397,11 +1300,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -1.30471122E-07,
         "y": 0.0,
-        "z": -1.0
+        "z": 1.0
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "ArmoredLizard",
@@ -1540,85 +1443,17 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": 0.483861148,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.8751448
       },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "ArmoredStarfish",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm2"
-          ],
-          "phase": 4.18879032,
-          "side": -1
-        },
-        {
-          "bones": [
-            "arm3"
-          ],
-          "phase": 2.09439516,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm4"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm5"
-          ],
-          "phase": 4.18879032,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm6"
-          ],
-          "phase": 5.23598766,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": 28.9378872
     },
     {
       "name": "ArmoredZombie",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -1678,7 +1513,7 @@
       "name": "AxeRaider",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -1730,9 +1565,9 @@
       "headForward": {
         "x": 0.0,
         "y": 0.0,
-        "z": -1.0
+        "z": 1.0
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "BabyDragon",
@@ -1818,9 +1653,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.62977165,
+            "x": -0.238274574,
             "y": 0.0,
-            "z": -0.7767803
+            "z": -0.971197844
           },
           "amplitudeDeg": 10.0
         },
@@ -1831,20 +1666,20 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.5454905,
+            "x": -0.850872934,
             "y": 0.0,
-            "z": 0.838117063
+            "z": 0.525371552
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.00124322344,
+        "x": -0.425421,
         "y": 0.0,
-        "z": 0.9999992
+        "z": 0.904995561
       },
-      "yawOffsetDeg": 0.0713262558
+      "yawOffsetDeg": -25.1773148
     },
     {
       "name": "BaronOfTheFiendSword",
@@ -2061,52 +1896,6 @@
       ],
       "wings": [],
       "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": -1.0
-      },
-      "yawOffsetDeg": 180.0
-    },
-    {
-      "name": "BarrelLily",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [
-        {
-          "bones": [
-            "stem",
-            "stem2",
-            "stem3",
-            "stem4",
-            "stem5",
-            "stem6",
-            "stem7",
-            "stem8",
-            "stem13",
-            "stem14",
-            "stem15",
-            "stem16",
-            "stem9",
-            "stem10",
-            "stem11",
-            "stem12"
-          ],
-          "phase": 0.0,
-          "side": 1
-        }
-      ],
       "headForward": {
         "x": 0.0,
         "y": 0.0,
@@ -2377,7 +2166,7 @@
       "name": "BattleOx",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -2599,7 +2388,7 @@
       "name": "BeanSoldier",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -2649,11 +2438,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.232699186,
+        "x": 0.0,
         "y": 0.0,
-        "z": 0.9725488
+        "z": 1.0
       },
-      "yawOffsetDeg": -13.45603
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "BeastkingOfTheSwamps",
@@ -2743,54 +2532,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0324461,
+        "x": 0.0324461758,
         "y": 0.0,
-        "z": 0.999473453
+        "z": 0.9994735
       },
       "yawOffsetDeg": 1.859306
-    },
-    {
-      "name": "BeautifulHeadhuntress",
-      "moveType": "Float",
-      "manual": false,
-      "note": "headForward 兜底+Z",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "arm",
-            "lowerarm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
     },
     {
       "name": "BeaverWarrior",
@@ -2854,11 +2600,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.258819044,
+        "x": 0.724980056,
         "y": 0.0,
-        "z": -0.9659258
+        "z": 0.6887699
       },
-      "yawOffsetDeg": 165.0
+      "yawOffsetDeg": 46.46719
     },
     {
       "name": "Behegon",
@@ -3033,78 +2779,6 @@
         "z": 0.946395
       },
       "yawOffsetDeg": 18.8451557
-    },
-    {
-      "name": "BindingChain",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "bone",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "bone"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [
-        {
-          "bones": [
-            "chain",
-            "chain2",
-            "chain3",
-            "chain4",
-            "chain5",
-            "chain6",
-            "chain7",
-            "chain8",
-            "chain9",
-            "chain10",
-            "chain11",
-            "chain12",
-            "chain13",
-            "chain14",
-            "chain15",
-            "chain16",
-            "chain17",
-            "chain18",
-            "chain19",
-            "chain20",
-            "chain21",
-            "chain22",
-            "chain23",
-            "chain24",
-            "chain25",
-            "chain26",
-            "chain27",
-            "chain28",
-            "chain29",
-            "chain30",
-            "chain31",
-            "chain32",
-            "chain33",
-            "chain34",
-            "chain35",
-            "chain36",
-            "chain37",
-            "chain38",
-            "chain39",
-            "chain40"
-          ],
-          "phase": 0.0,
-          "side": 1
-        }
-      ],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
     },
     {
       "name": "BioPlant",
@@ -3387,9 +3061,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.309806466,
+            "x": -0.7069259,
             "y": 0.0,
-            "z": 0.950799644
+            "z": -0.70728755
           },
           "amplitudeDeg": 10.0
         },
@@ -3401,20 +3075,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.368293643,
+            "x": 0.9956329,
             "y": 0.0,
-            "z": -0.929709554
+            "z": 0.09335534
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.8912668,
         "y": 0.0,
-        "z": 1.0
+        "z": -0.453479379
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -116.96714
     },
     {
       "name": "BlacklandFireDragon",
@@ -3495,9 +3169,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.8113808,
+            "x": -0.943043232,
             "y": 0.0,
-            "z": 0.584517956
+            "z": -0.332670182
           },
           "amplitudeDeg": 10.0
         },
@@ -3509,20 +3183,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.891626239,
+            "x": -0.137072012,
             "y": 0.0,
-            "z": -0.45277217
+            "z": -0.990561068
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.8211477,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.5707158
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -55.1998444
     },
     {
       "name": "Bladefly",
@@ -3597,9 +3271,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.206567168,
+            "x": -0.2065671,
             "y": 0.0,
-            "z": 0.9784324
+            "z": -0.9784324
           },
           "amplitudeDeg": 10.0
         },
@@ -3610,9 +3284,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.250424683,
+            "x": -0.250424773,
             "y": 0.0,
-            "z": -0.968136132
+            "z": 0.9681361
           },
           "amplitudeDeg": 10.0
         },
@@ -3623,9 +3297,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.0995263159,
+            "x": -0.09952622,
             "y": 0.0,
-            "z": 0.995034933
+            "z": -0.995034933
           },
           "amplitudeDeg": 10.0
         },
@@ -3636,66 +3310,16 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.111474693,
+            "x": -0.111474782,
             "y": 0.0,
-            "z": -0.993767262
+            "z": 0.993767262
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": -1.0
-      },
-      "yawOffsetDeg": 180.0
-    },
-    {
-      "name": "BlastJuggler",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm4",
-            "arm5",
-            "arm6",
-            "hand2",
-            "fingers2",
-            "thumb2"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm",
-            "arm2",
-            "arm3",
-            "hand",
-            "fingers",
-            "thumb"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
+        "x": -8.380252E-08,
         "y": 0.0,
         "z": 1.0
       },
@@ -3705,7 +3329,7 @@
       "name": "BlueEyedSilverZombie",
       "moveType": "Flight",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -3740,9 +3364,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.111288726,
+            "x": -0.111288629,
             "y": 0.0,
-            "z": 0.9937881
+            "z": -0.9937881
           },
           "amplitudeDeg": 10.0
         },
@@ -3753,9 +3377,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.1714724,
+            "x": -0.17147249,
             "y": 0.0,
-            "z": -0.9851889
+            "z": 0.9851889
           },
           "amplitudeDeg": 10.0
         }
@@ -3764,9 +3388,9 @@
       "headForward": {
         "x": 0.0,
         "y": 0.0,
-        "z": -1.0
+        "z": 1.0
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "BlueEyesUltimateDragon",
@@ -3860,9 +3484,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.07117132,
+            "x": 0.006213383,
             "y": 0.0,
-            "z": -0.9974641
+            "z": 0.9999807
           },
           "amplitudeDeg": 10.0
         },
@@ -3873,20 +3497,20 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.0493396521,
+            "x": 0.1141285,
             "y": 0.0,
-            "z": 0.998782039
+            "z": -0.993466
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.0649723262,
         "y": 0.0,
-        "z": -1.0
+        "z": 0.997887
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": -3.72525644
     },
     {
       "name": "BlueEyesWhiteDragon",
@@ -3968,9 +3592,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.07117131,
+            "x": 0.0711712,
             "y": 0.0,
-            "z": -0.9974641
+            "z": 0.9974641
           },
           "amplitudeDeg": 10.0
         },
@@ -3981,20 +3605,20 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.0493396334,
+            "x": 0.04933968,
             "y": 0.0,
-            "z": 0.998782039
+            "z": -0.998782039
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -4.83324918E-08,
         "y": 0.0,
-        "z": -1.0
+        "z": 1.0
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "BlueWingedCrown",
@@ -4275,61 +3899,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": 0.9998323,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.0183131136
       },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "BooKoo",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "hand",
-            "finger5",
-            "finger4",
-            "finger3",
-            "finger2",
-            "finger"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "hand2",
-            "finger6",
-            "finger7",
-            "finger8",
-            "finger9",
-            "finger10"
-          ],
-          "phase": 6.28318548,
-          "side": -1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": 88.950676
     },
     {
       "name": "BottomDweller",
@@ -4368,9 +3942,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.8649662,
+            "x": -0.8649663,
             "y": 0.0,
-            "z": -0.501830041
+            "z": -0.5018301
           },
           "amplitudeDeg": 10.0
         },
@@ -4381,9 +3955,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.7825238,
+            "x": -0.7825242,
             "y": 0.0,
-            "z": -0.622620642
+            "z": -0.622620165
           },
           "amplitudeDeg": 10.0
         },
@@ -4394,7 +3968,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.759403646,
+            "x": 0.7594036,
             "y": 0.0,
             "z": 0.650619864
           },
@@ -4409,18 +3983,18 @@
           "hingeAxis": {
             "x": 0.9278715,
             "y": 0.0,
-            "z": 0.372900039
+            "z": 0.372900069
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.5390808,
+        "x": 0.539081,
         "y": 0.0,
-        "z": 0.842254043
+        "z": 0.8422539
       },
-      "yawOffsetDeg": 32.62109
+      "yawOffsetDeg": 32.6211
     },
     {
       "name": "BoulderTortoise",
@@ -4571,11 +4145,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.62678057,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.7791958
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -38.8129959
     },
     {
       "name": "BracchioRaidus",
@@ -4655,11 +4229,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.9980856,
+        "x": -0.6900217,
         "y": 0.0,
-        "z": -0.0618473142
+        "z": 0.723788738
       },
-      "yawOffsetDeg": 93.54585
+      "yawOffsetDeg": -43.6318245
     },
     {
       "name": "BraveScizzar",
@@ -4812,43 +4386,6 @@
         "z": 0.980168164
       },
       "yawOffsetDeg": -11.429822
-    },
-    {
-      "name": "CandleOfFate",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm",
-            "hand",
-            "finger",
-            "finger2",
-            "finger3",
-            "finger4",
-            "thumb"
-          ],
-          "phase": 0.0,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
     },
     {
       "name": "CannonSoldier",
@@ -5031,31 +4568,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "ChangeSlime",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "jaw",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "CharubinTheFireKnight",
       "moveType": "Biped",
       "manual": false,
@@ -5125,11 +4637,11 @@
         }
       ],
       "headForward": {
-        "x": -0.7905201,
+        "x": 1.14729424E-07,
         "y": 0.0,
-        "z": -0.6124362
+        "z": 1.0
       },
-      "yawOffsetDeg": -127.765862
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "ClawReacher",
@@ -5309,29 +4821,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "CocoonOfEvolution",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "CorrodingShark",
       "moveType": "Flight",
       "manual": false,
@@ -5364,7 +4853,7 @@
           "hingeAxis": {
             "x": 0.554843843,
             "y": 0.0,
-            "z": 0.831954539
+            "z": 0.8319545
           },
           "amplitudeDeg": 10.0
         },
@@ -5377,14 +4866,14 @@
           "hingeAxis": {
             "x": 0.5462852,
             "y": 0.0,
-            "z": -0.837599158
+            "z": -0.8375992
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.01532936,
+        "x": 0.0153293619,
         "y": 0.0,
         "z": 0.9998825
       },
@@ -5520,9 +5009,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.4794683,
+            "x": 0.4794682,
             "y": 0.0,
-            "z": 0.8775592
+            "z": 0.877559245
           },
           "amplitudeDeg": 10.0
         },
@@ -5534,7 +5023,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.126949519,
+            "x": 0.12694943,
             "y": 0.0,
             "z": -0.9919092
           },
@@ -5543,11 +5032,11 @@
       ],
       "soft": [],
       "headForward": {
-        "x": -0.305063367,
+        "x": -0.305063456,
         "y": 0.0,
         "z": 0.952332
       },
-      "yawOffsetDeg": -17.7619724
+      "yawOffsetDeg": -17.761982
     },
     {
       "name": "CrawlingDragon2",
@@ -5634,11 +5123,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.4731524,
+        "x": -0.8099504,
         "y": 0.0,
-        "z": 0.880980551
+        "z": 0.5864984
       },
-      "yawOffsetDeg": -28.2391186
+      "yawOffsetDeg": -54.0910873
     },
     {
       "name": "CrimsonSunbird",
@@ -5831,7 +5320,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.225282058,
+            "x": -0.225282,
             "y": 0.0,
             "z": -0.9742936
           },
@@ -5844,55 +5333,13 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.273713648,
+            "x": -0.2737136,
             "y": 0.0,
             "z": 0.961811244
           },
           "amplitudeDeg": 10.0
         }
       ],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "CurtainOfTheDarkOnes",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "left_shoulder",
-            "left_arm"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_shoulder",
-            "right_arm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
       "soft": [],
       "headForward": {
         "x": 0.0,
@@ -6041,11 +5488,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.8182407,
+        "x": -0.8182408,
         "y": 0.0,
-        "z": 0.5748757
+        "z": 0.5748756
       },
-      "yawOffsetDeg": -54.9090652
+      "yawOffsetDeg": -54.90908
     },
     {
       "name": "CyberSoldierOfDarkworld",
@@ -6101,11 +5548,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.4323479,
+        "x": -0.432347834,
         "y": 0.0,
         "z": 0.9017069
       },
-      "yawOffsetDeg": -25.6166573
+      "yawOffsetDeg": -25.61665
     },
     {
       "name": "CyberStein",
@@ -6171,7 +5618,7 @@
       "name": "DDWarrior",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -6221,11 +5668,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.7995091,
+        "x": 0.0,
         "y": 0.0,
-        "z": 0.600654
+        "z": 1.0
       },
-      "yawOffsetDeg": -53.08325
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "DHuman",
@@ -6499,11 +5946,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -8.742278E-08,
         "y": 0.0,
-        "z": -1.0
+        "z": 1.0
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "DarkElf",
@@ -6618,9 +6065,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.548649967,
+            "x": 0.54865,
             "y": 0.0,
-            "z": 0.8360522
+            "z": 0.8360521
           },
           "amplitudeDeg": 10.0
         },
@@ -6640,54 +6087,11 @@
       ],
       "soft": [],
       "headForward": {
-        "x": 0.172858819,
+        "x": 0.172858834,
         "y": 0.0,
         "z": 0.9849466
       },
       "yawOffsetDeg": 9.95408
-    },
-    {
-      "name": "DarkKingOfTheAbyss",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "jaw",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "left_shoulder",
-            "left_arm"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_shoulder",
-            "right_arm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.4472136,
-        "y": 0.0,
-        "z": 0.8944272
-      },
-      "yawOffsetDeg": 26.565052
     },
     {
       "name": "DarkMagician",
@@ -6743,42 +6147,7 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": -1.0
-      },
-      "yawOffsetDeg": 180.0
-    },
-    {
-      "name": "DarkPlant",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [
-        {
-          "bones": [
-            "stem",
-            "stem2",
-            "stem3",
-            "stem4",
-            "stem5"
-          ],
-          "phase": 0.0,
-          "side": 1
-        }
-      ],
-      "headForward": {
-        "x": 0.0,
+        "x": -9.085126E-08,
         "y": 0.0,
         "z": 1.0
       },
@@ -6899,7 +6268,7 @@
       "name": "DarkRabbit",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "jaw",
       "abdomen": "",
@@ -7136,11 +6505,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.379000336,
+        "x": 0.799870849,
         "y": 0.0,
-        "z": 0.925396562
+        "z": 0.600172162
       },
-      "yawOffsetDeg": 22.2717724
+      "yawOffsetDeg": 53.11777
     },
     {
       "name": "DarkworldThorns",
@@ -7297,7 +6666,7 @@
           "hingeAxis": {
             "x": -0.271819979,
             "y": 0.0,
-            "z": -0.9623481
+            "z": -0.962348163
           },
           "amplitudeDeg": 10.0
         },
@@ -7308,7 +6677,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -4.57612441E-05,
+            "x": -4.57403221E-05,
             "y": 0.0,
             "z": 1.0
           },
@@ -7317,7 +6686,7 @@
       ],
       "soft": [],
       "headForward": {
-        "x": -0.257506579,
+        "x": -0.257506549,
         "y": 0.0,
         "z": -0.9662765
       },
@@ -7532,46 +6901,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "DiskMagician",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "upper_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "left_arm"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_arm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": -1.0
-      },
-      "yawOffsetDeg": 180.0
-    },
-    {
       "name": "Dissolverock",
       "moveType": "Slither",
       "manual": false,
@@ -7737,7 +7066,7 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.130526215,
+        "x": 0.13052617,
         "y": 0.0,
         "z": 0.9914449
       },
@@ -7862,49 +7191,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "Doriado",
-      "moveType": "Float",
-      "manual": false,
-      "note": "headForward 兜底+Z",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "arm",
-            "lowerarm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "Doron",
       "moveType": "Biped",
       "manual": false,
@@ -7965,38 +7251,10 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "Dorover",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "jaw",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [
-        "neck"
-      ],
-      "tail": [],
-      "bodyChain": [
-        "body",
-        "body2"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "DragonPiper",
       "moveType": "Slither",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -8045,11 +7303,11 @@
         }
       ],
       "headForward": {
-        "x": -0.5152759,
+        "x": 0.0,
         "y": 0.0,
-        "z": -0.8570244
+        "z": 1.0
       },
-      "yawOffsetDeg": -148.9841
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "DragonSeeker",
@@ -8150,9 +7408,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.2778328,
+            "x": -0.277832747,
             "y": 0.0,
-            "z": 0.960629463
+            "z": 0.9606294
           },
           "amplitudeDeg": 10.0
         },
@@ -8164,7 +7422,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.401605874,
+            "x": -0.401605844,
             "y": 0.0,
             "z": -0.9158126
           },
@@ -8175,9 +7433,9 @@
       "headForward": {
         "x": -0.125406578,
         "y": 0.0,
-        "z": 0.9921055
+        "z": 0.9921054
       },
-      "yawOffsetDeg": -7.204212
+      "yawOffsetDeg": -7.20423937
     },
     {
       "name": "DragonStatue",
@@ -8346,9 +7604,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.544062853,
+            "x": -0.545200467,
             "y": 0.0,
-            "z": 0.8390445
+            "z": 0.8383058
           },
           "amplitudeDeg": 10.0
         },
@@ -8360,20 +7618,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.192739233,
+            "x": 0.9748068,
             "y": 0.0,
-            "z": -0.981250048
+            "z": -0.2230511
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": -0.305063754,
+        "x": -0.9940772,
         "y": 0.0,
-        "z": 0.95233196
+        "z": 0.108676255
       },
-      "yawOffsetDeg": -17.7619934
+      "yawOffsetDeg": -83.76099
     },
     {
       "name": "DragonessTheWickedKnight",
@@ -8643,54 +7901,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.9090759,
+        "x": 0.370478064,
         "y": 0.0,
-        "z": 0.4166305
+        "z": 0.928841233
       },
-      "yawOffsetDeg": -65.37796
-    },
-    {
-      "name": "Eldeen",
-      "moveType": "Float",
-      "manual": false,
-      "note": "headForward 兜底+Z",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm",
-            "lowerarm"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2"
-          ],
-          "phase": 6.28318548,
-          "side": -1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": 21.7451019
     },
     {
       "name": "ElectricLizard",
@@ -8746,53 +7961,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": 0.497735173,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.867329
       },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "EmbryonicBeast",
-      "moveType": "Float",
-      "manual": false,
-      "note": "headForward 兜底+Z",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm",
-            "lower_arm"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm2",
-            "lower_arm2"
-          ],
-          "phase": 6.28318548,
-          "side": -1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": 29.8502731
     },
     {
       "name": "EmperorOfTheLandAndSea",
@@ -8865,11 +8038,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.48598367,
+        "x": -0.746584833,
         "y": 0.0,
-        "z": 0.873967946
+        "z": -0.665290236
       },
-      "yawOffsetDeg": -29.0769348
+      "yawOffsetDeg": -131.7046
     },
     {
       "name": "EmpressJudge",
@@ -8922,83 +8095,6 @@
         "z": 1.0
       },
       "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "EnchantingMermaid",
-      "moveType": "Flight",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [
-        "tail",
-        "tail2",
-        "tail3",
-        "tail4",
-        "tail5",
-        "tail6"
-      ],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "left_shoulder",
-            "left_arm"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_shoulder",
-            "right_arm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [
-        {
-          "bones": [
-            "fin"
-          ],
-          "phase": 0.0,
-          "side": 1,
-          "hingeAxis": {
-            "x": -0.994046569,
-            "y": 0.0,
-            "z": 0.108955771
-          },
-          "amplitudeDeg": 10.0
-        },
-        {
-          "bones": [
-            "fin2"
-          ],
-          "phase": 0.0,
-          "side": -1,
-          "hingeAxis": {
-            "x": -0.0109409206,
-            "y": 0.0,
-            "z": 0.999940157
-          },
-          "amplitudeDeg": 10.0
-        }
-      ],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": -1.0
-      },
-      "yawOffsetDeg": 180.0
     },
     {
       "name": "ExodiaTheForbiddenOne",
@@ -9197,9 +8293,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.893776,
+            "x": 0.11605081,
             "y": 0.0,
-            "z": -0.448513627
+            "z": -0.993243337
           },
           "amplitudeDeg": 10.0
         },
@@ -9210,20 +8306,20 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.9470912,
+            "x": -0.2519228,
             "y": 0.0,
-            "z": 0.320964634
+            "z": 0.967747331
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": -0.615360558,
+        "x": 0.3207663,
         "y": 0.0,
-        "z": 0.788245738
+        "z": 0.9471584
       },
-      "yawOffsetDeg": -37.97812
+      "yawOffsetDeg": 18.70927
     },
     {
       "name": "FairyOfTheFountain",
@@ -9415,7 +8511,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.164594039,
+            "x": 0.164594054,
             "y": 0.0,
             "z": 0.9863614
           },
@@ -9429,7 +8525,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.530143,
+            "x": -0.530142963,
             "y": 0.0,
             "z": -0.847908258
           },
@@ -9493,9 +8589,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.06246929,
+            "x": 0.116581731,
             "y": 0.0,
-            "z": 0.9980469
+            "z": -0.9931811
           },
           "amplitudeDeg": 10.0
         },
@@ -9507,20 +8603,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.07080421,
+            "x": -0.247618,
             "y": 0.0,
-            "z": -0.9974902
+            "z": 0.968857765
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": -0.02966652,
+        "x": 0.207509428,
         "y": 0.0,
-        "z": 0.9995599
+        "z": -0.978233
       },
-      "yawOffsetDeg": -1.699963
+      "yawOffsetDeg": 168.023575
     },
     {
       "name": "FeralImp",
@@ -9606,9 +8702,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.3441718,
+            "x": -0.861975133,
             "y": 0.0,
-            "z": 0.93890667
+            "z": 0.5069506
           },
           "amplitudeDeg": 10.0
         },
@@ -9619,20 +8715,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.37235,
+            "x": 0.3014915,
             "y": 0.0,
-            "z": -0.92809236
+            "z": -0.9534689
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.6348362,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.7726467
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -39.4078369
     },
     {
       "name": "FiendKraken",
@@ -9806,9 +8902,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.008665182,
+            "x": 0.008665173,
             "y": 0.0,
-            "z": -0.9999625
+            "z": -0.999962449
           },
           "amplitudeDeg": 10.0
         },
@@ -9819,7 +8915,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.535658062,
+            "x": -0.535658,
             "y": 0.0,
             "z": -0.844435036
           },
@@ -9832,7 +8928,7 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.009713099,
+            "x": 0.009713089,
             "y": 0.0,
             "z": 0.999952853
           },
@@ -9847,7 +8943,7 @@
           "hingeAxis": {
             "x": -0.4386939,
             "y": 0.0,
-            "z": 0.8986365
+            "z": 0.8986366
           },
           "amplitudeDeg": 10.0
         }
@@ -9918,7 +9014,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.407873422,
+            "x": -0.407873452,
             "y": 0.0,
             "z": -0.9130385
           },
@@ -9931,7 +9027,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.45851472,
+            "x": -0.4585147,
             "y": 0.0,
             "z": -0.888686836
           },
@@ -9959,120 +9055,11 @@
           "hingeAxis": {
             "x": -0.351911724,
             "y": 0.0,
-            "z": 0.9360332
+            "z": 0.9360331
           },
           "amplitudeDeg": 10.0
         }
       ],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "FiendSword",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "FiendsHand",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm",
-            "hand",
-            "finger",
-            "finger2",
-            "finger3",
-            "finger4",
-            "thumb"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm2",
-            "hand2",
-            "finger5",
-            "finger6",
-            "finger7",
-            "finger8",
-            "thumb2"
-          ],
-          "phase": 5.23598766,
-          "side": -1
-        },
-        {
-          "bones": [
-            "arm3",
-            "hand3",
-            "finger9",
-            "finger10",
-            "finger11",
-            "finger12",
-            "thumb3"
-          ],
-          "phase": 4.18879032,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "FiendsMirror",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
       "soft": [],
       "headForward": {
         "x": 0.0,
@@ -10125,49 +9112,6 @@
           "amplitudeDeg": 10.0
         }
       ],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "FireReaper",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "left_shoulder",
-            "left_arm"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_shoulder",
-            "right_arm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
       "soft": [],
       "headForward": {
         "x": 0.0,
@@ -10285,7 +9229,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.0483975,
+            "x": 0.04839745,
             "y": 0.0,
             "z": 0.9988282
           },
@@ -10299,7 +9243,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.008822879,
+            "x": 0.008822817,
             "y": 0.0,
             "z": -0.9999611
           },
@@ -10308,9 +9252,9 @@
       ],
       "soft": [],
       "headForward": {
-        "x": 0.03436683,
+        "x": 0.0343668237,
         "y": 0.0,
-        "z": 0.9994093
+        "z": 0.999409258
       },
       "yawOffsetDeg": 1.96940887
     },
@@ -10457,7 +9401,7 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.04464379,
+        "x": 0.044643864,
         "y": 0.0,
         "z": 0.999002934
       },
@@ -10680,11 +9624,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.28169024,
         "y": 0.0,
-        "z": 1.0
+        "z": -0.959505439
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -163.6389
     },
     {
       "name": "FlowerWolf",
@@ -10993,102 +9937,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "Fusionist",
-      "moveType": "Flight",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "jaw",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [
-        "tail"
-      ],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [
-        {
-          "bones": [
-            "foreleg",
-            "lower_foreleg",
-            "forepaw",
-            "lower_forepaw"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "foreleg2",
-            "lower_foreleg2",
-            "forepaw2",
-            "lower_forepaw2"
-          ],
-          "phase": 4.712389,
-          "side": -1
-        },
-        {
-          "bones": [
-            "hindleg",
-            "lower_hindleg",
-            "hindpaw",
-            "lower_hindpaw"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        },
-        {
-          "bones": [
-            "hindleg2",
-            "lower_hindleg2",
-            "hindpaw2",
-            "lower_hindpaw2"
-          ],
-          "phase": 7.853982,
-          "side": -1
-        }
-      ],
-      "arms": [],
-      "wings": [
-        {
-          "bones": [
-            "wing"
-          ],
-          "phase": 0.0,
-          "side": 1,
-          "hingeAxis": {
-            "x": -0.6959343,
-            "y": 0.0,
-            "z": -0.718105435
-          },
-          "amplitudeDeg": 10.0
-        },
-        {
-          "bones": [
-            "wing2"
-          ],
-          "phase": 0.0,
-          "side": -1,
-          "hingeAxis": {
-            "x": -0.862019658,
-            "y": 0.0,
-            "z": 0.506874859
-          },
-          "amplitudeDeg": 10.0
-        }
-      ],
-      "soft": [],
-      "headForward": {
-        "x": -0.992832363,
-        "y": 0.0,
-        "z": 0.119515151
-      },
-      "yawOffsetDeg": -83.13588
-    },
-    {
       "name": "GaiaTheDragonChampion",
       "moveType": "Flight",
       "manual": false,
@@ -11127,7 +9975,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.359418035,
+            "x": 0.359417945,
             "y": 0.0,
             "z": -0.9331767
           },
@@ -11140,7 +9988,7 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.03653884,
+            "x": -0.0365386941,
             "y": 0.0,
             "z": 0.999332249
           },
@@ -11244,9 +10092,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.538018048,
+            "x": 0.5995753,
             "y": 0.0,
-            "z": 0.842933357
+            "z": -0.8003184
           },
           "amplitudeDeg": 10.0
         },
@@ -11257,20 +10105,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.6423596,
+            "x": 0.5832198,
             "y": 0.0,
-            "z": -0.766403437
+            "z": 0.8123144
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": -0.0225643553,
+        "x": 0.09729831,
         "y": 0.0,
-        "z": 0.9997454
+        "z": -0.995255232
       },
-      "yawOffsetDeg": -1.29286063
+      "yawOffsetDeg": 174.4164
     },
     {
       "name": "Ganigumo",
@@ -11481,7 +10329,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.480605543,
+            "x": -0.480605572,
             "y": 0.0,
             "z": 0.8769369
           },
@@ -11497,7 +10345,7 @@
           "hingeAxis": {
             "x": -0.5082711,
             "y": 0.0,
-            "z": -0.8611971
+            "z": -0.8611972
           },
           "amplitudeDeg": 10.0
         }
@@ -11678,9 +10526,9 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.09771764,
+        "x": -0.09771763,
         "y": 0.0,
-        "z": 0.9952142
+        "z": 0.995214164
       },
       "yawOffsetDeg": -5.607731
     },
@@ -11770,32 +10618,7 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.995740652,
-        "y": 0.0,
-        "z": -0.09219821
-      },
-      "yawOffsetDeg": -95.29008
-    },
-    {
-      "name": "Genin",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
+        "x": 4.597463E-08,
         "y": 0.0,
         "z": 1.0
       },
@@ -11977,9 +10800,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.842294157,
+            "x": 0.727938,
             "y": 0.0,
-            "z": 0.5390182
+            "z": -0.685642958
           },
           "amplitudeDeg": 10.0
         },
@@ -11991,20 +10814,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.834544957,
+            "x": -0.331083447,
             "y": 0.0,
-            "z": -0.5509399
+            "z": -0.9436015
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": -0.464934468,
+        "x": 0.999301136,
         "y": 0.0,
-        "z": 0.885345042
+        "z": 0.03737851
       },
-      "yawOffsetDeg": -27.7059822
+      "yawOffsetDeg": 87.85787
     },
     {
       "name": "GiantScorpionOfTheTundra",
@@ -12312,9 +11135,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.662105143,
+            "x": -0.914352059,
             "y": 0.0,
-            "z": 0.749411
+            "z": 0.4049201
           },
           "amplitudeDeg": 10.0
         },
@@ -12325,20 +11148,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.7930585,
+            "x": 0.341253132,
             "y": 0.0,
-            "z": -0.6091455
+            "z": 0.939971447
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": -0.216750488,
+        "x": -0.8652149,
         "y": 0.0,
-        "z": 0.976227045
+        "z": -0.501401246
       },
-      "yawOffsetDeg": -12.5182428
+      "yawOffsetDeg": -120.092743
     },
     {
       "name": "GiltiaTheDKnight",
@@ -12446,11 +11269,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -8.54643858E-08,
         "y": 0.0,
-        "z": -1.0
+        "z": 1.0
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "GoddessWithTheThirdEye",
@@ -12648,71 +11471,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.08190614,
+        "x": -0.08190616,
         "y": 0.0,
         "z": 0.9966401
       },
       "yawOffsetDeg": -4.698112
-    },
-    {
-      "name": "GorgonEgg",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "skull",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.565695763,
-        "y": 0.0,
-        "z": 0.824614
-      },
-      "yawOffsetDeg": 34.4506226
-    },
-    {
-      "name": "GraveyardAndTheHandOfInvitation",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm",
-            "hand",
-            "finger",
-            "finger2",
-            "finger3",
-            "finger4",
-            "thumb"
-          ],
-          "phase": 0.0,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
     },
     {
       "name": "GreatBill",
@@ -12841,7 +11604,7 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.1380812,
+        "x": 0.138081253,
         "y": 0.0,
         "z": 0.990420938
       },
@@ -12917,7 +11680,7 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.3145103,
+            "x": -0.314510256,
             "y": 0.0,
             "z": 0.9492541
           },
@@ -12930,9 +11693,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.3257125,
+            "x": -0.325712532,
             "y": 0.0,
-            "z": -0.9454689
+            "z": -0.945468843
           },
           "amplitudeDeg": 10.0
         }
@@ -13225,9 +11988,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.21523279,
+            "x": -0.755626142,
             "y": 0.0,
-            "z": 0.9765628
+            "z": 0.6550032
           },
           "amplitudeDeg": 10.0
         },
@@ -13238,20 +12001,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.21523279,
+            "x": 0.960965157,
             "y": 0.0,
-            "z": -0.9765628
+            "z": -0.276669443
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.8788942,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.477016628
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -61.5092621
     },
     {
       "name": "GroundAttackerBugroth",
@@ -13287,31 +12050,6 @@
           "side": 1
         }
       ],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "GruesomeGoo",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "jaw",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
       "arms": [],
       "wings": [],
       "soft": [],
@@ -13435,35 +12173,10 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "HaneHane",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": -1.0
-      },
-      "yawOffsetDeg": 180.0
-    },
-    {
       "name": "Haniwa",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -13508,11 +12221,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.115498148,
+        "x": 0.0,
         "y": 0.0,
-        "z": 0.9933077
+        "z": 1.0
       },
-      "yawOffsetDeg": -6.632351
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "HappyLover",
@@ -13844,11 +12557,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.647648454,
+        "x": -0.999547064,
         "y": 0.0,
-        "z": 0.7619393
+        "z": 0.0300959162
       },
-      "yawOffsetDeg": -40.36454
+      "yawOffsetDeg": -88.2753754
     },
     {
       "name": "HarpiesPetDragon",
@@ -13927,11 +12640,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.9107628,
+        "x": -0.91076225,
         "y": 0.0,
-        "z": 0.412929952
+        "z": 0.4129312
       },
-      "yawOffsetDeg": -65.61098
+      "yawOffsetDeg": -65.6109
     },
     {
       "name": "HerculesBeetle",
@@ -14015,142 +12728,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "Hibikime",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm",
-            "lowerarm"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2"
-          ],
-          "phase": 6.28318548,
-          "side": -1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "HinotamaSoul",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "Hitodenchak",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm2"
-          ],
-          "phase": 4.18879032,
-          "side": -1
-        },
-        {
-          "bones": [
-            "arm3"
-          ],
-          "phase": 2.09439516,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm4"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm5"
-          ],
-          "phase": 4.18879032,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm6"
-          ],
-          "phase": 5.23598766,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "HitotsuMeGiant",
       "moveType": "Biped",
       "manual": false,
@@ -14203,131 +12780,6 @@
           "side": 1
         }
       ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "Holograh",
-      "moveType": "Float",
-      "manual": false,
-      "note": "headForward 兜底+Z",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "upper_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "left_arm"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_arm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "HornImp",
-      "moveType": "Biped",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [
-        {
-          "bones": [
-            "left_knee",
-            "left_leg"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_knee",
-            "right_leg"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "arms": [
-        {
-          "bones": [
-            "left_shoulder",
-            "left_arm"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_shoulder",
-            "right_arm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": -0.9396927,
-        "y": 0.0,
-        "z": 0.3420201
-      },
-      "yawOffsetDeg": -70.0
-    },
-    {
-      "name": "Hoshiningen",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [],
       "wings": [],
       "soft": [],
       "headForward": {
@@ -14532,34 +12984,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.5960244,
+        "x": -0.5960246,
         "y": 0.0,
-        "z": -0.802966356
+        "z": 0.8029662
       },
-      "yawOffsetDeg": 143.414322
-    },
-    {
-      "name": "Hurricail",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "face",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.521906435,
-        "y": 0.0,
-        "z": 0.8530028
-      },
-      "yawOffsetDeg": 31.4602146
+      "yawOffsetDeg": -36.58571
     },
     {
       "name": "Hyo",
@@ -14691,7 +13120,7 @@
       "name": "IceWater",
       "moveType": "Flight",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -14736,9 +13165,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.913735032,
+            "x": -0.668900132,
             "y": 0.0,
-            "z": 0.4063107
+            "z": -0.7433523
           },
           "amplitudeDeg": 10.0
         },
@@ -14749,9 +13178,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.970998168,
+            "x": -0.9841591,
             "y": 0.0,
-            "z": -0.23908712
+            "z": -0.177287474
           },
           "amplitudeDeg": 10.0
         }
@@ -14760,9 +13189,9 @@
       "headForward": {
         "x": 0.0,
         "y": 0.0,
-        "z": -1.0
+        "z": 1.0
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "IllWitch",
@@ -15202,11 +13631,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.2374983,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.9713879
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -13.7389278
     },
     {
       "name": "KaiserDragon",
@@ -15353,7 +13782,7 @@
           "hingeAxis": {
             "x": -0.984600246,
             "y": 0.0,
-            "z": 0.1748211
+            "z": 0.174821079
           },
           "amplitudeDeg": 10.0
         }
@@ -15422,49 +13851,7 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": -1.0
-      },
-      "yawOffsetDeg": 180.0
-    },
-    {
-      "name": "KaminariAttack",
-      "moveType": "Float",
-      "manual": false,
-      "note": "headForward 兜底+Z",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "upper_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm",
-            "lowerarm"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2"
-          ],
-          "phase": 6.28318548,
-          "side": -1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
+        "x": -8.771976E-08,
         "y": 0.0,
         "z": 1.0
       },
@@ -15594,7 +13981,7 @@
       "name": "Kaneningen",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -15653,11 +14040,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.70710665,
+        "x": 0.0,
         "y": 0.0,
-        "z": 0.707106948
+        "z": 1.0
       },
-      "yawOffsetDeg": -44.99999
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "Kanikabuto",
@@ -15873,9 +14260,9 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.311292857,
+        "x": 0.311292827,
         "y": 0.0,
-        "z": 0.950314
+        "z": 0.950314045
       },
       "yawOffsetDeg": 18.13716
     },
@@ -16004,60 +14391,10 @@
       "yawOffsetDeg": 7.864419
     },
     {
-      "name": "Kazejin",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm2",
-            "finger7",
-            "finger8",
-            "finger9",
-            "finger10",
-            "finger11",
-            "finger12"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "arm",
-            "finger",
-            "finger2",
-            "finger3",
-            "finger4",
-            "finger5",
-            "finger6"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "KeyMace",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -16109,9 +14446,9 @@
       "headForward": {
         "x": 0.0,
         "y": 0.0,
-        "z": -1.0
+        "z": 1.0
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "KeyMace2",
@@ -16467,7 +14804,7 @@
       "headForward": {
         "x": -0.30552277,
         "y": 0.0,
-        "z": 0.9521848
+        "z": 0.952184737
       },
       "yawOffsetDeg": -17.7896137
     },
@@ -16541,9 +14878,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.802316248,
+            "x": 0.8023162,
             "y": 0.0,
-            "z": 0.5968993
+            "z": 0.596899152
           },
           "amplitudeDeg": 10.0
         },
@@ -16564,11 +14901,11 @@
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.04158433,
         "y": 0.0,
-        "z": -1.0
+        "z": 0.999135
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": -2.38326669
     },
     {
       "name": "Krokodilus",
@@ -16734,11 +15071,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.5960244,
+        "x": -0.5960246,
         "y": 0.0,
-        "z": -0.802966356
+        "z": 0.8029662
       },
-      "yawOffsetDeg": 143.414322
+      "yawOffsetDeg": -36.58571
     },
     {
       "name": "Kurama",
@@ -16813,9 +15150,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.133983776,
+            "x": 0.877954245,
             "y": 0.0,
-            "z": -0.990983546
+            "z": -0.4787446
           },
           "amplitudeDeg": 10.0
         },
@@ -16826,20 +15163,20 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.0554470867,
+            "x": -0.9525284,
             "y": 0.0,
-            "z": 0.998461664
+            "z": 0.304449677
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.934182167,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.356796384
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -69.09642
     },
     {
       "name": "Kuriboh",
@@ -17044,7 +15381,7 @@
       "headForward": {
         "x": -0.60286516,
         "y": 0.0,
-        "z": 0.797843039
+        "z": 0.7978431
       },
       "yawOffsetDeg": -37.07538
     },
@@ -17090,31 +15427,6 @@
           "side": -1
         }
       ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "LaLaLioon",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [],
       "wings": [],
       "soft": [],
       "headForward": {
@@ -17186,7 +15498,7 @@
           "hingeAxis": {
             "x": -0.6057061,
             "y": 0.0,
-            "z": -0.7956884
+            "z": -0.79568845
           },
           "amplitudeDeg": 10.0
         },
@@ -17198,79 +15510,13 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.616476059,
+            "x": -0.61647594,
             "y": 0.0,
             "z": 0.7873737
           },
           "amplitudeDeg": 10.0
         }
       ],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "LabyrinthTank",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "LadyOfFaith",
-      "moveType": "Float",
-      "manual": false,
-      "note": "headForward 兜底+Z",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "arm",
-            "lowerarm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
       "soft": [],
       "headForward": {
         "x": 0.0,
@@ -17440,49 +15686,6 @@
         "z": 1.0
       },
       "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "Larvas",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "shoulder",
-            "arm"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "shoulder2",
-            "arm2"
-          ],
-          "phase": 6.28318548,
-          "side": -1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": -1.0
-      },
-      "yawOffsetDeg": 180.0
     },
     {
       "name": "LaughingFlower",
@@ -17680,11 +15883,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.04685342,
+        "x": -0.0468534157,
         "y": 0.0,
-        "z": 0.9989018
+        "z": 0.998901844
       },
-      "yawOffsetDeg": -2.68547535
+      "yawOffsetDeg": -2.68540263
     },
     {
       "name": "Leghul",
@@ -17715,11 +15918,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.8902233,
+        "x": 0.8902234,
         "y": 0.0,
-        "z": 0.455524385
+        "z": 0.455524266
       },
-      "yawOffsetDeg": 62.9013252
+      "yawOffsetDeg": 62.90133
     },
     {
       "name": "LeoWizard",
@@ -17788,11 +15991,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": 0.5618309,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.82725215
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": 34.18251
     },
     {
       "name": "Leogun",
@@ -17929,11 +16132,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.870512843,
+        "x": -0.173880145,
         "y": 0.0,
-        "z": -0.492145658
+        "z": 0.984766841
       },
-      "yawOffsetDeg": -119.48172
+      "yawOffsetDeg": -10.0134907
     },
     {
       "name": "Lisark",
@@ -18271,49 +16474,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "LordOfTheLamp",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm",
-            "lowerarm"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2"
-          ],
-          "phase": 6.28318548,
-          "side": -1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "LordOfZemia",
       "moveType": "Flight",
       "manual": false,
@@ -18363,7 +16523,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.3775921,
+            "x": 0.377592057,
             "y": 0.0,
             "z": -0.925972044
           },
@@ -18379,7 +16539,7 @@
           "hingeAxis": {
             "x": 0.444243252,
             "y": 0.0,
-            "z": 0.8959062
+            "z": 0.89590627
           },
           "amplitudeDeg": 10.0
         }
@@ -18414,7 +16574,7 @@
       "name": "LuckyTrinket",
       "moveType": "Flight",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -18742,31 +16902,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "Mabarrel",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "MachineAttacker",
       "moveType": "Biped",
       "manual": false,
@@ -18820,9 +16955,9 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.0345347039,
+        "x": -0.0345346443,
         "y": 0.0,
-        "z": 0.9994035
+        "z": 0.999403536
       },
       "yawOffsetDeg": -1.97902477
     },
@@ -18933,7 +17068,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.314835161,
+            "x": 0.314835131,
             "y": 0.0,
             "z": -0.9491464
           },
@@ -19007,11 +17142,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.6497302,
         "y": 0.0,
-        "z": -1.0
+        "z": 0.7601648
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": -40.5212669
     },
     {
       "name": "MagicianOfBlackChaos",
@@ -19357,11 +17492,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.262758642,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.964861631
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -15.2338047
     },
     {
       "name": "ManEaterBug",
@@ -19472,9 +17607,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.430651635,
+            "x": -0.8274964,
             "y": 0.0,
-            "z": -0.9025183
+            "z": 0.561471045
           },
           "amplitudeDeg": 10.0
         },
@@ -19486,20 +17621,20 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.426734954,
+            "x": 0.08842426,
             "y": 0.0,
-            "z": 0.904376745
+            "z": -0.996082962
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": 0.505032241,
         "y": 0.0,
-        "z": 1.0
+        "z": -0.863100469
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": 149.6665
     },
     {
       "name": "ManEatingPlant",
@@ -19624,29 +17759,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "ManEatingTreasureChest",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "tongue",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "MarineBeast",
       "moveType": "Slither",
       "manual": false,
@@ -19690,11 +17802,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0343016945,
+        "x": -0.03753819,
         "y": 0.0,
-        "z": 0.9994115
+        "z": -0.9992952
       },
-      "yawOffsetDeg": 1.96572864
+      "yawOffsetDeg": -177.848785
     },
     {
       "name": "MasakiTheLegendarySwordsman",
@@ -19757,29 +17869,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "MaskOfDarkness",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "MaskedClown",
       "moveType": "Slither",
       "manual": false,
@@ -19822,11 +17911,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.423853248,
         "y": 0.0,
-        "z": -1.0
+        "z": -0.905730844
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": -154.9219
     },
     {
       "name": "MaskedSorcerer",
@@ -19970,11 +18059,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.0457517281,
+        "x": -0.7118755,
         "y": 0.0,
-        "z": 0.9989528
+        "z": 0.7023057
       },
-      "yawOffsetDeg": -2.622266
+      "yawOffsetDeg": -45.38772
     },
     {
       "name": "Mavelus",
@@ -20266,11 +18355,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0492854342,
+        "x": 0.04928536,
         "y": 0.0,
         "z": 0.9987847
       },
-      "yawOffsetDeg": 2.82500768
+      "yawOffsetDeg": 2.82493854
     },
     {
       "name": "Mechanicalchaser",
@@ -20348,7 +18437,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.58050245,
+            "x": -0.5805024,
             "y": 0.0,
             "z": 0.8142585
           },
@@ -20362,7 +18451,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.5051008,
+            "x": -0.505100667,
             "y": 0.0,
             "z": -0.8630604
           },
@@ -20446,31 +18535,6 @@
           "amplitudeDeg": 10.0
         }
       ],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "MegaThunderball",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
       "soft": [],
       "headForward": {
         "x": 0.0,
@@ -20591,11 +18655,11 @@
         }
       ],
       "headForward": {
-        "x": -0.368705928,
+        "x": -0.4492733,
         "y": 0.0,
-        "z": -0.929546058
+        "z": 0.8933944
       },
-      "yawOffsetDeg": -158.364182
+      "yawOffsetDeg": -26.6970654
     },
     {
       "name": "Meotoko",
@@ -20725,11 +18789,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.7641165,
+        "x": 0.0004967071,
         "y": 0.0,
-        "z": 0.645078242
+        "z": 0.9999999
       },
-      "yawOffsetDeg": 49.8284569
+      "yawOffsetDeg": 0.0279764552
     },
     {
       "name": "Metalzoa",
@@ -20805,11 +18869,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": 0.67876637,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.734354258
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": 42.74732
     },
     {
       "name": "MeteorBlackDragon",
@@ -20902,9 +18966,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.8626476,
+            "x": -0.9995542,
             "y": 0.0,
-            "z": 0.5058055
+            "z": -0.02985667
           },
           "amplitudeDeg": 10.0
         },
@@ -20916,20 +18980,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.7708806,
+            "x": -0.314610124,
             "y": 0.0,
-            "z": -0.6369797
+            "z": -0.949221
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": -0.3754806,
+        "x": -0.8105509,
         "y": 0.0,
-        "z": 0.9268303
+        "z": 0.5856682
       },
-      "yawOffsetDeg": -22.0540142
+      "yawOffsetDeg": -54.14979
     },
     {
       "name": "MeteorDragon",
@@ -20982,7 +19046,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.28716594,
+            "x": -0.28716597,
             "y": 0.0,
             "z": -0.957880855
           },
@@ -20996,7 +19060,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.252648383,
+            "x": -0.252648354,
             "y": 0.0,
             "z": 0.9675582
           },
@@ -21204,34 +19268,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": 0.5781474,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.815932333
       },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "MilleniumShield",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": 35.3203468
     },
     {
       "name": "MilusRadiant",
@@ -21396,9 +19437,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.0694328845,
+            "x": 0.150693253,
             "y": 0.0,
-            "z": 0.9975866
+            "z": -0.9885806
           },
           "amplitudeDeg": 10.0
         },
@@ -21410,109 +19451,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.0244774222,
+            "x": -0.242787421,
             "y": 0.0,
-            "z": -0.999700367
+            "z": 0.970079541
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": 0.218969628,
         "y": 0.0,
-        "z": 1.0
+        "z": -0.9757317
       },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "MonLarvas",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "shoulder",
-            "arm"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "shoulder2",
-            "arm2"
-          ],
-          "phase": 6.28318548,
-          "side": -1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": -0.9839694,
-        "y": 0.0,
-        "z": 0.178337514
-      },
-      "yawOffsetDeg": -79.727066
-    },
-    {
-      "name": "MonsterEgg",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "MonsterEye",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": 167.351486
     },
     {
       "name": "Monsturtle",
@@ -21579,11 +19531,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.297418535,
+        "x": 0.0,
         "y": 0.0,
-        "z": 0.95474714
+        "z": 1.0
       },
-      "yawOffsetDeg": -17.30262
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "Morinphen",
@@ -21628,29 +19580,6 @@
           "side": 1
         }
       ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "MorphingJar",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
       "wings": [],
       "soft": [],
       "headForward": {
@@ -21838,95 +19767,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "MuseA",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "left_shoulder",
-            "left_arm"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_shoulder",
-            "right_arm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.995967448,
-        "y": 0.0,
-        "z": 0.0897147954
-      },
-      "yawOffsetDeg": 84.8528
-    },
-    {
-      "name": "MushroomMan2",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm3",
-            "arm4",
-            "hand2",
-            "thumb2"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm",
-            "arm2",
-            "hand",
-            "thumb"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "MusicianKing",
       "moveType": "Biped",
       "manual": false,
@@ -21980,11 +19820,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -8.851722E-08,
         "y": 0.0,
-        "z": -1.0
+        "z": 1.0
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "MysteriousPuppeteer",
@@ -22029,45 +19869,6 @@
           ],
           "phase": 6.28318548,
           "side": -1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "MysteryHand",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm",
-            "palm",
-            "finger",
-            "finger2",
-            "finger3",
-            "finger4",
-            "finger5"
-          ],
-          "phase": 0.0,
-          "side": 1
         }
       ],
       "wings": [],
@@ -22221,81 +20022,9 @@
       "headForward": {
         "x": -0.121414453,
         "y": 0.0,
-        "z": 0.9926019
+        "z": 0.992601931
       },
       "yawOffsetDeg": -6.97372675
-    },
-    {
-      "name": "MysticalCaptureChain",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "bone",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "bone"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [
-        {
-          "bones": [
-            "chain",
-            "chain2",
-            "chain3",
-            "chain4",
-            "chain5",
-            "chain6",
-            "chain7",
-            "chain8",
-            "chain9",
-            "chain10",
-            "chain11",
-            "chain12",
-            "chain13",
-            "chain14",
-            "chain15",
-            "chain16",
-            "chain17",
-            "chain18",
-            "chain19",
-            "chain20",
-            "chain21",
-            "chain22",
-            "chain23",
-            "chain24",
-            "chain25",
-            "chain26",
-            "chain27",
-            "chain28",
-            "chain29",
-            "chain30",
-            "chain31",
-            "chain32",
-            "chain33",
-            "chain34",
-            "chain35",
-            "chain36",
-            "chain37",
-            "chain38",
-            "chain39",
-            "chain40"
-          ],
-          "phase": 0.0,
-          "side": 1
-        }
-      ],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
     },
     {
       "name": "MysticalElf",
@@ -22321,72 +20050,6 @@
           "side": 1
         }
       ],
-      "arms": [
-        {
-          "bones": [
-            "left_shoulder",
-            "left_arm"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_shoulder",
-            "right_arm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "MysticalLamp",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "MysticalSand",
-      "moveType": "Float",
-      "manual": false,
-      "note": "headForward 兜底+Z",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
       "arms": [
         {
           "bones": [
@@ -22481,11 +20144,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.8870108,
+        "x": 0.329803169,
         "y": 0.0,
-        "z": -0.46174863
+        "z": 0.944049656
       },
-      "yawOffsetDeg": 117.500008
+      "yawOffsetDeg": 19.2568283
     },
     {
       "name": "MysticalSheep2",
@@ -22693,31 +20356,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "NeedleBall",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "NeedleWorm",
       "moveType": "Spider",
       "manual": false,
@@ -22873,11 +20511,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.526701,
+        "x": 0.456423,
         "y": 0.0,
-        "z": 0.8500506
+        "z": 0.889762938
       },
-      "yawOffsetDeg": -31.7828236
+      "yawOffsetDeg": 27.1565266
     },
     {
       "name": "Nekogal1",
@@ -22948,9 +20586,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.881395161,
+            "x": 0.7851303,
             "y": 0.0,
-            "z": 0.472379744
+            "z": -0.6193306
           },
           "amplitudeDeg": 10.0
         },
@@ -22961,9 +20599,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.8563665,
+            "x": 0.933514237,
             "y": 0.0,
-            "z": -0.516368449
+            "z": 0.358540416
           },
           "amplitudeDeg": 10.0
         }
@@ -22985,11 +20623,11 @@
         }
       ],
       "headForward": {
-        "x": 0.0,
+        "x": -0.1749954,
         "y": 0.0,
-        "z": 1.0
+        "z": -0.984569252
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -169.921616
     },
     {
       "name": "Nekogal2",
@@ -23060,9 +20698,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.450043917,
+            "x": -0.430715472,
             "y": 0.0,
-            "z": 0.893006444
+            "z": -0.902487755
           },
           "amplitudeDeg": 10.0
         },
@@ -23073,9 +20711,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.5334546,
+            "x": 0.995393932,
             "y": 0.0,
-            "z": -0.8458287
+            "z": 0.09586931
           },
           "amplitudeDeg": 10.0
         }
@@ -23097,11 +20735,11 @@
         }
       ],
       "headForward": {
-        "x": 0.0,
+        "x": -0.7907909,
         "y": 0.0,
-        "z": 1.0
+        "z": -0.6120864
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -127.740524
     },
     {
       "name": "Nemuriko",
@@ -23595,9 +21233,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.416554481,
+            "x": 0.9641265,
             "y": 0.0,
-            "z": 0.9091108
+            "z": -0.2654431
           },
           "amplitudeDeg": 10.0
         },
@@ -23609,20 +21247,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.4181697,
+            "x": -0.829592943,
             "y": 0.0,
-            "z": -0.908368945
+            "z": -0.5583687
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": 0.987069249,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.160294116
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": 80.77603
     },
     {
       "name": "OgreOfTheBlackShadow",
@@ -23683,76 +21321,6 @@
         "z": 1.0
       },
       "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "OneEyedShieldDragon",
-      "moveType": "Flight",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "jaw",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [
-        "neck",
-        "neck2"
-      ],
-      "tail": [
-        "tail",
-        "tail2",
-        "tail3",
-        "tail4",
-        "tail5",
-        "tail6",
-        "tail7",
-        "tail8",
-        "tail9",
-        "tail10"
-      ],
-      "bodyChain": [
-        "body",
-        "body2",
-        "body3"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [
-        {
-          "bones": [
-            "wing",
-            "lower_wing"
-          ],
-          "phase": 0.0,
-          "side": 1,
-          "hingeAxis": {
-            "x": -0.5220972,
-            "y": 0.0,
-            "z": -0.852886
-          },
-          "amplitudeDeg": 10.0
-        },
-        {
-          "bones": [
-            "wing2",
-            "lower_wing2"
-          ],
-          "phase": 0.0,
-          "side": -1,
-          "hingeAxis": {
-            "x": -0.27205956,
-            "y": 0.0,
-            "z": 0.9622804
-          },
-          "amplitudeDeg": 10.0
-        }
-      ],
-      "soft": [],
-      "headForward": {
-        "x": 0.783254743,
-        "y": 0.0,
-        "z": 0.6217008
-      },
-      "yawOffsetDeg": 51.55955
     },
     {
       "name": "OneWhoHuntsSouls",
@@ -23816,11 +21384,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.526347458,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.8502696
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -31.7589931
     },
     {
       "name": "Ooguchi",
@@ -23893,11 +21461,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.1305261,
+        "x": -0.979309261,
         "y": 0.0,
-        "z": 0.9914448
+        "z": 0.202369153
       },
-      "yawOffsetDeg": -7.499989
+      "yawOffsetDeg": -78.32446
     },
     {
       "name": "OrionTheBattleKing",
@@ -23955,7 +21523,7 @@
       "name": "OscilloHero",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -24128,9 +21696,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.5778257,
+            "x": 0.0416643322,
             "y": 0.0,
-            "z": 0.8161602
+            "z": 0.9991317
           },
           "amplitudeDeg": 10.0
         },
@@ -24142,20 +21710,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.708236039,
+            "x": 0.9781529,
             "y": 0.0,
-            "z": -0.7059757
+            "z": -0.207886845
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": -0.220325857,
+        "x": -0.71493727,
         "y": 0.0,
-        "z": 0.9754263
+        "z": 0.69918865
       },
-      "yawOffsetDeg": -12.7281752
+      "yawOffsetDeg": -45.6380539
     },
     {
       "name": "PatrolRobo",
@@ -24383,7 +21951,7 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.307960838,
+            "x": -0.307960868,
             "y": 0.0,
             "z": 0.951399
           },
@@ -24396,7 +21964,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.3431751,
+            "x": -0.343175173,
             "y": 0.0,
             "z": -0.93927145
           },
@@ -24407,7 +21975,7 @@
       "headForward": {
         "x": 0.235375345,
         "y": 0.0,
-        "z": 0.9719045
+        "z": 0.9719046
       },
       "yawOffsetDeg": 13.6137419
     },
@@ -24585,49 +22153,6 @@
       "yawOffsetDeg": 6.086116
     },
     {
-      "name": "PhantomDewan",
-      "moveType": "Float",
-      "manual": false,
-      "note": "headForward 兜底+Z",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "left_shoulder",
-            "left_arm"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_shoulder",
-            "right_arm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "PhantomGhost",
       "moveType": "Flight",
       "manual": false,
@@ -24663,7 +22188,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.378932834,
+            "x": -0.3789329,
             "y": 0.0,
             "z": -0.925424159
           },
@@ -24676,16 +22201,16 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.414042115,
+            "x": -0.414042145,
             "y": 0.0,
-            "z": 0.910257757
+            "z": 0.9102577
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": -0.151972145,
+        "x": -0.15197216,
         "y": 0.0,
         "z": 0.9883848
       },
@@ -24818,11 +22343,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.333651632,
+        "x": -0.83639276,
         "y": 0.0,
-        "z": 0.942696452
+        "z": -0.548130631
       },
-      "yawOffsetDeg": -19.4905643
+      "yawOffsetDeg": -123.238869
     },
     {
       "name": "PrincessOfTsurugi",
@@ -24878,17 +22403,17 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -8.80278E-08,
         "y": 0.0,
-        "z": -1.0
+        "z": 1.0
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "Prisman",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -24942,11 +22467,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.814814,
+        "x": 0.0,
         "y": 0.0,
-        "z": -0.5797225
+        "z": 1.0
       },
-      "yawOffsetDeg": 125.43103
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "ProtectorOfTheThrone",
@@ -25006,7 +22531,7 @@
       "headForward": {
         "x": 0.9445236,
         "y": 0.0,
-        "z": -0.328443617
+        "z": -0.328443646
       },
       "yawOffsetDeg": 109.174339
     },
@@ -25057,7 +22582,7 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.1702624,
+            "x": -0.170262381,
             "y": 0.0,
             "z": 0.985398769
           },
@@ -25297,40 +22822,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "RainbowFlower",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [
-        {
-          "bones": [
-            "stem",
-            "stem2",
-            "stem3",
-            "stem4"
-          ],
-          "phase": 0.0,
-          "side": 1
-        }
-      ],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "RainbowMarineMermaid",
       "moveType": "Slither",
       "manual": false,
@@ -25424,81 +22915,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0343017019,
+        "x": -0.03753819,
         "y": 0.0,
-        "z": 0.9994115
+        "z": -0.9992952
       },
-      "yawOffsetDeg": 1.96572864
-    },
-    {
-      "name": "RayTemparature",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "ReaperOfTheCards",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2",
-            "hand2"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "arm",
-            "lowerarm",
-            "hand"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": -0.687271237,
-        "y": 0.0,
-        "z": 0.726400852
-      },
-      "yawOffsetDeg": -43.41449
+      "yawOffsetDeg": -177.848785
     },
     {
       "name": "RedEyesBlackDragon",
@@ -25591,9 +23012,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.7212749,
+            "x": -0.721275,
             "y": 0.0,
-            "z": 0.6926489
+            "z": 0.6926488
           },
           "amplitudeDeg": 10.0
         },
@@ -25607,7 +23028,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.213687077,
+            "x": -0.213687032,
             "y": 0.0,
             "z": -0.9769022
           },
@@ -25618,9 +23039,9 @@
       "headForward": {
         "x": -0.993954659,
         "y": 0.0,
-        "z": 0.109791204
+        "z": 0.109791584
       },
-      "yawOffsetDeg": -83.6967239
+      "yawOffsetDeg": -83.6967
     },
     {
       "name": "RedEyesBlackMetalDragon",
@@ -25713,9 +23134,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.6641047,
+            "x": -0.9509875,
             "y": 0.0,
-            "z": 0.7476396
+            "z": 0.309229225
           },
           "amplitudeDeg": 10.0
         },
@@ -25729,20 +23150,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.658914745,
+            "x": -0.188129157,
             "y": 0.0,
-            "z": -0.75221765
+            "z": -0.9821443
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.9693878,
+        "x": 0.7121859,
         "y": 0.0,
-        "z": 0.245534733
+        "z": 0.7019909
       },
-      "yawOffsetDeg": 75.78657
+      "yawOffsetDeg": 45.4130478
     },
     {
       "name": "RhaimundosOfTheRedSword",
@@ -25837,11 +23258,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.02676999,
+        "x": -0.7494211,
         "y": 0.0,
-        "z": 0.999641657
+        "z": 0.6620936
       },
-      "yawOffsetDeg": -1.53391087
+      "yawOffsetDeg": -48.54026
     },
     {
       "name": "RockOgreGrotto1",
@@ -26019,48 +23440,6 @@
       "yawOffsetDeg": -52.60745
     },
     {
-      "name": "RogueDoll",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "arm",
-            "lowerarm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "RootWater",
       "moveType": "Slither",
       "manual": false,
@@ -26110,72 +23489,6 @@
       ],
       "wings": [],
       "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "RoseSpectereOfDunn",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm",
-            "lowerarm"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2"
-          ],
-          "phase": 6.28318548,
-          "side": -1
-        }
-      ],
-      "wings": [],
-      "soft": [
-        {
-          "bones": [
-            "vine",
-            "vine2",
-            "vine3",
-            "vine4",
-            "vine5",
-            "vine6",
-            "vine7",
-            "vine8",
-            "vine9",
-            "vine10",
-            "vine11",
-            "vine12",
-            "vine13",
-            "vine14",
-            "vine15",
-            "vine16"
-          ],
-          "phase": 0.0,
-          "side": 1
-        }
-      ],
       "headForward": {
         "x": 0.0,
         "y": 0.0,
@@ -26320,7 +23633,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.008778647,
+            "x": 0.008778635,
             "y": 0.0,
             "z": -0.9999615
           },
@@ -26333,7 +23646,7 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.000697611133,
+            "x": 0.000697612762,
             "y": 0.0,
             "z": 0.999999762
           },
@@ -26547,63 +23860,11 @@
         }
       ],
       "headForward": {
-        "x": -0.554682434,
+        "x": -0.9989445,
         "y": 0.0,
-        "z": 0.8320621
+        "z": 0.0459337868
       },
-      "yawOffsetDeg": -33.6888466
-    },
-    {
-      "name": "SangaOfTheThunder",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2",
-            "thumb3",
-            "thumb4",
-            "palm2",
-            "finger4",
-            "finger5",
-            "finger6"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "arm",
-            "lowerarm",
-            "thumb",
-            "thumb2",
-            "palm",
-            "finger3",
-            "finger2",
-            "finger"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -87.3672562
     },
     {
       "name": "Sangan",
@@ -26789,7 +24050,7 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.0214556549,
+            "x": -0.0214556921,
             "y": 0.0,
             "z": 0.9997698
           },
@@ -26802,7 +24063,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.0140130715,
+            "x": -0.0140130762,
             "y": 0.0,
             "z": -0.999901831
           },
@@ -26811,45 +24072,11 @@
       ],
       "soft": [],
       "headForward": {
-        "x": 0.9496321,
+        "x": 0.949632,
         "y": 0.0,
-        "z": 0.313367
+        "z": 0.3133674
       },
-      "yawOffsetDeg": 71.73775
-    },
-    {
-      "name": "SecretarianOfSecrets",
-      "moveType": "Float",
-      "manual": false,
-      "note": "headForward 兜底+Z",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm",
-            "arm2"
-          ],
-          "phase": 0.0,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": 71.73772
     },
     {
       "name": "Seiyaryu",
@@ -26922,9 +24149,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.8602803,
+            "x": -0.8602802,
             "y": 0.0,
-            "z": 0.5098215
+            "z": 0.509821534
           },
           "amplitudeDeg": 10.0
         },
@@ -26935,9 +24162,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.9439706,
+            "x": -0.94397074,
             "y": 0.0,
-            "z": -0.3300293
+            "z": -0.3300292
           },
           "amplitudeDeg": 10.0
         }
@@ -27219,9 +24446,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.855349243,
+            "x": 0.8553492,
             "y": 0.0,
-            "z": 0.5180518
+            "z": 0.518051863
           },
           "amplitudeDeg": 10.0
         },
@@ -27233,7 +24460,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.8196955,
+            "x": 0.8196954,
             "y": 0.0,
             "z": -0.5727996
           },
@@ -27246,7 +24473,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.9408038,
+            "x": -0.940803766,
             "y": 0.0,
             "z": 0.338951677
           },
@@ -27268,7 +24495,7 @@
       ],
       "soft": [],
       "headForward": {
-        "x": -0.002223687,
+        "x": -0.00222368934,
         "y": 0.0,
         "z": 0.9999975
       },
@@ -27359,31 +24586,6 @@
         "z": 1.0
       },
       "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "ShadowSpecter",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "jaw",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": -1.0
-      },
-      "yawOffsetDeg": 180.0
     },
     {
       "name": "ShiningFriendship",
@@ -27507,7 +24709,7 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.0270552952,
+        "x": -0.02705529,
         "y": 0.0,
         "z": 0.999633968
       },
@@ -27719,9 +24921,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.189725116,
+            "x": -0.7327868,
             "y": 0.0,
-            "z": 0.9818373
+            "z": 0.680458367
           },
           "amplitudeDeg": 10.0
         },
@@ -27733,20 +24935,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.23012951,
+            "x": 0.388787776,
             "y": 0.0,
-            "z": -0.97316
+            "z": -0.921327353
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.4937532,
+        "x": -0.590377331,
         "y": 0.0,
-        "z": 0.869602144
+        "z": 0.8071274
       },
-      "yawOffsetDeg": 29.58756
+      "yawOffsetDeg": -36.1837845
     },
     {
       "name": "SkullRedBird",
@@ -27826,49 +25028,6 @@
         "z": 1.0
       },
       "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "SkullServant",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "jaw",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "left_shoulder",
-            "left_arm"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_shoulder",
-            "right_arm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.488314837,
-        "y": 0.0,
-        "z": 0.872667551
-      },
-      "yawOffsetDeg": 29.22988
     },
     {
       "name": "SkullStalker",
@@ -28002,7 +25161,7 @@
           "hingeAxis": {
             "x": 0.4183279,
             "y": 0.0,
-            "z": -0.908296049
+            "z": -0.9082961
           },
           "amplitudeDeg": 10.0
         },
@@ -28014,7 +25173,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.378826141,
+            "x": 0.3788261,
             "y": 0.0,
             "z": 0.9254679
           },
@@ -28127,7 +25286,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.486885816,
+            "x": -0.4868859,
             "y": 0.0,
             "z": 0.8734656
           },
@@ -28141,7 +25300,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.09489238,
+            "x": 0.09489237,
             "y": 0.0,
             "z": 0.9954875
           },
@@ -28155,7 +25314,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.486885816,
+            "x": -0.4868859,
             "y": 0.0,
             "z": -0.8734656
           },
@@ -28169,7 +25328,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.09847453,
+            "x": 0.09847452,
             "y": 0.0,
             "z": -0.9951396
           },
@@ -28178,11 +25337,11 @@
       ],
       "soft": [],
       "headForward": {
-        "x": 0.5783752,
+        "x": 0.5783751,
         "y": 0.0,
-        "z": 0.815770864
+        "z": 0.8157709
       },
-      "yawOffsetDeg": 35.3363457
+      "yawOffsetDeg": 35.3363342
     },
     {
       "name": "SleepingLion",
@@ -28299,48 +25458,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "Snakeyashi",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [
-        {
-          "bones": [
-            "trunk",
-            "trunk2",
-            "trunk3",
-            "trunk4",
-            "trunk5",
-            "trunk6",
-            "trunk7",
-            "trunk8",
-            "trunk9",
-            "trunk10",
-            "trunk11",
-            "trunk12"
-          ],
-          "phase": 0.0,
-          "side": 1
-        }
-      ],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "Solitude",
       "moveType": "Quadruped",
       "manual": false,
@@ -28392,49 +25509,6 @@
         }
       ],
       "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "SonicMaid",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm",
-            "lowerarm"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2"
-          ],
-          "phase": 6.28318548,
-          "side": -1
-        }
-      ],
       "wings": [],
       "soft": [],
       "headForward": {
@@ -28614,9 +25688,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.120366745,
+            "x": 0.939733,
             "y": 0.0,
-            "z": -0.9927295
+            "z": -0.3419092
           },
           "amplitudeDeg": 10.0
         },
@@ -28628,20 +25702,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.212175965,
+            "x": -0.9038597,
             "y": 0.0,
-            "z": 0.9772315
+            "z": 0.427829117
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.518159449,
+        "x": -0.7158287,
         "y": 0.0,
-        "z": 0.855284035
+        "z": 0.698275864
       },
-      "yawOffsetDeg": 31.2088737
+      "yawOffsetDeg": -45.71116
     },
     {
       "name": "SpikeSeadra",
@@ -28812,49 +25886,6 @@
       "yawOffsetDeg": 17.1535072
     },
     {
-      "name": "SpiritOfTheHarp",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "left_shoulder",
-            "left_arm"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_shoulder",
-            "right_arm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.94355917,
-        "y": 0.0,
-        "z": 0.331203878
-      },
-      "yawOffsetDeg": 70.6581345
-    },
-    {
       "name": "SpiritOfTheMountain",
       "moveType": "Biped",
       "manual": false,
@@ -28913,66 +25944,6 @@
         "z": 1.0
       },
       "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "SpiritOfTheWinds",
-      "moveType": "Biped",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [
-        {
-          "bones": [
-            "leg",
-            "lowerleg"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "leg2",
-            "lowerleg2"
-          ],
-          "phase": 6.28318548,
-          "side": -1
-        }
-      ],
-      "arms": [
-        {
-          "bones": [
-            "arm",
-            "lowerarm"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2"
-          ],
-          "phase": 6.28318548,
-          "side": -1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": -0.9735705,
-        "y": 0.0,
-        "z": 0.2283864
-      },
-      "yawOffsetDeg": -76.79791
     },
     {
       "name": "StarBoy",
@@ -29350,11 +26321,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.9905677,
         "y": 0.0,
-        "z": 1.0
+        "z": -0.137024358
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -97.8756943
     },
     {
       "name": "StoneGhost",
@@ -29379,11 +26350,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.153279468,
+        "x": 0.959864855,
         "y": 0.0,
-        "z": 0.988182843
+        "z": 0.280462831
       },
-      "yawOffsetDeg": 8.817017
+      "yawOffsetDeg": 73.7121658
     },
     {
       "name": "StuffedAnimal",
@@ -29688,7 +26659,7 @@
           "hingeAxis": {
             "x": -0.8663562,
             "y": 0.0,
-            "z": 0.499426663
+            "z": 0.499426633
           },
           "amplitudeDeg": 10.0
         },
@@ -29699,7 +26670,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.8144125,
+            "x": -0.814412534,
             "y": 0.0,
             "z": -0.5802864
           },
@@ -29860,11 +26831,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -1.0,
+        "x": -3.66797828E-08,
         "y": 0.0,
-        "z": 0.0
+        "z": 1.0
       },
-      "yawOffsetDeg": -90.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "SwampBattleguard",
@@ -29936,11 +26907,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.04685342,
+        "x": -0.0468534119,
         "y": 0.0,
-        "z": 0.9989018
+        "z": 0.998901844
       },
-      "yawOffsetDeg": -2.68547535
+      "yawOffsetDeg": -2.68540263
     },
     {
       "name": "SwordArmOfDragon",
@@ -30013,11 +26984,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.8499642,
+        "x": 0.8499641,
         "y": 0.0,
-        "z": 0.5268405
+        "z": 0.5268407
       },
-      "yawOffsetDeg": 58.2077751
+      "yawOffsetDeg": 58.20776
     },
     {
       "name": "SwordsmanFromADistantLand",
@@ -30266,11 +27237,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": 0.999130666,
         "y": 0.0,
-        "z": 1.0
+        "z": -0.04168801
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": 92.38924
     },
     {
       "name": "Takuhee",
@@ -30321,9 +27292,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.0624692664,
+            "x": 0.116581813,
             "y": 0.0,
-            "z": 0.9980469
+            "z": -0.9931811
           },
           "amplitudeDeg": 10.0
         },
@@ -30335,26 +27306,26 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.0708042458,
+            "x": -0.247618034,
             "y": 0.0,
-            "z": -0.9974902
+            "z": 0.968857765
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": -0.02966646,
+        "x": 0.207509339,
         "y": 0.0,
-        "z": 0.9995599
+        "z": -0.978233
       },
-      "yawOffsetDeg": -1.699963
+      "yawOffsetDeg": 168.023575
     },
     {
       "name": "TaoTheChanter",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -30396,11 +27367,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.258819044,
+        "x": 0.0,
         "y": 0.0,
-        "z": 0.9659259
+        "z": 1.0
       },
-      "yawOffsetDeg": -14.99999
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "Tatsunootoshigo",
@@ -30447,36 +27418,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.4680716,
+        "x": 0.797956765,
         "y": 0.0,
-        "z": 0.8836905
+        "z": 0.602714658
       },
-      "yawOffsetDeg": 27.909193
-    },
-    {
-      "name": "TempleOfSkulls",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "jaw",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": -0.998812735,
-        "y": 0.0,
-        "z": 0.0487147719
-      },
-      "yawOffsetDeg": -87.20775
+      "yawOffsetDeg": 52.93543
     },
     {
       "name": "Tenderness",
@@ -30633,11 +27579,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.262758762,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.964861631
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -15.2338047
     },
     {
       "name": "TerraTheTerrible",
@@ -30698,91 +27644,6 @@
         "z": 1.0
       },
       "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "ThatWhichFeedsOnLife",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "jaw",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "arm",
-            "lowerarm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.4634178,
-        "y": 0.0,
-        "z": 0.8861399
-      },
-      "yawOffsetDeg": 27.60787
-    },
-    {
-      "name": "The13thGrave",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "jaw",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "left_shoulder",
-            "left_arm"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_shoulder"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.4261051,
-        "y": 0.0,
-        "z": 0.904673636
-      },
-      "yawOffsetDeg": 25.2206287
     },
     {
       "name": "TheBewitchingPhantomThief",
@@ -30997,45 +27858,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "TheJudgementHand",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm",
-            "palm",
-            "finger",
-            "finger2",
-            "finger3",
-            "finger4",
-            "finger5"
-          ],
-          "phase": 0.0,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "TheMeltingRedShadow",
       "moveType": "Biped",
       "manual": false,
@@ -31081,70 +27903,6 @@
           "bones": [
             "right_shoulder",
             "right_arm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "TheShadowWhoControlsTheDark",
-      "moveType": "Float",
-      "manual": false,
-      "note": "headForward 兜底+Z",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm",
-            "arm2",
-            "arm3",
-            "arm4",
-            "arm5",
-            "arm6",
-            "arm7",
-            "arm8",
-            "finger",
-            "finger2",
-            "finger3",
-            "finger4",
-            "finger5"
-          ],
-          "phase": 0.0,
-          "side": 1
-        },
-        {
-          "bones": [
-            "arm9",
-            "arm10",
-            "arm11",
-            "arm12",
-            "arm13",
-            "arm14",
-            "arm15",
-            "arm16",
-            "finger6",
-            "finger7",
-            "finger8",
-            "finger9",
-            "finger10"
           ],
           "phase": 3.14159274,
           "side": 1
@@ -31393,33 +28151,10 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "TheStatueOfEasterIsland",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "TheSternMystic",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -31574,49 +28309,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "TheWanderingDoomed",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "jaw",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "left_shoulder",
-            "left_arm"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_shoulder",
-            "right_arm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.5929214,
-        "y": 0.0,
-        "z": 0.8052604
-      },
-      "yawOffsetDeg": 36.3645859
-    },
-    {
       "name": "TheWickedWormBeast",
       "moveType": "Slither",
       "manual": false,
@@ -31737,11 +28429,11 @@
         }
       ],
       "headForward": {
-        "x": 0.0,
+        "x": -0.530186951,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.8478807
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -32.0180855
     },
     {
       "name": "ThousandDragon",
@@ -31825,7 +28517,7 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.09853008,
+            "x": 0.09853015,
             "y": 0.0,
             "z": 0.995134056
           },
@@ -31839,16 +28531,16 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.189127609,
+            "x": 0.1891276,
             "y": 0.0,
-            "z": -0.9819525
+            "z": -0.981952548
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0130117843,
+        "x": 0.0130117629,
         "y": 0.0,
         "z": 0.9999153
       },
@@ -31940,11 +28632,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.995106757,
+        "x": 0.116556361,
         "y": 0.0,
-        "z": 0.09880538
+        "z": 0.9931841
       },
-      "yawOffsetDeg": -84.32961
+      "yawOffsetDeg": 6.69339657
     },
     {
       "name": "ThunderDragon",
@@ -32541,88 +29233,9 @@
       "headForward": {
         "x": 0.960016251,
         "y": 0.0,
-        "z": 0.279944241
+        "z": 0.27994436
       },
       "yawOffsetDeg": 73.74312
-    },
-    {
-      "name": "TrapMaster",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "upper_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "hand2"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "hand"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": -0.519678056,
-        "y": 0.0,
-        "z": 0.8543622
-      },
-      "yawOffsetDeg": -31.3106556
-    },
-    {
-      "name": "Trent",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [
-        {
-          "bones": [
-            "trunk",
-            "branch",
-            "branch2",
-            "branch3",
-            "branch4",
-            "branch5",
-            "branch6",
-            "branch7",
-            "branch8"
-          ],
-          "phase": 0.0,
-          "side": 1
-        }
-      ],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
     },
     {
       "name": "TriHornedDragon",
@@ -32714,31 +29327,6 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "TrialOfNightmare",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "TripwireBeast",
       "moveType": "Quadruped",
       "manual": false,
@@ -32801,11 +29389,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.1274832,
+        "x": 0.755618453,
         "y": 0.0,
-        "z": 0.9918407
+        "z": 0.655012131
       },
-      "yawOffsetDeg": -7.32418442
+      "yawOffsetDeg": 49.07943
     },
     {
       "name": "TurtleBird",
@@ -32877,11 +29465,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.152450234,
+        "x": -0.376355529,
         "y": 0.0,
-        "z": -0.9883112
+        "z": 0.926475346
       },
-      "yawOffsetDeg": -171.231064
+      "yawOffsetDeg": -22.1081142
     },
     {
       "name": "TurtleRaccoon",
@@ -33022,11 +29610,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.19972004,
+        "x": -0.9917893,
         "y": 0.0,
-        "z": 0.979853
+        "z": 0.127882853
       },
-      "yawOffsetDeg": 11.5205793
+      "yawOffsetDeg": -82.65273
     },
     {
       "name": "TuruPurun",
@@ -33141,38 +29729,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.5299126,
+        "x": 0.9077584,
         "y": 0.0,
-        "z": 0.848052263
+        "z": 0.4194934
       },
-      "yawOffsetDeg": 31.99955
-    },
-    {
-      "name": "TwinLongRods2",
-      "moveType": "Float",
-      "manual": false,
-      "note": "headForward 兜底+Z",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "bone",
-      "neck": [
-        "neck"
-      ],
-      "tail": [],
-      "bodyChain": [
-        "bone"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": 65.1973953
     },
     {
       "name": "TwoHeadedKingRex",
@@ -33251,9 +29812,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.203610376,
+            "x": -0.981871665,
             "y": 0.0,
-            "z": 0.979052
+            "z": 0.189546973
           },
           "amplitudeDeg": 10.0
         },
@@ -33265,20 +29826,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.0991855,
+            "x": 0.8799241,
             "y": 0.0,
-            "z": -0.995068967
+            "z": -0.475114226
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.241612464,
+        "x": -0.802232146,
         "y": 0.0,
-        "z": 0.9703728
+        "z": 0.5970122
       },
-      "yawOffsetDeg": 13.9817219
+      "yawOffsetDeg": -53.34379
     },
     {
       "name": "TwoMouthDarkruler",
@@ -33331,11 +29892,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.0169834327,
+        "x": -0.777387261,
         "y": 0.0,
-        "z": 0.999855757
+        "z": 0.629022241
       },
-      "yawOffsetDeg": 0.9731742
+      "yawOffsetDeg": -51.0219765
     },
     {
       "name": "Tyhone",
@@ -33542,11 +30103,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.791748345,
+        "x": -0.791748643,
         "y": 0.0,
-        "z": 0.6108475
+        "z": 0.6108471
       },
-      "yawOffsetDeg": -52.3491936
+      "yawOffsetDeg": -52.34922
     },
     {
       "name": "UshiOni",
@@ -33650,49 +30211,6 @@
       "yawOffsetDeg": -8.213293
     },
     {
-      "name": "VermillionSparrow",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "arm",
-            "lowerarm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": -1.0
-      },
-      "yawOffsetDeg": 180.0
-    },
-    {
       "name": "VersagoTheDestroyer",
       "moveType": "Flight",
       "manual": false,
@@ -33749,9 +30267,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.9272756,
+            "x": 0.7528175,
             "y": 0.0,
-            "z": 0.3743795
+            "z": -0.658229351
           },
           "amplitudeDeg": 10.0
         },
@@ -33766,41 +30284,16 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.7009995,
+            "x": 0.896380067,
             "y": 0.0,
-            "z": -0.7131618
+            "z": 0.443286419
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.328520626,
-        "y": 0.0,
-        "z": -0.9444968
-      },
-      "yawOffsetDeg": 160.821
-    },
-    {
-      "name": "ViolentRain",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
+        "x": -9.445463E-08,
         "y": 0.0,
         "z": 1.0
       },
@@ -33899,76 +30392,10 @@
       "yawOffsetDeg": 0.0
     },
     {
-      "name": "WallOfIllusion",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "face",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0201836154,
-        "y": 0.0,
-        "z": -0.9997963
-      },
-      "yawOffsetDeg": 178.8436
-    },
-    {
-      "name": "WarriorOfTradition",
-      "moveType": "Float",
-      "manual": false,
-      "note": "headForward 兜底+Z",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "arm2",
-            "lowerarm2"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "arm",
-            "lowerarm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
       "name": "WaterElement",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -34020,15 +30447,15 @@
       "headForward": {
         "x": 0.0,
         "y": 0.0,
-        "z": -1.0
+        "z": 1.0
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "WaterGirl",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -34208,7 +30635,7 @@
       "name": "Wattkid",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -34269,7 +30696,7 @@
       "name": "WeatherControl",
       "moveType": "Biped",
       "manual": false,
-      "note": "",
+      "note": "headForward 兜底+Z",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -34318,9 +30745,9 @@
       "headForward": {
         "x": 0.0,
         "y": 0.0,
-        "z": -1.0
+        "z": 1.0
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "Wetha",
@@ -34495,11 +30922,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": 0.9446371,
+        "x": 0.00079383835,
         "y": 0.0,
-        "z": 0.328116834
+        "z": 0.9999997
       },
-      "yawOffsetDeg": 70.84548
+      "yawOffsetDeg": 0.04423466
     },
     {
       "name": "WickedDragonWithTheErsatzHead",
@@ -34572,7 +30999,7 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.09971779,
+            "x": 0.0997178257,
             "y": 0.0,
             "z": 0.9950158
           },
@@ -34755,7 +31182,7 @@
           "hingeAxis": {
             "x": -0.28870818,
             "y": 0.0,
-            "z": 0.9574172
+            "z": 0.95741713
           },
           "amplitudeDeg": 10.0
         },
@@ -34767,7 +31194,7 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.09239649,
+            "x": 0.0923965,
             "y": 0.0,
             "z": -0.9957223
           },
@@ -34855,9 +31282,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.206567109,
+            "x": -0.206567034,
             "y": 0.0,
-            "z": 0.9784324
+            "z": -0.9784325
           },
           "amplitudeDeg": 10.0
         },
@@ -34868,9 +31295,9 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": 0.250424623,
+            "x": -0.2504247,
             "y": 0.0,
-            "z": -0.968136132
+            "z": 0.968136132
           },
           "amplitudeDeg": 10.0
         },
@@ -34881,9 +31308,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.0995263159,
+            "x": -0.09952622,
             "y": 0.0,
-            "z": 0.995034933
+            "z": -0.995034933
           },
           "amplitudeDeg": 10.0
         },
@@ -34894,20 +31321,20 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.111474693,
+            "x": -0.111474782,
             "y": 0.0,
-            "z": -0.993767262
+            "z": 0.993767262
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -8.380267E-08,
         "y": 0.0,
-        "z": -1.0
+        "z": 1.0
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "WingedDragonGuardianOfTheFortress1",
@@ -34990,9 +31417,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.07515632,
+            "x": -0.963778734,
             "y": 0.0,
-            "z": 0.99717176
+            "z": 0.2667032
           },
           "amplitudeDeg": 10.0
         },
@@ -35003,9 +31430,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.239946157,
+            "x": -0.8323244,
             "y": 0.0,
-            "z": 0.9707862
+            "z": 0.554288864
           },
           "amplitudeDeg": 10.0
         },
@@ -35016,9 +31443,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.27184394,
+            "x": 0.813584,
             "y": 0.0,
-            "z": -0.962341368
+            "z": -0.581447363
           },
           "amplitudeDeg": 10.0
         },
@@ -35029,20 +31456,20 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.0397412032,
+            "x": 0.926817358,
             "y": 0.0,
-            "z": -0.99921
+            "z": -0.375512451
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.941008449,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.33838293
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -70.22161
     },
     {
       "name": "WingedDragonGuardianOfTheFortress2",
@@ -35125,9 +31552,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.2526075,
+            "x": -0.681944,
             "y": 0.0,
-            "z": 0.9675688
+            "z": 0.7314044
           },
           "amplitudeDeg": 10.0
         },
@@ -35138,9 +31565,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": 0.4276506,
+            "x": -0.05312579,
             "y": 0.0,
-            "z": 0.903944135
+            "z": 0.998587847
           },
           "amplitudeDeg": 10.0
         },
@@ -35151,9 +31578,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.469680369,
+            "x": 0.0061142724,
             "y": 0.0,
-            "z": -0.8828365
+            "z": -0.9999813
           },
           "amplitudeDeg": 10.0
         },
@@ -35164,20 +31591,20 @@
           "phase": 0.0,
           "side": -1,
           "hingeAxis": {
-            "x": -0.0689770654,
+            "x": 0.4132417,
             "y": 0.0,
-            "z": -0.997618258
+            "z": -0.9106214
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.475069344,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.8799484
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -28.363863
     },
     {
       "name": "WingedEggOfNewLife",
@@ -35382,9 +31809,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.460558951,
+            "x": 0.460559,
             "y": 0.0,
-            "z": 0.887629151
+            "z": -0.8876291
           },
           "amplitudeDeg": 10.0
         },
@@ -35396,9 +31823,9 @@
           "phase": 0.0,
           "side": 1,
           "hingeAxis": {
-            "x": -0.405183733,
+            "x": 0.4051836,
             "y": 0.0,
-            "z": -0.9142353
+            "z": 0.914235353
           },
           "amplitudeDeg": 10.0
         }
@@ -35407,9 +31834,9 @@
       "headForward": {
         "x": 0.0,
         "y": 0.0,
-        "z": -1.0
+        "z": 1.0
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "WittyPhantom",
@@ -35585,49 +32012,6 @@
       "yawOffsetDeg": -128.069473
     },
     {
-      "name": "WoodClown",
-      "moveType": "Float",
-      "manual": false,
-      "note": "",
-      "head": "head",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "lower_body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "upper_body",
-        "lower_body"
-      ],
-      "legs": [],
-      "arms": [
-        {
-          "bones": [
-            "left_shoulder",
-            "left_arm"
-          ],
-          "phase": 3.14159274,
-          "side": -1
-        },
-        {
-          "bones": [
-            "right_shoulder",
-            "right_arm"
-          ],
-          "phase": 3.14159274,
-          "side": 1
-        }
-      ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.03205036,
-        "y": 0.0,
-        "z": 0.999486268
-      },
-      "yawOffsetDeg": 1.83664274
-    },
-    {
       "name": "WoodRemains",
       "moveType": "Biped",
       "manual": false,
@@ -35734,9 +32118,9 @@
       "headForward": {
         "x": 0.0,
         "y": 0.0,
-        "z": -1.0
+        "z": 1.0
       },
-      "yawOffsetDeg": 180.0
+      "yawOffsetDeg": 0.0
     },
     {
       "name": "WretchedGhostOfTheAttic",
@@ -35784,31 +32168,6 @@
           "side": -1
         }
       ],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "YaibaRobo",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "body",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [
-        "body"
-      ],
-      "legs": [],
-      "arms": [],
       "wings": [],
       "soft": [],
       "headForward": {
@@ -35871,34 +32230,11 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.0906223953,
+        "x": -0.09062247,
         "y": 0.0,
         "z": 0.9958853
       },
       "yawOffsetDeg": -5.19942236
-    },
-    {
-      "name": "YamatanoDragonScroll",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
     },
     {
       "name": "Yaranzo",
@@ -35939,48 +32275,6 @@
       ],
       "wings": [],
       "soft": [],
-      "headForward": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 1.0
-      },
-      "yawOffsetDeg": 0.0
-    },
-    {
-      "name": "Yashinoki",
-      "moveType": "Float",
-      "manual": false,
-      "note": "无头",
-      "head": "",
-      "jaw": "",
-      "abdomen": "",
-      "bodyMain": "",
-      "neck": [],
-      "tail": [],
-      "bodyChain": [],
-      "legs": [],
-      "arms": [],
-      "wings": [],
-      "soft": [
-        {
-          "bones": [
-            "trunk",
-            "trunk2",
-            "trunk3",
-            "trunk4",
-            "trunk5",
-            "trunk6",
-            "trunk7",
-            "trunk8",
-            "trunk9",
-            "trunk10",
-            "trunk11",
-            "trunk12"
-          ],
-          "phase": 0.0,
-          "side": 1
-        }
-      ],
       "headForward": {
         "x": 0.0,
         "y": 0.0,
@@ -36047,7 +32341,7 @@
           "hingeAxis": {
             "x": 0.9869335,
             "y": 0.0,
-            "z": 0.161128119
+            "z": 0.161128014
           },
           "amplitudeDeg": 10.0
         },
@@ -36060,18 +32354,18 @@
           "hingeAxis": {
             "x": 0.8843848,
             "y": 0.0,
-            "z": 0.466758579
+            "z": 0.466758519
           },
           "amplitudeDeg": 10.0
         }
       ],
       "soft": [],
       "headForward": {
-        "x": 0.0,
+        "x": -0.237498149,
         "y": 0.0,
-        "z": 1.0
+        "z": 0.971388042
       },
-      "yawOffsetDeg": 0.0
+      "yawOffsetDeg": -13.7389135
     },
     {
       "name": "Zarigun",
@@ -36431,12 +32725,12 @@
       "wings": [],
       "soft": [],
       "headForward": {
-        "x": -0.179579616,
+        "x": -0.9843786,
         "y": 0.0,
-        "z": 0.9837434
+        "z": 0.1760648
       },
-      "yawOffsetDeg": -10.3452787
+      "yawOffsetDeg": -79.859375
     }
   ],
-  "generatedNote": "生成于 2026-10-12 16:24；规则见 Assets/Editor/YGOModels/RigPartClassifier.cs；手改条目须 manual=true；重烘模型后重跑本菜单"
+  "generatedNote": "生成于 2026-10-12 20:11；规则见 Assets/Editor/YGOModels/RigPartClassifier.cs；手改条目须 manual=true；重烘模型后重跑本菜单"
 }

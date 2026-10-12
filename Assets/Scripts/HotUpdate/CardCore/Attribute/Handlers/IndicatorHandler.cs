@@ -468,7 +468,8 @@ namespace CardCore.Attribute.Handlers
     /// 临时指示物原子（2026-10-10 回响临时指示物化，白2，表行 GrantTemporary）：对{target}附加
     /// {value} 层临时指示物（TempCounter，Exception 换区不清——标记跟卡跨区；回合末例程=
     /// CounterRules.OnTurnEnd ②块）——持有者回合结束时该卡**不在战场则从游戏中移除**（消失，
-    /// 不进墓）；**在战场则衰退一层**（归零即净）。任意卡区（手牌/牌库/墓地/除外区，双方——
+    /// 不进墓）；**在战场不生效也不倒数**（2026-10-12 生效自减改稿——层保留，转正退役）。
+    /// 任意卡区（手牌/牌库/墓地/除外区，双方——
     /// 2026-10-10 表行域口径，例程扫描范围同步含除外区；角色非卡不可中）；墓地卡可中（死亡→出局
     /// 的反复活用法，故不做 IsAlive 过滤）；非卡目标跳过。回响复制体恒带 1 层（TempCopyRules 施加口，不走本 handler）。
     /// </summary>
@@ -496,7 +497,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => $"附加{effect.Value}层临时指示物（持有者回合结束时不在战场则从游戏中移除，在战场则衰退一层）";
+            => $"附加{effect.Value}层临时指示物（持有者回合结束时不在战场则从游戏中移除）";
     }
 
     /// <summary>

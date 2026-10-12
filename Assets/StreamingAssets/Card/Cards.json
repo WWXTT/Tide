@@ -187,6 +187,382 @@
                     "then": []
                 }
             }
+        },
+        {
+            "id": "C_5E2EA4AF",
+            "cardName": "炮术长",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 1,
+            "costList": [
+                5.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "arrows": "None",
+            "effectIds": [
+                "041C5771"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "speedBonus": 0,
+            "surplusToDurability": false,
+            "durability": 0,
+            "payload": {
+                "refId": "",
+                "value": 1,
+                "str": "",
+                "amp": 0.0,
+                "kinds": [],
+                "count": -2,
+                "rand": -1,
+                "branch": {
+                    "settle": 0,
+                    "gateId": "",
+                    "outcomeId": "",
+                    "condParam": 0,
+                    "condStr": "",
+                    "engine": 0,
+                    "engineParam": 0,
+                    "then": []
+                }
+            }
+        },
+        {
+            "id": "C_36989CB5",
+            "cardName": "活体火焰",
+            "supertype": "Creature",
+            "power": 3,
+            "life": 2,
+            "costList": [
+                3.0,
+                0.0,
+                2.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "arrows": "None",
+            "effectIds": [
+                "7F7FA0C3"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "speedBonus": 0,
+            "surplusToDurability": false,
+            "durability": 0,
+            "payload": {
+                "refId": "",
+                "value": 1,
+                "str": "",
+                "amp": 0.0,
+                "kinds": [],
+                "count": -2,
+                "rand": -1,
+                "branch": {
+                    "settle": 0,
+                    "gateId": "",
+                    "outcomeId": "",
+                    "condParam": 0,
+                    "condStr": "",
+                    "engine": 0,
+                    "engineParam": 0,
+                    "then": []
+                }
+            }
+        },
+        {
+            "id": "C_05C5E5AC",
+            "cardName": "灼地裂缝",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                0.0,
+                4.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "arrows": "None",
+            "effectIds": [
+                "D38DC386"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "speedBonus": 0,
+            "surplusToDurability": false,
+            "durability": 0,
+            "payload": {
+                "refId": "",
+                "value": 1,
+                "str": "",
+                "amp": 0.0,
+                "kinds": [],
+                "count": -2,
+                "rand": -1,
+                "branch": {
+                    "settle": 0,
+                    "gateId": "",
+                    "outcomeId": "",
+                    "condParam": 0,
+                    "condStr": "",
+                    "engine": 0,
+                    "engineParam": 0,
+                    "then": []
+                }
+            }
+        },
+        {
+            "id": "C_7B36F253",
+            "cardName": "速疗",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "arrows": "None",
+            "effectIds": [
+                "098A65FB"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "speedBonus": 0,
+            "surplusToDurability": false,
+            "durability": 0,
+            "payload": {
+                "refId": "",
+                "value": 1,
+                "str": "",
+                "amp": 0.0,
+                "kinds": [],
+                "count": -2,
+                "rand": -1,
+                "branch": {
+                    "settle": 0,
+                    "gateId": "",
+                    "outcomeId": "",
+                    "condParam": 0,
+                    "condStr": "",
+                    "engine": 0,
+                    "engineParam": 0,
+                    "then": []
+                }
+            }
+        },
+        {
+            "id": "C_08DD67B2",
+            "cardName": "血色深渊",
+            "supertype": "Enchantment",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "arrows": "None",
+            "effectIds": [
+                "41C84964"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "speedBonus": 0,
+            "surplusToDurability": false,
+            "durability": 3,
+            "payload": {
+                "refId": "",
+                "value": 1,
+                "str": "",
+                "amp": 0.0,
+                "kinds": [],
+                "count": -2,
+                "rand": -1,
+                "branch": {
+                    "settle": 0,
+                    "gateId": "",
+                    "outcomeId": "",
+                    "condParam": 0,
+                    "condStr": "",
+                    "engine": 0,
+                    "engineParam": 0,
+                    "then": []
+                }
+            }
+        },
+        {
+            "id": "C_2D9E8246",
+            "cardName": "加速光环",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "arrows": "None",
+            "effectIds": [
+                "C4ACC06C"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "speedBonus": 0,
+            "surplusToDurability": false,
+            "durability": 0,
+            "payload": {
+                "refId": "",
+                "value": 1,
+                "str": "",
+                "amp": 0.0,
+                "kinds": [],
+                "count": -2,
+                "rand": -1,
+                "branch": {
+                    "settle": 0,
+                    "gateId": "",
+                    "outcomeId": "",
+                    "condParam": 0,
+                    "condStr": "",
+                    "engine": 0,
+                    "engineParam": 0,
+                    "then": []
+                }
+            }
+        },
+        {
+            "id": "C_EC69EE94",
+            "cardName": "不倦劳作",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "arrows": "None",
+            "effectIds": [
+                "F96E459D"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "speedBonus": 0,
+            "surplusToDurability": false,
+            "durability": 0,
+            "payload": {
+                "refId": "",
+                "value": 1,
+                "str": "",
+                "amp": 0.0,
+                "kinds": [],
+                "count": -2,
+                "rand": -1,
+                "branch": {
+                    "settle": 0,
+                    "gateId": "",
+                    "outcomeId": "",
+                    "condParam": 0,
+                    "condStr": "",
+                    "engine": 0,
+                    "engineParam": 0,
+                    "then": []
+                }
+            }
+        },
+        {
+            "id": "C_4D1325C7",
+            "cardName": "缠魂",
+            "supertype": "Spell",
+            "power": 0,
+            "life": 0,
+            "costList": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                5.0,
+                0.0
+            ],
+            "keywords": [],
+            "tags": [],
+            "effects": [],
+            "arrows": "None",
+            "effectIds": [
+                "67D965C1"
+            ],
+            "linkAuras": [],
+            "noAttack": false,
+            "noGuard": false,
+            "speedBonus": 0,
+            "surplusToDurability": false,
+            "durability": 0,
+            "payload": {
+                "refId": "",
+                "value": 1,
+                "str": "",
+                "amp": 0.0,
+                "kinds": [],
+                "count": -2,
+                "rand": -1,
+                "branch": {
+                    "settle": 0,
+                    "gateId": "",
+                    "outcomeId": "",
+                    "condParam": 0,
+                    "condStr": "",
+                    "engine": 0,
+                    "engineParam": 0,
+                    "then": []
+                }
+            }
         }
     ],
     "deckConfig": {

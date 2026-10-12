@@ -156,7 +156,7 @@ namespace MonsterRig
             var bodyMainRef = !string.IsNullOrEmpty(entry.bodyMain) ? Ref(entry.bodyMain)
                 : (bodyRefs.Count > 0 ? bodyRefs[0] : null);
 
-            List<List<BoneRef>> LimbChains(List<LimbRef> limbs, List<float> phases)
+            List<List<BoneRef>> LimbChains(List<LimbRef> limbs, List<float> phases, List<int> sides = null)
             {
                 var chains = new List<List<BoneRef>>();
                 for (int i = 0; i < limbs.Count; i++)
@@ -171,13 +171,15 @@ namespace MonsterRig
                     {
                         chains.Add(chain);
                         phases.Add(limbs[i].phase);
+                        if (sides != null) sides.Add(limbs[i].side);
                     }
                 }
                 return chains;
             }
 
             var legPhases = new List<float>();
-            var legChains = LimbChains(entry.legs, legPhases);
+            var legSides = new List<int>();
+            var legChains = LimbChains(entry.legs, legPhases, legSides);
             var armPhases = new List<float>();
             var armChains = LimbChains(entry.arms, armPhases);
 
@@ -214,17 +216,31 @@ namespace MonsterRig
                         spine.AddRange(tailRefs);
                         if (spine.Count > 0)
                             _modules.Add(new SpineWaveModule(spine, rootUpWorld,
-                                RigMotionTuning.SnakeWaveDeg, RigMotionTuning.KSnake));
+                                RigMotionTuning.SnakeWaveDeg, RigMotionTuning.KSlither,
+                                true, rootFwdWorld)); // 拉直参考（2026-10-13）：运动参考不取 idle 盘曲；速度×3=KSlither
                         break;
                     }
                     case MonsterRigCatalog.MoveBiped:
+                        // 顺序契约：身体/手臂模块先 tick，腿最后——LegGaitModule 的实时父旋转
+                        // 读取才能拿到同 tick 姿态（否则耦合上一 tick 的 t，整周期确定性断言破）
                         if (armChains.Count > 0 || bodyMainRef != null)
                             _modules.Add(new BipedSwayModule(armChains, bodyMainRef, rootUpWorld, rootRightWorld));
+                        if (legChains.Count > 0)
+                        {
+                            var legModule = new LegGaitModule(legChains, legPhases, legSides, rootUpWorld, rootFwdWorld);
+                            _modules.Add(legModule);
+                            _rootModule.WalkRootLift = legModule.RootLift;
+                        }
                         break;
                     case MonsterRigCatalog.MoveQuadruped:
-                        if (legChains.Count > 0 || bodyMainRef != null)
-                            _modules.Add(new QuadrupedWeightModule(legChains, legPhases, bodyMainRef,
-                                rootUpWorld, rootRightWorld));
+                        if (bodyMainRef != null)
+                            _modules.Add(new QuadrupedWeightModule(bodyMainRef, rootUpWorld));
+                        if (legChains.Count > 0)
+                        {
+                            var legModule = new LegGaitModule(legChains, legPhases, legSides, rootUpWorld, rootFwdWorld);
+                            _modules.Add(legModule);
+                            _rootModule.WalkRootLift = legModule.RootLift;
+                        }
                         break;
                     case MonsterRigCatalog.MoveSpider:
                         if (legChains.Count > 0)
