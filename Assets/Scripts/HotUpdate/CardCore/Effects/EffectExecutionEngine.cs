@@ -1853,7 +1853,7 @@ namespace CardCore
                 new GrantReplayHandler(),
 
                 // 临时指示物（2026-10-10 回响临时指示物化，白2）：复制卡的「临时」标记——
-                // 持有者回合末不在战场→从游戏中移除、在战场→衰退一层
+                // 持有者回合末不在战场→从游戏中移除；在战场不生效也不倒数（2026-10-12 生效自减改稿）
                 //（例程=CounterRules.OnTurnEnd ②块；回响复制体恒带 1 层=TempCopyRules 施加口）
                 new GrantTemporaryHandler(),
 

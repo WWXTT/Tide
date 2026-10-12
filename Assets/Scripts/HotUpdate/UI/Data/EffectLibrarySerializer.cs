@@ -224,7 +224,9 @@ namespace SynergyUI
                     {
                         CardName = "ANCHOR_AURA_PREVIEW",
                         Supertype = Cardtype.Enchantment,
-                        ArrowDirections = HexDirection.None,
+                        // 2026-10-12 裁定翻转：预览卡携带预选箭头（与合成器 AuraPreviewCard 同口径——
+                        // 箭头档条目按箭头位数计费，不再恒 None 漏计）
+                        ArrowDirections = (HexDirection)h.ArrowDirections,
                         LinkAuras = new List<LinkAuraData>(h.LinkAuras),
                     };
                     foreach (var line in CardCostService.Derive(preview).Breakdown)

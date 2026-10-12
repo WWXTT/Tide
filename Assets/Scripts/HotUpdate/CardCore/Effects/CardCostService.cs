@@ -104,8 +104,8 @@ namespace CardCore
             float keywordTotal;
             var kwBuckets = ComputeKeywordBuckets(card, result.Breakdown, out keywordTotal);
 
-            // ---- 2b) 连接光环费 A（三轨制 2026-09-09）：linkAuras 按**单回合指示物档**计价
-            //（来源须持续在场——断链/离场即失效的折价定案），并入关键词桶同级参与挂载折扣与取整 ----
+            // ---- 2b) 连接光环费 A（三轨制 2026-09-09；2026-10-12 持续折算退役：光环默认存在
+            //即持续——不在这里收持续费），并入关键词桶同级参与挂载折扣与取整 ----
             float auraTotal;
             var auraBuckets = ComputeLinkAuraBuckets(card, result.Breakdown, out auraTotal);
             foreach (var kv in auraBuckets)
@@ -620,10 +620,12 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 连接光环费 A（三轨制定案 2026-09-09）：卡面 linkAuras 声明按**单回合指示物档**计价——
-        /// 光环须来源持续在场（断链/离场即失效），按最便宜持续档折价（定案：来源存活条件折价）。
-        /// stat 行用 ModifyPower/ModifyLife 代表原子 ×max(1,|value|)×(0.6/该原子表默认)；
-        /// keyword 行经关键词目录反查 Grant 原子固定费 × 同一相对系数。
+        /// 连接光环费 A（三轨制定案 2026-09-09）：卡面 linkAuras 声明按**恒持续**计价——
+        /// 2026-10-12 定案：光环默认存在就是持续，不在这里收持续费（单回合折算 ×0.6 退役）。
+        /// stat 条目按 stat 走专用行（攻击力增/减＝红1、生命值增/减＝绿1，Both＝属性增/减 白2/黑2）
+        /// ×max(1,|value|)；keyword 行经关键词目录反查 Grant 原子固定费。
+        /// 箭头费（条目级作用面）累乘在条目（明细显示为 目标系数【×N】）：选择己方/对方＝按箭头×4、
+        /// 全体＝箭头×2、关键词条目恒含角色＝箭头×5；箭头档＝卡面箭头位数（×1.2^(n−1) 累乘）。
         /// 返回桶并入关键词桶（Derive 2b / DeriveModeCosts），参与挂载折扣与 L2/L3 取整。
         /// </summary>
         private static Dictionary<ManaType, float> ComputeLinkAuraBuckets(CardData card,
@@ -633,8 +635,6 @@ namespace CardCore
             var buckets = new Dictionary<ManaType, float>();
             if (card?.LinkAuras == null || card.LinkAuras.Count == 0) return buckets;
 
-            var attrCfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().AttributeValueConfig;
-            float singleTurn = attrCfg.GetDurationDiscount(DurationType.UntilEndOfTurn);
             CardLoader.LoadKeywords(); // 惰性建目录（keyword 行反查 Grant 原子）
 
             foreach (var aura in card.LinkAuras)
@@ -646,13 +646,18 @@ namespace CardCore
                 string label;
                 if (!string.IsNullOrEmpty(aura.stat))
                 {
-                    // 属性光环=一般效果「属性增加/减少」的光环化（2026-10-07 深夜定案）：光源行按
-                    // value 符号取（+→属性增加 白1 / −→属性减少 黑1），走下方通用光环化计价
-                    //（行 ManaList × mult × magnitude × 单回合折算；Both 不加倍——源行天然 ±1/±1）。
-                    // 旧 StatAnchor×3.0「光环档 1.5/+1」特判随之退役。
-                    rep = aura.value >= 0 ? AtomicEffectType.AddPlusOne : AtomicEffectType.AddMinusOne;
+                    // 属性光环=位3「可以作为连接光环」表行的光环化（2026-10-07 深夜定案；2026-10-12
+                    // 裁决按 stat 细分光源行——此前无脑走属性增加/减少是错行）：Power 走攻击力专用行
+                    //（+→攻击力增加 39a3106c 红1 / −→攻击力减少 d00b4a7d 红1）、Life 走生命值专用行
+                    //（7a97f666/d3d792bb 绿1）；Both（±1/±1 双轨）才走 属性增加/减少（白2/黑2）。
+                    // 走下方通用光环化计价（行 ManaList × mult × magnitude；Both 不加倍——源行天然 ±1/±1）。
+                    bool isLife = aura.stat.Equals("Life", System.StringComparison.OrdinalIgnoreCase);
+                    bool isBoth = aura.stat.Equals("Both", System.StringComparison.OrdinalIgnoreCase);
+                    rep = isBoth ? (aura.value >= 0 ? AtomicEffectType.AddPlusOne : AtomicEffectType.AddMinusOne)
+                         : isLife ? (aura.value >= 0 ? AtomicEffectType.AddLifeUp : AtomicEffectType.AddLifeDown)
+                                  : (aura.value >= 0 ? AtomicEffectType.AddPowerUp : AtomicEffectType.AddPowerDown);
                     magnitude = System.Math.Max(1, System.Math.Abs(aura.value));
-                    label = $"{(aura.stat.Equals("Both", System.StringComparison.OrdinalIgnoreCase) ? "属性" : aura.stat)}{(aura.value >= 0 ? "+" : "")}{aura.value}";
+                    label = $"{(isBoth ? "属性" : isLife ? "生命" : "攻击")}{(aura.value >= 0 ? "+" : "")}{aura.value}";
                 }
                 else if (!string.IsNullOrEmpty(aura.keyword))
                 {
@@ -676,18 +681,15 @@ namespace CardCore
                 var atomCfg = AtomicEffectTable.GetByType(rep);
                 if (atomCfg == null || atomCfg.TotalUnitCost <= 0f) continue;
 
-                // 光环按「单回合档」折算持续价值：factor = D(UntilEndOfTurn)/D(Permanent)。
-                // 旧口径分母取各原子表默认持续（ModifyPower=1.0 / ModifyLife=0.6 两锚不一致），
-                // 2026-09-10 持续上移后统一为满档 Permanent 锚（语义修正，随 R8 漂移已接受）。
-                float factor = singleTurn / Math.Max(0.0001f, attrCfg.GetDurationDiscount(DurationType.Permanent));
+                // 2026-10-12 定案：光环默认存在就是持续——不在这里收持续费（单回合折算 ×0.6 退役）。
                 float mult = atomCfg.CostMultiplier > 0f ? atomCfg.CostMultiplier : 1f;
                 // 无限次数档乘数 countFactor 已删（2026-10-08 坚韧指示物化）：唯一适用对象是坚韧光环，
                 // 坚韧退出关键词/光环族后无值语义条目——光环关键词恒按单次档计（守护已先行退出光环族）。
                 const float countFactor = 1f;
-                // 条目级作用面累乘（2026-10-08 actuating-range 定案，取代旧卡级箭头块）：箭头档=卡面箭头数
-                //（效果层预览箭头恒 None=不乘——箭头=卡面资产，预选不计费，沿旧口径）；作用面档按单位数
-                //——己/对方=4 档、双方减半=2 档；关键词条目恒含角色（2026-10-09 裁定：不可作光环的行
-                // 已拉黑、通道无条件开放）=5 档（双方 8+2=10 减半同 5）；属性增加不作用于角色——仍 4/2 档。
+                // 条目级箭头费（2026-10-08 actuating-range 定案，取代旧卡级箭头块；2026-10-12 裁定
+                // 改按箭头数表述）：选择己方/对方＝按箭头×4 计费、全体（双方）＝箭头×2；关键词条目恒
+                // 含角色（2026-10-09 裁定：不可作光环的行已拉黑、通道无条件开放）＝箭头×5；箭头档
+                //（scope=0）＝卡面箭头位数（效果层预览卡携带预选箭头——箭头在预览同样计费）。
                 bool roleUnits = string.IsNullOrEmpty(aura.stat);
                 int ladder = aura.scope > 0
                     ? (roleUnits ? 5 : (aura.scope == 2 ? 2 : 4))
@@ -695,34 +697,48 @@ namespace CardCore
                 float surface = ladder > 1 ? (float)Math.Pow(1.2f, ladder - 1) : 1f;
                 // ManaList 分色（2026-09-14；2026-10-04 位置数组化）：光环费逐色入桶（首色承担明细则行）
                 float firstAmount = 0f;
+                float firstRaw = 0f; // 首色行锚原价（费用基准【x】用——不含箭头累乘）
                 ManaType firstColor = ManaType.Gray;
                 var atomCost = atomCfg.ManaList;
                 if (atomCost != null)
                 {
                     foreach (var color in atomCost.NonzeroColors())
                     {
-                        float amount = atomCost[color] * mult * magnitude * factor * countFactor * surface;
+                        float amount = atomCost[color] * mult * magnitude * countFactor * surface;
                         if (amount <= 0f) continue;
                         buckets.TryGetValue(color, out var prev);
                         buckets[color] = prev + amount;
                         auraTotal += amount;
-                        if (firstAmount == 0f) { firstAmount = amount; firstColor = color; }
+                        if (firstAmount == 0f) { firstAmount = amount; firstRaw = atomCost[color]; firstColor = color; }
                     }
                 }
-                string surfaceZh = aura.scope > 0
-                    ? $"，作用面{ScopeCodeZh(aura.scope)}{(roleUnits ? "·含角色" : "")}按{ladder}单位 ×1.2^{Math.Max(0, ladder - 1)}"
-                    : (ladder > 1 ? $"，箭头×{ladder} ×1.2^{ladder - 1}" : "");
+                // 明细句式（2026-10-12）：「条目 费用基准【锚价×量级】目标系数【×N】」——
+                // 不再冠「连接光环」前缀、不列持续档（光环恒持续）；箭头/作用面累乘只报系数值
+                //（用途=随目标数放大——箭头档=箭头位数、己/对方=4、全体=2、含角色=5 档 ×1.2 累乘），
+                // 系数=1 不列（同 AtomCostFormula 口径）
+                string baseZh = $"{firstRaw:0.##}{ColorZh(firstColor)}";
+                if (mult > 1f) baseZh += $"×{mult:0.##}";
+                if (magnitude > 1) baseZh += $"×{magnitude}";
+                string arrowZh = surface > 1f ? $"目标系数【×{surface:0.###}】" : "";
                 breakdown?.Add(new CostBreakdownLine("A",
-                    $"连接光环 {label}（单回合档 ×{factor:0.###}{surfaceZh}）",
+                    $"{label} 费用基准【{baseZh}】{arrowZh}",
                     firstAmount, firstColor));
             }
 
             return buckets;
         }
 
-        /// <summary>光环方向档中文（CardCostService 计费明细用；编码同 CardData.AuraScope）。</summary>
-        private static string ScopeCodeZh(int scope)
-            => scope == 1 ? "己方" : scope == 2 ? "双方" : scope == 3 ? "对方" : "箭头";
+        /// <summary>色中文名（明细行费用基准【x】显示用；与 CostDerivation.AnchorZh 同字面）。</summary>
+        private static string ColorZh(ManaType m) => m switch
+        {
+            ManaType.Red => "红",
+            ManaType.Blue => "蓝",
+            ManaType.Green => "绿",
+            ManaType.Gray => "灰",
+            ManaType.Black => "黑",
+            ManaType.White => "白",
+            _ => m.ToString(),
+        };
 
         /// <summary>挂载折扣 f = d(C) 三类卡型统一（2026-10-02 定案：法术不再豁免"打出即生效"旧口径）。
         /// （原 ExtraActivationSlope×(N_active−1) 已删——效果多→贵由卡层挂载口规则统一承担，不再经 f 重复折。）</summary>

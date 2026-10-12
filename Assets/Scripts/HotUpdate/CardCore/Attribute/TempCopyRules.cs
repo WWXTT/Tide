@@ -12,7 +12,8 @@ namespace CardCore.Attribute
     ///  （完全复制、连锁保留）；被反制不再入手（旧宣言时点分支已删）。
     /// - 临时性指示物化（2026-10-10）：IsTemporary 布尔退役——临时卡=持 1 层临时指示物
     ///  （CounterRules.TempCounter，Exception 换区不清+回合末例程：持有者回合末不在战场
-    ///  →从游戏中移除、在战场→衰退一层转正）。回合末清理由 CounterRules.OnTurnEnd ②块承接
+    ///  →从游戏中移除；2026-10-12 生效自减改稿——在战场不生效也不倒数，层保留、离场即出局）。
+    ///  回合末清理由 CounterRules.OnTurnEnd ②块承接
     ///  （先于手牌上限弃牌的时序不变——调用点在 GameCore.OnTurnEnded）。
     /// - 本类不再订阅任何事件，仅余 CreateTemporaryCopy 静态工具。
     /// </summary>
@@ -47,8 +48,9 @@ namespace CardCore.Attribute
             };
             card.SetController(controller);
 
-            // 临时标记=1 层临时指示物（回合末口径=CounterRules.OnTurnEnd ②块：
-            // 不在战场从游戏中移除、在战场衰退一层转正；不可作地牌=CanServeAsLand 读同一指示物）
+        // 临时标记=1 层临时指示物（回合末口径=CounterRules.OnTurnEnd ②块：
+        // 不在战场从游戏中移除、在战场不生效也不倒数——2026-10-12 生效自减改稿，转正退役；
+        // 不可作地牌=CanServeAsLand 读同一指示物——挂标永不自消，复制体无入池窗口）
             card.AddCounters(CounterRules.TempCounter, 1);
             Publish(new CounterChangedEvent
             {

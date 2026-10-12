@@ -36,6 +36,11 @@
 - **底模判死（用户定性裁决）**：`sd_xl_base_1.0` 完全不适合做 UI，只适合暗黑风格徽章——10-10 起候选一直差强人意的根因。styles.json 全部条目 `checkpoint` 已置 **null**：批次不再强制加载底模，出图模型=webui 当前加载的模型；跑批前先在 webui 里切好模型。模型文件留盘。
 - **新底模接入三步**：模型落 `models/Stable-diffusion/` → styles 条目 `checkpoint` 填 `路径 [hash]`（hash 查 `/sdapi/v1/sd-models`，[hash] 可省=按文件名匹配）→ tint 三色与 denoise 区间全套重扫（换底模=此前校准作废）。
 
+## 2026-10-12 追加
+
+- **新组件类型 `elem_glyph`**（六元素线条图案）：图案几何程序化画进 init（`glyph` 参数走 manifest item 级覆盖），tint 语义=face 晕光环色/edge 核心线条色/bg 暗底；颜色锚=游戏内 UiStyle.Dot*；配套风格 `elem-line`。r3 起支持**变宽笔锋**（书法式粗细流转）；r5 起字形来源=**甲骨文**（huo/shui/mu/ri/yue/xing + 黑意象 hei/ming/luan/xuan，旧具象六形保留在注册表）。详见决策账 #10。
+- **新组件类型 `card_back`**（统一卡背，2026-10-12）：金饰边带+深暗内场+中心 44% 宽符号槽（四角金点对位标，元素符号引擎后期合成）；配套风格 `cardback-void`；中心纪律甜点=dn 0.65-0.70（0.75 SD 污染中心）。详见决策账 #11。
+
 ## 文件地图
 
 | 路径 | 内容 |

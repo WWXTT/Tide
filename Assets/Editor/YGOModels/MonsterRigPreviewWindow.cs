@@ -12,7 +12,8 @@ namespace YGOImport
     /// EditorApplication.update 驱动 MonsterRigAnimator（与游戏内同一套 RigDriver 纯核心）。
     /// 验收口径=数据层（层级/姿态读数），窗口仅供人眼调参；正式断言在 MonsterRigVerifier。
     ///
-    /// 用法：Tools/YGO模型/5 动画预览 → 「一排体型代表」或手选模型名生成 → 播放。
+    /// 用法：Tools/YGO模型/5 动画预览 → 「一排体型代表」或手选模型名生成 → 播放；
+    /// 或「全量预览（按类别）」铺开一类（/全部）模型，动作按钮统一驱动（视线不处理）。
     /// 注视三态：最近其他个体（模拟最近敌方单位）/ 拖动标记（模拟对方角色）/ 无（默认不控头）。
     /// 预览对象挂在专用根下并随窗口关闭销毁——勿保存进场景。
     /// </summary>
@@ -38,10 +39,15 @@ namespace YGOImport
         float _amplitude = 1f;
         LookMode _lookMode = LookMode.NearestOther;
         string _manualName = "BlueEyesWhiteDragon";
+        int _categoryIndex;          // 全量预览：0=全部，1..=AllMoves 序
         Vector2 _scroll;
         double _lastT;
         float _t;
         string _status = "";
+
+        /// <summary>实例列表最多渲染行数：全量模式几百条时 OnGUI 每帧整表会拖垮编辑器；
+        /// 超出部分不列，但动作按钮仍统一驱动全部实例。</summary>
+        const int ListRowCap = 60;
 
         [MenuItem("Tools/YGO模型/5 动画预览")]
         public static void Open()
@@ -101,6 +107,14 @@ namespace YGOImport
             }
 
             EditorGUILayout.Space(6);
+            EditorGUILayout.LabelField("全量预览（按类别）", EditorStyles.boldLabel);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                _categoryIndex = EditorGUILayout.Popup(_categoryIndex, CategoryLabels());
+                if (GUILayout.Button("铺开该类全部", GUILayout.Width(96))) SpawnCategoryAll(SelectedMove());
+            }
+
+            EditorGUILayout.Space(6);
             EditorGUILayout.LabelField("动作", EditorStyles.boldLabel);
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -139,9 +153,12 @@ namespace YGOImport
             if (!string.IsNullOrEmpty(_status)) EditorGUILayout.HelpBox(_status, MessageType.None);
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
             string[] moveLabels = System.Array.ConvertAll(MonsterRigCatalog.AllMoves, MonsterRigCatalog.MoveLabel);
+            int rowsShown = 0;
             foreach (var e in _entries)
             {
                 if (e.Go == null || e.Anim == null) continue;
+                if (rowsShown >= ListRowCap) break;
+                rowsShown++;
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     EditorGUILayout.LabelField(e.Go.name, GUILayout.Width(170));
@@ -157,6 +174,8 @@ namespace YGOImport
                         SaveMoveToCatalog(e.Go.name, e.MoveSel);
                 }
             }
+            if (_entries.Count > ListRowCap)
+                EditorGUILayout.LabelField($"……共 {_entries.Count} 只，仅列前 {ListRowCap} 行；动作按钮仍统一驱动全部");
             EditorGUILayout.EndScrollView();
         }
 
@@ -180,6 +199,67 @@ namespace YGOImport
             {
                 _status = "写回失败：" + ex.Message;
             }
+        }
+
+        // ================= 全量预览（按类别，2026-10-12） =================
+
+        /// <summary>类别下拉标签：首位「全部」+ 六类（带目录计数）。</summary>
+        string[] CategoryLabels()
+        {
+            var counts = new Dictionary<string, int>();
+            foreach (var kv in MonsterRigCatalog.All)
+            {
+                if (counts.ContainsKey(kv.Value.moveType)) counts[kv.Value.moveType]++;
+                else counts[kv.Value.moveType] = 1;
+            }
+            var labels = new string[MonsterRigCatalog.AllMoves.Length + 1];
+            labels[0] = "全部（" + counts.Count + " 类之外含未知类别）";
+            for (int i = 0; i < MonsterRigCatalog.AllMoves.Length; i++)
+            {
+                int c;
+                counts.TryGetValue(MonsterRigCatalog.AllMoves[i], out c);
+                labels[i + 1] = MonsterRigCatalog.MoveLabel(MonsterRigCatalog.AllMoves[i]) + "（" + c + "）";
+            }
+            return labels;
+        }
+
+        /// <summary>当前下拉选中的类别；0=全部 → null。</summary>
+        string SelectedMove()
+        {
+            return _categoryIndex <= 0 ? null : MonsterRigCatalog.AllMoves[_categoryIndex - 1];
+        }
+
+        /// <summary>铺开一类（或全部）模型的网格，统一由动作按钮驱动。
+        /// 视线不处理（2026-10-12 用户定案：等后面再说）——全量条目一律无注视目标。</summary>
+        void SpawnCategoryAll(string move)
+        {
+            var names = new List<string>();
+            foreach (var kv in MonsterRigCatalog.All)
+                if (move == null || kv.Value.moveType == move) names.Add(kv.Key);
+            names.Sort(System.StringComparer.Ordinal);
+            ClearEntries();
+            EnsureRoot();
+            const int perRow = 20;
+            const float spacing = 3f;
+            int spawned = 0, missing = 0;
+            foreach (var name in names)
+            {
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{RigRoot}/{name}/{name}.prefab");
+                if (prefab == null) { missing++; continue; }
+                var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, _previewRoot);
+                var entry = MonsterRigCatalog.Get(name);
+                go.name = name;
+                int row = spawned / perRow, col = spawned % perRow;
+                go.transform.localPosition = new Vector3(col * spacing, 0f, row * spacing);
+                go.transform.localRotation = Quaternion.Euler(0f, entry != null ? entry.yawOffsetDeg : 0f, 0f);
+                var anim = go.AddComponent<MonsterRigAnimator>();
+                anim.EditorTick(0f, 0f);
+                anim.SetLookTarget(null);
+                _entries.Add(new Entry { Go = go, Anim = anim, Label = anim.DebugSummary, MoveSel = anim.MoveType });
+                spawned++;
+            }
+            string scope = move == null ? "全部" : MonsterRigCatalog.MoveLabel(move);
+            _status = $"{scope}铺开：{spawned} 只（prefab 缺失 {missing}）——动作按钮统一驱动；视线未处理";
         }
 
         // ================= 生成/清理 =================

@@ -7,9 +7,9 @@ namespace MonsterRig
 {
     /// <summary>
     /// 生物模型程序动画目录（2026-10-12 美术待办§二）：627 个 YGOMonstersRig prefab 的
-    /// 体型分类 + 部位骨骼映射的唯一真相源。数据由编辑器菜单生成
-    /// （Tools/YGO模型/4 生成体型分类目录，见 Assets/Editor/YGOModels/MonsterRigCatalogBuilder），
-    /// 运行时只读。手改条目须置 manual=true，重新生成时原样保留。
+    /// 体型分类 + 部位骨骼映射的唯一真相源，运行时只读。原生成菜单已删（2026-10-12，
+    /// 编辑器工具只留动画预览），条目改手工维护；手改须置 manual=true。
+    /// 预览窗口实例行「存」按钮写回本文件。
     ///
     /// 命名规约（YGOMCModels 作者习惯，实测 627 模型）：
     /// - 镜像侧 = 同名尾部加 "2"（arm/arm2）或 left_/right_ 前缀；

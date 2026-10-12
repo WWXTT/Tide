@@ -400,6 +400,11 @@ namespace SynergyUI
 
         private void OnEnterInternal()
         {
+            // 变形/召唤模板解析器：组合根注入（CardCore 不依赖 UI 层——同 BattleController 口径）。
+            // 2026-10-12 补：此前仅战斗/联机/无头接线，合成器费用预览里 SummonToken 模板解析恒
+            // null → 召唤计价显示 0；进本屏即接上（幂等——静态委托重复赋同值无副作用）。
+            CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
+
             BuildFilterCallbacks(); // 分类下拉回调（Build 后一次；重读原子表只重建选项）
 
             // 卡编辑会话（一次性消费）：进入即改写 _graph 为该效果的深拷贝
@@ -660,18 +665,19 @@ namespace SynergyUI
                 }
                 if (ruleParts.Count > 0) return string.Join("；", ruleParts);
 
-                // 连接条目：统一「受光环影响的…」句式（2026-10-07）；2026-10-08 条目级作用面：
-                // 作用面条目=【范围】前缀（关键词条目含角色尾注），连接方向档条目归尾组×N箭头
+                // 连接条目（2026-10-07 句式；2026-10-12 改稿）：作用面条目=【范围】前缀+「受光环影响的…」
+                //（关键词条目含角色尾注）；连接方向档=「×N箭头，箭头指向的…」——箭头数前置，主语换成指向者
                 var scopedParts = new List<string>();
                 var arrowParts = new List<string>();
                 foreach (var a in h.LinkAuras ?? new List<LinkAuraData>())
                 {
                     if (a == null) continue;
+                    string subject = a.scope > 0 ? "受光环影响的" : "箭头指向的";
                     string body;
                     if (!string.IsNullOrEmpty(a.stat))
-                        body = $"受光环影响的生物{StatZhOf(a.stat)}{a.value:+0;-0}";
+                        body = $"{subject}生物{StatZhOf(a.stat)}{a.value:+0;-0}";
                     else if (!string.IsNullOrEmpty(a.keyword))
-                        body = $"受光环影响的单位获得{KeywordZh(a.keyword)}"; // 关键词条目恒含角色（2026-10-09 裁定）
+                        body = $"{subject}单位获得{KeywordZh(a.keyword)}"; // 关键词条目恒含角色（2026-10-09 裁定）
                     else continue;
                     if (a.scope > 0)
                         scopedParts.Add($"【{LinkScopeZh(a.scope)}】{body}");
@@ -683,7 +689,7 @@ namespace SynergyUI
                     if (arrowParts.Count > 0)
                     {
                         int n = CountArrowBits((HexDirection)h.ArrowDirections);
-                        all.Add(n > 0 ? $"{string.Join("，", arrowParts)}×{n}箭头" : string.Join("，", arrowParts));
+                        all.Add(n > 0 ? $"×{n}箭头，{string.Join("，", arrowParts)}" : string.Join("，", arrowParts));
                     }
                     return string.Join("；", all);
                 }
@@ -746,8 +752,8 @@ namespace SynergyUI
         /// 并列=主干段（参数合规才显示：效果锚价完整构成——逐原子贡献＋合计＋黑白获得）
         /// ＋分支段（2026-10-09 定案：只声明「分支（奖励免费）」——奖励锚价/上限不随段列出，
         /// 超上限提示由槽区校验红框承载、保存已禁；分支段独立于主干校验恒显——超限时主干段隐藏，
-        /// 分支段在案提示）；光环=条目平价（箭头属卡面资产、挂卡并集后由卡层计——非本效果层
-        /// 费用项，不列）；主干校验违规/转换失败/推导异常→对应段空串。</summary>
+        /// 分支段在案提示）；光环=条目平价直列（2026-10-12：箭头费入条目价、预览卡携带预选箭头，
+        /// 无「费用（光环条目）：」冠语）；主干校验违规/转换失败/推导异常→对应段空串。</summary>
         private string EffectCostText()
         {
             try
@@ -902,19 +908,21 @@ namespace SynergyUI
             return hasValue ? $"{cfg.DisplayName}{atom.Value}" : cfg.DisplayName;
         }
 
-        /// <summary>费用文本化：非零色按序拼「N色」（如 2红1蓝；全零=0）。</summary>
+        /// <summary>费用文本化：非零色按序拼「N色」（如 2红1蓝；全零=0）。
+        /// 2026-10-12 小数直通：效果级预览按真值显示小数（0.6绿/3.6红——整数不带小数位）；
+        /// 卡层合成价由 CardCostService L3 整卡取整，不经此口。</summary>
         private static string CostZh(ElementCost cost)
         {
             if (cost == null || cost.IsZero) return "0";
             var parts = new List<string>();
             foreach (var color in cost.NonzeroColors())
-                parts.Add($"{(int)cost[color]}{ColorZh(color)}");
+                parts.Add($"{cost[color]:0.##}{ColorZh(color)}");
             return string.Join("", parts);
         }
 
         /// <summary>光环模式顶栏费用：条目平价（Stage A 明细，AuraPreviewCard 同源——
-        /// 2026-10-07 面板 aura-cost 行退役后顶栏独占）；
-        /// 不提箭头费（箭头属卡面资产，挂卡并集后由卡层计，非本效果层费用变动项）。</summary>
+        /// 2026-10-07 面板 aura-cost 行退役后顶栏独占；2026-10-12 删「费用（光环条目）：」
+        /// 冠语——行首直入条目公式；箭头费已入条目价，预览卡携带预选箭头同计）。</summary>
         private string AuraTopCostText()
         {
             var lines = CardCore.CardCostService.Derive(AuraPreviewCard()).Breakdown
@@ -922,7 +930,7 @@ namespace SynergyUI
             if (lines.Count == 0) return "";
             var parts = lines.Select(l =>
                 $"{l.Label}＝{l.Value:0.#}{(l.Color.HasValue ? ColorZh(l.Color.Value) : "")}");
-            return "费用（光环条目）：" + string.Join("；", parts);
+            return string.Join("；", parts);
         }
 
         private static string ColorZh(ManaType m) => m switch
@@ -2905,7 +2913,7 @@ namespace SynergyUI
                     MakeAuraEntryCard(slot, i);
                 if (h.LinkAuras.Count == 0 && !hasRule)
                     MakeHint(slot, "尚无光环——右侧光环库点击选择（属性/关键词/规则级；新选即替换旧选）");
-                MakeHint(slot, "条目费=源行光环化×单回合档；作用面累乘在条目：己/对方=4 单位、双方=2、含角色=5（×1.2 累乘）");
+                MakeHint(slot, "条目费=行锚×量级×目标系数（×1.2 按目标数累乘：己/对方=箭头×4、全体=箭头×2、含角色=箭头×5）；光环默认持续——不收持续费");
 
                 // ---- 连接箭头（2026-10-09 迁入光环槽底部——arrows 归 aura-slot 下面；跨级克隆
                 //      tpl-arrows（模板在槽区 content）进 slot。存在连接方向档条目才显示；
@@ -3228,8 +3236,8 @@ namespace SynergyUI
             return $"{scopeZh}关键词：{c.label ?? aura.keyword ?? "？"}";
         }
 
-        /// <summary>光环计价预览卡：效果级光环无宿主卡——临时 CardData 只承条目；
-        /// ArrowDirections 恒 None（箭头=卡面资产，效果层预选不计费）。
+        /// <summary>光环计价预览卡：效果级光环无宿主卡——临时 CardData 承条目＋预选箭头
+        ///（2026-10-12 裁定翻转旧「预览不计箭头」口径：箭头档条目在预览同样按箭头位数计费）。
         /// 顶栏 AuraTopCostText 同源只读（2026-10-07 面板 aura-cost 行退役）。</summary>
         private CardData AuraPreviewCard()
         {
@@ -3238,7 +3246,7 @@ namespace SynergyUI
             {
                 CardName = "AURA_PREVIEW",
                 Supertype = Cardtype.Enchantment,
-                ArrowDirections = HexDirection.None,
+                ArrowDirections = (HexDirection)h.ArrowDirections,
                 LinkAuras = h.LinkAuras != null && h.LinkAuras.Count > 0
                     ? new List<LinkAuraData>(h.LinkAuras) : new List<LinkAuraData>(),
             };

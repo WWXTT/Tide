@@ -534,7 +534,7 @@
   {
     "ID": "5fd20895",
     "EnumName": "召唤衍生物",
-    "DisplayName": "召唤{value}层衍生物至指定落区（{衍生物}=字符串参数指向一张真实生物卡，实例=该卡全参数复制）",
+    "DisplayName": "召唤{value}层衍生物至指定落区，并赋予一层遗忘指示物（{衍生物}=字符串参数指向一张真实生物卡，实例=该卡全参数复制）",
     "EffectType": "SummonToken",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -582,7 +582,7 @@
     "ManaList": [
       0,
       0,
-      2,
+      1,
       0,
       0,
       0
@@ -1465,13 +1465,13 @@
   {
     "ID": "1d974eda",
     "EnumName": "遗忘",
-    "DisplayName": "对{target}附加{value}层遗忘指示物【可叠加】，持有者回合结束时该卡不在战场则从游戏中移除，在战场则衰退一层",
+    "DisplayName": "对{target}附加{value}层遗忘指示物【可叠加】，持有者回合结束时，不存在于战场，则从游戏中移除",
     "EffectType": "GrantTemporary",
     "TargetKinds": "己方手牌,对方手牌,己方牌库,对方牌库,己方墓地,对方墓地,己方除外区,对方除外区",
     "TargetFilter": "",
     "Polarity": -1.0,
     "MountKinds": "指示物",
-    "Tags": "衰退型",
+    "Tags": "生效自减型",
     "ManaList": [
       0.0,
       0.0,
