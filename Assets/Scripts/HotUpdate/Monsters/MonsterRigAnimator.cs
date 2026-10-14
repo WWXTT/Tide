@@ -119,7 +119,9 @@ namespace MonsterRig
             Vector3 rootFwdWorld = _root.rotation * Vector3.forward;
             Quaternion rootRestWorld = _root.rotation;
 
-            // ---- 根模块（恒有） ----
+            // ---- 根模块（恒有）----
+            // 移动方向统一=根前向 +Z（2026-10-14 用户定案：头朝向已手工烘进 prefab，
+            // 目录 headForward 已过期不作方向源）——攻击前扑与蛇形爬行同轴，方向恒一致。
             _rootModule = new RootIdleModule(rootRef, rootUpWorld, rootFwdWorld, rootRightWorld);
             _modules.Add(_rootModule);
 
@@ -212,8 +214,14 @@ namespace MonsterRig
                 {
                     case MonsterRigCatalog.MoveSlither:
                     {
-                        var spine = new List<BoneRef>(bodyRefs);
-                        spine.AddRange(tailRefs);
+                        // 波形链=命名为 tail 的链（2026-10-14 用户验收）：头与躯干前端
+                        // （body*，含挂进 bodyChain 的装饰件如 AquaSnake 的 ball）保持
+                        // rest 不动，行波+拉直只作用尾链；无尾蛇（Yormungarde 等整身
+                        // body 链、tail 为空）回落躯干链。拉直后链沿 -rootFwd 延伸——
+                        // 行波向尾传播、位移向头，移动方向恒根前向 +Z（与攻击前扑同轴）。
+                        var spine = tailRefs.Count > 0
+                            ? new List<BoneRef>(tailRefs)
+                            : new List<BoneRef>(bodyRefs);
                         if (spine.Count > 0)
                             _modules.Add(new SpineWaveModule(spine, rootUpWorld,
                                 RigMotionTuning.SnakeWaveDeg, RigMotionTuning.KSlither,
@@ -554,6 +562,11 @@ namespace MonsterRig
             if (_driver == null) BuildDriver();
             _driver?.SetLookTarget(supplier);
         }
+
+        /// <summary>运行时注入目录条目名（战场宿主层用）：Instantiate 产物根名带 "(Clone)"
+        /// 会导致目录 miss——必须赶在组件激活构建前调用（宿主先 SetActive(false)→AddComponent→
+        /// 本方法→摆好根位姿→SetActive(true)，OnEnable 的 BuildDriver 才能用正确名字捕获）。</summary>
+        public void SetCatalogName(string name) => _catalogName = name;
 
         /// <summary>行走方式覆盖（预览试摆/宿主指定）：立即重建驱动生效，不落盘目录。
         /// 传 null 回退目录值。</summary>

@@ -35,8 +35,9 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 坚韧原子（2026-10-08 指示物化定案，表行 2b1e3700——原子类型 GrantToughness，原 GrantArmor 同日更名；
-    /// refId 迁移 05485f65→a312b8b0→758a74e0（同日哈希对齐）→2b1e3700，2026-10-09 生效自减改版随文案换号）：
+    /// 坚韧原子（2026-10-08 指示物化定案，表行 a8f7f476——原子类型 GrantToughness，原 GrantArmor 同日更名；
+    /// refId 迁移 05485f65→a312b8b0→758a74e0（同日哈希对齐）→2b1e3700（2026-10-09 生效自减改版随文案换号）
+    /// →a8f7f476（现行号，2026-10-13 复核））：
     /// 对目标附加 {value} 层坚韧指示物（CounterRules.ToughnessCounter）——每次受到的伤害每层 −1，
     /// 实际拦到即生效、生效后层数减半（floor）、可叠加；Entity 级（角色可持有）；换区不清、净化可清。
     /// 取代旧 GrantKeywordHandler 关键词路径（台账 Value/Limit+次数闸+光环份额随之退役）。
@@ -238,7 +239,8 @@ namespace CardCore.Attribute.Handlers
     /// <summary>
     /// 锁定原子（2026-10-04 窥渊仪典原子化定案，蓝2）：为一张手牌挂「锁定」指示物×{value}回合——
     /// 层数=剩余回合，持有者回合结束 −1（手牌区与场上同样倒数），归零解锁；
-    /// 持有期间该牌无法使用（打出/响应出牌/苏醒立约同门——LockedCardRestriction + CommitAwaken 门）。
+    /// 持有期间无法进入发动区和地牌区（打出/响应出牌/苏醒立约/放地入池同门——
+    /// LockedCardRestriction + CommitAwaken + CanServeAsLand 三口封锁）。
     /// </summary>
     public class LockCardHandler : AtomicEffectHandlerBase
     {
@@ -264,7 +266,7 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加{value}回合锁定指示物（期间无法使用，持有者回合结束−1）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加{value}层锁定指示物（无法进入发动区和地牌区，持有者回合结束−1层）";
     }
 
     /// <summary>
@@ -502,7 +504,7 @@ namespace CardCore.Attribute.Handlers
 
     /// <summary>
     /// 「成长」原子（2026-10-11 资源重做定案：灵气复苏 ×2 翻倍改成长 +1，绿3，资源族）：
-    /// 效果控制者的地牌槽上限 +1（各自池生效不共享），可重复使用，输出封顶 18
+    /// 效果控制者的地牌槽上限 +1（各自池生效不共享），可重复使用，输出封顶 14
     /// （ElementPool.AddLandCapBonus → GetLandCap 单点：地牌张数/支付浓度/出牌费用门槛/黑白钳同随）。
     /// 无目标原子（作用=效果控制者）。
     /// </summary>
@@ -523,7 +525,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "地牌上限+1（封顶18，可重复使用）";
+            => "地牌上限+1（封顶14，可重复使用）";
     }
 
     /// <summary>攻击力减少指示物（每层 −1 攻）</summary>

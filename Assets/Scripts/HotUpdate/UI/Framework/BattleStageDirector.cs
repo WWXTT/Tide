@@ -1,8 +1,5 @@
 using System;
 using Cysharp.Threading.Tasks;
-using HexMap;
-using Unity.Entities;
-using Unity.Mathematics;
 using UnityEngine;
 
 namespace SynergyUI
@@ -17,7 +14,9 @@ namespace SynergyUI
     ///
     /// 进战场四步（2026-10-03 用户定案）：
     /// ① 主光源 x 压到 -20°（0s） ② 视界 _HorizonScale 0.02→0.2（0.5s）吞屏后隐藏黑洞
-    /// ③ HexMapAuthoring 装载棋盘（现成生成管线，不改逻辑） ④ 主光源 x -20°→45°（战场日出）。
+    /// ③ 战场棋盘装台（2026-10-13 战场缩水定案：BattleHexBoard 运行时拼装 9×6 核心带——
+    ///    BattleHex 单枚 mesh×54 格 + 分区材质，同步即就绪）
+    /// ④ 主光源 x -20°→45°（战场日出）。
     ///
     /// 挂点：UIManager.Activate 统一分发舞台态（主菜单=黑洞态 / 其它屏隐藏黑洞；
     /// 战场装台由 BattleScreen.OnEnter 驱动，时序含棋盘装载）。静态缓存场景引用 +
@@ -33,13 +32,6 @@ namespace SynergyUI
         private const float BattleLightX = 45f;     // ④ 战场高角
         private const float LightUpSeconds = 1.2f;  // ④ 日出时长
 
-        private const string SettingsAddress = "BattleHexMapSettings";
-        private const string SettingsAssetPath = "Assets/Art/HexMap/BattleHexMapSettings.asset";
-
-        // ---- 占位标记（2026-10-03 绑定可视化：双方单位行/地牌行，战场 3D 重做前肉眼核对抽象区↔实际格） ----
-        private static readonly Color MarkerColorP1 = new Color(0.29f, 0.50f, 0.83f); // 蓝=己方
-        private static readonly Color MarkerColorP2 = new Color(0.83f, 0.35f, 0.35f); // 红=对方
-
         private static readonly int HorizonId = Shader.PropertyToID("_HorizonScale");
 
         private static Renderer _blackHole;          // 相机下的黑洞球体（MeshRenderer）
@@ -48,9 +40,12 @@ namespace SynergyUI
         private static Transform _light;             // 主光源
         private static Camera _worldCam;
         private static Pose? _menuCamPose;           // 吞屏前菜单位姿快照（回菜单还原）
-        private static GameObject _boardRoot;        // HexMapAuthoring 宿主
+        private static GameObject _boardRoot;        // 战场棋盘实例（BattleHexBoard 运行时拼装）
         private static bool _swallowing;             // 吞屏重入防抖
         private static bool _mounting;               // 装台重入防抖
+
+        /// <summary>世界相机（战场点击射线/3D→屏幕投影用；装台前可能 null——调用方判空）。</summary>
+        public static Camera WorldCam => _worldCam;
 
         /// <summary>域重载关闭（Enter Play Mode Options）防跨 Play 残留：进 Play 早期清全部静态缓存。
         /// SubsystemRegistration 早于场景加载/UIBootstrap.OnEnable——上局已销毁的黑洞材质/引用
@@ -145,57 +140,38 @@ namespace SynergyUI
 
         // ======================================== 战场装台 ③④（棋盘 + 日出） ========================================
 
-        /// <summary>装台③④：装载 HexMap 棋盘（等配置单例+首批格子，现成流式管线）→
-        /// 相机对盘取景 → 主光源 -20°→45° 日出。资产缺失/超时不阻塞战场（只亮光）。</summary>
+        /// <summary>装台③④：BattleHexBoard 运行时拼装核心带棋盘（BattleHex 单枚 mesh×54 格，
+        /// 同步即就绪）→ 相机对盘取景 → 棋格画外浮起拼装（≤2s，与日出并行）→
+        /// 主光源 -20°→45° 日出。mesh 缺失只报错不阻塞日出。</summary>
         public static async UniTaskVoid MountBoardAndDawnAsync()
         {
             if (_mounting) return;
             _mounting = true;
             try
             {
-                // ③ 装载棋盘：HexMapAuthoring 走现成 Install 路径（OnEnable 协程等 Default World）
+                // ③ 棋盘装台（2026-10-13 缩盘定案二段：9×6 全盘运行时拼装——
+                // BattleHexMeshBuilder 只产单枚六边形 mesh，摆位/配色在此装配）
                 if (_boardRoot == null)
                 {
-                    var settings = Tide.HotUpdate.HotUpdateAssets.Load<HexMapFeatureSettings>(
-                        SettingsAddress, SettingsAssetPath);
-                    if (settings == null)
+                    _boardRoot = BattleHexBoard.Build();
+                    if (_boardRoot != null)
                     {
-                        Debug.LogError($"[BattleStage] HexMapFeatureSettings 缺失：{SettingsAssetPath}（棋盘跳过）");
-                    }
-                    else
-                    {
-                        // 先禁用再装配：AddComponent 在激活物上当场触发 OnEnable→Install 协程
-                        // （Default World 已就绪时同步跑完），字段赋值必须赶在激活之前——
-                        // 否则 Install 读到 null 配置直接报错（2026-10-03 实机踩坑）
-                        _boardRoot = new GameObject("HexBoardRoot");
-                        _boardRoot.SetActive(false);
-                        _boardRoot.AddComponent<HexMapAuthoring>().featureSettings = settings;
-                        _boardRoot.SetActive(true); // 此刻 OnEnable→Install，配置已就位
+                        BattleBoardGrid.Mount(_boardRoot.transform);
+                        BattleBoardGrid.SelfCheck(); // 数据层自检（格数/mesh/材质/格心公式）
+                        BattleZoneProps.Mount(); // 特殊格道具：卡组卡堆+墓地/除外漩涡（挂 tile 下随浮起同走）
+                        BattleHudRow.Mount(); // 功能地块行（2026-10-13 按钮上盘：返回/结束回合，独立根）
                     }
                 }
 
                 if (_boardRoot != null)
                 {
-                    await UntilBoardReady(15f);   // 配置单例 + 首批格子
-                    FrameBoardCamera();           // 先对盘取景（装载期间画面已就位）
-
-                    // 等全图装载（32×32≈1024 格，100 格/帧预算约 1s；超时不阻塞日出）
-                    await UntilFullMapLoaded(20f);
-
-                    // 绑定 + 占位标记（数据层自检走 HexBoardBinding.SelfCheck 日志）
-                    HexBoardBinding.Current = HexBoardBinding.Capture();
-                    if (HexBoardBinding.Current != null)
-                    {
-                        HexBoardBinding.Current.SelfCheck();
-                        BuildBoardMarkers(HexBoardBinding.Current);
-                    }
-                    else
-                    {
-                        Debug.LogWarning("[BattleStage] 棋盘矩形未启用（BattleHexMapSettings.boardRegion）——绑定层跳过");
-                    }
+                    FrameBoardCamera(); // 先对盘取景（浮起出生点按取景后视锥计算）
+                    // ③.5 棋格画外浮起（逐格随机速度/到达，≤2s 窗口）——FireAndForget 与日出并行，
+                    // 不阻塞装台返回；BoardMountSmoke 以 Running 门禁等落位
+                    BattleBoardAssemble.PlayAsync(_boardRoot.transform, _worldCam).Forget();
                 }
 
-                // ④ 战场日出：主光源 x -20° → 45°（棋盘+外围齐了再升）
+                // ④ 战场日出：主光源 x -20° → 45°
                 await TweenLightX(BattleLightX, LightUpSeconds);
             }
             finally
@@ -204,20 +180,14 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>战场拆台（BattleScreen.OnExit）：卸全部格子 + 销毁棋盘根（标记随根销毁）+ 清绑定。
+        /// <summary>战场拆台（BattleScreen.OnExit）：销毁棋盘实例 + 清格位服务与地块特效索引。
         /// 菜单舞台（黑洞/光源/相机）由界面钩子 OnScreenActivated 恢复，此处不越权。</summary>
         public static void DismountBoard()
         {
-            HexBoardBinding.Current = null;
-            var streaming = StreamingSystemOrNull();
-            try
-            {
-                streaming?.UnloadAll();
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[BattleStage] UnloadAll 异常（继续拆根）：{ex.Message}");
-            }
+            BattleTileFx.Unmount(); // 特效对象挂 tile 下随根销毁，此处只清索引
+            BattleZoneProps.Unmount(); // 特殊格道具同口径（卡堆/漩涡随根销毁，运行时 mesh 显式销毁）
+            BattleHudRow.Unmount(); // 功能地块行（独立根+运行时材质实例显式销毁）
+            BattleBoardGrid.Unmount();
             if (_boardRoot != null)
             {
                 UnityEngine.Object.Destroy(_boardRoot);
@@ -227,12 +197,24 @@ namespace SynergyUI
 
         // ======================================== 内部 ========================================
 
-        /// <summary>场景引用解析（按名；GameObject.Find 只见激活态——首次必在菜单态解析成功后缓存）。</summary>
+        /// <summary>场景引用解析（按名；2026-10-13 修复：场景 BlackHole 默认 inactive（m_IsActive:0），
+        /// GameObject.Find 只见激活态——首轮解析必失败、菜单黑洞态/吞屏/取景整链失明。
+        /// 现含 inactive 再找一次；命中后菜单态 SetActive(true) 由调用方负责）。</summary>
         private static bool ResolveScene()
         {
             if (_blackHole != null && _light != null && _worldCam != null) return true;
 
             var bhGo = GameObject.Find("BlackHole");
+            if (bhGo == null)
+            {
+                foreach (var t in UnityEngine.Object.FindObjectsByType<Transform>(
+                             FindObjectsInactive.Include, FindObjectsSortMode.None))
+                {
+                    if (t.name != "BlackHole") continue;
+                    bhGo = t.gameObject;
+                    break;
+                }
+            }
             if (bhGo != null)
             {
                 _blackHole = bhGo.GetComponent<Renderer>();
@@ -282,150 +264,14 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>等棋盘就绪：HexMapConfig 单例安装完成 + 流式系统产出首批格子（轮询超时防卡死）。</summary>
-        private static async UniTask UntilBoardReady(float timeoutSeconds)
-        {
-            float deadline = Time.realtimeSinceStartup + timeoutSeconds;
-            World world = null;
-            while (Time.realtimeSinceStartup < deadline)
-            {
-                world = World.DefaultGameObjectInjectionWorld;
-                if (world != null && world.IsCreated)
-                {
-                    using (var q = world.EntityManager.CreateEntityQuery(typeof(HexMapConfig)))
-                        if (!q.IsEmpty) break;
-                }
-                await UniTask.Yield();
-            }
-
-            var streaming = StreamingSystemOrNull();
-            if (streaming == null) return;
-            while (Time.realtimeSinceStartup < deadline && streaming.CellLookup.Count == 0)
-                await UniTask.Yield();
-        }
-
-        /// <summary>等全图装载（CellLookup == cellCount 乘积；超时返回不阻塞——外围缺格不影响棋盘日出）。</summary>
-        private static async UniTask UntilFullMapLoaded(float timeoutSeconds)
-        {
-            var streaming = StreamingSystemOrNull();
-            if (streaming == null) return;
-            int expected = HexMapRuntime.IsValid
-                ? HexMapRuntime.CellCount.x * HexMapRuntime.CellCount.y : 0;
-            if (expected <= 0) return;
-
-            float deadline = Time.realtimeSinceStartup + timeoutSeconds;
-            while (Time.realtimeSinceStartup < deadline)
-            {
-                if (streaming.CellLookup.Count >= expected) return;
-                await UniTask.Yield();
-            }
-            Debug.LogWarning($"[BattleStage] 全图装载超时（{streaming.CellLookup.Count}/{expected}）——继续日出");
-        }
-
-        private static HexChunkStreamingSystem StreamingSystemOrNull()
-        {
-            var world = World.DefaultGameObjectInjectionWorld;
-            if (world == null || !world.IsCreated) return null;
-            return world.GetExistingSystemManaged<HexChunkStreamingSystem>();
-        }
-
-        /// <summary>战场相机取景：优先棋盘矩形居中俯拍（外围地形作背景延展），无矩形回落整图。
-        /// 角度可自由改——黑洞已隐藏不干扰。流式相机数据同步指向取景中心。</summary>
+        /// <summary>战场相机取景：棋盘（BattleHexBoard）锚定世界原点，固定机位
+        /// （2026-10-13 用户定档 (7,8,-3)/(50,0,0)，包围盒自动取景退役）。</summary>
         private static void FrameBoardCamera()
         {
             if (_worldCam == null) return;
 
-            int mapX = HexMapRuntime.IsValid ? HexMapRuntime.CellCount.x : 10;
-            int mapZ = HexMapRuntime.IsValid ? HexMapRuntime.CellCount.y : 10;
-            int minX = 0, minZ = 0, maxX = mapX - 1, maxZ = mapZ - 1;
-            if (HexMapRuntime.HasBoard)
-            {
-                minX = HexMapRuntime.BoardRectMin.x; maxZ = HexMapRuntime.BoardRectMax.y;
-                maxX = HexMapRuntime.BoardRectMax.x; minZ = HexMapRuntime.BoardRectMin.y;
-            }
-
-            float ir2 = HexMapConfigBuilder.InnerRadius * 2f;
-            float or15 = HexMapConfigBuilder.OuterRadius * 1.5f;
-            // offset→世界（与 HexChunkStreamingSystem.CreateCell 同式）：x=(ox+z*0.5−z/2)·IR2, z=z·1.5R
-            Vector3 Corner(int x, int z) => new Vector3((x + z * 0.5f - z / 2) * ir2, 0f, z * or15);
-            var c0 = Corner(minX, minZ);
-            var c1 = Corner(maxX, maxZ);
-            var center = (c0 + c1) * 0.5f;
-            float w = (maxX - minX + 1.5f) * ir2;
-            float d = (maxZ - minZ + 1) * or15;
-            float dist = Mathf.Max(w, d);
-
-            var pos = center + new Vector3(0f, dist * 0.85f, -dist * 0.95f);
-            _worldCam.transform.position = pos;
-            _worldCam.transform.rotation = Quaternion.LookRotation((center - pos).normalized, Vector3.up);
-
-            var world = World.DefaultGameObjectInjectionWorld;
-            if (world != null && world.IsCreated)
-            {
-                using (var q = world.EntityManager.CreateEntityQuery(typeof(HexMapCameraData)))
-                    if (!q.IsEmpty)
-                    {
-                        var e = q.GetSingletonEntity();
-                        var data = world.EntityManager.GetComponentData<HexMapCameraData>(e);
-                        data.Position = new float3(center.x, 0f, center.z);
-                        world.EntityManager.SetComponentData(e, data);
-                    }
-            }
-        }
-
-        // ======================================== 占位标记（绑定可视化） ========================================
-
-        /// <summary>双方单位行(2×9)+地牌行(9)各摆占位标记：单位=小方块、地牌=扁板；
-        /// 蓝红区分双方。父级 HexBoardMarkers 挂棋盘根下，随拆台销毁。</summary>
-        private static void BuildBoardMarkers(HexBoardBinding board)
-        {
-            if (_boardRoot == null) return;
-            var parent = new GameObject("HexBoardMarkers");
-            parent.transform.SetParent(_boardRoot.transform, false);
-
-            int built = 0, missing = 0;
-            for (int p = 0; p < 2; p++)
-            {
-                var color = p == 0 ? MarkerColorP1 : MarkerColorP2;
-                foreach (var (x, z) in GameBoard.BoardLayout.UnitCells(p))
-                {
-                    if (TryPlaceMarker(parent, board, x, z, color, land: false)) built++;
-                    else missing++;
-                }
-                foreach (var (x, z) in GameBoard.BoardLayout.LandCells(p))
-                {
-                    if (TryPlaceMarker(parent, board, x, z, color, land: true)) built++;
-                    else missing++;
-                }
-            }
-            Debug.Log($"[BattleStage] 占位标记：{built} 个（单位 36 + 地牌 18），缺格 {missing}");
-        }
-
-        private static bool TryPlaceMarker(GameObject parent, HexBoardBinding board, int x, int z,
-            Color color, bool land)
-        {
-            if (!board.TryGetCell(x, z, out _)) return false;
-            var pos = board.WorldPositionOf(x, z);
-
-            var marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            marker.name = land ? $"marker-land-{x}-{z}" : $"marker-unit-{x}-{z}";
-            UnityEngine.Object.DestroyImmediate(marker.GetComponent<Collider>()); // 纯视觉，不进物理
-            marker.transform.SetParent(parent.transform, false);
-
-            if (land)
-            {
-                marker.transform.localScale = new Vector3(0.34f, 0.05f, 0.34f);
-                marker.transform.position = pos + new Vector3(0f, 0.03f, 0f);
-            }
-            else
-            {
-                marker.transform.localScale = new Vector3(0.16f, 0.16f, 0.16f);
-                marker.transform.position = pos + new Vector3(0f, 0.08f, 0f);
-            }
-
-            var mat = marker.GetComponent<Renderer>().material; // 实例材质：着色不污染资产
-            mat.color = color;
-            return true;
+            _worldCam.transform.position = new Vector3(7f, 8f, -3f);
+            _worldCam.transform.rotation = Quaternion.Euler(50f, 0f, 0f);
         }
     }
 }

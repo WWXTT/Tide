@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
@@ -104,6 +105,85 @@ namespace SynergyUI
                 case UIColor.White: return ManaType.White;
                 default: return ManaType.Gray;
             }
+        }
+    }
+
+    // ======================================== 搜索查询（2026-10-13 三界面统一改版） ========================================
+
+    /// <summary>
+    /// 三界面共用搜索语义：空白切词·多词 AND·全字段语料并集。
+    /// 熟手一个搜索框直达（卡级语料覆盖卡名/关键词/组合后效果全文——找卡时记得的往往是
+    /// "那张能抽牌的卡"）；新手分面 chips 与搜索词同语义（点「守护」=输「守护」）。
+    /// 词表零新增：关键词=keywords 合成表、卡型=CardSorter.TypeName、类别词=原子表 Tags——全部既有单源派生。
+    /// 与 CardSorter 同文件收口（新文件进不了已生成的 csproj 是老坑）。
+    /// </summary>
+    public static class SearchQuery
+    {
+        /// <summary>查询处于激活态（存在任一非空词）。</summary>
+        public static bool IsActive(string query) => Tokens(query).Count > 0;
+
+        /// <summary>空白切词（多词 AND 的词源）。</summary>
+        public static List<string> Tokens(string query)
+            => string.IsNullOrWhiteSpace(query)
+                ? new List<string>()
+                : new List<string>(query.Split((char[])null, StringSplitOptions.RemoveEmptyEntries));
+
+        /// <summary>多词 AND：每词均被 corpus 包含才命中（单词时即原单段子串语义）；
+        /// 空查询恒过（=不过滤）。大小写不敏感。</summary>
+        public static bool Match(string corpus, string query)
+        {
+            var tokens = Tokens(query);
+            if (tokens.Count == 0) return true;
+            if (string.IsNullOrEmpty(corpus)) return false;
+            for (int i = 0; i < tokens.Count; i++)
+                if (corpus.IndexOf(tokens[i], StringComparison.OrdinalIgnoreCase) < 0)
+                    return false;
+            return true;
+        }
+
+        /// <summary>名称命中（搜索态排序加权用）：任一词被卡名包含——命中行前置，组内保持全局序。</summary>
+        public static bool NameHit(CardData card, string query)
+        {
+            if (card == null) return false;
+            var name = card.CardName ?? "";
+            foreach (var t in Tokens(query))
+                if (name.IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            return false;
+        }
+
+        /// <summary>卡级语料：卡名∪ID∪卡型∪关键词(中文名∪id)∪Tags∪技能资格∪组合后效果全文。
+        /// 效果全文与卡面显示同源（AtomText.RenderEffectSummary 同一包装——CardComposerScreen.MakePoolRow
+        /// / DeckBuilderScreen.BuildPreview 的调用照抄于此）；多效果增量叠加全收：搜任一组成部分措辞命中整卡。
+        /// 调用方按需缓存（每键全池重算偏贵）。</summary>
+        public static string BuildCorpus(CardData card)
+        {
+            if (card == null) return "";
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(card.CardName)) parts.Add(card.CardName);
+            if (!string.IsNullOrEmpty(card.ID)) parts.Add(card.ID);
+            parts.Add(CardSorter.TypeName(card));
+            if (card.Keywords != null)
+                foreach (var k in card.Keywords)
+                {
+                    if (string.IsNullOrEmpty(k)) continue;
+                    parts.Add(k);
+                    var def = CardLoader.GetKeywordDefinition(k);
+                    if (!string.IsNullOrEmpty(def?.nameZh)) parts.Add(def.nameZh);
+                }
+            if (card.Tags != null)
+                foreach (var t in card.Tags)
+                    if (!string.IsNullOrEmpty(t)) parts.Add(t);
+            if (HeroSkillSystem.CanBeSkillCard(card)) parts.Add("技能");
+            if (card.Effects != null)
+                foreach (var fx in card.Effects)
+                {
+                    if (fx == null) continue;
+                    var summary = AtomText.RenderEffectSummary(
+                        new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps });
+                    if (!string.IsNullOrEmpty(summary)) parts.Add(summary);
+                }
+            return string.Join("\n", parts);
         }
     }
 }

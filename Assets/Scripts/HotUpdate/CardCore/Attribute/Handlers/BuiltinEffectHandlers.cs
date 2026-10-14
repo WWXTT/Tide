@@ -391,35 +391,68 @@ namespace CardCore.Attribute.Handlers
     // 灰色效果 - 通用与变化
     // ================================================================
 
-    /// <summary>变形：变成另一张卡（StringValue=目标卡 ID），不触发死亡；离开战场时解除变回原随从</summary>
+    /// <summary>临摹（2026-10-13 重做：原「变形」改名，行价 0·后付补价）：
+    /// 自身（效果源卡，须在场）以效果目标（场上生物/结界）为模板——连身份一起复制
+    ///（卡名/ID/类别/攻血费/印刷关键词），以其文本效果取代自身文本效果（跳过其规则光环步），
+    /// 附加 1 层变形指示物（中性 Resident）：换区/净化解除即**纯回滚**原形态（含横置态）；
+    /// 变为结界形态自动非横置+初始化耐久；发动主动效果按变形前后声明费差额补蓝（叠加于横置/耐久——蓝色专属能力）。</summary>
     public class MorphHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Morph;
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            // 目标形态经组合根注入的解析器查 CardData（StringValue = 目标卡 ID）
-            var targetData = MorphSystem.ResolveMorphTarget?.Invoke(effect.StringValue);
-            if (targetData == null) return;
+            var self = context.Source as Card;
+            if (self == null) return; // 自身须是卡（在场守卫在 MorphSystem.ApplyLinmo）
 
             foreach (var t in context.Targets)
             {
-                if (!(t is Card card)) continue;
-                if (card.GetZone() != Zone.Battlefield) continue; // 定案：变形仅包含场上目标
-                if (card.MorphInto(targetData))
-                {
-                    PublishEvent(new KeywordAppliedEvent
-                    {
-                        Target = card,
-                        Keyword = "Morph",
-                        Detail = $"变形为 {targetData.CardName}",
-                        Source = context.Source
-                    });
-                }
+                if (!(t is Card target) || ReferenceEquals(target, self)) continue;
+                MorphSystem.ApplyLinmo(self, target, context.Source);
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "变形为另一张卡";
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => "临摹目标：以其文本效果取代自身（跳过其规则光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后费差补蓝";
+    }
+
+    /// <summary>变形赋予（2026-10-13 新增，引用卡ID 形式·行价 0·同临摹后付）：
+    /// 将效果目标（场上生物/结界）变成引用卡（StringValue=真实卡 ID，经
+    /// SummonTokenHandler.ResolveTemplate 解析——与召唤衍生物共用引用卡ID 解析器）；
+    /// 复制面与临摹完全一致（身份/属性/关键词/文本效果·跳规则光环+变形指示物+解除纯回滚+
+    /// 结界形态非横置/耐久初始化+发动差额补蓝）；数量恒 1。</summary>
+    public class GrantMorphHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GrantMorph;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            var resolver = SummonTokenHandler.ResolveTemplate; // 引用卡ID 解析器（组合根注入；临摹不占此口）
+            if (resolver == null || string.IsNullOrEmpty(effect.StringValue)) return;
+            var form = resolver(effect.StringValue);
+            if (form == null)
+            {
+                TideLog.Warn($"[GrantMorphHandler] 引用卡 {effect.StringValue} 解析失败——空转");
+                return;
+            }
+
+            // 引用卡类型闸（构筑校验兜底）：生物或结界——其余形态不可作变形模板
+            var supertype = form is IHasSupertype ht ? ht.Supertype : form.Supertype;
+            if (supertype != Cardtype.Creature && supertype != Cardtype.Enchantment)
+            {
+                TideLog.Warn($"[GrantMorphHandler] 引用卡 {effect.StringValue} 不是生物/结界，跳过");
+                return;
+            }
+
+            foreach (var t in context.Targets)
+            {
+                if (!(t is Card target)) continue;
+                MorphSystem.ApplyForm(target, form, context.Source);
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => "将目标变成引用卡（复制其身份/属性/文本效果，跳过其规则光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后费差补蓝";
     }
 
     // ============ 战斗底盘（2026-09-10 攻击/守卫效果化） ============

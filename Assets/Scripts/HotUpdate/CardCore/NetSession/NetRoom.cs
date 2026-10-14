@@ -240,7 +240,8 @@ namespace CardCore.Network
             // 组合根注入 + 引擎初始化（镜像 TideHeadlessDriver.ResetCore；InitGame 内含 Reset→
             // NetEventProjector.ClearAll（GameCore.Reset 接线）→ 洗牌 → 起手 → StartGame）。
             // 钉种子（M3 对拍）：_seed 同时进 InitGame——GameRng 与洗牌流（ZoneContainer）双流重播。
-            MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
+            // 引用卡ID 解析器（2026-10-13 临摹退役：原 MorphSystem.ResolveMorphTarget 迁 SummonToken）
+            Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
             var deckFirst = BuildDeck(_deckIds[_firstSeat]);
             var deckSecond = BuildDeck(_deckIds[1 - _firstSeat]);
             core.InitGame(CardLoader.BuildDeck(deckFirst, 1), CardLoader.BuildDeck(deckSecond, 1), _seed,

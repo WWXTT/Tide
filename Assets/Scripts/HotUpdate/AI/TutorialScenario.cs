@@ -111,13 +111,13 @@ namespace SynergyUI
         /// <summary>是否已横置（本回合不可再攻击）。</summary>
         public bool tapped;
 
-        /// <summary>落位格 x（己方单位区列 2..10；-1=自动）。</summary>
+        /// <summary>落位格 x（己方单位区列 1..7；-1=自动）。</summary>
         public int x = -1;
 
-        /// <summary>落位格 z（P1 行 4/5、P2 行 3/2；-1=自动）。</summary>
+        /// <summary>落位格 z（P1 行 3/4、P2 行 2/1；-1=自动）。</summary>
         public int z = -1;
 
-        /// <summary>开局携带的指示物（key=CounterRules 登记的 id，如 RushSicknessSustained；value=层数）。</summary>
+        /// <summary>开局携带的指示物（key=CounterRules 登记的 id，如 RushSickness；value=层数）。</summary>
         public List<TutorialCounterSpec> counters;
 
         /// <summary>预置规则光环（如 "HandLimitNoFatigue"）：静默入场不走登场效果，seeder 直接
@@ -280,7 +280,7 @@ namespace SynergyUI
             return card;
         }
 
-        /// <summary>显式落位格是否在该玩家的单位区格集内（P1 行 4/5、P2 行 3/2，列 2..10）。</summary>
+        /// <summary>显式落位格是否在该玩家的单位区格集内（P1 行 3/4、P2 行 2/1，列 1..7；2026-10-13 缩盘后口径）。</summary>
         private static bool IsUnitCell(Player owner, int x, int z)
         {
             var cells = BoardLayout.UnitCells(owner == GameCore.Instance.Player1 ? 0 : 1);

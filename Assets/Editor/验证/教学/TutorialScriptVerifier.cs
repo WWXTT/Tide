@@ -461,6 +461,8 @@ namespace CardCore.Editor.Tests
                 mgr4.MarkTutorialCompleted(LessonId);
                 Require(errors, !mgr4.IsTutorialDone && mgr4.NextTutorialId == Lesson2Id,
                     "S5: 第一课完成后应推进第二课");
+                Require(errors, TutorialFlow.ResolveTutorialButtonClick(mgr4) == TutorialButtonClickAction.StartTutorial,
+                    "S5: 课程间隙（完课清 currentTutorial）点击应=StartTutorial 而非误入考核局（2026-10-13 SkipChosen 修复锚）");
                 mgr4.MarkTutorialCompleted(Lesson2Id);
                 Require(errors, !mgr4.IsTutorialDone && mgr4.NextTutorialId == TutorialProgressManager.CreationLessonId,
                     "S5: 第二课完成后应推进第三课（chuangzuo）");

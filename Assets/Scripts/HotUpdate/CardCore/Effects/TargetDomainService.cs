@@ -86,8 +86,8 @@ namespace CardCore
 
             var candidates = EffectHandlerRegistry.ResolveCandidates(domain, def.TargetFilter, ctx);
             // 选择层口径（2026-09-13；2026-09-16 六值迁移）：选一/选多以"可选"判定——
-            // 帷幕收窄（只吸引效果目标）+ 扰魔/潜行隐藏（唯一候选被滤空则不可发动）；
-            // RandomTarget 受帷幕收窄但扰魔/潜行可命中；全取档（Whole/WholeUnion）用全域判定。
+            // 帷幕收窄（只吸引效果目标）+ 潜行隐藏（唯一候选被滤空则不可发动）；
+            // RandomTarget 受帷幕收窄但潜行可命中；全取档（Whole/WholeUnion）用全域判定。
             // edict 原子（牺牲类——选择权在目标方）豁免帷幕。
             bool edictExempt = def.Effects != null
                 && def.Effects.Any(a => a != null && TargetResolver.IsEdict(a.Type));

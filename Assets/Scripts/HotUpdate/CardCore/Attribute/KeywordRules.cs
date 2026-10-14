@@ -12,7 +12,7 @@ namespace CardCore.Attribute
     /// 同关键词**无论轨别**新实例取代旧实例（值/次数刷新）——跨轨不并存、互不补充
     ///（附加份不补文本份、文本份不补附加份；双轨只承载存储/清除语义，不是两份可各自消耗的存量）。
     /// 参数化效果走原子（AddArmor 护甲 N 点指示物）。
-    /// 【坚韧指示物化（2026-10-08 定案；2026-10-09 生效自减改版）】坚韧退出关键词族——表行 2b1e3700
+    /// 【坚韧指示物化（2026-10-08 定案；2026-10-09 生效自减改版）】坚韧退出关键词族——表行 a8f7f476
     ///（GrantToughness 原子，原 GrantArmor 2026-10-08 更名）执行改挂 ToughnessCounter 层
     ///（GrantToughnessHandler）：每次受到的伤害每层 −1、实际拦到即生效——生效后层数减半（floor）、可叠加；
     /// 角色可持有（旧关键词形态 is Card 死线消解）；换区不清（生效自减档）、净化可清。
@@ -55,10 +55,10 @@ namespace CardCore.Attribute
         public const string PoisonSting = "PoisonSting";
         /// <summary>冰晶（2026-09-13 改写定案，蓝2）：造成战斗伤害时，改为对目标添加一个冻结指示物</summary>
         public const string IceCrystal = "IceCrystal";
-        /// <summary>梦魇（2026-09-13 改写定案，黑2）：造成战斗伤害时，改为对目标添加一个沉睡指示物</summary>
-        public const string Nightmare = "Nightmare";
+        // 梦魇（Nightmare，战斗伤害改沉睡）已删（2026-10-13）：改写链行为+常量+Grant 映射整体退役
+        //——表行 2026-10-02 已先退，沉睡指示物（Sleep 行 a62a2df1）独立保留。
         /// <summary>剧毒（2026-10-08 指示物转关键词定案，落定追加式）：受到其战斗伤害的生物被消灭
-        ///（战斗伤害照常结算，实际落定 &gt;0 且目标为生物 → DeathRules.TryKill 消灭口径，不灭/神佑可拦；
+        ///（战斗伤害照常结算，实际落定 &gt;0 且目标为生物 → DeathRules.TryKill 消灭口径，不灭可拦；
         /// 对角色照常落血）。表行 20c06d52（原 Poison 原子行）改挂 GrantVenom。</summary>
         public const string Venom = "Venom";
         /// <summary>禁魔石（2026-09-13 改写定案，白3）：受到的非战斗伤害变为 0</summary>
@@ -88,7 +88,8 @@ namespace CardCore.Attribute
         public const string Regeneration = "Regeneration";
         // 法术护盾关键词 id "SpellShield" 已删（2026-10-09 指示物化）：改走 CounterRules.SpellShieldCounter
         //（GrantSpellShieldHandler 挂层；ConsumeSpellShields 每层抵消一次对手效果，消耗 1 层）
-        public const string Untargetable = "Untargetable";
+        // 扰魔关键词 id "Untargetable" 已删（2026-10-13 整体退役：表行 09cb6c7b+Grant 映射+滤 token+
+        // ExcludeUnselectable 检查同批删除——「不可被指名选取」语义由潜行/隐密承担）
         // 微缩/放大关键词 id 已删（2026-10-10 照抄炉石机制退役）：临时复制卡族仅余回响（普通效果 EchoCopy）
         // 回响关键词常量已删（2026-10-07 改普通效果 EchoCopy——宣言时点分支随之退役）
         /// <summary>守护（2026-10-08 配对制改版）：登场选目标，其受伤改写为守护者承受（GuardianRules 配对表；无限次直到守护者离场）。</summary>
@@ -116,16 +117,13 @@ namespace CardCore.Attribute
 
         // ==================== 关键词轨别台账（三轨制定案 2026-09-09） ====================
 
-        /// <summary>
-        /// 净化豁免名单（2026-09-09 定案：神佑对净化有抗性）。净化剥神佑+剧毒杀角色的组合
-        /// 价值过高、无法与作用在生物上的效果计价平衡——净化剥不掉神佑，移除留给未来专用效果。
-        /// </summary>
-        public static readonly HashSet<string> PurgeProtectedKeywords =
-            new HashSet<string> { DeathRules.DivineProtection };
+        // 净化豁免名单（PurgeProtectedKeywords）已随 2026-10-13 神佑删除退役——
+        // 名单唯一成员神佑（净化抗性，2026-09-09 定案）不复存在，净化无豁免词。
 
         /// <summary>
         /// 换区清关键词（与 CounterRules.ClearAll 同口）：移除 Temp 轨授予。
-        /// 由 ZoneContainer.OnCardMoved 调用（同受发动区豁免约束），且须在 TryEndMorph 之后执行
+        /// 由 ZoneContainer.OnCardMoved 调用（同受发动区豁免约束），且须在变形解除
+        ///（RestoreIfMorphed——2026-10-13 起由 ClearAll 清变形指示物驱动）之后执行
         /// （否则变形快照恢复会把已清的临时层复活）。
         /// </summary>
         public static void ClearZoneKeywords(Entity entity)
@@ -134,14 +132,13 @@ namespace CardCore.Attribute
         /// <summary>
         /// 净化清关键词（净化语义重定义 2026-09-09：净化=变回生物原有状态）：
         /// 保留 Printed（卡面本体）与 Setting（设置类视同本体——设置后即「原本属性效果」）；
-        /// 清除 Temp / Status 轨（PurgeProtectedKeywords 豁免——神佑等抗净化状态保留；
-        /// GrantedPermanent 车道已删 2026-10-08，运行时无写入者）。
+        /// 清除 Temp / Status 轨（GrantedPermanent 车道已删 2026-10-08，运行时无写入者；
+        /// 豁免名单已随 2026-10-13 神佑删除退役）。
         /// 与 CounterRules.PurgeAll（指示物全清）配套，由 PurifyHandler 调用。
         /// </summary>
         public static void PurifyKeywords(Entity entity)
             => RemoveGrants(entity, g => g.Lane != KeywordLane.Printed
-                                      && g.Lane != KeywordLane.Setting
-                                      && !PurgeProtectedKeywords.Contains(g.Keyword));
+                                      && g.Lane != KeywordLane.Setting);
 
         /// <summary>
         /// 入场刷新（2026-09-09 定案；2026-10-08 不叠加改单份）：**真实入场**时对 Printed 轨做
@@ -311,7 +308,7 @@ namespace CardCore.Attribute
 
             // 战斗伤害改写（2026-09-13 定案修订：**防护层之后、落血之前**——只有"将要成功造成的伤害"
             // 才改写：圣盾/护甲/坚韧完全挡住 → 不触发；部分吸收后仍有剩余 → 剩余改写，不再落血）。
-            // 毒刺→毒素1层（绿1）/ 冰晶→冻结1层（蓝2，横置）/ 梦魇→沉睡1层（黑2，横置）。
+            // 毒刺→毒素1层（绿1）/ 冰晶→冻结1层（蓝2，横置）。（梦魇→沉睡已删 2026-10-13）
             // 固定序取第一个命中（多关键词不叠加改写）；
             // 角色（打脸）也改写——毒素落角色有效，冻结/沉睡对角色空转；穿透伤害不经防护层，恒可改写。
             // 施加口径收口 ApplyRewriteCounter。改写只对活体/角色生效——无生命单位（结界）不是状态宿主，
@@ -325,8 +322,7 @@ namespace CardCore.Attribute
             {
                 string combatRewrite =
                     source.HasKeyword(PoisonSting) ? PoisonSting :
-                    source.HasKeyword(IceCrystal) ? IceCrystal :
-                    source.HasKeyword(Nightmare) ? Nightmare : null;
+                    source.HasKeyword(IceCrystal) ? IceCrystal : null;
                 if (combatRewrite != null)
                 {
                     if (ApplyRewriteCounter(combatRewrite, target, source, CombatRewriteDetail(combatRewrite)))
@@ -379,16 +375,11 @@ namespace CardCore.Attribute
                     if (card._life + auraLife <= 0)
                     {
                         card._life = 0;
-                        if (!DeathRules.IsShielded(card, DeathCause.DamageLethal))
-                        {
-                            card._pendingDeathCause = DeathCause.DamageLethal;
-                            card._pendingDeathSource = source;
-                            card.IsAlive = false;
-                        }
-                        else if (auraLife > 0)
-                        {
-                            card._life = 1 - auraLife; // 护盾拦下：以有效生命 1 存活（无光环保持原样=0 存活）
-                        }
+                        // 护盾×DamageLethal 拦截分支已删（2026-10-13）：矩阵自神佑删除后不含
+                        // DamageLethal 列，IsShielded 恒 false——死分支清除；未来若重开该列须恢复此判定。
+                        card._pendingDeathCause = DeathCause.DamageLethal;
+                        card._pendingDeathSource = source;
+                        card.IsAlive = false;
                     }
                 }
             }
@@ -474,7 +465,7 @@ namespace CardCore.Attribute
             // 7. 剧毒（2026-10-08 指示物转关键词·落定追加式）：受到其战斗伤害的**生物**被消灭——
             //    伤害照常结算（圣盾/护甲/坚韧正常吸收，实际落定 amount>0 才触发；改写式 return 0
             //    早已出管线）；对角色照常落血不消灭（Deathtouch 口径）；无生命单位走耐久不是生物。
-            //    消灭走 TryKill 消灭口径（不灭/神佑经 DeathRules 裁决拦截）；伤害本身已致死的不再重复。
+            //    消灭走 TryKill 消灭口径（不灭经 DeathRules 裁决拦截）；伤害本身已致死的不再重复。
             if (isCombat && amount > 0 && source != null && source.IsAlive
                 && target is Card venomTarget && venomTarget.IsAlive && !venomTarget.IsNonLivingUnit()
                 && source.HasKeyword(Venom))
@@ -501,11 +492,8 @@ namespace CardCore.Attribute
                 case IceCrystal:
                     target.Freeze(1, source); // 层数模型：1 层=1 回合（对角色空转）
                     break;
-                case Nightmare:
-                    if (target is Card sleeper) sleeper.Tap();
-                    target.AddCounters(SleepCounter, 1, source);
-                    break;
                 // Pathogen（→剧毒指示物）分支已删：剧毒 2026-10-08 转关键词（Venom 落定追加式消灭）
+                // Nightmare（→沉睡）分支已删（2026-10-13 梦魇引擎行为退役）
                 default:
                     return false;
             }
@@ -522,7 +510,6 @@ namespace CardCore.Attribute
             {
                 case PoisonSting: return "毒刺：战斗伤害改为毒素指示物×1（层数留存逐回合减半）";
                 case IceCrystal: return "冰晶：战斗伤害改为冻结指示物×1";
-                case Nightmare: return "梦魇：战斗伤害改为沉睡指示物×1";
                 default: return "战斗伤害改写";
             }
         }
@@ -578,7 +565,7 @@ namespace CardCore.Attribute
             // 3. 坚韧指示物（2026-10-09 生效自减改版）：每层使本次受到的伤害 −1，实际拦到伤害即生效
             //    ——生效后层数减半（floor，易损的正面镜像）；可叠加；Entity 级——角色读数同走此口。
             //    圣盾/护甲全挡提前 return（坚韧未触及→不减半）；穿透跳过防护层同理不减半。
-            //    施加口=GrantToughnessHandler（GrantToughness 原子，表行 2b1e3700）；换区不清、净化可清。
+            //    施加口=GrantToughnessHandler（GrantToughness 原子，表行 a8f7f476）；换区不清、净化可清。
             int toughness = target.GetCounterCount(CounterRules.ToughnessCounter);
             if (toughness > 0)
             {

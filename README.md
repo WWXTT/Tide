@@ -258,7 +258,6 @@
 | Unity 6000.5 + URP 17.5 源码（含 SRP Core / VFX Graph Samples） | Unity Technologies | 订阅条款 / Unity Companion License | 游戏引擎、渲染管线底座 |
 | [DanbaidongRP](https://github.com/danbaidong1111/DanbaidongRP) | danbaidong1111 | Unity Companion License | 自定义渲染管线（dbdrp）的上游基线二次开发，本工程自行升级至 URP 17.5 修复了默认管线伪装和VFX 模板|
 | [urp-black-hole](https://github.com/tantaneity/urp-black-hole) | tantaneity | MIT | 菜单夜景黑洞 shader（裁剪修改版 BlackHole.shader + ProceduralSky 噪声库） |
-| [Hex Map 系列教程](https://catlikecoding.com/unity/tutorials/hex-map/) | Catlike Coding（Jasper Flick） | MIT-0 | 六角数学与基础类型谱系（HexDirection/HexCoordinates/HexMetrics 等）——HexMap.ECS 深度重写的教程来源 |
 | [ygo-agent](https://github.com/sbl1996/ygo-agent) | sbl1996（Hastur） | MIT | 打牌 AI 研究参考——tide_rl 训练管线的谱系来源（研究用，不进构建不随包分发） |
 | [YGOMCModels](https://github.com/iconmaster5326/YGOMCModels) | iconmaster5326（Iconmaster） | MIT | 游戏王怪兽 Minecraft 方块模型库（Blockbench 工程文件）——怪兽模型来源 |
 

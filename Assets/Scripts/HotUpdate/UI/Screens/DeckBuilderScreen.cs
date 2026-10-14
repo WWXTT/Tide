@@ -48,6 +48,18 @@ namespace SynergyUI
         private readonly Dictionary<UIColor, UButton> _filterChips = new Dictionary<UIColor, UButton>();
 
         private UIColor _colorFilter = UIColor.All;
+
+        // 2026-10-13 搜索改版分面：卡型/费用档/关键词（与色 chips 同为谓词交集）。
+        // chips+下拉=列表内容首两行，随 RefreshCatalog 重建（列表本就全量重建，不另设容器/不烘焙 prefab）。
+        private string _kindFilterZh;   // null = 全部（技能=可标记英雄技能的结界，独立于结界档）
+        private int _costBand = -1;     // -1 = 全部；档界=CostBandLo/Hi（左闭右开）
+        private string _keywordFilter;  // null/空 = 全部（关键词中文名）
+        private UiKit.Dropdown _keywordDropdown;
+        private static readonly string[] KindFilterChoices = { "生物", "瞬间", "结界", "技能" };
+        private static readonly string[] CostBandLabels = { "0-1费", "2-3费", "4-5费", "6+费" };
+        private static readonly float[] CostBandLo = { 0f, 2f, 4f, 6f };
+        private static readonly float[] CostBandHi = { 2f, 4f, 6f, float.MaxValue };
+
         private CardData _previewCard;
 
         private UiKit.Scroll _catalogList;
@@ -149,26 +161,150 @@ namespace SynergyUI
 
         private void RefreshCatalog()
         {
+            _keywordDropdown?.Close(); // 弹层挂 overlay 不随头按钮销毁——重刷前先收，防孤儿弹层
             ClearContent(_catalogList.Content);
+            BuildFacetRows(); // 分面行=内容首两行（卡型/费用档 chips + 关键词下拉），随刷新重建
+
             IEnumerable<CardData> cards = CardCatalog.LoadPlayPool(); // 教学专用卡不进构筑卡池（2026-10-06 隔离）
             if (_colorFilter != UIColor.All)
                 cards = cards.Where(c => CardSorter.HasCostColor(c, _colorFilter));
+            if (_kindFilterZh != null)
+                cards = cards.Where(c => KindMatch(c, _kindFilterZh));
+            if (_costBand >= 0)
+                cards = cards.Where(c => c.TotalCost >= CostBandLo[_costBand] && c.TotalCost < CostBandHi[_costBand]);
+            if (!string.IsNullOrEmpty(_keywordFilter))
+                cards = cards.Where(c => c.Keywords != null
+                    && c.Keywords.Any(k => k == _keywordFilter || KeywordZh(k) == _keywordFilter));
             string query = _searchField != null ? _searchField.text : null;
-            if (!string.IsNullOrWhiteSpace(query))
-                cards = cards.Where(c => (c.CardName ?? "").IndexOf(query, StringComparison.CurrentCultureIgnoreCase) >= 0);
+            // 2026-10-13 搜索改版：语料并集（名∪id∪卡型∪关键词∪Tags∪技能∪组合后效果全文）多词 AND
+            // ——搜「守护」命中带守护关键词的卡、搜效果措辞命中组合卡，不再只匹配卡名
+            if (SearchQuery.IsActive(query))
+                cards = cards.Where(c => SearchQuery.Match(SearchQuery.BuildCorpus(c), query));
 
             var sorted = CardSorter.Sort(cards).ToList();
+            if (SearchQuery.IsActive(query))
+                // 搜索态排序加权：名命中前置（OrderByDescending 稳定——命中组内保持全局 色→费→名 序）；
+                // 无搜索词时排序口径不变（2026-09-24 全局定案不受影响）
+                sorted = sorted.OrderByDescending(c => SearchQuery.NameHit(c, query)).ToList();
+
             if (sorted.Count == 0)
             {
-                var empty = UiKit.Label("empty", _catalogList.Content, "（无匹配卡牌）",
-                    UiStyle.SmallSize, UiStyle.TextHint);
-                UiKit.Size(empty, fw: 1f);
+                MakeEmptyState(query);
                 return;
             }
             foreach (var card in sorted)
             {
                 var captured = card;
                 MakeListRow(captured, "添加", onAdd: () => AddCard(captured.ID));
+            }
+        }
+
+        /// <summary>分面行（2026-10-13 搜索改版）：卡型+费用档 chips、关键词下拉。
+        /// 词表派生零新增：关键词=CardLoader.LoadKeywords 合成表中文名；与搜索词同语义
+        ///（点「守护」=搜「守护」——新手看几次即学会搜索框用法）。</summary>
+        private void BuildFacetRows()
+        {
+            var kindRow = UiKit.Row("facet-kind", _catalogList.Content, spacing: 4f, pad: 4f);
+            UiKit.Size(kindRow, fw: 1f);
+            MakeChip("全部", kindRow, _kindFilterZh == null, () => { _kindFilterZh = null; RefreshCatalog(); });
+            foreach (var kind in KindFilterChoices)
+            {
+                var captured = kind;
+                MakeChip(captured, kindRow, _kindFilterZh == captured,
+                    () => { _kindFilterZh = captured; RefreshCatalog(); });
+            }
+
+            var costRow = UiKit.Row("facet-cost", _catalogList.Content, spacing: 4f, pad: 4f);
+            UiKit.Size(costRow, fw: 1f);
+            MakeChip("全部", costRow, _costBand < 0, () => { _costBand = -1; RefreshCatalog(); });
+            for (int i = 0; i < CostBandLabels.Length; i++)
+            {
+                var captured = i;
+                MakeChip(CostBandLabels[i], costRow, _costBand == captured,
+                    () => { _costBand = captured; RefreshCatalog(); });
+            }
+
+            // 关键词下拉（词表≈20，chips 行放不下）；头=MiniButton，弹层挂 _overlay（Dropdown 自理）
+            var kwOptions = new List<string> { "关键词:全部" };
+            kwOptions.AddRange(CardLoader.LoadKeywords().Values
+                .Select(d => d.nameZh).Where(n => !string.IsNullOrEmpty(n)).Distinct()
+                .OrderBy(n => n, StringComparer.CurrentCulture));
+            int kwIdx = 0;
+            if (!string.IsNullOrEmpty(_keywordFilter)) kwIdx = Mathf.Max(0, kwOptions.IndexOf(_keywordFilter));
+            var kwHead = UiKit.MiniButton("dropdown-kw", costRow, "关键词", () => { });
+            _keywordDropdown = new UiKit.Dropdown(kwHead, _overlay, kwOptions, kwIdx,
+                onChanged: (idx, val) =>
+                {
+                    _keywordFilter = idx <= 0 ? null : val;
+                    RefreshCatalog();
+                }, width: 130f);
+        }
+
+        /// <summary>分面 chip：MiniButton+激活描边（与色 chips 的 Outline 口径一致；
+        /// 随内容全量重建，激活态建行时烧入，不需字典态）。</summary>
+        private static void MakeChip(string label, RectTransform parent, bool active, Action onClick)
+        {
+            var chip = UiKit.MiniButton("chip-" + label, parent, label, onClick);
+            if (!active) return;
+            var ol = chip.gameObject.AddComponent<Outline>();
+            ol.effectColor = UiStyle.TextPrimary;
+            ol.effectDistance = new Vector2(1.5f, -1.5f);
+        }
+
+        /// <summary>卡型谓词：技能=HeroSkillSystem.CanBeSkillCard（恰好一个主动效果的结界）——
+        /// 独立第四档；「结界」档含技能资格卡（技能卡本就是结界）。</summary>
+        private static bool KindMatch(CardData c, string kindZh)
+        {
+            switch (kindZh)
+            {
+                case "生物": return c.Supertype == Cardtype.Creature;
+                case "瞬间": return c.Supertype == Cardtype.Spell;
+                case "结界": return c.Supertype == Cardtype.Enchantment;
+                case "技能": return HeroSkillSystem.CanBeSkillCard(c);
+                default: return true;
+            }
+        }
+
+        /// <summary>空结果可解释（2026-10-13）：列出当前生效的全部筛选 +「清除全部」——
+        /// 新手卡死的最大原因是不知道什么在约束列表。</summary>
+        private void MakeEmptyState(string query)
+        {
+            var parts = new List<string>();
+            if (_colorFilter != UIColor.All) parts.Add($"色：{ColorZh(_colorFilter)}");
+            if (_kindFilterZh != null) parts.Add($"型：{_kindFilterZh}");
+            if (_costBand >= 0) parts.Add($"费：{CostBandLabels[_costBand]}");
+            if (!string.IsNullOrEmpty(_keywordFilter)) parts.Add($"关键词：{_keywordFilter}");
+            if (SearchQuery.IsActive(query)) parts.Add($"词：{query.Trim()}");
+            var hint = UiKit.Label("empty", _catalogList.Content,
+                parts.Count > 0 ? $"（无匹配卡牌）当前筛选：{string.Join(" + ", parts)}" : "（无匹配卡牌）",
+                UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
+            UiKit.Size(hint, fw: 1f);
+            if (parts.Count > 0)
+                UiKit.MiniButton("btn-clear-filters", _catalogList.Content, "清除全部筛选", ClearAllFilters);
+        }
+
+        private void ClearAllFilters()
+        {
+            _colorFilter = UIColor.All;
+            _kindFilterZh = null;
+            _costBand = -1;
+            _keywordFilter = null;
+            if (_searchField != null) _searchField.SetTextWithoutNotify("");
+            UpdateFilterChips(); // 色 chips 为 prefab 常驻，单独恢复
+            RefreshCatalog();
+        }
+
+        /// <summary>色名中文（空结果解释行用——chips 文案烘焙在预制体，这里补中文映射）。</summary>
+        private static string ColorZh(UIColor color)
+        {
+            switch (color)
+            {
+                case UIColor.Red: return "红";
+                case UIColor.Blue: return "蓝";
+                case UIColor.Green: return "绿";
+                case UIColor.Black: return "黑";
+                case UIColor.White: return "白";
+                default: return "灰";
             }
         }
 

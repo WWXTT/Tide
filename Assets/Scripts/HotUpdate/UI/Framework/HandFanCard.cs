@@ -18,7 +18,7 @@ namespace SynergyUI
         [System.NonSerialized] public HandFanView Fan;
 
         /// <summary>卡面渲染（Create 时回填）。</summary>
-        [System.NonSerialized] public CardOverlayCard Face;
+        [System.NonSerialized] public ACardView Face;
 
         // ---- tween 状态（anchoredPosition / z 角 / 等比缩放） ----
         public Vector2 Pos;

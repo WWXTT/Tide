@@ -99,7 +99,7 @@ namespace CardCore.Attribute.Handlers
             // 法术护盾已移出关键词族（2026-10-09 指示物化）：GrantSpellShield 原子改由 GrantSpellShieldHandler
             // 执行（挂 SpellShieldCounter 层，EffectExecutionEngine 指示物原子区注册）——refId 已重推
             // a3ad6a04→7270df35（2026-10-09 指示物化随文案换号）
-            (AtomicEffectType.GrantCannotBeTargeted, "Untargetable", "获得扰魔"),
+            // 扰魔（GrantCannotBeTargeted/Untargetable）映射已删（2026-10-13 整体退役：表行+关键词+滤 token 同批）
 
             // 绿色 - 续航
             (AtomicEffectType.GrantLifesteal, "Lifesteal", "获得吸血"),
@@ -107,7 +107,7 @@ namespace CardCore.Attribute.Handlers
             (AtomicEffectType.GrantRegeneration, "Regeneration", "获得再生"),
             // 坚韧已移出关键词族（2026-10-08 指示物化）：GrantToughness 原子（原 GrantArmor 同日更名）
             // 改由 GrantToughnessHandler 执行（挂 ToughnessCounter 层，EffectExecutionEngine 指示物原子区注册）
-            //——refId 迁移 05485f65→a312b8b0→758a74e0（同日哈希对齐）→2b1e3700（2026-10-09 生效自减改版随文案换号）
+            //——refId 迁移 05485f65→a312b8b0→758a74e0（同日哈希对齐）→2b1e3700（2026-10-09 生效自减改版随文案换号）→a8f7f476（现行号）
             // 守护（2026-10-08 配对制改版，退出连接光环族——表行位 8 拉黑）：登场/授予时弹选一个
             // 己方目标（单位或角色），其受伤改写为守护者承受（GuardianRules 配对表；无限次直到守护者离场）
             (AtomicEffectType.GrantGuardian, "Guardian", "获得守护"),
@@ -115,10 +115,10 @@ namespace CardCore.Attribute.Handlers
             // 执行（挂 DivineShieldCounter 层）——refId 已重推 feab5d3b→c8624e6a（2026-10-08 全量 ID 重推）
             (AtomicEffectType.GrantTaunt, "Taunt", "获得帷幕"),
             (AtomicEffectType.GrantPoisonSting, "PoisonSting", "获得毒刺（战斗伤害改为毒素）"),
-            // 冰晶/梦魇 2026-10-02 裁决表行退役（改写走分支组合）；Specs 保留——印刷关键词路径
+            // 冰晶 2026-10-02 裁决表行退役（改写走分支组合）；Specs 保留——印刷关键词路径
             // （Cards.json keywords 字段）与 KeywordRules 改写链仍靠此映射解析。
             (AtomicEffectType.GrantIceCrystal, "IceCrystal", "获得冰晶（战斗伤害改为冻结）"),
-            (AtomicEffectType.GrantNightmare, "Nightmare", "获得梦魇（战斗伤害改为沉睡）"),
+            // GrantNightmare（梦魇）映射已删（2026-10-13 引擎行为退役——改写链臂/常量/枚举墓碑同批）
             // 剧毒（2026-10-08 指示物转关键词·落定追加式）：受到其战斗伤害的生物被消灭；
             // 表行 20c06d52（原 Poison 原子）改挂 GrantVenom——病原体（改写挂剧毒指示物）随之退役
             (AtomicEffectType.GrantVenom, "Venom", "获得剧毒（受到其战斗伤害的生物被消灭）"),

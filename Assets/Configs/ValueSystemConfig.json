@@ -36,24 +36,6 @@
     "Des": "持续=本局有效（永续档，复利载体）"
   },
   {
-    "Category": "AttributeValue",
-    "Key": "ForTurnsBase",
-    "Value": 0.7,
-    "Des": "ForTurns(N) N=2 基准（与 UntilNextTurn 对齐）"
-  },
-  {
-    "Category": "AttributeValue",
-    "Key": "ForTurnsStep",
-    "Value": 0.04,
-    "Des": "ForTurns(N) 每多 1 回合增量（凹函数）"
-  },
-  {
-    "Category": "AttributeValue",
-    "Key": "ForTurnsCap",
-    "Value": 0.9,
-    "Des": "ForTurns(N) 渐近上限"
-  },
-  {
     "Category": "DelayDiscount",
     "Key": "C1",
     "Value": 1.0,
@@ -128,8 +110,8 @@
   {
     "Category": "CardCost",
     "Key": "MaxTier",
-    "Value": 18.0,
-    "Des": "档位上限（2026-10-10 对齐地牌槽封顶 18：>9 折扣带可达）"
+    "Value": 14.0,
+    "Des": "档位上限（2026-10-13 缩盘对齐地牌槽封顶 14：>9 折扣带可达）"
   },
   {
     "Category": "CardCost",
@@ -226,5 +208,41 @@
     "Key": "TriggerLimitInfinite",
     "Value": 4.0,
     "Des": "作用次数无上限（-1；N>3视同此档）：×4"
+  },
+  {
+    "Category": "GameRules",
+    "Key": "InitialLife",
+    "Value": 30.0,
+    "Des": "初始生命（2026-10-13 迁表：逻辑不动数值出代码；Reset 跨局复位同用；流失扣上限总量受此封顶）"
+  },
+  {
+    "Category": "GameRules",
+    "Key": "OpeningHandSize",
+    "Value": 6.0,
+    "Des": "起手手牌数（双方对称抽满；教学 skipOpeningDraw/挑战 p2ExtraOpeningDraws 在此之上调整）"
+  },
+  {
+    "Category": "GameRules",
+    "Key": "DefaultHandLimit",
+    "Value": 7.0,
+    "Des": "手牌上限基值（仅回合末强制选弃，抽牌时不截断；IHandLimitModifier 修改链之上叠加，纳川仪典光环→15）"
+  },
+  {
+    "Category": "GameRules",
+    "Key": "BattlefieldCapacityPerPlayer",
+    "Value": 14.0,
+    "Des": "每玩家战场单位容量（=单位区 2×7；计数语义与棋盘格无关；BoardLayout.UnitCellsPerPlayer 单源引用本值；控制权变更不受此闸）"
+  },
+  {
+    "Category": "GameRules",
+    "Key": "LandCurveCap",
+    "Value": 7.0,
+    "Des": "标准地牌槽曲线封顶 [1..7]（=曲线末端=ElementPool 池钳 MAX_POOL_SIZE 同源；挑战曲线=cap+bonus；棋盘地牌行 7 格对应）"
+  },
+  {
+    "Category": "GameRules",
+    "Key": "MaxStackedLandCap",
+    "Value": 14.0,
+    "Des": "地牌上限硬顶（成长原子叠加封顶；对应棋盘 7 格 × 每格叠 2 层；黑白合计生成钳同用 GetLandCap 间接吃此值）"
   }
 ]

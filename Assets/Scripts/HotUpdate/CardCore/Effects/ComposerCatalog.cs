@@ -327,7 +327,9 @@ namespace CardCore
 
         /// <summary>槽内 Then 奖励资格（2026-10-07 位 3「分支奖励」删除后派生）：
         /// 派生主干资格 ∩ 非引擎行（引擎行=条件载体零域，不作奖励）。
-        /// 预算/可逆转/非错边过滤在调用点照旧。</summary>
+        /// 预算/可逆转/非错边过滤在调用点照旧。
+        /// （2026-10-13 晚「主动发动」位已删：动态计价原子（召唤衍生物/临摹/变形赋予）触发式预付
+        /// 与启动式现付同额同源（ResolveTemplate→ContentPriceOf），奖励入价在构筑期——主动/自动自由选择。）</summary>
         public static bool CanBeRewardRow(Attribute.AtomicEffectConfig row)
             => CanBeTrunkRow(row) && !HasMountBit(row, MountKind.EngineTrunk);
 

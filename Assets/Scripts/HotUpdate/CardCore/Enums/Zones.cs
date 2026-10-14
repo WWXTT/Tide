@@ -161,9 +161,8 @@ namespace CardCore
         /// </summary>
         LifeZero,
 
-        /// <summary>
-        /// 牌库耗尽
-        /// </summary>
+        /// <summary>【墓碑 2026-10-13】牌库耗尽败因——零生产方（空库抽牌走疲劳），
+        /// 早期游戏王式 DeckOut 设想未实装；枚举位保留防序列化位序重编号。</summary>
         DeckOut,
 
         /// <summary>
@@ -404,10 +403,13 @@ namespace CardCore
     public class ZoneManager
     {
         /// <summary>
-        /// 每玩家战场容量上限（= 单位区 2×9；设计稿「战场宽度 2×9=18」）。
-        /// 计数语义，与棋盘格子无关——棋盘只是核心状态的派生表现层。
+        /// 每玩家战场容量上限（= 单位区 2×7；设计稿「战场宽度 2×7=14」，2026-10-13 缩盘定案）。
+        /// 计数语义，与棋盘格子无关——棋盘只是核心状态的派生表现层
+        ///（BoardLayout.UnitCellsPerPlayer 已改单源引用本值，2026-10-13；
+        /// 数值迁表：ValueSystemConfig GameRules.BattlefieldCapacityPerPlayer）。
         /// </summary>
-        public const int BattlefieldCapacityPerPlayer = 18;
+        public static int BattlefieldCapacityPerPlayer
+            => (int)ValueSystemConfigManager.Instance.GetOrCreateConfig().GameRulesConfig.BattlefieldCapacityPerPlayer;
 
         private Dictionary<Player, ZoneContainer> playerZones = new Dictionary<Player, ZoneContainer>();
 
@@ -549,9 +551,11 @@ namespace CardCore
             if (from == Zone.Battlefield && to != Zone.Battlefield)
                 PublishCardLeaveBattlefield(card, to);
             if (from == Zone.Battlefield && to != Zone.Battlefield)
-                CardCore.Attribute.MorphSystem.TryEndMorph(card); // 变形：离开战场解除（进墓变回原随从）
-            // 临时关键词换区清（三轨制定案）：置于 TryEndMorph 之后——变形快照会整表恢复 _keywords
-            // 与台账，先解除再清临时轨，防快照复活已清层；同受发动区豁免约束（cast 付费期间临时层存活）。
+                CardCore.Attribute.MorphSystem.RestoreIfMorphed(card); // 变形解除（2026-10-13 重做）：
+            // 还原钩子实际由上方 ClearAll→CounterRules.ClearCounters（变形指示物被清）驱动——
+            // 此处直调为无指示物残留时的兜底（幂等：无快照即 no-op），保序不变。
+            // 临时关键词换区清（三轨制定案）：置于解除之后——防快照复活已清层；
+            // 同受发动区豁免约束（cast 付费期间临时层存活）。
             if (from != to && !viaActivationStaging)
                 CardCore.Attribute.KeywordRules.ClearZoneKeywords(card);
         }

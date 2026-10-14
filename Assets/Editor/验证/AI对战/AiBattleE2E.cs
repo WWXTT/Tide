@@ -135,10 +135,9 @@ namespace CardCore.Editor.Tests
                 var neural = wantNeural && policy != null ? new NeuralAI(policy) : null;
                 if (wantNeural && neural == null)
                     result.Errors.Add("指定了 Neural 大脑但未提供 ONNX 策略，该座位回落 SimpleAI");
-                // 变形目标形态解析器：组合根注入（编辑器无头路径独立注入）
-                CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
                 // 召唤衍生物模板解析器（2026-09-21 修复：此前只验证器自注入，对战路径 SummonToken
-                // 静默空转——"打召唤法术只付费无衍生物"）：与变形同惯例接 CardCatalog
+                // 静默空转——"打召唤法术只付费无衍生物"）：接 CardCatalog
+                //（2026-10-13 临摹退役：原变形解析器 MorphSystem.ResolveMorphTarget 已并入本口）
                 CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
                 core.InitGame(CardLoader.BuildDeck(deck1, 1), CardLoader.BuildDeck(deck2, 1));
                 core.Player1.IsAI = true; // 选择全自动

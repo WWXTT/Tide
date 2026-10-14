@@ -12,7 +12,7 @@ namespace CardCore
         public Player Player { get; set; }
         /// <summary>个人回合数（台账行标识）</summary>
         public int PersonalTurn { get; set; }
-        /// <summary>该回合的地牌槽上限（= min(全局回合数, 9)，也是可出卡费用上限）</summary>
+        /// <summary>该回合的地牌槽上限（= min(全局回合数, 7)，也是可出卡费用上限）</summary>
         public int LandCap { get; set; }
         /// <summary>实际产出元素数（主阶段手动自选色 + 结束阶段自动灰色）</summary>
         public int TapsTaken { get; set; }

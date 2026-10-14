@@ -38,9 +38,6 @@ namespace CardCore.Serialization
         [MemoryPackOrder(TagTable.RCS_Zone)]
         public int Zone;
 
-        [MemoryPackOrder(TagTable.RCS_TargetFlags)]
-        public int TargetFlags;
-
         [MemoryPackOrder(TagTable.RCS_Keywords)]
         public string[] Keywords;
 
@@ -79,7 +76,6 @@ namespace CardCore.Serialization
                 IsNegated = card._isNegated,
                 IsNullified = card._isNullified,
                 Zone = (int)card._zone,
-                TargetFlags = (int)card._targetFlags,
                 RuntimeId = card.RuntimeId,
                 ControllerSeat = SeatOfController(card),
                 IsFrozen = card.IsFrozen(),
@@ -116,7 +112,6 @@ namespace CardCore.Serialization
             card._isNegated = IsNegated;
             card._isNullified = IsNullified;
             card._zone = (Zone)Zone;
-            card._targetFlags = (EffectTargetFlags)TargetFlags;
 
             if (Keywords != null)
             {

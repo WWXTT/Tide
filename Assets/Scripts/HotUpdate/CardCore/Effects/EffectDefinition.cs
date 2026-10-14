@@ -92,7 +92,7 @@ namespace CardCore
         /// <summary>目标数量：&gt;0=N，0=全部，-1=任意（旧语义保留）；-2=未声明回落表级 TargetCount。</summary>
         public int TargetCount = -2;
         /// <summary>目标随机（2026-09-16 自 SelectionMode 移出为正交标志）：不弹选择，从完整候选域按种子
-        /// 随机抽取（TargetCount 管抽取个数；帷幕收窄生效、扰魔/潜行可被随机命中——不可被"选"≠不可被随机/范围波及）。
+        /// 随机抽取（TargetCount 管抽取个数；帷幕收窄生效、潜行可被随机命中——不可被"选"≠不可被随机/范围波及）。
         /// 仅对选一/选多档有意义（全取随机≡全取）；与动态数量（-1）互斥（构筑校验）。</summary>
         public bool RandomTarget;
         /// <summary>动态数量：运行时玩家自选个数（0..候选数）；费用计 0（2026-09-21 定案：不关联地牌资格）。</summary>

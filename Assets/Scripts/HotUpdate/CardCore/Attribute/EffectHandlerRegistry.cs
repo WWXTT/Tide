@@ -174,12 +174,12 @@ namespace CardCore.Attribute
             bool edictExempt = def.Effects != null
                 && def.Effects.Any(a => a != null && TargetResolver.IsEdict(a.Type));
 
-            // 全取（Whole/WholeUnion）：候选全取——扰魔/潜行照常命中（范围波及），不受帷幕收窄。
+            // 全取（Whole/WholeUnion）：候选全取——潜行照常命中（范围波及），不受帷幕收窄。
             if (SelectionModeRules.IsTakeAll(def.SelectionMode))
                 return candidates;
 
             // 目标随机（RandomTarget 正交标志，2026-09-16 自 SelectionMode 移出）：不弹窗，随机种子自动抽取；
-            // 从完整候选域抽（对方侧扰魔/潜行可被随机命中——绕过选择），
+            // 从完整候选域抽（对方侧潜行可被随机命中——绕过选择），
             // 但受帷幕收窄约束（"效果只能以帷幕卡为目标"对指定与随机生效；全域/范围不受限）。
             if (def.RandomTarget)
             {
@@ -191,7 +191,7 @@ namespace CardCore.Attribute
             }
 
             // 选一/选多：交互选取——选择层两道过滤（2026-09-13）：①帷幕收窄（对方侧仅帷幕卡；不拦攻击；edict 豁免）
-            // ②弹窗显示域（对方侧扰魔/潜行隐藏；AI/无头自动取前 N 同口径）。
+            // ②弹窗显示域（对方侧潜行隐藏；AI/无头自动取前 N 同口径）。
             candidates = TargetResolver.ExcludeUnselectable(
                 TargetResolver.ApplyTauntRestriction(candidates, context, edictExempt), context.Controller);
             if (candidates.Count == 0) return candidates;
@@ -254,8 +254,8 @@ namespace CardCore.Attribute
         /// <summary>
         /// 分支 Then 奖励的目标解析（两槽定案 2026-10-05；2026-10-07 晚定案=合法范围内弹窗选 1；
         /// 2026-10-09 每原子下沉：奖励原子声明数量档→弹选 N、随机档→帷幕收窄完整候选池种子抽取
-        /// 「扰魔/潜行可命中」；未声明（-2/-1）维持弹选 1）。
-        /// 候选按手动选择口径两道过滤（帷幕收窄 + 弹窗显示域滤对方侧扰魔/潜行/隐密）后
+        /// 「潜行可命中」；未声明（-2/-1）维持弹选 1）。
+        /// 候选按手动选择口径两道过滤（帷幕收窄 + 弹窗显示域滤对方侧潜行/隐密）后
         /// 由 Chooser=效果控制者（自己）弹选；候选≤需求自动取不弹（AI/无头由 Service 自动选首）；
         /// 隐藏区域/无域=空列表（调用方按单次 null 目标执行——handler 自结算）。
         /// </summary>
@@ -314,7 +314,7 @@ namespace CardCore.Attribute
             if (candidates.Count <= need)
                 return candidates.Take(need).ToList();
 
-            // 选择层两道过滤（2026-09-13）：帷幕收窄 + 弹窗显示域（扰魔/潜行隐藏）——
+            // 选择层两道过滤（2026-09-13）：帷幕收窄 + 弹窗显示域（潜行隐藏）——
             // 全域/随机不经此处（随机池在组合层收窄）；edict 原子（牺牲类）豁免帷幕
             candidates = TargetResolver.ExcludeUnselectable(
                 TargetResolver.ApplyTauntRestriction(candidates, context, TargetResolver.IsEdict(effect.Type)), context.Controller);
@@ -340,7 +340,7 @@ namespace CardCore.Attribute
         ///（发动区反制）/教学与 AI 预选保活）；预选全落域外 → 该原子回落自解析。
         /// 行为口径与组合层解析（ResolveCompositionTargetsAsync）对齐：
         /// 全隐藏区=自结算空列表（隐藏信息不进选择）；全取档/数量"全部"=候选全取不弹窗；
-        /// 强制类（Mandatory）无选择窗口=自动全取；随机=帷幕收窄池内种子抽取（扰魔/潜行可命中）；
+        /// 强制类（Mandatory）无选择窗口=自动全取；随机=帷幕收窄池内种子抽取（潜行可命中）；
         /// 选一/选多=两道过滤（帷幕收窄+显示域）后候选≤需求自动取、否则弹窗（AI/无头 Service 代选）。
         /// 无域原子返回空列表（调用方按单次 null 目标自结算执行）。
         /// </summary>
@@ -375,7 +375,7 @@ namespace CardCore.Attribute
             bool noneAsSingle = def.SelectionMode == SelectionMode.None; // 未声明模式=按选一（与组合层同口径）
             int effCount = atom.EffectiveTargetCount(def); // 每原子有效数量（未声明=效果级）
 
-            // 全取：候选全取——扰魔/潜行照常命中，不受帷幕收窄；强制类无窗口同走全取（构筑期目标明确）
+            // 全取：候选全取——潜行照常命中，不受帷幕收窄；强制类无窗口同走全取（构筑期目标明确）
             if (SelectionModeRules.IsTakeAll(def.SelectionMode) || effCount == 0 || noWindow)
                 return candidates;
 

@@ -31,6 +31,19 @@ namespace SynergyUI
         public int ArrowFlags;          // 与 BattleView 六向位一致
         public bool IsTapped, IsFrozen, IsDead;
 
+        // ==================== 手牌全信息卡面（2026-10-13 ACardView 口径） ====================
+        // 六区数据源：type/name/effect/keys/stats/passives——View 只消费本模型，不碰引擎对象。
+
+        public Cardtype Supertype;                       // type 区：底图+遮罩形状映射
+        public string Illustration = "";                 // type 区立绘资源名（空=保持预制体占位）
+        public string AttributeText = "";                // attribute 区：攻/血/耐久文字直书（空=藏区）
+        public List<string> KeywordChips;                // keys 区：关键词中文简称芯片（null/空=藏区）
+        public List<(string Name, int Layers)> CounterChips; // stats 区：指示物简称+层数（空=藏区）
+        public string ActiveEffectText = "";             // effect 区：唯一主动效果全文（空=藏区）
+        public ElementCost ActiveEffectCost;             // effect 区发动消耗（AnchorCost 快照；全零=藏费用行）
+        public List<string> PassiveLines;                // passives 区：被动行（已拼 (x/y) 后缀；无限/无对局不带）
+        public Card RuntimeCard;                         // 事件刷新锚（本地模式引擎对象；null=不订阅）
+
         /// <summary>对战卡视图 → 显示模型。keepRuntimeStats=战场单位（光环加减后的实时 P/L 权威）。</summary>
         public static CardOverlayItem FromBattle(BattleCardView v, CardOverlayLayout layout)
         {
@@ -59,6 +72,150 @@ namespace SynergyUI
             var it = new CardOverlayItem { Key = key };
             FillStatic(d, it, keepRuntimeStats: false);
             return it;
+        }
+
+        /// <summary>合成界面静态六区快照 → 显示模型（2026-10-13 中栏 ACard 预览）。
+        /// 与 FromHand 同链同口径、去运行态：RuntimeCard=null（不订阅事件）、无 stats 芯片
+        /// （指示物=运行态，合成期天然为空）、被动行不带 (x/y) 次数后缀（无对局无 executor）。
+        /// 消费端=CardComposerScreen 编辑中的 CardData（含即时编辑态卡名/挂载顺序）。</summary>
+        public static CardOverlayItem FromCardDataFull(CardData d, string key)
+        {
+            var it = new CardOverlayItem { Key = key };
+            if (d == null) return it;
+            it.Name = string.IsNullOrEmpty(d.CardName) ? d.ID : d.CardName;
+            if (d.Cost != null && !d.Cost.IsZero) it.Costs = d.Cost;
+            it.Supertype = d.Supertype;
+            it.Illustration = d.Illustration ?? "";
+            // attribute 区（与 FromHand 同口径）：生物=攻+血、结界=耐久>0；其余类型空
+            if (d.Supertype == Cardtype.Creature)
+                it.AttributeText = $"攻击：{d.Power ?? 0} 生命：{d.Life ?? 0}";
+            else if (d.Supertype == Cardtype.Enchantment && d.Durability > 0)
+                it.AttributeText = $"耐久：{d.Durability}";
+
+            // keys 芯片：印刷关键词（合成期无运行态，无授予/净化合并）
+            if (d.Keywords != null && d.Keywords.Count > 0)
+                it.KeywordChips = d.Keywords.Where(k => !string.IsNullOrEmpty(k)).Select(KeywordZh).ToList();
+
+            // effect / passives 拆分：主动=首个 TriggerTiming∈{Activate_Active, Activate_Instant}
+            //（挂载顺序决定谁上 effect 区——合成端 ↑↓ 排序的控制点），其余归被动
+            if (d.Effects != null)
+            {
+                foreach (var fx in d.Effects)
+                {
+                    if (fx == null) continue;
+                    var timing = (TriggerTiming)fx.TriggerTiming;
+                    var isActive = timing == TriggerTiming.Activate_Active || timing == TriggerTiming.Activate_Instant;
+                    var text = AtomText.RenderEffectSummary(new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps });
+                    if (string.IsNullOrEmpty(text)) continue;
+                    if (isActive && string.IsNullOrEmpty(it.ActiveEffectText))
+                    {
+                        it.ActiveEffectText = text;
+                        it.ActiveEffectCost = fx.AnchorCost;
+                        continue;
+                    }
+                    (it.PassiveLines ??= new List<string>()).Add(text);
+                }
+            }
+            return it;
+        }
+
+        /// <summary>手牌全信息卡面 → 显示模型（2026-10-13，ACardView 专用）。
+        /// 三源合并：BattleCardView（名称/费用/横置）+ 卡表（类型/效果拆分/立绘）+ 运行态快照（关键词/指示物）。
+        /// 被动 (x/y)：y=TriggerLimitPerTurn 归一（0→1，-1=无限不带后缀）；x=本回合已作用次数
+        /// （只读查询口 EffectExecutor.GetTurnUsageOf；网络模式无引擎对象→不带后缀）。幂等可重查。</summary>
+        public static CardOverlayItem FromHand(BattleCardView v)
+        {
+            var it = new CardOverlayItem
+            {
+                Key = "R" + v.RuntimeId,
+                Name = v.Name ?? "",
+                CostText = v.CostText ?? "",
+                IsTapped = v.IsTapped,
+                IsFrozen = v.IsFrozen,
+                RuntimeCard = v.CoreCard,
+            };
+            var data = string.IsNullOrEmpty(v.CardId) ? null : CardCatalog.GetById(v.CardId);
+            if (data != null)
+            {
+                if (string.IsNullOrEmpty(it.Name)) it.Name = string.IsNullOrEmpty(data.CardName) ? data.ID : data.CardName;
+                if (it.Costs == null && data.Cost != null && !data.Cost.IsZero) it.Costs = data.Cost;
+                it.Supertype = data.Supertype;
+                it.Illustration = data.Illustration ?? "";
+                // attribute 区（2026-10-13 用户口径：文字直书）：生物=攻+血、结界=耐久>0；其余类型空
+                if (data.Supertype == Cardtype.Creature)
+                    it.AttributeText = $"攻击：{data.Power ?? 0} 生命：{data.Life ?? 0}";
+                else if (data.Supertype == Cardtype.Enchantment && data.Durability > 0)
+                    it.AttributeText = $"耐久：{data.Durability}";
+            }
+
+            // keys 芯片：运行态关键词优先（含授予/净化），回落印刷
+            var keywords = v.Runtime?.Keywords ?? data?.Keywords?.ToArray();
+            if (keywords != null && keywords.Length > 0)
+                it.KeywordChips = keywords.Where(k => !string.IsNullOrEmpty(k)).Select(KeywordZh).ToList();
+
+            // stats 芯片：运行态指示物（层数≠0 且非内部读数层）
+            if (v.Runtime?.Counters != null)
+            {
+                foreach (var c in v.Runtime.Counters)
+                {
+                    if (c == null || c.Value == 0) continue;
+                    var spec = CardCore.Attribute.CounterRules.Find(c.Key);
+                    if (spec != null && spec.LayerRole == CardCore.Attribute.CounterLayerRole.Reading) continue;
+                    (it.CounterChips ??= new List<(string, int)>())
+                        .Add((string.IsNullOrEmpty(spec?.DisplayName) ? c.Key : spec.DisplayName, c.Value));
+                }
+            }
+
+            // effect / passives 拆分：主动=TriggerTiming∈{Activate_Active, Activate_Instant}（与 CardData.HasActiveEffect 同源），
+            // 其余全部归被动（含 Activate_Response——按被动展示）
+            if (data?.Effects != null)
+            {
+                var executor = v.CoreCard != null && GameCore.Instance != null
+                    ? GameCore.Instance.StackEngine.GetExecutor() : null;
+                foreach (var fx in data.Effects)
+                {
+                    if (fx == null) continue;
+                    var timing = (TriggerTiming)fx.TriggerTiming;
+                    var isActive = timing == TriggerTiming.Activate_Active || timing == TriggerTiming.Activate_Instant;
+                    var text = AtomText.RenderEffectSummary(new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps });
+                    if (string.IsNullOrEmpty(text)) continue;
+                    if (isActive && string.IsNullOrEmpty(it.ActiveEffectText))
+                    {
+                        it.ActiveEffectText = text;
+                        it.ActiveEffectCost = fx.AnchorCost;
+                        continue;
+                    }
+                    (it.PassiveLines ??= new List<string>()).Add(text + UsageSuffix(fx, executor, v.CoreCard));
+                }
+            }
+            return it;
+        }
+
+        /// <summary>被动次数后缀：y=归一上限（-1=无限→不带后缀）；x 仅本地模式可查（网络无引擎对象→整段不带）。</summary>
+        private static string UsageSuffix(CardEffectData fx, EffectExecutor executor, Card source)
+        {
+            int y = fx.TriggerLimitPerTurn == 0 ? 1 : fx.TriggerLimitPerTurn; // 0=未声明→按 1（转换器同口径）
+            if (y < 0) return "";                                             // -1=显式无限
+            if (executor == null) return "";
+            int x = executor.GetTurnUsageOf(fx.Id, source);
+            return $"（{x}/{y}）";
+        }
+
+        /// <summary>引擎活卡 → 手牌显示模型（View 刷新专用）：重快照运行态 + 卡表静态面合并，
+        /// 与 FromHand 同链同口径。core=null 安全返回 null。</summary>
+        public static CardOverlayItem FromLiveCard(Card core)
+        {
+            if (core == null) return null;
+            var data = CardCatalog.GetById(core.ID);
+            return FromHand(new BattleCardView
+            {
+                RuntimeId = core.RuntimeId,
+                CardId = core.ID,
+                CoreCard = core,
+                Runtime = CardCore.Serialization.SerializableRuntimeCardState.FromCard(core),
+                Name = data != null ? data.CardName : "",
+                CostText = data != null ? BattleView.CostTextOf(data.Cost) : "",
+            });
         }
 
         private static void FillStatic(CardData data, CardOverlayItem it, bool keepRuntimeStats)

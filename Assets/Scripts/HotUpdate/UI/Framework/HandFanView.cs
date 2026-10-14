@@ -210,7 +210,7 @@ namespace SynergyUI
             var go = _prefab != null
                 ? Object.Instantiate(_prefab, _layer, false)
                 : new GameObject("CardFallback", typeof(RectTransform));
-            var face = go.AddComponent<CardOverlayCard>();
+            var face = go.AddComponent<ACardView>();
             face.Bind();
             var card = go.AddComponent<HandFanCard>();
             card.Face = face;

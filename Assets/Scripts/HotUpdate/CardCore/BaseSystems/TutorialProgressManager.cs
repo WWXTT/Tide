@@ -70,6 +70,11 @@ namespace CardCore
         /// <summary>考核局胜利=免教学（教学按钮从此隐藏换匹配按钮）。</summary>
         public bool Skipped => _data.skipped;
 
+        /// <summary>跳过询问中选了「跳过」（ChooseSkip(true) 落档；考核胜→skipped 后不再参与判据）。
+        /// 区分跳过路径与课程路径：课程玩家完课后 currentTutorial 被清空，仲裁凭本标记
+        /// 才不会把「课程间隙」误判成待考核（2026-10-13 修复）。</summary>
+        public bool SkipChosen => _data.skipChosen;
+
         /// <summary>已完成的教学关卡 id 集。</summary>
         public IReadOnlyList<string> CompletedTutorials => _data.completedTutorials;
 
@@ -111,10 +116,11 @@ namespace CardCore
 
         // ======================================== 写入 ========================================
 
-        /// <summary>消耗"是否跳过"询问：skip=true 进入考核局路径；false 直接进入正常教学流程。</summary>
+        /// <summary>消耗"是否跳过"询问：skip=true 进入考核局路径（落档 skipChosen）；false 直接进入正常教学流程。</summary>
         public void ChooseSkip(bool skip)
         {
             _data.skipAskPending = false;
+            _data.skipChosen = skip;
             if (!skip && string.IsNullOrEmpty(_data.currentTutorial) && !IsTutorialDone)
                 _data.currentTutorial = FirstUncompletedCourse();
             SaveAndNotify();
@@ -232,6 +238,7 @@ namespace CardCore
         private class TutorialProgressData
         {
             public bool skipAskPending;
+            public bool skipChosen; // 跳过询问选了「跳过」（旧档缺列=false=课程路径口径）
             public bool assessmentDone;
             public bool skipped;
             public bool finalChallengeDone; // 最后一课镜像局已获胜（教学整体完成的最后一环）

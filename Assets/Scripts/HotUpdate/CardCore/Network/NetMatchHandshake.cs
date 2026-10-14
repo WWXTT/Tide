@@ -159,7 +159,7 @@ namespace CardCore.Network
             if (missingRefs.Count > 0)
             {
                 var sample = string.Join(", ", missingRefs.Distinct().Take(3));
-                problems.Add($"效果/原子引用缺失 ×{missingRefs.Count}（如 {sample}——Effects.json 或原子表缺行）");
+                problems.Add($"效果/原子/引用卡缺失 ×{missingRefs.Count}（如 {sample}——Effects.json、原子表或引用卡（Cards.json）缺行）");
             }
 
             // 原子行摘要比对（仅卡组引用闭包内的行——不做全池对比）
@@ -237,8 +237,35 @@ namespace CardCore.Network
         private static void CheckAtom(AtomicEffectEntry atom, List<string> missing)
         {
             if (atom == null || string.IsNullOrEmpty(atom.refId)) return;
-            if (AtomicEffectTable.GetByHashId(atom.refId) == null)
+            var row = AtomicEffectTable.GetByHashId(atom.refId);
+            if (row == null)
+            {
                 missing.Add($"原子行 {atom.refId}");
+                return;
+            }
+
+            // 引用卡ID 闭环（2026-10-13 定案）：召唤衍生物（须生物）/变形赋予（须生物或结界）的
+            // atom.str 须能解析到服务器端真实卡且类型合规——与 CardLoader 构筑校验同口径
+            if (!System.Enum.TryParse<AtomicEffectType>(row.EnumName, out var type)) return;
+            if (type != AtomicEffectType.SummonToken && type != AtomicEffectType.GrantMorph) return;
+            bool isMorphRef = type == AtomicEffectType.GrantMorph;
+            if (string.IsNullOrEmpty(atom.str))
+            {
+                missing.Add($"引用卡ID为空（原子行 {row.DisplayName ?? atom.refId}）");
+                return;
+            }
+            var referenced = CardCatalog.GetById(atom.str);
+            if (referenced == null)
+            {
+                missing.Add($"引用卡 {atom.str}");
+                return;
+            }
+            var super = referenced is IHasSupertype ht ? ht.Supertype : referenced.Supertype;
+            bool typeOk = isMorphRef
+                ? super == Cardtype.Creature || super == Cardtype.Enchantment
+                : super == Cardtype.Creature;
+            if (!typeOk)
+                missing.Add($"引用卡 {atom.str} 类型不符（须{(isMorphRef ? "生物/结界" : "生物")}）");
         }
 
         // ======================================== 下发/客户端侧 ========================================

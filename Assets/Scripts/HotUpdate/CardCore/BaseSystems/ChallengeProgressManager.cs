@@ -9,7 +9,7 @@ namespace CardCore
     /// 挑战模式进度管理器（2026-10-06）：仿 TutorialProgressManager 范式（惰性单例 + TideJson +
     /// 每变更即写、CreateForVerification 注入临时存档），记录九档难度各自的胜/负与最高通关难度。
     /// 定案：难度全开自由选（不做顺序解锁门禁），战绩只作展示与自我目标。
-    /// 难度语义（单值联动）：难度 N（1..9）= 电脑地牌槽上限 9+N、起手 6+N（GameCore.InitGame
+    /// 难度语义（单值联动）：难度 N（1..9）= 电脑地牌槽上限 7+N（N≥7 触顶 14）、起手 6+N（GameCore.InitGame
     /// 的 p2LandCapBonus/p2ExtraOpeningDraws，曲线=ResourceCurve.ChallengeLandCurve）。
     /// 结果上报入口=TutorialFlow.ReportBattleResult 的 Challenge 分支（UI 层不自持进度状态）。
     /// </summary>

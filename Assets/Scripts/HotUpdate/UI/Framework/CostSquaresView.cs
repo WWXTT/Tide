@@ -6,11 +6,24 @@ using UnityEngine.UI;
 
 namespace SynergyUI
 {
+    /// <summary>填充方式：横向=单行均布；竖向=单列均布；田字=按容器长宽比取近方列数网格。</summary>
+    public enum CostSquaresFill
+    {
+        Horizontal = 0,
+        Vertical = 1,
+        Grid = 2,
+    }
+
     /// <summary>
     /// 费用方格视图（2026-10-03 定案：费用表达统一为对应颜色小方格排列）。
     /// 公用预制体 Assets/Art/UI/CostSquares.prefab 的组件——按费用明细克隆模板方格，
-    /// 横排整行居中于根节点；引用者（各屏/卡面）经 Mount 挂载，用 SquareSize 或实例
-    /// localScale 自行调整整体大小。颜色=UiStyle.Dot*（与列表行色点同款）。
+    /// 颜色=UiStyle.Dot*（与列表行色点同款）；引用者（各屏/卡面）经 Mount 挂载，
+    /// 用实例 localScale 自行调整整体大小。
+    /// 2026-10-13 拓展：组件自读根 RectTransform 宽高，把生成方格按填充方式
+    /// （Fill：横向/竖向/田字）均分定位——每格占 cell=宽/列×高/行，方格居中于 cell、
+    /// 尺寸默认=模板尺寸，元素过多时等比收缩到 cell（不重叠不变形不超根范围）；
+    /// SetCosts / 改 Fill / 根尺寸变化时自动重排。
+    /// 根上有 LayoutGroup 时跳过重排（排布仍归引用者烘焙，2026-10-03 旧契约保留）。
     /// 自愈三兜底：无模板→代码自建 tpl-square；无预制体→Mount 纯代码节点；引用者烘焙
     /// 同名节点→直接复用（不实例化）。
     /// </summary>
@@ -19,8 +32,22 @@ namespace SynergyUI
         public const string PrefabName = "CostSquares";
         public const string TemplateName = "tpl-square";
 
+        [SerializeField] private CostSquaresFill fill = CostSquaresFill.Horizontal;
+
         private RectTransform _template;
-        private bool _codeTemplate; // 模板为代码自建（无烘焙）——克隆体才给默认尺寸，烘焙模板不碰布局
+        private readonly List<RectTransform> _squares = new List<RectTransform>(); // 本视图生成的方格（Destroy 帧末生效，定位不看 childCount）
+
+        /// <summary>填充方式（外部可选，运行时改动立即重排）。</summary>
+        public CostSquaresFill Fill
+        {
+            get => fill;
+            set
+            {
+                if (fill == value) return;
+                fill = value;
+                Relayout();
+            }
+        }
 
         /// <summary>ManaType → 方格色。</summary>
         private static Color ManaColor(ManaType m) => m switch
@@ -74,8 +101,8 @@ namespace SynergyUI
         }
 
         /// <summary>瘦引用口径（ElementCostRef 列表）。空则清空。
-        /// 2026-10-03 定案：只负责生成对应数量+颜色的方块——排布/尺寸全归引用者
-        /// （烘焙模板进 LayoutGroup 或自由锚点自行控制）；仅代码自建模板兜底时给默认尺寸。</summary>
+        /// 负责生成对应数量+颜色的方块并按 Fill 分布定位（2026-10-13 拓展）；
+        /// 根上有 LayoutGroup 的烘焙实例排布归引用者，本组件不越权。</summary>
         public void SetCosts(IEnumerable<ElementCostRef> costs)
         {
             EnsureTemplate();
@@ -87,6 +114,7 @@ namespace SynergyUI
             }
 
             var list = costs?.Where(c => c != null && c.value > 0).ToList() ?? new List<ElementCostRef>();
+            _squares.Clear();
             foreach (var c in list)
             {
                 var color = ManaColor((ManaType)c.mana);
@@ -101,11 +129,73 @@ namespace SynergyUI
                         img.color = color;
                         img.raycastTarget = false;
                     }
+                    _squares.Add((RectTransform)sq.transform);
                 }
             }
+            Relayout();
         }
 
         public void Clear() => SetCosts((IEnumerable<ElementCostRef>)null);
+
+        private void OnEnable() => Relayout();
+
+        /// <summary>根 RectTransform 尺寸变化（引用者 Band/锚点拉伸/缩放后）→ 重新均布。</summary>
+        private void OnRectTransformDimensionsChange() => Relayout();
+
+        /// <summary>自读根 rect 宽高，把已生成方格按 Fill 均分定位（2026-10-13 拓展）：
+        /// 横向=单行、竖向=单列、田字=列数=round(sqrt(N×宽高比)) 的近方网格（行序=左上起行优先）；
+        /// cell=宽/列×高/行，方格锚 cell 中心、尺寸默认=模板尺寸、拥挤时等比缩到 cell
+        /// ——元素再多也整体落在根 rect 内。根上有 LayoutGroup / 宽高未就绪 / 无方格时跳过。</summary>
+        private void Relayout()
+        {
+            if (_template == null) return;
+            if (GetComponent<LayoutGroup>() != null) return; // 排布归引用者（旧契约）
+            var rt = (RectTransform)transform;
+            var rect = rt.rect;
+            if (rect.width <= 0f || rect.height <= 0f) return;
+
+            int n = 0;
+            for (int i = 0; i < _squares.Count; i++)
+                if (_squares[i] != null && _squares[i].gameObject.activeSelf) n++;
+            if (n == 0) return;
+
+            int cols, rows;
+            switch (fill)
+            {
+                case CostSquaresFill.Vertical:
+                    cols = 1;
+                    rows = n;
+                    break;
+                case CostSquaresFill.Grid:
+                    cols = Mathf.Clamp(Mathf.RoundToInt(Mathf.Sqrt(n * rect.width / rect.height)), 1, n);
+                    rows = (n + cols - 1) / cols;
+                    break;
+                default:
+                    cols = n;
+                    rows = 1;
+                    break;
+            }
+
+            float cellW = rect.width / cols, cellH = rect.height / rows;
+            var tplSize = _template.sizeDelta; // 烘焙模板=作者定的方格默认尺寸（拥挤时的上限）
+            bool tplValid = tplSize.x > 0f && tplSize.y > 0f;
+            // 等比钳制：默认=模板尺寸；元素过多时按 cell 收缩（保持正方形不变形），永远不超根范围
+            float k = tplValid ? Mathf.Min(1f, cellW / tplSize.x, cellH / tplSize.y) : 0f;
+            var sqSize = tplValid
+                ? new Vector2(tplSize.x * k, tplSize.y * k)
+                : new Vector2(Mathf.Min(cellW, cellH), Mathf.Min(cellW, cellH)); // 模板尺寸非法兜底=cell 内切方
+            int idx = 0;
+            for (int i = 0; i < _squares.Count; i++)
+            {
+                var sq = _squares[i];
+                if (sq == null || !sq.gameObject.activeSelf) continue;
+                sq.anchorMin = sq.anchorMax = new Vector2(0f, 1f);
+                sq.pivot = new Vector2(0.5f, 0.5f);
+                sq.anchoredPosition = new Vector2((idx % cols + 0.5f) * cellW, -(idx / cols + 0.5f) * cellH);
+                sq.sizeDelta = sqSize;
+                idx++;
+            }
+        }
 
         private void EnsureTemplate()
         {
@@ -119,7 +209,7 @@ namespace SynergyUI
             var go = new GameObject(TemplateName, typeof(RectTransform), typeof(Image));
             var rt = (RectTransform)go.transform;
             rt.SetParent(transform, false);
-            _codeTemplate = true;
+            rt.sizeDelta = new Vector2(10f, 10f); // 代码模板给与烘焙预制体一致的默认方格尺寸（RectTransform 原生默认 100×100）
             var img = go.GetComponent<Image>();
             img.color = Color.white;
             img.raycastTarget = false;

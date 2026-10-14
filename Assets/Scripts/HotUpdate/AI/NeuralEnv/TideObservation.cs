@@ -39,7 +39,7 @@ namespace CardCore.AI.NeuralEnv
         public const int ParamStart = 29;                                        // [29..] 参数块
         // 2026-09-14 32→36：追加 4 维黑白每回合获得余量（双方×两色，见 g[32..35]）——黑白万用化后
         // 这是 policy 估值错边收益的必要状态。2026-10-04 封顶改口径：余量=地牌槽上限-已获得
-        //（原封顶 1/色 → 地牌槽上限/色），取值域 0/1 → 0..9，已训模型该维分布漂移（随下批重训吸收）。
+        //（原封顶 1/色 → 地牌槽上限/色），取值域 0/1 → 0..7（2026-10-13 缩盘 9→7），已训模型该维分布漂移（随下批重训吸收）。
         // python 侧 N_GLOBAL_FEATURES 同步；ONNX 图输入随之重导出（随本批重训一起做）。
         // 2026-09-30 36→49（动作空间 v2 契约第 3 节）：g[36..43] 双方英雄技能块（P1/P2 绝对序）、
         // g[44..46] 栈深度/栈顶来源/栈顶 effectIdentity、g[47] 决策上下文（0=己方Main/1=响应窗口）、
@@ -181,7 +181,7 @@ namespace CardCore.AI.NeuralEnv
                           - c.GetCounterCount(CounterRules.CostDownCounter); // 费用层净量
             Cards[b + 12] = c.HasKeyword(KeywordRules.Taunt) ? 1f : 0f;
             Cards[b + 13] = (c.GetCounterCount(CounterRules.StealthCounter) > 0 || c.HasKeyword(KeywordRules.Concealed)) ? 1f : 0f; // 潜行已指示物化
-            Cards[b + 14] = c.HasKeyword(DeathRules.DivineProtection) ? 1f : 0f;
+            Cards[b + 14] = 0f; // 神佑已删（2026-10-13）——维度保留防观测布局漂移，恒 0
             // 内容身份（原子级拆散，CardIdentityService 与费用同管线推导），三通路：
             // 1) 精确哈希 [15..20] 原子 + [21] 结构 + [22] 组合——内容寻址查表，同单元跨卡共享行；
             // 2) 类型下标 [23..28]（参数无关，同 EffectType 共享行）；

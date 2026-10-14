@@ -6,13 +6,13 @@ namespace CardCore.Attribute
     /// 死因分类（决策表的列索引）——术语定案（2026-09-02，用户拍板）。
     /// 「死亡 = 生命值归零」为基定义，其余术语按 来源/路径 细分：
     ///
-    /// ── 正常死亡族（生命值归零；神佑不拦）──────────────────────────
+    /// ── 正常死亡族（生命值归零）────────────────────────────────────
     /// · 伤害致死：生命归零，来源 = 伤害来源
     /// · 生命流失：归零视为正常死亡，没有伤害来源（圣盾/护甲不挡）
     /// · 生命抵扣代价：归零视为正常死亡，伤害来源是自己
     /// · 状态动作：防御归零 / 战场尸体清理
     ///
-    /// ── 效果死亡族（神佑全拦；不灭拦其中的"消灭"类）────────────────
+    /// ── 效果死亡族（不灭拦其中的"消灭"类）──────────────────────────────
     /// · 消灭：效果中消灭一个生物的描述；没有额外说明的都是进墓
     ///   （剧毒 Venom=消灭口径：受到其战斗伤害的生物在结算后被消灭，2026-10-08 转关键词；
     ///   原「吞噬」行 2026-10-09 改纯消灭——消灭原子（EffectType=Devour）同走本死因；
@@ -57,17 +57,18 @@ namespace CardCore.Attribute
     /// <summary>
     /// 死亡决策表——唯一的死亡决策点（用户定案模型）。
     ///
-    /// 世界观定案：角色（玩家化身）就是普通生物单位，对生物有效的效果对他也有效；
-    /// 使其免疫各种效果的是默认持有的【神佑】状态（可被效果移除的真实状态，非硬编码）——
-    /// 只接受生命值归零的死亡。
+    /// 世界观定案：角色（玩家化身）就是普通生物单位，对生物有效的效果对他也有效。
+    /// 【神佑已删 2026-10-13】角色曾以默认持有的【神佑】状态免疫效果死亡——现整体退役：
+    /// 湮灭表行已删、消灭行以 TargetFilter=NoRole 在目标层滤角色，引擎层不再为角色保留免疫；
+    /// 未来「效果处决角色」按高价终极手段直接写表，不再设默认护盾。
     ///
     /// 护盾×死因 矩阵（稀疏，缺省=不拦截；DeathCause.Poison 列已随 2026-10-08 剧毒转关键词删除；
-    /// DeathCause.Sacrifice 列已随 2026-10-09 牺牲转直送非死亡退役、Devour 列随吞噬机制移除退役——均无调用方）：
+    /// DeathCause.Sacrifice 列已随 2026-10-09 牺牲转直送非死亡退役、Devour 列随吞噬机制移除退役——均无调用方；
+    /// 神佑行已随 2026-10-13 删除）：
     /// ┌─────────────┬──────────────┬──────────────┬───────────┬───────────┐
     /// │ 护盾＼死因    │ DamageLethal │ DestroyEffect │ Annihilate│ 归零族其余 │
     /// ├─────────────┼──────────────┼──────────────┼───────────┼───────────┤
     /// │ 不灭          │      ✗       │      ✓       │     ✗     │     ✗     │
-    /// │ 神佑(角色默认) │      ✗       │      ✓       │     ✓     │     ✗     │
     /// │ 复生（替代）   │      所有死因消耗回场；唯湮灭不可复活              │
     /// └─────────────┴──────────────┴──────────────┴───────────┴───────────┘
     ///
@@ -76,15 +77,8 @@ namespace CardCore.Attribute
     /// </summary>
     public static class DeathRules
     {
-        /// <summary>神佑：角色默认持有的状态（Player 构造时写入），免疫一切效果死亡，只接受生命值归零。</summary>
-        public const string DivineProtection = "DivineProtection";
-
-        /// <summary>效果死亡族（神佑拦截的死因集合）——正常死亡族（归零）不在其中。</summary>
-        private static readonly HashSet<DeathCause> EffectDeathCauses = new HashSet<DeathCause>
-        {
-            DeathCause.DestroyEffect,
-            DeathCause.Annihilate,
-        };
+        // 神佑（DivineProtection）已删（2026-10-13）：角色默认免疫状态整体退役——
+        // 消灭行以 TargetFilter=NoRole 在目标层滤角色；未来「效果处决角色」按高价终极手段直写表。
 
         // 护盾关键词 → 拦截的死因集合
         private static readonly Dictionary<string, HashSet<DeathCause>> ShieldMatrix =
@@ -93,11 +87,9 @@ namespace CardCore.Attribute
                 // 不灭：不会被消灭（2026-10-09 三口裁定：剧毒/消灭/摧毁全拦——摧毁为 Smash 处理器
                 // 显式走本判定；湮灭非消灭、照常生效）
                 { KeywordRules.Indestructible, new HashSet<DeathCause> { DeathCause.DestroyEffect } },
-                // 神佑：免疫一切效果死亡，只接受生命值归零（角色默认持有）
-                { DivineProtection, EffectDeathCauses },
             };
 
-        /// <summary>决策查询：该死因是否被实体上的护盾拦截（角色经神佑在此裁决）。</summary>
+        /// <summary>决策查询：该死因是否被实体上的护盾拦截。</summary>
         public static bool IsShielded(Entity target, DeathCause cause)
         {
             if (target == null) return false;

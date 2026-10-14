@@ -20,8 +20,9 @@ namespace SynergyUI
     /// <summary>
     /// UGUI 卡牌层（2026-10-01 预制体化定案）：卡实例直接挂进屏内槽位 RectTransform
     /// （stretch 填满），同 Canvas 兄弟序天然正确，RectMask2D 自动裁剪滚动区。
-    /// prefab=Assets/Art/UI/ACard.prefab（子物体命名与 CardOverlayCard.Bind 一一对应），
+    /// prefab=Assets/Art/UI/ACard.prefab（子物体命名与 ACardView.Bind 一一对应），
     /// 池化复用 + Apply 填卡 + 点击/移除接线。生命周期：界面 OnExit 调 ClearActive 回收。
+    /// 2026-10-13：卡面 View=ACardView（Full=手牌全信息；Compact/Land 保底显示，正式卡面另案）。
     /// </summary>
     public sealed class CardOverlayController : MonoBehaviour
     {
@@ -30,7 +31,7 @@ namespace SynergyUI
         private sealed class LiveCard
         {
             public GameObject Go;
-            public CardOverlayCard View;
+            public ACardView View;
             public UguiButton ClickButton;
             public UguiButton RemoveButton;
             public CardOverlayBinding Binding;
@@ -120,7 +121,7 @@ namespace SynergyUI
                 ? Instantiate(_prefab, transform, false)
                 : new GameObject("CardFallback", typeof(RectTransform));
 
-            var view = go.AddComponent<CardOverlayCard>();
+            var view = go.AddComponent<ACardView>();
             view.Bind();
 
             var live = new LiveCard { Go = go, View = view };

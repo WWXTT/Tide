@@ -69,7 +69,10 @@ namespace SynergyUI
         /// 是「本体挂自己」存储态（合成器 AtomZh 两态命名、运行时自授予同源），而该行模板的
         /// {target} 是叙事名次——受击对手或字面「目标」（"不会成为效果{target}"），不随域渲染，
         /// 否则出"不会成为攻击和效果的自己"病句——回退「目标」。非授予类行（如沉睡复合域收窄到 Self）
-        /// 仍显「自己」，那是真实选择。</summary>
+        /// 仍显「自己」，那是真实选择。
+        /// 玩家滤器特化（2026-10-13 定案，代码侧统一）：行 TargetFilter=Player（RoleOnlyFilter）且
+        /// 有效域单值为 己方单位/对方单位 → 名词=「己方玩家/对方玩家」（表书写保持 {target} 统一，
+        /// "对方单位玩家"病句与硬写规避都在此收敛）。实例域未声明时回落表行默认域。</summary>
         public static string TargetNoun(AtomicEffectConfig cfg, AtomicEffectEntry atom)
         {
             if (atom?.kinds != null && atom.kinds.Count == 1)
@@ -78,9 +81,26 @@ namespace SynergyUI
                 bool selfStorage = (TargetKind)atom.kinds[0] == TargetKind.Self
                     && (m.Contains(MountKind.Keyword) || m.Contains(MountKind.Counter));
                 if (!selfStorage)
-                    return TargetKindZhOf((TargetKind)atom.kinds[0]);
+                    return PlayerNounOf(cfg, atom.kinds[0]) ?? TargetKindZhOf((TargetKind)atom.kinds[0]);
+            }
+            // 实例域未声明（kinds null）→ 表行默认域单值时同样参与玩家特化（跳过回合行先例）
+            if (atom?.kinds == null)
+            {
+                var tableKinds = cfg?.GetTargetKindList();
+                if (tableKinds != null && tableKinds.Count == 1)
+                    return PlayerNounOf(cfg, tableKinds[0]) ?? "目标";
             }
             return "目标";
+        }
+
+        /// <summary>玩家滤器名词（null=非该口径，调用方走默认）：Filter=Player + 单值单位域
+        ///（己方单位/对方单位）→ 己方玩家/对方玩家。</summary>
+        private static string PlayerNounOf(AtomicEffectConfig cfg, int kind)
+        {
+            if (cfg == null || cfg.TargetFilter != "Player") return null;
+            if (kind == (int)TargetKind.OwnLivingUnit) return "己方玩家";
+            if (kind == (int)TargetKind.EnemyLivingUnit) return "对方玩家";
+            return null;
         }
 
         /// <summary>效果级作用范围版（2026-10-04 相同目标定案）：header.TargetKinds 单值优先——
@@ -93,7 +113,8 @@ namespace SynergyUI
                 var m = MountKindExtensions.ParseCsv(cfg?.MountKinds ?? "");
                 bool selfStorage = (TargetKind)header.TargetKinds[0] == TargetKind.Self
                     && (m.Contains(MountKind.Keyword) || m.Contains(MountKind.Counter));
-                return selfStorage ? "目标" : TargetKindZhOf((TargetKind)header.TargetKinds[0]);
+                return selfStorage ? "目标"
+                    : PlayerNounOf(cfg, header.TargetKinds[0]) ?? TargetKindZhOf((TargetKind)header.TargetKinds[0]);
             }
             return TargetNoun(cfg, atom);
         }

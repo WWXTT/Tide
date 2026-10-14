@@ -2,7 +2,7 @@ using System;
 
 namespace GameBoard
 {
-    /// <summary>棋盘邻居方向（左上角起顺时针，成员与 HexMap.HexDirection 一一对应；独立定义避免与 CardCore 的链接箭头 Flags 枚举混淆）</summary>
+    /// <summary>棋盘邻居方向（左上角起顺时针，成员与旧 HexMap.HexDirection 一一对应（该系统已迁出至 Synergy 工程）；独立定义避免与 CardCore 的链接箭头 Flags 枚举混淆）</summary>
     public enum BoardDirection
     {
         NE,
@@ -14,10 +14,10 @@ namespace GameBoard
     }
 
     /// <summary>
-    /// 对战棋盘的六边形数学（13×8，纯 C#，无 Unity 依赖）。
+    /// 对战棋盘的六边形数学（9×6，纯 C#，无 Unity 依赖）。
     ///
     /// 【奇偶约定（odd-r，钉死不改）】尖顶六边形、水平行排列、奇数行向右偏移半格
-    /// —— 与 HexMap 完全一致（cell 世界坐标 x = (offsetX + z*0.5 - z/2) × 内径×2，奇数行 +0.5；
+    /// ——（单一事实源）cell 世界坐标 x = (offsetX + z*0.5 - z/2) × 内径×2，奇数行 +0.5；
     /// 邻居规则同 HexBoundary.NeighborOffset）。Phase B 渲染层若六邻接对不上，先查这里。
     ///
     /// 方向换算：CardCore.HexDirection（链接箭头 Flags）→ BoardDirection 已于 2026-09-09 定死
@@ -25,15 +25,15 @@ namespace GameBoard
     /// </summary>
     public static class BoardMath
     {
-        public const int Width = 13;
-        public const int Height = 8;
+        public const int Width = 9;   // 2026-10-13 缩盘定案：13→9（两侧列吸收特殊格）
+        public const int Height = 6;  // 2026-10-13 缩盘定案：8→6（每人 3 行铺满全高）
 
-        /// <summary>row-major 一维索引（与 HexMap 噪声像素同惯例：index = z * Width + x）</summary>
+        /// <summary>row-major 一维索引（row-major 惯例：index = z * Width + x）</summary>
         public static int Index(int x, int z) => z * Width + x;
 
         public static bool InBounds(int x, int z) => x >= 0 && x < Width && z >= 0 && z < Height;
 
-        /// <summary>odd-r 邻居 offset 坐标（奇偶规则与 HexMap.HexBoundary.NeighborOffset 逐条一致）</summary>
+        /// <summary>odd-r 邻居 offset 坐标（odd-r 奇偶规则（独立事实源））</summary>
         public static (int x, int z) Neighbor(int x, int z, BoardDirection dir)
         {
             int odd = z & 1;
@@ -99,7 +99,7 @@ namespace GameBoard
             }
         }
 
-        /// <summary>odd-r offset → 轴向坐标（与 HexMap.HexCoordinates.FromOffsetCoordinates 一致：q = x − floor(z/2)）</summary>
+        /// <summary>odd-r offset → 轴向坐标（q = x − floor(z/2)）</summary>
         public static (int q, int r) ToAxial(int x, int z) => (x - (z - (z & 1)) / 2, z);
 
         /// <summary>两格六边形距离（cube 系取 max，与棋盘内容无关）</summary>

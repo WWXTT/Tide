@@ -6,7 +6,6 @@
   <Project Path="Unity.RenderPipelines.Universal.Editor.csproj" />
   <Project Path="PPv2URPConverters.csproj" />
   <Project Path="MCPForUnity.Editor.csproj" />
-  <Project Path="HexMap.ECS.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
   <Project Path="Unity.RenderPipelines.Core.Samples.Runtime.csproj" />

@@ -83,11 +83,11 @@ namespace CardCore
         Multiple = 1,
         /// <summary>单范围·全取整个范围。</summary>
         Whole = 2,
-        /// <summary>多范围·选一个单位（候选=各范围并集，弹窗显示域不含对方侧扰魔/潜行——2026-09-13 口径）。</summary>
+        /// <summary>多范围·选一个单位（候选=各范围并集，弹窗显示域不含对方侧潜行——2026-09-13 口径）。</summary>
         SingleUnion = 3,
         /// <summary>多范围·选多个单位（可跨范围混选）。</summary>
         MultipleUnion = 4,
-        /// <summary>多范围·全取全部范围（旧 Full——"AoE=TargetKinds 分区全体"，扰魔/潜行照常命中）。</summary>
+        /// <summary>多范围·全取全部范围（旧 Full——"AoE=TargetKinds 分区全体"，潜行照常命中）。</summary>
         WholeUnion = 5,
     }
 

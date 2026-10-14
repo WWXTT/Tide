@@ -42,8 +42,8 @@ namespace SynergyUI
             AtomicEffectType.Exile, AtomicEffectType.DiscardCard, AtomicEffectType.MillCard,
             AtomicEffectType.BounceToTop, AtomicEffectType.BounceToBottom,
             AtomicEffectType.Smash, // 摧毁：打对方地牌（无生命值单位）
-            // 死亡原子族（牺牲目标己方友军，目标偏好对该原子无实际影响）
-            AtomicEffectType.Sacrifice, AtomicEffectType.Devour, AtomicEffectType.Annihilate,
+            // 死亡原子族（牺牲目标己方友军，目标偏好对该原子无实际影响；湮灭已删 2026-10-13）
+            AtomicEffectType.Sacrifice, AtomicEffectType.Devour,
             // 妨碍/压制族
             AtomicEffectType.Tap, AtomicEffectType.Freeze, AtomicEffectType.Silence,
             AtomicEffectType.Purify, AtomicEffectType.AddNullify,
@@ -69,7 +69,7 @@ namespace SynergyUI
             AtomicEffectType.AddPowerUp, AtomicEffectType.AddLifeUp, AtomicEffectType.AddPlusOne,
             AtomicEffectType.AddCostDown, AtomicEffectType.Inspire,
             AtomicEffectType.GrantDoubleStrike,
-            AtomicEffectType.GrantCannotBeTargeted, AtomicEffectType.GrantSpellShield,
+            AtomicEffectType.GrantSpellShield,
             AtomicEffectType.GrantLifesteal,
             AtomicEffectType.GrantStealth, AtomicEffectType.GrantConcealed, AtomicEffectType.GrantTaunt,
             AtomicEffectType.GrantDivineShield, AtomicEffectType.GrantOverwhelm, AtomicEffectType.GrantToughness,

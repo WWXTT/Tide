@@ -143,7 +143,7 @@ namespace GameBoard
 
         // 值求和口 GetAuraKeywordSum 已删（2026-10-08 坚韧指示物化）：唯一消费者是
         // KeywordRules.ApplyPreventionLayers 的坚韧光环份额——坚韧改挂 ToughnessCounter 指示物，
-        // 不再经关键词光环投递（表行 2b1e3700 MountKinds=指示物，CanMountAsAura 位 1 硬拒）。
+        // 不再经关键词光环投递（表行 a8f7f476 MountKinds=指示物，CanMountAsAura 位 1 硬拒）。
 
         // 守护光环源查询（GetGuardianAuraSources）已随 2026-10-08 配对制改版退役——
         // 守护退出连接光环族（表行 MountKinds 位 8 拉黑），改写走 GuardianRules 配对表（KeywordRules.ApplyDamage）。

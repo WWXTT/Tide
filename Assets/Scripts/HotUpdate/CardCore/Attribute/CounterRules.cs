@@ -13,6 +13,9 @@ namespace CardCore.Attribute
         Positive,
         /// <summary>负面（减益/妨害类：毒素、冻结、沉默、突袭紊乱、-1/-1 等）</summary>
         Negative,
+        /// <summary>中性（极性0，2026-10-13 临摹定案：状态标记类——非增益非减益，
+        /// 解减益 ClearNegative 不清；唯一读者 IsNegative 落非负面侧）</summary>
+        Neutral,
     }
 
     /// <summary>
@@ -154,7 +157,7 @@ namespace CardCore.Attribute
         /// </summary>
         public const string VulnerableCounter = "Vulnerable";
         /// <summary>
-        /// 坚韧（2026-10-09 生效自减改版，表行 2b1e3700/GrantToughness）：每次受到伤害时每层使伤害 −1，
+        /// 坚韧（2026-10-09 生效自减改版，表行 a8f7f476/GrantToughness）：每次受到伤害时每层使伤害 −1，
         /// 实际拦到伤害即生效——生效后层数减半（向下取整，易损的正面镜像）；可叠加。
         /// Entity 级（角色可持有——旧关键词形态 is Card 死线随之消解）；换区不清（生效自减档）、净化可清。
         /// 施加口=GrantToughnessHandler；拦减+减半口=KeywordRules.ApplyPreventionLayers 第 3 层。
@@ -175,8 +178,9 @@ namespace CardCore.Attribute
         public const string RebornCounter = "Reborn";
         /// <summary>
         /// 潜行（2026-10-08 指示物化，表行 8f84641e/GrantStealth）：持有层数 &gt;0 期间不可被
-        /// 攻击/效果指定（三指定口：CombatSystem.CanAttackTarget / EffectTargeting.CanTarget /
-        /// TargetFilterSystem.ExcludeUnselectable，与隐密 Concealed 关键词同查）；
+        /// 攻击/效果指定（两指定口：CombatSystem.CanAttackTarget /
+        /// TargetFilterSystem.ExcludeUnselectable，与隐密 Concealed 关键词同查——原第三口
+        /// EffectTargeting.CanTarget 已随 2026-10-13 死基建删除，从未接通）；
         /// 攻击宣言/发动效果/实际受到伤害各消耗 1 层（逐份撤口径，承自旧台账消耗型语义）；
         /// 换区不清（生效自减档）、净化可清。
         /// 隐密（Concealed）仍是关键词——不因生效消耗，是潜行的持续版。
@@ -241,8 +245,9 @@ namespace CardCore.Attribute
         /// 抽到该卡时执行祝福分支效果并消层（一次性）。无玩家表行。</summary>
         public const string BlessingCounter = "Blessing";
         /// <summary>锁定（2026-10-04 窥渊仪典原子化定案，衰退类）：层数=剩余回合，持有者回合结束 −1
-        ///（手牌区与场上同样倒数——持有者侧结算域含手牌）；持有期间该牌无法使用（PlayCard/响应出牌/
-        /// 苏醒立约同门，LockedCardRestriction+CommitAwaken）。归零解锁。</summary>
+        ///（手牌区与场上同样倒数——持有者侧结算域含手牌）；持有期间无法进入发动区和地牌区
+        ///（打出/响应出牌/苏醒立约/放地入池同门，LockedCardRestriction+CommitAwaken+CanServeAsLand）。
+        /// 归零解锁。</summary>
         public const string LockCounter = "Lock";
         /// <summary>
         /// 反疗（2026-10-09，黑2，表行 6b9c4b90/GrantDepravity；原名堕落·仅角色，同日用户改名放开）：
@@ -269,6 +274,15 @@ namespace CardCore.Attribute
         /// + GrantTemporaryHandler（白2/层）。
         /// </summary>
         public const string TempCounter = "Temp";
+        /// <summary>
+        /// 变形（2026-10-13 临摹/变形赋予定案，中性 Resident）：临摹（自身复制场上生物/结界）与
+        /// 变形赋予（目标变成引用卡）的状态标记——层恒 1，复制面=身份/属性/关键词/文本效果
+        ///（跳过其规则光环步）；变为结界形态自动非横置（结界无横置态）。
+        /// 解除即还原原形态（**纯回滚不刷新**——快照含横置态/生命/耐久，不发入场事件、不做人场刷新）：
+        /// 换区清（ClearAll）与净化全清（PurgeAll）两口驱动，钩子=ClearCounters→MorphSystem.RestoreIfMorphed；
+        /// 解减益（ClearNegative）不清中性。发动补价（差额恒蓝）读快照前后声明费。
+        /// </summary>
+        public const string MorphStateCounter = "Morph";
 
         private static readonly Dictionary<string, CounterSpec> _registry =
             new Dictionary<string, CounterSpec>();
@@ -335,6 +349,9 @@ namespace CardCore.Attribute
             Register(new CounterSpec { Id = SkillUseCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Reading, TickPolicy = CounterTickPolicy.None, DisplayName = "技能发动计数" });
             // 展示：负面（信息暴露/使用限制挂点）；换区清（离开当前区域即失效）
             Register(new CounterSpec { Id = ExposedCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.None, DisplayName = "展示" });
+            // 变形（2026-10-13 临摹定案）：中性状态标记（极性0）——层恒 1，Resident 换区清；
+            // 解除（换区/净化）即还原原形态（钩子在 ClearCounters）；解减益不清中性
+            Register(new CounterSpec { Id = MorphStateCounter, Polarity = CounterPolarity.Neutral, Class = CounterClass.Resident, LayerRole = CounterLayerRole.Display, TickPolicy = CounterTickPolicy.None, DisplayName = "变形" });
 
             // ---- 自然衰退（Decay：层=剩余回合，持有者回合末 −1 归零消失，**换区清**——战场减益不跟卡走）----
             // 冻结：持有期间无法重置（BlocksUntap）；层=持续回合（叠加=延长，2026-10-08 层即持续定案）
@@ -577,6 +594,12 @@ namespace CardCore.Attribute
             }
 
             if (removed.Count == 0) return;
+
+            // 变形指示物解除（2026-10-13 临摹定案）：还原原形态（纯回滚不刷新）——
+            // ClearAll（换区）/PurgeAll（净化）两口统一在此驱动；先还原再发计数事件
+            if (removed.Contains(MorphStateCounter))
+                MorphSystem.RestoreIfMorphed(card);
+
             foreach (var id in removed)
             {
                 card._counters.Remove(id);

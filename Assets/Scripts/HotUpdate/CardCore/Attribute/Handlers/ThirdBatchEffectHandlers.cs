@@ -79,7 +79,7 @@ namespace CardCore.Attribute.Handlers
     /// <summary>牺牲（2026-10-09 舍弃并档定案，黑5，edict 形态）：作用对象=**角色**（表 filter "Player"）——
     /// 目标玩家（持有者）**自行选择**一个己方战场单位（生物+无生命单位，摒弃并池）**直送墓地**。
     /// 裁定：**非效果死亡**——不经 DeathRules、不发 CardDestroyEvent（OnDeath/亡语/消灭替代/击杀统计
-    /// 全不触发），不灭/神佑/复生无从拦截（非死亡路径天然绕过）；送墓归属=卡牌持有者。
+    /// 全不触发），不灭/复生无从拦截（非死亡路径天然绕过）；送墓归属=卡牌持有者。
     /// 同步路径（触发式/headless）：自动选持有者战场首个单位（TargetSelectionService 代替选取同口径）。</summary>
     public class SacrificeHandler : AtomicEffectHandlerBase
     {
@@ -155,8 +155,9 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>消灭（2026-10-09 吞噬机制移除定案：原吞噬行改名，EffectType 沿用 Devour 枚举位）——
-    /// 纯消灭：效果死亡（DestroyEffect 死因），无回复无吸收。不灭拦（消灭类）、复生可替代、
-    /// 神佑拦角色（表 filter NoRole,Mortal 已在目标层先滤）；来源=效果来源。</summary>
+    /// 纯消灭：效果死亡（DestroyEffect 死因），无回复无吸收。不灭拦（消灭类）、复生可替代
+    ///（表 filter NoRole 在目标层滤角色——2026-10-13 神佑删除后角色不被效果处决全靠此层）；
+    /// 来源=效果来源。</summary>
     public class DevourHandler : AtomicEffectHandlerBase
     {
         protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Devour;
@@ -173,22 +174,8 @@ namespace CardCore.Attribute.Handlers
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "消灭目标生物（效果死亡；不灭可拦、复生可替代）";
     }
 
-    /// <summary>湮灭：彻底移除，直送除外区，不可复生（DeathRules 内定案）</summary>
-    public class AnnihilateHandler : AtomicEffectHandlerBase
-    {
-        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Annihilate;
-
-        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
-        {
-            foreach (var target in context.Targets)
-            {
-                if (target is Card card)
-                    DeathRules.TryKill(card, DeathCause.Annihilate, context.Source, context.ZoneManager);
-            }
-        }
-
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "湮灭目标生物";
-    }
+    /// <summary>【墓碑 2026-10-13】湮灭处理器已删——表行已删、处理器不可达；
+    /// DeathCause.Annihilate 枚举与 DeathRules 内湮灭臂保留防位序重编号（复活=重写表行+本处理器）。</summary>
 
     /// <summary>
     /// 摧毁（黑5）：与"消灭"的区别——作用于**无生命值单位**（地牌/结界）。
@@ -244,7 +231,7 @@ namespace CardCore.Attribute.Handlers
     /// 抹除（白5，2026-10-10）：将目标（场上生物/结界/地牌——表域六类 + NotRole 滤角色）
     /// 从本局游戏中除去——同遗忘指示物到期移除口径（CounterRules.OnTurnEnd ② 例程）：
     /// **不走换区、直接消失**（不进墓/不进除外区），不发 CardDestroyEvent（死亡时点/
-    /// 亡语/击杀统计全不触发），不灭/神佑/复生无从拦截（非死亡路径天然绕过）。
+    /// 亡语/击杀统计全不触发），不灭/复生无从拦截（非死亡路径天然绕过）。
     /// 地牌先出池（余量写回卡，同摧毁口）再消失；战场单位容器直删后补发离场事件
     ///（守护断链/棋盘位/UI 扇面同步），CardMoveEvent To=None 作「消失」信号。
     /// </summary>
@@ -289,7 +276,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect) =>
-            "将目标从本局游戏中除去（不走换区直接消失；不触发死亡时点，不灭/神佑无从拦截）";
+            "将目标从本局游戏中除去（不走换区直接消失；不触发死亡时点，不灭无从拦截）";
     }
 
     // ---------------- 反制 / 沉默 ----------------
@@ -521,10 +508,10 @@ namespace CardCore.Attribute.Handlers
                 new ChangeOwnerHandler(),
                 new DiscoverCardHandler(),
 
-                // 死亡原子（牺牲=直送非死亡；Devour=消灭（2026-10-09 吞噬机制移除）；湮灭）
+                // 死亡原子（牺牲=直送非死亡；Devour=消灭（2026-10-09 吞噬机制移除））
+                // AnnihilateHandler 已删（2026-10-13 湮灭残壳清理——表行已删不可达）
                 new SacrificeHandler(),
                 new DevourHandler(),
-                new AnnihilateHandler(),
 
                 // 摧毁（无生命值单位：地牌/结界）
                 new SmashHandler(),

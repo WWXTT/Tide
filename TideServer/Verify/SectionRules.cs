@@ -502,7 +502,7 @@ namespace TideServer.Verify
 
                 // ---- ③ 定长沉睡照付（不变：显式层数不走灰豁免，立约与否同价） ----
 
-                // 定长卡总费 3 > 首回合地牌槽上限 1——推进两回合（上限=min(回合,9)=3）再打
+                // 定长卡总费 3 > 首回合地牌槽上限 1——推进两回合（上限=min(回合,7)=3）再打
                 var f2 = fs.Player2;
                 GameActions.EndTurn(fs, f1);
                 fs.TurnEngine.CheckPhaseTransition();
@@ -842,10 +842,10 @@ namespace TideServer.Verify
                 var data = new CardData
                 {
                     ID = "V9I_" + ruleId, CardName = enumName, Supertype = Cardtype.Enchantment, Durability = durability,
-                    // 显式声明费（2026-10-10 可支配底盘适配）：结界剩余点不再抵卡价（走运行时二向），
-                    // 建议价 +2 后耐久9载体 ≈10 > 浓度上限 9（标准曲线封顶 9）——本段测规则光环行为非计价，
-                    // 声明 8 灰锚定支付，与建议价解耦
-                    Cost = ElementCost.FromValue(ManaType.Gray, 8),
+                    // 显式声明费（2026-10-10 可支配底盘适配；2026-10-13 缩盘）：结界剩余点不再抵卡价（走运行时二向），
+                    // 建议价 +2 后耐久9载体 ≈10 > 浓度上限 7（标准曲线封顶 7）——本段测规则光环行为非计价，
+                    // 声明 7 灰锚定支付，与建议价解耦
+                    Cost = ElementCost.FromValue(ManaType.Gray, 7),
                 };
                 data.Effects.Add(new CardEffectData
                 {
@@ -1070,14 +1070,178 @@ namespace TideServer.Verify
             VerifySuite.Assert(lockProbe.GetCounterCount(CounterRules.LockCounter) == 2
                               && !RuleHooks.CanPlay(icore, i2, lockProbe, Zone.Hand),
                 "锁定原子（value=2）：挂 2 层锁定，期间无法使用");
+            VerifySuite.Assert(!ElementPoolSystem.CanServeAsLand(lockProbe),
+                "锁定期间无法进入地牌区（放地不得绕道封锁——CanServeAsLand 单点，UI/AI 预检同口径）");
             CounterRules.OnTurnEnd(i2, icore.ZoneManager); // 持有者回合末 ①：2→1
             VerifySuite.Assert(lockProbe.GetCounterCount(CounterRules.LockCounter) == 1
-                              && !RuleHooks.CanPlay(icore, i2, lockProbe, Zone.Hand),
+                              && !RuleHooks.CanPlay(icore, i2, lockProbe, Zone.Hand)
+                              && !ElementPoolSystem.CanServeAsLand(lockProbe),
                 "锁定×2 首个持有者回合末：2→1 仍锁定");
             CounterRules.OnTurnEnd(i2, icore.ZoneManager); // 持有者回合末 ②：1→0
             VerifySuite.Assert(lockProbe.GetCounterCount(CounterRules.LockCounter) == 0
-                              && RuleHooks.CanPlay(icore, i2, lockProbe, Zone.Hand),
-                "锁定×2 次个持有者回合末：1→0 解锁（手牌区倒数全程在场外结算）");
+                              && RuleHooks.CanPlay(icore, i2, lockProbe, Zone.Hand)
+                              && ElementPoolSystem.CanServeAsLand(lockProbe),
+                "锁定×2 次个持有者回合末：1→0 解锁（手牌区倒数全程在场外结算），地牌资格恢复");
+
+            // ---- ⑦c 临摹/变形赋予（2026-10-13 定案）：效果取代+跳规则光环+变形指示物+纯回滚+差额补蓝 ----
+            Card LinmoCard(string id, string name, Cardtype type, int power, int life, int grayCost,
+                Player owner, List<string> keywords, List<CardEffectData> effects)
+            {
+                var data = new CardData
+                {
+                    ID = id, CardName = name, Supertype = type, Power = power, Life = life,
+                    Cost = ElementCost.FromValue(ManaType.Gray, grayCost),
+                    Keywords = keywords, Effects = effects,
+                };
+                var card = new CardWrapper(data);
+                card.SetController(owner);
+                icore.ZoneManager.GetZoneContainer(owner).Add(card, Zone.Battlefield);
+                GameActions.RegisterCardTriggeredEffects(icore, card, owner); // 教学 Seeder 同款显式注册
+                return card;
+            }
+
+            var ritualRef = AtomicEffectTable.GetByType(AtomicEffectType.ModifyGameRule)?.HashId;
+            // 临摹自身卡（i1 生物，灰2）：原触发式（OnTurnEnd 抽1）+ 印刷关键词 嘲讽
+            var linmoSelf = LinmoCard("V9I_LINMO_SELF", "临摹者", Cardtype.Creature, 2, 3, 2, i1,
+                new List<string> { KeywordRules.Taunt },
+                new List<CardEffectData>
+                {
+                    new CardEffectData
+                    {
+                        Id = "V9I_LINMO_SELF_EFF", TriggerTiming = (int)TriggerTiming.OnTurnEnd, SelectionMode = -1,
+                        AtomicEffects = new List<AtomicEffectEntry>
+                            { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+                    },
+                });
+            // 临摹模板源（i2 生物，灰5）：触发式（OnTurnEnd 抽1）+ **规则光环步**（窥渊——⑦ 段已活跃）
+            var linmoSrc = LinmoCard("V9I_LINMO_SRC", "临摹源", Cardtype.Creature, 4, 6, 5, i2,
+                new List<string> { KeywordRules.Venom },
+                new List<CardEffectData>
+                {
+                    new CardEffectData
+                    {
+                        Id = "V9I_LINMO_SRC_EFF", TriggerTiming = (int)TriggerTiming.OnTurnEnd, SelectionMode = -1,
+                        AtomicEffects = new List<AtomicEffectEntry>
+                            { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+                    },
+                    new CardEffectData
+                    {
+                        Id = "V9I_LINMO_SRC_AURA", TriggerTiming = (int)TriggerTiming.OnPlay, SelectionMode = -1,
+                        Steps = ritualRef == null ? null : new List<EffectStepData>
+                        {
+                            new EffectStepData
+                            {
+                                kind = 0,
+                                atomic = new AtomicEffectEntry { refId = ritualRef, value = 1, str = RuleAuraComponents.LockRevealed },
+                            },
+                        },
+                    },
+                });
+            bool HasTrigger(Card c, string effId)
+                => icore.TriggerEngine.RegisteredEffects.Any(r => ReferenceEquals(r.Source, c) && r.Effect?.Id == effId);
+
+            // 模板源补连接光环（箭头类——2026-10-13 定案：临摹复制非规则光环）
+            var linmoSrcData = ((CardWrapper)linmoSrc).GetData();
+            linmoSrcData.LinkAuras = new List<LinkAuraData> { new LinkAuraData { stat = "Power", value = 2 } };
+            linmoSrcData.ArrowDirections = HexDirection.Up | HexDirection.Down;
+
+            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
+                new AtomicEffectInstance { Type = AtomicEffectType.Morph, Value = 1 },
+                new EffectExecutionContext { Controller = i1, Source = linmoSelf, Targets = new List<Entity> { linmoSrc } })
+                .GetAwaiter().GetResult();
+            VerifySuite.Assert(linmoSelf.ID == "V9I_LINMO_SRC"
+                              && (linmoSelf as IHasName)?.CardName == "临摹源"
+                              && linmoSelf.GetPower() == 4 && linmoSelf.GetLife() == 6
+                              && linmoSelf.HasKeyword(KeywordRules.Venom) && !linmoSelf.HasKeyword(KeywordRules.Taunt)
+                              && linmoSelf.GetCounterCount(CounterRules.MorphStateCounter) == 1,
+                "临摹：身份/属性/关键词复制 + 变形指示物 ×1（中性·极性0）");
+            VerifySuite.Assert(((CardWrapper)linmoSelf).GetData().Effects.Count == 1
+                              && ReferenceEquals(RuleAuraSystem.CarrierOf(RuleAuraComponents.LockRevealed), lockCarrier),
+                "临摹跳过唯一效果：规则光环步被滤除（空效果整条丢），既有同名光环载体不被顶替");
+            VerifySuite.Assert(HasTrigger(linmoSelf, "V9I_LINMO_SRC_EFF") && !HasTrigger(linmoSelf, "V9I_LINMO_SELF_EFF"),
+                "临摹触发式重挂：模板触发式按自身注册、原触发式整卡注销（UnregisterEntityEffects 首个消费者）");
+            VerifySuite.Assert(MorphSystem.ActivationSurcharge(linmoSelf) == 3,
+                "临摹发动补价（差额恒蓝·蓝色专属）：变形后 5 点 − 变形前 2 点 = 3 蓝（补价额=总点差·与卡价颜色无关）");
+            var linmoSelfData = ((CardWrapper)linmoSelf).GetData();
+            VerifySuite.Assert(linmoSelfData.LinkAuras != null && linmoSelfData.LinkAuras.Count == 1
+                              && linmoSelfData.LinkAuras[0].stat == "Power" && linmoSelfData.LinkAuras[0].value == 2
+                              && linmoSelfData.ArrowDirections == (HexDirection.Up | HexDirection.Down),
+                "临摹复制连接光环（箭头类）：LinkAuras+箭头方向随形态复制（非规则光环不跳过）");
+
+            // 净化解除（场上）：纯回滚不刷新——变形期间受到的伤害与横置随回滚丢弃，恢复变形前状态
+            linmoSelf.Tap(); // 变形期间横置（生物形态可横置）
+            KeywordRules.ApplyDamage(null, linmoSelf, 1, false); // 变形期间受 1 伤（6→5）
+            CounterRules.PurgeAll(linmoSelf);
+            VerifySuite.Assert(linmoSelf.ID == "V9I_LINMO_SELF"
+                              && (linmoSelf as IHasName)?.CardName == "临摹者"
+                              && linmoSelf.GetPower() == 2 && linmoSelf.GetLife() == 3
+                              && !linmoSelf.IsTapped()
+                              && linmoSelf.HasKeyword(KeywordRules.Taunt) && !linmoSelf.HasKeyword(KeywordRules.Venom)
+                              && ((CardWrapper)linmoSelf).GetData().Effects.Count == 1
+                              && linmoSelf.GetCounterCount(CounterRules.MorphStateCounter) == 0
+                              && !MorphSystem.IsMorphed(linmoSelf)
+                              && HasTrigger(linmoSelf, "V9I_LINMO_SELF_EFF") && !HasTrigger(linmoSelf, "V9I_LINMO_SRC_EFF")
+                              && MorphSystem.ActivationSurcharge(linmoSelf) == 0,
+                "净化解除=纯回滚：身份/属性/关键词/文本效果/横置态还原变形前值（变形期伤害与横置丢弃、无入场刷新），原触发式重挂、补价归零");
+            VerifySuite.Assert((linmoSelfData.LinkAuras == null || linmoSelfData.LinkAuras.Count == 0)
+                              && linmoSelfData.ArrowDirections == HexDirection.None,
+                "回滚含连接光环：原形态无光环/无箭头——解除后清空变形期复制的光环与箭头");
+
+            // 变形赋予（引用卡ID）：目标变成结界形态——自动非横置 + 耐久初始化；换区解除还原
+            var morphForm = new CardData
+            {
+                ID = "V9I_MORPH_FORM", CardName = "变形形态", Supertype = Cardtype.Enchantment,
+                Durability = 3, Cost = ElementCost.FromValue(ManaType.Gray, 4),
+            };
+            var grantTarget = LinmoCard("V9I_GRANT_TGT", "变形对象", Cardtype.Creature, 1, 2, 1, i1,
+                new List<string>(), new List<CardEffectData>());
+            grantTarget.Tap(); // 变形前横置——结界形态应自动非横置，解除还原横置
+            var linmoPrevResolver = CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate;
+            CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = id => id == "V9I_MORPH_FORM" ? morphForm : null;
+            try
+            {
+                CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
+                    new AtomicEffectInstance { Type = AtomicEffectType.GrantMorph, Value = 1, StringValue = "V9I_MORPH_FORM" },
+                    new EffectExecutionContext { Controller = i1, Source = i1, Targets = new List<Entity> { grantTarget } })
+                    .GetAwaiter().GetResult();
+            }
+            finally { CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = linmoPrevResolver; }
+            VerifySuite.Assert(grantTarget.ID == "V9I_MORPH_FORM"
+                              && grantTarget.IsNonLivingUnit() && !grantTarget.IsTapped()
+                              && grantTarget.GetCounterCount(CounterRules.DurabilityCounter) >= 3
+                              && grantTarget.GetCounterCount(CounterRules.MorphStateCounter) == 1,
+                "变形赋予：目标变成引用卡（结界形态自动非横置+按入场同口径初始化耐久）+ 变形指示物");
+            icore.ZoneManager.MoveCard(grantTarget, i1, Zone.Battlefield, Zone.Hand); // 换区解除（按现有逻辑）
+            VerifySuite.Assert(grantTarget.ID == "V9I_GRANT_TGT"
+                              && grantTarget.GetZone() == Zone.Hand
+                              && grantTarget.IsTapped() // 解除还原变形前横置态
+                              && grantTarget.GetCounterCount(CounterRules.MorphStateCounter) == 0
+                              && grantTarget.GetCounterCount(CounterRules.DurabilityCounter) == 0
+                              && !MorphSystem.IsMorphed(grantTarget),
+                "换区解除变形（按现有逻辑）：指示物/耐久随 sweep 清、原形态与变形前横置态还原");
+
+            // 减益解除（2026-10-13，白2=净化−1）：负面清空、正面与中性（变形指示物）保留
+            var debuffProbe = LinmoCard("V9I_DEBUFF_TGT", "减益探针", Cardtype.Creature, 1, 1, 1, i1,
+                new List<string>(), new List<CardEffectData>());
+            debuffProbe.AddCounters(CounterRules.ToxinCounter, 2);
+            debuffProbe.AddCounters(CounterRules.DivineShieldCounter, 1);
+            debuffProbe.AddCounters(CounterRules.MorphStateCounter, 1);
+            CardCore.Attribute.EffectHandlerRegistry.ExecuteEffectAsync(
+                new AtomicEffectInstance { Type = AtomicEffectType.RemoveDebuffs, Value = 1 },
+                new EffectExecutionContext { Controller = i1, Source = i1, Targets = new List<Entity> { debuffProbe } })
+                .GetAwaiter().GetResult();
+            VerifySuite.Assert(debuffProbe.GetCounterCount(CounterRules.ToxinCounter) == 0
+                              && debuffProbe.GetCounterCount(CounterRules.DivineShieldCounter) == 1
+                              && debuffProbe.GetCounterCount(CounterRules.MorphStateCounter) == 1,
+                "减益解除：负面指示物清空，正面与中性（极性0）指示物保留");
+
+            // 探针离场清理（不扰动后续 ⑧-⑩ 段：注册注销+移除外区）
+            icore.TriggerEngine.UnregisterEntityEffects(linmoSelf);
+            icore.TriggerEngine.UnregisterEntityEffects(linmoSrc);
+            icore.ZoneManager.MoveCard(linmoSelf, i1, Zone.Battlefield, Zone.Exile);
+            icore.ZoneManager.MoveCard(linmoSrc, i2, Zone.Battlefield, Zone.Exile);
+            icore.ZoneManager.MoveCard(grantTarget, i1, Zone.Hand, Zone.Exile);
+            icore.ZoneManager.MoveCard(debuffProbe, i1, Zone.Battlefield, Zone.Exile);
 
             GameActions.EndTurn(icore, i1); // i1 回合结束：③ 块倒数 i1 被展示卡锁 1→0；其后光环对 i2 仍被展示的卡续锁
             VerifySuite.Assert(i2Locked.GetCounterCount(CounterRules.LockCounter) == 1,
@@ -1599,8 +1763,8 @@ namespace TideServer.Verify
                 var d = new CardData
                 {
                     ID = id, CardName = "V9M回响归土", Supertype = Cardtype.Enchantment, Durability = 9,
-                    // 显式声明费（2026-10-10 可支配底盘适配，同 V9.i 载体）：结界无抵价后建议费 >9 超浓度上限
-                    Cost = ElementCost.FromValue(ManaType.Gray, 8),
+                    // 显式声明费（2026-10-10 可支配底盘适配，同 V9.i 载体；2026-10-13 缩盘）：结界无抵价后建议费 >7 超浓度上限
+                    Cost = ElementCost.FromValue(ManaType.Gray, 7),
                 };
                 d.Effects.Add(new CardEffectData
                 {
@@ -1836,10 +2000,10 @@ namespace TideServer.Verify
             VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.White, null, 5) == 2
                               && tpool.TempElements[ManaType.White] == 2 && tpool.WhiteGainedThisTurn == 2,
                 "新回合白 5 · cap2 → 实发 2（台账已清——单色钳口径不变）");
-            tpool.PersonalTurnIndex = 9;
-            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.Black, null, 15) == 7
-                              && tpool.TempElements[ManaType.Black] == 2 + 7 && tpool.BlackGainedThisTurn == 7,
-                "合计钳跨色：本回合白已 2 · cap9 → 黑 15 实发 7（黑+白生成总数 ≤ 浓度上限）");
+            tpool.PersonalTurnIndex = 9; // 缩盘后曲线封顶 7：cap 到顶
+            VerifySuite.Assert(pcore.ElementPool.AddMana(n2, ManaType.Black, null, 15) == 5
+                              && tpool.TempElements[ManaType.Black] == 2 + 5 && tpool.BlackGainedThisTurn == 5,
+                "合计钳跨色：本回合白已 2 · cap7 → 黑 15 实发 5（黑+白生成总数 ≤ 浓度上限）");
             // 使用侧（支付）约束不变：bank 黑 9 · cap2——黑3 需求 > cap → 拒付（获得钳制不改变支付侧口径）
             tpool.PersonalTurnIndex = 2;
             VerifySuite.Assert(ElementPaymentValidator.GetBillPaymentPlan(
@@ -2888,17 +3052,17 @@ namespace TideServer.Verify
             // ============================ V9.r 挑战模式（2026-10-06） ============================
             VerifySuite.Section("V9.r 挑战模式（曲线/起手）");
 
-            // ---- ① 挑战曲线纯函数：CapAt(t)=min(t+N, 9+N)；bonus=0 与标准曲线等价 ----
+            // ---- ① 挑战曲线纯函数：CapAt(t)=min(t+N, 7+N)（2026-10-13 缩盘 9→7）；bonus=0 与标准曲线等价 ----
             var rCurve = ResourceCurve.ChallengeLandCurve(3);
             var rCurveOk = true;
             for (int t = 1; t <= 30; t++)
-                if (rCurve.CapAt(t) != Math.Min(t + 3, 12)) rCurveOk = false;
-            VerifySuite.Assert(rCurveOk, "挑战曲线(3)：CapAt(t)=min(t+3, 12)——开局 4、封顶 12");
+                if (rCurve.CapAt(t) != Math.Min(t + 3, 10)) rCurveOk = false;
+            VerifySuite.Assert(rCurveOk, "挑战曲线(3)：CapAt(t)=min(t+3, 10)——开局 4、封顶 10");
             var rCurve0 = ResourceCurve.ChallengeLandCurve(0);
-            VerifySuite.Assert(rCurve0.CapAt(1) == 1 && rCurve0.CapAt(9) == 9 && rCurve0.CapAt(99) == 9
+            VerifySuite.Assert(rCurve0.CapAt(1) == 1 && rCurve0.CapAt(7) == 7 && rCurve0.CapAt(99) == 7
                                && ResourceCurve.ChallengeLandCurve(9).CapAt(1) == 10
-                               && ResourceCurve.ChallengeLandCurve(9).CapAt(50) == 18,
-                "挑战曲线边界：bonus=0 等价标准曲线；bonus=9 开局 10、封顶 18");
+                               && ResourceCurve.ChallengeLandCurve(9).CapAt(50) == 16,
+                "挑战曲线边界：bonus=0 等价标准曲线（封顶 7）；bonus=9 开局 10、曲线封顶 16（GetLandCap 再钳 MaxStackedLandCap=14）");
 
             // ---- ② 挑战局端到端：InitGame 加成（P2 曲线上移 + 起手加抽，P1 不动） ----
             var ccore = GameCore.Instance;

@@ -245,8 +245,8 @@ namespace CardCore.Attribute.Handlers
     /// 保留卡面本体关键词（Printed）与设置类（Setting——设置后即「原本属性效果」）；
     /// 清除战中附加关键词（Temp 等其余轨），
     /// 以及全部指示物（CounterRules.PurgeAll——含 Exception 生效自减层，属性层先反向回写）。
-    /// 神佑对净化有抗性（PurgeProtectedKeywords 豁免）——净化剥神佑+剧毒的组合无法计价平衡，
-    /// 移除神佑留给未来专用效果。事件：CleanseEvent。
+    /// 神佑净化抗性已随 2026-10-13 神佑删除退役（PurgeProtectedKeywords 豁免名单同步删除）。
+    /// 事件：CleanseEvent。
     /// </summary>
     public class PurifyHandler : AtomicEffectHandlerBase
     {
@@ -258,7 +258,7 @@ namespace CardCore.Attribute.Handlers
             {
                 if (target == null) continue;
 
-                KeywordRules.PurifyKeywords(target); // 关键词按轨别清（保留 Printed/Setting，豁免神佑）
+                KeywordRules.PurifyKeywords(target); // 关键词按轨别清（保留 Printed/Setting）
                 CounterRules.PurgeAll(target);       // 指示物全清（含生效自减层，属性层先反向回写）
 
                 // 净化总是播报（即使目标本就干净，也确认净化时点）
@@ -271,6 +271,33 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect) => "净化目标：变回原有状态（清临时赋予与指示物，保留本体与设置）";
+    }
+
+    /// <summary>减益解除（2026-10-13，白2=净化−1）：移除目标全部**负面**指示物
+    ///（ClearNegative 极性口径——正面/中性保留，与净化全清分野）；横置不在此恢复。
+    /// 中性变形指示物不受影响（临摹状态在）。</summary>
+    public class RemoveDebuffsHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.RemoveDebuffs;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            foreach (var target in context.Targets)
+            {
+                if (target == null) continue;
+                target.RemoveAllDebuffs(); // EntityEffectExtensions → CounterRules.ClearNegative（仅 Card 生效）
+
+                // 与净化同事件族（时点观测口）；总是播报（即使本就无减益，也确认时点）
+                PublishEvent(new CleanseEvent
+                {
+                    Target = target,
+                    Source = context.Source
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => "解除目标的减益：移除其全部负面指示物（正面指示物保留）";
     }
 
     // ======================= 战斗 / 伤害 =======================
@@ -314,7 +341,7 @@ namespace CardCore.Attribute.Handlers
                 // 2026-09-13 数值随机：每目标独立掷（掷值在修饰链前）
                 int amount = context.GetValueAfterModifiers(effect.GetRolledValue());
                 // 生命流失（术语定案）：非伤害、不可防止——不走伤害管线（圣盾/护甲/坚韧不挡），
-                // 无伤害来源。死因=LifeLoss（归零族，神佑不拦），死亡来源=效果来源（归因到引发流失的效果卡）。
+                // 无伤害来源。死因=LifeLoss（归零族），死亡来源=效果来源（归因到引发流失的效果卡）。
                 // 卡归零走即时决策表（效果驱动路径先例：牺牲/吞噬/湮灭/剧毒）；角色扣上限（2026-09-11 定案：
                 // 流失及所有扣命改扣 MaxHealth——治愈回复不了已扣的上限），归零=正常死亡交生命判定收尾。
                 if (target is Card card)
@@ -427,6 +454,8 @@ namespace CardCore.Attribute.Handlers
 
                 // 净化（原 Nullify）
                 new PurifyHandler(),
+                // 减益解除（2026-10-13，白2=净化−1）：只清负面指示物（正面/中性保留）
+                new RemoveDebuffsHandler(),
 
                 // 战斗 / 伤害
                 new DealCombatDamageHandler(),

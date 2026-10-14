@@ -252,28 +252,9 @@ namespace CardCore
 
         #endregion
 
-        #region 效果标记
-
-        /// <summary>检查效果标记</summary>
-        public static bool HasFlag(this Entity entity, EffectTargetFlags flag)
-        {
-            if (entity is Card card) return (card._targetFlags & flag) == flag;
-            return false;
-        }
-
-        /// <summary>添加效果标记</summary>
-        public static void AddFlag(this Entity entity, EffectTargetFlags flag)
-        {
-            if (entity is Card card) card._targetFlags |= flag;
-        }
-
-        /// <summary>移除效果标记</summary>
-        public static void RemoveFlag(this Entity entity, EffectTargetFlags flag)
-        {
-            if (entity is Card card) card._targetFlags &= ~flag;
-        }
-
-        #endregion
+        // 效果标记（EffectTargetFlags/HasFlag/AddFlag/RemoveFlag）已删（2026-10-13）：
+        // 早期目标免疫脚手架，全仓零逻辑消费（唯一触及=DTO 序列化往返常量）——
+        // 目标不可选的现行口径=潜行指示物/隐密关键词 + TargetFilterSystem.ExcludeUnselectable 显示层。
 
         #region 关键词
 
@@ -370,7 +351,7 @@ namespace CardCore
                 entity._keywords.RemoveAll(k => k == keyword);
         }
 
-        /// <summary>检查是否有关键词（角色默认带神佑 DivineProtection；连接光环关键词=光环期间视为持有，
+        /// <summary>检查是否有关键词（连接光环关键词=光环期间视为持有，
         /// 不进 _keywords、不参与 GetKeywordCount 重复叠加计数）。角色同走连接光环读数
         /// （2026-10-07 定案：关键词光环可经箭头指向角色格投递；属性光环钉死生物专用）。</summary>
         public static bool HasKeyword(this Entity entity, string keyword)
@@ -575,12 +556,9 @@ namespace CardCore
         /// <summary>是否已被宣言确认翻开（已展示；入手时重置）</summary>
         public bool IsRevealed => _isRevealed;
 
-        // 效果标记
-        internal EffectTargetFlags _targetFlags = EffectTargetFlags.CanBeTargetedByAll;
-
         // 关键词和指示物。
         // _keywords 与 _counters 均已上移至 Entity 基类（角色=普通生物单位的
-        // 世界观定案：Player 同构持有，角色默认带神佑；剧毒/毒素指示物可指向玩家）。
+        // 世界观定案：Player 同构持有；剧毒/毒素指示物可指向玩家）。
         // List 而非 HashSet：重复叠加允许（历史例：双坚韧——2026-10-08 指示物化后坚韧走指示物叠加，
         // 关键词份数叠加留给消耗型计数），
         // 普通授予路径的「唯一性」由 AddKeyword 的 Contains 检查保证。
