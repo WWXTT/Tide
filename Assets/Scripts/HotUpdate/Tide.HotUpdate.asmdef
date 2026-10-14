@@ -2,7 +2,6 @@
     "name": "Tide.HotUpdate",
     "rootNamespace": "Tide.HotUpdate",
     "references": [
-        "HexMap.ECS",
         "Unity.Entities",
         "Unity.Collections",
         "Unity.InferenceEngine",

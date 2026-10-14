@@ -525,7 +525,7 @@ namespace CardCore
             // 退役，后续遗忘行改价补偿自动跟随（行缺失=0 不补偿）。计费与错边黑白获得共用本口（同源不漂移）。
             if (atom.Type == AtomicEffectType.SummonToken)
             {
-                var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate ?? Attribute.MorphSystem.ResolveMorphTarget;
+                var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate; // 引用卡ID 唯一解析器
                 var template = string.IsNullOrEmpty(atom.StringValue) ? null : resolver?.Invoke(atom.StringValue);
                 if (template == null) return 0f;
                 float unit = 0f;
@@ -627,7 +627,7 @@ namespace CardCore
             // SummonCompensatedBuckets）；外层系数（触发/速度等）按比例缩放各桶，总额与标量口径一致。
             if (atom.Type == AtomicEffectType.SummonToken)
             {
-                var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate ?? Attribute.MorphSystem.ResolveMorphTarget;
+                var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate; // 引用卡ID 唯一解析器
                 var template = string.IsNullOrEmpty(atom.StringValue) ? null : resolver?.Invoke(atom.StringValue);
                 if (template != null)
                 {
@@ -721,7 +721,7 @@ namespace CardCore
 
             if (atom.Type == AtomicEffectType.SummonToken)
             {
-                var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate ?? Attribute.MorphSystem.ResolveMorphTarget;
+                var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate; // 引用卡ID 唯一解析器
                 var template = string.IsNullOrEmpty(atom.StringValue) ? null : resolver?.Invoke(atom.StringValue);
                 // 2026-10-12 句式改版：按个计显式化——单价构成入【】、数量恒列（用户要点：
                 // （模板【x】−负面指示物补偿【1】）×召唤数量【x】）。模板解析不到时明示，
@@ -967,7 +967,7 @@ namespace CardCore
         }
 
         /// <summary>计价取行（2026-10-03 行身份修复）：同枚举多行（变体行各自锚价——如规则光环 7 行、
-        /// 洗回/洗入）时按实例来源行（RowHashId，converter 填）取锚；null/缺行回落 GetByType
+        /// 光环关键词/指示物族）时按实例来源行（RowHashId，converter 填）取锚；null/缺行回落 GetByType
         ///（末行覆写，旧口径——手工构造实例与历史路径兼容）。</summary>
         private static AtomicEffectConfig ResolvePricingConfig(AtomicEffectInstance atom)
         {

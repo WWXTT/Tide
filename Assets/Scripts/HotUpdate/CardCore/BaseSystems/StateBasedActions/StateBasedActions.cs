@@ -30,9 +30,7 @@ namespace CardCore
         /// </summary>
         TextChange,
 
-        /// <summary>
-        /// 特征变更：特征变化触发
-        /// </summary>
+        /// <summary>【墓碑 2026-10-13】特征变更（±1/+1 成对湮灭）——枚举位保留防位序重编号。</summary>
         CharacteristicChange
     }
 
@@ -206,9 +204,7 @@ namespace CardCore
                 case SBAActionType.TextChange:
                     ExecuteTextChange(action);
                     break;
-                case SBAActionType.CharacteristicChange:
-                    ExecuteCharacteristicChange(action);
-                    break;
+                // CharacteristicChange 臂已删（2026-10-13 成对湮灭退役——枚举位保留防位序重编号）
             }
 
             action.Executed = true;
@@ -288,39 +284,8 @@ namespace CardCore
         {
         }
 
-        /// <summary>
-        /// 执行特征变化动作：+1/+1 与 -1/-1 指示物成对湮灭（MTG 704.5q）。
-        /// 两类指示物在加入时已分别把 P/T 净改抵消，移除成对指示物对 P/T 无净影响，
-        /// 仅需递减计数并补发移除事件。
-        /// </summary>
-        private void ExecuteCharacteristicChange(SBAActionRecord action)
-        {
-            var card = action.AffectedEntity as Card;
-            if (card == null) return;
-
-            int annihilate = Math.Min(card.GetCounterCount("+1/+1"), card.GetCounterCount("-1/-1"));
-            if (annihilate <= 0) return;
-
-            card.RemoveCounters("+1/+1", annihilate);
-            card.RemoveCounters("-1/-1", annihilate);
-
-            PublishEvent(new CounterEvent
-            {
-                Target = card,
-                CounterType = "+1/+1",
-                Amount = annihilate,
-                IsAdd = false,
-                Source = null
-            });
-            PublishEvent(new CounterEvent
-            {
-                Target = card,
-                CounterType = "-1/-1",
-                Amount = annihilate,
-                IsAdd = false,
-                Source = null
-            });
-        }
+        /// <summary>【墓碑 2026-10-13】成对湮灭执行器已删——用户裁定：湮灭丢失效果来源，
+        /// ±1/+1 计数层允许混挂（挂层时 P/T 已各自直改，混挂不产生数值问题）。</summary>
 
         /// <summary>
         /// 发布事件：优先经由 GameCore 统一路由（使 Trigger/Layer 引擎能观察到 SBA 产生的

@@ -203,14 +203,14 @@
               "power": 3,
               "life": 2,
               "tapped": false,
-              "x": 4,
-              "z": 4
+              "x": 3,
+              "z": 3
             },
             {
               "card": "C_3C06E8E8",
               "tapped": true,
-              "x": 6,
-              "z": 4
+              "x": 5,
+              "z": 3
             }
           ],
           "hand": [
@@ -313,40 +313,40 @@
               "power": -1,
               "life": -1,
               "tapped": false,
-              "x": 5,
-              "z": 5
+              "x": 4,
+              "z": 4
             },
             {
               "card": "C_7E5A1002",
               "power": -1,
               "life": -1,
               "tapped": false,
-              "x": 3,
-              "z": 5
+              "x": 2,
+              "z": 4
             },
             {
               "card": "C_7E5A1003",
               "power": -1,
               "life": -1,
               "tapped": false,
-              "x": 7,
-              "z": 5
+              "x": 6,
+              "z": 4
             },
             {
               "card": "C_7E5A1004",
               "power": -1,
               "life": -1,
               "tapped": false,
-              "x": 4,
-              "z": 4
+              "x": 3,
+              "z": 3
             },
             {
               "card": "C_7E5A100A",
               "power": -1,
               "life": -1,
               "tapped": false,
-              "x": 6,
-              "z": 4
+              "x": 5,
+              "z": 3
             }
           ],
           "hand": [],
@@ -371,11 +371,27 @@
               "power": -1,
               "life": -1,
               "tapped": false,
-              "x": 5,
-              "z": 2
+              "x": 4,
+              "z": 1
             },
             {
               "card": "C_7E5A1005",
+              "power": -1,
+              "life": -1,
+              "tapped": false,
+              "x": 2,
+              "z": 1
+            },
+            {
+              "card": "C_7E5A1006",
+              "power": -1,
+              "life": -1,
+              "tapped": false,
+              "x": 6,
+              "z": 1
+            },
+            {
+              "card": "C_7E5A1007",
               "power": -1,
               "life": -1,
               "tapped": false,
@@ -383,28 +399,12 @@
               "z": 2
             },
             {
-              "card": "C_7E5A1006",
-              "power": -1,
-              "life": -1,
-              "tapped": false,
-              "x": 7,
-              "z": 2
-            },
-            {
-              "card": "C_7E5A1007",
-              "power": -1,
-              "life": -1,
-              "tapped": false,
-              "x": 4,
-              "z": 3
-            },
-            {
               "card": "C_7E5A1009",
               "power": -1,
               "life": -1,
               "tapped": false,
-              "x": 6,
-              "z": 3
+              "x": 5,
+              "z": 2
             }
           ],
           "hand": [],
@@ -594,8 +594,8 @@
               "power": -1,
               "life": -1,
               "tapped": false,
-              "x": 5,
-              "z": 2,
+              "x": 4,
+              "z": 1,
               "counters": [
                 {
                   "key": "RushSickness",
@@ -608,8 +608,8 @@
               "power": -1,
               "life": -1,
               "tapped": false,
-              "x": 3,
-              "z": 2,
+              "x": 2,
+              "z": 1,
               "activateRuleAura": "HandLimitNoFatigue"
             }
           ],

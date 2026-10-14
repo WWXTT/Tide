@@ -27,6 +27,7 @@ namespace SynergyUI
 
         // 静态信息（CardCatalog 查表填充；miss 时退化为 ID）
         public string Name;
+        public string Illustration; // 立绘名（=生物模型目录名；战场 3D 按此优先解析，2026-10-13）
         public string CostText;
         public string SupertypeText;
         public int ArrowFlags; // 屏幕六向箭头位（对手侧已按 LinkAuraSystem 同规镜像）
@@ -161,6 +162,7 @@ namespace SynergyUI
             if (data != null)
             {
                 v.Name = string.IsNullOrEmpty(data.CardName) ? data.ID : data.CardName;
+                v.Illustration = data.Illustration;
                 v.CostText = CostTextOf(data.Cost);
                 v.SupertypeText = SupertypeZh(data.Supertype);
                 v.ArrowFlags = ScreenArrowBits(data.ArrowDirections, ownerIsOpponent);
@@ -364,8 +366,8 @@ namespace SynergyUI
 
         private static void FillUnitsNet(List<BattleCardView> list, MsgGameStateSync snap, int seat, bool ownerIsOpponent)
         {
-            // 列表序 i → **观察者视角**格位：己方恒 P1 半场（z4/5）、对手恒 P2 半场（z2/3）。
-            // 服务器 BoardState.Resync 是绝对坐标（seat1 己方=z2/3）——若直接填绝对坐标，
+            // 列表序 i → **观察者视角**格位：己方恒 P1 半场（z3/4）、对手恒 P2 半场（z1/2）。
+            // 服务器 BoardState.Resync 是绝对坐标（seat1 己方=z1/2）——若直接填绝对坐标，
             // 1 号座位观察者的整片战场（双方单位+地牌）都落不进渲染行、恒空白（2026-09-30 修复）。
             // 列表序与服务器 AssignCells first-free 逐格对应，观察者侧仅做半场归一。
             var units = ZoneCardsNet(snap, seat, Zone.Battlefield);
@@ -380,9 +382,9 @@ namespace SynergyUI
 
         private static void FillLandsNet(List<BattleCardView> list, MsgGameStateSync snap, int seat, bool ownerIsOpponent)
         {
-            // 同 FillUnitsNet：观察者视角归一（己方地牌行 z6、对手 z1）。
-            // 叠层（2026-10-09 地牌槽提升）：列表序与服务器 AssignCells 同构——前 9 张占首层，
-            // 第 10 张起叠回同格第二层（i%9 同格、Stacked 标记错位渲染）。
+            // 同 FillUnitsNet：观察者视角归一（己方地牌行 z5、对手 z0）。
+            // 叠层（2026-10-09 地牌槽提升；2026-10-13 缩盘 7 格）：列表序与服务器 AssignCells 同构——前 7 张占首层，
+            // 第 8 张起叠回同格第二层（i%7 同格、Stacked 标记错位渲染）。
             var lands = ZoneCardsNet(snap, seat, Zone.ElementPool);
             var cells = BoardLayout.LandCells(ownerIsOpponent ? 1 : 0);
             for (int i = 0; i < lands.Length; i++)

@@ -133,29 +133,6 @@ namespace CardCore
         }
     }
 
-    /// <summary>
-    /// 特征变更检查器：+1/+1 与 -1/-1 指示物湮灭（MTG 规则 704.5q）。
-    /// 同一永久物上同时存在两种指示物时成对抵消。
-    /// </summary>
-    public class CharacteristicChangeChecker : ISBAChecker
-    {
-        public void Check(StateBasedActions sba, GameCore gameCore)
-        {
-            foreach (var player in new[] { gameCore.Player1, gameCore.Player2 })
-            {
-                if (player == null) continue;
-                foreach (var card in gameCore.ZoneManager.GetCards(player, Zone.Battlefield))
-                {
-                    if (card.GetCounterCount("+1/+1") > 0 && card.GetCounterCount("-1/-1") > 0)
-                    {
-                        sba.AddAction(new SBAActionRecord
-                        {
-                            Type = SBAActionType.CharacteristicChange,
-                            AffectedEntity = card
-                        });
-                    }
-                }
-            }
-        }
-    }
+    /// <summary>【墓碑 2026-10-13】特征变更检查器（±1/+1 成对湮灭，MTG 704.5q）已删——
+    /// 用户裁定：湮灭会丢失效果来源，两类计数层允许混挂（AddPlusOne/AddMinusOne 表行保留）。</summary>
 }

@@ -83,7 +83,7 @@ namespace CardCore.Serialization
         public const int RCS_IsNegated = 2118117958;
         public const int RCS_IsNullified = 364844435;
         public const int RCS_Zone = 204131997;
-        public const int RCS_TargetFlags = 1780752744;
+        // RCS_TargetFlags 已删（2026-10-13 EffectTargeting 死基建清理——DTO 字段随删，tag 位留洞保序）
         public const int RCS_Keywords = 804741910;
         public const int RCS_Counters = 292357109;
         // 2026-10-11 资源重做：WasDepletedAsLand/RemainingLandTokens 两字段退役，

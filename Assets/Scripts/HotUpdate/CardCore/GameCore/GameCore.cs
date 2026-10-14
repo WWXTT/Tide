@@ -63,9 +63,10 @@ namespace CardCore
         /// <summary>
         /// 初始化所有子系统并注册到注册表
         /// </summary>
-        /// <summary>初始生命 30（2026-09-14 抵消退役后无单局兑换预算概念——流失扣上限的总量自然受 30 封顶）；
-        /// Reset 跨局复位同用此值（上限被 LifeUp/流失改动后回初始）。</summary>
-        public const int InitialLife = 30;
+        /// <summary>初始生命（2026-10-13 迁表：ValueSystemConfig GameRules.InitialLife；2026-09-14 抵消退役后
+        /// 无单局兑换预算概念——流失扣上限的总量自然受初始值封顶）；Reset 跨局复位同用此值。</summary>
+        public static int InitialLife
+            => (int)ValueSystemConfigManager.Instance.GetOrCreateConfig().GameRulesConfig.InitialLife;
 
         private void Initialize()
         {
@@ -117,7 +118,8 @@ namespace CardCore
             sbaEngine.RegisterChecker(new ZeroLifeChecker());
             sbaEngine.RegisterChecker(new ZeroToughnessChecker());
             sbaEngine.RegisterChecker(new ZoneChangeChecker());
-            sbaEngine.RegisterChecker(new CharacteristicChangeChecker());
+            // CharacteristicChangeChecker（±1/+1 成对湮灭）已删（2026-10-13 裁定：湮灭丢失效果来源——
+            // 两类计数层允许混挂，来源归因随层保留）
             // TextChangeChecker 暂不注册：当前 Card 模型无文本字段可对比（见 SBACheckers.cs）。
             _subSystems.Register(sbaEngine);
 
@@ -188,24 +190,9 @@ namespace CardCore
             // 对局史计数服务（P2a）：卡条件/AI 的单一计数源
             _subSystems.Register(new MatchStatsService());
 
-            // 角色亡语（2026-09-15 定案，判负效果化）：每个角色注册内置亡语
-            // OnRoleDeath → 宣告对手获得胜利（宣判即终局）；硬判负 LifeZero 退为兜底
-            //（亡语被全拦时 CheckLifeGameOver 收尾）。RegisterEffect 幂等（同源+同 Id）重跑安全；
-            // TriggerLimitPerTurn 默认 -1（无限，不受触发上限闸门）；效果可再给角色追加/改写亡语。
-            var roleDeathrattle = new EffectDefinition
-            {
-                Id = "ROLE_DEATHRATTLE",
-                DisplayName = "角色亡语：对手获得胜利",
-                TriggerTiming = TriggerTiming.OnRoleDeath,
-                ActivationType = EffectActivationType.Mandatory, // 强制触发：纯强制批合成双 Pass 直接结算（无响应窗口，宣判即终局）；与自动桶同批时后入居栈顶先结算
-                ElementCostPrepaid = true,                        // 内置效果无费用
-                Effects = new System.Collections.Generic.List<AtomicEffectInstance>
-                {
-                    new AtomicEffectInstance { Type = AtomicEffectType.DeclareVictory }
-                },
-            };
-            triggerEngine.RegisterEffect(roleDeathrattle, _player1, _player1);
-            triggerEngine.RegisterEffect(roleDeathrattle, _player2, _player2);
+            // 角色亡语注入（ROLE_DEATHRATTLE，2026-09-15）已删（2026-10-13）：
+            // 生命归零检测由 SBA（ZeroLifeChecker→ExecuteZeroLife 宣判）+ CheckLifeGameOver 兜底
+            // 两层覆盖，注入亡语属冗余层；效果侧宣判走 DeclareVictory 原子（表可达）。
         }
 
         /// <summary>
@@ -249,8 +236,9 @@ namespace CardCore
             EnforceHandLimitAsync(e.TurnPlayer).Forget();
         }
 
-        /// <summary>初始手牌总量。</summary>
-        public const int OpeningHandSize = 6;
+        /// <summary>初始手牌总量（2026-10-13 迁表：ValueSystemConfig GameRules.OpeningHandSize）。</summary>
+        public static int OpeningHandSize
+            => (int)ValueSystemConfigManager.Instance.GetOrCreateConfig().GameRulesConfig.OpeningHandSize;
 
         /// <summary>装备入场接线委托（2026-09-24：Reset 重订阅用缓存实例——lambda 无法退订，
         /// 每局 new 会随 SubscribeCore 累积，装备入场效果同进程多局重复触发）。</summary>
@@ -367,16 +355,8 @@ namespace CardCore
                 }
             }
 
-            // 再生（角色侧 2026-10-08 引擎统一）：回合玩家角色持有再生——回合开始恢复全部生命，
-            // 与卡侧同口径。再生表行已拉黑「不可作为连接光环」（太强+持续语义冲突，2026-10-09
-            // 角色通道开放后仍不可经光环投角色）——本路径为物化授予等通道保留（休眠）；
-            // 表上撤掉拉黑即经光环可达。
-            int roleRegen = player.GetMaxLife() - player.Life;
-            if (roleRegen > 0 && player.HasKeyword(KeywordRules.Regeneration))
-            {
-                player.Heal(roleRegen);
-                PublishEvent(new Attribute.HealEvent { Target = player, Amount = roleRegen });
-            }
+            // 再生角色侧通道已删（2026-10-13 裁定：再生=生物关键词，不可作为光环——
+            // 表行 MountKinds 本就拉黑光环投递，物化授予休眠通道随之退役）；卡侧关键词行为保留。
 
             // 抽一张牌（回合抽 = 本回合首次抽牌，抽卡时点对触发可见）
             ZoneManagerExtensions.DrawCard(ZoneManager, player, firstDrawOfTurn: true);
@@ -397,7 +377,8 @@ namespace CardCore
         /// 完成场面注入（TutorialScenarioSeeder）+ 回合起跳预置（TurnEngine.PrepareScenarioStart）。
         /// 缺省 false 行为不变。</param>
         /// <param name="p2LandCapBonus">P2 地牌槽加成（挑战模式 2026-10-06 难度 N 单值联动）：
-        /// P2 曲线换 ChallengeLandCurve(bonus)=[1+bonus..9+bonus]，开局即有额外槽、封顶同步抬高；
+        /// P2 曲线换 ChallengeLandCurve(bonus)=[1+bonus..7+bonus]，开局即有额外槽、封顶同步抬高
+        /// （GetLandCap 终钳 MaxStackedLandCap=14：N≥7 触顶）；
         /// P1 保持标准曲线。缺省 0 双方对称，行为不变。</param>
         /// <param name="p2ExtraOpeningDraws">P2 起手额外抽牌数（挑战模式）：对称起手填完后追加，
         /// 手牌无上限截断（HAND_SIZE_LIMIT 无强制点，已核实）。缺省 0 行为不变。</param>
@@ -618,7 +599,7 @@ namespace CardCore
             // 2) 玩家状态回满——生命/疲劳计数恢复初始
             // 3) 上限/指示物/关键词复位（2026-09-20 修复）：原 Life=Max 会把回血溢出（LifeUp）
             //    抬高、流失压低的上限原样带进新局——连跑多局开局出现 33/40 血即此；
-            //    角色残留的指示物与关键词轨一并清空，神佑（构造态默认）随后重新注入
+            //    角色残留的指示物与关键词轨一并清空
             foreach (var player in new[] { _player1, _player2 })
             {
                 var container = ZoneManager.GetZoneContainer(player);
@@ -631,7 +612,6 @@ namespace CardCore
                 player._counterSources.Clear();
                 player._keywords.Clear();
                 player._keywordGrants.Clear();
-                EntityEffectExtensions.AddKeyword(player, DeathRules.DivineProtection, KeywordLane.Status);
                 player.ResetFatigueCount();
                 player.IsAI = false;
 

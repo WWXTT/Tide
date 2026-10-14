@@ -8,7 +8,7 @@ namespace CardCore
     /// <summary>
     /// 卡牌效果可作用对象。
     /// 世界观定案：角色（玩家化身）就是普通生物单位——关键词存储放在 Entity 层，
-    /// Player 与 Card 同构持有（角色默认带神佑状态，见 DeathRules.DivineProtection）。
+    /// Player 与 Card 同构持有（角色默认带神佑状态已随 2026-10-13 神佑删除退役）。
     /// </summary>
     public abstract class Entity : ITimestamped
     {
@@ -32,8 +32,7 @@ namespace CardCore
 
         // 关键词轨别台账（2026-09-09 三轨制定案；2026-10-08 不叠加；2026-10-09 全轨取代修订）：
         // _keywords 是真身，台账按关键词全轨唯一——新授予无论轨别取代旧实例；
-        // 只服务清除口径与值/次数读数（换区清 Temp、净化清 Temp+Status，
-        // 豁免 PurgeProtectedKeywords、保留 Printed+Setting）。
+        // 只服务清除口径与值/次数读数（换区清 Temp、净化清 Temp+Status、保留 Printed+Setting）。
         internal List<KeywordGrant> _keywordGrants = new List<KeywordGrant>();
 
         public TimestampInfo TimestampInfo => _timestamp;
@@ -101,7 +100,7 @@ namespace CardCore
         // GrantKeywordHandler 判轨只有 Setting/Temp，运行时无任何写入者——轨制收敛）。
         /// <summary>临时关键词（换区清、净化清）</summary>
         Temp,
-        /// <summary>可移除状态（净化清；神佑另享净化豁免——PurgeProtectedKeywords）</summary>
+        /// <summary>可移除状态（净化清）</summary>
         Status,
     }
 
@@ -216,11 +215,8 @@ namespace CardCore
             _name = name;
             _maxHealth = maxHealth;
             _life = maxHealth;
-            // 世界观定案：角色=普通生物单位，默认持有神佑（可被效果移除的真实状态，非硬编码）。
-            // 神佑使其免疫一切效果死亡（剧毒/消灭/湮灭…），只接受生命值归零的死亡。
-            // 轨别=Status（可净化移除的状态）；但神佑对净化有抗性（2026-09-09 定案：
-            // 净化剥神佑+剧毒的组合无法计价平衡——PurgeProtectedKeywords 豁免，移除留给未来专用效果）。
-            EntityEffectExtensions.AddKeyword(this, Attribute.DeathRules.DivineProtection, KeywordLane.Status);
+            // 神佑（效果死亡免疫状态）已删（2026-10-13）：角色不被效果处决由目标层保障
+            //（消灭行 TargetFilter=NoRole）；未来「效果处决角色」按高价终极手段直写表。
         }
 
         public void AddToDeck(Card card)

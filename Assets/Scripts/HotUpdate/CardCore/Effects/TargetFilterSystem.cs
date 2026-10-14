@@ -57,19 +57,6 @@ namespace CardCore
     }
 
     /// <summary>卡牌类型筛选器</summary>
-    /// <summary>凡躯（Mortal，2026-09-10 神佑定案）：滤除持有神佑（DivineProtection）的实体——
-    /// 效果死亡族原子在表里带此 token，神佑角色自动不入候选——新击杀效果零引擎改动（表行带 token 即守约）。
-    /// 死亡门口（DeathRules.IsShielded）保留为延迟路径（毒回合计时钟）的安全网。</summary>
-    public class MortalFilter : ITargetFilter
-    {
-        public string DisplayName => "凡躯";
-
-        public List<Entity> Filter(List<Entity> candidates, EffectExecutionContext context)
-        {
-            return candidates.Where(e => !e.HasKeyword(Attribute.DeathRules.DivineProtection)).ToList();
-        }
-    }
-
     public class CardTypeFilter : ITargetFilter
     {
         private readonly Cardtype _cardType;
@@ -168,26 +155,7 @@ namespace CardCore
         }
     }
 
-    /// <summary>关键词筛选器</summary>
-    public class KeywordFilter : ITargetFilter
-    {
-        private readonly string _keyword;
-        private readonly bool _mustHave;
-        public string DisplayName => _mustHave ? $"拥有:{_keyword}" : $"没有:{_keyword}";
-
-        /// <param name="keyword">关键词名称</param>
-        /// <param name="mustHave">true=必须拥有，false=必须没有</param>
-        public KeywordFilter(string keyword, bool mustHave = true)
-        {
-            _keyword = keyword;
-            _mustHave = mustHave;
-        }
-
-        public List<Entity> Filter(List<Entity> candidates, EffectExecutionContext context)
-        {
-            return candidates.Where(e => e.HasKeyword(_keyword) == _mustHave).ToList();
-        }
-    }
+    /// <summary>关键词筛选器已删（2026-10-13 随扰魔退役——唯一使用者是 "Untargetable" 滤 token）。</summary>
 
     /// <summary>区域筛选器</summary>
     public class ZoneFilter : ITargetFilter
@@ -364,10 +332,11 @@ namespace CardCore
             // 去重（同实体可能经多种类重复入池）
             candidates = candidates.Distinct().ToList();
 
-            // 扰魔/潜行过滤搬家（2026-09-13 定案）：候选域保留对方侧扰魔/潜行——
-            // "不可成为目标"= 存在此范围但**弹窗不显示**，只有手动选择层滤（TargetResolver.ExcludeUnselectable）；
+            // 潜行隐藏口径（2026-09-13 定案；扰魔已随 2026-10-13 整体退役）：候选域保留对方侧潜行/隐密——
+            // "不可被选取"= 存在此范围但**弹窗不显示**，只有手动选择层滤（TargetResolver.ExcludeUnselectable）；
             // 随机（RandomTarget 标志）与全取档（Whole/WholeUnion）绕过选择、照常命中（范围波及）。
-            // 指名路径的硬校验仍在 EffectTargeting.CanTarget。法术护盾在效果执行时消耗（EffectHandlerRegistry），此处不滤。
+            // 指名路径无引擎硬校验（EffectTargeting 死基建已删从未接通）；预选路径（FilterPreselectedTargets）只校验紊乱+帷幕。
+            // 法术护盾在效果执行时消耗（EffectHandlerRegistry），此处不滤。
 
             // 突袭紊乱限制（定案，与攻击同口径）：紊乱指示物存在期间，其发动的效果不准以玩家为目标
             if (KeywordRules.HasRushSickness(context.Source))
@@ -377,9 +346,9 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 手动选择显示域（2026-09-13 扰魔/潜行定案；2026-10-04 隐密同口径）：从"选择"候选中隐藏
-        /// 对方侧扰魔/潜行/隐密单位——弹窗不显示、AI/无头代替选取（自动取前 N）同口径不可选；
-        /// 不改变范围本身（Full/Random 从完整候选域结算，照常命中）。指名硬校验走 EffectTargeting.CanTarget。
+        /// 手动选择显示域（2026-09-13 潜行定案；2026-10-04 隐密同口径；扰魔 2026-10-13 整体退役）：从"选择"候选中隐藏
+        /// 对方侧潜行/隐密单位——弹窗不显示、AI/无头代替选取（自动取前 N）同口径不可选；
+        /// 不改变范围本身（Full/Random 从完整候选域结算，照常命中）。
         /// </summary>
         public static List<Entity> ExcludeUnselectable(List<Entity> candidates, Player controller)
         {
@@ -389,8 +358,7 @@ namespace CardCore
                 if (!(c is Card card) || controller == null) return true;
                 var tc = card.GetController();
                 return tc == null || tc == controller
-                    || !(card.HasKeyword(KeywordRules.Untargetable)
-                         || card.GetCounterCount(Attribute.CounterRules.StealthCounter) > 0
+                    || !(card.GetCounterCount(Attribute.CounterRules.StealthCounter) > 0
                          || card.HasKeyword(KeywordRules.Concealed));
             }).ToList();
         }
@@ -543,16 +511,14 @@ namespace CardCore
                     case "NotRole": // 非角色：排除 Player 实体、保留一切卡——抹除混合域（生物+结界+地牌）剔角色用
                         filters.Add(new NotRoleFilter());
                         break;
+                    // "Mortal"（凡躯）token 已删（2026-10-13 神佑删除——滤器随之退役；
+                    // 旧存档数据串里的残留 token 走 default 静默忽略）
                     // "Spell" token 已删（2026-10-07 回响改普通效果——全表唯一使用行随之退役）
-                    case "Mortal": // 凡躯：滤除神佑持有者（神佑的 TargetFilter 实现，2026-09-10）
-                        filters.Add(new MortalFilter());
-                        break;
                     case "Stealth": // 仅指潜行中（状态类过滤定案：仅指持有该状态者；2026-10-08 指示物化改层数口径）
                         filters.Add(new CounterFilter(Attribute.CounterRules.StealthCounter));
                         break;
-                    case "Untargetable": // 仅指免疫（辟邪）持有者
-                        filters.Add(new KeywordFilter(KeywordRules.Untargetable, true));
-                        break;
+                    // "Untargetable"（仅扰魔持有者）token 已删（2026-10-13 扰魔整体退役；
+                    // 旧数据串残留走 default 静默忽略）
                     case "Player":
                         // 仅角色（2026-09-13 启用，原休眠 no-op）：滤除生物等卡——牺牲原子（持有者选单位送墓）等以角色为作用对象的效果
                         filters.Add(new RoleOnlyFilter());

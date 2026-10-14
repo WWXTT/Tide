@@ -14,6 +14,8 @@ namespace SynergyUI
     ///   每卡 CardConfigEntry（camelCase: id/cardName/supertype/power/life/costList/keywords/tags/effects）
     ///   costList = float 位置数组（2026-10-04：下标=ManaType 枚举序号，长度=枚举成员数）；
     ///   effects 项为 CardEffectData（PascalCase）。
+    ///   写侧=CardConfigCompact.EmitCompact 紧凑发射（2026-10-13 按值省略定案）——只写偏离默认的
+    ///   增量列，旧全量文件共存互读。
     ///
     /// 落盘到 StreamingAssets/Card/Cards.json（2026-09-14 统一定案+效果引用化；2026-09-21 定案：
     /// 卡属用户数据，与效果/卡组同住 Card/ 目录。编辑器读取（CardCatalog 卡池）与 UI 保存同一文件——
@@ -78,7 +80,9 @@ namespace SynergyUI
                 wrapper.cards.RemoveAll(c => c != null && c.id == replaceId);
             }
 
-            File.WriteAllText(path, JsonUtility.ToJson(wrapper, true));
+            // 紧凑发射（2026-10-13 对齐 EffectSlim.EmitCompact 按值省略定案）：只写偏离默认的增量列
+            //（illustration 立绘/模型检索名非空必写）；读侧 JsonUtility/TideJson 缺字段回落默认，旧全量共存互读。
+            File.WriteAllText(path, CardConfigCompact.EmitCompact(wrapper.cards, wrapper.deckConfig));
             return path;
         }
 
@@ -119,6 +123,7 @@ namespace SynergyUI
                 id = "C_" + ContentHasher.HashCard(card),
                 cardName = card.CardName ?? "",
                 supertype = card.Supertype.ToString(),
+                illustration = card.Illustration ?? "",
                 power = card.Power ?? 0,
                 life = card.Life ?? 0,
                 costList = new List<float>(), // 位置数组（2026-10-04：下标=ManaType 枚举序号），下方逐位回填

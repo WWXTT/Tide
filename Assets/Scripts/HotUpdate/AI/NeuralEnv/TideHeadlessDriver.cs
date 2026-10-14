@@ -140,7 +140,7 @@ namespace CardCore.AI.NeuralEnv
             AiStrategy opponentStrategy = null)
         {
             // 变形目标形态解析器：组合根注入（镜像 AiBattleDriver / BattleController）
-            CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
+            CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
 
             _core = GameCore.Instance;
             // RL 环境（2026-10-07 卡牌化口径）：双方 deck 自动挑一张合格结界充当技能

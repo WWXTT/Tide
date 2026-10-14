@@ -327,8 +327,9 @@ namespace CardCore
             return o;
         }
 
-        /// <summary>光环条目：stat/keyword 双空=无效条目不写；value/scope 非零才写。</summary>
-        private static JObject EmitLinkAura(LinkAuraData a)
+        /// <summary>光环条目：stat/keyword 双空=无效条目不写；value/scope 非零才写。
+        /// public=卡表发射（CardConfigCompact）共用同源口径（2026-10-13）。</summary>
+        public static JObject EmitLinkAura(LinkAuraData a)
         {
             if (string.IsNullOrEmpty(a.stat) && string.IsNullOrEmpty(a.keyword)) return null;
             var o = new JObject();
@@ -398,7 +399,8 @@ namespace CardCore
             return o;
         }
 
-        private static JArray EmitAtoms(List<AtomicEffectEntry> atoms)
+        /// <summary>public=卡表发射（CardConfigCompact.payload）共用同源口径（2026-10-13）。</summary>
+        public static JArray EmitAtoms(List<AtomicEffectEntry> atoms)
         {
             var arr = new JArray();
             if (atoms == null) return arr;
@@ -412,8 +414,9 @@ namespace CardCore
 
         /// <summary>原子紧凑发射：恒写 refId；增量只在偏离默认时写（value≠1 / str 非空 / amp≠0 /
         /// kinds 非空 / count≠-2 / rand≠-1）。branch=null 或幽灵（settle 越界——JsonUtility 物化残渣）
-        /// 一律不写；非幽灵 branch 恒带 then 数组（空数组也写——读侧/UI 就地 Add 不判 null）。</summary>
-        private static JObject EmitAtom(AtomicEffectEntry a)
+        /// 一律不写；非幽灵 branch 恒带 then 数组（空数组也写——读侧/UI 就地 Add 不判 null）。
+        /// public=卡表发射（CardConfigCompact.payload）共用同源口径（2026-10-13）。</summary>
+        public static JObject EmitAtom(AtomicEffectEntry a)
         {
             if (a == null || string.IsNullOrEmpty(a.refId)) return null;
             var o = new JObject { ["refId"] = a.refId };

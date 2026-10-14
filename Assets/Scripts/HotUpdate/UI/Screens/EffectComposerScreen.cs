@@ -181,7 +181,7 @@ namespace SynergyUI
         private TMP_Text _costLabel; // 顶栏费用文本 lbl-effect-cost（2026-10-05 预制体改版：方格→文本；无效组合不显示）
         private Button _deleteBtn;            // 删除当前库效果（仅效果表载入态可用）
         private UInputField _filterName;
-        private UiKit.Dropdown _timingDropdown, _activationDropdown, _filterTypeDropdown;
+        private UiKit.Dropdown _timingDropdown, _activationDropdown;
         // 发动四参数（2026-10-09 prefab 重排·activate-bar 静态四组 way/timing/speed/take-effect）：
         // 节点常驻不随克隆重建——写入走当前 _graph.header，值对齐见 SyncActivateBarValues；
         // 速度/生效次数组显隐随 SyncActivationVisibility 联动
@@ -191,9 +191,13 @@ namespace SynergyUI
         private TMP_Text _tableToggleLabel;      // 合并表切换按钮的标签（原 btn-reload-atoms/btn-load-effects）
         private List<TriggerTiming> _timings;
 
-        // 筛选状态：原子库=表行中文名；效果表=内含原子名。近似搜索：原子库=中文名∪描述模板；效果表=名∪id∪组成简称
-        private string _filterTypeZh; // null = 全部
-        private List<string> _filterTypeChoices = new List<string> { "全部" };
+        // 筛选状态（2026-10-13 分类下拉退役：dropdown-filter-type 节点已删，pool-filter 颜色行接管）：
+        // 颜色=单选（选色即筛费用含该色的原子，默认「全部」；激活态=chip Outline 开关）。
+        // 近似搜索（2026-10-13 多词AND+语料扩展）：
+        // 原子库=名∪描述∪Tags∪MountKinds∪TargetKinds；效果表=名∪id∪组成简称∪摘要全文；光环库=标题∪meta
+        private UIColor _colorFilter = UIColor.All;
+        private readonly Dictionary<UIColor, Button> _filterChips = new Dictionary<UIColor, Button>();
+        private RectTransform _poolFilter; // 颜色行容器（chip-{Color} 预制体烘焙，Build 一次接线）
 
         // 发动方式（2026-10-04 定案：强制退出玩家选择——留系统自用[分支/光环/宣判锁档]，
         // 玩家只能在 自动/主动 上选；数据层 Mandatory 照旧装载）。
@@ -340,8 +344,8 @@ namespace SynergyUI
             EnsureDescStrip();
 
             // 右：展示区（双模式）
-            _filterTypeDropdown = BindDropdown("dropdown-filter-type",
-                new List<string> { "全部" }, 0);
+            _poolFilter = Find("pool-filter");
+            BindPoolFilter(); // 颜色行 chip-{Color} 一次接线（单选，默认「全部」——激活态=Outline）
             _filterName = FindInput("field-filter-name");
             if (_filterName != null)
                 _filterName.onValueChanged.AddListener(_ =>
@@ -403,9 +407,7 @@ namespace SynergyUI
             // 变形/召唤模板解析器：组合根注入（CardCore 不依赖 UI 层——同 BattleController 口径）。
             // 2026-10-12 补：此前仅战斗/联机/无头接线，合成器费用预览里 SummonToken 模板解析恒
             // null → 召唤计价显示 0；进本屏即接上（幂等——静态委托重复赋同值无副作用）。
-            CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
-
-            BuildFilterCallbacks(); // 分类下拉回调（Build 后一次；重读原子表只重建选项）
+            CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
 
             // 卡编辑会话（一次性消费）：进入即改写 _graph 为该效果的深拷贝
             var (card, index) = ComposerSession.Take();
@@ -445,7 +447,7 @@ namespace SynergyUI
             // 空库自诊断：正常应 ≥91 行（87+改写仪典 4 行）——为空说明表未装载或初始化半途出错（查 Console）
             int libCount = _libraryList?.Content?.childCount ?? 0;
             if (libCount == 0)
-                ShowToast($"原子库为空（表加载失败或初始化异常——查 Console；分类项 {_filterTypeChoices?.Count ?? 0}）");
+                ShowToast("原子库为空（表加载失败或初始化异常——查 Console）");
         }
 
         // ======================================== 元信息（顶栏） ========================================
@@ -492,7 +494,9 @@ namespace SynergyUI
                 _activationDropdown.Changed += (idx, _) =>
                 {
                     if (idx >= 0 && idx < ActivationChoices.Length)
+                    {
                         _graph.header.ActivationType = ActivationChoices[idx].value;
+                    }
                     SyncActivationVisibility();
                 };
         }
@@ -2027,8 +2031,7 @@ namespace SynergyUI
 
         /// <summary>校验区口径的全局唯一检查（null=合规）：库隐藏口径下正常组合不会产生重复
         /// ——本区仅拦载入的旧数据/旁路落位（报错时保存禁用，删其一即解）。</summary>
-        private string DuplicateAtomError()
-        {
+        private string DuplicateAtomError()        {
             var seen = new HashSet<string>();
             string dupName = null;
             void Check(AtomicEffectEntry a)
@@ -2049,6 +2052,10 @@ namespace SynergyUI
 
         private static bool IsSummonTokenEntry(AtomicEffectEntry a)
             => AtomicEffectTable.GetByHashId(a?.refId)?.EnumName == nameof(AtomicEffectType.SummonToken);
+
+        /// <summary>变形赋予原子（2026-10-13 临摹定案）：与召唤衍生物共用「引用卡ID」输入行。</summary>
+        private static bool IsGrantMorphEntry(AtomicEffectEntry a)
+            => AtomicEffectTable.GetByHashId(a?.refId)?.EnumName == nameof(AtomicEffectType.GrantMorph);
 
         // ======================================== 每原子行与卡面 des（2026-10-09 下沉定案） ========================================
 
@@ -2134,31 +2141,33 @@ namespace SynergyUI
                 if (hiddenDomain) tg.interactable = false; // 隐蔽域：随机必须开启，不可修改
                 else tg.onValueChanged.AddListener(on =>
                 {
-                    atom.rand = on ? 1 : 0; // 随机=正交标志——不弹窗从完整候选域抽取（潜行/扰魔挡不住）
+                    atom.rand = on ? 1 : 0; // 随机=正交标志——不弹窗从完整候选域抽取（潜行挡不住）
                     refresh?.Invoke();
                 });
                 UiKit.Described(tg,
-                    "目标随机：开启后这个原子不再弹窗选目标，改为在其作用范围内随机抽取（潜行、扰魔挡不住随机）。");
+                    "目标随机：开启后这个原子不再弹窗选目标，改为在其作用范围内随机抽取（潜行挡不住随机）。");
             }
         }
 
-        /// <summary>每原子衍生物行（derivative：InputField=模板卡 ID str、num=召唤数量 1-3 value）——
-        /// 仅召唤衍生物（SummonToken）原子显示（2026-10-09 迁自设置盒——原全局扫描 FindSummonTokenAtom 退役）。
-        /// 槽卡与奖励卡共用。</summary>
+        /// <summary>每原子引用卡行（derivative：InputField=引用卡ID str、num=召唤数量 1-3 value）——
+        /// 2026-10-13 定案：召唤衍生物与变形赋予共用「引用卡ID」（召唤可选数量 1-3、模板须生物；
+        /// 变形数量恒 1、引用卡须生物或结界）。槽卡与奖励卡共用。</summary>
         private void BindAtomDerivativeRow(RectTransform host, AtomicEffectEntry atom)
         {
             var row = UiKit.FindDeep(host, "derivative");
             if (row == null)
             {
-                Debug.LogError("[EffectComposer] atom-card 缺 derivative 行（衍生物ID/召唤数量）——检查 EffectUI.prefab");
+                Debug.LogError("[EffectComposer] atom-card 缺 derivative 行（引用卡ID/召唤数量）——检查 EffectUI.prefab");
                 return;
             }
             bool isSummon = IsSummonTokenEntry(atom);
-            row.gameObject.SetActive(isSummon);
-            if (!isSummon) return;
+            bool isGrantMorph = IsGrantMorphEntry(atom);
+            bool show = isSummon || isGrantMorph;
+            row.gameObject.SetActive(show);
+            if (!show) return;
 
             var idField = UiKit.FindDeep(row, "InputField")?.GetComponentInChildren<TMP_InputField>(true);
-            if (idField == null) Debug.LogError("[EffectComposer] derivative 行缺 InputField——召唤ID不可编；检查 EffectUI.prefab");
+            if (idField == null) Debug.LogError("[EffectComposer] derivative 行缺 InputField——引用卡ID不可编；检查 EffectUI.prefab");
             else
             {
                 idField.SetTextWithoutNotify(atom.str ?? "");
@@ -2166,14 +2175,25 @@ namespace SynergyUI
                 idField.onEndEdit.AddListener(_ =>
                 {
                     atom.str = idField.text.Trim();
-                    RefreshSlots(); // 摘要（{衍生物}→模板卡名）与装载校验随写刷新
+                    RefreshSlots(); // 摘要（{衍生物}/{引用卡}→模板卡名）与装载校验随写刷新
                 });
-                UiKit.Described(idField,
-                    "衍生物模板 ID：指向一张真实生物卡——实例=该卡全参数复制、恒落战场（白板模板如 "
-                    + "token_0_1/token_1_1/token_2_2/token_3_3）。填不存在的 ID 装载时构筑期拦截。");
+                UiKit.Described(idField, isGrantMorph
+                    ? "引用卡ID（变形赋予）：指向一张真实生物或结界卡——目标变成那张卡（复制其身份/属性/文本效果，"
+                      + "跳过其规则光环），附加一层变形指示物；发动其主动效果按变形前后费差补蓝。数量恒 1。"
+                    : "引用卡ID（召唤衍生物）：指向一张真实生物卡——实例=该卡全参数复制、恒落战场（白板模板如 "
+                      + "token_0_1/token_1_1/token_2_2/token_3_3）。填不存在的 ID 装载时构筑期拦截。");
             }
 
-            var numDd = UiKit.FindDeep(row, "num")?.GetComponent<TMP_Dropdown>();
+            var numNode = UiKit.FindDeep(row, "num");
+            // 数量下拉仅召唤显示（2026-10-13 变形赋予恒 1——隐藏控件并钉值）
+            if (numNode != null) numNode.gameObject.SetActive(isSummon);
+            if (isGrantMorph)
+            {
+                atom.value = 1;
+                return;
+            }
+
+            var numDd = numNode?.GetComponent<TMP_Dropdown>();
             if (numDd == null) Debug.LogError("[EffectComposer] derivative 行缺 num 下拉——召唤数量不可编；检查 EffectUI.prefab");
             else
             {
@@ -2334,7 +2354,7 @@ namespace SynergyUI
             }
             AtomicEffectTable.Reload();
             CardIdentityService.InvalidateTableCache();
-            SetRightMode(RightMode.Atoms); // 内含 RebuildFilterTypeChoices（重置"全部"）+ RefreshLibrary
+            SetRightMode(RightMode.Atoms); // 内含 RefreshLibrary（颜色筛选跨模式保留）
             ShowToast($"原子表已重读：{_libraryList?.Content?.childCount ?? 0} 行入列");
         }
 
@@ -2345,8 +2365,7 @@ namespace SynergyUI
             _libraryList.Rect.gameObject.SetActive(mode == RightMode.Atoms);
             _effectsList.Rect.gameObject.SetActive(mode == RightMode.Effects);
 
-            // 筛选栏两模式共用：分类选项随模式重建（原子库=表行中文名；效果表=内含原子名并集）
-            RebuildFilterTypeChoices();
+            // 筛选栏两模式共用：颜色筛选/搜索跨模式保留（原分类下拉随 dropdown-filter-type 退役）
 
             // 合并切换按钮标签：常显"将切到哪边"
             if (_tableToggleLabel != null)
@@ -2372,16 +2391,16 @@ namespace SynergyUI
                 var captured = fx;
                 var parts = EffectAtomCfgs(captured); // 组成部分表行（分类/色点/简称检索共用）
 
-                // 效果分类：任一组成部分的表行中文名命中即入选
-                if (_filterTypeZh != null && !parts.Any(c => c?.DisplayName == _filterTypeZh)) continue;
+                // 颜色筛选：任一组成部分费用含选中色即入选（不计价效果仅「全部」下出现）
+                if (_colorFilter != UIColor.All && !parts.Any(c => AtomMatchesColor(c, _colorFilter))) continue;
 
-                // 近似检索：名 ∪ id ∪ 组成简称
-                if (!string.IsNullOrEmpty(q))
+                // 近似检索（2026-10-13 语料扩展+多词 AND）：名∪id∪组成简称∪完整摘要文本
+                if (SearchQuery.IsActive(q))
                 {
                     string abbr = string.Concat(parts.Select(c => c?.DisplayName ?? ""));
-                    if (!(captured.name ?? "").Contains(q, StringComparison.OrdinalIgnoreCase)
-                        && !(captured.id ?? "").Contains(q, StringComparison.OrdinalIgnoreCase)
-                        && !abbr.Contains(q, StringComparison.OrdinalIgnoreCase)) continue;
+                    string corpus = string.Join("\n", captured.name, captured.id, abbr,
+                        AtomText.RenderEffectSummary(captured));
+                    if (!SearchQuery.Match(corpus, q)) continue;
                 }
 
                 MakeListRow(_effectsList.Content,
@@ -2420,45 +2439,73 @@ namespace SynergyUI
                 : $"已载入：{_graph.name}（编辑后保存覆盖）");
         }
 
-        // ---- 筛选栏 ----
+        // ---- 筛选栏（2026-10-13 分类下拉退役：pool-filter 颜色行接管） ----
 
-        /// <summary>分类选项随模式重建并重置为"全部"：原子库=表行中文名（锁定关键词行除外）；
-        /// 效果表=库内效果的内含原子名并集。</summary>
-        private void RebuildFilterTypeChoices()
+        /// <summary>颜色行绑定：pool-filter 预制体烘焙 chip-{Color}，Build 一次接线；单选——
+        /// 点色即筛费用含该色的原子、点「全部」复位（再点已选色不动作）；激活态=Outline 开关，
+        /// 默认「全部」亮。缺 chip 容错跳过（本 prefab 无灰 chip——灰费行仅在「全部」下出现）。</summary>
+        private void BindPoolFilter()
         {
-            var types = new List<string> { "全部" };
-            if (_rightMode == RightMode.Effects)
-                types.AddRange(EffectCategoryNames());
-            else
-                types.AddRange(AllTableRows()
-                    .Where(r => !IsLockedKeywordRow(r))
-                    .Select(r => r.DisplayName).Where(n => !string.IsNullOrEmpty(n))
-                    .Distinct().OrderBy(n => n, StringComparer.CurrentCulture));
-            _filterTypeChoices = types;
-            _filterTypeZh = null;
-            _filterTypeDropdown?.SetOptions(types, 0);
-        }
-
-        /// <summary>OnEnter 里挂分类回调（Build 之后一次）。</summary>
-        private void BuildFilterCallbacks()
-        {
-            if (_filterTypeDropdown != null)
-                _filterTypeDropdown.Changed += (idx, _) =>
+            if (_poolFilter == null)
             {
-                _filterTypeZh = idx <= 0 ? null : _filterTypeChoices[Mathf.Max(0, idx)];
-                RefreshLibrary();
-                if (_rightMode == RightMode.Effects) RefreshEffectsList();
-            };
+                Debug.LogError("[EffectComposer] 缺 pool-filter（颜色筛选行）——检查 EffectUI.prefab");
+                return;
+            }
+            foreach (UIColor color in Enum.GetValues(typeof(UIColor)))
+            {
+                var captured = color;
+                var chipRt = UiKit.FindDeep(_poolFilter, $"chip-{captured}");
+                var chip = chipRt != null ? chipRt.GetComponentInChildren<Button>(true) : null;
+                if (chip == null) continue;
+                chip.onClick.AddListener(() =>
+                {
+                    if (_colorFilter == captured) return;
+                    _colorFilter = captured;
+                    UpdateFilterChips();
+                    RefreshLibrary();
+                    if (_rightMode == RightMode.Effects) RefreshEffectsList();
+                });
+                _filterChips[captured] = chip;
+            }
+            UpdateFilterChips();
         }
 
-        /// <summary>效果分类名（效果表模式）：库内全部效果的内含原子中文名并集（分支 then 奖励计入）。</summary>
-        private static IEnumerable<string> EffectCategoryNames()
+        /// <summary>激活态切换（单选）：选中 chip 加描边；Outline 缺失时补挂（同 CardComposerScreen 口径）。</summary>
+        private void UpdateFilterChips()
         {
-            var names = new HashSet<string>();
-            foreach (var fx in EffectLibrarySerializer.LoadAll())
-                foreach (var cfg in EffectAtomCfgs(fx))
-                    if (!string.IsNullOrEmpty(cfg.DisplayName)) names.Add(cfg.DisplayName);
-            return names.OrderBy(n => n, StringComparer.CurrentCulture);
+            foreach (var kv in _filterChips)
+            {
+                bool active = kv.Key == _colorFilter;
+                var ol = kv.Value.GetComponent<Outline>();
+                if (active && ol == null)
+                {
+                    ol = kv.Value.gameObject.AddComponent<Outline>();
+                    ol.effectColor = UiStyle.TextPrimary;
+                    ol.effectDistance = new Vector2(1.5f, -1.5f);
+                }
+                if (ol != null) ol.enabled = active;
+            }
+        }
+
+        /// <summary>选色判定：「全部」恒过；选色要求费用含该色份额（>0）——不计价行仅在全模式下出现。</summary>
+        private static bool AtomMatchesColor(AtomicEffectConfig cfg, UIColor color)
+        {
+            if (color == UIColor.All) return true;
+            var cost = cfg?.ManaList;
+            return cost != null && cost[ManaOf(color)] > 0f;
+        }
+
+        private static ManaType ManaOf(UIColor color)
+        {
+            switch (color)
+            {
+                case UIColor.Red: return ManaType.Red;
+                case UIColor.Blue: return ManaType.Blue;
+                case UIColor.Green: return ManaType.Green;
+                case UIColor.White: return ManaType.White;
+                case UIColor.Black: return ManaType.Black;
+                default: return ManaType.Gray;
+            }
         }
 
         /// <summary>效果的组成部分表行（分类/色点/简称检索共用）：各步骤原子 + 槽级分支 then 奖励
@@ -2493,6 +2540,12 @@ namespace SynergyUI
 
         private static IEnumerable<AtomicEffectConfig> AllTableRows()
             => AtomicEffectTable.GetAll().Where(r => r != null && !string.IsNullOrEmpty(r.EnumName));
+
+        /// <summary>原子行搜索语料（2026-10-13）：名∪描述模板∪Tags∪MountKinds∪TargetKinds
+        ///（后三者中文 CSV 直收——搜「关键词」「指示物」「连接光环」等类别词即中）。</summary>
+        private static string AtomCorpus(AtomicEffectConfig row)
+            => row == null ? "" : string.Join("\n",
+                row.DisplayName, row.Description, row.Tags, row.MountKinds, row.TargetKinds);
 
         /// <summary>当前选中槽的可放置性谓词（库只展示可用项——与分类/搜索取交集）。
         /// 附带中文上下文（库顶标签显示）。主干槽=派生主干资格+非错边+域非空（引擎主干行仅第一槽——互斥）；
@@ -2549,30 +2602,49 @@ namespace SynergyUI
 
             var pred = CurrentSlotPredicate(out _); // 过滤缘由说明行 lbl-lib-context 已移除（2026-10-07 定案）
             // 全局唯一（2026-10-09 隐藏口径）：已入组合（主干/奖励）的原子从库中隐藏——用过即隐不拒绝，
-            // 换掉/删除后随本刷新回归；与分类/搜索/槽位可用性取交集
+            // 换掉/删除后随本刷新回归；与颜色/搜索/槽位可用性取交集
             var usedRefIds = UsedAtomRefIds();
+            var payloads = new List<LibPayload>();
             foreach (var row in AllTableRows())
             {
                 if (!Enum.TryParse<AtomicEffectType>(row.EnumName, out var type)) continue;
                 // 锁定关键词（攻击/守卫 + 系统内部行）直接隐藏——不可组合成效果
                 if (IsLockedKeywordRow(row)) continue;
                 if (usedRefIds.Contains(row.HashId)) continue;
-                if (_filterTypeZh != null && row.DisplayName != _filterTypeZh) continue;
-                // 近似搜索：中文名 ∪ 描述模板 两列并集
-                if (!string.IsNullOrEmpty(_filterName.text)
-                    && !(row.DisplayName ?? "").Contains(_filterName.text, StringComparison.OrdinalIgnoreCase)
-                    && !(row.Description ?? "").Contains(_filterName.text, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!AtomMatchesColor(row, _colorFilter)) continue;
+                // 近似搜索（2026-10-13 语料扩展+多词 AND）：名∪描述∪Tags∪MountKinds∪TargetKinds
+                if (!SearchQuery.Match(AtomCorpus(row), _filterName.text)) continue;
 
                 var payload = new LibPayload(type, row);
-                // 槽位可用性：与分类/搜索取交集——只展示当前选中槽真正可落的原子
+                // 槽位可用性：与颜色/搜索取交集——只展示当前选中槽真正可落的原子
                 if (pred != null && !pred(payload)) continue;
-                MakeLibraryRow(payload);
+                payloads.Add(payload);
             }
+            // 费用升序（2026-10-13 定案）：按表行 ManaList 合计（小数直通口径）排——不计价行合计 0
+            // 列最前；同价保表序（OrderBy 稳定排序）
+            foreach (var payload in payloads.OrderBy(p => p.Cfg?.ManaList?.Total ?? 0f))
+                MakeLibraryRow(payload);
         }
 
         private void MakeLibraryRow(LibPayload payload) =>
-            MakeListRow(_libraryList.Content, payload.Cfg.Description, // 2026-10-08 定案：原子行不显示名字——描述独占 meta 单列
+            MakeListRow(_libraryList.Content,
+                payload.Cfg.Description + CounterClearSuffix(payload.Cfg.Tags), // 2026-10-13 定案：指示物类行统一追加清除方式
                 DotColor(ColorFilter.OfTagsCsv(payload.Cfg.Tags)), AtomCosts(payload.Cfg), () => QuickAdd(payload));
+
+        /// <summary>指示物类原子介绍栏统一后缀（2026-10-13 定案）：清除方式按表行 Tags 四分类标注
+        ///（CounterClass 的表侧镜像——衰退=回合末倒数+换区清 / 换区清除=常驻不自动消退 /
+        /// 生效自减=生效消耗层·换区不清）。非指示物行返回空串；系统型无玩家表行，不设分支。</summary>
+        private static string CounterClearSuffix(string tagsCsv)
+        {
+            if (string.IsNullOrEmpty(tagsCsv)) return "";
+            if (tagsCsv.Contains("衰退型"))
+                return "；清除方式：持有者回合结束−1层、归零消失，换区清除";
+            if (tagsCsv.Contains("换区清除型"))
+                return "；清除方式：换区清除（常驻，不随时间消退）";
+            if (tagsCsv.Contains("生效自减型"))
+                return "；清除方式：生效时消耗层，不随换区清除（跨区存活），净化可清";
+            return "";
+        }
 
         /// <summary>原子单价 → 方格明细（费用构成各色份额取整；序数序=枚举序；null=不计价行）。</summary>
         private static ElementCost AtomCosts(AtomicEffectConfig cfg)
@@ -2651,9 +2723,8 @@ namespace SynergyUI
         {
             void AddRow(string title, string meta, UIColor color, Action onAdd)
             {
-                if (!string.IsNullOrEmpty(_filterName.text)
-                    && !title.Contains(_filterName.text, StringComparison.OrdinalIgnoreCase)
-                    && !meta.Contains(_filterName.text, StringComparison.OrdinalIgnoreCase)) return;
+                // 近似搜索（2026-10-13 多词 AND）：标题∪meta
+                if (!SearchQuery.Match(title + "\n" + meta, _filterName.text)) return;
                 MakeListRow(_libraryList.Content, meta, DotColor(color), null, onAdd);
             }
 

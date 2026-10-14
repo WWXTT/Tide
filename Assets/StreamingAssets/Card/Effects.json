@@ -329,6 +329,47 @@
           }
         }
       ]
+    },
+    {
+      "id": "436B60A0",
+      "name": "测试主动",
+      "timing": 19
+    },
+    {
+      "id": "A49627EC",
+      "name": "测试被动",
+      "timing": 9
+    },
+    {
+      "id": "ET2060003",
+      "name": "巨壁的自我激励：攻击宣言时+1/+1",
+      "timing": 7,
+      "activation": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "8bc5b925",
+            "kinds": [
+              0
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ET2060005",
+      "name": "纳川仪典投放：手牌上限15+免疫疲劳",
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "1b257704",
+            "value": 0,
+            "str": "HandLimitNoFatigue"
+          }
+        }
+      ]
     }
   ]
 }

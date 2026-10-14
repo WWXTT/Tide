@@ -399,20 +399,29 @@ namespace YGOImport
         {
             var report = new List<string>();
             SpawnRepresentatives();
+            // moved 取全程峰值而非末帧快照：idle 迈步归零后部分体型常驻动作只剩缓摆/浮动，
+            // 末帧恰逢过零会误报 moved=0（2026-10-13 蛇 idle=rest 后该隐患已潜伏）
             float t = 0f;
+            var maxMoved = new int[_entries.Count];
             for (int i = 0; i < frames; i++)
             {
                 t += 1f / 60f;
-                for (int j = 0; j < _entries.Count; j++) _entries[j].Anim.EditorTick(t, 1f / 60f);
+                for (int j = 0; j < _entries.Count; j++)
+                {
+                    _entries[j].Anim.EditorTick(t, 1f / 60f);
+                    var d = _entries[j].Anim.Driver;
+                    if (d == null) continue;
+                    int moved = 0;
+                    foreach (var b in d.Bones)
+                        if (Quaternion.Angle(b.T.localRotation, b.RestLocal) > 0.5f) moved++;
+                    if (moved > maxMoved[j]) maxMoved[j] = moved;
+                }
             }
-            foreach (var e in _entries)
+            for (int j = 0; j < _entries.Count; j++)
             {
-                var d = e.Anim.Driver;
-                if (d == null) { report.Add($"{e.Go.name}:driver=null"); continue; }
-                int moved = 0;
-                foreach (var b in d.Bones)
-                    if (Quaternion.Angle(b.T.localRotation, b.RestLocal) > 0.5f) moved++;
-                report.Add($"{e.Go.name}:{MonsterRigCatalog.MoveLabel(d.MoveType)}/bones={d.Bones.Count}/moved={moved}");
+                var d = _entries[j].Anim.Driver;
+                if (d == null) { report.Add($"{_entries[j].Go.name}:driver=null"); continue; }
+                report.Add($"{_entries[j].Go.name}:{MonsterRigCatalog.MoveLabel(d.MoveType)}/bones={d.Bones.Count}/moved={maxMoved[j]}");
             }
             Close(); // OnDisable → DestroyPreviewObjects
             return report;

@@ -13,7 +13,7 @@ namespace SynergyUI
     /// 挑战模式界面（2026-10-06）：选卡组 + 选难度（1-9 单值联动）后进战场。
     /// 纯代码屏（PrefabName=null，UiKit 构建）——节点按名稳定（deck-row-*、btn-diff-*、
     /// lbl-preview 等），验证走层级/字符串断言（截图验收禁令口径）。
-    /// 难度语义：电脑地牌槽上限 9+N、起手 6+N（GameCore.InitGame 加成参数 +
+    /// 难度语义：电脑地牌槽上限 7+N（N≥7 触顶 14）、起手 6+N（GameCore.InitGame 加成参数 +
     /// ResourceCurve.ChallengeLandCurve）；九档全开自由选，战绩落 ChallengeProgressManager。
     /// </summary>
     public sealed class ChallengeScreen : UIScreen
@@ -51,7 +51,7 @@ namespace SynergyUI
             // ---- 难度选择 ----
             var diffHead = UiKit.Row("diff-header", Root, spacing: 8f);
             UiKit.Label("diff-title", diffHead, "难度", UiStyle.BodySize, UiStyle.TextBody);
-            UiKit.Label("diff-note", diffHead, "电脑：地牌槽上限 9+N · 起手 6+N（N=难度）",
+            UiKit.Label("diff-note", diffHead, "电脑：地牌槽上限 7+N（触顶14） · 起手 6+N（N=难度）",
                 UiStyle.SmallSize, UiStyle.TextFaint);
             var diffRow = UiKit.Row("diff-row", Root, spacing: 6f);
             for (int d = 1; d <= ChallengeProgressManager.MaxDifficulty; d++)
@@ -139,7 +139,7 @@ namespace SynergyUI
         {
             var progress = ChallengeProgressManager.Instance;
             string deckText = _selectedDeckName ?? RandomDeckLabel;
-            _preview.text = $"卡组：{deckText}　难度 {_difficulty}：电脑地牌槽上限 {9 + _difficulty}、起手 {6 + _difficulty} 张"
+            _preview.text = $"卡组：{deckText}　难度 {_difficulty}：电脑地牌槽上限 {7 + _difficulty}、起手 {6 + _difficulty} 张"
                 + $"（战绩 {progress.RecordText(_difficulty)}）";
         }
 

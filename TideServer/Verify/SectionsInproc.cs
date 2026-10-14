@@ -174,7 +174,8 @@ namespace TideServer.Verify
                 core.InitGame(CardLoader.BuildDeck(_deck, 1), CardLoader.BuildDeck(_deck, 1));
                 core.Player1.IsAI = true; // 结算期残余交互走自动选择（与 AI 局同口径）
                 core.Player2.IsAI = true;
-                CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
+                // 引用卡ID 解析器（2026-10-13 临摹退役：原 MorphSystem.ResolveMorphTarget 迁 SummonToken）
+                CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
 
                 var enumerator = new LegalActionEnumerator();
                 var banned = new HashSet<string>();

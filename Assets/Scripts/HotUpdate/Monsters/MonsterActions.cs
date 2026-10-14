@@ -7,7 +7,7 @@ namespace MonsterRig
     /// <summary>动作类别（挂在模型身上的 MonsterRigAnimator.Play 播放）。</summary>
     public enum MonsterAction
     {
-        Breath,   // 呼吸（默认待机：体型呼吸+轻步态）
+        Breath,   // 呼吸（默认待机：呼吸族+缓摆；不迈步——迈步只在 Walk）
         Walk,     // 行走（原地步态加强版；宿主移动模型时播这个）
         Pause,    // 暂停（冻结当前姿态；再播 Breath/Walk 恢复）
         Attack,   // 攻击（一次性前扑，叠在当前状态上）

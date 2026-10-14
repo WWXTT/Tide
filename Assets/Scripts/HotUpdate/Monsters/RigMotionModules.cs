@@ -35,6 +35,9 @@ namespace MonsterRig
 
         // 体型族（2026-10-12 用户验收：左右摇摆幅度×2）
         public const float SnakeWaveDeg = 42f;  // 2026-10-13 用户验收：幅度×3（原 14）
+        /// <summary>蛇形待机扭动占比：idle 躯干轻微扭动（蛇无法静止保持平衡），行走=1。
+        /// 只作用于行波幅度；直化权重仍裸 blend——idle 保持盘曲不拉直。</summary>
+        public const float SlitherIdleWriggle = 0.15f;
         public const float SnakeSegDelay = 0.55f;   // 相邻节相位延迟（弧度）
         public const float BipedArmSwingDeg = 8f;
         public const float BipedBodyRollDeg = 4f;
@@ -72,7 +75,7 @@ namespace MonsterRig
         public const float AttackPitchDeg = 10f;
 
         // 动作状态（呼吸↔行走）
-        public const float IdleGaitShare = 0.4f;  // 呼吸态步态幅度占比（行走=1）
+        public const float IdleGaitShare = 0.4f;  // 呼吸态缓摆类幅度占比（行走=1；迈步类[腿步态/摆臂]走裸 blend，idle 不残留步态）
         public const float WalkBobBoost = 1.4f;   // 行走时根浮动增幅
         public const float StateBlendSpeed = 3f;  // 状态幅度过渡速率（1/s）
         public const float ReviveDuration = 0.5f; // 倒地→复位补间时长
@@ -171,7 +174,7 @@ namespace MonsterRig
     {
         readonly BoneRef _root;
         readonly Vector3 _upLocal;      // 世界 up 在根父系的表达
-        readonly Vector3 _fwdLocal;     // 根前向（攻击前扑方向，父系表达）
+        readonly Vector3 _fwdLocal;     // 根前向=攻击前扑方向（父系表达）；蛇形移动同轴，方向恒一致
         readonly Vector3 _rightLocal;   // 根右向（攻击俯冲轴，父系表达）
         float _popT = -1f;              // <0 = 未激活
         float _hitT = -1f;
@@ -282,8 +285,10 @@ namespace MonsterRig
     // ============================ 链条类（蛇身/尾/软体） ============================
 
     /// <summary>沿链行进横波（蛇形）：每段绕根系 up 轴做相位延迟正弦摆动，幅度向尾端渐增。
-    /// straighten=true（蛇形移动用，2026-10-13 定案）：先每段对齐根前向把身体拉成直线
-    /// （权重=GaitAmp，idle 回盘曲 rest）再叠加行波——运动参考不取 idle 盘曲姿态；
+    /// straighten=true（蛇形移动用，2026-10-13 定案）：先逐段把链拉成沿爬行方向反向延伸的
+    /// 直线——链近头在前、段出向=尾向对齐 -crawlDir，头落在爬行方向前端（2026-10-14 用户
+    /// 定案：移动方向恒根前向 +Z，头朝向已手工烘进 prefab、目录 headForward 过期不作方向源；
+    /// 权重=裸 blend，idle 回盘曲+轻微扭动）再叠加行波——运动参考不取 idle 盘曲姿态；
     /// false（软体触手等呼吸链）维持原 rest 上叠加。</summary>
     public class SpineWaveModule : IMotionModule, IGaitBlend
     {
@@ -298,7 +303,7 @@ namespace MonsterRig
         public float GaitBlend { get; set; }
 
         public SpineWaveModule(List<BoneRef> segments, Vector3 rootUpWorld, float ampDeg, int harmonic,
-            bool straighten = false, Vector3 rootFwdWorld = default(Vector3))
+            bool straighten = false, Vector3 crawlDirWorld = default(Vector3))
         {
             _segments = segments;
             _ampDeg = ampDeg;
@@ -312,9 +317,12 @@ namespace MonsterRig
             _upWorld = rootUpWorld;
             if (straighten)
             {
-                // rest 各段出向（末段沿用前段）→ 对齐 root 前向；逐关节旋转后整链即成直线
-                var fwd = rootFwdWorld.sqrMagnitude > 1e-6f ? rootFwdWorld.normalized : Vector3.forward;
-                Vector3 prev = fwd;
+                // rest 各段出向（近头在前，出向=尾向；末段沿用前段）对齐 -crawl：逐关节
+                // 旋转后整链拉直且头位于爬行方向前端——行波向尾传播、位移向头，头先动
+                // 尾跟上（2026-10-14 用户定案：移动方向恒根前向 +Z）
+                var crawl = crawlDirWorld.sqrMagnitude > 1e-6f ? crawlDirWorld.normalized : Vector3.forward;
+                Vector3 tailDir = -crawl;
+                Vector3 prev = tailDir;
                 for (int i = 0; i < _segments.Count; i++)
                 {
                     Vector3 dir = prev;
@@ -324,7 +332,7 @@ namespace MonsterRig
                         if (d.sqrMagnitude > 1e-8f) dir = d.normalized;
                     }
                     prev = dir;
-                    _straightWorld.Add(Quaternion.FromToRotation(dir, fwd));
+                    _straightWorld.Add(Quaternion.FromToRotation(dir, tailDir));
                     _maxStraightDeg = Mathf.Max(_maxStraightDeg,
                         Quaternion.Angle(Quaternion.identity, _straightWorld[i]));
                 }
@@ -343,13 +351,17 @@ namespace MonsterRig
                 float wave = Mathf.Sin(RigMotionTuning.Phase(t, _harmonic) - i * RigMotionTuning.SnakeSegDelay);
                 if (_straighten)
                 {
-                    // 直化与行波权重=裸 blend（2026-10-13 用户验收：爬完必须回 idle 盘曲；
-                    // GaitAmp(0)=0.4 会永久残留 40% 直化）。idle=精确 rest，行走=满幅。
+                    // 直化权重=裸 blend（2026-10-13 用户验收：爬完必须回 idle 盘曲；
+                    // GaitAmp(0)=0.4 会永久残留 40% 直化）。
+                    // 行波幅度=idle 轻微扭动→行走满幅（2026-10-13 用户验收：蛇无法静止
+                    // 保持平衡，待机躯干须轻微扭动；盘曲姿态由直化权重=0 保证不破坏）
                     // 世界语义写入（实时父旋转共轭）：段世界旋转=qWave·qStraight·restWorld，
                     // 出向=qWave·fwd。串行链下父级已被本模块写过，用捕获的静止父旋转共轭
                     // 会逐级累积父增量（2026-10-13 蛇拉直失效根因）。
+                    float waveAmp = RigMotionTuning.SlitherIdleWriggle
+                        + (1f - RigMotionTuning.SlitherIdleWriggle) * GaitBlend;
                     float angleS = RigMotionTuning.MirrorX * _ampDeg * RigMotionTuning.GlobalAmplitude
-                        * GaitBlend * taper * wave;
+                        * waveAmp * taper * wave;
                     var qStraight = Quaternion.Slerp(Quaternion.identity, _straightWorld[i], GaitBlend);
                     var restWorld = _segments[i].ParentRestWorld * _segments[i].RestLocal;
                     var parentNow = _segments[i].T.parent != null ? _segments[i].T.parent.rotation : Quaternion.identity;
@@ -474,7 +486,8 @@ namespace MonsterRig
 
     // ============================ 体型步态 ============================
 
-    /// <summary>双足：重心缓摆 + 双臂反相小幅摆动（肘部半幅跟随）。</summary>
+    /// <summary>双足：重心缓摆 + 双臂反相小幅摆动（肘部半幅跟随）。
+    /// 摆臂属步态组成：idle（blend=0）归零只留躯干缓摆——腿站定后摆臂读作原地行军。</summary>
     public class BipedSwayModule : IMotionModule, IGaitBlend
     {
         readonly List<BoneRef> _armRoots;
@@ -506,11 +519,13 @@ namespace MonsterRig
         public void Tick(float t, float dt)
         {
             float g = RigMotionTuning.GlobalAmplitude * RigMotionTuning.GaitAmp(GaitBlend);
+            // 摆臂=迈步组成，权重走裸 blend（2026-10-13 用户验收：idle 不迈步，摆臂同归零）
+            float gArm = RigMotionTuning.GlobalAmplitude * GaitBlend;
             float gait = RigMotionTuning.Phase(t, RigMotionTuning.KGait);
             for (int i = 0; i < _armRoots.Count; i++)
             {
                 // 相位已含左右反相（limb phase），肘部半幅跟随
-                float angle = RigMotionTuning.MirrorX * RigMotionTuning.BipedArmSwingDeg * g * Mathf.Sin(gait + ArmPhase(i));
+                float angle = RigMotionTuning.MirrorX * RigMotionTuning.BipedArmSwingDeg * gArm * Mathf.Sin(gait + ArmPhase(i));
                 _armRoots[i].T.localRotation = Quaternion.AngleAxis(angle, _armAxes[i]) * _armRoots[i].RestLocal;
                 var chain = _armChains[i];
                 for (int j = 1; j < chain.Count && j <= 2; j++)
@@ -728,7 +743,9 @@ namespace MonsterRig
 
         public void Tick(float t, float dt)
         {
-            float w = Mathf.Clamp01(RigMotionTuning.GaitAmp(GaitBlend) * RigMotionTuning.GlobalAmplitude);
+            // 迈步权重=裸 blend（2026-10-13 用户验收：idle 不迈步——GaitAmp(0)=0.4 会残留
+            // 40% 原地踏步，观感=缓慢向前走；与蛇拉直/摆臂同口径，idle 腿=精确 rest）
+            float w = Mathf.Clamp01(GaitBlend * RigMotionTuning.GlobalAmplitude);
             float gait = RigMotionTuning.Phase(t, RigMotionTuning.KGait);
             for (int i = 0; i < _legs.Count; i++) ApplyLeg(_legs[i], gait + _legs[i].Phase, w);
         }

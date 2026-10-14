@@ -21,10 +21,10 @@ namespace CardCore.Attribute.Handlers
         public const string Type = "Type";                 // Cardtype（Creature/Spell/...）
         public const string Color = "Color";               // ManaType（Red/Blue/Green/Gray）
         public const string CostParity = "CostParity";     // Odd / Even
-        public const string CostExact = "CostExact";       // 0..9（费用受曲线封顶，天然有限）
+        public const string CostExact = "CostExact";       // 0..7（费用受曲线封顶，天然有限）
         public const string LinkArrow = "LinkArrow";       // CardCore.HexDirection 单方向
 
-        private const int CostExactMax = 9; // 与地牌槽上限 9 同源的封顶值
+        private const int CostExactMax = 7; // 与地牌槽上限 7 同源的封顶值（2026-10-13 缩盘 9→7）
 
         /// <summary>解析 "维度:值" 编码（无冒号或空串返回 false）</summary>
         public static bool TryParse(string encoded, out string dimension, out string value)

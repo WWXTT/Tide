@@ -3735,9 +3735,9 @@
     },
     {
       "name": "BoltPenguin",
-      "moveType": "Flight",
-      "manual": false,
-      "note": "",
+      "moveType": "Biped",
+      "manual": true,
+      "note": "2026-10-14 用户定双足；朝向手校勿动",
       "head": "head",
       "jaw": "beak",
       "abdomen": "",
@@ -3907,9 +3907,9 @@
     },
     {
       "name": "BottomDweller",
-      "moveType": "Flight",
-      "manual": false,
-      "note": "",
+      "moveType": "Slither",
+      "manual": true,
+      "note": "2026-10-14 用户定蛇类；朝向手校勿动",
       "head": "head",
       "jaw": "jaw",
       "abdomen": "",
@@ -4645,9 +4645,9 @@
     },
     {
       "name": "ClawReacher",
-      "moveType": "Flight",
-      "manual": false,
-      "note": "",
+      "moveType": "Biped",
+      "manual": true,
+      "note": "2026-10-14 用户定双足；朝向手校勿动",
       "head": "head",
       "jaw": "",
       "abdomen": "",
@@ -4933,9 +4933,9 @@
     },
     {
       "name": "CrawlingDragon",
-      "moveType": "Flight",
-      "manual": false,
-      "note": "",
+      "moveType": "Quadruped",
+      "manual": true,
+      "note": "2026-10-14 用户定四足；朝向手校勿动",
       "head": "head",
       "jaw": "jaw",
       "abdomen": "",
@@ -6635,9 +6635,9 @@
     },
     {
       "name": "DeepseaShark",
-      "moveType": "Flight",
-      "manual": false,
-      "note": "",
+      "moveType": "Slither",
+      "manual": true,
+      "note": "2026-10-14 用户定蛇类；朝向手校勿动",
       "head": "head",
       "jaw": "jaw",
       "abdomen": "",
@@ -9701,9 +9701,9 @@
     },
     {
       "name": "FlyingPenguin",
-      "moveType": "Flight",
-      "manual": false,
-      "note": "",
+      "moveType": "Biped",
+      "manual": true,
+      "note": "2026-10-14 用户定双足；朝向手校勿动",
       "head": "head",
       "jaw": "beak",
       "abdomen": "",
@@ -10761,9 +10761,9 @@
     },
     {
       "name": "GiantRedSeasnake",
-      "moveType": "Flight",
-      "manual": false,
-      "note": "",
+      "moveType": "Slither",
+      "manual": true,
+      "note": "2026-10-14 用户定蛇类；朝向手校勿动",
       "head": "head",
       "jaw": "jaw",
       "abdomen": "",
@@ -11914,9 +11914,9 @@
     },
     {
       "name": "Griffore",
-      "moveType": "Flight",
-      "manual": false,
-      "note": "",
+      "moveType": "Quadruped",
+      "manual": true,
+      "note": "2026-10-14 用户定四足；arm/arm5 前肢并入 legs（对角小跑相位）；朝向手校勿动",
       "head": "head",
       "jaw": "jaw",
       "abdomen": "",
@@ -11945,7 +11945,7 @@
             "leg8"
           ],
           "phase": 0.0,
-          "side": 1
+          "side": -1
         },
         {
           "bones": [
@@ -11956,9 +11956,7 @@
           ],
           "phase": 3.14159274,
           "side": 1
-        }
-      ],
-      "arms": [
+        },
         {
           "bones": [
             "arm5",
@@ -11966,8 +11964,8 @@
             "arm7",
             "arm8"
           ],
-          "phase": 0.0,
-          "side": 1
+          "phase": 3.14159274,
+          "side": -1
         },
         {
           "bones": [
@@ -11976,10 +11974,11 @@
             "arm3",
             "arm4"
           ],
-          "phase": 3.14159274,
+          "phase": 0.0,
           "side": 1
         }
       ],
+      "arms": [],
       "wings": [
         {
           "bones": [
@@ -12565,9 +12564,9 @@
     },
     {
       "name": "HarpiesPetDragon",
-      "moveType": "Biped",
-      "manual": false,
-      "note": "",
+      "moveType": "Slither",
+      "manual": true,
+      "note": "2026-10-14 用户定蛇类（无翅骨，设定能飞；chains* 为颈下挂链未映射）；朝向手校勿动",
       "head": "head",
       "jaw": "jaw",
       "abdomen": "",
@@ -17560,9 +17559,9 @@
     },
     {
       "name": "ManEatingBlackShark",
-      "moveType": "Flight",
-      "manual": false,
-      "note": "",
+      "moveType": "Slither",
+      "manual": true,
+      "note": "2026-10-14 用户定蛇类；朝向手校勿动",
       "head": "head",
       "jaw": "jaw",
       "abdomen": "",
@@ -32284,9 +32283,9 @@
     },
     {
       "name": "Yormungarde",
-      "moveType": "Flight",
-      "manual": false,
-      "note": "",
+      "moveType": "Slither",
+      "manual": true,
+      "note": "2026-10-14 用户定蛇类；朝向手校勿动",
       "head": "head",
       "jaw": "jaw",
       "abdomen": "",

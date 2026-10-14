@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,6 +21,11 @@ namespace SynergyUI
         private static List<CardData> _cache;
         private static Dictionary<string, CardData> _byId;
         private static bool _loading;
+        // 缓存新鲜度记账（2026-10-13）：卡表文件会被并行会话/外部工具直写（卡池填充脚本、手工编辑），
+        // 旧口径只靠 Invalidate() 手动失效——文件缺失期或外部清空期建的空缓存会一直陈旧，
+        // 表现为卡组合界面卡池恒 0 张。缓存前按 mtime 复核，变了就弃缓存重读。
+        private static string _cachePath;
+        private static DateTime _cacheStampUtc = DateTime.MinValue;
 
         /// <summary>加载（并缓存）全部卡牌。文件缺失返回空列表。
         /// 重入防护（2026-09-13 崩溃修复）：装载过程中 CardLoader 的费用巡检会经
@@ -28,6 +34,10 @@ namespace SynergyUI
         /// 计价按既定 fallback 回落数量口径，装载完成后恢复正解。</summary>
         public static List<CardData> LoadAll()
         {
+            if (_cache != null && CacheIsStale())
+            {
+                Invalidate();
+            }
             if (_cache != null)
             {
                 return _cache;
@@ -42,6 +52,8 @@ namespace SynergyUI
             {
                 CardDataPaths.EnsureBootstrap(); // 玩家端首启引导（编辑器空操作）
                 string path = CardDataPaths.FileIn("Cards.json");
+                _cachePath = path;
+                _cacheStampUtc = DateTime.MinValue; // 先记「未读到文件」态——文件出现后 mtime 必 ≠ MinValue，自动恢复
                 if (!File.Exists(path))
                 {
                     TideLog.Warn($"[CardCatalog] 卡表未找到: {path}");
@@ -51,6 +63,7 @@ namespace SynergyUI
                 }
 
                 _cache = CardLoader.LoadCardsFromText(File.ReadAllText(path));
+                _cacheStampUtc = File.GetLastWriteTimeUtc(path); // 解析成功才记账：坏 JSON 抛异常不落缓存态，下次调用重试
                 _byId = new Dictionary<string, CardData>();
                 foreach (var card in _cache)
                 {
@@ -64,6 +77,21 @@ namespace SynergyUI
             finally
             {
                 _loading = false;
+            }
+        }
+
+        /// <summary>缓存是否过期：文件消失 / 路径变 / mtime 变。读取失败按未过期处理（读失败≠数据变）。</summary>
+        private static bool CacheIsStale()
+        {
+            try
+            {
+                string path = CardDataPaths.FileIn("Cards.json");
+                if (path != _cachePath || !File.Exists(path)) return true;
+                return File.GetLastWriteTimeUtc(path) != _cacheStampUtc;
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -86,6 +114,8 @@ namespace SynergyUI
         {
             _cache = null;
             _byId = null;
+            _cachePath = null;
+            _cacheStampUtc = DateTime.MinValue;
         }
 
         // ======================================== 教学卡隔离（2026-10-06 第一课起） ========================================

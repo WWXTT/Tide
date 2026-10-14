@@ -59,6 +59,8 @@ namespace CardCore
 
         // ============ 保护相关（关键词） ============
         GrantDoubleStrike,
+        /// <summary>【墓碑 2026-10-13】扰魔（不可被指名选取）整体退役——表行/Grant 映射/关键词/滤 token
+        /// 同批删除；枚举位保留防 AEI_Type int 位序重编号。</summary>
         GrantCannotBeTargeted,
         GrantSpellShield,
 
@@ -189,8 +191,8 @@ namespace CardCore
         /// 2026-10-02 裁决：表行退役——战斗伤害改冻结走分支组合（拦截式改写门 DmgRewriteFreeze），
         /// 印刷关键词路径保留（KeywordRules 改写链 + GrantKeywordHandlerFactory.Specs）。</summary>
         GrantIceCrystal,
-        /// <summary>梦魇（2026-09-13 改写定案，黑2）：造成战斗伤害时，改为对目标添加一个沉睡指示物（伤害不发生）。
-        /// 2026-10-02 裁决：表行退役——战斗伤害改沉睡走分支组合（DmgRewriteSleep），印刷关键词路径保留。</summary>
+        /// <summary>【墓碑 2026-10-13】梦魇——引擎行为（改写链臂/Grant 映射/常量）整体删除；
+        /// 枚举位保留防 AEI_Type int 位序重编号（同 Abandon 惯例）。表行 2026-10-02 已先退。</summary>
         GrantNightmare,
         /// <summary>禁魔石（2026-09-13 改写定案，白3）：受到的非战斗伤害变为 0</summary>
         GrantSpellban,
@@ -259,7 +261,7 @@ namespace CardCore
         EngineBlessingOnDraw,
 
         /// <summary>剧毒（2026-10-08 指示物转关键词·落定追加式）：获得剧毒——受到其战斗伤害的
-        /// 生物被消灭（战斗伤害照常结算、实际落定 &gt;0 触发；对角色照常落血；不灭/神佑可拦）。
+        /// 生物被消灭（战斗伤害照常结算、实际落定 &gt;0 触发；对角色照常落血；不灭可拦）。
         /// 表行 20c06d52（原 Poison 原子行）改挂本枚举。枚举只可尾部追加。</summary>
         GrantVenom,
 
@@ -286,7 +288,7 @@ namespace CardCore
         GrantDepravity,
 
         /// <summary>成长（2026-10-11 资源重做：灵气复苏 ×2 翻倍改 +1，绿3）：效果控制者地牌上限 +1
-        ///（各自池、可重复，封顶 18——ElementPool.LandCapBonus，GetLandCap 单点生效：地牌张数/
+        ///（各自池、可重复，封顶 14——ElementPool.LandCapBonus，GetLandCap 单点生效：地牌张数/
         /// 支付浓度/出牌费用门槛/黑白钳同随）。无目标原子。枚举只可尾部追加。</summary>
         IncreaseLandCap,
 
@@ -307,7 +309,7 @@ namespace CardCore
         /// <summary>抹除（2026-10-10，白5，表行 fbe5ad81）：将目标（场上生物/结界/地牌，双方——
         /// 表域六类 + filter NotRole 剔除角色）**从本局游戏中除去**——同遗忘到期移除口径：
         /// 不走换区（不进墓/不进除外区）、不触发死亡时点（OnDeath/亡语/击杀统计全哑）、
-        /// 不灭/神佑/复生无从拦截（非死亡路径）。地牌先出池（余量写回）再消失。
+        /// 不灭/复生无从拦截（非死亡路径）。地牌先出池（余量写回）再消失。
         /// 消费口=EraseHandler。枚举只可尾部追加。</summary>
         Erase,
 
@@ -317,6 +319,22 @@ namespace CardCore
         /// handler 只管 AddMana，时机/挂载全由声明与关键词归类驱动）。旧同名主动版（原蓄能，
         /// 横置产绿）已退役。枚举只可尾部追加。</summary>
         GrantPhotosynthesis,
+
+        /// <summary>变形赋予（2026-10-13 临摹/变形赋予定案，表行价 0·同临摹后付）：
+        /// 将效果目标（场上生物/结界，双方）变成**引用卡**——StringValue=真实卡 ID（生物或结界，
+        /// 经 SummonTokenHandler.ResolveTemplate 解析——与召唤衍生物共用「引用卡ID」解析器与
+        /// 合成器输入框；数量恒 1）。复制面与临摹一致：连身份一起复制（卡名/ID/类别/攻血费/
+        /// 印刷关键词）+ 以其文本效果取代自身（跳过其规则光环步），附加 1 层变形指示物
+        ///（MorphStateCounter，中性 Resident）——换区/净化解除即纯回滚原形态；
+        /// 变为结界形态自动非横置+初始化耐久；发动主动效果按变形前后费差补蓝（叠加——蓝色专属能力）。
+        /// 消费口=GrantMorphHandler（MorphSystem.ApplyForm）。枚举只可尾部追加。</summary>
+        GrantMorph,
+
+        /// <summary>减益解除（2026-10-13 新增，白2=净化−1，表行）：移除{target}全部**负面**指示物
+        ///（CounterRules.ClearNegative 极性口径；正面/中性指示物保留——与净化全清的分野），
+        /// 横置状态不在此恢复。消费口=RemoveDebuffsHandler（EntityEffectExtensions.RemoveAllDebuffs）。
+        /// 枚举只可尾部追加。</summary>
+        RemoveDebuffs,
     }
 
     /// <summary>

@@ -19,6 +19,7 @@ namespace CardCore
         public DelayDiscountConfig DelayDiscountConfig = new DelayDiscountConfig();
         public CardCompositionConfig CardCompositionConfig = new CardCompositionConfig();
         public PricingTierConfig PricingTierConfig = new PricingTierConfig();
+        public GameRulesConfig GameRulesConfig = new GameRulesConfig();
     }
 
     // 注：SummonDropConfig（衍生物落区系数，表 Category=SummonDrop）已删除（2026-10-09）——
@@ -109,6 +110,23 @@ namespace CardCore
     // CardTypeValue 对应的卡型价值未使用）；ValueSystemConfig.json 同批清理 33 行死行。
 
     /// <summary>
+    /// 开局/全局规则数值（表 Category=GameRules，2026-10-13 迁表定案：逻辑不动、数值出代码——
+    /// 审计裁定硬编码数值不留在引擎）。消费方：GameCore（InitialLife/OpeningHandSize）、
+    /// RuleHooks（DefaultHandLimit）、ZoneManager（BattlefieldCapacityPerPlayer）、
+    /// ElementPool（LandCurveCap=池钳/MaxStackedLandCap）、ResourceCurveModel（LandCurveCap）。
+    /// </summary>
+    [Serializable]
+    public class GameRulesConfig
+    {
+        public float InitialLife = 30f;                  // 初始生命（Reset 跨局复位同用）
+        public float OpeningHandSize = 6f;               // 起手手牌数（双方对称抽满；引擎不补抽）
+        public float DefaultHandLimit = 7f;              // 手牌上限基值（回合末选弃；IHandLimitModifier 修改链之上叠加）
+        public float BattlefieldCapacityPerPlayer = 14f; // 每玩家战场单位容量（=单位区 2×7；BoardLayout.UnitCellsPerPlayer 单源引用）
+        public float LandCurveCap = 7f;                  // 标准地牌槽曲线封顶 [1..cap]（=曲线末端=ElementPool.MAX_POOL_SIZE 同源；挑战曲线=cap+bonus）
+        public float MaxStackedLandCap = 14f;            // 地牌上限硬顶（成长叠加封顶；棋盘地牌 7 格 × 每格 2 层）
+    }
+
+    /// <summary>
     /// 属性价值配置
     /// </summary>
     [Serializable]
@@ -123,10 +141,8 @@ namespace CardCore
         public float WhileConditionDiscount = 0.75f;       // 条件满足期间
         public float UntilLeaveBattlefieldDiscount = 0.8f; // 到离场（挂在实体上，实体亡即失效）
         public float PermanentDiscount = 1.0f;             // 本局有效（永续档，复利载体）
-        // ForTurns(N)：N≤1 对齐 UntilEndOfTurn；N=2 起按 Base + Step×(N-2)，Cap 封顶（< Permanent）
-        public float ForTurnsBase = 0.7f;                  // N=2 基准（与 UntilNextTurn 对齐）
-        public float ForTurnsStep = 0.04f;                 // 每多 1 回合的增量（< 相邻锚点差 → 凹）
-        public float ForTurnsCap = 0.9f;                   // 渐近上限
+        // ForTurnsBase/ForTurnsStep/ForTurnsCap 三字段已删（2026-10-13 死配置清理）：
+        // 2026-09-14 收缩后零消费——GetDurationDiscount 对 ForTurns 恒回落 UntilNextTurnDiscount。
 
         /// <summary>
         /// 持续时间折扣（绝对系数）。2026-09-14 收缩：效果级 DurationValue 删除（ForTurns 档
@@ -159,7 +175,7 @@ namespace CardCore
     {
         public float StatUnit = 2f;                     // 1费=StatUnit点属性（攻血各 1/StatUnit 元素，灰）
         public bool KeywordsShareDelayDiscount = true;  // 关键词是否同享挂载折扣（关键词=Grant原子=挂载效果）
-        public int MaxTier = 18;                        // 档位上限（2026-10-10 对齐地牌槽封顶 18：>9 带可达）
+        public int MaxTier = 14;                        // 档位上限（2026-10-13 缩盘对齐地牌槽封顶 14：>9 带可达）
         /// <summary>属性锚：+1 攻/+1 生命 = 0.5（攻血同锚；2026-10-05 自 CostDerivation 常量迁表）。</summary>
         public float StatAnchor = 0.5f;
         /// <summary>修改族持续档乘数：换区移除/条件持续 = 锚×3（=1.5/+1）；连接光环档同此乘数。</summary>
@@ -179,7 +195,7 @@ namespace CardCore
     /// 挂载延迟折扣配置（表 Category=DelayDiscount；2026-09-07 第三层重定案）。
     /// d(C)：费用 C=最早第 C 回合落地 → 按落地延迟对**整卡**（S+E+K）在组合完成后**最后一步**打折。
     /// 2026-10-10 分段曲线定案：C 1-3 不折扣（f=1）；C 4-9 线性 1→0.8（f=1−(C−3)/30）；
-    /// C≥10 恒 0.75（新增地牌上限带——地牌槽封顶 18 使 >9 费可达，9→10 存在 0.05 阶梯为照字面定案）。
+    /// C≥10 恒 0.75（新增地牌上限带——地牌槽封顶 14 使 >9 费可达，9→10 存在 0.05 阶梯为照字面定案）。
     /// 取代旧 C1..C9 线性 1→0.75 曲线（1−0.25×(C−1)/8）。
     /// 三类卡型统一适用（2026-10-02 定案：法术不豁免）。
     /// </summary>

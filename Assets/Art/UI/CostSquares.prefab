@@ -35,7 +35,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 7, y: -7}
-  m_SizeDelta: {x: 14, y: 14}
+  m_SizeDelta: {x: 10, y: 10}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &8076147881572640462
 CanvasRenderer:
@@ -85,7 +85,6 @@ GameObject:
   m_Component:
   - component: {fileID: 420954557307184688}
   - component: {fileID: 5009239747430686136}
-  - component: {fileID: 8660445228927736378}
   m_Layer: 0
   m_Name: CostSquares
   m_TagString: Untagged
@@ -125,31 +124,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c4601fb8046d5f441892955c1af8e523, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Tide.HotUpdate::SynergyUI.CostSquaresView
-  SquareSize: 14
-  Spacing: 2
---- !u!114 &8660445228927736378
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7531536291445682936}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30649d3a9faa99c48a7b1166b86bf2a0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.HorizontalLayoutGroup
-  m_Padding:
-    m_Left: 0
-    m_Right: 0
-    m_Top: 0
-    m_Bottom: 0
-  m_ChildAlignment: 0
-  m_Spacing: 1
-  m_ChildForceExpandWidth: 1
-  m_ChildForceExpandHeight: 1
-  m_ChildControlWidth: 0
-  m_ChildControlHeight: 0
-  m_ChildScaleWidth: 0
-  m_ChildScaleHeight: 0
-  m_ReverseArrangement: 0
+  fill: 2

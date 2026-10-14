@@ -203,7 +203,7 @@ namespace CardCore.Editor
                         if (BoardMath.HexDistance(x, z, nx, nz) != 1) neighborDistBad++;
                     }
 
-            // 距离对称 + 自距 0（全盘两两枚举 104²）
+            // 距离对称 + 自距 0（全盘两两枚举 54²）
             var all = new List<(int x, int z)>();
             for (int z = 0; z < BoardMath.Height; z++)
                 for (int x = 0; x < BoardMath.Width; x++) all.Add((x, z));
@@ -398,7 +398,7 @@ namespace CardCore.Editor
             var board = new BoardState(core, p1, p2);
             var container = core.ZoneManager.GetZoneContainer(p1);
 
-            // 填满 18 单位：UnitCells 恰好全部占用一次、全部 filler 有格
+            // 填满 14 单位：UnitCells 恰好全部占用一次、全部 filler 有格
             var fillers = new List<Card>();
             while (core.ZoneManager.GetCards(p1, Zone.Battlefield).Count < ZoneManager.BattlefieldCapacityPerPlayer)
             {
@@ -412,11 +412,11 @@ namespace CardCore.Editor
             int distinct = BoardLayout.UnitCells(0).Select(c => board.CardAt(c.x, c.z)).Where(c => c != null)
                 .Distinct().Count();
             Assert(occupied == BoardLayout.UnitCellsPerPlayer && distinct == BoardLayout.UnitCellsPerPlayer,
-                   $"S4 满 18 单位：单位格全部占用且无重复（占用 {occupied}、去重 {distinct}）");
+                   $"S4 满 14 单位：单位格全部占用且无重复（占用 {occupied}、去重 {distinct}）");
             Assert(fillers.All(f => board.TryGetCell(f, out _, out _)), "S4 每个 filler 都获得单位格");
 
-            // 地牌行满载+溢出（2026-10-09 地牌叠放定案：每格两层）：容器层面强塞 9×2+1=19 张
-            // （绕过 LandCap 的结构性压力测试）——铺满 9 格首层+叠满第二层、第 19 张不落格不抛错、索引仍一致
+            // 地牌行满载+溢出（2026-10-09 地牌叠放定案：每格两层）：容器层面强塞 7×2+1=15 张
+            // （绕过 LandCap 的结构性压力测试）——铺满 7 格首层+叠满第二层、第 15 张不落格不抛错、索引仍一致
             for (int i = 0; i < BoardLayout.LandCellsPerPlayer * BoardLayout.LandStackPerCell + 1; i++)
             {
                 var l = new Card { ID = "BFVERIFY_LAND_OVERFLOW" };

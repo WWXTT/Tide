@@ -209,27 +209,8 @@
     ]
   },
   {
-    "ID": "a555d85f",
-    "EnumName": "洗回",
-    "DisplayName": "将{target}卡从场上洗入牌库",
-    "EffectType": "ShuffleIntoDeck",
-    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
-    "TargetFilter": "NoRole",
-    "Polarity": -1.0,
-    "MountKinds": "",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      5.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
     "ID": "b24f68ac",
-    "EnumName": "洗入",
+    "EnumName": "洗回",
     "DisplayName": "将{target}卡从墓地洗入牌库",
     "EffectType": "ShuffleIntoDeck",
     "TargetKinds": "己方墓地,对方墓地",
@@ -344,7 +325,7 @@
   {
     "ID": "f77ff81b",
     "EnumName": "锁定",
-    "DisplayName": "对{target}附加{value}回合锁定指示物（期间无法使用，持有者回合结束层数-1）",
+    "DisplayName": "对{target}附加一层锁定指示物【可叠加】，无法进入发动区和地牌区",
     "EffectType": "LockCard",
     "TargetKinds": "己方手牌,对方手牌",
     "TargetFilter": null,
@@ -441,8 +422,8 @@
     "EnumName": "跳过回合",
     "DisplayName": "{target}跳过下个回合",
     "EffectType": "SkipTurn",
-    "TargetKinds": null,
-    "TargetFilter": null,
+    "TargetKinds": "对方单位",
+    "TargetFilter": "Player",
     "Polarity": -1.0,
     "MountKinds": "",
     "Tags": null,
@@ -457,10 +438,29 @@
   },
   {
     "ID": "563c389d",
-    "EnumName": "变形",
-    "DisplayName": "此卡变形为另一个{target}，复制目标生物的属性，关键词和指示物",
+    "EnumName": "临摹",
+    "DisplayName": "变成场上目标单位(无法复制规则光环)，附加一层变形指示物，解除时还原;发动时，按变形前后卡费用，用蓝色元素补齐差额",
     "EffectType": "Morph",
-    "TargetKinds": "己方单位,对方单位",
+    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
+    "TargetFilter": "NotRole",
+    "Polarity": 0.0,
+    "MountKinds": "",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "03fbfe99",
+    "EnumName": "减益解除",
+    "DisplayName": "解除目标全部负面(极性-1)的指示物",
+    "EffectType": "RemoveDebuffs",
+    "TargetKinds": "己方单位",
     "TargetFilter": "NoRole",
     "Polarity": 1.0,
     "MountKinds": "",
@@ -468,7 +468,26 @@
     "ManaList": [
       0.0,
       0.0,
-      6.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0
+    ]
+  },
+  {
+    "ID": "0cd75565",
+    "EnumName": "变形赋予",
+    "DisplayName": "将{target}变成引用卡（引用卡ID指向一张真实生物/结界卡，无法引用规则光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后卡费差额补蓝",
+    "EffectType": "GrantMorph",
+    "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
+    "TargetFilter": "NotRole",
+    "Polarity": 0.0,
+    "MountKinds": "",
+    "Tags": "换区清除型",
+    "ManaList": [
+      0.0,
+      0.0,
+      0.0,
       0.0,
       0.0,
       0.0
@@ -477,10 +496,10 @@
   {
     "ID": "7ce72963",
     "EnumName": "消灭",
-    "DisplayName": "消灭目标生物",
+    "DisplayName": "消灭{target}生物",
     "EffectType": "Devour",
     "TargetKinds": "己方单位,对方单位",
-    "TargetFilter": "NoRole,Mortal",
+    "TargetFilter": "NoRole",
     "Polarity": -1.0,
     "MountKinds": "",
     "Tags": null,
@@ -591,7 +610,7 @@
   {
     "ID": "4e609e26",
     "EnumName": "发现",
-    "DisplayName": "从牌库中随机展示{value}张牌（默认3），从中选择一张加入手牌；未选中的留在牌库原位",
+    "DisplayName": "从牌库中随机展示三张牌，从中选择一张加入手牌；未选中的留在牌库原位",
     "EffectType": "DiscoverCard",
     "TargetKinds": "己方牌库",
     "TargetFilter": null,
@@ -781,7 +800,7 @@
   {
     "ID": "956e7b92",
     "EnumName": "碾压",
-    "DisplayName": "获得碾压：战斗伤害结算时，对{target}以及目标相邻左右侧生物造成相同的战斗伤害",
+    "DisplayName": "获得碾压：战斗伤害结算时，对目标以及目标相邻左右侧生物造成相同的战斗伤害",
     "EffectType": "GrantOverwhelm",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
@@ -845,25 +864,6 @@
     "Polarity": 1.0,
     "MountKinds": "指示物",
     "Tags": "生效自减型",
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      2.0,
-      0.0
-    ]
-  },
-  {
-    "ID": "09cb6c7b",
-    "EnumName": "扰魔",
-    "DisplayName": "获得扰魔：不会成为效果目标",
-    "EffectType": "GrantCannotBeTargeted",
-    "TargetKinds": "自己",
-    "TargetFilter": "NoRole",
-    "Polarity": 1.0,
-    "MountKinds": "关键词",
-    "Tags": null,
     "ManaList": [
       0.0,
       0.0,
@@ -1646,9 +1646,9 @@
     "ManaList": [
       0.0,
       0.0,
-      0.0,
-      0.0,
       12.0,
+      0.0,
+      0.0,
       0.0
     ]
   },

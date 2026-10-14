@@ -65,8 +65,9 @@ namespace CardCore
         private static readonly List<ITurnStartInterceptor> _turnStartInterceptors = new List<ITurnStartInterceptor>();
         private static readonly List<IHandLimitModifier> _handLimitModifiers = new List<IHandLimitModifier>();
 
-        /// <summary>手牌上限基值（修改链在此之上叠加）。</summary>
-        public const int DefaultHandLimit = 7;
+        /// <summary>手牌上限基值（修改链在此之上叠加；2026-10-13 迁表：ValueSystemConfig GameRules.DefaultHandLimit）。</summary>
+        public static int DefaultHandLimit
+            => (int)ValueSystemConfigManager.Instance.GetOrCreateConfig().GameRulesConfig.DefaultHandLimit;
 
         // ---- 出牌限制 ----
 

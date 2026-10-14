@@ -78,8 +78,8 @@ namespace CardCore
     /// <summary>
     /// 元素池系统——2026-10-11 资源系统重做定案（现取现用）：
     /// 1. 地牌 = 锁色产色体：入池时自选卡费颜色之一锁定；不消耗不耗竭；移除口=摧毁/抹除效果。
-    /// 2. 地牌上限 = 自己回合开始 +1（个人曲线 CapAt(PersonalTurnIndex)，标准曲线 min(个人回合,9)）；
-    ///    「成长」原子 +1/次封顶 18。各自上限管各自地牌张数（共享计数器废止）。
+    /// 2. 地牌上限 = 自己回合开始 +1（个人曲线 CapAt(PersonalTurnIndex)，标准曲线 min(个人回合,7)）；
+    ///    「成长」原子 +1/次封顶 14。各自上限管各自地牌张数（共享计数器废止）。
     /// 3. 付费 = 现取现用：按账单规划「临时钱包余额 + 未横置地牌横置」组合，钱包优先消耗（回合末即逝），
     ///    地牌横置=系统自动的强制动作（无速度交互），自己/对手回合都一样（跨回合支付不变）。
     /// 4. 支付链（2026-10-11 收窄）：红/蓝/绿仅本色；灰=[灰,黑,白,红,蓝,绿]（黑白只垫灰、三色垫灰沿用）；
@@ -91,12 +91,14 @@ namespace CardCore
     /// </summary>
     public class ElementPoolSystem
     {
-        /// <summary>地牌槽上限的最大值（曲线末端值；卡费用上限同为 9）</summary>
-        public const int MAX_POOL_SIZE = 9;
+        /// <summary>地牌槽上限的最大值（曲线末端值；2026-10-13 迁表：=GameRules.LandCurveCap 同源单值）</summary>
+        public static int MAX_POOL_SIZE
+            => (int)ValueSystemConfigManager.Instance.GetOrCreateConfig().GameRulesConfig.LandCurveCap;
 
-        /// <summary>地牌上限硬顶（成长原子叠加的封顶值）：9 格 × 每格叠两层 = 18。
-        /// 挑战模式 P2 加成曲线（9+bonus）再叠加同样受此钳制。</summary>
-        public const int MaxStackedLandCap = 18;
+        /// <summary>地牌上限硬顶（成长原子叠加的封顶值）：7 格 × 每格叠两层 = 14。
+        /// 挑战模式 P2 加成曲线（7+bonus，N≥7 触顶）再叠加同样受此钳制（2026-10-13 迁表：GameRules.MaxStackedLandCap）。</summary>
+        public static int MaxStackedLandCap
+            => (int)ValueSystemConfigManager.Instance.GetOrCreateConfig().GameRulesConfig.MaxStackedLandCap;
 
         private Dictionary<Player, PlayerElementPool> _playerPools =
             new Dictionary<Player, PlayerElementPool>();
@@ -143,12 +145,14 @@ namespace CardCore
         /// <summary>
         /// 地牌资格（2026-10-03 定案沿用）：卡组正式 生物/法术/结界 三型可作地牌——
         /// 衍生物（IsToken，SummonToken 实例）、临时复制卡（回响——持临时指示物 TempCounter）不可
-        /// （否则副本成免费地牌，2026-10-11 维持禁令）。
+        ///（否则副本成免费地牌，2026-10-11 维持禁令）。
+        /// 锁定卡（LockCounter&gt;0）不可——锁定=无法进入地牌区，放地不得绕道封锁（2026-10-13 文案定案）。
         /// UI/AI 预检与 AddCardToPool 权威校验共用此判据。
         /// </summary>
         public static bool CanServeAsLand(Card card)
             => card is CardWrapper
                && card.GetCounterCount(Attribute.CounterRules.TempCounter) <= 0 // 临时复制卡（临时指示物标记）
+               && card.GetCounterCount(Attribute.CounterRules.LockCounter) <= 0 // 锁定：无法进入地牌区（放地绕道封锁）
                && !card.IsToken
                && card is IHasSupertype ht
                && (ht.Supertype == Cardtype.Creature
@@ -190,7 +194,7 @@ namespace CardCore
 
         /// <summary>
         /// 将手牌作为地牌放入元素池（主阶段调用，可用/未横置状态入场，不限张数/次数）。
-        /// 张数受**各自**地牌槽上限约束（2026-10-11：个人曲线 min(个人回合,9)+成长加值，封顶 18）。
+        /// 张数受**各自**地牌槽上限约束（2026-10-11：个人曲线 min(个人回合,7)+成长加值，封顶 14——2026-10-13 缩盘）。
         /// colorChoice：从 GetLandColorChoices 中自选锁定产色；null=缺省主色（份额最多色）。
         /// 地牌不消耗不耗竭；离池（弹回手等）后可再入池重新选色。
         /// </summary>
@@ -278,7 +282,7 @@ namespace CardCore
 
         /// <summary>
         /// 「成长」原子（2026-10-11 定案：灵气复苏 ×2 翻倍改成长 +1）：地牌上限 +1，
-        /// 各自池生效不共享、可重复使用；输出封顶 MaxStackedLandCap（18，每地牌格叠两层）。
+        /// 各自池生效不共享、可重复使用；输出封顶 MaxStackedLandCap（14，每地牌格叠两层）。
         /// 已到硬顶返回 false。作用于 GetLandCap 单点：入池闸/支付浓度/费用门槛/黑白钳/AI/快照同随。
         /// </summary>
         public bool AddLandCapBonus(Player player)
@@ -291,7 +295,7 @@ namespace CardCore
             {
                 Player = player,
                 NewCurve = pool.Curve, // 曲线对象未换——事件仅作 Trigger/Layer 可见的通知载体
-                Reason = "成长:地牌上限+1（封顶18）",
+                Reason = "成长:地牌上限+1（封顶14）",
             });
             return true;
         }
@@ -299,7 +303,7 @@ namespace CardCore
         /// <summary>
         /// 当前的地牌槽上限（2026-10-11 定案：**个人曲线**——自己回合开始 +1，读 PersonalTurnIndex；
         /// 10-10 全场共享计数器废止，各自上限管各自地牌张数）。
-        /// 标准曲线 = min(个人回合数, 9)；成长原子加值 LandCapBonus 封顶 18。
+        /// 标准曲线 = min(个人回合数, 7)；成长原子加值 LandCapBonus 封顶 14（2026-10-13 缩盘：9/18→7/14）。
         /// 无曲线时按同一公式兜底。挑战模式 P2 加成曲线照常各自注入。
         /// </summary>
         public int GetLandCap(Player player)

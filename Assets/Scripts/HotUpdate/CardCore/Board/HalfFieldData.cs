@@ -5,7 +5,7 @@ namespace GameBoard
     /// <summary>
     /// 玩家半场地形数据（玩家自编辑、可存档、开战时拼合成整场）。
     ///
-    /// 半场 = 11×3 = 33 格（玩家自身视角，非旋转）：
+    /// 半场 = 9×3 = 27 格（玩家自身视角，非旋转；2026-10-13 缩盘：11×3→9×3，覆盖整幅盘宽含两侧特殊格列）：
     /// ly0 = 远端（近中线）/ ly2 = 贴己方边缘；lx0 = 自己左手边。
     /// 每格两个 int：Elevation（落差，战棋距离预留）+ TerrainIndex（地形类型，增益预留）。
     ///
@@ -16,7 +16,7 @@ namespace GameBoard
     [Serializable]
     public class HalfFieldData
     {
-        public const int Width = 11;
+        public const int Width = 9;
         public const int Height = 3;
 
         /// <summary>噪声种子（视觉高程扰动的复现凭据；拼场时随半场带入，见 HexMap 约定）</summary>
@@ -40,18 +40,18 @@ namespace GameBoard
 
         /// <summary>
         /// 半场本地坐标 → 整场坐标。
-        /// player 0（P1，下半场）：原样平移 (1+lx, 4+ly)；
-        /// player 1（P2，上半场）：自身视角旋转 180° 拼入 (11−lx, 3−ly)。
+        /// player 0（P1，下半场）：原样平移 (lx, 3+ly)；
+        /// player 1（P2，上半场）：自身视角旋转 180° 拼入 (8−lx, 2−ly)。
         /// </summary>
         public static (int x, int z) ToBoard(int player, int lx, int ly)
         {
-            return player == 0 ? (1 + lx, 4 + ly) : (BoardMath.Width - 2 - lx, 3 - ly);
+            return player == 0 ? (lx, 3 + ly) : (BoardMath.Width - 1 - lx, 2 - ly);
         }
     }
 
     /// <summary>
-    /// 双方半场拼合后的整场地形（104 格，row-major）。
-    /// 边缘环（38 格）恒为 0——与 HexMap「边界 cell 强制 elevation 0」的裙边约束天然一致。
+    /// 双方半场拼合后的整场地形（54 格，row-major；2026-10-13 缩盘：9×6）。
+    /// 全盘 54 格均由双方半场覆盖（9×3×2，含两侧特殊格列与空格）——地形值对特殊格无玩法影响。
     /// </summary>
     public class ComposedField
     {

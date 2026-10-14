@@ -2592,20 +2592,23 @@ namespace CardCore.Editor
                         default: special++; break;
                     }
                 }
-            Assert(edge == 40 && unit == 36 && land == 18 && special == 10,
-                   $"布局计数 104 = 边缘{edge} + 单位{unit} + 地牌{land} + 特殊{special}");
+            Assert(edge == 0 && unit == 28 && land == 14 && special == 12,
+                   $"布局计数 54 = 边缘{edge} + 单位{unit} + 地牌{land} + 特殊{special}");
 
-            // 额外卡组退役（2026-09-13）：原格归还边缘环，无玩法意义（英雄技能为单方面影响，不上战场格）
-            Assert(BoardLayout.RoleOf(11, 4) == CellRole.Edge && BoardLayout.OwnerOf(11, 4) == -1
-                   && BoardLayout.RoleOf(1, 3) == CellRole.Edge && BoardLayout.OwnerOf(1, 3) == -1,
-                   "额外卡组退役：原格 (11,4)/(1,3) 归还边缘环");
-
-            Assert(BoardLayout.RoleOf(11, 6) == CellRole.Character && BoardLayout.OwnerOf(11, 6) == 0, "P1 角色格 = (11,6)");
-            Assert(BoardLayout.RoleOf(1, 6) == CellRole.Activation && BoardLayout.OwnerOf(1, 6) == 0, "P1 发动格 = (1,6)");
-            Assert(BoardLayout.RoleOf(11, 5) == CellRole.Deck && BoardLayout.OwnerOf(11, 5) == 0, "P1 卡组格 = (11,5)");
-            Assert(BoardLayout.RoleOf(11, 2) == CellRole.Graveyard && BoardLayout.OwnerOf(11, 2) == 1, "P2 墓地格 = (11,2)");
-            Assert(BoardLayout.RoleOf(1, 1) == CellRole.Character && BoardLayout.OwnerOf(1, 1) == 1, "P2 角色格 = (1,1)");
-            Assert(BoardLayout.RoleOf(11, 1) == CellRole.Activation && BoardLayout.OwnerOf(11, 1) == 1, "P2 发动格 = (11,1)");
+            // 特殊格重排（2026-10-13 晚 定案·晚修正左右：画面左=+x——发动/角色/临时元素=lx8、除外/墓地/卡组=lx0；
+            // 临时元素上盘吸收缩盘时代的 (0,2)/(8,3) 空格，全盘无空格）
+            Assert(BoardLayout.RoleOf(8, 3) == CellRole.Activation && BoardLayout.OwnerOf(8, 3) == 0, "P1 发动格 = (8,3)");
+            Assert(BoardLayout.RoleOf(8, 4) == CellRole.Character && BoardLayout.OwnerOf(8, 4) == 0, "P1 角色格 = (8,4)");
+            Assert(BoardLayout.RoleOf(8, 5) == CellRole.TempElement && BoardLayout.OwnerOf(8, 5) == 0, "P1 临时元素格 = (8,5)");
+            Assert(BoardLayout.RoleOf(0, 3) == CellRole.Exile && BoardLayout.OwnerOf(0, 3) == 0, "P1 除外格 = (0,3)");
+            Assert(BoardLayout.RoleOf(0, 4) == CellRole.Graveyard && BoardLayout.OwnerOf(0, 4) == 0, "P1 墓地格 = (0,4)");
+            Assert(BoardLayout.RoleOf(0, 5) == CellRole.Deck && BoardLayout.OwnerOf(0, 5) == 0, "P1 卡组格 = (0,5)");
+            Assert(BoardLayout.RoleOf(0, 2) == CellRole.Activation && BoardLayout.OwnerOf(0, 2) == 1, "P2 发动格 = (0,2)");
+            Assert(BoardLayout.RoleOf(0, 1) == CellRole.Character && BoardLayout.OwnerOf(0, 1) == 1, "P2 角色格 = (0,1)");
+            Assert(BoardLayout.RoleOf(0, 0) == CellRole.TempElement && BoardLayout.OwnerOf(0, 0) == 1, "P2 临时元素格 = (0,0)");
+            Assert(BoardLayout.RoleOf(8, 2) == CellRole.Exile && BoardLayout.OwnerOf(8, 2) == 1, "P2 除外格 = (8,2)");
+            Assert(BoardLayout.RoleOf(8, 1) == CellRole.Graveyard && BoardLayout.OwnerOf(8, 1) == 1, "P2 墓地格 = (8,1)");
+            Assert(BoardLayout.RoleOf(8, 0) == CellRole.Deck && BoardLayout.OwnerOf(8, 0) == 1, "P2 卡组格 = (8,0)");
 
             bool symmetric = true;
             for (int z = 0; z < BoardMath.Height && symmetric; z++)
@@ -2618,7 +2621,10 @@ namespace CardCore.Editor
                 }
             Assert(symmetric, "全盘 180° 旋转对称（角色一致、归属互补）");
             Assert(BoardLayout.UnitCellsPerPlayer == ZoneManager.BattlefieldCapacityPerPlayer,
-                   "单位格数 18 = 核心战场容量 18（计数与格子天然一致）");
+                   "单位格数 14 = 核心战场容量 14（计数与格子天然一致）");
+            Assert(BoardLayout.UnitCellsPerPlayer == (BoardLayout.ColMax - BoardLayout.ColMin + 1) * 2
+                   && BoardLayout.LandCellsPerPlayer == BoardLayout.ColMax - BoardLayout.ColMin + 1,
+                   "容量与几何一致（单位 2×7、地牌 1×7——配置漂移即红）");
 
             // ---- 2. 六边形数学（手算向量表，odd-r 奇偶约定） ----
             Assert(BoardMath.Neighbor(2, 4, BoardDirection.NE) == (2, 5), "偶行 NE 邻居 = (x, z+1)");
@@ -2631,14 +2637,14 @@ namespace CardCore.Editor
 
             // ---- 3. 距离档位（战棋预留公式）与半场拼合 ----
             var half1 = new HalfFieldData();
-            half1.Set(5, 0, 2, 0); // 本地(5,0) → 整场 (6,4)，落差 2
+            half1.Set(5, 0, 2, 0); // 本地(5,0) → 整场 (5,3)，落差 2
             var board = new BoardState(core, p1, p2, half1, HalfFieldData.Flat());
-            Assert(board.Field.ElevationAt(6, 4) == 2 && board.Field.ElevationAt(6, 5) == 0,
+            Assert(board.Field.ElevationAt(5, 3) == 2 && board.Field.ElevationAt(5, 4) == 0,
                    "半场地形拼合（落差写入正确格，边缘恒 0）");
             board.Mode = BoardRulesMode.Flat;
-            Assert(board.AttackDistance(6, 4, 6, 5) == 1, "Flat 档忽略落差（P2P 完全平面）");
+            Assert(board.AttackDistance(5, 3, 5, 4) == 1, "Flat 档忽略落差（P2P 完全平面）");
             board.Mode = BoardRulesMode.Tactical;
-            Assert(board.AttackDistance(6, 4, 6, 5) == 3, "Tactical 档落差参与距离（六距1 + |2−0| = 3）");
+            Assert(board.AttackDistance(5, 3, 5, 4) == 3, "Tactical 档落差参与距离（六距1 + |2−0| = 3）");
             board.Mode = BoardRulesMode.Flat;
 
             // ---- 4. 确定性重建（重连语义）+ 占用与区域一致 ----
@@ -2738,7 +2744,7 @@ namespace CardCore.Editor
                 container1.Add(filler, Zone.Battlefield);
                 fillers.Add(filler);
             }
-            Assert(!core.ZoneManager.HasBattlefieldSpace(p1), "战场填满 18 后无空位");
+            Assert(!core.ZoneManager.HasBattlefieldSpace(p1), "战场填满 14 后无空位");
 
             if (creatureData != null)
             {
@@ -3494,16 +3500,13 @@ namespace CardCore.Editor
                    && ironReborn.IsAlive && ironReborn.GetLife() == 1,
                    "决策表：复生对摧毁效果死因生效（消耗回场，TryKill 返回未死）");
 
-            // ---- 15c. 神佑（世界观定案：角色=普通生物单位，免疫来自状态而非硬编码） ----
-            // 2026-10-08：剧毒指示物转关键词后，「回合末剧毒杀角色」路径消失——本段锚默认持有+抗净化；
-            // 神佑对净化有抗性（2026-09-09 定案：净化剥神佑组合无法计价平衡——剥除通路关闭，
-            // 移除留给未来专用效果；RemoveKeyword 手工剥仍可）
-            Assert(p1.HasKeyword(CardCore.Attribute.DeathRules.DivineProtection)
-                   && p2.HasKeyword(CardCore.Attribute.DeathRules.DivineProtection),
-                   "神佑：角色默认持有神佑状态");
+            // ---- 15c. 神佑已删（2026-10-13 定案）----
+            // 锚①：角色构造/Reset 均不再注入神佑；锚②：净化打在角色上照常清 Status 轨
+            //（原「神佑抗净化」锚随机制删除，角色侧净化覆盖保留）。
+            Assert(!p1.HasKeyword("DivineProtection") && !p2.HasKeyword("DivineProtection"),
+                   "神佑已删：角色不再默认持有（字面量锚防意外复活）");
             p2.Life = 30;
-            p2.AddKeyword(CardCore.Attribute.DeathRules.DivineProtection, CardCore.KeywordLane.Status);
-            // 神佑抗净化锚：净化打在角色上清指示物/临时状态，但神佑保留
+            p2.AddKeyword(CardCore.Attribute.KeywordRules.Taunt, CardCore.KeywordLane.Status);
             new CardCore.Attribute.Handlers.PurifyHandler().Execute(
                 new CardCore.AtomicEffectInstance { Type = CardCore.AtomicEffectType.Purify },
                 new CardCore.EffectExecutionContext
@@ -3512,8 +3515,8 @@ namespace CardCore.Editor
                     Targets = new List<Entity> { p2 },
                     ZoneManager = core.ZoneManager
                 });
-            Assert(p2.HasKeyword(CardCore.Attribute.DeathRules.DivineProtection),
-                   "神佑抗净化：净化后神佑仍在（剥神佑+剧毒组合已堵死，移除留给未来专用效果）");
+            Assert(!p2.HasKeyword(CardCore.Attribute.KeywordRules.Taunt),
+                   "净化打在角色上：Status 轨照常清（神佑豁免已随机制删除）");
 
             // ---- 15d. 死亡归因全链路（2026-09-07 定案：死因/死亡来源/伤害来源/效果来源） ----
             // ① 生命流失：即时决策表死亡（非伤害、不可防止），Cause=LifeLoss、死亡来源=效果来源
@@ -3585,12 +3588,9 @@ namespace CardCore.Editor
             Assert(regrow.GetLife() == 4 && regrow.GetPower() == 2,
                    "再生恢复全部生命（2→满4）——回合开始维护");
 
-            // ---- 17. 辟邪 / 法术护盾（效果指定） ----
-            var hermit = Make(p2, 2, 5, "Untargetable");
+            // ---- 17. 法术护盾（效果指定）（辟邪断言已随 2026-10-13 扰魔整体退役删除——
+            //      原 EffectTargetValidator 为死基建从未接通，断言测的是死代码） ----
             var foe1 = Make(p1, 2, 2);
-            Assert(!CardCore.EffectTargetValidator.CanTarget(hermit, foe1, AtomicEffectType.DealDamage)
-                   && CardCore.EffectTargetValidator.CanTarget(hermit, hermit, AtomicEffectType.AddArmor),
-                   "辟邪：对手效果不可指定，友方可以");
 
             var warded = Make(p2, 2, 5, CardCore.Attribute.CounterRules.SpellShieldCounter); // 印刷路径入场挂 1 层
             var targets = new List<Entity> { warded, p2 };
@@ -6114,9 +6114,9 @@ namespace CardCore.Editor
         /// ① 数值随机：RollValue 边界（3±100% 样本 ⊆[0,6] 且两端可达；幅度 0 恒名义值；
         ///    实例名义 Value 字段不随掷值漂移——计价锚点）；
         /// ② 单位随机（RandomTarget 标志，2026-09-16 自 SelectionMode 移出）：TargetCount=2 从完整候选域
-        ///    种子抽取（数量=2、成员⊆候选、不弹交互）；扰魔/潜行口径——手动显示域不含（弹窗不显示）、
+        ///    种子抽取（数量=2、成员⊆候选、不弹交互）；隐密/潜行口径——手动显示域不含（弹窗不显示）、
         ///    完整候选域含、随机可命中（绕过选择）；全部档（TargetCount≤0）≡全取；选一/选多预检用显示域
-        ///    （唯一候选是扰魔时不可发动）。
+        ///    （唯一候选被隐藏时不可发动；扰魔断言已随 2026-10-13 退役改隐密）。
         /// </summary>
         private static void TestRandomness(GameCore core, Player p1, Player p2)
         {
@@ -6168,9 +6168,9 @@ namespace CardCore.Editor
             }
             Assert(inRange && inst.Value == 3, "实例掷值：GetRolledValue ⊆[0,6] 且名义 Value 恒 3（计价锚点不漂移）");
 
-            // ---- 1. 扰魔口径：完整候选域 vs 手动显示域 ----
-            var demon = Spawn(p2, 2, 2);
-            demon.AddKeyword(Attribute.KeywordRules.Untargetable, KeywordLane.Setting);
+            // ---- 1. 隐密口径：完整候选域 vs 手动显示域（原扰魔断言 2026-10-13 随机制退役改隐密同口径） ----
+            var hiddenUnit = Spawn(p2, 2, 2);
+            hiddenUnit.AddKeyword(Attribute.KeywordRules.Concealed, KeywordLane.Setting);
             var plain = Spawn(p2, 3, 3);
             var ctx = new EffectExecutionContext
             {
@@ -6181,11 +6181,11 @@ namespace CardCore.Editor
             };
             var kinds = new List<int> { (int)CardCore.TargetKind.EnemyLivingUnit };
             var full = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(kinds, "", ctx);
-            Assert(full.Contains(demon) && full.Contains(plain),
-                   "扰魔口径：完整候选域含扰魔单位（范围波及/随机可命中——域层不再剔除）");
+            Assert(full.Contains(hiddenUnit) && full.Contains(plain),
+                   "隐密口径：完整候选域含隐密单位（范围波及/随机可命中——域层不再剔除）");
             var manual = CardCore.TargetResolver.ExcludeUnselectable(full, p1);
-            Assert(!manual.Contains(demon) && manual.Contains(plain),
-                   "扰魔口径：手动显示域不含扰魔（弹窗不显示，AI/无头代替选取同口径）");
+            Assert(!manual.Contains(hiddenUnit) && manual.Contains(plain),
+                   "隐密口径：手动显示域不含隐密（弹窗不显示，AI/无头代替选取同口径）");
 
             // ---- 2. 目标随机：TargetCount=2 不弹交互、从完整域抽取 ----
             var def = new CardCore.EffectDefinition
@@ -6201,14 +6201,14 @@ namespace CardCore.Editor
             Assert(picked.Count == 2 && picked.All(t => full.Contains(t)),
                    $"单位随机：抽 2 且成员 ⊆ 完整候选域（实际 {picked.Count} 个）");
 
-            // 随机可命中扰魔（概率断言：候选=p2+demon+plain 共 3，抽 2 单轮命中 demon 概率 2/3；40 轮全 miss ≈ 1e-19）
+            // 随机可命中隐密（概率断言：候选=p2+hiddenUnit+plain 共 3，抽 2 单轮命中概率 2/3；40 轮全 miss ≈ 1e-19）
             GameRng.Reseed(777);
-            bool demonEverHit = false;
-            for (int i = 0; i < 40 && !demonEverHit; i++)
-                demonEverHit = CardCore.Attribute.EffectHandlerRegistry
+            bool hiddenEverHit = false;
+            for (int i = 0; i < 40 && !hiddenEverHit; i++)
+                hiddenEverHit = CardCore.Attribute.EffectHandlerRegistry
                     .ResolveCompositionTargetsAsync(def, ctx).GetAwaiter().GetResult()
-                    .Contains(demon);
-            Assert(demonEverHit, "单位随机：随机可命中扰魔（绕过选择——不弹弹窗不受显示域限制）");
+                    .Contains(hiddenUnit);
+            Assert(hiddenEverHit, "单位随机：随机可命中隐密（绕过选择——不弹弹窗不受显示域限制）");
 
             // 全部档（TargetCount≤0）随机 ≡ 全取
             var defAll = new CardCore.EffectDefinition
@@ -6228,7 +6228,7 @@ namespace CardCore.Editor
                 Id = "VERIFY_RANDOM_MANUAL",
                 SelectionMode = CardCore.SelectionMode.Single,
                 TargetCount = 1,
-                // Stealth filter = 仅指潜行中——完整候选只剩新造的潜行单位（扰魔/普通被 filter 排除），
+                // Stealth filter = 仅指潜行中——完整候选只剩新造的潜行单位（普通/隐密被 filter 排除），
                 // 而选一/选多显示域又把它隐藏 → "完整域有候选、显示域空"的正交样本
                 TargetDomain = new List<int> { (int)CardCore.TargetKind.EnemyLivingUnit },
                 TargetFilter = "Stealth",
@@ -6251,7 +6251,7 @@ namespace CardCore.Editor
                    "弹窗口径：Manual 预检用显示域（不可发动），潜行可被随机/全域命中");
 
             RetireCards(core, p1);
-            RetireCards(core, p2, demon, plain, stealthUnit);
+            RetireCards(core, p2, hiddenUnit, plain, stealthUnit);
         }
 
         // ======================================== 帷幕/紊乱效果目标口径（2026-09-13 修复+更名） ========================================
@@ -6443,7 +6443,7 @@ namespace CardCore.Editor
         /// 牺牲原子端到端：①表行锚（黑5 Polarity=-1 域 1,2,3,4 filter "Player"=仅角色）；
         /// ②候选域=双方角色（单位不入候选——Player 过滤激活）；③行为：目标玩家（持有者）自行选择
         /// 一个己方战场单位（生物+无生命单位，摒弃并池）**直送墓地**——非效果死亡：
-        /// 不发 CardDestroyEvent（死亡时点/消灭替代/击杀统计不触发），不灭/神佑无从拦
+        /// 不发 CardDestroyEvent（死亡时点/消灭替代/击杀统计不触发），不灭无从拦
         ///（非死亡路径；headless 自动选首个；多单位时走交互 Chooser=持有者）。
         /// </summary>
         private static void TestSacrificeAtom(GameCore core, Player p1, Player p2)

@@ -53,7 +53,7 @@ namespace SynergyUI
         {
             var catalog = CardCatalog.LoadAll();
             // 变形目标形态解析器：组合根注入（CardCore 不依赖 UI 层）
-            CardCore.Attribute.MorphSystem.ResolveMorphTarget = CardCatalog.GetById;
+            CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
 
             bool myRandom = myDeck == null, aiRandom = aiDeck == null;
             if (myDeck == null) myDeck = RandomDeckFrom(catalog);

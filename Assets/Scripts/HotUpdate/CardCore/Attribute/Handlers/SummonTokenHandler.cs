@@ -35,7 +35,7 @@ namespace CardCore.Attribute.Handlers
         {
             if (context.ZoneManager == null || context.Controller == null) return;
 
-            var resolver = ResolveTemplate ?? MorphSystem.ResolveMorphTarget;
+            var resolver = ResolveTemplate; // 引用卡ID 唯一解析器（2026-10-13 临摹退役后不再回退变形解析器）
             if (resolver == null) return;
 
             string templateId = effect.StringValue;

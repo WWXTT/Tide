@@ -43,11 +43,34 @@ namespace CardCore
         /// <summary>触发式入栈即记账（2026-09-13 修复：结算期记账在同批多触发下查账恒滞后一轮，
         /// "一回合一次"闸门失效）；结算处对触发式跳过 RecordActivation 防双记。</summary>
         public void RecordQueuedActivation(EffectDefinition effect, Entity source = null)
-            => _usageTracker.RecordActivation(UsageKey(effect, source));
+            => RecordUse(effect, source);
 
         /// <summary>限流台账键：effect.Id + 来源实例（null 源回落纯 Id——启动式等无源语境）。</summary>
         private static string UsageKey(EffectDefinition effect, Entity source)
-            => source != null ? effect.Id + "@" + source.RuntimeId : effect.Id;
+            => UsageKeyOf(effect.Id, source);
+
+        /// <summary>限流台账键（字符串口径）：与上面同键同账，供 UI 只读查询复用。</summary>
+        private static string UsageKeyOf(string effectId, Entity source)
+            => source != null ? effectId + "@" + source.RuntimeId : effectId;
+
+        /// <summary>只读查询（2026-10-13 手牌卡面 (x/y) 显示口径）：效果在来源实例上的本回合已作用次数。
+        /// 与触发上限闸门同键同账；无记录返回 0，回合重置自然归零（View 订阅 EffectUsageChangedEvent 刷新）。</summary>
+        public int GetTurnUsageOf(string effectId, Entity source)
+            => string.IsNullOrEmpty(effectId) ? 0 : _usageTracker.GetTurnUsage(UsageKeyOf(effectId, source));
+
+        /// <summary>记账并播报（各 RecordActivation 调用点统一走此口——UI (x/y) 读数的事件源）。</summary>
+        private void RecordUse(EffectDefinition effect, Entity source)
+        {
+            _usageTracker.RecordActivation(UsageKey(effect, source));
+            EventManager.Instance.Publish(new EffectUsageChangedEvent { EffectId = effect?.Id, Source = source });
+        }
+
+        /// <summary>退账并播报（发动层无效退回入栈记账——读数须同步回退）。</summary>
+        private void RefundUse(EffectDefinition effect, Entity source)
+        {
+            _usageTracker.RefundActivation(UsageKey(effect, source));
+            EventManager.Instance.Publish(new EffectUsageChangedEvent { EffectId = effect?.Id, Source = source });
+        }
 
         /// <summary>
         /// 检查效果是否可以发动
@@ -113,6 +136,12 @@ namespace CardCore
 
             // 4. 费用检查：元素代价自动推导（含抵消可达性），特殊代价走原子预检
             var elementCosts = CostDerivationService.DeriveElementCosts(effect);
+            // 临摹/变形发动补价（2026-10-13 差额恒蓝·蓝色专属能力）：被变形卡的主动效果按变形前后
+            // 声明费差额补蓝——预检与 ExecuteAsync 现付段同口径（付不出=不可发动）
+            {
+                int morphFee = Attribute.MorphSystem.ActivationSurcharge(source);
+                if (morphFee > 0) elementCosts[ManaType.Blue] += morphFee;
+            }
             var specialCosts = effect.Costs != null
                 ? effect.Costs.Where(c => c.Type != CostType.ElementConsume).ToList()
                 : new List<CostInstance>();
@@ -177,7 +206,7 @@ namespace CardCore
             {
                 instance.IsResolved = true;
                 if (instance.TriggeringEvent != null)
-                    _usageTracker.RefundActivation(UsageKey(effect, instance.Source));
+                    RefundUse(effect, instance.Source);
                 EventManager.Instance.Publish(new EffectResolveEvent
                 {
                     ResolvedEffect = instance.SourceEffect,
@@ -242,6 +271,14 @@ namespace CardCore
                     elementCosts[best] -= 1f;
                 }
             }
+            // 临摹/变形发动补价（2026-10-13 差额恒蓝·蓝色专属能力，落在底盘抵扣之后——底盘属原卡，
+            // 不抵变形溢价）：被变形卡的主动效果按变形前后声明费差额补蓝并入本次账单；
+            // 触发式（ElementCostPrepaid）不经此段；付不出沿用空转口径
+            if (effect.IsActivatedEffect && !effect.ElementCostPrepaid)
+            {
+                int morphFee = Attribute.MorphSystem.ActivationSurcharge(instance.Source);
+                if (morphFee > 0) elementCosts[ManaType.Blue] += morphFee;
+            }
             var specialCosts = effect.Costs != null
                 ? effect.Costs.Where(c => c.Type != CostType.ElementConsume).ToList()
                 : new List<CostInstance>();
@@ -293,7 +330,7 @@ namespace CardCore
             {
                 instance.IsResolved = true;
                 if (instance.TriggeringEvent == null)
-                    _usageTracker.RecordActivation(UsageKey(effect, instance.Source));
+                    RecordUse(effect, instance.Source);
                 EventManager.Instance.Publish(new EffectResolveEvent
                 {
                     ResolvedEffect = instance.SourceEffect,
@@ -364,7 +401,7 @@ namespace CardCore
             // 记录使用次数（触发式已在 ProcessTriggeredEffects 入栈时记账，此处防双记；
             // 键含来源实例（2026-10-03）——同名卡/临时复制各记各的）
             if (instance.TriggeringEvent == null)
-                _usageTracker.RecordActivation(UsageKey(effect, instance.Source));
+                RecordUse(effect, instance.Source);
 
             // 眠蚀光环（2026-10-07 负面化定案）：受光环影响的生物**启动式主动发动**结算后叠一层沉睡
             //（仅启动式——触发式/登场不算，用户定案；沉睡层自身拦截后续启动式+跳过重置）
@@ -812,6 +849,8 @@ namespace CardCore
         public void OnNewTurn(int turnNumber)
         {
             _usageTracker.OnNewTurn(turnNumber);
+            // 整账重置播报（EffectId=null 语义）：UI (x/y) 读数随回合归零，订阅方全量重查
+            EventManager.Instance.Publish(new EffectUsageChangedEvent());
         }
 
         /// <summary>
@@ -1772,6 +1811,8 @@ namespace CardCore
                 new HealHandler(),
                 new ModifyPowerHandler(),
                 new MorphHandler(),
+                // 变形赋予（2026-10-13 临摹定案配套）：目标变成引用卡（与临摹共用 MorphSystem.ApplyForm）
+                new GrantMorphHandler(),
 
                 // 终局原子（2026-09-15：宣告胜利——亡语「对手获得胜利」载体）
                 new DeclareVictoryHandler(),
@@ -1871,7 +1912,7 @@ namespace CardCore
 
                 // 关键词族 — 光合作用（2026-10-11：采掘退役接替者，绿3 Grant 行，回合开始+临时绿元素）
                 new GrantPhotosynthesisHandler(),
-                // 资源族 — 成长（2026-10-11：灵气复苏改+1，绿3，各自池可重复封顶18）
+                // 资源族 — 成长（2026-10-11：灵气复苏改+1，绿3，各自池可重复封顶14）
                 new IncreaseLandCapHandler(),
 
                 // 战斗底盘（2026-09-10 攻击/守卫效果化：1速/2速主动，注册完整性锚——战斗走 CombatSystem）

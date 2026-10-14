@@ -41,6 +41,10 @@ namespace CardCore
         public int power;
         public int life;
 
+        // 立绘名（2026-10-13 ACard 六区）：Assets/Art/UI/Sprites/{illustration}.png；
+        // 空/缺省 = 预制体占位图（ACardView.TrySetArt 加载失败保持占位同口径）
+        public string illustration;
+
         // 费用（2026-10-04 位置数组化）：下标=ManaType 枚举序号 [灰,红,蓝,绿,白,黑]，长度=枚举成员数；
         // 旧 [{manaType,amount}] 对列表形态已随全表重推退役。
         public List<float> costList;
@@ -233,29 +237,34 @@ namespace CardCore
                         if (atom == null || atomType == null) continue;
                         // 守护（2026-10-07 仅可转换）：收为仅连接光环节点，不再作登场 Grant 原子
                         // ——宿主属性校验随之退役；结界守护走耐久、生物守护走生命（伤害改写天然分叉）。
-                        if (atomType == AtomicEffectType.SummonToken)
+                        // 引用卡ID 校验（2026-10-13 定案）：召唤衍生物（须生物）与变形赋予
+                        //（须生物或结界）共用 SummonTokenHandler.ResolveTemplate 解析器。
+                        if (atomType == AtomicEffectType.SummonToken || atomType == AtomicEffectType.GrantMorph)
                         {
+                            bool isMorphRef = atomType == AtomicEffectType.GrantMorph;
+                            string kindZh = isMorphRef ? "变形赋予" : "召唤衍生物";
                             if (string.IsNullOrEmpty(atom.str))
                             {
                                 TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})："
-                                             + $"召唤衍生物的字符串参数为空——必须指向一张真实生物卡，构筑期拦截");
+                                             + $"{kindZh}的字符串参数为空——必须指向一张真实{(isMorphRef ? "生物/结界" : "生物")}卡，构筑期拦截");
                             }
                             else if (atom.str == card.ID)
                             {
                                 TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})："
-                                             + $"召唤衍生物自指（模板=宿主本身）——构筑期拦截");
+                                             + $"{kindZh}自指（引用卡=宿主本身）——构筑期拦截");
                             }
                             else
                             {
-                                var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate
-                                               ?? Attribute.MorphSystem.ResolveMorphTarget;
+                                var resolver = Attribute.Handlers.SummonTokenHandler.ResolveTemplate;
                                 var template = resolver?.Invoke(atom.str);
                                 // 2026-09-13 修复：resolver 返回裸 CardData（不实现 IHasSupertype），
                                 // is 判定恒 false 会把正常模板误报为非生物——改属性直判（同 SummonTokenHandler）。
                                 var tplSuper = template is IHasSupertype ht ? ht.Supertype : template?.Supertype;
-                                if (template != null && tplSuper != Cardtype.Creature)
+                                if (template != null && (isMorphRef
+                                        ? tplSuper != Cardtype.Creature && tplSuper != Cardtype.Enchantment
+                                        : tplSuper != Cardtype.Creature))
                                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})："
-                                                 + $"衍生物模板 {atom.str} 不是生物卡——构筑期拦截");
+                                                 + $"引用卡 {atom.str} 不是{(isMorphRef ? "生物/结界" : "生物")}卡——构筑期拦截");
                             }
                         }
                     }
@@ -656,6 +665,7 @@ namespace CardCore
                 ID = entry.id,
                 CardName = entry.cardName,
                 Supertype = ParseCardtype(entry.supertype),
+                Illustration = entry.illustration,
                 Power = entry.power,
                 Life = entry.life,
                 Cost = ParseCost(entry.costList),

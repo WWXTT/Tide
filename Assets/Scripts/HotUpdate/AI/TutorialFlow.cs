@@ -32,9 +32,11 @@ namespace SynergyUI
 
         /// <summary>
         /// 教学按钮点击裁决（progress 缺省真实单例；验证器可注入临时实例）：
-        /// 待询问→AskSkip；三课走完等最后一课→StartFinalChallenge；未完成且不在课程进行中→
-        /// StartAssessment（首次考核 或 输了重试——2026-10-06 定案：输了不转课程，留在挑战路径）；
-        /// 其余（课程进行中/续点）→StartTutorial。
+        /// 待询问→AskSkip；三课走完等最后一课→StartFinalChallenge；跳过路径（选过跳过/考核打输重试）
+        /// 且无进行中课程→StartAssessment（输了不转课程，留在挑战路径——2026-10-06 定案）；
+        /// 其余（课程进行中/课程间隙续点）→StartTutorial。
+        /// 2026-10-13 修复：课程玩家完课后 currentTutorial 清空，原「未完成+无进行中」条件会把
+        /// 课程间隙误判成待考核——凭 SkipChosen（旧档兜底 AssessmentDone）区分两条路径。
         /// </summary>
         public static TutorialButtonClickAction ResolveTutorialButtonClick(TutorialProgressManager progress = null)
         {
@@ -43,7 +45,8 @@ namespace SynergyUI
                 return TutorialButtonClickAction.AskSkip;
             if (p.ShouldShowFinalChallenge)
                 return TutorialButtonClickAction.StartFinalChallenge;
-            if (!p.IsTutorialDone && string.IsNullOrEmpty(p.CurrentTutorial))
+            if (!p.IsTutorialDone && (p.SkipChosen || p.AssessmentDone)
+                && string.IsNullOrEmpty(p.CurrentTutorial))
                 return TutorialButtonClickAction.StartAssessment;
             return TutorialButtonClickAction.StartTutorial;
         }

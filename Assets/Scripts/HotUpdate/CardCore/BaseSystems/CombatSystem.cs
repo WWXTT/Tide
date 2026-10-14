@@ -386,7 +386,7 @@ namespace CardCore
 
             KeywordRules.ApplyDamage(source, target, amount, true);
 
-            // 毒刺/冰晶/梦魇改写与毒素语义（层=伤害、回合末减半）已上移
+            // 毒刺/冰晶改写与毒素语义（层=伤害、回合末减半）已上移（梦魇已删 2026-10-13）
             // KeywordRules.ApplyDamage 战斗伤害改写口与 CounterRules.OnTurnEnd——此处不再附加处理。
         }
 

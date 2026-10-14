@@ -461,6 +461,17 @@ namespace CardCore
         public Player LastPriorityHolder { get; set; }
     }
 
+    /// <summary>
+    /// 效果作用次数记账变化事件（2026-10-13 手牌卡面 (x/y) 显示口径）：
+    /// Record/Refund 各记账点发布；EffectId=null 表示整账重置（新回合/新对局）——
+    /// 订阅方据此重查本回合已作用次数（数据层只读查询口 EffectExecutor.GetTurnUsageOf）。
+    /// </summary>
+    public class EffectUsageChangedEvent : GameEventBase
+    {
+        public string EffectId { get; set; }
+        public Entity Source { get; set; }
+    }
+
     // ==================== 状态事件 ====================
 
     /// <summary>
