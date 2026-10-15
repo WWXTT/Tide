@@ -1,95 +1,229 @@
 using System.Collections.Generic;
+using GameBoard;
 using Tide.HotUpdate;
+using TMPro;
 using UnityEngine;
 
 namespace SynergyUI
 {
     /// <summary>
-    /// 功能地块行（2026-10-13 基础教学三问题·用户定案：HUD 按钮上盘——返回主菜单/结束回合等
-    /// 常驻操作落成棋盘两半场接缝上的一行 3D 地块；无文字标签，身份靠悬停信息+配色）。
+    /// 中线状态行（2026-10-13 按钮上盘 → 10-14 中线行落格 → 当晚 8×7 状态行 → 本批镜像纠正+阶段格）：
+    /// 中线行（z3）7 格 x0..x6——画面左→右（画面左=x0，镜像修正后口径）：
+    /// 阶段显示(x0) / 己方剩余操作时间(x1) / 空(x2) / 连锁速度(x3) / 空(x4) / 对手剩余操作时间(x5) /
+    /// 回合结束(x6，贴己方右手边——原 x0 放反，2026-10-14 用户纠正)；
+    /// x7 槽=odd-r 居中缺口（BoardLayout.NoTileAt，无实体格）。
+    /// 认领 BattleHexBoard 拼好的 tile-{col}-3 改名 hud-tile-{key} + 原位换 tint 材质实例（不增删格，
+    /// 55 格口径不变，浮起拼装动画随行同走）；中线行文字**全部平贴格面**（同地牌计数条口径不朝相机：
+    /// LookRotation(down, forward) 字向正——相机 (7,8,-4)/(50,0,0) 实测）；阶段格=当前阶段
+    /// 【己方主要阶段】式动态文字（SetPhase 喂文）、结束回合格=【回合结束】；状态三格第二行数值
+    /// 由 BattleScreen 经 SetStatusValue 喂文（操作计时 2026-10-14 已接：真人对战 MatchClock 掉秒 /
+    /// 人机 ∞；连锁速度 2026-10-15 已接：引擎记速器实值，网络快照未承载时占位「—」）。
+    /// 返回主菜单地块本行退役（7 格无空位）——改由 BattleScreen.Build 代码补建画布按钮。
     ///
-    /// 纯表现层：独立根 <see cref="BattleHudRowRoot"/>（不挂 BattleBoardGrid.Root 下——
-    /// SelfCheck 的 54 格断言、BattleBoardAssemble 浮起动画、BoardMountSmoke 坐标对拍零耦合），
-    /// 引擎 BoardLayout/BoardState 不感知本行。地块名 hud-tile-{key}（前缀区别于 tile-{x}-{z}
-    /// 棋盘格），点击/悬停由 BattleScreen.PollFieldPointer 射线统一路由。
-    ///
-    /// 材质：实例化现有分区材质资产后着色（不新增资产；材质实例随 Unmount 显式销毁，
-    /// 不进静态长持——域边界 fake-null 教训同 BattleHexBoard 注释）。
+    /// 纯表现层：引擎 BoardLayout/BoardState 不感知本行归属（中线行角色=Middle）。
+    /// 地块名 hud-tile-{key}（前缀区别于 tile-{x}-{z} 棋盘格），点击/悬停由 BattleScreen.PollFieldPointer
+    /// 射线统一路由。材质：认领格现有分区材质（中线行 Zone20；缺资产回落预制体自带材质）实例化后
+    /// 着色；实例与数字条随 Unmount 显式销毁并还原格名/原材质，不进静态长持（域边界 fake-null 教训同 BattleHexBoard）。
     /// </summary>
     public static class BattleHudRow
     {
-        private const string TilePrefabAddress = "BattleHex";
-        private const string TilePrefabPath = "Assets/Art/Battle3D/BattleHex.prefab";
-        private const string BaseMatAddress = "BattleTile_Zone16";
-        private const string BaseMatPath = "Assets/Art/Battle3D/Materials/BattleTile_Zone16_P1Temp.mat";
+        // 中线状态行落位（2026-10-14 晚定案·本批镜像纠正：画面左=x0 → 画面右=x6）
+        public const int PhaseCol = 0;      // 阶段显示格：tile-0-3（画面左端——平贴当前阶段文字，SetPhase 喂文）
+        public const int SelfTimeCol = 1;   // 己方剩余操作时间格：tile-1-3
+        public const int ChainSpeedCol = 3; // 连锁速度格：tile-3-3
+        public const int OppTimeCol = 5;    // 对手剩余操作时间格：tile-5-3
+        public const int EndTurnCol = 6;    // 结束回合格：tile-6-3（画面右端，贴己方右手边——原 x0 放反已纠）
 
-        // 接缝几何：z=2.5 行位（行 2/3 中心的连线上），奇列对齐（+0.5 格）；
-        // 抬高到棋盘顶面之上悬浮——与相邻两行的六棱柱侧壁零穿插（几何解耦，纯摆位问题）
-        private const float SeamZ = 3.75f;
-        private const float LiftY = 0.32f;
-        private const float TileScale = 0.85f;
-        private const float BackCol = 2.75f;   // 悬浮列位（连续值，奇列对齐公式 x=(col+0.5)·短径·2）
-        private const float EndTurnCol = 4.75f;
-
-        private static readonly Color BackTint = new Color(0.52f, 0.56f, 0.64f);
         private static readonly Color EndTurnTint = new Color(0.42f, 0.66f, 0.46f);
+        private static readonly Color StatusTint = new Color(0.30f, 0.34f, 0.42f);
 
-        private static GameObject _root;
-        private static readonly List<Material> _mats = new List<Material>();
+        // 时间格优先权联动高亮（2026-10-14 MD 式）：持有方时间格亮蓝/红，与半场环境光同源同切
+        private static readonly Color TimeSelfHot = new Color(0.26f, 0.48f, 0.72f);
+        private static readonly Color TimeOppHot = new Color(0.72f, 0.30f, 0.26f);
+        private static Material _selfTimeTint, _oppTimeTint; // 两时间格 tint 材质实例（Mount 捕获）
+
+        private sealed class HudTile
+        {
+            public Transform Tile;
+            public string OrigName;
+            public Material OrigMat;
+            public Material TintMat;
+        }
+
+        private static readonly List<HudTile> _claimed = new List<HudTile>();
+        private static readonly Dictionary<int, TextMeshPro> _labels = new Dictionary<int, TextMeshPro>(); // key=列（状态格数字条/平贴文字）
+        private static readonly Dictionary<int, string> _headers = new Dictionary<int, string>(); // key=列 → 标题行（SetStatusValue 重写第二行用）
+        private static TextMeshPro _phaseLabel;        // 阶段显示格平贴文字（SetPhase 改写）
+        private static string _phaseText = "【—】";     // 装台前先存文本，Mount 时落字
 
         /// <summary>结束回合地块（null=未装台/缺件）。</summary>
         public static Transform EndTurnTile { get; private set; }
 
-        /// <summary>返回主菜单地块（null=未装台/缺件）。</summary>
-        public static Transform BackTile { get; private set; }
-
-        /// <summary>装台幂等（BattleStageDirector.MountBoardAndDawnAsync 在 BattleZoneProps.Mount 后调）。</summary>
+        /// <summary>装台幂等（BattleStageDirector.MountBoardAndDawnAsync 在 BattleZoneProps.Mount 后调）：
+        /// 须在 BattleHexBoard.Build + BattleBoardGrid.Mount 之后（认领已拼好的中线行格）。</summary>
         public static void Mount()
         {
-            if (_root != null) return;
-            var prefab = HotUpdateAssets.Load<GameObject>(TilePrefabAddress, TilePrefabPath);
-            if (prefab == null)
+            // 跨 Play 残留治理（2026-10-14）：本工程关域重载——Play 中止不走 BattleScreen.OnExit/
+            // Unmount，_claimed 携上一局已销毁棋盘的僵尸条目跨 Play 存活，「已装台」误判致本轮
+            // 中线行整行不装（结束回合/阶段/计时格全缺）。先剔僵尸：全僵尸=清静态重装。
+            if (_claimed.Count > 0)
             {
-                Debug.LogError("[BattleHudRow] BattleHex.prefab 缺失（" + TilePrefabPath + "）——功能地块行不装");
+                _claimed.RemoveAll(h => h == null || h.Tile == null); // Transform 销毁=Unity fake-null
+                if (_claimed.Count == 0)
+                {
+                    _labels.Clear();
+                    _headers.Clear();
+                    EndTurnTile = null;
+                    _phaseLabel = null;
+                    _selfTimeTint = _oppTimeTint = null; // 材质实例随旧棋盘销毁
+                }
+            }
+            if (_claimed.Count > 0) return;
+            var boardRoot = BattleBoardGrid.Root;
+            if (boardRoot == null)
+            {
+                Debug.LogError("[BattleHudRow] 棋盘未装台（BattleBoardGrid.Root=null）——中线状态行不装");
                 return;
             }
 
-            _root = new GameObject("BattleHudRowRoot");
-            BackTile = BuildTile(prefab, "hud-tile-back", BackCol, BackTint);
-            EndTurnTile = BuildTile(prefab, "hud-tile-end-turn", EndTurnCol, EndTurnTint);
-            Debug.Log("[BattleHudRow][PASS] 功能地块行：hud-tile-back / hud-tile-end-turn @"
-                      + $"z={SeamZ:0.00} 接缝（悬浮 y={LiftY:0.00}，缩放 {TileScale:0.00}）");
+            // 结束回合落 x6（镜像修正后画面右端=己方右手边，原 x0 放反）+ 平贴【回合结束】
+            EndTurnTile = ClaimTile(boardRoot.transform, "hud-tile-end-turn", EndTurnCol, EndTurnTint);
+            AttachFlatLabel(EndTurnTile, EndTurnCol, "【回合结束】", 3.5f);
+            // 阶段显示落 x0（原结束回合格位改役）：平贴【己方准备阶段】式当前阶段（SetPhase 喂文）
+            _phaseLabel = AttachFlatLabel(ClaimTile(boardRoot.transform, "hud-tile-phase", PhaseCol, StatusTint), PhaseCol, _phaseText, 2.6f);
+            AttachLabel(ClaimTile(boardRoot.transform, "hud-tile-self-time", SelfTimeCol, StatusTint), SelfTimeCol, "己方时间");
+            AttachLabel(ClaimTile(boardRoot.transform, "hud-tile-chain-speed", ChainSpeedCol, StatusTint), ChainSpeedCol, "连锁速度");
+            AttachLabel(ClaimTile(boardRoot.transform, "hud-tile-opp-time", OppTimeCol, StatusTint), OppTimeCol, "对手时间");
+            _selfTimeTint = TintMatOf("hud-tile-self-time"); // 优先权联动高亮用（材质实例随格留存）
+            _oppTimeTint = TintMatOf("hud-tile-opp-time");
+            Debug.Log("[BattleHudRow][PASS] 中线状态行：hud-tile-end-turn @tile-" + EndTurnCol + "-" + BoardLayout.MiddleZ
+                      + "（贴己方右手·平贴【回合结束】）+ 阶段显示@" + PhaseCol
+                      + " + 状态格 己方时间@" + SelfTimeCol + "/连锁速度@" + ChainSpeedCol + "/对手时间@" + OppTimeCol
+                      + "（操作计时+连锁速度已接：m:ss/∞·记速器实值；返回主菜单改画布按钮）");
         }
 
-        /// <summary>拆台（BattleStageDirector.DismountBoard 调）：销毁地块行与运行时材质实例。</summary>
+        /// <summary>认领格名 → tint 材质实例（时间格优先权联动用；未认领=null）。</summary>
+        private static Material TintMatOf(string tileName)
+        {
+            foreach (var h in _claimed)
+                if (h != null && h.Tile != null && h.Tile.name == tileName) return h.TintMat;
+            return null;
+        }
+
+        /// <summary>时间格随优先权（扳机）切换高亮（BattleFieldView.Apply 对账调用，与半场环境光同切；
+        /// holderSeat 0=己方亮蓝 1=对手亮红，其它=双暗。棋盘未就绪/缺件静默）。</summary>
+        public static void SetTimePriority(int holderSeat)
+        {
+            if (_selfTimeTint != null) _selfTimeTint.color = holderSeat == 0 ? TimeSelfHot : StatusTint;
+            if (_oppTimeTint != null) _oppTimeTint.color = holderSeat == 1 ? TimeOppHot : StatusTint;
+        }
+
+        /// <summary>拆台（BattleStageDirector.DismountBoard 调）：还原格名/原分区材质，销毁 tint 材质实例与数字条。</summary>
         public static void Unmount()
         {
-            if (_root == null) return;
-            foreach (var m in _mats)
-                if (m != null) Object.Destroy(m);
-            _mats.Clear();
-            Object.Destroy(_root);
-            _root = null;
-            BackTile = null;
+            foreach (var h in _claimed)
+            {
+                if (h.TintMat != null) Object.Destroy(h.TintMat);
+                if (h.Tile != null) // 棋盘整根销毁在即，还原是防御（重装台/冒烟路径下防串名）
+                {
+                    h.Tile.name = h.OrigName;
+                    var rend = h.Tile.GetComponent<MeshRenderer>();
+                    if (rend != null && h.OrigMat != null) rend.sharedMaterial = h.OrigMat;
+                }
+            }
+            _claimed.Clear();
+            foreach (var kv in _labels)
+                if (kv.Value != null) Object.Destroy(kv.Value.gameObject); // 数字条挂 tile 下随盘销毁，此处防御重装台残留
+            _labels.Clear();
+            _headers.Clear();
+            _phaseLabel = null;
+            _selfTimeTint = _oppTimeTint = null; // 材质实例随 _claimed 销毁，清引用
             EndTurnTile = null;
         }
 
-        private static Transform BuildTile(GameObject prefab, string name, float col, Color tint)
+        /// <summary>认领中线行格：改名 hud-tile-{key} + 原位换 tint 材质实例（记原始名/材质供还原）。</summary>
+        private static Transform ClaimTile(Transform boardRoot, string name, int col, Color tint)
         {
-            var tile = Object.Instantiate(prefab, _root.transform, false);
-            tile.name = name;
-            tile.transform.localPosition = new Vector3(
-                (col + 0.5f) * BattleBoardGrid.InnerRadius * 2f, LiftY, SeamZ);
-            tile.transform.localScale = Vector3.one * TileScale;
+            var tile = boardRoot.transform.Find($"tile-{col}-{BoardLayout.MiddleZ}");
+            if (tile == null)
+            {
+                Debug.LogError($"[BattleHudRow] 中线行格 tile-{col}-{BoardLayout.MiddleZ} 缺失——功能地块 {name} 不装");
+                return null;
+            }
 
-            // 着色：分区材质资产实例化后 tint（资产缺失回落预制体自带材质实例化）
             var rend = tile.GetComponent<MeshRenderer>();
-            var src = HotUpdateAssets.Load<Material>(BaseMatAddress, BaseMatPath);
-            var mat = Object.Instantiate(src != null ? src : rend.sharedMaterial);
-            mat.color = tint;
-            rend.sharedMaterial = mat;
-            _mats.Add(mat);
-            return tile.transform;
+            var origMat = rend != null ? rend.sharedMaterial : null;
+            Material tintMat = null;
+            if (rend != null)
+            {
+                tintMat = Object.Instantiate(origMat != null ? origMat : rend.material);
+                tintMat.color = tint;
+                rend.sharedMaterial = tintMat;
+            }
+
+            var h = new HudTile { Tile = tile, OrigName = tile.name, OrigMat = origMat, TintMat = tintMat };
+            _claimed.Add(h);
+            tile.name = name;
+            return tile;
+        }
+
+        /// <summary>状态格第二行改写（操作计时 2026-10-14：真人对战 m:ss / 人机 ∞；
+        /// 连锁速度 2026-10-15：引擎记速器实值）。未装台/缺格静默（装台晚于本屏——调用方周期重写直至就绪）。</summary>
+        public static void SetStatusValue(int col, string value)
+        {
+            if (!_labels.TryGetValue(col, out var label) || label == null) return;
+            _headers.TryGetValue(col, out var header);
+            label.text = (header ?? "") + "\n" + value;
+        }
+
+        /// <summary>阶段显示格喂文（【己方主要阶段】式，BattleScreen.RefreshBars/RefreshView 同频调；
+        /// 装台前先存文本，Mount 时落字；重写只变更动）。</summary>
+        public static void SetPhase(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            _phaseText = text;
+            if (_phaseLabel != null && _phaseLabel.text != text) _phaseLabel.text = text;
+        }
+
+        /// <summary>格面平贴单行文字（2026-10-14 定案：同地牌计数条口径不朝相机——
+        /// LookRotation(up, forward) 字头恒指世界 +z；中文整句 8 字用 2.6 号贴格宽，短语 3.5 号）。
+        /// 挂认领格下随浮起动画同走；TMP 默认字体未配置时静默跳过；key=列号。</summary>
+        private static TextMeshPro AttachFlatLabel(Transform tile, int col, string text, float fontSize)
+        {
+            if (tile == null || TMP_Settings.defaultFontAsset == null) return null;
+            var go = new GameObject("hud-flat");
+            go.transform.SetParent(tile, false);
+            go.transform.localPosition = new Vector3(0f, 0.014f, 0f); // 贴格顶面（菲涅尔层之上，同地牌计数条）
+            go.transform.localRotation = Quaternion.LookRotation(Vector3.down, Vector3.forward); // 平贴·字向正（2026-10-14 修：旧 up 版镜像反字，同 BattleFieldView.EnsureFlatCellLabel）
+            var label = go.AddComponent<TextMeshPro>();
+            label.fontSize = fontSize;
+            label.alignment = TextAlignmentOptions.Center;
+            label.color = Color.white;
+            label.rectTransform.sizeDelta = new Vector2(2.6f, 1.2f);
+            label.text = text;
+            _labels[col] = label;
+            return label;
+        }
+
+        /// <summary>状态格数字条（2026-10-14 定案：中线行文字全部平贴格面，同地牌计数条口径
+        /// LookRotation(down, forward) 字向正——相机 (7,8,-4)/(50,0,0) 实测读向+x/字头+z/可读面朝上；
+        /// 旧版朝相机已退役）。挂认领格下随浮起动画同走；TMP 默认字体未配置时静默跳过；
+        /// key=列号，header=标题行——第二行数值由 SetStatusValue 改写。</summary>
+        private static void AttachLabel(Transform tile, int col, string header)
+        {
+            if (tile == null || TMP_Settings.defaultFontAsset == null) return;
+            var go = new GameObject("hud-flat");
+            go.transform.SetParent(tile, false);
+            go.transform.localPosition = new Vector3(0f, 0.014f, 0f); // 贴格顶面（菲涅尔层之上，同地牌计数条）
+            go.transform.localRotation = Quaternion.LookRotation(Vector3.down, Vector3.forward); // 平贴·字向正
+            var label = go.AddComponent<TextMeshPro>();
+            label.fontSize = 3.5f;
+            label.alignment = TextAlignmentOptions.Center;
+            label.color = Color.white;
+            label.rectTransform.sizeDelta = new Vector2(2.4f, 1.4f);
+            label.text = header + "\n—";
+            _labels[col] = label;
+            _headers[col] = header;
         }
     }
 }

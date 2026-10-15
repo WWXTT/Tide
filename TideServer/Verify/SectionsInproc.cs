@@ -362,7 +362,9 @@ namespace TideServer.Verify
                 // EnforceHandLimitAsync 为 fire-and-forget，但回环选择器同步完成 → 链路同步收敛
                 int after = core.ZoneManager.GetCards(core.Player1, Zone.Hand).Count;
                 VerifySuite.Assert(after == limit, $"手牌上限弃牌：{limit + 2} → {after}（限 {limit}）");
-                VerifySuite.Assert(selector.Seen.Any(r => r.Title == "手牌上限"), "弃牌反问走了 Ex 分支（真实引擎调用点）");
+                // 2026-10-15 串台跟随：并行会话把弃牌反问标题从「手牌上限」改为带张数的完整文案——断言同步
+                VerifySuite.Assert(selector.Seen.Any(r => r.Title != null && r.Title.StartsWith("回合结束，手牌超出")),
+                    "弃牌反问走了 Ex 分支（真实引擎调用点；标题=回合结束手牌超出…）");
             }
             finally
             {

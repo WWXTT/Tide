@@ -70,6 +70,12 @@ namespace CardCore.Editor.Tests
             CardCore.EffectsLibrary.Reload();
             SynergyUI.CardCatalog.Invalidate();
 
+            // ---- 6) 构成自检（2026-10-15）：主题双色纯度（主题色+灰）+ 断链在此当场报错——
+            //      不再等运行后才发现杂色（Tools/卡组构成检测 同一验证器全量扫全部卡组）----
+            ValidateComposition(RedDeckName, red);
+            ValidateComposition(GreenDeckName, green);
+            ValidateComposition(BlueDeckName, blue);
+
             Debug.Log($"[主题卡组] 完成：红{red.Count}/绿{green.Count}/蓝{blue.Count} 张（保留既有非主题卡 {keep.Count} 张）；" +
                       $"卡表 {cardsPath}；卡组目录 StreamingAssets/Card/。曲线见上方逐卡日志。");
         }
@@ -367,6 +373,26 @@ namespace CardCore.Editor.Tests
                 .OrderBy(v => v).ToList();
             Debug.Log($"[主题卡组] {name}：{cards.Count} 张；费用曲线 {string.Join("/", curve)}；" +
                       $"明细：{string.Join("、", cards.Select(c => $"{c.CardName}({(c.Cost != null && !c.Cost.IsZero ? string.Join("+", c.Cost.NonzeroColors().Select(m => $"{m}{c.Cost[m]:0}")) : "0")})"))}");
+        }
+
+        /// <summary>构成自检（2026-10-15）：按落盘同款 ID 口径跑 DeckCompositionValidator，
+        /// 违色（主题色+灰以外，出牌费/启动式锚价两面）/断链逐条 LogError——构建期即暴露，
+        /// 不再事后人工复查。违色来源通常是错边代价原子（AddToxin/Freeze 等）或跨色效果，
+        /// 改原子后重跑本菜单即绿。</summary>
+        private static void ValidateComposition(string name, List<CardData> cards)
+        {
+            var report = SynergyUI.DeckCompositionValidator.Check(
+                name, cards.Select(c => "C_" + SynergyUI.ContentHasher.HashCard(c)));
+            if (report.Ok)
+            {
+                Debug.Log($"[主题卡组] 构成自检 ✔ {SynergyUI.DeckCompositionValidator.Describe(report)}");
+                return;
+            }
+            foreach (var v in report.Violations)
+                Debug.LogError($"[主题卡组] 构成自检 ✘ {name}：{v.CardName} ×{v.Copies}｜{v.Surface}｜" +
+                    $"{SynergyUI.DeckCompositionValidator.ColorZh(v.Color)}{v.Amount:0.#}——主题卡组只允许{name[0]}+灰");
+            foreach (var id in report.MissingIds)
+                Debug.LogError($"[主题卡组] 构成自检 ✘ {name}：断链 {id}");
         }
     }
 }

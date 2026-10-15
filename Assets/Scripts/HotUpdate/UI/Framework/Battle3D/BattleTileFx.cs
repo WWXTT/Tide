@@ -22,7 +22,7 @@ namespace SynergyUI
     {
         private const string FresnelMatPath = "Assets/Art/Battle3D/Materials/BattleTile_Fresnel.mat";
         private const string HexMeshPath = "Assets/Art/Battle3D/BattleHex.asset";
-        private const string ElementPrefabPath = "Assets/Art/Battle3D/Element.prefab";
+        private const string ElementPrefabPath = "Assets/Art/Prefab/Element.prefab";
 
         private static readonly int FresnelColorId = Shader.PropertyToID("_FresnelColor");
         private static readonly int WaveWeightId = Shader.PropertyToID("_WaveWeight");
@@ -108,12 +108,16 @@ namespace SynergyUI
         /// <summary>生物可行动：脚下地块淡蓝扩散波（格心向外循环推进）。</summary>
         public static void SetUnitGlow(int x, int z) => Light(x, z, UnitGlowColor, wave: true);
 
-        /// <summary>地牌未横置：锁色菲涅尔（lockedColor&lt;0 按灰；同格叠层多色以末次为准）。</summary>
+        /// <summary>地牌色组仍有未横置张：锁色菲涅尔（lockedColor&lt;0 按灰；2026-10-14 按色叠格后每格恒单色）。</summary>
         public static void SetLandGlow(int x, int z, int lockedColor)
             => Light(x, z, GlowColors[Mathf.Clamp(lockedColor, 0, GlowColors.Length - 1)], wave: false);
 
-        /// <summary>地牌未横置：格面元素图标（未锁色/依赖缺失不显示；stacked=叠层第二张错位）。</summary>
-        public static void AddElement(int x, int z, int lockedColor, bool stacked)
+        // 环境光 SetAmbientGlow 随半场泛光退役（2026-10-15 用户定案：与地格玩法高光共用壳互相覆盖——
+        // 优先权指示迁 BattlePriorityGlow 战场底部双光条）
+
+        /// <summary>地牌格面元素图标（2026-10-14 按色叠格改版：每色一格单图标居中；
+        /// offset=格面局部偏移，技能格黑白双图标错位复用本口；未锁色/依赖缺失不显示）。</summary>
+        public static void AddElement(int x, int z, int lockedColor, Vector2 offset)
         {
             if (lockedColor < 0) return;
             var tile = TileOf(x, z);
@@ -127,11 +131,9 @@ namespace SynergyUI
             if (mat == null) return;
 
             var icon = Object.Instantiate(_elementPrefab, tile, false);
-            icon.name = stacked ? "fx-element-2" : "fx-element-1";
+            icon.name = "fx-element-" + ElemMatNames[Mathf.Clamp(lockedColor, 0, ElemMatNames.Length - 1)];
             icon.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); // 面朝上（与 prefab 同值，显式防御）
-            icon.transform.localPosition = stacked
-                ? new Vector3(0.16f, 0.012f, 0.11f)
-                : new Vector3(-0.16f, 0.008f, -0.11f); // 两张对称错位，均在格内
+            icon.transform.localPosition = new Vector3(offset.x, 0.008f, offset.y);
             icon.transform.localScale = Vector3.one * 0.5f;
             var rend = icon.GetComponent<MeshRenderer>();
             rend.sharedMaterial = mat;

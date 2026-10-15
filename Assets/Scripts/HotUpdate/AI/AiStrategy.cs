@@ -178,19 +178,22 @@ namespace CardCore.AI
             return null;
         }
 
-        /// <summary>英雄技能是否发动（2026-10-07 卡牌化：技能=构筑标记的结界卡）：
-        /// 技能卡在场、未横置、未被沉默，且唯一主动效果的派生费用可付（含自动横置地牌）→ 发动。
-        /// 效果语义不再按技能特判——旧三色 heuristics 随硬编码技能退役，目标域非空等
-        /// 由 HeroSkillSystem.ActivateAsync 的 CanActivate 预检统一守卫。</summary>
+        /// <summary>英雄技能是否发动（2026-10-15 改版：技能=技能区法术、每回合一次=横置闸）：
+        /// 技能卡在场、未横置、未被沉默，且**任一**主动效果的派生费用可付（含自动横置地牌）→ 发动
+        ///（多效果卡由 ActivateAsync 按序号发首个可付项，SimpleAI 同步取序号 0——启发式不挑模式）。
+        /// 效果语义不按技能特判——目标域非空等由 HeroSkillSystem.ActivateAsync 的 CanActivate 预检统一守卫。</summary>
         public virtual bool WantHeroSkill(GameCore core, Player me)
         {
             var skillCard = HeroSkillSystem.ResolveSkillCard(core, me);
             if (skillCard == null || skillCard.IsTapped()) return false;
             if (skillCard.GetCounterCount(CounterRules.SilenceCounter) > 0) return false;
-            var effect = HeroSkillSystem.SkillEffectOf(skillCard);
-            if (effect == null) return false;
-            var cost = CostDerivationService.DeriveElementCosts(effect);
-            return cost.IsZero || core.ElementPool.CanPayCostWithAutoTap(cost, me);
+            foreach (var effect in HeroSkillSystem.SkillEffectsOf(skillCard))
+            {
+                var cost = CostDerivationService.DeriveElementCosts(effect);
+                if (cost.IsZero || core.ElementPool.CanPayCostWithAutoTap(cost, me))
+                    return true;
+            }
+            return false;
         }
 
         // ======================================== 共用小工具（策略实现用） ========================================

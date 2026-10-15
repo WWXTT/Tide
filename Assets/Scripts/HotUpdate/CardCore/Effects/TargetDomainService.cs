@@ -13,7 +13,9 @@ namespace CardCore
     /// </summary>
     public static class TargetDomainService
     {
-        /// <summary>卡以 modeIndex 模式打出时，全部非无目标效果是否都有可作用候选。</summary>
+        /// <summary>卡以 modeIndex 模式打出时，全部非无目标效果是否都有可作用候选。
+        /// 法术（2026-10-15 深夜改版）：只挂 1~3 个启动式效果、施放时抉择其一——modeIndex=效果序号，
+        /// 只检所选那条的域（其余效果本局不发动，不该拦出牌）。</summary>
         public static bool HasPlayableTargets(GameCore core, Player player, Card card, int modeIndex = 0)
         {
             if (core == null || player == null || card == null) return true;
@@ -29,17 +31,30 @@ namespace CardCore
                 ModeIndex = modeIndex,
             };
 
+            // 登场时序定案（卡先入场→登场效果后发动）：非法术卡的全部效果都在它入场之后结算——
+            // 声明期预检须把「即将入场的这张卡」视作己侧单位域候选（空场首发自指合法，
+            // 如「登场时获得潜行」选自己；场上已有候选时本兜底自然不介入）。
+            Card prospective = card.IsSpellCard() ? null : card;
+
+            // 法术：只检施放时抉择的那条效果（modeIndex=效果序号）
+            if (card.IsSpellCard())
+            {
+                var idx = System.Math.Clamp(modeIndex, 0, data.Effects.Count - 1);
+                var spellDef = CardEffectConverter.ConvertOne(data.Effects[idx], data.ID);
+                return HasCandidates(spellDef, ctx, null);
+            }
+
             foreach (var effectData in data.Effects)
             {
                 if (effectData == null) continue;
                 var def = CardEffectConverter.ConvertOne(effectData, data.ID);
-                if (!HasCandidates(def, ctx)) return false;
+                if (!HasCandidates(def, ctx, prospective)) return false;
             }
             return true;
         }
 
         /// <summary>激活式能力（def 已转换）：组合域候选非空预检——CanActivate 第 5 步。</summary>
-        public static bool HasCandidates(EffectDefinition def, EffectExecutionContext ctx)
+        public static bool HasCandidates(EffectDefinition def, EffectExecutionContext ctx, Card prospective = null)
         {
             if (def == null) return true;
 
@@ -65,7 +80,12 @@ namespace CardCore
                         ? TargetResolver.ApplyTauntRestriction(atomCands, ctx, atomEdict)
                         : TargetResolver.ExcludeUnselectable(
                             TargetResolver.ApplyTauntRestriction(atomCands, ctx, atomEdict), ctx.Controller);
-                    if (atomCands.Count == 0) return false;
+                    if (atomCands.Count == 0)
+                    {
+                        // 即将入场的自己兜底（声明期卡还不在战场——结算期它已入候选，此处补齐同口径）
+                        if (ProspectiveCoversUnitKind(kinds, prospective)) continue;
+                        return false;
+                    }
                 }
                 return true;
             }
@@ -98,7 +118,19 @@ namespace CardCore
                     : TargetResolver.ExcludeUnselectable(
                         TargetResolver.ApplyTauntRestriction(candidates, ctx, edictExempt), ctx.Controller);
             }
-            return candidates.Count > 0;
+            return candidates.Count > 0 || ProspectiveCoversUnitKind(domain, prospective);
+        }
+
+        /// <summary>即将入场的卡是否覆盖该单位域：生物=己方有生命单位、结界=己方无生命单位
+        ///（法术不入单位域，调用方已排除）。只做种类归属粗判——filter 细则（如 Untapped）
+        /// 留给结算期实际解析，预检宁可放行不误伤合法首发。</summary>
+        private static bool ProspectiveCoversUnitKind(List<int> kinds, Card prospective)
+        {
+            if (prospective == null || kinds == null || kinds.Count == 0) return false;
+            var supertype = (prospective as CardWrapper)?.GetData()?.Supertype;
+            if (supertype == Cardtype.Enchantment)
+                return kinds.Contains((int)TargetKind.OwnNonLivingUnit);
+            return kinds.Contains((int)TargetKind.OwnLivingUnit);
         }
     }
 }

@@ -48,7 +48,8 @@ namespace CardCore
             FastWeight = fastWeight;
         }
 
-        /// <summary>第 T 个个人回合的取指示物上限（T 从 1 起；越界取末端值）</summary>
+        /// <summary>第 T 个回合的上限取值（T 从 1 起；越界取末端值）。
+        /// 2026-10-15 起索引=GlobalTurnIndex（每次回合开始双方同步 +1）。</summary>
         public int CapAt(int turn)
         {
             if (turn <= 1) return _caps[0];
@@ -58,9 +59,9 @@ namespace CardCore
 
         /// <summary>
         /// 固定地牌槽曲线 [1,2,…,maxCap]，按全局回合数索引：
-        /// 先手首回合 1，此后每个回合开始 +1（对手首回合即 2），最大 maxCap。
+        /// 先手首回合 1，此后每个回合开始 +1（对手首回合即 2），最大 maxCap——双方数值恒等（2026-10-15 回归全局口径）。
         /// 当前对局的地牌张数/费用上限即此曲线；变速效果仍经 SetCurve 换曲线（P2 挂点）。
-        /// 封顶默认值 2026-10-13 迁表：ValueSystemConfig GameRules.LandCurveCap（=池钳 MAX_POOL_SIZE 同源）。
+        /// 封顶默认值 2026-10-13 迁表：ValueSystemConfig GameRules.LandCurveCap（=池钳 MAX_POOL_SIZE 同源；10-15 起 10）。
         /// </summary>
         public static ResourceCurve StandardLandCurve()
             => StandardLandCurve(StandardCurveCap);
@@ -78,8 +79,8 @@ namespace CardCore
 
         /// <summary>
         /// 挑战模式电脑曲线（2026-10-06 定案：难度 N 单值联动）= 标准曲线整体上移 bonus：
-        /// [1+bonus, 2+bonus, …, 7+bonus]——开局即有额外初始地牌槽，封顶也抬高 bonus。
-        /// 第 T 全局回合上限 = min(T + bonus, 7 + bonus)（GetLandCap 终钳 MaxStackedLandCap=14：N≥7 触顶）。
+        /// [1+bonus, 2+bonus, …, cap+bonus]——开局即有额外初始地牌槽，封顶也抬高 bonus。
+        /// 第 T 全局回合上限 = min(T + bonus, cap + bonus)；无终钳（2026-10-15：MaxStackedLandCap 硬顶退役）。
         /// 只注入给 P2（电脑），玩家侧保持标准曲线。
         /// bonus=0 时与 StandardLandCurve() 等价（InitGame 按此短路，不换曲线）。
         /// </summary>

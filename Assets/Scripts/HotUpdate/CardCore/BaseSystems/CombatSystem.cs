@@ -51,7 +51,9 @@ namespace CardCore
     /// ① 攻击目标变更（守卫结算改写攻击目标）② 战斗结算（ResolvePair）③ 死亡处理
     /// （由栈机器 SBA 轮统一接管——战斗死亡与效果致死同口径，救场窗口自然覆盖）。
     /// 旧批次模型（会话/阻挡阶段/ExecuteDamage 批结算/EndCombat 直执泵）全部退役。
-    /// 横置在**结算时**支付（确定进入战斗才横置——到点重查，宣言期零支付）。
+        /// 横置在**战斗结算完成后**支付（2026-10-15 定案：双方以竖直状态完成战斗——战斗期间
+        /// 攻击者照常输出、拦截守卫照常反击，战斗结束后攻击者与守卫才横置；确定进入战斗才支付，
+        /// 到点重查，宣言期零支付）。
     ///
     /// 战斗为双向结算（定案）：随从互殴双方同时互致伤害；角色（玩家）被攻击同样有反伤——
     /// 反伤力=角色攻击指示物层数（2026-10-07 弹药定案，武器系统退役；见类内"角色参战"块注释）。
@@ -60,10 +62,10 @@ namespace CardCore
     /// - 可用性统一走横置：随从一律横置入场；冲锋/突袭一次性生效 = 解除横置 + 消耗关键词
     ///   （突袭残留紊乱指示物一回合，期间不能以玩家为目标）；攻击/拦截/启动式均以未横置为资格，
     ///   横置即上限——激励解除横置即可再动
-    /// - 攻击 = 速度0主动效果（默认自带，NoAttack 卡不能攻；标准速度门 0≥计数器——连锁中不可宣）；
-    ///   守卫 = 速度1响应拦截（默认自带，NoGuard 卡不能拦）：响应窗口内入栈，
-    ///   结算期横置 → 结算按横置单向受伤（被动代价不对称：攻击方强制竖直参战）
-    /// - 警戒：横置也能造成战斗伤害（横置目标持警戒仍反击，见 ResolvePair）
+        /// - 攻击 = 速度0主动效果（默认自带，NoAttack 卡不能攻；标准速度门 0≥计数器——连锁中不可宣）；
+        ///   守卫 = 速度1响应拦截（默认自带，NoGuard 卡不能拦）：响应窗口内入栈，结算期改写攻击
+        ///   目标并登记 GuardBlocker——守卫竖直参战照常反击，横置随攻击结算在战斗完成后支付
+        /// - 警戒：已横置（自身先前动作所致）的防守者也能造成战斗伤害（见 ResolvePair）
     /// - 帷幕（原嘲讽，2026-09-13 更名）：不拦攻击（只吸引效果目标）；攻击侧目标强制由守卫拦截承担
     /// - 潜行（2026-10-08 指示物化）：不可被指定为攻击/效果目标（三指定口读潜行层数>0）；
     ///   攻击/发动效果/实际受伤各消耗 1 层（三个失效口，逐份撤）
@@ -182,8 +184,10 @@ namespace CardCore
 
         /// <summary>
         /// 守卫拦截结算（速度1响应，LIFO 先于被拦截的攻击结算）：
-        /// 重检（存活/未横置——支付不出即落空，宣言期零支付天然不回滚）→ 支付横置 →
-        /// **攻击目标变更**（战斗三段第①段）：改写被拦截攻击宣言对象的目标为守卫者。
+        /// 重检（存活/未横置——横置支付不出即落空，宣言期零支付天然不回滚）→
+        /// **攻击目标变更**（战斗三段第①段）：改写被拦截攻击宣言对象的目标为守卫者、
+        /// 登记 GuardBlocker。守卫**不在此横置**（2026-10-15 定案）：战斗期间竖直参战
+        /// 照常反击，横置由攻击结算在战斗完成后统一支付（攻击落空=守卫未参战不支付）。
         /// 原阻挡阶段（SelectBlocker/DeclareBlock）退役。
         /// </summary>
         public void ResolveGuardDeclaration(EffectInstance guard)
@@ -192,15 +196,15 @@ namespace CardCore
             var attack = guard?.InterceptedAttack;
             if (guarder == null || attack == null || !attack.IsAttackDeclaration) return;
 
-            // 重检+支付：窗口内被冻结抢先横置/死亡 → 拦截落空（不支付不回滚）
+            // 重检：窗口内被冻结抢先横置/死亡 → 拦截落空（不支付不回滚）
             if (!guarder.IsAlive || guarder.IsTapped())
             {
                 return;
             }
-            guarder.Tap(); // 守卫拦截横置自身（被动代价不对称：攻击/守卫均在结算期支付）
 
             // 攻击目标变更：改写攻击宣言对象的目标（攻击结算时按改写后目标走 CanAttackTarget 重检）
             attack.Targets[0] = guarder;
+            attack.GuardBlocker = guarder; // 多次拦截只记最后一位（最终目标）；战斗后据此补横置
 
             EventManager.Instance.Publish(new BlockDeclarationEvent
             {
@@ -215,11 +219,11 @@ namespace CardCore
         /// <summary>
         /// 攻击宣言结算（战斗三段第①②段；第③段死亡处理由栈机器 SBA 轮统一接管——
         /// 战斗死亡与效果致死同口径，救场窗口自然覆盖，旧 EndCombat 直执泵退役）：
-        /// ① 重检+支付：窗口内状态可能已变（冻结抢先横置/死亡/目标丢失）→ 落空
-        ///    （CombatCancelledEvent；宣言期零支付，天然不回滚）；重检通过 → **支付横置**
-        ///    （确定进入战斗才横置——与旧"宣言即横置"的差异点）。
-        /// ② 战斗结算：ResolvePair——**显式特判：攻击方支付横置后强制按竖直参战**
-        ///    （横置不削输出、不失去参战资格）；防守方/守卫横置 → 不反击（双方横置=攻击单向伤害）。
+        /// ① 重检：窗口内状态可能已变（冻结抢先横置/死亡/目标丢失）→ 落空
+        ///    （CombatCancelledEvent；宣言期零支付，天然不回滚）。
+        /// ② 战斗结算：ResolvePair——双方以竖直状态完成战斗（2026-10-15 定案：攻击者与
+        ///    拦截守卫照常输出/反击，横置不再先于战斗支付）；结算完成后支付双方横置
+        ///    （攻击者+GuardBlocker 守卫——完成战斗才横置，此后才无法反击）。
         /// </summary>
         public void ResolveAttackDeclaration(EffectInstance attack)
         {
@@ -241,10 +245,6 @@ namespace CardCore
                 return;
             }
 
-            // 支付横置（确定进入战斗才横置；警戒不抵扣）
-            if (KeywordRules.ShouldTap(attacker))
-                attacker.Tap();
-
             // 潜行：攻击后消耗 1 层（2026-10-08 指示物化；取消/落空的攻击不计数）
             if (attacker is Card attackerCard && attackerCard.GetCounterCount(Attribute.CounterRules.StealthCounter) > 0)
             {
@@ -260,8 +260,16 @@ namespace CardCore
             if (attacker is Card counted)
                 counted.AttacksThisTurn++;
 
-            // ② 战斗结算（攻击方强制竖直参战特判在 ResolvePair：横置不查攻击方、不削输出）
+            // ② 战斗结算（2026-10-15 定案：双方竖直完成战斗——此时攻击者未横置、拦截守卫
+            // 未横置，反击资格按 ResolvePair 口径自然成立——守卫照常反击）
             ResolvePair(attacker, target);
+
+            // 战斗完成 → 支付横置（确定进入战斗且已完成才横置；警戒不抵扣）。拦截守卫同批
+            // 补横置（GuardBlocker=最终拦截者，前序被改写者未参战不付；死者横置无观察面，照付）
+            if (KeywordRules.ShouldTap(attacker))
+                attacker.Tap();
+            if (attack.GuardBlocker != null)
+                attack.GuardBlocker.Tap();
 
             // 角色主动攻击结算完成 → 烧除全部攻击弹药（2026-10-07 弹药定案：与反击共用同一份；
             // 重检落空/取消路径不走此处——宣言被无效化弹药保留）
@@ -310,11 +318,10 @@ namespace CardCore
                 });
             }
 
-            // 反击资格（定案）：只有未横置的随从才能反击——反击不消耗横置（横置是攻击/发动的代价），
-            // 已横置的随从只能挨打（守卫拦截即横置 → 单向受伤，警戒例外：横置也能造成战斗伤害）。
-            // **攻击方强制竖直参战（2026-09-16 显式特判，原隐式注释"结算按竖直参战"显式化）**：
-            // 攻击方在结算期支付横置后强制按竖直参战——横置不削输出、不失去参战资格；
-            // 双方横置 = 攻击单向伤害（目标侧 targetCanCounter=false）。
+            // 反击资格（2026-10-15 修订）：只有未横置的随从才能反击——反击不消耗横置（横置是
+            // 攻击/发动的代价），已横置（自身先前动作所致）的随从只能挨打，警戒例外：横置仍反击。
+            // 横置支付已移到战斗完成后（ResolveAttackDeclaration）：战斗期间攻击者与拦截守卫
+            // 均竖直——守卫照常反击（旧"守卫拦截即横置→单向受伤"口径退役）。
             // 角色目标无横置概念（恒视为未横置）——角色反伤照常。
             bool targetCanCounter = !target.IsTapped()
                                     || (target is Card vc && vc.HasKeyword(KeywordRules.Vigilance));

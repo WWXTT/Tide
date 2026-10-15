@@ -1,8 +1,20 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace SynergyUI
 {
+    /// <summary>手牌扇交互钩子（宿主屏注入，2026-10-14 手牌出牌接线）：条件评估与点击接管
+    /// 全在宿主屏完成（UI Framework 不耦合引擎）；null 钩子或 null 委托=该项不可用。
+    /// 未注入钩子的扇区（对手扇常态）不显示按钮层。</summary>
+    public sealed class FanInteractions
+    {
+        public Func<HandFanCard, bool> CanUse;
+        public Func<HandFanCard, bool> CanPlaceLand;
+        public Action<HandFanCard> OnUse;
+        public Action<HandFanCard> OnPlaceLand;
+    }
     /// <summary>手牌扇区的一条数据：对账键=引擎卡 RuntimeId；FaceUp=false 只显示卡背（内容被 back 覆盖）。</summary>
     public sealed class HandFanCardData
     {
@@ -36,10 +48,15 @@ namespace SynergyUI
             public float HoverScaleMul = 1.38f;        // 悬停放大倍率（叠乘 BaseScale）
             public float HoverLiftRatio = 0.45f;       // 悬停抬起 = 卡高×此值（朝屏幕中央）
             public float NeighborPushRatio = 0.30f;    // 悬停时其余卡让位 = 卡宽×此值
+            public float IdleSinkRatio = 0.5f;         // 未悬停整扇收缩（2026-10-14 晚定案）：向屏幕外缘
+                                                       // 沉入=卡高×此值（底部扇下沉/顶部扇上收），
+                                                       // 屏幕视觉比例约减半；悬停任一卡即展开
             public float TweenSpeed = 14f;             // exp 缓动速率（1/s）
         }
 
-        private const string PrefabName = "ACard"; // 地址=文件名；路径由 UiKit.PrefabPath 派生
+        // 手牌扇专用卡预制体（2026-10-15）：ACard 卡面嵌为子实例 + btn 悬浮层 + Flowing
+        // 可用流光层（HandFanCard 驱动）；选目标 Region 面板等仍直用 ACard。
+        private const string PrefabName = "AHandCard"; // 地址=文件名；路径由 UiKit.PrefabPath 派生
 
         private readonly RectTransform _layer;
         private readonly Config _cfg;
@@ -49,11 +66,50 @@ namespace SynergyUI
         private GameObject _prefab;
         private Vector2 _cardSize;   // 动态读取的卡牌尺寸（卡面改版只动 prefab，布局自适应）
         private HandFanCard _hovered;
+        private FanInteractions _hooks;
+        private float _glowPhase;    // 可发动流光脉冲相位（Tick 推进）
+        private float _sinkT = 1f;   // 未悬停收缩插值（1=收起 0=展开；Tick 缓动，RebuildTargets 消费）
+
+        /// <summary>交互钩子（宿主屏注入；null=无交互——按钮层永不显示）。</summary>
+        public FanInteractions Hooks => _hooks;
 
         public HandFanView(RectTransform layer, Config cfg)
         {
             _layer = layer;
             _cfg = cfg;
+        }
+
+        /// <summary>注入交互钩子（对手扇不注入）；注入后悬停卡即时重评估按钮层。</summary>
+        public void SetInteractions(FanInteractions hooks)
+        {
+            _hooks = hooks;
+            _hovered?.RefreshActionButtons();
+        }
+
+        /// <summary>整扇显隐（2026-10-14 放地/出牌选格期隐藏手牌）：挂载层 SetActive，
+        /// 对账/Tick 照常（卡实例状态不丢）。隐藏时清悬停（ deactivated 卡不派发 PointerExit，
+        /// 防 _hovered 悬挂令扇区复现后滞留展开态）。</summary>
+        public void SetVisible(bool visible)
+        {
+            if (_layer == null) return;
+            if (!visible && _hovered != null)
+            {
+                _hovered = null;
+                RebuildTargets();
+            }
+            if (_layer.gameObject.activeSelf != visible)
+                _layer.gameObject.SetActive(visible);
+        }
+
+        /// <summary>逐卡可发动流光（宿主屏对账后刷新；未知 id 忽略）。</summary>
+        public void SetPlayable(uint runtimeId, bool playable)
+        {
+            foreach (var c in _cards)
+                if (c.RuntimeId == runtimeId)
+                {
+                    c.SetPlayable(playable);
+                    return;
+                }
         }
 
         /// <summary>扇区当前卡数。</summary>
@@ -79,6 +135,10 @@ namespace SynergyUI
         public void SetCards(IReadOnlyList<HandFanCardData> data)
         {
             _alive.Clear();
+            // 防销毁卡（跨屏重建/停 Play 残留订阅回灌，2026-10-14 放地后手牌不移除根因）：
+            // 已销毁实例直接出列——防对账中途 MissingReferenceException 截断整个刷新链
+            for (int i = _cards.Count - 1; i >= 0; i--)
+                if (_cards[i] == null) _cards.RemoveAt(i);
             foreach (var c in _cards) _alive[c.RuntimeId] = c;
             _cards.Clear();
 
@@ -88,12 +148,16 @@ namespace SynergyUI
                 {
                     if (!_alive.Remove(d.RuntimeId, out var card))
                     {
-                        card = _pool.Count > 0 ? _pool.Pop() : Create();
+                        card = null;
+                        while (_pool.Count > 0 && card == null) card = _pool.Pop(); // 池内销毁实例丢弃
+                        if (card == null) card = Create();
                         card.RuntimeId = d.RuntimeId;
                         card.Fresh = true;
                     }
                     card.Face.Apply(d.Item, CardOverlayLayout.Full);
                     card.Face.SetFaceUp(d.FaceUp);
+                    card.HideActionButtons(); // 池复用重置（悬停卡随后重评估）
+                    card.SetPlayable(false);  // 可用性由宿主屏对账后重设
                     card.gameObject.SetActive(true);
                     _cards.Add(card);
                 }
@@ -106,6 +170,7 @@ namespace SynergyUI
             _alive.Clear();
 
             if (_hovered != null && !_cards.Contains(_hovered)) _hovered = null;
+            _hovered?.RefreshActionButtons(); // 对账后悬停卡按钮条件可能已变（费用/上限）
             RebuildTargets();
         }
 
@@ -117,6 +182,8 @@ namespace SynergyUI
             float cardH = _cardSize.y * _cfg.BaseScale;
             float spacing = n <= 1 ? 0f : Mathf.Min(cardW * _cfg.FullSpacingRatio, _cfg.MaxFanWidth / (n - 1));
             float push = _cfg.NeighborPushRatio * cardW;
+            // 未悬停收缩（2026-10-14 晚定案）：整扇向屏幕外缘沉入（底部扇向下/顶部扇向上），视觉比例约减半
+            float sinkY = (_cfg.TopSide ? 1f : -1f) * _sinkT * _cfg.IdleSinkRatio * cardH;
 
             int hoverIdx = -1;
             if (_hovered != null)
@@ -140,7 +207,7 @@ namespace SynergyUI
                 float y = -_cfg.RisePerX2 * x * x; // 己方两端下垂；对手侧取反
                 float scale = _cfg.BaseScale * (hovered ? _cfg.HoverScaleMul : 1f);
 
-                var pos = _cfg.Center + new Vector2(x, _cfg.TopSide ? -y : y);
+                var pos = _cfg.Center + new Vector2(x, (_cfg.TopSide ? -y : y) + sinkY);
                 if (hovered)
                 {
                     pos.y += (_cfg.TopSide ? -1f : 1f) * _cfg.HoverLiftRatio * cardH; // 抬向屏幕中央
@@ -153,14 +220,28 @@ namespace SynergyUI
                 _hovered.transform.SetAsLastSibling(); // 悬停卡渲染置顶（盖住邻卡）
         }
 
-        /// <summary>帧驱动：全部活跃卡向目标 exp 缓动（宿主挂 UiKit.Updater 调用）。</summary>
+        /// <summary>帧驱动：全部活跃卡向目标 exp 缓动（宿主挂 UiKit.Updater 调用）；
+        /// 流光相位统一推进（可发动卡的边缘光带巡游）。
+        /// 收缩插值同步缓动（无悬停卡→收起/有→展开），过渡期间逐帧重排目标。</summary>
         public void Tick()
         {
+            _glowPhase += Time.deltaTime * 4.5f;
             if (_cards.Count == 0) return;
             float t = 1f - Mathf.Exp(-Mathf.Min(Time.deltaTime, 0.05f) * _cfg.TweenSpeed);
+
+            float sinkTarget = _hovered == null ? 1f : 0f;
+            if (Mathf.Abs(sinkTarget - _sinkT) > 0.001f)
+            {
+                _sinkT += (sinkTarget - _sinkT) * t;
+                if (Mathf.Abs(sinkTarget - _sinkT) <= 0.001f) _sinkT = sinkTarget;
+                RebuildTargets();
+            }
+
             for (int i = 0; i < _cards.Count; i++)
             {
                 var c = _cards[i];
+                if (c == null) continue; // 防销毁卡（同 SetCards 清扫口径）：防 Updater 链被单卡异常打断
+                c.TickGlow(_glowPhase);
                 if (c.Fresh)
                 {
                     c.Fresh = false;
@@ -178,12 +259,12 @@ namespace SynergyUI
         public void Dispose()
         {
             foreach (var c in _cards)
-                if (c != null) Object.Destroy(c.gameObject);
+                if (c != null) UnityEngine.Object.Destroy(c.gameObject);
             _cards.Clear();
             while (_pool.Count > 0)
             {
                 var c = _pool.Pop();
-                if (c != null) Object.Destroy(c.gameObject);
+                if (c != null) UnityEngine.Object.Destroy(c.gameObject);
             }
             _hovered = null;
         }
@@ -208,13 +289,19 @@ namespace SynergyUI
             }
 
             var go = _prefab != null
-                ? Object.Instantiate(_prefab, _layer, false)
+                ? UnityEngine.Object.Instantiate(_prefab, _layer, false)
                 : new GameObject("CardFallback", typeof(RectTransform));
             var face = go.AddComponent<ACardView>();
             face.Bind();
             var card = go.AddComponent<HandFanCard>();
             card.Face = face;
             card.Fan = this;
+            card.WireFlowing(); // 可用流光层接线（AHandCard/Flowing；缺节点=无流光不报错）
+            // 放置/发动按钮接线（prefab 用户摆位，m_OnClick 空）：点击交宿主屏钩子接管
+            card.UseButton = go.transform.Find("btn/Use")?.GetComponent<Button>();
+            card.PlaceButton = go.transform.Find("btn/Place")?.GetComponent<Button>();
+            if (card.UseButton != null) card.UseButton.onClick.AddListener(card.OnUseClicked);
+            if (card.PlaceButton != null) card.PlaceButton.onClick.AddListener(card.OnPlaceClicked);
             return card;
         }
     }

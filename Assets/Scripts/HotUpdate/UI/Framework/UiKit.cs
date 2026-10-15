@@ -12,7 +12,7 @@ using UToggle = UnityEngine.UI.Toggle;
 namespace SynergyUI
 {
     /// <summary>
-    /// UGUI 控件工厂（2026-10-01 预制体化定案）：屏幕静态层级来自 Assets/Art/UI/ 预制体
+    /// UGUI 控件工厂（2026-10-01 预制体化定案）：屏幕静态层级来自 Assets/Art/Prefab/ 预制体
     /// （UIScreen 深度按名绑定，FindDeep），本工厂只服务运行时动态创建——滚动列表行、
     /// 弹窗/下拉、动态表单控件；卡面 ACard.prefab 由 CardOverlayController 加载。
     ///
@@ -30,8 +30,8 @@ namespace SynergyUI
     {
         // ================= 预制体寻址（单一声明点） =================
 
-        /// <summary>UI 预制体统一目录（YooAsset 收集器 UI 组 CollectPath 同址）。</summary>
-        public const string PrefabFolder = "Assets/Art/UI/";
+        /// <summary>UI 预制体统一目录（2026-10-15 美术目录重构 Art/UI → Art/Prefab；YooAsset 收集器 UI 组 CollectPath 同址）。</summary>
+        public const string PrefabFolder = "Assets/Art/Prefab/";
 
         /// <summary>预制体名（不含扩展名）→ 编辑器兜底 Assets 路径。
         /// YooAsset 地址=同名（AddressByFileName）——路径/地址不再各处拼字符串。</summary>
@@ -188,7 +188,7 @@ namespace SynergyUI
         /// <summary>全局 TMP 字体资源路径（SC-Heavy SDF=思源宋体 Heavy 静态图集，3844 常用字形，
         /// 位于 TMP Resources 下可直取；源 otf 已移除——图集为静态模式，图集外字符渲染为空，
         /// 新增生僻文案需重烘焙图集）。</summary>
-        public const string TmpFontResourcePath = "Fonts & Materials/SC-Heavy SDF";
+        public const string TmpFontResourcePath = "Fonts & Materials/PZD";
 
         private static TMP_FontAsset _tmpFont;
 

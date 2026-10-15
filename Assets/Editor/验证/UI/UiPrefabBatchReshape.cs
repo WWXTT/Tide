@@ -16,7 +16,7 @@ using Object = UnityEngine.Object;
 ///   4. BattleUI 删除 CardFallback 空壳残骸（该 prefab 已于 2026-10-02 删除，分支保留备用）；
 ///   5. SC-Heavy 字符覆盖自检——动态图集下自动跳过（缺字按需光栅，口径失效）；
 ///   6. TMP Settings 默认字体 → 主字体（LiberationSans SDF 已删，链路分支自动跳过）；
-///   7. YooAsset 收集器 UI 组 CollectPath：已删除的 Assets/UI/Res → Assets/Art/UI；
+///   7. YooAsset 收集器 UI 组 CollectPath：已删除的 Assets/UI/Res → Assets/Art/Prefab；
 ///   8. overlay/selector-overlay 空节点删除（弹层挂载点改由 UiKit.Overlay 运行时补建，
 ///      UIScreen.FindOptional 静默获取）；
 ///   9.（已并入 3）
@@ -41,13 +41,13 @@ public static class UiPrefabBatchReshape
 
         private static readonly string[] PrefabPaths =
         {
-            "Assets/Art/UI/MainUI.prefab",
+            "Assets/Art/Prefab/MainUI.prefab",
             // BattleUI.prefab 已重建（2026-10-03 过渡面）但由 BattleUiPrefabSetup 幂等装配、
             // 勿纳入批量整形：btn-back 的尺寸 LE 非 ignoreLayout 会被第 2 步摘除（布局组下塌缩）
-            "Assets/Art/UI/CardUI.prefab",
-        "Assets/Art/UI/DeckUI.prefab",
-        "Assets/Art/UI/EffectUI.prefab",
-        "Assets/Art/UI/ACard.prefab",
+            "Assets/Art/Prefab/CardUI.prefab",
+        "Assets/Art/Prefab/DeckUI.prefab",
+        "Assets/Art/Prefab/EffectUI.prefab",
+        "Assets/Art/Prefab/ACard.prefab",
     };
 
     [MenuItem("Tools/验证/UI预制体批量整形")]
@@ -352,7 +352,8 @@ public static class UiPrefabBatchReshape
         }
     }
 
-    /// <summary>YooAsset 收集器 UI 组 CollectPath：Assets/UI/Res（已删）→ Assets/Art/UI。</summary>
+    /// <summary>YooAsset 收集器 UI 组 CollectPath 迁移：Assets/UI/Res（已删）→ Assets/Art/UI
+    /// →（2026-10-15 目录重构）Assets/Art/Prefab。</summary>
     private static void ApplyCollectorPath()
     {
         var setting = AssetDatabase.LoadAssetAtPath<Object>(CollectorSettingPath);
@@ -373,9 +374,9 @@ public static class UiPrefabBatchReshape
             for (int ci = 0; ci < collectors.arraySize; ci++)
             {
                 var cp = collectors.GetArrayElementAtIndex(ci).FindPropertyRelative("CollectPath");
-                if (cp.stringValue == "Assets/UI/Res")
+                if (cp.stringValue == "Assets/UI/Res" || cp.stringValue == "Assets/Art/UI")
                 {
-                    cp.stringValue = "Assets/Art/UI";
+                    cp.stringValue = "Assets/Art/Prefab";
                     changed = true;
                 }
             }
@@ -384,7 +385,7 @@ public static class UiPrefabBatchReshape
         {
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(setting);
-            Debug.Log("[整形] 收集器 UI 组 CollectPath → Assets/Art/UI");
+            Debug.Log("[整形] 收集器 UI 组 CollectPath → Assets/Art/Prefab");
         }
     }
 

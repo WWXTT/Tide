@@ -4,14 +4,15 @@
       "id": "C_A52E6EB1",
       "cardName": "衍生物·0/1",
       "supertype": "Creature",
+      "illustration": "ToadMaster",
       "life": 1,
       "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
       "tags": [
         "衍生物"
@@ -21,15 +22,16 @@
       "id": "C_A8DE0888",
       "cardName": "衍生物·1/1",
       "supertype": "Creature",
+      "illustration": "FlameManipulator",
       "power": 1,
       "life": 1,
       "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
       "tags": [
         "衍生物"
@@ -39,15 +41,16 @@
       "id": "C_79F17F81",
       "cardName": "衍生物·2/2",
       "supertype": "Creature",
+      "illustration": "WaterGirl",
       "power": 2,
       "life": 2,
       "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
       "tags": [
         "衍生物"
@@ -57,15 +60,16 @@
       "id": "C_85D2ACE6",
       "cardName": "衍生物·3/3",
       "supertype": "Creature",
+      "illustration": "NeoTheMagicSwordsman",
       "power": 3,
       "life": 3,
       "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
       "tags": [
         "衍生物"
@@ -75,130 +79,35 @@
       "id": "C_36989CB5",
       "cardName": "活体火焰",
       "supertype": "Creature",
+      "illustration": "FiendReflection1",
       "power": 3,
       "life": 2,
       "costList": [
-        3.0,
-        0.0,
-        2.0,
-        0.0,
-        0.0,
-        0.0
+        3,
+        0,
+        2,
+        0,
+        0,
+        0
       ],
       "effectIds": [
         "7F7FA0C3"
       ]
     },
     {
-      "id": "C_05C5E5AC",
-      "cardName": "灼地裂缝",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        4.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "effectIds": [
-        "D38DC386"
-      ]
-    },
-    {
-      "id": "C_7B36F253",
-      "cardName": "速疗",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "effectIds": [
-        "098A65FB"
-      ]
-    },
-    {
-      "id": "C_08DD67B2",
-      "cardName": "血色深渊",
-      "supertype": "Enchantment",
-      "costList": [
-        3.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "effectIds": [
-        "41C84964"
-      ],
-      "durability": 3
-    },
-    {
-      "id": "C_2D9E8246",
-      "cardName": "加速光环",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      "effectIds": [
-        "C4ACC06C"
-      ]
-    },
-    {
-      "id": "C_EC69EE94",
-      "cardName": "不倦劳作",
-      "supertype": "Spell",
-      "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "effectIds": [
-        "F96E459D"
-      ]
-    },
-    {
-      "id": "C_4D1325C7",
-      "cardName": "缠魂",
-      "supertype": "Spell",
-      "costList": [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        5.0,
-        0.0
-      ],
-      "effectIds": [
-        "67D965C1"
-      ]
-    },
-    {
       "id": "C_7E5A1001",
       "cardName": "教学生物1",
       "supertype": "Creature",
+      "illustration": "DarkPrisoner",
       "power": 6,
       "life": 6,
       "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
       "tags": [
         "教学"
@@ -208,14 +117,15 @@
       "id": "C_7E5A1002",
       "cardName": "教学生物2",
       "supertype": "Creature",
+      "illustration": "Kojikocy",
       "life": 7,
       "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
       "tags": [
         "教学"
@@ -225,15 +135,16 @@
       "id": "C_7E5A1003",
       "cardName": "教学生物3",
       "supertype": "Creature",
+      "illustration": "PetitAngel",
       "power": 2,
       "life": 2,
       "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
       "tags": [
         "教学"
@@ -243,15 +154,16 @@
       "id": "C_7E5A1004",
       "cardName": "教学生物4",
       "supertype": "Creature",
+      "illustration": "EmpressJudge",
       "power": 2,
       "life": 3,
       "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
       "tags": [
         "教学"
@@ -261,15 +173,16 @@
       "id": "C_7E5A1005",
       "cardName": "教学生物5",
       "supertype": "Creature",
+      "illustration": "Gokibore",
       "power": 6,
       "life": 3,
       "costList": [
-        3.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
       "tags": [
         "教学"
@@ -279,15 +192,16 @@
       "id": "C_7E5A1006",
       "cardName": "教学生物6",
       "supertype": "Creature",
+      "illustration": "FairyOfTheFountain",
       "power": 2,
       "life": 2,
       "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
       "tags": [
         "教学"
@@ -297,15 +211,16 @@
       "id": "C_7E5A1007",
       "cardName": "教学生物7",
       "supertype": "Creature",
+      "illustration": "ManEaterBug",
       "power": 2,
       "life": 2,
       "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
       "tags": [
         "教学"
@@ -315,15 +230,16 @@
       "id": "C_7E5A1008",
       "cardName": "教学生物8",
       "supertype": "Creature",
+      "illustration": "Zarigun",
       "power": 3,
       "life": 9,
       "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
       "tags": [
         "教学"
@@ -333,15 +249,16 @@
       "id": "C_7E5A1009",
       "cardName": "教学生物9",
       "supertype": "Creature",
+      "illustration": "DragonessTheWickedKnight",
       "power": 2,
       "life": 2,
       "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
       "tags": [
         "教学"
@@ -351,15 +268,16 @@
       "id": "C_7E5A100A",
       "cardName": "教学生物10",
       "supertype": "Creature",
+      "illustration": "OrionTheBattleKing",
       "power": 2,
       "life": 3,
       "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
       "tags": [
         "教学"
@@ -369,6 +287,7 @@
       "id": "C_7E5A2001",
       "cardName": "末日降临",
       "supertype": "Creature",
+      "illustration": "AirEater",
       "power": 30,
       "life": 30,
       "keywords": [
@@ -386,18 +305,1587 @@
       "cardName": "纳川仪典",
       "supertype": "Enchantment",
       "costList": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
       "tags": [
         "教学"
       ],
       "effectIds": [
         "ET2060005"
+      ]
+    },
+    {
+      "id": "C_7F1F67FF",
+      "cardName": "试作·猎犬",
+      "supertype": "Creature",
+      "illustration": "MysticalElf",
+      "power": 2,
+      "life": 1,
+      "costList": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ]
+    },
+    {
+      "id": "C_A13EE0F1",
+      "cardName": "试作·锋卫",
+      "supertype": "Creature",
+      "illustration": "Morinphen",
+      "power": 2,
+      "life": 1,
+      "costList": [
+        1,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "073f18c7"
+      ]
+    },
+    {
+      "id": "C_8511F260",
+      "cardName": "试作·血蚊",
+      "supertype": "Creature",
+      "illustration": "MukaMuka",
+      "power": 1,
+      "life": 1,
+      "costList": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "f7119394"
+      ]
+    },
+    {
+      "id": "C_248D1A0A",
+      "cardName": "试作·斥候",
+      "supertype": "Creature",
+      "illustration": "BoneMouse",
+      "power": 3,
+      "life": 1,
+      "costList": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ]
+    },
+    {
+      "id": "C_98B79493",
+      "cardName": "试作·剑士",
+      "supertype": "Creature",
+      "illustration": "Barox",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        2,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "073f18c7"
+      ]
+    },
+    {
+      "id": "C_0F0FD27E",
+      "cardName": "试作·斗棍兵",
+      "supertype": "Creature",
+      "illustration": "ShovelCrusher",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        2,
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "c253788f"
+      ]
+    },
+    {
+      "id": "C_D5E04595",
+      "cardName": "试作·掠食狼",
+      "supertype": "Creature",
+      "illustration": "GiantScorpionOfTheTundra",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "f7119394"
+      ]
+    },
+    {
+      "id": "C_19510DE6",
+      "cardName": "试作·哨卫",
+      "supertype": "Creature",
+      "illustration": "MadjinnGunn",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        2,
+        0,
+        3,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "4cf22304"
+      ]
+    },
+    {
+      "id": "C_B8FBCA8D",
+      "cardName": "试作·重枪兵",
+      "supertype": "Creature",
+      "illustration": "MachineAttacker",
+      "power": 4,
+      "life": 3,
+      "costList": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ]
+    },
+    {
+      "id": "C_16A76B32",
+      "cardName": "试作·刺客",
+      "supertype": "Creature",
+      "illustration": "WhiteMagicalHat",
+      "power": 3,
+      "life": 1,
+      "costList": [
+        1,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "073f18c7"
+      ]
+    },
+    {
+      "id": "C_ED5BD2B5",
+      "cardName": "试作·骑手",
+      "supertype": "Creature",
+      "illustration": "Kamakiriman",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        2,
+        0,
+        3,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "4cf22304"
+      ]
+    },
+    {
+      "id": "C_B84D8B67",
+      "cardName": "试作·狂战士",
+      "supertype": "Creature",
+      "illustration": "TheFuriousSeaKing",
+      "power": 5,
+      "life": 2,
+      "costList": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ]
+    },
+    {
+      "id": "C_A1F5A798",
+      "cardName": "试作·盾卫",
+      "supertype": "Creature",
+      "illustration": "LunarQueenElzaim",
+      "power": 2,
+      "life": 5,
+      "costList": [
+        3,
+        0,
+        3,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "4cf22304"
+      ]
+    },
+    {
+      "id": "C_F9F76DC6",
+      "cardName": "试作·百夫长",
+      "supertype": "Creature",
+      "illustration": "Metalzoa",
+      "power": 5,
+      "life": 4,
+      "costList": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "f7119394"
+      ]
+    },
+    {
+      "id": "C_9FAE2DD3",
+      "cardName": "试作·连击",
+      "supertype": "Creature",
+      "illustration": "GoddessWithTheThirdEye",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        1,
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "8c988c18"
+      ]
+    },
+    {
+      "id": "C_CA8D2651",
+      "cardName": "试作·先攻",
+      "supertype": "Creature",
+      "illustration": "WaterElement",
+      "power": 1,
+      "life": 3,
+      "costList": [
+        1,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "073f18c7"
+      ]
+    },
+    {
+      "id": "C_782E8268",
+      "cardName": "试作·碾压",
+      "supertype": "Creature",
+      "illustration": "CelticGuardian",
+      "power": 3,
+      "life": 1,
+      "costList": [
+        1,
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "956e7b92"
+      ]
+    },
+    {
+      "id": "C_396A5A59",
+      "cardName": "试作·缴械",
+      "supertype": "Creature",
+      "illustration": "CyberCommander",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        2,
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "c253788f"
+      ]
+    },
+    {
+      "id": "C_8DA3BBB6",
+      "cardName": "试作·警戒",
+      "supertype": "Creature",
+      "illustration": "Alinsection",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        2,
+        0,
+        3,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "4cf22304"
+      ]
+    },
+    {
+      "id": "C_F370EA65",
+      "cardName": "试作·隐密",
+      "supertype": "Creature",
+      "illustration": "BlueEyesWhiteDragon",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        2,
+        0,
+        4,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "ed308353"
+      ]
+    },
+    {
+      "id": "C_8BF4D663",
+      "cardName": "试作·吸血",
+      "supertype": "Creature",
+      "illustration": "MusicianKing",
+      "power": 1,
+      "life": 3,
+      "costList": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "f7119394"
+      ]
+    },
+    {
+      "id": "C_BD21221A",
+      "cardName": "试作·系命",
+      "supertype": "Creature",
+      "illustration": "RootWater",
+      "power": 3,
+      "life": 1,
+      "costList": [
+        1,
+        0,
+        0,
+        3,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "1e60cb92"
+      ]
+    },
+    {
+      "id": "C_C9B350E9",
+      "cardName": "试作·再生",
+      "supertype": "Creature",
+      "illustration": "CyberStein",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        2,
+        0,
+        0,
+        3,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "c2565884"
+      ]
+    },
+    {
+      "id": "C_DFCFCB22",
+      "cardName": "试作·守护",
+      "supertype": "Creature",
+      "illustration": "MaskedSorcerer",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        2,
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "91535cec"
+      ]
+    },
+    {
+      "id": "C_461950EF",
+      "cardName": "试作·帷幕",
+      "supertype": "Creature",
+      "illustration": "RhaimundosOfTheRedSword",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        1,
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "407eb771"
+      ]
+    },
+    {
+      "id": "C_DDA93C8E",
+      "cardName": "试作·剧毒",
+      "supertype": "Creature",
+      "illustration": "QueensDouble",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        2,
+        0,
+        0,
+        3,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "20c06d52"
+      ]
+    },
+    {
+      "id": "C_CD5504C2",
+      "cardName": "试作·禁魔石",
+      "supertype": "Creature",
+      "illustration": "FairysGift",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        2,
+        0,
+        0,
+        0,
+        4,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "6a486d99"
+      ]
+    },
+    {
+      "id": "C_77F4841E",
+      "cardName": "试作·不灭",
+      "supertype": "Creature",
+      "illustration": "NeedleWorm",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        1,
+        0,
+        0,
+        0,
+        2,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "fe714786"
+      ]
+    },
+    {
+      "id": "C_699A7A8A",
+      "cardName": "试作·坚韧",
+      "supertype": "Creature",
+      "illustration": "FlameGhost",
+      "power": 1,
+      "life": 3,
+      "costList": [
+        2,
+        0,
+        0,
+        0,
+        2,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "9BAEA18F"
+      ]
+    },
+    {
+      "id": "C_39C2AFF5",
+      "cardName": "试作·潜行",
+      "supertype": "Creature",
+      "illustration": "SteelScorpion",
+      "power": 3,
+      "life": 1,
+      "costList": [
+        2,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "0926C449"
+      ]
+    },
+    {
+      "id": "C_2AAAB6A7",
+      "cardName": "试作·法术护盾",
+      "supertype": "Creature",
+      "illustration": "TheDrdek",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        3,
+        0,
+        0,
+        0,
+        2,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "72E5FBE2"
+      ]
+    },
+    {
+      "id": "C_2A971FDB",
+      "cardName": "试作·圣盾",
+      "supertype": "Creature",
+      "illustration": "GreatMoth",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        3,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "8CF0B2BA"
+      ]
+    },
+    {
+      "id": "C_425695E9",
+      "cardName": "试作·复生",
+      "supertype": "Creature",
+      "illustration": "Sengenjin",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        2,
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "4AFAEF37"
+      ]
+    },
+    {
+      "id": "C_32E8EFB4",
+      "cardName": "试作·火弹兽",
+      "supertype": "Creature",
+      "illustration": "KaiserDragon",
+      "power": 1,
+      "life": 3,
+      "costList": [
+        2,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "6C2DDC52"
+      ]
+    },
+    {
+      "id": "C_8A2D263A",
+      "cardName": "试作·烈焰涌兽",
+      "supertype": "Creature",
+      "illustration": "TheWickedWormBeast",
+      "power": 3,
+      "life": 1,
+      "costList": [
+        2,
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "51AF0F76"
+      ]
+    },
+    {
+      "id": "C_89D96ECB",
+      "cardName": "试作·毁灭箭兽",
+      "supertype": "Creature",
+      "illustration": "Torike",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        3,
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "514E1219"
+      ]
+    },
+    {
+      "id": "C_2BB8E3FF",
+      "cardName": "试作·战号兽",
+      "supertype": "Creature",
+      "illustration": "DarkMagician",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        3,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "8B530B12"
+      ]
+    },
+    {
+      "id": "C_A2CFE97D",
+      "cardName": "试作·集结号令兽",
+      "supertype": "Creature",
+      "illustration": "DigBeak",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        2,
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "9B9B36BB"
+      ]
+    },
+    {
+      "id": "C_349C1706",
+      "cardName": "试作·磨刀兽",
+      "supertype": "Creature",
+      "illustration": "WaterOmotics",
+      "power": 1,
+      "life": 3,
+      "costList": [
+        2,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "3CF20E88"
+      ]
+    },
+    {
+      "id": "C_813B1A72",
+      "cardName": "试作·情报兽",
+      "supertype": "Creature",
+      "illustration": "MysticHorseman",
+      "power": 3,
+      "life": 1,
+      "costList": [
+        3,
+        0,
+        3,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "5351BBD7"
+      ]
+    },
+    {
+      "id": "C_37EDBD92",
+      "cardName": "试作·急救兽",
+      "supertype": "Creature",
+      "illustration": "Skullbird",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        3,
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "737DA2E4"
+      ]
+    },
+    {
+      "id": "C_239B5411",
+      "cardName": "试作·演武场兽",
+      "supertype": "Creature",
+      "illustration": "ArmedNinja",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "23D9455C"
+      ]
+    },
+    {
+      "id": "C_4A88A165",
+      "cardName": "教学生物12",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 1,
+      "costList": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_62DD963D",
+      "cardName": "教学生物13",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 1,
+      "costList": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_564F8A97",
+      "cardName": "教学生物14",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 3,
+      "costList": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_BCEB27BF",
+      "cardName": "教学生物15",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_1AE26810",
+      "cardName": "教学生物16",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 3,
+      "costList": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_15273EBB",
+      "cardName": "教学生物17",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 2,
+      "costList": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_9673722F",
+      "cardName": "教学生物18",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 1,
+      "costList": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_488F050D",
+      "cardName": "教学生物19",
+      "supertype": "Creature",
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_729EA7D2",
+      "cardName": "教学生物20",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 4,
+      "costList": [
+        4,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_FB4DEF09",
+      "cardName": "教学生物21",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_1FC95F21",
+      "cardName": "教学生物22",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_5BF39534",
+      "cardName": "教学生物23",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 3,
+      "costList": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_159D9AD0",
+      "cardName": "教学生物24",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_606BBDC6",
+      "cardName": "教学生物25",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 3,
+      "costList": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_E0426576",
+      "cardName": "教学生物26",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 4,
+      "costList": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_97F0AF0B",
+      "cardName": "教学生物27",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 4,
+      "costList": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_5FA75973",
+      "cardName": "教学生物28",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 4,
+      "costList": [
+        4,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_D80A7FC5",
+      "cardName": "教学生物29",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 3,
+      "costList": [
+        4,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_39A4C380",
+      "cardName": "教学生物30",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_49B5ED6B",
+      "cardName": "教学生物31",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 3,
+      "costList": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_76929042",
+      "cardName": "教学生物32",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 3,
+      "costList": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_7B24899E",
+      "cardName": "教学生物33",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 2,
+      "costList": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_B5E1690B",
+      "cardName": "教学生物34",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 1,
+      "costList": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_5F5B436B",
+      "cardName": "教学生物35",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 1,
+      "costList": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_F080B966",
+      "cardName": "教学生物36",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 4,
+      "costList": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_28857001",
+      "cardName": "教学生物37",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 3,
+      "costList": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_619B161F",
+      "cardName": "教学生物38",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 4,
+      "costList": [
+        4,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_31B591F9",
+      "cardName": "教学生物39",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 3,
+      "costList": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_EB7D842B",
+      "cardName": "教学生物40",
+      "supertype": "Creature",
+      "power": 2,
+      "life": 2,
+      "costList": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_75CD47E2",
+      "cardName": "教学生物41",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 2,
+      "costList": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_D11E3B37",
+      "cardName": "教学生物42",
+      "supertype": "Creature",
+      "power": 5,
+      "life": 4,
+      "costList": [
+        0,
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_0FE42D7B",
+      "cardName": "教学生物43",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 3,
+      "costList": [
+        0,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_FB3E4646",
+      "cardName": "教学生物44",
+      "supertype": "Creature",
+      "power": 4,
+      "life": 5,
+      "costList": [
+        0,
+        0,
+        3,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_B1EDB6EA",
+      "cardName": "教学生物45",
+      "supertype": "Creature",
+      "power": 3,
+      "life": 4,
+      "costList": [
+        0,
+        0,
+        2,
+        0,
+        0,
+        0
+      ],
+      "tags": [
+        "教学"
+      ]
+    },
+    {
+      "id": "C_5E11B0A1",
+      "cardName": "火花术",
+      "supertype": "Spell",
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "7E0B0388"
+      ]
+    },
+    {
+      "id": "C_5E11B0A2",
+      "cardName": "强击术",
+      "supertype": "Spell",
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "0C10742F"
+      ]
+    },
+    {
+      "id": "C_5E11B0A3",
+      "cardName": "洞察术",
+      "supertype": "Spell",
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "F6415F81"
+      ]
+    },
+    {
+      "id": "C_5E11B0A4",
+      "cardName": "双策术",
+      "supertype": "Spell",
+      "tags": [
+        "测试"
+      ],
+      "effectIds": [
+        "7E0B0388",
+        "F6415F81"
       ]
     }
   ],

@@ -402,12 +402,12 @@ namespace CardCore.Editor
                 Debug.LogWarning("[Verify] 跳过费用门槛用例：手牌无总费用 > 1 的卡");
             }
 
-            // ---- 结束 T1 → T2：临时钱包清空（现取现用定案）+ 个人曲线不随对手推进 ----
+            // ---- 结束 T1 → T2：临时钱包清空（现取现用定案）+ 上限只随回合开始推进（T2 未开始仍 1） ----
             pool1.TempElements[ManaType.Gray] = 5; // 残余临时元素（模拟未用完的授予）
             Assert(EndTurnPumped(core, p1), "结束 T1 回合");
             Assert(pool1.TempElements[ManaType.Gray] == 0, "回合结束：临时钱包清空（未用即逝）");
             Assert(core.ElementPool.GetLandCap(p1) == 1 && core.ElementPool.GetLandCap(p2) == 1,
-                   "个人曲线：p1 第 2 回合前上限仍 1；p2 自己首回合上限 1（旧全局同步推进废止）");
+                   "全局同步曲线：T2 回合开始前双方上限仍 1（上限推进挂在回合开始，不挂回合结束）");
 
             // ---- T2（p2）：放地不耗竭 + 结束阶段无自动产出 ----
             Crumb("land T2");
@@ -450,17 +450,17 @@ namespace CardCore.Editor
                 EndTurnPumped(core, p2);
             }
 
-            // ---- T3（p1）：地牌恢复 + 个人曲线上限 2 + 台账 ----
+            // ---- T3（p1）：地牌恢复 + 全局同步上限 3 + 台账 ----
             Crumb("land T3");
             GameActions.SkipElementPool(core, p1);
-            Assert(core.ElementPool.GetLandCap(p1) == 2, "T3（p1 第 2 个回合）地牌槽上限 = 2（个人曲线）");
+            Assert(core.ElementPool.GetLandCap(p1) == 3, "T3（p1 第 2 个回合=全局第 3 回合）地牌槽上限 = 3（每次回合开始双方同步 +1）");
             var landAfter = core.ElementPool.GetPooledCards(p1).FirstOrDefault();
             Assert(landAfter != null && !landAfter.IsTapped,
                    $"己方回合开始地牌恢复（解除横置）（p1 池 {core.ElementPool.GetPooledCards(p1).Count} 张：{string.Join(",", core.ElementPool.GetPooledCards(p1).Select(l => l.SourceCard.ID + (l.IsTapped ? "·横置" : "·直立")))}）");
 
             var records = core.ResourceLedger.GetRecords(p1);
             Assert(records.Count >= 2, "台账已有 p1 两行记录");
-            Assert(records[0].LandCap == 1 && records[1].LandCap == 2, "台账 LandCap = 个人回合数（2026-10-11 个人曲线）");
+            Assert(records[0].LandCap == 1 && records[1].LandCap == 3, "台账 LandCap = 开行时全局同步上限（2026-10-15 全局曲线）");
         }
 
         /// <summary>卡总费用（费用合计；无费用卡按默认灰 1 计）</summary>
@@ -1237,6 +1237,7 @@ namespace CardCore.Editor
                 // 翻回合：台账清零，总量按新回合 cap 重计
                 core.ElementPool.OnTurnStart(p1, pool1.GlobalTurnIndex + 1);
                 Assert(pool1.BlackGainedThisTurn == 0 && pool1.WhiteGainedThisTurn == 0, "回合开始：黑白获得台账清零（总量按新回合重计）");
+                pool1.GlobalTurnIndex = 3; // 钉回 cap 3（全局口径下翻回合已推到 4——本段「黑4超帽拒付」探针需确定 cap）
                 int dmg2Unit = UnitGrantOf(AtomicEffectType.DealDamage, 2);
                 int capNew = core.ElementPool.GetLandCap(p1);
                 int gain3 = System.Math.Min(dmg2Unit, capNew);
@@ -1877,11 +1878,12 @@ namespace CardCore.Editor
         // ======================================== 攻击/守卫效果化（2026-09-10；2026-09-16 战斗接入栈机器重写） ========================================
 
         /// <summary>
-        /// 攻击/守卫端到端（2026-09-16 逐攻击开窗定案）：
-        /// - 攻击=速度0栈对象：宣言零支付上栈开窗，结算期重检+横置支付→战斗三段；
+        /// 攻击/守卫端到端（2026-09-16 逐攻击开窗定案；2026-10-15 反击定案修订）：
+        /// - 攻击=速度0栈对象：宣言零支付上栈开窗，结算期重检→战斗三段→战斗后横置支付；
         /// - 守卫=速度1响应：窗口内 PushGuardDeclaration 入栈（资格闸 NoGuard/横置/存活），
-        ///   LIFO 先结算——横置支付+攻击目标变更；
-        /// - 警戒守卫：横置仍造成战斗伤害（结算资格看目标横置，警戒例外）；
+        ///   LIFO 先结算——攻击目标变更+GuardBlocker 登记（守卫横置随攻击结算在战斗后支付）；
+        /// - 双向结算基线（2026-10-15）：双方竖直完成战斗——守卫照常反击，战斗后才横置；
+        /// - 警戒：已横置防守者仍反击（拦截局战斗期间本就竖直，反击不再依赖警戒）；
         /// - 速度门槛：标准速度门（0≥计数器）——连锁开启时攻击不可宣言；
         /// - 法术底盘剩余提速（2026-10-10 可支配底盘）：SpeedBonus 卡级增量与全部效果 BaseSpeed 加和。
         /// </summary>
@@ -1913,30 +1915,30 @@ namespace CardCore.Editor
             Assert(!combat.CanDeclareAttack(wall, p1), "攻击效果化：NoAttack 卡不能宣言攻击");
             Assert(combat.CanDeclareAttack(hitter, p1), "攻击效果化：默认自带攻击能力");
 
-            // ---- 2. 守卫拦截：打脸攻击 → 窗口守卫响应 → 目标转移 + 守卫结算期横置 + 单向受伤 ----
+            // ---- 2. 守卫拦截：打脸攻击 → 窗口守卫响应 → 目标转移 + 双向结算 + 战斗后双方横置 ----
             var striker = Spawn(p1, 4, 2);       // 4 攻
             var shield = Spawn(p2, 3, 6);        // 3 攻 6 血守卫
             int p2Life0 = p2.Life;
             Assert(GameActions.DeclareAttack(core, p1, striker, p2), "守卫段：打脸宣言上栈（速度0开窗，宣言期零支付）");
-            Assert(!striker.IsTapped(), "守卫段：宣言期不横置（结算期支付）");
+            Assert(!striker.IsTapped(), "守卫段：宣言期不横置（战斗后支付）");
             var attackInstance = core.StackEngine.Peek();
             Assert(core.StackEngine.PushGuardDeclaration(shield, attackInstance, p2), "守卫段：守卫速度1响应入栈");
-            GameActions.DrainStack(core);        // 守卫先结（横置+目标变更）→ 攻击三段
-            Assert(shield.IsTapped(), "守卫拦截：结算期横置自身（被动代价）");
+            GameActions.DrainStack(core);        // 守卫先结（目标变更+登记）→ 攻击三段（双向）→ 战斗后双方横置
+            Assert(shield.IsTapped(), "守卫拦截：战斗后横置（战斗期间竖直参战）");
             Assert(shield.IsAlive && shield.GetLife() == 2, "守卫拦截：守卫吃 4 伤（6→2）");
-            Assert(striker.IsAlive && striker.GetLife() == 2, "守卫拦截：单向受伤——守卫横置不反击（攻击者只受 0 反伤）");
-            Assert(striker.IsTapped(), "守卫段：攻击者结算期支付横置");
+            Assert(!striker.IsAlive, "守卫反击：3 反伤致死 4/2 攻击者（不计关键词的基线=双向结算）");
             Assert(p2.Life == p2Life0, "守卫拦截：玩家未被击中（目标已转移）");
 
-            // ---- 2b. 警戒守卫：横置仍反击（新语义） ----
+            // ---- 2b. 警戒（2026-10-15 现职责）：已横置防守者被攻击仍反击 ----
+            //（拦截局守卫战斗期间本就竖直、反击不依赖警戒；普通横置不反击见 8c 对照）
             var raider = Spawn(p1, 4, 2);
             var valiant = Spawn(p2, 3, 6, false, false, CardCore.Attribute.KeywordRules.Vigilance);
-            Assert(GameActions.DeclareAttack(core, p1, raider, p2), "警戒守卫段：打脸宣言上栈");
-            Assert(core.StackEngine.PushGuardDeclaration(valiant, core.StackEngine.Peek(), p2), "警戒守卫段：守卫响应入栈");
+            valiant.Tap(); // 模拟已横置（刚攻击过/被冻结）
+            Assert(GameActions.DeclareAttack(core, p1, raider, valiant), "警戒段：攻击已横置警戒者宣言上栈");
             GameActions.DrainStack(core);
-            Assert(valiant.IsTapped(), "警戒守卫：结算期照常横置");
-            Assert(valiant.GetLife() == 2 && !raider.IsAlive,
-                   "警戒重定义：横置守卫仍造成战斗伤害（守卫 6→2、4/2 攻击者被 3 反击致死）");
+            Assert(valiant.IsTapped() && valiant.IsAlive && valiant.GetLife() == 2,
+                   "警戒：已横置防守者吃伤存活（6−4=2）");
+            Assert(!raider.IsAlive, "警戒：已横置防守者仍反击（3 反伤致死 4/2 攻击者）");
 
             // ---- 2c. NoGuard 不能拦（守卫入栈资格闸） ----
             var charger2 = Spawn(p1, 4, 2);
@@ -1957,14 +1959,17 @@ namespace CardCore.Editor
             Assert(!core.StackEngine.PushGuardDeclaration(gatekeeper, attackA1, p2),
                    "再拦段：同窗二拦被拒（速度门 1 不> 1——记速器已被守卫抬到 1）");
             GameActions.DrainStack(core);
-            Assert(gatekeeper.IsTapped() && gatekeeper.GetLife() == 4, "再拦段：首拦结算（6−2=4，横置不反击）");
+            Assert(gatekeeper.IsTapped() && gatekeeper.GetLife() == 4, "再拦段：首拦结算（6−2=4，战斗后横置）");
+            Assert(a1.IsAlive && a1.GetLife() == 1 && a1.IsTapped(),
+                   "再拦段：守卫反 1 伤（2/2 攻击者剩 1 活、战斗后横置）");
             gatekeeper.Untap(); // 激励通路
             Assert(GameActions.DeclareAttack(core, p1, a2, p2), "再拦段：第二攻宣言上栈（新窗口）");
             Assert(core.StackEngine.PushGuardDeclaration(gatekeeper, core.StackEngine.Peek(), p2),
                    "再拦段：解除横置可拦第二攻击者");
             GameActions.DrainStack(core);
             Assert(gatekeeper.IsAlive && gatekeeper.GetLife() == 1,
-                   "再拦段：两拦都结算（6−2−3=1，守卫横置不反击）");
+                   "再拦段：两拦都结算（6−2−3=1）");
+            Assert(a2.IsAlive && a2.GetLife() == 1, "再拦段：守卫再反 1 伤（3/2 攻击者剩 1 活）");
 
             // ---- 3. 速度门槛：标准速度门（0≥计数器）——连锁开启时攻击不可宣言 ----
             var runner = Spawn(p1, 3, 3);
@@ -1990,11 +1995,11 @@ namespace CardCore.Editor
             Assert(GameActions.DeclareAttack(core, p1, runner, p2), "速度门槛：连锁闭合后攻击恢复（0≥0）");
             GameActions.DrainStack(core);                    // 攻击收口（3 攻打脸）
 
-            // ---- 4. 法术底盘剩余提速（2026-10-10 可支配底盘）：SpeedBonus → 全效果 BaseSpeed 加和 ----
+            // ---- 4. 法术速度=3−槽数（2026-10-15 改版：槽位从速度扣，动态算不落字段）----
             var swiftData = new CardData
             {
                 ID = "VERIFY_AG_SWIFT", CardName = "疾风术", Supertype = Cardtype.Spell,
-                SpeedBonus = 1,
+                SpeedBonus = 1, // 字段退役——脏数据探针：写值不得影响动态速度
                 Effects = new List<CardEffectData>
                 {
                     new CardEffectData
@@ -2006,15 +2011,23 @@ namespace CardCore.Editor
             };
             var swift = new CardWrapper(swiftData);
             var swiftDefs = GameActions.GetCardEffectDefinitions(swift);
-            Assert(swiftDefs.Count == 1 && swiftDefs[0].BaseSpeed == 1,
-                   $"法术提速增量：BaseSpeed 0+SpeedBonus1=1（实际 {swiftDefs[0].BaseSpeed}）");
+            Assert(swiftDefs.Count == 1 && swiftDefs[0].BaseSpeed == 2,
+                   $"法术 1 槽=速2（实际 {swiftDefs[0].BaseSpeed}；SpeedBonus 脏数据无效）");
             var plainData = new CardData
             {
                 ID = "VERIFY_AG_PLAIN", CardName = "平风术", Supertype = Cardtype.Spell,
                 Effects = new List<CardEffectData> { swiftData.Effects[0] },
             };
-            Assert(GameActions.GetCardEffectDefinitions(new CardWrapper(plainData))[0].BaseSpeed == 0,
-                   "法术缺省：不提速（BaseSpeed 0——剩余默认走计价侧抵价）");
+            Assert(GameActions.GetCardEffectDefinitions(new CardWrapper(plainData))[0].BaseSpeed == 2,
+                   "法术缺省 1 槽=速2（2026-10-15 改版——旧「缺省 0 速走抵价」翻转）");
+            var dualSlot = new CardData
+            {
+                ID = "VERIFY_AG_DUAL", CardName = "双策术", Supertype = Cardtype.Spell,
+                Effects = new List<CardEffectData> { swiftData.Effects[0], swiftData.Effects[0] },
+            };
+            var dualDefs = GameActions.GetCardEffectDefinitions(new CardWrapper(dualSlot));
+            Assert(dualDefs.Count == 2 && dualDefs[0].BaseSpeed == 1,
+                   "法术 2 槽=速1（槽位从速度扣）");
             var bioSwiftData = new CardData
             {
                 ID = "VERIFY_AG_BIO_SWIFT", CardName = "疾风兽", Supertype = Cardtype.Creature, Power = 1, Life = 1,
@@ -2592,39 +2605,48 @@ namespace CardCore.Editor
                         default: special++; break;
                     }
                 }
-            Assert(edge == 0 && unit == 28 && land == 14 && special == 12,
-                   $"布局计数 54 = 边缘{edge} + 单位{unit} + 地牌{land} + 特殊{special}");
+            Assert(edge == 3 && unit == 24 && land == 12 && special == 17,
+                   $"布局计数 56 = 边缘{edge}（中线缺口 + 原发动格位×2 回落） + 单位{unit} + 地牌{land} + 特殊{special}（含中线行7；发动格拆除 2026-10-15）");
 
-            // 特殊格重排（2026-10-13 晚 定案·晚修正左右：画面左=+x——发动/角色/临时元素=lx8、除外/墓地/卡组=lx0；
-            // 临时元素上盘吸收缩盘时代的 (0,2)/(8,3) 空格，全盘无空格）
-            Assert(BoardLayout.RoleOf(8, 3) == CellRole.Activation && BoardLayout.OwnerOf(8, 3) == 0, "P1 发动格 = (8,3)");
-            Assert(BoardLayout.RoleOf(8, 4) == CellRole.Character && BoardLayout.OwnerOf(8, 4) == 0, "P1 角色格 = (8,4)");
-            Assert(BoardLayout.RoleOf(8, 5) == CellRole.TempElement && BoardLayout.OwnerOf(8, 5) == 0, "P1 临时元素格 = (8,5)");
-            Assert(BoardLayout.RoleOf(0, 3) == CellRole.Exile && BoardLayout.OwnerOf(0, 3) == 0, "P1 除外格 = (0,3)");
-            Assert(BoardLayout.RoleOf(0, 4) == CellRole.Graveyard && BoardLayout.OwnerOf(0, 4) == 0, "P1 墓地格 = (0,4)");
-            Assert(BoardLayout.RoleOf(0, 5) == CellRole.Deck && BoardLayout.OwnerOf(0, 5) == 0, "P1 卡组格 = (0,5)");
-            Assert(BoardLayout.RoleOf(0, 2) == CellRole.Activation && BoardLayout.OwnerOf(0, 2) == 1, "P2 发动格 = (0,2)");
+            // 特殊格（注意：本段坐标仍为 2026-10-14 晚镜像修正**前**的旧口径——除发动格两行外
+            // 其余断言待镜像修正口径同步，存量已知；发动格 2026-10-15 拆除：施放卡改在单位区
+            // 空格落格呈现（BoardState.PlaceCasting），两格回落边缘装饰格=Edge·归属-1）
+            Assert(BoardLayout.RoleOf(7, 4) == CellRole.Edge && BoardLayout.OwnerOf(7, 4) == -1, "原发动格 (7,4) 拆除后回落边缘装饰格（2026-10-15）");
+            Assert(BoardLayout.RoleOf(7, 5) == CellRole.Character && BoardLayout.OwnerOf(7, 5) == 0, "P1 角色格 = (7,5)");
+            Assert(BoardLayout.RoleOf(7, 6) == CellRole.Skill && BoardLayout.OwnerOf(7, 6) == 0, "P1 技能格 = (7,6)");
+            Assert(BoardLayout.RoleOf(0, 4) == CellRole.Exile && BoardLayout.OwnerOf(0, 4) == 0, "P1 除外格 = (0,4)");
+            Assert(BoardLayout.RoleOf(0, 5) == CellRole.Graveyard && BoardLayout.OwnerOf(0, 5) == 0, "P1 墓地格 = (0,5)");
+            Assert(BoardLayout.RoleOf(0, 6) == CellRole.Deck && BoardLayout.OwnerOf(0, 6) == 0, "P1 卡组格 = (0,6)");
+            Assert(BoardLayout.RoleOf(0, 2) == CellRole.Edge && BoardLayout.OwnerOf(0, 2) == -1, "原发动格 (0,2) 拆除后回落边缘装饰格（2026-10-15）");
             Assert(BoardLayout.RoleOf(0, 1) == CellRole.Character && BoardLayout.OwnerOf(0, 1) == 1, "P2 角色格 = (0,1)");
-            Assert(BoardLayout.RoleOf(0, 0) == CellRole.TempElement && BoardLayout.OwnerOf(0, 0) == 1, "P2 临时元素格 = (0,0)");
-            Assert(BoardLayout.RoleOf(8, 2) == CellRole.Exile && BoardLayout.OwnerOf(8, 2) == 1, "P2 除外格 = (8,2)");
-            Assert(BoardLayout.RoleOf(8, 1) == CellRole.Graveyard && BoardLayout.OwnerOf(8, 1) == 1, "P2 墓地格 = (8,1)");
-            Assert(BoardLayout.RoleOf(8, 0) == CellRole.Deck && BoardLayout.OwnerOf(8, 0) == 1, "P2 卡组格 = (8,0)");
+            Assert(BoardLayout.RoleOf(0, 0) == CellRole.Skill && BoardLayout.OwnerOf(0, 0) == 1, "P2 技能格 = (0,0)");
+            Assert(BoardLayout.RoleOf(7, 2) == CellRole.Exile && BoardLayout.OwnerOf(7, 2) == 1, "P2 除外格 = (7,2)");
+            Assert(BoardLayout.RoleOf(7, 1) == CellRole.Graveyard && BoardLayout.OwnerOf(7, 1) == 1, "P2 墓地格 = (7,1)");
+            Assert(BoardLayout.RoleOf(7, 0) == CellRole.Deck && BoardLayout.OwnerOf(7, 0) == 1, "P2 卡组格 = (7,0)");
+            bool middleOk = true;
+            for (int x = 0; x < BoardMath.Width; x++)
+            {
+                var expect = x < BoardLayout.MiddleCellCount ? CellRole.Middle : CellRole.Edge;
+                if (BoardLayout.RoleOf(x, 3) != expect || BoardLayout.OwnerOf(x, 3) != -1) middleOk = false;
+            }
+            Assert(middleOk, "中线行 z3 = 7 格 Middle（x0..x6）+ x7 缺口 Edge·归属-1（2026-10-14 状态行）");
 
             bool symmetric = true;
             for (int z = 0; z < BoardMath.Height && symmetric; z++)
                 for (int x = 0; x < BoardMath.Width && symmetric; x++)
                 {
+                    if (z == BoardLayout.MiddleZ) continue; // 中线状态行 7 格居中缺口=刻意不对称（表现层，玩法归属恒 -1）
                     var (rx, rz) = BoardLayout.Rotate180(x, z);
                     if (BoardLayout.RoleOf(rx, rz) != BoardLayout.RoleOf(x, z)) symmetric = false;
                     int o = BoardLayout.OwnerOf(x, z);
                     if (o != -1 && BoardLayout.OwnerOf(rx, rz) != 1 - o) symmetric = false;
                 }
-            Assert(symmetric, "全盘 180° 旋转对称（角色一致、归属互补）");
+            Assert(symmetric, "全盘 180° 旋转对称（中线行豁免；角色一致、归属互补）");
             Assert(BoardLayout.UnitCellsPerPlayer == ZoneManager.BattlefieldCapacityPerPlayer,
-                   "单位格数 14 = 核心战场容量 14（计数与格子天然一致）");
+                   "单位格数 12 = 核心战场容量 12（计数与格子天然一致）");
             Assert(BoardLayout.UnitCellsPerPlayer == (BoardLayout.ColMax - BoardLayout.ColMin + 1) * 2
                    && BoardLayout.LandCellsPerPlayer == BoardLayout.ColMax - BoardLayout.ColMin + 1,
-                   "容量与几何一致（单位 2×7、地牌 1×7——配置漂移即红）");
+                   "容量与几何一致（单位 2×6、地牌 6 格=可用列 6——一元素一格，配置漂移即红）");
 
             // ---- 2. 六边形数学（手算向量表，odd-r 奇偶约定） ----
             Assert(BoardMath.Neighbor(2, 4, BoardDirection.NE) == (2, 5), "偶行 NE 邻居 = (x, z+1)");
@@ -2637,14 +2659,14 @@ namespace CardCore.Editor
 
             // ---- 3. 距离档位（战棋预留公式）与半场拼合 ----
             var half1 = new HalfFieldData();
-            half1.Set(5, 0, 2, 0); // 本地(5,0) → 整场 (5,3)，落差 2
+            half1.Set(5, 0, 2, 0); // 本地(5,0) → 整场 (5,4)（P1 近中级行），落差 2；中线行 z3 恒 0
             var board = new BoardState(core, p1, p2, half1, HalfFieldData.Flat());
-            Assert(board.Field.ElevationAt(5, 3) == 2 && board.Field.ElevationAt(5, 4) == 0,
-                   "半场地形拼合（落差写入正确格，边缘恒 0）");
+            Assert(board.Field.ElevationAt(5, 4) == 2 && board.Field.ElevationAt(5, 3) == 0,
+                   "半场地形拼合（落差写入正确格，中线行恒 0）");
             board.Mode = BoardRulesMode.Flat;
-            Assert(board.AttackDistance(5, 3, 5, 4) == 1, "Flat 档忽略落差（P2P 完全平面）");
+            Assert(board.AttackDistance(5, 4, 5, 5) == 1, "Flat 档忽略落差（P2P 完全平面）");
             board.Mode = BoardRulesMode.Tactical;
-            Assert(board.AttackDistance(5, 3, 5, 4) == 3, "Tactical 档落差参与距离（六距1 + |2−0| = 3）");
+            Assert(board.AttackDistance(5, 4, 5, 5) == 3, "Tactical 档落差参与距离（六距1 + |2−0| = 3）");
             board.Mode = BoardRulesMode.Flat;
 
             // ---- 4. 确定性重建（重连语义）+ 占用与区域一致 ----
@@ -3280,7 +3302,8 @@ namespace CardCore.Editor
             GameActions.DrainStack(core);
             Assert(vigilant.IsTapped(), "警戒重定义：攻击结算期照常横置（不再代替横置扣除）");
             Assert(CardCore.Attribute.KeywordRules.ShouldTap(vigilant), "警戒重定义：横置代价恒支付");
-            // 横置持警戒反击：守卫拦截横置后，持警戒的守卫仍造成战斗伤害（见 TestAttackGuard 新段）
+            // 横置持警戒反击：已横置防守者被攻击仍反击（见 TestAttackGuard 2b；2026-10-15 起
+            // 拦截守卫战斗期间竖直，反击不再依赖警戒）
 
             // ---- 7. 横置即上限（2026-09-10 定案：计数/会话门槛均已撤，激励可再动；逐攻击开窗）----
             var loneWolf = Make(p1, 1, 9);
@@ -4523,45 +4546,55 @@ namespace CardCore.Editor
                    && System.Math.Abs(dd.At(9) - 0.8f) < 1e-4 && System.Math.Abs(dd.At(12) - 0.75f) < 1e-4,
                    "计价锚：d(C) 分段折 d(1)=d(3)=1（C1-3 不折）/ d(5)=0.9333（4-9 线性1→0.8）/ d(9)=0.8 / ≥10 恒0.75（2026-10-10 分段定案）");
 
-            // ---- 身材：1费 = 2点属性（灰）；可支配底盘（2026-10-10）：
-            //      结构项（攻1+守1+槽N）占 3 点额度，剩余抵价（先灰后最高色）——白板生物抵 1 ----
-            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 1, 1)) == 0, "计价锚：1/1 白板 D=0（S1×0.75→1 − 剩余抵价1）");
+            // ---- 身材：1费 = 2点属性（灰）；2026-10-15 卡型默认分配：免费点（属性1+攻/守opt-out）
+            //      只减灰桶 S（不溢出彩色）——白板生物减 1，总额与旧口径一致 ----
+            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 1, 1)) == 0, "计价锚：1/1 白板 D=0（S1×0.75→1 − 免费点1减灰桶）");
             Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 0, 2)) == 0, "计价锚：0/2 白板 D=0（同上）");
-            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 2, 2)) == 1, "计价锚：2/2 白板 D=1（S2×0.75→2 − 抵1）");
-            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 3, 2)) == 1, "计价锚：3/2 白板 D=1（S2.5→3 ×0.75→2 − 抵1）");
+            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 2, 2)) == 1, "计价锚：2/2 白板 D=1（S2×0.75→2 − 减1）");
+            Assert(DeriveTotal(MakeCostCard(Cardtype.Creature, 3, 2)) == 1, "计价锚：3/2 白板 D=1（S2.5→3 ×0.75→2 − 减1）");
 
-            // ---- 底盘纯函数（2026-10-10 可支配定案）：SurplusOf=剩余（抵价/提速池）、
-            //      StructuralSurcharge=超槽加价（互斥）——生物默认攻守全在 ----
+            // ---- 底盘纯函数（2026-10-15 卡型默认分配定案）：SurplusOf=免费点（生物=3−攻守→属性1+opt-out；
+            //      非生物=3−效果槽）；StructuralSurcharge=超槽加价（生物=每槽；非生物=结构项>3 差额）----
             Assert(CardCompositionCost.SurplusOf(MakeCostCard(Cardtype.Creature, 1, 1)) == 1
                    && CardCompositionCost.StructuralSurcharge(MakeCostCard(Cardtype.Creature, 1, 1)) == 0,
-                   "计价锚：底盘 0 效果生物 → 剩余 1（攻守占 2）全额抵价");
-            Assert(CardCompositionCost.SurplusOf(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1))) == 0,
-                   "计价锚：底盘 1 效果生物 → 剩余 0（攻+守+槽=3 恰耗尽，无抵价无加价）");
-            Assert(CardCompositionCost.StructuralSurcharge(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1), MakeEffect("Heal", 1))) == 1,
-                   "计价锚：底盘 2 效果生物 → 超槽加价 1");
+                   "计价锚：底盘 0 效果生物 → 免费点 1（属性1）全额减灰桶 S");
+            Assert(CardCompositionCost.SurplusOf(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1))) == 1
+                   && CardCompositionCost.StructuralSurcharge(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1))) == 1,
+                   "计价锚：底盘 1 效果生物 → 免费点 1（属性1）+ 效果槽超槽加价 1（对冲净 0，总额同旧口径）");
+            Assert(CardCompositionCost.StructuralSurcharge(MakeCostCard(Cardtype.Creature, 1, 1, MakeEffect("Heal", 1), MakeEffect("Heal", 1))) == 2,
+                   "计价锚：底盘 2 效果生物 → 每槽加价（2 槽=+2；免费点 1 对冲 → 净 +1 同旧口径）");
             Assert(CardCompositionCost.StructuralSurcharge(MakeCostCard(Cardtype.Creature, 1, 1,
-                       MakeEffect("Heal", 1), MakeEffect("Heal", 1), MakeEffect("Heal", 1))) == 2,
-                   "计价锚：底盘 3 效果生物 → 超槽加价 2");
+                       MakeEffect("Heal", 1), MakeEffect("Heal", 1), MakeEffect("Heal", 1))) == 3,
+                   "计价锚：底盘 3 效果生物 → 每槽加价（3 槽=+3；净 +2 同旧口径）");
             var noAtk = MakeCostCard(Cardtype.Creature, 1, 1);
             noAtk.NoAttack = true;
             Assert(CardCompositionCost.SurplusOf(noAtk) == 2,
-                   "计价锚：底盘无攻白板 → 剩余 2（opt-out 逐项释放）");
+                   "计价锚：底盘无攻白板 → 免费点 2（属性1+opt-out 释放，全减灰桶 S 不能用作其他）");
             var spell1 = MakeCostCard(Cardtype.Spell, null, null, MakeEffect("DealDamage", 2));
-            Assert(CardCompositionCost.SurplusOf(spell1) == 2 && CardCompositionCost.PriceOffsetOf(spell1) == 2,
-                   "计价锚：底盘法术 1 效果 → 剩余 2 全额抵价（法术减两费的机制形态）");
-            spell1.SpeedBonus = 2;
-            Assert(CardCompositionCost.PriceOffsetOf(spell1) == 0 && CardCompositionCost.SurplusOf(spell1) == 2,
-                   "计价锚：法术剩余全额提速（SpeedBonus=2）→ 抵价 0（k 点提速=放弃 k 点抵价）");
+            Assert(CardCompositionCost.SurplusOf(spell1) == 2 && CardCompositionCost.PriceOffsetOf(spell1) == 0
+                   && CardCompositionCost.KindSpeedBonusOf(spell1) == 2,
+                   "计价锚：底盘法术 1 效果槽 → 速度 2（槽位从速度扣：3−槽数动态算，不落字段；无抵价）");
+            spell1.SpeedBonus = 2; // 字段已退役（2026-10-15 改版）——脏数据写值不得影响动态速度
+            Assert(CardCompositionCost.PriceOffsetOf(spell1) == 0 && CardCompositionCost.SurplusOf(spell1) == 2
+                   && CardCompositionCost.KindSpeedBonusOf(spell1) == 2,
+                   "计价锚：法术速度恒=3−槽数（SpeedBonus 字段退役，写值无效）");
+            var spell2 = MakeCostCard(Cardtype.Spell, null, null, MakeEffect("DealDamage", 2), MakeEffect("Heal", 1));
+            var spell3 = MakeCostCard(Cardtype.Spell, null, null,
+                MakeEffect("DealDamage", 2), MakeEffect("Heal", 1), MakeEffect("DrawCard", 1));
+            Assert(CardCompositionCost.KindSpeedBonusOf(spell2) == 1 && CardCompositionCost.KindSpeedBonusOf(spell3) == 0,
+                   "计价锚：法术 2 槽=速1、3 槽=速0（用户定案：最多三槽，槽位全从速度扣）");
             var ench1 = MakeCostCard(Cardtype.Enchantment, null, null, MakeEffect("Heal", 1));
             ench1.Durability = 3;
             Assert(CardCompositionCost.PriceOffsetOf(ench1) == 0
-                   && CardCompositionCost.ActivationFeeOffsetOf(ench1) == 2
-                   && CardCompositionCost.DurabilityBonusOf(ench1) == 0,
-                   "计价锚：结界剩余 2 → 不抵卡价；缺省=启动式发动费每次抵 2（运行时二向之一）");
-            ench1.SurplusToDurability = true;
-            Assert(CardCompositionCost.ActivationFeeOffsetOf(ench1) == 0
-                   && CardCompositionCost.DurabilityBonusOf(ench1) == 2,
-                   "计价锚：结界转耐久 → 发动费抵扣关、入场耐久 +2（运行时二向之二）");
+                   && CardCompositionCost.DurabilityBonusOf(ench1) == 2
+                   && CardCompositionCost.KindSpeedBonusOf(ench1) == 0,
+                   "计价锚：结界免费点 2 全投耐久（+2）；速通道退役（2026-10-15 改版：结界禁主动）");
+            var enchActive = MakeCostCard(Cardtype.Enchantment, null, null, MakeEffect("Heal", 1));
+            enchActive.Durability = 3;
+            enchActive.Effects[0].TriggerTiming = (int)TriggerTiming.Activate_Active;
+            Assert(CardCompositionCost.DurabilityBonusOf(enchActive) == 2
+                   && CardCompositionCost.KindSpeedBonusOf(enchActive) == 0,
+                   "计价锚：结界带主动行（形状非法——装载拦截）计价式仍全投耐久/速 0（发动闸另有来源拒绝）");
 
             // ---- 抉择分支计槽（2026-09-21：价差溢价已废）——一个效果含 2 分支 Choice = 2 槽 ----
             var choiceSlotData = MakeCostCard(Cardtype.Spell, null, null, MakeEffect("Heal", 1));
@@ -4577,33 +4610,34 @@ namespace CardCore.Editor
             });
             Assert(CostDerivationService.CountEffectSlots(choiceSlotData) == 2,
                    "计价锚：抉择分支计槽——1 效果含 2 分支 Choice = 2 槽");
-            Assert(CardCompositionCost.SurplusOf(choiceSlotData) == 1,
-                   "计价锚：底盘 法术 2 槽（抉择装两个效果收两次槽位费）→ 剩余 1 抵价");
+            Assert(CardCompositionCost.SurplusOf(choiceSlotData) == 1
+                   && CardCompositionCost.KindSpeedBonusOf(choiceSlotData) == 1,
+                   "计价锚：底盘 法术 2 槽（抉择分支计槽）→ 速度 1（槽位从速度扣；法术内嵌抉择为形状拦——计价式照算）");
 
-            // ---- 法术同折（2026-10-02 定案）+ 可支配底盘（2026-10-10 定案：RefundColor 自标已删）----
-            // 锚价红4+蓝2（2026-09-13 表价）×f(未声明档=MaxTier18)=0.75 → 取整总额5（最大余数法→红3蓝2）
-            // − 底盘剩余抵价2：先灰（无）后最高费用色红 → 红1蓝2；全额提速（SpeedBonus=2）→ 不抵价红3蓝2
+            // ---- 法术同折（2026-10-02 定案）+ 槽位从速度扣（2026-10-15 改版：无抵价通道）----
+            // 锚价红4+蓝2（2026-09-13 表价）×f(未声明档=MaxTier18)=0.75 → 取整总额5（红3蓝2）——
+            // 法术免费点全投提速，不抵价 → 红3蓝2
             var fbEffect = MakeEffect("DealDamage", 4);
             fbEffect.AtomicEffects.Add(AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1));
             var fb = CardCostService.Derive(MakeCostCard(Cardtype.Spell, null, null, fbEffect));
-            Assert((int)fb.DerivedCost[ManaType.Red] == 1 && (int)fb.DerivedCost[ManaType.Blue] == 2,
-                   "计价锚：法术 4伤+1抽（未声明档）= 红1+蓝2（锚价红4蓝2 ×0.75 取整5 − 剩余抵价2 默认落最高色红）");
+            Assert((int)fb.DerivedCost[ManaType.Red] == 3 && (int)fb.DerivedCost[ManaType.Blue] == 2,
+                   "计价锚：法术 4伤+1抽（未声明档）= 红3+蓝2（锚价红4蓝2 ×0.75 取整5，无抵价——速度通道占满免费点）");
             Assert(System.Math.Abs(fb.Factor - 0.75f) < 1e-4f,
                    "计价锚：法术未声明档 f=d(18)=0.75（同折定案——旧 f≡1 已废）");
             var fbSpeedCard = MakeCostCard(Cardtype.Spell, null, null, fbEffect);
-            fbSpeedCard.SpeedBonus = 2;
+            fbSpeedCard.SpeedBonus = 2; // 字段退役——脏数据不得影响
             var fbSpeed = CardCostService.Derive(fbSpeedCard);
             Assert((int)fbSpeed.DerivedCost[ManaType.Red] == 3 && (int)fbSpeed.DerivedCost[ManaType.Blue] == 2,
-                   "计价锚：剩余全额提速（SpeedBonus=2）——不抵价 → 红3+蓝2");
-            Assert(DeriveTotal(MakeCostCard(Cardtype.Spell, null, null, MakeEffect("Heal", 2))) == 0,
-                   "计价锚：回2命 = 0费（表价1 ×0.75→1 − 抵价2 → 下限0）");
+                   "计价锚：法术无抵价恒红3+蓝2（SpeedBonus 字段退役写值无效）");
+            Assert(DeriveTotal(MakeCostCard(Cardtype.Spell, null, null, MakeEffect("Heal", 2))) == 1,
+                   "计价锚：回2命 = 1费（表价1 ×0.75→1；法术无抵价通道——2026-10-15 改版翻转旧「−抵价2→0」）");
 
             // ---- 9费档：整卡最后折 f=d(9)=0.8（C4-9 线性带末端；原 d(9)=0 全免已废）----
             var bigBody = MakeCostCard(Cardtype.Creature, 9, 9, MakeEffect("DealDamage", 3));
             bigBody.Cost[(int)ManaType.Gray] = 9;
             var big = CardCostService.Derive(bigBody);
             Assert(System.Math.Abs(big.Factor - 0.8f) < 1e-4 && big.DerivedTotal == 10 && big.OffsetRequirement == 1,
-                   "计价锚：9费 9/9 挂3伤 → f=d(9)=0.8 整卡(9+3)×0.8=9.6→D=10，Req=1（1 效果生物底盘恰耗尽）");
+                   "计价锚：9费 9/9 挂3伤 → f=d(9)=0.8 整卡(9+3)×0.8=9.6→D=10，Req=1（1 效果生物：槽加价+1 与属性1抵扣对冲）");
             var midTier = MakeCostCard(Cardtype.Creature, 9, 9, MakeEffect("DealDamage", 3));
             midTier.Cost[(int)ManaType.Gray] = 5;
             var mid = CardCostService.Derive(midTier);
@@ -5404,8 +5438,9 @@ namespace CardCore.Editor
             Assert(GameActions.PlayCard(core, p1, ench), "结界从手牌发动（耐久费 2 灰——2026-10-05 耐久计价）");
             GameActions.DrainStack(core);
             Assert(ench.GetZone() == Zone.Battlefield, "结界两步式：发动区→进入战场");
-            Assert(ench.GetCounterCount(CardCore.Attribute.CounterRules.DurabilityCounter) == 3,
-                   "结界入场初始化耐久=3（CardPutToBattlefieldEvent 驱动）");
+            // 2026-10-15 拆分定案：不装主动效果（0 槽）→ 免费点 3 全投耐久 → 3+3=6
+            Assert(ench.GetCounterCount(CardCore.Attribute.CounterRules.DurabilityCounter) == 6,
+                   "结界入场初始化耐久=6（印刷3+免费点3全投耐久——CardPutToBattlefieldEvent 驱动）");
             core.SBAEngine.ExecuteAll();
             Assert(ench.IsAlive && ench.GetZone() == Zone.Battlefield,
                    "SBA 不扫无生命单位（旧「结界被当 0 防御送墓」bug 回归锚）");
@@ -5413,11 +5448,11 @@ namespace CardCore.Editor
             int lifeBefore = core.LayerEngine.CalculateToughness(ench); // 公开口径读有效生命（internal _life 编辑器程序集不可见）
             int dealt = CardCore.Attribute.KeywordRules.ApplyDamage(p2, ench, 5, isCombat: true);
             Assert(dealt == 1, $"战斗伤害对结界有效伤害钳 1（实际 {dealt}）");
-            Assert(ench.GetCounterCount(CardCore.Attribute.CounterRules.DurabilityCounter) == 2,
+            Assert(ench.GetCounterCount(CardCore.Attribute.CounterRules.DurabilityCounter) == 5,
                    "5 点战斗伤害只掉 1 耐久");
             Assert(core.LayerEngine.CalculateToughness(ench) == lifeBefore, "结界受击不落血（绕过生命管线）");
             CardCore.Attribute.KeywordRules.ApplyDamage(p1, ench, 3, isCombat: false);
-            Assert(ench.GetCounterCount(CardCore.Attribute.CounterRules.DurabilityCounter) == 1,
+            Assert(ench.GetCounterCount(CardCore.Attribute.CounterRules.DurabilityCounter) == 4,
                    "法术伤害同耐久管线 -1");
 
             CardCore.DestroyReason? reason = null;
@@ -5425,7 +5460,8 @@ namespace CardCore.Editor
             EventManager.Instance.Subscribe(onDest);
             try
             {
-                CardCore.Attribute.KeywordRules.ApplyDamage(p1, ench, 1, isCombat: false);
+                for (int d = 0; d < 4; d++) // 剩 4 层：逐点扣完（耐久即次数池）
+                    CardCore.Attribute.KeywordRules.ApplyDamage(p1, ench, 1, isCombat: false);
                 Assert(ench.GetZone() == Zone.Graveyard, "结界耐久归零直送墓");
                 Assert(reason == CardCore.DestroyReason.Smashed,
                        $"死因=Smashed 无生命直毁（实际 {reason}），不经死亡决策表");
@@ -6848,16 +6884,6 @@ namespace CardCore.Editor
             // ---- 1b. 战斗伤害改写族（2026-09-13 定案）----
             var stingSrc = SpawnTier(core, p1, 3, 3);
             var stingTgt = SpawnTier(core, p2, 3, 5);
-            stingSrc.AddKeyword(CardCore.Attribute.KeywordRules.IceCrystal, CardCore.KeywordLane.Temp, stingSrc);
-            int tgtLife = stingTgt.GetLife();
-            CardCore.Attribute.KeywordRules.ApplyDamage(stingSrc, stingTgt, 3, true);
-            Assert(stingTgt.GetLife() == tgtLife && stingTgt.IsTapped()
-                   && stingTgt.GetCounterCount(CardCore.Attribute.KeywordRules.FreezeCounter) == 1,
-                   "冰晶改写：战斗伤害不发生——目标改为冻结×1（横置）");
-            CardCore.Attribute.KeywordRules.ApplyDamage(stingSrc, stingTgt, 2, false);
-            Assert(stingTgt.GetLife() == tgtLife - 2,
-                   "对照：非战斗伤害照常（改写只拦战斗伤害）");
-
             // 防护层优先（2026-09-13 修订：完全挡住→不触发改写）：圣盾挡下 → 无冻结
             var shielded = SpawnTier(core, p2, 3, 5);
             shielded.AddCounters(CardCore.Attribute.CounterRules.DivineShieldCounter, 1, shielded); // 圣盾已指示物化
@@ -7491,17 +7517,17 @@ namespace CardCore.Editor
             return card;
         }
 
-        // ======================================== 英雄技能（2026-10-07 卡牌化：构筑标记结界） ========================================
+        // ======================================== 英雄技能（2026-10-15 改版：技能=任选一张法术） ========================================
 
-        /// <summary>技能段垫卡数（含技能卡共 15：起手 6 后牌库余 8，足够段内抽牌/回合推进）。</summary>
+        /// <summary>技能段垫卡数（技能卡不占张数：起手 6 后牌库余 8-9，足够段内抽牌/回合推进）。</summary>
         private const int HsDeckPadCount = 14;
 
-        /// <summary>本段技能探针结界（唯一主动效果=抽 1）。</summary>
+        /// <summary>本段技能探针法术（唯一主动效果=抽 1；2026-10-15 改版：载体结界→法术）。</summary>
         private static CardData HsSkillCardData()
         {
             var data = new CardData
             {
-                ID = "VERIFY_HS_SKILL", CardName = "技能探针结界", Supertype = Cardtype.Enchantment,
+                ID = "VERIFY_HS_SKILL", CardName = "技能探针法术", Supertype = Cardtype.Spell,
             };
             data.Effects.Add(new CardEffectData
             {
@@ -7514,11 +7540,12 @@ namespace CardCore.Editor
         }
 
         /// <summary>
-        /// 卡牌化技能端到端（旧三色硬编码技能与升级机制已退役）：①资格校验（结界+唯一效果且为主动；
-        /// 多效果/非结界/纯触发不合格）；②InitGame 抽卡落位（FieldZone 在场、牌库 -1-起手、未标记方无技能）；
-        /// ③发动=唯一主动效果走通用启动式（入栈→结算抽 1、按效果派生价扣费、横置、SkillUse+1、耐久恒 0）；
+        /// 法术化技能端到端（2026-10-15 改版：技能=任选一张法术，卡池生成不占卡组张数）：
+        /// ①资格校验（法术+1~3 个全主动；多非主动/非法术/纯触发/超 3 个不合格）；
+        /// ②InitGame 落位 FieldZone（合成卡不在卡池 → 兜底牌库抽取；未标记方无技能）；
+        /// ③发动=所选主动效果走通用启动式（入栈→结算抽 1、按效果派生价扣费、横置=每回合一次、SkillUse+1、无耐久层）；
         /// ④一回合一次闸门；⑤回合开始重置可再发；⑥沉默拦截；⑦费用不足拒绝（不横置不白付）；
-        /// ⑧技能卡离场失效；⑨AI 随机组卡自动挑卡（AutoPickSkillCard）。
+        /// ⑧技能卡离场失效；⑨AI 自动挑卡（AutoPickSkillCard——候选无合格回落全卡池）。
         /// </summary>
         private static void TestHeroSkills(GameCore core, Player p1, Player p2)
         {
@@ -7526,9 +7553,9 @@ namespace CardCore.Editor
             var skillData = HsSkillCardData();
             Assert(HeroSkillSystem.CanBeSkillCard(skillData)
                    && HeroSkillSystem.SkillIneligibleReason(skillData) == null,
-                   "资格：结界+唯一主动效果合格");
+                   "资格：法术+唯一主动效果合格");
 
-            var multi = new CardData { ID = "VERIFY_HS_MULTI", CardName = "双效果结界探针", Supertype = Cardtype.Enchantment };
+            var multi = new CardData { ID = "VERIFY_HS_MULTI", CardName = "双效果法术探针", Supertype = Cardtype.Spell };
             multi.Effects.Add(new CardEffectData
             {
                 Id = "VERIFY_HS_M1", TriggerTiming = (int)TriggerTiming.Activate_Active,
@@ -7541,7 +7568,25 @@ namespace CardCore.Editor
             });
             Assert(!HeroSkillSystem.CanBeSkillCard(multi)
                    && HeroSkillSystem.SkillIneligibleReason(multi) != null,
-                   "资格：两效果（主动+触发）不合格——白带的被动拒绝");
+                   "资格：混入非主动效果不合格——法术效果须全为主动（施放时抉择其一）");
+
+            var triple = new CardData { ID = "VERIFY_HS_TRI", CardName = "三效果法术探针", Supertype = Cardtype.Spell };
+            for (int i = 0; i < 3; i++)
+                triple.Effects.Add(new CardEffectData
+                {
+                    Id = "VERIFY_HS_T" + i, TriggerTiming = (int)TriggerTiming.Activate_Active,
+                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+                });
+            Assert(HeroSkillSystem.CanBeSkillCard(triple), "资格：法术 3 个全主动合格（抉择上限）");
+
+            var quad = new CardData { ID = "VERIFY_HS_QUAD", CardName = "四效果法术探针", Supertype = Cardtype.Spell };
+            for (int i = 0; i < 4; i++)
+                quad.Effects.Add(new CardEffectData
+                {
+                    Id = "VERIFY_HS_Q" + i, TriggerTiming = (int)TriggerTiming.Activate_Active,
+                    AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+                });
+            Assert(!HeroSkillSystem.CanBeSkillCard(quad), "资格：法术 4 个主动超上限不合格（最多三）");
 
             var creature = new CardData { ID = "VERIFY_HS_CR", CardName = "生物探针", Supertype = Cardtype.Creature, Power = 1, Life = 1 };
             creature.Effects.Add(new CardEffectData
@@ -7549,19 +7594,27 @@ namespace CardCore.Editor
                 Id = "VERIFY_HS_CR_A", TriggerTiming = (int)TriggerTiming.Activate_Active,
                 AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
             });
-            Assert(!HeroSkillSystem.CanBeSkillCard(creature), "资格：非结界（生物）不合格");
+            Assert(!HeroSkillSystem.CanBeSkillCard(creature), "资格：非法术（生物）不合格");
+            var enchCarrier = new CardData { ID = "VERIFY_HS_ENCH", CardName = "结界探针", Supertype = Cardtype.Enchantment };
+            enchCarrier.Effects.Add(new CardEffectData
+            {
+                Id = "VERIFY_HS_E1", TriggerTiming = (int)TriggerTiming.Activate_Active,
+                AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
+            });
+            Assert(!HeroSkillSystem.CanBeSkillCard(enchCarrier), "资格：结界（带主动行也）不合格——载体须法术");
 
-            var passiveOnly = new CardData { ID = "VERIFY_HS_PASS", CardName = "纯触发结界探针", Supertype = Cardtype.Enchantment };
+            var passiveOnly = new CardData { ID = "VERIFY_HS_PASS", CardName = "纯触发法术探针", Supertype = Cardtype.Spell };
             passiveOnly.Effects.Add(new CardEffectData
             {
                 Id = "VERIFY_HS_P1", TriggerTiming = (int)TriggerTiming.OnPlay,
                 AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DrawCard, value: 1) },
             });
-            Assert(!HeroSkillSystem.CanBeSkillCard(passiveOnly), "资格：唯一效果非主动（纯触发）不合格");
+            Assert(!HeroSkillSystem.CanBeSkillCard(passiveOnly), "资格：效果非主动（纯触发）不合格");
 
-            Assert(HeroSkillSystem.AutoPickSkillCard(new List<CardData>(HsDeckPadCount + 1) { skillData }) == "VERIFY_HS_SKILL"
-                   && HeroSkillSystem.AutoPickSkillCard(new List<CardData> { multi, creature }) == null,
-                   "AI 随机组卡：自动挑第一张合格结界（无合格卡 → null=无技能）");
+            Assert(HeroSkillSystem.AutoPickSkillCard(new List<CardData>(HsDeckPadCount + 1) { skillData }) == "VERIFY_HS_SKILL",
+                   "AI 自动挑卡：候选含合格法术即取（候选优先）");
+            Assert(HeroSkillSystem.AutoPickSkillCard(new List<CardData> { multi, creature }) != null,
+                   "AI 自动挑卡：候选无合格 → 回落全卡池锚价最低法术（2026-10-15 改版：技能不占张数）");
 
             // ---- 2. InitGame 抽卡落位（段内重开小局：夹具卡组，p1 标记/p2 未标记）----
             var deckCards = new List<CardData> { skillData };
@@ -7578,11 +7631,11 @@ namespace CardCore.Editor
             Assert(p1.HeroSkillCard != null
                    && core.ZoneManager.GetCards(p1, Zone.FieldZone).Contains(p1.HeroSkillCard)
                    && p1.HeroSkillCard is CardWrapper hsw && hsw.GetData().ID == "VERIFY_HS_SKILL",
-                   "技能卡落位：开局从牌库抽出放 FieldZone（英雄技能栏）");
+                   "技能卡落位：开局落 FieldZone（英雄技能栏；合成卡不在卡池 → 兜底牌库抽取）");
             // 2026-10-09 清理：牌库计数等式删除——回合开始抽牌使基数随自动化口径漂移；保留"不在牌库"主张
             Assert(!core.ZoneManager.GetCards(p1, Zone.Deck)
                        .Any(c => c is CardWrapper w && w.GetData()?.ID == "VERIFY_HS_SKILL"),
-                   "牌库：标记卡已抽出（不在牌库）");
+                   "牌库：技能卡不在牌库（真实卡池=卡池生成不占张数；合成卡=兜底已抽出）");
             Assert(p2.HeroSkillCard == null && core.ZoneManager.GetCards(p2, Zone.FieldZone).Count == 0,
                    "未标记方：无技能（FieldZone 空，不自动指派）");
 

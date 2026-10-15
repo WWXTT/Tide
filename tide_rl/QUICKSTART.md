@@ -1,5 +1,25 @@
 # Tide AI 训练快速开始指南
 
+> ## v3 本机训练就绪态（2026-10-14 更新）
+>
+> **契约已升 v3**（`docs/action_space_v3_contract.md`：卡槽 92×68 / globals 50 / 动作 8 维×512 容量 /
+> 类型 0..13 含 TapCreature/CommitAwaken；旧 checkpoint/fixture/onnx 全作废，训练标签 `v3a`）。
+> 本机（C 盘工程 `C:\Users\Administrator\Desktop\UnityProject\Tide`，6900XT）**已验证可直接训练**：
+>
+> - Python 3.14 全局环境已装 jax 0.11.1(CPU)/flax/optax；实测 NN 前向 ~2650 步/s、训练档 ~213 步/s
+>   （batch8）——**瓶颈是 Unity TCP 单环境桥而非 NN，不需要 PyTorch/ROCm 移植**。
+> - 验证链已全绿：编码器自测 → 随机权重导出（`export_onnx.py --random`，v3 形状）→ ORT↔JAX 对拍 →
+>   Unity Sentis fixture 自检（max|Δ|=6.15e-06）→ 编辑器内真实对局探针（位置特征有值、响应窗口停靠、
+>   maxN=18 远离 512）→ TideServer quick verify 605P/0F。
+> - **⚠ 开训前唯一硬前置**：卡池数据层重建中——三套主题卡组（红/绿/蓝）引用的卡 ID 在当前
+>   Cards.json（23 张）中不存在，训练桥起局会 2 步疲劳速死。**先在 Unity 跑
+>   `Tools/构建三色主题卡组` 重建，再 `make_train_copy.ps1 -Refresh` 刷新训练副本**。
+> - 开训序：主题卡组重建 → 训练副本刷新 → `start_training_traincopy.ps1` →
+>   `export_onnx.py`（真权重）→ `sync_model_to_main.ps1` → BattleScreen 镜像分支改回
+>   `aiDriver: _neuralAi`（一行，恢复神经 AI 镜像局）。
+> - 桥无菜单注册时可用 execute_code 直调 `CardCore.Editor.TideHeadless.TideHeadlessServer.StartTcpServer()`。
+> - 首训后用 `monitor_training.py` 复核塑形累计量 ≪ 终局 ±1（λ=0.005 维持）。
+
 ## 🎯 目标
 
 主题自对弈训练（一侧随机三套主题卡组之一、另一侧 Cards.json 随机 30 张），
@@ -424,7 +444,7 @@ TODO（Phase 5）：
 
 ```python
 # 塑形奖励
-current_potential = obs["global_"][28] - obs["global_"][29]
+current_potential = obs["global_"][30] - obs["global_"][31]  # v3 势能位（v2 为 28/29）
 shaping = self.reward_lambda * (current_potential - self.last_potential)
 print(f"[Step {self.step_count}] Φ: {self.last_potential:.2f} → {current_potential:.2f}, Shaping: {shaping:.4f}")
 reward = shaping
@@ -439,7 +459,7 @@ trajectory = {
     "obs": obs_list,
     "actions": actions_list,
     "rewards": rewards_list,
-    "potentials": [obs["global_"][28] - obs["global_"][29] for obs in obs_list],
+    "potentials": [obs["global_"][30] - obs["global_"][31] for obs in obs_list],  # v3 势能位
 }
 
 # 保存到文件

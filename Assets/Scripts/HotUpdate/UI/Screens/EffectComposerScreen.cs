@@ -12,13 +12,14 @@ using UInputField = TMPro.TMP_InputField;
 namespace SynergyUI
 {
     /// <summary>
-    /// 效果合成界面（2026-10-01 预制体化：静态层级来自 Assets/Art/UI/EffectUI.prefab，
+    /// 效果合成界面（2026-10-01 预制体化：静态层级来自 Assets/Art/Prefab/EffectUI.prefab，
     /// Build 深度按名绑定+闭包接线；槽位区/原子库/效果表/光环面板运行时重建。
     /// 交互/文案/校验语义与历史 UITK 版对齐（修订史见 tag uitk-ui-final 版头注释）；
         /// 2026-10-02 起 uGUI-native：排版按 25645c0^ 的 EffectComposer.uxml/Common.uss 历史稿还原，
         /// 左=编辑栏（模式条+槽位区）/ 右=展示区（原子库 / 效果表双模式）+ 筛选。
         /// 2026-10-05 设置盒/数值区 prefab 静态化（tpl-slot 模板克隆）；2026-10-09 设置盒拆除：
-        /// 发动四参数=activate-bar 静态组，作用范围/目标数量/目标随机随逐原子目标制下沉每原子卡面行
+        /// 发动参数=activate-bar 静态组（发动速度组 2026-10-15 退役删除——恒 0 不可改，速度语义
+        /// 移交法术提速份额/引擎光环），作用范围/目标数量/目标随机随逐原子目标制下沉每原子卡面行
         ///（header.TargetKinds 恒空——各原子按自身表域独立解析）；选择模式/持续档/落区收口不再手编。
         /// 2026-10-07 持续行预制体化：atom-card/reward-slot 烘焙 aura-duration 行（「持续时间」+三档下拉），
         /// 仅赋予类（关键词/指示物原子）显示；代码生成 dd-dur 与光环槽持续回合数行退役。
@@ -182,12 +183,13 @@ namespace SynergyUI
         private Button _deleteBtn;            // 删除当前库效果（仅效果表载入态可用）
         private UInputField _filterName;
         private UiKit.Dropdown _timingDropdown, _activationDropdown;
-        // 发动四参数（2026-10-09 prefab 重排·activate-bar 静态四组 way/timing/speed/take-effect）：
-        // 节点常驻不随克隆重建——写入走当前 _graph.header，值对齐见 SyncActivateBarValues；
-        // 速度/生效次数组显隐随 SyncActivationVisibility 联动
+        // 发动参数（2026-10-09 prefab 重排·activate-bar 静态组 way/timing/take-effect——speed 组
+        // 2026-10-15 随发动速度退役删除，BaseSpeed 恒 0 不可改）：节点常驻不随克隆重建——
+        // 写入走当前 _graph.header，值对齐见 SyncActivateBarValues；
+        // 生效次数组显隐随 SyncActivationVisibility 联动
         private RectTransform _activateBar, _wayGroup;
-        private RectTransform _speedGroup, _limitGroup;
-        private TMP_Dropdown _ddSpeed, _ddLimit;
+        private RectTransform _limitGroup;
+        private TMP_Dropdown _ddLimit;
         private TMP_Text _tableToggleLabel;      // 合并表切换按钮的标签（原 btn-reload-atoms/btn-load-effects）
         private List<TriggerTiming> _timings;
 
@@ -264,11 +266,13 @@ namespace SynergyUI
             _ => null,
         };
 
-        // 设置盒档位表（2026-10-05 七项定案+下拉化）：速度仅主动三档 0/1/2（0=普通档——仅自己回合主阶段，
-        // 2026-10-05 用户定案自 1/2/3 改档；引擎 0 速语义本就完备，见 SpeedSystem）；作用次数仅非主动（-1=全部/不限）；
+        // 设置盒档位表（2026-10-05 七项定案+下拉化）：作用次数仅非主动（-1=全部/不限）；
         // 目标数量仅 1/2/3（2026-10-09 逐原子目标制：0=全部档退役，AOE 另出专用原子行）。
-        // 选择模式由 目标数×各原子自身域 推导（CardEffectConverter）——不再手选
-        private static readonly int[] SpeedTiers = { 0, 1, 2 };
+        // 选择模式由 目标数×各原子自身域 推导（CardEffectConverter）——不再手选。
+        // 发动速度档 2026-10-15 退役：activate-bar/speed 组删除，新组合 BaseSpeed 恒 0
+        //（引擎 0 速语义完备见 SpeedSystem；速度>0 只剩法术提速份额与存量数据）
+        // 同日新定案已落地：速度由卡型免费额度默认分配（法术2/结界装主动1/生物与结界手牌使用恒0）
+        //——CardCompositionCost.KindSpeedBonusOf 单源；效果库单效果预览句首显示裸 BaseSpeed
         private static readonly int[] LimitTiers = { 1, 2, 3, -1 };
         private static readonly int[] CountTiers = { 1, 2, 3 };
 
@@ -307,18 +311,18 @@ namespace SynergyUI
                 UiKit.Described(_costLabel,
                     "费用预览：主干各原子费用＋合计；分支 Then 奖励免费（不计合计）。"
                     + "分支槽奖励超出可实现费用时按槽区红框提示调整后才能保存。");
-            // 发动四参数（2026-10-09 prefab 重排）：activate-bar 静态四组（way/timing/speed/take-effect，
-            // 每组=标签+子节点 dropdown）；原 root 级 dropdown-activation/dropdown-timing/timing-row
-            // 与设置盒 speed/limit 随设置盒拆除退役
+            // 发动参数（2026-10-09 prefab 重排）：activate-bar 静态组（way/timing/take-effect，
+            // 每组=标签+子节点 dropdown；speed 组 2026-10-15 随发动速度退役删除）；原 root 级
+            // dropdown-activation/dropdown-timing/timing-row 与设置盒 speed/limit 随设置盒拆除退役
             _activateBar = Find("activate-bar");
             if (_activateBar == null)
-                Debug.LogError("[EffectComposer] 缺 activate-bar（发动四参数条）——检查 EffectUI.prefab");
+                Debug.LogError("[EffectComposer] 缺 activate-bar（发动参数条）——检查 EffectUI.prefab");
             _wayGroup = UiKit.FindDeep(_activateBar, "way") as RectTransform;
             _activationDropdown = BindActivateBarDropdown("way",
                 ActivationChoices.Select(c => c.label).ToList(), 0);
             _timingDropdown = BindActivateBarDropdown("timing", new List<string> { "—" }, 0);
             _timingRow = UiKit.FindDeep(_activateBar, "timing") as RectTransform;
-            BindActivateBarTiers(); // 速度/生效次数（静态一次绑定——写入走当前 _graph.header）
+            BindTakeEffectTier(); // 生效次数（静态一次绑定——写入走当前 _graph.header）
             // 表切换按钮（原 btn-reload-atoms/btn-load-effects 两钮合并）：按下在 原子库↔效果表 间切换，
             // 标签常显"将切到哪边"。烘焙节点名 btn-switch-table（prefab 接管后删旧两钮）。
             UiKit.Described(UiKit.BindableButton("btn-switch-table", Root, "切换效果表", SwitchTable,
@@ -489,17 +493,43 @@ namespace SynergyUI
                 "发动方式：自动看条件弹窗询问，主动由你手动发动——点选项看各自说明。",
                 idx => idx == 0
                     ? "自动：条件达成时游戏弹窗问你发不发动；什么时候问由「触发时机」决定，不比拼速度。"
-                    : "主动：由你手动发动——发动时才支付费用并横置这张卡；速度 1 以上还能在对手回合当响应打出（见「发动速度」）。");
+                    : "主动：由你手动发动——发动时才支付费用并横置这张卡。");
             if (_activationDropdown != null)
                 _activationDropdown.Changed += (idx, _) =>
                 {
                     if (idx >= 0 && idx < ActivationChoices.Length)
                     {
-                        _graph.header.ActivationType = ActivationChoices[idx].value;
+                        // 宿主形状闸（2026-10-15 深夜改版）：法术只挂主动、结界禁主动——非法选择弹回不改值
+                        var pick = ActivationChoices[idx];
+                        if (HostForbidsVoluntary && pick.value == (int)EffectActivationType.Voluntary)
+                        {
+                            ShowToast("结界只挂自动/光环——主动效果已随 2026-10-15 改版退役");
+                            SyncActivationVisibility(); // 弹回当前合法值
+                            return;
+                        }
+                        if (HostRequiresVoluntary && pick.value != (int)EffectActivationType.Voluntary)
+                        {
+                            ShowToast("法术只挂主动效果（施放时弹窗抉择其一）");
+                            SyncActivationVisibility();
+                            return;
+                        }
+                        _graph.header.ActivationType = pick.value;
                     }
                     SyncActivationVisibility();
                 };
         }
+
+        /// <summary>宿主形状谓词（2026-10-15 深夜三类卡改版）：结界禁主动（只挂自动/光环）、
+        /// 法术只挂主动（1~3 个，施放时弹窗抉择其一）。效果库模式（无宿主）两态全开。</summary>
+        private bool HostForbidsVoluntary
+            => _editingCard != null && _editingCard.Supertype == Cardtype.Enchantment;
+
+        private bool HostRequiresVoluntary
+            => _editingCard != null && _editingCard.Supertype == Cardtype.Spell;
+
+        /// <summary>宿主禁挂连接光环（改版配套）：生物（连接光环专属结界）与法术（只挂主动效果）。</summary>
+        private bool HostBlocksAura
+            => _editingCard != null && _editingCard.Supertype != Cardtype.Enchantment;
 
         /// <summary>发动方式/时机的可见性与档位锁定（2026-10-05 两槽定案）：
         /// 并列=主动/自动两态全开（主动档时机钉 Activate_*、离开回落 OnPlay——2026-10-02 定案不变；
@@ -510,6 +540,16 @@ namespace SynergyUI
             if (_timingRow == null && _activationDropdown == null) return;
             bool aura = _mode == ComposeMode.Aura;
             var h = _graph.header;
+
+            // 宿主形状归一（2026-10-15 深夜改版——载入旧数据/切换宿主时兜底）：
+            // 结界禁主动（钉回自动）；法术只挂主动（钉 Voluntary+Activate_*）。
+            if (!aura)
+            {
+                if (HostForbidsVoluntary && h.ActivationType == (int)EffectActivationType.Voluntary)
+                    h.ActivationType = (int)EffectActivationType.Automatic;
+                if (HostRequiresVoluntary && h.ActivationType != (int)EffectActivationType.Voluntary)
+                    h.ActivationType = (int)EffectActivationType.Voluntary;
+            }
 
             if (aura)
             {
@@ -543,8 +583,8 @@ namespace SynergyUI
             ApplyOnceTimingLimitLock();  // 方式切换钉时机后重裁必然单发锁（主动档隐藏时机=不生效）
         }
 
-        /// <summary>发动行显隐（2026-10-05 定案；2026-10-09 activate-bar 迁移）：主动=速度组显/次数组隐，
-        /// 非主动（自动/系统）反之；光环形态四组全隐（无发动概念——设置盒拆除口径并轨）。</summary>
+        /// <summary>发动行显隐（2026-10-05 定案；2026-10-09 activate-bar 迁移；速度组 2026-10-15 退役）：
+        /// 主动=次数组隐，非主动（自动/系统）次数组显；光环形态全隐（无发动概念——设置盒拆除口径并轨）。</summary>
         private void SyncSettingsRowVisibility()
         {
             bool aura = _mode == ComposeMode.Aura;
@@ -552,7 +592,6 @@ namespace SynergyUI
             // 次数轴归宿主（2026-10-10 发数经济）：非生物宿主（结界=耐久即次数池/法术=一次性）的
             // 次数档不参与卡价——下拉隐藏、落盘值由 NormalizeLimitForHost 归一；效果库模式无宿主保持可编辑
             bool limitHosted = _editingCard == null || _editingCard.Supertype == Cardtype.Creature;
-            if (_speedGroup != null) _speedGroup.gameObject.SetActive(voluntary);
             if (_limitGroup != null) _limitGroup.gameObject.SetActive(!aura && !voluntary && limitHosted);
         }
 
@@ -582,28 +621,13 @@ namespace SynergyUI
             return new UiKit.Dropdown(tmp, options, index, null);
         }
 
-        /// <summary>速度/生效次数静态绑定（2026-10-09 设置盒拆除迁入 activate-bar）：
-        /// 档位与描述沿 2026-10-05 定案；写入走当前 _graph.header（图更换不失效），
-        /// 值对齐见 SyncActivateBarValues（静态节点不随克隆重建）。</summary>
-        private void BindActivateBarTiers()
+        /// <summary>生效次数静态绑定（2026-10-09 设置盒拆除迁入 activate-bar；速度组 2026-10-15
+        /// 随发动速度退役删除——新组合 BaseSpeed 恒 0）：档位与描述沿 2026-10-05 定案；
+        /// 写入走当前 _graph.header（图更换不失效），值对齐见 SyncActivateBarValues（静态节点不随克隆重建）。</summary>
+        private void BindTakeEffectTier()
         {
             if (_activateBar == null) return;
-            _speedGroup = UiKit.FindDeep(_activateBar, "speed") as RectTransform;
             _limitGroup = UiKit.FindDeep(_activateBar, "take-effect") as RectTransform;
-            _ddSpeed = BindTierDropdown(_speedGroup, SpeedTiers, _graph.header.BaseSpeed,
-                v =>
-                {
-                    _graph.header.BaseSpeed = v;
-                    RefreshName(); // 速度影响计价（2026-10-09 入价：0 普通 ×1 / 1 瞬间 ×1.5 / 2 高速 ×2）——费用预览随改随刷
-                }, // 动态读当前图——静态节点跨会话存续
-                "发动速度：主动效果的出手快慢——越快响应权越强、费用越贵；点选项看各档说明。",
-                v => v.ToString(),
-                v => v switch
-                {
-                    0 => "普通档：只能在自己回合的主要阶段发动，不能响应（基础价）。",
-                    1 => "瞬间档：可以在对手回合发动、当作响应使用（费用 1.5 倍）。",
-                    _ => "高速档：比 1 速更快——能响应 1 速的效果，抢先更容易（费用 2 倍）。",
-                });
             _ddLimit = BindTierDropdown(_limitGroup, LimitTiers, _graph.header.TriggerLimitPerTurn,
                 v =>
                 {
@@ -620,16 +644,11 @@ namespace SynergyUI
                 });
         }
 
-        /// <summary>activate-bar 值对齐（静态节点——图更换/形态切换后重显真值）。</summary>
+        /// <summary>activate-bar 值对齐（静态节点——图更换/形态切换后重显真值；速度组已退役）。</summary>
         private void SyncActivateBarValues()
         {
             var h = _graph?.header;
             if (h == null) return;
-            if (_ddSpeed != null)
-            {
-                _ddSpeed.SetValueWithoutNotify(Mathf.Max(0, Array.IndexOf(SpeedTiers, h.BaseSpeed)));
-                _ddSpeed.RefreshShownValue();
-            }
             if (_ddLimit != null)
             {
                 _ddLimit.SetValueWithoutNotify(Mathf.Max(0, Array.IndexOf(LimitTiers, h.TriggerLimitPerTurn)));
@@ -2226,8 +2245,8 @@ namespace SynergyUI
             => p >= 0.5f ? new List<int> { 1, 2 } : p <= -0.5f ? new List<int> { 2, 3 } : new List<int> { 1, 2, 3 };
 
         /// <summary>档位下拉静态绑定（两段式描述）：desc=头部总述；optionDesc=选中项介绍
-        ///（index→文本，null/空＝保持总述）。标签由档位值生成（默认 -1/0=「全部」；速度档传 labelOf
-        /// 直显数字——0=普通档不是"全部"）；现值不在档内=首档占位显示不写回（存量兼容——改选才落值，
+        ///（index→文本，null/空＝保持总述）。标签由档位值生成（默认 -1/0=「全部」；可传 labelOf
+        /// 直显数字）；现值不在档内=首档占位显示不写回（存量兼容——改选才落值，
         /// 同发动方式的系统强制档占位策略）。</summary>
         private static TMP_Dropdown BindTierDropdown(RectTransform node, int[] tiers, int current,
             Action<int> write, string desc, Func<int, string> labelOf = null, Func<int, string> optionDesc = null)
@@ -2294,8 +2313,8 @@ namespace SynergyUI
             return null;
         }
 
-        /// <summary>引擎效果头锁定（2026-10-09 自由分支九项定案）：首槽引擎在案 → 效果头四值
-        ///（发动方式/时机/速度/生效次数）钉 ComposerCatalog.EngineHeaderPresetOf，四控件禁用；
+        /// <summary>引擎效果头锁定（2026-10-09 自由分支九项定案；速度组 2026-10-15 退役）：首槽引擎在案 →
+        /// 效果头四值（发动方式/时机/速度=0/生效次数）钉 ComposerCatalog.EngineHeaderPresetOf，控件禁用；
         /// 引擎移除即恢复可编辑（值保留供用户改）。引擎主干零计价——limit=-1 档无费用影响。
         /// 消费点：RefreshSlots 尾部（覆盖引擎落槽/换引擎/载入三路径）。</summary>
         private void ApplyEngineHeaderLock()
@@ -2322,7 +2341,6 @@ namespace SynergyUI
 
             if (_activationDropdown != null) _activationDropdown.Interactable = !locked;
             if (_timingDropdown != null) _timingDropdown.Interactable = !locked;
-            if (_ddSpeed != null) _ddSpeed.interactable = !locked;
             if (locked) _ddLimit.interactable = false;
             else ApplyOnceTimingLimitLock(); // 引擎移除——必然单发锁恢复对次数下拉的管辖
         }
@@ -2721,6 +2739,15 @@ namespace SynergyUI
         /// ——库点击即整组替换上一个选中（规则↔条目互斥，不再追加叠加）；近似搜索按显示名过滤。</summary>
         private void RefreshAuraLibrary()
         {
+            // 宿主光环闸（2026-10-15 改版）：连接光环=结界专属——生物（禁挂改版）/法术（只挂主动）不出库
+            if (HostBlocksAura)
+            {
+                MakeHint(_libraryList.Content, _editingCard.Supertype == Cardtype.Creature
+                    ? "生物不可挂连接光环（2026-10-15 改版——光环专属结界）"
+                    : "法术只挂主动效果（施放时抉择其一），不可挂光环");
+                return;
+            }
+
             void AddRow(string title, string meta, UIColor color, Action onAdd)
             {
                 // 近似搜索（2026-10-13 多词 AND）：标题∪meta

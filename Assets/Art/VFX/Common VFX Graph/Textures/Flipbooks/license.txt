@@ -1,0 +1,11 @@
+Some textures are licensed under CC0
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Effect Texture Maker:
+https://mebiusbox.github.io/en/docs/lab/effect_texture_maker
+
+Unity's blog:
+https://blog.unity.com/engine-platform/free-vfx-image-sequences-flipbooks
+
+
+

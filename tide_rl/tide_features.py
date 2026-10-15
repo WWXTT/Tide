@@ -2,19 +2,21 @@
 Tide 特征维度常量与辅助函数（对应 ygo-agent 的 features.py）。
 
 TideObservation 产出的扁平特征向量：
-- cards_: (80, 65) — 每槽 65 维特征
-- global_: (49,) — 全局状态（2026-09-30 v2 起 49 维：追加英雄技能状态×2 + 栈/决策上下文 5 维）
-- actions_: (max_actions, 8) — 每动作 8 维特征（v2：追加 effectIdentity + targetKind）
+- cards_: (92, 68) — 每槽 68 维特征
+- global_: (50,) — 全局状态
+- actions_: (max_actions, 8) — 每动作 8 维特征
 - h_actions_: (32, 14) — 历史动作（暂未实现，传 None）
 
-v2 布局（2026-09-30 C 期）权威契约见 docs/action_space_v2_contract.md——
+v3 布局（2026-10-14 精确对齐期）权威契约见 docs/action_space_v3_contract.md——
+（v2=2026-09-30，已被取代；对账依据=仓库根 AI训练准备_v3对账报告_2026-10-14.md）
 改任何维度/下标前先改契约再改两侧代码；reset 时 TCP 握手逐值断言（tide_env_tcp）。
 """
 
 import numpy as np
 
-# ---- 维度常量（与 TideObservation.cs 同步；2026-09-10 目标域模型 71→65）----
-N_CARD_FEATURES = 65
+# ---- 维度常量（与 TideObservation.cs 同步；v3 2026-10-14：65→68）----
+#   [14] LandTrait（v3 复用神佑死维）、[65] AwakenCommitted、[66][67] 格坐标 x/8、z/7（-1=未落格）
+N_CARD_FEATURES = 68
 # 内容身份三通路（CardIdentityService 推导、TideCardIndex/原子表注册下标）：
 #   1) 精确哈希 [15..22]（8 槽）：[15..20] 六个原子内容哈希（跨效果按执行序展平，槽位即顺序，
 #      参数敏感——「造成4伤」是独立行）、[21] 组合结构哈希、[22] 关键词/tag/光环组合哈希。
@@ -37,26 +39,33 @@ ATOM_PARAM_DIM = 6      # 与 C# CardIdentityService.AtomParamDim 对齐（2026-
 # 容量口径（2026-09-21 扩容 256→1024）：占行的是「原子实例级身份」（原子类型+参数+目标域
 # 组合 / 结构骨架 / 关键词组合），不是卡——白板卡不占行、同原子跨卡共享行；
 # 1024 ≈ 千张常用卡的互异效果实例余量；触顶静默降级（新哈希记 0，类型+参数通路照常）。
+# ---- v3 卡特征命名下标（契约 §4 追加段）----
+CARD_F_LANDTRAIT = 14   # 地牌特性（复用神佑死维）
+CARD_F_AWAKEN = 65      # 苏醒已立约
+CARD_F_POS_X = 66       # 格坐标 x/8（-1=未落格）
+CARD_F_POS_Z = 67       # 格坐标 z/7（-1=未落格）
 N_CARD_POOL = 1024
 # EffectType embedding 表：C# 原子表 97 条（2026-09-10 攻/守效果化 +2）按枚举名排序 1 基编号，
 # 256 = 余量（2026-09-21 扩容 128→256，规划原子表将来扩到 256 种）。
 # 表冻结（表指纹已混入所有哈希）；表一旦变更 → 全体身份换血，需重训（容量≠免重训）。
 N_EFFECT_TYPES = 256
-MAX_CARDS = 80
-# ---- v2 布局版本（2026-09-30 C 期：效果发动时机 + 目标选择进动作空间）----
-# 契约 = docs/action_space_v2_contract.md；C# 侧 TideHeadlessServer reset 回显同值，
+MAX_CARDS = 92  # v3：46/人（战场12+元素池14+手牌12+墓地4+发动区3+场地区1）×2
+# ---- v3 布局版本（2026-10-14 精确对齐期：卡区容量/位置/新决策点/动作数守卫）----
+# 契约 = docs/action_space_v3_contract.md；C# 侧 TideHeadlessServer reset 回显同值，
 # 本侧 reset 逐值断言（防 2026-09-14 N_GLOBAL 32→36 那种静默漂移炸 reshape）。
-LAYOUT_VERSION = 2
-# 动作截断上限 v2 128→512：逐目标展开（出牌/发动 × 候选目标）+ 守卫/响应行后，
-# 攻击叉积 18×19≈342 就曾偶发超 128；512 覆盖最坏场面（截断只丢可选性，EndTurn/PassPriority
-# 恒排末位保证回合/窗口必然流动）。Unity 侧 OnnxTidePolicy.MaxActions 同值。
+LAYOUT_VERSION = 3
+# 动作截断上限 512（v2 起）：逐目标展开（出牌/发动 × 候选目标）+ 守卫/响应行。
+# v3 起 C# 枚举器侧带同值守卫（超限保前 511 + 恒保末位兜底行）——本侧 pad_or_truncate_actions
+# 的头截断永不会切掉 EndTurn/PassPriority（v2 理论死锁修复，契约 §6）。
 MAX_ACTIONS = 512
 # 动作特征 v2 6→8 维：追加 [6] effectIdentity（效果定义注册下标/1024，区分同卡多效果行）
 # 与 [7] targetKind（0=无/1=卡/2=对方玩家/3=己方玩家，消除 targetIndex=-1 双义）。
 N_ACTION_FEATURES = 8
-# 全局特征 v2 36→49：追加 g[36..43] 双方英雄技能状态、g[44..46] 栈深度/栈顶来源/栈顶效果、
-# g[47] 决策上下文（0=己方Main/1=响应窗口）、g[48] 决策座次是否回合玩家。
-N_GLOBAL_FEATURES = 49
+# 全局特征 v3 49→50（重排序+归一化；对账报告 D5/D7/D14）：
+#   g[15][16] 放逐计数（新增）；生命/30、回合/40、势能/30、地牌上限/14、弹药/5 归一化；
+#   英雄技能块 [38..41]/[42..45]（[b+3]=角色攻击弹药）；g[47] 栈顶来源/92；
+#   删 v2 g[48]（与 g[4] 重复）。
+N_GLOBAL_FEATURES = 50
 N_HISTORY_ACTIONS = 32
 H_ACTIONS_FEATS = 14
 N_RNN_CHANNELS = 512
@@ -71,14 +80,16 @@ ACTION_F_COST = 5
 ACTION_F_EFFECT_ID = 6
 ACTION_F_TARGET_KIND = 7
 
-# ---- 全局特征命名下标（v2 追加段，契约第 3 节）----
-GLOBAL_F_SKILL_P1 = 36   # g[36..39] P1 英雄技能 [has, tapped, uses/10, upgraded]
-GLOBAL_F_SKILL_P2 = 40   # g[40..43] P2 同上
-GLOBAL_F_STACK_DEPTH = 44
-GLOBAL_F_STACK_TOP_SRC = 45
-GLOBAL_F_STACK_TOP_EFFECT = 46
-GLOBAL_F_DECISION_CONTEXT = 47  # 0=己方 Main，1=响应窗口
-GLOBAL_F_IS_TURN_PLAYER = 48    # 决策座次是否回合玩家
+# ---- 全局特征命名下标（v3 契约 §5）----
+GLOBAL_F_IS_MY_TURN = 4         # 决策座次是否回合玩家（v3 删 g[48] 冗余，本位即权威）
+GLOBAL_F_EXILE_ME = 15          # 放逐计数（v3 新增）
+GLOBAL_F_EXILE_OPP = 16
+GLOBAL_F_SKILL_P1 = 38          # g[38..41] P1 英雄技能 [has, tapped, uses/10, 弹药/5]
+GLOBAL_F_SKILL_P2 = 42          # g[42..45] P2 同上
+GLOBAL_F_STACK_DEPTH = 46
+GLOBAL_F_STACK_TOP_SRC = 47
+GLOBAL_F_STACK_TOP_EFFECT = 48
+GLOBAL_F_DECISION_CONTEXT = 49  # 0=己方 Main，1=响应窗口
 
 # 动作类型对照（C# TideActionType；audit_action_space / 训练统计用）
 ACTION_TYPES = {
@@ -93,9 +104,11 @@ ACTION_TYPES = {
     9: "RespondPlay",
     10: "RespondActivate",
     11: "Guard",
+    12: "TapCreature",    # v3：横置地牌特性生物产 1 元素（对账 D10）
+    13: "CommitAwaken",   # v3：苏醒立约——灰份额免付转沉睡层数（对账 D11）
 }
-# v2 新增类型（C 期验收关注：这些行的出现率/采样率）
-NEW_ACTION_TYPES = (6, 7, 8, 9, 10, 11)
+# v2+v3 新增类型（验收关注：这些行的出现率/采样率；v3 期重点 12/13）
+NEW_ACTION_TYPES = (6, 7, 8, 9, 10, 11, 12, 13)
 # 带目标动作（targetKind=1 时 targetIndex 语义为 cards_ 槽位）
 TARGETED_ACTION_TYPES = (0, 3, 4, 9, 10, 11)
 
@@ -167,3 +180,4 @@ def pad_or_truncate_actions(actions, max_actions=MAX_ACTIONS):
         padded = np.zeros((max_actions, N_ACTION_FEATURES), dtype=np.float32)
         padded[:n] = actions
         return padded
+

@@ -25,8 +25,9 @@ namespace GameBoard
     /// </summary>
     public static class BoardMath
     {
-        public const int Width = 9;   // 2026-10-13 缩盘定案：13→9（两侧列吸收特殊格）
-        public const int Height = 6;  // 2026-10-13 缩盘定案：8→6（每人 3 行铺满全高）
+        public const int Width = 8;   // 2026-10-14 晚缩盘定案：9→8（地牌一元素一格只需 6 格，
+                                      // 地牌行让出上限格，两侧特殊格列随之收拢一列）
+        public const int Height = 7;  // 2026-10-14 中线加行定案：6→7（z3 中线状态行 7 格）
 
         /// <summary>row-major 一维索引（row-major 惯例：index = z * Width + x）</summary>
         public static int Index(int x, int z) => z * Width + x;

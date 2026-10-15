@@ -8,7 +8,7 @@ namespace Tide.验证
 {
     /// <summary>
     /// 费用方格公用预制体装配（2026-10-03 定案：费用=对应颜色小方格排列，公用预制体统一引用，
-    /// 引用者自行调整整体大小）。幂等创建/修补 Assets/Art/UI/CostSquares.prefab：
+    /// 引用者自行调整整体大小）。幂等创建/修补 Assets/Art/Prefab/CostSquares.prefab：
     /// 根 cost-squares（RectTransform + CostSquaresView，横排居中）+ 不激活模板 tpl-square
     /// （居中锚点 Image 方块）。用法：Tools/验证/UI费用方格/Prefab装配。
     /// </summary>

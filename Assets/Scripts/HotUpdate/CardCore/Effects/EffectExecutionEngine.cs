@@ -83,21 +83,19 @@ namespace CardCore
             PhaseType currentPhase,
             int turnNumber)
         {
-            // 0. 发动代价预检（仅启动式）：按宿主分货币（2026-10-10 耐久即次数池定案）——
-            //    结界（战场/技能栏 FieldZone）= 耐久>0（主动发动消耗耐久而非横置，可一回合连发、耐久自限）；
-            //    其余（生物）= 未横置（横置为固定代价，发动成功经 KeywordRules.ShouldTap 支付——恒横置，警戒不抵扣）。
-            //    触发式发动不消耗横置/耐久也不受此闸（触发消耗在入栈口，见 ProcessTriggeredEffects）。
+            // 0. 发动代价预检（仅启动式）：按宿主分货币（2026-10-15 深夜三类卡改版）——
+            //    结界（战场/技能栏）= **拒绝**——结界禁主动效果，只挂自动/光环（运行时临摹/变形
+            //    塞进来的主动行也在此拦）；其余（生物/技能区法术=英雄技能载体）= 未横置
+            //    （横置为固定代价，发动成功经 KeywordRules.ShouldTap 支付——恒横置，警戒不抵扣）。
+            //    触发式发动不消耗横置也不受此闸（触发消耗在入栈口，见 ProcessTriggeredEffects）。
             if (effect.IsActivatedEffect
                 && source is Card activateCard
                 && (_zoneManager.IsCardInZone(activateCard, activateCard.GetController(), Zone.Battlefield)
                     || _zoneManager.IsCardInZone(activateCard, activateCard.GetController(), Zone.FieldZone)))
             {
                 if (Attribute.CounterRules.UsesDurabilityEconomy(activateCard))
-                {
-                    if (activateCard.GetCounterCount(Attribute.CounterRules.DurabilityCounter) <= 0)
-                        return false;
-                }
-                else if (activateCard.IsTapped())
+                    return false; // 结界禁主动效果（2026-10-15 深夜改版）
+                if (activateCard.IsTapped())
                     return false;
             }
 
@@ -255,22 +253,8 @@ namespace CardCore
             // 卡牌的 effect.Costs 仅保留非元素的特殊代价（Payload 原子），走付费步异步执行+补偿。
             // 抉择卡按所选模式推导（per-mode 独立计价定案）。
             var elementCosts = CostDerivationService.DeriveElementCosts(effect, instance.ModeIndex);
-            // 结界底盘剩余 → 发动费抵扣（2026-10-10 可支配底盘定案）：未转耐久的结界，其全部
-            // 启动式效果**每次发动**现付元素锚价逐点扣（先灰后最高费用色、只扣整点桶、永久）——
-            // 免卡价的剩余去向之一（另一向 = 入场耐久 +N，见 EquipRules/HeroSkillSystem）。
-            if (effect.IsActivatedEffect && !elementCosts.IsZero && instance.Source is CardWrapper srcW)
-            {
-                int feeOffset = CardCompositionCost.ActivationFeeOffsetOf(srcW.GetData());
-                for (int i = 0; i < feeOffset && !elementCosts.IsZero; i++)
-                {
-                    if (elementCosts[ManaType.Gray] >= 1f) { elementCosts[ManaType.Gray] -= 1f; continue; }
-                    ManaType best = ManaType.Gray; float bestV = 0f;
-                    foreach (var c in elementCosts.NonzeroColors())
-                        if (c != ManaType.Gray && elementCosts[c] > bestV) { bestV = elementCosts[c]; best = c; }
-                    if (bestV < 1f) break; // 无整点桶可扣（残余零头无支付意义）
-                    elementCosts[best] -= 1f;
-                }
-            }
+            //（结界发动费抵扣臂已随 2026-10-15 拆分定案退役：免费点固定拆「速1+其余入耐久」，
+            // 不再二选一抵每次发动费——DurabilityBonusOf/EnchantSpeedBonusOf 两向落位。）
             // 临摹/变形发动补价（2026-10-13 差额恒蓝·蓝色专属能力，落在底盘抵扣之后——底盘属原卡，
             // 不抵变形溢价）：被变形卡的主动效果按变形前后声明费差额补蓝并入本次账单；
             // 触发式（ElementCostPrepaid）不经此段；付不出沿用空转口径
@@ -1912,7 +1896,7 @@ namespace CardCore
 
                 // 关键词族 — 光合作用（2026-10-11：采掘退役接替者，绿3 Grant 行，回合开始+临时绿元素）
                 new GrantPhotosynthesisHandler(),
-                // 资源族 — 成长（2026-10-11：灵气复苏改+1，绿3，各自池可重复封顶14）
+                // 资源族 — 成长（2026-10-11：灵气复苏改+1，绿3，各自池可无限重复；2026-10-15 封顶退役）
                 new IncreaseLandCapHandler(),
 
                 // 战斗底盘（2026-09-10 攻击/守卫效果化：1速/2速主动，注册完整性锚——战斗走 CombatSystem）

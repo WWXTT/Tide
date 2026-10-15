@@ -11,7 +11,7 @@ using UButton = UnityEngine.UI.Button;
 namespace SynergyUI
 {
     /// <summary>
-    /// 卡组构建界面（2026-10-01 预制体化：静态层级来自 Assets/Art/UI/DeckUI.prefab，
+    /// 卡组构建界面（2026-10-01 预制体化：静态层级来自 Assets/Art/Prefab/DeckUI.prefab，
     /// Build 深度按名绑定+闭包接线；滚动列表行/统计区/预览内容运行时重建）——三栏：
     /// 左=效果预览（点击行显示），中=当前卡组+统计（费用曲线/颜色分布/类型比例/英雄技能预览），
     /// 右=卡牌列表（颜色过滤+搜索+全局排序，可重复添加）。
@@ -55,7 +55,7 @@ namespace SynergyUI
         private int _costBand = -1;     // -1 = 全部；档界=CostBandLo/Hi（左闭右开）
         private string _keywordFilter;  // null/空 = 全部（关键词中文名）
         private UiKit.Dropdown _keywordDropdown;
-        private static readonly string[] KindFilterChoices = { "生物", "瞬间", "结界", "技能" };
+        private static readonly string[] KindFilterChoices = { "生物", "法术", "结界", "技能" };
         private static readonly string[] CostBandLabels = { "0-1费", "2-3费", "4-5费", "6+费" };
         private static readonly float[] CostBandLo = { 0f, 2f, 4f, 6f };
         private static readonly float[] CostBandHi = { 2f, 4f, 6f, float.MaxValue };
@@ -81,6 +81,9 @@ namespace SynergyUI
             // ---- 工具栏 ----
             BindButton("btn-back", () => Manager.Back());
             _nameField = FindInput("field-deck-name");
+            if (_nameField != null)
+                // 主题约束随卡组名实时换算（2026-10-15 构成检测：红/绿/蓝首字触发双色检测块）
+                _nameField.onValueChanged.AddListener(_ => RefreshStats());
             BindButton("btn-save", OnSave);
             BindButton("btn-load", OnLoad);
             BindButton("btn-delete", OnDelete);
@@ -251,14 +254,14 @@ namespace SynergyUI
             ol.effectDistance = new Vector2(1.5f, -1.5f);
         }
 
-        /// <summary>卡型谓词：技能=HeroSkillSystem.CanBeSkillCard（恰好一个主动效果的结界）——
-        /// 独立第四档；「结界」档含技能资格卡（技能卡本就是结界）。</summary>
+        /// <summary>卡型谓词：技能=HeroSkillSystem.CanBeSkillCard（2026-10-15 改版：法术且 1~3 个
+        /// 主动效果）——独立第四档；「法术」档含技能资格卡（技能卡本就是法术）。</summary>
         private static bool KindMatch(CardData c, string kindZh)
         {
             switch (kindZh)
             {
                 case "生物": return c.Supertype == Cardtype.Creature;
-                case "瞬间": return c.Supertype == Cardtype.Spell;
+                case "法术": return c.Supertype == Cardtype.Spell;
                 case "结界": return c.Supertype == Cardtype.Enchantment;
                 case "技能": return HeroSkillSystem.CanBeSkillCard(c);
                 default: return true;
@@ -356,7 +359,7 @@ namespace SynergyUI
                 case Cardtype.Enchantment:
                     return card.Durability > 0 ? $"结界 耐久{card.Durability}" : "结界";
                 case Cardtype.Spell:
-                    return "瞬间";
+                    return "法术";
                 default:
                     return CardSorter.TypeName(card);
             }
@@ -386,6 +389,21 @@ namespace SynergyUI
                         return;
                     }
                 }
+                // 主题双色约束（2026-10-15 构成检测）：红/绿/蓝开头的卡组拒加主题外颜色卡
+                // （出牌费+启动式锚价两面，DeckCompositionValidator 与编辑器检测同口径）
+                var theme = CurrentTheme();
+                if (theme != null)
+                {
+                    var foreign = DeckCompositionValidator.CheckCard(card, theme.Value);
+                    if (foreign.Count > 0)
+                    {
+                        var v = foreign[0];
+                        ShowToast($"「{NameOf(card)}」{v.Surface} 含" +
+                                  $"{DeckCompositionValidator.ColorZh(v.Color)}{v.Amount:0.#}——" +
+                                  $"{DeckCompositionValidator.ColorZh(theme.Value)}+灰卡组不可添加");
+                        return;
+                    }
+                }
             }
             _deckCardIds.Add(id);
             RefreshAll();
@@ -412,15 +430,8 @@ namespace SynergyUI
         {
             if (index >= 0 && index < _deckCardIds.Count)
             {
-                // 移除的是技能标记卡 → 标记随「最后一册」清除（技能卡必须在卡组内；
-                // 2026-10-11 可重复：仍有余册则标记保留）
-                var removedId = _deckCardIds[index];
+                // 技能标记不随卡组移除清除（2026-10-15 改版：技能=全卡池任选法术，不占卡组张数）
                 _deckCardIds.RemoveAt(index);
-                if (removedId == _skillCardId && !_deckCardIds.Contains(_skillCardId))
-                {
-                    _skillCardId = null;
-                    ShowToast("技能标记卡已移除——标记清除");
-                }
                 RefreshAll();
             }
         }
@@ -476,10 +487,78 @@ namespace SynergyUI
                 .Where(c => c != null)
                 .ToList();
 
+            BuildCompositionCheck();
             BuildCostCurve(cards);
             BuildColorDistribution(cards);
             BuildTypeRatio(cards);
             BuildHeroSkillPreview();
+        }
+
+        /// <summary>当前卡组名主题色（红/绿/蓝首字；其余 null=无约束）——
+        /// 添加口/保存口/统计区检测块三处共用。</summary>
+        private ManaType? CurrentTheme()
+            => DeckCompositionValidator.ThemeColorOf(_nameField != null ? _nameField.text : null);
+
+        /// <summary>构成检测块（2026-10-15，统计区首块常显）：主题双色约束结果+断链——
+        /// 加卡/删卡/改名实时刷新。违色在添加口已拦，此处兜底旧档载入与卡数据热改；
+        /// 口径=DeckCompositionValidator（出牌费+启动式锚价两面），与编辑器检测同源。</summary>
+        private void BuildCompositionCheck()
+        {
+            UiKit.Label("check-header", _statsZone, "构成检测", UiStyle.HeaderSize,
+                UiStyle.TextSecondary, TextAnchor.LowerLeft, FontStyle.Bold);
+
+            var report = DeckCompositionValidator.Check(
+                _nameField != null ? _nameField.text : null, _deckCardIds);
+
+            if (report.ThemeColor == null)
+            {
+                var hint = UiKit.Label("check-theme", _statsZone,
+                    "无主题约束（卡组名以 红/绿/蓝 开头才启用「主题色+灰」双色检测）",
+                    UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
+                UiKit.Size(hint, fw: 1f);
+                if (report.MissingIds.Count == 0) return;
+            }
+            else
+            {
+                var line = UiKit.Label("check-theme", _statsZone,
+                    $"主题约束：{DeckCompositionValidator.ColorZh(report.ThemeColor.Value)}+灰",
+                    UiStyle.SmallSize, UiStyle.TextSecondary);
+                UiKit.Size(line, fw: 1f);
+            }
+
+            if (report.Ok)
+            {
+                var ok = UiKit.Label("check-ok", _statsZone,
+                    report.CardCount == 0 ? "（空卡组）" : "✔ 通过——无主题外颜色、无断链",
+                    UiStyle.SmallSize, UiStyle.DotGreen);
+                UiKit.Size(ok, fw: 1f);
+                return;
+            }
+
+            const int maxRows = 8; // 超出折叠计数——违例长列表滚动区放不下
+            int shown = 0;
+            foreach (var v in report.Violations)
+            {
+                if (shown++ >= maxRows) break;
+                var row = UiKit.Label("check-bad", _statsZone,
+                    $"✘ {v.CardName} ×{v.Copies}｜{v.Surface}｜" +
+                    $"{DeckCompositionValidator.ColorZh(v.Color)}{v.Amount:0.#}",
+                    UiStyle.SmallSize, UiStyle.DotRed, wrap: true);
+                UiKit.Size(row, fw: 1f);
+            }
+            if (report.Violations.Count > maxRows)
+            {
+                var more = UiKit.Label("check-more", _statsZone,
+                    $"……另有 {report.Violations.Count - maxRows} 项违色",
+                    UiStyle.SmallSize, UiStyle.DotRed);
+                UiKit.Size(more, fw: 1f);
+            }
+            foreach (var id in report.MissingIds)
+            {
+                var miss = UiKit.Label("check-missing", _statsZone,
+                    $"✘ 断链卡 {id}——卡表中无此 ID", UiStyle.SmallSize, UiStyle.DotRed, wrap: true);
+                UiKit.Size(miss, fw: 1f);
+            }
         }
 
         /// <summary>费用曲线：1-9 档（>9 并入 9+）条形分布。</summary>
@@ -545,7 +624,7 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>类型比例：生物/瞬间/结界计数（生物数=可作地牌的置入能力参考）。</summary>
+        /// <summary>类型比例：生物/法术/结界计数（生物数=可作地牌的置入能力参考）。</summary>
         private void BuildTypeRatio(List<CardData> cards)
         {
             int creatures = cards.Count(c => c.Supertype == Cardtype.Creature);
@@ -554,7 +633,7 @@ namespace SynergyUI
             int other = cards.Count - creatures - spells - enchantments;
 
             var line = UiKit.Label("type-ratio", _statsZone,
-                $"类型：生物 {creatures} · 瞬间 {spells} · 结界 {enchantments}"
+                $"类型：生物 {creatures} · 法术 {spells} · 结界 {enchantments}"
                 + (other > 0 ? $" · 其他 {other}" : ""),
                 UiStyle.SmallSize, UiStyle.TextDim);
             UiKit.Size(line, fw: 1f);
@@ -571,7 +650,7 @@ namespace SynergyUI
             if (marked == null)
             {
                 var none = UiKit.Label("none", _statsZone,
-                    "未标记——保存前必须标记英雄技能（需恰好一个主动效果的结界；点击卡组中的卡，在预览里标记）",
+                    "未标记——保存前必须标记英雄技能（一张法术；卡池浏览点卡，在预览里标记——不占卡组张数）",
                     UiStyle.SmallSize, UiStyle.TextHint, wrap: true);
                 UiKit.Size(none, fw: 1f);
                 return;
@@ -582,13 +661,17 @@ namespace SynergyUI
                 UiStyle.BodySize, UiStyle.TextBody);
             UiKit.Size(title, fw: 1f);
 
-            var fx = HeroSkillSystem.SkillEffectOf(marked);
-            var cost = fx != null ? CostDerivationService.DeriveElementCosts(fx) : null;
+            // 费用行（2026-10-15 改版）：各效果现付锚价（多效果显示区间）；发动=每回合一次
+            var anchors = HeroSkillSystem.SkillEffectsOf(new CardWrapper(marked))
+                .Select(f => CostDerivationService.DeriveElementCosts(f))
+                .Where(c => c != null).ToList();
+            string costText = anchors.Count == 0 ? "无"
+                : string.Join(" ", anchors[0].NonzeroColors().Select(c => $"{c}×{anchors[0][c]:0.#}"));
             var costLine = UiKit.Label("skill-cost", _statsZone,
-                cost == null || cost.IsZero
-                    ? "发动费用：无（发动扣耐久，回合开始回充+1）"
-                    : "发动费用：" + string.Join(" ",
-                        cost.NonzeroColors().Select(c => $"{c}×{cost[c]:0.#}")) + "（发动扣耐久，回合开始回充+1）",
+                anchors.Count <= 1
+                    ? $"发动费用：{costText}（每回合一次，现付所选效果费用）"
+                    : $"发动费用：{anchors.Min(a => a.Total):0.#}~{anchors.Max(a => a.Total):0.#} 区间" +
+                      $"（{marked.Effects.Count} 个作用择一发动；每回合一次）",
                 UiStyle.SmallSize, UiStyle.TextDim, wrap: true);
             UiKit.Size(costLine, fw: 1f);
 
@@ -597,7 +680,7 @@ namespace SynergyUI
                 {
                     if (eff == null) continue;
                     var graph = new EffectGraphData(eff.DisplayName) { header = eff, steps = eff.Steps };
-                    var body = UiKit.Label("skill-body", _statsZone, AtomText.RenderEffectSummary(graph),
+                    var body = UiKit.Label("skill-body", _statsZone, AtomText.RenderEffectSummary(graph, marked),
                         UiStyle.SmallSize, UiStyle.TextDim, wrap: true);
                     UiKit.Size(body, fw: 1f);
                 }
@@ -676,7 +759,7 @@ namespace SynergyUI
                     UiKit.Size(title, fw: 1f);
 
                     var graph = new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps };
-                    var body = UiKit.Label("fx-body", _previewZone.Content, AtomText.RenderEffectSummary(graph),
+                    var body = UiKit.Label("fx-body", _previewZone.Content, AtomText.RenderEffectSummary(graph, card),
                         UiStyle.SmallSize, UiStyle.TextDim, wrap: true);
                     UiKit.Size(body, fw: 1f);
                 }
@@ -690,8 +773,8 @@ namespace SynergyUI
                 UiKit.Size(tagLine, fw: 1f);
             }
 
-            // 英雄技能标记（2026-10-07 卡牌化）：仅卡组内的卡可标记；资格=恰好一个主动效果的结界
-            if (_deckCardIds.Contains(card.ID))
+            // 英雄技能标记（2026-10-15 改版：技能=全卡池任选一张法术，不占卡组张数——
+            // 卡池浏览侧即可标记；资格=法术且 1~3 个主动效果）
             {
                 bool marked = _skillCardId == card.ID;
                 bool eligible = HeroSkillSystem.CanBeSkillCard(card);
@@ -709,8 +792,9 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>切换英雄技能标记（2026-10-07 卡牌化）：标记卡=开局从牌库抽出落技能栏的结界；
-        /// 不合格（非结界/效果数≠1/唯一效果非主动）拦截并 toast 原因。</summary>
+        /// <summary>切换英雄技能标记（2026-10-15 改版）：技能=任选一张法术——开局从卡池生成落技能栏，
+        /// 不占卡组张数、不进牌库；发动=每回合一次+现付所选效果锚价。不合格（非法术/效果非 1~3 主动）
+        /// 拦截并 toast 原因。</summary>
         private void ToggleSkillMark(CardData card)
         {
             if (_skillCardId == card.ID)
@@ -727,7 +811,7 @@ namespace SynergyUI
                     return;
                 }
                 _skillCardId = card.ID;
-                ShowToast($"已标记「{card.CardName}」为英雄技能——开局落技能栏，发动扣耐久（回合开始+1回充）");
+                ShowToast($"已标记「{card.CardName}」为英雄技能——开局落技能栏（不占卡组张数），每回合可发动一次");
             }
             RefreshAll();
         }
@@ -782,21 +866,44 @@ namespace SynergyUI
                 }
             }
 
-            // 技能标记自愈（2026-10-07 卡牌化）：标记卡不在卡组/资格失效 → 清标记；
-            // 构筑规则①（2026-10-11）：未标记不可保存——自愈后落下方必选拦截
+            // 构成检测硬门槛（2026-10-15）：断链卡组（Cards.json 无此 ID）与主题违色
+            // （红/绿/蓝开头卡组含主题色+灰以外的出牌费/启动式锚价）不可保存——违色在
+            // 添加口已拦，此处兜底旧档载入/卡数据热改；口径=DeckCompositionValidator
+            var composition = DeckCompositionValidator.Check(name, _deckCardIds);
+            if (composition.MissingIds.Count > 0)
+            {
+                ShowToast($"卡组含 {composition.MissingIds.Count} 张断链卡（卡表无此 ID）——不可保存");
+                return;
+            }
+            // 类型×形状硬门槛（2026-10-15 深夜改版）：生物禁光环/结界禁主动/法术形状——兜底旧档载入/卡数据热改
+            if (composition.ShapeErrors.Count > 0)
+            {
+                ShowToast($"卡组含 {composition.ShapeErrors.Count} 项类型形状违规（首项：{composition.ShapeErrors[0]}）——不可保存");
+                return;
+            }
+            if (composition.Violations.Count > 0)
+            {
+                var v0 = composition.Violations[0];
+                ShowToast($"主题约束 {DeckCompositionValidator.ColorZh(composition.ThemeColor.Value)}+灰：" +
+                          $"{composition.Violations.Count} 项违色（首项 {v0.CardName}｜{v0.Surface}｜" +
+                          $"{DeckCompositionValidator.ColorZh(v0.Color)}{v0.Amount:0.#}）——不可保存");
+                return;
+            }
+
+            // 技能标记自愈（2026-10-15 改版：技能=卡池任选法术，不要求在卡组内）：资格失效 → 清标记；
+            // 构筑规则①：未标记不可保存——自愈后落下方必选拦截
             if (!string.IsNullOrEmpty(_skillCardId))
             {
                 var markedCard = CardCatalog.GetById(_skillCardId);
-                if (markedCard == null || !_deckCardIds.Contains(_skillCardId)
-                    || !HeroSkillSystem.CanBeSkillCard(markedCard))
+                if (markedCard == null || !HeroSkillSystem.CanBeSkillCard(markedCard))
                 {
                     _skillCardId = null;
-                    ShowToast("技能标记已清除（卡不在卡组或资格失效）——请重新标记英雄技能");
+                    ShowToast("技能标记已清除（卡池无此卡或资格失效）——请重新标记英雄技能");
                 }
             }
             if (string.IsNullOrEmpty(_skillCardId))
             {
-                ShowToast("必须选英雄技能（恰好一个主动效果的结界）——点击卡组中的卡，在预览里标记");
+                ShowToast("必须选英雄技能（一张法术——卡池浏览点卡，在预览里标记；不占卡组张数）");
                 return;
             }
 
@@ -835,10 +942,10 @@ namespace SynergyUI
             {
                 _deckCardIds.AddRange(deck.cardIds);
             }
-            // 技能标记读取 + 自愈（旧档 null / 卡不在卡组 / 资格失效 → 清）
+            // 技能标记读取 + 自愈（2026-10-15 改版：技能=卡池任选法术，不要求在卡组内；
+            // 旧档 null / 资格失效 → 清）
             _skillCardId = null;
             if (!string.IsNullOrEmpty(deck.skillCardId)
-                && deck.cardIds != null && deck.cardIds.Contains(deck.skillCardId)
                 && CardCatalog.GetById(deck.skillCardId) is { } skill
                 && HeroSkillSystem.CanBeSkillCard(skill))
             {

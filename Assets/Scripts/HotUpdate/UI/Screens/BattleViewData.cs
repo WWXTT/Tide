@@ -31,10 +31,14 @@ namespace SynergyUI
         public string CostText;
         public string SupertypeText;
         public int ArrowFlags; // 屏幕六向箭头位（对手侧已按 LinkAuraSystem 同规镜像）
+        public int ArrowDirs; // 原始卡面箭头位（HexDirection，未镜像——战场 3D 六向三角消费，2026-10-14）
+        public Cardtype Type;  // 卡类型（战场 3D 区分生物模型/结界模型，2026-10-14；查表 miss 时=default 保持生物路径）
+        public bool HasAura;   // 有链接光环效果（聚合缓存 LinkAuras 非空——结界光环环显隐，2026-10-14）
+        public int? BasePower, BaseLife; // 印刷基础攻/血（卡表原值；2026-10-15 战场头顶属性配色：
+                                         // 持平=白/低于=红/高于=绿；查表 miss=null 恒白）
 
         // 派生显示
-        public int X = -1, Z = -1;  // 棋盘格位（-1=未落格）
-        public bool Stacked;        // 地牌叠层（2026-10-09 地牌槽提升）：所在格第二层——渲染错位叠放
+        public int X = -1, Z = -1;  // 棋盘格位（-1=未落格；地牌=同色组共享格，2026-10-14 按色叠格）
         public string LandTokensText;
         public bool IsDead;         // 战场尸体（标死未收）
 
@@ -51,6 +55,8 @@ namespace SynergyUI
         public string Name = "";
         public int Life, MaxHealth, DeckCount, HandCount, GraveyardCount, FatigueCount, LandCap;
         public string BankText = "—";
+        public int[] WalletByColor = new int[ElementCost.Length]; // 临时钱包逐色余额（2026-10-14 上盘：
+                                                                  // 地牌格「剩余」并入钱包该色、技能格黑白数字源）
         public BattleCardView Skill; // 英雄技能卡（FieldZone）
         public bool IsAI;
         public int HeroAttack; // 角色攻击力=HeroAttackCounter 弹药层数（2026-10-10 角色参战收口：0=无攻击资格，3D HUD 消费）
@@ -64,6 +70,9 @@ namespace SynergyUI
         public bool MyTurn;       // 行动方=我（本地=P1 回合；网络=ActiveSeat==viewerSeat）
         public bool MyPriority;   // 优先权在我（网络响应窗口；本地=栈优先权持有者）
         public bool StackNotEmpty;
+        public int ChainSpeed = -1; // 记速器当前值（2026-10-15 战场接线）：本地=StackEngine.SpeedCounter.CurrentSpeed；
+                                    // -1=网络快照未承载（快照协议无此字段）→战场占位「—」
+        public bool ChainResolving; // 记速器结算中（连锁结算中禁止新的速度发动入栈）
         public int NetViewerSeat = -1; // 网络模式=快照 ViewerSeat（本地 -1）
 
         public BattlePlayerView Self = new BattlePlayerView();
@@ -75,7 +84,9 @@ namespace SynergyUI
         public List<BattleCardView> OppLands = new List<BattleCardView>();
         public List<BattleCardView> SelfHand = new List<BattleCardView>(); // 己方手牌（正面）
         public List<string> StackLines = new List<string>();               // 栈条目摘要
-        public List<string> ActivationTexts = new List<string>();          // 发动区摘要
+        public List<BattleCardView> CastingCards = new List<BattleCardView>(); // 施放占格卡
+        //（2026-10-15 发动格拆除：发动区占位卡 × 单位区空格立牌——整个 2×6 兼任发动区；
+        // 旧 ActivationTexts 文本摘要随立牌呈现退役，写入点 lbl-activation 本就静默 null）
 
         public bool GameOver;
         public string GameOverTitle, GameOverText;
@@ -166,6 +177,11 @@ namespace SynergyUI
                 v.CostText = CostTextOf(data.Cost);
                 v.SupertypeText = SupertypeZh(data.Supertype);
                 v.ArrowFlags = ScreenArrowBits(data.ArrowDirections, ownerIsOpponent);
+                v.ArrowDirs = (int)data.ArrowDirections;
+                v.Type = data.Supertype;
+                v.HasAura = data.LinkAuras != null && data.LinkAuras.Count > 0; // 加载侧已聚合（CardLoader.AggregateEffectAuras）
+                v.BasePower = data.Power; // 印刷基础值（属性配色比较基准）
+                v.BaseLife = data.Life;
             }
             else
             {
@@ -194,6 +210,14 @@ namespace SynergyUI
                 StackNotEmpty = core.StackEngine != null && core.StackEngine.StackSize > 0,
             };
 
+            // 记速器（2026-10-15 战场接线）：连锁速度格的实值源——当前连锁已发动的最高速度
+            var speedCounter = core.StackEngine?.SpeedCounter;
+            if (speedCounter != null)
+            {
+                d.ChainSpeed = speedCounter.CurrentSpeed;
+                d.ChainResolving = speedCounter.IsResolving;
+            }
+
             FillPlayerLocal(d.Self, core, self);
             FillPlayerLocal(d.Opp, core, opp);
 
@@ -208,12 +232,17 @@ namespace SynergyUI
             foreach (var card in new List<Card>(core.ZoneManager.GetCards(self, Zone.Hand)))
                 d.SelfHand.Add(FromRuntime(SerializableRuntimeCardState.FromCard(card), card, false));
 
+            // 施放占格（2026-10-15 发动格拆除）：发动区占位卡 × BoardState 落格（钉优先→first-free）
             foreach (var p in new[] { self, opp })
             {
                 foreach (var card in new List<Card>(core.ZoneManager.GetCards(p, Zone.Activation)))
                 {
+                    int cx, cz;
+                    if (board == null || !board.TryGetCastingCell(card, out cx, out cz)) continue; // 无空格不立牌
                     var v = FromRuntime(SerializableRuntimeCardState.FromCard(card), card, p == opp);
-                    d.ActivationTexts.Add($"{(p == self ? "我方" : "对手")}发动：{v.Name}");
+                    v.X = cx;
+                    v.Z = cz;
+                    d.CastingCards.Add(v);
                 }
             }
 
@@ -233,15 +262,22 @@ namespace SynergyUI
             v.FatigueCount = p.FatigueCount;
             v.LandCap = core.ElementPool.GetLandCap(p);
             v.BankText = BankTextLocal(core, p);
+            foreach (ManaType m in Enum.GetValues(typeof(ManaType)))
+                v.WalletByColor[(int)m] = core.ElementPool.GetAvailableManaCount(m, p);
             v.HeroAttack = p.GetPower(); // Player 分支=弹药层数钳非负（EntityEffectExtensions）
 
             var skill = HeroSkillSystem.ResolveSkillCard(core, p);
             if (skill != null)
             {
                 v.Skill = FromRuntime(SerializableRuntimeCardState.FromCard(skill), skill, core.Player2 == p);
-                // 技能栏费用=唯一主动效果的派生发动价（非卡面费用——卡面费是打出价，2026-10-07 卡牌化）
-                var fx = HeroSkillSystem.SkillEffectOf(skill);
-                v.Skill.CostText = fx != null ? CostTextOf(CostDerivationService.DeriveElementCosts(fx)) : "0";
+                // 技能栏费用=各主动效果的派生发动价（2026-10-15 改版：技能=法术可挂 1~3 效果——
+                // 多效果显示「最低~最高」区间，发动时弹窗择一现付；单效果只显示该价）
+                var anchors = HeroSkillSystem.SkillEffectsOf(skill)
+                    .Select(fx => CostDerivationService.DeriveElementCosts(fx)?.Total ?? 0f)
+                    .Where(t => t >= 0f).ToList();
+                if (anchors.Count == 0) v.Skill.CostText = "0";
+                else if (anchors.Count == 1) v.Skill.CostText = CostTextOf(ElementCost.FromValue(ManaType.Gray, (int)System.Math.Round(anchors[0])));
+                else v.Skill.CostText = $"{anchors.Min():0.#}~{anchors.Max():0.#}";
             }
         }
 
@@ -266,8 +302,7 @@ namespace SynergyUI
                 if (board != null && board.TryGetCell(land.SourceCard, out x, out z))
                 {
                     view.X = x;
-                    view.Z = z;
-                    view.Stacked = board.IsStackedLand(land.SourceCard); // 叠层第二张（每格两张）
+                    view.Z = z; // 同色组共享格（2026-10-14 按色叠格；BoardState 权威）
                 }
 
                 // 池包装的锁色/横置态是权威（卡上无地牌字段）：覆写进 Runtime（显示与快照同源）
@@ -310,6 +345,8 @@ namespace SynergyUI
                 MyPriority = snap.PrioritySeat == me,
                 StackNotEmpty = snap.StackV2 != null && snap.StackV2.Length > 0,
                 NetViewerSeat = me,
+                // ChainSpeed 保持 -1：MsgGameStateSync 未承载记速器（网络局占位「—」）——
+                // 联机复活时随协议补字段在此回填
             };
 
             FillPlayerNet(d.Self, snap, me);
@@ -321,10 +358,24 @@ namespace SynergyUI
             FillLandsNet(d.OppLands, snap, them, ownerIsOpponent: true);
             FillHandNet(d.SelfHand, snap, me);
 
+            // 施放占格（2026-10-15 发动格拆除）：网络侧落格=观察者视角 first-free 近似
+            //（快照不承载 BoardState 钉格；跳过该方单位已占格——与 FillUnitsNet 列表序对应）
             foreach (var seat in new[] { me, them })
             {
-                foreach (var a in ZoneCardsNet(snap, seat, Zone.Activation))
-                    d.ActivationTexts.Add($"{(seat == me ? "我方" : "对手")}发动：{FromRuntime(a, null, seat != me).Name}");
+                var casting = ZoneCardsNet(snap, seat, Zone.Activation);
+                if (casting.Length == 0) continue;
+                bool isOpp = seat != me;
+                var cells = BoardLayout.UnitCells(isOpp ? 1 : 0);
+                int i = ZoneCardsNet(snap, seat, Zone.Battlefield).Length;
+                foreach (var s in casting)
+                {
+                    if (i >= cells.Count) break; // 无空格不立牌
+                    var v = FromRuntime(s, null, isOpp);
+                    v.X = cells[i].x;
+                    v.Z = cells[i].z;
+                    d.CastingCards.Add(v);
+                    i++;
+                }
             }
 
             if (snap.StackV2 != null)
@@ -358,6 +409,9 @@ namespace SynergyUI
                 : string.Join(" ", ps.ElementBank
                     .Where(e => e.Value > 0)
                     .Select(e => $"{ManaZh((ManaType)e.ManaType)}{e.Value}"));
+            foreach (var e in ps.ElementBank ?? Array.Empty<ManaEntryDTO>())
+                if (e.ManaType >= 0 && e.ManaType < v.WalletByColor.Length)
+                    v.WalletByColor[e.ManaType] = e.Value;
 
             var fields = ZoneCardsNet(snap, seat, Zone.FieldZone);
             if (fields.Length > 0)
@@ -382,20 +436,19 @@ namespace SynergyUI
 
         private static void FillLandsNet(List<BattleCardView> list, MsgGameStateSync snap, int seat, bool ownerIsOpponent)
         {
-            // 同 FillUnitsNet：观察者视角归一（己方地牌行 z5、对手 z0）。
-            // 叠层（2026-10-09 地牌槽提升；2026-10-13 缩盘 7 格）：列表序与服务器 AssignCells 同构——前 7 张占首层，
-            // 第 8 张起叠回同格第二层（i%7 同格、Stacked 标记错位渲染）。
+            // 同 FillUnitsNet：观察者视角归一（己方地牌行 z6、对手 z0）。
+            // 固定元素格（2026-10-14 晚定案）：与服务器 BoardState.AssignLandCells 同构——
+            // 颜色 → BoardLayout.LandCellOfElement 固定格（灰红蓝绿黑白），同色全部同格。
+            // 锁色权威在 Runtime.LockedColor（快照侧 BuildZone 覆写）；无锁色（-1）不落格。
             var lands = ZoneCardsNet(snap, seat, Zone.ElementPool);
-            var cells = BoardLayout.LandCells(ownerIsOpponent ? 1 : 0);
-            for (int i = 0; i < lands.Length; i++)
+            int owner = ownerIsOpponent ? 1 : 0;
+            foreach (var s in lands)
             {
-                var view = FromRuntime(lands[i], null, ownerIsOpponent);
-                if (i < cells.Count * BoardLayout.LandStackPerCell)
+                var view = FromRuntime(s, null, ownerIsOpponent);
+                if (s.LockedColor >= 0)
                 {
-                    var cell = cells[i % cells.Count];
-                    view.X = cell.x;
-                    view.Z = cell.z;
-                    view.Stacked = i >= cells.Count;
+                    var cell = BoardLayout.LandCellOfElement(owner, (ManaType)s.LockedColor);
+                    if (cell.x >= 0) { view.X = cell.x; view.Z = cell.z; }
                 }
                 list.Add(view);
             }

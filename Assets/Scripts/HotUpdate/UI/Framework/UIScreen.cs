@@ -11,7 +11,7 @@ namespace SynergyUI
 {
     /// <summary>
     /// 所有运行时界面的抽象基类（2026-10-01 预制体化定案）：
-    /// 屏幕层级来自 Assets/Art/UI/ 下的预制体——子类 override PrefabName 声明来源
+    /// 屏幕层级来自 Assets/Art/Prefab/ 下的预制体——子类 override PrefabName 声明来源
     /// （文件名，不含扩展名；YooAsset 地址同名、兜底路径由 UiKit.PrefabPath 派生，
     /// 2026-10-03 收敛为单一声明点），Mount 时框架实例化预制体为 Root
     /// （实例根重命名为 RootName，保持按名断言口径），
@@ -39,7 +39,7 @@ namespace SynergyUI
         /// <summary>所属界面管理器，用于导航（Show/Back/Replace）。</summary>
         protected UIManager Manager { get; private set; }
 
-        /// <summary>本屏预制体名（Assets/Art/UI/ 下、不含扩展名）；null=无预制体（纯代码构建）。
+        /// <summary>本屏预制体名（Assets/Art/Prefab/ 下、不含扩展名）；null=无预制体（纯代码构建）。
         /// 唯一声明点——YooAsset 地址=同名（AddressByFileName），编辑器兜底路径由其派生。</summary>
         protected virtual string PrefabName => null;
 

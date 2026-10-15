@@ -11,6 +11,11 @@ Shader "Tide/YGOMonster"
         _BaseMap ("贴图", 2D) = "white" {}
         _Color ("染色", Color) = (1, 1, 1, 1)
         _Cutoff ("Alpha 裁切阈值", Range(0, 1)) = 0.5
+
+        [Header(World Y Dissolve)]
+        _DissolveY ("消融线世界Y（1000=不生效）", Float) = 1000
+        _DissolveBand ("消融噪声边宽(米)", Range(0.01, 0.5)) = 0.12
+        _DissolveEdgeColor ("消融边元素色(a=强度)", Color) = (0, 0, 0, 0)
     }
 
     SubShader
@@ -61,7 +66,26 @@ Shader "Tide/YGOMonster"
                 float4 _BaseMap_ST;
                 float4 _Color;
                 float _Cutoff;
+                float _DissolveY;
+                float _DissolveBand;
+                float4 _DissolveEdgeColor;
             CBUFFER_END
+
+            // 世界Y消融（2026-10-15 出场浮现）：k>0=线以上=裁掉；k∈[-band,0]=噪声过渡边带。
+            // 按片元世界坐标比较→多模型共享本 shader 零串染；默认 _DissolveY=1000 全场在线下=恒不生效。
+            float YgoDHash(float3 p) { p = frac(p * 0.3183099 + 0.1); p *= 17.0; return frac(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+            float YgoDNoise(float3 x)
+            {
+                float3 i = floor(x), f = frac(x); f = f * f * (3.0 - 2.0 * f);
+                return lerp(lerp(lerp(YgoDHash(i), YgoDHash(i + float3(1, 0, 0)), f.x),
+                                 lerp(YgoDHash(i + float3(0, 1, 0)), YgoDHash(i + float3(1, 1, 0)), f.x), f.y),
+                            lerp(lerp(YgoDHash(i + float3(0, 0, 1)), YgoDHash(i + float3(1, 0, 1)), f.x),
+                                 lerp(YgoDHash(i + float3(0, 1, 1)), YgoDHash(i + float3(1, 1, 1)), f.x), f.y), f.z);
+            }
+            float YgoDissolveK(float3 positionWS)
+            {
+                return (positionWS.y - _DissolveY) + (YgoDNoise(positionWS * 14.0) - 0.5) * _DissolveBand;
+            }
 
             struct Attributes
             {
@@ -100,6 +124,8 @@ Shader "Tide/YGOMonster"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 half4 tex = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv) * _Color;
                 clip(tex.a - _Cutoff);
+                float dissolveK = YgoDissolveK(IN.positionWS);
+                clip(-dissolveK); // 线以上（含噪声扰动）裁掉——与阴影/深度同裁
 
                 // 双面渲染：单面片（翅膀膜）从背面看时法线翻转（VFACE），两视角受光均正确；
                 // 从镂空看到的体内表面也随之按朝向相机受光（体素风可接受）
@@ -107,6 +133,9 @@ Shader "Tide/YGOMonster"
                 half3 n = normalize(IN.normalWS) * (isFrontFace ? 1.0h : -1.0h);
                 half ndl = saturate(dot(n, mainLight.direction));
                 half3 col = tex.rgb * (mainLight.color * ndl + SampleSH(n));
+                // 消融边淡光：紧贴线下沿的噪声亮带（元素色；默认黑 a=0=无）
+                half edge = saturate(1.0h + dissolveK / max(_DissolveBand, 1e-4));
+                col += _DissolveEdgeColor.rgb * (edge * _DissolveEdgeColor.a);
                 col = MixFog(col, IN.fogCoord);
                 return half4(col, 1);
             }
@@ -140,7 +169,24 @@ Shader "Tide/YGOMonster"
                 float4 _BaseMap_ST;
                 float4 _Color;
                 float _Cutoff;
+                float _DissolveY;
+                float _DissolveBand;
+                float4 _DissolveEdgeColor;
             CBUFFER_END
+
+            float YgoDHash(float3 p) { p = frac(p * 0.3183099 + 0.1); p *= 17.0; return frac(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+            float YgoDNoise(float3 x)
+            {
+                float3 i = floor(x), f = frac(x); f = f * f * (3.0 - 2.0 * f);
+                return lerp(lerp(lerp(YgoDHash(i), YgoDHash(i + float3(1, 0, 0)), f.x),
+                                 lerp(YgoDHash(i + float3(0, 1, 0)), YgoDHash(i + float3(1, 1, 0)), f.x), f.y),
+                            lerp(lerp(YgoDHash(i + float3(0, 0, 1)), YgoDHash(i + float3(1, 0, 1)), f.x),
+                                 lerp(YgoDHash(i + float3(0, 1, 1)), YgoDHash(i + float3(1, 1, 1)), f.x), f.y), f.z);
+            }
+            float YgoDissolveK(float3 positionWS)
+            {
+                return (positionWS.y - _DissolveY) + (YgoDNoise(positionWS * 14.0) - 0.5) * _DissolveBand;
+            }
 
             float3 _LightDirection;
 
@@ -156,6 +202,7 @@ Shader "Tide/YGOMonster"
             {
                 float4 positionCS : SV_POSITION;
                 float2 uv : TEXCOORD0;
+                float3 positionWS : TEXCOORD1;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -166,6 +213,7 @@ Shader "Tide/YGOMonster"
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
                 float3 positionWS = TransformObjectToWorld(IN.positionOS.xyz);
                 float3 normalWS = TransformObjectToWorldNormal(IN.normalOS);
+                OUT.positionWS = positionWS;
                 OUT.positionCS = TransformWorldToHClip(ApplyShadowBias(positionWS, normalWS, _LightDirection));
                 #if UNITY_REVERSED_Z
                     OUT.positionCS.z = min(OUT.positionCS.z, UNITY_NEAR_CLIP_VALUE);
@@ -181,6 +229,7 @@ Shader "Tide/YGOMonster"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 half a = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv).a * _Color.a;
                 clip(a - _Cutoff);
+                clip(-YgoDissolveK(IN.positionWS)); // 消融线以上不出影
                 return 0;
             }
             ENDHLSL
@@ -211,7 +260,24 @@ Shader "Tide/YGOMonster"
                 float4 _BaseMap_ST;
                 float4 _Color;
                 float _Cutoff;
+                float _DissolveY;
+                float _DissolveBand;
+                float4 _DissolveEdgeColor;
             CBUFFER_END
+
+            float YgoDHash(float3 p) { p = frac(p * 0.3183099 + 0.1); p *= 17.0; return frac(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+            float YgoDNoise(float3 x)
+            {
+                float3 i = floor(x), f = frac(x); f = f * f * (3.0 - 2.0 * f);
+                return lerp(lerp(lerp(YgoDHash(i), YgoDHash(i + float3(1, 0, 0)), f.x),
+                                 lerp(YgoDHash(i + float3(0, 1, 0)), YgoDHash(i + float3(1, 1, 0)), f.x), f.y),
+                            lerp(lerp(YgoDHash(i + float3(0, 0, 1)), YgoDHash(i + float3(1, 0, 1)), f.x),
+                                 lerp(YgoDHash(i + float3(0, 1, 1)), YgoDHash(i + float3(1, 1, 1)), f.x), f.y), f.z);
+            }
+            float YgoDissolveK(float3 positionWS)
+            {
+                return (positionWS.y - _DissolveY) + (YgoDNoise(positionWS * 14.0) - 0.5) * _DissolveBand;
+            }
 
             struct DepthAttributes
             {
@@ -224,6 +290,7 @@ Shader "Tide/YGOMonster"
             {
                 float4 positionCS : SV_POSITION;
                 float2 uv : TEXCOORD0;
+                float3 positionWS : TEXCOORD1;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -233,6 +300,7 @@ Shader "Tide/YGOMonster"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
                 OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.positionWS = TransformObjectToWorld(IN.positionOS.xyz);
                 OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
                 return OUT;
             }
@@ -242,6 +310,7 @@ Shader "Tide/YGOMonster"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 half a = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv).a * _Color.a;
                 clip(a - _Cutoff);
+                clip(-YgoDissolveK(IN.positionWS)); // 消融线以上不写深度
                 return 0;
             }
             ENDHLSL

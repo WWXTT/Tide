@@ -24,40 +24,13 @@ MonoBehaviour:
     - model: {fileID: 8926484042661614649}
       id: 0
       isStickyNote: 0
-    - model: {fileID: 8926484042661615855}
-      id: 0
-      isStickyNote: 0
-    - model: {fileID: 8926484042661615709}
-      id: 0
-      isStickyNote: 0
-    - model: {fileID: 8926484042661615788}
-      id: 0
-      isStickyNote: 0
     - model: {fileID: 8926484042661614558}
-      id: 0
-      isStickyNote: 0
-    - model: {fileID: 8926484042661614953}
-      id: 0
-      isStickyNote: 0
-    - model: {fileID: 8926484042661615795}
-      id: 0
-      isStickyNote: 0
-    - model: {fileID: 8926484042661615858}
-      id: 0
-      isStickyNote: 0
-    - model: {fileID: 8926484042661615839}
       id: 0
       isStickyNote: 0
     - model: {fileID: 8926484042661615821}
       id: 0
       isStickyNote: 0
     - model: {fileID: 8926484042661614585}
-      id: 0
-      isStickyNote: 0
-    - model: {fileID: 8926484042661614589}
-      id: 0
-      isStickyNote: 0
-    - model: {fileID: 8926484042661615822}
       id: 0
       isStickyNote: 0
     - model: {fileID: 8926484042661615475}
@@ -785,14 +758,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 081ffb0090424ba4cb05370a42ead6b9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_UIIgnoredErrors: []
-  m_Parent: {fileID: 0}
-  m_Children: []
-  m_UIPosition: {x: 0, y: 0}
-  m_UICollapsed: 1
-  m_UISuperCollapsed: 0
-  opaqueRenderQueue: 0
-  transparentRenderQueue: 1
 --- !u!114 &8926484042661614603
 MonoBehaviour:
   m_ObjectHideFlags: 0

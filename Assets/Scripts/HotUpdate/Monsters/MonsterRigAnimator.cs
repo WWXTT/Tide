@@ -139,7 +139,7 @@ namespace MonsterRig
             {
                 var chain = new List<BoneRef> { headRef };
                 chain.AddRange(neckRefs);
-                _lookModule = new HeadLookAtModule(chain, rootRestWorld, entry.headForward);
+                _lookModule = new HeadLookAtModule(chain, _root, rootRestWorld, entry.headForward);
                 _modules.Add(_lookModule);
             }
 

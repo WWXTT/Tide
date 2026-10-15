@@ -503,8 +503,8 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 「成长」原子（2026-10-11 资源重做定案：灵气复苏 ×2 翻倍改成长 +1，绿3，资源族）：
-    /// 效果控制者的地牌槽上限 +1（各自池生效不共享），可重复使用，输出封顶 14
+    /// 「成长」原子（2026-10-11 资源重做定案：灵气复苏 ×2 翻倍改成长 +1，绿3，资源族；
+    /// 2026-10-15：封顶退役）：效果控制者的地牌槽上限 +1（各自池生效不共享），可无限重复使用
     /// （ElementPool.AddLandCapBonus → GetLandCap 单点：地牌张数/支付浓度/出牌费用门槛/黑白钳同随）。
     /// 无目标原子（作用=效果控制者）。
     /// </summary>
@@ -525,7 +525,7 @@ namespace CardCore.Attribute.Handlers
         }
 
         protected override string DescribeTemplate(AtomicEffectInstance effect)
-            => "地牌上限+1（封顶14，可重复使用）";
+            => "地牌上限+1（可重复使用，无上限）";
     }
 
     /// <summary>攻击力减少指示物（每层 −1 攻）</summary>

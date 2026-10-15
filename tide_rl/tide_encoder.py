@@ -116,14 +116,19 @@ class TideCardEncoder(nn.Module):
         )(params)  # (batch, 80, 6, channels)
         param_sum = jnp.where(t_present[..., None], p_proj, 0.0).sum(axis=2)
 
-        # 状态特征（[0..14]，剔除全部身份槽）Dense 投影 → channels
-        rest = x[:, :, :CARD_ID_START]
+        # 状态特征（[0..14]，剔除全部身份槽）+ v3 尾部追加维（[65..67] Awaken/格坐标）Dense 投影
+        # → channels。尾部切片按参数块终点起算——契约在卡特征末尾追加新维时自动纳入，
+        # 不再静默丢弃（v3 对账发现的隐患：rest 原来只切 [:15]）。
+        rest = jnp.concatenate(
+            [x[:, :, :CARD_ID_START],
+             x[:, :, ATOM_PARAM_START + N_TYPE_SLOTS * ATOM_PARAM_DIM:]],
+            axis=-1)
         x_cards = nn.Dense(
             c,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
             kernel_init=default_fc_init,
-        )(rest)  # (batch, 80, channels)
+        )(rest)  # (batch, MAX_CARDS, channels)
 
         # 状态 + 三路身份合并
         x_cards = x_cards + identity + type_sum + param_sum

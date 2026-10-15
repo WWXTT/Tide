@@ -9,7 +9,8 @@ namespace SynergyUI
 {
     /// <summary>
     /// 整回合 AI 驱动器抽象（2026-10-02 教学模式）：SimpleAI（动作耗尽启发）与 ScriptedAi（教学剧本）
-    /// 同形可换，BattleController 持本接口、缺省 SimpleAI。NeuralAI 同形但由编辑器驱动器直调，不接。
+    /// 同形可换，BattleController 持本接口、缺省 SimpleAI。NeuralAI（tide_policy）经 NeuralAiDriver
+    /// 适配接入（2026-10-14 镜像对决定案）。
     /// </summary>
     public interface IAiTurnDriver
     {

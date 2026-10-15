@@ -113,7 +113,8 @@ namespace CardCore
     /// 开局/全局规则数值（表 Category=GameRules，2026-10-13 迁表定案：逻辑不动、数值出代码——
     /// 审计裁定硬编码数值不留在引擎）。消费方：GameCore（InitialLife/OpeningHandSize）、
     /// RuleHooks（DefaultHandLimit）、ZoneManager（BattlefieldCapacityPerPlayer）、
-    /// ElementPool（LandCurveCap=池钳/MaxStackedLandCap）、ResourceCurveModel（LandCurveCap）。
+    /// ElementPool/ResourceCurveModel（LandCurveCap=自然上限）。MaxStackedLandCap 已删
+    /// （2026-10-15：成长叠加无封顶）。
     /// </summary>
     [Serializable]
     public class GameRulesConfig
@@ -121,9 +122,8 @@ namespace CardCore
         public float InitialLife = 30f;                  // 初始生命（Reset 跨局复位同用）
         public float OpeningHandSize = 6f;               // 起手手牌数（双方对称抽满；引擎不补抽）
         public float DefaultHandLimit = 7f;              // 手牌上限基值（回合末选弃；IHandLimitModifier 修改链之上叠加）
-        public float BattlefieldCapacityPerPlayer = 14f; // 每玩家战场单位容量（=单位区 2×7；BoardLayout.UnitCellsPerPlayer 单源引用）
-        public float LandCurveCap = 7f;                  // 标准地牌槽曲线封顶 [1..cap]（=曲线末端=ElementPool.MAX_POOL_SIZE 同源；挑战曲线=cap+bonus）
-        public float MaxStackedLandCap = 14f;            // 地牌上限硬顶（成长叠加封顶；棋盘地牌 7 格 × 每格 2 层）
+        public float BattlefieldCapacityPerPlayer = 12f; // 每玩家战场单位容量（=单位区 2×6；BoardLayout.UnitCellsPerPlayer 单源引用）
+        public float LandCurveCap = 10f;                 // 标准地牌槽曲线自然封顶 [1..cap]（2026-10-15：7→10，每次回合开始双方同步 +1；成长等效果增加在此之外无限制）
     }
 
     /// <summary>

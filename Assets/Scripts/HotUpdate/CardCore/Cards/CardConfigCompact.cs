@@ -70,7 +70,6 @@ namespace CardCore
             if (c.noAttack) o["noAttack"] = true;
             if (c.noGuard) o["noGuard"] = true;
             if (c.speedBonus != 0) o["speedBonus"] = c.speedBonus;
-            if (c.surplusToDurability) o["surplusToDurability"] = true;
             if (c.durability != 0) o["durability"] = c.durability;
             var payload = EffectSlim.EmitAtom(c.payload); // 同源原子口径（refId 空行发射 null=不写）
             if (payload != null) o["payload"] = payload;

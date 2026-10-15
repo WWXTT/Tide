@@ -36,7 +36,8 @@ namespace SynergyUI
 
         public Cardtype Supertype;                       // type 区：底图+遮罩形状映射
         public string Illustration = "";                 // type 区立绘资源名（空=保持预制体占位）
-        public string AttributeText = "";                // attribute 区：攻/血/耐久文字直书（空=藏区）
+        public string AttributeText = "";                // attribute 区：攻击/生命/耐久（空=藏区；发动速度归效果句首）
+        public string PayloadText = "";                  // cost 区：代价行（PayloadCost 产黑白元素等；空=藏区）
         public List<string> KeywordChips;                // keys 区：关键词中文简称芯片（null/空=藏区）
         public List<(string Name, int Layers)> CounterChips; // stats 区：指示物简称+层数（空=藏区）
         public string ActiveEffectText = "";             // effect 区：唯一主动效果全文（空=藏区）
@@ -86,11 +87,10 @@ namespace SynergyUI
             if (d.Cost != null && !d.Cost.IsZero) it.Costs = d.Cost;
             it.Supertype = d.Supertype;
             it.Illustration = d.Illustration ?? "";
-            // attribute 区（与 FromHand 同口径）：生物=攻+血、结界=耐久>0；其余类型空
-            if (d.Supertype == Cardtype.Creature)
-                it.AttributeText = $"攻击：{d.Power ?? 0} 生命：{d.Life ?? 0}";
-            else if (d.Supertype == Cardtype.Enchantment && d.Durability > 0)
-                it.AttributeText = $"耐久：{d.Durability}";
+            it.AttributeText = AttributeTextOf(d);
+            var payload = d.PayloadCost?.payload;
+            if (payload != null && !string.IsNullOrEmpty(payload.refId))
+                it.PayloadText = "代价：" + AtomText.RenderAtomEntry(payload);
 
             // keys 芯片：印刷关键词（合成期无运行态，无授予/净化合并）
             if (d.Keywords != null && d.Keywords.Count > 0)
@@ -105,7 +105,7 @@ namespace SynergyUI
                     if (fx == null) continue;
                     var timing = (TriggerTiming)fx.TriggerTiming;
                     var isActive = timing == TriggerTiming.Activate_Active || timing == TriggerTiming.Activate_Instant;
-                    var text = AtomText.RenderEffectSummary(new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps });
+                    var text = AtomText.RenderEffectSummary(new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps }, d);
                     if (string.IsNullOrEmpty(text)) continue;
                     if (isActive && string.IsNullOrEmpty(it.ActiveEffectText))
                     {
@@ -141,11 +141,10 @@ namespace SynergyUI
                 if (it.Costs == null && data.Cost != null && !data.Cost.IsZero) it.Costs = data.Cost;
                 it.Supertype = data.Supertype;
                 it.Illustration = data.Illustration ?? "";
-                // attribute 区（2026-10-13 用户口径：文字直书）：生物=攻+血、结界=耐久>0；其余类型空
-                if (data.Supertype == Cardtype.Creature)
-                    it.AttributeText = $"攻击：{data.Power ?? 0} 生命：{data.Life ?? 0}";
-                else if (data.Supertype == Cardtype.Enchantment && data.Durability > 0)
-                    it.AttributeText = $"耐久：{data.Durability}";
+                it.AttributeText = AttributeTextOf(data);
+                var payload = data.PayloadCost?.payload;
+                if (payload != null && !string.IsNullOrEmpty(payload.refId))
+                    it.PayloadText = "代价：" + AtomText.RenderAtomEntry(payload);
             }
 
             // keys 芯片：运行态关键词优先（含授予/净化），回落印刷
@@ -177,7 +176,7 @@ namespace SynergyUI
                     if (fx == null) continue;
                     var timing = (TriggerTiming)fx.TriggerTiming;
                     var isActive = timing == TriggerTiming.Activate_Active || timing == TriggerTiming.Activate_Instant;
-                    var text = AtomText.RenderEffectSummary(new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps });
+                    var text = AtomText.RenderEffectSummary(new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps }, data);
                     if (string.IsNullOrEmpty(text)) continue;
                     if (isActive && string.IsNullOrEmpty(it.ActiveEffectText))
                     {
@@ -191,14 +190,15 @@ namespace SynergyUI
             return it;
         }
 
-        /// <summary>被动次数后缀：y=归一上限（-1=无限→不带后缀）；x 仅本地模式可查（网络无引擎对象→整段不带）。</summary>
-        private static string UsageSuffix(CardEffectData fx, EffectExecutor executor, Card source)
+        /// <summary>被动次数后缀：y=归一上限（-1=无限→不带后缀）；x 仅本地模式可查（网络无引擎对象→整段不带）。
+        /// prefix=悬停文案用的量纲前缀（如「本回合 」；卡面调用不带——保持「（0/1）」短形态）。</summary>
+        public static string UsageSuffix(CardEffectData fx, EffectExecutor executor, Card source, string prefix = "")
         {
             int y = fx.TriggerLimitPerTurn == 0 ? 1 : fx.TriggerLimitPerTurn; // 0=未声明→按 1（转换器同口径）
             if (y < 0) return "";                                             // -1=显式无限
             if (executor == null) return "";
             int x = executor.GetTurnUsageOf(fx.Id, source);
-            return $"（{x}/{y}）";
+            return $"（{prefix}{x}/{y}）";
         }
 
         /// <summary>引擎活卡 → 手牌显示模型（View 刷新专用）：重快照运行态 + 卡表静态面合并，
@@ -227,6 +227,9 @@ namespace SynergyUI
             if (it.Costs == null && data.Cost != null && !data.Cost.IsZero)
                 it.Costs = data.Cost;
             if (string.IsNullOrEmpty(it.TypeText)) it.TypeText = BattleView.SupertypeZh(data.Supertype);
+            // 立绘（2026-10-15 接线修复）：FromBattle/FromCardData 消费面（手牌初始构建/预览/列卡/构筑列表）
+            // 此前漏填——ACardView 占位图"全同卡面"根因；与 FromHand/FromCardDataFull 同口径合并。
+            if (string.IsNullOrEmpty(it.Illustration)) it.Illustration = data.Illustration ?? "";
 
             if (!keepRuntimeStats)
             {
@@ -244,6 +247,22 @@ namespace SynergyUI
             if (data.Keywords != null && data.Keywords.Count > 0)
                 it.KeywordsText = string.Join("·", data.Keywords.Select(KeywordZh));
             it.EffectText = EffectSummaryOf(data);
+        }
+
+        /// <summary>attribute 区紧凑格式（2026-10-15 晚定案）：生物=攻击/生命、结界=耐久&gt;0；
+        /// 发动速度不在此显示（与速度定案冲突——速度归效果描述句首，见 AtomText.ActivationPrefix），
+        /// 空串=藏区。</summary>
+        private static string AttributeTextOf(CardData d)
+        {
+            var parts = new List<string>();
+            if (d.Supertype == Cardtype.Creature)
+            {
+                parts.Add($"攻击{d.Power ?? 0}");
+                parts.Add($"生命{d.Life ?? 0}");
+            }
+            else if (d.Supertype == Cardtype.Enchantment && d.Durability > 0)
+                parts.Add($"耐久{d.Durability}");
+            return parts.Count == 0 ? "" : string.Join(" ", parts);
         }
 
         private static string KeywordZh(string keywordId)
@@ -264,7 +283,7 @@ namespace SynergyUI
             {
                 if (fx == null) continue;
                 var graph = new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps };
-                var text = AtomText.RenderEffectSummary(graph);
+                var text = AtomText.RenderEffectSummary(graph, data);
                 if (!string.IsNullOrEmpty(text)) lines.Add(text);
             }
             return string.Join("\n", lines);

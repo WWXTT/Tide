@@ -5,7 +5,7 @@ using UnityEngine;
 namespace SynergyUI
 {
     /// <summary>
-    /// 战斗演出寻路（2026-10-13 战斗编舞配套·纯表现层）：9×6 六邻接 BFS 最短路，
+    /// 战斗演出寻路（2026-10-13 战斗编舞配套·纯表现层）：全盘六邻接 BFS 最短路，
     /// 供攻击宣言箭头（悬停预览）与战斗走位（编舞器执行）共用同一份路径。
     ///
     /// 与引擎无关——引擎攻击不查距离（BoardState.InAttackRange 未接线），本寻路只为演出；
@@ -92,7 +92,7 @@ namespace SynergyUI
             return path;
         }
 
-        /// <summary>占用集（视图数据口径）：双方单位格（攻击者除外）+地牌格+双方角色格。
+        /// <summary>占用集（视图数据口径）：双方单位格（攻击者除外）+地牌格+双方角色格+无格缺口。
         /// 目标自身的格也在占用集内——BFS 只接近其邻格，不进入。</summary>
         public static HashSet<int> BlockedSetOf(BattleViewData d, uint exceptId)
         {
@@ -104,6 +104,10 @@ namespace SynergyUI
             foreach (var c in d.OppLands) AddCell(set, c.X, c.Z, exceptId, 0);
             AddCell(set, BoardLayout.CharacterCell(0).x, BoardLayout.CharacterCell(0).z, exceptId, 0);
             AddCell(set, BoardLayout.CharacterCell(1).x, BoardLayout.CharacterCell(1).z, exceptId, 0);
+            // 无格缺口（2026-10-14 8×7 中线 x7 槽）：无实体 tile，演出不可借道驻留
+            for (int z = 0; z < BoardMath.Height; z++)
+                for (int x = 0; x < BoardMath.Width; x++)
+                    if (BoardLayout.NoTileAt(x, z)) set.Add(BoardMath.Index(x, z));
             return set;
         }
 

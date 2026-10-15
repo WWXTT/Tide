@@ -20,8 +20,13 @@ namespace SynergyUI
     /// </summary>
     public static class TutorialCreationFlow
     {
-        /// <summary>默认卡组名（跳过路径镜像局用；6 色主体卡组由用户后续制作——缺失时回落随机镜像）。</summary>
+        /// <summary>默认卡组名（跳过路径镜像局用；6 色主体卡组由用户后续制作——缺失时回落下述镜像回退卡组）。</summary>
         public const string DefaultDeckName = "主体卡组";
+
+        /// <summary>镜像局回退卡组名（2026-10-15 定案）：主体卡组待制作期间镜像局用 红·快攻
+        ///（现阶段唯一全量 30 张主题卡组，红+灰双色经济）。此前主体卡组缺失直接随机镜像=
+        /// 全卡池彩虹手牌——「卡组文件已改纯、对局仍五颜六色」的根因（文件与对局卡源脱节）。</summary>
+        public const string MirrorFallbackDeckName = "红·快攻";
 
         /// <summary>最后一课镜像局进行中（会话级标记；TutorialFlow.ReportBattleResult 路由消费）。</summary>
         public static bool FinalChallengeActive { get; private set; }
@@ -204,21 +209,26 @@ namespace SynergyUI
         /// <summary>会话标记清理（未终局退出路径；TutorialFlow.ClearAssessment 一并调）。</summary>
         public static void ClearSession() => FinalChallengeActive = false;
 
-        /// <summary>默认卡组镜像（跳过教学路径用）：主体卡组双方同用；缺失/不足时回落随机镜像
-        /// （RandomDeckFrom 取一份双方同用——保住「镜像」考核语义，记日志）。</summary>
+        /// <summary>默认卡组镜像（跳过教学路径用）解析链（2026-10-15 定案）：
+        /// 主体卡组（待制作）→ 红·快攻（镜像回退卡组）→ 随机镜像（最后兜底）。
+        /// 双方同用一份卡组（保住「镜像」考核语义）；发牌走 InitGame 正常洗牌抽卡
+        /// （镜像分支不锁牌库序——教学固定发卡在 StartTutorialGame 分支，不受影响）。</summary>
         public static List<CardData> ResolveDefaultMirrorDeck()
         {
-            var deckData = _decksSource().FirstOrDefault(d => d != null && d.name == DefaultDeckName);
-            if (deckData?.cardIds != null)
+            var decks = _decksSource();
+            foreach (var name in new[] { DefaultDeckName, MirrorFallbackDeckName })
             {
+                var deckData = decks.FirstOrDefault(d => d != null && d.name == name);
+                if (deckData?.cardIds == null)
+                {
+                    TideLog.Warn($"[TutorialCreation] 镜像卡组 {name} 不存在——继续回落");
+                    continue;
+                }
                 var cards = TutorialLibrary.BuildDeck(deckData.cardIds);
                 if (cards.Count >= GameCore.OpeningHandSize) return cards;
-                TideLog.Warn($"[TutorialCreation] 默认卡组 {DefaultDeckName} 张数不足（{cards.Count}）——回落随机镜像");
+                TideLog.Warn($"[TutorialCreation] 镜像卡组 {name} 张数不足（{cards.Count}）——继续回落");
             }
-            else
-            {
-                TideLog.Warn($"[TutorialCreation] 默认卡组 {DefaultDeckName} 不存在（主体卡组待制作）——回落随机镜像");
-            }
+            TideLog.Warn("[TutorialCreation] 主体卡组/红·快攻 均不可用——回落随机镜像（全色随机池，仅保镜像语义）");
             return BattleController.RandomDeckFrom(CardCatalog.LoadAll());
         }
 

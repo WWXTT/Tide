@@ -41,7 +41,7 @@ namespace CardCore
         public int power;
         public int life;
 
-        // 立绘名（2026-10-13 ACard 六区）：Assets/Art/UI/Sprites/{illustration}.png；
+        // 立绘名（2026-10-13 ACard 六区）：Assets/Art/Battle3D/Icons/{illustration}.png；
         // 空/缺省 = 预制体占位图（ACardView.TrySetArt 加载失败保持占位同口径）
         public string illustration;
 
@@ -64,11 +64,11 @@ namespace CardCore
         public List<LinkAuraData> linkAuras;
 
         // 战斗底盘（2026-09-10 攻/守效果化）：opt-out 缺省 false=自带攻守；
-        // 可支配底盘（2026-10-10）：法术提速份额 speedBonus 缺省 0、结界转耐久 surplusToDurability 缺省 false=抵发动费
+        // 2026-10-15 卡型默认分配：法术提速份额 speedBonus 缺省 2（装载处迁移）；
+        // surplusToDurability 已随拆分定案退役（残留列按未知字段忽略）
         public bool noAttack;
         public bool noGuard;
         public int speedBonus;
-        public bool surplusToDurability;
 
         // 结界耐久（2026-09-24 定案：结界=耐久体，被攻击每次仅损失 1 点，归零销毁；0=无）——生物不使用
         public int durability;
@@ -191,28 +191,57 @@ namespace CardCore
             ValidateMountHosts(result);
             ValidateRandomParams(result);
             ValidateSpellShape(result);
+            ValidateEnchantShape(result);
 
             return result;
         }
 
-        /// <summary>法术形态校验（2026-10-10 三类卡=发数经济定案，可见不炸——坏卡点名）：
-        /// 法术=单个施放效果（整卡一次性，1 次总池）；且不得挂启动式（Activate_* 依赖
-        /// 战场源卡发动，法术结算即离场——挂了永无发动口）。</summary>
+        /// <summary>法术形态校验（2026-10-15 深夜三类卡改版：法术=1~3 个启动式效果，
+        /// 施放时弹窗抉择其一执行——旧「恰好 1 个非启动式」口径整体翻转）：
+        /// ① 效果数 1..3（0=白板法术无意义；>3 超抉择上限）；
+        /// ② 全部为启动式（Activate_Active/Activate_Instant——响应式 Activate_Response 不算，
+        ///    法术施放走整卡 cast 通道没有响应发动口）；
+        /// ③ 效果内禁嵌抉择分支（step.choices）：modeIndex 通道已复用为「效果抉择」
+        ///    （声明期选定、随 CardPlayEvent 公开），内嵌分支会与其撞车。
+        /// 可见不炸——坏卡点名。</summary>
         private static void ValidateSpellShape(List<CardData> cards)
         {
             foreach (var card in cards)
             {
                 if (card?.Supertype != Cardtype.Spell || card.Effects == null) continue;
-                if (card.Effects.Count > 1)
-                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术只能挂 1 个效果" +
-                                  $"（现 {card.Effects.Count} 个——法术=一次性单发）——构筑期拦截");
+                int count = card.Effects.Count;
+                if (count < 1 || count > 3)
+                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术须挂 1~3 个启动式效果" +
+                                  $"（现 {count} 个——施放时弹窗三选一）——构筑期拦截");
+                foreach (var e in card.Effects)
+                {
+                    int t = e?.TriggerTiming ?? -1;
+                    if (t != (int)TriggerTiming.Activate_Active && t != (int)TriggerTiming.Activate_Instant)
+                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术效果 {e.Id} 须为启动式" +
+                                      "（主动/瞬间——法术只挂主动效果，自动/触发/响应式不收）——构筑期拦截");
+                    if (e?.Steps != null)
+                        foreach (var s in e.Steps)
+                            if (s?.choices != null && s.choices.Count > 1)
+                                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术效果 {e.Id} 内嵌抉择分支" +
+                                              "（modeIndex 通道已复用为施放时的效果抉择，二层级撞车）——构筑期拦截");
+                }
+            }
+        }
+
+        /// <summary>结界形态校验（2026-10-15 深夜三类卡改版：结界只挂自动/光环——禁一切启动式）：
+        /// 耐久语义保留（受击−1/被动触发−1），主动发动−1 通道整体退役。</summary>
+        private static void ValidateEnchantShape(List<CardData> cards)
+        {
+            foreach (var card in cards)
+            {
+                if (card?.Supertype != Cardtype.Enchantment || card.Effects == null) continue;
                 foreach (var e in card.Effects)
                 {
                     int t = e?.TriggerTiming ?? -1;
                     if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
                         || t == (int)TriggerTiming.Activate_Response)
-                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术效果 {e.Id} 为启动式" +
-                                      "（法术结算即离场，启动式永无发动口）——构筑期拦截");
+                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：结界效果 {e.Id} 为启动式" +
+                                      "（结界只挂自动/光环，主动效果已退役）——构筑期拦截");
                 }
             }
         }
@@ -271,9 +300,17 @@ namespace CardCore
                 }
                 // 自带关键词回响（printed）：2026-09-13 生物和法术通用——不再限制宿主类型
 
-                // 连接光环须有箭头（2026-09-13 坚韧光环定案：生物/结界搭载光环必须声明箭头——
+                // 生物禁挂连接光环（2026-10-15 深夜三类卡改版：生物只留主动/自动/规则光环/本体关键词
+                // ——连接光环专属结界；装载侧聚合后单点拦截=卡面直书+效果携带全覆盖）
+                if (card.Supertype == Cardtype.Creature
+                    && card.LinkAuras != null && card.LinkAuras.Count > 0)
+                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：生物不得挂连接光环" +
+                                  "（2026-10-15 改版——连接光环专属结界）——构筑期拦截");
+
+                // 连接光环须有箭头（2026-09-13 坚韧光环定案：结界搭载光环必须声明箭头——
                 // 无箭头光环永远无受益者，属数据错误；箭头数=光环受益面与计价乘数）
-                if (card.LinkAuras != null && card.LinkAuras.Count > 0
+                if (card.Supertype != Cardtype.Creature // 生物光环已在上方整体拉黑
+                    && card.LinkAuras != null && card.LinkAuras.Count > 0
                     && card.ArrowDirections == HexDirection.None)
                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：声明了连接光环但未配箭头（arrows 为空）——构筑期拦截（生物/结界同规）");
 
@@ -592,6 +629,8 @@ namespace CardCore
             ValidateComboDomains(result);
             ValidateMountHosts(result);
             ValidateRandomParams(result);
+            ValidateSpellShape(result);
+            ValidateEnchantShape(result);
 
             return result;
         }
@@ -716,13 +755,12 @@ namespace CardCore
             //（与卡面直书值并集——兼容旧数据）；须在 EnsureCost 前完成（光环费/箭头累乘进计价）
             cardData.AggregateEffectAuras(false);
 
-            // 战斗底盘（2026-09-10 攻/守效果化）：opt-out 与可支配底盘分配
-            //（2026-10-10：法术 speedBonus 提速份额 / 结界 surplusToDurability 转耐久开关；
-            //  旧 surplusToSpeed 整体转速度与 refundColor 落色自标已随定案退役，残留列按未知字段忽略）
+            // 战斗底盘（2026-09-10 攻/守效果化）+ 卡型默认分配（2026-10-15）：
+            // 法术速度=3−槽数动态算（KindSpeedBonusOf 单源）——speedBonus 字段退役只读不消费；
+            // surplusToDurability 已退役按未知字段忽略。
             cardData.NoAttack = entry.noAttack;
             cardData.NoGuard = entry.noGuard;
             cardData.SpeedBonus = entry.speedBonus;
-            cardData.SurplusToDurability = entry.surplusToDurability;
 
             // 结界耐久（2026-09-24 定案）：战斗侧已实装（CounterRules.LoseDurability + 零坚韧 SBA，TideServer V9.c 全流程回归）——本行只做数据采集
             cardData.Durability = entry.durability;

@@ -41,6 +41,8 @@ namespace SynergyUI
         private static Camera _worldCam;
         private static Pose? _menuCamPose;           // 吞屏前菜单位姿快照（回菜单还原）
         private static GameObject _boardRoot;        // 战场棋盘实例（BattleHexBoard 运行时拼装）
+        private static Transform _mapRoot;           // 运行时战场临时对象总根「Map」（棋盘/BattleFieldView/箭头等）
+        private static bool _mapOwned;               // Map 是否运行时自建（场景手摆颗拆台不销毁）
         private static bool _swallowing;             // 吞屏重入防抖
         private static bool _mounting;               // 装台重入防抖
 
@@ -59,6 +61,8 @@ namespace SynergyUI
             _worldCam = null;
             _menuCamPose = null;
             _boardRoot = null;
+            _mapRoot = null;
+            _mapOwned = false;
             _swallowing = false;
             _mounting = false;
         }
@@ -140,8 +144,8 @@ namespace SynergyUI
 
         // ======================================== 战场装台 ③④（棋盘 + 日出） ========================================
 
-        /// <summary>装台③④：BattleHexBoard 运行时拼装核心带棋盘（BattleHex 单枚 mesh×54 格，
-        /// 同步即就绪）→ 相机对盘取景 → 棋格画外浮起拼装（≤2s，与日出并行）→
+        /// <summary>装台③④：BattleHexBoard 运行时拼装核心带棋盘（BattleHex 单枚 mesh×55 tile
+        /// ——8×7 盘 56 格位、中线 x7 槽缺口；同步即就绪）→ 相机对盘取景 → 棋格画外浮起拼装（≤2s，与日出并行）→
         /// 主光源 -20°→45° 日出。mesh 缺失只报错不阻塞日出。</summary>
         public static async UniTaskVoid MountBoardAndDawnAsync()
         {
@@ -153,9 +157,19 @@ namespace SynergyUI
                 // BattleHexMeshBuilder 只产单枚六边形 mesh，摆位/配色在此装配）
                 if (_boardRoot == null)
                 {
+                    // 临时战场地块总根「Map」（2026-10-14 晚定案）：运行时临时对象（棋盘根/BattleFieldView/
+                    // 攻击箭头等）统一收进 Map，不堆积场景根目录。优先认领场景里用户手摆的 Map 节点
+                    //（GameObject.Find 只见激活态；缺/未激活才运行时自建，拆台只销毁自建的那颗）。
+                    if (_mapRoot == null)
+                    {
+                        var existing = GameObject.Find("Map");
+                        _mapOwned = existing == null;
+                        _mapRoot = (existing != null ? existing : new GameObject("Map")).transform;
+                    }
                     _boardRoot = BattleHexBoard.Build();
                     if (_boardRoot != null)
                     {
+                        _boardRoot.transform.SetParent(_mapRoot, false); // Map 恒 identity，局部坐标=世界坐标
                         BattleBoardGrid.Mount(_boardRoot.transform);
                         BattleBoardGrid.SelfCheck(); // 数据层自检（格数/mesh/材质/格心公式）
                         BattleZoneProps.Mount(); // 特殊格道具：卡组卡堆+墓地/除外漩涡（挂 tile 下随浮起同走）
@@ -181,19 +195,32 @@ namespace SynergyUI
         }
 
         /// <summary>战场拆台（BattleScreen.OnExit）：销毁棋盘实例 + 清格位服务与地块特效索引。
-        /// 菜单舞台（黑洞/光源/相机）由界面钩子 OnScreenActivated 恢复，此处不越权。</summary>
+        /// 菜单舞台（黑洞/光源/相机）由界面钩子 OnScreenActivated 恢复，此处不越权。
+        /// 场景手摆的 Map 收纳根不销毁（_mapOwned 只在运行时自建时为真）；其余临时子根
+        /// 由各持有方自毁（棋盘根在此、BattleFieldView 在 Dispose），Map 只做挂载点。</summary>
         public static void DismountBoard()
         {
             BattleTileFx.Unmount(); // 特效对象挂 tile 下随根销毁，此处只清索引
+            BattleTileButtons.Unmount(); // 格前三键挂 tile 下同口径（随根销毁，清索引）
             BattleZoneProps.Unmount(); // 特殊格道具同口径（卡堆/漩涡随根销毁，运行时 mesh 显式销毁）
             BattleHudRow.Unmount(); // 功能地块行（独立根+运行时材质实例显式销毁）
+            BattlePriorityGlow.Unmount(); // 优先权底部光条（Map 下独立根，显式销毁+清引用）
             BattleBoardGrid.Unmount();
             if (_boardRoot != null)
             {
                 UnityEngine.Object.Destroy(_boardRoot);
                 _boardRoot = null;
             }
+            if (_mapRoot != null && _mapOwned)
+            {
+                UnityEngine.Object.Destroy(_mapRoot.gameObject);
+            }
+            _mapRoot = null;
         }
+
+        /// <summary>运行时战场临时对象总根「Map」（装台认领/自建，拆台仅销毁自建颗；null=未装台）——
+        /// 临时创建的战场地块等收进本根，不堆积场景根目录（BattleFieldView/攻击箭头等同收）。</summary>
+        public static Transform MapRoot => _mapRoot;
 
         // ======================================== 内部 ========================================
 
@@ -265,12 +292,12 @@ namespace SynergyUI
         }
 
         /// <summary>战场相机取景：棋盘（BattleHexBoard）锚定世界原点，固定机位
-        /// （2026-10-13 用户定档 (7,8,-3)/(50,0,0)，包围盒自动取景退役）。</summary>
+        ///（2026-10-13 定档 (7,8,-3)/(50,0,0) → 10-14 晚改档 z−4：中线加行后取景更好）。</summary>
         private static void FrameBoardCamera()
         {
             if (_worldCam == null) return;
 
-            _worldCam.transform.position = new Vector3(7f, 8f, -3f);
+            _worldCam.transform.position = new Vector3(7f, 8f, -4f);
             _worldCam.transform.rotation = Quaternion.Euler(50f, 0f, 0f);
         }
     }

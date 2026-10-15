@@ -42,23 +42,21 @@ namespace GameBoard
         private readonly Player _p2; // 布局归属 1（上半场）
 
         // 占用索引：单写入口（Resync），双向成对维护
-        private readonly Dictionary<int, Card> _occupant = new Dictionary<int, Card>(); // cellIndex -> 卡（单位/地牌首层）
-        private readonly Dictionary<Card, int> _cellOf = new Dictionary<Card, int>();   // 反向
-
-        // 地牌叠层（2026-10-09 地牌槽提升·每格两张）：cellIndex -> 第二层地牌。
-        // 仅地牌行（Zone.ElementPool）使用；两层共用 _cellOf 反查（同格坐标），
-        // 视图层经 IsStackedLand 区分错位渲染。单位行恒一层，不入此表。
-        private readonly Dictionary<int, Card> _stackOccupant = new Dictionary<int, Card>();
+        private readonly Dictionary<int, Card> _occupant = new Dictionary<int, Card>(); // cellIndex -> 卡（单位/地牌色组首张）
+        private readonly Dictionary<Card, int> _cellOf = new Dictionary<Card, int>();   // 反向（地牌同色组共享同格）
 
         // 落位钉子（2026-10-06 教学直入）：卡 → 指定格 index。Resync 时带钉卡优先占钉格
         // （钉格须属其所在区的格集，否则按无钉顺延），其余卡按区域列表序填空——无人调钉时
         // 分配与原「列表序位」逐位一致。卡离场（不再落格）钉子在 Resync 尾自动清除。
         private readonly Dictionary<Card, int> _pinnedCells = new Dictionary<Card, int>();
 
-        // 发动格叠放（= 栈的物理呈现）：Phase A 暂态在单次 PlayCard 内，通常为空；
-        // StackEngine 路径接入后此处承载多张待结算卡
-        private readonly List<Card> _activation0 = new List<Card>();
-        private readonly List<Card> _activation1 = new List<Card>();
+        // 施放占格（2026-10-15 发动格拆除定案：施放中的卡=发动区占位期，落在该玩家 2×6 单位区
+        // 空格上呈现——整个单位区兼任发动区；永久物=玩家所选钉格原地转正，法术/响应施放=first-free）。
+        // 与战场占用**分离存放**：施放卡不进 _cellOf（TryGetCell=false——光环 TryGetCellOf、
+        // 攻击距离、邻接查询不视其为战场单位），CardAt 合并可见（出牌选格/呈现层需要占用真值）。
+        // Enter/Leave/Failed 事件钩子已引全量 Resync，本表由 Resync 纯重建（钉优先→first-free）。
+        private readonly Dictionary<Card, int> _castingCellOf = new Dictionary<Card, int>();   // 施放卡 -> 格 index
+        private readonly Dictionary<int, Card> _castingOccupant = new Dictionary<int, Card>(); // 格 index -> 施放卡
 
         private bool _autoResync;
         private readonly List<IDisposable> _subscriptions = new List<IDisposable>();
@@ -77,40 +75,46 @@ namespace GameBoard
         /// <summary>
         /// 从核心区域列表重建全部占用（幂等、确定性——同状态必得同布局）。
         /// 战场列表 → 己方单位区格序 first-free；元素池列表 → 地牌行格序；
-        /// 发动区列表 → 发动格叠放。容量外（控制权迁移等边缘）不落格、不抛错。
+        /// 发动区列表 → 单位区空格施放占格（钉优先→first-free，2026-10-15 发动格拆除）。
+        /// 容量外（控制权迁移等边缘）不落格、不抛错。
         /// </summary>
         public void Resync()
         {
             _occupant.Clear();
             _cellOf.Clear();
-            _stackOccupant.Clear();
-            _activation0.Clear();
-            _activation1.Clear();
+            _castingCellOf.Clear();
+            _castingOccupant.Clear();
 
             AssignCells(_p1, Zone.Battlefield, BoardLayout.UnitCells(0));
             AssignCells(_p2, Zone.Battlefield, BoardLayout.UnitCells(1));
             AssignCells(_p1, Zone.ElementPool, BoardLayout.LandCells(0));
             AssignCells(_p2, Zone.ElementPool, BoardLayout.LandCells(1));
 
-            AppendActivation(_p1, _activation0);
-            AppendActivation(_p2, _activation1);
+            PlaceCasting(_p1, 0);
+            PlaceCasting(_p2, 1);
 
-            // 落位钉子清理：本轮未落格的卡（离场/换区）钉子不保留
+            // 落位钉子清理：本轮未落格的卡（离场/换区）钉子不保留（施放占格期保钉——入场要用）
             if (_pinnedCells.Count > 0)
             {
                 var stale = new List<Card>();
                 foreach (var card in _pinnedCells.Keys)
-                    if (!_cellOf.ContainsKey(card)) stale.Add(card);
+                    if (!_cellOf.ContainsKey(card) && !_castingCellOf.ContainsKey(card)) stale.Add(card);
                 foreach (var card in stale) _pinnedCells.Remove(card);
             }
         }
 
         private void AssignCells(Player player, Zone zone, IReadOnlyList<(int x, int z)> cells)
         {
+            // 地牌走按色叠格（2026-10-14 定案：同色叠一格，颜色按首现序占格）——独立路径
+            if (zone == Zone.ElementPool) { AssignLandCells(player, cells); return; }
+
             var cards = SafeGetCards(player, zone);
             if (cards == null) return;
 
-            // 落位钉子优先：本批带合法钉的卡占住钉格；其余卡按列表序填剩余空格（原口径）
+            // 落位钉子优先：本批带合法钉的卡占住钉格；其余卡按列表序填剩余空格（原口径）。
+            // 施放占格避让说明（2026-10-15）：本方法先于 PlaceCasting 跑（战场批先落，
+            // 施放字典此刻恒空）——单位不感知施放卡；极窄口（施放窗内新单位入场占施放格）由
+            // 「施放卡挪格呈现 + 转正时钉优先拿回自己的格、其余单位重排」自愈收敛。
             var cellIndex = new HashSet<int>();
             foreach (var c in cells) cellIndex.Add(BoardMath.Index(c.x, c.z));
 
@@ -125,31 +129,18 @@ namespace GameBoard
                     unpinned.Add(card);
             }
 
-            // 每格容量（2026-10-09 地牌槽提升·叠放定案）：地牌行每格两张（第 10~18 张地牌
-            // 叠入已有格第二层，上限 18=9格×2 与 ElementPool.MaxStackedLandCap 对应）；
-            // 其余行恒 1（行为与原 free 队列逐位一致）。usage 预计钉子占层——叠层可叠上钉格。
-            int capacity = zone == Zone.ElementPool ? BoardLayout.LandStackPerCell : 1;
-            var usage = new Dictionary<int, int>();
-            foreach (var kv in pinned) usage[kv.Key] = 1;
-
+            var usage = new HashSet<int>(pinned.Keys);
             foreach (var card in unpinned)
             {
-                // 铺满再叠（2026-10-09 修正）：首层空位优先——先铺满整行（与 BattleViewData.FillLandsNet
-                // i%9 同格、服务器 AssignCells 同构），无空位才叠第二层；原「顺格贪心叠两连张」错位。
-                int empty = -1, stackable = -1;
+                int placed = -1;
                 foreach (var c in cells)
                 {
                     int idx = BoardMath.Index(c.x, c.z);
-                    usage.TryGetValue(idx, out int used);
-                    if (used == 0) { empty = idx; break; }
-                    if (used < capacity && stackable < 0) stackable = idx;
+                    if (!usage.Contains(idx)) { placed = idx; break; }
                 }
-                int placed = empty >= 0 ? empty : stackable;
                 if (placed < 0) break; // 容量外（控制权迁移等边缘）不落格、不抛错（原口径）
-                usage.TryGetValue(placed, out int layer);
-                if (layer == 0) _occupant[placed] = card;
-                else _stackOccupant[placed] = card;
-                usage[placed] = layer + 1;
+                usage.Add(placed);
+                _occupant[placed] = card;
                 _cellOf[card] = placed;
             }
             foreach (var kv in pinned)
@@ -159,11 +150,57 @@ namespace GameBoard
             }
         }
 
-        /// <summary>地牌叠层查询（2026-10-09 地牌槽提升）：卡是否为所在格的第二层（叠放张）——
-        /// 视图层据此对叠放张错位渲染。未落格/首层/单位行恒 false。</summary>
-        public bool IsStackedLand(Card card)
-            => card != null && _cellOf.TryGetValue(card, out int idx)
-               && _stackOccupant.TryGetValue(idx, out var top) && top == card;
+        /// <summary>地牌固定元素格（2026-10-14 晚定案）：第 i 格元素身份=BoardLayout.LandCellElementOrder[i]
+        ///（灰红蓝绿黑白）——颜色直接落自己的格（同色全部叠进同一格），黑白永不入池=格常空。
+        /// 无锁色映射的异常卡按灰聚拢。旧「首现序占格+地牌钉优先」随定案退役：固定映射天然稳定
+        ///（Resync 幂等），_pinnedCells 只剩单位格路径消费。
+        /// 旧「每格两层叠放」（2026-10-09）更早已退役：IsStackedLand/_stackOccupant 已删。</summary>
+        private void AssignLandCells(Player player, IReadOnlyList<(int x, int z)> cells)
+        {
+            var cards = SafeGetCards(player, Zone.ElementPool);
+            if (cards == null) return;
+
+            // 锁色映射（池包装权威，卡上无地牌字段）：SourceCard -> LockedColor
+            var lockedOf = new Dictionary<Card, ManaType>();
+            var pooled = _core?.ElementPool?.GetPooledCards(player);
+            if (pooled != null)
+                foreach (var pc in pooled)
+                    if (pc?.SourceCard != null) lockedOf[pc.SourceCard] = pc.LockedColor;
+
+            // 按色分组（无锁色映射的异常卡按灰聚拢）→ 各落自己的固定元素格（BoardLayout 单源）
+            int pIdx = PlayerIndex(player);
+            var byColor = new Dictionary<ManaType, List<Card>>();
+            foreach (var card in cards)
+            {
+                if (card == null) continue;
+                var color = lockedOf.TryGetValue(card, out var locked) ? locked : ManaType.Gray;
+                if (!byColor.TryGetValue(color, out var list))
+                {
+                    list = new List<Card>();
+                    byColor[color] = list;
+                }
+                list.Add(card);
+            }
+            foreach (var kv in byColor)
+            {
+                var cell = BoardLayout.LandCellOfElement(pIdx, kv.Key);
+                if (cell.x < 0) break; // 地牌行格集为空（防御）
+                int idx = BoardMath.Index(cell.x, cell.z);
+                _occupant[idx] = kv.Value[0];
+                foreach (var card in kv.Value) _cellOf[card] = idx;
+            }
+        }
+
+        /// <summary>地牌落格预览（2026-10-14 箭头放地）：假想 newColor 此刻入池的落格——
+        /// 固定元素格映射即答案（BoardLayout.LandCellOfElement 单源，与 AssignLandCells 同源恒一致），
+        /// 供 UI 放地箭头高亮"该色将落的格"；正式落格仍以入池后 Resync 的 AssignLandCells 为准。</summary>
+        public (int x, int z)? PreviewLandCell(Player player, ManaType newColor)
+        {
+            var cells = BoardLayout.LandCells(PlayerIndex(player));
+            if (cells.Count == 0) return null;
+            var cell = BoardLayout.LandCellOfElement(PlayerIndex(player), newColor);
+            return cell.x < 0 ? null : ((int x, int z)?)cell;
+        }
 
         /// <summary>教学落位钉子（2026-10-06 教学直入）：钉住一张卡的 Resync 落位格——
         /// 该卡之后每次重建优先回到钉格（须属其所在区格集，否则按无钉顺延），其余卡填空；
@@ -175,10 +212,61 @@ namespace GameBoard
             Resync();
         }
 
-        private void AppendActivation(Player player, List<Card> pile)
+        /// <summary>
+        /// 施放占格（2026-10-15 发动格拆除）：发动区列表 → 该玩家单位区空格。
+        /// 钉优先（永久物出牌=玩家所选格，钉格须属己方单位区且未被战场/其他施放卡占用），
+        /// 其余（法术/响应施放）按单位区格序 first-free；无空格不落格不抛错（立牌不显示）。
+        /// </summary>
+        private void PlaceCasting(Player player, int pIdx)
         {
             var cards = SafeGetCards(player, Zone.Activation);
-            if (cards != null) pile.AddRange(cards);
+            if (cards == null) return;
+
+            var cells = BoardLayout.UnitCells(pIdx);
+            var cellIndex = new HashSet<int>();
+            foreach (var c in cells) cellIndex.Add(BoardMath.Index(c.x, c.z));
+
+            foreach (var card in cards)
+            {
+                if (card == null) continue;
+                int placed = -1;
+                if (_pinnedCells.TryGetValue(card, out int pin)
+                    && cellIndex.Contains(pin)
+                    && !_occupant.ContainsKey(pin) && !_castingOccupant.ContainsKey(pin))
+                {
+                    placed = pin;
+                }
+                else
+                {
+                    foreach (var c in cells)
+                    {
+                        int idx = BoardMath.Index(c.x, c.z);
+                        if (_occupant.ContainsKey(idx) || _castingOccupant.ContainsKey(idx)) continue;
+                        placed = idx; break;
+                    }
+                }
+                if (placed < 0) continue;
+                _castingCellOf[card] = placed;
+                _castingOccupant[placed] = card;
+            }
+        }
+
+        /// <summary>施放占格快照（呈现层数据道）：发动区占位卡 × 落格 × 归属；未落格卡不列。</summary>
+        public List<(Card card, int x, int z, int owner)> CastingPlacements()
+        {
+            var list = new List<(Card, int, int, int)>();
+            AppendCasting(_p1, 0, list);
+            AppendCasting(_p2, 1, list);
+            return list;
+        }
+
+        private void AppendCasting(Player player, int owner, List<(Card card, int x, int z, int ownerIdx)> list)
+        {
+            var cards = SafeGetCards(player, Zone.Activation);
+            if (cards == null) return;
+            foreach (var card in cards)
+                if (card != null && _castingCellOf.TryGetValue(card, out int idx))
+                    list.Add((card, idx % BoardMath.Width, idx / BoardMath.Width, owner));
         }
 
         /// <summary>表现层不得抛错：玩家未注册区域容器时返回 null</summary>
@@ -197,22 +285,18 @@ namespace GameBoard
 
         // ======================================== 查询（选择/表现层的映射 API） ========================================
 
-        /// <summary>格上的卡：单位/地牌格返回占用者；发动格返回叠放顶（最后一张 = 最新发动）</summary>
+        /// <summary>格上的卡：单位/地牌格返回占用者；施放占格（发动区占位卡）次优先返回施放卡
+        ///（占用真值——出牌选格/呈现层用；战斗邻接走 Neighbors/FlankNeighbors 已滤施放卡）</summary>
         public Card CardAt(int x, int z)
         {
             if (!BoardMath.InBounds(x, z)) return null;
             int idx = BoardMath.Index(x, z);
-
-            if (BoardLayout.RoleOf(x, z) == CellRole.Activation)
-            {
-                var pile = BoardLayout.OwnerOf(x, z) == 0 ? _activation0 : _activation1;
-                return pile.Count > 0 ? pile[pile.Count - 1] : null;
-            }
-
-            return _occupant.TryGetValue(idx, out var card) ? card : null;
+            if (_occupant.TryGetValue(idx, out var card)) return card;
+            return _castingOccupant.TryGetValue(idx, out var casting) ? casting : null;
         }
 
-        /// <summary>卡所在格（未落格 = false；发动区中的卡不在 _cellOf，用 ActivationIndexOf 查叠放位次）</summary>
+        /// <summary>卡所在格（未落格 = false；施放占位卡不在 _cellOf——战场/光环/距离口径
+        /// 均不视其为在场单位，落格查询走 TryGetCastingCell）</summary>
         public bool TryGetCell(Card card, out int x, out int z)
         {
             x = z = -1;
@@ -222,11 +306,18 @@ namespace GameBoard
             return true;
         }
 
-        /// <summary>玩家发动格叠放（底部 = 最早发动；Phase A 通常为空）</summary>
-        public IReadOnlyList<Card> ActivationPile(Player player)
+        /// <summary>施放占位卡落格查询（呈现层）：发动区占位卡 → 单位区格；未落格 = false。</summary>
+        public bool TryGetCastingCell(Card card, out int x, out int z)
         {
-            return PlayerIndex(player) == 0 ? (IReadOnlyList<Card>)_activation0 : _activation1;
+            x = z = -1;
+            if (card == null || !_castingCellOf.TryGetValue(card, out int idx)) return false;
+            x = idx % BoardMath.Width;
+            z = idx / BoardMath.Width;
+            return true;
         }
+
+        /// <summary>卡是否处于施放占格期（发动区占位）——邻接/战斗查询过滤用。</summary>
+        public bool IsCasting(Card card) => card != null && _castingCellOf.ContainsKey(card);
 
         /// <summary>玩家角色格坐标（核心不存坐标——这就是布局常量）</summary>
         public (int x, int z) CharacterCell(Player player) => BoardLayout.CharacterCell(PlayerIndex(player));
@@ -252,7 +343,8 @@ namespace GameBoard
             return AttackDistance(ax, az, bx, bz) <= range;
         }
 
-        /// <summary>卡所在格的 6 邻格占用卡（通用邻接查询；未落格 = 空枚举）</summary>
+        /// <summary>卡所在格的 6 邻格占用卡（通用邻接查询；未落格 = 空枚举）。
+        /// 施放占位卡不算在场单位（2026-10-15 发动格拆除：施放卡只是占格呈现）——滤除。</summary>
         public IEnumerable<Card> Neighbors(Card card)
         {
             if (!TryGetCell(card, out int x, out int z)) yield break;
@@ -260,14 +352,14 @@ namespace GameBoard
             {
                 var (nx, nz) = BoardMath.Neighbor(x, z, dir);
                 var neighbor = CardAt(nx, nz);
-                if (neighbor != null && neighbor != card)
+                if (neighbor != null && neighbor != card && !IsCasting(neighbor))
                     yield return neighbor;
             }
         }
 
         /// <summary>卡所在格左右同排（E/W 两向）邻格占用生物（碾压 AdjacentResolver 接线用；
         /// 未落格 = 空枚举）。2026-10-04 碾压语义修订：溅射只打目标左右两侧生物——
-        /// 不再吃六邻格（后排斜邻/贴边地牌行的地牌不入溅射域）。</summary>
+        /// 不再吃六邻格（后排斜邻/贴边地牌行的地牌不入溅射域）。施放占位卡非在场生物——滤除。</summary>
         public IEnumerable<Card> FlankNeighbors(Card card)
         {
             if (!TryGetCell(card, out int x, out int z)) yield break;
@@ -275,25 +367,34 @@ namespace GameBoard
             {
                 var (nx, nz) = BoardMath.Neighbor(x, z, dir);
                 var neighbor = CardAt(nx, nz);
-                if (neighbor != null && neighbor != card)
+                if (neighbor != null && neighbor != card && !IsCasting(neighbor))
                     yield return neighbor;
             }
         }
 
         // ======================================== 一致性自检（验证器用） ========================================
 
-        /// <summary>占用双向索引是否成对一致、无悬挂（TestBoard 的核心断言之一）</summary>
+        /// <summary>占用双向索引是否成对一致、无悬挂（TestBoard 的核心断言之一；
+        /// 地牌同色组多卡共享一格——正向表按格计，反向表每张卡都须指向有占用者的格。
+        /// 施放占格同式成对校验，且与战场占用不得同格重叠）</summary>
         public bool IsConsistent()
         {
-            // 叠层表计入（2026-10-09 地牌叠放）：首层+第二层卡数合计与反向索引对账
-            if (_occupant.Count + _stackOccupant.Count != _cellOf.Count) return false;
             foreach (var kv in _occupant)
             {
                 if (!_cellOf.TryGetValue(kv.Value, out int idx) || idx != kv.Key) return false;
             }
-            foreach (var kv in _stackOccupant)
+            foreach (var kv in _cellOf)
             {
-                if (!_cellOf.TryGetValue(kv.Value, out int idx) || idx != kv.Key) return false;
+                if (!_occupant.ContainsKey(kv.Value)) return false;
+            }
+            foreach (var kv in _castingCellOf)
+            {
+                if (!_castingOccupant.TryGetValue(kv.Value, out var c) || !ReferenceEquals(c, kv.Key)) return false;
+                if (_occupant.ContainsKey(kv.Value)) return false;
+            }
+            foreach (var kv in _castingOccupant)
+            {
+                if (!_castingCellOf.TryGetValue(kv.Value, out int idx) || idx != kv.Key) return false;
             }
             return true;
         }

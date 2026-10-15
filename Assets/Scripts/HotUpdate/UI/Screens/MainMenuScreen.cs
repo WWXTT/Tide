@@ -5,7 +5,7 @@ using Cysharp.Threading.Tasks;
 namespace SynergyUI
 {
     /// <summary>
-    /// 主菜单 —— 子界面入口（2026-10-01 预制体化：层级来自 Assets/Art/UI/MainUI.prefab，
+    /// 主菜单 —— 子界面入口（2026-10-01 预制体化：层级来自 Assets/Art/Prefab/MainUI.prefab，
     /// Build 只做按名绑定+闭包接线；title/subtitle 等静态文本由预制体烘焙）。
     /// 教学接线（2026-10-13）：btn-teaching=教学四态裁决入口（§6 #1/#4/#5/#6/#8）；
     /// btn-battle 已由用户隐藏（后续自接新手引导逻辑）；教学↔联机匹配按钮按 IsTutorialDone 换装（§6 #10）。
@@ -60,33 +60,16 @@ namespace SynergyUI
             if (_matchNode != null) _matchNode.gameObject.SetActive(done);
         }
 
-        /// <summary>「基础教学」入口（2026-10-13 接线）：四态裁决——考核局/教学局/最后一课
-        /// 镜像局黑洞吞屏进 BattleScreen；第三课 chuangzuo 分流效果合成器走查（§6 #6）。
-        /// AskSkip 暂不弹窗（用户裁定 2026-10-13）：点按钮视为「不跳过」直进课程，
-        /// 跳过路径待 AskSkip 弹窗接线后开放。</summary>
+        /// <summary>「基础教学」入口（2026-10-14 测试期直达）：直接进镜像对决——默认卡组镜像 +
+        /// AI=tide_policy（不可用回落 SimpleAI）。不落考核档（AssessmentActive=false，进度不被
+        /// 测试胜负污染）。四态裁决/两个教学回头恢复（原实现见 git：AskSkip/FinalChallenge/
+        /// Assessment/Tutorial 四分支）。</summary>
         private void EnterTutorialFlow()
         {
-            if (TutorialProgressManager.Instance.IsTutorialDone) return; // 换装漏网兜底
-            switch (TutorialFlow.ResolveTutorialButtonClick())
-            {
-                case TutorialButtonClickAction.AskSkip:
-                    TutorialFlow.ChooseSkip(false);
-                    StartTutorialBattleWithSplit();
-                    return;
-                case TutorialButtonClickAction.StartFinalChallenge:
-                    if (TutorialCreationFlow.StartFinalChallenge())
-                        SwallowToBattle();
-                    else
-                        TideLog.Warn("[MainMenu] 最后一课无可用卡组（记名卡组丢失）——停留菜单");
-                    return;
-                case TutorialButtonClickAction.StartAssessment:
-                    TutorialFlow.StartAssessmentBattle();
-                    SwallowToBattle();
-                    return;
-                case TutorialButtonClickAction.StartTutorial:
-                    StartTutorialBattleWithSplit();
-                    return;
-            }
+            BattleEntry.Mode = BattleMode.LocalAI;
+            BattleEntry.MirrorDeck = TutorialCreationFlow.ResolveDefaultMirrorDeck();
+            BattleEntry.MirrorSkillCardId = null;
+            SwallowToBattle();
         }
 
         /// <summary>开教学局；下一课=chuangzuo 时分流到效果合成器（StartTutorialBattle 对

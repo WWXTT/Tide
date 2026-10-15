@@ -50,7 +50,8 @@ namespace CardCore.AI.NeuralEnv
                 _legal.RemoveAll(_bannedThisTurn);
                 if (_legal.Count == 0) break; // 不应发生（EndTurn 兜底恒在）
 
-                int idx = _policy.Select(TideObservation.Build(core), _legal);
+                // v3：传 BattleController 的棋盘占用层——观测位置特征（AttachBoard 已接线）
+                int idx = _policy.Select(TideObservation.Build(core, me, false, ctrl.Board), _legal);
                 if (idx < 0) break;
                 var a = _legal.Actions[idx];
 

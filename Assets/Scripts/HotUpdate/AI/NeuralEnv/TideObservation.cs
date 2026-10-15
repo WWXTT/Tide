@@ -3,48 +3,63 @@ using System.Collections.Generic;
 using System.IO;
 using CardCore;
 using CardCore.Attribute;
+using GameBoard;
 
 namespace CardCore.AI.NeuralEnv
 {
     /// <summary>
-    /// 状态快照：把 GameCore 当前局面编码成「当前回合玩家」视角的固定维度特征向量，
+    /// 状态快照：把 GameCore 当前局面编码成「当前决策座次」视角的固定维度特征向量，
     /// 契约对齐 ygo-agent 的 cards_/global_ 表格（(实体数 × 特征维)，不是棋盘网格）。
     /// 纯读状态，不改任何核心。
     ///
-    /// 槽位分配（每玩家 40 槽，共 80 槽）：
-    ///   [0..17]  战场 Battlefield (18)
-    ///   [18..26] 元素池 ElementPool (9)
-    ///   [27..38] 手牌 Hand (12——回合中可超 7：上限回合结束才执行，CardIndex 容量护栏防串区)
-    ///   [39]     墓地 Graveyard (1——墓地出牌已移出 RL 动作空间，逐卡编码降为占位；计数在 global_)
-    /// 牌库 / 放逐 / 发动区 v1 仅以计数入 global_（不逐卡编码）——放逐区可后续扩展槽位。
-    /// 对方手牌是隐藏信息：只写 valid+controller（不开图），张数在 global_ g[6]。
+    /// v3 契约（2026-10-14，tide_rl/docs/action_space_v3_contract.md，对账依据=仓库根
+    /// AI训练准备_v3对账报告_2026-10-14.md）：
+    ///
+    /// 槽位分配（每玩家 46 槽，共 92 槽；容量=引擎真值精确对齐）：
+    ///   [0..11]  战场 Battlefield (12 = BattlefieldCapacityPerPlayer，单位区 2×6)
+    ///   [12..25] 元素池 ElementPool (14 = 地牌槽编码容量护栏——2026-10-15 规则硬顶退役后仅编码上限；按色叠格)
+    ///   [26..37] 手牌 Hand (12 = 回合中溢出护栏；回合末上限 7 由 globals 表达)
+    ///   [38..41] 墓地 Graveyard (4，新死优先：slot38=最新入墓；更早只进计数)
+    ///   [42..44] 发动区 Activation (3，公开区/反制指向点；第 4+ 张不可编码)
+    ///   [45]     场地区 FieldZone (1，英雄技能卡)
+    /// 牌库/放逐 v3 仅以计数入 globals（放逐计数为本版新增）。
+    /// 对方手牌是隐藏信息：只写 valid+controller（不开图），张数在 globals g[6]。
+    ///
+    /// 位置特征 [66][67]：单位格=落位钉子+first-free（槽序≠格序，必须显式编码；
+    /// 摧压溅射=左右同排）；地牌格=按色固定（LandCellOfElement——格坐标即锁色）。
+    /// board=null 时单位位置降级 -1（不炸）；地牌格是纯几何不需 board。
+    /// 地牌横置态在 PooledCard 包装上（Card.IsTapped 恒 0，v2 失效维——本版从包装读）。
     /// </summary>
     public sealed class TideObservation
     {
         // ---- 维度常量（Python 侧只改这些，模型不动）----
-        public const int MaxCardsPerPlayer = 40;
+        public const int LayoutVersion = 3;
+        public const int MaxCardsPerPlayer = 46;
         public const int MaxCardsTotal = MaxCardsPerPlayer * 2;
         // 卡特征布局（内容身份三通路，[15..] 由 CardIdentityService 推导）：
-        //   [0..14]  状态特征（valid/controller/超类/力量/生命/费用/横置/关键词/指示物…实时值）
+        //   [0..13]  状态特征（valid/controller/超类/力量/生命/费用/横置/关键词/指示物…实时值）
+        //   [14]     LandTrait（v3 复用神佑死维：TapCreature 资格与威胁预测）
         //   [15..20] 原子精确内容哈希下标（跨效果按执行序展平，超出 6 个截断；参数敏感）
         //   [21]     组合结构哈希下标（时点/条件/代价/Steps 骨架 =「怎么组合」）
         //   [22]     关键词/tag/光环组合哈希下标
-        //   [23..28] 原子 EffectType 下标（原子表内排名，参数无关）——「造成4伤」与「造成5伤」同行
-        //   [29..64] 原子参数浮点块（6 槽 × CardIdentityService.AtomParamDim 维）——数值插值通路
-        // 精确哈希 = 冻结的查表身份；类型 + 参数 = 泛化通路（新参数值 = 已训类型行 + 已训线性投影，
-        // 不再是纯新 token）。0 = 无该成分 / token / 未登记。属性不在此（[3][4][5] 实时特征已覆盖）。
-        public const int NCard = 65; // 2026-09-10 目标域模型：29 + 6槽 × AtomParamDim(6)；python 侧 N_CARD_FEATURES 同步（另一台机器）
+        //   [23..28] 原子 EffectType 下标（原子表内排名，参数无关）
+        //   [29..64] 原子参数浮点块（6 槽 × CardIdentityService.AtomParamDim 维）
+        //   [65]     AwakenCommitted（苏醒已立约——CommitAwaken 决策相关）
+        //   [66][67] 格坐标 x/Width、z/Height（未落格 = -1）
+        // 精确哈希 = 冻结的查表身份；类型 + 参数 = 泛化通路。0 = 无该成分 / token / 未登记。
+        public const int NCard = 68; // v3：65 + LandTrait 复用 + Awaken + 位置 2 维；python N_CARD_FEATURES 同步
         public const int AtomIdSlots = 6;                                        // [15..20] 精确哈希槽
         public const int TypeIdStart = 23;                                       // [23..28] 类型下标槽
         public const int ParamStart = 29;                                        // [29..] 参数块
-        // 2026-09-14 32→36：追加 4 维黑白每回合获得余量（双方×两色，见 g[32..35]）——黑白万用化后
-        // 这是 policy 估值错边收益的必要状态。2026-10-04 封顶改口径：余量=地牌槽上限-已获得
-        //（原封顶 1/色 → 地牌槽上限/色），取值域 0/1 → 0..7（2026-10-13 缩盘 9→7），已训模型该维分布漂移（随下批重训吸收）。
-        // python 侧 N_GLOBAL_FEATURES 同步；ONNX 图输入随之重导出（随本批重训一起做）。
-        // 2026-09-30 36→49（动作空间 v2 契约第 3 节）：g[36..43] 双方英雄技能块（P1/P2 绝对序）、
-        // g[44..46] 栈深度/栈顶来源/栈顶 effectIdentity、g[47] 决策上下文（0=己方Main/1=响应窗口）、
-        // g[48] 决策座次是否回合玩家。python 侧 N_GLOBAL_FEATURES 同步；旧 checkpoint/fixture 作废。
-        public const int NGlobal = 49;
+        public const int AwakenSlot = 65;
+        public const int PosXSlot = 66;
+        public const int PosZSlot = 67;
+        // globals v3（50 维，契约 §5——重排序+归一化+放逐计数+弹药维；v2 g[48] 冗余删除）：
+        //   g[0..16] 双方生命/30、回合/40、相位、座次、各区计数（墓地/30、牌库/60、放逐新）；
+        //   g[17..28] 临时钱包 12 维；g[29] 栈占用；g[30..31] 势能 Φ/30；g[32..33] 地牌上限/14；
+        //   g[34..37] 黑白已获得/14；g[38..45] 双方英雄技能块（P1 绝对序）[has,tapped,uses/10,弹药/5]；
+        //   g[46..48] 栈深度/16、栈顶来源/92、栈顶 effectIdentity/1024；g[49] 决策上下文。
+        public const int NGlobal = 50;
         public const int NAction = 8; // 动作特征槽：valid/type/sourceIndex/targetIndex/modeIndex/actionCost/effectIdentity/targetKind
 
         public float[] Cards = new float[MaxCardsTotal * NCard];
@@ -52,15 +67,17 @@ namespace CardCore.AI.NeuralEnv
 
         private Player _me;
 
-        /// <summary>从核心构建快照（me = 当前回合玩家；Main 决策点视角——v2 视角参数化的兼容入口）。</summary>
+        /// <summary>从核心构建快照（me = 当前回合玩家；Main 决策点视角——无棋盘降级入口）。</summary>
         public static TideObservation Build(GameCore core)
             => Build(core, core?.TurnEngine?.TurnPlayer, false);
 
-        /// <summary>从核心构建快照（v2 视角参数化，2026-09-30 契约）：seat = 当前决策座次——
+        /// <summary>从核心构建快照（v3 视角参数化）：seat = 当前决策座次——
         /// Main 决策点 = 回合玩家；响应窗口停靠 = 优先权持有方（可能是非回合玩家）。
-        /// 隐藏信息（对方手牌）按该 seat 的对手计算；g[0..35] 全部相对 seat。
-        /// responseContext：停靠类型（g[47]，0=己方 Main / 1=响应窗口）。</summary>
-        public static TideObservation Build(GameCore core, Player seat, bool responseContext = false)
+        /// 隐藏信息（对方手牌）按该 seat 的对手计算；g[0..35] 语义全部相对 seat。
+        /// responseContext：停靠类型（g[49]，0=己方 Main / 1=响应窗口）。
+        /// board：棋盘占用层（v3 位置特征；null=单位格降级 -1，地牌格仍可编码——纯几何）。</summary>
+        public static TideObservation Build(GameCore core, Player seat, bool responseContext = false,
+            BoardState board = null)
         {
             var obs = new TideObservation();
             if (core == null || core.TurnEngine == null || seat == null)
@@ -69,8 +86,8 @@ namespace CardCore.AI.NeuralEnv
             if (opp == null) return obs;
             obs._me = seat;
 
-            obs.WritePlayer(core, seat, 0, concealHand: false);
-            obs.WritePlayer(core, opp, MaxCardsPerPlayer, concealHand: true);
+            obs.WritePlayer(core, seat, 0, concealHand: false, board);
+            obs.WritePlayer(core, opp, MaxCardsPerPlayer, concealHand: true, board);
             obs.WriteGlobals(core, seat, opp, responseContext);
             return obs;
         }
@@ -83,8 +100,8 @@ namespace CardCore.AI.NeuralEnv
             return baseSlot + off + indexInZone;
         }
 
-        /// <summary>卡实例 → cards_ 槽位下标（v2）：动作行目标/栈顶来源的反查——扫描双方四个已编码区
-        /// （未编码区如 FieldZone/Deck/Activation 返回 -1）。仅枚举/观测辅助用，非热路径权威。</summary>
+        /// <summary>卡实例 → cards_ 槽位下标：动作行目标/栈顶来源的反查——扫描双方全部已编码区
+        /// （未编码区如牌库/放逐/衍生物临时区返回 -1）。仅枚举/观测辅助用，非热路径权威。</summary>
         public static int IndexOfCard(GameCore core, Player me, Card c)
         {
             if (core?.ZoneManager == null || me == null || c == null) return -1;
@@ -94,7 +111,8 @@ namespace CardCore.AI.NeuralEnv
             return opp != null ? TryZoneSlot(core.ZoneManager, opp, c, MaxCardsPerPlayer) : -1;
         }
 
-        private static readonly Zone[] EncodedZones = { Zone.Battlefield, Zone.ElementPool, Zone.Hand, Zone.Graveyard };
+        private static readonly Zone[] EncodedZones =
+            { Zone.Battlefield, Zone.ElementPool, Zone.Hand, Zone.Graveyard, Zone.Activation, Zone.FieldZone };
 
         private static int TryZoneSlot(ZoneManager zm, Player p, Card c, int baseSlot)
         {
@@ -109,57 +127,101 @@ namespace CardCore.AI.NeuralEnv
             return -1;
         }
 
-        /// <summary>区域 → (槽位基址, 容量)（未编码区返回 false）。容量是防串护栏：
-        /// 手牌第 13+ 张（回合中超上限）返回 -1——动作仍可执行，只是来源槽不可编码，
-        /// 不再串进相邻区（旧布局第 8 张手牌会别名到墓地槽 0）。</summary>
+        /// <summary>区域 → (槽位基址, 容量)（未编码区返回 false）。v3 精确对齐引擎容量（契约 §3）：
+        /// 战场 12=BattlefieldCapacityPerPlayer、元素池 14=地牌槽编码容量护栏（2026-10-15 规则硬顶退役后
+        /// 仅编码上限，超出部分照常参与规则只是不可编码）、手牌 12=回合中溢出护栏
+        ///（回合末上限 7 由 globals 表达；第 13+ 张动作仍可执行，只是来源槽不可编码——防串区）、
+        /// 墓地 4（新死优先）、发动区 3、场地区 1（技能卡）。容量变更须先改契约文档再改这里。</summary>
         public static bool ZoneLayout(Zone zone, out int offset, out int cap)
         {
             switch (zone)
             {
-                case Zone.Battlefield: offset = 0; cap = 18; return true;
-                case Zone.ElementPool: offset = 18; cap = 9; return true;
-                case Zone.Hand: offset = 27; cap = 12; return true;
-                case Zone.Graveyard: offset = 39; cap = 1; return true;
+                case Zone.Battlefield: offset = 0; cap = 12; return true;
+                case Zone.ElementPool: offset = 12; cap = 14; return true;
+                case Zone.Hand: offset = 26; cap = 12; return true;
+                case Zone.Graveyard: offset = 38; cap = 4; return true;
+                case Zone.Activation: offset = 42; cap = 3; return true;
+                case Zone.FieldZone: offset = 45; cap = 1; return true;
                 default: offset = -1; cap = 0; return false;
             }
         }
 
         // =====================================================
 
-        private void WritePlayer(GameCore core, Player p, int baseSlot, bool concealHand)
+        private void WritePlayer(GameCore core, Player p, int baseSlot, bool concealHand, BoardState board)
         {
-            var zm = core.ZoneManager;
-            var layer = core.LayerEngine;
-            WriteZone(zm, layer, p, baseSlot + 0, Zone.Battlefield, 18);
-            WriteZone(zm, layer, p, baseSlot + 18, Zone.ElementPool, 9);
-            WriteZone(zm, layer, p, baseSlot + 27, Zone.Hand, 12, concealHand);
-            WriteZone(zm, layer, p, baseSlot + 39, Zone.Graveyard, 1);
-        }
+            // 布局归属（LandCellOfElement 的 player 下标）：Player1=下半场 0
+            int playerIdx = ReferenceEquals(p, core.Player1) ? 0 : 1;
 
-        private void WriteZone(ZoneManager zm, LayerEngine layer, Player p, int baseSlot, Zone zone, int cap, bool conceal = false)
-        {
-            var cards = zm.GetCards(p, zone);
-            int n = Math.Min(cards.Count, cap);
-            for (int i = 0; i < cap; i++)
+            foreach (var zone in EncodedZones)
             {
-                if (i < n)
-                {
-                    if (conceal) WriteConcealedCard(baseSlot + i);
-                    else WriteCard(layer, cards[i], baseSlot + i);
-                }
-                // 空槽保持全 0（valid=0）
+                if (!ZoneLayout(zone, out int off, out int cap)) continue;
+                bool conceal = concealHand && zone == Zone.Hand;
+                WriteZone(core, p, baseSlot + off, zone, cap, conceal, board, playerIdx);
             }
         }
 
-        /// <summary>隐藏信息区（对方手牌）：只写存在性与归属，其余特征（含身份槽）全 0——模型不开图（张数在 global_）。</summary>
+        private void WriteZone(GameCore core, Player p, int baseSlot, Zone zone, int cap,
+            bool conceal, BoardState board, int playerIdx)
+        {
+            var zm = core.ZoneManager;
+            var layer = core.LayerEngine;
+            var cards = zm.GetCards(p, zone);
+            if (cards == null) return;
+
+            // 元素池地牌：横置态与锁色在 PooledCard 包装上（Card.IsTapped 恒 0——v2 失效维，v3 从包装读）
+            Dictionary<Card, PooledCard> pooledOf = null;
+            if (zone == Zone.ElementPool)
+            {
+                pooledOf = new Dictionary<Card, PooledCard>();
+                var pooled = core.ElementPool.GetPooledCards(p);
+                if (pooled != null)
+                    foreach (var pc in pooled)
+                        if (pc?.SourceCard != null) pooledOf[pc.SourceCard] = pc;
+            }
+
+            for (int i = 0; i < cap; i++)
+            {
+                // 墓地新死优先（slot0=最新入墓）——最近的死亡最影响决策（苏生源/威胁推理）
+                int idx = zone == Zone.Graveyard ? cards.Count - 1 - i : i;
+                if (idx < 0 || idx >= cards.Count) continue; // 空槽保持全 0（valid=0）
+
+                var c = cards[idx];
+                if (conceal) { WriteConcealedCard(baseSlot + i); continue; }
+
+                float posX = -1f, posZ = -1f;
+                bool tappedOverride = false;
+                if (zone == Zone.Battlefield && board != null && board.TryGetCell(c, out int x, out int z))
+                {
+                    posX = (float)x / BoardLayout.Width;
+                    posZ = (float)z / BoardLayout.Height;
+                }
+                else if (zone == Zone.ElementPool && pooledOf != null)
+                {
+                    pooledOf.TryGetValue(c, out var pc);
+                    tappedOverride = pc?.IsTapped ?? false;
+                    var color = pc?.LockedColor ?? ManaType.Gray;
+                    var (lx, lz) = BoardLayout.LandCellOfElement(playerIdx, color);
+                    posX = (float)lx / BoardLayout.Width;
+                    posZ = (float)lz / BoardLayout.Height;
+                }
+
+                WriteCard(layer, c, baseSlot + i, tappedOverride, posX, posZ);
+            }
+        }
+
+        /// <summary>隐藏信息区（对方手牌）：只写存在性与归属，其余特征（含身份槽/位置）全 0 或 -1
+        /// ——模型不开图（张数在 global_）。</summary>
         private void WriteConcealedCard(int slot)
         {
             int b = slot * NCard;
             Cards[b + 0] = 1f; // valid（这里有一张未知卡）
             Cards[b + 1] = 1f; // controller = 对方（该半区恒 opp）
+            Cards[b + PosXSlot] = -1f; // 未落格（手牌不在棋盘上）
+            Cards[b + PosZSlot] = -1f;
         }
 
-        private void WriteCard(LayerEngine layer, Card c, int slot)
+        private void WriteCard(LayerEngine layer, Card c, int slot, bool tappedOverride, float posX, float posZ)
         {
             int b = slot * NCard;
             int power = layer.CalculatePower(c);
@@ -172,22 +234,20 @@ namespace CardCore.AI.NeuralEnv
             Cards[b + 3] = Clamp(power, -99f, 999f);                          // 结算力量
             Cards[b + 4] = Clamp(life, -99f, 999f);                           // 结算防御/生命
             Cards[b + 5] = Clamp(cost, 0f, 99f);                              // 声明费用和
-            Cards[b + 6] = c.IsTapped() ? 1f : 0f;
+            Cards[b + 6] = (c.IsTapped() || tappedOverride) ? 1f : 0f;       // 横置（地牌读包装）
             Cards[b + 7] = (!c.IsTapped() && power > 0) ? 1f : 0f;           // 可攻击粗判
             Cards[b + 8] = KeywordRules.HasRushSickness(c) ? 1f : 0f;        // 召唤失调
-            Cards[b + 9] = c.GetCounterCount(CounterRules.ToxinCounter);   // 毒素层数（剧毒已转关键词 Venom，指示物取消）
+            Cards[b + 9] = c.GetCounterCount(CounterRules.ToxinCounter);   // 毒素层数
             Cards[b + 10] = c.GetCounterCount(CounterRules.SilenceCounter) > 0 ? 1f : 0f;
             Cards[b + 11] = c.GetCounterCount(CounterRules.CostUpCounter)
                           - c.GetCounterCount(CounterRules.CostDownCounter); // 费用层净量
             Cards[b + 12] = c.HasKeyword(KeywordRules.Taunt) ? 1f : 0f;
-            Cards[b + 13] = (c.GetCounterCount(CounterRules.StealthCounter) > 0 || c.HasKeyword(KeywordRules.Concealed)) ? 1f : 0f; // 潜行已指示物化
-            Cards[b + 14] = 0f; // 神佑已删（2026-10-13）——维度保留防观测布局漂移，恒 0
+            Cards[b + 13] = (c.GetCounterCount(CounterRules.StealthCounter) > 0 || c.HasKeyword(KeywordRules.Concealed)) ? 1f : 0f; // 潜行
+            Cards[b + 14] = c.HasKeyword(KeywordRules.LandTrait) ? 1f : 0f; // 地牌特性（v3：TapCreature 资格）
             // 内容身份（原子级拆散，CardIdentityService 与费用同管线推导），三通路：
             // 1) 精确哈希 [15..20] 原子 + [21] 结构 + [22] 组合——内容寻址查表，同单元跨卡共享行；
             // 2) 类型下标 [23..28]（参数无关，同 EffectType 共享行）；
             // 3) 参数块 [29..]（每原子 AtomParamDim 维浮点，线性投影读幅值）。
-            // 新参数值的原子：通路 1 查不到记 0（无信号），通路 2+3 从已训类型行 + 已训投影插值——
-            // 不再是纯新 token。0 = 无该成分 / token / 未登记。属性不在此（第 3/4/5 维实时特征已覆盖）。
             var data = c is CardWrapper wrapper ? wrapper.GetData() : null;
             var atomHashes = data?.AtomContentHashes;
             for (int e = 0; e < AtomIdSlots && e < (atomHashes?.Length ?? 0); e++)
@@ -203,6 +263,9 @@ namespace CardCore.AI.NeuralEnv
             for (int e = 0; e < nParams; e++)
                 for (int p = 0; p < dim; p++)
                     Cards[b + ParamStart + e * dim + p] = atomParams[e * dim + p];
+            Cards[b + AwakenSlot] = c.AwakenCommitted ? 1f : 0f;
+            Cards[b + PosXSlot] = posX;
+            Cards[b + PosZSlot] = posZ;
         }
 
         private void WriteGlobals(GameCore core, Player me, Player opp, bool responseContext)
@@ -211,54 +274,55 @@ namespace CardCore.AI.NeuralEnv
             var zm = core.ZoneManager;
             var ep = core.ElementPool;
 
-            g[0] = me.GetLife();
-            g[1] = opp.GetLife();
-            g[2] = core.TurnEngine.TurnNumber;
+            g[0] = me.GetLife() / 30f;
+            g[1] = opp.GetLife() / 30f;
+            g[2] = core.TurnEngine.TurnNumber / 40f;
             g[3] = (int)(core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Standby); // 0/1/2
-            g[4] = ReferenceEquals(me, core.TurnEngine.TurnPlayer) ? 1f : 0f; // is_my_turn（v2 视角参数化：响应窗口停靠时可为 0）
+            g[4] = ReferenceEquals(me, core.TurnEngine.TurnPlayer) ? 1f : 0f; // is_my_turn（决策座次视角）
             g[5] = zm.GetCards(me, Zone.Hand).Count;
             g[6] = zm.GetCards(opp, Zone.Hand).Count;
             g[7] = zm.GetCards(me, Zone.Battlefield).Count;
             g[8] = zm.GetCards(opp, Zone.Battlefield).Count;
             g[9] = ep.GetPooledCards(me).Count;
             g[10] = ep.GetPooledCards(opp).Count;
-            g[11] = zm.GetCards(me, Zone.Graveyard).Count;
-            g[12] = zm.GetCards(opp, Zone.Graveyard).Count;
-            g[13] = zm.GetCards(me, Zone.Deck).Count;
-            g[14] = zm.GetCards(opp, Zone.Deck).Count;
-            // g[15..26] 临时钱包（2026-10-11 现取现用：bank 退役——效果授予元素，回合末清空）
-            for (int i = 0; i < 6; i++) g[15 + i] = ep.GetPool(me).TempElements[(ManaType)i];
-            for (int i = 0; i < 6; i++) g[21 + i] = ep.GetPool(opp).TempElements[(ManaType)i];
-            g[27] = core.StackEngine.IsEmpty ? 0f : 1f; // 栈占用（二值）
-            g[28] = FieldValueReward.TotalValue(core, me);  // 己方全资源价值（战场 + 生命 + 法力 + 地牌 + 手牌）
-            g[29] = FieldValueReward.TotalValue(core, opp); // 对方全资源价值
-            g[30] = ep.GetLandCap(me);
-            g[31] = ep.GetLandCap(opp);
-            // 黑白本回合已获得台账（2026-10-04 使用侧定案：产出钳退役——获得不再封顶，
-            // 约束在使用侧=支付单次贡献≤地牌上限；此槽从「获得余量」改为「已获得量」观测）
-            g[32] = ep.GetPool(me).BlackGainedThisTurn;
-            g[33] = ep.GetPool(me).WhiteGainedThisTurn;
-            g[34] = ep.GetPool(opp).BlackGainedThisTurn;
-            g[35] = ep.GetPool(opp).WhiteGainedThisTurn;
+            g[11] = zm.GetCards(me, Zone.Graveyard).Count / 30f;
+            g[12] = zm.GetCards(opp, Zone.Graveyard).Count / 30f;
+            g[13] = zm.GetCards(me, Zone.Deck).Count / 60f;
+            g[14] = zm.GetCards(opp, Zone.Deck).Count / 60f;
+            g[15] = zm.GetCards(me, Zone.Exile).Count;  // v3 新增：放逐计数（v2 完全缺失）
+            g[16] = zm.GetCards(opp, Zone.Exile).Count;
+            // g[17..28] 临时钱包（现取现用：效果授予元素，回合末清空）
+            for (int i = 0; i < 6; i++) g[17 + i] = ep.GetPool(me).TempElements[(ManaType)i];
+            for (int i = 0; i < 6; i++) g[23 + i] = ep.GetPool(opp).TempElements[(ManaType)i];
+            g[29] = core.StackEngine.IsEmpty ? 0f : 1f; // 栈占用（二值）
+            g[30] = FieldValueReward.TotalValue(core, me) / 30f;  // 己方全资源价值（观测口径含手牌；归一化只为数值健康）
+            g[31] = FieldValueReward.TotalValue(core, opp) / 30f;
+            // 地牌上限（2026-10-15：自然封顶 10+成长无上限——归一化基准 14 保持 v3 训练分布不变，超出饱和到 1）
+            g[32] = Math.Min(ep.GetLandCap(me) / 14f, 1f);
+            g[33] = Math.Min(ep.GetLandCap(opp) / 14f, 1f);
+            // 黑白本回合已获得台账（使用侧约束=单次贡献≤地牌上限；同理饱和）
+            g[34] = Math.Min(ep.GetPool(me).BlackGainedThisTurn / 14f, 1f);
+            g[35] = Math.Min(ep.GetPool(me).WhiteGainedThisTurn / 14f, 1f);
+            g[36] = Math.Min(ep.GetPool(opp).BlackGainedThisTurn / 14f, 1f);
+            g[37] = Math.Min(ep.GetPool(opp).WhiteGainedThisTurn / 14f, 1f);
 
-            // ---- v2 追加（2026-09-30 契约第 3 节）----
-            WriteHeroSkillBlock(core, core.Player1, 36);
-            WriteHeroSkillBlock(core, core.Player2, 40);
+            // 英雄技能块（绝对座次序：P1=38 / P2=42）
+            WriteHeroSkillBlock(core, core.Player1, 38);
+            WriteHeroSkillBlock(core, core.Player2, 42);
 
             var stack = core.StackEngine.GetStackContents(); // Reverse 序（栈顶在末位）
-            g[44] = Math.Min(stack.Count, 16) / 16f;          // 栈深度（归一化 /16）
+            g[46] = Math.Min(stack.Count, 16) / 16f;          // 栈深度（归一化 /16）
             var top = stack.Count > 0 ? stack[stack.Count - 1] : null;
-            g[45] = top?.Source is Card topCard ? Math.Max(0, IndexOfCard(core, me, topCard)) / 80f : 0f;
-            g[46] = top?.Definition != null
+            g[47] = top?.Source is Card topCard ? Math.Max(0, IndexOfCard(core, me, topCard)) / MaxCardsTotal : 0f;
+            g[48] = top?.Definition != null
                 ? TideCardIndex.IndexOfEffectDefinition(top.Definition) / 1024f
                 : 0f; // 同动作特征 [6] 口径（cast/攻击/SBA 栈顶无效果定义 = 0）
-            g[47] = responseContext ? 1f : 0f;                // 决策上下文（0=己方 Main / 1=响应窗口）
-            g[48] = ReferenceEquals(me, core.TurnEngine.TurnPlayer) ? 1f : 0f; // 决策座次是否回合玩家
+            g[49] = responseContext ? 1f : 0f;                // 决策上下文（0=己方 Main / 1=响应窗口）
         }
 
-        /// <summary>英雄技能 4 维块（契约 g[36..39]=P1 / g[40..43]=P2，绝对座次序）：
-        /// [hasSkill, 本回合已用(tapped), 累计使用/10, 预留(恒0)]。卡牌化（2026-10-07）：
-        /// hasSkill=技能卡在场；升级维随旧升级机制退役恒 0（张量形状不变，Python 契约不动）。</summary>
+        /// <summary>英雄技能 4 维块（契约 g[38..41]=P1 / g[42..45]=P2，绝对座次序）：
+        /// [hasSkill, 本回合已用(tapped), 累计使用/10, 角色攻击弹药/5（v3 启用原预留维——
+        /// HeroAttackCounter 层数即角色攻击资格与反伤力度）]。技能卡本体在场地区槽 [45] 逐卡编码。</summary>
         private void WriteHeroSkillBlock(GameCore core, Player p, int b)
         {
             var g = Globals;
@@ -267,7 +331,7 @@ namespace CardCore.AI.NeuralEnv
             g[b] = has ? 1f : 0f;
             g[b + 1] = has && card.IsTapped() ? 1f : 0f; // 本回合已用（回合开始重置）
             g[b + 2] = has ? HeroSkillSystem.GetTotalUses(core, p) / 10f : 0f;
-            g[b + 3] = 0f;
+            g[b + 3] = p != null ? p.GetCounterCount(Attribute.CounterRules.HeroAttackCounter) / 5f : 0f;
         }
 
         private static float Clamp(float v, float min, float max)
@@ -396,7 +460,7 @@ namespace CardCore.AI.NeuralEnv
             return _maxIndex;
         }
 
-        /// <summary>效果定义 → 身份下标（v2 动作特征 [6] / globals g[46] 的 effectIdentity）：
+        /// <summary>效果定义 → 身份下标（动作特征 [6] / globals g[48] 的 effectIdentity）：
         /// 键 = EffectDefinition.Id（转换自卡表的内容哈希稳定键）的 FNV-1a 64 + 效果空间盐——
         /// 与 CardIdentityService 的卡身份哈希族隔离（64 位空间 + 盐，碰撞概率可忽略；即撞也只共用行不崩）。
         /// 追加式注册进同一 manifest（不动表指纹）；同一效果定义跨局同 Id → 同下标（embedding 不稀释）。

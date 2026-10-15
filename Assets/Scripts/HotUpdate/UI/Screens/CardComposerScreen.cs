@@ -11,7 +11,7 @@ using UInputField = TMPro.TMP_InputField;
 namespace SynergyUI
 {
     /// <summary>
-    /// 卡牌合成界面（2026-10-01 预制体化：静态层级来自 Assets/Art/UI/CardUI.prefab，
+    /// 卡牌合成界面（2026-10-01 预制体化：静态层级来自 Assets/Art/Prefab/CardUI.prefab，
     /// Build 深度按名绑定+闭包接线；滚动列表行/动态表单/代价栏运行时重建）——三栏（2026-10-13 六区改版）：
     /// 左=美术栏（立绘画廊点选设置 Illustration；美术可选项未来扩展入场特效等资源列表）、
     /// 中=卡牌全部可编辑项按 ACard 六区组织（顶部 ACard 实时预览：类型/立绘/声明费→名称→
@@ -33,9 +33,11 @@ namespace SynergyUI
         protected override string PrefabName => "CardUI";
         protected override string RootName => "card-composer";
         // 业务类型（UI 维度，非裸 Cardtype）：生物 / 法术（一次性单发）/ 结界（耐久体）。
-        // 术语（2026-10-10 发数经济定案收口）：原「瞬间」改口「法术」——速度档是效果自带参数，
-        // 卡型不发速度补贴（2026-10-10 可支配底盘：法术 SpeedBonus 提速份额/结界 SurplusToDurability
-        // 由数据层承载，本屏控件后补——UI 侧用户自理）。
+        // 术语（2026-10-10 收口；2026-10-15 速度定案修订·已落地）：原「瞬间」改口「法术」；发动速度不再是
+        // 效果自带参数（效果组合界面速度组已删，新组合 BaseSpeed 恒 0）——速度由三个免费额度按卡型
+        // 默认分配：法术=效果槽1+发动速度2（SpeedBonus 缺省 2，可下调换抵价）/ 结界装主动效果=
+        // 效果槽1+耐久1+发动速度1（速+1 与耐久加成由 CardCompositionCost 动态算，无控件）/
+        // 生物=属性1+攻击1+守卫1（免费点只减灰桶 S）。结界「剩余转耐久」二选一已退役（2026-10-15 拆分定案）。
         private enum CardKind { Creature, Spell, Enchantment }
 
         private static readonly (CardKind kind, string name)[] KindNames =
@@ -337,7 +339,7 @@ namespace SynergyUI
                 .Select(k => KeywordZh(k)).Where(s => !string.IsNullOrEmpty(s)).ToList();
             var summaries = (card.Effects ?? new List<CardEffectData>())
                 .Select(fx => AtomText.RenderEffectSummary(
-                    new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps }))
+                    new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps }, card))
                 .Where(s => !string.IsNullOrEmpty(s)).ToList();
             var detailParts = new List<string>();
             if (keywords.Count > 0) detailParts.Add(string.Join("·", keywords));
@@ -410,7 +412,7 @@ namespace SynergyUI
                 if (fx == null) continue;
                 if (!string.IsNullOrEmpty(fx.DisplayName)) parts.Add(fx.DisplayName);
                 parts.Add(AtomText.RenderEffectSummary(
-                    new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps }));
+                    new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps }, card));
             }
             foreach (var n in CardAtomShortNames(card)) parts.Add(n);
             var corpus = string.Join("\n", parts.Where(s => !string.IsNullOrEmpty(s)));
@@ -604,7 +606,6 @@ namespace SynergyUI
             _card.NoAttack = src.NoAttack;
             _card.NoGuard = src.NoGuard;
             _card.SpeedBonus = src.SpeedBonus;
-            _card.SurplusToDurability = src.SurplusToDurability;
             _card.ResetCache();
             _card.AggregateEffectAuras(true);
             _editingOriginalId = src.ID;
@@ -633,7 +634,7 @@ namespace SynergyUI
             _card.PayloadCost = null;
             _card.ArrowDirections = default;
             _card.LinkAuras = null;
-            _card.NoAttack = _card.NoGuard = _card.SurplusToDurability = false;
+            _card.NoAttack = _card.NoGuard = false; // SurplusToDurability 已删（2026-10-15 拆分定案）
             _card.SpeedBonus = 0;
             _card.ResetCache();
             _editingOriginalId = null;
@@ -681,8 +682,8 @@ namespace SynergyUI
 
         // ---------- 业务类型 → 后端字段 ----------
         // 设置 Supertype；清掉与新类型无关的额外字段（保持模型干净）。
-        // 立绘随类型（2026-10-13 定案）：法术/结界固定缺省 Title；生物保留模型名（仅清掉 Title 占位——
-        // 从法术切回生物时缺省值退回空占位，等价画廊「占位」项）。
+        // 立绘随类型：生物=模型名（画廊点选）；法术/结界=无合适立绘，缺省空白不放图
+        //（2026-10-15 定案——不写 illustration，ACardView 侧清 sprite；画廊无选项）。
         private void ApplyKindToCard()
         {
             switch (_kind)
@@ -690,24 +691,27 @@ namespace SynergyUI
                 case CardKind.Creature:
                     _card.Supertype = Cardtype.Creature;
                     _card.Durability = 0; // 耐久是结界专属
-                    _card.SpeedBonus = 0; // 提速份额是法术专属（可支配底盘 2026-10-10）
-                    _card.SurplusToDurability = false;
-                    if (_card.Illustration == CardArtLibrary.DefaultTitle) _card.Illustration = null;
+                    _card.SpeedBonus = 0; // 字段已退役（2026-10-15 改版：速度动态算不落字段）
+                    // 生物禁挂连接光环（2026-10-15 改版）：切类型即清光环与箭头（防旧数据残留）
+                    _card.LinkAuras = new List<LinkAuraData>();
+                    _card.ArrowDirections = HexDirection.None;
                     break;
                 case CardKind.Spell:
                     _card.Supertype = Cardtype.Spell;
                     _card.Power = null;
                     _card.Life = null;
                     _card.Durability = 0;
-                    _card.SurplusToDurability = false; // 转耐久是结界专属（二选一另一臂）
-                    _card.Illustration = CardArtLibrary.DefaultTitle;
+                    // 2026-10-15 改版：速度=3−槽数动态算（槽位从速度扣：1槽=速2/2槽=速1/3槽=速0），
+                    // SpeedBonus 字段退役恒 0；出牌费不含效果锚价（发动现付所选效果锚价）。
+                    _card.SpeedBonus = 0;
+                    _card.LinkAuras = new List<LinkAuraData>(); // 法术只挂主动效果
+                    _card.ArrowDirections = HexDirection.None;
                     break;
                 case CardKind.Enchantment:
                     _card.Supertype = Cardtype.Enchantment;
                     _card.Power = null;
                     _card.Life = null; // 结界=耐久体（2026-09-24 定案），不用攻/血
-                    _card.SpeedBonus = 0;
-                    _card.Illustration = CardArtLibrary.DefaultTitle;
+                    _card.SpeedBonus = 0; // 速度通道退役（2026-10-15 改版：结界禁主动，免费点全投耐久）
                     break;
             }
         }
@@ -730,21 +734,19 @@ namespace SynergyUI
                 TplToggle(statRow, "不可守护", _card.NoGuard, v => { _card.NoGuard = v; Recalculate(); });
             }
 
-            // 耐久 + 剩余转耐久（结界；耐久体定案 2026-09-24；可支配底盘二选一 2026-10-10）
+            // 耐久（结界；耐久体定案 2026-09-24）——「剩余转耐久」开关已随 2026-10-15 拆分定案退役：
+            // 结界禁主动效果后免费点全投耐久（DurabilityBonusOf=剩余，装/卸效果即时重算）。
             if (HasDurability)
             {
                 var durRow = UiKit.Row("durability", _dynamicForm, spacing: 8f);
                 MakeLabeledInt(durRow, "耐久", _card.Durability, v => { _card.Durability = v; Recalculate(); });
-                TplToggle(durRow, "剩余转耐久", _card.SurplusToDurability,
-                    v => { _card.SurplusToDurability = v; Recalculate(); });
             }
 
-            // 提速份额（法术；与效果 BaseSpeed 加和，仅法术——可支配底盘 2026-10-10）
-            if (_kind == CardKind.Spell)
-                MakeLabeledInt(_dynamicForm, "提速份额", _card.SpeedBonus,
-                    v => { _card.SpeedBonus = Math.Max(0, v); Recalculate(); });
+            // （提速份额控件已随 2026-10-15 改版退役：法术速度=3−槽数动态算，不可手调）
 
-            BuildLinkAuraZone();
+            // 本体光环=结界专属（生物禁挂 2026-10-15 改版；法术只挂主动效果）
+            if (_kind == CardKind.Enchantment)
+                BuildLinkAuraZone();
         }
 
         // 带标签的整数输入（横排；输入框=EffectUI 同款模板克隆）。
@@ -996,14 +998,16 @@ namespace SynergyUI
             if (_previewView != null)
                 _previewView.Apply(CardOverlayItem.FromCardDataFull(_card, "compose"), CardOverlayLayout.Full);
             if (_artCurLabel != null)
-                _artCurLabel.text = "立绘：" + (string.IsNullOrEmpty(_card.Illustration)
-                    ? "（占位——左栏点选）" : _card.Illustration);
+                _artCurLabel.text = _kind == CardKind.Creature
+                    ? "立绘：" + (string.IsNullOrEmpty(_card.Illustration)
+                        ? "（占位——左栏点选）" : _card.Illustration)
+                    : "立绘：（无——法术/结界缺省空白）";
             HighlightArtTile();
         }
 
         // ---- 左栏美术画廊（美术可选项未来扩展：入场特效等资源列表在本栏目追加分区） ----
         // 2026-10-13 立绘随卡类型定案：生物=YGOMonstersRig 模型名（卡面立绘+战场 3D 同名双源）；
-        // 法术/结界=单张缺省 Title（卡数据只存名字，渲染侧 CardArtLibrary 按名称找图）。
+        // 2026-10-15 法术/结界=无合适立绘（缺省空白不放图）——画廊无选项。
 
         private void BuildArtGallery()
         {
@@ -1019,10 +1023,6 @@ namespace SynergyUI
                 MakeArtTile(null); // 占位项（清空立绘=预制体占位图，ACardView 同口径）
                 foreach (var name in CreatureArtNames())
                     MakeArtTile(name);
-            }
-            else
-            {
-                MakeArtTile(CardArtLibrary.DefaultTitle); // 法术/结界只展示一张缺省 Title
             }
             HighlightArtTile();
         }
@@ -1214,9 +1214,33 @@ namespace SynergyUI
 
         /// <summary>右栏效果列表点选 → 填入中间选中槽（槽位制 2026-10-13，参考效果组合界面交互）：
         /// 选中已挂槽=整实例替换；空槽（默认 -1）=追加。首个主动效果上 ACard effect 区
-        /// （FromCardDataFull 拆分）——挂载顺序即显示顺序，槽行 ↑↓ 可调。</summary>
+        ///（FromCardDataFull 拆分）——挂载顺序即显示顺序，槽行 ↑↓ 可调。
+        /// 形状闸（2026-10-15 深夜改版）：生物/法术禁挂连接光环；法术只收主动、结界禁主动。</summary>
         private void FillSelectedSlot(EffectGraphData graph)
         {
+            // 光环形态闸：连接光环=结界专属（生物禁挂改版；法术只挂主动效果）
+            if ((_kind == CardKind.Creature || _kind == CardKind.Spell)
+                && EffectComposerScreen.InferMode(graph) == EffectComposerScreen.ComposeMode.Aura)
+            {
+                ShowToast(_kind == CardKind.Creature
+                    ? "生物不可挂连接光环（2026-10-15 改版——光环专属结界）"
+                    : "法术只挂主动效果（施放时抉择其一），不可挂光环");
+                return;
+            }
+            // 时机形态闸：法术只收主动（Active/Instant）；结界禁一切启动式
+            int t = graph?.header?.TriggerTiming ?? -1;
+            bool activated = t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
+                             || t == (int)TriggerTiming.Activate_Response;
+            if (_kind == CardKind.Enchantment && activated)
+            {
+                ShowToast("结界只挂自动/光环——主动效果已随 2026-10-15 改版退役");
+                return;
+            }
+            if (_kind == CardKind.Spell && !activated)
+            {
+                ShowToast("法术只挂主动效果（施放时弹窗抉择其一）——自动/触发/响应式不收");
+                return;
+            }
             var snap = SnapshotEffect(graph);
             if (_selectedSlot >= 0 && _selectedSlot < _card.Effects.Count)
             {
@@ -1397,7 +1421,7 @@ namespace SynergyUI
             TplButton(top, "移除", onRemove);
 
             var graph = new EffectGraphData(name) { header = effect, steps = effect?.Steps };
-            var summary = UiKit.Label("summary", row, AtomText.RenderEffectSummary(graph),
+            var summary = UiKit.Label("summary", row, AtomText.RenderEffectSummary(graph, _card),
                 UiStyle.SmallSize, UiStyle.TextFaint, wrap: true);
             UiKit.Size(summary, fw: 1f);
         }
@@ -1531,16 +1555,47 @@ namespace SynergyUI
             ApplyTextLists();
             EnsureCardLists();
 
-            // 法术形态拦截（2026-10-10 三类卡=发数经济定案）：法术=单个施放效果（一次性单发）；
-            // 启动式依赖战场源卡，法术结算即离场——挂了永无发动口。装载侧同口（CardLoader.ValidateSpellShape）。
+            // 形状拦截（2026-10-15 深夜三类卡改版）：法术=1~3 个启动式效果（施放时弹窗抉择其一）；
+            // 结界=禁一切启动式（只挂自动/光环）。装载侧同口（CardLoader.ValidateSpellShape/ValidateEnchantShape）。
             if (_kind == CardKind.Spell)
             {
                 int count = _card.Effects?.Count ?? 0;
-                if (count > 1)
+                if (count < 1 || count > 3)
                 {
-                    ShowToast($"法术只能挂 1 个效果（现 {count} 个——整卡一次性单发）");
+                    ShowToast($"法术须挂 1~3 个主动效果（现 {count} 个——施放时弹窗抉择其一）");
                     return;
                 }
+                foreach (var e in _card.Effects)
+                {
+                    int t = e?.TriggerTiming ?? -1;
+                    if (t != (int)TriggerTiming.Activate_Active && t != (int)TriggerTiming.Activate_Instant)
+                    {
+                        ShowToast($"法术效果「{e.DisplayName ?? e.Id}」须为主动效果（法术只挂主动，自动/触发/响应式不收）");
+                        return;
+                    }
+                }
+            }
+            else if (_kind == CardKind.Enchantment)
+            {
+                foreach (var e in _card.Effects ?? new List<CardEffectData>())
+                {
+                    int t = e?.TriggerTiming ?? -1;
+                    if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
+                        || t == (int)TriggerTiming.Activate_Response)
+                    {
+                        ShowToast($"结界效果「{e.DisplayName ?? e.Id}」为主动效果——结界只挂自动/光环（2026-10-15 改版）");
+                        return;
+                    }
+                }
+            }
+
+            // 连接光环归属闸（2026-10-15 改版）：聚合后卡面光环（卡面直书+效果携带并集）只准结界携带
+            if (_kind != CardKind.Enchantment && _card.LinkAuras != null && _card.LinkAuras.Count > 0)
+            {
+                ShowToast(_kind == CardKind.Creature
+                    ? "生物不可挂连接光环（2026-10-15 改版）——移除光环后保存"
+                    : "法术只挂主动效果——移除光环后保存");
+                return;
             }
 
             var newId = "C_" + ContentHasher.HashCard(_card);

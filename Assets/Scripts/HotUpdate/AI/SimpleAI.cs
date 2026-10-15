@@ -22,10 +22,30 @@ namespace SynergyUI
         private const int MaxActionRounds = 64;   // 动作耗尽循环硬上限（保险，防效果自我循环）
         private const int MaxSettleAttempts = 32; // 排干栈重试上限（保险）
 
+        /// <summary>人机对局最小动作间隔（毫秒）——表现层演完后的人为节拍下限，
+        /// 保证出牌类瞬时动作（无长动画）也有可读节奏。只作用于注入了 PacingWait 的驱动。</summary>
+        private const int PacingMinimumMs = 400;
+
         private readonly AiStrategy _strategy;
 
         /// <summary>注入策略（null=通用 GeneralAiStrategy，行为与策略化之前完全一致）。</summary>
         public SimpleAI(AiStrategy strategy = null) => _strategy = strategy ?? AiStrategy.General;
+
+        /// <summary>人机对局节奏（2026-10-14 用户定案）：非 null=电脑每个动作后等表现层把
+        /// 当前这一件事演完（回调内部=等 BattleFieldView 视觉在途门归零）+ 最小间隔拍——
+        /// 人类可逐步看清电脑操作。null=全速（AI-vs-AI/无头——完全不管渲染层）。
+        /// 双人对局无 AI 不涉及。由 BattleScreen 在人类在场的分支注入。</summary>
+        public Func<Cysharp.Threading.Tasks.UniTask> PacingWait { get; set; }
+
+        /// <summary>节奏等待：等门放行 + 最小动作间隔（未注入 PacingWait 时同步直通，
+        /// 无头 TakeTurn 同步路径不受影响）。</summary>
+        private async Cysharp.Threading.Tasks.UniTask PaceAsync()
+        {
+            var wait = PacingWait;
+            if (wait == null) return;
+            await wait();
+            await Cysharp.Threading.Tasks.UniTask.Delay(PacingMinimumMs);
+        }
 
         /// <summary>有害类原子：目标偏好对方单位 &gt; 对方玩家（解场优先——2026-09-13 用户裁决，原削血优先反转）</summary>
         private static readonly HashSet<AtomicEffectType> HarmfulAtoms = new HashSet<AtomicEffectType>
@@ -110,6 +130,7 @@ namespace SynergyUI
                               | TryGraveyardPlay(core, me)
                               | UseHeroSkill(core, me);
                 if (!progress) break;
+                await PaceAsync(); // 人机节奏：本轮动作落地后等表现层演完再做下一个动作
             }
 
             // 3. 战前排干栈：让本回合发动/触发的效果先落地（增益类才影响攻击结算）
@@ -129,6 +150,7 @@ namespace SynergyUI
                 {
                     if (!PlayBestAffordableCard(core, me)) break;
                     playedAfterCombat = true;
+                    await PaceAsync(); // 人机节奏：战后补牌逐张可读
                 }
                 if (playedAfterCombat)
                     await DoCombatAsync(core, me);
@@ -527,6 +549,7 @@ namespace SynergyUI
                 if (target == null) continue;
                 if (!GameActions.DeclareAttack(core, me, unit, target)) continue;
                 await GameActions.SettleResponseWindowAsync(core); // 窗口+结算（含级联触发/SBA 轮）
+                await PaceAsync(); // 人机节奏：等本次攻击演出（走位/交击/死亡漩涡）演完再宣言下一攻
             }
 
             // 角色攻击（2026-10-10 角色参战遗留收口）：弹药>0 即宣言——攻击力=HeroAttackCounter 层数，
@@ -535,7 +558,10 @@ namespace SynergyUI
             {
                 var heroTarget = PickHeroAttackTarget(core, me, opp);
                 if (heroTarget != null && GameActions.DeclareAttack(core, me, me, heroTarget))
+                {
                     await GameActions.SettleResponseWindowAsync(core);
+                    await PaceAsync(); // 人机节奏：角色攻击演出同样等演完
+                }
             }
         }
 

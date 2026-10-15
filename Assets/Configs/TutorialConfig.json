@@ -4,71 +4,71 @@
       "id": "basics",
       "name": "基础教学",
       "rngSeed": 20261002,
-      "_说明": "卡组顺序即摸牌序列（锁牌库序）：前 6 张为起手、之后每回合摸牌恒取牌库顶。aiScript 按机器人的第几个回合编排（turn 从 1 计）；R6 起无剧本=机器人直接结束回合（被动等玩家终结）。全卡池效果引用完好，白板灰卡为主（灰=万用色，纯灰产元素可垫任何红蓝绿灰费用，教学局不卡费）。机器人共对玩家造成 10 点脸伤（R2:2 + R3:3 + R4:5），30 起始生命下节奏安全。",
+      "_说明": "卡组顺序即摸牌序列（锁牌库序）：前 6 张为起手、之后每回合摸恒取牌库顶。aiScript 按机器人的第几个回合编排（turn 从 1 计）；R6 起无剧本=机器人直接结束回合（被动等玩家终结）。2026-10-15 四次修订：双方卡组整体换用主题卡组 红·快攻.json（30 张原序照抄：灰费白板+红费关键词生物——锋卫/刺客/先攻/剑士=先攻，连击/碾压/缴械/守护各带本体关键词）。全卡组经复查无红灰以外颜色（出牌费+效果锚价+关键词原子 ManaList 全为灰/红）。机器人节奏：R1 灰地+斥候，R2 起锋卫锁红地攒双色经济，R2-R5 共 13 点脸伤（R2:3+R3:2+R4:2+R5:6），30 起始生命下节奏安全。",
       "playerDeck": [
-        "C_78A92563",
-        "C_9CBDD76F",
-        "C_A0AF544D",
-        "C_3C06E8E8",
-        "C_3244447D",
-        "C_A5A7B045",
-        "C_7B61EF2C",
-        "C_310866E0",
-        "C_A52EF97B",
-        "C_AEC7E2C9",
-        "C_D8A7891D",
-        "C_29D4958D",
-        "C_6C440748",
-        "C_289A18CA",
-        "C_8E06A0A7",
-        "C_AED82E7F",
-        "C_EF102C24",
-        "C_62BACD5E",
-        "C_0BE495BF",
-        "C_5804ECA9",
-        "C_1602F666",
-        "C_2FD32662",
-        "C_8CCECD5C",
-        "C_1C26FC4A",
-        "C_B5267F89",
-        "C_1BCE95D1",
-        "C_1C2F5A42",
-        "C_6514010C",
-        "C_863B0464",
-        "C_1C7B95EB"
+        "C_239B5411",
+        "C_7F1F67FF",
+        "C_7F1F67FF",
+        "C_248D1A0A",
+        "C_248D1A0A",
+        "C_248D1A0A",
+        "C_A13EE0F1",
+        "C_A13EE0F1",
+        "C_A13EE0F1",
+        "C_16A76B32",
+        "C_16A76B32",
+        "C_CA8D2651",
+        "C_98B79493",
+        "C_98B79493",
+        "C_98B79493",
+        "C_32E8EFB4",
+        "C_349C1706",
+        "C_9FAE2DD3",
+        "C_9FAE2DD3",
+        "C_782E8268",
+        "C_0F0FD27E",
+        "C_396A5A59",
+        "C_DFCFCB22",
+        "C_8A2D263A",
+        "C_A2CFE97D",
+        "C_B8FBCA8D",
+        "C_B84D8B67",
+        "C_7F1F67FF",
+        "C_2BB8E3FF",
+        "C_89D96ECB"
       ],
-      "_玩家节奏": "起手：苔壳龟(入池)/灰烬猎犬(打出)/火花哥布林/烬鳞蜥/焚风骑士/烈焰箭(教法术)。T1 抽寒潮术士(入池)，T2 抽熔岩突击兵(入池)，T3 抽森林贤者(入池)，T4 抽赤鬃掠夺者(打出)，T5 抽岩背巨龟。玩家按元素池→出随从→攻击→结束回合的节奏约 5-6 回合自然获胜。",
+      "_玩家节奏": "起手：教学生物18(入池)/教学生物13(打出)/教学生物14/16/15 + 填充白板。T4 起抽红费生物42/43（可放地锁红色或攒地后打出；蓝费线已撤，卡组=红费+无关键词白板）。玩家按元素池→出随从→攻击→结束回合的节奏约 5-7 回合自然获胜。",
       "aiDeck": [
-        "C_78A92563",
-        "C_9CBDD76F",
-        "C_7B61EF2C",
-        "C_3C06E8E8",
-        "C_A0AF544D",
-        "C_EB26C118",
-        "C_A52EF97B",
-        "C_AEC7E2C9",
-        "C_D8A7891D",
-        "C_29D4958D",
-        "C_6C440748",
-        "C_289A18CA",
-        "C_8E06A0A7",
-        "C_AED82E7F",
-        "C_EF102C24",
-        "C_62BACD5E",
-        "C_0BE495BF",
-        "C_5804ECA9",
-        "C_1602F666",
-        "C_2FD32662",
-        "C_8CCECD5C",
-        "C_1C26FC4A",
-        "C_B5267F89",
-        "C_1BCE95D1",
-        "C_1C2F5A42",
-        "C_6514010C",
-        "C_863B0464",
-        "C_1C7B95EB",
-        "C_3A052F9E",
-        "C_3244447D"
+        "C_7F1F67FF",
+        "C_7F1F67FF",
+        "C_7F1F67FF",
+        "C_248D1A0A",
+        "C_248D1A0A",
+        "C_248D1A0A",
+        "C_A13EE0F1",
+        "C_A13EE0F1",
+        "C_A13EE0F1",
+        "C_16A76B32",
+        "C_16A76B32",
+        "C_CA8D2651",
+        "C_98B79493",
+        "C_98B79493",
+        "C_98B79493",
+        "C_32E8EFB4",
+        "C_349C1706",
+        "C_9FAE2DD3",
+        "C_9FAE2DD3",
+        "C_782E8268",
+        "C_0F0FD27E",
+        "C_396A5A59",
+        "C_DFCFCB22",
+        "C_8A2D263A",
+        "C_A2CFE97D",
+        "C_B8FBCA8D",
+        "C_B84D8B67",
+        "C_239B5411",
+        "C_2BB8E3FF",
+        "C_89D96ECB"
       ],
       "aiScript": [
         {
@@ -76,14 +76,11 @@
           "actions": [
             {
               "type": "element",
-              "card": "C_78A92563"
-            },
-            {
-              "type": "tap"
+              "card": "C_7F1F67FF"
             },
             {
               "type": "play",
-              "card": "C_9CBDD76F"
+              "card": "C_248D1A0A"
             }
           ]
         },
@@ -92,18 +89,16 @@
           "actions": [
             {
               "type": "element",
-              "card": "C_7B61EF2C"
-            },
-            {
-              "type": "tap"
+              "card": "C_A13EE0F1",
+              "target": "Red"
             },
             {
               "type": "play",
-              "card": "C_3C06E8E8"
+              "card": "C_7F1F67FF"
             },
             {
               "type": "attack",
-              "attacker": "C_9CBDD76F",
+              "attacker": "C_248D1A0A",
               "target": "hero"
             }
           ]
@@ -113,18 +108,16 @@
           "actions": [
             {
               "type": "element",
-              "card": "C_A0AF544D"
-            },
-            {
-              "type": "tap"
+              "card": "C_A13EE0F1",
+              "target": "Red"
             },
             {
               "type": "play",
-              "card": "C_EB26C118"
+              "card": "C_A13EE0F1"
             },
             {
               "type": "attack",
-              "attacker": "C_3C06E8E8",
+              "attacker": "C_7F1F67FF",
               "target": "hero"
             }
           ]
@@ -134,14 +127,15 @@
           "actions": [
             {
               "type": "element",
-              "card": "C_A52EF97B"
+              "card": "C_248D1A0A"
             },
             {
-              "type": "tap"
+              "type": "play",
+              "card": "C_16A76B32"
             },
             {
               "type": "attack",
-              "attacker": "C_EB26C118",
+              "attacker": "C_A13EE0F1",
               "target": "hero"
             }
           ]
@@ -151,14 +145,21 @@
           "actions": [
             {
               "type": "element",
-              "card": "C_D8A7891D"
-            },
-            {
-              "type": "tap"
+              "card": "C_248D1A0A"
             },
             {
               "type": "play",
-              "card": "C_AEC7E2C9"
+              "card": "C_16A76B32"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_248D1A0A",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_16A76B32",
+              "target": "hero"
             }
           ]
         }

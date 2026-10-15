@@ -1,9 +1,9 @@
 """
-动作空间审计（v2 布局验收利器，2026-09-30 C 期）。
+动作空间审计（v3 布局验收利器；v2=2026-09-30 C 期，v3=2026-10-14 精确对齐期）。
 
 用途：Unity 侧 U1-U7 落地后，跑随机策略自对弈，验证——
   1. 布局握手：reset 断言 layoutVersion/dims（tide_env_tcp._assert_layout）；
-  2. 新动作类型行确实出现在动作表（HeroSkill/VoluntaryTrigger/PassPriority/Respond*/Guard）；
+  2. 新动作类型行确实出现在动作表（HeroSkill/VoluntaryTrigger/PassPriority/Respond*/Guard/TapCreature/CommitAwaken）；
   3. 无 MAX_ACTIONS=512 截断事件（服务端上报 nActions > 512 = 模型看不到尾部行）；
   4. 响应窗口决策点确实停靠（global_[47]==1 的步占比）；
   5. 无死循环停靠（单局步数受 max_steps 约束自然终局/超时分布健康）；
@@ -88,7 +88,7 @@ def run_episode(env, rng, max_steps):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Tide v2 动作空间审计（随机策略自对弈）")
+    ap = argparse.ArgumentParser(description="Tide v3 动作空间审计（随机策略自对弈）")
     ap.add_argument("--host", default="localhost")
     ap.add_argument("--port", type=int, default=9999)
     ap.add_argument("--episodes", type=int, default=3)
@@ -136,9 +136,9 @@ def main():
 
     lines = []
     lines.append("=" * 70)
-    lines.append(f"Tide v2 动作空间审计（{args.episodes} 局随机自对弈，opponent={args.opponent}）")
+    lines.append(f"Tide v3 动作空间审计（{args.episodes} 局随机自对弈，opponent={args.opponent}）")
     lines.append("=" * 70)
-    lines.append(f"布局握手     : 通过（reset 断言 layoutVersion=2 + dims，未抛错即过）")
+    lines.append(f"布局握手     : 通过（reset 断言 layoutVersion=3 + dims，未抛错即过）")
     lines.append(f"总决策步     : {total_steps}（响应窗口步 {resp} = {pct(resp, total_steps)}）")
     lines.append(f"动作表规模   : 单点最大 {max_n} 行（MAX_ACTIONS=512）｜截断事件 {trunc}")
     lines.append(f"带目标行占比 : {pct(targeted, total_rows)}（targetKind=1 行 / 全部行）")

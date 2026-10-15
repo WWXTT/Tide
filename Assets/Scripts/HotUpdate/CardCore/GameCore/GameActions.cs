@@ -15,8 +15,8 @@ namespace CardCore
 
         /// <summary>
         /// 主阶段：将手牌以可用（未横置）状态作为地牌放入元素池。
-        /// 不限张数/次数；张数受**各自**地牌槽上限约束（2026-10-11 定案：个人曲线
-        /// min(个人回合,7)+成长加值封顶14——10-10 全场共享计数器废止）。
+        /// 不限张数/次数；张数受**各自**地牌槽上限约束（2026-10-15 定案：全局同步曲线
+        /// min(全局回合,10)+成长加值无封顶——每次回合开始双方同步 +1，先后手无差）。
         /// colorChoice（2026-10-11 锁色定案）：从卡费颜色（红/蓝/绿/灰）中自选锁定产色，
         /// null=缺省主色（份额最多色）；后续生成固定，付费时系统按账单自动横置。
         /// </summary>
@@ -58,11 +58,11 @@ namespace CardCore
         // ElementPool.TryPayCostWithAutoTap / TryPayBillWithAutoTap。
 
         /// <summary>
-        /// 主阶段：发动英雄技能（2026-09-13 第二十批——一回合一次、付色费、7 次升级）。
-        /// 逻辑全在 HeroSkillSystem.ActivateAsync（守卫+计费+效果）。
+        /// 主阶段：发动英雄技能（2026-10-15 改版：技能=法术，每回合一次，>1 效果时弹窗择定）。
+        /// 逻辑全在 HeroSkillSystem.ActivateAsync（守卫+计费+效果）；effectIndex 缺省 0（单效果卡免抉择）。
         /// </summary>
-        public static async Cysharp.Threading.Tasks.UniTask<bool> ActivateHeroSkill(GameCore core, Player player)
-            => await HeroSkillSystem.ActivateAsync(core, player);
+        public static async Cysharp.Threading.Tasks.UniTask<bool> ActivateHeroSkill(GameCore core, Player player, int effectIndex = 0)
+            => await HeroSkillSystem.ActivateAsync(core, player, effectIndex);
 
         /// <summary>
         /// 主阶段：横置带地牌特性的生物产 1 元素（2026-09-13 英雄技能·培育赋予的特性）。
@@ -795,45 +795,40 @@ namespace CardCore
 
         /// <summary>
         /// 结算法术的施放效果（经本核心的 EffectExecutor），完成后离开发动区入墓。
-        /// 法术一次性结算：OnPlay 等触发时点在此即是「施放即生效」，直接执行；
-        /// 仅手动激活式能力（Activate_*）不随施放自动结算。
-        /// 通过 EffectInstance 走与栈结算一致的执行路径，保证目标解析/事件一致。
-        /// 元素费已在 cast 结算（ResolveCardCastAsync）按所选模式支付（skipElementCost 防双计）；特殊代价仍由执行器结算。
-        /// modeIndex：抉择模式（声明期选定），执行引擎按此分派 Choices。
+        /// 2026-10-15 深夜三类卡改版：法术=1~3 个启动式效果——施放时弹窗抉择其一（modeIndex=效果序号，
+        /// 声明期随 CardPlayEvent 公开），此处只执行所选那条；锚价已并入 cast 账单
+        /// （GetCardCost→SpellCastAnchor，付费步统一扣）——skipElementCost:true 防双计。
+        /// 通过 EffectInstance 走与栈结算一致的执行路径，保证目标解析/事件一致；特殊代价仍由执行器结算。
         /// </summary>
         private static async Cysharp.Threading.Tasks.UniTask ResolveSpellEffectsAsync(
             GameCore core, Player player, Card card, List<Entity> targets, int modeIndex = 0)
         {
             var defs = GetCardEffectDefinitions(card);
+            EffectDefinition chosen = null;
+            if (defs != null && defs.Count > 0)
+                chosen = defs[Math.Clamp(modeIndex, 0, defs.Count - 1)];
 
             // 外给目标硬校验收口（2026-09-13 定案修复）：声明期 UI/AI 直接给定的目标不经候选解析——
             // 补两道同口径检查：源紊乱不可指角色；对手有嘲讽卡时对方侧仅嘲讽卡可指
             //（edict 原子=牺牲/摒弃豁免帷幕——选择权在目标方）。非法目标剔除（效果对其空转），不整卡拒绝。
-            bool edictExempt = defs != null && defs.Any(d =>
-                d?.Effects != null && d.Effects.Any(a => a != null && TargetResolver.IsEdict(a.Type)));
+            bool edictExempt = chosen != null && chosen.Effects != null
+                && chosen.Effects.Any(a => a != null && TargetResolver.IsEdict(a.Type));
             targets = TargetResolver.FilterPreselectedTargets(targets, player, player, core.ZoneManager, edictExempt);
-            if (defs != null)
+            if (chosen != null)
             {
                 var executor = core.StackEngine.GetExecutor();
-
-                foreach (var def in defs)
+                await executor.ExecuteAsync(new EffectInstance
                 {
-                    if (def.IsActivatedEffect)
-                        continue;
-
-                    await executor.ExecuteAsync(new EffectInstance
-                    {
-                        Definition = def,
-                        // 来源归因定案（2026-09-09 规则②）：所有魔法卡的效果来源=角色（Player）——
-                        // 伤害/死亡/指示物/三轨判轨的归因都指向施法者；cast 对象的 Source 仍是卡
-                        //（发动区付费/无效裁决/离区依赖它，见 ResolveCardCastAsync）。
-                        Source = player,
-                        Controller = player,
-                        Targets = targets != null ? new List<Entity>(targets) : new List<Entity>(),
-                        ModeIndex = modeIndex,
-                        CastCard = card, // 施放宿主卡（状态门「本回合第一张抽到的卡」需要卡身份）
-                    }, skipElementCost: true);
-                }
+                    Definition = chosen,
+                    // 来源归因定案（2026-09-09 规则②）：所有魔法卡的效果来源=角色（Player）——
+                    // 伤害/死亡/指示物/三轨判轨的归因都指向施法者；cast 对象的 Source 仍是卡
+                    //（发动区付费/无效裁决/离区依赖它，见 ResolveCardCastAsync）。
+                    Source = player,
+                    Controller = player,
+                    Targets = targets != null ? new List<Entity>(targets) : new List<Entity>(),
+                    ModeIndex = 0, // 法术效果禁嵌抉择（装载校验拦）——modeIndex 已被效果抉择占用，执行层恒 0
+                    CastCard = card, // 施放宿主卡（状态门「本回合第一张抽到的卡」需要卡身份）
+                }, skipElementCost: true);
             }
 
             // 结算完成 → 离开发动区入墓（终态与历史行为一致）
@@ -1025,11 +1020,13 @@ namespace CardCore
 
         /// <summary>
         /// 速度发动：玩家主动发动一个效果。
-        /// 启动式能力的发动代价（2026-09-08 定案；2026-10-10 发数经济改版）：只有启动式（Activate_*）=
+        /// 启动式能力的发动代价（2026-09-08 定案；2026-10-15 深夜三类卡改版）：只有启动式（Activate_*）=
         /// 发动代价 + 现付元素锚价 + 选定目标（元素费经 ElementCostPrepaid=false 由执行器结算路径扣除；
         /// CanActivate 预检可付性）；只能在自己的主要阶段以速度1使用（记速器须低于1，即栈空）。
-        /// 触发式效果不走本入口的代价与付费。发动代价按宿主分域（耐久即次数池定案）：
-        /// 结界（战场/技能栏）= 耐久−1（无横置，一回合可连发）；生物 = 横置（恒横置，警戒不抵扣）。
+        /// 触发式效果不走本入口的代价与付费。发动代价按宿主分域（2026-10-15 深夜改版）：
+        /// 结界（战场/技能栏）= **拒绝**——结界禁主动效果，只挂自动/光环（运行时临摹/变形把主动行
+        /// 塞给结界也在此拦）；生物 = 横置（恒横置，警戒不抵扣）；技能区法术（英雄技能载体）= 横置
+        ///（每回合一次闸门——回合开始 Untap 重置，接替旧耐久池）。
         /// </summary>
         public static bool ActivateEffect(GameCore core, Player player, EffectDefinition effect, Card source, int paidBoost = 0)
         {
@@ -1038,18 +1035,14 @@ namespace CardCore
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
 
             // 发动代价预检（仅启动式；战场/技能栏源卡，手牌/墓地施放不适用）：
-            // 结界=耐久>0（2026-10-10 耐久即次数池定案——主动发动=耐久−1+元素费现付，
-            // 无横置闸，一回合可连发、耐久自限）；其余（生物）=未横置（横置=一回合一次闸门）。
+            // 结界=拒发动（禁主动定案）；其余（生物/技能区法术）=未横置（横置=一回合一次闸门）。
             if (effect.IsActivatedEffect && source != null
                 && (core.ZoneManager.IsCardInZone(source, source.GetController(), Zone.Battlefield)
                     || core.ZoneManager.IsCardInZone(source, source.GetController(), Zone.FieldZone)))
             {
                 if (Attribute.CounterRules.UsesDurabilityEconomy(source))
-                {
-                    if (source.GetCounterCount(Attribute.CounterRules.DurabilityCounter) <= 0)
-                        return false; // 耐久空=不可发动（战场=将销毁、技能栏=休眠）
-                }
-                else if (source.IsTapped())
+                    return false; // 结界禁主动效果（2026-10-15 深夜改版）——耐久−1 通道整体退役
+                if (source.IsTapped())
                     return false;
             }
 
@@ -1063,13 +1056,11 @@ namespace CardCore
 
             var activated = core.StackEngine.PlayerActivateVoluntary(pending);
 
-            // 发动成功 → 消耗发动代价（仅启动式；固定代价，不发不扣）：结界=耐久−1
-            //（归零分域在 LoseDurability：战场销毁入墓/技能栏休眠）；其余=横置（恒横置，警戒不抵扣）。
+            // 发动成功 → 消耗发动代价（仅启动式；固定代价，不发不扣）：横置（恒横置，警戒不抵扣）
+            //——生物每回合一次；技能区法术=英雄技能每回合一次（回合开始 Untap 重置）。
             if (activated && effect.IsActivatedEffect && source != null)
             {
-                if (Attribute.CounterRules.UsesDurabilityEconomy(source))
-                    Attribute.CounterRules.LoseDurability(core, source, 1, "主动发动（耐久即次数池）");
-                else if (Attribute.KeywordRules.ShouldTap(source))
+                if (Attribute.KeywordRules.ShouldTap(source))
                     source.Tap();
             }
 
@@ -1143,6 +1134,12 @@ namespace CardCore
         /// 逐模式独立套用。层在进入发动区时不清（ZoneContainer.OnCardMoved 发动区豁免——付费发生在发动区内），
         /// 结算离开发动区（入墓/入场）与离手时按真实移动清除。
         /// </summary>
+        /// <summary>
+        /// 从卡牌获取费用（如有）。
+        /// 法术（2026-10-15 深夜三类卡改版）：出牌费不含效果锚价——真实施放账单=卡面费+所选效果锚价，
+        /// 本口单源并入（预检 CanAffordCast / cast 结算扣费 / pending 承诺 / AI 动作特征 / UI 费用预览全消费）；
+        /// modeIndex=施放时抉择的效果序号（>1 效果弹窗三选一，单效果=0）。
+        /// </summary>
         public static ElementCost GetCardCost(Card card, int modeIndex = 0)
         {
             ElementCost cost;
@@ -1153,6 +1150,14 @@ namespace CardCore
                 cost = hasCost.Cost.Clone();
             else
                 cost = ElementCost.FromValue(ManaType.Gray, 1); // 默认费用：灰色1点
+
+            // 法术锚价并入（改版定案：发动按效果费用支付，无额外费用——见 SpellCastAnchor）
+            if (data != null && data.Supertype == Cardtype.Spell)
+            {
+                var anchor = SpellCastAnchor(card, modeIndex);
+                foreach (var color in anchor.NonzeroColors())
+                    cost[color] = cost[color] + anchor[color];
+            }
 
             // 费用指示物层（P1 恒灰）：灰 += CostUp − CostDown，下限 0
             int costUp = card.GetCounterCount(Attribute.CounterRules.CostUpCounter);
@@ -1181,12 +1186,31 @@ namespace CardCore
         }
 
         /// <summary>
+        /// 法术施放锚价（2026-10-15 深夜三类卡改版：法术只挂 1~3 个启动式效果，出牌费不含锚价——
+        /// 施放时抉择其一，锚价并入 cast 账单现付，无额外费用）。modeIndex=效果序号（GetCardCost 单源消费）。
+        /// 与 CardCostService.Derive 同口径：法术宿主次数分量坍缩 ×1。非法术/无效果返回空。
+        /// </summary>
+        public static ElementCost SpellCastAnchor(Card card, int effectIndex)
+        {
+            var data = card is CardWrapper wrapper ? wrapper.GetData() : null;
+            if (data == null || data.Supertype != Cardtype.Spell) return new ElementCost();
+            var defs = GetCardEffectDefinitions(card);
+            if (defs == null || defs.Count == 0) return new ElementCost();
+            var def = defs[Math.Clamp(effectIndex, 0, defs.Count - 1)];
+            if (def == null) return new ElementCost();
+            def.TriggerLimitPerTurn = 1; // 次数轴坍缩（法术=整卡一次施放）——同 Derive 主入口口径
+            return CostDerivationService.DeriveElementCosts(def, 0) ?? new ElementCost();
+        }
+
+        /// <summary>
         /// 是否带「自我沉睡登场效果（灰时长模式）」（灰费豁免判定，2026-09-11 定案）：
         /// 任一非启动式效果含 **Value 缺省** 的 Sleep 原子且组合域={Self}——
         /// Value&gt;0 的显式层数沉睡不走灰费豁免（定长沉睡照常付费）。
         /// 结果缓存于 CardData（ResetCache 失效）。
+        /// v3（2026-10-14）private→public：LegalActionEnumerator 的 CommitAwaken 资格预检
+        /// 复用同一谓词（镜像复制会漂移）；零行为变化。
         /// </summary>
-        private static bool HasSelfSleepEffect(CardData data)
+        public static bool HasSelfSleepEffect(CardData data)
         {
             if (data.SelfSleepEffectCache.HasValue) return data.SelfSleepEffectCache.Value;
 
@@ -1232,7 +1256,7 @@ namespace CardCore
 
         /// <summary>
         /// 检查是否能支付费用（2026-09-14 统一混付口径；public 供 LegalActionEnumerator 共用防掩码/引擎分叉）：
-        /// 1. 门槛：卡总费用不得超过当前地牌槽上限（费用上限 7 由此隐含——上限最大 7（2026-10-13 缩盘）；按卡判定不累计）
+        /// 1. 门槛：卡总费用不得超过当前地牌槽上限（费用上限 10 由此隐含——自然上限 10（2026-10-15），成长可再抬；按卡判定不累计）
         /// 2. 余量：账单+pending 合并后走账单规划器（同色→灰→黑白；黑白=万用色）；
         ///    pending = 同玩家已声明未结算的整卡施放费用（响应窗口内的支付承诺，一并占用）
         /// </summary>
@@ -1340,12 +1364,13 @@ namespace CardCore
             {
                 var cardData = wrapper.GetData();
                 var defs = CardEffectConverter.ConvertAll(cardData.Effects, cardData.ID);
-                // 法术底盘剩余 → 提速（2026-10-10 可支配底盘定案）：SpeedBonus 卡级附加速度增量，
-                // 与全部效果 BaseSpeed **加和**（构筑期 k 点提速=放弃 k 点抵价，计价侧不收这笔钱）；
-                // 仅法术可 >0——生物速度只由效果组合阶段 BaseSpeed 决定（无提速通道）。
-                if (cardData.Supertype == Cardtype.Spell && cardData.SpeedBonus != 0)
+                // 卡型速度加成（2026-10-15 深夜改版：KindSpeedBonusOf 单源）：
+                // 法术 = 剩余免费点全额（槽位从速度扣：1槽=速2/2槽=速1/3槽=速0，动态不落字段）；
+                // 结界/生物/地牌 = 0（结界禁主动后速度通道退役）。
+                int kindSpeed = CardCompositionCost.KindSpeedBonusOf(cardData);
+                if (kindSpeed != 0)
                     foreach (var def in defs)
-                        if (def != null) def.BaseSpeed += cardData.SpeedBonus;
+                        if (def != null) def.BaseSpeed += kindSpeed;
                 return defs;
             }
             return new List<EffectDefinition>();

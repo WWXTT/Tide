@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using CardCore;
 using Cysharp.Threading.Tasks;
 using GameBoard;
 using MonsterRig;
@@ -13,9 +15,13 @@ namespace SynergyUI
     /// 本地/网络同轨）做幂等全量对账（键=引擎卡 RuntimeId，手牌扇同口径）。
     ///
     /// 摆位形态：单位区卡（生物/结界/衍生物）→ MonsterRig 模型站格
-    /// （结构=wrapper[位姿/横置倾斜/头顶数值] → 模型根[MonsterRigAnimator]——wrapper 承载位移，
-    /// 不触发 Recapture）；死亡→倒地散落、复活→Revive；横置→wrapper 倾斜提示。
-    /// 地牌→无实体（2026-10-13 卡背退役定案）：地块锁色菲涅尔+格面元素图标（BattleTileFx）；
+    /// （结构=wrapper[位姿/头顶数值] → 模型根[MonsterRigAnimator]——wrapper 承载位移，
+    /// 不触发 Recapture）；死亡→倒地散落、复活→Revive；横置→仅脚下光波熄灭表达
+    ///（2026-10-15 定案：呼吸不随横置停止，可行动性只看 BattleTileFx 光波）。
+    /// 地牌→无实体（2026-10-13 卡背退役定案；2026-10-14 按色叠格）：同色叠一格——格面元素图标+
+    /// 「可用/上限」计数条（可用=未横置+钱包该色；上限=红蓝绿灰该色已放入地牌张数、黑白=地牌槽上限），
+    /// 可用&gt;0 点亮锁色菲涅尔（BattleTileFx）；
+    /// 黑白格计数=钱包余额/生成上限；技能格=技能名数字条（无技能空格）（均 BattleFieldView 对账）。
     /// 可行动性（生物未横置）与地牌状态均由脚下地块表达（BattleTileFx 同日改版）。
     /// 角色→占位立柱+生命值；模型映射走 MonsterModelResolver（同名→稳定哈希→占位胶囊）。
     /// 体型=已按模块数分档烘进资产几何（MonsterRigSizeScaler：&lt;5块→0.7/5~10块→1/&gt;10块→1.5，
@@ -30,12 +36,54 @@ namespace SynergyUI
         private readonly Transform _root;
         private readonly Dictionary<uint, UnitVisual> _units = new Dictionary<uint, UnitVisual>();
         private readonly Dictionary<int, HeroVisual> _heroes = new Dictionary<int, HeroVisual>(); // key=归属 0/1
-        private readonly Dictionary<int, TextMeshPro> _tempWallets = new Dictionary<int, TextMeshPro>(); // key=归属 0/1
+        private readonly Dictionary<long, TextMeshPro> _landCounts = new Dictionary<long, TextMeshPro>(); // key=格(x<<32|z)：地牌格「可用/上限」计数
+        private readonly Dictionary<int, TextMeshPro> _skillLabels = new Dictionary<int, TextMeshPro>(); // key=归属 0/1：技能格黑白钱包条
         private readonly HashSet<uint> _heldUnits = new HashSet<uint>(); // 演出持有（2026-10-13 战斗编舞）
+        private readonly List<GameObject> _creatureArrows = new List<GameObject>(); // 生物箭头地面件（钉 tile，全量对账重建）
         private int _lastSkipLogFrame = -1;
+
+        //（2026-10-15 深夜改版）单位【发动效果】头顶按钮退役：单位本体退出射线检测，
+        // 攻击/守卫/发动拆到格前三键（BattleTileButtons），本类不再持有可点 3D 件。
+
+        // 施放占格立牌（2026-10-15 发动格拆除：整个 2×6 兼任发动区）：发动区占位卡 × 单位区空格的
+        // "卡牌立牌"呈现——Quad 贴卡面立绘（无立绘纯色兜底）+底部卡名；立牌自带碰撞体
+        //（cast-{RuntimeId}）供 BattleScreen 射线路由（hover 卡信息/点击开发动区列卡）。
+        private readonly Dictionary<uint, GameObject> _castings = new Dictionary<uint, GameObject>(); // key=RuntimeId
+        private Material _castMat; // 立牌底材（卡背材质资产实例——URP Unlit 透明，逐卡再实例贴图/纯色）
+
+        // 出场粒子汇聚载荷（2026-10-15 用户定案：弃弹出动画改 INab 粒子）：CastPlayed 入场 →
+        // BattleCastArrival 粒子演出 1s 后显现模型；paid 键=ManaType 下标、值=该色实付量
+        private readonly Dictionary<uint, (int seat, Dictionary<int, float> paid)> _arrivals =
+            new Dictionary<uint, (int, Dictionary<int, float>)>();
+
+        /// <summary>施放立牌节点名前缀（BattleScreen.PollFieldPointer 射线命中路由——cast-{RuntimeId}）。</summary>
+        public const string CastingCardPrefix = "cast-";
 
         private static readonly Color P1UnitColor = new Color(0.29f, 0.50f, 0.83f);
         private static readonly Color P2UnitColor = new Color(0.83f, 0.35f, 0.35f);
+
+        // 墓地漩涡吸程（2026-10-15 定案：按死亡位与墓地的直线距离放慢）——
+        // 时长=钳制(距离/速度, 下限, 上限)：下限=演出参数 suctionSeconds（近距原速），上限防远角拖沓
+        private const float SuctionUnitsPerSecond = 3.2f;
+        private const float SuctionMaxSeconds = 2.6f;
+
+        // 属性配色（2026-10-15）：与印刷基础值持平=白（TMP 默认色）、低于=红（受伤/降攻）、
+        // 高于=绿（增益）——攻击/生命逐数字独立着色（富文本），查表 miss（无印刷值）恒白。
+        private static readonly Color StatDownColor = new Color(1f, 0.38f, 0.32f);
+        private static readonly Color StatUpColor = new Color(0.42f, 1f, 0.45f);
+
+        private static string FormatStats(int power, int life, int? basePower, int? baseLife)
+            => StatSpan(power, basePower) + "/" + StatSpan(life, baseLife);
+
+        private static string StatSpan(int value, int? baseValue)
+        {
+            if (!baseValue.HasValue) return value.ToString();
+            if (value < baseValue.Value)
+                return $"<color=#{ColorUtility.ToHtmlStringRGB(StatDownColor)}>{value}</color>";
+            if (value > baseValue.Value)
+                return $"<color=#{ColorUtility.ToHtmlStringRGB(StatUpColor)}>{value}</color>";
+            return value.ToString();
+        }
 
         public BattleFieldView()
         {
@@ -47,9 +95,19 @@ namespace SynergyUI
             if (_heldUnits.Count > 0)
                 Debug.LogWarning($"[BattleField] Dispose 时仍有 {_heldUnits.Count} 个演出 hold 未释放（正常应在编舞 finally 清空）——随 Dispose 一并丢弃");
             _heldUnits.Clear();
+            foreach (var a in _creatureArrows)
+                if (a != null)
+                {
+                    if (Application.isPlaying) Object.Destroy(a);
+                    else Object.DestroyImmediate(a);
+                }
+            _creatureArrows.Clear(); // 钉在 tile 上不随 _root 销毁，须自清
             _units.Clear();
             _heroes.Clear();
-            _tempWallets.Clear();
+            _landCounts.Clear();
+            _skillLabels.Clear();
+            _castings.Clear(); // 立牌是 _root 子物体随根销毁；逐卡实例材质由 GC/卸载回收（短命局对象）
+            _arrivals.Clear(); // 未消费的入场载荷不跨局
             if (_root != null) Object.Destroy(_root.gameObject);
         }
 
@@ -67,8 +125,19 @@ namespace SynergyUI
                 return false;
             }
 
+            // 收进 Map 总根（2026-10-14 晚定案）：运行时临时对象不堆积场景根目录；
+            // ctor 早于装台时首帧对账（棋盘就绪=Map 已存在）一次性重挂。
+            if (_root != null && _root.parent == null && BattleStageDirector.MapRoot != null)
+                _root.SetParent(BattleStageDirector.MapRoot, true);
+
             // ---- 地块特效（全熄后随对账按数据重点亮；菲涅尔壳留存复用） ----
             BattleTileFx.ClearAll();
+
+            // ---- 优先权（扳机）指示（2026-10-15 半场逐格泛光退役——与地格玩法高光共用壳互相覆盖）：
+            //      战场底部两根长方条随扳机切换亮暗（左=己方蓝/右=对手红）；中线行时间格同步切高亮 ----
+            int holderSeat = PrioritySeatOf(d);
+            BattlePriorityGlow.Apply(holderSeat);
+            BattleHudRow.SetTimePriority(holderSeat);
 
             // ---- 单位区（生物/结界/衍生物） ----
             var seenUnits = new HashSet<uint>();
@@ -78,18 +147,23 @@ namespace SynergyUI
             foreach (var card in d.OppUnits) ReconcileUnit(card, owner: 1, seenUnits, ref createdU, ref movedU, ref lastModel);
             removedU = RemoveStale(_units, seenUnits, _heldUnits);
 
-            // ---- 地牌（元素池；无实体——地块菲涅尔+元素图标，BattleTileFx） ----
-            var seenLands = new HashSet<uint>();
-            foreach (var card in d.SelfLands) ReconcileLand(card, seenLands);
-            foreach (var card in d.OppLands) ReconcileLand(card, seenLands);
+            // ---- 生物箭头（2026-10-15 用户定案：钉地格不跟 wrapper——攻击/守卫跑动留在原地） ----
+            ReconcileCreatureArrows(d);
+
+            // ---- 施放占格立牌（2026-10-15 发动格拆除：发动区占位卡 × 单位区空格） ----
+            ReconcileCasting(d.CastingCards);
+
+            // ---- 地牌（固定元素格；2026-10-14 晚定案：6 格固定元素身份 灰红蓝绿黑白） ----
+            ReconcileLands(d.SelfLands, d.Self, 0);
+            ReconcileLands(d.OppLands, d.Opp, 1);
 
             // ---- 角色立柱 ----
             ReconcileHero(d.Self, 0);
             ReconcileHero(d.Opp, 1);
 
-            // ---- 临时元素格钱包（2026-10-13 临时元素上盘：地牌行左端格就地显示余额） ----
-            ReconcileTempWallet(d.Self, 0);
-            ReconcileTempWallet(d.Opp, 1);
+            // ---- 技能格（2026-10-14 晚改版：无技能=空格，有技能=技能名；黑白余额/上限迁至地牌行黑白格） ----
+            ReconcileSkill(d.Self, 0);
+            ReconcileSkill(d.Opp, 1);
 
             // ---- 特殊格道具对账（卡组卡堆高度随牌库数 0..60 钳制；墓地/除外漩涡常驻自转） ----
             BattleZoneProps.SetDeckCount(0, d.Self.DeckCount);
@@ -98,12 +172,20 @@ namespace SynergyUI
             Debug.Log($"[BattleField] 对账：单位 己{d.SelfUnits.Count}/敌{d.OppUnits.Count}"
                       + $"（新建{createdU} 移动{movedU} 销毁{removedU}{(createdU > 0 ? " 最近模型=" + lastModel : "")}）"
                       + $" 地牌 己{d.SelfLands.Count}/敌{d.OppLands.Count}"
-                      + $" 地块高亮{BattleTileFx.GlowOn} 元素图标{BattleTileFx.IconCount}"
+                      + $" 地块高亮{BattleTileFx.GlowOn} 元素图标{BattleTileFx.IconCount} 生物箭头{_creatureArrows.Count}"
+                      + $" 施放立牌{d.CastingCards.Count}"
                       + $" 牌库 己{d.Self.DeckCount}/敌{d.Opp.DeckCount}"
                       + $" 生命 己{d.Self.Life}/敌{d.Opp.Life}"
-                      + $" 临时钱包 己{d.Self.BankText}/敌{d.Opp.BankText}");
+                      + $" 地牌上限 己{d.Self.LandCap}/敌{d.Opp.LandCap}"
+                      + $" 钱包(白黑) 己{d.Self.WalletByColor[(int)ManaType.White]}/{d.Self.WalletByColor[(int)ManaType.Black]}"
+                      + $" 敌{d.Opp.WalletByColor[(int)ManaType.White]}/{d.Opp.WalletByColor[(int)ManaType.Black]}");
             return true;
         }
+
+        /// <summary>当前优先权（扳机）持有方（观察者视角 seat：0=己方 1=对手）：栈非空=优先权
+        /// 持有方（MyPriority 观察者相对口径），栈空=回合方——对账数据单源推导，本地/网络同式。</summary>
+        private static int PrioritySeatOf(BattleViewData d)
+            => d.StackNotEmpty ? (d.MyPriority ? 0 : 1) : (d.MyTurn ? 0 : 1);
 
         // ======================================== 单位 ========================================
 
@@ -115,6 +197,69 @@ namespace SynergyUI
             public TextMeshPro Stats;
             public int X, Z;
             public bool Dead;
+            public int Owner;                 // 归属 0/1（头注视敌我分辨）
+            public float ModelYaw;            // 模型层对敌本地偏航（2026-10-15 定案：朝向归模型层；结界=箭头净朝向 180/0）
+            public bool IsCreature = true;    // 生物才作注视目标（结界三件模型不参与对视）
+            public float LookHeight = 0.6f;   // 注视点高度（包围盒胸口位估算）
+            public Func<Vector3?> LookPin;    // 战斗注视钉（编舞器）：非空优先于待机注视
+
+            // —— 头顶数值节拍（2026-10-15 定案：攻击结算同帧改血，展示等命中时刻）——
+            // Shown=当前展示值（滚动起点/逐帧推进）；Target=对账目标值（冻结期只缓冲）；
+            // StatsVersion=滚动作废令牌（新目标即作废在途滚动，从当前展示值续走）
+            public int ShownPower = int.MinValue, ShownLife = int.MinValue;
+            public int TargetPower, TargetLife;
+            public int? BasePower, BaseLife;
+            public int StatsVersion;
+            public bool StatsHeld;            // 战斗演出数值冻结：命中节拍释放并滚动落值
+
+            /// <summary>对账写入口：冻结期只更新目标值；否则值变化滚动过渡（0.4s 缓出，逐格推进）。</summary>
+            public void SetStatsValues(int power, int life, int? basePower, int? baseLife)
+            {
+                TargetPower = power; TargetLife = life; BasePower = basePower; BaseLife = baseLife;
+                if (StatsHeld) return;
+                if (ShownPower == int.MinValue) // 首写直落（无滚动起点）
+                {
+                    ShownPower = power; ShownLife = life;
+                    WriteStats(power, life);
+                    return;
+                }
+                if (power == ShownPower && life == ShownLife) { WriteStats(power, life); return; }
+                StatsVersion++;
+                RollStatsAsync().Forget();
+            }
+
+            /// <summary>命中节拍释放：缓冲目标值滚动落地（编舞器调）。</summary>
+            public void ReleaseStatsHold()
+            {
+                if (!StatsHeld) return;
+                StatsHeld = false;
+                if (TargetPower == ShownPower && TargetLife == ShownLife) return;
+                StatsVersion++;
+                RollStatsAsync().Forget();
+            }
+
+            private async UniTaskVoid RollStatsAsync()
+            {
+                int ver = StatsVersion;
+                int fromP = ShownPower, fromL = ShownLife;
+                const float dur = 0.4f;
+                float t0 = Time.realtimeSinceStartup;
+                while (Stats != null && StatsVersion == ver)
+                {
+                    float t = Mathf.Clamp01((Time.realtimeSinceStartup - t0) / dur);
+                    float e = 1f - (1f - t) * (1f - t); // 缓出：命中落值后减速收尾
+                    ShownPower = Mathf.RoundToInt(Mathf.Lerp(fromP, TargetPower, e));
+                    ShownLife = Mathf.RoundToInt(Mathf.Lerp(fromL, TargetLife, e));
+                    WriteStats(ShownPower, ShownLife);
+                    if (t >= 1f) return;
+                    await UniTask.Yield();
+                }
+            }
+
+            private void WriteStats(int p, int l)
+            {
+                if (Stats != null) Stats.text = FormatStats(p, l, BasePower, BaseLife);
+            }
         }
 
         private void ReconcileUnit(BattleCardView card, int owner,
@@ -132,6 +277,11 @@ namespace SynergyUI
                 lastModel = MonsterModelResolver.LastPolicy;
             }
 
+            // 入场演出（2026-10-15）：载荷消费放对账级幂等——CardZoneChange 刷新可能先于
+            // CardPutToBattlefieldEvent（载荷入队）创建单位，创建时一次性消费会永久错过；
+            // 逐对账 TryGetValue 命中即启动（未命中=无载荷/已消费，零成本返回）
+            TryBeginArrival(card, v.Model);
+
             if (v.X != card.X || v.Z != card.Z)
             {
                 if (!_heldUnits.Contains(card.RuntimeId))
@@ -145,9 +295,15 @@ namespace SynergyUI
                 // 释放后对账按差量重新落笔
             }
 
-            // 横置=wrapper 侧倾提示（回合开始恢复直立——对账幂等直写；hold 中归编舞器）
+            // 朝向架构（2026-10-15 用户定案·二次修订）：模型层持对敌朝向（己方0/对手180）、stats 自
+            // billboard、wrapper 恒 identity（横置 24° 侧倾同日退役——横置仅由光波熄表达；
+            // 走位/演出期 wrapper 转向=期望世界朝向−ModelYaw，归编舞器）；hold 中归编舞器
             if (!_heldUnits.Contains(card.RuntimeId))
-                v.Wrapper.rotation = Quaternion.Euler(0f, FacingYaw(owner), card.IsTapped ? 24f : 0f);
+            {
+                v.Wrapper.rotation = Quaternion.identity;
+                if (v.Model != null)
+                    v.Model.transform.localRotation = Quaternion.Euler(0f, v.ModelYaw, 0f);
+            }
 
             // 可行动高光（2026-10-13 卡背退役定案·晚改扩散波）：未横置未死亡=脚下地块淡蓝扩散波，横置/死亡即熄
             if (!card.IsTapped && !card.IsDead)
@@ -174,7 +330,8 @@ namespace SynergyUI
             }
 
             if (v.Stats != null && card.Runtime != null)
-                v.Stats.text = card.Runtime.Power + "/" + card.Runtime.Life;
+                v.SetStatsValues(card.Runtime.Power, card.Runtime.Life, card.BasePower, card.BaseLife);
+                // 数值节拍（2026-10-15）：不再直写——冻结期缓冲、命中节拍释放、变化滚动过渡
         }
 
         private UnitVisual CreateUnit(BattleCardView card, int owner)
@@ -182,11 +339,38 @@ namespace SynergyUI
             var wrapper = new GameObject("unit-" + card.RuntimeId % 10000);
             wrapper.transform.SetParent(_root, false);
             wrapper.transform.position = UnitAnchor(card.X, card.Z);
-            wrapper.transform.rotation = Quaternion.Euler(0f, FacingYaw(owner), 0f);
+            wrapper.transform.rotation = Quaternion.identity; // 朝向归模型层（2026-10-15）：wrapper 只承载位移/演出旋转
 
             GameObject model;
             MonsterRigAnimator anim = null;
             Vector3 baseScale = Vector3.one, basePos = Vector3.zero;
+
+            // 结界（2026-10-14）：专属三件模型（圆锥本体+光环环+六向箭头底座）——不走怪兽模型解析；
+            // 箭头/光环环按卡数据对账（圆环=有链接光环效果的结界，箭头=卡面箭头方向的绝对指向）
+            if (card.Type == Cardtype.Enchantment)
+            {
+                var enchantPrefab = BattleEnchantModel.Load();
+                if (enchantPrefab != null)
+                {
+                    model = Object.Instantiate(enchantPrefab, wrapper.transform);
+                    model.name = enchantPrefab.name;
+                    model.transform.localPosition = Vector3.zero;
+                    // 箭头绝对方向（2026-10-15 架构）：wrapper 恒 identity，净朝向全落模型层——
+                    // 180/0=结界箭头 10-14 定案时的世界朝向（对手 Opposite 镜像配套）
+                    model.transform.localRotation = Quaternion.Euler(0f, owner == 0 ? 180f : 0f, 0f);
+                    model.transform.localScale = Vector3.one;
+                    var fx = model.GetComponent<BattleEnchantFx>();
+                    if (fx != null)
+                        fx.Apply((HexDirection)card.ArrowDirs, owner == 1, card.HasAura);
+                    Debug.Log($"[BattleField] 结界 {card.Name}({card.CardId}) 三件模型"
+                              + $"（箭头={(HexDirection)card.ArrowDirs} 光环环={(card.HasAura ? "亮" : "无")}）");
+                    var ve = FinishUnit(card, wrapper.transform, model, null, owner);
+                    ve.ModelYaw = owner == 0 ? 180f : 0f;
+                    return ve;
+                }
+                Debug.Log($"[BattleField] 结界 {card.Name}({card.CardId}) prefab 缺失→占位胶囊");
+            }
+
             var prefab = MonsterModelResolver.Resolve(card.CardId, card.Name, card.Illustration);
             if (prefab != null)
             {
@@ -194,8 +378,8 @@ namespace SynergyUI
                 model = Object.Instantiate(prefab, wrapper.transform);
                 model.name = prefab.name; // 去 (Clone)：目录名/日志一致性
                 model.transform.localPosition = Vector3.zero;
-                model.transform.localRotation = Quaternion.identity;
-                model.transform.localScale = Vector3.one; // 体型已烘进资产（模块数分档 0.7/1/1.5），运行时不缩放
+                model.transform.localRotation = Quaternion.Euler(0f, FacingYaw(owner), 0f); // 对敌朝向归模型层（2026-10-15）
+                model.transform.localScale = Vector3.one; // 体型已烘进资产（模块数分档 1/1/1.5，小档 2026-10-14 晚并入 1），运行时不缩放
                 model.SetActive(false); // catalogName 必须赶在 OnEnable→BuildDriver 前
                 anim = model.AddComponent<MonsterRigAnimator>();
                 anim.SetCatalogName(prefab.name);
@@ -216,50 +400,225 @@ namespace SynergyUI
             }
 
             // 头顶数值高度=实际包围盒顶+余量（2026-10-14 体型分档后各模型高低不一，不能再按统一基准估算）
+            var uv = FinishUnit(card, wrapper.transform, model, anim, owner);
+            uv.ModelYaw = FacingYaw(owner);
+            return uv;
+        }
+
+        // ---- 出场粒子汇聚（2026-10-15）：CastPlayed 入场的模型隐藏至粒子回调显现 ----
+
+        /// <summary>登记入场演出载荷（BattleScreen 在 CardPutToBattlefieldEvent(CastPlayed) 时组装；
+        /// 键=RuntimeId。消费点=CreateUnit（一次性取出；未消费残留随 Dispose 清空）。</summary>
+        public void EnqueueArrival(uint runtimeId, int seat, Dictionary<int, float> paid)
+            => _arrivals[runtimeId] = (seat, paid);
+
+        /// <summary>有载荷才演出：模型全程可见——世界Y消融（MPB 驱动 Tide/YGOMonster shader 分支）
+        /// +地格粒子汇聚，t=1s 消融线沉底=完全显现（v2 定案：不再隐藏 wrapper，头顶数值随出）。
+        /// model=入场模型根（拼装预制体亦可——影子内部合并网格）。演出异常兜底立即复位（BattleCastArrival 契约）。</summary>
+        private void TryBeginArrival(BattleCardView card, GameObject model)
+        {
+            if (!_arrivals.TryGetValue(card.RuntimeId, out var payload)) return;
+            _arrivals.Remove(card.RuntimeId);
+            Debug.Log($"[BattleField] 单位 {card.Name}({card.RuntimeId}) 入场演出开始（世界Y消融+粒子汇聚）");
+            BattleCastArrival.Play(card.RuntimeId, payload.seat, payload.paid,
+                UnitAnchor(card.X, card.Z), model,
+                () => { }); // 模型消融自显——回调仅节拍通知（保留契约供外部观察）
+        }
+
+        /// <summary>单位装配收尾（结界/生物两路汇流）：头顶数值高度=实际包围盒顶+余量
+        /// （2026-10-14 体型分档后各模型高低不一，不能再按统一基准估算）；生物挂头注视供应商
+        /// （2026-10-15 战场接线：待机=最近敌方生物→对方角色，战斗注视钉优先——见 ResolveGazeOf）。</summary>
+        private UnitVisual FinishUnit(BattleCardView card, Transform wrapper, GameObject model,
+            MonsterRigAnimator anim, int owner)
+        {
             float textY = 1.35f;
+            float lookY = 0.6f;
             var unitRenderers = model.GetComponentsInChildren<Renderer>();
             if (unitRenderers.Length > 0)
             {
                 var b = unitRenderers[0].bounds;
                 for (int ri = 1; ri < unitRenderers.Length; ri++) b.Encapsulate(unitRenderers[ri].bounds);
                 textY = b.max.y - wrapper.transform.position.y + 0.35f;
+                lookY = Mathf.Clamp((b.max.y - wrapper.transform.position.y) * 0.55f, 0.3f, 1.6f);
             }
 
             var v = new UnitVisual
             {
-                Wrapper = wrapper.transform,
+                Wrapper = wrapper,
                 Model = model,
                 Anim = anim,
                 X = card.X,
                 Z = card.Z,
                 Dead = card.IsDead,
+                Owner = owner,
+                IsCreature = card.Type != Cardtype.Enchantment,
+                LookHeight = lookY,
             };
             if (card.IsDead) anim?.Play(MonsterAction.FallDown);
-            v.Stats = CreateStatsText(wrapper.transform, textY);
+            v.Stats = CreateStatsText(wrapper, textY);
+            anim?.SetLookTarget(() => ResolveGazeOf(v)); // 供应商在组件层持有，驱动重建自动重挂
             return v;
         }
+
+        // ======================================== 施放占格立牌（2026-10-15 发动格拆除） ========================================
+
+        /// <summary>施放卡立牌对账（发动区占位卡 × 单位区空格——整个 2×6 兼任发动区）。
+        /// 永久物转正=立牌消失、单位对账同帧上模型；法术结算/失败离场=立牌随 stale 清除。</summary>
+        private void ReconcileCasting(List<BattleCardView> cards)
+        {
+            var seen = new HashSet<uint>();
+            foreach (var card in cards)
+            {
+                if (card.X < 0 || card.Z < 0) continue; // 未落格（满场无空格）不立牌
+                seen.Add(card.RuntimeId);
+                if (!_castings.TryGetValue(card.RuntimeId, out var go) || go == null)
+                {
+                    go = CreateCastingCard(card);
+                    _castings[card.RuntimeId] = go;
+                }
+                var anchor = CastingAnchor(card.X, card.Z);
+                if ((go.transform.position - anchor).sqrMagnitude > 1e-6f)
+                    go.transform.position = anchor; // 施放格迁移（钉格变化）
+            }
+
+            List<uint> stale = null;
+            foreach (var kv in _castings)
+                if (!seen.Contains(kv.Key)) (stale ?? (stale = new List<uint>())).Add(kv.Key);
+            if (stale == null) return;
+            foreach (var id in stale)
+            {
+                var go = _castings[id];
+                _castings.Remove(id);
+                if (go == null) continue;
+                var rend = go.GetComponent<MeshRenderer>();
+                if (rend != null && rend.material != null)
+                {
+                    if (Application.isPlaying) Object.Destroy(rend.material); // 逐卡实例材质随件销毁防泄漏
+                    else Object.DestroyImmediate(rend.material);
+                }
+                if (Application.isPlaying) Object.Destroy(go);
+                else Object.DestroyImmediate(go);
+            }
+        }
+
+        private GameObject CreateCastingCard(BattleCardView card)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad); // 自带 MeshCollider：hover/点击命中
+            go.name = CastingCardPrefix + card.RuntimeId;
+            go.transform.SetParent(_root, false);
+            go.transform.position = CastingAnchor(card.X, card.Z);
+            go.transform.localScale = new Vector3(0.9f, 1.35f, 1f); // 卡牌 2:3 形态
+            var cam = BattleStageDirector.WorldCam;
+            if (cam != null)
+                go.transform.rotation = Quaternion.LookRotation(go.transform.position - cam.transform.position);
+            go.AddComponent<StatsBillboard>(); // 每帧对相机（与头顶数值同款 billboard，朝向同口径）
+
+            bool own = BoardLayout.OwnerOf(card.X, card.Z) == 0;
+            var rend = go.GetComponent<MeshRenderer>();
+            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            if (_castMat == null)
+            {
+                var src = Tide.HotUpdate.HotUpdateAssets.Load<Material>(
+                    "BattleCardBack_Back", "Assets/Art/Battle3D/Materials/BattleCardBack_Back_Mat.asset");
+                _castMat = src != null ? new Material(src) : null; // URP Unlit 透明底材（材质资产化约定）
+            }
+            if (_castMat != null)
+            {
+                rend.sharedMaterial = _castMat;
+                var mat = rend.material; // 逐卡实例
+                var sprite = CardArtLibrary.Load(card.Illustration);
+                if (sprite != null) mat.mainTexture = sprite.texture; // 生物=模型预览图/卡面立绘
+                else
+                {
+                    mat.mainTexture = null; // 无立绘（法术/结界常态，2026-10-15 口径）：归属色纯色牌
+                    mat.color = own ? P1UnitColor : P2UnitColor;
+                }
+            }
+            else
+                rend.material.color = own ? P1UnitColor : P2UnitColor; // 底材缺失兜底（默认 Lit 灰牌染色）
+
+            // 底部卡名（TMP 缺字体时静默跳过——与头顶数值同约定）
+            if (EnsureTmpFont())
+            {
+                var labelGo = new GameObject("cast-name");
+                labelGo.transform.SetParent(go.transform, false);
+                labelGo.transform.localPosition = new Vector3(0f, -0.82f, -0.02f); // 面向相机侧、牌缘下方
+                var tmp = labelGo.AddComponent<TextMeshPro>();
+                tmp.fontSize = 2.4f;
+                tmp.alignment = TextAlignmentOptions.Center;
+                tmp.color = Color.white;
+                tmp.text = card.Name;
+            }
+            Debug.Log($"[BattleField] 施放立牌：{card.Name}({card.CardId}) @({card.X},{card.Z})（{(own ? "己方" : "对手")}发动）");
+            return go;
+        }
+
+        /// <summary>立牌锚点：格心上方悬浮（卡面中心≈0.8m——底缘离格面≈0.12m）。</summary>
+        private static Vector3 CastingAnchor(int x, int z)
+            => BattleBoardGrid.WorldPositionOf(x, z) + new Vector3(0f, 0.8f, 0f);
 
         /// <summary>单位站格锚点：格心 + 少量抬高（防 z-fight）。</summary>
         private static Vector3 UnitAnchor(int x, int z)
             => BattleBoardGrid.WorldPositionOf(x, z) + new Vector3(0f, 0.05f, 0f);
 
-        /// <summary>朝向：模型默认面 +Z；己方(P1，高 z 半场)面向 -Z、对方(P2)面向 +Z。</summary>
+        /// <summary>朝向：FacingYawOf 同源=模型层本地偏航（烘焙前向 +Z：己方 0 / 对手 180）。</summary>
         private static float FacingYaw(int owner) => FacingYawOf(owner);
 
-        // ======================================== 地牌 ========================================
+        // ======================================== 地牌（固定元素格） ========================================
 
-        /// <summary>地牌无实体（2026-10-13 卡背退役定案）：状态全由脚下地块表达——
-        /// 未横置=锁色菲涅尔+格面元素图标（叠层错位两张）；横置（已产元素）即全熄
-        /// （Apply 开头 ClearAll 已清，此卡不点亮）。无逐卡状态，幂等无需字典。</summary>
-        private static void ReconcileLand(BattleCardView card, HashSet<uint> seen)
+        /// <summary>地牌固定元素格对账（2026-10-14 晚定案）：6 格按 BoardLayout.LandCellElementOrder
+        ///（灰红蓝绿黑白，玩家视角左→右）固定元素身份——图标常驻（空格也亮身份）；
+        /// 计数=「可用/上限」（2026-10-14 表述定案，当晚上限语义修正）：可用=未横置张+钱包该色余额
+        ///（黑白无地牌=钱包余额）；上限=红蓝绿灰该色已放入地牌张数（含横置）、黑白=地牌槽上限（生成钳同源）；
+        /// 可用&gt;0 点亮锁色菲涅尔。
+        /// 计数条=格面平铺 TMP（不看向相机——平贴地块，见 EnsureFlatCellLabel）。</summary>
+        private void ReconcileLands(List<BattleCardView> lands, BattlePlayerView pv, int owner)
         {
-            seen.Add(card.RuntimeId);
-            if (card.X < 0 || card.Z < 0) return; // 未落格（异常数据）
-            if (card.IsTapped) return;
+            // 按色聚合（引擎固定元素格保证同色同格；无锁色异常卡按灰聚拢=同引擎口径）
+            var byColor = new Dictionary<int, LandGroup>();
+            foreach (var card in lands ?? new List<BattleCardView>())
+            {
+                if (card == null) continue;
+                int color = card.Runtime != null ? card.Runtime.LockedColor : -1;
+                if (color < 0) color = (int)ManaType.Gray;
+                if (!byColor.TryGetValue(color, out var g))
+                {
+                    g = new LandGroup { Color = color };
+                    byColor[color] = g;
+                }
+                g.Total++;
+                if (!card.IsTapped) g.Untapped++;
+            }
 
-            int locked = card.Runtime != null ? card.Runtime.LockedColor : -1;
-            BattleTileFx.SetLandGlow(card.X, card.Z, locked);
-            BattleTileFx.AddElement(card.X, card.Z, locked, card.Stacked);
+            var cells = BoardLayout.LandCells(owner);
+            int n = Mathf.Min(cells.Count, BoardLayout.LandCellElementOrder.Length);
+            for (int i = 0; i < n; i++)
+            {
+                int element = (int)BoardLayout.LandCellElementOrder[i];
+                var cell = cells[i];
+                // 元素标识常驻（空格也亮身份）；+z 0.35 上移让位（屏幕上方向——固定机位自 -z 俯拍，
+                // 图标靠格上缘、下方留给平贴计数文字）
+                BattleTileFx.AddElement(cell.x, cell.z, element, new Vector2(0f, 0.35f));
+                int wallet = pv != null && element >= 0 && element < pv.WalletByColor.Length
+                    ? pv.WalletByColor[element] : 0;
+                byColor.TryGetValue(element, out var g);
+                bool isBw = element == (int)ManaType.White || element == (int)ManaType.Black;
+                int remaining = isBw ? wallet : (g != null ? g.Untapped : 0) + wallet; // 黑白：可用即钱包（无地牌）
+                if (remaining > 0) BattleTileFx.SetLandGlow(cell.x, cell.z, element);
+                var label = EnsureFlatCellLabel(((long)cell.x << 32) | (uint)cell.z, cell.x, cell.z);
+                if (label != null)
+                {
+                    label.gameObject.SetActive(true);
+                    // 上限：红蓝绿灰=该色已放入地牌张数（含横置）；黑白=地牌槽上限（2026-10-14 晚定案）
+                    int cap = isBw ? (pv != null ? pv.LandCap : 0) : (g != null ? g.Total : 0);
+                    label.text = $"{remaining}/{cap}";
+                }
+            }
+        }
+
+        private sealed class LandGroup
+        {
+            public int Color, Total, Untapped;
         }
 
         // ======================================== 角色 ========================================
@@ -299,35 +658,75 @@ namespace SynergyUI
             }
         }
 
-        // ======================================== 临时元素格 ========================================
+        // ======================================== 技能格 ========================================
 
-        /// <summary>临时元素格钱包余额（2026-10-13 临时元素上盘定案）：临时元素格上方世界 TMP，
-        /// 文本=BattlePlayerView.BankText（与 HUD「临时元素」条同源同格式），空（"—"）即整条隐藏；
-        /// 钱包入账/支付/回合清零事件已接 RefreshField，对账幂等直写。</summary>
-        private void ReconcileTempWallet(BattlePlayerView p, int owner)
+        /// <summary>技能格对账（2026-10-14 晚改版）：无技能=空格（不画图标/数字条）；
+        /// 有技能=格面数字条显示技能名（详情走悬停卡面）。黑白钱包余额/生成上限迁至
+        /// 地牌行黑白元素格（ReconcileLands；黑白不由地牌产出、合计生成 ≤ 地牌上限）。
+        /// 点击（己方）发动技能的交互在 BattleScreen 路由。</summary>
+        private void ReconcileSkill(BattlePlayerView p, int owner)
         {
-            if (!EnsureTmpFont()) return;
-            if (!_tempWallets.TryGetValue(owner, out var label) || label == null)
+            var skill = p?.Skill;
+            if (skill == null)
             {
-                var cell = BoardLayout.TempElementCell(owner);
-                var go = new GameObject("temp-wallet-" + (owner == 0 ? "self" : "opp"));
-                go.transform.SetParent(_root, false);
-                go.transform.position = BattleBoardGrid.WorldPositionOf(cell.x, cell.z) + new Vector3(0f, 0.3f, 0f);
-                // 朝向=世界相机（同 CreateStatsText 口径；相机未就绪回落固定朝向）
-                var cam = BattleStageDirector.WorldCam;
-                go.transform.rotation = cam != null
-                    ? Quaternion.LookRotation(go.transform.position - cam.transform.position)
-                    : Quaternion.Euler(0f, 180f, 0f);
-                label = go.AddComponent<TextMeshPro>();
-                label.fontSize = 3.5f;
-                label.alignment = TextAlignmentOptions.Center;
-                label.color = Color.white;
-                _tempWallets[owner] = label;
+                // 空格：数字条既建即藏（元素图标随 BattleTileFx.ClearAll 每次对账自清）
+                if (_skillLabels.TryGetValue(owner, out var stale) && stale != null && stale.gameObject.activeSelf)
+                    stale.gameObject.SetActive(false);
+                return;
             }
 
-            bool any = !string.IsNullOrEmpty(p.BankText) && p.BankText != "—";
-            label.gameObject.SetActive(any);
-            if (any) label.text = "临时 " + p.BankText;
+            var cell = BoardLayout.SkillCell(owner);
+            var label = EnsureOwnerLabel(_skillLabels, owner, cell, 0.34f);
+            if (label == null) return;
+            label.gameObject.SetActive(true);
+            label.text = skill.Name;
+        }
+
+        /// <summary>地牌格平铺数字条（2026-10-14 晚定案：这类格子的文字不看向相机，平贴地块显示；
+        /// 晚二批=轴对齐 z 旋 0；本批修字向）：面朝上且**读向 +x、字头 +z、可读面（TMP 本地 -Z）朝相机**
+        /// ——正解=LookRotation(down, forward)=Euler(90,0,0)，相机 (7,8,-4)/(50,0,0) 自 -z 俯拍实测
+        /// （旧 LookRotation(up,…) 三项全反：字镜像且读向右到左，中文整句一眼翻反、1/1 回文数漏检）。
+        /// 贴格顶面 y=0.014（顶面 y=0、菲涅尔 0.004、图标 0.008 之上），位置=格心向视角前缘（-z）
+        /// 偏移 0.42，与上移 +z 0.35 的居中图标让位。key=格(x&lt;&lt;32|z)。</summary>
+        private TextMeshPro EnsureFlatCellLabel(long key, int x, int z)
+        {
+            if (!EnsureTmpFont()) return null;
+            if (_landCounts.TryGetValue(key, out var label) && label != null) return label; // fake-null 判死重建
+            var go = new GameObject("cell-flat-" + x + "-" + z);
+            go.transform.SetParent(_root, false);
+            go.transform.position = BattleBoardGrid.WorldPositionOf(x, z) + new Vector3(0f, 0.014f, -0.42f);
+            go.transform.rotation = Quaternion.LookRotation(Vector3.down, Vector3.forward); // 平贴·轴对齐·字向正（2026-10-14 修）
+            label = go.AddComponent<TextMeshPro>();
+            label.fontSize = 3.5f;
+            label.alignment = TextAlignmentOptions.Center;
+            label.color = Color.white;
+            label.rectTransform.sizeDelta = new Vector2(1.6f, 0.9f);
+            _landCounts[key] = label;
+            return label;
+        }
+
+        /// <summary>按归属的固定格数字条惰性建（key=owner）。</summary>
+        private TextMeshPro EnsureOwnerLabel(Dictionary<int, TextMeshPro> map, int owner, (int x, int z) cell, float height)
+            => EnsureLabel(map, owner, cell.x, cell.z, height);
+
+        private TextMeshPro EnsureLabel<TDict, TKey>(TDict map, TKey key, int x, int z, float height)
+            where TDict : IDictionary<TKey, TextMeshPro>
+        {
+            if (!EnsureTmpFont()) return null;
+            if (map.TryGetValue(key, out var label) && label != null) return label; // fake-null 判死重建
+            var go = new GameObject("cell-num-" + x + "-" + z);
+            go.transform.SetParent(_root, false);
+            go.transform.position = BattleBoardGrid.WorldPositionOf(x, z) + new Vector3(0f, height, 0f);
+            var cam = BattleStageDirector.WorldCam;
+            go.transform.rotation = cam != null
+                ? Quaternion.LookRotation(go.transform.position - cam.transform.position)
+                : Quaternion.Euler(0f, 180f, 0f);
+            label = go.AddComponent<TextMeshPro>();
+            label.fontSize = 3.5f;
+            label.alignment = TextAlignmentOptions.Center;
+            label.color = Color.white;
+            map[key] = label;
+            return label;
         }
 
         // ======================================== 通用 ========================================
@@ -354,18 +753,31 @@ namespace SynergyUI
             var go = new GameObject("stats");
             go.transform.SetParent(parent, false);
             go.transform.localPosition = new Vector3(0f, height, 0f);
-            // 朝向=世界相机（2026-10-13 用户反馈：固定朝 -Z 斜俯拍下侧视不可读；固定机位一次性朝向即可，
-            // 相机未就绪回落旧朝向）
+            // 朝向归 stats 自己（2026-10-15 用户定案）：挂 billboard 每帧对相机——wrapper/模型层的
+            // 朝向、横置侧倾、走位旋转都不再带歪文字；初始朝向仅作相机未就绪时的兜底
             var cam = BattleStageDirector.WorldCam;
             if (cam != null)
                 go.transform.rotation = Quaternion.LookRotation(go.transform.position - cam.transform.position);
             else
                 go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            go.AddComponent<StatsBillboard>();
             var tmp = go.AddComponent<TextMeshPro>();
             tmp.fontSize = 5f;
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.color = Color.white;
             return tmp;
+        }
+
+        /// <summary>头顶数值 billboard（2026-10-15 定案）：每帧自转朝世界相机——旋转是 stats 自己的
+        /// 事，与 wrapper（位移/演出旋转）/模型层（对敌朝向）解耦。</summary>
+        private sealed class StatsBillboard : MonoBehaviour
+        {
+            private void LateUpdate()
+            {
+                var cam = BattleStageDirector.WorldCam;
+                if (cam == null) return;
+                transform.rotation = Quaternion.LookRotation(transform.position - cam.transform.position);
+            }
         }
 
         private static int RemoveStale(Dictionary<uint, UnitVisual> map, HashSet<uint> seen, HashSet<uint> held)
@@ -393,6 +805,81 @@ namespace SynergyUI
         public void HoldUnit(uint id) => _heldUnits.Add(id);
 
         public void ReleaseUnit(uint id) => _heldUnits.Remove(id);
+
+        // ======================================== 头注视（2026-10-15 战场接线） ========================================
+
+        /// <summary>单位注视解析（每 Tick 求值）：战斗注视钉（编舞器：攻击看攻击对象/被守卫拦截
+        /// 看拦截者）优先，钉供应器返回 null（目标已离场）自动回落待机；待机=最近敌方生物→
+        /// 对方角色→null（与 MonsterLookTarget 同语义，此处含存活性/结界过滤的战场单源实现）。</summary>
+        private Vector3? ResolveGazeOf(UnitVisual v)
+        {
+            if (v.LookPin != null)
+            {
+                var pinned = v.LookPin();
+                if (pinned.HasValue) return pinned;
+            }
+            return IdleGazeOf(v);
+        }
+
+        private Vector3? IdleGazeOf(UnitVisual v)
+        {
+            if (v.Wrapper == null) return null;
+            Vector3 self = v.Wrapper.position;
+            UnitVisual best = null;
+            float bestSqr = float.MaxValue;
+            foreach (var kv in _units)
+            {
+                var o = kv.Value;
+                if (o == v || !o.IsCreature || o.Owner == v.Owner || o.Dead || o.Wrapper == null) continue;
+                float sqr = (o.Wrapper.position - self).sqrMagnitude;
+                if (sqr < bestSqr) { bestSqr = sqr; best = o; }
+            }
+            if (best != null) return best.Wrapper.position + Vector3.up * best.LookHeight;
+            if (_heroes.TryGetValue(1 - v.Owner, out var hero) && hero.Root != null)
+                return hero.Root.position; // 角色立柱位（y≈0.6 胸口高）
+            return null;
+        }
+
+        /// <summary>战斗注视钉（编舞器攻击演出用）：resolver 每帧求值，返回 null=回落待机注视；
+        /// 单位不在场（已被销毁）忽略。攻击者看攻击对象、被守卫拦截看拦截者均走此口。</summary>
+        public void SetCombatGaze(uint id, Func<Vector3?> resolver)
+        {
+            if (_units.TryGetValue(id, out var v)) v.LookPin = resolver;
+        }
+
+        public void ClearCombatGaze(uint id)
+        {
+            if (_units.TryGetValue(id, out var v)) v.LookPin = null;
+        }
+
+        /// <summary>单位注视点（包围盒胸口高度）——编舞器给对视双方喂点用。</summary>
+        public bool TryGetUnitLookPoint(uint id, out Vector3 point)
+        {
+            point = Vector3.zero;
+            if (!_units.TryGetValue(id, out var v) || v.Wrapper == null) return false;
+            point = v.Wrapper.position + Vector3.up * v.LookHeight;
+            return true;
+        }
+
+        // ======================================== 视觉在途门（2026-10-14 人机节奏定案） ========================================
+
+        private int _visualsInFlight;
+
+        /// <summary>视觉段开始/结束（严格 try/finally 配对）：攻击演出（编舞器 PerformAsync）、
+        /// 死亡漩涡吸入、角色受击脉冲计入——归零=表现层空闲。人机对局 AI 经 WaitVisualsIdleAsync
+        /// 在动作间等门（等一件事演完再做下一件）；AI-vs-AI/无头不查门（全速，完全不管渲染层）。</summary>
+        public void BeginVisual() => _visualsInFlight++;
+
+        public void EndVisual()
+        {
+            if (_visualsInFlight > 0) _visualsInFlight--;
+        }
+
+        /// <summary>等表现层空闲（视觉在途归零）。计数走 try/finally 不泄漏；仅人机节奏路径调用。</summary>
+        public async UniTask WaitVisualsIdleAsync()
+        {
+            while (_visualsInFlight > 0) await UniTask.Yield();
+        }
 
         /// <summary>单位身体访问（编舞器走位/动作驱动用）；wrapper 承载位移（不触发 Recapture）。</summary>
         public bool TryGetUnitBody(uint id, out Transform wrapper, out MonsterRigAnimator anim)
@@ -423,8 +910,76 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>朝向（公开：编舞器回程复原用）：模型默认面 +Z；己方(P1)面向 -Z、对方(P2)面向 +Z。</summary>
-        public static float FacingYawOf(int owner) => owner == 0 ? 180f : 0f;
+        // ======================================== 头顶数值节拍（2026-10-15 定案：攻击结算同帧改血，展示等命中时刻） ========================================
+
+        /// <summary>战斗宣言期冻结全部单位头顶数值：对账照常写入目标值但展示不动——
+        /// 攻击/反击/溅射各自在编舞器命中节拍释放（滚动落值），演出收尾全量兜底释放。</summary>
+        public void HoldAllUnitStats()
+        {
+            foreach (var v in _units.Values) v.StatsHeld = true;
+        }
+
+        /// <summary>命中节拍释放单个单位（伤害落地时刻滚动显示）；未知 id/未冻结=无操作。</summary>
+        public void ReleaseUnitStats(uint id)
+        {
+            if (_units.TryGetValue(id, out var v)) v.ReleaseStatsHold();
+        }
+
+        /// <summary>全量释放（演出收尾/取消/Dispose 兜底）：任何路径不漏冻结。</summary>
+        public void ReleaseAllHeldStats()
+        {
+            foreach (var v in _units.Values) v.ReleaseStatsHold();
+        }
+
+        // ======================================== 生物箭头（钉地） ========================================
+
+        /// <summary>生物卡面箭头对账（2026-10-15 用户定案）：ArrowDirs≠0 的生物（链接生物）在
+        /// 数据格 tile 上铺六向三角（复用结界 prefab 的 arrows 件；锥隐藏、环恒灭）——挂 tile 不挂
+        /// wrapper，攻击/守卫拦截跑动不跟走，移动/终局随全量对账重建。镜像口径同结界：根旋转复刻
+        /// 旧 wrapper 半场朝向（己方 180/对方 0）+ Apply 的对手 Opposite 镜像。</summary>
+        private void ReconcileCreatureArrows(BattleViewData d)
+        {
+            foreach (var a in _creatureArrows)
+                if (a != null)
+                {
+                    if (Application.isPlaying) Object.Destroy(a);
+                    else Object.DestroyImmediate(a);
+                }
+            _creatureArrows.Clear();
+            if (BattleBoardGrid.Root == null) return;
+
+            AddCreatureArrows(d.SelfUnits, 0);
+            AddCreatureArrows(d.OppUnits, 1);
+        }
+
+        private void AddCreatureArrows(List<BattleCardView> units, int owner)
+        {
+            var prefab = BattleEnchantModel.Load();
+            if (prefab == null) return; // 缺失告警由 Load 落（与结界路径同源一次）
+            foreach (var card in units)
+            {
+                if (card.ArrowDirs == 0 || card.Type == Cardtype.Enchantment) continue; // 结界三件自带
+                if (card.IsDead || card.X < 0 || card.Z < 0) continue;
+                var tile = BattleBoardGrid.Root.transform.Find($"tile-{card.X}-{card.Z}");
+                if (tile == null) continue;
+
+                var inst = Object.Instantiate(prefab, tile, false);
+                inst.name = "fx-creature-arrows";
+                inst.transform.localPosition = new Vector3(0f, 0.006f, 0f);
+                inst.transform.localRotation = owner == 0 ? Quaternion.Euler(0f, 180f, 0f) : Quaternion.identity;
+                inst.GetComponent<BattleEnchantFx>()?.Apply((HexDirection)card.ArrowDirs, owner == 1, false);
+                var cone = inst.transform.Find("cone");
+                if (cone != null) cone.gameObject.SetActive(false);
+                _creatureArrows.Add(inst);
+            }
+        }
+
+        /// <summary>模型层对敌本地偏航（公开：编舞器走位/转面补偿用）：
+        /// 模型烘焙前向=本地 +Z（2026-10-15 用户定案：头朝向即 +Z 朝向，以「攻击动作是前拱」为判据
+        /// 手工校准，反向个体已删除；与 RigDriver「移动方向恒根前向 +Z」契约一致，推翻同日 −Z 二次定案）。
+        /// 己方(P1，低 z 半场) 0 / 对方(P2) 180 正对敌半场。
+        /// wrapper 恒 identity，走位期 wrapper 转向=期望世界朝向(Atan2)−本值。</summary>
+        public static float FacingYawOf(int owner) => owner == 0 ? 0f : 180f;
 
         /// <summary>死亡演出（战斗编舞与通用死亡同路径，2026-10-13 定案③）：倒地散落→停稳→
         /// 螺旋吸入己方墓地漩涡→销毁。playFall=false=倒地已播过（对账翻转路径）。
@@ -432,28 +987,37 @@ namespace SynergyUI
         public async UniTask PlayDeathSuctionAsync(uint id, int owner, bool playFall,
             float settleSeconds = 1f, float suctionSeconds = 0.75f)
         {
-            if (!_units.TryGetValue(id, out var v) || v.Wrapper == null) return;
-            HoldUnit(id); // 防 RemoveStale 抢销毁
-            if (playFall) v.Anim?.Play(MonsterAction.FallDown);
-
-            float t0 = Time.realtimeSinceStartup;
-            while (Time.realtimeSinceStartup - t0 < settleSeconds)
+            BeginVisual(); // 视觉在途门：死亡演出期间人机局 AI 等待
+            try
             {
-                if (v.Wrapper == null || !v.Dead) { ReleaseUnit(id); return; }
-                await UniTask.Yield();
-            }
-            if (v.Wrapper == null) { ReleaseUnit(id); return; }
-            if (!v.Dead) { ReleaseUnit(id); return; } // 复活竞争：交还对账
+                if (!_units.TryGetValue(id, out var v) || v.Wrapper == null) return;
+                HoldUnit(id); // 防 RemoveStale 抢销毁
+                if (playFall) v.Anim?.Play(MonsterAction.FallDown);
 
-            var graveCell = BattleZoneProps.GraveCellOf(owner);
-            var grave = BattleBoardGrid.WorldPositionOf(graveCell.x, graveCell.z);
-            await SuckToVortexAsync(v, grave, suctionSeconds);
-            if (v.Wrapper != null && v.Dead)
-            {
-                Debug.Log($"[BattleField] 单位 {id % 10000} 已被墓地漩涡吸走（owner={owner}）");
-                RetireUnit(id);
+                float t0 = Time.realtimeSinceStartup;
+                while (Time.realtimeSinceStartup - t0 < settleSeconds)
+                {
+                    if (v.Wrapper == null || !v.Dead) { ReleaseUnit(id); return; }
+                    await UniTask.Yield();
+                }
+                if (v.Wrapper == null) { ReleaseUnit(id); return; }
+                if (!v.Dead) { ReleaseUnit(id); return; } // 复活竞争：交还对账
+
+                var graveCell = BattleZoneProps.GraveCellOf(owner);
+                var grave = BattleBoardGrid.WorldPositionOf(graveCell.x, graveCell.z);
+                // 吸程按距离放慢（2026-10-15 定案）：直线距离折算时长——远处死亡飞得久，
+                // 参数 suctionSeconds 降级为近距下限，封顶防远角拖沓
+                float dist = v.Wrapper != null ? Vector3.Distance(v.Wrapper.position, grave) : 0f;
+                float seconds = Mathf.Clamp(dist / SuctionUnitsPerSecond, suctionSeconds, SuctionMaxSeconds);
+                await SuckToVortexAsync(v, grave, seconds);
+                if (v.Wrapper != null && v.Dead)
+                {
+                    Debug.Log($"[BattleField] 单位 {id % 10000} 已被墓地漩涡吸走（owner={owner}）");
+                    RetireUnit(id);
+                }
+                else ReleaseUnit(id);
             }
-            else ReleaseUnit(id);
+            finally { EndVisual(); }
         }
 
         /// <summary>螺旋吸入：绕吸入口加速盘旋收缩、整体翻滚缩小到 0；复活竞争/销毁即停并复原体型。</summary>
@@ -482,18 +1046,23 @@ namespace SynergyUI
         /// <summary>角色受击脉动（2026-10-13 裁定②：角色目标无模型，立柱缩放脉冲表受击）。</summary>
         public async UniTask HeroImpactPulseAsync(int owner)
         {
-            if (!_heroes.TryGetValue(owner, out var v) || v.Root == null) return;
-            var baseScale = new Vector3(0.55f, 0.6f, 0.55f);
-            float t0 = Time.realtimeSinceStartup;
-            const float dur = 0.28f;
-            while (v.Root != null && Time.realtimeSinceStartup - t0 < dur)
+            BeginVisual(); // 视觉在途门：脉冲期间人机局 AI 等待
+            try
             {
-                float t = (Time.realtimeSinceStartup - t0) / dur;
-                float pulse = 1f + 0.18f * Mathf.Sin(t * Mathf.PI);
-                v.Root.localScale = new Vector3(baseScale.x * pulse, baseScale.y * (1f - 0.08f * Mathf.Sin(t * Mathf.PI)), baseScale.z * pulse);
-                await UniTask.Yield();
+                if (!_heroes.TryGetValue(owner, out var v) || v.Root == null) return;
+                var baseScale = new Vector3(0.55f, 0.6f, 0.55f);
+                float t0 = Time.realtimeSinceStartup;
+                const float dur = 0.28f;
+                while (v.Root != null && Time.realtimeSinceStartup - t0 < dur)
+                {
+                    float t = (Time.realtimeSinceStartup - t0) / dur;
+                    float pulse = 1f + 0.18f * Mathf.Sin(t * Mathf.PI);
+                    v.Root.localScale = new Vector3(baseScale.x * pulse, baseScale.y * (1f - 0.08f * Mathf.Sin(t * Mathf.PI)), baseScale.z * pulse);
+                    await UniTask.Yield();
+                }
+                if (v.Root != null) v.Root.localScale = baseScale;
             }
-            if (v.Root != null) v.Root.localScale = baseScale;
+            finally { EndVisual(); }
         }
     }
 }

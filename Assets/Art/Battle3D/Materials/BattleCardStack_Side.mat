@@ -25,7 +25,7 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _CardHeight: 0.02
+    - _CardHeight: 0.03
     - _Jitter: 0.1
     - _SeamFrac: 0.22
     m_Colors:

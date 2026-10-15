@@ -29,7 +29,7 @@ from tide_features import (
     pad_or_truncate_actions,
 )
 
-# v2 布局握手期望值（契约 docs/action_space_v2_contract.md 第 5 节）：
+# v3 布局握手期望值（契约 docs/action_space_v3_contract.md 第 7 节）：
 # Unity reset 回显 layoutVersion/dims，与此处逐值断言——布局漂移在这里响亮失败，
 # 而不是等到 obs reshape 时炸出一个难查的形状错误（2026-09-14 N_GLOBAL 事故教训）。
 EXPECTED_DIMS = {
@@ -37,6 +37,7 @@ EXPECTED_DIMS = {
     "nGlobal": N_GLOBAL_FEATURES,
     "nAction": N_ACTION_FEATURES,
     "maxActions": MAX_ACTIONS,
+    "maxCards": MAX_CARDS,  # v3 新增入握手（卡槽总数；旧 Unity 回显缺该键也判不匹配）
 }
 
 

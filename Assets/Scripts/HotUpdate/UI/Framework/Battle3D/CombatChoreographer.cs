@@ -15,16 +15,20 @@ namespace SynergyUI
     ///
     /// 架构背景：引擎战斗是同步结算（宣言→横置→伤害→死亡同帧发完事件），表现层
     /// BattleFieldView 是快照对账。本编舞器先于对账订阅引擎事件，在攻击宣言时即 hold
-    /// 参战双方（对账跳过其位置/横置侧倾/移除销毁），缓冲伤害事件，栈清空后组装
+    /// 参战双方（对账跳过其位置/旋转/移除销毁），缓冲伤害事件，栈清空后组装
     /// CombatPlan 跑 UniTask 演出，结束后释放 hold、刷新对账钉死终态。
     ///
-    /// 任务① 目标选择：点"攻击"进入——悬停对方单位/角色格实时画寻路箭头（BFS 最短路，
-    /// BattlePathfinder 同源），左键点目标=路径固定（箭头冻结渐隐）并回传目标给宣言链路
-    /// （本地 DeclareAttack / 网络 intent，下游不变）；右键/ESC/点空地取消。
+    /// 任务① 目标选择：点单位直接进入（2026-10-14 定案：无操作弹层——产元素全自动）——
+    /// 3D 箭头以生物为起点随鼠标动态拉长（悬停合法目标箭头变绿），左键点目标=吸附目标格
+    /// 冻结渐隐并回传目标给宣言链路（本地 DeclareAttack / 网络 intent，下游不变；确认时
+    /// 另算 BFS 接近路径供演出走位）；右键/ESC/点空地取消。
     /// 任务② 演出：走位到目标临格→攻击前扑→目标受击（溅射第三方原地受击；角色目标=立柱脉动）
     /// →反击（以实际伤害事件存在性判定——守方横置/先击杀自然无）→死者碎裂（FallDown 散落）
     /// →停稳后螺旋吸入己方墓地漩涡消失（BattleFieldView.PlayDeathSuctionAsync）→幸存者
-    /// 原路返回待机（回程平滑补 24° 横置侧倾）。
+    /// 原路返回待机（横置即冻结呼吸，准备阶段回正由对账恢复；24° 横置侧倾 2026-10-15 退役）。
+    /// 守卫拦截（2026-10-15 用户定案改版，中线会合退役）：守卫者走到被攻击者那一格挡伤害
+    ///（挡位点向攻击侧偏移、与被保护者错开身位），攻击者接近原目标格邻格开打，战后各自
+    /// 原路归位；规划失败回落旧演出（攻击者单方走到守卫者临格开打）。
     ///
     /// 边界：宣攻被取消/响应窗内目标被移走→释放 hold 防幽灵；模型缺失占位胶囊=只动位姿不播
     /// 动作；AI 发起的攻击同走本编舞（事件驱动）；网络模式只接目标选择（事件订阅关闭——
@@ -39,7 +43,8 @@ namespace SynergyUI
         private const int AttackBeatMs = 520;        // 一次攻击完整节拍（含缓冲）
         private const float ScatterSettle = 1f;      // 倒地散落停稳等待（秒）
         private const float SuctionSeconds = 0.75f;  // 漩涡吸走时长
-        private const float TiltTapped = 24f;        // 与 BattleFieldView 横置侧倾同值
+        private const float GuardCoverOffset = 0.7f; // 守卫挡位偏移：原目标格心向攻击侧挪——与被保护者错开身位
+        // 24° 横置侧倾（TiltTapped）2026-10-15 退役：wrapper 恒零；横置当晚再裁=呼吸也不停，只由光波熄表达
 
         private readonly BattleFieldView _field;
         private readonly Func<BattleViewData> _view;
@@ -47,14 +52,14 @@ namespace SynergyUI
         private readonly Func<Player> _selfPlayer;
         private readonly bool _listenEvents;
         private readonly BattleAttackArrow _arrow = new BattleAttackArrow();
+        private readonly BattleAttackArrow _guardArrow = new BattleAttackArrow(); // 守卫拦截蓝箭（2026-10-15）
+        private bool _arrowLive; // 演出期箭头逐帧跟踪开关（命中节拍关断→渐隐）
         private bool _disposed;
         private int _epoch; // Dispose/新一轮开局代际：在途循环检测即弃
 
         // ---- 目标选择态 ----
         private BattleCardView _picker;                    // 发起攻击的我方单位
         private Action<BattleCardView> _onPicked;          // 回调：参数 null=对方角色
-        private List<(int x, int z)> _hoverPath;           // 悬停路径缓存
-        private int _hoverCell = -1;                       // 缓存键（格 index）
 
         // picker → 宣言的路径交接（寻路固定：确认时的路径供演出直接复用）
         private List<(int x, int z)> _pickedPath;
@@ -67,6 +72,13 @@ namespace SynergyUI
         private uint _attackerId, _targetId;               // 0=角色
         private bool _heroAttacker, _heroTarget, _attackingIsSelf;
         private readonly List<CombatDamageEvent> _damages = new List<CombatDamageEvent>();
+
+        // ---- 守卫拦截捕获态（2026-10-15 挡位演出）----
+        private bool _blocked;                             // 攻击被守卫拦截（目标已改写为守卫者）
+        private (int x, int z)? _originalTargetCell;       // 原攻击目标格：守卫者挡位终点（踏此格挡伤害）
+
+        // ---- 战斗注视钉（2026-10-15 头跟随）：本编舞器下发过的注视单位集（ClearCapture 兜底全清） ----
+        private readonly List<uint> _gazePinned = new List<uint>();
 
         public bool IsTargeting => _picker != null;
 
@@ -98,6 +110,8 @@ namespace SynergyUI
             _epoch++;
             CancelTargeting();
             _arrow.Dispose();
+            _guardArrow.Dispose();
+            _arrowLive = false;
             ClearCapture();
             if (!_listenEvents) return;
 
@@ -114,18 +128,16 @@ namespace SynergyUI
 
         // ======================================== 任务①：3D 目标选择（寻路箭头） ========================================
 
-        /// <summary>进入攻击目标选择：悬停合法目标格实时画寻路箭头；确认回调回传
-        /// 目标视图（null=对方角色）；取消不回调。</summary>
+        /// <summary>进入攻击目标选择：箭头以生物为起点随鼠标动态拉长，悬停合法目标变绿；
+        /// 确认回调回传目标视图（null=对方角色）；取消不回调。</summary>
         public void BeginTargeting(BattleCardView attacker, Action<BattleCardView> onPicked)
         {
             if (_disposed || attacker == null || onPicked == null) return;
             CancelTargeting();
             _picker = attacker;
             _onPicked = onPicked;
-            _hoverCell = -1;
-            _hoverPath = null;
             Debug.Log($"[CombatChoreo] 目标选择开始：{attacker.Name}（{attacker.X},{attacker.Z}）"
-                      + "——悬停对方单位/角色出寻路箭头，左键确认，右键/ESC 取消");
+                      + "——箭头随鼠标，悬停合法目标变绿，左键确认，右键/ESC 取消");
             TargetingLoopAsync(_epoch).Forget();
         }
 
@@ -134,16 +146,15 @@ namespace SynergyUI
             if (_picker == null) return;
             _picker = null;
             _onPicked = null;
-            _hoverPath = null;
-            _hoverCell = -1;
             _arrow.Hide();
         }
 
         private async UniTaskVoid TargetingLoopAsync(int epoch)
         {
-            while (!_disposed && epoch == _epoch && _picker != null)
-            {
-                if (!BattleBoardGrid.Ready) { CancelTargeting(); return; } // 拆台即取消
+            bool openingFrame = true; // 首帧吞点击（2026-10-14 单位直点进攻击）：开启箭头的点击
+            while (!_disposed && epoch == _epoch && _picker != null) // 落在棋盘上，同帧 MouseButtonDown
+            {                                                         // 恒真——不吞则首轮即按「光标压在
+                if (!BattleBoardGrid.Ready) { CancelTargeting(); return; } // 自格=非法」自取消
                 if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape))
                 {
                     Debug.Log("[CombatChoreo] 目标选择取消（右键/ESC）");
@@ -158,7 +169,14 @@ namespace SynergyUI
                 bool hasCell = RaycastCell(cam, out int x, out int z);
                 bool valid = !overUI && hasCell && TryResolveTarget(x, z, out _, out _);
 
-                if (Input.GetMouseButtonDown(0) && !overUI)
+                // 箭头以生物为起点随鼠标动态拉长（终点=鼠标地面投影）；攻击=红，悬停合法目标变绿
+                if (MouseGroundPoint(cam, out Vector3 mousePt))
+                    _arrow.Show(AttackerPos(), mousePt, valid
+                        ? BattleAttackArrow.ValidSkin : BattleAttackArrow.AttackSkin);
+                else
+                    _arrow.Hide();
+
+                if (!openingFrame && Input.GetMouseButtonDown(0) && !overUI)
                 {
                     if (valid)
                     {
@@ -169,45 +187,27 @@ namespace SynergyUI
                     CancelTargeting();
                     return;
                 }
-
-                if (valid)
-                {
-                    int key = BoardMath.Index(x, z);
-                    if (key != _hoverCell || _hoverPath == null)
-                    {
-                        _hoverCell = key;
-                        _hoverPath = PathTo(x, z);
-                    }
-                    if (_hoverPath != null)
-                        _arrow.Show(AttackerPos(), ToWorldPath(_hoverPath));
-                }
-                else
-                {
-                    _hoverCell = -1;
-                    _hoverPath = null;
-                    _arrow.Hide();
-                }
+                openingFrame = false;
                 await UniTask.Yield();
             }
         }
 
-        /// <summary>确认目标：箭头冻结渐隐（路径随确认固定），回传目标给宣言链路。</summary>
+        /// <summary>确认目标：箭头吸附目标格冻结渐隐，回传目标给宣言链路；接近路径现算供演出走位。</summary>
         private async UniTask ConfirmTargetAsync(int x, int z)
         {
             TryResolveTarget(x, z, out var target, out bool hero);
-            // 悬停缓存命中才复用（同帧"移入+点击"场景缓存可能还是上一格——现算兜底）
-            var path = _hoverCell == BoardMath.Index(x, z) && _hoverPath != null ? _hoverPath : PathTo(x, z);
+            var path = PathTo(x, z);
             var attacker = _picker;
             var cb = _onPicked;
+            var from = AttackerPos();
             _pickedPath = path;
             _pathAttackerId = attacker.RuntimeId;
             _pathTargetId = hero ? 0 : target.RuntimeId;
 
             _picker = null; // 先退出选择态（IsTargeting 即刻为 false），再交还控制权
             _onPicked = null;
-            _hoverPath = null;
-            _hoverCell = -1;
 
+            _arrow.Show(from, BattleBoardGrid.WorldPositionOf(x, z), BattleAttackArrow.ValidSkin); // 吸附目标格（选对了=绿）再冻结渐隐
             await _arrow.FadeOutAsync(0.35f);
             string pathText = path != null && path.Count > 0
                 ? string.Join("→", path.Select(c => $"({c.x},{c.z})")) : "原地";
@@ -259,6 +259,18 @@ namespace SynergyUI
                    && BoardMath.InBounds(x, z);
         }
 
+        /// <summary>鼠标 → 棋盘地平面（y=0）世界点：箭头终点随鼠标动态拉长的投影源
+        /// （不依赖 tile 命中——指到棋盘外也拉得出）。BattleScreen 守卫箭头共用此投影。</summary>
+        public static bool MouseGroundPoint(Camera cam, out Vector3 point)
+        {
+            point = Vector3.zero;
+            var ray = cam.ScreenPointToRay(Input.mousePosition);
+            var plane = new Plane(Vector3.up, Vector3.zero);
+            if (!plane.Raycast(ray, out float enter) || enter <= 0f || enter > 300f) return false;
+            point = ray.GetPoint(enter);
+            return true;
+        }
+
         // ======================================== 任务②：战斗事件捕获 → 演出 ========================================
 
         private void OnAttackDeclared(AttackDeclarationEvent e)
@@ -277,6 +289,23 @@ namespace SynergyUI
             // 宣言即 hold：先于一切战斗状态变化（横置/伤害/死亡）锁定对账写入
             if (!_heroAttacker) _field.HoldUnit(_attackerId);
             if (!_heroTarget) _field.HoldUnit(_targetId);
+            // 数值节拍（2026-10-15 定案）：攻击结算同帧改血——展示等命中时刻。宣言即冻结
+            // 全部单位头顶数值（溅射/第三方受害同批伤害一起盖住），命中/反击节拍逐个释放，
+            // 演出收尾与取消路径全量兜底（ClearCapture/finally）
+            _field.HoldAllUnitStats();
+
+            // 攻击目标箭头（2026-10-15 用户定案：攻击=红）：宣言即显（含对手/AI 攻击——此前只有
+            // 我方选择期有箭头，对手攻击全盲）；守卫拦截时 OnBlockDeclared 改指拦截者+补蓝箭；
+            // 演出走位期 TrackArrowsAsync 逐帧跟踪、命中节拍渐隐
+            if (CombatPosOf(_attackerId, _heroAttacker, _attackingIsSelf ? 0 : 1, out var declFrom)
+                && CombatPosOf(_targetId, _heroTarget, _attackingIsSelf ? 1 : 0, out var declTo))
+                _arrow.Show(declFrom, declTo, BattleAttackArrow.AttackSkin);
+            else
+                Debug.Log("[CombatChoreo] 宣言箭头未放置：参战方位姿缺失（wrapper/视图格均无）——对手回合箭头投诉取证用");
+            // 战斗注视（2026-10-15 头跟随）：攻守双方对视——攻击者看攻击对象（守卫拦截时
+            // _targetId 已改写为拦截者，供应器动态解析即自动转看拦截者）；守方看攻击者
+            if (!_heroAttacker) SetGaze(_attackerId, () => CombatGazeOf(true));
+            if (!_heroTarget) SetGaze(_targetId, () => CombatGazeOf(false));
             Debug.Log($"[CombatChoreo] 攻击宣言捕获：{NameOf(e.Attacker)} → {NameOf(e.Target)}"
                       + $"（{(_attackingIsSelf ? "我方" : "对方")}发起，hold 位姿对账）");
         }
@@ -284,13 +313,41 @@ namespace SynergyUI
         private void OnBlockDeclared(BlockDeclarationEvent e)
         {
             if (!_capturing) return;
-            // 守卫拦截：目标改写为守卫者（hold 随之换人）
-            if (!_heroTarget) _field.ReleaseUnit(_targetId);
+            // 原目标格速记（改写前取，仅首次拦截记录——多次拦截共用最初目标做挡位参照）：
+            // 角色目标=防守方角色格
+            if (!_blocked)
+            {
+                int defOwner = _attackingIsSelf ? 1 : 0;
+                _originalTargetCell = _heroTarget
+                    ? BoardLayout.CharacterCell(defOwner)
+                    : CellOf(_targetId);
+                _blocked = true;
+            }
+            // 守卫拦截：目标改写为守卫者（hold/战斗注视随之换人）
+            if (!_heroTarget)
+            {
+                _field.ReleaseUnit(_targetId);
+                _field.ClearCombatGaze(_targetId); // 原目标（含前序拦截者）解除对视回待机
+                _gazePinned.Remove(_targetId);
+            }
             _targetEntity = e.Blocker;
             _targetId = IdOf(e.Blocker);
             _heroTarget = _targetId == 0;
-            if (!_heroTarget) _field.HoldUnit(_targetId);
-            Debug.Log($"[CombatChoreo] 守卫拦截：目标改写为 {NameOf(e.Blocker)}");
+            if (!_heroTarget)
+            {
+                _field.HoldUnit(_targetId);
+                SetGaze(_targetId, () => CombatGazeOf(false)); // 拦截者上场即与攻击者对视
+            }
+
+            // 守卫拦截双箭（2026-10-15 定案：守卫=蓝）：红箭改指拦截者、蓝箭=守卫者→攻击者
+            if (CombatPosOf(_attackerId, _heroAttacker, _attackingIsSelf ? 0 : 1, out var gFrom)
+                && CombatPosOf(_targetId, _heroTarget, _attackingIsSelf ? 1 : 0, out var gTo))
+            {
+                _arrow.Show(gFrom, gTo, BattleAttackArrow.AttackSkin);
+                _guardArrow.Show(gTo, gFrom, BattleAttackArrow.GuardSkin);
+            }
+            Debug.Log($"[CombatChoreo] 守卫拦截：目标改写为 {NameOf(e.Blocker)}"
+                      + $"（挡位=赴原目标({_originalTargetCell?.x},{_originalTargetCell?.z})格）");
         }
 
         private void OnAttackResolved(AttackResolvedEvent e)
@@ -339,10 +396,17 @@ namespace SynergyUI
 
         private void ClearCapture()
         {
+            ClearGazePins(); // 战斗注视全清（取消/Dispose/新宣言防漏）
+            _field.ReleaseAllHeldStats(); // 数值节拍兜底：取消路径（攻击未演出）放行冻结（OnAttackDeclared 随后重冻）
+            _arrowLive = false;
+            _arrow.Hide();
+            _guardArrow.Hide();
             if (!_heroAttacker && _attackerId != 0) _field.ReleaseUnit(_attackerId);
             if (!_heroTarget && _targetId != 0) _field.ReleaseUnit(_targetId);
             _capturing = false;
             _resolved = false;
+            _blocked = false;
+            _originalTargetCell = null;
             _attackerEntity = _targetEntity = null;
             _attackerId = _targetId = 0;
             _damages.Clear();
@@ -360,6 +424,11 @@ namespace SynergyUI
             public readonly List<uint> SplashIds = new List<uint>();
             public string AttackerName = "?", TargetName = "?";
             public string Summary => $"{AttackerName}→{TargetName}";
+
+            // 守卫拦截挡位（2026-10-15 改版：中线会合退役）：守卫者踏上被攻击者那格挡打、打完原路归位
+            public bool Blocked;                        // 本次攻击被守卫拦截（Target=守卫者）
+            public bool TargetTapped;                   // 守卫者横置（战斗后支付——仅演出日志记录，2026-10-15 不再停呼吸）
+            public List<(int x, int z)> BlockerPath;    // 守卫者→原目标格挡位（null=规划失败回落旧演出）
         }
 
         private void AssembleAndPerform()
@@ -374,6 +443,8 @@ namespace SynergyUI
                 AttackerDead = _attackerEntity is Card ac && !ac.IsAlive,
                 TargetDead = _targetEntity is Card tc && !tc.IsAlive,
                 AttackerTapped = _attackerEntity != null && _attackerEntity.IsTapped(),
+                TargetTapped = _targetEntity != null && _targetEntity.IsTapped(),
+                Blocked = _blocked,
                 Counter = _damages.Any(d => ReferenceEquals(d.Attacker, _targetEntity)
                                             && ReferenceEquals(d.Defender, _attackerEntity)),
                 AttackerName = NameOf(_attackerEntity),
@@ -391,10 +462,17 @@ namespace SynergyUI
                     plan.SplashIds.Add(id);
             }
 
-            // 路径：picker 交接优先（寻路固定）；否则现算（AI/守卫改写场景）
+            // 路径：守卫拦截=守卫者赴原目标格挡位（2026-10-15）优先；picker 交接次之（寻路固定）；
+            // 否则现算（AI/未拦截场景）
             if (plan.HeroAttacker)
             {
                 plan.Path = null; // 角色攻击：原地，目标侧受击（裁定②）
+            }
+            else if (plan.Blocked && !plan.HeroTarget
+                     && TryPlanGuardCover(plan, out var guardAttPath, out var guardBlkPath))
+            {
+                plan.Path = guardAttPath;
+                plan.BlockerPath = guardBlkPath;
             }
             else if (_pickedPath != null && _pathAttackerId == plan.AttackerId && _pathTargetId == plan.TargetId)
             {
@@ -414,57 +492,114 @@ namespace SynergyUI
             }
 
             Debug.Log($"[CombatChoreo] 演出计划：{plan.Summary} 走位[{(plan.Path != null ? plan.Path.Count.ToString() : "无")}]格"
-                      + $" 反击={plan.Counter} 攻死={plan.AttackerDead} 守死={plan.TargetDead} 溅射={plan.SplashIds.Count}");
+                      + (plan.Blocked ? $" 守卫挡位[{(plan.BlockerPath != null ? plan.BlockerPath.Count.ToString() : "回落旧演出")}]格" : "")
+                      + $" 反击={plan.Counter} 攻死={plan.AttackerDead} 守死={plan.TargetDead} 溅射={plan.SplashIds.Count}"
+                      + $" 攻横置={plan.AttackerTapped} 守横置={plan.TargetTapped}");
             PerformAsync(plan, _epoch).Forget();
+        }
+
+        /// <summary>守卫挡位规划（2026-10-15 用户定案：不再中线会合——守卫者走到被攻击者那一格
+        /// 挡伤害）：攻击者=常规接近（原目标格的空闲邻格，FindApproach）；守卫者=先走近原目标
+        /// 空闲邻格、再踏上原目标格（追加终点格构造——FindApproach 的 BFS 不入占用格，途经
+        /// 不穿原目标）。视图数据/参战格缺失=失败（调用方回落旧演出：攻击者单方走到守卫者
+        /// 临格开打）。</summary>
+        private bool TryPlanGuardCover(CombatPlan plan, out List<(int x, int z)> attPath, out List<(int x, int z)> blkPath)
+        {
+            attPath = blkPath = null;
+            if (!_originalTargetCell.HasValue) return false;
+            var d = _view?.Invoke();
+            if (d == null || !BattleBoardGrid.Ready) return false;
+            var fromAtt = CellOf(plan.AttackerId);
+            var fromBlk = CellOf(plan.TargetId);
+            if (!fromAtt.HasValue || !fromBlk.HasValue) return false;
+
+            var victim = _originalTargetCell.Value;
+            attPath = BattlePathfinder.FindApproach(fromAtt.Value.x, fromAtt.Value.z, victim.x, victim.z,
+                BattlePathfinder.BlockedSetOf(d, plan.AttackerId));
+            blkPath = BattlePathfinder.FindApproach(fromBlk.Value.x, fromBlk.Value.z, victim.x, victim.z,
+                BattlePathfinder.BlockedSetOf(d, plan.TargetId));
+            blkPath.Add(victim); // 踏上被攻击者那一格（演出终点向攻击侧偏移错开身位，见 GuardCoverPoints）
+            string attEnd = attPath.Count > 0
+                ? $"({attPath[attPath.Count - 1].x},{attPath[attPath.Count - 1].z})" : "原地";
+            Debug.Log($"[CombatChoreo] 守卫挡位：攻击者{attEnd} 守卫者→({victim.x},{victim.z})原目标格挡伤害");
+            return true;
         }
 
         private async UniTaskVoid PerformAsync(CombatPlan plan, int epoch)
         {
+            _field.BeginVisual(); // 视觉在途门（2026-10-14 人机节奏）：演出期间人机局 AI 动作等待
             Transform attW = null, tgtW = null;
             MonsterRigAnimator attAnim = null, tgtAnim = null;
             bool attBody = !plan.HeroAttacker && _field.TryGetUnitBody(plan.AttackerId, out attW, out attAnim);
             bool tgtBody = !plan.HeroTarget && _field.TryGetUnitBody(plan.TargetId, out tgtW, out tgtAnim);
+            // 宣言期箭头交接：走位/挡位移动中逐帧跟踪（红=攻击→目标，蓝=守卫→攻击者）
+            _arrowLive = true;
+            TrackArrowsAsync(plan, attW, tgtW, epoch).Forget();
             if (!attBody && !tgtBody)
                 Debug.Log("[CombatChoreo] 演出跳过：参战双方均无场上的单位实体（或已被回收）");
-            try
-            {
+                try
+                {
                     int targetOwner = 1 - plan.AttackerOwner;
                     Vector3 homePos = attBody ? attW.position : Vector3.zero;
+                    Vector3 blkHomePos = tgtBody ? tgtW.position : Vector3.zero; // 守卫者原位（挡位后归位）
 
                     // ① 死亡遮蔽：引擎同步结算完才轮到演出——死者先"站着"，受击时刻再倒地碎裂
                     if (plan.TargetDead && tgtBody && tgtAnim != null) { tgtAnim.Revive(); tgtAnim.Play(MonsterAction.Breath); }
                     if (plan.AttackerDead && attBody && attAnim != null) { attAnim.Revive(); attAnim.Play(MonsterAction.Breath); }
 
-                    // ② 走位到目标临格
-                    if (attBody && plan.Path != null && plan.Path.Count > 0)
+                    // ② 走位：守卫拦截=守卫者走上被攻击者那格挡位 + 攻击者接近原目标邻格
+                    //    （并行，2026-10-15）；常规=攻击者单方接近目标临格
+                    if (plan.Blocked && plan.BlockerPath != null && attBody && tgtBody)
                     {
                         attAnim?.Play(MonsterAction.Walk);
-                        if (!await WalkAsync(attW, ToWorldPath(plan.Path), epoch)) return;
+                        tgtAnim?.Play(MonsterAction.Walk);
+                        var walks = await UniTask.WhenAll(
+                            WalkAsync(attW, ToWorldPath(plan.Path), epoch,
+                                modelYaw: BattleFieldView.FacingYawOf(plan.AttackerOwner)),
+                            WalkAsync(tgtW, GuardCoverPoints(plan, attW), epoch,
+                                modelYaw: BattleFieldView.FacingYawOf(targetOwner)));
+                        if (!walks.Item1 || !walks.Item2) return;
+                        attAnim?.Play(MonsterAction.Breath);
+                        tgtAnim?.Play(MonsterAction.Breath);
+                        if (Stopped(epoch, attW, tgtW)) return;
+                        Face2D(tgtW, attW.position, BattleFieldView.FacingYawOf(targetOwner)); // 守卫者转面攻击者（挡位迎敌）
+                    }
+                    else if (attBody && plan.Path != null && plan.Path.Count > 0)
+                    {
+                        attAnim?.Play(MonsterAction.Walk);
+                        if (!await WalkAsync(attW, ToWorldPath(plan.Path), epoch,
+                                modelYaw: BattleFieldView.FacingYawOf(plan.AttackerOwner))) return;
                         attAnim?.Play(MonsterAction.Breath);
                     }
 
                     Vector3 tgtPos = tgtBody ? tgtW.position : HeroPosOf(targetOwner);
-                    if (attBody && attW != null) Face2D(attW, tgtPos);
+                    if (attBody && attW != null) Face2D(attW, tgtPos, BattleFieldView.FacingYawOf(plan.AttackerOwner));
 
                     // ③ 攻击：前扑→命中（目标受击/角色立柱脉动/溅射第三方原地受击）
                     attAnim?.Play(MonsterAction.Attack);
                     await UniTask.Delay(ImpactDelayMs);
+                    _arrowLive = false; // 命中节拍：目标箭头使命达成，跟踪器收尾渐隐
                     if (Stopped(epoch, attW, tgtW)) return;
                     if (tgtBody && tgtW != null) tgtAnim?.Play(MonsterAction.Hit);
                     else _field.HeroImpactPulseAsync(targetOwner).Forget();
                     foreach (var id in plan.SplashIds)
+                    {
                         if (_field.TryGetUnitBody(id, out _, out var fa)) fa?.Play(MonsterAction.Hit);
+                        _field.ReleaseUnitStats(id); // 数值节拍：溅射方伤害随主命中落地
+                    }
+                    _field.ReleaseUnitStats(plan.TargetId); // 数值节拍：目标伤害此刻滚动显示
                     await UniTask.Delay(AttackBeatMs - ImpactDelayMs);
                     if (Stopped(epoch, attW, tgtW)) return;
 
                     // ④ 反击（以实际反击伤害事件为准——守方横置/先击杀则无）
                     if (plan.Counter && !plan.TargetDead && attBody && tgtBody && attW != null && tgtW != null)
                     {
-                        Face2D(tgtW, attW.position);
+                        Face2D(tgtW, attW.position, BattleFieldView.FacingYawOf(targetOwner));
                         tgtAnim?.Play(MonsterAction.Attack);
                         await UniTask.Delay(ImpactDelayMs);
                         if (Stopped(epoch, attW, tgtW)) return;
                         attAnim?.Play(MonsterAction.Hit);
+                        _field.ReleaseUnitStats(plan.AttackerId); // 数值节拍：反击伤害此刻滚动显示
                         await UniTask.Delay(AttackBeatMs - ImpactDelayMs);
                     }
 
@@ -476,20 +611,39 @@ namespace SynergyUI
                         await _field.PlayDeathSuctionAsync(plan.AttackerId, plan.AttackerOwner, playFall: true,
                             ScatterSettle, SuctionSeconds);
 
-                    // ⑥ 幸存者原路返回待机（回程平滑补横置侧倾）
+                    // ⑥ 幸存者原路返回待机（2026-10-15 晚裁定：横置不再停呼吸，归位恒播呼吸，
+                    //    可行动性只看脚下光波）；回程解除对视（攻击已结束，头回待机注视）
                     if (attBody && !plan.AttackerDead && attW != null)
                     {
+                        _field.ClearCombatGaze(plan.AttackerId);
                         attAnim?.Play(MonsterAction.Walk);
                         var back = new List<Vector3>();
                         if (plan.Path != null)
                             for (int i = plan.Path.Count - 1; i >= 0; i--)
                                 back.Add(ToWorldAnchor(plan.Path[i]));
                         back.Add(homePos);
-                        if (!await WalkAsync(attW, back, epoch, plan.AttackerTapped ? TiltTapped : 0f)) return;
+                        if (!await WalkAsync(attW, back, epoch, 0f,
+                            BattleFieldView.FacingYawOf(plan.AttackerOwner))) return;
                         attAnim?.Play(MonsterAction.Breath);
                         if (attW != null)
-                            attW.rotation = Quaternion.Euler(0f, BattleFieldView.FacingYawOf(plan.AttackerOwner),
-                                plan.AttackerTapped ? TiltTapped : 0f);
+                            attW.rotation = Quaternion.identity; // wrapper 恒零（2026-10-15 横置侧倾退役）
+                    }
+
+                    // ⑦ 守卫者归位（挡位演出收尾）：幸存守卫者原路返回自格（末格=原目标格不回踏
+                    //    ——被保护者仍站其上；横置不停呼吸，同⑥）；回程同解除对视
+                    if (plan.Blocked && plan.BlockerPath != null && tgtBody && !plan.TargetDead && tgtW != null)
+                    {
+                        _field.ClearCombatGaze(plan.TargetId);
+                        tgtAnim?.Play(MonsterAction.Walk);
+                        var blkBack = new List<Vector3>();
+                        for (int i = plan.BlockerPath.Count - 2; i >= 0; i--)
+                            blkBack.Add(ToWorldAnchor(plan.BlockerPath[i]));
+                        blkBack.Add(blkHomePos);
+                        if (!await WalkAsync(tgtW, blkBack, epoch, 0f,
+                            BattleFieldView.FacingYawOf(targetOwner))) return;
+                        tgtAnim?.Play(MonsterAction.Breath);
+                        if (tgtW != null)
+                            tgtW.rotation = Quaternion.identity; // wrapper 恒零（2026-10-15 横置侧倾退役）
                     }
                     Debug.Log($"[CombatChoreo] 战斗演出完成：{plan.Summary}");
                 }
@@ -499,6 +653,13 @@ namespace SynergyUI
                 }
                 finally
                 {
+                    _field.EndVisual(); // 视觉在途门：演出结束（含中止/异常路径）归零
+                    _field.ReleaseAllHeldStats(); // 数值节拍兜底：未逐个释放的冻结全量放行（终值滚动/直落）
+                    _arrowLive = false; // 箭头兜底收（正常路径命中已渐隐；中止路径即时藏）
+                    _arrow.Hide();
+                    _guardArrow.Hide();
+                    if (!plan.HeroAttacker) _field.ClearCombatGaze(plan.AttackerId); // 注视兜底清（正常路径⑥⑦已清）
+                    if (!plan.HeroTarget) _field.ClearCombatGaze(plan.TargetId);
                     if (!plan.HeroAttacker) _field.ReleaseUnit(plan.AttackerId);
                     if (!plan.HeroTarget) _field.ReleaseUnit(plan.TargetId);
                     _requestRefresh?.Invoke(); // 对账钉死终态
@@ -509,11 +670,60 @@ namespace SynergyUI
         private bool Stopped(int epoch, Transform a, Transform b)
             => _disposed || epoch != _epoch || (a == null && b == null);
 
+        // ======================================== 战斗目标箭头（2026-10-15 攻击红/守卫蓝） ========================================
+
+        /// <summary>演出期箭头逐帧跟踪：走位/挡位移动中红箭恒指攻击目标、蓝箭（守卫拦截局）恒指
+        /// 攻击者；_arrowLive=false（命中节拍/中止/清理）退出并渐隐，Dispose/代际失效只藏
+        /// （实例随 Dispose 销毁，渐隐无意义）。宣言→栈清空等待期箭头为静态（参战者被 hold 不动）。</summary>
+        private async UniTaskVoid TrackArrowsAsync(CombatPlan plan, Transform attW, Transform tgtW, int epoch)
+        {
+            while (_arrowLive && !_disposed && epoch == _epoch)
+            {
+                Vector3 from = attW != null ? attW.position : HeroPosOf(plan.AttackerOwner);
+                Vector3 to = tgtW != null ? tgtW.position : HeroPosOf(1 - plan.AttackerOwner);
+                _arrow.Show(from, to, BattleAttackArrow.AttackSkin);
+                if (plan.Blocked) _guardArrow.Show(to, from, BattleAttackArrow.GuardSkin);
+                await UniTask.Yield();
+            }
+            if (!_arrowLive)
+            {
+                _arrow.FadeOutAsync(0.35f).Forget();
+                _guardArrow.FadeOutAsync(0.35f).Forget();
+            }
+            else
+            {
+                _arrow.Hide();
+                _guardArrow.Hide();
+            }
+        }
+
+        /// <summary>参战方当前位置：单位=场上的 wrapper（缺失回落格心），角色=立柱位。
+        /// 供宣言期静态箭头取点（演出期跟踪直接读 wrapper.position）。</summary>
+        private bool CombatPosOf(uint id, bool hero, int owner, out Vector3 pos)
+        {
+            if (hero || id == 0) { pos = HeroPosOf(owner); return true; }
+            if (_field != null && _field.TryGetUnitBody(id, out var w, out _) && w != null)
+            {
+                pos = w.position;
+                return true;
+            }
+            var cell = CellOf(id);
+            if (cell.HasValue && BattleBoardGrid.Ready)
+            {
+                pos = BattleBoardGrid.WorldPositionOf(cell.Value.x, cell.Value.z);
+                return true;
+            }
+            pos = default;
+            return false;
+        }
+
         // ======================================== 走位 ========================================
 
-        /// <summary>沿折线移动 wrapper（恒速）：yaw 朝移动段方向、可选侧倾渐变（回程补横置）。
+        /// <summary>沿折线移动 wrapper（恒速）：模型前向朝移动段方向（wrapper 转向=世界朝向−modelYaw
+        /// 补偿——朝向常驻模型层，2026-10-15）、可选侧倾渐变（现恒传 0：24° 横置侧倾同日退役）。
         /// 返回 false=中止（Dispose/销毁），调用方应放弃后续步骤。</summary>
-        private async UniTask<bool> WalkAsync(Transform wrapper, List<Vector3> waypoints, int epoch, float tiltTo = 0f)
+        private async UniTask<bool> WalkAsync(Transform wrapper, List<Vector3> waypoints, int epoch,
+            float tiltTo = 0f, float modelYaw = 0f)
         {
             if (waypoints == null || waypoints.Count == 0) return true;
             Vector3 start = wrapper.position;
@@ -555,7 +765,9 @@ namespace SynergyUI
                 segDir.y = 0f;
                 if (segDir.sqrMagnitude > 1e-4f)
                 {
-                    float targetYaw = Mathf.Atan2(segDir.x, segDir.z) * Mathf.Rad2Deg;
+                    // 模型前向领走：烘焙前向=本地 +Z（2026-10-15 用户定案：头朝向即 +Z，以攻击前拱为判据
+                    // 手工校准）——期望世界朝向=Atan2，wrapper 补 modelYaw
+                    float targetYaw = Mathf.Atan2(segDir.x, segDir.z) * Mathf.Rad2Deg - modelYaw;
                     yaw = Mathf.MoveTowardsAngle(yaw, targetYaw, 460f * Time.deltaTime);
                 }
                 wrapper.position = pos;
@@ -567,12 +779,12 @@ namespace SynergyUI
             return true;
         }
 
-        private static void Face2D(Transform wrapper, Vector3 target)
+        private static void Face2D(Transform wrapper, Vector3 target, float modelYaw = 0f)
         {
             Vector3 dir = target - wrapper.position;
             dir.y = 0f;
             if (dir.sqrMagnitude > 1e-4f)
-                wrapper.rotation = Quaternion.Euler(0f, Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg, 0f);
+                wrapper.rotation = Quaternion.Euler(0f, Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg - modelYaw, 0f); // 前向 +Z（2026-10-15 用户定案）：世界朝向=Atan2，wrapper 补 modelYaw
         }
 
         private Vector3 HeroPosOf(int owner)
@@ -592,6 +804,52 @@ namespace SynergyUI
 
         private static Vector3 ToWorldAnchor((int x, int z) c)
             => BattleBoardGrid.WorldPositionOf(c.x, c.z) + new Vector3(0f, 0.05f, 0f);
+
+        /// <summary>守卫者挡位路径点：终点=原目标格心（BlockerPath 末格）向攻击者终格方向偏移
+        /// GuardCoverOffset——挡在被保护者身前，与其模型错开不重合。攻击者无走位（已相邻/
+        /// 路径空）=取其当前位姿定偏移向。</summary>
+        private static List<Vector3> GuardCoverPoints(CombatPlan plan, Transform attW)
+        {
+            var pts = ToWorldPath(plan.BlockerPath);
+            if (pts.Count == 0) return pts;
+            Vector3 cover = pts[pts.Count - 1];
+            Vector3 attFinal = plan.Path != null && plan.Path.Count > 0
+                ? ToWorldAnchor(plan.Path[plan.Path.Count - 1])
+                : (attW != null ? attW.position : cover);
+            Vector3 dir = attFinal - cover;
+            dir.y = 0f;
+            if (dir.sqrMagnitude > 1e-4f) pts[pts.Count - 1] = cover + dir.normalized * GuardCoverOffset;
+            return pts;
+        }
+
+        // ======================================== 战斗注视（2026-10-15 头跟随） ========================================
+
+        /// <summary>战斗注视点：asAttacker=看当前攻击对象（守卫拦截后 _targetId 已是拦截者——
+        /// 供应器动态解析即自动转看拦截者）；否则=看攻击者。角色目标/攻击者=立柱位；
+        /// 单位已离场返回 null（回落待机注视）。捕获清零后（id=0）恒 null，闭包持有安全。</summary>
+        private Vector3? CombatGazeOf(bool asAttacker)
+        {
+            uint id = asAttacker ? _targetId : _attackerId;
+            bool hero = asAttacker ? _heroTarget : _heroAttacker;
+            if (hero)
+            {
+                int attOwner = _attackingIsSelf ? 0 : 1;
+                return HeroPosOf(asAttacker ? 1 - attOwner : attOwner);
+            }
+            return _field.TryGetUnitLookPoint(id, out var p) ? p : (Vector3?)null;
+        }
+
+        private void SetGaze(uint id, Func<Vector3?> resolver)
+        {
+            _field.SetCombatGaze(id, resolver);
+            if (id != 0 && !_gazePinned.Contains(id)) _gazePinned.Add(id);
+        }
+
+        private void ClearGazePins()
+        {
+            for (int i = 0; i < _gazePinned.Count; i++) _field.ClearCombatGaze(_gazePinned[i]);
+            _gazePinned.Clear();
+        }
 
         // ======================================== 工具 ========================================
 
