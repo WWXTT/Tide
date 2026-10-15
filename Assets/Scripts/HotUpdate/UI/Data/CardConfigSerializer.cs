@@ -136,8 +136,7 @@ namespace SynergyUI
                     ? new List<LinkAuraData>(card.LinkAuras)
                     : null, // 空表不写列（向后兼容旧 JSON）
                 durability = card.Durability,
-                speedBonus = card.SpeedBonus, // 底盘剩余→法术提速份额（2026-10-10 可支配底盘；0=纯抵价）
-                surplusToDurability = card.SurplusToDurability, // 底盘剩余→结界转耐久开关（false=抵发动费）
+                speedBonus = card.SpeedBonus, // 卡型速度：法术提速份额（2026-10-15 缺省 2=剩余全投提速；结界/生物恒 0）
                 // 代价栏（2026-10-04 持久化链）：卡层 PayloadCost → payload 原子引用
                 //（CostType/Value 规范常量装载端重建；refId 空=无代价不写语义）
                 payload = card.PayloadCost?.payload != null

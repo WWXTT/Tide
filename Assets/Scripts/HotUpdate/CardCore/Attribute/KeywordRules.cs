@@ -24,7 +24,7 @@ namespace CardCore.Attribute
     /// 【穿透伤害（pierce=true）】越过关键词和指示物计算伤害——跳过圣盾/护甲/坚韧三层，
     /// 替代引擎与落血/事件链/吸血照走。
     /// 【剧毒 Venom】2026-10-08 指示物转关键词（落定追加式）：受到其战斗伤害的生物在结算后被消灭
-    ///（见管线尾部 TryKill 消灭口径；对角色照常落血）；毒刺关键词=战斗伤害改为附加毒素指示物（见改写段）。
+    ///（见管线尾部 TryKill 消灭口径；对角色照常落血）。
     /// 事件链统一在管线尾部按时序发布：DamageEvent（触发器）→ CombatDamageEvent（战斗）→
     /// LifeChangeEvent（角色）→ 吸血/系命（伤害的后果）。
     /// 生命流失（LifeLoss 类）不经此管线——圣盾/护甲不挡流失。
@@ -52,9 +52,9 @@ namespace CardCore.Attribute
         // ---- 关键词 id（与 GrantKeywordHandlerFactory.Specs 的运行时字符串同源） ----
         // 圣盾关键词 id "DivineShield" 已删（2026-10-08 指示物化）：改走 CounterRules.DivineShieldCounter
         //（GrantDivineShieldHandler 挂层；挡下口=ApplyPreventionLayers 第 1 层，每层挡一次消耗一层）
-        public const string PoisonSting = "PoisonSting";
-        /// <summary>冰晶（2026-09-13 改写定案，蓝2）：造成战斗伤害时，改为对目标添加一个冻结指示物</summary>
-        public const string IceCrystal = "IceCrystal";
+        // 毒刺（PoisonSting）/冰晶（IceCrystal）已删（2026-10-15 整体退役）：表行 2026-10-02 已先退
+        //（改写走分支组合），遗留的印刷关键词路径（改写链臂/Grant 映射/两张试作卡）同批清除——
+        // 战斗改写仅余舍身仪典（HolderRewriteFor）；毒素/冻结指示物由各自施加原子独立保留。
         // 梦魇（Nightmare，战斗伤害改沉睡）已删（2026-10-13）：改写链行为+常量+Grant 映射整体退役
         //——表行 2026-10-02 已先退，沉睡指示物（Sleep 行 a62a2df1）独立保留。
         /// <summary>剧毒（2026-10-08 指示物转关键词定案，落定追加式）：受到其战斗伤害的生物被消灭
@@ -306,47 +306,34 @@ namespace CardCore.Attribute
                 if (amount <= 0) return 0;
             }
 
-            // 战斗伤害改写（2026-09-13 定案修订：**防护层之后、落血之前**——只有"将要成功造成的伤害"
-            // 才改写：圣盾/护甲/坚韧完全挡住 → 不触发；部分吸收后仍有剩余 → 剩余改写，不再落血）。
-            // 毒刺→毒素1层（绿1）/ 冰晶→冻结1层（蓝2，横置）。（梦魇→沉睡已删 2026-10-13）
-            // 固定序取第一个命中（多关键词不叠加改写）；
-            // 角色（打脸）也改写——毒素落角色有效，冻结/沉睡对角色空转；穿透伤害不经防护层，恒可改写。
-            // 施加口径收口 ApplyRewriteCounter。改写只对活体/角色生效——无生命单位（结界）不是状态宿主，
-            // 改写命中等价"伤害被无效化"，故跳过改写走耐久管线。
-            // 2026-10-07 改写回归·单映射：原毒/冻/眠/疫四光环改写退役（负面光环化——挂层走 DamageEvent 订阅）；
-            // 唯一光环改写=舍身仪典（CombatRedirect）——受光环影响的生物造成战斗伤害时，
-            // 改为对**光环控制者的对手角色**等量伤害（非战斗路径递归：不再触发舍身；毒蚀只看卡受击）。
-            // 病原体（→剧毒指示物）已随 2026-10-08 剧毒转关键词退役；剧毒=落定追加式消灭（见管线尾部）。
+            // 战斗伤害改写（**防护层之后、落血之前**——只有"将要成功造成的伤害"才改写：圣盾/护甲/
+            // 坚韧完全挡住 → 不触发；部分吸收后仍有剩余 → 剩余改写，不再落血）。
+            // 唯一改写=舍身仪典（CombatRedirect，2026-10-07 单映射定案）——受光环影响的生物造成战斗
+            // 伤害时，改为对**施伤方控制者的对手角色**等量伤害（非战斗路径递归：不再触发舍身）。
+            // 改写只对活体/角色生效——无生命单位（结界）不是状态宿主，改写命中等价"伤害被无效化"，
+            // 故跳过改写走耐久管线。穿透伤害不经防护层，恒可改写。
+            //（毒刺/冰晶关键词改写已随 2026-10-15 整体退役删除；梦魇 2026-10-13、病原体 2026-10-08 先后退役；
+            //  剧毒=落定追加式消灭，见管线尾部。）
             if (isCombat && source != null && source.IsAlive
-                && !(target is Card rwCard && rwCard.IsNonLivingUnit()))
+                && !(target is Card rwCard && rwCard.IsNonLivingUnit())
+                && source is Card redirectSrc
+                && RuleAuraSystem.HolderRewriteFor(redirectSrc) == RuleAuraComponents.CombatRedirect)
             {
-                string combatRewrite =
-                    source.HasKeyword(PoisonSting) ? PoisonSting :
-                    source.HasKeyword(IceCrystal) ? IceCrystal : null;
-                if (combatRewrite != null)
+                // 转投目标=施伤生物控制者的对手角色（2026-10-07 用户定案：相对施伤方——
+                // 己方生物打对方主公、受光环的对方生物打我方主公、双方档=两侧对轰；
+                // 不随光环控制者取固定侧，否则"作用于对方"=对手自伤无敌）
+                var redirectVictim = redirectSrc.GetController()?.Opponent;
+                if (redirectVictim != null)
                 {
-                    if (ApplyRewriteCounter(combatRewrite, target, source, CombatRewriteDetail(combatRewrite)))
-                        return 0;
-                }
-                else if (source is Card redirectSrc
-                         && RuleAuraSystem.HolderRewriteFor(redirectSrc) == RuleAuraComponents.CombatRedirect)
-                {
-                    // 转投目标=施伤生物控制者的对手角色（2026-10-07 用户定案：相对施伤方——
-                    // 己方生物打对方主公、受光环的对方生物打我方主公、双方档=两侧对轰；
-                    // 不随光环控制者取固定侧，否则"作用于对方"=对手自伤无敌）
-                    var redirectVictim = redirectSrc.GetController()?.Opponent;
-                    if (redirectVictim != null)
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
                     {
-                        EventManager.Instance.Publish(new KeywordAppliedEvent
-                        {
-                            Target = redirectSrc,
-                            Keyword = RuleAuraComponents.CombatRedirect,
-                            Detail = $"舍身光环：{EffectText.Name(redirectSrc)} 的战斗伤害转投对手角色（原目标免受 {amount} 点）",
-                            Source = RuleAuraSystem.CarrierOf(RuleAuraComponents.CombatRedirect),
-                        });
-                        ApplyDamage(redirectSrc, redirectVictim, amount, isCombat: false);
-                        return 0;
-                    }
+                        Target = redirectSrc,
+                        Keyword = RuleAuraComponents.CombatRedirect,
+                        Detail = $"舍身光环：{EffectText.Name(redirectSrc)} 的战斗伤害转投对手角色（原目标免受 {amount} 点）",
+                        Source = RuleAuraSystem.CarrierOf(RuleAuraComponents.CombatRedirect),
+                    });
+                    ApplyDamage(redirectSrc, redirectVictim, amount, isCombat: false);
+                    return 0;
                 }
             }
 
@@ -389,8 +376,8 @@ namespace CardCore.Attribute
             }
 
             // 潜行受伤失效（2026-10-04 弱化定案；2026-10-08 指示物化）：伤害**实际落定**（替代/改写/
-            // 防护层之后仍有剩余到达落血/耐久）才算「受到伤害」——圣盾/护甲/坚韧完全挡住、毒刺族改写
-            // 替代（return 0）均不触发；触发即消耗 1 层潜行指示物（逐份撤口径）。
+            // 防护层之后仍有剩余到达落血/耐久）才算「受到伤害」——圣盾/护甲/坚韧完全挡住、舍身转投
+            // 改写（return 0）不触发；触发即消耗 1 层潜行指示物（逐份撤口径）。
             // 隐密（Concealed）不失效——不因受伤掉正是它的定价理由（蓝5 vs 蓝1）。
             if (target is Card hurtCard && hurtCard.GetCounterCount(CounterRules.StealthCounter) > 0)
             {
@@ -477,42 +464,9 @@ namespace CardCore.Attribute
             return amount;
         }
 
-        // ======================================== 改写施加共用口（2026-09-22 拦截式改写门） ========================================
-
-        /// <summary>改写施加共用口：按改写关键词 id 对目标施加对应指示物（固定 1 层）并发布审计事件——
-        /// 战斗关键词路径（ApplyDamage 固定序命中）与效果侧拦截式改写门（EffectExecutionEngine 预执行拦截）
-        /// 共用，防两套口径漂移。detail 由调用方给（战斗/改写门文案不同）。未知 id 返回 false。</summary>
-        public static bool ApplyRewriteCounter(string keywordId, Entity target, Entity source, string detail)
-        {
-            switch (keywordId)
-            {
-                case PoisonSting:
-                    target.AddCounters(CounterRules.ToxinCounter, 1, source);
-                    break;
-                case IceCrystal:
-                    target.Freeze(1, source); // 层数模型：1 层=1 回合（对角色空转）
-                    break;
-                // Pathogen（→剧毒指示物）分支已删：剧毒 2026-10-08 转关键词（Venom 落定追加式消灭）
-                // Nightmare（→沉睡）分支已删（2026-10-13 梦魇引擎行为退役）
-                default:
-                    return false;
-            }
-            EventManager.Instance.Publish(new KeywordAppliedEvent
-            { Target = target, Keyword = keywordId, Detail = detail, Source = source });
-            return true;
-        }
-
-        /// <summary>战斗改写路径的审计文案（关键词路径）。
-        /// 改写门路径已随拦截式改写门退役删除（2026-10-05 迁唯一光环）。</summary>
-        private static string CombatRewriteDetail(string keywordId)
-        {
-            switch (keywordId)
-            {
-                case PoisonSting: return "毒刺：战斗伤害改为毒素指示物×1（层数留存逐回合减半）";
-                case IceCrystal: return "冰晶：战斗伤害改为冻结指示物×1";
-                default: return "战斗伤害改写";
-            }
-        }
+        // 改写施加共用口（ApplyRewriteCounter）与战斗改写审计文案（CombatRewriteDetail）已删
+        //（2026-10-15 毒刺/冰晶整体退役——仅有的两个 case 随关键词清除；改写链仅余舍身仪典，
+        //  其转投逻辑内联在 ApplyDamage 改写块）。
 
         /// <summary>
         /// 防护层（非穿透伤害）：圣盾指示物（每层挡一次任意伤害，消耗 1 层）→ 护甲指示物（逐点吸收）→

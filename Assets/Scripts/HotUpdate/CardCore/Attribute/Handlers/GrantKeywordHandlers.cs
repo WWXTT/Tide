@@ -74,7 +74,7 @@ namespace CardCore.Attribute.Handlers
     {
         // (原子效果类型, 运行时关键词 id, 中文描述)
         // 2026-09-03 原子表整体修正：删 Windfury/Guard/MultiAttack/Immunity/Unaffected/Reach/Flying/
-        // RemoveDebuffs 八条；GrantPoisonous→GrantPoisonSting（毒刺：对受战斗伤害目标附加毒素指示物）。
+        // RemoveDebuffs 八条。
         // 2026-09-08 冲锋/突袭去关键词化：GrantHaste/GrantRush 删除——关键词都是持续性特征，
         // 无「一次性生效后消失」的说法；冲锋/突袭改由登场效果表达（OnPlay+激励自己，突袭另自上紊乱指示物）。
         // 2026-09-11：嘲讽还原（GrantTaunt）；辟邪更名扰魔（运行时 id 仍 Untargetable）；
@@ -114,10 +114,9 @@ namespace CardCore.Attribute.Handlers
             // 圣盾已移出关键词族（2026-10-08 指示物化）：GrantDivineShield 原子改由 GrantDivineShieldHandler
             // 执行（挂 DivineShieldCounter 层）——refId 已重推 feab5d3b→c8624e6a（2026-10-08 全量 ID 重推）
             (AtomicEffectType.GrantTaunt, "Taunt", "获得帷幕"),
-            (AtomicEffectType.GrantPoisonSting, "PoisonSting", "获得毒刺（战斗伤害改为毒素）"),
-            // 冰晶 2026-10-02 裁决表行退役（改写走分支组合）；Specs 保留——印刷关键词路径
-            // （Cards.json keywords 字段）与 KeywordRules 改写链仍靠此映射解析。
-            (AtomicEffectType.GrantIceCrystal, "IceCrystal", "获得冰晶（战斗伤害改为冻结）"),
+            // 毒刺（PoisonSting）/冰晶（IceCrystal）映射已删（2026-10-15 整体退役）：表行 2026-10-02
+            // 已先退（改写走分支组合），遗留的印刷关键词路径（改写链臂/两张试作卡）同批清除——
+            // 毒素/冻结指示物由各自施加原子独立保留，不经关键词。
             // GrantNightmare（梦魇）映射已删（2026-10-13 引擎行为退役——改写链臂/常量/枚举墓碑同批）
             // 剧毒（2026-10-08 指示物转关键词·落定追加式）：受到其战斗伤害的生物被消灭；
             // 表行 20c06d52（原 Poison 原子）改挂 GrantVenom——病原体（改写挂剧毒指示物）随之退役

@@ -81,6 +81,9 @@ namespace CardCore
         ModifyCost,
 
         // ============ 保护补充（关键词） ============
+        /// <summary>【墓碑 2026-10-15】毒刺——表行 2026-10-02 已先退（改写走分支组合），遗留的印刷
+        /// 关键词路径（改写链臂/Grant 映射/两张试作卡）整体退役；毒素指示物由施加原子独立保留。
+        /// 枚举位保留防 AEI_Type int 位序重编号（同 GrantNightmare 惯例）。</summary>
         GrantPoisonSting,
         GrantLifesteal,
         GrantStealth,
@@ -187,9 +190,9 @@ namespace CardCore
         /// <summary>【墓碑 2026-10-09】摒弃——舍弃并档牺牲：牺牲池已含无生命单位（直送非死亡），本原子退役。
         /// 枚举位保留防 AEI_Type int 位序重编号（同 GrantGrowth 惯例）；表行/处理器/IsEdict 成员已删。</summary>
         Abandon,
-        /// <summary>冰晶（2026-09-13 改写定案，蓝2）：造成战斗伤害时，改为对目标添加一个冻结指示物（伤害不发生）。
-        /// 2026-10-02 裁决：表行退役——战斗伤害改冻结走分支组合（拦截式改写门 DmgRewriteFreeze），
-        /// 印刷关键词路径保留（KeywordRules 改写链 + GrantKeywordHandlerFactory.Specs）。</summary>
+        /// <summary>【墓碑 2026-10-15】冰晶——表行 2026-10-02 已先退（改写走分支组合），遗留的印刷
+        /// 关键词路径（改写链臂/Grant 映射/两张试作卡）整体退役；冻结指示物由施加原子独立保留。
+        /// 枚举位保留防 AEI_Type int 位序重编号（同 GrantNightmare 惯例）。</summary>
         GrantIceCrystal,
         /// <summary>【墓碑 2026-10-13】梦魇——引擎行为（改写链臂/Grant 映射/常量）整体删除；
         /// 枚举位保留防 AEI_Type int 位序重编号（同 Abandon 惯例）。表行 2026-10-02 已先退。</summary>
@@ -287,9 +290,9 @@ namespace CardCore
         /// 枚举只可尾部追加。</summary>
         GrantDepravity,
 
-        /// <summary>成长（2026-10-11 资源重做：灵气复苏 ×2 翻倍改 +1，绿3）：效果控制者地牌上限 +1
-        ///（各自池、可重复，封顶 14——ElementPool.LandCapBonus，GetLandCap 单点生效：地牌张数/
-        /// 支付浓度/出牌费用门槛/黑白钳同随）。无目标原子。枚举只可尾部追加。</summary>
+        /// <summary>成长（2026-10-11 资源重做：灵气复苏 ×2 翻倍改 +1，绿3；2026-10-15 封顶退役）：
+        /// 效果控制者地牌上限 +1（各自池、可无限重复——ElementPool.LandCapBonus，GetLandCap 单点生效：
+        /// 地牌张数/支付浓度/出牌费用门槛/黑白钳同随）。无目标原子。枚举只可尾部追加。</summary>
         IncreaseLandCap,
 
         /// <summary>重放（2026-10-09，白4，表行 b70a8a42）：对场上单位附加 {value} 层重放指示物

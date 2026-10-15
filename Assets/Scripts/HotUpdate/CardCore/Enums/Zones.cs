@@ -403,7 +403,7 @@ namespace CardCore
     public class ZoneManager
     {
         /// <summary>
-        /// 每玩家战场容量上限（= 单位区 2×7；设计稿「战场宽度 2×7=14」，2026-10-13 缩盘定案）。
+        /// 每玩家战场容量上限（= 单位区 2×6=12；2026-10-14 晚 8×7 缩盘定案）。
         /// 计数语义，与棋盘格子无关——棋盘只是核心状态的派生表现层
         ///（BoardLayout.UnitCellsPerPlayer 已改单源引用本值，2026-10-13；
         /// 数值迁表：ValueSystemConfig GameRules.BattlefieldCapacityPerPlayer）。
@@ -785,7 +785,8 @@ namespace CardCore
                 IsDrawMove = prev;
             }
 
-            // 抽卡时点：经统一路由（触发/层引擎可见）；原子抽牌 handler 各自发布
+            // 抽卡时点：经统一路由（触发/层引擎可见）单源发布——回合抽牌与效果抽牌共用此口
+            // （2026-10-15：DrawCardHandler 侧的重复发布已删，防效果抽牌同卡双事件）
             var drawEvent = new CardDrawEvent
             {
                 Player = player,

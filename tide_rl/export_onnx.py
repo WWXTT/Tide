@@ -6,8 +6,8 @@ batch 已脱皮，Unity 侧无需再压 batch 维）：
 
   输入（float32）
     rstate  (512,)   GRU 隐状态（局内逐步传递；新对局置零）
-    cards   (80,65)  TideObservation.Cards
-    global  (49,)    TideObservation.Globals（v2：36→49，契约 docs/action_space_v2_contract.md）
+    cards   (92,68)  TideObservation.Cards（v3 契约 docs/action_space_v3_contract.md）
+    global  (50,)    TideObservation.Globals
     actions (512,8)  LegalActionEnumerator.Features 补零到 512（valid=0 → 图内掩 -1e9）
   输出（float32）
     rstate_next (512,)  写回状态，下一步作 rstate 输入
@@ -15,7 +15,7 @@ batch 已脱皮，Unity 侧无需再压 batch 维）：
     value       (1,)    Critic 估值（部署可忽略，调试/评估用）
 
 v2 注意（2026-09-30 C 期）：源/target 槽位下标的归一化在**编码器内**（图内），
-C# 部署侧照旧喂原始特征（-1..79），部署与训练逐值同口径。
+C# 部署侧照旧喂原始特征（-1..91），部署与训练逐值同口径。
 
 用法（务必用隔离 venv，不动训练环境）：
   .venv-export/Scripts/python.exe export_onnx.py --ckpt logs/<run>/best/params.msgpack
@@ -184,21 +184,32 @@ def main():
     ap.add_argument("--opset", type=int, default=23, help="ONNX opset（Sentis 2.6 支持 7..25）")
     ap.add_argument("--tol", type=float, default=5e-3, help="ORT vs JAX 最大绝对误差告警线")
     ap.add_argument("--no-unity-copy", action="store_true", help="不复制到 Assets/Art/AIModels")
+    ap.add_argument("--random", action="store_true",
+                    help="随机初始化导出（无训练 run 时的形状链路验证件——v3 契约验收用；"
+                         "产出仅供 Sentis fixture 对拍，不可部署）")
     args = ap.parse_args()
-    if args.ckpt is None:
+    if args.random and args.ckpt is None:
+        args.ckpt = None
+    elif args.ckpt is None:
         args.ckpt = latest_checkpoint()
         print(f"[i] 未指定 --ckpt，自动选择: {args.ckpt}")
 
-    arch = load_config(args.ckpt)
+    arch = {"channels": 128, "rnn_channels": N_RNN_CHANNELS, "rnn_type": "gru"} if args.ckpt is None         else load_config(args.ckpt)
     for k, v in (("channels", args.channels), ("rnn_channels", args.rnn_channels), ("rnn_type", args.rnn_type)):
         if v is not None:
             arch[k] = v
     if arch["rnn_type"] != "gru":
         sys.exit(f"暂只支持 gru 导出（当前 {arch['rnn_type']}）")
 
-    # ---- 载入参数（from_bytes 无模板即可还原完整 pytree）----
+    # ---- 载入参数（from_bytes 无模板即可还原完整 pytree）；--random 走随机初始化 ----
     agent = create_tide_agent(arch["channels"], arch["rnn_channels"], arch["rnn_type"])
-    params = flax.serialization.from_bytes(None, args.ckpt.read_bytes())
+    if args.ckpt is None:
+        sample = sample_input()
+        params = agent.init(jax.random.PRNGKey(0), jnp.zeros((1, arch["rnn_channels"])),
+                            {k: jnp.asarray(v[None]) for k, v in sample.items()})
+        print(f"[i] --random: 随机初始化（seed=0），仅作形状/fixture 链路验证")
+    else:
+        params = flax.serialization.from_bytes(None, args.ckpt.read_bytes())
     params = jax.tree_util.tree_map(jnp.asarray, params)
     n_params = sum(p.size for p in jax.tree_util.tree_leaves(params))
     print(f"[i] ckpt   : {args.ckpt}")

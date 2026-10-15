@@ -398,7 +398,7 @@ namespace CardCore.Editor
             var board = new BoardState(core, p1, p2);
             var container = core.ZoneManager.GetZoneContainer(p1);
 
-            // 填满 14 单位：UnitCells 恰好全部占用一次、全部 filler 有格
+            // 填满单位区（2026-10-14 晚 8×7 缩盘容量 12）：UnitCells 恰好全部占用一次、全部 filler 有格
             var fillers = new List<Card>();
             while (core.ZoneManager.GetCards(p1, Zone.Battlefield).Count < ZoneManager.BattlefieldCapacityPerPlayer)
             {
@@ -412,12 +412,13 @@ namespace CardCore.Editor
             int distinct = BoardLayout.UnitCells(0).Select(c => board.CardAt(c.x, c.z)).Where(c => c != null)
                 .Distinct().Count();
             Assert(occupied == BoardLayout.UnitCellsPerPlayer && distinct == BoardLayout.UnitCellsPerPlayer,
-                   $"S4 满 14 单位：单位格全部占用且无重复（占用 {occupied}、去重 {distinct}）");
+                   $"S4 满 {BoardLayout.UnitCellsPerPlayer} 单位：单位格全部占用且无重复（占用 {occupied}、去重 {distinct}）");
             Assert(fillers.All(f => board.TryGetCell(f, out _, out _)), "S4 每个 filler 都获得单位格");
 
-            // 地牌行满载+溢出（2026-10-09 地牌叠放定案：每格两层）：容器层面强塞 7×2+1=15 张
-            // （绕过 LandCap 的结构性压力测试）——铺满 7 格首层+叠满第二层、第 15 张不落格不抛错、索引仍一致
-            for (int i = 0; i < BoardLayout.LandCellsPerPlayer * BoardLayout.LandStackPerCell + 1; i++)
+            // 地牌按色叠格（2026-10-14 定案：同色叠一格、颜色按首现序占格）：容器层面强塞 15 张
+            // 无锁色包装的卡（绕过 LandCap 的结构性压力测试）——全部落入灰兜底组=同一格；
+            // 占用恰 1 格、组内全数落格、占用双向索引仍一致
+            for (int i = 0; i < 15; i++)
             {
                 var l = new Card { ID = "BFVERIFY_LAND_OVERFLOW" };
                 l.SetController(p1);
@@ -427,10 +428,10 @@ namespace CardCore.Editor
             int landOccupied = BoardLayout.LandCells(0).Count(c => board.CardAt(c.x, c.z) != null);
             var extras = core.ZoneManager.GetCards(p1, Zone.ElementPool)
                 .Where(c => !board.TryGetCell(c, out _, out _)).ToList();
-            Assert(landOccupied == BoardLayout.LandCellsPerPlayer,
-                   $"S4 地牌满载叠放：恰好 {BoardLayout.LandCellsPerPlayer} 格全占（首层+叠层；实际 {landOccupied}）");
-            Assert(extras.Count == 1, $"S4 溢出地牌恰 1 张不落格（实际 {extras.Count}）");
-            Assert(board.IsConsistent(), "S4 溢出后占用双向索引仍一致（叠层表计入；不抛错）");
+            Assert(landOccupied == 1,
+                   $"S4 地牌按色叠格：15 张无锁色卡=灰兜底组共一格（实际 {landOccupied}）");
+            Assert(extras.Count == 0, $"S4 叠格组内全数落格（不落格 {extras.Count}）");
+            Assert(board.IsConsistent(), "S4 叠格后占用双向索引仍一致（不抛错）");
 
             board.Dispose();
         }

@@ -27,9 +27,9 @@ namespace Tide.工具
         private const string MenuPath = "Tools/Battle3D/生成卡背长方体";
         private const string Dir = "Assets/Art/Battle3D";
         private const string MatDir = Dir + "/Materials";
-        private const string PrefabPath = Dir + "/BattleCardBack.prefab";
+        private const string PrefabPath = "Assets/Art/Prefab/BattleCardBack.prefab"; // prefab 区（2026-10-15 目录重构）
 
-        private const string SpriteDir = "Assets/Art/UI/Sprites";
+        private const string SpriteDir = "Assets/Art/Battle3D/Icons";
         private const string BackTexturePath = SpriteDir + "/Cardbg-b.png";
 
         /// <summary>卡长（Z 向，世界单位）。hex 点距 1.88 的九成=「比一格小一些」。</summary>

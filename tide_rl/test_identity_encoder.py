@@ -14,15 +14,17 @@ import jax.numpy as jnp
 from tide_features import (
     N_CARD_FEATURES, CARD_ID_START, N_ID_SLOTS, TYPE_ID_START, N_TYPE_SLOTS,
     ATOM_PARAM_START, ATOM_PARAM_DIM, N_CARD_POOL, N_EFFECT_TYPES, MAX_CARDS,
-    sample_input,
+    MAX_ACTIONS, sample_input,
 )
 from tide_encoder import TideCardEncoder, TideEncoder
 
 # ---- 1. 布局自洽（与 TideObservation.cs 手工对齐）----
-assert N_CARD_FEATURES == 65, N_CARD_FEATURES
+assert N_CARD_FEATURES == 68, N_CARD_FEATURES  # v3：65 + Awaken[65] + 位置[66][67]
 assert CARD_ID_START + N_ID_SLOTS == TYPE_ID_START            # [15..22] 紧接 [23..]
 assert TYPE_ID_START + N_TYPE_SLOTS == ATOM_PARAM_START        # [23..28] 紧接 [29..]
-assert ATOM_PARAM_START + N_TYPE_SLOTS * ATOM_PARAM_DIM == N_CARD_FEATURES
+# v3 起参数块后还有尾部追加维（[65..67]），参数块终点=尾部块起点而非总长
+assert ATOM_PARAM_START + N_TYPE_SLOTS * ATOM_PARAM_DIM == 65
+assert N_CARD_FEATURES - (ATOM_PARAM_START + N_TYPE_SLOTS * ATOM_PARAM_DIM) == 3
 print(f"[1] 布局自洽 OK: N_CARD_FEATURES={N_CARD_FEATURES}, "
       f"ids[{CARD_ID_START}..{CARD_ID_START+N_ID_SLOTS}) types[{TYPE_ID_START}..{TYPE_ID_START+N_TYPE_SLOTS}) "
       f"params[{ATOM_PARAM_START}..{N_CARD_FEATURES})")
@@ -44,7 +46,7 @@ total = TideEncoder(channels=128)
 tparams = total.init(jax.random.PRNGKey(0), batch)
 out = total.apply(tparams, batch)
 assert out["cards"].shape == (1, MAX_CARDS, 128)
-assert out["actions"].shape == (1, 128, 128)  # MAX_ACTIONS=128, channels=128
+assert out["actions"].shape == (1, MAX_ACTIONS, 128)  # v2 起 MAX_ACTIONS=512（此处旧 128 断言系 v2 漏改）
 assert out["global"].shape == (1, 128)
 print(f"[2] 前向 OK: cards {out['cards'].shape}, actions {out['actions'].shape}, global {out['global'].shape}")
 

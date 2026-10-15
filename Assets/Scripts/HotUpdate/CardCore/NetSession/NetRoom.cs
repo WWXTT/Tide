@@ -184,20 +184,16 @@ namespace CardCore.Network
                 StartMatch();
         }
 
-        /// <summary>技能标记宽松校验（2026-10-07 卡牌化）：非空须 ∈ CardIds 且为合格技能结界；
-        /// 不合格置 null 按无技能开局（摘要口径不含技能标记，不构成拒握手理由）。</summary>
+        /// <summary>技能标记宽松校验（2026-10-15 改版：技能=任选一张法术，**不要求在卡组内**）：
+        /// 非空须为卡池内合格技能法术（1~3 主动效果）；不合格置 null 按无技能开局
+        ///（摘要口径不含技能标记，不构成拒握手理由）。</summary>
         private string SanitizeSkillCardId(string skillCardId, string[] cardIds, int seat)
         {
             if (string.IsNullOrEmpty(skillCardId)) return null;
-            if (cardIds == null || !cardIds.Contains(skillCardId))
-            {
-                TideLog.Warn($"[NetRoom] 座位 {seat} 技能标记 {skillCardId} 不在卡组——按无技能开局");
-                return null;
-            }
             var data = CardCatalog.GetById(skillCardId);
             if (data == null || !HeroSkillSystem.CanBeSkillCard(data))
             {
-                TideLog.Warn($"[NetRoom] 座位 {seat} 技能标记 {skillCardId} 资格不符（非唯一主动效果结界）——按无技能开局");
+                TideLog.Warn($"[NetRoom] 座位 {seat} 技能标记 {skillCardId} 资格不符（非法术或效果非 1~3 主动）——按无技能开局");
                 return null;
             }
             return skillCardId;

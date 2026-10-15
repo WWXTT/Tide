@@ -120,18 +120,11 @@ namespace CardCore.Attribute.Handlers
             int count = context.GetValueAfterModifiers(effect.Value);
             if (context.ZoneManager != null && context.Controller != null)
             {
+                // 抽牌事件单源：ZoneManagerExtensions.DrawCard 内经 GameCore 统一路由发布一次
+                // （2026-10-15 修复：handler 此前自发布一次=效果抽牌同卡双事件，OnDraw 触发/计数双跑）。
                 for (int i = 0; i < count; i++)
                 {
-                    var drawn = ZoneManagerExtensions.DrawCard(context.ZoneManager, context.Controller);
-                    if (drawn != null)
-                    {
-                        PublishEvent(new CardDrawEvent
-                        {
-                            Player = context.Controller,
-                            DrawnCard = drawn,
-                            DrawCount = 1
-                        });
-                    }
+                    ZoneManagerExtensions.DrawCard(context.ZoneManager, context.Controller);
                 }
             }
         }

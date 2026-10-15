@@ -164,10 +164,10 @@ namespace SynergyUI
             TutorialScenario scenario, GameBoard.BoardState board)
         {
             // 地牌槽曲线对齐：跳过的准备阶段本该推进 GlobalTurnIndex——先预置，AddCardToPool 的
-            // 上限校验（CapAt(GlobalTurnIndex)）才能按起跳回合放行对应张数
+            // 上限校验（2026-10-15 全局口径 CapAt(GlobalTurnIndex)）才能按起跳回合放行对应张数（双方同步值）
             var pool = core.ElementPool.GetPool(owner);
             pool.GlobalTurnIndex = scenario.startTurn;
-            // 个人回合台账（纯观测）：起跳前已开始的回合数（P1 先手交替）P1=ceil((t-1)/2)、P2=floor((t-1)/2)
+            // 个人回合台账（纯观测，不参与上限）：起跳前已开始的回合数（P1 先手交替）P1=ceil((t-1)/2)、P2=floor((t-1)/2)
             pool.PersonalTurnIndex = owner == core.Player1
                 ? (scenario.startTurn - 1 + 1) / 2
                 : (scenario.startTurn - 1) / 2;

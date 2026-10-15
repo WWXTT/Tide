@@ -12,11 +12,11 @@ using UnityEngine.UI;
 namespace Tide.验证
 {
     /// <summary>
-    /// 棋盘装台冒烟（2026-10-13 缩盘定案二段：BattleHex 单枚 mesh 运行时拼装 9×6 全盘）：
+    /// 棋盘装台冒烟（2026-10-14 晚 8×7 缩盘：BattleHex 单枚 mesh 运行时拼装，中线状态行 7 格+x7 缺口）：
     /// 主菜单 → 本地对战（吞屏过渡）→ 等棋盘实例 + 浮起拼装落位（Running 门禁）→ 断言：
-    /// ① BattleBoardRoot 实例 + 拼装规格（54 tile=9×6 全盘；逐 tile mesh=BattleHex 六棱柱 38 顶点/72 索引+材质非空）；
+        /// ① BattleBoardRoot 实例 + 拼装规格（50 tile + 5 hud 地块=8×7 盘 56 格位实拼 55；逐 tile mesh=BattleHex 六棱柱 38 顶点/72 索引+材质非空）；
     /// ② 分区对拍（BoardLayout 独立复算核心带 zone 直方图 + 逐 tile 材质色与 DefaultColor 对拍）；
-    /// ③ 逐 tile 世界坐标与格心公式独立复算对拍（54 格）；
+    /// ③ 逐 tile 世界坐标与格心公式独立复算对拍（51 tile）；
     /// ④ BattleFieldView 英雄柱落位（双方角色格世界坐标——缩盘后角色格入盘，柱落盘内格位）；
     /// ⑤ 像素可见性（GameView 真实帧读采样格中心非黑——2026-10-13 教训：
     ///    HexMap 时代 BRG 批次整体不渲染而数据层冒烟全绿，从此可见性必须入冒烟）；
@@ -58,11 +58,14 @@ namespace Tide.验证
                 if (BattleBoardAssemble.Running) { Fail("浮起拼装超时未落位（Running 恒真）"); return; }
 
                 var root = BattleBoardGrid.Root;
-                // 2. 拼装规格：9×6=54 tile；逐 tile 名可解析（tile-{x}-{z}）、mesh=BattleHex（六棱柱 38 顶点/72 索引）、材质非空
+                // 2. 拼装规格：8×7=56 格位实拼 55（50 tile-{x}-{z} + 5 个 hud-tile-* 状态行认领格，2026-10-14 晚；
+                // 中线 x7 槽=缺口无 tile——本批结束回合迁 x6 + x0 改役阶段显示格）；逐 tile 名可解析（tile-{x}-{z}）、
+                // mesh=BattleHex（六棱柱 38 顶点/72 索引）、材质非空
                 var tiles = new List<(int x, int z, Transform t)>();
-                int meshBad = 0, matBad = 0;
+                int meshBad = 0, matBad = 0, hudTiles = 0;
                 foreach (Transform child in root)
                 {
+                    if (child.name.StartsWith("hud-tile-")) { hudTiles++; continue; } // 功能地块占格（BattleHudRow 认领改名+tint）
                     var f = child.GetComponent<MeshFilter>();
                     var r = child.GetComponent<MeshRenderer>();
                     var parts = child.name.Split('-');
@@ -73,9 +76,9 @@ namespace Tide.验证
                     else meshBad++;
                     if (r == null || r.sharedMaterial == null) matBad++;
                 }
-                bool shapeOk = tiles.Count == 54 && meshBad == 0 && matBad == 0;
-                sb.AppendLine($"  step2 拼装：tile={tiles.Count}(期望54) mesh异常={meshBad} 缺材质={matBad} → {(shapeOk ? "一致" : "不符!")}");
-                if (!shapeOk) { Fail("拼装规格与 9×6 全盘不符（mesh=BattleHex 六棱柱口径）"); return; }
+                bool shapeOk = tiles.Count == 50 && hudTiles == 5 && meshBad == 0 && matBad == 0;
+                sb.AppendLine($"  step2 拼装：tile={tiles.Count}(期望50)+hud={hudTiles}(期望5) mesh异常={meshBad} 缺材质={matBad} → {(shapeOk ? "一致" : "不符!")}");
+                if (!shapeOk) { Fail("拼装规格与 8×7 盘（55 格位）不符（mesh=BattleHex 六棱柱口径）"); return; }
 
                 // 3. 分区对拍：全盘 zone 直方图（BoardLayout 独立复算）+ 逐 tile 材质色与 DefaultColor 对拍
                 var expectHist = new Dictionary<byte, int>();
@@ -101,7 +104,7 @@ namespace Tide.验证
                 sb.AppendLine($"  step3 分区对拍：{histText.ToString().Trim()} 格色偏差={colorBad} 未知分区={zoneBad}");
                 if (zoneBad != 0 || colorBad != 0) { Fail("tile 分区/配色与 BoardLayout 对拍不符"); return; }
 
-                // 4. 逐 tile 世界坐标公式对拍（54 格独立复算——摆位+格位服务全链）
+                // 4. 逐 tile 世界坐标公式对拍（50 tile 独立复算——摆位+格位服务全链）
                 int posBad = 0;
                 foreach (var (x, z, t) in tiles)
                 {
@@ -137,7 +140,7 @@ namespace Tide.验证
                 if (cam == null) { Fail("世界相机未找到"); return; }
                 var tex = ScreenCapture.CaptureScreenshotAsTexture();
                 int darkCells = 0;
-                foreach (var (x, z) in new[] { (1, 3), (7, 4), (1, 1), (7, 2), (8, 4) })
+                foreach (var (x, z) in new[] { (1, 5), (7, 4), (1, 1), (7, 2), (7, 5) })
                 {
                     var sp = cam.WorldToScreenPoint(BattleBoardGrid.WorldPositionOf(x, z) + Vector3.up * 0.05f);
                     var px = tex.GetPixel((int)sp.x, (int)sp.y);

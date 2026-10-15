@@ -27,6 +27,13 @@ namespace CardCore
         private static EventManager _instance;
         public static EventManager Instance => _instance ??= new EventManager();
 
+        /// <summary>丢弃单例与全部订阅（跨 Play 残留治理，2026-10-14）：工程关了域重载时静态
+        /// 单例跨 Play 存活——上一局屏/系统对象已销毁而订阅链仍挂在事件总线上，之后每个事件
+        /// 都在已销毁对象上抛 MissingReferenceException。由 Unity 侧引导（UIBootstrap）在
+        /// 进 Play 时调用；无头侧（TideServer）自管生命周期不调用。纯 C#（无 UnityEngine 依赖，
+        /// 共享源码编译约束）。</summary>
+        public static void ResetInstance() => _instance = null;
+
         /// <summary>
         /// 订阅条目：Wrapped 为类型安全转发闭包（发布时执行）；
         /// Original 为订阅方传入的原始委托（退订匹配 key，按 Delegate 相等比较 Method+Target）。

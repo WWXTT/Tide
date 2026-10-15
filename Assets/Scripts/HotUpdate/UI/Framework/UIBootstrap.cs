@@ -18,6 +18,19 @@ namespace SynergyUI
     {
         private UIManager _manager;
 
+        /// <summary>进 Play 清引擎/事件总线单例（2026-10-14，域重载关闭防护）：静态单例跨 Play
+        /// 存活时，上一局已销毁屏的订阅链会让本局事件逐条抛 MissingReferenceException——
+        /// SubsystemRegistration 档在每次进 Play（含跳域重载）必发。**必须成对重置**：
+        /// GameCore.ResetInstance 先丢引擎单例（旧实例构造期订阅的 TurnStart/TurnEnd/PhaseEnd
+        /// 自动化在旧总线上，只丢总线不丢它＝新对局不解横置/不抽牌/AI 空转——当日回归根因），
+        /// EventManager.ResetInstance 再丢总线。与 BattleTileFx.ResetStatics 同口径。</summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetPlayStatics()
+        {
+            GameCore.ResetInstance();
+            EventManager.ResetInstance();
+        }
+
         private void OnEnable()
         {
             //定死60帧

@@ -570,9 +570,9 @@
     ]
   },
   {
-    "ID": "8806ce7d",
+    "ID": "20a1549f",
     "EnumName": "成长",
-    "DisplayName": "地牌上限+1（地牌上限为18，超出上限无效）",
+    "DisplayName": "地牌上限+1（可重复使用，无上限）",
     "EffectType": "IncreaseLandCap",
     "TargetKinds": null,
     "TargetFilter": null,

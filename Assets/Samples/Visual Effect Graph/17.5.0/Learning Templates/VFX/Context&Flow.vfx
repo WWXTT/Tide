@@ -24,40 +24,13 @@ MonoBehaviour:
     - model: {fileID: 8926484042661615015}
       id: 0
       isStickyNote: 0
-    - model: {fileID: 8926484042661615017}
-      id: 0
-      isStickyNote: 0
     - model: {fileID: 8926484042661615020}
-      id: 0
-      isStickyNote: 0
-    - model: {fileID: 8926484042661615035}
-      id: 0
-      isStickyNote: 0
-    - model: {fileID: 8926484042661615039}
-      id: 0
-      isStickyNote: 0
-    - model: {fileID: 8926484042661615058}
       id: 0
       isStickyNote: 0
     - model: {fileID: 8926484042661615068}
       id: 0
       isStickyNote: 0
-    - model: {fileID: 8926484042661615070}
-      id: 0
-      isStickyNote: 0
-    - model: {fileID: 8926484042661615077}
-      id: 0
-      isStickyNote: 0
     - model: {fileID: 8926484042661615080}
-      id: 0
-      isStickyNote: 0
-    - model: {fileID: 8926484042661615084}
-      id: 0
-      isStickyNote: 0
-    - model: {fileID: 8926484042661615088}
-      id: 0
-      isStickyNote: 0
-    - model: {fileID: 8926484042661615091}
       id: 0
       isStickyNote: 0
     - model: {fileID: 0}
@@ -258,7 +231,7 @@ VisualEffectResource:
   m_Graph: {fileID: 114350483966674976}
   m_Infos:
     m_RendererSettings:
-      motionVectorGenerationMode: 1
+      motionVectorGenerationMode: 0
       shadowCastingMode: 1
     m_CullingFlags: 3
     m_UpdateMode: 0
@@ -2426,14 +2399,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 081ffb0090424ba4cb05370a42ead6b9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_UIIgnoredErrors: []
-  m_Parent: {fileID: 0}
-  m_Children: []
-  m_UIPosition: {x: 0, y: 0}
-  m_UICollapsed: 1
-  m_UISuperCollapsed: 0
-  opaqueRenderQueue: 0
-  transparentRenderQueue: 1
 --- !u!114 &8926484042661615087
 MonoBehaviour:
   m_ObjectHideFlags: 0

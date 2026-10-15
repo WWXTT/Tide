@@ -64,13 +64,14 @@ namespace SynergyUI
                 .ThenBy(c => c.CardName ?? "", System.StringComparer.CurrentCulture);
         }
 
-        /// <summary>类型中文（卡池分组/预览行）：生物 / 瞬间 / 结界，其他超类回退枚举名。</summary>
+        /// <summary>类型中文（卡池分组/预览行）：生物 / 法术 / 结界，其他超类回退枚举名
+        ///（2026-10-10 改口定案：原「瞬间」——2026-10-15 速度定案后法术速度来自卡型免费额度，不再叫瞬间）。</summary>
         public static string TypeName(CardData card)
         {
             switch (card?.Supertype)
             {
                 case Cardtype.Creature: return "生物";
-                case Cardtype.Spell: return "瞬间";
+                case Cardtype.Spell: return "法术";
                 case Cardtype.Enchantment: return "结界";
                 default: return card?.Supertype.ToString() ?? "?";
             }
@@ -180,7 +181,7 @@ namespace SynergyUI
                 {
                     if (fx == null) continue;
                     var summary = AtomText.RenderEffectSummary(
-                        new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps });
+                        new EffectGraphData(fx.DisplayName) { header = fx, steps = fx.Steps }, card);
                     if (!string.IsNullOrEmpty(summary)) parts.Add(summary);
                 }
             return string.Join("\n", parts);

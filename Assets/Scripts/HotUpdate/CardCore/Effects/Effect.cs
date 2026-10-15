@@ -199,22 +199,29 @@ namespace CardCore
         /// 攻击宣言标记（2026-09-16 战斗接入栈机器定案）：本实例代表一次攻击宣言——
         /// 速度0栈对象（逐攻击开窗），Source=攻击者、Targets=[宣言目标]、Controller=攻击方；
         /// 由 StackEngine.PushAttackDeclaration 创建、ResolveStack 的 IsAttackDeclaration 分支
-        /// 交 CombatSystem.ResolveAttackDeclaration 消费（重检+横置支付→战斗结算；死亡处理由
-        /// 栈机器 SBA 轮统一接管）。横置/扣费在**结算时**支付（到点重查，宣言期零支付）。
+        /// 交 CombatSystem.ResolveAttackDeclaration 消费（重检→战斗结算→战斗后横置支付；死亡
+        /// 处理由栈机器 SBA 轮统一接管）。横置/扣费在**结算时**支付（到点重查，宣言期零支付）——
+        /// 2026-10-15 起攻击者以竖直状态完成战斗，横置移到战斗结算完成后支付。
         /// </summary>
         public bool IsAttackDeclaration { get; set; }
 
         /// <summary>
         /// 守卫拦截宣言标记（2026-09-16 定案）：守卫=速度1响应（原2速阻挡阶段退役）——
         /// Source=守卫者、Targets=[被拦截的攻击宣言对象]、Controller=防守方；
-        /// ResolveStack 交 CombatSystem.ResolveGuardDeclaration 消费：重检+横置支付→
-        /// 攻击目标变更（改写攻击宣言对象的 Targets[0]=守卫者）。横置结算时支付（同攻击口径）。
+        /// ResolveStack 交 CombatSystem.ResolveGuardDeclaration 消费：重检→攻击目标变更
+        ///（改写攻击宣言对象的 Targets[0]=守卫者+登记 GuardBlocker）。守卫横置不再在此支付——
+        /// 2026-10-15 定案：战斗期间守卫竖直（照常反击），横置随攻击结算在战斗完成后统一支付。
         /// </summary>
         public bool IsGuardDeclaration { get; set; }
 
         /// <summary>守卫拦截载荷（IsGuardDeclaration 时非空）：被拦截的攻击宣言栈对象——
         /// 守卫结算时改写其 Targets[0]=守卫者（攻击目标变更）。Targets 装不下栈对象（List&lt;Entity&gt;），专用字段承载。</summary>
         public EffectInstance InterceptedAttack { get; set; }
+
+        /// <summary>拦截本攻击宣言的守卫者（ResolveGuardDeclaration 登记；多次拦截只记
+        /// 最后一位=最终目标，前序拦截者未参战不支付）：攻击结算在战斗完成后据此给守卫补横置。
+        /// 攻击落空（重检失败）时守卫未参战——不支付。</summary>
+        public Entity GuardBlocker { get; set; }
 
         /// <summary>
         /// 抉择模式索引（2026-09-07 定案）：整卡施放声明期选定（先选择再定费用），

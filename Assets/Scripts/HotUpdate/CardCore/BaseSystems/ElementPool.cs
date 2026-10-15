@@ -46,15 +46,15 @@ namespace CardCore
         /// <summary>该玩家的资源曲线（由 GameCore.InitGame 注入固定地牌槽曲线；变速效果经 SetCurve 修改）</summary>
         public ResourceCurve Curve { get; set; }
 
-        /// <summary>最近的全局回合数（纯台账/观测用——2026-10-11 起上限改读 PersonalTurnIndex）</summary>
+        /// <summary>最近的全局回合数（2026-10-15 定案：地牌槽曲线 CapAt 的索引回归全局口径——
+        /// 每次回合开始全体池同步推进，双方上限数值恒等，先后手无差）</summary>
         public int GlobalTurnIndex { get; set; }
 
-        /// <summary>个人回合数（自己回合开始时 +1；地牌槽曲线 CapAt 的索引——2026-10-11 定案：
-        /// 自己的回合开始地牌上限 +1，个人口径）</summary>
+        /// <summary>个人回合数（自己回合开始时 +1；纯台账/观测用——ResourceLedger 行标识）</summary>
         public int PersonalTurnIndex { get; set; }
 
-        /// <summary>「成长」原子累积的地牌上限加值（2026-10-11 定案：灵气复苏×2翻倍改成长+1，
-        /// 可重复使用，各自池生效不共享；GetLandCap 输出封顶 MaxStackedLandCap=18）。</summary>
+        /// <summary>「成长」原子累积的地牌上限加值（2026-10-15 定案：无封顶——自然上限 10 之外
+        /// 的增加全部走此加值，效果叠加不设限；各自池生效不共享）。</summary>
         public int LandCapBonus { get; set; }
 
         /// <summary>本回合系统横置次数（付费自动横置；每个全局回合重置——纯观测）</summary>
@@ -76,10 +76,12 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 元素池系统——2026-10-11 资源系统重做定案（现取现用）：
+    /// 元素池系统——2026-10-11 资源系统重做定案（现取现用）+ 2026-10-15 上限累加口径修订：
     /// 1. 地牌 = 锁色产色体：入池时自选卡费颜色之一锁定；不消耗不耗竭；移除口=摧毁/抹除效果。
-    /// 2. 地牌上限 = 自己回合开始 +1（个人曲线 CapAt(PersonalTurnIndex)，标准曲线 min(个人回合,7)）；
-    ///    「成长」原子 +1/次封顶 14。各自上限管各自地牌张数（共享计数器废止）。
+    /// 2. 地牌上限 = 每次回合开始双方同步 +1（全局曲线 CapAt(GlobalTurnIndex)，标准曲线 min(全局回合,10)）：
+    ///    2026-10-11 的个人口径废止——先后手永差一步的观感过强，回归双方同步（10-11 前口径）；
+    ///    自然上限 10（LandCurveCap），「成长」原子 +1/次**无封顶**（旧 14 硬顶退役）。
+    ///    各自上限管各自地牌张数（10-10 的全场合计占用不复活）。
     /// 3. 付费 = 现取现用：按账单规划「临时钱包余额 + 未横置地牌横置」组合，钱包优先消耗（回合末即逝），
     ///    地牌横置=系统自动的强制动作（无速度交互），自己/对手回合都一样（跨回合支付不变）。
     /// 4. 支付链（2026-10-11 收窄）：红/蓝/绿仅本色；灰=[灰,黑,白,红,蓝,绿]（黑白只垫灰、三色垫灰沿用）；
@@ -91,14 +93,10 @@ namespace CardCore
     /// </summary>
     public class ElementPoolSystem
     {
-        /// <summary>地牌槽上限的最大值（曲线末端值；2026-10-13 迁表：=GameRules.LandCurveCap 同源单值）</summary>
+        /// <summary>地牌槽上限自然封顶（曲线末端值；2026-10-13 迁表：=GameRules.LandCurveCap 同源单值；
+        /// 2026-10-15 缩盘口径 7→10——效果增加（成长）在此之外无限制叠加）</summary>
         public static int MAX_POOL_SIZE
             => (int)ValueSystemConfigManager.Instance.GetOrCreateConfig().GameRulesConfig.LandCurveCap;
-
-        /// <summary>地牌上限硬顶（成长原子叠加的封顶值）：7 格 × 每格叠两层 = 14。
-        /// 挑战模式 P2 加成曲线（7+bonus，N≥7 触顶）再叠加同样受此钳制（2026-10-13 迁表：GameRules.MaxStackedLandCap）。</summary>
-        public static int MaxStackedLandCap
-            => (int)ValueSystemConfigManager.Instance.GetOrCreateConfig().GameRulesConfig.MaxStackedLandCap;
 
         private Dictionary<Player, PlayerElementPool> _playerPools =
             new Dictionary<Player, PlayerElementPool>();
@@ -194,7 +192,7 @@ namespace CardCore
 
         /// <summary>
         /// 将手牌作为地牌放入元素池（主阶段调用，可用/未横置状态入场，不限张数/次数）。
-        /// 张数受**各自**地牌槽上限约束（2026-10-11：个人曲线 min(个人回合,7)+成长加值，封顶 14——2026-10-13 缩盘）。
+        /// 张数受**各自**地牌槽上限约束（2026-10-15：全局同步曲线 min(全局回合,10)+成长加值，效果增加无封顶）。
         /// colorChoice：从 GetLandColorChoices 中自选锁定产色；null=缺省主色（份额最多色）。
         /// 地牌不消耗不耗竭；离池（弹回手等）后可再入池重新选色。
         /// </summary>
@@ -281,40 +279,39 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 「成长」原子（2026-10-11 定案：灵气复苏 ×2 翻倍改成长 +1）：地牌上限 +1，
-        /// 各自池生效不共享、可重复使用；输出封顶 MaxStackedLandCap（14，每地牌格叠两层）。
-        /// 已到硬顶返回 false。作用于 GetLandCap 单点：入池闸/支付浓度/费用门槛/黑白钳/AI/快照同随。
+        /// 「成长」原子（2026-10-15 定案：无封顶）：效果控制者地牌上限 +1，
+        /// 各自池生效不共享、可无限重复使用（自然上限 10 之外的增加全走此口）。
+        /// 作用于 GetLandCap 单点：入池闸/支付浓度/费用门槛/黑白钳/AI/快照同随。
         /// </summary>
         public bool AddLandCapBonus(Player player)
         {
             if (player == null) return false;
             var pool = GetPool(player);
-            if (GetLandCap(player) >= MaxStackedLandCap) return false; // 封顶钳制
             pool.LandCapBonus++;
             PublishRouted(new CurveShiftEvent
             {
                 Player = player,
                 NewCurve = pool.Curve, // 曲线对象未换——事件仅作 Trigger/Layer 可见的通知载体
-                Reason = "成长:地牌上限+1（封顶14）",
+                Reason = "成长:地牌上限+1",
             });
             return true;
         }
 
         /// <summary>
-        /// 当前的地牌槽上限（2026-10-11 定案：**个人曲线**——自己回合开始 +1，读 PersonalTurnIndex；
-        /// 10-10 全场共享计数器废止，各自上限管各自地牌张数）。
-        /// 标准曲线 = min(个人回合数, 7)；成长原子加值 LandCapBonus 封顶 14（2026-10-13 缩盘：9/18→7/14）。
-        /// 无曲线时按同一公式兜底。挑战模式 P2 加成曲线照常各自注入。
+        /// 当前的地牌槽上限（2026-10-15 定案：**全局同步曲线**——每次回合开始双方同步 +1，
+        /// 读 GlobalTurnIndex；双方数值恒等，先后手无差。10-11 个人口径与 10-10 全场共享占用双双废止）。
+        /// 标准曲线 = min(全局回合数, 10)；成长原子加值 LandCapBonus 无封顶。
+        /// 无曲线时按同一公式兜底。挑战模式 P2 加成曲线照常各自注入（全局索引）。
         /// </summary>
         public int GetLandCap(Player player)
         {
             var pool = GetPool(player);
             int cap;
             if (pool.Curve != null)
-                cap = pool.Curve.CapAt(pool.PersonalTurnIndex);
+                cap = pool.Curve.CapAt(pool.GlobalTurnIndex);
             else
-                cap = Math.Max(1, Math.Min(pool.PersonalTurnIndex, MAX_POOL_SIZE));
-            return Math.Min(cap + pool.LandCapBonus, MaxStackedLandCap);
+                cap = Math.Max(1, Math.Min(pool.GlobalTurnIndex, MAX_POOL_SIZE));
+            return cap + pool.LandCapBonus;
         }
 
         // ======================================== 临时钱包（效果授予元素） ========================================
@@ -527,8 +524,9 @@ namespace CardCore
 
         /// <summary>
         /// 全局回合开始（GameCore.OnTurnStarted 调用，每回合一次，无论轮到谁）：
-        /// 1. 回合玩家个人回合数 +1（地牌上限曲线推进——2026-10-11 个人口径）
-        /// 2. 全局回合台账同步、所有玩家本回合产出/黑白获得台账清零
+        /// 1. 全体池 GlobalTurnIndex 同步推进（地牌上限曲线随之双方同步 +1——2026-10-15 全局口径）；
+        ///    回合玩家个人回合数 +1（纯台账）
+        /// 2. 所有玩家本回合产出/黑白获得台账清零
         /// 3. 回合玩家（准备阶段）地牌全部解除横置
         /// </summary>
         public void OnTurnStart(Player turnPlayer, int globalTurnNumber)

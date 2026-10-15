@@ -167,34 +167,37 @@ namespace CardCore
             // 退费先灰后最高色（法术常无灰分量），加价入灰。
             var kwMultiplier = cc.KeywordsShareDelayDiscount ? factor : 1f;
             int statGray = (int)Math.Round(statValue, MidpointRounding.AwayFromZero);
-            // 底盘（2026-10-10 可支配定案，取代「剩余作废」案）：超槽加价入灰（不吃 d(C)）+
-            // 剩余按卡型支配——抵价在 ApplyChassis 落位（先灰后最高色）；法术提速占用份额、
-            // 结界剩余走运行时二向（发动费抵扣/耐久+N），均不动卡价。
+            // 底盘（2026-10-15 卡型默认分配定案，取代 10-10 可支配）：生物效果槽超槽加价入灰
+            //（不吃 d(C)）+ 免费点只减灰桶 S；法术免费点投提速（占用份额不抵价）；
+            // 结界免费点走速1+耐久（运行时落位）；地牌全额抵价（先灰后最高色）。
             int surcharge = CardCompositionCost.StructuralSurcharge(card);
             if (surcharge > 0)
                 result.Breakdown.Add(new CostBreakdownLine("C",
-                    $"结构加价 结构{CardCompositionCost.ChassisItems(card)}×1 − 预算3 → +{surcharge} 入灰（不吃 d(C)）",
+                    card.Supertype == Cardtype.Creature
+                        ? $"效果槽×{CostDerivationService.CountEffectSlots(card)} 超槽加价 +{surcharge} 入灰（不吃 d(C)；与属性1抵扣对冲后首槽净 0）"
+                        : $"结构加价 结构{CardCompositionCost.ChassisItems(card)}×1 − 预算3 → +{surcharge} 入灰（不吃 d(C)）",
                     surcharge, ManaType.Gray));
             int surplus = CardCompositionCost.SurplusOf(card);
             if (surplus > 0)
             {
-                if (card.Supertype == Cardtype.Enchantment)
+                if (card.Supertype == Cardtype.Creature)
                     result.Breakdown.Add(new CostBreakdownLine("C",
-                        card.SurplusToDurability
-                            ? $"底盘剩余 {surplus} → 入场耐久 +{surplus}（免卡价；EquipRules/HeroSkillSystem 落位）"
-                            : $"底盘剩余 {surplus} → 启动式发动费每次 −{surplus}（免卡价；结算期落位）", 0f));
+                        $"免费点 {surplus}（属性1{(card.NoAttack || card.NoGuard ? " + 攻/守 opt-out" : "")}）→ 减身材灰桶（不溢出彩色）",
+                        -surplus, ManaType.Gray));
+                else if (card.Supertype == Cardtype.Enchantment)
+                {
+                    result.Breakdown.Add(new CostBreakdownLine("C",
+                        $"免费点 {surplus} → 入场耐久 +{surplus}（禁主动效果全投耐久；免卡价）", 0f));
+                }
                 else if (card.Supertype == Cardtype.Spell)
                 {
-                    int bonus = Math.Clamp(card.SpeedBonus, 0, surplus);
                     result.Breakdown.Add(new CostBreakdownLine("C",
-                        bonus > 0
-                            ? $"底盘剩余 {surplus}（提速 {bonus} 档 + 抵价 {surplus - bonus}）"
-                            : $"底盘剩余 {surplus} → 抵价 {surplus}（先灰后最高色）",
-                        -(surplus - bonus)));
+                        $"免费点 {surplus} → 发动速度 {surplus}（槽位从速度扣：{CardCompositionCost.ChassisItems(card)} 槽=速{surplus}；无抵价）",
+                        0f));
                 }
                 else
                     result.Breakdown.Add(new CostBreakdownLine("C",
-                        $"底盘剩余 {surplus} → 抵价 {surplus}（先灰后最高色）", -surplus));
+                        $"免费点 {surplus} → 抵价 {surplus}（先灰后最高色）", -surplus));
             }
 
             var mounted = ApportionMounted(effBuckets, kwBuckets, kwMultiplier, factor, statGray);
@@ -633,6 +636,8 @@ namespace CardCore
         {
             auraTotal = 0f;
             var buckets = new Dictionary<ManaType, float>();
+            // 生物禁挂连接光环（2026-10-15 改版：装载口已拦，此处防御性跳过——手构/运行时改写兜底）
+            if (card?.Supertype == Cardtype.Creature) return buckets;
             if (card?.LinkAuras == null || card.LinkAuras.Count == 0) return buckets;
 
             CardLoader.LoadKeywords(); // 惰性建目录（keyword 行反查 Grant 原子）
@@ -785,8 +790,9 @@ namespace CardCore
             return mounted;
         }
 
-        /// <summary>底盘落位（取整后，2026-10-10 可支配定案）：超槽 → 加价入灰（不吃 d(C)）；
-        /// 剩余 → 抵价（PriceOffsetOf：法术扣除提速份额、结界 0=运行时二向、其余全额；
+        /// <summary>底盘落位（取整后，2026-10-15 卡型默认分配定案）：超槽 → 加价入灰（不吃 d(C)）；
+        /// 生物免费点 → 只减灰桶（StatOffsetOf，不溢出彩色——不干扰三色费用梯度）；
+        /// 其余 → 抵价（PriceOffsetOf：法术扣除提速份额、结界 0=速1+耐久、地牌全额；
         /// ReduceBuckets 先灰后最高色）。与 Derive/DeriveModeCosts/BuildCostAtTier 三处共用，防口径漂移。</summary>
         private static void ApplyChassis(CardData card, Dictionary<ManaType, int> mounted)
         {
@@ -795,6 +801,12 @@ namespace CardCore
             {
                 mounted.TryGetValue(ManaType.Gray, out var g);
                 mounted[ManaType.Gray] = g + surcharge; // 加价入灰（取整后，不吃 d(C)）
+            }
+            int statOffset = CardCompositionCost.StatOffsetOf(card);
+            if (statOffset > 0)
+            {
+                mounted.TryGetValue(ManaType.Gray, out var g);
+                mounted[ManaType.Gray] = Math.Max(0, g - statOffset); // 生物免费点：仅灰桶（不溢出彩色）
                 return;
             }
             int offset = CardCompositionCost.PriceOffsetOf(card);

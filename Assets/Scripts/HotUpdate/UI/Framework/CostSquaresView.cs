@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
@@ -16,7 +17,7 @@ namespace SynergyUI
 
     /// <summary>
     /// 费用方格视图（2026-10-03 定案：费用表达统一为对应颜色小方格排列）。
-    /// 公用预制体 Assets/Art/UI/CostSquares.prefab 的组件——按费用明细克隆模板方格，
+    /// 公用预制体 Assets/Art/Prefab/CostSquares.prefab 的组件——按费用明细克隆模板方格，
     /// 颜色=UiStyle.Dot*（与列表行色点同款）；引用者（各屏/卡面）经 Mount 挂载，
     /// 用实例 localScale 自行调整整体大小。
     /// 2026-10-13 拓展：组件自读根 RectTransform 宽高，把生成方格按填充方式
@@ -26,6 +27,9 @@ namespace SynergyUI
     /// 根上有 LayoutGroup 时跳过重排（排布仍归引用者烘焙，2026-10-03 旧契约保留）。
     /// 自愈三兜底：无模板→代码自建 tpl-square；无预制体→Mount 纯代码节点；引用者烘焙
     /// 同名节点→直接复用（不实例化）。
+    /// 2026-10-15：生成序定案=红蓝绿黑白灰（三色优先、灰垫底——组件内排序，调用方传入序不保留）；
+    /// 田字换行改同色整组制：同色段尽量不跨行（行尾留空整组挪新行），段长超过整行容量
+    /// （实在放不下）才连续跨行、与后续色段混排。
     /// </summary>
     public sealed class CostSquaresView : MonoBehaviour
     {
@@ -36,6 +40,20 @@ namespace SynergyUI
 
         private RectTransform _template;
         private readonly List<RectTransform> _squares = new List<RectTransform>(); // 本视图生成的方格（Destroy 帧末生效，定位不看 childCount）
+        private readonly List<int> _squareMana = new List<int>(); // 与 _squares 平行的每格 ManaType 序号（田字排布识别同色段用）
+
+        /// <summary>方格生成序（2026-10-15）：三色红蓝绿优先、灰垫底；黑白沿用 CardSorter 的黑先白后。
+        /// 未知色与灰同档排末尾。</summary>
+        private static readonly ManaType[] DisplayOrder =
+        {
+            ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Black, ManaType.White,
+        };
+
+        private static int DisplayRank(ManaType m)
+        {
+            int i = Array.IndexOf(DisplayOrder, m);
+            return i >= 0 ? i : DisplayOrder.Length; // 灰及未来扩色恒排最后
+        }
 
         /// <summary>填充方式（外部可选，运行时改动立即重排）。</summary>
         public CostSquaresFill Fill
@@ -90,8 +108,8 @@ namespace SynergyUI
             return node.GetComponent<CostSquaresView>() ?? node.gameObject.AddComponent<CostSquaresView>();
         }
 
-        /// <summary>费用主口径（2026-10-04 位置数组：ElementCost，下标=ManaType 枚举序号——
-        /// 方格色序恒为枚举序，与字典插入序的旧不稳定显示告别）。全零/空则清空。</summary>
+        /// <summary>费用主口径（2026-10-04 位置数组：ElementCost，下标=ManaType 枚举序号）。
+        /// 全零/空则清空。方格生成序=DisplayRank 定案序（红蓝绿黑白灰），非枚举序。</summary>
         public void SetCosts(ElementCost costs)
         {
             if (costs == null || costs.IsZero) { Clear(); return; }
@@ -102,6 +120,7 @@ namespace SynergyUI
 
         /// <summary>瘦引用口径（ElementCostRef 列表）。空则清空。
         /// 负责生成对应数量+颜色的方块并按 Fill 分布定位（2026-10-13 拓展）；
+        /// 生成前先按 DisplayRank 排序（三色优先、灰垫底，调用方传入序不保留）；
         /// 根上有 LayoutGroup 的烘焙实例排布归引用者，本组件不越权。</summary>
         public void SetCosts(IEnumerable<ElementCostRef> costs)
         {
@@ -114,7 +133,9 @@ namespace SynergyUI
             }
 
             var list = costs?.Where(c => c != null && c.value > 0).ToList() ?? new List<ElementCostRef>();
+            list.Sort((a, b) => DisplayRank((ManaType)a.mana).CompareTo(DisplayRank((ManaType)b.mana)));
             _squares.Clear();
+            _squareMana.Clear();
             foreach (var c in list)
             {
                 var color = ManaColor((ManaType)c.mana);
@@ -130,6 +151,7 @@ namespace SynergyUI
                         img.raycastTarget = false;
                     }
                     _squares.Add((RectTransform)sq.transform);
+                    _squareMana.Add(c.mana);
                 }
             }
             Relayout();
@@ -144,6 +166,9 @@ namespace SynergyUI
 
         /// <summary>自读根 rect 宽高，把已生成方格按 Fill 均分定位（2026-10-13 拓展）：
         /// 横向=单行、竖向=单列、田字=列数=round(sqrt(N×宽高比)) 的近方网格（行序=左上起行优先）；
+        /// 田字换行=同色整组制（2026-10-15）：同色段尽量不跨行——段起点处当前行剩余格装不下整段
+        /// 但整段 ≤ 一行容量 → 行尾留空、整段挪到新行头；整段 &gt; 一行容量（实在放不下）→连续排，
+        /// 跨行尾部与后续色段混一行。
         /// cell=宽/列×高/行，方格锚 cell 中心、尺寸默认=模板尺寸、拥挤时等比缩到 cell
         /// ——元素再多也整体落在根 rect 内。根上有 LayoutGroup / 宽高未就绪 / 无方格时跳过。</summary>
         private void Relayout()
@@ -154,27 +179,47 @@ namespace SynergyUI
             var rect = rt.rect;
             if (rect.width <= 0f || rect.height <= 0f) return;
 
-            int n = 0;
+            var active = new List<int>(_squares.Count);
             for (int i = 0; i < _squares.Count; i++)
-                if (_squares[i] != null && _squares[i].gameObject.activeSelf) n++;
+                if (_squares[i] != null && _squares[i].gameObject.activeSelf) active.Add(i);
+            int n = active.Count;
             if (n == 0) return;
 
-            int cols, rows;
+            int cols;
             switch (fill)
             {
                 case CostSquaresFill.Vertical:
                     cols = 1;
-                    rows = n;
                     break;
                 case CostSquaresFill.Grid:
                     cols = Mathf.Clamp(Mathf.RoundToInt(Mathf.Sqrt(n * rect.width / rect.height)), 1, n);
-                    rows = (n + cols - 1) / cols;
                     break;
                 default:
                     cols = n;
-                    rows = 1;
                     break;
             }
+
+            // 每个活动方格的线性格位（行优先连续序）
+            var cell = new int[n];
+            if (fill == CostSquaresFill.Grid && _squareMana.Count == _squares.Count)
+            {
+                int linear = 0;
+                for (int a = 0; a < n;)
+                {
+                    int len = 1;
+                    while (a + len < n && _squareMana[active[a + len]] == _squareMana[active[a]]) len++;
+                    int spaceLeft = cols - linear % cols; // 当前行剩余格
+                    if (len > spaceLeft && len <= cols) linear += spaceLeft; // 整组挪新行（行尾留空）
+                    for (int j = 0; j < len; j++) cell[a + j] = linear + j;
+                    linear += len; // 整段 > 一行容量时此处连续排（跨行混排=实在放不下）
+                    a += len;
+                }
+            }
+            else
+            {
+                for (int i = 0; i < n; i++) cell[i] = i;
+            }
+            int rows = cell[n - 1] / cols + 1; // 横向 cols=n→1 行；竖向 cols=1→n 行；田字=含留空的真实行数
 
             float cellW = rect.width / cols, cellH = rect.height / rows;
             var tplSize = _template.sizeDelta; // 烘焙模板=作者定的方格默认尺寸（拥挤时的上限）
@@ -184,16 +229,13 @@ namespace SynergyUI
             var sqSize = tplValid
                 ? new Vector2(tplSize.x * k, tplSize.y * k)
                 : new Vector2(Mathf.Min(cellW, cellH), Mathf.Min(cellW, cellH)); // 模板尺寸非法兜底=cell 内切方
-            int idx = 0;
-            for (int i = 0; i < _squares.Count; i++)
+            for (int i = 0; i < n; i++)
             {
-                var sq = _squares[i];
-                if (sq == null || !sq.gameObject.activeSelf) continue;
+                var sq = _squares[active[i]];
                 sq.anchorMin = sq.anchorMax = new Vector2(0f, 1f);
                 sq.pivot = new Vector2(0.5f, 0.5f);
-                sq.anchoredPosition = new Vector2((idx % cols + 0.5f) * cellW, -(idx / cols + 0.5f) * cellH);
+                sq.anchoredPosition = new Vector2((cell[i] % cols + 0.5f) * cellW, -(cell[i] / cols + 0.5f) * cellH);
                 sq.sizeDelta = sqSize;
-                idx++;
             }
         }
 

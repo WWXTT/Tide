@@ -179,6 +179,8 @@ namespace CardCore
         /// 缺省 0 = 游戏王「普通」档（仅回合玩家主阶段可打）；瞬间类组合期调 1 以上
         /// 才能在对手回合打出/响应（非回合方门槛为严格大于记速器）。
         /// 裸 Card（衍生物/临时卡，非 CardWrapper）恒为 0。
+        /// 2026-10-15 深夜改版：法术效果发动速度=卡的发动速度——免费点=槽数+速度(3−N)
+        ///（KindSpeedBonusOf 动态单源）计入本口；生物/结界从手牌使用恒 0 速（结界禁主动后速度通道退役）。
         /// 疾风仪典（2026-10-04 光环改造）：从手牌使用的卡发动速度+1——出牌/响应出牌/
         /// AI 预检/速度门全经本口，单源生效（攻击/守卫/启动式不在此列）。
         /// </summary>
@@ -187,13 +189,16 @@ namespace CardCore
             var data = (card as CardWrapper)?.GetData();
             // 疾风加成按出牌者一侧判（2026-10-07 范围化；裸卡无控制者 → null=不命中）
             var caster = card?.GetController();
+            int auraBonus = RuleAuraComponents.CardCastSpeedBonus(caster);
             if (data?.Effects == null || data.Effects.Count == 0)
-                return RuleAuraComponents.CardCastSpeedBonus(caster); // 裸卡基速 0 + 光环加成
+                return auraBonus; // 裸卡基速 0 + 光环加成
             int max = 0;
             foreach (var effect in data.Effects)
                 if (effect != null && effect.BaseSpeed > max)
                     max = effect.BaseSpeed;
-            return max + RuleAuraComponents.CardCastSpeedBonus(caster);
+            if (data.Supertype == Cardtype.Spell)
+                max += CardCompositionCost.KindSpeedBonusOf(data); // 法术提速计入整卡施放速度门
+            return max + auraBonus;
         }
     }
 }

@@ -16,6 +16,13 @@ namespace CardCore
         private static GameCore _instance;
         public static GameCore Instance => _instance ??= new GameCore();
 
+        /// <summary>丢弃单例（跨 Play 残留治理，2026-10-14）：工程关了域重载时本单例跨 Play 存活，
+        /// 而构造期事件订阅（TurnStart/TurnEnd/PhaseEnd 三条核心自动化）挂在订阅时的 EventManager
+        /// 总线实例上——若只 ResetInstance 事件总线而本单例残留，新对局的引擎事件将无人消费
+        /// （回合推进但生物不解横置、不抽牌、AI 空转直结束）。由 Unity 侧引导（UIBootstrap）进 Play 时
+        /// 与 EventManager.ResetInstance 成对调用；无头侧（TideServer）自管生命周期不调用。</summary>
+        public static void ResetInstance() => _instance = null;
+
         // 子系统注册表
         private readonly SubSystemRegistry _subSystems = new SubSystemRegistry();
 
@@ -253,7 +260,8 @@ namespace CardCore
             if (hand == null) return;
 
             // 手牌上限：规则扩展点（OCP）修改链（基值 7）
-            int over = hand.Count - RuleHooks.GetHandLimit(player);
+            int limit = RuleHooks.GetHandLimit(player);
+            int over = hand.Count - limit;
             if (over <= 0) return;
 
             var chosen = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
@@ -262,7 +270,7 @@ namespace CardCore
                 MinCount = over,
                 MaxCount = over,
                 Chooser = player,
-                Title = "手牌上限",
+                Title = $"回合结束，手牌超出{limit}张，请选择丢弃",
                 Hint = $"弃掉 {over} 张手牌",
                 AllowCancel = false,
             });
@@ -308,10 +316,9 @@ namespace CardCore
             if (player == null)
                 return;
 
-            // 英雄技能耐久回充（2026-10-10 耐久池定案）：技能=单主动结界的耐久池——
-            // 发动 −1+元素费现付、归零休眠不销毁、回合开始 +1（封顶初始耐久，RechargeSkill）；
-            // 旧「横置一回合一次闸门（Untap 重置）」随结界全区域耐久经济退役；引用丢失时 lazy 回填。
-            HeroSkillSystem.RechargeSkill(this, player);
+            // 英雄技能回合重置（2026-10-15 改版：技能=法术、每回合一次=横置闸）：
+            // 回合开始解横置即可再发动；耐久池/回充整体退役；引用丢失时 lazy 回填。
+            HeroSkillSystem.ResetSkillForTurn(this, player);
 
             // 规则扩展点（OCP）：回合开始自动化拦截（ITurnStartInterceptor 声明跳过准备阶段——
             // 抽牌、地牌槽（元素浓度上限）推进、横置重置、场上卡准备阶段结算全跳；
@@ -377,14 +384,15 @@ namespace CardCore
         /// 完成场面注入（TutorialScenarioSeeder）+ 回合起跳预置（TurnEngine.PrepareScenarioStart）。
         /// 缺省 false 行为不变。</param>
         /// <param name="p2LandCapBonus">P2 地牌槽加成（挑战模式 2026-10-06 难度 N 单值联动）：
-        /// P2 曲线换 ChallengeLandCurve(bonus)=[1+bonus..7+bonus]，开局即有额外槽、封顶同步抬高
-        /// （GetLandCap 终钳 MaxStackedLandCap=14：N≥7 触顶）；
+        /// P2 曲线换 ChallengeLandCurve(bonus)=[1+bonus..10+bonus]（全局回合索引，双方同步 +1 基础上抬），
+        /// 开局即有额外槽、封顶同步抬高，无终钳（2026-10-15：MaxStackedLandCap 硬顶退役）；
         /// P1 保持标准曲线。缺省 0 双方对称，行为不变。</param>
         /// <param name="p2ExtraOpeningDraws">P2 起手额外抽牌数（挑战模式）：对称起手填完后追加，
         /// 手牌无上限截断（HAND_SIZE_LIMIT 无强制点，已核实）。缺省 0 行为不变。</param>
-        /// <param name="skillCardId1">P1 英雄技能标记卡 ID（2026-10-07 卡牌化改版）：从牌库抽出
-        /// 落 FieldZone；未标记/找不到/不合格（非结界或效果数≠1）= 本局无技能。缺省 null。</param>
-        /// <param name="skillCardId2">P2 英雄技能标记卡 ID，同上。</param>
+        /// <param name="skillCardId1">P1 英雄技能卡 ID（2026-10-15 改版：任选一张法术，卡池生成落
+        /// FieldZone——不占卡组张数、不进牌库）；未标记/查无此卡/不合格（非法术或效果非 1~3 主动）
+        /// = 本局无技能。缺省 null。</param>
+        /// <param name="skillCardId2">P2 英雄技能卡 ID，同上。</param>
         public void InitGame(List<Card> deck1, List<Card> deck2, int? rngSeed = null, bool lockDeckOrder = false,
             bool skipOpeningDraw = false, bool deferStart = false,
             int p2LandCapBonus = 0, int p2ExtraOpeningDraws = 0,
@@ -411,7 +419,7 @@ namespace CardCore
             _player1.ResetFatigueCount();
             _player2.ResetFatigueCount();
 
-            // 地牌槽曲线注入（固定 [1..9]：起始 1，回合开始 +1，最大 9；
+            // 地牌槽曲线注入（固定 [1..10]：起始 1，每次回合开始双方同步 +1，自然封顶 10——2026-10-15 全局口径回归；
             // 卡组涌现曲线 DeckCurveCompiler 保留为分析工具，不再作为局内执行依据）
             // 挑战模式（2026-10-06）：P2 按难度换上移曲线（开局即有额外槽），P1 恒标准曲线
             ElementPool.SetCurve(_player1, ResourceCurve.StandardLandCurve(), "InitGame:固定地牌槽曲线");
@@ -419,10 +427,10 @@ namespace CardCore
                 p2LandCapBonus > 0 ? ResourceCurve.ChallengeLandCurve(p2LandCapBonus) : ResourceCurve.StandardLandCurve(),
                 p2LandCapBonus > 0 ? $"InitGame:挑战曲线(+{p2LandCapBonus})" : "InitGame:固定地牌槽曲线");
 
-            // 英雄技能（2026-10-07 卡牌化改版）：填牌库前先抽出构筑标记的结界
-            //（牌库相应少一张；未标记/不合格=无技能——旧三色自动指派已随卡牌化退役）
-            var skill1 = HeroSkillSystem.ExtractSkillCard(deck1, skillCardId1);
-            var skill2 = HeroSkillSystem.ExtractSkillCard(deck2, skillCardId2);
+            // 英雄技能（2026-10-15 改版：技能=任选一张法术，卡池生成不占卡组张数/不进牌库；
+            // 合成卡组兜底回落牌库抽取；未标记/查无此卡/不合格=无技能）
+            var skill1 = HeroSkillSystem.CreateSkillCard(deck1, skillCardId1);
+            var skill2 = HeroSkillSystem.CreateSkillCard(deck2, skillCardId2);
 
             // 将卡牌加入牌库区域，设置控制者
             foreach (var card in deck1)

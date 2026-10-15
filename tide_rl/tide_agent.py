@@ -36,10 +36,10 @@ class TideActor(nn.Module):
         """
         Args:
             encoded: dict from TideEncoder {
-                "cards": (batch, 80, channels),
+                "cards": (batch, MAX_CARDS, channels),
                 "global": (batch, channels),
                 "actions": (batch, max_actions, channels),
-                "c_mask": (batch, 80),
+                "c_mask": (batch, MAX_CARDS),
                 "a_mask": (batch, max_actions)
             }
 
@@ -54,14 +54,14 @@ class TideActor(nn.Module):
             kernel_init=default_fc_init,
         )
 
-        cards = encoded["cards"]      # (batch, 80, channels)
+        cards = encoded["cards"]      # (batch, MAX_CARDS, channels)
         global_feat = encoded["global"]  # (batch, channels)
         actions = encoded["actions"]  # (batch, max_actions, channels)
-        c_mask = encoded["c_mask"]    # (batch, 80)
+        c_mask = encoded["c_mask"]    # (batch, MAX_CARDS)
         a_mask = encoded["a_mask"]    # (batch, max_actions)
 
         # Cards 池化（mean，屏蔽空槽）
-        c_mask_expanded = c_mask[..., None]  # (batch, 80, 1)
+        c_mask_expanded = c_mask[..., None]  # (batch, MAX_CARDS, 1)
         cards_masked = jnp.where(c_mask_expanded, 0, cards)
         cards_sum = cards_masked.sum(axis=1)  # (batch, channels)
         cards_count = (~c_mask).sum(axis=1, keepdims=True)  # (batch, 1)
@@ -173,7 +173,7 @@ class TideRNNAgent(nn.Module):
         encoder = TideEncoder(c, self.dtype, self.param_dtype)
         encoded = encoder(x)
 
-        # 2. GRU 输入：己方/对方分池均值 + global（旧版只吃 80 槽混合均值——
+        # 2. GRU 输入：己方/对方分池均值 + global（旧版只吃全部卡槽混合均值——
         #    敌我搅在一个均值里，且全局量进不了记忆）
         cards = encoded["cards"]
         c_mask = encoded["c_mask"]

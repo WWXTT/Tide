@@ -141,6 +141,19 @@ namespace GameBoard
             return n;
         }
 
+        /// <summary>受益者（生物）当前命中的连接光环清单（悬停展示查询口，2026-10-15）：逐源逐条目
+        ///（source, aura），与加成计算同判定链（EnumerateApplicable 单源）；只读、不入缓存。
+        /// 空表=无光环影响；stat/keyword 双空条目由展示侧过滤。</summary>
+        public static List<(Card source, LinkAuraData aura)> GetApplicableAuras(Card beneficiary)
+        {
+            var result = new List<(Card source, LinkAuraData aura)>();
+            if (beneficiary == null || !Enabled) return result;
+            var bCell = TryGetCellOf(beneficiary);
+            if (!bCell.HasValue) return result;
+            result.AddRange(EnumerateApplicable(beneficiary, bCell.Value, keywordsOnly: false));
+            return result;
+        }
+
         // 值求和口 GetAuraKeywordSum 已删（2026-10-08 坚韧指示物化）：唯一消费者是
         // KeywordRules.ApplyPreventionLayers 的坚韧光环份额——坚韧改挂 ToughnessCounter 指示物，
         // 不再经关键词光环投递（表行 a8f7f476 MountKinds=指示物，CanMountAsAura 位 1 硬拒）。
@@ -259,52 +272,59 @@ namespace GameBoard
 
         private static void AccumulateSources(Entity beneficiary, (int x, int z) bCell, CachedBonus bonus, bool keywordsOnly)
         {
+            foreach (var (_, aura) in EnumerateApplicable(beneficiary, bCell, keywordsOnly))
+                Accumulate(bonus, aura, keywordsOnly);
+        }
+
+        /// <summary>受益者视角逐条枚举命中的光环条目（加成计算 AccumulateSources 与展示查询
+        /// GetApplicableAuras 共用的单源判定链：源在场存活/非自身/未被无效压制/条目作用面或箭头几何命中）。</summary>
+        private static IEnumerable<(Card source, LinkAuraData aura)> EnumerateApplicable(
+            Entity beneficiary, (int x, int z) bCell, bool keywordsOnly)
+        {
             var core = GameCore.Instance;
             var zoneManager = core?.ZoneManager;
-            if (zoneManager == null) return;
+            if (zoneManager == null) yield break;
             foreach (var player in new[] { core.Player1, core.Player2 })
             {
                 if (player == null) continue;
                 var battlefield = zoneManager.GetCards(player, Zone.Battlefield);
                 for (int i = 0; i < battlefield.Count; i++)
-                    AccumulateFrom(battlefield[i], beneficiary, bCell, bonus, keywordsOnly);
-            }
-        }
-
-        private static void AccumulateFrom(Card source, Entity beneficiary, (int x, int z) bCell, CachedBonus bonus, bool keywordsOnly)
-        {
-            if (source == null || !source.IsAlive || ReferenceEquals(source, beneficiary)) return;
-
-            var data = (source as CardWrapper)?.GetData();
-            if (data?.LinkAuras == null || data.LinkAuras.Count == 0) return;
-            if (source.GetCounterCount(CounterRules.NullifyCounter) > 0) return; // 无效=唯一能压光环的口
-
-            // 条目级作用面（2026-10-08 actuating-range 定案）：scope==0 随卡面箭头几何（生物=占据者同一/
-            // 角色=落格即本方角色格）；作用面档（1=己方/2=双方/3=对方）按侧别命中。旧卡级方向档已由
-            // AggregateEffectAuras 迁移盖戳到条目，此处不再读 data.AuraScope。
-            // 角色通道（2026-10-09 裁定）：关键词光环**一律可作用角色**——不能用光环表达的行
-            // （守护/再生/禁魔石）已由表「不可作为连接光环」位拉黑，通道不再设防；逐条目 role 声明
-            // 与 NoRole 硬闸（RoleChannelBlocked）整体退役；属性条目恒仅生物（2026-10-07 定案不变）。
-            var arrows = data.ArrowDirections;
-            bool geoComputed = false, geoHit = false; // 惰性：存在箭头档条目才算几何
-            foreach (var aura in data.LinkAuras)
-            {
-                if (aura == null) continue;
-                if (aura.scope > 0)
                 {
-                    if (keywordsOnly)
+                    var source = battlefield[i];
+                    if (source == null || !source.IsAlive || ReferenceEquals(source, beneficiary)) continue;
+
+                    var data = (source as CardWrapper)?.GetData();
+                    if (data?.LinkAuras == null || data.LinkAuras.Count == 0) continue;
+                    if (source.GetCounterCount(CounterRules.NullifyCounter) > 0) continue; // 无效=唯一能压光环的口
+
+                    // 条目级作用面（2026-10-08 actuating-range 定案）：scope==0 随卡面箭头几何（生物=占据者同一/
+                    // 角色=落格即本方角色格）；作用面档（1=己方/2=双方/3=对方）按侧别命中。旧卡级方向档已由
+                    // AggregateEffectAuras 迁移盖戳到条目，此处不再读 data.AuraScope。
+                    // 角色通道（2026-10-09 裁定）：关键词光环**一律可作用角色**——不能用光环表达的行
+                    //（守护/再生/禁魔石）已由表「不可作为连接光环」位拉黑，通道不再设防；逐条目 role 声明
+                    // 与 NoRole 硬闸（RoleChannelBlocked）整体退役；属性条目恒仅生物（2026-10-07 定案不变）。
+                    var arrows = data.ArrowDirections;
+                    bool geoComputed = false, geoHit = false; // 惰性：存在箭头档条目才算几何
+                    foreach (var aura in data.LinkAuras)
                     {
-                        if (beneficiary is Player pr && ScopeHitRole(source, pr, aura.scope))
-                            Accumulate(bonus, aura, keywordsOnly);
+                        if (aura == null) continue;
+                        if (aura.scope > 0)
+                        {
+                            if (keywordsOnly)
+                            {
+                                if (beneficiary is Player pr && ScopeHitRole(source, pr, aura.scope))
+                                    yield return (source, aura);
+                            }
+                            else if (beneficiary is Card bCard && ScopeHit(source, bCard, aura.scope))
+                                yield return (source, aura);
+                            continue;
+                        }
+                        if (arrows == HexDirection.None) continue;
+                        if (!geoComputed) { geoHit = ArrowsGeoHit(source, bCell, beneficiary, keywordsOnly); geoComputed = true; }
+                        if (geoHit)
+                            yield return (source, aura);
                     }
-                    else if (beneficiary is Card bCard && ScopeHit(source, bCard, aura.scope))
-                        Accumulate(bonus, aura, keywordsOnly);
-                    continue;
                 }
-                if (arrows == HexDirection.None) continue;
-                if (!geoComputed) { geoHit = ArrowsGeoHit(source, bCell, beneficiary, keywordsOnly); geoComputed = true; }
-                if (geoHit)
-                    Accumulate(bonus, aura, keywordsOnly);
             }
         }
 

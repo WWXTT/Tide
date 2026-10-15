@@ -25,11 +25,11 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _Intensity: 1.4
-    - _Power: 4
-    - _WaveIntensity: 3
+    - _Intensity: 2.12
+    - _Power: 0.5
+    - _WaveIntensity: 2.49
     - _WaveMaxR: 1
-    - _WaveSpeed: 0.5
+    - _WaveSpeed: 0.48
     - _WaveWeight: 0
     - _WaveWidth: 0.05
     m_Colors:

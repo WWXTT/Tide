@@ -6,19 +6,17 @@ namespace SynergyUI
     /// <summary>
     /// 卡牌立绘按名称解析（2026-10-13 立绘随卡类型定案）：卡数据只存名字（Cards.json illustration 列），
     /// 渲染侧按名称两级回落找图——与战场 3D 模型按名称找（MonsterModelResolver）同口径。
-    ///   ① Assets/Art/UI/Sprites/{name}.png——UI 立绘（Title 缺省图等，Single 模式直载）；
+    ///   ① Assets/Art/Battle3D/Icons/{name}.png——UI 立绘（Single 模式直载；2026-10-15 目录重构自 Art/UI/Sprites 迁入）；
     ///   ② Assets/Art/YGOMonstersRig/{name}/{name}.png——生物模型预览图（烘焙产出 Multiple 模式，
     ///      主资产是 Texture2D，须取子精灵）。
     /// 结果按名缓存（含失败 null，防逐卡重试）。
+    /// 2026-10-15：法术/结界无合适立绘（缺省空白不放图）——本库只服务生物立绘，缺省 Title 常量已退役。
     /// </summary>
     public static class CardArtLibrary
     {
-        /// <summary>缺省立绘名（法术/结界固定展示；Sprites 目录 Title.png）。</summary>
-        public const string DefaultTitle = "Title";
-
         private static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>();
 
-        public static string UiSpritePath(string name) => $"Assets/Art/UI/Sprites/{name}.png";
+        public static string UiSpritePath(string name) => $"Assets/Art/Battle3D/Icons/{name}.png";
         public static string CreaturePreviewPath(string name) => $"Assets/Art/YGOMonstersRig/{name}/{name}.png";
 
         /// <summary>按名称取立绘 Sprite；null=两级都未命中（调用方保持占位）。</summary>

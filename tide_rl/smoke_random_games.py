@@ -20,7 +20,7 @@ def main():
             n_legal = int((~obs["a_mask"]).sum())
             print(f"\n=== Game {game+1} === 初始合法动作 {n_legal}, "
                   f"牌库 me/opp = {obs['global_'][13]:.0f}/{obs['global_'][14]:.0f}, "
-                  f"总价值 me/opp = {obs['global_'][28]:.1f}/{obs['global_'][29]:.1f}")
+                  f"总价值 me/opp = {obs['global_'][30]:.1f}/{obs['global_'][31]:.1f}")
 
             done, step, total_r = False, 0, 0.0
             while not done:

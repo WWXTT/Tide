@@ -826,6 +826,7 @@ namespace MonsterRig
     {
         readonly List<BoneRef> _chain;      // 头在前，颈近头在前
         readonly List<float> _shares;
+        readonly Transform _root;           // 模型根（量测帧随根走：战场 wrapper 会随走位/对峙旋转）
         readonly Quaternion _rootRestWorld;
         readonly Vector3 _restForward;      // 根空间头朝向（目录 headForward）
         Func<Vector3?> _supplier;
@@ -834,9 +835,11 @@ namespace MonsterRig
         bool _engaged;                      // 有目标或正在回中
         bool _idle = true;                  // 默认态：不写头/颈
 
-        public HeadLookAtModule(List<BoneRef> chain, Quaternion rootRestWorld, Vector3 restForwardRoot)
+        public HeadLookAtModule(List<BoneRef> chain, Transform root,
+            Quaternion rootRestWorld, Vector3 restForwardRoot)
         {
             _chain = chain;
+            _root = root;
             _rootRestWorld = rootRestWorld;
             _restForward = restForwardRoot.sqrMagnitude > 1e-6f ? restForwardRoot.normalized : Vector3.forward;
             _shares = new List<float>(chain.Count);
@@ -886,10 +889,13 @@ namespace MonsterRig
             WriteRotation();
         }
 
-        /// <summary>目标方向 → 根空间相对 restForward 的偏航/俯仰（度）。</summary>
+        /// <summary>目标方向 → 根空间相对 restForward 的偏航/俯仰（度）。
+        /// 量测用<b>实时</b>根旋转（2026-10-15）：战场 wrapper 会随走位朝向/Face2D 对峙旋转，
+        /// WriteRotation 的局部共轭把偏转落在当前根系——构建帧量测会随 wrapper 偏转同角失准；
+        /// 编辑器预览/验证器根不旋转，与构建帧同值。</summary>
         void Decompose(Vector3 target, out float yaw, out float pitch)
         {
-            Vector3 dirRoot = Quaternion.Inverse(_rootRestWorld) * (target - _chain[0].T.position);
+            Vector3 dirRoot = Quaternion.Inverse(_root.rotation) * (target - _chain[0].T.position);
             Vector3 restHoriz = new Vector3(_restForward.x, 0f, _restForward.z);
             Vector3 dirHoriz = new Vector3(dirRoot.x, 0f, dirRoot.z);
             if (restHoriz.sqrMagnitude < 1e-6f) restHoriz = Vector3.forward;

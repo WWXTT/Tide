@@ -8,10 +8,11 @@ namespace CardCore.AI.NeuralEnv
     /// ONNX 单步策略推理器（Sentis，包名 com.unity.ai.inference，命名空间 Unity.InferenceEngine）。
     ///
     /// 图契约（tide_rl/export_onnx.py 导出，batch 已脱皮）：
-    ///   输入 float32：rstate(512) cards(80×65) global(49) actions(512×8)
+    ///   输入 float32：rstate(512) cards(92×68) global(50) actions(512×8)
     ///   输出 float32：rstate_next(512) logits(512) value(1)
-    /// v2 布局（2026-09-30 动作空间二期契约）：动作特征 8 维（追加 effectIdentity/targetKind）、
-    /// globals 49 维（英雄技能块/栈信息/决策上下文）、动作容量 512——旧 onnx/fixture 全部作废，
+    /// v3 布局（2026-10-14 动作空间契约，docs/action_space_v3_contract.md）：卡槽 46/人（92 总，
+    /// 容量精确对齐引擎）、卡特征 68 维（+位置/Awaken/LandTrait）、globals 50 维（+放逐计数/弹药，
+    /// 归一化）、动作类型 0..13、枚举器侧 MaxActions=512 守卫——旧 onnx/fixture 全部作废，
     /// 需重跑 export_onnx.py 重导出后使用本推理器。
     /// 非法动作在图内已掩 -1e9（actions[:,0]==0），Select 直接 argmax；
     /// rstate 局内逐步传递，新对局 Reset() 归零（与训练 rollout 同口径）。
@@ -31,7 +32,7 @@ namespace CardCore.AI.NeuralEnv
         // 与 tide_rl/tide_features.py 对齐（模型图内写死，改维度必须重导出）
         public const int RnnChannels = 512;
         public const int MaxActions = 512; // v2 契约第 4 节 128→512（逐目标展开后动作行变多；EndTurn/Pass 恒排末位保截断兜底）
-        private const int MaxCards = TideObservation.MaxCardsTotal; // 80
+        private const int MaxCards = TideObservation.MaxCardsTotal; // 92（v3：46/人×2，随 TideObservation 常量派生）
 
         private readonly IE.Worker _worker;
         private readonly float[] _rstate = new float[RnnChannels];
@@ -115,9 +116,8 @@ namespace CardCore.AI.NeuralEnv
             if (n <= 0) return -1;
             if (n > MaxActions)
             {
-                // 逐目标展开 + 攻击全叉积偶发超容量：截断到前 MaxActions 个防越界（LastLogits 定长）。
-                // EndTurn/PassPriority 恒排末位，被截掉时由驱动 MaxActionsPerTurn 强制结束兜底——
-                // 与训练侧 pad_or_truncate_actions 同口径。
+                // v3 起枚举器已带 MaxActions 守卫（恒保末位兜底行），此处理论到不了——
+                // 留作独立护栏（防旧调用方直灌超长表越界 LastLogits 定长）。
                 UnityEngine.Debug.LogWarning(
                     $"[OnnxTidePolicy] 合法动作 {n} > {MaxActions}，截断到前 {MaxActions} 个");
                 n = MaxActions;

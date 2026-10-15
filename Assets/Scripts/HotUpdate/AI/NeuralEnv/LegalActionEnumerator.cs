@@ -9,7 +9,9 @@ namespace CardCore.AI.NeuralEnv
     /// v2（2026-09-30 动作空间二期契约）：新增 HeroSkill/VoluntaryTrigger/PassPriority/
     /// RespondPlay/RespondActivate/Guard（6..11）——模型获得效果发动时机（自愿桶/英雄技能）
     /// 与对方回合响应窗口（守卫/响应出牌/响应发动/让过）的决策点；
-    /// 指向性目标 = 同表逐目标展开（动作行=(卡,模式,目标)，与攻击动作同构，单步 argmax）。</summary>
+    /// 指向性目标 = 同表逐目标展开（动作行=(卡,模式,目标)，与攻击动作同构，单步 argmax）。
+    /// v3（2026-10-14 契约）：补漏的两个主阶段决策点——TapCreature(12) 横置地牌特性生物产元素、
+    /// CommitAwaken(13) 苏醒立约（对账报告 D10/D11）。</summary>
     public enum TideActionType : int
     {
         PlayCard = 0,            // 手牌打出（含抉择模式 + 指向目标展开）
@@ -23,6 +25,8 @@ namespace CardCore.AI.NeuralEnv
         RespondPlay = 9,         // 响应出牌（带目标展开；速度门/费用/优先权全检）
         RespondActivate = 10,    // 响应发动（激活式；镜像 NetworkIntentApplier.ActivateWithTargets）
         Guard = 11,              // 守卫宣言（拦截栈上的攻击宣言对象）
+        TapCreature = 12,        // 横置带地牌特性(LandTrait)的生物产 1 元素进临时钱包（主阶段；产色自动=费用首色）
+        CommitAwaken = 13,       // 苏醒立约（主阶段；手牌+灰时长自我沉睡+未立约+未锁定——灰份额免付转沉睡层数）
         // 2 = 墓地出牌（已移除 2026-09-09）：RL 标准池不含可从墓地打出的来源卡，
         //     枚举出的动作引擎必拒（口径漂移白耗动作配额）。引擎侧 GameActions.PlayCardFromGraveyard
         //     保留（引擎能力/UI 走它），只是不再进动作空间。
@@ -107,6 +111,12 @@ namespace CardCore.AI.NeuralEnv
         /// <summary>多目标（Multiple/MultipleUnion）组合枚举上限（契约第 4 节：每效果 24 组截断）。</summary>
         private const int MaxTargetCombos = 24;
 
+        /// <summary>动作表硬上限（v3 契约 §6：与 Python MAX_ACTIONS / OnnxTidePolicy.MaxActions 三处同步）。
+        /// 超限时保留前 MaxActions-1 行 + 恒保末位兜底行（Main=EndTurn / 响应=PassPriority）——
+        /// Python pad_or_truncate_actions 是头截断，无此守卫会把兜底行切掉（模型无法结束回合，
+        /// v2 空表冻结死循环的同族风险）。</summary>
+        public const int MaxActions = 512;
+
         public List<TideAction> Actions = new List<TideAction>();
         /// <summary>动作特征张量（Actions.Count × TideObservation.NAction），供模型输入。
         /// 8 维布局（契约第 2 节）：[0]valid [1]type [2]sourceIndex [3]targetIndex
@@ -146,8 +156,11 @@ namespace CardCore.AI.NeuralEnv
             EnumerateAttack(core, me, opp, zm);
             EnumerateHeroSkill(core, me);
             EnumerateVoluntaryTriggers(core, me);
+            EnumerateTapCreatures(core, me, zm);
+            EnumerateCommitAwakens(core, me, zm);
             Actions.Add(EndTurnAction());
 
+            EnforceActionCap(TideActionType.EndTurn);
             BuildFeatures();
         }
 
@@ -194,7 +207,28 @@ namespace CardCore.AI.NeuralEnv
                 TargetIndex = -1,
             });
 
+            EnforceActionCap(TideActionType.PassPriority);
             BuildFeatures();
+        }
+
+        /// <summary>动作表硬上限守卫（v3 契约 §6）：超过 MaxActions 时保留前 MaxActions-1 行，
+        /// 末位兜底行（EndTurn/PassPriority）恒不被截断——Python 侧 pad_or_truncate_actions
+        /// 头截断永不会切掉「回合/窗口必然流动」的那一行。截断只丢可选性（与契约 §4 口径一致）。</summary>
+        private void EnforceActionCap(TideActionType fallbackType)
+        {
+            if (Actions.Count <= MaxActions) return;
+            int keep = MaxActions - 1;
+            // 末位兜底行必然存在（Enumerate/EnumerateResponses 恒以 EndTurn/PassPriority 收尾）
+            var fallback = Actions[Actions.Count - 1];
+            if (fallback.Type != fallbackType)
+            {
+                // 防御：末位不是预期兜底（不应发生）——补一行，保证流动
+                fallback = fallbackType == TideActionType.PassPriority
+                    ? new TideAction { Type = TideActionType.PassPriority, ResponseContext = true, SourceIndex = -1, TargetIndex = -1 }
+                    : EndTurnAction();
+            }
+            Actions.RemoveRange(keep, Actions.Count - keep);
+            Actions.Add(fallback);
         }
 
         /// <summary>把动作映射回引擎调用。返回 false 表示引擎拒绝（枚举口径漂移时的保守兜底，driver 据此重观测）。</summary>
@@ -219,8 +253,8 @@ namespace CardCore.AI.NeuralEnv
                     return GameActions.EndTurn(core, me);
                 case TideActionType.HeroSkill:
                     // 不走栈（HeroSkillSystem.ActivateAsync 直执行）；async 在无头双方 IsAI 下同步收敛
-                    //（SimpleAI.UseHeroSkill 同款 GetResult 先例）
-                    return GameActions.ActivateHeroSkill(core, me).GetAwaiter().GetResult();
+                    //（SimpleAI.UseHeroSkill 同款 GetResult 先例）；ModeIndex=效果抉择序号（多效果技能）
+                    return GameActions.ActivateHeroSkill(core, me, a.ModeIndex).GetAwaiter().GetResult();
                 case TideActionType.VoluntaryTrigger:
                     return a.Pending != null && core.StackEngine.PlayerActivateVoluntary(a.Pending);
                 case TideActionType.PassPriority:
@@ -230,6 +264,10 @@ namespace CardCore.AI.NeuralEnv
                 case TideActionType.Guard:
                     return a.Card != null && a.AttackInstance != null
                         && core.StackEngine.PushGuardDeclaration(a.Card, a.AttackInstance, me);
+                case TideActionType.TapCreature:
+                    return GameActions.TapCreatureForElement(core, me, a.Card);
+                case TideActionType.CommitAwaken:
+                    return GameActions.CommitAwaken(core, me, a.Card);
                 default:
                     return false;
             }
@@ -384,6 +422,8 @@ namespace CardCore.AI.NeuralEnv
             for (int i = 0; i < bf.Count; i++)
             {
                 var src = bf[i];
+                // 结界禁主动效果（2026-10-15 改版）——镜像引擎 ActivateEffect 来源闸，直接跳过
+                if (Attribute.CounterRules.UsesDurabilityEconomy(src)) continue;
                 foreach (var def in GetEffectDefinitions(src))
                 {
                     if (!def.IsActivatedEffect) continue;
@@ -485,33 +525,39 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
-        /// <summary>英雄技能行（2026-10-07 卡牌化：技能=构筑标记的结界卡）：技能卡在场/未横置/
-        /// 未沉默 + 唯一主动效果 CanActivate 预检（时点/费用可付/目标域——ActivateAsync 守卫镜像）。
-        /// ModeIndex=0（卡牌化后无技能枚举可编码）；技能卡在 FieldZone（未编码区）→ SourceIndex=-1。
-        /// 单行（目标选择在结算期解析）。</summary>
+        /// <summary>英雄技能行（2026-10-15 改版：技能=技能区法术、每回合一次=横置闸）：技能卡在场/
+        /// 未横置/未沉默 + 逐效果 CanActivate 预检（ActivateAsync 守卫镜像）。
+        /// 挂 1~3 效果——**逐效果一行**（ModeIndex=效果序号，发动时抉择）；技能卡在场地区——
+        /// v3 起场地区槽 [45] 已编码，SourceIndex 可解析。目标选择在结算期解析（单行）。</summary>
         private void EnumerateHeroSkill(GameCore core, Player me)
         {
             var skillCard = HeroSkillSystem.ResolveSkillCard(core, me);
             if (skillCard == null) return;                        // 不在场（未标记/被摧毁/弹回）→ 无技能
             if (!core.ZoneManager.GetCards(me, Zone.FieldZone).Contains(skillCard)) return;
-            if (skillCard.IsTapped()) return;                     // 一回合一次闸门（回合开始重置）
+            if (skillCard.IsTapped()) return;                     // 每回合一次闸（回合开始 ResetSkillForTurn 解横置）
             if (skillCard.GetCounterCount(CounterRules.SilenceCounter) > 0) return; // 沉默不可发动主动效果
-            var effect = HeroSkillSystem.SkillEffectOf(skillCard);
-            if (effect == null) return;
+            var effects = HeroSkillSystem.SkillEffectsOf(skillCard);
+            if (effects.Count == 0) return;
 
             var executor = core.StackEngine.GetExecutor();
-            if (executor == null || !executor.CanActivate(effect, skillCard, me, me,
-                    core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Standby,
-                    core.TurnEngine.TurnNumber)) return;
+            if (executor == null) return;
+            var phase = core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Standby;
+            int turn = core.TurnEngine.TurnNumber;
 
-            Actions.Add(new TideAction
+            for (int e = 0; e < effects.Count; e++)
             {
-                Type = TideActionType.HeroSkill,
-                Card = skillCard,
-                ModeIndex = 0,
-                SourceIndex = -1, // FieldZone 未编码区
-                TargetIndex = -1,
-            });
+                var effect = effects[e];
+                if (!executor.CanActivate(effect, skillCard, me, me, phase, turn)) continue;
+                Actions.Add(new TideAction
+                {
+                    Type = TideActionType.HeroSkill,
+                    Card = skillCard,
+                    Effect = effect,       // 特征[6] 效果身份哈希按所选效果编码
+                    ModeIndex = e,         // 效果抉择序号（单效果卡恒 0）
+                    SourceIndex = TideObservation.IndexOfCard(core, me, skillCard), // 场地区槽（v3 已编码）
+                    TargetIndex = -1,
+                });
+            }
         }
 
         /// <summary>自愿桶待发效果行（v2）：栈机器待发队列中可发动的自愿效果（触发式可选项——
@@ -524,6 +570,51 @@ namespace CardCore.AI.NeuralEnv
                 if (pe?.Effect == null) continue;
                 if (pe.Effect.IsActivatedEffect) continue;
                 Actions.Add(BuildVoluntaryAction(core, me, pe));
+            }
+        }
+
+        /// <summary>横置产元素行（v3 契约 §1 TapCreature=12）：带地牌特性(LandTrait)的未横置生物，
+        /// 横置产 1 元素进临时钱包（产色自动=费用首色，无分支——只决策"哪只/何时"）。
+        /// 资格镜像 GameActions.TapCreatureForElement 守卫（教学闸在 RL 为 null 不检）。</summary>
+        private void EnumerateTapCreatures(GameCore core, Player me, ZoneManager zm)
+        {
+            var bf = zm.GetCards(me, Zone.Battlefield);
+            for (int i = 0; i < bf.Count; i++)
+            {
+                var c = bf[i];
+                if (!c.IsAlive || c.IsTapped()) continue;
+                if (!c.HasKeyword(Attribute.KeywordRules.LandTrait)) continue;
+                if (!ReferenceEquals(c.GetController(), me)) continue;
+                Actions.Add(new TideAction
+                {
+                    Type = TideActionType.TapCreature,
+                    Card = c,
+                    SourceIndex = TideObservation.CardIndex(me, me, Zone.Battlefield, i),
+                    TargetIndex = -1,
+                });
+            }
+        }
+
+        /// <summary>苏醒立约行（v3 契约 §1 CommitAwaken=13）：手牌中带灰时长自我沉睡效果的卡
+        /// 预立约——此后施放灰份额全免转沉睡层数。资格镜像 GameActions.CommitAwaken 守卫
+        /// （HasSelfSleepEffect 已公开化复用，含 CardData 结果缓存）。</summary>
+        private void EnumerateCommitAwakens(GameCore core, Player me, ZoneManager zm)
+        {
+            var hand = zm.GetCards(me, Zone.Hand);
+            for (int i = 0; i < hand.Count; i++)
+            {
+                var c = hand[i];
+                if (c.AwakenCommitted) continue;
+                if (c.GetCounterCount(Attribute.CounterRules.LockCounter) > 0) continue;
+                var data = (c as CardWrapper)?.GetData();
+                if (data == null || !GameActions.HasSelfSleepEffect(data)) continue;
+                Actions.Add(new TideAction
+                {
+                    Type = TideActionType.CommitAwaken,
+                    Card = c,
+                    SourceIndex = TideObservation.CardIndex(me, me, Zone.Hand, i),
+                    TargetIndex = -1,
+                });
             }
         }
 
@@ -733,7 +824,7 @@ namespace CardCore.AI.NeuralEnv
                 var a = Actions[k];
                 int b = k * TideObservation.NAction;
                 Features[b + 0] = 1f;                                        // valid
-                Features[b + 1] = (int)a.Type;                               // type 0..11
+                Features[b + 1] = (int)a.Type;                               // type 0..13
                 Features[b + 2] = a.SourceIndex;                             // cards_ 槽下标（-1=无）
                 Features[b + 3] = a.TargetIndex;                             // cards_ 槽下标（-1=无/玩家目标）
                 Features[b + 4] = a.ModeIndex;                               // 抉择模式 / HeroSkill=skillId
@@ -757,10 +848,17 @@ namespace CardCore.AI.NeuralEnv
                 case TideActionType.VoluntaryTrigger:
                     return CostDerivationService.DeriveElementCosts(a.Effect, 0).Total; // 效果费现推（启动式/自愿桶发动时现付——L1 现推口径）
                 case TideActionType.HeroSkill:
-                    // 卡牌化（2026-10-07）：技能=结界卡唯一主动效果——效果费现推（与 Activate 同口径）
-                    return a.Card != null && HeroSkillSystem.SkillEffectOf(a.Card) is { } fx
-                        ? CostDerivationService.DeriveElementCosts(fx, 0).Total
-                        : 0f;
+                    // 技能=技能区法术（2026-10-15 改版）：现付所选效果锚价（ModeIndex=效果序号）；
+                    // 行上已带 Effect（逐效果枚举），兜底再按序号取
+                {
+                    var fx = a.Effect
+                             ?? (a.Card != null
+                                 ? HeroSkillSystem.SkillEffectsOf(a.Card) is { } list && list.Count > 0
+                                     ? list[Math.Clamp(a.ModeIndex, 0, list.Count - 1)]
+                                     : null
+                                 : null);
+                    return fx != null ? CostDerivationService.DeriveElementCosts(fx, 0).Total : 0f;
+                }
                 default:
                     return 0f;
             }
@@ -769,7 +867,14 @@ namespace CardCore.AI.NeuralEnv
         // ===================================================== 辅助谓词（SimpleAI 同源口径） =====================================================
 
         private static int ModeCount(Card c)
-            => c is CardWrapper w ? Math.Max(1, CostDerivationService.GetModeCount(w.GetData())) : 1;
+        {
+            if (!(c is CardWrapper w)) return 1;
+            var data = w.GetData();
+            // 法术（2026-10-15 改版）：modeIndex=施放时效果抉择（1~3 条启动式）——模式数=效果数
+            if (data?.Supertype == Cardtype.Spell)
+                return Math.Max(1, data.Effects?.Count ?? 1);
+            return Math.Max(1, CostDerivationService.GetModeCount(data));
+        }
 
         private static bool IsSpell(Card c)
             => c is IHasSupertype s && s.Supertype == Cardtype.Spell;
@@ -787,10 +892,20 @@ namespace CardCore.AI.NeuralEnv
         // ---- 目标展开的 SimpleAI 镜像（ChooseTargets/FirstDomainEffect/DomainOfMode/BuildTargetCtx 同源） ----
 
         /// <summary>第一个带组合域的非激活式效果定义（施放即结算才会随出牌自动跑）；
-        /// None 模式（区域自结算类）跳过——不为其选目标。</summary>
+        /// None 模式（区域自结算类）跳过——不为其选目标。
+        /// 法术（2026-10-15 改版）：效果全为启动式、施放时抉择其一——modeIndex=效果序号，
+        /// 目标展开按所选那条（其余效果本局不发动）。</summary>
         private static EffectDefinition FirstDomainEffect(Card card, int modeIndex)
         {
-            foreach (var def in GetEffectDefinitions(card))
+            var defs = GetEffectDefinitions(card);
+            if (card.IsSpellCard())
+            {
+                if (defs.Count == 0) return null;
+                var spellDef = defs[Math.Clamp(modeIndex, 0, defs.Count - 1)];
+                if (spellDef == null || spellDef.SelectionMode == SelectionMode.None) return null;
+                return spellDef.TargetDomain != null && spellDef.TargetDomain.Count > 0 ? spellDef : null;
+            }
+            foreach (var def in defs)
             {
                 if (def.IsActivatedEffect) continue;
                 if (def.SelectionMode == SelectionMode.None) continue;

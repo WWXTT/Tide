@@ -89,14 +89,15 @@ namespace SynergyUI
         }
 
         /// <summary>随机卡组：卡池洗牌取前 N 张不重复（Guid 序——非对拍用途，无需钉种子）。
-        /// 教学专用卡不进普通随机局/联机测试局（CardCatalog.IsTeachingCard 统一口径，2026-10-06 隔离）
-        /// ——教学局按 id 组卡（TutorialLibrary.BuildDeck），不经本过滤。
+        /// 教学专用卡与衍生物模板卡不进普通随机局/联机测试局（CardCatalog.IsTeachingCard/IsTokenCard
+        /// 统一口径，2026-10-06 隔离；2026-10-14 补token过滤——IsTokenCard 文档口径本就含随机组卡，
+        /// 此前漏滤致 4 张衍生物模板混入随机卡组）——教学局按 id 组卡（TutorialLibrary.BuildDeck），不经本过滤。
         /// 构筑唯一键（命运一抽【唯一】/同名仪典）每卡组限 1 张（2026-10-11 构筑规则②）——随机组卡同口径。</summary>
         public static List<CardData> RandomDeckFrom(List<CardData> catalog)
         {
             var takenKeys = new HashSet<string>();
             var deck = new List<CardData>(RandomDeckSize);
-            foreach (var c in catalog.Where(c => !CardCatalog.IsTeachingCard(c))
+            foreach (var c in catalog.Where(c => !CardCatalog.IsTeachingCard(c) && !CardCatalog.IsTokenCard(c))
                        .OrderBy(_ => Guid.NewGuid()))
             {
                 var slots = ComposerCatalog.DeckUniqueSlots(c);

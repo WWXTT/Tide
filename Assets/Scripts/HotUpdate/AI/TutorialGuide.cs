@@ -362,7 +362,8 @@ namespace SynergyUI
             }
         }
 
-        private static string NameOf(string cardId)
+        /// <summary>卡 id → 卡名（UI 提示共用——2026-10-14 引导横幅/点击前置提示）。</summary>
+        public static string NameOf(string cardId)
             => string.IsNullOrEmpty(cardId) ? "?" : CardCatalog.GetById(cardId)?.CardName ?? cardId;
     }
 }

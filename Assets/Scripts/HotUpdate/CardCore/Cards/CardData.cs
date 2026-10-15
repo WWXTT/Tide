@@ -245,20 +245,17 @@ namespace CardCore
         /// <summary>初始耐久（0=无耐久档——持续型装备）；归零=销毁入墓。</summary>
         public int Durability { get => _durability; set => _durability = value; }
 
-        /// <summary>法术底盘剩余点的提速份额（2026-10-10 可支配底盘定案）：k∈0..剩余N——
-        /// k 点提速 = 放弃 k 点抵价；运行时与全部效果 BaseSpeed **加和**
-        ///（GameActions.GetCardEffectDefinitions），计价侧不收这笔钱（占的是抵价额度）。
-        /// 仅法术可 >0（生物速度只由效果组合阶段 BaseSpeed 决定）；抵价落色=先灰后最高色自动规则。</summary>
+        /// <summary>法术发动速度加成（2026-10-15 卡型默认分配定案）：免费额度剩余全投提速——
+        /// 缺省 2（OnNewCard/ApplyKindToCard/CardLoader 存量迁移三处落），玩家可下调换抵价；
+        /// 有效值钳制到剩余（KindSpeedBonusOf 单源），运行时与全部效果 BaseSpeed **加和**
+        ///（GameActions.GetCardEffectDefinitions）并计入整卡施放速度门（SpeedCalculator.GetCardCastSpeed）。
+        /// 结界速度不落本字段（装主动效果 +1 由 EnchantSpeedBonusOf 动态算）；生物/地牌恒 0。</summary>
         [TideSerialized]
         private int _speedBonus;
         public int SpeedBonus { get => _speedBonus; set => _speedBonus = value; }
 
-        /// <summary>结界底盘剩余点去向开关（2026-10-10 可支配底盘定案）：true = 入场耐久 +N
-        ///（免费，EquipRules/HeroSkillSystem 初始化落位）；false（缺省）= 该结界全部启动式效果
-        /// 每次发动现付元素费永久 −N（EffectExecutionEngine 结算期逐点扣、下限 0）。</summary>
-        [TideSerialized]
-        private bool _surplusToDurability;
-        public bool SurplusToDurability { get => _surplusToDurability; set => _surplusToDurability = value; }
+        // SurplusToDurability 已删（2026-10-15 拆分定案）：结界二选一退役——
+        // 免费点固定拆「速1+其余入耐久」（CardCompositionCost.DurabilityBonusOf/EnchantSpeedBonusOf）。
 
         /// <summary>
         /// 总费用计算

@@ -435,7 +435,8 @@ namespace CardCore.AI.NeuralEnv
             // 停靠座次兜底：终局/异常推进未设 _decider 时回落回合玩家（obs 仍可构建）
             if (_decider == null) _decider = _core.TurnEngine.TurnPlayer;
 
-            var obs = TideObservation.Build(_core, _decider, _responseStop);
+            // v3：传入棋盘占用层——观测位置特征（单位格 TryGetCell；board 已在 Reset 接线）
+            var obs = TideObservation.Build(_core, _decider, _responseStop, _board);
             _legal = new LegalActionEnumerator();
             if (_responseStop) _legal.EnumerateResponses(_core, _decider);
             else _legal.Enumerate(_core, _decider);

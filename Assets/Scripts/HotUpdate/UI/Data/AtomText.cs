@@ -205,9 +205,12 @@ namespace SynergyUI
         /// <summary>效果整体预览（两槽定案）：并列主序列=逐原子分号连接，原子带槽级 branch 载荷时
         /// 追加分支后缀（产出条件/局面门=「，如果…，奖励」自然句；引擎=正文短式「自由分支·{名}{x}」+「→奖励」）；
         /// 遗留 kind=1 门步骤与抉择步骤照旧渲染。
-        /// 开头时机前缀（2026-10-09 定案）：非主动=「{时机}，」（"登场时，…"）；主动=「速度x，」
-        ///（x=BaseSpeed 0/1/2）；空效果不加前缀；时机不在中文表（主动三档等异常组合）无前缀。</summary>
-        public static string RenderEffectSummary(EffectGraphData graph)
+        /// 开头时机前缀（2026-10-09 定案；2026-10-15 晚措辞改版+卡型速度接线）：非主动=「{时机}，」
+        ///（"登场时，…"）；主动=「发动速度x，」（x=BaseSpeed+卡型速度加成 KindSpeedBonusOf——法术提速
+        /// 缺省2/结界装主动+1/生物0；owner=null（效果库单效果预览）时显示裸 BaseSpeed——速度唯一显示位：
+        /// attribute 区不显速度，主动效果的发动速度一律挂描述句首）；空效果不加前缀；
+        /// 时机不在中文表（异常组合）无前缀。</summary>
+        public static string RenderEffectSummary(EffectGraphData graph, CardData owner = null)
         {
             if (graph?.header == null) return "";
             var h = graph.header;
@@ -239,15 +242,18 @@ namespace SynergyUI
                 }
             }
             string joined = string.Join("；", parts);
-            return joined.Length == 0 ? "" : ActivationPrefix(h) + joined;
+            return joined.Length == 0 ? "" : ActivationPrefix(h, owner) + joined;
         }
 
-        /// <summary>效果描述开头前缀（2026-10-09 定案）：主动=「速度{BaseSpeed}，」；
+        /// <summary>效果描述开头前缀（2026-10-15 晚措辞改版+卡型速度接线）：主动=「发动速度x，」
+        ///（x=BaseSpeed+卡型速度加成 CardCompositionCost.KindSpeedBonusOf(owner)——法术提速缺省2/
+        /// 结界装主动效果+1/生物0；owner=null 显示裸 BaseSpeed。速度唯一显示位——attribute 区不显，
+        /// 2026-10-15 速度定案配套）；
         /// 非主动（强制/自动）=「{时机中文}，」——时机查 TimingZh 全量表（含系统自用时点）。</summary>
-        private static string ActivationPrefix(CardEffectData h)
+        private static string ActivationPrefix(CardEffectData h, CardData owner)
         {
             if (h.ActivationType == (int)EffectActivationType.Voluntary)
-                return $"速度{h.BaseSpeed}，";
+                return $"发动速度{h.BaseSpeed + (owner != null ? CardCompositionCost.KindSpeedBonusOf(owner) : 0)}，";
             return TimingZh.TryGetValue((TriggerTiming)h.TriggerTiming, out var zh) ? zh + "，" : "";
         }
 

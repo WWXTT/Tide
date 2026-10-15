@@ -6,7 +6,7 @@ using TMPro;
 
 /// <summary>
 /// 对战屏预制体装配（2026-10-03，幂等=整树重建）：
-/// 重建 Assets/Art/UI/BattleUI.prefab——本地对战扇形手牌过渡面的静态层级
+/// 重建 Assets/Art/Prefab/BattleUI.prefab——本地对战扇形手牌过渡面的静态层级
 /// （旧 BattleUI 已于 2026-10-02 随「战场 3D 重做」定案删除，本版=过渡面口径）：
 ///   根=透明底（只留射线拦截语义，不挡 3D 战场）+纵向布局；btn-back（布局内）；
 ///   btn-end-turn（右下锚点+显式尺寸、默认隐藏——仅本地对局 OnEnter 激活）；
@@ -19,7 +19,7 @@ using TMPro;
 /// </summary>
 public static class BattleUiPrefabSetup
 {
-    private const string PrefabPath = "Assets/Art/UI/BattleUI.prefab";
+    private const string PrefabPath = "Assets/Art/Prefab/BattleUI.prefab";
     private const string FontSdfPath =
         "Assets/Packages/TextMesh Pro/Resources/Fonts & Materials/庞门正道标题体 SDF.asset";
 
