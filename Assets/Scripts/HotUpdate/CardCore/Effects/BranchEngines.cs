@@ -9,9 +9,13 @@ namespace CardCore
     /// <summary>
     /// 自由分支·事件引擎运行时（2026-09-13 分支体系正规化；2026-10-05 两槽定案载荷化）：
     /// 引擎条件挂槽级原子 Branch 载荷（Settle==Engine），Then 奖励不占卡费（机制费/预算口径）。
-    /// - **倒计时**：入场挂 Countdown 计数（层数=payload.CountdownTurns=Then 推导费换算回合，1费=1回合；
-    ///   UntilLeaveBattlefield 换区清）；控制者回合开始 -1，归零→执行奖励原子→重置回初值。
-    /// - **运势**：控制者回合开始掷 2d6（GameRng），双 > x → 执行奖励（无状态，每回合独立判定；x=纯概率门槛）。
+    /// - **倒计时**（2026-10-16 解绑改版）：入场挂 Countdown 计数（层数=payload.CountdownTurns=Then 推导费
+    ///   换算回合，1费=1回合；UntilLeaveBattlefield 换区清）；控制者回合开始 -1（**计数**仍钉回合开始）；
+    ///   归零→奖励转**待发标记**（布尔，多轮归零不积累）→重挂计数；奖励按 def 声明的发动时机发射
+    ///   （OnRoutedEvent）：主动=0费 def 上栈走响应窗、自动=直接结算。声明时机缺省=回合开始时
+    ///   同一事件内随即发射，可观察行为与旧「归零发奖并重置」一致。
+    /// - **运势**（2026-10-16 解绑改版）：掷 2d6（GameRng）随 def 声明时机判定（骰子本就随时可扔），
+    ///   双 > x → 执行奖励（无状态，每次时机事件独立判定；x=纯概率门槛）。
     /// - **拼点**（2026-10-04 改版；2026-10-09 触发改版）：**攻击宣言时**（仅攻击方——攻击宣言者战场上的
     ///   引擎卡，OnAttackDeclared）双方牌库各**随机**取样一张**生物**（只读展示，不移牌不改序，
     ///   牌库无生物按攻击力 0）——比**攻击力**；**差额 ≥ 奖励锚价合计**（大于等于）才触发，奖励按声明值结算；
@@ -23,9 +27,9 @@ namespace CardCore
     ///   OnCardCostPaid）——bank 数量最多的颜色（全六色，并列取枚举序首个）> 门槛即执行奖励；**每次达标都触发**
     ///   （用户定案，无每回合上限，多张引擎卡各自触发）；判定读付费后余量；门槛=Then 锚价推导。效果费支付不触发。
         /// - **手牌序位**（2026-09-22 定案；同上自平衡统一）：**此卡**为本回合从手牌使用的第 门槛 张卡（含自身，
-        ///   宣言序抓拍；响应出牌同计、墓地视手牌等他源不算）→ 施放结算中执行奖励（发动无效跳过；回调
-        ///   OnCardCastResolved）；门槛=Then 锚价推导。
-        /// - **附加诅咒**（2026-10-08 自由分支化，自有限分支 CurseOnDraw 门接棒）：施放结算时给对手牌库
+        /// 宣言序抓拍；响应出牌同计、墓地视手牌等他源不算）→ 施放结算中执行奖励（发动无效跳过；回调
+        /// OnCardCastResolved）；门槛=Then 锚价推导。
+        /// - **附加诅咒**（2026-10-08 自有限分支 CurseOnDraw 门接棒）：施放结算时给对手牌库
         ///   随机 x 张卡挂「诅咒」+登记 Then 载荷（CurseSystem）——对手抽到该卡时执行奖励并消层（一次性；
         ///   x∈[1,3]=附加张数，延迟与不确定性即代价，预算不设上限）。
         /// - **附加祝福**（2026-10-08）：同附加诅咒，作用面=自己牌库、指示物=「祝福」。两引擎用到的
@@ -37,6 +41,9 @@ namespace CardCore
         private static bool _registered;
         /// <summary>死亡计数引擎本回合已触发集（计数单调达标时刻唯一；防奖励连锁死亡的重复触发。TurnStart 清零）。</summary>
         private static readonly HashSet<Card> _deathTollFiredThisTurn = new HashSet<Card>();
+        /// <summary>倒计时待发奖励集（2026-10-16 解绑：归零置位、按声明时机发射时移除；同集在册=多轮归零不积累；
+        /// 引擎卡离场即清——奖励随卡而去）。</summary>
+        private static readonly HashSet<Card> _countdownRewardPending = new HashSet<Card>();
         /// <summary>本回合各卡的**手牌使用序位**（手牌序位引擎用；宣言时抓拍——解析期他人再宣言不改本人序位。
         /// TurnStart 清零；只收 FromZone==Hand 的宣言）。</summary>
         private static readonly Dictionary<Card, int> _handCardOrdinalThisTurn = new Dictionary<Card, int>();
@@ -50,6 +57,7 @@ namespace CardCore
             EventManager.Instance.Subscribe<CardDestroyEvent>(OnCreatureDestroyed);
             EventManager.Instance.Subscribe<CardPlayEvent>(OnCardPlayed);
             EventManager.Instance.Subscribe<AttackDeclarationEvent>(OnAttackDeclared); // 拼点（2026-10-09 触发改版）
+            EventManager.Instance.Subscribe<CardLeaveBattlefieldEvent>(OnLeaveBattlefield); // 倒计时待发标记卫生（2026-10-16）
         }
 
         /// <summary>卡上全部指定引擎的槽级载荷（两槽定案：def.Effects 主干原子的 Branch 载荷）。</summary>
@@ -110,33 +118,117 @@ namespace CardCore
                                 card.AddCounters(Attribute.CounterRules.CountdownCounter, -1);
                                 if (card.GetCounterCount(Attribute.CounterRules.CountdownCounter) <= 0)
                                 {
-                                    FireRewards(payload, card, player, core);
-                                    card.AddCounters(Attribute.CounterRules.CountdownCounter, Math.Max(1, payload.CountdownTurns)); // 归零发奖并重置
+                                    // 2026-10-16 解绑：归零不再立即发奖——置待发标记（同集在册=多轮归零不积累），
+                                    // 奖励按 def 声明时机发射（OnRoutedEvent）。声明时机=回合开始（存量缺省）时
+                                    // PublishEventRouted 在本事件尾随即发射，可观察行为与旧「归零发奖并重置」一致。
+                                    bool alreadyPending = !_countdownRewardPending.Add(card);
+                                    card.AddCounters(Attribute.CounterRules.CountdownCounter, Math.Max(1, payload.CountdownTurns)); // 归零重挂
                                     EventManager.Instance.Publish(new KeywordAppliedEvent
                                     {
                                         Target = card, Keyword = "倒计时",
-                                        Detail = $"倒计时归零：执行奖励并重置（{Math.Max(1, payload.CountdownTurns)} 回合）",
+                                        Detail = alreadyPending
+                                            ? $"倒计时归零：奖励待发未消耗不积累，重挂（{Math.Max(1, payload.CountdownTurns)} 回合）"
+                                            : $"倒计时归零：奖励就绪，等待发动时机，重挂（{Math.Max(1, payload.CountdownTurns)} 回合）",
                                     });
                                 }
                                 break;
 
-                            case BranchEngineKind.LuckRoll:
-                                int x = Math.Max(1, Math.Min(5, payload.EngineParam));
-                                int d1 = GameRng.Next(1, 7), d2 = GameRng.Next(1, 7);
-                                if (d1 > x && d2 > x)
-                                {
-                                    EventManager.Instance.Publish(new KeywordAppliedEvent
-                                    {
-                                        Target = card, Keyword = "运势",
-                                        Detail = $"运势 {d1}+{d2} > {x}×2：执行奖励",
-                                    });
-                                    FireRewards(payload, card, player, core);
-                                }
-                                break;
+                            // 运势已迁 OnRoutedEvent（2026-10-16 解绑）：掷骰随 def 声明时机判定，不再钉回合开始。
                         }
                     }
                 }
             }
+        }
+
+        /// <summary>引擎时机评估钩子（2026-10-16 解绑「回合开始」硬绑定）：GameCore.PublishEventRouted 在
+        /// 总线分发（PublishDynamic——倒计时递减/置待发先行完成）之后逐事件调用。仅倒计时/运势消费
+        /// （其余六引擎仍按各自内生事件驱动，不走此口）：def 声明时机（TriggerTimingDefaults.GetEventType）
+        /// 映射的事件类型 == 当前事件类型才评估。仅做类型匹配、不走 TriggerPayloadFilter——载荷过滤是
+        /// 「来源卡自身参战」语义（伤害源==自己等），引擎卡非战斗参与方会被误杀；同一事件双方均评估为已知取舍。</summary>
+        public static void OnRoutedEvent(IGameEvent e)
+        {
+            if (e == null) return;
+            var core = GameCore.Instance;
+            var zm = core?.ZoneManager;
+            if (zm == null || core?.StackEngine == null) return;
+            var eventType = e.GetType();
+            var turnPlayer = core.TurnEngine?.TurnPlayer ?? core.Player1;
+            var phase = core.TurnEngine?.CurrentPhase?.Phase ?? PhaseType.Standby;
+
+            foreach (var player in new[] { core.Player1, core.Player2 })
+            {
+                if (player == null) continue;
+                foreach (var card in zm.GetCards(player, Zone.Battlefield).ToList())
+                {
+                    if (card == null || !card.IsAlive) continue;
+                    foreach (var def in DefsOf(card))
+                    {
+                        if (def?.Effects == null) continue;
+                        foreach (var atom in def.Effects)
+                        {
+                            var payload = atom?.Branch;
+                            if (payload == null || payload.Settle != BranchSettleKind.Engine) continue;
+                            if (payload.EngineKind != BranchEngineKind.Countdown
+                                && payload.EngineKind != BranchEngineKind.LuckRoll) continue;
+                            if (TriggerTimingDefaults.GetEventType(def.TriggerTiming) != eventType) continue;
+
+                            switch (payload.EngineKind)
+                            {
+                                case BranchEngineKind.LuckRoll:
+                                    int x = Math.Max(1, Math.Min(5, payload.EngineParam));
+                                    int d1 = GameRng.Next(1, 7), d2 = GameRng.Next(1, 7);
+                                    if (d1 > x && d2 > x)
+                                    {
+                                        EventManager.Instance.Publish(new KeywordAppliedEvent
+                                        {
+                                            Target = card, Keyword = "运势",
+                                            Detail = $"运势 {d1}+{d2} > {x}×2：执行奖励",
+                                        });
+                                        FireRewards(payload, card, player, core);
+                                    }
+                                    break;
+
+                                case BranchEngineKind.Countdown:
+                                    if (!_countdownRewardPending.Contains(card)) break;
+                                    _countdownRewardPending.Remove(card); // 发射即消耗（多轮归零不积累的单发保障）
+                                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                                    {
+                                        Target = card, Keyword = "倒计时",
+                                        Detail = "倒计时奖励：按发动时机执行",
+                                    });
+                                    if (def.ActivationType == EffectActivationType.Voluntary)
+                                    {
+                                        // 主动（2026-10-16）：0 费 def 上栈走既有响应窗（AI/无头自动代选）；
+                                        // ElementCostPrepaid 落实费用 0——卡价收讫，防执行器再扣锚价。
+                                        var rewardDef = new EffectDefinition
+                                        {
+                                            Id = "COUNTDOWN_REWARD",
+                                            DisplayName = "倒计时奖励",
+                                            TriggerTiming = def.TriggerTiming,
+                                            ActivationType = def.ActivationType,
+                                            ElementCostPrepaid = true,
+                                            Effects = payload.Then,
+                                        };
+                                        core.StackEngine.AddPendingEffect(PendingEffect.Create(
+                                            rewardDef, card, player, turnPlayer, phase, triggeringEvent: e));
+                                    }
+                                    else
+                                    {
+                                        FireRewards(payload, card, player, core);
+                                    }
+                                    break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>倒计时待发标记卫生（2026-10-16）：引擎卡离场即清——奖励随卡而去，与计数「换区清」口径一致。</summary>
+        private static void OnLeaveBattlefield(CardLeaveBattlefieldEvent e)
+        {
+            var card = e?.Card;
+            if (card != null) _countdownRewardPending.Remove(card);
         }
 
         /// <summary>拼点引擎评估（2026-10-09 触发改版：回合开始→攻击宣言，仅攻击方·无限次）：

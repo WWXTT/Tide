@@ -34,7 +34,7 @@ namespace CardCore.Editor.TideHeadless
     ///   reward 归属同视角；
     ///   info.toPlay：下一决策点行动方座次（0=P1 / 1=P2，终局 -1）——v2 起含响应窗口座次，Python 自对弈
     ///   GAE 座次修正用；info.decisionSeat 同值（显式别名）；
-    ///   info.layoutVersion/dims：v3 布局握手（3 / {nCard:68,nGlobal:50,nAction:8,maxActions:512,maxCards:92}）——
+    ///   info.layoutVersion/dims：布局握手（v4 / {nCard:116,nGlobal:50,nAction:8,maxActions:512,maxCards:92}）——
     ///   Python reset 时断言逐值相等，维度漂移报清晰错误（防 2026-09-14 式 reshape 静默炸）；
     ///   info.modelSeat：模型座次（0=P1 / 1=P2），自对弈为 -1——vs 模式按它判胜负；
     ///   info.theme：对手主题 key（red/green/blue，vs 模式才有；自对弈空串）——Python 分主题统计胜率。
@@ -393,7 +393,7 @@ namespace CardCore.Editor.TideHeadless
         /// <summary>动作空间布局版本（v3 = 2026-10-14 契约 docs/action_space_v3_contract.md：
         /// 68 维卡特征 / 92 卡槽 / 50 维 globals / 8 维动作特征 / 512 动作容量 / 类型 0..13）。
         /// 与 TideObservation.LayoutVersion 单源同步。</summary>
-        private const int LayoutVersion = 3;
+        private const int LayoutVersion = 4;
 
         private static List<float> ToList(float[] a)
         {

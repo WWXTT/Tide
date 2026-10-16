@@ -60,11 +60,17 @@ namespace CardCore
         /// <summary>本回合系统横置次数（付费自动横置；每个全局回合重置——纯观测）</summary>
         public int TapsThisTurn { get; set; }
 
-        /// <summary>本回合已获得黑元素数（黑白合计生成钳制台账：黑+白 ≤ 地牌上限）</summary>
+        /// <summary>本回合已获得黑元素数（纯观测台账：AI 观测/战报用。2026-10-16 全类型累计钳改版：
+        /// 钳制由 TempGainedThisTurn 全类型合计承担，本对只作分色观测）</summary>
         public int BlackGainedThisTurn { get; set; }
 
-        /// <summary>本回合已获得白元素数（同上）</summary>
+        /// <summary>本回合已获得白元素数（同上——纯分色观测台账）</summary>
         public int WhiteGainedThisTurn { get; set; }
+
+        /// <summary>本周期临时元素累计产出（2026-10-16 用户定案：全类型累计钳台账——六色同池，
+        /// 生成配额 = 地牌上限 − 本值，钳到即止不入账；周期 = **自己回合开始**清零（跨对方回合保留））。
+        /// 消费面=AddMana 与生物产色直写路径（GameActions——经 CommitGainLedger 单源提交）。</summary>
+        public int TempGainedThisTurn { get; set; }
 
         public PlayerElementPool()
         {
@@ -85,9 +91,12 @@ namespace CardCore
     /// 3. 付费 = 现取现用：按账单规划「临时钱包余额 + 未横置地牌横置」组合，钱包优先消耗（回合末即逝），
     ///    地牌横置=系统自动的强制动作（无速度交互），自己/对手回合都一样（跨回合支付不变）。
     /// 4. 支付链（2026-10-11 收窄）：红/蓝/绿仅本色；灰=[灰,黑,白,红,蓝,绿]（黑白只垫灰、三色垫灰沿用）；
-    ///    黑白本色费只有黑白元素能付（单向不变）。浓度上限维持：每货币单次贡献 ≤ 地牌上限、纯色需求超帽拒付。
-    /// 5. 临时钱包：效果授予元素的唯一归宿，任一回合结束清空；黑白合计每回合生成 ≤ 地牌上限（单钳，
-    ///    旧三重钳退役）。
+    ///    黑白本色费只有黑白元素能付（单向不变）。浓度上限（2026-10-16 临时元素超上限改版）：只钳
+    ///    **地牌横置贡献**（每货币单次 ≤ 地牌上限——地牌张数本就有界，钳为双保险），临时钱包贡献不受钳
+    ///    （获取=对应地块可用+1、可用可超上限——纯色需求超帽部分由钱包覆盖即付）。
+    /// 5. 临时钱包：效果授予元素的唯一归宿，任一回合结束清空；生成钳（2026-10-16 全类型累计钳改案，
+    ///    接替当日上午「黑白单次钳」）：**全类型（六色同池）单周期累计生成 ≤ 地牌上限**——周期=自己
+    ///    回合开始清零；单次入账受剩余配额钳制，钳掉部分不入账不发事件。
     /// 6. 黑白不由地牌产出（锁定色不含黑白）；获取通道=代价补偿/错边转化等卡结算路径。
     /// 7. 发动无效与地牌零交互（净零靠付费在响应窗之后，本就无退款路径）；地牌的交互面只有摧毁/抹除。
     /// </summary>
@@ -317,21 +326,17 @@ namespace CardCore
         // ======================================== 临时钱包（效果授予元素） ========================================
 
         /// <summary>效果发放（代价补偿/错边/光合作用/带地牌特性生物产色等 AddMana 路径）——
-        /// 落**临时钱包**（任一回合结束清空）。黑白合计生成钳制（2026-10-11 定案：旧三重钳退役，
-        /// 只留单钳）：本回合黑+白合计获得 ≤ 地牌上限，钳掉部分不入账不发事件；三色/灰不钳。
-        /// 返回实发量（钳后）。</summary>
+        /// 落**临时钱包**（任一回合结束清空）。生成钳制（2026-10-16 全类型累计钳改案，接替当日上午
+        /// 黑白单次钳）：六色同池，单周期（自己回合开始清零）累计生成 ≤ 地牌上限——单次入账
+        /// 受剩余配额钳制，钳掉部分不入账不发事件。返回实发量（钳后）。</summary>
         public int AddMana(Player player, ManaType type, Card fromCard, int amount = 1)
         {
             if (player == null || amount <= 0) return 0;
             var pool = GetPool(player);
 
-            if (type == ManaType.Black || type == ManaType.White)
-            {
-                amount = PreviewGrantAmount(player, type, amount);
-                if (amount <= 0) return 0;
-                if (type == ManaType.Black) pool.BlackGainedThisTurn += amount;
-                else pool.WhiteGainedThisTurn += amount;
-            }
+            amount = PreviewGrantAmount(player, type, amount); // 全类型累计钳（六色同池）
+            if (amount <= 0) return 0;
+            CommitGainLedger(pool, type, amount);
 
             pool.TempElements[type] += amount;
             PublishEvent(new ElementPoolGainEvent
@@ -344,17 +349,26 @@ namespace CardCore
             return amount;
         }
 
-        /// <summary>有效获得量预览（代价垫色门槛用）：镜像 AddMana 的黑白合计钳制纯函数
-        /// （黑+白 本回合合计 ≤ 地牌上限），不动任何状态；三色/灰原样返回。
-        /// 声明期 CanAffordCast 以此虚拟并入钱包——不虚估（被钳部分垫不了卡费）。</summary>
+        /// <summary>生成台账提交（两条入账路径单源防漂移：AddMana 与 GameActions 生物产色直写——
+        /// 后者事件走 core.PublishEvent 路由（Trigger/Layer 可见）不能并进 AddMana，但台账必须同口）：
+        /// 全类型累计钳台账 + 黑白分色观测台账。</summary>
+        public static void CommitGainLedger(PlayerElementPool pool, ManaType type, int amount)
+        {
+            if (pool == null || amount <= 0) return;
+            pool.TempGainedThisTurn += amount;
+            if (type == ManaType.Black) pool.BlackGainedThisTurn += amount;
+            else if (type == ManaType.White) pool.WhiteGainedThisTurn += amount;
+        }
+
+        /// <summary>有效获得量预览：镜像 AddMana 的全类型累计钳纯函数（2026-10-16 改案：六色同池，
+        /// 配额=地牌上限−本周期累计，自己回合开始清零周期），不动任何状态。
+        /// 消费面=AddMana 自钳与生物产色闸（GameActions）——声明期费用预检不虚拟并入
+        ///（补偿不垫本卡，2026-10-16 恢复旧序）。</summary>
         public int PreviewGrantAmount(Player player, ManaType type, int amount)
         {
             if (player == null || amount <= 0) return 0;
-            if (type != ManaType.Black && type != ManaType.White) return amount;
-            var pool = GetPool(player);
-            int cap = GetLandCap(player);
-            int combined = pool.BlackGainedThisTurn + pool.WhiteGainedThisTurn; // 黑白合计（2026-10-11 单钳）
-            return Math.Max(0, Math.Min(amount, cap - combined));
+            int room = GetLandCap(player) - GetPool(player).TempGainedThisTurn;
+            return Math.Min(amount, Math.Max(0, room)); // 全类型同池（黑白不再单列）
         }
 
         // ======================================== 支付（现取现用统一规划器） ========================================
@@ -368,22 +382,17 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 支付预检（声明期门禁用，纯函数不动状态）：临时钱包（+seed 虚拟并入）加未横置地牌
-        /// 能否覆盖账单。seed（2026-10-11 代价垫色沿用）：代价补偿的声明期门槛用，不实际入池。
+        /// 支付预检（声明期门禁用，纯函数不动状态）：临时钱包加未横置地牌能否覆盖账单
+        ///（代价补偿黑/白不虚拟并入——2026-10-16 恢复旧序，补偿垫不了本卡）。
         /// </summary>
         public bool CanPayCostWithAutoTap(ElementCost cost, Player player)
             => CanPayCostWithAutoTap(ElementPaymentValidator.NormalizeBill(cost), player);
 
         /// <summary>同 CanPayCostWithAutoTap（已归一账单入口——GameActions.CanAfford 合并 pending 声明承诺后调用）。</summary>
-        public bool CanPayCostWithAutoTap(Dictionary<ManaType, int> bill, Player player,
-            Dictionary<ManaType, int> seed = null)
+        public bool CanPayCostWithAutoTap(Dictionary<ManaType, int> bill, Player player)
         {
             var pool = GetPool(player);
-            var wallet = SnapshotWallet(pool);
-            if (seed != null && seed.Count > 0)
-                foreach (var kv in seed)
-                    wallet[kv.Key] = wallet.TryGetValue(kv.Key, out var v) ? v + kv.Value : kv.Value;
-            return PlanBill(bill, wallet, UntappedLands(pool), GetLandCap(player)) != null;
+            return PlanBill(bill, SnapshotWallet(pool), UntappedLands(pool), GetLandCap(player)) != null;
         }
 
         /// <summary>
@@ -432,10 +441,12 @@ namespace CardCore
         /// <summary>
         /// 账单支付规划（纯函数、非破坏）：求「钱包扣减 + 地牌横置」组合使账单可付；null = 无法补足。
         /// 口径与旧 GetBillPaymentPlan+PlanAutoTaps 两段合一（2026-10-11 现取现用定案）：
-        /// ① 需求侧浓度上限——纯色（红蓝绿黑白）需求 &gt; cap 直接不可付；
+        /// ① 需求侧浓度上限已退役（2026-10-16 临时元素超上限改版）：纯色需求超帽不再直接拒付——
+        ///    钱包贡献不受浓度钳，能否覆盖由规划自身判定（地牌贡献仍每货币 ≤ cap，天然有界）；
         /// ② 黑白本色费先行预留（黑白只来自钱包——地牌锁定色不含黑白）；
         /// ③ 按 FourColorOrder×ChainFor 贪心扣减（支付链 2026-10-11 收窄：三色仅本色；灰=灰→黑→白→三色）；
-        /// ④ 每货币（含灰）单次贡献 ≤ cap；同货币先扣钱包（临时元素回合末即逝，优先消耗）再横置地牌。
+        /// ④ 同货币先扣钱包（临时元素回合末即逝，优先消耗，**不受浓度钳**——可用可超上限）再横置地牌
+        ///    （地牌每货币单次贡献 ≤ cap，双保险钳）。
         /// </summary>
         private static PaymentPlan PlanBill(
             Dictionary<ManaType, int> bill, Dictionary<ManaType, int> wallet,
@@ -443,18 +454,15 @@ namespace CardCore
         {
             if (bill == null || bill.Count == 0) return new PaymentPlan();
 
-            // ① 需求侧浓度上限：纯色需求量超帽，混付也救不了（灰需求无需求侧帽，沿用旧口径）
-            foreach (var kv in bill)
-                if (kv.Key != ManaType.Gray && kv.Value > cap)
-                    return null;
-
             var walletSim = new Dictionary<ManaType, int>();
             var landsOf = new Dictionary<ManaType, Queue<PooledCard>>();
             var used = new Dictionary<ManaType, int>();
+            var landUsed = new Dictionary<ManaType, int>(); // 地牌贡献台账（浓度钳只管地牌——钱包豁免）
             foreach (ManaType c in Enum.GetValues(typeof(ManaType)))
             {
                 walletSim[c] = wallet.TryGetValue(c, out var v) ? v : 0;
                 used[c] = 0;
+                landUsed[c] = 0;
             }
             foreach (var land in untapped)
             {
@@ -476,11 +484,12 @@ namespace CardCore
                 }
                 else
                 {
+                    landUsed[currency] += take;
                     plan.Taps.Add(land);
                 }
             }
 
-            // ② 黑白本色费先行预留（防后续贪心吃掉黑白货币；黑白不垫任何色——单向）
+            // ② 黑白本色费先行预留（防后续贪心吃掉黑白货币；黑白不垫任何色——单向；钱包不受钳）
             foreach (var bw in new[] { ManaType.Black, ManaType.White })
             {
                 if (!bill.TryGetValue(bw, out var bwNeed) || bwNeed <= 0) continue;
@@ -488,24 +497,23 @@ namespace CardCore
                 Record(bw, bwNeed, null);
             }
 
-            // ③④ 四色需求按固定序×填链贪心：钱包优先、后横置地牌
+            // ③④ 四色需求按固定序×填链贪心：钱包优先（不受浓度钳，可超上限）、后横置地牌（每货币 ≤ cap）
             foreach (var need in ElementPaymentValidator.FourColorOrder)
             {
                 if (!bill.TryGetValue(need, out var remaining) || remaining <= 0) continue;
                 foreach (var currency in ElementPaymentValidator.ChainFor(need))
                 {
                     if (remaining <= 0) break;
-                    int room = cap - used[currency];
                     int have = walletSim[currency];
-                    int take = Math.Min(Math.Min(have, remaining), room);
+                    int take = Math.Min(have, remaining); // 钱包：无浓度钳（2026-10-16 超上限改版）
                     if (take > 0)
                     {
                         Record(currency, take, null);
                         remaining -= take;
-                        room -= take;
                     }
                     if (remaining > 0 && landsOf.TryGetValue(currency, out var queue))
                     {
+                        int room = cap - landUsed[currency]; // 地牌：浓度钳只计地牌贡献
                         while (remaining > 0 && queue.Count > 0 && room > 0)
                         {
                             Record(currency, 1, queue.Dequeue());
@@ -526,7 +534,8 @@ namespace CardCore
         /// 全局回合开始（GameCore.OnTurnStarted 调用，每回合一次，无论轮到谁）：
         /// 1. 全体池 GlobalTurnIndex 同步推进（地牌上限曲线随之双方同步 +1——2026-10-15 全局口径）；
         ///    回合玩家个人回合数 +1（纯台账）
-        /// 2. 所有玩家本回合产出/黑白获得台账清零
+        /// 2. 台账清零：全类型累计钳台账**只清回合玩家**（2026-10-16 用户定案：周期=自己回合开始，
+        ///    跨对方回合保留——对方回合内的获得沿用本周期剩余配额）；黑白分色观测台账全体清（沿用旧口径）
         /// 3. 回合玩家（准备阶段）地牌全部解除横置
         /// </summary>
         public void OnTurnStart(Player turnPlayer, int globalTurnNumber)
@@ -535,6 +544,7 @@ namespace CardCore
 
             var turnPool = GetPool(turnPlayer);
             turnPool.PersonalTurnIndex++;
+            turnPool.TempGainedThisTurn = 0; // 全类型累计钳：自己回合开始清零（周期锚点）
 
             foreach (var pool in _playerPools.Values)
             {
@@ -571,6 +581,9 @@ namespace CardCore
             var pool = GetPool(player);
             return pool.TempElements.ContainsKey(type) ? pool.TempElements[type] : 0;
         }
+
+        /// <summary>本周期临时元素累计产出（全类型合计——生成钳配额消耗量；UI 中线产量格/悬停用）。</summary>
+        public int GetTempGainedThisTurn(Player player) => GetPool(player).TempGainedThisTurn;
 
         public int GetTotalAvailableMana(Player player)
         {
@@ -610,6 +623,7 @@ namespace CardCore
                 pool.TapsThisTurn = 0;
                 pool.BlackGainedThisTurn = 0;
                 pool.WhiteGainedThisTurn = 0;
+                pool.TempGainedThisTurn = 0;
                 pool.LandCapBonus = 0;
                 foreach (ManaType mana in Enum.GetValues(typeof(ManaType)))
                 {
@@ -632,6 +646,7 @@ namespace CardCore
 
             var walletStr = string.Join(", ", pool.TempElements.Where(kv => kv.Value > 0).Select(kv => $"{kv.Key}:{kv.Value}"));
             result += $"临时钱包(本回合): {walletStr}\n";
+            result += $"临时产出(本周期): {pool.TempGainedThisTurn}/{GetLandCap(player)}（全类型累计钳）\n";
             result += $"黑白获得(本回合): 黑{pool.BlackGainedThisTurn}/白{pool.WhiteGainedThisTurn}\n";
             result += $"本回合系统横置: {pool.TapsThisTurn}";
 

@@ -284,8 +284,8 @@ namespace CardCore.Attribute.Handlers
     /// <summary>
     /// 发动无效（2026-10-04 两层无效定案；原打落 KnockDown 承接）：无效化**发动**本身——净零成本。
     /// - 施放（发动区卡）：直接送墓 → cast 在消费点因「已不在发动区」中止：不付费、不结算（净效果=扣费返还）；
-    /// - 场上发动（启动式/触发式）：标记该源卡待结算栈条目「发动层无效」——结算时跳过：
-    ///   启动式不扣费（横置为声明期代价，不重置）、触发式退还发动次数（不计入）；
+    /// - 场上发动（主动/触发式）：标记该源卡待结算栈条目「发动层无效」——结算时跳过：
+    ///   主动不扣费（横置为声明期代价，不重置）、触发式退还发动次数（不计入）；
     /// - 强制桶（Mandatory，如光环类强制效果）不受发动无效管制：不标记、无效果。
     /// </summary>
     public class NegateActivationHandler : AtomicEffectHandlerBase
@@ -333,7 +333,7 @@ namespace CardCore.Attribute.Handlers
     /// <summary>
     /// 效果无效（2026-10-04 两层无效定案；承接旧 NegateActivation 标记实现）：发动照常、效果不结算。
     /// - 施放：照常扣费（不返还）、卡入墓、跳过效果（消费点 _isNegated 路径）；
-    /// - 场上发动（启动式/触发式）：标记栈条目「效果层无效」——扣费照走、横置不重置、触发式计入发动次数；
+    /// - 场上发动（主动/触发式）：标记栈条目「效果层无效」——扣费照走、横置不重置、触发式计入发动次数；
     /// - 强制桶（光环类强制效果）**同样受管制**：可标记、效果跳过。
     /// </summary>
     public class NegateEffectHandler : AtomicEffectHandlerBase
@@ -374,7 +374,7 @@ namespace CardCore.Attribute.Handlers
 
     /// <summary>
     /// 沉默指示物（定案，原"无效效果"改名改语义）：对目标附加沉默指示物——
-    /// 持有者不可发动主动效果（激活式能力，挂 EffectExecutionEngine.CanActivate 第 0 步）；
+    /// 持有者不可发动主动效果（主动能力，挂 EffectExecutionEngine.CanActivate 第 0 步）；
     /// 未写持续时间 = 换区清除。
     /// </summary>
     public class SilenceHandler : AtomicEffectHandlerBase

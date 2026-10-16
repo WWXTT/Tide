@@ -16,7 +16,9 @@ namespace GameBoard
     ///
     /// 【架构铁律】核心数据不与棋盘绑定（方便传输与断线重连）：
     /// - 单向引用：本类只读 GameCore 的区域列表，CardCore 不感知棋盘；
-    /// - 占用分配完全确定性：按区域列表顺序 first-free 落格，Resync 两次结果逐格一致；
+    /// - 占用分配确定性：钉优先→上轮格粘滞（2026-10-16 死亡不挪位：离场只让出自己的格，
+    ///   其余单位不顺移补空）→first-free；Resync 幂等，连续两次结果逐格一致；全新实例
+    ///   无上轮落位=纯 first-free，重连/late-join 零字节重建不受影响；
     /// - 重连/观战 late-join：核心状态同步完成后调一次 Resync() 即重建全部占用，
     ///   棋盘零字节上线；Card 零坐标字段、GameCore 零装配改动。
     ///
@@ -46,8 +48,8 @@ namespace GameBoard
         private readonly Dictionary<Card, int> _cellOf = new Dictionary<Card, int>();   // 反向（地牌同色组共享同格）
 
         // 落位钉子（2026-10-06 教学直入）：卡 → 指定格 index。Resync 时带钉卡优先占钉格
-        // （钉格须属其所在区的格集，否则按无钉顺延），其余卡按区域列表序填空——无人调钉时
-        // 分配与原「列表序位」逐位一致。卡离场（不再落格）钉子在 Resync 尾自动清除。
+        // （钉格须属其所在区的格集，否则按无钉顺延），其余卡先回上轮格（位置粘滞）再填空。
+        // 卡离场（不再落格）钉子在 Resync 尾自动清除。
         private readonly Dictionary<Card, int> _pinnedCells = new Dictionary<Card, int>();
 
         // 施放占格（2026-10-15 发动格拆除定案：施放中的卡=发动区占位期，落在该玩家 2×6 单位区
@@ -74,24 +76,28 @@ namespace GameBoard
 
         /// <summary>
         /// 从核心区域列表重建全部占用（幂等、确定性——同状态必得同布局）。
-        /// 战场列表 → 己方单位区格序 first-free；元素池列表 → 地牌行格序；
-        /// 发动区列表 → 单位区空格施放占格（钉优先→first-free，2026-10-15 发动格拆除）。
+        /// 战场列表 → 己方单位区格序 钉优先→上轮格粘滞→first-free；元素池列表 → 地牌行格序；
+        /// 发动区列表 → 单位区空格施放占格（钉优先→上轮格粘滞→first-free，2026-10-15 发动格拆除）。
         /// 容量外（控制权迁移等边缘）不落格、不抛错。
         /// </summary>
         public void Resync()
         {
+            // 上一轮落位快照（位置粘滞用）：先留档再清表——无钉单位优先回自己上轮的格
+            var prevCells = _cellOf.Count > 0 ? new Dictionary<Card, int>(_cellOf) : null;
+            var prevCasting = _castingCellOf.Count > 0 ? new Dictionary<Card, int>(_castingCellOf) : null;
+
             _occupant.Clear();
             _cellOf.Clear();
             _castingCellOf.Clear();
             _castingOccupant.Clear();
 
-            AssignCells(_p1, Zone.Battlefield, BoardLayout.UnitCells(0));
-            AssignCells(_p2, Zone.Battlefield, BoardLayout.UnitCells(1));
+            AssignCells(_p1, Zone.Battlefield, BoardLayout.UnitCells(0), prevCells);
+            AssignCells(_p2, Zone.Battlefield, BoardLayout.UnitCells(1), prevCells);
             AssignCells(_p1, Zone.ElementPool, BoardLayout.LandCells(0));
             AssignCells(_p2, Zone.ElementPool, BoardLayout.LandCells(1));
 
-            PlaceCasting(_p1, 0);
-            PlaceCasting(_p2, 1);
+            PlaceCasting(_p1, 0, prevCasting);
+            PlaceCasting(_p2, 1, prevCasting);
 
             // 落位钉子清理：本轮未落格的卡（离场/换区）钉子不保留（施放占格期保钉——入场要用）
             if (_pinnedCells.Count > 0)
@@ -103,7 +109,8 @@ namespace GameBoard
             }
         }
 
-        private void AssignCells(Player player, Zone zone, IReadOnlyList<(int x, int z)> cells)
+        private void AssignCells(Player player, Zone zone, IReadOnlyList<(int x, int z)> cells,
+            Dictionary<Card, int> prev = null)
         {
             // 地牌走按色叠格（2026-10-14 定案：同色叠一格，颜色按首现序占格）——独立路径
             if (zone == Zone.ElementPool) { AssignLandCells(player, cells); return; }
@@ -111,7 +118,9 @@ namespace GameBoard
             var cards = SafeGetCards(player, zone);
             if (cards == null) return;
 
-            // 落位钉子优先：本批带合法钉的卡占住钉格；其余卡按列表序填剩余空格（原口径）。
+            // 落位钉子优先：本批带合法钉的卡占住钉格；其余卡先回自己上轮的格（位置粘滞，
+            // 2026-10-16 死亡不挪位：同批死亡/离场只让出自己的格，其余单位不再顺移补空），
+            // 回不上（新入场/格被钉占/换半场）才按列表序填剩余空格。
             // 施放占格避让说明（2026-10-15）：本方法先于 PlaceCasting 跑（战场批先落，
             // 施放字典此刻恒空）——单位不感知施放卡；极窄口（施放窗内新单位入场占施放格）由
             // 「施放卡挪格呈现 + 转正时钉优先拿回自己的格、其余单位重排」自愈收敛。
@@ -130,8 +139,22 @@ namespace GameBoard
             }
 
             var usage = new HashSet<int>(pinned.Keys);
+            // 两轮分配：先回座（位置粘滞），后 first-free——新入场者不挤已就座者
+            var reseated = new HashSet<Card>();
             foreach (var card in unpinned)
             {
+                if (prev != null && prev.TryGetValue(card, out int old)
+                    && cellIndex.Contains(old) && !usage.Contains(old))
+                {
+                    usage.Add(old);
+                    _occupant[old] = card;
+                    _cellOf[card] = old;
+                    reseated.Add(card);
+                }
+            }
+            foreach (var card in unpinned)
+            {
+                if (reseated.Contains(card)) continue;
                 int placed = -1;
                 foreach (var c in cells)
                 {
@@ -203,8 +226,8 @@ namespace GameBoard
         }
 
         /// <summary>教学落位钉子（2026-10-06 教学直入）：钉住一张卡的 Resync 落位格——
-        /// 该卡之后每次重建优先回到钉格（须属其所在区格集，否则按无钉顺延），其余卡填空；
-        /// 卡离场钉子自动清除。供 TutorialScenarioSeeder 预设场面用；正常对局无人调钉，行为不变。</summary>
+        /// 该卡之后每次重建优先回到钉格（须属其所在区格集，否则按无钉顺延）；卡离场钉子
+        /// 自动清除。供 TutorialScenarioSeeder 预设场面、出牌选格（声明成功即钉）用。</summary>
         public void PinCard(Card card, int x, int z)
         {
             if (card == null || !BoardMath.InBounds(x, z)) return;
@@ -217,7 +240,7 @@ namespace GameBoard
         /// 钉优先（永久物出牌=玩家所选格，钉格须属己方单位区且未被战场/其他施放卡占用），
         /// 其余（法术/响应施放）按单位区格序 first-free；无空格不落格不抛错（立牌不显示）。
         /// </summary>
-        private void PlaceCasting(Player player, int pIdx)
+        private void PlaceCasting(Player player, int pIdx, Dictionary<Card, int> prev = null)
         {
             var cards = SafeGetCards(player, Zone.Activation);
             if (cards == null) return;
@@ -235,6 +258,12 @@ namespace GameBoard
                     && !_occupant.ContainsKey(pin) && !_castingOccupant.ContainsKey(pin))
                 {
                     placed = pin;
+                }
+                else if (prev != null && prev.TryGetValue(card, out int old)
+                    && cellIndex.Contains(old)
+                    && !_occupant.ContainsKey(old) && !_castingOccupant.ContainsKey(old))
+                {
+                    placed = old; // 位置粘滞：施放立牌回上轮格，无关重排（如死亡）不再挪动它
                 }
                 else
                 {
@@ -368,6 +397,21 @@ namespace GameBoard
                 var (nx, nz) = BoardMath.Neighbor(x, z, dir);
                 var neighbor = CardAt(nx, nz);
                 if (neighbor != null && neighbor != card && !IsCasting(neighbor))
+                    yield return neighbor;
+            }
+        }
+
+        /// <summary>角色格左右同排（E/W 两向）邻格占用生物（碾压 RoleAdjacentResolver 接线用，
+        /// 2026-10-16 碾压攻角色改版：溅射域=角色格左右邻格生物）。8×7 布局下角色格居左右列端头
+        ///（P1=(0,1)/P2=(7,5)）——E/W 仅一格在盘（对方侧出界自然跳过）。施放占位卡非在场生物——滤除。</summary>
+        public IEnumerable<Card> FlankNeighborsOfRole(Player player)
+        {
+            var (x, z) = CharacterCell(player);
+            foreach (var dir in new[] { BoardDirection.E, BoardDirection.W })
+            {
+                var (nx, nz) = BoardMath.Neighbor(x, z, dir);
+                var neighbor = CardAt(nx, nz);
+                if (neighbor != null && !IsCasting(neighbor))
                     yield return neighbor;
             }
         }

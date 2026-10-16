@@ -14,7 +14,7 @@ namespace CardCore
     public static class TargetDomainService
     {
         /// <summary>卡以 modeIndex 模式打出时，全部非无目标效果是否都有可作用候选。
-        /// 法术（2026-10-15 深夜改版）：只挂 1~3 个启动式效果、施放时抉择其一——modeIndex=效果序号，
+        /// 法术（2026-10-15 深夜改版）：只挂 1~3 个主动效果、施放时抉择其一——modeIndex=效果序号，
         /// 只检所选那条的域（其余效果本局不发动，不该拦出牌）。</summary>
         public static bool HasPlayableTargets(GameCore core, Player player, Card card, int modeIndex = 0)
         {
@@ -53,7 +53,7 @@ namespace CardCore
             return true;
         }
 
-        /// <summary>激活式能力（def 已转换）：组合域候选非空预检——CanActivate 第 5 步。</summary>
+        /// <summary>主动能力（def 已转换）：组合域候选非空预检——CanActivate 第 5 步。</summary>
         public static bool HasCandidates(EffectDefinition def, EffectExecutionContext ctx, Card prospective = null)
         {
             if (def == null) return true;

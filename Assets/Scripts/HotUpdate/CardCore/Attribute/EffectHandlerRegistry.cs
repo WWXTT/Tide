@@ -130,8 +130,9 @@ namespace CardCore.Attribute
         /// 组合效果的目标选择（执行引擎统一入口，2026-09-10 目标域模型）：
         /// 域 = def 预计算交集（per-mode）；按 SelectionMode 六值（2026-09-16 定案）三维出目标——
         /// 运行时只实现三个行为（单/多的差别是构筑期数据契约，不是运行时分支）：
-        /// 选一（Single/SingleUnion）：need=1（域={Self} 时=源卡自身，候选≤1 自动取不弹选）；
-        /// 选多（Multiple/MultipleUnion）：TargetCount/DynamicTargetCount 管数量（候选>需求时弹选）；
+        /// 选一（Single/SingleUnion）：need=1（域={Self} 时=源卡自身不弹；其余候选非空一律弹选——
+        /// 2026-10-16 定案：单候选也要玩家确认落点）；
+        /// 选多（Multiple/MultipleUnion）：TargetCount/DynamicTargetCount 管数量（固定档候选非空弹选）；
         /// 全取（Whole/WholeUnion）：候选全取。RandomTarget 标志：绕过选择从完整候选域按种子随机抽取。
         /// </summary>
         public static async UniTask<List<Entity>> ResolveCompositionTargetsAsync(
@@ -150,7 +151,8 @@ namespace CardCore.Attribute
             // 无目标效果（区域自结算类：抽卡/磨牌/看顶等，2026-09-11 语义修正）——
             // 域非空也不解析候选、不弹选（牌库是隐藏信息；handler 按域自结算）
             // 相同目标定案（2026-10-04）：None 但组合域含**可见区**且调用方未预选目标（触发式）不再早退——
-            // 按选一共享解析一次：并列全体原子共享同一份选中目标（候选≤1 自动取；RandomTarget 随机 1），
+            // 按选一共享解析一次：并列全体原子共享同一份选中目标（候选非空弹选——2026-10-16 起
+            // 单候选也弹；RandomTarget 随机 1），
             // 消灭逐原子独立解析的退化兜底。域空/全隐藏区维持早退（隐藏区每原子兜底=首候选，不弹窗）。
             // 施放路径声明期已预选目标（instance.Targets 非空），不进本函数——域校验口径不变。
             if (def.SelectionMode == SelectionMode.None
@@ -198,8 +200,10 @@ namespace CardCore.Attribute
 
             if (SelectionModeRules.IsPickOne(def.SelectionMode))
             {
-                // 选一个：候选≤1 自动取（域={Self} 的关键词效果即此路——唯一候选=源卡自身）
-                if (candidates.Count <= 1) return candidates.Take(1).ToList();
+                // 选一个（2026-10-16 晚定案）：候选 ≤ 需求（无可选余地）自动取不弹窗——
+                // 落点可见性走历史记录；纯 Self 域=源卡自身同自动；AI/无头 Service 选首不变
+                if (ShouldAutoTake(domain, candidates.Count, need: 1, allSemantics: false))
+                    return candidates.Take(1).ToList();
                 return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
                 {
                     Candidates = candidates,
@@ -223,17 +227,29 @@ namespace CardCore.Attribute
                 });
             }
             int need = noneAsSingle ? 1 : (def.TargetCount > 0 ? def.TargetCount : candidates.Count);
-            if (candidates.Count <= need)
+            // 固定数量档（None 共享选一 / TargetCount>0）：候选 ≤ 需求自动取（2026-10-16 晚定案
+            //——反转当日早间「一律弹选」口径，落点可见性走历史记录）；数量≤0=全取维持自动
+            if (ShouldAutoTake(domain, candidates.Count, need,
+                    allSemantics: def.TargetCount <= 0 && !noneAsSingle))
                 return candidates.Take(need).ToList();
             return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
             {
                 Candidates = candidates,
-                MinCount = need,
+                MinCount = Math.Min(need, candidates.Count), // 候选不足需求数按实有收口（否则确认门永不满）
                 MaxCount = need,
                 Chooser = context.Controller,
                 Title = "选择目标",
             });
         }
+
+        /// <summary>固定数量选目标是否免弹自动取（2026-10-16 晚定案·反转当日早间口径）：
+        /// **操作越省越好**——目标集被收窄到代码可自动执行（候选 ≤ 需求数，无任何选择余地）
+        /// 即自动取，不弹确认窗；「效果作用到哪儿」的可见性交给历史记录，不通过复杂化操作。
+        /// 纯 Self 域（唯一候选=源卡自身——守护类关键词效果）与全取档（数量声明 ≤0=全部）
+        /// 维持自动；AI/无头 Service 选首同结果。</summary>
+        private static bool ShouldAutoTake(List<int> kinds, int candidateCount, int need, bool allSemantics)
+            => allSemantics || candidateCount == 0 || candidateCount <= need
+               || (kinds != null && kinds.Count == 1 && kinds[0] == (int)TargetKind.Self);
 
         /// <summary>
         /// 按原子效果配置解析目标候选列表（同步，不弹交互；headless/触发路径用）。
@@ -256,7 +272,8 @@ namespace CardCore.Attribute
         /// 2026-10-09 每原子下沉：奖励原子声明数量档→弹选 N、随机档→帷幕收窄完整候选池种子抽取
         /// 「潜行可命中」；未声明（-2/-1）维持弹选 1）。
         /// 候选按手动选择口径两道过滤（帷幕收窄 + 弹窗显示域滤对方侧潜行/隐密）后
-        /// 由 Chooser=效果控制者（自己）弹选；候选≤需求自动取不弹（AI/无头由 Service 自动选首）；
+        /// 由 Chooser=效果控制者（自己）弹选（候选非空一律弹——2026-10-16 定案，单候选也须
+        /// 玩家确认落点；纯 Self 域自指奖励自动取；AI/无头由 Service 自动选首）；
         /// 隐藏区域/无域=空列表（调用方按单次 null 目标执行——handler 自结算）。
         /// </summary>
         public static async UniTask<List<Entity>> ResolveRewardTargetsAsync(
@@ -274,14 +291,18 @@ namespace CardCore.Attribute
                 return need >= full.Count ? full : GameRng.PickN(full, need); // 随机=完整候选池抽取
 
             var pool = TargetResolver.ExcludeUnselectable(full, context.Controller);
-            if (pool.Count <= need) return pool.Take(need).ToList();
+            // 候选 ≤ 需求自动取（2026-10-16 晚定案——奖励落点可见性走历史记录，不弹确认）；
+            // 纯 Self 域自指奖励维持自动；AI/无头 Service 选首结果不变
+            if (ShouldAutoTake(kinds, pool.Count, need, allSemantics: false))
+                return pool.Take(need).ToList();
             return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
             {
                 Candidates = pool,
-                MinCount = need,
+                MinCount = Math.Min(need, pool.Count),
                 MaxCount = need,
                 Chooser = context.Controller,
                 Title = title,
+                PromptSource = (Entity)context.CastCard ?? context.Source, // 奖励落点选择同报宿主（2026-10-16 lbl-toast 定案）
             });
         }
 
@@ -327,6 +348,7 @@ namespace CardCore.Attribute
                 MaxCount = need,
                 Chooser = context.Controller,
                 Title = "选择目标",
+                PromptSource = (Entity)context.CastCard ?? context.Source, // 免编排路径同报宿主（2026-10-16 lbl-toast 定案）
             });
         }
 
@@ -341,7 +363,8 @@ namespace CardCore.Attribute
         /// 行为口径与组合层解析（ResolveCompositionTargetsAsync）对齐：
         /// 全隐藏区=自结算空列表（隐藏信息不进选择）；全取档/数量"全部"=候选全取不弹窗；
         /// 强制类（Mandatory）无选择窗口=自动全取；随机=帷幕收窄池内种子抽取（潜行可命中）；
-        /// 选一/选多=两道过滤（帷幕收窄+显示域）后候选≤需求自动取、否则弹窗（AI/无头 Service 代选）。
+        /// 选一/选多=两道过滤（帷幕收窄+显示域）后候选非空一律弹选（2026-10-16 定案——
+        /// 单候选也须玩家确认落点；纯 Self 域/全取档自动取，AI/无头 Service 代选同结果）。
         /// 无域原子返回空列表（调用方按单次 null 目标自结算执行）。
         /// </summary>
         public static async UniTask<List<Entity>> ResolveAtomTargetsAsync(
@@ -396,8 +419,10 @@ namespace CardCore.Attribute
 
             if (noneAsSingle || SelectionModeRules.IsPickOne(def.SelectionMode))
             {
-                // 选一个：候选≤1 自动取（域={Self} 的关键词效果即此路——唯一候选=源卡自身）
-                if (candidates.Count <= 1) return candidates.Take(1).ToList();
+                // 选一个（2026-10-16 晚定案，同组合层口径）：候选 ≤ 需求/纯 Self 域自动取
+                //（落点可见性走历史记录）；AI/无头 Service 选首不变
+                if (ShouldAutoTake(kinds, candidates.Count, need: 1, allSemantics: false))
+                    return candidates.Take(1).ToList();
                 return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
                 {
                     Candidates = candidates,
@@ -405,6 +430,11 @@ namespace CardCore.Attribute
                     MaxCount = 1,
                     Chooser = context.Controller,
                     Title = title,
+                    // lbl-toast 定案（2026-10-16）：宿主+效果 Id 供 UI 渲染完整效果文说明「选目标来干嘛」；
+                    // 主动（Voluntary）可取消=「不发动」（空目标落空），自动/强制不可拒（默认代选）
+                    PromptSource = (Entity)context.CastCard ?? context.Source,
+                    PromptEffectId = def.Id,
+                    AllowCancel = def.ActivationType == EffectActivationType.Voluntary,
                 });
             }
 
@@ -418,18 +448,26 @@ namespace CardCore.Attribute
                     MaxCount = candidates.Count,
                     Chooser = context.Controller,
                     Title = title + "（任意数量）",
+                    PromptSource = (Entity)context.CastCard ?? context.Source,
+                    PromptEffectId = def.Id,
+                    AllowCancel = def.ActivationType == EffectActivationType.Voluntary,
                 });
             }
             int need = effCount > 0 ? effCount : candidates.Count;
-            if (candidates.Count <= need)
+            // 数量档>0=固定 N：候选 ≤ 需求自动取（2026-10-16 晚定案——反转当日「一律弹选」，
+            // 落点可见性走历史记录）；effCount≤0=全取维持自动
+            if (ShouldAutoTake(kinds, candidates.Count, need, allSemantics: effCount <= 0))
                 return candidates.Take(need).ToList();
             return await TargetSelectionService.RequestAsync(new TargetSelectionRequest
             {
                 Candidates = candidates,
-                MinCount = need,
+                MinCount = Math.Min(need, candidates.Count), // 候选不足需求数按实有收口（否则确认门永不满）
                 MaxCount = need,
                 Chooser = context.Controller,
                 Title = title,
+                PromptSource = (Entity)context.CastCard ?? context.Source,
+                PromptEffectId = def.Id,
+                AllowCancel = def.ActivationType == EffectActivationType.Voluntary,
             });
         }
 

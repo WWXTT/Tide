@@ -8,10 +8,10 @@ namespace CardCore.AI.NeuralEnv
     /// ONNX 单步策略推理器（Sentis，包名 com.unity.ai.inference，命名空间 Unity.InferenceEngine）。
     ///
     /// 图契约（tide_rl/export_onnx.py 导出，batch 已脱皮）：
-    ///   输入 float32：rstate(512) cards(92×68) global(50) actions(512×8)
+    ///   输入 float32：rstate(512) cards(92×116) global(50) actions(512×8)
     ///   输出 float32：rstate_next(512) logits(512) value(1)
     /// v3 布局（2026-10-14 动作空间契约，docs/action_space_v3_contract.md）：卡槽 46/人（92 总，
-    /// 容量精确对齐引擎）、卡特征 68 维（+位置/Awaken/LandTrait）、globals 50 维（+放逐计数/弹药，
+    /// 容量精确对齐引擎）、卡特征 116 维（v4 原子槽 6→12，2026-10-16）、globals 50 维（+放逐计数/弹药，
     /// 归一化）、动作类型 0..13、枚举器侧 MaxActions=512 守卫——旧 onnx/fixture 全部作废，
     /// 需重跑 export_onnx.py 重导出后使用本推理器。
     /// 非法动作在图内已掩 -1e9（actions[:,0]==0），Select 直接 argmax；

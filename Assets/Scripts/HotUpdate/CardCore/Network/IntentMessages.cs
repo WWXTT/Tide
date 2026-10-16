@@ -65,7 +65,7 @@ namespace CardCore.Network
         public NetEntityRef Attacker;
     }
 
-    /// <summary>激活启动式能力。EffectId = EffectDefinition.Id（稳定寻址键；
+    /// <summary>激活主动能力。EffectId = EffectDefinition.Id（稳定寻址键；
     /// 不是 EffectTag——那是 Description 的内容哈希指纹，仅序列化侧使用）。</summary>
     [MemoryPackable]
     public partial class MsgIntentActivateEffect

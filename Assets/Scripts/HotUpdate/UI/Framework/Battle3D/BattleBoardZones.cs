@@ -30,7 +30,8 @@ namespace SynergyUI
 
         // 2026-10-14 战场四项改版追加（分区号只增不改）：18/19=技能格（原临时元素格位）、
         // 20=中线行（9×7 加行→当晚 8×7 状态行）、21/22=地牌上限格（当晚缩盘退役：
-        // 地牌行整 6 格一元素一格无空位——21/22 与 16/17 同口径材质资产留盘不再消费，编号不回收）。
+        // 地牌行整 6 格一元素一格无空位）。2026-10-16 技能格撤销：18/19 与 16/17、21/22
+        // 同口径——材质资产留盘不再消费、编号不回收。
         public const byte P1Skill = 18;
         public const byte P2Skill = 19;
         public const byte MiddleRow = 20;
@@ -86,11 +87,11 @@ namespace SynergyUI
 
         /// <summary>角色×归属 → 分区 id（越界/未知组合回落边缘环）。
         /// LandCap 分支已退役（2026-10-14 晚缩盘：地牌上限格不再存在，角色成墓碑永不命中）；
-        /// Activation 分支同口径退役（2026-10-15 发动格拆除，角色成墓碑永不命中）。</summary>
+        /// Activation 分支同口径退役（2026-10-15 发动格拆除，角色成墓碑永不命中）；
+        /// Skill 分支同口径退役（2026-10-16 技能格撤销，角色成墓碑永不命中）。</summary>
         public static byte ZoneOf(CellRole role, int owner)
         {
             if (role == CellRole.Edge) return EdgeRing;
-            if (role == CellRole.Skill) return owner == 0 ? P1Skill : P2Skill;
             if (role == CellRole.Middle) return MiddleRow;
             int slot;
             switch (role)

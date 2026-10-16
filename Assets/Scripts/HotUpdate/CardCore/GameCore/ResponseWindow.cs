@@ -6,7 +6,7 @@ namespace CardCore
 {
     /// <summary>
     /// 响应窗口候选（发动弹窗条目，2026-09-16 战斗接入栈机器定案）：
-    /// 速度系统收集的可发主动效果——守卫能力（速度1响应）/待发自愿效果/可打手牌卡/启动式能力。
+    /// 速度系统收集的可发主动效果——守卫能力（速度1响应）/待发自愿效果/可打手牌卡/主动能力。
     /// 收集时**双过滤**：元素费用（CanAfford 含 pending 承诺）+ 特殊代价（CostHandlerRegistry），
     /// 付不起的不进弹窗；**候选=0 跳过弹窗直接 Pass**。
     /// </summary>
@@ -20,15 +20,22 @@ namespace CardCore
 
         /// <summary>守卫者/能力宿主/手牌卡。</summary>
         public Card SourceCard;
+        /// <summary>守卫者=角色（2026-10-16 角色守卫定案）：Kind=GuardAbility 且本字段非空时，
+        /// SourceCard 恒 null——角色守卫无关键词/横置概念，资格=有攻击弹药（见 PushGuardDeclaration）。</summary>
+        public Player SourcePlayer;
         /// <summary>待发自愿效果（Kind=VoluntaryEffect）。</summary>
         public PendingEffect Pending;
-        /// <summary>启动式定义（Kind=ActivatedAbility）。</summary>
+        /// <summary>主动定义（Kind=ActivatedAbility）。</summary>
         public EffectDefinition Definition;
         /// <summary>拦截目标（Kind=GuardAbility：栈上的攻击宣言对象）。</summary>
         public EffectInstance AttackInstance;
 
         /// <summary>费用摘要（收集时已过可付性检查，此为显示用）。</summary>
         public string CostSummary;
+
+        /// <summary>手牌响应卡（Kind=HandCard）：施放抉择模式序号（收集期已过该模式门禁；
+        /// ApplyResponse 经 PlayCardInResponse 消费——目标不预选，cast 结算期反问）。</summary>
+        public int ModeIndex;
     }
 
     /// <summary>

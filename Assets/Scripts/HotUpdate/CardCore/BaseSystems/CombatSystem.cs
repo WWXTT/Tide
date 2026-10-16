@@ -60,7 +60,7 @@ namespace CardCore
     ///
     /// 关键词行为（定案；2026-09-16 攻/守效果化修订）：
     /// - 可用性统一走横置：随从一律横置入场；冲锋/突袭一次性生效 = 解除横置 + 消耗关键词
-    ///   （突袭残留紊乱指示物一回合，期间不能以玩家为目标）；攻击/拦截/启动式均以未横置为资格，
+    ///   （突袭残留紊乱指示物一回合，期间不能以玩家为目标）；攻击/拦截/主动均以未横置为资格，
     ///   横置即上限——激励解除横置即可再动
         /// - 攻击 = 速度0主动效果（默认自带，NoAttack 卡不能攻；标准速度门 0≥计数器——连锁中不可宣）；
         ///   守卫 = 速度1响应拦截（默认自带，NoGuard 卡不能拦）：响应窗口内入栈，结算期改写攻击
@@ -71,7 +71,10 @@ namespace CardCore
     ///   攻击/发动效果/实际受伤各消耗 1 层（三个失效口，逐份撤）
     /// - 先攻/连击：先攻步先行结算（死者不反击）；连击两步均结算
     /// - 缴械：攻击结算时被攻击的目标无法反击（对角色目标同样生效——压制角色反伤）
-        /// - 碾压：战斗伤害结算时对目标及其左右同排相邻生物各造成一次相同的战斗伤害
+        /// - 碾压（2026-10-16 改版）：战斗伤害结算时对**宣言原目标**及其左右同排相邻生物各造成一次
+    ///   相同的战斗伤害——守卫拦截只拦住原目标的主战斗伤害（目标改写为守卫者），战斗仍发生在
+    ///   原被攻击者那一格，溅射域恒取原目标邻格（受拦截不受影响）；攻击角色时原目标=角色（Player），
+    ///   溅射域=角色格左右邻格的生物（RoleAdjacentResolver 注入，8×7 布局下角色居侧列端头各仅一格在盘）
     /// - 剧毒/吸血/系命/圣盾/护甲/坚韧：伤害经 KeywordRules.ApplyDamage 统一结算
     /// </summary>
     public class CombatSystem
@@ -82,8 +85,16 @@ namespace CardCore
         /// （保持核心 ↔ 棋盘单向依赖：核心定义扩展点，表现层注入实现）。
         /// 2026-10-04 碾压语义修订：溅射域从「6 邻格随从」收窄为「左右同排生物」——
         /// 后排斜邻与地牌行的地牌不入溅射域（接线方注入 BoardState.FlankNeighbors）。
+        /// 2026-10-16 改版：本口只管**随从**枢轴；攻角色（Player 目标）的溅射域走 RoleAdjacentResolver。
         /// </summary>
         public static Func<Card, IEnumerable<Card>> AdjacentResolver;
+
+        /// <summary>
+        /// 角色邻接解析扩展点（碾压攻角色，2026-10-16 改版）：防守方角色 → 角色格左右（E/W）
+        /// 邻格的生物。默认 null = 攻角色无溅射；棋盘层接线注入 BoardState.FlankNeighborsOfRole
+        ///（与 AdjacentResolver 同惯例成对设置/清空——BattleController / NetRoom / TideHeadlessDriver）。
+        /// </summary>
+        public static Func<Player, IEnumerable<Card>> RoleAdjacentResolver;
 
         // ======================= 角色参战（2026-10-07 弹药定案，武器系统退役） =======================
         // 战斗为双向结算：角色（玩家）被攻击同样有反伤——反伤力=GetPower(player)
@@ -158,7 +169,7 @@ namespace CardCore
             if (attackingPlayer == null || targetController != attackingPlayer.Opponent) return false;
 
             // 2026-10-02 三类卡型定案：卡牌攻击目标=防守方**战场上**的卡（活体生物全额落血；
-            // 无生命结界经耐久管线每次 -1，反击力=0 天然单向）或防守方角色。
+            // 无生命结界经耐久管线按伤害全额扣耐久，反击力=0 天然单向）或防守方角色。
             // 非战场卡（FieldZone 英雄技能卡等）不是合法攻击目标。
             if (target is Card zc && targetController != null
                 && _zoneManager != null
@@ -261,8 +272,9 @@ namespace CardCore
                 counted.AttacksThisTurn++;
 
             // ② 战斗结算（2026-10-15 定案：双方竖直完成战斗——此时攻击者未横置、拦截守卫
-            // 未横置，反击资格按 ResolvePair 口径自然成立——守卫照常反击）
-            ResolvePair(attacker, target);
+            // 未横置，反击资格按 ResolvePair 口径自然成立——守卫照常反击）。
+            // 溅射枢轴=宣言原目标（2026-10-16 碾压改版：守卫改写后的 target 只是主战斗对象）
+            ResolvePair(attacker, target, attack.OriginalAttackTarget ?? target);
 
             // 战斗完成 → 支付横置（确定进入战斗且已完成才横置；警戒不抵扣）。拦截守卫同批
             // 补横置（GuardBlocker=最终拦截者，前序被改写者未参战不付；死者横置无观察面，照付）
@@ -287,8 +299,9 @@ namespace CardCore
             RuleHooks.OnTutorialAttackResolved?.Invoke(attacker, target); // 教学探针：守卫步骤漏守兜底（结算路径，目标=改写后）
         }
 
-        /// <summary>结算一次攻击配对（含先攻/连击/碾压；剧毒吸血圣盾护甲坚韧在 KeywordRules 内）</summary>
-        private void ResolvePair(Entity attacker, Entity target)
+        /// <summary>结算一次攻击配对（含先攻/连击/碾压；剧毒吸血圣盾护甲坚韧在 KeywordRules 内）。
+        /// declaredTarget=宣言原目标（碾压溅射枢轴——守卫拦截改写 target 后战斗仍发生在原被攻击者那格）。</summary>
+        private void ResolvePair(Entity attacker, Entity target, Entity declaredTarget)
         {
             int attackerPower = GetPower(attacker);
             // 双向结算：随从目标按层引擎力量反击；角色（玩家）目标反伤直读 GetPower
@@ -350,22 +363,41 @@ namespace CardCore
                     CounterRules.RemoveHeroAttackAmmo(counterattacking);
             }
 
-            // ---- 碾压（2026-10-04 语义修订，表行锚=红3）：战斗伤害结算时对目标以及目标
-            //      **左右同排相邻生物**造成与主目标相同的战斗伤害（attackerPower，已锁力量）——
-            //      目标经上方正常步结算，左右相邻生物在此各受一次（额外受击不反击）；
-            //      结界等非生物单位不入溅射域（生物判定=IsLivingUnit） ----
-            if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Overwhelm)
-                && target is Card pivot && AdjacentResolver != null)
+            // ---- 碾压（2026-10-04 语义修订，表行锚=红3；2026-10-16 枢轴改版）：战斗伤害结算时
+            //      对**宣言原目标**以及其左右同排相邻生物造成与主目标相同的战斗伤害（attackerPower，
+            //      已锁力量）——守卫拦截只拦住原目标的主战斗伤害（战斗发生在原被攻击者那一格），
+            //      溅射域恒取原目标邻格、受拦截不受影响；攻角色时原目标=角色（Player），溅射域=
+            //      角色格左右邻格生物（RoleAdjacentResolver）；结界等非生物不入溅射域（IsLivingUnit） ----
+            if (attacker.IsAlive && attacker.HasKeyword(KeywordRules.Overwhelm))
             {
-                foreach (var adjacent in AdjacentResolver(pivot))
+                var pivot = declaredTarget ?? target; // 溅射枢轴=宣言原目标（无拦截时与 target 同一）
+                IEnumerable<Card> flanks = null;
+                Entity flankSide = null; // 同侧判定锚（防守方）
+                if (pivot is Player role)
                 {
-                    if (adjacent == null || adjacent == attacker || adjacent == target || !adjacent.IsAlive)
-                        continue;
-                    if (!adjacent.IsLivingUnit())
-                        continue; // 只打生物：结界（耐久体）与地牌不吃碾压溅射
-                    if (adjacent.GetController() != pivot.GetController())
-                        continue; // 只打目标同侧（防守方）的相邻生物
-                    DealCombatDamage(attacker, adjacent, attackerPower);
+                    if (RoleAdjacentResolver != null)
+                    {
+                        flanks = RoleAdjacentResolver(role);
+                        flankSide = role; // 防守方=角色自己（Player 即控制者，CanAttackTarget 同口径）
+                    }
+                }
+                else if (pivot is Card pivotCard && AdjacentResolver != null)
+                {
+                    flanks = AdjacentResolver(pivotCard);
+                    flankSide = pivotCard.GetController();
+                }
+                if (flanks != null)
+                {
+                    foreach (var adjacent in flanks)
+                    {
+                        if (adjacent == null || adjacent == attacker || adjacent == pivot || !adjacent.IsAlive)
+                            continue; // 枢轴自身经正常步结算，不重复吃溅射；攻击者不误伤
+                        if (!adjacent.IsLivingUnit())
+                            continue; // 只打生物：结界（耐久体）与地牌不吃碾压溅射
+                        if (adjacent.GetController() != flankSide)
+                            continue; // 只打原目标同侧（防守方）的生物
+                        DealCombatDamage(attacker, adjacent, attackerPower);
+                    }
                 }
             }
 

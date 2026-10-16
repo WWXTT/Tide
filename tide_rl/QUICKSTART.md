@@ -2,8 +2,8 @@
 
 > ## v3 本机训练就绪态（2026-10-14 更新）
 >
-> **契约已升 v3**（`docs/action_space_v3_contract.md`：卡槽 92×68 / globals 50 / 动作 8 维×512 容量 /
-> 类型 0..13 含 TapCreature/CommitAwaken；旧 checkpoint/fixture/onnx 全作废，训练标签 `v3a`）。
+> **契约已升 v4**（`docs/action_space_v3_contract.md`：卡槽 92×116（v4 原子槽 6→12，2026-10-16）/ globals 50 /
+> 动作 8 维×512 容量 / 类型 0..13 含 TapCreature/CommitAwaken；旧 checkpoint/fixture/onnx 全作废）。
 > 本机（C 盘工程 `C:\Users\Administrator\Desktop\UnityProject\Tide`，6900XT）**已验证可直接训练**：
 >
 > - Python 3.14 全局环境已装 jax 0.11.1(CPU)/flax/optax；实测 NN 前向 ~2650 步/s、训练档 ~213 步/s

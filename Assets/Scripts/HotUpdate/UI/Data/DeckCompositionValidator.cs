@@ -15,7 +15,7 @@ namespace SynergyUI
     ///
     /// 费用两层口径（与 2026-10-15 教学卡组人工复查同源）：
     /// ① 出牌费 card.Cost——EnsureCost 已烘焙身材灰桶/关键词 K/效果锚价 E/代价栏，全量在此；
-    /// ② 启动式效果的运行时锚价（CostDerivationService.DeriveElementCosts）——构筑期不占
+    /// ② 主动效果的运行时锚价（CostDerivationService.DeriveElementCosts）——构筑期不占
     ///    卡费、发动时现付（CardCostService.E 桶跳过项），须单独检测。
     /// 断链（cardIds 在 Cards.json 无此 ID）单列——主题卡组重建期 0/30 断链的历史坑。
     /// </summary>
@@ -130,7 +130,7 @@ namespace SynergyUI
         }
 
         /// <summary>单卡两面检测（添加口拦截用；theme=null 由调用方回避）：
-        /// 出牌费 + 各启动式效果运行时锚价。</summary>
+        /// 出牌费 + 各主动效果运行时锚价。</summary>
         public static List<Violation> CheckCard(CardData card, ManaType themeColor)
         {
             var list = new List<Violation>();
@@ -151,8 +151,8 @@ namespace SynergyUI
         /// <summary>类型×形状校验（2026-10-15 深夜三类卡改版，与 CardLoader.ValidateSpellShape/
         /// ValidateEnchantShape/ValidateMountHosts 同口径——装载侧已拦，此处为卡组面兜底）：
         /// · 生物禁挂连接光环（光环专属结界）；
-        /// · 结界禁一切启动式（只挂自动/光环）；
-        /// · 法术=1~3 个效果且全部为启动式（Active/Instant）、禁内嵌抉择分支。
+        /// · 结界禁一切主动（只挂自动/光环）；
+        /// · 法术=1~3 个效果且全部为主动（Active/Instant）、禁内嵌抉择分支。
         /// 返回人读错误串（空=合规）。</summary>
         public static List<string> CheckShape(CardData card)
         {
@@ -258,6 +258,24 @@ namespace SynergyUI
                 ? "✔ 通过"
                 : $"✘ 违色{report.Violations.Count}项/断链{report.MissingIds.Count}张/形状{report.ShapeErrors.Count}项";
             return $"{report.DeckName}（{report.CardCount}张）：{stats}；{theme}——{verdict}";
+        }
+
+        /// <summary>卡组可用性单源（2026-10-16 全局对齐定案）：断链/形状违规/主题违色任一即
+        /// 不可用——卡组界面（列表标记/保存拦截）、挑战入口（标记+开战回落）、对战入口
+        /// （下拉标记+提交拦截）共用本判定。</summary>
+        public static bool Usable(DeckData deck) => Check(deck).Ok;
+
+        /// <summary>不可用标签（三入口列表/下拉共用文案）："断链2/形状1/违色3·不可用"；可用=""。</summary>
+        public static string UnusableTag(DeckData deck)
+        {
+            if (deck == null) return "";
+            var r = Check(deck);
+            if (r.Ok) return "";
+            var parts = new List<string>();
+            if (r.MissingIds.Count > 0) parts.Add("断链" + r.MissingIds.Count);
+            if (r.ShapeErrors.Count > 0) parts.Add("形状" + r.ShapeErrors.Count);
+            if (r.Violations.Count > 0) parts.Add("违色" + r.Violations.Count);
+            return string.Join("/", parts) + "·不可用";
         }
     }
 }

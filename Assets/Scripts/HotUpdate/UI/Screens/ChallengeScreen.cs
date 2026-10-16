@@ -92,7 +92,9 @@ namespace SynergyUI
             SelectDeck(_selectedDeckName); // 保持上次选择（缺失回落随机）
         }
 
-        /// <summary>卡组行（含张数；行点击=选中，Outline 高亮）。</summary>
+        /// <summary>卡组行（含张数；行点击=选中，Outline 高亮）。
+        /// 2026-10-16 全局对齐：不可用口径=断链/形状/违色任一（DeckCompositionValidator.UnusableTag
+        /// 单源）——开战本就回落随机，选前可见。</summary>
         private void MakeDeckRow(string displayName, DeckData deck)
         {
             var row = UiKit.Row($"deck-row-{Sanitize(displayName)}", _deckList.Content, spacing: 8f, pad: 6f);
@@ -100,8 +102,12 @@ namespace SynergyUI
             UiKit.Size(row, h: 34f);
             var name = UiKit.Label("name", row, displayName, UiStyle.BodySize, UiStyle.TextBody);
             UiKit.Size(name, fw: 1f);
-            UiKit.Label("meta", row, deck?.cardIds != null ? $"{deck.cardIds.Count} 张" : "30 张随机",
-                UiStyle.SmallSize, UiStyle.TextFaint);
+            var tag = deck != null ? DeckCompositionValidator.UnusableTag(deck) : "";
+            UiKit.Label("meta", row,
+                deck?.cardIds != null
+                    ? $"{deck.cardIds.Count} 张" + (tag.Length > 0 ? "·" + tag : "")
+                    : "30 张随机",
+                UiStyle.SmallSize, tag.Length > 0 ? UiStyle.DotRed : UiStyle.TextFaint);
 
             var rowBtn = row.gameObject.AddComponent<Button>();
             rowBtn.transition = Selectable.Transition.None;
@@ -152,11 +158,14 @@ namespace SynergyUI
             if (_selectedDeckName != null)
             {
                 var data = DeckSerializer.Load(_selectedDeckName);
-                if (data?.cardIds != null)
+                // 2026-10-16 全局对齐：构成校验未过（断链/形状/违色）与缺卡/张数不足同判不可用
+                bool usable = data?.cardIds != null && DeckCompositionValidator.Usable(data);
+                if (usable)
                     deck = TutorialLibrary.BuildDeck(data.cardIds);
                 if (deck == null || deck.Count < GameCore.OpeningHandSize)
                 {
-                    TideLog.Warn($"[ChallengeScreen] 卡组 {_selectedDeckName} 不可用（缺卡/张数不足）——回落随机卡组");
+                    TideLog.Warn($"[ChallengeScreen] 卡组 {_selectedDeckName} 不可用" +
+                        $"（{(usable ? "缺卡/张数不足" : "构成校验未过——断链/形状/违色")}）——回落随机卡组");
                     deck = null;
                 }
                 else

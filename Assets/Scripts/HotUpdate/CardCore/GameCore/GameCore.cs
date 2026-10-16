@@ -564,6 +564,7 @@ namespace CardCore
                 Reason = reason,
                 TotalTurns = TurnEngine.TurnNumber
             });
+            RuleHooks.OnTutorialGameOver?.Invoke(winner); // 教学探针（2026-10-16 victory 步完成信号；非教学局为 null 直过）
         }
 
         /// <summary>
@@ -572,12 +573,18 @@ namespace CardCore
         public void EndGame(Player winner, GameOverReason reason)
             => PublishGameOverOnce(winner, reason);
 
+        /// <summary>表现层演出暂停闸（2026-10-16 AI 出牌舞台）：true=Update 本帧直接返回——
+        /// 帧泵的自动双 Pass（GameLoopController.ProcessPriority）不得在演出期抢先结算栈。
+        /// 只延迟泵的调用时机，不改任何响应/结算决策逻辑；由 SimpleAI 舞台期置位、finally 归还，
+        /// 无头/AI 互打（无 PacingWait）永不置位。</summary>
+        public bool PresentationHold;
+
         /// <summary>
         /// 游戏主循环
         /// </summary>
         public void Update()
         {
-            if (!_stateManager.CanPerformGameActions)
+            if (!_stateManager.CanPerformGameActions || PresentationHold)
                 return;
 
             _loopController.Update();
@@ -675,6 +682,11 @@ namespace CardCore
             Attribute.GuardianRules.EnsureSubscribed();
             Attribute.GuardianRules.Reset();
 
+            // 舍身配对（2026-10-16 关键词化，镜像守护）：入场弹选转投目标/离场断链——
+            // 组合根登记（幂等）+ 配对表跨局不残留（转投目标引用跨局失效）
+            Attribute.MartyrdomRules.EnsureSubscribed();
+            Attribute.MartyrdomRules.Reset();
+
             // 装备入场耐久初始化（2026-09-13 起；2026-10-07 武器反伤扩展口随武器系统退役删除，
             // 角色参战改走 HeroAttackCounter 弹药原子）——组合根（幂等）
             // 订阅缓存委托（2026-09-24 泄漏修复）：lambda 每局 new 一个实例无法退订，
@@ -704,11 +716,14 @@ namespace CardCore
         internal void PublishEvent<T>(T e) where T : IGameEvent => PublishEventRouted(e);
 
         /// <summary>
-        /// 统一发布路径（按运行时类型分发）：替代检查 → EventManager → Trigger/Layer。
+        /// 统一发布路径（按运行时类型分发）：替代检查 → EventManager → BranchEngines → Trigger/Layer。
         /// 泛型入口与 ElementPool 等子系统的事件路由（Action&lt;IGameEvent&gt;）共用，
         /// 路由层拿不到静态类型，必须以 e.GetType() 为键（PublishDynamic）分发。
         /// replacementsApplied=true 时跳过替代检查（调用方已在管线前消费过替代，如伤害管线），
         /// 只走总线 + Trigger/Layer——防替代二次套用。
+        /// BranchEngines.OnRoutedEvent（2026-10-16 引擎解绑）置于总线之后、Trigger 之前：
+        /// 倒计时递减/置待发在总线订阅内同步完成，本钩子随即按声明时机发射（声明=回合开始时
+        /// 同一事件内发奖，与旧「归零发奖」可观察行为一致；引擎发射先于普通触发上栈，沿旧时序）。
         /// </summary>
         internal void PublishEventRouted(IGameEvent e, bool replacementsApplied = false)
         {
@@ -725,6 +740,7 @@ namespace CardCore
                     if (!ReferenceEquals(finalEvent, e))
                     {
                         EventManager.Instance.PublishDynamic(finalEvent);
+                        BranchEngines.OnRoutedEvent(finalEvent);
                         TriggerEngine.OnEvent(finalEvent);
                         LayerEngine?.OnEvent(finalEvent);
                         return;
@@ -733,6 +749,7 @@ namespace CardCore
             }
 
             EventManager.Instance.PublishDynamic(e);
+            BranchEngines.OnRoutedEvent(e);
             TriggerEngine.OnEvent(e);
             LayerEngine?.OnEvent(e);
         }

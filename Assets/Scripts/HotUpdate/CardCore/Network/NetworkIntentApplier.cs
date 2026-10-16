@@ -157,7 +157,7 @@ namespace CardCore.Network
         }
 
         /// <summary>
-        /// 带目标的启动式激活。ActivateEffect 公共入口无 targets 参数（目标由效果配置自动解析）；
+        /// 带目标的主动激活。ActivateEffect 公共入口无 targets 参数（目标由效果配置自动解析）；
         /// 网络侧与 LegalActionEnumerator.Apply 同款：经 PendingEffect.Create 携带预选目标。
         /// </summary>
         private static bool ActivateWithTargets(GameCore core, Player player, EffectDefinition effect,

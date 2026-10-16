@@ -90,7 +90,7 @@ namespace CardCore
         [NonSerialized]
         internal List<ElementCost> ModeCostCache;
 
-        // 自我沉睡判定缓存（2026-09-11 灰费豁免定案）：任一非启动式效果含 Sleep 原子且组合域={Self}。
+        // 自我沉睡判定缓存（2026-09-11 灰费豁免定案）：任一非主动效果含 Sleep 原子且组合域={Self}。
         // GetCardCost 高频调用，转换结果缓存（ResetCache 失效，随 ModeCostCache 口径）。
         [NonSerialized]
         internal bool? SelfSleepEffectCache;
@@ -478,6 +478,8 @@ namespace CardCore
     /// <summary>
     /// 代价条目 —— 卡牌效果的费用配置。
     /// 定案（2026-09-11）：一张卡只有一个代价栏、只能填一个代价（整卡 Costs 条目合计 ≤1，无法像效果那样组合）。
+    /// 2026-10-16 组装效果代价：一条代价=一张纯线性组装图的原子序列（payloads），
+    /// 逐原子执行/计价/补偿（可黑白混合）；payload 保留为旧档单原子读入口（装载折入 payloads）。
     /// </summary>
     [Serializable]
     public class CostEntry
@@ -487,9 +489,19 @@ namespace CardCore
         public int ManaType;           // 元素消耗的 ManaType
         public int TurnDuration;       // 沉睡回合数
 
-        /// <summary>效果型代价（CostType=Payload，2026-09-11）：付费步强制执行的原子效果，
-        /// 按全价补偿黑/白元素（如「给对手召唤 30/30 衍生物 → 获得白16」）。</summary>
+        /// <summary>legacy 单原子代价（2026-09-11~10-16）：新写走 payloads；读侧经 AllPayloads 折入。</summary>
         public AtomicEffectEntry payload;
+
+        /// <summary>组装效果代价（2026-10-16）：线性原子序列（整条仍占 1 个代价槽）。</summary>
+        public List<AtomicEffectEntry> payloads;
+
+        /// <summary>统一原子访问口：payloads 非空取之；否则折入 legacy 单条（null 容错）。</summary>
+        public List<AtomicEffectEntry> AllPayloads()
+        {
+            if (payloads != null && payloads.Count > 0) return payloads;
+            if (payload != null && !string.IsNullOrEmpty(payload.refId)) return new List<AtomicEffectEntry> { payload };
+            return new List<AtomicEffectEntry>();
+        }
     }
 
     /// <summary>

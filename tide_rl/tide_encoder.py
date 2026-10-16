@@ -2,11 +2,11 @@
 Tide 编码器（路线 1：MLP/GRU actor-critic + 内容身份 embedding）。
 
 - 卡身份三通路：
-  1) 精确哈希槽 [15..22] → nn.Embed(N_CARD_POOL) 查表（含槽位位置标记）masked-sum——
+  1) 精确哈希槽 [15..28] → nn.Embed(N_CARD_POOL) 查表（含槽位位置标记）masked-sum——
      同原子跨卡共享行（内容寻址，C# CardIdentityService 与费用推算同管线产出哈希）。
-  2) EffectType 槽 [23..28] → nn.Embed(N_EFFECT_TYPES)——参数无关，「造成4伤」与「造成5伤」
+  2) EffectType 槽 [29..40] → nn.Embed(N_EFFECT_TYPES)——参数无关，「造成4伤」与「造成5伤」
      同一行；新参数值不再纯新 token。
-  3) 参数块 [29..]（6 槽 × ATOM_PARAM_DIM 浮点）→ per-slot 共享 Dense 投影 masked-sum——
+  3) 参数块 [41..]（N_TYPE_SLOTS 槽 × ATOM_PARAM_DIM 浮点）→ per-slot 共享 Dense 投影 masked-sum——
      数值插值通路，幅度变化可从已训参数外推。
 - 动作编码：8 维动作特征（v2：+effectIdentity+targetKind）+ 按 source/targetIndex gather 的
   来源/目标卡编码 concat 后投影——动作打分能读到它指向的那张卡（对齐 ygo-agent 的 spec gather 思路）。

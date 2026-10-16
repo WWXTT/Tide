@@ -20,7 +20,8 @@ namespace CardCore.Attribute
     /// 伤害管线（效果 TakeDamage 与战斗 CombatSystem 两条路径都经 ApplyDamage）：
     /// 替代引擎（光环层——穿透伤害也受其限制）→ 圣盾指示物（每层挡一次任意伤害，消耗 1 层）→
     /// 护甲指示物（逐点吸收）→ 坚韧指示物（每层 −1，生效后层数减半）→ 落血；
-    /// 吸血（恢复随从自身）/系命（回复角色）。
+    /// 吸血（恢复随从自身）/系命（回复角色）→ 报复指示物（2026-10-16 新增：受伤落定后
+    /// 对来源反噬=层数的伤害、生效后减半——先减半再反击，互带几何衰减防互弹）。
     /// 【穿透伤害（pierce=true）】越过关键词和指示物计算伤害——跳过圣盾/护甲/坚韧三层，
     /// 替代引擎与落血/事件链/吸血照走。
     /// 【剧毒 Venom】2026-10-08 指示物转关键词（落定追加式）：受到其战斗伤害的生物在结算后被消灭
@@ -43,7 +44,7 @@ namespace CardCore.Attribute
 
         /// <summary>
         /// 沉睡指示物名（2026-09-11 定案；2026-10-08 层即持续定案）：沉睡期间无法重置
-        ///（BlocksUntap）、效果无效（拦触发式+启动式，与无效/沉默合流为三口）；
+        ///（BlocksUntap）、效果无效（拦触发式+主动，与无效/沉默合流为三口）；
         /// 层=剩余回合，持有者回合末 −1、归零解除（下回合开始自然恢复重置）。
         /// 效果/指示物分离原则：Sleep 原子（绿1 中性）只负责赋予指示物——持续规则由指示物自身承载。
         /// </summary>
@@ -54,7 +55,7 @@ namespace CardCore.Attribute
         //（GrantDivineShieldHandler 挂层；挡下口=ApplyPreventionLayers 第 1 层，每层挡一次消耗一层）
         // 毒刺（PoisonSting）/冰晶（IceCrystal）已删（2026-10-15 整体退役）：表行 2026-10-02 已先退
         //（改写走分支组合），遗留的印刷关键词路径（改写链臂/Grant 映射/两张试作卡）同批清除——
-        // 战斗改写仅余舍身仪典（HolderRewriteFor）；毒素/冻结指示物由各自施加原子独立保留。
+        // 战斗改写仅余舍身关键词（2026-10-16 关键词化，MartyrdomRules 配对）；毒素/冻结指示物由各自施加原子独立保留。
         // 梦魇（Nightmare，战斗伤害改沉睡）已删（2026-10-13）：改写链行为+常量+Grant 映射整体退役
         //——表行 2026-10-02 已先退，沉睡指示物（Sleep 行 a62a2df1）独立保留。
         /// <summary>剧毒（2026-10-08 指示物转关键词定案，落定追加式）：受到其战斗伤害的生物被消灭
@@ -94,6 +95,11 @@ namespace CardCore.Attribute
         // 回响关键词常量已删（2026-10-07 改普通效果 EchoCopy——宣言时点分支随之退役）
         /// <summary>守护（2026-10-08 配对制改版）：登场选目标，其受伤改写为守护者承受（GuardianRules 配对表；无限次直到守护者离场）。</summary>
         public const string Guardian = "Guardian";
+
+        /// <summary>舍身（2026-10-16 关键词化——原舍身仪典规则光环退役；守护的进攻向对偶）：
+        /// 登场选一个对方目标，自己造成的战斗伤害改写为对目标的效果伤害（MartyrdomRules 配对表；
+        /// 无限次直到持有者离场；效果伤害=非战斗路径——禁魔石可清零、不触发战斗反击链）。</summary>
+        public const string Martyrdom = "Martyrdom";
 
         // ---- 一次性关键词概念已彻底删除（2026-09-08 定案：错误设计）----
         // 关键词都是持续性特征，无「一次性生效后消失/重新入场刷新」的说法：
@@ -308,31 +314,30 @@ namespace CardCore.Attribute
 
             // 战斗伤害改写（**防护层之后、落血之前**——只有"将要成功造成的伤害"才改写：圣盾/护甲/
             // 坚韧完全挡住 → 不触发；部分吸收后仍有剩余 → 剩余改写，不再落血）。
-            // 唯一改写=舍身仪典（CombatRedirect，2026-10-07 单映射定案）——受光环影响的生物造成战斗
-            // 伤害时，改为对**施伤方控制者的对手角色**等量伤害（非战斗路径递归：不再触发舍身）。
+            // 唯一改写=舍身关键词（2026-10-16 关键词化，原舍身仪典 CombatRedirect 光环退役）——持有者
+            // 造成战斗伤害时，改为对**登场时选定的对方目标**等量**效果伤害**（非战斗路径递归：不再触发
+            // 舍身；被禁魔石清零/走易损与防护层——与旧仪典转投同口径）。
             // 改写只对活体/角色生效——无生命单位（结界）不是状态宿主，改写命中等价"伤害被无效化"，
-            // 故跳过改写走耐久管线。穿透伤害不经防护层，恒可改写。
+            // 故跳过改写走耐久管线。穿透伤害不经防护层，恒可改写。转投目标失效（死亡/离场）或恰为
+            // 原目标时不改写（战斗伤害照常结算）。持有者被「无效」压制的活性校验在 FindVictim。
             //（毒刺/冰晶关键词改写已随 2026-10-15 整体退役删除；梦魇 2026-10-13、病原体 2026-10-08 先后退役；
             //  剧毒=落定追加式消灭，见管线尾部。）
             if (isCombat && source != null && source.IsAlive
                 && !(target is Card rwCard && rwCard.IsNonLivingUnit())
-                && source is Card redirectSrc
-                && RuleAuraSystem.HolderRewriteFor(redirectSrc) == RuleAuraComponents.CombatRedirect)
+                && source is Card martyrCard
+                && martyrCard.HasKeyword(Martyrdom))
             {
-                // 转投目标=施伤生物控制者的对手角色（2026-10-07 用户定案：相对施伤方——
-                // 己方生物打对方主公、受光环的对方生物打我方主公、双方档=两侧对轰；
-                // 不随光环控制者取固定侧，否则"作用于对方"=对手自伤无敌）
-                var redirectVictim = redirectSrc.GetController()?.Opponent;
-                if (redirectVictim != null)
+                var victim = MartyrdomRules.FindVictim(martyrCard);
+                if (victim != null && !ReferenceEquals(victim, target))
                 {
                     EventManager.Instance.Publish(new KeywordAppliedEvent
                     {
-                        Target = redirectSrc,
-                        Keyword = RuleAuraComponents.CombatRedirect,
-                        Detail = $"舍身光环：{EffectText.Name(redirectSrc)} 的战斗伤害转投对手角色（原目标免受 {amount} 点）",
-                        Source = RuleAuraSystem.CarrierOf(RuleAuraComponents.CombatRedirect),
+                        Target = martyrCard,
+                        Keyword = Martyrdom,
+                        Detail = $"舍身：{EffectText.Name(martyrCard)} 的战斗伤害转投 {EffectText.Name(victim)}（原目标免受 {amount} 点）",
+                        Source = martyrCard,
                     });
-                    ApplyDamage(redirectSrc, redirectVictim, amount, isCombat: false);
+                    ApplyDamage(martyrCard, victim, amount, isCombat: false);
                     return 0;
                 }
             }
@@ -345,14 +350,13 @@ namespace CardCore.Attribute
             int oldLife = (target as Player)?.Life ?? 0; // 生命变化播报用
             if (target is Card card)
             {
-                // 无生命单位（战场结界，2026-10-02 定案）：伤害不落血——受击恒 -1 耐久
-                //（战斗/法术伤害同口径，与替代/防护层串行：完全挡住=不受击）；归零直送墓在
-                // LoseDurability 内收口（Smashed 直毁，不经死亡决策表）。
-                // 有效伤害钳 1：DamageEvent/吸血/系命/返回值同源（耐久口径=每次受击 1 点）。
+                // 无生命单位（战场结界，2026-10-02 定案）：伤害不落血——受击按伤害**全额**扣耐久
+                //（2026-10-16 撤「有效伤害钳 1」：战斗/法术伤害同口径，与替代/防护层串行：
+                // 完全挡住=不受击）；归零直送墓在 LoseDurability 内收口（Smashed 直毁，
+                // 不经死亡决策表；超扣按剩余钳 0）。DamageEvent/吸血/系命/返回值=实际伤害额同源。
                 if (card.IsNonLivingUnit())
                 {
-                    amount = 1;
-                    CounterRules.LoseDurability(CardCore.GameCore.Instance, card, 1,
+                    CounterRules.LoseDurability(CardCore.GameCore.Instance, card, amount,
                         isCombat ? "战斗伤害" : "效果伤害");
                 }
                 else
@@ -449,6 +453,31 @@ namespace CardCore.Attribute
                 }
             }
 
+            // 6.5 报复指示物（2026-10-16 新增，红1/层）：持有者**实际受到伤害**（防护层后仍有剩余
+            //     落定——圣盾/护甲/坚韧完全挡住、舍身转投改写不触发；穿透伤害照常落定照常触发；
+            //     与潜行受伤失效同口径）时，对伤害来源造成等于层数的伤害（非战斗伤害、来源=持有者
+            //     ——可被来源侧守护/圣盾/护甲/坚韧正常拦截），生效后层数减半（floor）。
+            //     **先减半再反击**：双方互带报复时层数几何衰减，天然封死无限互弹；自伤（来源=自身）
+            //     不触发——报复对象须为外部伤害来源；毒素等 null 来源无从反噬（同吸血/系命门）。
+            //     持有者被本次伤害打死仍触发（伤害已落定为唯一门——濒死反咬一口）。
+            if (source != null && source.IsAlive && !ReferenceEquals(source, target))
+            {
+                int retaliation = target.GetCounterCount(CounterRules.RetaliationCounter);
+                if (retaliation > 0)
+                {
+                    int retaliateHalved = retaliation / 2;
+                    target.AddCounters(CounterRules.RetaliationCounter, -(retaliation - retaliateHalved));
+                    EventManager.Instance.Publish(new KeywordAppliedEvent
+                    {
+                        Target = target,
+                        Keyword = CounterRules.RetaliationCounter,
+                        Detail = $"报复反噬：{EffectText.Name(target)} 对 {EffectText.Name(source)} 造成 {retaliation} 点伤害（生效减半，余 {retaliateHalved} 层）",
+                        Source = target
+                    });
+                    ApplyDamage(target, source, retaliation, isCombat: false);
+                }
+            }
+
             // 7. 剧毒（2026-10-08 指示物转关键词·落定追加式）：受到其战斗伤害的**生物**被消灭——
             //    伤害照常结算（圣盾/护甲/坚韧正常吸收，实际落定 amount>0 才触发；改写式 return 0
             //    早已出管线）；对角色照常落血不消灭（Deathtouch 口径）；无生命单位走耐久不是生物。
@@ -465,8 +494,8 @@ namespace CardCore.Attribute
         }
 
         // 改写施加共用口（ApplyRewriteCounter）与战斗改写审计文案（CombatRewriteDetail）已删
-        //（2026-10-15 毒刺/冰晶整体退役——仅有的两个 case 随关键词清除；改写链仅余舍身仪典，
-        //  其转投逻辑内联在 ApplyDamage 改写块）。
+        //（2026-10-15 毒刺/冰晶整体退役——仅有的两个 case 随关键词清除；改写链仅余舍身
+        //（2026-10-16 关键词化），其转投逻辑内联在 ApplyDamage 改写块）。
 
         /// <summary>
         /// 防护层（非穿透伤害）：圣盾指示物（每层挡一次任意伤害，消耗 1 层）→ 护甲指示物（逐点吸收）→

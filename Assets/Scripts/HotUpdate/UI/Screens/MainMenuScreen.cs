@@ -36,6 +36,10 @@ namespace SynergyUI
             BindButton("btn-card", () => Manager.Show<CardComposerScreen>());
             BindButton("btn-effect", () => Manager.Show<EffectComposerScreen>());
 
+            // 测试开局（2026-10-16）：教学预设场面管线解耦的通用测试入口（当前预设=地牌充满，
+            // 见 TestStartFlow）；入口只写 BattleEntry，跳转同 EnterTutorialFlow 口径
+            BindButton("btn-teststart", () => { TestStartFlow.EnterFullLandsTest(); SwallowToBattle(); });
+
             _teachingNode = Find("btn-teaching");
             _matchNode = Find("btn-match");
         }

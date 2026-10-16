@@ -33,27 +33,32 @@ namespace CardCore.AI.NeuralEnv
     public sealed class TideObservation
     {
         // ---- 维度常量（Python 侧只改这些，模型不动）----
-        public const int LayoutVersion = 3;
+        public const int LayoutVersion = 4;
         public const int MaxCardsPerPlayer = 46;
         public const int MaxCardsTotal = MaxCardsPerPlayer * 2;
-        // 卡特征布局（内容身份三通路，[15..] 由 CardIdentityService 推导）：
+        // 卡特征布局（内容身份三通路，[15..] 由 CardIdentityService 推导；槽位下标全部由
+        // AtomIdSlots 派生——扩容只改 AtomIdSlots 一处，python N_CARD_FEATURES 同步）：
         //   [0..13]  状态特征（valid/controller/超类/力量/生命/费用/横置/关键词/指示物…实时值）
         //   [14]     LandTrait（v3 复用神佑死维：TapCreature 资格与威胁预测）
-        //   [15..20] 原子精确内容哈希下标（跨效果按执行序展平，超出 6 个截断；参数敏感）
-        //   [21]     组合结构哈希下标（时点/条件/代价/Steps 骨架 =「怎么组合」）
-        //   [22]     关键词/tag/光环组合哈希下标
-        //   [23..28] 原子 EffectType 下标（原子表内排名，参数无关）
-        //   [29..64] 原子参数浮点块（6 槽 × CardIdentityService.AtomParamDim 维）
-        //   [65]     AwakenCommitted（苏醒已立约——CommitAwaken 决策相关）
-        //   [66][67] 格坐标 x/Width、z/Height（未落格 = -1）
+        //   [15..26] 原子精确内容哈希下标（跨效果按执行序展平，超出 12 个截断；参数敏感。
+        //            容量依据 2026-10-16：正式卡满配 9 = 代价1 + 主动/自动组合各按2 + 关键词3，留3槽余量）
+        //   [27]     组合结构哈希下标（时点/条件/代价/Steps 骨架 =「怎么组合」）
+        //   [28]     关键词/tag/光环组合哈希下标
+        //   [29..40] 原子 EffectType 下标（原子表内排名，参数无关）
+        //   [41..112] 原子参数浮点块（12 槽 × CardIdentityService.AtomParamDim 维）
+        //   [113]    AwakenCommitted（苏醒已立约——CommitAwaken 决策相关）
+        //   [114][115] 格坐标 x/Width、z/Height（未落格 = -1）
         // 精确哈希 = 冻结的查表身份；类型 + 参数 = 泛化通路。0 = 无该成分 / token / 未登记。
-        public const int NCard = 68; // v3：65 + LandTrait 复用 + Awaken + 位置 2 维；python N_CARD_FEATURES 同步
-        public const int AtomIdSlots = 6;                                        // [15..20] 精确哈希槽
-        public const int TypeIdStart = 23;                                       // [23..28] 类型下标槽
-        public const int ParamStart = 29;                                        // [29..] 参数块
-        public const int AwakenSlot = 65;
-        public const int PosXSlot = 66;
-        public const int PosZSlot = 67;
+        public const int HashIdStart = 15;
+        public const int AtomIdSlots = 12; // 2026-10-16 6→12（正式卡满配9+余量3）
+        public const int StructureSlot = HashIdStart + AtomIdSlots;            // [27] 组合结构哈希
+        public const int CompositionSlot = StructureSlot + 1;                  // [28] 关键词/tag/光环组合哈希
+        public const int TypeIdStart = CompositionSlot + 1;                    // [29..40] 类型下标槽
+        public const int ParamStart = TypeIdStart + AtomIdSlots;               // [41..] 参数块
+        public const int AwakenSlot = ParamStart + AtomIdSlots * CardIdentityService.AtomParamDim; // [113]
+        public const int PosXSlot = AwakenSlot + 1;
+        public const int PosZSlot = AwakenSlot + 2;
+        public const int NCard = PosZSlot + 1; // v4：68→116（原子槽 6→12）；python N_CARD_FEATURES 同步
         // globals v3（50 维，契约 §5——重排序+归一化+放逐计数+弹药维；v2 g[48] 冗余删除）：
         //   g[0..16] 双方生命/30、回合/40、相位、座次、各区计数（墓地/30、牌库/60、放逐新）；
         //   g[17..28] 临时钱包 12 维；g[29] 栈占用；g[30..31] 势能 Φ/30；g[32..33] 地牌上限/14；
@@ -245,15 +250,15 @@ namespace CardCore.AI.NeuralEnv
             Cards[b + 13] = (c.GetCounterCount(CounterRules.StealthCounter) > 0 || c.HasKeyword(KeywordRules.Concealed)) ? 1f : 0f; // 潜行
             Cards[b + 14] = c.HasKeyword(KeywordRules.LandTrait) ? 1f : 0f; // 地牌特性（v3：TapCreature 资格）
             // 内容身份（原子级拆散，CardIdentityService 与费用同管线推导），三通路：
-            // 1) 精确哈希 [15..20] 原子 + [21] 结构 + [22] 组合——内容寻址查表，同单元跨卡共享行；
-            // 2) 类型下标 [23..28]（参数无关，同 EffectType 共享行）；
-            // 3) 参数块 [29..]（每原子 AtomParamDim 维浮点，线性投影读幅值）。
+            // 1) 精确哈希 [15..26] 原子 + [27] 结构 + [28] 组合——内容寻址查表，同单元跨卡共享行；
+            // 2) 类型下标 [29..40]（参数无关，同 EffectType 共享行）；
+            // 3) 参数块 [41..]（每原子 AtomParamDim 维浮点，线性投影读幅值）。
             var data = c is CardWrapper wrapper ? wrapper.GetData() : null;
             var atomHashes = data?.AtomContentHashes;
             for (int e = 0; e < AtomIdSlots && e < (atomHashes?.Length ?? 0); e++)
-                Cards[b + 15 + e] = TideCardIndex.IndexOf(atomHashes[e]);
-            Cards[b + 21] = TideCardIndex.IndexOf(data != null ? data.StructureContentHash : 0UL);
-            Cards[b + 22] = TideCardIndex.IndexOf(data != null ? data.CompositionContentHash : 0UL);
+                Cards[b + HashIdStart + e] = TideCardIndex.IndexOf(atomHashes[e]);
+            Cards[b + StructureSlot] = TideCardIndex.IndexOf(data != null ? data.StructureContentHash : 0UL);
+            Cards[b + CompositionSlot] = TideCardIndex.IndexOf(data != null ? data.CompositionContentHash : 0UL);
             var typeIdx = data?.AtomTypeIndexes;
             for (int e = 0; e < AtomIdSlots && e < (typeIdx?.Length ?? 0); e++)
                 Cards[b + TypeIdStart + e] = typeIdx[e];

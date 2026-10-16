@@ -204,7 +204,7 @@ namespace CardCore.AI
         /// <summary>实体最大生命（GetMaxLife——含光环加成）。</summary>
         protected static int MaxLifeOf(Entity e) => e != null ? e.GetMaxLife() : 0;
 
-        /// <summary>卡的第一个非激活式效果原子里是否含指定类型（主序列含抉择全模式）。</summary>
+        /// <summary>卡的第一个非主动效果原子里是否含指定类型（主序列含抉择全模式）。</summary>
         protected static bool CardHasAtom(GameCore core, Card card, params AtomicEffectType[] types)
         {
             if (!(card is CardWrapper wrapper)) return false;

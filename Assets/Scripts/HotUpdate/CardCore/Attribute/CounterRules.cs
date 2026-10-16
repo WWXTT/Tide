@@ -145,7 +145,7 @@ namespace CardCore.Attribute
         /// <summary>沉默：持有者不可发动主动效果（换区清）</summary>
         public const string SilenceCounter = "Silence";
         /// <summary>
-        /// 无效（2026-09-09 定案，蓝3）：目标的**非启动式**能力无法发动——拦全部触发式（含登场 OnPlay）
+        /// 无效（2026-09-09 定案，蓝3）：目标的**非主动**能力无法发动——拦全部触发式（含登场 OnPlay）
         /// + 拦光环静态能力（连接箭头来源被无效压制，是唯一能压光环的口）；
         /// 坚韧/圣盾等伤害管线被动与再生等回合维护不是「能力发动」，不拦。换区清除。
         /// </summary>
@@ -163,6 +163,15 @@ namespace CardCore.Attribute
         /// 施加口=GrantToughnessHandler；拦减+减半口=KeywordRules.ApplyPreventionLayers 第 3 层。
         /// </summary>
         public const string ToughnessCounter = "Toughness";
+        /// <summary>
+        /// 报复（2026-10-16 新增，红1/层，表行/GrantRetaliation）：持有者**实际受到伤害**（防护层后
+        /// 仍有剩余落定——完全挡住/舍身转投不触发；穿透伤害照常触发）时，对伤害来源造成等于层数的
+        /// 伤害（非战斗伤害，来源=持有者），生效后层数减半（向下取整）。自伤（来源=自身）不触发；
+        /// 双方互带时先减半再反击=层数几何衰减，天然封死无限互弹。
+        /// Entity 级；换区不清（生效自减档）、净化可清。施加口=GrantRetaliationHandler；
+        /// 触发口=KeywordRules.ApplyDamage 管线尾段（吸血后、剧毒前）。
+        /// </summary>
+        public const string RetaliationCounter = "Retaliation";
         /// <summary>
         /// 圣盾（2026-10-08 指示物化，表行 c8624e6a/GrantDivineShield）：每层抵挡一次任意伤害
         ///（战斗+效果，吸收的是易损放大后的量）并消耗 1 层；可叠加（每层一份）。
@@ -303,6 +312,9 @@ namespace CardCore.Attribute
             // 坚韧（2026-10-09 生效自减改版，自 Resident 迁入）：受伤每层 −1——实际拦到伤害即生效，
             // 生效后层数减半（floor）；拦减口=KeywordRules.ApplyPreventionLayers 第 3 层；换区不清、净化可清
             Register(new CounterSpec { Id = ToughnessCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "坚韧" });
+            // 报复（2026-10-16 新增，红1/层）：受伤反噬——实际受到伤害时对来源造成=层数的伤害，
+            // 先减半再反击（互带几何衰减防互弹）；触发口=KeywordRules.ApplyDamage 管线尾段
+            Register(new CounterSpec { Id = RetaliationCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "报复" });
             // 毒素：层=伤害基数——持有者每回合末受到=层数的伤害，随后层数减半（floor）。
             // 例程在 OnTurnEnd ①（ProcessToxinException）；换区不清、净化可清
             Register(new CounterSpec { Id = ToxinCounter, Polarity = CounterPolarity.Negative, Class = CounterClass.Exception, LayerRole = CounterLayerRole.Strength, TickPolicy = CounterTickPolicy.External, DisplayName = "毒素" });

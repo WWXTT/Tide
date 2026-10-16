@@ -17,7 +17,7 @@ namespace CardCore
     ///   回合开始 ResetSkillForTurn 解横置；接替旧耐久池−1/归零休眠/+1回充，耐久层整体退役）；
     ///   费用=现付所选效果锚价（执行器结算路径），卡费(出牌费)不付；
     /// - **抉择**：挂 >1 效果时发动同样弹窗三选一（UI 侧 ShowChoiceOverlay；effectIndex 参数传递）；
-    /// - **发动**：走通用启动式路径（GameActions.ActivateEffect）：声明→入栈→可被响应/两层无效。
+    /// - **发动**：走通用主动路径（GameActions.ActivateEffect）：声明→入栈→可被响应/两层无效。
     /// 接线：GameActions.ActivateHeroSkill（声明口，签名扩展 effectIndex——AI/脚本/UI 兼容缺省 0）。
     /// </summary>
     public static class HeroSkillSystem

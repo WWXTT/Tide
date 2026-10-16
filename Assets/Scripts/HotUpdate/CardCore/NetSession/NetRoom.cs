@@ -252,6 +252,7 @@ namespace CardCore.Network
                 HalfFieldData.Flat(), HalfFieldData.Flat());
             _board.EnableAutoResync();
             CombatSystem.AdjacentResolver = _board.FlankNeighbors; // 碾压=左右同排生物（2026-10-04 语义修订）
+            CombatSystem.RoleAdjacentResolver = _board.FlankNeighborsOfRole; // 碾压攻角色=角色格左右邻格（2026-10-16 改版）
             GameBoard.LinkAuraSystem.Attach(_board);
 
             // 反问桥：SendAsync = 按 ChooserSeat 定向出队（返回已完成任务——实际字节由泵的出队段写）
@@ -313,6 +314,7 @@ namespace CardCore.Network
             _selector = null;
             EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
             CombatSystem.AdjacentResolver = null;
+            CombatSystem.RoleAdjacentResolver = null;
             GameBoard.LinkAuraSystem.Detach();
             _board?.Dispose();
             _board = null;

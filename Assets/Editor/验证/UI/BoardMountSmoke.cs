@@ -14,7 +14,7 @@ namespace Tide.验证
     /// <summary>
     /// 棋盘装台冒烟（2026-10-14 晚 8×7 缩盘：BattleHex 单枚 mesh 运行时拼装，中线状态行 7 格+x7 缺口）：
     /// 主菜单 → 本地对战（吞屏过渡）→ 等棋盘实例 + 浮起拼装落位（Running 门禁）→ 断言：
-        /// ① BattleBoardRoot 实例 + 拼装规格（50 tile + 5 hud 地块=8×7 盘 56 格位实拼 55；逐 tile mesh=BattleHex 六棱柱 38 顶点/72 索引+材质非空）；
+        /// ① BattleBoardRoot 实例 + 拼装规格（48 tile + 7 hud 地块=8×7 盘 56 格位实拼 55；逐 tile mesh=BattleHex 六棱柱 38 顶点/72 索引+材质非空）；
     /// ② 分区对拍（BoardLayout 独立复算核心带 zone 直方图 + 逐 tile 材质色与 DefaultColor 对拍）；
     /// ③ 逐 tile 世界坐标与格心公式独立复算对拍（51 tile）；
     /// ④ BattleFieldView 英雄柱落位（双方角色格世界坐标——缩盘后角色格入盘，柱落盘内格位）；
@@ -58,8 +58,9 @@ namespace Tide.验证
                 if (BattleBoardAssemble.Running) { Fail("浮起拼装超时未落位（Running 恒真）"); return; }
 
                 var root = BattleBoardGrid.Root;
-                // 2. 拼装规格：8×7=56 格位实拼 55（50 tile-{x}-{z} + 5 个 hud-tile-* 状态行认领格，2026-10-14 晚；
-                // 中线 x7 槽=缺口无 tile——本批结束回合迁 x6 + x0 改役阶段显示格）；逐 tile 名可解析（tile-{x}-{z}）、
+                // 2. 拼装规格：8×7=56 格位实拼 55（48 tile-{x}-{z} + 7 个 hud-tile-* 状态行认领格；
+                // 2026-10-16 临时产量双格认领 lx2/lx4 后中线 7 格全认领——hud 5→7/tile 50→48；
+                // 中线 x7 槽=缺口无 tile）；逐 tile 名可解析（tile-{x}-{z}）、
                 // mesh=BattleHex（六棱柱 38 顶点/72 索引）、材质非空
                 var tiles = new List<(int x, int z, Transform t)>();
                 int meshBad = 0, matBad = 0, hudTiles = 0;
@@ -76,8 +77,8 @@ namespace Tide.验证
                     else meshBad++;
                     if (r == null || r.sharedMaterial == null) matBad++;
                 }
-                bool shapeOk = tiles.Count == 50 && hudTiles == 5 && meshBad == 0 && matBad == 0;
-                sb.AppendLine($"  step2 拼装：tile={tiles.Count}(期望50)+hud={hudTiles}(期望5) mesh异常={meshBad} 缺材质={matBad} → {(shapeOk ? "一致" : "不符!")}");
+                bool shapeOk = tiles.Count == 48 && hudTiles == 7 && meshBad == 0 && matBad == 0;
+                sb.AppendLine($"  step2 拼装：tile={tiles.Count}(期望48)+hud={hudTiles}(期望7) mesh异常={meshBad} 缺材质={matBad} → {(shapeOk ? "一致" : "不符!")}");
                 if (!shapeOk) { Fail("拼装规格与 8×7 盘（55 格位）不符（mesh=BattleHex 六棱柱口径）"); return; }
 
                 // 3. 分区对拍：全盘 zone 直方图（BoardLayout 独立复算）+ 逐 tile 材质色与 DefaultColor 对拍

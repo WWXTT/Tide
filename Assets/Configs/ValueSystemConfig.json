@@ -146,8 +146,8 @@
   {
     "Category": "CardCost",
     "Key": "DurabilityUnitCost",
-    "Value": 1.0,
-    "Des": "耐久单价 1 灰/点（2026-10-10 提价定案——耐久即次数池：受伤/被动触发/主动发动三重消耗同池同价；0.5 灰/点 2026-10-05 口径退役）"
+    "Value": 0.5,
+    "Des": "耐久单价 0.5 灰/点（2026-10-16 回调——受击伤害撤钳 1 改全额扣耐久，燃料按伤害计量重估；2026-10-10 的 1 灰/点口径退役）"
   },
   {
     "Category": "CardComposition",
@@ -208,6 +208,12 @@
     "Key": "TriggerLimitInfinite",
     "Value": 4.0,
     "Des": "作用次数无上限（-1；N>3视同此档）：×4"
+  },
+  {
+    "Category": "PricingTier",
+    "Key": "TimingOnceFactor",
+    "Value": 0.8,
+    "Des": "一发时机减免（2026-10-16 时机轴接入计价）：登场/死亡/游戏开始/角色死亡/破坏/除外/离场/墓地回场等整个生命期望=1的触发时机 ×0.8；抽牌/伤害/攻防宣言/回合开始结束/事件观察族等期望>1的时机不变；引擎载荷与非触发式不乘（CostDerivation.TimingCostFactor 消费）"
   },
   {
     "Category": "GameRules",

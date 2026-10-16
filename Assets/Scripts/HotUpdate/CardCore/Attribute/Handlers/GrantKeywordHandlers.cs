@@ -48,6 +48,10 @@ namespace CardCore.Attribute.Handlers
                 //（印刷入场走 GuardianRules.OnEnterBattlefield 入场事件，不经此口——无双选）。
                 if (_keywordId == KeywordRules.Guardian && target is Card grantedCard)
                     GuardianRules.OnGrantedInPlay(grantedCard);
+                // 舍身授予即选（2026-10-16 定案，镜像守护）：落到已在场的卡立即弹选转投目标
+                //（印刷入场走 MartyrdomRules.OnEnterBattlefield 入场事件，不经此口——无双选）。
+                if (_keywordId == KeywordRules.Martyrdom && target is Card martyrCard)
+                    MartyrdomRules.OnGrantedInPlay(martyrCard);
                 PublishEvent(new KeywordEvent
                 {
                     Target = target,
@@ -111,6 +115,10 @@ namespace CardCore.Attribute.Handlers
             // 守护（2026-10-08 配对制改版，退出连接光环族——表行位 8 拉黑）：登场/授予时弹选一个
             // 己方目标（单位或角色），其受伤改写为守护者承受（GuardianRules 配对表；无限次直到守护者离场）
             (AtomicEffectType.GrantGuardian, "Guardian", "获得守护"),
+            // 舍身（2026-10-16 关键词化——原舍身仪典规则光环退役，退出连接光环族同守护）：登场/授予时
+            // 弹选一个**对方**目标（单位或角色），自己造成的战斗伤害改写为对目标的效果伤害
+            //（MartyrdomRules 配对表；无限次直到持有者离场；与守护的己方域对偶）
+            (AtomicEffectType.GrantMartyrdom, "Martyrdom", "获得舍身"),
             // 圣盾已移出关键词族（2026-10-08 指示物化）：GrantDivineShield 原子改由 GrantDivineShieldHandler
             // 执行（挂 DivineShieldCounter 层）——refId 已重推 feab5d3b→c8624e6a（2026-10-08 全量 ID 重推）
             (AtomicEffectType.GrantTaunt, "Taunt", "获得帷幕"),

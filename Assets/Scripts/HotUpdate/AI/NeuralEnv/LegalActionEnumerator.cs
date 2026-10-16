@@ -16,14 +16,14 @@ namespace CardCore.AI.NeuralEnv
     {
         PlayCard = 0,            // 手牌打出（含抉择模式 + 指向目标展开）
         PlayLand = 1,            // 手牌放入元素池（当地产元素）
-        Activate = 3,            // 效果发动：战场卡的激活式（Activate_*）能力（含目标展开）
+        Activate = 3,            // 效果发动：战场卡的主动（Activate_*）能力（含目标展开）
         Attack = 4,              // 攻击宣言（attacker → 对方随从 / 对方玩家）
         EndTurn = 5,             // 结束回合
         HeroSkill = 6,           // 己方回合主阶段发动英雄技能（2026-10-07 卡牌化：技能=结界卡，Card 承载）
         VoluntaryTrigger = 7,    // 发动自愿桶待发效果（触发式可选项；响应窗口内同类型复用）
         PassPriority = 8,        // 响应窗口让过/放弃（仅响应窗口出现，Main 阶段不出现）
         RespondPlay = 9,         // 响应出牌（带目标展开；速度门/费用/优先权全检）
-        RespondActivate = 10,    // 响应发动（激活式；镜像 NetworkIntentApplier.ActivateWithTargets）
+        RespondActivate = 10,    // 响应发动（主动；镜像 NetworkIntentApplier.ActivateWithTargets）
         Guard = 11,              // 守卫宣言（拦截栈上的攻击宣言对象）
         TapCreature = 12,        // 横置带地牌特性(LandTrait)的生物产 1 元素进临时钱包（主阶段；产色自动=费用首色）
         CommitAwaken = 13,       // 苏醒立约（主阶段；手牌+灰时长自我沉睡+未立约+未锁定——灰份额免付转沉睡层数）
@@ -98,7 +98,7 @@ namespace CardCore.AI.NeuralEnv
     ///  - <see cref="Enumerate"/>：己方回合主阶段（回合玩家）——PlayLand/PlayCard/Activate/Attack/
     ///    HeroSkill/VoluntaryTrigger + EndTurn 恒末位；
     ///  - <see cref="EnumerateResponses"/>：响应窗口（优先权持有者，栈非空）——GameActions.CollectAvailableResponses
-    ///    映射（守卫/自愿桶/激活式）+ 手牌响应卡（RespondPlay，速度门全检）+ PassPriority 恒末位。
+    ///    映射（守卫/自愿桶/主动）+ 手牌响应卡（RespondPlay，速度门全检）+ PassPriority 恒末位。
     ///
     /// 指向性目标逐目标展开（镜像 SimpleAI.ChooseTargets 的 ResolveCandidates 口径）：
     ///  - Single/SingleUnion：逐候选一行；Multiple/MultipleUnion（TargetCount&gt;0）：按引擎候选序组合枚举，
@@ -338,7 +338,7 @@ namespace CardCore.AI.NeuralEnv
         // ===================================================== Apply 辅助 =====================================================
 
         /// <summary>
-        /// 带目标的启动式激活（镜像 NetworkIntentApplier.ActivateWithTargets）：targets 空 → 公共入口
+        /// 带目标的主动激活（镜像 NetworkIntentApplier.ActivateWithTargets）：targets 空 → 公共入口
         /// ActivateEffect；有预选目标 → PendingEffect.Create 携带 SelectedTargets 走 PlayerActivateVoluntary
         /// （速度门/记速器在栈机器内；横置消耗同口径）。
         /// </summary>
@@ -435,8 +435,8 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
-        /// <summary>激活式动作行（带逐目标展开）：Main=Activate / 响应窗口=RespondActivate 共用。
-        /// 展开口径：def 自身 SelectionMode/组合域（激活式无抉择模式，modeIndex 恒 0）。</summary>
+        /// <summary>主动动作行（带逐目标展开）：Main=Activate / 响应窗口=RespondActivate 共用。
+        /// 展开口径：def 自身 SelectionMode/组合域（主动无抉择模式，modeIndex 恒 0）。</summary>
         private void AddActivatedRows(GameCore core, Player me, Card src, EffectDefinition def,
             TideActionType type, int sourceSlot = -2)
         {
@@ -561,7 +561,7 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>自愿桶待发效果行（v2）：栈机器待发队列中可发动的自愿效果（触发式可选项——
-        /// 「响应期自愿触发」决策点）。激活式不在此（走 EnumerateActivate 的卡面扫描口径）。
+        /// 「响应期自愿触发」决策点）。主动不在此（走 EnumerateActivate 的卡面扫描口径）。
         /// Apply → StackEngine.PlayerActivateVoluntary（速度门在栈机器内）。</summary>
         private void EnumerateVoluntaryTriggers(GameCore core, Player me)
         {
@@ -846,7 +846,7 @@ namespace CardCore.AI.NeuralEnv
                 case TideActionType.Activate:
                 case TideActionType.RespondActivate:
                 case TideActionType.VoluntaryTrigger:
-                    return CostDerivationService.DeriveElementCosts(a.Effect, 0).Total; // 效果费现推（启动式/自愿桶发动时现付——L1 现推口径）
+                    return CostDerivationService.DeriveElementCosts(a.Effect, 0).Total; // 效果费现推（主动/自愿桶发动时现付——L1 现推口径）
                 case TideActionType.HeroSkill:
                     // 技能=技能区法术（2026-10-15 改版）：现付所选效果锚价（ModeIndex=效果序号）；
                     // 行上已带 Effect（逐效果枚举），兜底再按序号取
@@ -870,7 +870,7 @@ namespace CardCore.AI.NeuralEnv
         {
             if (!(c is CardWrapper w)) return 1;
             var data = w.GetData();
-            // 法术（2026-10-15 改版）：modeIndex=施放时效果抉择（1~3 条启动式）——模式数=效果数
+            // 法术（2026-10-15 改版）：modeIndex=施放时效果抉择（1~3 条主动）——模式数=效果数
             if (data?.Supertype == Cardtype.Spell)
                 return Math.Max(1, data.Effects?.Count ?? 1);
             return Math.Max(1, CostDerivationService.GetModeCount(data));
@@ -891,9 +891,9 @@ namespace CardCore.AI.NeuralEnv
 
         // ---- 目标展开的 SimpleAI 镜像（ChooseTargets/FirstDomainEffect/DomainOfMode/BuildTargetCtx 同源） ----
 
-        /// <summary>第一个带组合域的非激活式效果定义（施放即结算才会随出牌自动跑）；
+        /// <summary>第一个带组合域的非主动效果定义（施放即结算才会随出牌自动跑）；
         /// None 模式（区域自结算类）跳过——不为其选目标。
-        /// 法术（2026-10-15 改版）：效果全为启动式、施放时抉择其一——modeIndex=效果序号，
+        /// 法术（2026-10-15 改版）：效果全为主动、施放时抉择其一——modeIndex=效果序号，
         /// 目标展开按所选那条（其余效果本局不发动）。</summary>
         private static EffectDefinition FirstDomainEffect(Card card, int modeIndex)
         {

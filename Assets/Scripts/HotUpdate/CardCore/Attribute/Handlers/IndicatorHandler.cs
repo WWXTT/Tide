@@ -237,6 +237,39 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
+    /// 报复原子（2026-10-16 新增，红1/层，生效自减档）：对目标附加 {value} 层报复指示物
+    ///（CounterRules.RetaliationCounter）——持有者实际受到伤害时对伤害来源造成等于层数的伤害，
+    /// 生效后层数减半（floor，1 层生效一次即清零）；可叠加。Entity 级；换区不清、净化可清。
+    /// 触发口=KeywordRules.ApplyDamage 管线尾段（吸血后、剧毒前——先减半再反击，互带几何衰减防互弹）。
+    /// </summary>
+    public class GrantRetaliationHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.GrantRetaliation;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            int stacks = context.GetValueAfterModifiers(effect.Value);
+            if (stacks <= 0) stacks = 1;
+
+            foreach (var target in context.Targets)
+            {
+                if (target == null || !target.IsAlive) continue;
+                target.AddCounters(CounterRules.RetaliationCounter, stacks, context.Source);
+                PublishEvent(new CounterChangedEvent
+                {
+                    Target = target,
+                    CounterType = CounterRules.RetaliationCounter,
+                    Amount = stacks,
+                    Source = context.Source,
+                });
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => $"附加{effect.Value}层报复指示物（受到伤害时对伤害来源造成等于层数的伤害，生效后层数减半）";
+    }
+
+    /// <summary>
     /// 锁定原子（2026-10-04 窥渊仪典原子化定案，蓝2）：为一张手牌挂「锁定」指示物×{value}回合——
     /// 层数=剩余回合，持有者回合结束 −1（手牌区与场上同样倒数），归零解锁；
     /// 持有期间无法进入发动区和地牌区（打出/响应出牌/苏醒立约/放地入池同门——
@@ -601,10 +634,10 @@ namespace CardCore.Attribute.Handlers
     }
 
     /// <summary>
-    /// 无效指示物（2026-09-09 定案，蓝3）：目标的非启动式能力无法发动——
+    /// 无效指示物（2026-09-09 定案，蓝3）：目标的非主动能力无法发动——
     /// 拦全部触发式（含登场 OnPlay，挂 TriggerEngine.FindMatchingEffects）+ 拦光环静态能力
     /// （连接箭头来源被无效压制，LinkAuraSystem 查询时跳过——唯一能压光环的指示物；
-    /// 净化/沉默不压箭头：箭头是卡面数据）。与沉默对称：沉默拦启动式、无效拦非启动式。
+    /// 净化/沉默不压箭头：箭头是卡面数据）。与沉默对称：沉默拦主动、无效拦非主动。
     /// </summary>
     public class AddNullifyHandler : AtomicEffectHandlerBase
     {
@@ -629,13 +662,13 @@ namespace CardCore.Attribute.Handlers
                 {
                     Target = target,
                     Keyword = "无效",
-                    Detail = "无效：持有者的非启动式能力（触发式/光环）无法发动",
+                    Detail = "无效：持有者的非主动能力（触发式/光环）无法发动",
                     Source = context.Source
                 });
             }
         }
 
-        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加无效指示物（非启动式能力无法发动）";
+        protected override string DescribeTemplate(AtomicEffectInstance effect) => "附加无效指示物（非主动能力无法发动）";
     }
 
     /// <summary>

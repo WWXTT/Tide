@@ -45,9 +45,11 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 计价档位系数（表 Category=PricingTier，2026-10-05 用户定案）——目标数量/作用次数/发动速度的增量系数统一：
-    /// 数量 1:1 / 2:1.5 / 3:2 / 全部:3；次数 1:1 / 2:1.5 / 3:2 / 无上限:4；速度 0:1 / 1:1.5 / 2:2（2026-10-09 入价）。
-    /// 消费方 CostDerivation（QuantityFactor / TriggerCostFactor / SpeedCostFactor）；原 整数×N/期望4/1.2 连乘 口径退役。
+    /// 计价档位系数（表 Category=PricingTier，2026-10-05 用户定案）——目标数量/作用次数/发动速度/发动时机的增量系数统一：
+    /// 数量 1:1 / 2:1.5 / 3:2 / 全部:3；次数 1:1 / 2:1.5 / 3:2 / 无上限:4；速度 0:1 / 1:1.5 / 2:2（2026-10-09 入价）；
+    /// 一发时机 0.8（2026-10-16 时机轴接入计价：登场/死亡等整个生命期望=1 的触发时机减免）。
+    /// 消费方 CostDerivation（QuantityFactor / TriggerCostFactor / TimingCostFactor / SpeedCostFactor）；
+    /// 原 整数×N/期望4/1.2 连乘 口径退役。
     /// </summary>
     [Serializable]
     public class PricingTierConfig
@@ -63,6 +65,8 @@ namespace CardCore
         public float SpeedTier0 = 1.0f;          // 发动速度 0 普通档：基准（2026-10-09 速度入价定案）
         public float SpeedTier1 = 1.5f;          // 发动速度 1 瞬间档（可当响应打出）
         public float SpeedTier2 = 2.0f;          // 发动速度 2 高速档（可响应 1 速）
+        public float TimingOnceFactor = 0.8f;    // 一发时机减免：整个生命期望=1 的触发时机（登场/死亡/游戏开始/
+                                                // 角色死亡/破坏/除外/离场/墓地回场）×0.8（2026-10-16 入价定案）
 
         /// <summary>目标数量→计价系数。越界口径：N&gt;3 视同全部；-1（任意·运行时自选）同全部；-2/其他未声明=单目标基准。</summary>
         public float TargetCountFactor(int count)
@@ -108,6 +112,8 @@ namespace CardCore
     // 注：TimingModifier / CostValue / EffectValue / TriggerValue / CardTypeValue 五类配置
     // 已于 2026-10-05 删除——全仓无消费方（时机轴未接入计价、EffectValue 委托原子表后无人调用、
     // CardTypeValue 对应的卡型价值未使用）；ValueSystemConfig.json 同批清理 33 行死行。
+    // 2026-10-16 修订：时机轴已接入计价——但走 PricingTierConfig.TimingOnceFactor 单值（一发时机 ×0.8，
+    // 消费方 CostDerivation.TimingCostFactor），未复活按时机逐项配系数的 TimingModifier 旧结构。
 
     /// <summary>
     /// 开局/全局规则数值（表 Category=GameRules，2026-10-13 迁表定案：逻辑不动、数值出代码——
@@ -186,9 +192,9 @@ namespace CardCore
         public float StatRewriteFlatCost = 3f;
         /// <summary>双方同时作用减半系数（双侧全取/规则光环 ×0.5；2026-10-05 迁表）。</summary>
         public float SymmetricDiscountFactor = 0.5f;
-        /// <summary>耐久单价：1 灰/点（2026-10-10 提价定案——耐久即次数池：受伤/被动触发/主动发动
-        /// 三重消耗同池同价，燃料身份重估；2026-10-05 的 0.5 灰/点口径退役）。</summary>
-        public float DurabilityUnitCost = 1f;
+        /// <summary>耐久单价：0.5 灰/点（2026-10-16 回调定案——受击伤害撤钳 1 改全额扣耐久，
+        /// 燃料按伤害计量重估；2026-10-10 的 1 灰/点口径退役）。</summary>
+        public float DurabilityUnitCost = 0.5f;
     }
 
     /// <summary>

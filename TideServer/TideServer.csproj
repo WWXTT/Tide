@@ -27,6 +27,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 2026-10-16：嵌套子工程 Probe/TideProbe（独立取证件，勿并入本工程）——SDK 默认 **/*.cs
+         会捞到 Probe/obj 生成的 AssemblyInfo → CS0579 重复特性，且 Probe/Program.Main 双入口 -->
+    <Compile Remove="Probe\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- 2026-09-30 合并：热更重排后共享源迁至 Assets/Scripts/HotUpdate/ 下，路径随之更新 -->
     <Compile Include="..\Assets\Scripts\HotUpdate\CardCore\**\*.cs" LinkBase="Shared\CardCore" />
     <Compile Include="..\Assets\Scripts\HotUpdate\AI\NeuralEnv\LegalActionEnumerator.cs" Link="Shared\AI\LegalActionEnumerator.cs" />

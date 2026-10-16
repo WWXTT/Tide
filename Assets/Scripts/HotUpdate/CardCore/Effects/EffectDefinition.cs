@@ -98,7 +98,7 @@ namespace CardCore
         /// <summary>动态数量：运行时玩家自选个数（0..候选数）；费用计 0（2026-09-21 定案：不关联地牌资格）。</summary>
         public bool DynamicTargetCount;
         /// <summary>触发式每回合触发上限（2026-09-13 定案）：&gt;0=每回合最多 N 次；-1=无限。
-        /// 未声明=1（一回合一次），组合期可改 N 或 -1。启动式不消费本字段（费用现付自限）。
+        /// 未声明=1（一回合一次），组合期可改 N 或 -1。主动不消费本字段（费用现付自限）。
         ///（恒 -1 覆写位 TriggerCapImmutable 已于 2026-10-07 删除——坚韧族光环化后零声明行。）</summary>
         public int TriggerLimitPerTurn = -1;
         // 动态分支引擎 def 级字段（EngineKind/EngineParam/RewardAtoms/CountdownTurns）已随 2026-10-05
@@ -174,7 +174,7 @@ namespace CardCore
         /// <summary>
         /// 创建待发效果
         /// 条件发动 speed=Max 绕过速度检查
-        /// 速度发动 = BaseSpeed + paidBoost（2026-09-13：无基础速度）
+        /// 速度发动 = BaseSpeed + 疾风场上加成（2026-10-16：场上源卡主动效果+1）+ paidBoost（2026-09-13：无基础速度）
         /// </summary>
         public static PendingEffect Create(
             EffectDefinition effect,
@@ -187,7 +187,8 @@ namespace CardCore
         {
             int speed = (effect.ActivationType != EffectActivationType.Voluntary)
                 ? int.MaxValue
-                : SpeedCalculator.CalculateSpeed(effect.BaseSpeed, paidBoost);
+                : SpeedCalculator.CalculateSpeed(
+                    effect.BaseSpeed + RuleAuraComponents.OnBoardActiveSpeedBonus(source), paidBoost);
 
             return new PendingEffect
             {

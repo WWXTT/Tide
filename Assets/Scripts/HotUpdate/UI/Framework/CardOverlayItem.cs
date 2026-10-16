@@ -88,9 +88,7 @@ namespace SynergyUI
             it.Supertype = d.Supertype;
             it.Illustration = d.Illustration ?? "";
             it.AttributeText = AttributeTextOf(d);
-            var payload = d.PayloadCost?.payload;
-            if (payload != null && !string.IsNullOrEmpty(payload.refId))
-                it.PayloadText = "代价：" + AtomText.RenderAtomEntry(payload);
+            it.PayloadText = PayloadTextOf(d);
 
             // keys 芯片：印刷关键词（合成期无运行态，无授予/净化合并）
             if (d.Keywords != null && d.Keywords.Count > 0)
@@ -142,9 +140,7 @@ namespace SynergyUI
                 it.Supertype = data.Supertype;
                 it.Illustration = data.Illustration ?? "";
                 it.AttributeText = AttributeTextOf(data);
-                var payload = data.PayloadCost?.payload;
-                if (payload != null && !string.IsNullOrEmpty(payload.refId))
-                    it.PayloadText = "代价：" + AtomText.RenderAtomEntry(payload);
+                it.PayloadText = PayloadTextOf(data);
             }
 
             // keys 芯片：运行态关键词优先（含授予/净化），回落印刷
@@ -276,9 +272,8 @@ namespace SynergyUI
         {
             if (data.Effects == null || data.Effects.Count == 0) return "";
             var lines = new List<string>();
-            var payload = data.PayloadCost?.payload;
-            if (payload != null && !string.IsNullOrEmpty(payload.refId))
-                lines.Add("代价：" + AtomText.RenderAtomEntry(payload));
+            var payloadLine = PayloadTextOf(data);
+            if (payloadLine != null) lines.Add(payloadLine);
             foreach (var fx in data.Effects)
             {
                 if (fx == null) continue;
@@ -287,6 +282,17 @@ namespace SynergyUI
                 if (!string.IsNullOrEmpty(text)) lines.Add(text);
             }
             return string.Join("\n", lines);
+        }
+
+        /// <summary>代价行（2026-10-16 组装效果代价）：原子序列以「＋」连接（legacy 单条折入同口）；null=无代价行。</summary>
+        private static string PayloadTextOf(CardData d)
+        {
+            var atoms = d?.PayloadCost?.AllPayloads();
+            if (atoms == null || atoms.Count == 0) return null;
+            var parts = new List<string>();
+            foreach (var a in atoms)
+                if (a != null && !string.IsNullOrEmpty(a.refId)) parts.Add(AtomText.RenderAtomEntry(a));
+            return parts.Count == 0 ? null : "代价：" + string.Join("＋", parts);
         }
     }
 }

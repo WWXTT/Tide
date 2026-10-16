@@ -59,6 +59,37 @@ namespace SynergyUI
                 case FatigueEvent f:
                     return new Line($"{Who(WhoOf(f), isSelf)}疲劳（空牌库抽牌）", "log-line--combat");
 
+                // 效果发动（2026-10-16 定案：主动/自动效果发动进日志）——StackAddEvent 精滤：
+                // 只记效果实例（生物/结界主动、触发式自动），施放（CardPlay）/攻击宣言/守卫/
+                // SBA 伪对象不在此行（各有专属行或属系统内部）。
+                case StackAddEvent s when s.AddedObject is EffectInstance ei
+                    && !ei.IsCardCast && !ei.IsAttackDeclaration && !ei.IsGuardDeclaration && !ei.IsSBA
+                    && ei.Definition != null:
+                {
+                    string src = ei.Source is Card sc ? CardName(sc) : EntityName(ei.Source, isSelf);
+                    return ei.Definition.ActivationType == EffectActivationType.Voluntary
+                        ? new Line($"{Who(ei.Controller, isSelf)}发动：{src}「{ei.Definition.DisplayName}」", "")
+                        : new Line($"{src} 触发「{ei.Definition.DisplayName}」", "");
+                }
+                case StackAddEvent _: // 施放/攻击/守卫/SBA：不重复记（空行=订阅方跳过）
+                    return new Line(null, null);
+
+                // 指示物落定（2026-10-16）：效果结算的「谁获得/失去什么」——此前增益类整段
+                // 无日志（触发行只报效果名，潜行/圣盾/护甲等落定对象全程不可见）。
+                // "*"=换区/净化全清标记（每次移卡都发，无逐类信息）显式空行跳过，
+                // 防止回落 GenericLocal 反射兜底打出原生行。
+                case CounterChangedEvent ctr:
+                {
+                    if (ctr.CounterType == "*" || ctr.Amount == 0) return new Line(null, null);
+                    string name = CounterRules.Find(ctr.CounterType).DisplayName;
+                    string who = EntityName(ctr.Target, isSelf);
+                    return ctr.Amount > 0
+                        ? new Line(CounterRules.IsNegative(ctr.CounterType)
+                            ? $"{who} 被附加 {ctr.Amount} 层{name}"
+                            : $"{who} 获得 {ctr.Amount} 层{name}", "")
+                        : new Line($"{who} 失去 {-ctr.Amount} 层{name}", "");
+                }
+
                 case GameOverEvent g:
                     return new Line($"★ {(g.Winner != null && isSelf(g.Winner) ? "我方" : "对手")}获胜（{g.Reason}）· 共 {g.TotalTurns} 回合", "log-line--system");
 

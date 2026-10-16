@@ -197,7 +197,7 @@ namespace CardCore
 
         // ===== 英雄技能（2026-10-07 卡牌化改版：技能=构筑标记的结界卡，旧三色硬编码技能退役）=====
         /// <summary>技能卡实体：开局由 InitGame 从牌库抽出放入 FieldZone（英雄技能栏），
-        /// 发动=横置本卡（一回合一次=回合开始重置），走通用启动式路径（入栈可被响应）。
+        /// 发动=横置本卡（一回合一次=回合开始重置），走通用主动路径（入栈可被响应）。
         /// 资格/抽取/落位见 HeroSkillSystem（CanBeSkillCard/ExtractSkillCard/AssignSkill）。
         /// 运行时引用，每局 InitGame 重建；快照恢复后由 ResolveSkillCard 惰性回填。</summary>
         public Card HeroSkillCard;

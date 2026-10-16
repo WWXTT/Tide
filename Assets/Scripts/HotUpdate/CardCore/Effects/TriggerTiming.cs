@@ -10,7 +10,7 @@ namespace CardCore
     /// 双泳道定案：
     /// - 泳道A（不在场的卡·整卡使用）：手牌/隐蔽区 → 发动区三关（①双方可见宣言→②反制窗口→③未被反制结算代价）
     ///   → 栈(card cast，速度=记速器+1) → 结算 → 战场 → 登场时点(OnPlay)。
-    /// - 泳道B（已在场的卡·效果发动）：不进发动区、不发使用宣言——激活式(Activate_*)走速度系统轮询，
+    /// - 泳道B（已在场的卡·效果发动）：不进发动区、不发使用宣言——主动(Activate_*)走速度系统轮询，
     ///   触发式(On_Xxx)走事件匹配；场上效果发动的可观察时点 = 原子三阶段事件。
     /// </summary>
     public enum TriggerTiming
@@ -52,8 +52,8 @@ namespace CardCore
         /// <summary>从墓地回到战场时（进场事件的 Revived 来源）</summary>
         OnReturnFromGraveyard = 18,
 
-        // === 效果类型（非触发时机：激活式走速度系统轮询，不参与事件匹配）===
-        /// <summary>激活式效果（主要阶段发动）</summary>
+        // === 效果类型（非触发时机：主动走速度系统轮询，不参与事件匹配）===
+        /// <summary>主动效果（主要阶段发动）</summary>
         Activate_Active = 19,
         /// <summary>瞬间发动</summary>
         Activate_Instant = 20,

@@ -304,7 +304,7 @@ namespace CardCore
         AllAbilities,
 
         /// <summary>
-        /// 仅启动式能力
+        /// 仅主动能力
         /// </summary>
         ActivatedAbilities,
 

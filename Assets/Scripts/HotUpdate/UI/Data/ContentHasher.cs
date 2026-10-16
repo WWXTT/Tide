@@ -80,11 +80,16 @@ namespace SynergyUI
 
             // 代价栏（2026-10-04 持久化配套）：卡层 Payload 是功能字段——原子引用+逆转域参与卡身份；
             // 空代价不写段（存量卡 id 零漂移）。费用 costList 不入哈希的定案不涉及——代价栏是功能内容非费用推导。
-            var payloadAtom = card.PayloadCost?.payload;
-            if (payloadAtom != null && !string.IsNullOrEmpty(payloadAtom.refId))
+            // 2026-10-16 组装效果代价：逐原子追加，原子间以 ';' 分隔——n=1 与旧格式字节一致（存量卡 id 零漂移）。
+            var payloadAtoms = card.PayloadCost != null ? card.PayloadCost.AllPayloads() : null;
+            if (payloadAtoms != null && payloadAtoms.Count > 0)
             {
                 sb.Append("PC:");
-                AppendAtomic(sb, payloadAtom);
+                for (int i = 0; i < payloadAtoms.Count; i++)
+                {
+                    if (i > 0) sb.Append(';');
+                    AppendAtomic(sb, payloadAtoms[i]);
+                }
                 sb.Append('|');
             }
 
@@ -287,11 +292,13 @@ namespace SynergyUI
                       .Append(c.Value).Append(',')
                       .Append(c.ManaType).Append(',')
                       .Append(c.TurnDuration);
-                    // Payload 原子（2026-09-14 补）：代价栏效果是功能字段——此前漏哈希
-                    if (c.payload != null && !string.IsNullOrEmpty(c.payload.refId))
+                    // Payload 原子（2026-09-14 补）：代价栏效果是功能字段——此前漏哈希。
+                    // 2026-10-16 组装效果代价：逐原子 ",p=" 追加（n=1 与旧单条格式字节一致——
+                    // 存量卡 ID 稳定；n>1 依序追加，装载端 AllPayloads 折叠口径同源）
+                    foreach (var pa in c.AllPayloads())
                     {
                         sb.Append(",p=");
-                        AppendAtomic(sb, c.payload);
+                        AppendAtomic(sb, pa);
                     }
                     sb.Append('>');
                 }

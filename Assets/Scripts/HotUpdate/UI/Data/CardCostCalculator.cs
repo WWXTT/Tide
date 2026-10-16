@@ -42,6 +42,10 @@ namespace SynergyUI
             /// <summary>建议采纳的费用分布（2026-10-04 位置数组；已有声明时回显当前声明构成）。</summary>
             public ElementCost CostDict = new ElementCost();
 
+            /// <summary>纯内容推导的建议分布（2026-10-16 自动算费直写定案）：不受已声明费用影响——
+            /// 卡组合界面费用恒取本值回写 _card.Cost（手动声明/采纳已退役），DeclaredTier 分支不参与。</summary>
+            public ElementCost SuggestedCost = new ElementCost();
+
             public readonly List<BreakdownLine> Breakdown = new List<BreakdownLine>();
         }
 
@@ -57,6 +61,7 @@ namespace SynergyUI
                 CostDict = r.DeclaredTier > 0 && card != null && card.Cost != null && !card.Cost.IsZero
                     ? card.Cost.Clone()
                     : r.SuggestedCost.Clone(),
+                SuggestedCost = r.SuggestedCost.Clone(),
             };
 
             foreach (var line in r.Breakdown)

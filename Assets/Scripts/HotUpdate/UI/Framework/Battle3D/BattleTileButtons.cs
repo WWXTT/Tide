@@ -8,8 +8,9 @@ namespace SynergyUI
     /// 攻击/守卫/发动主动效果拆到格前三键（BattleHex.prefab 手搭子件：Attack/Defense/Activate，
     /// 均带 BoxCollider 供棋盘射线命中，命中名=按钮名→BattleScreen 归并到所属格）。
     /// 白=此刻可用、灰 8D8D8D=在场但不可用（2026-10-15 定案：红/蓝/绿分色退役）。
-    /// BattleScreen 每帧差量对账（幂等）：仅己方单位格显键；编舞选目标/放格选格/网络局=全收。
-    /// 深判定（费用/横置代价/耐久/阶段）留引擎裁决，高亮不预判，拒绝走点击 toast。
+    /// BattleScreen 每帧差量对账（幂等）：仅己方单位格与角色格显键（2026-10-16 角色格同款三键：
+    /// 攻击=弹药、守卫=守卫窗口候选、发动=英雄技能）；编舞选目标/放格选格/网络局=全收。
+    /// 深判定（费用/横置代价/耐久）留引擎裁决，高亮不预判，拒绝走点击 toast。
     /// </summary>
     public static class BattleTileButtons
     {
