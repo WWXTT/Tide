@@ -23,8 +23,13 @@ namespace SynergyUI
         private const int MaxSettleAttempts = 32; // 排干栈重试上限（保险）
 
         /// <summary>人机对局最小动作间隔（毫秒）——表现层演完后的人为节拍下限，
-        /// 保证出牌类瞬时动作（无长动画）也有可读节奏。只作用于注入了 PacingWait 的驱动。</summary>
-        private const int PacingMinimumMs = 400;
+        /// 保证出牌类瞬时动作（无长动画）也有可读节奏。只作用于注入了 PacingWait 的驱动。
+        /// 2026-10-16 用户定案：AI 每个操作给 1 秒表演时间（400→1000）。</summary>
+        private const int PacingMinimumMs = 1000;
+
+        /// <summary>出牌舞台时长（毫秒，2026-10-16 用户定案）：声明成功后先亮
+        /// （UI 层出左上角卡面+指向箭头）这么久再结算。只作用于注入了 PacingWait 的驱动。</summary>
+        private const int CastStageMs = 1000;
 
         private readonly AiStrategy _strategy;
 
@@ -37,6 +42,14 @@ namespace SynergyUI
         /// 双人对局无 AI 不涉及。由 BattleScreen 在人类在场的分支注入。</summary>
         public Func<Cysharp.Threading.Tasks.UniTask> PacingWait { get; set; }
 
+        /// <summary>出牌舞台开演回调（2026-10-16 人机节奏）：声明成功后、舞台等待前调用——
+        /// UI 层亮出对手所出的卡（左上角卡面）与指向目标的箭头。参数=所出卡+声明期已选目标
+        /// （targets 可能 null/空=无指向）。与 PacingWait 同批注入；null（无头/AI 互打）=无 UI 舞台。</summary>
+        public Action<Card, List<Entity>> OnCastStaged;
+
+        /// <summary>出牌舞台收幕回调：舞台等待结束（结算前）调用——UI 层隐藏卡面/箭头渐隐。</summary>
+        public Action OnCastStageEnd;
+
         /// <summary>节奏等待：等门放行 + 最小动作间隔（未注入 PacingWait 时同步直通，
         /// 无头 TakeTurn 同步路径不受影响）。</summary>
         private async Cysharp.Threading.Tasks.UniTask PaceAsync()
@@ -45,6 +58,34 @@ namespace SynergyUI
             if (wait == null) return;
             await wait();
             await Cysharp.Threading.Tasks.UniTask.Delay(PacingMinimumMs);
+        }
+
+        /// <summary>舞台保持原语：PresentationHold 拦住帧泵自动双 Pass（GameLoopController
+        /// .ProcessPriority 无候选即抢先结算——裸等会被它下一帧排干），等视觉在途 + CastStageMs。
+        /// 先 hold 再等：结算时序与旧同帧排干完全一致（触发式仍随排干一起落）。
+        /// 未注入 PacingWait 同步直通；finally 保证终局/异常不漏还原。</summary>
+        private async Cysharp.Threading.Tasks.UniTask StageHoldAsync(GameCore core)
+        {
+            var wait = PacingWait;
+            if (wait == null) return;
+            core.PresentationHold = true;
+            try
+            {
+                await wait();
+                await Cysharp.Threading.Tasks.UniTask.Delay(CastStageMs);
+            }
+            finally { core.PresentationHold = false; }
+        }
+
+        /// <summary>出牌舞台总装（2026-10-16 用户定案）：声明成功 → UI 亮卡面/箭头（OnCastStaged）
+        /// → hold+等待 CastStageMs → 收幕（OnCastStageEnd）→ 调用方再 SettleStack 结算。
+        /// 无头/AI 互打（无 PacingWait）零舞台零等待，与旧同帧结算一致。</summary>
+        private async Cysharp.Threading.Tasks.UniTask StageCastAsync(GameCore core, Card card, List<Entity> targets)
+        {
+            if (PacingWait == null) return;
+            OnCastStaged?.Invoke(card, targets);
+            try { await StageHoldAsync(core); }
+            finally { OnCastStageEnd?.Invoke(); }
         }
 
         /// <summary>有害类原子：目标偏好对方单位 &gt; 对方玩家（解场优先——2026-09-13 用户裁决，原削血优先反转）</summary>
@@ -93,6 +134,7 @@ namespace SynergyUI
             AtomicEffectType.GrantLifesteal,
             AtomicEffectType.GrantStealth, AtomicEffectType.GrantConcealed, AtomicEffectType.GrantTaunt,
             AtomicEffectType.GrantDivineShield, AtomicEffectType.GrantOverwhelm, AtomicEffectType.GrantToughness,
+            AtomicEffectType.GrantRetaliation,
             AtomicEffectType.GrantFirstStrike,
             AtomicEffectType.GrantVigilance, AtomicEffectType.GrantRegeneration,
             AtomicEffectType.GrantReborn, AtomicEffectType.GrantIndestructible,
@@ -124,11 +166,12 @@ namespace SynergyUI
             //    出口 = 无进展：费用花完 / 手牌打空 / 无可发动效果
             for (int i = 0; i < MaxActionRounds && !core.IsGameOver; i++)
             {
+                // 出牌/技能源已 async 化（含出牌舞台等待）；`|` 非短路——每轮仍全试一遍再判进展
                 bool progress = DrainVoluntaryQueue(core)
                               | ActivateBattlefieldAbilities(core, me)
-                              | PlayBestAffordableCard(core, me)
-                              | TryGraveyardPlay(core, me)
-                              | UseHeroSkill(core, me);
+                              | await PlayBestAffordableCardAsync(core, me)
+                              | await TryGraveyardPlayAsync(core, me)
+                              | await UseHeroSkillAsync(core, me);
                 if (!progress) break;
                 await PaceAsync(); // 人机节奏：本轮动作落地后等表现层演完再做下一个动作
             }
@@ -148,7 +191,7 @@ namespace SynergyUI
                 bool playedAfterCombat = false;
                 for (int i = 0; i < 3; i++)
                 {
-                    if (!PlayBestAffordableCard(core, me)) break;
+                    if (!await PlayBestAffordableCardAsync(core, me)) break;
                     playedAfterCombat = true;
                     await PaceAsync(); // 人机节奏：战后补牌逐张可读
                 }
@@ -192,14 +235,19 @@ namespace SynergyUI
         // ======================================== 动作耗尽循环的动作源 ========================================
 
         /// <summary>英雄技能（2026-10-07 卡牌化：技能=构筑标记的结界卡）：在场/未横置/未沉默/
-        /// 费用可付由 HeroSkillSystem.ActivateAsync 统一守卫（含 lazy 回填）——此处只做策略筛选。</summary>
-        private bool UseHeroSkill(GameCore core, Player me)
+        /// 费用可付由 HeroSkillSystem.ActivateAsync 统一守卫（含 lazy 回填）——此处只做策略筛选。
+        /// 2026-10-16 async 化：await 替代同步阻塞；技能非出牌——舞台仅 hold 1 秒节奏，无卡面/箭头。</summary>
+        private async Cysharp.Threading.Tasks.UniTask<bool> UseHeroSkillAsync(GameCore core, Player me)
         {
             if (!_strategy.WantHeroSkill(core, me))
                 return false;
 
-            var ok = GameActions.ActivateHeroSkill(core, me).GetAwaiter().GetResult();
-            if (ok) SettleStack(core);
+            var ok = await GameActions.ActivateHeroSkill(core, me);
+            if (ok)
+            {
+                await StageHoldAsync(core);
+                SettleStack(core);
+            }
             return ok;
         }
 
@@ -217,7 +265,7 @@ namespace SynergyUI
             return any;
         }
 
-        /// <summary>枚举场上卡的激活式能力并逐个发动（CanActivate 预检 + 引擎权威校验）。</summary>
+        /// <summary>枚举场上卡的主动能力并逐个发动（CanActivate 预检 + 引擎权威校验）。</summary>
         private static bool ActivateBattlefieldAbilities(GameCore core, Player me)
         {
             bool any = false;
@@ -228,7 +276,7 @@ namespace SynergyUI
             {
                 foreach (var def in GetEffectDefinitions(source))
                 {
-                    if (!def.IsActivatedEffect) continue; // 只管激活式；触发式由引擎事件驱动
+                    if (!def.IsActivatedEffect) continue; // 只管主动；触发式由引擎事件驱动
                     if (!executor.CanActivate(def, source, me, me, phase, core.TurnEngine.TurnNumber)) continue;
                     if (GameActions.ActivateEffect(core, me, def, source))
                         any = true;
@@ -239,8 +287,9 @@ namespace SynergyUI
 
         /// <summary>出一张最优的牌：优先级经策略 CardPlayScore（通用=有害原子优先 → 总费用降序——大费先出，资源花光）。
         /// 抉择卡先选模式（ChooseMode——机器版「满足才能使用」），全模式不可用换下一张。
-        /// 出牌即上栈（使用时点）：出完立刻排干——cast 结算付费后 bank 已更新，下一轮预检不失真。</summary>
-        private bool PlayBestAffordableCard(GameCore core, Player me)
+        /// 出牌即上栈（使用时点）：舞台亮 CastStageMs（卡面+指向箭头）→ 排干——cast 结算付费后
+        /// bank 已更新，下一轮预检不失真。</summary>
+        private async Cysharp.Threading.Tasks.UniTask<bool> PlayBestAffordableCardAsync(GameCore core, Player me)
         {
             var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
             var ordered = hand
@@ -252,8 +301,10 @@ namespace SynergyUI
                 int mode = ChooseMode(core, me, card);
                 if (mode < 0) continue; // 抉择卡全模式不可发动 → 换下一张
                 // 失败静默重试下一张（引擎契约：不付费、卡留手）
-                if (GameActions.PlayCard(core, me, card, ChooseTargets(core, me, card, mode), Zone.Hand, mode))
+                var targets = ChooseTargets(core, me, card, mode);
+                if (GameActions.PlayCard(core, me, card, targets, Zone.Hand, mode))
                 {
+                    await StageCastAsync(core, card, targets); // 出牌舞台：亮 1 秒（卡面+箭头）再结算
                     SettleStack(core); // cast 已上栈：双 Pass 排干（AI 无响应 → 立即结算付费）
                     return true;
                 }
@@ -261,8 +312,9 @@ namespace SynergyUI
             return false;
         }
 
-        /// <summary>墓地出牌（经 IPlaySource 授权；预检后再调，避免 TryBeginUse 先烧配额）。出完同样立刻排干。</summary>
-        private bool TryGraveyardPlay(GameCore core, Player me)
+        /// <summary>墓地出牌（经 IPlaySource 授权；预检后再调，避免 TryBeginUse 先烧配额）。
+        /// 出完同样先舞台后排干。</summary>
+        private async Cysharp.Threading.Tasks.UniTask<bool> TryGraveyardPlayAsync(GameCore core, Player me)
         {
             var graveyard = core.ZoneManager.GetCards(me, Zone.Graveyard) ?? new List<Card>();
             foreach (var card in graveyard)
@@ -270,8 +322,10 @@ namespace SynergyUI
                 if (!CanPlayCard(core, me, card, Zone.Graveyard)) continue;
                 int mode = ChooseMode(core, me, card);
                 if (mode < 0) continue;
-                if (GameActions.PlayCardFromGraveyard(core, me, card, ChooseTargets(core, me, card, mode), mode))
+                var targets = ChooseTargets(core, me, card, mode);
+                if (GameActions.PlayCardFromGraveyard(core, me, card, targets, mode))
                 {
+                    await StageCastAsync(core, card, targets);
                     SettleStack(core);
                     return true;
                 }
@@ -408,7 +462,7 @@ namespace SynergyUI
             };
         }
 
-        /// <summary>第一个带组合域的非激活式效果定义（域 = TargetDomain / ChoiceDomains[mode]
+        /// <summary>第一个带组合域的非主动效果定义（域 = TargetDomain / ChoiceDomains[mode]
         /// 预计算交集——目标域模型口径，取代旧「首个带域原子」编译级近似）。
         /// None 模式（区域自结算类）跳过——AI 不为其选目标（2026-09-11）。</summary>
         private static EffectDefinition FirstDomainEffect(Card card, int modeIndex)
@@ -485,7 +539,7 @@ namespace SynergyUI
             return CardEffectConverter.ConvertAll(data.Effects, data.ID);
         }
 
-        /// <summary>是否含非激活式的有害原子（出牌优先级依据）。Steps/抉择卡扫主序列与全部模式。</summary>
+        /// <summary>是否含非主动的有害原子（出牌优先级依据）。Steps/抉择卡扫主序列与全部模式。</summary>
         private static bool ContainsHarmfulAtom(Card card)
         {
             foreach (var def in GetEffectDefinitions(card))

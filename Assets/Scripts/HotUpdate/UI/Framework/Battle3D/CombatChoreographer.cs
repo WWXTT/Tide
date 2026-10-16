@@ -23,9 +23,9 @@ namespace SynergyUI
     /// 冻结渐隐并回传目标给宣言链路（本地 DeclareAttack / 网络 intent，下游不变；确认时
     /// 另算 BFS 接近路径供演出走位）；右键/ESC/点空地取消。
     /// 任务② 演出：走位到目标临格→攻击前扑→目标受击（溅射第三方原地受击；角色目标=立柱脉动）
-    /// →反击（以实际伤害事件存在性判定——守方横置/先击杀自然无）→死者碎裂（FallDown 散落）
-    /// →停稳后螺旋吸入己方墓地漩涡消失（BattleFieldView.PlayDeathSuctionAsync）→幸存者
-    /// 原路返回待机（横置即冻结呼吸，准备阶段回正由对账恢复；24° 横置侧倾 2026-10-15 退役）。
+    /// →反击（以实际伤害事件存在性判定——守方横置/先击杀自然无）→死者倒地碎裂、
+    /// 碎块滚入己方墓地格、墓上原地自旋缩小消失（BattleFieldView.PlayDeathExitAsync，2026-10-16 三改）
+    /// →幸存者原路返回待机（准备阶段回正由对账恢复；24° 横置侧倾 2026-10-15 退役）。
     /// 守卫拦截（2026-10-15 用户定案改版，中线会合退役）：守卫者走到被攻击者那一格挡伤害
     ///（挡位点向攻击侧偏移、与被保护者错开身位），攻击者接近原目标格邻格开打，战后各自
     /// 原路归位；规划失败回落旧演出（攻击者单方走到守卫者临格开打）。
@@ -41,8 +41,6 @@ namespace SynergyUI
         private const float WalkSpeed = 3f;          // 世界单位/秒（格心距≈1.5-1.73，约 2 格/秒）
         private const int ImpactDelayMs = 180;       // 攻击前扑到命中节拍
         private const int AttackBeatMs = 520;        // 一次攻击完整节拍（含缓冲）
-        private const float ScatterSettle = 1f;      // 倒地散落停稳等待（秒）
-        private const float SuctionSeconds = 0.75f;  // 漩涡吸走时长
         private const float GuardCoverOffset = 0.7f; // 守卫挡位偏移：原目标格心向攻击侧挪——与被保护者错开身位
         // 24° 横置侧倾（TiltTapped）2026-10-15 退役：wrapper 恒零；横置当晚再裁=呼吸也不停，只由光波熄表达
 
@@ -603,13 +601,11 @@ namespace SynergyUI
                         await UniTask.Delay(AttackBeatMs - ImpactDelayMs);
                     }
 
-                    // ⑤ 死亡：碎裂散落→停稳→螺旋吸入己方墓地漩涡
+                    // ⑤ 死亡：维持大小滑入己方墓地格→原地旋转缩小消失（2026-10-16 改版）
                     if (plan.TargetDead && tgtBody)
-                        await _field.PlayDeathSuctionAsync(plan.TargetId, targetOwner, playFall: true,
-                            ScatterSettle, SuctionSeconds);
+                        await _field.PlayDeathExitAsync(plan.TargetId, targetOwner);
                     if (plan.AttackerDead && attBody)
-                        await _field.PlayDeathSuctionAsync(plan.AttackerId, plan.AttackerOwner, playFall: true,
-                            ScatterSettle, SuctionSeconds);
+                        await _field.PlayDeathExitAsync(plan.AttackerId, plan.AttackerOwner);
 
                     // ⑥ 幸存者原路返回待机（2026-10-15 晚裁定：横置不再停呼吸，归位恒播呼吸，
                     //    可行动性只看脚下光波）；回程解除对视（攻击已结束，头回待机注视）

@@ -41,6 +41,14 @@ namespace SynergyUI
         /// 独立于引导步骤存活（步骤完成后仍生效，直到 TutorialGuide.End）。</summary>
         public string heroLockCard;
 
+        /// <summary>跳过介绍版引导（2026-10-16 教学一两段式）：非空且玩家选择跳过第一大段时
+        /// 用本链替代 guide（直入第二段攻防教学；配合 skipScenario 预设场面直入）。</summary>
+        public List<TutorialGuideStepSpec> guideSkip;
+
+        /// <summary>跳过介绍版预设场面（2026-10-16 教学一两段式）：非空且玩家选择跳过第一大段时
+        /// 按本场面直入（StartTutorialGame 分流走 scenario 口径）；null=不支持跳过。</summary>
+        public TutorialScenario skipScenario;
+
         /// <summary>取机器人第 aiTurn 回合的剧本（无则 null——ScriptedAi 直接结束回合）。</summary>
         public TutorialTurnScript GetAiTurn(int aiTurn)
             => aiScript?.FirstOrDefault(t => t != null && t.turn == aiTurn);

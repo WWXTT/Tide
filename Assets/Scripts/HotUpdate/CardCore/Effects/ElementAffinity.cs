@@ -51,22 +51,16 @@ namespace CardCore
     /// 供预检/校验复用，链定义同源。
     /// 支付链（2026-10-11 收窄定案）：红/蓝/绿**仅本色**；灰=[灰,黑,白,红,蓝,绿]
     /// （黑白只垫灰、三色垫灰沿用；黑先于白，确定性）。单向：红蓝绿灰不可付黑白费。
-    /// 浓度上限：每种货币（**含灰**与作垫色的黑白）单次支付总贡献 ≤ cap；
-    /// 纯色**需求量** > cap 时不论货币直接不可付（灰需求无需求侧帽）。
+    /// 浓度上限（2026-10-16 临时元素超上限改版）：本类纯钱包口径——钱包贡献**不受浓度钳**
+    /// （获取=对应地块可用+1、可用可超上限），旧「每货币贡献 ≤ cap / 纯色需求超帽拒付」
+    /// 随 cap 参数一并退役；地牌侧的浓度钳在 ElementPool.PlanBill 单独保留。
     /// </summary>
     public static class ElementPaymentValidator
     {
-        /// <summary>纯色（受需求侧浓度上限约束）：红/蓝/绿/黑/白。</summary>
-        private static readonly ManaType[] PureColors =
-            { ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Black, ManaType.White };
-
         /// <summary>四色需求（红蓝绿灰）的固定处理序。
         /// 公开给 ElementPool.PlanBill（现取现用统一规划器）——分配轨迹须与账单规划器同序。</summary>
         public static readonly ManaType[] FourColorOrder =
             { ManaType.Red, ManaType.Blue, ManaType.Green, ManaType.Gray };
-
-        private static bool IsPureColor(ManaType type)
-            => PureColors.Contains(type);
 
         /// <summary>int/float 账单归一为 ManaType→int（跳过 ≤0 项）。
         /// 2026-10-12 小数直通定案：效果级费用带小数（如锚 0.6绿），此处=支付终点——
@@ -114,38 +108,26 @@ namespace CardCore
         /// <summary>
         /// 整账单支付规划（非破坏——不改 availableMana；纯钱包口径，地牌横置参与的综合规划在
         /// ElementPool.PlanBill）。处理序：黑→白（仅本色）**先行预留**（否则贪心会吃掉黑白本色费
-        /// 所需的货币），再按固定序处理红蓝绿灰，每需求沿填链扣减。
+        /// 所需的货币），再按固定序处理红蓝绿灰，每需求沿填链扣减。钱包贡献不受浓度钳
+        /// （2026-10-16 超上限改版——cap 参数随旧口径退役）。
         /// </summary>
         /// <returns>实际扣款组合（货币→数量）；null = 不可付。</returns>
         public static Dictionary<ManaType, int> GetBillPaymentPlan(
-            Dictionary<ManaType, int> bill, Dictionary<ManaType, int> availableMana, int? cap)
+            Dictionary<ManaType, int> bill, Dictionary<ManaType, int> availableMana)
         {
             if (bill == null || bill.Count == 0) return new Dictionary<ManaType, int>();
 
-            // 需求侧浓度上限：纯色需求量超帽，混付也救不了
-            if (cap.HasValue)
-            {
-                foreach (var kv in bill)
-                    if (IsPureColor(kv.Key) && kv.Value > cap.Value)
-                        return null;
-            }
-
             var working = new Dictionary<ManaType, int>(availableMana ?? new Dictionary<ManaType, int>());
-            var used = new Dictionary<ManaType, int>();
             var plan = new Dictionary<ManaType, int>();
             foreach (ManaType c in Enum.GetValues(typeof(ManaType)))
-            {
-                used[c] = 0;
                 if (!working.ContainsKey(c)) working[c] = 0;
-            }
 
-            // 黑白本色费先行预留（需求侧检查已保证 ≤ cap；used 从 0 起故贡献即合规）
+            // 黑白本色费先行预留（黑白只来自钱包、不受浓度钳——余额定生死）
             foreach (var bw in new[] { ManaType.Black, ManaType.White })
             {
                 if (!bill.TryGetValue(bw, out var bwNeed) || bwNeed <= 0) continue;
                 if (working[bw] < bwNeed) return null;
                 working[bw] -= bwNeed;
-                used[bw] += bwNeed;
                 plan[bw] = bwNeed;
             }
 
@@ -157,11 +139,9 @@ namespace CardCore
                     if (remaining <= 0) break;
                     int have = working[currency];
                     if (have <= 0) continue;
-                    int room = cap.HasValue ? cap.Value - used[currency] : int.MaxValue;
-                    int take = Math.Min(Math.Min(have, remaining), room);
+                    int take = Math.Min(have, remaining); // 钱包无浓度钳（可超上限直付）
                     if (take <= 0) continue;
                     working[currency] = have - take;
-                    used[currency] += take;
                     plan[currency] = plan.TryGetValue(currency, out var prev) ? prev + take : take;
                     remaining -= take;
                 }
@@ -172,8 +152,8 @@ namespace CardCore
         }
 
         /// <summary>整账单可付性预检（非破坏）。= GetBillPaymentPlan(...) != null。</summary>
-        public static bool CanPayBill(Dictionary<ManaType, int> bill, Dictionary<ManaType, int> availableMana, int? cap)
-            => GetBillPaymentPlan(bill, availableMana, cap) != null;
+        public static bool CanPayBill(Dictionary<ManaType, int> bill, Dictionary<ManaType, int> availableMana)
+            => GetBillPaymentPlan(bill, availableMana) != null;
     }
 
     /// <summary>

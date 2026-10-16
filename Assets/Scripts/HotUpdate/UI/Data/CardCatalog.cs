@@ -18,6 +18,11 @@ namespace SynergyUI
         // 原 TestDecks 留作训练桥/验证夹具）。
         private const string CardsConfigRelative = "Card/Cards.json";
 
+        // 教学独立卡表（2026-10-16 定案：教学卡不再与正式卡混用）：同格式副表，
+        // LoadAll 时合并入索引（教学卡带 tags=教学 → LoadPlayPool 既有隔离自动生效）；
+        // id 冲突保正式表（教学表写错撞正式 id 时可查）。缓存新鲜度与主表同盯。
+        private const string TutorialCardsRelative = "Card/TutorialCards.json";
+
         private static List<CardData> _cache;
         private static Dictionary<string, CardData> _byId;
         private static bool _loading;
@@ -72,6 +77,7 @@ namespace SynergyUI
                         _byId[card.ID] = card;
                     }
                 }
+                MergeTutorialCards(); // 教学独立卡表（2026-10-16）：副表合并入索引，教学局按 id 组卡可取
                 return _cache;
             }
             finally
@@ -80,18 +86,48 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>缓存是否过期：文件消失 / 路径变 / mtime 变。读取失败按未过期处理（读失败≠数据变）。</summary>
+        /// <summary>缓存是否过期：文件消失 / 路径变 / mtime 变（主表与教学副表任一变化即过期）。
+        /// 读取失败按未过期处理（读失败≠数据变）。</summary>
         private static bool CacheIsStale()
         {
             try
             {
                 string path = CardDataPaths.FileIn("Cards.json");
                 if (path != _cachePath || !File.Exists(path)) return true;
-                return File.GetLastWriteTimeUtc(path) != _cacheStampUtc;
+                if (File.GetLastWriteTimeUtc(path) != _cacheStampUtc) return true;
+                string tpath = CardDataPaths.FileIn("TutorialCards.json");
+                if (File.Exists(tpath) && File.GetLastWriteTimeUtc(tpath) != _cacheStampUtc) return true;
+                return false;
             }
             catch
             {
                 return false;
+            }
+        }
+
+        /// <summary>教学副表合并：教学卡同时进 _cache 与 _byId（与"教学卡在主表"完全同口径——
+        /// LoadPlayPool 按 tags=教学过滤照旧生效）；id 冲突保正式表（教学表写错可查）。
+        /// 文件缺失=无教学卡，静默（教学表随仓库走，缺失属配置错误由消费面 Warn 兜底）。</summary>
+        private static void MergeTutorialCards()
+        {
+            string tpath = CardDataPaths.FileIn("TutorialCards.json");
+            if (!File.Exists(tpath))
+            {
+                TideLog.Warn($"[CardCatalog] 教学卡表未找到: {tpath}（教学局组卡将取不到教学卡）");
+                return;
+            }
+            var cards = CardLoader.LoadCardsFromText(File.ReadAllText(tpath));
+            if (cards == null) return;
+            foreach (var card in cards)
+            {
+                if (card == null || string.IsNullOrEmpty(card.ID)) continue;
+                if (_byId.ContainsKey(card.ID))
+                {
+                    TideLog.Warn($"[CardCatalog] 教学卡表 id 与正式卡冲突（保正式表）: {card.ID}");
+                    continue;
+                }
+                _byId[card.ID] = card;
+                _cache.Add(card);
             }
         }
 

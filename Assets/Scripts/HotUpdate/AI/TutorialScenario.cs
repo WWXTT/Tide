@@ -57,6 +57,11 @@ namespace SynergyUI
         /// <summary>已疲劳次数（缺省 0）。</summary>
         public int fatigue;
 
+        /// <summary>地牌槽上限加值（2026-10-16 测试开局功能）：成长口径 LandCapBonus 直加——
+        /// 自然曲线封顶外的增加走此口（入池闸/支付浓度/黑白生成钳随 GetLandCap 同步）。
+        /// 缺省 0=现有教学配置零影响。</summary>
+        public int landCapBonus;
+
         /// <summary>元素 bank（AvailableMana）[灰,红,蓝,绿,白,黑]，缺省全 0。</summary>
         public int[] bank;
 
@@ -152,27 +157,120 @@ namespace SynergyUI
             if (core == null || scenario == null) return;
             if (scenario.startTurn < 1) scenario.startTurn = 1;
 
-            SeedSide(core, core.Player1, scenario.player, scenario, board);
-            SeedSide(core, core.Player2, scenario.ai, scenario, board);
+            SeedSide(core, core.Player1, scenario.player, scenario.startTurn, board);
+            SeedSide(core, core.Player2, scenario.ai, scenario.startTurn, board);
 
             // 回合起跳预置在最后：StartGame→StartNewTurn 自增到 startTurn、跳准备阶段自动化落 Main
             var first = scenario.FirstIsPlayer1 ? core.Player1 : core.Player2;
             core.TurnEngine.PrepareScenarioStart(scenario.startTurn, first);
         }
 
+        /// <summary>运行时归一注入（2026-10-16 教学一两段式·第二段「援军登场」）：对局进行中把局面
+        /// 无视规则地重置成 scenario 口径——双方战场/地牌/手牌/牌库/墓地/除外全清（抹除原子同款
+        /// 消失口径：容器直删+地牌出池+战场离场事件+CardMoveEvent To=None，不走死亡/换区结算）、
+        /// 临时钱包清零、生命/疲劳按 scenario 重置；然后凭空造卡（CardCatalog 教学表→CardLoader）
+        /// 入牌库，按 Apply 同款 SeedSide 静默铺场。回合不重置（对局继续，地牌曲线 GlobalTurnIndex
+        /// 对齐当前全局回合）；技能卡（FieldZone）不动。调用方随后全量对账（Resync/RefreshField/RefreshFans）。</summary>
+        public static void ApplyRuntime(GameCore core, TutorialScenario scenario, GameBoard.BoardState board = null)
+        {
+            if (core == null || scenario == null) return;
+
+            ClearSide(core, core.Player1);
+            ClearSide(core, core.Player2);
+
+            // 凭空造卡：scenario 全部卡 id → CardData → Card 实例静默入牌库（SeedSide 从牌库取卡铺场）
+            SpawnToDeck(core, core.Player1, scenario.player);
+            SpawnToDeck(core, core.Player2, scenario.ai);
+
+            SeedSide(core, core.Player1, scenario.player, core.TurnEngine.TurnNumber, board);
+            SeedSide(core, core.Player2, scenario.ai, core.TurnEngine.TurnNumber, board);
+        }
+
+        /// <summary>一侧局面归零（抹除原子消失口径：不发死亡事件、不走换区清理——指示物随卡实例
+        /// 一起废弃；战场单位补 CardLeaveBattlefieldEvent + CardMoveEvent To=None 供视图/守卫链收口）。</summary>
+        private static void ClearSide(GameCore core, Player owner)
+        {
+            if (core == null || owner == null) return;
+            var container = core.ZoneManager?.GetZoneContainer(owner);
+            if (container == null) return;
+
+            foreach (var zone in new[] { Zone.Battlefield, Zone.ElementPool, Zone.Hand, Zone.Deck, Zone.Graveyard, Zone.Exile })
+            {
+                var cards = core.ZoneManager.GetCards(owner, zone) ?? new List<Card>(); // GetCards=副本，遍历安全
+                foreach (var card in cards)
+                {
+                    if (card == null) continue;
+                    if (zone == Zone.ElementPool)
+                        core.ElementPool.RemoveCardFromPool(card, owner); // 余量写回卡+清池内记录（官方出池口）
+                    container.Remove(card, zone);
+                    if (zone == Zone.Battlefield)
+                    {
+                        card.IsAlive = false;
+                        core.PublishEvent(new CardLeaveBattlefieldEvent
+                        {
+                            Card = card,
+                            Controller = owner,
+                            Destination = Zone.None,
+                        });
+                    }
+                    core.PublishEvent(new CardMoveEvent
+                    {
+                        MovedCard = card,
+                        From = zone,
+                        To = Zone.None,
+                        Controller = owner,
+                    });
+                }
+            }
+
+            // 临时钱包清零（回合末清空同款——归一口径不留余额）
+            var pool = core.ElementPool.GetPool(owner);
+            if (pool != null)
+                for (ManaType t = ManaType.Gray; t <= ManaType.Black; t++)
+                    pool.TempElements[t] = 0;
+        }
+
+        /// <summary>凭空造卡入牌库：教学表按 id 取 CardData（缺失 Warn 跳过），CardLoader.BuildDeck
+        /// 造 Card 实例（同 InitGame 口径），静默 Add 到牌库底（SeedSide 随后按 id 取出分配）。</summary>
+        private static void SpawnToDeck(GameCore core, Player owner, TutorialSideState side)
+        {
+            var container = core.ZoneManager.GetZoneContainer(owner);
+            foreach (var id in TutorialScenario.DeckIdsOf(side))
+            {
+                if (string.IsNullOrEmpty(id)) continue;
+                var data = CardCatalog.GetById(id);
+                if (data == null)
+                {
+                    TideLog.Warn($"[TutorialScenarioSeeder] 运行时造卡失败（卡表无此 id）：{id}（跳过）");
+                    continue;
+                }
+                var cards = CardLoader.BuildDeck(new List<CardData> { data }, 1);
+                foreach (var card in cards ?? new List<Card>())
+                {
+                    card.SetController(owner);
+                    container.Add(card, Zone.Deck);
+                }
+            }
+        }
+
         private static void SeedSide(GameCore core, Player owner, TutorialSideState side,
-            TutorialScenario scenario, GameBoard.BoardState board)
+            int startTurn, GameBoard.BoardState board)
         {
             // 地牌槽曲线对齐：跳过的准备阶段本该推进 GlobalTurnIndex——先预置，AddCardToPool 的
             // 上限校验（2026-10-15 全局口径 CapAt(GlobalTurnIndex)）才能按起跳回合放行对应张数（双方同步值）
             var pool = core.ElementPool.GetPool(owner);
-            pool.GlobalTurnIndex = scenario.startTurn;
+            pool.GlobalTurnIndex = startTurn;
             // 个人回合台账（纯观测，不参与上限）：起跳前已开始的回合数（P1 先手交替）P1=ceil((t-1)/2)、P2=floor((t-1)/2)
             pool.PersonalTurnIndex = owner == core.Player1
-                ? (scenario.startTurn - 1 + 1) / 2
-                : (scenario.startTurn - 1) / 2;
+                ? (startTurn - 1 + 1) / 2
+                : (startTurn - 1) / 2;
 
             if (side == null) return;
+
+            // 地牌槽上限加值（2026-10-16 测试开局功能）：成长同口径直加——
+            // 先于地牌入池应用，AddCardToPool 的上限校验按加值后的 GetLandCap 放行
+            if (side.landCapBonus > 0)
+                pool.LandCapBonus += side.landCapBonus;
 
             owner.ResetVitals(side.life > 0 ? side.life : GameCore.InitialLife);
             owner.FatigueCount = side.fatigue > 0 ? side.fatigue : 0;

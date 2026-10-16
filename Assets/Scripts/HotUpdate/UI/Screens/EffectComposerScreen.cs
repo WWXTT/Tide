@@ -62,9 +62,9 @@ namespace SynergyUI
         // ---- 规则级光环（2026-10-03 定案；2026-10-04 光环改造后 9 行——全局唯一、作用双方、无箭头；普通光环才开箭头预选。
         // 引擎合约=ModifyGameRule 原子挂载体登场效果（str=规则短名），不占 LinkAura 连接位、不写 arrows） ----
 
-        /// <summary>仪典表行 EnumName → 规则短名（RuleAuraComponents 九常量，与原子表规则光环族 9 行一一对应；
+        /// <summary>仪典表行 EnumName → 规则短名（RuleAuraComponents 常量，与原子表规则光环族行一一对应；
         /// 2026-10-04 光环改造：丰盈→HealOverflow、蚕褪承接 DamageCap、疾风→CastSpeedUp、轮回承接 DoubleTurn；
-        /// 蚕褪→离散改名（2026-10-04 伤害二值离散化，短名承袭））。</summary>
+        /// 蚕褪→离散改名（2026-10-04 伤害二值离散化，短名承袭）；舍身仪典 2026-10-16 关键词化出族）。</summary>
         private static readonly Dictionary<string, string> RuleAuraIds = new Dictionary<string, string>
         {
             { "三相仪典", RuleAuraComponents.ElementConversion },
@@ -80,7 +80,7 @@ namespace SynergyUI
             { "毒蚀仪典", RuleAuraComponents.CombatToxin },
             { "霜蚀仪典", RuleAuraComponents.CombatFreeze },
             { "眠蚀仪典", RuleAuraComponents.CombatSleep },
-            { "舍身仪典", RuleAuraComponents.CombatRedirect }, // 2026-10-07 改写回归（伤害转投对手角色）；疫蚀 2026-10-09 随剧毒指示物删除退役
+            // 舍身仪典已删（2026-10-16 关键词化：舍身改 GrantMartyrdom 关键词——关键词族投放，不在仪典目录）
             { "暗牧仪典", RuleAuraComponents.HealInversion },  // 2026-10-09 治疗转伤害（受光环影响一方的治疗改写为等量伤害；黑8 表行 9dfed4f8；用户命名——初拟「反疗仪典」）
         };
 
@@ -344,7 +344,7 @@ namespace SynergyUI
             _slotArea = FindScroll("slot-area");
             PrepareSlotTemplates(); // prefab 烘焙的 slot/settings 样板转隐藏模板（克隆用）
 
-            // 描述条（左栏底部——选中才出现）
+            // 描述条（左栏底部——悬浮/按下控件才出现；2026-10-16 DescTag 悬浮化，校验错误文本共用）
             EnsureDescStrip();
 
             // 右：展示区（双模式）
@@ -988,11 +988,27 @@ namespace SynergyUI
         }
 
         /// <summary>删除当前载入的库效果（btn-delete）：按源 id 清档后重置为新建空效果。
+        /// 2026-10-16 强制删除机制：被卡引用时弹窗提示+允许强制（ReferenceAudit 反查）——
+        /// 强删后引用卡装载时该效果被跳过（卡组合界面卡池行标记⚠断链）。
         /// 不重建两下拉——防 Changed 重复订阅（Build*Dropdown 只在进屏时挂一次）。</summary>
         private void OnDeleteEffect()
         {
             if (_editingCard != null || string.IsNullOrEmpty(_loadedFromLibraryId)) return;
             var removed = _loadedFromLibraryId;
+            var refs = ReferenceAudit.CardsReferencingEffect(removed);
+            if (refs.Count > 0)
+            {
+                UiKit.ConfirmBox(Root, "删除库效果",
+                    $"效果 {removed}（{_graph?.name}）被 {refs.Count} 张卡引用：\n{string.Join("、", refs)}\n\n"
+                    + "强制删除后这些卡的效果引用断链（卡组合界面卡池行会标记⚠，卡装载时该效果被跳过）。",
+                    "强制删除", () => DeleteEffectFromLibrary(removed, refs.Count));
+                return;
+            }
+            DeleteEffectFromLibrary(removed, 0);
+        }
+
+        private void DeleteEffectFromLibrary(string removed, int brokenCards)
+        {
             EffectLibrarySerializer.DeleteById(removed);
             _loadedFromLibraryId = null;
             _graph = CardEffectToGraph(null, out _);
@@ -1004,7 +1020,9 @@ namespace SynergyUI
             SyncActivationVisibility();
             RefreshAll();
             SetRightMode(RightMode.Atoms);
-            ShowToast($"效果 {removed} 已从效果库删除");
+            ShowToast(brokenCards > 0
+                ? $"效果 {removed} 已删——{brokenCards} 张卡引用断链（卡组合界面已标记⚠）"
+                : $"效果 {removed} 已从效果库删除");
         }
 
         private void RefreshModeBar()
@@ -2268,7 +2286,8 @@ namespace SynergyUI
         /// <summary>时机是否必然一回合至多触发一次（2026-10-05 晚间定案）：
         /// 回合开始/结束（每回合各一发）、游戏开始/角色死亡（每局一发）——结构上不可能同回合二次触发。
         /// 阶段开始/结束（一回合多阶段可多发）、事件族（抽牌/伤害/攻击/宣言等可重复）、
-        /// 自我换区族（回手/复活环可再造）均不锁。时机计价系数维持 1（不接计价——同日定案）。</summary>
+        /// 自我换区族（回手/复活环可再造）均不锁。2026-10-16 修订：时机轴已接入计价
+        ///（CostDerivation.TimingCostFactor 一发时机 ×0.8）——本锁仍只管次数下拉的钉 1，与计价无关。</summary>
         private static bool TimingFiresOncePerTurn(TriggerTiming t)
             => t == TriggerTiming.OnTurnStart || t == TriggerTiming.OnTurnEnd
                || t == TriggerTiming.OnGameStart || t == TriggerTiming.OnRoleDeath;
@@ -2313,22 +2332,41 @@ namespace SynergyUI
             return null;
         }
 
-        /// <summary>引擎效果头锁定（2026-10-09 自由分支九项定案；速度组 2026-10-15 退役）：首槽引擎在案 →
-        /// 效果头四值（发动方式/时机/速度=0/生效次数）钉 ComposerCatalog.EngineHeaderPresetOf，控件禁用；
-        /// 引擎移除即恢复可编辑（值保留供用户改）。引擎主干零计价——limit=-1 档无费用影响。
+        /// <summary>引擎效果头锁定（2026-10-09 自由分支九项定案；速度组 2026-10-15 退役；2026-10-16 解绑）：
+        /// 首槽引擎在案 → 效果头按 ComposerCatalog.EngineHeaderPresetOf 归一，控件按引擎锁定；
+        /// **FreeTiming 组（倒计时/运势）时机不再钉死**——倒计时连发动方式可改（主动=0费触发走响应窗）、
+        /// 运势时机可改（掷骰恒自动）；速度/生效次数仍钉。落槽瞬间（引擎种类切换）且时机仍为图缺省
+        /// OnPlay(0) → 补预设缺省 OnTurnStart（防新效果落在「奖励等下次入场」死档）；其余刷新不动用户值。
+        /// 引擎主干零计价——limit=-1 档无费用影响。
         /// 消费点：RefreshSlots 尾部（覆盖引擎落槽/换引擎/载入三路径）。</summary>
+        private BranchEngineKind? _lastEngineLockKind; // 落槽种类跟踪：FreeTiming 缺省只在切换瞬间补，刷新不覆写用户值
+
         private void ApplyEngineHeaderLock()
         {
             var h = _graph?.header;
             if (h == null) return;
-            var preset = EngineKindOfGraph() is { } kind ? ComposerCatalog.EngineHeaderPresetOf(kind) : null;
+            var currentKind = EngineKindOfGraph();
+            var preset = currentKind is { } kind ? ComposerCatalog.EngineHeaderPresetOf(kind) : null;
             bool locked = preset != null;
+            bool freeTiming = locked && preset.Value.FreeTiming;
+            bool justLanded = currentKind != _lastEngineLockKind; // null→kind 落槽 / kindA→kindB 换引擎
+            _lastEngineLockKind = currentKind;
 
             if (locked)
             {
                 bool voluntary = preset.Value.Activation == EffectActivationType.Voluntary;
-                h.ActivationType = (int)preset.Value.Activation;
-                h.TriggerTiming = (int)(voluntary ? TriggerTiming.Activate_Active : preset.Value.Timing);
+                if (freeTiming)
+                {
+                    // 2026-10-16 解绑：时机/（倒计时）发动方式声明值优先——只在落槽瞬间补缺省。
+                    if (justLanded && h.TriggerTiming == 0) h.TriggerTiming = (int)preset.Value.Timing;
+                    if (currentKind != BranchEngineKind.Countdown)
+                        h.ActivationType = (int)preset.Value.Activation; // 运势掷骰恒自动；倒计时保留声明值
+                }
+                else
+                {
+                    h.ActivationType = (int)preset.Value.Activation;
+                    h.TriggerTiming = (int)(voluntary ? TriggerTiming.Activate_Active : preset.Value.Timing);
+                }
                 h.BaseSpeed = preset.Value.Speed;
                 h.TriggerLimitPerTurn = preset.Value.Limit;
             }
@@ -2339,8 +2377,12 @@ namespace SynergyUI
             SyncTimingDropdown();
             SyncActivateBarValues();
 
-            if (_activationDropdown != null) _activationDropdown.Interactable = !locked;
-            if (_timingDropdown != null) _timingDropdown.Interactable = !locked;
+            // 禁用面（2026-10-16 解绑）：时机——FreeTiming 组解锁；发动方式——仅倒计时解锁（主动奖励）；
+            // 速度组已退役无控件；生效次数恒钉引擎预设。
+            if (_activationDropdown != null)
+                _activationDropdown.Interactable = !locked || (freeTiming && currentKind == BranchEngineKind.Countdown);
+            if (_timingDropdown != null)
+                _timingDropdown.Interactable = !locked || freeTiming;
             if (locked) _ddLimit.interactable = false;
             else ApplyOnceTimingLimitLock(); // 引擎移除——必然单发锁恢复对次数下拉的管辖
         }
@@ -3501,13 +3543,38 @@ namespace SynergyUI
             // 效果库模式：清旧档只认「从效果表载入」的源 id（编辑换内容=换 id，旧档被新版替代）。
             // 2026-10-09 修复：此前保存后把 _graph.id 回填为源 id——下一次原位改组别的效果再保存
             // 会把上一条独立库效果误删（1点伤害↔1点穿透互相覆盖根因）。删毕即闭链，不再重新武装。
+            // 2026-10-16 强制删除机制：旧版仍被卡引用时弹窗二选一——「保留旧版」新旧共存（引用卡
+            // 不受影响）/「删除旧版」引用卡断链（同删效果口径）。
             var path = EffectLibrarySerializer.Save(_graph); // Save 内计算/回填 graph.id
             string replacedId = null;
             if (!string.IsNullOrEmpty(_loadedFromLibraryId) && _loadedFromLibraryId != _graph.id)
             {
                 replacedId = _loadedFromLibraryId;
-                EffectLibrarySerializer.DeleteById(replacedId);
-                _loadedFromLibraryId = null;
+                var refs = ReferenceAudit.CardsReferencingEffect(replacedId);
+                if (refs.Count > 0)
+                {
+                    var captured = replacedId;
+                    var capturedRefs = refs;
+                    UiKit.ConfirmBox(Root, "旧版效果处理",
+                        $"旧版 {captured} 被 {capturedRefs.Count} 张卡引用：{string.Join("、", capturedRefs)}。\n\n"
+                        + "「保留旧版」=新旧共存，引用卡继续用旧版；「删除旧版」=引用卡断链（装载时该效果被跳过）。",
+                        "删除旧版",
+                        () =>
+                        {
+                            EffectLibrarySerializer.DeleteById(captured);
+                            ShowToast($"旧版 {captured} 已删——{capturedRefs.Count} 张卡引用断链（卡组合界面已标记⚠）");
+                            if (_rightMode == RightMode.Effects) RefreshEffectsList();
+                        },
+                        cancelLabel: "保留旧版",
+                        onCancel: () => ShowToast($"已保留旧版 {captured}（{capturedRefs.Count} 张卡仍引用旧版）"));
+                    _loadedFromLibraryId = null; // 闭链；旧版去留交给弹窗（本保存提示走共存口径）
+                    replacedId = null;
+                }
+                else
+                {
+                    EffectLibrarySerializer.DeleteById(replacedId);
+                    _loadedFromLibraryId = null;
+                }
             }
             if (path != null) TutorialCreationFlow.NotifyEffectsChanged(); // 第三课走查步检测（未开课零行为）
             ShowToast(path == null ? "保存失败"

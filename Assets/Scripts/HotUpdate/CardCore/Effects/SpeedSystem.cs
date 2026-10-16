@@ -16,19 +16,22 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 效果发动类型
-    /// 条件发动：基于事件自动触发，不参与速度比较（"xx时"时点响应，恒可入栈）
-    /// 速度发动：玩家自主决定，受记速器门槛约束
+    /// 效果发动类型（2026-10-16 称谓统一定案：效果只分**主动/自动**两种——旧「启动式/激活式/自由发动」
+    /// 称谓全部统一为「主动」，承载时机=TriggerTiming.Activate_* 三档（主阶段/瞬间/响应）。
+    /// 条件发动（自动）：基于事件自动触发，不参与速度比较（"xx时"时点响应，恒可入栈）；
+    /// 速度发动（主动）：玩家自主决定，受记速器门槛约束。
+    /// 强制（Mandatory）=系统内部使用：无条件触发，**不开放**（合成器发动方式下拉只有 自动/主动）、
+    /// 不动——仅作内部实现细节保留。
     /// </summary>
     public enum EffectActivationType
     {
-        /// <summary>强制发动 — 必须发动，满足条件自动入栈</summary>
+        /// <summary>强制发动 — 必须发动，满足条件自动入栈（系统内部使用，不开放）</summary>
         Mandatory,
 
         /// <summary>自动发动 — 满足条件自动发动</summary>
         Automatic,
 
-        /// <summary>自由发动 — 玩家选择是否发动，受记速器门槛约束</summary>
+        /// <summary>主动发动（旧称：启动式/激活式/自由发动）— 玩家选择是否发动，受记速器门槛约束</summary>
         Voluntary,
     }
 
@@ -181,24 +184,21 @@ namespace CardCore
         /// 裸 Card（衍生物/临时卡，非 CardWrapper）恒为 0。
         /// 2026-10-15 深夜改版：法术效果发动速度=卡的发动速度——免费点=槽数+速度(3−N)
         ///（KindSpeedBonusOf 动态单源）计入本口；生物/结界从手牌使用恒 0 速（结界禁主动后速度通道退役）。
-        /// 疾风仪典（2026-10-04 光环改造）：从手牌使用的卡发动速度+1——出牌/响应出牌/
-        /// AI 预检/速度门全经本口，单源生效（攻击/守卫/启动式不在此列）。
+        /// 疾风仪典 2026-10-16 改版：光环只作用场上卡（攻击宣言/主动效果）——手牌施放不再+1，
+        /// 加成口见 RuleAuraComponents.OnBoardActiveSpeedBonus。
         /// </summary>
         public static int GetCardCastSpeed(Card card)
         {
             var data = (card as CardWrapper)?.GetData();
-            // 疾风加成按出牌者一侧判（2026-10-07 范围化；裸卡无控制者 → null=不命中）
-            var caster = card?.GetController();
-            int auraBonus = RuleAuraComponents.CardCastSpeedBonus(caster);
             if (data?.Effects == null || data.Effects.Count == 0)
-                return auraBonus; // 裸卡基速 0 + 光环加成
+                return 0; // 裸卡/无效果卡基速 0
             int max = 0;
             foreach (var effect in data.Effects)
                 if (effect != null && effect.BaseSpeed > max)
                     max = effect.BaseSpeed;
             if (data.Supertype == Cardtype.Spell)
                 max += CardCompositionCost.KindSpeedBonusOf(data); // 法术提速计入整卡施放速度门
-            return max + auraBonus;
+            return max;
         }
     }
 }

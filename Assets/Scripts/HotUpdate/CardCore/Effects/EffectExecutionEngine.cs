@@ -32,7 +32,7 @@ namespace CardCore
 
         /// <summary>触发上限闸门（2026-09-13 定案；2026-10-03 键修正）：触发式效果本回合触发数是否已达上限——
         /// 触发式在 ProcessTriggeredEffects 入栈即记账（RecordQueuedActivation，防同批出队时
-        /// 第 1 个未结算导致第 2 个漏拦）；启动式结算记账走既有 RecordActivation。
+        /// 第 1 个未结算导致第 2 个漏拦）；主动结算记账走既有 RecordActivation。
         /// 键 = **来源实例 + effect.Id**（2026-10-03 修正：此前全局按 Id——同 Id 不同实例互吞：
         /// 回响临时复制与本体同回合各自 OnPlay 被吞、同名卡同回合打第二张同样被吞；
         /// 现按卡实例独立限流，"同一张卡的同一效果每回合 N 次"语义不变）。</summary>
@@ -45,7 +45,7 @@ namespace CardCore
         public void RecordQueuedActivation(EffectDefinition effect, Entity source = null)
             => RecordUse(effect, source);
 
-        /// <summary>限流台账键：effect.Id + 来源实例（null 源回落纯 Id——启动式等无源语境）。</summary>
+        /// <summary>限流台账键：effect.Id + 来源实例（null 源回落纯 Id——主动等无源语境）。</summary>
         private static string UsageKey(EffectDefinition effect, Entity source)
             => UsageKeyOf(effect.Id, source);
 
@@ -83,7 +83,7 @@ namespace CardCore
             PhaseType currentPhase,
             int turnNumber)
         {
-            // 0. 发动代价预检（仅启动式）：按宿主分货币（2026-10-15 深夜三类卡改版）——
+            // 0. 发动代价预检（仅主动）：按宿主分货币（2026-10-15 深夜三类卡改版）——
             //    结界（战场/技能栏）= **拒绝**——结界禁主动效果，只挂自动/光环（运行时临摹/变形
             //    塞进来的主动行也在此拦）；其余（生物/技能区法术=英雄技能载体）= 未横置
             //    （横置为固定代价，发动成功经 KeywordRules.ShouldTap 支付——恒横置，警戒不抵扣）。
@@ -99,12 +99,12 @@ namespace CardCore
                     return false;
             }
 
-            // 0.5 沉默指示物（定案）：持有者不可发动主动效果（激活式能力路径；
+            // 0.5 沉默指示物（定案）：持有者不可发动主动效果（主动能力路径；
             //     PlayCard 出牌不受限——那是"打出"而非"发动"）。换区清除。
             if (source != null && source.GetCounterCount(Attribute.CounterRules.SilenceCounter) > 0)
                 return false;
 
-            // 0.6 沉睡指示物（2026-09-11 定案）：沉睡期间效果无效——启动式同样不可发动
+            // 0.6 沉睡指示物（2026-09-11 定案）：沉睡期间效果无效——主动同样不可发动
             //（触发式在 TriggerEngine.FindMatchingEffects 拦，双口合流）。
             if (source != null && source.GetCounterCount(Attribute.KeywordRules.SleepCounter) > 0)
                 return false;
@@ -198,7 +198,7 @@ namespace CardCore
             var effect = instance.Definition;
 
             // 发动层无效（2026-10-04 两层无效定案，NegateActivation 标记）：发动本身作废——净零成本跳过：
-            // 不移除潜行（未真正发动过效果）、不扣元素费/特殊代价（启动式=不扣费，横置为声明期代价不重置）、
+            // 不移除潜行（未真正发动过效果）、不扣元素费/特殊代价（主动=不扣费，横置为声明期代价不重置）、
             // 不结算原子；触发式退还入栈时的发动次数记账（不计入发动次数）。
             if (instance.IsActivationNegated)
             {
@@ -277,17 +277,26 @@ namespace CardCore
                     Source = instance.Source
                 };
 
-                // 顺序（2026-10-11 对齐 GameActions.ResolveCardCastAsync「补偿先付垫本卡」——
-                // 回调 2026-10-04「元素费先于代价补偿」旧序）：**代价先于元素费**——
-                // 生成的黑/白立即入池、可垫本次支付（声明期门槛同口径计入）。
+                // 顺序（2026-10-16 恢复 2026-10-04 旧序——对齐 GameActions.ResolveCardCastAsync，
+                // 回调 10-11「补偿先付垫本卡」定案）：**元素费先于代价补偿**——
+                // 将生成的黑/白不提前计入（本次支付以现有钱包+地牌结算；补偿在效果发动成功、
+                // 代价强制执行完成后才入账，垫不了本次账单）。
                 //
                 // 特殊代价（2026-09-14 代价强制定案：付代价=得黑/白，补偿跟代价走）：
                 // 卡牌 cast 的特殊代价已在付费步**强制支付并补偿**（ResolveCardCastAsync，ElementCostPrepaid 标记）；
-                // 启动式/动态效果在此现付+补偿（同为强制路径 PayWithCompensationAsync——无选择窗口；
+                // 主动/动态效果在此现付+补偿（同为强制路径 PayWithCompensationAsync——无选择窗口；
                 // 快照在执行前取、生效后立即获得黑白；代价无有效目标→不执行不补偿）。
                 // 2026-09-16 结算失败口径定案：费用付不出/目标为0 → **空转+日志，不回滚不断链**
                 //（入栈期已过滤可付性，此处失败=窗口内状态变化；已付不退，结算链继续）——
                 // 旧 EffectResolutionException 会中断整条 ResolveStack，已退役。
+                if (!skipElementCost && !effect.ElementCostPrepaid && !elementCosts.IsZero &&
+                    !ElementCostPayment.Pay(elementCosts, costContext))
+                {
+                    TideLog.Warn($"[EffectExecutor] 效果 {effect.Id} 元素费付不出——空转（不回滚不断链）");
+                    instance.IsResolved = true;
+                    return;
+                }
+
                 if (specialCosts.Count > 0 && !effect.ElementCostPrepaid)
                 {
                     if (!await CostCompensationService.PayWithCompensationAsync(specialCosts, costContext))
@@ -297,18 +306,10 @@ namespace CardCore
                         return;
                     }
                 }
-
-                if (!skipElementCost && !effect.ElementCostPrepaid && !elementCosts.IsZero &&
-                    !ElementCostPayment.Pay(elementCosts, costContext))
-                {
-                    TideLog.Warn($"[EffectExecutor] 效果 {effect.Id} 元素费付不出——空转（不回滚不断链）");
-                    instance.IsResolved = true;
-                    return;
-                }
             }
 
             // 效果层无效（2026-10-04 两层无效定案，NegateEffect 标记）：发动照常——计费已付（不返还）、
-            // 潜行已移除、横置不重置（声明期代价）；效果不结算，启动式发动次数照记
+            // 潜行已移除、横置不重置（声明期代价）；效果不结算，主动发动次数照记
             //（触发式入栈时已记、不退——计入发动次数）。强制桶同走此门（受效果无效管制）。
             if (instance.IsEffectNegated)
             {
@@ -387,8 +388,8 @@ namespace CardCore
             if (instance.TriggeringEvent == null)
                 RecordUse(effect, instance.Source);
 
-            // 眠蚀光环（2026-10-07 负面化定案）：受光环影响的生物**启动式主动发动**结算后叠一层沉睡
-            //（仅启动式——触发式/登场不算，用户定案；沉睡层自身拦截后续启动式+跳过重置）
+            // 眠蚀光环（2026-10-07 负面化定案）：受光环影响的生物**主动主动发动**结算后叠一层沉睡
+            //（仅主动——触发式/登场不算，用户定案；沉睡层自身拦截后续主动+跳过重置）
             if (instance.TriggeringEvent == null
                 && instance.ActivationType == EffectActivationType.Voluntary
                 && instance.Source is Card sleepSrc && sleepSrc.IsAlive)
@@ -932,6 +933,9 @@ namespace CardCore
         public PendingEffectQueue PendingQueue => _pendingQueue;
         public int StackSize => _stack.Count;
         public bool IsEmpty => _stack.Count == 0;
+        /// <summary>栈顶未结算项（2026-10-16 lbl-toast 定案：响应窗提示「在响应什么」用；
+        /// 空栈=null，只读不弹——CurrentPhase 死字段勿读的教训不适用于此只读口）。</summary>
+        public EffectInstance PeekStack() => _stack.Count > 0 ? _stack.Peek() : null;
         public Player CurrentPriorityHolder => _priorityHolder;
         public Player ActivePlayer => _activePlayer;
         public bool WaitingForPlayer => _waitingForPlayer;
@@ -1161,13 +1165,16 @@ namespace CardCore
         /// 攻击宣言入栈（逐攻击开窗，2026-09-16 定案）。速度门=标准口径（0 ≥ 计数器），
         /// 栈非空（连锁中）不可宣；宣言期零支付；发 AttackDeclarationEvent（宣言时点，触发器可见）；
         /// 防守方先获响应机会。结算消费见 ResolveStack 的 IsAttackDeclaration 分支。
+        /// 疾风仪典 2026-10-16 改版：场上攻击者（生物）宣言速度+1——攻击宣言**仍不抬计数器**
+        ///（守卫照常 1 速拦截；+1 只改门槛与记录值）；角色攻击（Player 攻击者，非卡）不加。
         /// </summary>
         public bool PushAttackDeclaration(Entity attacker, Entity target, Player controller)
         {
             if (attacker == null || target == null || controller == null) return false;
             if (_stack.Count > 0) return false; // 连锁中不可宣（速度门 0≥计数器的等价直查）
             SyncActivePlayerFromTurn();
-            if (!_speedCounter.CanActivate(AttackStackSpeed, controller == _activePlayer, EffectActivationType.Voluntary))
+            int speed = AttackStackSpeed + RuleAuraComponents.OnBoardActiveSpeedBonus(attacker);
+            if (!_speedCounter.CanActivate(speed, controller == _activePlayer, EffectActivationType.Voluntary))
                 return false;
 
             var instance = new EffectInstance
@@ -1175,8 +1182,9 @@ namespace CardCore
                 IsAttackDeclaration = true,
                 Source = attacker,
                 Controller = controller,
-                ActivationSpeed = AttackStackSpeed, // RaiseTo(0) 无操作——攻击宣言不抬计数器
+                ActivationSpeed = speed, // 基速0（+疾风场上加成）——攻击宣言不抬计数器（无 RaiseTo 调用）
                 Targets = new List<Entity> { target },
+                OriginalAttackTarget = target, // 原目标存档（2026-10-16 碾压改版：守卫改写后溅射枢轴仍取原目标）
             };
 
             _stack.Push(instance);
@@ -1199,6 +1207,7 @@ namespace CardCore
 
         /// <summary>
         /// 守卫拦截入栈（速度1响应，2026-09-16 定案）：Targets=[被拦截的攻击宣言对象]。
+        /// 守卫者=未横置守卫生物，或角色（2026-10-16 角色守卫：资格=攻击弹药&gt;0）。
         /// 宣言期零支付（横置在结算时支付）；结算时改写攻击目标（CombatSystem.ResolveGuardDeclaration）。
         /// </summary>
         public bool PushGuardDeclaration(Entity guarder, EffectInstance attackInstance, Player controller)
@@ -1206,9 +1215,17 @@ namespace CardCore
             if (guarder == null || attackInstance == null || controller == null) return false;
             if (!_stack.Contains(attackInstance)) return false; // 拦截对象须在栈上
             // 资格闸（2026-09-16）：守卫能力（NoGuard 卡不能拦）/存活/未横置——横置支付在结算期，
-            // 此处拦的是"已横置不能再宣"
-            if (!(guarder is Card guardCard) || !guardCard.HasGuardAbility()
-                || !guardCard.IsAlive || guardCard.IsTapped()) return false;
+            // 此处拦的是"已横置不能再宣"。角色（玩家）守卫（2026-10-16 定案）：无守卫关键词、
+            // 无横置概念——资格=有攻击弹药（弹药即攻击力）；守卫=把攻击改写为打角色，
+            // 反伤/弹药烧除走既有 Player 目标路径（ResolvePair 反伤步全烧——与被打同口径）
+            bool guardOk;
+            if (guarder is Card guardCard)
+                guardOk = guardCard.HasGuardAbility() && guardCard.IsAlive && !guardCard.IsTapped();
+            else if (guarder is Player heroGuard)
+                guardOk = heroGuard.IsAlive && heroGuard.GetPower() > 0;
+            else
+                guardOk = false;
+            if (!guardOk) return false;
             SyncActivePlayerFromTurn();
             if (!_speedCounter.CanActivate(GuardStackSpeed, controller == _activePlayer, EffectActivationType.Voluntary))
                 return false;
@@ -1685,7 +1702,7 @@ namespace CardCore
                 }
 
                 // 无效指示物（2026-09-09 定案）：拦全部触发式（事件匹配后、上栈前）——
-                // 含登场 OnPlay 族触发；只拦「注册来源自身」的能力。与沉默（拦启动式，CanActivate）对称。
+                // 含登场 OnPlay 族触发；只拦「注册来源自身」的能力。与沉默（拦主动，CanActivate）对称。
                 // 伤害管线被动（坚韧/圣盾/护甲——指示物与圣盾走 ApplyDamage 管线）与回合维护
                 // （再生，GameCore 直连）不经此，天然不拦。
                 if (registered.Source != null
@@ -1693,7 +1710,7 @@ namespace CardCore
                     continue;
 
                 // 沉睡（2026-09-11 定案）：沉睡期间**效果无效**——拦触发式（与无效同口）；
-                // 启动式在 CanActivate 拦（与沉默同口）。入场窗口自身的 OnPlay 不受影响
+                // 主动在 CanActivate 拦（与沉默同口）。入场窗口自身的 OnPlay 不受影响
                 //（指示物在结算中才落下，匹配先于结算）。
                 if (registered.Source != null
                     && registered.Source.GetCounterCount(Attribute.KeywordRules.SleepCounter) > 0)
@@ -1837,6 +1854,8 @@ namespace CardCore
                 new AddArmorHandler(),
                 new GrantToughnessHandler(),
                 new AddToxinHandler(),
+                // 报复（2026-10-16 新增，红1/层）：受伤反噬指示物——触发口=KeywordRules.ApplyDamage 尾段
+                new GrantRetaliationHandler(),
 
                 // 圣盾/复生/潜行（2026-10-08 指示物化）：GrantXxx 原子类型与 refId 不变，
                 // 执行改挂对应指示物层（每层一份、事件消耗），退出关键词处理器族
@@ -1882,7 +1901,7 @@ namespace CardCore
                 //（例程=CounterRules.OnTurnEnd ②块；回响复制体恒带 1 层=TempCopyRules 施加口）
                 new GrantTemporaryHandler(),
 
-                // 无效指示物（蓝3）：拦非启动式能力（触发式+光环）——与沉默（拦启动式）对称
+                // 无效指示物（蓝3）：拦非主动能力（触发式+光环）——与沉默（拦主动）对称
                 new AddNullifyHandler(),
 
                 // 锁定指示物（2026-10-04 窥渊原子化，蓝2）：手牌无法使用，持有者回合末层数−1

@@ -7,13 +7,18 @@ namespace SynergyUI
 {
     /// <summary>
     /// 引导步骤规格（TutorialConfig.guide 条目）：
+    /// intro——纯讲解步（2026-10-16 教学一两段式）：闸住玩家一切操作，UI 点击引导横幅确认推进
+    ///   （NotifyIntroConfirmed）；reveal=演出指令串（board/zone:*/heroes/deck/hand/midTransition，
+    ///   逻辑层透传，BattleScreen 消费做分区渐进显示等演出）；
     /// attack——玩家须用 attacker 宣言攻击 target（"hero"=对方角色 / 卡 id=场上单位）；
     /// guard——对手 attacker 宣言攻击时玩家须用 guarder 守卫拦截；
     /// end——强制结束回合（此步进行中一切攻击被拒）；
     /// element——玩家须把 card（手牌）放入元素池当地牌（target 可选=锁定产色名，2026-10-11 锁色定案）；
     /// tap——已退役（2026-10-11 现取现用：地牌横置=付费步系统自动动作，无手动产色步骤）；
     /// tapcreature——玩家须横置 card（带 LandTrait 的生物）产色（临时元素）；
-    /// play——玩家须从手牌打出 card。
+    /// play——玩家须从手牌打出 card；
+    /// victory——自由挑战收尾步（2026-10-16）：闸全放行（玩家自由操作），对局胜利
+    ///   （GameOverEvent 玩家胜）时步骤完成=引导全部完成。
     /// hint=引导提示文案（UI 高亮/弹窗后续接，逻辑层只透传）。
     /// </summary>
     [Serializable]
@@ -27,6 +32,7 @@ namespace SynergyUI
         public string card;   // element/tapcreature/play 的卡 id
         public string land;   // tap 的地牌源卡 id
         public string color;  // tap 的产出颜色（"Gray"/"Red"/"Blue"/"Green"/"White"/"Black"）
+        public string reveal; // intro 的演出指令（board/zone:p1-land/zone:p1-units/zone:mid/zone:p2/zone:special/heroes/deck/hand/midTransition）
     }
 
     /// <summary>
@@ -34,10 +40,14 @@ namespace SynergyUI
     /// 步骤未完成时把对局"钉住"（暂停语义）——
     /// · 攻击闸：attack 步骤只放行「引导攻击者×引导目标」；guard 步骤期间生物保留待命；
     ///   end 步骤期间强制结束回合；**课规 heroLockCard（第二课）：该卡存活期间玩家不可攻击对方角色**
-    ///   （步骤完成后仍然生效——boss 亡即解锁；法术直伤不在此列）；
-    /// · 结束回合闸：attack 步骤未完成禁走；
+    ///   （步骤完成后仍然生效——boss 亡即解锁；法术直伤不在此列）；intro 步骤期间攻击全拒（讲解中）；
+    ///   victory 步骤攻击全放行（自由挑战收尾）；
+    /// · 结束回合闸：attack 步骤未完成禁走（intro/资源步骤同理；guard/victory 放行）；
     /// · 守卫候选过滤：guard 步骤只留引导守卫者，非引导攻击者的窗口置空自动放行；
-    /// · 资源闸（第二课）：element/tap/tapcreature/play 步骤分别钉住放地/产色/生物产色/出牌。
+    /// · 资源闸（第二课）：element/tap/tapcreature/play 步骤分别钉住放地/产色/生物产色/出牌
+    ///   （victory 步骤全放行）；
+    /// · intro（2026-10-16 教学一两段式）：讲解步闸住一切操作，UI 点击横幅调 NotifyIntroConfirmed 推进；
+    /// · victory（同上）：闸全放行，GameCore 终局发布探针（OnTutorialGameOver）玩家胜时推进=引导完成。
     /// 步骤完成即推进；全部完成后步骤闸退场（Active=false），仅课规（heroLock）随钩子留存到 End()。
     /// 漏守兜底：guard 步骤对应的攻击结算/取消而未被拦截 → 步骤记 Missed 完成并推进（不因漏守死锁）。
     /// 安装：BattleScreen.StartTutorialGame（配置含 guide 时 Begin）/ OnExit 与 Shutdown 同口径 End。
@@ -101,6 +111,7 @@ namespace SynergyUI
             RuleHooks.OnTutorialManaGained = NotifyManaGained;
             RuleHooks.OnTutorialCreatureTapped = NotifyCreatureTapped;
             RuleHooks.OnTutorialCardPlayed = NotifyCardPlayed;
+            RuleHooks.OnTutorialGameOver = NotifyGameOver;
 
             if (Active)
                 TideLog.Info($"[TutorialGuide] 引导开始：{_steps.Count} 步——第 1 步 {Describe(_steps[0])}");
@@ -135,6 +146,7 @@ namespace SynergyUI
             RuleHooks.OnTutorialManaGained = null;
             RuleHooks.OnTutorialCreatureTapped = null;
             RuleHooks.OnTutorialCardPlayed = null;
+            RuleHooks.OnTutorialGameOver = null;
             TideLog.Info("[TutorialGuide] 引导退场");
         }
 
@@ -153,6 +165,9 @@ namespace SynergyUI
             if (!Active) return null; // 步骤全部完成=自由对局（课规已在上方处理）
             var step = Current;
             if (step == null) return null;
+            if (step.type == "victory") return null; // 自由挑战步：攻击全放行（胜利探针收尾）
+            if (step.type == "intro")
+                return "引导讲解中——先读完提示（点击横幅继续）";
             if (step.type == "guard")
                 return $"生物保留待守卫（{NameOf(step.guarder)} 将拦截对手的 {NameOf(step.attacker)}）";
             if (step.type == "end")
@@ -176,7 +191,8 @@ namespace SynergyUI
             if (step == null) return null;                      // 步骤全部完成=自由
             if (step.type == "end") return null;                // end 本身即引导动作
             if (step.type == "guard") return null;              // 守卫发生在对手回合，不挡
-            return $"引导未完成——{step.hint ?? Describe(step)}"; // attack/element/tap/tapcreature/play：先做完引导动作
+            if (step.type == "victory") return null;            // 自由挑战步：回合流转放行
+            return $"引导未完成——{step.hint ?? Describe(step)}"; // intro/attack/element/tap/tapcreature/play：先做完引导动作
         }
 
         private static List<ResponseOption> FilterGuards(Player holder, List<ResponseOption> options)
@@ -197,6 +213,7 @@ namespace SynergyUI
             if (!Active || player != GameCore.Instance?.Player1) return null;
             var step = Current;
             if (step == null) return null;
+            if (step.type == "victory") return null; // 自由挑战步：放行
             if (step.type == "element")
                 return card?.ID == step.card
                     ? null
@@ -209,6 +226,7 @@ namespace SynergyUI
             if (!Active || player != GameCore.Instance?.Player1) return null;
             var step = Current;
             if (step == null) return null;
+            if (step.type == "victory") return null; // 自由挑战步：放行
             if (step.type == "tap")
             {
                 if (land?.SourceCard?.ID != step.land)
@@ -225,6 +243,7 @@ namespace SynergyUI
             if (!Active || player != GameCore.Instance?.Player1) return null;
             var step = Current;
             if (step == null) return null;
+            if (step.type == "victory") return null; // 自由挑战步：放行
             if (step.type == "tapcreature")
                 return creature?.ID == step.card
                     ? null
@@ -237,6 +256,7 @@ namespace SynergyUI
             if (!Active || player != GameCore.Instance?.Player1) return null;
             var step = Current;
             if (step == null) return null;
+            if (step.type == "victory") return null; // 自由挑战步：放行
             if (step.type == "play")
                 return card?.ID == step.card
                     ? null
@@ -315,6 +335,25 @@ namespace SynergyUI
             Advance(missed: false);
         }
 
+        /// <summary>intro 步推进口（2026-10-16 两段式）：UI 引导横幅被点击时调用——
+        /// 当前步为 intro 即完成推进；其余步骤忽略（误点无害）。</summary>
+        public static void NotifyIntroConfirmed()
+        {
+            var step = Current;
+            if (step == null || step.type != "intro") return;
+            Advance(missed: false);
+        }
+
+        /// <summary>victory 步探针（GameCore.PublishGameOverOnce 发射）：玩家胜利=步骤完成（引导全部完成）；
+        /// 玩家失败=对局已终（步骤停留，回菜单重开教学局即重来——终局呈现由 BattleScreen 负责）。</summary>
+        private static void NotifyGameOver(Player winner)
+        {
+            var step = Current;
+            if (step == null || step.type != "victory") return;
+            if (winner == null || winner != GameCore.Instance?.Player1) return;
+            Advance(missed: false);
+        }
+
         private static void Advance(bool missed)
         {
             if (missed && _index >= 0 && _index < _missed.Count) _missed[_index] = true;
@@ -339,12 +378,14 @@ namespace SynergyUI
         {
             switch (s.type)
             {
+                case "intro": return $"intro：{s.hint}（reveal={s.reveal ?? "无"}）";
                 case "guard": return $"guard：用 {NameOf(s.guarder)} 守卫对手的 {NameOf(s.attacker)}（{s.hint}）";
                 case "end": return $"end：结束回合（{s.hint}）";
                 case "element": return $"element：把 {NameOf(s.card)} 放入元素池当土地（{s.hint}）";
                 case "tap": return $"tap：横置 {NameOf(s.land)} 产出 {s.color}（{s.hint}）";
                 case "tapcreature": return $"tapcreature：横置 {NameOf(s.card)} 产色（{s.hint}）";
                 case "play": return $"play：打出 {NameOf(s.card)}（{s.hint}）";
+                case "victory": return $"victory：消灭对手完成教学（{s.hint}）";
                 default: return $"attack：用 {NameOf(s.attacker)} 攻击 {(s.target == "hero" ? "对方角色" : NameOf(s.target))}（{s.hint}）";
             }
         }

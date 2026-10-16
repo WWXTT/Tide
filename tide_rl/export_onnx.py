@@ -6,7 +6,7 @@ batch 已脱皮，Unity 侧无需再压 batch 维）：
 
   输入（float32）
     rstate  (512,)   GRU 隐状态（局内逐步传递；新对局置零）
-    cards   (92,68)  TideObservation.Cards（v3 契约 docs/action_space_v3_contract.md）
+    cards   (92,116) TideObservation.Cards（v4 契约 docs/action_space_v3_contract.md：原子槽 6→12）
     global  (50,)    TideObservation.Globals
     actions (512,8)  LegalActionEnumerator.Features 补零到 512（valid=0 → 图内掩 -1e9）
   输出（float32）

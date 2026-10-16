@@ -31,13 +31,24 @@ namespace SynergyUI
             return sprite;
         }
 
-        /// <summary>生物模型预览图：Multiple 模式子精灵（编辑器 LoadAllAssetsAtPath 取首个 Sprite；
-        /// LoadAssetAtPath&lt;Sprite&gt; 对 Multiple 主资产返回 null）。</summary>
+        /// <summary>生物模型预览图：Multiple 模式子精灵（编辑器 LoadAllAssetsAtPath）。
+        /// 2026-10-16 定案（用户：「下有 _0/__1 类似情况一律显示 _0」）：取 rect 面积最大的子精灵——
+        /// 多切片表的其余切片是自动切片碎片（8×8 级），"首个 Sprite"依赖 API 未定义的返回序不可靠；
+        /// 且 17 张多切片表中 GreenPhantomKing/Tyhone/WingsOfWickedFlame 的 _0 本身是碎片、真图在
+        /// _1/_2，按面积取恰好=其余 14 表的 _0 与这 3 表的真图（LoadAssetAtPath&lt;Sprite&gt; 对
+        /// Multiple 主资产返回 null）。</summary>
         private static Sprite LoadCreaturePreview(string name)
         {
 #if UNITY_EDITOR
+            Sprite best = null;
+            long bestArea = -1;
             foreach (var asset in UnityEditor.AssetDatabase.LoadAllAssetsAtPath(CreaturePreviewPath(name)))
-                if (asset is Sprite sprite) return sprite;
+                if (asset is Sprite sprite)
+                {
+                    var area = (long)sprite.rect.width * (long)sprite.rect.height;
+                    if (area > bestArea) { bestArea = area; best = sprite; }
+                }
+            return best;
 #endif
             return null;
         }

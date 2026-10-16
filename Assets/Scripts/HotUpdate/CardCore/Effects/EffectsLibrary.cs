@@ -13,6 +13,9 @@ namespace CardCore
     public static class EffectsLibrary
     {
         private const string ConfigRelative = "Card/Effects.json";
+        // 教学独立效果表（2026-10-16 定案：教学效果不再与正式表混用）：同格式副表，
+        // EnsureLoaded 时合并（重复 id 保正式表首条——与主表内重复 id 同口径）。
+        private const string TutorialConfigRelative = "Card/TutorialEffects.json";
 
         [Serializable]
         private class Wrapper { public List<EffectSlimDto> items; }
@@ -44,10 +47,39 @@ namespace CardCore
                     _byId[it.id] = it;
                     _items.Add(it);
                 }
+                MergeTutorialEffects(); // 教学副表合并（2026-10-16）
             }
             catch (Exception e)
             {
                 TideLog.Warn($"[EffectsLibrary] 加载 {ConfigRelative} 失败: {e.Message}");
+            }
+        }
+
+        /// <summary>教学效果副表合并：重复 id 保正式表（先装主表，教学表写错可查）。
+        /// 文件缺失=无教学效果，静默 Warn 兜底。</summary>
+        private static void MergeTutorialEffects()
+        {
+            try
+            {
+                string tpath = SynergyUI.CardDataPaths.FileIn("TutorialEffects.json");
+                if (!File.Exists(tpath))
+                {
+                    TideLog.Warn($"[EffectsLibrary] 教学效果表未找到: {tpath}");
+                    return;
+                }
+                var wrapper = TideJson.FromJson<Wrapper>(File.ReadAllText(tpath));
+                if (wrapper?.items == null) return;
+                foreach (var it in wrapper.items)
+                {
+                    if (it == null || string.IsNullOrEmpty(it.id)) continue;
+                    if (_byId.ContainsKey(it.id)) continue; // 重复 id 保首条（正式表）
+                    _byId[it.id] = it;
+                    _items.Add(it);
+                }
+            }
+            catch (Exception e)
+            {
+                TideLog.Warn($"[EffectsLibrary] 加载 {TutorialConfigRelative} 失败: {e.Message}");
             }
         }
 

@@ -235,5 +235,9 @@ namespace CardCore
 
         /// <summary>出牌宣言成功探针（play 步骤完成信号）。</summary>
         public static Action<Player, Card> OnTutorialCardPlayed;
+
+        /// <summary>终局发布探针（2026-10-16 教学一两段式）：winner → victory 引导步骤的完成信号。
+        /// GameCore.PublishGameOverOnce 处发射（每局至多一次；非教学局也经过——订阅方自行过滤）。</summary>
+        public static Action<Player> OnTutorialGameOver;
     }
 }

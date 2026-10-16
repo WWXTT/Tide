@@ -67,7 +67,7 @@ namespace CardCore
 
         /// <summary>作用范围命中（2026-10-07 范围化）：规则活跃且 p 一侧在生效范围内。
         /// 各规则消费点按「规则作用于谁」传对应玩家——三相=支付者、轮回=回合玩家、
-        /// 离散/丰盈=受击/受疗方、血偿=受伤回合方、疾风=出牌者、负面光环族=受咒方。</summary>
+        /// 离散/丰盈=受击/受疗方、血偿=受伤回合方、疾风=场上主动行为主、负面光环族=受咒方。</summary>
         public static bool ScopeHits(string ruleId, Player p)
         {
             if (p == null || !IsActive(ruleId)) return false;
@@ -79,18 +79,6 @@ namespace CardCore
                 : scope == RuleAuraScope.Opponent
                     ? ReferenceEquals(p, ctrl.Opponent)
                     : ReferenceEquals(p, ctrl);
-        }
-
-        /// <summary>战斗伤害改写命中查询（2026-10-07 舍身仪典定案——原毒/冻/眠/疫四改写映射随
-        /// 负面光环化退役，改写管线收敛为舍身单映射）：舍身光环存活、且 source 一侧在生效范围
-        ///（ScopeHits）→ 返回 CombatRedirect；否则 null。消费方：KeywordRules.ApplyDamage 战斗分支
-        ///（改为对光环控制者的对手角色等量伤害）。</summary>
-        public static string HolderRewriteFor(Card source)
-        {
-            if (source == null || !IsActive(RuleAuraComponents.CombatRedirect)) return null;
-            var owner = source.GetController();
-            if (!ScopeHits(RuleAuraComponents.CombatRedirect, owner)) return null;
-            return RuleAuraComponents.CombatRedirect;
         }
 
         /// <summary>
@@ -203,22 +191,19 @@ namespace CardCore
         public const string DamageCap = "DamageCap";                 // 离散仪典（2026-10-04 蚕褪改版：单次伤害>5→5、<5→3；短名承袭存量卡数据）
         public const string LockRevealed = "LockRevealed";           // 窥渊仪典
         public const string GraveyardPlay = "GraveyardPlay";         // 归土仪典
-        public const string CastSpeedUp = "CastSpeedUp";             // 疾风仪典（2026-10-04 改造：从手牌使用的卡发动速度+1）
+        public const string CastSpeedUp = "CastSpeedUp";             // 疾风仪典（2026-10-16 改版：场上卡的主动行为——攻击宣言/主动效果——发动速度+1；手牌施放/守卫不含）
         public const string DoubleTurn = "DoubleTurn";               // 轮回仪典（2026-10-04 承接原疾风：双人连两回合）
         public const string HandLimitNoFatigue = "HandLimitNoFatigue"; // 纳川仪典
 
         // ---- 三负面光环仪典（2026-10-07 负面化定案：原"战斗伤害改写为指示物"语义退役，
         // 改持续型挂层——受光环影响的生物按各自触发点叠对应指示物；钩子在本类，代码侧实现）：
-        // 毒蚀=受到伤害后叠毒素；霜蚀=攻击后冻结；眠蚀=启动式主动发动后叠沉睡（仅启动式——用户定案）。
+        // 毒蚀=受到伤害后叠毒素；霜蚀=攻击后冻结；眠蚀=主动主动发动后叠沉睡（仅主动——用户定案）。
         // 疫蚀仪典已删（2026-10-09 剧毒指示物删除后无独立存在意义）。
-        // 改写管线收敛为舍身仪典（CombatRedirect）单映射。----
+        // 舍身仪典（CombatRedirect 战斗伤害改写）已删（2026-10-16 关键词化：舍身改 GrantMartyrdom
+        // 关键词+MartyrdomRules 配对，改写口=KeywordRules.ApplyDamage；仪典改写映射清零）。----
         public const string CombatToxin = "CombatToxin";             // 毒蚀仪典（受到伤害→毒素）
         public const string CombatFreeze = "CombatFreeze";           // 霜蚀仪典（攻击后→冻结）
-        public const string CombatSleep = "CombatSleep";             // 眠蚀仪典（启动式发动→沉睡）
-
-        // ---- 战斗伤害改写仪典（2026-10-07 舍身定案：受光环影响的生物造成战斗伤害时，
-        // 改为对光环控制者的对手角色等量伤害——战斗伤害不发生。唯一改写映射，见 HolderRewriteFor。）----
-        public const string CombatRedirect = "CombatRedirect";       // 舍身仪典（伤害转投对手角色）
+        public const string CombatSleep = "CombatSleep";             // 眠蚀仪典（主动发动→沉睡）
 
         // ---- 治疗改写仪典（2026-10-09，黑8，表行 9dfed4f8，用户命名「暗牧仪典」）：
         // 受光环影响一方的单位与角色受到的治疗改写为等量伤害
@@ -255,11 +240,18 @@ namespace CardCore
         public static bool IsLockedThisTurn(Card card)
             => card != null && card.GetCounterCount(Attribute.CounterRules.LockCounter) > 0;
 
-        /// <summary>从手牌使用的卡发动速度加成（疾风仪典 2026-10-04 改造；2026-10-07 范围化：
-        /// 按出牌者一侧判命中）：+1 经 SpeedCalculator.GetCardCastSpeed 单源作用
-        ///（出牌/响应出牌/AI 预检/速度门同口径）。</summary>
-        public static int CardCastSpeedBonus(Player caster)
-            => RuleAuraSystem.ScopeHits(CastSpeedUp, caster) ? 1 : 0;
+        /// <summary>场上主动行为速度加成（疾风仪典 2026-10-16 改版：受光环影响的=场上卡——
+        /// 战场/技能区，按 actor 控制者一侧判命中；2026-10-04「手牌施放+1」口径随之退役）：
+        /// 攻击宣言与主动效果发动速度 +1；守卫（自动响应）、角色攻击（Player 非卡）、
+        /// 手牌/墓地施放不含。消费单源：StackEngine.PushAttackDeclaration 与
+        /// PendingEffect.Create（本地/出牌引擎/AI 枚举/网络 intent 同口径）。</summary>
+        public static int OnBoardActiveSpeedBonus(Entity actor)
+        {
+            if (!(actor is Card card)) return 0;
+            var zone = card.GetZone();
+            if (zone != Zone.Battlefield && zone != Zone.FieldZone) return 0;
+            return RuleAuraSystem.ScopeHits(CastSpeedUp, card.GetController()) ? 1 : 0;
+        }
 
         public static void EnsureRegistered()
         {
@@ -279,7 +271,7 @@ namespace CardCore
             RuleHooks.RegisterHandLimitModifier(new HandLimitModifier());
             // 三负面光环（2026-10-07 负面化定案）：毒蚀走 DamageEvent 分流、
             // 霜蚀走 AttackResolvedEvent（CombatSystem 攻击结算完成发布）、
-            // 眠蚀走 EffectExecutionEngine 启动式结算点直调（OnActivatedForSleepAura）
+            // 眠蚀走 EffectExecutionEngine 主动结算点直调（OnActivatedForSleepAura）
             EventManager.Instance.Subscribe<DamageEvent>(OnDamageForNegativeAuras);
             EventManager.Instance.Subscribe<AttackResolvedEvent>(OnAttackResolvedForFreeze);
         }
@@ -323,9 +315,9 @@ namespace CardCore
             });
         }
 
-        /// <summary>眠蚀钩（EffectExecutionEngine 启动式结算完成点直调，2026-10-07 用户定案）：
-        /// 受光环影响的生物**仅启动式主动发动**后叠 1 层沉睡（触发式/登场不算——
-        /// 沉睡层自身拦截后续启动式发动+跳过重置，形成自我累积迟滞）。</summary>
+        /// <summary>眠蚀钩（EffectExecutionEngine 主动结算完成点直调，2026-10-07 用户定案）：
+        /// 受光环影响的生物**仅主动主动发动**后叠 1 层沉睡（触发式/登场不算——
+        /// 沉睡层自身拦截后续主动发动+跳过重置，形成自我累积迟滞）。</summary>
         public static void OnActivatedForSleepAura(Card activator)
         {
             if (activator == null || !activator.IsAlive) return;
@@ -337,7 +329,7 @@ namespace CardCore
             {
                 Target = activator,
                 Keyword = CombatSleep,
-                Detail = $"眠蚀光环：{EffectText.Name(activator)} 启动式发动 → 叠加一层沉睡（拦截后续启动式+跳过重置）",
+                Detail = $"眠蚀光环：{EffectText.Name(activator)} 主动发动 → 叠加一层沉睡（拦截后续主动+跳过重置）",
                 Source = carrier,
             });
         }

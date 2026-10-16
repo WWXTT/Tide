@@ -57,23 +57,28 @@ namespace SynergyUI
             private void Update() => _onUpdate?.Invoke();
         }
 
-        // ================= 属性描述条（选中才出现） =================
+        // ================= 属性描述条（悬浮/按下才出现） =================
 
-        /// <summary>控件交互时的描述上报（EffectComposer 描述条订阅；静态事件——屏 OnEnter 挂/OnExit 摘）。</summary>
+        /// <summary>控件交互时的描述上报（合成器描述条订阅；静态事件——屏 Build 挂/OnExit 摘）。</summary>
         public static event Action<string> DescRequested;
 
         /// <summary>描述挂载组件：随控件销毁自动释放（替代 UITK ConditionalWeakTable）。
-        /// 2026-10-05 触发改版：IPointerDownHandler 按下即上报——Selectable 禁用（interactable=false，
-        /// 如锁死的作用次数下拉、无效组合下的保存）不拦射线与事件分发，点中照样显示其功能说明；
-        /// 也不再依赖 onClick/值变更（禁用态永远不触发那些事件）。</summary>
-        public sealed class DescTag : MonoBehaviour, IPointerDownHandler
+        /// 2026-10-05 触发改版：按下即上报——Selectable 禁用（interactable=false，如锁死的作用次数
+        /// 下拉、无效组合下的保存）不拦射线与事件分发，照样显示其功能说明；也不再依赖 onClick/值变更
+        /// （禁用态永远不触发那些事件）。
+        /// 2026-10-16 悬浮二次定案（当日"退出即隐藏"版被否决——控件间隙/行重建高频显隐=闪烁）：
+        /// 进入/按下即上报刷新，离开与失活一律不撤文本，描述条只在进入新讲解区域时换内容。</summary>
+        public sealed class DescTag : MonoBehaviour, IPointerEnterHandler, IPointerDownHandler
         {
             public string Text;
+
+            public void OnPointerEnter(PointerEventData eventData) => DescRequested?.Invoke(Text);
 
             public void OnPointerDown(PointerEventData eventData) => DescRequested?.Invoke(Text);
         }
 
-        /// <summary>给控件挂属性描述：按下控件（含禁用态）时经 DescRequested 上报显示；
+        /// <summary>给控件挂属性描述：悬浮/按下控件（含禁用态）时经 DescRequested 上报显示；
+        /// 离开不隐藏，进入新讲解区域时刷新（2026-10-16 定案）；
         /// 同物体重复挂载幂等（后写覆盖文本——重建重绑场景不叠标签）。</summary>
         public static T Described<T>(T c, string desc) where T : Component
         {
@@ -84,7 +89,7 @@ namespace SynergyUI
         }
 
         /// <summary>TMP_Dropdown 两段式描述（2026-10-05 定案——档位下拉等直挂 TMP 的场景）：
-        /// 头部按下＝总述一句话；换选＝选中项介绍（optionDesc 返回 null/空＝保持总述）。</summary>
+        /// 悬浮/按下头部＝总述一句话；换选＝选中项介绍（optionDesc 返回 null/空＝保持总述）。</summary>
         public static void DescribedOptions(TMP_Dropdown dd, string overview, Func<int, string> optionDesc)
         {
             if (dd == null) return;
@@ -884,6 +889,24 @@ namespace SynergyUI
             return new Modal { Dim = dim, Panel = panel };
         }
 
+        /// <summary>确认弹窗（2026-10-16 强制删除机制：删卡/删效果遇引用时提示+允许强制）：
+        /// ModalBox 底座+右对齐按钮行。confirm=主行动（danger 默认红底）；cancel 只关闭
+        /// （可选 onCancel 回调，如「保留旧版」走正面语义）。</summary>
+        public static void ConfirmBox(RectTransform overlay, string title, string message,
+            string confirmLabel, Action onConfirm,
+            string cancelLabel = "取消", Action onCancel = null, bool danger = true)
+        {
+            var modal = ModalBox(overlay, title);
+            Size(Label("msg", modal.Panel, message ?? "", UiStyle.BodySize, UiStyle.TextBody, wrap: true), fw: 1f);
+            var bar = Row("bar", modal.Panel, spacing: 10f);
+            bar.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleRight;
+            Button("btn-cancel", bar, cancelLabel ?? "取消",
+                () => { modal.Close(); onCancel?.Invoke(); });
+            Button("btn-confirm", bar, confirmLabel ?? "确认",
+                () => { modal.Close(); onConfirm?.Invoke(); },
+                bg: danger ? UiStyle.BtnDanger : UiStyle.BtnPrimary, fg: UiStyle.White);
+        }
+
         // ================= 下拉（自绘，替代 GenericDropdownMenu） =================
 
         /// <summary>
@@ -968,7 +991,7 @@ namespace SynergyUI
             public void Describe(string text) =>
                 Described(_tmp != null ? (Component)_tmp : (Component)_head, text);
 
-            /// <summary>两段式描述（2026-10-05 定案：总述＋选项介绍）：头部按下＝总述一句话；
+            /// <summary>两段式描述（2026-10-05 定案：总述＋选项介绍；2026-10-16 悬浮化）：悬浮/按下头部＝总述一句话；
             /// 换选选项＝该项介绍（optionDesc 返回 null/空＝保持总述不覆盖）。</summary>
             public void Describe(string overview, Func<int, string> optionDesc)
             {

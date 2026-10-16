@@ -254,14 +254,13 @@ public static class UiPrefabBatchReshape
 
             // 12. 动态残留清理：运行时每次进屏 ClearChildren/ClearContent 重建的容器，烘焙内容是死数据
             //     （BattleUI 的 cell×9/hand-slot×7 与 DeckUI/CardUI 的 chip-* 是刻意保留的模板，不在此列）
+            //     CardUI 2026-10-16 重做后不再清理：运行时容器=art-gallery/Content（空壳）与
+            //     list-library/list-effects 的 content——两 list 的行模板（inactive row）就住在 content 里，
+            //     清理会连模板一起删。
             int residueRemoved = 0;
             if (path.EndsWith("DeckUI.prefab"))
                 residueRemoved += ClearScrollContent(root, "list-catalog") + ClearChildren(root, "stats-zone")
                     + ClearScrollContent(root, "preview-zone");
-            else if (path.EndsWith("CardUI.prefab"))
-                residueRemoved += ClearScrollContent(root, "list-pool") + ClearChildren(root, "dynamic-form")
-                    + ClearChildren(root, "payload-zone") + ClearChildren(root, "effect-library-zone")
-                    + ClearChildren(root, "keyword-zone") + ClearScrollContent(root, "list-breakdown");
             else if (path.EndsWith("EffectUI.prefab"))
                 residueRemoved += ClearChildren(root, "mode-bar") + ClearScrollContent(root, "slot-area")
                     + ClearScrollContent(root, "list-library");

@@ -1,14 +1,18 @@
 # Tide 动作空间 v3 契约（精确对齐期：卡区容量/位置/新决策点/动作数守卫）
 
 定案日期：2026-10-14。本文档是 C#（Unity）与 Python（训练）两侧实现的**唯一权威契约**，
-两侧任何常量/布局改动必须先改这里再改代码。版本号 `LAYOUT_VERSION = 3`。
+两侧任何常量/布局改动必须先改这里再改代码。版本号 `LAYOUT_VERSION = 4`。
 前置文档：`action_space_v2_contract.md`（v2，2026-09-30，已被本版取代）；
 对账依据：仓库根 `AI训练准备_v3对账报告_2026-10-14.md`。
+
+> **2026-10-16 v4 修订**：原子槽 6 → 12（正式卡满配 9 = 代价1 + 主动/自动组合各按 2 + 关键词3，
+> 留 3 槽余量），卡特征 68 → 116 维（见 §4）。v3a 之后未产出正式 checkpoint/onnx，
+> 直接升版作废旧产出（§8 口径 1）。
 
 ## 0. 目标与范围
 
 效果组合定案 + 8×7 缩盘定案后的**精确对齐**：槽位数贴引擎真实容量、补位置特征、
-补两个漏掉的决策点、补动作数守卫。不动的：动作特征 8 维布局、身份三通路（[15..64]）、
+补两个漏掉的决策点、补动作数守卫。不动的：动作特征 8 维布局、身份三通路结构（槽位布局见 §4）、
 奖励塑形口径（λ=0.005）、训练桥协议形态。
 
 明确不做：Exile 逐卡编码（计数先行）；地牌锁色独立特征（格坐标即颜色，见 §4）；
@@ -65,21 +69,25 @@ TransferEquipment（装备退役）；DrainStack（driver 自动）。
 ZoneLayout(zone) 返回 (offset, cap) 单源供 CardIndex/TryZoneSlot 复用；WriteZone 的硬编码副本清除。
 对方手牌仍只写 valid+controller（不开图）。
 
-## 4. 卡特征 65 → 68 维
+## 4. 卡特征 68 → 116 维（2026-10-16 v4：原子槽 6 → 12）
 
 ```
-[0..13]  状态特征（不变）：valid/controller/超类/力量/生命/费用/横置/可攻击/失调/毒素/沉默/
-         费用层净量/嘲讽/潜行
-[14]     LandTrait 0/1（复用神佑死维；层评估 HasKeyword——TapCreature 资格与对手威胁预测）
-[15..20] 原子精确内容哈希下标（不变）
-[21]     组合结构哈希下标（不变）
-[22]     关键词/tag/光环组合哈希下标（不变）
-[23..28] 原子类型下标（不变）
-[29..64] 原子参数浮点块（不变）
-[65]     AwakenCommitted 0/1（苏醒已立约）
-[66]     格坐标 x / 8（BoardLayout.Width；未落格 = -1：手牌/牌库/发动区/技能卡/墓地）
-[67]     格坐标 z / 7（BoardLayout.Height；未落格 = -1）
+[0..13]   状态特征（不变）：valid/controller/超类/力量/生命/费用/横置/可攻击/失调/毒素/沉默/
+          费用层净量/嘲讽/潜行
+[14]      LandTrait 0/1（复用神佑死维；层评估 HasKeyword——TapCreature 资格与对手威胁预测）
+[15..26]  原子精确内容哈希下标（12 槽；跨效果按执行序展平，超出 12 个截断；参数敏感。
+          容量依据：正式卡满配 9 = 代价1 + 主动/自动组合各按 2 + 关键词3，留 3 槽余量）
+[27]      组合结构哈希下标
+[28]      关键词/tag/光环组合哈希下标
+[29..40]  原子类型下标（12 槽）
+[41..112] 原子参数浮点块（12 槽 × 6 维）
+[113]     AwakenCommitted 0/1（苏醒已立约）
+[114]     格坐标 x / 8（BoardLayout.Width；未落格 = -1：手牌/牌库/发动区/技能卡/墓地）
+[115]     格坐标 z / 7（BoardLayout.Height；未落格 = -1）
 ```
+
+（v3 原布局 [15..20] 哈希 / [21][22] 结构+组合 / [23..28] 类型 / [29..64] 参数 / [65..67] 尾部，
+2026-10-16 起整体右移扩容，语义顺序不变。）
 
 位置语义（对账报告 §4）：单位格=落位钉子优先+first-free，**槽序≠格序**，必须显式编码；
 地牌格=按色固定（LandCellOfElement），格坐标等价锁色 one-hot——无需独立色彩特征。
@@ -139,11 +147,11 @@ g[49]     决策上下文（0=己方 Main / 1=响应窗口）
 reset/step 响应 `info`：
 
 ```json
-{"layoutVersion": 3, "dims": {"nCard": 68, "nGlobal": 50, "nAction": 8,
+{"layoutVersion": 4, "dims": {"nCard": 116, "nGlobal": 50, "nAction": 8,
  "maxActions": 512, "maxCards": 92}, "decisionSeat": 0}
 ```
 
-Python reset 逐值断言；C# `LayoutVersion=3` 常量回显（TideObservation 静态属性）。
+Python reset 逐值断言；C# `LayoutVersion=4` 常量回显（TideObservation 静态属性）。
 
 ## 8. 口径决策
 
@@ -157,8 +165,8 @@ Python reset 逐值断言；C# `LayoutVersion=3` 常量回显（TideObservation 
 
 | 项 | C# | Python | 期望值 |
 |---|---|---|---|
-| 布局版本 | TideHeadlessServer 回显 | `LAYOUT_VERSION` | 3 |
-| 卡特征维 | `TideObservation.NCard` | `N_CARD_FEATURES` | 68 |
+| 布局版本 | TideHeadlessServer 回显 | `LAYOUT_VERSION` | 4 |
+| 卡特征维 | `TideObservation.NCard` | `N_CARD_FEATURES` | 116 |
 | 卡槽总数 | `TideObservation.MaxCardsTotal` | `MAX_CARDS` | 92 |
 | 全局维 | `TideObservation.NGlobal` | `N_GLOBAL_FEATURES` | 50 |
 | 动作特征维 | `TideObservation.NAction` | `N_ACTION_FEATURES` | 8 |

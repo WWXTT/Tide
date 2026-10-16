@@ -95,26 +95,35 @@ namespace CardCore
         /// <summary>引擎效果头固定档（2026-10-09 自由分支九项定案）：引擎=单原子形态效果，发动方式/时机/
         /// 速度/生效次数由引擎内生触发事件决定——效果头四值按引擎钉死：合成器锁定不可改（ApplyEngineHeaderLock），
         /// 转换期（ConvertOne）对旧数据/手写数据兜底归一。引擎运行时本就无视效果头（BranchEngines 自订阅
-        /// 事件）——此表保证显示/计价/数据三面与引擎真实语义一致。</summary>
+        /// 事件）——此表保证显示/计价/数据三面与引擎真实语义一致。
+        /// 2026-10-16 解绑定案：倒计时/运势 FreeTiming=true——时机不再钉死（倒计时仅计数钉回合开始，
+        /// 奖励归零后按声明时机发射；运势掷骰随声明时机判定）；表内 Timing/Activation 退化为**缺省值**，
+        /// 合成器解锁时机（倒计时连发动方式）可改，转换期声明值优先、未声明回落此缺省。</summary>
         public readonly struct EngineHeaderPreset
         {
             public readonly EffectActivationType Activation;
             public readonly TriggerTiming Timing;
             public readonly int Speed;
             public readonly int Limit; // 生效次数：-1=无限
+            /// <summary>自由时机引擎（2026-10-16 解绑）：true=时机（倒计时含发动方式）可自由声明，
+            /// 表内 Activation/Timing 为缺省而非钉死值；速度/生效次数仍钉。</summary>
+            public readonly bool FreeTiming;
 
-            public EngineHeaderPreset(EffectActivationType activation, TriggerTiming timing, int speed, int limit)
-            { Activation = activation; Timing = timing; Speed = speed; Limit = limit; }
+            public EngineHeaderPreset(EffectActivationType activation, TriggerTiming timing, int speed, int limit,
+                bool freeTiming = false)
+            { Activation = activation; Timing = timing; Speed = speed; Limit = limit; FreeTiming = freeTiming; }
         }
 
-        /// <summary>各引擎固定档（null=非引擎）：倒计时/运势=自动·回合开始·无限（倒计时归零重挂循环）；
-        /// 死亡计数=自动·登场·每回合一发；拼点=自动·攻击宣言·无限（2026-10-09 改版——仅攻击方结算）；
+        /// <summary>各引擎固定档（null=非引擎）——FreeTiming 组（2026-10-16 解绑）：倒计时=缺省自动·回合开始
+        ///（仅**计数**钉回合开始：归零→奖励待发，按声明的发动时机发射，多轮归零不积累；发动方式可改主动=
+        /// 走响应窗的 0 费触发）/ 运势=缺省自动·回合开始（掷骰随声明时机判定，骰子本就随时可扔）。
+        /// 钉死组照旧：死亡计数=自动·登场·每回合一发；拼点=自动·攻击宣言·无限（仅攻击方结算）；
         /// 元素充盈/手牌序位=自动·使用卡牌时（从手牌使用；放置地牌非使用）·无限；
-        /// 附加诅咒/祝福=主动·启动式钉档·速度 0（部署点=施放结算，主动打出即生效）。</summary>
+        /// 附加诅咒/祝福=主动·主动钉档·速度 0（部署点=施放结算，主动打出即生效）。</summary>
         public static EngineHeaderPreset? EngineHeaderPresetOf(BranchEngineKind kind) => kind switch
         {
-            BranchEngineKind.Countdown => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnTurnStart, 0, -1),
-            BranchEngineKind.LuckRoll => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnTurnStart, 0, -1),
+            BranchEngineKind.Countdown => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnTurnStart, 0, -1, freeTiming: true),
+            BranchEngineKind.LuckRoll => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnTurnStart, 0, -1, freeTiming: true),
             BranchEngineKind.DeathToll => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnPlay, 0, 1),
             BranchEngineKind.Clash => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnAttack, 0, -1),
             BranchEngineKind.ManaSurplus => new EngineHeaderPreset(EffectActivationType.Automatic, TriggerTiming.OnCardPlayed, 0, -1),
@@ -329,14 +338,14 @@ namespace CardCore
         /// 派生主干资格 ∩ 非引擎行（引擎行=条件载体零域，不作奖励）。
         /// 预算/可逆转/非错边过滤在调用点照旧。
         /// （2026-10-13 晚「主动发动」位已删：动态计价原子（召唤衍生物/临摹/变形赋予）触发式预付
-        /// 与启动式现付同额同源（ResolveTemplate→ContentPriceOf），奖励入价在构筑期——主动/自动自由选择。）</summary>
+        /// 与主动现付同额同源（ResolveTemplate→ContentPriceOf），奖励入价在构筑期——主动/自动自由选择。）</summary>
         public static bool CanBeRewardRow(Attribute.AtomicEffectConfig row)
             => CanBeTrunkRow(row) && !HasMountBit(row, MountKind.EngineTrunk);
 
         /// <summary>关键词型 Grant 判定（2026-10-02 定案）：Grant 行且表行目标域恰为 {Self}（纯自指）。
-        /// 关键词型原子 = 关键词的挂载形态（卡面印刷/登场/触发式如"自我沉睡"），**不得作为启动式
+        /// 关键词型原子 = 关键词的挂载形态（卡面印刷/登场/触发式如"自我沉睡"），**不得作为主动
         /// 效果的原子**——横置代价换静态身份无意义；域含其他目标 = 赋予型 Grant（"给目标加词"），
-        /// 可作启动式。行级判定即完备：实例 kinds 是收窄（交集），自指域收不出他人域、赋予域收不出自指域。
+        /// 可作主动。行级判定即完备：实例 kinds 是收窄（交集），自指域收不出他人域、赋予域收不出自指域。
         /// 消费方：装载校验（CardEffectConverter）与效果合成器 UI——同源防两套口径。</summary>
         public static bool IsKeywordStyleGrant(AtomicEffectType t)
         {

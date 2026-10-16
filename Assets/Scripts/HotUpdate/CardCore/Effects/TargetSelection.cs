@@ -22,6 +22,13 @@ namespace CardCore
         public string Title = "选择目标";
         /// <summary>弹窗提示语。</summary>
         public string Hint = "";
+        /// <summary>选择目的说明源（2026-10-16 lbl-toast 定案）：发起本次选择的宿主实体
+        ///（施放中的卡优先，其次效果来源卡；UI 据此渲染卡名与完整效果文，说明「选目标来干嘛」。
+        /// null=未提供，UI 回落 Title 文案）。</summary>
+        public Entity PromptSource;
+        /// <summary>发起本次选择的效果 Id（对应卡表 CardData.Effects[].Id——UI 查卡表渲染完整效果文；
+        /// 空=未知效果，UI 只报卡名+标题）。</summary>
+        public string PromptEffectId;
         /// <summary>是否允许取消（取消返回空列表）。</summary>
         public bool AllowCancel = false;
         /// <summary>超时秒数。0 或负数时由 Service 按回合数自动算出。</summary>
@@ -42,7 +49,7 @@ namespace CardCore
     /// 带实体引用的选择器扩展（M1 网络协议 2026-09-10）：
     /// 网络选择器（NetworkTargetSelector）需要 Candidates 实体引用才能让远端客户端
     /// 渲染候选并回传索引——基接口只传 labels 字符串不够。
-    /// 引擎侧 RequestAsync/RequestOneIndexAsync 对 Current 做 is 分流，UI 实现（UiTargetSelector）
+    /// 引擎侧 RequestAsync/RequestOneIndexAsync 对 Current 做 is 分流，UI 实现（RegionTargetSelector）
     /// 不实现本接口则走原路径，零感知零改动。requestId 由网络选择器自管（TargetSelectionRequest 本体不加字段）。
     ///
     /// 2026-09-24 竞速归属修订：timeoutSeconds = 本请求的有效决策窗口——**超时竞速由 Ex 实现内部
@@ -101,7 +108,15 @@ namespace CardCore
                 return AutoSelect(req.Candidates, req.MinCount);
 
             float timeout = req.TimeoutSeconds > 0f ? req.TimeoutSeconds : ComputeTimeout();
-            var labels = req.Candidates.Select(DescribeEntity).ToList();
+
+            // 牌库域折叠（2026-10-16 定案：牌库=区域目标，同角色格——不是卡）：牌库卡永不进
+            // 选择面（隐藏信息），每侧牌库折叠为单一区域格（实体=归属角色、标签=己方牌库/
+            // 对方牌库，卡面信息不外泄）。仅人类交互路径生效——AI/无头已在上方代选早退，
+            // 验证器/训练环境候选口径零改动。选数上限随折叠后候选数收口（防确认门永不满）。
+            var zoneLabels = CollapseDeckZoneCells(req);
+            var labels = req.Candidates.Select(
+                e => e is Player p && zoneLabels != null && zoneLabels.TryGetValue(p, out var zl) ? zl
+                    : DescribeEntity(e)).ToList();
 
             PendingRequests++;
             try
@@ -210,6 +225,41 @@ namespace CardCore
                 if (i >= 0 && i < candidates.Count)
                     result.Add(candidates[i]);
             return result;
+        }
+
+        /// <summary>牌库域折叠（2026-10-16 定案）：候选中的牌库卡替换为其归属角色——每侧牌库一格
+        ///（返回区域格标签表：角色→「己方牌库/对方牌库」，按 Chooser 判侧；null=本次无折叠）。
+        /// 同一角色已在候选（混合域 角色+牌库）时去重不重复入格。Min/Max 随折叠后候选数收口
+        ///（防选数门永不满卡确认）。非牌库卡照常逐卡入面。</summary>
+        private static Dictionary<Player, string> CollapseDeckZoneCells(TargetSelectionRequest req)
+        {
+            var core = GameCore.Instance;
+            var zm = core?.ZoneManager;
+            if (zm == null || req.Candidates.Count == 0) return null;
+
+            Dictionary<Player, string> labels = null;
+            for (int i = 0; i < req.Candidates.Count; i++)
+            {
+                if (!(req.Candidates[i] is Card c)) continue;
+                var owner = zm.IsCardInZone(c, core.Player1, Zone.Deck) ? core.Player1
+                    : zm.IsCardInZone(c, core.Player2, Zone.Deck) ? core.Player2
+                    : null;
+                if (owner == null) continue;
+                if (req.Candidates.Contains(owner))
+                {
+                    req.Candidates.RemoveAt(i); // 角色已在候选：去重（角色格即区域格）
+                    i--;
+                    continue;
+                }
+                req.Candidates[i] = owner; // 牌库卡 → 区域格（实体=归属角色）
+                labels = labels ?? new Dictionary<Player, string>();
+                labels[owner] = owner == req.Chooser ? "己方牌库" : "对方牌库";
+            }
+            if (labels == null) return null;
+
+            if (req.MaxCount > req.Candidates.Count) req.MaxCount = req.Candidates.Count;
+            if (req.MinCount > req.MaxCount) req.MinCount = req.MaxCount;
+            return labels;
         }
 
         private static string DescribeEntity(Entity e)

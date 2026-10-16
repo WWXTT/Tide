@@ -1,7 +1,7 @@
 """身份三通路编码器 shape 自测：常量一致性 + 前向传播 + 泛化通路差异验证。
 
 不依赖 Unity（obs 由 sample_input 构造）。验证点：
-1. 维度自洽：卡特征布局 [15..22]/[23..28]/[29..] 与 C# 常量对齐（手工断言）；
+1. 维度自洽：卡特征布局 [15..28]/[29..40]/[41..] 与 C# 常量对齐（手工断言）；
 2. 前向：TideCardEncoder / TideEncoder 输出 shape 与掩码正确；
 3. 泛化差异：同 EffectType 不同参数（4 伤 vs 5 伤）在通路 2+3 下表示不同、
    而精确哈希槽不同（未登记记 0）时仍有区分度——数值通路存在的意义。
@@ -19,11 +19,11 @@ from tide_features import (
 from tide_encoder import TideCardEncoder, TideEncoder
 
 # ---- 1. 布局自洽（与 TideObservation.cs 手工对齐）----
-assert N_CARD_FEATURES == 68, N_CARD_FEATURES  # v3：65 + Awaken[65] + 位置[66][67]
-assert CARD_ID_START + N_ID_SLOTS == TYPE_ID_START            # [15..22] 紧接 [23..]
-assert TYPE_ID_START + N_TYPE_SLOTS == ATOM_PARAM_START        # [23..28] 紧接 [29..]
-# v3 起参数块后还有尾部追加维（[65..67]），参数块终点=尾部块起点而非总长
-assert ATOM_PARAM_START + N_TYPE_SLOTS * ATOM_PARAM_DIM == 65
+assert N_CARD_FEATURES == 116, N_CARD_FEATURES  # v4：原子槽 6→12（68→116），尾部 [113..115]
+assert CARD_ID_START + N_ID_SLOTS == TYPE_ID_START            # [15..28] 紧接 [29..]
+assert TYPE_ID_START + N_TYPE_SLOTS == ATOM_PARAM_START        # [29..40] 紧接 [41..]
+# 参数块后还有尾部追加维（[113..115]），参数块终点=尾部块起点而非总长
+assert ATOM_PARAM_START + N_TYPE_SLOTS * ATOM_PARAM_DIM == 113
 assert N_CARD_FEATURES - (ATOM_PARAM_START + N_TYPE_SLOTS * ATOM_PARAM_DIM) == 3
 print(f"[1] 布局自洽 OK: N_CARD_FEATURES={N_CARD_FEATURES}, "
       f"ids[{CARD_ID_START}..{CARD_ID_START+N_ID_SLOTS}) types[{TYPE_ID_START}..{TYPE_ID_START+N_TYPE_SLOTS}) "

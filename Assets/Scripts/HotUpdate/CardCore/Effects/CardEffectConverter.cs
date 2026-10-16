@@ -41,34 +41,39 @@ namespace CardCore
                 ? (EffectActivationType)data.ActivationType
                 : TriggerTimingDefaults.GetDefaultActivationType(timing);
 
-            // 主动⇔启动式双向钉死（2026-10-02 定案）：发动方式三值——主动=启动式（玩家轮询发动，
-            // 横置+现付锚价）、自动=可选触发式（条件达成弹窗询问）、强制=无条件触发。
-            // 主动声明带触发时机（合成器旧 bug 只写 ActivationType 不写 Activate 时机/手写 JSON）
-            // → 告警并钉时机 Activate_Active（主阶段主动档；反向"启动式非主动"由下方对称校验收口）。
+            // 主动⇔Activate_* 时机双向钉死（2026-10-02 定案；2026-10-16 称谓统一：效果只分**主动/自动**
+            // 两种——旧「启动式/激活式」称谓全部统一为「主动」，其承载时机=Activate_* 三档）：
+            // 主动=玩家轮询发动（横置+现付锚价，时机恒 Activate_* 主阶段/瞬间/响应）、
+            // 自动=事件触发（条件达成弹窗询问）；强制=系统内部无条件触发（不开放、不动）。
+            // 主动声明带真实触发时机（合成器旧 bug 只写 ActivationType 不写 Activate 时机/手写 JSON）
+            // → 告警并钉时机 Activate_Active（主阶段主动档；反向"Activate_* 非主动"由下方对称校验收口）。
+            // 2026-10-16 解绑豁免：倒计时载荷例外——其主动=「归零待发→按声明时机走响应窗的 0 费触发」
+            //（BranchEngines 上栈 PendingEffect，费用由 ElementCostPrepaid 落实），保留真实时机。
             if (activationType == EffectActivationType.Voluntary
                 && timing != TriggerTiming.Activate_Active
                 && timing != TriggerTiming.Activate_Instant
-                && timing != TriggerTiming.Activate_Response)
+                && timing != TriggerTiming.Activate_Response
+                && !HasCountdownPayload(data))
             {
                 TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 发动方式=主动但时机={timing}" +
-                                 "（主动即启动式——2026-10-02 定案），时机已钉 Activate_Active");
+                                 "（主动效果不设真实触发时机——2026-10-02 定案；2026-10-16 称谓统一），时机已钉 Activate_Active");
                 timing = TriggerTiming.Activate_Active;
             }
 
-            // 启动式（Activate_*，2026-09-08 定案）：构筑期不占卡费（L2 只占挂载口），
+            // 主动（Activate_*，2026-09-08 定案）：构筑期不占卡费（L2 只占挂载口），
             // 元素锚价运行时现付——发动 = 横置 + 扣锚价元素 + 选定目标。
-            // 非启动式（触发式）照旧：元素费已随卡牌档位费收讫，执行器跳过防双计。
+            // 非主动（触发式）照旧：元素费已随卡牌档位费收讫，执行器跳过防双计。
             bool isActivated = timing == TriggerTiming.Activate_Active
                             || timing == TriggerTiming.Activate_Instant
                             || timing == TriggerTiming.Activate_Response;
 
-            // 时机/发动方式对称校验（2026-09-08）：非启动式必须设具体发动时机
+            // 时机/发动方式对称校验（2026-09-08）：非主动必须设具体发动时机
             // （登场/死亡/离场/受攻击等——越界 int 已在上面回退 OnPlay 并告警）；
-            // 启动式只能是主动发动（玩家轮询选择），声明为强制/自动属数据错误——告警并按主动处理。
+            // 主动只能是主动发动（玩家轮询选择），声明为强制/自动属数据错误——告警并按主动处理。
             if (isActivated && activationType != EffectActivationType.Voluntary)
             {
-                TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 为启动式（{timing}）" +
-                                 $"但 ActivationType={activationType}（启动式只能主动发动），按主动处理");
+                TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 为主动（{timing}）" +
+                                 $"但 ActivationType={activationType}（主动只能主动发动），按主动处理");
                 activationType = EffectActivationType.Voluntary;
             }
 
@@ -92,14 +97,14 @@ namespace CardCore
                 ElementCostPrepaid = !isActivated,
             };
 
-            // 关键词型原子不得作启动式（2026-10-02 定案）：启动式效果内的纯自指 Grant 原子
+            // 关键词型原子不得作主动（2026-10-02 定案）：主动效果内的纯自指 Grant 原子
             //（=给自己加关键词——横置换静态身份无意义）告警剔除（内容契约"错边剔除"同款先例）；
             // 赋予型 Grant（域含其他目标）不受限。判定委托 ComposerCatalog.IsKeywordStyleGrant（与合成器 UI 同源）。
             if (isActivated)
             {
                 int removed = RemoveKeywordStyleGrants(data);
                 if (removed > 0)
-                    TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 为启动式：" +
+                    TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {data.Id} 为主动：" +
                                  $"已剔除 {removed} 个关键词型 Grant 原子（关键词不得作为主动效果；赋予型不受限）");
             }
 
@@ -154,12 +159,12 @@ namespace CardCore
 
             // 胜利宣判闸（2026-09-16 定案）：含 DeclareVictory 原子的效果一律强制——纯强制批
             // 合成双 Pass 直接结算（宣判即终局，见 StackEngine.FinishResolution 拆轮）。
-            // 启动式（玩家主动发动）与此语义互斥：启动式声明 DeclareVictory 属数据错误，
+            // 主动（玩家主动发动）与此语义互斥：主动声明 DeclareVictory 属数据错误，
             // 告警跳闸（上方守卫已按主动处理——玩家自发宣胜利的卡不该存在）。
             if (ContainsAtom(def, AtomicEffectType.DeclareVictory))
             {
                 if (isActivated)
-                    TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 启动式声明 DeclareVictory" +
+                    TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 主动声明 DeclareVictory" +
                                      "（数据错误——胜利宣判不可主动发动），按主动处理保留");
                 else if (activationType != EffectActivationType.Mandatory)
                 {
@@ -249,7 +254,7 @@ namespace CardCore
                             Type = CostType.Payload, // 带 payload 原子的条目恒为效果型代价（声明值不参与）
                             Value = costEntry.Value,
                             ManaType = (ManaType)costEntry.ManaType,
-                            Payload = payloadAtom,
+                            Payloads = new List<AtomicEffectInstance> { payloadAtom }, // legacy 效果级单原子（组装代价在卡层）
                         });
                         continue;
                     }
@@ -287,14 +292,29 @@ namespace CardCore
                 def.Tags = new List<string>(data.Tags);
 
             // 引擎效果头兜底归一（2026-10-09 自由分支九项定案）：效果含引擎载荷（引擎=单原子形态）→
-            // 发动方式/时机/速度/生效次数按 ComposerCatalog.EngineHeaderPresetOf 钉死——合成器已锁定，
+            // 发动方式/时机/速度/生效次数按 ComposerCatalog.EngineHeaderPresetOf 归一——合成器已锁定，
             // 此处收口旧数据/手写数据（引擎运行时本就无视效果头，自订阅事件；归一保证显示/计价/数据三面一致）。
+            // 2026-10-16 解绑修订：倒计时/运势（FreeTiming）时机声明值优先（倒计时连发动方式）；
+            // 非触发式声明（含 <0 未声明的 Activate_Active 回落）→ 预设缺省 OnTurnStart（存量效果库
+            // 无倒计时/运势行，生产数据零迁移；倒计时主动奖励=带真实时机的 Voluntary 触发式，
+            // 不走诅咒/祝福的 Activate_Active 折叠——费用 0 由 ElementCostPrepaid 落实）。
             var engineKind = EngineKindOfDefinition(def);
             if (ComposerCatalog.EngineHeaderPresetOf(engineKind) is { } ehp)
             {
-                def.ActivationType = ehp.Activation;
-                def.TriggerTiming = ehp.Activation == EffectActivationType.Voluntary
-                    ? TriggerTiming.Activate_Active : ehp.Timing;
+                if (ehp.FreeTiming)
+                {
+                    bool hasRealTiming = def.IsTriggeredEffect
+                        && TriggerTimingDefaults.GetEventType(def.TriggerTiming) != null;
+                    def.TriggerTiming = hasRealTiming ? def.TriggerTiming : ehp.Timing;
+                    if (engineKind == BranchEngineKind.LuckRoll || !hasRealTiming)
+                        def.ActivationType = ehp.Activation; // 运势掷骰恒自动；倒计时仅在未声明时回落预设
+                }
+                else
+                {
+                    def.ActivationType = ehp.Activation;
+                    def.TriggerTiming = ehp.Activation == EffectActivationType.Voluntary
+                        ? TriggerTiming.Activate_Active : ehp.Timing;
+                }
                 def.BaseSpeed = ehp.Speed;
                 def.TriggerLimitPerTurn = ehp.Limit;
                 def.ElementCostPrepaid = !(def.TriggerTiming == TriggerTiming.Activate_Active
@@ -303,6 +323,21 @@ namespace CardCore
             }
 
             return def;
+        }
+
+        /// <summary>数据级倒计时载荷探测（2026-10-16 解绑·主动豁免用）：倒计时奖励可为
+        /// 「主动+真实时机」（归零待发→按时机上栈走响应窗的 0 费触发）——主动⇒主动折叠对其豁免。</summary>
+        private static bool HasCountdownPayload(CardEffectData data)
+        {
+            if (data?.AtomicEffects == null) return false;
+            foreach (var e in data.AtomicEffects)
+            {
+                if (e?.branch != null
+                    && (BranchSettleKind)e.branch.settle == BranchSettleKind.Engine
+                    && (BranchEngineKind)e.branch.engine == BranchEngineKind.Countdown)
+                    return true;
+            }
+            return false;
         }
 
         /// <summary>效果内首个引擎载荷种类（扁平 Effects 与节点化 Steps 原子双扫；无=None）。</summary>
@@ -325,9 +360,9 @@ namespace CardCore
             return BranchEngineKind.None;
         }
 
-        // ======================================== 关键词型原子启动式校验（2026-10-02 定案） ========================================
+        // ======================================== 关键词型原子主动校验（2026-10-02 定案） ========================================
 
-        /// <summary>剔除启动式效果内的关键词型 Grant 条目：AtomicEffects（含引擎奖励落点）+ Steps 全树
+        /// <summary>剔除主动效果内的关键词型 Grant 条目：AtomicEffects（含引擎奖励落点）+ Steps 全树
         ///（原子步骤整步移除、then/else 列表移除、抉择分支递归）。返回剔除数。</summary>
         private static int RemoveKeywordStyleGrants(CardEffectData data)
         {

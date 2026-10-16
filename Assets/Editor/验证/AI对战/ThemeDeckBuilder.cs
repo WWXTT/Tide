@@ -376,7 +376,7 @@ namespace CardCore.Editor.Tests
         }
 
         /// <summary>构成自检（2026-10-15）：按落盘同款 ID 口径跑 DeckCompositionValidator，
-        /// 违色（主题色+灰以外，出牌费/启动式锚价两面）/断链逐条 LogError——构建期即暴露，
+        /// 违色（主题色+灰以外，出牌费/主动锚价两面）/断链逐条 LogError——构建期即暴露，
         /// 不再事后人工复查。违色来源通常是错边代价原子（AddToxin/Freeze 等）或跨色效果，
         /// 改原子后重跑本菜单即绿。</summary>
         private static void ValidateComposition(string name, List<CardData> cards)

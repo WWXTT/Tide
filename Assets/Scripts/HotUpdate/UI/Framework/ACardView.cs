@@ -28,6 +28,7 @@ namespace SynergyUI
     {
         // ---- 节点缓存（Bind 一次解析） ----
         private Image _typeBg, _mask, _art;
+        private RectTransform _typeBlock;
         private CostSquaresView _typeCost;
         private TMP_Text _nameText, _effectText, _passivesText, _attributeText, _costText;
         private RectTransform _effectBlock, _effectCostRow, _passivesBlock, _keysBlock, _statsBlock, _attributeBlock, _costBlock;
@@ -74,6 +75,7 @@ namespace SynergyUI
             // 独立 ACard prefab（选目标 Region 面板/合成器预览/悬停卡）六区直挂卡根。
             _faceRoot = transform.Find("ACard");
             if (_faceRoot == null) _faceRoot = transform;
+            _typeBlock = Rt("type");
             _typeBg = FindImage("type/bg");
             _mask = FindImage("type/mask");
             _art = FindImage("type/mask/art");
@@ -122,24 +124,35 @@ namespace SynergyUI
             if (item == null) return;
             bool full = layout == CardOverlayLayout.Full;
 
-            // type 区：底图+遮罩随类型换（Sprite 有缓存，重绑幂等）；卡费方格
-            SetTypeVisuals(item.Supertype);
-            // 立绘（2026-10-15 定案）：法术/结界无合适立绘——缺省空白不放图（清 sprite，
-            // 卡实例池复用防上一张生物的图串位）；生物=按名两级找图，空/未命中保持预制体占位
-            bool artless = item.Supertype == Cardtype.Spell || item.Supertype == Cardtype.Enchantment;
-            if (_art != null)
+            // type 区：底图+遮罩随类型换（Sprite 有缓存，重绑幂等）；卡费方格。
+            // Hero=角色占位卡（选目标面板的 Player 候选，2026-10-16）：非卡实体无底图/遮罩/立绘
+            // ——整区隐藏（根 VLG 收拢，只剩卡名【己方/对方角色】）
+            bool rolePlaceholder = item.Supertype == Cardtype.Hero;
+            SetActive(_typeBlock, !rolePlaceholder);
+            if (rolePlaceholder)
             {
-                if (artless)
-                {
-                    if (_art.sprite != null) { _art.sprite = null; _artLoaded = null; }
-                }
-                else if (!string.IsNullOrEmpty(item.Illustration) && item.Illustration != _artLoaded)
-                    TrySetArt(item.Illustration);
+                if (_art != null && _art.sprite != null) { _art.sprite = null; _artLoaded = null; }
             }
-            if (_typeCost != null)
+            else
             {
-                if (item.Costs != null && !item.Costs.IsZero) _typeCost.SetCosts(item.Costs);
-                else _typeCost.Clear();
+                SetTypeVisuals(item.Supertype);
+                // 立绘（2026-10-15 定案）：法术/结界无合适立绘——缺省空白不放图（清 sprite，
+                // 卡实例池复用防上一张生物的图串位）；生物=按名两级找图，空/未命中保持预制体占位
+                bool artless = item.Supertype == Cardtype.Spell || item.Supertype == Cardtype.Enchantment;
+                if (_art != null)
+                {
+                    if (artless)
+                    {
+                        if (_art.sprite != null) { _art.sprite = null; _artLoaded = null; }
+                    }
+                    else if (!string.IsNullOrEmpty(item.Illustration) && item.Illustration != _artLoaded)
+                        TrySetArt(item.Illustration);
+                }
+                if (_typeCost != null)
+                {
+                    if (item.Costs != null && !item.Costs.IsZero) _typeCost.SetCosts(item.Costs);
+                    else _typeCost.Clear();
+                }
             }
 
             SetText(_nameText, item.Name);

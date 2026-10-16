@@ -37,6 +37,10 @@ namespace SynergyUI
         private UiKit.Scroll _roomsList;
         private UiKit.Scroll _statusZone;
         private UiKit.Dropdown _decksDropdown;
+        // 2026-10-16 全局对齐：选项文案带「不可用」标签——真名走 _deckNames（索引对齐），
+        // Value 不再直接作卡组名（标签后缀会断 DeckSerializer.Load）。
+        private readonly List<string> _deckNames = new List<string>();
+        private string _lastDeckName;
         private TMP_Text _toast;
         private Button _btnConnect;
         private Button _btnAutoMatch;
@@ -242,11 +246,20 @@ namespace SynergyUI
             // 双方就座 → 自动提交所选卡组（一次性；被拒由 Error 回显）
             if (_room != null && _room.Phase == (int)NetRoomPhase.DeckSubmit && !_deckSent)
             {
-                var deckName = _decksDropdown?.Value;
+                // 选项文案可能带不可用后缀——按索引取真名（DeckBuilderScreen 同款平行名单口径）
+                int di = _decksDropdown != null ? _decksDropdown.Index : -1;
+                var deckName = di >= 0 && di < _deckNames.Count ? _deckNames[di] : null;
+                if (!string.IsNullOrEmpty(deckName)) _lastDeckName = deckName;
                 var deck = string.IsNullOrEmpty(deckName) ? null : DeckSerializer.Load(deckName);
                 if (deck == null || deck.cardIds == null || deck.cardIds.Count == 0)
                 {
                     ShowToast("所选卡组无效——请先在卡组构建中保存一套卡组");
+                    return;
+                }
+                // 2026-10-16 全局对齐：构成校验未过（断链/形状/违色）不可提交（不置 _deckSent，修复后可重交）
+                if (!DeckCompositionValidator.Usable(deck))
+                {
+                    ShowToast("所选卡组构成校验未过（断链/形状/违色）——请先在卡组构建中修复");
                     return;
                 }
                 var ids = deck.cardIds.ToArray();
@@ -386,11 +399,21 @@ namespace SynergyUI
 
         private void RefreshDecksDropdown()
         {
-            var names = DeckSerializer.LoadAll().Select(d => d.name).ToList();
+            // 2026-10-16 全局对齐：不可用卡组（断链/形状/违色——DeckCompositionValidator 单源）
+            // 文案带标签；真名按索引映射（提交口走 _deckNames）。
+            var decks = DeckSerializer.LoadAll();
+            _deckNames.Clear();
+            _deckNames.AddRange(decks.Select(d => d.name));
+            var labels = decks.Select(d =>
+            {
+                var tag = DeckCompositionValidator.UnusableTag(d);
+                return tag.Length == 0 ? d.name : d.name + "（" + tag + "）";
+            }).ToList();
             // 保持现选（仍在列表内时）；无选或失效则取第一套
-            int index = names.IndexOf(_decksDropdown.Value);
-            if (index < 0) index = names.Count > 0 ? 0 : -1;
-            _decksDropdown.SetOptions(names, index);
+            int index = _deckNames.IndexOf(_lastDeckName);
+            if (index < 0) index = _deckNames.Count > 0 ? 0 : -1;
+            if (index >= 0) _lastDeckName = _deckNames[index];
+            _decksDropdown.SetOptions(labels, index);
         }
 
         private void ShowToast(string message)

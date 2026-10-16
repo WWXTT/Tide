@@ -116,7 +116,7 @@ namespace CardCore
             keywordTotal += auraTotal;
 
             // ---- 3) 效果锚价 E（经 CardEffectConverter，与运行时执行同口径）----
-            // 启动式能力（Activate_*，2026-09-08 定案）：构筑期不占卡费——元素锚价运行时现付
+            // 主动能力（Activate_*，2026-09-08 定案）：构筑期不占卡费——元素锚价运行时现付
             // （发动 = 横置 + 扣锚价 + 选目标），不进 E 桶；但仍占技能挂载口（效果槽照常计——
             // 2026-10-02 用户定案维持：效果槽是 AI 侧每卡最大原子数限制的可见性锚，不可免）。
             float effectTotal = 0f;
@@ -128,7 +128,7 @@ namespace CardCore
                 result.ActiveEffectCount++;
                 if (def.IsActivatedEffect)
                 {
-                    result.Breakdown.Add(new CostBreakdownLine("E", $"启动式 {def.DisplayName ?? def.Id}（构筑期不计锚价，运行时现付；占挂载口）", 0f));
+                    result.Breakdown.Add(new CostBreakdownLine("E", $"主动 {def.DisplayName ?? def.Id}（构筑期不计锚价，运行时现付；占挂载口）", 0f));
                     continue;
                 }
 
@@ -235,13 +235,14 @@ namespace CardCore
             // 代价栏：卡层 PayloadCost（2026-09-23 上移卡组合层）为正式口；legacy 效果级 Costs 兜底
             //（卡层已填时跳过 legacy——防双收）。Payload **按全价获得**（2026-10-04 定案：任意单向效果
             // 不限价、逆转选择范围——Grants 不再恒 ≤1；产出不封·使用侧受支付浓度上限约束。
+            // 2026-10-16 组装效果代价：卡层为原子序列，逐原子全价/极性色累计 Grants——可黑白混合。
             // 本轮追加：代价栏占 1 效果槽（结构项经 CountEffectSlots 计入），全价另作地牌门槛——见 GameActions.EvaluatePayloadGate）。
             var payloadEntries = new List<AtomicEffectEntry>();
-            if (card.PayloadCost?.payload != null && !string.IsNullOrEmpty(card.PayloadCost.payload.refId))
+            if (card.PayloadCost != null)
             {
-                payloadEntries.Add(card.PayloadCost.payload);
+                payloadEntries.AddRange(card.PayloadCost.AllPayloads());
             }
-            else if (card.Effects != null)
+            if (payloadEntries.Count == 0 && card.Effects != null)
             {
                 foreach (var eff in card.Effects)
                 {
@@ -300,7 +301,7 @@ namespace CardCore
         /// 衍生物内容全价（总量）：S（含耐久）+ K + E 逐色口径**不乘 d(C)**，再 + 结构费全额
         /// （攻/守/槽 × ChassisItemRate，无 3 点预算抵扣）——衍生物没走「入组 1 + 抽牌 2」通道，
         /// 吃不到底盘，SummonToken 单价 = 本值（CostDerivation 消费）。
-        /// 口径与 Derive 同源：非生物次数归一（TriggerLimitPerTurn=1）；启动式不进 E 桶
+        /// 口径与 Derive 同源：非生物次数归一（TriggerLimitPerTurn=1）；主动不进 E 桶
         /// （运行时现付——衍生物持续在场时同规则，槽位费已由结构费全额承担）；
         /// 取整同法（一次 AwayFromZero + 最大余数分色，结构费取整后入灰）。
         /// </summary>
@@ -373,9 +374,10 @@ namespace CardCore
             // 混入原子表指纹——表冻结则身份稳定；此处先于一切分支，保证所有装载/重生成路径都推导。
             CardIdentityService.EnsureIdentity(card);
 
-            // 代价栏单卡单条（2026-09-11 定案；2026-09-23 上移卡层）：PayloadCost(卡层) + 效果级 Costs(legacy)
-            // 合计 ≤1——一张卡只有一个代价栏，无法像效果那样组合。违约仅警告不纠正（支付/补偿按真实数据执行）。
-            int costEntryCount = card.PayloadCost?.payload != null && !string.IsNullOrEmpty(card.PayloadCost.payload.refId) ? 1 : 0;
+            // 代价栏单卡单条（2026-09-11 定案；2026-09-23 上移卡层；2026-10-16 组装效果代价=一条序列）：
+            // PayloadCost(卡层) + 效果级 Costs(legacy) 合计 ≤1——一张卡只有一个代价栏（序列算一条）。
+            // 违约仅警告不纠正（支付/补偿按真实数据执行）。
+            int costEntryCount = card.PayloadCost != null && card.PayloadCost.AllPayloads().Count > 0 ? 1 : 0;
             if (card.Effects != null)
             {
                 foreach (var eff in card.Effects)
@@ -452,7 +454,7 @@ namespace CardCore
             var kwMultiplier = cc.KeywordsShareDelayDiscount ? factor : 1f;
 
             // ---- 第一遍：各模式效果锚桶（DeriveElementCosts 的 modeIndex 分支，未折未取整）----
-            // 启动式能力与 Derive 同口径：构筑期不占卡费（运行时现付），各模式桶一律跳过。
+            // 主动能力与 Derive 同口径：构筑期不占卡费（运行时现付），各模式桶一律跳过。
             var modeBuckets = new List<Dictionary<ManaType, float>>();
             var rawTotals = new List<float>();
             for (int m = 0; m < modeCount; m++)
@@ -549,8 +551,9 @@ namespace CardCore
         // —— 模式无关的三块（Derive 与 DeriveModeCosts 共用，防口径漂移；breakdown 传 null 则不记行）——
 
         /// <summary>身材费 S：statPoints / StatUnit（灰桶，不参与 f）；
-        /// 耐久体另计 耐久 × DurabilityUnitCost（2026-10-10 提价定案 1 灰/点——耐久即次数池：
-        /// 受伤/被动触发/主动发动三重消耗同池同价；0.5 灰/点 2026-10-05 口径退役。结界/装备，0=无耐久档不计）。</summary>
+        /// 耐久体另计 耐久 × DurabilityUnitCost（2026-10-16 回调 0.5 灰/点——受击伤害撤钳 1
+        /// 改全额扣耐久，被动触发/主动发动仍每次 −1；2026-10-10 的 1 灰/点口径退役。
+        /// 结界/装备，0=无耐久档不计）。</summary>
         private static float ComputeStatValue(CardData card, CardCostConfig cc, List<CostBreakdownLine> breakdown)
         {
             int statPoints = (card.Power ?? 0) + (card.Life ?? 0);
@@ -587,7 +590,7 @@ namespace CardCore
 
                     var atomCfg = AtomicEffectTable.GetByType(grantType);
                     // ManaList 分色（2026-09-14；2026-10-04 位置数组化）：关键词费=表行费用构成逐色入桶。
-                    // 黑白照常进生物费用列表（2026-09-14 撤销「转启动式/不计费」定案）——
+                    // 黑白照常进生物费用列表（2026-09-14 撤销「转主动/不计费」定案）——
                     // 参杂黑白的生物可作地牌，地牌不从黑白份额产指示物（ElementPool 过滤），
                     // 黑白获取通道不变（=卡结算：错边/Payload 补偿）。
                     float baseCost = atomCfg?.TotalUnitCost ?? 0f;

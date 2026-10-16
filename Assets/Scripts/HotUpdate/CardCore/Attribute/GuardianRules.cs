@@ -75,6 +75,15 @@ namespace CardCore.Attribute
             return null;
         }
 
+        /// <summary>正查：守护者当前绑定的被守护目标（无则 null）。状态段书写用（2026-10-16）——
+        /// 只查配对表不做目标侧活性过滤：被守护者死亡不清配对（断链判据只有守护者侧），
+        /// 苏生复活同实例保护延续，配对在即如实展示。</summary>
+        public static Entity FindWard(Card guardian)
+        {
+            if (guardian == null || _bonds.Count == 0) return null;
+            return _bonds.TryGetValue(guardian.RuntimeId, out var bond) ? bond.ward : null;
+        }
+
         /// <summary>弹选并登记（fire-and-forget：无头同步完成；UI 弹窗异步收口后覆盖登记）。</summary>
         private static async UniTaskVoid SelectAndBindAsync(Card guardian, Player controller)
         {

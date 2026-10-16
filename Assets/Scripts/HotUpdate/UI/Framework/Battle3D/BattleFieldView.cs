@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CardCore;
 using Cysharp.Threading.Tasks;
 using GameBoard;
@@ -23,7 +24,8 @@ namespace SynergyUI
     /// 可用&gt;0 点亮锁色菲涅尔（BattleTileFx）；
     /// 黑白格计数=钱包余额/生成上限；技能格=技能名数字条（无技能空格）（均 BattleFieldView 对账）。
     /// 可行动性（生物未横置）与地牌状态均由脚下地块表达（BattleTileFx 同日改版）。
-    /// 角色→占位立柱+生命值；模型映射走 MonsterModelResolver（同名→稳定哈希→占位胶囊）。
+    /// 角色→占位立柱+生命值（2026-10-16：常态只显 HP，护甲缀「(+x)」、获得攻击力追加「Ac:x」；
+    /// 结界等无生命单位头顶只显耐久值）；模型映射走 MonsterModelResolver（同名→稳定哈希→占位胶囊）。
     /// 体型=已按模块数分档烘进资产几何（MonsterRigSizeScaler：&lt;5块→0.7/5~10块→1/&gt;10块→1.5，
     /// 2026-10-14 用户定案取代 10-13 全 1+属性放大）；运行时不再缩放，头顶数值按实际包围盒顶。
     ///
@@ -37,7 +39,6 @@ namespace SynergyUI
         private readonly Dictionary<uint, UnitVisual> _units = new Dictionary<uint, UnitVisual>();
         private readonly Dictionary<int, HeroVisual> _heroes = new Dictionary<int, HeroVisual>(); // key=归属 0/1
         private readonly Dictionary<long, TextMeshPro> _landCounts = new Dictionary<long, TextMeshPro>(); // key=格(x<<32|z)：地牌格「可用/上限」计数
-        private readonly Dictionary<int, TextMeshPro> _skillLabels = new Dictionary<int, TextMeshPro>(); // key=归属 0/1：技能格黑白钱包条
         private readonly HashSet<uint> _heldUnits = new HashSet<uint>(); // 演出持有（2026-10-13 战斗编舞）
         private readonly List<GameObject> _creatureArrows = new List<GameObject>(); // 生物箭头地面件（钉 tile，全量对账重建）
         private int _lastSkipLogFrame = -1;
@@ -49,6 +50,7 @@ namespace SynergyUI
         // "卡牌立牌"呈现——Quad 贴卡面立绘（无立绘纯色兜底）+底部卡名；立牌自带碰撞体
         //（cast-{RuntimeId}）供 BattleScreen 射线路由（hover 卡信息/点击开发动区列卡）。
         private readonly Dictionary<uint, GameObject> _castings = new Dictionary<uint, GameObject>(); // key=RuntimeId
+        private readonly Dictionary<uint, Vector2Int> _castingCells = new Dictionary<uint, Vector2Int>(); // 施放立牌占格（key=RuntimeId；随立牌对账同进出，TryGetOnBoardCell 查询用）
         private Material _castMat; // 立牌底材（卡背材质资产实例——URP Unlit 透明，逐卡再实例贴图/纯色）
 
         // 出场粒子汇聚载荷（2026-10-15 用户定案：弃弹出动画改 INab 粒子）：CastPlayed 入场 →
@@ -62,10 +64,13 @@ namespace SynergyUI
         private static readonly Color P1UnitColor = new Color(0.29f, 0.50f, 0.83f);
         private static readonly Color P2UnitColor = new Color(0.83f, 0.35f, 0.35f);
 
-        // 墓地漩涡吸程（2026-10-15 定案：按死亡位与墓地的直线距离放慢）——
-        // 时长=钳制(距离/速度, 下限, 上限)：下限=演出参数 suctionSeconds（近距原速），上限防远角拖沓
-        private const float SuctionUnitsPerSecond = 3.2f;
-        private const float SuctionMaxSeconds = 2.6f;
+        // 死亡退场（2026-10-16 三改：碎裂散落停稳→**维持原大小**滚到己方墓地格→墓上原地自旋
+        // 缩小消失——途中缩小奇怪（用户定案），旋转缩小不并入滚程、整段表现时间放慢；
+        // 2026-10-15 距离折算沿用）——滚程=钳制(距离/速度, 下限, 上限)：近距不闪没、远角不拖沓
+        private const float DeathSlideUnitsPerSecond = 3.2f;
+        private const float DeathSlideMinSeconds = 0.75f;
+        private const float DeathSlideMaxSeconds = 2.6f;
+        private const float DeathSpinSeconds = 1f; // 墓地格上原地自旋（两圈）+ 缩没
 
         // 属性配色（2026-10-15）：与印刷基础值持平=白（TMP 默认色）、低于=红（受伤/降攻）、
         // 高于=绿（增益）——攻击/生命逐数字独立着色（富文本），查表 miss（无印刷值）恒白。
@@ -84,6 +89,9 @@ namespace SynergyUI
                 return $"<color=#{ColorUtility.ToHtmlStringRGB(StatUpColor)}>{value}</color>";
             return value.ToString();
         }
+
+        /// <summary>护甲后缀（2026-10-16）：护甲指示物 &gt;0 时以「(+x)」缀于生命/耐久之后（角色/单位同式）。</summary>
+        private static string ArmorSuffix(int armor) => armor > 0 ? $"(+{armor})" : "";
 
         public BattleFieldView()
         {
@@ -105,8 +113,8 @@ namespace SynergyUI
             _units.Clear();
             _heroes.Clear();
             _landCounts.Clear();
-            _skillLabels.Clear();
             _castings.Clear(); // 立牌是 _root 子物体随根销毁；逐卡实例材质由 GC/卸载回收（短命局对象）
+            _castingCells.Clear();
             _arrivals.Clear(); // 未消费的入场载荷不跨局
             if (_root != null) Object.Destroy(_root.gameObject);
         }
@@ -161,9 +169,7 @@ namespace SynergyUI
             ReconcileHero(d.Self, 0);
             ReconcileHero(d.Opp, 1);
 
-            // ---- 技能格（2026-10-14 晚改版：无技能=空格，有技能=技能名；黑白余额/上限迁至地牌行黑白格） ----
-            ReconcileSkill(d.Self, 0);
-            ReconcileSkill(d.Opp, 1);
+            // ---- 技能格（2026-10-16 撤销）：英雄技能不再占格——介绍=角色格悬停、发动=角色格三键 ----
 
             // ---- 特殊格道具对账（卡组卡堆高度随牌库数 0..60 钳制；墓地/除外漩涡常驻自转） ----
             BattleZoneProps.SetDeckCount(0, d.Self.DeckCount);
@@ -208,22 +214,28 @@ namespace SynergyUI
             // StatsVersion=滚动作废令牌（新目标即作废在途滚动，从当前展示值续走）
             public int ShownPower = int.MinValue, ShownLife = int.MinValue;
             public int TargetPower, TargetLife;
+            public int ShownArmor = int.MinValue, TargetArmor; // 护甲同步走节拍（2026-10-16：吸收与命中同拍滚动）
             public int? BasePower, BaseLife;
             public int StatsVersion;
             public bool StatsHeld;            // 战斗演出数值冻结：命中节拍释放并滚动落值
+            public bool DurabilityOnly;       // 无生命单位（结界，2026-10-16）：头顶只显耐久值，不显 攻/血 对
 
             /// <summary>对账写入口：冻结期只更新目标值；否则值变化滚动过渡（0.4s 缓出，逐格推进）。</summary>
-            public void SetStatsValues(int power, int life, int? basePower, int? baseLife)
+            public void SetStatsValues(int power, int life, int armor, int? basePower, int? baseLife)
             {
-                TargetPower = power; TargetLife = life; BasePower = basePower; BaseLife = baseLife;
+                TargetPower = power; TargetLife = life; TargetArmor = armor; BasePower = basePower; BaseLife = baseLife;
                 if (StatsHeld) return;
                 if (ShownPower == int.MinValue) // 首写直落（无滚动起点）
                 {
-                    ShownPower = power; ShownLife = life;
-                    WriteStats(power, life);
+                    ShownPower = power; ShownLife = life; ShownArmor = armor;
+                    WriteStats(power, life, armor);
                     return;
                 }
-                if (power == ShownPower && life == ShownLife) { WriteStats(power, life); return; }
+                if (power == ShownPower && life == ShownLife && armor == ShownArmor)
+                {
+                    WriteStats(power, life, armor);
+                    return;
+                }
                 StatsVersion++;
                 RollStatsAsync().Forget();
             }
@@ -233,7 +245,7 @@ namespace SynergyUI
             {
                 if (!StatsHeld) return;
                 StatsHeld = false;
-                if (TargetPower == ShownPower && TargetLife == ShownLife) return;
+                if (TargetPower == ShownPower && TargetLife == ShownLife && TargetArmor == ShownArmor) return;
                 StatsVersion++;
                 RollStatsAsync().Forget();
             }
@@ -241,7 +253,7 @@ namespace SynergyUI
             private async UniTaskVoid RollStatsAsync()
             {
                 int ver = StatsVersion;
-                int fromP = ShownPower, fromL = ShownLife;
+                int fromP = ShownPower, fromL = ShownLife, fromA = ShownArmor;
                 const float dur = 0.4f;
                 float t0 = Time.realtimeSinceStartup;
                 while (Stats != null && StatsVersion == ver)
@@ -250,15 +262,28 @@ namespace SynergyUI
                     float e = 1f - (1f - t) * (1f - t); // 缓出：命中落值后减速收尾
                     ShownPower = Mathf.RoundToInt(Mathf.Lerp(fromP, TargetPower, e));
                     ShownLife = Mathf.RoundToInt(Mathf.Lerp(fromL, TargetLife, e));
-                    WriteStats(ShownPower, ShownLife);
+                    ShownArmor = Mathf.RoundToInt(Mathf.Lerp(fromA, TargetArmor, e));
+                    WriteStats(ShownPower, ShownLife, ShownArmor);
                     if (t >= 1f) return;
                     await UniTask.Yield();
                 }
             }
 
-            private void WriteStats(int p, int l)
+            private void WriteStats(int p, int l, int a)
             {
-                if (Stats != null) Stats.text = FormatStats(p, l, BasePower, BaseLife);
+                if (Stats == null) return;
+                // 无生命单位（结界）：Life 即耐久，只显耐久值（2026-10-16）；生物照旧 攻/血 对
+                Stats.text = DurabilityOnly
+                    ? StatSpan(l, BaseLife) + ArmorSuffix(a)
+                    : FormatStats(p, l, BasePower, BaseLife) + ArmorSuffix(a);
+            }
+
+            /// <summary>头顶数值显隐：死亡碎裂同帧即隐，复活由对账恢复（2026-10-16）。
+            /// 隐期间 WriteStats 照常写 text（组件在失活 GO 上仍可写），恢复显示即最新值。</summary>
+            public void SetStatsVisible(bool on)
+            {
+                if (Stats != null && Stats.gameObject.activeSelf != on)
+                    Stats.gameObject.SetActive(on);
             }
         }
 
@@ -309,28 +334,33 @@ namespace SynergyUI
             if (!card.IsTapped && !card.IsDead)
                 BattleTileFx.SetUnitGlow(card.X, card.Z);
 
-            // 死亡↔复活（MonsterRig 基础态）：死亡翻转只落一次记账（v.Dead 锁存），
-            // hold 中不自动倒地（战斗编舞在受击时刻驱动 FallDown 时机）；非 hold 的死亡
-            // 走通用死亡演出（碎裂→墓地漩涡吸走，2026-10-13 定案③）
+            // 死亡↔复活（MonsterRig 基础态）：死亡翻转只落一次记账（v.Dead 锁存）；
+            // 非 hold 的死亡走通用退场演出（碎裂散落→停稳→维持大小滚入墓地→墓上原地自旋
+            // 缩小消失，2026-10-16 三改：旋转缩小不并入滚程、表现时间放慢）
             if (card.IsDead && !v.Dead)
             {
                 v.Dead = true;
                 if (!_heldUnits.Contains(card.RuntimeId))
-                {
-                    v.Anim?.Play(MonsterAction.FallDown);
-                    PlayDeathSuctionAsync(card.RuntimeId, owner, playFall: false).Forget();
-                }
-                // hold 中：记账已锁存，倒地时机归编舞器（数值/体型照常刷新）
+                    PlayDeathExitAsync(card.RuntimeId, owner).Forget();
+                // hold 中：记账已锁存，退场时机归编舞器⑤（数值/体型照常刷新）
             }
             else if (!card.IsDead && v.Dead)
             {
                 v.Dead = false;
+                v.SetStatsVisible(true); // 死亡碎裂时隐去的头顶数值随复活恢复
                 v.Anim?.Revive();
                 v.Anim?.Play(MonsterAction.Breath);
             }
 
             if (v.Stats != null && card.Runtime != null)
-                v.SetStatsValues(card.Runtime.Power, card.Runtime.Life, card.BasePower, card.BaseLife);
+            {
+                // 无生命单位（结界/装备，DurabilityOnly 同口径）：生命位喂耐久层数——_life 恒 0，
+                // 耐久真源=指示物（2026-10-16 修；持续型结界无层=显 0）
+                int statLife = card.Type != Cardtype.Creature
+                    ? card.Runtime.Counters?.FirstOrDefault(c => c.Key == CardCore.Attribute.CounterRules.DurabilityCounter)?.Value ?? 0
+                    : card.Runtime.Life;
+                v.SetStatsValues(card.Runtime.Power, statLife, card.Armor, card.BasePower, card.BaseLife);
+            }
                 // 数值节拍（2026-10-15）：不再直写——冻结期缓冲、命中节拍释放、变化滚动过渡
         }
 
@@ -452,9 +482,9 @@ namespace SynergyUI
                 Dead = card.IsDead,
                 Owner = owner,
                 IsCreature = card.Type != Cardtype.Enchantment,
+                DurabilityOnly = card.Type != Cardtype.Creature, // 无生命单位（结界/装备）只显耐久（2026-10-16）
                 LookHeight = lookY,
             };
-            if (card.IsDead) anim?.Play(MonsterAction.FallDown);
             v.Stats = CreateStatsText(wrapper, textY);
             anim?.SetLookTarget(() => ResolveGazeOf(v)); // 供应商在组件层持有，驱动重建自动重挂
             return v;
@@ -479,6 +509,7 @@ namespace SynergyUI
                 var anchor = CastingAnchor(card.X, card.Z);
                 if ((go.transform.position - anchor).sqrMagnitude > 1e-6f)
                     go.transform.position = anchor; // 施放格迁移（钉格变化）
+                _castingCells[card.RuntimeId] = new Vector2Int(card.X, card.Z); // 占格随对账刷新（TryGetOnBoardCell 消费）
             }
 
             List<uint> stale = null;
@@ -489,6 +520,7 @@ namespace SynergyUI
             {
                 var go = _castings[id];
                 _castings.Remove(id);
+                _castingCells.Remove(id);
                 if (go == null) continue;
                 var rend = go.GetComponent<MeshRenderer>();
                 if (rend != null && rend.material != null)
@@ -557,6 +589,29 @@ namespace SynergyUI
         private static Vector3 CastingAnchor(int x, int z)
             => BattleBoardGrid.WorldPositionOf(x, z) + new Vector3(0f, 0.8f, 0f);
 
+        /// <summary>场上卡占格查询（2026-10-16 目标选择红瞄准面片）：单位（生物/结界/衍生物）
+        /// 与施放占格立牌都算「在场上」——命中返回其数据格坐标；不在场/未落格=false。
+        /// 只读对账记账（_units/_castingCells），不触引擎。</summary>
+        public bool TryGetOnBoardCell(uint runtimeId, out int x, out int z)
+        {
+            x = z = -1;
+            if (_units.TryGetValue(runtimeId, out var v))
+            {
+                if (v.Wrapper == null || v.X < 0 || v.Z < 0) return false;
+                x = v.X;
+                z = v.Z;
+                return true;
+            }
+            if (_castings.TryGetValue(runtimeId, out var go) && go != null
+                && _castingCells.TryGetValue(runtimeId, out var cell))
+            {
+                x = cell.x;
+                z = cell.y;
+                return x >= 0 && z >= 0;
+            }
+            return false;
+        }
+
         /// <summary>单位站格锚点：格心 + 少量抬高（防 z-fight）。</summary>
         private static Vector3 UnitAnchor(int x, int z)
             => BattleBoardGrid.WorldPositionOf(x, z) + new Vector3(0f, 0.05f, 0f);
@@ -569,8 +624,9 @@ namespace SynergyUI
         /// <summary>地牌固定元素格对账（2026-10-14 晚定案）：6 格按 BoardLayout.LandCellElementOrder
         ///（灰红蓝绿黑白，玩家视角左→右）固定元素身份——图标常驻（空格也亮身份）；
         /// 计数=「可用/上限」（2026-10-14 表述定案，当晚上限语义修正）：可用=未横置张+钱包该色余额
-        ///（黑白无地牌=钱包余额）；上限=红蓝绿灰该色已放入地牌张数（含横置）、黑白=地牌槽上限（生成钳同源）；
-        /// 可用&gt;0 点亮锁色菲涅尔。
+        ///（黑白无地牌=钱包余额）；上限=红蓝绿灰该色已放入地牌张数（含横置）；**黑白格只显余量不显上限**
+        ///（2026-10-16 全类型累计钳改案：黑白的生成上限语义移交中线产量双格「累计/地牌上限」，
+        /// 六色同池后黑白格不再单独挂上限数字）；可用&gt;0 点亮锁色菲涅尔。
         /// 计数条=格面平铺 TMP（不看向相机——平贴地块，见 EnsureFlatCellLabel）。</summary>
         private void ReconcileLands(List<BattleCardView> lands, BattlePlayerView pv, int owner)
         {
@@ -609,9 +665,12 @@ namespace SynergyUI
                 if (label != null)
                 {
                     label.gameObject.SetActive(true);
-                    // 上限：红蓝绿灰=该色已放入地牌张数（含横置）；黑白=地牌槽上限（2026-10-14 晚定案）
-                    int cap = isBw ? (pv != null ? pv.LandCap : 0) : (g != null ? g.Total : 0);
-                    label.text = $"{remaining}/{cap}";
+                    // 红蓝绿灰=「可用/上限」（上限=该色已放入地牌张数，含横置）；
+                    // 黑白只显余量（2026-10-16 全类型累计钳：上限语义移交中线产量双格，黑白格不挂上限数字）
+                    if (isBw)
+                        label.text = remaining.ToString();
+                    else
+                        label.text = $"{remaining}/{(g != null ? g.Total : 0)}";
                 }
             }
         }
@@ -627,7 +686,7 @@ namespace SynergyUI
         {
             public Transform Root;
             public TextMeshPro Stats;
-            public int LastLife = -1;
+            public string LastStats;
         }
 
         private void ReconcileHero(BattlePlayerView p, int owner)
@@ -651,36 +710,19 @@ namespace SynergyUI
                 };
                 _heroes[owner] = v;
             }
-            if (v.Stats != null && v.LastLife != p.Life)
+            // 立柱数值（2026-10-16）：常态只显 HP；护甲>0 缀「(+x)」；获得攻击力（HeroAttack 弹药>0）
+            // 追加「Ac:x」——无攻击力不占位，弹药打空自动回落纯 HP
+            if (v.Stats == null) return;
+            string txt = "HP " + p.Life + ArmorSuffix(p.Armor);
+            if (p.HeroAttack > 0) txt += " Ac:" + p.HeroAttack;
+            if (v.LastStats != txt)
             {
-                v.LastLife = p.Life;
-                v.Stats.text = "HP " + p.Life;
+                v.LastStats = txt;
+                v.Stats.text = txt;
             }
         }
 
-        // ======================================== 技能格 ========================================
-
-        /// <summary>技能格对账（2026-10-14 晚改版）：无技能=空格（不画图标/数字条）；
-        /// 有技能=格面数字条显示技能名（详情走悬停卡面）。黑白钱包余额/生成上限迁至
-        /// 地牌行黑白元素格（ReconcileLands；黑白不由地牌产出、合计生成 ≤ 地牌上限）。
-        /// 点击（己方）发动技能的交互在 BattleScreen 路由。</summary>
-        private void ReconcileSkill(BattlePlayerView p, int owner)
-        {
-            var skill = p?.Skill;
-            if (skill == null)
-            {
-                // 空格：数字条既建即藏（元素图标随 BattleTileFx.ClearAll 每次对账自清）
-                if (_skillLabels.TryGetValue(owner, out var stale) && stale != null && stale.gameObject.activeSelf)
-                    stale.gameObject.SetActive(false);
-                return;
-            }
-
-            var cell = BoardLayout.SkillCell(owner);
-            var label = EnsureOwnerLabel(_skillLabels, owner, cell, 0.34f);
-            if (label == null) return;
-            label.gameObject.SetActive(true);
-            label.text = skill.Name;
-        }
+        // ======================================== 技能格（2026-10-16 撤销——空段留档） ========================================
 
         /// <summary>地牌格平铺数字条（2026-10-14 晚定案：这类格子的文字不看向相机，平贴地块显示；
         /// 晚二批=轴对齐 z 旋 0；本批修字向）：面朝上且**读向 +x、字头 +z、可读面（TMP 本地 -Z）朝相机**
@@ -702,30 +744,6 @@ namespace SynergyUI
             label.color = Color.white;
             label.rectTransform.sizeDelta = new Vector2(1.6f, 0.9f);
             _landCounts[key] = label;
-            return label;
-        }
-
-        /// <summary>按归属的固定格数字条惰性建（key=owner）。</summary>
-        private TextMeshPro EnsureOwnerLabel(Dictionary<int, TextMeshPro> map, int owner, (int x, int z) cell, float height)
-            => EnsureLabel(map, owner, cell.x, cell.z, height);
-
-        private TextMeshPro EnsureLabel<TDict, TKey>(TDict map, TKey key, int x, int z, float height)
-            where TDict : IDictionary<TKey, TextMeshPro>
-        {
-            if (!EnsureTmpFont()) return null;
-            if (map.TryGetValue(key, out var label) && label != null) return label; // fake-null 判死重建
-            var go = new GameObject("cell-num-" + x + "-" + z);
-            go.transform.SetParent(_root, false);
-            go.transform.position = BattleBoardGrid.WorldPositionOf(x, z) + new Vector3(0f, height, 0f);
-            var cam = BattleStageDirector.WorldCam;
-            go.transform.rotation = cam != null
-                ? Quaternion.LookRotation(go.transform.position - cam.transform.position)
-                : Quaternion.Euler(0f, 180f, 0f);
-            label = go.AddComponent<TextMeshPro>();
-            label.fontSize = 3.5f;
-            label.alignment = TextAlignmentOptions.Center;
-            label.color = Color.white;
-            map[key] = label;
             return label;
         }
 
@@ -981,38 +999,39 @@ namespace SynergyUI
         /// wrapper 恒 identity，走位期 wrapper 转向=期望世界朝向(Atan2)−本值。</summary>
         public static float FacingYawOf(int owner) => owner == 0 ? 0f : 180f;
 
-        /// <summary>死亡演出（战斗编舞与通用死亡同路径，2026-10-13 定案③）：倒地散落→停稳→
-        /// 螺旋吸入己方墓地漩涡→销毁。playFall=false=倒地已播过（对账翻转路径）。
-        /// 中途复活（v.Dead 翻回）/拆屏即中止并释放 hold；吸完 RetireUnit 自清。</summary>
-        public async UniTask PlayDeathSuctionAsync(uint id, int owner, bool playFall,
-            float settleSeconds = 1f, float suctionSeconds = 0.75f)
+        /// <summary>死亡退场演出（战斗编舞与通用死亡同路径；2026-10-16 三改）：倒地碎裂（部件
+        /// 抛物线散落）→停稳→碎块**维持原大小**滚向己方墓地格（距离折算时长）→墓上原地自旋
+        /// （两圈缓起）+缩到 0 消失→销毁。旋转缩小是到达后的独立段，不并入滚程（途中缩小奇怪，
+        /// 表现时间放慢——用户定案）。无 rig 动画的单位（结界等）跳过碎裂直接滚行。中途复活
+        /// （v.Dead 翻回）/拆屏即中止并释放 hold（体型朝向复原交还对账）；退场完 RetireUnit 自清。</summary>
+        public async UniTask PlayDeathExitAsync(uint id, int owner)
         {
             BeginVisual(); // 视觉在途门：死亡演出期间人机局 AI 等待
             try
             {
                 if (!_units.TryGetValue(id, out var v) || v.Wrapper == null) return;
                 HoldUnit(id); // 防 RemoveStale 抢销毁
-                if (playFall) v.Anim?.Play(MonsterAction.FallDown);
 
-                float t0 = Time.realtimeSinceStartup;
-                while (Time.realtimeSinceStartup - t0 < settleSeconds)
-                {
-                    if (v.Wrapper == null || !v.Dead) { ReleaseUnit(id); return; }
-                    await UniTask.Yield();
-                }
-                if (v.Wrapper == null) { ReleaseUnit(id); return; }
-                if (!v.Dead) { ReleaseUnit(id); return; } // 复活竞争：交还对账
+                // ① 碎裂：倒地散落——部件脱离层级做抛物线散落（无 Anim 的单位为 no-op）；
+                // 头顶数值同帧消失（中途复活由对账分支恢复显示）
+                v.SetStatsVisible(false);
+                v.Anim?.Play(MonsterAction.FallDown);
+                await WaitFallSettledAsync(v);
+                if (v.Wrapper == null || !v.Dead) { ReleaseUnit(id); return; } // 复活竞争：交还对账
 
                 var graveCell = BattleZoneProps.GraveCellOf(owner);
                 var grave = BattleBoardGrid.WorldPositionOf(graveCell.x, graveCell.z);
-                // 吸程按距离放慢（2026-10-15 定案）：直线距离折算时长——远处死亡飞得久，
-                // 参数 suctionSeconds 降级为近距下限，封顶防远角拖沓
-                float dist = v.Wrapper != null ? Vector3.Distance(v.Wrapper.position, grave) : 0f;
-                float seconds = Mathf.Clamp(dist / SuctionUnitsPerSecond, suctionSeconds, SuctionMaxSeconds);
-                await SuckToVortexAsync(v, grave, seconds);
+                // 滚程按距离放慢（2026-10-15 定案沿用）：远处死亡滚得久，下限防近距闪没，封顶防远角拖沓
+                float dist = Vector3.Distance(v.Wrapper.position, grave);
+                float slide = Mathf.Clamp(dist / DeathSlideUnitsPerSecond, DeathSlideMinSeconds, DeathSlideMaxSeconds);
+                // ② 滚入墓地：维持原大小原朝向，只有位移
+                await SlideToGraveAsync(v, grave, slide);
+                if (v.Wrapper == null || !v.Dead) { ReleaseUnit(id); return; } // 复活竞争：交还对账
+                // ③ 墓上原地自旋缩小到消失
+                await SpinShrinkAsync(v, DeathSpinSeconds);
                 if (v.Wrapper != null && v.Dead)
                 {
-                    Debug.Log($"[BattleField] 单位 {id % 10000} 已被墓地漩涡吸走（owner={owner}）");
+                    Debug.Log($"[BattleField] 单位 {id % 10000} 已碎裂滚入墓地旋转消失（owner={owner}）");
                     RetireUnit(id);
                 }
                 else ReleaseUnit(id);
@@ -1020,27 +1039,56 @@ namespace SynergyUI
             finally { EndVisual(); }
         }
 
-        /// <summary>螺旋吸入：绕吸入口加速盘旋收缩、整体翻滚缩小到 0；复活竞争/销毁即停并复原体型。</summary>
-        private static async UniTask SuckToVortexAsync(UnitVisual v, Vector3 gravePos, float seconds)
+        /// <summary>等碎裂散落停稳：ScatterSim 直写部件世界位，未停稳就滚 wrapper 会把碎块甩在
+        /// 原地——须等 Settled（个别高弹碎片由上限兜底）。无散落模拟（结界等无 rig 单位）即返；
+        /// 复活/销毁即停。</summary>
+        private static async UniTask WaitFallSettledAsync(UnitVisual v, float timeoutSeconds = 2.2f)
+        {
+            var scatter = v.Anim?.Driver?.Scatter;
+            if (scatter == null) return;
+            float t0 = Time.realtimeSinceStartup;
+            while (!scatter.Settled && Time.realtimeSinceStartup - t0 < timeoutSeconds)
+            {
+                if (v.Wrapper == null || !v.Dead) return;
+                await UniTask.Yield();
+            }
+        }
+
+        /// <summary>滚行入墓：碎块维持原大小/朝向沿板面滚向墓地格（缓入缓出，只有位移——
+        /// 途中不旋转不缩小）；复活竞争/销毁即停。</summary>
+        private static async UniTask SlideToGraveAsync(UnitVisual v, Vector3 gravePos, float seconds)
         {
             Vector3 start = v.Wrapper.position;
-            Vector3 startScale = v.Wrapper.localScale;
-            const float startRadius = 0.55f;
             float t0 = Time.realtimeSinceStartup;
             while (v.Wrapper != null && v.Dead)
             {
                 float t = (Time.realtimeSinceStartup - t0) / seconds;
                 if (t >= 1f) break;
-                float k = t * t; // 加速吸入
-                Vector3 to = Vector3.Lerp(start, gravePos, k);
-                float ang = t * Mathf.PI * 2f * 2.2f; // 约 2.2 圈
-                float r = startRadius * (1f - k);
-                v.Wrapper.position = to + new Vector3(Mathf.Cos(ang) * r, 0.08f + 0.3f * (1f - k), Mathf.Sin(ang) * r);
-                v.Wrapper.rotation = Quaternion.Euler(t * 380f, ang * Mathf.Rad2Deg, t * 520f); // 翻滚
-                v.Wrapper.localScale = startScale * Mathf.Max(1f - k, 0.02f);
+                float k = t * t * (3f - 2f * t); // smoothstep 缓入缓出
+                v.Wrapper.position = Vector3.Lerp(start, gravePos, k);
                 await UniTask.Yield();
             }
-            if (v.Wrapper != null) v.Wrapper.localScale = startScale; // 复活竞争复原（销毁路径无谓）
+        }
+
+        /// <summary>旋转缩小消失：墓地格上 Y 轴自旋（两圈缓起加速收）+ 缩到 0（表现时间 1s——
+        /// 2026-10-16 三改放慢，原 0.55s 太赶）；复活竞争/销毁即停并复原体型朝向。</summary>
+        private static async UniTask SpinShrinkAsync(UnitVisual v, float seconds)
+        {
+            Vector3 startScale = v.Wrapper.localScale;
+            float t0 = Time.realtimeSinceStartup;
+            while (v.Wrapper != null && v.Dead)
+            {
+                float t = (Time.realtimeSinceStartup - t0) / seconds;
+                if (t >= 1f) break;
+                v.Wrapper.rotation = Quaternion.Euler(0f, t * t * 720f, 0f); // 自旋缓起加速收
+                v.Wrapper.localScale = startScale * Mathf.Max(1f - t * t, 0.02f);
+                await UniTask.Yield();
+            }
+            if (v.Wrapper != null) // 复活竞争复原（销毁路径无谓）
+            {
+                v.Wrapper.localScale = startScale;
+                v.Wrapper.rotation = Quaternion.identity;
+            }
         }
 
         /// <summary>角色受击脉动（2026-10-13 裁定②：角色目标无模型，立柱缩放脉冲表受击）。</summary>

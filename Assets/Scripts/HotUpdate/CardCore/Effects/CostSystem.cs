@@ -42,8 +42,9 @@ namespace CardCore
         /// <summary>法力类型（元素消耗专用）</summary>
         public ManaType ManaType;
 
-        /// <summary>效果型代价的原子（CostType.Payload 专用，2026-09-11）：付费步强制执行并按全价补偿黑/白。</summary>
-        public AtomicEffectInstance Payload;
+        /// <summary>效果型代价的原子序列（CostType.Payload 专用，2026-09-11；2026-10-16 组装效果代价）：
+        /// 付费步逐原子强制执行并按各原子全价/极性色补偿黑/白（多原子可黑白混合）。</summary>
+        public List<AtomicEffectInstance> Payloads;
     }
 
     /// <summary>
@@ -63,11 +64,11 @@ namespace CardCore
         /// <summary>效果来源</summary>
         public Entity Source;
 
-        /// <summary>声明期预选的代价目标（出牌两阶段 2026-10-04 定案）：
+        /// <summary>声明期预选的代价目标（出牌两阶段 2026-10-04 定案；2026-10-16 组装效果代价）：
         /// 出牌声明期（PlayCard/PlayCardInResponse）预选、cast 结算付费步消费——
-        /// ExecutePayloadAsync 优先沿用，不在结算期重选（响应窗口内状态变化不重选，
-        /// 死亡/离场目标由各 handler 自行过滤）。null = 非出牌路径（启动式/动态效果），结算期照常解析。</summary>
-        public List<Entity> PreselectedCostTargets;
+        /// **按 payload 原子序**逐原子存候选（ExecutePayloadAtomAsync 按 atomIndex 沿用，不重选）；
+        /// 无域原子位为 null。null = 非出牌路径（主动/动态效果），结算期照常解析。</summary>
+        public List<List<Entity>> PreselectedCostTargets;
     }
 
     // ================================================================
@@ -228,7 +229,7 @@ namespace CardCore
         public CostType CostType => CostType.Payload;
 
         public bool CanPay(CostInstance cost, CostContext context)
-            => cost?.Payload != null;
+            => cost?.Payloads != null && cost.Payloads.Count > 0;
 
         public void Pay(CostInstance cost, CostContext context)
         {
@@ -236,7 +237,13 @@ namespace CardCore
         }
 
         public string GetDescription(CostInstance cost)
-            => cost?.Payload != null ? $"代价效果：{cost.Payload.GetDescription()}" : "代价效果";
+        {
+            if (cost?.Payloads == null || cost.Payloads.Count == 0) return "代价效果";
+            var parts = new List<string>();
+            foreach (var atom in cost.Payloads)
+                if (atom != null) parts.Add(atom.GetDescription());
+            return "代价效果：" + string.Join("；", parts);
+        }
     }
 
     // ================================================================
@@ -315,7 +322,7 @@ namespace CardCore
     /// 代价补偿服务（2026-09-14 定案：**代价强制**——撤销 09-11 的「代价可选」三选一窗口；
     /// 2026-10-04 定案：**任意单向不限价**——「等价1」限价退役，任意单向效果可作 Payload
     ///（放置口经 CostDerivationService.PayloadCostDomain 逆转选择范围），补偿按全价发放）。
-    /// cast 付费步与启动式/动态效果统一走 PayWithCompensationAsync：
+    /// cast 付费步与主动/动态效果统一走 PayWithCompensationAsync：
     /// Payload 原子**强制执行** + 按全价获得黑（己方侧）/白（对方侧）——无选择窗口、无减费通道。
     /// 补偿数量=Payload 原子全价（PayloadUnitGrant：按 Once/单目标/战场落区合成组合层计价，
     /// 原子表为唯一锚）。2026-10-04：产出不封·全量入账（旧 AddMana 每回合钳制退役——
@@ -325,11 +332,12 @@ namespace CardCore
     public static class CostCompensationService
     {
         /// <summary>
-        /// 强制支付一组代价并逐条发放补偿（cast 付费步与启动式/动态效果共用的唯一路径）。
+        /// 强制支付一组代价并逐条发放补偿（cast 付费步与主动/动态效果共用的唯一路径）。
         /// Payload 在此异步执行（恒可付=强制效果）。
-        /// 顺序（2026-10-04 本轮定案）：**补偿后置**——先快照全价（Payload 执行会膨胀模板身价，
-        /// 补偿按打出时点全价——09-13 护栏维持），执行**生效后**立即以快照值发放黑/白；
-        /// 代价没有作用于有效目标（无可用目标）→ 不执行、不发放（走不到代价黑白元素生成——
+        /// 顺序（2026-10-04 本轮定案；2026-10-16 组装效果代价扩多原子）：**补偿后置**——
+        /// 先逐原子快照全价（Payload 执行会膨胀模板身价，补偿按打出时点全价——09-13 护栏维持），
+        /// 原子执行**生效后**立即以快照值按该原子极性色发放黑/白（多原子可黑白混合）；
+        /// 某原子没有作用于有效目标（无可用目标）→ 该原子不执行、不发放（其余原子照常——
         /// 整卡出牌路径的回退拦截在 GameActions.ResolveCardCastAsync 扣费前）。
         /// </summary>
         public static async Cysharp.Threading.Tasks.UniTask<bool> PayWithCompensationAsync(
@@ -341,25 +349,32 @@ namespace CardCore
             foreach (var cost in costs)
             {
                 if (cost == null) continue;
-                int grantAmount = CostDerivationService.PayloadUnitGrant(cost.Payload); // 快照：执行前全价
-                if (await ExecutePayloadAsync(cost, ctx))
-                    IssueGrant(cost, ctx, grantAmount); // 生效后立即获得黑白（快照值）
+                var atoms = cost.Payloads;
+                if (atoms == null) continue;
+                for (int i = 0; i < atoms.Count; i++)
+                {
+                    var atom = atoms[i];
+                    if (atom == null) continue;
+                    int grantAmount = CostDerivationService.PayloadUnitGrant(atom); // 快照：执行前全价（逐原子）
+                    if (await ExecutePayloadAtomAsync(atom, ctx, i))
+                        IssueGrant(atom, ctx, grantAmount); // 生效后立即获得黑白（快照值；逐原子色）
+                }
             }
             return true;
         }
 
-        /// <summary>单条代价的补偿发放（每条=一次发放事件）。Payload 按原子全价+极性色；
+        /// <summary>单原子补偿发放（每原子=一次发放事件）。按原子全价+极性色；
         /// 2026-10-04 本轮：补偿后置——发放量=执行前快照（见 PayWithCompensationAsync），生效后立即入账；
         /// 产出不封定案维持：全量入账（约束在使用侧支付浓度上限）。</summary>
-        private static void IssueGrant(CostInstance cost, CostContext ctx, int amount)
+        private static void IssueGrant(AtomicEffectInstance atom, CostContext ctx, int amount)
         {
             if (ctx?.Payer == null || ctx.ElementPool == null || amount <= 0) return;
 
-            ManaType color = PayloadGrantColor(cost.Payload);
+            ManaType color = PayloadGrantColor(atom);
             ctx.ElementPool.AddMana(ctx.Payer, color, ctx.Source as Card, amount);
         }
 
-        /// <summary>Payload 补偿颜色：极性非零按极性（有害→黑/有益→白）；零极性按域侧（对方锁→白，其余→黑）。</summary>
+        /// <summary>Payload 补偿颜色（逐原子）：极性非零按极性（有害→黑/有益→白）；零极性按域侧（对方锁→白，其余→黑）。</summary>
         public static ManaType PayloadGrantColor(AtomicEffectInstance atom)
         {
             if (atom == null) return ManaType.Black;
@@ -367,14 +382,15 @@ namespace CardCore
             return CostDerivationService.SideLock(atom.TargetKinds) == 1 ? ManaType.White : ManaType.Black;
         }
 
-        /// <summary>执行 Payload 原子：按其自身域解析目标（如「给对手召唤」→ 对方侧），无域以无目标执行。
+        /// <summary>执行单个 Payload 原子：按其自身域解析目标（如「给对手召唤」→ 对方侧），无域以无目标执行。
         /// 受惠侧执行：对方域锁定的 payload 以**对手**为控制者执行——产出型原子（SummonToken 等）
         /// 落在控制者侧，给对手的代价自然落在对手战场；己方/双侧以支付者执行。
-        /// 返回是否**作用于有效目标**（2026-10-04 本轮定案）：有域而目标为空 → false（不执行、不补偿——
-        /// 走不到代价黑白元素生成）；无域（无目标语义）/正常执行 → true。</summary>
-        private static async Cysharp.Threading.Tasks.UniTask<bool> ExecutePayloadAsync(CostInstance cost, CostContext ctx)
+        /// atomIndex=组装代价的原子序（声明期预选目标按序沿用）。
+        /// 返回是否**作用于有效目标**（2026-10-04 本轮定案）：有域而目标为空 → false（该原子不执行、
+        /// 不补偿——走不到代价黑白元素生成）；无域（无目标语义）/正常执行 → true。</summary>
+        private static async Cysharp.Threading.Tasks.UniTask<bool> ExecutePayloadAtomAsync(
+            AtomicEffectInstance atom, CostContext ctx, int atomIndex)
         {
-            var atom = cost.Payload;
             if (atom == null) return true;
 
             bool hasDomain = atom.TargetKinds != null && atom.TargetKinds.Count > 0;
@@ -394,15 +410,18 @@ namespace CardCore
             };
 
             List<Entity> targets;
+            var preselected = ctx.PreselectedCostTargets != null && atomIndex < ctx.PreselectedCostTargets.Count
+                ? ctx.PreselectedCostTargets[atomIndex]
+                : null;
             if (!hasDomain)
             {
                 targets = new List<Entity>(); // 无域代价（无目标语义）：按无目标执行、照常补偿
             }
-            else if (ctx.PreselectedCostTargets != null)
+            else if (preselected != null)
             {
                 // 出牌两阶段（2026-10-04 定案）：声明期预选的代价目标优先沿用（不重选——
                 // 响应窗口内目标死亡/离场由各 handler 过滤；全灭拦截在 ResolveCardCastAsync 扣费前）。
-                targets = new List<Entity>(ctx.PreselectedCostTargets);
+                targets = new List<Entity>(preselected);
             }
             else
             {

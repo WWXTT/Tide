@@ -48,7 +48,7 @@ namespace CardCore
         // ============ 控制相关 ============
         GainControl,
         /// <summary>效果无效（2026-10-04 两层无效定案，承接旧 NegateActivation 标记实现）：
-        /// 发动照常、效果不结算——施放=扣费不返还入墓；启动式=扣费+横置不重置；触发式=计入发动次数；
+        /// 发动照常、效果不结算——施放=扣费不返还入墓；主动=扣费+横置不重置；触发式=计入发动次数；
         /// 强制桶受管制（效果跳过）。枚举位承袭旧 NegateActivation（只可改名不可挪位）。</summary>
         NegateEffect,
         Silence,
@@ -139,7 +139,7 @@ namespace CardCore
 
         // ============ 反制原子（使用时点/响应窗口——指向发动区；2026-10-04 两层无效定案） ============
         /// <summary>发动无效（原打落 KnockDown 承接改名，枚举位不变）：无效化**发动**本身——净零成本。
-        /// 施放=扣费返还（发动区送墓，消费点不付费中止）；启动式=不扣费+横置不重置；触发式=不计发动次数
+        /// 施放=扣费返还（发动区送墓，消费点不付费中止）；主动=不扣费+横置不重置；触发式=不计发动次数
         /// （入栈记账退还）；强制桶不受管制（不可标记）。表行「发动无效」。</summary>
         NegateActivation,
 
@@ -151,7 +151,7 @@ namespace CardCore
         Mine,
 
         // ============ 妨害族（三轨制同期新增） ============
-        /// <summary>无效指示物（蓝3）：目标非启动式能力无法发动（拦触发式+光环；换区清除）。
+        /// <summary>无效指示物（蓝3）：目标非主动能力无法发动（拦触发式+光环；换区清除）。
         /// 枚举只可尾部追加（AEI_Type 按 int 位序序列化）。</summary>
         AddNullify,
 
@@ -185,6 +185,13 @@ namespace CardCore
         /// 咽喉，单跳不链式 guardRerouted）。无限次直到守护者死亡/离场——离场断链，
         /// 墓地复活=新入场重新弹选（旧关系不残留）；复生原地留场配对保持。</summary>
         GrantGuardian,
+        /// <summary>舍身（2026-10-16 关键词化——原舍身仪典规则光环退役；表行 MountKinds=关键词,不可作为连接光环）：
+        /// 登场/授予时弹选一个**对方**目标（单位或角色，TargetSelectionService——AI/无头自动选首候选；
+        /// 与守护的己方域对偶），自己造成的战斗伤害改写为对目标造成等量**效果伤害**（非战斗路径：
+        /// 被禁魔石清零/走易损与防护层/不触发战斗反击链；原目标免受——MartyrdomRules 配对表，
+        /// 改写在 KeywordRules.ApplyDamage 咽喉，防护层后落血前）。无限次直到持有者死亡/离场——
+        /// 离场断链，墓地复活=新入场重新弹选；复生原地留场配对保持。</summary>
+        GrantMartyrdom,
         // 固有全域原子（SweepDamage/SweepHeal）已随 2026-10-05 墓碑清理实删——
         // 全域语义由组合期 TargetKinds+全取档表达（2026-09-21 退役定案，此番连墓碑一并清除）。
         /// <summary>【墓碑 2026-10-09】摒弃——舍弃并档牺牲：牺牲池已含无生命单位（直送非死亡），本原子退役。
@@ -338,6 +345,12 @@ namespace CardCore
         /// 横置状态不在此恢复。消费口=RemoveDebuffsHandler（EntityEffectExtensions.RemoveAllDebuffs）。
         /// 枚举只可尾部追加。</summary>
         RemoveDebuffs,
+
+        /// <summary>报复（2026-10-16 新增，红1/层，表行）：对目标附加 {value} 层报复指示物
+        ///（RetaliationCounter，Exception 生效自减——换区不清）——持有者实际受到伤害时对
+        /// 伤害来源造成等于层数的伤害（非战斗伤害，来源=持有者），生效后层数减半（floor）。
+        /// 触发口=KeywordRules.ApplyDamage 管线尾段（吸血后、剧毒前）。枚举只可尾部追加。</summary>
+        GrantRetaliation,
     }
 
     /// <summary>

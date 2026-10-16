@@ -36,6 +36,8 @@ namespace SynergyUI
         public bool HasAura;   // 有链接光环效果（聚合缓存 LinkAuras 非空——结界光环环显隐，2026-10-14）
         public int? BasePower, BaseLife; // 印刷基础攻/血（卡表原值；2026-10-15 战场头顶属性配色：
                                          // 持平=白/低于=红/高于=绿；查表 miss=null 恒白）
+        public int Armor;                // 护甲指示物层数（KeywordRules.ArmorCounter；2026-10-16
+                                         // 战场头顶「(+x)」后缀显示，双模式统一从 Counters 快照取）
 
         // 派生显示
         public int X = -1, Z = -1;  // 棋盘格位（-1=未落格；地牌=同色组共享格，2026-10-14 按色叠格）
@@ -55,11 +57,14 @@ namespace SynergyUI
         public string Name = "";
         public int Life, MaxHealth, DeckCount, HandCount, GraveyardCount, FatigueCount, LandCap;
         public string BankText = "—";
+        public int TempGainedThisTurn; // 本周期临时元素累计产出（全类型合计——生成钳配额消耗量；
+                                       // 中线产量格数据源；网络快照未承载（联机复活随协议补））
         public int[] WalletByColor = new int[ElementCost.Length]; // 临时钱包逐色余额（2026-10-14 上盘：
                                                                   // 地牌格「剩余」并入钱包该色、技能格黑白数字源）
         public BattleCardView Skill; // 英雄技能卡（FieldZone）
         public bool IsAI;
         public int HeroAttack; // 角色攻击力=HeroAttackCounter 弹药层数（2026-10-10 角色参战收口：0=无攻击资格，3D HUD 消费）
+        public int Armor;      // 角色护甲层数（ArmorCounter 指示物；2026-10-16 立柱生命「(+x)」后缀显示）
     }
 
     /// <summary>对战整局视图。</summary>
@@ -192,7 +197,12 @@ namespace SynergyUI
             if (s.LockedColor >= 0)
                 v.LandTokensText = $"锁:{ManaZh((ManaType)s.LockedColor)}";
 
-            v.IsDead = s.Life <= 0;
+            // 2026-10-16 修（结界悬停无信息根因）：非生物卡不再按 Life<=0 误判为战场尸体——
+            // 无生命单位（结界/装备）_life 恒 0（耐久在指示物）、法术无生命字段，死亡由离场表达
+            //（耐久归零 Smashed 直毁入墓/法术结算即走），在场即活；data==null（token/临时卡）保守沿用旧口径。
+            v.IsDead = data != null && data.Supertype != Cardtype.Creature ? false : s.Life <= 0;
+            v.Armor = Math.Max(0, s.Counters?
+                .FirstOrDefault(c => c.Key == CardCore.Attribute.KeywordRules.ArmorCounter)?.Value ?? 0);
             return v;
         }
 
@@ -262,9 +272,11 @@ namespace SynergyUI
             v.FatigueCount = p.FatigueCount;
             v.LandCap = core.ElementPool.GetLandCap(p);
             v.BankText = BankTextLocal(core, p);
+            v.TempGainedThisTurn = core.ElementPool.GetTempGainedThisTurn(p);
             foreach (ManaType m in Enum.GetValues(typeof(ManaType)))
                 v.WalletByColor[(int)m] = core.ElementPool.GetAvailableManaCount(m, p);
             v.HeroAttack = p.GetPower(); // Player 分支=弹药层数钳非负（EntityEffectExtensions）
+            v.Armor = Math.Max(0, p.GetCounterCount(CardCore.Attribute.KeywordRules.ArmorCounter));
 
             var skill = HeroSkillSystem.ResolveSkillCard(core, p);
             if (skill != null)
@@ -405,6 +417,7 @@ namespace SynergyUI
             v.LandCap = ps.LandCap;
             v.IsAI = ps.IsAI;
             v.HeroAttack = Math.Max(0, ps.Counters?.FirstOrDefault(c => c.Key == CardCore.Attribute.CounterRules.HeroAttackCounter)?.Value ?? 0);
+            v.Armor = Math.Max(0, ps.Counters?.FirstOrDefault(c => c.Key == CardCore.Attribute.KeywordRules.ArmorCounter)?.Value ?? 0);
             v.BankText = ps.ElementBank == null || ps.ElementBank.Length == 0 ? "—"
                 : string.Join(" ", ps.ElementBank
                     .Where(e => e.Value > 0)

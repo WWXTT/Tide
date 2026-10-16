@@ -77,6 +77,9 @@ namespace CardCore
         // 装载时按规范常量重建 CostEntry；逆转后的镜像域存于 payload.kinds（可超出表行域）。
         // refId 空/字段缺省 = 无代价（旧档兼容——JsonUtility 空对象回落同样由此守卫拦下）。
         public AtomicEffectEntry payload;
+
+        // 组装效果代价（2026-10-16）：线性原子序列——payloads 非空优先；旧 payload 单条由装载折入。
+        public List<AtomicEffectEntry> payloads;
     }
 
     // CostJsonEntry（{manaType, amount} 对）已删除（2026-10-04 费用位置数组化）：
@@ -196,10 +199,10 @@ namespace CardCore
             return result;
         }
 
-        /// <summary>法术形态校验（2026-10-15 深夜三类卡改版：法术=1~3 个启动式效果，
-        /// 施放时弹窗抉择其一执行——旧「恰好 1 个非启动式」口径整体翻转）：
+        /// <summary>法术形态校验（2026-10-15 深夜三类卡改版：法术=1~3 个主动效果，
+        /// 施放时弹窗抉择其一执行——旧「恰好 1 个非主动」口径整体翻转）：
         /// ① 效果数 1..3（0=白板法术无意义；>3 超抉择上限）；
-        /// ② 全部为启动式（Activate_Active/Activate_Instant——响应式 Activate_Response 不算，
+        /// ② 全部为主动（Activate_Active/Activate_Instant——响应式 Activate_Response 不算，
         ///    法术施放走整卡 cast 通道没有响应发动口）；
         /// ③ 效果内禁嵌抉择分支（step.choices）：modeIndex 通道已复用为「效果抉择」
         ///    （声明期选定、随 CardPlayEvent 公开），内嵌分支会与其撞车。
@@ -211,14 +214,14 @@ namespace CardCore
                 if (card?.Supertype != Cardtype.Spell || card.Effects == null) continue;
                 int count = card.Effects.Count;
                 if (count < 1 || count > 3)
-                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术须挂 1~3 个启动式效果" +
+                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术须挂 1~3 个主动效果" +
                                   $"（现 {count} 个——施放时弹窗三选一）——构筑期拦截");
                 foreach (var e in card.Effects)
                 {
                     int t = e?.TriggerTiming ?? -1;
                     if (t != (int)TriggerTiming.Activate_Active && t != (int)TriggerTiming.Activate_Instant)
-                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术效果 {e.Id} 须为启动式" +
-                                      "（主动/瞬间——法术只挂主动效果，自动/触发/响应式不收）——构筑期拦截");
+                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：法术效果 {e.Id} 须为主动" +
+                                      "（主阶段/瞬间——法术只挂主动效果，自动/触发/响应档不收）——构筑期拦截");
                     if (e?.Steps != null)
                         foreach (var s in e.Steps)
                             if (s?.choices != null && s.choices.Count > 1)
@@ -228,7 +231,7 @@ namespace CardCore
             }
         }
 
-        /// <summary>结界形态校验（2026-10-15 深夜三类卡改版：结界只挂自动/光环——禁一切启动式）：
+        /// <summary>结界形态校验（2026-10-15 深夜三类卡改版：结界只挂自动/光环——禁一切主动）：
         /// 耐久语义保留（受击−1/被动触发−1），主动发动−1 通道整体退役。</summary>
         private static void ValidateEnchantShape(List<CardData> cards)
         {
@@ -240,7 +243,7 @@ namespace CardCore
                     int t = e?.TriggerTiming ?? -1;
                     if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
                         || t == (int)TriggerTiming.Activate_Response)
-                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：结界效果 {e.Id} 为启动式" +
+                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：结界效果 {e.Id} 为主动" +
                                       "（结界只挂自动/光环，主动效果已退役）——构筑期拦截");
                 }
             }
@@ -696,7 +699,7 @@ namespace CardCore
         /// </summary>
         private static CardData CreateCardData(CardConfigEntry entry)
         {
-            // 黑白关键词照旧印制（2026-09-14 撤销「转启动式」定案）：参杂黑白的生物可作地牌，
+            // 黑白关键词照旧印制（2026-09-14 撤销「转主动」定案）：参杂黑白的生物可作地牌，
             // 地牌只是不从黑白份额产指示物（ElementPool.GetCardCostAsTokens 过滤）——
             // 黑白获取通道不变（=卡结算：错边/Payload 补偿），费用侧照常计价。
             var cardData = new CardData
@@ -768,13 +771,20 @@ namespace CardCore
             // 代价栏（2026-10-04 持久化链）：payload 原子引用 → 卡层 PayloadCost（正式口；
             // legacy 效果级 Costs 兜底不变——卡层已填时 CollectCardSpecialCosts 跳过 legacy 防双收）。
             // 须在 EnsureCost 前（单卡单条违约告警读 PayloadCost）。
-            if (entry.payload != null && !string.IsNullOrEmpty(entry.payload.refId))
+            // 2026-10-16 组装效果代价：payloads 数组优先；旧单条 payload 折入（AllPayloads 单源）。
+            var payloadAtoms = new List<AtomicEffectEntry>();
+            if (entry.payloads != null)
+                foreach (var pa in entry.payloads)
+                    if (pa != null && !string.IsNullOrEmpty(pa.refId)) payloadAtoms.Add(pa);
+            if (payloadAtoms.Count == 0 && entry.payload != null && !string.IsNullOrEmpty(entry.payload.refId))
+                payloadAtoms.Add(entry.payload);
+            if (payloadAtoms.Count > 0)
             {
                 cardData.PayloadCost = new CostEntry
                 {
                     CostType = (int)CostType.Payload,
                     Value = 1,
-                    payload = entry.payload,
+                    payloads = payloadAtoms,
                 };
             }
 

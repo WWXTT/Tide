@@ -109,7 +109,7 @@ namespace SynergyUI
             return deck;
         }
 
-        /// <summary>棋盘占用层接线：注入碾压 AdjacentResolver + 连接光环 LinkAuraSystem（核心不绑棋盘，由宿主组装）。</summary>
+        /// <summary>棋盘占用层接线：注入碾压 AdjacentResolver/RoleAdjacentResolver + 连接光环 LinkAuraSystem（核心不绑棋盘，由宿主组装）。</summary>
         private void AttachBoard()
         {
             DetachBoard();
@@ -119,6 +119,7 @@ namespace SynergyUI
                 GameBoard.HalfFieldData.Flat(), GameBoard.HalfFieldData.Flat());
             _board.EnableAutoResync();
             CombatSystem.AdjacentResolver = _board.FlankNeighbors; // 碾压=左右同排生物（2026-10-04 语义修订）
+            CombatSystem.RoleAdjacentResolver = _board.FlankNeighborsOfRole; // 碾压攻角色=角色格左右邻格（2026-10-16 改版）
             GameBoard.LinkAuraSystem.Attach(_board); // 连接光环（三轨制）：箭头指向格占据者享受 linkAuras
         }
 
@@ -154,6 +155,7 @@ namespace SynergyUI
             _board?.Dispose();
             _board = null;
             CombatSystem.AdjacentResolver = null;
+            CombatSystem.RoleAdjacentResolver = null;
             GameBoard.LinkAuraSystem.Detach();
         }
 

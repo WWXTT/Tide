@@ -86,6 +86,23 @@ namespace SynergyUI
             return path;
         }
 
+        /// <summary>按 id 从卡表删除条目（2026-10-16 强制删除定案）。返回是否删到。
+        /// 卡组引用检查由调用方负责：强删被卡组引用的卡会使卡组断链——卡组界面按
+        /// DeckCompositionValidator.Check().MissingIds 标记「不可用」。</summary>
+        public static bool Remove(string cardId)
+        {
+            if (string.IsNullOrEmpty(cardId)) return false;
+            string path = PathFor(null);
+            var wrapper = ReadWrapper(path);
+            if (wrapper?.cards == null) return false;
+            int removed = wrapper.cards.RemoveAll(c => c != null && c.id == cardId);
+            if (removed == 0) return false;
+            if (wrapper.deckConfig == null) wrapper.deckConfig = new DeckConfig();
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            File.WriteAllText(path, CardConfigCompact.EmitCompact(wrapper.cards, wrapper.deckConfig));
+            return true;
+        }
+
         /// <summary>读回目标卡表为 CardData 列表（复用 CardLoader 解析器验证 round-trip）。</summary>
         public static List<CardData> LoadAll(string fileRelative = null)
         {
@@ -137,12 +154,12 @@ namespace SynergyUI
                     : null, // 空表不写列（向后兼容旧 JSON）
                 durability = card.Durability,
                 speedBonus = card.SpeedBonus, // 卡型速度：法术提速份额（2026-10-15 缺省 2=剩余全投提速；结界/生物恒 0）
-                // 代价栏（2026-10-04 持久化链）：卡层 PayloadCost → payload 原子引用
-                //（CostType/Value 规范常量装载端重建；refId 空=无代价不写语义）
-                payload = card.PayloadCost?.payload != null
-                          && !string.IsNullOrEmpty(card.PayloadCost.payload.refId)
-                    ? card.PayloadCost.payload
-                    : null,
+                // 代价栏（2026-10-16 组装效果代价）：统一走 AllPayloads——单原子也装进 payloads
+                //（装载端 payloads 优先、旧单条折入；payload 列只承接历史档不再新写）
+                payloads = card.PayloadCost != null
+                    ? card.PayloadCost.AllPayloads()
+                    : new List<CardCore.AtomicEffectEntry>(),
+                payload = null,
             };
 
             if (card.Cost != null)

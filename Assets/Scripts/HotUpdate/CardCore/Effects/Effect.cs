@@ -80,7 +80,7 @@ namespace CardCore
     public enum EffectType
     {
         /// <summary>
-        /// 激活式效果（玩家主动发动）
+        /// 主动效果（玩家主动发动）
         /// </summary>
         Activated,
 
@@ -149,7 +149,7 @@ namespace CardCore
 
         /// <summary>施放中的宿主卡（2026-09-22）：卡牌 cast 结算链路上效果所属的卡实例——
         /// 魔法卡效果 Source=角色（来源归因定案），状态门需要卡身份时经此透传（context.CastCard）。
-        /// 非施放路径（场上触发/启动式）不填——宿主=Source。</summary>
+        /// 非施放路径（场上触发/主动）不填——宿主=Source。</summary>
         public Card CastCard { get; set; }
 
         /// <summary>
@@ -158,7 +158,7 @@ namespace CardCore
         public bool IsResolved { get; set; }
 
         /// <summary>发动层无效（2026-10-04 两层无效定案，NegateActivation 原子标记）：结算时净零成本跳过——
-        /// 启动式不扣费（横置为声明期代价不重置）、触发式不计发动次数（入栈记账退还）。
+        /// 主动不扣费（横置为声明期代价不重置）、触发式不计发动次数（入栈记账退还）。
         /// 强制桶（Mandatory）不可被标记（不受发动无效管制）。</summary>
         public bool IsActivationNegated { get; set; }
 
@@ -222,6 +222,11 @@ namespace CardCore
         /// 最后一位=最终目标，前序拦截者未参战不支付）：攻击结算在战斗完成后据此给守卫补横置。
         /// 攻击落空（重检失败）时守卫未参战——不支付。</summary>
         public Entity GuardBlocker { get; set; }
+
+        /// <summary>攻击宣言的原目标（PushAttackDeclaration 写入；守卫改写 Targets[0] 后保留）：
+        /// 2026-10-16 碾压改版——溅射枢轴恒取原目标（战斗发生在原被攻击者那一格，守卫赴挡只拦
+        /// 主战斗伤害、不改溅射域）；攻角色时原目标=角色（Player），溅射域=角色格左右邻格生物。</summary>
+        public Entity OriginalAttackTarget { get; set; }
 
         /// <summary>
         /// 抉择模式索引（2026-09-07 定案）：整卡施放声明期选定（先选择再定费用），
@@ -311,7 +316,7 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 激活式效果
+    /// 主动效果
     /// 玩家可以选择发动的效果
     /// </summary>
     public class ActivatedAbility : Effect, IStackObject

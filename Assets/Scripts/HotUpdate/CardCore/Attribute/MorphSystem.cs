@@ -43,7 +43,7 @@ namespace CardCore.Attribute
     /// - 解除=变形指示物被清（换区 ClearAll / 净化 PurgeAll——钩子 CounterRules.ClearCounters）
     ///   → RestoreIfMorphed 纯回滚原形态；解减益（ClearNegative）不清中性；
     /// - 触发式随形态重挂（UnregisterEntityEffects 首个消费者 + RegisterCardTriggeredEffects）；
-    ///   启动式/AI/声明期每帧现转 GetData().Effects，替换即生效；
+    ///   主动/AI/声明期每帧现转 GetData().Effects，替换即生效；
     /// - 变为结界形态：自动非横置（结界无横置态）+ 按入场同口径初始化耐久层
     ///  （否则结界形态耐久空=永不能发动）；耐久层随解除同清（Resident 与变形指示物同 sweep）。
     /// </summary>
@@ -222,11 +222,11 @@ namespace CardCore.Attribute
         }
 
         /// <summary>发动补价（差额恒蓝——变形=蓝色专属能力）：被变形卡当前应补的蓝色点数；未变形=0。
-        /// 消费口=EffectExecutor.CanActivate 费用预检与 ExecuteAsync 现付段（仅启动式——触发式预付不经此）。</summary>
+        /// 消费口=EffectExecutor.CanActivate 费用预检与 ExecuteAsync 现付段（仅主动——触发式预付不经此）。</summary>
         public static int ActivationSurcharge(Entity source)
             => source is Card c && c._morphSnapshot.HasValue ? c._morphSnapshot.Value.SurchargeBlue : 0;
 
-        /// <summary>触发式重挂：整卡注销旧注册 + 按当前 data 现转注册（启动式每帧现转，无需此处）。</summary>
+        /// <summary>触发式重挂：整卡注销旧注册 + 按当前 data 现转注册（主动每帧现转，无需此处）。</summary>
         private static void ReregisterTriggers(Card card)
         {
             var core = GameCore.Instance;

@@ -146,8 +146,8 @@ namespace CardCore
 
         /// <summary>
         /// 无生命单位（耐久体，2026-10-02 结界实装）：战场上的非生物卡（结界为主，装备同语义）——
-        /// 受击恒 -1 耐久不落血，耐久归零直送墓（Smashed 直毁，不经死亡决策表）。
-        /// 与目标域 3/4（NonLivingOf = 战场非生物卡）同口径；FieldZone 英雄技能卡、
+        /// 受击按伤害全额扣耐久不落血（2026-10-16 撤受击钳 1），耐久归零直送墓（Smashed 直毁，
+        /// 不经死亡决策表）。与目标域 3/4（NonLivingOf = 战场非生物卡）同口径；FieldZone 英雄技能卡、
         /// 元素池地牌等非战场卡不算。
         /// </summary>
         public static bool IsNonLivingUnit(this Card card)

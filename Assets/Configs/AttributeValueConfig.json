@@ -105,8 +105,8 @@
     "MountKinds": "",
     "Tags": "生效自减型",
     "ManaList": [
-      0.0,
       1.0,
+      0.0,
       0.0,
       0.0,
       0.0,
@@ -114,7 +114,7 @@
     ]
   },
   {
-    "ID": "120ad4d1",
+    "ID": "e5e2e116",
     "EnumName": "抽卡",
     "DisplayName": "从卡组顶部抽{value}张卡",
     "EffectType": "DrawCard",
@@ -221,7 +221,7 @@
     "ManaList": [
       0.0,
       0.0,
-      2.0,
+      1.0,
       0.0,
       0.0,
       0.0
@@ -266,7 +266,7 @@
     ]
   },
   {
-    "ID": "4b1174b6",
+    "ID": "d5626b72",
     "EnumName": "占卜",
     "DisplayName": "查看牌库顶{value}张卡并任意排列",
     "EffectType": "LookAtTopCards",
@@ -296,7 +296,7 @@
     "Tags": null,
     "ManaList": [
       0.0,
-      2.0,
+      1.0,
       0.0,
       0.0,
       0.0,
@@ -323,7 +323,7 @@
     ]
   },
   {
-    "ID": "f77ff81b",
+    "ID": "1eea87ec",
     "EnumName": "锁定",
     "DisplayName": "对{target}附加一层锁定指示物【可叠加】，无法进入发动区和地牌区",
     "EffectType": "LockCard",
@@ -335,7 +335,7 @@
     "ManaList": [
       0.0,
       0.0,
-      2.0,
+      1.0,
       0.0,
       0.0,
       0.0
@@ -373,10 +373,10 @@
     "ManaList": [
       0.0,
       0.0,
+      3.0,
       0.0,
       0.0,
-      0.0,
-      3.0
+      0.0
     ]
   },
   {
@@ -392,10 +392,10 @@
     "ManaList": [
       0.0,
       0.0,
+      5.0,
       0.0,
       0.0,
-      0.0,
-      5.0
+      0.0
     ]
   },
   {
@@ -437,7 +437,7 @@
     ]
   },
   {
-    "ID": "563c389d",
+    "ID": "35ce9ad8",
     "EnumName": "临摹",
     "DisplayName": "变成场上目标单位(无法复制规则光环)，附加一层变形指示物，解除时还原;发动时，按变形前后卡费用，用蓝色元素补齐差额",
     "EffectType": "Morph",
@@ -456,7 +456,7 @@
     ]
   },
   {
-    "ID": "03fbfe99",
+    "ID": "ea2c9eb3",
     "EnumName": "减益解除",
     "DisplayName": "解除目标全部负面(极性-1)的指示物",
     "EffectType": "RemoveDebuffs",
@@ -475,7 +475,7 @@
     ]
   },
   {
-    "ID": "0cd75565",
+    "ID": "0772c3e0",
     "EnumName": "变形赋予",
     "DisplayName": "将{target}变成引用卡（引用卡ID指向一张真实生物/结界卡，无法引用规则光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后卡费差额补蓝",
     "EffectType": "GrantMorph",
@@ -494,7 +494,7 @@
     ]
   },
   {
-    "ID": "7ce72963",
+    "ID": "82c35ce6",
     "EnumName": "消灭",
     "DisplayName": "消灭{target}生物",
     "EffectType": "Devour",
@@ -524,11 +524,11 @@
     "Tags": null,
     "ManaList": [
       0.0,
+      4.0,
       0.0,
       0.0,
       0.0,
-      0.0,
-      4.0
+      0.0
     ]
   },
   {
@@ -543,15 +543,15 @@
     "Tags": null,
     "ManaList": [
       0.0,
-      0.0,
-      0.0,
-      0.0,
       6.0,
+      0.0,
+      0.0,
+      0.0,
       0.0
     ]
   },
   {
-    "ID": "5fd20895",
+    "ID": "ad76d8b0",
     "EnumName": "召唤衍生物",
     "DisplayName": "召唤{value}层衍生物至指定落区，并赋予一层遗忘指示物（{衍生物}=字符串参数指向一张真实生物卡，实例=该卡全参数复制）",
     "EffectType": "SummonToken",
@@ -583,7 +583,7 @@
       0.0,
       0.0,
       0.0,
-      3.0,
+      2.0,
       0.0,
       0.0
     ]
@@ -608,7 +608,7 @@
     ]
   },
   {
-    "ID": "4e609e26",
+    "ID": "632765a9",
     "EnumName": "发现",
     "DisplayName": "从牌库中随机展示三张牌，从中选择一张加入手牌；未选中的留在牌库原位",
     "EffectType": "DiscoverCard",
@@ -677,10 +677,10 @@
     "ManaList": [
       0.0,
       0.0,
-      1.0,
       0.0,
       0.0,
-      0.0
+      0.0,
+      1.0
     ]
   },
   {
@@ -715,16 +715,16 @@
     "ManaList": [
       0.0,
       0.0,
-      5.0,
+      4.0,
       0.0,
       0.0,
       0.0
     ]
   },
   {
-    "ID": "daf9f307",
+    "ID": "42e883b2",
     "EnumName": "光合",
-    "DisplayName": "回合开始时：获得1个临时绿色元素（回合结束消失）",
+    "DisplayName": "获得1个临时绿色元素（回合结束消失）",
     "EffectType": "GrantPhotosynthesis",
     "TargetKinds": "自己",
     "TargetFilter": "NoRole",
@@ -790,15 +790,15 @@
     "Tags": null,
     "ManaList": [
       0.0,
-      3.0,
       0.0,
       0.0,
+      2.0,
       0.0,
       0.0
     ]
   },
   {
-    "ID": "956e7b92",
+    "ID": "f1bd9a67",
     "EnumName": "碾压",
     "DisplayName": "获得碾压：战斗伤害结算时，对目标以及目标相邻左右侧生物造成相同的战斗伤害",
     "EffectType": "GrantOverwhelm",
@@ -829,8 +829,8 @@
     "ManaList": [
       0.0,
       0.0,
-      3.0,
       0.0,
+      2.0,
       0.0,
       0.0
     ]
@@ -867,9 +867,9 @@
     "ManaList": [
       0.0,
       0.0,
-      0.0,
-      0.0,
       2.0,
+      0.0,
+      0.0,
       0.0
     ]
   },
@@ -942,7 +942,7 @@
     "Tags": null,
     "ManaList": [
       0.0,
-      3.0,
+      2.0,
       0.0,
       0.0,
       0.0,
@@ -1083,6 +1083,25 @@
     ]
   },
   {
+    "ID": "d7e338e8",
+    "EnumName": "舍身",
+    "DisplayName": "获得舍身：登场时选择一个对方目标，自己造成的战斗伤害改写为对目标造成等量效果伤害",
+    "EffectType": "GrantMartyrdom",
+    "TargetKinds": "自己",
+    "TargetFilter": null,
+    "Polarity": 0.0,
+    "MountKinds": "关键词,不可作为连接光环",
+    "Tags": null,
+    "ManaList": [
+      0.0,
+      2.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
     "ID": "ff9874a4",
     "EnumName": "费用增加",
     "DisplayName": "为{target}添加{value}层费用增加指示物",
@@ -1097,8 +1116,8 @@
       0.0,
       0.0,
       0.0,
-      2.0,
-      0.0
+      0.0,
+      2.0
     ]
   },
   {
@@ -1116,8 +1135,8 @@
       0.0,
       0.0,
       0.0,
-      0.0,
-      2.0
+      2.0,
+      0.0
     ]
   },
   {
@@ -1131,8 +1150,8 @@
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
+      0.5,
       0.0,
-      1.0,
       0.0,
       0.0,
       0.0,
@@ -1150,8 +1169,8 @@
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
+      0.5,
       0.0,
-      1.0,
       0.0,
       0.0,
       0.0,
@@ -1169,10 +1188,10 @@
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
+      0.5,
       0.0,
       0.0,
       0.0,
-      1.0,
       0.0,
       0.0
     ]
@@ -1188,10 +1207,10 @@
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
+      0.5,
       0.0,
       0.0,
       0.0,
-      1.0,
       0.0,
       0.0
     ]
@@ -1207,11 +1226,11 @@
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
+      1.0,
       0.0,
       0.0,
       0.0,
       0.0,
-      2.0,
       0.0
     ]
   },
@@ -1226,12 +1245,12 @@
     "MountKinds": "指示物,可以作为连接光环,不可随机",
     "Tags": "换区清除型",
     "ManaList": [
+      1.0,
       0.0,
       0.0,
       0.0,
       0.0,
-      0.0,
-      2.0
+      0.0
     ]
   },
   {
@@ -1245,11 +1264,11 @@
     "MountKinds": "不可作为连接光环,不可随机",
     "Tags": "",
     "ManaList": [
+      3.0,
       0.0,
       0.0,
       0.0,
       0.0,
-      5.0,
       0.0
     ]
   },
@@ -1264,12 +1283,12 @@
     "MountKinds": "不可作为连接光环,不可随机",
     "Tags": "",
     "ManaList": [
+      3.0,
       0.0,
       0.0,
       0.0,
       0.0,
-      0.0,
-      5.0
+      0.0
     ]
   },
   {
@@ -1286,8 +1305,8 @@
       0.0,
       0.0,
       0.0,
-      0.0,
       2.0,
+      0.0,
       0.0
     ]
   },
@@ -1305,7 +1324,7 @@
       0.0,
       0.0,
       0.0,
-      1.0,
+      0.5,
       0.0,
       0.0
     ]
@@ -1330,6 +1349,25 @@
     ]
   },
   {
+    "ID": "1f46431c",
+    "EnumName": "报复",
+    "DisplayName": "对{target}附加{value}层报复指示物【可叠加】，受到伤害时对伤害来源造成等于层数的伤害，生效后层数减半（向下取整）",
+    "EffectType": "GrantRetaliation",
+    "TargetKinds": "己方单位,对方单位",
+    "TargetFilter": null,
+    "Polarity": 1.0,
+    "MountKinds": "指示物",
+    "Tags": "生效自减型",
+    "ManaList": [
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
     "ID": "17dd3732",
     "EnumName": "沉默",
     "DisplayName": "对{target}附加沉默指示物（不可发动主动效果）",
@@ -1344,14 +1382,14 @@
       0.0,
       0.0,
       0.0,
-      2.0,
-      0.0
+      0.0,
+      2.0
     ]
   },
   {
-    "ID": "bfdd9037",
-    "EnumName": "迟钝",
-    "DisplayName": "对{target}附加迟钝指示物（自动触发的能力无法响应发动）",
+    "ID": "ab2e0a4f",
+    "EnumName": "失能",
+    "DisplayName": "对{target}附加失能指示物（不可发动自动效果）",
     "EffectType": "AddNullify",
     "TargetKinds": "己方单位,对方单位,己方无生命单位,对方无生命单位",
     "TargetFilter": "",
@@ -1363,8 +1401,8 @@
       0.0,
       0.0,
       0.0,
-      4.0,
-      0.0
+      0.0,
+      2.0
     ]
   },
   {
@@ -1380,7 +1418,7 @@
     "ManaList": [
       0.0,
       0.0,
-      2.0,
+      1.0,
       0.0,
       0.0,
       0.0
@@ -1463,7 +1501,7 @@
     ]
   },
   {
-    "ID": "1d974eda",
+    "ID": "5205cf33",
     "EnumName": "遗忘",
     "DisplayName": "对{target}附加{value}层遗忘指示物【可叠加】，持有者回合结束时，不存在于战场，则从游戏中移除",
     "EffectType": "GrantTemporary",
@@ -1482,9 +1520,9 @@
     ]
   },
   {
-    "ID": "a62b2df1",
+    "ID": "bfa4a758",
     "EnumName": "沉睡",
-    "DisplayName": "赋予{target}一层沉睡，沉睡期间无法重置，不能发动启动式和触发式效果，持有者回合末自动解除一层沉睡",
+    "DisplayName": "赋予{target}一层沉睡，沉睡期间无法重置，不可发动主动和自动效果，持有者回合末自动解除一层沉睡",
     "EffectType": "Sleep",
     "TargetKinds": "己方单位,对方单位",
     "TargetFilter": "NoRole",
@@ -1495,9 +1533,9 @@
       0.0,
       0.0,
       0.0,
-      3.0,
       0.0,
-      0.0
+      0.0,
+      3.0
     ]
   },
   {
@@ -1572,7 +1610,7 @@
       0.0,
       0.0,
       0.0,
-      8.0,
+      6.0,
       0.0
     ]
   },
@@ -1615,9 +1653,9 @@
     ]
   },
   {
-    "ID": "839e6136",
+    "ID": "eed6d1f7",
     "EnumName": "疾风仪典",
-    "DisplayName": "规则光环：手牌中的卡发动速度+1",
+    "DisplayName": "规则光环：受光环影响的卡的主动效果，发动速度+1",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
     "TargetFilter": null,
@@ -1685,7 +1723,7 @@
       0.0,
       0.0,
       0.0,
-      8.0,
+      6.0,
       0.0,
       0.0
     ]
@@ -1729,27 +1767,8 @@
     ]
   },
   {
-    "ID": "e11e2be3",
-    "EnumName": "舍身仪典",
-    "DisplayName": "受光环影响的生物造成战斗伤害时，改为对对手角色造成等量伤害（战斗伤害不发生）",
-    "EffectType": "ModifyGameRule",
-    "TargetKinds": null,
-    "TargetFilter": null,
-    "Polarity": 0.0,
-    "MountKinds": "规则光环",
-    "Tags": null,
-    "ManaList": [
-      0.0,
-      4.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
-  },
-  {
     "ID": "9dfed4f8",
-    "EnumName": "暗牧仪典",
+    "EnumName": "惩戒仪典",
     "DisplayName": "规则光环：受光环影响一方的单位与角色受到的治疗改写为等量伤害",
     "EffectType": "ModifyGameRule",
     "TargetKinds": null,
@@ -1762,8 +1781,8 @@
       0.0,
       0.0,
       0.0,
-      0.0,
-      8.0
+      6.0,
+      0.0
     ]
   },
   {
@@ -1795,33 +1814,19 @@
     "Polarity": -1.0,
     "MountKinds": "系统",
     "Tags": null,
-    "ManaList": [
-      1.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
+    "ManaList": null
   },
   {
-    "ID": "1d703414",
+    "ID": "23a06182",
     "EnumName": "守卫",
-    "DisplayName": "横置并转移对手攻击目标，以此卡作为攻击对象",
+    "DisplayName": "对手攻击宣言时，转移以此卡作为攻击对象，结算战斗伤害后横置",
     "EffectType": "Guard",
     "TargetKinds": "",
     "TargetFilter": null,
     "Polarity": 0.0,
     "MountKinds": "系统",
     "Tags": null,
-    "ManaList": [
-      1.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
+    "ManaList": null
   },
   {
     "ID": "70034aee",
@@ -1833,14 +1838,7 @@
     "Polarity": 0.0,
     "MountKinds": "系统",
     "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
+    "ManaList": null
   },
   {
     "ID": "38a43580",
@@ -1852,14 +1850,7 @@
     "Polarity": 0.0,
     "MountKinds": "系统",
     "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
+    "ManaList": null
   },
   {
     "ID": "a9beb7b4",
@@ -1871,14 +1862,7 @@
     "Polarity": 0.0,
     "MountKinds": "系统",
     "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ]
+    "ManaList": null
   },
   {
     "ID": "7d701213",
@@ -1890,14 +1874,7 @@
     "Polarity": 0.0,
     "MountKinds": "系统",
     "Tags": null,
-    "ManaList": [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      10.0
-    ]
+    "ManaList": null
   },
   {
     "ID": "74066ce9",

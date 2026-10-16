@@ -33,7 +33,7 @@ namespace SynergyUI
             { CounterRules.PlusOneCounter, "每层攻击力与生命 +1；换区清除" },
             { CounterRules.MinusOneCounter, "每层攻击力与生命 −1；换区清除" },
             { CounterRules.SilenceCounter, "持有者不可发动主动效果；换区清除" },
-            { CounterRules.NullifyCounter, "持有者的非启动式能力无法发动（拦全部触发式与光环静态能力）；换区清除" },
+            { CounterRules.NullifyCounter, "持有者的非主动能力无法发动（拦全部触发式与光环静态能力）；换区清除" },
             { CounterRules.DurabilityCounter, "发动次数池——主动发动与场上被动触发各 −1；战场归零销毁入墓，技能栏归零休眠（回合开始 +1 回充）" },
             { CounterRules.PowerUpCounter, "每层攻击力 +1；仅场上，换区清除" },
             { CounterRules.PowerDownCounter, "每层攻击力 −1；仅场上，换区清除" },
