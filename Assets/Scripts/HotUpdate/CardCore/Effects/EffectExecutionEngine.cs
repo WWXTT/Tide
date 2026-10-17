@@ -958,6 +958,8 @@ namespace CardCore
             _stack.Clear();
             _waitingForPlayer = false;
             _consecutivePassCount = 0;
+            _isResolving = false; // 跨局残留清算（2026-10-17）：上局结算中被重开打断时，finally 不会跑——
+                                  // 残留 true 会闭死帧循环驱动与窗口收集（同族病灶：跨Play单例成对重置）
         }
 
         /// <summary>
@@ -1029,10 +1031,13 @@ namespace CardCore
         /// </summary>
         public bool TryActivateEffect(PendingEffect pending)
         {
-            if (!_speedCounter.CanActivate(pending.ActivationSpeed, pending.Controller == _activePlayer, pending.ActivationType))
+            bool gate = _speedCounter.CanActivate(pending.ActivationSpeed, pending.Controller == _activePlayer, pending.ActivationType);
+            GameActions.Crumb($"CF-activate-try def={pending?.Effect?.Id} speed={pending?.ActivationSpeed} by={pending?.Controller?.Name} active={pending?.Controller == _activePlayer} ctr={_speedCounter.CurrentSpeed} gate={gate}");
+            if (!gate)
                 return false;
 
             _speedCounter.RaiseTo(pending.ActivationSpeed); // ★ 记速器：更高才抬升
+            _speedCounter.RecordRaiser(pending.Controller == _activePlayer); // 同速自连锁禁：记录归属
 
             var instance = EffectInstance.FromPendingEffect(pending);
             _stack.Push(instance);
@@ -1047,6 +1052,7 @@ namespace CardCore
                 AddedObject = instance,
                 AddingPlayer = pending.Controller
             });
+            GameActions.Crumb($"CF-activate-ok def={pending.Effect?.Id} stack={_stack.Count} prio={_priorityHolder?.Name}");
 
             return true;
         }
@@ -1078,6 +1084,7 @@ namespace CardCore
             };
 
             _speedCounter.RaiseTo(castSpeed); // ★ 记速器：更高才抬升
+            _speedCounter.RecordRaiser(controller == _activePlayer); // 同速自连锁禁：记录归属
 
             _stack.Push(instance);
             _priorityHolder = controller.Opponent;
@@ -1118,6 +1125,7 @@ namespace CardCore
             };
 
             _speedCounter.RaiseTo(SbaStackSpeed); // ★ 记速器：SBA 抬到 1（本连锁的最高速度基线）
+            _speedCounter.RecordRaiser(null); // 系统动作：不占用回合方「等于」优惠（SBA 窗口现状保持）
 
             _stack.Push(instance);
             _priorityHolder = _activePlayer;   // 回合方先响应（与触发式轮统一）
@@ -1176,6 +1184,7 @@ namespace CardCore
             int speed = AttackStackSpeed + RuleAuraComponents.OnBoardActiveSpeedBonus(attacker);
             if (!_speedCounter.CanActivate(speed, controller == _activePlayer, EffectActivationType.Voluntary))
                 return false;
+            _speedCounter.RecordRaiser(controller == _activePlayer); // 同速自连锁禁：攻宣也是「自己发动」
 
             var instance = new EffectInstance
             {
@@ -1191,6 +1200,7 @@ namespace CardCore
             _priorityHolder = controller.Opponent; // 防守方先响应（发动弹窗候选：守卫/响应卡）
             _consecutivePassCount = 0;
             _waitingForPlayer = true;
+            GameActions.Crumb($"CF-attack-push atk={(attacker as Card)?.ID ?? attacker.ToString()} tgt={(target as Card)?.ID ?? (target as Player)?.Name ?? target.ToString()} speed={speed} ctr={_speedCounter.CurrentSpeed} stack={_stack.Count}");
 
             var declaration = new AttackDeclarationEvent
             {
@@ -1231,6 +1241,7 @@ namespace CardCore
                 return false;
 
             _speedCounter.RaiseTo(GuardStackSpeed); // ★ 记速器抬到 1：攻方可 ≥1 连锁、守方 1 速不能再响应
+            _speedCounter.RecordRaiser(controller == _activePlayer); // 同速自连锁禁：记录归属
 
             var instance = new EffectInstance
             {
@@ -1245,6 +1256,7 @@ namespace CardCore
             _priorityHolder = controller.Opponent;
             _consecutivePassCount = 0;
             _waitingForPlayer = true;
+            GameActions.Crumb($"CF-guard-push guarder={(guarder as Card)?.ID ?? (guarder as Player)?.Name} stack={_stack.Count} ctr={_speedCounter.CurrentSpeed}");
 
             EventManager.Instance.Publish(new StackAddEvent { AddedObject = instance, AddingPlayer = controller });
             return true;
@@ -1279,6 +1291,7 @@ namespace CardCore
             if (player != _priorityHolder) return;
 
             _consecutivePassCount++;
+            GameActions.Crumb($"CF-pass by={player?.Name} count={_consecutivePassCount} begin={_consecutivePassCount >= 2}");
 
             EventManager.Instance.Publish(new PriorityPassEvent
             {
@@ -1325,6 +1338,7 @@ namespace CardCore
             }
 
             // 速度计数拒绝时不丢弃，回插待发队列
+            GameActions.Crumb($"CF-voluntary-requeue def={chosen.Effect?.Id} speed={chosen.ActivationSpeed} ctr={_speedCounter.CurrentSpeed} active={chosen.Controller == _activePlayer}");
             _pendingQueue.AddPendingEffect(chosen);
             return false;
         }
@@ -1342,6 +1356,7 @@ namespace CardCore
         /// </summary>
         private async UniTask BeginResolution()
         {
+            GameActions.Crumb($"CF-res-begin stack={_stack.Count} items={string.Join(",", _stack.Select(DescribeStackObject))}");
             _speedCounter.BeginResolution();
             _waitingForPlayer = false;
 
@@ -1502,6 +1517,15 @@ namespace CardCore
             _waitingForPlayer = false;
             _consecutivePassCount = 0;
         }
+
+        /// <summary>CF 取证：栈对象一行描述（类型+身份，自顶向下）。</summary>
+        private static string DescribeStackObject(EffectInstance o)
+            => o == null ? "null"
+             : o.IsAttackDeclaration ? $"ATK:{(o.Source as Card)?.ID ?? o.Source?.ToString()}"
+             : o.IsGuardDeclaration ? $"GRD:{(o.Source as Card)?.ID ?? o.Source?.ToString()}"
+             : o.IsCardCast ? $"CAST:{(o.Source as Card)?.ID}"
+             : o.IsSBA ? "SBA"
+             : $"{o.Definition?.Id ?? "?"}";
 
         public List<EffectInstance> GetStackContents()
         {

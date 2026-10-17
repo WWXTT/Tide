@@ -10,8 +10,11 @@ namespace SynergyUI
     /// 教学预设场面（2026-10-06 教学直入定案）：教学不再从空场第 1 回合开始，直接站在
     /// 「教学目的的操作环节」——中期回合、双方生命/地牌/单位/手牌/牌库已就位的场面。
     /// 挂在 TutorialConfig.scenario（null=旧口径从第 1 回合正常开局，完全兼容）。
-    /// 数据口径：所有卡 id 在本条目内同侧不重复（教学卡组每卡 1 张）；deck 列表序=剩余牌库序
-    /// （牌库顶在前）；bank 数组下标=ManaType 枚举序 [灰,红,蓝,绿,白,黑]。
+    /// 数据口径：id 引用即是卡组——同一 id 出现多次即多张（2026-10-17 用户定案：教学不再要求
+    /// 每卡 1 张）；deck 列表序=剩余牌库序（牌库顶在前）；bank 数组下标=ManaType 枚举序
+    /// [灰,红,蓝,绿,白,黑]。同 id 多张在摆场前经 UniquifyDeckCardIds 唯一化为衍生物式
+    /// 实例 ID（首张裸 id、第 2 张起 `id#N`，按 P1→P2 牌库序分配）——units.card 写模板 id
+    /// 逐条取实例；aiScript 要指名同 id 的某一只时写实例 ID（如 `C_xxx#2`）。
     /// </summary>
     [Serializable]
     public class TutorialScenario
@@ -101,17 +104,12 @@ namespace SynergyUI
         public int mode;
     }
 
-    /// <summary>教学预设场面·单位：数值覆写 -1=用卡面原值；x/z -1=按区域序列自动落格。</summary>
+    /// <summary>教学预设场面·单位：卡面原值入场（2026-10-17 考验真实白板卡定案：power/life 覆写口退役
+    /// ——同属性生物共用一张真实卡，不再临时改数值）；x/z -1=按区域序列自动落格。</summary>
     [Serializable]
     public class TutorialUnitSpec
     {
         public string card;
-
-        /// <summary>攻击力覆写（-1=卡面原值）。</summary>
-        public int power = -1;
-
-        /// <summary>生命覆写（-1=卡面原值；覆写同时抬高上限，不出现生命>上限）。</summary>
-        public int life = -1;
 
         /// <summary>是否已横置（本回合不可再攻击）。</summary>
         public bool tapped;
@@ -157,6 +155,7 @@ namespace SynergyUI
             if (core == null || scenario == null) return;
             if (scenario.startTurn < 1) scenario.startTurn = 1;
 
+            UniquifyDeckCardIds(core); // 同 id 多张 → 衍生物式实例 ID（SeedSide 取卡前定稿）
             SeedSide(core, core.Player1, scenario.player, scenario.startTurn, board);
             SeedSide(core, core.Player2, scenario.ai, scenario.startTurn, board);
 
@@ -182,8 +181,30 @@ namespace SynergyUI
             SpawnToDeck(core, core.Player1, scenario.player);
             SpawnToDeck(core, core.Player2, scenario.ai);
 
+            UniquifyDeckCardIds(core); // 同 id 多张 → 衍生物式实例 ID（SeedSide 取卡前定稿）
             SeedSide(core, core.Player1, scenario.player, core.TurnEngine.TurnNumber, board);
             SeedSide(core, core.Player2, scenario.ai, core.TurnEngine.TurnNumber, board);
+        }
+
+        /// <summary>同 id 多张唯一化（2026-10-17 用户定案"相同 ID 直接用衍生物 ID"，先例
+        /// SummonTokenHandler 实例 ID）：牌库内同一 id 出现多次时，第 2 张起实例 ID 改写为
+        /// `id#N`——实例 ID 全局唯一，aiScript 可精确引用每一只（无需运行时挑选），也避免
+        /// TextChangeLayer 同 ID 互覆。序按「P1 牌库序 → P2 牌库序」分配（牌库序=配置
+        /// DeckIdsOf 序，确定性可写进配置）；首张保留裸 id。必须在 SeedSide 取卡前调用。</summary>
+        private static void UniquifyDeckCardIds(GameCore core)
+        {
+            var seen = new Dictionary<string, int>();
+            foreach (var owner in new[] { core.Player1, core.Player2 })
+            {
+                foreach (var card in core.ZoneManager.GetCards(owner, Zone.Deck) ?? new List<Card>())
+                {
+                    if (card == null || string.IsNullOrEmpty(card.ID)) continue;
+                    seen.TryGetValue(card.ID, out int n);
+                    n++;
+                    seen[card.ID] = n;
+                    if (n >= 2) card.ID = $"{card.ID}#{n}";
+                }
+            }
         }
 
         /// <summary>一侧局面归零（抹除原子消失口径：不发死亡事件、不走换区清理——指示物随卡实例
@@ -300,12 +321,6 @@ namespace SynergyUI
                 }
                 card.SetController(owner);
                 container.Add(card, Zone.Battlefield);
-                if (unit.power >= 0) card.SetPower(unit.power);
-                if (unit.life >= 0)
-                {
-                    card.SetLife(unit.life);
-                    if (card.GetMaxLife() < unit.life) card._maxLife = unit.life; // 覆写不产生生命>上限
-                }
                 if (unit.tapped) card.Tap();
                 GameActions.RegisterCardTriggeredEffects(core, card, owner); // 静默入场不接触发式，显式补
                 foreach (var counter in unit.counters ?? new List<TutorialCounterSpec>())
@@ -369,11 +384,13 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>从牌库按 id 取出一张卡（同侧卡 id 不重复口径；找不到返回 null）。</summary>
+        /// <summary>从牌库取一张卡（模板 id 引用：命中裸 id 或其衍生物实例 `id#N`——同 id 多张经
+        /// UniquifyDeckCardIds 唯一化后，逐条引用同一模板 id 依次取到不同实例；找不到返回 null）。</summary>
         private static Card TakeFromDeck(GameCore core, ZoneContainer container, Player owner, string cardId)
         {
             var card = (core.ZoneManager.GetCards(owner, Zone.Deck) ?? new List<Card>())
-                .FirstOrDefault(c => c.ID == cardId);
+                .FirstOrDefault(c => c.ID == cardId
+                    || (c.ID != null && c.ID.StartsWith(cardId + "#", StringComparison.Ordinal)));
             if (card != null) container.Remove(card, Zone.Deck);
             return card;
         }

@@ -175,23 +175,11 @@ namespace SynergyUI
 
         // ======================================== 最后一课镜像局 ========================================
 
-        /// <summary>镜像挑战就绪（三步走完=本课已完成；按钮显隐另查 ShouldShowFinalChallenge）。</summary>
-        public static bool IsChallengeReady(TutorialProgressManager progress = null)
-            => (progress ?? TutorialProgressManager.Instance)
-                .CompletedTutorials.Contains(TutorialProgressManager.CreationLessonId);
-
-        /// <summary>开最后一课镜像局：加载走查记名卡组（丢失回落任一含合格新卡的卡组），
-        /// 双方同用一份卡组列表（AI 操纵玩家卡组的镜像）。返回 false=无可用卡组（记日志）。</summary>
-        public static bool StartFinalChallenge(TutorialProgressManager progress = null)
+        /// <summary>开最后一课镜像局（2026-10-17 创作课取消定案：记名卡组来源随走查退役，
+        /// 改用默认镜像链——主体卡组→红·快攻→随机镜像）。返回 false=无可用卡组（记日志）。</summary>
+        public static bool StartFinalChallenge()
         {
-            var p = progress ?? TutorialProgressManager.Instance;
-            if (!IsChallengeReady(p)) return false;
-            var deck = ResolveChallengeDeck(p);
-            if (deck == null)
-            {
-                TideLog.Warn("[TutorialCreation] 最后一课无可用卡组——记名卡组已丢失且无含新卡的卡组");
-                return false;
-            }
+            var deck = ResolveDefaultMirrorDeck();
             BattleEntry.Mode = BattleMode.LocalAI;
             BattleEntry.MirrorDeck = deck;
             FinalChallengeActive = true;
@@ -206,8 +194,42 @@ namespace SynergyUI
                 (progress ?? TutorialProgressManager.Instance).MarkFinalChallengeDone();
         }
 
+        // ======================================== 考核局（建档跳过路径，2026-10-17 恢复） ========================================
+
+        /// <summary>考核局会话标记：跳过基础教学路径的镜像对局进行中（胜利路由/中途退出清理用）。</summary>
+        public static bool AssessmentActive { get; private set; }
+
+        /// <summary>开考核局（首点教学选「跳过，进入考核」；负=原地可重试）：默认卡组镜像对局
+        ///（ResolveDefaultMirrorDeck 解析链：主体卡组→红·快攻→随机镜像）。胜=免教学。</summary>
+        public static bool StartAssessment()
+        {
+            var deck = ResolveDefaultMirrorDeck();
+            if (deck == null || deck.Count == 0)
+            {
+                TideLog.Warn("[TutorialCreation] 考核局无可用镜像卡组");
+                return false;
+            }
+            BattleEntry.Mode = BattleMode.LocalAI;
+            BattleEntry.MirrorDeck = deck;
+            AssessmentActive = true;
+            return true;
+        }
+
+        /// <summary>考核局结果（TutorialFlow.ReportBattleResult 路由）：胜=skipped 免教学；
+        /// 负=无落档（留在考核路径，主菜单教学按钮=重开考核局，不提供回课程）。</summary>
+        public static void ReportAssessmentResult(bool playerWon)
+        {
+            AssessmentActive = false;
+            if (playerWon)
+                TutorialProgressManager.Instance.MarkAssessmentWon();
+        }
+
         /// <summary>会话标记清理（未终局退出路径；TutorialFlow.ClearAssessment 一并调）。</summary>
-        public static void ClearSession() => FinalChallengeActive = false;
+        public static void ClearSession()
+        {
+            FinalChallengeActive = false;
+            AssessmentActive = false;
+        }
 
         /// <summary>默认卡组镜像（跳过教学路径用）解析链（2026-10-15 定案）：
         /// 主体卡组（待制作）→ 红·快攻（镜像回退卡组）→ 随机镜像（最后兜底）。
@@ -232,28 +254,6 @@ namespace SynergyUI
             return BattleController.RandomDeckFrom(CardCatalog.LoadAll());
         }
 
-        private static List<CardData> ResolveChallengeDeck(TutorialProgressManager p)
-        {
-            var c = p.Creation;
-            if (c == null) return null;
-            var decks = _decksSource();
-            var deck = (!string.IsNullOrEmpty(c.deckName)
-                        && decks.FirstOrDefault(d => d != null && d.name == c.deckName) is { } named
-                        && DeckContainsQualifying(named, c))
-                    ? named
-                    : decks.FirstOrDefault(d => DeckContainsQualifying(d, c));
-            if (deck == null) return null;
-            var cards = TutorialLibrary.BuildDeck(deck.cardIds);
-            return cards.Count >= GameCore.OpeningHandSize ? cards : null;
-        }
-
-        private static bool DeckContainsQualifying(DeckData deck, CreationLessonData c)
-        {
-            if (deck?.cardIds == null) return false;
-            var newEffects = NewEffectsOf(c);
-            if (newEffects.Count == 0) return false;
-            var qualifyingIds = QualifyingCards(c, newEffects).Select(e => e.cardId).ToHashSet();
-            return deck.cardIds.Any(qualifyingIds.Contains);
-        }
+        // ResolveChallengeDeck/DeckContainsQualifying（走查记名卡组解析）已随创作课取消删除（2026-10-17）
     }
 }

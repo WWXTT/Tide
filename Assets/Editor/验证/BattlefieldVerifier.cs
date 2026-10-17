@@ -19,7 +19,7 @@ namespace CardCore.Editor
     ///
     /// 与 CardPipelineVerifier.TestBoard 的分工：TestBoard 管布局常量/点测数学/手动 Resync 确定性/
     /// 容量闸门；本检查器管**全量性质遍历、事件驱动一致性、网络/本地格位对拍、生命周期卫生**。
-    /// 可独立运行（Tools/战场专项验证 / -executeMethod），也可经 RunEmbedded 并入主验证统计。
+    /// 可独立运行（TideServer/verify.ps1 慢档 -executeMethod），也可经 RunEmbedded 并入主验证统计。
     /// </summary>
     public static class BattlefieldVerifier
     {
@@ -28,7 +28,6 @@ namespace CardCore.Editor
         private static int _fail;
         private static string _crumbPath;
 
-        [MenuItem("Tools/战场专项验证")]
         public static void Run()
         {
             _pass = 0; _fail = 0;

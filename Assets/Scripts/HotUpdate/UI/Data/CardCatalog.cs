@@ -18,10 +18,11 @@ namespace SynergyUI
         // 原 TestDecks 留作训练桥/验证夹具）。
         private const string CardsConfigRelative = "Card/Cards.json";
 
-        // 教学独立卡表（2026-10-16 定案：教学卡不再与正式卡混用）：同格式副表，
-        // LoadAll 时合并入索引（教学卡带 tags=教学 → LoadPlayPool 既有隔离自动生效）；
+        // 教学独立卡表（2026-10-16 定案：教学卡不再与正式卡混用；2026-10-17 分家：文件挪至
+        // StreamingAssets/Tutorial/，不与正式卡 Card/ 混放——防正常选卡组界面误入测试卡组）：
+        // 同格式副表，LoadAll 时合并入索引（教学卡带 tags=教学 → LoadPlayPool 既有隔离自动生效）；
         // id 冲突保正式表（教学表写错撞正式 id 时可查）。缓存新鲜度与主表同盯。
-        private const string TutorialCardsRelative = "Card/TutorialCards.json";
+        private const string TutorialCardsFile = "TutorialCards.json";
 
         private static List<CardData> _cache;
         private static Dictionary<string, CardData> _byId;
@@ -31,6 +32,7 @@ namespace SynergyUI
         // 表现为卡组合界面卡池恒 0 张。缓存前按 mtime 复核，变了就弃缓存重读。
         private static string _cachePath;
         private static DateTime _cacheStampUtc = DateTime.MinValue;
+        private static DateTime _lastStaleCheckUtc = DateTime.MinValue; // GetById 高频入口的盯盘节流（2026-10-17）
 
         /// <summary>加载（并缓存）全部卡牌。文件缺失返回空列表。
         /// 重入防护（2026-09-13 崩溃修复）：装载过程中 CardLoader 的费用巡检会经
@@ -95,7 +97,7 @@ namespace SynergyUI
                 string path = CardDataPaths.FileIn("Cards.json");
                 if (path != _cachePath || !File.Exists(path)) return true;
                 if (File.GetLastWriteTimeUtc(path) != _cacheStampUtc) return true;
-                string tpath = CardDataPaths.FileIn("TutorialCards.json");
+                string tpath = CardDataPaths.TutorialFileIn(TutorialCardsFile);
                 if (File.Exists(tpath) && File.GetLastWriteTimeUtc(tpath) != _cacheStampUtc) return true;
                 return false;
             }
@@ -110,7 +112,7 @@ namespace SynergyUI
         /// 文件缺失=无教学卡，静默（教学表随仓库走，缺失属配置错误由消费面 Warn 兜底）。</summary>
         private static void MergeTutorialCards()
         {
-            string tpath = CardDataPaths.FileIn("TutorialCards.json");
+            string tpath = CardDataPaths.TutorialFileIn(TutorialCardsFile);
             if (!File.Exists(tpath))
             {
                 TideLog.Warn($"[CardCatalog] 教学卡表未找到: {tpath}（教学局组卡将取不到教学卡）");
@@ -131,12 +133,29 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>按卡牌 ID 取 CardData，找不到返回 null。</summary>
+        /// <summary>按运行时实例 ID 查表（2026-10-17 修）：Seeder/SummonToken 同 id 多张唯一化为
+        /// 衍生物式 `模板#N` 实例 ID——带后缀直查必 miss（印刷基准悬空=受伤生命不变红、
+        /// 卡面名字退化为实例串）。本口剥 `#N` 后缀按基础 id 查；无后缀原样。</summary>
+        public static CardData GetByInstanceId(string instanceId)
+        {
+            if (string.IsNullOrEmpty(instanceId)) return null;
+            var i = instanceId.IndexOf('#');
+            return GetById(i > 0 ? instanceId.Substring(0, i) : instanceId);
+        }
+
+        /// <summary>按卡牌 ID 取 CardData，找不到返回 null。
+        /// 陈旧复核（2026-10-17 缓存旧卡面修复）：高频入口也盯盘——原口径只在 _byId 空时 LoadAll，
+        /// 缓存非空时永不检查 CacheIsStale，禁域重载跨 Play 残留的旧缓存会一直沿用旧卡面
+        /// （教学演示数值错乱的通道）。mtime 查盘按 2 秒节流防高频 IO。</summary>
         public static CardData GetById(string id)
         {
             if (_byId == null)
-            {
                 LoadAll();
+            else if ((DateTime.UtcNow - _lastStaleCheckUtc).TotalSeconds >= 2)
+            {
+                _lastStaleCheckUtc = DateTime.UtcNow;
+                if (CacheIsStale())
+                    LoadAll(); // LoadAll 自带 stale→Invalidate→重读
             }
             if (_byId == null || string.IsNullOrEmpty(id))
             {

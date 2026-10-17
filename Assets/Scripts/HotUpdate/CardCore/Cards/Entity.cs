@@ -85,6 +85,17 @@ namespace CardCore
         {
             _timestamp = newTimestamp;
         }
+
+        /// <summary>
+        /// 指示物只读快照（滤 0 层——展示口径与 SerializableRuntimeCardState.FromCard 一致）。
+        /// _counters 是 internal：Card 快照走同程序集直读，Player 不是 Card 走不了那条路，
+        /// UI 程序集（角色立柱/悬停状态段）经此口枚举角色层指示物。
+        /// </summary>
+        public IEnumerable<KeyValuePair<string, int>> EnumerateCounters()
+        {
+            foreach (var kvp in _counters)
+                if (kvp.Value != 0) yield return kvp;
+        }
     }
 
     /// <summary>

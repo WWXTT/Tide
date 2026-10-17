@@ -982,7 +982,7 @@ namespace SynergyUI
                 case Cardtype.Creature:
                     return $"生物 {(card.Power ?? 0)}/{(card.Life ?? 0)}";
                 case Cardtype.Enchantment:
-                    return card.Durability > 0 ? $"结界 耐久{card.Durability}" : "结界";
+                    return $"结界 耐久{CardCompositionCost.TotalDurabilityOf(card)}"; // 2026-10-17：恒有耐久（派生单源）
                 case Cardtype.Spell:
                     return "法术";
                 default:

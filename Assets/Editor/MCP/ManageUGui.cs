@@ -1223,67 +1223,6 @@ namespace Tide.Editor.Mcp
         }
 
         // ------------------------------------------------------------------
-        // Editor self-test (menu-driven; used when no MCP bridge is attached)
-        // ------------------------------------------------------------------
-
-        [MenuItem("Tools/MCP uGUI/Self Test")]
-        private static void SelfTest()
-        {
-            var sb = new StringBuilder();
-            try
-            {
-                sb.AppendLine("ping -> " + JObject.FromObject(HandleCommand(new JObject { ["action"] = "ping" })));
-                sb.AppendLine("panel -> " + JObject.FromObject(HandleCommand(new JObject
-                {
-                    ["action"] = "create_element",
-                    ["element_type"] = "panel",
-                    ["name"] = "TestPanel",
-                })));
-                sb.AppendLine("text -> " + JObject.FromObject(HandleCommand(new JObject
-                {
-                    ["action"] = "create_element",
-                    ["element_type"] = "text",
-                    ["name"] = "Title",
-                    ["text"] = "Tide Main Menu",
-                    ["font_size"] = 64,
-                    ["parent_path"] = "Canvas/TestPanel",
-                })));
-                sb.AppendLine("button -> " + JObject.FromObject(HandleCommand(new JObject
-                {
-                    ["action"] = "create_element",
-                    ["element_type"] = "button",
-                    ["name"] = "StartBtn",
-                    ["text"] = "Start",
-                    ["parent_path"] = "Canvas/TestPanel",
-                    ["anchored_position"] = "0,-160",
-                })));
-                sb.AppendLine("hierarchy -> " + JObject.FromObject(HandleCommand(new JObject
-                {
-                    ["action"] = "get_hierarchy",
-                    ["canvas_path"] = "Canvas",
-                })));
-                object cap = HandleCommand(new JObject { ["action"] = "capture", ["max_width"] = 640 });
-                JObject cr = JObject.FromObject(cap);
-                string b64 = (string)cr["data"]?["imageBase64"];
-                if (!string.IsNullOrEmpty(b64))
-                {
-                    System.IO.File.WriteAllBytes("Temp/manage_ugui_test.png", Convert.FromBase64String(b64));
-                    sb.AppendLine("capture -> Temp/manage_ugui_test.png (" + b64.Length + " chars)");
-                }
-                else
-                {
-                    sb.AppendLine("capture FAILED -> " + cr.ToString());
-                }
-            }
-            catch (Exception ex)
-            {
-                sb.AppendLine("EXCEPTION: " + ex);
-            }
-            System.IO.File.WriteAllText("Temp/manage_ugui_test.log", sb.ToString());
-            Debug.Log("[ManageUGui] Self test finished. See Temp/manage_ugui_test.log");
-        }
-
-        // ------------------------------------------------------------------
         // Shared helpers
         // ------------------------------------------------------------------
 

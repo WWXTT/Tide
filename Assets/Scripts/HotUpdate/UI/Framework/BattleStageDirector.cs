@@ -292,13 +292,13 @@ namespace SynergyUI
         }
 
         /// <summary>战场相机取景：棋盘（BattleHexBoard）锚定世界原点，固定机位
-        ///（2026-10-13 定档 (7,8,-3)/(50,0,0) → 10-14 晚改档 z−4：中线加行后取景更好）。</summary>
+        ///（2026-10-13 定档 (7,8,-3)/(50,0,0) → 10-17 改档 (7,8,-2)/(60,0,0)）。</summary>
         private static void FrameBoardCamera()
         {
             if (_worldCam == null) return;
 
-            _worldCam.transform.position = new Vector3(7f, 8f, -4f);
-            _worldCam.transform.rotation = Quaternion.Euler(50f, 0f, 0f);
+            _worldCam.transform.position = new Vector3(7f, 8f, -2f);
+            _worldCam.transform.rotation = Quaternion.Euler(60f, 0f, 0f);
         }
     }
 }

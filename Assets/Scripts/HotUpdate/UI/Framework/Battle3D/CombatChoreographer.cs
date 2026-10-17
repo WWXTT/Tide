@@ -23,8 +23,8 @@ namespace SynergyUI
     /// 冻结渐隐并回传目标给宣言链路（本地 DeclareAttack / 网络 intent，下游不变；确认时
     /// 另算 BFS 接近路径供演出走位）；右键/ESC/点空地取消。
     /// 任务② 演出：走位到目标临格→攻击前扑→目标受击（溅射第三方原地受击；角色目标=立柱脉动）
-    /// →反击（以实际伤害事件存在性判定——守方横置/先击杀自然无）→死者倒地碎裂、
-    /// 碎块滚入己方墓地格、墓上原地自旋缩小消失（BattleFieldView.PlayDeathExitAsync，2026-10-16 三改）
+    /// →反击（以实际伤害事件存在性判定——守方横置/先击杀自然无）→死者倒地碎裂、原地沉降
+    /// 片刻即收（BattleFieldView.PlayDeathExitAsync，2026-10-17 砍掉滚墓+自旋段）
     /// →幸存者原路返回待机（准备阶段回正由对账恢复；24° 横置侧倾 2026-10-15 退役）。
     /// 守卫拦截（2026-10-15 用户定案改版，中线会合退役）：守卫者走到被攻击者那一格挡伤害
     ///（挡位点向攻击侧偏移、与被保护者错开身位），攻击者接近原目标格邻格开打，战后各自
@@ -545,39 +545,84 @@ namespace SynergyUI
                     if (plan.TargetDead && tgtBody && tgtAnim != null) { tgtAnim.Revive(); tgtAnim.Play(MonsterAction.Breath); }
                     if (plan.AttackerDead && attBody && attAnim != null) { attAnim.Revive(); attAnim.Play(MonsterAction.Breath); }
 
-                    // ② 走位：守卫拦截=守卫者走上被攻击者那格挡位 + 攻击者接近原目标邻格
-                    //    （并行，2026-10-15）；常规=攻击者单方接近目标临格
+                    // ② 走位：守卫拦截（2026-10-17 用户定案：守卫者**瞬移**赴挡——攻击者走过去
+                    //    站在原地等守卫走来的观感差，改为只有攻击者走位，守卫者直接现身挡位；
+                    //    同晚补现身动画=召唤弹出 SummonPop（程序动画现成件复用：缩放从无到有+
+                    //    上方速升缓落 0.9s，与攻击者走位并行，命中前等完全显形））
+                    //    + 攻击者接近原目标邻格。
+                    //    走位折线（2026-10-17 缝走定案：不再走空地格心——沿两格交界线）：
+                    //    途经=格间缝点，末点=接近格格心（战斗站位）；起点格缺失回落旧格心折线
+                    var attStartCell = CellOf(plan.AttackerId);
+                    List<Vector3> attPts = plan.Path != null && plan.Path.Count > 0
+                        ? (attStartCell.HasValue
+                            ? SeamWaypoints(plan.Path, attStartCell.Value)
+                            : ToWorldPath(plan.Path))
+                        : null;
+                    List<Vector3> blkPts = null; // 守卫挡位折线（⑦ 归位原路缝返回复用）
                     if (plan.Blocked && plan.BlockerPath != null && attBody && tgtBody)
                     {
                         attAnim?.Play(MonsterAction.Walk);
-                        tgtAnim?.Play(MonsterAction.Walk);
-                        var walks = await UniTask.WhenAll(
-                            WalkAsync(attW, ToWorldPath(plan.Path), epoch,
-                                modelYaw: BattleFieldView.FacingYawOf(plan.AttackerOwner)),
-                            WalkAsync(tgtW, GuardCoverPoints(plan, attW), epoch,
-                                modelYaw: BattleFieldView.FacingYawOf(targetOwner)));
-                        if (!walks.Item1 || !walks.Item2) return;
+                        blkPts = GuardCoverPoints(plan, attW, CellOf(plan.TargetId));
+                        float popDeadline = -1f;
+                        if (blkPts != null && blkPts.Count > 0)
+                        {
+                            tgtW.position = blkPts[blkPts.Count - 1]; // 瞬移挡位（原目标格心向攻击侧偏移错身）
+                            tgtAnim?.Revive();
+                            tgtAnim?.Play(MonsterAction.Breath);
+                            tgtAnim?.PlaySummonPop(); // 现身：召唤弹出（0.9s，随走位并行）
+                            popDeadline = Time.realtimeSinceStartup + RigMotionTuning.PopDuration;
+                        }
+                        if (!await WalkAsync(attW, attPts, epoch,
+                                modelYaw: BattleFieldView.FacingYawOf(plan.AttackerOwner)))
+                        {
+                            Debug.Log($"[CombatChoreo] 演出中止@攻击者走位：{plan.Summary}");
+                            return;
+                        }
                         attAnim?.Play(MonsterAction.Breath);
-                        tgtAnim?.Play(MonsterAction.Breath);
-                        if (Stopped(epoch, attW, tgtW)) return;
+                        while (popDeadline > 0f && Time.realtimeSinceStartup < popDeadline)
+                        {
+                            if (Stopped(epoch, attW, tgtW)) break; // 中止/销毁不再干等
+                            await UniTask.Yield();
+                        }
+                        if (Stopped(epoch, attW, tgtW))
+                        {
+                            Debug.Log($"[CombatChoreo] 演出中止@挡位就位（disposed={_disposed} epochEq={epoch == _epoch} attNull={attW == null} tgtNull={tgtW == null}）：{plan.Summary}");
+                            return;
+                        }
                         Face2D(tgtW, attW.position, BattleFieldView.FacingYawOf(targetOwner)); // 守卫者转面攻击者（挡位迎敌）
                     }
-                    else if (attBody && plan.Path != null && plan.Path.Count > 0)
+                    else if (attBody && attPts != null && attPts.Count > 0)
                     {
                         attAnim?.Play(MonsterAction.Walk);
-                        if (!await WalkAsync(attW, ToWorldPath(plan.Path), epoch,
-                                modelYaw: BattleFieldView.FacingYawOf(plan.AttackerOwner))) return;
+                        if (!await WalkAsync(attW, attPts, epoch,
+                                modelYaw: BattleFieldView.FacingYawOf(plan.AttackerOwner)))
+                        {
+                            Debug.Log($"[CombatChoreo] 演出中止@攻击者走位：{plan.Summary}");
+                            return;
+                        }
                         attAnim?.Play(MonsterAction.Breath);
                     }
+
+                    // 参战者存活重估（2026-10-17 并行演出共享单位修复）：attBody/tgtBody 是方法开头
+                    // 快照——两场演出并行时，本演出的目标可能已被另一场的死亡动画（fire-and-forget
+                    // RetireUnit）销毁 wrapper——假空即降级：跳过该侧表现（受击/反击/朝向），本方照常收尾
+                    attBody = attBody && attW != null;
+                    tgtBody = tgtBody && tgtW != null;
 
                     Vector3 tgtPos = tgtBody ? tgtW.position : HeroPosOf(targetOwner);
                     if (attBody && attW != null) Face2D(attW, tgtPos, BattleFieldView.FacingYawOf(plan.AttackerOwner));
 
                     // ③ 攻击：前扑→命中（目标受击/角色立柱脉动/溅射第三方原地受击）
                     attAnim?.Play(MonsterAction.Attack);
-                    await UniTask.Delay(ImpactDelayMs);
+                    await DelayChainAware(ImpactDelayMs); // 连锁冻结感知节拍（2026-10-17）
                     _arrowLive = false; // 命中节拍：目标箭头使命达成，跟踪器收尾渐隐
-                    if (Stopped(epoch, attW, tgtW)) return;
+                    if (Stopped(epoch, attW, tgtW))
+                    {
+                        Debug.Log($"[CombatChoreo] 演出中止@命中节拍（disposed={_disposed} epochEq={epoch == _epoch} attNull={attW == null} tgtNull={tgtW == null}）：{plan.Summary}");
+                        return;
+                    }
+                    attBody = attBody && attW != null; // 节拍中途同样可能被并行演出销毁——再重估
+                    tgtBody = tgtBody && tgtW != null;
                     if (tgtBody && tgtW != null) tgtAnim?.Play(MonsterAction.Hit);
                     else _field.HeroImpactPulseAsync(targetOwner).Forget();
                     foreach (var id in plan.SplashIds)
@@ -586,61 +631,70 @@ namespace SynergyUI
                         _field.ReleaseUnitStats(id); // 数值节拍：溅射方伤害随主命中落地
                     }
                     _field.ReleaseUnitStats(plan.TargetId); // 数值节拍：目标伤害此刻滚动显示
-                    await UniTask.Delay(AttackBeatMs - ImpactDelayMs);
-                    if (Stopped(epoch, attW, tgtW)) return;
+                    await DelayChainAware(AttackBeatMs - ImpactDelayMs); // 连锁冻结感知节拍（2026-10-17）
+                    if (Stopped(epoch, attW, tgtW))
+                    {
+                        Debug.Log($"[CombatChoreo] 演出中止@攻击节拍尾：{plan.Summary}");
+                        return;
+                    }
 
-                    // ④ 反击（以实际反击伤害事件为准——守方横置/先击杀则无）
-                    if (plan.Counter && !plan.TargetDead && attBody && tgtBody && attW != null && tgtW != null)
+                    // ④ 反击（以实际反击伤害事件为准——守方横置则无）。2026-10-17 双向同时定案：
+                    // 守方被打死也照播反击（临死反击）——旧 !TargetDead 条件是顺序结算口径残留，
+                    // 它把攻击者的掉血冻到归位后兜底放行（"走回去才扣血"观感）
+                    if (plan.Counter && attBody && tgtBody && attW != null && tgtW != null)
                     {
                         Face2D(tgtW, attW.position, BattleFieldView.FacingYawOf(targetOwner));
                         tgtAnim?.Play(MonsterAction.Attack);
-                        await UniTask.Delay(ImpactDelayMs);
-                        if (Stopped(epoch, attW, tgtW)) return;
+                        await DelayChainAware(ImpactDelayMs); // 连锁冻结感知节拍（2026-10-17）
+                        if (Stopped(epoch, attW, tgtW))
+                        {
+                            Debug.Log($"[CombatChoreo] 演出中止@反击节拍：{plan.Summary}");
+                            return;
+                        }
                         attAnim?.Play(MonsterAction.Hit);
                         _field.ReleaseUnitStats(plan.AttackerId); // 数值节拍：反击伤害此刻滚动显示
-                        await UniTask.Delay(AttackBeatMs - ImpactDelayMs);
+                        await DelayChainAware(AttackBeatMs - ImpactDelayMs); // 连锁冻结感知节拍（2026-10-17）
                     }
 
-                    // ⑤ 死亡：维持大小滑入己方墓地格→原地旋转缩小消失（2026-10-16 改版）
+                    // ⑤⑥⑦ 收尾段并行（2026-10-17 用户定案：表现者不是同一个单位就不排队——
+                    //    归位走回互不等待；同一单位的互斥由条件天然保证（死者不归位））。
+                    // ⑤ 死亡=可忽略表演（同晚定案：纯装饰不占门不等待——逻辑早已入墓，退场动画
+                    //    期间后续动作/墓地相关效果照常；fire-and-forget 与一切并行）
                     if (plan.TargetDead && tgtBody)
-                        await _field.PlayDeathExitAsync(plan.TargetId, targetOwner);
+                        _field.PlayDeathExitAsync(plan.TargetId, targetOwner).Forget();
                     if (plan.AttackerDead && attBody)
-                        await _field.PlayDeathExitAsync(plan.AttackerId, plan.AttackerOwner);
+                        _field.PlayDeathExitAsync(plan.AttackerId, plan.AttackerOwner).Forget();
+
+                    var tails = new List<UniTask>();
 
                     // ⑥ 幸存者原路返回待机（2026-10-15 晚裁定：横置不再停呼吸，归位恒播呼吸，
                     //    可行动性只看脚下光波）；回程解除对视（攻击已结束，头回待机注视）
                     if (attBody && !plan.AttackerDead && attW != null)
                     {
                         _field.ClearCombatGaze(plan.AttackerId);
-                        attAnim?.Play(MonsterAction.Walk);
                         var back = new List<Vector3>();
-                        if (plan.Path != null)
-                            for (int i = plan.Path.Count - 1; i >= 0; i--)
-                                back.Add(ToWorldAnchor(plan.Path[i]));
+                        if (attPts != null)
+                            for (int i = attPts.Count - 1; i >= 0; i--)
+                                back.Add(attPts[i]); // 原路缝返回（首点=站位≈当前位）
                         back.Add(homePos);
-                        if (!await WalkAsync(attW, back, epoch, 0f,
-                            BattleFieldView.FacingYawOf(plan.AttackerOwner))) return;
-                        attAnim?.Play(MonsterAction.Breath);
-                        if (attW != null)
-                            attW.rotation = Quaternion.identity; // wrapper 恒零（2026-10-15 横置侧倾退役）
+                        tails.Add(ReturnAsync(attW, attAnim, back, epoch,
+                            BattleFieldView.FacingYawOf(plan.AttackerOwner), "攻击者归位", plan.Summary));
                     }
 
                     // ⑦ 守卫者归位（挡位演出收尾）：幸存守卫者原路返回自格（末格=原目标格不回踏
                     //    ——被保护者仍站其上；横置不停呼吸，同⑥）；回程同解除对视
-                    if (plan.Blocked && plan.BlockerPath != null && tgtBody && !plan.TargetDead && tgtW != null)
+                    if (plan.Blocked && blkPts != null && tgtBody && !plan.TargetDead && tgtW != null)
                     {
                         _field.ClearCombatGaze(plan.TargetId);
-                        tgtAnim?.Play(MonsterAction.Walk);
                         var blkBack = new List<Vector3>();
-                        for (int i = plan.BlockerPath.Count - 2; i >= 0; i--)
-                            blkBack.Add(ToWorldAnchor(plan.BlockerPath[i]));
+                        for (int i = blkPts.Count - 1; i >= 0; i--)
+                            blkBack.Add(blkPts[i]); // 原路缝返回（首点=挡位点≈当前位）
                         blkBack.Add(blkHomePos);
-                        if (!await WalkAsync(tgtW, blkBack, epoch, 0f,
-                            BattleFieldView.FacingYawOf(targetOwner))) return;
-                        tgtAnim?.Play(MonsterAction.Breath);
-                        if (tgtW != null)
-                            tgtW.rotation = Quaternion.identity; // wrapper 恒零（2026-10-15 横置侧倾退役）
+                        tails.Add(ReturnAsync(tgtW, tgtAnim, blkBack, epoch,
+                            BattleFieldView.FacingYawOf(targetOwner), "守卫者归位", plan.Summary));
                     }
+                    if (tails.Count > 0)
+                        await UniTask.WhenAll(tails);
                     Debug.Log($"[CombatChoreo] 战斗演出完成：{plan.Summary}");
                 }
                 catch (Exception ex)
@@ -665,6 +719,51 @@ namespace SynergyUI
         /// <summary>演出中止判定：Dispose/代际失效 或 参战实体已被外部销毁（拆屏）。</summary>
         private bool Stopped(int epoch, Transform a, Transform b)
             => _disposed || epoch != _epoch || (a == null && b == null);
+
+        /// <summary>幸存者归位尾段（2026-10-17 收尾并行化拆出）：走回原格→呼吸待机→wrapper 恒零。
+        /// 中止（Dispose/销毁）只放弃本段——并行收尾互不牵连，finally 兜底统一收场。</summary>
+        private async UniTask ReturnAsync(Transform wrapper, MonsterRigAnimator anim,
+            List<Vector3> path, int epoch, float yaw, string label, string summary)
+        {
+            anim?.Play(MonsterAction.Walk);
+            if (!await WalkAsync(wrapper, path, epoch, 0f, yaw))
+            {
+                Debug.Log($"[CombatChoreo] 演出中止@{label}：{summary}");
+                return;
+            }
+            anim?.Play(MonsterAction.Breath);
+            if (wrapper != null)
+                wrapper.rotation = Quaternion.identity; // wrapper 恒零（2026-10-15 横置侧倾退役）
+        }
+
+        // ---- 连锁冻结门（2026-10-17 用户定案：连锁期间动画表现全部冻结，结算时恢复） ----
+        // 连锁期间=响应窗口开着（StackEngine.WaitingForPlayer——等玩家/AI 决定守卫与响应）；
+        // 窗口关闭进入结算/栈空=恢复。演出在窗口期停帧（走位不动、节拍不计时），
+        // 防连续攻击时在途演出与交互窗口打架（六连击演出被打断不归位的乱象）。
+
+        /// <summary>连锁窗口是否开着（演出冻结中）。</summary>
+        private static bool ChainFrozen
+            => CardCore.GameCore.Instance != null
+               && CardCore.GameCore.Instance.StackEngine != null
+               && CardCore.GameCore.Instance.StackEngine.WaitingForPlayer;
+
+        /// <summary>冻结感知等待：连锁窗口期暂停计时（表现冻结），窗口关闭后续走剩余时长。</summary>
+        private async UniTask DelayChainAware(int milliseconds)
+        {
+            float remain = milliseconds / 1000f;
+            while (remain > 0f)
+            {
+                await UniTask.Yield();
+                if (ChainFrozen) continue; // 冻结帧不计时（表现层停帧）
+                remain -= UnityEngine.Time.deltaTime;
+            }
+        }
+
+        /// <summary>连锁窗口期停帧等待（走位循环入口挂）：窗口关闭即返回。</summary>
+        private async UniTask WaitChainIdleAsync()
+        {
+            while (ChainFrozen && !_disposed) await UniTask.Yield();
+        }
 
         // ======================================== 战斗目标箭头（2026-10-15 攻击红/守卫蓝） ========================================
 
@@ -734,7 +833,7 @@ namespace SynergyUI
             start = wrapper.position;
             if (total < 0.01f) return true;
 
-            float t0 = Time.realtimeSinceStartup;
+            float walked = 0f; // 累计计时（2026-10-17 连锁冻结）：realtime 基准在冻结恢复后会跳帧，改累计制
             float duration = total / WalkSpeed;
             float yaw = wrapper.rotation.eulerAngles.y;
             float tilt0 = wrapper.rotation.eulerAngles.z;
@@ -742,7 +841,9 @@ namespace SynergyUI
             while (true)
             {
                 if (wrapper == null || _disposed || epoch != _epoch) return false;
-                float t = Mathf.Min((Time.realtimeSinceStartup - t0) / duration, 1f);
+                await WaitChainIdleAsync(); // 连锁窗口期停帧（2026-10-17 表现冻结定案）：窗口关闭续走
+                if (wrapper == null || _disposed || epoch != _epoch) return false;
+                float t = Mathf.Min(walked / duration, 1f);
                 float dist = t * total;
 
                 Vector3 pos = last, segDir = Vector3.zero;
@@ -770,6 +871,7 @@ namespace SynergyUI
                 wrapper.rotation = Quaternion.Euler(0f, yaw, Mathf.Lerp(tilt0, tiltTo, t));
                 if (t >= 1f) break;
                 await UniTask.Yield();
+                if (!ChainFrozen) walked += Time.deltaTime; // 冻结帧不计走位时长
             }
             wrapper.position = last;
             return true;
@@ -801,12 +903,33 @@ namespace SynergyUI
         private static Vector3 ToWorldAnchor((int x, int z) c)
             => BattleBoardGrid.WorldPositionOf(c.x, c.z) + new Vector3(0f, 0.05f, 0f);
 
-        /// <summary>守卫者挡位路径点：终点=原目标格心（BlockerPath 末格）向攻击者终格方向偏移
-        /// GuardCoverOffset——挡在被保护者身前，与其模型错开不重合。攻击者无走位（已相邻/
-        /// 路径空）=取其当前位姿定偏移向。</summary>
-        private static List<Vector3> GuardCoverPoints(CombatPlan plan, Transform attW)
+        /// <summary>途经格序列 → 格间缝折线（2026-10-17 用户定案：走位不再穿空地格心——
+        /// 沿两格交界线走）：相邻两格共享棱中点=两格心中点（正六边形铺装恒成立），
+        /// 末点=末格格心（战斗站位）。cells 不含起点格（FindApproach 口径）。</summary>
+        private static List<Vector3> SeamWaypoints(List<(int x, int z)> cells, (int x, int z) startCell)
         {
-            var pts = ToWorldPath(plan.BlockerPath);
+            var pts = new List<Vector3>(cells.Count);
+            for (int i = 0; i < cells.Count; i++)
+                pts.Add(i == cells.Count - 1
+                    ? ToWorldAnchor(cells[i])
+                    : SeamMid(i == 0 ? startCell : cells[i - 1], cells[i]));
+            return pts;
+        }
+
+        /// <summary>两格共享棱中点世界坐标（+0.05 锚高同 ToWorldAnchor）。</summary>
+        private static Vector3 SeamMid((int x, int z) a, (int x, int z) b)
+            => (BattleBoardGrid.WorldPositionOf(a.x, a.z) + BattleBoardGrid.WorldPositionOf(b.x, b.z)) * 0.5f
+               + new Vector3(0f, 0.05f, 0f);
+
+        /// <summary>守卫者挡位路径点（2026-10-17 缝走同口径）：途经=格间缝折线（SeamWaypoints，
+        /// blkStart=守卫者起始格；缺失回落旧格心折线）；终点=原目标格心（BlockerPath 末格）
+        /// 向攻击者终格方向偏移 GuardCoverOffset——挡在被保护者身前，与其模型错开不重合。
+        /// 攻击者无走位（已相邻/路径空）=取其当前位姿定偏移向。</summary>
+        private static List<Vector3> GuardCoverPoints(CombatPlan plan, Transform attW, (int x, int z)? blkStart)
+        {
+            var pts = blkStart.HasValue
+                ? SeamWaypoints(plan.BlockerPath, blkStart.Value)
+                : ToWorldPath(plan.BlockerPath);
             if (pts.Count == 0) return pts;
             Vector3 cover = pts[pts.Count - 1];
             Vector3 attFinal = plan.Path != null && plan.Path.Count > 0

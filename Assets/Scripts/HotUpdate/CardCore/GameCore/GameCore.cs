@@ -393,10 +393,13 @@ namespace CardCore
         /// FieldZone——不占卡组张数、不进牌库）；未标记/查无此卡/不合格（非法术或效果非 1~3 主动）
         /// = 本局无技能。缺省 null。</param>
         /// <param name="skillCardId2">P2 英雄技能卡 ID，同上。</param>
+        /// <param name="startingPlayer">本局先手（对局准备流程硬币注入，2026-10-17）：null=Player1 历史现状；
+        /// 仅在非 deferStart 分支经内部 StartGame 消费（教学预设场面走 PrepareScenarioStart 自带先手）。</param>
         public void InitGame(List<Card> deck1, List<Card> deck2, int? rngSeed = null, bool lockDeckOrder = false,
             bool skipOpeningDraw = false, bool deferStart = false,
             int p2LandCapBonus = 0, int p2ExtraOpeningDraws = 0,
-            string skillCardId1 = null, string skillCardId2 = null)
+            string skillCardId1 = null, string skillCardId2 = null,
+            Player startingPlayer = null)
         {
             if (deck1 == null || deck2 == null)
                 throw new ArgumentNullException("卡组不能为null");
@@ -474,9 +477,10 @@ namespace CardCore
                 }
             }
 
-            // 开始游戏（deferStart：教学预设场面注入器接管——seed 完成后调用方自行 StartGame）
+            // 开始游戏（deferStart：教学预设场面注入器接管——seed 完成后调用方自行 StartGame；
+            // startingPlayer=对局准备流程的硬币先手，null=Player1 历史现状）
             if (!deferStart)
-                StartGame();
+                StartGame(startingPlayer);
         }
 
         /// <summary>
@@ -486,29 +490,32 @@ namespace CardCore
             int? rngSeed = null, bool lockDeckOrder = false,
             bool skipOpeningDraw = false, bool deferStart = false,
             int p2LandCapBonus = 0, int p2ExtraOpeningDraws = 0,
-            string skillCardId1 = null, string skillCardId2 = null)
+            string skillCardId1 = null, string skillCardId2 = null,
+            Player startingPlayer = null)
         {
             var deck1 = CardLoader.BuildDeck(deck1Data, copiesPerCard);
             var deck2 = CardLoader.BuildDeck(deck2Data, copiesPerCard);
             InitGame(deck1, deck2, rngSeed, lockDeckOrder, skipOpeningDraw, deferStart,
-                p2LandCapBonus, p2ExtraOpeningDraws, skillCardId1, skillCardId2);
+                p2LandCapBonus, p2ExtraOpeningDraws, skillCardId1, skillCardId2, startingPlayer);
         }
 
         /// <summary>
-        /// 开始游戏
+        /// 开始游戏。startingPlayer=本局先手（null=Player1，历史现状）——对局准备流程的硬币
+        /// 结果由此注入；GameStartEvent 的 FirstPlayer/SecondPlayer 与回合起跳同源使用它。
         /// </summary>
-        public void StartGame()
+        public void StartGame(Player startingPlayer = null)
         {
             if (!_stateManager.StartGame())
                 return;
 
+            var first = startingPlayer == _player2 ? _player2 : _player1;
             PublishEvent(new GameStartEvent
             {
-                FirstPlayer = _player1,
-                SecondPlayer = _player2
+                FirstPlayer = first,
+                SecondPlayer = first == _player1 ? _player2 : _player1
             });
 
-            TurnEngine.StartNewTurn(_player1);
+            TurnEngine.StartNewTurn(first);
         }
 
         /// <summary>

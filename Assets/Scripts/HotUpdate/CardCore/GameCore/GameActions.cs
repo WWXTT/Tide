@@ -698,24 +698,44 @@ namespace CardCore
             if (options.Count > 0 && RuleHooks.TutorialGuardFilter != null)
                 options = RuleHooks.TutorialGuardFilter(p, options) ?? options;
 
-            // ② 待发自愿效果（速度门已过）+ 可付性过滤（主动走 executor.CanActivate：费用+代价+条件）
+            // ② 主动效果 + 待发自愿效果（2026-10-17 连锁门禁收敛定案：连锁资格唯一条件=速度门）。
+            //    主动效果此前只经待发队列瞬态（从不入队=从不进窗），现按场上来源枚举：
+            //    战场+技能栏卡的 IsActivatedEffect 定义（含 Activate_Response 响应档——构筑
+            //    体系注释本就写明「归响应窗口」，本次接上）。逐效果：PendingEffect.Create
+            //    单源算速（BaseSpeed+疾风 OnBoardActiveSpeedBonus）→ 速度门 →
+            //    executor.CanActivate 可发动性全检（结界禁主动/横置/沉默/沉睡/条件/费用/目标域
+            //    ——这些是「可发动性」过滤，不是连锁条件）。阶段走 TurnEngine 真值
+            //    （StackEngine.CurrentPhase 是死字段勿读）。
             var executor = engine.GetExecutor();
+            var phase = core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Standby;
+            foreach (var src in EnumerateActivationSources(core, p))
+            {
+                foreach (var def in GetCardEffectDefinitions(src))
+                {
+                    if (def == null || !def.IsActivatedEffect) continue;
+                    var pending = PendingEffect.Create(def, src, p, engine.ActivePlayer, phase);
+                    if (!engine.SpeedCounter.CanActivate(pending.ActivationSpeed, isTurnPlayer,
+                            EffectActivationType.Voluntary)) continue;
+                    if (!executor.CanActivate(def, src, p, engine.ActivePlayer, phase,
+                            core.TurnEngine.TurnNumber)) continue;
+                    options.Add(new ResponseOption
+                    {
+                        Kind = ResponseOption.ResponseKind.ActivatedAbility,
+                        SourceCard = src,
+                        Definition = def,
+                        Label = $"{EffectText.Name(src)} 的 {def.DisplayName}（速度{pending.ActivationSpeed}）",
+                    });
+                }
+            }
+            // 待发自愿队列（触发式「可以发动」，速度门已在 GetVoluntaryEffects 内过）：
+            // IsActivatedEffect 项跳过——主动效果统一走上方位枚举，防重复候选
             foreach (var pe in engine.GetActivatableVoluntaryEffects(p))
             {
                 var def = pe.Effect;
-                if (def == null) continue;
-                if (def.IsActivatedEffect)
-                {
-                    // 主动：回合方+主阶段+横置/沉默/沉睡/条件/费用全检（executor.CanActivate）
-                    if (!isTurnPlayer || engine.CurrentPhase != PhaseType.Main) continue;
-                    if (!executor.CanActivate(def, pe.Source, p, engine.ActivePlayer, engine.CurrentPhase,
-                            core.TurnEngine.TurnNumber)) continue;
-                }
+                if (def == null || def.IsActivatedEffect) continue;
                 options.Add(new ResponseOption
                 {
-                    Kind = def.IsActivatedEffect
-                        ? ResponseOption.ResponseKind.ActivatedAbility
-                        : ResponseOption.ResponseKind.VoluntaryEffect,
+                    Kind = ResponseOption.ResponseKind.VoluntaryEffect,
                     Pending = pe,
                     SourceCard = pe.Source as Card,
                     Definition = def,
@@ -723,53 +743,57 @@ namespace CardCore
                 });
             }
 
-            // ③ 手牌响应卡（2026-10-16 二期窗口 UI 补接）：栈上有对手的栈对象（cast/攻击宣言/
-            //    守卫/SBA）时收集手牌可响应卡。门禁镜像 PlayCardInResponse + LegalActionEnumerator
-            //    .HasRespondableHandCard 预检：速度门（回合方 ≥ / 非回合方严格大于——生物/结界手牌
-            //    恒 0 速，对手回合天然出局）、CanPlay 钩子、代价门槛、同名仪典闸、永久物战场容量、
-            //    任一模式可付 + 目标域有候选（付不起/指不了的不进弹窗，同"候选=0 跳过弹窗"口径）。
-            //    范围=「对对手对象的响应」：栈上全是自己对象时不收集——否则回合方每次出牌都会
-            //    追加"要不要连锁自己"弹窗（自己连锁自己暂不开放，保持出牌即推进的旧节奏）。
-            //    目标不在此预选：cast 结算期经 TargetSelectionService 反问（本地=Region 面板）。
+            // ③ 手牌响应卡（2026-10-16 二期窗口 UI 补接；2026-10-17 连锁门禁收敛定案）：
+            //    连锁资格唯一条件=速度门（SpeedCounter.CanActivate：回合方 ≥ 记速器 / 非回合方
+            //    严格大于——与 PlayCardInResponse/PushCardCast 同一裁决），不再要求栈上有对手
+            //    对象/攻宣锚点——旧口径攻击方在自家攻宣窗口 0 候选被自动双 Pass，攻击同帧结算、
+            //    战斗诡雷永远迟到。代价（定案接受）：自己每次出牌/宣攻后，手里有速度合法且
+            //    可付的卡就会弹「连锁吗」（含记速器 0 时的 0 速永久物）——让过=点「不连锁」。
+            //    其余过滤是「可发动性」而非连锁条件，全保留：CanPlay 钩子、同名仪典闸、
+            //    代价门槛、永久物战场容量、任一模式可付+目标域有候选（付不起/指不了的不进弹窗，
+            //    同"候选=0 跳过弹窗"口径）。目标不在此预选：cast 结算期经 TargetSelectionService
+            //    反问（本地=Region 面板）。
             if (!engine.IsEmpty && !engine.IsResolving)
             {
-                bool respondToOpponent = false;
-                foreach (var obj in engine.GetStackContents())
+                foreach (var c in core.ZoneManager.GetCards(p, Zone.Hand) ?? new List<Card>())
                 {
-                    if (obj != null && obj.Controller != p) { respondToOpponent = true; break; }
-                }
-                if (respondToOpponent)
-                {
-                    foreach (var c in core.ZoneManager.GetCards(p, Zone.Hand) ?? new List<Card>())
+                    if (c == null || !RuleHooks.CanPlay(core, p, c, Zone.Hand)) continue;
+                    if (RuleAuraSystem.BlocksDuplicatePlay(c)) continue;
+                    if (GetPayloadGateReject(core, p, c) != null) continue;
+                    int castSpeed = SpeedCalculator.GetCardCastSpeed(c);
+                    if (!engine.SpeedCounter.CanActivate(castSpeed, isTurnPlayer, EffectActivationType.Voluntary))
+                        continue;
+                    if (!c.IsSpellCard() && !core.ZoneManager.HasBattlefieldSpace(p)) continue;
+                    var data = (c as CardWrapper)?.GetData();
+                    int modes = data?.Supertype == Cardtype.Spell
+                        ? Math.Max(1, data.Effects?.Count ?? 1) : 1; // 抉择模式数=法术效果数（ModeCount 同口径）
+                    for (int m = 0; m < modes; m++)
                     {
-                        if (c == null || !RuleHooks.CanPlay(core, p, c, Zone.Hand)) continue;
-                        if (RuleAuraSystem.BlocksDuplicatePlay(c)) continue;
-                        if (GetPayloadGateReject(core, p, c) != null) continue;
-                        int castSpeed = SpeedCalculator.GetCardCastSpeed(c);
-                        if (!engine.SpeedCounter.CanActivate(castSpeed, isTurnPlayer, EffectActivationType.Voluntary))
-                            continue;
-                        if (!c.IsSpellCard() && !core.ZoneManager.HasBattlefieldSpace(p)) continue;
-                        var data = (c as CardWrapper)?.GetData();
-                        int modes = data?.Supertype == Cardtype.Spell
-                            ? Math.Max(1, data.Effects?.Count ?? 1) : 1; // 抉择模式数=法术效果数（ModeCount 同口径）
-                        for (int m = 0; m < modes; m++)
+                        if (!CanAffordCast(core, p, c, m)) continue;
+                        if (!TargetDomainService.HasPlayableTargets(core, p, c, m)) continue;
+                        options.Add(new ResponseOption
                         {
-                            if (!CanAffordCast(core, p, c, m)) continue;
-                            if (!TargetDomainService.HasPlayableTargets(core, p, c, m)) continue;
-                            options.Add(new ResponseOption
-                            {
-                                Kind = ResponseOption.ResponseKind.HandCard,
-                                SourceCard = c,
-                                ModeIndex = m,
-                                Label = $"打出 {EffectText.Name(c)}（速度{castSpeed}）",
-                            });
-                            break; // 每卡一票（首个可行模式）；多模式细选留后续
-                        }
+                            Kind = ResponseOption.ResponseKind.HandCard,
+                            SourceCard = c,
+                            ModeIndex = m,
+                            Label = $"打出 {EffectText.Name(c)}（速度{castSpeed}）",
+                        });
+                        break; // 每卡一票（首个可行模式）；多模式细选留后续
                     }
                 }
             }
 
             return options;
+        }
+
+        /// <summary>窗口②主动效果来源枚举（2026-10-17 连锁门禁收敛）：战场+技能栏（英雄技能载体）。
+        /// 手牌施放走整卡 cast 通道（③），墓地视手牌使用同走出牌口——均不是效果发动来源。</summary>
+        private static IEnumerable<Card> EnumerateActivationSources(GameCore core, Player p)
+        {
+            foreach (var c in core.ZoneManager.GetCards(p, Zone.Battlefield) ?? new List<Card>())
+                if (c != null) yield return c;
+            foreach (var c in core.ZoneManager.GetCards(p, Zone.FieldZone) ?? new List<Card>())
+                if (c != null) yield return c;
         }
 
         /// <summary>
@@ -780,36 +804,53 @@ namespace CardCore
         /// </summary>
         public static async Cysharp.Threading.Tasks.UniTask SettleResponseWindowAsync(GameCore core, int maxRounds = 96)
         {
-            for (int i = 0; i < maxRounds; i++)
+            Crumb($"CF-pump-enter stack={core?.StackEngine?.StackSize} res={core?.StackEngine?.IsResolving}");
+            try
             {
-                if (core == null || core.IsGameOver) return;
-                var engine = core.StackEngine;
-                if (engine.IsEmpty)
+                for (int i = 0; i < maxRounds; i++)
                 {
-                    if (!engine.HasPendingEffects) return; // 稳定
-                    engine.ProcessPendingEffects();
-                    if (engine.IsEmpty) return;
+                    if (core == null || core.IsGameOver) return;
+                    var engine = core.StackEngine;
+                    if (engine.IsEmpty)
+                    {
+                        if (!engine.HasPendingEffects) return; // 稳定
+                        engine.ProcessPendingEffects();
+                        if (engine.IsEmpty) return;
+                    }
+
+                    var holder = engine.CurrentPriorityHolder;
+                    if (holder == null) return;
+
+                    ResponseOption choice = null;
+                    var options = CollectAvailableResponses(core, holder);
+                    Crumb($"CF-round i={i} holder={holder.Name} stack={engine.StackSize} opts={options.Count} waiting={engine.WaitingForPlayer} ctr={engine.SpeedCounter.CurrentSpeed}");
+                    if (options.Count > 0)
+                    {
+                        if (holder.IsAI)
+                            choice = ResponseWindowService.AiResponder?.Invoke(core, holder, options)
+                                     ?? DefaultAiRespond(core, holder, options);
+                        else if (ResponseWindowService.HumanResponder != null)
+                            choice = await ResponseWindowService.HumanResponder(holder, options);
+                        // 挂死兜底不在引擎侧（2026-10-17 定案）：UniTask.Delay 型超时在链孤悬时
+                        // 同样不触发（两度实测），且 TideServer shim 无 Delay/WhenAny——真正的
+                        // 保命层=BattleScreen.WatchdogStalePick（MonoBehaviour 帧驱动墙钟）。
+                        // 均未注册（无头/训练）→ choice=null 自动 Pass（守卫不响应=训练旧行为）
+                    }
+
+                    if (choice != null)
+                    {
+                        bool applied = ApplyResponse(core, holder, choice);
+                        Crumb($"CF-choice holder={holder.Name} kind={choice.Kind} label={choice.Label} applied={applied}");
+                        if (applied)
+                            continue; // 发动成功 → 优先权已翻转，继续下一轮
+                    }
+
+                    await engine.PassPriority(holder); // 0 候选/放弃/失败 → Pass（双 Pass 触发结算并 await 完成）
                 }
-
-                var holder = engine.CurrentPriorityHolder;
-                if (holder == null) return;
-
-                ResponseOption choice = null;
-                var options = CollectAvailableResponses(core, holder);
-                if (options.Count > 0)
-                {
-                    if (holder.IsAI)
-                        choice = ResponseWindowService.AiResponder?.Invoke(core, holder, options)
-                                 ?? DefaultAiRespond(core, holder, options);
-                    else if (ResponseWindowService.HumanResponder != null)
-                        choice = await ResponseWindowService.HumanResponder(holder, options);
-                    // 均未注册（无头/训练）→ choice=null 自动 Pass（守卫不响应=训练旧行为）
-                }
-
-                if (choice != null && ApplyResponse(core, holder, choice))
-                    continue; // 发动成功 → 优先权已翻转，继续下一轮
-
-                await engine.PassPriority(holder); // 0 候选/放弃/失败 → Pass（双 Pass 触发结算并 await 完成）
+            }
+            finally
+            {
+                Crumb("CF-pump-exit");
             }
         }
 
@@ -827,7 +868,7 @@ namespace CardCore
                         && PlayCardInResponse(core, p, opt.SourceCard, null, opt.ModeIndex);
                 case ResponseOption.ResponseKind.ActivatedAbility:
                     return opt.Definition != null && opt.SourceCard != null
-                        && ActivateEffect(core, p, opt.Definition, opt.SourceCard);
+                        && ActivateEffectInResponse(core, p, opt.Definition, opt.SourceCard);
                 case ResponseOption.ResponseKind.VoluntaryEffect:
                     return core.StackEngine.PlayerActivateVoluntary(opt.Pending);
                 default:
@@ -1120,8 +1161,16 @@ namespace CardCore
         public static bool ActivateEffect(GameCore core, Player player, EffectDefinition effect, Card source, int paidBoost = 0)
         {
             if (core == null || player == null || effect == null) return false;
-            if (core.TurnEngine.TurnPlayer != player) return false;
-            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
+            if (core.TurnEngine.TurnPlayer != player)
+            {
+                Crumb($"CF-activate-reject def={effect.Id} reason=非回合方 by={player?.Name}");
+                return false;
+            }
+            if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main)
+            {
+                Crumb($"CF-activate-reject def={effect.Id} reason=非主阶段({core.TurnEngine.CurrentPhase?.Phase})");
+                return false;
+            }
 
             // 发动代价预检（仅主动；战场/技能栏源卡，手牌/墓地施放不适用）：
             // 结界=拒发动（禁主动定案）；其余（生物/技能区法术）=未横置（横置=一回合一次闸门）。
@@ -1130,9 +1179,15 @@ namespace CardCore
                     || core.ZoneManager.IsCardInZone(source, source.GetController(), Zone.FieldZone)))
             {
                 if (Attribute.CounterRules.UsesDurabilityEconomy(source))
+                {
+                    Crumb($"CF-activate-reject def={effect.Id} reason=结界禁主动 src={source.ID}");
                     return false; // 结界禁主动效果（2026-10-15 深夜改版）——耐久−1 通道整体退役
+                }
                 if (source.IsTapped())
+                {
+                    Crumb($"CF-activate-reject def={effect.Id} reason=源已横置 src={source.ID}");
                     return false;
+                }
             }
 
             var pending = PendingEffect.Create(
@@ -1144,6 +1199,8 @@ namespace CardCore
                 paidBoost: paidBoost);
 
             var activated = core.StackEngine.PlayerActivateVoluntary(pending);
+            if (!activated)
+                Crumb($"CF-activate-reject def={effect.Id} reason=速度门或入栈失败 ctr={core.StackEngine.SpeedCounter.CurrentSpeed} stack={core.StackEngine.StackSize}");
 
             // 发动成功 → 消耗发动代价（仅主动；固定代价，不发不扣）：横置（恒横置，警戒不抵扣）
             //——生物每回合一次；技能区法术=英雄技能每回合一次（回合开始 Untap 重置）。
@@ -1154,6 +1211,58 @@ namespace CardCore
             }
 
             return activated;
+        }
+
+        /// <summary>
+        /// 响应窗口内发动主动效果（2026-10-17 连锁门禁收敛定案）：与 ActivateEffect 同构，
+        /// 差异=不设「回合方+主阶段」闸（那是非响应场景的时点语义，不是连锁条件——防守方凭
+        /// 速度 &gt; 记速器在攻宣窗口连锁 2 速主动效果正是本口要放行的场景），改设栈上下文守卫
+        /// （有对象可响应且不在结算中——泵上下文天然满足，防御性保留）。
+        /// 速度门权威仍在 StackEngine.TryActivateEffect（回合方 ≥ / 非回合方严格大于）。
+        /// 发动代价同口径：结界禁主动；源横置=每回合一次闸；发动成功横置（ShouldTap）。
+        /// </summary>
+        public static bool ActivateEffectInResponse(GameCore core, Player player, EffectDefinition effect, Card source)
+        {
+            if (core == null || player == null || effect == null || source == null) return false;
+            if (core.StackEngine.IsEmpty || core.StackEngine.IsResolving)
+            {
+                Crumb($"CF-activate-reject def={effect.Id} reason=响应窗口已关闭（栈空或结算中）");
+                return false;
+            }
+
+            if (effect.IsActivatedEffect)
+            {
+                if (Attribute.CounterRules.UsesDurabilityEconomy(source))
+                {
+                    Crumb($"CF-activate-reject def={effect.Id} reason=结界禁主动 src={source.ID}");
+                    return false;
+                }
+                if (source.IsTapped())
+                {
+                    Crumb($"CF-activate-reject def={effect.Id} reason=源已横置 src={source.ID}");
+                    return false;
+                }
+            }
+
+            var pending = PendingEffect.Create(
+                effect,
+                source,
+                player,
+                core.TurnEngine.TurnPlayer,
+                core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Standby);
+
+            var activated = core.StackEngine.PlayerActivateVoluntary(pending);
+            if (!activated)
+            {
+                Crumb($"CF-activate-reject def={effect.Id} reason=速度门或入栈失败 ctr={core.StackEngine.SpeedCounter.CurrentSpeed} stack={core.StackEngine.StackSize}");
+                return false;
+            }
+
+            // 发动成功 → 消耗发动代价（与 ActivateEffect 同口径：横置=每回合一次闸）
+            if (effect.IsActivatedEffect && Attribute.KeywordRules.ShouldTap(source))
+                source.Tap();
+
+            return true;
         }
 
         /// <summary>

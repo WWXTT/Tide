@@ -462,7 +462,7 @@ namespace CardCore.Editor
             Assert(core.ElementPool.GetLandCap(p1) == 3, "T3（p1 第 2 个回合=全局第 3 回合）地牌槽上限 = 3（每次回合开始双方同步 +1）");
             var landAfter = core.ElementPool.GetPooledCards(p1).FirstOrDefault();
             Assert(landAfter != null && !landAfter.IsTapped,
-                   $"己方回合开始地牌恢复（解除横置）（p1 池 {core.ElementPool.GetPooledCards(p1).Count} 张：{string.Join(",", core.ElementPool.GetPooledCards(p1).Select(l => l.SourceCard.ID + (l.IsTapped ? "·横置" : "·直立")))}）");
+                   $"己方回合开始地牌转为可用（解除横置）（p1 池 {core.ElementPool.GetPooledCards(p1).Count} 张：{string.Join(",", core.ElementPool.GetPooledCards(p1).Select(l => l.SourceCard.ID + (l.IsTapped ? "·横置" : "·可用")))}）");
 
             var records = core.ResourceLedger.GetRecords(p1);
             Assert(records.Count >= 2, "台账已有 p1 两行记录");
@@ -1928,8 +1928,8 @@ namespace CardCore.Editor
         /// - 攻击=速度0栈对象：宣言零支付上栈开窗，结算期重检→战斗三段→战斗后横置支付；
         /// - 守卫=速度1响应：窗口内 PushGuardDeclaration 入栈（资格闸 NoGuard/横置/存活），
         ///   LIFO 先结算——攻击目标变更+GuardBlocker 登记（守卫横置随攻击结算在战斗后支付）；
-        /// - 双向结算基线（2026-10-15）：双方竖直完成战斗——守卫照常反击，战斗后才横置；
-        /// - 警戒：已横置防守者仍反击（拦截局战斗期间本就竖直，反击不再依赖警戒）；
+        /// - 双向结算基线（2026-10-15）：双方以可用状态完成战斗——守卫照常反击，战斗后才横置；
+        /// - 警戒：已横置防守者仍反击（拦截局战斗期间本就可用，反击不再依赖警戒）；
         /// - 速度门槛：标准速度门（0≥计数器）——连锁开启时攻击不可宣言；
         /// - 法术底盘剩余提速（2026-10-10 可支配底盘）：SpeedBonus 卡级增量与全部效果 BaseSpeed 加和。
         /// </summary>
@@ -1951,7 +1951,7 @@ namespace CardCore.Editor
                 var card = new CardWrapper(data);
                 card.SetController(owner);
                 Assert(core.ZoneManager.TryAddToBattlefield(card, owner), $"AG 合成随从入场（{data.CardName}）");
-                card.Untap(); // 横置入场定案：本段测试前提 = 竖直随从
+                card.Untap(); // 本段测试前提 = 可用随从（2026-10-17 入场即可用后为无害冗余）
                 return card;
             }
 
@@ -1970,13 +1970,13 @@ namespace CardCore.Editor
             var attackInstance = core.StackEngine.Peek();
             Assert(core.StackEngine.PushGuardDeclaration(shield, attackInstance, p2), "守卫段：守卫速度1响应入栈");
             GameActions.DrainStack(core);        // 守卫先结（目标变更+登记）→ 攻击三段（双向）→ 战斗后双方横置
-            Assert(shield.IsTapped(), "守卫拦截：战斗后横置（战斗期间竖直参战）");
+            Assert(shield.IsTapped(), "守卫拦截：战斗后横置（战斗期间以可用状态参战）");
             Assert(shield.IsAlive && shield.GetLife() == 2, "守卫拦截：守卫吃 4 伤（6→2）");
             Assert(!striker.IsAlive, "守卫反击：3 反伤致死 4/2 攻击者（不计关键词的基线=双向结算）");
             Assert(p2.Life == p2Life0, "守卫拦截：玩家未被击中（目标已转移）");
 
             // ---- 2b. 警戒（2026-10-15 现职责）：已横置防守者被攻击仍反击 ----
-            //（拦截局守卫战斗期间本就竖直、反击不依赖警戒；普通横置不反击见 8c 对照）
+            //（拦截局守卫战斗期间本就可用、反击不依赖警戒；普通横置不反击见 8c 对照）
             var raider = Spawn(p1, 4, 2);
             var valiant = Spawn(p2, 3, 6, false, false, CardCore.Attribute.KeywordRules.Vigilance);
             valiant.Tap(); // 模拟已横置（刚攻击过/被冻结）
@@ -3152,7 +3152,7 @@ namespace CardCore.Editor
                 // 入场结果显式断言（2026-09-10）：战场容量 18，静默入不了场会把后续断言级联成假回归
                 Assert(core.ZoneManager.TryAddToBattlefield(card, owner),
                        $"合成随从入场成功（{data.CardName}）");
-                card.Untap(); // 新规则横置入场；本段测试前提 = 已过回合重置的竖直随从（横置行为单独断言）
+                card.Untap(); // 本段测试前提 = 可用随从（横置行为单独断言；入场即可用后为无害冗余）
                 used.Add(card);
                 return card;
             }
@@ -3201,7 +3201,7 @@ namespace CardCore.Editor
             Assert(spellShieldRow != null && spellShieldRow.HashId == "7270df35",
                    "法术护盾行 refId 重推：a3ad6a04→7270df35（指示物化随文案换号）");
 
-            // ---- 2. 横置可用性 / 冲锋 / 突袭（2026-09-08 定案：一律横置入场；冲锋/突袭=登场效果，无入场豁免） ----
+            // ---- 2. 横置可用性 / 冲锋 / 突袭（2026-10-17 定案：取消横置入场——入场一律可用；冲锋/突袭=登场效果，解横置成空操作） ----
             var tappedUnit = Make(p1, 3, 3);
             tappedUnit.Tap(); // 模拟横置在场（未过回合重置）
             Assert(!combat.CanDeclareAttack(tappedUnit, p1), "横置随从不可攻击（可用性统一走横置）");
@@ -3257,7 +3257,7 @@ namespace CardCore.Editor
             }
 
             var plain = MakeEntry();
-            Assert(plain.IsTapped(), "普通随从：一律横置入场");
+            Assert(!plain.IsTapped(), "普通随从：入场即可用（2026-10-17 取消横置入场）");
             // A组诊断埋点 v2（2026-09-10）：计数改为按效果 Id 过滤（v1 无过滤，×1 可能是杂散效果）；
             // 附转换 X 光（直接看 ConvertAll 产物的域/模式/激活类）+ 入场即入队探针。
             CardWrapper charger = null;
@@ -3273,7 +3273,7 @@ namespace CardCore.Editor
             }
             EventManager.Instance.Subscribe<StackAddEvent>(OnStackAdd);
             charger = MakeEntry(EntryReadyEffect(false));
-            Assert(charger.IsTapped(), "冲锋（登场效果）：入场时仍横置（结算前无豁免）");
+            Assert(!charger.IsTapped(), "冲锋（登场效果）：入场即可用（解横置效果行成为空操作）");
             bool queuedAtEntry = core.StackEngine.HasPendingEffects; // 入场事件应已把 OnPlay 排进待发队列
             var conv = GameActions.GetCardEffectDefinitions(charger);
             UnityEngine.Debug.Log("[KWDBG] charger 转换=" + string.Join(";", conv.Select(d =>
@@ -3360,7 +3360,7 @@ namespace CardCore.Editor
             Assert(vigilant.IsTapped(), "警戒重定义：攻击结算期照常横置（不再代替横置扣除）");
             Assert(CardCore.Attribute.KeywordRules.ShouldTap(vigilant), "警戒重定义：横置代价恒支付");
             // 横置持警戒反击：已横置防守者被攻击仍反击（见 TestAttackGuard 2b；2026-10-15 起
-            // 拦截守卫战斗期间竖直，反击不再依赖警戒）
+            // 拦截守卫战斗期间可用，反击不再依赖警戒）
 
             // ---- 7. 横置即上限（2026-09-10 定案：计数/会话门槛均已撤，激励可再动；逐攻击开窗）----
             var loneWolf = Make(p1, 1, 9);
@@ -5953,164 +5953,6 @@ namespace CardCore.Editor
                 return;
             }
             RegenOneDeck(path, null);
-        }
-
-        // ======================================== 原子表费用列迁移（2026-10-04 一次性） ========================================
-
-        /// <summary>
-        /// 费用两列 → ManaList 位置数组迁移（2026-10-04 全链统一定案，一次性工具——保留作迁移档案）：
-        /// 每行 EffectColor+BaseCost → "ManaList":[下标=ManaType 枚举序号]（[灰,红,蓝,绿,白,黑]，
-        /// 长度=枚举成员数，扩色自动加长）；同时删除死列 EffectTier（枚举 2026-09-10 已删，零读取方）。
-        /// BaseCost≤0/色名不解析 = 不计价行 → 不写 ManaList（null 语义）。ID 列与其余字段原样保留
-        ///（不做 RegenAtomicTableIds 的 ID 对齐——那是换血波次的独立动作）。
-        /// 迁移后自检：行数守恒、计价总额同构（ΣBaseCost == ΣTotalUnitCost）、抽查三行（碾压红3/沉睡绿2/治疗绿0.5）。
-        /// </summary>
-        [MenuItem("Tools/迁移原子表费用列到位置数组（一次性）")]
-        public static void MigrateAtomicTableManaToPositional()
-        {
-            string path = Path.Combine(Application.dataPath, "Configs", "AttributeValueConfig.json");
-            if (!File.Exists(path))
-            {
-                Debug.LogError($"[ManaMig] 找不到原子表 {path}");
-                return;
-            }
-
-            var root = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(path));
-            int len = CardCore.ElementCost.Length;
-            int migrated = 0, unpriced = 0, already = 0;
-            float oldSum = 0f, newSum = 0f; // 同构校验用（迁移前后计价总额）
-            foreach (var row in root.OfType<Newtonsoft.Json.Linq.JObject>())
-            {
-                bool hasOld = row["EffectColor"] != null || row["BaseCost"] != null;
-                if (row["ManaList"] is Newtonsoft.Json.Linq.JArray)
-                {
-                    already++; // 幂等：已迁行只清残留旧列
-                }
-                else if (hasOld)
-                {
-                    string colorName = row["EffectColor"]?.ToString();
-                    float baseCost = (float?)row["BaseCost"] ?? 0f;
-                    if (baseCost > 0f && !string.IsNullOrEmpty(colorName)
-                        && System.Enum.TryParse<ManaType>(colorName, true, out var color))
-                    {
-                        var arr = new Newtonsoft.Json.Linq.JArray();
-                        for (int i = 0; i < len; i++) arr.Add(0f);
-                        arr[(int)color] = baseCost;
-                        row["ManaList"] = arr;
-                        oldSum += baseCost;
-                        newSum += baseCost;
-                        migrated++;
-                    }
-                    else
-                    {
-                        unpriced++; // BaseCost≤0/色名不解析 = 不计价行（旧兜底同样不合成）
-                    }
-                }
-                else unpriced++;
-
-                row.Remove("EffectColor"); // 旧两列+死列全删（幂等）
-                row.Remove("BaseCost");
-                row.Remove("EffectTier");
-            }
-
-            var sb = new System.Text.StringBuilder();
-            using (var tw = new StringWriter(sb))
-            using (var jw = new Newtonsoft.Json.JsonTextWriter(tw)
-                   { Formatting = Newtonsoft.Json.Formatting.Indented, IndentChar = ' ', Indentation = 2 })
-                root.WriteTo(jw);
-            File.WriteAllText(path, sb.ToString() + "\n");
-            Debug.Log($"[ManaMig] 原子表费用列迁移：{root.Count} 行 = 迁移 {migrated} + 不计价 {unpriced} + 已迁 {already} → {path}");
-
-            // ---- 迁移后自检：重载表 + 同构/抽查断言 ----
-            CardCore.Attribute.AtomicEffectTable.Reload();
-            var all = CardCore.Attribute.AtomicEffectTable.GetAll().ToList();
-            int pass = 0, fail = 0;
-            void Check(bool ok, string what)
-            {
-                if (ok) { pass++; Debug.Log($"[ManaMig] ✓ {what}"); }
-                else { fail++; Debug.LogError($"[ManaMig] ✗ {what}"); }
-            }
-            Check(all.Count == root.Count, $"行数守恒（表 {all.Count} == 文件 {root.Count}）");
-            Check(System.Math.Abs(all.Sum(c => c.TotalUnitCost) - newSum) < 1e-4,
-                  $"计价总额同构（ΣTotalUnitCost={all.Sum(c => c.TotalUnitCost)} == ΣBaseCost={newSum}）");
-            Check(all.All(c => c.ManaList == null || c.ManaList.v.Length == len),
-                  $"数组长度全部 = {len}（枚举成员数）");
-            var hammer = all.FirstOrDefault(c => c.EnumName == "GrantOverwhelm");
-            Check(hammer?.ManaList != null && System.Math.Abs(hammer.ManaList[ManaType.Red] - 3f) < 1e-6
-                  && System.Math.Abs(hammer.ManaList.Total - 3f) < 1e-6, "抽查：碾压 = 红3 → [0,3,0,0,0,0]");
-            var sleep = all.FirstOrDefault(c => c.EnumName == "Sleep");
-            Check(sleep?.ManaList != null && System.Math.Abs(sleep.ManaList[ManaType.Green] - 2f) < 1e-6,
-                  "抽查：沉睡 = 绿2 → [0,0,0,2,0,0]");
-            var heal = all.FirstOrDefault(c => c.EnumName == "Heal");
-            Check(heal?.ManaList != null && System.Math.Abs(heal.ManaList[ManaType.Green] - 0.5f) < 1e-6,
-                  "抽查：治疗 = 绿0.5 → [0,0,0,0.5,0,0]（半价 float 精度）");
-            Debug.Log($"[ManaMig] 自检完成：PASS={pass} FAIL={fail}");
-        }
-
-        /// <summary>
-        /// 卡表/效果表费用列迁移（2026-10-04 一次性，原子表迁移的配套第二步）：
-        /// Cards.json costList：[{manaType,amount}] 对 → float 位置数组（下标=ManaType 枚举序号）；
-        /// Effects.json cost（效果锚价快照）：[{mana,value}] 对 → 同款位置数组。
-        /// 纯格式变换不改数值；迁完后跑「仅重推正式卡费用」按现行表全盘重推数值。
-        /// 幂等：已是数值数组的列原样跳过。
-        /// </summary>
-        [MenuItem("Tools/迁移卡表与效果表费用列到位置数组（一次性）")]
-        public static void MigrateCardAndEffectCostsToPositional()
-        {
-            int len = CardCore.ElementCost.Length;
-
-            // ---- ① Cards.json costList ----
-            string cardsPath = Path.Combine(Application.streamingAssetsPath, "Card", "Cards.json");
-            int cardsMigrated = 0;
-            if (File.Exists(cardsPath))
-            {
-                var root = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(cardsPath));
-                foreach (var card in root["cards"]?.OfType<Newtonsoft.Json.Linq.JObject>() ?? Enumerable.Empty<Newtonsoft.Json.Linq.JObject>())
-                {
-                    var list = card["costList"];
-                    if (list is Newtonsoft.Json.Linq.JArray arr && MigratePairArrayToPositional(arr, len))
-                        cardsMigrated++;
-                }
-                File.WriteAllText(cardsPath, root.ToString(Newtonsoft.Json.Formatting.Indented));
-                Debug.Log($"[ManaMig] Cards.json costList 迁移 {cardsMigrated} 张 → {cardsPath}");
-            }
-            else Debug.LogError($"[ManaMig] 找不到卡表 {cardsPath}");
-
-            // ---- ② Effects.json cost（效果锚价快照）----
-            string fxPath = Path.Combine(Application.streamingAssetsPath, "Card", "Effects.json");
-            int fxDone = 0;
-            if (File.Exists(fxPath))
-            {
-                var root = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(fxPath));
-                foreach (var item in root["items"]?.OfType<Newtonsoft.Json.Linq.JObject>() ?? Enumerable.Empty<Newtonsoft.Json.Linq.JObject>())
-                {
-                    var cost = item["cost"];
-                    if (cost is Newtonsoft.Json.Linq.JArray arr && MigratePairArrayToPositional(arr, len, "mana"))
-                        fxDone++;
-                }
-                File.WriteAllText(fxPath, root.ToString(Newtonsoft.Json.Formatting.Indented));
-                Debug.Log($"[ManaMig] Effects.json cost 迁移 {fxDone} 条 → {fxPath}");
-            }
-            else Debug.LogError($"[ManaMig] 找不到效果表 {fxPath}");
-
-            Debug.Log($"[ManaMig] 卡表/效果表费用列迁移完成：卡 {cardsMigrated} + 效果 {fxDone}");
-        }
-
-        /// <summary>对列表（[{manaType,amount}] 或 [{mana,value}]）→ 位置数组；已是数值数组返回 false（幂等）。</summary>
-        private static bool MigratePairArrayToPositional(Newtonsoft.Json.Linq.JArray arr, int len, string manaKey = "manaType")
-        {
-            if (arr.Count == 0) return false;
-            if (arr[0] is Newtonsoft.Json.Linq.JValue) return false; // 已迁（数值数组）
-            var positional = new Newtonsoft.Json.Linq.JArray();
-            for (int i = 0; i < len; i++) positional.Add(0f);
-            foreach (var entry in arr.OfType<Newtonsoft.Json.Linq.JObject>())
-            {
-                int idx = (int)entry[manaKey];
-                float amount = (float?)entry["amount"] ?? (float?)entry["value"] ?? 0f;
-                if (idx >= 0 && idx < len) positional[idx] = amount;
-            }
-            arr.Replace(positional); // 原数组节点整替为位置数组（保持属性位置）
-            return true;
         }
 
         /// <summary>原子表 ID 列重推（镜像 Config/gen_effect_ids.py 口径：sha256(DisplayName.Trim())

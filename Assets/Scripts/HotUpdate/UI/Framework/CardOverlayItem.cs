@@ -60,7 +60,7 @@ namespace SynergyUI
                 IsFrozen = v.IsFrozen,
                 IsDead = v.IsDead,
             };
-            var data = string.IsNullOrEmpty(v.CardId) ? null : CardCatalog.GetById(v.CardId);
+            var data = string.IsNullOrEmpty(v.CardId) ? null : CardCatalog.GetByInstanceId(v.CardId);
             FillStatic(data, it, keepRuntimeStats: layout == CardOverlayLayout.Compact);
             if (layout == CardOverlayLayout.Compact && v.Runtime != null)
                 it.StatsText = $"{v.Runtime.Power}/{v.Runtime.Life}";
@@ -132,7 +132,7 @@ namespace SynergyUI
                 IsFrozen = v.IsFrozen,
                 RuntimeCard = v.CoreCard,
             };
-            var data = string.IsNullOrEmpty(v.CardId) ? null : CardCatalog.GetById(v.CardId);
+            var data = string.IsNullOrEmpty(v.CardId) ? null : CardCatalog.GetByInstanceId(v.CardId);
             if (data != null)
             {
                 if (string.IsNullOrEmpty(it.Name)) it.Name = string.IsNullOrEmpty(data.CardName) ? data.ID : data.CardName;
@@ -202,7 +202,7 @@ namespace SynergyUI
         public static CardOverlayItem FromLiveCard(Card core)
         {
             if (core == null) return null;
-            var data = CardCatalog.GetById(core.ID);
+            var data = CardCatalog.GetByInstanceId(core.ID);
             return FromHand(new BattleCardView
             {
                 RuntimeId = core.RuntimeId,
@@ -235,7 +235,7 @@ namespace SynergyUI
                         it.StatsText = $"{data.Power ?? 0}/{data.Life ?? 0}";
                         break;
                     case Cardtype.Enchantment:
-                        if (data.Durability > 0) it.StatsText = $"耐久{data.Durability}";
+                        it.StatsText = $"耐久{CardCompositionCost.TotalDurabilityOf(data)}"; // 2026-10-17：结界恒有耐久（派生单源）
                         break;
                 }
             }
@@ -245,7 +245,8 @@ namespace SynergyUI
             it.EffectText = EffectSummaryOf(data);
         }
 
-        /// <summary>attribute 区紧凑格式（2026-10-15 晚定案）：生物=攻击/生命、结界=耐久&gt;0；
+        /// <summary>attribute 区紧凑格式（2026-10-15 晚定案）：生物=攻击/生命、结界=耐久（2026-10-17
+        /// 起恒显——结界一律走耐久经济，TotalDurabilityOf 派生单源）；
         /// 发动速度不在此显示（与速度定案冲突——速度归效果描述句首，见 AtomText.ActivationPrefix），
         /// 空串=藏区。</summary>
         private static string AttributeTextOf(CardData d)
@@ -256,8 +257,8 @@ namespace SynergyUI
                 parts.Add($"攻击{d.Power ?? 0}");
                 parts.Add($"生命{d.Life ?? 0}");
             }
-            else if (d.Supertype == Cardtype.Enchantment && d.Durability > 0)
-                parts.Add($"耐久{d.Durability}");
+            else if (d.Supertype == Cardtype.Enchantment)
+                parts.Add($"耐久{CardCompositionCost.TotalDurabilityOf(d)}");
             return parts.Count == 0 ? "" : string.Join(" ", parts);
         }
 

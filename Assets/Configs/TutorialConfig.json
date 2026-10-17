@@ -4,83 +4,291 @@
       "id": "basics",
       "name": "基础教学",
       "rngSeed": 20261002,
-      "_说明": "卡组顺序即摸牌序列（锁牌库序）：前 6 张为起手、之后每回合摸恒取牌库顶。aiScript 按机器人的第几个回合编排（turn 从 1 计）；R6 起无剧本=机器人直接结束回合（被动等玩家终结）。2026-10-15 四次修订：双方卡组整体换用主题卡组 红·快攻.json（30 张原序照抄：灰费白板+红费关键词生物——锋卫/刺客/先攻/剑士=先攻，连击/碾压/缴械/守护各带本体关键词）。全卡组经复查无红灰以外颜色（出牌费+效果锚价+关键词原子 ManaList 全为灰/红）。机器人节奏：R1 灰地+斥候，R2 起锋卫锁红地攒双色经济，R2-R5 共 13 点脸伤（R2:3+R3:2+R4:2+R5:6），30 起始生命下节奏安全。",
-      "playerDeck": [
-        "C_239B5411",
-        "C_7F1F67FF",
-        "C_7F1F67FF",
-        "C_248D1A0A",
-        "C_248D1A0A",
-        "C_248D1A0A",
-        "C_A13EE0F1",
-        "C_A13EE0F1",
-        "C_A13EE0F1",
-        "C_16A76B32",
-        "C_16A76B32",
-        "C_CA8D2651",
-        "C_98B79493",
-        "C_98B79493",
-        "C_98B79493",
-        "C_32E8EFB4",
-        "C_349C1706",
-        "C_9FAE2DD3",
-        "C_9FAE2DD3",
-        "C_782E8268",
-        "C_0F0FD27E",
-        "C_396A5A59",
-        "C_DFCFCB22",
-        "C_8A2D263A",
-        "C_A2CFE97D",
-        "C_B8FBCA8D",
-        "C_B84D8B67",
-        "C_7F1F67FF",
-        "C_2BB8E3FF",
-        "C_89D96ECB"
+      "_说明": "教学一·两段式第三版修订（2026-10-17 晚·考验重铸）：介绍段=7 段配音卡片+语音联动地块独占显隐（reveal 指令 Solo）；操作段=宽松步+AI 守卫演示（attack 步 aiGuard=true——宣言帧不推进，结算探针才算完成，解说卡 basics_14 文字占位待配音、由 UI 等战斗表现收尾后弹出）；basics_12 过场（aiTurnOnConfirm）显示时 midTransition 全清重铺（阶段一生物不保留），确定后直接把回合交给对手=对手进攻回合；考验=玩家 6/1 主将+8×2/2+3×1/1 对 8/8×2+7/7×2+2/2×2（2026-10-17 真实白板卡定案：同属性共用一张卡 C_7E5A100B~100E+100F=6/1 主将专用，units 数值覆写退役；当晚再改=前排三只 2/2 换 1/1 加难），AI 打法=四只大怪无脑打脸（hero）、两只 2/2 首选打玩家 6/1（target=100F，fallback=hero——6/1 死后转攻角色），victory 自由挑战（打赢过/打输重来）。阶段一生物=玩家召唤 1/1（教学生物12）·AI 铺 3/2（教学生物24）——回合 2 玩家再攻时 AI 守卫挡刀并反杀（basics_14 解说，横置不反击同段讲授）。语音=StreamingAssets/TutorialAudio/basics_01..13 到货+basics_14 待录。跳过机制 guideSkip=[victory]/skipScenario（firstPlayer=P2 直入即对手进攻回合，ScriptedAi turnOffset=1 对位 turn2）。。卡组引用文件化（2026-10-17）：playerDeckFile/aiDeckFile → StreamingAssets/Tutorial/basics.json+basics_ai.json（DeckData 格式，id 引用即是卡组、可重复）；当晚改版=玩家起手=1/1 召唤卡×2（教学生物12 固定两张上手——防垫地耗尽后无生物可召）+考验上场卡填充（2/2×3+6/1，抽牌亦 2/2）、AI=剧本 3 张（垫地×2+3/2）+其考验怪填充（8/8×2+7/7×2+2/2）；2/2 白板费 1→2 保「费用最低那张」唯一指向 1/1（考验段摆场不付费无影响）；教学卡表同批清剿无引用废卡（39→7，100C=6/6 一并退役）；教学卡表/效果表均在 StreamingAssets/Tutorial/，正式卡池 Card/ 不再混放教学卡",
+      "guide": [
+        {
+          "type": "intro",
+          "reveal": "board",
+          "audio": "basics_01",
+          "hint": "欢迎来到潮汐。这是一款卡牌对战游戏。在正式开始之前，先花一点时间，认识一下这片战场。"
+        },
+        {
+          "type": "intro",
+          "reveal": "board",
+          "audio": "basics_02",
+          "hint": "整块战场由一行行六边形格子组成，分为上下两个半场。靠近你的下半场是你的领地，上半场属于对手，两边完全对称。战场正中央的那一行是信息条，包含各自的剩余操作时间的倒计时，各自的临时元素获取上限，阶段转换信息和连锁速度。"
+        },
+        {
+          "type": "intro",
+          "reveal": "zone:role",
+          "audio": "basics_03",
+          "hint": "首先要说明战场结构，左侧是角色格，角色具有攻击，守卫，和一个每回合一次的主动技能，角色是游戏的核心，初始具有30点生命，当生命归零时对手获得胜利。"
+        },
+        {
+          "type": "intro",
+          "reveal": "zone:activation",
+          "audio": "basics_04",
+          "hint": "中间是由12格组成的发动区，生物，结界，法术的发动都需要有空闲的发动区才能发动；连接光环的效果只作用于它箭头指向方向的地块，生物在场上的位置摆放，需要留意这一点。"
+        },
+        {
+          "type": "intro",
+          "reveal": "zone:right",
+          "audio": "basics_05",
+          "hint": "右侧是卡组，墓地和除外区。卡组使用的是炉石经典结构，牌库抽光后试图抽牌会对玩家造成疲劳伤害；墓地和除外区则对应不同的场上单位去除手段，正常的死亡，被效果消灭，卡都会进入墓地，被除外的卡则进入除外区，除外区比墓地更难回到战场。"
+        },
+        {
+          "type": "intro",
+          "reveal": "zone:p1-land",
+          "audio": "basics_06",
+          "hint": "最底层是地牌区域，分为红蓝绿三种主题元素，代表不同的能力倾向，灰色能被其他颜色代替支付，是最基础的元素；进阶元素无法从地牌获得，只能通过对自己释放负面效果作为代价，获得黑色元素，对对手释放正面效果为代价，获得白色元素，这就是中间临时元素生成上限的实际含义，限制着两种行为每回合获得的资源上限。"
+        },
+        {
+          "type": "intro",
+          "reveal": "all",
+          "audio": "basics_07",
+          "hint": "接下来将引导你完成回合中的基础操作，需要你根据提示进行对应的操作才能推进教程进度。"
+        },
+        {
+          "type": "intro",
+          "reveal": "hand",
+          "audio": "basics_08",
+          "hint": "卡牌右上角的那一组小方格，代表使用这张卡需要的元素代价。通过观察可以发现，费用要求最低的是一个灰色元素的生物，而元素需要通过放置卡牌到地牌格获得，接下来请挑选一张卡放进地牌格，并召唤一个生物"
+        },
+        {
+          "type": "element",
+          "card": "",
+          "hint": "放置地牌：点击手牌中的一张卡，把它放进元素池（下排地牌格）——它会锁定产色，出牌时系统自动横置它付费"
+        },
+        {
+          "type": "play",
+          "card": "",
+          "hint": "召唤生物：点击一张你付得起费用的生物（先试费用最低那张），再点己方单位区一个空格"
+        },
+        {
+          "type": "intro",
+          "audio": "basics_10",
+          "hint": "你成功的召唤了生物，生物召唤后场地上出现了三个按钮，分别是攻击，守卫和发动效果，三者都需要横置生物作为代价，召唤的第一个回合，生物是可用状态，生物脚下的提示光圈是可用的标志。接下来点击攻击按钮，选定对手角色为目标，进行一次战斗。"
+        },
+        {
+          "type": "attack",
+          "attacker": "",
+          "target": "hero",
+          "hint": "点击你生物脚下的【攻击】按钮，选定对手角色为目标，进行一次战斗"
+        },
+        {
+          "type": "intro",
+          "audio": "basics_11",
+          "hint": "攻击后生物的可用状态转换成了横置状态，提示光圈消失，此时三个按钮全失效，不能再发动。当前已经没有可操作的内容，点击战场中间最右侧的回合结束按钮，结束回合。"
+        },
+        {
+          "type": "end",
+          "hint": "第一回合演示完毕——点中央信息条的「结束回合」格，看对手做什么"
+        },
+        {
+          "type": "intro",
+          "audio": "basics_13",
+          "hint": "细枝末节的设定不再赘述，你可以通过鼠标悬停观测左上角的当前状态提示信息，或者点对局日志按钮，看对局完整历史记录。"
+        },
+        {
+          "type": "intro",
+          "audio": "basics_09",
+          "hint": "再次向对手角色发起攻击。"
+        },
+        {
+          "type": "attack",
+          "attacker": "",
+          "target": "hero",
+          "aiGuard": true,
+          "hint": "再次向对手角色发起攻击。"
+        },
+        {
+          "type": "intro",
+          "audio": "basics_14",
+          "hint": "对手场上具有可行动的生物，它发动了守卫，将这次战斗的目标，强行改写成以它为攻击目标，防止对角色造成战斗伤害。一个关键技巧：生物的攻击，守卫，发动主动效果后，都会进入横置状态，此时被攻击，不会反击造成战斗伤害。"
+        },
+        {
+          "type": "intro",
+          "reveal": "midTransition",
+          "audio": "basics_12",
+          "aiTurnOnConfirm": true,
+          "hint": "热身结束，真正的考验来了！双方的援军已经登场，手牌和牌库全部清空，接下来利用对手不留防御的缺点，在己方场上生物的属性远低于对面的情况下，击杀对手角色，获得胜利。"
+        },
+        {
+          "type": "victory",
+          "hint": "攻防都学会了——自由发挥，把对面角色的生命打到 0，赢下第一课！（守卫、交换、换子取舍都在你手上）"
+        }
       ],
-      "_玩家节奏": "起手：教学生物18(入池)/教学生物13(打出)/教学生物14/16/15 + 填充白板。T4 起抽红费生物42/43（可放地锁红色或攒地后打出；蓝费线已撤，卡组=红费+无关键词白板）。玩家按元素池→出随从→攻击→结束回合的节奏约 5-7 回合自然获胜。",
-      "aiDeck": [
-        "C_7F1F67FF",
-        "C_7F1F67FF",
-        "C_7F1F67FF",
-        "C_248D1A0A",
-        "C_248D1A0A",
-        "C_248D1A0A",
-        "C_A13EE0F1",
-        "C_A13EE0F1",
-        "C_A13EE0F1",
-        "C_16A76B32",
-        "C_16A76B32",
-        "C_CA8D2651",
-        "C_98B79493",
-        "C_98B79493",
-        "C_98B79493",
-        "C_32E8EFB4",
-        "C_349C1706",
-        "C_9FAE2DD3",
-        "C_9FAE2DD3",
-        "C_782E8268",
-        "C_0F0FD27E",
-        "C_396A5A59",
-        "C_DFCFCB22",
-        "C_8A2D263A",
-        "C_A2CFE97D",
-        "C_B8FBCA8D",
-        "C_B84D8B67",
-        "C_239B5411",
-        "C_2BB8E3FF",
-        "C_89D96ECB"
+      "guideSkip": [
+        {
+          "type": "victory",
+          "reveal": "",
+          "hint": "自由发挥，把对面角色的生命打到 0，赢下第一课！"
+        }
       ],
+      "skipScenario": {
+        "startTurn": 3,
+        "firstPlayer": "P2",
+        "_说明": "考验场面（2026-10-17 真实白板卡定案；当晚改版：玩家主将 6/6→6/1、AI 双 6/6→双 2/2 且首选打 6/1）：玩家=6/1 主将+8×2/2 卒+3×1/1 炮灰（教学生物12，前排 z3 左三；midTransition 全清重铺，阶段一生物不保留）；AI=8/8×2+7/7×2+2/2×2，生命 10/20（玩家 10——当晚加难第二刀，挨两记大怪不守卫即出局）。全部引用 TutorialCards 真实白板卡：C_7E5A100B=2/2（费 2）、100F=6/1（主将专用）、100D=7/7、100E=8/8——100C=6/6 已随当晚卡表清剿删除——同属性生物共用同一张卡，units 数值覆写口已退役。id 引用即是卡组：同 id 多张由 Seeder 摆场唯一化为衍生物式实例 ID（首张裸 id、第 2 张起 id#N，按 P1→P2 units 序）；aiScript turn2-10：四只大怪（100E/100E#2/100D/100D#2）全打 hero，两只 2/2 写实例 ID 100B#9/100B#10（玩家 8 只 2/2 占掉裸 id~#8），target=100F 首选打玩家 6/1 主将、6/1 死亡后 fallback=hero 转攻角色（首只 2/2 与 6/1 互换阵亡，第二只回落打角色）。firstPlayer=P2=直入即对手进攻回合。旧 1001~100A 覆写底板卡已删（临时课不作数，2026-10-17 用户定案）",
+        "player": {
+          "life": 10,
+          "fatigue": 0,
+          "bank": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "lands": [],
+          "units": [
+            {
+              "card": "C_7E5A100F",
+              "tapped": false,
+              "x": 4,
+              "z": 4
+            },
+            {
+              "card": "C_7E5A100B",
+              "tapped": false,
+              "x": 1,
+              "z": 4
+            },
+            {
+              "card": "C_7E5A100B",
+              "tapped": false,
+              "x": 2,
+              "z": 4
+            },
+            {
+              "card": "C_7E5A100B",
+              "tapped": false,
+              "x": 3,
+              "z": 4
+            },
+            {
+              "card": "C_7E5A100B",
+              "tapped": false,
+              "x": 5,
+              "z": 4
+            },
+            {
+              "card": "C_7E5A100B",
+              "tapped": false,
+              "x": 6,
+              "z": 4
+            },
+            {
+              "card": "C_7E5A100B",
+              "tapped": false,
+              "x": 7,
+              "z": 4
+            },
+            {
+              "card": "C_4A88A165",
+              "tapped": false,
+              "x": 1,
+              "z": 3
+            },
+            {
+              "card": "C_4A88A165",
+              "tapped": false,
+              "x": 2,
+              "z": 3
+            },
+            {
+              "card": "C_4A88A165",
+              "tapped": false,
+              "x": 3,
+              "z": 3
+            },
+            {
+              "card": "C_7E5A100B",
+              "tapped": false,
+              "x": 4,
+              "z": 3
+            },
+            {
+              "card": "C_7E5A100B",
+              "tapped": false,
+              "x": 5,
+              "z": 3
+            }
+          ],
+          "hand": [],
+          "deck": [],
+          "grave": []
+        },
+        "ai": {
+          "life": 20,
+          "fatigue": 0,
+          "bank": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "lands": [],
+          "units": [
+            {
+              "card": "C_7E5A100E",
+              "tapped": false,
+              "x": 3,
+              "z": 2
+            },
+            {
+              "card": "C_7E5A100E",
+              "tapped": false,
+              "x": 5,
+              "z": 2
+            },
+            {
+              "card": "C_7E5A100D",
+              "tapped": false,
+              "x": 2,
+              "z": 2
+            },
+            {
+              "card": "C_7E5A100D",
+              "tapped": false,
+              "x": 6,
+              "z": 2
+            },
+            {
+              "card": "C_7E5A100B",
+              "tapped": false,
+              "x": 3,
+              "z": 1
+            },
+            {
+              "card": "C_7E5A100B",
+              "tapped": false,
+              "x": 5,
+              "z": 1
+            }
+          ],
+          "hand": [],
+          "deck": [],
+          "grave": []
+        }
+      },
       "aiScript": [
         {
           "turn": 1,
           "actions": [
             {
               "type": "element",
-              "card": "C_7F1F67FF"
+              "card": "C_4A88A165"
+            },
+            {
+              "type": "element",
+              "card": "C_62DD963D"
             },
             {
               "type": "play",
-              "card": "C_248D1A0A"
+              "card": "C_159D9AD0"
             }
           ]
         },
@@ -88,18 +296,36 @@
           "turn": 2,
           "actions": [
             {
-              "type": "element",
-              "card": "C_A13EE0F1",
-              "target": "Red"
-            },
-            {
-              "type": "play",
-              "card": "C_7F1F67FF"
+              "type": "attack",
+              "attacker": "C_7E5A100E",
+              "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_248D1A0A",
+              "attacker": "C_7E5A100E#2",
               "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D#2",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#9",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#10",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
             }
           ]
         },
@@ -107,18 +333,36 @@
           "turn": 3,
           "actions": [
             {
-              "type": "element",
-              "card": "C_A13EE0F1",
-              "target": "Red"
-            },
-            {
-              "type": "play",
-              "card": "C_A13EE0F1"
+              "type": "attack",
+              "attacker": "C_7E5A100E",
+              "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_7F1F67FF",
+              "attacker": "C_7E5A100E#2",
               "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D#2",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#9",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#10",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
             }
           ]
         },
@@ -126,17 +370,36 @@
           "turn": 4,
           "actions": [
             {
-              "type": "element",
-              "card": "C_248D1A0A"
-            },
-            {
-              "type": "play",
-              "card": "C_16A76B32"
+              "type": "attack",
+              "attacker": "C_7E5A100E",
+              "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_A13EE0F1",
+              "attacker": "C_7E5A100E#2",
               "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D#2",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#9",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#10",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
             }
           ]
         },
@@ -144,34 +407,233 @@
           "turn": 5,
           "actions": [
             {
-              "type": "element",
-              "card": "C_248D1A0A"
-            },
-            {
-              "type": "play",
-              "card": "C_16A76B32"
-            },
-            {
               "type": "attack",
-              "attacker": "C_248D1A0A",
+              "attacker": "C_7E5A100E",
               "target": "hero"
             },
             {
               "type": "attack",
-              "attacker": "C_16A76B32",
+              "attacker": "C_7E5A100E#2",
               "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D#2",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#9",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#10",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 6,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100E",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100E#2",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D#2",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#9",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#10",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 7,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100E",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100E#2",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D#2",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#9",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#10",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 8,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100E",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100E#2",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D#2",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#9",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#10",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 9,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100E",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100E#2",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D#2",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#9",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#10",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
+            }
+          ]
+        },
+        {
+          "turn": 10,
+          "actions": [
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100E",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100E#2",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100D#2",
+              "target": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#9",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
+            },
+            {
+              "type": "attack",
+              "attacker": "C_7E5A100B#10",
+              "target": "C_7E5A100F",
+              "fallback": "hero"
             }
           ]
         }
-      ]
+      ],
+      "playerDeckFile": "basics",
+      "aiDeckFile": "basics_ai"
     },
     {
       "id": "scenario-demo",
       "name": "预设场面验证（临时）",
       "rngSeed": 20261006,
       "_说明": "教学直入管线验证条目（2026-10-06，正式教学目标给定后由各课条目取代）：不从第 1 回合开局，直接站在第 4 回合玩家主阶段——双方生命/地牌/单位/手牌/牌库已就位。deck 字段仅备用（scenario 组卡=双方场面并集）；aiScript 的 turn 从机器人自己的第 1 个回合计（=全局回合 5）。",
-      "playerDeck": [],
-      "aiDeck": [],
       "scenario": {
         "startTurn": 4,
         "firstPlayer": "P1",
@@ -201,8 +663,6 @@
           "units": [
             {
               "card": "C_9CBDD76F",
-              "power": 3,
-              "life": 2,
               "tapped": false,
               "x": 3,
               "z": 3
@@ -291,8 +751,6 @@
       "name": "田忌赛马·攻防取舍",
       "rngSeed": 20261006,
       "_说明": "第一课·第三轮剧本（2026-10-06）：场面铺满 5v5，双方无手牌无地牌空牌库（疲劳=背景时钟，玩家生命 15/机器人 22）。两回合强制演示：①引导主将(6/6)攻岩甲兽(3/9)——唯一能交换伤害的目标（双方各掉血不死），其余目标一律被闸拒绝；②强制结束回合；③对手回合：狼打已横置的主将（单向受伤演示，此窗口守卫被置空自动放行）、巨兽打脸引导用最小的卒守卫（单向受伤演示，卒牺牲）。第三回合起自由操作：主将仅剩 1 血、卒已亡，必须田忌赛马（壁垒/援军守大放小、清横置生物白嫖）并放狼3 的 2 点进脸（选择性承受）才能获胜。解线=全局 11 回合胜、终局生命 3；贪线（不守卫）R2 五只 15 点即死；龟线（只守不攻）R3 守卫耗尽亡。教学卡 tags=教学，不进普通随机卡池。",
-      "playerDeck": [],
-      "aiDeck": [],
       "scenario": {
         "startTurn": 3,
         "firstPlayer": "P1",
@@ -311,40 +769,30 @@
           "units": [
             {
               "card": "C_7E5A1001",
-              "power": -1,
-              "life": -1,
               "tapped": false,
               "x": 4,
               "z": 4
             },
             {
               "card": "C_7E5A1002",
-              "power": -1,
-              "life": -1,
               "tapped": false,
               "x": 2,
               "z": 4
             },
             {
               "card": "C_7E5A1003",
-              "power": -1,
-              "life": -1,
               "tapped": false,
               "x": 6,
               "z": 4
             },
             {
               "card": "C_7E5A1004",
-              "power": -1,
-              "life": -1,
               "tapped": false,
               "x": 3,
               "z": 3
             },
             {
               "card": "C_7E5A100A",
-              "power": -1,
-              "life": -1,
               "tapped": false,
               "x": 5,
               "z": 3
@@ -369,40 +817,30 @@
           "units": [
             {
               "card": "C_7E5A1008",
-              "power": -1,
-              "life": -1,
               "tapped": false,
               "x": 4,
               "z": 1
             },
             {
               "card": "C_7E5A1005",
-              "power": -1,
-              "life": -1,
               "tapped": false,
               "x": 2,
               "z": 1
             },
             {
               "card": "C_7E5A1006",
-              "power": -1,
-              "life": -1,
               "tapped": false,
               "x": 6,
               "z": 1
             },
             {
               "card": "C_7E5A1007",
-              "power": -1,
-              "life": -1,
               "tapped": false,
               "x": 3,
               "z": 2
             },
             {
               "card": "C_7E5A1009",
-              "power": -1,
-              "life": -1,
               "tapped": false,
               "x": 5,
               "z": 2
@@ -463,12 +901,12 @@
             {
               "type": "attack",
               "attacker": "C_7E5A1006",
-              "target": "hero"
+              "target": "C_7E5A1001"
             },
             {
               "type": "attack",
               "attacker": "C_7E5A1007",
-              "target": "hero"
+              "target": "C_7E5A1001"
             },
             {
               "type": "attack",
@@ -544,8 +982,6 @@
       "name": "资源流转·末日降临",
       "rngSeed": 20261006,
       "_说明": "第二课改版（2026-10-11 资源重做第四轮·现取现用）：回合一机器人使用幻卡清空手牌牌库、释放纳川仪典（双方免疲劳）、召唤末日降临（30/30，装载期费用推导自动回填）、赋予 15 回合紊乱、并塞给玩家一张归土仪典。回合二开始引导（教学不洗牌）。新教学线：起始手牌即含白源/黑源——放红苗锁色→打出白源/黑源（预置黑白临时元素支付）→下回合横置两源产黑白（黑白获取唯一通道，临时元素可垫灰费、回合末即逝）→灰苗/蓝苗/绿苗依次入池锁色→打出三色斗士：系统按账单自动横置红/蓝/绿苗支付（现取现用；三色只有本色能付、黑白只垫灰）。",
-      "playerDeck": [],
-      "aiDeck": [],
       "heroLockCard": "C_7E5A2001",
       "scenario": {
         "startTurn": 2,
@@ -592,8 +1028,6 @@
           "units": [
             {
               "card": "C_7E5A2001",
-              "power": -1,
-              "life": -1,
               "tapped": false,
               "x": 4,
               "z": 1,
@@ -606,8 +1040,6 @@
             },
             {
               "card": "C_7E5A200C",
-              "power": -1,
-              "life": -1,
               "tapped": false,
               "x": 2,
               "z": 1,

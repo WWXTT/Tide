@@ -454,7 +454,7 @@ namespace CardCore.Attribute.Handlers
     /// 攻击原子（速度0主动效果，2026-09-16）：底盘能力的计价/组合锚。
     /// 战斗流程由 CombatSystem 消费（宣言→响应窗口→结算），不走常规原子执行——
     /// 本 handler 仅满足注册完整性（VerifyHandlerCoverage 契约），直调为防御性空转。
-    /// 附带「竖直参战至结算完成」由默认攻击能力的明文组合承载（Untap 自身，持续到攻击结算）。
+    /// 附带「以可用状态参战至结算完成」由默认攻击能力的明文组合承载（Untap 自身，持续到攻击结算）。
     /// </summary>
     public class AttackHandler : AtomicEffectHandlerBase
     {

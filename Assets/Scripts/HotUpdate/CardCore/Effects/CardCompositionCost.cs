@@ -119,12 +119,22 @@ namespace CardCore
 
         /// <summary>结界入场耐久加成点数（EquipRules/MorphSystem 初始化消费；
         /// 2026-10-15 深夜改版：结界禁主动效果——速度通道退役，免费点全投耐久）。
-        /// 仅耐久体（Durability&gt;0）可加——持续型结界无次数池。</summary>
+        /// 2026-10-17 用户定案：结界一律走耐久经济（归零送墓）——不再要求印刷 Durability&gt;0
+        /// 才可加（旧「持续型结界无次数池」口径作废——那是更早已废弃的带任务仪式设计）。</summary>
         public static int DurabilityBonusOf(CardData card)
         {
             if (card == null || card.Supertype != Cardtype.Enchantment) return 0;
-            if (card.Durability <= 0) return 0;
             return SurplusOf(card);
+        }
+
+        /// <summary>结界入场耐久总层数（单源，2026-10-17 定案：结界一律走耐久经济）：
+        /// 印刷耐久 + 免费点全投，下限 1（结界必有耐久池）；非结界返回印刷值（装备=纯数据驱动）。
+        /// 消费：EquipRules/MorphSystem 入场初始化 + 各显示口（卡面耐久/头顶配色基准）。</summary>
+        public static int TotalDurabilityOf(CardData card)
+        {
+            if (card == null) return 0;
+            if (card.Supertype != Cardtype.Enchantment) return card.Durability;
+            return Math.Max(1, card.Durability + DurabilityBonusOf(card));
         }
 
         /// <summary>结构费全额（费率 × 结构项，**无预算抵扣**）——衍生物口径专用

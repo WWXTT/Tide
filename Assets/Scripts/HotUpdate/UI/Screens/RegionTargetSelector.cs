@@ -12,8 +12,10 @@ namespace SynergyUI
     /// Region 面板目标选择器（2026-10-15 用户定案，取代本地局 UiTargetSelector 列表弹窗）：
     /// BattleUI.prefab 的 Region 节点（ScrollRect 横滑）= 选择面——viewport/content/ACard 模板
     /// 逐候选实例化卡面（实例隐藏 cost 费用行与 btn 层；模板已无卡费方格）、label-num 写
-    /// 「{选择标题}（x/y）」（标题空时回落「目标数量」——标题即"在为什么选目标"，如回合末
-    /// 弃牌的「回合结束，手牌超出7张，请选择丢弃」）、btn-select（确定）在 x 满足 min..max
+    /// 「{选择提示全文}（x/y）」（2026-10-17 lbl-toast 退役并入：原 toast 面板挪入 Region 更名
+    /// label-num——Image 底板+子节点 label(TMP)，开窗写选择目的/响应说明全文+计数同面板；
+    /// 提示空回落标题——标题即"在为什么选目标"，如回合末弃牌的「回合结束，手牌超出7张，
+    /// 请选择丢弃」，再空回落「目标数量」）、btn-select（确定）在 x 满足 min..max
     /// 后显示，点击即确认收口。
     /// 实现 ITargetSelectorEx：SelectAsync 拿 Candidates 实体渲染 ACard 全卡面（FromLiveCard），
     /// 非卡实体/纯选项回落最小卡面（仅卡名）；超时自持（Ex 契约）——到点取当前有效选择，
@@ -30,10 +32,17 @@ namespace SynergyUI
     /// </summary>
     public sealed class RegionTargetSelector : ITargetSelectorEx
     {
-        /// <summary>选择进行中（BattleScreen 浏览面板闭流判据）。</summary>
-        public static bool IsOpen { get; private set; }
+        /// <summary>选择进行中（BattleScreen 浏览面板闭流判据）。2026-10-17 去静态定案：
+        /// 改实例态随屏生灭——旧局退出时在途 Run 孤悬，静态残留会把新局点击路由闭死
+        /// （重开即卡：手牌点不动、结束回合静默被拒——两次实测复现）。</summary>
+        public bool IsOpen { get; private set; }
+
+        /// <summary>本次开窗的墙钟（realtimeSinceStartup；0=关）。帧驱动看门狗判超时用
+        ///（不依赖 UniTask.Delay——在途 await 链孤悬时面板自身的 60s 超时同样不会触发）。</summary>
+        public float OpenSinceRealtime { get; private set; }
 
         private readonly RectTransform _region;
+        private readonly GameObject _labelNumNode; // label-num 面板本体（TMP 在子节点 label 上——显隐须控面板）
         private readonly TMP_Text _labelNum;
         private readonly Button _btnSelect;
         private readonly RectTransform _content;
@@ -42,11 +51,12 @@ namespace SynergyUI
         private readonly Func<Card, (int x, int z)?> _boardCellOf; // 实体→场上格（null=宿主未注入，无面片）
         private readonly Func<Player, bool> _isLocalPlayer;        // 角色→己方/对方判别（null=一律按对方侧文案）
         private readonly Func<Player, (int x, int z)?> _roleCellOf; // 角色→角色格（null=宿主未注入，选中无面片）
-        // lbl-toast 定案（2026-10-16）：开窗=toast 写「本次选择来干嘛」（效果发动的选择=完整效果文，
-        // 由 BattleScreen 注入 buildPrompt 渲染；纯选项路径=hint 回落 title），关窗=清空；
-        // allowCancel（主动效果可「取消不发动」）随提示一并给宿主亮 btn-notchain
+        // 提示并入 label-num（2026-10-17 lbl-toast 退役定案）：开窗=面板写「本次选择来干嘛」
+        // （效果发动的选择=完整效果文，由 BattleScreen 注入 buildPrompt 渲染；纯选项路径=hint
+        // 回落 title）+「（x/y）」计数；allowCancel（主动效果可「取消不发动」）回调宿主亮
+        // 根级 btn-notchain「取消」（守卫/响应窗口同键共用，显隐归 BattleScreen）
         private readonly Func<TargetSelectionRequest, string> _buildPrompt;
-        private readonly Action<string, bool> _onPrompt;
+        private readonly Action<bool> _onCancelAvailable;
 
         private readonly List<int> _picked = new List<int>();
         private readonly List<Image> _frames = new List<Image>();
@@ -54,6 +64,7 @@ namespace SynergyUI
         private const uint RoleAimIdBase = uint.MaxValue; // 角色候选面片伪键基（角色无 RuntimeId；高位不与卡的低位顺序号冲突）
         private int _min, _max;
         private string _title;
+        private string _prompt; // 选择/响应提示全文（Run 写入·RefreshLabel 与计数合并渲染）
         private bool _busy;
         private UniTaskCompletionSource<List<int>> _activeTcs; // 在途选择收口口（Cancel 用）
 
@@ -62,12 +73,27 @@ namespace SynergyUI
         /// 未在途=无操作。</summary>
         public void Cancel() => _activeTcs?.TrySetResult(new List<int>());
 
+        /// <summary>跨局强制收口（2026-10-17 卡死根因修复）：退出/进屏时清算在途状态——
+        /// Cancel 只解 tcs，若 Run 的收尾链因屏体拆除而孤悬，busy 与静态 IsOpen 会残留：
+        /// IsOpen=true 把新局点击路由闭死（一切按「选择期」拦截）、busy=true 让后续窗口
+        /// 静默 AutoPick。此处不等收尾链，直接把三态钉回空闲（幂等，正常路径无操作）。</summary>
+        public void ForceIdle()
+        {
+            _activeTcs?.TrySetResult(new List<int>());
+            _activeTcs = null;
+            _busy = false;
+            IsOpen = false;
+            OpenSinceRealtime = 0f;
+        }
+
         public RegionTargetSelector(RectTransform region, Func<Card, (int x, int z)?> boardCellOf = null,
             Func<Player, bool> isLocalPlayer = null, Func<Player, (int x, int z)?> roleCellOf = null,
-            Func<TargetSelectionRequest, string> buildPrompt = null, Action<string, bool> onPrompt = null)
+            Func<TargetSelectionRequest, string> buildPrompt = null, Action<bool> onCancelAvailable = null)
         {
             _region = region;
-            _labelNum = region.Find("label-num")?.GetComponent<TMP_Text>();
+            var labelNum = region.Find("label-num");
+            _labelNumNode = labelNum?.gameObject;
+            _labelNum = labelNum?.GetComponentInChildren<TMP_Text>();
             _btnSelect = region.Find("btn-select")?.GetComponent<Button>();
             _viewport = region.Find("viewport") as RectTransform;
             _content = region.Find("viewport/content") as RectTransform;
@@ -76,7 +102,7 @@ namespace SynergyUI
             _isLocalPlayer = isLocalPlayer;
             _roleCellOf = roleCellOf;
             _buildPrompt = buildPrompt;
-            _onPrompt = onPrompt;
+            _onCancelAvailable = onCancelAvailable;
             if (_labelNum == null || _btnSelect == null || _viewport == null || _template == null)
                 Debug.LogError("[RegionTargetSelector] Region 缺节点（label-num/btn-select/viewport/content/ACard）——目标选择将退化自动选");
         }
@@ -94,13 +120,23 @@ namespace SynergyUI
                 if (e is Player p)
                 {
                     // 角色候选（2026-10-16 定案）：非卡实体——卡名只写【己方/对方角色】，
-                    // Hero 型占位卡不带生物立绘槽（ACardView 藏 type 区）
-                    items.Add(new CardOverlayItem
+                    // Hero 型占位卡不带生物立绘槽（ACardView 藏 type 区）。
+                    // 2026-10-17 角色状态展示：stats 芯片带指示物（与 CardOverlayItem.FromHand 同滤法）
+                    //——选目标时可见角色当前状态（法术护盾/耐久类层）。
+                    var role = new CardOverlayItem
                     {
                         Key = "P" + i,
                         Name = _isLocalPlayer != null && _isLocalPlayer(p) ? "【己方角色】" : "【对方角色】",
                         Supertype = Cardtype.Hero,
-                    });
+                    };
+                    foreach (var c in p.EnumerateCounters())
+                    {
+                        var spec = CardCore.Attribute.CounterRules.Find(c.Key);
+                        if (spec != null && spec.LayerRole == CardCore.Attribute.CounterLayerRole.Reading) continue;
+                        (role.CounterChips ??= new List<(string, int)>())
+                            .Add((string.IsNullOrEmpty(spec?.DisplayName) ? c.Key : spec.DisplayName, c.Value));
+                    }
+                    items.Add(role);
                     if (_roleCellOf?.Invoke(p) is { } roleCell) // 选中角色→角色格出面片（2026-10-16 晚定案）
                         reticles[i] = (RoleAimIdBase - (uint)i, roleCell.x, roleCell.z);
                     continue;
@@ -111,8 +147,8 @@ namespace SynergyUI
                 if (card != null && _boardCellOf?.Invoke(card) is { } cell) // 在场上（单位/施放立牌）
                     reticles[i] = (card.RuntimeId, cell.x, cell.z);
             }
-            // lbl-toast（2026-10-16 定案）：效果发动的目标选择——buildPrompt 按 PromptSource/EffectId
-            // 渲染完整效果文；取消口=AllowCancel（主动效果「取消不发动」）
+            // 提示并入 label-num（2026-10-17 定案）：效果发动的目标选择——buildPrompt 按 PromptSource/
+            // EffectId 渲染完整效果文直写面板；取消口=AllowCancel（主动效果「取消不发动」）
             string prompt = _buildPrompt != null ? _buildPrompt(request) : request.Title;
             return await Run(items, reticles, request.MinCount, request.MaxCount, request.Title, timeoutSeconds,
                 prompt, request.AllowCancel);
@@ -126,7 +162,8 @@ namespace SynergyUI
             var items = new List<CardOverlayItem>(labels.Count);
             for (int i = 0; i < labels.Count; i++)
                 items.Add(new CardOverlayItem { Key = "L" + i, Name = labels[i] });
-            // 纯选项路径（响应窗/抉择）：提示=hint 优先（调用方写明「在响应什么」），回落 title
+            // 纯选项路径（响应窗/抉择）：提示=hint 优先（调用方写明「在响应什么」），回落 title——
+            // 同写 label-num（2026-10-17 并入）
             string prompt = string.IsNullOrWhiteSpace(hint) ? title : hint;
             return await Run(items, null, min, max, title, timeoutSeconds, prompt, allowCancel); // 纯选项路径无实体→无面片
         }
@@ -151,6 +188,7 @@ namespace SynergyUI
 
             _busy = true;
             IsOpen = true;
+            OpenSinceRealtime = Time.realtimeSinceStartup;
             _min = min;
             _max = max;
             _title = string.IsNullOrWhiteSpace(title) ? null : title;
@@ -169,11 +207,12 @@ namespace SynergyUI
                 }
             }
 
-            _labelNum.gameObject.SetActive(true);
+            _labelNumNode.SetActive(true); // 面板本体（TMP 在子节点上——须控面板而非文本节点）
             _viewport.gameObject.SetActive(true);
             _btnSelect.gameObject.SetActive(false);
             _region.gameObject.SetActive(true);
-            _onPrompt?.Invoke(string.IsNullOrWhiteSpace(prompt) ? "请选择目标" : prompt, allowCancel); // toast=选择目的（2026-10-16 定案）
+            _prompt = string.IsNullOrWhiteSpace(prompt) ? null : prompt;
+            _onCancelAvailable?.Invoke(allowCancel); // 主动效果可取消=宿主亮「取消」键（提示已并入 label-num）
             if (_region.GetComponent<ScrollRect>() is { } scroll)
                 scroll.horizontalNormalizedPosition = 0f; // 新一轮从最左起
             _btnSelect.onClick.RemoveAllListeners();
@@ -218,9 +257,11 @@ namespace SynergyUI
             foreach (var kv in hidden) kv.Key.SetActive(kv.Value);
             _region.gameObject.SetActive(regionWasActive);
             IsOpen = false;
+            OpenSinceRealtime = 0f;
             _busy = false;
             _activeTcs = null;
-            _onPrompt?.Invoke(null, false); // 关窗清 toast/取消键（2026-10-16 定案）
+            _prompt = null;
+            _onCancelAvailable?.Invoke(false); // 关窗收取消键（仅本屏亮出的才收——2026-10-16 定案沿用）
             return result;
         }
 
@@ -308,8 +349,9 @@ namespace SynergyUI
 
         private void RefreshLabel()
         {
-            // 标题说明本轮选择在选什么（如「回合结束，手牌超出7张，请选择丢弃」），空标题回落通用文案
-            string head = string.IsNullOrWhiteSpace(_title) ? "目标数量" : _title;
+            // 2026-10-17 提示并入：提示全文（效果文/响应说明）优先，空回落标题（如「回合结束，手牌超出
+            // 7张，请选择丢弃」——标题即"在为什么选目标"），再空回落通用文案；计数（x/y）同面板尾随
+            string head = _prompt ?? (string.IsNullOrWhiteSpace(_title) ? "目标数量" : _title);
             _labelNum.text = $"{head}（{_picked.Count}/{_max}）";
             bool ready = _picked.Count >= _min && _picked.Count <= _max;
             if (_btnSelect.gameObject.activeSelf != ready) _btnSelect.gameObject.SetActive(ready);

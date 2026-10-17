@@ -45,6 +45,19 @@ namespace SynergyUI
         /// <summary>刚取用（池空新建或首次出池）：首帧吸附目标，不从旧位置飞入。</summary>
         public bool Fresh;
 
+        // ---- 抽卡飞入演出（2026-10-17）：新抽卡从卡堆屏幕位置弧线飞向扇位 ----
+        // Flying 期间由扇区 Tick 驱动 TickFlight（不参与常规 exp 缓动）；终点每帧取
+        // TargetPos——飞行中重排（邻卡让位/悬停抬升）仍准确落位。
+        /// <summary>飞入中（对账删除/池回收时复位）。</summary>
+        public bool Flying;
+        public Vector2 FlyFrom;                        // 起点（挂载层坐标系）
+        public float FlyT;                             // 进度 0..1
+        private float _flyArcLift;                     // 贝塞尔控制点向屏幕中央的抬升量（带符号，扇区传入）
+        private float _flyStartRot;                    // 起始倾角（朝起点一侧轻倾）
+        private CanvasGroup _flyGroup;                 // 飞入淡入用（离堆浮现；池复用归位 1）
+        private const float FlyDuration = 0.55f;       // 飞入时长（2026-10-17 用户实测 0.38s 太快看不见）
+        private const float FlyStartScale = 0.5f;      // 起始缩放（到达即 TargetScale）
+
         // ---- 可发动边缘雾光（AHandCard/Flowing + SynergyUI/FogEdgeGlow shader） ----
         private RectTransform _flowRoot;  // Flowing 容器（雾光画布：卡面四边外扩，运行时归一尺寸）
         private Material _flowMat;        // 逐卡实例（_Seed 随机=每卡雾形互不相同）
@@ -82,6 +95,58 @@ namespace SynergyUI
             Rot = TargetRot;
             Scale = TargetScale;
             ApplyTransform();
+        }
+
+        /// <summary>抽卡飞入起势（HandFanView.SetCards 新建卡且带起点时调用）：立即摆到起点
+        ///（对账帧不闪在扇位），透明 0 淡入（像从卡堆里抽出），倾角朝起点一侧，缩放 0.5 起步，
+        /// 渲染置顶（不被邻卡遮挡）。</summary>
+        public void BeginFlyIn(Vector2 origin, float arcLift)
+        {
+            Flying = true;
+            FlyFrom = origin;
+            FlyT = 0f;
+            _flyArcLift = arcLift;
+            Fresh = false; // 飞入接管首帧行为（不再吸附）
+            if (_flyGroup == null)
+                _flyGroup = GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
+            _flyGroup.alpha = 0f;
+            Pos = origin;
+            _flyStartRot = Mathf.Sign(origin.x - TargetPos.x) * 10f;
+            Rot = _flyStartRot;
+            Scale = TargetScale * FlyStartScale;
+            transform.SetAsLastSibling();
+            ApplyTransform();
+        }
+
+        /// <summary>飞入推进（扇区 Tick 每帧调用）：二次贝塞尔 + easeInOutCubic（离堆慢起手/
+        /// 入扇缓落——easeOut 前段全速实测太快看不见）；终点/终角/终缩放每帧取当前目标（重排
+        /// 安全）；到达即交还常规 tween 并精确落位，兄弟序交还布局重建。</summary>
+        public void TickFlight(float dt)
+        {
+            FlyT = Mathf.Clamp01(FlyT + dt / FlyDuration);
+            float e = FlyT < 0.5f ? 4f * FlyT * FlyT * FlyT : 1f - Mathf.Pow(-2f * FlyT + 2f, 3f) / 2f; // easeInOutCubic
+            Vector2 mid = (FlyFrom + TargetPos) * 0.5f + Vector2.up * _flyArcLift;
+            float u = 1f - e;
+            Pos = u * u * FlyFrom + 2f * u * e * mid + e * e * TargetPos;
+            Rot = Mathf.Lerp(_flyStartRot, TargetRot, e);
+            Scale = Mathf.Lerp(TargetScale * FlyStartScale, TargetScale, e);
+            if (_flyGroup != null) _flyGroup.alpha = Mathf.Clamp01(e / 0.35f); // 前段淡入
+            transform.SetAsLastSibling();
+            ApplyTransform();
+            if (FlyT >= 1f)
+            {
+                Flying = false;
+                if (_flyGroup != null) _flyGroup.alpha = 1f;
+                SnapToTarget();
+                Fan?.OnFlyInDone(this); // 兄弟序/位姿交还正典布局
+            }
+        }
+
+        /// <summary>飞入态复位（池回收/对账移除时调）：归还透明度，布局由对账重建。</summary>
+        public void ResetFlyState()
+        {
+            Flying = false;
+            if (_flyGroup != null) _flyGroup.alpha = 1f;
         }
 
         public void ApplyTransform()

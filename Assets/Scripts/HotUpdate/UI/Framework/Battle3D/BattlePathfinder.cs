@@ -5,19 +5,19 @@ using UnityEngine;
 namespace SynergyUI
 {
     /// <summary>
-    /// 战斗演出寻路（2026-10-13 战斗编舞配套·纯表现层）：全盘六邻接 BFS 最短路，
-    /// 供攻击宣言箭头（悬停预览）与战斗走位（编舞器执行）共用同一份路径。
+    /// 战斗演出寻路（2026-10-13 战斗编舞配套·纯表现层；2026-10-17 改版：不再绕空地）：
+    /// 途经=攻击方格→接近格的六邻贪心直线（每步取「离终点最近、世界方向最贴合」的邻格），
+    /// 途中不看占用——演出沿格间缝行走（相邻两格共享棱中点，见 CombatChoreographer.SeamWaypoints），
+    /// 贴缝穿模可容忍；占用集仅用于挑接近格（优先空闲，围死贴最近）。
     ///
-    /// 与引擎无关——引擎攻击不查距离（BoardState.InAttackRange 未接线），本寻路只为演出；
-    /// 占用集由调用方从视图数据构建（双方单位格+地牌格+角色格，攻击者自身除外），
-    /// 其余格均可借道（卡组/墓地等特殊格允许演出性穿行，单位不会停驻其上）。
-    /// 54 格 BFS 成本可忽略；悬停侧按目标格缓存复用（由调用方负责）。
+    /// 与引擎无关——引擎攻击不查距离（BoardState.InAttackRange 未接线），本寻路只为演出。
     /// </summary>
     public static class BattlePathfinder
     {
-        /// <summary>攻击方 → 目标的接近路径：终点=目标某个空闲六邻格（总步数最短者）。
+        /// <summary>攻击方 → 目标的接近路径：接近格=目标六邻中离攻击方最近者（同距优先空闲），
+        /// 途经=起点格到接近格的贪心直线（恒相邻步、不避占用——缝走+穿模定案）。
         /// 返回途经格序列（不含起点、含接近格）；已相邻=空表（原地攻击）；
-        /// 目标周边完全围死=空表（原地攻击演出，日志点名——正常摆位不会发生）。</summary>
+        /// 目标六邻全不可用（越界+无tile）=空表（原地攻击演出，日志点名）。</summary>
         public static List<(int x, int z)> FindApproach(
             int fromX, int fromZ, int targetX, int targetZ, HashSet<int> blocked)
         {
@@ -25,75 +25,58 @@ namespace SynergyUI
             if (BoardMath.HexDistance(fromX, fromZ, targetX, targetZ) <= 1)
                 return empty; // 已在临格：无需走位
 
-            int cells = BoardMath.Width * BoardMath.Height;
-            var parent = new int[cells];
-            var dist = new int[cells];
-            for (int i = 0; i < cells; i++) parent[i] = -1;
-            int start = BoardMath.Index(fromX, fromZ);
-            parent[start] = start;
-
-            var queue = new Queue<int>();
-            queue.Enqueue(start);
-            while (queue.Count > 0)
+            // 接近格（战斗站位）：六邻挑「离攻击方最近」者；同距优先空闲（站位不与驻场单位
+            // 重叠——穿模只容忍途经）；再按方向序定死。无可用邻格才原地攻击。
+            int bestX = -1, bestZ = -1, bestDist = int.MaxValue, bestFree = 0;
+            for (int d = 0; d < 6; d++)
             {
-                int cur = queue.Dequeue();
-                int cx = cur % BoardMath.Width, cz = cur / BoardMath.Width;
+                var (nx, nz) = BoardMath.Neighbor(targetX, targetZ, (BoardDirection)d);
+                if (!BoardMath.InBounds(nx, nz) || BoardLayout.NoTileAt(nx, nz)) continue;
+                int dist = BoardMath.HexDistance(fromX, fromZ, nx, nz);
+                int free = IsBlocked(blocked, BoardMath.Index(nx, nz)) ? 0 : 1;
+                if (bestX < 0 || dist < bestDist || (dist == bestDist && free > bestFree))
+                { bestX = nx; bestZ = nz; bestDist = dist; bestFree = free; }
+            }
+            if (bestX < 0)
+            {
+                Debug.Log($"[CombatChoreo] 寻路围死：({targetX},{targetZ}) 六邻无可用格——原地攻击演出");
+                return empty;
+            }
+
+            // 直线借道：贪心逐步逼近（只取推进步=恒相邻），不避占用（缝走定案）
+            var path = new List<(int x, int z)>();
+            int cx = fromX, cz = fromZ;
+            int guard = BoardMath.HexDistance(fromX, fromZ, bestX, bestZ) * 2 + 4;
+            while ((cx != bestX || cz != bestZ) && guard-- > 0)
+            {
+                int curDist = BoardMath.HexDistance(cx, cz, bestX, bestZ);
+                var toDir = BattleBoardGrid.CellCenterLocal(bestX, bestZ)
+                          - BattleBoardGrid.CellCenterLocal(cx, cz);
+                (int x, int z) step = (cx, cz);
+                int stepDist = int.MaxValue;
+                float stepDot = float.MinValue;
                 for (int d = 0; d < 6; d++)
                 {
                     var (nx, nz) = BoardMath.Neighbor(cx, cz, (BoardDirection)d);
                     if (!BoardMath.InBounds(nx, nz)) continue;
-                    int ni = BoardMath.Index(nx, nz);
-                    if (parent[ni] != -1 || IsBlocked(blocked, ni)) continue;
-                    parent[ni] = cur;
-                    dist[ni] = dist[cur] + 1;
-                    queue.Enqueue(ni);
+                    int dist = BoardMath.HexDistance(nx, nz, bestX, bestZ);
+                    if (dist >= curDist) continue; // 只取推进步（未到终点时六邻必有）
+                    var dir = BattleBoardGrid.CellCenterLocal(nx, nz)
+                            - BattleBoardGrid.CellCenterLocal(cx, cz);
+                    float dot = Vector3.Dot(dir.normalized, toDir.normalized);
+                    if (dist < stepDist || (dist == stepDist && dot > stepDot))
+                    { step = (nx, nz); stepDist = dist; stepDot = dot; }
                 }
+                if (step.x == cx && step.z == cz) break; // 无推进步（理论不可达）：尽力截断
+                cx = step.x;
+                cz = step.z;
+                path.Add((cx, cz));
             }
-
-            // 目标六邻中挑「空闲且可达、总步数最短」的接近格
-            int best = -1, bestDist = int.MaxValue;
-            for (int d = 0; d < 6; d++)
-            {
-                var (nx, nz) = BoardMath.Neighbor(targetX, targetZ, (BoardDirection)d);
-                if (!BoardMath.InBounds(nx, nz)) continue;
-                int ni = BoardMath.Index(nx, nz);
-                if (ni == start) return empty; // 保险：站位即邻（早退未覆盖的等价情形）
-                if (IsBlocked(blocked, ni) || parent[ni] == -1) continue;
-                if (dist[ni] < bestDist) { best = ni; bestDist = dist[ni]; }
-            }
-
-            if (best < 0)
-            {
-                // 退化：目标周边无「空闲且连通」的邻格。退而求其次选「空闲且离攻击方最近」的
-                // 邻格单步直取（演出性穿行）；连空闲邻格都没有（理论围死）才原地攻击。
-                int fallback = -1, fallbackDist = int.MaxValue;
-                for (int d = 0; d < 6; d++)
-                {
-                    var (nx, nz) = BoardMath.Neighbor(targetX, targetZ, (BoardDirection)d);
-                    if (!BoardMath.InBounds(nx, nz)) continue;
-                    int ni = BoardMath.Index(nx, nz);
-                    if (IsBlocked(blocked, ni)) continue;
-                    int dd = BoardMath.HexDistance(fromX, fromZ, nx, nz);
-                    if (dd < fallbackDist) { fallback = ni; fallbackDist = dd; }
-                }
-                if (fallback < 0)
-                {
-                    Debug.Log($"[CombatChoreo] 寻路围死：({targetX},{targetZ}) 六邻无空闲格——原地攻击演出");
-                    return empty;
-                }
-                Debug.Log($"[CombatChoreo] 寻路退化：({targetX},{targetZ}) 无连通空闲邻格——单步直取穿行");
-                return new List<(int x, int z)> { (fallback % BoardMath.Width, fallback / BoardMath.Width) };
-            }
-
-            var path = new List<(int x, int z)>();
-            for (int cur = best; cur != start; cur = parent[cur])
-                path.Add((cur % BoardMath.Width, cur / BoardMath.Width));
-            path.Reverse();
             return path;
         }
 
         /// <summary>占用集（视图数据口径）：双方单位格（攻击者除外）+地牌格+双方角色格+无格缺口。
-        /// 目标自身的格也在占用集内——BFS 只接近其邻格，不进入。</summary>
+        /// 目标自身的格也在占用集内——接近格只在目标邻格中挑，不入目标格。</summary>
         public static HashSet<int> BlockedSetOf(BattleViewData d, uint exceptId)
         {
             var set = new HashSet<int>();

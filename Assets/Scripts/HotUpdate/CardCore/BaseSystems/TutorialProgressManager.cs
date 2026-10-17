@@ -8,31 +8,29 @@ namespace CardCore
     /// <summary>
     /// 教学进度管理器（2026-10-06 教学逻辑层）：首次登录在 persistentDataPath 建档（仿
     /// ElementUnlockManager 范式：惰性单例 + TideJson + 每次变更即写、缺档回落默认并落盘），
-    /// 记录跳过询问/考核局结果/已完成教学关卡。UI 层（主菜单按钮显隐、跳过弹窗）后续只读本类，
-    /// 不再自持进度状态。状态机（2026-10-06 第三课+多课序列定案）：
-    /// 建档（skipAskPending=true）→ 询问是否跳过 →
-    ///   跳过 → 考核局（默认卡组镜像对局，见 TutorialCreationFlow.ResolveDefaultMirrorDeck）→
-    ///     胜=skipped（教学按钮换匹配）；负=留在挑战路径（不转课程——可调整默认卡组后重试）；
-    ///   不跳过 → 按 CourseOrder 逐课推进：tianji → lunzhuan → chuangzuo（创作管线走查，
-    ///     三步状态存 creation）；
-    /// 三课全完成 → 主菜单「最后一课」镜像局（ShouldShowFinalChallenge）→ 胜=finalChallengeDone
+    /// 记录已完成教学关卡。UI 层（主菜单按钮显隐）后续只读本类，不再自持进度状态。
+    /// 状态机（2026-10-17 清理后）：建档 → 按 CourseOrder 逐课推进（basics 两段式 → lunzhuan →
+    /// chuangzuo 创作走查）→ 三课全完成 → 主菜单「最后一课」镜像局 → 胜=finalChallengeDone
     /// （IsTutorialDone，全部新手考验完成）。
-    /// basics（旧长教学）配置保留兼容但不进序列；旧档 currentTutorial=basics 可继续打完，
-    /// 完成后 NextTutorialId 自然落入新序列。
+    /// （旧「询问跳过/考核局免教学」路径已删——AskSkip 弹窗从未实装、考核分支不可达；
+    ///   旧档多余 JSON 字段反序列化自动忽略，天然兼容。）
     /// </summary>
     public sealed class TutorialProgressManager
     {
         /// <summary>基础教学关卡 id（与 TutorialConfig.json 条目、BattleEntry.TutorialId 缺省一致）。
-        /// 旧长教学——2026-10-06 起不进新手序列，仅作旧档兼容与 TutorialId 缺省兜底。</summary>
+        /// 2026-10-16 教学一改版：两段式基础教学回炉重造（介绍段+攻防段），重新进序列第一位；
+        /// 旧长教学的「不进序列」口径随之退役。</summary>
         public const string BasicsId = "basics";
 
         /// <summary>第三课·创作管线关卡 id（无战斗剧本——TutorialCreationFlow 走查制，
         /// 不是 TutorialConfig 条目；StartTutorialBattle 对本 id 分流到 BeginLesson）。</summary>
         public const string CreationLessonId = "chuangzuo";
 
-        /// <summary>新手课程序列（田忌赛马 → 资源流转 → 创作管线）。全部完成 +
-        /// 最后一课镜像局获胜 = 教学整体完成（IsTutorialDone）。</summary>
-        public static readonly string[] CourseOrder = { "tianji", "lunzhuan", CreationLessonId };
+        /// <summary>新手课程序列（2026-10-17 创作课取消定案）：basics → lunzhuan 两课，
+        /// 全部完成 + 最后一课镜像局获胜 = 教学整体完成（IsTutorialDone）。
+        /// chuangzuo（创作管线走查）已取消——走查机制休眠保留，旧档 completed 残留惰性、
+        /// currentTutorial=chuangzuo 序列外自动作废（NextTutorialId 现行口径）。</summary>
+        public static readonly string[] CourseOrder = { BasicsId, "lunzhuan" };
 
         private const string SAVE_FILE = "TutorialProgress.json";
 
@@ -61,19 +59,16 @@ namespace CardCore
 
         // ======================================== 查询 ========================================
 
-        /// <summary>待询问"是否跳过基础教学"（建档时置位，ChooseSkip 消费）。</summary>
+        /// <summary>待询问「是否跳过基础教学，进入考核？」（建档时置位，ChooseSkip 消费；
+        /// 2026-10-17 恢复建档跳过链——首次点教学按钮时弹）。</summary>
         public bool SkipAskPending => _data.skipAskPending;
 
-        /// <summary>是否已打过跳过考核局。</summary>
-        public bool AssessmentDone => _data.assessmentDone;
-
-        /// <summary>考核局胜利=免教学（教学按钮从此隐藏换匹配按钮）。</summary>
-        public bool Skipped => _data.skipped;
-
-        /// <summary>跳过询问中选了「跳过」（ChooseSkip(true) 落档；考核胜→skipped 后不再参与判据）。
-        /// 区分跳过路径与课程路径：课程玩家完课后 currentTutorial 被清空，仲裁凭本标记
-        /// 才不会把「课程间隙」误判成待考核（2026-10-13 修复）。</summary>
+        /// <summary>跳过询问中选了「跳过」（考核路径进行中）：!Skipped 期间教学按钮=重开考核局，
+        /// 不再提供回课程入口（2026-10-17 用户定案：负=原地重试）。</summary>
         public bool SkipChosen => _data.skipChosen;
+
+        /// <summary>考核局已获胜=免教学（教学整体完成——主菜单解除门禁、教学按钮换匹配按钮）。</summary>
+        public bool Skipped => _data.skipped;
 
         /// <summary>已完成的教学关卡 id 集。</summary>
         public IReadOnlyList<string> CompletedTutorials => _data.completedTutorials;
@@ -88,15 +83,14 @@ namespace CardCore
         /// <summary>最后一课镜像局是否已获胜（教学整体完成的最后一环）。</summary>
         public bool FinalChallengeDone => _data.finalChallengeDone;
 
-        /// <summary>教学整体完成（考核跳过 或 新手课程全完成+最后一课镜像局获胜）——
+        /// <summary>教学整体完成（考核局获胜免教学 或 新手课程全完成+最后一课镜像局获胜）——
         /// 主菜单解除门禁、教学按钮换匹配按钮的判据。</summary>
-        public bool IsTutorialDone
-            => _data.skipped || (IsCourseCompleted && _data.finalChallengeDone);
+        public bool IsTutorialDone => _data.skipped || (IsCourseCompleted && _data.finalChallengeDone);
 
         /// <summary>主菜单是否门禁（true=只显示教学按钮；教学未完成期间）。</summary>
         public bool ShouldGateMainMenu => !IsTutorialDone;
 
-        /// <summary>主菜单「最后一课」临时按钮显隐判据：新手课程走完、镜像局未胜、未跳过。</summary>
+        /// <summary>主菜单「最后一课」临时按钮显隐判据：新手课程走完、镜像局未胜、未走考核免教学。</summary>
         public bool ShouldShowFinalChallenge
             => !IsTutorialDone && !_data.skipped && IsCourseCompleted && !_data.finalChallengeDone;
 
@@ -104,45 +98,23 @@ namespace CardCore
         public CreationLessonData Creation => _data.creation;
 
         /// <summary>下一步要开的教学关卡 id（进行中优先 → 序列中第一个未完成 → 全完成=null）。
-        /// null=新手课程已走完（此时入口应查 ShouldShowFinalChallenge 走最后一课，而非再开课）。</summary>
+        /// null=新手课程已走完（此时入口应查 ShouldShowFinalChallenge 走最后一课，而非再开课）。
+        /// 2026-10-17 教学一改版兼容：tianji 攻防段并入 basics 第二段移出 CourseOrder——旧档残留的
+        /// currentTutorial=tianji（序列外）作废，按序列首门未完成课取。</summary>
         public string NextTutorialId
         {
             get
             {
-                if (!string.IsNullOrEmpty(_data.currentTutorial)) return _data.currentTutorial;
+                if (!string.IsNullOrEmpty(_data.currentTutorial)
+                    && System.Array.IndexOf(CourseOrder, _data.currentTutorial) >= 0)
+                    return _data.currentTutorial;
                 return CourseOrder.FirstOrDefault(id => !_data.completedTutorials.Contains(id));
             }
         }
 
         // ======================================== 写入 ========================================
 
-        /// <summary>消耗"是否跳过"询问：skip=true 进入考核局路径（落档 skipChosen）；false 直接进入正常教学流程。</summary>
-        public void ChooseSkip(bool skip)
-        {
-            _data.skipAskPending = false;
-            _data.skipChosen = skip;
-            if (!skip && string.IsNullOrEmpty(_data.currentTutorial) && !IsTutorialDone)
-                _data.currentTutorial = FirstUncompletedCourse();
-            SaveAndNotify();
-        }
-
-        /// <summary>考核局结果落档（2026-10-06 改版：输了不转课程）：胜=免教学；
-        /// 负=仅记已考核——留在挑战路径（ShouldAllowAssessmentDeckAdjust 开窗，
-        /// 调整默认卡组后重试，镜像局开局重读该文件、改动生效）。</summary>
-        public void RecordAssessmentResult(bool playerWon)
-        {
-            _data.assessmentDone = true;
-            if (playerWon)
-                _data.skipped = true;
-            SaveAndNotify();
-        }
-
-        /// <summary>考核输过后的「调卡组再挑战」窗口（UI 据此放开卡组构建入口）：
-        /// 考核已打、未免教学、未整体完成。</summary>
-        public bool ShouldAllowAssessmentDeckAdjust
-            => _data.assessmentDone && !_data.skipped && !IsTutorialDone;
-
-        /// <summary>教学关卡完成落档（幂等；清进行中标记）。</summary>
+        /// <summary>教学关卡完成落档（幂等；清进行中标记——含序列外残留作废，2026-10-17）。</summary>
         public void MarkTutorialCompleted(string tutorialId)
         {
             var id = string.IsNullOrEmpty(tutorialId) ? BasicsId : tutorialId;
@@ -150,6 +122,9 @@ namespace CardCore
                 _data.completedTutorials.Add(id);
             if (_data.currentTutorial == id)
                 _data.currentTutorial = null;
+            else if (!string.IsNullOrEmpty(_data.currentTutorial)
+                     && System.Array.IndexOf(CourseOrder, _data.currentTutorial) < 0)
+                _data.currentTutorial = null; // tianji 等序列外残留：并入教学一后作废
             SaveAndNotify();
         }
 
@@ -157,6 +132,24 @@ namespace CardCore
         public void WriteCreationState(CreationLessonData creation)
         {
             _data.creation = creation;
+            SaveAndNotify();
+        }
+
+        /// <summary>消耗「是否跳过基础教学，进入考核？」询问（2026-10-17 恢复）：skip=true=进考核
+        /// 路径（skipChosen 落档）；false=正常课程路径。幂等消费 skipAskPending。</summary>
+        public void ChooseSkip(bool skip)
+        {
+            _data.skipAskPending = false;
+            if (skip) _data.skipChosen = true;
+            SaveAndNotify();
+        }
+
+        /// <summary>考核局获胜落档=免教学（TutorialFlow.ReportBattleResult 路由）。负=无落档：
+        /// 留在考核路径，下次点教学按钮重开考核局（2026-10-17 定案：不提供回课程）。</summary>
+        public void MarkAssessmentWon()
+        {
+            if (_data.skipped) return;
+            _data.skipped = true;
             SaveAndNotify();
         }
 
@@ -178,14 +171,10 @@ namespace CardCore
             SaveAndNotify();
         }
 
-        private string FirstUncompletedCourse()
-            => CourseOrder.FirstOrDefault(id => !_data.completedTutorials.Contains(id));
-
         private void SaveAndNotify()
         {
             SaveState();
             TideLog.Info("[TutorialProgress] 进度更新："
-                         + $"ask={_data.skipAskPending} assessed={_data.assessmentDone} skipped={_data.skipped} "
                          + $"current={_data.currentTutorial ?? "—"} done={IsTutorialDone}");
             OnProgressChanged?.Invoke();
         }
@@ -213,7 +202,7 @@ namespace CardCore
                 TideLog.Error($"[TutorialProgress] 读档失败 - {ex.Message}（按缺档重建）");
             }
 
-            // 首次登录建档：待询问跳过
+            // 首次登录建档（2026-10-17 恢复建档跳过链：skipAskPending 置位——首点教学按钮时弹询问）
             _data = new TutorialProgressData { skipAskPending = true };
             SaveState();
             TideLog.Info($"[TutorialProgress] 首次登录建档：{_savePath}");
@@ -237,10 +226,9 @@ namespace CardCore
         [Serializable]
         private class TutorialProgressData
         {
-            public bool skipAskPending;
-            public bool skipChosen; // 跳过询问选了「跳过」（旧档缺列=false=课程路径口径）
-            public bool assessmentDone;
-            public bool skipped;
+            public bool skipAskPending;    // 建档置位：首点教学弹「是否跳过基础教学，进入考核？」（ChooseSkip 消费）
+            public bool skipChosen;        // 选过「跳过」：考核路径进行中（!skipped 时教学按钮=重开考核局）
+            public bool skipped;           // 考核局获胜=免教学（教学整体完成）
             public bool finalChallengeDone; // 最后一课镜像局已获胜（教学整体完成的最后一环）
             public List<string> completedTutorials = new List<string>();
             public string currentTutorial;

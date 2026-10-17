@@ -45,11 +45,14 @@ namespace SynergyUI
         /// 预设场面（2026-10-06 教学直入）：scenario 非 null=双方卡组（并集）先全部入牌库、跳起手抽取、
         /// 不自动开局，TutorialScenarioSeeder 静默注入场面后再 StartGame——玩家直接站在起跳回合主阶段。
         /// 挑战模式（2026-10-06）：aiLandCapBonus/aiExtraOpeningDraws 直通 InitGame（P2 曲线上移+起手加抽）。
+        /// 对局准备流程（2026-10-17）：playerFirst=硬币先手（null=现状 P1 先）；secondArmorBonus&gt;0=
+        /// StartGame 后给后手角色加护甲指示物（InitGame 开头 Reset 清角色指示物——注入必须在 StartGame 后）。
         /// </summary>
         public void StartNewGame(List<CardData> myDeck = null, List<CardData> aiDeck = null,
             IAiTurnDriver aiDriver = null, bool lockDeckOrder = false, int? rngSeed = null,
             TutorialScenario scenario = null, int aiLandCapBonus = 0, int aiExtraOpeningDraws = 0,
-            string mySkillCardId = null, string aiSkillCardId = null)
+            string mySkillCardId = null, string aiSkillCardId = null,
+            bool? playerFirst = null, int secondArmorBonus = 0)
         {
             var catalog = CardCatalog.LoadAll();
             // 变形目标形态解析器：组合根注入（CardCore 不依赖 UI 层）
@@ -79,12 +82,22 @@ namespace SynergyUI
                 return;
             }
 
+            // 硬币先手（对局准备流程）：穿进 InitGame 的自动 StartGame（Player2 先手=AI 起跳）
+            var first = playerFirst == false ? GameCore.Instance.Player2 : null;
             GameCore.Instance.InitGame(myDeck, aiDeck, rngSeed: rngSeed, lockDeckOrder: lockDeckOrder,
                 p2LandCapBonus: aiLandCapBonus, p2ExtraOpeningDraws: aiExtraOpeningDraws,
-                skillCardId1: mySkill, skillCardId2: aiSkill);
+                skillCardId1: mySkill, skillCardId2: aiSkill, startingPlayer: first);
             // 标记 P2 为 AI：目标选择器对 AI 跳过弹窗、即时自动选择。
             if (GameCore.Instance.Player2 != null)
                 GameCore.Instance.Player2.IsAI = true;
+            // 后手角色护甲补偿（StartGame 已随 InitGame 跑完——Reset 清指示物的窗口已过）
+            if (secondArmorBonus > 0)
+            {
+                var core = GameCore.Instance;
+                var second = first == core.Player2 ? core.Player1 : core.Player2;
+                second.AddCounters(CardCore.Attribute.KeywordRules.ArmorCounter, secondArmorBonus, second);
+                TideLog.Info($"[Battle] 后手 {second.Name} 开局护甲 +{secondArmorBonus}（硬币补偿）");
+            }
             AttachBoard();
         }
 

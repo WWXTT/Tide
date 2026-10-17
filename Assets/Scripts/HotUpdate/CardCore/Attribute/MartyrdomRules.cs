@@ -102,7 +102,7 @@ namespace CardCore.Attribute
             {
                 Target = victim,
                 Keyword = KeywordRules.Martyrdom,
-                Detail = $"舍身结成：{holder} 的战斗伤害转投 {victim}",
+                Detail = $"舍身结成：{EffectText.Name(holder)} 的战斗伤害转投 {EffectText.Name(victim)}",
                 Source = holder,
             });
         }

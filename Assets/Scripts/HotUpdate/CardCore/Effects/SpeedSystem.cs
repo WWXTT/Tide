@@ -46,6 +46,7 @@ namespace CardCore
         private int _currentSpeed = 0;
         private bool _isResolving = false;
         private int _peakSpeed = 0;
+        private bool? _lastRaiserIsTurnPlayer = null; // 最后主动入栈者是否回合方（2026-10-17 同速自连锁禁：null=系统/无）
 
         /// <summary>当前记速器值（本连锁已发动的最高速度）</summary>
         public int CurrentSpeed => _currentSpeed;
@@ -55,6 +56,14 @@ namespace CardCore
 
         /// <summary>本轮连锁的最高记速器值</summary>
         public int PeakSpeed => _peakSpeed;
+
+        /// <summary>记录最后主动入栈者归属（2026-10-17 同速自连锁禁）：每次主动发动入栈时无条件记录——
+        /// RaiseTo 只在更高时抬速，归属须独立记账（攻宣 0 速不抬也算「自己发动」）。
+        /// null=系统动作（SBA）——不占用回合方的「等于」优惠。</summary>
+        public void RecordRaiser(bool? isTurnPlayer)
+        {
+            _lastRaiserIsTurnPlayer = isTurnPlayer;
+        }
 
         /// <summary>
         /// 抬升记速器：只有发动速度**高于**当前值时才抬到该值，否则保持不变
@@ -71,11 +80,14 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 检查效果是否可以发动（2026-09-13 定案口径）：
+        /// 检查效果是否可以发动（2026-09-13 定案口径；2026-10-17 同速自连锁禁修订）：
         /// - 条件发动（强制/自动，"xx时"触发）不走速度，恒通过；
-        /// - 速度发动：回合持有者 速度 ≥ 记速器；非回合持有者 速度 &gt; 记速器（严格大于）；
+        /// - 速度发动：非回合持有者 速度 &gt; 记速器（严格大于，不变）；
+        ///   回合持有者 速度 &gt; 记速器恒可；速度 == 记速器（「等于」优惠）仅当最后入栈者
+        ///   不是自己（对手抬的/系统）——**自己不能以相同速度连锁自己发动的效果**
+        ///   （例：攻宣后再跟 0 速=「攻击的同时发动攻击」被禁；对手守卫 1 速后我方可跟 1 速，
+        ///   我方 1 速发动后自己再 1 速被禁）；
         /// - 结算中不允许速度发动入栈。
-        /// 例：对手发动 1 速 → 记速器 1 → 回合方可连锁 ≥1，非回合方只能连锁 ≥2。
         /// </summary>
         public bool CanActivate(int effectSpeed, bool isTurnPlayer, EffectActivationType activationType)
         {
@@ -85,7 +97,10 @@ namespace CardCore
             if (_isResolving)
                 return false; // 结算中不允许速度发动
 
-            return isTurnPlayer ? effectSpeed >= _currentSpeed : effectSpeed > _currentSpeed;
+            if (!isTurnPlayer)
+                return effectSpeed > _currentSpeed;
+            return effectSpeed > _currentSpeed
+                   || (effectSpeed == _currentSpeed && _lastRaiserIsTurnPlayer != true);
         }
 
         /// <summary>
@@ -97,13 +112,16 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 重置记速器（连锁全部结算完成后）
+        /// 重置记速器（连锁全部结算完成后）。2026-10-17 晚修订：攻宣压制（峰值跨连锁转移）已移除——
+        /// 「守卫后不能立即再攻击」的节奏诉求由表现层承担（ScriptedAi.PacingWait 每击等演出播完），
+        /// 速度压制会造成每守卫一次吃掉 AI 一击的交替瘫痪。归属同时清空。
         /// </summary>
         public void Reset()
         {
             _currentSpeed = 0;
             _isResolving = false;
             _peakSpeed = 0;
+            _lastRaiserIsTurnPlayer = null;
         }
 
         /// <summary>

@@ -114,7 +114,7 @@ namespace CardCore.Attribute
             {
                 Target = ward,
                 Keyword = KeywordRules.Guardian,
-                Detail = $"守护结成：{guardian} 保护 {ward}",
+                Detail = $"守护结成：{EffectText.Name(guardian)} 保护 {EffectText.Name(ward)}",
                 Source = guardian,
             });
         }

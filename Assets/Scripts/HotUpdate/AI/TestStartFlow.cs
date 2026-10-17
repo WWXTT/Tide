@@ -32,55 +32,20 @@ namespace SynergyUI
         /// <summary>预置临时钱包 [灰,红,蓝,绿,白,黑]（回合末清空——黑白费只能从钱包出）。</summary>
         public static readonly int[] SeedBank = { 0, 0, 0, 0, 5, 5 };
 
-        /// <summary>专用测试卡组 30 张（2026-10-16）：入组口径=全部带效果、效果互不重复
-        /// （共用同一效果 id 的多卡只取其一；同触发+同原子+同目标域仅数值不同的缩放版
-        /// 视为重复）。构成：关键词系 18 + 效果生物 8 + 结界 1 + 主动法术 3。
-        /// 落选说明：末日降临=24灰超单色地牌支付上限且与再生共用原子；双策术=火花+洞察
-        /// 的复合（两效果各自入组）；火弹兽/烈焰涌兽=毁灭箭兽（T_BOLT4）的纯数值缩放。</summary>
-        public static readonly string[] TestDeckCardIds =
-        {
-            // ---- 关键词系·原子直挂（登场生效，13）----
-            "C_CA8D2651", // 试作·先攻（073f18c7 四卡代表：先攻/锋卫/剑士/刺客共用）
-            "C_8BF4D663", // 试作·吸血（f7119394 四卡代表：吸血/血蚊/掠食狼/百夫长共用）
-            "C_396A5A59", // 试作·缴械（c253788f 两卡代表：缴械/斗棍兵共用）
-            "C_8DA3BBB6", // 试作·警戒（4cf22304 四卡代表：警戒/哨卫/骑手/盾卫共用）
-            "C_9FAE2DD3", // 试作·连击
-            "C_F370EA65", // 试作·隐密
-            "C_BD21221A", // 试作·系命
-            "C_C9B350E9", // 试作·再生
-            "C_DFCFCB22", // 试作·守护
-            "C_461950EF", // 试作·帷幕
-            "C_DDA93C8E", // 试作·剧毒
-            "C_CD5504C2", // 试作·禁魔石
-            "C_77F4841E", // 试作·不灭
-            // ---- 关键词系·库效果（登场时获得，5）----
-            "C_8A711BD9", // 试作·坚韧
-            "C_43AEF621", // 试作·潜行
-            "C_EE336818", // 试作·法术护盾
-            "C_B15EAE30", // 试作·圣盾
-            "C_63F323B5", // 试作·复生
-            // ---- 效果生物（8）----
-            "C_40BA1423", // 活体火焰：死亡时抽1卡
-            "C_89D96ECB", // 试作·毁灭箭兽：登场伤害4（T_BOLT4）
-            "C_2BB8E3FF", // 试作·战号兽：重置横置（T_INSPIRE）
-            "C_A2CFE97D", // 试作·集结号令兽：己方加攻指示物（T_RALLY）
-            "C_349C1706", // 试作·磨刀兽：加攻指示物+2（T_BUFF2）
-            "C_9CCA2EE2", // 试作·情报兽：抽卡（T_DRAW2）
-            "C_37EDBD92", // 试作·急救兽：回血（T_HEAL4）
-            "C_239B5411", // 试作·演武场兽：主动·伤害+加攻（T_EVODROME）
-            // ---- 结界（1）----
-            "C_57A3ADD6", // 纳川仪典：手牌上限15+免疫疲劳
-            // ---- 主动法术（3）----
-            "C_0CF04C1E", // 火花术：对敌方单位1伤
-            "C_BD523DFD", // 强击术：己方单位攻击+1
-            "C_D4FE2EF6", // 洞察术：抽1张牌
-        };
+        /// <summary>测试卡组引用文件（2026-10-17 卡组文件化）：StreamingAssets/Tutorial/测试卡组.json
+        /// （{name, cardIds} 红·快攻同款格式——id 引用即是卡组，可重复）。原 30 张入组口径（2026-10-16，
+        /// 随数组退役移此备查）：全部带效果、效果互不重复（共用同一效果 id 的多卡只取其一；同触发+同原子+
+        /// 同目标域仅数值不同的缩放版视为重复）；构成=关键词系 18 + 效果生物 8 + 结界 1 + 主动法术 3；
+        /// 落选说明：末日降临=24灰超单色地牌支付上限且与再生共用原子；双策术=火花+洞察的复合；
+        /// 火弹兽/烈焰涌兽=毁灭箭兽（T_BOLT4）的纯数值缩放。</summary>
+        public const string TestDeckFile = "测试卡组";
 
-        /// <summary>解析测试卡组（缺卡记警告、返回已解析子集；30 张全在池=常态）。</summary>
+        /// <summary>解析测试卡组（读引用文件；缺卡记警告、返回已解析子集）。</summary>
         public static List<CardData> ResolveTestDeck()
         {
-            var cards = new List<CardData>(TestDeckCardIds.Length);
-            foreach (var id in TestDeckCardIds)
+            var ids = TutorialLibrary.LoadDeckIds(TestDeckFile);
+            var cards = new List<CardData>(ids.Count);
+            foreach (var id in ids)
             {
                 var card = CardCatalog.GetById(id);
                 if (card != null) cards.Add(card);
@@ -89,7 +54,7 @@ namespace SynergyUI
             return cards;
         }
 
-        /// <summary>「测试开局·地牌充满」入口：专用测试卡组（30 张效果全覆盖，缺卡回落
+        /// <summary>「测试开局·地牌充满」入口：专用测试卡组（引用文件 30 张效果全覆盖，缺卡回落
         /// 默认镜像回退链）洗牌 + 40 张素材卡组队，双方镜像开局；手牌=卡组前
         /// OpeningHandSize 张，素材卡全入地牌。</summary>
         public static void EnterFullLandsTest()
@@ -97,7 +62,7 @@ namespace SynergyUI
             var deck = ResolveTestDeck();
             if (deck.Count < GameCore.OpeningHandSize)
             {
-                TideLog.Warn("[TestStartFlow] 测试卡组不完整（" + deck.Count + "/" + TestDeckCardIds.Length
+                TideLog.Warn("[TestStartFlow] 测试卡组不完整（" + deck.Count
                     + "）——回落默认镜像卡组回退链");
                 deck = TutorialCreationFlow.ResolveDefaultMirrorDeck();
             }

@@ -154,6 +154,21 @@ namespace GameBoard
             return result;
         }
 
+        /// <summary>受益者（角色）当前命中的连接光环清单（2026-10-17 角色状态展示补齐）：与
+        /// BonusOf 的 Player 通道同判定链（受益格=本方角色格、keywordsOnly），并滤掉 stat 条目
+        /// ——属性光环钉死生物专用（Accumulate 同口径），角色只收关键词条目，展示侧不误导。</summary>
+        public static List<(Card source, LinkAuraData aura)> GetApplicableAuras(Player role)
+        {
+            var result = new List<(Card source, LinkAuraData aura)>();
+            if (role == null || !Enabled) return result;
+            int idx = PlayerIndexOf(role);
+            if (idx < 0) return result;
+            foreach (var (source, aura) in EnumerateApplicable(role, BoardLayout.CharacterCell(idx), keywordsOnly: true))
+                if (aura != null && string.IsNullOrEmpty(aura.stat))
+                    result.Add((source, aura));
+            return result;
+        }
+
         // 值求和口 GetAuraKeywordSum 已删（2026-10-08 坚韧指示物化）：唯一消费者是
         // KeywordRules.ApplyPreventionLayers 的坚韧光环份额——坚韧改挂 ToughnessCounter 指示物，
         // 不再经关键词光环投递（表行 a8f7f476 MountKinds=指示物，CanMountAsAura 位 1 硬拒）。

@@ -47,6 +47,9 @@ namespace SynergyUI
         public static readonly Color LogTurn = Rgb(148, 212, 255);     // .log-line--turn
         public static readonly Color LogCombat = Rgb(235, 150, 130);   // .log-line--combat
         public static readonly Color LogSystem = Rgb(120, 200, 150);   // .log-line--system
+        public static readonly Color LogEffect = Rgb(138, 208, 162);   // .log-line--effect 淡绿（效果发动/结算）
+        public static readonly Color LogCard = Rgb(170, 176, 188);     // .log-line--card 灰（卡的打出/放置）
+        public static readonly Color LogPhase = Rgb(130, 136, 148);    // .log-line--phase 阶段分段（暗灰，让位于内容行）
         public static readonly Color AccentBlue = Rgb(86, 150, 250);
 
         // ---------- 色点（USS 提亮版——深底上小圆点需加饱和） ----------
